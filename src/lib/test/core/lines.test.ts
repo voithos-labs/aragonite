@@ -44,7 +44,7 @@ describe('documentLineEnding', () => {
 		expect(documentLineEnding(parse(''))).toBe('\n');
 	});
 
-	// The memo holds only a found break, so a write that gives the document its first one counts.
+	// Read afresh, so a write that gives the document its first break counts at once.
 	it('sees the first break a write introduces', () => {
 		const doc = parse('one line');
 		expect(documentLineEnding(doc)).toBe('\n');

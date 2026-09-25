@@ -231,11 +231,12 @@ function writeParsedContent(
 	// Before every reparse below, so the write lands on the kind its committed bytes describe:
 	// an underline left under an emptied title goes, and the container's escape (`bodyWrite`) runs.
 	const bodyText = forBody(parent, dropSuffixUnderBlankLine(node, text));
+	const lineEnding = parentLineEnding(parent);
 
 	// A context-dependent kind has no standalone recognizer, so reparsing would downgrade it:
 	// keep the kind and write raw through its own legality pass.
 	if (oldDescriptor.contextDependentKind) {
-		writeOwnRaw(node, bodyText, grammar);
+		writeOwnRaw(node, bodyText, lineEnding, grammar);
 		return { op: 'noop' };
 	}
 
@@ -251,7 +252,6 @@ function writeParsedContent(
 	// A marker-consuming container (a GitHub alert) needs its raw rebuilt from the backfilled
 	// body, or raw and children disagree (G1.1).
 	const firstBackfilled = !!first && isEmptyEditableContainer(first);
-	const lineEnding = parentLineEnding(parent);
 	if (first) ensureEditableContainers(first, lineEnding);
 
 	// Blank lines at the start of the text go into the first block's raw (as in the single-block

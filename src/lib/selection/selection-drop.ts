@@ -360,7 +360,7 @@ function cutFromCell(deps: SelectionDropDeps, from: DragSource, cell: CstNode): 
 	const [rowIdx, colIdx] = inner;
 	const written = rebuilt.children?.[rowIdx]?.children?.[colIdx];
 	if (!written) return null;
-	writeOwnRaw(written, cut.display, deps.grammar);
+	writeOwnRaw(written, cut.display, documentLineEnding(deps.getDoc()), deps.grammar);
 	rebuildAncestryRaw(rebuilt, inner);
 	const raw = trimTrailingLineEnding(rebuilt.raw);
 	return { path: tablePath, raw, shrunkBy: trimTrailingLineEnding(table.raw).length - raw.length };
@@ -382,10 +382,10 @@ async function writeBlockRaw(
 	const node = blockNodeAt(doc, path);
 	if (!node) return 0;
 	// The bytes are built outside the block's own element, so the kind's write rule runs here.
-	const written = normalizeOwnRaw(node, rewrite(trimTrailingLineEnding(node.raw)));
+	const lineEnding = documentLineEnding(doc);
+	const written = normalizeOwnRaw(node, rewrite(trimTrailingLineEnding(node.raw)), lineEnding);
 	// A block emptied by the cut keeps its position as a blank paragraph: no splice, so the
 	// second write's path is still the one resolved at the drop.
-	const lineEnding = documentLineEnding(doc);
 	const parsed = parseReplacement(node, written, lineEnding, deps.grammar, () => [
 		emptyParagraph(node.leadingTrivia ?? '', trailingLineEnding(node.raw, lineEnding))
 	]);

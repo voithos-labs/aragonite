@@ -123,6 +123,7 @@ async function toggleFormatOverRange(
 				{ children: docScope.children },
 				plan,
 				docScope.sharing,
+				docScope.lineEnding,
 				deps.linkRef.grammar
 			);
 			return [{ op: 'noop' }];

@@ -3,6 +3,7 @@ import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import { mergeIntoPrevDeepLeaf } from '../../tree-operations';
 import { writeOwnRaw } from '../../tree-operations/node-primitives';
+import { documentLineEnding } from '../../core/lines';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
 import { fixtureLinkRef } from '../harness/fixture-grammar';
 
@@ -16,7 +17,7 @@ describe('writeOwnRaw re-derives parse-owned metadata (GH #54)', () => {
 	it('a heading write refreshes the level its bytes now carry', () => {
 		const doc = parse('## ab\n');
 
-		writeOwnRaw(doc.children[0], '# ab\n', undefined);
+		writeOwnRaw(doc.children[0], '# ab\n', documentLineEnding(doc), undefined);
 
 		expect(doc.children[0].metadata).toMatchObject({ level: 1 });
 		expect(describeConvergence(doc)).toBeNull();
@@ -25,7 +26,7 @@ describe('writeOwnRaw re-derives parse-owned metadata (GH #54)', () => {
 	it('a fence write refreshes the info string', () => {
 		const doc = parse('```js\nx\n```\n');
 
-		writeOwnRaw(doc.children[0], '```ts\nx\n```\n', undefined);
+		writeOwnRaw(doc.children[0], '```ts\nx\n```\n', documentLineEnding(doc), undefined);
 
 		expect(doc.children[0].metadata).toMatchObject({ info: 'ts' });
 		expect(describeConvergence(doc)).toBeNull();

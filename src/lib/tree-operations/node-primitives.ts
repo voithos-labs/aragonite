@@ -70,20 +70,25 @@ export const forBody = (parent: BodyParentArg, raw: string): string =>
  * reparse re-derives metadata, so structure the rule restores from the old metadata is applied
  * first. An undrawn suffix under a blank line goes before the kind's own rule runs.
  */
-export function normalizeOwnRaw(node: NodeView, raw: string): string {
+export function normalizeOwnRaw(node: NodeView, raw: string, lineEnding: LineEnding): string {
 	const descriptor = tryGetBlockKindDescriptor(node.kind);
 	if (!descriptor) return raw;
 	const kept = dropSuffixUnderBlankLine(node, raw);
-	return descriptor.normalizeRawWrite?.(kept, node) ?? kept;
+	return descriptor.normalizeRawWrite?.(kept, node, { lineEnding }) ?? kept;
 }
 
 /**
  * Write `raw` as `node`'s own bytes through its kind's rule, in place. Every write of a leaf's
  * bytes that bypasses the kind's editable element must use this or {@link normalizeOwnRaw}.
  */
-export function writeOwnRaw(node: CstNode, raw: string, grammar: GrammarView | undefined): void {
+export function writeOwnRaw(
+	node: CstNode,
+	raw: string,
+	lineEnding: LineEnding,
+	grammar: GrammarView | undefined
+): void {
 	const descriptor = tryGetBlockKindDescriptor(node.kind);
-	const legal = normalizeOwnRaw(node, raw);
+	const legal = normalizeOwnRaw(node, raw, lineEnding);
 	node.raw = legal;
 	// A context-dependent kind's raw does not reparse to itself, so a fragment parse would only
 	// mis-read metadata that was never parse-derived.
@@ -97,7 +102,7 @@ export function writeOwnRaw(node: CstNode, raw: string, grammar: GrammarView | u
 
 /**
  * Every argument is required: a paragraph's raw ends in a line ending, so the caller says which
- * document's ending it takes (G4.20). A fresh object every call, or one instance would sit at
+ * document's ending it takes. A fresh object every call, or one instance would sit at
  * several tree positions (G1.9).
  */
 export function paragraphNode(leadingTrivia: string, text: string, lineEnding: string): CstNode {

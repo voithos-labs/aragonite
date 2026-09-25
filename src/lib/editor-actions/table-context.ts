@@ -226,7 +226,9 @@ export function createTableMutationsContext(
 				for (let c = oldCols; c < needCols; c++) insertEmptyColumn(table, c - 1, 'right');
 				grid.forEach((line, r) => {
 					const cells = table.children![origin.rowIdx + r].children!;
-					line.forEach((text, c) => writeOwnRaw(cells[origin.colIdx + c], text, deps.grammar));
+					line.forEach((text, c) =>
+						writeOwnRaw(cells[origin.colIdx + c], text, tableScope.lineEnding, deps.grammar)
+					);
 				});
 				rebuildTableRaw(table);
 				const addedRows = needRows - oldRows;

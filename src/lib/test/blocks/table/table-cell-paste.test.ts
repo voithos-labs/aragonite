@@ -18,6 +18,14 @@ import {
 } from '../../../schema/inline-construct-policy';
 import { fixtureLinkRef, pasteSeam } from '../../harness/fixture-grammar';
 
+/** A children array as the body parent a write reads, owned by nothing, in an LF document. */
+const asBody = (parent: { children?: CstNode[] }) => ({
+	children: parent.children!,
+	ownerKind: undefined,
+	owner: undefined,
+	lineEnding: '\n' as const
+});
+
 function makeCell(raw: string): CstNode {
 	return { kind: 'tableCell', leadingTrivia: '', raw };
 }
@@ -39,7 +47,7 @@ function pasteIntoRow(
 		metadata: { isHeader: false },
 		children: [makeCell(cellRaw), makeCell('keep')]
 	};
-	updateNodeContent(row as never, 0, result.newRaw);
+	updateNodeContent(asBody(row), 0, result.newRaw);
 	writeTableRow(row, '\n');
 	const table = parse('| h | h |\n| --- | --- |\n' + row.raw).children[0];
 	return { ...result, cells: (table.children?.[1].children ?? []).map((c) => c.raw) };
@@ -87,7 +95,7 @@ describe('escapedCellOffset: the caret follows the sink’s inserted backslashes
 			metadata: { isHeader: false },
 			children: [makeCell('')]
 		};
-		updateNodeContent(row as never, 0, 'a|b|c');
+		updateNodeContent(asBody(row), 0, 'a|b|c');
 		expect(escapedCellOffset('a|b|c', 5)).toBe(row.children![0].raw.length);
 	});
 });

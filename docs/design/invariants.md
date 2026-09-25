@@ -1008,12 +1008,17 @@ skipping the gate trips the file-set check. `lint/reading-gate-parity.test.ts`.
 
 **G4.20 · One document line ending.** A line the editor writes takes the document's line ending,
 its first line break (`src/lib/core/lines.ts` :: `documentLineEnding`), and per-line work reads each
-line's text without its ending (`src/lib/core/lines.ts` :: `displayLines`). The ending choice is
-unrepresentable: `trailingLineEnding(raw, fallback)` takes the fallback a block with no ending of its own
-gets as a required argument, so no call can guess LF. Two scan branches hold what the type cannot
-see: no `split('\n')` over a block's bytes outside `core/lines.ts`, which would leave a CRLF line's
-`\r` on the text a line match reads; and no write to a node's `raw` creates a newline literal, with
-legitimately literal writes allowlisted by reason and count. An outcome check runs each gesture over
+line's text without its ending (`src/lib/core/lines.ts` :: `displayLines`). The ending a block with
+none of its own gets is a required argument of `trailingLineEnding(raw, fallback)`, so every call
+names it. Where a document is in reach (a commit's scope, a paste's context, a component, a
+raw-write rule's `write.lineEnding`, a context action's `ctx.lineEnding`) the call passes the
+document's ending. Where none is (a container's `rebuildRaw`, a join or reparse that reads only a
+children array) it passes the block's own first break, the document's in a one-ending document,
+and falls back to LF only for a block that holds no line break at all. Three scan branches hold
+what the type cannot see: no `split('\n')` over a block's bytes outside `core/lines.ts`, which
+would leave a CRLF line's `\r` on the text a line match reads; no `updateBlockContent` content
+argument ends in a newline literal; and no write to a node's `raw` creates one, with legitimately
+literal writes allowlisted by reason and count. An outcome check runs each gesture over
 an LF fixture and its CRLF mirror, unterminated last lines included, and requires the results to
 mirror. `lint/trailing-line-ending-parity.test.ts` (branches); `crlf-edit-mirror.test.ts` (the outcome check).
 

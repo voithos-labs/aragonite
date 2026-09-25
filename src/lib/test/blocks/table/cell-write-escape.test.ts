@@ -15,6 +15,14 @@ import { makeStubBlockEdit } from '../../harness/editor-actions';
 import { mountCell } from './mount-cell';
 import { settleEditor } from '$lib/test/harness/settle';
 
+/** A children array as the body parent a write reads, owned by nothing, in an LF document. */
+const asBody = (parent: { children?: CstNode[] }) => ({
+	children: parent.children!,
+	ownerKind: undefined,
+	owner: undefined,
+	lineEnding: '\n' as const
+});
+
 // The cell holds `a\|b`, an escaped pipe. The renderer emits the backslash as a marker span and
 // the `|` as text, so both bytes are in the text content and the caret can sit between them.
 const ESCAPED = 'a\\|b';
@@ -44,7 +52,7 @@ function reparsedCells(committed: string): string[] {
 			{ kind: 'tableCell', leadingTrivia: '', raw: 'keep' }
 		]
 	};
-	updateNodeContent(row as never, 0, committed);
+	updateNodeContent(asBody(row), 0, committed);
 	writeTableRow(row, '\n');
 	return splitRowCells(row.raw);
 }

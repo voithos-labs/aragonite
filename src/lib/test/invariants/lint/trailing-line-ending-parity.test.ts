@@ -7,8 +7,51 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { collectEditorSources, literalSpans, rawAssignments } from './scan-source';
+import {
+	balancedRegion,
+	callArguments,
+	collectEditorSources,
+	literalSpans,
+	rawAssignments
+} from './scan-source';
 import { describeFileRules, except } from './file-rule';
+
+// ── Content writes ───────────────────────────────────────────────────────────
+
+/** The content (2nd) argument of every `updateBlockContent(` call in `code`. */
+function contentArgs(code: string): string[] {
+	const out: string[] = [];
+	const re = /updateBlockContent\s*\(/g;
+	let m: RegExpExecArray | null;
+	while ((m = re.exec(code)) !== null) {
+		const region = balancedRegion(code, code.indexOf('(', m.index));
+		if (region === null) continue;
+		const args = callArguments(region.slice(1, -1));
+		if (args.length >= 2) out.push(args[1]);
+	}
+	return out;
+}
+
+/** A content argument closed with `+ '\n'` or `+ '\r\n'`: a literal where the ending belongs. */
+const APPENDS_NEWLINE_LITERAL = /\+\s*(['"`])(?:\\r)?\\n\1\s*$/;
+
+describe('G4.20 no content write appends a newline literal', () => {
+	const writes = collectEditorSources().flatMap((file) =>
+		contentArgs(file.code).map((arg) => ({ relPath: file.relPath, arg }))
+	);
+
+	it('no updateBlockContent content argument ends in a newline literal', () => {
+		const violations = writes.filter((write) => APPENDS_NEWLINE_LITERAL.test(write.arg));
+		expect(
+			violations,
+			"a content write reattaches the block's ending with `trailingLineEnding(raw, documentEnding)`"
+		).toEqual([]);
+	});
+
+	it('reads the real content writes (not vacuous)', () => {
+		expect(writes.length).toBeGreaterThanOrEqual(10);
+	});
+});
 
 // ── Classification ───────────────────────────────────────────────────────────
 
@@ -98,6 +141,23 @@ describe('G4.20 node.raw write ending provenance', () => {
 // ── Matcher self-tests (non-vacuity) ─────────────────────────────────────────
 
 describe('G4.20: extractor and matcher self-tests', () => {
+	it('extracts the content argument across nested calls', () => {
+		expect(contentArgs('updateBlockContent(i, f(a, b) + blockEnding(), o)')).toEqual([
+			'f(a, b) + blockEnding()'
+		]);
+		expect(contentArgs('updateBlockContent(index, newRaw, preEdit)')).toEqual(['newRaw']);
+	});
+
+	it('flags a newline literal appended to a content write, and spares the derived ending', () => {
+		const [literal] = contentArgs("updateBlockContent(index, text + '\\n', preEdit)");
+		expect(APPENDS_NEWLINE_LITERAL.test(literal)).toBe(true);
+		expect(APPENDS_NEWLINE_LITERAL.test("x + '\\r\\n'")).toBe(true);
+		const [derived] = contentArgs(
+			'updateBlockContent(index, text + trailingLineEnding(node.raw, ending), preEdit)'
+		);
+		expect(APPENDS_NEWLINE_LITERAL.test(derived)).toBe(false);
+	});
+
 	it('raw-assignment scan extracts the statement and skips comparisons', () => {
 		const one = (src: string) => rawAssignments([{ relPath: 'x', text: src, code: src }]);
 

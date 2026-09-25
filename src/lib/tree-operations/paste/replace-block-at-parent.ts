@@ -44,7 +44,7 @@ export interface ReplaceBlockAtParentArgs {
  * Land the clipboard's trailing blank line where a reload keeps one: the document's own suffix,
  * and only at a tail with nothing after it, since one separation is one separation. A container
  * tail declines: `innerSuffix` belongs to the fence-line fix-up on this same commit. The
- * clipboard says whether a line lands, never which one: the document's ending does (G4.20).
+ * clipboard says whether a line lands, never which one: the document's ending does.
  */
 function landTrailingSeparator(
 	args: ReplaceBlockAtParentArgs,

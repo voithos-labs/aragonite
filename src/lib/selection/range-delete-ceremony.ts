@@ -128,7 +128,7 @@ export function reparseTruncatedEndpoint(
 	grammar: GrammarView | undefined
 ): CstNode[] {
 	const lineEnding = trailingLineEnding(node.raw, ending);
-	const reparsed = parse(normalizeOwnRaw(node, slice) || lineEnding, {
+	const reparsed = parse(normalizeOwnRaw(node, slice, ending) || lineEnding, {
 		grammar,
 		scope: 'fragment'
 	});

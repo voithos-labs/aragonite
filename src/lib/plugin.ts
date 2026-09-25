@@ -67,6 +67,7 @@ export type {
 	BlockKindAugmentation,
 	ContainerDescriptorGroup,
 	MergeRole,
+	RawWriteContext,
 	UnwrapRole
 } from './schema/block-kind-descriptor';
 // `rebuildRaw`'s optional second argument: the one child whose raw moved, for a rebuilder that
@@ -172,7 +173,7 @@ export {
 	displayLines,
 	joinDisplayLines
 } from './core/lines';
-export type { LineEnding, DisplayLine } from './core/lines';
+export type { LineEnding } from './core/lines';
 // GFM §2.1's blank line (spaces and tabs only). `String.trim()` would admit the whole
 // Unicode whitespace set and split a block on a pasted non-breaking space.
 export { isBlankLine } from './core/parser';

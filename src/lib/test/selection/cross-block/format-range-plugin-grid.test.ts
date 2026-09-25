@@ -19,6 +19,7 @@ import {
 } from '$lib/selection/cross-block/format-range';
 import type { SelectionPoint } from '$lib/selection/primitives';
 import { docAround, gridOf, planStored, registerPluginGrid } from './plugin-grid-kind';
+import { documentLineEnding } from '$lib/core/lines';
 
 afterEach(() => __resetSchemaRegistriesForTests());
 
@@ -38,7 +39,13 @@ describe('a grid whose kind carries no table metadata', () => {
 			[[2], '**tail**']
 		]);
 		expect(() =>
-			applyCrossBlockFormat(doc, plan, createSharingState(), defaultGrammarView)
+			applyCrossBlockFormat(
+				doc,
+				plan,
+				createSharingState(),
+				documentLineEnding(doc),
+				defaultGrammarView
+			)
 		).not.toThrow();
 	});
 

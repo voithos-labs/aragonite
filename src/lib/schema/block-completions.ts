@@ -11,8 +11,8 @@ import { createPluginRegistry, type RegistryRecord } from './plugin-registry';
 import { pluginKindOwner } from './plugin-kind';
 
 /**
- * The replacement, as lines with no line endings: the Enter handler attaches the block's own
- * (G4.20). `caret.path` is the child indices inside the new block, empty for the block itself,
+ * The replacement, as lines with no line endings: the Enter handler attaches the block's own, else
+ * the document's. `caret.path` is the child indices inside the new block, empty for the block itself,
  * and `line`/`column` are a position inside that node. Line-relative rather than a byte offset
  * because the Enter handler picks the line ending afterwards, so only it can count bytes.
  */

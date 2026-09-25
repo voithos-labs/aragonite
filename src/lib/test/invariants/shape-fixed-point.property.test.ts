@@ -104,7 +104,7 @@ function applyFill(doc: Document, at: number): void {
 	const blanks = doc.children.flatMap((node, i) => (isBlankParagraph(node) ? [i] : []));
 	if (blanks.length === 0) return;
 	const target = blanks[at % blanks.length];
-	const text = 'x' + trailingLineEnding(doc.children[target].raw, '\n');
+	const text = 'x' + trailingLineEnding(doc.children[target].raw, documentLineEnding(doc));
 	settled(doc, () => updateNodeContent(doc, target, text).change);
 }
 
@@ -150,7 +150,11 @@ function applyEmpty(doc: Document, at: number): void {
 	const slots = proseLeafSlots(doc);
 	if (slots.length === 0) return;
 	const slot = slots[at % slots.length];
-	writeLeaf(doc, slot, trailingLineEnding(slot.holder.children![slot.index].raw, '\n'));
+	writeLeaf(
+		doc,
+		slot,
+		trailingLineEnding(slot.holder.children![slot.index].raw, documentLineEnding(doc))
+	);
 }
 
 /**
@@ -164,7 +168,11 @@ function applyRetype(doc: Document, at: number): void {
 	const slot = slots[at % slots.length];
 	const node = slot.holder.children![slot.index];
 	const domText = node.raw.slice(0, getContentRange(node).end);
-	writeLeaf(doc, slot, domText + undrawnSuffix(node) + trailingLineEnding(node.raw, '\n'));
+	writeLeaf(
+		doc,
+		slot,
+		domText + undrawnSuffix(node) + trailingLineEnding(node.raw, documentLineEnding(doc))
+	);
 }
 
 function writeLeaf(doc: Document, { holder, index, chain }: LeafSlot, text: string): void {

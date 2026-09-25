@@ -107,6 +107,7 @@ export async function handleCrossBlockTypeReplace(
 						chain[chain.length - 2]?.kind,
 						owned.raw.slice(0, charOffset) + typed + owned.raw.slice(charOffset)
 					),
+					documentLineEnding(doc),
 					ctx.grammar
 				);
 				rebuildUnsharedChain(doc, chain, sharing, null, ctx.grammar);

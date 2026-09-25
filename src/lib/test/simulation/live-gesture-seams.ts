@@ -540,7 +540,8 @@ function acrossLeaves(
 	});
 	// A toggle the planner turns down writes nothing, which is that code's own answer rather than
 	// a gesture the fuzzer failed to apply.
-	if (plan) applyCrossBlockFormat(h.doc, plan, h.sharing, defaultGrammarView);
+	if (plan)
+		applyCrossBlockFormat(h.doc, plan, h.sharing, documentLineEnding(h.doc), defaultGrammarView);
 	return true;
 }
 

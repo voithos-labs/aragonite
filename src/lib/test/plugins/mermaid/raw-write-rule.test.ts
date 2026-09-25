@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { parse, serialize } from '$lib';
 import { resetPluginPlatformForTests } from '$lib/testing';
 import { normalizeOwnRaw } from '$lib/tree-operations/node-primitives';
+import { documentLineEnding } from '$lib/plugin';
 import { rangeDelete } from '$lib/selection/range-delete';
 import { createSharingState } from '$lib/tree-operations/sharing';
 import { registerMermaidKind } from '$lib/plugins/mermaid/mermaid-kind';
@@ -14,7 +15,8 @@ import { fixtureLinkRef } from '../../harness/fixture-grammar';
 
 /** The rule as a write path reaches it: dispatched off the node's own kind. */
 function write(source: string, raw: string): string {
-	return normalizeOwnRaw(parse(source).children[0], raw);
+	const doc = parse(source);
+	return normalizeOwnRaw(doc.children[0], raw, documentLineEnding(doc));
 }
 
 beforeEach(() => {

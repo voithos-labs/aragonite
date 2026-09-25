@@ -18,12 +18,12 @@ import {
 	OPENER_PRIORITIES,
 	trimTrailingLineEnding,
 	displayLines,
-	firstLineEnding,
 	ownTrailingLineEnding,
 	trailingLineEnding,
 	type FenceOpen,
 	type CstNode,
-	type NodeView
+	type NodeView,
+	type RawWriteContext
 } from '$lib/plugin';
 
 export const MERMAID = 'mermaid';
@@ -97,9 +97,9 @@ function grownCloser(closerRaw: string, marker: '`' | '~', length: number): stri
  * Put back a closing fence a truncating write dropped (a range delete or a find/replace over the
  * fence bytes), sized on the written opener's run, so the blocks below never become diagram
  * source. A first line that no longer opens a mermaid fence is left alone. The closer line takes
- * the block's own ending, else the first break in its bytes.
+ * the block's own ending, else the document's.
  */
-function normalizeMermaidRaw(raw: string, node: NodeView): string {
+function normalizeMermaidRaw(raw: string, node: NodeView, write: RawWriteContext): string {
 	const display = trimTrailingLineEnding(raw);
 	const lines = displayLines(display);
 	const fence = matchMermaidFence(lines[0].text);
@@ -107,7 +107,7 @@ function normalizeMermaidRaw(raw: string, node: NodeView): string {
 	const closes = (line: { text: string }) => matchFenceClose(line.text, fence.marker, fence.length);
 	if (lines.slice(1).some(closes)) return raw;
 	const closer = fence.indent + fence.marker.repeat(fence.length);
-	const ending = trailingLineEnding(node.raw, firstLineEnding(node.raw) ?? '\n');
+	const ending = trailingLineEnding(node.raw, write.lineEnding);
 	return display + ending + closer + ownTrailingLineEnding(raw);
 }
 

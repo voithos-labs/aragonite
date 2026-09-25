@@ -9,6 +9,7 @@
 
 import { metadataOf } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
+import type { RawWriteContext } from './block-kind-descriptor';
 import {
 	displayLines,
 	firstDisplayLine,
@@ -68,11 +69,9 @@ export function reconcileFenceWrite(input: FenceWriteInput): FenceWriteResult {
  * element is never the user typing the block's own fence. The fence lines are fixed first, so
  * growing the runs measures a body that ends where the closer does.
  */
-export function normalizeFencedRaw(raw: string, node: NodeView): string {
+export function normalizeFencedRaw(raw: string, node: NodeView, write: RawWriteContext): string {
 	const fence = fenceShapeOf(node);
-	// The fence spans lines, so its own bytes hold the document's ending; only a lone opener line
-	// with no break at all falls back to LF.
-	const ending = trailingLineEnding(node.raw, firstLineEnding(node.raw) ?? '\n');
+	const ending = trailingLineEnding(node.raw, write.lineEnding);
 	const written = reconcileFenceWrite({
 		display: reconcileFenceLines(trimTrailingLineEnding(raw), fence, ending),
 		caret: 0,

@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '$lib';
 import { resetPluginPlatformForTests } from '$lib/testing';
 import { normalizeOwnRaw } from '$lib/tree-operations/node-primitives';
+import { documentLineEnding } from '$lib/plugin';
 import { registerMathBlock } from '$lib/plugins/latex/latex-kind';
 
 // Both math kinds declare a raw-write rule that puts back a closer a truncating write dropped, so
@@ -12,7 +13,8 @@ import { registerMathBlock } from '$lib/plugins/latex/latex-kind';
 
 /** The rule as a write path reaches it: dispatched off the node's own kind. */
 function write(source: string, raw: string): string {
-	return normalizeOwnRaw(parse(source).children[0], raw);
+	const doc = parse(source);
+	return normalizeOwnRaw(doc.children[0], raw, documentLineEnding(doc));
 }
 
 // One call registers both forms, as one install of the plugin does.

@@ -1647,7 +1647,7 @@ registerBlockContextActions(conspiracy, 'debunk', (node) => [
 ]);
 ```
 
-`run` receives a `BlockActionContext`: the node, its path, `deleteBlock()`, and `replaceRaw(raw)`, which rewrites the block's bytes wholesale and reparses them, the road the default replace row takes. Each is one undo entry. An action that writes clipboard text runs it through `transformPaste(text)` first, so it gets the rewrites a paste into that editor would. `icon` names a glyph the editor's menus already draw (the same set the code rail and the table menu use); a row without one shows none. `danger` paints the row in the error colour, for an action that is not one undo away.
+`run` receives a `BlockActionContext`: the node, its path, `deleteBlock()`, and `replaceRaw(raw)`, which rewrites the block's bytes wholesale and reparses them, the road the default replace row takes. Each is one undo entry. A line those bytes add takes `ctx.lineEnding`, the document's, so a CRLF document stays CRLF. An action that writes clipboard text runs it through `transformPaste(text)` first, so it gets the rewrites a paste into that editor would. `icon` names a glyph the editor's menus already draw (the same set the code rail and the table menu use); a row without one shows none. `danger` paints the row in the error colour, for an action that is not one undo away.
 
 ## Paste transforms
 

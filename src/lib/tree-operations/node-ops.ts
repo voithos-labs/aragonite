@@ -460,7 +460,12 @@ export function mergeIntoPrevDeepLeaf(
 	const lineEnding = trailingLineEnding(target.raw, parentLineEnding(parent));
 	const { raw: mergedRaw, seam: joinOffset } = joinRaw(target, curr, presentationMode, linkRef);
 	const read = fragmentReaderAt(ownerAt(parent, leafPath), slot, grammar);
-	const merged = mergedLeafFor(target, trimTrailingLineEnding(mergedRaw) + lineEnding, read);
+	const merged = mergedLeafFor(
+		target,
+		trimTrailingLineEnding(mergedRaw) + lineEnding,
+		read,
+		lineEnding
+	);
 	if (!merged) return null;
 
 	// The merge writes the deep leaf's raw plus every ancestor's rebuilt raw, so copy the whole
@@ -524,8 +529,13 @@ interface MergedLeaf {
  * The deep-leaf merge's decision: the absorbed bytes pass through the kind's own write rule and
  * a fragment reparse. Null when they read as several blocks, since the leaf holds one (G1.35).
  */
-function mergedLeafFor(target: CstNode, raw: string, read: FragmentReader): MergedLeaf | null {
-	const written = normalizeOwnRaw(target, raw);
+function mergedLeafFor(
+	target: CstNode,
+	raw: string,
+	read: FragmentReader,
+	lineEnding: LineEnding
+): MergedLeaf | null {
+	const written = normalizeOwnRaw(target, raw, lineEnding);
 	// A context-dependent kind has no standalone recognizer, so its bytes are never read back
 	// as blocks and the write keeps the kind.
 	if (tryGetBlockKindDescriptor(target.kind)?.contextDependentKind) {

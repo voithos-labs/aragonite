@@ -34,19 +34,12 @@ export function ownTrailingLineEnding(raw: string): '' | LineEnding {
 
 // ── The document's line ending ───────────────────────────────────────────────
 
-const documentEndings = new WeakMap<DocumentView, LineEnding>();
-
 /**
  * The ending every line the editor writes into `doc` takes: the document's first line break, else
- * LF. Remembered per document once found; a document holding no break yet is scanned again on
- * each call, so the first break a write (a paste, an Enter) introduces is the one the next reads.
+ * LF. Read afresh on each call, which scans only up to that first break.
  */
 export function documentLineEnding(doc: DocumentView): LineEnding {
-	const known = documentEndings.get(doc);
-	if (known) return known;
-	const found = firstDocumentBreak(doc);
-	if (found) documentEndings.set(doc, found);
-	return found ?? '\n';
+	return firstDocumentBreak(doc) ?? '\n';
 }
 
 function firstDocumentBreak(doc: DocumentView): LineEnding | null {

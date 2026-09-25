@@ -20,7 +20,6 @@ import {
 	OPENER_PRIORITIES,
 	trimTrailingLineEnding,
 	displayLines,
-	firstLineEnding,
 	joinDisplayLines,
 	ownTrailingLineEnding,
 	trailingLineEnding,
@@ -29,7 +28,8 @@ import {
 	type InlineNode,
 	type CstNode,
 	type FenceOpen,
-	type NodeView
+	type NodeView,
+	type RawWriteContext
 } from '$lib/plugin';
 import MathInline from './MathInline.svelte';
 import { registerMathBlockCompleter } from './math-completion';
@@ -176,22 +176,22 @@ export function mathDisplaySource(source: string): string {
 
 // ── Writing a block's own bytes ────────────────────────────────────────────────
 
-/** The ending a restored closer line takes: the block's own, else the first break in its bytes. */
-const closerEnding = (node: NodeView) =>
-	trailingLineEnding(node.raw, firstLineEnding(node.raw) ?? '\n');
+/** The ending a restored closer line takes: the block's own, else the document's. */
+const closerEnding = (node: NodeView, write: RawWriteContext) =>
+	trailingLineEnding(node.raw, write.lineEnding);
 
 /**
  * The `$$` kind's `normalizeRawWrite`: put back a closer a truncating write dropped, as a fenced
  * code block does. A first line that no longer opens the block is left alone.
  */
-function normalizeMathBlockRaw(raw: string, node: NodeView): string {
+function normalizeMathBlockRaw(raw: string, node: NodeView, write: RawWriteContext): string {
 	const display = trimTrailingLineEnding(raw);
 	const lines = displayLines(display);
 	const { text } = lines[0];
 	if (!text.startsWith(BLOCK_FENCE)) return raw;
 	if (text === BLOCK_FENCE) {
 		if (lines.slice(1).some((line) => line.text === BLOCK_FENCE)) return raw;
-		return display + closerEnding(node) + BLOCK_FENCE + ownTrailingLineEnding(raw);
+		return display + closerEnding(node, write) + BLOCK_FENCE + ownTrailingLineEnding(raw);
 	}
 	if (isBlockMathOpener(text)) return raw;
 	// The one-line form closes on line 0, so the lines a join brought along stay their own blocks.
@@ -201,7 +201,7 @@ function normalizeMathBlockRaw(raw: string, node: NodeView): string {
 
 /** The same rule for the ```math form, whose closer is always a line of its own. The run to close
  *  on comes from the written opener, not the block's old one. */
-function normalizeMathFenceRaw(raw: string, node: NodeView): string {
+function normalizeMathFenceRaw(raw: string, node: NodeView, write: RawWriteContext): string {
 	const display = trimTrailingLineEnding(raw);
 	const lines = displayLines(display);
 	const fence = matchMathFence(lines[0].text);
@@ -209,7 +209,7 @@ function normalizeMathFenceRaw(raw: string, node: NodeView): string {
 	const closes = (line: { text: string }) => matchFenceClose(line.text, fence.marker, fence.length);
 	if (lines.slice(1).some(closes)) return raw;
 	const closer = fence.indent + fence.marker.repeat(fence.length);
-	return display + closerEnding(node) + closer + ownTrailingLineEnding(raw);
+	return display + closerEnding(node, write) + closer + ownTrailingLineEnding(raw);
 }
 
 // ── Block `$$…$$` display math ─────────────────────────────────────────────────

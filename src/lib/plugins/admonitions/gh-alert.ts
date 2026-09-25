@@ -9,6 +9,7 @@ import {
 	escalatedColonCount,
 	firstLineEnding,
 	splitLines,
+	type LineEnding,
 	type ParsedLine
 } from '$lib/plugin';
 import { ADMONITION_KINDS } from './kinds';
@@ -41,17 +42,16 @@ export interface AlertConversion {
 }
 
 /**
- * Each emitted line keeps its source line ending so CRLF survives; the closer runs one line past
- * the source, which is what the fallback covers. The body converts in the same pass: stripping a
+ * Each emitted line keeps its source line ending so CRLF survives; a line with none of its own
+ * takes `ending`, the text's. The body converts in the same pass: stripping a
  * quote level promotes a nested `> [!TIP]` to a top-level marker a later pass would convert again.
  */
-function emitDirective(name: string, source: ParsedLine[]): string {
-	const fallback = firstLineEnding(source.map((line) => line.raw).join('')) ?? '\n';
+function emitDirective(name: string, source: ParsedLine[], fallback: LineEnding): string {
 	const stripped = source
 		.slice(1)
 		.map((line) => stripQuoteMarker(line.text) + (line.lineEnding || fallback))
 		.join('');
-	const body = splitLines(convertGithubAlerts(stripped).converted);
+	const body = splitLines(convertAlerts(stripped, fallback).converted);
 	// The fence runs longer than any colon run in the body, which would otherwise read as
 	// this container's own closer once the output is written into the document.
 	const colons = ':'.repeat(
@@ -64,14 +64,18 @@ function emitDirective(name: string, source: ParsedLine[]): string {
 
 /** GitHub honors `[!TYPE]` only on the blockquote's first line; everything after,
  *  lazy-continuation lines and later literal markers alike, is body. */
-export function convertAlertBlockquoteRaw(raw: string): string | null {
+export function convertAlertBlockquoteRaw(raw: string, ending: LineEnding): string | null {
 	const lines = splitLines(raw);
 	if (lines.length === 0) return null;
 	const typed = matchAlertMarker(lines[0].text);
-	return typed ? emitDirective(typed.toLowerCase(), lines) : null;
+	return typed ? emitDirective(typed.toLowerCase(), lines, ending) : null;
 }
 
 export function convertGithubAlerts(text: string): AlertConversion {
+	return convertAlerts(text, firstLineEnding(text) ?? '\n');
+}
+
+function convertAlerts(text: string, ending: LineEnding): AlertConversion {
 	const lines = splitLines(text);
 	let converted = '';
 	let changed = false;
@@ -84,7 +88,7 @@ export function convertGithubAlerts(text: string): AlertConversion {
 			// A marker line always opens a quote, so the extent covers at least this line;
 			// checked anyway because a loosened indent cap would hang this loop.
 			if (nextIndex > i) {
-				converted += emitDirective(typed.toLowerCase(), lines.slice(i, nextIndex));
+				converted += emitDirective(typed.toLowerCase(), lines.slice(i, nextIndex), ending);
 				changed = true;
 				i = nextIndex;
 				continue;

@@ -130,7 +130,7 @@ export function rangeDelete(
 				end: endOffset
 			}
 		: joinAboveUndrawn(startBlock, startCut, endBlock, endOffset, (tail) =>
-				normalizeOwnRaw(endBlock, tail)
+				normalizeOwnRaw(endBlock, tail, documentLineEnding(doc))
 			);
 	const startOffset = join.start;
 	// A join can create a line neither side held: two lines each with a mid-line `</details>`
@@ -160,7 +160,7 @@ export function rangeDelete(
 		const owned = chain[chain.length - 1] ?? ensureUnsharedNode(startBlock, sharing);
 		// No reparse on this branch, so the kind's own write rule runs here: a join can create a
 		// line the kind reads as its terminator (a fence run in a code body).
-		writeOwnRaw(owned, joined.raw, grammar);
+		writeOwnRaw(owned, joined.raw, documentLineEnding(doc), grammar);
 		// Before the rebuild, which reads the blank lines: a selection covering a block's whole
 		// text leaves it blank, and a blank block is the separating line of the one below it.
 		const parent = nodeAt(doc, start.path.slice(0, -1));

@@ -6,6 +6,7 @@
  */
 export const EVERY_KIND = '*';
 import type { NodeView } from '../core/node-views';
+import type { LineEnding } from '../core/lines';
 import type { PluginActivation } from './plugin-activation';
 import { createPluginRegistry } from './plugin-registry';
 import { registerAsCore } from './plugin-install';
@@ -18,6 +19,8 @@ export interface BlockActionContext {
 	deleteBlock(): Promise<void>;
 	/** Replace the block's bytes wholesale; the result reparses to whatever those bytes are. */
 	replaceRaw(raw: string): Promise<void>;
+	/** The document's line ending, which a line in `replaceRaw`'s bytes takes. */
+	lineEnding: LineEnding;
 	/** Pasted text through the paste transforms of the plugins this editor lists, as a paste
 	 *  into the editor would see it. */
 	transformPaste(text: string): string;

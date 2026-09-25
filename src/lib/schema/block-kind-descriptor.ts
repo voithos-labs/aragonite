@@ -1,5 +1,6 @@
 import { isBuiltinBlockKind, type AnyBlockKind, type CstNode } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
+import type { LineEnding } from '../core/lines';
 import type { ContainerBodyWrap } from '../core/parser';
 import { enqueueRegistrationCheck } from './registration-pending';
 import { currentInstallingPlugin } from './plugin-install';
@@ -83,6 +84,12 @@ export interface CaretTarget {
 	offset: number;
 }
 
+/** What a raw-write rule reads besides the bytes. */
+export interface RawWriteContext {
+	/** The document's line ending, which a line the rule writes takes when the block has none. */
+	lineEnding: LineEnding;
+}
+
 export interface BlockKindDescriptor {
 	mergeRole: MergeRole;
 	editable: boolean;
@@ -143,7 +150,7 @@ export interface BlockKindDescriptor {
 	 * give callers a caret mapping when a prefix of the input does not map to a prefix of the
 	 * output. Every write built outside the block's own editable text applies it.
 	 */
-	normalizeRawWrite?: (raw: string, node: NodeView) => string;
+	normalizeRawWrite?: (raw: string, node: NodeView, write: RawWriteContext) => string;
 	/**
 	 * Make text legal as a child's raw inside this container's body (container kinds only), for a
 	 * container whose fixed closing line (`</details>`) a body write could reproduce. Applied before

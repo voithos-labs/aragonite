@@ -234,6 +234,7 @@ async function applyContainerMatchingMerge(
 				writeOwnRaw(
 					ownedLeaf,
 					displayBefore + firstItemText + displayAfter + targetLineEnding,
+					lineEnding,
 					ctx.grammar
 				);
 				rebuildUnsharedChain(ctx.doc, chain, sharing, null, ctx.grammar);
@@ -263,7 +264,12 @@ async function applyContainerMatchingMerge(
 		mutate: ([scopeView]) => {
 			const sharing = scopeView.sharing;
 			const { chain, ownedLeaf } = ownMergedLeafSpine(sharing);
-			writeOwnRaw(ownedLeaf, displayBefore + firstItemText + targetLineEnding, ctx.grammar);
+			writeOwnRaw(
+				ownedLeaf,
+				displayBefore + firstItemText + targetLineEnding,
+				lineEnding,
+				ctx.grammar
+			);
 			// The residue can cross a kind boundary (a fence closer landing in a paragraph),
 			// so it reattaches through the reparse path, never a bare write.
 			residue = updateNodeContent(
