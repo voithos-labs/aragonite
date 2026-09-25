@@ -8,6 +8,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { collectEditorSources, stripComments, type SourceFile } from './scan-source';
+import { probeFile } from './file-rule';
 
 /** Every file naming the announcement, and the write it owns. */
 const ANNOUNCERS: Record<string, string> = {
@@ -38,7 +39,7 @@ const UNSHARES_ROOT = /\bensureUnsharedPath\s*\(\s*deps\.doc\b/;
 
 function matching(sources: SourceFile[], re: RegExp): string[] {
 	return sources
-		.filter((f) => re.test(stripComments(f.text)))
+		.filter((f) => re.test(f.code))
 		.map((f) => f.relPath)
 		.sort();
 }
@@ -86,11 +87,10 @@ describe('content-version entry-point census', () => {
 	});
 
 	it('an undeclared entry point fails the set equality', () => {
-		const rogue: SourceFile = {
+		const rogue = probeFile({
 			relPath: 'src/lib/editor-actions/rogue.ts',
-			text: 'ensureUnsharedPath(deps.doc, path, deps.sharing);',
-			code: ''
-		};
+			code: 'ensureUnsharedPath(deps.doc, path, deps.sharing);'
+		});
 		expect(matching([...sources, rogue], UNSHARES_ROOT)).not.toEqual(
 			Object.keys(ROOT_UNSHARERS).sort()
 		);

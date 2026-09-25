@@ -12,9 +12,6 @@ import { findCommentBlocks } from './comment-lines';
 const HEADER_LIMIT = 7;
 const BLOCK_LIMIT = 6;
 
-/** Blocks allowed over budget, each with the reason it is load-bearing where it stands. */
-const KNOWN_LONG: Record<string, string> = {};
-
 interface BudgetHit {
 	relPath: string;
 	line: number;
@@ -25,7 +22,7 @@ interface BudgetHit {
 export function findBudgetHits(relPath: string, code: string): BudgetHit[] {
 	return findCommentBlocks(code)
 		.map((b) => ({ b, limit: b.isHeader ? HEADER_LIMIT : BLOCK_LIMIT }))
-		.filter(({ b, limit }) => b.text.length > limit && !(`${relPath}:${b.line}` in KNOWN_LONG))
+		.filter(({ b, limit }) => b.text.length > limit)
 		.map(({ b, limit }) => ({ relPath, line: b.line, textLines: b.text.length, limit }));
 }
 
@@ -45,20 +42,6 @@ describe('G4.26 comment blocks stay inside the budget', () => {
 	it('the walk still reaches both of the blind spots', () => {
 		expect(sources.some((f) => f.relPath.endsWith('.css'))).toBe(true);
 		expect(sources.some((f) => f.relPath.startsWith('src/routes/'))).toBe(true);
-	});
-
-	it('every allowlist entry still names an over-budget block', () => {
-		const stale = Object.keys(KNOWN_LONG).filter((key) => {
-			const [relPath, line] = [
-				key.slice(0, key.lastIndexOf(':')),
-				key.slice(key.lastIndexOf(':') + 1)
-			];
-			const file = sources.find((f) => f.relPath === relPath);
-			if (!file) return true;
-			const block = findCommentBlocks(file.text).find((b) => String(b.line) === line);
-			return !block || block.text.length <= (block.isHeader ? HEADER_LIMIT : BLOCK_LIMIT);
-		});
-		expect(stale).toEqual([]);
 	});
 
 	// ── Matcher self-tests (non-vacuity) ─────────────────────────────────────

@@ -5,7 +5,7 @@
  * sets its own.
  */
 
-import { DEV } from 'esm-env';
+import { isDevChecks } from '../../env';
 import { getContext } from 'svelte';
 import type { ComponentProps } from 'svelte';
 // Type only, erased at build: no runtime import of `components/` here. It is for the
@@ -195,7 +195,11 @@ export function composeCollapseProbe(
 	if (!explicit) return () => isCollapsedContainer(getNode());
 	return () => {
 		const value = explicit();
-		if (DEV && value !== isCollapsedContainer(getNode()) && !isReadingMode(getPresentationMode)) {
+		if (
+			isDevChecks() &&
+			value !== isCollapsedContainer(getNode()) &&
+			!isReadingMode(getPresentationMode)
+		) {
 			devWarn(
 				'plugin-container',
 				`isCollapsed dep disagrees with the declared reservedChrome.isCollapsed probe for kind "${getNode().kind}"`

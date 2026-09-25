@@ -94,24 +94,21 @@ test.describe('simulation error collector: the dev-warn sentinel', () => {
 	});
 });
 
-// Svelte's runtime warnings carry no `[aragonite:…]` tag, so both watches match on
-// `[svelte] <code>` instead. Declaring it in `test.use` shows the spec's watch saw it; waiving
-// it shows the collector did. Two codes, because `derived_inert` would fall outside any list of
-// known ones, so narrowing the match fails here on detection rather than on spelling.
-for (const code of ['state_proxy_equality_mismatch', 'derived_inert']) {
-	test.describe(`simulation error collector: the svelte runtime channel (${code})`, () => {
-		test.use({ expectSvelteWarns: [code] });
+// Declaring the code in `test.use` shows the spec's watch saw the warning; waiving it shows the
+// collector did. Which codes the shared line parser reads is `dev-warn.test.ts`'s to pin.
+test.describe('simulation error collector: the svelte runtime channel', () => {
+	const code = 'state_proxy_equality_mismatch';
+	test.use({ expectSvelteWarns: [code] });
 
-		test('reds on the runtime warning, and the waiver silences that code', async ({ page }) => {
-			await new EditorPage(page).goto();
-			const errors = attachErrorCollector(page);
-			await errors.start();
-			await svelteWarnOnPage(page, code);
-			await pollUntilThrows(errors);
-			await errors.assertNone([`svelte:${code}`]);
-		});
+	test('reds on the runtime warning, and the waiver silences that code', async ({ page }) => {
+		await new EditorPage(page).goto();
+		const errors = attachErrorCollector(page);
+		await errors.start();
+		await svelteWarnOnPage(page, code);
+		await pollUntilThrows(errors);
+		await errors.assertNone([`svelte:${code}`]);
 	});
-}
+});
 
 test.describe('simulation error collector: the waiver is per-tag', () => {
 	test.use({ expectWarns: ['tree-ops', 'state-registry'] });

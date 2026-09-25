@@ -11,12 +11,17 @@ import {
 	balancedCall,
 	callArguments,
 	collectEditorSources,
+	collectFiles,
 	EDITOR_SRC,
+	enclosingFunction,
 	importSpecifiers,
 	isProseSurface,
 	literalSpans,
 	rawAssignments,
+	regexLiteralAt,
 	REPO_WIDE_ROOTS,
+	splitTopLevel,
+	stringLiteralAt,
 	stripComments
 } from './scan-source';
 
@@ -159,6 +164,12 @@ describe('literal-aware walking', () => {
 		expect(callArguments('a, /\\//.test(x), b')).toEqual(['a', '/\\//.test(x)', 'b']);
 	});
 
+	it('splits on any separator, a longer operator holding it excepted', () => {
+		expect(splitTopLevel("a + f(b + c) + '+' + d", '+')).toEqual(['a', 'f(b + c)', "'+'", 'd']);
+		expect(splitTopLevel('i++ + j', '+')).toEqual(['i++', 'j']);
+		expect(splitTopLevel('x += y', '+')).toEqual(['x += y']);
+	});
+
 	// The other half of the recognizer: reading division as a regex swallows the operands
 	// between two slashes, which merges argument slots just as silently.
 	it('reads division as division', () => {
@@ -220,5 +231,64 @@ describe('literal-aware walking', () => {
 		expect(rawAssignments([{ relPath: 'x', text: src, code: src }])).toEqual([
 			{ relPath: 'x', statement: ".raw = source.replace(/'/g, '') + ending" }
 		]);
+	});
+});
+
+describe('enclosingFunction', () => {
+	const nameAt = (code: string, token = 'site') => enclosingFunction(code, code.indexOf(token));
+
+	it('names a declaration, a method and an assigned arrow, past types and type parameters', () => {
+		expect(nameAt('function menu(a: T): Item[] {\n\tsite();\n}')).toBe('menu');
+		expect(nameAt('function pick<T>(a: T[]): void {\n\tsite(a);\n}')).toBe('pick');
+		expect(nameAt('const clean: Cleaner = (j) => {\n\tsite();\n};')).toBe('clean');
+		expect(nameAt('const api = { run(): void {\n\tsite();\n} };')).toBe('run');
+		expect(nameAt('const load = async (u) => {\n\tsite(u);\n};')).toBe('load');
+	});
+
+	it('walks out through control blocks, callbacks and plain blocks', () => {
+		expect(nameAt('function outer() {\n\tfor (const x of y) {\n\t\tif (x) site();\n\t}\n}')).toBe(
+			'outer'
+		);
+		expect(nameAt('function outer() {\n\titems.map((x) => {\n\t\tsite(x);\n\t});\n}')).toBe(
+			'outer'
+		);
+	});
+
+	it('names the function whose parameter list holds the site, as for a default value', () => {
+		expect(nameAt('export function read(n, grammar = site) {\n\treturn n;\n}')).toBe('read');
+	});
+
+	it('answers <module> at the top level, and reads no bracket inside a literal', () => {
+		expect(nameAt('const x = site();')).toBe('<module>');
+		expect(nameAt("const s = '{';\nfunction f() {}\nsite();")).toBe('<module>');
+	});
+});
+
+describe('literal values', () => {
+	it('reads a string or template value, escapes decoded, and nothing past an interpolation', () => {
+		expect(stringLiteralAt("x('a\\'b\\n')", 2)).toEqual({ value: "a'b\n", end: 10 });
+		expect(stringLiteralAt('`a|b`', 0)?.value).toBe('a|b');
+		expect(stringLiteralAt('`a${b}`', 0)).toBeNull();
+		expect(stringLiteralAt("'open\nnext", 0)).toBeNull();
+		expect(stringLiteralAt('// note', 0)).toBeNull();
+	});
+
+	it('compiles a regex literal in operand position, and reads division as none', () => {
+		const found = regexLiteralAt('f(/a[/]b/gi)', 2);
+		expect(found?.value).toEqual(/a[/]b/gi);
+		expect(found?.end).toBe(11);
+		expect(regexLiteralAt('a / b / c', 2)).toBeNull();
+	});
+});
+
+describe('collectFiles', () => {
+	it('lists matching files under a root as sorted repo paths, and never enters a skipped name', () => {
+		const lint = collectFiles('src/lib/test/invariants', { extensions: ['.ts'], skip: ['lint'] });
+		expect(lint.length).toBeGreaterThan(0);
+		expect(lint).toEqual([...lint].sort());
+		expect(lint.every((f) => f.startsWith('src/lib/test/invariants/') && f.endsWith('.ts'))).toBe(
+			true
+		);
+		expect(lint.some((f) => f.includes('/lint/'))).toBe(false);
 	});
 });

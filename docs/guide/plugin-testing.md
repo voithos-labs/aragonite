@@ -138,7 +138,7 @@ fires[0];
 
 `setDevWarnSink` returns the sink it replaced, so a nested harness restores rather than clears.
 
-One prerequisite: warnings only emit while the editor believes it's in a dev build, and a sink over a production build stays empty for the wrong reason. A Vitest suite gets the dev flag automatically, because its build resolves it. Under another runner, or a bundler that resolves no export conditions, call `configureEditorEnv({ isDev: true })` in your setup (add `isTest: true` if the suite also uses the reset) and `resetEditorEnv()` in teardown.
+One prerequisite: warnings and invariant checks only run while the editor believes it's in a dev build, and a sink over a production build stays empty for the wrong reason. A Vitest suite gets the dev flag automatically, because its build resolves it. Under another runner, or a bundler that resolves no export conditions, call `configureEditorEnv({ isDev: true })` in your setup (add `isTest: true` if the suite also uses the reset) and `resetEditorEnv()` in teardown; that one switch turns on both.
 
 ### Proving a paste transform is wired
 

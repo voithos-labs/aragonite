@@ -1,22 +1,20 @@
-// The docs name seams by path and symbol, and the tree names docs back by section, so a moved
-// seam or a renamed heading has to move its citers. In `docs/design` and `docs/contributing` every
-// backticked `src/`, `docs/` or `scripts/` span must resolve on disk, and a symbol after `::` must
-// appear word-bounded in that file (fenced blocks exempt). Repo-wide, a `<doc>.md § Name` pointer
-// must slug-match a heading of that doc. Existence, not correctness: a stale claim about a live
-// file passes.
-import { execSync } from 'node:child_process';
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+// The docs name code by path and symbol, and the tree names docs back by section, so a moved
+// file or a renamed heading has to move its citers. In `docs/design` and `docs/contributing` every
+// backticked `src/`, `docs/` or `scripts/` path, alone or inside a command, must resolve on disk,
+// and a symbol after `::` must appear word-bounded in that file (fenced blocks exempt). Repo-wide,
+// a `<doc>.md § Name` pointer must slug-match a heading of that doc. Existence, not correctness.
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { corpusFiles } from './doc-corpus.mjs';
 
 const DOC_DIRS = ['docs/design', 'docs/contributing'];
 const REFERENCE_ROOT = /^(?:src|docs|scripts)\//;
 const CODE_SPAN = /(`+)((?:(?!\1).)*?)\1/g;
 
-/** Roots a `§` pointer is cited from; a gitignored doc beside them ships nowhere and is dropped. */
+/** Roots a `§` pointer is cited from. */
 const POINTER_ROOTS = ['src', 'docs', 'scripts', 'examples', 'README.md', 'CONTRIBUTING.md'];
 const POINTER_EXTENSIONS = ['.ts', '.svelte', '.md', '.mjs', '.css'];
-const SKIPPED_DIRS = new Set(['node_modules', 'build', 'dist', '.svelte-kit', 'superpowers']);
 
 /**
  * @typedef {object} Reference A `path` or `path :: Symbol` span a doc claims.
@@ -36,66 +34,12 @@ const SKIPPED_DIRS = new Set(['node_modules', 'build', 'dist', '.svelte-kit', 's
 // ── Corpus ──────────────────────────────────────────────────────────────
 
 /**
- * @param {string} dir
- * @returns {string[]}
- */
-function markdownIn(dir) {
-	if (!existsSync(dir)) {
-		console.error(`codebase-map: ${dir} is missing`);
-		process.exit(1);
-	}
-	return readdirSync(dir)
-		.filter((name) => name.endsWith('.md'))
-		.sort()
-		.map((name) => `${dir}/${name}`);
-}
-
-/**
- * @param {string} dir
- * @param {string[]} out
- * @returns {string[]}
- */
-function walk(dir, out) {
-	for (const entry of readdirSync(dir, { withFileTypes: true })) {
-		if (SKIPPED_DIRS.has(entry.name)) continue;
-		const full = `${dir}/${entry.name}`;
-		if (entry.isDirectory()) walk(full, out);
-		else if (POINTER_EXTENSIONS.some((ext) => entry.name.endsWith(ext))) out.push(full);
-	}
-	return out;
-}
-
-/**
- * A gitignored doc sits on disk beside the corpus but ships nowhere, so a pointer inside one is
- * not the repo's to gate. Outside a work tree nothing is ignored, which suits a synthetic corpus.
- * @param {string[]} roots
- * @returns {string[]}
- */
-function ignoredFiles(roots) {
-	try {
-		return execSync(`git ls-files --others --ignored --exclude-standard -- ${roots.join(' ')}`, {
-			encoding: 'utf8',
-			stdio: ['ignore', 'pipe', 'ignore']
-		})
-			.split('\n')
-			.filter(Boolean);
-	} catch {
-		return [];
-	}
-}
-
-/**
- * Every citing file under `roots`, gitignored ones dropped as the docs-link gate drops them.
+ * Every file a `§` pointer may be cited from, gitignored ones dropped.
  * @param {string[]} roots
  * @returns {string[]}
  */
 export function citingFiles(roots) {
-	const ignored = new Set(ignoredFiles(roots));
-	const found = roots.flatMap((root) => {
-		if (!existsSync(root)) return [];
-		return statSync(root).isDirectory() ? walk(root, []) : [root];
-	});
-	return found.filter((file) => !ignored.has(file)).sort();
+	return corpusFiles(roots, POINTER_EXTENSIONS);
 }
 
 // ── Reference spans ─────────────────────────────────────────────────────
@@ -146,7 +90,14 @@ export function referencesIn(file, text) {
 		// Both spellings, since a reader writes whichever renders better: two adjacent spans joined
 		// by `::`, or one span holding the whole reference.
 		const parts = span.content.split('::').map((part) => part.trim());
-		if (!REFERENCE_ROOT.test(parts[0])) continue; // a backticked `Mod` or `focus` is prose
+		if (!REFERENCE_ROOT.test(parts[0])) {
+			// A command names the files it runs: `npx vitest run src/lib/x.test.ts`.
+			for (const token of span.content.split(/\s+/)) {
+				const target = token.replace(/^['"]|['"]$/g, '');
+				if (REFERENCE_ROOT.test(target)) references.push({ file, path: target });
+			}
+			continue;
+		}
 		if (parts.length > 2) {
 			malformed.push(
 				`${file}: \`${span.content}\` — a reference is \`path\` or \`path :: Symbol\``
@@ -407,7 +358,12 @@ function pointerFailures(pointers, docs) {
 // ── The run ─────────────────────────────────────────────────────────────
 
 function main() {
-	const docFiles = DOC_DIRS.flatMap(markdownIn);
+	const missing = DOC_DIRS.filter((dir) => !existsSync(dir));
+	if (missing.length > 0) {
+		console.error(`codebase-map: ${missing.join(', ')} is missing`);
+		process.exit(1);
+	}
+	const docFiles = corpusFiles(DOC_DIRS, ['.md']);
 	/** @type {Reference[]} */
 	const references = [];
 	/** @type {string[]} */

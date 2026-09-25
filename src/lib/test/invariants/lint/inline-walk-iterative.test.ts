@@ -11,7 +11,8 @@ import {
 	balancedCall,
 	callsAnywhere,
 	collectEditorSources,
-	EDITOR_SRC
+	EDITOR_SRC,
+	walkCode
 } from './scan-source';
 
 /** Library-internal: the rule binds traversals over aragonite's own tree, which no plugin owns. */
@@ -41,8 +42,7 @@ interface Declaration {
 function bodyAfterParams(code: string, parenIndex: number): string | null {
 	const params = balancedCall(code, parenIndex + 1);
 	if (params === null) return null;
-	let at = parenIndex + 1 + params.length;
-	while (at < code.length && code[at] !== '{' && code[at] !== ';') at++;
+	const at = walkCode(code, parenIndex + 1 + params.length, (ch) => ch === '{' || ch === ';');
 	return code[at] === '{' ? balancedBlock(code, at + 1) : null;
 }
 

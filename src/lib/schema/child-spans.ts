@@ -5,7 +5,7 @@
  * Svelte proxies plain arrays, one reactive source per element.
  */
 
-import { DEV } from 'esm-env';
+import { isDevChecks } from '../env';
 import { makeBlockNode, type CstNode } from '../core/nodes';
 import { assertInvariant } from '../assert';
 import { perfEnabled } from '../perf/instruments';
@@ -166,7 +166,7 @@ function renderPrefixed(
  * while the perf instruments run, whose numbers would otherwise be measuring this.
  */
 function spliceIsFaithful(node: CstNode, rebuildFull: (scratch: CstNode) => void): boolean {
-	if (!DEV || perfEnabled()) return true;
+	if (!isDevChecks() || perfEnabled()) return true;
 	const scratch = makeBlockNode({
 		kind: node.kind,
 		leadingTrivia: node.leadingTrivia,

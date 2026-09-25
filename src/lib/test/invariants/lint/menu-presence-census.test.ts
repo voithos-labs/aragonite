@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { collectEditorSources } from './scan-source';
+import { collectEditorSources, walkCode } from './scan-source';
 
 /** A menu's root element: the shared menu class (its rows are `md-menu-item`) or a popup role. */
 const MENU_ELEMENT_RE = /class="md-menu["\s]|role="(?:menu|listbox|dialog)"/;
@@ -49,17 +49,11 @@ function openingTags(code: string): string[] {
 	const tags: string[] = [];
 	for (const start of markup.matchAll(/<[a-zA-Z]/g)) {
 		let depth = 0;
-		let quote: string | null = null;
-		let end = start.index + 1;
-		for (; end < markup.length; end++) {
-			const ch = markup[end];
-			if (quote) {
-				if (ch === quote) quote = null;
-			} else if (ch === '"' || ch === "'") quote = ch;
-			else if (ch === '{') depth++;
+		const end = walkCode(markup, start.index + 1, (ch) => {
+			if (ch === '{') depth++;
 			else if (ch === '}') depth--;
-			else if (ch === '>' && depth === 0) break;
-		}
+			else if (ch === '>' && depth === 0) return true;
+		});
 		tags.push(markup.slice(start.index, end + 1));
 	}
 	return tags;

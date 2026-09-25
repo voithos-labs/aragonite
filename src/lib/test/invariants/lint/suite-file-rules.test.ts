@@ -1,10 +1,10 @@
 /**
  * File rules over the whole `src/lib` tree, tests included, for what `svelte-package` copies and
- * the gates read. This file sits inside its own population, so every snippet a row must flag is
- * assembled from parts rather than written out. The scan is `file-rule.ts`.
+ * the gates read, and over the demo routes the e2e suite drives. This file sits inside its own
+ * population, so every snippet a row must flag is assembled from parts. The scan is `file-rule.ts`.
  */
 
-import { collectEditorSources, EDITOR_SRC } from './scan-source';
+import { collectEditorSources, EDITOR_SRC, handRolledLexing, ROUTES_SRC } from './scan-source';
 import { describeFileRules, under, type FileRule, type Probe } from './file-rule';
 
 const at = (relPath: string, code: string): Probe => ({ relPath, code });
@@ -18,6 +18,7 @@ const clockRead = (host: string) => `const t = ${host}.now();`;
 
 const SUITE_DIRS = ['src/lib/test/', 'src/lib/e2e/'];
 const PERF_DIRS = ['src/lib/test/perf/', 'src/lib/e2e/tests/perf/'];
+const LINT_DIRS = ['src/lib/test/invariants/lint/', 'src/lib/e2e/lint/'];
 
 /** One test file and one library file, so a walk that lost either half reads as unreached. */
 const BOTH_HALVES = ['src/lib/index.ts', 'src/lib/test/invariants/lint/scan-source.ts'];
@@ -81,6 +82,42 @@ const RULES: FileRule[] = [
 		]
 	},
 	{
+		id: 'a lint reads source through the shared lexer and collector',
+		population: under(...LINT_DIRS),
+		matches: (file) => handRolledLexing(file.code).length > 0,
+		allowed: {
+			'src/lib/test/invariants/lint/scan-source.ts': 'the shared lexer and collector',
+			'src/lib/test/invariants/lint/comment-lines.ts':
+				'the comment-block reader the budget and house-word scans share, which counts lines rather than blanking them',
+			'src/lib/test/invariants/lint/spread-call-census.test.ts':
+				'walks the classes lexicalClasses returns, so every character it tests is code',
+			'src/lib/test/invariants/lint/consumer-guide-reserved-set.test.ts':
+				'reads a printed `// Set {…}` line out of the guide’s example output, not a comment'
+		},
+		reason:
+			'a private walk reads a bracket or quote inside a literal as code the day one appears (#287): use collectFiles, stripComments, walkCode or the helpers built on them in scan-source.ts',
+		reaches: [
+			'src/lib/test/invariants/lint/scan-source.ts',
+			'src/lib/e2e/lint/composition-driver.test.ts'
+		],
+		hits: [
+			at(
+				`${LINT_DIRS[0]}a.test.ts`,
+				`for (const ch of code) if (ch === ${quoted("'", '(')}) depth++;`
+			),
+			at(`${LINT_DIRS[1]}b.test.ts`, `const names = ${'readdir'}Sync(dir);`),
+			at(`${LINT_DIRS[0]}c.test.ts`, `line.startsWith(${quoted("'", '/' + '/')});`)
+		],
+		misses: [
+			at(
+				`${LINT_DIRS[0]}a.test.ts`,
+				`walkCode(code, 0, (ch) => {\n\tif (ch === ${quoted("'", '(')}) depth++;\n});`
+			),
+			at(`${LINT_DIRS[0]}d.test.ts`, `if (text[open] !== ${quoted("'", '(')}) return;`),
+			at('src/lib/test/core/x.test.ts', `for (const ch of s) if (ch === ${quoted("'", '(')}) n++;`)
+		]
+	},
+	{
 		id: 'no inline block-content selector in e2e specs',
 		population: under('src/lib/e2e/tests/'),
 		matches: /:not\(\s*\.selection-overlay\s*\)/,
@@ -105,3 +142,27 @@ const RULES: FileRule[] = [
 ];
 
 describeFileRules(RULES, collectEditorSources(EDITOR_SRC, { includeTests: true }));
+
+const EDITOR_TAG = /<Editor\b/;
+
+const ROUTE_RULES: FileRule[] = [
+	{
+		id: 'every route mounting an editor opts its document into the teardown parity walk',
+		population: (file) => file.relPath.endsWith('.svelte'),
+		matches: (file) => EDITOR_TAG.test(file.code) && !/\btrackParityDocument\s*\(/.test(file.code),
+		reason:
+			'the e2e fixture walks only the documents a route registered, so a route that forgets trackParityDocument gets no container-parity check at teardown and no error either',
+		reaches: ['src/routes/+page.svelte'],
+		atLeast: 10,
+		hits: [at('src/routes/x/+page.svelte', `<Editor bind:this={editor} />`)],
+		misses: [
+			at(
+				'src/routes/x/+page.svelte',
+				`<script>trackParityDocument(() => editor);</script>\n<Editor bind:this={editor} />`
+			),
+			at('src/routes/x/+page.svelte', `<EditorToolbar />`)
+		]
+	}
+];
+
+describeFileRules(ROUTE_RULES, collectEditorSources(ROUTES_SRC, { includeTests: true }));

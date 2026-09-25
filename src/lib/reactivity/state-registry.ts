@@ -1,7 +1,7 @@
 /** Find a container node's `BlockListState` by identity (a view works too). A `WeakMap`,
  *  so entries are collected once the node is unreachable. */
 
-import { DEV } from 'esm-env';
+import { isDevChecks } from '../env';
 import { tick } from 'svelte';
 import type { NodeView } from '../core/node-views';
 import type { BlockListState } from './block-list-state.svelte';
@@ -13,7 +13,7 @@ const stateRegistry = new WeakMap<NodeView, BlockListState>();
 export function registerBlockListState(node: NodeView, state: BlockListState): void {
 	const existing = stateRegistry.get(node);
 	stateRegistry.set(node, state);
-	if (DEV && existing && existing !== state) {
+	if (isDevChecks() && existing && existing !== state) {
 		void reportContestedClaim(node, existing, state);
 	}
 }

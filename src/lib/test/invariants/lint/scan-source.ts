@@ -56,6 +56,36 @@ export function stripComments(text: string): string {
 }
 
 /**
+ * Every file under `root` ending in one of `extensions`, as sorted posix paths from the repo
+ * root. A directory named in `skip` is not entered. The one directory walk the lints share.
+ */
+export function collectFiles(
+	root: string,
+	options: { extensions: readonly string[]; skip?: readonly string[] }
+): string[] {
+	const repoRoot = path.resolve('.');
+	const found: string[] = [];
+	function walk(current: string): void {
+		for (const entry of readdirSync(current, { withFileTypes: true })) {
+			const full = path.join(current, entry.name);
+			if (entry.isDirectory()) {
+				if (!options.skip?.includes(entry.name)) walk(full);
+			} else if (options.extensions.some((extension) => entry.name.endsWith(extension))) {
+				found.push(path.relative(repoRoot, full).split(path.sep).join('/'));
+			}
+		}
+	}
+	walk(path.resolve(root));
+	return found.sort();
+}
+
+/** A source file by its path from the repo root, comments blanked in `code`. */
+export function readSource(relPath: string): SourceFile {
+	const text = readFileSync(path.resolve(relPath), 'utf8');
+	return { relPath, text, code: stripComments(text) };
+}
+
+/**
  * Every `.ts`/`.svelte` file under `dir` (default: every root in `REPO_WIDE_ROOTS`), skipping
  * `test`, `e2e` and `.d.ts`. `includeTests` covers the whole packaged tree; `includeStyles` adds
  * `.css`, off by default because a `url(//…)` would blank as a comment.
@@ -64,44 +94,26 @@ export function collectEditorSources(
 	dir?: string,
 	options: { includeTests?: boolean; includeStyles?: boolean } = {}
 ): SourceFile[] {
-	const repoRoot = path.resolve('.');
-	const files: SourceFile[] = [];
-
-	function walk(current: string): void {
-		for (const entry of readdirSync(current, { withFileTypes: true })) {
-			const full = path.join(current, entry.name);
-			if (entry.isDirectory()) {
-				if (!options.includeTests && (entry.name === 'test' || entry.name === 'e2e')) continue;
-				walk(full);
-				continue;
-			}
-			const isScannable =
-				(entry.name.endsWith('.ts') && !entry.name.endsWith('.d.ts')) ||
-				entry.name.endsWith('.svelte') ||
-				(options.includeStyles === true && entry.name.endsWith('.css'));
-			if (!isScannable) continue;
-			const text = readFileSync(full, 'utf8');
-			files.push({
-				relPath: path.relative(repoRoot, full).split(path.sep).join('/'),
-				text,
-				code: stripComments(text)
-			});
-		}
-	}
-
-	for (const root of dir === undefined ? REPO_WIDE_ROOTS : [dir]) walk(root);
-	return files;
+	const extensions = options.includeStyles ? ['.ts', '.svelte', '.css'] : ['.ts', '.svelte'];
+	const skip = options.includeTests ? [] : ['test', 'e2e'];
+	return (dir === undefined ? REPO_WIDE_ROOTS : [dir])
+		.flatMap((root) => collectFiles(root, { extensions, skip }))
+		.filter((relPath) => !relPath.endsWith('.d.ts'))
+		.map(readSource);
 }
 
 export function readEditorFile(relFromEditor: string): SourceFile {
-	const full = path.join(EDITOR_SRC, relFromEditor);
-	const repoRoot = path.resolve('.');
-	const text = readFileSync(full, 'utf8');
-	return {
-		relPath: path.relative(repoRoot, full).split(path.sep).join('/'),
-		text,
-		code: stripComments(text)
-	};
+	return readSource(
+		path.relative(path.resolve('.'), path.join(EDITOR_SRC, relFromEditor)).split(path.sep).join('/')
+	);
+}
+
+/** The bundled plugins, by directory name under `src/lib/plugins`. */
+export function bundledPluginDirs(): string[] {
+	return readdirSync(path.resolve('src/lib/plugins'), { withFileTypes: true })
+		.filter((entry) => entry.isDirectory())
+		.map((entry) => entry.name)
+		.sort();
 }
 
 // ── Literal-aware walk ───────────────────────────────────────────────────────
@@ -147,6 +159,31 @@ export function literalSpans(code: string): LiteralSpan[] {
 		i = span.end - 1;
 	}
 	return out;
+}
+
+/** The value of the string or template literal starting at `at`, or null where none starts
+ *  there or a `${…}` interpolation makes it unknowable. */
+export function stringLiteralAt(code: string, at: number): { value: string; end: number } | null {
+	const span = spanAt(code, at);
+	if (span === null || span.kind === 'comment' || code[at] === '/') return null;
+	if (code[span.end - 1] !== code[at] || span.end - at < 2) return null;
+	const body = code.slice(at + 1, span.end - 1);
+	if (span.kind === 'template' && body.includes('${')) return null;
+	const escapes: Record<string, string> = { n: '\n', t: '\t', r: '\r' };
+	return { value: body.replace(/\\(.)/gs, (_, ch: string) => escapes[ch] ?? ch), end: span.end };
+}
+
+/** The regex literal starting at `at`, compiled, or null where none starts there. */
+export function regexLiteralAt(code: string, at: number): { value: RegExp; end: number } | null {
+	const span = spanAt(code, at);
+	if (span === null || span.kind !== 'literal' || code[at] !== '/') return null;
+	const literal = code.slice(at, span.end);
+	const close = literal.lastIndexOf('/');
+	try {
+		return { value: new RegExp(literal.slice(1, close), literal.slice(close + 1)), end: span.end };
+	} catch {
+		return null;
+	}
 }
 
 /**
@@ -314,7 +351,7 @@ export function isProseSurface(file: SourceFile): boolean {
 		file.relPath.endsWith('.svelte') &&
 		SURFACE_FACTORY.test(file.code) &&
 		INSTALLS_BEFOREINPUT.test(file.code) &&
-		READS_INLINE_POLICY.test(stripComments(file.text))
+		READS_INLINE_POLICY.test(file.code)
 	);
 }
 
@@ -347,6 +384,192 @@ function classifyRange(code: string, from: number, to: number, out: Uint8Array):
 		}
 		i = span.end - 1;
 	}
+}
+
+// ── Enclosing function ───────────────────────────────────────────────────────
+
+const CONTROL_KEYWORDS = new Set(['if', 'for', 'while', 'switch', 'catch', 'do', 'else', 'with']);
+
+/**
+ * The nearest named function around `at`, walking out through blocks and anonymous scopes, or
+ * `<module>` at the top level. Allowlists key on `relPath :: name`, which survives edits above
+ * the site. Pass `classes` when naming several sites in one file.
+ */
+export function enclosingFunction(
+	code: string,
+	at: number,
+	classes: Uint8Array = lexicalClasses(code)
+): string {
+	let from = at;
+	for (let hop = 0; hop < 24; hop++) {
+		const open = innermostOpener(code, classes, from);
+		if (open === null) return '<module>';
+		from = open;
+		const paren =
+			code[open] === '{'
+				? parameterListOf(code, classes, open)
+				: code[open] === '(' && parameterListAt(code, classes, open)
+					? open
+					: null;
+		if (paren === null) continue;
+		const name = functionNameBefore(code, classes, paren);
+		if (name !== null) return name;
+	}
+	return '<module>';
+}
+
+/** The innermost bracket still open at `at`, or null at the top level. */
+export function openerBefore(
+	code: string,
+	at: number,
+	classes: Uint8Array = lexicalClasses(code)
+): number | null {
+	return innermostOpener(code, classes, at);
+}
+
+/** Whether the `(` at `open` starts a parameter list rather than an argument list: the
+ *  `function` keyword before it, or a body or arrow after it. */
+export function isParameterList(
+	code: string,
+	open: number,
+	classes: Uint8Array = lexicalClasses(code)
+): boolean {
+	return parameterListAt(code, classes, open);
+}
+
+function innermostOpener(text: string, cls: Uint8Array, at: number): number | null {
+	let depth = 0;
+	for (let i = at - 1; i >= 0; i--) {
+		if (cls[i] !== CODE) continue;
+		const ch = text[i];
+		if (ch === ')' || ch === ']' || ch === '}') depth++;
+		else if (ch === '(' || ch === '[' || ch === '{') {
+			if (depth === 0) return i;
+			depth--;
+		}
+	}
+	return null;
+}
+
+function matchingOpen(text: string, cls: Uint8Array, close: number): number | null {
+	let depth = 0;
+	for (let i = close; i >= 0; i--) {
+		if (cls[i] !== CODE) continue;
+		if (text[i] === ')') depth++;
+		else if (text[i] === '(' && --depth === 0) return i;
+	}
+	return null;
+}
+
+function matchingClose(text: string, cls: Uint8Array, open: number): number {
+	let depth = 0;
+	for (let i = open; i < text.length; i++) {
+		if (cls[i] !== CODE) continue;
+		const ch = text[i];
+		if (ch === '(') depth++;
+		else if (ch === ')' && --depth === 0) return i;
+	}
+	return text.length;
+}
+
+function skipBack(text: string, cls: Uint8Array, from: number): number {
+	let i = from;
+	while (i >= 0 && (cls[i] !== CODE || /\s/.test(text[i]))) i--;
+	return i;
+}
+
+function skipForward(text: string, cls: Uint8Array, from: number): number {
+	let i = from;
+	while (i < text.length && (cls[i] !== CODE || /\s/.test(text[i]))) i++;
+	return i;
+}
+
+function identifierBefore(text: string, at: number): string {
+	let start = at + 1;
+	while (start > 0 && /[\w$]/.test(text[start - 1])) start--;
+	return text.slice(start, at + 1);
+}
+
+function parameterListAt(text: string, cls: Uint8Array, open: number): boolean {
+	const before = skipBack(text, cls, open - 1);
+	const name = identifierBefore(text, before);
+	if (name === 'function') return true;
+	if (identifierBefore(text, skipBack(text, cls, before - name.length)) === 'function') return true;
+
+	let after = skipForward(text, cls, matchingClose(text, cls, open) + 1);
+	if (text[after] === ':') {
+		let depth = 0;
+		for (after++; after < text.length; after++) {
+			if (cls[after] !== CODE) continue;
+			const ch = text[after];
+			if (ch === '(' || ch === '[' || ch === '<') depth++;
+			else if (ch === ')' || ch === ']' || ch === '>') depth--;
+			else if (depth <= 0 && (ch === '{' || ch === ';' || ch === ',' || ch === '=')) break;
+		}
+	}
+	return text.startsWith('=>', after) || text[after] === '{';
+}
+
+/** The `(` of the parameter list a `{` closes over, or null where the brace opens a plain block
+ *  or an object literal. Only a return type and an arrow may sit between the two. */
+function parameterListOf(text: string, cls: Uint8Array, brace: number): number | null {
+	let depth = 0;
+	let between = '';
+	for (let i = brace - 1; i >= 0; i--) {
+		if (cls[i] !== CODE) continue;
+		const ch = text[i];
+		if (depth === 0) {
+			if (ch === ')') {
+				const gap = between.replace(/\s|=>/g, '');
+				return gap === '' || gap.startsWith(':') ? matchingOpen(text, cls, i) : null;
+			}
+			if (ch === ';' || ch === '{' || ch === '}' || ch === '(' || ch === '[') return null;
+		}
+		if (ch === ')' || ch === ']' || ch === '}') depth++;
+		else if (ch === '(' || ch === '[' || ch === '{') depth--;
+		between = ch + between;
+	}
+	return null;
+}
+
+/** The name a parameter list at `paren` declares: `function name(`, `name(` for a method, or
+ *  `const name = (` and `name: (` for an assigned arrow. Null for a control statement. */
+function functionNameBefore(text: string, cls: Uint8Array, paren: number): string | null {
+	const before = skipTypeParameters(text, cls, skipBack(text, cls, paren - 1));
+	const direct = identifierBefore(text, before);
+	if (CONTROL_KEYWORDS.has(direct)) return null;
+	if (direct !== '' && direct !== 'function' && direct !== 'async') return direct;
+	const anchor = direct === '' ? before : skipBack(text, cls, before - direct.length);
+	if (text[anchor] !== '=' && text[anchor] !== ':') return null;
+	const declared = text[anchor] === ':' ? anchor : annotationColonBefore(text, cls, anchor);
+	const named = identifierBefore(text, skipBack(text, cls, declared - 1));
+	return named === '' ? null : named;
+}
+
+/** The `:` of a declaration's type annotation, so `const f: Cleaner = (x) => …` reads as `f`. */
+function annotationColonBefore(text: string, cls: Uint8Array, assign: number): number {
+	let depth = 0;
+	for (let i = assign - 1; i >= 0; i--) {
+		if (cls[i] !== CODE) continue;
+		const ch = text[i];
+		if (ch === '>' || ch === ')' || ch === ']' || ch === '}') depth++;
+		else if (ch === '<' || ch === '(' || ch === '[' || ch === '{') depth--;
+		else if (depth === 0 && ch === ':') return i;
+		if (depth === 0 && (ch === ';' || ch === ',' || ch === '{' || ch === '}')) break;
+	}
+	return assign;
+}
+
+/** Back over a type-parameter list, so `function pick<T>(…)` names `pick` and not the module. */
+function skipTypeParameters(text: string, cls: Uint8Array, at: number): number {
+	if (text[at] !== '>') return at;
+	let depth = 0;
+	for (let i = at; i >= 0; i--) {
+		if (cls[i] !== CODE) continue;
+		if (text[i] === '>') depth++;
+		else if (text[i] === '<' && --depth === 0) return skipBack(text, cls, i - 1);
+	}
+	return at;
 }
 
 // ── Raw-write statements ─────────────────────────────────────────────────────
@@ -472,19 +695,32 @@ export function balancedRegion(code: string, openIndex: number): string | null {
 
 /** A call's top-level arguments: split on the commas outside every bracket and literal. */
 export function callArguments(args: string): string[] {
+	return splitTopLevel(args, ',');
+}
+
+/**
+ * `code` split on `separator` outside every bracket and literal, each part trimmed. A separator
+ * inside a longer operator (`++`, `+=`) does not split.
+ */
+export function splitTopLevel(code: string, separator: string): string[] {
 	const out: string[] = [];
 	let depth = 0;
 	let start = 0;
-	walkCode(args, 0, (ch, i) => {
+	walkCode(code, 0, (ch, i) => {
 		if (ch === '(' || ch === '[' || ch === '{') depth++;
 		else if (ch === ')' || ch === ']' || ch === '}') depth--;
-		else if (ch === ',' && depth === 0) {
-			out.push(args.slice(start, i).trim());
+		else if (ch === separator && depth === 0 && !partOfOperator(code, i)) {
+			out.push(code.slice(start, i).trim());
 			start = i + 1;
 		}
 	});
-	out.push(args.slice(start).trim());
+	out.push(code.slice(start).trim());
 	return out;
+}
+
+function partOfOperator(code: string, i: number): boolean {
+	const ch = code[i];
+	return code[i - 1] === ch || code[i + 1] === ch || code[i + 1] === '=';
 }
 
 /** The last top-level argument of a call's argument text: the slot the threading scans read. */
@@ -577,4 +813,67 @@ function startsLine(code: string, at: number): boolean {
 	let i = at - 1;
 	while (i >= 0 && (code[i] === ' ' || code[i] === '\t')) i--;
 	return i < 0 || code[i] === '\n';
+}
+
+// ── Hand-rolled lexing ───────────────────────────────────────────────────────
+
+/** A comparison of one character against a bracket or a quote. */
+const CHARACTER_TEST = /[!=]==\s*(['"`])[()[\]{}'"`]\1|(['"`])[()[\]{}'"`]\2\s*[!=]==/g;
+
+/** A literal naming a comment marker, the first step of stripping comments by hand. */
+const COMMENT_MARKERS = new Set(['//', '/*', '*/', '<!--', '-->']);
+
+/**
+ * What in a lint's own code reads source by hand instead of through this module: a directory
+ * walk, a comment marker, or a loop testing characters for brackets or quotes outside a
+ * {@link walkCode} callback. Empty for a file that reads code only through the shared lexer.
+ */
+export function handRolledLexing(code: string): string[] {
+	const classes = lexicalClasses(code);
+	const found: string[] = [];
+	if (/\breaddirSync\b/.test(code)) found.push('a directory walk: use collectFiles');
+	for (const span of literalSpans(code)) {
+		const text = code.slice(span.start, span.end);
+		const marker =
+			span.kind === 'regex'
+				? /\\\/\\\/|\\\/\\\*|<!--/.test(text)
+				: COMMENT_MARKERS.has(text.slice(1, -1));
+		if (marker) found.push(`a comment marker ${text}: use stripComments or lexicalClasses`);
+	}
+	for (const loop of code.matchAll(/\b(?:for|while)\s*\(/g)) {
+		if (classes[loop.index] !== CODE) continue;
+		const end = loopEnd(code, loop.index + loop[0].length - 1);
+		for (const test of code.slice(loop.index, end).matchAll(CHARACTER_TEST)) {
+			const at = loop.index + test.index + test[0].search(/[!=]==/);
+			if (classes[at] !== CODE || insideWalkCallback(code, at, classes)) continue;
+			found.push(`a character walk testing ${test[0]}: use walkCode`);
+		}
+	}
+	return found;
+}
+
+/** Just past the statement a loop header opening at `open` governs. */
+function loopEnd(code: string, open: number): number {
+	const header = balancedRegion(code, open);
+	if (header === null) return code.length;
+	const bodyStart = skipSpaces(code, open + header.length);
+	if (code[bodyStart] === '{') return bodyStart + (balancedRegion(code, bodyStart)?.length ?? 0);
+	let depth = 0;
+	return walkCode(code, bodyStart, (ch) => {
+		if (ch === '(' || ch === '[' || ch === '{') depth++;
+		else if (ch === ')' || ch === ']' || ch === '}') depth--;
+		else if (ch === ';' && depth === 0) return true;
+	});
+}
+
+function insideWalkCallback(code: string, at: number, classes: Uint8Array): boolean {
+	for (let open = innermostOpener(code, classes, at); open !== null;) {
+		if (
+			code[open] === '(' &&
+			identifierBefore(code, skipBack(code, classes, open - 1)) === 'walkCode'
+		)
+			return true;
+		open = innermostOpener(code, classes, open);
+	}
+	return false;
 }

@@ -3,7 +3,7 @@
  * Per-kind parsers live in parsers/; this file holds dispatch and shared utilities only.
  */
 
-import { DEV } from 'esm-env';
+import { isDevChecks } from '../env';
 import type { CstNode, Document } from './nodes';
 import { isBlankLine, splitLines, type ParsedLine } from './lines';
 import { perfEnabled, recordParse } from '../perf/instruments';
@@ -196,7 +196,7 @@ function parseNextBlock(ctx: OpenContext): BlockOpenerResult {
 			reportNonAdvancingOpener(ctx, result);
 			continue;
 		}
-		if (DEV) assertOpenerRawMatches(ctx, result);
+		if (isDevChecks()) assertOpenerRawMatches(ctx, result);
 		return result;
 	}
 	// Paragraph is the total fallback; it also detects setext headings and tables.

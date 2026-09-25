@@ -1,4 +1,5 @@
 import type { Page } from '@playwright/test';
+import { warnTagOfLine } from '../../dev-warn';
 
 export interface ErrorCollector {
 	/** Call once at session start, before any gesture. */
@@ -7,20 +8,6 @@ export interface ErrorCollector {
 	 *  checkpoint triggers on purpose (`['tree-ops']`, `['svelte:derived_inert']`); anything
 	 *  else fails. */
 	assertNone(waive?: string[]): Promise<void>;
-}
-
-/** Every editor dev warning, failed checks included: `devWarn` tags them all. */
-const SENTINEL_TAG = /\[aragonite:([^\]]+)\]/;
-
-/** Svelte's own runtime warnings carry no `[aragonite:…]` tag; they lead with their code. */
-const SVELTE_CODE = /\[svelte\]\s+([a-z0-9_]+)/;
-
-/** Both kinds of console warning carry a tag, so one waiver list covers both. */
-function warnTagOf(text: string): string | null {
-	const sentinel = SENTINEL_TAG.exec(text)?.[1];
-	if (sentinel) return sentinel;
-	const code = SVELTE_CODE.exec(text)?.[1];
-	return code ? `svelte:${code}` : null;
 }
 
 /**
@@ -40,7 +27,7 @@ export function attachErrorCollector(page: Page): ErrorCollector {
 			return;
 		}
 		if (type !== 'warning') return;
-		const tag = warnTagOf(m.text());
+		const tag = warnTagOfLine(m.text());
 		if (tag) warnings.push({ tag, text: `failing warning: ${m.text()}` });
 	});
 	return {

@@ -6,7 +6,8 @@
  * restructure could quietly lobotomize the path and symbol checks that share the script.
  */
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { corpusFiles } from '../../../../../scripts/doc-corpus.mjs';
 import {
 	citingFiles,
 	headingKeys,
@@ -22,6 +23,8 @@ import {
 const ROOTS = ['src', 'docs', 'scripts', 'examples', 'README.md', 'CONTRIBUTING.md'];
 
 const files = citingFiles(ROOTS);
+
+const PLANTED = 'tmp/zz-doc-corpus-probe.md';
 const pointers = files.flatMap((file) => pointersIn(file, readFileSync(file, 'utf8')));
 
 // ── The corpus ───────────────────────────────────────────────────────────────
@@ -33,6 +36,18 @@ describe('§ pointer corpus: non-vacuity', () => {
 			expect(files.filter((file) => file.endsWith(ext)).length, `no ${ext} file`).toBeGreaterThan(
 				0
 			);
+		}
+	});
+
+	// Holds on every machine, not only the owner's: `tmp/` is gitignored in every checkout.
+	it('drops a gitignored file that sits on disk', () => {
+		mkdirSync('tmp', { recursive: true });
+		writeFileSync(PLANTED, '# private\n');
+		try {
+			expect(existsSync(PLANTED)).toBe(true);
+			expect(corpusFiles(['tmp'], ['.md'])).not.toContain(PLANTED);
+		} finally {
+			rmSync(PLANTED);
 		}
 	});
 
@@ -130,6 +145,15 @@ describe('path and symbol references: still enforced', () => {
 			{ file: 'x.md', path: 'docs/README.md', symbol: undefined }
 		]);
 		expect(malformed).toEqual([]);
+	});
+
+	// Miss-analysis: the reader resolved only spans that began with a path, and no test ever
+	// handed it a command, so a checklist ran a test file that did not exist.
+	it('reads the paths inside a backticked command, and nothing out of a plain word', () => {
+		expect(referencesIn('d.md', '`npx vitest run src/lib/nope.test.ts`').references).toEqual([
+			{ file: 'd.md', path: 'src/lib/nope.test.ts' }
+		]);
+		expect(referencesIn('d.md', 'Press `Mod+B` or run `npm test`.').references).toEqual([]);
 	});
 
 	it('reds on a missing file and on a symbol that file never names', () => {

@@ -475,8 +475,8 @@ The details:
 - `e2e/tests/perf/` holds two families, and the basename decides which project collects a spec:
   `*.perf.spec.ts` goes to the env-gated `e2e-perf` (and `e2e-perf-prod`), `vr-*.spec.ts`
   directly under `perf/` goes to `e2e-vr`, which rides `npm test`. Name a spec into the wrong
-  family and it silently stops running in the suite you meant; G4.17 catches a basename in
-  neither. Requirement files pair by the stem with the `.perf` suffix stripped.
+  family and it silently stops running in the suite you meant. The lockstep scan reds on a
+  spec no project lists, and G4.17 on one that two projects list. Requirement files pair by the stem with the `.perf` suffix stripped.
 - **Per-block subfolder rule.** A block area earns a subfolder under `tests/blocks/` and a
   `test:e2e:blocks:<block>` script at 3 spec files. Below that, specs stay flat under the
   parent category.

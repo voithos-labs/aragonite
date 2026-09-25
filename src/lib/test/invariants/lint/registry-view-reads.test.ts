@@ -14,7 +14,13 @@ import type { NodeView } from '$lib/core/node-views';
 import type { EditorActionsDeps } from '$lib/editor-actions/deps';
 import { withEnterCompletion } from '$lib/editor-actions/enter-completion';
 import type { LinkReferenceResolverRef } from '$lib/editor-keys';
-import { callArguments, collectEditorSources, type SourceFile } from './scan-source';
+import {
+	callArguments,
+	collectEditorSources,
+	enclosingFunction,
+	lexicalClasses,
+	type SourceFile
+} from './scan-source';
 import { describeCallSiteRules, type CallSiteRule } from './call-site-rule';
 import { notUnder } from './file-rule';
 
@@ -88,9 +94,12 @@ describe('G4.68 the internal registry readers take the grammar as a required par
 /** The places outside the parser, the grammar's own modules, the plugin barrel and the published
  *  kits that fall back to every installed plugin, each where an optional grammar arrives. */
 const EVERY_PLUGIN_FALLBACKS: Record<string, string> = {
-	'src/lib/core/inline/index.ts:143': 'the published parseInline takes an optional grammar',
-	'src/lib/core/inline/transparency.ts:15': 'navigation reads transparency with no editor context',
-	'src/lib/core/directive/activate.ts:33': 'the published recognizer type takes an optional grammar'
+	'src/lib/core/inline/index.ts :: parseInline':
+		'the published parseInline takes an optional grammar',
+	'src/lib/core/inline/transparency.ts :: isVerticallyTransparentNode':
+		'navigation reads transparency with no editor context',
+	'src/lib/core/directive/activate.ts :: activateDirectiveGrammar':
+		'the published recognizer type takes an optional grammar'
 };
 
 const FALLBACK_EXEMPT = notUnder(
@@ -102,16 +111,17 @@ const FALLBACK_EXEMPT = notUnder(
 	'src/lib/plugin.ts'
 );
 
-/** Each `file:line` that names `defaultGrammarView` outside an import. */
+/** Each `relPath :: function` that names `defaultGrammarView` outside an import. */
 function fallbackSites(files: SourceFile[]): string[] {
-	const found: string[] = [];
+	const found = new Set<string>();
 	for (const file of files) {
 		const code = file.code.replace(/^import[^;]*;/gm, (statement) => statement.replace(/\S/g, ' '));
-		code.split('\n').forEach((line, index) => {
-			if (/\bdefaultGrammarView\b/.test(line)) found.push(`${file.relPath}:${index + 1}`);
-		});
+		const classes = lexicalClasses(code);
+		for (const match of code.matchAll(/\bdefaultGrammarView\b/g)) {
+			found.add(`${file.relPath} :: ${enclosingFunction(code, match.index, classes)}`);
+		}
 	}
-	return found;
+	return [...found];
 }
 
 const unlistedFallbacks = (found: string[]): string[] =>
@@ -179,10 +189,10 @@ const RULES: CallSiteRule[] = [
 		// Each a known gap: the inline tree these sites read can hold a construct an unlisted plugin
 		// claimed, which this editor draws as text.
 		allowed: {
-			'src/lib/core/inline/index.ts:140': 'an error message naming the call, not a call',
-			'src/lib/editor-actions/container-block-component.ts:286':
+			'src/lib/core/inline/index.ts :: parseInline': 'an error message naming the call, not a call',
+			'src/lib/editor-actions/container-block-component.ts :: isVerticallyTransparent':
 				'the whole-block component deps carry no grammar; a container is transparent only if every child is',
-			'src/lib/selection/keyboard-extend.ts:334':
+			'src/lib/selection/keyboard-extend.ts :: isTransparent':
 				'the vertical-extend path walks paths off the document with no editor context'
 		},
 		reason:
@@ -235,7 +245,7 @@ const RULES: CallSiteRule[] = [
 			return slot.startsWith('{') ? /\bcurrent\b/.test(slot) : slot !== 'undefined';
 		},
 		allowed: {
-			'src/lib/components/blocks/text/edge-policy-dispatch.ts:49':
+			'src/lib/components/blocks/text/edge-policy-dispatch.ts :: keepsBlockKind':
 				'keepsBlockKind compares the block kind only, which no link changes'
 		},
 		reason:
@@ -256,7 +266,7 @@ const RULES: CallSiteRule[] = [
 		calls: ['parse'],
 		holds: (args) => /\bgrammar\b/.test(args),
 		allowed: {
-			'src/lib/plugins/admonitions/convert-document.ts:11':
+			'src/lib/plugins/admonitions/convert-document.ts :: convertGithubAlertsInDocument':
 				'a published whole-document conversion that runs with no editor'
 		},
 		reason:

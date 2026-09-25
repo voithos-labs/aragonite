@@ -11,9 +11,9 @@ import {
 	balancedBlock,
 	collectEditorSources,
 	readEditorFile,
-	stripComments,
 	type SourceFile
 } from './scan-source';
+import { probeFile } from './file-rule';
 
 /**
  * Files that may assign an existing node's `leadingTrivia`. A `leadingTrivia:` property on a node
@@ -66,12 +66,11 @@ const HAND_SETTLE_CALLERS: Record<string, string> = {
 		'its same-block arm writes bytes rather than splicing, so it settles as the content door does'
 };
 
-const writesTrivia = (file: SourceFile): boolean =>
-	/\.leadingTrivia\s*\+?=(?!=)/.test(stripComments(file.text));
+const writesTrivia = (file: SourceFile): boolean => /\.leadingTrivia\s*\+?=(?!=)/.test(file.code);
 
 const namesHandSettle = (file: SourceFile): boolean =>
 	/(?<![\w'"])(clearRedundantSeparator|dropDoubledSeparator|restoreSeparatorOnFill|restoreSeparatorAfterBlank|settleSeparatorOnBlank|settleSublistSeparator)\b/.test(
-		stripComments(file.text)
+		file.code
 	);
 
 function census(
@@ -101,7 +100,7 @@ describe('separator-write entry-point census', () => {
 	// ── Matcher self-tests (non-vacuity) ─────────────────────────────────────
 
 	it('the blank-line matcher sees both write forms and skips creates, reads and comments', () => {
-		const probe = (text: string) => writesTrivia({ relPath: 'x', text, code: '' });
+		const probe = (text: string) => writesTrivia(probeFile({ relPath: 'x', code: text }));
 		expect(probe("node.leadingTrivia = '';")).toBe(true);
 		expect(probe('children[i].leadingTrivia += lineEnding;')).toBe(true);
 		expect(probe("{ kind: 'paragraph', leadingTrivia: '', raw }")).toBe(false);
@@ -110,18 +109,17 @@ describe('separator-write entry-point census', () => {
 	});
 
 	it('the hand-settle matcher sees a call and an import, and skips prose', () => {
-		const probe = (text: string) => namesHandSettle({ relPath: 'x', text, code: '' });
+		const probe = (text: string) => namesHandSettle(probeFile({ relPath: 'x', code: text }));
 		expect(probe('restoreSeparatorOnFill(parent, i + 1, sharing);')).toBe(true);
 		expect(probe("import { dropDoubledSeparator } from '../tree-operations';")).toBe(true);
 		expect(probe('// dropDoubledSeparator is the run-level twin')).toBe(false);
 	});
 
 	it('an undeclared file writing leadingTrivia fails the set equality', () => {
-		const rogue: SourceFile = {
+		const rogue = probeFile({
 			relPath: 'src/lib/tree-operations/rogue.ts',
-			text: "children[at].leadingTrivia = '\\n';",
-			code: ''
-		};
+			code: "children[at].leadingTrivia = '\\n';"
+		});
 		const writers = [...sources, rogue].filter(writesTrivia).map((f) => f.relPath);
 		expect(writers.sort()).not.toEqual(Object.keys(TRIVIA_WRITERS).sort());
 	});

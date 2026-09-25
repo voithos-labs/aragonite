@@ -13,7 +13,7 @@ import {
 	callsTo,
 	collectEditorSources,
 	rawAssignments,
-	walkCode,
+	splitTopLevel,
 	type SourceFile
 } from './scan-source';
 
@@ -47,23 +47,6 @@ const NON_JOIN_CONCATENATIONS: Record<string, string> = {
 /** Operand names that terminate a line rather than contribute a source's bytes. */
 const TERMINATOR = /(ending|Ending|suffix|Suffix|prefix|Prefix|trivia|Trivia)\b/;
 
-/** Top-level `+` operands of `expr`, brackets and every literal respected. */
-function plusOperands(expr: string): string[] {
-	const parts: string[] = [];
-	let depth = 0;
-	let start = 0;
-	walkCode(expr, 0, (ch, i) => {
-		if (ch === '(' || ch === '[' || ch === '{') depth++;
-		else if (ch === ')' || ch === ']' || ch === '}') depth--;
-		else if (ch === '+' && depth === 0 && expr[i + 1] !== '+' && expr[i - 1] !== '+') {
-			parts.push(expr.slice(start, i).trim());
-			start = i + 1;
-		}
-	});
-	parts.push(expr.slice(start).trim());
-	return parts;
-}
-
 /** An operand carrying a source's own bytes: not a literal, not the line's terminator. */
 function isSourceOperand(operand: string): boolean {
 	if (operand === '' || /^['"`]/.test(operand)) return false;
@@ -71,7 +54,7 @@ function isSourceOperand(operand: string): boolean {
 }
 
 const joinsSources = (expr: string): boolean =>
-	plusOperands(expr).filter(isSourceOperand).length > 1;
+	splitTopLevel(expr, '+').filter(isSourceOperand).length > 1;
 
 /**
  * Every byte expression a file writes into a leaf: the right-hand side of a `.raw =` statement,

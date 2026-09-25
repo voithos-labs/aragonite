@@ -6,14 +6,12 @@
  * e2e lints, outside `test:editor:invariants`.
  */
 import { describe, it, expect } from 'vitest';
-import { readdirSync, readFileSync } from 'node:fs';
-import path from 'node:path';
-import { stripComments } from '../../test/invariants/lint/scan-source';
+import { collectFiles, readSource, type SourceFile } from '../../test/invariants/lint/scan-source';
 
-const E2E_DIR = path.resolve('src/lib/e2e');
+const E2E_DIR = 'src/lib/e2e';
 
 /** The only file the ban exempts, and the only one that may build the events by hand. */
-const DRIVER = 'simulation/ime.ts';
+const DRIVER = 'src/lib/e2e/simulation/ime.ts';
 
 /** Both ways around the ban: the event itself, and the input event carrying a composition's
  *  bytes. Built from pieces, so the scan does not match this file, which it also reads. */
@@ -22,35 +20,11 @@ const HAND_FIRED = [
 	new RegExp('insertComposition' + 'Text')
 ];
 
-interface SourceFile {
-	relPath: string;
-	/** Comments are blanked: the specs describe in prose the very tokens this scans for. */
-	code: string;
-}
-
-function e2eSources(): SourceFile[] {
-	const files: SourceFile[] = [];
-	function walk(dir: string, prefix: string): void {
-		for (const entry of readdirSync(dir, { withFileTypes: true })) {
-			const full = path.join(dir, entry.name);
-			if (entry.isDirectory()) walk(full, `${prefix}${entry.name}/`);
-			else if (entry.name.endsWith('.ts')) {
-				files.push({
-					relPath: prefix + entry.name,
-					code: stripComments(readFileSync(full, 'utf8'))
-				});
-			}
-		}
-	}
-	walk(E2E_DIR, '');
-	return files;
-}
-
-const handFiredIn = (files: SourceFile[]): string[] =>
+const handFiredIn = (files: Pick<SourceFile, 'relPath' | 'code'>[]): string[] =>
 	files.filter((f) => HAND_FIRED.some((re) => re.test(f.code))).map((f) => f.relPath);
 
 describe('G4.49 e2e composition rides the shared IME driver', () => {
-	const files = e2eSources();
+	const files = collectFiles(E2E_DIR, { extensions: ['.ts'] }).map(readSource);
 
 	it('inspected the e2e sources', () => {
 		expect(files.length).toBeGreaterThan(0);
@@ -59,7 +33,7 @@ describe('G4.49 e2e composition rides the shared IME driver', () => {
 	it('no spec constructs its own composition events', () => {
 		expect(
 			handFiredIn(files.filter((file) => file.relPath !== DRIVER)),
-			'drive the composition through attachIme (simulation/ime.ts): a synthetic event skips the browser composition window'
+			'drive the composition through attachIme (e2e/simulation/ime.ts): a synthetic event skips the browser composition window'
 		).toEqual([]);
 	});
 

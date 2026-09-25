@@ -1,5 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { devWarn, setDevWarnSink, type DevWarnEntry, type DevWarnSink } from '../dev-warn';
+import {
+	devWarn,
+	setDevWarnSink,
+	warnTagOfLine,
+	type DevWarnEntry,
+	type DevWarnSink
+} from '../dev-warn';
 import { configureEditorEnv } from '../env';
 
 // The console branch is what the e2e watchers read, so it is tested with the unit suite's own
@@ -88,5 +94,31 @@ describe('devWarn: sink branch', () => {
 		devWarn('tag', 'message');
 		expect(seen).toEqual([]);
 		expect(warnSpy).not.toHaveBeenCalled();
+	});
+});
+
+describe('warnTagOfLine', () => {
+	it('reads back the tag of the line devWarn prints', () => {
+		const gateSink = setDevWarnSink(null);
+		const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+		try {
+			configureEditorEnv({ isDev: true, isTest: true });
+			devWarn('invariant:commit-path-dialect', 'message', { detail: 1 });
+			expect(warnTagOfLine(String(warnSpy.mock.calls[0][0]))).toBe('invariant:commit-path-dialect');
+		} finally {
+			warnSpy.mockRestore();
+			setDevWarnSink(gateSink);
+		}
+	});
+
+	it('reads any Svelte runtime code in its own styled format, not a list of known ones', () => {
+		for (const code of ['state_proxy_equality_mismatch', 'derived_inert']) {
+			expect(warnTagOfLine(`%c[svelte] ${code}\n%cdetail`)).toBe(`svelte:${code}`);
+		}
+	});
+
+	it('answers null for a line neither the editor nor Svelte wrote', () => {
+		expect(warnTagOfLine('[some-dependency] a warning from outside the editor')).toBeNull();
+		expect(warnTagOfLine('[svelte]')).toBeNull();
 	});
 });

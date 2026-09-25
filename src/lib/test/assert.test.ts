@@ -43,4 +43,19 @@ describe('assertInvariant: dev-runtime channel', () => {
 		production.assertInvariant('test', check);
 		expect(check).not.toHaveBeenCalled();
 	});
+
+	// Miss-analysis: every suite runs with DEV already true, so the published override was never
+	// tried on a build where DEV is false, which is what a runner resolving no conditions gets.
+	it('runs the predicate when configureEditorEnv turns dev on over a build where DEV is false', async () => {
+		vi.resetModules();
+		vi.doMock('esm-env', () => ({ DEV: false }));
+		const { configureEditorEnv } = await import('../env');
+		const { setDevWarnSink } = await import('../dev-warn');
+		const overridden = await import('../assert');
+		const fires: string[] = [];
+		setDevWarnSink((entry) => fires.push(entry.tag));
+		configureEditorEnv({ isDev: true });
+		overridden.assertInvariant('test', () => ({ code: 'x', message: 'm' }));
+		expect(fires).toEqual(['invariant:test']);
+	});
 });
