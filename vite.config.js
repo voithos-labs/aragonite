@@ -1,4 +1,5 @@
 import { realpathSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import path from 'node:path';
 import { defineConfig, searchForWorkspaceRoot } from 'vite';
 import { sveltekit } from '@sveltejs/kit/vite';
@@ -29,31 +30,35 @@ const silenceBrokenImageFixture = {
 // tree each tick, which can starve the machine; anything bulky belongs in the ignore list below.
 const usePolling = process.env.ARAGONITE_POLL === '1';
 
-// A worktree whose `node_modules` is a junction into another checkout resolves every dep to a
-// real path outside its own root, and vite refuses to serve those files (a 403 per font), so
-// such a tree gets the junction target allowed.
-const nodeModules = path.resolve('node_modules');
+// A worktree resolves its deps from outside its own root, through a `node_modules` junction or
+// from the enclosing checkout's `node_modules`, and vite refuses to serve those files (a 403 per
+// font), so the directory the deps really resolve from is allowed.
 const nodeModulesTarget = (() => {
+	const kitPackage = createRequire(import.meta.url).resolve('@sveltejs/kit/package.json');
+	const resolvedFrom = kitPackage.slice(
+		0,
+		kitPackage.lastIndexOf('node_modules') + 'node_modules'.length
+	);
 	try {
-		return realpathSync.native(nodeModules);
+		return realpathSync.native(resolvedFrom);
 	} catch {
-		return nodeModules;
+		return resolvedFrom;
 	}
 })();
-const junctioned = nodeModulesTarget !== nodeModules;
+const depsOutsideRoot = path.relative(process.cwd(), nodeModulesTarget).startsWith('..');
 
 export default defineConfig({
 	plugins: [silenceBrokenImageFixture, sveltekit()],
-	// Per checkout under a junctioned `node_modules`, or sibling worktrees' dev servers
+	// Per checkout when the deps live outside it, or sibling worktrees' dev servers
 	// re-optimize one shared pre-bundle under each other and 500 every page.
-	...(junctioned ? { cacheDir: '.svelte-kit/vite-cache' } : {}),
+	...(depsOutsideRoot ? { cacheDir: '.svelte-kit/vite-cache' } : {}),
 	// The lazy engines pre-bundle at server start: discovered at first use, their chunks are
 	// re-optimized under a page that already imported them, and the import fails.
 	optimizeDeps: { include: ['mermaid', 'katex'] },
 	server: {
 		port: 1420,
 		strictPort: true,
-		...(junctioned
+		...(depsOutsideRoot
 			? { fs: { allow: [searchForWorkspaceRoot(process.cwd()), nodeModulesTarget] } }
 			: {}),
 		watch: {
