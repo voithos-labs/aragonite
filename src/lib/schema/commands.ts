@@ -8,7 +8,8 @@
 import type { AnyBlockKind } from '../core/nodes';
 import type { AnyCommandId } from './command-id';
 import { devWarn } from '../dev-warn';
-import { devReplacesRegistration, enrollTestReset } from './register-once';
+import { devReplacesRegistration } from './register-once';
+import { enrollTestReset } from './registry-reset';
 import { createPluginRegistry } from './plugin-registry';
 import { tryGetBlockKindDescriptor } from './block-kind-descriptor';
 import { normalizeChord, isChordWellFormed, type KeyBinding } from './keybindings';
@@ -154,6 +155,11 @@ export function getCommand(
 	activation: PluginActivation
 ): GlobalCommandRun | undefined {
 	return globalCommands.get(id, activation);
+}
+
+/** Whether any plugin or built-in registered the id, whatever the activation. */
+export function isCommandRegistered(id: AnyCommandId): boolean {
+	return globalCommands.has(id);
 }
 
 /** Which dispatch path found the command dead. Half the memo key below: a no-op on one path must

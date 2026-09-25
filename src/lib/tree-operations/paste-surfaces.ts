@@ -6,6 +6,7 @@ import type { GrammarView } from '../schema/block-openers';
 import type { PasteCommitCoordinator } from './paste/paste-deps';
 import type { PluginActivation } from '../schema/plugin-activation';
 import { createPluginRegistry } from '../schema/plugin-registry';
+import { pluginKindOwner } from '../schema/plugin-kind';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -85,7 +86,8 @@ export interface PasteSurface {
 
 const surfaces = createPluginRegistry<AnyBlockKind, PasteSurface>({
 	label: 'registerPasteSurface',
-	isBuiltin: isBuiltinBlockKind
+	isBuiltin: isBuiltinBlockKind,
+	ownerOf: pluginKindOwner
 });
 
 export function registerPasteSurface(surface: PasteSurface): void {

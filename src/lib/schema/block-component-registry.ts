@@ -9,6 +9,7 @@ import type { NodeView } from '../core/node-views';
 import type { BlockComponentExports, BlockComponentProps } from '../block-component';
 import type { PluginActivation } from './plugin-activation';
 import { createPluginRegistry } from './plugin-registry';
+import { pluginKindOwner } from './plugin-kind';
 
 export interface BlockComponentEntry {
 	/**
@@ -37,7 +38,8 @@ export function defineBlockComponent<
 
 const registry = createPluginRegistry<AnyBlockKind, BlockComponentEntry>({
 	label: 'registerBlockComponent',
-	isBuiltin: isBuiltinBlockKind
+	isBuiltin: isBuiltinBlockKind,
+	ownerOf: pluginKindOwner
 });
 
 export function registerBlockComponent(kind: AnyBlockKind, entry: BlockComponentEntry): void {
@@ -48,7 +50,7 @@ export function registerBlockComponent(kind: AnyBlockKind, entry: BlockComponent
 	);
 }
 
-/** The kind's component where `activation` resolves the plugin that registered it. */
+/** The kind's component where `activation` resolves the plugin that owns the kind. */
 export function getBlockComponent(
 	kind: AnyBlockKind,
 	activation: PluginActivation

@@ -15,6 +15,7 @@ import { flushPendingRegistrationChecks } from './registration-checks';
 import { createPluginRegistry, type RegistryRecord } from './plugin-registry';
 import { everyInstalledPlugin, resolvesIn, type PluginActivation } from './plugin-activation';
 import { pluginInstallGeneration } from './plugin-install';
+import { pluginKindOwner } from './plugin-kind';
 
 /** Created fresh for each block and read synchronously; never keep it past the call. */
 export interface OpenContext {
@@ -62,6 +63,7 @@ let interruptCache: { generation: number; predicates: ((lineText: string) => boo
 const openers = createPluginRegistry<AnyBlockKind, BlockOpener>({
 	label: 'registerBlockOpener',
 	isBuiltin: isBuiltinBlockKind,
+	ownerOf: pluginKindOwner,
 	onChange: () => {
 		orderedRecordsCache = null;
 		orderedCache = null;

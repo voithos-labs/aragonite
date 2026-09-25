@@ -8,6 +8,7 @@ export const EVERY_KIND = '*';
 import type { NodeView } from '../core/node-views';
 import type { PluginActivation } from './plugin-activation';
 import { createPluginRegistry } from './plugin-registry';
+import { registerAsCore } from './plugin-install';
 
 export interface BlockActionContext {
 	node: NodeView;
@@ -58,14 +59,15 @@ export function registerBlockContextActions(
 	);
 }
 
-/** The editor's own rows: a provider the test reset keeps. */
+/** The editor's own rows: a provider the test reset keeps, owned by no plugin even when a
+ *  plugin's setup is what first reaches it. */
 export function registerBuiltinBlockContextActions(
 	kind: string,
 	name: string,
 	provider: BlockContextActionProvider
 ): void {
 	builtinKeys.add(`${kind} ${name}`);
-	registerBlockContextActions(kind, name, provider);
+	registerAsCore(() => registerBlockContextActions(kind, name, provider));
 }
 
 export function blockContextActionsFor(

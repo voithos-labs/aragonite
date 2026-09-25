@@ -48,7 +48,7 @@ import {
 	takeRegistrationFlushWork,
 	__resetRegistrationChecksForTests
 } from './registration-pending';
-import { enrollTestReset } from './register-once';
+import { enrollTestReset } from './registry-reset';
 
 export {
 	hasPendingRegistrationChecks,

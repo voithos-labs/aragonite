@@ -187,7 +187,7 @@
 		if (node.raw === lastRenderedRaw && pendingCursorOffset === null && pendingSelection === null)
 			return;
 
-		el.replaceChildren(renderCodeBlock(node));
+		el.replaceChildren(renderCodeBlock(node, activePlugins));
 		anchorTrailingNewline(el);
 		// The container's own data attribute, and the only thing that still reads emptiness:
 		// both the marker-hiding CSS and the caret traversal key off it. The side gutter does
@@ -836,6 +836,7 @@
 {#if showRail}
 	<CodeBlockRail
 		info={infoString}
+		activation={activePlugins}
 		editable={!readOnly}
 		autoOpen={autoOpenLanguage}
 		onCommit={commitLanguage}

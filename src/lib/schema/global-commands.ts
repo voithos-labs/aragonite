@@ -29,8 +29,8 @@ export function registerGlobalCommand(
 			warnDeadKeyCommand(id, 'plugin-global');
 			return false;
 		}
-		// Installed process-wide but absent from this editor's `plugins` prop: inert here, not dead,
-		// so it must not use up the dead-key warning a truly unreachable id gets.
+		// Dispatch reaches this only where the plugin is listed; a caller's own lookup may still
+		// decline, and that is inert rather than dead.
 		const editor = ctx.pluginEditor(owner ?? '');
 		if (!editor) return false;
 		try {

@@ -8,6 +8,7 @@ import { isBuiltinBlockKind, type AnyBlockKind } from '../core/nodes';
 import type { GrammarView } from './block-openers';
 import { resolvesIn } from './plugin-activation';
 import { createPluginRegistry, type RegistryRecord } from './plugin-registry';
+import { pluginKindOwner } from './plugin-kind';
 
 /**
  * The replacement, as lines with no line endings: the Enter handler attaches the block's own
@@ -37,6 +38,7 @@ let orderedCache: RegistryRecord<AnyBlockKind, BlockCompleter>[] | null = null;
 const completers = createPluginRegistry<AnyBlockKind, BlockCompleter>({
 	label: 'registerBlockCompleter',
 	isBuiltin: isBuiltinBlockKind,
+	ownerOf: pluginKindOwner,
 	onChange: () => (orderedCache = null)
 });
 

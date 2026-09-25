@@ -7,6 +7,7 @@ import { declarePluginKind } from '$lib/schema/plugin-kind';
 import { registerBlockKind } from '$lib/schema/block-kind-descriptor';
 import {
 	registerBlockComponent,
+	getBlockComponent,
 	type BlockComponentEntry
 } from '$lib/schema/block-component-registry';
 import { registerBlockOpener, type BlockOpener } from '$lib/schema/block-openers';
@@ -137,5 +138,21 @@ describe('one activation rule for every plugin registration', () => {
 		expect(view.component(kind!)).toBeUndefined();
 		expect(parse('@h hi\n', { grammar: view.grammar }).children[0].kind).toBe('paragraph');
 		expect(parse('@h hi\n').children[0].kind).toBe('paragraph');
+	});
+});
+
+// Miss-analysis: every case registered a kind and its component from the same plugin, so the
+// view's kind check and the component registry's own check always agreed, and a component that
+// answered to its registering plugin instead went unseen.
+describe("a kind's component answers to the plugin that owns the kind", () => {
+	it('resolves only where the kind owner is listed, whichever plugin registered the component', () => {
+		let kind: PluginBlockKind | undefined;
+		installPlugins([
+			definePlugin({ name: 'owner', setup: () => void (kind = declarePluginKind('owned-block')) }),
+			definePlugin({ name: 'skinner', setup: () => registerBlockComponent(kind!, stubComponent) })
+		]);
+
+		expect(getBlockComponent(kind!, activationFor(['skinner']))).toBeUndefined();
+		expect(getBlockComponent(kind!, activationFor(['owner']))).toBe(stubComponent);
 	});
 });

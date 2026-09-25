@@ -6,12 +6,13 @@
  */
 import { currentInstallingPlugin } from './plugin-install';
 import { resolvesIn, type PluginActivation } from './plugin-activation';
-import { enrollTestReset, registerOnce } from './register-once';
+import { registerOnce } from './register-once';
+import { enrollTestReset } from './registry-reset';
 
 export interface RegistryRecord<K, V> {
 	readonly key: K;
 	readonly value: V;
-	/** The plugin whose setup registered the entry; null outside a plugin install. */
+	/** The plugin whose activation the entry answers to (`PluginRegistryOptions.ownerOf`). */
 	readonly owner: string | null;
 }
 
@@ -42,6 +43,9 @@ export interface PluginRegistryOptions<K> {
 	isBuiltin: (key: K) => boolean;
 	/** Runs after every change, the reset included, so a derived cache can drop itself. */
 	onChange?: () => void;
+	/** Whose activation an entry answers to. Absent, the plugin whose setup registered it; a
+	 *  kind-keyed registry passes the kind's owner, so every entry for a kind answers to one plugin. */
+	ownerOf?: (key: K) => string | null;
 }
 
 export function createPluginRegistry<K, V>(
@@ -49,6 +53,8 @@ export function createPluginRegistry<K, V>(
 ): PluginRegistry<K, V> {
 	const entries = new Map<K, { value: V; owner: string | null }>();
 	const changed = () => options.onChange?.();
+	const answersTo = (key: K, registrant: string | null) =>
+		options.ownerOf ? options.ownerOf(key) : registrant;
 
 	enrollTestReset(() => {
 		for (const [key, entry] of entries) {
@@ -78,19 +84,23 @@ export function createPluginRegistry<K, V>(
 			changed();
 		},
 		has: (key) => entries.has(key),
-		ownerOf: (key) => entries.get(key)?.owner ?? null,
+		ownerOf: (key) => {
+			const entry = entries.get(key);
+			return entry ? answersTo(key, entry.owner) : null;
+		},
 		get(key, activation) {
 			const entry = entries.get(key);
-			return entry && resolvesIn(activation, entry.owner) ? entry.value : undefined;
+			return entry && resolvesIn(activation, answersTo(key, entry.owner)) ? entry.value : undefined;
 		},
 		entries(activation) {
 			const out: [K, V][] = [];
 			for (const [key, { value, owner }] of entries) {
-				if (resolvesIn(activation, owner)) out.push([key, value]);
+				if (resolvesIn(activation, answersTo(key, owner))) out.push([key, value]);
 			}
 			return out;
 		},
 		getIgnoringActivation: (key) => entries.get(key)?.value,
-		records: () => [...entries].map(([key, { value, owner }]) => ({ key, value, owner }))
+		records: () =>
+			[...entries].map(([key, { value, owner }]) => ({ key, value, owner: answersTo(key, owner) }))
 	};
 }

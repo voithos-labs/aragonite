@@ -3,7 +3,7 @@
  * registration. The frozen contract (docs/design/plugin-contract.md § The registries: global,
  * register-once) is that a duplicate is an error, and production and test keep the throw. On a dev
  * server that throw would break every route until restart, so there a duplicate replaces the entry
- * and warns instead. Depends on nothing in `schema/`, so any registry module may import it.
+ * and warns instead.
  */
 import { editorEnv } from '../env';
 import { devWarn } from '../dev-warn';
@@ -27,19 +27,4 @@ export function registerOnce(isDuplicate: boolean, apply: () => void, conflict: 
 		throw new Error(conflict);
 	}
 	apply();
-}
-
-// ── Test reset ───────────────────────────────────────────────────────────────
-
-const testResets: (() => void)[] = [];
-
-/** Add process-global plugin state to the one test reset. A registry from `createPluginRegistry`
- *  enrolls itself; other state that mirrors a registry enrolls here when its module loads. */
-export function enrollTestReset(reset: () => void): void {
-	testResets.push(reset);
-}
-
-/** Run every enrolled reset: `__resetSchemaRegistriesForTests` and the published reset both call it. */
-export function runEnrolledTestResets(): void {
-	for (const reset of testResets) reset();
 }

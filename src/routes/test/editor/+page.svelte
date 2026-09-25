@@ -4,7 +4,7 @@
 	// API a host uses (`@voithos-labs/aragonite/plugin`). This is the worked example for that
 	// export: one import, one call, before any editor mounts. Off by default, because the language
 	// list is geometry the picker specs read.
-	import { listLanguages, registerLanguage } from '$lib/plugin';
+	import { isLanguageRegistered, registerLanguage } from '$lib/plugin';
 	import elixir from 'highlight.js/lib/languages/elixir';
 	import { HARNESS_SHOWCASE_CONTENT } from '$lib/e2e/test-content';
 	import type { KeybindingOverride } from '$lib/schema/keybinding-overrides';
@@ -50,7 +50,7 @@
 	// registration on the client, still ahead of the editor's own mount below. Languages are
 	// register-once, and a second visit to this page runs this again.
 	const extraLanguagesOn = param('extraLanguage') === 'on';
-	if (extraLanguagesOn && !listLanguages().includes('elixir')) {
+	if (extraLanguagesOn && !isLanguageRegistered('elixir')) {
 		registerLanguage('elixir', elixir, ['ex', 'exs']);
 	}
 

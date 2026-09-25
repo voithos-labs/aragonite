@@ -14,6 +14,7 @@ import {
 	resolveBinding,
 	resolveKindBinding,
 	getCommand,
+	isCommandRegistered,
 	warnDeadKeyCommand,
 	isBuiltinCommandId,
 	CROSS_BLOCK_RANGE_COMMAND_IDS,
@@ -141,8 +142,9 @@ export type CommandErrorSink = (report: CommandErrorReport) => void;
 
 /**
  * Which level answers an id at a target. `'dead'` is a bound id no handler on the block answers;
- * `'no-surface'` is a block-level id with nothing focused, where no handler was tried and so no
- * one-time dead-key warning is due.
+ * `'no-surface'` is a block-level id with nothing focused, where no handler was tried; `'unlisted'`
+ * is a plugin's command this editor did not activate, inert here rather than dead. Only `'dead'`
+ * spends the one-time dead-key warning.
  */
 type BlockLocalResolution =
 	| {
@@ -153,7 +155,8 @@ type BlockLocalResolution =
 	  }
 	| { tier: 'builtin'; target: KindCommandTarget }
 	| { tier: 'dead' }
-	| { tier: 'no-surface' };
+	| { tier: 'no-surface' }
+	| { tier: 'unlisted' };
 
 type CommandResolution = { tier: 'global'; run: GlobalCommandRun } | BlockLocalResolution;
 
@@ -174,7 +177,10 @@ function resolveBlockLocalCommand(
 	// read a host may run per selection change.
 	const context = handler ? target.getCommandContext?.() : undefined;
 	if (handler && context) return { tier: 'minted', target, handler, context };
-	return isBuiltinCommandId(id) ? { tier: 'builtin', target } : { tier: 'dead' };
+	if (isBuiltinCommandId(id)) return { tier: 'builtin', target };
+	const installedElsewhere =
+		isCommandRegistered(id) || blockCommands.has(compositeKey(target.kind, id));
+	return installedElsewhere && !handler ? { tier: 'unlisted' } : { tier: 'dead' };
 }
 
 /** The full lookup: global commands first, then the block-level ones. Both the dispatch and the
@@ -215,6 +221,7 @@ function runBlockLocalCommand(
 			warnDeadKeyCommand(id, path);
 			return false;
 		case 'no-surface':
+		case 'unlisted':
 			return false;
 	}
 }
@@ -289,7 +296,7 @@ export function canRunCommandById(
 	const route = rangeRouteFor(id, gates);
 	if (route.kind !== 'block-local') return route.kind === 'cross-block';
 	const { tier } = resolveCommand(id, target, gates.activation);
-	return tier !== 'dead' && tier !== 'no-surface';
+	return tier === 'global' || tier === 'minted' || tier === 'builtin';
 }
 
 /** The read behind `EditorInstance.isCommandActive`, `canRunCommandById`'s sibling: state rather

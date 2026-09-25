@@ -1,6 +1,6 @@
 import { devWarn } from '../dev-warn';
 import { isValidPluginName } from './plugin-name';
-import { enrollTestReset } from './register-once';
+import { enrollTestReset } from './registry-reset';
 // Type-only: `editor-events` already imports this module at runtime, so importing a value back
 // would close a cycle from `schema/` to the root.
 import type { DocumentView, NodeView } from '../core/node-views';
