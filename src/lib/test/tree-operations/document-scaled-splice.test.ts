@@ -37,7 +37,7 @@ describe('a document-scaled splice', () => {
 			innerPrefix: '',
 			innerSuffix: ''
 		};
-		spliceChildrenSettled(container, 0, 1, clipboard());
+		spliceChildrenSettled(container, 0, 1, clipboard(), defaultGrammarView);
 		expect(container.children).toHaveLength(OVER_LIMIT);
 		expect(container.childIds).toHaveLength(OVER_LIMIT);
 	});

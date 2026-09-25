@@ -33,7 +33,7 @@ import type { PresentationMode } from '$lib/presentation-mode';
 import { defaultGrammarView } from '$lib/schema/block-openers';
 import { rebuildUnsharedChain } from '$lib/tree-operations/chain-rebuild';
 import { createSharingState } from '$lib/tree-operations/sharing';
-import { fixtureLinkRef } from '../harness/fixture-grammar';
+import { fixtureReading } from '../harness/fixture-grammar';
 
 // G2.13: an edit on a loaded document leaves a tree that reloads to the same block shape, which
 // is the load, edit, save, load cycle a consumer runs on every remount. Byte round-trip (G2.1)
@@ -87,17 +87,17 @@ function applyGesture(doc: Document, gesture: Gesture, mode: PresentationMode | 
 				const offset = Math.min(gesture.offset, displayLength(node.raw));
 				settled(
 					doc,
-					(body) => splitNode(body, at, offset, undefined, mode, fixtureLinkRef()).change
+					(body) => splitNode(body, at, offset, undefined, fixtureReading({}, mode)).change
 				);
 			}
 			return;
 		case 'delete':
-			settled(doc, (body) => deleteNode(body, at));
+			settled(doc, (body) => deleteNode(body, at, defaultGrammarView));
 			return;
 		case 'update':
 			// Typing into the block, keeping its kind: the shape still has to reload as it stands.
 			// The content-write path does carry the suffix (`block-edit.updateBlockContent`).
-			settled(doc, () => updateNodeContent(doc, at, node.raw).change);
+			settled(doc, () => updateNodeContent(doc, at, node.raw, defaultGrammarView).change);
 			return;
 	}
 }
@@ -112,7 +112,7 @@ function applyFill(doc: Document, at: number): void {
 	if (blanks.length === 0) return;
 	const target = blanks[at % blanks.length];
 	const text = 'x' + trailingLineEnding(doc.children[target].raw, documentLineEnding(doc));
-	settled(doc, () => updateNodeContent(doc, target, text).change);
+	settled(doc, () => updateNodeContent(doc, target, text, defaultGrammarView).change);
 }
 
 /**
@@ -129,10 +129,10 @@ function applyMerge(doc: Document, at: number, op: 'mergePrev' | 'mergeNext'): v
 	const i = pairs[at % pairs.length];
 	settled(doc, (body) =>
 		op === 'mergePrev'
-			? (mergeIntoPrevDeepLeaf(body, i, undefined, undefined, fixtureLinkRef())?.change ?? {
+			? (mergeIntoPrevDeepLeaf(body, i, undefined, fixtureReading())?.change ?? {
 					op: 'noop'
 				})
-			: mergeWithNext(body, i - 1, undefined, fixtureLinkRef(), defaultGrammarView).change
+			: mergeWithNext(body, i - 1, fixtureReading()).change
 	);
 }
 
@@ -185,13 +185,15 @@ function applyRetype(doc: Document, at: number): void {
 function writeLeaf(doc: Document, { holder, index, chain }: LeafSlot, text: string): void {
 	const children = holder.children!;
 	// A container body is fixed up inside its own commit scope, which has no document tail.
-	if (holder === doc) settled(doc, () => updateNodeContent(doc, index, text).change);
+	if (holder === doc)
+		settled(doc, () => updateNodeContent(doc, index, text, defaultGrammarView).change);
 	else {
 		const owner = holder as CstNode;
 		updateNodeContent(
 			{ children, ownerKind: owner.kind, owner, lineEnding: documentLineEnding(doc) },
 			index,
-			text
+			text,
+			defaultGrammarView
 		);
 	}
 	// The rebuild typing runs, which recomputes the blank line a changed opener line needs above it.

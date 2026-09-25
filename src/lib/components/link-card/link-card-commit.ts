@@ -11,8 +11,6 @@ import { wireOverlayRemeasure } from '../../cursor/overlay-remeasure';
 import type { UndoController } from '../../editor-actions/deps';
 import { createInlineRangeCommit } from '../../editor-actions/inline-range-commit';
 import type { EditorEvents } from '../../editor-events';
-import type { LinkReferenceResolverRef } from '../../editor-keys';
-import type { GrammarView } from '../../schema/block-openers';
 import { isBlockNode, nodeAt } from '../../tree-operations/node-primitives';
 import { linkConstructAt, type LinkTarget } from '../blocks/text/link-at-point';
 import {
@@ -23,6 +21,7 @@ import {
 	type LinkFields
 } from '../blocks/text/link-source-bytes';
 import type { CreateLinkTarget } from './link-card-state.svelte';
+import type { Reading } from '../../schema/reading';
 
 // ── Public API ──────────────────────────────────────────────────────────────
 
@@ -39,8 +38,7 @@ export interface LinkCardCommitterDeps {
 	measureRange: (path: number[], start: number, end: number) => DOMRect[];
 	/** Scroll to and place the caret at a raw offset, so the next keystroke goes to the doc. */
 	landCaret: (path: number[], offset: number) => Promise<boolean>;
-	linkRef: LinkReferenceResolverRef;
-	grammar?: GrammarView;
+	reading: Reading;
 }
 
 export interface ResolvedLinkTarget {
@@ -68,13 +66,13 @@ export function createLinkCardCommitter(deps: LinkCardCommitterDeps): LinkCardCo
 	const inlineRange = createInlineRangeCommit({
 		getDoc: deps.getDoc,
 		controller: deps.controller,
-		grammar: deps.grammar
+		reading: deps.reading
 	});
 
 	function resolve(target: LinkTarget): ResolvedLinkTarget | null {
 		const block = nodeAt(deps.getDoc() as DocumentView, target.path);
 		if (block === null || !isBlockNode(block)) return null;
-		const link = linkConstructAt(block, target.sourceStart, deps.linkRef);
+		const link = linkConstructAt(block, target.sourceStart, deps.reading);
 		return link === null ? null : { block, link, url: link.url ?? '' };
 	}
 
@@ -94,7 +92,7 @@ export function createLinkCardCommitter(deps: LinkCardCommitterDeps): LinkCardCo
 						url,
 						...(current.title !== undefined ? { title: current.title } : {})
 					};
-		const bytes = buildLinkEditBytes(link, block.raw, fields, deps.linkRef);
+		const bytes = buildLinkEditBytes(link, block.raw, fields, deps.reading);
 		return bytes === null ? null : { bytes, link };
 	}
 
@@ -115,7 +113,7 @@ export function createLinkCardCommitter(deps: LinkCardCommitterDeps): LinkCardCo
 	function commitCreate(target: CreateLinkTarget, url: string): void {
 		const block = nodeAt(deps.getDoc() as DocumentView, target.path);
 		if (block === null || !isBlockNode(block)) return;
-		const bytes = buildLinkWrapBytes(block.raw, target.start, target.end, url, deps.linkRef);
+		const bytes = buildLinkWrapBytes(block.raw, target.start, target.end, url, deps.reading);
 		if (bytes === null) return;
 		void write(target.path, target.start, target.end, bytes);
 	}
@@ -123,7 +121,7 @@ export function createLinkCardCommitter(deps: LinkCardCommitterDeps): LinkCardCo
 	function removeLink(target: LinkTarget): void {
 		const resolved = resolve(target);
 		if (!resolved) return;
-		const bytes = buildLinkUnwrapBytes(resolved.link, resolved.block.raw, deps.linkRef);
+		const bytes = buildLinkUnwrapBytes(resolved.link, resolved.block.raw, deps.reading);
 		if (bytes === null) return;
 		void write(target.path, resolved.link.start, resolved.link.end, bytes);
 	}

@@ -4,7 +4,6 @@
 // two delimiters the user typed keep both bytes when a key lands between them.
 // Miss-analysis: every empty-pair row started from a pair the auto-pair had just written, and the
 // resolver read ownership off the bytes, so no case typed `**b`, moved into the stars and keyed.
-import { defaultGrammarView } from '$lib/schema/block-openers';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
 	applyDelimiterAutoPair,
@@ -16,6 +15,7 @@ import {
 } from '$lib/components/blocks/text/auto-pair-record';
 import { resetPluginPlatformForTests } from '$lib/testing';
 import { registerMathInline } from '$lib/plugins/latex/latex-kind';
+import { fixtureReading } from '$lib/test/harness/fixture-grammar';
 
 /** A block's line under the handler, with the browser's own edit where the handler declines. */
 class TypedLine {
@@ -33,14 +33,13 @@ class TypedLine {
 			hasSelection: () => false,
 			isRevealing: () => false,
 			foldReveal: () => null,
-			markersPaint: () => true,
 			setCaret: (offset) => (this.caret = offset),
 			seatOutside: () => {},
 			write: (next, _before, after) => {
 				this.text = next;
 				this.caret = after;
 			},
-			linkRef: { grammar: defaultGrammarView },
+			reading: fixtureReading(),
 			ownPairs: record.forBlock()
 		};
 	}

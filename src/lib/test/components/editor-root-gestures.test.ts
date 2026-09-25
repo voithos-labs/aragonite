@@ -8,7 +8,7 @@ import { buildLinkReferenceMap } from '$lib/core/inline/link-reference-resolver'
 import { parse } from '$lib/core/parser';
 import type { BlockComponent } from '$lib/block-component';
 import type { PresentationMode } from '$lib/presentation-mode';
-import { fixtureLinkRef } from '../harness/fixture-grammar';
+import { fixtureReading } from '../harness/fixture-grammar';
 
 // Miss-analysis: the click test and the margin drag's setup were driven only through Playwright,
 // so no jsdom test named a refusal (a widget that runs its own gesture, a modifier held down,
@@ -84,9 +84,6 @@ function harness(opts: { mode?: PresentationMode } = {}) {
 	const component = { focusable: true, focus, startDragAtPoint } as unknown as BlockComponent;
 	const activateLink = vi.fn();
 	const gestures = createRootGestures({
-		get mode() {
-			return mode;
-		},
 		getDoc: () => doc,
 		selection,
 		stickyColumn: createStickyColumnState(),
@@ -99,7 +96,10 @@ function harness(opts: { mode?: PresentationMode } = {}) {
 		isHostChrome: (node) => !!node && header.contains(node),
 		activateLink,
 		linkCard: { open: () => false },
-		linkRef: fixtureLinkRef({ current: refs.resolve, signature: refs.signature, epoch: 0 }),
+		reading: fixtureReading(
+			{ resolver: refs.resolve, resolverSignature: refs.signature, resolverEpoch: 0 },
+			mode
+		),
 		widgetSelection: { isSelected: () => false }
 	});
 	teardowns.push(gestures.install(root));

@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { inlineFormatsCovering, isInlineFormatActive } from '$lib/core/inline/format-toggle';
-import { defaultGrammarView } from '$lib/schema/block-openers';
 import type { InlineMarkKind } from '$lib/schema/inline-construct-policy';
 import { whole } from './format-toggle-fixture';
+import { fixtureReading } from '$lib/test/harness/fixture-grammar';
 
 // The pressed-state read answers "would a toggle unformat": the same checks the toggle routes by,
 // asked without writing. Kept beside the toggle so the toolbar state and the toggle cannot drift.
@@ -13,7 +13,7 @@ const activeAt = (raw: string, start: number, end: number, format: InlineMarkKin
 			display: raw,
 			content: whole(raw),
 			selection: { start, end },
-			linkRef: { grammar: defaultGrammarView }
+			reading: fixtureReading()
 		},
 		format
 	);
@@ -59,7 +59,7 @@ describe('isInlineFormatActive', () => {
 			display: raw,
 			content: whole(raw),
 			selection: whole(raw),
-			linkRef: { grammar: defaultGrammarView }
+			reading: fixtureReading()
 		};
 		expect(isInlineFormatActive(edit, 'link')).toBe(false);
 		expect([...inlineFormatsCovering(edit, ['link'])]).toEqual([]);

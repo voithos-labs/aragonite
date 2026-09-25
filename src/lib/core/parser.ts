@@ -35,24 +35,28 @@ export const MAX_NESTING_DEPTH = 512;
 export type ParseScope = 'document' | 'fragment';
 
 /**
- * Parse GFM to a lossless CST. `opts.grammar` is the per-instance grammar view, defaulting to
- * the global openers; container bodies parse through it too. `opts.scope` reaches openers as
- * `ctx.isDocumentParse`; it defaults to `'document'`, so whole-source callers need nothing.
+ * Parse GFM to a lossless CST. The published entry: `opts.grammar` defaults to every installed
+ * plugin's openers and `opts.scope` to `'document'`, so whole-source callers need nothing. Code
+ * inside the editor calls {@link readBlocks}, which takes both.
  */
 export function parse(
 	source: string,
 	opts?: { grammar?: GrammarView; scope?: ParseScope }
 ): Document {
+	return readBlocks(source, {
+		grammar: opts?.grammar ?? defaultGrammarView,
+		scope: opts?.scope ?? 'document'
+	});
+}
+
+/** `parse` for code inside the editor: the grammar is the editor's, so it is never left out. */
+export function readBlocks(
+	source: string,
+	read: { grammar: GrammarView; scope: ParseScope }
+): Document {
 	const t0 = perfEnabled() ? performance.now() : 0;
 	const lines = splitLines(source);
-	const result = parseBlocks(
-		lines,
-		0,
-		lines.length,
-		opts?.grammar ?? defaultGrammarView,
-		0,
-		(opts?.scope ?? 'document') === 'document'
-	);
+	const result = parseBlocks(lines, 0, lines.length, read);
 	if (perfEnabled()) recordParse(performance.now() - t0, result.children.length);
 	return { kind: 'document', prefix: '', children: result.children, suffix: result.suffix };
 }
@@ -66,9 +70,13 @@ interface ParseBlocksResult {
  * A task item's body read on its own, as a write into the item's first paragraph reads it: the
  * line after the task marker is paragraph text (GFM task lists), and later lines parse as blocks.
  */
-export function parseTaskItemBody(source: string, grammar?: GrammarView): Document {
+export function parseTaskItemBody(source: string, grammar: GrammarView): Document {
 	const lines = splitLines(source);
-	const result = parseBlocks(lines, 0, lines.length, grammar, 0, false, true);
+	const result = parseBlocks(lines, 0, lines.length, {
+		grammar,
+		scope: 'fragment',
+		firstLineIsParagraph: true
+	});
 	return { kind: 'document', prefix: '', children: result.children, suffix: result.suffix };
 }
 
@@ -82,11 +90,10 @@ export function parseBlocks(
 	lines: ParsedLine[],
 	start: number,
 	end: number,
-	grammar: GrammarView = defaultGrammarView,
-	depth: number = 0,
-	isDocumentParse: boolean = false,
-	firstLineIsParagraph: boolean = false
+	read: { grammar: GrammarView; scope: ParseScope; depth?: number; firstLineIsParagraph?: boolean }
 ): ParseBlocksResult {
+	const { grammar, depth = 0, firstLineIsParagraph = false } = read;
+	const isDocumentParse = read.scope === 'document';
 	const children: CstNode[] = [];
 	let pendingTrivia = '';
 	// Nothing precedes the window's first block, so its separator is already spent, which is
@@ -154,7 +161,7 @@ export interface ContainerBodyWrap {
 export function parseContainerBody(
 	bodyText: string,
 	wrap: ContainerBodyWrap,
-	opts: { scope: ParseScope; depth?: number; grammar?: GrammarView }
+	opts: { scope: ParseScope; depth?: number; grammar: GrammarView }
 ): Document {
 	const lines = splitLines(bodyText);
 	let first = 0;
@@ -171,14 +178,7 @@ export function parseContainerBody(
 		suffix = lines[last].raw;
 	}
 
-	const inner = parseBlocks(
-		lines,
-		first,
-		last,
-		opts.grammar ?? defaultGrammarView,
-		opts.depth ?? 0,
-		opts.scope === 'document'
-	);
+	const inner = parseBlocks(lines, first, last, opts);
 	return { kind: 'document', prefix, children: inner.children, suffix: inner.suffix + suffix };
 }
 

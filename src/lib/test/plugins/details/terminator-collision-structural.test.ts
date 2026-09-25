@@ -7,7 +7,7 @@ import { registerDetailsKind, DETAILS } from '$lib/plugins/details/details-kind'
 import { splitNode } from '$lib/tree-operations/node-ops';
 import { rangeDelete } from '$lib/selection/range-delete';
 import { createSharingState } from '$lib/tree-operations/sharing';
-import { fixtureLinkRef } from '../../harness/fixture-grammar';
+import { fixtureReading, fixtureGrammar } from '../../harness/fixture-grammar';
 
 // The structural paths into the same `</details>` escape: they write the body themselves,
 // with no per-block commit to apply the rule.
@@ -29,7 +29,7 @@ describe('details terminator escape at the split entry point', () => {
 			...detailsOwner(),
 			lineEnding: '\n' as const
 		};
-		splitNode(parent, 0, 3, undefined, undefined, fixtureLinkRef());
+		splitNode(parent, 0, 3, undefined, fixtureReading());
 
 		expect(parent.children.map((c) => c.raw)).toEqual(['foo\n', '&lt;/details>\n']);
 	});
@@ -44,7 +44,7 @@ describe('details terminator escape at the split entry point', () => {
 		};
 		expect(parent.children[0].kind).toBe('htmlBlock');
 
-		splitNode(parent, 0, 10, undefined, undefined, fixtureLinkRef());
+		splitNode(parent, 0, 10, undefined, fixtureReading());
 
 		expect(parent.children.map((c) => c.raw)).toEqual(['&lt;/details>\n', 'foo\n']);
 	});
@@ -56,7 +56,7 @@ describe('details terminator escape at the split entry point', () => {
 			owner: undefined,
 			lineEnding: '\n' as const
 		};
-		splitNode(parent, 0, 3, undefined, undefined, fixtureLinkRef());
+		splitNode(parent, 0, 3, undefined, fixtureReading());
 
 		expect(parent.children.map((c) => c.raw)).toEqual(['foo\n', '</details>\n']);
 	});
@@ -80,13 +80,11 @@ describe('details terminator escape at the cross-block entry points', () => {
 			{ path: [0, 1], offset: 6 },
 			{ path: [0, 2], offset: 2 },
 			createSharingState(),
-			undefined,
-			undefined,
-			fixtureLinkRef()
+			fixtureReading()
 		);
 
 		expect(parse(serialize(doc)).children.map((c) => c.kind)).toEqual(['details']);
-		expect(checkOpaqueStaleRaw(doc.children[0])).toBeNull();
+		expect(checkOpaqueStaleRaw(doc.children[0], fixtureGrammar)).toBeNull();
 	});
 
 	it('escapes a terminator a same-block delete strands at column 0', () => {
@@ -97,12 +95,10 @@ describe('details terminator escape at the cross-block entry points', () => {
 			{ path: [0, 1], offset: 0 },
 			{ path: [0, 1], offset: 2 },
 			createSharingState(),
-			undefined,
-			undefined,
-			fixtureLinkRef()
+			fixtureReading()
 		);
 
 		expect(parse(serialize(doc)).children.map((c) => c.kind)).toEqual(['details']);
-		expect(checkOpaqueStaleRaw(doc.children[0])).toBeNull();
+		expect(checkOpaqueStaleRaw(doc.children[0], fixtureGrammar)).toBeNull();
 	});
 });

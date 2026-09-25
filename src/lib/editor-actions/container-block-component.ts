@@ -21,6 +21,7 @@ import type { BlockEditActions, FocusActions } from '../action-contracts';
 import { runGlobalChordOnKind, type GlobalCommandContext } from '../schema/commands';
 import type { KeybindingOverrideMap } from '../schema/keybinding-overrides';
 import type { PluginActivation } from '../schema/plugin-activation';
+import type { Reading } from '../schema/reading';
 import { isCharacterKey } from '../schema/keybindings';
 import { displayLength, trimTrailingLineEnding } from '../core/lines';
 import { isVerticallyTransparentNode } from '../core/inline/transparency';
@@ -160,6 +161,8 @@ export interface ContainerBlockComponentDeps {
 	/** For the widget-only check, which reads the node so it works for an unmounted
 	 *  container where `innerBlockRefs` is sparse (VR-6). */
 	readonly node: NodeView;
+	/** How the editor reads its bytes, whose grammar the widget-only check reads the node in. */
+	readonly reading: Reading;
 	/** Scroll this container so child `index` is mounted; resolves after a tick. */
 	readonly revealChild?: (index: number) => Promise<void>;
 	/** Lets the scroll-into-view give up instead of hanging when a scroll missed (VR-5). */
@@ -283,7 +286,7 @@ export function createContainerBlockComponent(
 			dispatchFocusAtColumn(deps.innerBlockRefs, x, from);
 		},
 		isVerticallyTransparent(): boolean {
-			return isVerticallyTransparentNode(deps.node);
+			return isVerticallyTransparentNode(deps.node, deps.reading.grammar);
 		},
 		enterEdgeWidget(side: 'start' | 'end'): boolean {
 			if (deps.nodeChildrenLength === 0) return false;

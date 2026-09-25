@@ -1,13 +1,6 @@
 <script lang="ts">
 	import { setContext, getContext, untrack, tick } from 'svelte';
-	import type {
-		BlockEditActions,
-		CellPosition,
-		ContainerEditActions,
-		FocusActions,
-		TableAxisAction,
-		TableContext
-	} from '../../../action-contracts';
+	import type { CellPosition, TableAxisAction, TableContext } from '../../../action-contracts';
 	import {
 		CURSOR_END,
 		CURSOR_START,
@@ -16,15 +9,10 @@
 	} from '../../../block-component';
 	import type { NodeView } from '../../../core/node-views';
 	import {
-		BLOCK_EDIT_KEY,
-		CONTAINER_EDIT_KEY,
 		EDITOR_DOC_KEY,
-		EDITOR_POLICIES_KEY,
 		EDITOR_SERVICES_KEY,
-		FOCUS_KEY,
 		TABLE_CONTEXT_KEY,
 		type EditorDoc,
-		type EditorPolicies,
 		type EditorServices
 	} from '../../../editor-keys';
 	import { metadataOf } from '../../../core/nodes';
@@ -37,15 +25,10 @@
 	import { tableCaretAtPoint } from './table-caret-at-point';
 	import { intraTableRect } from './cell-clipboard';
 	import { selectedCells } from './selected-cells';
-	import { createBlockListState } from '../../../reactivity/block-list-state.svelte';
 	import { useContainerWindowing } from '../../../reactivity/use-container-windowing.svelte';
 	import { sliceWindow } from '../../../reactivity/window-slice';
 	import { revealChildOrWait } from '../../../reactivity/publish-ref.svelte';
-	import {
-		createStandardNestedActions,
-		setNestedActionsContexts,
-		type NodeScope
-	} from '../../../editor-actions/nested/nested-actions';
+	import { createContainerActions } from '../../../editor-actions/nested/container-actions';
 	import { createTableMutationsContext } from '../../../editor-actions/table-context';
 	import TableRowBlock from './TableRowBlock.svelte';
 	import TableActionMenu from './TableActionMenu.svelte';
@@ -63,27 +46,30 @@
 		myPath: number[];
 	} = $props();
 
-	const parentBlockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
-	const focusActions = getContext<FocusActions>(FOCUS_KEY);
-	const parentContainerEdit = getContext<ContainerEditActions>(CONTAINER_EDIT_KEY);
+	const {
+		state: rowsState,
+		parent: { focus: focusActions, containerEdit: parentContainerEdit }
+	} = createContainerActions({
+		getNode: () => node,
+		getIndex: () => index,
+		getPath: () => myPath
+	});
 	const {
 		controller,
 		stickyColumn: editorStickyColumn,
 		selection,
 		reorderAnnounce: announceReorder,
-		registryView,
 		menuPresence
 	} = getContext<EditorServices>(EDITOR_SERVICES_KEY);
 	const {
 		editorRoot: getEditorRoot,
 		widthVersion: getWidthVersion,
 		lifetime: editorLifetime,
-		linkRef
+		reading
 	} = getContext<EditorDoc>(EDITOR_DOC_KEY);
-	const { presentationMode: getPresentationMode } = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
 	// Every menu item changes the table, so reading mode refuses to open it and the
 	// browser's own context menu, with Copy, shows instead.
-	const readOnly = $derived(getPresentationMode() === 'reading');
+	const readOnly = $derived(reading.mode() === 'reading');
 
 	const meta = $derived(metadataOf(node, 'table'));
 	const rowCount = $derived(node.children?.length ?? 0);
@@ -109,35 +95,6 @@
 		});
 	}
 	let tableEl: HTMLDivElement | undefined = $state();
-
-	const rowsState = createBlockListState(() => node);
-
-	const scope: NodeScope = {
-		get index() {
-			return index;
-		},
-		get node() {
-			return node;
-		},
-		get path() {
-			return myPath;
-		}
-	};
-
-	const bundle = createStandardNestedActions(rowsState, {
-		scope,
-		stickyColumn: editorStickyColumn,
-		grammar: registryView.grammar,
-		getPresentationMode,
-		linkRef,
-		parent: {
-			blockEdit: parentBlockEdit,
-			focus: focusActions,
-			containerEdit: parentContainerEdit
-		}
-	});
-
-	setNestedActionsContexts(bundle);
 
 	// ── Virtual rendering (row windowing) ───────────────────────────────
 
@@ -229,7 +186,7 @@
 	}
 
 	const mutations = createTableMutationsContext({
-		grammar: registryView.grammar,
+		reading,
 		get node() {
 			return node;
 		},

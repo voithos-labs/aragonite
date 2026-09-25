@@ -6,6 +6,7 @@ import {
 	assembleListHalf,
 	buildListItemWithContent
 } from '../../tree-operations/list/list-builders';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 function firstBlock(source: string): CstNode {
 	return parse(source).children[0];
@@ -21,29 +22,29 @@ describe('checkStaleRaw (G1.1)', () => {
 	// faithful freshly-parsed nodes; the strip-vs-serialize check tolerates them.
 
 	it('passes for blockquote with no space after marker (>foo)', () => {
-		expect(checkStaleRaw(firstBlock('>foo\n'))).toBeNull();
+		expect(checkStaleRaw(firstBlock('>foo\n'), defaultGrammarView)).toBeNull();
 	});
 
 	it('passes for blockquote lazy continuation', () => {
-		expect(checkStaleRaw(firstBlock('> foo\nbar\n'))).toBeNull();
+		expect(checkStaleRaw(firstBlock('> foo\nbar\n'), defaultGrammarView)).toBeNull();
 	});
 
 	it('passes for a list item with leading indentation', () => {
 		const listItem = firstBlock('   - a\n').children?.[0];
 		expect(listItem?.kind).toBe('listItem');
-		expect(checkStaleRaw(listItem!)).toBeNull();
+		expect(checkStaleRaw(listItem!, defaultGrammarView)).toBeNull();
 	});
 
 	it('passes for a freshly parsed blockquote', () => {
-		expect(checkStaleRaw(firstBlock('> hello\n> world\n'))).toBeNull();
+		expect(checkStaleRaw(firstBlock('> hello\n> world\n'), defaultGrammarView)).toBeNull();
 	});
 
 	it('passes for a freshly parsed list', () => {
-		expect(checkStaleRaw(firstBlock('- a\n- b\n'))).toBeNull();
+		expect(checkStaleRaw(firstBlock('- a\n- b\n'), defaultGrammarView)).toBeNull();
 	});
 
 	it('passes for a freshly parsed list item', () => {
-		expect(checkStaleRaw(firstBlock('- a\n- b\n').children![0])).toBeNull();
+		expect(checkStaleRaw(firstBlock('- a\n- b\n').children![0], defaultGrammarView)).toBeNull();
 	});
 
 	// The editor's empty item holds a placeholder leaf where the parser emits a childless
@@ -52,11 +53,11 @@ describe('checkStaleRaw (G1.1)', () => {
 		const listTemplate = firstBlock('- a\n');
 		const emptyItem = buildListItemWithContent(listTemplate.children![0], [emptyParagraph()]);
 		expect(emptyItem.raw).toBe('- \n');
-		expect(checkStaleRaw(emptyItem)).toBeNull();
+		expect(checkStaleRaw(emptyItem, defaultGrammarView)).toBeNull();
 
 		const list = assembleListHalf(listTemplate, [emptyItem], 1);
 		expect(list.raw).toBe('- \n');
-		expect(checkStaleRaw(list)).toBeNull();
+		expect(checkStaleRaw(list, defaultGrammarView)).toBeNull();
 	});
 
 	// The parser keeps a trailing blank quote line in `innerSuffix` where the editor
@@ -67,7 +68,7 @@ describe('checkStaleRaw (G1.1)', () => {
 		const trailingBlank = bq.innerSuffix ?? '';
 		bq.innerSuffix = '';
 		bq.children!.push({ kind: 'paragraph', leadingTrivia: '', raw: trailingBlank });
-		expect(checkStaleRaw(bq)).toBeNull();
+		expect(checkStaleRaw(bq, defaultGrammarView)).toBeNull();
 	});
 
 	// ── Genuine raw/children drift must fire ───────────────────────────────────
@@ -75,7 +76,7 @@ describe('checkStaleRaw (G1.1)', () => {
 	it('fires when a child was mutated without updating the container raw', () => {
 		const bq = firstBlock('> hello\n> world\n');
 		bq.children![0].raw = 'changed\n';
-		const violation = checkStaleRaw(bq);
+		const violation = checkStaleRaw(bq, defaultGrammarView);
 		expect(violation?.code).toBe('stale-container-raw');
 		expect(violation?.detail).toMatchObject({ kind: 'blockquote' });
 	});
@@ -83,13 +84,13 @@ describe('checkStaleRaw (G1.1)', () => {
 	it('fires when the container raw was mutated leaving children stale', () => {
 		const bq = firstBlock('> hello\n> world\n');
 		bq.raw = '> only one line now\n';
-		expect(checkStaleRaw(bq)?.code).toBe('stale-container-raw');
+		expect(checkStaleRaw(bq, defaultGrammarView)?.code).toBe('stale-container-raw');
 	});
 
 	it('fires for a stale list', () => {
 		const list = firstBlock('- a\n- b\n');
 		list.children![0].raw = '- z\n';
-		expect(checkStaleRaw(list)).not.toBeNull();
+		expect(checkStaleRaw(list, defaultGrammarView)).not.toBeNull();
 	});
 
 	// The empty-placeholder tolerance is sole-child only; these guard it from swallowing
@@ -98,13 +99,13 @@ describe('checkStaleRaw (G1.1)', () => {
 	it('fires when raw carries content but the sole child is an empty placeholder', () => {
 		const item = buildListItemWithContent(firstBlock('- a\n').children![0], [emptyParagraph()]);
 		item.raw = '- actual content\n';
-		expect(checkStaleRaw(item)?.code).toBe('stale-container-raw');
+		expect(checkStaleRaw(item, defaultGrammarView)?.code).toBe('stale-container-raw');
 	});
 
 	it('fires for a trailing empty placeholder absent from the raw', () => {
 		const item = firstBlock('- a\n').children![0];
 		item.children!.push(emptyParagraph());
-		expect(checkStaleRaw(item)?.code).toBe('stale-container-raw');
+		expect(checkStaleRaw(item, defaultGrammarView)?.code).toBe('stale-container-raw');
 	});
 
 	// Miss-analysis (M-1): every drift fixture pushed the divergence into the first child, so
@@ -114,13 +115,13 @@ describe('checkStaleRaw (G1.1)', () => {
 	it('fires when the raw carries bytes belonging to a following sibling block', () => {
 		const bq = firstBlock('> a\n');
 		bq.raw = '> a\n\nnot quoted\n';
-		expect(checkStaleRaw(bq)?.code).toBe('stale-container-raw');
+		expect(checkStaleRaw(bq, defaultGrammarView)?.code).toBe('stale-container-raw');
 	});
 
 	it('fires when a list item raw carries a second item', () => {
 		const item = firstBlock('- a\n').children![0];
 		item.raw = '- a\n- b\n';
-		expect(checkStaleRaw(item)?.code).toBe('stale-container-raw');
+		expect(checkStaleRaw(item, defaultGrammarView)?.code).toBe('stale-container-raw');
 	});
 
 	// ── Purity and exemptions ──────────────────────────────────────────────────
@@ -129,7 +130,7 @@ describe('checkStaleRaw (G1.1)', () => {
 		const bq = firstBlock('> hello\n> world\n');
 		bq.children![0].raw = 'changed\n';
 		const before = bq.raw;
-		checkStaleRaw(bq);
+		checkStaleRaw(bq, defaultGrammarView);
 		expect(bq.raw).toBe(before);
 		expect(bq.children![0].raw).toBe('changed\n');
 	});
@@ -137,10 +138,10 @@ describe('checkStaleRaw (G1.1)', () => {
 	it('returns null for a grid container (table is exempt)', () => {
 		const table = firstBlock('| a | b |\n| --- | --- |\n| 1 | 2 |\n');
 		expect(table.kind).toBe('table');
-		expect(checkStaleRaw(table)).toBeNull();
+		expect(checkStaleRaw(table, defaultGrammarView)).toBeNull();
 	});
 
 	it('returns null for a leaf', () => {
-		expect(checkStaleRaw(firstBlock('plain\n'))).toBeNull();
+		expect(checkStaleRaw(firstBlock('plain\n'), defaultGrammarView)).toBeNull();
 	});
 });

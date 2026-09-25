@@ -2,15 +2,14 @@ import type { BlockComponent } from '../block-component';
 import type { Document } from '../core/nodes';
 import type { StickyColumnState } from '../cursor/sticky-column';
 import type { EdgeAffinityState } from '../cursor/edge-affinity';
-import type { BlockElLookup, PresentationModeGetter } from '../editor-keys';
+import type { BlockElLookup } from '../editor-keys';
 import type { SelectionState } from '../selection/selection-state.svelte';
 import type { EditorSelection } from '../selection/primitives';
 import type { UndoEntry, UndoManager } from '../undo/types';
 import type { SharingState } from '../tree-operations/sharing';
 import type { EditorEvents } from '../editor-events';
 import type { CommitController } from '../action-contracts';
-import type { GrammarView } from '../schema/block-openers';
-import type { InlineResolverRef } from '../schema/inline-construct-policy';
+import type { Reading } from '../schema/reading';
 import type { RefSlots } from '../reactivity/publish-ref.svelte';
 
 export interface EditorActionsDeps {
@@ -42,15 +41,9 @@ export interface EditorActionsDeps {
 	 *  at once without scrolling. */
 	revealPath(path: number[]): Promise<BlockComponent | null>;
 	events: EditorEvents;
-	/** The instance's grammar, so a re-parse or a completer reads only the plugins and syntax the
-	 *  editor has switched on. */
-	grammar: GrammarView;
-	/** The live effective presentation mode, for the actions that must not write in reading
-	 *  mode. Absent in harnesses, which `isReadingMode` reads as not reading. */
-	getPresentationMode?: PresentationModeGetter;
-	/** The instance's link-reference resolver and grammar, for byte rewrites that must parse the
-	 *  reference links the renderer drew. */
-	linkRef: InlineResolverRef;
+	/** How the editor reads its bytes: a re-parse or completer reads only the syntax it switched
+	 *  on, a rewrite parses the reference links the renderer drew, a write refuses reading mode. */
+	reading: Reading;
 }
 
 /**

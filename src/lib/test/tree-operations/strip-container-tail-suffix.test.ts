@@ -9,6 +9,7 @@ import { updateNodeContent } from '$lib/tree-operations';
 import { deleteNode, settleSeparator } from '$lib/tree-operations/settle';
 import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 // A blockquote keeps its body's one trailing blank line in `innerSuffix` only while its last
 // block is non-blank, as the document keeps its own in `suffix`; once that block turns blank the
@@ -51,7 +52,8 @@ function empty(doc: Document, path: number[]): void {
 			lineEnding: documentLineEnding(doc)
 		},
 		index,
-		text
+		text,
+		defaultGrammarView
 	);
 	rebuild(chain);
 }
@@ -112,9 +114,10 @@ describe("blanking a blockquote's last block turns its trailing line into a bloc
 				owner: quote,
 				lineEnding: documentLineEnding(doc)
 			},
-			2
+			2,
+			defaultGrammarView
 		);
-		settleSeparator(quote, before, change);
+		settleSeparator(quote, before, change, defaultGrammarView);
 		rebuild([quote]);
 
 		expect(describeConvergence(doc)).toBeNull();

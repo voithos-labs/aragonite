@@ -13,29 +13,28 @@ import {
 	linkConstructAt,
 	resolveLinkAtPoint
 } from '$lib/components/blocks/text/link-at-point';
-import type { LinkReferenceResolverRef } from '$lib/editor-keys';
 import { makeRenderHarness } from '$lib/test/harness/text-render';
-import { fixtureLinkRef } from '../../harness/fixture-grammar';
+import { fixtureReading } from '../../harness/fixture-grammar';
+import type { Reading } from '$lib/schema/reading';
 
 function mount(source: string): {
 	el: HTMLElement;
 	node: CstNode;
-	linkRef: LinkReferenceResolverRef;
+	reading: Reading;
 } {
 	const doc = parse(source);
 	const node = doc.children[0];
 	const map = buildLinkReferenceMap(doc.children);
-	const linkRef: LinkReferenceResolverRef = fixtureLinkRef({
-		current: map.resolve,
-		signature: map.signature
+	const reading: Reading = fixtureReading({
+		resolver: map.resolve,
+		resolverSignature: map.signature
 	});
 	const harness = makeRenderHarness(node, {
 		mode: 'live',
-		linkResolver: map.resolve,
-		linkStamp: '1'
+		reading: { resolver: map.resolve, resolverSignature: map.signature, resolverEpoch: 1 }
 	});
 	createTextRender(harness.deps).render();
-	return { el: harness.el, node, linkRef };
+	return { el: harness.el, node, reading };
 }
 
 /** A real caret inside the rendered link, the way a click leaves one. */
@@ -57,11 +56,11 @@ function clickInside(el: HTMLElement, word: string): Element {
 }
 
 function resolve(source: string, word: string) {
-	const { el, node, linkRef } = mount(source);
+	const { el, node, reading } = mount(source);
 	const hit = clickInside(el, word).closest(LINK_ELEMENT_SELECTOR);
 	return hit === null
 		? null
-		: resolveLinkAtPoint({ contentEl: el, block: node, path: [0], linkRef });
+		: resolveLinkAtPoint({ contentEl: el, block: node, path: [0], reading });
 }
 
 afterEach(() => {
@@ -112,17 +111,17 @@ describe('resolveLinkAtPoint', () => {
 
 describe('linkConstructAt: the identity an open card re-resolves through', () => {
 	it('finds the construct again by its start offset', () => {
-		const { node, linkRef } = mount('Visit [example](https://x.com) now\n');
-		expect(linkConstructAt(node, 6, linkRef)).toMatchObject({ kind: 'link', end: 30 });
+		const { node, reading } = mount('Visit [example](https://x.com) now\n');
+		expect(linkConstructAt(node, 6, reading)).toMatchObject({ kind: 'link', end: 30 });
 	});
 
 	it('finds one nested inside another construct', () => {
-		const { node, linkRef } = mount('a **b [inner](u) c** d\n');
-		expect(linkConstructAt(node, 6, linkRef)).toMatchObject({ kind: 'link', url: 'u' });
+		const { node, reading } = mount('a **b [inner](u) c** d\n');
+		expect(linkConstructAt(node, 6, reading)).toMatchObject({ kind: 'link', url: 'u' });
 	});
 
 	it('answers null once the construct at that offset is gone', () => {
-		const { node, linkRef } = mount('Visit [example](https://x.com) now\n');
-		expect(linkConstructAt(node, 7, linkRef)).toBeNull();
+		const { node, reading } = mount('Visit [example](https://x.com) now\n');
+		expect(linkConstructAt(node, 7, reading)).toBeNull();
 	});
 });

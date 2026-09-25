@@ -5,7 +5,7 @@
  * shared one. Returns the count actually replaced.
  */
 import type { CstNode } from '../core/nodes';
-import { parse } from '../core/parser';
+import { readBlocks } from '../core/parser';
 import { cloneNode } from '../tree-operations/clone';
 import { spliceMany } from '../tree-operations/splice-many';
 import { getBlockKindDescriptor } from '../schema/block-kind-descriptor';
@@ -64,7 +64,7 @@ export function createSearchReplace(deps: EditorActionsDeps, controller: UndoCon
 				owner?.kind,
 				applyRangesToText(leaf.raw, ranges, template)
 			);
-			writeOwnRaw(leaf, substituted, documentLineEnding(deps.doc), deps.grammar);
+			writeOwnRaw(leaf, substituted, documentLineEnding(deps.doc), deps.reading.grammar);
 		}
 		// A nested leaf's edit must be written up into the clone's container raws before the
 		// reparse from `child.raw`, through the rebuild typing uses, which also recomputes the blank
@@ -76,10 +76,13 @@ export function createSearchReplace(deps: EditorActionsDeps, controller: UndoCon
 			const chain: CstNode[] = [];
 			for (let depth = 1; depth < rel.length; depth++)
 				chain.push(descend(child, rel.slice(0, depth))!);
-			rebuildUnsharedChain(child, chain, cloneSharing, null, deps.grammar);
+			rebuildUnsharedChain(child, chain, cloneSharing, null, deps.reading.grammar);
 			rebuildContainerRaw(child);
 		}
-		const newNodes = parse(child.raw, { grammar: deps.grammar, scope: 'fragment' }).children;
+		const newNodes = readBlocks(child.raw, {
+			grammar: deps.reading.grammar,
+			scope: 'fragment'
+		}).children;
 		// leadingTrivia is positional and lives off `raw`, so parsing `child.raw` alone drops it.
 		return normalizeReplacementTrivia(child, newNodes);
 	}

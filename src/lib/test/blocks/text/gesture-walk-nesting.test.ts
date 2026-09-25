@@ -11,7 +11,7 @@ import { linkConstructAt } from '$lib/components/blocks/text/link-at-point';
 import { clipNodes } from '$lib/components/blocks/text/live-join-seam';
 import { splittableChainAt } from '$lib/components/blocks/text/live-split-rebalance';
 import { constructChainAt } from '$lib/components/blocks/text/pending-mark-insert';
-import { fixtureLinkRef } from '../../harness/fixture-grammar';
+import { fixtureReading } from '../../harness/fixture-grammar';
 
 // Assumes the default V8 stack, as the sibling tests do: raising `--stack-size` makes every one
 // of these pass even against a recursive traversal.
@@ -39,7 +39,7 @@ describe('live gesture-boundary walks at input-controlled nesting depth', () => 
 		const raw = '**'.repeat(DEPTH) + '[a](/u)' + '**'.repeat(DEPTH);
 		const block = parse(raw + '\n', { scope: 'fragment' }).children[0];
 
-		expect(linkConstructAt(block, 2 * DEPTH, fixtureLinkRef())).toMatchObject({
+		expect(linkConstructAt(block, 2 * DEPTH, fixtureReading())).toMatchObject({
 			kind: 'link',
 			end: 2 * DEPTH + 7
 		});

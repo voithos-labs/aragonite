@@ -7,7 +7,7 @@
 
 import type { AnyInlineKind, InlineNode } from '../../../core/nodes';
 import type { EdgeAffinity } from '../../../cursor/edge-affinity';
-import { constructContentRange, inlineDescendants, parseInline } from '../../../core/inline';
+import { constructContentRange, inlineDescendants, readInline } from '../../../core/inline';
 import {
 	CONTENT_VISIBILITY,
 	renderedText,
@@ -20,7 +20,7 @@ import {
 	type InlineConstructPolicy
 } from '../../../schema/inline-construct-policy';
 import type { GrammarView } from '../../../schema/block-openers';
-import type { LinkReferenceResolver } from '../../../core/inline/link-reference-resolver';
+import type { Reading } from '../../../schema/reading';
 import { insertsExactly } from './screen-diff';
 
 export interface EdgeSeat {
@@ -35,7 +35,7 @@ export interface EdgeSeat {
  * Where `typed` belongs when the caret sits at `caretOffset`, or null when the offset touches no
  * construct marker run, the kind declares no policy, or no candidate earns the write. Refusing is
  * the honest fallback: the byte then lands at the caret, which is what the browser writes anyway.
- * `resolver` must be the one `inlines` was read with, or a reference link reads as brackets.
+ * `reading` must be the one `inlines` was read with, or a reference link reads as brackets.
  */
 export function resolveEdgeSeat(
 	caretOffset: number,
@@ -44,9 +44,9 @@ export function resolveEdgeSeat(
 	raw: string,
 	screen: VisibilityContext,
 	typed: string,
-	resolver: LinkReferenceResolver | undefined,
-	grammar: GrammarView
+	reading: Reading
 ): EdgeSeat | null {
+	const { grammar } = reading;
 	const runs = markerRuns(inlines, raw, screen, grammar);
 	const run = runAt(caretOffset, runs);
 	if (!run) return null;
@@ -57,7 +57,7 @@ export function resolveEdgeSeat(
 	// bytes, so no reading of it can license dropping one.
 	const shown = (bytes: string, end: number): string =>
 		renderedText(
-			parseInline(bytes, content.start, end, resolver, grammar),
+			readInline(bytes, content.start, end, reading.resolver, grammar),
 			bytes,
 			CONTENT_VISIBILITY,
 			{ grammar }
@@ -92,21 +92,11 @@ export function relocateComposedRun(
 	inlines: readonly InlineNode[],
 	affinity: EdgeAffinity | null,
 	screen: VisibilityContext,
-	resolver: LinkReferenceResolver | undefined,
-	grammar: GrammarView
+	reading: Reading
 ): { raw: string; caret: number } | null {
 	const composed = plainInsertionAt(before, after, composedAt);
 	if (composed === null) return null;
-	const seat = resolveEdgeSeat(
-		composedAt,
-		inlines,
-		affinity,
-		before,
-		screen,
-		composed,
-		resolver,
-		grammar
-	);
+	const seat = resolveEdgeSeat(composedAt, inlines, affinity, before, screen, composed, reading);
 	if (!seat) return null;
 	return {
 		raw: before.slice(0, seat.offset) + composed + before.slice(seat.offset),

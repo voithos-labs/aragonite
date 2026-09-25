@@ -1,12 +1,12 @@
 import type { CstNode } from '../core/nodes';
 import { isBlankLine } from '../core/lines';
-import { parse } from '../core/parser';
+import { readBlocks } from '../core/parser';
 import type { GrammarView } from '../schema/block-openers';
 
 /** Parse one block's `raw` in the editor's grammar and return its first block, falling back to a
  *  paragraph node. */
-export function parseFirstBlock(raw: string, grammar?: GrammarView): CstNode {
-	const doc = parse(raw, { grammar, scope: 'fragment' });
+export function parseFirstBlock(raw: string, grammar: GrammarView): CstNode {
+	const doc = readBlocks(raw, { grammar, scope: 'fragment' });
 	if (doc.children.length > 0) return doc.children[0];
 	return { kind: 'paragraph', leadingTrivia: '', raw };
 }
@@ -26,7 +26,7 @@ export interface CutResidue {
 export function parseCutResidue(
 	text: string,
 	lineEnding: '\n' | '\r\n',
-	grammar?: GrammarView
+	grammar: GrammarView
 ): CutResidue {
 	const lineBreak = /\r?\n/.exec(text);
 	const endedLine =
@@ -35,5 +35,8 @@ export function parseCutResidue(
 			: '';
 	const body = text.slice(endedLine.length);
 	if (body === '') return { endedLine, blocks: [] };
-	return { endedLine, blocks: parse(body + lineEnding, { grammar, scope: 'fragment' }).children };
+	return {
+		endedLine,
+		blocks: readBlocks(body + lineEnding, { grammar, scope: 'fragment' }).children
+	};
 }

@@ -5,9 +5,9 @@
  * source, which a private scan of the parse tree cannot see.
  */
 
-import { inlineDescendants, parseInline } from '../../../core/inline';
+import { inlineDescendants, readInline } from '../../../core/inline';
 import { encodeDestination, escapeTitle } from '../../../core/inline/destination-bytes';
-import type { InlineResolverRef } from '../../../schema/inline-construct-policy';
+import type { Reading } from '../../../schema/reading';
 import { CONTENT_VISIBILITY, renderedText } from '../../../core/inline/visibility';
 import type { InlineNode } from '../../../core/nodes';
 import { devWarn } from '../../../dev-warn';
@@ -34,10 +34,10 @@ export function buildLinkEditBytes(
 	link: InlineNode,
 	display: string,
 	fields: LinkFields,
-	ref: InlineResolverRef
+	reading: Reading
 ): string | null {
 	if (declineClaimed(link, 'edit')) return null;
-	return verified(buildLinkSourceBytes(fields), link.start, link.end, display, ref);
+	return verified(buildLinkSourceBytes(fields), link.start, link.end, display, reading);
 }
 
 /** Bytes that unwrap `link` down to the text the user already sees, which is remove-link. An
@@ -45,17 +45,17 @@ export function buildLinkEditBytes(
 export function buildLinkUnwrapBytes(
 	link: InlineNode,
 	display: string,
-	ref: InlineResolverRef
+	reading: Reading
 ): string | null {
 	if (declineClaimed(link, 'remove')) return null;
 	const [textStart, textEnd] = textRange(link, display);
 	const plain = display.slice(textStart, textEnd);
 	return verified(
-		escapeRelinkingText(plain, link, display, ref),
+		escapeRelinkingText(plain, link, display, reading),
 		link.start,
 		link.end,
 		display,
-		ref
+		reading
 	);
 }
 
@@ -67,14 +67,14 @@ export function buildLinkWrapBytes(
 	start: number,
 	end: number,
 	url: string,
-	ref: InlineResolverRef
+	reading: Reading
 ): string | null {
-	if (url.trim() === '' || !canWrapRangeAsLink(display, start, end, ref)) return null;
+	if (url.trim() === '' || !canWrapRangeAsLink(display, start, end, reading)) return null;
 	// A bare bracket would close the construct early; an existing `\x` pair passes through whole.
 	const text = display
 		.slice(start, end)
 		.replace(/\\[\s\S]|[[\]]/g, (m) => (m.length === 2 ? m : '\\' + m));
-	return verified(`[${text}](${encodeDestination(url)})`, start, end, display, ref);
+	return verified(`[${text}](${encodeDestination(url)})`, start, end, display, reading);
 }
 
 const WRAP_SAFE_KINDS: ReadonlySet<string> = new Set(['text', 'escape', 'entityReference']);
@@ -85,12 +85,12 @@ export function canWrapRangeAsLink(
 	display: string,
 	start: number,
 	end: number,
-	ref: InlineResolverRef
+	reading: Reading
 ): boolean {
 	if (start >= end || end > display.length) return false;
-	return flattenInline(parseInline(display, 0, display.length, ref.current, ref.grammar)).every(
-		(n) => WRAP_SAFE_KINDS.has(n.kind) || n.end <= start || n.start >= end
-	);
+	return flattenInline(
+		readInline(display, 0, display.length, reading.resolver, reading.grammar)
+	).every((n) => WRAP_SAFE_KINDS.has(n.kind) || n.end <= start || n.start >= end);
 }
 
 /** The fields the card edits, read off the source bytes: `url`/`title` are decoded on the node,
@@ -131,12 +131,12 @@ function declineClaimed(link: InlineNode, what: string): boolean {
  *  block's own: the card edits a destination whose markers may be on screen, and comparing against
  *  the screen would refuse every such edit as a visible change. The write swaps bytes for bytes
  *  and drops none, so no reading of it can license losing one. */
-function visibleText(raw: string, ref: InlineResolverRef): string {
+function visibleText(raw: string, reading: Reading): string {
 	return renderedText(
-		parseInline(raw, 0, raw.length, ref.current, ref.grammar),
+		readInline(raw, 0, raw.length, reading.resolver, reading.grammar),
 		raw,
 		CONTENT_VISIBILITY,
-		{ grammar: ref.grammar }
+		{ grammar: reading.grammar }
 	);
 }
 
@@ -147,11 +147,11 @@ function verified(
 	start: number,
 	end: number,
 	display: string,
-	ref: InlineResolverRef
+	reading: Reading
 ): string | null {
 	if (candidate === null) return null;
-	const before = visibleText(display, ref);
-	const after = visibleText(spliced(candidate, start, end, display), ref);
+	const before = visibleText(display, reading);
+	const after = visibleText(spliced(candidate, start, end, display), reading);
 	return before === after ? candidate : null;
 }
 
@@ -191,12 +191,12 @@ function escapeRelinkingText(
 	text: string,
 	link: InlineNode,
 	display: string,
-	ref: InlineResolverRef
+	reading: Reading
 ): string | null {
 	let candidate = text;
 	// One pass per surviving autolink; the text is finite and each pass kills one match.
 	for (let guard = 0; guard <= text.length; guard++) {
-		const offender = relinkedRange(candidate, link, display, ref);
+		const offender = relinkedRange(candidate, link, display, reading);
 		if (offender === null) return candidate;
 		const escaped = escapeTrigger(candidate, offender);
 		if (escaped === null) return null;
@@ -210,11 +210,13 @@ function relinkedRange(
 	candidate: string,
 	link: InlineNode,
 	display: string,
-	ref: InlineResolverRef
+	reading: Reading
 ): [number, number] | null {
 	const raw = spliced(candidate, link.start, link.end, display);
 	const end = link.start + candidate.length;
-	const found = flattenInline(parseInline(raw, 0, raw.length, ref.current, ref.grammar)).find(
+	const found = flattenInline(
+		readInline(raw, 0, raw.length, reading.resolver, reading.grammar)
+	).find(
 		(n) => (n.kind === 'link' || n.kind === 'autolink') && n.start < end && n.end > link.start
 	);
 	if (!found) return null;

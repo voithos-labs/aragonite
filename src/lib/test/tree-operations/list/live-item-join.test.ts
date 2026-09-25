@@ -19,7 +19,7 @@ import {
 	registerLiveJoinSeamCleaner,
 	__resetLiveJoinSeamCleanerForTests
 } from '$lib/schema/inline-construct-policy';
-import { fixtureLinkRef } from '../../harness/fixture-grammar';
+import { fixtureReading } from '../../harness/fixture-grammar';
 
 // B-F2: M1 was the one destructive join whose signature could not reach `cleanJoinedRaw`, so
 // Enter-then-Backspace inside a list wrote out the closer/opener pair the user never saw,
@@ -37,7 +37,7 @@ const SPLIT_BOLD = '- Some **bo**\n- **ld** text\n';
 const rejoined = (mode: 'live' | undefined) => {
 	const doc = parse(SPLIT_BOLD);
 	const list = doc.children[0];
-	mergeListItemIntoPrevious(list, list.children!.slice(), 1, undefined, mode, fixtureLinkRef());
+	mergeListItemIntoPrevious(list, list.children!.slice(), 1, undefined, fixtureReading({}, mode));
 	return serialize(doc);
 };
 
@@ -52,7 +52,9 @@ describe('the list-item merge crosses the live join', () => {
 	// Hand-built rather than `makeNestedHarness`: this suite needs jsdom for the visibility
 	// read, where the harness's production block-list state is an orphaned `$effect`.
 	it('the middle-item Backspace hands the mode down', async () => {
-		const { deps } = makeEditorActionsDeps(parse(SPLIT_BOLD), { presentationMode: 'live' });
+		const { deps } = makeEditorActionsDeps(parse(SPLIT_BOLD), {
+			reading: fixtureReading({}, 'live')
+		});
 		const controller = createUndoController(deps);
 		const containerEdit = createContainerEditActions(deps, controller);
 		const getNode = () => deps.doc.children[0];
@@ -64,7 +66,7 @@ describe('the list-item merge crosses the live join', () => {
 				index: 0,
 				getNode,
 				path: [0],
-				getPresentationMode: deps.getPresentationMode,
+				reading: deps.reading,
 				parent: { blockEdit: makeStubBlockEdit(), focus: makeStubFocus(), containerEdit }
 			})
 		);

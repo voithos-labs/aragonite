@@ -16,7 +16,7 @@ import {
 } from '$lib/components/blocks/text/widget-interaction';
 import type { CstNode } from '$lib/core/nodes';
 import { placeCaretAt } from './math-widget-fixture';
-import { fixtureLinkRef } from '../../harness/fixture-grammar';
+import { fixtureReading } from '../../harness/fixture-grammar';
 
 describe('handleShiftArrowIntoWidget: non-image inline widget', () => {
 	let el: HTMLElement;
@@ -74,8 +74,8 @@ describe('handleShiftArrowIntoWidget: non-image inline widget', () => {
 			setSnapTarget: trap,
 			setPendingCursor: trap,
 			grammar: defaultGrammarView,
-			get linkRef() {
-				return fixtureLinkRef();
+			get reading() {
+				return fixtureReading();
 			}
 		} as unknown as WidgetInteractionDeps;
 		return createWidgetInteraction(deps);

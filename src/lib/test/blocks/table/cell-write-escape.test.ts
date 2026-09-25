@@ -14,6 +14,7 @@ import { writeTableRow } from '$lib/schema/container-rebuilders';
 import { makeStubBlockEdit } from '../../harness/editor-actions';
 import { mountCell } from './mount-cell';
 import { settleEditor } from '$lib/test/harness/settle';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 /** A children array as the body parent a write reads, owned by nothing, in an LF document. */
 const asBody = (parent: { children?: CstNode[] }) => ({
@@ -52,7 +53,7 @@ function reparsedCells(committed: string): string[] {
 			{ kind: 'tableCell', leadingTrivia: '', raw: 'keep' }
 		]
 	};
-	updateNodeContent(asBody(row), 0, committed);
+	updateNodeContent(asBody(row), 0, committed, defaultGrammarView);
 	writeTableRow(row, '\n');
 	return splitRowCells(row.raw);
 }

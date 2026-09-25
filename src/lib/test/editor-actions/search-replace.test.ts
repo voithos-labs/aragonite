@@ -8,6 +8,7 @@ import { createGrammarView } from '$lib/schema/block-openers';
 import { makeSearchReplace, scanCompiled } from '$lib/test/harness/search-replace';
 import { registerMermaidKind } from '$lib/plugins/mermaid/mermaid-kind';
 import { testLeaf, testContainer } from '$lib/test/harness/test-kinds';
+import { fixtureReading } from '$lib/test/harness/fixture-grammar';
 
 // A minimal stand-in for search/document-scan.ts, which the container cases below use instead.
 function scanForLiteral(doc: Document, needle: string) {
@@ -155,7 +156,7 @@ describe('replaceOne: single-subtree case', () => {
 	// Parity with the top-level content commit: the reparse honors the instance grammar.
 	it('honors the instance grammar: a disabled heading marker stays paragraph', async () => {
 		const { deps, sr } = makeSearchReplace('title\n');
-		deps.grammar = createGrammarView((kind) => kind !== 'heading');
+		deps.reading = fixtureReading({ grammar: createGrammarView((kind) => kind !== 'heading') });
 		await sr.replaceOne({ path: [0], start: 0, end: 0 }, '# ');
 		expect(deps.doc.children[0].kind).toBe('paragraph');
 	});

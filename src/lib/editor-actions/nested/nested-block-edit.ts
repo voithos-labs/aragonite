@@ -160,7 +160,7 @@ export function createNestedBlockEdit(
 		const preview = previewContentReparse(
 			deps.node.children[innerIndex],
 			text,
-			deps.grammar,
+			deps.reading.grammar,
 			deps.node.kind,
 			'',
 			parent.containerEdit.lineEnding(),
@@ -182,7 +182,7 @@ export function createNestedBlockEdit(
 						scopeParentOf(scope),
 						innerIndex,
 						text,
-						deps.grammar,
+						deps.reading.grammar,
 						scope.sharing
 					);
 					stampStructuralChange(scope.children, settled.change, scope.sharing);
@@ -227,7 +227,7 @@ export function createNestedBlockEdit(
 				},
 				innerIndex,
 				text,
-				deps.grammar,
+				deps.reading.grammar,
 				sharing
 			);
 			return settled.change;

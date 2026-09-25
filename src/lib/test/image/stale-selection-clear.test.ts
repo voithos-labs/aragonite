@@ -12,7 +12,7 @@ import { parse } from '../../core/parser';
 import { createEditorEvents } from '../../editor-events';
 import { makeStubController } from '../harness/editor-actions';
 import type { Document } from '../../core/nodes';
-import { fixtureLinkRef } from '../harness/fixture-grammar';
+import { fixtureReading } from '../harness/fixture-grammar';
 
 describe('a selected image whose bytes an edit moves', () => {
 	function selectedAt(raw: string, sourceStart: number) {
@@ -24,8 +24,7 @@ describe('a selected image whose bytes an edit moves', () => {
 			widgetSelection,
 			controller: makeStubController(),
 			events: createEditorEvents(),
-			grammar: defaultGrammarView,
-			linkRef: fixtureLinkRef()
+			reading: fixtureReading()
 		});
 		widgetSelection.select({ paragraphPath: [0], sourceStart, preSelectOffset: 0 });
 		const editTo = (next: string) => {

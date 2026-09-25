@@ -3,12 +3,12 @@ import { afterEach, describe, it, expect } from 'vitest';
 import { createCellRender } from '../../../components/blocks/table/cell-render';
 import { INLINE_PRIORITIES, registerInlineSyntax } from '../../../core/inline/scan/plugin-syntax';
 import type { CstNode } from '../../../core/nodes';
-import type { LinkReferenceResolverRef, ResolveLinkUrl } from '../../../editor-keys';
+import type { ResolveLinkUrl } from '../../../editor-keys';
 import type { IndexedDecoration } from '../../../decorations/buckets';
 import type { ReplaceDecoration, WidgetDecoration } from '../../../decorations/types';
-import { defaultGrammarView } from '$lib/schema/block-openers';
-import { fixtureLinkRef } from '../../harness/fixture-grammar';
+import { fixtureReading } from '../../harness/fixture-grammar';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
+import type { Reading } from '$lib/schema/reading';
 
 type Island = IndexedDecoration<WidgetDecoration | ReplaceDecoration>;
 
@@ -42,11 +42,7 @@ function registerEmbedRung(): void {
 	);
 }
 
-function mount(
-	raw: string,
-	linkRef?: LinkReferenceResolverRef,
-	resolveLinkUrl: ResolveLinkUrl = (u) => u
-) {
+function mount(raw: string, reading?: Reading, resolveLinkUrl: ResolveLinkUrl = (u) => u) {
 	const el = document.createElement('div');
 	let node = makeCell(raw);
 	let islands: Island[] = [];
@@ -57,14 +53,8 @@ function mount(
 		get node() {
 			return node;
 		},
-		grammar: defaultGrammarView,
-		get linkRef() {
-			return linkRef;
-		},
+		reading: reading ?? fixtureReading(),
 		resolveLinkUrl,
-		get presentationMode() {
-			return 'source' as const;
-		},
 		getDocument: () => undefined,
 		get islands() {
 			return islands;
@@ -172,23 +162,28 @@ describe('createCellRender', () => {
 		expect(ctx.el.querySelector('strong')?.textContent).toBe('y');
 	});
 
-	it('re-resolves a reference when the LRD signature changes (raw contains "[")', () => {
+	it('re-resolves a reference when the definitions are rebuilt (raw contains "[")', () => {
 		let url = 'https://old.com';
 		let signature = 'sig-old';
-		const linkRef: LinkReferenceResolverRef = fixtureLinkRef({
-			get current() {
+		let epoch = 0;
+		const reading: Reading = fixtureReading({
+			get resolver() {
 				return (label: string) => (label === 'r' ? { url } : undefined);
 			},
-			get signature() {
+			get resolverSignature() {
 				return signature;
+			},
+			get resolverEpoch() {
+				return epoch;
 			}
 		});
-		const { el, render } = mount('[t][r]', linkRef);
+		const { el, render } = mount('[t][r]', reading);
 		render.render();
 		expect(el.querySelector('a.md-link-content')?.getAttribute('href')).toBe('https://old.com');
 
 		url = 'https://new.com';
 		signature = 'sig-new';
+		epoch = 1;
 		render.render();
 		expect(el.querySelector('a.md-link-content')?.getAttribute('href')).toBe('https://new.com');
 	});
@@ -197,18 +192,18 @@ describe('createCellRender', () => {
 		let url = 'https://old.com';
 		let signature = 'sig-1';
 		let epoch = 1;
-		const linkRef: LinkReferenceResolverRef = fixtureLinkRef({
-			get current() {
+		const reading: Reading = fixtureReading({
+			get resolver() {
 				return (label: string) => (label === 'r' ? { url } : undefined);
 			},
-			get signature() {
+			get resolverSignature() {
 				return signature;
 			},
-			get epoch() {
+			get resolverEpoch() {
 				return epoch;
 			}
 		});
-		const { el, render } = mount('[t][r]', linkRef);
+		const { el, render } = mount('[t][r]', reading);
 		render.render();
 		expect(el.querySelector('a.md-link-content')?.getAttribute('href')).toBe('https://old.com');
 
@@ -226,15 +221,15 @@ describe('createCellRender', () => {
 
 	it('does not fold signature into the key when raw has no bracket', () => {
 		let signature = 'sig-old';
-		const linkRef: LinkReferenceResolverRef = fixtureLinkRef({
-			get current() {
+		const reading: Reading = fixtureReading({
+			get resolver() {
 				return undefined;
 			},
-			get signature() {
+			get resolverSignature() {
 				return signature;
 			}
 		});
-		const { el, render } = mount('plain text', linkRef);
+		const { el, render } = mount('plain text', reading);
 		render.render();
 		const child = el.firstChild;
 		signature = 'sig-new';

@@ -71,7 +71,7 @@ export function createReorderAction(
 						unit.index,
 						to,
 						deps.sharing,
-						deps.grammar
+						deps.reading.grammar
 					);
 					landing = settled.landing;
 					return settled.change;
@@ -103,7 +103,7 @@ export function createReorderAction(
 					unit.index,
 					to,
 					scope.sharing,
-					deps.grammar
+					deps.reading.grammar
 				);
 				landing = settled.landing;
 				if (unit.renumberMarkers) {

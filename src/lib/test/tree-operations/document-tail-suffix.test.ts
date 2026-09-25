@@ -6,7 +6,8 @@ import { emptyParagraph } from '../../tree-operations/node-primitives';
 import { settleSeparatorOnBlank } from '../../tree-operations/settle';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
 import { settled } from '$lib/test/harness/settle-funnel';
-import { fixtureLinkRef } from '../harness/fixture-grammar';
+import { fixtureReading } from '../harness/fixture-grammar';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 // GH #129: the parser keeps a document's one trailing blank line in `doc.suffix` only while
 // the tail block is non-blank; when a gesture blanks the tail, the reload reads that line as
@@ -20,7 +21,7 @@ describe('the folded trailing blank materializes when the tail turns blank (GH #
 		expect(doc.children).toHaveLength(1);
 		expect(doc.suffix).toBe('\n');
 
-		const { change } = updateNodeContent(doc, 0, '\n');
+		const { change } = updateNodeContent(doc, 0, '\n', defaultGrammarView);
 
 		expect(doc.children.map((c) => [c.leadingTrivia, c.raw])).toEqual([
 			['', '\n'],
@@ -35,7 +36,7 @@ describe('the folded trailing blank materializes when the tail turns blank (GH #
 	it('the CRLF variant materializes its CRLF line', () => {
 		const doc = parse('foo\r\n\r\n');
 
-		updateNodeContent(doc, 0, '\r\n');
+		updateNodeContent(doc, 0, '\r\n', defaultGrammarView);
 
 		expect(doc.children.map((c) => c.raw)).toEqual(['\r\n', '\r\n']);
 		expect(doc.suffix).toBe('');
@@ -50,7 +51,7 @@ describe('the folded trailing blank materializes when the tail turns blank (GH #
 
 		const change = settled(
 			doc,
-			(body) => splitNode(body, 0, 14, undefined, undefined, fixtureLinkRef()).change
+			(body) => splitNode(body, 0, 14, undefined, fixtureReading()).change
 		);
 
 		expect(doc.children).toHaveLength(3);
@@ -64,7 +65,7 @@ describe('the folded trailing blank materializes when the tail turns blank (GH #
 		expect(doc.children.map((c) => c.raw)).toEqual(['a\n', '\n', 'b\n']);
 		expect(doc.suffix).toBe('\n');
 
-		const change = settled(doc, (body) => deleteNode(body, 2));
+		const change = settled(doc, (body) => deleteNode(body, 2, defaultGrammarView));
 
 		expect(doc.children).toHaveLength(3);
 		expect(doc.suffix).toBe('');
@@ -77,7 +78,7 @@ describe('the folded trailing blank materializes when the tail turns blank (GH #
 	it('deleting the only block materializes the folded line rather than emptying the tree', () => {
 		const doc = parse('a\n\n');
 
-		const change = settled(doc, (body) => deleteNode(body, 0));
+		const change = settled(doc, (body) => deleteNode(body, 0, defaultGrammarView));
 
 		expect(doc.children.map((c) => c.raw)).toEqual(['\n']);
 		expect(doc.suffix).toBe('');
@@ -92,7 +93,7 @@ describe('the folded trailing blank materializes when the tail turns blank (GH #
 		const doc = parse('| H |\n| - |\n\n');
 
 		const change = settled(doc, (body) => {
-			deleteNode(body, 0);
+			deleteNode(body, 0, defaultGrammarView);
 			body.children.push(emptyParagraph('', '\n'));
 			return { op: 'replace', at: 0, count: 1, newCount: 1 };
 		});
@@ -120,7 +121,7 @@ describe('the folded trailing blank materializes when the tail turns blank (GH #
 		const doc = parse('a\n\nb\n\n');
 		expect(doc.children).toHaveLength(2);
 
-		const { change } = updateNodeContent(doc, 0, '\n');
+		const { change } = updateNodeContent(doc, 0, '\n', defaultGrammarView);
 
 		expect(doc.suffix).toBe('\n');
 		expect(change).toEqual({ op: 'noop' });

@@ -250,16 +250,16 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		getEditorRoot,
 		pluginEditor,
 		activePlugins,
-		events: editorEvents
+		events: editorEvents,
+		reading
 	} = wiring.deps;
 	const { reorder, inlineMenuCombobox } = getContext<EditorServices>(EDITOR_SERVICES_KEY);
 	const {
-		presentationMode: getPresentationModeCtx,
 		theme: getThemeCtx,
 		keybindingOverrides,
 		onPasteImage
 	} = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
-	const getPresentationMode = (): PresentationMode => getPresentationModeCtx?.() ?? 'source';
+	const getPresentationMode = reading.mode;
 	const getTheme = (): string => getThemeCtx?.() ?? 'dark';
 	// Resolved by the kind's recorded owner, like the command context's `editor`.
 	const getEditor = (): EditorContext | undefined =>
@@ -296,7 +296,6 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		setPendingCursor: (offset) => {
 			if (mode === 'plain') pendingCursor = offset;
 		},
-		getPresentationMode,
 		getFocusOffset,
 		getTextLen,
 		readText,

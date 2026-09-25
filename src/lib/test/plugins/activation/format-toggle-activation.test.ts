@@ -10,6 +10,7 @@ import { latexPlugin } from '$lib/plugins/latex';
 import { toggleInlineFormat } from '$lib/core/inline/format-toggle';
 import type { InlineMarkKind } from '$lib/schema/inline-construct-policy';
 import { grammarListing } from './grammar-listing';
+import { fixtureReading } from '$lib/test/harness/fixture-grammar';
 
 beforeAll(() => {
 	resetPluginPlatformForTests();
@@ -28,8 +29,10 @@ function toggledWithoutEither(
 ): string | null {
 	const edit = { display, content: { start: 0, end: display.length }, selection };
 	return (
-		toggleInlineFormat({ ...edit, linkRef: { grammar: grammarListing([]) } }, format, 'source')
-			?.newDisplay ?? null
+		toggleInlineFormat(
+			{ ...edit, reading: fixtureReading({ grammar: grammarListing([]) }) },
+			format
+		)?.newDisplay ?? null
 	);
 }
 

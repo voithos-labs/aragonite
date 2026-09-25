@@ -3,11 +3,11 @@
 // the raw offset. Pure over the inline tree, so no DOM and no dispatch here; the dispatch branch
 // that uses it is covered in `edge-policy-construct-seat.test.ts`.
 import { describe, expect, it } from 'vitest';
-import { defaultGrammarView } from '$lib/schema/block-openers';
 import { relocateComposedRun, resolveEdgeSeat } from '$lib/components/blocks/text/edge-seat';
 import { parseInline } from '$lib/core/inline';
 import { screenVisibility } from '$lib/core/inline/visibility';
 import type { EdgeAffinity } from '$lib/cursor/edge-affinity';
+import { fixtureReading } from '$lib/test/harness/fixture-grammar';
 
 /** Every case below is a block holding content, so its markers are hidden: the live reading. */
 const LIVE = screenVisibility('live', { chromePaints: false });
@@ -20,8 +20,7 @@ function seatIn(source: string, offset: number, affinity: EdgeAffinity | null, t
 		source,
 		LIVE,
 		typed,
-		undefined,
-		defaultGrammarView
+		fixtureReading()
 	);
 }
 
@@ -149,16 +148,7 @@ describe('relocateComposedRun', () => {
 
 	it('moves a run composed at the trailing content edge past the closing delimiter', () => {
 		expect(
-			relocateComposedRun(
-				BOLD,
-				composed(11, 'かん'),
-				11,
-				inlines,
-				'far',
-				LIVE,
-				undefined,
-				defaultGrammarView
-			)
+			relocateComposedRun(BOLD, composed(11, 'かん'), 11, inlines, 'far', LIVE, fixtureReading())
 		).toEqual({
 			raw: 'Some **bold**かん text',
 			caret: 15
@@ -167,16 +157,7 @@ describe('relocateComposedRun', () => {
 
 	it('leaves a run the caret position agrees with alone', () => {
 		expect(
-			relocateComposedRun(
-				BOLD,
-				composed(11, 'かん'),
-				11,
-				inlines,
-				'near',
-				LIVE,
-				undefined,
-				defaultGrammarView
-			)
+			relocateComposedRun(BOLD, composed(11, 'かん'), 11, inlines, 'near', LIVE, fixtureReading())
 		).toBeNull();
 	});
 
@@ -184,9 +165,7 @@ describe('relocateComposedRun', () => {
 		const link = 'A [link](http://e.com) tail';
 		const tree = parseInline(link, 0, link.length);
 		const after = link.slice(0, 7) + '感' + link.slice(7);
-		expect(
-			relocateComposedRun(link, after, 7, tree, 'near', LIVE, undefined, defaultGrammarView)
-		).toEqual({
+		expect(relocateComposedRun(link, after, 7, tree, 'near', LIVE, fixtureReading())).toEqual({
 			raw: 'A [link](http://e.com)感 tail',
 			caret: 23
 		});
@@ -195,32 +174,12 @@ describe('relocateComposedRun', () => {
 	// This handles one insertion, never a range edit: a composition that replaced a selection is
 	// a different edit, and rebuilding it from a length difference would corrupt the bytes.
 	it('declines anything that is not a plain insertion at the composition point', () => {
+		expect(relocateComposedRun(BOLD, BOLD, 11, inlines, 'far', LIVE, fixtureReading())).toBeNull();
 		expect(
-			relocateComposedRun(BOLD, BOLD, 11, inlines, 'far', LIVE, undefined, defaultGrammarView)
+			relocateComposedRun(BOLD, 'Some **bol**X text', 11, inlines, 'far', LIVE, fixtureReading())
 		).toBeNull();
 		expect(
-			relocateComposedRun(
-				BOLD,
-				'Some **bol**X text',
-				11,
-				inlines,
-				'far',
-				LIVE,
-				undefined,
-				defaultGrammarView
-			)
-		).toBeNull();
-		expect(
-			relocateComposedRun(
-				BOLD,
-				composed(4, 'X'),
-				11,
-				inlines,
-				'far',
-				LIVE,
-				undefined,
-				defaultGrammarView
-			)
+			relocateComposedRun(BOLD, composed(4, 'X'), 11, inlines, 'far', LIVE, fixtureReading())
 		).toBeNull();
 	});
 });

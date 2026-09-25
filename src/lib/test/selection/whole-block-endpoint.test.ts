@@ -12,7 +12,7 @@ import { serialize } from '$lib/core/serializer';
 import { resetPluginPlatformForTests } from '$lib/testing';
 import { registerMermaidKind } from '$lib/plugins/mermaid/mermaid-kind';
 import type { Document } from '$lib/core/nodes';
-import { fixtureLinkRef } from '../harness/fixture-grammar';
+import { fixtureReading } from '../harness/fixture-grammar';
 
 const DIAGRAM = '```mermaid\ngraph TD\n```\n';
 const DIAGRAM_END = 23;
@@ -34,8 +34,7 @@ function copySelected(doc: Document, s: ReturnType<typeof stateOver>): string {
 
 function deleteSelected(doc: Document, s: ReturnType<typeof stateOver>): string {
 	return serialize(
-		rangeDelete(doc, s.start!, s.end!, createSharingState(), undefined, undefined, fixtureLinkRef())
-			.newDoc
+		rangeDelete(doc, s.start!, s.end!, createSharingState(), fixtureReading()).newDoc
 	);
 }
 

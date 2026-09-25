@@ -30,8 +30,7 @@ import {
 	makeStubBlockEdit,
 	makeStubFocus
 } from '../harness/editor-actions';
-import { defaultGrammarView } from '$lib/schema/block-openers';
-import { fixtureLinkRef } from '../harness/fixture-grammar';
+import { fixtureReading } from '../harness/fixture-grammar';
 
 // ── Arbitraries ──────────────────────────────────────────────────────────────
 
@@ -259,8 +258,7 @@ async function runListOp(
 		parentFocus: makeStubFocus(),
 		parentListContext: undefined,
 		controller: h.controller,
-		getPresentationMode: undefined,
-		linkRef: fixtureLinkRef()
+		reading: fixtureReading()
 	});
 
 	if (op.t === 'insertItem') {
@@ -371,6 +369,7 @@ async function runTableOp(
 		},
 		parentContainerEdit: h.rootContainerEdit,
 		controller: h.controller,
+		reading: fixtureReading(),
 		focusCell: () => {},
 		announceReorder: () => {}
 	});
@@ -408,9 +407,7 @@ async function runRangeDelete(
 		revealPath: h.deps.revealPath,
 		controller: h.controller,
 		pushUndoSnapshot: () => h.controller.pushUndoSnapshot(startIdx, 0),
-		grammar: defaultGrammarView,
-		getPresentationMode: undefined,
-		linkRef: fixtureLinkRef()
+		reading: fixtureReading()
 	});
 }
 

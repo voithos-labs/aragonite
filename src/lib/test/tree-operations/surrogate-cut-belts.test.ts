@@ -22,7 +22,8 @@ import { createSharingState } from '$lib/tree-operations/sharing';
 import { collectEditorSources } from '$lib/test/invariants/lint/scan-source';
 import type { CstNode } from '$lib/core/nodes';
 import type { NodeView } from '$lib/core/node-views';
-import { fixtureLinkRef } from '../harness/fixture-grammar';
+import { fixtureReading } from '../harness/fixture-grammar';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 const BOY = 'a\u{1F466}b\n';
 
@@ -87,7 +88,7 @@ describe('snapToScalarBoundary', () => {
 describe('the split cut', () => {
 	it('splits beside the pair, never through it', () => {
 		const doc = parse(BOY);
-		splitNode(doc, 0, 2, createSharingState(), undefined, fixtureLinkRef());
+		splitNode(doc, 0, 2, createSharingState(), fixtureReading());
 		const out = serialize(doc);
 		expect(isWellFormed(out)).toBe(true);
 		expect(out).toBe('a\n\n\u{1F466}b\n');
@@ -97,26 +98,14 @@ describe('the split cut', () => {
 describe('the single-block range cut', () => {
 	it('cuts to the pair boundary, leaving no half behind', () => {
 		const node = parse(BOY).children[0] as NodeView;
-		const cut = cutRangeFromDisplay(
-			node,
-			'a\u{1F466}b',
-			{ start: 0, end: 2 },
-			undefined,
-			fixtureLinkRef()
-		);
+		const cut = cutRangeFromDisplay(node, 'a\u{1F466}b', { start: 0, end: 2 }, fixtureReading());
 		expect(isWellFormed(cut.display)).toBe(true);
 		expect(cut.display).toBe('\u{1F466}b');
 	});
 
 	it('snaps the start endpoint too', () => {
 		const node = parse(BOY).children[0] as NodeView;
-		const cut = cutRangeFromDisplay(
-			node,
-			'a\u{1F466}b',
-			{ start: 2, end: 4 },
-			undefined,
-			fixtureLinkRef()
-		);
+		const cut = cutRangeFromDisplay(node, 'a\u{1F466}b', { start: 2, end: 4 }, fixtureReading());
 		expect(isWellFormed(cut.display)).toBe(true);
 		expect(cut.display).toBe('a');
 	});
@@ -125,7 +114,13 @@ describe('the single-block range cut', () => {
 describe('the structural paste’s before/after slices', () => {
 	it('keeps the pair whole on one side of the pasted blocks', () => {
 		const leaf = parse(BOY).children[0];
-		const { nodes: replacement } = buildPastedReplacement(leaf, 2, parse('x\n').children, '\n');
+		const { nodes: replacement } = buildPastedReplacement(
+			leaf,
+			2,
+			parse('x\n').children,
+			'\n',
+			defaultGrammarView
+		);
 		const raws = replacement.map((node: CstNode) => node.raw);
 		expect(raws.every(isWellFormed)).toBe(true);
 		expect(raws).toEqual(['a\n', 'x\n', '\u{1F466}b\n']);
@@ -135,7 +130,13 @@ describe('the structural paste’s before/after slices', () => {
 describe('the absorb split’s item halves', () => {
 	it('keeps the pair whole on one half', () => {
 		const leaf = parse(BOY).children[0];
-		const { leadingNode, trailingNodes } = splitLeafForPaste(leaf, 2, '\n');
+		const { leadingNode, trailingNodes } = splitLeafForPaste(
+			leaf,
+			2,
+			'\n',
+			undefined,
+			defaultGrammarView
+		);
 		expect(isWellFormed(leadingNode!.raw)).toBe(true);
 		expect(isWellFormed(trailingNodes[0].raw)).toBe(true);
 		expect([leadingNode!.raw, trailingNodes[0].raw]).toEqual(['a\n', '\u{1F466}b\n']);
@@ -152,7 +153,7 @@ describe('the native ranged edit’s join', () => {
 
 	it('snaps a mid-pair endpoint before slicing', () => {
 		const node = parse(SOURCE, { scope: 'fragment' }).children[0] as NodeView;
-		const edit = resolveSelectionEdit(node, { start: 8, end: 22 }, '', 'live', fixtureLinkRef());
+		const edit = resolveSelectionEdit(node, { start: 8, end: 22 }, '', fixtureReading({}, 'live'));
 		expect(edit).not.toBeNull();
 		expect(isWellFormed(edit!.raw)).toBe(true);
 	});

@@ -1,4 +1,5 @@
 import type { CstNode, Document } from '../core/nodes';
+import type { GrammarView } from '../schema/block-openers';
 import type { SharingState } from './sharing';
 import { spliceChildrenSettled } from './settle';
 import { ensureUnsharedPath } from './unshare';
@@ -12,7 +13,8 @@ export function cascadeCleanupEmptyAncestors(
 	doc: Document,
 	deletedPath: number[],
 	lcaPath: number[],
-	sharing: SharingState
+	sharing: SharingState,
+	grammar: GrammarView
 ): void {
 	let currentPath = deletedPath.slice(0, -1);
 	while (currentPath.length > lcaPath.length) {
@@ -23,7 +25,7 @@ export function cascadeCleanupEmptyAncestors(
 		const idx = currentPath[currentPath.length - 1];
 		const node = parent.children[idx];
 		if (!node || !node.children || node.children.length > 0) break;
-		spliceChildrenSettled(parent, idx, 1, [], sharing);
+		spliceChildrenSettled(parent, idx, 1, [], grammar, sharing);
 		currentPath = parentPath;
 	}
 }

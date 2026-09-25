@@ -5,7 +5,6 @@
  * stays in the document. Live mode only: every other mode paints the destination.
  */
 
-import type { PresentationMode } from '../../presentation-mode';
 import { canWrapRangeAsLink } from '../blocks/text/link-source-bytes';
 import {
 	resolveLinkAtPoint,
@@ -16,7 +15,6 @@ import type { LinkCardState } from './link-card-state.svelte';
 
 /** What locating the card's construct takes, whether a click or a pressed-state read asks. */
 export interface LinkCardTargetQuery extends LinkPointQuery {
-	mode: PresentationMode;
 	/** The raw selection within this block, or null at a collapsed caret. Required, never given a
 	 *  default: a caller that must create no link says so by passing null wherever it could. */
 	selection: { start: number; end: number } | null;
@@ -36,7 +34,7 @@ export interface LinkCardEntryQuery extends LinkCardTargetQuery {
  * nothing, so the pressed state and the click it promises resolve the same construct.
  */
 export function linkCardTargetAt(query: LinkCardTargetQuery): LinkTarget | null {
-	if (query.mode !== 'live' || query.crossBlockRange) return null;
+	if (query.reading.mode() !== 'live' || query.crossBlockRange) return null;
 	const hit = resolveLinkAtPoint(query);
 	if (hit === null) return null;
 	const range = query.selection;
@@ -51,7 +49,7 @@ export function linkCardTargetAt(query: LinkCardTargetQuery): LinkTarget | null 
  * taken either way, by the keymap branch that calls this.
  */
 export function enterLinkCardAtCaret(query: LinkCardEntryQuery): void {
-	if (query.mode !== 'live') return;
+	if (query.reading.mode() !== 'live') return;
 	// The command dispatch already refuses `link.openCard` over a cross-block range
 	// (`RANGE_DECLINED_COMMAND_IDS`); checked again here because the offsets this would
 	// otherwise trust are made up in exactly that state rather than missing.
@@ -65,6 +63,6 @@ export function enterLinkCardAtCaret(query: LinkCardEntryQuery): void {
 	}
 	const range = query.selection;
 	if (range === null || range.start >= range.end) return;
-	if (canWrapRangeAsLink(query.block.raw, range.start, range.end, query.linkRef))
+	if (canWrapRangeAsLink(query.block.raw, range.start, range.end, query.reading))
 		query.card.enterCreate({ path: query.path, start: range.start, end: range.end });
 }

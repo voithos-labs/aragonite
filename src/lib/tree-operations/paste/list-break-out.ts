@@ -90,7 +90,7 @@ export async function applyListBreakOut(
 		pastedBlocks,
 		lineEnding,
 		plan.targetRaw,
-		ctx.grammar
+		ctx.reading.grammar
 	);
 	if (replacement.length === 0) return;
 
@@ -157,8 +157,8 @@ export function buildListBreakOutReplacement(
 	offset: number,
 	pastedBlocks: CstNode[],
 	ending: LineEnding,
-	targetRaw?: string,
-	grammar?: GrammarView
+	targetRaw: string | undefined,
+	grammar: GrammarView
 ): ListBreakOutReplacement {
 	const items = list.children ?? [];
 	const item = items[itemIndex];

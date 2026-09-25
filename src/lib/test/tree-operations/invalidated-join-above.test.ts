@@ -4,6 +4,7 @@ import { serialize } from '$lib/core/serializer';
 import { updateNodeContent } from '$lib/tree-operations/content-write';
 import { rebuildContainerRaw } from '$lib/schema/container-raw';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 // GH #21's upper half: a demoted block stops interrupting the paragraph above it, so that pair
 // reloads as one too. The write asks both edges of its own window, and reports where its text
@@ -15,7 +16,7 @@ describe('a kind demotion settles the join above (GH #21)', () => {
 	it('absorbs the predecessor the demoted block stopped interrupting', () => {
 		const doc = parse('a\n# h\n');
 
-		const settled = updateNodeContent(doc, 1, 'x# h\n');
+		const settled = updateNodeContent(doc, 1, 'x# h\n', defaultGrammarView);
 
 		expect(serialize(doc)).toBe('a\nx# h\n');
 		expect(describeConvergence(doc)).toBeNull();
@@ -35,7 +36,7 @@ describe('a kind demotion settles the join above (GH #21)', () => {
 	it('folds three blocks into one when the demotion sat between two paragraphs', () => {
 		const doc = parse('a\n# h\nb\n');
 
-		const settled = updateNodeContent(doc, 1, 'x# h\n');
+		const settled = updateNodeContent(doc, 1, 'x# h\n', defaultGrammarView);
 
 		expect(serialize(doc)).toBe('a\nx# h\nb\n');
 		expect(describeConvergence(doc)).toBeNull();
@@ -54,7 +55,7 @@ describe('a kind demotion settles the join above (GH #21)', () => {
 	it('absorbs when the marker is deleted instead', () => {
 		const doc = parse('a\n# h\nb\n');
 
-		const settled = updateNodeContent(doc, 1, ' h\n');
+		const settled = updateNodeContent(doc, 1, ' h\n', defaultGrammarView);
 
 		expect(serialize(doc)).toBe('a\n h\nb\n');
 		expect(describeConvergence(doc)).toBeNull();
@@ -71,7 +72,8 @@ describe('a kind demotion settles the join above (GH #21)', () => {
 		const settled = updateNodeContent(
 			{ children: quote.children!, ownerKind: quote.kind, owner: quote, lineEnding: '\n' },
 			1,
-			'x# h\n'
+			'x# h\n',
+			defaultGrammarView
 		);
 		rebuildContainerRaw(quote);
 
@@ -87,7 +89,7 @@ describe('a kind demotion settles the join above (GH #21)', () => {
 	it('asks both edges of a multi-block write', () => {
 		const doc = parse('a\n# h\nb\n');
 
-		const settled = updateNodeContent(doc, 1, 'x\n\ny\n');
+		const settled = updateNodeContent(doc, 1, 'x\n\ny\n', defaultGrammarView);
 
 		expect(serialize(doc)).toBe('a\nx\n\ny\nb\n');
 		expect(describeConvergence(doc)).toBeNull();
@@ -107,7 +109,7 @@ describe('a kind demotion settles the join above (GH #21)', () => {
 	it('reports the offset when emptying a block lets the container above swallow it', () => {
 		const doc = parse('- item\n\ntext\n\n    code\n');
 
-		const settled = updateNodeContent(doc, 1, '\n');
+		const settled = updateNodeContent(doc, 1, '\n', defaultGrammarView);
 
 		expect(serialize(doc)).toBe('- item\n\n\n    code\n');
 		expect(describeConvergence(doc)).toBeNull();
@@ -128,7 +130,7 @@ describe('a kind demotion settles the join above (GH #21)', () => {
 	it('leaves a separated predecessor standing', () => {
 		const doc = parse('a\n\n# h\nb\n');
 
-		const settled = updateNodeContent(doc, 1, 'x# h\n');
+		const settled = updateNodeContent(doc, 1, 'x# h\n', defaultGrammarView);
 
 		expect(serialize(doc)).toBe('a\n\nx# h\nb\n');
 		expect(describeConvergence(doc)).toBeNull();

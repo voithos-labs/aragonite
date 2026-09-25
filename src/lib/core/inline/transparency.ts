@@ -8,11 +8,11 @@
 import type { NodeView } from '../node-views';
 import { getInlineContent } from './inline-cache';
 import { isInlineWidget, isCharacterLikeWidget } from './inline-widgets';
-import { defaultGrammarView, type GrammarView } from '../../schema/block-openers';
+import type { GrammarView } from '../../schema/block-openers';
 
 export function isVerticallyTransparentNode(
 	node: NodeView | null | undefined,
-	grammar: GrammarView = defaultGrammarView
+	grammar: GrammarView
 ): boolean {
 	if (!node) return false;
 	// An explicit stack: container depth is input-controlled, so recursion could overflow.

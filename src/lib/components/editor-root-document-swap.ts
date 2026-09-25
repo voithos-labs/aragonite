@@ -5,7 +5,7 @@
 
 import type { Document } from '../core/nodes';
 import { documentLineEnding } from '../core/lines';
-import { parse } from '../core/parser';
+import { readBlocks } from '../core/parser';
 import type { GrammarView } from '../schema/block-openers';
 import {
 	buildLinkReferenceMap,
@@ -28,7 +28,7 @@ export interface ParsedDocument {
 
 /** The parse every document goes through, at mount and at each swap, in the editor's grammar. */
 export function initDocument(source: string, grammar: GrammarView): ParsedDocument {
-	const doc = parse(source, { grammar, scope: 'document' });
+	const doc = readBlocks(source, { grammar, scope: 'document' });
 	if (doc.children.length === 0) {
 		// Only the empty source parses to zero blocks (a blank line is a block of its own), so
 		// there is no authored ending to inherit and LF is the whole answer.

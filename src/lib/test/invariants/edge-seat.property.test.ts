@@ -11,6 +11,7 @@ import { caretPositions, countOnScreen, paintedText } from '$lib/test/harness/pa
 import { arbInlineSource, freshOrFixedSeed } from './arbitraries';
 import '../../schema/built-in-descriptors';
 import { renderOptions } from '../harness/fixture-grammar';
+import { fixtureReading } from '$lib/test/harness/fixture-grammar';
 
 // Where a typed byte goes decides which side of an unpainted delimiter run it lands on. The check
 // is the renderer, as it is in the split and join properties: a plain letter may never put a
@@ -128,8 +129,7 @@ function typeThroughSeat(
 		display,
 		LIVE,
 		'Z',
-		undefined,
-		defaultGrammarView
+		fixtureReading()
 	);
 	const at = seat?.offset ?? caret;
 	return { after: display.slice(0, at) + 'Z' + display.slice(at), relocated: seat !== null };

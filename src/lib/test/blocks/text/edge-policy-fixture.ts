@@ -1,7 +1,6 @@
 // Shared scaffolding for the edge-policy-dispatch suites. The base dependencies do nothing:
 // every behaviour a test asserts on has to come from the caller's `overrides`, or a test
 // could end up asserting against this stub.
-import { defaultGrammarView } from '$lib/schema/block-openers';
 import { afterEach } from 'vitest';
 import {
 	createEdgePolicyDispatch,
@@ -13,7 +12,8 @@ import type { BlockEditActions } from '$lib/action-contracts';
 import type { CstNode } from '$lib/core/nodes';
 import { makePendingMarks } from '$lib/test/harness/editor-actions';
 import { createAutoPairRecord } from '$lib/components/blocks/text/auto-pair-record';
-import { fixtureLinkRef } from '../../harness/fixture-grammar';
+import { asPresentationMode } from '$lib/presentation-mode';
+import { fixtureReading } from '../../harness/fixture-grammar';
 
 export { asRawOffset as at } from '$lib/cursor/coordinate-spaces';
 
@@ -34,7 +34,6 @@ export function makeEdgeDispatch(
 	const readNode = typeof node === 'function' ? node : () => node;
 	const edits: EditTuple[] = [];
 	const deps: EdgePolicyDispatchDeps = {
-		grammar: defaultGrammarView,
 		getLineEnding: () => '\n',
 		get node() {
 			return readNode();
@@ -45,8 +44,12 @@ export function makeEdgeDispatch(
 		get containerParent() {
 			return null;
 		},
-		get linkRef() {
-			return fixtureLinkRef();
+		// The mode the surface's root stamps, as the editor stamps its own from the same reading.
+		get reading() {
+			return fixtureReading(
+				{},
+				asPresentationMode(el.closest('[data-presentation]')?.getAttribute('data-presentation'))
+			);
 		},
 		getEl: () => el,
 		getAmbientLength: () => 0,

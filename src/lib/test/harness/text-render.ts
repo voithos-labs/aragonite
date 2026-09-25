@@ -9,7 +9,8 @@ import type { PresentationMode } from '$lib/presentation-mode';
 import type { ImageLoadPolicy } from '$lib/core/inline-render';
 import type { IndexedDecoration } from '$lib/decorations/buckets';
 import type { ReplaceDecoration, WidgetDecoration } from '$lib/decorations/types';
-import { defaultGrammarView } from '$lib/schema/block-openers';
+import type { Reading } from '$lib/schema/reading';
+import { fixtureReading } from './fixture-grammar';
 
 export type Island = IndexedDecoration<WidgetDecoration | ReplaceDecoration>;
 
@@ -22,8 +23,8 @@ export function blockNode(source: string): CstNode {
 export interface RenderHarnessOverrides {
 	mode?: PresentationMode;
 	imageLoadPolicy?: ImageLoadPolicy;
-	linkResolver?: TextRenderDeps['linkResolver'];
-	linkStamp?: string;
+	/** The link definitions the block draws with; the mode stays the harness's own. */
+	reading?: Partial<Reading>;
 }
 
 export interface RenderHarness {
@@ -65,16 +66,7 @@ export function makeRenderHarness(
 		get imageLoadPolicy() {
 			return policy;
 		},
-		get presentationMode() {
-			return mode;
-		},
-		grammar: defaultGrammarView,
-		get linkResolver() {
-			return overrides.linkResolver;
-		},
-		get linkStamp() {
-			return overrides.linkStamp ?? '0';
-		},
+		reading: fixtureReading({ ...overrides.reading, mode: () => mode }),
 		get islands() {
 			return islands;
 		},

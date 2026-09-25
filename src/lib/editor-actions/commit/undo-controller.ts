@@ -369,9 +369,8 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 					docSettleParent(childrenCopy),
 					deps.doc.children,
 					args.mutate(childrenCopy),
-					deps.sharing,
-					undefined,
-					deps.grammar
+					deps.reading.grammar,
+					deps.sharing
 				);
 				if (args.discardIfNoop && change.op === 'noop') {
 					// The document branch installed nothing; only the stacks are restored here.
@@ -384,7 +383,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 					if (isDevChecks()) {
 						assertCommittedNodes(
 							touchedFromChange(change, childrenCopy, args.touchedNodes),
-							deps.grammar
+							deps.reading.grammar
 						);
 					}
 				}
@@ -399,7 +398,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 					if (isDevChecks()) {
 						assertCommittedNodes(
 							touchedContainersWithChildren(args.touchedNodes?.()),
-							deps.grammar
+							deps.reading.grammar
 						);
 					}
 				}
@@ -654,9 +653,9 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 						prepared[i].owned as SeparatorParent,
 						prepared[i].savedChildren ?? [],
 						changeList[i],
+						deps.reading.grammar,
 						deps.sharing,
-						trackCaret?.[i],
-						deps.grammar
+						trackCaret?.[i]
 					);
 					publishScopeView(prepared[i], changeList[i]);
 				}
@@ -671,7 +670,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 							attachedChainPrefix(deps.doc, p.chain),
 							deps.sharing,
 							folds,
-							deps.grammar
+							deps.reading.grammar
 						)
 					);
 					landing = foldLandingFor(folds.slice(before), p.target.path) ?? landing;

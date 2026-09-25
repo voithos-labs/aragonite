@@ -40,7 +40,8 @@ describe('every write that can replace a to-do’s first block drops the marker 
 		updateNodeContent(
 			{ children: item.children!, ownerKind: item.kind, owner: item, lineEnding: '\n' },
 			0,
-			TABLE
+			TABLE,
+			defaultGrammarView
 		);
 
 		expect(item.children![0].kind).toBe('table');
@@ -54,7 +55,8 @@ describe('every write that can replace a to-do’s first block drops the marker 
 		updateNodeContent(
 			{ children: item.children!, ownerKind: item.kind, owner: item, lineEnding: '\n' },
 			0,
-			'# alphaX\n'
+			'# alphaX\n',
+			defaultGrammarView
 		);
 
 		expect(metaOf(item).taskItem).toBe(true);

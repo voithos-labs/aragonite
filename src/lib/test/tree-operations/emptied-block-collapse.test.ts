@@ -7,7 +7,8 @@ import { mergeIntoPrevDeepLeaf } from '$lib/tree-operations/node-ops';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { registerFootnoteDefinition } from '$lib/plugins/footnotes/footnote-definition';
 import { describeConvergence } from '../harness/parse-converged';
-import { fixtureLinkRef } from '../harness/fixture-grammar';
+import { fixtureReading } from '../harness/fixture-grammar';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 // Miss-analysis (emptied-middle-block collapse): the blank-line rule made every splice derive
 // its separator, and the delete branch was pinned while the merge branch was not, so the merge
@@ -46,7 +47,7 @@ describe('an emptied middle block takes its own blank line with it', () => {
 	describe.each(TAILS)('above / blank / %s', (_name, tail) => {
 		it('merges into the block above, leaving one separator', () => {
 			const doc = collapsed(tail, (d) => {
-				mergeIntoPrevDeepLeaf(d, 1, undefined, undefined, fixtureLinkRef());
+				mergeIntoPrevDeepLeaf(d, 1, undefined, fixtureReading());
 			});
 
 			expect(serialize(doc)).toBe(`above\n\n${tail}`);
@@ -56,9 +57,9 @@ describe('an emptied middle block takes its own blank line with it', () => {
 
 		it('deletes to the same shape the merge reaches', () => {
 			const merged = collapsed(tail, (d) => {
-				mergeIntoPrevDeepLeaf(d, 1, undefined, undefined, fixtureLinkRef());
+				mergeIntoPrevDeepLeaf(d, 1, undefined, fixtureReading());
 			});
-			const deleted = collapsed(tail, (d) => deleteNode(d, 1));
+			const deleted = collapsed(tail, (d) => deleteNode(d, 1, defaultGrammarView));
 
 			expect(serialize(deleted)).toBe(serialize(merged));
 			expect(describeConvergence(deleted)).toBeNull();

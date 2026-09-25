@@ -11,6 +11,7 @@ import { makeNestedHarness } from '$lib/test/harness/editor-actions';
 import { registerCalloutKind } from '../../../routes/test/plugins/callout/callout-kind';
 import { expectParseConverged } from '../harness/parse-converged';
 import type { CstNode } from '$lib/core/nodes';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 // The counterpart of the closer-line take pinned in `wrapped-container-separator.test.ts`: a
 // blank run reaching the body tail borrows a line into `innerSuffix` so the reload keeps the
@@ -28,7 +29,8 @@ function writeBody(container: CstNode, at: number, text: string): void {
 			lineEnding: firstLineEnding(container.raw) ?? '\n'
 		},
 		at,
-		text
+		text,
+		defaultGrammarView
 	);
 	rebuildAncestryRaw(container, []);
 }

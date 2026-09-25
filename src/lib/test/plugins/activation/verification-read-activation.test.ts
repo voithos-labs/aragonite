@@ -17,6 +17,7 @@ import {
 	type EdgeDeletionSurface
 } from '$lib/components/blocks/text/construct-edge-delete';
 import { grammarListing } from './grammar-listing';
+import { fixtureReading } from '$lib/test/harness/fixture-grammar';
 
 beforeAll(() => {
 	resetPluginPlatformForTests();
@@ -34,7 +35,9 @@ const inlinesOf = (raw: string) => parseInline(raw, 0, raw.length, undefined, wi
 
 describe('the link wrap reads the syntax the editor draws', () => {
 	it('wraps `a :smile: b`, which the editor draws as text', () => {
-		expect(canWrapRangeAsLink('a :smile: b', 0, 11, { grammar: withoutEither() })).toBe(true);
+		expect(
+			canWrapRangeAsLink('a :smile: b', 0, 11, fixtureReading({ grammar: withoutEither() }))
+		).toBe(true);
 	});
 });
 
@@ -47,8 +50,7 @@ describe('a pending mark reads the syntax the editor draws', () => {
 			'y',
 			new Set(['strong'] as const),
 			inlinesOf(raw),
-			undefined,
-			withoutEither()
+			fixtureReading({ grammar: withoutEither() })
 		);
 		expect(marked).toEqual({ raw: 'a $x**y**$ b', caret: 7 });
 	});
@@ -65,8 +67,7 @@ describe('the typing position at a hidden run reads the syntax the editor draws'
 			raw,
 			LIVE,
 			':',
-			undefined,
-			withoutEither()
+			fixtureReading({ grammar: withoutEither() })
 		);
 		expect(seat).toBeNull();
 	});
@@ -84,8 +85,7 @@ describe('the edge delete reads the syntax the editor draws', () => {
 			screen: LIVE,
 			inlines: inlinesOf(raw),
 			installedAs,
-			resolver: undefined,
-			grammar: withoutEither()
+			reading: fixtureReading({ grammar: withoutEither() })
 		});
 	};
 

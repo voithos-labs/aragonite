@@ -12,9 +12,9 @@ import {
 } from '$lib/core/inline/link-reference-resolver';
 import { parse } from '$lib/core/parser';
 import type { PresentationMode } from '$lib/presentation-mode';
-import { defaultGrammarView } from '$lib/schema/block-openers';
-import type { InlineResolverRef } from '$lib/schema/inline-construct-policy';
 import { planCrossBlockFormat } from '$lib/selection/cross-block/format-range';
+import type { Reading } from '$lib/schema/reading';
+import { fixtureReading } from '$lib/test/harness/fixture-grammar';
 
 // The format toggle reads a block with the link definitions it was drawn with, so a selection
 // cutting into a reference link is refused the way one cutting into an inline link is (GH #455).
@@ -24,12 +24,17 @@ import { planCrossBlockFormat } from '$lib/selection/cross-block/format-range';
 const DEFINITION = '[ref]: https://x.com\n';
 const resolver: LinkReferenceResolver = buildLinkReferenceMap(parse(DEFINITION).children).resolve;
 
-function editOf(display: string, start: number, end: number): InlineFormatEdit {
+function editOf(
+	display: string,
+	start: number,
+	end: number,
+	mode: PresentationMode = 'source'
+): InlineFormatEdit {
 	return {
 		display,
 		content: { start: 0, end: display.length },
 		selection: { start, end },
-		linkRef: { current: resolver, grammar: defaultGrammarView }
+		reading: fixtureReading({ resolver: resolver }, mode)
 	};
 }
 
@@ -44,18 +49,18 @@ describe.each(LINK_FORMS)('bold over the edge of a $form', ({ link }) => {
 	const insideText = display.indexOf('xt');
 
 	it.each(MODES)('from inside the link text to the line end writes nothing (%s)', (mode) => {
-		expect(toggleInlineFormat(editOf(display, insideText, display.length), 'strong', mode)).toBe(
+		expect(toggleInlineFormat(editOf(display, insideText, display.length, mode), 'strong')).toBe(
 			null
 		);
 	});
 
 	it.each(MODES)('from before the link into its text writes nothing (%s)', (mode) => {
-		expect(toggleInlineFormat(editOf(display, 1, insideText), 'strong', mode)).toBe(null);
+		expect(toggleInlineFormat(editOf(display, 1, insideText, mode), 'strong')).toBe(null);
 	});
 
 	it.each(MODES)('over the whole link wraps it (%s)', (mode) => {
 		const start = display.indexOf('[');
-		const result = toggleInlineFormat(editOf(display, start, start + link.length), 'strong', mode);
+		const result = toggleInlineFormat(editOf(display, start, start + link.length, mode), 'strong');
 		expect(result?.newDisplay).toBe(`see **${link}** here`);
 	});
 });
@@ -69,11 +74,16 @@ describe('the pressed state beside a reference link', () => {
 	});
 
 	it('re-reads when the definitions change under the same ref', () => {
-		const linkRef: InlineResolverRef = { grammar: defaultGrammarView };
-		const edit = { ...editOf(display, 2, 3), linkRef };
+		const definitions: { current?: LinkReferenceResolver } = {};
+		const reading: Reading = fixtureReading({
+			get resolver() {
+				return definitions.current;
+			}
+		});
+		const edit = { ...editOf(display, 2, 3), reading };
 		const formatActive = createInlineFormatActiveMemo();
 		expect(formatActive(edit, 'emphasis')).toBe(true);
-		linkRef.current = resolver;
+		definitions.current = resolver;
 		expect(formatActive({ ...edit }, 'emphasis')).toBe(false);
 	});
 });
@@ -86,8 +96,7 @@ describe('a cross-block bold starting inside a reference link', () => {
 			{ path: [0], offset: 7 },
 			{ path: [1], offset: 5 },
 			'strong',
-			'source',
-			{ current: resolver, grammar: defaultGrammarView }
+			fixtureReading({ resolver: resolver })
 		);
 		expect(plan?.writes.map((write) => [write.path, write.newDisplay])).toEqual([
 			[[1], '**other**']

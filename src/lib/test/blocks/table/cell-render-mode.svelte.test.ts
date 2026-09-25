@@ -10,8 +10,8 @@ import { declarePluginInlineKind } from '$lib/schema/plugin-kind';
 import type { CstNode } from '$lib/core/nodes';
 import type { PresentationMode } from '$lib/presentation-mode';
 import ModeReadingWidget from '../fixtures/ModeReadingWidget.svelte';
-import { defaultGrammarView } from '$lib/schema/block-openers';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
+import { fixtureReading } from '$lib/test/harness/fixture-grammar';
 
 const WIDGET_SOURCE = '%%w%%';
 
@@ -48,14 +48,8 @@ function mountCell(raw: string) {
 		get node() {
 			return node;
 		},
-		grammar: defaultGrammarView,
-		get linkRef() {
-			return undefined;
-		},
+		reading: fixtureReading({ mode: () => mode }),
 		resolveLinkUrl: (u) => u,
-		get presentationMode() {
-			return mode;
-		},
 		getTheme: () => theme,
 		getDocument: () => undefined,
 		get islands() {

@@ -61,7 +61,7 @@ describe('details terminator escape at the paste door', () => {
 
 		expect(parse(serialize(h.doc)).children.map((c) => c.kind)).toEqual(['details']);
 		expect(serialize(h.doc)).toContain('&lt;/details>');
-		expect(checkOpaqueStaleRaw(h.doc.children[0])).toBeNull();
+		expect(checkOpaqueStaleRaw(h.doc.children[0], defaultGrammarView)).toBeNull();
 	});
 
 	// The target's own bytes are what get stranded, not the clipboard's: a paste splits at
@@ -74,7 +74,7 @@ describe('details terminator escape at the paste door', () => {
 
 		expect(parse(serialize(h.doc)).children.map((c) => c.kind)).toEqual(['details']);
 		expect(serialize(h.doc)).toContain('&lt;/details>');
-		expect(checkOpaqueStaleRaw(h.doc.children[0])).toBeNull();
+		expect(checkOpaqueStaleRaw(h.doc.children[0], defaultGrammarView)).toBeNull();
 	});
 
 	// A balanced pair is legal markup the container's depth scan already handles; escaping

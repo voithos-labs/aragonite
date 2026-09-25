@@ -17,6 +17,7 @@ import { ensureUnsharedPath } from '$lib/tree-operations/unshare';
 import { rebuildUnsharedChain } from '$lib/tree-operations/chain-rebuild';
 import { updateNodeContent } from '$lib/tree-operations/content-write';
 import { makeNestedHarness } from '$lib/test/harness/editor-actions';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 // The first keystroke fills in the spans and the second one uses them, which is why a single
 // keypress never showed this.
@@ -86,11 +87,11 @@ function typeInto(doc: ReturnType<typeof parse>, path: number[], text: string): 
 		{ children: scope.children, ownerKind: scope.kind, owner: scope, lineEnding: '\n' },
 		path[path.length - 1],
 		text,
-		undefined,
+		defaultGrammarView,
 		sharing
 	);
 	if (settled.change.op !== 'noop') dropChildSpans(scope);
-	rebuildUnsharedChain(doc, chain, sharing, [], undefined, { path, leafPreviousRaw });
+	rebuildUnsharedChain(doc, chain, sharing, [], defaultGrammarView, { path, leafPreviousRaw });
 	return scope;
 }
 
@@ -117,7 +118,7 @@ describe('the hinted rebuild after a real settle', () => {
 					const doc = parse(source);
 					const seed = ensureUnsharedPath(doc, path, createSharingState());
 					if (seed.length !== path.length) continue;
-					rebuildUnsharedChain(doc, seed, createSharingState(), [], undefined);
+					rebuildUnsharedChain(doc, seed, createSharingState(), [], defaultGrammarView);
 					const scope = typeInto(doc, path, text);
 					if (!scope) continue;
 					const full = fullRebuildRawOf(scope);

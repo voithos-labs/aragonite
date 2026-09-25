@@ -128,6 +128,7 @@ async function commitFullTableDelete(
 			const change = deleteNode(
 				{ children, ownerKind: undefined, owner: undefined, lineEnding },
 				tableIdx,
+				ctx.reading.grammar,
 				ctx.controller.sharing
 			);
 			ctx.selection.collapse();

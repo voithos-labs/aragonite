@@ -9,13 +9,10 @@ import type { BlockComponent } from '../../block-component';
 import type { CommitController } from '../../action-contracts';
 import { ownTrailingLineEnding } from '../../core/lines';
 import { docPathFrom } from '../../cursor/coordinate-spaces';
-import type { BlockElLookup, DocumentGetter, PresentationModeGetter } from '../../editor-keys';
+import type { BlockElLookup, DocumentGetter } from '../../editor-keys';
 import type { CrossBlockCommandRouter } from '../../schema/block-commands';
-import {
-	inlineMarkForCommand,
-	type InlineMarkKind,
-	type InlineResolverRef
-} from '../../schema/inline-construct-policy';
+import { inlineMarkForCommand, type InlineMarkKind } from '../../schema/inline-construct-policy';
+import type { Reading } from '../../schema/reading';
 import { blockNodeAt } from '../../tree-operations/node-primitives';
 import { comparePaths } from '../path-math';
 import type { SelectionPoint } from '../primitives';
@@ -36,11 +33,9 @@ export interface CrossBlockCommandDeps {
 	getBlockElByPath: BlockElLookup;
 	revealPath: (path: number[]) => Promise<BlockComponent | null>;
 	controller: CommitController;
-	/** The mode each per-block rewrite verifies against. Required but nullable, like the
-	 *  cross-block dispatch context's fields; `undefined` reads as source mode. */
-	getPresentationMode: PresentationModeGetter | undefined;
-	/** The link definitions and grammar the blocks were drawn with, which each span's toggle reads. */
-	linkRef: InlineResolverRef;
+	/** How the blocks were drawn: each span's toggle reads its link definitions and grammar, and
+	 *  verifies its rewrite against its mode. */
+	reading: Reading;
 	/** The active-marks memo's key alongside the range: the document is mutated in place, so its
 	 *  identity says nothing about whether it changed (`docs/design/editor.md` § 7). */
 	getContentVersion: () => number;
@@ -80,7 +75,7 @@ function createActiveFormatMemo(deps: CrossBlockCommandDeps): () => ReadonlySet<
 		if (!start || !end) return NO_MARKS;
 		const key = `${deps.getContentVersion()}|${pointKey(start)}|${pointKey(end)}`;
 		if (slot?.key !== key) {
-			slot = { key, marks: crossBlockActiveFormats(deps.getDoc(), start, end, deps.linkRef) };
+			slot = { key, marks: crossBlockActiveFormats(deps.getDoc(), start, end, deps.reading) };
 		}
 		return slot.marks;
 	};
@@ -100,14 +95,7 @@ async function toggleFormatOverRange(
 	const { anchor, focus, start, end } = deps.selection;
 	if (!anchor || !focus || !start || !end) return;
 	const doc = deps.getDoc();
-	const plan = planCrossBlockFormat(
-		doc,
-		start,
-		end,
-		format,
-		deps.getPresentationMode?.(),
-		deps.linkRef
-	);
+	const plan = planCrossBlockFormat(doc, start, end, format, deps.reading);
 	if (!plan) return;
 
 	const restored = restoredRange(anchor, focus, start, end, plan);
@@ -124,7 +112,7 @@ async function toggleFormatOverRange(
 				plan,
 				docScope.sharing,
 				docScope.lineEnding,
-				deps.linkRef.grammar
+				deps.reading.grammar
 			);
 			return [{ op: 'noop' }];
 		},

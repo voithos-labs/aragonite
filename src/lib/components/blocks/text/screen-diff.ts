@@ -5,10 +5,10 @@
  * traversal.
  */
 
-import { getContentRange, isProseKind, parseInline } from '../../../core/inline';
-import type { InlineResolverRef } from '../../../schema/inline-construct-policy';
+import { getContentRange, isProseKind, readInline } from '../../../core/inline';
+import type { Reading } from '../../../schema/reading';
 import type { CstNode, InlineNode } from '../../../core/nodes';
-import { parse } from '../../../core/parser';
+import { readBlocks } from '../../../core/parser';
 
 /** Whether `after` is `before` with `text` spliced in at one place and nothing else moved. */
 export function insertsExactly(before: string, after: string, text: string): boolean {
@@ -37,14 +37,14 @@ export function removesExactly(before: string, after: string, removed: string): 
  *  reparse that splits the block or changes its kind is not what the caller is about to install. */
 export function soleProseReparse(
 	raw: string,
-	ref: InlineResolverRef
+	reading: Reading
 ): { block: CstNode; nodes: InlineNode[] } | null {
-	const blocks = parse(raw, { grammar: ref.grammar, scope: 'fragment' }).children;
+	const blocks = readBlocks(raw, { grammar: reading.grammar, scope: 'fragment' }).children;
 	if (blocks.length !== 1 || !isProseKind(blocks[0].kind)) return null;
 	const block = blocks[0];
 	const range = getContentRange(block);
 	return {
 		block,
-		nodes: parseInline(block.raw, range.start, range.end, ref.current, ref.grammar)
+		nodes: readInline(block.raw, range.start, range.end, reading.resolver, reading.grammar)
 	};
 }

@@ -12,8 +12,7 @@ import { serialize } from '$lib/core/serializer';
 import type { EditorError } from '$lib/editor-events';
 import type { BlockComponent } from '$lib/block-component';
 import { makeEnv, makeHandlers, makePasteEvent } from './typed-char-env';
-import { defaultGrammarView } from '$lib/schema/block-openers';
-import { fixtureLinkRef } from '../../harness/fixture-grammar';
+import { fixtureReading } from '../../harness/fixture-grammar';
 
 const SOURCE = 'para A\n\npara B\n\npara C\n';
 
@@ -41,9 +40,7 @@ function makeGatedEnv() {
 		revealPath: () => gate,
 		controller: env.controller,
 		pushUndoSnapshot: () => env.controller.pushUndoSnapshot(0, 0),
-		grammar: defaultGrammarView,
-		getPresentationMode: undefined,
-		linkRef: fixtureLinkRef()
+		reading: fixtureReading()
 	};
 
 	return {

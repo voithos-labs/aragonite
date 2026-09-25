@@ -199,8 +199,8 @@ export const defaultGrammarView: GrammarView = createGrammarView(() => true);
 export interface OuterBlockScan {
 	/** A lazy continuation: an open paragraph absorbs the block starts §4.4 forbids from interrupting. */
 	paragraphOpen: boolean;
-	/** Defaults to the global openers, the same set `lineInterruptsParagraph` reads. */
-	grammar?: GrammarView;
+	/** The editor's grammar: an opener it left out starts no block here. */
+	grammar: GrammarView;
 	/** The lines `line` sits in (`lines[index]` is `line`), so an opener that needs a later line to
 	 *  open, a `$$` block and its closing line, sees it. Without them `line` is read alone. */
 	window?: { lines: ParsedLine[]; index: number; end: number };
@@ -213,7 +213,7 @@ export interface OuterBlockScan {
  * ends, and indented code cannot open while a paragraph is open to absorb the line.
  */
 export function lineStartsOuterBlock(line: ParsedLine, scan: OuterBlockScan): boolean {
-	const grammar = scan.grammar ?? defaultGrammarView;
+	const { grammar } = scan;
 	const probe: OpenContext = {
 		...(scan.window ?? { lines: [line], index: 0, end: 1 }),
 		line,

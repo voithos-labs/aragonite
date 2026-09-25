@@ -1,8 +1,7 @@
 import type { UndoEntryMode } from '../action-contracts';
 import { isBuiltinBlockKind, type AnyBlockKind, type CstNode, type Document } from '../core/nodes';
-import type { PresentationMode } from '../presentation-mode';
 import type { LineEnding } from '../core/lines';
-import type { InlineResolverRef } from '../schema/inline-construct-policy';
+import type { Reading } from '../schema/reading';
 import type { GrammarView } from '../schema/block-openers';
 import type { PasteCommitCoordinator } from './paste/paste-deps';
 import type { PluginActivation } from '../schema/plugin-activation';
@@ -14,21 +13,6 @@ import { pluginKindOwner } from '../schema/plugin-kind';
 export interface PasteRange {
 	start: number;
 	end: number;
-}
-
-/**
- * What a paste hook reads besides the clipboard: the join cleanup's context (the delete half is a
- * join, and in live mode the delimiter runs it strands are bytes the user never saw), and the
- * document's line ending.
- */
-export interface PasteSeam {
-	presentationMode: PresentationMode | undefined;
-	linkRef: InlineResolverRef;
-	/** The editor's grammar, which a hook's reparse of the split halves reads; the dispatch
-	 *  fills it from its own context, so a hook sees it even where the caller sent no join context. */
-	grammar?: GrammarView;
-	/** The document's line ending, which every line a hook writes takes. */
-	lineEnding: LineEnding;
 }
 
 export interface InlinePasteResult {
@@ -62,13 +46,16 @@ export interface PasteSurface {
 	 * structural splice.
 	 */
 	blankEdgesArePackaging?: boolean;
-	/** Splice `text` into `node` at `offset` (optionally pre-deleting a range). Pure. */
+	/** Splice `text` into `node` at `offset` (optionally pre-deleting a range). Pure. `reading` is
+	 *  the editor's: the pre-delete is a join, cleaned where the caret's block hides its delimiters.
+	 *  `lineEnding` is the document's, which every line a hook writes takes. */
 	onInlinePaste?(
 		node: CstNode,
 		offset: number,
 		text: string,
 		preDelete: PasteRange | undefined,
-		seam: PasteSeam
+		reading: Reading,
+		lineEnding: LineEnding
 	): InlinePasteResult;
 	/** Splice CST blocks at the target. Pure data transform. */
 	onStructuralPaste?(
@@ -76,7 +63,8 @@ export interface PasteSurface {
 		offset: number,
 		blocks: CstNode[],
 		preDelete: PasteRange | undefined,
-		seam: PasteSeam
+		reading: Reading,
+		lineEnding: LineEnding
 	): StructuralPasteResult;
 	/**
 	 * Structural paste whose splice scope is an ancestor (a tableCell splices at the

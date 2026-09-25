@@ -7,6 +7,7 @@ import { serialize } from '$lib/core/serializer';
 import { updateNodeContent } from '$lib/tree-operations';
 import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 import { documentLineEnding } from '$lib/core/lines';
 
 // A CRLF to-do keeps its own line ending through being emptied and typed into again (G4.20): the
@@ -24,7 +25,8 @@ function writeTaskText(doc: Document, listIndex: number, item: number, text: str
 			lineEnding: documentLineEnding(doc)
 		},
 		0,
-		text
+		text,
+		defaultGrammarView
 	);
 	getBlockKindDescriptor('listItem').rebuildRaw?.(owner);
 	getBlockKindDescriptor('list').rebuildRaw?.(list);

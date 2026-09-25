@@ -6,7 +6,7 @@
 import type { CellPosition, ContainerEditActions, TableContext } from '../action-contracts';
 import type { OpDescriptor } from '../schema/operations';
 import type { CstNode } from '../core/nodes';
-import type { GrammarView } from '../schema/block-openers';
+import type { Reading } from '../schema/reading';
 import type { NodeView } from '../core/node-views';
 import { metadataOf } from '../core/nodes';
 import { extendDocPath, docPathFrom } from '../cursor/coordinate-spaces';
@@ -80,8 +80,8 @@ export interface TableMutationsContextDeps {
 	controller: UndoController;
 	focusCell: (rowIdx: number, colIdx: number, position: CellPosition) => void;
 	announceReorder: (message: string) => void;
-	/** The instance grammar the cell writes use (absent: the global one). */
-	grammar?: GrammarView;
+	/** The editor's reading, whose grammar the cell writes use. */
+	reading: Reading;
 }
 
 export type TableMutationsContext = Pick<
@@ -227,7 +227,7 @@ export function createTableMutationsContext(
 				grid.forEach((line, r) => {
 					const cells = table.children![origin.rowIdx + r].children!;
 					line.forEach((text, c) =>
-						writeOwnRaw(cells[origin.colIdx + c], text, tableScope.lineEnding, deps.grammar)
+						writeOwnRaw(cells[origin.colIdx + c], text, tableScope.lineEnding, deps.reading.grammar)
 					);
 				});
 				rebuildTableRaw(table);

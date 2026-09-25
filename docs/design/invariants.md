@@ -862,7 +862,7 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.66 | A relative scroll is written through `scrollBy`, never read-plus-delta        | L       |
 | G4.67 | Every editor menu counts itself on `menuChange`                               | L       |
 | G4.68 | Every plugin registry read outside its module passes the editor's grammar     | L       |
-| G4.69 | Every `parse` call outside the parser reads the editor's grammar              | L       |
+| G4.69 | Only the barrels, kits and no-editor code import the defaulted readers        | L       |
 
 ### The entries
 
@@ -1466,20 +1466,20 @@ counts, and the mermaid focus view, which a plugin owns.
 
 **G4.68 · Registry reads take the editor's grammar.** The inline syntax, widget kind, directive
 and completer registries are process-wide, and the editor's grammar is what leaves out a plugin
-its `plugins` prop did not list (#266). The internal readers declare the grammar as a required
-parameter, so the type checker refuses a call without one; the editor-action deps, the
-link-reference ref and the render options carry it as a required field for the same reason. The
-readers whose grammar stays optional (the published `parseInline` and `computeInlineContent` among
-them) are held to passing it in its own argument slot, and a fallback to every installed plugin
-is spelled only in the listed places. The reads still left unthreaded are listed with their
-reasons: navigation's transparency check. A write that reparses a block the editor drew (the
-prose block's live rewrites and auto-pair, and the bold and italic toggle) reads with the link
-resolver the block was drawn with, or a reference link reads as brackets beside it (#443, #455).
+its `plugins` prop did not list (#266). Every internal reader takes the grammar, or the editor's
+reading (`src/lib/schema/reading.ts`), as a required parameter, so the type checker refuses a call
+without one; the action deps, the surface deps and the render options carry it the same way. A
+fallback to every installed plugin is spelled only in the listed places. A write that reparses a
+block the editor drew (the prose block's live rewrites and auto-pair, and the bold and italic
+toggle) reads with the link resolver the block was drawn with, or a reference link reads as
+brackets beside it (#443, #455).
 `lint/registry-view-reads.test.ts`.
 
-**G4.69 · Reparses take the editor's grammar.** Every `parse` call outside the parser passes a
-grammar, so no edit reads a syntax the editor switched off or an unlisted plugin's opener (#429).
-The published whole-document conversion is the listed exception.
+**G4.69 · The defaulted readers stay at the edge.** The published `parse` and `parseInline`, and
+the plugin barrel's `computeInlineContent`, read every installed plugin when no grammar is given.
+Code inside the library calls `readBlocks` and `readInline` instead, which require it, so no edit
+reads a syntax the editor switched off or an unlisted plugin's opener (#429). Only the barrels, the
+kits and the listed code that runs with no editor may import a defaulted reader.
 `lint/registry-view-reads.test.ts`.
 
 ## Accessibility

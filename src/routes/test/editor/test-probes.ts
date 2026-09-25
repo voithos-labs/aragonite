@@ -1,6 +1,7 @@
 import { tick } from 'svelte';
 import type { Editor, PastedImage, PresentationMode } from '$lib';
-import { parse } from '$lib/core/parser';
+import { readBlocks } from '$lib/core/parser';
+import type { GrammarView } from '$lib/schema/block-openers';
 import { serialize } from '$lib/core/serializer';
 import { parseConverges } from '$lib/testing/parse-convergence';
 import { nodeAt } from '$lib/tree-operations/node-primitives';
@@ -117,13 +118,13 @@ function firstTextLeafToken(node: CstNode): string | null {
 // One row per kind that declares a conformanceFixture, parsed against this route's registry: if
 // another plugin's opener takes the fixture first, the token comes back null, so the sweep
 // records that gap instead of these probes hiding it.
-function collectConformanceEntries(): ConformanceSweepEntry[] {
+function collectConformanceEntries(grammar: GrammarView): ConformanceSweepEntry[] {
 	const entries: ConformanceSweepEntry[] = [];
 	for (const kind of getAllRegisteredKinds()) {
 		const descriptor = getBlockKindDescriptor(kind);
 		const fixture = descriptor.conformanceFixture;
 		if (fixture === undefined) continue;
-		const node = firstNodeOfKind(parse(fixture), kind);
+		const node = firstNodeOfKind(readBlocks(fixture, { grammar, scope: 'document' }), kind);
 		entries.push({
 			kind,
 			fixture,
@@ -403,12 +404,16 @@ export function installTestProbes({
 			if (path.length === 0) return;
 			const container = nodeAt(editor.__test.getDocument(), path) as CstNode | null;
 			if (!container) return;
-			const inserted = markdown ? parse(markdown).children : [];
+			const grammar = editor.__test.getGrammar();
+			const inserted = markdown
+				? readBlocks(markdown, { grammar, scope: 'fragment' }).children
+				: [];
 			spliceChildren(container, at, removeCount, inserted);
 			container.children = [...(container.children ?? [])];
 		},
 		getBlockKind: (index: number) => editor.__test.getDocument().children[index]?.kind ?? '',
-		getConformanceEntries: (): ConformanceSweepEntry[] => collectConformanceEntries(),
+		getConformanceEntries: (): ConformanceSweepEntry[] =>
+			collectConformanceEntries(editor.__test.getGrammar()),
 		// A descriptor with no registered component reaches BlockHost's no-component branch and
 		// its visible-raw fallback. Kept outside ALL_BLOCK_KINDS, so the startup completeness
 		// check is unaffected.
@@ -542,7 +547,10 @@ export function installTestProbes({
 		},
 		roundTripStable: (): boolean => {
 			const src = editor.getSource();
-			return serialize(parse(src)) === src;
+			return (
+				serialize(readBlocks(src, { grammar: editor.__test.getGrammar(), scope: 'document' })) ===
+				src
+			);
 		},
 		// The check that the live tree still parses to itself. roundTripStable above holds for
 		// all valid GFM whatever the tree looks like; this compares the live CST against a
@@ -648,7 +656,7 @@ export function installTestProbes({
 		dumpTree: (opts?: Parameters<typeof dumpTree>[1]) =>
 			dumpTree(editor.__test.getDocument(), opts),
 		dumpSelection: () => liveSelectionText(editor),
-		dumpInlineTree: () => dumpFocusedInlineTree(editor.getSource()),
+		dumpInlineTree: () => dumpFocusedInlineTree(editor),
 		dumpUndoStack: (n = 10) => dumpUndoStack(editor.__test.getUndoStack(), n),
 		dumpOperationsLog: (n = 20) => dumpOperationsLog(editor.__test.getOperationsLog(), n),
 		dumpInteractionTrace: (n = 50) => dumpInteractionTrace(interactionTraceSnapshot(), n),

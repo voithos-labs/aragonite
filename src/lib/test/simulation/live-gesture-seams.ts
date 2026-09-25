@@ -52,7 +52,7 @@ import {
 	makePendingMarks
 } from '$lib/test/harness/editor-actions';
 import { proseLeaves, type ProseLeaf } from './live-screen-reading';
-import { fixtureLinkRef, renderOptions } from '../harness/fixture-grammar';
+import { fixtureReading, renderOptions } from '../harness/fixture-grammar';
 
 export type GestureKind =
 	| 'type'
@@ -146,7 +146,10 @@ interface Harness {
 }
 
 function harnessFor(source: string, mode: PresentationMode | undefined): Harness {
-	const { deps } = makeEditorActionsDeps(parse(source), mode ? { presentationMode: mode } : {});
+	const { deps } = makeEditorActionsDeps(
+		parse(source),
+		mode ? { reading: fixtureReading({}, mode) } : {}
+	);
 	return {
 		doc: deps.doc,
 		blockEdit: createBlockEditActions(deps, createUndoController(deps)),
@@ -337,7 +340,6 @@ async function pressEdgeKey(
 		gesture.kind === 'type' ? gesture.char : gesture.kind === 'backspace' ? 'Backspace' : 'Delete';
 	const el = mountBlock(node, mode);
 	const dispatch = createEdgePolicyDispatch({
-		grammar: defaultGrammarView,
 		getLineEnding: () => documentLineEnding(h.doc),
 		get node() {
 			return h.doc.children[index];
@@ -348,8 +350,8 @@ async function pressEdgeKey(
 		get containerParent() {
 			return null;
 		},
-		get linkRef() {
-			return fixtureLinkRef();
+		get reading() {
+			return fixtureReading();
 		},
 		getEl: () => el,
 		getAmbientLength: () => 0,
@@ -393,8 +395,8 @@ async function nativePress(
 			{ start, end },
 			offset,
 			key,
-			{ grammar: defaultGrammarView },
-			{ ownPair: null, keepsKind: (line) => keepsBlockKind(node, line, defaultGrammarView) }
+			fixtureReading(),
+			{ ownPair: null, keepsKind: (line) => keepsBlockKind(node, line, fixtureReading()) }
 		);
 		if (paired?.kind === 'step-over') return;
 		if (paired) {
@@ -441,10 +443,9 @@ function toggleFormat(
 			display: trimTrailingLineEnding(node.raw),
 			content: getContentRange(node),
 			selection: range,
-			linkRef: { grammar: defaultGrammarView }
+			reading: fixtureReading({}, mode)
 		},
-		drawnMark(gesture).kind,
-		mode
+		drawnMark(gesture).kind
 	);
 	// A toggle whose candidate the painter rejects writes nothing, which is live mode's own answer
 	// rather than a gesture the fuzzer failed to apply.
@@ -479,8 +480,7 @@ function wordDelete(
 		node,
 		{ rawRangeOf: () => range, getRawSelection: () => null },
 		'\n',
-		mode,
-		fixtureLinkRef()
+		fixtureReading({}, mode)
 	);
 	if (edit === null) {
 		void h.blockEdit.updateBlockContent(
@@ -508,7 +508,7 @@ function replaceSelection(
 ): boolean {
 	const range = drawnRange(node, gesture);
 	if (range === null) return false;
-	const edit = resolveSelectionEdit(node, range, gesture.char, mode, fixtureLinkRef());
+	const edit = resolveSelectionEdit(node, range, gesture.char, fixtureReading({}, mode));
 	if (edit) {
 		void h.blockEdit.updateBlockContent(index, edit.raw, range.start, edit.caret);
 		return true;
@@ -532,12 +532,16 @@ function acrossLeaves(
 	const range = drawnLeafRange(h.doc, gesture);
 	if (!range) return null;
 	if (gesture.kind === 'range-delete') {
-		rangeDelete(h.doc, range.start, range.end, h.sharing, undefined, mode, fixtureLinkRef());
+		rangeDelete(h.doc, range.start, range.end, h.sharing, fixtureReading({}, mode));
 		return false;
 	}
-	const plan = planCrossBlockFormat(h.doc, range.start, range.end, drawnMark(gesture).kind, mode, {
-		grammar: defaultGrammarView
-	});
+	const plan = planCrossBlockFormat(
+		h.doc,
+		range.start,
+		range.end,
+		drawnMark(gesture).kind,
+		fixtureReading({}, mode)
+	);
 	// A toggle the planner turns down writes nothing, which is that code's own answer rather than
 	// a gesture the fuzzer failed to apply.
 	if (plan)

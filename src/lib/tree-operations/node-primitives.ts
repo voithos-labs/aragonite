@@ -7,7 +7,7 @@
 
 import type { AnyBlockKind, CstNode, Document } from '../core/nodes';
 import type { DocumentView, NodeView } from '../core/node-views';
-import { parse } from '../core/parser';
+import { readBlocks } from '../core/parser';
 import type { GrammarView } from '../schema/block-openers';
 import { documentLineEnding, trailingLineEnding, type LineEnding } from '../core/lines';
 import { dropSuffixUnderBlankLine } from '../core/inline';
@@ -85,7 +85,7 @@ export function writeOwnRaw(
 	node: CstNode,
 	raw: string,
 	lineEnding: LineEnding,
-	grammar: GrammarView | undefined
+	grammar: GrammarView
 ): void {
 	const descriptor = tryGetBlockKindDescriptor(node.kind);
 	const legal = normalizeOwnRaw(node, raw, lineEnding);
@@ -94,7 +94,7 @@ export function writeOwnRaw(
 	// mis-read metadata that was never parse-derived.
 	if (descriptor?.contextDependentKind) return;
 	// In place means no reparse replaces the node, so parse-owned metadata re-derives here.
-	const reparsed = parse(legal, { grammar, scope: 'fragment' }).children;
+	const reparsed = readBlocks(legal, { grammar, scope: 'fragment' }).children;
 	if (reparsed.length === 1 && reparsed[0].kind === node.kind) node.metadata = reparsed[0].metadata;
 }
 

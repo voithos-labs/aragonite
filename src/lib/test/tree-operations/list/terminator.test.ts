@@ -11,6 +11,7 @@ import { checkStaleRaw } from '$lib/invariants/node-shape';
 import { activateDirectiveGrammar } from '$lib/core/directive/activate';
 import { DIRECTIVE_CONTAINER } from '$lib/core/directive/kinds';
 import type { CstNode } from '$lib/core/nodes';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 describe('ensureListItemNewlineTerminated', () => {
 	it('no-ops on an already terminated item', () => {
@@ -47,7 +48,7 @@ describe('ensureListItemNewlineTerminated', () => {
 
 		ensureListItemNewlineTerminated(item, '\n');
 
-		expect(checkStaleRaw(nested)).toBeNull();
+		expect(checkStaleRaw(nested, defaultGrammarView)).toBeNull();
 		expect(item.raw).toBe('- a\n  - b\n');
 	});
 
@@ -63,7 +64,7 @@ describe('ensureListItemNewlineTerminated', () => {
 		ensureListItemNewlineTerminated(item, '\n');
 
 		expect(item.raw).toBe(source + '\n');
-		expect(checkStaleRaw(item)).toBeNull();
+		expect(checkStaleRaw(item, defaultGrammarView)).toBeNull();
 	});
 
 	// The opaque counterpart of the grid case, and the one that fails silently: the descent used
@@ -82,7 +83,7 @@ describe('ensureListItemNewlineTerminated', () => {
 
 		expect(item.raw).toBe(source + '\n');
 		expect(opaque.children!.map((c) => c.raw)).toEqual(bodyRaws);
-		expect(checkStaleRaw(item)).toBeNull();
+		expect(checkStaleRaw(item, defaultGrammarView)).toBeNull();
 	});
 
 	it('leaves a terminated nested container able to take a following sibling item', () => {

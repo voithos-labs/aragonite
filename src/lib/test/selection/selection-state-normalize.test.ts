@@ -9,7 +9,7 @@ import { createSharingState } from '../../tree-operations/sharing';
 import { expectParseConverged } from '../harness/parse-converged';
 import type { CstNode, Document } from '../../core/nodes';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
-import { fixtureLinkRef } from '../harness/fixture-grammar';
+import { fixtureReading } from '../harness/fixture-grammar';
 
 // The raw deep-cell points fed in are pre-normalization by construction; normalizing them is the
 // subject.
@@ -50,15 +50,7 @@ function assertDeleteConverged(doc: Document): void {
 }
 
 function deleteSelected(doc: Document, s: ReturnType<typeof makeState>) {
-	return rangeDelete(
-		doc,
-		s.start!,
-		s.end!,
-		createSharingState(),
-		undefined,
-		undefined,
-		fixtureLinkRef()
-	);
+	return rangeDelete(doc, s.start!, s.end!, createSharingState(), fixtureReading());
 }
 
 describe('table endpoints normalize at the selection-state choke point', () => {

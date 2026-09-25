@@ -5,7 +5,7 @@ import { parsesBack, rebalanceLiveSplit } from '$lib/components/blocks/text/live
 import { buildLinkReferenceMap } from '$lib/core/inline/link-reference-resolver';
 import { getContentRange, parseInline } from '$lib/core/inline';
 import { CONTENT_VISIBILITY, renderedText } from '$lib/core/inline/visibility';
-import { fixtureLinkRef, renderOptions } from '../../harness/fixture-grammar';
+import { fixtureReading, renderOptions } from '../../harness/fixture-grammar';
 
 // The bytes a live-mode Enter writes into each half. Every case states the plain literal cut the
 // rewrite is offered, which is what a refusal leaves behind, so a null return is covered as
@@ -21,7 +21,7 @@ function split(source: string, offset: number) {
 		offset,
 		first.endsWith('\n') ? first : first + '\n',
 		second.endsWith('\n') ? second : second + '\n',
-		fixtureLinkRef()
+		fixtureReading()
 	);
 }
 
@@ -75,7 +75,7 @@ describe('a cut inside a symmetric pair closes it and reopens it', () => {
 	// halves still close. `splitNode` moved the cut past the ending before offering the halves.
 	it('closes across a soft break the cut consumes', () => {
 		const node = parse('**bo\nld**\n', { scope: 'fragment' }).children[0];
-		expect(rebalanceLiveSplit(node, 4, '**bo\n', 'ld**\n', fixtureLinkRef())).toEqual({
+		expect(rebalanceLiveSplit(node, 4, '**bo\n', 'ld**\n', fixtureReading())).toEqual({
 			firstRaw: '**bo**\n',
 			secondRaw: '**ld**\n'
 		});
@@ -206,7 +206,7 @@ describe('a cut that would strand terminal whitespace drops it instead', () => {
 			reopened: []
 		};
 		const dropsVisible = { firstRaw: '~~foo~~\n', secondRaw: '\n', droppedTail: '\tbar' };
-		expect(parsesBack(bytes, seam, dropsVisible, fixtureLinkRef())).toBe(false);
+		expect(parsesBack(bytes, seam, dropsVisible, fixtureReading())).toBe(false);
 
 		// The same candidate over an invisible tail is the one the rewrite writes.
 		const invisible = { ...bytes, raw: '~~foo~~\t\n', contentEnd: 8 };
@@ -215,7 +215,7 @@ describe('a cut that would strand terminal whitespace drops it instead', () => {
 				invisible,
 				{ ...seam, tail: '\t' },
 				{ firstRaw: '~~foo~~\n', secondRaw: '\n', droppedTail: '\t' },
-				fixtureLinkRef()
+				fixtureReading()
 			)
 		).toBe(true);
 	});
@@ -234,7 +234,7 @@ describe('constructs that declare no rewrite decline the whole cut', () => {
 
 	it('a non-prose block is never rebalanced', () => {
 		const fence = parse('```\n**a**\n```\n', { scope: 'fragment' }).children[0];
-		expect(rebalanceLiveSplit(fence, 6, '```\n**a\n', '**\n```\n', fixtureLinkRef())).toBeNull();
+		expect(rebalanceLiveSplit(fence, 6, '```\n**a\n', '**\n```\n', fixtureReading())).toBeNull();
 	});
 });
 
@@ -296,7 +296,9 @@ describe('a reference form rebalances only when the resolver reaches the join', 
 			offset,
 			raw.slice(0, offset) + '\n',
 			raw.slice(offset),
-			fixtureLinkRef(withResolver ? { current: map.resolve, signature: map.signature } : {})
+			fixtureReading(
+				withResolver ? { resolver: map.resolve, resolverSignature: map.signature } : {}
+			)
 		);
 	}
 

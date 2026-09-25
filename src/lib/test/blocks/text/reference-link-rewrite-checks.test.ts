@@ -1,6 +1,5 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { defaultGrammarView } from '$lib/schema/block-openers';
 import { parse } from '$lib/core/parser';
 import { parseInline } from '$lib/core/inline';
 import { screenVisibility } from '$lib/core/inline/visibility';
@@ -17,6 +16,7 @@ import {
 } from '$lib/components/blocks/text/construct-edge-delete';
 import { createCompositionSeat } from '$lib/components/blocks/text/composition-seat';
 import type { InlineMarkKind } from '$lib/schema/inline-construct-policy';
+import { fixtureReading } from '$lib/test/harness/fixture-grammar';
 
 // Each live rewrite reparses its candidate and compares it with the tree the block drew, which
 // was read with the document's link definitions; a candidate read without them sees every
@@ -42,7 +42,14 @@ describe('a pending mark beside a reference link', () => {
 		const marks = new Set<InlineMarkKind>(['strong']);
 
 		expect(
-			resolveMarkedInsertion(display, 20, 'y', marks, inlines, resolver, defaultGrammarView)
+			resolveMarkedInsertion(
+				display,
+				20,
+				'y',
+				marks,
+				inlines,
+				fixtureReading({ resolver: resolver })
+			)
 		).toEqual({ raw: 'see [text][ref] here**y**', caret: 23 });
 	});
 
@@ -52,8 +59,7 @@ describe('a pending mark beside a reference link', () => {
 		const seat = createCompositionSeat({
 			getDisplayText: () => display,
 			getInlines: () => inlines,
-			getResolver: () => resolver,
-			grammar: defaultGrammarView,
+			reading: fixtureReading({ resolver: resolver }),
 			getAffinity: () => null,
 			getScreen: () => LIVE,
 			consumePendingMarks: () => new Set<InlineMarkKind>(['strong']),
@@ -72,7 +78,7 @@ describe('a typed byte at a reference link’s hidden closing run', () => {
 		const { resolver, inlines } = drawn(display);
 
 		expect(
-			resolveEdgeSeat(11, inlines, null, display, LIVE, '*', resolver, defaultGrammarView)
+			resolveEdgeSeat(11, inlines, null, display, LIVE, '*', fixtureReading({ resolver: resolver }))
 		).toBeNull();
 	});
 });
@@ -93,8 +99,7 @@ describe('a destructive key inside a reference link', () => {
 			screen: LIVE,
 			inlines,
 			installedAs,
-			resolver,
-			grammar: defaultGrammarView
+			reading: fixtureReading({ resolver: resolver })
 		});
 	}
 

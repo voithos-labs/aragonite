@@ -8,8 +8,6 @@
 import { tick } from 'svelte';
 import type { InlineNode } from '../../../core/nodes';
 import type { NodeView } from '../../../core/node-views';
-import type { PresentationMode } from '../../../presentation-mode';
-import type { LinkReferenceResolverRef } from '../../../editor-keys';
 import { inlineDescendants } from '../../../core/inline';
 import { resolvedInlineContent } from '../../../core/inline/inline-cache';
 import { isRevealableInlineKind } from '../../../schema/inline-construct-policy';
@@ -20,6 +18,7 @@ import {
 	traceRevealOpen,
 	traceRevealFold
 } from '../../../debug/interaction-trace';
+import type { Reading } from '../../../schema/reading';
 
 // ── Chain math (pure) ────────────────────────────────────────────────────────
 
@@ -47,10 +46,9 @@ interface ChainEntry {
 
 export interface ConstructRevealDeps {
 	get node(): NodeView;
-	get linkRef(): LinkReferenceResolverRef;
+	get reading(): Reading;
 	getEl: () => HTMLElement | null;
 	getAmbientLength: () => number;
-	getPresentationMode: () => PresentationMode;
 	/** A cross-block selection freezes what is shown, so a drag anchored in visible marker
 	 *  text keeps its layout. */
 	isCrossBlock: () => boolean;
@@ -86,7 +84,7 @@ export function createConstructReveal(deps: ConstructRevealDeps): ConstructRevea
 	/** Caret raw offset while the mode is on and the caret sits in this block. */
 	function caretOffset(): number | null {
 		const el = deps.getEl();
-		if (!el || deps.getPresentationMode() !== 'preview-inline') return null;
+		if (!el || deps.reading.mode() !== 'preview-inline') return null;
 		const sel = window.getSelection();
 		if (!sel || sel.rangeCount === 0 || !sel.focusNode || !el.contains(sel.focusNode)) return null;
 		return toClampedRawOffset(
@@ -96,7 +94,7 @@ export function createConstructReveal(deps: ConstructRevealDeps): ConstructRevea
 	}
 
 	function inlines(): InlineNode[] {
-		return resolvedInlineContent(deps.node, deps.linkRef);
+		return resolvedInlineContent(deps.node, deps.reading);
 	}
 
 	const toEntry = (n: InlineNode): ChainEntry => ({ kind: n.kind, start: n.start, end: n.end });

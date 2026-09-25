@@ -17,6 +17,7 @@ import {
 	planCrossBlockFormat
 } from '$lib/selection/cross-block/format-range';
 import type { SelectionPoint } from '$lib/selection/primitives';
+import { fixtureReading } from '$lib/test/harness/fixture-grammar';
 import { documentLineEnding } from '$lib/core/lines';
 
 const at = (path: number[], offset: number): SelectionPoint => ({ path, offset });
@@ -29,9 +30,7 @@ function toggle(
 	mode?: 'source' | 'live'
 ): string | null {
 	const doc = parse(source);
-	const plan = planCrossBlockFormat(doc, start, end, 'strong', mode, {
-		grammar: defaultGrammarView
-	});
+	const plan = planCrossBlockFormat(doc, start, end, 'strong', fixtureReading({}, mode));
 	if (!plan) return null;
 	applyCrossBlockFormat(
 		doc,
@@ -69,8 +68,7 @@ describe('a span whose edge lands on whitespace', () => {
 			HEAD.start,
 			HEAD.end,
 			'strong',
-			undefined,
-			{ grammar: defaultGrammarView }
+			fixtureReading()
 		)!;
 		expect(head.endOffset).toBe('**beta**'.length);
 
@@ -79,8 +77,7 @@ describe('a span whose edge lands on whitespace', () => {
 			TAIL.start,
 			TAIL.end,
 			'strong',
-			undefined,
-			{ grammar: defaultGrammarView }
+			fixtureReading()
 		)!;
 		expect(tail.startOffset).toBe('alpha '.length);
 	});

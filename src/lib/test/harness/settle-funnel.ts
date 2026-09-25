@@ -11,6 +11,7 @@ import { type SeparatorParent } from '$lib/tree-operations/node-primitives';
 import { settleSeparator } from '$lib/tree-operations/settle';
 import type { StructuralChange } from '$lib/tree-operations/structural-change';
 import type { GrammarView } from '$lib/schema/block-openers';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 import { documentLineEnding } from '$lib/core/lines';
 
 /** `editor-actions/block-edit-core.bodyParentOf`: no `suffix` field, by contract. */
@@ -40,15 +41,8 @@ function settleParentOf(doc: Document): SeparatorParent {
 export function settled(
 	doc: Document,
 	mutate: (parent: BodyParent) => StructuralChange,
-	grammar?: GrammarView
+	grammar: GrammarView = defaultGrammarView
 ): StructuralChange {
 	const before: CstNode[] = [...doc.children];
-	return settleSeparator(
-		settleParentOf(doc),
-		before,
-		mutate(bodyParentOf(doc)),
-		undefined,
-		undefined,
-		grammar
-	);
+	return settleSeparator(settleParentOf(doc), before, mutate(bodyParentOf(doc)), grammar);
 }

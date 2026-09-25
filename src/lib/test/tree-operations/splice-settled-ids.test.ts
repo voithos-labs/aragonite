@@ -5,6 +5,7 @@ import { deleteAtPath } from '$lib/tree-operations/path-mutate';
 import { createSharingState } from '$lib/tree-operations/sharing';
 import { rebuildOwnedContainer } from '$lib/tree-operations/unshare';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 // The splice outside a commit: the fix-up asks the joins now (GH #183), so a merge can splice a
 // container at any depth where no commit descriptor reaches, and this function's own header
@@ -20,7 +21,7 @@ describe('a path splice whose settle folds', () => {
 		quote.childIds = ['q0', 'q1', 'q2'];
 
 		const sharing = createSharingState();
-		deleteAtPath(doc, [0, 1], sharing);
+		deleteAtPath(doc, [0, 1], sharing, defaultGrammarView);
 		// The function splices and fixes up; rebuilding the container's own bytes is its caller's job.
 		rebuildOwnedContainer(quote, sharing);
 

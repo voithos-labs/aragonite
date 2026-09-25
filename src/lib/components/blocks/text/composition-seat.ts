@@ -7,8 +7,7 @@
 import type { InlineNode } from '../../../core/nodes';
 import type { VisibilityContext } from '../../../core/inline/visibility';
 import type { EdgeAffinity } from '../../../cursor/edge-affinity';
-import type { GrammarView } from '../../../schema/block-openers';
-import type { LinkReferenceResolver } from '../../../core/inline/link-reference-resolver';
+import type { Reading } from '../../../schema/reading';
 import type { InlineMarkKind } from '../../../schema/inline-construct-policy';
 import { plainInsertionAt, relocateComposedRun } from './edge-seat';
 import { resolveMarkedInsertion } from './pending-mark-insert';
@@ -17,10 +16,9 @@ export interface CompositionSeatDeps {
 	/** The block's displayed text, which a commit's reading is compared against. */
 	getDisplayText: () => string;
 	getInlines: () => readonly InlineNode[];
-	/** The resolver `getInlines` reads with, so a candidate keeps the reference links it shows. */
-	getResolver: () => LinkReferenceResolver | undefined;
-	/** The editor's grammar, so a relocated run reads back as the syntax the editor draws. */
-	grammar: GrammarView;
+	/** The reading `getInlines` reads with, so a candidate keeps the reference links it shows and
+	 *  reads back as the syntax the editor draws. */
+	reading: Reading;
 	getAffinity: () => EdgeAffinity | null;
 	/** How the block reads on screen, for deciding which ranges are actually drawn. */
 	getScreen: () => VisibilityContext;
@@ -100,8 +98,7 @@ export function createCompositionSeat(deps: CompositionSeatDeps): CompositionSea
 								composed,
 								started.marks,
 								deps.getInlines(),
-								deps.getResolver(),
-								deps.grammar
+								deps.reading
 							);
 				if (marked) return marked;
 			}
@@ -112,8 +109,7 @@ export function createCompositionSeat(deps: CompositionSeatDeps): CompositionSea
 				deps.getInlines(),
 				started.affinity,
 				deps.getScreen(),
-				deps.getResolver(),
-				deps.grammar
+				deps.reading
 			);
 		},
 		noteEnd: () => {

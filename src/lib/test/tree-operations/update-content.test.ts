@@ -12,7 +12,7 @@ describe('updateNodeContent', () => {
 	it('updates the raw text of a node', () => {
 		const source = 'Hello\n';
 		const doc = parse(source);
-		const { change } = updateNodeContent(doc, 0, 'World\n');
+		const { change } = updateNodeContent(doc, 0, 'World\n', defaultGrammarView);
 		expect(doc.children[0].raw).toBe('World\n');
 		expect(change).toEqual({ op: 'noop' });
 	});
@@ -23,7 +23,7 @@ describe('updateNodeContent', () => {
 	it('same-kind edit preserves the node object identity', () => {
 		const doc = parse('Hello\n');
 		const before = doc.children[0];
-		updateNodeContent(doc, 0, 'edited\n');
+		updateNodeContent(doc, 0, 'edited\n', defaultGrammarView);
 		expect(doc.children[0]).toBe(before);
 	});
 
@@ -35,7 +35,7 @@ describe('updateNodeContent', () => {
 		quote.childIds = assignIds(quote.children!);
 		const survivingId = quote.childIds[0];
 
-		updateNodeContent(doc, 0, '> a\n>\n> b\n');
+		updateNodeContent(doc, 0, '> a\n>\n> b\n', defaultGrammarView);
 
 		expect(quote.children).toHaveLength(2);
 		expect(quote.childIds).toHaveLength(2);
@@ -49,7 +49,7 @@ describe('updateNodeContent', () => {
 		quote.childIds = assignIds(quote.children!);
 		const survivingId = quote.childIds[0];
 
-		updateNodeContent(doc, 0, '> a\n');
+		updateNodeContent(doc, 0, '> a\n', defaultGrammarView);
 
 		expect(quote.children).toHaveLength(1);
 		expect(quote.childIds).toEqual([survivingId]);
@@ -58,14 +58,14 @@ describe('updateNodeContent', () => {
 	it('kind change swaps the node object (create-and-replace)', () => {
 		const doc = parse('Hello\n');
 		const before = doc.children[0];
-		updateNodeContent(doc, 0, '## edited\n');
+		updateNodeContent(doc, 0, '## edited\n', defaultGrammarView);
 		expect(doc.children[0]).not.toBe(before);
 	});
 
 	it('kind change from paragraph to heading returns a same-slot replace', () => {
 		const source = 'Hello\n';
 		const doc = parse(source);
-		const { change } = updateNodeContent(doc, 0, '## Hello\n');
+		const { change } = updateNodeContent(doc, 0, '## Hello\n', defaultGrammarView);
 		expect(doc.children[0].kind).toBe('heading');
 		expect(doc.children[0].metadata).toEqual({ level: 2 });
 		expect(change).toEqual(replacePreservingFirst(0, 1, 1));
@@ -74,7 +74,7 @@ describe('updateNodeContent', () => {
 	it('kind change from heading to paragraph returns a same-slot replace', () => {
 		const source = '## Hello\n';
 		const doc = parse(source);
-		const { change } = updateNodeContent(doc, 0, 'Hello\n');
+		const { change } = updateNodeContent(doc, 0, 'Hello\n', defaultGrammarView);
 		expect(doc.children[0].kind).toBe('paragraph');
 		expect(change).toEqual(replacePreservingFirst(0, 1, 1));
 	});
@@ -82,7 +82,7 @@ describe('updateNodeContent', () => {
 	it('replace window tracks the block index', () => {
 		const source = 'A\n\nB\n';
 		const doc = parse(source);
-		const { change } = updateNodeContent(doc, 1, '# B\n');
+		const { change } = updateNodeContent(doc, 1, '# B\n', defaultGrammarView);
 		expect(change).toEqual(replacePreservingFirst(1, 1, 1));
 	});
 
@@ -91,7 +91,8 @@ describe('updateNodeContent', () => {
 		const { change } = updateNodeContent(
 			{ children: [cell], ownerKind: undefined, owner: undefined, lineEnding: '\n' },
 			0,
-			'ab'
+			'ab',
+			defaultGrammarView
 		);
 		expect(change).toEqual({ op: 'noop' });
 		expect(cell.raw).toBe('ab');
@@ -101,7 +102,7 @@ describe('updateNodeContent', () => {
 	it('preserves leading blank lines and ID position', () => {
 		const source = 'A\n\nB\n';
 		const doc = parse(source);
-		updateNodeContent(doc, 1, 'Changed\n');
+		updateNodeContent(doc, 1, 'Changed\n', defaultGrammarView);
 		expect(doc.children[1].leadingTrivia).toBe('\n');
 		expect(doc.children[1].raw).toBe('Changed\n');
 	});
@@ -109,7 +110,7 @@ describe('updateNodeContent', () => {
 	it('handles empty string content without crashing', () => {
 		const source = 'Hello\n';
 		const doc = parse(source);
-		const { change } = updateNodeContent(doc, 0, '');
+		const { change } = updateNodeContent(doc, 0, '', defaultGrammarView);
 		expect(doc.children[0].raw).toBe('');
 		expect(doc.children[0].kind).toBe('paragraph');
 		expect(change).toEqual({ op: 'noop' });
@@ -118,7 +119,7 @@ describe('updateNodeContent', () => {
 	it('multi-block content splits into sibling blocks (kind change on first)', () => {
 		const source = 'Hello\n';
 		const doc = parse(source);
-		const { change } = updateNodeContent(doc, 0, '# Heading\n\nParagraph\n');
+		const { change } = updateNodeContent(doc, 0, '# Heading\n\nParagraph\n', defaultGrammarView);
 		expect(doc.children.map((c) => c.kind)).toEqual(['heading', 'paragraph']);
 		expect(doc.children[0].raw).toBe('# Heading\n');
 		expect(doc.children[1].leadingTrivia).toBe('\n');
@@ -131,7 +132,7 @@ describe('updateNodeContent', () => {
 	it('same-kind multi-block content splits instead of cramming (fence + trailing paragraph)', () => {
 		const doc = parse('```\nx\n```\n');
 		const edited = '```\nx\n```\n\nhello\n';
-		const { change } = updateNodeContent(doc, 0, edited);
+		const { change } = updateNodeContent(doc, 0, edited, defaultGrammarView);
 		expect(doc.children.map((c) => c.kind)).toEqual(['fencedCode', 'paragraph']);
 		expect(doc.children[0].raw).toBe('```\nx\n```\n');
 		expect(doc.children[1].leadingTrivia).toBe('\n');
@@ -142,7 +143,7 @@ describe('updateNodeContent', () => {
 
 	it('paragraph edit whose second line interrupts splits (hard break + heading)', () => {
 		const doc = parse('foo\n');
-		const { change } = updateNodeContent(doc, 0, 'foo\\\n# bar\n');
+		const { change } = updateNodeContent(doc, 0, 'foo\\\n# bar\n', defaultGrammarView);
 		expect(doc.children.map((c) => c.kind)).toEqual(['paragraph', 'heading']);
 		expect(doc.children[0].raw).toBe('foo\\\n');
 		expect(doc.children[1].raw).toBe('# bar\n');
@@ -151,7 +152,7 @@ describe('updateNodeContent', () => {
 
 	it('multi-block split preserves the original leading blank lines on the first block', () => {
 		const doc = parse('A\n\nB\n');
-		updateNodeContent(doc, 1, 'B\n\nC\n');
+		updateNodeContent(doc, 1, 'B\n\nC\n', defaultGrammarView);
 		expect(doc.children[1].leadingTrivia).toBe('\n');
 		expect(serialize(doc)).toBe('A\n\nB\n\nC\n');
 	});
@@ -160,7 +161,7 @@ describe('updateNodeContent', () => {
 		const source = '## Hello\n';
 		const doc = parse(source);
 		expect(doc.children[0].metadata).toEqual({ level: 2 });
-		updateNodeContent(doc, 0, 'Hello\n');
+		updateNodeContent(doc, 0, 'Hello\n', defaultGrammarView);
 		expect(doc.children[0].metadata).toBeUndefined();
 	});
 
@@ -171,7 +172,7 @@ describe('updateNodeContent', () => {
 			getInlineContent(doc.children[0], undefined, undefined, defaultGrammarView).map((n) => n.kind)
 		).toEqual(['image']);
 
-		updateNodeContent(doc, 0, '![pic](/sample.png)a\n');
+		updateNodeContent(doc, 0, '![pic](/sample.png)a\n', defaultGrammarView);
 
 		// The accessor recomputes rather than returning the cached image-only tree.
 		const inlines = getInlineContent(doc.children[0], undefined, undefined, defaultGrammarView);
@@ -185,7 +186,7 @@ describe('deleteNode', () => {
 		const source = 'A\n\nB\n\nC\n';
 		const doc = parse(source);
 		const ids = ['id-1', 'id-2', 'id-3'];
-		const change = deleteNode(doc, 1);
+		const change = deleteNode(doc, 1, defaultGrammarView);
 		expect(change).toEqual({ op: 'delete', at: 1, count: 1 });
 		if (change.op !== 'delete') throw new Error('expected delete');
 		ids.splice(change.at, change.count);
@@ -200,7 +201,7 @@ describe('deleteNode', () => {
 		const doc = parse(source);
 		const triviaB = doc.children[1].leadingTrivia;
 		const triviaC = doc.children[2].leadingTrivia;
-		deleteNode(doc, 1);
+		deleteNode(doc, 1, defaultGrammarView);
 		// Not triviaB + triviaC: the successor keeps its own separator, since a second blank
 		// line would reload as an empty paragraph the delete never left behind.
 		expect(triviaB).not.toBe('');
@@ -213,7 +214,7 @@ describe('deleteNode edge cases', () => {
 		const source = 'Hello\n';
 		const doc = parse(source);
 		const ids = ['id-1'];
-		const change = deleteNode(doc, 0);
+		const change = deleteNode(doc, 0, defaultGrammarView);
 		if (change.op !== 'delete') throw new Error('expected delete');
 		ids.splice(change.at, change.count);
 		expect(doc.children).toHaveLength(0);
@@ -223,7 +224,7 @@ describe('deleteNode edge cases', () => {
 	it('deleting the first node transfers blank lines correctly', () => {
 		const source = 'A\n\nB\n';
 		const doc = parse(source);
-		deleteNode(doc, 0);
+		deleteNode(doc, 0, defaultGrammarView);
 		expect(doc.children).toHaveLength(1);
 		expect(doc.children[0].raw).toBe('B\n');
 	});
@@ -231,7 +232,7 @@ describe('deleteNode edge cases', () => {
 	it('deleting the last node does not crash', () => {
 		const source = 'A\n\nB\n';
 		const doc = parse(source);
-		deleteNode(doc, 1);
+		deleteNode(doc, 1, defaultGrammarView);
 		expect(doc.children).toHaveLength(1);
 		expect(doc.children[0].raw).toBe('A\n');
 	});
@@ -239,7 +240,7 @@ describe('deleteNode edge cases', () => {
 	it('returns noop for out-of-bounds index', () => {
 		const source = 'A\n';
 		const doc = parse(source);
-		const change = deleteNode(doc, 5);
+		const change = deleteNode(doc, 5, defaultGrammarView);
 		expect(change).toEqual({ op: 'noop' });
 		expect(doc.children).toHaveLength(1);
 	});

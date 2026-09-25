@@ -5,6 +5,7 @@ import {
 } from '$lib/components/blocks/text/delimiter-autopair';
 import type { ContentRange } from '$lib/core/inline';
 import { defaultGrammarView } from '$lib/schema/block-openers';
+import { fixtureReading } from '$lib/test/harness/fixture-grammar';
 
 // The auto-pair drops the partner of an empty pair it wrote, but a tilde pairs only as a double
 // run, so `~|~` is two bytes the user wrote and a key between them keeps both (GH #462).
@@ -13,14 +14,7 @@ import { defaultGrammarView } from '$lib/schema/block-openers';
 
 const whole = (text: string) => ({ start: 0, end: text.length });
 const type = (text: string, caret: number, typed: string, own: ContentRange | null = null) =>
-	resolveDelimiterAutoPair(
-		text,
-		whole(text),
-		caret,
-		typed,
-		{ grammar: defaultGrammarView },
-		{ ownPair: own }
-	);
+	resolveDelimiterAutoPair(text, whole(text), caret, typed, fixtureReading(), { ownPair: own });
 
 describe('a key between two single tildes', () => {
 	it.each([

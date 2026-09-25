@@ -5,7 +5,8 @@ import { mergeIntoPrevDeepLeaf } from '../../tree-operations';
 import { writeOwnRaw } from '../../tree-operations/node-primitives';
 import { documentLineEnding } from '../../core/lines';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
-import { fixtureLinkRef } from '../harness/fixture-grammar';
+import { fixtureReading } from '../harness/fixture-grammar';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 // GH #54: the in-place write discipline left kind and parse-owned metadata stale: the write
 // re-derived metadata only after its own rule rewrote the bytes, and the deep-leaf merge
@@ -17,7 +18,7 @@ describe('writeOwnRaw re-derives parse-owned metadata (GH #54)', () => {
 	it('a heading write refreshes the level its bytes now carry', () => {
 		const doc = parse('## ab\n');
 
-		writeOwnRaw(doc.children[0], '# ab\n', documentLineEnding(doc), undefined);
+		writeOwnRaw(doc.children[0], '# ab\n', documentLineEnding(doc), defaultGrammarView);
 
 		expect(doc.children[0].metadata).toMatchObject({ level: 1 });
 		expect(describeConvergence(doc)).toBeNull();
@@ -26,7 +27,7 @@ describe('writeOwnRaw re-derives parse-owned metadata (GH #54)', () => {
 	it('a fence write refreshes the info string', () => {
 		const doc = parse('```js\nx\n```\n');
 
-		writeOwnRaw(doc.children[0], '```ts\nx\n```\n', documentLineEnding(doc), undefined);
+		writeOwnRaw(doc.children[0], '```ts\nx\n```\n', documentLineEnding(doc), defaultGrammarView);
 
 		expect(doc.children[0].metadata).toMatchObject({ info: 'ts' });
 		expect(describeConvergence(doc)).toBeNull();
@@ -38,7 +39,7 @@ describe('mergeIntoPrevDeepLeaf re-derives what the absorbed bytes parse as (GH 
 		const doc = parse('\n# h\n');
 		expect(doc.children.map((c) => c.kind)).toEqual(['paragraph', 'heading']);
 
-		const result = mergeIntoPrevDeepLeaf(doc, 1, undefined, undefined, fixtureLinkRef());
+		const result = mergeIntoPrevDeepLeaf(doc, 1, undefined, fixtureReading());
 
 		expect(result).not.toBeNull();
 		expect(doc.children).toHaveLength(1);
@@ -52,7 +53,7 @@ describe('mergeIntoPrevDeepLeaf re-derives what the absorbed bytes parse as (GH 
 		const doc = parse('one\n\ntwo\n');
 		const target = doc.children[0];
 
-		mergeIntoPrevDeepLeaf(doc, 1, undefined, undefined, fixtureLinkRef());
+		mergeIntoPrevDeepLeaf(doc, 1, undefined, fixtureReading());
 
 		expect(doc.children[0]).toBe(target);
 		expect(doc.children[0].raw).toBe('onetwo\n');

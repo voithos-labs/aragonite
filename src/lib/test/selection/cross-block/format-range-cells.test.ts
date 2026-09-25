@@ -17,6 +17,7 @@ import {
 	planCrossBlockFormat
 } from '$lib/selection/cross-block/format-range';
 import type { SelectionPoint } from '$lib/selection/primitives';
+import { fixtureReading } from '$lib/test/harness/fixture-grammar';
 import { documentLineEnding } from '$lib/core/lines';
 
 const at = (path: number[], offset: number): SelectionPoint => ({ path, offset });
@@ -43,9 +44,7 @@ function toggle(
 	format: 'strong' | 'emphasis' = 'strong'
 ): string | null {
 	const doc = parse(source);
-	const plan = planCrossBlockFormat(doc, start, end, format, undefined, {
-		grammar: defaultGrammarView
-	});
+	const plan = planCrossBlockFormat(doc, start, end, format, fixtureReading());
 	if (!plan) return null;
 	applyCrossBlockFormat(
 		doc,
@@ -159,9 +158,7 @@ describe('direction is the whole range’s coverage, cells included', () => {
 
 describe('the pressed-state read', () => {
 	const active = (source: string, start: SelectionPoint, end: SelectionPoint) =>
-		crossBlockActiveFormats(parse(source), start, end, { grammar: defaultGrammarView }).has(
-			'strong'
-		);
+		crossBlockActiveFormats(parse(source), start, end, fixtureReading()).has('strong');
 
 	it('is true only when every covered cell carries the mark too', () => {
 		expect(
@@ -188,18 +185,20 @@ describe('the endpoints the plan hands back', () => {
 	// prose side takes the offset its own rewrite produced.
 	it('leaves a cell endpoint on its cell index and re-offsets the prose one', () => {
 		const doc = parse(`head\n\n${TWO_COL}\ntail\n`);
-		const plan = planCrossBlockFormat(doc, cell([1], 2), at([2], 4), 'strong', undefined, {
-			grammar: defaultGrammarView
-		})!;
+		const plan = planCrossBlockFormat(doc, cell([1], 2), at([2], 4), 'strong', fixtureReading())!;
 		expect(plan.startOffset).toBe(2);
 		expect(plan.endOffset).toBe('**tail**'.length);
 	});
 
 	it('keeps both corners of a rectangle in cell space', () => {
 		const doc = parse(THREE_COL);
-		const plan = planCrossBlockFormat(doc, corner([0], 4), corner([0], 7), 'strong', undefined, {
-			grammar: defaultGrammarView
-		})!;
+		const plan = planCrossBlockFormat(
+			doc,
+			corner([0], 4),
+			corner([0], 7),
+			'strong',
+			fixtureReading()
+		)!;
 		expect(plan.startOffset).toBe(4);
 		expect(plan.endOffset).toBe(7);
 	});

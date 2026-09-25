@@ -10,7 +10,7 @@ import {
 	getContentRange,
 	inlineDescendants,
 	isProseKind,
-	parseInline
+	readInline
 } from '../../../core/inline';
 import {
 	CONTENT_VISIBILITY,
@@ -18,11 +18,11 @@ import {
 	renderedText
 } from '../../../core/inline/visibility';
 import { trimTrailingLineEnding } from '../../../core/lines';
-import type { InlineResolverRef } from '../../../schema/inline-construct-policy';
+import type { Reading } from '../../../schema/reading';
 import type { GrammarView } from '../../../schema/block-openers';
 import type { RenderInlineOptions } from '../../../core/inline-render';
 import type { AnyInlineKind, InlineNode } from '../../../core/nodes';
-import { parse } from '../../../core/parser';
+import { readBlocks } from '../../../core/parser';
 import {
 	getInlineConstructPolicy,
 	type JoinEndpoint,
@@ -33,9 +33,9 @@ import { soleProseReparse } from './screen-diff';
 // ── The rewrite ──────────────────────────────────────────────────────────────
 
 export const cleanLiveJoinSeam: LiveJoinSeamCleaner = (join) => {
-	const ref = join.linkRef;
-	const left = readSide(join.start, 'before', ref);
-	const right = readSide(join.end, 'after', ref);
+	const { reading } = join;
+	const left = readSide(join.start, 'before', reading);
+	const right = readSide(join.end, 'after', reading);
 	if (left === null || right === null) return null;
 	// Nothing sits at the join, so the plain concatenation is already the answer, and an ordinary
 	// Backspace between two paragraphs pays for no parse.
@@ -59,7 +59,7 @@ export const cleanLiveJoinSeam: LiveJoinSeamCleaner = (join) => {
 				spans,
 				raw,
 				seam,
-				read: readCandidate(raw.slice(0, seam) + typed + raw.slice(seam), ref, join)
+				read: readCandidate(raw.slice(0, seam) + typed + raw.slice(seam), reading, join)
 			};
 		}
 	);
@@ -128,20 +128,22 @@ interface Side {
  * the cleanup has no business running: a non-prose kind, an offset outside the content, or a cut
  * through a family that declares no close-and-reopen, whose bytes mean nothing apart.
  */
-function readSide(
-	endpoint: JoinEndpoint,
-	keep: 'before' | 'after',
-	ref: InlineResolverRef
-): Side | null {
+function readSide(endpoint: JoinEndpoint, keep: 'before' | 'after', reading: Reading): Side | null {
 	const { node, offset } = endpoint;
 	if (!isProseKind(node.kind)) return null;
 	const content = getContentRange(node);
 	if (offset < content.start || offset > content.end) return null;
 
-	const inlines = parseInline(node.raw, content.start, content.end, ref.current, ref.grammar);
+	const inlines = readInline(
+		node.raw,
+		content.start,
+		content.end,
+		reading.resolver,
+		reading.grammar
+	);
 	// Markers standing over nothing are all on screen (live-mode.md § 4.1), so a run that survives
 	// this cut is bytes the user saw, not a stranded one: the plain concatenation stands.
-	if (paintsOnlyChrome(inlines, node.raw, { grammar: ref.grammar })) return null;
+	if (paintsOnlyChrome(inlines, node.raw, { grammar: reading.grammar })) return null;
 	const { ranged, atomic } = classifyConstructs(inlines);
 	// Neither an atomic construct's interior nor the middle of a delimiter run leaves halves any
 	// reading can repair. A live-mode caret cannot land there; a plugin's can.
@@ -158,7 +160,7 @@ function readSide(
 
 	return {
 		raw: node.raw,
-		grammar: ref.grammar,
+		grammar: reading.grammar,
 		content,
 		cut: offset,
 		inlines,
@@ -377,14 +379,14 @@ export function clipNodes(
  */
 function readCandidate(
 	raw: string,
-	ref: InlineResolverRef,
+	reading: Reading,
 	join: { ambientPrefix?: string }
 ): { visible: string; residue: number } | null {
-	if (!keepsContainerMarker(join.ambientPrefix ?? '', raw, ref.grammar)) return null;
-	const sole = soleProseReparse(raw, ref);
+	if (!keepsContainerMarker(join.ambientPrefix ?? '', raw, reading.grammar)) return null;
+	const sole = soleProseReparse(raw, reading);
 	if (sole === null) return null;
 	const { block, nodes } = sole;
-	const render = { grammar: ref.grammar };
+	const render = { grammar: reading.grammar };
 	return {
 		visible: renderedText(nodes, block.raw, CONTENT_VISIBILITY, render),
 		// Markers over nothing are all on screen (§ 4.1), so a block that shows them hides no pair.
@@ -399,7 +401,7 @@ function readCandidate(
  */
 function keepsContainerMarker(prefix: string, raw: string, grammar: GrammarView): boolean {
 	if (prefix === '') return true;
-	const blocks = parse(prefix + raw, { grammar, scope: 'fragment' }).children;
+	const blocks = readBlocks(prefix + raw, { grammar, scope: 'fragment' }).children;
 	if (blocks.length !== 1) return false;
 	return (blocks[0] as { marker?: string }).marker === prefix;
 }

@@ -8,8 +8,7 @@ import {
 	__resetLiveJoinSeamCleanerForTests
 } from '$lib/schema/inline-construct-policy';
 import type { PresentationMode } from '$lib/presentation-mode';
-import { defaultGrammarView } from '$lib/schema/block-openers';
-import { fixtureLinkRef } from '../harness/fixture-grammar';
+import { fixtureReading } from '../harness/fixture-grammar';
 
 // Both merge primitives production reaches (the deep-leaf write Backspace enters and the reparse
 // write Delete enters), because a rule carried at one of two is the audit's dominant bug. Each
@@ -34,32 +33,21 @@ const merged = (
 
 describe('each merge primitive drops the join pair in live', () => {
 	it('mergeWithNext', () => {
-		expect(
-			merged(
-				'live',
-				(doc) => void mergeWithNext(doc, 0, 'live', fixtureLinkRef(), defaultGrammarView)
-			)
-		).toBe(REJOINED);
-		expect(
-			merged(
-				undefined,
-				(doc) => void mergeWithNext(doc, 0, undefined, fixtureLinkRef(), defaultGrammarView)
-			)
-		).toBe(RESIDUE);
+		expect(merged('live', (doc) => void mergeWithNext(doc, 0, fixtureReading({}, 'live')))).toBe(
+			REJOINED
+		);
+		expect(merged(undefined, (doc) => void mergeWithNext(doc, 0, fixtureReading()))).toBe(RESIDUE);
 	});
 
 	it('mergeIntoPrevDeepLeaf', () => {
 		expect(
 			merged(
 				'live',
-				(doc) => void mergeIntoPrevDeepLeaf(doc, 1, undefined, 'live', fixtureLinkRef())
+				(doc) => void mergeIntoPrevDeepLeaf(doc, 1, undefined, fixtureReading({}, 'live'))
 			)
 		).toBe(REJOINED);
 		expect(
-			merged(
-				undefined,
-				(doc) => void mergeIntoPrevDeepLeaf(doc, 1, undefined, undefined, fixtureLinkRef())
-			)
+			merged(undefined, (doc) => void mergeIntoPrevDeepLeaf(doc, 1, undefined, fixtureReading()))
 		).toBe(RESIDUE);
 	});
 });
@@ -70,31 +58,28 @@ describe('the join offset the caret rides moves with the runs the cleanup droppe
 	// caret two characters into the text below it.
 	it('reports the join in the bytes that were actually written', () => {
 		const doc = parse(SPLIT_BOLD);
-		const result = mergeIntoPrevDeepLeaf(doc, 1, undefined, 'live', fixtureLinkRef());
+		const result = mergeIntoPrevDeepLeaf(doc, 1, undefined, fixtureReading({}, 'live'));
 		expect(result?.joinOffset).toBe(9);
 		expect(doc.children[0].raw.slice(0, result!.joinOffset)).toBe('Some **bo');
 	});
 
 	it('the forward merge reports the same join', () => {
 		const doc = parse(SPLIT_BOLD);
-		expect(mergeWithNext(doc, 0, 'live', fixtureLinkRef(), defaultGrammarView).joinOffset).toBe(9);
-		expect(
-			mergeWithNext(parse(SPLIT_BOLD), 0, undefined, fixtureLinkRef(), defaultGrammarView)
-				.joinOffset
-		).toBe(11);
+		expect(mergeWithNext(doc, 0, fixtureReading({}, 'live')).joinOffset).toBe(9);
+		expect(mergeWithNext(parse(SPLIT_BOLD), 0, fixtureReading()).joinOffset).toBe(11);
 	});
 });
 
 describe('a merge with nothing on its join', () => {
 	it('joins two plain paragraphs unchanged', () => {
 		const doc = parse('abc\n\ndef\n');
-		mergeIntoPrevDeepLeaf(doc, 1, undefined, 'live', fixtureLinkRef());
+		mergeIntoPrevDeepLeaf(doc, 1, undefined, fixtureReading({}, 'live'));
 		expect(doc.children[0].raw).toBe('abcdef\n');
 	});
 
 	it('keeps the line ending the target block was written with', () => {
 		const doc = parse('Some **bo**\r\n\r\n**ld** text\r\n');
-		mergeIntoPrevDeepLeaf(doc, 1, undefined, 'live', fixtureLinkRef());
+		mergeIntoPrevDeepLeaf(doc, 1, undefined, fixtureReading({}, 'live'));
 		expect(doc.children[0].raw).toBe('Some **bold** text\r\n');
 	});
 });

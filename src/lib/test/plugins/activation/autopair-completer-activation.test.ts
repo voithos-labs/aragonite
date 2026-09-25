@@ -11,6 +11,7 @@ import { completeLineOnType, registerBlockCompleter } from '$lib/schema/block-co
 import { resolveDelimiterAutoPair } from '$lib/components/blocks/text/delimiter-autopair';
 import { defaultGrammarView, type GrammarView } from '$lib/schema/block-openers';
 import { grammarListing } from './grammar-listing';
+import { fixtureReading } from '$lib/test/harness/fixture-grammar';
 
 const unlisted = definePlugin({
 	name: 'unlisted',
@@ -32,7 +33,9 @@ beforeEach(() => {
 afterEach(resetPluginPlatformForTests);
 
 const typedPercent = (grammar: GrammarView) =>
-	resolveDelimiterAutoPair('a ', { start: 0, end: 2 }, 2, '%', { grammar }, { ownPair: null });
+	resolveDelimiterAutoPair('a ', { start: 0, end: 2 }, 2, '%', fixtureReading({ grammar }), {
+		ownPair: null
+	});
 
 describe("an unlisted plugin's delimiter does not auto-pair", () => {
 	it('types a lone `%` where the plugin is left out', () => {

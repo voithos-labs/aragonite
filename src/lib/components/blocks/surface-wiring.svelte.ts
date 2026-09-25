@@ -45,11 +45,10 @@ export type SharedSurfaceDeps = Pick<
 	| 'pluginEditor'
 	| 'getKeybindingOverrides'
 	| 'pasteCoordinator'
-	| 'grammar'
 	| 'activePlugins'
 	| 'events'
 	| 'selectedWidget'
-	| 'linkRef'
+	| 'reading'
 	| 'onCommandError'
 	| 'crossBlockCommands'
 >;
@@ -73,14 +72,12 @@ export function wireSurfaceContexts(): SurfaceWiring {
 		stickyColumn,
 		edgeAffinity,
 		selection,
-		registryView,
 		activePlugins,
 		events,
 		crossBlockCommands,
 		selectedWidget
 	} = getContext<EditorServices>(EDITOR_SERVICES_KEY);
-	const { keybindingOverrides, presentationMode: getPresentationMode } =
-		getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
+	const { keybindingOverrides } = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
 	const {
 		blockElLookup: getBlockElByPath,
 		doc: getDoc,
@@ -88,7 +85,7 @@ export function wireSurfaceContexts(): SurfaceWiring {
 		scrollHost: getScrollHost,
 		lifetime: editorLifetime,
 		pluginEditor,
-		linkRef
+		reading
 	} = getContext<EditorDoc>(EDITOR_DOC_KEY);
 
 	const deps: SharedSurfaceDeps = {
@@ -107,11 +104,10 @@ export function wireSurfaceContexts(): SurfaceWiring {
 		pluginEditor,
 		getKeybindingOverrides: keybindingOverrides,
 		pasteCoordinator,
-		grammar: registryView.grammar,
 		activePlugins,
 		events,
 		selectedWidget,
-		linkRef,
+		reading,
 		crossBlockCommands,
 		onCommandError: (report) => emitCommandError(events, report)
 	};
@@ -127,7 +123,7 @@ export function wireSurfaceContexts(): SurfaceWiring {
 					history,
 					pluginEditor,
 					activation: activePlugins,
-					getPresentationMode,
+					getPresentationMode: reading.mode,
 					isCrossBlockRange: () => selection.isCrossBlock,
 					crossBlockCommands: crossBlockCommands
 				},

@@ -6,10 +6,10 @@
 // toggle: bytes no parse reads as a run, which that toggle doubled into `****`.
 import { describe, it, expect } from 'vitest';
 import { toggleInlineFormat, type InlineFormatEdit } from '$lib/core/inline/format-toggle';
-import { defaultGrammarView } from '$lib/schema/block-openers';
 import type { PresentationMode } from '$lib/presentation-mode';
 import type { InlineMarkKind } from '$lib/schema/inline-construct-policy';
 import { MARK_FORMATS, markersOf, whole } from './format-toggle-fixture';
+import { fixtureReading } from '$lib/test/harness/fixture-grammar';
 
 const PLAIN = 'pre word post';
 const MODES: PresentationMode[] = ['source', 'live'];
@@ -35,17 +35,17 @@ function presses(
 		display: PLAIN,
 		content: whole(PLAIN),
 		selection,
-		linkRef: { grammar: defaultGrammarView }
+		reading: fixtureReading({}, mode)
 	};
 	for (let press = 0; press < count; press++) {
-		const result = toggleInlineFormat(edit, format, mode);
+		const result = toggleInlineFormat(edit, format);
 		written.push(result?.newDisplay ?? null);
 		if (!result) break;
 		edit = {
 			display: result.newDisplay,
 			content: whole(result.newDisplay),
 			selection: { start: result.newSelStart, end: result.newSelEnd },
-			linkRef: { grammar: defaultGrammarView }
+			reading: fixtureReading({}, mode)
 		};
 	}
 	return written;
@@ -76,9 +76,9 @@ describe.each(MODES)('a toggle over boundary whitespace (%s)', (mode) => {
 			display: PLAIN,
 			content: whole(PLAIN),
 			selection: SELECTIONS['both spaces'],
-			linkRef: { grammar: defaultGrammarView }
+			reading: fixtureReading({}, mode)
 		};
-		const result = toggleInlineFormat(edit, format, mode);
+		const result = toggleInlineFormat(edit, format);
 		expect(result?.newDisplay.slice(result.newSelStart, result.newSelEnd)).toBe(`${m}word${m}`);
 	});
 });

@@ -18,6 +18,7 @@ import {
 	makeStubContainerEdit,
 	makeStubFocus
 } from '$lib/test/harness/editor-actions';
+import { fixtureReading } from '$lib/test/harness/fixture-grammar';
 
 const CONTAINER_PATH = [2, 1];
 
@@ -46,6 +47,7 @@ function typeInto(node: CstNode, chainDepth: number): void {
 		node,
 		path: CONTAINER_PATH,
 		stickyColumn: makeStickyColumn(),
+		reading: fixtureReading(),
 		parent: {
 			blockEdit: makeStubBlockEdit(),
 			focus: makeStubFocus(),

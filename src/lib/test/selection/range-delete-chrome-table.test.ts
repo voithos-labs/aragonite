@@ -6,7 +6,7 @@ import { createSharingState } from '../../tree-operations/sharing';
 import { registerCalloutForTests } from './chrome-plugins';
 import type { SelectionPoint } from '../../selection/primitives';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
-import { fixtureLinkRef } from '../harness/fixture-grammar';
+import { fixtureReading } from '../harness/fixture-grammar';
 
 // rangeDelete is driven with hand-built endpoints, so the table branches see character offsets
 // `SelectionState` would have snapped to cell coordinates first.
@@ -40,15 +40,7 @@ function point(path: number[], offset: number): SelectionPoint {
 
 function run(source: string, start: SelectionPoint, end: SelectionPoint) {
 	const doc = parse(source);
-	const result = rangeDelete(
-		doc,
-		start,
-		end,
-		createSharingState(),
-		undefined,
-		undefined,
-		fixtureLinkRef()
-	);
+	const result = rangeDelete(doc, start, end, createSharingState(), fixtureReading());
 	return { doc: result.newDoc, source: serialize(result.newDoc), caret: result.collapsedCaret };
 }
 
@@ -97,15 +89,7 @@ describe('chrome wall × table branch: table endpoint inside the container', () 
 		const snapshotTitle = doc.children[1].children![0];
 		const sharing = createSharingState();
 		sharing.markSnapshotTaken();
-		rangeDelete(
-			doc,
-			point([0], 2),
-			point([1, 1], 1),
-			sharing,
-			undefined,
-			undefined,
-			fixtureLinkRef()
-		);
+		rangeDelete(doc, point([0], 2), point([1, 1], 1), sharing, fixtureReading());
 		expect(snapshotTitle.raw).toBe('Title\n');
 	});
 });
@@ -133,15 +117,7 @@ describe('chrome wall × table branch: table endpoint outside the container', ()
 
 		const sharing = createSharingState();
 		sharing.markSnapshotTaken();
-		const { newDoc } = rangeDelete(
-			doc,
-			point([0], 2),
-			point([1, 0], 3),
-			sharing,
-			undefined,
-			undefined,
-			fixtureLinkRef()
-		);
+		const { newDoc } = rangeDelete(doc, point([0], 2), point([1, 0], 3), sharing, fixtureReading());
 
 		expect(newDoc.children[1].children![0].raw).toBe('le\n');
 		expect(snapshotTitle.raw).toBe('Title\n');
@@ -177,9 +153,7 @@ describe('chrome wall × table branch: consumed container unit-deletes', () => {
 			point([0], 2),
 			point([1, 1], 4),
 			createSharingState(),
-			undefined,
-			undefined,
-			fixtureLinkRef()
+			fixtureReading()
 		);
 		expect(serialize(result.newDoc)).toBe('| a | b |\n| --- | --- |\n\nBelow\n');
 		// One splice, not an emptying followed by cleanup: the detached node keeps its children,
@@ -197,9 +171,7 @@ describe('chrome wall × table branch: consumed container unit-deletes', () => {
 			point([0], 2),
 			point([1, 1], 3),
 			createSharingState(),
-			undefined,
-			undefined,
-			fixtureLinkRef()
+			fixtureReading()
 		);
 		expect(serialize(result.newDoc)).toBe('| a | b |\n| --- | --- |\n\nBelow\n');
 		expect(note.children?.length).toBe(2);

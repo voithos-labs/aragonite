@@ -19,6 +19,7 @@ import { parse } from '../../core/parser';
 import { createStickyColumnState } from '../../cursor/sticky-column';
 import { createEdgeAffinityState } from '../../cursor/edge-affinity';
 import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
+import { fixtureReading } from '$lib/test/harness/fixture-grammar';
 
 const toPrev = vi.mocked(extendFocusToPreviousBlock);
 const toNext = vi.mocked(extendFocusToNextBlock);
@@ -34,6 +35,7 @@ function makeCtx(over: {
 	return {
 		// No plugins stood up here, so every installed one is active.
 		activePlugins: everyInstalledPlugin,
+		reading: fixtureReading(),
 		getEl: () => document.createElement('div'),
 		getCursorOffset: () => over.cursorOffset,
 		getFocusOffset: () => over.focusOffset,

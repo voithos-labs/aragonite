@@ -63,7 +63,8 @@ async function handleIneligibleNeighbor(scope: CommitScope, i: number, dir: -1 |
 		snapshot: { index: i, offset: dir < 0 ? 0 : CURSOR_END },
 		eventTarget: neighbor,
 		op: { kind: 'delete' },
-		mutate: (view) => performDelete(bodyParentOf(view), neighbor, view.sharing),
+		mutate: (view) =>
+			performDelete(bodyParentOf(view), neighbor, view.reading.grammar, view.sharing),
 		afterTick: () =>
 			scope.refAt(dir < 0 ? neighbor : i)?.focus(dir < 0 ? CURSOR_START : CURSOR_END),
 		discardIfNoop: true
@@ -103,15 +104,7 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 				eventTarget: i,
 				op: { kind: 'split', detail: { at: offset } },
 				mutate: (view) => {
-					split = performSplit(
-						bodyParentOf(view),
-						i,
-						offset,
-						view.sharing,
-						view.getPresentationMode?.(),
-						view.linkRef,
-						view.grammar
-					);
+					split = performSplit(bodyParentOf(view), i, offset, view.sharing, view.reading);
 					secondHalfIndex = split.secondHalfIndex;
 					stampStructuralChange(view.children, split.change, view.sharing);
 					return split.change;
@@ -195,14 +188,7 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 				eventTarget: i,
 				op: { kind: 'merge', detail: { direction: 'prev' } },
 				mutate: (view) => {
-					mergeResult = mergeIntoPrevDeepLeaf(
-						bodyParentOf(view),
-						i,
-						view.sharing,
-						view.getPresentationMode?.(),
-						view.linkRef,
-						view.grammar
-					);
+					mergeResult = mergeIntoPrevDeepLeaf(bodyParentOf(view), i, view.sharing, view.reading);
 					return mergeResult?.change ?? { op: 'noop' };
 				},
 				afterTick: async () => {
@@ -236,13 +222,7 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 				eventTarget: i,
 				op: { kind: 'merge', detail: { direction: 'next' } },
 				mutate: (view) => {
-					merged = performMergeNext(
-						{ children: view.children },
-						i,
-						view.getPresentationMode?.(),
-						view.linkRef,
-						view.grammar
-					);
+					merged = performMergeNext({ children: view.children }, i, view.reading);
 					stampStructuralChange(view.children, merged.change, view.sharing);
 					return merged.change;
 				},
@@ -260,7 +240,7 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 				snapshot: { index: i, offset: 0 },
 				eventTarget: i,
 				op: { kind: 'delete' },
-				mutate: (view) => performDelete(bodyParentOf(view), i, view.sharing),
+				mutate: (view) => performDelete(bodyParentOf(view), i, view.reading.grammar, view.sharing),
 				afterTick: () => {
 					const focusIdx = Math.min(i, scope.children().length - 1);
 					if (focusIdx >= 0) scope.refAt(focusIdx)?.focus(CURSOR_START);
@@ -293,7 +273,7 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 						[node],
 						view.sharing,
 						null,
-						view.grammar
+						view.reading.grammar
 					);
 					touchedNodes.push(reclassified?.replacement ?? node);
 					return { op: 'noop' };

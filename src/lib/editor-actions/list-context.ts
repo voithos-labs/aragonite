@@ -11,9 +11,7 @@ import type { NodeView } from '../core/node-views';
 import { metadataOf } from '../core/nodes';
 import type { LineEnding } from '../core/lines';
 import { extendDocPath, docPathFrom } from '../cursor/coordinate-spaces';
-import type { PresentationModeGetter } from '../editor-keys';
-import type { InlineResolverRef } from '../schema/inline-construct-policy';
-import type { GrammarView } from '../schema/block-openers';
+import type { Reading } from '../schema/reading';
 import type { MultiScopeTarget } from '../action-contracts';
 import type { UndoController } from './deps';
 import {
@@ -46,13 +44,8 @@ export interface ListContextDeps {
 	parentFocus: FocusActions;
 	parentListContext: ListContext | undefined;
 	controller: UndoController;
-	/** The live effective mode, for the mid-item split's marker rebalance. Nullable rather
-	 *  than optional so the composing container answers. */
-	getPresentationMode: PresentationModeGetter | undefined;
-	/** The instance's link-reference resolver and grammar. */
-	linkRef: InlineResolverRef;
-	/** The instance's block grammar, for the mid-item split's reparse. Absent = the global one. */
-	grammar?: GrammarView;
+	/** The editor's reading, for the mid-item split's reparse and marker rebalance. */
+	reading: Reading;
 }
 
 /** The item Enter creates: the previous item's marker bumped, its task checkbox inherited
@@ -225,12 +218,10 @@ export function createListContext(deps: ListContextDeps): ListContext {
 						innerIndex,
 						offset,
 						sharing,
-						deps.getPresentationMode?.(),
-						deps.linkRef,
-						deps.grammar,
+						deps.reading,
 						// The new item inherits this one's task marker, so its first block reads
 						// as this item's first block does.
-						fragmentReaderAt(itemScope.node, 0, deps.grammar)
+						fragmentReaderAt(itemScope.node, 0, deps.reading.grammar)
 					);
 					stampStructuralChange(itemChildren, split.change, sharing);
 					// The primitive's index, not `innerIndex + 1`: a first half that parses to several

@@ -6,7 +6,7 @@
 
 import type { AnyBlockKind, CstNode, Document } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
-import { isBlankParagraph, parse } from '../core/parser';
+import { isBlankParagraph, readBlocks } from '../core/parser';
 import { escalatedFenceLength, matchFenceOpen } from '../core/parsers/fence-syntax';
 import { isBlockOpenerRegistered, type GrammarView } from '../schema/block-openers';
 import {
@@ -65,7 +65,7 @@ export function updateNodeContent(
 	parent: BodyParentArg,
 	blockIndex: number,
 	text: string,
-	grammar?: GrammarView,
+	grammar: GrammarView,
 	sharing?: SharingState
 ): SettledContent {
 	// Read before the write, which is what can put a block there the marker cannot stand before.
@@ -82,7 +82,7 @@ function writeAndSettleContent(
 	parent: BodyParentArg,
 	blockIndex: number,
 	text: string,
-	grammar?: GrammarView,
+	grammar: GrammarView,
 	sharing?: SharingState
 ): SettledContent {
 	const wasBlank = isBlankParagraph(parent.children[blockIndex]);
@@ -124,7 +124,7 @@ function settleWriteSeams(
 	lastWritten: number,
 	change: StructuralChange,
 	sharing: SharingState | undefined,
-	grammar: GrammarView | undefined
+	grammar: GrammarView
 ): SettledContent {
 	const tracked: TrackedPosition = { index: blockIndex, offset: 0 };
 	const settled = absorbWindowSeams(
@@ -133,11 +133,9 @@ function settleWriteSeams(
 		lastWritten - blockIndex + 1,
 		blockIndex,
 		change,
+		grammar,
 		sharing,
-		tracked,
-		undefined,
-		undefined,
-		grammar
+		tracked
 	);
 	return {
 		change: settled.change,
@@ -223,7 +221,7 @@ function writeParsedContent(
 	parent: BodyParentArg,
 	blockIndex: number,
 	text: string,
-	grammar?: GrammarView
+	grammar: GrammarView
 ): StructuralChange {
 	const node = parent.children[blockIndex];
 	const oldKind = node.kind;
@@ -321,24 +319,24 @@ function reconcileBackfilledRaw(node: CstNode): void {
  * What the grammar opens `line` as, read in isolation: asked of the opener registry and never
  * a kind list, so a kind registered later is covered the day it registers.
  */
-export function lineOpensAs(line: string, grammar?: GrammarView): AnyBlockKind {
-	return parse(`${line}\n`, { grammar, scope: 'fragment' }).children[0]?.kind ?? 'paragraph';
+export function lineOpensAs(line: string, grammar: GrammarView): AnyBlockKind {
+	return readBlocks(`${line}\n`, { grammar, scope: 'fragment' }).children[0]?.kind ?? 'paragraph';
 }
 
 /** Whether the grammar in effect still leaves `NEXT_PROSE_LINE` an ordinary paragraph. */
-export function probeLineOpensAsProse(grammar?: GrammarView): boolean {
+export function probeLineOpensAsProse(grammar: GrammarView): boolean {
 	return lineOpensAs(NEXT_PROSE_LINE, grammar) === 'paragraph';
 }
 
 /**
  * Re-derive the container at `index` from its own (already rebuilt) raw, replacing it in the
  * slot when that raw now opens as a different kind (editor.md § 8). Eligibility is the opener
- * registry: registering an opener is exactly the claim that `parse(raw)` reproduces the kind.
+ * registry: registering an opener is exactly the claim that `readBlocks(raw)` reproduces the kind.
  */
 export function reclassifyContainer(
 	parent: NodeParent,
 	index: number,
-	grammar?: GrammarView
+	grammar: GrammarView
 ): CstNode | null {
 	const node = parent.children[index];
 	if (!node) return null;
@@ -346,7 +344,7 @@ export function reclassifyContainer(
 	if (!descriptor?.isContainer || !isBlockOpenerRegistered(node.kind)) return null;
 
 	if (perfEnabled()) recordContainerKindReparse();
-	const parsed = parse(node.raw, { grammar, scope: 'fragment' }).children;
+	const parsed = readBlocks(node.raw, { grammar, scope: 'fragment' }).children;
 	// A container's raw is one block by construction; a multi-block reparse means bytes this
 	// function has no position for, left to the edit that owns the mutation.
 	if (parsed.length !== 1 || parsed[0].kind === node.kind) return null;

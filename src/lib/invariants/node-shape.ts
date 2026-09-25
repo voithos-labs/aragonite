@@ -1,6 +1,6 @@
 import { makeBlockNode, type CstNode } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
-import { parse } from '../core/parser';
+import { readBlocks } from '../core/parser';
 import { concatChildren } from '../core/serializer';
 import { getBlockKindDescriptor } from '../schema/block-kind-descriptor';
 import { reservedChromeKindOf } from '../schema/reserved-chrome';
@@ -53,13 +53,13 @@ function illegalField(kind: string, field: string, why: string): InvariantViolat
  * stripped inner bytes, which a faithful non-canonical parse and the editor's empty-paragraph
  * placeholder both survive. Strip containers only, and recursively.
  */
-export function checkStaleRaw(node: CstNode, grammar?: GrammarView): InvariantViolation | null {
+export function checkStaleRaw(node: CstNode, grammar: GrammarView): InvariantViolation | null {
 	if (getBlockKindDescriptor(node.kind).containerContract !== 'strip') return null;
 
 	// Document scope because the check is handed no document position: fragment scope would
 	// fire on every legitimate position-scoped node at the top.
 	const correspondent = soleCorrespondent(
-		parse(node.raw, { grammar, scope: 'document' }).children,
+		readBlocks(node.raw, { grammar, scope: 'document' }).children,
 		node
 	);
 
@@ -133,13 +133,13 @@ function stripContainerChildren(node: CstNode): CstNode[] {
  */
 export function checkOpaqueStaleRaw(
 	node: CstNode,
-	grammar?: GrammarView
+	grammar: GrammarView
 ): InvariantViolation | null {
 	if (getBlockKindDescriptor(node.kind).containerContract !== 'opaque') return null;
 
 	// Document scope for the same reason as G1.1: the node arrives without its document
 	// position, and fragment scope would fire on a legitimate position-scoped node.
-	const blocks = parse(node.raw, { grammar, scope: 'document' }).children;
+	const blocks = readBlocks(node.raw, { grammar, scope: 'document' }).children;
 	if (blocks.length !== 1 || blocks[0].kind !== node.kind) {
 		if (!hasStandaloneRecognizer(node.kind)) return null;
 		return {
@@ -160,7 +160,7 @@ export function checkOpaqueStaleRaw(
 }
 
 /**
- * Can `parse(raw)` produce this kind at all? Two registries answer: the kind owns a block opener,
+ * Can `readBlocks(raw)` produce this kind at all? Two registries answer: the kind owns a block opener,
  * or it is a directive the shared `:::` opener recognizes. Checking openers alone would exempt
  * every directive kind as unrecognizable.
  */

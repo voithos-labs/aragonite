@@ -79,7 +79,7 @@ export function rebuildUnsharedChain(
 	chain: CstNode[],
 	sharing: SharingState,
 	folds: AncestrySeamFold[] | null,
-	grammar: GrammarView | undefined,
+	grammar: GrammarView,
 	hint?: ChainWriteHint
 ): ContainerReclassification[] {
 	const reclassified: ContainerReclassification[] = [];
@@ -179,7 +179,7 @@ function settleSlotSeams(
 	slot: ChainSlot,
 	sharing: SharingState,
 	folds: AncestrySeamFold[],
-	grammar: GrammarView | undefined
+	grammar: GrammarView
 ): void {
 	const { siblings, index, openerMoved, closerMoved } = slot;
 	// The rollback snapshot is captured only once a merge is certain: an eager copy here cost
@@ -192,13 +192,13 @@ function settleSlotSeams(
 		openerMoved && closerMoved ? 1 : 0,
 		index,
 		{ op: 'noop' },
+		grammar,
 		sharing,
 		landing,
 		index,
 		() => {
 			before ??= siblings.slice();
-		},
-		grammar
+		}
 	);
 	if (settled.change.op === 'noop') return;
 	folds.push({
@@ -235,7 +235,7 @@ export function rebuildUnsharedAncestry(
 	path: number[],
 	sharing: SharingState,
 	folds: AncestrySeamFold[] | null,
-	grammar: GrammarView | undefined
+	grammar: GrammarView
 ): ContainerReclassification[] {
 	const chain = walkUnsharing(root, path, sharing, false);
 	return rebuildUnsharedChain(root, chain, sharing, folds, grammar);

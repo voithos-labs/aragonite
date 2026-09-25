@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { defaultStructuralHook } from '$lib/tree-operations/paste/hooks';
 import { parse } from '$lib/core/parser';
 import type { CstNode } from '$lib/core/nodes';
-import { pasteSeam } from '../../harness/fixture-grammar';
+import { fixtureReading } from '../../harness/fixture-grammar';
 
 // The caret lands at the end of the pasted content, not the trailing residue
 // buildPastedReplacement appends as the last node.
@@ -17,7 +17,8 @@ describe('defaultStructuralHook: caret at end of pasted content', () => {
 			5,
 			twoBlocks(),
 			undefined,
-			pasteSeam()
+			fixtureReading(),
+			'\n'
 		);
 		expect(result.replacement).toHaveLength(4);
 		expect(result.focusReplacementIndex).toBe(result.replacement.length - 2);
@@ -25,7 +26,14 @@ describe('defaultStructuralHook: caret at end of pasted content', () => {
 	});
 
 	it('end-of-block paste (no residue) focuses the last node unchanged', () => {
-		const result = defaultStructuralHook(para('hello\n'), 5, twoBlocks(), undefined, pasteSeam());
+		const result = defaultStructuralHook(
+			para('hello\n'),
+			5,
+			twoBlocks(),
+			undefined,
+			fixtureReading(),
+			'\n'
+		);
 		expect(result.replacement).toHaveLength(3);
 		expect(result.focusReplacementIndex).toBe(result.replacement.length - 1);
 		expect((result.replacement[result.focusReplacementIndex].raw ?? '').trim()).toBe('two');
@@ -39,7 +47,8 @@ describe('defaultStructuralHook: caret at end of pasted content', () => {
 			3,
 			twoBlocks(),
 			undefined,
-			pasteSeam()
+			fixtureReading(),
+			'\n'
 		);
 		expect(result.replacement.map((n) => n.raw)).toEqual([
 			'abc\n',

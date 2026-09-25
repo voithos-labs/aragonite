@@ -4,7 +4,8 @@ import { serialize } from '$lib/core/serializer';
 import { deleteNode } from '$lib/tree-operations/settle';
 import { mergeIntoPrevDeepLeaf } from '$lib/tree-operations/node-ops';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
-import { fixtureLinkRef } from '../harness/fixture-grammar';
+import { fixtureReading } from '../harness/fixture-grammar';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 // GH #173: `deleteNode`'s neighbour merge looked downward only, so a merge whose rewritten
 // survivor gained indentation stopped interrupting the indentation-delimited block above it and
@@ -19,7 +20,7 @@ describe('a merge whose survivor the block above absorbs', () => {
 		const doc = parse('    code\n\n    \nx\n\n\n[ref]: https://example.com\n');
 		expect(doc.children).toHaveLength(5);
 
-		const merged = mergeIntoPrevDeepLeaf(doc, 2, undefined, undefined, fixtureLinkRef());
+		const merged = mergeIntoPrevDeepLeaf(doc, 2, undefined, fixtureReading());
 
 		expect(serialize(doc)).toBe('    code\n\n    x\n\n\n[ref]: https://example.com\n');
 		expect(doc.children[0].raw).toBe('    code\n\n    x\n');
@@ -38,7 +39,7 @@ describe('a merge whose survivor the block above absorbs', () => {
 		const doc = parse('a\n# h\nb\n');
 		expect(doc.children).toHaveLength(3);
 
-		const change = deleteNode(doc, 1);
+		const change = deleteNode(doc, 1, defaultGrammarView);
 
 		expect(serialize(doc)).toBe('a\nb\n');
 		expect(describeConvergence(doc)).toBeNull();

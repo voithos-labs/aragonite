@@ -5,9 +5,9 @@ import {
 } from '$lib/components/blocks/text/widget-interaction';
 import { createWidgetSelectionState } from '$lib/components/image/widget-selection-state.svelte';
 import type { CstNode } from '$lib/core/nodes';
-import type { LinkReferenceResolverRef } from '$lib/editor-keys';
-import { fixtureLinkRef } from '../../harness/fixture-grammar';
+import { fixtureReading } from '../../harness/fixture-grammar';
 import { defaultGrammarView } from '$lib/schema/block-openers';
+import type { Reading } from '$lib/schema/reading';
 
 export interface Commit {
 	index: number;
@@ -21,7 +21,7 @@ export interface Commit {
 export function harness(
 	source: string,
 	sourceStart: number,
-	linkRef: LinkReferenceResolverRef = fixtureLinkRef(),
+	reading: Reading = fixtureReading(),
 	extra: Partial<WidgetInteractionDeps> = {}
 ) {
 	const node: CstNode = parse(source).children[0];
@@ -57,8 +57,8 @@ export function harness(
 		setSnapTarget: trap,
 		setPendingCursor: (offset: number | null) => void carets.push(offset),
 		grammar: defaultGrammarView,
-		get linkRef() {
-			return linkRef;
+		get reading() {
+			return reading;
 		},
 		...extra
 	} as unknown as WidgetInteractionDeps;

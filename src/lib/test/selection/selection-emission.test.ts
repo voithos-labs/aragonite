@@ -11,6 +11,7 @@ import { extendFocusToNextBlock } from '../../selection/keyboard-extend';
 import { makeStickyColumn, makeEdgeAffinity } from '../harness/editor-actions';
 import { parse } from '../../core/parser';
 import type { EditorSelection } from '../../selection/primitives';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 interface Emission {
 	/** The block the native caret sat in, which is what a subscriber's read-back resolves. */
@@ -262,7 +263,9 @@ describe('unbatched entry-path emission counts', () => {
 		h.parkCaretIn(0, 3);
 		const doc = parse('Alpha one\n\nBravo two\n');
 
-		expect(extendFocusToNextBlock(h.selectionState, doc, h.blocks[0], [0])).toBe(true);
+		expect(
+			extendFocusToNextBlock(h.selectionState, doc, defaultGrammarView, h.blocks[0], [0])
+		).toBe(true);
 
 		// enterCrossBlockFromKeyboard seeds a collapsed pair, then extendFocus reaches
 		// the next leaf. Two mutations, two emissions, both reporting real state.

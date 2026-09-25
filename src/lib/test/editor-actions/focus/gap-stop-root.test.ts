@@ -9,6 +9,7 @@ import { makeEditorActionsDeps, stubBlockComponent } from '$lib/test/harness/edi
 import type { FocusPosition } from '$lib/block-component';
 import type { MoveFocusOptions } from '$lib/action-contracts';
 import type { PresentationMode } from '$lib/presentation-mode';
+import { fixtureReading } from '$lib/test/harness/fixture-grammar';
 
 const TABLE = '| a | b |\n| - | - |\n';
 const FENCE = '```\ncode\n```\n';
@@ -16,7 +17,9 @@ const FENCE = '```\ncode\n```\n';
 const MIXED = `para\n\n${TABLE}\n${FENCE}\npara\n`;
 
 function harnessFor(source: string, presentationMode?: PresentationMode) {
-	const { deps, doc } = makeEditorActionsDeps(parse(source).children, { presentationMode });
+	const { deps, doc } = makeEditorActionsDeps(parse(source).children, {
+		reading: fixtureReading({}, presentationMode)
+	});
 	const focused: number[] = [];
 	deps.setBlockRefs(
 		doc.children.map((_, i) => stubBlockComponent({ focus: vi.fn(() => focused.push(i)) }))

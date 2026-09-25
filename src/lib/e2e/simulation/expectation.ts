@@ -13,6 +13,7 @@ import { createAutoPairRecord } from '../../components/blocks/text/auto-pair-rec
 import { isBuiltinBlockKind } from '../../core/nodes';
 import { parse } from '../../core/parser';
 import { defaultGrammarView } from '../../schema/block-openers';
+import { kitReading } from '../../testing/kit-reading';
 
 /** Kinds whose editable area does no auto-pairing: a typed byte there is literal. */
 const NO_PAIR_KINDS = new Set(['fencedCode', 'indentedCode', 'htmlBlock', 'thematicBreak']);
@@ -40,14 +41,10 @@ export class ExpectationTracker {
 		const caret = at - lineStart;
 		const ownPair = this.ownPairs.consult(line, caret);
 		const edit = this.pairs()
-			? resolveDelimiterAutoPair(
-					line,
-					{ start: 0, end: line.length },
-					caret,
-					ch,
-					{ grammar: defaultGrammarView },
-					{ ownPair, keepsKind: (next) => kindOfLine(next) === kindOfLine(line) }
-				)
+			? resolveDelimiterAutoPair(line, { start: 0, end: line.length }, caret, ch, kitReading(), {
+					ownPair,
+					keepsKind: (next) => kindOfLine(next) === kindOfLine(line)
+				})
 			: null;
 		if (edit) noteOwnPair(this.ownPairs, line, edit);
 		if (edit?.kind === 'step-over') {

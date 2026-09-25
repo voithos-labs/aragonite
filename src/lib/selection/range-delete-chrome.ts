@@ -6,9 +6,7 @@
  * its whole subtree, then as one splice with its children intact.
  */
 
-import type { GrammarView } from '../schema/block-openers';
-import type { PresentationMode } from '../presentation-mode';
-import type { InlineResolverRef } from '../schema/inline-construct-policy';
+import type { Reading } from '../schema/reading';
 import type { CstNode, Document } from '../core/nodes';
 import type { SelectionPoint } from './primitives';
 import type { RangeDeleteResult } from './range-delete';
@@ -59,13 +57,11 @@ export function chromeAwareRangeDelete(
 	start: SelectionPoint,
 	end: SelectionPoint,
 	sharing: SharingState,
-	grammar: GrammarView | undefined,
-	presentationMode: PresentationMode | undefined,
-	linkRef: InlineResolverRef
+	reading: Reading
 ): RangeDeleteResult {
+	const { grammar } = reading;
 	const startC = nearestChromeContainer(doc, start.path);
 	const endC = nearestChromeContainer(doc, end.path);
-	const live = { presentationMode, linkRef };
 
 	// Copy every chain that will be written before node identities are captured (G1.9): chains
 	// stay valid across splices, paths do not.
@@ -88,14 +84,14 @@ export function chromeAwareRangeDelete(
 			end,
 			endChain[endChain.length - 1],
 			endC !== null && isChromeChild(endC, end.path),
-			live,
+			reading,
 			sharing,
 			grammar,
 			'chromeAwareRangeDelete:end'
 		);
 	}
 
-	applyPlannedDeletion(doc, plan, lcaPath);
+	applyPlannedDeletion(doc, plan, lcaPath, grammar);
 
 	// Start truncates in place; every deletion sits after it in doc order, so start.path is
 	// still live.
@@ -104,7 +100,7 @@ export function chromeAwareRangeDelete(
 		start,
 		startChain[startChain.length - 1],
 		startC !== null && isChromeChild(startC, start.path),
-		live,
+		reading,
 		sharing,
 		grammar,
 		'chromeAwareRangeDelete:start'

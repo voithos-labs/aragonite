@@ -19,6 +19,7 @@ import {
 } from '$lib/selection/cross-block/format-range';
 import type { SelectionPoint } from '$lib/selection/primitives';
 import { docAround, gridOf, planStored, registerPluginGrid } from './plugin-grid-kind';
+import { fixtureReading } from '$lib/test/harness/fixture-grammar';
 import { documentLineEnding } from '$lib/core/lines';
 
 afterEach(() => __resetSchemaRegistriesForTests());
@@ -29,9 +30,7 @@ describe('a grid whose kind carries no table metadata', () => {
 	it('contributes its cells instead of throwing out of the plan', () => {
 		const doc = docAround(gridOf(registerPluginGrid(), [['a', 'b']]));
 
-		const plan = planCrossBlockFormat(doc, at([0], 0), at([2], 4), 'strong', undefined, {
-			grammar: defaultGrammarView
-		})!;
+		const plan = planCrossBlockFormat(doc, at([0], 0), at([2], 4), 'strong', fixtureReading())!;
 		expect(plan.writes.map((write) => [write.path, write.newDisplay])).toEqual([
 			[[0], '**head**'],
 			[[1, 0, 0], '**a**'],
@@ -60,8 +59,7 @@ describe('a grid whose kind carries no table metadata', () => {
 			at([0], 0),
 			at([2], 4),
 			'strong',
-			undefined,
-			{ grammar: defaultGrammarView }
+			fixtureReading()
 		)!;
 		expect(plan.writes.map((write) => write.path)).toEqual([[0], [1, 0, 0], [1, 0, 1], [2]]);
 	});
@@ -77,9 +75,7 @@ describe('a grid whose kind carries no table metadata', () => {
 			children: [{ kind: kinds.cell, leadingTrivia: '', raw: 'a' }]
 		});
 
-		const plan = planCrossBlockFormat(doc, at([0], 0), at([2], 4), 'strong', undefined, {
-			grammar: defaultGrammarView
-		})!;
+		const plan = planCrossBlockFormat(doc, at([0], 0), at([2], 4), 'strong', fixtureReading())!;
 		expect(plan.writes.map((write) => write.path)).toEqual([[0], [2]]);
 	});
 
@@ -89,9 +85,7 @@ describe('a grid whose kind carries no table metadata', () => {
 		doc.children[2].raw = '**tail**\n';
 
 		expect(
-			crossBlockActiveFormats(doc, at([0], 0), at([2], 8), { grammar: defaultGrammarView }).has(
-				'strong'
-			)
+			crossBlockActiveFormats(doc, at([0], 0), at([2], 8), fixtureReading()).has('strong')
 		).toBe(true);
 	});
 });
@@ -149,9 +143,7 @@ describe('a range endpoint deep inside a plugin grid', () => {
 		doc.children[0].raw = '**head**\n';
 
 		expect(
-			crossBlockActiveFormats(doc, at([0], 0), at([1, 0, 0], 1), {
-				grammar: defaultGrammarView
-			}).has('strong')
+			crossBlockActiveFormats(doc, at([0], 0), at([1, 0, 0], 1), fixtureReading()).has('strong')
 		).toBe(true);
 	});
 
@@ -184,9 +176,7 @@ describe('a grid whose rows differ in width', () => {
 	it('never writes the surplus cell of a wider row', () => {
 		const doc = docAround(gridOf(registerPluginGrid(), RAGGED));
 
-		const plan = planCrossBlockFormat(doc, at([0], 0), at([2], 4), 'strong', undefined, {
-			grammar: defaultGrammarView
-		})!;
+		const plan = planCrossBlockFormat(doc, at([0], 0), at([2], 4), 'strong', fixtureReading())!;
 		expect(plan.writes.map((write) => write.path)).toEqual([
 			[0],
 			[1, 0, 0],

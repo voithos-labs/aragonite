@@ -12,14 +12,7 @@ import type {
 	ListContext
 } from '../../action-contracts';
 import type { NodeView } from '../../core/node-views';
-import type { GrammarView } from '../../schema/block-openers';
-import {
-	BLOCK_EDIT_KEY,
-	CONTAINER_EDIT_KEY,
-	FOCUS_KEY,
-	HISTORY_KEY,
-	type PresentationModeGetter
-} from '../../editor-keys';
+import { BLOCK_EDIT_KEY, CONTAINER_EDIT_KEY, FOCUS_KEY, HISTORY_KEY } from '../../editor-keys';
 import { assertInvariant } from '../../assert';
 import { checkNoContainerHistoryKey } from '../../invariants/context-keys';
 import type { StickyColumnState } from '../../cursor/sticky-column';
@@ -27,7 +20,7 @@ import type { BlockListState } from '../../reactivity/block-list-state.svelte';
 import { createNestedBlockEdit } from './nested-block-edit';
 import { createNestedFocus } from './nested-focus';
 import { withEnterCompletion } from '../enter-completion';
-import type { InlineResolverRef } from '../../schema/inline-construct-policy';
+import type { Reading } from '../../schema/reading';
 
 export interface NestedActionsBundle {
 	blockEdit: BlockEditActions;
@@ -53,14 +46,9 @@ export interface NestedActionsDeps {
 	/** Document-absolute path of `node`; the copy-before-write and the ancestor rebuild use it. */
 	path: number[];
 	stickyColumn: StickyColumnState;
-	/** The instance's grammar, so a nested re-parse or completer reads only the plugins and syntax
-	 *  the editor has switched on. */
-	grammar: GrammarView;
-	/** The live effective mode, for mutations whose bytes depend on what the mode shows (the
-	 *  split's marker rebalance). Nullable rather than optional so each container answers. */
-	getPresentationMode: PresentationModeGetter | undefined;
-	/** The instance's link-reference resolver and grammar. */
-	linkRef: InlineResolverRef;
+	/** The editor's reading, so a nested re-parse or completer reads only the syntax the editor
+	 *  switched on and a split's rebalance knows what its mode shows. */
+	reading: Reading;
 	/** The enclosing list's context, when this container is a list nested in one. */
 	parentListContext?: ListContext;
 	parent: {
@@ -103,9 +91,7 @@ export function createStandardNestedActions(
 			return input.scope.path;
 		},
 		stickyColumn: input.stickyColumn,
-		grammar: input.grammar,
-		getPresentationMode: input.getPresentationMode,
-		linkRef: input.linkRef,
+		reading: input.reading,
 		parentListContext: input.parentListContext,
 		parent: input.parent
 	};
@@ -124,7 +110,7 @@ export function createStandardNestedActions(
 	if (!overrideFactory) {
 		return {
 			...defaults,
-			blockEdit: withEnterCompletion(blockEdit, childAt, deps.grammar, getLineEnding)
+			blockEdit: withEnterCompletion(blockEdit, childAt, deps.reading.grammar, getLineEnding)
 		};
 	}
 
@@ -133,7 +119,7 @@ export function createStandardNestedActions(
 		blockEdit: withEnterCompletion(
 			{ ...blockEdit, ...(overrides.blockEdit ?? {}) },
 			childAt,
-			deps.grammar,
+			deps.reading.grammar,
 			getLineEnding
 		),
 		focus: { ...focus, ...(overrides.focus ?? {}) },

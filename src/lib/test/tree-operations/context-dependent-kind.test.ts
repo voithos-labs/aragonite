@@ -5,8 +5,9 @@ import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
 import { writeTableRow } from '../../schema/container-rebuilders';
 import { parse } from '../../core/parser';
 import type { CstNode } from '../../core/nodes';
-import { fixtureLinkRef } from '../harness/fixture-grammar';
+import { fixtureReading } from '../harness/fixture-grammar';
 import { testLeaf } from '$lib/test/harness/test-kinds';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 /** A children array as the body parent a write reads, owned by nothing, in an LF document. */
 const asBody = (parent: { children?: CstNode[] }) => ({
@@ -30,7 +31,7 @@ describe('updateNodeContent: contextDependentKind stickiness', () => {
 		const chrome = registerChromeKind();
 		const parent = { children: [{ kind: chrome, leadingTrivia: '', raw: 'Title\n' }] as CstNode[] };
 
-		const { change } = updateNodeContent(asBody(parent), 0, 'TitleX\n');
+		const { change } = updateNodeContent(asBody(parent), 0, 'TitleX\n', defaultGrammarView);
 
 		expect(parent.children[0].kind).toBe(chrome);
 		expect(parent.children[0].raw).toBe('TitleX\n');
@@ -41,7 +42,7 @@ describe('updateNodeContent: contextDependentKind stickiness', () => {
 		const parent = {
 			children: [{ kind: 'paragraph', leadingTrivia: '', raw: 'hi\n' }] as CstNode[]
 		};
-		updateNodeContent(asBody(parent), 0, '# hi\n');
+		updateNodeContent(asBody(parent), 0, '# hi\n', defaultGrammarView);
 		expect(parent.children[0].kind).toBe('heading');
 	});
 });
@@ -63,7 +64,7 @@ describe('updateNodeContent: the kind’s normalizeRawWrite runs at the write', 
 			metadata: { isHeader: false },
 			children: cellRaws.map((raw) => ({ kind: 'tableCell', leadingTrivia: '', raw }))
 		};
-		updateNodeContent(asBody(row), at, text);
+		updateNodeContent(asBody(row), at, text, defaultGrammarView);
 		writeTableRow(row, '\n');
 		return bodyCellsOf(cellRaws.length, row.raw);
 	}
@@ -96,7 +97,7 @@ describe('updateNodeContent: the kind’s normalizeRawWrite runs at the write', 
 		const chrome = registerChromeKind();
 		const parent = { children: [{ kind: chrome, leadingTrivia: '', raw: 'Title\n' }] as CstNode[] };
 
-		updateNodeContent(asBody(parent), 0, 'a|b\n');
+		updateNodeContent(asBody(parent), 0, 'a|b\n', defaultGrammarView);
 
 		expect(parent.children[0].raw).toBe('a|b\n');
 	});
@@ -109,7 +110,7 @@ describe('splitNode: contextDependentKind is unsplittable', () => {
 		const chrome = registerChromeKind();
 		const parent = { children: [{ kind: chrome, leadingTrivia: '', raw: 'Title\n' }] as CstNode[] };
 
-		const { change } = splitNode(asBody(parent), 0, 3, undefined, undefined, fixtureLinkRef());
+		const { change } = splitNode(asBody(parent), 0, 3, undefined, fixtureReading());
 
 		expect(change).toEqual({ op: 'noop' });
 		expect(parent.children).toHaveLength(1);
@@ -121,7 +122,7 @@ describe('splitNode: contextDependentKind is unsplittable', () => {
 		const parent = {
 			children: [{ kind: 'paragraph', leadingTrivia: '', raw: 'hello world\n' }] as CstNode[]
 		};
-		const { change } = splitNode(asBody(parent), 0, 5, undefined, undefined, fixtureLinkRef());
+		const { change } = splitNode(asBody(parent), 0, 5, undefined, fixtureReading());
 		expect(change).toMatchObject({ op: 'replace', newCount: 2 });
 		expect(parent.children).toHaveLength(2);
 	});

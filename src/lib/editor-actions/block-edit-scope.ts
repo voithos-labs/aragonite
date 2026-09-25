@@ -12,9 +12,7 @@ import type { NodeView } from '../core/node-views';
 import { documentLineEnding, type LineEnding } from '../core/lines';
 import type { StructuralChange } from '../tree-operations/structural-change';
 import type { SharingState } from '../tree-operations/sharing';
-import type { GrammarView } from '../schema/block-openers';
-import type { InlineResolverRef } from '../schema/inline-construct-policy';
-import type { PresentationModeGetter } from '../editor-keys';
+import type { Reading } from '../schema/reading';
 import type { BlockComponent } from '../block-component';
 import { ensureUnsharedPath, ensureUnsharedChild } from '../tree-operations';
 import { asDocPath } from '../selection/path-math';
@@ -35,14 +33,8 @@ export interface MutationView {
 	/** The container node itself, for fix-ups that write its opener or closer. Nullable
 	 *  rather than optional so each adapter answers; `undefined` is the document root. */
 	owner: CstNode | undefined;
-	/** The instance's block grammar, for mutations that re-parse. Absent = the global grammar. */
-	grammar?: GrammarView;
-	/** The live effective mode, for mutations whose bytes depend on what the mode shows. Nullable
-	 *  rather than optional so each adapter answers; `undefined` reads as not live. */
-	getPresentationMode: PresentationModeGetter | undefined;
-	/** The instance's link-reference resolver and grammar, so a rewrite parses the reference links
-	 *  and the syntax the renderer drew. */
-	linkRef: InlineResolverRef;
+	/** The editor's reading, for mutations that re-parse and joins that clean up after themselves. */
+	reading: Reading;
 	/** Copy the child at `i` out of the undo snapshot before an in-place write; returns the copy. */
 	unshareChild(i: number): CstNode;
 }
@@ -136,9 +128,7 @@ export function createTopLevelScope(
 						sharing: deps.sharing,
 						lineEnding: documentLineEnding(deps.doc),
 						owner: undefined,
-						grammar: deps.grammar,
-						getPresentationMode: deps.getPresentationMode,
-						linkRef: deps.linkRef,
+						reading: deps.reading,
 						unshareChild: (i) => ensureUnsharedPath({ children }, [i], deps.sharing)[0]
 					}),
 				op: { ...op, eventPath: asDocPath([eventTarget]) },
@@ -176,9 +166,7 @@ export function createContainerScope(state: BlockListState, deps: NestedActionsD
 						lineEnding: scope.lineEnding,
 						ownerKind: scope.node.kind,
 						owner: scope.node,
-						grammar: deps.grammar,
-						getPresentationMode: deps.getPresentationMode,
-						linkRef: deps.linkRef,
+						reading: deps.reading,
 						unshareChild: (i) => ensureUnsharedChild(scope.node, i, scope.sharing)
 					}),
 				op: { ...op, eventPath: extendDocPath(deps.path, eventTarget) },

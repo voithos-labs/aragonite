@@ -5,7 +5,7 @@ import { createSharingState } from '../../tree-operations/sharing';
 import type { SelectionPoint } from '../../selection/primitives';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
 import { TWO_COL_FOUR_ROW, TWO_COL_THREE_ROW, findTable } from './table-fixtures';
-import { fixtureLinkRef } from '../harness/fixture-grammar';
+import { fixtureReading } from '../harness/fixture-grammar';
 
 // rangeDelete is driven with hand-built endpoints, so the table branches see character offsets
 // `SelectionState` would have snapped to cell coordinates first.
@@ -19,15 +19,7 @@ afterEach(() =>
 );
 
 function run(source: string, start: SelectionPoint, end: SelectionPoint) {
-	const result = rangeDelete(
-		parse(source),
-		start,
-		end,
-		createSharingState(),
-		undefined,
-		undefined,
-		fixtureLinkRef()
-	);
+	const result = rangeDelete(parse(source), start, end, createSharingState(), fixtureReading());
 	return { doc: result.newDoc, splices: result.tableRowSplices };
 }
 

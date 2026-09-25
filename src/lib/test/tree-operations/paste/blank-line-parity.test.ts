@@ -15,7 +15,7 @@ import {
 	pasteContext
 } from '$lib/test/harness/editor-actions';
 import { triviaRawOf } from '$lib/test/harness/parse-converged';
-import { fixtureLinkRef } from '../../harness/fixture-grammar';
+import { fixtureReading } from '../../harness/fixture-grammar';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
 // A pasted blank line must reach the same shape the same bytes reach by loading or typing
@@ -127,7 +127,7 @@ describe('pasting over a blank line settles the separators it consumed', () => {
 	// so the same paste strands the replacement head against the block above instead.
 	it('hands the replacement head the line a split-shaped blank slot was holding', async () => {
 		const split = parse('alpha\n\ndelta\n');
-		splitNode(split, 0, 5, undefined, undefined, fixtureLinkRef());
+		splitNode(split, 0, 5, undefined, fixtureReading());
 		expect(layout(split)).toEqual([
 			['', 'alpha\n'],
 			['', '\n'],

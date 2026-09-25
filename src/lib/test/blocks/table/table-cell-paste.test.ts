@@ -7,7 +7,7 @@ import {
 	normalizeWhitespace,
 	tableCellInlinePaste
 } from '../../../components/blocks/table/table-cell-paste';
-import type { PasteRange, PasteSeam } from '../../../tree-operations/paste-surfaces';
+import type { PasteRange } from '../../../tree-operations/paste-surfaces';
 import { updateNodeContent } from '../../../tree-operations/content-write';
 import { writeTableRow } from '../../../schema/container-rebuilders';
 import { parse } from '../../../core/parser';
@@ -16,7 +16,9 @@ import {
 	registerLiveJoinSeamCleaner,
 	__resetLiveJoinSeamCleanerForTests
 } from '../../../schema/inline-construct-policy';
-import { fixtureLinkRef, pasteSeam } from '../../harness/fixture-grammar';
+import { fixtureReading } from '../../harness/fixture-grammar';
+import { defaultGrammarView } from '$lib/schema/block-openers';
+import type { Reading } from '$lib/schema/reading';
 
 /** A children array as the body parent a write reads, owned by nothing, in an LF document. */
 const asBody = (parent: { children?: CstNode[] }) => ({
@@ -37,7 +39,7 @@ function pasteIntoRow(
 	offset: number,
 	text: string,
 	preDelete?: PasteRange,
-	seam: PasteSeam = pasteSeam()
+	seam: Reading = fixtureReading()
 ) {
 	const result = tableCellInlinePaste(makeCell(cellRaw), offset, text, preDelete, seam);
 	const row: CstNode = {
@@ -47,7 +49,7 @@ function pasteIntoRow(
 		metadata: { isHeader: false },
 		children: [makeCell(cellRaw), makeCell('keep')]
 	};
-	updateNodeContent(asBody(row), 0, result.newRaw);
+	updateNodeContent(asBody(row), 0, result.newRaw, defaultGrammarView);
 	writeTableRow(row, '\n');
 	const table = parse('| h | h |\n| --- | --- |\n' + row.raw).children[0];
 	return { ...result, cells: (table.children?.[1].children ?? []).map((c) => c.raw) };
@@ -95,7 +97,7 @@ describe('escapedCellOffset: the caret follows the sink’s inserted backslashes
 			metadata: { isHeader: false },
 			children: [makeCell('')]
 		};
-		updateNodeContent(asBody(row), 0, 'a|b|c');
+		updateNodeContent(asBody(row), 0, 'a|b|c', defaultGrammarView);
 		expect(escapedCellOffset('a|b|c', 5)).toBe(row.children![0].raw.length);
 	});
 });
@@ -137,11 +139,7 @@ describe('tableCellInlinePaste', () => {
 		afterAll(() => __resetLiveJoinSeamCleanerForTests());
 
 		const CUT = { start: 8, end: 18 };
-		const seamIn = (presentationMode: PresentationMode) => ({
-			presentationMode,
-			linkRef: fixtureLinkRef(),
-			lineEnding: '\n' as const
-		});
+		const seamIn = (presentationMode: PresentationMode) => fixtureReading({}, presentationMode);
 
 		it('live: the run the cut stranded goes with it', () => {
 			const result = tableCellInlinePaste(
@@ -166,8 +164,9 @@ describe('tableCellInlinePaste', () => {
 			expect(cells).toEqual(['a\\|b X c', 'keep']);
 		});
 
-		it('every other mode keeps the literal cut', () => {
-			for (const mode of ['source', 'reading', 'preview-block', 'preview-inline'] as const) {
+		// Reading mode hides delimiters too, but it writes nothing, so a paste never gets here.
+		it('every mode that draws the caret block’s delimiters keeps the literal cut', () => {
+			for (const mode of ['source', 'preview-block', 'preview-inline'] as const) {
 				const result = tableCellInlinePaste(
 					makeCell('Some **bold** text'),
 					8,

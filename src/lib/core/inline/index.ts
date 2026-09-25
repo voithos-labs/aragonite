@@ -103,7 +103,7 @@ export function computeInlineContent(
 ): InlineNode[] {
 	recordInlineCompute();
 	const range = getContentRange(node);
-	return parseInline(node.raw, range.start, range.end, resolver, grammar);
+	return readInline(node.raw, range.start, range.end, resolver, grammar);
 }
 
 const readersByGrammar = new WeakMap<GrammarView, (node: NodeView) => InlineNode[]>();
@@ -123,10 +123,8 @@ export function inlineReaderFor(grammar: GrammarView): (node: NodeView) => Inlin
 
 /**
  * Parse inline content over raw[start, end). Node offsets are absolute into raw, and every byte
- * lands in exactly one node's range. Both bounds are checked, not just typed: a caller the
- * compiler cannot reach that passes only the source would otherwise get one whole-string text
- * node, which is wrong output that looks like a result. With no grammar it reads every installed
- * plugin's syntax.
+ * lands in exactly one node's range. The published entry: with no grammar it reads every installed
+ * plugin's syntax. Code inside the editor calls {@link readInline}, which takes the grammar.
  */
 export function parseInline(
 	raw: string,
@@ -135,12 +133,27 @@ export function parseInline(
 	resolver?: LinkReferenceResolver,
 	grammar?: GrammarView
 ): InlineNode[] {
+	return readInline(raw, start, end, resolver, grammar ?? defaultGrammarView);
+}
+
+/**
+ * `parseInline` for code inside the editor. Both bounds are checked, not just typed: a caller the
+ * compiler cannot reach that passes only the source would otherwise get one whole-string text
+ * node, which is wrong output that looks like a result.
+ */
+export function readInline(
+	raw: string,
+	start: number,
+	end: number,
+	resolver: LinkReferenceResolver | undefined,
+	grammar: GrammarView
+): InlineNode[] {
 	if (!Number.isFinite(start) || !Number.isFinite(end)) {
 		throw new TypeError(
 			'parseInline requires both scan bounds: to scan a whole string, call parseInline(src, 0, src.length)'
 		);
 	}
-	return scanInline(raw, start, end, resolver, grammar ?? defaultGrammarView);
+	return scanInline(raw, start, end, resolver, grammar);
 }
 
 // ── Inline Tree Walks ──────────────────────────────────────────────────────

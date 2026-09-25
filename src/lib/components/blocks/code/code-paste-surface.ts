@@ -10,9 +10,9 @@ import { computeCodePaste } from './code-paste';
 
 export const codePasteSurface: PasteSurface = {
 	kind: 'fencedCode',
-	onInlinePaste(node, offset, text, preDelete, seam): InlinePasteResult {
+	onInlinePaste(node, offset, text, preDelete, _reading, documentEnding): InlinePasteResult {
 		const meta = metadataOf(node, 'fencedCode');
-		const lineEnding = trailingLineEnding(node.raw, seam.lineEnding);
+		const lineEnding = trailingLineEnding(node.raw, documentEnding);
 		const display = trimTrailingLineEnding(node.raw);
 
 		const start = preDelete?.start ?? offset;

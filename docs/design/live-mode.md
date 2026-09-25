@@ -203,20 +203,21 @@ What every branch obeys:
 What happens to delimiters an edit cuts through or empties. Splits first:
 
 ```ts
+// reading: the editor's Reading (schema/reading.ts), its grammar and link resolver
 const node = parse('Some **bold** text\n').children[0];
-rebalanceLiveSplit(node, 9, 'Some **bo\n', 'ld** text\n', undefined);
+rebalanceLiveSplit(node, 9, 'Some **bo\n', 'ld** text\n', reading);
 // { firstRaw: 'Some **bo**\n', secondRaw: '**ld** text\n' }: closed before the cut, reopened after
 
 const link = parse('see [here](https://x.example) now\n').children[0];
-rebalanceLiveSplit(link, 6, 'see [h\n', 'ere](https://x.example) now\n', undefined);
+rebalanceLiveSplit(link, 6, 'see [h\n', 'ere](https://x.example) now\n', reading);
 // { firstRaw: 'see [h](https://x.example)\n', secondRaw: '[ere](https://x.example) now\n' }
 
 const auto = parse('see <https://x.example> now\n').children[0];
-rebalanceLiveSplit(auto, 8, 'see <htt\n', 'ps://x.example> now\n', undefined);
+rebalanceLiveSplit(auto, 8, 'see <htt\n', 'ps://x.example> now\n', reading);
 // { firstRaw: 'see \n', secondRaw: '<https://x.example> now\n' }: the cut moved to the nearer edge
 
 const image = parse('a ![alt](i.png) b\n').children[0];
-rebalanceLiveSplit(image, 5, 'a ![a\n', 'lt](i.png) b\n', undefined); // null: a plain kind, so the literal cut stands
+rebalanceLiveSplit(image, 5, 'a ![a\n', 'lt](i.png) b\n', reading); // null: a plain kind, so the literal cut stands
 ```
 
 - Enter inside a `close-and-reopen` construct closes it before the cut and reopens it after, innermost first, so neither half strands a run, and a split link carries its destination into both halves (`live-split-rebalance.ts`). A `plain` kind with content declines, and the byte-literal cut stands.
@@ -260,15 +261,15 @@ Every destructive join crosses one call, `cleanJoinedRaw` in `tree-operations/no
 // Backspace between the two halves § 4.4 made
 const first = parse('Some **bo**\n').children[0];
 const second = parse('**ld** text\n').children[0];
-const join = {
+const join = (reading: Reading) => ({
 	mergedRaw: 'Some **bo****ld** text\n',
 	seam: 11,
 	start: { node: first, offset: 11 },
 	end: { node: second, offset: 0 },
-	linkRef: undefined
-};
-cleanJoinedRaw(join, 'live'); // { raw: 'Some **bold** text\n', seam: 9 }: the split's inverse
-cleanJoinedRaw(join, 'source'); // { raw: 'Some **bo****ld** text\n', seam: 11 }: the literal join, as in every other mode
+	reading
+});
+cleanJoinedRaw(join(liveReading)); // { raw: 'Some **bold** text\n', seam: 9 }: the split's inverse
+cleanJoinedRaw(join(sourceReading)); // { raw: 'Some **bo****ld** text\n', seam: 11 }: the literal join, as in every other mode
 
 // a range delete inside one block: 'Some **bold** text' with 'ld** text' selected
 const node = parse('Some **bold** text\n').children[0];
@@ -277,12 +278,13 @@ const gone = (from: number, to: number, mergedRaw: string) => ({
 	seam: from,
 	start: { node, offset: from },
 	end: { node, offset: to },
-	linkRef: undefined
+	reading: liveReading
 });
-cleanJoinedRaw(gone(9, 18, 'Some **bo\n'), 'live'); // { raw: 'Some bo\n', seam: 7 }: the opener lost its partner, so it goes
-cleanJoinedRaw(gone(7, 11, 'Some **** text\n'), 'live'); // { raw: 'Some  text\n', seam: 5 }: 'bold' selected, and the emptied pair goes with it
+cleanJoinedRaw(gone(9, 18, 'Some **bo\n')); // { raw: 'Some bo\n', seam: 7 }: the opener lost its partner, so it goes
+cleanJoinedRaw(gone(7, 11, 'Some **** text\n')); // { raw: 'Some  text\n', seam: 5 }: 'bold' selected, and the emptied pair goes with it
 ```
 
+- The join carries the editor's reading (`src/lib/schema/reading.ts`; `liveReading` and `sourceReading` above stand for one in each mode), and the cleanup runs only where it says the caret's block hides its delimiters.
 - What arrives here: Backspace merges, Delete, range deletes, typing over a selection, cut, and the delete half of a paste. A native ranged edit inside one block is re-expressed as a join of what survives on either side, so it crosses the same call (`live-selection-edit.ts`).
 - The range it rewrites comes off the EVENT, since a word or line delete reports one at a collapsed caret where the selection is empty, and every editable prose surface takes that branch (G4.44) rather than keeping its own list of input types.
 - The license is § 2's: live drops only what it never showed, verified against what the two sides showed, and otherwise the literal join stands.

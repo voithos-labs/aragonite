@@ -10,14 +10,14 @@ import {
 	getContentRange,
 	inlineDescendants,
 	isProseKind,
-	parseInline
+	readInline
 } from '../../../core/inline';
 import {
 	CONTENT_VISIBILITY,
 	paintsOnlyChrome,
 	renderedText
 } from '../../../core/inline/visibility';
-import type { InlineResolverRef } from '../../../schema/inline-construct-policy';
+import type { Reading } from '../../../schema/reading';
 import type { AnyInlineKind, InlineNode } from '../../../core/nodes';
 import type { NodeView } from '../../../core/node-views';
 import {
@@ -33,20 +33,20 @@ export const rebalanceLiveSplit: LiveSplitRebalancer = (
 	offset,
 	firstRaw,
 	secondRaw,
-	linkRef
+	reading
 ) => {
 	const read = readSplitBytes(node, offset, firstRaw, secondRaw);
 	if (read === null) return null;
-	const inlines = parseInline(
+	const inlines = readInline(
 		read.raw,
 		read.contentStart,
 		read.contentEnd,
-		linkRef.current,
-		linkRef.grammar
+		reading.resolver,
+		reading.grammar
 	);
 	// Markers standing over nothing are all on screen (live-mode.md § 4.1), so closing and
 	// reopening them would move delimiters the user is looking at: the literal cut stands.
-	if (paintsOnlyChrome(inlines, read.raw, { grammar: linkRef.grammar })) return null;
+	if (paintsOnlyChrome(inlines, read.raw, { grammar: reading.grammar })) return null;
 	const moved = wholeConstructEdge(inlines, offset);
 	const at = moved ?? offset;
 	const bytes = moved === null ? read : { ...read, cut: moved };
@@ -63,7 +63,7 @@ export const rebalanceLiveSplit: LiveSplitRebalancer = (
 	for (const candidate of candidates) {
 		// The dropped bytes are the check's business, not the caller's: what the caller gets back
 		// is the two halves, whatever the candidate had to declare to earn them.
-		if (candidate !== null && parsesBack(bytes, seam, candidate, linkRef)) {
+		if (candidate !== null && parsesBack(bytes, seam, candidate, reading)) {
 			return { firstRaw: candidate.firstRaw, secondRaw: candidate.secondRaw };
 		}
 	}
@@ -294,10 +294,10 @@ export function parsesBack(
 	bytes: SplitBytes,
 	seam: SeamParts,
 	candidate: RebalancedHalves,
-	ref: InlineResolverRef
+	reading: Reading
 ): boolean {
-	const first = soleProseBlock(candidate.firstRaw, ref);
-	const second = soleProseBlock(candidate.secondRaw, ref);
+	const first = soleProseBlock(candidate.firstRaw, reading);
+	const second = soleProseBlock(candidate.secondRaw, reading);
 	if (first === null || second === null) return false;
 	// Each half must be a block a reparse keeps. Empty is one; whitespace-only is not, since the
 	// document reads those bytes as a blank line and the pair comes back a different shape.
@@ -308,10 +308,10 @@ export function parsesBack(
 	// the "the screen never showed it" rule is tested here rather than taken on trust.
 	if (candidate.droppedTail !== undefined && candidate.droppedTail.trim() !== '') return false;
 	const whole = renderedText(
-		parseInline(bytes.raw, bytes.contentStart, bytes.contentEnd, ref.current, ref.grammar),
+		readInline(bytes.raw, bytes.contentStart, bytes.contentEnd, reading.resolver, reading.grammar),
 		bytes.raw,
 		CONTENT_VISIBILITY,
-		{ grammar: ref.grammar }
+		{ grammar: reading.grammar }
 	);
 	if (!whole.startsWith(first.visible)) return false;
 	// The line ending the cut landed on is the one character a split legitimately consumes; a
@@ -324,11 +324,13 @@ export function parsesBack(
 
 const isWhitespaceOnly = (visible: string): boolean => visible !== '' && visible.trim() === '';
 
-function soleProseBlock(raw: string, ref: InlineResolverRef): HalfRead | null {
-	const sole = soleProseReparse(raw, ref);
+function soleProseBlock(raw: string, reading: Reading): HalfRead | null {
+	const sole = soleProseReparse(raw, reading);
 	if (sole === null) return null;
 	return {
-		visible: renderedText(sole.nodes, sole.block.raw, CONTENT_VISIBILITY, { grammar: ref.grammar }),
+		visible: renderedText(sole.nodes, sole.block.raw, CONTENT_VISIBILITY, {
+			grammar: reading.grammar
+		}),
 		kinds: constructKinds(sole.nodes)
 	};
 }

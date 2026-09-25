@@ -235,9 +235,9 @@ async function applyContainerMatchingMerge(
 					ownedLeaf,
 					displayBefore + firstItemText + displayAfter + targetLineEnding,
 					lineEnding,
-					ctx.grammar
+					ctx.reading.grammar
 				);
-				rebuildUnsharedChain(ctx.doc, chain, sharing, null, ctx.grammar);
+				rebuildUnsharedChain(ctx.doc, chain, sharing, null, ctx.reading.grammar);
 				return [{ op: 'noop' }];
 			},
 			op: {
@@ -268,7 +268,7 @@ async function applyContainerMatchingMerge(
 				ownedLeaf,
 				displayBefore + firstItemText + targetLineEnding,
 				lineEnding,
-				ctx.grammar
+				ctx.reading.grammar
 			);
 			// The residue can cross a kind boundary (a fence closer landing in a paragraph),
 			// so it reattaches through the reparse path, never a bare write.
@@ -276,7 +276,7 @@ async function applyContainerMatchingMerge(
 				{ children: lastItem.children!, ownerKind: lastItem.kind, owner: lastItem, lineEnding },
 				0,
 				lastDisplay + displayAfter + lastLineEnding,
-				ctx.grammar,
+				ctx.reading.grammar,
 				sharing
 			);
 			// The write's fix-up can splice the item's own body, a list this commit's descriptor
@@ -290,7 +290,7 @@ async function applyContainerMatchingMerge(
 			}
 			// Both rebuilds run before the splice, so the children written to state carry correct
 			// raws in one reactive flush.
-			rebuildUnsharedChain(ctx.doc, chain, sharing, null, ctx.grammar);
+			rebuildUnsharedChain(ctx.doc, chain, sharing, null, ctx.reading.grammar);
 			rebuildContainerRawIfContainer(remainingItems[remainingItems.length - 1]);
 
 			// The siblings land after the merged target, which keeps its own slot.

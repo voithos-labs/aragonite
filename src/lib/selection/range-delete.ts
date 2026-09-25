@@ -5,8 +5,7 @@
  */
 
 import type { GrammarView } from '../schema/block-openers';
-import type { PresentationMode } from '../presentation-mode';
-import type { InlineResolverRef } from '../schema/inline-construct-policy';
+import type { Reading } from '../schema/reading';
 import { metadataOf, type CstNode, type Document } from '../core/nodes';
 import type { SelectionPoint } from './primitives';
 import type { SharingState } from '../tree-operations/sharing';
@@ -60,13 +59,13 @@ function deleteWholeUnit(
 	doc: Document,
 	path: number[],
 	sharing: SharingState,
-	grammar: GrammarView | undefined
+	grammar: GrammarView
 ): RangeDeleteResult {
 	const parentPath = path.slice(0, -1);
 	const index = path[path.length - 1];
 	// Deleted by path, so the commit's id bookkeeping sees the position go.
 	const chain = ensureUnsharedPath(doc, parentPath, sharing);
-	deleteAtPath(doc, path, sharing);
+	deleteAtPath(doc, path, sharing, grammar);
 	if (chain.length > 0) rebuildUnsharedChain(doc, chain, sharing, null, grammar);
 	const survivors = (chain.length > 0 ? chain[chain.length - 1] : doc).children ?? [];
 	const landing = Math.max(0, Math.min(index, survivors.length - 1));
@@ -84,10 +83,9 @@ export function rangeDelete(
 	start: SelectionPoint,
 	end: SelectionPoint,
 	sharing: SharingState,
-	grammar: GrammarView | undefined,
-	presentationMode: PresentationMode | undefined,
-	linkRef: InlineResolverRef
+	reading: Reading
 ): RangeDeleteResult {
+	const { grammar } = reading;
 	const startBlock = blockNodeAt(doc, start.path);
 	const endBlock = blockNodeAt(doc, end.path);
 	if (!startBlock || !endBlock) {
@@ -97,10 +95,10 @@ export function rangeDelete(
 	// A table or a container title line is never merged across: those branches truncate each
 	// endpoint in place instead of joining them.
 	if (involvesTable(startBlock, endBlock)) {
-		return tableAwareRangeDelete(doc, start, end, sharing, grammar, presentationMode, linkRef);
+		return tableAwareRangeDelete(doc, start, end, sharing, reading);
 	}
 	if (involvesReservedChrome(doc, start, end)) {
-		return chromeAwareRangeDelete(doc, start, end, sharing, grammar, presentationMode, linkRef);
+		return chromeAwareRangeDelete(doc, start, end, sharing, reading);
 	}
 
 	const sameBlock = comparePaths(start.path, end.path) === 0;
@@ -140,17 +138,14 @@ export function rangeDelete(
 	// After both write rules and before either consumer: in live mode the runs the truncation
 	// left unpaired, and the pair a join brings back to back, are bytes the user never saw
 	// (live-mode.md § 4.5).
-	const joined = cleanJoinedRaw(
-		{
-			mergedRaw,
-			seam: startOffset,
-			start: { node: startBlock, offset: startOffset },
-			end: { node: endBlock, offset: join.end },
-			linkRef,
-			ambientPrefix: containerAmbientPrefix(doc, start.path)
-		},
-		presentationMode
-	);
+	const joined = cleanJoinedRaw({
+		mergedRaw,
+		seam: startOffset,
+		start: { node: startBlock, offset: startOffset },
+		end: { node: endBlock, offset: join.end },
+		reading,
+		ambientPrefix: containerAmbientPrefix(doc, start.path)
+	});
 
 	if (sameBlock) {
 		// May be nested in a blockquote/list/listItem whose raw depends on this leaf.
@@ -196,9 +191,9 @@ export function rangeDelete(
 		ensureUnsharedPath(doc, path.slice(0, -1), sharing);
 	}
 
-	deleteSubtreesIdentityGated(doc, deletionPaths, lcaPath, sharing);
+	deleteSubtreesIdentityGated(doc, deletionPaths, lcaPath, sharing, grammar);
 
-	installTruncatedEndpoint(doc, start.path, replacement, sharing);
+	installTruncatedEndpoint(doc, start.path, replacement, sharing, grammar);
 
 	rebuildUnsharedAncestry(doc, start.path, sharing, null, grammar);
 	for (const path of deletionPaths) {

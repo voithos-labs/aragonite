@@ -12,6 +12,7 @@ import { dropChildSpans } from '../../schema/child-spans';
 import { createSharingState } from '../../tree-operations/sharing';
 import { rebuildUnsharedChain } from '../../tree-operations/chain-rebuild';
 import { generateDeepNested, generateFixture } from './fixtures/generate';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 // Every row below would otherwise time G1.38's dev-only re-derivation alongside the rebuild
 // it backs up, which is the one thing these numbers must not include.
@@ -35,7 +36,7 @@ function benchAncestryRebuild(
 	const sharing = createSharingState();
 	test(label, { timeout: BENCH_TIMEOUT }, async ({ bench }) => {
 		await bench(label, () => {
-			rebuildUnsharedChain(root, chain, sharing, null, undefined);
+			rebuildUnsharedChain(root, chain, sharing, null, defaultGrammarView);
 		}).run({ warmupIterations: 1, ...opts });
 	});
 }
@@ -87,7 +88,7 @@ describe('ancestry rebuild: interior keystroke, hint vs full', () => {
 		const item = list.children![middle];
 		const chain = [list, item, item.children![0]];
 		const sharing = createSharingState();
-		rebuildUnsharedChain(list, chain, sharing, null, undefined);
+		rebuildUnsharedChain(list, chain, sharing, null, defaultGrammarView);
 		const leaf = chain[2];
 		let longer = false;
 		const label = `rebuild interior of a 1MB list (${hinted ? 'spliced' : 'full'})`;
@@ -107,7 +108,7 @@ describe('ancestry rebuild: interior keystroke, hint vs full', () => {
 					chain,
 					sharing,
 					null,
-					undefined,
+					defaultGrammarView,
 					hinted ? { path, leafPreviousRaw } : undefined
 				);
 			}).run({ warmupIterations: 1, iterations: 20 });

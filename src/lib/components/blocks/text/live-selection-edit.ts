@@ -7,8 +7,7 @@
  */
 
 import type { NodeView } from '../../../core/node-views';
-import type { PresentationMode } from '../../../presentation-mode';
-import type { InlineResolverRef } from '../../../schema/inline-construct-policy';
+import type { Reading } from '../../../schema/reading';
 import {
 	snapToScalarBoundary,
 	trailingLineEnding,
@@ -50,25 +49,17 @@ export function resolveLiveRangeEdit(
 	node: NodeView,
 	cursor: LiveEditCursor,
 	lineEnding: LineEnding,
-	presentationMode: PresentationMode | undefined,
-	linkRef: InlineResolverRef,
+	reading: Reading,
 	ambientPrefix = ''
 ): LiveRangeEdit | null {
-	if (presentationMode !== 'live' || !rewritesTargetRange(e)) return null;
+	if (!reading.hidesDelimitersAtCaret() || !rewritesTargetRange(e)) return null;
 	const range = pendingEditRange(e, cursor);
 	if (!range) return null;
 	const insert = replacementText(e);
 	if (range.start === range.end) {
 		return parkedCaretInsertion(node, cursor, range.start, insert, lineEnding);
 	}
-	const edit = resolveSelectionEdit(
-		node,
-		range,
-		insert ?? '',
-		presentationMode,
-		linkRef,
-		ambientPrefix
-	);
+	const edit = resolveSelectionEdit(node, range, insert ?? '', reading, ambientPrefix);
 	if (!edit) return null;
 	return insert === null
 		? { kind: 'swallow' }
@@ -115,22 +106,13 @@ export function applyLiveRangeEdit(
 	node: NodeView,
 	cursor: LiveEditCursor,
 	lineEnding: LineEnding,
-	presentationMode: PresentationMode | undefined,
-	linkRef: InlineResolverRef,
+	reading: Reading,
 	ambientPrefix: string,
 	isRevealing: () => boolean,
 	commit: (edit: LiveRangeRewrite) => void
 ): boolean {
 	if (isRevealing()) return false;
-	const edit = resolveLiveRangeEdit(
-		e,
-		node,
-		cursor,
-		lineEnding,
-		presentationMode,
-		linkRef,
-		ambientPrefix
-	);
+	const edit = resolveLiveRangeEdit(e, node, cursor, lineEnding, reading, ambientPrefix);
 	if (!edit) return false;
 	e.preventDefault();
 	if (edit.kind === 'rewrite') commit(edit);
@@ -146,8 +128,7 @@ export function resolveSelectionEdit(
 	node: NodeView,
 	selection: { start: number; end: number },
 	typed: string,
-	presentationMode: PresentationMode | undefined,
-	linkRef: InlineResolverRef,
+	reading: Reading,
 	ambientPrefix = ''
 ): SelectionEdit | null {
 	// Both ends off any scalar interior before the slice: a half-pair here is unrecoverable
@@ -158,18 +139,15 @@ export function resolveSelectionEdit(
 	const mergedRaw = node.raw.slice(0, start) + node.raw.slice(end);
 	// `typed` goes in at the join rather than being spliced past it: the bytes the cleanup checks
 	// have to be the bytes this returns, or the flanking it checked is not the one that ships.
-	const joined = cleanJoinedRaw(
-		{
-			mergedRaw,
-			seam: start,
-			start: { node, offset: start },
-			end: { node, offset: end },
-			linkRef,
-			typed,
-			ambientPrefix
-		},
-		presentationMode
-	);
+	const joined = cleanJoinedRaw({
+		mergedRaw,
+		seam: start,
+		start: { node, offset: start },
+		end: { node, offset: end },
+		reading,
+		typed,
+		ambientPrefix
+	});
 	if (joined.raw === mergedRaw) return null;
 	// The insert lands where the two sides now meet: the cleanup runs on the delete half, and the
 	// commit's own reparse works out what the new bytes make of it.
@@ -187,19 +165,11 @@ export function replaceRangeRaw(
 	node: NodeView,
 	range: { start: number; end: number },
 	typed: string,
-	presentationMode: PresentationMode | undefined,
-	linkRef: InlineResolverRef,
+	reading: Reading,
 	ambientPrefix: string,
 	lineEnding: LineEnding
 ): SelectionEdit {
-	const cleaned = resolveSelectionEdit(
-		node,
-		range,
-		typed,
-		presentationMode,
-		linkRef,
-		ambientPrefix
-	);
+	const cleaned = resolveSelectionEdit(node, range, typed, reading, ambientPrefix);
 	if (cleaned) return cleaned;
 	const display = trimTrailingLineEnding(node.raw);
 	return {

@@ -18,7 +18,7 @@ import {
 import { tableAwareRangeDelete } from '../../selection/range-delete-table';
 import { createSharingState } from '../../tree-operations/sharing';
 import type { CellSelectionPoint, SelectionPoint } from '../../selection/primitives';
-import { fixtureLinkRef } from '../harness/fixture-grammar';
+import { fixtureReading } from '../harness/fixture-grammar';
 
 beforeEach(() => registerLiveJoinSeamCleaner(cleanLiveJoinSeam));
 afterEach(() => __resetLiveJoinSeamCleanerForTests());
@@ -39,9 +39,7 @@ function run(source: string, start: SelectionPoint, end: SelectionPoint, mode?: 
 		start,
 		end,
 		createSharingState(),
-		undefined,
-		mode,
-		fixtureLinkRef()
+		fixtureReading({}, mode)
 	);
 	return { source: serialize(result.newDoc), caret: result.collapsedCaret };
 }

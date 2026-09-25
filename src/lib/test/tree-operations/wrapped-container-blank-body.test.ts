@@ -10,6 +10,7 @@ import { makeNestedHarness } from '$lib/test/harness/editor-actions';
 import { registerCalloutKind } from '../../../routes/test/plugins/callout/callout-kind';
 import { expectParseConverged } from '../harness/parse-converged';
 import type { CstNode } from '$lib/core/nodes';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 // GH #130: emptying every body block of a fenced container leaves a blank run that is the whole
 // body, and the reload strips a line into both `innerPrefix` and `innerSuffix` before it makes
@@ -27,7 +28,8 @@ function emptyBodyChild(container: CstNode, at: number): void {
 			lineEnding: firstLineEnding(container.raw) ?? '\n'
 		},
 		at,
-		trailingLineEnding(container.children![at].raw, '\n')
+		trailingLineEnding(container.children![at].raw, '\n'),
+		defaultGrammarView
 	);
 	rebuildAncestryRaw(container, []);
 }

@@ -4,8 +4,7 @@ import { assertSingleNodeSink, mergeWithNext } from '$lib/tree-operations';
 import type { CstNode } from '$lib/core/nodes';
 import { parse } from '$lib/core/parser';
 import { takeDevWarns } from '$lib/test/support/warn-gate';
-import { defaultGrammarView } from '$lib/schema/block-openers';
-import { fixtureLinkRef } from '../harness/fixture-grammar';
+import { fixtureReading } from '../harness/fixture-grammar';
 
 // G1.35 asks its question at the write, over the nodes a one-block write target is installing.
 // Miss-analysis: the check took `installed` as `count <= 1` from both call sites, so it was always
@@ -41,17 +40,13 @@ describe('G1.35 single-node sink', () => {
 	// node, however many arrived (GH #166's join reads as two blocks and is declined).
 	it('stays silent through the merge entry points, refused join included', () => {
 		const plural = parse('# h\ntext\nmore\n');
-		expect(
-			mergeWithNext(plural, 0, undefined, fixtureLinkRef(), defaultGrammarView).change
-		).toEqual({
+		expect(mergeWithNext(plural, 0, fixtureReading()).change).toEqual({
 			op: 'noop'
 		});
 		expect(takeDevWarns()).toEqual([]);
 
 		const ordinary = parse('alpha\n\nbeta\n');
-		expect(
-			mergeWithNext(ordinary, 0, undefined, fixtureLinkRef(), defaultGrammarView).change.op
-		).toBe('replace');
+		expect(mergeWithNext(ordinary, 0, fixtureReading()).change.op).toBe('replace');
 		expect(takeDevWarns()).toEqual([]);
 	});
 });

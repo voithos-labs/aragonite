@@ -9,6 +9,7 @@ import { updateNodeContent } from '$lib/tree-operations';
 import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
 import { settled } from '$lib/test/harness/settle-funnel';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 // A list item's or footnote's body ends where its indentation ends, so an emptied last block's
 // own line is written with the body's indent and reloads as the empty paragraph it is (GH #406).
@@ -43,7 +44,8 @@ function empty(doc: Document, path: number[]): void {
 			lineEnding: documentLineEnding(doc)
 		},
 		index,
-		text
+		text,
+		defaultGrammarView
 	);
 	for (let i = chain.length - 1; i >= 0; i--) {
 		getBlockKindDescriptor(chain[i].kind).rebuildRaw?.(chain[i]);
@@ -88,7 +90,7 @@ describe('blanking the last block of an indent-delimited body', () => {
 	])('indenting the blank line under %s takes it into the body', (_, source, typed) => {
 		const doc = parse(source);
 
-		settled(doc, () => updateNodeContent(doc, 1, typed).change);
+		settled(doc, () => updateNodeContent(doc, 1, typed, defaultGrammarView).change);
 
 		expect(doc.children).toHaveLength(2);
 		expect(describeConvergence(doc)).toBeNull();

@@ -12,7 +12,7 @@ import {
 	createSlashSource,
 	type SlashCommandsOptions
 } from '$lib/plugins/slash-commands/slash-source';
-import { fixtureLinkRef } from '../../harness/fixture-grammar';
+import { fixtureReading } from '../../harness/fixture-grammar';
 
 const entry = (id: string, label: string, keywords: string[], markdown: string): InsertEntry => ({
 	id,
@@ -60,7 +60,7 @@ export function slashHarness(initial: string, options: SlashCommandsOptions = {}
 		getMode: () => 'source',
 		events,
 		editorId: 'editor-slash',
-		linkRef: fixtureLinkRef(),
+		reading: fixtureReading(),
 		commitRange: async (path, start, end, bytes) => {
 			write(raw().slice(0, start) + bytes + raw().slice(end));
 			events.emit('edit', typedEdit(path));

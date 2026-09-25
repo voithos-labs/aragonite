@@ -8,7 +8,6 @@ import { resetPluginPlatformForTests } from '$lib/testing';
 import { definePlugin, installPlugins } from '$lib/schema/plugin-install';
 import { declarePluginKind } from '$lib/schema/plugin-kind';
 import { activationFor, type PluginActivation } from '$lib/schema/plugin-activation';
-import { defaultRegistryView } from '$lib/schema/registry-view';
 import { registerPasteTransform } from '$lib/tree-operations/paste/paste-transforms';
 import { getPasteSurface, registerPasteSurface } from '$lib/tree-operations/paste-surfaces';
 import { defaultInlineHook } from '$lib/tree-operations/paste/hooks';
@@ -20,7 +19,7 @@ import { makeEditorActionsDeps, makeStubBlockEdit } from '$lib/test/harness/edit
 import type { CstNode } from '$lib/core/nodes';
 import type { BlockComponent } from '$lib/block-component';
 import type { Component } from 'svelte';
-import { pasteSeam } from '../harness/fixture-grammar';
+import { fixtureReading } from '../harness/fixture-grammar';
 
 const KIND = 'stamp-note';
 const LEAF = 'stamp-title';
@@ -41,7 +40,7 @@ const stampPlugin = definePlugin({
 			kind,
 			onInlinePaste(node, offset, text) {
 				ran.push('surface');
-				return defaultInlineHook(node, offset, text, undefined, pasteSeam());
+				return defaultInlineHook(node, offset, text, undefined, fixtureReading(), '\n');
 			}
 		});
 		registerChromeLeaf(declarePluginKind(LEAF), {} as Component<object, BlockComponent>);
@@ -64,7 +63,7 @@ async function pasteUnder(activePlugins: PluginActivation): Promise<string[]> {
 			doc: deps.doc,
 			blockEdit: makeStubBlockEdit(),
 			controller: createPasteCoordinator(createUndoController(deps), deps.revealPath),
-			grammar: defaultRegistryView.grammar,
+			reading: fixtureReading(),
 			activePlugins
 		}
 	);

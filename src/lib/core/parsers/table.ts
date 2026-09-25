@@ -81,7 +81,7 @@ export function tableTakesLine(
 	lines: ParsedLine[],
 	index: number,
 	end: number,
-	grammar: GrammarView | undefined
+	grammar: GrammarView
 ): boolean {
 	const line = lines[index];
 	return (

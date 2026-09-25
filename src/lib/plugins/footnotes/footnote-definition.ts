@@ -14,7 +14,7 @@ import {
 	getPluginMetadata,
 	isBlankLine,
 	lineStartsOuterBlock,
-	parse,
+	parseContainerBody,
 	registerBlockComponent,
 	registerBlockKind,
 	registerBlockOpener,
@@ -96,8 +96,9 @@ function tryOpen(ctx: OpenContext): BlockOpenerResult | null {
 	const stripped = defLines
 		.map((line, i) => line.raw.replace(i === 0 ? MARKER_STRIP : CONTINUATION_INDENT, ''))
 		.join('');
-	// A fresh parse entry, so the body's own line 0 must not read as the document top.
-	const body = parse(stripped, { scope: 'fragment', grammar: ctx.grammar });
+	// A fresh parse entry, so the body's own line 0 must not read as the document top. The body has
+	// no fence lines of its own, so no blank line is set aside from it.
+	const body = parseContainerBody(stripped, {}, { scope: 'fragment', grammar: ctx.grammar });
 
 	const node: CstNode = {
 		kind: declaredPluginKind(FOOTNOTE_DEF_KIND),

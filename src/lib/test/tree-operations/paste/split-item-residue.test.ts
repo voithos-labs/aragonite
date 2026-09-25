@@ -13,6 +13,7 @@ import { describeConvergence } from '$lib/test/harness/parse-converged';
 import { buildListBreakOutReplacement } from '$lib/tree-operations/paste/list-break-out';
 import type { Document } from '$lib/core/nodes';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 // A paste that splits a list item gives the text after the caret an item of its own, whose first
 // block sits on the new marker line. Indented code there reads as a wider marker, so the reload
@@ -64,7 +65,16 @@ describe('the text after the caret, split into an item of its own', () => {
 	it('opens on the line after an empty marker when the list breaks out', () => {
 		const list = parse('1. abc\n       code\n').children[0];
 		const pasted = parse('- x\n').children;
-		const { replacement } = buildListBreakOutReplacement(list, 0, 0, 3, pasted, '\n');
+		const { replacement } = buildListBreakOutReplacement(
+			list,
+			0,
+			0,
+			3,
+			pasted,
+			'\n',
+			undefined,
+			defaultGrammarView
+		);
 		const secondHalf = replacement[replacement.length - 1];
 		const alone: Document = { kind: 'document', prefix: '', children: [secondHalf], suffix: '' };
 

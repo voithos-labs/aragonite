@@ -90,7 +90,7 @@ async function handleCrossBlockActive(
 	// Extend/collapse/copy stay live in reading mode; these two branches delete.
 	if (e.key === 'Backspace' || e.key === 'Delete') {
 		e.preventDefault();
-		if (isReadingMode(ctx.getPresentationMode)) return true;
+		if (isReadingMode(ctx.reading.mode)) return true;
 		await performCrossBlockDelete(mutCtx, { tableCoverageDelete: true });
 		return true;
 	}
@@ -101,14 +101,14 @@ async function handleCrossBlockActive(
 	// which are declined.
 	if (isClaimedRewriteChord(e)) {
 		e.preventDefault();
-		if (isReadingMode(ctx.getPresentationMode)) return true;
+		if (isReadingMode(ctx.reading.mode)) return true;
 		await dispatchOverRange(ctx, e, myPath);
 		return true;
 	}
 
 	if (isCommandCandidateKey(e)) {
 		e.preventDefault();
-		if (isReadingMode(ctx.getPresentationMode)) return true;
+		if (isReadingMode(ctx.reading.mode)) return true;
 		// Mount the delete's own caret, not the pre-delete start path: `rangeDelete` returns the
 		// post-delete position, and for a table endpoint that is the [table, row, col] cell whose
 		// `runCommand` exists (the wrapper path has none).
@@ -127,7 +127,7 @@ async function handleCrossBlockActive(
 					history: ctx.history,
 					pluginEditor: ctx.pluginEditor,
 					activation: ctx.activePlugins,
-					getPresentationMode: ctx.getPresentationMode,
+					getPresentationMode: ctx.reading.mode,
 					isCrossBlockRange: () => selection.isCrossBlock,
 					crossBlockCommands: ctx.crossBlockCommands
 				},
@@ -153,9 +153,23 @@ async function handleCrossBlockActive(
 			if (ext.kind === 'cell') {
 				selection.extendFocus({ path: selection.focus!.path.slice(), offset: ext.offset });
 			} else if (ext.direction === 'forward') {
-				extendFocusToNextBlock(selection, doc, el, ext.fromCellPath, 'vertical');
+				extendFocusToNextBlock(
+					selection,
+					doc,
+					ctx.reading.grammar,
+					el,
+					ext.fromCellPath,
+					'vertical'
+				);
 			} else {
-				extendFocusToPreviousBlock(selection, doc, el, ext.fromCellPath, 'start');
+				extendFocusToPreviousBlock(
+					selection,
+					doc,
+					ctx.reading.grammar,
+					el,
+					ext.fromCellPath,
+					'start'
+				);
 			}
 			await revealActiveEndpoint(ctx);
 			return true;
@@ -167,7 +181,15 @@ async function handleCrossBlockActive(
 		const focusPath = selection.focus?.path ?? myPath;
 		const focusEl = getBlockElByPath(focusPath) ?? el;
 		const axis = e.key === 'ArrowDown' ? ('vertical' as const) : ('horizontal' as const);
-		extendFocusToNextBlock(selection, doc, focusEl, focusPath, axis, getBlockElByPath);
+		extendFocusToNextBlock(
+			selection,
+			doc,
+			ctx.reading.grammar,
+			focusEl,
+			focusPath,
+			axis,
+			getBlockElByPath
+		);
 		await revealActiveEndpoint(ctx);
 		return true;
 	}
@@ -176,7 +198,15 @@ async function handleCrossBlockActive(
 		const focusPath = selection.focus?.path ?? myPath;
 		const focusEl = getBlockElByPath(focusPath) ?? el;
 		const side = e.key === 'ArrowUp' ? ('start' as const) : ('end' as const);
-		extendFocusToPreviousBlock(selection, doc, focusEl, focusPath, side, getBlockElByPath);
+		extendFocusToPreviousBlock(
+			selection,
+			doc,
+			ctx.reading.grammar,
+			focusEl,
+			focusPath,
+			side,
+			getBlockElByPath
+		);
 		await revealActiveEndpoint(ctx);
 		return true;
 	}
@@ -257,7 +287,7 @@ async function dispatchOverRange(
 			history: ctx.history,
 			pluginEditor: ctx.pluginEditor,
 			activation: ctx.activePlugins,
-			getPresentationMode: ctx.getPresentationMode,
+			getPresentationMode: ctx.reading.mode,
 			isCrossBlockRange: () => ctx.selection.isCrossBlock,
 			crossBlockCommands: ctx.crossBlockCommands
 		},
@@ -371,6 +401,7 @@ async function handleDocEdgeExtend(
 	extendFocusToDocEdge(
 		ctx.selection,
 		ctx.getDoc(),
+		ctx.reading.grammar,
 		el,
 		ctx.getMyPath(),
 		direction,
@@ -389,7 +420,7 @@ function handleCompositionStart(
 	ctx.stickyColumn.reset();
 	ctx.edgeAffinity.reset();
 	if (!ctx.selection.isCrossBlock) return false;
-	if (isReadingMode(ctx.getPresentationMode)) return false;
+	if (isReadingMode(ctx.reading.mode)) return false;
 	performCrossBlockDeleteSync(mutCtx);
 	return true;
 }

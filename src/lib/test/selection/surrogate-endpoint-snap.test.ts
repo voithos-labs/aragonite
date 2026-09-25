@@ -13,7 +13,7 @@ import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import { createSharingState } from '../../tree-operations/sharing';
 import type { Document } from '../../core/nodes';
-import { fixtureLinkRef } from '../harness/fixture-grammar';
+import { fixtureReading } from '../harness/fixture-grammar';
 
 /** 'a' + U+1F466 (a surrogate pair at offsets 1–2) + 'b'. */
 const BOY = 'a\u{1F466}b\n\ntail\n';
@@ -42,9 +42,7 @@ function deleteAcross(doc: Document, startOffset: number, endOffset: number): st
 		state.start!,
 		state.end!,
 		createSharingState(),
-		undefined,
-		undefined,
-		fixtureLinkRef()
+		fixtureReading()
 	);
 	return serialize(newDoc);
 }

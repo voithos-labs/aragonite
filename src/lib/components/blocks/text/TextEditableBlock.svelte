@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { getContext, tick, untrack } from 'svelte';
 	import { CURSOR_START, type AmbientPrefix, type BlockComponent } from '../../../block-component';
-	import { parse } from '../../../core/parser';
+	import { readBlocks } from '../../../core/parser';
 	import { ambientHoldsTaskBox } from '../list/task-checkbox';
 	import { shownKind } from '../../kind-cue.svelte';
 	import type { DocumentView, NodeView } from '../../../core/node-views';
@@ -21,7 +21,6 @@
 	import { getContentRange, isProseKind, undrawnSuffix } from '../../../core/inline';
 	import { devWarn } from '../../../dev-warn';
 	import { resolvedInlineContent } from '../../../core/inline/inline-cache';
-	import type { LinkReferenceResolver } from '../../../core/inline/link-reference-resolver';
 	import { isInlineWidget } from '../../../core/inline/inline-widgets';
 	import {
 		documentLineEnding,
@@ -59,7 +58,6 @@
 	import { createCompositionSeat } from './composition-seat';
 	import { createConstructReveal } from './construct-reveal';
 	import { assertInvariant } from '../../../assert';
-	import { paintsFocusedMarkers } from '../../../presentation-mode';
 	import { widgetElByStart } from './widget-adjacency';
 	import {
 		caretLandableBounds,
@@ -145,11 +143,11 @@
 		selection,
 		getDoc,
 		getEditorRoot,
-		grammar,
 		activePlugins,
 		events: editorEvents,
-		linkRef
+		reading
 	} = wiring.deps;
+	const { grammar } = reading;
 	// A block with no line ending of its own is the document's last line; a write gives it the
 	// document's.
 	const documentEnding = () => documentLineEnding(getDoc());
@@ -173,13 +171,11 @@
 		resolveLinkUrl,
 		imageLoadPolicy,
 		brokenImageUrls: brokenUrlCache,
-		presentationMode: getPresentationMode,
 		theme: getTheme,
 		onPasteImage
 	} = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
 	const { contentVersion: getContentVersion } = getContext<EditorDoc>(EDITOR_DOC_KEY);
-	const presentationMode = $derived(getPresentationMode?.() ?? 'source');
-	const readOnly = $derived(presentationMode === 'reading');
+	const readOnly = $derived(reading.mode() === 'reading');
 	const combobox = $derived(inlineMenuCombobox(myPath));
 
 	/** What the link card is asked about here, the same shape a table cell passes: `range` is the
@@ -188,8 +184,7 @@
 		contentEl,
 		block: node,
 		path: myPath,
-		linkRef,
-		mode: presentationMode,
+		reading,
 		selection: range,
 		crossBlockRange: selection.isCrossBlock
 	});
@@ -264,7 +259,6 @@
 			composing = value;
 		},
 		setPendingCursor: (offset) => setPendingCursorOffset(offset, 'surface'),
-		getPresentationMode: () => presentationMode,
 		getFocusOffset: () => (el ? selectionFocusWalkOffset(el, ambientLength) : null),
 		getTextLen: () => caretReach(),
 		readText: () => readRawText(),
@@ -291,7 +285,6 @@
 	const sharedCtx = editableSurface.sharedCtx;
 
 	const widgetInteraction = createWidgetInteraction({
-		grammar,
 		getLineEnding: documentEnding,
 		get node() {
 			return node;
@@ -318,9 +311,8 @@
 			revealing = value;
 		},
 		isCrossBlock: () => selection.isCrossBlock,
-		getPresentationMode: () => presentationMode,
-		get linkRef() {
-			return linkRef;
+		get reading() {
+			return reading;
 		}
 	});
 
@@ -344,7 +336,6 @@
 		edgeAffinity,
 		blockEdit,
 		pasteCoordinator,
-		grammar,
 		activePlugins,
 		getDoc,
 		widgetSelection,
@@ -354,11 +345,10 @@
 		isReadOnly: () => readOnly,
 		foldRevealBeforeMutation: () => widgetInteraction.foldRevealBeforeMutation(),
 		isRevealing: () => widgetInteraction.isRevealing(),
-		getPresentationMode: () => presentationMode,
 		getAmbientPrefix: () => ambientPrefixText,
 		readRevealedText: () => readRawText(),
-		get linkRef() {
-			return linkRef;
+		get reading() {
+			return reading;
 		}
 	});
 
@@ -367,19 +357,17 @@
 		get node() {
 			return node;
 		},
-		get linkRef() {
-			return linkRef;
+		get reading() {
+			return reading;
 		},
 		getEl: () => el ?? null,
 		getAmbientLength: () => ambientLength,
-		getPresentationMode: () => presentationMode,
 		isCrossBlock: () => selection.isCrossBlock
 	});
 
 	// The one caret-edge dispatch (G4.12); entry execution stays at
 	// `widgetInteraction.enterWidget`.
 	const edgeDispatch = createEdgePolicyDispatch({
-		grammar,
 		getLineEnding: documentEnding,
 		get node() {
 			return node;
@@ -390,8 +378,8 @@
 		get containerParent() {
 			return blockNodeAt(getDoc(), myPath.slice(0, -1));
 		},
-		get linkRef() {
-			return linkRef;
+		get reading() {
+			return reading;
 		},
 		getEl: () => el ?? null,
 		getAmbientLength: () => ambientLength,
@@ -418,9 +406,8 @@
 	// The same placement rules the keydown dispatch uses, for the one insertion it cannot reach.
 	const compositionSeat = createCompositionSeat({
 		getDisplayText: () => getDisplayText(),
-		getInlines: () => resolvedInlineContent(node, linkRef),
-		getResolver: () => linkRef?.current,
-		grammar,
+		getInlines: () => resolvedInlineContent(node, reading),
+		reading,
 		getAffinity: () => edgeAffinity.get(),
 		getScreen: () => screenVisibilityOf(el ?? null),
 		consumePendingMarks: () => pendingMarks.consume(),
@@ -429,14 +416,7 @@
 		// The same join rules `handleLiveSelectionEdit` uses, in the displayed bytes this
 		// returns (`commitInput` re-appends the trailing line ending).
 		resolveRangeEdit: (range, typed) => {
-			const edit = resolveSelectionEdit(
-				node,
-				range,
-				typed,
-				presentationMode,
-				linkRef,
-				ambientPrefixText
-			);
+			const edit = resolveSelectionEdit(node, range, typed, reading, ambientPrefixText);
 			return edit && { raw: trimTrailingLineEnding(edit.raw), caret: edit.caret };
 		}
 	});
@@ -460,20 +440,11 @@
 		get imageLoadPolicy() {
 			return imageLoadPolicy();
 		},
-		get presentationMode() {
-			return presentationMode;
-		},
+		reading,
 		getTheme,
 		getDocument: () => getDoc(),
 		getContentVersion,
 		navigateTo: (path) => rects?.navigateTo(path) ?? Promise.resolve(false),
-		get linkResolver(): LinkReferenceResolver | undefined {
-			return linkRef?.current;
-		},
-		get linkStamp(): string {
-			return String(linkRef?.epoch ?? 0);
-		},
-		grammar,
 		get islands() {
 			return decorationEngine ? decorationEngine.islandsForPath(myPath) : NO_ISLANDS;
 		},
@@ -611,7 +582,7 @@
 						// Text after a task box is the to-do's own text, so a written `# ` would stay
 						// text there; replacing the block makes the heading and gives the box up.
 						if (ambientHoldsTaskBox(ambientPrefix)) {
-							const heading = parse(cycled.newRaw, { grammar, scope: 'fragment' }).children;
+							const heading = readBlocks(cycled.newRaw, { grammar, scope: 'fragment' }).children;
 							const focus = { replacementIndex: 0, offset: cycled.caretOffset };
 							void blockEdit.replaceBlock(index, heading, focus, { snapshotOffset: offset });
 							return;
@@ -668,7 +639,7 @@
 		const caret = cursor.getRaw() ?? 0;
 		const selection = cursor.getRawSelection() ?? { start: caret, end: caret };
 		return formatActive(
-			{ display: getDisplayText(), content: getContentRange(node), selection, linkRef },
+			{ display: getDisplayText(), content: getContentRange(node), selection, reading },
 			marked.kind
 		);
 	}
@@ -816,7 +787,7 @@
 		// paints one of its own under it, however the range was entered.
 		if (lastSnapTargetOffset === null || selection.isCrossBlock) return;
 		const off = lastSnapTargetOffset;
-		for (const inline of resolvedInlineContent(node, linkRef)) {
+		for (const inline of resolvedInlineContent(node, reading)) {
 			if (!isInlineWidget(inline, node.raw, grammar)) continue;
 			if (inline.end !== off && inline.start !== off) continue;
 			const widget = widgetElByStart(el, inline.start);
@@ -946,8 +917,7 @@
 			node,
 			cursor,
 			documentEnding(),
-			presentationMode,
-			linkRef,
+			reading,
 			ambientPrefixText,
 			widgetInteraction.isRevealing,
 			(edit) => {
@@ -967,13 +937,12 @@
 			hasSelection: () => cursor.getRawSelection() !== null,
 			isRevealing: widgetInteraction.isRevealing,
 			foldReveal: () => widgetInteraction.foldRevealBeforeMutation(),
-			markersPaint: () => paintsFocusedMarkers(presentationMode),
 			setCaret: (offset) => cursor.setRaw(asRawOffset(offset)),
 			seatOutside: edgeAffinity.noteExtreme,
 			completesLine: (caret) =>
 				planTypedCompletion(node, caret, grammar, documentEnding()) !== null,
-			keepsBlockKind: (text) => keepsBlockKind(node, text, grammar),
-			linkRef,
+			keepsBlockKind: (text) => keepsBlockKind(node, text, reading),
+			reading,
 			ownPairs,
 			write: (text, caretBefore, caretAfter) => {
 				const raw = text + blockEnding();
@@ -1079,7 +1048,7 @@
 		// user can see the effect of but not explain, so the mark waits and the next insertion
 		// carries it (live-mode.md § 4.3). The preview modes show the markers of the block the
 		// caret is in, so there the pair is visible and the bytes are written.
-		if (!paintsFocusedMarkers(presentationMode) && range.start === range.end) {
+		if (reading.hidesDelimitersAtCaret() && range.start === range.end) {
 			// The insertion that spends the mark starts its own undo entry, so it is never
 			// folded into the burst the chord interrupted.
 			controller.flushDebouncedCheckpoint();
@@ -1092,10 +1061,9 @@
 				display: getDisplayText(),
 				content: getContentRange(node),
 				selection: range,
-				linkRef
+				reading
 			},
-			format,
-			presentationMode
+			format
 		);
 		if (!toggled) return;
 		const { newDisplay, newSelStart, newSelEnd } = toggled;

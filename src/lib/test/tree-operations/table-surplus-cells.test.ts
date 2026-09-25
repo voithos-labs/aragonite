@@ -23,7 +23,7 @@ import { sliceTableAtRow } from '$lib/tree-operations/paste/table-slice';
 import { rangeDelete } from '$lib/selection/range-delete';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
-import { fixtureLinkRef } from '../harness/fixture-grammar';
+import { fixtureReading } from '../harness/fixture-grammar';
 import { documentLineEnding } from '$lib/core/lines';
 
 const WIDE = '| H0 |\n| --- |\n| x | y |\n';
@@ -40,7 +40,8 @@ function typeInCell(doc: Document, row: number, col: number, text: string): void
 			lineEnding: documentLineEnding(doc)
 		},
 		col,
-		text
+		text,
+		defaultGrammarView
 	);
 	rebuildUnsharedChain(doc, [table, holder], createSharingState(), null, defaultGrammarView);
 }
@@ -146,15 +147,7 @@ describe('the table’s structural edits keep them', () => {
 			{ path: [1], offset: 0 }
 		];
 
-		rangeDelete(
-			doc,
-			start,
-			end,
-			createSharingState(),
-			defaultGrammarView,
-			undefined,
-			fixtureLinkRef()
-		);
+		rangeDelete(doc, start, end, createSharingState(), fixtureReading());
 		// The end is given in cells, the unit the selection snaps a table endpoint to.
 		allowDevWarns(['deleteFromProseIntoTable:end']);
 

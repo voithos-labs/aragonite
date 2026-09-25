@@ -30,7 +30,7 @@ export function buildPastedReplacement(
 	offset: number,
 	blocks: CstNode[],
 	ending: LineEnding,
-	grammar?: GrammarView
+	grammar: GrammarView
 ): PastedReplacement {
 	if (blocks.length === 0) return { nodes: [], lastPastedIndex: -1 };
 

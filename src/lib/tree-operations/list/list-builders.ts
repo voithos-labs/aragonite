@@ -13,7 +13,7 @@ import { cloneMetadata, cloneNode } from '../clone';
 import { parseCutResidue, parseFirstBlock } from '../parse-block';
 import { renumberOrderedListFrom } from './ordered-markers';
 import { assignIds } from '../../block-id';
-import { parse } from '../../core/parser';
+import { readBlocks } from '../../core/parser';
 import { emptyParagraph } from '../node-primitives';
 import type { GrammarView } from '../../schema/block-openers';
 
@@ -118,7 +118,7 @@ export function splitLeafForPaste(
 	offset: number,
 	ending: LineEnding,
 	raw: string = leaf.raw,
-	grammar?: GrammarView
+	grammar: GrammarView
 ): { leadingNode: CstNode | null; trailingNodes: CstNode[]; lineEnding: LineEnding } {
 	const lineEnding = trailingLineEnding(raw, ending);
 	const display = trimTrailingLineEnding(raw);
@@ -146,8 +146,8 @@ export function buildSplitItems(
 	innerIndex: number,
 	offset: number,
 	ending: LineEnding,
-	targetRaw?: string,
-	grammar?: GrammarView
+	targetRaw: string | undefined,
+	grammar: GrammarView
 ): { leadingItem: CstNode | null; trailingItem: CstNode | null } {
 	if (!item.children) return { leadingItem: null, trailingItem: null };
 	const targetLeaf = item.children[innerIndex];
@@ -188,7 +188,7 @@ function trailingItemFor(
 	template: CstNode,
 	children: CstNode[],
 	lineEnding: LineEnding,
-	grammar?: GrammarView
+	grammar: GrammarView
 ): CstNode {
 	const onMarkerLine = buildListItemWithContent(template, children);
 	if (readsBackAsBuilt(onMarkerLine, grammar)) return onMarkerLine;
@@ -200,8 +200,8 @@ function trailingItemFor(
 }
 
 /** Whether `item`'s bytes, read alone, give back one item holding the same blocks. */
-function readsBackAsBuilt(item: CstNode, grammar?: GrammarView): boolean {
-	const blocks = parse(item.raw, { grammar, scope: 'fragment' }).children;
+function readsBackAsBuilt(item: CstNode, grammar: GrammarView): boolean {
+	const blocks = readBlocks(item.raw, { grammar, scope: 'fragment' }).children;
 	const list = blocks.length === 1 && blocks[0].kind === 'list' ? blocks[0] : null;
 	const read = list?.children?.length === 1 ? list.children[0] : null;
 	const built = item.children ?? [];

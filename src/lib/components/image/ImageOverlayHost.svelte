@@ -1,9 +1,7 @@
 <script lang="ts">
 	import { getContext, untrack } from 'svelte';
 	import type { Document, ImageFields } from '../../core/nodes';
-	import type { PresentationMode } from '../../presentation-mode';
 	import type { UndoController } from '../../editor-actions/deps';
-	import type { GrammarView } from '../../schema/block-openers';
 	import { EDITOR_DOC_KEY, type EditorDoc } from '../../editor-keys';
 	import type { EditorEvents } from '../../editor-events';
 	import { installWidgetRangePainter } from '../../selection/widget-range-paint';
@@ -28,8 +26,6 @@
 		getContentVersion,
 		getEditorEl,
 		getSelectionIsCustomRendered,
-		getPresentationMode,
-		grammar,
 		lifetime,
 		menuPresence
 	}: {
@@ -40,9 +36,7 @@
 		getContentVersion: () => number;
 		getEditorEl: () => HTMLElement | null;
 		getSelectionIsCustomRendered: () => boolean;
-		getPresentationMode: () => PresentationMode;
 		menuPresence: MenuPresence;
-		grammar: GrammarView;
 		lifetime: AbortSignal;
 	} = $props();
 
@@ -50,7 +44,7 @@
 	// While cropping, the pointer over the image belongs to the crop; the handle stands aside.
 	let cropping = $state(false);
 
-	const { linkRef } = getContext<EditorDoc>(EDITOR_DOC_KEY);
+	const { reading } = getContext<EditorDoc>(EDITOR_DOC_KEY);
 
 	// Props are stable for the editor's lifetime, so capturing once is deliberate:
 	// reactive values already come in as getters.
@@ -61,8 +55,7 @@
 		widgetSelection,
 		controller,
 		events,
-		linkRef,
-		grammar
+		reading
 	});
 
 	$effect(() => {
@@ -112,7 +105,7 @@
 
 <!-- Selecting an image stays available in reading mode; the overlay is a set of
 	editing controls, so reading mode never mounts it. -->
-{#if widgetSelection.getSelected() && getPresentationMode() !== 'reading'}
+{#if widgetSelection.getSelected() && reading.mode() !== 'reading'}
 	{@const ctx = imageEdit.getSelectedImageFields()}
 	{#if ctx?.widgetEl && popover}
 		<div bind:this={imageOverlayEl} class="md-image-overlay" data-image-overlay>

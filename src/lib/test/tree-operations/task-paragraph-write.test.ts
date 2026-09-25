@@ -7,6 +7,7 @@ import { serialize } from '$lib/core/serializer';
 import { updateNodeContent } from '$lib/tree-operations';
 import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 import { documentLineEnding } from '$lib/core/lines';
 
 // A write into a task item's first paragraph reads its text the way the parser reads the item:
@@ -23,7 +24,8 @@ function writeFirstTaskChild(doc: Document, text: string): CstNode {
 			lineEnding: documentLineEnding(doc)
 		},
 		0,
-		text
+		text,
+		defaultGrammarView
 	);
 	getBlockKindDescriptor('listItem').rebuildRaw?.(item);
 	getBlockKindDescriptor('list').rebuildRaw?.(list);

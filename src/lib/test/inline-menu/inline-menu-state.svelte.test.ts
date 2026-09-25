@@ -9,7 +9,7 @@ import type { PresentationMode } from '$lib/presentation-mode';
 import { definePlugin, installPlugins } from '$lib/schema/plugin-install';
 import { declarePluginInlineKind } from '$lib/schema/plugin-kind';
 import { registerInlineSyntax } from '$lib/core/inline/scan/plugin-syntax';
-import { fixtureLinkRef } from '../harness/fixture-grammar';
+import { fixtureReading } from '../harness/fixture-grammar';
 import { grammarListing } from '../plugins/activation/grammar-listing';
 
 // `%%…%%` claims its bytes ahead of a code span inside it, in an editor that lists the plugin.
@@ -25,7 +25,7 @@ const masker = definePlugin({
 });
 installPlugins([definePlugin({ name: 'listed', setup() {} }), masker]);
 const MASKED = '%%a `b` c%%';
-const scopedLinkRef = fixtureLinkRef({ grammar: grammarListing(['listed']) });
+const scopedLinkRef = fixtureReading({ grammar: grammarListing(['listed']) });
 const toR = (label: string) => (label === 'r#' ? { url: 'x' } : undefined);
 
 const item = (id: string, insert = id): InlineMenuItem => ({ id, label: id, insert });
@@ -37,7 +37,7 @@ const typedEdit = (path: number[]): EditEvent =>
  *  `writeFails` makes the range splice refuse, the way a commit blocked elsewhere would. */
 function harness(
 	initial: string,
-	{ arrive = true, writeFails = false, linkRef = fixtureLinkRef() } = {}
+	{ arrive = true, writeFails = false, reading = fixtureReading() } = {}
 ) {
 	let doc = parse(initial) as unknown as DocumentView;
 	/** Which block the caret is in; most tests give one and never leave it. */
@@ -69,7 +69,7 @@ function harness(
 		getMode: () => mode,
 		events,
 		editorId: 'editor-test',
-		linkRef,
+		reading,
 		// A pick's write raises the same events a keystroke does, so the read they schedule is
 		// the one the state has to hold off.
 		commitRange: async (path, start, end, bytes) => {
@@ -314,12 +314,12 @@ describe('a typed trigger opens its source', () => {
 	// Miss-analysis: the prose check read the leaf with no link-reference ref, so it saw no link
 	// definitions and every plugin's syntax, and no harness handed the menu an editor's ref.
 	it.each([
-		['a resolved reference link’s label', '[t][r]', 5, fixtureLinkRef({ current: toR }), false],
-		['an unresolved reference link’s label', '[t][r]', 5, fixtureLinkRef(), true],
+		['a resolved reference link’s label', '[t][r]', 5, fixtureReading({ resolver: toR }), false],
+		['an unresolved reference link’s label', '[t][r]', 5, fixtureReading(), true],
 		['a code span inside an unlisted plugin’s construct', MASKED, 6, scopedLinkRef, false],
-		['the same code span where every plugin is on', MASKED, 6, fixtureLinkRef(), true]
-	])('reads the editor’s ref for %s', async (_, source, at, linkRef, opens) => {
-		const h = harness(source, { linkRef });
+		['the same code span where every plugin is on', MASKED, 6, fixtureReading(), true]
+	])('reads the editor’s ref for %s', async (_, source, at, reading, opens) => {
+		const h = harness(source, { reading });
 		h.menu.registry.addSource(tags({ opensAt: () => true }));
 		await h.moveTo(at);
 		await h.type('#');
@@ -734,7 +734,7 @@ describe('a table cell', () => {
 			getMode: () => 'source',
 			events,
 			editorId: 'editor-cell',
-			linkRef: fixtureLinkRef(),
+			reading: fixtureReading(),
 			commitRange: async (_path, _start, _end, bytes) => {
 				commits.push(bytes);
 			},

@@ -9,7 +9,6 @@ import { isProseKind } from '../core/inline';
 import { resolvedInlineContent } from '../core/inline/inline-cache';
 import type { DocumentView, NodeView } from '../core/node-views';
 import type { EditorError, EditorEvents } from '../editor-events';
-import type { LinkReferenceResolverRef } from '../editor-keys';
 import type { PresentationMode } from '../presentation-mode';
 import type { EditorSelection } from '../selection/primitives';
 import { tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
@@ -30,6 +29,7 @@ import type {
 	InlineMenuSource,
 	InlineMenuSourceHandle
 } from './types';
+import type { Reading } from '../schema/reading';
 
 export interface InlineMenuStateDeps {
 	getDoc: () => DocumentView;
@@ -39,7 +39,7 @@ export interface InlineMenuStateDeps {
 	/** This instance's id, so two editors on one page never give their lists the same DOM id. */
 	editorId: string;
 	/** The editor's resolver and grammar, so a trigger inside a construct reads as the render drew it. */
-	linkRef: LinkReferenceResolverRef;
+	reading: Reading;
 	/** Splice `bytes` over `[start, end)` of the leaf at `path` as one undo entry. */
 	commitRange: (
 		path: number[],
@@ -269,7 +269,7 @@ export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuStat
 		heldBack = false;
 		const opening = findOpening(sources.values(), caret.leaf.raw, caret.offset, from);
 		if (!opening) return;
-		if (!isProseOffset(resolvedInlineContent(caret.leaf, deps.linkRef), opening.start)) return;
+		if (!isProseOffset(resolvedInlineContent(caret.leaf, deps.reading), opening.start)) return;
 		if (isUnclosedDestination(caret.leaf.raw, opening.start)) return;
 		begin(opening.source, caret.path, opening.start, caret.offset);
 	}

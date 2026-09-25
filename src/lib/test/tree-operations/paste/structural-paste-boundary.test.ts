@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { defaultStructuralHook } from '$lib/tree-operations/paste/hooks';
 import { parse } from '$lib/core/parser';
 import type { CstNode } from '$lib/core/nodes';
-import { pasteSeam } from '../../harness/fixture-grammar';
+import { fixtureReading } from '../../harness/fixture-grammar';
 
 // A clipboard blank-line row is a live block the parser produced, so it must survive the
 // boundary splice intact, and no empty-raw ('') node may be created beside it.
@@ -13,7 +13,14 @@ const raws = (nodes: CstNode[]): string[] => nodes.map((n) => n.raw ?? '');
 
 describe('structural paste at a block boundary', () => {
 	it('paste at block end keeps the clipboard blank-line row and appends no residue', () => {
-		const result = defaultStructuralHook(para('Hello\n'), 5, clipboard(), undefined, pasteSeam());
+		const result = defaultStructuralHook(
+			para('Hello\n'),
+			5,
+			clipboard(),
+			undefined,
+			fixtureReading(),
+			'\n'
+		);
 		expect(result.replacement.map((n) => n.kind)).toEqual([
 			'paragraph', // Hello (leading slice)
 			'heading', // # Heading
@@ -26,7 +33,14 @@ describe('structural paste at a block boundary', () => {
 	});
 
 	it('paste at block start creates no leading phantom and trails the original content', () => {
-		const result = defaultStructuralHook(para('Hello\n'), 0, clipboard(), undefined, pasteSeam());
+		const result = defaultStructuralHook(
+			para('Hello\n'),
+			0,
+			clipboard(),
+			undefined,
+			fixtureReading(),
+			'\n'
+		);
 		expect(result.replacement.map((n) => n.kind)).toEqual([
 			'heading',
 			'paragraph', // the clipboard's blank-line row

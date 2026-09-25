@@ -15,6 +15,7 @@ import {
 import { checkOpaqueStaleRaw } from '$lib/invariants/node-shape';
 import { registerDetailsKind, DETAILS } from '$lib/plugins/details/details-kind';
 import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
+import { fixtureGrammar } from '$lib/test/harness/fixture-grammar';
 
 /**
  * `</details>` is a fixed terminator with no fence length to grow, so the fix happens on the
@@ -66,7 +67,7 @@ describe('details terminator collision through the real commit path', () => {
 		await h.bundle.blockEdit.updateBlockContent(1, '</details>\n', 0);
 
 		expect(parse(serialize(h.deps.doc)).children.map((c) => c.kind)).toEqual(['details']);
-		expect(checkOpaqueStaleRaw(h.deps.doc.children[0])).toBeNull();
+		expect(checkOpaqueStaleRaw(h.deps.doc.children[0], fixtureGrammar)).toBeNull();
 	});
 
 	// The open tag is the same collision from the other side: unescaped it inflates
@@ -77,7 +78,7 @@ describe('details terminator collision through the real commit path', () => {
 		await h.bundle.blockEdit.updateBlockContent(1, '<details>\n', 0);
 
 		expect(h.deps.doc.children[0].children?.[1].raw).toBe('&lt;details>\n');
-		expect(checkOpaqueStaleRaw(h.deps.doc.children[0])).toBeNull();
+		expect(checkOpaqueStaleRaw(h.deps.doc.children[0], fixtureGrammar)).toBeNull();
 	});
 
 	// The byte round trip is not the property at risk here: a failure in this row points
@@ -98,7 +99,7 @@ describe('details terminator collision through the real commit path', () => {
 		await h.bundle.blockEdit.updateBlockContent(1, '```\n</details>\n```\n', 0);
 
 		expect(h.deps.doc.children[0].children?.[1].raw).toBe('```\n</details>\n```\n');
-		expect(checkOpaqueStaleRaw(h.deps.doc.children[0])).toBeNull();
+		expect(checkOpaqueStaleRaw(h.deps.doc.children[0], fixtureGrammar)).toBeNull();
 	});
 
 	// What closes the element is raw-HTML passthrough, looser than the container's own
@@ -118,7 +119,7 @@ describe('details terminator collision through the real commit path', () => {
 		await h.bundle.blockEdit.updateBlockContent(1, `${typed}\n`, 0);
 
 		expect(h.deps.doc.children[0].children?.[1].raw).toBe(`${escaped}\n`);
-		expect(checkOpaqueStaleRaw(h.deps.doc.children[0])).toBeNull();
+		expect(checkOpaqueStaleRaw(h.deps.doc.children[0], fixtureGrammar)).toBeNull();
 		expect(parse(serialize(h.deps.doc)).children.map((c) => c.kind)).toEqual(['details']);
 	});
 
@@ -203,7 +204,7 @@ describe('details terminator escape caret image', () => {
 
 		expect(new Set(kinds)).toEqual(new Set(['paragraph']));
 		expect(h.deps.doc.children[0].children?.[1].raw).toBe('&lt;/details>\n');
-		expect(checkOpaqueStaleRaw(h.deps.doc.children[0])).toBeNull();
+		expect(checkOpaqueStaleRaw(h.deps.doc.children[0], fixtureGrammar)).toBeNull();
 	});
 
 	// The structural path: a commit whose kind genuinely changes still escapes. Caret

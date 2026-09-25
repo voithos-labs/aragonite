@@ -6,7 +6,7 @@
 
 import type { CstNode } from '../../core/nodes';
 import type { GrammarView } from '../../schema/block-openers';
-import { parse } from '../../core/parser';
+import { readBlocks } from '../../core/parser';
 import { terminateLine, trailingLineEnding, type LineEnding } from '../../core/lines';
 import { ensureEditableContainers, normalizeReplacementTrivia } from '../node-primitives';
 
@@ -24,11 +24,11 @@ export function parseReplacement(
 	original: CstNode,
 	raw: string,
 	ending: LineEnding,
-	grammar: GrammarView | undefined,
+	grammar: GrammarView,
 	fallback?: () => CstNode[]
 ): ParsedReplacement | null {
 	const lineEnding = trailingLineEnding(original.raw, ending);
-	const parsed = parse(terminateLine(raw, lineEnding), { grammar, scope: 'fragment' });
+	const parsed = readBlocks(terminateLine(raw, lineEnding), { grammar, scope: 'fragment' });
 	const children = parsed.children.length > 0 ? parsed.children : fallback?.();
 	if (!children || children.length === 0) return null;
 	const replacement = normalizeReplacementTrivia(original, children);

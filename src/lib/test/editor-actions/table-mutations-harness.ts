@@ -52,6 +52,7 @@ export function makeTableMutations(
 		},
 		parentContainerEdit: createContainerEditActions(deps, controller),
 		controller,
+		reading: deps.reading,
 		focusCell,
 		announceReorder
 	});

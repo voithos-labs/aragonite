@@ -36,8 +36,8 @@ import {
 	type NestedActionsOverrideFactory
 } from '$lib/editor-actions/nested/nested-actions';
 import type { PresentationMode } from '$lib/presentation-mode';
-import { defaultGrammarView, type GrammarView } from '$lib/schema/block-openers';
-import { fixtureLinkRef } from './fixture-grammar';
+import type { GrammarView } from '$lib/schema/block-openers';
+import { fixtureReading } from './fixture-grammar';
 import { parse } from '$lib/core/parser';
 import type { EditEvent, EditorEvents } from '$lib/editor-events';
 import { mountBlockListState } from '$lib/testing/headless-block-list.svelte';
@@ -144,8 +144,7 @@ export function makeCommitScopeStub(
 				lineEnding: documentLineEnding({ kind: 'document', prefix: '', children, suffix: '' }),
 				ownerKind: opts.owner?.kind,
 				owner: opts.owner,
-				getPresentationMode: undefined,
-				linkRef: fixtureLinkRef(),
+				reading: fixtureReading(),
 				unshareChild: (i) => children[i]
 			});
 			await args.afterTick?.();
@@ -178,6 +177,7 @@ export function makeShimDeps(
 ): ContainerBlockComponentDeps {
 	const deps: ContainerBlockComponentDeps = {
 		selection: createSelectionState(),
+		reading: fixtureReading(),
 		get innerBlockRefs() {
 			return refs;
 		},
@@ -265,12 +265,12 @@ export interface EditorActionsHarness extends HeadlessActions {
 }
 
 /** A paste context for an editor with no `plugins` or `syntax` prop: every installed plugin and
- *  the default grammar, unless the fixture names its own. */
+ *  the fixture reading, unless the fixture names its own. */
 export function pasteContext(
-	fields: Omit<PasteDispatchContext, 'grammar' | 'activePlugins'> &
-		Partial<Pick<PasteDispatchContext, 'grammar' | 'activePlugins'>>
+	fields: Omit<PasteDispatchContext, 'reading' | 'activePlugins'> &
+		Partial<Pick<PasteDispatchContext, 'reading' | 'activePlugins'>>
 ): PasteDispatchContext {
-	return { grammar: defaultGrammarView, activePlugins: everyInstalledPlugin, ...fields };
+	return { reading: fixtureReading(), activePlugins: everyInstalledPlugin, ...fields };
 }
 
 /** The published headless deps with spied collaborators and a content-version counter. */
@@ -357,8 +357,7 @@ export function makeListContextAt(
 		parentFocus: opts.parentFocus ?? makeStubFocus(),
 		parentListContext: opts.parentListContext,
 		controller,
-		getPresentationMode: deps.getPresentationMode,
-		linkRef: deps.linkRef
+		reading: deps.reading
 	});
 	return { listContext, state, getNode, controller };
 }
@@ -371,9 +370,7 @@ export interface NestedActionsDepsInput {
 	path: number[];
 	parent: NestedActionsDeps['parent'];
 	stickyColumn?: StickyColumnState;
-	grammar?: GrammarView;
-	getPresentationMode?: NestedActionsDeps['getPresentationMode'];
-	linkRef?: NestedActionsDeps['linkRef'];
+	reading?: NestedActionsDeps['reading'];
 }
 
 // Every call site routes its input through here, so the shape with the live getters is built
@@ -388,9 +385,7 @@ export function makeNestedActionsDeps(input: NestedActionsDepsInput): NestedActi
 			path: input.path
 		},
 		stickyColumn: input.stickyColumn ?? makeStickyColumn(),
-		grammar: input.grammar ?? defaultGrammarView,
-		getPresentationMode: input.getPresentationMode,
-		linkRef: input.linkRef ?? fixtureLinkRef(),
+		reading: input.reading ?? fixtureReading(),
 		parent: input.parent
 	};
 }
@@ -427,7 +422,7 @@ export function makeNestedHarness(
 	const index = opts.index ?? nodes.length - 1;
 	const { deps, events, contentVersion } = makeEditorActionsDeps(
 		source,
-		opts.presentationMode ? { presentationMode: opts.presentationMode } : {}
+		opts.presentationMode ? { reading: fixtureReading({}, opts.presentationMode) } : {}
 	);
 	const controller = createUndoController(deps);
 	const containerEdit = createContainerEditActions(deps, controller);
@@ -455,8 +450,9 @@ export function makeNestedHarness(
 			index,
 			getNode,
 			path: [index],
-			grammar: opts.grammar,
-			getPresentationMode: deps.getPresentationMode,
+			reading: opts.grammar
+				? fixtureReading({ grammar: opts.grammar }, opts.presentationMode)
+				: deps.reading,
 			parent: { blockEdit: makeStubBlockEdit(), focus: makeStubFocus(), containerEdit }
 		}),
 		overrides

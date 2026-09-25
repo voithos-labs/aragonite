@@ -21,7 +21,6 @@
 		type BlockElLookup,
 		type DocumentGetter,
 		type EditorDoc,
-		type LinkReferenceResolverRef,
 		type EditorPolicies,
 		type EditorServices,
 		type PluginEditorLookup,
@@ -129,6 +128,8 @@
 	import { createEditorPluginContexts, mintEditorId } from '../schema/plugin-editor-context';
 	import { insertCatalogue, type InsertEntry } from '../schema/insert-catalogue';
 	import { createRegistryView, type KindEnablement } from '../schema/registry-view';
+	import type { Reading } from '../schema/reading';
+	import { hidesDelimitersAtCaret } from '../presentation-mode';
 	import BlockList from './BlockList.svelte';
 	import SearchBar from './SearchBar.svelte';
 	import SelectionToolbar from './menu/SelectionToolbar.svelte';
@@ -240,19 +241,21 @@
 	let currentSignature = $state<string>(initial.signature);
 	// Reference-bearing render memos key on this instead of the whole (~MB) signature.
 	let signatureEpoch = $state<number>(0);
-	/** One ref for every consumer (the block components through context, the action bundles
-	 *  through their deps), so a post-commit rebuild reaches both without re-binding either. */
-	const linkRefView: LinkReferenceResolverRef = {
-		get current(): LinkReferenceResolver {
+	/** This editor's one reading context, shared by the block components (through context) and
+	 *  the action bundles (through their deps), so a post-commit rebuild reaches both. */
+	const reading: Reading = {
+		grammar: registryView.grammar,
+		get resolver(): LinkReferenceResolver {
 			return currentResolver;
 		},
-		get signature(): string {
+		get resolverSignature(): string {
 			return currentSignature;
 		},
-		get epoch(): number {
+		get resolverEpoch(): number {
 			return signatureEpoch;
 		},
-		grammar: registryView.grammar
+		mode: () => effectiveMode,
+		hidesDelimitersAtCaret: () => hidesDelimitersAtCaret(effectiveMode)
 	};
 	// Plain, not `$state`: where the root list's child refs are stored (see `refSlotsOver`).
 	const blockRefs: (BlockComponent | undefined)[] = [];
@@ -306,7 +309,7 @@
 	const selectedWidget: SelectedWidgetHandle = {
 		range: () => {
 			const target = widgetSelection.getSelected();
-			const image = target && imageAtTarget(doc, target, linkRefView);
+			const image = target && imageAtTarget(doc, target, reading);
 			return target && image
 				? { path: [...target.paragraphPath], start: image.start, end: image.end }
 				: null;
@@ -614,11 +617,7 @@
 		getBlockElByPath,
 		revealPath,
 		events,
-		grammar: registryView.grammar,
-		getPresentationMode: () => effectiveMode,
-		get linkRef() {
-			return linkRefView;
-		}
+		reading
 	};
 	const { blockEdit, focus, history, containerEdit, controller } =
 		createEditorActions(editorActionsDeps);
@@ -658,18 +657,14 @@
 
 	// The typed-trigger menus (`#tag`, `[[link`). The write is the same one-entry range splice the
 	// link card and the image popover use, so a pick undoes in one press.
-	const inlineMenuCommit = createInlineRangeCommit({
-		getDoc,
-		controller,
-		grammar: registryView.grammar
-	});
+	const inlineMenuCommit = createInlineRangeCommit({ getDoc, controller, reading });
 	const inlineMenu = createInlineMenuState({
 		getDoc,
 		getSelection,
-		getMode: () => effectiveMode,
+		getMode: reading.mode,
 		events,
 		editorId,
-		linkRef: linkRefView,
+		reading,
 		commitRange: inlineMenuCommit.commitInlineRange,
 		landCaret: landCaretAtOffset,
 		joinUndoEntries: (run) => controller.joinUndoEntries(run)
@@ -690,7 +685,7 @@
 		getDocumentGeneration: documentSwap.generation,
 		// The one place the mode enters the dispatch levels; they read it back through
 		// the pluginEditor lookup they already pass around.
-		getPresentationMode: () => effectiveMode,
+		getPresentationMode: reading.mode,
 		getTheme: () => theme,
 		activation: activePlugins,
 		// Called at use, never here: both read state declared further down this component.
@@ -775,7 +770,7 @@
 	let kindAnnouncement = $state('');
 	const kindCue = createKindCue({
 		getDoc,
-		getPresentationMode: () => effectiveMode,
+		getPresentationMode: reading.mode,
 		announce: async (label) => {
 			kindAnnouncement = '';
 			await tick();
@@ -793,8 +788,7 @@
 		getBlockElByPath,
 		revealPath,
 		controller,
-		getPresentationMode: () => effectiveMode,
-		linkRef: linkRefView,
+		reading,
 		getContentVersion: contentVersion.read
 	});
 
@@ -837,7 +831,7 @@
 		imageLoadPolicy: () => imageLoadPolicy,
 		// Reading mode turns the drag handles off through the prop's own getter.
 		blockDragHandles: () => blockDragHandles && effectiveMode !== 'reading',
-		presentationMode: () => effectiveMode,
+		presentationMode: reading.mode,
 		theme: () => theme,
 		keybindingOverrides: () => overridesMap,
 		// An accessor, not the `onPasteImage,` shorthand, which would capture the prop's value.
@@ -863,7 +857,7 @@
 			return editorEl;
 		},
 		get mode() {
-			return effectiveMode;
+			return reading.mode();
 		},
 		selection: selectionState,
 		getSelection,
@@ -889,9 +883,6 @@
 	// ── Root gestures ───────────────────────────────────────────────────
 
 	const rootGestures = createRootGestures({
-		get mode() {
-			return effectiveMode;
-		},
 		getDoc,
 		selection: selectionState,
 		stickyColumn,
@@ -904,7 +895,7 @@
 		isHostChrome,
 		activateLink,
 		linkCard,
-		linkRef: linkRefView,
+		reading,
 		widgetSelection
 	});
 	// The drop handler installs on the same root; its deps are the paste pipeline's, not a
@@ -919,9 +910,7 @@
 				getDoc,
 				controller,
 				coordinator: pasteCoordinator,
-				getPresentationMode: () => effectiveMode,
-				linkRef: linkRefView,
-				grammar: registryView.grammar,
+				reading,
 				activePlugins,
 				events,
 				setDropCaret: (rect) => (dropCaret = rect),
@@ -935,7 +924,7 @@
 			return editorEl;
 		},
 		get mode() {
-			return effectiveMode;
+			return reading.mode();
 		},
 		getDoc,
 		isHostChrome,
@@ -1031,13 +1020,11 @@
 		controller,
 		history,
 		pluginEditor: pluginEditorLookup,
-		getPresentationMode: () => effectiveMode,
-		linkRef: linkRefView,
+		reading,
 		onCommandError: commandErrorSink,
 		crossBlockCommands,
 		pasteCoordinator,
 		getKeybindingOverrides: () => overridesMap,
-		grammar: registryView.grammar,
 		activePlugins,
 		events,
 		getCursorOffset: () => selectionState.focus?.offset ?? null,
@@ -1053,7 +1040,7 @@
 			return searchBar;
 		},
 		get mode() {
-			return effectiveMode;
+			return reading.mode();
 		},
 		get canReplace() {
 			return canReplace;
@@ -1198,7 +1185,7 @@
 
 	const focusAttribution = createFocusAttribution({
 		get mode() {
-			return effectiveMode;
+			return reading.mode();
 		}
 	});
 	$effect(() => {
@@ -1217,7 +1204,7 @@
 	setContext(EDITOR_DOC_KEY, {
 		doc: getDoc,
 		contentVersion: contentVersion.read,
-		linkRef: linkRefView,
+		reading,
 		pluginEditor: pluginEditorLookup,
 		lifetime: lifetimeController.signal,
 		editorRoot: () => editorEl ?? null,
@@ -1348,7 +1335,7 @@
 		history,
 		pluginEditor: pluginEditorLookup,
 		activation: activePlugins,
-		getPresentationMode: () => effectiveMode,
+		getPresentationMode: reading.mode,
 		isCrossBlockRange: () => selectionState.isCrossBlock,
 		crossBlockCommands: crossBlockCommands
 	};
@@ -1552,8 +1539,6 @@
 		getContentVersion={contentVersion.read}
 		getEditorEl={() => editorEl ?? null}
 		getSelectionIsCustomRendered={() => selectionState.isCustomRendered}
-		getPresentationMode={() => effectiveMode}
-		grammar={registryView.grammar}
 		lifetime={lifetimeController.signal}
 		{menuPresence}
 	/>
@@ -1568,8 +1553,7 @@
 		{activateLink}
 		resolveLinkUrl={resolveLinkUrlImpl}
 		caretRestore={linkCardCaret}
-		linkRef={linkRefView}
-		grammar={registryView.grammar}
+		{reading}
 		{menuPresence}
 	/>
 	<InlineMenuHost

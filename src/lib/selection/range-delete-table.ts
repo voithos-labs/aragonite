@@ -7,8 +7,7 @@
  */
 
 import type { GrammarView } from '../schema/block-openers';
-import type { PresentationMode } from '../presentation-mode';
-import type { InlineResolverRef } from '../schema/inline-construct-policy';
+import type { Reading } from '../schema/reading';
 import type { CstNode, Document } from '../core/nodes';
 import { metadataOf } from '../core/nodes';
 import type { SelectionPoint } from './primitives';
@@ -23,8 +22,7 @@ import {
 	applyPlannedDeletion,
 	rebuildSharedAncestries,
 	truncateEndInPlace,
-	truncateStartInPlace,
-	type LiveSeamContext
+	truncateStartInPlace
 } from './range-delete-ceremony';
 import { comparePaths } from './path-math';
 import { blockNodeAt, emptyParagraph } from '../tree-operations/node-primitives';
@@ -51,12 +49,10 @@ export function tableAwareRangeDelete(
 	start: SelectionPoint,
 	end: SelectionPoint,
 	sharing: SharingState,
-	grammar: GrammarView | undefined,
-	presentationMode: PresentationMode | undefined,
-	linkRef: InlineResolverRef
+	reading: Reading
 ): RangeDeleteResult {
+	const { grammar } = reading;
 	const sameBlock = comparePaths(start.path, end.path) === 0;
-	const live = { presentationMode, linkRef };
 
 	// Copy both endpoint chains (and the table subtrees: cell raws, row splices, and header
 	// promotion all write at depth) before any capture or mutation.
@@ -75,9 +71,18 @@ export function tableAwareRangeDelete(
 		return deleteAcrossTwoTables(doc, start, end, startBlock, endBlock, sharing, grammar);
 	}
 	if (startBlock.kind === 'table') {
-		return deleteFromTableIntoProse(doc, start, end, startBlock, endBlock, sharing, grammar, live);
+		return deleteFromTableIntoProse(
+			doc,
+			start,
+			end,
+			startBlock,
+			endBlock,
+			sharing,
+			grammar,
+			reading
+		);
 	}
-	return deleteFromProseIntoTable(doc, start, end, startBlock, endBlock, sharing, grammar, live);
+	return deleteFromProseIntoTable(doc, start, end, startBlock, endBlock, sharing, grammar, reading);
 }
 
 /**
@@ -100,7 +105,7 @@ function deleteWithinTable(
 	end: SelectionPoint,
 	table: CstNode,
 	sharing: SharingState,
-	grammar: GrammarView | undefined
+	grammar: GrammarView
 ): RangeDeleteResult {
 	// Endpoints inside one table share its path and are not flagged, so `.offset` reads directly;
 	// `cellIndexOf` would warn for nothing here.
@@ -146,8 +151,8 @@ function deleteFromProseIntoTable(
 	startBlock: CstNode,
 	table: CstNode,
 	sharing: SharingState,
-	grammar: GrammarView | undefined,
-	live: LiveSeamContext
+	grammar: GrammarView,
+	reading: Reading
 ): RangeDeleteResult {
 	const startC = nearestChromeContainer(doc, start.path);
 	const startIsChrome = startC !== null && isChromeChild(startC, start.path);
@@ -170,13 +175,13 @@ function deleteFromProseIntoTable(
 		sharing
 	);
 
-	applyPlannedDeletion(doc, plan, lcaPath);
+	applyPlannedDeletion(doc, plan, lcaPath, grammar);
 	const seam = truncateStartInPlace(
 		doc,
 		start,
 		startBlock,
 		startIsChrome,
-		live,
+		reading,
 		sharing,
 		grammar,
 		'deleteFromProseIntoTable:start'
@@ -204,8 +209,8 @@ function deleteFromTableIntoProse(
 	table: CstNode,
 	endBlock: CstNode,
 	sharing: SharingState,
-	grammar: GrammarView | undefined,
-	live: LiveSeamContext
+	grammar: GrammarView,
+	reading: Reading
 ): RangeDeleteResult {
 	const lineEnding = documentLineEnding(doc);
 	const startCell = cellIndexOf(start, 'deleteFromTableIntoProse:start');
@@ -237,12 +242,12 @@ function deleteFromTableIntoProse(
 				end,
 				endBlock,
 				endIsChrome,
-				live,
+				reading,
 				sharing,
 				grammar,
 				'deleteFromTableIntoProse:end'
 			);
-	applyPlannedDeletion(doc, plan, lcaPath);
+	applyPlannedDeletion(doc, plan, lcaPath, grammar);
 
 	const tailPath = tailNode ? survivorPath(doc, tailNode) : null;
 
@@ -304,7 +309,7 @@ function deleteAcrossTwoTables(
 	startTable: CstNode,
 	endTable: CstNode,
 	sharing: SharingState,
-	grammar: GrammarView | undefined
+	grammar: GrammarView
 ): RangeDeleteResult {
 	const lineEnding = documentLineEnding(doc);
 	const startCell = cellIndexOf(start, 'deleteAcrossTwoTables:start');
@@ -333,7 +338,7 @@ function deleteAcrossTwoTables(
 		sharing
 	);
 
-	applyPlannedDeletion(doc, plan, lcaPath);
+	applyPlannedDeletion(doc, plan, lcaPath, grammar);
 
 	const endTablePath = endResult === 'tableSurvives' ? survivorPath(doc, endTable) : null;
 

@@ -7,13 +7,12 @@
 
 import { isBuiltinInlineKind, type AnyInlineKind } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
-import type { LinkReferenceResolver } from '../core/inline/link-reference-resolver';
+import type { Reading } from './reading';
 import type { AnyCommandId } from './command-id';
 import { isBuiltinCommandId } from './commands';
 import { registerOnce } from './register-once';
 import { everyInstalledPlugin } from './plugin-activation';
 import { createPluginRegistry } from './plugin-registry';
-import type { GrammarView } from './block-openers';
 
 // ── Policy rows ─────────────────────────────────────────────────────────────
 
@@ -144,27 +143,16 @@ export function inlineMarkForCommand(command: string): InlineMark | null {
 // ── Split rebalancer ────────────────────────────────────────────────────────
 
 /**
- * The link-reference resolver and grammar a rewrite parses with, typed structurally rather than
- * by naming `editor-keys`' type, which would pull the editor's context module into every module
- * this table serves. Registration is process-wide while both belong to one editor, so they are
- * passed on each call, never at registration.
- */
-export type InlineResolverRef = {
-	current?: LinkReferenceResolver;
-	signature?: string;
-	grammar: GrammarView;
-};
-
-/**
  * The one live-mode split rewrite, consulting each construct's own `splitBehavior`, so
  * `splitNode` needs neither `parseInline` nor a per-kind dispatch. Null declines the rewrite.
+ * Registration is process-wide, so the editor's reading is passed on each call.
  */
 export type LiveSplitRebalancer = (
 	node: NodeView,
 	offset: number,
 	firstRaw: string,
 	secondRaw: string,
-	linkRef: InlineResolverRef
+	reading: Reading
 ) => { firstRaw: string; secondRaw: string } | null;
 
 let splitRebalancer: LiveSplitRebalancer | undefined;
@@ -199,7 +187,7 @@ export interface JoinSeam {
 	end: JoinEndpoint;
 	/** Belongs to one editor, so it is passed on the call: a reference link parsed without it reads
 	 *  as plain brackets, and the cleanup would skip a construct the user saw as a link. */
-	linkRef: InlineResolverRef;
+	reading: Reading;
 	/** Text the caller will insert at the join once the cleanup returns. Absent for a plain delete;
 	 *  when present it is part of the bytes the cleanup has to check, since typed text changes what
 	 *  a surviving delimiter pairs against. */

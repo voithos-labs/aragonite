@@ -8,6 +8,7 @@ import { makeStickyColumn, makeEdgeAffinity } from '$lib/test/harness/editor-act
 import { registerGlobalCommand } from '$lib/schema/global-commands';
 import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
+import { fixtureReading } from '$lib/test/harness/fixture-grammar';
 
 // The shared keydown that runs before every editable block's own dispatch. A plugin-global chord
 // must have its default prevented and still be deferred (return false) so the block's own
@@ -29,6 +30,7 @@ function makeCtx(): SharedKeydownContext {
 	return {
 		// No plugins stood up here, so every installed one is active.
 		activePlugins: everyInstalledPlugin,
+		reading: fixtureReading(),
 		getEl: () => el,
 		getCursorOffset: () => 0,
 		getFocusOffset: () => null,

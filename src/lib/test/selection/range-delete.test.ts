@@ -3,7 +3,7 @@ import { rangeDelete } from '../../selection/range-delete';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import { createSharingState } from '../../tree-operations/sharing';
-import { fixtureLinkRef } from '../harness/fixture-grammar';
+import { fixtureReading } from '../harness/fixture-grammar';
 
 function run(
 	source: string,
@@ -11,15 +11,7 @@ function run(
 	end: { path: number[]; offset: number }
 ) {
 	const doc = parse(source);
-	const result = rangeDelete(
-		doc,
-		start,
-		end,
-		createSharingState(),
-		undefined,
-		undefined,
-		fixtureLinkRef()
-	);
+	const result = rangeDelete(doc, start, end, createSharingState(), fixtureReading());
 	return { source: serialize(result.newDoc), caret: result.collapsedCaret };
 }
 

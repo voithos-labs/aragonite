@@ -23,6 +23,7 @@ import {
 	makeStubBlockEdit,
 	pasteContext
 } from '$lib/test/harness/editor-actions';
+import { fixtureReading } from '$lib/test/harness/fixture-grammar';
 
 const PARROT_LINE = '%%parrot party responsibly\n';
 
@@ -48,7 +49,7 @@ async function pasteInto(grammar: ReturnType<typeof grammarListing>) {
 			doc: deps.doc,
 			blockEdit,
 			controller: createPasteCoordinator(createUndoController(deps), deps.revealPath),
-			grammar
+			reading: fixtureReading({ grammar })
 		})
 	);
 	return { doc: deps.doc, blockEdit };

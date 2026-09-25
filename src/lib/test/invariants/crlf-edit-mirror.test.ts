@@ -34,11 +34,11 @@ import { pasteDispatch } from '../../tree-operations/paste/dispatch';
 import { createPasteCoordinator } from '../../editor-actions/paste-coordinator';
 import { createUndoController } from '../../editor-actions/commit/undo-controller';
 import { createBlockEditActions } from '../../editor-actions/block-edit';
+import { fixtureReading } from '../harness/fixture-grammar';
 import { makeEditorActionsDeps, makeTopHarness, pasteContext } from '../harness/editor-actions';
 import { blockContextActionsFor } from '../../schema/context-actions';
 import { everyInstalledPlugin } from '../../schema/plugin-activation';
 import { registerCodeContextActions } from '../../components/blocks/code/code-context-actions';
-import { fixtureLinkRef, pasteSeam } from '../harness/fixture-grammar';
 import { allowDevWarns } from '../support/warn-gate';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { ensurePasteSurface } from '$lib/test/support/paste-surface';
@@ -84,10 +84,7 @@ async function pasteInto(
 /** A range delete's emitted bytes. The grammar, mode and resolver arguments stay `undefined`:
  *  this test reads the line ending, and none of the three moves one. */
 const deleteBetween = (doc: Document, start: SelectionPoint, end: SelectionPoint) =>
-	serialize(
-		rangeDelete(doc, start, end, createSharingState(), undefined, undefined, fixtureLinkRef())
-			.newDoc
-	);
+	serialize(rangeDelete(doc, start, end, createSharingState(), fixtureReading()).newDoc);
 
 const GESTURES: EditGesture[] = [
 	{
@@ -218,7 +215,8 @@ const GESTURES: EditGesture[] = [
 		apply: (doc) => {
 			const node = doc.children[0];
 			const caret = node.raw.indexOf('code') + 'code'.length;
-			return codePasteSurface.onInlinePaste!(node, caret, 'X', undefined, pasteSeam()).newRaw;
+			return codePasteSurface.onInlinePaste!(node, caret, 'X', undefined, fixtureReading(), '\n')
+				.newRaw;
 		}
 	},
 	{

@@ -7,11 +7,9 @@
 
 import type { InlineNode } from '../../../core/nodes';
 import type { DocumentView, NodeView } from '../../../core/node-views';
-import type { LinkReferenceResolverRef, ResolveLinkUrl } from '../../../editor-keys';
-import type { PresentationMode } from '../../../presentation-mode';
+import type { ResolveLinkUrl } from '../../../editor-keys';
 import { computeInlineContent, contentLengthOf } from '../../../core/inline';
 import { renderInlineNodes } from '../../../core/inline-render';
-import type { GrammarView } from '../../../schema/block-openers';
 import { trimTrailingLineEnding } from '../../../core/lines';
 import {
 	captureFocusedCaretWalkOffset,
@@ -25,17 +23,15 @@ import { mountDecorationWidget } from '../../../decorations/widget-dom';
 import { devWarn } from '../../../dev-warn';
 import { getBlockKindDescriptor } from '../../../schema/block-kind-descriptor';
 import { createSvelteWidgetPool } from '../widget-portal';
+import type { Reading } from '../../../schema/reading';
 
 export interface CellRenderDeps {
 	get el(): HTMLElement | null;
 	get node(): NodeView;
-	get linkRef(): LinkReferenceResolverRef | undefined;
-	/** The editor's grammar: a plugin it left out claims no bytes and draws no widget here. */
-	grammar: GrammarView;
+	/** How the editor reads its bytes. Its mode is read inside the render pass on purpose: that read
+	 *  is the reactive dependency that re-renders every mounted cell when the mode changes. */
+	get reading(): Reading;
 	resolveLinkUrl: ResolveLinkUrl;
-	/** The mode in effect. Read inside the render pass on purpose: that read is the
-	 *  reactive dependency that re-renders every mounted cell when the mode changes. */
-	get presentationMode(): PresentationMode;
 	/** The editor's theme name, passed on to widgets. Not part of the render key: this DOM
 	 *  is themed by CSS, so only a widget that draws its own colors reads it. */
 	getTheme?: () => string;
@@ -70,12 +66,11 @@ export function createCellRender(deps: CellRenderDeps): CellRender {
 	let lastRenderedKey = '';
 	const widgetPool = createSvelteWidgetPool({
 		reportError: deps.reportRenderError,
-		getPresentationMode: () => deps.presentationMode,
 		getTheme: deps.getTheme,
 		getDocument: deps.getDocument,
 		getContentVersion: deps.getContentVersion,
 		navigateTo: deps.navigateTo,
-		grammar: deps.grammar
+		reading: deps.reading
 	});
 	let islandDestroys: Array<() => void> = [];
 
@@ -97,10 +92,10 @@ export function createCellRender(deps: CellRenderDeps): CellRender {
 		// a link-reference definition from re-rendering every cell. A false hit reparses the same.
 		const hasRef = node.raw.includes('[');
 		// Key on the short signature token, never the string, which can reach megabytes.
-		const sig = hasRef ? String(deps.linkRef?.epoch ?? deps.linkRef?.signature ?? '') : '';
+		const sig = hasRef ? String(deps.reading.resolverEpoch) : '';
 		// Always included, unlike the reference part: a mode change re-renders every mounted
 		// cell. '' in source mode keeps the default key byte-identical, as text-render does.
-		const mode = deps.presentationMode;
+		const mode = deps.reading.mode();
 		const modeKeyPart = mode === 'source' ? '' : mode;
 		const islands = deps.islands;
 		const renderKey = `${node.raw}\0${sig}\0${modeKeyPart}${islandRenderKeyPart(islands)}`;
@@ -109,8 +104,8 @@ export function createCellRender(deps: CellRenderDeps): CellRender {
 
 		const content = computeInlineContent(
 			node,
-			hasRef ? deps.linkRef?.current : undefined,
-			deps.grammar
+			hasRef ? deps.reading.resolver : undefined,
+			deps.reading.grammar
 		);
 		// A decoration change rebuilds a focused cell with no restore pending, so the caret is
 		// carried across; an edit opts out because its own restore runs after.
@@ -124,7 +119,7 @@ export function createCellRender(deps: CellRenderDeps): CellRender {
 				renderImagesAsWidgets: getBlockKindDescriptor(node.kind).renderImagesAsWidgets ?? true,
 				resolveLinkUrl: deps.resolveLinkUrl,
 				buildPortalWidget,
-				grammar: deps.grammar
+				grammar: deps.reading.grammar
 			})
 		);
 		// A prefix length of 0: a cell has no marker, so decoration offsets are raw offsets.

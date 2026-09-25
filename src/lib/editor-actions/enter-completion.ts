@@ -4,7 +4,7 @@
  * one place the plan is applied, wrapped around a composed `splitBlock`.
  */
 
-import { parse } from '../core/parser';
+import { readBlocks } from '../core/parser';
 import { displayLength, splitLines, trailingLineEnding, type LineEnding } from '../core/lines';
 import type { BlockEditActions } from '../action-contracts';
 import type { CstNode } from '../core/nodes';
@@ -111,7 +111,7 @@ function planCompletion(
 	// are exactly what a reload of those bytes produces.
 	const lineEnding = trailingLineEnding(node.raw, ending);
 	const raw = claim.lines.map((text) => text + lineEnding).join('');
-	const replacement = parse(raw, { grammar, scope: 'fragment' }).children;
+	const replacement = readBlocks(raw, { grammar, scope: 'fragment' }).children;
 	// A completion that shows nothing would replace the typed line with a delete, or with blank
 	// lines a reload reads as neither. Blank lines parse back as empty paragraphs, so the check
 	// is per node rather than by child count.

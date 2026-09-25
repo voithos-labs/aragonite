@@ -6,7 +6,7 @@
 
 import { metadataOf, type Document } from '../../core/nodes';
 import type { NodeView } from '../../core/node-views';
-import { parse, parseTaskItemBody } from '../../core/parser';
+import { readBlocks, parseTaskItemBody } from '../../core/parser';
 import type { GrammarView } from '../../schema/block-openers';
 
 export type FragmentReader = (text: string) => Document;
@@ -21,11 +21,11 @@ export function followsTaskMarker(owner: NodeView | undefined, index: number): b
 export function fragmentReaderAt(
 	owner: NodeView | undefined,
 	index: number,
-	grammar: GrammarView | undefined
+	grammar: GrammarView
 ): FragmentReader {
 	// Fragment scope: these are one block's bytes, so a kind that depends on document position
 	// must not be produced here.
 	return followsTaskMarker(owner, index)
 		? (text) => parseTaskItemBody(text, grammar)
-		: (text) => parse(text, { grammar, scope: 'fragment' });
+		: (text) => readBlocks(text, { grammar, scope: 'fragment' });
 }
