@@ -1,12 +1,14 @@
 /**
  * G4.20: every line the editor writes takes the document's line ending. The fallback of
  * `core/lines.ts :: trailingLineEnding` is a required argument, so the type holds the ending
- * choice; this scan holds what the type cannot see, a newline literal written into a node's
- * bytes. `invariants/crlf-edit-mirror.test.ts` checks the outcome for every gesture it lists.
+ * choice; these scans hold what the type cannot see, a line split that leaves a CRLF line's `\r`
+ * on its text, and a newline literal written into a node's bytes.
+ * `invariants/crlf-edit-mirror.test.ts` checks the outcome for every gesture it lists.
  */
 
 import { describe, it, expect } from 'vitest';
 import { collectEditorSources, literalSpans, rawAssignments } from './scan-source';
+import { describeFileRules, except } from './file-rule';
 
 // ── Classification ───────────────────────────────────────────────────────────
 
@@ -153,3 +155,35 @@ describe('G4.20: extractor and matcher self-tests', () => {
 		expect(emittedNewlineLiterals('node.raw = head + trailingLineEnding(node.raw);')).toEqual([]);
 	});
 });
+
+// ── Line splits ──────────────────────────────────────────────────────────────
+
+/** `.split('\n')` or `.split(/\r?\n/)`: a split that leaves a CRLF line's `\r` on its text, or
+ *  drops each line's ending. */
+const LINE_SPLIT = /\.split\(\s*(?:(['"`])\\n\1|\/\\r\?\\n\/)\s*\)/;
+
+describeFileRules(
+	[
+		{
+			id: 'G4.20 per-line work reads each line without its ending',
+			population: except('src/lib/core/lines.ts'),
+			matches: LINE_SPLIT,
+			allowed: {
+				'src/lib/debug/dump-tree.ts': "a debug dump prints each line's bytes, a `\\r` included",
+				'src/lib/plugins/parrot/ParrotBlock.svelte': 'splits a constant animation frame',
+				'src/lib/tree-operations/table-grid-clipboard.ts':
+					'splits clipboard text normalized to LF on the same line'
+			},
+			reason:
+				'split a block into lines with `displayLines` (or `splitLines`) from `core/lines.ts`: ' +
+				"`split('\\n')` leaves a CRLF line's `\\r` on its text, where a line match misreads it",
+			hits: ["const lines = raw.split('\\n');", 'const lines = text.split(/\\r?\\n/);'],
+			misses: [
+				'const lines = displayLines(raw);',
+				"const cells = row.split('|');",
+				"const at = raw.indexOf('\\n');"
+			]
+		}
+	],
+	collectEditorSources()
+);
