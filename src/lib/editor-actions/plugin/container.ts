@@ -14,7 +14,6 @@ import type BlockList from '../../components/BlockList.svelte';
 import type {
 	BlockEditActions,
 	CommitAfterTick,
-	ContainerEditActions,
 	FocusActions,
 	HistoryActions,
 	MoveFocusOptions
@@ -29,12 +28,9 @@ import { isReadingMode, type PresentationMode } from '../../presentation-mode';
 import { devWarn } from '../../dev-warn';
 import { blockAccessibleName } from '../../a11y-strings';
 import {
-	BLOCK_EDIT_KEY,
-	CONTAINER_EDIT_KEY,
 	EDITOR_DOC_KEY,
 	EDITOR_POLICIES_KEY,
 	EDITOR_SERVICES_KEY,
-	FOCUS_KEY,
 	HISTORY_KEY,
 	type EditorDoc,
 	type EditorPolicies,
@@ -45,7 +41,6 @@ import { captureScrollPosition } from '../../cursor/scroll-hold';
 import { emitCommandError } from '../../editor-events';
 import type { EditorContext } from '../../schema/plugin-install';
 import { owningPluginEditor } from '../../schema/plugin-kind';
-import { createBlockListState } from '../../reactivity/block-list-state.svelte';
 import type { WindowResult } from '../../reactivity/block-window.svelte';
 import type { RefSlots } from '../../reactivity/publish-ref.svelte';
 import { useContainerWindowing } from '../../reactivity/use-container-windowing.svelte';
@@ -62,12 +57,8 @@ import {
 	holdsWholeBlockFocus,
 	isEditableEventTarget
 } from '../whole-block-focus-surface';
-import {
-	createStandardNestedActions,
-	setNestedActionsContexts,
-	type NestedActionsOverrideFactory,
-	type NodeScope
-} from '../nested/nested-actions';
+import type { NestedActionsOverrideFactory } from '../nested/nested-actions';
+import { createContainerActions } from '../nested/container-actions';
 
 /**
  * The inputs the host component feeds in. A function-valued field is a live read,
@@ -332,9 +323,6 @@ export function buildContainerKindTarget(
 // ── Factory ──────────────────────────────────────────────────────────────────
 
 export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
-	const parentBlockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
-	const parentFocus = getContext<FocusActions>(FOCUS_KEY);
-	const parentContainerEdit = getContext<ContainerEditActions>(CONTAINER_EDIT_KEY);
 	const history = getContext<HistoryActions>(HISTORY_KEY);
 	const {
 		stickyColumn,
@@ -345,67 +333,42 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		events: editorEvents,
 		activePlugins
 	} = getContext<EditorServices>(EDITOR_SERVICES_KEY);
-	const {
-		keybindingOverrides,
-		presentationMode: getPresentationMode,
-		theme: getTheme
-	} = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
+	const { keybindingOverrides, theme: getTheme } = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
 	const { pluginEditor, reading } = getContext<EditorDoc>(EDITOR_DOC_KEY);
+	const getPresentationMode = reading.mode;
 
 	// Resolved by the kind's recorded owner, like the kind-command context's `editor`.
 	const getEditor = (): EditorContext | undefined =>
 		owningPluginEditor(pluginEditor, deps.getNode().kind);
 	const getOptions = (): unknown => getEditor()?.options;
 
-	const listState = createBlockListState(deps.getNode);
-
-	// One live scope over the deps' getters, shared by every factory wired here. Passed by
-	// reference, never spread, since spreading would snapshot the getters.
-	const scope: NodeScope = {
-		get index() {
-			return deps.getIndex();
-		},
-		get node() {
-			return deps.getNode();
-		},
-		get path() {
-			return deps.getPath();
-		}
-	};
-
 	const collapsed = composeCollapseProbe(deps.isCollapsed, deps.getNode, getPresentationMode);
 
-	const containerExitOverrides = createContainerExitOverrides({ scope, parentBlockEdit });
-
-	// All three override the same `defaults`, so they coexist; for a container that cannot
-	// collapse the checks are inert.
-	const overrideFactory: NestedActionsOverrideFactory = (defaults) =>
-		composeCollapseGates(containerExitOverrides(defaults), {
-			descendToBody: gateDescendOnCollapse(collapsed, defaults.blockEdit.descendToBody),
-			moveFocus: gateMoveFocusOnCollapse(
-				collapsed,
-				defaults.focus.moveFocus,
-				parentFocus,
-				deps.getIndex
-			)
-		});
-
-	const bundle = createStandardNestedActions(
-		listState,
-		{
-			scope,
-			stickyColumn,
-			reading,
-			parent: {
-				blockEdit: parentBlockEdit,
-				focus: parentFocus,
-				containerEdit: parentContainerEdit
-			}
-		},
-		overrideFactory
-	);
-
-	setNestedActionsContexts(bundle);
+	const {
+		state: listState,
+		parent: { blockEdit: parentBlockEdit, focus: parentFocus }
+	} = createContainerActions({
+		getNode: deps.getNode,
+		getIndex: deps.getIndex,
+		getPath: deps.getPath,
+		// The exit rules and the collapse gates override the same defaults, so they coexist; for a
+		// container that cannot collapse the gates are inert.
+		overrides:
+			({ scope, parent }) =>
+			(defaults) =>
+				composeCollapseGates(
+					createContainerExitOverrides({ scope, parentBlockEdit: parent.blockEdit })(defaults),
+					{
+						descendToBody: gateDescendOnCollapse(collapsed, defaults.blockEdit.descendToBody),
+						moveFocus: gateMoveFocusOnCollapse(
+							collapsed,
+							defaults.focus.moveFocus,
+							parent.focus,
+							deps.getIndex
+						)
+					}
+				)
+	});
 
 	const windowing = useContainerWindowing({
 		getIndex: deps.getIndex,

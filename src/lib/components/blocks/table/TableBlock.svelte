@@ -1,13 +1,6 @@
 <script lang="ts">
 	import { setContext, getContext, untrack, tick } from 'svelte';
-	import type {
-		BlockEditActions,
-		CellPosition,
-		ContainerEditActions,
-		FocusActions,
-		TableAxisAction,
-		TableContext
-	} from '../../../action-contracts';
+	import type { CellPosition, TableAxisAction, TableContext } from '../../../action-contracts';
 	import {
 		CURSOR_END,
 		CURSOR_START,
@@ -16,11 +9,8 @@
 	} from '../../../block-component';
 	import type { NodeView } from '../../../core/node-views';
 	import {
-		BLOCK_EDIT_KEY,
-		CONTAINER_EDIT_KEY,
 		EDITOR_DOC_KEY,
 		EDITOR_SERVICES_KEY,
-		FOCUS_KEY,
 		TABLE_CONTEXT_KEY,
 		type EditorDoc,
 		type EditorServices
@@ -35,15 +25,10 @@
 	import { tableCaretAtPoint } from './table-caret-at-point';
 	import { intraTableRect } from './cell-clipboard';
 	import { selectedCells } from './selected-cells';
-	import { createBlockListState } from '../../../reactivity/block-list-state.svelte';
 	import { useContainerWindowing } from '../../../reactivity/use-container-windowing.svelte';
 	import { sliceWindow } from '../../../reactivity/window-slice';
 	import { revealChildOrWait } from '../../../reactivity/publish-ref.svelte';
-	import {
-		createStandardNestedActions,
-		setNestedActionsContexts,
-		type NodeScope
-	} from '../../../editor-actions/nested/nested-actions';
+	import { createContainerActions } from '../../../editor-actions/nested/container-actions';
 	import { createTableMutationsContext } from '../../../editor-actions/table-context';
 	import TableRowBlock from './TableRowBlock.svelte';
 	import TableActionMenu from './TableActionMenu.svelte';
@@ -61,9 +46,14 @@
 		myPath: number[];
 	} = $props();
 
-	const parentBlockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
-	const focusActions = getContext<FocusActions>(FOCUS_KEY);
-	const parentContainerEdit = getContext<ContainerEditActions>(CONTAINER_EDIT_KEY);
+	const {
+		state: rowsState,
+		parent: { focus: focusActions, containerEdit: parentContainerEdit }
+	} = createContainerActions({
+		getNode: () => node,
+		getIndex: () => index,
+		getPath: () => myPath
+	});
 	const {
 		controller,
 		stickyColumn: editorStickyColumn,
@@ -105,33 +95,6 @@
 		});
 	}
 	let tableEl: HTMLDivElement | undefined = $state();
-
-	const rowsState = createBlockListState(() => node);
-
-	const scope: NodeScope = {
-		get index() {
-			return index;
-		},
-		get node() {
-			return node;
-		},
-		get path() {
-			return myPath;
-		}
-	};
-
-	const bundle = createStandardNestedActions(rowsState, {
-		scope,
-		stickyColumn: editorStickyColumn,
-		reading,
-		parent: {
-			blockEdit: parentBlockEdit,
-			focus: focusActions,
-			containerEdit: parentContainerEdit
-		}
-	});
-
-	setNestedActionsContexts(bundle);
 
 	// ── Virtual rendering (row windowing) ───────────────────────────────
 

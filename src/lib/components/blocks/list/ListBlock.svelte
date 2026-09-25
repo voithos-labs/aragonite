@@ -1,86 +1,44 @@
 <script lang="ts">
 	import { getContext, setContext } from 'svelte';
-	import type {
-		BlockEditActions,
-		ContainerEditActions,
-		FocusActions,
-		ListContext
-	} from '../../../action-contracts';
+	import type { ListContext } from '../../../action-contracts';
 	import type { NodeView } from '../../../core/node-views';
-	import {
-		BLOCK_EDIT_KEY,
-		CONTAINER_EDIT_KEY,
-		EDITOR_DOC_KEY,
-		EDITOR_SERVICES_KEY,
-		FOCUS_KEY,
-		LIST_CONTEXT_KEY,
-		type EditorDoc,
-		type EditorServices
-	} from '../../../editor-keys';
+	import { EDITOR_SERVICES_KEY, LIST_CONTEXT_KEY, type EditorServices } from '../../../editor-keys';
 	import { createListContext } from '../../../editor-actions/list-context';
 	import { createListOverrides } from '../../../editor-actions/list-overrides';
-	import { createBlockListState } from '../../../reactivity/block-list-state.svelte';
 	import { useContainerWindowing } from '../../../reactivity/use-container-windowing.svelte';
 	import { sliceWindow } from '../../../reactivity/window-slice';
-	import {
-		createStandardNestedActions,
-		setNestedActionsContexts,
-		type NodeScope
-	} from '../../../editor-actions/nested/nested-actions';
+	import { createContainerActions } from '../../../editor-actions/nested/container-actions';
 	import { createContainerBlockComponent } from '../../../editor-actions/container-block-component';
 	import ListItemBlock from './ListItemBlock.svelte';
 
 	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
 
-	const parentBlockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
-	const parentFocus = getContext<FocusActions>(FOCUS_KEY);
-	const parentContainerEdit = getContext<ContainerEditActions>(CONTAINER_EDIT_KEY);
-	const { controller, stickyColumn, selection } = getContext<EditorServices>(EDITOR_SERVICES_KEY);
-	const { reading } = getContext<EditorDoc>(EDITOR_DOC_KEY);
-
-	const listState = createBlockListState(() => node);
+	const { controller, selection } = getContext<EditorServices>(EDITOR_SERVICES_KEY);
 
 	let boxEl: HTMLElement | undefined = $state();
 
-	// Read parent context before the setContext below shadows it.
+	// Read before this list provides its own below.
 	const parentListContext = getContext<ListContext | undefined>(LIST_CONTEXT_KEY);
 
-	// Created once and passed by reference to every factory below, never spread.
-	const scope: NodeScope = {
-		get index() {
-			return index;
-		},
-		get node() {
-			return node;
-		},
-		get path() {
-			return myPath;
-		}
-	};
-
-	const bundle = createStandardNestedActions(
-		listState,
-		{
-			scope,
-			stickyColumn,
-			reading,
-			parentListContext,
-			parent: {
-				blockEdit: parentBlockEdit,
-				focus: parentFocus,
-				containerEdit: parentContainerEdit
-			}
-		},
-		createListOverrides({ scope, parentBlockEdit })
-	);
-
-	setNestedActionsContexts(bundle);
+	const {
+		scope,
+		state: listState,
+		parent,
+		reading
+	} = createContainerActions({
+		getNode: () => node,
+		getIndex: () => index,
+		getPath: () => myPath,
+		parentListContext,
+		overrides: ({ scope, parent }) =>
+			createListOverrides({ scope, parentBlockEdit: parent.blockEdit })
+	});
 
 	const listContext = createListContext({
 		scope,
 		state: listState,
-		parentBlockEdit,
-		parentFocus,
+		parentBlockEdit: parent.blockEdit,
+		parentFocus: parent.focus,
 		parentListContext,
 		controller,
 		reading

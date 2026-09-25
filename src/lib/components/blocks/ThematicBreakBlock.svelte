@@ -2,12 +2,7 @@
 	import { getContext } from 'svelte';
 	import type { BlockComponent } from '../../block-component';
 	import type { NodeView } from '../../core/node-views';
-	import {
-		EDITOR_POLICIES_KEY,
-		EDITOR_SERVICES_KEY,
-		type EditorPolicies,
-		type EditorServices
-	} from '../../editor-keys';
+	import { EDITOR_SERVICES_KEY, type EditorServices } from '../../editor-keys';
 	import { eventToChord } from '../../schema/keybindings';
 	import { type CommandId } from '../../schema/commands';
 	import {
@@ -32,13 +27,13 @@
 		getKeybindingOverrides,
 		stickyColumn,
 		edgeAffinity,
-		selection
+		selection,
+		reading
 	} = wiring.deps;
 	const { reorder, activePlugins } = getContext<EditorServices>(EDITOR_SERVICES_KEY);
-	const { presentationMode: getPresentationMode } = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
 	// Tabindex-focusable independent of contenteditable, so keydown stays live in
 	// reading mode; the edit branches below gate on this instead.
-	const isReading = () => getPresentationMode?.() === 'reading';
+	const isReading = () => reading.mode() === 'reading';
 	let boxEl: HTMLDivElement | undefined = $state();
 	let el: HTMLDivElement | undefined = $state();
 

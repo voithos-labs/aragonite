@@ -1,31 +1,16 @@
 <script lang="ts">
 	import { getContext } from 'svelte';
-	import type {
-		BlockEditActions,
-		ContainerEditActions,
-		FocusActions
-	} from '../../../action-contracts';
 	import { CURSOR_END, CURSOR_START, type BlockComponent } from '../../../block-component';
 	import type { NodeView } from '../../../core/node-views';
 	import {
-		BLOCK_EDIT_KEY,
-		CONTAINER_EDIT_KEY,
-		EDITOR_DOC_KEY,
 		EDITOR_SERVICES_KEY,
-		FOCUS_KEY,
 		PARENT_SCOPE_SINK_KEY,
-		type EditorDoc,
 		type EditorServices,
 		type ParentScopeSink
 	} from '../../../editor-keys';
 	import type { TableAlignment } from '../../../core/nodes';
-	import { createBlockListState } from '../../../reactivity/block-list-state.svelte';
 	import { useMountGauge } from '../../../perf/use-mount-gauge.svelte';
-	import {
-		createStandardNestedActions,
-		setNestedActionsContexts,
-		type NodeScope
-	} from '../../../editor-actions/nested/nested-actions';
+	import { createContainerActions } from '../../../editor-actions/nested/container-actions';
 	import { publishRefSlot, type RefSlots } from '../../../reactivity/publish-ref.svelte';
 	import { useBlockDecorations } from '../../../decorations/use-block-decorations.svelte';
 	import TableCellBlock from './TableCellBlock.svelte';
@@ -53,13 +38,13 @@
 	// A row's position among the table's children is its row index.
 	const rowIdx = $derived(index);
 
-	const parentBlockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
-	const parentFocus = getContext<FocusActions>(FOCUS_KEY);
-	const parentContainerEdit = getContext<ContainerEditActions>(CONTAINER_EDIT_KEY);
-	const { stickyColumn, decorations, events } = getContext<EditorServices>(EDITOR_SERVICES_KEY);
-	const { reading } = getContext<EditorDoc>(EDITOR_DOC_KEY);
+	const { decorations, events } = getContext<EditorServices>(EDITOR_SERVICES_KEY);
 
-	const cellsState = createBlockListState(() => node);
+	const { state: cellsState } = createContainerActions({
+		getNode: () => node,
+		getIndex: () => index,
+		getPath: () => myPath
+	});
 
 	let rowEl: HTMLElement | undefined = $state();
 	const parentSink = getContext<ParentScopeSink | undefined>(PARENT_SCOPE_SINK_KEY);
@@ -102,31 +87,6 @@
 		}
 		parentSink?.measureRowNow(id);
 	});
-
-	const scope: NodeScope = {
-		get index() {
-			return index;
-		},
-		get node() {
-			return node;
-		},
-		get path() {
-			return myPath;
-		}
-	};
-
-	const bundle = createStandardNestedActions(cellsState, {
-		scope,
-		stickyColumn,
-		reading,
-		parent: {
-			blockEdit: parentBlockEdit,
-			focus: parentFocus,
-			containerEdit: parentContainerEdit
-		}
-	});
-
-	setNestedActionsContexts(bundle);
 
 	// ── BlockComponent interface ────────────────────────────────────────
 

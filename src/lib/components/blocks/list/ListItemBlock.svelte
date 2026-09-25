@@ -1,36 +1,21 @@
 <script lang="ts">
 	import { getContext, setContext } from 'svelte';
-	import type {
-		BlockEditActions,
-		ContainerEditActions,
-		FocusActions,
-		ListContext
-	} from '../../../action-contracts';
+	import type { ListContext } from '../../../action-contracts';
 	import type { BlockComponent } from '../../../block-component';
 	import type { NodeView } from '../../../core/node-views';
 	import {
-		BLOCK_EDIT_KEY,
-		CONTAINER_EDIT_KEY,
-		EDITOR_DOC_KEY,
 		EDITOR_POLICIES_KEY,
 		EDITOR_SERVICES_KEY,
-		FOCUS_KEY,
 		LIST_CONTEXT_KEY,
-		type EditorDoc,
 		type EditorPolicies,
 		type EditorServices
 	} from '../../../editor-keys';
 	import { metadataOf } from '../../../core/nodes';
 	import { hidesMarkers } from '../../../presentation-mode';
-	import { displayLength } from '../../../core/lines';
-	import { createBlockListState } from '../../../reactivity/block-list-state.svelte';
 	import { useContainerWindowing } from '../../../reactivity/use-container-windowing.svelte';
 	import { useMountGauge } from '../../../perf/use-mount-gauge.svelte';
-	import {
-		createStandardNestedActions,
-		setNestedActionsContexts,
-		type NodeScope
-	} from '../../../editor-actions/nested/nested-actions';
+	import { createContainerActions } from '../../../editor-actions/nested/container-actions';
+	import { createListItemOverrides } from '../../../editor-actions/list-overrides';
 	import { createContainerBlockComponent } from '../../../editor-actions/container-block-component';
 	import { buildTaskItemAmbient } from './task-checkbox';
 	import BlockList from '../../BlockList.svelte';
@@ -58,16 +43,24 @@
 		slots?: RefSlots<BlockComponent>;
 	} = $props();
 
-	const parentBlockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
-	const parentFocus = getContext<FocusActions>(FOCUS_KEY);
-	const parentContainerEdit = getContext<ContainerEditActions>(CONTAINER_EDIT_KEY);
-	const { stickyColumn, selection, decorations, events, activePlugins } =
+	const { selection, decorations, events, activePlugins } =
 		getContext<EditorServices>(EDITOR_SERVICES_KEY);
 	const { keybindingOverrides, blockDragHandles: getDragHandles } =
 		getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
-	const { reading } = getContext<EditorDoc>(EDITOR_DOC_KEY);
 
 	const listContext = getContext<ListContext>(LIST_CONTEXT_KEY);
+	const {
+		state: listState,
+		parent: { blockEdit: parentBlockEdit },
+		reading
+	} = createContainerActions({
+		getNode: () => node,
+		getIndex: () => index,
+		getPath: () => myPath,
+		// The enclosing list's context, not the wrapped one this item provides.
+		overrides: ({ scope }) => createListItemOverrides({ scope, listContext })
+	});
+
 	// $derived, not a mount-time snapshot: a runtime prop toggle must reach blocks
 	// that window in and out after the change, not just those mounted at mount.
 	const dragHandles = $derived(getDragHandles?.() ?? false);
@@ -94,8 +87,6 @@
 		getContainingItemIndex: () => index
 	};
 	setContext(LIST_CONTEXT_KEY, wrappedListContext);
-
-	const listState = createBlockListState(() => node);
 
 	let boxEl: HTMLElement | undefined = $state();
 	let contentEl: HTMLElement | undefined = $state();
@@ -136,62 +127,6 @@
 		if (!meta?.taskItem) return undefined;
 		return meta.taskChecked ? 'true' : 'false';
 	});
-
-	const scope: NodeScope = {
-		get index() {
-			return index;
-		},
-		get node() {
-			return node;
-		},
-		get path() {
-			return myPath;
-		}
-	};
-
-	const bundle = createStandardNestedActions(
-		listState,
-		{
-			scope,
-			stickyColumn,
-			reading,
-			parent: {
-				blockEdit: parentBlockEdit,
-				focus: parentFocus,
-				containerEdit: parentContainerEdit
-			}
-		},
-		() => ({
-			blockEdit: {
-				splitBlock: async (innerIndex: number, offset: number): Promise<void> => {
-					if (!node.children) return;
-
-					// Enter on an empty item. Deliberately looser than `isItemUserEmpty`:
-					// trailing structural children stay until `exitListAtItem` moves them.
-					const firstChild = node.children[0];
-					const isEmptyItem = firstChild?.kind === 'paragraph' && firstChild.raw.trim() === '';
-					if (isEmptyItem) {
-						await listContext.exitListAtItem(index);
-						return;
-					}
-
-					const lastChild = node.children[node.children.length - 1];
-					const isAtEnd =
-						innerIndex === node.children.length - 1 && offset >= displayLength(lastChild.raw);
-
-					if (isAtEnd) {
-						await listContext.insertItemAfter(index);
-						return;
-					}
-
-					await listContext.splitItemAtOffset(index, innerIndex, offset);
-				}
-				// `mergeWithPrevious` at an inner index of 0 or less is the default already.
-			}
-		})
-	);
-
-	setNestedActionsContexts(bundle);
 
 	// ── Virtual rendering (nested windowing) ────────────────────────────
 

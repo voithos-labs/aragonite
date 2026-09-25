@@ -302,40 +302,26 @@ First, the cheap way out. A container with nothing kind-specific to say can use 
 </div>
 ```
 
-The list and the table assemble the primitives by hand, and that's what the rest of this section is about. A container builds its reactive state and a default action bundle from the `editor-actions/` primitives, then overrides only what genuinely needs kind-specific behavior. That's usually less than you expect going in.
+The list and the table need more than the blockquote, so they call the half of that factory that builds the child actions, and wire the rest themselves. That's what the rest of this section is about. A container builds its children's reactive state and a default action bundle, then overrides only what genuinely needs kind-specific behavior. That's usually less than you expect going in.
 
-**`createBlockListState(() => node)`** gives you the scope's `innerBlockIds` / `innerBlockRefs` (a scope: one block list and its children, the unit of addressing and windowing).
+**`createContainerActions({ getNode, getIndex, getPath, overrides?, parentListContext? })`** (`src/lib/editor-actions/nested/container-actions.ts`) is that half, and every container calls it: the list, the list item, the table, the table row, and `createContainerBlock` itself. It reads the parent's action bundle and the editor's reading from context, builds the children's block-list state, builds the default `{ blockEdit, focus, containerEdit }` bundle, provides it to the children, and hands you the pieces back (`scope`, `state`, `parent`, `reading`). The bundle's methods handle split, merge, delete, content, and replace uniformly, and Backspace-at-start dispatches by the kind's declared `unwrapRole`.
 
-Pass the node **as a getter, never by value.** A by-value argument freezes on the node your container mounted with and misses the deep-clone reassignment an undo does, so the state ends up pointing at a tree nobody's rendering. Nothing throws. This is the incident behind rules.md's "reactive state crosses module boundaries as getters, never values" (`casebook.md`), and G4.1 scans every call site in the editor for it.
-
-**`createStandardNestedActions(state, input, overrideFactory?)`** hands back a complete `{ blockEdit, focus, containerEdit }` bundle. Its methods handle split, merge, delete, content, and replace uniformly, and Backspace-at-start dispatches by the kind's declared `unwrapRole`. `input` is a `NodeScope` (three getters, `index`, `node`, `path`, passed by reference so nothing snapshots them) plus the parent's bundle and a few editor services. The list's wiring:
+Call it once during component init. It reads the action contexts before it sets them, so a context your container needs from its own parent (a list reading the enclosing list's context) is read before the call. The getters are the point: a by-value node freezes on the node your container mounted with and misses the deep-clone reassignment an undo does, so the state ends up pointing at a tree nobody's rendering. Nothing throws. This is the incident behind rules.md's "reactive state crosses module boundaries as getters, never values" (`casebook.md`), and G4.1 scans every `createBlockListState` call for it. The list's wiring:
 
 ```ts
 // components/blocks/list/ListBlock.svelte
-const scope: NodeScope = {
-	get index() { return index; },
-	get node() { return node; },
-	get path() { return myPath; }
-};
+const parentListContext = getContext<ListContext | undefined>(LIST_CONTEXT_KEY);
 
-const bundle = createStandardNestedActions(
-	listState,
-	{
-		scope,
-		stickyColumn,
-		grammar: registryView.grammar,
-		getPresentationMode,
-		linkRef,
-		parentListContext,
-		parent: { blockEdit: parentBlockEdit, focus: parentFocus, containerEdit: parentContainerEdit }
-	},
-	createListOverrides({ scope, parentBlockEdit })
-);
-
-setNestedActionsContexts(bundle);
+const { scope, state: listState, parent, reading } = createContainerActions({
+	getNode: () => node,
+	getIndex: () => index,
+	getPath: () => myPath,
+	parentListContext,
+	overrides: ({ scope, parent }) => createListOverrides({ scope, parentBlockEdit: parent.blockEdit })
+});
 ```
 
-A container needing custom behavior passes an `overrideFactory`. It receives the fully-built default bundle and returns per-sub-interface partial overrides, which chain back by calling `defaults.blockEdit.splitBlock(...)` directly, so the override set is visible at the call site and type-checked against each sub-interface. The list declining a split and delegating only its last item's forward merge:
+A container needing custom behavior passes `overrides`. It gets the container's scope and its parent's actions and returns an override factory, which receives the fully built default bundle and returns per-sub-interface partial overrides. Those chain back by calling `defaults.blockEdit.splitBlock(...)` directly, so the override set is visible at the call site and type-checked against each sub-interface. The list declining a split and delegating only its last item's forward merge:
 
 ```ts
 // editor-actions/list-overrides.ts
@@ -356,7 +342,7 @@ export function createListOverrides(deps: ListOverridesDeps): NestedActionsOverr
 }
 ```
 
-A trivial container calls `createStandardNestedActions(state, input)` with no overrides and is done. `list-overrides.ts` and `container-exit-overrides.ts` under `editor-actions/` are the two shipped examples.
+A trivial container passes no overrides and is done, as the table and the table row do. `list-overrides.ts` (the list's, and the list item's Enter) and `container-exit-overrides.ts` under `editor-actions/` are the shipped examples.
 
 **`dispatchFocusByPath` / `dispatchFocusAtColumn`** (`editor-actions/focus/focus-dispatch.ts`) are the pure dispatchers your `focusByPath` / `focusAtColumn` exports delegate to.
 
