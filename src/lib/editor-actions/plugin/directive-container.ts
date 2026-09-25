@@ -7,7 +7,7 @@
 
 import { serializeDirective } from '../../core/directive/grammar';
 import { concatChildren as serializeChildren } from '../../core/serializer';
-import { trimTrailingLineEnding, trailingLineEnding } from '../../core/lines';
+import { ownTrailingLineEnding, trimTrailingLineEnding } from '../../core/lines';
 import { getPluginMetadata, type CstNode } from '../../core/nodes';
 
 export function createDirectiveRebuild<
@@ -32,9 +32,8 @@ export function createDirectiveRebuild<
 			closerColonCount: meta?.closerColonCount ?? meta?.colonCount ?? 3,
 			closerNewline: meta?.closerNewline ?? true,
 			lineEnding: meta?.lineEnding,
-			// The parser records only the opener's line ending, so the closer's is read off the
-			// current raw, where the closer is the last line.
-			closerLineEnding: trailingLineEnding(node.raw)
+			// The closer is the raw's last line, so its ending is the raw's own, else the opener's.
+			closerLineEnding: ownTrailingLineEnding(node.raw) || undefined
 		});
 	};
 }

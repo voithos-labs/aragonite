@@ -15,6 +15,7 @@ describe('buildPastedReplacement: blank-line preservation between blocks', () =>
 			leaf,
 			6,
 			parsed.children,
+			'\n',
 			defaultGrammarView
 		);
 
@@ -33,6 +34,7 @@ describe('buildPastedReplacement: blank-line preservation between blocks', () =>
 			leaf,
 			1,
 			parsed.children,
+			'\n',
 			defaultGrammarView
 		);
 
@@ -52,6 +54,7 @@ describe('buildPastedReplacement: structural separator at leading slice boundary
 			leaf,
 			6,
 			parsed.children,
+			'\n',
 			defaultGrammarView
 		);
 
@@ -69,6 +72,7 @@ describe('buildPastedReplacement: structural separator at leading slice boundary
 			leaf,
 			6,
 			[blockWithTrivia],
+			'\n',
 			defaultGrammarView
 		);
 
@@ -84,6 +88,7 @@ describe('buildPastedReplacement: cursor at offset 0 (no leading slice)', () => 
 			leaf,
 			0,
 			parsed.children,
+			'\n',
 			defaultGrammarView
 		);
 
@@ -101,6 +106,7 @@ describe('buildPastedReplacement: cursor at offset 0 (no leading slice)', () => 
 			leaf,
 			0,
 			parsed.children,
+			'\n',
 			defaultGrammarView
 		);
 
@@ -116,6 +122,7 @@ describe('buildPastedReplacement, trailing slice as separate paragraph', () => {
 			leaf,
 			6,
 			parsed.children,
+			'\n',
 			defaultGrammarView
 		);
 
@@ -137,6 +144,7 @@ describe('buildPastedReplacement, trailing slice as separate paragraph', () => {
 			leaf,
 			6,
 			parsed.children,
+			'\n',
 			defaultGrammarView
 		);
 

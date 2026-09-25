@@ -163,6 +163,7 @@ export function createNestedBlockEdit(
 			deps.reading.grammar,
 			deps.node.kind,
 			'',
+			parent.containerEdit.lineEnding(),
 			followsTaskMarker(deps.node, innerIndex) ? deps.node : undefined
 		);
 
@@ -221,7 +222,8 @@ export function createNestedBlockEdit(
 				{
 					children: ownedContainer.children,
 					ownerKind: ownedContainer.kind,
-					owner: ownedContainer
+					owner: ownedContainer,
+					lineEnding: parent.containerEdit.lineEnding()
 				},
 				innerIndex,
 				text,

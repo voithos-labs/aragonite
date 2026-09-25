@@ -5,7 +5,7 @@
 
 import { CURSOR_END } from '../../block-component';
 import { isBuiltinBlockKind, type BlockKind, type CstNode } from '../../core/nodes';
-import { trailingLineEnding, trimTrailingLineEnding } from '../../core/lines';
+import { trailingLineEnding, trimTrailingLineEnding, type LineEnding } from '../../core/lines';
 import { buildPastedReplacement } from './paste-replacement';
 import { cutRangeFromDisplay } from '../node-ops';
 import {
@@ -46,10 +46,11 @@ export function defaultInlineHook(
 	offset: number,
 	text: string,
 	preDelete: PasteRange | undefined,
-	reading: Reading
+	reading: Reading,
+	lineEnding: LineEnding
 ): InlinePasteResult {
 	const display = trimTrailingLineEnding(node.raw);
-	const lineEnding = trailingLineEnding(node.raw);
+	const closing = trailingLineEnding(node.raw, lineEnding);
 
 	const { display: effectiveDisplay, offset: effectiveOffset } = applyPreDelete(
 		node,
@@ -64,7 +65,7 @@ export function defaultInlineHook(
 	const newDisplay = effectiveDisplay.slice(0, effectiveOffset) + inserted + after;
 
 	return {
-		newRaw: newDisplay + lineEnding,
+		newRaw: newDisplay + closing,
 		caretOffset: effectiveOffset + inserted.length
 	};
 }
@@ -88,19 +89,23 @@ export function defaultStructuralHook(
 	offset: number,
 	blocks: CstNode[],
 	preDelete: PasteRange | undefined,
-	reading: Reading
+	reading: Reading,
+	lineEnding: LineEnding
 ): StructuralPasteResult {
 	const display = trimTrailingLineEnding(node.raw);
 	const cut = applyPreDelete(node, display, preDelete, offset, reading);
 	// Compare the bytes rather than the range: a cleanup can drop more than the selection did,
 	// and an empty range leaves them equal, which is exactly when the original node stands.
 	const synthLeaf =
-		cut.display === display ? node : { ...node, raw: cut.display + trailingLineEnding(node.raw) };
+		cut.display === display
+			? node
+			: { ...node, raw: cut.display + trailingLineEnding(node.raw, lineEnding) };
 
 	const { nodes, lastPastedIndex } = buildPastedReplacement(
 		synthLeaf,
 		cut.offset,
 		blocks,
+		lineEnding,
 		reading.grammar
 	);
 	// The caret lands where the pasted bytes end, which the fix-up tracks when it merges the

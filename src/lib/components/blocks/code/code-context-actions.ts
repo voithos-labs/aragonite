@@ -3,6 +3,7 @@
  * default row. Registered once from the code bootstrap.
  */
 import { registerBuiltinBlockContextActions } from '../../../schema/context-actions';
+import { trailingLineEnding, trimTrailingLineEnding } from '../../../core/lines';
 import { sliceFencedCode } from './code-renderer';
 
 let registered = false;
@@ -17,8 +18,8 @@ export function registerCodeContextActions(): void {
 			icon: 'type',
 			run: (ctx) => {
 				// The body's lines as prose; the fence lines go. An empty body leaves an empty line.
-				const body = sliceFencedCode(node).body.replace(/\r?\n$/, '');
-				return ctx.replaceRaw(body + '\n');
+				const body = trimTrailingLineEnding(sliceFencedCode(node).body);
+				return ctx.replaceRaw(body + trailingLineEnding(node.raw, ctx.lineEnding));
 			}
 		}
 	]);

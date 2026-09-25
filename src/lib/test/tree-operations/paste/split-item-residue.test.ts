@@ -71,6 +71,7 @@ describe('the text after the caret, split into an item of its own', () => {
 			0,
 			3,
 			pasted,
+			'\n',
 			undefined,
 			defaultGrammarView
 		);

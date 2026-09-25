@@ -13,7 +13,7 @@ import { stampStructuralChange, type StructuralChange } from '../structural-chan
 import { containerPasteFor } from './container-paste';
 import { rebuildListRaw } from '../../schema/container-rebuilders';
 import { newlineTerminateListItems } from '../list/terminator';
-import { trailingLineEnding } from '../../core/lines';
+import { documentLineEnding, type LineEnding } from '../../core/lines';
 import { assembleListHalf, buildSplitItems } from '../list/list-builders';
 import { orderedBaseOf } from '../list/ordered-markers';
 import { findEnclosingListForPaste } from './find-enclosing-list';
@@ -81,18 +81,20 @@ export async function applyListBreakOut(
 	const list = nodeAt(ctx.doc, plan.listPath) as CstNode | null;
 	if (!list?.children) return;
 
+	const lineEnding = documentLineEnding(ctx.doc);
 	const { replacement, hasTrailingResidue } = buildListBreakOutReplacement(
 		list,
 		plan.itemIndex,
 		plan.innerIndex,
 		plan.offset,
 		pastedBlocks,
+		lineEnding,
 		plan.targetRaw,
 		ctx.reading.grammar
 	);
 	if (replacement.length === 0) return;
 
-	for (const node of replacement) ensureEditableContainers(node);
+	for (const node of replacement) ensureEditableContainers(node, lineEnding);
 
 	const parentScope = resolveParentScope(ctx.doc, plan.listPath, ctx.controller);
 	if (!parentScope) return;
@@ -154,6 +156,7 @@ export function buildListBreakOutReplacement(
 	innerIndex: number,
 	offset: number,
 	pastedBlocks: CstNode[],
+	ending: LineEnding,
 	targetRaw: string | undefined,
 	grammar: GrammarView
 ): ListBreakOutReplacement {
@@ -166,6 +169,7 @@ export function buildListBreakOutReplacement(
 		item,
 		innerIndex,
 		offset,
+		ending,
 		targetRaw,
 		grammar
 	);
@@ -186,10 +190,9 @@ export function buildListBreakOutReplacement(
 	}
 	for (const block of pastedBlocks) {
 		const cloned = cloneNode(block);
-		// Normalize the clone's items so its rebuilt raw cannot run into the next block. The
-		// ending comes from the list being broken out of: the pasted block lands among its lines.
+		// Normalize the clone's items so its rebuilt raw cannot run into the next block.
 		if (cloned.kind === 'list' && cloned.children) {
-			newlineTerminateListItems(cloned.children, trailingLineEnding(list.raw));
+			newlineTerminateListItems(cloned.children, ending);
 			rebuildListRaw(cloned);
 		}
 		replacement.push(cloned);

@@ -70,7 +70,7 @@ describe('a kind demotion settles the join above (GH #21)', () => {
 		const quote = doc.children[0];
 
 		const settled = updateNodeContent(
-			{ children: quote.children!, ownerKind: quote.kind, owner: quote },
+			{ children: quote.children!, ownerKind: quote.kind, owner: quote, lineEnding: '\n' },
 			1,
 			'x# h\n',
 			defaultGrammarView

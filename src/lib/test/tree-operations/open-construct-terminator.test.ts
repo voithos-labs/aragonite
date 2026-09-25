@@ -7,6 +7,7 @@ import { createSharingState } from '$lib/tree-operations/sharing';
 import { rebuildContainerRaw } from '$lib/schema/container-raw';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
 import { defaultGrammarView } from '$lib/schema/block-openers';
+import { documentLineEnding } from '$lib/core/lines';
 
 // GH #180: a write leaving an unterminated construct that runs to end of file made the neighbour
 // merge bring the live tree to the reload's reading, which is the whole rest of the document as
@@ -100,7 +101,12 @@ describe('a write closes the construct its own bytes leave open (GH #180)', () =
 		const quote = doc.children[0];
 
 		updateNodeContent(
-			{ children: quote.children!, ownerKind: quote.kind, owner: quote },
+			{
+				children: quote.children!,
+				ownerKind: quote.kind,
+				owner: quote,
+				lineEnding: documentLineEnding(doc)
+			},
 			1,
 			'```\n',
 			defaultGrammarView

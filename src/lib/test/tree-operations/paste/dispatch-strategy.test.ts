@@ -58,28 +58,28 @@ describe('paste-dispatch: the clipboard’s content blocks', () => {
 describe('paste-dispatch: default inline hook', () => {
 	it('splices text at offset into raw', () => {
 		const node = makePara('hello world\n');
-		const result = defaultInlineHook(node, 5, ' XYZ', undefined, fixtureReading());
+		const result = defaultInlineHook(node, 5, ' XYZ', undefined, fixtureReading(), '\n');
 		expect(result.newRaw).toBe('hello XYZ world\n');
 		expect(result.caretOffset).toBe(9);
 	});
 
 	it('with preDelete: removes range then splices', () => {
 		const node = makePara('hello world\n');
-		const result = defaultInlineHook(node, 0, 'XYZ', { start: 0, end: 5 }, fixtureReading());
+		const result = defaultInlineHook(node, 0, 'XYZ', { start: 0, end: 5 }, fixtureReading(), '\n');
 		expect(result.newRaw).toBe('XYZ world\n');
 		expect(result.caretOffset).toBe(3);
 	});
 
 	it('preserves CRLF line ending', () => {
 		const node = makePara('hello\r\n');
-		const result = defaultInlineHook(node, 5, '!', undefined, fixtureReading());
+		const result = defaultInlineHook(node, 5, '!', undefined, fixtureReading(), '\n');
 		expect(result.newRaw).toBe('hello!\r\n');
 	});
 
 	it('with empty preDelete range is equivalent to no preDelete', () => {
 		const node = makePara('hello\n');
-		const a = defaultInlineHook(node, 3, 'X', { start: 3, end: 3 }, fixtureReading());
-		const b = defaultInlineHook(node, 3, 'X', undefined, fixtureReading());
+		const a = defaultInlineHook(node, 3, 'X', { start: 3, end: 3 }, fixtureReading(), '\n');
+		const b = defaultInlineHook(node, 3, 'X', undefined, fixtureReading(), '\n');
 		expect(a).toEqual(b);
 	});
 });

@@ -11,7 +11,7 @@ import type { GrammarView } from '../../schema/block-openers';
 import type { PasteCommitCoordinator } from './paste-deps';
 import { nodeAt } from '../node-primitives';
 import { spliceMany } from '../splice-many';
-import { trailingLineEnding } from '../../core/lines';
+import { documentLineEnding } from '../../core/lines';
 import { normalizeReplacementForBody } from './body-write';
 import { reconcileTaskMetadata, taskMarkerMayStandBefore } from '../list/reconcile-task';
 import { landedPastePosition, trackedPasteCaret } from './focus-target';
@@ -44,7 +44,7 @@ export interface ReplaceBlockAtParentArgs {
  * Land the clipboard's trailing blank line where a reload keeps one: the document's own suffix,
  * and only at a tail with nothing after it, since one separation is one separation. A container
  * tail declines: `innerSuffix` belongs to the fence-line fix-up on this same commit. The
- * clipboard says whether a line lands, never which one: the displaced block's ending does (G4.20).
+ * clipboard says whether a line lands, never which one: the document's ending does.
  */
 function landTrailingSeparator(
 	args: ReplaceBlockAtParentArgs,
@@ -69,9 +69,11 @@ export async function replaceBlockAtParent(args: ReplaceBlockAtParentArgs): Prom
 	// A replacement is built before any content write sees it, so the owner's `bodyWrite` escape
 	// is applied here, to the clipboard blocks and the target's split halves alike.
 	const ownerKind = blockPath.length > 1 ? (scope.node.kind as AnyBlockKind) : undefined;
+	const lineEnding = documentLineEnding(doc);
 	const { replacement, mapIndex } = normalizeReplacementForBody(
 		ownerKind,
 		args.replacement,
+		lineEnding,
 		args.grammar
 	);
 	const focusReplacementIndex = mapIndex(args.focusReplacementIndex);
@@ -82,9 +84,7 @@ export async function replaceBlockAtParent(args: ReplaceBlockAtParentArgs): Prom
 	const oldBlock = nodeAt(doc, blockPath) as CstNode | null;
 	const sameKindFirst =
 		oldBlock !== null && replacement.length > 0 && replacement[0].kind === oldBlock.kind;
-	// Read as bytes before the commit: the displaced block is the document's own ending, and a
-	// node held across a commit goes stale the moment the ancestors are copied.
-	const tailEnding = oldBlock ? trailingLineEnding(oldBlock.raw) : '\n';
+	const tailEnding = lineEnding;
 
 	await controller.commitMultiScope({
 		scopes: [scope],

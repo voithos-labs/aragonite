@@ -89,7 +89,7 @@ describe('updateNodeContent', () => {
 	it('tableCell update writes raw only and returns noop', () => {
 		const cell: CstNode = { kind: 'tableCell', leadingTrivia: '', raw: 'a' };
 		const { change } = updateNodeContent(
-			{ children: [cell], ownerKind: undefined, owner: undefined },
+			{ children: [cell], ownerKind: undefined, owner: undefined, lineEnding: '\n' },
 			0,
 			'ab',
 			defaultGrammarView

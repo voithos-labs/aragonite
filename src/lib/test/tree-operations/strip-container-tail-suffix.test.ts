@@ -4,7 +4,7 @@ import { admonitionsPlugin } from '$lib/plugins/admonitions';
 import type { CstNode, Document } from '$lib/core/nodes';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
-import { trailingLineEnding } from '$lib/core/lines';
+import { documentLineEnding, trailingLineEnding } from '$lib/core/lines';
 import { updateNodeContent } from '$lib/tree-operations';
 import { deleteNode, settleSeparator } from '$lib/tree-operations/settle';
 import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
@@ -43,9 +43,14 @@ function empty(doc: Document, path: number[]): void {
 	const chain = containersAlong(doc, path);
 	const owner = chain[chain.length - 1];
 	const index = path[path.length - 1];
-	const text = trailingLineEnding(owner.children![index].raw);
+	const text = trailingLineEnding(owner.children![index].raw, '\n');
 	updateNodeContent(
-		{ children: owner.children!, ownerKind: owner.kind, owner },
+		{
+			children: owner.children!,
+			ownerKind: owner.kind,
+			owner,
+			lineEnding: documentLineEnding(doc)
+		},
 		index,
 		text,
 		defaultGrammarView
@@ -103,7 +108,12 @@ describe("blanking a blockquote's last block turns its trailing line into a bloc
 		const before = [...quote.children!];
 
 		const change = deleteNode(
-			{ children: quote.children!, ownerKind: quote.kind, owner: quote },
+			{
+				children: quote.children!,
+				ownerKind: quote.kind,
+				owner: quote,
+				lineEnding: documentLineEnding(doc)
+			},
 			2,
 			defaultGrammarView
 		);

@@ -118,6 +118,7 @@ describe('the structural paste’s before/after slices', () => {
 			leaf,
 			2,
 			parse('x\n').children,
+			'\n',
 			defaultGrammarView
 		);
 		const raws = replacement.map((node: CstNode) => node.raw);
@@ -132,6 +133,7 @@ describe('the absorb split’s item halves', () => {
 		const { leadingNode, trailingNodes } = splitLeafForPaste(
 			leaf,
 			2,
+			'\n',
 			undefined,
 			defaultGrammarView
 		);

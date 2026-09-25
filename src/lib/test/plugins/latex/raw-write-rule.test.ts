@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '$lib';
 import { resetPluginPlatformForTests } from '$lib/testing';
 import { normalizeOwnRaw } from '$lib/tree-operations/node-primitives';
+import { documentLineEnding } from '$lib/plugin';
 import { registerMathBlock } from '$lib/plugins/latex/latex-kind';
 
 // Both math kinds declare a raw-write rule that puts back a closer a truncating write dropped, so
@@ -12,7 +13,8 @@ import { registerMathBlock } from '$lib/plugins/latex/latex-kind';
 
 /** The rule as a write path reaches it: dispatched off the node's own kind. */
 function write(source: string, raw: string): string {
-	return normalizeOwnRaw(parse(source).children[0], raw);
+	const doc = parse(source);
+	return normalizeOwnRaw(doc.children[0], raw, documentLineEnding(doc));
 }
 
 // One call registers both forms, as one install of the plugin does.
@@ -72,5 +74,16 @@ describe('a truncating write of a ```math fence gets its closing line back', () 
 		['a first line that is no longer a math fence', 'x^2\n```\n']
 	])('leaves %s alone', (_case, written) => {
 		expect(write('```math\nx^2\n```\n', written)).toBe(written);
+	});
+});
+
+// Miss-analysis: every closer-restore fixture was LF, so a closer written in LF into a CRLF block
+// read as correct; the last line of a document carries no ending to copy.
+describe('a closer restored into the unterminated last block of a CRLF document is CRLF', () => {
+	it.each([
+		['a $$ block', '$$\r\nx^2\r\n$$', '$$\r\nx^', '$$\r\nx^\r\n$$'],
+		['a ```math fence', '```math\r\nx^2\r\n```', '```math\r\nAfter', '```math\r\nAfter\r\n```']
+	])('%s', (_case, source, written, expected) => {
+		expect(write(source, written)).toBe(expected);
 	});
 });

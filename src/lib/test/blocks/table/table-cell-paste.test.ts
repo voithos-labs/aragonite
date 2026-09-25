@@ -20,6 +20,14 @@ import { fixtureReading } from '../../harness/fixture-grammar';
 import { defaultGrammarView } from '$lib/schema/block-openers';
 import type { Reading } from '$lib/schema/reading';
 
+/** A children array as the body parent a write reads, owned by nothing, in an LF document. */
+const asBody = (parent: { children?: CstNode[] }) => ({
+	children: parent.children!,
+	ownerKind: undefined,
+	owner: undefined,
+	lineEnding: '\n' as const
+});
+
 function makeCell(raw: string): CstNode {
 	return { kind: 'tableCell', leadingTrivia: '', raw };
 }
@@ -41,7 +49,7 @@ function pasteIntoRow(
 		metadata: { isHeader: false },
 		children: [makeCell(cellRaw), makeCell('keep')]
 	};
-	updateNodeContent(row as never, 0, result.newRaw, defaultGrammarView);
+	updateNodeContent(asBody(row), 0, result.newRaw, defaultGrammarView);
 	writeTableRow(row, '\n');
 	const table = parse('| h | h |\n| --- | --- |\n' + row.raw).children[0];
 	return { ...result, cells: (table.children?.[1].children ?? []).map((c) => c.raw) };
@@ -89,7 +97,7 @@ describe('escapedCellOffset: the caret follows the sink’s inserted backslashes
 			metadata: { isHeader: false },
 			children: [makeCell('')]
 		};
-		updateNodeContent(row as never, 0, 'a|b|c', defaultGrammarView);
+		updateNodeContent(asBody(row), 0, 'a|b|c', defaultGrammarView);
 		expect(escapedCellOffset('a|b|c', 5)).toBe(row.children![0].raw.length);
 	});
 });

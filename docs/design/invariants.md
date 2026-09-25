@@ -813,7 +813,7 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.17 | No spec is collected by two Playwright projects                               | L       |
 | G4.18 | The inline trigger set, the scan switch, and the reserved routes agree        | L       |
 | G4.19 | Every command dispatch site threads the reading-mode gate                     | L       |
-| G4.20 | A reattached line ending is read from the bytes, never a newline literal      | L·N     |
+| G4.20 | A written line takes the document's ending; per-line work reads no `\r`       | L·N     |
 | G4.21 | Image bytes are written only through the one seam module                      | L       |
 | G4.22 | An e2e wait predicate must describe the post-operation shape                  | L       |
 | G4.23 | Every e2e spec pairs with a requirement file, and vice versa                  | L       |
@@ -1006,22 +1006,21 @@ getter inline in the argument list, or inside the object literal a named context
 a `runCommand` entry rewired to a context that skips the getter fails. A new editable surface
 skipping the gate trips the file-set check. `lint/reading-gate-parity.test.ts`.
 
-**G4.20 · Trailing-line-ending parity.** A site that reattaches or creates a line ending reads it
-from the bytes it's standing in for (`trailingLineEnding`), never a bare newline literal, which
-downgrades a CRLF block to LF and breaks byte round-trip. Five scan branches: no
-`updateBlockContent` content argument reconstructs with a string-literal newline; every
-`commitInput` route reaching `updateBlockContent` appends the ending (table cells allowlisted, since
-a GFM cell holds no raw newline); no container `rebuildRaw` emits a newline literal into the bytes
-it re-derives; the ending ternary and the complement reading what a block's own bytes carry both
-live in `core/lines.ts` alone, so neither inline idiom can seed the next copy; and no write to a
-node's `raw` creates a newline literal at all. That last one is the domain branch, which reaches the
-rebuilders, the list terminator and the range-delete branches that sit outside both routes, with
-legitimately-literal writes allowlisted by reason AND count. The scans see literal shapes only, so
-an outcome-level check runs each gesture over an LF fixture and its CRLF mirror and requires the
-results to mirror. It catches the creation sites no shape matches (defaulted parameters, placeholder
-paragraphs), and fires for gesture N+1 untaught. Every paste route has a row there, pasting LF text
-into both, since a paste writes its own lines in the document's ending too. `lint/trailing-line-ending-parity.test.ts`
-(branches); `crlf-edit-mirror.test.ts` (the outcome check).
+**G4.20 · One document line ending.** A line the editor writes takes the document's line ending,
+its first line break (`src/lib/core/lines.ts` :: `documentLineEnding`), and per-line work reads each
+line's text without its ending (`src/lib/core/lines.ts` :: `displayLines`). The ending a block with
+none of its own gets is a required argument of `trailingLineEnding(raw, fallback)`, so every call
+names it. Where a document is in reach (a commit's scope, a paste's context, a component, a
+raw-write rule's `write.lineEnding`, a context action's `ctx.lineEnding`) the call passes the
+document's ending. Where none is (a container's `rebuildRaw`, a join or reparse that reads only a
+children array) it passes the block's own first break, the document's in a one-ending document,
+and falls back to LF only for a block that holds no line break at all. Three scan branches hold
+what the type cannot see: no `split('\n')` over a block's bytes outside `core/lines.ts`, which
+would leave a CRLF line's `\r` on the text a line match reads; no `updateBlockContent` content
+argument ends in a newline literal; and no write to a node's `raw` creates one, with legitimately
+literal writes allowlisted by reason and count. An outcome check runs each gesture over
+an LF fixture and its CRLF mirror, unterminated last lines included, and requires the results to
+mirror. `lint/trailing-line-ending-parity.test.ts` (branches); `crlf-edit-mirror.test.ts` (the outcome check).
 
 **G4.21 · Image byte-write seam.** A name-presence file-set scan, not a behavioral one: the GFM
 serializer is named in code only inside the seam module, and exactly the documented write paths name

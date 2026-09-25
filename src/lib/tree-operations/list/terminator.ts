@@ -1,11 +1,11 @@
 /**
  * Ensure a list item's `raw` ends with a line ending, or `rebuildListRaw` joins adjacent items
- * into one line that reloads as one item. The ending is the target's, never a literal `'\n'`
- * (G4.20), or a paste strands an LF line in a CRLF list. Only mid-list splices normalize.
+ * into one line that reloads as one item. The ending is the document's, or a paste strands an LF
+ * line in a CRLF list. Only mid-list splices normalize.
  */
 
 import type { CstNode } from '../../core/nodes';
-import { trailingLineEnding } from '../../core/lines';
+import type { LineEnding } from '../../core/lines';
 import { spliceMany } from '../splice-many';
 import { rebuildContainerRawIfContainer } from '../../schema/container-raw';
 import { getBlockKindDescriptor } from '../../schema/block-kind-descriptor';
@@ -27,7 +27,7 @@ function lastLineOwningChild(node: CstNode): CstNode | null {
  * above it: such a container's raw is derived from its children, so appending to it directly
  * leaves the two disagreeing (G1.1) and its tail item still unterminated.
  */
-export function terminateLastLine(node: CstNode, ending: '\n' | '\r\n'): void {
+export function terminateLastLine(node: CstNode, ending: LineEnding): void {
 	if (node.raw.endsWith('\n')) return;
 	const child = lastLineOwningChild(node);
 	if (!child) {
@@ -38,12 +38,12 @@ export function terminateLastLine(node: CstNode, ending: '\n' | '\r\n'): void {
 	rebuildContainerRawIfContainer(node);
 }
 
-export function ensureListItemNewlineTerminated(item: CstNode, ending: '\n' | '\r\n'): void {
+export function ensureListItemNewlineTerminated(item: CstNode, ending: LineEnding): void {
 	terminateLastLine(item, ending);
 }
 
 /** Normalize every pasted listItem in `items` (non-listItems pass through). */
-export function newlineTerminateListItems(items: CstNode[], ending: '\n' | '\r\n'): void {
+export function newlineTerminateListItems(items: CstNode[], ending: LineEnding): void {
 	for (const item of items) {
 		if (item.kind === 'listItem') ensureListItemNewlineTerminated(item, ending);
 	}
@@ -51,16 +51,15 @@ export function newlineTerminateListItems(items: CstNode[], ending: '\n' | '\r\n
 
 /**
  * The one way pasted items enter a list's children mid-array: termination is tied to the
- * splice so a new paste path cannot forget it. The ending comes from the neighbours the
- * items join: the displaced target, then the item above, then the list head.
+ * splice so a new paste path cannot forget it. `ending` is the document's.
  */
 export function spliceTerminatedItems(
 	children: CstNode[],
 	at: number,
 	removeCount: number,
-	items: CstNode[]
+	items: CstNode[],
+	ending: LineEnding
 ): void {
-	const neighbour = (removeCount > 0 ? children[at] : undefined) ?? children[at - 1] ?? children[0];
-	newlineTerminateListItems(items, neighbour ? trailingLineEnding(neighbour.raw) : '\n');
+	newlineTerminateListItems(items, ending);
 	spliceMany(children, at, removeCount, items);
 }

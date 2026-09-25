@@ -7,7 +7,8 @@
 
 import type { CstNode, TableAlignment } from '../core/nodes';
 import { metadataOf } from '../core/nodes';
-import { trailingLineEnding } from '../core/lines';
+import type { NodeView } from '../core/node-views';
+import { firstLineEnding, ownTrailingLineEnding, type LineEnding } from '../core/lines';
 import { rebuildConcatRaw, rebuildStripRaw, type ChildRawChange } from './child-spans';
 
 // ── Blockquote ───────────────────────────────────────────────────────────────
@@ -52,9 +53,16 @@ export function rebuildListRaw(node: CstNode, changed?: ChildRawChange): void {
 
 // ── Table ────────────────────────────────────────────────────────────────────
 
-/** `| c0 | c1 | ... |` plus the row's own ending (single-space padding). */
+/** `| c0 | c1 | ... |` plus the row's own ending (single-space padding). The table's rebuild,
+ *  which writes the table's bytes, gives every row the table's ending. */
 export function rebuildTableRowRaw(node: CstNode): void {
-	writeTableRow(node, trailingLineEnding(node.raw));
+	writeTableRow(node, ownTrailingLineEnding(node.raw));
+}
+
+/** The ending a table's lines take: a table spans its header and delimiter lines at least, so its
+ *  bytes hold the document's ending. */
+export function tableLineEnding(table: NodeView): LineEnding {
+	return firstLineEnding(table.raw) ?? '\n';
 }
 
 /**
@@ -72,14 +80,13 @@ export function writeTableRow(node: CstNode, lineEnding: string): void {
 
 /**
  * Header, a rebuilt delimiter row, then the body rows. Every row is rebuilt first, so the first
- * structural edit normalizes the whole table's padding instead of leaving half of it padded. The
- * table's own line ending is used for every line (G4.20): a row created by a structural edit has
- * none of its own, so reading the ending per row would leave that row on LF in a CRLF table.
+ * structural edit normalizes the whole table's padding instead of leaving half of it padded. Every
+ * line takes the table's ending: a row created by a structural edit has none of its own.
  */
 export function rebuildTableRaw(node: CstNode): void {
 	if (!node.children) return;
 	const meta = metadataOf(node, 'table');
-	const lineEnding = trailingLineEnding(node.raw);
+	const lineEnding = tableLineEnding(node);
 	for (const row of node.children) writeTableRow(row, lineEnding);
 	const headerRow = node.children[0];
 	const bodyRows = node.children.slice(1);

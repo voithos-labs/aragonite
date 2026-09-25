@@ -7,7 +7,7 @@
 import { CURSOR_END } from '../../block-component';
 import { devWarn } from '../../dev-warn';
 import type { CstNode, Document } from '../../core/nodes';
-import { trailingLineEnding, trimTrailingLineEnding } from '../../core/lines';
+import { documentLineEnding, trailingLineEnding, trimTrailingLineEnding } from '../../core/lines';
 import { nodeAt, writeOwnRaw } from '../node-primitives';
 import { settledCaretTarget, updateNodeContent, type SettledContent } from '../content-write';
 import { containerPasteFor } from './container-paste';
@@ -144,7 +144,13 @@ export async function applyContainerMatchingPaste(
 		scopes: [{ node: outer, state: outerState, path: unwrap.outerPath }],
 		snapshot,
 		mutate: ([scopeView]) => {
-			spliceTerminatedItems(scopeView.children, unwrap.spliceIndex, 1, unwrap.items);
+			spliceTerminatedItems(
+				scopeView.children,
+				unwrap.spliceIndex,
+				1,
+				unwrap.items,
+				scopeView.lineEnding
+			);
 			const change: StructuralChange = {
 				op: 'replace',
 				at: unwrap.spliceIndex,
@@ -196,7 +202,8 @@ async function applyContainerMatchingMerge(
 	}
 
 	// Post-delete bytes: dispatch applied the paste's delete half before picking this strategy.
-	const targetLineEnding = trailingLineEnding(merge.targetRaw);
+	const lineEnding = documentLineEnding(ctx.doc);
+	const targetLineEnding = trailingLineEnding(merge.targetRaw, lineEnding);
 	const targetDisplay = trimTrailingLineEnding(merge.targetRaw);
 	const displayBefore = targetDisplay.slice(0, merge.offset);
 	const displayAfter = targetDisplay.slice(merge.offset);
@@ -227,6 +234,7 @@ async function applyContainerMatchingMerge(
 				writeOwnRaw(
 					ownedLeaf,
 					displayBefore + firstItemText + displayAfter + targetLineEnding,
+					lineEnding,
 					ctx.reading.grammar
 				);
 				rebuildUnsharedChain(ctx.doc, chain, sharing, null, ctx.reading.grammar);
@@ -246,7 +254,7 @@ async function applyContainerMatchingMerge(
 	}
 
 	const lastItem = remainingItems[remainingItems.length - 1];
-	const lastLineEnding = trailingLineEnding(lastLeaf.raw);
+	const lastLineEnding = trailingLineEnding(lastLeaf.raw, lineEnding);
 	const lastDisplay = trimTrailingLineEnding(lastLeaf.raw);
 	let residue: SettledContent = { change: { op: 'noop' }, textStart: 0 };
 
@@ -256,11 +264,16 @@ async function applyContainerMatchingMerge(
 		mutate: ([scopeView]) => {
 			const sharing = scopeView.sharing;
 			const { chain, ownedLeaf } = ownMergedLeafSpine(sharing);
-			writeOwnRaw(ownedLeaf, displayBefore + firstItemText + targetLineEnding, ctx.reading.grammar);
+			writeOwnRaw(
+				ownedLeaf,
+				displayBefore + firstItemText + targetLineEnding,
+				lineEnding,
+				ctx.reading.grammar
+			);
 			// The residue can cross a kind boundary (a fence closer landing in a paragraph),
 			// so it reattaches through the reparse path, never a bare write.
 			residue = updateNodeContent(
-				{ children: lastItem.children!, ownerKind: lastItem.kind, owner: lastItem },
+				{ children: lastItem.children!, ownerKind: lastItem.kind, owner: lastItem, lineEnding },
 				0,
 				lastDisplay + displayAfter + lastLineEnding,
 				ctx.reading.grammar,
@@ -287,7 +300,7 @@ async function applyContainerMatchingMerge(
 				at: insertAt,
 				count: remainingItems.length
 			};
-			spliceTerminatedItems(scopeView.children, insertAt, 0, remainingItems);
+			spliceTerminatedItems(scopeView.children, insertAt, 0, remainingItems, lineEnding);
 			stampStructuralChange(scopeView.children, change, sharing);
 			// The already-proxied tail below the spliced siblings; the merged target keeps
 			// its number.

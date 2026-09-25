@@ -338,6 +338,7 @@ describe('G2.8 deep childIds backfill on reparse-into-container (#4 class)', () 
 			h.doc.children[0],
 			4,
 			nested,
+			'\n',
 			defaultGrammarView
 		);
 		await h.actions.replaceBlock(0, replacement);

@@ -4,6 +4,7 @@
  */
 
 import type { Document } from '../core/nodes';
+import { documentLineEnding } from '../core/lines';
 import { readBlocks } from '../core/parser';
 import type { GrammarView } from '../schema/block-openers';
 import {
@@ -33,7 +34,8 @@ export function initDocument(source: string, grammar: GrammarView): ParsedDocume
 		// there is no authored ending to inherit and LF is the whole answer.
 		doc.children.push(emptyParagraph('', '\n'));
 	}
-	for (const child of doc.children) ensureEditableContainers(child);
+	const lineEnding = documentLineEnding(doc);
+	for (const child of doc.children) ensureEditableContainers(child, lineEnding);
 	const refs = buildLinkReferenceMap(doc.children);
 	return { doc, resolver: refs.resolve, signature: refs.signature };
 }

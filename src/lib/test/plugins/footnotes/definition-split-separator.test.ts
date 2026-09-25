@@ -20,7 +20,7 @@ describe('footnote definition Enter at the end of the body', () => {
 		const doc = parse('[^a]: one\n');
 		const def = doc.children[0];
 		splitNode(
-			{ children: def.children!, ownerKind: def.kind, owner: def },
+			{ children: def.children!, ownerKind: def.kind, owner: def, lineEnding: '\n' },
 			0,
 			'one'.length,
 			undefined,

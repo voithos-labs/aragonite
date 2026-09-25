@@ -27,6 +27,7 @@ import { pasteDispatch } from '../../../tree-operations/paste/dispatch';
 import { replaceRangeRaw } from './live-selection-edit';
 import { replaceSelectedWidget } from './widget-interaction';
 import type { Reading } from '../../../schema/reading';
+import { documentLineEnding } from '../../../core/lines';
 
 export interface TextClipboardDeps {
 	get node(): NodeView;
@@ -164,7 +165,8 @@ export function createTextClipboard(deps: TextClipboardDeps): TextClipboard {
 				selOffsets,
 				'',
 				deps.reading,
-				deps.getAmbientPrefix()
+				deps.getAmbientPrefix(),
+				documentLineEnding(deps.getDoc())
 			);
 			void deps.blockEdit.updateBlockContent(deps.index, edit.raw, selOffsets.start);
 			deps.setPendingCursor(edit.caret);

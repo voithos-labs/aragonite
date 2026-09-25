@@ -17,7 +17,8 @@ describe('defaultStructuralHook: caret at end of pasted content', () => {
 			5,
 			twoBlocks(),
 			undefined,
-			fixtureReading()
+			fixtureReading(),
+			'\n'
 		);
 		expect(result.replacement).toHaveLength(4);
 		expect(result.focusReplacementIndex).toBe(result.replacement.length - 2);
@@ -30,7 +31,8 @@ describe('defaultStructuralHook: caret at end of pasted content', () => {
 			5,
 			twoBlocks(),
 			undefined,
-			fixtureReading()
+			fixtureReading(),
+			'\n'
 		);
 		expect(result.replacement).toHaveLength(3);
 		expect(result.focusReplacementIndex).toBe(result.replacement.length - 1);
@@ -45,7 +47,8 @@ describe('defaultStructuralHook: caret at end of pasted content', () => {
 			3,
 			twoBlocks(),
 			undefined,
-			fixtureReading()
+			fixtureReading(),
+			'\n'
 		);
 		expect(result.replacement.map((n) => n.raw)).toEqual([
 			'abc\n',

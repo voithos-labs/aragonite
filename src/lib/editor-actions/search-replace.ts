@@ -26,6 +26,7 @@ import type { Match } from '../search/document-scan';
 import type { EditorActionsDeps, UndoController } from './deps';
 import { toEditEvent } from '../editor-events';
 import { docPathFrom } from '../cursor/coordinate-spaces';
+import { documentLineEnding } from '../core/lines';
 
 function descend(root: CstNode, rel: number[]): CstNode | null {
 	let node: CstNode | undefined = root;
@@ -63,7 +64,7 @@ export function createSearchReplace(deps: EditorActionsDeps, controller: UndoCon
 				owner?.kind,
 				applyRangesToText(leaf.raw, ranges, template)
 			);
-			writeOwnRaw(leaf, substituted, deps.reading.grammar);
+			writeOwnRaw(leaf, substituted, documentLineEnding(deps.doc), deps.reading.grammar);
 		}
 		// A nested leaf's edit must be written up into the clone's container raws before the
 		// reparse from `child.raw`, through the rebuild typing uses, which also recomputes the blank

@@ -11,7 +11,7 @@ import type { MultiScopeTarget } from '../action-contracts';
 import type { StructuralChange } from '../tree-operations/structural-change';
 import { emptyParagraph } from '../tree-operations/node-primitives';
 import { deleteNode } from '../tree-operations/settle';
-import { trailingLineEnding } from '../core/lines';
+import { documentLineEnding } from '../core/lines';
 import { expectStateForNode, getStateForNode } from '../reactivity/state-registry';
 import {
 	deleteRow as mutDeleteRow,
@@ -120,14 +120,13 @@ async function commitFullTableDelete(
 	const snapshot = deleteSnapshot(options, [tableIdx]);
 
 	let collapsedCaret: SelectionPoint | null = null;
+	// Read before the delete, which can leave no block to read a line ending from.
+	const lineEnding = documentLineEnding(ctx.getDoc());
 	await ctx.controller.commitStructural({
 		snapshot,
 		mutate: (children) => {
-			// Read before the delete: with the table gone no block is left to take a line ending
-			// from, and the filler below needs one (G4.20).
-			const lineEnding = trailingLineEnding(children[tableIdx]?.raw ?? '\n');
 			const change = deleteNode(
-				{ children, ownerKind: undefined, owner: undefined },
+				{ children, ownerKind: undefined, owner: undefined, lineEnding },
 				tableIdx,
 				ctx.reading.grammar,
 				ctx.controller.sharing

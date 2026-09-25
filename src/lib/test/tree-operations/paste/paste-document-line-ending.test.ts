@@ -33,18 +33,17 @@ async function paste(source: string, targetPath: number[], offset: number, clipb
 }
 
 describe('a paste into a document holding both line endings', () => {
-	it('writes the ending of the block the caret is in', async () => {
-		const doc = 'one\n\ntwo\r\n';
-
-		expect((await paste(doc, [1], 3, 'x\n\ny')).source).toBe('one\n\ntwo\r\n\r\nx\r\n\r\ny\r\n');
-		expect((await paste(doc, [0], 3, 'x\n\ny')).source).toBe('one\n\nx\n\ny\n\ntwo\r\n');
+	// The document's ending is its first line break, whichever line the caret is on.
+	it('writes the pasted lines in the document ending', async () => {
+		expect((await paste('one\n\ntwo\r\n', [1], 3, 'x\ny')).source).toBe('one\n\ntwox\ny\r\n');
+		expect((await paste('one\r\n\r\ntwo\n', [1], 3, 'x\ny')).source).toBe('one\r\n\r\ntwox\r\ny\n');
 	});
 
-	// The caret's line ends in CRLF; the paragraph's first line keeps its own LF.
+	// The document is CRLF; the paragraph's second line keeps its own LF.
 	it('changes only the line breaks the paste wrote, and moves the caret past them', async () => {
-		const { source, caret } = await paste('a\nb\r\n', [0], 3, 'x\ny');
+		const { source, caret } = await paste('a\r\nb\n', [0], 4, 'x\ny');
 
-		expect(source).toBe('a\nbx\r\ny\r\n');
-		expect(caret).toBe('a\nbx\r\ny'.length);
+		expect(source).toBe('a\r\nbx\r\ny\n');
+		expect(caret).toBe('a\r\nbx\r\ny'.length);
 	});
 });

@@ -18,7 +18,8 @@ describe('structural paste at a block boundary', () => {
 			5,
 			clipboard(),
 			undefined,
-			fixtureReading()
+			fixtureReading(),
+			'\n'
 		);
 		expect(result.replacement.map((n) => n.kind)).toEqual([
 			'paragraph', // Hello (leading slice)
@@ -37,7 +38,8 @@ describe('structural paste at a block boundary', () => {
 			0,
 			clipboard(),
 			undefined,
-			fixtureReading()
+			fixtureReading(),
+			'\n'
 		);
 		expect(result.replacement.map((n) => n.kind)).toEqual([
 			'heading',

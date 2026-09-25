@@ -8,7 +8,7 @@
 
 import type { ContainerEditActions, FocusActions } from '../action-contracts';
 import type { AnyBlockKind, CstNode, Document } from '../core/nodes';
-import { splitLines, trailingLineEnding } from '../core/lines';
+import { documentLineEnding, splitLines, trailingLineEnding } from '../core/lines';
 import { parse } from '../core/parser';
 import { createContainerEditActions } from '../editor-actions/container-edit';
 import { createUndoController } from '../editor-actions/commit/undo-controller';
@@ -463,6 +463,7 @@ async function checkListIndentOneUndo(): Promise<void> {
 				return [0];
 			}
 		},
+		getLineEnding: () => documentLineEnding(deps.doc),
 		state: listState,
 		parentBlockEdit: stubBlockEdit(),
 		parentFocus: recordingFocus(),
@@ -697,13 +698,14 @@ function assertContentStartSpaceIsRebuilt(
 	if (fixture === undefined) {
 		fail(`${kind} declares container.contentStartSpace but carries no conformanceFixture to probe`);
 	}
-	const node = parse(fixture).children.find((child) => child.kind === kind);
+	const doc = parse(fixture);
+	const node = doc.children.find((child) => child.kind === kind);
 	assert(node?.children?.length, `${kind} conformanceFixture opens a "${kind}" with a body child`);
 
 	// The last child, so a reserved title child (a heading, a summary) stays put: its own line
 	// already carries the opener's space, and rebuilding over it would test the wrong line.
 	const last = node.children[node.children.length - 1];
-	last.raw = CONTENT_START_PROBE + (trailingLineEnding(last.raw) || '\n');
+	last.raw = CONTENT_START_PROBE + trailingLineEnding(last.raw, documentLineEnding(doc));
 	descriptor.rebuildRaw!(node);
 
 	const lines = splitLines(node.raw)
@@ -762,7 +764,7 @@ function assertBodyWrapMatchesParse(kind: AnyBlockKind, descriptor: BlockKindDes
 	}
 
 	const expected = node.children.length;
-	const ending = trailingLineEnding(node.raw) || '\n';
+	const ending = trailingLineEnding(node.raw, documentLineEnding(doc));
 	node.innerPrefix = '';
 	descriptor.rebuildRaw!(node);
 	const withoutPrefix = node.raw;

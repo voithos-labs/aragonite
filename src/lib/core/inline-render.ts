@@ -10,6 +10,7 @@ import type { InlineNode } from './nodes';
 import { buildCoreInlineWidget } from './inline/inline-widgets';
 import type { GrammarView } from '../schema/block-openers';
 import { isAllowedHrefScheme } from './url-policy';
+import { firstDisplayLine, trimTrailingLineEnding } from './lines';
 
 // ── Render options ──────────────────────────────────────────────────────────
 
@@ -342,15 +343,8 @@ function renderNode(
 			// A text node carries the line ending so textContent equals raw byte-for-byte;
 			// a `<br>` would diverge across browsers.
 			const breakRaw = raw.slice(node.start, node.end);
-			const nlIdx = breakRaw.indexOf('\n');
-			// A node carrying no line ending (a plugin-created node) is all marker: a -1 here would
-			// slice from the end and drop bytes.
-			const lineEndingStart =
-				nlIdx === -1
-					? breakRaw.length
-					: nlIdx > 0 && breakRaw[nlIdx - 1] === '\r'
-						? nlIdx - 1
-						: nlIdx;
+			// The marker is the break's first line; a node with no line ending is all marker.
+			const lineEndingStart = firstDisplayLine(breakRaw).text.length;
 			if (lineEndingStart > 0) {
 				container.appendChild(hardBreakMark(markerSpan(breakRaw.slice(0, lineEndingStart))));
 			}
@@ -455,8 +449,8 @@ export function renderInlineNodes(
 function paintPendingBreak(nodes: InlineNode[], raw: string, frag: DocumentFragment): void {
 	const last = nodes[nodes.length - 1];
 	if (!last || last.kind !== 'text' || raw[last.end - 1] !== '\\') return;
-	const rest = raw.slice(last.end);
-	if (rest !== '' && rest !== '\n' && rest !== '\r\n') return;
+	// Only the block's own line ending may follow the backslash.
+	if (trimTrailingLineEnding(raw.slice(last.end)) !== '') return;
 	const tail = frag.lastChild;
 	if (!tail || tail.nodeType !== Node.TEXT_NODE || !tail.textContent?.endsWith('\\')) return;
 	if (tail.textContent.length === 1) tail.remove();

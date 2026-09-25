@@ -54,6 +54,7 @@ describe('list-builders', () => {
 		const { leadingNode, trailingNodes, lineEnding } = splitLeafForPaste(
 			leaf,
 			5,
+			'\n',
 			undefined,
 			defaultGrammarView
 		);
@@ -67,6 +68,7 @@ describe('list-builders', () => {
 		const { leadingNode, trailingNodes, lineEnding } = splitLeafForPaste(
 			leaf,
 			0,
+			'\n',
 			undefined,
 			defaultGrammarView
 		);
@@ -80,6 +82,7 @@ describe('list-builders', () => {
 		const { leadingNode, trailingNodes, lineEnding } = splitLeafForPaste(
 			leaf,
 			5,
+			'\n',
 			undefined,
 			defaultGrammarView
 		);
@@ -93,6 +96,7 @@ describe('list-builders', () => {
 		const { leadingNode, trailingNodes, lineEnding } = splitLeafForPaste(
 			leaf,
 			5,
+			'\n',
 			undefined,
 			defaultGrammarView
 		);

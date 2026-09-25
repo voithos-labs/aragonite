@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { updateNodeContent } from '$lib/tree-operations/content-write';
-import { trailingLineEnding } from '$lib/core/lines';
+import { firstLineEnding, trailingLineEnding } from '$lib/core/lines';
 import { rebuildAncestryRaw } from '$lib/schema/container-raw';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { installPlugins } from '$lib';
@@ -22,7 +22,12 @@ import { defaultGrammarView } from '$lib/schema/block-openers';
 
 function writeBody(container: CstNode, at: number, text: string): void {
 	updateNodeContent(
-		{ children: container.children!, ownerKind: container.kind, owner: container },
+		{
+			children: container.children!,
+			ownerKind: container.kind,
+			owner: container,
+			lineEnding: firstLineEnding(container.raw) ?? '\n'
+		},
 		at,
 		text,
 		defaultGrammarView
@@ -31,7 +36,7 @@ function writeBody(container: CstNode, at: number, text: string): void {
 }
 
 const emptyBodyChild = (container: CstNode, at: number) =>
-	writeBody(container, at, trailingLineEnding(container.children![at].raw));
+	writeBody(container, at, trailingLineEnding(container.children![at].raw, '\n'));
 
 describe('the closer strip a blank tail borrowed', () => {
 	beforeEach(() => {

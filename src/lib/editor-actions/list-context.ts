@@ -9,7 +9,7 @@ import { CURSOR_EXACT_START, CURSOR_START, FOCUS_LAST_START } from '../block-com
 import type { CstNode, ListItemMetadata } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import { metadataOf } from '../core/nodes';
-import { trailingLineEnding } from '../core/lines';
+import type { LineEnding } from '../core/lines';
 import { extendDocPath, docPathFrom } from '../cursor/coordinate-spaces';
 import type { Reading } from '../schema/reading';
 import type { MultiScopeTarget } from '../action-contracts';
@@ -37,6 +37,8 @@ import type { NodeScope } from './nested/nested-actions';
 
 export interface ListContextDeps {
 	scope: NodeScope;
+	/** The document's line ending, which the lines an item insert or a list exit creates take. */
+	getLineEnding: () => LineEnding;
 	state: BlockListState;
 	parentBlockEdit: BlockEditActions;
 	parentFocus: FocusActions;
@@ -155,9 +157,8 @@ export function createListContext(deps: ListContextDeps): ListContext {
 				const prevItem = node.children[itemIndex];
 				newItem = mintFollowerItem(
 					prevItem ? metadataOf(prevItem, 'listItem') : undefined,
-					// The new item's body is nothing but a line ending, so it takes the list's
-					// (G4.20); rebuildListItemRaw derives the item's raw from it.
-					[emptyParagraph('', trailingLineEnding(node.raw))]
+					// rebuildListItemRaw derives the item's raw from its body's line ending.
+					[emptyParagraph('', deps.getLineEnding())]
 				);
 			}
 
@@ -208,7 +209,12 @@ export function createListContext(deps: ListContextDeps): ListContext {
 					const preSpliceLen = itemChildren.length;
 
 					const split = performSplit(
-						{ children: itemChildren, ownerKind: itemScope.node.kind, owner: itemScope.node },
+						{
+							children: itemChildren,
+							ownerKind: itemScope.node.kind,
+							owner: itemScope.node,
+							lineEnding: itemScope.lineEnding
+						},
 						innerIndex,
 						offset,
 						sharing,
@@ -362,7 +368,7 @@ export function createListContext(deps: ListContextDeps): ListContext {
 				return;
 			}
 
-			const replacement = buildExitReplacement(node, itemIndex);
+			const replacement = buildExitReplacement(node, itemIndex, deps.getLineEnding());
 			await deps.parentBlockEdit.replaceBlock(deps.scope.index, replacement.blocks, {
 				replacementIndex: replacement.paragraphIndex,
 				offset: 0

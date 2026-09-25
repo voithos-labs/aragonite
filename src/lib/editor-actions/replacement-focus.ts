@@ -7,6 +7,7 @@ import { updateNodeContent } from '../tree-operations';
 import { settledCaretTarget, type SettledContent } from '../tree-operations/content-write';
 import { makeBlockNode, metadataOf, type AnyBlockKind } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
+import type { LineEnding } from '../core/lines';
 import type { StructuralChange } from '../tree-operations/structural-change';
 import { readBlockPath } from '../selection/path-lookup';
 import { landCaretInScope, type CommitScope } from './block-edit-scope';
@@ -25,6 +26,7 @@ export function previewContentReparse(
 	grammar: Parameters<typeof updateNodeContent>[3],
 	ownerKind: AnyBlockKind | undefined,
 	tailSuffix: string,
+	lineEnding: LineEnding,
 	taskItem?: NodeView
 ): StructuralChange {
 	const probe = makeBlockNode({
@@ -47,7 +49,7 @@ export function previewContentReparse(
 			children: [probe]
 		});
 	return updateNodeContent(
-		{ children: [probe], ownerKind, owner, suffix: tailSuffix },
+		{ children: [probe], ownerKind, owner, suffix: tailSuffix, lineEnding },
 		0,
 		text,
 		grammar

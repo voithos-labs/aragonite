@@ -9,7 +9,16 @@
 
 import { metadataOf } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
-import { trailingLineEnding, trimTrailingLineEnding } from '../core/lines';
+import type { RawWriteContext } from './block-kind-descriptor';
+import {
+	displayLines,
+	firstDisplayLine,
+	firstLineEnding,
+	joinDisplayLines,
+	trailingLineEnding,
+	trimTrailingLineEnding,
+	type DisplayLine
+} from '../core/lines';
 import {
 	escalatedFenceLength,
 	matchFenceClose,
@@ -60,15 +69,16 @@ export function reconcileFenceWrite(input: FenceWriteInput): FenceWriteResult {
  * element is never the user typing the block's own fence. The fence lines are fixed first, so
  * growing the runs measures a body that ends where the closer does.
  */
-export function normalizeFencedRaw(raw: string, node: NodeView): string {
+export function normalizeFencedRaw(raw: string, node: NodeView, write: RawWriteContext): string {
 	const fence = fenceShapeOf(node);
+	const ending = trailingLineEnding(node.raw, write.lineEnding);
 	const written = reconcileFenceWrite({
-		display: reconcileFenceLines(trimTrailingLineEnding(raw), fence, trailingLineEnding(node.raw)),
+		display: reconcileFenceLines(trimTrailingLineEnding(raw), fence, ending),
 		caret: 0,
 		fence,
 		mode: 'literal'
 	});
-	return written.display + trailingLineEnding(raw);
+	return written.display + trailingLineEnding(raw, ending);
 }
 
 /**
@@ -77,13 +87,12 @@ export function normalizeFencedRaw(raw: string, node: NodeView): string {
  * line 0 does not read as this block's opener at all.
  */
 export function writeFenceInfo(display: string, info: string, fence: FenceShape): string | null {
-	const lineEnd = firstLineEnd(display);
-	const line = display.slice(0, lineEnd);
-	const opener = splitOpener(line, fence);
+	const first = firstDisplayLine(display);
+	const opener = splitOpener(first.text, fence);
 	if (!opener) return null;
-	// A CRLF separator's `\r` sits inside the line; the info span ends before it.
-	const infoEnd = lineEnd - (line.endsWith('\r') ? 1 : 0);
-	return display.slice(0, opener.runEnd) + legalInfo(info, fence) + display.slice(infoEnd);
+	return (
+		display.slice(0, opener.runEnd) + legalInfo(info, fence) + display.slice(first.text.length)
+	);
 }
 
 // ── Internal ────────────────────────────────────────────────────────────────
@@ -128,7 +137,7 @@ function splitOpener(line: string, fence: FenceShape): OpenerParts | null {
  */
 function reconcileFenceLines(display: string, fence: FenceShape, blockEnding: string): string {
 	if (!fence.closed) return display;
-	const lines = display.split('\n');
+	const lines = displayLines(display);
 	const opener = ownOpener(lines, fence);
 	const reconciled = opener
 		? restoredCloser(lines, fence, opener, blockEnding)
@@ -141,25 +150,26 @@ function reconcileFenceLines(display: string, fence: FenceShape, blockEnding: st
  * write whose only line reads as this fence's closer is not one: an opener never doubles as a
  * closer, and no block's metadata is left to size a fence from.
  */
-function ownOpener(lines: string[], fence: FenceShape): OpenerParts | null {
-	const opener = splitOpener(lines[0], fence);
+function ownOpener(lines: DisplayLine[], fence: FenceShape): OpenerParts | null {
+	const opener = splitOpener(lines[0].text, fence);
 	if (!opener || opener.info.startsWith(fence.marker)) return null;
-	if (lines.length === 1 && matchFenceClose(lines[0], fence.marker, fence.length)) return null;
+	if (lines.length === 1 && matchFenceClose(lines[0].text, fence.marker, fence.length)) return null;
 	return opener;
 }
 
 /**
  * Puts back the closer a truncating write dropped, or null when one is still there. The line
- * ending is the block's, not the written slice's, which may have none (G4.20).
+ * ending is the block's, not the written slice's, which may have none.
  */
 function restoredCloser(
-	lines: string[],
+	lines: DisplayLine[],
 	fence: FenceShape,
 	opener: OpenerParts,
 	blockEnding: string
 ): string | null {
 	if (lastCloserIndex(lines, fence) !== -1) return null;
-	return lines.join('\n') + blockEnding + opener.indent + fence.marker.repeat(fence.length);
+	const closer = opener.indent + fence.marker.repeat(fence.length);
+	return joinDisplayLines(lines) + blockEnding + closer;
 }
 
 /**
@@ -167,38 +177,39 @@ function restoredCloser(
  * open a fence over the blocks below. Null when there is none, or when a line above could close on
  * that run (same marker, run no longer than the closer's).
  */
-function droppedStrandedCloser(lines: string[], fence: FenceShape): string | null {
+function droppedStrandedCloser(lines: DisplayLine[], fence: FenceShape): string | null {
 	const closer = lastCloserIndex(lines, fence, 0);
 	if (closer === -1) return null;
-	const run = /^ {0,3}([`~]+)/.exec(lines[closer])![1].length;
-	const claimed = (line: string): boolean => {
-		const open = matchFenceOpen(line);
+	const run = /^ {0,3}([`~]+)/.exec(lines[closer].text)![1].length;
+	const claimed = (line: DisplayLine): boolean => {
+		const open = matchFenceOpen(line.text);
 		return open !== null && open.marker === fence.marker && open.length <= run;
 	};
 	if (lines.slice(0, closer).some(claimed)) return null;
 	return withoutLine(lines, closer);
 }
 
-/** Splitting on `\n` leaves a CRLF separator's `\r` above; dropping the last line orphans it. */
-function withoutLine(lines: string[], index: number): string {
+/** The lines with one removed; dropping the last line takes the ending above it too. */
+function withoutLine(lines: DisplayLine[], index: number): string {
 	const kept = lines.slice(0, index).concat(lines.slice(index + 1));
 	if (index === lines.length - 1 && kept.length > 0) {
-		kept[kept.length - 1] = kept[kept.length - 1].replace(/\r$/, '');
+		kept[kept.length - 1] = { ...kept[kept.length - 1], ending: '' };
 	}
-	return kept.join('\n');
+	return joinDisplayLines(kept);
 }
 
 function sanitizeInfoString(input: FenceWriteInput): FenceWriteResult {
 	const { display, caret, fence } = input;
 	if (fence.marker !== '`') return { display, caret };
-	const lineEnd = firstLineEnd(display);
-	const opener = splitOpener(display.slice(0, lineEnd), fence);
+	const first = firstDisplayLine(display);
+	const opener = splitOpener(first.text, fence);
 	if (!opener || !opener.info.includes('`')) return { display, caret };
 
 	const kept = opener.info.replaceAll('`', '');
 	const dropped = countDroppedBefore(opener.info, opener.runEnd, caret);
 	return {
-		display: opener.indent + fence.marker.repeat(fence.length) + kept + display.slice(lineEnd),
+		display:
+			opener.indent + fence.marker.repeat(fence.length) + kept + display.slice(first.text.length),
 		caret: caret - dropped
 	};
 }
@@ -219,16 +230,17 @@ function countDroppedBefore(info: string, infoStart: number, caret: number): num
 function separateGluedCloser(input: FenceWriteInput): FenceWriteResult {
 	const { display, caret, fence } = input;
 	if (!fence.closed) return { display, caret };
-	const lines = display.split('\n');
+	const lines = displayLines(display);
 	// A closer still on its own line needs nothing; so does a display too short to hold one.
 	if (lines.length < 2 || lastCloserIndex(lines, fence) >= 1) return { display, caret };
 	const run = new RegExp(`[${fence.marker}]{${fence.length},}[ \t]*$`).exec(
-		lines[lines.length - 1]
+		lines[lines.length - 1].text
 	);
 	// `index === 0` is a bare run another rule handles, not one the write ran into.
 	if (!run || run.index === 0) return { display, caret };
 	const at = display.length - run[0].length;
-	const ending = display.includes('\r\n') ? '\r\n' : '\n';
+	// Two lines at least, so the display holds the ending the new line takes.
+	const ending = firstLineEnding(display) ?? '\n';
 	return {
 		display: display.slice(0, at) + ending + display.slice(at),
 		// The caret sits at the end of the typed text, exactly where the line ending goes in: it
@@ -239,8 +251,8 @@ function separateGluedCloser(input: FenceWriteInput): FenceWriteResult {
 
 function escalateFenceRuns(input: FenceWriteInput): FenceWriteResult {
 	const { display, caret, fence } = input;
-	const lines = display.split('\n');
-	const opener = splitOpener(lines[0], fence);
+	const lines = displayLines(display);
+	const opener = splitOpener(lines[0].text, fence);
 	if (!opener || lines.length < 2) return { display, caret };
 
 	// An open fence has no closer line, so a literal write measures everything below
@@ -248,40 +260,36 @@ function escalateFenceRuns(input: FenceWriteInput): FenceWriteResult {
 	const closerIndex = fence.closed ? lastCloserIndex(lines, fence) : -1;
 	if (fence.closed && closerIndex < 1) return { display, caret };
 	const bodyEnd = closerIndex === -1 ? lines.length : closerIndex;
-	const body = lines.slice(1, bodyEnd).join('\n');
+	const body = joinDisplayLines(lines.slice(1, bodyEnd));
 
 	const grown = escalatedFenceLength(body, fence.marker, fence.length);
 	const delta = grown - fence.length;
 	if (delta === 0) return { display, caret };
 
 	const run = fence.marker.repeat(grown);
-	lines[0] = opener.indent + run + opener.info;
+	lines[0] = { ...lines[0], text: opener.indent + run + opener.info };
 	let closerRunStart = -1;
 	if (closerIndex !== -1) {
-		const closerIndent = /^ {0,3}/.exec(lines[closerIndex])![0];
-		const tail = lines[closerIndex].slice(closerIndent.length).replace(/^[`~]+/, '');
+		const closerText = lines[closerIndex].text;
+		const closerIndent = /^ {0,3}/.exec(closerText)![0];
+		const tail = closerText.slice(closerIndent.length).replace(/^[`~]+/, '');
 		closerRunStart = lineStartOffset(display, closerIndex) + closerIndent.length;
-		lines[closerIndex] = closerIndent + run + tail;
+		lines[closerIndex] = { ...lines[closerIndex], text: closerIndent + run + tail };
 	}
 
 	// The run grows in place, so a caret past an insertion point moves with it.
 	let moved = caret;
 	if (caret > opener.runEnd) moved += delta;
 	if (closerRunStart !== -1 && caret > closerRunStart) moved += delta;
-	return { display: lines.join('\n'), caret: moved };
+	return { display: joinDisplayLines(lines), caret: moved };
 }
 
 /** Last line reading as this fence's closer at or after `from`; line 0 is the opener's line. */
-function lastCloserIndex(lines: string[], fence: FenceShape, from = 1): number {
+function lastCloserIndex(lines: DisplayLine[], fence: FenceShape, from = 1): number {
 	for (let i = lines.length - 1; i >= from; i--) {
-		if (matchFenceClose(lines[i], fence.marker, fence.length)) return i;
+		if (matchFenceClose(lines[i].text, fence.marker, fence.length)) return i;
 	}
 	return -1;
-}
-
-function firstLineEnd(display: string): number {
-	const index = display.indexOf('\n');
-	return index === -1 ? display.length : index;
 }
 
 function lineStartOffset(display: string, lineIndex: number): number {

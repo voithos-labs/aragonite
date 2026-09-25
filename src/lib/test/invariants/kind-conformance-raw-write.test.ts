@@ -20,6 +20,9 @@ import type { NodeView } from '$lib/core/node-views';
 import type { AnyBlockKind } from '$lib/core/nodes';
 import { testLeaf } from '$lib/test/harness/test-kinds';
 
+/** The write context a rule receives in an LF or a CRLF document. */
+const LF_WRITE = { lineEnding: '\n' } as const;
+
 beforeEach(() => {
 	resetPluginPlatformForTests();
 	registerMathBlock();
@@ -92,7 +95,7 @@ describe('kind conformance: the raw-write cell fails a broken rule', () => {
 
 	it('fails a rule that drops the closer', () => {
 		const dropsCloser = (node: NodeView, raw: string) =>
-			normalizeFencedRaw(raw, node).replace(/```\n$/, '');
+			normalizeFencedRaw(raw, node, LF_WRITE).replace(/```\n$/, '');
 		expect(() => checkLeafRawWrite('fencedCode', fixture, dropsCloser)).toThrow(
 			/the closing line cut/
 		);

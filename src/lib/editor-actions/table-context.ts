@@ -227,7 +227,7 @@ export function createTableMutationsContext(
 				grid.forEach((line, r) => {
 					const cells = table.children![origin.rowIdx + r].children!;
 					line.forEach((text, c) =>
-						writeOwnRaw(cells[origin.colIdx + c], text, deps.reading.grammar)
+						writeOwnRaw(cells[origin.colIdx + c], text, tableScope.lineEnding, deps.reading.grammar)
 					);
 				});
 				rebuildTableRaw(table);

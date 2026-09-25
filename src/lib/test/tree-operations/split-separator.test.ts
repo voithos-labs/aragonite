@@ -16,6 +16,7 @@ import { takeDevWarns } from '$lib/test/support/warn-gate';
 import { fixtureReading } from '../harness/fixture-grammar';
 import { testLeaf } from '$lib/test/harness/test-kinds';
 import { defaultGrammarView } from '$lib/schema/block-openers';
+import { documentLineEnding } from '$lib/core/lines';
 
 describe('split separator: the half that absorbs gets one', () => {
 	it('Enter at the end of a paragraph, then typing, still reparses as two blocks', () => {
@@ -46,7 +47,12 @@ describe('split separator: the half that absorbs gets one', () => {
 		const doc = parse('> Risk noted,\n');
 		const quote = doc.children[0];
 		splitNode(
-			{ children: quote.children!, ownerKind: quote.kind, owner: quote },
+			{
+				children: quote.children!,
+				ownerKind: quote.kind,
+				owner: quote,
+				lineEnding: documentLineEnding(doc)
+			},
 			0,
 			'Risk noted,'.length,
 			undefined,

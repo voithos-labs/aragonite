@@ -18,11 +18,14 @@ import {
 import type { Reading } from '../schema/reading';
 import {
 	displayLength,
+	firstLineEnding,
+	lineEndingAt,
 	ownTrailingLineEnding,
 	snapToScalarBoundary,
 	terminateLine,
 	trailingLineEnding,
-	trimTrailingLineEnding
+	trimTrailingLineEnding,
+	type LineEnding
 } from '../core/lines';
 import { undrawnSuffix } from '../core/inline';
 import { devWarn } from '../dev-warn';
@@ -45,6 +48,7 @@ import {
 	ensureEditableContainers,
 	forBody,
 	normalizeOwnRaw,
+	parentLineEnding,
 	type BodyParentArg,
 	type NodeParent
 } from './node-primitives';
@@ -109,7 +113,7 @@ export function splitNode(
 	if (descriptor.contextDependentKind) return noop;
 
 	const rawText = node.raw;
-	const lineEnding = trailingLineEnding(rawText);
+	const lineEnding = trailingLineEnding(rawText, parentLineEnding(parent));
 	const cut = headingHeadCut(descriptor, node, cutPastLineEnding(descriptor, node, offset));
 
 	const suffixSplit = structuralSuffixSplit(descriptor, node, cut);
@@ -118,8 +122,8 @@ export function splitNode(
 	let firstRaw = forBody(parent, suffixSplit ? suffixSplit.firstRaw : rawText.slice(0, cut));
 	let secondRaw = forBody(parent, suffixSplit ? suffixSplit.secondRaw : rawText.slice(cut));
 
-	firstRaw = terminateLine(firstRaw, rawText);
-	secondRaw = terminateLine(secondRaw, rawText);
+	firstRaw = terminateLine(firstRaw, lineEnding);
+	secondRaw = terminateLine(secondRaw, lineEnding);
 
 	// Only a block that hides its delimiters rebalances, since a literal half would show runs the
 	// user never saw; the rebalancer declines when its bytes do not parse back.
@@ -130,8 +134,8 @@ export function splitNode(
 			secondRaw = rebalanced.secondRaw;
 			// The rewrite verifies each half on its own, where a missing final line ending is
 			// legal; side by side the halves would share a line and rejoin on reload.
-			firstRaw = terminateLine(firstRaw, rawText);
-			secondRaw = terminateLine(secondRaw, rawText);
+			firstRaw = terminateLine(firstRaw, lineEnding);
+			secondRaw = terminateLine(secondRaw, lineEnding);
 		}
 	}
 
@@ -145,11 +149,12 @@ export function splitNode(
 	const first = reparseAsNodes(
 		firstRaw,
 		node.leadingTrivia,
-		fragmentReaderAt(ownerAt(parent, [blockIndex]), blockIndex, grammar)
+		fragmentReaderAt(ownerAt(parent, [blockIndex]), blockIndex, grammar),
+		lineEnding
 	);
 	// The blank line the parse split off the first half stands between the halves, so it is the
 	// second half's separator; `separator` is empty when the bytes already end in a blank line.
-	const second = reparseAsNodes(secondRaw, first.suffix + separator, readSecondHalf);
+	const second = reparseAsNodes(secondRaw, first.suffix + separator, readSecondHalf, lineEnding);
 	if (isDevChecks() && first.nodes.length > 1) {
 		// Legal, since the result carries the caret index, but rare enough to keep visible.
 		devWarn('tree-ops', `splitNode: the first half parsed to ${first.nodes.length} blocks`);
@@ -183,7 +188,7 @@ function cutPastLineEnding(descriptor: BlockKindDescriptor, node: CstNode, offse
 	// A surrogate pair is one boundary too: a cut through it leaves each half in a block of its
 	// own, where nothing can put them back.
 	const at = snapToScalarBoundary(raw, offset);
-	const ending = raw[at] === '\n' ? '\n' : raw.startsWith('\r\n', at) ? '\r\n' : '';
+	const ending = lineEndingAt(raw, at);
 	if (ending === '') return at;
 	const contentEnd = descriptor.getContentRange?.(node).end;
 	return contentEnd === undefined ? at + ending.length : Math.min(at + ending.length, contentEnd);
@@ -434,10 +439,16 @@ export function mergeIntoPrevDeepLeaf(
 	// a write, and a refused join must leave the pair exactly as it stands.
 	const target = holderChildrenAt(parent.children, leafPath)[slot];
 	const curr = parent.children[blockIndex];
-	const lineEnding = trailingLineEnding(target.raw);
+	// The target has a block after it, so it ends its line and this is the document's ending.
+	const lineEnding = trailingLineEnding(target.raw, parentLineEnding(parent));
 	const { raw: mergedRaw, seam: joinOffset } = joinRaw(target, curr, reading);
 	const read = fragmentReaderAt(ownerAt(parent, leafPath), slot, reading.grammar);
-	const merged = mergedLeafFor(target, trimTrailingLineEnding(mergedRaw) + lineEnding, read);
+	const merged = mergedLeafFor(
+		target,
+		trimTrailingLineEnding(mergedRaw) + lineEnding,
+		read,
+		lineEnding
+	);
 	if (!merged) return null;
 
 	// The merge writes the deep leaf's raw plus every ancestor's rebuilt raw, so copy the whole
@@ -445,7 +456,7 @@ export function mergeIntoPrevDeepLeaf(
 	if (sharing) ensureUnsharedPath(parent, leafPath, sharing);
 	// Write, then re-read through the tree (`unshare.ts` header), down to the leaf's own position
 	// so a kind change can put a new node there.
-	installMergedLeaf(holderChildrenAt(parent.children, leafPath), slot, merged, sharing);
+	installMergedLeaf(holderChildrenAt(parent.children, leafPath), slot, merged, sharing, lineEnding);
 	if (mergeTarget.path.length > 0) {
 		rebuildAncestryRaw(parent.children[blockIndex - 1], mergeTarget.path);
 	}
@@ -501,8 +512,13 @@ interface MergedLeaf {
  * The deep-leaf merge's decision: the absorbed bytes pass through the kind's own write rule and
  * a fragment reparse. Null when they read as several blocks, since the leaf holds one (G1.35).
  */
-function mergedLeafFor(target: CstNode, raw: string, read: FragmentReader): MergedLeaf | null {
-	const written = normalizeOwnRaw(target, raw);
+function mergedLeafFor(
+	target: CstNode,
+	raw: string,
+	read: FragmentReader,
+	lineEnding: LineEnding
+): MergedLeaf | null {
+	const written = normalizeOwnRaw(target, raw, lineEnding);
 	// A context-dependent kind has no standalone recognizer, so its bytes are never read back
 	// as blocks and the write keeps the kind.
 	if (tryGetBlockKindDescriptor(target.kind)?.contextDependentKind) {
@@ -517,7 +533,8 @@ function installMergedLeaf(
 	holderChildren: CstNode[],
 	slot: number,
 	merged: MergedLeaf,
-	sharing: SharingState | undefined
+	sharing: SharingState | undefined,
+	ending: LineEnding
 ): void {
 	const target = holderChildren[slot];
 	const { written, blocks } = merged;
@@ -528,7 +545,7 @@ function installMergedLeaf(
 		// keeps every byte.
 		parsed.raw = written;
 		parsed.leadingTrivia = target.leadingTrivia;
-		ensureEditableContainers(parsed);
+		ensureEditableContainers(parsed, ending);
 		if (sharing) sharing.stamp(parsed);
 		assignChildIdsDeep(parsed);
 		holderChildren[slot] = parsed;
@@ -573,14 +590,15 @@ export function mergeWithNext(
 function reparseAsNodes(
 	raw: string,
 	leadingTrivia: string,
-	read: FragmentReader
+	read: FragmentReader,
+	ending: LineEnding
 ): { nodes: CstNode[]; suffix: string } {
 	const doc = read(raw);
 	if (doc.children.length === 0) {
 		return { nodes: [{ kind: 'paragraph', leadingTrivia, raw }], suffix: doc.suffix };
 	}
 	doc.children[0].leadingTrivia = leadingTrivia;
-	for (const node of doc.children) ensureEditableContainers(node);
+	for (const node of doc.children) ensureEditableContainers(node, ending);
 	return { nodes: doc.children, suffix: doc.suffix };
 }
 
@@ -589,8 +607,12 @@ function reparseAsNodes(
  * not fit one position, so null refuses it rather than truncating (G1.35).
  */
 function reparseAsNode(raw: string, leadingTrivia: string, grammar: GrammarView): CstNode | null {
-	const { nodes, suffix } = reparseAsNodes(raw, leadingTrivia, (text) =>
-		readBlocks(text, { grammar, scope: 'fragment' })
+	// A join ends in its second block's ending: the document's, unless it joined the last line.
+	const { nodes, suffix } = reparseAsNodes(
+		raw,
+		leadingTrivia,
+		(text) => readBlocks(text, { grammar, scope: 'fragment' }),
+		firstLineEnding(raw) ?? '\n'
 	);
 	if (nodes.length > 1) return null;
 	// A single-block write has no follower to give the split-off blank line to, so it stays in

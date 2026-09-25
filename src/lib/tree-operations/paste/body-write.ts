@@ -5,6 +5,7 @@
  */
 
 import type { AnyBlockKind, CstNode, Document } from '../../core/nodes';
+import type { LineEnding } from '../../core/lines';
 import type { GrammarView } from '../../schema/block-openers';
 import { readBlocks } from '../../core/parser';
 import { tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
@@ -43,6 +44,7 @@ export interface BodyLegalReplacement {
 export function normalizeReplacementForBody(
 	ownerKind: AnyBlockKind | undefined,
 	replacement: CstNode[],
+	ending: LineEnding,
 	grammar: GrammarView
 ): BodyLegalReplacement {
 	if (ownerKind === undefined || !tryGetBlockKindDescriptor(ownerKind)?.bodyWrite) {
@@ -63,7 +65,7 @@ export function normalizeReplacementForBody(
 			continue;
 		}
 		const carried = normalizeReplacementTrivia(node, reparsed);
-		for (const minted of carried) ensureEditableContainers(minted);
+		for (const minted of carried) ensureEditableContainers(minted, ending);
 		out.push(...carried);
 	}
 	return {

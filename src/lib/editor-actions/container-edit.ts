@@ -5,6 +5,7 @@
 
 import type { ContainerEditActions } from '../action-contracts';
 import type { CstNode } from '../core/nodes';
+import { documentLineEnding, type LineEnding } from '../core/lines';
 import type { SharingState } from '../tree-operations/sharing';
 import { ensureUnsharedPath } from '../tree-operations/unshare';
 import { rebuildUnsharedChain, type AncestrySeamFold } from '../tree-operations/chain-rebuild';
@@ -25,6 +26,10 @@ export function createContainerEditActions(
 
 		armDebouncedPause(): void {
 			controller.armUndoPause();
+		},
+
+		lineEnding(): LineEnding {
+			return documentLineEnding(deps.doc);
 		},
 
 		nudgeReactivity(): void {

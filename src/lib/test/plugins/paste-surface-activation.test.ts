@@ -40,7 +40,7 @@ const stampPlugin = definePlugin({
 			kind,
 			onInlinePaste(node, offset, text) {
 				ran.push('surface');
-				return defaultInlineHook(node, offset, text, undefined, fixtureReading());
+				return defaultInlineHook(node, offset, text, undefined, fixtureReading(), '\n');
 			}
 		});
 		registerChromeLeaf(declarePluginKind(LEAF), {} as Component<object, BlockComponent>);

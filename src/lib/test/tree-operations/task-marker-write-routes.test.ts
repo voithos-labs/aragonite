@@ -38,7 +38,7 @@ describe('every write that can replace a to-do’s first block drops the marker 
 		const item = todoItem('- [ ] alpha\n');
 
 		updateNodeContent(
-			{ children: item.children!, ownerKind: item.kind, owner: item },
+			{ children: item.children!, ownerKind: item.kind, owner: item, lineEnding: '\n' },
 			0,
 			TABLE,
 			defaultGrammarView
@@ -53,7 +53,7 @@ describe('every write that can replace a to-do’s first block drops the marker 
 		const item = todoItem('- [ ] # alpha\n');
 
 		updateNodeContent(
-			{ children: item.children!, ownerKind: item.kind, owner: item },
+			{ children: item.children!, ownerKind: item.kind, owner: item, lineEnding: '\n' },
 			0,
 			'# alphaX\n',
 			defaultGrammarView

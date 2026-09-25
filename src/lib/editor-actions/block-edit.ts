@@ -6,6 +6,7 @@
 
 import { tick } from 'svelte';
 import type { BlockEditActions } from '../action-contracts';
+import { documentLineEnding } from '../core/lines';
 import { updateNodeContent as performUpdate, ensureUnsharedPath } from '../tree-operations';
 import { publishScopeFold } from './ancestry-folds';
 import type { SettledContent } from '../tree-operations/content-write';
@@ -38,7 +39,8 @@ export function createBlockEditActions(
 			text,
 			deps.reading.grammar,
 			undefined,
-			blockIndex === deps.doc.children.length - 1 ? deps.doc.suffix : ''
+			blockIndex === deps.doc.children.length - 1 ? deps.doc.suffix : '',
+			documentLineEnding(deps.doc)
 		);
 
 		if (preview.op !== 'noop') {
@@ -58,6 +60,7 @@ export function createBlockEditActions(
 							children: view.children,
 							ownerKind: undefined,
 							owner: undefined,
+							lineEnding: view.lineEnding,
 							get suffix() {
 								return deps.doc.suffix;
 							},
@@ -83,7 +86,12 @@ export function createBlockEditActions(
 		// that turns the trailing line into a block through a commit, so none can happen here.
 		ensureUnsharedPath(deps.doc, [blockIndex], deps.sharing);
 		const settled = performUpdate(
-			{ children: deps.doc.children, ownerKind: undefined, owner: undefined },
+			{
+				children: deps.doc.children,
+				ownerKind: undefined,
+				owner: undefined,
+				lineEnding: documentLineEnding(deps.doc)
+			},
 			blockIndex,
 			text,
 			deps.reading.grammar,
@@ -164,6 +172,7 @@ export function createBlockEditActions(
 	return withEnterCompletion(
 		actions,
 		(blockIndex) => scope.children()[blockIndex],
-		deps.reading.grammar
+		deps.reading.grammar,
+		() => documentLineEnding(deps.doc)
 	);
 }

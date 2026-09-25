@@ -1,5 +1,6 @@
 import type { UndoEntryMode } from '../action-contracts';
 import { isBuiltinBlockKind, type AnyBlockKind, type CstNode, type Document } from '../core/nodes';
+import type { LineEnding } from '../core/lines';
 import type { Reading } from '../schema/reading';
 import type { GrammarView } from '../schema/block-openers';
 import type { PasteCommitCoordinator } from './paste/paste-deps';
@@ -46,13 +47,15 @@ export interface PasteSurface {
 	 */
 	blankEdgesArePackaging?: boolean;
 	/** Splice `text` into `node` at `offset` (optionally pre-deleting a range). Pure. `reading` is
-	 *  the editor's: the pre-delete is a join, cleaned where the caret's block hides its delimiters. */
+	 *  the editor's: the pre-delete is a join, cleaned where the caret's block hides its delimiters.
+	 *  `lineEnding` is the document's, which every line a hook writes takes. */
 	onInlinePaste?(
 		node: CstNode,
 		offset: number,
 		text: string,
 		preDelete: PasteRange | undefined,
-		reading: Reading
+		reading: Reading,
+		lineEnding: LineEnding
 	): InlinePasteResult;
 	/** Splice CST blocks at the target. Pure data transform. */
 	onStructuralPaste?(
@@ -60,7 +63,8 @@ export interface PasteSurface {
 		offset: number,
 		blocks: CstNode[],
 		preDelete: PasteRange | undefined,
-		reading: Reading
+		reading: Reading,
+		lineEnding: LineEnding
 	): StructuralPasteResult;
 	/**
 	 * Structural paste whose splice scope is an ancestor (a tableCell splices at the

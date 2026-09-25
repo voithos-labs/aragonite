@@ -7,7 +7,7 @@ import type { FocusActions, MoveFocusOptions } from '../../action-contracts';
 import type { FocusPosition } from '../../block-component';
 import type { EditorActionsDeps, UndoController } from '../deps';
 import { emptyParagraph } from '../../tree-operations';
-import { trailingLineEnding } from '../../core/lines';
+import { documentLineEnding } from '../../core/lines';
 import { traversalStep } from './focus-dispatch';
 import { consumeStickyLanding } from './focus-landing';
 import { docPathFrom } from '../../cursor/coordinate-spaces';
@@ -44,9 +44,8 @@ export function createFocusActions(
 				if (options?.append === false) return;
 				// Past the last block: appended through a commit so it is in undo history and edit
 				// events. The separating blank line and the paragraph's own line are both line
-				// endings, so both take the document's (G4.20).
-				const lastBlock = deps.doc.children[deps.doc.children.length - 1];
-				const lineEnding = trailingLineEnding(lastBlock?.raw ?? '\n');
+				// endings, so both take the document's.
+				const lineEnding = documentLineEnding(deps.doc);
 				const newBlock = emptyParagraph(lineEnding, lineEnding);
 				// The appended index (one past the end) is the path for both the event and the
 				// undo restore fallback: it names the block this creates.

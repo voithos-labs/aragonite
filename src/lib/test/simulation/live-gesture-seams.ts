@@ -13,7 +13,12 @@ import type { BlockEditActions } from '$lib/action-contracts';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { getContentRange, isProseKind, parseInline } from '$lib/core/inline';
-import { snapToScalarBoundary, trailingLineEnding, trimTrailingLineEnding } from '$lib/core/lines';
+import {
+	documentLineEnding,
+	snapToScalarBoundary,
+	trailingLineEnding,
+	trimTrailingLineEnding
+} from '$lib/core/lines';
 import { renderInlineNodes } from '$lib/core/inline-render';
 import { listInlineMarks, type InlineMark } from '$lib/schema/inline-construct-policy';
 import { toggleInlineFormat } from '$lib/core/inline/format-toggle';
@@ -267,7 +272,7 @@ async function writeInsideContainer(
 	const children = (): CstNode[] => h.deps.doc.children[target.path[0]].children ?? [];
 	const seeded = children()[seed.path[1]];
 	if (!seeded) return null;
-	const ending = trailingLineEnding(seeded.raw);
+	const ending = trailingLineEnding(seeded.raw, '\n');
 	const body = trimTrailingLineEnding(seeded.raw);
 	// No delimiters, so the only run the screen checks count is the drawn character's.
 	const withSibling = body + ending + ending + 'seed' + ending;
@@ -276,7 +281,7 @@ async function writeInsideContainer(
 	const node = children()[target.path[1]];
 	if (!node) return null;
 	if (gesture.kind === 'blank-in-container') {
-		const ending = trailingLineEnding(node.raw);
+		const ending = trailingLineEnding(node.raw, '\n');
 		await h.bundle.blockEdit.updateBlockContent(target.path[1], ending, 1, 0);
 	} else {
 		const at = drawnOffset(node, gesture, gesture.endOffset);
@@ -335,6 +340,7 @@ async function pressEdgeKey(
 		gesture.kind === 'type' ? gesture.char : gesture.kind === 'backspace' ? 'Backspace' : 'Delete';
 	const el = mountBlock(node, mode);
 	const dispatch = createEdgePolicyDispatch({
+		getLineEnding: () => documentLineEnding(h.doc),
 		get node() {
 			return h.doc.children[index];
 		},
@@ -394,7 +400,7 @@ async function nativePress(
 		);
 		if (paired?.kind === 'step-over') return;
 		if (paired) {
-			await write(paired.text + trailingLineEnding(node.raw), paired.caret);
+			await write(paired.text + trailingLineEnding(node.raw, '\n'), paired.caret);
 			return;
 		}
 		await write(splice(node.raw, offset, offset, key), offset + key.length);
@@ -446,7 +452,7 @@ function toggleFormat(
 	if (!toggled) return true;
 	void h.blockEdit.updateBlockContent(
 		index,
-		toggled.newDisplay + trailingLineEnding(node.raw),
+		toggled.newDisplay + trailingLineEnding(node.raw, '\n'),
 		range.start,
 		toggled.newSelStart
 	);
@@ -473,6 +479,7 @@ function wordDelete(
 		event,
 		node,
 		{ rawRangeOf: () => range, getRawSelection: () => null },
+		'\n',
 		fixtureReading({}, mode)
 	);
 	if (edit === null) {
@@ -537,7 +544,8 @@ function acrossLeaves(
 	);
 	// A toggle the planner turns down writes nothing, which is that code's own answer rather than
 	// a gesture the fuzzer failed to apply.
-	if (plan) applyCrossBlockFormat(h.doc, plan, h.sharing, defaultGrammarView);
+	if (plan)
+		applyCrossBlockFormat(h.doc, plan, h.sharing, documentLineEnding(h.doc), defaultGrammarView);
 	return true;
 }
 

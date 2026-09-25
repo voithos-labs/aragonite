@@ -3,13 +3,13 @@ import { insertHardBreak, insertLiteralTab } from '$lib/components/blocks/text/t
 
 describe('insertHardBreak', () => {
 	it('inserts trailing-backslash + newline at offset', () => {
-		const r = insertHardBreak('Hello world\n', 5);
+		const r = insertHardBreak('Hello world\n', 5, '\n');
 		expect(r.newRaw).toBe('Hello\\\n world\n');
 		expect(r.caretOffset).toBe(7);
 	});
 
 	it('inserts at start of line', () => {
-		const r = insertHardBreak('abc\n', 0);
+		const r = insertHardBreak('abc\n', 0, '\n');
 		expect(r.newRaw).toBe('\\\nabc\n');
 		expect(r.caretOffset).toBe(2);
 	});
@@ -17,33 +17,34 @@ describe('insertHardBreak', () => {
 	// At the end of the displayed text the break's own line ending becomes the block's trailing
 	// one, so the original is not put back and the caret clamps to the new length.
 	it('emits the transitional break at end of display text, caret clamped', () => {
-		const r = insertHardBreak('abc\n', 3);
+		const r = insertHardBreak('abc\n', 3, '\n');
 		expect(r.newRaw).toBe('abc\\\n');
 		expect(r.caretOffset).toBe(4);
 	});
 
 	it('keeps the CRLF ending at end-of-display, caret clamped', () => {
-		const r = insertHardBreak('abc\r\n', 3);
+		const r = insertHardBreak('abc\r\n', 3, '\n');
 		expect(r.newRaw).toBe('abc\\\r\n');
 		expect(r.caretOffset).toBe(4);
 	});
 
 	it('clamps an offset past the display length to end-of-display', () => {
-		const r = insertHardBreak('abc\n', 9);
+		const r = insertHardBreak('abc\n', 9, '\n');
 		expect(r.newRaw).toBe('abc\\\n');
 		expect(r.caretOffset).toBe(4);
 	});
 
 	it('gives a mid-display break the block CRLF ending, caret past it', () => {
-		const r = insertHardBreak('abc\r\n', 1);
+		const r = insertHardBreak('abc\r\n', 1, '\n');
 		expect(r.newRaw).toBe('a\\\r\nbc\r\n');
 		expect(r.caretOffset).toBe(4);
 	});
 
-	it('handles raw with no trailing line ending', () => {
-		const r = insertHardBreak('abc', 1);
+	it('handles raw with no trailing line ending, breaking in the document ending', () => {
+		const r = insertHardBreak('abc', 1, '\n');
 		expect(r.newRaw).toBe('a\\\nbc');
 		expect(r.caretOffset).toBe(3);
+		expect(insertHardBreak('abc', 1, '\r\n').newRaw).toBe('a\\\r\nbc');
 	});
 });
 

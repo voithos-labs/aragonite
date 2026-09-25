@@ -143,7 +143,8 @@ describe('splitNode on arbitrary parent', () => {
 		const parent = {
 			children: [{ kind: 'paragraph' as const, leadingTrivia: '', raw: 'Hello World\n' }],
 			ownerKind: undefined,
-			owner: undefined
+			owner: undefined,
+			lineEnding: '\n' as const
 		};
 		splitNode(parent, 0, 5, undefined, fixtureReading());
 		expect(parent.children).toHaveLength(2);

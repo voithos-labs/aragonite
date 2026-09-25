@@ -7,6 +7,7 @@
 import { CURSOR_END } from '../../block-component';
 import type { CstNode, Document } from '../../core/nodes';
 import { metadataOf } from '../../core/nodes';
+import { documentLineEnding } from '../../core/lines';
 import { nodeAt, ensureEditableContainers } from '../node-primitives';
 import { cloneNode } from '../clone';
 import { containerPasteFor } from './container-paste';
@@ -80,10 +81,12 @@ export async function applyListAbsorb(
 	if (!item?.children) return;
 	if (!item.children[plan.innerIndex]) return;
 
+	const lineEnding = documentLineEnding(ctx.doc);
 	const { leadingItem, trailingItem } = buildSplitItems(
 		item,
 		plan.innerIndex,
 		plan.offset,
+		lineEnding,
 		plan.targetRaw,
 		ctx.reading.grammar
 	);
@@ -94,7 +97,7 @@ export async function applyListAbsorb(
 	for (const p of pastedItems) replacement.push(p);
 	if (trailingItem) replacement.push(trailingItem);
 
-	for (const node of replacement) ensureEditableContainers(node);
+	for (const node of replacement) ensureEditableContainers(node, lineEnding);
 
 	const outerOrdered = metadataOf(outer, 'list')?.ordered ?? false;
 
@@ -105,7 +108,7 @@ export async function applyListAbsorb(
 		snapshot: ctx.undoEntry === 'join' ? 'skip' : { path: docPathFrom(plan.listPath), offset: 0 },
 		mutate: ([scopeView]) => {
 			const sharing = scopeView.sharing;
-			spliceTerminatedItems(scopeView.children, plan.itemIndex, 1, replacement);
+			spliceTerminatedItems(scopeView.children, plan.itemIndex, 1, replacement, lineEnding);
 
 			// Only items after the replacement region: their proxies already exist, so marker
 			// mutations propagate to the DOM.

@@ -11,7 +11,8 @@ import type { Reading } from '../../../schema/reading';
 import {
 	snapToScalarBoundary,
 	trailingLineEnding,
-	trimTrailingLineEnding
+	trimTrailingLineEnding,
+	type LineEnding
 } from '../../../core/lines';
 import { cleanJoinedRaw } from '../../../tree-operations/node-ops';
 
@@ -47,6 +48,7 @@ export function resolveLiveRangeEdit(
 	e: InputEvent,
 	node: NodeView,
 	cursor: LiveEditCursor,
+	lineEnding: LineEnding,
 	reading: Reading,
 	ambientPrefix = ''
 ): LiveRangeEdit | null {
@@ -54,7 +56,9 @@ export function resolveLiveRangeEdit(
 	const range = pendingEditRange(e, cursor);
 	if (!range) return null;
 	const insert = replacementText(e);
-	if (range.start === range.end) return parkedCaretInsertion(node, cursor, range.start, insert);
+	if (range.start === range.end) {
+		return parkedCaretInsertion(node, cursor, range.start, insert, lineEnding);
+	}
 	const edit = resolveSelectionEdit(node, range, insert ?? '', reading, ambientPrefix);
 	if (!edit) return null;
 	return insert === null
@@ -71,7 +75,8 @@ function parkedCaretInsertion(
 	node: NodeView,
 	cursor: LiveEditCursor,
 	engineTarget: number,
-	insert: string | null
+	insert: string | null,
+	lineEnding: LineEnding
 ): LiveRangeEdit | null {
 	if (!insert) return null;
 	const selection = window.getSelection();
@@ -82,7 +87,11 @@ function parkedCaretInsertion(
 	return {
 		kind: 'rewrite',
 		range: { start: caret, end: caret },
-		raw: display.slice(0, caret) + insert + display.slice(caret) + trailingLineEnding(node.raw),
+		raw:
+			display.slice(0, caret) +
+			insert +
+			display.slice(caret) +
+			trailingLineEnding(node.raw, lineEnding),
 		caret: caret + insert.length
 	};
 }
@@ -96,13 +105,14 @@ export function applyLiveRangeEdit(
 	e: InputEvent,
 	node: NodeView,
 	cursor: LiveEditCursor,
+	lineEnding: LineEnding,
 	reading: Reading,
 	ambientPrefix: string,
 	isRevealing: () => boolean,
 	commit: (edit: LiveRangeRewrite) => void
 ): boolean {
 	if (isRevealing()) return false;
-	const edit = resolveLiveRangeEdit(e, node, cursor, reading, ambientPrefix);
+	const edit = resolveLiveRangeEdit(e, node, cursor, lineEnding, reading, ambientPrefix);
 	if (!edit) return false;
 	e.preventDefault();
 	if (edit.kind === 'rewrite') commit(edit);
@@ -156,7 +166,8 @@ export function replaceRangeRaw(
 	range: { start: number; end: number },
 	typed: string,
 	reading: Reading,
-	ambientPrefix: string
+	ambientPrefix: string,
+	lineEnding: LineEnding
 ): SelectionEdit {
 	const cleaned = resolveSelectionEdit(node, range, typed, reading, ambientPrefix);
 	if (cleaned) return cleaned;
@@ -166,7 +177,7 @@ export function replaceRangeRaw(
 			display.slice(0, range.start) +
 			typed +
 			display.slice(range.end) +
-			trailingLineEnding(node.raw),
+			trailingLineEnding(node.raw, lineEnding),
 		caret: range.start + typed.length
 	};
 }

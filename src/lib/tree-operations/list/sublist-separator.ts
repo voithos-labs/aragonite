@@ -5,7 +5,7 @@
  */
 
 import type { CstNode } from '../../core/nodes';
-import { trailingLineEnding } from '../../core/lines';
+import { firstDisplayLine, ownTrailingLineEnding } from '../../core/lines';
 
 /**
  * A marker line carrying nothing after it: what Enter+Tab creates, and an emptied nested item. The
@@ -19,7 +19,7 @@ export function lacksSublistSeparator(children: readonly CstNode[], index: numbe
 	const above = children[index - 1];
 	if (!list || list.kind !== 'list' || list.leadingTrivia !== '') return false;
 	if (!above || above.kind !== 'paragraph' || above.raw.trim() === '') return false;
-	return EMPTY_MARKER_LINE.test(firstLineOf(list.raw));
+	return EMPTY_MARKER_LINE.test(firstDisplayLine(list.raw).text);
 }
 
 /**
@@ -29,11 +29,6 @@ export function lacksSublistSeparator(children: readonly CstNode[], index: numbe
  */
 export function settleSublistSeparator(children: CstNode[], index: number): void {
 	if (!lacksSublistSeparator(children, index)) return;
-	children[index].leadingTrivia = trailingLineEnding(children[index - 1].raw);
-}
-
-function firstLineOf(raw: string): string {
-	const nl = raw.indexOf('\n');
-	if (nl < 0) return raw;
-	return raw[nl - 1] === '\r' ? raw.slice(0, nl - 1) : raw.slice(0, nl);
+	// The paragraph above has the list below it, so it closes its line with the document's ending.
+	children[index].leadingTrivia = ownTrailingLineEnding(children[index - 1].raw);
 }

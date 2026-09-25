@@ -1,6 +1,6 @@
 import type { CstNode } from '../core/nodes';
 import { isBlankParagraph, readBlocks } from '../core/parser';
-import { trailingLineEnding } from '../core/lines';
+import { lineEndingAt, ownTrailingLineEnding } from '../core/lines';
 import type { SharingState } from './sharing';
 import { ensureUnsharedChild } from './unshare';
 import { absorbWindowSeams, settleSeparatorOnBlank, type SettledSplice } from './settle';
@@ -96,7 +96,8 @@ function separateSeam(
 	if (at <= 0 || at >= children.length) return;
 	const prev = children[at - 1];
 	const next = children[at];
-	const apart = withLeadingLine(next.leadingTrivia, trailingLineEnding(next.raw));
+	// The block above has this one below it, so it closes its line in the document's ending.
+	const apart = withLeadingLine(next.leadingTrivia, ownTrailingLineEnding(prev.raw));
 	if (apart === next.leadingTrivia) return;
 	const readsAsBoth = (trivia: string) => readsAsPair(prev, trivia, next, grammar);
 	if (readsAsBoth(next.leadingTrivia) || !readsAsBoth(apart)) return;
@@ -104,7 +105,7 @@ function separateSeam(
 }
 
 function withLeadingLine(trivia: string, eol: string): string {
-	return trivia.startsWith('\n') || trivia.startsWith('\r\n') ? trivia : eol + trivia;
+	return lineEndingAt(trivia, 0) !== '' ? trivia : eol + trivia;
 }
 
 // Two blocks of the same shape, not merely two: a quote lazily taking the first line of the

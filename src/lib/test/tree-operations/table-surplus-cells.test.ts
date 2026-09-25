@@ -24,6 +24,7 @@ import { rangeDelete } from '$lib/selection/range-delete';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
 import { fixtureReading } from '../harness/fixture-grammar';
+import { documentLineEnding } from '$lib/core/lines';
 
 const WIDE = '| H0 |\n| --- |\n| x | y |\n';
 
@@ -32,7 +33,12 @@ function typeInCell(doc: Document, row: number, col: number, text: string): void
 	const table = doc.children[0];
 	const holder = table.children![row];
 	updateNodeContent(
-		{ children: holder.children!, ownerKind: 'tableRow', owner: holder },
+		{
+			children: holder.children!,
+			ownerKind: 'tableRow',
+			owner: holder,
+			lineEnding: documentLineEnding(doc)
+		},
 		col,
 		text,
 		defaultGrammarView

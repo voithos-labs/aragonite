@@ -84,7 +84,7 @@ function typeInto(doc: ReturnType<typeof parse>, path: number[], text: string): 
 	const scope = chain[path.length - 2];
 	if (!scope?.children) return null;
 	const settled = updateNodeContent(
-		{ children: scope.children, ownerKind: scope.kind, owner: scope },
+		{ children: scope.children, ownerKind: scope.kind, owner: scope, lineEnding: '\n' },
 		path[path.length - 1],
 		text,
 		defaultGrammarView,

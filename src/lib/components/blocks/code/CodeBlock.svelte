@@ -58,7 +58,11 @@
 		isStructureOnlyRange
 	} from './code-fence-boundary';
 	import { metadataOf, type CstNode } from '../../../core/nodes';
-	import { trimTrailingLineEnding, trailingLineEnding } from '../../../core/lines';
+	import {
+		documentLineEnding,
+		trimTrailingLineEnding,
+		trailingLineEnding
+	} from '../../../core/lines';
 	import { pasteDispatch } from '../../../tree-operations/paste/dispatch';
 	import { nodeAt, emptyParagraph } from '../../../tree-operations';
 	import { type CommandId } from '../../../schema/commands';
@@ -83,6 +87,8 @@
 		events: editorEvents,
 		reading
 	} = wiring.deps;
+	// The ending a line written into this block takes: its own, else the document's.
+	const blockEnding = () => trailingLineEnding(node.raw, documentLineEnding(getDoc()));
 	const { reorder, menuPresence } = getContext<EditorServices>(EDITOR_SERVICES_KEY);
 	const { onPasteImage, onRunCode, codeMenuItems } =
 		getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
@@ -169,11 +175,7 @@
 			fence: fenceShapeOf(node),
 			mode: 'authored'
 		});
-		void blockEdit.updateBlockContent(
-			index,
-			written.display + trailingLineEnding(node.raw),
-			undoAnchor
-		);
+		void blockEdit.updateBlockContent(index, written.display + blockEnding(), undoAnchor);
 		return written.caret;
 	}
 
@@ -273,7 +275,7 @@
 		const meta = metadataOf(node, 'fencedCode');
 		const slice = sliceFencedCode(node);
 		const text = getDisplayText();
-		const ending = trailingLineEnding(node.raw);
+		const ending = blockEnding();
 		const offset = backend.getRaw() ?? 0;
 		if (!meta.closed) {
 			if (slice.body.trim() !== '') return false;
@@ -367,7 +369,7 @@
 				display: getDisplayText(),
 				selection: enterSpliceSpan(currentRange()),
 				mode: 'soft',
-				ending: trailingLineEnding(node.raw)
+				ending: blockEnding()
 			});
 			pendingCursorOffset = commitDisplay(
 				result.newText,
@@ -508,13 +510,11 @@
 			case 'insertText':
 				return e.data ?? '';
 			case 'insertLineBreak':
-				return trailingLineEnding(node.raw);
+				return blockEnding();
 			// The keydown path auto-indents (computeCodeEnter 'normal'), and a mobile or
 			// IME insertParagraph is the same gesture arriving without a keydown.
 			case 'insertParagraph':
-				return (
-					trailingLineEnding(node.raw) + getLineLeadingWhitespace(getDisplayText(), span.start)
-				);
+				return blockEnding() + getLineLeadingWhitespace(getDisplayText(), span.start);
 			default:
 				return null;
 		}
@@ -643,7 +643,7 @@
 
 		// Electric indent: between an empty bracket pair, expand into three lines with an
 		// extra indent on the middle. Quote pairs stay inline; a selection is replaced.
-		const ending = trailingLineEnding(node.raw);
+		const ending = blockEnding();
 		if (span.start === span.end && isBetweenEmptyBracketPair(text, span.start)) {
 			const at = span.start;
 			const indent = getLineLeadingWhitespace(text, at);
@@ -678,7 +678,7 @@
 	// absorbing the blocks below into it. Closer and new paragraph land as one commit.
 	function closeUnclosedFenceAndDescend(closedDisplay: string): void {
 		const meta = metadataOf(node, 'fencedCode');
-		const lineEnding = trailingLineEnding(node.raw);
+		const lineEnding = blockEnding();
 		const closedFence: CstNode = {
 			kind: 'fencedCode',
 			leadingTrivia: '',
@@ -686,7 +686,7 @@
 			metadata: { ...meta, closed: true }
 		};
 		// The blank separator line and the paragraph's own line are both pure line
-		// ending, so both take the fence's (G4.20), the same one the closer above got.
+		// ending, so both take the one the closer above got.
 		const paragraphBelow = emptyParagraph(lineEnding, lineEnding);
 		void blockEdit.replaceBlock(index, [closedFence, paragraphBelow], {
 			replacementIndex: 1,

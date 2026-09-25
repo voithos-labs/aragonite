@@ -34,6 +34,7 @@ export function makeEdgeDispatch(
 	const readNode = typeof node === 'function' ? node : () => node;
 	const edits: EditTuple[] = [];
 	const deps: EdgePolicyDispatchDeps = {
+		getLineEnding: () => '\n',
 		get node() {
 			return readNode();
 		},

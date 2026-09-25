@@ -8,6 +8,7 @@ import { isDevChecks } from '../../env';
 import { tick } from 'svelte';
 import type { BlockComponent } from '../../block-component';
 import type { CstNode, Document } from '../../core/nodes';
+import { documentLineEnding } from '../../core/lines';
 import type { NodeView } from '../../core/node-views';
 import type { EditorSelection } from '../../selection/primitives';
 import type { GapCaretSelection, UndoEntry } from '../../undo/types';
@@ -574,7 +575,12 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 			isDoc,
 			chain,
 			owned,
-			view: { node: owned, children: owned.children!, sharing: deps.sharing },
+			view: {
+				node: owned,
+				children: owned.children!,
+				sharing: deps.sharing,
+				lineEnding: documentLineEnding(deps.doc)
+			},
 			ids,
 			refs,
 			savedChildren,

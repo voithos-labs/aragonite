@@ -10,7 +10,7 @@ import type { Document } from '../../core/nodes';
 import type { SelectionState } from '../selection-state.svelte';
 import { tableCellCount } from '../table-endpoint-snap';
 import { CURSOR_END } from '../../block-component';
-import { normalizeLineEndings } from '../../core/lines';
+import { documentLineEnding, normalizeLineEndings } from '../../core/lines';
 import { performCrossBlockDelete } from './ops';
 import { charOffsetOf } from '../primitives';
 import { focusCollapsedCaret } from '../native-bridge';
@@ -163,6 +163,7 @@ async function replaceCoveredBlockWithPaste(
 	const parsed = parseReplacement(
 		covered,
 		applyPasteTransforms(pasted, ctx.activePlugins),
+		documentLineEnding(doc),
 		ctx.reading.grammar
 	);
 	if (!parsed) return;

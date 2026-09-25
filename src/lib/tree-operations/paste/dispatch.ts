@@ -12,7 +12,13 @@ import type { PluginActivation } from '../../schema/plugin-activation';
 import { readBlocks } from '../../core/parser';
 import { isBlockNode, nodeAt } from '../node-primitives';
 import { cutRangeFromDisplay } from '../node-ops';
-import { trailingLineEnding, trimTrailingLineEnding } from '../../core/lines';
+import {
+	documentLineEnding,
+	trailingLineEnding,
+	trimTrailingLineEnding,
+	withLineEnding,
+	type LineEnding
+} from '../../core/lines';
 import {
 	getPasteSurface,
 	isPasteSurfaceRegistered,
@@ -30,8 +36,7 @@ import { applyListAbsorb, findListAbsorb } from './list-absorb';
 import { applyListBreakOut, findListBreakOut } from './list-break-out';
 import type { PasteCommitCoordinator } from './paste-deps';
 import { applyPasteTransforms } from './paste-transforms';
-import { inlineResultInEnding, pasteLineEnding } from './line-ending';
-import { withLineEnding } from '../../core/lines';
+import { inlineResultInEnding } from './line-ending';
 import { contentBlocks, pickPasteStrategy } from './strategy';
 
 export type PasteStrategy = 'inline' | 'structural';
@@ -92,6 +97,8 @@ export async function pasteDispatch(
 	// empty paste.
 	const { activePlugins } = ctx;
 	const { reading } = ctx;
+	// The hooks read the LF text; every line the paste writes takes the document's own ending.
+	const ending = documentLineEnding(ctx.doc);
 	const transformed = applyPasteTransforms(input.pastedText, activePlugins);
 	if (!transformed) return {};
 
@@ -102,9 +109,6 @@ export async function pasteDispatch(
 	const targetNode = nodeAt(ctx.doc, input.targetPath) as CstNode | null;
 	if (!targetNode) return {};
 
-	// The hooks read the LF text; the blocks are parsed in the document's own ending, since their
-	// bytes are what every block route writes.
-	const ending = pasteLineEnding(ctx.doc, input.targetPath, targetNode, input.offset);
 	const parsed = readBlocks(withLineEnding(pastedText, ending), {
 		grammar: reading.grammar,
 		scope: 'fragment'
@@ -122,14 +126,14 @@ export async function pasteDispatch(
 		const flattened = pastedText.replace(/(\r?\n)+/g, ' ').trim();
 		const hook =
 			getPasteSurface(targetNode.kind, activePlugins)?.onInlinePaste ?? defaultInlineHook;
-		const result = hook(targetNode, input.offset, flattened, input.preDelete, reading);
+		const result = hook(targetNode, input.offset, flattened, input.preDelete, reading, ending);
 		const landing = await applyInlineResult(input.targetPath, result, ctx);
 		return inlineCaretResult(result.caretOffset, landing);
 	}
 
 	// The delete half, applied before the container finders, which decide on the target's bytes and
 	// never cut the range themselves; the hook routes cut their own, kind rules included.
-	const target = targetAfterPreDelete(targetNode, input, reading);
+	const target = targetAfterPreDelete(targetNode, input, reading, ending);
 
 	const unwrap = findContainerMatchingUnwrap(
 		ctx.doc,
@@ -194,7 +198,7 @@ export async function pasteDispatch(
 		const hook = surface?.onInlinePaste ?? defaultInlineHook;
 		const result = inlineResultInEnding(
 			targetNode.raw,
-			hook(targetNode, input.offset, pastedText, input.preDelete, reading),
+			hook(targetNode, input.offset, pastedText, input.preDelete, reading, ending),
 			ending
 		);
 		const landing = await applyInlineResult(input.targetPath, result, ctx);
@@ -202,7 +206,7 @@ export async function pasteDispatch(
 	}
 
 	const hook = surface?.onStructuralPaste ?? defaultStructuralHook;
-	const result = hook(targetNode, input.offset, blocks.slice(), input.preDelete, reading);
+	const result = hook(targetNode, input.offset, blocks.slice(), input.preDelete, reading, ending);
 	await applyStructuralResult(
 		input.targetPath,
 		result,
@@ -216,11 +220,12 @@ export async function pasteDispatch(
 function targetAfterPreDelete(
 	node: CstNode,
 	input: PasteDispatchInput,
-	reading: Reading
+	reading: Reading,
+	lineEnding: LineEnding
 ): { raw: string; offset: number } {
 	if (!input.preDelete) return { raw: node.raw, offset: input.offset };
 	const cut = cutRangeFromDisplay(node, trimTrailingLineEnding(node.raw), input.preDelete, reading);
-	return { raw: cut.display + trailingLineEnding(node.raw), offset: cut.offset };
+	return { raw: cut.display + trailingLineEnding(node.raw, lineEnding), offset: cut.offset };
 }
 
 /**

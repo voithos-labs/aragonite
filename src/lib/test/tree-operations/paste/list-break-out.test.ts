@@ -19,6 +19,7 @@ describe('buildListBreakOutReplacement', () => {
 			0,
 			0,
 			pasted,
+			'\n',
 			undefined,
 			defaultGrammarView
 		);
@@ -45,6 +46,7 @@ describe('buildListBreakOutReplacement', () => {
 			0,
 			0,
 			pasted,
+			'\n',
 			undefined,
 			defaultGrammarView
 		);
@@ -73,6 +75,7 @@ describe('buildListBreakOutReplacement, trailing-residue flag drives the caret',
 			0,
 			1,
 			pasted(),
+			'\n',
 			undefined,
 			defaultGrammarView
 		);
@@ -89,6 +92,7 @@ describe('buildListBreakOutReplacement, trailing-residue flag drives the caret',
 			0,
 			'three'.length,
 			pasted(),
+			'\n',
 			undefined,
 			defaultGrammarView
 		);

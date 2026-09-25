@@ -13,7 +13,12 @@ import type { InlineWidgetEditingPolicy } from '../../../core/inline/inline-widg
 import { resolvedInlineContent } from '../../../core/inline/inline-cache';
 import { getContentRange } from '../../../core/inline';
 import { getInlineWidgetEditing } from '../../../core/inline/inline-widgets';
-import { trimTrailingLineEnding, trailingLineEnding } from '../../../core/lines';
+import {
+	ownTrailingLineEnding,
+	trailingLineEnding,
+	trimTrailingLineEnding,
+	type LineEnding
+} from '../../../core/lines';
 import { type RawOffset } from '../../../cursor/coordinate-spaces';
 import type { EdgeAffinity } from '../../../cursor/edge-affinity';
 import type { PendingMarksState } from '../../../cursor/pending-marks';
@@ -44,7 +49,9 @@ import type { Reading } from '../../../schema/reading';
 /** Whether `line` still parses back as `node`'s kind as the editor reads it, which the auto-pair
  *  resolver checks. */
 export function keepsBlockKind(node: NodeView, line: string, reading: Reading): boolean {
-	return soleProseReparse(line + trailingLineEnding(node.raw), reading)?.block.kind === node.kind;
+	return (
+		soleProseReparse(line + ownTrailingLineEnding(node.raw), reading)?.block.kind === node.kind
+	);
 }
 
 /** The part of the inline-widget editing policy the built-in widget rules reuse, in the same
@@ -68,6 +75,8 @@ interface IslandSpan {
 export interface EdgePolicyDispatchDeps {
 	get node(): NodeView;
 	get index(): number;
+	/** The document's line ending, which a rewrite takes where the block has none of its own. */
+	getLineEnding: () => LineEnding;
 	/** The nearest ancestor container, or null at the document root. A key at the content start
 	 *  resolves against its declaration. */
 	get containerParent(): NodeView | null;
@@ -231,7 +240,7 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 	): void {
 		void deps.blockEdit.updateBlockContent(
 			deps.index,
-			next + trailingLineEnding(deps.node.raw),
+			next + trailingLineEnding(deps.node.raw, deps.getLineEnding()),
 			caretBefore,
 			caretAfter
 		);
@@ -327,7 +336,8 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 				range,
 				typed,
 				deps.reading,
-				deps.getAmbientPrefix?.() ?? ''
+				deps.getAmbientPrefix?.() ?? '',
+				deps.getLineEnding()
 			);
 			void deps.blockEdit.updateBlockContent(deps.index, edit.raw, range.start, edit.caret);
 			deps.setPendingCursor(edit.caret, source, edit.raw);
@@ -544,7 +554,8 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 				range,
 				'',
 				deps.reading,
-				deps.getAmbientPrefix?.() ?? ''
+				deps.getAmbientPrefix?.() ?? '',
+				deps.getLineEnding()
 			);
 			void deps.blockEdit.updateBlockContent(deps.index, edit.raw, range.start, edit.caret);
 			deps.setPendingCursor(edit.caret, 'ambient-delete');
@@ -599,7 +610,7 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		if (d.endsWith('\\\\')) return false;
 		// Backslash before ASCII punctuation is an escape (`\|`, `\*`), never a break's backslash.
 		if (/^[!-/:-@[-`{-~]$/.test(e.key)) return false;
-		const ending = trailingLineEnding(deps.node.raw);
+		const ending = trailingLineEnding(deps.node.raw, deps.getLineEnding());
 		e.preventDefault();
 		deps.setSnapTarget(null);
 		const next = d + ending + e.key;

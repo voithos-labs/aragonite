@@ -22,7 +22,11 @@
 	import { devWarn } from '../../../dev-warn';
 	import { resolvedInlineContent } from '../../../core/inline/inline-cache';
 	import { isInlineWidget } from '../../../core/inline/inline-widgets';
-	import { trimTrailingLineEnding, trailingLineEnding } from '../../../core/lines';
+	import {
+		documentLineEnding,
+		trimTrailingLineEnding,
+		trailingLineEnding
+	} from '../../../core/lines';
 	import { hasSelection as hasSelectionHelper } from '../../../cursor/content-offsets';
 	import { caretIsInTextContent, seatIsInTextContent } from './click-snap-guard';
 	import { caretSeatFromPoint } from '../../../cursor/point-offset';
@@ -144,6 +148,10 @@
 		reading
 	} = wiring.deps;
 	const { grammar } = reading;
+	// A block with no line ending of its own is the document's last line; a write gives it the
+	// document's.
+	const documentEnding = () => documentLineEnding(getDoc());
+	const blockEnding = () => trailingLineEnding(node.raw, documentEnding());
 	// Present inside a list item, whose ListItemBlock owns Tab-as-indent.
 	const listContext = getContext(LIST_CONTEXT_KEY);
 	const {
@@ -256,7 +264,7 @@
 		readText: () => readRawText(),
 		relocateComposedText: (after, composedAt) => compositionSeat.relocate(after, composedAt),
 		commitInput: (text, preEdit, saved) => {
-			const committed = text + trailingLineEnding(node.raw);
+			const committed = text + blockEnding();
 			// An enclosing container may rewrite these bytes on the way in, so the caret restore
 			// reads the text actually stored; asked before the write, as the mapping requires.
 			const caret = blockEdit.mapCommittedOffset?.(index, committed, saved);
@@ -277,6 +285,7 @@
 	const sharedCtx = editableSurface.sharedCtx;
 
 	const widgetInteraction = createWidgetInteraction({
+		getLineEnding: documentEnding,
 		get node() {
 			return node;
 		},
@@ -359,6 +368,7 @@
 	// The one caret-edge dispatch (G4.12); entry execution stays at
 	// `widgetInteraction.enterWidget`.
 	const edgeDispatch = createEdgePolicyDispatch({
+		getLineEnding: documentEnding,
 		get node() {
 			return node;
 		},
@@ -513,7 +523,7 @@
 				return always(() => blockEdit.descendToBody(index));
 			case 'block.hardBreak':
 				return always(() => {
-					const { newRaw, caretOffset } = insertHardBreak(node.raw, offset);
+					const { newRaw, caretOffset } = insertHardBreak(node.raw, offset, documentEnding());
 					blockEdit.updateBlockContent(index, newRaw, offset);
 					setPendingCursorOffset(caretOffset, 'hard-break');
 				});
@@ -906,6 +916,7 @@
 			e,
 			node,
 			cursor,
+			documentEnding(),
 			reading,
 			ambientPrefixText,
 			widgetInteraction.isRevealing,
@@ -928,12 +939,13 @@
 			foldReveal: () => widgetInteraction.foldRevealBeforeMutation(),
 			setCaret: (offset) => cursor.setRaw(asRawOffset(offset)),
 			seatOutside: edgeAffinity.noteExtreme,
-			completesLine: (caret) => planTypedCompletion(node, caret, grammar) !== null,
+			completesLine: (caret) =>
+				planTypedCompletion(node, caret, grammar, documentEnding()) !== null,
 			keepsBlockKind: (text) => keepsBlockKind(node, text, reading),
 			reading,
 			ownPairs,
 			write: (text, caretBefore, caretAfter) => {
-				const raw = text + trailingLineEnding(node.raw);
+				const raw = text + blockEnding();
 				void blockEdit.updateBlockContent(index, raw, caretBefore, caretAfter);
 				setPendingCursorOffset(caretAfter, 'delimiter-autopair');
 			}
@@ -1058,7 +1070,7 @@
 
 		// A command is not typing: the toggle's bytes are their own undo step in every mode.
 		controller.isolateUndoEntry(() =>
-			blockEdit.updateBlockContent(index, newDisplay + trailingLineEnding(node.raw), newSelStart)
+			blockEdit.updateBlockContent(index, newDisplay + blockEnding(), newSelStart)
 		);
 
 		tick().then(() => {

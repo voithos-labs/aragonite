@@ -168,8 +168,8 @@ describe('range delete that consumes a fenced code closer', () => {
 		expectParseConverged(doc);
 	});
 
-	// The parser preserves a missing final newline, so the joined slice carries none and the
-	// reattached ending falls back to LF. The closer's ending is the block's, not the slice's.
+	// The parser preserves a missing final newline, so the joined slice carries none: the
+	// reattached ending is the document's CRLF, as is the restored closer's.
 	it('creates CRLF when the document’s last block has no trailing newline', () => {
 		const doc = parse('```js\r\nbody\r\n```\r\n\r\npara');
 
@@ -181,7 +181,7 @@ describe('range delete that consumes a fenced code closer', () => {
 			fixtureReading()
 		);
 
-		expect(serialize(doc)).toBe('```js\r\nbo\r\n```\n');
+		expect(serialize(doc)).toBe('```js\r\nbo\r\n```\r\n');
 		expectParseConverged(doc);
 	});
 

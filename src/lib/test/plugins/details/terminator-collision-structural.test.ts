@@ -24,7 +24,11 @@ describe('details terminator escape at the split entry point', () => {
 	const detailsOwner = () => ({ ownerKind: declaredPluginKind(DETAILS), owner: undefined });
 
 	it('escapes the second half when the cut strands a trailing tag', () => {
-		const parent = { children: parse('foo</details>\n').children, ...detailsOwner() };
+		const parent = {
+			children: parse('foo</details>\n').children,
+			...detailsOwner(),
+			lineEnding: '\n' as const
+		};
 		splitNode(parent, 0, 3, undefined, fixtureReading());
 
 		expect(parent.children.map((c) => c.raw)).toEqual(['foo\n', '&lt;/details>\n']);
@@ -33,7 +37,11 @@ describe('details terminator escape at the split entry point', () => {
 	it('escapes the first half when the cut strands a leading tag', () => {
 		// `</details>foo` parses as an htmlBlock; the tag line survived unescaped only
 		// because the trailing text kept it from matching the anchored terminator.
-		const parent = { children: parse('</details>foo\n').children, ...detailsOwner() };
+		const parent = {
+			children: parse('</details>foo\n').children,
+			...detailsOwner(),
+			lineEnding: '\n' as const
+		};
 		expect(parent.children[0].kind).toBe('htmlBlock');
 
 		splitNode(parent, 0, 10, undefined, fixtureReading());
@@ -45,7 +53,8 @@ describe('details terminator escape at the split entry point', () => {
 		const parent = {
 			children: parse('foo</details>\n').children,
 			ownerKind: undefined,
-			owner: undefined
+			owner: undefined,
+			lineEnding: '\n' as const
 		};
 		splitNode(parent, 0, 3, undefined, fixtureReading());
 

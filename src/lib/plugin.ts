@@ -67,6 +67,7 @@ export type {
 	BlockKindAugmentation,
 	ContainerDescriptorGroup,
 	MergeRole,
+	RawWriteContext,
 	UnwrapRole
 } from './schema/block-kind-descriptor';
 // `rebuildRaw`'s optional second argument: the one child whose raw moved, for a rebuilder that
@@ -162,6 +163,17 @@ export { trimTrailingLineEnding, normalizeLineEndings } from './core/lines';
 // source` transform holding nothing but a string could not reach `blockquoteExtent`.
 export { splitLines } from './core/lines';
 export type { ParsedLine } from './core/lines';
+// A line a plugin writes takes the document's ending, and per-line work reads a line's text
+// without its ending, so a CRLF document stays CRLF through a plugin's write rule.
+export {
+	documentLineEnding,
+	firstLineEnding,
+	ownTrailingLineEnding,
+	trailingLineEnding,
+	displayLines,
+	joinDisplayLines
+} from './core/lines';
+export type { LineEnding } from './core/lines';
 // GFM §2.1's blank line (spaces and tabs only). `String.trim()` would admit the whole
 // Unicode whitespace set and split a block on a pasted non-breaking space.
 export { isBlankLine } from './core/parser';

@@ -17,10 +17,15 @@ import { defaultGrammarView } from '$lib/schema/block-openers';
 // Miss-analysis: every blank-line case drove the fill direction (a blank block gaining content),
 // so nothing emptied a block, and `updateNodeContent` fixed up one direction of the transition.
 
-/** The gesture: `TextEditableBlock.commitInput` sends `text + trailingLineEnding(raw)`, so an
+/** The gesture: `TextEditableBlock.commitInput` sends `text + trailingLineEnding(raw, '\n')`, so an
  *  emptied block sends the line ending alone. */
 function empty(doc: Document, index: number): void {
-	updateNodeContent(doc, index, trailingLineEnding(doc.children[index].raw), defaultGrammarView);
+	updateNodeContent(
+		doc,
+		index,
+		trailingLineEnding(doc.children[index].raw, '\n'),
+		defaultGrammarView
+	);
 }
 
 function expectReloadsAsItStands(doc: Document, bytes: string): void {
