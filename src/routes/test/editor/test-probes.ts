@@ -45,6 +45,7 @@ import { blockContentElAt } from '$lib/components/block-el-lookup';
 import { TABLE_CELL_SELECTOR } from '$lib/components/block-content-selector';
 import { domDescendants } from '$lib/cursor/dom-walk';
 import { isHiddenMarkerText } from '$lib/cursor/widget-offset';
+import { childIdDrifts } from '$lib/invariants/child-id-parity';
 import ThrowOnRenderBlock from './ThrowOnRenderBlock.svelte';
 
 type EditorInstance = ReturnType<typeof Editor>;
@@ -752,6 +753,12 @@ export function installTestProbes({
 		auditBlockListStateConsistency: (): StateDrift[] => {
 			const doc = editor.__test.getDocument();
 			const violations: StateDrift[] = [];
+			// The ids go through the shared keyed-container check; the refs are this list state's own.
+			const idDrifts = new Set(
+				doc.children.flatMap((block, i) =>
+					childIdDrifts(block).map((drift) => [i, ...drift.path].join())
+				)
+			);
 			let containers = 0;
 			let resolved = 0;
 			function walk(node: CstNode, path: number[]): void {
@@ -763,7 +770,7 @@ export function installTestProbes({
 					const childrenLen = node.children.length;
 					const idsLen = state.innerBlockIds.length;
 					const refsLen = state.innerBlockRefs.length;
-					if (idsLen !== childrenLen || refsLen !== childrenLen) {
+					if (idDrifts.has(path.join()) || refsLen !== childrenLen) {
 						violations.push({ path: [...path], kind: node.kind, childrenLen, idsLen, refsLen });
 					}
 				}

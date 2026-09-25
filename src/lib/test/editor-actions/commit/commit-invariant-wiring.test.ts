@@ -65,4 +65,30 @@ describe('commit sequence fires the node invariants over its touched nodes', () 
 
 		expect(firesStaleRaw(), 'expected an invariant:stale-raw fire').toBe(true);
 	});
+
+	// ── The keyed-container ids at every depth below a touched node ──────────────
+	it('a commit that leaves a nested container’s ids out of step fires child-id-parity', async () => {
+		const { deps } = makeEditorActionsDeps(parse(NESTED_BQ).children);
+		const controller = createUndoController(deps);
+		const outer = () => deps.doc.children[0];
+		const scopes: MultiScopeTarget[] = [
+			{ node: outer(), state: makeBlockListState(outer), path: [0] }
+		];
+
+		drainDevWarns();
+		await controller.commitMultiScope({
+			scopes,
+			snapshot: { path: asDocPath([0]), offset: 0 },
+			mutate: (views) => {
+				const nested = (views[0].node as CstNode).children?.find((c) => c.kind === 'blockquote');
+				if (!nested) throw new Error('fixture has no nested blockquote');
+				nested.childIds = [];
+				return [{ op: 'noop' }];
+			},
+			op: { kind: 'metadataUpdate', eventPath: asDocPath([0]), detail: { fields: ['quoteDepth'] } }
+		});
+
+		const fired = takeDevWarns().some((fire) => fire.tag === 'invariant:child-id-parity');
+		expect(fired, 'expected an invariant:child-id-parity fire').toBe(true);
+	});
 });
