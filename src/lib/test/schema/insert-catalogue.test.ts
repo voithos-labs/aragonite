@@ -5,11 +5,12 @@ import {
 	type InsertEntry
 } from '$lib/schema/insert-catalogue';
 import { definePlugin, installPlugins } from '$lib/schema/plugin-install';
+import { everyInstalledPlugin, type PluginActivation } from '$lib/schema/plugin-activation';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
-const everyone = () => true;
-const ids = (isActive: (plugin: string) => boolean = everyone) =>
-	insertCatalogue(isActive).map((e) => e.id);
+const everyone = everyInstalledPlugin;
+const ids = (activation: PluginActivation = everyone) =>
+	insertCatalogue(activation).map((e) => e.id);
 
 const BUILT_IN_IDS = ['bullet', 'numbered', 'todo', 'quote', 'divider', 'code', 'table'];
 
@@ -52,7 +53,7 @@ describe('insertCatalogue', () => {
 	it('lists a plugin entry only where its plugin is installed and active', () => {
 		installPlugins([pluginWith('shown', block('shown-block'))]);
 		expect(ids()).toContain('shown-block');
-		expect(ids((plugin) => plugin !== 'shown')).not.toContain('shown-block');
+		expect(ids({ isActive: (plugin) => plugin !== 'shown' })).not.toContain('shown-block');
 
 		__resetSchemaRegistriesForTests();
 		expect(ids()).toEqual(BUILT_IN_IDS);

@@ -10,7 +10,9 @@ import type { NodeView } from '../core/node-views';
 import type { LinkReferenceResolver } from '../core/inline/link-reference-resolver';
 import type { AnyCommandId } from './command-id';
 import { isBuiltinCommandId } from './commands';
-import { deletePluginEntries, registerOnce } from './register-once';
+import { registerOnce } from './register-once';
+import { everyInstalledPlugin } from './plugin-activation';
+import { createPluginRegistry } from './plugin-registry';
 import type { GrammarView } from './block-openers';
 
 // ── Policy rows ─────────────────────────────────────────────────────────────
@@ -50,7 +52,13 @@ export interface InlineConstructPolicy {
 	mark?: InlineMarkPolicy;
 }
 
-const policies = new Map<AnyInlineKind, InlineConstructPolicy>();
+// Read with no editor at hand: a row matters only for a node of its kind, and only an editor
+// that activated the kind's plugin parses one, so the rows answer for every installed plugin.
+const policies = createPluginRegistry<AnyInlineKind, InlineConstructPolicy>({
+	label: 'registerInlineConstructPolicy',
+	isBuiltin: isBuiltinInlineKind
+});
+const policyOf = (kind: AnyInlineKind) => policies.get(kind, everyInstalledPlugin);
 
 export function registerInlineConstructPolicy(
 	kind: AnyInlineKind,
@@ -58,9 +66,9 @@ export function registerInlineConstructPolicy(
 ): void {
 	assertMarkCommandMintable(kind, policy.mark);
 	assertCardImpliesRevealable(kind, policy);
-	registerOnce(
-		policies.has(kind),
-		() => policies.set(kind, policy),
+	policies.register(
+		kind,
+		policy,
 		`registerInlineConstructPolicy: "${kind}" is already registered. Policies are register-once.`
 	);
 }
@@ -86,23 +94,23 @@ function assertCardImpliesRevealable(kind: AnyInlineKind, policy: InlineConstruc
 
 /** Undefined for a kind with no row: absent means "no live-mode construct behavior at all". */
 export function getInlineConstructPolicy(kind: AnyInlineKind): InlineConstructPolicy | undefined {
-	return policies.get(kind);
+	return policyOf(kind);
 }
 
 /** Whether the preview-inline mode may show this kind's markers. */
 export function isRevealableInlineKind(kind: AnyInlineKind): boolean {
-	return policies.get(kind)?.revealable === true;
+	return policyOf(kind)?.revealable === true;
 }
 
 /** Whether the link card may address this kind's destination. */
 export function isCardEditableInlineKind(kind: AnyInlineKind): boolean {
-	return policies.get(kind)?.cardEditable === true;
+	return policyOf(kind)?.cardEditable === true;
 }
 
 export function listInlineConstructPolicies(): readonly (InlineConstructPolicy & {
 	kind: AnyInlineKind;
 })[] {
-	return [...policies].map(([kind, policy]) => ({ kind, ...policy }));
+	return policies.entries(everyInstalledPlugin).map(([kind, policy]) => ({ kind, ...policy }));
 }
 
 // ── The mark vocabulary ─────────────────────────────────────────────────────
@@ -110,7 +118,7 @@ export function listInlineConstructPolicies(): readonly (InlineConstructPolicy &
 /** A kind's mark policy, or undefined for a kind no chord addresses. The toggle paths check this
  *  before writing any delimiter. */
 export function getInlineMarkPolicy(kind: AnyInlineKind): InlineMarkPolicy | undefined {
-	return policies.get(kind)?.mark;
+	return policyOf(kind)?.mark;
 }
 
 export interface InlineMark {
@@ -122,7 +130,9 @@ export interface InlineMark {
  *  second lookup that could miss. */
 export function listInlineMarks(): readonly InlineMark[] {
 	const marks: InlineMark[] = [];
-	for (const [kind, policy] of policies) if (policy.mark) marks.push({ kind, mark: policy.mark });
+	for (const [kind, policy] of policies.entries(everyInstalledPlugin)) {
+		if (policy.mark) marks.push({ kind, mark: policy.mark });
+	}
 	return marks.sort((a, b) => a.mark.nestingRank - b.mark.nestingRank);
 }
 
@@ -226,12 +236,6 @@ export function registerLiveJoinSeamCleaner(cleaner: LiveJoinSeamCleaner): void 
 
 export function getLiveJoinSeamCleaner(): LiveJoinSeamCleaner | undefined {
 	return joinSeamCleaner;
-}
-
-/** Test-only. Drops every plugin-registered row; built-in rows and the rebalancer stay, being
- *  built-in registrations. */
-export function __resetInlineConstructPoliciesForTests(): void {
-	deletePluginEntries(policies, isBuiltinInlineKind);
 }
 
 /** Test-only, and separate on purpose: only a suite testing this one function wants it cleared,

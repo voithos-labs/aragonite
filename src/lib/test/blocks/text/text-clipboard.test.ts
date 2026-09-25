@@ -16,6 +16,7 @@ import { createWidgetSelectionState } from '$lib/components/image/widget-selecti
 import type { CstNode } from '$lib/core/nodes';
 import type { Commit } from './widget-selected-fixture';
 import { fixtureLinkRef } from '../../harness/fixture-grammar';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 function capturingEvent() {
 	const store = new Map<string, string>();
@@ -84,6 +85,7 @@ function harness(source: string, sourceStart: number, options: HarnessOptions = 
 		setPendingCursor: () => {},
 		isReadOnly: () => options.readOnly === true,
 		foldRevealBeforeMutation: () => null,
+		grammar: defaultGrammarView,
 		get linkRef() {
 			return fixtureLinkRef();
 		}
@@ -232,6 +234,7 @@ function foldSettleHarness() {
 			caret: 4,
 			settled: writeGate.then(() => void order.push('fold-write'))
 		}),
+		grammar: defaultGrammarView,
 		get linkRef() {
 			return fixtureLinkRef();
 		}

@@ -4,9 +4,10 @@ import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { parseInline } from '$lib/core/inline';
 import { declarePluginKind, declarePluginInlineKind } from '$lib/schema/plugin-kind';
-import { registerDirective, __resetDirectiveRegistryForTests } from '$lib/core/directive/registry';
+import { registerDirective } from '$lib/core/directive/registry';
 import { DIRECTIVE_LEAF, DIRECTIVE_TEXT } from '$lib/core/directive/kinds';
 import { activateDirectiveGrammar } from '$lib/core/directive/activate';
+import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
 activateDirectiveGrammar(); // before any parse
 
@@ -26,7 +27,7 @@ beforeAll(() => {
 	});
 	registerDirective('text', 'gloss', { kind: GLOSS });
 });
-afterAll(() => __resetDirectiveRegistryForTests());
+afterAll(() => __resetSchemaRegistriesForTests());
 
 describe('leaf level registered dispatch', () => {
 	it('marks a kind-only registration on the leaf node, not directiveLeaf', () => {

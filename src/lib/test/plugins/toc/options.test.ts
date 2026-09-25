@@ -4,6 +4,7 @@ import { declaredPluginKind } from '$lib/plugin';
 import { resetPluginPlatformForTests } from '$lib/testing';
 import { getBlockComponent } from '$lib/schema/block-component-registry';
 import { tocPlugin, TOC_BLOCK } from '$lib/plugins/toc/toc-plugin';
+import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 
 beforeEach(resetPluginPlatformForTests);
 afterEach(resetPluginPlatformForTests);
@@ -14,7 +15,11 @@ afterEach(resetPluginPlatformForTests);
 describe('tocPlugin maxDepth option', () => {
 	function tocExtraProps(): Record<string, unknown> | undefined {
 		const kind = declaredPluginKind(TOC_BLOCK);
-		return getBlockComponent(kind)?.extraProps?.({ kind, leadingTrivia: '', raw: '[[toc]]\n' });
+		return getBlockComponent(kind, everyInstalledPlugin)?.extraProps?.({
+			kind,
+			leadingTrivia: '',
+			raw: '[[toc]]\n'
+		});
 	}
 
 	it('threads a configured maxDepth to the component', () => {

@@ -3,11 +3,10 @@ import {
 	definePlugin,
 	installPlugins,
 	isPluginInstalled,
-	owningPluginEditor,
-	recordPluginKindOwner,
 	type EditorContext
 } from '$lib/schema/plugin-install';
-import { declarePluginKind, declaredPluginKind } from '$lib/schema/plugin-kind';
+import { declarePluginKind, declaredPluginKind, owningPluginEditor } from '$lib/schema/plugin-kind';
+import { declareOwnedKind } from '$lib/test/support/owned-kind';
 import { registerBlockKind } from '$lib/schema/block-kind-descriptor';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { testClosure } from '$lib/test/support/closure';
@@ -175,7 +174,7 @@ describe('installPlugins', () => {
 describe('owningPluginEditor', () => {
 	it("resolves the owner's context; an unowned kind takes the base-context '' branch", () => {
 		const lookup = vi.fn((name: string) => ({ editorId: name }) as unknown as EditorContext);
-		recordPluginKindOwner('owned-kind', 'plug-a');
+		declareOwnedKind('plug-a', 'owned-kind');
 
 		expect(owningPluginEditor(lookup, 'owned-kind')?.editorId).toBe('plug-a');
 		expect(owningPluginEditor(lookup, 'unowned-kind')?.editorId).toBe('');

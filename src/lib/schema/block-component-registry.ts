@@ -7,7 +7,8 @@ import type { Component } from 'svelte';
 import { isBuiltinBlockKind, type AnyBlockKind } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import type { BlockComponentExports, BlockComponentProps } from '../block-component';
-import { deletePluginEntries, registerOnce } from './register-once';
+import type { PluginActivation } from './plugin-activation';
+import { createPluginRegistry } from './plugin-registry';
 
 export interface BlockComponentEntry {
 	/**
@@ -34,18 +35,25 @@ export function defineBlockComponent<
 	return { component: component as BlockComponentEntry['component'], extraProps };
 }
 
-const registry = new Map<AnyBlockKind, BlockComponentEntry>();
+const registry = createPluginRegistry<AnyBlockKind, BlockComponentEntry>({
+	label: 'registerBlockComponent',
+	isBuiltin: isBuiltinBlockKind
+});
 
 export function registerBlockComponent(kind: AnyBlockKind, entry: BlockComponentEntry): void {
-	registerOnce(
-		registry.has(kind),
-		() => registry.set(kind, entry),
+	registry.register(
+		kind,
+		entry,
 		`registerBlockComponent: "${kind}" is already registered. Components are register-once.`
 	);
 }
 
-export function getBlockComponent(kind: AnyBlockKind): BlockComponentEntry | undefined {
-	return registry.get(kind);
+/** The kind's component where `activation` resolves the plugin that registered it. */
+export function getBlockComponent(
+	kind: AnyBlockKind,
+	activation: PluginActivation
+): BlockComponentEntry | undefined {
+	return registry.get(kind, activation);
 }
 
 /**
@@ -54,9 +62,4 @@ export function getBlockComponent(kind: AnyBlockKind): BlockComponentEntry | und
  */
 export function isBlockComponentRegistered(kind: string): boolean {
 	return registry.has(kind as AnyBlockKind);
-}
-
-/** Test-only. Removes every non-built-in component entry; built-ins survive. */
-export function __removePluginComponentsForTests(): void {
-	deletePluginEntries(registry, isBuiltinBlockKind);
 }

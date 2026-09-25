@@ -2,10 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { configureEditorEnv } from '$lib/env';
 import { takeDevWarns } from '../support/warn-gate';
 import { INLINE_KIND_TABLE, type AnyInlineKind } from '$lib/core/nodes';
-import {
-	declarePluginInlineKind,
-	__clearDeclaredPluginInlineKindsForTests
-} from '$lib/schema/plugin-kind';
+import { declarePluginInlineKind } from '$lib/schema/plugin-kind';
 import {
 	registerInlineConstructPolicy,
 	getInlineConstructPolicy,
@@ -16,7 +13,6 @@ import {
 	listInlineMarks,
 	registerLiveSplitRebalancer,
 	getLiveSplitRebalancer,
-	__resetInlineConstructPoliciesForTests,
 	__resetLiveSplitRebalancerForTests,
 	type InlineConstructPolicy,
 	type InlineMarkPolicy,
@@ -40,11 +36,11 @@ const atomic: InlineConstructPolicy = {
 const rebalancer = (): LiveSplitRebalancer => () => null;
 
 afterEach(() => {
-	__resetInlineConstructPoliciesForTests();
+	__resetSchemaRegistriesForTests();
 	// A separate reset: clearing the rows deliberately leaves this function registered, so only
 	// this suite, which tests that function, clears it between cases.
 	__resetLiveSplitRebalancerForTests();
-	__clearDeclaredPluginInlineKindsForTests();
+	__resetSchemaRegistriesForTests();
 });
 
 describe('built-in rows', () => {
@@ -235,7 +231,7 @@ describe('live split rebalancer slot', () => {
 	it('survives the plugin-row reset, being a built-in registration', () => {
 		const fn = rebalancer();
 		registerLiveSplitRebalancer(fn);
-		__resetInlineConstructPoliciesForTests();
+		__resetSchemaRegistriesForTests();
 		expect(getLiveSplitRebalancer()).toBe(fn);
 	});
 });

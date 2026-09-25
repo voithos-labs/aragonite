@@ -12,13 +12,10 @@ import {
 	DIRECTIVE_TEXT,
 	type DirectiveContainerMetadata
 } from '$lib/core/directive/kinds';
-import {
-	registerDirective,
-	__resetDirectiveRegistryForTests,
-	type ParsedDirective
-} from '$lib/core/directive/registry';
+import { registerDirective, type ParsedDirective } from '$lib/core/directive/registry';
 import { arbGfmDoc, freshOrFixedSeed } from '../../invariants/arbitraries';
 import { activateDirectiveGrammar } from '$lib/core/directive/activate';
+import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
 activateDirectiveGrammar(); // before any parse
 
@@ -265,7 +262,11 @@ describe('directive total-coverage round-trip', () => {
 		registerDirective('container', 'warning', wrapRaw(WARNING));
 		samples = fc.sample(arbDirectiveDoc, SAMPLE_PARAMS);
 	});
-	afterAll(() => __resetDirectiveRegistryForTests());
+	// The reset takes the directive grammar with the names, so the next suite turns it back on.
+	afterAll(() => {
+		__resetSchemaRegistriesForTests();
+		activateDirectiveGrammar();
+	});
 
 	it('serialize(parse(s)) === s over generated directive constructs', () => {
 		fc.assert(

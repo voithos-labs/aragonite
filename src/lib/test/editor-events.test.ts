@@ -3,7 +3,8 @@ import { createEditorEvents, emitCommandError, type EditorError } from '$lib/edi
 import { takeDevWarns } from './support/warn-gate';
 import { configureEditorEnv } from '$lib/env';
 import { asDocPath } from '$lib/selection/path-math';
-import { recordPluginKindOwner, __resetInstalledPluginsForTests } from '$lib/schema/plugin-install';
+import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
+import { declareOwnedKind } from './support/owned-kind';
 import { makeNestedHarness } from './harness/editor-actions';
 import type { AnyBlockKind } from '$lib/core/nodes';
 
@@ -157,10 +158,10 @@ describe('editor-events: error channel', () => {
 });
 
 describe('emitCommandError', () => {
-	afterEach(() => __resetInstalledPluginsForTests());
+	afterEach(() => __resetSchemaRegistriesForTests());
 
 	it("emits origin:'command' attributing the kind, command, and recorded plugin owner", () => {
-		recordPluginKindOwner('demoNote', 'admonitions');
+		declareOwnedKind('admonitions', 'demoNote');
 		const events = createEditorEvents();
 		const captured: EditorError[] = [];
 		events.on('error', (e) => captured.push(e));

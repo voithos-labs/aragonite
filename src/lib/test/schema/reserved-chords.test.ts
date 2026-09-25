@@ -4,19 +4,13 @@ import { registerBuiltInDescriptors } from '$lib/schema/built-in-descriptors';
 import { collectReservedChords, chordIsClaimed } from '$lib/schema/reserved-chords';
 import { normalizeKeybindingOverrides } from '$lib/schema/keybinding-overrides';
 import { registerGlobalCommand } from '$lib/schema/global-commands';
-import {
-	__resetPluginGlobalKeymapForTests,
-	__removePluginCommandsForTests
-} from '$lib/schema/commands';
-import { __resetMintedCommandIdsForTests } from '$lib/schema/command-id';
 import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
+import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
 registerBuiltInDescriptors();
 
 beforeEach(() => {
-	__resetPluginGlobalKeymapForTests();
-	__removePluginCommandsForTests();
-	__resetMintedCommandIdsForTests();
+	__resetSchemaRegistriesForTests();
 });
 
 const chords = (searchBar = true) =>
@@ -70,7 +64,7 @@ describe('collectReservedChords: sources', () => {
 		expect(chords().has('Mod+Shift+7')).toBe(false);
 		registerGlobalCommand('demo.reserved', () => true, { chord: 'Mod+Shift+7' });
 		expect(chords().has('Mod+Shift+7')).toBe(true);
-		__resetPluginGlobalKeymapForTests();
+		__resetSchemaRegistriesForTests();
 		expect(chords().has('Mod+Shift+7')).toBe(false);
 	});
 });

@@ -11,7 +11,7 @@ import type { InsertMarkdownOptions } from '../editor-props';
 import type { InlineMenuRegistry } from '../inline-menu/types';
 import type { PresentationMode } from '../presentation-mode';
 import { insertCatalogue } from './insert-catalogue';
-import type { PluginActivation } from './plugin-activation';
+import { resolvesIn, type PluginActivation } from './plugin-activation';
 import {
 	installedPluginNames,
 	onEditorCallbacks,
@@ -55,7 +55,7 @@ export function createEditorPluginContexts(deps: {
 	let onDisposeError: (report: { plugin: string; error: unknown }) => void = () => {};
 
 	function get(pluginName: string): EditorContext | undefined {
-		if (pluginName !== '' && !deps.activation.isActive(pluginName)) return undefined;
+		if (pluginName !== '' && !resolvesIn(deps.activation, pluginName)) return undefined;
 		let ctx = contexts.get(pluginName);
 		if (!ctx) {
 			ctx = {
@@ -72,7 +72,7 @@ export function createEditorPluginContexts(deps: {
 				rects: deps.rects,
 				inlineMenus: deps.inlineMenus,
 				get insertCatalogue() {
-					return insertCatalogue(deps.activation.isActive);
+					return insertCatalogue(deps.activation);
 				},
 				insertMarkdown: (md, options) => deps.insertMarkdown(md, options),
 				runCommand: (commandId, arg) => deps.runCommand(commandId, arg),
@@ -94,7 +94,7 @@ export function createEditorPluginContexts(deps: {
 		attachAll(onError) {
 			onDisposeError = onError;
 			for (const plugin of installedPluginNames()) {
-				if (!deps.activation.isActive(plugin)) continue;
+				if (!resolvesIn(deps.activation, plugin)) continue;
 				for (const cb of onEditorCallbacks(plugin)) {
 					try {
 						const dispose = cb(get(plugin)!);

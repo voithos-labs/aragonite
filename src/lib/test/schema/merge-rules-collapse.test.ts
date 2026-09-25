@@ -3,7 +3,6 @@ import { parse } from '../../core/parser';
 import { findMergeTarget } from '../../schema/merge-rules';
 import { isCollapsedContainer } from '../../schema/reserved-chrome';
 import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
-import { __resetPasteSurfacesForTests } from '../../tree-operations/paste-surfaces';
 import { registerDetailsKind } from '$lib/plugins/details/details-kind';
 import { registerCalloutKind } from '../../../routes/test/plugins/callout/callout-kind';
 import type { CstNode } from '../../core/nodes';
@@ -23,7 +22,6 @@ function parseBlock(src: string): CstNode {
 
 function resetAndRegister(): void {
 	__resetSchemaRegistriesForTests();
-	__resetPasteSurfacesForTests();
 	registerDetailsKind();
 	registerCalloutKind();
 }

@@ -8,7 +8,8 @@
 import { getAllRegisteredKinds, tryGetBlockKindDescriptor } from './block-kind-descriptor';
 import { GLOBAL_KEYMAP, pluginGlobalChords, reservedUiChords } from './commands';
 import type { KeybindingOverrideMap } from './keybinding-overrides';
-import { kindEnablementFor, type PluginActivation } from './plugin-activation';
+import type { PluginActivation } from './plugin-activation';
+import { kindEnablementFor } from './registry-view';
 import { eventToChord, normalizeChord } from './keybindings';
 
 // ── The hardcoded-chord list ─────────────────────────────────────────────────

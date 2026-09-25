@@ -6,7 +6,6 @@ import {
 } from '$lib/editor-actions/replacement-focus';
 import { parse } from '$lib/core/parser';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
-import { __resetPasteSurfacesForTests } from '$lib/tree-operations/paste-surfaces';
 import { registerDetailsKind, DETAILS } from '$lib/plugins/details/details-kind';
 import { declaredPluginKind } from '$lib/schema/plugin-kind';
 
@@ -68,7 +67,6 @@ describe('focusMovedOutsideReplacement', () => {
 describe('previewContentReparse reads the owning container', () => {
 	beforeEach(() => {
 		__resetSchemaRegistriesForTests();
-		__resetPasteSurfacesForTests();
 		registerDetailsKind();
 	});
 

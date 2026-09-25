@@ -9,7 +9,6 @@ import { tableAwareRangeDelete } from '../../selection/range-delete-table';
 import { createSharingState } from '../../tree-operations/sharing';
 import { blockNodeAt } from '../../tree-operations/node-primitives';
 import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
-import { __resetPasteSurfacesForTests } from '../../tree-operations/paste-surfaces';
 import { registerDetailsKind } from '../../plugins/details/details-kind';
 import type { CellSelectionPoint } from '../../selection/primitives';
 import { fixtureLinkRef } from '../harness/fixture-grammar';
@@ -55,10 +54,7 @@ describe('the placeholder created when nothing survives takes the document’s l
 
 describe('the survivor descent stops at a collapsed container’s chrome child', () => {
 	beforeEach(() => {
-		// `registerDetailsKind` registers a title-line leaf, which owns a paste target; the
-		// schema reset alone leaves it orphaned and a second registration collides.
 		__resetSchemaRegistriesForTests();
-		__resetPasteSurfacesForTests();
 		registerDetailsKind();
 	});
 

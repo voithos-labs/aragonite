@@ -5,7 +5,6 @@ import { updateNodeContent } from '$lib/tree-operations/content-write';
 import { trailingLineEnding } from '$lib/core/lines';
 import { rebuildAncestryRaw } from '$lib/schema/container-raw';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
-import { __resetPasteSurfacesForTests } from '$lib/tree-operations/paste-surfaces';
 import { activateDirectiveGrammar } from '$lib/core/directive/activate';
 import { makeNestedHarness } from '$lib/test/harness/editor-actions';
 import { registerCalloutKind } from '../../../routes/test/plugins/callout/callout-kind';
@@ -30,10 +29,7 @@ function emptyBodyChild(container: CstNode, at: number): void {
 
 describe('a blank run that is the whole wrapped body', () => {
 	beforeEach(() => {
-		// registerChromeLeaf registers a paste surface, so the schema reset alone would leave
-		// it orphaned and a re-register would collide.
 		__resetSchemaRegistriesForTests();
-		__resetPasteSurfacesForTests();
 		registerCalloutKind();
 	});
 	afterEach(__resetSchemaRegistriesForTests);

@@ -1,10 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from 'vitest';
-import { pasteDispatch, __getDefaultTextSurface } from '$lib/tree-operations/paste/dispatch';
-import {
-	__resetPasteSurfacesForTests,
-	registerPasteSurface
-} from '$lib/tree-operations/paste-surfaces';
+import { pasteDispatch } from '$lib/tree-operations/paste/dispatch';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import {
@@ -16,6 +12,7 @@ import {
 import { describeConvergence } from '$lib/test/harness/parse-converged';
 import { buildListBreakOutReplacement } from '$lib/tree-operations/paste/list-break-out';
 import type { Document } from '$lib/core/nodes';
+import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
 // A paste that splits a list item gives the text after the caret an item of its own, whose first
 // block sits on the new marker line. Indented code there reads as a wider marker, so the reload
@@ -23,10 +20,7 @@ import type { Document } from '$lib/core/nodes';
 // Miss-analysis: every split-item fixture put a paragraph after the caret, the one kind that
 // always reads the same on a marker line; no fixture continued the item with an indented line.
 
-beforeEach(() => {
-	__resetPasteSurfacesForTests();
-	registerPasteSurface(__getDefaultTextSurface('paragraph'));
-});
+beforeEach(() => __resetSchemaRegistriesForTests());
 
 async function pasteAfterAbc(source: string, clipboard: string) {
 	const doc = parse(source);

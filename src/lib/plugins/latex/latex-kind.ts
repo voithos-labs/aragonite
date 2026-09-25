@@ -14,7 +14,6 @@ import {
 	registerInlineWidgetKind,
 	registerBlockKind,
 	registerBlockOpener,
-	isInlineKindDeclared,
 	simpleLeafClosure,
 	matchFenceOpen,
 	matchFenceClose,
@@ -86,9 +85,6 @@ function recognizeMath(
 // ── Registration ─────────────────────────────────────────────────────────────
 
 export function registerMathInline(): void {
-	// Keyed on the kind registry, not a module latch, so the platform reset that clears
-	// the inline registries also clears this guard.
-	if (isInlineKindDeclared(MATH_INLINE)) return;
 	const kind = declarePluginInlineKind(MATH_INLINE);
 	registerInlineSyntax('$', (raw, pos, end) => recognizeMath(raw, pos, end, kind), {
 		autoPair: true

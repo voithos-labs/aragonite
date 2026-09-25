@@ -8,13 +8,10 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { parseInline } from '../../../core/inline';
 import type { InlineNode } from '../../../core/nodes';
-import {
-	INLINE_PRIORITIES,
-	__resetInlineSyntaxForTests,
-	registerInlineSyntax
-} from '../../../core/inline/scan/plugin-syntax';
+import { INLINE_PRIORITIES, registerInlineSyntax } from '../../../core/inline/scan/plugin-syntax';
+import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
-afterEach(() => __resetInlineSyntaxForTests());
+afterEach(() => __resetSchemaRegistriesForTests());
 
 const RAW = '@tag@ trailing';
 const SHORT_END = 5; // `@tag@` — the block offers only this much

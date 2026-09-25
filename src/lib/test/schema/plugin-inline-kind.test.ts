@@ -1,11 +1,8 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import {
-	declarePluginInlineKind,
-	declaredPluginInlineKind,
-	__clearDeclaredPluginInlineKindsForTests
-} from '../../schema/plugin-kind';
+import { declarePluginInlineKind, declaredPluginInlineKind } from '../../schema/plugin-kind';
+import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
-afterEach(() => __clearDeclaredPluginInlineKindsForTests());
+afterEach(() => __resetSchemaRegistriesForTests());
 
 describe('declarePluginInlineKind', () => {
 	it('returns the name, branded, for a valid plugin inline kind', () => {

@@ -7,13 +7,9 @@
  */
 import type { AnyBlockKind } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
-import {
-	mintCommandId,
-	__resetMintedCommandIdsForTests,
-	type AnyCommandId,
-	type PluginCommandId
-} from './command-id';
-import { registerOnce } from './register-once';
+import { mintCommandId, type AnyCommandId, type PluginCommandId } from './command-id';
+import type { PluginActivation } from './plugin-activation';
+import { createPluginRegistry } from './plugin-registry';
 import {
 	resolveBinding,
 	resolveKindBinding,
@@ -27,7 +23,7 @@ import {
 	type GlobalCommandRun
 } from './commands';
 import type { KeybindingOverrideMap } from './keybinding-overrides';
-import { currentInstallingPlugin, type EditorContext } from './plugin-install';
+import type { EditorContext } from './plugin-install';
 import { isReadingMode } from '../presentation-mode';
 
 export interface BlockCommandContext {
@@ -48,14 +44,17 @@ export interface BlockCommandContext {
 
 export type BlockCommandHandler = (ctx: BlockCommandContext) => boolean;
 
-const blockCommands = new Map<string, BlockCommandHandler>();
+const blockCommands = createPluginRegistry<string, BlockCommandHandler>({
+	label: 'registerBlockCommand',
+	isBuiltin: () => false
+});
 
 const compositeKey = (kind: AnyBlockKind, id: string): string => `${kind} ${id}`;
 
 /**
- * The duplicate check runs before `mintCommandId`, so a duplicate `(kind, name)` reports as a
- * register-once conflict rather than an id collision. `mintCommandId` validates the name inside
- * `apply`, before the map write, so an invalid name never leaves an orphaned handler.
+ * A duplicate `(kind, name)` reports as a register-once conflict rather than an id collision, and
+ * `mintCommandId` validates the name before the handler is stored, so an invalid name never
+ * leaves an orphaned handler.
  */
 export function registerBlockCommand(
 	kind: AnyBlockKind,
@@ -63,28 +62,23 @@ export function registerBlockCommand(
 	handler: BlockCommandHandler
 ): PluginCommandId {
 	const key = compositeKey(kind, name);
-	let id: PluginCommandId | undefined;
-	registerOnce(
-		blockCommands.has(key),
-		() => {
-			id = mintCommandId(name, currentInstallingPlugin());
-			blockCommands.set(key, handler);
-		},
+	// A taken key throws here, or on a dev server replaces the handler under the id it already has.
+	const id = blockCommands.has(key) ? (name as PluginCommandId) : mintCommandId(name);
+	blockCommands.register(
+		key,
+		handler,
 		`registerBlockCommand: (${kind}, ${name}) is already registered — block commands are register-once`
 	);
-	return id!;
+	return id;
 }
 
+/** The handler where `activation` resolves the plugin that registered it. */
 export function getBlockCommand(
 	kind: AnyBlockKind,
-	id: AnyCommandId
+	id: AnyCommandId,
+	activation: PluginActivation
 ): BlockCommandHandler | undefined {
-	return blockCommands.get(compositeKey(kind, id));
-}
-
-export function __resetBlockCommandsForTests(): void {
-	blockCommands.clear();
-	__resetMintedCommandIdsForTests();
+	return blockCommands.get(compositeKey(kind, id), activation);
 }
 
 // ── Dispatch ─────────────────────────────────────────────────────────────
@@ -108,6 +102,8 @@ export interface CrossBlockCommandRouter {
  */
 export interface CommandGates {
 	getPresentationMode: GlobalCommandContext['getPresentationMode'];
+	/** The plugins the editor activated: a plugin's command resolves only where it is listed. */
+	activation: PluginActivation;
 	/** True while a cross-block range is painted. */
 	isCrossBlockRange(): boolean;
 	crossBlockCommands: CrossBlockCommandRouter | undefined;
@@ -168,11 +164,12 @@ type CommandResolution = { tier: 'global'; run: GlobalCommandRun } | BlockLocalR
  */
 function resolveBlockLocalCommand(
 	id: AnyCommandId,
-	target: KindCommandTarget | null
+	target: KindCommandTarget | null,
+	activation: PluginActivation
 ): BlockLocalResolution {
 	if (!target) return { tier: 'no-surface' };
-	if (getCommand(id)) return { tier: 'dead' };
-	const handler = getBlockCommand(target.kind, id);
+	if (getCommand(id, activation)) return { tier: 'dead' };
+	const handler = getBlockCommand(target.kind, id, activation);
 	// A context is built only where a handler matched, so a built-in id costs nothing extra on the
 	// read a host may run per selection change.
 	const context = handler ? target.getCommandContext?.() : undefined;
@@ -182,10 +179,14 @@ function resolveBlockLocalCommand(
 
 /** The full lookup: global commands first, then the block-level ones. Both the dispatch and the
  *  "can this run" read use it, so a greyed-out button cannot disagree with the click under it. */
-function resolveCommand(id: AnyCommandId, target: KindCommandTarget | null): CommandResolution {
-	const globalRun = getCommand(id);
+function resolveCommand(
+	id: AnyCommandId,
+	target: KindCommandTarget | null,
+	activation: PluginActivation
+): CommandResolution {
+	const globalRun = getCommand(id, activation);
 	if (globalRun) return { tier: 'global', run: globalRun };
-	return resolveBlockLocalCommand(id, target);
+	return resolveBlockLocalCommand(id, target, activation);
 }
 
 /**
@@ -266,7 +267,7 @@ function runResolvedCommand(
 	const route = rangeRouteFor(id, ctx);
 	if (route.kind === 'decline') return false;
 	if (route.kind === 'cross-block') return route.router.run(id);
-	const resolved = resolveCommand(id, target);
+	const resolved = resolveCommand(id, target, ctx.activation);
 	// Pass the error callback so a plugin global command's caught throw reports through the same
 	// channel as a block command's; only the global path can reach one.
 	if (resolved.tier === 'global') return resolved.run({ ...ctx, onCommandError, arg });
@@ -287,7 +288,7 @@ export function canRunCommandById(
 	if (isReadingMode(gates.getPresentationMode)) return false;
 	const route = rangeRouteFor(id, gates);
 	if (route.kind !== 'block-local') return route.kind === 'cross-block';
-	const { tier } = resolveCommand(id, target);
+	const { tier } = resolveCommand(id, target, gates.activation);
 	return tier !== 'dead' && tier !== 'no-surface';
 }
 
@@ -346,6 +347,6 @@ export function dispatchKindCommand(
 	const binding = resolveKindBinding(chord, target.kind, overrides);
 	if (!binding) return false;
 	if (!commandIsAdmissible(binding.command, gates)) return false;
-	const resolved = resolveBlockLocalCommand(binding.command, target);
+	const resolved = resolveBlockLocalCommand(binding.command, target, gates.activation);
 	return runBlockLocalCommand(resolved, binding.command, binding.arg, 'chord', onCommandError);
 }

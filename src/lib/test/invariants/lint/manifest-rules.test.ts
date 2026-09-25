@@ -50,8 +50,8 @@ const READ_SITE_ROUTES: Record<string, { handoff: string; why: string }> = {
 		why: 'the shared paste handler hands the text to the block’s pasteTail, which dispatches through the paste tree-op'
 	},
 	'src/lib/components/menu/default-context-actions.ts': {
-		handoff: 'applyPasteTransforms',
-		why: 'the block menu’s "Replace with clipboard" reads through navigator.clipboard and runs the transforms itself before writing the block’s bytes'
+		handoff: 'transformPaste',
+		why: 'the block menu’s "Replace with clipboard" reads through navigator.clipboard and runs the editor’s transforms (`BlockActionContext.transformPaste`) before writing the block’s bytes'
 	},
 	'src/lib/components/menu/clipboard-actions.ts': {
 		handoff: 'pasteTextInto',
@@ -395,8 +395,8 @@ const MANIFESTS: ManifestRule[] = [
 		id: 'G4.11 exactly the declared sites call applyPasteTransforms',
 		matches: TRANSFORMS_CALL,
 		declared: {
-			'src/lib/components/menu/default-context-actions.ts':
-				'the block menu’s "Replace with clipboard": the clipboard text runs the transforms before it replaces the block’s bytes',
+			'src/lib/components/editor-root-menus.ts':
+				'the block menu hands its actions the editor’s transforms, which "Replace with clipboard" runs before it replaces the block’s bytes',
 			'src/lib/selection/cross-block/paste.ts':
 				'cross-block selection paste parses the pasted slice',
 			'src/lib/selection/selection-drop.ts':

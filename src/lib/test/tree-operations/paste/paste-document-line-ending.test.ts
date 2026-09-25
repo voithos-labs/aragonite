@@ -2,15 +2,12 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
-import { pasteDispatch, __getDefaultTextSurface } from '$lib/tree-operations/paste/dispatch';
-import {
-	__resetPasteSurfacesForTests,
-	registerPasteSurface
-} from '$lib/tree-operations/paste-surfaces';
+import { pasteDispatch } from '$lib/tree-operations/paste/dispatch';
 import { createPasteCoordinator } from '$lib/editor-actions/paste-coordinator';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createBlockEditActions } from '$lib/editor-actions/block-edit';
 import { makeEditorActionsDeps, pasteContext } from '$lib/test/harness/editor-actions';
+import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
 // The clipboard arrives as LF, so a paste into a CRLF document wrote its own lines in LF and left
 // the document holding both endings (GH #448). The per-route mirror rows are in
@@ -18,10 +15,7 @@ import { makeEditorActionsDeps, pasteContext } from '$lib/test/harness/editor-ac
 // Miss-analysis: the mirror check compared only the separators a paste created, leaving the
 // pasted bytes out on purpose, since the clipboard was LF on both of its runs.
 
-beforeEach(() => {
-	__resetPasteSurfacesForTests();
-	registerPasteSurface(__getDefaultTextSurface('paragraph'));
-});
+beforeEach(() => __resetSchemaRegistriesForTests());
 
 async function paste(source: string, targetPath: number[], offset: number, clipboard: string) {
 	const { deps } = makeEditorActionsDeps(parse(source));

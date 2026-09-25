@@ -10,7 +10,7 @@ let registered = false;
 export function registerCodeContextActions(): void {
 	if (registered) return;
 	registered = true;
-	registerBlockContextActions('fencedCode', (node) => [
+	registerBlockContextActions('fencedCode', 'code', (node) => [
 		{
 			id: 'code.dissolve',
 			label: 'Dissolve into text',

@@ -8,7 +8,8 @@
 import type { AnyBlockKind } from '../core/nodes';
 import type { AnyCommandId } from './command-id';
 import { devWarn } from '../dev-warn';
-import { deletePluginEntries, registerOnce, devReplacesRegistration } from './register-once';
+import { devReplacesRegistration, enrollTestReset } from './register-once';
+import { createPluginRegistry } from './plugin-registry';
 import { tryGetBlockKindDescriptor } from './block-kind-descriptor';
 import { normalizeChord, isChordWellFormed, type KeyBinding } from './keybindings';
 import {
@@ -18,7 +19,7 @@ import {
 } from './keybinding-overrides';
 // Type-only imports, so this file has no runtime dependency on plugin-install or block-commands.
 import type { EditorContext } from './plugin-install';
-import { everyInstalledPlugin, type PluginActivation } from './plugin-activation';
+import type { PluginActivation } from './plugin-activation';
 import type { CommandErrorSink } from './block-commands';
 import type { PresentationMode } from '../presentation-mode';
 
@@ -126,19 +127,6 @@ export interface GlobalCommandContext {
 }
 
 export type GlobalCommandRun = (ctx: GlobalCommandContext) => boolean;
-const globalCommands = new Map<AnyCommandId, GlobalCommandRun>();
-
-export function registerCommand(id: AnyCommandId, run: GlobalCommandRun): void {
-	registerOnce(
-		globalCommands.has(id),
-		() => globalCommands.set(id, run),
-		`registerCommand: "${id}" is already registered. Commands are register-once.`
-	);
-}
-
-export function getCommand(id: AnyCommandId): GlobalCommandRun | undefined {
-	return globalCommands.get(id);
-}
 
 const BUILTIN_COMMAND_IDS = new Set<string>([...GLOBAL_COMMAND_IDS, ...BLOCK_COMMAND_IDS]);
 
@@ -147,12 +135,25 @@ export function isBuiltinCommandId(id: string): boolean {
 	return BUILTIN_COMMAND_IDS.has(id);
 }
 
-/**
- * Test-only. Removes every command outside the closed built-in vocabulary; the plugin-global
- * chord keymap resets separately (`__resetPluginGlobalKeymapForTests`).
- */
-export function __removePluginCommandsForTests(): void {
-	deletePluginEntries(globalCommands, (id) => BUILTIN_COMMAND_IDS.has(id));
+const globalCommands = createPluginRegistry<AnyCommandId, GlobalCommandRun>({
+	label: 'registerCommand',
+	isBuiltin: isBuiltinCommandId
+});
+
+export function registerCommand(id: AnyCommandId, run: GlobalCommandRun): void {
+	globalCommands.register(
+		id,
+		run,
+		`registerCommand: "${id}" is already registered. Commands are register-once.`
+	);
+}
+
+/** The command's handler where `activation` resolves the plugin that registered it. */
+export function getCommand(
+	id: AnyCommandId,
+	activation: PluginActivation
+): GlobalCommandRun | undefined {
+	return globalCommands.get(id, activation);
 }
 
 /** Which dispatch path found the command dead. Half the memo key below: a no-op on one path must
@@ -177,6 +178,7 @@ export function warnDeadKeyCommand(id: AnyCommandId, path: CommandDispatchPath):
 export function __resetCommandWarningsForTests(): void {
 	warnedDeadKeys.clear();
 }
+enrollTestReset(__resetCommandWarningsForTests);
 
 registerCommand('history.undo', (ctx) => {
 	void ctx.history.requestUndo();
@@ -197,13 +199,11 @@ export const GLOBAL_KEYMAP: KeyBinding[] = [
 // A plugin's global command may bind a chord here. It resolves last, after every override and
 // built-in table, and built-in chords cannot be taken (register-once, throw on collision).
 
-/** A plugin-global binding plus the plugin that installed it, so an editor's activation decides
- *  whether the chord applies there. A null owner always applies. */
-export interface PluginGlobalBinding extends KeyBinding {
-	plugin: string | null;
-}
-
-const pluginGlobalKeymap: PluginGlobalBinding[] = [];
+// Keyed by the normalized chord, so a chord binds at most one command.
+const pluginGlobalKeymap = createPluginRegistry<string, KeyBinding>({
+	label: 'registerPluginGlobalBinding',
+	isBuiltin: () => false
+});
 
 // Chords the editor UI intercepts outside the command resolvers (the search bar's
 // document-level listener): a plugin binding one would fire twice on a single keypress.
@@ -246,8 +246,9 @@ export function assertPluginGlobalChordAvailable(
 		);
 	}
 	// Activation-blind: registration is process-global register-once, so a chord no editor
-	// has activated yet still collides.
-	const collision = builtinGlobalBinding(chord, everyInstalledPlugin);
+	// has activated yet, or a failed plugin's, still collides.
+	const collision =
+		findByChord(GLOBAL_KEYMAP, chord) ?? pluginGlobalKeymap.getIgnoringActivation(chord);
 	if (collision) {
 		if (devReplacesRegistration() && collision.command === candidateCommand) return;
 		throw new Error(
@@ -256,49 +257,39 @@ export function assertPluginGlobalChordAvailable(
 	}
 }
 
-export function registerPluginGlobalBinding(binding: KeyBinding, plugin: string | null): void {
+export function registerPluginGlobalBinding(binding: KeyBinding): void {
 	assertPluginGlobalChordAvailable(binding.chord, binding.command);
-	// A dev re-eval passed the same-command exemption above: replace in place instead of stacking
-	// a duplicate. A fresh registration never finds an existing entry.
-	const chord = normalizeChord(binding.chord);
-	const entry = { ...binding, plugin };
-	const existing = pluginGlobalKeymap.findIndex((b) => normalizeChord(b.chord) === chord);
-	if (existing >= 0) pluginGlobalKeymap[existing] = entry;
-	else pluginGlobalKeymap.push(entry);
-}
-
-/** The one activation check: every read of a plugin-global chord passes through it. */
-function claimedHere(entry: PluginGlobalBinding, activation: PluginActivation): boolean {
-	return entry.plugin === null || activation.isActive(entry.plugin);
+	// The check above already let a dev re-evaluation of the same command through, so the
+	// registry's own duplicate rule only ever replaces here.
+	pluginGlobalKeymap.register(normalizeChord(binding.chord), binding);
 }
 
 export function pluginGlobalBinding(
 	chord: string,
 	activation: PluginActivation
 ): KeyBinding | null {
-	const entry = findByChord(pluginGlobalKeymap, chord);
-	return entry && claimedHere(entry, activation) ? entry : null;
+	return pluginGlobalKeymap.get(chord, activation) ?? null;
 }
 
-/** Every plugin-global binding claimed for `activation`, each with the plugin that installed it. */
-export function pluginGlobalBindings(activation: PluginActivation): readonly PluginGlobalBinding[] {
-	return pluginGlobalKeymap.filter((entry) => claimedHere(entry, activation));
+/** Every plugin-global binding `activation` resolves, each with the plugin that installed it. */
+export function pluginGlobalBindings(
+	activation: PluginActivation
+): readonly (KeyBinding & { plugin: string | null })[] {
+	return pluginGlobalKeymap
+		.entries(activation)
+		.map(([chord, binding]) => ({ ...binding, plugin: pluginGlobalKeymap.ownerOf(chord) }));
 }
 
 /** The chords of {@link pluginGlobalBindings}, normalized. */
 export function pluginGlobalChords(activation: PluginActivation): readonly string[] {
-	return pluginGlobalBindings(activation).map((b) => normalizeChord(b.chord));
-}
-
-export function __resetPluginGlobalKeymapForTests(): void {
-	pluginGlobalKeymap.length = 0;
+	return pluginGlobalKeymap.entries(activation).map(([chord]) => chord);
 }
 
 /** First binding in `bindings` whose chord normalizes to the already-normalized `chord`. */
-function findByChord<T extends KeyBinding>(
-	bindings: readonly T[] | undefined,
+function findByChord(
+	bindings: readonly KeyBinding[] | undefined,
 	chord: string
-): T | null {
+): KeyBinding | null {
 	return bindings?.find((b) => normalizeChord(b.chord) === chord) ?? null;
 }
 
@@ -431,7 +422,7 @@ function runClaimedGlobalChord(
 	context: GlobalChordContext,
 	kindDispatchBelow: boolean
 ): boolean {
-	const run = binding ? getCommand(binding.command) : undefined;
+	const run = binding ? getCommand(binding.command, context.activation) : undefined;
 	const consumed = !!run || isDefaultGlobalChord(chord, context.activation);
 	// A resolved binding no global command backs is dead only where nothing else can answer it:
 	// consumed here and inert, or declined at a block with no kind dispatch under it. A kind keymap

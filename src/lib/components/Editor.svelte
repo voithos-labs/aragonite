@@ -943,6 +943,7 @@
 		placeCaretAtPoint,
 		insertMarkdown,
 		insertCatalogue: getInsertCatalogue,
+		activation: activePlugins,
 		setMenu: (menu) => (blockMenu = menu)
 	});
 
@@ -1399,7 +1400,7 @@
 	}
 
 	export function getInsertCatalogue(): readonly InsertEntry[] {
-		return insertCatalogue(activePlugins.isActive);
+		return insertCatalogue(activePlugins);
 	}
 
 	export function getRects(): EditorRects {

@@ -1,7 +1,7 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { parse } from '$lib/core/parser';
-import { activationFor, kindEnablementFor } from '$lib/schema/plugin-activation';
-import { createRegistryView } from '$lib/schema/registry-view';
+import { activationFor } from '$lib/schema/plugin-activation';
+import { createRegistryView, kindEnablementFor } from '$lib/schema/registry-view';
 import { definePlugin, installPlugins } from '$lib/schema/plugin-install';
 import { declarePluginKind } from '$lib/schema/plugin-kind';
 import { registerBlockKind } from '$lib/schema/block-kind-descriptor';
@@ -12,6 +12,8 @@ import {
 import { registerBlockOpener, type BlockOpener } from '$lib/schema/block-openers';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { testClosure } from '$lib/test/support/closure';
+import { blockContextActionsFor, registerBlockContextActions } from '$lib/schema/context-actions';
+import type { NodeView } from '$lib/core/node-views';
 import type { PluginBlockKind } from '$lib/core/nodes';
 
 const stubComponent = {} as BlockComponentEntry;
@@ -88,5 +90,52 @@ describe('kind enablement derived from an instance activation set', () => {
 		const isEnabled = kindEnablementFor(activationFor([]));
 		expect(isEnabled(ownerless)).toBe(true);
 		expect(isEnabled('paragraph')).toBe(true);
+	});
+});
+
+// Miss-analysis: each activation copy was tested against a listed or unlisted plugin, never a
+// failed one, and the context-action read had no activation to test at all.
+describe('one activation rule for every plugin registration', () => {
+	it('shows a plugin context action only in an editor that lists the plugin', () => {
+		installPlugins([
+			definePlugin({
+				name: 'rows',
+				setup() {
+					registerBlockContextActions('probe-rows', 'rows', () => [
+						{ id: 'rows.one', label: 'One', run: () => {} }
+					]);
+				}
+			})
+		]);
+		const node = { kind: 'probe-rows', raw: 'x\n' } as unknown as NodeView;
+
+		expect(blockContextActionsFor(node, [0], activationFor(['rows']))).toHaveLength(1);
+		expect(blockContextActionsFor(node, [0], activationFor([]))).toEqual([]);
+	});
+
+	it('resolves nothing a plugin registered before its setup threw, in a default editor too', () => {
+		let kind: PluginBlockKind | undefined;
+		const setupThrows = definePlugin({
+			name: 'half',
+			setup() {
+				kind = declarePluginKind('half-block');
+				registerBlockKind(kind, {
+					gapEdges: 'none',
+					mergeRole: 'not-mergeable',
+					editable: true,
+					supportsInline: false,
+					closure: testClosure
+				});
+				registerBlockComponent(kind, stubComponent);
+				registerBlockOpener(kind, markerOpener(kind, '@h'));
+				throw new Error('setup failed halfway');
+			}
+		});
+		expect(() => installPlugins([setupThrows])).toThrow(/setup failed halfway/);
+
+		const view = createRegistryView();
+		expect(view.component(kind!)).toBeUndefined();
+		expect(parse('@h hi\n', { grammar: view.grammar }).children[0].kind).toBe('paragraph');
+		expect(parse('@h hi\n').children[0].kind).toBe('paragraph');
 	});
 });

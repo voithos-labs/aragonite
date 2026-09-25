@@ -1,16 +1,18 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
+import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 import { dispatchKindCommand, registerBlockCommand } from '$lib/schema/block-commands';
-import { __resetBlockCommandsForTests } from '$lib/schema/block-commands';
 import { mintCommandId } from '$lib/schema/command-id';
 import { normalizeKeybindingOverrides } from '$lib/schema/keybinding-overrides';
 import { takeDevWarns } from '../support/warn-gate';
 import type { CstNode } from '$lib/core/nodes';
+import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
 // No cross-block range in these cases; the dispatch's range decline has its own suite.
 const GATES = {
 	getPresentationMode: () => 'source' as const,
 	isCrossBlockRange: () => false,
-	crossBlockCommands: undefined
+	crossBlockCommands: undefined,
+	activation: everyInstalledPlugin
 };
 
 const listItemNode = (): CstNode => ({
@@ -22,7 +24,7 @@ const listItemNode = (): CstNode => ({
 
 describe('container-bubble dispatch over the block-command registry', () => {
 	afterEach(() => {
-		__resetBlockCommandsForTests();
+		__resetSchemaRegistriesForTests();
 		vi.restoreAllMocks();
 	});
 

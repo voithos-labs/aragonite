@@ -8,10 +8,10 @@ import {
 	flattenInlineWidgets,
 	registerInlineWidgetKind,
 	augmentInlineWidgetKind,
-	getInlineWidgetEditing,
-	__resetInlineWidgetsForTests
+	getInlineWidgetEditing
 } from '../../core/inline/inline-widgets';
 import { declarePluginInlineKind } from '../../schema/plugin-kind';
+import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
 describe('isInlineWidget: registry-driven recognition', () => {
 	it('treats image as a widget unconditionally', () => {
@@ -178,7 +178,7 @@ describe('getInlineWidgetEditing: per-kind editing policy', () => {
 	const mathKind = declarePluginInlineKind('math');
 	const spoilerKind = declarePluginInlineKind('spoiler');
 
-	afterEach(__resetInlineWidgetsForTests);
+	afterEach(__resetSchemaRegistriesForTests);
 
 	it('returns the editing policy registered for a plugin widget kind', () => {
 		const onSelectedKey = () => true;
@@ -215,7 +215,7 @@ describe('getInlineWidgetEditing: per-kind editing policy', () => {
 describe('augmentInlineWidgetKind, attaching editor behavior to a registration', () => {
 	const captionKind = declarePluginInlineKind('caption');
 
-	afterEach(__resetInlineWidgetsForTests);
+	afterEach(__resetSchemaRegistriesForTests);
 
 	it('layers onSelectedKey onto a registered kind without dropping its existing fields', () => {
 		registerInlineWidgetKind(captionKind, {

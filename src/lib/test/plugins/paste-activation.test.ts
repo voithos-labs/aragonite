@@ -11,15 +11,13 @@ import { parrotPlugin, PARROT } from '$lib/plugins/parrot';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createPasteCoordinator } from '$lib/editor-actions/paste-coordinator';
 import { pasteDispatch } from '$lib/tree-operations/paste/dispatch';
-import { registerPasteSurface } from '$lib/tree-operations/paste-surfaces';
-import { __getDefaultTextSurface } from '$lib/tree-operations/paste/hooks';
 import { normalizeReplacementForBody } from '$lib/tree-operations/paste/body-write';
 import { declaredPluginKind } from '$lib/schema/plugin-kind';
 import { DETAILS, registerDetailsKind } from '$lib/plugins/details/details-kind';
 import type { CstNode } from '$lib/core/nodes';
 import { createRegistryView } from '$lib/schema/registry-view';
 import { defaultGrammarView, type GrammarView } from '$lib/schema/block-openers';
-import { activationFor, kindEnablementFor } from '$lib/schema/plugin-activation';
+import { activationFor } from '$lib/schema/plugin-activation';
 import {
 	makeEditorActionsDeps,
 	makeStubBlockEdit,
@@ -30,7 +28,7 @@ const PARROT_LINE = '%%parrot party responsibly\n';
 
 /** The grammar an editor whose `plugins` prop lists `names` parses through. */
 function grammarListing(names: string[]) {
-	return createRegistryView({ isEnabled: kindEnablementFor(activationFor(names)) }).grammar;
+	return createRegistryView({ plugins: activationFor(names) }).grammar;
 }
 
 beforeEach(() => {
@@ -38,7 +36,6 @@ beforeEach(() => {
 	installPlugins([parrotPlugin()]);
 	// A bodyWrite-declaring owner, so the escape below has a reparse to run.
 	registerDetailsKind();
-	registerPasteSurface(__getDefaultTextSurface('paragraph'));
 });
 afterEach(resetPluginPlatformForTests);
 

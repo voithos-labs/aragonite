@@ -3,7 +3,6 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { registerBlockCommand } from '$lib/schema/block-commands';
 import { registerBlockKind } from '$lib/schema/block-kind-descriptor';
-import { __resetMintedCommandIdsForTests } from '$lib/schema/command-id';
 import { activationFor, everyInstalledPlugin } from '$lib/schema/plugin-activation';
 import { declarePluginKind } from '$lib/schema/plugin-kind';
 import { definePlugin, installPlugins } from '$lib/schema/plugin-install';
@@ -40,7 +39,6 @@ const reserved = (activation: Parameters<typeof collectReservedChords>[0]['activ
 
 afterEach(() => {
 	__resetSchemaRegistriesForTests();
-	__resetMintedCommandIdsForTests();
 });
 
 describe("a kind keymap's chord is reserved only where its plugin is activated", () => {

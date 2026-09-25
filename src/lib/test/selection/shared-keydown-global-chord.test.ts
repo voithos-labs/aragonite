@@ -6,12 +6,8 @@ import type { FocusActions } from '$lib/action-contracts';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import { makeStickyColumn, makeEdgeAffinity } from '$lib/test/harness/editor-actions';
 import { registerGlobalCommand } from '$lib/schema/global-commands';
-import {
-	__resetPluginGlobalKeymapForTests,
-	__removePluginCommandsForTests
-} from '$lib/schema/commands';
-import { __resetMintedCommandIdsForTests } from '$lib/schema/command-id';
 import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
+import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
 // The shared keydown that runs before every editable block's own dispatch. A plugin-global chord
 // must have its default prevented and still be deferred (return false) so the block's own
@@ -55,9 +51,7 @@ const keydown = (over: KeyboardEventInit): KeyboardEvent =>
 	new KeyboardEvent('keydown', { cancelable: true, ...over });
 
 beforeEach(() => {
-	__resetPluginGlobalKeymapForTests();
-	__removePluginCommandsForTests();
-	__resetMintedCommandIdsForTests();
+	__resetSchemaRegistriesForTests();
 });
 
 describe('handleSharedKeydown: plugin-global chord deferral', () => {

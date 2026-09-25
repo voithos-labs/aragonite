@@ -8,7 +8,6 @@
 import {
 	INLINE_PRIORITIES,
 	declarePluginInlineKind,
-	isInlineKindDeclared,
 	mintWidgetShell,
 	registerInlineSyntax,
 	registerInlineWidgetKind,
@@ -63,9 +62,6 @@ export function buildEmojiWidget(node: InlineNode): HTMLSpanElement {
 }
 
 export function registerEmoji(): void {
-	// Keyed on the kind registry, not a module latch, so the platform reset that clears
-	// the inline registries also clears this guard.
-	if (isInlineKindDeclared(EMOJI_KIND)) return;
 	const kind = declarePluginInlineKind(EMOJI_KIND);
 	registerInlineSyntax(':', (raw, pos, end) => recognizeEmoji(raw, pos, end, kind), {
 		// Registering `:` twice at the same priority is refused, so the +10 is what lets emoji

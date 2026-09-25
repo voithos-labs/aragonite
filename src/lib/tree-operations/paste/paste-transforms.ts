@@ -4,8 +4,7 @@
  * `customElements` model shared with `paste-surfaces.ts`.
  */
 import type { PluginActivation } from '../../schema/plugin-activation';
-import { currentInstallingPlugin } from '../../schema/plugin-install';
-import { registerOnce } from '../../schema/register-once';
+import { createPluginRegistry } from '../../schema/plugin-registry';
 import { devWarn } from '../../dev-warn';
 import { editorEnv } from '../../env';
 
@@ -16,22 +15,19 @@ export interface PasteTransform {
 	transform(text: string): string | null;
 }
 
-interface RegisteredTransform {
-	transform: PasteTransform;
-	owner: string | null;
-}
-
-// Map iteration is insertion order, so `.values()` is the pipeline order while the keyed
-// lookup catches duplicates: one structure, no parallel array.
-const transforms = new Map<string, RegisteredTransform>();
+// Registration order is the pipeline order.
+const transforms = createPluginRegistry<string, PasteTransform>({
+	label: 'registerPasteTransform',
+	isBuiltin: () => false
+});
 
 export function registerPasteTransform(transform: PasteTransform): void {
-	const existing = transforms.get(transform.name);
-	registerOnce(
-		existing !== undefined,
-		() => transforms.set(transform.name, { transform, owner: currentInstallingPlugin() }),
+	const owner = transforms.ownerOf(transform.name);
+	transforms.register(
+		transform.name,
+		transform,
 		`registerPasteTransform: "${transform.name}" is already registered` +
-			(existing?.owner ? ` by plugin '${existing.owner}'` : '') +
+			(owner ? ` by plugin '${owner}'` : '') +
 			`. Paste transforms are register-once.`
 	);
 }
@@ -45,25 +41,18 @@ export function isPasteTransformRegistered(name: string): boolean {
 }
 
 /**
- * Run every transform over `text` in registration order, each seeing the prior's output;
- * a null return leaves the running text untouched. `activation` scopes the run to one
- * instance's plugins; absent = every installed one. A transform no plugin owns always runs.
+ * Run every transform `activation` resolves over `text` in registration order, each seeing the
+ * prior's output; a null return leaves the running text untouched.
  */
-export function applyPasteTransforms(text: string, activation?: PluginActivation): string {
-	if (transforms.size === 0) return text;
+export function applyPasteTransforms(text: string, activation: PluginActivation): string {
 	let result = text;
-	for (const { transform, owner } of transforms.values()) {
-		if (owner !== null && activation && !activation.isActive(owner)) continue;
+	for (const [, transform] of transforms.entries(activation)) {
 		const next = runContained(transform, result, 'pipeline');
 		if (next === null) continue;
 		warnIfNonIdempotent(transform, next);
 		result = next;
 	}
 	return result;
-}
-
-export function __resetPasteTransformsForTests(): void {
-	transforms.clear();
 }
 
 /**

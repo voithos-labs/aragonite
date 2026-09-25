@@ -1,14 +1,13 @@
 /**
  * Per-kind Enter-completion registry, the block-opener registry's sibling: an opener recognizes
  * a line while parsing, a completer recognizes a lone typed line when Enter is pressed and
- * returns the canonical lines that complete it. Part of `plugin.ts`, so its plugin entries clear
- * through `registry-reset.ts` like every other public register-once registry.
+ * returns the canonical lines that complete it.
  */
 
 import { isBuiltinBlockKind, type AnyBlockKind } from '../core/nodes';
-import { deletePluginEntries, registerOnce } from './register-once';
-import { ownerEnabled, type GrammarView } from './block-openers';
-import { pluginKindOwner } from './plugin-install';
+import type { GrammarView } from './block-openers';
+import { resolvesIn } from './plugin-activation';
+import { createPluginRegistry, type RegistryRecord } from './plugin-registry';
 
 /**
  * The replacement, as lines with no line endings: the Enter handler attaches the block's own
@@ -33,34 +32,37 @@ export interface BlockCompleter {
 	onType?: boolean;
 }
 
-const completers = new Map<AnyBlockKind, BlockCompleter>();
-let orderedCache: [AnyBlockKind, BlockCompleter][] | null = null;
+let orderedCache: RegistryRecord<AnyBlockKind, BlockCompleter>[] | null = null;
+
+const completers = createPluginRegistry<AnyBlockKind, BlockCompleter>({
+	label: 'registerBlockCompleter',
+	isBuiltin: isBuiltinBlockKind,
+	onChange: () => (orderedCache = null)
+});
 
 export function registerBlockCompleter(kind: AnyBlockKind, completer: BlockCompleter): void {
-	registerOnce(
-		completers.has(kind),
-		() => {
-			completers.set(kind, completer);
-			orderedCache = null;
-		},
+	completers.register(
+		kind,
+		completer,
 		`registerBlockCompleter: "${kind}" is already registered. Completers are register-once.`
 	);
 }
 
 // Kind-name order, so which completer runs first depends on the declarations and never on
 // registration order. The openers' rule, without a priority number no conflict has needed yet.
-function ordered(): readonly [AnyBlockKind, BlockCompleter][] {
+function ordered(): readonly RegistryRecord<AnyBlockKind, BlockCompleter>[] {
 	if (!orderedCache) {
-		orderedCache = [...completers.entries()].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+		orderedCache = completers
+			.records()
+			.sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
 	}
 	return orderedCache;
 }
 
-/** The first completion for `line`, or null when no completer the editor's grammar allows takes
- *  it. A kind's completer belongs to the plugin that declared the kind. */
+/** The first completion for `line`, or null when no completer the editor's grammar allows takes it. */
 export function completeTypedLine(line: string, grammar: GrammarView): CompletionResult | null {
-	for (const [kind, completer] of ordered()) {
-		if (!ownerEnabled(grammar, pluginKindOwner(kind))) continue;
+	for (const { value: completer, owner } of ordered()) {
+		if (!resolvesIn(grammar.activation, owner)) continue;
 		const claim = completer.tryComplete(line);
 		if (claim) return claim;
 	}
@@ -69,8 +71,8 @@ export function completeTypedLine(line: string, grammar: GrammarView): Completio
 
 /** The first completion for `line` among the completers that answer as the line is typed. */
 export function completeLineOnType(line: string, grammar: GrammarView): CompletionResult | null {
-	for (const [kind, completer] of ordered()) {
-		if (!completer.onType || !ownerEnabled(grammar, pluginKindOwner(kind))) continue;
+	for (const { value: completer, owner } of ordered()) {
+		if (!completer.onType || !resolvesIn(grammar.activation, owner)) continue;
 		const claim = completer.tryComplete(line);
 		if (claim) return claim;
 	}
@@ -81,15 +83,4 @@ export function completeLineOnType(line: string, grammar: GrammarView): Completi
  *  so re-installing it never trips the register-once throw. */
 export function isBlockCompleterRegistered(kind: string): boolean {
 	return completers.has(kind as AnyBlockKind);
-}
-
-export function __resetBlockCompletersForTests(): void {
-	completers.clear();
-	orderedCache = null;
-}
-
-// The shared schema reset keeps built-ins, for tests that only add plugin kinds.
-export function __removePluginCompletersForTests(): void {
-	deletePluginEntries(completers, isBuiltinBlockKind);
-	orderedCache = null;
 }

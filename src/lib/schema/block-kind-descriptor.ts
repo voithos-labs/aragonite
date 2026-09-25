@@ -2,8 +2,9 @@ import { isBuiltinBlockKind, type AnyBlockKind, type CstNode } from '../core/nod
 import type { NodeView } from '../core/node-views';
 import type { ContainerBodyWrap } from '../core/parser';
 import { enqueueRegistrationCheck } from './registration-pending';
-import { currentInstallingPlugin, pluginKindOwner } from './plugin-install';
-import { deletePluginEntries, registerOnce } from './register-once';
+import { currentInstallingPlugin } from './plugin-install';
+import { pluginKindOwner } from './plugin-kind';
+import { createPluginRegistry } from './plugin-registry';
 import type { ChildRawChange } from './child-spans';
 import type { ClosureBlock } from './closure';
 import type { KeyBinding } from './keybindings';
@@ -350,24 +351,25 @@ export type BlockKindAugmentation = Partial<Omit<BlockKindRegistration, 'contain
 
 // ── Registry ────────────────────────────────────────────────────────────────
 
-const registry = new Map<AnyBlockKind, BlockKindDescriptor>();
+// Never filtered by activation: a kind an editor left out still needs its descriptor to degrade.
+const registry = createPluginRegistry<AnyBlockKind, BlockKindDescriptor>({
+	label: 'registerBlockKind',
+	isBuiltin: isBuiltinBlockKind
+});
 
 // ── Public API ──────────────────────────────────────────────────────────────
 
 export function registerBlockKind(kind: AnyBlockKind, registration: BlockKindRegistration): void {
 	rejectBlankLabel('registerBlockKind', kind, registration.label);
-	const isDuplicate = registry.has(kind);
-	const owner = isDuplicate ? pluginKindOwner(kind) : null;
-	registerOnce(
-		isDuplicate,
-		() => {
-			registry.set(kind, normalizeRegistration(registration));
-			enqueueRegistrationCheck(kind);
-		},
+	const owner = registry.has(kind) ? pluginKindOwner(kind) : null;
+	registry.register(
+		kind,
+		normalizeRegistration(registration),
 		`registerBlockKind: "${kind}" is already registered. Kinds are register-once — ` +
 			`use augmentBlockKind to merge fields into an existing registration.` +
 			(owner ? ` — first declared by plugin '${owner}'` : '')
 	);
+	enqueueRegistrationCheck(kind);
 }
 
 // A blank label would render as an empty `aria-label`, leaving the block's textbox unnamed.
@@ -394,7 +396,7 @@ function mergeBlockKindFields(
 	kind: AnyBlockKind,
 	fields: BlockKindAugmentation
 ): void {
-	const existing = registry.get(kind);
+	const existing = registry.getIgnoringActivation(kind);
 	if (!existing) {
 		throw new Error(
 			`${entry}: cannot augment "${kind}"; no base descriptor. Call registerBlockKind first.`
@@ -418,7 +420,7 @@ function mergeBlockKindFields(
 			Object.fromEntries(Object.entries(group).filter(([, value]) => value !== undefined))
 		);
 	}
-	registry.set(kind, next);
+	registry.update(kind, next);
 	enqueueRegistrationCheck(kind);
 }
 
@@ -458,7 +460,7 @@ export function augmentBuiltin(kind: AnyBlockKind, fields: BlockKindAugmentation
 }
 
 export function getBlockKindDescriptor(kind: AnyBlockKind): BlockKindDescriptor {
-	const d = registry.get(kind);
+	const d = registry.getIgnoringActivation(kind);
 	if (!d) {
 		throw new Error(
 			`getBlockKindDescriptor: no descriptor registered for kind "${kind}". ` +
@@ -469,7 +471,7 @@ export function getBlockKindDescriptor(kind: AnyBlockKind): BlockKindDescriptor 
 }
 
 export function tryGetBlockKindDescriptor(kind: AnyBlockKind): BlockKindDescriptor | undefined {
-	return registry.get(kind);
+	return registry.getIgnoringActivation(kind);
 }
 
 /**
@@ -482,10 +484,5 @@ export function isBlockKindRegistered(kind: string): boolean {
 
 /** Every kind currently registered. Caller must not mutate. */
 export function getAllRegisteredKinds(): AnyBlockKind[] {
-	return Array.from(registry.keys());
-}
-
-/** Test-only. Removes every non-built-in descriptor; built-ins survive. */
-export function __removePluginBlockKindsForTests(): void {
-	deletePluginEntries(registry, isBuiltinBlockKind);
+	return registry.records().map((r) => r.key);
 }

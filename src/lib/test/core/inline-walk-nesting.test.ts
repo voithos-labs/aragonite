@@ -10,13 +10,11 @@ import { inlineDescendants, parseInline } from '../../core/inline';
 import { flattenInlineWidgets } from '../../core/inline/inline-widgets';
 import { buildLinkReferenceMap } from '../../core/inline/link-reference-resolver';
 import { CONTENT_VISIBILITY, visibleRuns, renderedText } from '../../core/inline/visibility';
-import {
-	__resetInlineSyntaxForTests,
-	registerInlineSyntax
-} from '../../core/inline/scan/plugin-syntax';
+import { registerInlineSyntax } from '../../core/inline/scan/plugin-syntax';
 import { renderOptions } from '../harness/fixture-grammar';
+import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
-afterEach(() => __resetInlineSyntaxForTests());
+afterEach(() => __resetSchemaRegistriesForTests());
 
 // Both constants assume the default V8 stack; raising `--stack-size` turns these pins green
 // against a recursive walk.

@@ -76,7 +76,8 @@ export function registerAdmonitions(options?: AdmonitionsOptions): void {
 	const title = declarePluginKind(ADMONITION_TITLE);
 	const build = admonitionFromDirective(admonition, title);
 
-	// Every name resolves to one kind, which reads its variant back from metadata.
+	// Every name resolves to one kind, which reads its variant back from metadata. A name
+	// something else claimed first stays theirs.
 	for (const name of ADMONITION_KINDS) {
 		if (!isDirectiveRegistered('container', name)) {
 			registerDirective('container', name, { kind: admonition, fromDirective: build });

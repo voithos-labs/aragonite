@@ -1,20 +1,16 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from 'vitest';
 import { renderCodeBlock } from '$lib/components/blocks/code/code-renderer';
-import {
-	bootstrapCodeLanguages,
-	__resetBootForTests
-} from '$lib/components/blocks/code/code-bootstrap';
-import { __resetRegistryForTests } from '$lib/components/blocks/code/code-languages';
+import { bootstrapCodeLanguages } from '$lib/components/blocks/code/code-bootstrap';
 import { trimTrailingLineEnding } from '$lib/core/lines';
 import type { CstNode } from '$lib/core/nodes';
 import { fencedCode } from './fenced-code-fixture';
+import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
 // Language registry is register-once; reset + re-bootstrap before every test so a
 // leaked registration can't let one describe's grammar bleed into the next.
 beforeEach(() => {
-	__resetRegistryForTests();
-	__resetBootForTests();
+	__resetSchemaRegistriesForTests();
 	bootstrapCodeLanguages();
 });
 

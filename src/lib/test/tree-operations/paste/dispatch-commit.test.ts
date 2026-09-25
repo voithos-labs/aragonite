@@ -1,10 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { pasteDispatch, __getDefaultTextSurface } from '../../../tree-operations/paste/dispatch';
-import {
-	__resetPasteSurfacesForTests,
-	registerPasteSurface
-} from '../../../tree-operations/paste-surfaces';
+import { pasteDispatch } from '../../../tree-operations/paste/dispatch';
 import { parse } from '../../../core/parser';
 import { createGrammarView } from '../../../schema/block-openers';
 import { createSharingState } from '../../../tree-operations/sharing';
@@ -19,6 +15,7 @@ import {
 } from '../../harness/editor-actions';
 import type { CstNode } from '../../../core/nodes';
 import type { PasteCommitCoordinator } from '../../../tree-operations/paste/paste-deps';
+import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
 // ── Container-matching merge runs its raw mutation inside commitMultiScope ────
 
@@ -105,8 +102,7 @@ describe('paste-dispatch: applyContainerMatchingMerge mutate-inside-commit invar
 
 describe('pasteDispatch: cross-block inline join reparse', () => {
 	beforeEach(() => {
-		__resetPasteSurfacesForTests();
-		registerPasteSurface(__getDefaultTextSurface('paragraph'));
+		__resetSchemaRegistriesForTests();
 	});
 
 	// A join paste completing marker syntax at offset 0 must put a node of the reparsed kind in
@@ -155,8 +151,7 @@ describe('pasteDispatch: strategy routing end-to-end', () => {
 	// Registries are register-once, so the reset makes routing see the app's paste handlers
 	// independent of prior describes.
 	beforeEach(() => {
-		__resetPasteSurfacesForTests();
-		registerPasteSurface(__getDefaultTextSurface('paragraph'));
+		__resetSchemaRegistriesForTests();
 	});
 
 	it('inline strategy: single-paragraph clipboard routes through blockEdit.updateBlockContent', async () => {

@@ -3,13 +3,13 @@ import {
 	dispatchKeyCommand,
 	dispatchKindCommand,
 	registerBlockCommand,
-	__resetBlockCommandsForTests,
 	type CommandErrorReport
 } from '$lib/schema/block-commands';
 import { __resetCommandWarningsForTests } from '$lib/schema/commands';
 import { normalizeKeybindingOverrides } from '$lib/schema/keybinding-overrides';
 import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 import type { CstNode } from '$lib/core/nodes';
+import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
 const ctx = {
 	history: { requestUndo() {}, requestRedo() {} },
@@ -23,7 +23,8 @@ const ctx = {
 const GATES = {
 	getPresentationMode: () => 'source' as const,
 	isCrossBlockRange: () => false,
-	crossBlockCommands: undefined
+	crossBlockCommands: undefined,
+	activation: everyInstalledPlugin
 };
 const nodeOf = (kind: string): CstNode =>
 	({
@@ -34,7 +35,7 @@ const nodeOf = (kind: string): CstNode =>
 
 afterEach(() => {
 	__resetCommandWarningsForTests();
-	__resetBlockCommandsForTests();
+	__resetSchemaRegistriesForTests();
 	vi.restoreAllMocks();
 });
 

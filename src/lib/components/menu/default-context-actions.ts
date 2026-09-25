@@ -7,7 +7,6 @@
 import { blockKindLabel } from '../../a11y-strings';
 import type { NodeView } from '../../core/node-views';
 import { EVERY_KIND, registerBlockContextActions } from '../../schema/context-actions';
-import { applyPasteTransforms } from '../../tree-operations/paste/paste-transforms';
 
 const IMAGE_ONLY = /^\s*!\[[^\]]*\]\([^)]*\)\s*$/;
 const PROSE_KINDS: ReadonlySet<string> = new Set(['paragraph', 'heading', 'setextHeading']);
@@ -29,15 +28,10 @@ export function isProseBackground(node: NodeView): boolean {
 
 let registered = false;
 
-/** Test-only. */
-export function __resetDefaultContextActionsForTests(): void {
-	registered = false;
-}
-
 export function registerDefaultContextActions(): void {
 	if (registered) return;
 	registered = true;
-	registerBlockContextActions(EVERY_KIND, (node) => {
+	registerBlockContextActions(EVERY_KIND, 'block', (node) => {
 		const noun = blockNoun(node);
 		return [
 			{
@@ -59,7 +53,7 @@ export function registerDefaultContextActions(): void {
 					}
 					if (text.trim() === '') return;
 					// The paste transforms first, as any paste gets, so a plugin's rewrite applies.
-					const md = applyPasteTransforms(text);
+					const md = ctx.transformPaste(text);
 					await ctx.replaceRaw(md.endsWith('\n') ? md : md + '\n');
 				}
 			},

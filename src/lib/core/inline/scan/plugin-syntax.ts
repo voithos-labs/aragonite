@@ -7,9 +7,9 @@
  */
 
 import type { ImageSyntaxRewriter, InlineNode, InlineSyntaxClaim } from '../../nodes';
-import { ownerEnabled, type GrammarView } from '../../../schema/block-openers';
-import { currentInstallingPlugin } from '../../../schema/plugin-install';
-import { registerOnce } from '../../../schema/register-once';
+import type { GrammarView } from '../../../schema/block-openers';
+import { resolvesIn } from '../../../schema/plugin-activation';
+import { createPluginRegistry } from '../../../schema/plugin-registry';
 
 /**
  * Inspect `raw` at `pos` (the trigger) within `[pos, end)`. Return a node with `start === pos`
@@ -91,6 +91,22 @@ const REJECTED_RESERVED = new Set([']']);
 
 const NO_RUNGS: readonly InlineRung[] = [];
 
+interface RegisteredHandler {
+	trigger: string;
+	recognizer: ScopedRecognizer;
+	prefix: string;
+	priority: number;
+	rewriteImage?: ImageSyntaxRewriter;
+	autoPair: boolean;
+}
+
+// One entry per (trigger, prefix, priority); the dispatch maps below are derived from it.
+const handlers = createPluginRegistry<string, RegisteredHandler>({
+	label: 'registerInlineSyntax',
+	isBuiltin: () => false,
+	onChange: rebuildDispatch
+});
+
 // Reserved-trigger handlers (consulted before the switch) live apart from all other handlers
 // (consulted from its `default` branch) so each dispatch path reads one map and its empty check
 // is one `size` read.
@@ -102,8 +118,7 @@ const unreservedRegistry = new Map<string, InlineRung[]>();
 const autoPairTriggers = new Map<string, Set<string | null>>();
 
 // Triggers the fast bail (`needsScan`, scan/index.ts) must check while a handler is registered
-// on them. Filled at registration, so a handler on a trigger `SPECIAL_CHARS` already checks
-// costs nothing.
+// on them, so a handler on a trigger `SPECIAL_CHARS` already checks costs nothing.
 const scanProbeTriggers = new Set<string>();
 
 // ── Registration ───────────────────────────────────────────────────────────────
@@ -159,56 +174,47 @@ export function registerInlineSyntax(
 	}
 
 	const effectivePrefix = prefix ?? trigger;
-	const registry = reserved ? reservedRegistry : unreservedRegistry;
-	const existing = registry.get(trigger);
-	const isDuplicate =
-		existing?.some((r) => r.prefix === effectivePrefix && r.priority === priority) ?? false;
-	registerOnce(
-		isDuplicate,
-		() => {
-			upsertRung(registry, trigger, {
-				recognizer,
-				prefix: effectivePrefix,
-				priority,
-				rewriteImage,
-				owner: currentInstallingPlugin()
-			});
-			// A handler on a trigger the fast bail would skip must make the scan check it,
-			// or the recognizer is the silent no-op this registry refuses to accept.
-			if (!reserved || SCAN_PROBED_RESERVED.has(trigger)) scanProbeTriggers.add(trigger);
-			if (autoPair) addAutoPairOwner(trigger, currentInstallingPlugin());
+	handlers.register(
+		JSON.stringify([trigger, effectivePrefix, priority]),
+		{
+			trigger,
+			recognizer,
+			prefix: effectivePrefix,
+			priority,
+			rewriteImage,
+			autoPair: autoPair ?? false
 		},
 		`registerInlineSyntax: ${JSON.stringify(trigger)} already registered at prefix ` +
 			`${JSON.stringify(effectivePrefix)}, priority ${priority}`
 	);
 }
 
-function addAutoPairOwner(trigger: string, owner: string | null): void {
-	const owners = autoPairTriggers.get(trigger) ?? new Set<string | null>();
-	owners.add(owner);
-	autoPairTriggers.set(trigger, owners);
+function rebuildDispatch(): void {
+	reservedRegistry.clear();
+	unreservedRegistry.clear();
+	autoPairTriggers.clear();
+	scanProbeTriggers.clear();
+	for (const { value, owner } of handlers.records()) {
+		const { trigger, autoPair, ...rung } = value;
+		const reserved = BUILTIN_TRIGGERS.has(trigger);
+		const registry = reserved ? reservedRegistry : unreservedRegistry;
+		registry.set(trigger, [...(registry.get(trigger) ?? []), { ...rung, owner }]);
+		// A handler on a trigger the fast bail would skip must make the scan check it, or the
+		// recognizer is the silent no-op this registry refuses to accept.
+		if (!reserved || SCAN_PROBED_RESERVED.has(trigger)) scanProbeTriggers.add(trigger);
+		if (autoPair)
+			autoPairTriggers.set(trigger, (autoPairTriggers.get(trigger) ?? new Set()).add(owner));
+	}
+	for (const rungs of [...reservedRegistry.values(), ...unreservedRegistry.values()]) {
+		rungs.sort(compareRungs);
+	}
 }
 
-// Kept sorted at insert so dispatch order does not depend on registration order.
+// Dispatch order is sorted, so it does not depend on registration order.
 function compareRungs(a: InlineRung, b: InlineRung): number {
 	if (a.priority !== b.priority) return a.priority - b.priority;
 	if (a.prefix.length !== b.prefix.length) return b.prefix.length - a.prefix.length;
 	return a.prefix < b.prefix ? -1 : a.prefix > b.prefix ? 1 : 0;
-}
-
-// Overwriting a handler with the same prefix and priority is the dev-server hot-reload path.
-function upsertRung(registry: Map<string, InlineRung[]>, trigger: string, rung: InlineRung): void {
-	const rungs = registry.get(trigger);
-	if (!rungs) {
-		registry.set(trigger, [rung]);
-		return;
-	}
-	const at = rungs.findIndex((r) => r.prefix === rung.prefix && r.priority === rung.priority);
-	if (at >= 0) rungs[at] = rung;
-	else {
-		rungs.push(rung);
-		rungs.sort(compareRungs);
-	}
 }
 
 // ── Dispatch accessors ───────────────────────────────────────────────────────────
@@ -253,18 +259,11 @@ export function isScanProbeTrigger(char: string): boolean {
 export function isAutoPairTrigger(char: string, grammar: GrammarView): boolean {
 	const owners = autoPairTriggers.get(char);
 	if (!owners) return false;
-	for (const owner of owners) if (ownerEnabled(grammar, owner)) return true;
+	for (const owner of owners) if (resolvesIn(grammar.activation, owner)) return true;
 	return false;
 }
 
 /** False costs the scan loop nothing. */
 export function hasPrefixRungs(): boolean {
 	return reservedRegistry.size > 0;
-}
-
-export function __resetInlineSyntaxForTests(): void {
-	reservedRegistry.clear();
-	unreservedRegistry.clear();
-	scanProbeTriggers.clear();
-	autoPairTriggers.clear();
 }

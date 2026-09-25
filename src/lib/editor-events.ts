@@ -10,7 +10,7 @@ import { editorEnv } from './env';
 import type { PresentationMode } from './presentation-mode';
 import type { EditorSelection } from './selection/primitives';
 import type { OpDescriptor, OperationDetailMap, OperationKind } from './schema/operations';
-import { pluginKindOwner } from './schema/plugin-install';
+import { pluginKindOwner } from './schema/plugin-kind';
 
 // ── Edit event union ─────────────────────────────────────────────────────
 

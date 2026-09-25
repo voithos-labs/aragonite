@@ -5,7 +5,8 @@
 
 import { isBuiltinInlineKind, type InlineNode, type InlineSyntaxClaim } from '../../nodes';
 import type { LinkReferenceResolver } from '../link-reference-resolver';
-import { ownerEnabled, type GrammarView } from '../../../schema/block-openers';
+import type { GrammarView } from '../../../schema/block-openers';
+import { resolvesIn } from '../../../schema/plugin-activation';
 import { inlineDescendants } from '../walk';
 import { handleAngle, scanGfmAutolinks } from './autolinks';
 import { handleBang, handleCloseBracket, handleOpenBracket } from './brackets';
@@ -91,7 +92,7 @@ function tryRungs(
 	if (!rungs) return null;
 	const { raw, pos, end } = ctx;
 	for (const rung of rungs) {
-		if (!raw.startsWith(rung.prefix, pos) || !ownerEnabled(grammar, rung.owner)) continue;
+		if (!raw.startsWith(rung.prefix, pos) || !resolvesIn(grammar.activation, rung.owner)) continue;
 		const node = rung.recognizer(raw, pos, end, grammar);
 		if (!node) continue;
 		if (node.start !== pos) {

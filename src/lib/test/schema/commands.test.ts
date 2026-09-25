@@ -12,8 +12,14 @@ import { augmentBuiltin, tryGetBlockKindDescriptor } from '$lib/schema/block-kin
 describe('global command registry', () => {
 	it('registers undo/redo and runs them via the context', () => {
 		const history = { requestUndo: vi.fn(), requestRedo: vi.fn() };
-		getCommand('history.undo')!({ history, activation: everyInstalledPlugin });
-		getCommand('history.redo')!({ history, activation: everyInstalledPlugin });
+		getCommand('history.undo', everyInstalledPlugin)!({
+			history,
+			activation: everyInstalledPlugin
+		});
+		getCommand('history.redo', everyInstalledPlugin)!({
+			history,
+			activation: everyInstalledPlugin
+		});
 		expect(history.requestUndo).toHaveBeenCalledOnce();
 		expect(history.requestRedo).toHaveBeenCalledOnce();
 	});

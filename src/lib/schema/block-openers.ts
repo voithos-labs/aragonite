@@ -9,11 +9,12 @@ import type { ParsedLine } from '../core/lines';
 import {
 	enqueueRegistrationCheck,
 	hasPendingRegistrationChecks,
-	markGrammarConsumed,
-	__resetRegistrationChecksForTests
+	markGrammarConsumed
 } from './registration-pending';
 import { flushPendingRegistrationChecks } from './registration-checks';
-import { deletePluginEntries, registerOnce } from './register-once';
+import { createPluginRegistry, type RegistryRecord } from './plugin-registry';
+import { everyInstalledPlugin, resolvesIn, type PluginActivation } from './plugin-activation';
+import { pluginInstallGeneration } from './plugin-install';
 
 /** Created fresh for each block and read synchronously; never keep it past the call. */
 export interface OpenContext {
@@ -51,27 +52,30 @@ export interface BlockOpener {
 	interruptsParagraph: ((lineText: string) => boolean) | false;
 }
 
-const openers = new Map<AnyBlockKind, BlockOpener>();
-let orderedEntriesCache: [AnyBlockKind, BlockOpener][] | null = null;
-let orderedCache: BlockOpener[] | null = null;
-let interruptCache: ((lineText: string) => boolean)[] | null = null;
+type OpenerRecord = RegistryRecord<AnyBlockKind, BlockOpener>;
 
-function invalidateGrammarCaches(): void {
-	orderedEntriesCache = null;
-	orderedCache = null;
-	interruptCache = null;
-}
+let orderedRecordsCache: OpenerRecord[] | null = null;
+let orderedCache: BlockOpener[] | null = null;
+let interruptCache: { generation: number; predicates: ((lineText: string) => boolean)[] } | null =
+	null;
+
+const openers = createPluginRegistry<AnyBlockKind, BlockOpener>({
+	label: 'registerBlockOpener',
+	isBuiltin: isBuiltinBlockKind,
+	onChange: () => {
+		orderedRecordsCache = null;
+		orderedCache = null;
+		interruptCache = null;
+	}
+});
 
 export function registerBlockOpener(kind: AnyBlockKind, opener: BlockOpener): void {
-	registerOnce(
-		openers.has(kind),
-		() => {
-			openers.set(kind, opener);
-			enqueueRegistrationCheck(kind, 'opener');
-			invalidateGrammarCaches();
-		},
+	openers.register(
+		kind,
+		opener,
 		`registerBlockOpener: "${kind}" is already registered. Openers are register-once.`
 	);
+	enqueueRegistrationCheck(kind, 'opener');
 }
 
 /**
@@ -87,52 +91,56 @@ export type OpenerEnablement = (kind: AnyBlockKind) => boolean;
 
 // Priority-ascending, ties broken by kind name: dispatch order is a pure function of the
 // declarations, never of registration order.
-function orderedEntries(): readonly [AnyBlockKind, BlockOpener][] {
-	if (!orderedEntriesCache) {
-		orderedEntriesCache = [...openers.entries()].sort(
-			([kindA, a], [kindB, b]) =>
-				a.priority - b.priority || (kindA < kindB ? -1 : kindA > kindB ? 1 : 0)
-		);
+function orderedRecords(): readonly OpenerRecord[] {
+	if (!orderedRecordsCache) {
+		orderedRecordsCache = openers
+			.records()
+			.sort(
+				(a, b) =>
+					a.value.priority - b.value.priority || (a.key < b.key ? -1 : a.key > b.key ? 1 : 0)
+			);
 	}
-	return orderedEntriesCache;
+	return orderedRecordsCache;
 }
 
 /**
- * The parser's dispatch order (G1.10 warns when two kinds share a priority). Reads through
- * `consumedEntries`, so pending registrations are checked first. `isEnabled` filters plugin
- * kinds per editor; without it every registered opener comes back, cached. Built-ins are never
- * filtered.
+ * Every registered opener in dispatch order, whoever registered it (G1.10 warns when two kinds
+ * share a priority). An editor's own order is its `GrammarView.orderedOpeners`.
  */
-export function getOrderedOpeners(isEnabled?: OpenerEnablement): readonly BlockOpener[] {
-	const entries = consumedEntries();
-	if (isEnabled) return entries.filter(([kind]) => isEnabled(kind)).map(([, opener]) => opener);
-	if (!orderedCache) orderedCache = entries.map(([, opener]) => opener);
+export function getOrderedOpeners(): readonly BlockOpener[] {
+	const records = consumedRecords();
+	if (!orderedCache) orderedCache = records.map((r) => r.value);
 	return orderedCache;
 }
 
 // Every ordered read goes through here: pending registrations are checked before the read, and
 // marking the grammar used only afterwards keeps a registration that races the first read out of
 // the late-opener warning (G1.17).
-function consumedEntries(): readonly [AnyBlockKind, BlockOpener][] {
+function consumedRecords(): readonly OpenerRecord[] {
 	if (hasPendingRegistrationChecks()) flushPendingRegistrationChecks();
 	markGrammarConsumed();
-	return orderedEntries();
+	return orderedRecords();
 }
 
 /**
  * Paragraph-interrupt check built from the registry, handling pending registrations the way
  * `getOrderedOpeners` does. Not filtered per editor, so an unlisted plugin's line still ends a
- * paragraph; indented code never interrupts, and the paragraph parser stops at `---` itself.
+ * paragraph, though a plugin whose setup threw interrupts nothing. Indented code never
+ * interrupts, and the paragraph parser stops at `---` itself.
  */
 export function lineInterruptsParagraph(lineText: string): boolean {
-	if (hasPendingRegistrationChecks()) flushPendingRegistrationChecks();
-	markGrammarConsumed();
-	if (!interruptCache) {
-		interruptCache = [...openers.values()]
-			.map((o) => o.interruptsParagraph)
-			.filter((p): p is (lineText: string) => boolean => p !== false);
+	const records = consumedRecords();
+	const generation = pluginInstallGeneration();
+	if (interruptCache?.generation !== generation) {
+		interruptCache = {
+			generation,
+			predicates: records
+				.filter((r) => resolvesIn(everyInstalledPlugin, r.owner))
+				.map((r) => r.value.interruptsParagraph)
+				.filter((p): p is (lineText: string) => boolean => p !== false)
+		};
 	}
-	for (const predicate of interruptCache) {
+	for (const predicate of interruptCache.predicates) {
 		if (predicate(lineText)) return true;
 	}
 	return false;
@@ -148,44 +156,40 @@ export interface GrammarView {
 	orderedOpeners(): readonly BlockOpener[];
 	/** Whether a `===` or `---` line under paragraph text makes it a heading. */
 	readonly setextHeading: boolean;
-	/** Whether this editor lists the plugin that registered an entry; built-ins have no owner. */
-	isPluginEnabled(owner: string): boolean;
-}
-
-const everyPlugin = (): boolean => true;
-
-export const defaultGrammarView: GrammarView = {
-	orderedOpeners: () => getOrderedOpeners(),
-	setextHeading: true,
-	isPluginEnabled: everyPlugin
-};
-
-/** Whether an entry registered by `owner` (null for a built-in) resolves under `grammar`. */
-export function ownerEnabled(grammar: GrammarView, owner: string | null): boolean {
-	return owner === null || grammar.isPluginEnabled(owner);
+	/** The plugins this editor activated; every plugin-registered entry resolves through it. */
+	readonly activation: PluginActivation;
 }
 
 export function createGrammarView(
 	isEnabled: OpenerEnablement,
-	options: { setextHeading?: boolean; isPluginEnabled?: (owner: string) => boolean } = {}
+	options: { setextHeading?: boolean; activation?: PluginActivation } = {}
 ): GrammarView {
+	const activation = options.activation ?? everyInstalledPlugin;
 	// A reparse reads this once per block, so the filtered list is cached against the global
-	// ordering array: a later registration replaces that array, which rebuilds the filter.
-	let builtFrom: readonly [AnyBlockKind, BlockOpener][] | null = null;
+	// ordering array and the installed set: a registration or an install rebuilds the filter.
+	let builtFrom: readonly OpenerRecord[] | null = null;
+	let builtAt = -1;
 	let filtered: readonly BlockOpener[] = [];
 	return {
 		setextHeading: options.setextHeading ?? true,
-		isPluginEnabled: options.isPluginEnabled ?? everyPlugin,
+		activation,
 		orderedOpeners() {
-			const entries = consumedEntries();
-			if (entries !== builtFrom) {
-				builtFrom = entries;
-				filtered = entries.filter(([kind]) => isEnabled(kind)).map(([, opener]) => opener);
+			const records = consumedRecords();
+			const generation = pluginInstallGeneration();
+			if (records !== builtFrom || generation !== builtAt) {
+				builtFrom = records;
+				builtAt = generation;
+				filtered = records
+					.filter((r) => resolvesIn(activation, r.owner) && isEnabled(r.key))
+					.map((r) => r.value);
 			}
 			return filtered;
 		}
 	};
 }
+
+/** The grammar a `parse()` with no editor reads: every opener but a failed plugin's. */
+export const defaultGrammarView: GrammarView = createGrammarView(() => true);
 
 // ── Outer block starts ──────────────────────────────────────────────────
 
@@ -232,19 +236,5 @@ function claimOpensBlock(kind: AnyBlockKind, paragraphOpen: boolean): boolean {
 
 /** Lets the dev-mode check for duplicate priorities (G1.10) read the registry. */
 export function listRegisteredOpeners(): { kind: AnyBlockKind; priority: number }[] {
-	return [...openers.entries()].map(([kind, o]) => ({ kind, priority: o.priority }));
-}
-
-// Also resets the registration-check flags: a flag left behind by the cleared registry would
-// make the next set of registrations look late.
-export function __resetBlockOpenersForTests(): void {
-	openers.clear();
-	invalidateGrammarCaches();
-	__resetRegistrationChecksForTests();
-}
-
-// The shared schema reset keeps built-ins, for tests that only add plugin kinds.
-export function __removePluginOpenersForTests(): void {
-	deletePluginEntries(openers, isBuiltinBlockKind);
-	invalidateGrammarCaches();
+	return openers.records().map((r) => ({ kind: r.key, priority: r.value.priority }));
 }

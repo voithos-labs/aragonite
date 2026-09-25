@@ -43,7 +43,8 @@ import {
 } from '../../editor-keys';
 import { captureScrollPosition } from '../../cursor/scroll-hold';
 import { emitCommandError } from '../../editor-events';
-import { owningPluginEditor, type EditorContext } from '../../schema/plugin-install';
+import type { EditorContext } from '../../schema/plugin-install';
+import { owningPluginEditor } from '../../schema/plugin-kind';
 import { createBlockListState } from '../../reactivity/block-list-state.svelte';
 import type { WindowResult } from '../../reactivity/block-window.svelte';
 import type { RefSlots } from '../../reactivity/publish-ref.svelte';
@@ -531,6 +532,7 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 				// A chord bubbling to a container carries no range command: the leaf below owns the format ids.
 				{
 					getPresentationMode,
+					activation: activePlugins,
 					isCrossBlockRange: () => selection.isCrossBlock,
 					crossBlockCommands: undefined
 				},

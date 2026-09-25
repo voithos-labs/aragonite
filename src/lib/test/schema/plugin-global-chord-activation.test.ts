@@ -9,12 +9,9 @@ import {
 	resolveGlobalBinding,
 	runGlobalChord,
 	pluginGlobalChords,
-	__resetPluginGlobalKeymapForTests,
-	__removePluginCommandsForTests,
 	type GlobalChordContext
 } from '$lib/schema/commands';
 import { chordIsClaimed, collectReservedChords } from '$lib/schema/reserved-chords';
-import { __resetMintedCommandIdsForTests } from '$lib/schema/command-id';
 import { activationFor, everyInstalledPlugin } from '$lib/schema/plugin-activation';
 import {
 	definePlugin,
@@ -22,6 +19,7 @@ import {
 	__resetInstalledPluginsForTests,
 	type EditorContext
 } from '$lib/schema/plugin-install';
+import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
 const CHORD = 'Mod+Shift+9';
 
@@ -41,9 +39,7 @@ function chordContext(activation: typeof listing): GlobalChordContext {
 }
 
 beforeEach(() => {
-	__resetPluginGlobalKeymapForTests();
-	__removePluginCommandsForTests();
-	__resetMintedCommandIdsForTests();
+	__resetSchemaRegistriesForTests();
 	__resetInstalledPluginsForTests();
 	ran = 0;
 	installPlugins([

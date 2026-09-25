@@ -1,37 +1,10 @@
-import { __removePluginBlockKindsForTests } from './block-kind-descriptor';
-import { __removePluginComponentsForTests } from './block-component-registry';
-import { __removePluginCompletersForTests } from './block-completions';
-import { __removePluginOpenersForTests } from './block-openers';
-import {
-	__removePluginCommandsForTests,
-	__resetCommandWarningsForTests,
-	__resetPluginGlobalKeymapForTests
-} from './commands';
-import { __resetBlockCommandsForTests } from './block-commands';
-import { __clearDeclaredPluginKindsForTests } from './plugin-kind';
-import { __resetRegistrationChecksForTests } from './registration-checks';
-import { __resetInstalledPluginsForTests } from './plugin-install';
-import { __resetInlineConstructPoliciesForTests } from './inline-construct-policy';
-import { __removePluginInsertEntriesForTests } from './insert-catalogue';
+import { runEnrolledTestResets } from './register-once';
 
 /**
- * Test-only. Clears every non-built-in registration; built-ins stay. Also clears the warning
- * de-duplication, the registration-check flags and the installed-plugin set, since state that
- * mirrors a registry must never outlive its reset. The two single-function registrations (the live
- * split rebalancer, the join cleaner) have their own resets: only a suite testing one clears it.
+ * Test-only. Drops every registration a plugin, a test or a plugin's setup made, and the state
+ * that mirrors one (installed plugins, registration checks, warning memos); built-ins stay. Each
+ * registry enrolls itself when it is created, so there is no list here to keep in step.
  */
 export function __resetSchemaRegistriesForTests(): void {
-	__removePluginBlockKindsForTests();
-	__removePluginComponentsForTests();
-	__removePluginCompletersForTests();
-	__removePluginOpenersForTests();
-	__removePluginCommandsForTests();
-	__resetBlockCommandsForTests();
-	__resetInlineConstructPoliciesForTests();
-	__removePluginInsertEntriesForTests();
-	__resetPluginGlobalKeymapForTests();
-	__resetCommandWarningsForTests();
-	__clearDeclaredPluginKindsForTests();
-	__resetRegistrationChecksForTests();
-	__resetInstalledPluginsForTests();
+	runEnrolledTestResets();
 }

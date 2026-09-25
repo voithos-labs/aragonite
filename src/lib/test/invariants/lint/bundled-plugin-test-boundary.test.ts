@@ -102,14 +102,12 @@ const ALLOWLIST: Record<string, Exemption> = {
 			'$lib/invariants/node-shape',
 			'$lib/reactivity/state-registry',
 			'$lib/schema/block-openers',
-			'$lib/tree-operations/paste-surfaces',
 			'$lib/tree-operations/paste/dispatch',
-			'$lib/tree-operations/paste/hooks',
 			'$lib/tree-operations/paste/replace-block-at-parent'
 		],
 		reason:
-			'the paste pipeline publishes applyPasteTransforms alone: no surface registration, no ' +
-			'dispatch, and no headless environment to run either against'
+			'the paste pipeline publishes applyPasteTransforms alone: no dispatch, and no headless ' +
+			'environment to run it against'
 	},
 	'src/lib/test/plugins/details/terminator-collision-structural.test.ts': {
 		specifiers: [
@@ -212,7 +210,7 @@ const ALLOWLIST: Record<string, Exemption> = {
 			'nothing published applies a kind’s normalizeRawWrite or range-deletes a parsed document'
 	},
 	'src/lib/test/plugins/toc/options.test.ts': {
-		specifiers: ['$lib/schema/block-component-registry'],
+		specifiers: ['$lib/schema/block-component-registry', '$lib/schema/plugin-activation'],
 		reason:
 			'no registry read-back: a component entry registers its extraProps closure but nothing ' +
 			'published reads it, so option threading needs a mounted editor'

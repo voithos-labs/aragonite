@@ -23,9 +23,7 @@ export function registerGlobalCommand(
 	// registered handler behind a failed registration.
 	if (opts?.chord) assertPluginGlobalChordAvailable(opts.chord, name);
 	const owner = currentInstallingPlugin();
-	// The owner is what lets a plugin ask for its own name again, and what names the prior owner
-	// in a cross-plugin collision.
-	const id = mintCommandId(name, owner);
+	const id = mintCommandId(name);
 	registerCommand(id, (ctx) => {
 		if (!ctx.pluginEditor) {
 			warnDeadKeyCommand(id, 'plugin-global');
@@ -42,6 +40,6 @@ export function registerGlobalCommand(
 			return true;
 		}
 	});
-	if (opts?.chord) registerPluginGlobalBinding({ chord: opts.chord, command: id }, owner);
+	if (opts?.chord) registerPluginGlobalBinding({ chord: opts.chord, command: id });
 	return id;
 }

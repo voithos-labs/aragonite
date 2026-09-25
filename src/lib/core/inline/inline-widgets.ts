@@ -6,14 +6,13 @@
  */
 
 import type { Component } from 'svelte';
-import type { AnyInlineKind, InlineNode } from '../nodes';
+import { isBuiltinInlineKind, type AnyInlineKind, type InlineNode } from '../nodes';
 import type { DocumentView, NodeView } from '../node-views';
 import type { PresentationMode } from '../../presentation-mode';
 import { isLiveHtmlTag, buildLiveHtmlWidget } from './raw-html-widget';
 import { entityRendersGlyph, buildEntityWidget } from './entity-widget';
-import { registerOnce } from '../../schema/register-once';
-import { currentInstallingPlugin } from '../../schema/plugin-install';
-import { ownerEnabled, type GrammarView } from '../../schema/block-openers';
+import { createPluginRegistry } from '../../schema/plugin-registry';
+import type { GrammarView } from '../../schema/block-openers';
 import { inlineDescendants } from './walk';
 
 /**
@@ -145,19 +144,15 @@ export interface InlineWidgetDescriptor {
 	editing?: InlineWidgetEditingPolicy;
 }
 
-interface RegisteredWidget {
-	descriptor: InlineWidgetDescriptor;
-	/** The plugin whose setup registered the kind; null for a core one. */
-	owner: string | null;
-}
-
-const registry = new Map<AnyInlineKind, RegisteredWidget>();
+const registry = createPluginRegistry<AnyInlineKind, InlineWidgetDescriptor>({
+	label: 'registerInlineWidgetKind',
+	isBuiltin: isBuiltinInlineKind
+});
 
 /** The kind's descriptor under an editor's grammar: absent where the editor left out the plugin
  *  that registered it, so a node of that kind renders as its source. */
 function widgetOf(kind: AnyInlineKind, grammar: GrammarView): InlineWidgetDescriptor | undefined {
-	const entry = registry.get(kind);
-	return entry && ownerEnabled(grammar, entry.owner) ? entry.descriptor : undefined;
+	return registry.get(kind, grammar.activation);
 }
 
 export function registerInlineWidgetKind(
@@ -170,9 +165,9 @@ export function registerInlineWidgetKind(
 				`a widget kind renders through exactly one. Drop one.`
 		);
 	}
-	registerOnce(
-		registry.has(kind),
-		() => registry.set(kind, { descriptor, owner: currentInstallingPlugin() }),
+	registry.register(
+		kind,
+		descriptor,
 		`registerInlineWidgetKind: "${kind}" is already registered. Inline-widget kinds are ` +
 			`register-once — a re-registration would clobber a built-in (image/rawHtml).`
 	);
@@ -187,7 +182,7 @@ export function augmentInlineWidgetKind(
 	kind: AnyInlineKind,
 	editing: Partial<InlineWidgetEditingPolicy>
 ): void {
-	const descriptor = registry.get(kind)?.descriptor;
+	const descriptor = registry.getIgnoringActivation(kind);
 	if (!descriptor) {
 		throw new Error(
 			`augmentInlineWidgetKind: "${kind}" is not registered; register the widget kind before ` +
@@ -279,13 +274,3 @@ registerInlineWidgetKind('entityReference', {
 	buildWidget: (node) => buildEntityWidget(node),
 	editing: { deleteGranularity: 'atomic', onEdge: 'step-over' }
 });
-
-// Must stay below the built-in registrations: it snapshots what the test reset may not drop.
-const BUILTIN_INLINE_WIDGET_KINDS: ReadonlySet<AnyInlineKind> = new Set(registry.keys());
-
-/** Test-only. Removes every plugin-registered inline-widget kind; built-ins survive. */
-export function __resetInlineWidgetsForTests(): void {
-	for (const kind of registry.keys()) {
-		if (!BUILTIN_INLINE_WIDGET_KINDS.has(kind)) registry.delete(kind);
-	}
-}

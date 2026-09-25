@@ -2,10 +2,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { pasteDispatch } from '$lib/tree-operations/paste/dispatch';
-import {
-	__resetPasteSurfacesForTests,
-	registerPasteSurface
-} from '$lib/tree-operations/paste-surfaces';
 import { tableCellPasteSurface } from '$lib/components/blocks/table/table-cell-paste';
 import { createPasteCoordinator } from '$lib/editor-actions/paste-coordinator';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
@@ -14,6 +10,8 @@ import {
 	makeStubBlockEdit,
 	pasteContext
 } from '$lib/test/harness/editor-actions';
+import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
+import { ensurePasteSurface } from '$lib/test/support/paste-surface';
 
 // A cell holds text, never blocks, so whatever a copy wrapped around its text, such as a blank
 // line at either end, must not decide the route: those blocks are just whitespace, and reading
@@ -43,8 +41,8 @@ async function pasteIntoCell(clipboard: string) {
 
 describe('a clipboard pasted into a table cell', () => {
 	beforeEach(() => {
-		__resetPasteSurfacesForTests();
-		registerPasteSurface(tableCellPasteSurface);
+		__resetSchemaRegistriesForTests();
+		ensurePasteSurface(tableCellPasteSurface);
 	});
 
 	it('flattens text wrapped in blank lines into the cell', async () => {

@@ -1,13 +1,13 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import {
 	INLINE_PRIORITIES,
-	__resetInlineSyntaxForTests,
 	getInlineRungs,
 	registerInlineSyntax,
 	type InlineSyntaxRecognizer
 } from '../../../core/inline/scan/plugin-syntax';
+import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
-afterEach(() => __resetInlineSyntaxForTests());
+afterEach(() => __resetSchemaRegistriesForTests());
 
 // Registration validation runs before any recognizer is consulted, so a bare
 // decliner stands in for every handler under test.

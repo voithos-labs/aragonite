@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
+import python from 'highlight.js/lib/languages/python';
 import {
 	applyPasteTransforms,
 	configureEditorEnv,
@@ -17,88 +18,206 @@ import {
 	declarePluginInlineKind,
 	isInlineKindDeclared,
 	registerBlockKind,
+	registerBlockComponent,
 	registerBlockOpener,
 	registerBlockCompleter,
 	registerBlockCommand,
+	registerBlockContextActions,
+	registerChromeLeaf,
 	registerGlobalCommand,
 	registerInlineSyntax,
 	registerInlineWidgetKind,
+	registerInsertEntry,
+	registerLanguage,
 	registerPasteTransform,
 	registerDirective,
 	isBlockKindDeclared,
 	isBlockKindRegistered,
+	isBlockComponentRegistered,
 	isBlockOpenerRegistered,
 	isBlockCompleterRegistered,
 	isPasteTransformRegistered,
 	isDirectiveRegistered,
+	listLanguages,
 	definePlugin,
-	isPluginInstalled
+	isPluginInstalled,
+	type BlockComponentEntry,
+	type NodeView,
+	type PluginBlockKind,
+	type PluginInlineKind
 } from '$lib/plugin';
 import { devWarn } from '$lib/dev-warn';
 import { installPlugins, onEditorCallbacks } from '$lib/schema/plugin-install';
 import { pluginGlobalBinding } from '$lib/schema/commands';
+import { getBlockCommand } from '$lib/schema/block-commands';
+import { blockContextActionsFor } from '$lib/schema/context-actions';
+import { insertCatalogue } from '$lib/schema/insert-catalogue';
 import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
-import { registerPasteSurface, getPasteSurface } from '$lib/tree-operations/paste-surfaces';
+import { defaultGrammarView } from '$lib/schema/block-openers';
+import { isInlineWidget } from '$lib/core/inline/inline-widgets';
 import { getInlineRungs } from '$lib/core/inline/scan/plugin-syntax';
 import { stripComments } from '../invariants/lint/scan-source';
 import { testClosure } from '$lib/test/support/closure';
-import type { AnyBlockKind } from '$lib/plugin';
 
-// One registration through each public register-once entry, so a new one added without wiring
-// its reset into `resetPluginPlatformForTests` throws a duplicate on the re-install below.
-// Keep this in step with the aggregate.
+// ── One probe per public registration ────────────────────────────────────────
+// Each registers once through a register or declare function the plugin barrel exports, and
+// says whether that registration is still there. The list is checked against the barrel's own
+// exports, so a new public registration without a probe reds, and one the reset misses reds
+// on the second install.
+
+let block: PluginBlockKind;
+let chrome: PluginBlockKind;
+let inline: PluginInlineKind;
+const blockNode = () => ({ kind: block, raw: 'x\n' }) as unknown as NodeView;
+
+const PROBES: { entry: string; register(): void; registered(): boolean }[] = [
+	{
+		entry: 'declarePluginKind',
+		register: () => {
+			block = declarePluginKind('probe-block');
+			chrome = declarePluginKind('probe-chrome');
+		},
+		registered: () => isBlockKindDeclared('probe-block')
+	},
+	{
+		entry: 'declarePluginInlineKind',
+		register: () => void (inline = declarePluginInlineKind('probe-inline')),
+		registered: () => isInlineKindDeclared('probe-inline')
+	},
+	{
+		entry: 'registerBlockKind',
+		register: () =>
+			registerBlockKind(block, {
+				gapEdges: 'none',
+				mergeRole: 'not-mergeable',
+				editable: false,
+				supportsInline: false,
+				closure: testClosure
+			}),
+		registered: () => isBlockKindRegistered('probe-block')
+	},
+	{
+		entry: 'registerBlockComponent',
+		register: () => registerBlockComponent(block, {} as BlockComponentEntry),
+		registered: () => isBlockComponentRegistered('probe-block')
+	},
+	{
+		entry: 'registerBlockOpener',
+		register: () =>
+			registerBlockOpener(block, { priority: 0, tryOpen: () => null, interruptsParagraph: false }),
+		registered: () => isBlockOpenerRegistered('probe-block')
+	},
+	{
+		entry: 'registerBlockCompleter',
+		register: () => registerBlockCompleter(block, { tryComplete: () => null }),
+		registered: () => isBlockCompleterRegistered('probe-block')
+	},
+	{
+		entry: 'registerBlockCommand',
+		register: () => void registerBlockCommand(block, 'probe.cmd', () => true),
+		registered: () =>
+			getBlockCommand(block, 'probe.cmd' as never, everyInstalledPlugin) !== undefined
+	},
+	{
+		entry: 'registerBlockContextActions',
+		register: () =>
+			registerBlockContextActions('probe-block', 'probe', () => [
+				{ id: 'probe.row', label: 'Probe', run: () => {} }
+			]),
+		registered: () => blockContextActionsFor(blockNode(), [0], everyInstalledPlugin).length > 0
+	},
+	{
+		entry: 'registerChromeLeaf',
+		register: () => registerChromeLeaf(chrome),
+		registered: () => isBlockKindRegistered('probe-chrome')
+	},
+	{
+		entry: 'registerGlobalCommand',
+		register: () =>
+			void registerGlobalCommand('probe.global', () => true, { chord: 'Mod+Shift+1' }),
+		registered: () => pluginGlobalBinding('Mod+Shift+1', everyInstalledPlugin) !== null
+	},
+	{
+		entry: 'registerInlineSyntax',
+		register: () => registerInlineSyntax('⌘', () => null),
+		registered: () => getInlineRungs('⌘').length > 0
+	},
+	{
+		entry: 'registerInlineWidgetKind',
+		register: () => registerInlineWidgetKind(inline, { isWidget: () => true }),
+		registered: () =>
+			isInlineWidget({ kind: inline, start: 0, end: 1 } as never, 'x', defaultGrammarView)
+	},
+	{
+		entry: 'registerInsertEntry',
+		register: () =>
+			registerInsertEntry({
+				id: 'probe-entry',
+				label: 'Probe',
+				icon: 'plus',
+				keywords: [],
+				markdown: 'probe\n'
+			}),
+		registered: () => insertCatalogue(everyInstalledPlugin).some((e) => e.id === 'probe-entry')
+	},
+	{
+		entry: 'registerLanguage',
+		register: () => registerLanguage('probe-lang', python),
+		registered: () => listLanguages().includes('probe-lang')
+	},
+	{
+		entry: 'registerPasteTransform',
+		register: () => registerPasteTransform({ name: 'probe-transform', transform: () => null }),
+		registered: () => isPasteTransformRegistered('probe-transform')
+	},
+	{
+		entry: 'registerDirective',
+		register: () => registerDirective('text', 'probe-dir', { kind: inline }),
+		registered: () => isDirectiveRegistered('text', 'probe-dir')
+	}
+];
+
+/** Every `register*` and `declare*` value the plugin barrel exports. */
+function publicRegistrations(): string[] {
+	const code = stripComments(readFileSync(path.resolve('src/lib/plugin.ts'), 'utf8'));
+	const names = [
+		...[...code.matchAll(/export\s*\{([^}]*)\}\s*from/g)].flatMap((m) =>
+			m[1].split(',').map((spec) =>
+				spec
+					.trim()
+					.split(/\s+as\s+/)
+					.pop()!
+			)
+		),
+		...[...code.matchAll(/export\s+function\s+(\w+)/g)].map((m) => m[1])
+	];
+	return names.filter((name) => /^(register|declare)[A-Z]/.test(name)).sort();
+}
+
 function installProbePlugin(): void {
-	const block = declarePluginKind('probe-block');
-	const inline = declarePluginInlineKind('probe-inline');
-	registerBlockKind(block, {
-		gapEdges: 'none',
-		mergeRole: 'not-mergeable',
-		editable: false,
-		supportsInline: false,
-		closure: testClosure
-	});
-	registerBlockOpener(block, { priority: 0, tryOpen: () => null, interruptsParagraph: false });
-	registerBlockCompleter(block, { tryComplete: () => null });
-	registerBlockCommand(block, 'probe.cmd', () => true);
-	registerGlobalCommand('probe.global', () => true, { chord: 'Mod+Shift+1' });
-	registerPasteSurface({ kind: block });
-	registerPasteTransform({ name: 'probe-transform', transform: () => null });
-	registerInlineSyntax('⌘', () => null);
-	registerInlineWidgetKind(inline, { isWidget: () => false });
-	registerDirective('text', 'probe-dir', { kind: inline });
+	for (const probe of PROBES) probe.register();
 	installPlugins([definePlugin({ name: 'probeplugin', setup: (ctx) => ctx.onEditor(() => {}) })]);
 }
 
 describe('resetPluginPlatformForTests aggregate', () => {
 	beforeEach(() => resetPluginPlatformForTests());
 
-	it('clears every public register-once registry so a re-install never throws a dup', () => {
+	it('probes every registration the plugin barrel exports', () => {
+		expect(PROBES.map((p) => p.entry).sort()).toEqual(publicRegistrations());
+	});
+
+	it('clears every public registration so a re-install never throws a dup', () => {
 		installProbePlugin();
-		expect(isBlockKindDeclared('probe-block')).toBe(true);
-		expect(isBlockKindRegistered('probe-block')).toBe(true);
-		expect(isBlockOpenerRegistered('probe-block')).toBe(true);
-		expect(isBlockCompleterRegistered('probe-block')).toBe(true);
-		expect(isPasteTransformRegistered('probe-transform')).toBe(true);
-		expect(isInlineKindDeclared('probe-inline')).toBe(true);
-		expect(isDirectiveRegistered('text', 'probe-dir')).toBe(true);
+		const still = () => PROBES.filter((p) => p.registered()).map((p) => p.entry);
+		expect(still()).toEqual(PROBES.map((p) => p.entry));
 		expect(isPluginInstalled('probeplugin')).toBe(true);
 		expect(onEditorCallbacks('probeplugin')).toHaveLength(1);
-		expect(pluginGlobalBinding('Mod+Shift+1', everyInstalledPlugin)?.command).toBe('probe.global');
 
 		resetPluginPlatformForTests();
 
-		expect(isBlockKindDeclared('probe-block')).toBe(false);
-		expect(isBlockKindRegistered('probe-block')).toBe(false);
-		expect(isBlockOpenerRegistered('probe-block')).toBe(false);
-		expect(isBlockCompleterRegistered('probe-block')).toBe(false);
-		expect(isPasteTransformRegistered('probe-transform')).toBe(false);
-		expect(isInlineKindDeclared('probe-inline')).toBe(false);
-		expect(isDirectiveRegistered('text', 'probe-dir')).toBe(false);
+		expect(still()).toEqual([]);
 		expect(isPluginInstalled('probeplugin')).toBe(false);
 		expect(onEditorCallbacks('probeplugin')).toHaveLength(0);
-		expect(pluginGlobalBinding('Mod+Shift+1', everyInstalledPlugin)).toBeNull();
-		expect(getPasteSurface('probe-block' as AnyBlockKind, everyInstalledPlugin)).toBeUndefined();
-		expect(getInlineRungs('⌘')).toHaveLength(0);
 
 		// The duplicate-registration throw is exactly what a third-party suite hits without
 		// the supported reset; re-running the whole setup must be clean.

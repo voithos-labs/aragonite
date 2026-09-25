@@ -1,16 +1,12 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from 'vitest';
 import { tokenizeBody } from '../../../components/blocks/code/code-renderer';
-import {
-	bootstrapCodeLanguages,
-	__resetBootForTests
-} from '../../../components/blocks/code/code-bootstrap';
-import { __resetRegistryForTests } from '../../../components/blocks/code/code-languages';
+import { bootstrapCodeLanguages } from '../../../components/blocks/code/code-bootstrap';
+import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
 describe('tokenizeBody', () => {
 	beforeEach(() => {
-		__resetRegistryForTests();
-		__resetBootForTests();
+		__resetSchemaRegistriesForTests();
 		bootstrapCodeLanguages();
 	});
 

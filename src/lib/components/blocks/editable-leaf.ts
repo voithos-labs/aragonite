@@ -57,7 +57,8 @@ import type { PresentationMode } from '../../presentation-mode';
 import { tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
 import { type CommandId } from '../../schema/commands';
 import { type BlockCommandContext } from '../../schema/block-commands';
-import { owningPluginEditor, type EditorContext } from '../../schema/plugin-install';
+import type { EditorContext } from '../../schema/plugin-install';
+import { owningPluginEditor } from '../../schema/plugin-kind';
 import { reorderRunCommand } from '../../editor-actions/reorder-action';
 import { createTextBatch } from '../../editor-actions/commit/text-batch';
 

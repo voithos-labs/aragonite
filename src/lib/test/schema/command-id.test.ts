@@ -1,11 +1,14 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import {
-	mintCommandId,
-	isPluginCommandId,
-	__resetMintedCommandIdsForTests
-} from '$lib/schema/command-id';
+import { mintCommandId, isPluginCommandId } from '$lib/schema/command-id';
+import { definePlugin, installPlugins } from '$lib/schema/plugin-install';
+import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
-afterEach(() => __resetMintedCommandIdsForTests());
+afterEach(() => __resetSchemaRegistriesForTests());
+
+/** Run `mint` inside the setup of a plugin called `name`, so the plugin owns what it creates. */
+function asPlugin(name: string, mint: () => void): void {
+	installPlugins([definePlugin({ name, setup: mint })]);
+}
 
 describe('command-id create', () => {
 	it('creates a branded id and reports it as a plugin id', () => {
@@ -27,20 +30,22 @@ describe('command-id create', () => {
 	it('lets the same owner re-create a name (one command shared across its kinds)', () => {
 		// The registry key is (kind, name), so one name used across several of a plugin's own kinds
 		// is fine, and asking again returns the branded id rather than throwing.
-		expect(mintCommandId('callout.toggle', 'callouts')).toBe('callout.toggle');
-		expect(mintCommandId('callout.toggle', 'callouts')).toBe('callout.toggle');
+		asPlugin('callouts', () => {
+			expect(mintCommandId('callout.toggle')).toBe('callout.toggle');
+			expect(mintCommandId('callout.toggle')).toBe('callout.toggle');
+		});
 	});
 
 	it('still throws cross-plugin, naming the prior owner', () => {
-		mintCommandId('callout.toggle', 'callouts');
-		expect(() => mintCommandId('callout.toggle', 'intruder')).toThrow(
+		asPlugin('callouts', () => void mintCommandId('callout.toggle'));
+		expect(() => asPlugin('intruder', () => void mintCommandId('callout.toggle'))).toThrow(
 			/already taken by plugin "callouts"/
 		);
 	});
 
 	it('throws on an unattributed re-create (no installing plugin)', () => {
-		mintCommandId('callout.toggle', null);
-		expect(() => mintCommandId('callout.toggle', null)).toThrow(/already taken/i);
+		mintCommandId('callout.toggle');
+		expect(() => mintCommandId('callout.toggle')).toThrow(/already taken/i);
 	});
 
 	it('rejects a name colliding with a built-in command id', () => {

@@ -3,7 +3,6 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
 	registerBlockCompleter,
 	completeTypedLine,
-	__resetBlockCompletersForTests,
 	type BlockCompleter,
 	type CompletionResult
 } from '../../schema/block-completions';
@@ -20,15 +19,10 @@ function claims(marker: string, lines: string[]): BlockCompleter {
 }
 
 describe('block-completion registry', () => {
-	// Module-global, like the opener registry it mirrors; the built-in table completer is
-	// among the entries this clears, so every case here declares its own.
-	beforeEach(() => {
-		__resetBlockCompletersForTests();
-		__resetSchemaRegistriesForTests();
-	});
-	afterEach(() => {
-		__resetBlockCompletersForTests();
-	});
+	// Module-global, like the opener registry it mirrors. The built-in table completer stays,
+	// and each case's own kinds sort ahead of it by name.
+	beforeEach(() => __resetSchemaRegistriesForTests());
+	afterEach(() => __resetSchemaRegistriesForTests());
 
 	it('returns the first claim and leaves an unclaimed line alone', () => {
 		registerBlockCompleter(declarePluginKind('spec-pipe'), claims('|', ['a', 'b']));
@@ -43,7 +37,7 @@ describe('block-completion registry', () => {
 		registerBlockCompleter(declarePluginKind('spec-alpha'), claims('|', ['alpha']));
 		expect(completeTypedLine('|', defaultGrammarView)?.lines).toEqual(['alpha']);
 
-		__resetBlockCompletersForTests();
+		__resetSchemaRegistriesForTests();
 		registerBlockCompleter(declarePluginKind('spec-alpha-2'), claims('|', ['alpha']));
 		registerBlockCompleter(declarePluginKind('spec-zulu-2'), claims('|', ['zulu']));
 		expect(completeTypedLine('|', defaultGrammarView)?.lines).toEqual(['alpha']);

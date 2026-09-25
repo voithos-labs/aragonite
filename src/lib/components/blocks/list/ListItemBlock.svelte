@@ -61,7 +61,7 @@
 	const parentBlockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
 	const parentFocus = getContext<FocusActions>(FOCUS_KEY);
 	const parentContainerEdit = getContext<ContainerEditActions>(CONTAINER_EDIT_KEY);
-	const { stickyColumn, selection, registryView, decorations, events } =
+	const { stickyColumn, selection, registryView, decorations, events, activePlugins } =
 		getContext<EditorServices>(EDITOR_SERVICES_KEY);
 	const {
 		keybindingOverrides,
@@ -272,6 +272,7 @@
 				{ kind: node.kind, runCommand },
 				{
 					getPresentationMode,
+					activation: activePlugins,
 					isCrossBlockRange: () => selection?.isCrossBlock ?? false,
 					// A key bubbling to a container carries no range command: the block below owns
 					// the format ids.

@@ -67,9 +67,16 @@ function installPair(attached: string[]) {
 	]);
 }
 
+/** Plugins with nothing to set up, so an editor's context for each name resolves. */
+function installNamed(...names: string[]): void {
+	installPlugins(names.map((name) => definePlugin({ name, setup: () => {} })));
+}
+
 beforeEach(() => __resetSchemaRegistriesForTests());
 
 describe('createEditorPluginContexts', () => {
+	beforeEach(() => installNamed('opts', 'other', 'p'));
+
 	it('get() returns one stable identity per plugin, with per-plugin options', () => {
 		const ctxs = createEditorPluginContexts(deps({ children: [] }));
 		const a = ctxs.get('opts')!;

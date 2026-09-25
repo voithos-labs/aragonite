@@ -5,7 +5,6 @@ import type { Document } from '$lib/core/nodes';
 import { deleteNode } from '$lib/tree-operations/settle';
 import { mergeIntoPrevDeepLeaf } from '$lib/tree-operations/node-ops';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
-import { __resetPasteSurfacesForTests } from '$lib/tree-operations/paste-surfaces';
 import { registerFootnoteDefinition } from '$lib/plugins/footnotes/footnote-definition';
 import { describeConvergence } from '../harness/parse-converged';
 import { fixtureLinkRef } from '../harness/fixture-grammar';
@@ -40,7 +39,6 @@ function collapsed(tail: string, op: (doc: Document) => void): Document {
 describe('an emptied middle block takes its own blank line with it', () => {
 	beforeEach(() => {
 		__resetSchemaRegistriesForTests();
-		__resetPasteSurfacesForTests();
 		registerFootnoteDefinition();
 	});
 	afterEach(__resetSchemaRegistriesForTests);

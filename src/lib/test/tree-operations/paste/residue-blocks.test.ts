@@ -3,11 +3,6 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { pasteDispatch } from '$lib/tree-operations/paste/dispatch';
-import {
-	__resetPasteSurfacesForTests,
-	registerPasteSurface
-} from '$lib/tree-operations/paste-surfaces';
-import { __getDefaultTextSurface } from '$lib/tree-operations/paste/hooks';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createPasteCoordinator } from '$lib/editor-actions/paste-coordinator';
 import {
@@ -17,6 +12,7 @@ import {
 	registerStubBlockListState
 } from '$lib/test/harness/editor-actions';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
+import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
 // The text after the caret of a multi-block paste is every block it parses to, and a caret at a
 // line's end hands that line's break to the text after it; parsing only the first block of that
@@ -24,12 +20,7 @@ import { describeConvergence } from '$lib/test/harness/parse-converged';
 // Miss-analysis: every residue pin cut a one-line leaf, so no paste put a line break after the
 // caret, and convergence passed because the shortened document is a valid tree of its own.
 
-beforeEach(() => {
-	__resetPasteSurfacesForTests();
-	for (const kind of ['paragraph', 'setextHeading'] as const) {
-		registerPasteSurface(__getDefaultTextSurface(kind));
-	}
-});
+beforeEach(() => __resetSchemaRegistriesForTests());
 
 async function paste(source: string, targetPath: number[], offset: number, clipboard: string) {
 	const { deps } = makeEditorActionsDeps(parse(source));

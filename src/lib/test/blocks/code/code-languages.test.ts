@@ -3,16 +3,16 @@ import {
 	registerLanguage,
 	getLanguageGrammar,
 	getLanguageAliases,
-	listLanguages,
-	__resetRegistryForTests
+	listLanguages
 } from '../../../components/blocks/code/code-languages';
 import type { LanguageFn } from 'highlight.js';
+import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
 const fakeGrammar = (() => ({ name: 'fake' })) as unknown as LanguageFn;
 
 describe('code-languages registry', () => {
 	beforeEach(() => {
-		__resetRegistryForTests();
+		__resetSchemaRegistriesForTests();
 	});
 
 	it('registers and resolves a language by name', () => {
@@ -93,11 +93,11 @@ describe('code-languages registry', () => {
 		expect(getLanguageAliases('klingon')).toEqual([]);
 	});
 
-	it('is idempotent, registering twice is a no-op', () => {
+	it('is register-once: a taken name throws and keeps the first grammar', () => {
 		const first = (() => ({ name: 'first' })) as unknown as LanguageFn;
 		const second = (() => ({ name: 'second' })) as unknown as LanguageFn;
 		registerLanguage('javascript', first);
-		registerLanguage('javascript', second);
+		expect(() => registerLanguage('JavaScript', second)).toThrow(/already registered/);
 		expect(getLanguageGrammar('javascript')?.definition).toBe(first);
 	});
 });
