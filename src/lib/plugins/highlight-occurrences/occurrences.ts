@@ -12,11 +12,9 @@ import {
 	type MarkDecoration,
 	type NodeView
 } from '$lib/plugin';
+import { WORD_CHAR } from './word-char';
 
 export const OCCURRENCE_CLASS = 'hl-occurrence';
-
-// Astral-plane text falls outside "word" here, which is honest enough for a reference plugin.
-export const WORD_CHAR = /[\p{L}\p{N}_]/u;
 
 export interface WordSpan {
 	word: string;

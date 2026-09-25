@@ -1,17 +1,8 @@
 import { test, expect } from '../../../fixtures';
-import { PluginsPage, revealWidget, roundTripStable } from '../../plugins/helpers';
+import { revealWidget, roundTripStable } from '../../plugins/helpers';
+import { CellMathPage } from './helpers';
 
 // Requirements: `e2e/requirements/blocks/table/cell-mutation-fold.md`.
-
-class CellMathPage extends PluginsPage {
-	get mathWidget() {
-		return this.page.locator('.math-inline-widget');
-	}
-	async gotoMathTable() {
-		await this.gotoPlugins('mathtable');
-		await expect(this.mathWidget).toHaveCount(1);
-	}
-}
 
 test.describe('a cell mutation folds the open reveal before it runs', () => {
 	let editor: CellMathPage;

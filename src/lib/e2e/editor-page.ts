@@ -3,7 +3,7 @@ import { EditorBridge } from './editor-bridge';
 import { createClipboardArm, type ClipboardArm } from './clipboard-arm';
 import { generateFixture, type FixtureShape } from '../test/perf/fixtures/generate';
 import { BLOCK_CONTENT_LOCATOR_SELECTOR } from '../components/block-content-selector';
-import { watchPageFailures } from './page-probes';
+import { PAST_TYPING_PAUSE_MS, watchPageFailures } from './page-probes';
 import { pointAtRaw } from './text-runs';
 
 // Re-exported so a spec's in-`evaluate` block-content lookup uses the one selector definition
@@ -386,7 +386,7 @@ export class EditorPage {
 	 * happen after the previous batch's debounce window.
 	 */
 	async waitForUndoBatchFlush(): Promise<void> {
-		await this.page.waitForTimeout(300);
+		await this.page.waitForTimeout(PAST_TYPING_PAUSE_MS);
 	}
 
 	/**

@@ -1,6 +1,6 @@
 import { test, expect } from '../../fixtures';
-import type { Locator } from '@playwright/test';
-import { PluginsPage, activeBlockPath, blockView, capturedErrors } from './helpers';
+import { activeBlockPath, blockView, capturedErrors } from './helpers';
+import { FootnotePage, NAV_REFS, navDoc } from './footnotes-helpers';
 import { textRunCenter, widgetCenter } from '../../text-runs';
 
 /**
@@ -16,35 +16,7 @@ import { textRunCenter, widgetCenter } from '../../text-runs';
 // and a jump has to mount them.
 test.use({ viewport: { width: 1000, height: 700 } });
 
-const FILLER = 140;
-// `[^zz]` is left undefined on purpose: the widget takes the gesture whether or not it can answer
-// it, so this is the reference that must do nothing at all.
-const REFS = 'Body has [^a] and [^b] and [^zz] here.';
 const SHORT_DOC = 'Body has [^a] and [^b] here.\n\n[^a]: First note.\n';
-
-function navDoc(): { md: string; defA: number; defB: number } {
-	const parts = [REFS];
-	for (let i = 0; i < FILLER; i++) {
-		parts.push(`Filler paragraph ${i} with enough words to fill a line.`);
-	}
-	const defA = parts.length;
-	parts.push('[^a]: First note.', '[^b]: Second note.');
-	return { md: parts.join('\n\n') + '\n', defA, defB: defA + 1 };
-}
-
-class FootnotePage extends PluginsPage {
-	refs(block = 0): Locator {
-		return this.page.locator(`[data-block-path='[${block}]'] .footnote-ref`);
-	}
-	/** The definition's own `[^label]` marker range: the way back. */
-	defMarker(block: number): Locator {
-		return this.page.locator(`[data-block-path='[${block}]'] .footnote-def-marker`);
-	}
-	async load(md: string): Promise<void> {
-		await this.gotoPlugins('footnotes-ref');
-		await this.loadContent(md);
-	}
-}
 
 test.describe('footnote jump: reference to definition', () => {
 	let editor: FootnotePage;
@@ -133,7 +105,7 @@ test.describe('footnote jump: reference to definition', () => {
 		// Taking the gesture stops the source from showing whether or not the label resolves, so
 		// all three widgets are still rendered and nothing moved.
 		await expect(editor.refs()).toHaveCount(3);
-		expect(await editor.bridge.getSource()).toContain(REFS);
+		expect(await editor.bridge.getSource()).toContain(NAV_REFS);
 		await expect(page.locator(`[data-block-path='[${defA}]']`)).toHaveCount(0);
 		expect(await capturedErrors(page)).toEqual([]);
 	});

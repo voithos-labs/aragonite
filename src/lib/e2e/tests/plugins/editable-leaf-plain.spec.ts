@@ -1,5 +1,6 @@
 import { test, expect } from '../../fixtures';
-import { PluginsPage, roundTripStable, waitForDoc, activeBlockPath } from './helpers';
+import { roundTripStable, waitForDoc, activeBlockPath } from './helpers';
+import { MemoPage } from './memo-helpers';
 
 /**
  * A plain-mode editable leaf (requirements/plugins/editable-leaf-plain.md): the `%%` memo harness
@@ -7,18 +8,6 @@ import { PluginsPage, roundTripStable, waitForDoc, activeBlockPath } from './hel
  * text block has, through the public factory alone: typing, moving the caret, undo batching,
  * cross-block selection and the clipboard.
  */
-
-class MemoPage extends PluginsPage {
-	get memo() {
-		return this.page.locator('.memo-block');
-	}
-
-	async gotoSeed(): Promise<void> {
-		await this.gotoPlugins('memo');
-		await expect(this.memo).toHaveCount(1);
-		expect(await this.bridge.getBlockKind(1)).toBe('memo');
-	}
-}
 
 test.describe('plain-mode editable leaf: the %% memo kind', () => {
 	let editor: MemoPage;
