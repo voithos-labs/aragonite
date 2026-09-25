@@ -7,12 +7,11 @@ import { createHistoryActions } from '$lib/editor-actions/commit/history';
 import { createReorderAction } from '$lib/editor-actions/reorder-action';
 import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
 import { makeReorderContainer } from './reorder-harness';
-import { declarePluginKind } from '$lib/schema/plugin-kind';
-import { registerBlockKind } from '$lib/schema/block-kind-descriptor';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
-import { testClosure } from '$lib/test/support/closure';
 import { expectParseConverged } from '$lib/test/harness/parse-converged';
 import type { CstNode } from '$lib/core/nodes';
+import { testChromeContainer } from '$lib/test/harness/test-kinds';
+import { __resetPasteSurfacesForTests } from '$lib/tree-operations/paste-surfaces';
 
 // ── Top-level harness ─────────────────────────────────────────────────────────
 
@@ -139,29 +138,18 @@ describe('reorder action: blockquote', () => {
 });
 
 describe('reorder action: plugin (opaque) container declines', () => {
-	beforeEach(__resetSchemaRegistriesForTests);
+	beforeEach(() => {
+		__resetSchemaRegistriesForTests();
+		__resetPasteSurfacesForTests();
+	});
 
 	// The cause of the whole-alert move: a resolver that does not decline hands back the
 	// container's document index, so a body-leaf gesture permutes the top-level array instead.
 	function makeDeclineHarness() {
-		const chromeKind = declarePluginKind('spec-chrome');
-		const containerKind = declarePluginKind('spec-container');
-		registerBlockKind(chromeKind, {
-			gapEdges: 'none',
-			mergeRole: 'not-mergeable',
-			editable: true,
-			supportsInline: false,
-			closure: testClosure,
-			contextDependentKind: true
-		});
-		registerBlockKind(containerKind, {
-			gapEdges: 'none',
-			mergeRole: 'container',
-			editable: true,
-			supportsInline: false,
-			closure: testClosure,
-			container: { contract: 'opaque', rebuildRaw: () => {}, reservedChrome: { kind: chromeKind } }
-		});
+		const { container: containerKind, chrome: chromeKind } = testChromeContainer(
+			'spec-container',
+			'spec-chrome'
+		);
 		const container: CstNode = {
 			kind: containerKind,
 			leadingTrivia: '\n',

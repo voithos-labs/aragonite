@@ -9,14 +9,12 @@ import { splitNode } from '../../tree-operations';
 import { NEXT_PROSE_LINE } from '../../tree-operations/node-primitives';
 import { probeLineOpensAsProse } from '../../tree-operations/content-write';
 import { rebuildBlockquoteRaw } from '../../schema/container-rebuilders';
-import { registerBlockKind } from '../../schema/block-kind-descriptor';
 import { registerBlockOpener } from '../../schema/block-openers';
-import { declarePluginKind } from '../../schema/plugin-kind';
 import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
 import { describeConvergence } from '../harness/parse-converged';
-import { testClosure } from '$lib/test/support/closure';
 import { takeDevWarns } from '$lib/test/support/warn-gate';
 import { fixtureLinkRef } from '../harness/fixture-grammar';
+import { testLeaf } from '$lib/test/harness/test-kinds';
 
 describe('split separator: the half that absorbs gets one', () => {
 	it('Enter at the end of a paragraph, then typing, still reparses as two blocks', () => {
@@ -138,13 +136,8 @@ describe('split separator: the probe line', () => {
 	});
 
 	it('is reported claimed when an opener takes it, and the new block is what is lost', () => {
-		const kind = declarePluginKind('probe-claimer');
-		registerBlockKind(kind, {
-			gapEdges: 'none',
-			mergeRole: 'not-mergeable',
-			editable: false,
-			supportsInline: false,
-			closure: testClosure
+		const kind = testLeaf('probe-claimer', {
+			editable: false
 		});
 		registerBlockOpener(kind, {
 			priority: 1,

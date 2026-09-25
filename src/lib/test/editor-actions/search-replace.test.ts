@@ -1,14 +1,13 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { serialize } from '$lib/core/serializer';
-import { getBlockKindDescriptor, registerBlockKind } from '$lib/schema/block-kind-descriptor';
-import { declarePluginKind } from '$lib/schema/plugin-kind';
+import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
-import { testClosure } from '$lib/test/support/closure';
 import { rangeSelectionOf } from '$lib/test/support/undo-entry';
 import type { CstNode, Document } from '$lib/core/nodes';
 import { createGrammarView } from '$lib/schema/block-openers';
 import { makeSearchReplace, scanCompiled } from '$lib/test/harness/search-replace';
 import { registerMermaidKind } from '$lib/plugins/mermaid/mermaid-kind';
+import { testLeaf, testContainer } from '$lib/test/harness/test-kinds';
 
 // A minimal stand-in for search/document-scan.ts, which the container cases below use instead.
 function scanForLiteral(doc: Document, needle: string) {
@@ -168,13 +167,7 @@ describe('replace: matches on childless opaque containers are skipped', () => {
 	let diagramNode: CstNode;
 	beforeEach(() => {
 		__resetSchemaRegistriesForTests();
-		const diagram = declarePluginKind('replace-diagram');
-		registerBlockKind(diagram, {
-			gapEdges: 'none',
-			mergeRole: 'not-mergeable',
-			editable: true,
-			supportsInline: false,
-			closure: testClosure,
+		const diagram = testLeaf('replace-diagram', {
 			container: { contract: 'opaque', rebuildRaw: () => {} }
 		});
 		diagramNode = { kind: diagram, leadingTrivia: '\n', raw: DIAGRAM_RAW, children: [] };
@@ -216,18 +209,9 @@ describe('replace: a batch that applies nothing leaves no undo entry', () => {
 	// the one thing no commit rolls back, had no case looking at it on the failing path.
 	it('restores the stacks when the first subtree throws in its rebuild', async () => {
 		__resetSchemaRegistriesForTests();
-		const brittle = declarePluginKind('replace-brittle');
-		registerBlockKind(brittle, {
-			gapEdges: 'none',
-			mergeRole: 'container',
-			editable: true,
-			supportsInline: false,
-			closure: testClosure,
-			container: {
-				contract: 'opaque',
-				rebuildRaw: () => {
-					throw new Error('rebuild refused');
-				}
+		const brittle = testContainer('replace-brittle', {
+			rebuildRaw: () => {
+				throw new Error('rebuild refused');
 			}
 		});
 		const child: CstNode = { kind: 'paragraph', leadingTrivia: '', raw: 'prose cat\n' };

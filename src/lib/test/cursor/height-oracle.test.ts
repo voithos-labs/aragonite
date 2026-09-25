@@ -2,8 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { createHeightOracle } from '../../cursor/height-oracle';
 import { getPluginMetadata, setPluginMetadata, type CstNode } from '../../core/nodes';
 import { declarePluginKind } from '../../schema/plugin-kind';
-import { registerBlockKind } from '../../schema/block-kind-descriptor';
-import { testClosure } from '$lib/test/support/closure';
+import { testLeaf, testContainer } from '$lib/test/harness/test-kinds';
 
 const opts = {
 	lineHeight: 24,
@@ -217,22 +216,12 @@ describe('createHeightOracle', () => {
 	it('estimates a collapsed container at one chrome row, open at its full raw', () => {
 		const o = createHeightOracle(opts);
 		const summary = declarePluginKind('oracle-collapsible-chrome');
-		const collapsible = declarePluginKind('oracle-collapsible');
-		registerBlockKind(collapsible, {
-			gapEdges: 'none',
-			mergeRole: 'container',
-			editable: true,
-			supportsInline: false,
-			closure: testClosure,
-			// The estimator only estimates, so a do-nothing strip and rebuild are enough to satisfy
-			// the pair the group requires.
-			container: {
-				contract: 'strip',
-				rebuildRaw: () => {},
-				reservedChrome: {
-					kind: summary,
-					isCollapsed: (n) => !getPluginMetadata<{ open: boolean }>(n)?.open
-				}
+		const collapsible = testContainer('oracle-collapsible', {
+			contract: 'strip',
+			rebuildRaw: () => {},
+			reservedChrome: {
+				kind: summary,
+				isCollapsed: (n) => !getPluginMetadata<{ open: boolean }>(n)?.open
 			}
 		});
 
@@ -251,13 +240,8 @@ describe('createHeightOracle', () => {
 	// still wins.
 	it('a descriptor estimateHeight wins over the default branch, plus block chrome', () => {
 		const o = createHeightOracle(opts);
-		const estimated = declarePluginKind('oracle-estimate-height');
-		registerBlockKind(estimated, {
-			gapEdges: 'none',
-			mergeRole: 'not-mergeable',
+		const estimated = testLeaf('oracle-estimate-height', {
 			editable: false,
-			supportsInline: false,
-			closure: testClosure,
 			estimateHeight: () => 320
 		});
 		const node: CstNode = { kind: estimated, leadingTrivia: '', raw: 'x\n' };
@@ -269,20 +253,17 @@ describe('createHeightOracle', () => {
 	it('a collapsed container ignores estimateHeight (one chrome row wins)', () => {
 		const o = createHeightOracle(opts);
 		const summary = declarePluginKind('oracle-estimate-chrome');
-		const collapsible = declarePluginKind('oracle-estimate-collapsed');
-		registerBlockKind(collapsible, {
-			gapEdges: 'none',
-			mergeRole: 'container',
-			editable: true,
-			supportsInline: false,
-			closure: testClosure,
-			estimateHeight: () => 320,
-			container: {
+		const collapsible = testContainer(
+			'oracle-estimate-collapsed',
+			{
 				contract: 'strip',
 				rebuildRaw: () => {},
 				reservedChrome: { kind: summary, isCollapsed: () => true }
+			},
+			{
+				estimateHeight: () => 320
 			}
-		});
+		);
 		const node: CstNode = { kind: collapsible, leadingTrivia: '', raw: 'x'.repeat(2000) };
 		expect(o.estimate(node, 600)).toBe(opts.lineHeight + opts.blockChrome);
 	});

@@ -3,12 +3,9 @@
 
 import BlockHost from '$lib/components/BlockHost.svelte';
 import type { BlockComponent } from '$lib/block-component';
-import type { Document, PluginBlockKind } from '$lib/core/nodes';
+import type { Document } from '$lib/core/nodes';
 import type { NodeView } from '$lib/core/node-views';
 import { refSlotsOver, type RefSlots } from '$lib/reactivity/publish-ref.svelte';
-import { declarePluginKind } from '$lib/schema/plugin-kind';
-import { registerBlockKind } from '$lib/schema/block-kind-descriptor';
-import { testClosure } from '$lib/test/support/closure';
 import { mountBlock } from '../harness/mount-block';
 import type { MountContextOverrides } from '../harness/mount-context';
 
@@ -56,18 +53,4 @@ export function mountBlockHost(
 		refs,
 		dispose: mounted.dispose
 	};
-}
-
-/** A descriptor-only plugin kind: the reachable shape of BlockHost's "no component"
- *  case, since `registryView.descriptor` throws for a kind that has none at all. */
-export function declareComponentlessKind(name: string): PluginBlockKind {
-	const kind = declarePluginKind(name);
-	registerBlockKind(kind, {
-		gapEdges: 'none',
-		mergeRole: 'not-mergeable',
-		editable: true,
-		supportsInline: false,
-		closure: testClosure
-	});
-	return kind;
 }

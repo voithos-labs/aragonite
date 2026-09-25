@@ -1,11 +1,9 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { makeTopHarness } from '$lib/test/harness/editor-actions';
-import { declarePluginKind } from '$lib/schema/plugin-kind';
-import { registerBlockKind } from '$lib/schema/block-kind-descriptor';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
-import { testClosure } from '$lib/test/support/closure';
 import type { CstNode } from '$lib/core/nodes';
+import { testLeaf } from '$lib/test/harness/test-kinds';
 
 // Top-level and container event paths agree: both emit the edit's target, never the
 // snapshot index.
@@ -14,13 +12,8 @@ import type { CstNode } from '$lib/core/nodes';
  *  deletes. Every non-editable built-in takes the focus path instead, so the delete branch
  *  is reachable only through a plugin kind. */
 function inertNode(): CstNode {
-	const kind = declarePluginKind('spec-inert-top-level');
-	registerBlockKind(kind, {
-		gapEdges: 'none',
-		mergeRole: 'not-mergeable',
-		editable: false,
-		supportsInline: false,
-		closure: testClosure
+	const kind = testLeaf('spec-inert-top-level', {
+		editable: false
 	});
 	return { kind, leadingTrivia: '', raw: 'inert\n' };
 }

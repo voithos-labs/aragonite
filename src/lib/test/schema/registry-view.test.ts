@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { parse } from '$lib/core/parser';
-import { declarePluginKind } from '$lib/schema/plugin-kind';
-import { registerBlockKind, getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
+import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
 import {
 	registerBlockComponent,
 	getBlockComponent,
@@ -10,8 +9,8 @@ import {
 import { registerBlockOpener, type BlockOpener } from '$lib/schema/block-openers';
 import { bothEnable, createRegistryView, defaultRegistryView } from '$lib/schema/registry-view';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
-import { testClosure } from '$lib/test/support/closure';
 import type { AnyBlockKind, PluginBlockKind } from '$lib/core/nodes';
+import { testLeaf } from '$lib/test/harness/test-kinds';
 
 const stubComponent = {} as BlockComponentEntry;
 
@@ -30,14 +29,7 @@ const lineOpener = (kind: PluginBlockKind): BlockOpener => ({
 });
 
 function registerCallout(): PluginBlockKind {
-	const kind = declarePluginKind('callout-x');
-	registerBlockKind(kind, {
-		gapEdges: 'none',
-		mergeRole: 'not-mergeable',
-		editable: true,
-		supportsInline: false,
-		closure: testClosure
-	});
+	const kind = testLeaf('callout-x');
 	registerBlockComponent(kind, stubComponent);
 	registerBlockOpener(kind, lineOpener(kind));
 	return kind;

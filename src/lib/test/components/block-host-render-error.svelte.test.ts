@@ -13,9 +13,10 @@ import { registerBlockComponent, defineBlockComponent } from '$lib/schema/block-
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import type { CstNode } from '$lib/core/nodes';
 import ThrowingBlock from './fixtures/ThrowingBlock.svelte';
-import { declareComponentlessKind, mountBlockHost } from './mount-host';
+import { mountBlockHost } from './mount-host';
 import type { MountedHost } from './mount-host';
 import { installEditorDomStubsForTests } from '$lib/testing';
+import { testLeaf } from '$lib/test/harness/test-kinds';
 
 beforeAll(installEditorDomStubsForTests);
 
@@ -34,7 +35,7 @@ interface ErrorReport {
 /** A host over one block whose component throws while its raw says `boom`. */
 function mountThrowing(raw: string, parentPath: number[] = []) {
 	const doc = parse(raw);
-	const kind = declareComponentlessKind('host-throwing');
+	const kind = testLeaf('host-throwing');
 	registerBlockComponent(kind, defineBlockComponent(ThrowingBlock));
 	doc.children[0].kind = kind;
 	// $state so a later byte write reaches the boundary-retry effect.

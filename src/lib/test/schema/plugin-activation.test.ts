@@ -3,16 +3,14 @@ import { parse } from '$lib/core/parser';
 import { activationFor, kindEnablementFor } from '$lib/schema/plugin-activation';
 import { createRegistryView } from '$lib/schema/registry-view';
 import { definePlugin, installPlugins } from '$lib/schema/plugin-install';
-import { declarePluginKind } from '$lib/schema/plugin-kind';
-import { registerBlockKind } from '$lib/schema/block-kind-descriptor';
 import {
 	registerBlockComponent,
 	type BlockComponentEntry
 } from '$lib/schema/block-component-registry';
 import { registerBlockOpener, type BlockOpener } from '$lib/schema/block-openers';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
-import { testClosure } from '$lib/test/support/closure';
 import type { PluginBlockKind } from '$lib/core/nodes';
+import { testLeaf } from '$lib/test/harness/test-kinds';
 
 const stubComponent = {} as BlockComponentEntry;
 
@@ -32,14 +30,7 @@ function installKindPlugin(name: string, marker: string): PluginBlockKind {
 		definePlugin({
 			name,
 			setup() {
-				kind = declarePluginKind(`${name}-block`);
-				registerBlockKind(kind, {
-					gapEdges: 'none',
-					mergeRole: 'not-mergeable',
-					editable: true,
-					supportsInline: false,
-					closure: testClosure
-				});
+				kind = testLeaf(`${name}-block`);
 				registerBlockComponent(kind, stubComponent);
 				registerBlockOpener(kind, markerOpener(kind, marker));
 			}
@@ -75,14 +66,7 @@ describe('kind enablement derived from an instance activation set', () => {
 
 	it('never gates a kind no plugin owns, built-ins included', () => {
 		// Declared outside any install, so the registry records no owner for it.
-		const ownerless = declarePluginKind('ownerless-block');
-		registerBlockKind(ownerless, {
-			gapEdges: 'none',
-			mergeRole: 'not-mergeable',
-			editable: true,
-			supportsInline: false,
-			closure: testClosure
-		});
+		const ownerless = testLeaf('ownerless-block');
 		registerBlockComponent(ownerless, stubComponent);
 
 		const isEnabled = kindEnablementFor(activationFor([]));

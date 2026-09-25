@@ -2,7 +2,6 @@
 // no test wrote an image in a kind whose own write rule changes or refuses the bytes.
 import { afterEach, describe, expect, it } from 'vitest';
 import { tick } from 'svelte';
-import { declarePluginKind, registerBlockKind } from '$lib/plugin';
 import { resetPluginPlatformForTests } from '$lib/testing';
 import { defaultGrammarView } from '$lib/schema/block-openers';
 import { createImageEditCommitter } from '../../components/image/image-edit-commit';
@@ -13,21 +12,16 @@ import { parse } from '../../core/parser';
 import type { CstNode, Document } from '../../core/nodes';
 import { createEditorEvents } from '../../editor-events';
 import { makeStubController } from '../harness/editor-actions';
-import { testClosure } from '../support/closure';
 import { fixtureLinkRef } from '../harness/fixture-grammar';
+import { testLeaf } from '$lib/test/harness/test-kinds';
 
 afterEach(() => resetPluginPlatformForTests());
 
 /** A leaf kind that renders inline images and stores `rule(raw)` for every write of its bytes. */
 function probeKind(name: string, rule: (raw: string, node: { raw: string }) => string): string {
-	const kind = declarePluginKind(name);
-	registerBlockKind(kind, {
-		gapEdges: 'none',
-		mergeRole: 'not-mergeable',
-		editable: true,
+	const kind = testLeaf(name, {
 		supportsInline: true,
-		normalizeRawWrite: rule,
-		closure: testClosure
+		normalizeRawWrite: rule
 	});
 	return kind;
 }

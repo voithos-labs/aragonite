@@ -6,12 +6,10 @@ import {
 	nodeAt
 } from '../../tree-operations/node-primitives';
 import { rebuildListItemRaw, rebuildBlockquoteRaw } from '../../schema/container-rebuilders';
-import { registerBlockKind } from '../../schema/block-kind-descriptor';
-import { declarePluginKind } from '../../schema/plugin-kind';
 import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
-import { testClosure } from '$lib/test/support/closure';
 import { checkOpaqueStaleRaw } from '../../invariants/node-shape';
 import type { CstNode } from '../../core/nodes';
+import { testLeaf } from '$lib/test/harness/test-kinds';
 
 describe('emptyParagraph', () => {
 	it('creates the empty-paragraph placeholder shape, blank lines and ending parameterized', () => {
@@ -112,13 +110,7 @@ describe('ensureEditableContainers: whole-block-focus kinds stay childless', () 
 	beforeEach(__resetSchemaRegistriesForTests);
 
 	function wholeBlockNode(): CstNode {
-		const kind = declarePluginKind('node-ops-whole-block');
-		registerBlockKind(kind, {
-			gapEdges: 'none',
-			mergeRole: 'not-mergeable',
-			editable: true,
-			supportsInline: false,
-			closure: testClosure,
+		const kind = testLeaf('node-ops-whole-block', {
 			blockFocus: 'whole-block',
 			container: { contract: 'opaque', rebuildRaw: () => {} }
 		});

@@ -1,15 +1,14 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { installPlugins } from '$lib';
-import { declarePluginKind, registerBlockKind } from '$lib/plugin';
 import { admonitionsPlugin } from '$lib/plugins/admonitions';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createBlockListState } from '$lib/reactivity/block-list-state.svelte';
 import { asDocPath } from '$lib/selection/path-math';
-import { testClosure } from '$lib/test/support/closure';
 import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
 import type { AnyBlockKind, CstNode } from '$lib/core/nodes';
+import { testContainer } from '$lib/test/harness/test-kinds';
 
 // A commit that unwinds after the chain rebuild changed a container's kind wrote a
 // replacement into a live nested children array, which no other rollback step reaches:
@@ -20,18 +19,9 @@ let THROWING: AnyBlockKind;
 
 beforeAll(() => {
 	installPlugins([admonitionsPlugin()]);
-	THROWING = declarePluginKind('spec-throwing-rebuild');
-	registerBlockKind(THROWING, {
-		gapEdges: 'none',
-		mergeRole: 'container',
-		editable: true,
-		supportsInline: false,
-		closure: testClosure,
-		container: {
-			contract: 'opaque',
-			rebuildRaw: () => {
-				throw new Error('rebuildRaw exploded');
-			}
+	THROWING = testContainer('spec-throwing-rebuild', {
+		rebuildRaw: () => {
+			throw new Error('rebuildRaw exploded');
 		}
 	});
 });

@@ -3,10 +3,8 @@ import { parse } from '$lib/core/parser';
 import type { CstNode, Document } from '$lib/core/nodes';
 import { compileMatcher } from '$lib/search/matcher';
 import { scanDocument } from '$lib/search/document-scan';
-import { registerBlockKind } from '$lib/schema/block-kind-descriptor';
-import { declarePluginKind } from '$lib/schema/plugin-kind';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
-import { testClosure } from '$lib/test/support/closure';
+import { testLeaf } from '$lib/test/harness/test-kinds';
 
 const matcherFor = (q: string) => {
 	const r = compileMatcher(q, { caseSensitive: false, wholeWord: false, regex: false });
@@ -61,25 +59,9 @@ describe('scanDocument: childless opaque containers', () => {
 	let artifact: CstNode['kind'];
 	beforeEach(() => {
 		__resetSchemaRegistriesForTests();
-		diagram = declarePluginKind('scan-diagram');
-		artifact = declarePluginKind('scan-artifact');
 		const container = { contract: 'opaque' as const, rebuildRaw: () => {} };
-		registerBlockKind(diagram, {
-			gapEdges: 'none',
-			mergeRole: 'not-mergeable',
-			editable: true,
-			supportsInline: false,
-			closure: testClosure,
-			container
-		});
-		registerBlockKind(artifact, {
-			gapEdges: 'none',
-			mergeRole: 'not-mergeable',
-			editable: false,
-			supportsInline: false,
-			closure: testClosure,
-			container
-		});
+		diagram = testLeaf('scan-diagram', { container });
+		artifact = testLeaf('scan-artifact', { editable: false, container });
 	});
 
 	it('scans a childless editable opaque container raw as a leaf', () => {

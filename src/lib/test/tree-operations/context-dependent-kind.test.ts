@@ -1,23 +1,15 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { updateNodeContent } from '../../tree-operations/content-write';
 import { splitNode } from '../../tree-operations/node-ops';
-import { declarePluginKind } from '../../schema/plugin-kind';
-import { registerBlockKind } from '../../schema/block-kind-descriptor';
 import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
 import { writeTableRow } from '../../schema/container-rebuilders';
 import { parse } from '../../core/parser';
-import { testClosure } from '$lib/test/support/closure';
 import type { CstNode } from '../../core/nodes';
 import { fixtureLinkRef } from '../harness/fixture-grammar';
+import { testLeaf } from '$lib/test/harness/test-kinds';
 
 function registerChromeKind() {
-	const chrome = declarePluginKind('spec-chrome');
-	registerBlockKind(chrome, {
-		gapEdges: 'none',
-		mergeRole: 'not-mergeable',
-		editable: true,
-		supportsInline: false,
-		closure: testClosure,
+	const chrome = testLeaf('spec-chrome', {
 		contextDependentKind: true
 	});
 	return chrome;

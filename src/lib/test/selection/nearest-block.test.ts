@@ -1,10 +1,8 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach, beforeEach } from 'vitest';
 import { blockNearPoint, nearestBand } from '$lib/selection/nearest-block';
-import { declarePluginKind } from '$lib/schema/plugin-kind';
-import { registerBlockKind } from '$lib/schema/block-kind-descriptor';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
-import { testClosure } from '$lib/test/support/closure';
+import { testLeaf } from '$lib/test/harness/test-kinds';
 
 // Which block a point off every block belongs to, and where inside it the gesture is answered.
 // The geometry half needs real layout and is pinned by e2e/tests/selection/dead-space-click.spec.ts;
@@ -71,13 +69,7 @@ describe('blockNearPoint', () => {
 
 	beforeEach(() => {
 		probes = [];
-		const kind = declarePluginKind('probeRecordingKind');
-		registerBlockKind(kind, {
-			gapEdges: 'none',
-			mergeRole: 'not-mergeable',
-			editable: true,
-			supportsInline: false,
-			closure: testClosure,
+		const kind = testLeaf('probeRecordingKind', {
 			foreignDragHitTest: (_wrapper, x, y) => {
 				probes.push({ x, y });
 				return CELL;

@@ -3,23 +3,19 @@
 
 import { expect } from 'vitest';
 import RevealLeafBlock from './RevealLeafBlock.svelte';
-import { declarePluginKind, registerBlockKind, simpleLeafClosure } from '$lib/plugin';
-import type { BlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
+import { simpleLeafClosure } from '$lib/plugin';
+import type { BlockKindRegistration } from '$lib/schema/block-kind-descriptor';
 import type { CstNode, Document, PluginBlockKind } from '$lib/core/nodes';
 import { trimTrailingLineEnding } from '$lib/core/lines';
 import { mountBlock, type MountBlockOptions } from '../../harness/mount-block';
 import { settleEditor } from '$lib/test/harness/settle';
+import { testLeaf } from '$lib/test/harness/test-kinds';
 
 export function registerRevealLeafKind(
 	name: string,
-	over: Partial<BlockKindDescriptor> = {}
+	over: Partial<BlockKindRegistration> = {}
 ): PluginBlockKind {
-	const kind = declarePluginKind(name);
-	registerBlockKind(kind, {
-		gapEdges: 'none',
-		mergeRole: 'not-mergeable',
-		editable: true,
-		supportsInline: false,
+	return testLeaf(name, {
 		closure: simpleLeafClosure({
 			focus: { mode: 'implemented', via: 'createEditableLeaf render-primary reveal' },
 			searchPaint: { mode: 'inherit-default' },
@@ -28,7 +24,6 @@ export function registerRevealLeafKind(
 		}),
 		...over
 	});
-	return kind;
 }
 
 /** A one-block document holding the leaf's bytes. */
