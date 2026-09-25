@@ -10,7 +10,7 @@ import type { InlineNode } from './nodes';
 import { buildCoreInlineWidget } from './inline/inline-widgets';
 import type { GrammarView } from '../schema/block-openers';
 import { isAllowedHrefScheme } from './url-policy';
-import { displayLines, trimTrailingLineEnding } from './lines';
+import { firstDisplayLine, trimTrailingLineEnding } from './lines';
 
 // ── Render options ──────────────────────────────────────────────────────────
 
@@ -344,7 +344,7 @@ function renderNode(
 			// a `<br>` would diverge across browsers.
 			const breakRaw = raw.slice(node.start, node.end);
 			// The marker is the break's first line; a node with no line ending is all marker.
-			const lineEndingStart = displayLines(breakRaw)[0].text.length;
+			const lineEndingStart = firstDisplayLine(breakRaw).text.length;
 			if (lineEndingStart > 0) {
 				container.appendChild(hardBreakMark(markerSpan(breakRaw.slice(0, lineEndingStart))));
 			}

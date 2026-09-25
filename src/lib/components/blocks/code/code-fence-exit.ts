@@ -5,7 +5,7 @@
  */
 
 import type { FencedCodeMetadata } from '../../../core/nodes';
-import { displayLines, lineEndingAt, ownTrailingLineEnding } from '../../../core/lines';
+import { firstDisplayLine, lineEndingAt, ownTrailingLineEnding } from '../../../core/lines';
 import { matchFenceClose } from '../../../core/parsers/fence-syntax';
 
 export interface FenceExitInput {
@@ -90,5 +90,5 @@ export function computeTypedFenceExit(input: TypedFenceExitInput): TypedFenceExi
 
 /** The line beginning at `start`, without its ending. */
 function lineAt(text: string, start: number): string {
-	return displayLines(text.slice(start))[0].text;
+	return firstDisplayLine(text.slice(start)).text;
 }

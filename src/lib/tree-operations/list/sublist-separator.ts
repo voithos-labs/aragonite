@@ -5,7 +5,7 @@
  */
 
 import type { CstNode } from '../../core/nodes';
-import { displayLines, ownTrailingLineEnding } from '../../core/lines';
+import { firstDisplayLine, ownTrailingLineEnding } from '../../core/lines';
 
 /**
  * A marker line carrying nothing after it: what Enter+Tab creates, and an emptied nested item. The
@@ -19,7 +19,7 @@ export function lacksSublistSeparator(children: readonly CstNode[], index: numbe
 	const above = children[index - 1];
 	if (!list || list.kind !== 'list' || list.leadingTrivia !== '') return false;
 	if (!above || above.kind !== 'paragraph' || above.raw.trim() === '') return false;
-	return EMPTY_MARKER_LINE.test(displayLines(list.raw)[0].text);
+	return EMPTY_MARKER_LINE.test(firstDisplayLine(list.raw).text);
 }
 
 /**

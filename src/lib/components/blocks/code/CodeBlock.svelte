@@ -691,7 +691,7 @@
 			metadata: { ...meta, closed: true }
 		};
 		// The blank separator line and the paragraph's own line are both pure line
-		// ending, so both take the fence's (G4.20), the same one the closer above got.
+		// ending, so both take the one the closer above got.
 		const paragraphBelow = emptyParagraph(lineEnding, lineEnding);
 		void blockEdit.replaceBlock(index, [closedFence, paragraphBelow], {
 			replacementIndex: 1,

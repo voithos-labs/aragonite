@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
 	displayLines,
 	documentLineEnding,
+	firstDisplayLine,
 	firstLineEnding,
 	joinDisplayLines,
 	splitLines,
@@ -80,6 +81,7 @@ describe('displayLines', () => {
 
 	it.each(['', 'a', 'a\r\n\r\nb', '\n\n', 'a\r\nb\n'])('joins %j back to its bytes', (display) => {
 		expect(joinDisplayLines(displayLines(display))).toBe(display);
+		expect(firstDisplayLine(display)).toEqual(displayLines(display)[0]);
 	});
 });
 

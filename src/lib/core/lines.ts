@@ -51,13 +51,21 @@ export function documentLineEnding(doc: DocumentView): LineEnding {
 
 function firstDocumentBreak(doc: DocumentView): LineEnding | null {
 	let before = '';
-	const chunks = [doc.prefix, ...doc.children.flatMap((c) => [c.leadingTrivia ?? '', c.raw])];
-	for (const chunk of [...chunks, doc.suffix]) {
+	for (const chunk of documentChunks(doc)) {
 		const at = chunk.indexOf('\n');
 		if (at >= 0) return (at > 0 ? chunk[at - 1] : before) === '\r' ? '\r\n' : '\n';
 		if (chunk !== '') before = chunk[chunk.length - 1];
 	}
 	return null;
+}
+
+function* documentChunks(doc: DocumentView): Generator<string> {
+	yield doc.prefix;
+	for (const child of doc.children) {
+		yield child.leadingTrivia ?? '';
+		yield child.raw;
+	}
+	yield doc.suffix;
 }
 
 /** The first line break in `text`, or null when it holds none. In a document with one ending,
@@ -172,6 +180,12 @@ export function displayLines(display: string): DisplayLine[] {
 	}));
 	if (display === '' || display.endsWith('\n')) lines.push({ text: '', ending: '' });
 	return lines;
+}
+
+/** {@link displayLines}' first line, read without splitting the rest of `text`. */
+export function firstDisplayLine(text: string): DisplayLine {
+	const at = text.indexOf('\n');
+	return displayLines(at < 0 ? text : text.slice(0, at + 1))[0];
 }
 
 export function joinDisplayLines(lines: readonly DisplayLine[]): string {

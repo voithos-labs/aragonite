@@ -367,8 +367,7 @@ function deleteAcrossTwoTables(
 
 // Every block the caret could land in was removed, so a survivor is sought in the deleted
 // block's own container, walking outward when the cleanup took that too. `lineEnding` is the
-// deleted start table's, captured before the mutation: nothing survives to read one from, and a
-// default LF would turn a CRLF document (G4.20).
+// document's, which a filler paragraph takes (G4.20).
 function caretNearestSurvivor(
 	doc: Document,
 	startPath: number[],

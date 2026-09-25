@@ -11,6 +11,7 @@ import { metadataOf } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import {
 	displayLines,
+	firstDisplayLine,
 	firstLineEnding,
 	joinDisplayLines,
 	trailingLineEnding,
@@ -87,7 +88,7 @@ export function normalizeFencedRaw(raw: string, node: NodeView): string {
  * line 0 does not read as this block's opener at all.
  */
 export function writeFenceInfo(display: string, info: string, fence: FenceShape): string | null {
-	const [first] = displayLines(display);
+	const first = firstDisplayLine(display);
 	const opener = splitOpener(first.text, fence);
 	if (!opener) return null;
 	return (
@@ -201,7 +202,7 @@ function withoutLine(lines: DisplayLine[], index: number): string {
 function sanitizeInfoString(input: FenceWriteInput): FenceWriteResult {
 	const { display, caret, fence } = input;
 	if (fence.marker !== '`') return { display, caret };
-	const [first] = displayLines(display);
+	const first = firstDisplayLine(display);
 	const opener = splitOpener(first.text, fence);
 	if (!opener || !opener.info.includes('`')) return { display, caret };
 
