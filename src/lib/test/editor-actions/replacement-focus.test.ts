@@ -8,6 +8,7 @@ import { parse } from '$lib/core/parser';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { registerDetailsKind, DETAILS } from '$lib/plugins/details/details-kind';
 import { declaredPluginKind } from '$lib/schema/plugin-kind';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 function focusBlockAt(path: number[]): void {
 	focusHostWithRawPath(JSON.stringify(path));
@@ -74,15 +75,15 @@ describe('previewContentReparse reads the owning container', () => {
 
 	it('reports a kind change for a bare terminator with no owner to escape it', () => {
 		expect(
-			previewContentReparse(bodyParagraph(), '</details>\n', undefined, undefined, '').op
+			previewContentReparse(bodyParagraph(), '</details>\n', defaultGrammarView, undefined, '').op
 		).not.toBe('noop');
 	});
 
 	it('reports a same-kind edit once the details owner escapes the same text', () => {
 		const owner = declaredPluginKind(DETAILS);
-		expect(previewContentReparse(bodyParagraph(), '</details>\n', undefined, owner, '').op).toBe(
-			'noop'
-		);
+		expect(
+			previewContentReparse(bodyParagraph(), '</details>\n', defaultGrammarView, owner, '').op
+		).toBe('noop');
 	});
 });
 
@@ -94,15 +95,15 @@ describe('previewContentReparse reads a task paragraph as the commit does', () =
 	it('reports a same-kind edit for `# ` typed after the task marker', () => {
 		const item = todo();
 		const text = '# beta\n';
-		expect(previewContentReparse(item.children![0], text, undefined, 'listItem', '', item).op).toBe(
-			'noop'
-		);
+		expect(
+			previewContentReparse(item.children![0], text, defaultGrammarView, 'listItem', '', item).op
+		).toBe('noop');
 	});
 
 	it('reports the kind change for the same text in a plain item', () => {
 		const item = parse('- beta\n').children[0].children![0];
 		expect(
-			previewContentReparse(item.children![0], '# beta\n', undefined, 'listItem', '').op
+			previewContentReparse(item.children![0], '# beta\n', defaultGrammarView, 'listItem', '').op
 		).not.toBe('noop');
 	});
 });

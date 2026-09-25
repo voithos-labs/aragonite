@@ -10,6 +10,7 @@ import { activateDirectiveGrammar } from '$lib/core/directive/activate';
 import { registerCalloutKind } from '../../../routes/test/plugins/callout/callout-kind';
 import { expectParseConverged } from '../harness/parse-converged';
 import type { CstNode } from '$lib/core/nodes';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 // Miss-analysis (fenced-container fix-up): the splice families were pinned at the document
 // top, where `prefix` is always empty. Inside a container whose parse strips the blank line
@@ -28,7 +29,7 @@ function deleteBodyChild(
 	at: number
 ): { doc: ReturnType<typeof parse>; raw: string } {
 	const doc = parse(source);
-	deleteNode(bodyParentOf(doc.children[0]), at);
+	deleteNode(bodyParentOf(doc.children[0]), at, defaultGrammarView);
 	rebuildAncestryRaw(doc.children[0], []);
 	return { doc, raw: serialize(doc) };
 }
@@ -62,7 +63,7 @@ describe('separator settle inside a chrome-wrapped container', () => {
 		const doc = parse(':::callout Title\n\nA\n\nB\n:::\n');
 		expect(doc.children[0].children?.[0].kind).toBe('callout-title');
 
-		deleteNode(bodyParentOf(doc.children[0]), 1);
+		deleteNode(bodyParentOf(doc.children[0]), 1, defaultGrammarView);
 		rebuildAncestryRaw(doc.children[0], []);
 
 		expect(doc.children[0].children?.[1].leadingTrivia).toBe('');
@@ -74,7 +75,7 @@ describe('separator settle inside a chrome-wrapped container', () => {
 		expect(doc.children[0].children?.map((c) => c.raw)).toEqual(['\n', '\n', 'B\n', 'C\n']);
 
 		// Drop B, leaving the blank head and C, whose separator is then the only spare line.
-		deleteNode(bodyParentOf(doc.children[0]), 2);
+		deleteNode(bodyParentOf(doc.children[0]), 2, defaultGrammarView);
 		rebuildAncestryRaw(doc.children[0], []);
 
 		expect(doc.children[0].children?.map((c) => c.raw)).toEqual(['\n', '\n', 'C\n']);
@@ -98,7 +99,8 @@ describe('emptying a body block against the wrap’s chrome lines', () => {
 		updateNodeContent(
 			{ children: container.children!, ownerKind: container.kind, owner: container },
 			at,
-			trailingLineEnding(container.children![at].raw)
+			trailingLineEnding(container.children![at].raw),
+			defaultGrammarView
 		);
 		rebuildAncestryRaw(container, []);
 	}
@@ -176,7 +178,7 @@ describe('separator settle inside a strip container', () => {
 	it('drops the freed separator: a blockquote strips nothing', () => {
 		const doc = parse('> a\n>\n>\n> b\n');
 
-		deleteNode(bodyParentOf(doc.children[0]), 2);
+		deleteNode(bodyParentOf(doc.children[0]), 2, defaultGrammarView);
 		rebuildAncestryRaw(doc.children[0], []);
 
 		expect(doc.children[0].innerPrefix).toBe('');

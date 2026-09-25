@@ -7,6 +7,7 @@ import { expectParseConverged } from '../harness/parse-converged';
 import type { Document } from '$lib/core/nodes';
 import type { SelectionPoint } from '$lib/selection/primitives';
 import { fixtureLinkRef } from '../harness/fixture-grammar';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 // A block with no positions inside it (a rule, a diagram) is in a range whole or not at all, so
 // a range that covers it deletes the node: the same-block branch's byte write would leave a rule
@@ -21,7 +22,7 @@ function del(source: string, start: SelectionPoint, end: SelectionPoint) {
 		start,
 		end,
 		createSharingState(),
-		undefined,
+		defaultGrammarView,
 		undefined,
 		fixtureLinkRef()
 	);

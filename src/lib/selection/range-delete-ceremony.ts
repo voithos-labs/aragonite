@@ -58,7 +58,8 @@ export function deleteSubtreesIdentityGated(
 	doc: Document,
 	deletionPaths: number[][],
 	lcaPath: number[],
-	sharing: SharingState
+	sharing: SharingState,
+	grammar: GrammarView
 ): void {
 	const targetNodes = deletionPaths.map((p) => nodeAt(doc, p));
 	const reverseSortedIndices = deletionPaths
@@ -67,8 +68,8 @@ export function deleteSubtreesIdentityGated(
 	for (const i of reverseSortedIndices) {
 		const path = deletionPaths[i];
 		if (nodeAt(doc, path) === targetNodes[i]) {
-			deleteAtPath(doc, path, sharing);
-			cascadeCleanupEmptyAncestors(doc, path, lcaPath, sharing);
+			deleteAtPath(doc, path, sharing, grammar);
+			cascadeCleanupEmptyAncestors(doc, path, lcaPath, sharing, grammar);
 		}
 	}
 }
@@ -118,7 +119,7 @@ function cleanTruncatedProse(
 export function reparseTruncatedEndpoint(
 	node: CstNode,
 	slice: string,
-	grammar: GrammarView | undefined
+	grammar: GrammarView
 ): CstNode[] {
 	const lineEnding = trailingLineEnding(node.raw);
 	const reparsed = parse(normalizeOwnRaw(node, slice) || lineEnding, {
@@ -144,10 +145,11 @@ export function installTruncatedEndpoint(
 	doc: Document,
 	path: number[],
 	replacement: CstNode[],
-	sharing: SharingState
+	sharing: SharingState,
+	grammar: GrammarView
 ): void {
 	for (const node of replacement) sharing.stamp(node);
-	replaceAtPath(doc, path, replacement, sharing);
+	replaceAtPath(doc, path, replacement, sharing, grammar);
 }
 
 /**
@@ -163,7 +165,7 @@ export function truncateStartInPlace(
 	isChrome: boolean,
 	live: LiveSeamContext,
 	sharing: SharingState,
-	grammar: GrammarView | undefined,
+	grammar: GrammarView,
 	tag: string
 ): number {
 	const cut = charOffsetOf(start, tag);
@@ -177,7 +179,8 @@ export function truncateStartInPlace(
 			doc,
 			start.path,
 			reparseTruncatedEndpoint(startBlock, terminateLine(head.raw, startBlock.raw), grammar),
-			sharing
+			sharing,
+			grammar
 		);
 	}
 	return head.seam;
@@ -196,7 +199,7 @@ export function truncateEndInPlace(
 	isChrome: boolean,
 	live: LiveSeamContext,
 	sharing: SharingState,
-	grammar: GrammarView | undefined,
+	grammar: GrammarView,
 	tag: string
 ): CstNode | null {
 	const cut = charOffsetOf(end, tag);
@@ -209,7 +212,8 @@ export function truncateEndInPlace(
 		doc,
 		end.path,
 		reparseTruncatedEndpoint(endBlock, tail, grammar),
-		sharing
+		sharing,
+		grammar
 	);
 	return blockNodeAt(doc, end.path);
 }
@@ -314,10 +318,15 @@ export function planCrossBlockDeletion(
  * a node delete), then splices the covered subtrees in reverse document order with the
  * identity check.
  */
-export function applyPlannedDeletion(doc: Document, plan: DeletionPlan, lcaPath: number[]): void {
+export function applyPlannedDeletion(
+	doc: Document,
+	plan: DeletionPlan,
+	lcaPath: number[],
+	grammar: GrammarView
+): void {
 	const chrome = plan.chromeClearChain?.[plan.chromeClearChain.length - 1];
 	if (chrome) chrome.raw = '\n';
-	deleteSubtreesIdentityGated(doc, plan.deletionPaths, lcaPath, plan.sharing);
+	deleteSubtreesIdentityGated(doc, plan.deletionPaths, lcaPath, plan.sharing, grammar);
 }
 
 /**
@@ -329,7 +338,7 @@ export function rebuildSharedAncestries(
 	doc: Document,
 	plan: DeletionPlan,
 	sharing: SharingState,
-	grammar: GrammarView | undefined
+	grammar: GrammarView
 ): void {
 	for (const path of plan.deletionPaths) {
 		rebuildUnsharedAncestry(doc, path, sharing, null, grammar);

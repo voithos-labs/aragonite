@@ -40,7 +40,9 @@ describe('a join whose bytes read as several blocks is refused, not truncated', 
 	it('declines the backward join rather than writing a leaf its own reload disagrees with', () => {
 		const doc = parse(HEADING_OVER_TWO_LINES);
 
-		expect(mergeIntoPrevDeepLeaf(doc, 1, undefined, undefined, fixtureLinkRef())).toBeNull();
+		expect(
+			mergeIntoPrevDeepLeaf(doc, 1, undefined, undefined, fixtureLinkRef(), defaultGrammarView)
+		).toBeNull();
 
 		expect(serialize(doc)).toBe(HEADING_OVER_TWO_LINES);
 		expect(doc.children).toHaveLength(2);
@@ -60,7 +62,14 @@ describe('a join whose bytes read as several blocks is refused, not truncated', 
 
 		const backward = quotedBody();
 		expect(
-			mergeIntoPrevDeepLeaf(backward.body, 1, undefined, undefined, fixtureLinkRef())
+			mergeIntoPrevDeepLeaf(
+				backward.body,
+				1,
+				undefined,
+				undefined,
+				fixtureLinkRef(),
+				defaultGrammarView
+			)
 		).toBeNull();
 		expect(backward.body.children).toHaveLength(2);
 		expectParseConverged(backward.doc);
@@ -78,7 +87,7 @@ describe('a join whose bytes stay one block still merges', () => {
 
 		const backward = parse('alpha\n\nbeta\n');
 		expect(
-			mergeIntoPrevDeepLeaf(backward, 1, undefined, undefined, fixtureLinkRef())
+			mergeIntoPrevDeepLeaf(backward, 1, undefined, undefined, fixtureLinkRef(), defaultGrammarView)
 		).not.toBeNull();
 		expect(serialize(backward)).toBe('alphabeta\n');
 	});

@@ -13,6 +13,7 @@ import { serialize } from '../../core/serializer';
 import { splitNode } from '../../tree-operations';
 import { describeConvergence } from '../harness/parse-converged';
 import { fixtureLinkRef } from '../harness/fixture-grammar';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 /**
  * The document's bytes, which is the check a per-half raw assertion cannot be: a first half of
@@ -21,7 +22,7 @@ import { fixtureLinkRef } from '../harness/fixture-grammar';
  */
 function splitBytes(source: string, offset: number): string {
 	const doc = parse(source);
-	splitNode(doc, 0, offset, undefined, undefined, fixtureLinkRef());
+	splitNode(doc, 0, offset, undefined, undefined, fixtureLinkRef(), defaultGrammarView);
 	expect(describeConvergence(doc), `${JSON.stringify(source)} @${offset}`).toBeNull();
 	return serialize(doc);
 }
@@ -114,7 +115,7 @@ describe('a split cutting on a line ending', () => {
 	// document holds three. Reds the moment the splice goes singular, and names why.
 	it('a second half of two blocks splices both in', () => {
 		const doc = parse('<div>\nabc\n</div>\n');
-		splitNode(doc, 0, 5, undefined, undefined, fixtureLinkRef());
+		splitNode(doc, 0, 5, undefined, undefined, fixtureLinkRef(), defaultGrammarView);
 		expect(doc.children.length).toBe(3);
 		expect(doc.children.map((c) => c.kind)).toEqual(['htmlBlock', 'paragraph', 'htmlBlock']);
 		expect(serialize(doc)).toBe('<div>\n\nabc\n</div>\n');

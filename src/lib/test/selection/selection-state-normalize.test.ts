@@ -10,6 +10,7 @@ import { expectParseConverged } from '../harness/parse-converged';
 import type { CstNode, Document } from '../../core/nodes';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
 import { fixtureLinkRef } from '../harness/fixture-grammar';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 // The raw deep-cell points fed in are pre-normalization by construction; normalizing them is the
 // subject.
@@ -55,7 +56,7 @@ function deleteSelected(doc: Document, s: ReturnType<typeof makeState>) {
 		s.start!,
 		s.end!,
 		createSharingState(),
-		undefined,
+		defaultGrammarView,
 		undefined,
 		fixtureLinkRef()
 	);

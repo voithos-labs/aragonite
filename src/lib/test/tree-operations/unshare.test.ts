@@ -10,6 +10,7 @@ import {
 	rebuildOwnedContainer
 } from '../../tree-operations/unshare';
 import { rebuildUnsharedAncestry } from '../../tree-operations/chain-rebuild';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 function sharedDoc(src: string) {
 	const sharing = createSharingState();
@@ -115,6 +116,6 @@ it('fires G1.22 only on the strict unshare path, never on the tolerant rebuild',
 	expect(takeDevWarns().map((w) => w.tag)).toEqual(['invariant:unshare-path-in-range']);
 
 	const tolerant = sharedDoc('para\n');
-	rebuildUnsharedAncestry(tolerant.doc, [5], tolerant.sharing, null, undefined);
+	rebuildUnsharedAncestry(tolerant.doc, [5], tolerant.sharing, null, defaultGrammarView);
 	expect(takeDevWarns()).toEqual([]);
 });

@@ -11,6 +11,7 @@ import {
 	perfSnapshot,
 	resetPerfInstruments
 } from '$lib/perf/instruments';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 // Re-deriving a container's kind costs a `parse` of its whole raw, so it happens only when
 // the first line changed and that line's opener answer changed with it. The second condition is
@@ -28,7 +29,7 @@ function typeInto(source: string, leafPath: number[], count: number): void {
 		text += 'x';
 		const chain = ensureUnsharedPath(doc, leafPath, sharing);
 		chain[chain.length - 1].raw = `${text}\n`;
-		rebuildUnsharedChain(doc, chain, sharing, null, undefined);
+		rebuildUnsharedChain(doc, chain, sharing, null, defaultGrammarView);
 	}
 }
 
@@ -83,7 +84,7 @@ describe('container kind re-derivation gate', () => {
 			text += char;
 			const chain = ensureUnsharedPath(doc, [0, 0], sharing);
 			chain[chain.length - 1].raw = `${text}\n`;
-			rebuildUnsharedChain(doc, chain, sharing, null, undefined);
+			rebuildUnsharedChain(doc, chain, sharing, null, defaultGrammarView);
 		}
 
 		expect(doc.children[0].kind).toBe('githubAlert');

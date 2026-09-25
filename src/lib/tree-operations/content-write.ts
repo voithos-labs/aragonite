@@ -59,7 +59,7 @@ export function updateNodeContent(
 	parent: BodyParentArg,
 	blockIndex: number,
 	text: string,
-	grammar?: GrammarView,
+	grammar: GrammarView,
 	sharing?: SharingState
 ): SettledContent {
 	// Read before the write, which is what can put a block there the marker cannot stand before.
@@ -76,7 +76,7 @@ function writeAndSettleContent(
 	parent: BodyParentArg,
 	blockIndex: number,
 	text: string,
-	grammar?: GrammarView,
+	grammar: GrammarView,
 	sharing?: SharingState
 ): SettledContent {
 	const wasBlank = isBlankParagraph(parent.children[blockIndex]);
@@ -118,7 +118,7 @@ function settleWriteSeams(
 	lastWritten: number,
 	change: StructuralChange,
 	sharing: SharingState | undefined,
-	grammar: GrammarView | undefined
+	grammar: GrammarView
 ): SettledContent {
 	const tracked: TrackedPosition = { index: blockIndex, offset: 0 };
 	const settled = absorbWindowSeams(
@@ -127,11 +127,9 @@ function settleWriteSeams(
 		lastWritten - blockIndex + 1,
 		blockIndex,
 		change,
+		grammar,
 		sharing,
-		tracked,
-		undefined,
-		undefined,
-		grammar
+		tracked
 	);
 	return {
 		change: settled.change,
@@ -218,7 +216,7 @@ function writeParsedContent(
 	parent: BodyParentArg,
 	blockIndex: number,
 	text: string,
-	grammar?: GrammarView
+	grammar: GrammarView
 ): StructuralChange {
 	const node = parent.children[blockIndex];
 	const oldKind = node.kind;
@@ -315,12 +313,12 @@ function reconcileBackfilledRaw(node: CstNode): void {
  * What the grammar opens `line` as, read in isolation: asked of the opener registry and never
  * a kind list, so a kind registered later is covered the day it registers.
  */
-export function lineOpensAs(line: string, grammar?: GrammarView): AnyBlockKind {
+export function lineOpensAs(line: string, grammar: GrammarView): AnyBlockKind {
 	return parse(`${line}\n`, { grammar, scope: 'fragment' }).children[0]?.kind ?? 'paragraph';
 }
 
 /** Whether the grammar in effect still leaves `NEXT_PROSE_LINE` an ordinary paragraph. */
-export function probeLineOpensAsProse(grammar?: GrammarView): boolean {
+export function probeLineOpensAsProse(grammar: GrammarView): boolean {
 	return lineOpensAs(NEXT_PROSE_LINE, grammar) === 'paragraph';
 }
 
@@ -332,7 +330,7 @@ export function probeLineOpensAsProse(grammar?: GrammarView): boolean {
 export function reclassifyContainer(
 	parent: NodeParent,
 	index: number,
-	grammar?: GrammarView
+	grammar: GrammarView
 ): CstNode | null {
 	const node = parent.children[index];
 	if (!node) return null;

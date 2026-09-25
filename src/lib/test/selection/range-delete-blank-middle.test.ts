@@ -8,6 +8,7 @@ import { expectParseConverged } from '../harness/parse-converged';
 import type { Document } from '$lib/core/nodes';
 import type { SelectionPoint } from '$lib/selection/primitives';
 import { fixtureLinkRef } from '../harness/fixture-grammar';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 // GH #73: a blank block covered as a range's middle is the separating line of the block after
 // it, and the delete splices through `deleteAtPath`, which hands nothing down to the successor,
@@ -20,7 +21,15 @@ const TABLE = '| h1 | h2 |\n| --- | --- |\n| a | b |\n';
 
 function del(source: string, start: SelectionPoint, end: SelectionPoint): Document {
 	const doc = parse(source);
-	rangeDelete(doc, start, end, createSharingState(), undefined, undefined, fixtureLinkRef());
+	rangeDelete(
+		doc,
+		start,
+		end,
+		createSharingState(),
+		defaultGrammarView,
+		undefined,
+		fixtureLinkRef()
+	);
 	return doc;
 }
 

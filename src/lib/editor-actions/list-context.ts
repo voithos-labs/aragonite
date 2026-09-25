@@ -49,8 +49,8 @@ export interface ListContextDeps {
 	getPresentationMode: PresentationModeGetter | undefined;
 	/** The instance's link-reference resolver and grammar. */
 	linkRef: InlineResolverRef;
-	/** The instance's block grammar, for the mid-item split's reparse. Absent = the global one. */
-	grammar?: GrammarView;
+	/** The instance's block grammar, for the mid-item split's reparse. */
+	grammar: GrammarView;
 }
 
 /** The item Enter creates: the previous item's marker bumped, its task checkbox inherited

@@ -13,6 +13,7 @@ import { createLinkCardState } from '$lib/components/link-card/link-card-state.s
 import type { UndoController } from '$lib/editor-actions/deps';
 import type { CaretRestore } from '$lib/selection/caret-restore';
 import { fixtureLinkRef } from '../../harness/fixture-grammar';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 function key(name: string, isComposing: boolean): KeyboardEvent {
 	return new KeyboardEvent('keydown', { key: name, isComposing, bubbles: true, cancelable: true });
@@ -87,6 +88,7 @@ async function mountHost() {
 			activateLink: vi.fn(),
 			resolveLinkUrl: (u: string) => u,
 			linkRef: fixtureLinkRef(),
+			grammar: defaultGrammarView,
 			caretRestore: { save: vi.fn(), saveCurrent: vi.fn(), restore } as CaretRestore,
 			menuPresence: createMenuPresence()
 		}

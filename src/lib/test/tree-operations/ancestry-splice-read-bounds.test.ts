@@ -5,6 +5,7 @@ import { disablePerfInstruments, enablePerfInstruments } from '../../perf/instru
 import { createSharingState } from '../../tree-operations/sharing';
 import { ensureUnsharedPath } from '../../tree-operations/unshare';
 import { rebuildUnsharedChain } from '../../tree-operations/chain-rebuild';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 // The point of the child spans: a keystroke rewrites one region instead of re-joining the
 // container. Wall-clock cannot say which happened on a given host; counting the sibling
@@ -21,7 +22,7 @@ it('a keystroke inside a large container reads O(1) sibling elements, not O(chil
 	const path = [0, 900, 0];
 	const chain = ensureUnsharedPath(doc, path, sharing);
 	// The first pass is the O(children) one, and the hinted pass then builds on it.
-	rebuildUnsharedChain(doc, chain, sharing, null, undefined);
+	rebuildUnsharedChain(doc, chain, sharing, null, defaultGrammarView);
 
 	const list = doc.children[0];
 	const items = list.children!;
@@ -36,7 +37,7 @@ it('a keystroke inside a large container reads O(1) sibling elements, not O(chil
 	const leaf = chain[2];
 	const leafPreviousRaw = leaf.raw;
 	leaf.raw = 'item 900 edited\n';
-	rebuildUnsharedChain(doc, chain, sharing, null, undefined, { path, leafPreviousRaw });
+	rebuildUnsharedChain(doc, chain, sharing, null, defaultGrammarView, { path, leafPreviousRaw });
 
 	expect(list.raw).toBe(source.replace('- item 900\n', '- item 900 edited\n'));
 	expect(reads).toBeLessThan(10);
@@ -58,7 +59,7 @@ it('a hintless rebuild re-derives at every level, and a hinted one splices at ev
 		sharing: ReturnType<typeof createSharingState>
 	) => {
 		const chain = ensureUnsharedPath(doc, path, sharing);
-		rebuildUnsharedChain(doc, chain, sharing, null, undefined);
+		rebuildUnsharedChain(doc, chain, sharing, null, defaultGrammarView);
 		return chain;
 	};
 
@@ -67,7 +68,7 @@ it('a hintless rebuild re-derives at every level, and a hinted one splices at ev
 	const hintlessChain = seeded(hintless, hintlessSharing);
 	const beforeHintless = spansOf(hintless);
 	hintlessChain[2].raw = 'body edited\n';
-	rebuildUnsharedChain(hintless, hintlessChain, hintlessSharing, null, undefined);
+	rebuildUnsharedChain(hintless, hintlessChain, hintlessSharing, null, defaultGrammarView);
 	expect(spansOf(hintless)[0]).not.toBe(beforeHintless[0]);
 	expect(spansOf(hintless)[1]).not.toBe(beforeHintless[1]);
 
@@ -77,7 +78,7 @@ it('a hintless rebuild re-derives at every level, and a hinted one splices at ev
 	const beforeHinted = spansOf(hinted);
 	const leafPreviousRaw = hintedChain[2].raw;
 	hintedChain[2].raw = 'body edited\n';
-	rebuildUnsharedChain(hinted, hintedChain, hintedSharing, null, undefined, {
+	rebuildUnsharedChain(hinted, hintedChain, hintedSharing, null, defaultGrammarView, {
 		path,
 		leafPreviousRaw
 	});

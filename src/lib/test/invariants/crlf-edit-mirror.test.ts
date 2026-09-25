@@ -39,6 +39,7 @@ import { fixtureLinkRef, pasteSeam } from '../harness/fixture-grammar';
 import { allowDevWarns } from '../support/warn-gate';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { ensurePasteSurface } from '$lib/test/support/paste-surface';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 interface EditGesture {
 	name: string;
@@ -82,8 +83,15 @@ async function pasteInto(
  *  this test reads the line ending, and none of the three moves one. */
 const deleteBetween = (doc: Document, start: SelectionPoint, end: SelectionPoint) =>
 	serialize(
-		rangeDelete(doc, start, end, createSharingState(), undefined, undefined, fixtureLinkRef())
-			.newDoc
+		rangeDelete(
+			doc,
+			start,
+			end,
+			createSharingState(),
+			defaultGrammarView,
+			undefined,
+			fixtureLinkRef()
+		).newDoc
 	);
 
 const GESTURES: EditGesture[] = [

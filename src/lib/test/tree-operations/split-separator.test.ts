@@ -15,11 +15,20 @@ import { describeConvergence } from '../harness/parse-converged';
 import { takeDevWarns } from '$lib/test/support/warn-gate';
 import { fixtureLinkRef } from '../harness/fixture-grammar';
 import { testLeaf } from '$lib/test/harness/test-kinds';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 describe('split separator: the half that absorbs gets one', () => {
 	it('Enter at the end of a paragraph, then typing, still reparses as two blocks', () => {
 		const doc = parse('Hello world\n');
-		splitNode(doc, 0, 'Hello world'.length, undefined, undefined, fixtureLinkRef());
+		splitNode(
+			doc,
+			0,
+			'Hello world'.length,
+			undefined,
+			undefined,
+			fixtureLinkRef(),
+			defaultGrammarView
+		);
 		doc.children[1].raw = 'x\n';
 
 		expect(describeConvergence(doc)).toBeNull();
@@ -28,7 +37,7 @@ describe('split separator: the half that absorbs gets one', () => {
 
 	it('Enter mid-paragraph reparses as two blocks', () => {
 		const doc = parse('Hello world\n');
-		splitNode(doc, 0, 5, undefined, undefined, fixtureLinkRef());
+		splitNode(doc, 0, 5, undefined, undefined, fixtureLinkRef(), defaultGrammarView);
 
 		expect(describeConvergence(doc)).toBeNull();
 		expect(serialize(doc)).toBe('Hello\n\n world\n');
@@ -36,7 +45,7 @@ describe('split separator: the half that absorbs gets one', () => {
 
 	it('the separator takes the block line ending, not a literal LF', () => {
 		const doc = parse('Hello world\r\n');
-		splitNode(doc, 0, 5, undefined, undefined, fixtureLinkRef());
+		splitNode(doc, 0, 5, undefined, undefined, fixtureLinkRef(), defaultGrammarView);
 
 		expect(doc.children[1].leadingTrivia).toBe('\r\n');
 	});
@@ -50,7 +59,8 @@ describe('split separator: the half that absorbs gets one', () => {
 			'Risk noted,'.length,
 			undefined,
 			undefined,
-			fixtureLinkRef()
+			fixtureLinkRef(),
+			defaultGrammarView
 		);
 		quote.children![1].raw = 'so we sequence it later.\n';
 		rebuildBlockquoteRaw(quote);
@@ -72,7 +82,7 @@ describe('split separator: the empty half that needs one', () => {
 	for (const [name, source, offset] of emptyHalfBecomesBlock) {
 		it(`${name}`, () => {
 			const doc = parse(source);
-			splitNode(doc, 0, offset, undefined, undefined, fixtureLinkRef());
+			splitNode(doc, 0, offset, undefined, undefined, fixtureLinkRef(), defaultGrammarView);
 			expect(doc.children[1].leadingTrivia).toBe('\n');
 			expect(describeConvergence(doc)).toBeNull();
 		});
@@ -90,21 +100,21 @@ describe('split separator: the halves that close get none', () => {
 	for (const [name, source, offset] of swallowsTheBlank) {
 		it(`${name}`, () => {
 			const doc = parse(source);
-			splitNode(doc, 0, offset, undefined, undefined, fixtureLinkRef());
+			splitNode(doc, 0, offset, undefined, undefined, fixtureLinkRef(), defaultGrammarView);
 			expect(doc.children[1].leadingTrivia).toBe('');
 		});
 	}
 
 	it('an offset-0 split, whose first half is the empty placeholder', () => {
 		const doc = parse('Hello\n');
-		splitNode(doc, 0, 0, undefined, undefined, fixtureLinkRef());
+		splitNode(doc, 0, 0, undefined, undefined, fixtureLinkRef(), defaultGrammarView);
 		expect(doc.children[1].leadingTrivia).toBe('');
 		expect(serialize(doc)).toBe('\nHello\n');
 	});
 
 	it('a successor already carrying the run’s separator', () => {
 		const doc = parse('one\n\ntwo\n');
-		splitNode(doc, 0, 3, undefined, undefined, fixtureLinkRef());
+		splitNode(doc, 0, 3, undefined, undefined, fixtureLinkRef(), defaultGrammarView);
 		expect(doc.children[1].leadingTrivia).toBe('');
 		expect(serialize(doc)).toBe('one\n\n\ntwo\n');
 		expect(describeConvergence(doc)).toBeNull();
@@ -117,7 +127,7 @@ describe('split separator: the promoted first half', () => {
 	// the real head line where the prose stand-in survives.
 	it('a half promoted to a table separates off the head its rows would absorb (#100)', () => {
 		const doc = parse('| H0 | H1 |\n| --- | --- | --- |\n\n---\n');
-		splitNode(doc, 0, 21, undefined, undefined, fixtureLinkRef());
+		splitNode(doc, 0, 21, undefined, undefined, fixtureLinkRef(), defaultGrammarView);
 
 		expect(doc.children[1].leadingTrivia).toBe('\n');
 		expect(describeConvergence(doc)).toBeNull();
@@ -132,7 +142,7 @@ describe('split separator: the probe line', () => {
 	afterEach(__resetSchemaRegistriesForTests);
 
 	it('is ordinary prose under the built-in grammar', () => {
-		expect(probeLineOpensAsProse()).toBe(true);
+		expect(probeLineOpensAsProse(defaultGrammarView)).toBe(true);
 	});
 
 	it('is reported claimed when an opener takes it, and the new block is what is lost', () => {
@@ -148,12 +158,12 @@ describe('split separator: the probe line', () => {
 					: null
 		});
 
-		expect(probeLineOpensAsProse()).toBe(false);
+		expect(probeLineOpensAsProse(defaultGrammarView)).toBe(false);
 
 		// The consequence, pinned so the check's warning is not the only record: a stand-in line
 		// an opener takes makes the separator read as doing nothing, and every paragraph split loses it.
 		const doc = parse('Hello world\n');
-		splitNode(doc, 0, 5, undefined, undefined, fixtureLinkRef());
+		splitNode(doc, 0, 5, undefined, undefined, fixtureLinkRef(), defaultGrammarView);
 		expect(doc.children[1].leadingTrivia).toBe('');
 		expect(takeDevWarns().map((w) => w.tag)).toEqual(['tree-ops']);
 	});

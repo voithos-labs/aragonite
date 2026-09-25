@@ -14,6 +14,7 @@ import { serialize } from '../../core/serializer';
 import { createSharingState } from '../../tree-operations/sharing';
 import type { Document } from '../../core/nodes';
 import { fixtureLinkRef } from '../harness/fixture-grammar';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 /** 'a' + U+1F466 (a surrogate pair at offsets 1–2) + 'b'. */
 const BOY = 'a\u{1F466}b\n\ntail\n';
@@ -42,7 +43,7 @@ function deleteAcross(doc: Document, startOffset: number, endOffset: number): st
 		state.start!,
 		state.end!,
 		createSharingState(),
-		undefined,
+		defaultGrammarView,
 		undefined,
 		fixtureLinkRef()
 	);

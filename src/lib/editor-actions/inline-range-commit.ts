@@ -19,8 +19,8 @@ import type { UndoController } from './deps';
 export interface InlineRangeCommitDeps {
 	getDoc: () => Document;
 	controller: UndoController;
-	/** The instance's grammar, for the leaf kind's own raw-write rule. Absent = the global grammar. */
-	grammar?: GrammarView;
+	/** The instance's grammar, for the leaf kind's own raw-write rule. */
+	grammar: GrammarView;
 }
 
 export interface InlineRangeCommit {

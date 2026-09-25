@@ -8,6 +8,7 @@ import { registerCalloutForTests } from './chrome-plugins';
 import { expectParseConverged } from '../harness/parse-converged';
 import type { SelectionPoint } from '../../selection/primitives';
 import { fixtureLinkRef } from '../harness/fixture-grammar';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 // Two body children so in-place truncation is distinguishable from an upward merge. Paths:
 // [0]=Above, [1]=note ([1,0]=title, [1,1]=Body1, [1,2]=Body2), [2]=Below.
@@ -24,7 +25,7 @@ function run(source: string, start: SelectionPoint, end: SelectionPoint) {
 		start,
 		end,
 		createSharingState(),
-		undefined,
+		defaultGrammarView,
 		undefined,
 		fixtureLinkRef()
 	);
@@ -121,7 +122,7 @@ describe('chrome wall: rangeDelete post-states', () => {
 			point([0], 5),
 			point([1, 2], 5),
 			createSharingState(),
-			undefined,
+			defaultGrammarView,
 			undefined,
 			fixtureLinkRef()
 		);
@@ -165,7 +166,7 @@ describe('chrome wall: rangeDelete post-states', () => {
 			point([0], 2),
 			point([1, 1], 2),
 			sharing,
-			undefined,
+			defaultGrammarView,
 			undefined,
 			fixtureLinkRef()
 		);

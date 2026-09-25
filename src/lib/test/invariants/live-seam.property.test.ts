@@ -20,6 +20,7 @@ import {
 import { arbInlineSource, freshOrFixedSeed } from './arbitraries';
 import type { PresentationMode } from '$lib/presentation-mode';
 import { fixtureLinkRef, renderOptions } from '../harness/fixture-grammar';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 /**
  * The join described in live-mode.md § 4.5, under random range deletes. A comparison, like the
@@ -88,7 +89,7 @@ function deleteRange(
 		{ path: points.start.slice(0, 1), offset: points.start[1] },
 		{ path: points.end.slice(0, 1), offset: points.end[1] },
 		createSharingState(),
-		undefined,
+		defaultGrammarView,
 		mode,
 		fixtureLinkRef()
 	);

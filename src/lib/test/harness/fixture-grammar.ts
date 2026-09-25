@@ -2,8 +2,11 @@
 // prop: every installed plugin. Each shape that carries the grammar gets it from here.
 import type { RenderInlineOptions } from '$lib/core/inline-render';
 import type { LinkReferenceResolverRef } from '$lib/editor-keys';
-import { defaultGrammarView } from '$lib/schema/block-openers';
+import { defaultGrammarView, type GrammarView } from '$lib/schema/block-openers';
 import type { PasteSeam } from '$lib/tree-operations/paste-surfaces';
+
+/** The grammar itself, for a tree operation that takes it bare. */
+export const fixtureGrammar: GrammarView = defaultGrammarView;
 
 /** Render options with the fixture grammar, plus the fixture's own. */
 export function renderOptions(over: Partial<RenderInlineOptions> = {}): RenderInlineOptions {

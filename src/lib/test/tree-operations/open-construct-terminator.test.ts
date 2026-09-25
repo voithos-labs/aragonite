@@ -19,7 +19,7 @@ describe('a write closes the construct its own bytes leave open (GH #180)', () =
 	it('a typed fence closes over an empty body and the neighbours stand', () => {
 		const doc = parse('x\n\nalpha beta\n\ngamma delta\n');
 
-		const settled = updateNodeContent(doc, 0, '```\n');
+		const settled = updateNodeContent(doc, 0, '```\n', defaultGrammarView);
 
 		expect(doc.children.map((c) => [c.kind, c.raw])).toEqual([
 			['fencedCode', '```\n```\n'],
@@ -44,7 +44,7 @@ describe('a write closes the construct its own bytes leave open (GH #180)', () =
 		const doc = parse('# h\ntext\n');
 		expect(doc.children.map((c) => c.kind)).toEqual(['heading', 'paragraph']);
 
-		updateNodeContent(doc, 0, '```\n');
+		updateNodeContent(doc, 0, '```\n', defaultGrammarView);
 
 		expect(doc.children.map((c) => [c.kind, c.raw])).toEqual([
 			['fencedCode', '```\n```\n'],
@@ -56,7 +56,7 @@ describe('a write closes the construct its own bytes leave open (GH #180)', () =
 	it('sizes the terminator to the opener the write actually typed', () => {
 		const doc = parse('x\n\ntail\n');
 
-		updateNodeContent(doc, 0, '  ~~~~js\n');
+		updateNodeContent(doc, 0, '  ~~~~js\n', defaultGrammarView);
 
 		expect(doc.children.map((c) => c.raw)).toEqual(['  ~~~~js\n  ~~~~\n', 'tail\n']);
 		expect(describeConvergence(doc)).toBeNull();
@@ -67,7 +67,7 @@ describe('a write closes the construct its own bytes leave open (GH #180)', () =
 	it('closes an open construct a multi-block write left at its tail', () => {
 		const doc = parse('x\n\ntail\n');
 
-		const settled = updateNodeContent(doc, 0, 'a\n\n```\n');
+		const settled = updateNodeContent(doc, 0, 'a\n\n```\n', defaultGrammarView);
 
 		expect(doc.children.map((c) => [c.kind, c.raw])).toEqual([
 			['paragraph', 'a\n'],
@@ -87,7 +87,7 @@ describe('a write closes the construct its own bytes leave open (GH #180)', () =
 	it('carries the written line ending into the terminator', () => {
 		const doc = parse('x\r\n\r\ntail\r\n');
 
-		updateNodeContent(doc, 0, '```\r\n');
+		updateNodeContent(doc, 0, '```\r\n', defaultGrammarView);
 
 		expect(doc.children.map((c) => c.raw)).toEqual(['```\r\n```\r\n', 'tail\r\n']);
 		expect(describeConvergence(doc)).toBeNull();
@@ -102,7 +102,8 @@ describe('a write closes the construct its own bytes leave open (GH #180)', () =
 		updateNodeContent(
 			{ children: quote.children!, ownerKind: quote.kind, owner: quote },
 			1,
-			'```\n'
+			'```\n',
+			defaultGrammarView
 		);
 		rebuildContainerRaw(quote);
 
@@ -122,7 +123,7 @@ describe('the new block declines where nothing is at stake (GH #180)', () => {
 	it('leaves a tail fence open, with no follower to swallow', () => {
 		const doc = parse('x\n\ntail\n');
 
-		updateNodeContent(doc, 1, '```\n');
+		updateNodeContent(doc, 1, '```\n', defaultGrammarView);
 
 		expect(doc.children.map((c) => [c.kind, c.raw])).toEqual([
 			['paragraph', 'x\n'],
@@ -137,7 +138,7 @@ describe('the new block declines where nothing is at stake (GH #180)', () => {
 		const doc = parse('```\ncode\n');
 		expect(doc.children.map((c) => c.kind)).toEqual(['fencedCode']);
 
-		const settled = updateNodeContent(doc, 0, '```\ncodex\n');
+		const settled = updateNodeContent(doc, 0, '```\ncodex\n', defaultGrammarView);
 
 		expect(doc.children.map((c) => c.raw)).toEqual(['```\ncodex\n']);
 		expect(settled.change).toEqual({ op: 'noop' });
@@ -146,7 +147,7 @@ describe('the new block declines where nothing is at stake (GH #180)', () => {
 	it('leaves a write whose construct terminates on its own bytes alone', () => {
 		const doc = parse('x\n\ntail\n');
 
-		updateNodeContent(doc, 0, '# h\n');
+		updateNodeContent(doc, 0, '# h\n', defaultGrammarView);
 
 		expect(doc.children.map((c) => [c.kind, c.raw])).toEqual([
 			['heading', '# h\n'],

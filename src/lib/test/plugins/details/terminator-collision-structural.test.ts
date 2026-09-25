@@ -7,7 +7,7 @@ import { registerDetailsKind, DETAILS } from '$lib/plugins/details/details-kind'
 import { splitNode } from '$lib/tree-operations/node-ops';
 import { rangeDelete } from '$lib/selection/range-delete';
 import { createSharingState } from '$lib/tree-operations/sharing';
-import { fixtureLinkRef } from '../../harness/fixture-grammar';
+import { fixtureGrammar, fixtureLinkRef } from '../../harness/fixture-grammar';
 
 // The structural paths into the same `</details>` escape: they write the body themselves,
 // with no per-block commit to apply the rule.
@@ -25,7 +25,7 @@ describe('details terminator escape at the split entry point', () => {
 
 	it('escapes the second half when the cut strands a trailing tag', () => {
 		const parent = { children: parse('foo</details>\n').children, ...detailsOwner() };
-		splitNode(parent, 0, 3, undefined, undefined, fixtureLinkRef());
+		splitNode(parent, 0, 3, undefined, undefined, fixtureLinkRef(), fixtureGrammar);
 
 		expect(parent.children.map((c) => c.raw)).toEqual(['foo\n', '&lt;/details>\n']);
 	});
@@ -36,7 +36,7 @@ describe('details terminator escape at the split entry point', () => {
 		const parent = { children: parse('</details>foo\n').children, ...detailsOwner() };
 		expect(parent.children[0].kind).toBe('htmlBlock');
 
-		splitNode(parent, 0, 10, undefined, undefined, fixtureLinkRef());
+		splitNode(parent, 0, 10, undefined, undefined, fixtureLinkRef(), fixtureGrammar);
 
 		expect(parent.children.map((c) => c.raw)).toEqual(['&lt;/details>\n', 'foo\n']);
 	});
@@ -47,7 +47,7 @@ describe('details terminator escape at the split entry point', () => {
 			ownerKind: undefined,
 			owner: undefined
 		};
-		splitNode(parent, 0, 3, undefined, undefined, fixtureLinkRef());
+		splitNode(parent, 0, 3, undefined, undefined, fixtureLinkRef(), fixtureGrammar);
 
 		expect(parent.children.map((c) => c.raw)).toEqual(['foo\n', '</details>\n']);
 	});
@@ -71,7 +71,7 @@ describe('details terminator escape at the cross-block entry points', () => {
 			{ path: [0, 1], offset: 6 },
 			{ path: [0, 2], offset: 2 },
 			createSharingState(),
-			undefined,
+			fixtureGrammar,
 			undefined,
 			fixtureLinkRef()
 		);
@@ -88,7 +88,7 @@ describe('details terminator escape at the cross-block entry points', () => {
 			{ path: [0, 1], offset: 0 },
 			{ path: [0, 1], offset: 2 },
 			createSharingState(),
-			undefined,
+			fixtureGrammar,
 			undefined,
 			fixtureLinkRef()
 		);

@@ -40,7 +40,7 @@ export interface LinkCardCommitterDeps {
 	/** Scroll to and place the caret at a raw offset, so the next keystroke goes to the doc. */
 	landCaret: (path: number[], offset: number) => Promise<boolean>;
 	linkRef: LinkReferenceResolverRef;
-	grammar?: GrammarView;
+	grammar: GrammarView;
 }
 
 export interface ResolvedLinkTarget {

@@ -52,6 +52,7 @@ export function makeTableMutations(
 		},
 		parentContainerEdit: createContainerEditActions(deps, controller),
 		controller,
+		grammar: deps.grammar,
 		focusCell,
 		announceReorder
 	});

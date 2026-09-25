@@ -80,8 +80,8 @@ export interface TableMutationsContextDeps {
 	controller: UndoController;
 	focusCell: (rowIdx: number, colIdx: number, position: CellPosition) => void;
 	announceReorder: (message: string) => void;
-	/** The instance grammar the cell writes use (absent: the global one). */
-	grammar?: GrammarView;
+	/** The instance grammar the cell writes use. */
+	grammar: GrammarView;
 }
 
 export type TableMutationsContext = Pick<

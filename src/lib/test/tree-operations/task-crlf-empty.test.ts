@@ -7,6 +7,7 @@ import { serialize } from '$lib/core/serializer';
 import { updateNodeContent } from '$lib/tree-operations';
 import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 // A CRLF to-do keeps its own line ending through being emptied and typed into again (G4.20): the
 // marker is `[x] ` and nothing more, and the paragraph keeps the `\r\n`.
@@ -15,7 +16,12 @@ import { describeConvergence } from '$lib/test/harness/parse-converged';
 function writeTaskText(doc: Document, listIndex: number, item: number, text: string): void {
 	const list = doc.children[listIndex];
 	const owner = list.children![item];
-	updateNodeContent({ children: owner.children!, ownerKind: owner.kind, owner }, 0, text);
+	updateNodeContent(
+		{ children: owner.children!, ownerKind: owner.kind, owner },
+		0,
+		text,
+		defaultGrammarView
+	);
 	getBlockKindDescriptor('listItem').rebuildRaw?.(owner);
 	getBlockKindDescriptor('list').rebuildRaw?.(list);
 }

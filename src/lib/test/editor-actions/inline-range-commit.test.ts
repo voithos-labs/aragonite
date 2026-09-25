@@ -18,7 +18,11 @@ function makeTop(source: string) {
 	const harness = makeTopHarness(source);
 	return {
 		...harness,
-		commit: createInlineRangeCommit({ getDoc: () => harness.doc, controller: harness.controller })
+		commit: createInlineRangeCommit({
+			getDoc: () => harness.doc,
+			controller: harness.controller,
+			grammar: harness.deps.grammar
+		})
 	};
 }
 
@@ -70,7 +74,11 @@ describe('inline-range commit: top level', () => {
 describe('inline-range commit: nested', () => {
 	it('writes through the container commit sequence at a nested path', async () => {
 		const h = makeNestedHarness('- Visit [x](old) now\n');
-		const commit = createInlineRangeCommit({ getDoc: () => h.deps.doc, controller: h.controller });
+		const commit = createInlineRangeCommit({
+			getDoc: () => h.deps.doc,
+			controller: h.controller,
+			grammar: h.deps.grammar
+		});
 		const item = h.getNode().children![0];
 		const at = item.raw.indexOf('[x](old)');
 
@@ -81,7 +89,11 @@ describe('inline-range commit: nested', () => {
 
 	it('emits one updateContent edit at the nested leaf path', async () => {
 		const h = makeNestedHarness('- Visit [x](old) now\n');
-		const commit = createInlineRangeCommit({ getDoc: () => h.deps.doc, controller: h.controller });
+		const commit = createInlineRangeCommit({
+			getDoc: () => h.deps.doc,
+			controller: h.controller,
+			grammar: h.deps.grammar
+		});
 		const edits: EditEvent[] = [];
 		h.events.on('edit', (e) => edits.push(e));
 		const at = h.getNode().children![0].raw.indexOf('[x](old)');
@@ -123,7 +135,11 @@ describe('inline-range commit: a blank paragraph filled or emptied', () => {
 
 	it('emptying a line inside a container does the same', async () => {
 		const h = makeNestedHarness('> Above\n>\n> /quote\n>\n> Below\n');
-		const commit = createInlineRangeCommit({ getDoc: () => h.deps.doc, controller: h.controller });
+		const commit = createInlineRangeCommit({
+			getDoc: () => h.deps.doc,
+			controller: h.controller,
+			grammar: h.deps.grammar
+		});
 		await commit.commitInlineRange([0, 1], 0, 6, '', 0);
 		const quote = h.deps.doc.children[0];
 		const reloaded = parse(serialize(h.deps.doc)).children[0];

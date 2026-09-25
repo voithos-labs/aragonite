@@ -20,7 +20,15 @@ describe('a splice absorbs a join the reload would fold (GH #61)', () => {
 		const doc = parse(source);
 		expect(doc.children.map((c) => c.kind)).toEqual(['paragraph', 'indentedCode', 'list']);
 
-		const result = splitNode(doc, 0, 21, undefined, undefined, fixtureLinkRef());
+		const result = splitNode(
+			doc,
+			0,
+			21,
+			undefined,
+			undefined,
+			fixtureLinkRef(),
+			defaultGrammarView
+		);
 
 		expect(doc.children.map((c) => c.kind)).toEqual(['paragraph', 'list', 'list']);
 		expect(doc.children[1].raw).toBe('- | --- |\n\n    code\n');
@@ -32,7 +40,7 @@ describe('a splice absorbs a join the reload would fold (GH #61)', () => {
 		const doc = parse('- > ---\n      code\n\n# t\n\n    code\n');
 		expect(doc.children.map((c) => c.kind)).toEqual(['list', 'heading', 'indentedCode']);
 
-		const change = deleteNode(doc, 1);
+		const change = deleteNode(doc, 1, defaultGrammarView);
 
 		expect(doc.children).toHaveLength(1);
 		expect(serialize(doc)).toBe('- > ---\n      code\n\n    code\n');
@@ -51,7 +59,7 @@ describe('a splice absorbs a join the reload would fold (GH #61)', () => {
 			'fencedCode'
 		]);
 
-		const change = deleteNode(doc, 2);
+		const change = deleteNode(doc, 2, defaultGrammarView);
 
 		expect(doc.children.map((c) => c.kind)).toEqual(['list', 'fencedCode']);
 		expect(describeConvergence(doc)).toBeNull();
@@ -63,7 +71,7 @@ describe('a splice absorbs a join the reload would fold (GH #61)', () => {
 		const doc = parse('- ```\n  ```\n\n\n---\n\n\n    code\n\n[ref]: https://example.com\n');
 		expect(doc.children).toHaveLength(6);
 
-		const change = deleteNode(doc, 2);
+		const change = deleteNode(doc, 2, defaultGrammarView);
 
 		expect(doc.children.map((c) => c.kind)).toEqual(['list', 'linkReferenceDefinition']);
 		expect(describeConvergence(doc)).toBeNull();
@@ -79,7 +87,7 @@ describe('a splice absorbs a join the reload would fold (GH #61)', () => {
 		const list = doc.children[0];
 		const parent = { children: list.children!, ownerKind: list.kind, owner: list };
 
-		const change = deleteNode(parent as never, 1);
+		const change = deleteNode(parent as never, 1, defaultGrammarView);
 
 		expect(list.children!.map((c) => c.kind)).toEqual(['listItem', 'listItem']);
 		expect(list.children!.map((c) => c.raw)).toEqual(['1. First\n', '3. Third\n']);
@@ -101,7 +109,7 @@ describe('a splice absorbs a join the reload would fold (GH #61)', () => {
 			'indentedCode'
 		]);
 
-		const change = deleteNode(doc, 2);
+		const change = deleteNode(doc, 2, defaultGrammarView);
 
 		expect(doc.children.map((c) => c.kind)).toEqual([
 			'heading',
@@ -191,7 +199,7 @@ describe('a splice absorbs a join the reload would fold (GH #61)', () => {
 		(_label, source, layout) => {
 			const doc = parse(source);
 
-			settled(doc, (body) => deleteNode(body, 1));
+			settled(doc, (body) => deleteNode(body, 1, defaultGrammarView));
 
 			expect(serialize(doc)).toBe(source.replace(/^para\n[^\n]*\n/, 'para\n'));
 			expect(doc.children.map((c) => [c.kind, c.leadingTrivia, c.raw])).toEqual(layout);
@@ -202,7 +210,7 @@ describe('a splice absorbs a join the reload would fold (GH #61)', () => {
 	it('a delete between separated paragraphs stays a plain delete', () => {
 		const doc = parse('a\n\nb\n\nc\n');
 
-		const change = deleteNode(doc, 1);
+		const change = deleteNode(doc, 1, defaultGrammarView);
 
 		expect(doc.children.map((c) => c.raw)).toEqual(['a\n', 'c\n']);
 		expect(change).toEqual({ op: 'delete', at: 1, count: 1 });
@@ -217,7 +225,7 @@ describe('a splice absorbs a join the reload would fold (GH #61)', () => {
 	it('a delete bringing an indented separator under a list moves it into the item', () => {
 		const doc = parse('- a\n  \n---\n  \n> q\n');
 
-		settled(doc, (body) => deleteNode(body, 1));
+		settled(doc, (body) => deleteNode(body, 1, defaultGrammarView));
 
 		expect(serialize(doc)).toBe('- a\n  \n  \n> q\n');
 		expect(describeConvergence(doc)).toBeNull();
@@ -236,7 +244,7 @@ describe('a splice absorbs a join whose fold promotes the head (GH #255)', () =>
 		expect(doc.children.map((c) => c.kind)).toEqual(['heading', 'paragraph']);
 
 		// Inside the content: a cut at or before it moves the whole heading down instead.
-		const result = splitNode(doc, 0, 4, undefined, undefined, fixtureLinkRef());
+		const result = splitNode(doc, 0, 4, undefined, undefined, fixtureLinkRef(), defaultGrammarView);
 
 		expect(doc.children.map((c) => [c.kind, c.raw])).toEqual([
 			['heading', '# [t\n'],
@@ -250,7 +258,7 @@ describe('a splice absorbs a join whose fold promotes the head (GH #255)', () =>
 		const doc = parse('# | a |\n| --- |\n');
 		expect(doc.children.map((c) => c.kind)).toEqual(['heading', 'paragraph']);
 
-		splitNode(doc, 0, 4, undefined, undefined, fixtureLinkRef());
+		splitNode(doc, 0, 4, undefined, undefined, fixtureLinkRef(), defaultGrammarView);
 
 		expect(doc.children.map((c) => [c.kind, c.raw])).toEqual([
 			['heading', '# | \n'],
@@ -265,7 +273,10 @@ describe('a splice absorbs a join whose fold promotes the head (GH #255)', () =>
 		const doc = parse('p\n# h\n');
 
 		let written: SettledContent | undefined;
-		const change = settled(doc, () => (written = updateNodeContent(doc, 1, '===\n')).change);
+		const change = settled(
+			doc,
+			() => (written = updateNodeContent(doc, 1, '===\n', defaultGrammarView)).change
+		);
 
 		expect(doc.children.map((c) => [c.kind, c.raw])).toEqual([['setextHeading', 'p\n===\n']]);
 		expect(change).toEqual({ op: 'replace', at: 0, count: 2, newCount: 1, idMap: { 0: 0 } });

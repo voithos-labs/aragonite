@@ -32,8 +32,8 @@ export interface MutationView {
 	/** The container node itself, for fix-ups that write its opener or closer. Nullable
 	 *  rather than optional so each adapter answers; `undefined` is the document root. */
 	owner: CstNode | undefined;
-	/** The instance's block grammar, for mutations that re-parse. Absent = the global grammar. */
-	grammar?: GrammarView;
+	/** The instance's block grammar, for mutations that re-parse. */
+	grammar: GrammarView;
 	/** The live effective mode, for mutations whose bytes depend on what the mode shows. Nullable
 	 *  rather than optional so each adapter answers; `undefined` reads as not live. */
 	getPresentationMode: PresentationModeGetter | undefined;

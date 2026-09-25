@@ -10,7 +10,7 @@ import { fixtureLinkRef } from '../harness/fixture-grammar';
 describe('mergeIntoPrevDeepLeaf', () => {
 	it('merges two paragraphs into one (strips internal line break)', () => {
 		const doc = parse('Hello\n\nWorld\n');
-		mergeIntoPrevDeepLeaf(doc, 1, undefined, undefined, fixtureLinkRef());
+		mergeIntoPrevDeepLeaf(doc, 1, undefined, undefined, fixtureLinkRef(), defaultGrammarView);
 		expect(doc.children).toHaveLength(1);
 		expect(doc.children[0].kind).toBe('paragraph');
 		expect(doc.children[0].raw).toBe('HelloWorld\n');
@@ -19,7 +19,14 @@ describe('mergeIntoPrevDeepLeaf', () => {
 	it('preserves the first block ID and removes the second', () => {
 		const doc = parse('Hello\n\nWorld\n');
 		const ids = ['keep-me', 'remove-me'];
-		const result = mergeIntoPrevDeepLeaf(doc, 1, undefined, undefined, fixtureLinkRef());
+		const result = mergeIntoPrevDeepLeaf(
+			doc,
+			1,
+			undefined,
+			undefined,
+			fixtureLinkRef(),
+			defaultGrammarView
+		);
 		expect(result?.change).toEqual({ op: 'delete', at: 1, count: 1 });
 		applyStructuralChangeToIdsRefs(result!.change, ids, [undefined, undefined]);
 		expect(ids).toEqual(['keep-me']);
@@ -27,14 +34,18 @@ describe('mergeIntoPrevDeepLeaf', () => {
 
 	it('preserves leading blank lines of the first block', () => {
 		const doc = parse('A\n\nB\n\nC\n');
-		mergeIntoPrevDeepLeaf(doc, 2, undefined, undefined, fixtureLinkRef());
+		mergeIntoPrevDeepLeaf(doc, 2, undefined, undefined, fixtureLinkRef(), defaultGrammarView);
 		expect(doc.children[1].leadingTrivia).toBe('\n');
 	});
 
 	it('declines at index 0 and past the tail, leaving the tree alone', () => {
 		const doc = parse('Hello\n\nWorld\n');
-		expect(mergeIntoPrevDeepLeaf(doc, 0, undefined, undefined, fixtureLinkRef())).toBeNull();
-		expect(mergeIntoPrevDeepLeaf(doc, 5, undefined, undefined, fixtureLinkRef())).toBeNull();
+		expect(
+			mergeIntoPrevDeepLeaf(doc, 0, undefined, undefined, fixtureLinkRef(), defaultGrammarView)
+		).toBeNull();
+		expect(
+			mergeIntoPrevDeepLeaf(doc, 5, undefined, undefined, fixtureLinkRef(), defaultGrammarView)
+		).toBeNull();
 		expect(doc.children).toHaveLength(2);
 	});
 
@@ -46,7 +57,7 @@ describe('mergeIntoPrevDeepLeaf', () => {
 			{ kind: 'paragraph', leadingTrivia: '', raw: '## ' },
 			{ kind: 'paragraph', leadingTrivia: '', raw: 'Title\n' }
 		];
-		mergeIntoPrevDeepLeaf(doc, 1, undefined, undefined, fixtureLinkRef());
+		mergeIntoPrevDeepLeaf(doc, 1, undefined, undefined, fixtureLinkRef(), defaultGrammarView);
 		expect(doc.children[0].kind).toBe('heading');
 		expect(doc.children[0].raw).toBe('## Title\n');
 	});
@@ -57,7 +68,7 @@ describe('mergeIntoPrevDeepLeaf', () => {
 			{ kind: 'heading', leadingTrivia: '', raw: '## Hello\n', metadata: { level: 2 } },
 			{ kind: 'paragraph', leadingTrivia: '', raw: ' World\n' }
 		];
-		mergeIntoPrevDeepLeaf(doc, 1, undefined, undefined, fixtureLinkRef());
+		mergeIntoPrevDeepLeaf(doc, 1, undefined, undefined, fixtureLinkRef(), defaultGrammarView);
 		expect(doc.children).toHaveLength(1);
 		expect(doc.children[0].kind).toBe('heading');
 		expect(doc.children[0].raw).toBe('## Hello World\n');

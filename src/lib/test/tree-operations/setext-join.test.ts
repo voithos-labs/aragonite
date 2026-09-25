@@ -24,7 +24,8 @@ const joins = {
 			1,
 			undefined,
 			undefined,
-			fixtureLinkRef()
+			fixtureLinkRef(),
+			defaultGrammarView
 		)?.joinOffset;
 		return { doc, joinOffset };
 	}

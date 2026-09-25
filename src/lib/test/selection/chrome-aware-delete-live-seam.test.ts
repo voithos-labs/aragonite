@@ -20,6 +20,7 @@ import { createSharingState } from '../../tree-operations/sharing';
 import { registerCalloutForTests } from './chrome-plugins';
 import type { SelectionPoint } from '../../selection/primitives';
 import { fixtureLinkRef } from '../harness/fixture-grammar';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 beforeEach(() => {
 	registerCalloutForTests();
@@ -37,7 +38,7 @@ function run(source: string, start: SelectionPoint, end: SelectionPoint, mode?: 
 		start,
 		end,
 		createSharingState(),
-		undefined,
+		defaultGrammarView,
 		mode,
 		fixtureLinkRef()
 	);

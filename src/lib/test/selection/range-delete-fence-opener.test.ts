@@ -7,6 +7,7 @@ import { registerCalloutForTests } from './chrome-plugins';
 import { expectParseConverged } from '../harness/parse-converged';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
 import { fixtureLinkRef } from '../harness/fixture-grammar';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 // rangeDelete is driven with hand-built endpoints, so the table branch sees a character offset
 // `SelectionState` would have snapped to a cell coordinate.
@@ -31,7 +32,7 @@ describe('range delete that consumes a fenced code opener', () => {
 			{ path: [0], offset: 2 },
 			{ path: [1], offset: 8 },
 			sharing(),
-			undefined,
+			defaultGrammarView,
 			undefined,
 			fixtureLinkRef()
 		);
@@ -53,7 +54,7 @@ describe('range delete that consumes a fenced code opener', () => {
 			{ path: [0], offset: 2 },
 			{ path: [1], offset: 6 },
 			sharing(),
-			undefined,
+			defaultGrammarView,
 			undefined,
 			fixtureLinkRef()
 		);
@@ -72,7 +73,7 @@ describe('range delete that consumes a fenced code opener', () => {
 			{ path: [0], offset: 2 },
 			{ path: [1], offset: 8 },
 			sharing(),
-			undefined,
+			defaultGrammarView,
 			undefined,
 			fixtureLinkRef()
 		);
@@ -89,7 +90,7 @@ describe('range delete that consumes a fenced code opener', () => {
 			{ path: [0], offset: 2 },
 			{ path: [1], offset: 9 },
 			sharing(),
-			undefined,
+			defaultGrammarView,
 			undefined,
 			fixtureLinkRef()
 		);
@@ -106,7 +107,7 @@ describe('range delete that consumes a fenced code opener', () => {
 			{ path: [0], offset: 2 },
 			{ path: [1, 0], offset: 8 },
 			sharing(),
-			undefined,
+			defaultGrammarView,
 			undefined,
 			fixtureLinkRef()
 		);
@@ -125,7 +126,7 @@ describe('range delete that consumes a fenced code opener', () => {
 			{ path: [0], offset: 2 },
 			{ path: [1], offset: 14 },
 			sharing(),
-			undefined,
+			defaultGrammarView,
 			undefined,
 			fixtureLinkRef()
 		);
@@ -146,7 +147,7 @@ describe('range delete that consumes a fenced code opener', () => {
 			{ path: [0], offset: 0 },
 			{ path: [0], offset: 8 },
 			sharing(),
-			undefined,
+			defaultGrammarView,
 			undefined,
 			fixtureLinkRef()
 		);
@@ -163,7 +164,7 @@ describe('range delete that consumes a fenced code opener', () => {
 			{ path: [0], offset: 0 },
 			{ path: [1], offset: 8 },
 			sharing(),
-			undefined,
+			defaultGrammarView,
 			undefined,
 			fixtureLinkRef()
 		);
@@ -183,7 +184,7 @@ describe('range delete that consumes a fenced code opener', () => {
 				{ path: [0, 0], offset: 2 },
 				{ path: [1], offset: 8 },
 				sharing(),
-				undefined,
+				defaultGrammarView,
 				undefined,
 				fixtureLinkRef()
 			);
@@ -203,7 +204,7 @@ describe('range delete that consumes a fenced code opener', () => {
 				{ path: [0, 0], offset: 2 },
 				{ path: [1], offset: 11 },
 				sharing(),
-				undefined,
+				defaultGrammarView,
 				undefined,
 				fixtureLinkRef()
 			);

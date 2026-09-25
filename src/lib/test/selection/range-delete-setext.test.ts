@@ -13,6 +13,7 @@ import type { PresentationMode } from '../../presentation-mode';
 import type { SelectionPoint } from '../../selection/primitives';
 import { describeConvergence } from '../harness/parse-converged';
 import { fixtureLinkRef } from '../harness/fixture-grammar';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 function run(
 	source: string,
@@ -26,7 +27,7 @@ function run(
 		start,
 		end,
 		createSharingState(),
-		undefined,
+		defaultGrammarView,
 		mode,
 		fixtureLinkRef()
 	);

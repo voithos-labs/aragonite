@@ -7,6 +7,7 @@ import { serialize } from '$lib/core/serializer';
 import { updateNodeContent } from '$lib/tree-operations';
 import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 // A rebuild writes a body's blank lines the way the parser reads them: the separator after a
 // block bare, an empty paragraph's own line indented, so one keystroke moves no other byte.
@@ -28,7 +29,12 @@ function typeX(doc: Document, path: number[]): void {
 	const owner = chain[chain.length - 1];
 	const index = path[path.length - 1];
 	const text = owner.children![index].raw.replace(/(\r?\n)?$/, (ending) => 'x' + ending);
-	updateNodeContent({ children: owner.children!, ownerKind: owner.kind, owner }, index, text);
+	updateNodeContent(
+		{ children: owner.children!, ownerKind: owner.kind, owner },
+		index,
+		text,
+		defaultGrammarView
+	);
 	for (let i = chain.length - 1; i >= 0; i--) {
 		getBlockKindDescriptor(chain[i].kind).rebuildRaw?.(chain[i]);
 	}

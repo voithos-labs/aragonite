@@ -62,7 +62,7 @@ async function handleIneligibleNeighbor(scope: CommitScope, i: number, dir: -1 |
 		snapshot: { index: i, offset: dir < 0 ? 0 : CURSOR_END },
 		eventTarget: neighbor,
 		op: { kind: 'delete' },
-		mutate: (view) => performDelete(bodyParentOf(view), neighbor, view.sharing),
+		mutate: (view) => performDelete(bodyParentOf(view), neighbor, view.grammar, view.sharing),
 		afterTick: () =>
 			scope.refAt(dir < 0 ? neighbor : i)?.focus(dir < 0 ? CURSOR_START : CURSOR_END),
 		discardIfNoop: true
@@ -264,7 +264,7 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 				snapshot: { index: i, offset: 0 },
 				eventTarget: i,
 				op: { kind: 'delete' },
-				mutate: (view) => performDelete(bodyParentOf(view), i, view.sharing),
+				mutate: (view) => performDelete(bodyParentOf(view), i, view.grammar, view.sharing),
 				afterTick: () => {
 					const focusIdx = Math.min(i, scope.children().length - 1);
 					if (focusIdx >= 0) scope.refAt(focusIdx)?.focus(CURSOR_START);

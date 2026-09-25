@@ -7,6 +7,7 @@ import { registerCalloutForTests } from './chrome-plugins';
 import type { SelectionPoint } from '../../selection/primitives';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
 import { fixtureLinkRef } from '../harness/fixture-grammar';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 // rangeDelete is driven with hand-built endpoints, so the table branches see character offsets
 // `SelectionState` would have snapped to cell coordinates first.
@@ -45,7 +46,7 @@ function run(source: string, start: SelectionPoint, end: SelectionPoint) {
 		start,
 		end,
 		createSharingState(),
-		undefined,
+		defaultGrammarView,
 		undefined,
 		fixtureLinkRef()
 	);
@@ -102,7 +103,7 @@ describe('chrome wall × table branch: table endpoint inside the container', () 
 			point([0], 2),
 			point([1, 1], 1),
 			sharing,
-			undefined,
+			defaultGrammarView,
 			undefined,
 			fixtureLinkRef()
 		);
@@ -138,7 +139,7 @@ describe('chrome wall × table branch: table endpoint outside the container', ()
 			point([0], 2),
 			point([1, 0], 3),
 			sharing,
-			undefined,
+			defaultGrammarView,
 			undefined,
 			fixtureLinkRef()
 		);
@@ -177,7 +178,7 @@ describe('chrome wall × table branch: consumed container unit-deletes', () => {
 			point([0], 2),
 			point([1, 1], 4),
 			createSharingState(),
-			undefined,
+			defaultGrammarView,
 			undefined,
 			fixtureLinkRef()
 		);
@@ -197,7 +198,7 @@ describe('chrome wall × table branch: consumed container unit-deletes', () => {
 			point([0], 2),
 			point([1, 1], 3),
 			createSharingState(),
-			undefined,
+			defaultGrammarView,
 			undefined,
 			fixtureLinkRef()
 		);

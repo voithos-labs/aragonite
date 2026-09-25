@@ -21,7 +21,7 @@ export function followsTaskMarker(owner: NodeView | undefined, index: number): b
 export function fragmentReaderAt(
 	owner: NodeView | undefined,
 	index: number,
-	grammar: GrammarView | undefined
+	grammar: GrammarView
 ): FragmentReader {
 	// Fragment scope: these are one block's bytes, so a kind that depends on document position
 	// must not be produced here.

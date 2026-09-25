@@ -4,6 +4,7 @@ import { assignIds } from '../../block-id';
 import { cascadeCleanupEmptyAncestors } from '../../tree-operations/cleanup';
 import { createSharingState } from '../../tree-operations/sharing';
 import type { CstNode, Document } from '../../core/nodes';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 function para(raw: string): CstNode {
 	return { kind: 'paragraph', leadingTrivia: '', raw };
@@ -35,7 +36,7 @@ describe('cascadeCleanupEmptyAncestors', () => {
 		sharedQuote.children![1].children = [];
 		sharing.markSnapshotTaken();
 
-		cascadeCleanupEmptyAncestors(d, [0, 1, 0], [], sharing);
+		cascadeCleanupEmptyAncestors(d, [0, 1, 0], [], sharing, defaultGrammarView);
 
 		expect(d.children[0]).not.toBe(sharedQuote);
 		expect(d.children[0].children).toHaveLength(1);
@@ -44,27 +45,27 @@ describe('cascadeCleanupEmptyAncestors', () => {
 
 	it('removes an empty blockquote at the top level', () => {
 		const d = doc([bq([]), para('x\n')]);
-		cascadeCleanupEmptyAncestors(d, [0, 0], [], createSharingState());
+		cascadeCleanupEmptyAncestors(d, [0, 0], [], createSharingState(), defaultGrammarView);
 		expect(d.children).toHaveLength(1);
 		expect(d.children[0].kind).toBe('paragraph');
 	});
 
 	it('leaves a non-empty blockquote alone', () => {
 		const d = doc([bq([para('b\n')]), para('x\n')]);
-		cascadeCleanupEmptyAncestors(d, [0, 0], [], createSharingState());
+		cascadeCleanupEmptyAncestors(d, [0, 0], [], createSharingState(), defaultGrammarView);
 		expect(d.children).toHaveLength(2);
 		expect(d.children[0].children).toHaveLength(1);
 	});
 
 	it('cascades through nested empty containers', () => {
 		const d = doc([bq([bq([])])]);
-		cascadeCleanupEmptyAncestors(d, [0, 0, 0], [], createSharingState());
+		cascadeCleanupEmptyAncestors(d, [0, 0, 0], [], createSharingState(), defaultGrammarView);
 		expect(d.children).toHaveLength(0);
 	});
 
 	it('stops walking at the lca', () => {
 		const d1 = doc([bq([]), para('x\n')]);
-		cascadeCleanupEmptyAncestors(d1, [0, 0], [0], createSharingState());
+		cascadeCleanupEmptyAncestors(d1, [0, 0], [0], createSharingState(), defaultGrammarView);
 		expect(d1.children).toHaveLength(2);
 	});
 
@@ -74,7 +75,7 @@ describe('cascadeCleanupEmptyAncestors', () => {
 		quote.childIds = assignIds(quote.children!);
 		const list = quote.children![1];
 		list.children = [];
-		cascadeCleanupEmptyAncestors(d, [0, 1, 0], [], createSharingState());
+		cascadeCleanupEmptyAncestors(d, [0, 1, 0], [], createSharingState(), defaultGrammarView);
 		expect(quote.children!.length).toBe(1);
 		expect(quote.childIds.length).toBe(quote.children!.length);
 	});

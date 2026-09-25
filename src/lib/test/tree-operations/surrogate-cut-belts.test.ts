@@ -23,6 +23,7 @@ import { collectEditorSources } from '$lib/test/invariants/lint/scan-source';
 import type { CstNode } from '$lib/core/nodes';
 import type { NodeView } from '$lib/core/node-views';
 import { fixtureLinkRef } from '../harness/fixture-grammar';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 const BOY = 'a\u{1F466}b\n';
 
@@ -87,7 +88,7 @@ describe('snapToScalarBoundary', () => {
 describe('the split cut', () => {
 	it('splits beside the pair, never through it', () => {
 		const doc = parse(BOY);
-		splitNode(doc, 0, 2, createSharingState(), undefined, fixtureLinkRef());
+		splitNode(doc, 0, 2, createSharingState(), undefined, fixtureLinkRef(), defaultGrammarView);
 		const out = serialize(doc);
 		expect(isWellFormed(out)).toBe(true);
 		expect(out).toBe('a\n\n\u{1F466}b\n');

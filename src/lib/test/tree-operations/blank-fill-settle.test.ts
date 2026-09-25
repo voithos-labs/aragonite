@@ -3,6 +3,7 @@ import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { updateNodeContent } from '$lib/tree-operations/content-write';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 // B-F1: the blank-to-content branch returned before the neighbour merge, so filling a blank line
 // whose bytes an indentation-delimited neighbour above absorbs left the live tree one block
@@ -17,7 +18,7 @@ const SOURCE = '- a\n\n\nzz\n';
 function filled(text: string) {
 	const doc = parse(SOURCE);
 	expect(doc.children.map((c) => c.kind)).toEqual(['list', 'paragraph', 'paragraph']);
-	updateNodeContent(doc, 1, text);
+	updateNodeContent(doc, 1, text, defaultGrammarView);
 	return doc;
 }
 

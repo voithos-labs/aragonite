@@ -26,7 +26,8 @@ function makeCard(source: string) {
 		events: harness.events,
 		measureRange: () => [],
 		landCaret,
-		linkRef: fixtureLinkRef({ current: map.resolve, signature: map.signature })
+		linkRef: fixtureLinkRef({ current: map.resolve, signature: map.signature }),
+		grammar: harness.deps.grammar
 	});
 	const raw = () => harness.doc.children[0].raw;
 	return {

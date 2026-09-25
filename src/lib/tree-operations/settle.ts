@@ -251,9 +251,9 @@ function settleSplicedWindow(
 	removed: readonly CstNode[],
 	added: number,
 	change: StructuralChange,
+	grammar: GrammarView,
 	sharing?: SharingState,
-	tracked?: TrackedPosition,
-	grammar?: GrammarView
+	tracked?: TrackedPosition
 ): StructuralChange {
 	if (!parent.children) return change;
 	// Read before the branches below: `settleSeparatorOnBlank` can append the tail line as a
@@ -283,13 +283,12 @@ function settleSplicedWindow(
 		added,
 		at,
 		widened,
+		grammar,
 		sharing,
 		tracked,
 		// A one-block window names the block whose bytes changed, which lets the join above it be
 		// refused on that block's first line alone; a wider window names no single block.
-		added === 1 ? at : undefined,
-		undefined,
-		grammar
+		added === 1 ? at : undefined
 	).change;
 	// The parent's trailing line is asked again: a merge can turn the last block blank, and a
 	// blank last block is what makes that line a block of its own.
@@ -339,9 +338,9 @@ export function settleSeparator(
 	parent: SeparatorParent,
 	before: readonly CstNode[],
 	change: StructuralChange,
+	grammar: GrammarView,
 	sharing?: SharingState,
-	tracked?: TrackedPosition,
-	grammar?: GrammarView
+	tracked?: TrackedPosition
 ): StructuralChange {
 	const window = splicedWindow(change);
 	const children = parent.children;
@@ -359,9 +358,9 @@ export function settleSeparator(
 		removed,
 		window.added,
 		change,
+		grammar,
 		sharing,
-		tracked,
-		grammar
+		tracked
 	);
 }
 
@@ -390,6 +389,7 @@ export function spliceChildrenSettled(
 	at: number,
 	removeCount: number,
 	replacement: CstNode[],
+	grammar: GrammarView,
 	sharing?: SharingState
 ): void {
 	const children = parent.children;
@@ -404,6 +404,7 @@ export function spliceChildrenSettled(
 		removed,
 		replacement.length,
 		{ op: 'noop' },
+		grammar,
 		sharing
 	);
 	const ids = (parent as CstNode).childIds;
@@ -439,11 +440,11 @@ export function absorbSeamReading(
 	parent: NodeParent,
 	seamLeft: number,
 	floor: number,
+	grammar: GrammarView,
 	sharing?: SharingState,
 	tracked?: TrackedPosition,
 	headProbe?: number,
-	onBeforeSplice?: () => void,
-	grammar?: GrammarView
+	onBeforeSplice?: () => void
 ): SeamAbsorption {
 	const read = (bytes: string) => parse(bytes, { grammar, scope: 'fragment' });
 	const children = parent.children;
@@ -504,7 +505,7 @@ function separateTableFollower(
 	parent: NodeParent,
 	index: number,
 	sharing: SharingState | undefined,
-	grammar: GrammarView | undefined
+	grammar: GrammarView
 ): boolean {
 	const follower = parent.children[index];
 	if (parent.children[index - 1]?.kind !== 'table' || follower.leadingTrivia !== '') return false;
@@ -633,11 +634,11 @@ export function absorbWindowSeams(
 	added: number,
 	landing: number,
 	change: StructuralChange,
+	grammar: GrammarView,
 	sharing?: SharingState,
 	tracked?: TrackedPosition,
 	headProbe?: number,
-	onBeforeSplice?: () => void,
-	grammar?: GrammarView
+	onBeforeSplice?: () => void
 ): SettledSplice {
 	let settled: SeamAbsorption | null = null;
 	let moved = landing;
@@ -648,11 +649,11 @@ export function absorbWindowSeams(
 			parent,
 			seamLeft,
 			0,
+			grammar,
 			sharing,
 			tracked,
 			settled ? undefined : headProbe,
-			onBeforeSplice,
-			grammar
+			onBeforeSplice
 		);
 		if (!seam.spliced) {
 			seamLeft++;
@@ -911,6 +912,7 @@ function absorbWrapPrefix(
 export function deleteNode(
 	parent: BodyParentArg,
 	blockIndex: number,
+	grammar: GrammarView,
 	sharing?: SharingState,
 	tracked?: TrackedPosition
 ): StructuralChange {
@@ -938,6 +940,7 @@ export function deleteNode(
 		blockIndex - survivor,
 		blockIndex,
 		{ op: 'delete', at: blockIndex, count: 1 },
+		grammar,
 		sharing,
 		tracked
 	).change;

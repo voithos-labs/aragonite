@@ -43,7 +43,7 @@ describe('lazy inline: common keystroke computes once', () => {
 			owner: undefined
 		};
 
-		updateNodeContent(parent, 1, 'beta!\n');
+		updateNodeContent(parent, 1, 'beta!\n', defaultGrammarView);
 		// The content-update path block-parses kind/metadata/children but must not
 		// build the inline tree. An eager double-parse here is the regression.
 		expect(perfSnapshot().inlineComputeCount).toBe(0);
@@ -59,7 +59,7 @@ describe('lazy inline: common keystroke computes once', () => {
 			owner: undefined
 		};
 
-		updateNodeContent(parent, 1, 'beta!\n');
+		updateNodeContent(parent, 1, 'beta!\n', defaultGrammarView);
 		computeInlineContent(parent.children[1], undefined, defaultGrammarView);
 		expect(perfSnapshot().inlineComputeCount).toBe(1);
 

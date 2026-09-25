@@ -4,6 +4,7 @@ import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import { createSharingState } from '../../tree-operations/sharing';
 import { fixtureLinkRef } from '../harness/fixture-grammar';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 // Miss-analysis: every truncated-endpoint pin cut inside prose lines, so no surviving slice
 // ever ended in a blank line — only indented code holds one inside a leaf's raw.
@@ -18,7 +19,7 @@ function run(
 		start,
 		end,
 		createSharingState(),
-		undefined,
+		defaultGrammarView,
 		undefined,
 		fixtureLinkRef()
 	);

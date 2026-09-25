@@ -24,6 +24,7 @@ import {
 	resetPerfInstruments,
 	setUndoGauge
 } from '../../perf/instruments';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 const EMPTY: PerfSnapshot = {
 	snapshotCount: 0,
@@ -214,7 +215,7 @@ describe('perf boundaries', () => {
 		// The nested paragraph's ancestors: list > listItem > list > listItem > paragraph.
 		const chain = ensureUnsharedPath(doc, [0, 0, 1, 0, 0], sharing);
 		enablePerfInstruments();
-		rebuildUnsharedChain(doc, chain, sharing, null, undefined);
+		rebuildUnsharedChain(doc, chain, sharing, null, defaultGrammarView);
 		expect(perfSnapshot().rebuildDepths).toEqual({ 5: 1 });
 	});
 });

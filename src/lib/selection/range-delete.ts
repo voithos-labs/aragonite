@@ -60,13 +60,13 @@ function deleteWholeUnit(
 	doc: Document,
 	path: number[],
 	sharing: SharingState,
-	grammar: GrammarView | undefined
+	grammar: GrammarView
 ): RangeDeleteResult {
 	const parentPath = path.slice(0, -1);
 	const index = path[path.length - 1];
 	// Deleted by path, so the commit's id bookkeeping sees the position go.
 	const chain = ensureUnsharedPath(doc, parentPath, sharing);
-	deleteAtPath(doc, path, sharing);
+	deleteAtPath(doc, path, sharing, grammar);
 	if (chain.length > 0) rebuildUnsharedChain(doc, chain, sharing, null, grammar);
 	const survivors = (chain.length > 0 ? chain[chain.length - 1] : doc).children ?? [];
 	const landing = Math.max(0, Math.min(index, survivors.length - 1));
@@ -84,7 +84,7 @@ export function rangeDelete(
 	start: SelectionPoint,
 	end: SelectionPoint,
 	sharing: SharingState,
-	grammar: GrammarView | undefined,
+	grammar: GrammarView,
 	presentationMode: PresentationMode | undefined,
 	linkRef: InlineResolverRef
 ): RangeDeleteResult {
@@ -191,9 +191,9 @@ export function rangeDelete(
 		ensureUnsharedPath(doc, path.slice(0, -1), sharing);
 	}
 
-	deleteSubtreesIdentityGated(doc, deletionPaths, lcaPath, sharing);
+	deleteSubtreesIdentityGated(doc, deletionPaths, lcaPath, sharing, grammar);
 
-	installTruncatedEndpoint(doc, start.path, replacement, sharing);
+	installTruncatedEndpoint(doc, start.path, replacement, sharing, grammar);
 
 	rebuildUnsharedAncestry(doc, start.path, sharing, null, grammar);
 	for (const path of deletionPaths) {

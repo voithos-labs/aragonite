@@ -59,7 +59,7 @@ export function chromeAwareRangeDelete(
 	start: SelectionPoint,
 	end: SelectionPoint,
 	sharing: SharingState,
-	grammar: GrammarView | undefined,
+	grammar: GrammarView,
 	presentationMode: PresentationMode | undefined,
 	linkRef: InlineResolverRef
 ): RangeDeleteResult {
@@ -95,7 +95,7 @@ export function chromeAwareRangeDelete(
 		);
 	}
 
-	applyPlannedDeletion(doc, plan, lcaPath);
+	applyPlannedDeletion(doc, plan, lcaPath, grammar);
 
 	// Start truncates in place; every deletion sits after it in doc order, so start.path is
 	// still live.

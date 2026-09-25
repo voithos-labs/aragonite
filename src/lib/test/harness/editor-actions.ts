@@ -142,6 +142,7 @@ export function makeCommitScopeStub(
 				sharing,
 				ownerKind: opts.owner?.kind,
 				owner: opts.owner,
+				grammar: defaultGrammarView,
 				getPresentationMode: undefined,
 				linkRef: fixtureLinkRef(),
 				unshareChild: (i) => children[i]
@@ -353,6 +354,7 @@ export function makeListContextAt(
 		parentFocus: opts.parentFocus ?? makeStubFocus(),
 		parentListContext: opts.parentListContext,
 		controller,
+		grammar: deps.grammar,
 		getPresentationMode: deps.getPresentationMode,
 		linkRef: deps.linkRef
 	});

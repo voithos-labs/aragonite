@@ -34,7 +34,8 @@ function typeInCell(doc: Document, row: number, col: number, text: string): void
 	updateNodeContent(
 		{ children: holder.children!, ownerKind: 'tableRow', owner: holder },
 		col,
-		text
+		text,
+		defaultGrammarView
 	);
 	rebuildUnsharedChain(doc, [table, holder], createSharingState(), null, defaultGrammarView);
 }

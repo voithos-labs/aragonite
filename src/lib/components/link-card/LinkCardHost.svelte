@@ -40,7 +40,7 @@
 		resolveLinkUrl: (rawUrl: string) => string;
 		caretRestore: CaretRestore;
 		linkRef: LinkReferenceResolverRef;
-		grammar?: GrammarView;
+		grammar: GrammarView;
 		menuPresence: MenuPresence;
 	} = $props();
 

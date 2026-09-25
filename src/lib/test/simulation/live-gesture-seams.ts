@@ -525,7 +525,15 @@ function acrossLeaves(
 	const range = drawnLeafRange(h.doc, gesture);
 	if (!range) return null;
 	if (gesture.kind === 'range-delete') {
-		rangeDelete(h.doc, range.start, range.end, h.sharing, undefined, mode, fixtureLinkRef());
+		rangeDelete(
+			h.doc,
+			range.start,
+			range.end,
+			h.sharing,
+			defaultGrammarView,
+			mode,
+			fixtureLinkRef()
+		);
 		return false;
 	}
 	const plan = planCrossBlockFormat(h.doc, range.start, range.end, drawnMark(gesture).kind, mode, {

@@ -10,6 +10,7 @@ import { registerCalloutForTests } from './chrome-plugins';
 import { expectParseConverged } from '../harness/parse-converged';
 import type { SelectionPoint } from '../../selection/primitives';
 import { fixtureLinkRef } from '../harness/fixture-grammar';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 function run(source: string, start: SelectionPoint, end: SelectionPoint): string {
 	const doc = rangeDelete(
@@ -17,7 +18,7 @@ function run(source: string, start: SelectionPoint, end: SelectionPoint): string
 		start,
 		end,
 		createSharingState(),
-		undefined,
+		defaultGrammarView,
 		undefined,
 		fixtureLinkRef()
 	).newDoc;

@@ -4,6 +4,7 @@ import { rangeDelete } from '../../selection/range-delete';
 import { createSharingState } from '../../tree-operations/sharing';
 import { describeConvergence } from '../harness/parse-converged';
 import { fixtureLinkRef } from '../harness/fixture-grammar';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 // GH #54: the same-block branch writes the joined bytes in place, so parse-owned metadata must
 // re-derive in `writeOwnRaw` or the live node drifts from what its bytes parse to.
@@ -19,7 +20,7 @@ describe('a same-block delete re-derives parse-owned metadata (GH #54)', () => {
 			{ path: [0], offset: 1 },
 			{ path: [0], offset: 2 },
 			createSharingState(),
-			undefined,
+			defaultGrammarView,
 			undefined,
 			fixtureLinkRef()
 		);

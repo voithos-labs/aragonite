@@ -8,6 +8,7 @@ import { createRegistryView } from '$lib/schema/registry-view';
 import { splitNode } from '$lib/tree-operations';
 import { describeConvergence } from '../harness/parse-converged';
 import { fixtureLinkRef } from '../harness/fixture-grammar';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 const noIndentedCode = createRegistryView({ syntax: { indentedCode: false } }).grammar;
 
@@ -23,7 +24,7 @@ describe('a split reads its halves in the editor grammar', () => {
 
 	it('the same split in the global grammar still makes the code block', () => {
 		const doc = parse('Loaded\n\nx\tcode\n');
-		splitNode(doc, 1, 1, undefined, undefined, fixtureLinkRef());
+		splitNode(doc, 1, 1, undefined, undefined, fixtureLinkRef(), defaultGrammarView);
 
 		expect(doc.children.map((n) => n.kind)).toContain('indentedCode');
 		expect(describeConvergence(doc)).toBeNull();

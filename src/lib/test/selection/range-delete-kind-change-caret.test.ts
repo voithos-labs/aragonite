@@ -6,6 +6,7 @@ import { nodeAt } from '../../tree-operations/node-primitives';
 import { createSharingState } from '../../tree-operations/sharing';
 import type { Document } from '../../core/nodes';
 import { fixtureLinkRef } from '../harness/fixture-grammar';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 function run(
 	source: string,
@@ -18,7 +19,7 @@ function run(
 		start,
 		end,
 		createSharingState(),
-		undefined,
+		defaultGrammarView,
 		undefined,
 		fixtureLinkRef()
 	);

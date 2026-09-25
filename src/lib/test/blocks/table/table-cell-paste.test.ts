@@ -17,6 +17,7 @@ import {
 	__resetLiveJoinSeamCleanerForTests
 } from '../../../schema/inline-construct-policy';
 import { fixtureLinkRef, pasteSeam } from '../../harness/fixture-grammar';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 function makeCell(raw: string): CstNode {
 	return { kind: 'tableCell', leadingTrivia: '', raw };
@@ -39,7 +40,7 @@ function pasteIntoRow(
 		metadata: { isHeader: false },
 		children: [makeCell(cellRaw), makeCell('keep')]
 	};
-	updateNodeContent(row as never, 0, result.newRaw);
+	updateNodeContent(row as never, 0, result.newRaw, defaultGrammarView);
 	writeTableRow(row, '\n');
 	const table = parse('| h | h |\n| --- | --- |\n' + row.raw).children[0];
 	return { ...result, cells: (table.children?.[1].children ?? []).map((c) => c.raw) };
@@ -87,7 +88,7 @@ describe('escapedCellOffset: the caret follows the sink’s inserted backslashes
 			metadata: { isHeader: false },
 			children: [makeCell('')]
 		};
-		updateNodeContent(row as never, 0, 'a|b|c');
+		updateNodeContent(row as never, 0, 'a|b|c', defaultGrammarView);
 		expect(escapedCellOffset('a|b|c', 5)).toBe(row.children![0].raw.length);
 	});
 });

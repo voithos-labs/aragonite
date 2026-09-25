@@ -7,7 +7,7 @@ import { registerFootnoteDefinition } from '$lib/plugins/footnotes/footnote-defi
 import { registerMathBlock } from '$lib/plugins/latex/latex-kind';
 import { registerMermaidKind } from '$lib/plugins/mermaid/mermaid-kind';
 import { getAllRegisteredKinds, getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
-import { isBlockOpenerRegistered } from '$lib/schema/block-openers';
+import { isBlockOpenerRegistered, defaultGrammarView } from '$lib/schema/block-openers';
 import { lineOpensAs } from '$lib/tree-operations/content-write';
 import { registerCalloutKind } from '../../../routes/test/plugins/callout/callout-kind';
 import type { AnyBlockKind, CstNode } from '$lib/core/nodes';
@@ -71,7 +71,7 @@ describe('opener verdict agreement across registered container kinds', () => {
 		const misfiled = eligibleContainers()
 			.map(({ kind, node }) => ({
 				kind,
-				verdict: lineOpensAs(firstLine(node.raw), undefined),
+				verdict: lineOpensAs(firstLine(node.raw), defaultGrammarView),
 				conservative: CONSERVATIVE.has(kind)
 			}))
 			.filter(({ kind, verdict, conservative }) => (verdict === kind) === conservative);
@@ -85,7 +85,7 @@ describe('opener verdict agreement across registered container kinds', () => {
 		(kind) => {
 			const found = eligibleContainers().find((c) => c.kind === kind);
 			expect(found).toBeDefined();
-			expect(lineOpensAs(firstLine(found!.node.raw), undefined)).toBe(kind);
+			expect(lineOpensAs(firstLine(found!.node.raw), defaultGrammarView)).toBe(kind);
 		}
 	);
 });

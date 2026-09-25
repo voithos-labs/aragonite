@@ -11,6 +11,7 @@ import {
 } from '$lib/schema/inline-construct-policy';
 import type { PresentationMode } from '$lib/presentation-mode';
 import { fixtureLinkRef } from '../harness/fixture-grammar';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 // `rangeDelete`'s live-mode join cleanup, which every cross-block delete, cut, type-over and
 // paste's delete half goes through. The registered cleaner is the production one; a stub would
@@ -27,7 +28,7 @@ function deleteRange(
 	mode: PresentationMode | undefined
 ): string {
 	const doc = parse(source);
-	rangeDelete(doc, start, end, createSharingState(), undefined, mode, fixtureLinkRef());
+	rangeDelete(doc, start, end, createSharingState(), defaultGrammarView, mode, fixtureLinkRef());
 	return serialize(doc);
 }
 

@@ -258,6 +258,7 @@ async function runListOp(
 		parentFocus: makeStubFocus(),
 		parentListContext: undefined,
 		controller: h.controller,
+		grammar: defaultGrammarView,
 		getPresentationMode: undefined,
 		linkRef: fixtureLinkRef()
 	});
@@ -370,6 +371,7 @@ async function runTableOp(
 		},
 		parentContainerEdit: h.rootContainerEdit,
 		controller: h.controller,
+		grammar: defaultGrammarView,
 		focusCell: () => {},
 		announceReorder: () => {}
 	});

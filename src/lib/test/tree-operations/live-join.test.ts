@@ -52,13 +52,29 @@ describe('each merge primitive drops the join pair in live', () => {
 		expect(
 			merged(
 				'live',
-				(doc) => void mergeIntoPrevDeepLeaf(doc, 1, undefined, 'live', fixtureLinkRef())
+				(doc) =>
+					void mergeIntoPrevDeepLeaf(
+						doc,
+						1,
+						undefined,
+						'live',
+						fixtureLinkRef(),
+						defaultGrammarView
+					)
 			)
 		).toBe(REJOINED);
 		expect(
 			merged(
 				undefined,
-				(doc) => void mergeIntoPrevDeepLeaf(doc, 1, undefined, undefined, fixtureLinkRef())
+				(doc) =>
+					void mergeIntoPrevDeepLeaf(
+						doc,
+						1,
+						undefined,
+						undefined,
+						fixtureLinkRef(),
+						defaultGrammarView
+					)
 			)
 		).toBe(RESIDUE);
 	});
@@ -70,7 +86,14 @@ describe('the join offset the caret rides moves with the runs the cleanup droppe
 	// caret two characters into the text below it.
 	it('reports the join in the bytes that were actually written', () => {
 		const doc = parse(SPLIT_BOLD);
-		const result = mergeIntoPrevDeepLeaf(doc, 1, undefined, 'live', fixtureLinkRef());
+		const result = mergeIntoPrevDeepLeaf(
+			doc,
+			1,
+			undefined,
+			'live',
+			fixtureLinkRef(),
+			defaultGrammarView
+		);
 		expect(result?.joinOffset).toBe(9);
 		expect(doc.children[0].raw.slice(0, result!.joinOffset)).toBe('Some **bo');
 	});
@@ -88,13 +111,13 @@ describe('the join offset the caret rides moves with the runs the cleanup droppe
 describe('a merge with nothing on its join', () => {
 	it('joins two plain paragraphs unchanged', () => {
 		const doc = parse('abc\n\ndef\n');
-		mergeIntoPrevDeepLeaf(doc, 1, undefined, 'live', fixtureLinkRef());
+		mergeIntoPrevDeepLeaf(doc, 1, undefined, 'live', fixtureLinkRef(), defaultGrammarView);
 		expect(doc.children[0].raw).toBe('abcdef\n');
 	});
 
 	it('keeps the line ending the target block was written with', () => {
 		const doc = parse('Some **bo**\r\n\r\n**ld** text\r\n');
-		mergeIntoPrevDeepLeaf(doc, 1, undefined, 'live', fixtureLinkRef());
+		mergeIntoPrevDeepLeaf(doc, 1, undefined, 'live', fixtureLinkRef(), defaultGrammarView);
 		expect(doc.children[0].raw).toBe('Some **bold** text\r\n');
 	});
 });

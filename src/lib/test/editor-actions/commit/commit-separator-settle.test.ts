@@ -95,7 +95,7 @@ describe('a delete that crosses both shared entries in one commit', () => {
 	// The split shape: the blank slot holds no line and its follower holds the run's one.
 	it('settles once when the range starts in a split-shaped blank block', () => {
 		const split = parse('alpha\n\ndelta\n\nomega\n');
-		splitNode(split, 0, 5, undefined, undefined, fixtureLinkRef());
+		splitNode(split, 0, 5, undefined, undefined, fixtureLinkRef(), defaultGrammarView);
 		const h = deleteAcross(serialize(split), [1], [2], [0, 2]);
 
 		expectParseConverged(h.deps.doc);

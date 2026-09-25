@@ -368,9 +368,8 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 					docSettleParent(childrenCopy),
 					deps.doc.children,
 					args.mutate(childrenCopy),
-					deps.sharing,
-					undefined,
-					deps.grammar
+					deps.grammar,
+					deps.sharing
 				);
 				if (args.discardIfNoop && change.op === 'noop') {
 					// The document branch installed nothing; only the stacks are restored here.
@@ -648,9 +647,9 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 						prepared[i].owned as SeparatorParent,
 						prepared[i].savedChildren ?? [],
 						changeList[i],
+						deps.grammar,
 						deps.sharing,
-						trackCaret?.[i],
-						deps.grammar
+						trackCaret?.[i]
 					);
 					publishScopeView(prepared[i], changeList[i]);
 				}

@@ -371,6 +371,7 @@ function mountTableMutations(children: CstNode[], tableIndex: number) {
 		},
 		parentContainerEdit: rootContainerEdit,
 		controller,
+		grammar: deps.grammar,
 		focusCell: () => {},
 		announceReorder: () => {}
 	});
@@ -396,7 +397,7 @@ export function checkInnermostFirstAncestry(
 	// Fresh sharing state, no callback for merged containers, and the global grammar: this checks
 	// only that raw propagates, and a kit owning neither ids nor refs could reconcile no splice in
 	// the parent's child list anyway.
-	rebuildUnsharedAncestry(doc, leafPath, createSharingState(), null, undefined);
+	rebuildUnsharedAncestry(doc, leafPath, createSharingState(), null, defaultGrammarView);
 
 	assert(root.raw.includes(marker), `root raw reflects the deep leaf edit through "${kind}"`);
 }
@@ -468,8 +469,9 @@ async function checkListIndentOneUndo(): Promise<void> {
 		parentFocus: recordingFocus(),
 		parentListContext: undefined,
 		controller,
+		grammar: deps.grammar,
 		getPresentationMode: undefined,
-		linkRef: { grammar: defaultGrammarView }
+		linkRef: deps.linkRef
 	});
 
 	const before = deps.undoManager.getStacks().undo.length;

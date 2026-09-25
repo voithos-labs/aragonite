@@ -12,6 +12,7 @@ import {
 } from '$lib/schema/inline-construct-policy';
 import { expectParseConverged } from '$lib/test/harness/parse-converged';
 import { fixtureLinkRef } from '../harness/fixture-grammar';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 // `splitNode`'s mode branch: live consults the one registered rebalancer, every other mode keeps
 // the byte-literal cut. The registration is the production one: a stub here would pin the wiring
@@ -29,7 +30,7 @@ afterEach(() => {
 
 const rawsAfterSplit = (source: string, offset: number, mode: 'live' | 'source' | undefined) => {
 	const doc = parse(source);
-	splitNode(doc, 0, offset, undefined, mode, fixtureLinkRef());
+	splitNode(doc, 0, offset, undefined, mode, fixtureLinkRef(), defaultGrammarView);
 	return doc.children.map((child) => child.raw);
 };
 
@@ -111,15 +112,15 @@ describe('a rebalanced split always produces exactly two blocks', () => {
 describe('Backspace merging the halves back', () => {
 	it('restores the original bytes with no residue between the runs', () => {
 		const doc = parse('Some **bold** text\n');
-		splitNode(doc, 0, 9, undefined, 'live', fixtureLinkRef());
-		mergeIntoPrevDeepLeaf(doc, 1, undefined, 'live', fixtureLinkRef());
+		splitNode(doc, 0, 9, undefined, 'live', fixtureLinkRef(), defaultGrammarView);
+		mergeIntoPrevDeepLeaf(doc, 1, undefined, 'live', fixtureLinkRef(), defaultGrammarView);
 		expect(doc.children[0].raw).toBe('Some **bold** text\n');
 	});
 
 	it('a merged split link is one link again', () => {
 		const doc = parse('Visit [example](https://example.com) here\n');
-		splitNode(doc, 0, 11, undefined, 'live', fixtureLinkRef());
-		mergeIntoPrevDeepLeaf(doc, 1, undefined, 'live', fixtureLinkRef());
+		splitNode(doc, 0, 11, undefined, 'live', fixtureLinkRef(), defaultGrammarView);
+		mergeIntoPrevDeepLeaf(doc, 1, undefined, 'live', fixtureLinkRef(), defaultGrammarView);
 		expect(doc.children[0].raw).toBe('Visit [example](https://example.com) here\n');
 	});
 
@@ -128,8 +129,8 @@ describe('Backspace merging the halves back', () => {
 	// is where the cleaning belongs.
 	it('is not a defect of the byte-literal split, which round-trips', () => {
 		const doc = parse('Some **bold** text\n');
-		splitNode(doc, 0, 9, undefined, undefined, fixtureLinkRef());
-		mergeIntoPrevDeepLeaf(doc, 1, undefined, undefined, fixtureLinkRef());
+		splitNode(doc, 0, 9, undefined, undefined, fixtureLinkRef(), defaultGrammarView);
+		mergeIntoPrevDeepLeaf(doc, 1, undefined, undefined, fixtureLinkRef(), defaultGrammarView);
 		expect(doc.children[0].raw).toBe('Some **bold** text\n');
 	});
 
@@ -137,8 +138,8 @@ describe('Backspace merging the halves back', () => {
 	// were painted and the user could see what the two halves carried.
 	it('a modeless merge keeps the halves byte-literal', () => {
 		const doc = parse('Some **bold** text\n');
-		splitNode(doc, 0, 9, undefined, 'live', fixtureLinkRef());
-		mergeIntoPrevDeepLeaf(doc, 1, undefined, undefined, fixtureLinkRef());
+		splitNode(doc, 0, 9, undefined, 'live', fixtureLinkRef(), defaultGrammarView);
+		mergeIntoPrevDeepLeaf(doc, 1, undefined, undefined, fixtureLinkRef(), defaultGrammarView);
 		expect(doc.children[0].raw).toBe('Some **bo****ld** text\n');
 	});
 });
@@ -159,7 +160,7 @@ describe('rebalanced halves keep their line endings', () => {
 	it('a half the rewrite left unterminated takes the block ending back', () => {
 		const doc = parse('\\\n[**bold**](u`)`)  \n&notreal;\\\n[text](u`x`)foo\n\n\\*\n');
 
-		splitNode(doc, 0, 32, undefined, 'live', fixtureLinkRef());
+		splitNode(doc, 0, 32, undefined, 'live', fixtureLinkRef(), defaultGrammarView);
 
 		for (const child of doc.children) expect(child.raw.endsWith('\n')).toBe(true);
 		expectParseConverged(doc);

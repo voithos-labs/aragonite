@@ -8,7 +8,7 @@ import { footnotesPlugin } from '$lib/plugins/footnotes';
 import { rebuildFootnoteDefRaw } from '$lib/plugins/footnotes/footnote-definition';
 import { splitNode } from '$lib/tree-operations';
 import { describeConvergence } from '$lib/testing/parse-convergence';
-import { fixtureLinkRef } from '../../harness/fixture-grammar';
+import { fixtureGrammar, fixtureLinkRef } from '../../harness/fixture-grammar';
 
 describe('footnote definition Enter at the end of the body', () => {
 	beforeEach(() => {
@@ -25,7 +25,8 @@ describe('footnote definition Enter at the end of the body', () => {
 			'one'.length,
 			undefined,
 			undefined,
-			fixtureLinkRef()
+			fixtureLinkRef(),
+			fixtureGrammar
 		);
 		def.children![1].raw = 'two\n';
 		rebuildFootnoteDefRaw(def);

@@ -93,7 +93,7 @@ export function splitNode(
 	sharing: SharingState | undefined,
 	presentationMode: PresentationMode | undefined,
 	linkRef: InlineResolverRef,
-	grammar?: GrammarView,
+	grammar: GrammarView,
 	readSecondHalf: FragmentReader = fragmentReaderAt(
 		ownerAt(parent, [blockIndex]),
 		blockIndex + 1,
@@ -166,7 +166,9 @@ export function splitNode(
 	// The merge window starts at the join, since a wider one would reach back into the spliced
 	// set; at the tail the document's trailing blank line is left to the separator fix-up.
 	const seamLeft = blockIndex + nodes.length - 1;
-	const eaten = splitTail ? 0 : absorbSeamReading(parent, seamLeft, seamLeft, sharing).eaten;
+	const eaten = splitTail
+		? 0
+		: absorbSeamReading(parent, seamLeft, seamLeft, grammar, sharing).eaten;
 	return {
 		change: replacePreservingFirst(blockIndex, 1 + eaten, nodes.length),
 		secondHalfIndex: blockIndex + first.nodes.length
@@ -223,7 +225,7 @@ function splitSeparator(
 	secondRaw: string,
 	lineEnding: string,
 	successor: CstNode | undefined,
-	grammar: GrammarView | undefined
+	grammar: GrammarView
 ): string {
 	if (isBlankSource(secondRaw)) {
 		const trivia = blankBlockTrivia(isBlankSource(firstRaw), successor, lineEnding);
@@ -239,7 +241,7 @@ function blankHalfBecomesBlock(
 	firstRaw: string,
 	secondRaw: string,
 	lineEnding: string,
-	grammar: GrammarView | undefined
+	grammar: GrammarView
 ): boolean {
 	return (
 		parse(firstRaw + lineEnding + secondRaw, { grammar, scope: 'fragment' }).children.length >
@@ -256,7 +258,7 @@ function separatorSplitsOffNextLine(
 	raw: string,
 	secondRaw: string,
 	lineEnding: string,
-	grammar: GrammarView | undefined
+	grammar: GrammarView
 ): boolean {
 	if (isDevChecks() && !probeLineOpensAsProse(grammar)) {
 		devWarn(
@@ -438,7 +440,7 @@ export function mergeIntoPrevDeepLeaf(
 	sharing: SharingState | undefined,
 	presentationMode: PresentationMode | undefined,
 	linkRef: InlineResolverRef,
-	grammar?: GrammarView
+	grammar: GrammarView
 ): MergeIntoPrevResult | null {
 	if (blockIndex <= 0 || blockIndex >= parent.children.length) return null;
 
@@ -470,7 +472,7 @@ export function mergeIntoPrevDeepLeaf(
 	const joined: JoinLanding = { index: blockIndex - 1, targetPath: mergeTarget.path, joinOffset };
 	const at = rawOffsetOfLeaf(parent.children[blockIndex - 1], mergeTarget.path, joinOffset);
 	const tracked = at === null ? undefined : { index: blockIndex - 1, offset: at };
-	const change = deleteNode(parent, blockIndex, sharing, tracked);
+	const change = deleteNode(parent, blockIndex, grammar, sharing, tracked);
 	return { ...landingAfterFixUp(parent, joined, at, tracked), change };
 }
 
@@ -565,7 +567,7 @@ export function mergeWithNext(
 	blockIndex: number,
 	presentationMode: PresentationMode | undefined,
 	linkRef: InlineResolverRef,
-	grammar: GrammarView | undefined
+	grammar: GrammarView
 ): MergeResult {
 	if (blockIndex < 0 || blockIndex >= parent.children.length - 1) {
 		return { change: { op: 'noop' }, joinOffset: 0 };
@@ -607,11 +609,7 @@ function reparseAsNodes(
  * The single-block counterpart for the merges: a join whose bytes read as several blocks does
  * not fit one position, so null refuses it rather than truncating (G1.35).
  */
-function reparseAsNode(
-	raw: string,
-	leadingTrivia: string,
-	grammar: GrammarView | undefined
-): CstNode | null {
+function reparseAsNode(raw: string, leadingTrivia: string, grammar: GrammarView): CstNode | null {
 	const { nodes, suffix } = reparseAsNodes(raw, leadingTrivia, (text) =>
 		parse(text, { grammar, scope: 'fragment' })
 	);
