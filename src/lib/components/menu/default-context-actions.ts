@@ -6,7 +6,7 @@
  */
 import { blockKindLabel } from '../../a11y-strings';
 import type { NodeView } from '../../core/node-views';
-import { EVERY_KIND, registerBlockContextActions } from '../../schema/context-actions';
+import { EVERY_KIND, registerBuiltinBlockContextActions } from '../../schema/context-actions';
 
 const IMAGE_ONLY = /^\s*!\[[^\]]*\]\([^)]*\)\s*$/;
 const PROSE_KINDS: ReadonlySet<string> = new Set(['paragraph', 'heading', 'setextHeading']);
@@ -31,7 +31,7 @@ let registered = false;
 export function registerDefaultContextActions(): void {
 	if (registered) return;
 	registered = true;
-	registerBlockContextActions(EVERY_KIND, 'block', (node) => {
+	registerBuiltinBlockContextActions(EVERY_KIND, 'block', (node) => {
 		const noun = blockNoun(node);
 		return [
 			{

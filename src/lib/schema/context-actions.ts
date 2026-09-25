@@ -33,14 +33,13 @@ export interface BlockContextAction {
 
 export type BlockContextActionProvider = (node: NodeView, path: number[]) => BlockContextAction[];
 
-// The editor's own providers, registered by `components/menu/default-context-actions.ts` and
-// `components/blocks/code/code-context-actions.ts`; they survive the test reset.
-const BUILT_IN_PROVIDERS: ReadonlySet<string> = new Set(['* block', 'fencedCode code']);
+// Filled by `registerBuiltinBlockContextActions`, whose providers survive the test reset.
+const builtinKeys = new Set<string>();
 
 const providers = createPluginRegistry<
 	string,
 	{ kind: string; provider: BlockContextActionProvider }
->({ label: 'registerBlockContextActions', isBuiltin: (key) => BUILT_IN_PROVIDERS.has(key) });
+>({ label: 'registerBlockContextActions', isBuiltin: (key) => builtinKeys.has(key) });
 
 /**
  * Add a provider for `kind`, or for every kind with `EVERY_KIND`, under a `name` unique to that
@@ -57,6 +56,16 @@ export function registerBlockContextActions(
 		{ kind, provider },
 		`registerBlockContextActions: "${name}" is already registered for "${kind}". Providers are register-once.`
 	);
+}
+
+/** The editor's own rows: a provider the test reset keeps. */
+export function registerBuiltinBlockContextActions(
+	kind: string,
+	name: string,
+	provider: BlockContextActionProvider
+): void {
+	builtinKeys.add(`${kind} ${name}`);
+	registerBlockContextActions(kind, name, provider);
 }
 
 export function blockContextActionsFor(

@@ -2,7 +2,7 @@
  * The code block's context menu: dissolve the fence into plain text. Delete is every block's
  * default row. Registered once from the code bootstrap.
  */
-import { registerBlockContextActions } from '../../../schema/context-actions';
+import { registerBuiltinBlockContextActions } from '../../../schema/context-actions';
 import { sliceFencedCode } from './code-renderer';
 
 let registered = false;
@@ -10,7 +10,7 @@ let registered = false;
 export function registerCodeContextActions(): void {
 	if (registered) return;
 	registered = true;
-	registerBlockContextActions('fencedCode', 'code', (node) => [
+	registerBuiltinBlockContextActions('fencedCode', 'code', (node) => [
 		{
 			id: 'code.dissolve',
 			label: 'Dissolve into text',

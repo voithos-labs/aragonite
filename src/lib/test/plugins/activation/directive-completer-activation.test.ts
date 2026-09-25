@@ -58,8 +58,8 @@ describe('an unlisted directive name resolves to the generic directive', () => {
 		expect(noteKind(grammarListing(['unlisted']))).toBe(DIRECTIVE_CONTAINER);
 	});
 
-	// The registry reads each entry's own registering plugin, so the generic box's component has
-	// to be core too, or the fence parses here and then renders with no component.
+	// Miss-analysis: these cases parsed the generic kinds in an editor without admonitions but never
+	// asked for their component, which the component registry filters by its own registering plugin.
 	it('draws the generic container with its own component where admonitions is left out', () => {
 		const view = createRegistryView({ plugins: activationFor(['unlisted']) });
 		expect(view.component(declaredPluginKind(DIRECTIVE_CONTAINER))).toBeDefined();

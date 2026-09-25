@@ -6,7 +6,8 @@
 // the unit gate proved the registration reaches the pipeline; an author could only test the
 // pure function, which proves nothing about the wiring.
 import { describe, it, expect, beforeEach } from 'vitest';
-import { registerPasteTransform, isPasteTransformRegistered } from '$lib/plugin';
+import { definePlugin, registerPasteTransform, isPasteTransformRegistered } from '$lib/plugin';
+import { installPlugins } from '$lib';
 import { applyPasteTransforms, resetPluginPlatformForTests } from '$lib/testing';
 import { takeDevWarns } from '$lib/test/support/warn-gate';
 
@@ -43,6 +44,14 @@ describe('the registered paste pipeline, driven through aragonite/testing', () =
 			transform: (text) => (text.startsWith('- ') ? `# ${text.slice(2)}` : null)
 		});
 		expect(applyPasteTransforms('!note\n')).toBe('# note\n');
+	});
+
+	it('runs a plugin transform only for a list of plugins that names it', () => {
+		installPlugins([
+			definePlugin({ name: 'shouter', setup: () => registerPasteTransform(upcaseHeadings) })
+		]);
+		expect(applyPasteTransforms('# title\n', ['shouter'])).toBe('# TITLE\n');
+		expect(applyPasteTransforms('# title\n', [])).toBe('# title\n');
 	});
 
 	it('declines for the whole pipeline once the registry is reset', () => {
