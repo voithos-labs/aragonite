@@ -34,7 +34,10 @@ import { pasteDispatch } from '../../tree-operations/paste/dispatch';
 import { createPasteCoordinator } from '../../editor-actions/paste-coordinator';
 import { createUndoController } from '../../editor-actions/commit/undo-controller';
 import { createBlockEditActions } from '../../editor-actions/block-edit';
-import { makeEditorActionsDeps, pasteContext } from '../harness/editor-actions';
+import { makeEditorActionsDeps, makeTopHarness, pasteContext } from '../harness/editor-actions';
+import { blockContextActionsFor } from '../../schema/context-actions';
+import { everyInstalledPlugin } from '../../schema/plugin-activation';
+import { registerCodeContextActions } from '../../components/blocks/code/code-context-actions';
 import { fixtureLinkRef, pasteSeam } from '../harness/fixture-grammar';
 import { allowDevWarns } from '../support/warn-gate';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
@@ -217,8 +220,78 @@ const GESTURES: EditGesture[] = [
 		source: 'x\n',
 		apply: async (doc) => serialize(await pasteInto(doc, [0], 1, '# h\n\n'))
 	},
+	{
+		name: 'fence exit on the empty line above the closer',
+		source: '```\nfoo\n\n```\n',
+		apply: (doc) => {
+			const node = doc.children[0];
+			const text = trimTrailingLineEnding(node.raw);
+			const exit = computeFenceExit({
+				text,
+				// The empty line starts just past the break that ends `foo`.
+				offset: text.indexOf('\n', text.indexOf('foo')) + 1,
+				meta: metadataOf(node, 'fencedCode')
+			});
+			return exit.kind === 'exitWithEdit' ? exit.newText : `UNEXPECTED ${exit.kind}`;
+		}
+	},
+	{
+		name: 'dissolving a fence into text',
+		source: '```\nfoo\nbar\n```\n',
+		apply: async (doc) => {
+			registerCodeContextActions();
+			const node = doc.children[0];
+			const dissolve = blockContextActionsFor(node, [0], everyInstalledPlugin).find(
+				(action) => action.id === 'code.dissolve'
+			);
+			const written: string[] = [];
+			await dissolve!.run({
+				node,
+				path: [0],
+				deleteBlock: async () => {},
+				replaceRaw: async (raw) => void written.push(raw),
+				transformPaste: (text) => text
+			});
+			return written.join('');
+		}
+	},
+	...unterminatedTail(),
 	...pasteRoutes()
 ];
+
+// Miss-analysis: every fixture above ends in a line ending, so no gesture ever had to choose one
+// for a block without its own, the last line of a document that has none (#458).
+function unterminatedTail(): EditGesture[] {
+	return [
+		{
+			name: 'Enter at the end of an unterminated last line',
+			source: 'abc\n\nlast',
+			apply: async (doc) => {
+				const harness = makeTopHarness(doc);
+				await harness.actions.splitBlock(1, 'last'.length);
+				return serialize(harness.deps.doc);
+			}
+		},
+		{
+			name: 'paste of blocks at the end of an unterminated last line',
+			source: 'abc\n\nlast',
+			apply: async (doc) => serialize(await pasteInto(doc, [1], 'last'.length, 'x\n\ny'))
+		},
+		{
+			name: 'list exit below an unterminated list',
+			source: 'abc\n\n- a\n- ',
+			apply: (doc) => serializeNodes(buildExitReplacement(doc.children[1], 1).blocks)
+		},
+		{
+			name: 'table rebuild of an unterminated table',
+			source: 'abc\n\n| a |\n| --- |\n| 1 |',
+			apply: (doc) => {
+				rebuildTableRaw(doc.children[1]);
+				return doc.children[1].raw;
+			}
+		}
+	];
+}
 
 /** One row per route a paste can take into the tree, each pasting lines of its own. A drop has
  *  no row: it moves no text holding a line break. */
