@@ -31,7 +31,8 @@ describe('updateNodeContent: contextDependentKind stickiness', () => {
 
 	it('still reparses an ordinary kind (paragraph→heading on marker insert)', () => {
 		const parent = {
-			children: [{ kind: 'paragraph', leadingTrivia: '', raw: 'hi\n' }] as CstNode[]
+			children: [{ kind: 'paragraph', leadingTrivia: '', raw: 'hi\n' }] as CstNode[],
+			lineEnding: '\n'
 		};
 		updateNodeContent(parent as never, 0, '# hi\n');
 		expect(parent.children[0].kind).toBe('heading');
@@ -111,7 +112,8 @@ describe('splitNode: contextDependentKind is unsplittable', () => {
 
 	it('still splits an ordinary paragraph into two reparsed halves', () => {
 		const parent = {
-			children: [{ kind: 'paragraph', leadingTrivia: '', raw: 'hello world\n' }] as CstNode[]
+			children: [{ kind: 'paragraph', leadingTrivia: '', raw: 'hello world\n' }] as CstNode[],
+			lineEnding: '\n'
 		};
 		const { change } = splitNode(parent as never, 0, 5, undefined, undefined, fixtureLinkRef());
 		expect(change).toMatchObject({ op: 'replace', newCount: 2 });

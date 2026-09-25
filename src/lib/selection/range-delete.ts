@@ -22,7 +22,7 @@ import {
 } from '../tree-operations/node-primitives';
 import { settleSeparatorOnBlank } from '../tree-operations/settle';
 import { isBlankParagraph } from '../core/parser';
-import { displayLength } from '../core/lines';
+import { displayLength, documentLineEnding } from '../core/lines';
 import { deleteAtPath } from '../tree-operations/path-mutate';
 import { cleanJoinedRaw, joinAboveUndrawn } from '../tree-operations/node-ops';
 import {
@@ -174,7 +174,12 @@ export function rangeDelete(
 
 	// The survivor takes the start block's write rule before the reparse derives metadata, and
 	// keeps the start's leading blank lines, which a fragment reparse would drop.
-	const replacement = reparseTruncatedEndpoint(startBlock, joined.raw, grammar);
+	const replacement = reparseTruncatedEndpoint(
+		startBlock,
+		joined.raw,
+		documentLineEnding(doc),
+		grammar
+	);
 
 	// walkBetween includes ancestors of `end` whose subtrees extend past it, so filter to
 	// subtrees fully inside (start, end). Cascade-cleanup handles ancestors emptied afterwards.

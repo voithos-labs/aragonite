@@ -35,6 +35,7 @@ export function makeEdgeDispatch(
 	const edits: EditTuple[] = [];
 	const deps: EdgePolicyDispatchDeps = {
 		grammar: defaultGrammarView,
+		getLineEnding: () => '\n',
 		get node() {
 			return readNode();
 		},

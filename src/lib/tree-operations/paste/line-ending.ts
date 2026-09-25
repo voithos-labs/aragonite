@@ -1,31 +1,10 @@
 /**
- * The line ending a paste writes its own line breaks in. The clipboard reaches the paste
- * transforms and hooks as LF, and the document keeps one ending per line, so the pasted bytes
- * take the ending of the line the caret is on, read where they become the document's bytes.
+ * The pasted line breaks written in the document's own ending. The clipboard reaches the paste
+ * transforms and hooks as LF, so an inline hook's result is rewritten here on its way in.
  */
 
-import type { CstNode, Document } from '../../core/nodes';
-import { lineEndingAt, ownTrailingLineEnding } from '../../core/lines';
+import type { LineEnding } from '../../core/lines';
 import type { InlinePasteResult } from '../paste-surfaces';
-
-/**
- * The ending at the insertion point: the one closing the caret's line in the target, else the
- * nearest break in the top-level block holding it, else the one ending the block before that.
- * LF when the document holds no line break there at all.
- */
-export function pasteLineEnding(
-	doc: Document,
-	targetPath: readonly number[],
-	target: CstNode,
-	offset: number
-): '\n' | '\r\n' {
-	const top = targetPath[0];
-	return (
-		lineEndingAt(target.raw, offset) ??
-		lineEndingAt(doc.children[top]?.raw ?? '', 0) ??
-		(ownTrailingLineEnding(doc.children[top - 1]?.raw ?? '') || '\n')
-	);
-}
 
 /**
  * An inline hook's result with the line breaks it spliced in written as `ending`. Only the
@@ -35,7 +14,7 @@ export function pasteLineEnding(
 export function inlineResultInEnding(
 	before: string,
 	result: InlinePasteResult,
-	ending: '\n' | '\r\n'
+	ending: LineEnding
 ): InlinePasteResult {
 	if (ending === '\n') return result;
 	const after = result.newRaw;

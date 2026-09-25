@@ -4,7 +4,13 @@
  * continuation is handled identically. For a whole document use `convert-document.ts`
  * instead: the scanner here is not fence-safe.
  */
-import { blockquoteExtent, escalatedColonCount, splitLines, type ParsedLine } from '$lib/plugin';
+import {
+	blockquoteExtent,
+	escalatedColonCount,
+	firstLineEnding,
+	splitLines,
+	type ParsedLine
+} from '$lib/plugin';
 import { ADMONITION_KINDS } from './kinds';
 
 const ALERT_NAMES = new Set<string>(ADMONITION_KINDS);
@@ -40,7 +46,7 @@ export interface AlertConversion {
  * quote level promotes a nested `> [!TIP]` to a top-level marker a later pass would convert again.
  */
 function emitDirective(name: string, source: ParsedLine[]): string {
-	const fallback = source.find((line) => line.lineEnding !== '')?.lineEnding ?? '\n';
+	const fallback = firstLineEnding(source.map((line) => line.raw).join('')) ?? '\n';
 	const stripped = source
 		.slice(1)
 		.map((line) => stripQuoteMarker(line.text) + (line.lineEnding || fallback))

@@ -9,7 +9,7 @@ import type { AnyBlockKind, CstNode, Document } from '../core/nodes';
 import type { DocumentView, NodeView } from '../core/node-views';
 import { parse } from '../core/parser';
 import type { GrammarView } from '../schema/block-openers';
-import { trailingLineEnding } from '../core/lines';
+import { documentLineEnding, trailingLineEnding, type LineEnding } from '../core/lines';
 import { dropSuffixUnderBlankLine } from '../core/inline';
 import { getBlockKindDescriptor, tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
 import { reservedChromeKindOf } from '../schema/reserved-chrome';
@@ -26,6 +26,8 @@ export type NodeParent = { children: CstNode[] };
 export type BodyParent = NodeParent & {
 	ownerKind: AnyBlockKind | undefined;
 	owner: CstNode | undefined;
+	/** The document's line ending, which every line an op writes into these children takes. */
+	lineEnding: LineEnding;
 	// Optional, not nullable: only a caller inside a commit may carry the document's trailing
 	// blank line, because the fix-up that consumes it appends a block.
 	suffix?: string;
@@ -45,6 +47,10 @@ export type SeparatorParent = {
 	children?: CstNode[];
 	owner?: CstNode;
 };
+
+/** The line ending an op writing into `parent`'s children gives a new line. */
+export const parentLineEnding = (parent: BodyParentArg): LineEnding =>
+	'lineEnding' in parent ? parent.lineEnding : documentLineEnding(parent);
 
 const ownerKindOf = (parent: BodyParentArg): AnyBlockKind | undefined =>
 	'ownerKind' in parent ? parent.ownerKind : undefined;
@@ -155,8 +161,9 @@ export function normalizeReplacementTrivia(original: CstNode, replacement: CstNo
 
 // ── Editable container backfill ──
 
-/** Ensure every container has at least one child block, so the cursor always has a target. */
-export function ensureEditableContainers(node: CstNode): void {
+/** Ensure every container has at least one child block, so the cursor always has a target. The
+ *  backfilled lines take `ending` (the document's) when the container has none of its own. */
+export function ensureEditableContainers(node: CstNode, ending: LineEnding): void {
 	// A whole-block-focus kind is childless by design: the block itself is the caret target,
 	// and a backfilled paragraph its raw cannot account for fails the stale-raw check.
 	if (getBlockKindDescriptor(node.kind).blockFocus === 'whole-block') return;
@@ -164,8 +171,7 @@ export function ensureEditableContainers(node: CstNode): void {
 		if (node.children.length === 0) {
 			// An in-place write on a descendant found by walking, see the file header.
 			const chromeKind = reservedChromeKindOf(node.kind);
-			// Backfilled lines are pure line ending, so they take the container's own (G4.20).
-			const lineEnding = trailingLineEnding(node.raw);
+			const lineEnding = trailingLineEnding(node.raw, ending);
 			// A container with a reserved title child re-creates that child too, or the backfilled
 			// paragraph would occupy its position (G1.14).
 			if (chromeKind !== undefined) {
@@ -178,7 +184,7 @@ export function ensureEditableContainers(node: CstNode): void {
 			node.innerPrefix = '';
 		}
 		for (const child of node.children) {
-			ensureEditableContainers(child);
+			ensureEditableContainers(child, ending);
 		}
 	}
 }

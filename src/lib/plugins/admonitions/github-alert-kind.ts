@@ -12,7 +12,11 @@ import {
 	declarePluginKind,
 	declaredPluginKind,
 	defineBlockComponent,
+	displayLines,
+	firstLineEnding,
 	getPluginMetadata,
+	joinDisplayLines,
+	ownTrailingLineEnding,
 	parseContainerBody,
 	registerBlockComponent,
 	registerBlockKind,
@@ -68,8 +72,7 @@ function stripBody(lines: ParsedLine[], start: number, end: number): string {
 	return out;
 }
 
-/** Splitting the body on `\n` keeps a `\r` at each segment's tail, so CRLF rides through;
- *  the marker's own ending is read off the current raw. */
+/** Every body line keeps its own ending; the marker line keeps the one the current raw gives it. */
 export function rebuildGithubAlertRaw(node: CstNode): void {
 	const alertType = getPluginMetadata<GithubAlertMetadata>(node)?.alertType ?? 'NOTE';
 	const marker = `> [!${alertType}]`;
@@ -77,29 +80,22 @@ export function rebuildGithubAlertRaw(node: CstNode): void {
 		(node.innerPrefix ?? '') + serializeChildren(node.children ?? []) + (node.innerSuffix ?? '');
 
 	if (body === '') {
-		node.raw = node.raw.endsWith('\n') ? marker + firstLineEnding(node.raw) : marker;
+		node.raw = marker + ownTrailingLineEnding(node.raw);
 		return;
 	}
-	node.raw = marker + firstLineEnding(node.raw) + prefixQuoteLines(body);
-}
-
-/** Not `core/lines.ts`'s `trailingLineEnding`: on a block with mixed endings that helper
- *  would rewrite the marker's CRLF to LF. Every line keeps its own ending. */
-function firstLineEnding(raw: string): string {
-	const nl = raw.indexOf('\n');
-	if (nl < 0) return '\n';
-	return raw[nl - 1] === '\r' ? '\r\n' : '\n';
+	const markerEnding = firstLineEnding(node.raw) ?? firstLineEnding(body) ?? '\n';
+	node.raw = marker + markerEnding + prefixQuoteLines(body);
 }
 
 function prefixQuoteLines(body: string): string {
-	const lines = body.split('\n');
-	return lines
-		.map((line, i) => {
-			if (i === lines.length - 1 && line === '') return '';
-			if (line === '' || line === '\r') return `>${line}`;
-			return `> ${line}`;
+	const lines = displayLines(body);
+	return joinDisplayLines(
+		lines.map((line, i) => {
+			// The empty line after a final break is no line of its own.
+			if (i === lines.length - 1 && line.text === '') return line;
+			return { ...line, text: line.text === '' ? '>' : `> ${line.text}` };
 		})
-		.join('\n');
+	);
 }
 
 export function registerGithubAlert(): void {

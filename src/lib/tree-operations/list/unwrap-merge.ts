@@ -9,7 +9,7 @@ import type { NodeView } from '../../core/node-views';
 import type { PresentationMode } from '../../presentation-mode';
 import type { InlineResolverRef } from '../../schema/inline-construct-policy';
 import { metadataOf } from '../../core/nodes';
-import { trailingLineEnding } from '../../core/lines';
+import { ownTrailingLineEnding, trimTrailingLineEnding } from '../../core/lines';
 import { cleanJoinedRaw } from '../node-ops';
 import type { SharingState } from '../sharing';
 import { cloneMetadata, cloneNode } from '../clone';
@@ -198,7 +198,7 @@ export function mergeListItemIntoPrevious(
 	if (!targetParagraph || targetParagraph.kind !== 'paragraph') {
 		throw new Error('mergeListItemIntoPrevious: target path does not end at a paragraph');
 	}
-	const targetOriginalText = (targetParagraph.raw ?? '').replace(/\r?\n$/, '');
+	const targetOriginalText = trimTrailingLineEnding(targetParagraph.raw ?? '');
 
 	const currentItem = children[currentIndex];
 	if (
@@ -210,9 +210,10 @@ export function mergeListItemIntoPrevious(
 	}
 
 	const currentFirstParagraph = currentItem.children[0];
-	const currentFirstText = (currentFirstParagraph.raw ?? '').replace(/\r?\n$/, '');
+	const currentFirstText = trimTrailingLineEnding(currentFirstParagraph.raw ?? '');
 
-	const lineEnding = trailingLineEnding(targetParagraph.raw ?? '');
+	// The target has the current item below it, so it closes its line with the document's ending.
+	const lineEnding = ownTrailingLineEnding(targetParagraph.raw ?? '');
 	// Every destructive join goes through the join cleanup, M1 included: a literal concatenation
 	// would show the delimiter runs the join left unpaired, which live mode had hidden.
 	const joined = cleanJoinedRaw(

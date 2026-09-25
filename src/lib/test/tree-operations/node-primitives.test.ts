@@ -65,7 +65,7 @@ describe('ensureEditableContainers', () => {
 			children: [],
 			innerSuffix: ''
 		};
-		ensureEditableContainers(item);
+		ensureEditableContainers(item, '\n');
 		expect(item.children).toHaveLength(1);
 		expect(item.children![0].kind).toBe('paragraph');
 		expect(item.children![0].raw).toBe('\n');
@@ -82,7 +82,7 @@ describe('ensureEditableContainers', () => {
 			children: [{ kind: 'paragraph', leadingTrivia: '', raw: 'Hello\n' }],
 			innerSuffix: ''
 		};
-		ensureEditableContainers(item);
+		ensureEditableContainers(item, '\n');
 		expect(item.innerPrefix).toBe('\n');
 		expect(item.children).toHaveLength(1);
 	});
@@ -97,7 +97,7 @@ describe('ensureEditableContainers', () => {
 			children: [],
 			innerSuffix: ''
 		};
-		ensureEditableContainers(bq);
+		ensureEditableContainers(bq, '\n');
 		expect(bq.innerPrefix).toBe('');
 		expect(bq.children).toHaveLength(1);
 	});
@@ -119,14 +119,14 @@ describe('ensureEditableContainers: whole-block-focus kinds stay childless', () 
 
 	it('does not backfill a whole-block-focus opaque container', () => {
 		const node = wholeBlockNode();
-		ensureEditableContainers(node);
+		ensureEditableContainers(node, '\n');
 		expect(node.children).toEqual([]);
 		expect(node.innerPrefix).toBeUndefined();
 	});
 
 	it('a backfilled-then-committed node would fire opaque-stale-raw; skipping keeps it clean', () => {
 		const node = wholeBlockNode();
-		ensureEditableContainers(node);
+		ensureEditableContainers(node, '\n');
 		// The staleness checker bails on its reparse branch without an opener for the test kind,
 		// so the faithfulness precondition is asserted directly instead.
 		expect((node.children ?? []).map((c) => c.raw).join('')).toBe('');
@@ -139,7 +139,7 @@ describe('parse + backfill + edit + rebuild: round-trip after empty-item edit', 
 		const doc = parse('- \n');
 		const list = doc.children[0];
 		const item = list.children![0];
-		ensureEditableContainers(item);
+		ensureEditableContainers(item, '\n');
 
 		// The edit pipeline's shape: the synthesized paragraph receives content, then the
 		// container's raw is rebuilt from children.
@@ -151,7 +151,7 @@ describe('parse + backfill + edit + rebuild: round-trip after empty-item edit', 
 	it('typing into a backfilled empty blockquote produces the expected raw', () => {
 		const doc = parse('>\n');
 		const bq = doc.children[0];
-		ensureEditableContainers(bq);
+		ensureEditableContainers(bq, '\n');
 
 		bq.children![0].raw = 'X\n';
 		rebuildBlockquoteRaw(bq);

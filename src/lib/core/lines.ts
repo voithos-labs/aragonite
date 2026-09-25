@@ -73,16 +73,14 @@ export function firstLineEnding(text: string): LineEnding | null {
  * A block with no ending of its own is the document's last line, so the fallback is usually the
  * document's ending ({@link documentLineEnding}).
  */
-export function trailingLineEnding(raw: string, fallback: LineEnding = '\n'): LineEnding {
+export function trailingLineEnding(raw: string, fallback: LineEnding): LineEnding {
 	return ownTrailingLineEnding(raw) || fallback;
 }
 
-/**
- * Keep a truncated slice line-terminated, borrowing `sourceRaw`'s own ending (G4.20). A slice
- * whose last line stays open swallows whatever follows it once the bytes stand alone.
- */
-export function terminateLine(text: string, sourceRaw: string): string {
-	return text.endsWith('\n') ? text : text + trailingLineEnding(sourceRaw);
+/** `text` closed with `ending` when its last line is open: a slice cut from a block would
+ *  otherwise run into whatever follows it once the bytes stand alone. */
+export function terminateLine(text: string, ending: LineEnding): string {
+	return text.endsWith('\n') ? text : text + ending;
 }
 
 // ── Scalars ──────────────────────────────────────────────────────────────────
@@ -121,13 +119,10 @@ export function withLineEnding(text: string, ending: LineEnding): string {
 	return text.replace(/\r?\n/g, ending);
 }
 
-/** The ending of the line holding `offset`: the break closing it, else the nearest one before it.
- *  Null when `text` holds no line break at all. */
-export function lineEndingAt(text: string, offset: number): '\n' | '\r\n' | null {
-	const after = text.indexOf('\n', offset);
-	const at = after >= 0 ? after : text.lastIndexOf('\n', offset);
-	if (at < 0) return null;
-	return text[at - 1] === '\r' ? '\r\n' : '\n';
+/** The line break starting at `offset` in `text`, empty when none starts there. */
+export function lineEndingAt(text: string, offset: number): '' | LineEnding {
+	if (text[offset] === '\n') return '\n';
+	return text.startsWith('\r\n', offset) ? '\r\n' : '';
 }
 
 export interface ParsedLine {

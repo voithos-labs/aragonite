@@ -5,7 +5,7 @@ import { rebuildBlockquoteRaw } from '../schema/container-rebuilders';
 import { rebuildContainerRaw } from '../schema/container-raw';
 import { assignIds } from '../block-id';
 import { emptyParagraph } from './node-primitives';
-import { trailingLineEnding } from '../core/lines';
+import { firstLineEnding } from '../core/lines';
 
 /**
  * Lift a quote-shaped container's first child out (Rule U2), returning fresh clones without
@@ -64,7 +64,8 @@ export function buildQuoteExitReplacement(container: NodeView): CstNode[] {
 	trimmed.childIds = assignIds(trimmed.children);
 	rebuildContainerRaw(trimmed);
 
-	// Every byte this op creates is a line ending, so it takes the container's (G4.20).
-	const lineEnding = trailingLineEnding(container.raw);
+	// Every byte this op creates is a line ending. The quote spans two lines at least here, so
+	// its bytes hold the document's ending.
+	const lineEnding = firstLineEnding(container.raw) ?? '\n';
 	return [trimmed, emptyParagraph(lineEnding, lineEnding)];
 }

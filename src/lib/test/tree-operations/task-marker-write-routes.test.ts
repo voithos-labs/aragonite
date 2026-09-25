@@ -37,7 +37,11 @@ describe('every write that can replace a to-do’s first block drops the marker 
 	it('the content write, where a typed delimiter row makes the paragraph a table', () => {
 		const item = todoItem('- [ ] alpha\n');
 
-		updateNodeContent({ children: item.children!, ownerKind: item.kind, owner: item }, 0, TABLE);
+		updateNodeContent(
+			{ children: item.children!, ownerKind: item.kind, owner: item, lineEnding: '\n' },
+			0,
+			TABLE
+		);
 
 		expect(item.children![0].kind).toBe('table');
 		expect(metaOf(item).taskItem).toBe(false);
@@ -48,7 +52,7 @@ describe('every write that can replace a to-do’s first block drops the marker 
 		const item = todoItem('- [ ] # alpha\n');
 
 		updateNodeContent(
-			{ children: item.children!, ownerKind: item.kind, owner: item },
+			{ children: item.children!, ownerKind: item.kind, owner: item, lineEnding: '\n' },
 			0,
 			'# alphaX\n'
 		);

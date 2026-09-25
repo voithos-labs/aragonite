@@ -11,12 +11,14 @@ import { type SeparatorParent } from '$lib/tree-operations/node-primitives';
 import { settleSeparator } from '$lib/tree-operations/settle';
 import type { StructuralChange } from '$lib/tree-operations/structural-change';
 import type { GrammarView } from '$lib/schema/block-openers';
+import { documentLineEnding } from '$lib/core/lines';
 
 /** `editor-actions/block-edit-core.bodyParentOf`: no `suffix` field, by contract. */
 const bodyParentOf = (doc: Document): BodyParent => ({
 	children: doc.children,
 	ownerKind: undefined,
-	owner: undefined
+	owner: undefined,
+	lineEnding: documentLineEnding(doc)
 });
 
 /** `editor-actions/commit/undo-controller.docSettleParent`. */

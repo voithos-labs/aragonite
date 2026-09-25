@@ -137,6 +137,7 @@ describe('reconcileFenceWrite: a CRLF display', () => {
 	// Each row moves the caret, so a `\r` counted on the wrong side of an offset shows up.
 	const rows: Array<[string, string, number]> = [
 		['a caret past the grown closer run', '```js\n```\ncode\n```', 18],
+		['a caret at the start of the closer line', '```js\n```\ncode\n```', 15],
 		['a caret on the colliding body line', '```js\n```\ncode\n```', 9],
 		['a caret past a dropped info backtick', '```j`s\ncode\n```', 5],
 		['a caret before a closer the write ran into', '```\nAB```', 6],

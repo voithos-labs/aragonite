@@ -17,6 +17,10 @@ import {
 	escalatedFenceLength,
 	OPENER_PRIORITIES,
 	trimTrailingLineEnding,
+	displayLines,
+	firstLineEnding,
+	ownTrailingLineEnding,
+	trailingLineEnding,
 	type FenceOpen,
 	type CstNode,
 	type NodeView
@@ -89,25 +93,22 @@ function grownCloser(closerRaw: string, marker: '`' | '~', length: number): stri
 	return match[1] + marker.repeat(Math.max(match[2].length, length)) + match[3];
 }
 
-/** A CRLF document leaves a carriage return at the end of every line split on `\n`. */
-const withoutCarriageReturn = (line: string) => (line.endsWith('\r') ? line.slice(0, -1) : line);
-const endingOf = (raw: string) => raw.slice(trimTrailingLineEnding(raw).length);
-
 /**
  * Put back a closing fence a truncating write dropped (a range delete or a find/replace over the
  * fence bytes), sized on the written opener's run, so the blocks below never become diagram
- * source. A first line that no longer opens a mermaid fence is left alone.
+ * source. A first line that no longer opens a mermaid fence is left alone. The closer line takes
+ * the block's own ending, else the first break in its bytes.
  */
 function normalizeMermaidRaw(raw: string, node: NodeView): string {
 	const display = trimTrailingLineEnding(raw);
-	const lines = display.split('\n');
-	const fence = matchMermaidFence(withoutCarriageReturn(lines[0]));
+	const lines = displayLines(display);
+	const fence = matchMermaidFence(lines[0].text);
 	if (!fence) return raw;
-	const closes = (line: string) =>
-		matchFenceClose(withoutCarriageReturn(line), fence.marker, fence.length);
+	const closes = (line: { text: string }) => matchFenceClose(line.text, fence.marker, fence.length);
 	if (lines.slice(1).some(closes)) return raw;
 	const closer = fence.indent + fence.marker.repeat(fence.length);
-	return display + (endingOf(node.raw) || '\n') + closer + endingOf(raw);
+	const ending = trailingLineEnding(node.raw, firstLineEnding(node.raw) ?? '\n');
+	return display + ending + closer + ownTrailingLineEnding(raw);
 }
 
 // ── Component UI hooks ────────────────────────────────────────────────────────

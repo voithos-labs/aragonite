@@ -43,12 +43,11 @@ describe('normalizeFencedRaw: the dropped closer', () => {
 		});
 	});
 
-	// An unterminated slice is what a last block without a trailing newline leaves behind: the
-	// reattached ending falls back to LF, so reading the closer's ending off it downgrades a
-	// CRLF block.
+	// An unterminated slice is what a last block without a trailing newline leaves behind: every
+	// ending the rule writes, the restored closer's and the reattached one, is the fence's CRLF.
 	it('creates CRLF onto an unterminated slice', () => {
 		const crlf = codeNode('```js\r\nbody\r\n```\r\n');
-		expect(normalizeFencedRaw('```js\r\nbo', crlf)).toBe('```js\r\nbo\r\n```\n');
+		expect(normalizeFencedRaw('```js\r\nbo', crlf)).toBe('```js\r\nbo\r\n```\r\n');
 		expect(reload(normalizeFencedRaw('```js\r\nbo', crlf))).toEqual({ count: 1, closed: true });
 	});
 

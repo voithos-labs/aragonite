@@ -12,7 +12,7 @@ import { describe, it, expect } from 'vitest';
 import type { CstNode, Document } from '../../core/nodes';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
-import { displayLength, trimTrailingLineEnding } from '../../core/lines';
+import { displayLength, documentLineEnding, trimTrailingLineEnding } from '../../core/lines';
 import { insertHardBreak } from '../../components/blocks/text/text-keydown';
 import { computeFenceExit } from '../../components/blocks/code/code-fence-exit';
 import { codePasteSurface } from '../../components/blocks/code/code-paste-surface';
@@ -93,12 +93,17 @@ const GESTURES: EditGesture[] = [
 	{
 		name: 'hard break at end of display',
 		source: 'abc\n',
-		apply: (doc) => insertHardBreak(doc.children[0].raw, displayLength(doc.children[0].raw)).newRaw
+		apply: (doc) =>
+			insertHardBreak(
+				doc.children[0].raw,
+				displayLength(doc.children[0].raw),
+				documentLineEnding(doc)
+			).newRaw
 	},
 	{
 		name: 'hard break mid display',
 		source: 'abc\n',
-		apply: (doc) => insertHardBreak(doc.children[0].raw, 1).newRaw
+		apply: (doc) => insertHardBreak(doc.children[0].raw, 1, documentLineEnding(doc)).newRaw
 	},
 	{
 		name: 'blockquote rebuild across a blank quote line',
@@ -139,14 +144,15 @@ const GESTURES: EditGesture[] = [
 	{
 		name: 'list exit minting the paragraph below the list',
 		source: '- a\n- b\n',
-		apply: (doc) => serializeNodes(buildExitReplacement(doc.children[0], 1).blocks)
+		apply: (doc) =>
+			serializeNodes(buildExitReplacement(doc.children[0], 1, documentLineEnding(doc)).blocks)
 	},
 	{
 		name: 'empty-container backfill',
 		source: '- \n',
 		apply: (doc) => {
 			const item = doc.children[0].children![0];
-			ensureEditableContainers(item);
+			ensureEditableContainers(item, documentLineEnding(doc));
 			return serializeNodes(item.children!);
 		}
 	},
@@ -280,7 +286,8 @@ function unterminatedTail(): EditGesture[] {
 		{
 			name: 'list exit below an unterminated list',
 			source: 'abc\n\n- a\n- ',
-			apply: (doc) => serializeNodes(buildExitReplacement(doc.children[1], 1).blocks)
+			apply: (doc) =>
+				serializeNodes(buildExitReplacement(doc.children[1], 1, documentLineEnding(doc)).blocks)
 		},
 		{
 			name: 'table rebuild of an unterminated table',

@@ -56,6 +56,7 @@ function makeNestedList() {
 				return [1, 0];
 			}
 		},
+		getLineEnding: () => '\n',
 		state: listState,
 		parentBlockEdit: quoteBundle.blockEdit,
 		parentFocus: quoteBundle.focus,

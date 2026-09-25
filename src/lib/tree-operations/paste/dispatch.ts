@@ -12,7 +12,12 @@ import type { PluginActivation } from '../../schema/plugin-activation';
 import { parse } from '../../core/parser';
 import { isBlockNode, nodeAt } from '../node-primitives';
 import { cutRangeFromDisplay } from '../node-ops';
-import { trailingLineEnding, trimTrailingLineEnding } from '../../core/lines';
+import {
+	documentLineEnding,
+	trailingLineEnding,
+	trimTrailingLineEnding,
+	withLineEnding
+} from '../../core/lines';
 import {
 	getPasteSurface,
 	isPasteSurfaceRegistered,
@@ -31,8 +36,7 @@ import { applyListAbsorb, findListAbsorb } from './list-absorb';
 import { applyListBreakOut, findListBreakOut } from './list-break-out';
 import type { PasteCommitCoordinator } from './paste-deps';
 import { applyPasteTransforms } from './paste-transforms';
-import { inlineResultInEnding, pasteLineEnding } from './line-ending';
-import { withLineEnding } from '../../core/lines';
+import { inlineResultInEnding } from './line-ending';
 import { contentBlocks, pickPasteStrategy } from './strategy';
 
 export type PasteStrategy = 'inline' | 'structural';
@@ -62,7 +66,7 @@ export interface PasteDispatchContext {
 	/** The plugins this instance activated, so an unlisted plugin's paste hooks stay out. */
 	activePlugins: PluginActivation;
 	/** What the paste's delete half needs for the join cleanup; absent leaves it byte-literal. */
-	seam?: PasteSeam;
+	seam?: Omit<PasteSeam, 'lineEnding'>;
 }
 
 /** Where an inline paste's caret belongs once the commit settled, when that moved it. */
@@ -93,7 +97,10 @@ export async function pasteDispatch(
 	// Once, before any branch below reads the text; a transform that empties it is an
 	// empty paste.
 	const { activePlugins } = ctx;
+	// The hooks read the LF text; every line the paste writes takes the document's own ending.
+	const ending = documentLineEnding(ctx.doc);
 	const seam: PasteSeam = {
+		lineEnding: ending,
 		presentationMode: ctx.seam?.presentationMode,
 		// No join context means no live mode, so the cut stays literal and reads no definition.
 		linkRef: ctx.seam?.linkRef ?? { grammar: ctx.grammar },
@@ -109,9 +116,6 @@ export async function pasteDispatch(
 	const targetNode = nodeAt(ctx.doc, input.targetPath) as CstNode | null;
 	if (!targetNode) return {};
 
-	// The hooks read the LF text; the blocks are parsed in the document's own ending, since their
-	// bytes are what every block route writes.
-	const ending = pasteLineEnding(ctx.doc, input.targetPath, targetNode, input.offset);
 	const parsed = parse(withLineEnding(pastedText, ending), {
 		grammar: ctx.grammar,
 		scope: 'fragment'
@@ -233,7 +237,7 @@ function targetAfterPreDelete(
 		seam.presentationMode,
 		seam.linkRef
 	);
-	return { raw: cut.display + trailingLineEnding(node.raw), offset: cut.offset };
+	return { raw: cut.display + trailingLineEnding(node.raw, seam.lineEnding), offset: cut.offset };
 }
 
 /**

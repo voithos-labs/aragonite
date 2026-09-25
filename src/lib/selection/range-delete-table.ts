@@ -14,7 +14,7 @@ import { metadataOf } from '../core/nodes';
 import type { SelectionPoint } from './primitives';
 import type { RangeDeleteResult } from './range-delete';
 import type { SharingState } from '../tree-operations/sharing';
-import { displayLength, trailingLineEnding } from '../core/lines';
+import { displayLength, documentLineEnding } from '../core/lines';
 import { cellRowCol } from '../cursor/coordinate-spaces';
 import { cellIndexOf } from './primitives';
 import {
@@ -207,7 +207,7 @@ function deleteFromTableIntoProse(
 	grammar: GrammarView | undefined,
 	live: LiveSeamContext
 ): RangeDeleteResult {
-	const lineEnding = trailingLineEnding(table.raw);
+	const lineEnding = documentLineEnding(doc);
 	const startCell = cellIndexOf(start, 'deleteFromTableIntoProse:start');
 	const { result: tableResult, splice } = deleteCellsAndCollapse(
 		table,
@@ -306,7 +306,7 @@ function deleteAcrossTwoTables(
 	sharing: SharingState,
 	grammar: GrammarView | undefined
 ): RangeDeleteResult {
-	const lineEnding = trailingLineEnding(startTable.raw);
+	const lineEnding = documentLineEnding(doc);
 	const startCell = cellIndexOf(start, 'deleteAcrossTwoTables:start');
 	const { result: startResult, splice: startSplice } = deleteCellsAndCollapse(
 		startTable,

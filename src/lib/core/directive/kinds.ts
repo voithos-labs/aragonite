@@ -16,7 +16,7 @@ import type { KeyBinding } from '../../schema/keybindings';
 import { getPluginMetadata, type CstNode, type InlineNode } from '../nodes';
 import type { ContainerBodyWrap } from '../parser';
 import type { NodeView } from '../node-views';
-import { displayLength, trimTrailingLineEnding, trailingLineEnding } from '../lines';
+import { displayLength, ownTrailingLineEnding, trimTrailingLineEnding } from '../lines';
 import { concatChildren as serializeChildren } from '../serializer';
 import { registerInlineWidgetKind, mintWidgetShell } from '../inline/inline-widgets';
 import { matchDirectiveOpener, serializeDirective } from './grammar';
@@ -161,8 +161,7 @@ export function rebuildDirectiveContainerRaw(node: CstNode): void {
 		closerColonCount: meta.closerColonCount,
 		closerNewline: meta.closerNewline,
 		lineEnding: meta.lineEnding,
-		// The parse side threads only the opener ending, so a mixed-ending directive recovers
-		// the closer's from the current raw, whose last line it is.
-		closerLineEnding: trailingLineEnding(node.raw)
+		// The closer is the raw's last line, so its ending is the raw's own, else the opener's.
+		closerLineEnding: ownTrailingLineEnding(node.raw) || undefined
 	});
 }

@@ -64,7 +64,7 @@ describe('the text after the caret, split into an item of its own', () => {
 	it('opens on the line after an empty marker when the list breaks out', () => {
 		const list = parse('1. abc\n       code\n').children[0];
 		const pasted = parse('- x\n').children;
-		const { replacement } = buildListBreakOutReplacement(list, 0, 0, 3, pasted);
+		const { replacement } = buildListBreakOutReplacement(list, 0, 0, 3, pasted, '\n');
 		const secondHalf = replacement[replacement.length - 1];
 		const alone: Document = { kind: 'document', prefix: '', children: [secondHalf], suffix: '' };
 

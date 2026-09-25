@@ -5,6 +5,7 @@
 
 import type { CstNode, TableAlignment } from './core/nodes';
 import type { NodeView } from './core/node-views';
+import type { LineEnding } from './core/lines';
 import type { StructuralChange } from './tree-operations/structural-change';
 import type { TrackedPosition } from './tree-operations/settle';
 import type { SharingState } from './tree-operations/sharing';
@@ -144,6 +145,8 @@ export interface ContainerScope {
 	node: CstNode;
 	children: CstNode[];
 	sharing: SharingState;
+	/** The document's line ending, which every line the mutation writes takes. */
+	lineEnding: LineEnding;
 }
 
 // ── Multi-scope commit ──────────────────────────────────────────────────────
@@ -265,6 +268,8 @@ export interface ContainerEditActions {
 	pushDebouncedCheckpoint(leafPath: number[], offset: number, batchKey?: string | number): void;
 	/** The checkpoint's other half: start the pause timer once the keystroke's edit is done. */
 	armDebouncedPause(): void;
+	/** The document's line ending, which every line a write below the root creates takes. */
+	lineEnding(): LineEnding;
 	/**
 	 * Tell the view about a raw change made outside the commit call, forwarded unchanged
 	 * through nested containers. It rebuilds no raw itself: a writer outside a commit

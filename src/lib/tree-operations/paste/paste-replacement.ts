@@ -10,7 +10,8 @@ import {
 	ownTrailingLineEnding,
 	snapToScalarBoundary,
 	trailingLineEnding,
-	trimTrailingLineEnding
+	trimTrailingLineEnding,
+	type LineEnding
 } from '../../core/lines';
 import { isBlankParagraph } from '../../core/parser';
 import { ensureEditableContainers } from '../node-primitives';
@@ -28,12 +29,13 @@ export function buildPastedReplacement(
 	leaf: NodeView,
 	offset: number,
 	blocks: CstNode[],
+	ending: LineEnding,
 	grammar?: GrammarView
 ): PastedReplacement {
 	if (blocks.length === 0) return { nodes: [], lastPastedIndex: -1 };
 
 	const leafRaw = leaf.raw;
-	const lineEnding = trailingLineEnding(leafRaw);
+	const lineEnding = trailingLineEnding(leafRaw, ending);
 	const display = trimTrailingLineEnding(leafRaw);
 	// Moved off the middle of a surrogate pair before the cut: the halves land in different
 	// blocks, so a pair split here is unrecoverable bytes rather than a recoverable edit.
@@ -50,7 +52,7 @@ export function buildPastedReplacement(
 		const beforeRaw = rawBefore + lineEnding;
 		const beforeNode = parseFirstBlock(beforeRaw, grammar);
 		beforeNode.leadingTrivia = originalTrivia;
-		ensureEditableContainers(beforeNode);
+		ensureEditableContainers(beforeNode, lineEnding);
 		newNodes.push(beforeNode);
 	}
 
@@ -71,7 +73,7 @@ export function buildPastedReplacement(
 		newNodes.push({ ...first, leadingTrivia: residue.endedLine || lineEnding });
 		for (const node of rest) newNodes.push(node);
 		for (let i = lastPastedIndex + 1; i < newNodes.length; i++) {
-			ensureEditableContainers(newNodes[i]);
+			ensureEditableContainers(newNodes[i], lineEnding);
 		}
 	}
 
@@ -95,7 +97,7 @@ export function landClipboardBlocks(
 		const node = before ? landedAfter(before, blocks[i], lineEnding) : { ...blocks[i] };
 		// Ahead of the backfill: an empty container keeps its own bytes and gains the ending.
 		if (closesLine && i === blocks.length - 1) terminateLastLine(node, lineEnding);
-		ensureEditableContainers(node);
+		ensureEditableContainers(node, lineEnding);
 		landed.push(node);
 	}
 	return landed;

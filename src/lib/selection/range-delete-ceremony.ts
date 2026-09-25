@@ -13,7 +13,13 @@ import type { CstNode, Document } from '../core/nodes';
 import type { SelectionPoint } from './primitives';
 import type { SharingState } from '../tree-operations/sharing';
 import { parse } from '../core/parser';
-import { displayLength, terminateLine, trailingLineEnding } from '../core/lines';
+import {
+	displayLength,
+	documentLineEnding,
+	terminateLine,
+	trailingLineEnding,
+	type LineEnding
+} from '../core/lines';
 import { charOffsetOf, walkBetween } from './primitives';
 import {
 	comparePaths,
@@ -113,14 +119,15 @@ function cleanTruncatedProse(
  * write rule first: the reparse derives metadata from bytes, so anything the truncation dropped
  * and the rule restores (a fence closer) has to be back before it runs. The position's leading
  * blank lines carry over, and an empty slice gives a bare paragraph on the source block's line
- * ending (G4.20).
+ * ending, else the document's (`ending`).
  */
 export function reparseTruncatedEndpoint(
 	node: CstNode,
 	slice: string,
+	ending: LineEnding,
 	grammar: GrammarView | undefined
 ): CstNode[] {
-	const lineEnding = trailingLineEnding(node.raw);
+	const lineEnding = trailingLineEnding(node.raw, ending);
 	const reparsed = parse(normalizeOwnRaw(node, slice) || lineEnding, {
 		grammar,
 		scope: 'fragment'
@@ -167,16 +174,18 @@ export function truncateStartInPlace(
 	tag: string
 ): number {
 	const cut = charOffsetOf(start, tag);
+	const ending = documentLineEnding(doc);
+	const lineEnding = trailingLineEnding(startBlock.raw, ending);
 	const head = isChrome
 		? { raw: startBlock.raw.slice(0, cut), seam: cut }
 		: cleanTruncatedProse(startBlock, 'head', cut, live);
 	if (isChrome) {
-		startBlock.raw = terminateLine(head.raw, startBlock.raw);
+		startBlock.raw = terminateLine(head.raw, lineEnding);
 	} else {
 		installTruncatedEndpoint(
 			doc,
 			start.path,
-			reparseTruncatedEndpoint(startBlock, terminateLine(head.raw, startBlock.raw), grammar),
+			reparseTruncatedEndpoint(startBlock, terminateLine(head.raw, lineEnding), ending, grammar),
 			sharing
 		);
 	}
@@ -201,14 +210,15 @@ export function truncateEndInPlace(
 ): CstNode | null {
 	const cut = charOffsetOf(end, tag);
 	if (isChrome) {
-		endBlock.raw = endBlock.raw.slice(cut) || trailingLineEnding(endBlock.raw);
+		endBlock.raw =
+			endBlock.raw.slice(cut) || trailingLineEnding(endBlock.raw, documentLineEnding(doc));
 		return endBlock;
 	}
 	const tail = cleanTruncatedProse(endBlock, 'tail', cut, live).raw;
 	installTruncatedEndpoint(
 		doc,
 		end.path,
-		reparseTruncatedEndpoint(endBlock, tail, grammar),
+		reparseTruncatedEndpoint(endBlock, tail, documentLineEnding(doc), grammar),
 		sharing
 	);
 	return blockNodeAt(doc, end.path);

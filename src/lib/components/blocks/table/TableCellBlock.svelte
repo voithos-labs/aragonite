@@ -24,7 +24,11 @@
 		type EditorServices
 	} from '../../../editor-keys';
 	import type { AnyInlineKind, TableAlignment } from '../../../core/nodes';
-	import { trimTrailingLineEnding, normalizeLineEndings } from '../../../core/lines';
+	import {
+		documentLineEnding,
+		normalizeLineEndings,
+		trimTrailingLineEnding
+	} from '../../../core/lines';
 	import { pasteDispatch } from '../../../tree-operations/paste/dispatch';
 	import { blockNodeAt, isBlockNode, nodeAt } from '../../../tree-operations/node-primitives';
 	import { cutRangeFromDisplay } from '../../../tree-operations/node-ops';
@@ -275,6 +279,7 @@
 	// The same inline-widget code prose uses, with cell-shaped dependencies: no marker prefix,
 	// no snap indicator, since cells render no image widgets, and the escaping `blockEdit`.
 	const widgetInteraction = createWidgetInteraction({
+		getLineEnding: () => documentLineEnding(getDoc()),
 		grammar,
 		get node() {
 			return node;
@@ -311,6 +316,7 @@
 	// The one caret-edge dispatch (G4.12), the same code prose uses: a plain edge key against
 	// a CST widget or a decoration widget resolves against its declared policy.
 	const edgeDispatch = createEdgePolicyDispatch({
+		getLineEnding: () => documentLineEnding(getDoc()),
 		grammar,
 		get node() {
 			return node;
@@ -781,6 +787,7 @@
 			e,
 			node,
 			cursor,
+			documentLineEnding(getDoc()),
 			presentationMode,
 			linkRef,
 			'',

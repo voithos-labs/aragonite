@@ -131,7 +131,8 @@ describe('tableCellInlinePaste', () => {
 		const CUT = { start: 8, end: 18 };
 		const seamIn = (presentationMode: PresentationMode) => ({
 			presentationMode,
-			linkRef: fixtureLinkRef()
+			linkRef: fixtureLinkRef(),
+			lineEnding: '\n' as const
 		});
 
 		it('live: the run the cut stranded goes with it', () => {

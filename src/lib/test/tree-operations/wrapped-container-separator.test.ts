@@ -3,7 +3,7 @@ import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { deleteNode } from '$lib/tree-operations/settle';
 import { updateNodeContent } from '$lib/tree-operations/content-write';
-import { trailingLineEnding } from '$lib/core/lines';
+import { firstLineEnding, trailingLineEnding } from '$lib/core/lines';
 import { rebuildAncestryRaw } from '$lib/schema/container-raw';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { activateDirectiveGrammar } from '$lib/core/directive/activate';
@@ -19,7 +19,12 @@ import type { CstNode } from '$lib/core/nodes';
 
 /** The parent argument for a container's own children, the shape every caller hands in. */
 function bodyParentOf(container: CstNode) {
-	return { children: container.children!, ownerKind: container.kind, owner: container };
+	return {
+		children: container.children!,
+		ownerKind: container.kind,
+		owner: container,
+		lineEnding: firstLineEnding(container.raw) ?? '\n'
+	};
 }
 
 /** Delete a body child the way a caller does: splice, then re-derive the ancestry's raw. */
@@ -96,9 +101,14 @@ describe('emptying a body block against the wrap’s chrome lines', () => {
 	/** The emptied-block gesture through the container write: commitInput sends the ending alone. */
 	function emptyBodyChild(container: CstNode, at: number): void {
 		updateNodeContent(
-			{ children: container.children!, ownerKind: container.kind, owner: container },
+			{
+				children: container.children!,
+				ownerKind: container.kind,
+				owner: container,
+				lineEnding: firstLineEnding(container.raw) ?? '\n'
+			},
 			at,
-			trailingLineEnding(container.children![at].raw)
+			trailingLineEnding(container.children![at].raw, '\n')
 		);
 		rebuildAncestryRaw(container, []);
 	}

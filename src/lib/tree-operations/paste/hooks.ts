@@ -49,7 +49,7 @@ export function defaultInlineHook(
 	seam: PasteSeam
 ): InlinePasteResult {
 	const display = trimTrailingLineEnding(node.raw);
-	const lineEnding = trailingLineEnding(node.raw);
+	const lineEnding = trailingLineEnding(node.raw, seam.lineEnding);
 
 	const { display: effectiveDisplay, offset: effectiveOffset } = applyPreDelete(
 		node,
@@ -95,12 +95,15 @@ export function defaultStructuralHook(
 	// Compare the bytes rather than the range: a cleanup can drop more than the selection did,
 	// and an empty range leaves them equal, which is exactly when the original node stands.
 	const synthLeaf =
-		cut.display === display ? node : { ...node, raw: cut.display + trailingLineEnding(node.raw) };
+		cut.display === display
+			? node
+			: { ...node, raw: cut.display + trailingLineEnding(node.raw, seam.lineEnding) };
 
 	const { nodes, lastPastedIndex } = buildPastedReplacement(
 		synthLeaf,
 		cut.offset,
 		blocks,
+		seam.lineEnding,
 		seam.grammar
 	);
 	// The caret lands where the pasted bytes end, which the fix-up tracks when it merges the

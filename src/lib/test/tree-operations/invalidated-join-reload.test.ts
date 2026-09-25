@@ -64,7 +64,7 @@ describe('a kind demotion settles the join below (GH #21)', () => {
 		const quote = doc.children[0];
 
 		const { change } = updateNodeContent(
-			{ children: quote.children!, ownerKind: quote.kind, owner: quote },
+			{ children: quote.children!, ownerKind: quote.kind, owner: quote, lineEnding: '\n' },
 			0,
 			'x# h\n'
 		);
@@ -222,7 +222,11 @@ describe('a nested delete can stop an ordered list interrupting (GH #176)', () =
 		const chain = ensureUnsharedPath(doc, [0, 1], share);
 		const quote = chain[0];
 
-		updateNodeContent({ children: quote.children!, ownerKind: quote.kind, owner: quote }, 1, 'h\n');
+		updateNodeContent(
+			{ children: quote.children!, ownerKind: quote.kind, owner: quote, lineEnding: '\n' },
+			1,
+			'h\n'
+		);
 		const folds: AncestrySeamFold[] = [];
 		rebuildUnsharedChain(doc, chain, share, folds, undefined);
 

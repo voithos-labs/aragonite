@@ -16,7 +16,7 @@ import { describeConvergence } from '$lib/test/harness/parse-converged';
 import { settled } from '$lib/test/harness/settle-funnel';
 import { keepsEveryByte } from '$lib/test/harness/live-oracles';
 import { arbBlankSeparatedGfmDoc, arbInlineSource, freshOrFixedSeed } from './arbitraries';
-import { displayLength, trailingLineEnding } from '$lib/core/lines';
+import { displayLength, documentLineEnding, trailingLineEnding } from '$lib/core/lines';
 import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
 import {
 	registerLiveSplitRebalancer,
@@ -104,7 +104,7 @@ function applyFill(doc: Document, at: number): void {
 	const blanks = doc.children.flatMap((node, i) => (isBlankParagraph(node) ? [i] : []));
 	if (blanks.length === 0) return;
 	const target = blanks[at % blanks.length];
-	const text = 'x' + trailingLineEnding(doc.children[target].raw);
+	const text = 'x' + trailingLineEnding(doc.children[target].raw, '\n');
 	settled(doc, () => updateNodeContent(doc, target, text).change);
 }
 
@@ -150,7 +150,7 @@ function applyEmpty(doc: Document, at: number): void {
 	const slots = proseLeafSlots(doc);
 	if (slots.length === 0) return;
 	const slot = slots[at % slots.length];
-	writeLeaf(doc, slot, trailingLineEnding(slot.holder.children![slot.index].raw));
+	writeLeaf(doc, slot, trailingLineEnding(slot.holder.children![slot.index].raw, '\n'));
 }
 
 /**
@@ -164,7 +164,7 @@ function applyRetype(doc: Document, at: number): void {
 	const slot = slots[at % slots.length];
 	const node = slot.holder.children![slot.index];
 	const domText = node.raw.slice(0, getContentRange(node).end);
-	writeLeaf(doc, slot, domText + undrawnSuffix(node) + trailingLineEnding(node.raw));
+	writeLeaf(doc, slot, domText + undrawnSuffix(node) + trailingLineEnding(node.raw, '\n'));
 }
 
 function writeLeaf(doc: Document, { holder, index, chain }: LeafSlot, text: string): void {
@@ -173,7 +173,11 @@ function writeLeaf(doc: Document, { holder, index, chain }: LeafSlot, text: stri
 	if (holder === doc) settled(doc, () => updateNodeContent(doc, index, text).change);
 	else {
 		const owner = holder as CstNode;
-		updateNodeContent({ children, ownerKind: owner.kind, owner }, index, text);
+		updateNodeContent(
+			{ children, ownerKind: owner.kind, owner, lineEnding: documentLineEnding(doc) },
+			index,
+			text
+		);
 	}
 	// The rebuild typing runs, which recomputes the blank line a changed opener line needs above it.
 	rebuildUnsharedChain(doc, chain, createSharingState(), null, defaultGrammarView);

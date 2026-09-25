@@ -13,7 +13,7 @@ import { emitClipboardError, type EditorEvents } from '../editor-events';
 import { ambientLengthOf } from '../ambient/ambient-dom';
 import { toClampedRawOffset, toDomTextOffset } from '../cursor/coordinate-spaces';
 import { createRangeAtDomTextOffsets, domTextOffsetAtNode } from '../cursor/widget-offset';
-import { trailingLineEnding, trimTrailingLineEnding } from '../core/lines';
+import { documentLineEnding, trailingLineEnding, trimTrailingLineEnding } from '../core/lines';
 import { blockContentElAt } from '../components/block-el-lookup';
 import { replaceRangeRaw } from '../components/blocks/text/live-selection-edit';
 import {
@@ -334,7 +334,8 @@ function cutFrom(deps: SelectionDropDeps, from: DragSource): ScopeCut | null {
 		'',
 		deps.getPresentationMode?.(),
 		deps.linkRef,
-		containerAmbientPrefix(deps.getDoc(), from.path)
+		containerAmbientPrefix(deps.getDoc(), from.path),
+		documentLineEnding(deps.getDoc())
 	);
 	const raw = trimTrailingLineEnding(edit.raw);
 	return { path: from.path, raw, shrunkBy: before.length - raw.length };
@@ -384,8 +385,9 @@ async function writeBlockRaw(
 	const written = normalizeOwnRaw(node, rewrite(trimTrailingLineEnding(node.raw)));
 	// A block emptied by the cut keeps its position as a blank paragraph: no splice, so the
 	// second write's path is still the one resolved at the drop.
-	const parsed = parseReplacement(node, written, deps.grammar, () => [
-		emptyParagraph(node.leadingTrivia ?? '', trailingLineEnding(node.raw))
+	const lineEnding = documentLineEnding(doc);
+	const parsed = parseReplacement(node, written, lineEnding, deps.grammar, () => [
+		emptyParagraph(node.leadingTrivia ?? '', trailingLineEnding(node.raw, lineEnding))
 	]);
 	if (!parsed) return 0;
 	const landed = await replaceBlockAtParent({

@@ -168,6 +168,7 @@ export {
 	documentLineEnding,
 	firstLineEnding,
 	ownTrailingLineEnding,
+	trailingLineEnding,
 	displayLines,
 	joinDisplayLines
 } from './core/lines';

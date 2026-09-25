@@ -6,6 +6,7 @@
 
 import type { Document } from '../core/nodes';
 import type { DocumentView, NodeView } from '../core/node-views';
+import { documentLineEnding } from '../core/lines';
 import { docPathFrom } from '../cursor/coordinate-spaces';
 import { expectStateForNode } from '../reactivity/state-registry';
 import type { GrammarView } from '../schema/block-openers';
@@ -86,6 +87,7 @@ export function createInlineRangeCommit(deps: InlineRangeCommitDeps): InlineRang
 						children,
 						ownerKind: undefined,
 						owner: undefined,
+						lineEnding: documentLineEnding(doc),
 						get suffix() {
 							return doc.suffix;
 						},

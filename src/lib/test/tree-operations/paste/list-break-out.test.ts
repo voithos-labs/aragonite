@@ -12,7 +12,7 @@ describe('buildListBreakOutReplacement', () => {
 		const list = parse('3. a\n4. b\n5. c\n').children[0];
 		const pasted = parse('- x\n').children;
 
-		const { replacement } = buildListBreakOutReplacement(list, 1, 0, 0, pasted);
+		const { replacement } = buildListBreakOutReplacement(list, 1, 0, 0, pasted, '\n');
 
 		const orderedHalves = replacement.filter(
 			(b) => b.kind === 'list' && metadataOf(b, 'list').ordered
@@ -30,7 +30,7 @@ describe('buildListBreakOutReplacement', () => {
 		const list = parse('1. a\n2. b\n3. c\n').children[0];
 		const pasted = parse('- x\n').children;
 
-		const { replacement } = buildListBreakOutReplacement(list, 1, 0, 0, pasted);
+		const { replacement } = buildListBreakOutReplacement(list, 1, 0, 0, pasted, '\n');
 
 		const orderedHalves = replacement.filter(
 			(b) => b.kind === 'list' && metadataOf(b, 'list').ordered
@@ -55,7 +55,8 @@ describe('buildListBreakOutReplacement, trailing-residue flag drives the caret',
 			1,
 			0,
 			1,
-			pasted()
+			pasted(),
+			'\n'
 		);
 		expect(hasTrailingResidue).toBe(true);
 		expect(focusIndexBeforeResidue(replacement.length, hasTrailingResidue)).toBe(
@@ -69,7 +70,8 @@ describe('buildListBreakOutReplacement, trailing-residue flag drives the caret',
 			2,
 			0,
 			'three'.length,
-			pasted()
+			pasted(),
+			'\n'
 		);
 		expect(hasTrailingResidue).toBe(false);
 		expect(focusIndexBeforeResidue(replacement.length, hasTrailingResidue)).toBe(

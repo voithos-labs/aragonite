@@ -9,7 +9,7 @@ import fc from 'fast-check';
 import { parse } from '../../core/parser';
 import type { CstNode } from '../../core/nodes';
 import { metadataOf } from '../../core/nodes';
-import { displayLength, trimTrailingLineEnding } from '../../core/lines';
+import { displayLength, documentLineEnding, trimTrailingLineEnding } from '../../core/lines';
 import { createUndoController } from '../../editor-actions/commit/undo-controller';
 import { createBlockEditActions } from '../../editor-actions/block-edit';
 import { createContainerEditActions } from '../../editor-actions/container-edit';
@@ -253,6 +253,7 @@ async function runListOp(
 				return [listIndex];
 			}
 		},
+		getLineEnding: () => documentLineEnding(h.deps.doc),
 		state: listState,
 		parentBlockEdit: makeStubBlockEdit(),
 		parentFocus: makeStubFocus(),

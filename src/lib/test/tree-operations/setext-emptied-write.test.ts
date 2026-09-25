@@ -7,6 +7,7 @@ import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import { updateNodeContent } from '../../tree-operations';
 import { describeConvergence } from '../harness/parse-converged';
+import { documentLineEnding } from '$lib/core/lines';
 
 describe('a content write that empties a setext title', () => {
 	it.each([
@@ -31,7 +32,12 @@ describe('a content write that empties a setext title', () => {
 		const quote = doc.children[0];
 
 		updateNodeContent(
-			{ children: quote.children!, ownerKind: 'blockquote', owner: quote },
+			{
+				children: quote.children!,
+				ownerKind: 'blockquote',
+				owner: quote,
+				lineEnding: documentLineEnding(doc)
+			},
 			0,
 			'\n---\n'
 		);
