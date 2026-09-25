@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { updateNodeContent } from '$lib/tree-operations/content-write';
-import { trailingLineEnding } from '$lib/core/lines';
+import { firstLineEnding, trailingLineEnding } from '$lib/core/lines';
 import { rebuildAncestryRaw } from '$lib/schema/container-raw';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { activateDirectiveGrammar } from '$lib/core/directive/activate';
@@ -20,9 +20,14 @@ import type { CstNode } from '$lib/core/nodes';
 /** The emptied-block gesture through the container write: commitInput sends the ending alone. */
 function emptyBodyChild(container: CstNode, at: number): void {
 	updateNodeContent(
-		{ children: container.children!, ownerKind: container.kind, owner: container },
+		{
+			children: container.children!,
+			ownerKind: container.kind,
+			owner: container,
+			lineEnding: firstLineEnding(container.raw) ?? '\n'
+		},
 		at,
-		trailingLineEnding(container.children![at].raw)
+		trailingLineEnding(container.children![at].raw, '\n')
 	);
 	rebuildAncestryRaw(container, []);
 }

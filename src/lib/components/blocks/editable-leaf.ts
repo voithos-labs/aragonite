@@ -52,7 +52,7 @@ import { resetForPointerDown } from '../../selection/cross-block/pointer';
 import { placeCaret } from '../../selection/caret-doors';
 import { createSourceReveal } from '../../cursor/reveal-source';
 import { traceRevealOpen, traceRevealFold } from '../../debug/interaction-trace';
-import { trimTrailingLineEnding, trailingLineEnding } from '../../core/lines';
+import { documentLineEnding, trimTrailingLineEnding, trailingLineEnding } from '../../core/lines';
 import type { PresentationMode } from '../../presentation-mode';
 import { tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
 import { type CommandId } from '../../schema/commands';
@@ -306,7 +306,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 			if (mode === 'plain' && !isReading()) {
 				void blockEdit.updateBlockContent(
 					deps.getIndex(),
-					text + trailingLineEnding(deps.getNode().raw),
+					text + trailingLineEnding(deps.getNode().raw, documentLineEnding(getDoc())),
 					preEdit,
 					saved
 				);
@@ -373,7 +373,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		return Promise.resolve(
 			blockEdit.updateBlockContent(
 				deps.getIndex(),
-				edited + trailingLineEnding(deps.getNode().raw),
+				edited + trailingLineEnding(deps.getNode().raw, documentLineEnding(getDoc())),
 				editableSurface.getPreEditOffset(),
 				edited.length
 			)

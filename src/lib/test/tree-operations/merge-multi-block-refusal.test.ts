@@ -7,6 +7,7 @@ import type { BodyParent } from '$lib/tree-operations/node-primitives';
 import { expectParseConverged } from '$lib/test/harness/parse-converged';
 import { defaultGrammarView } from '$lib/schema/block-openers';
 import { fixtureLinkRef } from '../harness/fixture-grammar';
+import { documentLineEnding } from '$lib/core/lines';
 
 // GH #166. Miss-analysis: G2.13's gesture lane drove split, delete and content commits but no
 // merge, so no check ever read a merged tree back; the forward merge's own dev warn was the only
@@ -22,7 +23,12 @@ function quotedBody(): { doc: Document; body: BodyParent } {
 	const quote = doc.children[0];
 	return {
 		doc,
-		body: { children: quote.children!, ownerKind: quote.kind, owner: quote }
+		body: {
+			children: quote.children!,
+			ownerKind: quote.kind,
+			owner: quote,
+			lineEnding: documentLineEnding(doc)
+		}
 	};
 }
 

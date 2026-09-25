@@ -77,9 +77,12 @@ describe('the bodyWrite escape reparse reads the instance grammar', () => {
 		{ kind: 'paragraph', leadingTrivia: '', raw: PARROT_LINE + '</details>\n' } as CstNode
 	];
 	const landedKinds = (grammar: GrammarView) =>
-		normalizeReplacementForBody(declaredPluginKind(DETAILS), pasted(), grammar).replacement.map(
-			(n) => n.kind
-		);
+		normalizeReplacementForBody(
+			declaredPluginKind(DETAILS),
+			pasted(),
+			'\n',
+			grammar
+		).replacement.map((n) => n.kind);
 
 	it('the global grammar creates the plugin kind', () => {
 		expect(landedKinds(defaultGrammarView)).toContain(PARROT);

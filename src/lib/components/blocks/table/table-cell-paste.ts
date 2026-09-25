@@ -12,7 +12,7 @@ import { cutRangeFromDisplay } from '../../../tree-operations/node-ops';
 import { sliceTableAtRow } from '../../../tree-operations/paste/table-slice';
 import { focusIndexBeforeResidue } from '../../../tree-operations/paste/focus-target';
 import { landClipboardBlocks, landedAfter } from '../../../tree-operations/paste/paste-replacement';
-import { trailingLineEnding } from '../../../core/lines';
+import { documentLineEnding } from '../../../core/lines';
 import { replaceBlockAtParent } from '../../../tree-operations/paste/replace-block-at-parent';
 import type {
 	InlinePasteResult,
@@ -83,7 +83,7 @@ async function tableCellScopedStructuralPaste(input: ScopedStructuralPasteInput)
 	if (!table || table.kind !== 'table') return;
 
 	const { firstHalf, secondHalf } = sliceTableAtRow(table, rowIdx, 'first');
-	const lineEnding = trailingLineEnding(table.raw);
+	const lineEnding = documentLineEnding(input.doc);
 	const replacement: CstNode[] = [];
 	if (firstHalf) replacement.push(firstHalf);
 	// No text of the cell continues the last block, so it always ends its own line.

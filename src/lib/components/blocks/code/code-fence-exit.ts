@@ -5,7 +5,7 @@
  */
 
 import type { FencedCodeMetadata } from '../../../core/nodes';
-import { trailingLineEnding } from '../../../core/lines';
+import { firstDisplayLine, lineEndingAt, ownTrailingLineEnding } from '../../../core/lines';
 import { matchFenceClose } from '../../../core/parsers/fence-syntax';
 
 export interface FenceExitInput {
@@ -37,20 +37,25 @@ export function computeFenceExit(input: FenceExitInput): FenceExitResult {
 	if (meta.closed) {
 		if (offset === text.length) return { kind: 'exit' };
 
+		// The caret starts an empty line: a break before it, and its own break right at it.
+		const ending = lineEndingAt(text, offset);
 		const onEmptyLineBeforeCloser =
 			offset >= 1 &&
 			text[offset - 1] === '\n' &&
-			text[offset] === '\n' &&
-			matchFenceClose(lineAt(text, offset + 1), meta.fenceMarker, meta.fenceLength);
+			ending !== '' &&
+			matchFenceClose(lineAt(text, offset + ending.length), meta.fenceMarker, meta.fenceLength);
 		if (onEmptyLineBeforeCloser) {
-			return { kind: 'exitWithEdit', newText: text.slice(0, offset) + text.slice(offset + 1) };
+			return {
+				kind: 'exitWithEdit',
+				newText: text.slice(0, offset) + text.slice(offset + ending.length)
+			};
 		}
 
 		return { kind: 'none' };
 	}
 
-	if (offset === text.length && text.endsWith('\n')) {
-		const ending = trailingLineEnding(text);
+	const ending = ownTrailingLineEnding(text);
+	if (offset === text.length && ending !== '') {
 		const body = text.slice(0, text.length - ending.length);
 		const closer = meta.fenceMarker.repeat(meta.fenceLength);
 		return { kind: 'closeAndExit', newText: body + ending + closer };
@@ -69,13 +74,13 @@ export function computeTypedFenceExit(input: TypedFenceExitInput): TypedFenceExi
 	if (!meta.closed || typed !== meta.fenceMarker) return none;
 
 	// The caret must sit at the end of a line that has one below it: the closer's.
-	const ending = /^\r?\n/.exec(text.slice(offset));
-	if (!ending) return none;
+	const ending = lineEndingAt(text, offset);
+	if (ending === '') return none;
 	const lineStart = text.lastIndexOf('\n', offset - 1) + 1;
 	const run = text.slice(lineStart, offset);
 	if (run !== meta.fenceMarker.repeat(run.length) || run.length + 1 < meta.fenceLength) return none;
 
-	const below = offset + ending[0].length;
+	const below = offset + ending.length;
 	if (!matchFenceClose(lineAt(text, below), meta.fenceMarker, meta.fenceLength)) return none;
 	// The run's line goes with the exit, as Enter's own exit takes the blank line.
 	return { kind: 'exitWithEdit', newText: text.slice(0, lineStart) + text.slice(below) };
@@ -83,8 +88,7 @@ export function computeTypedFenceExit(input: TypedFenceExitInput): TypedFenceExi
 
 // ── Internal ────────────────────────────────────────────────────────────────
 
-// The one physical line beginning at `start`, without its trailing newline.
+/** The line beginning at `start`, without its ending. */
 function lineAt(text: string, start: number): string {
-	const end = text.indexOf('\n', start);
-	return end === -1 ? text.slice(start) : text.slice(start, end);
+	return firstDisplayLine(text.slice(start)).text;
 }

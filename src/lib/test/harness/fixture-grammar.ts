@@ -21,5 +21,5 @@ export function fixtureLinkRef(
 
 /** A paste hook's join context outside any mode, so the delete half cuts byte-literally. */
 export function pasteSeam(over: Partial<PasteSeam> = {}): PasteSeam {
-	return { presentationMode: undefined, linkRef: fixtureLinkRef(), ...over };
+	return { presentationMode: undefined, linkRef: fixtureLinkRef(), lineEnding: '\n', ...over };
 }

@@ -13,7 +13,7 @@ import { emitClipboardError, type EditorEvents } from '../editor-events';
 import { ambientLengthOf } from '../ambient/ambient-dom';
 import { toClampedRawOffset, toDomTextOffset } from '../cursor/coordinate-spaces';
 import { createRangeAtDomTextOffsets, domTextOffsetAtNode } from '../cursor/widget-offset';
-import { trailingLineEnding, trimTrailingLineEnding } from '../core/lines';
+import { documentLineEnding, trailingLineEnding, trimTrailingLineEnding } from '../core/lines';
 import { blockContentElAt } from '../components/block-el-lookup';
 import { replaceRangeRaw } from '../components/blocks/text/live-selection-edit';
 import {
@@ -334,7 +334,8 @@ function cutFrom(deps: SelectionDropDeps, from: DragSource): ScopeCut | null {
 		'',
 		deps.getPresentationMode?.(),
 		deps.linkRef,
-		containerAmbientPrefix(deps.getDoc(), from.path)
+		containerAmbientPrefix(deps.getDoc(), from.path),
+		documentLineEnding(deps.getDoc())
 	);
 	const raw = trimTrailingLineEnding(edit.raw);
 	return { path: from.path, raw, shrunkBy: before.length - raw.length };
@@ -359,7 +360,7 @@ function cutFromCell(deps: SelectionDropDeps, from: DragSource, cell: CstNode): 
 	const [rowIdx, colIdx] = inner;
 	const written = rebuilt.children?.[rowIdx]?.children?.[colIdx];
 	if (!written) return null;
-	writeOwnRaw(written, cut.display, deps.grammar);
+	writeOwnRaw(written, cut.display, documentLineEnding(deps.getDoc()), deps.grammar);
 	rebuildAncestryRaw(rebuilt, inner);
 	const raw = trimTrailingLineEnding(rebuilt.raw);
 	return { path: tablePath, raw, shrunkBy: trimTrailingLineEnding(table.raw).length - raw.length };
@@ -381,11 +382,12 @@ async function writeBlockRaw(
 	const node = blockNodeAt(doc, path);
 	if (!node) return 0;
 	// The bytes are built outside the block's own element, so the kind's write rule runs here.
-	const written = normalizeOwnRaw(node, rewrite(trimTrailingLineEnding(node.raw)));
+	const lineEnding = documentLineEnding(doc);
+	const written = normalizeOwnRaw(node, rewrite(trimTrailingLineEnding(node.raw)), lineEnding);
 	// A block emptied by the cut keeps its position as a blank paragraph: no splice, so the
 	// second write's path is still the one resolved at the drop.
-	const parsed = parseReplacement(node, written, deps.grammar, () => [
-		emptyParagraph(node.leadingTrivia ?? '', trailingLineEnding(node.raw))
+	const parsed = parseReplacement(node, written, lineEnding, deps.grammar, () => [
+		emptyParagraph(node.leadingTrivia ?? '', trailingLineEnding(node.raw, lineEnding))
 	]);
 	if (!parsed) return 0;
 	const landed = await replaceBlockAtParent({

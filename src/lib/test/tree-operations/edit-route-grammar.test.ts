@@ -48,7 +48,7 @@ describe('an edit route reparses in the editor grammar', () => {
 
 	it('a completion whose lines lead with four spaces leaves a paragraph', () => {
 		const line = { kind: 'paragraph', leadingTrivia: '', raw: '%box\n' } as CstNode;
-		const completion = planEnterCompletion(line, 4, noIndentedCode);
+		const completion = planEnterCompletion(line, 4, noIndentedCode, '\n');
 		expect(kindsOf(completion?.replacement ?? [])).toEqual(['paragraph']);
 	});
 

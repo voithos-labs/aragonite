@@ -50,7 +50,8 @@ const completes = (grammar: GrammarView) =>
 	planEnterCompletion(
 		{ kind: 'paragraph', leadingTrivia: '', raw: '%%%\n' } as CstNode,
 		3,
-		grammar
+		grammar,
+		'\n'
 	);
 
 describe('an unlisted directive name resolves to the generic directive', () => {

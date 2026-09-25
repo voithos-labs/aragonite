@@ -21,7 +21,7 @@ import {
 	isWidgetActivationClick
 } from '../../../core/inline/inline-widgets';
 import { isVerticallyTransparentNode } from '../../../core/inline/transparency';
-import { trimTrailingLineEnding, trailingLineEnding } from '../../../core/lines';
+import { trimTrailingLineEnding, trailingLineEnding, type LineEnding } from '../../../core/lines';
 import {
 	asRawOffset,
 	toClampedRawOffset,
@@ -60,6 +60,8 @@ import {
 export interface WidgetInteractionDeps {
 	get node(): NodeView;
 	get index(): number;
+	/** The document's line ending, which a commit takes where the block has none of its own. */
+	getLineEnding: () => LineEnding;
 	get myPath(): number[];
 	getEl: () => HTMLElement | null;
 	getAmbientLength: () => number;
@@ -416,7 +418,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		}
 		const write = deps.blockEdit.updateBlockContent(
 			deps.index,
-			editedDisplay + trailingLineEnding(deps.node.raw),
+			editedDisplay + trailingLineEnding(deps.node.raw, deps.getLineEnding()),
 			caretBefore,
 			caretAfter
 		);

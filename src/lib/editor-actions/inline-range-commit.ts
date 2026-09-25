@@ -6,6 +6,7 @@
 
 import type { Document } from '../core/nodes';
 import type { DocumentView, NodeView } from '../core/node-views';
+import { documentLineEnding } from '../core/lines';
 import { docPathFrom } from '../cursor/coordinate-spaces';
 import { expectStateForNode } from '../reactivity/state-registry';
 import type { GrammarView } from '../schema/block-openers';
@@ -49,7 +50,7 @@ export function createInlineRangeCommit(deps: InlineRangeCommitDeps): InlineRang
 		const newRaw = leaf.raw.slice(0, start) + bytes + leaf.raw.slice(end);
 		// Compared against the bytes the kind would actually store (G4.28), so a splice a table
 		// cell's pipe escaping cancels out adds no undo entry (dismissing an image after a resize).
-		const legal = normalizeOwnRaw(leaf, newRaw);
+		const legal = normalizeOwnRaw(leaf, newRaw, documentLineEnding(deps.getDoc()));
 		return legal === leaf.raw ? null : { newRaw, legal, delta: legal.length - leaf.raw.length };
 	}
 
@@ -86,6 +87,7 @@ export function createInlineRangeCommit(deps: InlineRangeCommitDeps): InlineRang
 						children,
 						ownerKind: undefined,
 						owner: undefined,
+						lineEnding: documentLineEnding(doc),
 						get suffix() {
 							return doc.suffix;
 						},

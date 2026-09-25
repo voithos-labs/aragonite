@@ -23,6 +23,7 @@ import type { MenuEntry } from './menu/BlockMenu.svelte';
 import { runClipboardAction, type ClipboardAction } from './menu/clipboard-actions';
 import { isProseBackground } from './menu/default-context-actions';
 import { readBlockPath } from '../selection/path-lookup';
+import { documentLineEnding } from '../core/lines';
 
 export interface BlockMenuModel {
 	x: number;
@@ -140,7 +141,8 @@ export function createRootMenus(deps: RootMenusDeps): RootMenus {
 			replaceRaw: async (raw: string) => {
 				await deps.blockEdit.updateBlockContent(index, raw);
 			},
-			transformPaste: (text) => applyPasteTransforms(text, deps.activation)
+			transformPaste: (text) => applyPasteTransforms(text, deps.activation),
+			lineEnding: documentLineEnding(deps.getDoc())
 		};
 		deps.setMenu({
 			...point,

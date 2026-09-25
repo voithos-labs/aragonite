@@ -5,7 +5,7 @@
  */
 
 import { parse } from '../core/parser';
-import { displayLength, splitLines, trailingLineEnding } from '../core/lines';
+import { displayLength, splitLines, trailingLineEnding, type LineEnding } from '../core/lines';
 import type { BlockEditActions } from '../action-contracts';
 import type { CstNode } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
@@ -31,12 +31,13 @@ export interface EnterCompletion {
 export function withEnterCompletion(
 	blockEdit: BlockEditActions,
 	childAt: (index: number) => NodeView | undefined,
-	grammar: GrammarView
+	grammar: GrammarView,
+	getLineEnding: () => LineEnding
 ): BlockEditActions {
 	return {
 		...blockEdit,
 		async splitBlock(index: number, offset: number): Promise<void> {
-			const completion = planEnterCompletion(childAt(index), offset, grammar);
+			const completion = planEnterCompletion(childAt(index), offset, grammar, getLineEnding());
 			if (!completion) {
 				await blockEdit.splitBlock(index, offset);
 				return;
@@ -56,7 +57,7 @@ export function withEnterCompletion(
 			await blockEdit.updateBlockContent(index, text, preEditOffset, postEditFocusOffset);
 			const offset = postEditFocusOffset ?? preEditOffset;
 			if (offset === undefined) return;
-			const completion = planTypedCompletion(childAt(index), offset, grammar);
+			const completion = planTypedCompletion(childAt(index), offset, grammar, getLineEnding());
 			if (!completion) return;
 			await blockEdit.replaceBlock(
 				index,
@@ -72,24 +73,32 @@ export function withEnterCompletion(
 export function planEnterCompletion(
 	node: NodeView | undefined,
 	offset: number,
-	grammar: GrammarView
+	grammar: GrammarView,
+	lineEnding: LineEnding
 ): EnterCompletion | null {
-	return planCompletion(node, offset, grammar, (line) => completeTypedLine(line, grammar));
+	return planCompletion(node, offset, grammar, lineEnding, (line) =>
+		completeTypedLine(line, grammar)
+	);
 }
 
 /** The completion a keystroke produces, asking only the completers that answer on type. */
 export function planTypedCompletion(
 	node: NodeView | undefined,
 	offset: number,
-	grammar: GrammarView
+	grammar: GrammarView,
+	lineEnding: LineEnding
 ): EnterCompletion | null {
-	return planCompletion(node, offset, grammar, (line) => completeLineOnType(line, grammar));
+	return planCompletion(node, offset, grammar, lineEnding, (line) =>
+		completeLineOnType(line, grammar)
+	);
 }
 
+/** `ending` is the document's, for a typed line that has none of its own. */
 function planCompletion(
 	node: NodeView | undefined,
 	offset: number,
 	grammar: GrammarView,
+	ending: LineEnding,
 	consult: (line: string) => CompletionResult | null
 ): EnterCompletion | null {
 	if (!node) return null;
@@ -100,7 +109,7 @@ function planCompletion(
 
 	// Through the parser in the editor's grammar rather than a hand-built node, so the new blocks
 	// are exactly what a reload of those bytes produces.
-	const lineEnding = trailingLineEnding(node.raw);
+	const lineEnding = trailingLineEnding(node.raw, ending);
 	const raw = claim.lines.map((text) => text + lineEnding).join('');
 	const replacement = parse(raw, { grammar, scope: 'fragment' }).children;
 	// A completion that shows nothing would replace the typed line with a delete, or with blank

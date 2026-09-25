@@ -9,7 +9,8 @@ import {
 	displayLength,
 	ownTrailingLineEnding,
 	trailingLineEnding,
-	trimTrailingLineEnding
+	trimTrailingLineEnding,
+	type LineEnding
 } from '../../../core/lines';
 
 export interface TextEditResult {
@@ -99,12 +100,12 @@ export function cycleHeading(
  * At end-of-display the break's own ending becomes the block's trailing ending, so the
  * break is transitional there until the next keystroke supplies its following line.
  */
-export function insertHardBreak(raw: string, offset: number): TextEditResult {
+export function insertHardBreak(raw: string, offset: number, ending: LineEnding): TextEditResult {
 	const display = trimTrailingLineEnding(raw);
 	const trailing = ownTrailingLineEnding(raw);
-	// The break carries the block's own ending (G4.20): CommonMark reads a backslash
-	// before either LF or CRLF as a hard break, so a CRLF block stays CRLF.
-	const breakBytes = '\\' + trailingLineEnding(raw);
+	// The break carries the block's own ending, else the document's `ending`: CommonMark reads a
+	// backslash before either LF or CRLF as a hard break, so a CRLF block stays CRLF.
+	const breakBytes = '\\' + trailingLineEnding(raw, ending);
 	const newDisplay = display.slice(0, offset) + breakBytes + display.slice(offset);
 	// At end-of-display the inserted ending is itself the trailing ending; reattaching
 	// the original would double it into a blank line and break list-item continuation.

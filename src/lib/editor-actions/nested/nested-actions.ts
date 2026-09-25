@@ -120,8 +120,12 @@ export function createStandardNestedActions(
 	// completion its subtree needs. `defaults` stays unwrapped: an override chaining back into
 	// it is already past the check, and checking again would spend one Enter on two.
 	const childAt = (index: number) => deps.node.children?.[index];
+	const getLineEnding = () => containerEdit.lineEnding();
 	if (!overrideFactory) {
-		return { ...defaults, blockEdit: withEnterCompletion(blockEdit, childAt, deps.grammar) };
+		return {
+			...defaults,
+			blockEdit: withEnterCompletion(blockEdit, childAt, deps.grammar, getLineEnding)
+		};
 	}
 
 	const overrides = overrideFactory(defaults);
@@ -129,7 +133,8 @@ export function createStandardNestedActions(
 		blockEdit: withEnterCompletion(
 			{ ...blockEdit, ...(overrides.blockEdit ?? {}) },
 			childAt,
-			deps.grammar
+			deps.grammar,
+			getLineEnding
 		),
 		focus: { ...focus, ...(overrides.focus ?? {}) },
 		containerEdit: { ...containerEdit, ...(overrides.containerEdit ?? {}) }

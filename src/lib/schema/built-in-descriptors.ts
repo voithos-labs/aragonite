@@ -8,7 +8,7 @@
 
 import { metadataOf } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
-import { displayLength } from '../core/lines';
+import { displayLength, displayLines, trimTrailingLineEnding } from '../core/lines';
 import { containerClosure, type ClosureBlock } from './closure';
 import type { KeyBinding } from './keybindings';
 import { registerBlockKind } from './block-kind-descriptor';
@@ -39,13 +39,13 @@ function headingContentRange(node: NodeView): { start: number; end: number } {
 
 // Setext headings carry a trailing underline line that is structural, not content.
 function setextHeadingContentRange(node: NodeView): { start: number; end: number } {
-	const raw = node.raw;
-	const end = displayLength(raw);
-	const underlineStart = raw.lastIndexOf('\n', end - 1);
-	if (underlineStart === -1) return { start: 0, end };
-	let contentEnd = underlineStart;
-	if (contentEnd > 0 && raw[contentEnd - 1] === '\r') contentEnd--;
-	return { start: 0, end: contentEnd };
+	const display = trimTrailingLineEnding(node.raw);
+	const lines = displayLines(display);
+	if (lines.length < 2) return { start: 0, end: display.length };
+	// The content ends before the break above the underline, the display's last line.
+	const underline = lines[lines.length - 1];
+	const breakAbove = lines[lines.length - 2].ending;
+	return { start: 0, end: display.length - underline.text.length - breakAbove.length };
 }
 
 // ── Keymaps ───────────────────────────────────────────────────────────────

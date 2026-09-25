@@ -9,7 +9,12 @@ import type { NodeView } from '../core/node-views';
 import { isBlankParagraph, parse } from '../core/parser';
 import { escalatedFenceLength, matchFenceOpen } from '../core/parsers/fence-syntax';
 import { isBlockOpenerRegistered, type GrammarView } from '../schema/block-openers';
-import { trailingLineEnding } from '../core/lines';
+import {
+	displayLines,
+	firstLineEnding,
+	joinDisplayLines,
+	ownTrailingLineEnding
+} from '../core/lines';
 import { dropSuffixUnderBlankLine } from '../core/inline';
 import { assignChildIdsDeep } from '../block-id';
 import { perfEnabled, recordContainerKindReparse } from '../perf/instruments';
@@ -25,6 +30,7 @@ import {
 	NEXT_PROSE_LINE,
 	ensureEditableContainers,
 	forBody,
+	parentLineEnding,
 	writeOwnRaw,
 	type BodyParentArg,
 	type NodeParent
@@ -200,16 +206,15 @@ function openConstructTerminator(
 	read: FragmentReader
 ): string | null {
 	// The closer is a line of its own, so bytes whose last line is unterminated have nowhere to
-	// put one (the unterminated tail slice of G4.20, which absorbs nothing while it stands alone).
-	if (!text.endsWith('\n') || blocks.length === 0) return null;
-	const ending = trailingLineEnding(text);
+	// put one: an unterminated tail slice absorbs nothing while it stands alone.
+	const ending = ownTrailingLineEnding(text);
+	if (ending === '' || blocks.length === 0) return null;
 	const probe = read(text + ending + NEXT_PROSE_LINE + ending);
 	if (probe.children.length !== blocks.length) return null;
-	const raw = blocks[blocks.length - 1].raw;
-	const nl = raw.indexOf('\n');
-	const opener = matchFenceOpen(nl < 0 ? raw : raw.slice(0, nl));
+	const [openerLine, ...bodyLines] = displayLines(blocks[blocks.length - 1].raw);
+	const opener = matchFenceOpen(openerLine.text);
 	if (!opener) return null;
-	const body = nl < 0 ? '' : raw.slice(nl + 1);
+	const body = joinDisplayLines(bodyLines);
 	const run = escalatedFenceLength(body, opener.marker, opener.length);
 	return opener.indent + opener.marker.repeat(run) + ending;
 }
@@ -226,11 +231,12 @@ function writeParsedContent(
 	// Before every reparse below, so the write lands on the kind its committed bytes describe:
 	// an underline left under an emptied title goes, and the container's escape (`bodyWrite`) runs.
 	const bodyText = forBody(parent, dropSuffixUnderBlankLine(node, text));
+	const lineEnding = parentLineEnding(parent);
 
 	// A context-dependent kind has no standalone recognizer, so reparsing would downgrade it:
 	// keep the kind and write raw through its own legality pass.
 	if (oldDescriptor.contextDependentKind) {
-		writeOwnRaw(node, bodyText, grammar);
+		writeOwnRaw(node, bodyText, lineEnding, grammar);
 		return { op: 'noop' };
 	}
 
@@ -246,13 +252,13 @@ function writeParsedContent(
 	// A marker-consuming container (a GitHub alert) needs its raw rebuilt from the backfilled
 	// body, or raw and children disagree (G1.1).
 	const firstBackfilled = !!first && isEmptyEditableContainer(first);
-	if (first) ensureEditableContainers(first);
+	if (first) ensureEditableContainers(first, lineEnding);
 
 	// Blank lines at the start of the text go into the first block's raw (as in the single-block
 	// case); the rest keep their own separators.
 	if (parsed.length > 1) {
 		const rest = parsed.slice(1);
-		for (const sibling of rest) ensureEditableContainers(sibling);
+		for (const sibling of rest) ensureEditableContainers(sibling, lineEnding);
 		first.raw = first.leadingTrivia + first.raw;
 		first.leadingTrivia = node.leadingTrivia;
 		if (firstBackfilled) reconcileBackfilledRaw(first);
@@ -347,7 +353,9 @@ export function reclassifyContainer(
 
 	const replacement = parsed[0];
 	const backfilled = isEmptyEditableContainer(replacement);
-	ensureEditableContainers(replacement);
+	// A container spanning lines holds the document's ending in its bytes; only a one-line
+	// container, the last line of a document, falls back to LF.
+	ensureEditableContainers(replacement, firstLineEnding(node.raw) ?? '\n');
 	// The position's own `leadingTrivia` is authoritative, so restore the bytes before
 	// overwriting it or anything the parse split off the front vanishes with it.
 	replacement.raw = node.raw;

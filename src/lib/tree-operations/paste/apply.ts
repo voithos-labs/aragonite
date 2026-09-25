@@ -56,7 +56,12 @@ async function commitInlineJoin(
 			// writes its raw in place (G1.9).
 			ensureUnsharedChild(view, leafIndex, view.sharing);
 			settled = updateNodeContent(
-				{ children: view.children, ownerKind: view.node.kind, owner: view.node },
+				{
+					children: view.children,
+					ownerKind: view.node.kind,
+					owner: view.node,
+					lineEnding: view.lineEnding
+				},
 				leafIndex,
 				result.newRaw,
 				ctx.grammar,

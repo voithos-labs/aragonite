@@ -106,6 +106,7 @@ export function widgetInteractionDeps(
 		get myPath() {
 			return [0];
 		},
+		getLineEnding: () => '\n',
 		getEl: () => base.el,
 		getAmbientLength: () => 0,
 		getEditorContentWidth: () => 800,

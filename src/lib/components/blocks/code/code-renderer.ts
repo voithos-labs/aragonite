@@ -6,7 +6,12 @@
 
 import type { NodeView } from '../../../core/node-views';
 import { metadataOf } from '../../../core/nodes';
-import { trimTrailingLineEnding } from '../../../core/lines';
+import {
+	displayLines,
+	ownTrailingLineEnding,
+	splitLines,
+	trimTrailingLineEnding
+} from '../../../core/lines';
 import { devWarn } from '../../../dev-warn';
 import { assertInvariant } from '../../../assert';
 import { checkRenderedTextFidelity } from '../../../invariants/render-fidelity';
@@ -220,35 +225,34 @@ function renderOpenerLine(
 	if (slice.openerLine.length === 0) return frag;
 
 	const fenceChars = fenceMarker.repeat(fenceLength);
-	const openerWithoutNewline = slice.openerLine.replace(/\n$/, '');
-	const hasTrailingNewline = slice.openerLine.endsWith('\n');
+	const [{ text: opener, ending }] = displayLines(slice.openerLine);
 
 	// The fence may sit behind 0–3 spaces of indent; carry it inside the fence-marker
 	// span so textContent keeps every opener byte.
-	const indent = openerWithoutNewline.match(/^ {0,3}/)![0];
+	const indent = opener.match(/^ {0,3}/)![0];
 
 	const parts: Node[] = [makeMarkerSpan(indent + fenceChars, 'md-fence')];
 
-	const afterFence = openerWithoutNewline.slice(indent.length + fenceChars.length);
+	const afterFence = opener.slice(indent.length + fenceChars.length);
 	if (afterFence.length > 0) {
 		parts.push(makeMarkerSpan(afterFence, 'md-lang'));
 	}
-	if (hasTrailingNewline) {
-		parts.push(document.createTextNode('\n'));
+	if (ending !== '') {
+		parts.push(document.createTextNode(ending));
 	}
 
 	frag.appendChild(makeFenceLine(parts));
 	return frag;
 }
 
-function renderCloserLine(slice: FencedCodeSlice, leadingNewline: boolean): DocumentFragment {
+function renderCloserLine(slice: FencedCodeSlice, leadingEnding: string): DocumentFragment {
 	const frag = document.createDocumentFragment();
 	if (slice.closerLine.length === 0) return frag;
 
 	const parts: Node[] = [];
 	// The line break before the closer belongs to the closer's fence line, not the
 	// body's last code line; owning it here lets the wrapper hide both together.
-	if (leadingNewline) parts.push(document.createTextNode('\n'));
+	if (leadingEnding !== '') parts.push(document.createTextNode(leadingEnding));
 	parts.push(makeMarkerSpan(slice.closerLine, 'md-fence'));
 
 	frag.appendChild(makeFenceLine(parts));
@@ -270,8 +274,9 @@ export function renderCodeBlock(node: NodeView, activation: PluginActivation): D
 	// `/\S/` deliberately conflates a whitespace-only body (spaces/tabs, no content
 	// line) with a truly-blank one: both keep their separator and render like blanks.
 	const bodyHasContentLine = /\S/.test(slice.body);
-	const separatorNewline = hasCloser && slice.body.endsWith('\n') && bodyHasContentLine;
-	const bodyText = separatorNewline ? slice.body.slice(0, -1) : slice.body;
+	const bodyEnding = ownTrailingLineEnding(slice.body);
+	const separatorNewline = hasCloser && bodyEnding !== '' && bodyHasContentLine;
+	const bodyText = separatorNewline ? trimTrailingLineEnding(slice.body) : slice.body;
 
 	frag.appendChild(renderOpenerLine(slice, meta.fenceMarker, meta.fenceLength));
 	frag.appendChild(tokenizeBody(bodyText, slice.infoString, activation));
@@ -282,7 +287,7 @@ export function renderCodeBlock(node: NodeView, activation: PluginActivation): D
 		anchor.dataset.caretAnchor = 'closer';
 		frag.appendChild(anchor);
 	}
-	frag.appendChild(renderCloserLine(slice, separatorNewline));
+	frag.appendChild(renderCloserLine(slice, separatorNewline ? bodyEnding : ''));
 
 	assertInvariant('rendered-text-fidelity', () =>
 		checkRenderedTextFidelity(frag.textContent ?? '', trimTrailingLineEnding(node.raw))
@@ -310,15 +315,9 @@ function findClosingFenceStart(
 ): number {
 	const fencePattern = new RegExp(`^ {0,3}${fenceMarker}{${fenceLength},}\\s*$`);
 
-	let lineEnd = raw.length;
-	while (lineEnd > searchStart) {
-		const lineStart = raw.lastIndexOf('\n', lineEnd - 2) + 1;
-		if (lineStart < searchStart) break;
-		const line = raw.slice(lineStart, lineEnd).replace(/\n$/, '');
-		if (fencePattern.test(line)) {
-			return lineStart;
-		}
-		lineEnd = lineStart;
+	const lines = splitLines(raw.slice(searchStart));
+	for (let i = lines.length - 1; i >= 0; i--) {
+		if (fencePattern.test(lines[i].text)) return searchStart + lines[i].start;
 	}
 
 	// Unreachable when the parser's `closed` flag is consistent with raw.

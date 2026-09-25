@@ -11,7 +11,13 @@ import { walkBetween, normalize, charOffsetOf, cellIndexOf } from './primitives'
 import { snapCrossBlockTableEndpoints } from './table-endpoint-snap';
 import { isStrictAncestorOf, pathHasPrefix, pathsEqual, sharedPrefixLength } from './path-math';
 import { cellRowCol } from '../cursor/coordinate-spaces';
-import { displayLength, terminateLine } from '../core/lines';
+import {
+	displayLength,
+	documentLineEnding,
+	terminateLine,
+	trailingLineEnding,
+	type LineEnding
+} from '../core/lines';
 import { copyRectangleAsSubTable } from '../tree-operations/sub-table-copy';
 import { isReservedChromeChild } from '../schema/reserved-chrome';
 import { getBlockKindDescriptor, tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
@@ -158,7 +164,8 @@ export function collectCrossBlockText(
 		const wrapped = wrapChromeStartContainer(
 			chromeStart,
 			exited ? chromeBody : chromeBody + tail,
-			exited
+			exited,
+			documentLineEnding(doc)
 		);
 		return exited ? wrapped + middle + tail : wrapped;
 	}
@@ -309,14 +316,15 @@ function startChromeContainer(
 function wrapChromeStartContainer(
 	start: ChromeStartContainer,
 	body: string,
-	exited: boolean
+	exited: boolean,
+	ending: LineEnding
 ): string {
 	const { node } = start;
 	const innerSuffix = exited ? (node.innerSuffix ?? '') : '';
 	const synthetic = makeBlockNode({
 		kind: node.kind,
 		leadingTrivia: '',
-		// The live raw, so the rebuild copies the closer line's own line ending (G4.20).
+		// The live raw, so the rebuild copies the closer line's own line ending.
 		raw: node.raw,
 		metadata: node.metadata ? cloneMetadata(node.metadata) : undefined,
 		innerPrefix: node.innerPrefix ?? '',
@@ -328,7 +336,10 @@ function wrapChromeStartContainer(
 			makeBlockNode({
 				kind: 'paragraph',
 				leadingTrivia: '',
-				raw: innerSuffix === '' && body !== '' ? terminateLine(body, node.raw) : body
+				raw:
+					innerSuffix === '' && body !== ''
+						? terminateLine(body, trailingLineEnding(node.raw, ending))
+						: body
 			})
 		]
 	});

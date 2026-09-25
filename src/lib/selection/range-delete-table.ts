@@ -14,7 +14,7 @@ import { metadataOf } from '../core/nodes';
 import type { SelectionPoint } from './primitives';
 import type { RangeDeleteResult } from './range-delete';
 import type { SharingState } from '../tree-operations/sharing';
-import { displayLength, trailingLineEnding } from '../core/lines';
+import { displayLength, documentLineEnding } from '../core/lines';
 import { cellRowCol } from '../cursor/coordinate-spaces';
 import { cellIndexOf } from './primitives';
 import {
@@ -207,7 +207,7 @@ function deleteFromTableIntoProse(
 	grammar: GrammarView | undefined,
 	live: LiveSeamContext
 ): RangeDeleteResult {
-	const lineEnding = trailingLineEnding(table.raw);
+	const lineEnding = documentLineEnding(doc);
 	const startCell = cellIndexOf(start, 'deleteFromTableIntoProse:start');
 	const { result: tableResult, splice } = deleteCellsAndCollapse(
 		table,
@@ -306,7 +306,7 @@ function deleteAcrossTwoTables(
 	sharing: SharingState,
 	grammar: GrammarView | undefined
 ): RangeDeleteResult {
-	const lineEnding = trailingLineEnding(startTable.raw);
+	const lineEnding = documentLineEnding(doc);
 	const startCell = cellIndexOf(start, 'deleteAcrossTwoTables:start');
 	const { result: startResult, splice: startSplice } = deleteCellsAndCollapse(
 		startTable,
@@ -367,8 +367,7 @@ function deleteAcrossTwoTables(
 
 // Every block the caret could land in was removed, so a survivor is sought in the deleted
 // block's own container, walking outward when the cleanup took that too. `lineEnding` is the
-// deleted start table's, captured before the mutation: nothing survives to read one from, and a
-// default LF would turn a CRLF document (G4.20).
+// document's, which a filler paragraph takes.
 function caretNearestSurvivor(
 	doc: Document,
 	startPath: number[],

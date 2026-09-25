@@ -7,6 +7,7 @@
 
 import type { MultiScopeTarget } from '../../action-contracts';
 import type { CstNode } from '../../core/nodes';
+import { documentLineEnding } from '../../core/lines';
 import type { CrossBlockDispatchContext } from './dispatch';
 import type { CrossBlockMutationContext } from './ops';
 import { performCrossBlockDelete } from './ops';
@@ -106,6 +107,7 @@ export async function handleCrossBlockTypeReplace(
 						chain[chain.length - 2]?.kind,
 						owned.raw.slice(0, charOffset) + typed + owned.raw.slice(charOffset)
 					),
+					documentLineEnding(doc),
 					ctx.grammar
 				);
 				rebuildUnsharedChain(doc, chain, sharing, null, ctx.grammar);
@@ -118,7 +120,12 @@ export async function handleCrossBlockTypeReplace(
 			const owned = ensureUnsharedChild(scopeView.node, leafIndex, sharing);
 			const newText = owned.raw.slice(0, charOffset) + typed + owned.raw.slice(charOffset);
 			settled = updateNodeContent(
-				{ children: scopeView.children, ownerKind: scopeView.node.kind, owner: scopeView.node },
+				{
+					children: scopeView.children,
+					ownerKind: scopeView.node.kind,
+					owner: scopeView.node,
+					lineEnding: scopeView.lineEnding
+				},
 				leafIndex,
 				newText,
 				ctx.grammar,
@@ -166,7 +173,7 @@ async function replaceCoveredBlockWithText(
 	const doc = ctx.getDoc();
 	const covered = blockNodeAt(doc, blockPath);
 	if (!covered) return;
-	const parsed = parseReplacement(covered, typed, ctx.grammar);
+	const parsed = parseReplacement(covered, typed, documentLineEnding(doc), ctx.grammar);
 	if (!parsed) return;
 
 	mutCtx.pushUndoSnapshot();

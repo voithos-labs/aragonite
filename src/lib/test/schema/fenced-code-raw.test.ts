@@ -127,3 +127,26 @@ describe('reconcileFenceWrite: declines what it cannot read', () => {
 		expect(write('```js', backtick()).display).toBe('```js');
 	});
 });
+
+describe('reconcileFenceWrite: a CRLF display', () => {
+	const toCrlf = (text: string) => text.replace(/\n/g, '\r\n');
+	/** Where `offset` in an LF display lands once every break before it is CRLF. */
+	const crlfOffset = (lf: string, offset: number) =>
+		offset + (lf.slice(0, offset).match(/\n/g)?.length ?? 0);
+
+	// Each row moves the caret, so a `\r` counted on the wrong side of an offset shows up.
+	const rows: Array<[string, string, number]> = [
+		['a caret past the grown closer run', '```js\n```\ncode\n```', 18],
+		['a caret at the start of the closer line', '```js\n```\ncode\n```', 15],
+		['a caret on the colliding body line', '```js\n```\ncode\n```', 9],
+		['a caret past a dropped info backtick', '```j`s\ncode\n```', 5],
+		['a caret before a closer the write ran into', '```\nAB```', 6],
+		['a caret inside a closer the write ran into', '```\nAB```', 7]
+	];
+
+	it.each(rows)('%s writes the CRLF mirror of the LF result', (_name, display, caret) => {
+		const lf = write(display, backtick(), 'authored', caret);
+		const crlf = write(toCrlf(display), backtick(), 'authored', crlfOffset(display, caret));
+		expect(crlf).toEqual({ display: toCrlf(lf.display), caret: crlfOffset(lf.display, lf.caret) });
+	});
+});

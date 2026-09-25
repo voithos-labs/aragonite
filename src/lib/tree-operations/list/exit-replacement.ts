@@ -1,7 +1,7 @@
 import type { CstNode } from '../../core/nodes';
 import type { NodeView } from '../../core/node-views';
 import { metadataOf } from '../../core/nodes';
-import { trailingLineEnding } from '../../core/lines';
+import type { LineEnding } from '../../core/lines';
 import { cloneNode } from '../clone';
 import { emptyParagraph } from '../node-primitives';
 import { assembleListHalf } from './list-builders';
@@ -16,7 +16,8 @@ import { orderedBaseOf } from './ordered-markers';
  */
 export function buildExitReplacement(
 	list: NodeView,
-	itemIndex: number
+	itemIndex: number,
+	lineEnding: LineEnding
 ): { blocks: CstNode[]; paragraphIndex: number } {
 	const items = list.children ?? [];
 	const exitedItem = items[itemIndex];
@@ -36,8 +37,7 @@ export function buildExitReplacement(
 	const firstHalfItems = wasFirstItem ? [] : [...before, ...promotedItems];
 	const secondHalfItems = wasFirstItem ? [...promotedItems, ...after] : after;
 
-	// Every byte this op creates is a line ending, so it takes the list's (G4.20).
-	const lineEnding = trailingLineEnding(list.raw);
+	// Every byte this op creates is a line ending, the document's.
 	const exitParagraph = emptyParagraph('', lineEnding);
 
 	// Preserve the original list's starting number across the split.

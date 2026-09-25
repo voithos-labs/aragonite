@@ -10,7 +10,7 @@ import { OPENER_PRIORITIES } from '../../schema/opener-priorities';
 import { declaredPluginKind } from '../../schema/plugin-kind';
 import { makeBlockNode, setPluginMetadata, type AnyBlockKind, type CstNode } from '../nodes';
 import { parseContainerBody, joinRaw } from '../parser';
-import { trailingLineEnding, type ParsedLine } from '../lines';
+import { trailingLineEnding, type LineEnding, type ParsedLine } from '../lines';
 import { matchDirectiveOpener, isDirectiveCloser } from './grammar';
 import { resolveBlockDirectiveFactory, resolveDirective, type ParsedDirective } from './registry';
 import {
@@ -35,7 +35,9 @@ export function registerDirectiveOpeners(): void {
 			const fence = matchDirectiveOpener(ctx.line.text);
 			if (!fence) return null;
 
-			const lineEnding = trailingLineEnding(ctx.line.raw);
+			// A one-line leaf at the end of the source takes the source's first break, else LF.
+			const sourceEnding = (ctx.lines[0]?.lineEnding || '\n') as LineEnding;
+			const lineEnding = trailingLineEnding(ctx.line.raw, sourceEnding);
 
 			if (fence.tier === 'leaf') {
 				const def = resolveDirective('leaf', fence.name, ctx.grammar);

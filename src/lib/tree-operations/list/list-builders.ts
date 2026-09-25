@@ -2,7 +2,12 @@
 
 import type { CstNode, ListItemMetadata, ListMetadata } from '../../core/nodes';
 import type { NodeView } from '../../core/node-views';
-import { snapToScalarBoundary, trailingLineEnding, trimTrailingLineEnding } from '../../core/lines';
+import {
+	snapToScalarBoundary,
+	trailingLineEnding,
+	trimTrailingLineEnding,
+	type LineEnding
+} from '../../core/lines';
 import { rebuildListItemRaw, rebuildListRaw } from '../../schema/container-rebuilders';
 import { cloneMetadata, cloneNode } from '../clone';
 import { parseCutResidue, parseFirstBlock } from '../parse-block';
@@ -106,15 +111,16 @@ export function buildListShell(ordered: boolean, children: CstNode[]): CstNode {
  * Slice a leaf's raw at `offset` for a paste-style split, re-parsing each half; the trailing
  * half is every block its lines make. One leading space or tab is trimmed from it, which would
  * otherwise double the space after the new marker. `raw` overrides the leaf's own bytes, which
- * a paste that ran a delete half first supplies.
+ * a paste that ran a delete half first supplies; `ending` is the document's.
  */
 export function splitLeafForPaste(
 	leaf: CstNode,
 	offset: number,
+	ending: LineEnding,
 	raw: string = leaf.raw,
 	grammar?: GrammarView
-): { leadingNode: CstNode | null; trailingNodes: CstNode[]; lineEnding: '\n' | '\r\n' } {
-	const lineEnding = trailingLineEnding(raw);
+): { leadingNode: CstNode | null; trailingNodes: CstNode[]; lineEnding: LineEnding } {
+	const lineEnding = trailingLineEnding(raw, ending);
 	const display = trimTrailingLineEnding(raw);
 	// Off any scalar interior first: the halves become separate items, so a pair cut here is
 	// unrecoverable bytes rather than a recoverable edit.
@@ -139,6 +145,7 @@ export function buildSplitItems(
 	item: CstNode,
 	innerIndex: number,
 	offset: number,
+	ending: LineEnding,
 	targetRaw?: string,
 	grammar?: GrammarView
 ): { leadingItem: CstNode | null; trailingItem: CstNode | null } {
@@ -146,9 +153,10 @@ export function buildSplitItems(
 	const targetLeaf = item.children[innerIndex];
 	if (!targetLeaf) return { leadingItem: null, trailingItem: null };
 
-	const { leadingNode, trailingNodes } = splitLeafForPaste(
+	const { leadingNode, trailingNodes, lineEnding } = splitLeafForPaste(
 		targetLeaf,
 		offset,
+		ending,
 		targetRaw ?? targetLeaf.raw,
 		grammar
 	);
@@ -165,7 +173,9 @@ export function buildSplitItems(
 		leadingItem:
 			leadingChildren.length > 0 ? buildListItemWithContent(item, leadingChildren) : null,
 		trailingItem:
-			trailingChildren.length > 0 ? trailingItemFor(item, trailingChildren, grammar) : null
+			trailingChildren.length > 0
+				? trailingItemFor(item, trailingChildren, lineEnding, grammar)
+				: null
 	};
 }
 
@@ -174,10 +184,14 @@ export function buildSplitItems(
  * reload reads that line otherwise (indented code there reads as a wider marker); then it opens
  * on the line after an empty marker, which is how the parser reads an item starting that way.
  */
-function trailingItemFor(template: CstNode, children: CstNode[], grammar?: GrammarView): CstNode {
+function trailingItemFor(
+	template: CstNode,
+	children: CstNode[],
+	lineEnding: LineEnding,
+	grammar?: GrammarView
+): CstNode {
 	const onMarkerLine = buildListItemWithContent(template, children);
 	if (readsBackAsBuilt(onMarkerLine, grammar)) return onMarkerLine;
-	const lineEnding = trailingLineEnding(children[0].raw);
 	const belowMarker = buildListItemWithContent(template, [
 		emptyParagraph('', lineEnding),
 		...children

@@ -1,6 +1,7 @@
 import type { UndoEntryMode } from '../action-contracts';
 import { isBuiltinBlockKind, type AnyBlockKind, type CstNode, type Document } from '../core/nodes';
 import type { PresentationMode } from '../presentation-mode';
+import type { LineEnding } from '../core/lines';
 import type { InlineResolverRef } from '../schema/inline-construct-policy';
 import type { GrammarView } from '../schema/block-openers';
 import type { PasteCommitCoordinator } from './paste/paste-deps';
@@ -16,9 +17,9 @@ export interface PasteRange {
 }
 
 /**
- * What the join cleanup needs from the caller: the paste's delete half is a join, and in live
- * mode the delimiter runs it strands are bytes the user never saw. Absent leaves the cut
- * byte-literal, which is every non-live mode's answer anyway.
+ * What a paste hook reads besides the clipboard: the join cleanup's context (the delete half is a
+ * join, and in live mode the delimiter runs it strands are bytes the user never saw), and the
+ * document's line ending.
  */
 export interface PasteSeam {
 	presentationMode: PresentationMode | undefined;
@@ -26,6 +27,8 @@ export interface PasteSeam {
 	/** The editor's grammar, which a hook's reparse of the split halves reads; the dispatch
 	 *  fills it from its own context, so a hook sees it even where the caller sent no join context. */
 	grammar?: GrammarView;
+	/** The document's line ending, which every line a hook writes takes. */
+	lineEnding: LineEnding;
 }
 
 export interface InlinePasteResult {

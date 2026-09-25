@@ -10,6 +10,7 @@ import type {
 } from '$lib/action-contracts';
 import type { BlockComponent } from '$lib/block-component';
 import type { CstNode, Document } from '$lib/core/nodes';
+import { documentLineEnding } from '$lib/core/lines';
 import { asEditorX } from '$lib/cursor/coordinate-spaces';
 import type { StickyColumnState } from '$lib/cursor/sticky-column';
 import type { EdgeAffinityState } from '$lib/cursor/edge-affinity';
@@ -140,6 +141,7 @@ export function makeCommitScopeStub(
 			args.mutate({
 				children,
 				sharing,
+				lineEnding: documentLineEnding({ kind: 'document', prefix: '', children, suffix: '' }),
 				ownerKind: opts.owner?.kind,
 				owner: opts.owner,
 				getPresentationMode: undefined,
@@ -207,6 +209,7 @@ export function makeStubContainerEdit(): ContainerEditActions {
 		commitContainer: vi.fn(),
 		pushDebouncedCheckpoint: vi.fn(),
 		armDebouncedPause: vi.fn(),
+		lineEnding: () => '\n',
 		nudgeReactivity: vi.fn(),
 		withUnsharedSpine: vi.fn(() => false)
 	};
@@ -348,6 +351,7 @@ export function makeListContextAt(
 				return [listIndex];
 			}
 		},
+		getLineEnding: () => documentLineEnding(deps.doc),
 		state,
 		parentBlockEdit: opts.parentBlockEdit ?? makeStubBlockEdit(),
 		parentFocus: opts.parentFocus ?? makeStubFocus(),

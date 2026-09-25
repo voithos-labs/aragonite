@@ -6,7 +6,7 @@
 
 import { CURSOR_END, CURSOR_EXACT_START, CURSOR_START } from '../block-component';
 import type { CstNode } from '../core/nodes';
-import { displayLength, trailingLineEnding } from '../core/lines';
+import { displayLength } from '../core/lines';
 import {
 	splitNode as performSplit,
 	assertSplitLanding,
@@ -41,7 +41,8 @@ import { mergedElseFocusNext, mergedElseFocusPrevious } from './merge-fallback';
 const bodyParentOf = (view: MutationView) => ({
 	children: view.children,
 	ownerKind: view.ownerKind,
-	owner: view.owner
+	owner: view.owner,
+	lineEnding: view.lineEnding
 });
 
 /** What both merge directions do when the neighbour cannot merge; `dir` names its side. */
@@ -138,9 +139,7 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 				eventTarget: i + 1,
 				op: { kind: 'appendBlock' },
 				mutate: (view) => {
-					// The new body line is nothing but a line ending, so it takes the title row's
-					// (G4.20); a default LF would leave a lone LF in a CRLF container.
-					const body = emptyParagraph('', trailingLineEnding(view.children[i]?.raw ?? '\n'));
+					const body = emptyParagraph('', view.lineEnding);
 					view.children.splice(i + 1, 0, body);
 					const change: StructuralChange = { op: 'insert', at: i + 1, count: 1 };
 					stampStructuralChange(view.children, change, view.sharing);
@@ -155,15 +154,12 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 		 * boundary index, so `children.length` appends; the caret lands after the given text.
 		 */
 		async insertParagraph(i, text) {
-			const children = scope.children();
-			// The separator and the paragraph's own bytes are both line endings, so both take a
-			// real neighbour's (G4.20); a boundary always has one on at least one side.
-			const lineEnding = trailingLineEnding((children[i - 1] ?? children[i])?.raw ?? '\n');
 			await scope.commit({
 				snapshot: { index: i, offset: 0 },
 				eventTarget: i,
 				op: { kind: 'insertBlock' },
 				mutate: (view) => {
+					const lineEnding = view.lineEnding;
 					// Only the first block of a list owns no separator; anywhere else the new
 					// paragraph needs a blank line after its predecessor, whatever the displaced
 					// sibling carried.
@@ -334,7 +330,7 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 					// Read before the splice, for the task-marker rule below.
 					const stood = taskMarkerMayStandBefore(view.children[i]);
 					const normalized = normalizeReplacementTrivia(view.children[i], replacement);
-					for (const node of normalized) ensureEditableContainers(node);
+					for (const node of normalized) ensureEditableContainers(node, view.lineEnding);
 					spliceMany(view.children, i, 1, normalized);
 					const change = replacePreservingFirst(i, 1, normalized.length);
 					stampStructuralChange(view.children, change, view.sharing);

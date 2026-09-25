@@ -73,7 +73,7 @@ describe('block math Enter completion: what the join plans', () => {
 		['$$\r\n', '$$\r\n\r\n$$\r\n', 4]
 	])('mints %j as %j with the caret at %i', (typed, minted, offset) => {
 		registerMathBlock();
-		const plan = planEnterCompletion(parse(typed).children[0], 2, defaultGrammarView)!;
+		const plan = planEnterCompletion(parse(typed).children[0], 2, defaultGrammarView, '\n')!;
 		expect(plan.replacement.map((c) => c.kind)).toEqual([MATH_BLOCK]);
 		expect(plan.replacement[0].raw).toBe(minted);
 		expect(plan.caret).toEqual({ path: [], offset });
@@ -83,6 +83,6 @@ describe('block math Enter completion: what the join plans', () => {
 	// is a split.
 	it('declines a caret that is not at the end of the typed fence', () => {
 		registerMathBlock();
-		expect(planEnterCompletion(parse('$$\n').children[0], 1, defaultGrammarView)).toBeNull();
+		expect(planEnterCompletion(parse('$$\n').children[0], 1, defaultGrammarView, '\n')).toBeNull();
 	});
 });

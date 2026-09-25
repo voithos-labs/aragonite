@@ -60,7 +60,7 @@ describe.each(CHILDLESS_SHAPES)('matching-ordered sublist with $label', ({ child
 	});
 
 	it('exit lifts it as a top-level block, bytes intact', () => {
-		const { blocks } = buildExitReplacement(blankFirstParagraph(fixture()), 0);
+		const { blocks } = buildExitReplacement(blankFirstParagraph(fixture()), 0, '\n');
 
 		expect(sublistIn(blocks)).toBeDefined();
 		expect(serializeBlocks(blocks)).toContain(GHOST_RAW);
@@ -68,7 +68,7 @@ describe.each(CHILDLESS_SHAPES)('matching-ordered sublist with $label', ({ child
 
 	it('both entry points give it the same disposition', () => {
 		const unwrapped = unwrapFirstItemFromList(fixture());
-		const exited = buildExitReplacement(blankFirstParagraph(fixture()), 0).blocks;
+		const exited = buildExitReplacement(blankFirstParagraph(fixture()), 0, '\n').blocks;
 
 		expect(sublistIn(unwrapped)).toBeDefined();
 		expect(sublistIn(exited)?.raw).toBe(sublistIn(unwrapped)?.raw);

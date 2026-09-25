@@ -163,8 +163,13 @@ export function actionDepsWithoutGrammar(
 	deps: Omit<EditorActionsDeps, 'grammar'>,
 	blockEdit: BlockEditActions
 ): EditorActionsDeps {
-	// @ts-expect-error the Enter completion reads the editor's grammar
-	withEnterCompletion(blockEdit, () => undefined, undefined);
+	withEnterCompletion(
+		blockEdit,
+		() => undefined,
+		// @ts-expect-error the Enter completion reads the editor's grammar
+		undefined,
+		() => '\n'
+	);
 	// @ts-expect-error the action deps carry the editor's grammar
 	return deps;
 }

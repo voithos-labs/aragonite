@@ -17,7 +17,7 @@ import {
 	type ToggleInlineFormatResult
 } from '../../core/inline/format-toggle';
 import { getContentRange, type ContentRange } from '../../core/inline';
-import { ownTrailingLineEnding, trimTrailingLineEnding } from '../../core/lines';
+import { ownTrailingLineEnding, trimTrailingLineEnding, type LineEnding } from '../../core/lines';
 import type { CstNode } from '../../core/nodes';
 import type { DocumentView, NodeView } from '../../core/node-views';
 import type { InlineMarkKind, InlineResolverRef } from '../../schema/inline-construct-policy';
@@ -120,6 +120,7 @@ export function applyCrossBlockFormat(
 	root: NodeParent,
 	plan: CrossBlockFormatPlan,
 	sharing: SharingState,
+	lineEnding: LineEnding,
 	grammar: GrammarView
 ): void {
 	const chains: CstNode[][] = [];
@@ -129,7 +130,7 @@ export function applyCrossBlockFormat(
 		if (!owned) continue;
 		// A line ending reaching a cell's raw would be turned into a space by the cell's write rule.
 		const raw = write.newDisplay + ownTrailingLineEnding(owned.raw);
-		writeOwnRaw(owned, normalizeBodyWrite(chain[chain.length - 2]?.kind, raw), grammar);
+		writeOwnRaw(owned, normalizeBodyWrite(chain[chain.length - 2]?.kind, raw), lineEnding, grammar);
 		chains.push(chain);
 	}
 	// Every write lands before any rebuild, and a chain rebuild re-emits its whole ancestry from

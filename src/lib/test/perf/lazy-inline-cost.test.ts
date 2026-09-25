@@ -40,7 +40,8 @@ describe('lazy inline: common keystroke computes once', () => {
 		const parent = {
 			children: [para('alpha\n'), para('beta\n'), para('gamma\n')],
 			ownerKind: undefined,
-			owner: undefined
+			owner: undefined,
+			lineEnding: '\n' as const
 		};
 
 		updateNodeContent(parent, 1, 'beta!\n');
@@ -56,7 +57,8 @@ describe('lazy inline: common keystroke computes once', () => {
 		const parent = {
 			children: [para('alpha\n'), para('beta\n'), para('gamma\n')],
 			ownerKind: undefined,
-			owner: undefined
+			owner: undefined,
+			lineEnding: '\n' as const
 		};
 
 		updateNodeContent(parent, 1, 'beta!\n');

@@ -8,7 +8,12 @@
 import type { AnyBlockKind, CstNode, Document } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import { isBlankParagraph, parse, type ContainerBodyWrap } from '../core/parser';
-import { splitLines, trailingLineEnding, trimTrailingLineEnding } from '../core/lines';
+import {
+	firstLineEnding,
+	ownTrailingLineEnding,
+	splitLines,
+	trimTrailingLineEnding
+} from '../core/lines';
 import { tableTakesLine } from '../core/parsers/table';
 import { devWarn } from '../dev-warn';
 import { assignChildIdsDeep } from '../block-id';
@@ -142,7 +147,8 @@ export function settleSeparatorOnBlank(
 		start < end;
 	const tailBelowProse = start > bodyStart && end === bodyEnd;
 	if (slots && wrap?.beforeCloserLine && (tailBelowProse || twoPeelBody) && !slots.innerSuffix) {
-		slots.innerSuffix = trailingLineEnding(children[end].raw);
+		// A blank block's bytes are its line ending.
+		slots.innerSuffix = ownTrailingLineEnding(children[end].raw);
 	}
 	// The reverse: a deletion can leave a lone blank as the whole body, where the closer no
 	// longer strips a line of its own beside the opener's, so the run gives the extra line back.
@@ -156,7 +162,7 @@ export function settleSeparatorOnBlank(
 	// into `innerPrefix` would add a line; a `twoPeelBody` keeps its lines in the wrap fields.
 	const takesOpenerPeel = twoPeelBody || (headUnderWrap && standing.length === 0);
 	if (slots && takesOpenerPeel && !slots.innerPrefix) {
-		slots.innerPrefix = trailingLineEnding(children[start].raw);
+		slots.innerPrefix = ownTrailingLineEnding(children[start].raw);
 	}
 	// Under the opener the run keeps exactly one stripped line, in `innerPrefix` or standing;
 	// elsewhere a run with nothing above it separates nothing, so every line is a block.
@@ -468,7 +474,8 @@ export function absorbSeamReading(
 		if (window.some((node) => tryGetBlockKindDescriptor(node.kind)?.contextDependentKind)) break;
 		if (probe !== undefined && declinesOnHeadLine(window, probe - at, read)) break;
 		probe = undefined;
-		const reparsed = read(joinedWindowBytes(window, window.length));
+		const bytes = joinedWindowBytes(window, window.length);
+		const reparsed = read(bytes);
 		const blocks = reparsed.children;
 		// Content blocks only: the blank lines an absorbed block held come back as blank blocks.
 		if (blocks.length === 0 || contentCount(blocks) > contentCount(window)) break;
@@ -481,8 +488,10 @@ export function absorbSeamReading(
 		onBeforeSplice?.();
 		absorbFragmentPeel(parent, at + window.length, reparsed.suffix, blocks, sharing);
 		blocks[0].leadingTrivia = window[0].leadingTrivia;
+		// The window joins two blocks at least, so its bytes hold the document's line ending.
+		const lineEnding = firstLineEnding(bytes) ?? '\n';
 		for (const block of blocks) {
-			ensureEditableContainers(block);
+			ensureEditableContainers(block, lineEnding);
 			if (sharing) sharing.stamp(block);
 			assignChildIdsDeep(block);
 		}
@@ -826,8 +835,8 @@ export function widenForTailMint(
 	return change;
 }
 
-/** Give the block at `index` a blank line, with the ending taken from its own bytes (G4.20),
- *  where one separates anything at all. */
+/** Give the block at `index` a blank line where one separates anything at all. The block above
+ *  has this one below it, so it closes its line in the document's ending, which the blank takes. */
 function mintSeparator(parent: SeparatorParent, index: number, sharing?: SharingState): void {
 	const children = parent.children;
 	if (!children || index <= bodyStartIndex(parent)) return;
@@ -835,7 +844,7 @@ function mintSeparator(parent: SeparatorParent, index: number, sharing?: Sharing
 	const owned = sharing
 		? ensureUnsharedChild(parent as NodeParent, index, sharing)
 		: children[index];
-	owned.leadingTrivia = trailingLineEnding(owned.raw);
+	owned.leadingTrivia = ownTrailingLineEnding(children[index - 1].raw);
 }
 
 /** A container's reserved title child is not a body block, so the body starts past it. */
@@ -897,7 +906,7 @@ function absorbWrapPrefix(
 	const head = parent.children?.[bodyStart];
 	if (!head || head.leadingTrivia !== '') return;
 	if (index !== bodyStart && !isBlankParagraph(head)) return;
-	slots.innerPrefix = trailingLineEnding(freed);
+	slots.innerPrefix = ownTrailingLineEnding(freed);
 }
 
 // ── Delete ──

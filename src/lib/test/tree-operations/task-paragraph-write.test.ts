@@ -7,6 +7,7 @@ import { serialize } from '$lib/core/serializer';
 import { updateNodeContent } from '$lib/tree-operations';
 import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
+import { documentLineEnding } from '$lib/core/lines';
 
 // A write into a task item's first paragraph reads its text the way the parser reads the item:
 // the line after the marker is paragraph text, so typing `# ` there keeps the paragraph and box.
@@ -14,7 +15,16 @@ import { describeConvergence } from '$lib/test/harness/parse-converged';
 function writeFirstTaskChild(doc: Document, text: string): CstNode {
 	const list = doc.children[0];
 	const item = list.children![0];
-	updateNodeContent({ children: item.children!, ownerKind: item.kind, owner: item }, 0, text);
+	updateNodeContent(
+		{
+			children: item.children!,
+			ownerKind: item.kind,
+			owner: item,
+			lineEnding: documentLineEnding(doc)
+		},
+		0,
+		text
+	);
 	getBlockKindDescriptor('listItem').rebuildRaw?.(item);
 	getBlockKindDescriptor('list').rebuildRaw?.(list);
 	return item;

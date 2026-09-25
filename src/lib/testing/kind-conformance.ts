@@ -8,7 +8,13 @@
 
 import type { AnyBlockKind, CstNode, Document } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
-import { displayLength, ownTrailingLineEnding, trimTrailingLineEnding } from '../core/lines';
+import {
+	displayLength,
+	documentLineEnding,
+	ownTrailingLineEnding,
+	trimTrailingLineEnding,
+	type LineEnding
+} from '../core/lines';
 import { parse } from '../core/parser';
 import { serialize } from '../core/serializer';
 import type { ClosureCell, ClosureColumn } from '../schema/closure';
@@ -568,7 +574,7 @@ function checkClosingCutNeedsNoRule(kind: AnyBlockKind, fixture: string): void {
 export function checkLeafRawWrite(
 	kind: AnyBlockKind,
 	fixture: string,
-	normalize: (node: NodeView, raw: string) => string = normalizeOwnRaw
+	normalize: (node: NodeView, raw: string, lineEnding: LineEnding) => string = normalizeOwnRaw
 ): void {
 	const { ending, lines, closingCut } = fixtureLines(fixture);
 	const writes: Array<[label: string, raw: string, keepsKind: boolean]> = [
@@ -580,8 +586,9 @@ export function checkLeafRawWrite(
 		const doc = parse(fixture + ending + RAW_WRITE_SENTINEL);
 		const node = doc.children[0];
 		assertIs(node?.kind, kind, `"${kind}" fixture opens with the kind`);
-		const legal = normalize(node, written);
-		assertIs(normalize(node, legal), legal, `"${kind}" rule is idempotent on ${label}`);
+		const lineEnding = documentLineEnding(doc);
+		const legal = normalize(node, written, lineEnding);
+		assertIs(normalize(node, legal, lineEnding), legal, `"${kind}" rule is idempotent on ${label}`);
 
 		const following = parse(legal + ending + RAW_WRITE_SENTINEL).children.at(-1);
 		assertIs(

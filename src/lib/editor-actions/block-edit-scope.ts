@@ -9,6 +9,7 @@ import type { OpDescriptor } from '../schema/operations';
 import type { CommitAfterTick, ContainerScope } from '../action-contracts';
 import type { AnyBlockKind, CstNode } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
+import { documentLineEnding, type LineEnding } from '../core/lines';
 import type { StructuralChange } from '../tree-operations/structural-change';
 import type { SharingState } from '../tree-operations/sharing';
 import type { GrammarView } from '../schema/block-openers';
@@ -26,6 +27,8 @@ import type { BlockListState } from '../reactivity/block-list-state.svelte';
 export interface MutationView {
 	children: CstNode[];
 	sharing: SharingState;
+	/** The document's line ending, which every line the mutation writes takes. */
+	lineEnding: LineEnding;
 	/** The container these children belong to, for mutations whose bytes must satisfy
 	 *  its grammar (`bodyWrite`). Absent at the document root. */
 	ownerKind?: AnyBlockKind;
@@ -98,7 +101,8 @@ export async function landCaretInScope(
 export const scopeParentOf = (scope: ContainerScope) => ({
 	children: scope.children,
 	ownerKind: scope.node.kind,
-	owner: scope.node
+	owner: scope.node,
+	lineEnding: scope.lineEnding
 });
 
 // ── Top-level adapter ────────────────────────────────────────────────────────
@@ -130,6 +134,7 @@ export function createTopLevelScope(
 					mutate({
 						children,
 						sharing: deps.sharing,
+						lineEnding: documentLineEnding(deps.doc),
 						owner: undefined,
 						grammar: deps.grammar,
 						getPresentationMode: deps.getPresentationMode,
@@ -168,6 +173,7 @@ export function createContainerScope(state: BlockListState, deps: NestedActionsD
 					mutate({
 						children: scope.children,
 						sharing: scope.sharing,
+						lineEnding: scope.lineEnding,
 						ownerKind: scope.node.kind,
 						owner: scope.node,
 						grammar: deps.grammar,

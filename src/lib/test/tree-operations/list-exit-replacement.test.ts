@@ -33,7 +33,7 @@ describe('buildExitReplacement', () => {
 		const list = parseList('- Only\n');
 		blankFirstParagraph(list.children![0]);
 
-		const { blocks, paragraphIndex } = buildExitReplacement(list, 0);
+		const { blocks, paragraphIndex } = buildExitReplacement(list, 0, '\n');
 
 		expect(blocks).toHaveLength(1);
 		expect(blocks[0].kind).toBe('paragraph');
@@ -44,7 +44,7 @@ describe('buildExitReplacement', () => {
 		const list = parseList('- First\n- Second\n');
 		blankFirstParagraph(list.children![0]);
 
-		const { blocks, paragraphIndex } = buildExitReplacement(list, 0);
+		const { blocks, paragraphIndex } = buildExitReplacement(list, 0, '\n');
 
 		expect(blocks).toHaveLength(2);
 		expect(blocks[0].kind).toBe('paragraph');
@@ -57,7 +57,7 @@ describe('buildExitReplacement', () => {
 		const list = parseList('- A\n- B\n- C\n');
 		blankFirstParagraph(list.children![1]);
 
-		const { blocks, paragraphIndex } = buildExitReplacement(list, 1);
+		const { blocks, paragraphIndex } = buildExitReplacement(list, 1, '\n');
 
 		expect(blocks).toHaveLength(3);
 		expect(blocks[0].kind).toBe('list');
@@ -72,7 +72,7 @@ describe('buildExitReplacement', () => {
 		const list = parseList('- First\n- Last\n');
 		blankFirstParagraph(list.children![1]);
 
-		const { blocks, paragraphIndex } = buildExitReplacement(list, 1);
+		const { blocks, paragraphIndex } = buildExitReplacement(list, 1, '\n');
 
 		expect(blocks).toHaveLength(2);
 		expect(blocks[0].kind).toBe('list');
@@ -88,7 +88,7 @@ describe('buildExitReplacement', () => {
 			...(item.children ?? []).slice(1)
 		];
 
-		const { blocks, paragraphIndex } = buildExitReplacement(list, 0);
+		const { blocks, paragraphIndex } = buildExitReplacement(list, 0, '\n');
 
 		expect(blocks).toHaveLength(2);
 		expect(blocks[0].kind).toBe('paragraph');
@@ -102,7 +102,7 @@ describe('buildExitReplacement', () => {
 		const list = parseList('- First\n\n  second\n');
 		blankFirstParagraph(list.children![0]);
 
-		const { blocks, paragraphIndex } = buildExitReplacement(list, 0);
+		const { blocks, paragraphIndex } = buildExitReplacement(list, 0, '\n');
 
 		expect(blocks).toHaveLength(2);
 		expect(blocks[0].kind).toBe('paragraph');
@@ -120,7 +120,7 @@ describe('buildExitReplacement', () => {
 			...(item.children ?? []).slice(1)
 		];
 
-		const { blocks, paragraphIndex } = buildExitReplacement(list, 0);
+		const { blocks, paragraphIndex } = buildExitReplacement(list, 0, '\n');
 
 		expect(blocks).toHaveLength(2);
 		expect(blocks[0].kind).toBe('paragraph');
@@ -134,7 +134,7 @@ describe('buildExitReplacement', () => {
 		const list = parseList(`${base}. a\n${base + 1}. b\n${base + 2}. c\n${base + 3}. d\n`);
 		blankFirstParagraph(list.children![2]);
 
-		const { blocks } = buildExitReplacement(list, 2);
+		const { blocks } = buildExitReplacement(list, 2, '\n');
 
 		expect(blocks).toHaveLength(3);
 		const markerOf = (half: CstNode, i: number) =>
@@ -148,7 +148,7 @@ describe('buildExitReplacement', () => {
 		const list = parseList('- A\n- B\n- C\n');
 		const before = serialize({ children: [list], prefix: '', suffix: '' });
 
-		buildExitReplacement(list, 1);
+		buildExitReplacement(list, 1, '\n');
 
 		const after = serialize({ children: [list], prefix: '', suffix: '' });
 		expect(after).toBe(before);
@@ -163,7 +163,7 @@ describe('buildExitReplacement blank-line separator (parse convergence)', () => 
 		const { doc, list } = parseListDoc('- First\n- Last\n');
 		blankFirstParagraph(list.children![1]);
 
-		const { blocks, paragraphIndex } = buildExitReplacement(list, 1);
+		const { blocks, paragraphIndex } = buildExitReplacement(list, 1, '\n');
 		doc.children.splice(0, 1, ...blocks);
 		doc.children[paragraphIndex].raw = 'trailing text\n';
 
@@ -175,7 +175,7 @@ describe('buildExitReplacement blank-line separator (parse convergence)', () => 
 		const { doc, list } = parseListDoc('- A\n- B\n- C\n');
 		blankFirstParagraph(list.children![1]);
 
-		const { blocks, paragraphIndex } = buildExitReplacement(list, 1);
+		const { blocks, paragraphIndex } = buildExitReplacement(list, 1, '\n');
 		doc.children.splice(0, 1, ...blocks);
 		doc.children[paragraphIndex].raw = 'between\n';
 
@@ -186,7 +186,7 @@ describe('buildExitReplacement blank-line separator (parse convergence)', () => 
 		const { list } = parseListDoc('- First\n- Second\n');
 		blankFirstParagraph(list.children![0]);
 
-		const { blocks, paragraphIndex } = buildExitReplacement(list, 0);
+		const { blocks, paragraphIndex } = buildExitReplacement(list, 0, '\n');
 		expect(paragraphIndex).toBe(0);
 		expect(blocks[0].leadingTrivia).toBe('');
 	});

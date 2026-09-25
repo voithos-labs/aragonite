@@ -22,7 +22,7 @@ import {
 } from '../tree-operations/node-primitives';
 import { settleSeparatorOnBlank } from '../tree-operations/settle';
 import { isBlankParagraph } from '../core/parser';
-import { displayLength } from '../core/lines';
+import { displayLength, documentLineEnding } from '../core/lines';
 import { deleteAtPath } from '../tree-operations/path-mutate';
 import { cleanJoinedRaw, joinAboveUndrawn } from '../tree-operations/node-ops';
 import {
@@ -130,7 +130,7 @@ export function rangeDelete(
 				end: endOffset
 			}
 		: joinAboveUndrawn(startBlock, startCut, endBlock, endOffset, (tail) =>
-				normalizeOwnRaw(endBlock, tail)
+				normalizeOwnRaw(endBlock, tail, documentLineEnding(doc))
 			);
 	const startOffset = join.start;
 	// A join can create a line neither side held: two lines each with a mid-line `</details>`
@@ -160,7 +160,7 @@ export function rangeDelete(
 		const owned = chain[chain.length - 1] ?? ensureUnsharedNode(startBlock, sharing);
 		// No reparse on this branch, so the kind's own write rule runs here: a join can create a
 		// line the kind reads as its terminator (a fence run in a code body).
-		writeOwnRaw(owned, joined.raw, grammar);
+		writeOwnRaw(owned, joined.raw, documentLineEnding(doc), grammar);
 		// Before the rebuild, which reads the blank lines: a selection covering a block's whole
 		// text leaves it blank, and a blank block is the separating line of the one below it.
 		const parent = nodeAt(doc, start.path.slice(0, -1));
@@ -174,7 +174,12 @@ export function rangeDelete(
 
 	// The survivor takes the start block's write rule before the reparse derives metadata, and
 	// keeps the start's leading blank lines, which a fragment reparse would drop.
-	const replacement = reparseTruncatedEndpoint(startBlock, joined.raw, grammar);
+	const replacement = reparseTruncatedEndpoint(
+		startBlock,
+		joined.raw,
+		documentLineEnding(doc),
+		grammar
+	);
 
 	// walkBetween includes ancestors of `end` whose subtrees extend past it, so filter to
 	// subtrees fully inside (start, end). Cascade-cleanup handles ancestors emptied afterwards.

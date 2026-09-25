@@ -86,6 +86,7 @@
 
 	const listContext = createListContext({
 		scope,
+		getLineEnding: () => parentContainerEdit.lineEnding(),
 		state: listState,
 		parentBlockEdit,
 		parentFocus,

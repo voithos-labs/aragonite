@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { parse, serialize } from '$lib';
 import { resetPluginPlatformForTests } from '$lib/testing';
 import { normalizeOwnRaw } from '$lib/tree-operations/node-primitives';
+import { documentLineEnding } from '$lib/plugin';
 import { rangeDelete } from '$lib/selection/range-delete';
 import { createSharingState } from '$lib/tree-operations/sharing';
 import { registerMermaidKind } from '$lib/plugins/mermaid/mermaid-kind';
@@ -14,7 +15,8 @@ import { fixtureLinkRef } from '../../harness/fixture-grammar';
 
 /** The rule as a write path reaches it: dispatched off the node's own kind. */
 function write(source: string, raw: string): string {
-	return normalizeOwnRaw(parse(source).children[0], raw);
+	const doc = parse(source);
+	return normalizeOwnRaw(doc.children[0], raw, documentLineEnding(doc));
 }
 
 beforeEach(() => {
@@ -98,5 +100,15 @@ describe('a truncating write of a mermaid block gets its closing fence back', ()
 		const once = write('```mermaid\ngraph TD\n```\n', '```mermaid\nA\n');
 		expect(once).toBe('```mermaid\nA\n```\n');
 		expect(write('```mermaid\ngraph TD\n```\n', once)).toBe(once);
+	});
+});
+
+// Miss-analysis: every closer-restore fixture was LF, so a closer written in LF into a CRLF block
+// read as correct; the last line of a document carries no ending to copy.
+describe('a closing fence restored into the unterminated last block of a CRLF document', () => {
+	it('is CRLF', () => {
+		expect(write('```mermaid\r\ngraph TD\r\n```', '```mermaid\r\nA')).toBe(
+			'```mermaid\r\nA\r\n```'
+		);
 	});
 });

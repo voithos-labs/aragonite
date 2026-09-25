@@ -14,7 +14,7 @@ describe('ensureEditableContainers: reserved-chrome backfill', () => {
 		const { container, chrome } = testChromeContainer('spec-chrome-container', 'spec-chrome');
 		const node: CstNode = { kind: container, leadingTrivia: '', raw: '', children: [] } as CstNode;
 
-		ensureEditableContainers(node);
+		ensureEditableContainers(node, '\n');
 
 		expect(node.children?.map((c) => c.kind)).toEqual([chrome, 'paragraph']);
 		expect(node.children?.map((c) => c.raw)).toEqual(['\n', '\n']);
@@ -25,7 +25,7 @@ describe('ensureEditableContainers: reserved-chrome backfill', () => {
 		const plain = testContainer('spec-plain-container', { rebuildRaw: () => {} });
 		const node: CstNode = { kind: plain, leadingTrivia: '', raw: '', children: [] };
 
-		ensureEditableContainers(node);
+		ensureEditableContainers(node, '\n');
 
 		expect(node.children?.map((c) => c.kind)).toEqual(['paragraph']);
 		expect(node.innerPrefix).toBe('');

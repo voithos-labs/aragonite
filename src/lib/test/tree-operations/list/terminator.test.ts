@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
+import { documentLineEnding } from '$lib/core/lines';
 import {
 	ensureListItemNewlineTerminated,
 	spliceTerminatedItems
@@ -89,7 +90,7 @@ describe('ensureListItemNewlineTerminated', () => {
 		const nested = item.children![item.children!.length - 1];
 
 		ensureListItemNewlineTerminated(item, '\n');
-		spliceTerminatedItems(nested.children!, 1, 0, parse('- two\n').children[0].children!);
+		spliceTerminatedItems(nested.children!, 1, 0, parse('- two\n').children[0].children!, '\n');
 		rebuildListRaw(nested);
 
 		expect(nested.children).toHaveLength(2);
@@ -103,20 +104,20 @@ describe('spliceTerminatedItems', () => {
 		const pasted = parse('6. Ordered\n7. third').children[0].children!;
 		expect(pasted[pasted.length - 1].raw.endsWith('\n')).toBe(false);
 
-		spliceTerminatedItems(list.children!, 1, 1, pasted);
+		spliceTerminatedItems(list.children!, 1, 1, pasted, '\n');
 		rebuildListRaw(list);
 
 		expect(list.children!.length).toBe(3);
 		expect(list.raw).toBe('1. one\n6. Ordered\n7. third\n');
 	});
 
-	// A literal '\n' strands an item arriving without an ending as an LF line inside a CRLF
-	// container (G4.20); the siblings it joins carry the only ending it can adopt.
-	it('adopts the surrounding list ending instead of a literal LF', () => {
-		const list = parse('1. one\r\n2. two\r\n').children[0];
+	// A literal LF strands an item arriving without an ending as an LF line inside a CRLF list.
+	it('terminates the items in the document ending instead of a literal LF', () => {
+		const doc = parse('1. one\r\n2. two\r\n');
+		const list = doc.children[0];
 		const pasted = parse('6. Ordered\r\n7. third').children[0].children!;
 
-		spliceTerminatedItems(list.children!, 1, 1, pasted);
+		spliceTerminatedItems(list.children!, 1, 1, pasted, documentLineEnding(doc));
 		rebuildListRaw(list);
 
 		expect(pasted[pasted.length - 1].raw.endsWith('\r\n')).toBe(true);
@@ -127,7 +128,7 @@ describe('spliceTerminatedItems', () => {
 		const list = parse('1. one\n2. two\n').children[0];
 		const pasted = parse('6. Ordered\n7. third').children[0].children!;
 
-		spliceTerminatedItems(list.children!, 1, 1, pasted);
+		spliceTerminatedItems(list.children!, 1, 1, pasted, '\n');
 
 		expect(pasted[pasted.length - 1].raw.endsWith('\n')).toBe(true);
 		expect(pasted[pasted.length - 1].raw.endsWith('\r\n')).toBe(false);
@@ -136,7 +137,7 @@ describe('spliceTerminatedItems', () => {
 	it('passes non-listItems through untouched', () => {
 		const children: CstNode[] = [];
 		const para: CstNode = { kind: 'paragraph', leadingTrivia: '', raw: 'no newline' };
-		spliceTerminatedItems(children, 0, 0, [para]);
+		spliceTerminatedItems(children, 0, 0, [para], '\n');
 		expect(children).toEqual([para]);
 		expect(para.raw).toBe('no newline');
 	});
