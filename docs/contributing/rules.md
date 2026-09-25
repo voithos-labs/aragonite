@@ -202,7 +202,9 @@ list is that you hear it from the terminal instead of from the review.
 
 1. **Every new e2e spec has a requirement file, and vice versa** (G4.23):
    `src/lib/e2e/tests/<area>/x.spec.ts` pairs with `src/lib/e2e/requirements/<area>/x.md`, and the
-   requirement carries at least one scenario.
+   requirement carries at least one scenario. A scenario list three times longer than the tests
+   `playwright test --list` shows for the spec needs a reason in the scan's allowlist; a loop over
+   rows counts once per row.
    `npx vitest run src/lib/e2e/lint/requirement-spec-lockstep.test.ts`
 2. **Every comment fits the budget** (G4.26): no block over six text lines, no file header over
    seven, and no house word (seam, door, funnel, mint, and the rest of

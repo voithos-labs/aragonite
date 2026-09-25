@@ -420,10 +420,10 @@ fire here was observable by no gate at all. Inline closure. Seam `editor-actions
 out-of-range index silently truncates the chain. Inline closure, watcher-netted. Seam
 `tree-operations/unshare.ts :: ensureUnsharedPath`.
 
-**G1.23 · No decoration sources mid-commit.** `notifyEdit` and `runAll` assert the commit ceremony's
-in-progress flag is clear, and a source handle's `invalidate()` defers to one run once it clears,
-because a decoration source running mid-commit would read a half-published tree. The flag is set by
-the commit helper and read from `invariants/commit-scope.ts`. Inline closure, watcher-netted. Seam
+**G1.23 · No decoration sources mid-commit.** `notifyEdit` and `runAll` assert no commit is in
+progress, and a source handle's `invalidate()` defers to one run once the last one ends, because
+a decoration source running mid-commit would read a half-published tree. The commit helper opens
+and closes the scope in `invariants/commit-scope.ts`. Inline closure, watcher-netted. Seam
 `decorations/decoration-state.svelte.ts`.
 
 **G1.24 · Closure-block coherence.** A kind's required closure block (its written answer to every
@@ -1034,10 +1034,11 @@ document to reach a shape, not the separator pass.) `e2e/lint/settle-predicate-v
 
 **G4.23 · Requirement and spec lockstep.** Every spec under `e2e/tests/` pairs with a requirement
 file under `e2e/requirements/` and vice versa (`.perf` stripped from the stem, no two specs claiming
-one file); each requirement carries a title, a section and a scenario, each spec a `test()`; and a
-requirement list three times longer than its spec's test count is named with a reason in the scan's
-allowlist. Count EQUALITY is refuted by measurement, most pairs diverge legitimately; the dated
-survey is in the file header. `e2e/lint/requirement-spec-lockstep.test.ts`.
+one file); each requirement carries a title, a section and a scenario, and Playwright lists at least
+one test for each spec; and a requirement list three times longer than the tests
+`playwright test --list` reports for its spec is named with a reason in the scan's allowlist. Count
+EQUALITY is refuted by measurement: one test routinely walks several bullets.
+`e2e/lint/requirement-spec-lockstep.test.ts`.
 
 **G4.24 · Code-surface commit route.** `CodeBlock.svelte` holds exactly one `updateBlockContent`
 call, and it's `commitDisplay`'s, so the fence write reconciliation (escalate a body line the parser
@@ -1392,11 +1393,12 @@ key is the file plus its enclosing function, so a second spread added inside a d
 inherits that row's reason — the granularity a reviewer checks by hand.
 `lint/spread-call-census.test.ts`.
 **G4.61 · The production commit scope.** `invariants/commit-scope.ts` imports no build flag and
-sets `inCommit` at statement position, both writes bare. The flag routes the decoration engine's
-in-commit `invalidate()` deferral, not only the DEV assertion it started as, so a `DEV` guard on
-its writes would run a source over a half-published tree in production alone: `esm-env` resolves
-DEV to true under vitest, which leaves no behavior test able to see it. A source scan is the only
-rung that can. `lint/commit-scope-production.test.ts`.
+writes its depth counter only at statement position, with nothing ahead of the write. A depth, not
+a boolean, so a commit started from an `edit` handler cannot close the outer one. The scope routes
+the decoration engine's in-commit `invalidate()` deferral, so a `DEV` guard on its writes would run
+a source over a half-published tree in production alone: `esm-env` resolves DEV to true under
+vitest, which leaves no behavior test able to see it. A source scan is the only check that can.
+`lint/commit-scope-production.test.ts`.
 **G4.62 · Text contrast.** Every `--code-tok-*` color `editor-theme.css` declares, the grey UI
 tokens that paint text (`--color-ui-muted`, `--color-ui-dulled`, `--color-text-muted`,
 `--color-text-secondary`), the greys that set text apart as done or inert (a checked task, a

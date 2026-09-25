@@ -467,9 +467,11 @@ The details:
   requirements split with them.
 - G4.23 (`src/lib/e2e/lint/requirement-spec-lockstep.test.ts`) enforces the lockstep: both
   directions, the stem collision two specs could hide behind, per-file shape, and a requirement
-  list that ran 3× ahead of its spec's test count. That last rule is allowlisted, and an entry
-  there states its reason: count EQUALITY is refuted by measurement (one test routinely walks
-  several bullets), so padding the suite to satisfy a count is never the fix.
+  list that ran 3× ahead of its spec's test count. The test count is what
+  `playwright test --list` reports for the spec, so a loop over rows counts each row it
+  generates. That last rule is allowlisted, and an entry there states its reason: count
+  EQUALITY is refuted by measurement (one test routinely walks several bullets), so padding the
+  suite to satisfy a count is never the fix.
 - `e2e/tests/perf/` holds two families, and the basename decides which project collects a spec:
   `*.perf.spec.ts` goes to the env-gated `e2e-perf` (and `e2e-perf-prod`), `vr-*.spec.ts`
   directly under `perf/` goes to `e2e-vr`, which rides `npm test`. Name a spec into the wrong
