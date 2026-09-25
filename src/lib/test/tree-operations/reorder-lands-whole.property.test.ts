@@ -89,9 +89,9 @@ function minus(a: readonly string[], b: readonly string[]): string[] | null {
 }
 
 /**
- * Every content block survives, the moved one included, with one exemption the fix-up design
- * grants: the two blocks that straddled the moved block may rejoin once it leaves, since their
- * adjacency is the reload's own reading of bytes the move never touched. Nothing else may merge.
+ * Every content block survives, the moved one included, with one exemption: two blocks flush
+ * against both sides of the moved block may rejoin once it leaves, as deleting it would leave
+ * them. A pair a blank line separated from it, and every other pair, stays apart.
  */
 function contentPreserved(before: readonly CstNode[], from: number, after: readonly CstNode[]) {
 	const expected = contentOf(before);
@@ -100,6 +100,7 @@ function contentPreserved(before: readonly CstNode[], from: number, after: reado
 	const above = before[from - 1];
 	const below = before[from + 1];
 	if (!above || !below || isBlankParagraph(above) || isBlankParagraph(below)) return false;
+	if (before[from].leadingTrivia || below.leadingTrivia) return false;
 	const rest = minus(expected, contentOf([above, below]));
 	const folded = rest && minus(got, rest);
 	return folded !== null && folded.length === 1;
@@ -122,8 +123,7 @@ describe('a reorder lands its block whole beside any neighbour', () => {
 							from,
 							to,
 							createSharingState(),
-							defaultGrammarView,
-							true
+							defaultGrammarView
 						);
 						const label = `${JSON.stringify(md)} move ${from}->${to}`;
 						expect(

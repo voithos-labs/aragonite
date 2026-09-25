@@ -2,8 +2,9 @@
  * A typed inline delimiter closes itself: a lone `$`, backtick, `*`, `_` or `~~` would pair with
  * whatever matching run comes later on the line, so the keystroke writes its partner after the
  * caret. Typing that partner steps past it, a closer typed by hand puts the next byte outside,
- * and an empty pair drops its partner when the first body byte makes it no construct.
- * `applyDelimiterAutoPair` is the one `beforeinput` handler every prose block runs (G4.65).
+ * and an empty pair the auto-pair wrote (`auto-pair-record.ts`) drops its partner when the first
+ * body byte makes it no construct. `applyDelimiterAutoPair` is the one `beforeinput` handler
+ * every prose block runs (G4.65).
  */
 
 import {
@@ -15,14 +16,27 @@ import {
 import { isAutoPairTrigger } from '../../../core/inline/scan/plugin-syntax';
 import type { GrammarView } from '../../../schema/block-openers';
 import type { InlineResolverRef } from '../../../schema/inline-construct-policy';
+import type { BlockAutoPairs } from './auto-pair-record';
 
 export type AutoPairEdit =
-	| { kind: 'write'; text: string; caret: number }
+	/** `pair` is the empty pair the write leaves around the caret, which the auto-pair owns. */
+	| { kind: 'write'; text: string; caret: number; pair?: ContentRange }
 	/** The typed byte completed a construct's closer; what follows belongs outside it. */
 	| { kind: 'close'; text: string; caret: number }
 	/** Nothing written: the caret passes its partner. Over a construct's closer that run may be
-	 *  hidden, and then only the side changes, which the block records as an arrival side. */
-	| { kind: 'step-over'; caret: number; overConstruct: boolean };
+	 *  hidden, and then only the side changes, which the block records as an arrival side.
+	 *  `pair` is the auto-pair's own empty pair the caret stepped past. */
+	| { kind: 'step-over'; caret: number; overConstruct: boolean; pair?: ContentRange };
+
+/** What the resolver reads about the line besides its bytes. */
+export interface AutoPairContext {
+	/** The empty pair the auto-pair wrote at this caret, or null: the same bytes typed by hand
+	 *  are the user's, and a key between them touches one byte. */
+	ownPair: ContentRange | null;
+	/** Whether the written line still parses as this block: a grown `****` is a thematic break
+	 *  and `~~~~` a fence, so such a pair steps past its partner instead. */
+	keepsKind?: (text: string) => boolean;
+}
 
 interface PairPolicy {
 	/** One keypress pairs (`*|*`); false for a delimiter whose construct needs a double run. */
@@ -54,22 +68,22 @@ function policyOf(ch: string, grammar: GrammarView): PairPolicy | null {
 /**
  * What a single typed byte does at a collapsed caret, or null to leave the insertion to the
  * browser. `content` bounds the inline scan (a heading's `# ` is not prose); the caret must lie
- * inside it. `keepsKind` says whether the written line still parses as this block: a grown
- * `****` is a thematic break and `~~~~` a fence, so such a pair steps past its partner instead.
+ * inside it. `linkRef` carries the link definitions and grammar the block was drawn with.
  */
 export function resolveDelimiterAutoPair(
 	text: string,
 	content: ContentRange,
 	caret: number,
 	typed: string,
-	keepsKind: (text: string) => boolean = () => true,
-	linkRef: InlineResolverRef
+	linkRef: InlineResolverRef,
+	{ ownPair, keepsKind = () => true }: AutoPairContext
 ): AutoPairEdit | null {
 	if (typed.length !== 1 || caret < content.start || caret > content.end) return null;
 	const before = text[caret - 1];
 	const after = text[caret];
 	const policy = policyOf(typed, linkRef.grammar);
-	if (!policy) return collapseEmptyPair(text, content, caret, typed, linkRef);
+	const inside = ownPair && isBetweenRuns(ownPair, caret) ? ownPair : null;
+	if (!policy) return inside && collapseEmptyPair(text, content, caret, typed, inside, linkRef);
 	if (after === typed && closingRunAt(text, content, caret, typed, linkRef)) {
 		return { kind: 'step-over', caret: caret + 1, overConstruct: true };
 	}
@@ -79,30 +93,33 @@ export function resolveDelimiterAutoPair(
 	if (closerEndsAt(paired, pairedContent, caret + 1, typed, linkRef)) {
 		return { kind: 'close', text: paired, caret: caret + 1 };
 	}
-	const pair = (next: string): AutoPairEdit | null => {
-		if (keepsKind(next)) return write(next, caret + 1);
-		return after === typed ? { kind: 'step-over', caret: caret + 1, overConstruct: false } : null;
+	const pair = (next: string, pairRange: ContentRange): AutoPairEdit | null => {
+		if (keepsKind(next)) return write(next, caret + 1, pairRange);
+		if (after !== typed || !inside) return null;
+		return { kind: 'step-over', caret: caret + 1, overConstruct: false, pair: inside };
 	};
 	if (after === typed) {
-		if (before === typed) {
-			if (policy.inside === 'step-over') {
-				return { kind: 'step-over', caret: caret + 1, overConstruct: false };
-			}
-			return pair(text.slice(0, caret) + typed + typed + text.slice(caret));
+		// A pair the user typed, or a byte in front of another run's opener, is spelling something
+		// out: only the auto-pair's own empty pair is stepped over or grown.
+		if (!inside) return null;
+		if (policy.inside === 'step-over') {
+			return { kind: 'step-over', caret: caret + 1, overConstruct: false, pair: inside };
 		}
-		// A byte in front of another run's opener is spelling something out, not opening a span.
-		return null;
+		const grown = text.slice(0, caret) + typed + typed + text.slice(caret);
+		return pair(grown, { start: inside.start, end: inside.end + 2 });
 	}
 	if (before === typed && !closerEndsAt(text, content, caret, typed, linkRef)) {
 		// `~|` plus `~`: the double run this delimiter pairs on, as long as it is a lone run.
 		const single = text[caret - 2] !== typed;
 		if (policy.inside === 'grow' && single) {
-			return pair(text.slice(0, caret) + typed.repeat(3) + text.slice(caret));
+			const grown = text.slice(0, caret) + typed.repeat(3) + text.slice(caret);
+			return pair(grown, { start: caret - 1, end: caret + 3 });
 		}
 		return null;
 	}
 	if (!policy.single || (policy.notAfterWord && isWordByte(before))) return null;
-	return pair(text.slice(0, caret) + typed + typed + text.slice(caret));
+	const opened = text.slice(0, caret) + typed + typed + text.slice(caret);
+	return pair(opened, { start: caret, end: caret + 2 });
 }
 
 /**
@@ -118,20 +135,29 @@ export function stepsOverRevealedCloser(
 	return typed.length === 1 && policyOf(typed, grammar) !== null && text[caret] === typed;
 }
 
-/** Backspace at an empty pair takes both runs, between them (`**|**`) or right after them
- *  (`$$|`), as it does in any IDE. Exactly a pair of equal runs, one or two bytes each: a longer
- *  run is a fence or a literal the user built by hand. */
+/** Backspace at the auto-pair's own empty pair takes both runs, between them (`**|**`) or right
+ *  after a stepped-over one (`$$|`), as it does in any IDE. */
 export function resolveEmptyPairBackspace(
 	text: string,
 	caret: number,
+	ownPair: ContentRange | null,
 	grammar: GrammarView
 ): AutoPairEdit | null {
-	const pair = emptyPairEnding(text, caret, grammar) ?? emptyPairAround(text, caret, grammar);
-	if (!pair) return null;
-	return write(text.slice(0, pair.start) + text.slice(pair.end), pair.start);
+	if (!ownPair) return null;
+	// The emphasis family grows instead of stepping, so its `**|` is a double opener to type after.
+	const stepped =
+		caret === ownPair.end && policyOf(text[caret - 1], grammar)?.inside === 'step-over';
+	if (!isBetweenRuns(ownPair, caret) && !stepped) return null;
+	return write(text.slice(0, ownPair.start) + text.slice(ownPair.end), ownPair.start);
 }
 
-const write = (text: string, caret: number): AutoPairEdit => ({ kind: 'write', text, caret });
+const write = (text: string, caret: number, pair?: ContentRange): AutoPairEdit =>
+	pair ? { kind: 'write', text, caret, pair } : { kind: 'write', text, caret };
+
+// The caret splits the empty pair into its two equal runs.
+function isBetweenRuns(pair: ContentRange, caret: number): boolean {
+	return caret > pair.start && caret - pair.start === pair.end - caret;
+}
 
 // ── The beforeinput handler ──────────────────────────────────────────────────
 
@@ -160,6 +186,8 @@ export interface AutoPairSurface {
 	/** The link definitions and grammar the block was drawn with: a plugin's delimiter pairs only
 	 *  where the plugin is listed, and a reference link is read as the link it draws. */
 	linkRef: InlineResolverRef;
+	/** This block's view of the editor's record of the pair the auto-pair last wrote. */
+	ownPairs: BlockAutoPairs;
 }
 
 /**
@@ -173,6 +201,7 @@ export function applyDelimiterAutoPair(e: InputEvent, surface: AutoPairSurface):
 	const caret = surface.caret();
 	if (caret === null) return false;
 	const text = surface.text();
+	const ownPair = surface.ownPairs.consult(text, caret);
 	if (surface.isRevealing()) {
 		if (!typing || !stepsOverRevealedCloser(text, caret, e.data ?? '', surface.linkRef.grammar)) {
 			return false;
@@ -183,17 +212,14 @@ export function applyDelimiterAutoPair(e: InputEvent, surface: AutoPairSurface):
 		return true;
 	}
 	const edit = typing
-		? resolveDelimiterAutoPair(
-				text,
-				surface.content(),
-				caret,
-				e.data ?? '',
-				surface.keepsBlockKind,
-				surface.linkRef
-			)
-		: resolveEmptyPairBackspace(text, caret, surface.linkRef.grammar);
+		? resolveDelimiterAutoPair(text, surface.content(), caret, e.data ?? '', surface.linkRef, {
+				ownPair,
+				keepsKind: surface.keepsBlockKind
+			})
+		: resolveEmptyPairBackspace(text, caret, ownPair, surface.linkRef.grammar);
 	if (!edit) return false;
 	e.preventDefault();
+	noteOwnPair(surface.ownPairs, text, edit);
 	switch (edit.kind) {
 		case 'step-over':
 			if (edit.overConstruct && !surface.markersPaint()) surface.seatOutside();
@@ -210,47 +236,12 @@ export function applyDelimiterAutoPair(e: InputEvent, surface: AutoPairSurface):
 	}
 }
 
-// ── Runs ─────────────────────────────────────────────────────────────────────
-
-/** Length of the run of `ch` ending just before `at` (0 when `text[at - 1]` is not `ch`). */
-function runBefore(text: string, at: number, ch: string): number {
-	let n = 0;
-	while (text[at - 1 - n] === ch) n++;
-	return n;
-}
-
-function runAfter(text: string, at: number, ch: string): number {
-	let n = 0;
-	while (text[at + n] === ch) n++;
-	return n;
-}
-
-// `X..X|X..X`: equal runs of a pair delimiter, one or two bytes, with nothing of it either side.
-function emptyPairAround(text: string, caret: number, grammar: GrammarView): ContentRange | null {
-	const k = emptyPairRun(text, caret, grammar);
-	return k === null ? null : { start: caret - k, end: caret + k };
-}
-
-// The run length of the empty pair around the caret, when it is a pair the auto-pair writes: a
-// delimiter that pairs only as a double run never writes `X|X`, so those two bytes are the user's.
-function emptyPairRun(text: string, caret: number, grammar: GrammarView): number | null {
-	const d = text[caret - 1];
-	const policy = d === undefined ? null : policyOf(d, grammar);
-	if (!policy) return null;
-	const k = runBefore(text, caret, d);
-	if (k > 2 || runAfter(text, caret, d) !== k || (k === 1 && !policy.single)) return null;
-	return k;
-}
-
-// `XX|`: a stepped-over empty pair with the caret after it. Only the delimiters that step (the
-// emphasis family grows instead, and its `**|` is a double opener with content ahead).
-function emptyPairEnding(text: string, caret: number, grammar: GrammarView): ContentRange | null {
-	const d = text[caret - 1];
-	if (d === undefined || policyOf(d, grammar)?.inside !== 'step-over' || text[caret] === d) {
-		return null;
-	}
-	if (runBefore(text, caret, d) !== 2) return null;
-	return { start: caret - 2, end: caret };
+/** Keep the record in step with an edit the auto-pair made to `text`: a pair it wrote or stepped
+ *  past stays its own, and every other edit ends the pair. */
+export function noteOwnPair(ownPairs: BlockAutoPairs, text: string, edit: AutoPairEdit): void {
+	const pair = edit.kind === 'close' ? undefined : edit.pair;
+	if (!pair) ownPairs.forget();
+	else ownPairs.remember(edit.kind === 'write' ? edit.text : text, pair);
 }
 
 // ── Constructs ───────────────────────────────────────────────────────────────
@@ -261,13 +252,13 @@ function collapseEmptyPair(
 	content: ContentRange,
 	caret: number,
 	typed: string,
+	own: ContentRange,
 	linkRef: InlineResolverRef
 ): AutoPairEdit | null {
-	const k = emptyPairRun(text, caret, linkRef.grammar);
-	if (k === null) return null;
 	const paired = text.slice(0, caret) + typed + text.slice(caret);
 	const shifted = { start: content.start, end: content.end + 1 };
-	if (constructAt(paired, shifted, caret - k, caret + 1 + k, linkRef)) return null;
+	if (constructAt(paired, shifted, own.start, own.end + 1, linkRef)) return null;
+	const k = caret - own.start;
 	return write(text.slice(0, caret) + typed + text.slice(caret + k), caret + 1);
 }
 

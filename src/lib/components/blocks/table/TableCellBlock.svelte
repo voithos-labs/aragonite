@@ -145,12 +145,14 @@
 	const tableContext = getContext<TableContext>(TABLE_CONTEXT_KEY);
 	const {
 		pendingMarks,
+		autoPairs,
 		widgetSelection,
 		linkCard,
 		reorder,
 		rects,
 		decorations: decorationEngine
 	} = getContext<EditorServices>(EDITOR_SERVICES_KEY);
+	const ownPairs = autoPairs.forBlock();
 	const {
 		presentationMode: getPresentationMode,
 		theme: getTheme,
@@ -357,6 +359,7 @@
 		getEdgeAffinity: () => edgeAffinity.get(),
 		noteOutside: edgeAffinity.noteExtreme,
 		pendingMarks,
+		ownPairs,
 		installedAs: 'cell'
 	});
 
@@ -820,6 +823,7 @@
 			setCaret: (offset) => cursor.setRaw(asRawOffset(offset)),
 			seatOutside: edgeAffinity.noteExtreme,
 			linkRef,
+			ownPairs,
 			write: (text, caretBefore, caretAfter) => {
 				void blockEdit.updateBlockContent(index, text, caretBefore, caretAfter);
 				parkCursor(caretAfter, text);

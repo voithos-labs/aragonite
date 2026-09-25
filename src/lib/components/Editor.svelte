@@ -31,6 +31,7 @@
 	import { createStickyColumnState } from '../cursor/sticky-column';
 	import { createEdgeAffinityState } from '../cursor/edge-affinity';
 	import { createPendingMarksState } from '../cursor/pending-marks';
+	import { createAutoPairRecord } from './blocks/text/auto-pair-record';
 	import { createRevealAnchorState } from '../cursor/reveal-anchor';
 	import { createHeightOracle } from '../cursor/height-oracle';
 	import { HEIGHT_ESTIMATES } from '../cursor/typography-estimates';
@@ -270,6 +271,7 @@
 	// exactly the edge affinity's lifetime, so whatever invalidates the affinity drops them too.
 	const pendingMarks = createPendingMarksState();
 	const edgeAffinity = createEdgeAffinityState({ onInvalidate: pendingMarks.reset });
+	const autoPairs = createAutoPairRecord();
 	const revealAnchor = createRevealAnchorState();
 	const operationsLog = createOperationsLog();
 	const events = createEditorEvents();
@@ -812,6 +814,7 @@
 		stickyColumn,
 		edgeAffinity,
 		pendingMarks,
+		autoPairs,
 		revealAnchor,
 		widgetSelection,
 		selectedWidget,

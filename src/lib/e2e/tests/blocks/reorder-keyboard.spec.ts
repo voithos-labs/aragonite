@@ -76,6 +76,58 @@ test.describe('keyboard reorder', () => {
 		expect(await editor.parseConverged()).toBe(true);
 	});
 
+	// An HTML block runs to the next blank line, so the move writes one under it where the moved
+	// paragraph took that line away; otherwise the quote and the list would reload as HTML text.
+	test('Alt+ArrowUp leaves the blocks under an HTML block their own', async () => {
+		const source = 'Intro\n<div>\nx\n</div>\n\nSecond\n> quoted line\n- one\n- two\n';
+		await editor.loadContent(source);
+		await editor.page.locator('[contenteditable="true"]', { hasText: 'Second' }).click();
+		await editor.page.keyboard.press('Alt+ArrowUp');
+
+		await editor.bridge.waitForSourceEquals(
+			'Intro\n\nSecond\n\n<div>\nx\n</div>\n\n> quoted line\n- one\n- two\n'
+		);
+		expect(await editor.bridge.getBlockKind(3)).toBe('blockquote');
+		expect(await editor.bridge.getBlockKind(4)).toBe('list');
+		expect(await editor.parseConverged()).toBe(true);
+
+		// The blank line is part of the move, so one undo takes both.
+		await editor.page.keyboard.press('ControlOrMeta+z');
+		await editor.bridge.waitForSourceEquals(source);
+	});
+
+	// A blank line kept the paragraph and the table apart above the heading; moving the heading
+	// away keeps one between them, or the table would reload as the paragraph's text.
+	test('Alt+ArrowUp keeps apart the pair a blank line separated', async () => {
+		const source = 'Intro\n\n# Heading\n| A | B |\n| --- | --- |\n| 1 | 2 |\n';
+		await editor.loadContent(source);
+		await editor.page.locator('[contenteditable="true"]', { hasText: 'Heading' }).click();
+		await editor.page.keyboard.press('Alt+ArrowUp');
+
+		await editor.bridge.waitForSourceEquals(
+			'# Heading\n\nIntro\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n'
+		);
+		expect(await editor.bridge.getBlockKind(2)).toBe('table');
+		expect(await editor.parseConverged()).toBe(true);
+
+		await editor.page.keyboard.press('ControlOrMeta+z');
+		await editor.bridge.waitForSourceEquals(source);
+	});
+
+	// The same rule inside a quote: the quote's HTML block keeps the blank line under it.
+	test('Alt+ArrowUp inside a quote leaves the nested quote its own', async () => {
+		const source = '> <div>\n> x\n> </div>\n>\n> Second\n> > inner\n';
+		await editor.loadContent(source);
+		await editor.page.locator('[contenteditable="true"]', { hasText: 'Second' }).last().click();
+		await editor.page.keyboard.press('Alt+ArrowUp');
+
+		await editor.bridge.waitForSourceEquals('> Second\n>\n> <div>\n> x\n> </div>\n>\n> > inner\n');
+		expect(await editor.parseConverged()).toBe(true);
+
+		await editor.page.keyboard.press('ControlOrMeta+z');
+		await editor.bridge.waitForSourceEquals(source);
+	});
+
 	// A move with no sibling in that direction must change nothing and add no undo entry, or the
 	// press at the boundary silently eats a Ctrl+Z. The unit test for the clamp skips the keymap
 	// dispatch this goes through.

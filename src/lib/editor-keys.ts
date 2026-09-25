@@ -30,6 +30,7 @@ import type { DecorationEngine } from './decorations/decoration-state.svelte';
 import type { StickyColumnState } from './cursor/sticky-column';
 import type { EdgeAffinityState } from './cursor/edge-affinity';
 import type { PendingMarksState } from './cursor/pending-marks';
+import type { AutoPairRecord } from './components/blocks/text/auto-pair-record';
 import type { RevealAnchorState } from './cursor/reveal-anchor';
 import type { HeightOracle } from './cursor/height-oracle';
 import type { InlineMenuCombobox } from './inline-menu/inline-menu-state.svelte';
@@ -175,6 +176,9 @@ export interface EditorServices {
 	/** The constructs a toggle with no selection promised the next insertion. Dropped along
 	 *  with the edge affinity, and used up where typed and composed text is written. */
 	pendingMarks: PendingMarksState;
+	/** The empty delimiter pair the auto-pair last wrote, the only pair it steps over, collapses
+	 *  or deletes; each typing block takes its own view of it. */
+	autoPairs: AutoPairRecord;
 	revealAnchor: RevealAnchorState;
 	widgetSelection: WidgetSelectionState;
 	/** The image `widgetSelection` holds, as a raw span read from the live document. */

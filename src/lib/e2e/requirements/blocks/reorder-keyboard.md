@@ -24,6 +24,21 @@ whether or not the drag handles are turned on.
   interrupting the paragraph above it) arrives with one: the paragraph stays a paragraph
   rather than reading the rule as its setext underline, and the source reloads to the same
   three blocks.
+- A paragraph moved up out from under an HTML block, whose next line was a quote, leaves a blank
+  line between the HTML block and the quote: an HTML block runs to the next blank line, so without
+  it the quote and the list below would reload as HTML text. One undo restores the source.
+  - Miss-analysis: the join a moved block vacates was only ever pinned between two paragraphs,
+    which rejoin as a reload reads them; no case put a block that ends only at a blank line above
+    it, so the absorption below it went unasked.
+- A heading moved up from between a paragraph (a blank line above the heading) and a table
+  (flush under it) leaves a blank line between the paragraph and the table, so the table stays a
+  table; one undo restores the source. Two blocks flush on both sides of the moved block rejoin.
+  - Miss-analysis: the property suite exempted every pair the moved block stood between from its
+    content check, so the move taking a table, a rule or a quote into the block above passed.
+- Inside a quote, a paragraph moved up out from under the quote's HTML block leaves a blank quote
+  line under the HTML block, so the nested quote below stays a quote; one undo restores the source.
+  - Miss-analysis: the rule for the pair a move leaves was pinned on top-level blocks only, and it
+    ran only there.
 
 ## Edge cases
 

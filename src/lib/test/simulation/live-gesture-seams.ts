@@ -28,6 +28,7 @@ import {
 	keepsBlockKind
 } from '$lib/components/blocks/text/edge-policy-dispatch';
 import { resolveDelimiterAutoPair } from '$lib/components/blocks/text/delimiter-autopair';
+import { createAutoPairRecord } from '$lib/components/blocks/text/auto-pair-record';
 import {
 	resolveLiveRangeEdit,
 	resolveSelectionEdit
@@ -363,6 +364,7 @@ async function pressEdgeKey(
 		isReading: () => false,
 		getEdgeAffinity: () => gesture.affinity,
 		pendingMarks: makePendingMarks(),
+		ownPairs: createAutoPairRecord().forBlock(),
 		installedAs: 'block'
 	});
 	const event = new KeyboardEvent('keydown', { key, cancelable: true });
@@ -386,14 +388,14 @@ async function nativePress(
 	if (kind === 'type') {
 		// A typed byte reaches the editable element through the auto-pair handler in every mode
 		// (G4.65), so a typed delimiter writes what that handler writes: the matching closer, or
-		// nothing where the caret steps over one.
+		// nothing where the caret steps over one. A drawn document holds no pair it wrote.
 		const paired = resolveDelimiterAutoPair(
 			trimTrailingLineEnding(node.raw),
 			{ start, end },
 			offset,
 			key,
-			(line) => keepsBlockKind(node, line, defaultGrammarView),
-			{ grammar: defaultGrammarView }
+			{ grammar: defaultGrammarView },
+			{ ownPair: null, keepsKind: (line) => keepsBlockKind(node, line, defaultGrammarView) }
 		);
 		if (paired?.kind === 'step-over') return;
 		if (paired) {

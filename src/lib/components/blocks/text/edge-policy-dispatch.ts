@@ -38,7 +38,8 @@ import { resolveEdgeSeat, type EdgeSeat } from './edge-seat';
 import { replaceRangeRaw } from './live-selection-edit';
 import { resolveMarkedInsertion } from './pending-mark-insert';
 import { widgetAtCursor } from './widget-adjacency';
-import { resolveDelimiterAutoPair } from './delimiter-autopair';
+import { noteOwnPair, resolveDelimiterAutoPair } from './delimiter-autopair';
+import type { BlockAutoPairs } from './auto-pair-record';
 import { soleProseReparse } from './screen-diff';
 
 /** Whether `line` still parses back as `node`'s kind in the editor's grammar, which the auto-pair
@@ -125,6 +126,9 @@ export interface EdgePolicyDispatchDeps {
 	/** The constructs a toggle at a collapsed caret promised the next insertion. Read and spent
 	 *  here: the first byte after the chord is the insertion they were waiting for. */
 	pendingMarks: PendingMarksState;
+	/** This block's view of the editor's record of the pair the auto-pair last wrote, which the
+	 *  auto-pair answers below read and a pair written here renews. */
+	ownPairs: BlockAutoPairs;
 	/** How this block stores a rewrite, so the edge rules read a candidate back the way it will be
 	 *  saved. Required: a table cell that fell back to `block` would refuse its own text. */
 	installedAs: EdgeDeletionSurface;
@@ -691,15 +695,11 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		// A delimiter typed over its own closing one is the auto-pair's step-over, handled on
 		// beforeinput (delimiter-autopair.ts); placed outside the run it would be typed instead.
 		const content = getContentRange(deps.node);
-		const { grammar, linkRef } = deps;
-		const autoPair = resolveDelimiterAutoPair(
-			display(),
-			content,
-			caretOffset,
-			e.key,
-			undefined,
-			linkRef
-		);
+		const { grammar, linkRef, ownPairs } = deps;
+		const text = display();
+		const autoPair = resolveDelimiterAutoPair(text, content, caretOffset, e.key, linkRef, {
+			ownPair: ownPairs.consult(text, caretOffset)
+		});
 		if (autoPair?.kind === 'step-over') return false;
 		const el = deps.getEl();
 		const seat = el && typingSeatAt(el, caretOffset, e.key);
@@ -709,15 +709,12 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		// Those rules decide where the byte lands; what a delimiter keystroke writes there is
 		// still the auto-pair's answer, or a byte placed past a run would arrive without its
 		// closing partner. The kind goes into the debug trace, naming the construct involved.
-		const paired = resolveDelimiterAutoPair(
-			display(),
-			content,
-			seat.offset,
-			e.key,
-			(line) => keepsBlockKind(deps.node, line, grammar),
-			linkRef
-		);
+		const paired = resolveDelimiterAutoPair(text, content, seat.offset, e.key, linkRef, {
+			ownPair: ownPairs.consult(text, seat.offset),
+			keepsKind: (line) => keepsBlockKind(deps.node, line, grammar)
+		});
 		if (paired && paired.kind !== 'step-over') {
+			noteOwnPair(ownPairs, text, paired);
 			writeDisplay(paired.text, paired.caret, `seat:${seat.kind}`, caretOffset);
 			if (paired.kind === 'close') deps.noteOutside?.();
 			return true;
