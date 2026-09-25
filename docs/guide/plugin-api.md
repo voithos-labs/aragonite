@@ -362,6 +362,12 @@ _(pre-freeze / unstable)_ The editor's own parse and serialize entries, re-expor
 | `ParsedLine`                              | One source line: its text, its bytes with the ending, the ending itself, its offsets                                                                                                               |
 | `isBlankLine`                             | The GFM blank-line test, spaces and tabs only. Don't substitute `trim()`: it would let a pasted non-breaking space split a block                                                                   |
 | `trimTrailingLineEnding`                  | Cut the one trailing line ending (LF or CRLF) off a block's bytes, giving the text you display                                                                                                     |
+| `ownTrailingLineEnding`                   | The ending a block's bytes close with (`''` when they have none): what you put back after editing the display                                                                                      |
+| `firstLineEnding`                         | The first line break in some bytes, or `null`. A document keeps one ending, so any break in your block's bytes is the one a new line takes                                                         |
+| `documentLineEnding`                      | The ending every line written into a document takes: its first line break, else LF                                                                                                                 |
+| `LineEnding`                              | `'\n'` or `'\r\n'`                                                                                                                                                                                 |
+| `displayLines`, `DisplayLine`             | A block's display as lines, each line's text apart from its ending, so a `\r` never reaches a line match                                                                                           |
+| `joinDisplayLines`                        | Lines from `displayLines` back into their exact bytes                                                                                                                                              |
 | `normalizeLineEndings`                    | CRLF to LF, for text arriving from outside the document (a plugin-owned input surface)                                                                                                             |
 
 ### Grammar scanners

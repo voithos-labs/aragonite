@@ -1,4 +1,12 @@
-/** Line splitting preserving endings and offsets, plus the trailing-line-ending helpers. */
+/**
+ * Line splitting that keeps each line's ending and offsets, and the line-ending rule: a line the
+ * editor writes takes the document's ending ({@link documentLineEnding}), and per-line work reads
+ * each line's text without its ending ({@link displayLines}).
+ */
+
+import type { DocumentView } from './node-views';
+
+export type LineEnding = '\n' | '\r\n';
 
 /** GFM §2.1: a blank line holds only spaces and tabs; a non-breaking space is content. */
 const NON_BLANK_CHAR = /[^ \t]/;
@@ -18,14 +26,66 @@ export function trimTrailingLineEnding(raw: string): string {
 	return raw.slice(0, displayLength(raw));
 }
 
-/**
- * The ending `raw` actually carries, {@link trimTrailingLineEnding}'s complement.
- * {@link trailingLineEnding} answers a different question, which ending to give a block, so code
- * reattaching a block's own bytes reads this one (G4.20).
- */
-export function ownTrailingLineEnding(raw: string): '' | '\n' | '\r\n' {
-	return raw.slice(displayLength(raw)) as '' | '\n' | '\r\n';
+/** The ending `raw` actually carries, empty when it has none: {@link trimTrailingLineEnding}'s
+ *  complement, for code reattaching a block's own bytes. */
+export function ownTrailingLineEnding(raw: string): '' | LineEnding {
+	return raw.slice(displayLength(raw)) as '' | LineEnding;
 }
+
+// ── The document's line ending ───────────────────────────────────────────────
+
+const documentEndings = new WeakMap<DocumentView, LineEnding>();
+
+/**
+ * The ending every line the editor writes into `doc` takes: the document's first line break, else
+ * LF. Remembered per document once found; a document holding no break yet is scanned again on
+ * each call, so the first break a write (a paste, an Enter) introduces is the one the next reads.
+ */
+export function documentLineEnding(doc: DocumentView): LineEnding {
+	const known = documentEndings.get(doc);
+	if (known) return known;
+	const found = firstDocumentBreak(doc);
+	if (found) documentEndings.set(doc, found);
+	return found ?? '\n';
+}
+
+function firstDocumentBreak(doc: DocumentView): LineEnding | null {
+	let before = '';
+	const chunks = [doc.prefix, ...doc.children.flatMap((c) => [c.leadingTrivia ?? '', c.raw])];
+	for (const chunk of [...chunks, doc.suffix]) {
+		const at = chunk.indexOf('\n');
+		if (at >= 0) return (at > 0 ? chunk[at - 1] : before) === '\r' ? '\r\n' : '\n';
+		if (chunk !== '') before = chunk[chunk.length - 1];
+	}
+	return null;
+}
+
+/** The first line break in `text`, or null when it holds none. In a document with one ending,
+ *  any break in a block's own bytes is the document's. */
+export function firstLineEnding(text: string): LineEnding | null {
+	const at = text.indexOf('\n');
+	if (at < 0) return null;
+	return text[at - 1] === '\r' ? '\r\n' : '\n';
+}
+
+/**
+ * The ending `raw` closes with, else `fallback`: what a line rebuilt from a block's bytes ends in.
+ * A block with no ending of its own is the document's last line, so the fallback is usually the
+ * document's ending ({@link documentLineEnding}).
+ */
+export function trailingLineEnding(raw: string, fallback: LineEnding = '\n'): LineEnding {
+	return ownTrailingLineEnding(raw) || fallback;
+}
+
+/**
+ * Keep a truncated slice line-terminated, borrowing `sourceRaw`'s own ending (G4.20). A slice
+ * whose last line stays open swallows whatever follows it once the bytes stand alone.
+ */
+export function terminateLine(text: string, sourceRaw: string): string {
+	return text.endsWith('\n') ? text : text + trailingLineEnding(sourceRaw);
+}
+
+// ── Scalars ──────────────────────────────────────────────────────────────────
 
 /** The first half of a UTF-16 surrogate pair, as a code unit (`charCodeAt`). */
 export function isHighSurrogate(unit: number): boolean {
@@ -48,30 +108,16 @@ export function snapToScalarBoundary(raw: string, offset: number): number {
 	return splitsPair ? offset - 1 : offset;
 }
 
-/**
- * The block's authored trailing line ending. Every site that reattaches or creates one reads it
- * here (G4.20), so a CRLF-authored block keeps its ending and an unterminated one gets `\n`.
- */
-export function trailingLineEnding(raw: string): '\n' | '\r\n' {
-	return raw.endsWith('\r\n') ? '\r\n' : '\n';
-}
-
-/**
- * Keep a truncated slice line-terminated, borrowing `sourceRaw`'s own ending (G4.20). A slice
- * whose last line stays open swallows whatever follows it once the bytes stand alone.
- */
-export function terminateLine(text: string, sourceRaw: string): string {
-	return text.endsWith('\n') ? text : text + trailingLineEnding(sourceRaw);
-}
+// ── Splitting ────────────────────────────────────────────────────────────────
 
 /** Every paste entry point goes through here, so the paste rules read LF whatever the clipboard
- *  held; the paste writes the document's own ending back (`tree-operations/paste/line-ending.ts`). */
+ *  held; the paste writes the document's own ending back. */
 export function normalizeLineEndings(text: string): string {
 	return text.replace(/\r\n/g, '\n');
 }
 
 /** `text` with every line break written as `ending`: how LF text joins a document's own lines. */
-export function withLineEnding(text: string, ending: '\n' | '\r\n'): string {
+export function withLineEnding(text: string, ending: LineEnding): string {
 	return text.replace(/\r?\n/g, ending);
 }
 
@@ -112,6 +158,29 @@ export function splitLines(source: string): ParsedLine[] {
 	}
 
 	return lines;
+}
+
+export interface DisplayLine {
+	text: string;
+	ending: '' | LineEnding;
+}
+
+/**
+ * A block's display (its bytes without the trailing ending) as lines, each line's text apart from
+ * its ending. A display always has a last line, empty after a final break, and
+ * {@link joinDisplayLines} puts the bytes back exactly.
+ */
+export function displayLines(display: string): DisplayLine[] {
+	const lines: DisplayLine[] = splitLines(display).map((line) => ({
+		text: line.text,
+		ending: line.lineEnding as '' | LineEnding
+	}));
+	if (display === '' || display.endsWith('\n')) lines.push({ text: '', ending: '' });
+	return lines;
+}
+
+export function joinDisplayLines(lines: readonly DisplayLine[]): string {
+	return lines.map((line) => line.text + line.ending).join('');
 }
 
 // ── Indentation ──────────────────────────────────────────────────────────────

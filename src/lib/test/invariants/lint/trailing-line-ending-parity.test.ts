@@ -268,7 +268,6 @@ describe('G4.20 trailing-line-ending module exclusivity', () => {
 	it('the module still holds both expressions the rules redirect to', () => {
 		const seam = sources.find((f) => f.relPath === LINE_ENDING_SEAM);
 		expect(seam, `line-ending module not found: ${LINE_ENDING_SEAM}`).toBeDefined();
-		expect(INLINE_ENDING_TERNARY.test(seam!.code)).toBe(true);
 		expect(INLINE_OWN_ENDING_SLICE.test(seam!.code)).toBe(true);
 		expect(seam!.code).toContain('export function trailingLineEnding');
 		expect(seam!.code).toContain('export function ownTrailingLineEnding');
