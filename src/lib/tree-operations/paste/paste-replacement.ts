@@ -28,7 +28,7 @@ export function buildPastedReplacement(
 	leaf: NodeView,
 	offset: number,
 	blocks: CstNode[],
-	grammar?: GrammarView
+	grammar: GrammarView
 ): PastedReplacement {
 	if (blocks.length === 0) return { nodes: [], lastPastedIndex: -1 };
 

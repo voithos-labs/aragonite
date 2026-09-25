@@ -455,6 +455,7 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 			return getBlockKindDescriptor(deps.getNode().kind).editable;
 		},
 		selection,
+		reading,
 		get innerBlockRefs() {
 			return listState.innerBlockRefs;
 		},

@@ -11,6 +11,7 @@ import type { EdgeAffinityState } from '../cursor/edge-affinity';
 import type { SelectionState } from './selection-state.svelte';
 import type { CrossBlockHandlers } from './cross-block/dispatch';
 import type { PluginActivation } from '../schema/plugin-activation';
+import type { Reading } from '../schema/reading';
 import {
 	extendFocusToNextBlock,
 	extendFocusToPreviousBlock,
@@ -43,6 +44,8 @@ export interface SharedKeydownContext extends LandableBoundsContext {
 	/** The plugins this instance activated; without it the suppression below swallows a
 	 *  chord another editor's plugin owns. */
 	activePlugins: PluginActivation;
+	/** How the editor reads its bytes, whose grammar the vertical extension skips leaves by. */
+	reading: Reading;
 }
 
 /** True when the event was fully handled; the caller must skip its block-specific branches. */
@@ -101,7 +104,14 @@ export async function handleSharedKeydown(
 			// offset, so native Shift+ArrowUp extension has nowhere left to go within it.
 			if (e.shiftKey && offset <= bounds().start) {
 				e.preventDefault();
-				extendFocusToPreviousBlock(ctx.selection, ctx.getDoc(), el, myPath, 'start');
+				extendFocusToPreviousBlock(
+					ctx.selection,
+					ctx.getDoc(),
+					ctx.reading.grammar,
+					el,
+					myPath,
+					'start'
+				);
 				scrollFocusBlockIntoView(ctx.selection, ctx.getBlockElByPath);
 				return true;
 			}
@@ -120,7 +130,14 @@ export async function handleSharedKeydown(
 			// offset, so native Shift+ArrowDown extension has nowhere left to go.
 			if (e.shiftKey && offset >= bounds().end) {
 				e.preventDefault();
-				extendFocusToNextBlock(ctx.selection, ctx.getDoc(), el, myPath, 'vertical');
+				extendFocusToNextBlock(
+					ctx.selection,
+					ctx.getDoc(),
+					ctx.reading.grammar,
+					el,
+					myPath,
+					'vertical'
+				);
 				scrollFocusBlockIntoView(ctx.selection, ctx.getBlockElByPath);
 				return true;
 			}
@@ -140,7 +157,7 @@ export async function handleSharedKeydown(
 		if (offset !== null && offset <= bounds().start) {
 			if (e.shiftKey) {
 				e.preventDefault();
-				extendFocusToPreviousBlock(ctx.selection, ctx.getDoc(), el, myPath);
+				extendFocusToPreviousBlock(ctx.selection, ctx.getDoc(), ctx.reading.grammar, el, myPath);
 				scrollFocusBlockIntoView(ctx.selection, ctx.getBlockElByPath);
 				return true;
 			}
@@ -155,7 +172,7 @@ export async function handleSharedKeydown(
 		if (offset !== null && offset >= bounds().end) {
 			if (e.shiftKey) {
 				e.preventDefault();
-				extendFocusToNextBlock(ctx.selection, ctx.getDoc(), el, myPath);
+				extendFocusToNextBlock(ctx.selection, ctx.getDoc(), ctx.reading.grammar, el, myPath);
 				scrollFocusBlockIntoView(ctx.selection, ctx.getBlockElByPath);
 				return true;
 			}

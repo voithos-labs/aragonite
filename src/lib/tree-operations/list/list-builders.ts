@@ -112,7 +112,7 @@ export function splitLeafForPaste(
 	leaf: CstNode,
 	offset: number,
 	raw: string = leaf.raw,
-	grammar?: GrammarView
+	grammar: GrammarView
 ): { leadingNode: CstNode | null; trailingNodes: CstNode[]; lineEnding: '\n' | '\r\n' } {
 	const lineEnding = trailingLineEnding(raw);
 	const display = trimTrailingLineEnding(raw);
@@ -139,8 +139,8 @@ export function buildSplitItems(
 	item: CstNode,
 	innerIndex: number,
 	offset: number,
-	targetRaw?: string,
-	grammar?: GrammarView
+	targetRaw: string | undefined,
+	grammar: GrammarView
 ): { leadingItem: CstNode | null; trailingItem: CstNode | null } {
 	if (!item.children) return { leadingItem: null, trailingItem: null };
 	const targetLeaf = item.children[innerIndex];
@@ -174,7 +174,7 @@ export function buildSplitItems(
  * reload reads that line otherwise (indented code there reads as a wider marker); then it opens
  * on the line after an empty marker, which is how the parser reads an item starting that way.
  */
-function trailingItemFor(template: CstNode, children: CstNode[], grammar?: GrammarView): CstNode {
+function trailingItemFor(template: CstNode, children: CstNode[], grammar: GrammarView): CstNode {
 	const onMarkerLine = buildListItemWithContent(template, children);
 	if (readsBackAsBuilt(onMarkerLine, grammar)) return onMarkerLine;
 	const lineEnding = trailingLineEnding(children[0].raw);
@@ -186,7 +186,7 @@ function trailingItemFor(template: CstNode, children: CstNode[], grammar?: Gramm
 }
 
 /** Whether `item`'s bytes, read alone, give back one item holding the same blocks. */
-function readsBackAsBuilt(item: CstNode, grammar?: GrammarView): boolean {
+function readsBackAsBuilt(item: CstNode, grammar: GrammarView): boolean {
 	const blocks = parse(item.raw, { grammar, scope: 'fragment' }).children;
 	const list = blocks.length === 1 && blocks[0].kind === 'list' ? blocks[0] : null;
 	const read = list?.children?.length === 1 ? list.children[0] : null;

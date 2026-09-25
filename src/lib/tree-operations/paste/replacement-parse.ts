@@ -23,7 +23,7 @@ export interface ParsedReplacement {
 export function parseReplacement(
 	original: CstNode,
 	raw: string,
-	grammar: GrammarView | undefined,
+	grammar: GrammarView,
 	fallback?: () => CstNode[]
 ): ParsedReplacement | null {
 	const parsed = parse(terminateLine(raw, original.raw), { grammar, scope: 'fragment' });

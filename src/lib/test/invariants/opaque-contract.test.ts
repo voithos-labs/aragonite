@@ -8,6 +8,7 @@ import { concatChildren } from '../../core/serializer';
 import { trimTrailingLineEnding } from '../../core/lines';
 import type { AnyBlockKind, CstNode } from '../../core/nodes';
 import { testLeaf } from '$lib/test/harness/test-kinds';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 // ── Callout-shaped opaque kind with a registered opener ────────────────────
 // A title child at index 0 makes `strip(raw) !== serialize(children)`, and the opener stores
@@ -90,7 +91,7 @@ describe('containerContract opaque: checkStaleRaw exemption', () => {
 			raw: '::title::\nbody\n',
 			children: [{ kind: 'paragraph', leadingTrivia: '', raw: 'body\n' }]
 		};
-		expect(checkStaleRaw(node)).toBeNull();
+		expect(checkStaleRaw(node, defaultGrammarView)).toBeNull();
 	});
 });
 
@@ -110,7 +111,7 @@ describe('checkOpaqueStaleRaw (opaque containers)', () => {
 		rebuildNoteRaw(probe);
 		expect(probe.raw).not.toBe(node.raw);
 
-		expect(checkOpaqueStaleRaw(node)).toBeNull();
+		expect(checkOpaqueStaleRaw(node, defaultGrammarView)).toBeNull();
 	});
 
 	it('passes after a child mutation followed by a rebuild', () => {
@@ -118,21 +119,21 @@ describe('checkOpaqueStaleRaw (opaque containers)', () => {
 		const node = parseNote('::note Title\nbody\n::\n');
 		node.children![1].raw = 'CHANGED\n';
 		rebuildNoteRaw(node);
-		expect(checkOpaqueStaleRaw(node)).toBeNull();
+		expect(checkOpaqueStaleRaw(node, defaultGrammarView)).toBeNull();
 	});
 
 	it('fires when a body child mutated without a rebuild', () => {
 		registerNoteKind();
 		const node = parseNote('::note Title\nbody\n::\n');
 		node.children![1].raw = 'CHANGED\n';
-		expect(checkOpaqueStaleRaw(node)?.code).toBe('opaque-stale-raw');
+		expect(checkOpaqueStaleRaw(node, defaultGrammarView)?.code).toBe('opaque-stale-raw');
 	});
 
 	it('fires when the opener-line title chrome mutated without a rebuild', () => {
 		registerNoteKind();
 		const node = parseNote('::note Title\nbody\n::\n');
 		node.children![0].raw = 'Renamed\n';
-		expect(checkOpaqueStaleRaw(node)?.code).toBe('opaque-stale-raw');
+		expect(checkOpaqueStaleRaw(node, defaultGrammarView)?.code).toBe('opaque-stale-raw');
 	});
 
 	// ── Declared reservedChrome: the title's bytes live in the opener line ───
@@ -146,21 +147,21 @@ describe('checkOpaqueStaleRaw (opaque containers)', () => {
 
 		node.children!.push({ kind: 'paragraph', leadingTrivia: '', raw: '\n' });
 		rebuildNoteRaw(node);
-		expect(checkOpaqueStaleRaw(node)).toBeNull();
+		expect(checkOpaqueStaleRaw(node, defaultGrammarView)).toBeNull();
 	});
 
 	it('still fires on title-chrome drift when chrome is declared', () => {
 		registerNoteKind({ declareChrome: true });
 		const node = parseNote('::note Title\nbody\n::\n');
 		node.children![0].raw = 'Renamed\n';
-		expect(checkOpaqueStaleRaw(node)?.code).toBe('opaque-stale-raw');
+		expect(checkOpaqueStaleRaw(node, defaultGrammarView)?.code).toBe('opaque-stale-raw');
 	});
 
 	it('still fires on body drift when chrome is declared', () => {
 		registerNoteKind({ declareChrome: true });
 		const node = parseNote('::note Title\nbody\n::\n');
 		node.children![1].raw = 'CHANGED\n';
-		expect(checkOpaqueStaleRaw(node)?.code).toBe('opaque-stale-raw');
+		expect(checkOpaqueStaleRaw(node, defaultGrammarView)?.code).toBe('opaque-stale-raw');
 	});
 
 	// Slicing the title off and comparing the body as one unit still has to catch a child added
@@ -174,7 +175,7 @@ describe('checkOpaqueStaleRaw (opaque containers)', () => {
 			} else {
 				node.children!.pop();
 			}
-			expect(checkOpaqueStaleRaw(node)?.code).toBe('opaque-stale-raw');
+			expect(checkOpaqueStaleRaw(node, defaultGrammarView)?.code).toBe('opaque-stale-raw');
 		});
 	}
 
@@ -185,7 +186,7 @@ describe('checkOpaqueStaleRaw (opaque containers)', () => {
 		const node = parseNote('::note Title\nbody\n::\n');
 		expect(node.kind).toBe(note);
 		node.raw = 'just a paragraph now\n'; // reparses to paragraph, not note
-		const violation = checkOpaqueStaleRaw(node);
+		const violation = checkOpaqueStaleRaw(node, defaultGrammarView);
 		expect(violation?.code).toBe('opaque-stale-raw');
 		expect(violation?.detail).toMatchObject({ reason: 'reparse-diverges' });
 	});
@@ -200,6 +201,6 @@ describe('checkOpaqueStaleRaw (opaque containers)', () => {
 			raw: '::x\nbody\n::\n',
 			children: [{ kind: 'paragraph', leadingTrivia: '', raw: 'CHANGED\n' }]
 		};
-		expect(checkOpaqueStaleRaw(node)).toBeNull();
+		expect(checkOpaqueStaleRaw(node, defaultGrammarView)).toBeNull();
 	});
 });

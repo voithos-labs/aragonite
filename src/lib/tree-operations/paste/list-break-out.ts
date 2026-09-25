@@ -154,8 +154,8 @@ export function buildListBreakOutReplacement(
 	innerIndex: number,
 	offset: number,
 	pastedBlocks: CstNode[],
-	targetRaw?: string,
-	grammar?: GrammarView
+	targetRaw: string | undefined,
+	grammar: GrammarView
 ): ListBreakOutReplacement {
 	const items = list.children ?? [];
 	const item = items[itemIndex];

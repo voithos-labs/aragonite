@@ -10,6 +10,7 @@ import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
 import { checkOpaqueStaleRaw } from '../../invariants/node-shape';
 import type { CstNode } from '../../core/nodes';
 import { testLeaf } from '$lib/test/harness/test-kinds';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 describe('emptyParagraph', () => {
 	it('creates the empty-paragraph placeholder shape, blank lines and ending parameterized', () => {
@@ -130,7 +131,7 @@ describe('ensureEditableContainers: whole-block-focus kinds stay childless', () 
 		// The staleness checker bails on its reparse branch without an opener for the test kind,
 		// so the faithfulness precondition is asserted directly instead.
 		expect((node.children ?? []).map((c) => c.raw).join('')).toBe('');
-		expect(checkOpaqueStaleRaw(node)).toBeNull();
+		expect(checkOpaqueStaleRaw(node, defaultGrammarView)).toBeNull();
 	});
 });
 

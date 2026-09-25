@@ -113,15 +113,12 @@ export function parseList(
 				)
 			: baseLines;
 
-		const inner = parseBlocks(
-			strippedLines,
-			0,
-			strippedLines.length,
+		const inner = parseBlocks(strippedLines, 0, strippedLines.length, {
 			grammar,
-			depth + 1,
-			isDocumentParse,
-			task !== null
-		);
+			scope: isDocumentParse ? 'document' : 'fragment',
+			depth: depth + 1,
+			firstLineIsParagraph: task !== null
+		});
 
 		items.push({
 			kind: 'listItem',

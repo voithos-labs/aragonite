@@ -30,7 +30,7 @@ import { checkSnapshotIntegrity, type SnapshotEntry } from './snapshot-integrity
  * that rebuild just produced. The reparses read the editor's grammar, so syntax the editor left
  * out cannot make a node look stale.
  */
-export function assertCommittedNodes(nodes: CstNode[], grammar: GrammarView | undefined): void {
+export function assertCommittedNodes(nodes: CstNode[], grammar: GrammarView): void {
 	for (const node of nodes) {
 		assertInvariant('stale-raw', () => checkStaleRaw(node, grammar));
 		assertInvariant('opaque-stale-raw', () => checkOpaqueStaleRaw(node, grammar));

@@ -4,6 +4,7 @@ import { parse } from '$lib/core/parser';
 import { metadataOf } from '$lib/core/nodes';
 import { buildListBreakOutReplacement } from '$lib/tree-operations/paste/list-break-out';
 import { focusIndexBeforeResidue } from '$lib/tree-operations/paste/focus-target';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 describe('buildListBreakOutReplacement', () => {
 	// A break-out from an ordered list whose first item is not "1." must keep the list's own
@@ -12,7 +13,15 @@ describe('buildListBreakOutReplacement', () => {
 		const list = parse('3. a\n4. b\n5. c\n').children[0];
 		const pasted = parse('- x\n').children;
 
-		const { replacement } = buildListBreakOutReplacement(list, 1, 0, 0, pasted);
+		const { replacement } = buildListBreakOutReplacement(
+			list,
+			1,
+			0,
+			0,
+			pasted,
+			undefined,
+			defaultGrammarView
+		);
 
 		const orderedHalves = replacement.filter(
 			(b) => b.kind === 'list' && metadataOf(b, 'list').ordered
@@ -30,7 +39,15 @@ describe('buildListBreakOutReplacement', () => {
 		const list = parse('1. a\n2. b\n3. c\n').children[0];
 		const pasted = parse('- x\n').children;
 
-		const { replacement } = buildListBreakOutReplacement(list, 1, 0, 0, pasted);
+		const { replacement } = buildListBreakOutReplacement(
+			list,
+			1,
+			0,
+			0,
+			pasted,
+			undefined,
+			defaultGrammarView
+		);
 
 		const orderedHalves = replacement.filter(
 			(b) => b.kind === 'list' && metadataOf(b, 'list').ordered
@@ -55,7 +72,9 @@ describe('buildListBreakOutReplacement, trailing-residue flag drives the caret',
 			1,
 			0,
 			1,
-			pasted()
+			pasted(),
+			undefined,
+			defaultGrammarView
 		);
 		expect(hasTrailingResidue).toBe(true);
 		expect(focusIndexBeforeResidue(replacement.length, hasTrailingResidue)).toBe(
@@ -69,7 +88,9 @@ describe('buildListBreakOutReplacement, trailing-residue flag drives the caret',
 			2,
 			0,
 			'three'.length,
-			pasted()
+			pasted(),
+			undefined,
+			defaultGrammarView
 		);
 		expect(hasTrailingResidue).toBe(false);
 		expect(focusIndexBeforeResidue(replacement.length, hasTrailingResidue)).toBe(

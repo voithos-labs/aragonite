@@ -53,7 +53,7 @@ function illegalField(kind: string, field: string, why: string): InvariantViolat
  * stripped inner bytes, which a faithful non-canonical parse and the editor's empty-paragraph
  * placeholder both survive. Strip containers only, and recursively.
  */
-export function checkStaleRaw(node: CstNode, grammar?: GrammarView): InvariantViolation | null {
+export function checkStaleRaw(node: CstNode, grammar: GrammarView): InvariantViolation | null {
 	if (getBlockKindDescriptor(node.kind).containerContract !== 'strip') return null;
 
 	// Document scope because the check is handed no document position: fragment scope would
@@ -133,7 +133,7 @@ function stripContainerChildren(node: CstNode): CstNode[] {
  */
 export function checkOpaqueStaleRaw(
 	node: CstNode,
-	grammar?: GrammarView
+	grammar: GrammarView
 ): InvariantViolation | null {
 	if (getBlockKindDescriptor(node.kind).containerContract !== 'opaque') return null;
 

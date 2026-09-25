@@ -6,7 +6,6 @@
 import type { ParsedLine } from '../lines';
 import { joinRaw, isBlankLine } from '../parser';
 import {
-	defaultGrammarView,
 	lineInterruptsParagraph,
 	type BlockOpenerResult,
 	type GrammarView
@@ -19,7 +18,7 @@ export function parseParagraph(
 	startIndex: number,
 	endIndex: number,
 	leadingTrivia: string,
-	grammar: GrammarView = defaultGrammarView
+	grammar: GrammarView
 ): BlockOpenerResult {
 	if (startIndex + 1 < endIndex) {
 		const delimiter = matchTableDelimiterRow(lines[startIndex + 1].text);

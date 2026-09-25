@@ -744,8 +744,8 @@
 		selection.enterCrossBlock(anchor, { path: tablePath.slice(), offset: currentIdx });
 		const extended =
 			ext.direction === 'forward'
-				? extendFocusToNextBlock(selection, getDoc(), el, ext.fromCellPath, 'vertical')
-				: extendFocusToPreviousBlock(selection, getDoc(), el, ext.fromCellPath, 'start');
+				? extendFocusToNextBlock(selection, getDoc(), grammar, el, ext.fromCellPath, 'vertical')
+				: extendFocusToPreviousBlock(selection, getDoc(), grammar, el, ext.fromCellPath, 'start');
 		if (!extended) {
 			selection.collapse();
 			return false;

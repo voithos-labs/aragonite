@@ -18,6 +18,7 @@ import type { BlockComponent } from '$lib/block-component';
 import type { BlockListState } from '$lib/reactivity/block-list-state.svelte';
 import { replaceRefs } from '$lib/reactivity/publish-ref.svelte';
 import type { CstNode } from '$lib/core/nodes';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 /**
  * G2.8: after every structural op, `children`, the keyed-id array and the ref array stay the same
@@ -333,7 +334,12 @@ describe('G2.8 deep childIds backfill on reparse-into-container (#4 class)', () 
 
 		// The live paste path merges the clipboard and splices it through replaceBlock
 		// (defaultStructuralHook → buildPastedReplacement), a second route to the fill-in.
-		const { nodes: replacement } = buildPastedReplacement(h.doc.children[0], 4, nested);
+		const { nodes: replacement } = buildPastedReplacement(
+			h.doc.children[0],
+			4,
+			nested,
+			defaultGrammarView
+		);
 		await h.actions.replaceBlock(0, replacement);
 
 		assertAligned(h);

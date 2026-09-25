@@ -23,6 +23,6 @@ describe('github alert: empty-body backfill stays consistent', () => {
 		expect(alert.kind).toBe('githubAlert');
 		expect(alert.children?.length).toBe(1);
 		expect(alert.raw).toBe('> [!TIP]\n>\n');
-		expect(checkStaleRaw(alert)).toBeNull();
+		expect(checkStaleRaw(alert, fixtureGrammar)).toBeNull();
 	});
 });

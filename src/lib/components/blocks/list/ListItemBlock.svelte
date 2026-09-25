@@ -212,6 +212,7 @@
 
 	export const containerApi = createContainerBlockComponent({
 		selection,
+		reading,
 		get innerBlockRefs() {
 			return listState.innerBlockRefs;
 		},

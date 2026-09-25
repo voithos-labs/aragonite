@@ -32,7 +32,7 @@ describe('reclassifyContainer', () => {
 
 		expect(replacement?.kind).toBe('githubAlert');
 		expect(doc.children[0]).toBe(replacement);
-		expect(checkStaleRaw(doc.children[0])).toBeNull();
+		expect(checkStaleRaw(doc.children[0], defaultGrammarView)).toBeNull();
 	});
 
 	it('carries the slot leading blank lines onto the replacement', () => {
@@ -120,6 +120,6 @@ describe('reclassifyContainer', () => {
 
 		expect(alert?.children).toHaveLength(1);
 		expect(alert?.raw).toBe('> [!TIP]\n>\n');
-		expect(checkStaleRaw(alert!)).toBeNull();
+		expect(checkStaleRaw(alert!, defaultGrammarView)).toBeNull();
 	});
 });

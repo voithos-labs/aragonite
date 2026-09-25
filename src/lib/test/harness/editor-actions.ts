@@ -175,6 +175,7 @@ export function makeShimDeps(
 ): ContainerBlockComponentDeps {
 	const deps: ContainerBlockComponentDeps = {
 		selection: createSelectionState(),
+		reading: fixtureReading(),
 		get innerBlockRefs() {
 			return refs;
 		},

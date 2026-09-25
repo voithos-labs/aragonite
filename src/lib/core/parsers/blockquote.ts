@@ -33,6 +33,7 @@ function wouldKeepParagraphOpen(strippedText: string): boolean {
  * Byte-exact `raw` of a blockquote's extent (CommonMark §5.1 lazy continuation) plus the
  * index past it, no child decomposition: what a blockquote-shaped opener needs when it
  * decomposes its own body (`> [!NOTE]` alerts strip the marker line before parsing children).
+ * Published for text converters with no editor, so the grammar defaults to every installed plugin.
  */
 export function blockquoteExtent(
 	lines: ParsedLine[],
@@ -79,14 +80,11 @@ export function parseBlockquote(
 		matchBlockquote(line.text) ? stripBlockquotePrefix(line.text) : line.text
 	);
 
-	const inner = parseBlocks(
-		strippedLines,
-		0,
-		strippedLines.length,
+	const inner = parseBlocks(strippedLines, 0, strippedLines.length, {
 		grammar,
-		depth + 1,
-		isDocumentParse
-	);
+		scope: isDocumentParse ? 'document' : 'fragment',
+		depth: depth + 1
+	});
 
 	const quotePrefix = lines[startIndex].text.match(/^ {0,3}(>[ \t]?)+/)![0];
 	const quoteDepth = quotePrefix.match(/>/g)!.length;

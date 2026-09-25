@@ -317,7 +317,8 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		focus: deps.focusActions,
 		getDoc: deps.getDoc,
 		getBlockElByPath: deps.getBlockElByPath,
-		activePlugins: deps.activePlugins
+		activePlugins: deps.activePlugins,
+		reading: deps.reading
 	};
 
 	// ── BlockComponent surface ────────────────────────────────────────────────

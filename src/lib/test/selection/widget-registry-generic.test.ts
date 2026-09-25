@@ -27,15 +27,21 @@ function rawHtml(start: number, end: number): InlineNode {
 
 describe('vertical transparency for a non-image widget', () => {
 	it('is true for a <br>-only paragraph', () => {
-		expect(isVerticallyTransparentNode(parse('<br><br>\n').children[0])).toBe(true);
+		expect(isVerticallyTransparentNode(parse('<br><br>\n').children[0], defaultGrammarView)).toBe(
+			true
+		);
 	});
 
 	it('is true when only blank text sits between <br> widgets', () => {
-		expect(isVerticallyTransparentNode(parse('<br> <br>\n').children[0])).toBe(true);
+		expect(isVerticallyTransparentNode(parse('<br> <br>\n').children[0], defaultGrammarView)).toBe(
+			true
+		);
 	});
 
 	it('is false once real text joins the <br>', () => {
-		expect(isVerticallyTransparentNode(parse('a<br>\n').children[0])).toBe(false);
+		expect(isVerticallyTransparentNode(parse('a<br>\n').children[0], defaultGrammarView)).toBe(
+			false
+		);
 	});
 });
 

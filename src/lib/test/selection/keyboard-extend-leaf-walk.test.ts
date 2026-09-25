@@ -3,32 +3,37 @@ import { describe, it, expect } from 'vitest';
 import { extendFocusToPreviousBlock } from '../../selection/keyboard-extend';
 import { parse } from '../../core/parser';
 import { stateAt, el } from './extend-walk-env';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 describe("extendFocusToPreviousBlock from a container's first leaf", () => {
 	it('Shift+ArrowUp extends to the block above the container, not its last leaf', () => {
 		const doc = parse('para\n\n> a\n>\n> b\n');
 		const s = stateAt(doc, [1, 0]);
-		expect(extendFocusToPreviousBlock(s, doc, el(), [1, 0], 'start')).toBe(true);
+		expect(extendFocusToPreviousBlock(s, doc, defaultGrammarView, el(), [1, 0], 'start')).toBe(
+			true
+		);
 		expect(s.focus).toEqual({ path: [0], offset: 0 });
 	});
 
 	it('Shift+ArrowLeft extends to the end of the block above the container', () => {
 		const doc = parse('para\n\n> a\n>\n> b\n');
 		const s = stateAt(doc, [1, 0]);
-		expect(extendFocusToPreviousBlock(s, doc, el(), [1, 0], 'end')).toBe(true);
+		expect(extendFocusToPreviousBlock(s, doc, defaultGrammarView, el(), [1, 0], 'end')).toBe(true);
 		expect(s.focus).toEqual({ path: [0], offset: 4 });
 	});
 
 	it("reports no move from the document's first leaf", () => {
 		const doc = parse('> a\n> b\n\npara\n');
 		const s = stateAt(doc, [0, 0]);
-		expect(extendFocusToPreviousBlock(s, doc, el(), [0, 0], 'end')).toBe(false);
+		expect(extendFocusToPreviousBlock(s, doc, defaultGrammarView, el(), [0, 0], 'end')).toBe(false);
 	});
 
 	it('skips a transparent-only container without ping-ponging between its leaves', () => {
 		const doc = parse('x\n\n> ![a](u)\n>\n> ![b](v)\n');
 		const s = stateAt(doc, [1, 1]);
-		expect(extendFocusToPreviousBlock(s, doc, el(), [1, 1], 'start')).toBe(true);
+		expect(extendFocusToPreviousBlock(s, doc, defaultGrammarView, el(), [1, 1], 'start')).toBe(
+			true
+		);
 		expect(s.focus).toEqual({ path: [0], offset: 0 });
 	});
 });

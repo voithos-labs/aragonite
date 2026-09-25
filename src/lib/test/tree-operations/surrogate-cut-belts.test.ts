@@ -23,6 +23,7 @@ import { collectEditorSources } from '$lib/test/invariants/lint/scan-source';
 import type { CstNode } from '$lib/core/nodes';
 import type { NodeView } from '$lib/core/node-views';
 import { fixtureReading } from '../harness/fixture-grammar';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 const BOY = 'a\u{1F466}b\n';
 
@@ -113,7 +114,12 @@ describe('the single-block range cut', () => {
 describe('the structural paste’s before/after slices', () => {
 	it('keeps the pair whole on one side of the pasted blocks', () => {
 		const leaf = parse(BOY).children[0];
-		const { nodes: replacement } = buildPastedReplacement(leaf, 2, parse('x\n').children);
+		const { nodes: replacement } = buildPastedReplacement(
+			leaf,
+			2,
+			parse('x\n').children,
+			defaultGrammarView
+		);
 		const raws = replacement.map((node: CstNode) => node.raw);
 		expect(raws.every(isWellFormed)).toBe(true);
 		expect(raws).toEqual(['a\n', 'x\n', '\u{1F466}b\n']);
@@ -123,7 +129,12 @@ describe('the structural paste’s before/after slices', () => {
 describe('the absorb split’s item halves', () => {
 	it('keeps the pair whole on one half', () => {
 		const leaf = parse(BOY).children[0];
-		const { leadingNode, trailingNodes } = splitLeafForPaste(leaf, 2);
+		const { leadingNode, trailingNodes } = splitLeafForPaste(
+			leaf,
+			2,
+			undefined,
+			defaultGrammarView
+		);
 		expect(isWellFormed(leadingNode!.raw)).toBe(true);
 		expect(isWellFormed(trailingNodes[0].raw)).toBe(true);
 		expect([leadingNode!.raw, trailingNodes[0].raw]).toEqual(['a\n', '\u{1F466}b\n']);

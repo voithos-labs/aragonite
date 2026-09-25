@@ -7,6 +7,7 @@ import {
 	splitLeafForPaste
 } from '$lib/tree-operations/list/list-builders';
 import type { CstNode } from '$lib/core/nodes';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 describe('list-builders', () => {
 	it('buildListItemWithContent inherits template metadata + sets marker raw via rebuild', () => {
@@ -50,7 +51,12 @@ describe('list-builders', () => {
 
 	it('splitLeafForPaste splits raw at offset and trims trailing leading whitespace', () => {
 		const leaf: CstNode = { kind: 'paragraph', leadingTrivia: '', raw: 'Hello world\n' };
-		const { leadingNode, trailingNodes, lineEnding } = splitLeafForPaste(leaf, 5);
+		const { leadingNode, trailingNodes, lineEnding } = splitLeafForPaste(
+			leaf,
+			5,
+			undefined,
+			defaultGrammarView
+		);
 		expect(leadingNode!.raw).toBe('Hello\n');
 		expect(trailingNodes[0].raw).toBe('world\n');
 		expect(lineEnding).toBe('\n');
@@ -58,7 +64,12 @@ describe('list-builders', () => {
 
 	it('splitLeafForPaste at offset 0 returns null leadingNode and full trailing slice', () => {
 		const leaf: CstNode = { kind: 'paragraph', leadingTrivia: '', raw: 'Hello\n' };
-		const { leadingNode, trailingNodes, lineEnding } = splitLeafForPaste(leaf, 0);
+		const { leadingNode, trailingNodes, lineEnding } = splitLeafForPaste(
+			leaf,
+			0,
+			undefined,
+			defaultGrammarView
+		);
 		expect(leadingNode).toBeNull();
 		expect(trailingNodes[0].raw).toBe('Hello\n');
 		expect(lineEnding).toBe('\n');
@@ -66,7 +77,12 @@ describe('list-builders', () => {
 
 	it('splitLeafForPaste at end of content returns no trailing nodes and the full leading slice', () => {
 		const leaf: CstNode = { kind: 'paragraph', leadingTrivia: '', raw: 'Hello\n' };
-		const { leadingNode, trailingNodes, lineEnding } = splitLeafForPaste(leaf, 5);
+		const { leadingNode, trailingNodes, lineEnding } = splitLeafForPaste(
+			leaf,
+			5,
+			undefined,
+			defaultGrammarView
+		);
 		expect(leadingNode!.raw).toBe('Hello\n');
 		expect(trailingNodes).toEqual([]);
 		expect(lineEnding).toBe('\n');
@@ -74,7 +90,12 @@ describe('list-builders', () => {
 
 	it('splitLeafForPaste preserves \\r\\n line ending when leaf raw is CRLF', () => {
 		const leaf: CstNode = { kind: 'paragraph', leadingTrivia: '', raw: 'Hello world\r\n' };
-		const { leadingNode, trailingNodes, lineEnding } = splitLeafForPaste(leaf, 5);
+		const { leadingNode, trailingNodes, lineEnding } = splitLeafForPaste(
+			leaf,
+			5,
+			undefined,
+			defaultGrammarView
+		);
 		expect(lineEnding).toBe('\r\n');
 		expect(leadingNode!.raw.endsWith('\r\n')).toBe(true);
 		expect(trailingNodes[0].raw.endsWith('\r\n')).toBe(true);

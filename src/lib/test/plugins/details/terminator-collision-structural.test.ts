@@ -7,7 +7,7 @@ import { registerDetailsKind, DETAILS } from '$lib/plugins/details/details-kind'
 import { splitNode } from '$lib/tree-operations/node-ops';
 import { rangeDelete } from '$lib/selection/range-delete';
 import { createSharingState } from '$lib/tree-operations/sharing';
-import { fixtureReading } from '../../harness/fixture-grammar';
+import { fixtureReading, fixtureGrammar } from '../../harness/fixture-grammar';
 
 // The structural paths into the same `</details>` escape: they write the body themselves,
 // with no per-block commit to apply the rule.
@@ -75,7 +75,7 @@ describe('details terminator escape at the cross-block entry points', () => {
 		);
 
 		expect(parse(serialize(doc)).children.map((c) => c.kind)).toEqual(['details']);
-		expect(checkOpaqueStaleRaw(doc.children[0])).toBeNull();
+		expect(checkOpaqueStaleRaw(doc.children[0], fixtureGrammar)).toBeNull();
 	});
 
 	it('escapes a terminator a same-block delete strands at column 0', () => {
@@ -90,6 +90,6 @@ describe('details terminator escape at the cross-block entry points', () => {
 		);
 
 		expect(parse(serialize(doc)).children.map((c) => c.kind)).toEqual(['details']);
-		expect(checkOpaqueStaleRaw(doc.children[0])).toBeNull();
+		expect(checkOpaqueStaleRaw(doc.children[0], fixtureGrammar)).toBeNull();
 	});
 });

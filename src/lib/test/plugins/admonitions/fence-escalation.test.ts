@@ -4,6 +4,7 @@ import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
 import { checkOpaqueRebuildDeterminism, checkOpaqueStaleRaw } from '$lib/invariants/node-shape';
 import { admonitionsPlugin, convertGithubAlerts } from '$lib/plugins/admonitions';
 import { convertGithubAlertsInDocument } from '$lib/plugins/admonitions/convert-document';
+import { fixtureGrammar } from '$lib/test/harness/fixture-grammar';
 
 beforeAll(() => {
 	installPlugins([admonitionsPlugin()]);
@@ -39,7 +40,7 @@ describe('admonition fence escalation past body colon runs', () => {
 
 	it('leaves G1.12 clean after a colliding body edit', () => {
 		const node = rebuiltWithBody(':::note T\n\nbody\n\n:::\n', 'before\n:::\nafter\n');
-		expect(checkOpaqueStaleRaw(node)).toBeNull();
+		expect(checkOpaqueStaleRaw(node, fixtureGrammar)).toBeNull();
 	});
 
 	// The lengthened fence is worked out from the body on every emit rather than stored

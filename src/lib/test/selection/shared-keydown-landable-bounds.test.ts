@@ -23,6 +23,7 @@ import { createStickyColumnState } from '../../cursor/sticky-column';
 import { createEdgeAffinityState } from '../../cursor/edge-affinity';
 import { makeRenderHarness } from '$lib/test/harness/text-render';
 import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
+import { fixtureReading } from '$lib/test/harness/fixture-grammar';
 
 const toPrev = vi.mocked(extendFocusToPreviousBlock);
 
@@ -55,6 +56,7 @@ function makeEnv(source: string, offset: number | null, mode?: string): Env {
 		ctx: {
 			// No plugins stood up here, so every installed one is active.
 			activePlugins: everyInstalledPlugin,
+			reading: fixtureReading(),
 			getEl: () => el,
 			getCursorOffset: () => offset,
 			getFocusOffset: () => offset,

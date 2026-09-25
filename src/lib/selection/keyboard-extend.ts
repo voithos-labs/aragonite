@@ -3,6 +3,7 @@
 import type { SelectionState } from './selection-state.svelte';
 import type { SelectedWidgetHandle, SelectedWidgetRange, SelectionPoint } from './primitives';
 import type { Document } from '../core/nodes';
+import type { GrammarView } from '../schema/block-openers';
 import { isVerticallyTransparentNode } from '../core/inline/transparency';
 import type { BlockComponent } from '../block-component';
 import {
@@ -129,6 +130,7 @@ function extendFocusOrRestore(
 export function extendFocusToNextBlock(
 	selection: SelectionState,
 	doc: Document,
+	grammar: GrammarView,
 	currentBlockEl: HTMLElement,
 	currentBlockPath: number[],
 	axis: 'horizontal' | 'vertical' = 'horizontal',
@@ -136,7 +138,7 @@ export function extendFocusToNextBlock(
 ): boolean {
 	const leafTarget =
 		axis === 'vertical'
-			? firstNonTransparentLeafAfter(doc, currentBlockPath)
+			? firstNonTransparentLeafAfter(doc, grammar, currentBlockPath)
 			: firstLeafAfter(doc, currentBlockPath);
 	if (!leafTarget) return false;
 
@@ -155,6 +157,7 @@ export function extendFocusToNextBlock(
 export function extendFocusToPreviousBlock(
 	selection: SelectionState,
 	doc: Document,
+	grammar: GrammarView,
 	currentBlockEl: HTMLElement,
 	currentBlockPath: number[],
 	side: 'start' | 'end' = 'end',
@@ -162,7 +165,7 @@ export function extendFocusToPreviousBlock(
 ): boolean {
 	const leafTarget =
 		side === 'start'
-			? lastNonTransparentLeafBefore(doc, currentBlockPath)
+			? lastNonTransparentLeafBefore(doc, grammar, currentBlockPath)
 			: lastLeafBefore(doc, currentBlockPath);
 	if (!leafTarget) return false;
 
@@ -181,6 +184,7 @@ export function extendFocusToPreviousBlock(
 export function extendFocusToDocEdge(
 	selection: SelectionState,
 	doc: Document,
+	grammar: GrammarView,
 	currentBlockEl: HTMLElement,
 	currentBlockPath: number[],
 	to: 'start' | 'end',
@@ -189,10 +193,10 @@ export function extendFocusToDocEdge(
 	const edge = to === 'start' ? firstPath(doc) : lastPath(doc);
 	if (!edge) return false;
 
-	const target = isTransparent(doc, edge)
+	const target = isTransparent(doc, grammar, edge)
 		? to === 'start'
-			? firstNonTransparentLeafFrom(doc, edge)
-			: lastNonTransparentLeafFrom(doc, edge)
+			? firstNonTransparentLeafFrom(doc, grammar, edge)
+			: lastNonTransparentLeafFrom(doc, grammar, edge)
 		: edge;
 	if (!target) return false;
 
@@ -328,23 +332,31 @@ function lastLeafBefore(doc: Document, fromPath: number[]): number[] | null {
 	return prev ? lastLeafAtOrBefore(doc, prev) : null;
 }
 
-function isTransparent(doc: Document, path: number[]): boolean {
+function isTransparent(doc: Document, grammar: GrammarView, path: number[]): boolean {
 	const node = nodeAt(doc, path);
 	// nodeAt returns the Document for an empty path; narrow it out (Document has no `raw`).
-	return node !== null && 'raw' in node && isVerticallyTransparentNode(node);
+	return node !== null && 'raw' in node && isVerticallyTransparentNode(node, grammar);
 }
 
-function firstNonTransparentLeafAfter(doc: Document, fromPath: number[]): number[] | null {
+function firstNonTransparentLeafAfter(
+	doc: Document,
+	grammar: GrammarView,
+	fromPath: number[]
+): number[] | null {
 	let leaf = firstLeafAfter(doc, fromPath);
-	while (leaf && isTransparent(doc, leaf)) {
+	while (leaf && isTransparent(doc, grammar, leaf)) {
 		leaf = firstLeafAfter(doc, leaf);
 	}
 	return leaf;
 }
 
-function lastNonTransparentLeafBefore(doc: Document, fromPath: number[]): number[] | null {
+function lastNonTransparentLeafBefore(
+	doc: Document,
+	grammar: GrammarView,
+	fromPath: number[]
+): number[] | null {
 	let leaf = lastLeafBefore(doc, fromPath);
-	while (leaf && isTransparent(doc, leaf)) {
+	while (leaf && isTransparent(doc, grammar, leaf)) {
 		leaf = lastLeafBefore(doc, leaf);
 	}
 	return leaf;
@@ -354,14 +366,22 @@ function lastNonTransparentLeafBefore(doc: Document, fromPath: number[]): number
  * Starts at the edge leaf itself and steps inward to a text-bearing one, unlike
  * `firstLeafAfter` and `lastLeafBefore`, which step away from their start.
  */
-function firstNonTransparentLeafFrom(doc: Document, startPath: number[]): number[] | null {
-	if (!isTransparent(doc, startPath)) return startPath;
-	return firstNonTransparentLeafAfter(doc, startPath);
+function firstNonTransparentLeafFrom(
+	doc: Document,
+	grammar: GrammarView,
+	startPath: number[]
+): number[] | null {
+	if (!isTransparent(doc, grammar, startPath)) return startPath;
+	return firstNonTransparentLeafAfter(doc, grammar, startPath);
 }
 
-function lastNonTransparentLeafFrom(doc: Document, startPath: number[]): number[] | null {
-	if (!isTransparent(doc, startPath)) return startPath;
-	return lastNonTransparentLeafBefore(doc, startPath);
+function lastNonTransparentLeafFrom(
+	doc: Document,
+	grammar: GrammarView,
+	startPath: number[]
+): number[] | null {
+	if (!isTransparent(doc, grammar, startPath)) return startPath;
+	return lastNonTransparentLeafBefore(doc, grammar, startPath);
 }
 
 function leafOffsetEnd(doc: Document, path: number[]): number {
