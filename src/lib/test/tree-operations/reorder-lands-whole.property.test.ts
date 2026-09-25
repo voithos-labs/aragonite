@@ -1,9 +1,9 @@
 // A reorder must not change what the document contains, and the tree it leaves must be the one
 // a reload reads: every kind a user picks up, against prose and against each other, over every
-// separator shape and every (from, to), in both line endings.
-// Miss-analysis: reorder-keeps-blocks.test.ts pinned the block multiset over one LF fixture whose
-// blocks were all blank-line separated; nothing asked whether the fixed-up tree reloads to itself,
-// what ending a new separator carries, or what the pair around the vacated position becomes.
+// separator shape and every (from, to), in both line endings, with or without a final break.
+// Miss-analysis: one blank-line separated LF fixture never asked whether the tree reloads to
+// itself, what ending a separator carries, or what the vacated pair becomes; and (GH #587) the
+// generator ended every document in a line break, so no move took an unterminated last line.
 import { describe, it, expect, beforeAll } from 'vitest';
 import fc from 'fast-check';
 import { parse, isBlankParagraph } from '$lib/core/parser';
@@ -49,6 +49,8 @@ interface Shape {
 	kinds: Kind[];
 	gaps: Gap[];
 	eol: '\n' | '\r\n';
+	/** Whether the document ends in a line break. */
+	closed: boolean;
 }
 
 const arbShape: fc.Arbitrary<Shape> = fc
@@ -58,18 +60,25 @@ const arbShape: fc.Arbitrary<Shape> = fc
 			maxLength: 5
 		}),
 		gaps: fc.array(fc.constantFrom<Gap>('flush', 'line', 'double'), { minLength: 4, maxLength: 4 }),
-		eol: fc.constantFrom<'\n' | '\r\n'>('\n', '\r\n')
+		eol: fc.constantFrom<'\n' | '\r\n'>('\n', '\r\n'),
+		closed: fc.boolean()
 	})
-	.map(({ kinds, gaps, eol }) => ({ kinds, gaps: gaps.slice(0, kinds.length - 1), eol }));
+	.map(({ kinds, gaps, eol, closed }) => ({
+		kinds,
+		gaps: gaps.slice(0, kinds.length - 1),
+		eol,
+		closed
+	}));
 
-function markdownOf({ kinds, gaps, eol }: Shape): string {
+function markdownOf({ kinds, gaps, eol, closed }: Shape): string {
 	const gapBytes = { flush: '', line: eol, double: eol + eol };
-	return kinds
+	const md = kinds
 		.map(
 			(kind, i) =>
 				BLOCKS[kind].replace(/\n/g, eol) + eol + (i < gaps.length ? gapBytes[gaps[i]] : '')
 		)
 		.join('');
+	return closed ? md : md.slice(0, -eol.length);
 }
 
 /** Content blocks by kind and bytes; blank paragraphs are separator bookkeeping, not content. */
@@ -107,7 +116,7 @@ function contentPreserved(before: readonly CstNode[], from: number, after: reado
 }
 
 describe('a reorder lands its block whole beside any neighbour', () => {
-	it('keeps every content block, converges on reload, and creates separators in the document’s own ending', () => {
+	it('keeps every content block, converges on reload, writes the document’s own ending, and keeps its final state', () => {
 		fc.assert(
 			fc.property(arbShape, (shape) => {
 				const md = markdownOf(shape);
@@ -134,6 +143,7 @@ describe('a reorder lands its block whole beside any neighbour', () => {
 						const out = serialize(doc);
 						const bare = shape.eol === '\r\n' ? /(^|[^\r])\n/.test(out) : /\r/.test(out);
 						expect(bare, `${label}: a separator carries the wrong line ending`).toBe(false);
+						expect(out.endsWith('\n'), `${label}: the final line break changed`).toBe(shape.closed);
 					}
 				}
 			}),
