@@ -16,7 +16,12 @@ import { describeConvergence } from '$lib/test/harness/parse-converged';
 import { settled } from '$lib/test/harness/settle-funnel';
 import { keepsEveryByte } from '$lib/test/harness/live-oracles';
 import { arbBlankSeparatedGfmDoc, arbInlineSource, freshOrFixedSeed } from './arbitraries';
-import { displayLength, documentLineEnding, trailingLineEnding } from '$lib/core/lines';
+import {
+	displayLength,
+	documentLineEnding,
+	firstLineEnding,
+	trailingLineEnding
+} from '$lib/core/lines';
 import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
 import {
 	registerLiveSplitRebalancer,
@@ -41,7 +46,9 @@ const PARAMS = { numRuns: 400, seed: freshOrFixedSeed(424242) } as const;
  * in the shared generator, which every suite's seeds depend on: no source it produces carries one,
  * so every branch that turns that tail into a block went untested.
  */
-const arbDoc = arbBlankSeparatedGfmDoc.chain((source) => fc.constantFrom(source, source + '\n'));
+const arbDoc = arbBlankSeparatedGfmDoc.chain((source) =>
+	fc.constantFrom(source, source + (firstLineEnding(source) ?? '\n'))
+);
 
 // The gestures whose separator handling the blank-line rule governs: Enter, block delete, a
 // content commit, typing into a blank block, and the join in both directions.
@@ -199,6 +206,14 @@ function writeLeaf(doc: Document, { holder, index, chain }: LeafSlot, text: stri
 const survivingBytes = (bytes: string) => [...bytes.replace(/\r?\n/g, '')].sort().join('');
 const lineCount = (t: string) => t.split('\n').length;
 
+/** Which line endings `text` holds; an edit on a one-ending document must keep it one-ending. */
+function endingMix(text: string): 'none' | 'lf' | 'crlf' | 'mixed' {
+	const crlf = /\r\n/.test(text);
+	const lf = /(^|[^\r])\n/.test(text);
+	if (crlf && lf) return 'mixed';
+	return crlf ? 'crlf' : lf ? 'lf' : 'none';
+}
+
 /**
  * What a join may not spend: every non-whitespace byte survives somewhere in the result. It is
  * one-directional and ignores whitespace on purpose: a join legitimately eats the separating blank
@@ -245,6 +260,11 @@ function divergenceAfterEdit(
 	if (divergence) return `${divergence} — after ${gesture.op}@${gesture.at}`;
 	const bytes = serialize(doc);
 	if (serialize(parse(bytes)) !== bytes) return `bytes not a round-trip: ${JSON.stringify(bytes)}`;
+	const was = endingMix(before);
+	const ending = endingMix(bytes);
+	if ((was === 'lf' || was === 'crlf') && ending !== 'none' && ending !== was) {
+		return `${gesture.op} wrote a second line ending: ${JSON.stringify(before)} → ${JSON.stringify(bytes)}`;
+	}
 	// GH #95 slipped past both checks above: the halves it left reload as themselves, and the lines
 	// it dropped were no longer in the document to disagree. A live split closes and reopens the
 	// construct it cut, so a delimiter run is legitimately duplicated across the halves; losing one
