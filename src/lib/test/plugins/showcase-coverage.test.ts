@@ -1,6 +1,5 @@
 import { afterAll, beforeAll, describe, it, expect } from 'vitest';
-import { readdirSync } from 'node:fs';
-import path from 'node:path';
+import { bundledPluginDirs } from '../invariants/lint/scan-source';
 import { parse } from '$lib/core/parser';
 import { installPlugins } from '$lib';
 import { resetPluginPlatformForTests } from '$lib/testing';
@@ -167,9 +166,7 @@ describe('the showcase document demonstrates the surface it ships with', () => {
 	});
 
 	it('enrolls every bundled plugin directory, and only those', () => {
-		const dirs = readdirSync(path.resolve('src/lib/plugins'), { withFileTypes: true })
-			.filter((entry) => entry.isDirectory())
-			.map((entry) => entry.name);
+		const dirs = bundledPluginDirs();
 		const enrolled = Object.keys(PLUGIN_DEMONSTRATED_BY);
 		expect(
 			dirs.filter((dir) => !enrolled.includes(dir)),

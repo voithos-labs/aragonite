@@ -8,8 +8,8 @@
  */
 import { describe, it, expect } from 'vitest';
 import path from 'node:path';
-import { readFileSync, readdirSync } from 'node:fs';
-import { collectEditorSources, importSpecifiers } from './scan-source';
+import { readFileSync } from 'node:fs';
+import { bundledPluginDirs, collectEditorSources, importSpecifiers } from './scan-source';
 
 const PLUGIN_SRC_ROOT = 'src/lib/plugins';
 const PLUGIN_TEST_ROOT = 'src/lib/test/plugins';
@@ -254,11 +254,7 @@ function publishedPluginSubpaths(): Set<string> {
 
 const PUBLISHED_PLUGIN_SUBPATHS = publishedPluginSubpaths();
 
-const BUNDLED_PLUGINS = new Set(
-	readdirSync(path.resolve(PLUGIN_SRC_ROOT), { withFileTypes: true })
-		.filter((entry) => entry.isDirectory())
-		.map((entry) => entry.name)
-);
+const BUNDLED_PLUGINS = new Set(bundledPluginDirs());
 
 /** The plugin whose suite `relPath` belongs to, or null for a platform test sitting loose
  *  under the test root. */

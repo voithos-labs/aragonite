@@ -808,7 +808,7 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.14 | Every component prop reading the CST is typed as a readonly view              | L       |
 | G4.15 | Coordinate brands are minted only at their home modules                       | L       |
 | G4.16 | Bundled plugins import only the public authoring barrel                       | L       |
-| G4.17 | Every perf spec is collected by exactly one Playwright project                | L       |
+| G4.17 | No spec is collected by two Playwright projects                               | L       |
 | G4.18 | The inline trigger set, the scan switch, and the reserved routes agree        | L       |
 | G4.19 | Every command dispatch site threads the reading-mode gate                     | L       |
 | G4.20 | A reattached line ending is read from the bytes, never a newline literal      | L·N     |
@@ -817,7 +817,7 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.23 | Every e2e spec pairs with a requirement file, and vice versa                  | L       |
 | G4.24 | The code surface commits through exactly one `updateBlockContent` call        | L       |
 | G4.25 | No `import.meta` env read anywhere under `src/lib`                            | L       |
-| G4.26 | Comment budget: block length, house words per directory, none in requirements | L       |
+| G4.26 | Comment budget: block length, no house words in comments or requirements      | L       |
 | G4.27 | Every `parse` call outside the parser declares its scope                      | L       |
 | G4.28 | Leaf raw writes reach bytes through the two sanctioned readers                | L       |
 | G4.29 | Every file claiming a hardcoded chord is manifested with its chords and keys  | L       |
@@ -976,11 +976,12 @@ rule) reads specifiers through `src/lib/test/invariants/lint/scan-source.ts :: i
 which skips strings, templates and comments, so an import quoted in an example is no edge.
 `lint/plugin-import-boundary.test.ts`.
 
-**G4.17 · Perf spec glob partition.** Every `*.spec.ts` under `e2e/tests/perf/` is collected by
-`e2e-vr` or by `e2e-perf`/`e2e-perf-prod`; a spec matching neither runs in no Playwright project and
-is silently never executed. Classified by path relative to the perf directory, not by basename,
-because the two projects differ in depth: `e2e-vr`'s `vr-*.spec.ts` can't cross a `/`, while
-`e2e-perf`'s `*.perf.spec.ts` matches at any depth. `lint/perf-glob-partition.test.ts`.
+**G4.17 · One Playwright project per spec.** No spec file is collected by two Playwright
+projects, read from what `playwright test --list` reports rather than from a copy of the config's
+globs, so the `*` versus `**` depth rules are Playwright's own. The WebKit lane re-runs a slice of
+the tree in a second engine and never counts as a second project. A spec no project collects runs
+nowhere, and G4.23 catches it: every spec must list a test.
+`e2e/lint/project-partition.test.ts`.
 
 **G4.18 · Inline-trigger parity.** `BUILTIN_TRIGGERS` (`core/inline/scan/plugin-syntax.ts`) equals
 the `scanInline` switch's `case` labels (`core/inline/scan/index.ts`); a trigger the switch claims
@@ -1060,10 +1061,10 @@ consumer example are Vite APPS, where the read is legitimate. `lint/suite-file-r
 most about seven text lines, any other block at most six; the stated budget is 1-2 lines and a
 header of about five, and the slack leaves the finer cut to review. Vocabulary: the repo's private
 words (seam, door, funnel, rung, ceremony, mint, peel, landable, oracle, seat, island, ladder, road,
-dialect, sanctioned, owe, husk) are counted in comments per directory, backticked symbol names
-excluded, and each count is pinned to a baseline in the test that a rewrite lowers and nothing
-raises. The requirement files under `src/lib/e2e/requirements/` are held to none at all in their
-body text, with headings, code spans and fenced samples left out of the count, and every design and contributing doc is counted the same way against a baseline of its own. Both rules were documented-only and drifted exactly as the ladder predicts. A why that
+dialect, sanctioned, owe, husk) appear in no comment, backticked symbol names excluded, and the
+requirement files under `src/lib/e2e/requirements/` hold none in their body text, with headings,
+code spans and fenced samples left out of the count. Every design and contributing doc is counted
+the same way against a baseline of its own that a rewrite lowers and nothing raises. Both rules were documented-only and drifted exactly as the ladder predicts. A why that
 needs more lines belongs in a design doc; a why that needs a private word belongs in plain English
 (`docs/contributing/code-style.md` § Comments). `lint/comment-budget.test.ts`,
 `lint/comment-house-words.test.ts`.

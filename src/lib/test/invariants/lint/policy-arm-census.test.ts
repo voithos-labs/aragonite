@@ -8,7 +8,8 @@
 
 import path from 'node:path';
 import { describe, it, expect } from 'vitest';
-import { EDITOR_SRC, collectEditorSources, stripComments, type SourceFile } from './scan-source';
+import { EDITOR_SRC, collectEditorSources, type SourceFile } from './scan-source';
+import { probeFile } from './file-rule';
 
 /**
  * Where a live gesture can live: the block components and the caret, selection, tree and view
@@ -36,14 +37,14 @@ const POLICY_READ =
 	/(?<![\w.])(getInlineConstructPolicy|getInlineMarkPolicy|inlineMarkForCommand|isCardEditableInlineKind|isRevealableInlineKind|listInlineConstructPolicies|listInlineMarks|getLiveSplitRebalancer|getLiveJoinSeamCleaner)\s*\(/;
 
 const readsPolicyTable = (file: SourceFile): boolean =>
-	file.relPath !== POLICY_TABLE && POLICY_READ.test(stripComments(file.text));
+	file.relPath !== POLICY_TABLE && POLICY_READ.test(file.code);
 
 /** The widget registry's functions: the other table, whose subject is the non-editable widget. */
 const WIDGET_READ =
 	/(?<![\w.])(getInlineWidgetEditing|isInlineWidget|isInlineWidgetKind|isCharacterLikeWidget|widgetSourceRange|augmentInlineWidgetKind)\s*\(/;
 
 const readsWidgetRegistry = (file: SourceFile): boolean =>
-	file.relPath !== WIDGET_REGISTRY && WIDGET_READ.test(stripComments(file.text));
+	file.relPath !== WIDGET_REGISTRY && WIDGET_READ.test(file.code);
 
 /** The kinds the table has rows for. A quoted literal is the tripwire: naming one in a gesture
  *  branch answers a per-construct question the row exists to answer. */
@@ -61,8 +62,7 @@ const ROWED_KINDS = [
 
 const KIND_LITERAL = new RegExp(`['"](${ROWED_KINDS.join('|')})['"]`);
 
-const namesConstructKind = (file: SourceFile): boolean =>
-	KIND_LITERAL.test(stripComments(file.text));
+const namesConstructKind = (file: SourceFile): boolean => KIND_LITERAL.test(file.code);
 
 // ── The branches that read rows ──────────────────────────────────────────────
 
@@ -251,7 +251,7 @@ describe('inline-construct policy branch census', () => {
 	// ── Matcher self-tests (non-vacuity) ─────────────────────────────────────
 
 	const probe = (matcher: (file: SourceFile) => boolean, text: string) =>
-		matcher({ relPath: 'src/lib/components/blocks/text/probe.ts', text, code: '' });
+		matcher(probeFile({ relPath: 'src/lib/components/blocks/text/probe.ts', code: text }));
 
 	it('the policy matcher sees every entry point and skips a mention in prose', () => {
 		expect(probe(readsPolicyTable, 'const p = getInlineConstructPolicy(node.kind);')).toBe(true);
@@ -284,22 +284,20 @@ describe('inline-construct policy branch census', () => {
 	});
 
 	it('an undeclared gesture branch naming a kind fails the set equality', () => {
-		const rogue: SourceFile = {
+		const rogue = probeFile({
 			relPath: 'src/lib/components/blocks/text/rogue.ts',
-			text: "if (node.kind === 'strikethrough') return null;",
-			code: ''
-		};
+			code: "if (node.kind === 'strikethrough') return null;"
+		});
 		expect(paths([...gestureSources, rogue].filter(namesConstructKind))).not.toEqual(
 			unique(kindLiteralArms.map((arm) => arm.path))
 		);
 	});
 
 	it('an undeclared policy reader fails the set equality', () => {
-		const rogue: SourceFile = {
+		const rogue = probeFile({
 			relPath: 'src/lib/selection/rogue.ts',
-			text: 'const p = getInlineConstructPolicy(kind);',
-			code: ''
-		};
+			code: 'const p = getInlineConstructPolicy(kind);'
+		});
 		expect(paths([...allSources, rogue].filter(readsPolicyTable))).not.toEqual(
 			Object.keys(POLICY_ARMS).sort()
 		);

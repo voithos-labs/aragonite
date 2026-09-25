@@ -6,15 +6,18 @@
  * excuse. A green run proves pairing alone, never that a bullet maps to a test.
  */
 import { describe, it, expect } from 'vitest';
-import { readdirSync, readFileSync } from 'node:fs';
-import { spawnSync } from 'node:child_process';
-import { createRequire } from 'node:module';
+import { readFileSync } from 'node:fs';
 import path from 'node:path';
+import { collectFiles } from '../../test/invariants/lint/scan-source';
+import {
+	listedTests,
+	listPlaywrightTests,
+	type ListedTest,
+	type ListReport
+} from './playwright-list';
 
-const SPEC_DIR = path.resolve('src/lib/e2e/tests');
-const REQUIREMENT_DIR = path.resolve('src/lib/e2e/requirements');
-// Node's own lookup finds the Playwright CLI from a worktree that has no node_modules of its own.
-const resolveModule = createRequire(import.meta.url).resolve;
+const SPEC_DIR = 'src/lib/e2e/tests';
+const REQUIREMENT_DIR = 'src/lib/e2e/requirements';
 
 // ── Rule 3's named divergences ──────────────────────────────────────────────
 
@@ -121,46 +124,18 @@ export function readRequirementShape(text: string): RequirementShape {
 	return { hasTitle, sections, scenarioUnits };
 }
 
-interface ListedSuite {
-	title: string;
-	specs?: { title: string; file: string; line: number; column: number }[];
-	suites?: ListedSuite[];
-}
-
-/** The part of a `playwright test --list --reporter=json` report the count reads. */
-export interface ListReport {
-	suites: ListedSuite[];
-	errors: { message?: string }[];
-}
-
 /**
- * Tests per spec file, keyed by the file's path under `tests/`. The report repeats a test once
+ * Tests per spec file, keyed by the file's path under `tests/`. The listing repeats a test once
  * per project that runs it, so a test is identified by its position and full title instead.
  */
-export function countListedTests(report: ListReport): Map<string, number> {
+export function countListedTests(tests: readonly ListedTest[]): Map<string, number> {
 	const keysByFile = new Map<string, Set<string>>();
-	function walk(suite: ListedSuite, titles: string): void {
-		for (const spec of suite.specs ?? []) {
-			const keys = keysByFile.get(spec.file) ?? new Set<string>();
-			keys.add(`${spec.line}:${spec.column}:${titles} > ${spec.title}`);
-			keysByFile.set(spec.file, keys);
-		}
-		for (const child of suite.suites ?? []) walk(child, `${titles} > ${child.title}`);
+	for (const test of tests) {
+		const keys = keysByFile.get(test.file) ?? new Set<string>();
+		keys.add(`${test.line}:${test.column}:${test.title}`);
+		keysByFile.set(test.file, keys);
 	}
-	for (const suite of report.suites) walk(suite, suite.title);
 	return new Map([...keysByFile].map(([file, keys]) => [file, keys.size]));
-}
-
-/** List mode loads the specs without starting the web server or a browser. */
-function listTests(): ListReport {
-	const run = spawnSync(
-		process.execPath,
-		[resolveModule('@playwright/test/cli'), 'test', '--list', '--reporter=json'],
-		// The WebKit lane's specs belong to no other project, so they list only with it on.
-		{ encoding: 'utf8', maxBuffer: 256 * 1024 * 1024, env: { ...process.env, WEBKIT: '1' } }
-	);
-	if (!run.stdout) throw new Error(`playwright test --list printed nothing: ${run.stderr}`);
-	return JSON.parse(run.stdout) as ListReport;
 }
 
 /** Rule 3's predicate: a requirement list that ran far ahead of its spec. */
@@ -168,16 +143,9 @@ export function isInflated(scenarioUnits: number, tests: number): boolean {
 	return scenarioUnits >= 3 * Math.max(tests, 1) && scenarioUnits - tests >= 4;
 }
 
+/** Files under `root` with `suffix`, as paths relative to `root`. */
 function relativePaths(root: string, suffix: string): string[] {
-	const found: string[] = [];
-	function walk(dir: string, prefix: string): void {
-		for (const entry of readdirSync(dir, { withFileTypes: true })) {
-			if (entry.isDirectory()) walk(path.join(dir, entry.name), `${prefix}${entry.name}/`);
-			else if (entry.name.endsWith(suffix)) found.push(prefix + entry.name);
-		}
-	}
-	walk(root, '');
-	return found.sort();
+	return collectFiles(root, { extensions: [suffix] }).map((file) => file.slice(root.length + 1));
 }
 
 interface Pair {
@@ -199,8 +167,8 @@ interface Lockstep {
 }
 
 function scanLockstep(): Lockstep {
-	const listing = listTests();
-	const listedTests = countListedTests(listing);
+	const listing = listPlaywrightTests();
+	const listedTests = countListedTests(listing.tests);
 	const specs = relativePaths(SPEC_DIR, '.spec.ts');
 	const requirements = relativePaths(REQUIREMENT_DIR, '.md');
 	const requirementStems = new Set(requirements.map((file) => file.replace(/\.md$/, '')));
@@ -238,7 +206,7 @@ function scanLockstep(): Lockstep {
 		stemCollisions: [...claimedBy]
 			.filter(([, claimants]) => claimants.length > 1)
 			.map(([stem, claimants]) => `${stem}.md ← ${claimants.join(' + ')}`),
-		listErrors: listing.errors.map((error) => error.message ?? JSON.stringify(error)),
+		listErrors: listing.errors,
 		unlistedSpecs: specs.filter((spec) => !listedTests.has(spec))
 	};
 }
@@ -341,7 +309,7 @@ describe('G4.23 requirement↔spec lockstep', () => {
 	it('Playwright lists at least one test for every spec', () => {
 		expect(
 			lockstep.unlistedSpecs,
-			`specs Playwright lists no test for, so their requirement file's scenarios run nowhere. Either the spec declares no test, or no project in playwright.config.ts matches it (a lane switched on by an env var needs that var in listTests):
+			`specs Playwright lists no test for, so their requirement file's scenarios run nowhere. Either the spec declares no test, or no project in playwright.config.ts matches it (a lane switched on by an env var needs that var in listPlaywrightTests):
   ${lockstep.unlistedSpecs.join('\n  ')}`
 		).toEqual([]);
 	});
@@ -424,7 +392,7 @@ describe('G4.23 requirement↔spec lockstep: classifier self-tests', () => {
 	});
 
 	it('counts each test a loop generates once, however many projects list it', () => {
-		const loopFile = (): ListReport['suites'][number] => ({
+		const loopFile = (project: string): ListReport['suites'][number] => ({
 			title: 'loop.spec.ts',
 			suites: [
 				{
@@ -433,7 +401,8 @@ describe('G4.23 requirement↔spec lockstep: classifier self-tests', () => {
 						title: `row ${row}`,
 						file: 'loop.spec.ts',
 						line: 5,
-						column: 3
+						column: 3,
+						tests: [{ projectName: project }]
 					}))
 				}
 			]
@@ -441,19 +410,27 @@ describe('G4.23 requirement↔spec lockstep: classifier self-tests', () => {
 		const report: ListReport = {
 			// One copy per project: the report repeats a file under every project that runs it.
 			suites: [
-				loopFile(),
-				loopFile(),
+				loopFile('e2e-top'),
+				loopFile('e2e-webkit'),
 				{
 					title: 'nested/twins.spec.ts',
 					suites: ['first', 'second'].map((title) => ({
 						title,
-						specs: [{ title: 'same title', file: 'nested/twins.spec.ts', line: 9, column: 2 }]
+						specs: [
+							{
+								title: 'same title',
+								file: 'nested/twins.spec.ts',
+								line: 9,
+								column: 2,
+								tests: [{ projectName: 'e2e-top' }]
+							}
+						]
 					}))
 				}
 			],
 			errors: []
 		};
-		expect(countListedTests(report)).toEqual(
+		expect(countListedTests(listedTests(report))).toEqual(
 			new Map([
 				['loop.spec.ts', 3],
 				['nested/twins.spec.ts', 2]

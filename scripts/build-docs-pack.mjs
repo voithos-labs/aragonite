@@ -2,7 +2,6 @@
 // written there, into a cleared directory. Gate 1: every relative link inside the public pack
 // (docs/guide/) lands on a file the pack carries, and every `#fragment` outside code names a heading
 // that doc still has. Gate 2: every relative link in README, CONTRIBUTING and docs/ resolves.
-import { execSync } from 'node:child_process';
 import {
 	copyFileSync,
 	existsSync,
@@ -15,6 +14,7 @@ import {
 } from 'node:fs';
 import { dirname, join, posix, resolve } from 'node:path';
 import { anchorsOf } from './check-codebase-map.mjs';
+import { corpusFiles } from './doc-corpus.mjs';
 
 const SOURCE_DIR = 'docs/guide';
 
@@ -140,42 +140,15 @@ if (deadAnchors.length > 0) {
 // ── Gate 2: corpus link resolution ──────────────────────────────────────
 
 const LINK_ROOTS = ['README.md', 'CONTRIBUTING.md', 'docs'];
-const EXCLUDED_DIR = 'docs/superpowers'; // gitignored working area, not part of the shipped corpus
 
 // A target legitimately unresolvable on disk that the checks below can't
 // distinguish from a dead one. Each entry carries a reason; empty is healthy.
 const LINK_ALLOWLIST = new Set();
 
-// A gitignored doc (the owner's private roadmap and runbook) sits on disk beside the corpus
-// but ships nowhere, so a dead pointer inside one is not the repo's to gate.
-const IGNORED_FILES = new Set(
-	execSync('git ls-files --others --ignored --exclude-standard -- ' + LINK_ROOTS.join(' '), {
-		encoding: 'utf8'
-	})
-		.split('\n')
-		.filter(Boolean)
-);
-
-function corpusMarkdownFiles(path, out) {
-	if (path.split('\\').join('/') === EXCLUDED_DIR) return out;
-	for (const entry of readdirSync(path, { withFileTypes: true })) {
-		const child = join(path, entry.name);
-		if (entry.isDirectory()) corpusMarkdownFiles(child, out);
-		else if (entry.name.endsWith('.md') && !IGNORED_FILES.has(child.split('\\').join('/')))
-			out.push(child);
-	}
-	return out;
-}
-
-const corpusFiles = [];
-for (const root of LINK_ROOTS) {
-	if (!existsSync(root)) continue;
-	if (root.endsWith('.md')) corpusFiles.push(root);
-	else corpusMarkdownFiles(root, corpusFiles);
-}
+const corpus = corpusFiles(LINK_ROOTS, ['.md']);
 
 const deadLinks = [];
-for (const file of corpusFiles) {
+for (const file of corpus) {
 	const rel = file.split('\\').join('/');
 	const text = stripCode(readFileSync(file, 'utf8'));
 	const rawTargets = [...text.matchAll(INLINE_TARGET)].map((m) => m[1]);
@@ -207,7 +180,7 @@ if (target?.startsWith('-')) {
 }
 if (!target) {
 	console.log(`docs-pack: ${packNames.length} docs link-closed (${packNames.join(', ')})`);
-	console.log(`docs-links: ${corpusFiles.length} corpus docs, every relative link resolves`);
+	console.log(`docs-links: ${corpus.length} corpus docs, every relative link resolves`);
 	process.exit(0);
 }
 

@@ -138,23 +138,22 @@ AssertionError: expected [ { …(4) } ] to deeply equal []
 + ]
 ```
 
-The second counts the private words (the list sits in `src/lib/test/invariants/lint/comment-house-words.test.ts`) in every directory's comments, and pins each count to a baseline that only goes down; the same test pins each design and contributing doc's body text to a baseline of its own. Write a new one and the count passes the baseline; delete some and the baseline is stale until you lower it, a one-number edit in that file. The first case, provoked with one planted `seam`:
+The second bans the private words (the list sits in `src/lib/test/invariants/lint/comment-house-words.test.ts`) from every comment under `src/lib` and `src/routes`, and names the file that holds one. Here's one planted `seam`:
 
 ```
 $ npx vitest run src/lib/test/invariants/lint/comment-house-words.test.ts
- FAIL  src/lib/test/invariants/lint/comment-house-words.test.ts > G4.26 house words in comments stay under the baseline > no directory holds more house words in comments than its baseline
-AssertionError: expected [ { dir: 'src/lib', count: 72, …(1) } ] to deeply equal []
+ FAIL  src/lib/test/invariants/lint/comment-house-words.test.ts > G4.26 no house word in a comment > no comment under src/lib or src/routes holds a house word
+AssertionError: expected [ { …(2) } ] to deeply equal []
 + Received
 + [
 +   {
-+     "baseline": 71,
-+     "count": 72,
-+     "dir": "src/lib",
++     "file": "src/lib/zz-probe-comment.ts",
++     "hits": 1,
 +   },
 + ]
 ```
 
-The same test holds the requirement files under `src/lib/e2e/requirements/` to zero. No baseline there: a private word in a scenario or a miss-analysis line fails the suite. Headings, code spans and fenced samples don't count.
+The same test holds the requirement files under `src/lib/e2e/requirements/` to zero too: a private word in a scenario or a miss-analysis line fails the suite. Headings, code spans and fenced samples don't count. The design and contributing docs still carry some, so each doc there is pinned to a baseline that only goes down; delete some and the baseline is stale until you lower it, a one-number edit in that file.
 
 ## Directories
 

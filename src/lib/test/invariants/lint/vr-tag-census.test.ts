@@ -4,8 +4,9 @@
  * always a comment, so the house comment-stripping lexer would erase the population it counts.
  */
 import { describe, it, expect } from 'vitest';
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import path from 'node:path';
+import { collectFiles } from './scan-source';
 
 const ROOT = path.resolve('.');
 const CATALOG = 'docs/design/virtual-rendering.md';
@@ -20,17 +21,6 @@ const TAG = /\bVR-[A-Z0-9]+\b/g;
 
 // ── The citations ────────────────────────────────────────────────────────────
 
-function citingFiles(dir: string, out: string[] = []): string[] {
-	for (const entry of readdirSync(dir, { withFileTypes: true })) {
-		const full = path.join(dir, entry.name);
-		if (entry.isDirectory()) citingFiles(full, out);
-		else if (CITING_EXTENSIONS.some((ext) => entry.name.endsWith(ext))) {
-			out.push(path.relative(ROOT, full).split(path.sep).join('/'));
-		}
-	}
-	return out;
-}
-
 /** Each cited tag, mapped to the files citing it, so a failure names somewhere to look. */
 function citations(relPaths: string[]): Map<string, string[]> {
 	const found = new Map<string, string[]>();
@@ -43,7 +33,7 @@ function citations(relPaths: string[]): Map<string, string[]> {
 }
 
 /** Stops at `src/`: the catalog's own prose names its retired numbers (VR-7, VR-10, VR-13). */
-const scanned = citingFiles(path.join(ROOT, 'src'));
+const scanned = collectFiles('src', { extensions: CITING_EXTENSIONS });
 const cited = citations(scanned.filter((rel) => rel !== SELF));
 
 // ── The catalog ──────────────────────────────────────────────────────────────

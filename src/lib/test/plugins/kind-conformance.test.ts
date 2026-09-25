@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { readdirSync } from 'node:fs';
-import path from 'node:path';
+import { bundledPluginDirs } from '../invariants/lint/scan-source';
 import { declaredPluginKind } from '$lib/plugin';
 import { isBuiltinBlockKind } from '$lib/core/nodes';
 import { DIRECTIVE_CONTAINER, DIRECTIVE_LEAF } from '$lib/core/directive/kinds';
@@ -138,9 +137,7 @@ describe('kind conformance: bundled plugin kinds enroll', () => {
 	// Checked both ways at the directory level, so neither an unenrolled new plugin nor a
 	// stale entry for a deleted one survives.
 	it('every plugin directory on disk is enrolled or a declared exception', () => {
-		const dirs = readdirSync(path.resolve('src/lib/plugins'), { withFileTypes: true })
-			.filter((e) => e.isDirectory())
-			.map((e) => e.name);
+		const dirs = bundledPluginDirs();
 		const enrolled = new Set(BUNDLED_INSTALLS.map((b) => b.dir));
 		const unaccounted = dirs.filter((d) => !enrolled.has(d) && !NO_BLOCK_KIND_DIRS.has(d));
 		expect(unaccounted, 'plugin dirs neither enrolled nor declared kind-less').toEqual([]);
