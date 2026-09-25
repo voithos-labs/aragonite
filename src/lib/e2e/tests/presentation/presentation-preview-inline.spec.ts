@@ -1,7 +1,7 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import type { Page } from '@playwright/test';
-import { centerOfWord } from './helpers';
+import { textRunCenter } from '../../text-runs';
 
 // Inline-granular live preview: inside the focused block, each construct's markers stay hidden
 // until the caret enters its range, edges included. Editing scenarios live in
@@ -49,7 +49,7 @@ test.describe('preview-inline: markers by caret proximity', () => {
 
 		// Caret in "alpha": the block is focused but the caret is outside the construct, so its
 		// markers stay hidden.
-		const point = await centerOfWord(page, 'alpha');
+		const point = await textRunCenter(page, 'alpha');
 		await page.mouse.click(point.x, point.y);
 		await ep.waitForRenderFlush();
 		expect((await ep.bridge.getSelectionPaths())?.focus.path).toEqual([1]);
@@ -67,13 +67,13 @@ test.describe('preview-inline: markers by caret proximity', () => {
 
 	test('clicking into a construct reveals its markers; leaving folds them', async ({ page }) => {
 		const betaMarkers = ep.getBlock(1).locator('[data-construct-start]');
-		const point = await centerOfWord(page, 'beta');
+		const point = await textRunCenter(page, 'beta');
 		await page.mouse.click(point.x, point.y);
 		await expect(betaMarkers.first()).toBeVisible();
 		await expect(betaMarkers.nth(1)).toBeVisible();
 
 		// Same block, outside the construct: the markers hide again.
-		const out = await centerOfWord(page, 'alpha');
+		const out = await textRunCenter(page, 'alpha');
 		await page.mouse.click(out.x, out.y);
 		await expect(betaMarkers.first()).toBeHidden();
 		await expect(betaMarkers.nth(1)).toBeHidden();
@@ -83,7 +83,7 @@ test.describe('preview-inline: markers by caret proximity', () => {
 		// `**bold *italic* tail**`: strong [0,22), emphasis [7,15).
 		const strongMarkers = ep.getBlock(3).locator('[data-construct-start="0"]');
 		const emMarkers = ep.getBlock(3).locator('[data-construct-start="7"]');
-		const point = await centerOfWord(page, 'italic');
+		const point = await textRunCenter(page, 'italic');
 		await page.mouse.click(point.x, point.y);
 		await expect(emMarkers.first()).toBeVisible();
 		await expect(emMarkers.nth(1)).toBeVisible();
@@ -91,7 +91,7 @@ test.describe('preview-inline: markers by caret proximity', () => {
 		await expect(strongMarkers.nth(1)).toBeVisible();
 
 		// In the strong but out of the emphasis: only the inner pair hides.
-		const tail = await centerOfWord(page, 'tail');
+		const tail = await textRunCenter(page, 'tail');
 		await page.mouse.click(tail.x, tail.y);
 		await expect(emMarkers.first()).toBeHidden();
 		await expect(strongMarkers.first()).toBeVisible();
@@ -165,25 +165,25 @@ test.describe('preview-inline: markers by caret proximity', () => {
 		const listEm = ep.getBlock(0).locator('[data-construct-start="3"]').first();
 		const quoteStrong = ep.getBlock(1).locator('[data-construct-start="3"]').first();
 
-		const cd = await centerOfWord(page, 'cd');
+		const cd = await textRunCenter(page, 'cd');
 		await page.mouse.click(cd.x, cd.y);
 		await expect(listEm).toBeVisible();
 
-		const ab = await centerOfWord(page, 'ab');
+		const ab = await textRunCenter(page, 'ab');
 		await page.mouse.click(ab.x, ab.y);
 		await expect(listEm).toBeHidden();
 
-		const ij = await centerOfWord(page, 'ij');
+		const ij = await textRunCenter(page, 'ij');
 		await page.mouse.click(ij.x, ij.y);
 		await expect(quoteStrong).toBeVisible();
 
-		const gh = await centerOfWord(page, 'gh');
+		const gh = await textRunCenter(page, 'gh');
 		await page.mouse.click(gh.x, gh.y);
 		await expect(quoteStrong).toBeHidden();
 	});
 
 	test('toggling to source shows every marker; reading hides all and folds', async ({ page }) => {
-		const point = await centerOfWord(page, 'beta');
+		const point = await textRunCenter(page, 'beta');
 		await page.mouse.click(point.x, point.y);
 		await expect(ep.getBlock(1).locator('[data-construct-start]').first()).toBeVisible();
 

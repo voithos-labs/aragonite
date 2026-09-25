@@ -1,7 +1,8 @@
 import { test, expect } from '../../fixtures';
 import type { EditorPage } from '../../editor-page';
 import type { Page } from '@playwright/test';
-import { centerOfWord, enterPresentationMode, focusPath } from './helpers';
+import { enterPresentationMode, focusPath } from './helpers';
+import { textRunCenter } from '../../text-runs';
 
 // Where the caret ends up when an edit places it rather than a key step. The source is the
 // reference: the caret reports the same offset on either side of a hidden closer, so only the
@@ -29,7 +30,7 @@ const enterLive = (page: Page) => enterPresentationMode(page, 'live', DOC);
 
 /** Exit a fence upward the way a user does: click its body, Home, Backspace. */
 async function exitFenceUpward(ep: EditorPage, page: Page, word: string): Promise<void> {
-	const point = await centerOfWord(page, word);
+	const point = await textRunCenter(page, word);
 	await page.mouse.click(point.x, point.y);
 	await ep.waitForRenderFlush();
 	await page.keyboard.press('Home');

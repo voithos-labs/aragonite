@@ -1,6 +1,7 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import { PluginsPage } from '../plugins/helpers';
+import { pointAtRaw } from '../../text-runs';
 
 // The order a `selectionChange` subscriber sees: the caret's arrival in a block, then the bytes
 // typed there (`requirements/selection/landing-announced-before-input.md`).
@@ -119,7 +120,7 @@ test.describe('a caret the editor lands is announced before the next input', () 
 		await editor.focusBlockAtPath([0, 0, 0], 1);
 		await startCapture(editor);
 
-		const point = await editor.pointForOffset([0, 2, 0], 3);
+		const point = await pointAtRaw(editor.page, [0, 2, 0], 3);
 		await editor.page.mouse.click(point.x, point.y);
 		await editor.page.keyboard.insertText(TYPED);
 		await editor.waitForRenderFlush();

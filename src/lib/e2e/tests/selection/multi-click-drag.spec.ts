@@ -6,9 +6,9 @@ import {
 	markerCenterOf,
 	multiClickDrag,
 	nativeSelectionText,
-	pastLineEnd,
-	runCenter
+	pastLineEnd
 } from './multi-click-helpers';
+import { textRunCenter } from '../../text-runs';
 
 // Triple-click and the drags a multi-click starts
 // (`requirements/selection/multi-click-drag.md`). Cross-block ranges are read from the editor's
@@ -26,7 +26,7 @@ test.describe('multi-click: the block inline syntax handler and drags', () => {
 	});
 
 	test('a triple-click selects the paragraph it lands in', async ({ page }) => {
-		const at = await runCenter(page, 'para');
+		const at = await textRunCenter(page, 'para');
 		await page.mouse.click(at.x, at.y, { clickCount: 3 });
 		await expect.poll(() => nativeSelectionText(page)).toBe('second para here');
 	});
@@ -56,19 +56,34 @@ test.describe('multi-click: the block inline syntax handler and drags', () => {
 	});
 
 	test('a word-drag forward within the block grows a word at a time', async ({ page }) => {
-		await multiClickDrag(page, await runCenter(page, 'alpha'), await runCenter(page, 'gamma'), 2);
+		await multiClickDrag(
+			page,
+			await textRunCenter(page, 'alpha'),
+			await textRunCenter(page, 'gamma'),
+			2
+		);
 		await expect.poll(() => nativeSelectionText(page)).toBe('alpha beta gamma');
 	});
 
 	test('a word-drag backward within the block keeps the pressed word', async ({ page }) => {
-		await multiClickDrag(page, await runCenter(page, 'gamma'), await runCenter(page, 'alpha'), 2);
+		await multiClickDrag(
+			page,
+			await textRunCenter(page, 'gamma'),
+			await textRunCenter(page, 'alpha'),
+			2
+		);
 		await expect.poll(() => nativeSelectionText(page)).toBe('alpha beta gamma');
 	});
 
 	test('a word-drag into the next paragraph ends at the end of the word under the pointer', async ({
 		page
 	}) => {
-		await multiClickDrag(page, await runCenter(page, 'beta'), await runCenter(page, 'para'), 2);
+		await multiClickDrag(
+			page,
+			await textRunCenter(page, 'beta'),
+			await textRunCenter(page, 'para'),
+			2
+		);
 		await expect
 			.poll(() => editorSelection(page))
 			.toEqual({
@@ -80,7 +95,12 @@ test.describe('multi-click: the block inline syntax handler and drags', () => {
 	test('a word-drag into the previous paragraph starts at the start of that word', async ({
 		page
 	}) => {
-		await multiClickDrag(page, await runCenter(page, 'para'), await runCenter(page, 'beta'), 2);
+		await multiClickDrag(
+			page,
+			await textRunCenter(page, 'para'),
+			await textRunCenter(page, 'beta'),
+			2
+		);
 		await expect
 			.poll(() => editorSelection(page))
 			.toEqual({
@@ -90,7 +110,12 @@ test.describe('multi-click: the block inline syntax handler and drags', () => {
 	});
 
 	test('a triple-drag into the next paragraph takes both blocks whole', async ({ page }) => {
-		await multiClickDrag(page, await runCenter(page, 'beta'), await runCenter(page, 'para'), 3);
+		await multiClickDrag(
+			page,
+			await textRunCenter(page, 'beta'),
+			await textRunCenter(page, 'para'),
+			3
+		);
 		await expect
 			.poll(() => editorSelection(page))
 			.toEqual({
@@ -102,9 +127,9 @@ test.describe('multi-click: the block inline syntax handler and drags', () => {
 	test('a word-drag that leaves the block and returns collapses to the same-block range', async ({
 		page
 	}) => {
-		const beta = await runCenter(page, 'beta');
-		const para = await runCenter(page, 'para');
-		const gamma = await runCenter(page, 'gamma');
+		const beta = await textRunCenter(page, 'beta');
+		const para = await textRunCenter(page, 'para');
+		const gamma = await textRunCenter(page, 'gamma');
 		await page.mouse.move(beta.x, beta.y);
 		await page.mouse.down();
 		await page.mouse.up();
@@ -119,7 +144,12 @@ test.describe('multi-click: the block inline syntax handler and drags', () => {
 
 	test('a word-drag along a table cell joins its words', async ({ page }) => {
 		await editor.loadContent('| a | b |\n| --- | --- |\n| one two three | c |\n');
-		await multiClickDrag(page, await runCenter(page, 'one'), await runCenter(page, 'three'), 2);
+		await multiClickDrag(
+			page,
+			await textRunCenter(page, 'one'),
+			await textRunCenter(page, 'three'),
+			2
+		);
 		await expect.poll(() => nativeSelectionText(page)).toBe('one two three');
 		await expect(editor.editorContainer).not.toHaveAttribute('data-cross-block');
 	});

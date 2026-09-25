@@ -6,10 +6,10 @@ import {
 	clickWordSettled,
 	enterPresentationMode,
 	focusOffset,
-	stepTo,
-	trailingEdgeOfWord
+	stepTo
 } from './helpers';
 import { attachIme } from '../../simulation/ime';
+import { textRunEnd } from '../../text-runs';
 
 // Which side of a hidden delimiter run a typed byte lands on. The source is the reference: the
 // caret reports the same offset either way, so only the bytes tell the two positions apart.
@@ -113,7 +113,7 @@ test.describe('live mode: a symmetric pair extends by arrival', () => {
 	// A click clears how the caret arrived, so the default is the click rule: the construct the
 	// caret touches keeps the byte (live-mode.md § 4.2, the Google Docs default).
 	test('a click at bold’s trailing content edge extends it', async ({ page }) => {
-		const point = await trailingEdgeOfWord(page, 'bold');
+		const point = await textRunEnd(page, 'bold');
 		await page.mouse.click(point.x, point.y);
 		await ep.waitForRenderFlush();
 		await expect.poll(() => focusOffset(ep), { timeout: 5000 }).toBe(11);

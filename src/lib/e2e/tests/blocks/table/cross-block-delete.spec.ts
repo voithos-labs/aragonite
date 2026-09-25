@@ -3,6 +3,7 @@ import { EditorPage } from '../../../editor-page';
 import { boxesOf, dragBetweenBoxes } from './helpers';
 import { capturePageErrors } from '../../../page-probes';
 import { roundTripStable } from '../../plugins/helpers';
+import { pointAtRaw } from '../../../text-runs';
 
 const TABLE_2x3 = '| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n';
 const TABLE_3x3 = '| A | B | C |\n| --- | --- | --- |\n| 1 | 2 | 3 |\n| 4 | 5 | 6 |\n';
@@ -294,7 +295,7 @@ test.describe('table block: cross-block delete', () => {
 		const cellBox = await page.locator('.table-cell').nth(3).boundingBox(); // body "2"
 		if (!cellBox) throw new Error('missing cell bounding box');
 		// Nested prose endpoint: the paragraph inside the blockquote at [1, 0].
-		const endPoint = await editor.pointForOffset([1, 0], 3);
+		const endPoint = await pointAtRaw(editor.page, [1, 0], 3);
 		await dragBetweenBoxes(page, cellBox, { x: endPoint.x, y: endPoint.y, width: 0, height: 0 });
 		await editor.waitForCrossBlock(true);
 		await page.keyboard.press('Delete');

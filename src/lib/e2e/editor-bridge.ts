@@ -17,6 +17,11 @@ export class EditorBridge {
 		return this.page.evaluate((i) => (window as any).__test.getBlockKind(i), index);
 	}
 
+	/** How many entries the undo stack holds. */
+	async getUndoDepth(): Promise<number> {
+		return this.page.evaluate(() => (window as any).__test.undoDepth());
+	}
+
 	// ── Settling Predicates ─────────────────────────────────────────────
 	// Use these instead of waitForTimeout: each polls the editor's source or block count and
 	// returns the moment the assertion would pass. Every read is guarded, because Playwright

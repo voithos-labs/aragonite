@@ -1,9 +1,10 @@
 import { test, expect } from '../../fixtures';
 import type { Page } from '@playwright/test';
 import type { EditorPage } from '../../editor-page';
-import { enterPresentationMode, landAt, leadingEdgeOfWord, trailingEdgeOfWord } from './helpers';
+import { enterPresentationMode, landAt } from './helpers';
 import { CARD, URL_FIELD, clickLink, editUrl, openCardOn } from './link-card-helpers';
 import { findInput } from '../search/helpers';
+import { textRunEnd, textRunStart } from '../../text-runs';
 
 // The anchored panel that stands in for the destination live mode hides. The chord's create
 // half lives in `live-link-card-create.spec.ts`, and what it consumes in
@@ -64,8 +65,8 @@ test.describe('live-mode link card', () => {
 	test('a drag-select inside the link keeps the selection and opens no card', async ({ page }) => {
 		// The drag spans the whole word: a half-word drag sits on the CI runner's font-metric
 		// knife's edge and can collapse to a caret there while passing on every local machine.
-		const from = await leadingEdgeOfWord(page, 'example');
-		const to = await trailingEdgeOfWord(page, 'example');
+		const from = await textRunStart(page, 'example');
+		const to = await textRunEnd(page, 'example');
 		await page.mouse.move(from.x, from.y);
 		await page.mouse.down();
 		await page.mouse.move(to.x, to.y, { steps: 4 });

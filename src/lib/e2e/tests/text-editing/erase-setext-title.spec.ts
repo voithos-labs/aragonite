@@ -1,7 +1,7 @@
 import { test, expect } from '../../fixtures';
 import type { Page } from '@playwright/test';
 import { EditorPage } from '../../editor-page';
-import { runCenter, runStart } from '../selection/multi-click-helpers';
+import { textRunCenter, textRunStart } from '../../text-runs';
 
 type Point = { x: number; y: number };
 
@@ -89,9 +89,9 @@ const ERASES: {
 	{
 		name: 'the whole title dragged to the start of the next line',
 		erase: async (_ep, page) => {
-			const title = await runCenter(page, 'Plan');
+			const title = await textRunCenter(page, 'Plan');
 			await page.mouse.dblclick(title.x, title.y);
-			await dragSelection(page, title, await runStart(page, 'next'));
+			await dragSelection(page, title, await textRunStart(page, 'next'));
 		},
 		source: '\nPlannext\n',
 		kinds: ['paragraph', 'paragraph'],

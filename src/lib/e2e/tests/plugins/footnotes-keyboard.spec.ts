@@ -2,7 +2,8 @@ import { test, expect } from '../../fixtures';
 import type { Locator } from '@playwright/test';
 import { expectNoNewA11yViolations } from '../../a11y/axe-helper';
 import { focusedBlockSurface } from '../../page-probes';
-import { PluginsPage, blockView, capturedErrors, textRunCenter } from './helpers';
+import { PluginsPage, blockView, capturedErrors } from './helpers';
+import { textRunCenter } from '../../text-runs';
 
 // Following a footnote from the keyboard (requirements/plugins/footnotes-keyboard.md): both
 // markers are links with a tab stop in reading mode, and no stop at all in the editing modes.
@@ -36,7 +37,7 @@ class FootnotePage extends PluginsPage {
 	}
 	/** Click a word of the block's text, away from any marker, then press the key once. */
 	async pressFromText(path: number[], word: string, key = 'Tab'): Promise<void> {
-		const point = await textRunCenter(this.page, path, word);
+		const point = await textRunCenter(this.page, word, { path });
 		await this.page.mouse.click(point.x, point.y);
 		await this.page.keyboard.press(key);
 	}

@@ -531,8 +531,15 @@ reactivity and render flush, not a debouncer.
 
 **Use `focusBlockEnd` / `focusBlockStart` / `focusBlock` to set up a caret.** They place it
 through the editor's own `setSelection`, so the caret sits in a text node the way a click or a
-key leaves it; `focusBlock` takes a raw offset. When the placement itself is under test, click
-(`clickBlockAtPath`) and walk with the keyboard instead.
+key leaves it; `focusBlock` takes a raw offset, and `focusBlockAtPath` does the same for a nested
+block or a table cell. When the placement itself is under test, click (`clickBlockAtPath`) and
+walk with the keyboard instead.
+
+**Aim a pointer through `src/lib/e2e/text-runs.ts`, never a DOM walk of your own.** `pointAtRaw`
+asks the block where a raw offset sits on screen, and `textRunRect` finds a word in the text the
+mode actually paints. A walk written in the spec counts a widget's glyph or a hidden marker its
+own way and aims beside the offset it meant; a source scan fails any `createTreeWalker` under
+`src/lib/e2e/tests/`.
 
 **Use `getBlockCount()` for structural assertions after a split.** The bridge reads the live
 CST, so it sees a transient block the serializer would trim and a live-kind-vs-raw desync a

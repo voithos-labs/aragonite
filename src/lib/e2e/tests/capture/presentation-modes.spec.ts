@@ -4,7 +4,7 @@
 // dependencies.
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
-import { centerOfWord } from '../presentation/helpers';
+import { textRunCenter } from '../../text-runs';
 
 declare const process: { env: Record<string, string | undefined> };
 
@@ -72,7 +72,7 @@ for (const theme of ['light', 'dark'] as const) {
 				// The harness header sits above the editor, so the word can fall off screen and a
 				// click at fixed coordinates would land on nothing.
 				await ep.editorContainer.scrollIntoViewIfNeeded();
-				const { x, y } = await centerOfWord(page, CARET_WORD);
+				const { x, y } = await textRunCenter(page, CARET_WORD);
 				await page.mouse.click(x, y);
 				// The markers appear around the caret, so the shot is only honest once it has landed.
 				await expect

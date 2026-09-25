@@ -1,13 +1,7 @@
 import { test, expect } from '../../fixtures';
 import type { Locator } from '@playwright/test';
-import {
-	PluginsPage,
-	activeBlockPath,
-	blockView,
-	capturedErrors,
-	textRunCenter,
-	type Point
-} from './helpers';
+import { PluginsPage, activeBlockPath, blockView, capturedErrors } from './helpers';
+import { textRunCenter, widgetCenter } from '../../text-runs';
 
 /**
  * Jumping between a `[^label]` reference and its definition, both directions
@@ -50,14 +44,6 @@ class FootnotePage extends PluginsPage {
 		await this.gotoPlugins('footnotes-ref');
 		await this.loadContent(md);
 	}
-}
-
-/** Aim point for the raw mouse steps a split gesture needs; `locator.click`'s `modifiers` holds
- *  one chord for the whole gesture, so it cannot express a chord that changes partway. */
-async function widgetCenter(widget: Locator): Promise<Point> {
-	const box = await widget.boundingBox();
-	if (!box) throw new Error('footnote reference has no bounding box');
-	return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
 }
 
 test.describe('footnote jump: reference to definition', () => {
@@ -339,7 +325,7 @@ test.describe('footnote reference: double-click takes the whole token', () => {
 			await page.mouse.click(widget.x, widget.y);
 			await expect(editor.refs()).toHaveCount(0);
 
-			const word = await textRunCenter(page, [0], 'alpha');
+			const word = await textRunCenter(page, 'alpha', { path: [0] });
 			await page.mouse.dblclick(word.x, word.y);
 			await editor.waitForRenderFlush();
 

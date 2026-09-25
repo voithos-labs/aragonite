@@ -1,27 +1,6 @@
 import type { Page } from '@playwright/test';
-
-/** Viewport center of the first rendered run of `needle` in the editor: the aim point for a
- *  click on a word, measured live so shown source or a cell reads the same. */
-export async function runCenter(page: Page, needle: string): Promise<{ x: number; y: number }> {
-	const at = await page.evaluate((w) => {
-		const root = document.querySelector('.editor')!;
-		const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-		let node: Node | null;
-		while ((node = walker.nextNode())) {
-			const i = (node as Text).data.indexOf(w);
-			if (i < 0) continue;
-			const r = document.createRange();
-			r.setStart(node, i);
-			r.setEnd(node, i + w.length);
-			const b = r.getBoundingClientRect();
-			if (b.width === 0) continue;
-			return { x: b.left + b.width / 2, y: b.top + b.height / 2 };
-		}
-		return null;
-	}, needle);
-	if (!at) throw new Error(`no rendered run of ${JSON.stringify(needle)}`);
-	return at;
-}
+import { BLOCK_CONTENT_SELECTOR } from '../../editor-page';
+import { textRunRect, widgetCenter, type Point } from '../../text-runs';
 
 /** The center of a top-level block's box: the aim point for a block that renders no text. */
 export function blockCenter(page: Page, index: number): Promise<{ x: number; y: number }> {
@@ -59,122 +38,45 @@ export async function multiClickDrag(
 	await page.mouse.up({ clickCount: clicks });
 }
 
-/** A point a little past the end of the first rendered run of `needle`'s line, still inside the
- *  block's box: where a click lands on no glyph. */
-export async function pastLineEnd(page: Page, needle: string): Promise<{ x: number; y: number }> {
-	const at = await page.evaluate((w) => {
-		const walker = document.createTreeWalker(
-			document.querySelector('.editor')!,
-			NodeFilter.SHOW_TEXT
-		);
-		let node: Node | null;
-		while ((node = walker.nextNode())) {
-			if (!(node as Text).data.includes(w)) continue;
-			const r = document.createRange();
-			r.selectNodeContents(node);
-			const b = r.getBoundingClientRect();
-			if (b.width === 0) continue;
-			return { x: b.right + 40, y: b.top + b.height / 2 };
-		}
-		return null;
-	}, needle);
-	if (!at) throw new Error(`no rendered run of ${JSON.stringify(needle)}`);
-	return at;
-}
-
-/** A point on the first glyph of the first rendered run of `needle`: the one aim point inside a
- *  line whose character boundary no font metric can move, offset 0 of that run. */
-export async function runStart(page: Page, needle: string): Promise<{ x: number; y: number }> {
-	const at = await page.evaluate((w) => {
-		const walker = document.createTreeWalker(
-			document.querySelector('.editor')!,
-			NodeFilter.SHOW_TEXT
-		);
-		let node: Node | null;
-		while ((node = walker.nextNode())) {
-			const i = (node as Text).data.indexOf(w);
-			if (i < 0) continue;
-			const r = document.createRange();
-			r.setStart(node, i);
-			r.setEnd(node, i + w.length);
-			const b = r.getBoundingClientRect();
-			if (b.width === 0) continue;
-			return { x: b.left + 1, y: b.top + b.height / 2 };
-		}
-		return null;
-	}, needle);
-	if (!at) throw new Error(`no rendered run of ${JSON.stringify(needle)}`);
-	return at;
+/** A point a little past the end of the first painted run of `needle`, still inside the block's
+ *  box: where a click lands on no glyph when the run ends its line. */
+export async function pastLineEnd(page: Page, needle: string): Promise<Point> {
+	const run = await textRunRect(page, needle);
+	return { x: run.right + 40, y: run.top + run.height / 2 };
 }
 
 /** A point in the gutter left of the editable holding `needle`: a container's own box. */
-export async function gutterLeftOf(page: Page, needle: string): Promise<{ x: number; y: number }> {
-	const at = await page.evaluate((w) => {
-		const walker = document.createTreeWalker(
-			document.querySelector('.editor')!,
-			NodeFilter.SHOW_TEXT
-		);
-		let node: Node | null;
-		while ((node = walker.nextNode())) {
-			if (!(node as Text).data.includes(w)) continue;
-			const surface = node.parentElement?.closest('[contenteditable="true"]');
-			const r = document.createRange();
-			r.selectNodeContents(node);
-			const b = r.getBoundingClientRect();
-			if (!surface || b.width === 0) continue;
-			return { x: surface.getBoundingClientRect().left - 12, y: b.top + b.height / 2 };
-		}
-		return null;
-	}, needle);
-	if (!at) throw new Error(`no rendered run of ${JSON.stringify(needle)}`);
-	return at;
+export async function gutterLeftOf(page: Page, needle: string): Promise<Point> {
+	const run = await textRunRect(page, needle);
+	const left = await page.evaluate(
+		({ path, content }) =>
+			document
+				.querySelector(`[data-block-path='${JSON.stringify(path)}']`)
+				?.querySelector(content)
+				?.getBoundingClientRect().left ?? null,
+		{ path: run.path, content: BLOCK_CONTENT_SELECTOR }
+	);
+	if (left === null) throw new Error(`no editable holds ${JSON.stringify(needle)}`);
+	return { x: left - 12, y: run.top + run.height / 2 };
 }
 
 /** The center of the `- ` marker the container draws inside the editable holding `needle`: a
  *  widget inside the editable element, not part of its text. */
-export async function markerCenterOf(
-	page: Page,
-	needle: string
-): Promise<{ x: number; y: number }> {
-	const at = await page.evaluate((w) => {
-		const walker = document.createTreeWalker(
-			document.querySelector('.editor')!,
-			NodeFilter.SHOW_TEXT
-		);
-		let node: Node | null;
-		while ((node = walker.nextNode())) {
-			if (!(node as Text).data.includes(w)) continue;
-			const marker = node.parentElement
-				?.closest('[contenteditable="true"]')
-				?.querySelector('.md-marker[contenteditable="false"]');
-			if (!marker) continue;
-			const b = marker.getBoundingClientRect();
-			return { x: b.left + b.width / 2, y: b.top + b.height / 2 };
-		}
-		return null;
-	}, needle);
+export async function markerCenterOf(page: Page, needle: string): Promise<Point> {
+	const run = await textRunRect(page, needle);
+	const at = await page.evaluate((path) => {
+		const block = document.querySelector(`[data-block-path='${JSON.stringify(path)}']`);
+		const marker = block?.querySelector('.md-marker[contenteditable="false"]');
+		const b = marker?.getBoundingClientRect();
+		return b ? { x: b.left + b.width / 2, y: b.top + b.height / 2 } : null;
+	}, run.path);
 	if (!at) throw new Error(`no marker beside ${JSON.stringify(needle)}`);
 	return at;
 }
 
-/** The centre of the nth rendered inline widget, or of the `aim` element inside it for a kind
- *  whose own box holds something no click lands in (a formula's clipped half). */
-export async function widgetCenter(
-	page: Page,
-	aim?: string,
-	index = 0
-): Promise<{ x: number; y: number }> {
-	const at = await page.evaluate(
-		(opts) => {
-			const widget = document.querySelectorAll('[data-inline-widget]')[opts.index];
-			const target = (opts.aim ? widget?.querySelector(opts.aim) : null) ?? widget;
-			const b = target?.getBoundingClientRect();
-			return b && b.width > 0 ? { x: b.left + b.width / 2, y: b.top + b.height / 2 } : null;
-		},
-		{ aim, index }
-	);
-	if (!at) throw new Error(`no rendered inline widget at index ${index}`);
-	return at;
+/** The centre of the nth rendered inline widget, or of the `aim` element inside it. */
+export function inlineWidgetCenter(page: Page, aim?: string, index = 0): Promise<Point> {
+	return widgetCenter(page.locator('[data-inline-widget]').nth(index), aim);
 }
 
 /** Press `clicks` times at one point, each press its own down and up: the run a real
