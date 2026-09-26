@@ -141,9 +141,8 @@ export function createSearchReplace(deps: EditorActionsDeps, controller: UndoCon
 				});
 				break;
 			}
-			if (!keepsItsKind(deps.doc.children[topIndex], newNodes)) continue;
-			newBlockCount += newNodes.length;
-			applied += group.length;
+			const replaced = deps.doc.children[topIndex];
+			if (!keepsItsKind(replaced, newNodes)) continue;
 			await controller.commitStructural({
 				snapshot: 'skip', // the batch shares the single snapshot pushed above
 				mutate: (children) => {
@@ -154,6 +153,10 @@ export function createSearchReplace(deps: EditorActionsDeps, controller: UndoCon
 				}
 				// op omitted: no per-commit edit event; one is emitted after the batch
 			});
+			// A declined commit (reading mode) leaves the block in place and counts for nothing.
+			if (deps.doc.children[topIndex] === replaced) continue;
+			newBlockCount += newNodes.length;
+			applied += group.length;
 		}
 		if (applied === 0) {
 			deps.undoManager.restoreStacks(stacksBeforePush);

@@ -1,19 +1,14 @@
-// Every entry point that writes document bytes asks the reading-mode check before writing: under
-// the warn policy a reading-mode write lands and reports itself, under refuse it is declined with
-// no undo entry and no edit event. One row per byte-writing entry point.
+// Every entry point that writes document bytes asks the reading-mode check before writing: a
+// reading-mode write is declined with no undo entry and no edit event, and reports itself. One row
+// per byte-writing entry point.
 // Miss-analysis: no writer read the mode, so each route relied on its own caller's check, and no
 // test drove a writer in reading mode to see whether anything stopped it.
-import { afterEach, describe, expect, it } from 'vitest';
-import { CENSUS_WARN_TAGS } from '$lib/dev-warn';
+import { describe, expect, it } from 'vitest';
 import { serialize } from '$lib/core/serializer';
 import type { EditEvent } from '$lib/editor-events';
 import type { EditorActionsDeps } from '$lib/editor-actions/deps';
 import { createHistoryActions } from '$lib/editor-actions/commit/history';
-import {
-	READING_WRITE_TAG,
-	__setReadingWritePolicyForTests,
-	type ReadingWritePolicy
-} from '$lib/editor-actions/commit/reading-write-gate';
+import { READING_WRITE_TAG } from '$lib/editor-actions/commit/reading-write-gate';
 import type { PresentationMode } from '$lib/presentation-mode';
 import { fixtureReading } from '../../harness/fixture-grammar';
 import { makeNestedHarness, makeTopHarness } from '../../harness/editor-actions';
@@ -97,20 +92,24 @@ const WRITERS: WriterRow[] = [
 			current = mode;
 			return { deps: h.deps, edits: h.edits, write: () => history.requestUndo() };
 		}
+	},
+	{
+		name: 'a redo',
+		op: 'redo',
+		async setup(mode) {
+			let current: PresentationMode = 'source';
+			const h = makeTopHarness('one\n\ntwo\n', {
+				reading: fixtureReading({ mode: () => current })
+			});
+			const history = createHistoryActions(h.deps, h.controller);
+			await h.actions.deleteBlock(1);
+			await history.requestUndo();
+			h.edits.length = 0;
+			current = mode;
+			return { deps: h.deps, edits: h.edits, write: () => history.requestRedo() };
+		}
 	}
 ];
-
-let restorePolicy: ReadingWritePolicy | null = null;
-
-function usePolicy(next: ReadingWritePolicy): void {
-	const previous = __setReadingWritePolicyForTests(next);
-	restorePolicy ??= previous;
-}
-
-afterEach(() => {
-	if (restorePolicy) __setReadingWritePolicyForTests(restorePolicy);
-	restorePolicy = null;
-});
 
 function readingWrites(): string[] {
 	return takeDevWarns()
@@ -120,17 +119,7 @@ function readingWrites(): string[] {
 
 describe('the reading-mode check at every byte-writing entry point', () => {
 	for (const row of WRITERS) {
-		it(`${row.name}: writes and reports itself in reading mode under the warn policy`, async () => {
-			usePolicy('warn');
-			const writer = await row.setup('reading');
-			const before = serialize(writer.deps.doc);
-			await writer.write();
-			expect(serialize(writer.deps.doc)).not.toBe(before);
-			expect(readingWrites()).toEqual([`wrote '${row.op}' in reading mode`]);
-		});
-
-		it(`${row.name}: is declined in reading mode under the refuse policy`, async () => {
-			usePolicy('refuse');
+		it(`${row.name}: is declined in reading mode`, async () => {
 			const writer = await row.setup('reading');
 			const before = serialize(writer.deps.doc);
 			const stacks = writer.deps.undoManager.getStacks();
@@ -141,8 +130,7 @@ describe('the reading-mode check at every byte-writing entry point', () => {
 			expect(readingWrites()).toEqual([`declined '${row.op}' in reading mode`]);
 		});
 
-		it(`${row.name}: writes without a report in source mode under the refuse policy`, async () => {
-			usePolicy('refuse');
+		it(`${row.name}: writes without a report in source mode`, async () => {
 			const writer = await row.setup('source');
 			const before = serialize(writer.deps.doc);
 			await writer.write();
@@ -150,8 +138,4 @@ describe('the reading-mode check at every byte-writing entry point', () => {
 			expect(readingWrites()).toEqual([]);
 		});
 	}
-
-	it('the report is a census tag, which the warning watchers print and never fail on', () => {
-		expect(CENSUS_WARN_TAGS).toContain(READING_WRITE_TAG);
-	});
 });

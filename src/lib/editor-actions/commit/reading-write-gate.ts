@@ -1,9 +1,8 @@
 /**
  * Reading mode writes no bytes, and every entry point that writes the document asks here first.
- * Under the 'warn' policy a reading-mode write still lands and reports its operation and caller,
- * so every such write can be listed before the editor starts refusing them; under 'refuse' it is
- * declined and reported the same way. Ask synchronously, before the first await, or the report
- * loses the caller.
+ * A write in reading mode is declined, and a dev build names the operation and its caller, since
+ * the gesture that reached it offered a write the mode should not have. Ask synchronously, before
+ * the first await, or the report loses the caller.
  */
 
 import { splitLines } from '../../core/lines';
@@ -12,42 +11,28 @@ import { editorEnv } from '../../env';
 import { isReadingMode } from '../../presentation-mode';
 import type { Reading } from '../../schema/reading';
 
-export type ReadingWritePolicy = 'warn' | 'refuse';
-
 export const READING_WRITE_TAG = 'reading-write';
-
-// TODO(#493): switch to 'refuse' once every reading-mode write the suites report is accounted for.
-let policy: ReadingWritePolicy = 'warn';
 
 // ── Public API ──────────────────────────────────────────────────────────────
 
-/** Whether a write naming `op` may land. A reading-mode write warns either way. */
+/** Whether a write naming `op` may land: false in reading mode, with a dev warning. */
 export function admitsWrite(reading: Reading, op: string): boolean {
 	if (!isReadOnly(reading)) return true;
-	const refused = policy === 'refuse';
 	if (editorEnv.isDev) {
-		const verdict = refused ? 'declined' : 'wrote';
 		devWarn(
 			READING_WRITE_TAG,
-			`${verdict} '${op}' in reading mode, called from ${callerOf(new Error().stack)}`
+			`declined '${op}' in reading mode, called from ${callerOf(new Error().stack)}`
 		);
 	}
-	return !refused;
+	return false;
 }
 
 /**
- * For an undo snapshot pushed ahead of a write: declined under 'refuse' so no empty entry is
+ * For an undo snapshot pushed ahead of a write: declined in reading mode so no empty entry is
  * left on the stack, and silent, because the write that follows reports itself.
  */
 export function admitsSnapshot(reading: Reading): boolean {
-	return policy !== 'refuse' || !isReadOnly(reading);
-}
-
-/** Swap the policy for one test and return the one it replaced; restore it afterwards. */
-export function __setReadingWritePolicyForTests(next: ReadingWritePolicy): ReadingWritePolicy {
-	const previous = policy;
-	policy = next;
-	return previous;
+	return !isReadOnly(reading);
 }
 
 // ── Internal ────────────────────────────────────────────────────────────────

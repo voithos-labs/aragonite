@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import { CENSUS_WARN_TAGS, warnTagOfLine } from '../../dev-warn';
+import { warnTagOfLine } from '../../dev-warn';
 
 export interface ErrorCollector {
 	/** Call once at session start, before any gesture. */
@@ -28,10 +28,7 @@ export function attachErrorCollector(page: Page): ErrorCollector {
 		}
 		if (type !== 'warning') return;
 		const tag = warnTagOfLine(m.text());
-		// The page fixture's own console watch prints a census fire, so it is only skipped here.
-		if (tag && !CENSUS_WARN_TAGS.includes(tag)) {
-			warnings.push({ tag, text: `failing warning: ${m.text()}` });
-		}
+		if (tag) warnings.push({ tag, text: `failing warning: ${m.text()}` });
 	});
 	return {
 		async start() {
