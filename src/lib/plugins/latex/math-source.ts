@@ -5,6 +5,7 @@
  * a fence paints as plain tokens.
  */
 import {
+	displayLines,
 	fenceBodyAsDrawn,
 	highlightCode,
 	renderFencedSource,
@@ -26,7 +27,7 @@ function sliceMathSource(text: string): FencedSource {
 			? { opener: FENCE, body: text.slice(2, -2), closer: FENCE }
 			: unsliced(text);
 	}
-	if (text.slice(0, firstBreak) !== FENCE) return unsliced(text);
+	if (displayLines(text)[0].text !== FENCE) return unsliced(text);
 	const opener = text.slice(0, firstBreak + 1);
 	const rest = text.slice(opener.length);
 	const lastBreak = rest.lastIndexOf('\n');
@@ -54,8 +55,13 @@ export function completeBareMathSource(text: string): { text: string; caret: num
 	const { opener, body, closer } = sliceMathSource(text);
 	if (!opener || !closer) return null;
 	if (body.includes('\n') || body.trim() !== '') return null;
-	const openerLine = opener.replace(/\n$/, '');
-	return { text: `${openerLine}\n\n${closer}`, caret: openerLine.length + 1 };
+	// A one-line `$$$$` has no ending of its own to repeat.
+	const [openerLine] = displayLines(opener);
+	const ending = openerLine.ending || '\n';
+	return {
+		text: openerLine.text + ending + ending + closer,
+		caret: openerLine.text.length + ending.length
+	};
 }
 
 export function renderMathSource(text: string): DocumentFragment {
