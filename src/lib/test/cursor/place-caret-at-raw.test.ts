@@ -8,6 +8,7 @@ import { buildAmbientSpan } from '../../ambient/ambient-dom';
 import {
 	placeCaretAtRaw,
 	rawOffsetAt,
+	rawSelectionFocus,
 	selectRawRange,
 	selectSurfaceContent
 } from '../../cursor/widget-offset';
@@ -79,6 +80,16 @@ describe('rawOffsetAt', () => {
 	});
 });
 
+// Miss-analysis: every caller of the focus read held a collapsed caret, where anchor and focus
+// are one position, so reading the anchor instead passed the whole unit suite.
+describe('rawSelectionFocus', () => {
+	it('reads the moving end of a backward range, not its anchor', () => {
+		const { block } = mount('source', '- ');
+		selectRawRange(block, 5, 3);
+		expect(rawSelectionFocus(block)).toBe(3);
+	});
+});
+
 describe('range writers', () => {
 	it('selectRawRange writes a backward range with the focus first', () => {
 		const { block } = mount('source');
@@ -91,5 +102,29 @@ describe('range writers', () => {
 		const { block } = mount('source', '- ');
 		selectSurfaceContent(block);
 		expect(window.getSelection()!.toString()).toBe('**bold**');
+	});
+
+	it('selectSurfaceContent selects past the prefix of a block holding only widgets', () => {
+		const root = document.createElement('div');
+		const block = document.createElement('div');
+		block.setAttribute('contenteditable', 'true');
+		const image = (start: number, end: number): HTMLElement => {
+			const w = document.createElement('span');
+			w.setAttribute('data-inline-widget', '');
+			w.setAttribute('contenteditable', 'false');
+			w.setAttribute('data-source-start', String(start));
+			w.setAttribute('data-source-end', String(end));
+			w.appendChild(document.createElement('img'));
+			return w;
+		};
+		block.append(buildAmbientSpan('- '), image(0, 7), image(7, 14));
+		root.appendChild(block);
+		document.body.appendChild(root);
+		selectSurfaceContent(block);
+		const range = window.getSelection()!.getRangeAt(0);
+		expect(rawOffsetAt(block, range.startContainer, range.startOffset)).toBe(0);
+		expect(rawOffsetAt(block, range.endContainer, range.endOffset)).toBe(14);
+		// Right after the marker span, so the marker itself is not in the selection.
+		expect(range.startContainer === block && range.startOffset).toBe(1);
 	});
 });

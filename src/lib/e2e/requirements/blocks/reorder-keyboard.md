@@ -16,6 +16,8 @@ whether or not the drag handles are turned on.
 - Alt+ArrowUp on a list item at index >= 2 moves the item (not its paragraph)
   up one position among the list's items.
 - Alt+ArrowDown on the first list item moves it down one position.
+- Alt+ArrowDown on item 9 of a ten-item ordered list, and Alt+ArrowUp on item 10, renumber the
+  moved item between `9. ` and `10. `; the next typed character lands right after the new marker.
 - Alt+ArrowUp on a blockquote child moves it up among the blockquote's children.
 - Alt+ArrowDown on a focused fenced code block moves the whole block below its
   next sibling; a single undo restores the source as it was before the move.

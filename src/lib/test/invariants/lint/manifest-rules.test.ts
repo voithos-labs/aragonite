@@ -287,7 +287,10 @@ const MANIFESTS: ManifestRule[] = [
 	},
 	{
 		id: 'G4.36 the files writing the native selection are the one caret writer and the node-range writers',
-		matches: /\.(addRange|setBaseAndExtent|extend)\s*\(/,
+		// Only the two-argument collapse and setPosition: Range.collapse(true) and the editor's own
+		// selectionState.collapse() take one argument or none, and write no caret.
+		matches:
+			/\.(?:addRange|setBaseAndExtent|extend|selectAllChildren)\s*\(|\.(?:collapse|setPosition)\s*\([^,()]*,/,
 		declared: {
 			'src/lib/cursor/widget-offset.ts':
 				'placeCaretAtRaw and the raw range writers: the one translation from a raw offset to a native selection',
@@ -299,8 +302,20 @@ const MANIFESTS: ManifestRule[] = [
 		},
 		reason:
 			'a caret written from a raw offset goes through placeCaretAtRaw, which skips the marker prefix and clamps; any other native write must be a range over nodes it already holds',
-		hits: ['sel?.addRange(range);', 'sel.setBaseAndExtent(n, 0, n, 0);', 'sel.extend(node, 2);'],
-		misses: ['sel.getRangeAt(0);', 'selectionState.collapse();']
+		hits: [
+			'sel?.addRange(range);',
+			'sel.setBaseAndExtent(n, 0, n, 0);',
+			'sel.extend(node, 2);',
+			'window.getSelection()?.collapse(node, 2);',
+			'sel.setPosition(node, 2);',
+			'sel.selectAllChildren(node);'
+		],
+		misses: [
+			'sel.getRangeAt(0);',
+			'selectionState.collapse();',
+			'range.collapse(true);',
+			'sel.collapseToEnd();'
+		]
 	},
 	{
 		id: 'G4.36 a DOM position is built from a walk offset only in the walk module and its measuring readers',

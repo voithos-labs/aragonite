@@ -35,6 +35,22 @@ test.describe('keyboard reorder', () => {
 		await editor.bridge.waitForSourceMatches(/- two[\s\S]*- one[\s\S]*- three/);
 	});
 
+	// "9. " and "10. " differ in length, so the caret has to be placed past the item's new marker.
+	for (const { chord, from, expected } of [
+		{ chord: 'Alt+ArrowDown', from: 8, expected: '10. Xitem9\n' },
+		{ chord: 'Alt+ArrowUp', from: 9, expected: '9. Xitem10\n' }
+	]) {
+		test(`${chord} across 9 and 10 lands past the renumbered marker`, async () => {
+			const doc = Array.from({ length: 10 }, (_, i) => `${i + 1}. item${i + 1}`).join('\n');
+			await editor.loadContent(doc + '\n');
+			await editor.focusBlockAtPath([0, from, 0], 3);
+			await editor.page.keyboard.press(chord);
+			await editor.waitForRenderFlush();
+			await editor.page.keyboard.type('X');
+			await editor.bridge.waitForSourceContains(expected);
+		});
+	}
+
 	test('Alt+ArrowUp moves a blockquote child up; single undo restores', async () => {
 		await editor.loadContent('> a\n>\n> b\n');
 		await editor.page.locator('[contenteditable="true"]', { hasText: 'b' }).click();
