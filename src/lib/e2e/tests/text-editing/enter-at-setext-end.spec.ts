@@ -19,7 +19,7 @@ test.describe('text editing: Enter at the end of a setext title', () => {
 
 		test(`Enter at the end of a ${underline} title, heading survives, empty block below`, async () => {
 			await editor.loadContent(content);
-			await editor.focusBlockEnd(0);
+			await editor.focusBlock(0, 5);
 
 			// The suffix rule only fires from the content end; a caret at raw end would
 			// make the plain cut produce the same shape and hide a regression.
@@ -43,7 +43,7 @@ test.describe('text editing: Enter at the end of a setext title', () => {
 
 	test('real click + End + Enter, typing lands in the empty block below', async () => {
 		await editor.loadContent('Title\n=====\n');
-		await editor.clickBlock(0);
+		await editor.clickBlockAtPath([0], 1);
 		await editor.page.keyboard.press('End');
 		await editor.page.keyboard.press('Enter');
 		await editor.waitForBlockHostCount(2);

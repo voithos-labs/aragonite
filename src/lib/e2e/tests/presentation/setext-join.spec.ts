@@ -1,29 +1,28 @@
 import { test, expect } from '../../fixtures';
-import {
-	enterPresentationMode,
-	clickBlockSettled,
-	focusOffset,
-	focusPath,
-	stepTo
-} from './helpers';
+import { enterPresentationMode, clickBlockSettled, focusOffset, focusPath } from './helpers';
 
 // Joining into a setext heading: the joined text lands on the title line and the underline stays
-// under it, in every mode, since no mode draws the underline. Next to a block that is not prose,
-// Delete does what it does at a paragraph's end there: the caret moves in and no byte changes.
+// under it, in every mode. Where markers hide, the title's end is the block's end; where the
+// underline paints, the block ends past it. Next to a block that is not prose, Delete does what it
+// does at a paragraph's end there: the caret moves in and no byte changes.
 // Requirements: e2e/requirements/presentation/setext-join.md.
 
 const DOC = 'Setext\n======\n\nnext\n';
 const JOINED = 'Setextnext\n======\n';
+
+/** Where the caret stands at the heading's end: the title's end where the underline hides, past
+ *  the underline where it paints. */
+const blockEnd = (mode: 'source' | 'live' | 'preview-inline') =>
+	mode === 'live' ? 'Setext'.length : 'Setext\n======'.length;
 
 const expectSource = (ep: { bridge: { getSource(): Promise<string> } }, expected: string) =>
 	expect.poll(() => ep.bridge.getSource(), { timeout: 5000 }).toBe(expected);
 
 for (const mode of ['source', 'live', 'preview-inline'] as const) {
 	test.describe(`${mode} mode: joining into a setext heading`, () => {
-		test('Delete at the title end joins the next block above the underline', async ({ page }) => {
+		test('Delete at the block end joins the next block above the underline', async ({ page }) => {
 			const ep = await enterPresentationMode(page, mode, DOC);
-			await clickBlockSettled(ep, 0);
-			await page.keyboard.press('End');
+			await ep.focusBlockAtPath([0], blockEnd(mode));
 			await ep.waitForRenderFlush();
 
 			await page.keyboard.press('Delete');
@@ -52,9 +51,7 @@ for (const mode of ['source', 'live', 'preview-inline'] as const) {
 			page
 		}) => {
 			const ep = await enterPresentationMode(page, mode, DOC);
-			await clickBlockSettled(ep, 0);
-			await page.keyboard.press('Home');
-			await stepTo(ep, page, 'ArrowRight', 3);
+			await ep.focusBlockAtPath([0], 3);
 			await ep.shiftClickBlock([1], 2);
 			await ep.waitForRenderFlush();
 
@@ -63,10 +60,9 @@ for (const mode of ['source', 'live', 'preview-inline'] as const) {
 			expect(await ep.bridge.getBlockKind(0)).toBe('setextHeading');
 		});
 
-		test('ArrowRight at the title end moves into the next block', async ({ page }) => {
+		test('ArrowRight at the block end moves into the next block', async ({ page }) => {
 			const ep = await enterPresentationMode(page, mode, DOC);
-			await clickBlockSettled(ep, 0);
-			await page.keyboard.press('End');
+			await ep.focusBlockAtPath([0], blockEnd(mode));
 			await ep.waitForRenderFlush();
 
 			await page.keyboard.press('ArrowRight');
@@ -98,9 +94,7 @@ for (const mode of ['source', 'live'] as const) {
 		] as const) {
 			test(`${label}, the underline below goes with its block`, async ({ page }) => {
 				const ep = await enterPresentationMode(page, mode, doc);
-				await clickBlockSettled(ep, 0);
-				await page.keyboard.press('Home');
-				await stepTo(ep, page, 'ArrowRight', 3);
+				await ep.focusBlockAtPath(endPath.length === 2 ? [0, 0] : [0], 3);
 				await ep.shiftClickBlock([...endPath], 2);
 
 				await page.keyboard.press('Backspace');
