@@ -106,4 +106,22 @@ test.describe('plugin container: extending a selection past a closed <details>',
 		await editor.bridge.waitForSourceEquals('x\n');
 		expect(await capturedErrors(page)).toEqual([]);
 	});
+
+	test('Backspace from an open title row to the block below leaves a block that reloads the same', async ({
+		page
+	}) => {
+		const open = '<details open>\n<summary>Sum</summary>\n\nShown\n\n</details>\n';
+		await editor.loadContent('Above\n\n' + open + '\nMid\n');
+		await editor.focusBlockAtPath([2], 0);
+		await page.keyboard.press('Shift+ArrowUp');
+		await page.keyboard.press('Shift+ArrowUp');
+		await expect.poll(() => focusPath(editor)).toEqual({ path: [1, 0], offset: 0 });
+
+		await page.keyboard.press('Backspace');
+		await editor.bridge.waitForSourceEquals(
+			'Above\n\n<details open>\n<summary></summary>\n</details>\n\nMid\n'
+		);
+		expect(await editor.parseConverged()).toBe(true);
+		expect(await capturedErrors(page)).toEqual([]);
+	});
 });
