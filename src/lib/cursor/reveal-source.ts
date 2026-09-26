@@ -47,7 +47,7 @@ export function createSourceReveal(deps: SourceRevealDeps): SourceReveal {
 		// is before those markers, so typing there would land outside the fence. The caret goes to
 		// the nearest position it can sit at, which changes nothing wherever nothing hides.
 		const ambient = deps.getAmbientLength();
-		const seat = clampToLandableRaw(container, blockSourceOffset, ambient);
+		const seat = clampToLandableRaw(container, blockSourceOffset);
 		restoreCaretAtWalkOffset(container, toDomTextOffset(asRawOffset(seat), ambient));
 	}
 

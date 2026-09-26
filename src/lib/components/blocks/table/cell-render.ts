@@ -122,10 +122,8 @@ export function createCellRender(deps: CellRenderDeps): CellRender {
 				grammar: deps.reading.grammar
 			})
 		);
-		// A prefix length of 0: a cell has no marker, so decoration offsets are raw offsets.
 		islandDestroys = applyIslandDecorations(el, node.raw, islands, {
 			contentLength: contentLengthOf(node),
-			ambientLength: 0,
 			mountWidget: (spec, dec) => mountDecorationWidget(spec, dec, deps.reportRenderError),
 			onSkipped: (dec, reason) => devWarn('decorations', `decoration skipped: ${reason}`, dec)
 		});

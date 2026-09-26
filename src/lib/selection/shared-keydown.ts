@@ -209,7 +209,7 @@ export interface LandableBoundsContext {
  * close with a run nothing paints. Every block-edge check reads this, not 0 and length.
  */
 export function caretLandableBounds(ctx: LandableBoundsContext, el: HTMLElement): LandableBounds {
-	return landableRawBounds(el, ctx.getAmbientLength()) ?? { start: 0, end: ctx.getTextLen() };
+	return landableRawBounds(el) ?? { start: 0, end: ctx.getTextLen() };
 }
 
 // ── Shared beforeinput prelude ─────────────────────────────────────────────

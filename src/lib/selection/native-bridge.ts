@@ -63,7 +63,7 @@ export function readNativeCaretInBlock(
  */
 export function applyCollapsedCaret(blockEl: HTMLElement, point: SelectionPoint): void {
 	const ambient = ambientLengthOf(blockEl);
-	const offset = clampToLandableRaw(blockEl, point.offset, ambient);
+	const offset = clampToLandableRaw(blockEl, point.offset);
 	if (ambient > 0 && offset <= 0 && placeCaretAfterAmbientSpan(blockEl)) return;
 	const target = toDomTextOffset(asRawOffset(offset), ambient);
 	const range = createRangeAtDomTextOffsets(blockEl, target, target);

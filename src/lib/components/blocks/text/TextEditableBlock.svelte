@@ -78,7 +78,7 @@
 		createRangeAtDomTextOffsets,
 		revealsNoMarkers,
 		screenVisibilityOf,
-		selectionFocusWalkOffset
+		rawSelectionFocus
 	} from '../../../cursor/widget-offset';
 	import { ambientSpanOf } from '../../../ambient/ambient-dom';
 	import {
@@ -257,7 +257,7 @@
 			composing = value;
 		},
 		setPendingCursor: (offset) => setPendingCursorOffset(offset, 'surface'),
-		getFocusOffset: () => (el ? selectionFocusWalkOffset(el, ambientLength) : null),
+		getFocusOffset: () => (el ? rawSelectionFocus(el) : null),
 		getTextLen: () => caretReach(),
 		readText: () => readRawText(),
 		relocateComposedText: (after, composedAt) => compositionSeat.relocate(after, composedAt),

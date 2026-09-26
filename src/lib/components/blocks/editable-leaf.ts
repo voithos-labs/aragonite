@@ -694,8 +694,8 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		const range = target ? getRangeOffsets(el, target) : null;
 		if (!range) return;
 		e.preventDefault();
-		const start = clampToLandableRaw(el, range.start, 0);
-		const end = Math.max(start, clampToLandableRaw(el, range.end, 0));
+		const start = clampToLandableRaw(el, range.start);
+		const end = Math.max(start, clampToLandableRaw(el, range.end));
 		spliceSourceText(el, start, end, insert);
 	}
 

@@ -48,7 +48,7 @@
 		landableDomTextBounds,
 		createRangeAtDomTextOffsets,
 		screenVisibilityOf,
-		selectionFocusWalkOffset
+		rawSelectionFocus
 	} from '../../../cursor/widget-offset';
 	import { asRawOffset, toDomTextOffset, type RawOffset } from '../../../cursor/coordinate-spaces';
 	import { createAmbientCursorIO } from '../../../ambient/ambient-cursor';
@@ -584,7 +584,7 @@
 
 	// A cell has no marker prefix, so the traversal's offset is the raw offset.
 	function getRawFocusOffset(): RawOffset | null {
-		return el ? selectionFocusWalkOffset(el, 0) : null;
+		return el ? rawSelectionFocus(el) : null;
 	}
 
 	// ── Event handlers ─────────────────────────────────────────────────────

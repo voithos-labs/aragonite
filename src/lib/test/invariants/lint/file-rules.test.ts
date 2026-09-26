@@ -366,8 +366,7 @@ const RULES: FileRule[] = [
 			'src/lib/selection/native-bridge.ts':
 				'SelectionPoint offsets (unbranded) enter the walk; a textContent length is a DomTextOffset by construction',
 			'src/lib/selection/multi-click.ts':
-				'the point probe’s raw offsets and the segmenter’s walk-text indices (both unbranded) cross the walk in each direction',
-			'src/lib/decorations/island-dom.ts': 'decoration model offsets (unbranded) enter the walk'
+				'the point probe’s raw offsets and the segmenter’s walk-text indices (both unbranded) cross the walk in each direction'
 		},
 		reason:
 			'a boundary conversion is a new declared entry into a coordinate space: add the file with the reason its plain value cannot be branded yet',

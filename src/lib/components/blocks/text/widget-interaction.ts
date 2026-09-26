@@ -28,7 +28,7 @@ import {
 import {
 	domTextOffsetAtNode,
 	createRangeAtDomTextOffsets,
-	selectionFocusWalkOffset
+	rawSelectionFocus
 } from '../../../cursor/widget-offset';
 import { createSourceReveal, type SourceReveal } from '../../../cursor/reveal-source';
 import { nearestWidgetEdgeSeat, type WidgetEdgeCandidate } from '../../../cursor/widget-edge-snap';
@@ -970,7 +970,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 	function widgetExtensionTarget(key: 'ArrowRight' | 'ArrowLeft'): number | null {
 		const el = deps.getEl();
 		if (!el) return null;
-		const focus = selectionFocusWalkOffset(el, deps.getAmbientLength());
+		const focus = rawSelectionFocus(el);
 		if (focus === null) return null;
 		for (const inline of widgetsOf()) {
 			if (key === 'ArrowRight' && focus >= inline.start && focus < inline.end) {

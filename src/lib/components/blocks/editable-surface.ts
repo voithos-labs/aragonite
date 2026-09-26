@@ -337,7 +337,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 			return;
 		}
 		const requested = offset === CURSOR_START ? 0 : Math.max(0, offset);
-		deps.backend.setRaw(asRawOffset(clampToLandableRaw(el, requested, deps.getAmbientLength())));
+		deps.backend.setRaw(asRawOffset(clampToLandableRaw(el, requested)));
 	}
 
 	const focus = placeCaret(deps.selection, parkCaret);

@@ -218,8 +218,7 @@ describe('G2.4 textContent chain (decoration widgets)', () => {
 		const contentLength = contentLengthOf({ kind: 'paragraph', leadingTrivia: '', raw: source });
 		applyIslandDecorations(container, source, toIslands(specs, contentLength), {
 			...opts,
-			contentLength,
-			ambientLength: prefix?.length ?? 0
+			contentLength
 		});
 		if (prefix === undefined) return rawTextOfNode(container, source);
 		let out = '';

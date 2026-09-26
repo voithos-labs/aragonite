@@ -6,7 +6,12 @@
 import type { AmbientPrefix } from '../block-component';
 import { DRAG_ANCHOR_ATTR } from '../components/block-content-selector';
 import { domDescendants } from '../cursor/dom-walk';
-import { isAtomicInlineWidget, isHiddenMarkerText } from '../cursor/widget-offset';
+import {
+	isAtomicInlineWidget,
+	isHiddenMarkerText,
+	markerPrefixLength,
+	markerPrefixOf
+} from '../cursor/widget-offset';
 import { devWarn } from '../dev-warn';
 
 export function buildAmbientSpan(prefix: AmbientPrefix): HTMLSpanElement {
@@ -55,16 +60,11 @@ export function buildAmbientSpan(prefix: AmbientPrefix): HTMLSpanElement {
 }
 
 export function ambientSpanOf(blockEl: ParentNode): HTMLElement | null {
-	const first = blockEl.firstChild;
-	if (!first || first.nodeType !== Node.ELEMENT_NODE) return null;
-	const span = first as HTMLElement;
-	if (!span.classList.contains('md-marker')) return null;
-	if (span.getAttribute('contenteditable') !== 'false') return null;
-	return span;
+	return markerPrefixOf(blockEl);
 }
 
 export function ambientLengthOf(blockEl: HTMLElement): number {
-	return ambientSpanOf(blockEl)?.textContent?.length ?? 0;
+	return markerPrefixLength(blockEl);
 }
 
 export function placeCaretAfterAmbientSpan(blockEl: HTMLElement): boolean {

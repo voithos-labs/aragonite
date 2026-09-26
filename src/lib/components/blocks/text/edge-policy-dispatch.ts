@@ -580,7 +580,7 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		// gesture (merge, or nothing): a hidden run straddling the start would otherwise take
 		// the first visible character forward.
 		if (e.key === 'Backspace') {
-			const bounds = landableRawBounds(el, deps.getAmbientLength());
+			const bounds = landableRawBounds(el);
 			if (bounds && caretOffset <= bounds.start) return false;
 		}
 		const deletion = edgeDeletionAt(

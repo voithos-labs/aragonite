@@ -139,8 +139,6 @@ const CLASSIFICATION_RE =
 	/(?:classList\.contains|closest|matches|querySelector(?:All)?)\s*\(\s*['"`][^'"`]*(?:md-marker|md-fence-line|md-ref-label|md-construct-reveal|data-construct-|data-presentation|data-focused|data-content-empty)|(?:get|has)Attribute\s*\(\s*['"`]data-(?:presentation|construct-|focused|content-empty)|(?<![\w.])(?:markerFamilyOf|familyHidesText|familyPaintsAlone)\s*\(/;
 
 const NON_CLASSIFYING_READERS: Record<string, string> = {
-	'src/lib/ambient/ambient-dom.ts':
-		'marker-prefix span identity: a contenteditable="false" marker keeps its box, so the hidden-run rule excludes it by construction',
 	'src/lib/components/blocks/text/construct-reveal.ts':
 		'the preview-inline reveal writer: it stamps the class the classification reads, and asks nothing about hiding',
 	'src/lib/invariants/marker-css-parity.ts':
@@ -339,6 +337,8 @@ const MANIFESTS: ManifestRule[] = [
 			'src/lib/cursor/content-offsets.ts': 'setCursorOffset, the content-offset write helper',
 			'src/lib/cursor/focused-caret.ts':
 				'restoreCaretAtWalkOffset, the carry across a render rebuild',
+			'src/lib/cursor/widget-offset.ts':
+				'placeCaretAtRaw and the raw range writers: the one translation from a raw offset to a native selection',
 			'src/lib/selection/caret-restore.ts': 'the menu-blur saved-range restore',
 			'src/lib/selection/native-bridge.ts':
 				'the SelectionPoint entry: the collapsed-caret clamp and the surface-content range live here'
