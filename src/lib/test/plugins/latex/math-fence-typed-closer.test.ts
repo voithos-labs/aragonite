@@ -5,7 +5,12 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { serialize } from '$lib';
 import { resetPluginPlatformForTests } from '$lib/testing';
-import { registerMathFence, MATH_FENCE } from '$lib/plugins/latex/latex-kind';
+import {
+	registerMathBlock,
+	registerMathFence,
+	MATH_BLOCK,
+	MATH_FENCE
+} from '$lib/plugins/latex/latex-kind';
 import { makeTopHarness } from '$lib/test/harness/editor-actions';
 
 beforeEach(() => {
@@ -22,5 +27,20 @@ describe('typing a closer-shaped line into a math fence', () => {
 
 		expect(h.deps.doc.children.map((c) => c.kind)).toEqual([MATH_FENCE, 'paragraph']);
 		expect(serialize(h.deps.doc)).toBe('````math\nx\n```\ny\n````\n\npara\n');
+	});
+});
+
+// A `$$` block is closed by parse, so its rule puts back a closer the source edit dropped.
+describe('a $$ source committed without its closer', () => {
+	it('gets the closer back', async () => {
+		resetPluginPlatformForTests();
+		registerMathBlock();
+		const h = makeTopHarness('$$\nx\n$$\n');
+		expect(h.deps.doc.children[0].kind).toBe(MATH_BLOCK);
+
+		await h.actions.updateBlockContent(0, '$$\nx\n', 'authored', 5, 5);
+
+		expect(serialize(h.deps.doc)).toBe('$$\nx\n$$\n');
+		expect(h.deps.doc.children[0].kind).toBe(MATH_BLOCK);
 	});
 });
