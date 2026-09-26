@@ -46,4 +46,17 @@ test.describe('plugin math fence: distinct kind, shared render', () => {
 		expect(await editor.bridge.getBlockKind(1)).toBe('mathFence');
 		expect(await roundTripStable(editor.page)).toBe(true);
 	});
+
+	test('stands off its neighbours by the same padding as a $$ block', async ({ page }) => {
+		await editor.loadContent('para\n\n$$\nx\n$$\n\npara\n\n```math\nx\n```\n\npara\n');
+		const padding = (kind: string) =>
+			page
+				.locator(`.block-host[data-block-kind='${kind}']`)
+				.evaluate(
+					(el) => `${getComputedStyle(el).paddingTop} ${getComputedStyle(el).paddingBottom}`
+				);
+
+		expect(await padding('mathBlock')).toBe('6px 6px');
+		expect(await padding('mathFence')).toBe(await padding('mathBlock'));
+	});
 });
