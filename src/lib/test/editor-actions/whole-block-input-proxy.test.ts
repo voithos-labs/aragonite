@@ -1,6 +1,10 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
-import { allowDevWarns } from '$lib/test/support/warn-gate';
+import { allowDevWarns, takeDevWarns } from '$lib/test/support/warn-gate';
+import { serialize } from '$lib/core/serializer';
+import { READING_WRITE_TAG } from '$lib/editor-actions/commit/reading-write-gate';
+import { fixtureReading } from '$lib/test/harness/fixture-grammar';
+import { settleEditor } from '$lib/test/harness/settle';
 import { createContainerBlockComponent } from '$lib/editor-actions/container-block-component';
 import {
 	WHOLE_BLOCK_INPUT_ATTR,
@@ -12,7 +16,7 @@ import {
 	type WholeBlockInputProxy
 } from '$lib/editor-actions/whole-block-focus-surface';
 import type { AnyBlockKind, CstNode } from '$lib/core/nodes';
-import { makeShimDeps } from '$lib/test/harness/editor-actions';
+import { makeShimDeps, makeTopHarness } from '$lib/test/harness/editor-actions';
 
 // The proxy factory mounts its host in `onMount`; outside a component the test runs the callback.
 const mountCallbacks = vi.hoisted(() => [] as (() => unknown)[]);
@@ -159,5 +163,33 @@ describe('the editing host names its block', () => {
 
 		expect(document.activeElement).toBe(proxy.el());
 		expect(proxy.el()?.getAttribute('aria-label')).toBe('Diagramme');
+	});
+});
+
+// Miss-analysis: the proxy's own reading check was never driven, so nothing showed that a
+// character reaching the host in reading mode writes no paragraph once the commit owns the check.
+describe('the editing host in reading mode', () => {
+	it('is not editable, and a character that reaches it anyway writes nothing', async () => {
+		const editor = makeTopHarness('---\n', { reading: fixtureReading({}, 'reading') });
+		const boxEl = box();
+		const proxy = createWholeBlockInputProxy({
+			getBoxEl: () => boxEl,
+			getFocusEl: () => null,
+			isReading: () => true,
+			getLabel: () => 'Divider',
+			mint: (text) => void editor.actions.insertParagraph(1, text)
+		});
+		mountCallbacks.forEach((run) => run());
+		expect(proxy.el()?.getAttribute('contenteditable')).toBe('false');
+
+		proxy
+			.el()!
+			.dispatchEvent(
+				new InputEvent('beforeinput', { inputType: 'insertText', data: 'x', cancelable: true })
+			);
+		await settleEditor();
+
+		expect(serialize(editor.doc)).toBe('---\n');
+		expect(takeDevWarns().map((w) => w.tag)).toEqual([READING_WRITE_TAG]);
 	});
 });

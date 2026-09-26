@@ -20,6 +20,10 @@ import {
 	type ParsedLine
 } from '$lib/plugin';
 import { installEditorDomStubsForTests, resetPluginPlatformForTests } from '$lib/testing';
+import { READING_WRITE_TAG } from '$lib/editor-actions/commit/reading-write-gate';
+import type { PresentationMode } from '$lib/presentation-mode';
+import { settleEditor } from '$lib/test/harness/settle';
+import { takeDevWarns } from '$lib/test/support/warn-gate';
 import PlainLeafBlock from './fixtures/PlainLeafBlock.svelte';
 
 const KIND = 'jsdom-mount-leaf';
@@ -74,13 +78,13 @@ function markerLeafPlugin(): EditorPlugin {
 let instance: EditorInstance | null = null;
 let target: HTMLElement | null = null;
 
-function mountEditor(plugins: EditorPlugin[]): HTMLElement {
+function mountEditor(plugins: EditorPlugin[], presentationMode?: PresentationMode): HTMLElement {
 	target = document.createElement('div');
 	document.body.appendChild(target);
 	instance = mount(Editor, {
 		target,
 		// A short fixture, so it stays under the windowing watermark and every block mounts.
-		props: { source: SOURCE, plugins, scrollMode: 'host' as const }
+		props: { source: SOURCE, plugins, scrollMode: 'host' as const, presentationMode }
 	}) as EditorInstance;
 	flushSync();
 	return target;
@@ -126,6 +130,23 @@ describe('mounting a plugin block through the published surface', () => {
 
 // Miss-analysis: every caller ran in a bare jsdom, so the install-only-where-absent guard never
 // met an API already in place, and the internal mount harness kept a force-assigning copy instead.
+// Miss-analysis: the plain-mode leaf carried its own reading check, never driven by a test, so
+// nothing showed an input reaching a plain source in reading mode would write nothing without it.
+describe('a plain-mode plugin leaf in reading mode', () => {
+	it('is not editable, and an input that reaches it anyway writes nothing', async () => {
+		const root = mountEditor([markerLeafPlugin()], 'reading');
+		const leaf = root.querySelector<HTMLElement>('.plain-leaf-block')!;
+		expect(leaf.getAttribute('contenteditable')).toBe('false');
+
+		leaf.textContent = `${MARKER}\nedited\n${MARKER}`;
+		leaf.dispatchEvent(new InputEvent('input', { bubbles: true }));
+		await settleEditor();
+
+		expect(instance?.getSource()).toBe(SOURCE);
+		expect(takeDevWarns().map((w) => w.tag)).toEqual([READING_WRITE_TAG]);
+	});
+});
+
 describe('installEditorDomStubsForTests', () => {
 	it('keeps a ResizeObserver the environment already provides', () => {
 		class RealResizeObserver {

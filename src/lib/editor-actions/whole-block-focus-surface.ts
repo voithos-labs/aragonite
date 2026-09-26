@@ -122,16 +122,12 @@ export function createWholeBlockInputProxy(deps: WholeBlockInputProxyDeps): Whol
 	const declaredSurface = (): HTMLElement | null =>
 		demoteDeclaredFromTabOrder(deps.getFocusEl() ?? null);
 
-	function mint(text: string): void {
-		if (!deps.isReading()) deps.mint(text);
-	}
-
 	function onBeforeInput(event: InputEvent): void {
 		// The browser owns the host between compositionstart and compositionend (the editor's
 		// standing IME rule); refusing here swallows the composition.
 		if (composing) return;
 		event.preventDefault();
-		if (event.inputType === 'insertText' && event.data) mint(event.data);
+		if (event.inputType === 'insertText' && event.data) deps.mint(event.data);
 	}
 
 	function onCompositionEnd(): void {
@@ -140,7 +136,7 @@ export function createWholeBlockInputProxy(deps: WholeBlockInputProxyDeps): Whol
 		// A caret host, never something a serializer reads: whatever the IME left belongs to the
 		// new paragraph, and the host goes back to empty either way.
 		if (proxy) proxy.textContent = '';
-		if (composed) mint(composed);
+		if (composed) deps.mint(composed);
 	}
 
 	// A click or a Tab lands natively on the kind's own element, where no beforeinput fires;

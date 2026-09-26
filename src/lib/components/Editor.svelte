@@ -205,8 +205,7 @@
 	// the outgoing mode was holding, so those writes land in the mode they were typed in.
 	// svelte-ignore state_referenced_locally
 	let effectiveMode = $state(presentationMode);
-	// Replace is an edit, so it never engages in reading mode. One predicate feeds the
-	// write sites, the render gate, and the replace closures.
+	// Replace is an edit, so reading mode never offers it (the commit refuses the write anyway).
 	const canReplace = $derived(effectiveMode !== 'reading');
 
 	const resolveImageUrlImpl: ResolveImageUrl = (u) => (resolveImageUrl ? resolveImageUrl(u) : u);
@@ -725,17 +724,11 @@
 
 	const searchReplace = createSearchReplace(editorActionsDeps, controller);
 	// Find stays live in reading mode; replace is an edit and does nothing here.
-	const gatedSearchReplace: typeof searchReplace = {
-		replaceOne: (match, template) =>
-			canReplace ? searchReplace.replaceOne(match, template) : Promise.resolve(0),
-		replaceAll: (matches, template) =>
-			canReplace ? searchReplace.replaceAll(matches, template) : Promise.resolve(0)
-	};
 	const searchState = createSearchState({
 		getDoc,
 		getDocumentGeneration: documentSwap.generation,
 		decorations,
-		replace: gatedSearchReplace,
+		replace: searchReplace,
 		// Goes through the one public scroll call, which also decides which block is held
 		// in place (the top one by default, which is what search wants), so a late image
 		// decode cannot scroll the match away.

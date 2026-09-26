@@ -1,66 +1,52 @@
-import { describe, it, expect, vi } from 'vitest';
-import { composeMetadataDoor } from '$lib/editor-actions/plugin/container';
+// A plugin container's `updateOwnMetadata` is the parent's `updateBlockMetadata`, so reading mode
+// refuses it at the commit like every other write, with the dev warning naming the operation.
+// Miss-analysis: `updateOwnMetadata` is handed straight to plugin components, and no test drove
+// that plugin-facing write in reading mode (GH #38).
+import { describe, it, expect } from 'vitest';
+import { serialize } from '$lib/core/serializer';
+import { READING_WRITE_TAG } from '$lib/editor-actions/commit/reading-write-gate';
 import { configureEditorEnv } from '$lib/env';
-import { takeDevWarns } from '$lib/test/support/warn-gate';
-import type { NodeView } from '$lib/core/node-views';
 import type { PresentationMode } from '$lib/presentation-mode';
+import { fixtureReading } from '$lib/test/harness/fixture-grammar';
+import { makeTopHarness } from '$lib/test/harness/editor-actions';
+import { takeDevWarns } from '$lib/test/support/warn-gate';
 
-// Miss-analysis: reading mode writing nothing was pinned only at the dispatch points G4.19
-// scans; `updateOwnMetadata` is handed straight to plugin components, and no test drove that
-// one plugin-facing write in reading mode (GH #38).
+const SOURCE = '> [!NOTE]\n> body\n';
 
-const node = { kind: 'demo-collapsible', leadingTrivia: '', raw: '' } as unknown as NodeView;
-
-function makeDoor(mode: PresentationMode) {
-	const commit = vi.fn();
-	const door = composeMetadataDoor({
-		getNode: () => node,
-		getPresentationMode: () => mode,
-		commit
-	});
-	return { door, commit };
+function editorIn(mode: PresentationMode) {
+	return makeTopHarness(SOURCE, { reading: fixtureReading({}, mode) });
 }
 
-describe('composeMetadataDoor: the updateOwnMetadata reading gate', () => {
-	it('declines the write in reading mode and dev-warns naming the kind', () => {
-		const { door, commit } = makeDoor('reading');
+describe('a metadata write in reading mode', () => {
+	it('is declined at the commit with no undo entry or edit event, and a dev build names it', async () => {
+		const editor = editorIn('reading');
 
-		const result = door({ open: true });
+		await editor.actions.updateBlockMetadata(0, { calloutType: 'warning' });
 
-		expect(commit).not.toHaveBeenCalled();
-		expect(result).toBeUndefined(); // the declined door reports no pending commit
+		expect(serialize(editor.doc)).toBe(SOURCE);
+		expect(editor.deps.undoManager.canUndo).toBe(false);
+		expect(editor.edits).toEqual([]);
 		const fires = takeDevWarns();
-		expect(fires).toHaveLength(1);
-		expect(fires[0].tag).toBe('plugin-container');
-		expect(fires[0].message).toMatch(/reading/);
-		expect(fires[0].message).toMatch(/demo-collapsible/);
+		expect(fires.map((w) => w.tag)).toEqual([READING_WRITE_TAG]);
+		expect(fires[0].message).toContain("declined 'metadataUpdate' in reading mode");
 	});
 
-	it('stays silent in production while still declining', () => {
+	it('stays silent in production while still declining', async () => {
 		configureEditorEnv({ isDev: false, isTest: false });
-		const { door, commit } = makeDoor('reading');
+		const editor = editorIn('reading');
 
-		void door({ open: true });
+		await editor.actions.updateBlockMetadata(0, { calloutType: 'warning' });
 
-		expect(commit).not.toHaveBeenCalled();
+		expect(serialize(editor.doc)).toBe(SOURCE);
 		expect(takeDevWarns()).toEqual([]);
 	});
 
-	it('commits patch and afterTick untouched outside reading mode', () => {
-		const { door, commit } = makeDoor('source');
-		const afterTick = () => {};
-
-		void door({ open: false }, afterTick);
-
-		expect(commit).toHaveBeenCalledWith({ open: false }, afterTick);
-	});
-
 	// Scoped to reading, not "any non-source mode": preview and live modes edit.
-	it('commits in a live preview mode', () => {
-		const { door, commit } = makeDoor('preview-block');
+	it('reaches the commit in a live preview mode', async () => {
+		const editor = editorIn('preview-block');
 
-		void door({ open: true });
+		await editor.actions.updateBlockMetadata(0, { calloutType: 'warning' });
 
-		expect(commit).toHaveBeenCalledTimes(1);
+		expect(editor.edits.map((e) => e.op)).toEqual(['metadataUpdate']);
 	});
 });

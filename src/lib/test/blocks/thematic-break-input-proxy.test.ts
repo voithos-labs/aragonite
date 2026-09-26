@@ -88,13 +88,12 @@ describe('thematic break: the hidden editing host', () => {
 		expect(event.defaultPrevented).toBe(false);
 	});
 
-	it('reading mode takes the keystroke and writes no byte', () => {
+	// The write itself is refused at the commit (`whole-block-input-proxy.test.ts`).
+	it('reading mode makes the host inert and still takes the keystroke', () => {
 		mounted = mountBreak('reading');
 		mounted.instance.parkCaret(0);
 
 		expect(mounted.host.getAttribute('contenteditable')).toBe('false');
-		beforeInput(mounted.host, '€');
-
-		expect(mounted.blockEdit.insertParagraph).not.toHaveBeenCalled();
+		expect(beforeInput(mounted.host, '€').defaultPrevented).toBe(true);
 	});
 });
