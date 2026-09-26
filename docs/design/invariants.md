@@ -324,10 +324,11 @@ undo/redo restore (`editor-actions/commit/history.ts`) · `snapshot-integrity.te
 The **commit-rollback companion** lives here too. Where G1.9 guards a mutation corrupting a _shared_
 snapshot, this guards a _dangling_ one: a commit mutation that throws must leave the undo/redo
 stacks byte-identical to their pre-commit state and mustn't publish a partial tree. `__commit`
-captures both stacks before the snapshot push and, on throw, restores them via
-`UndoManager.restoreStacks` (a wholesale restore that also recovers an entry the push evicted at
-`MAX_UNDO`), emits `error{origin:'commit'}` on the event seam, then re-throws in DEV and swallows in
-production. The two commit branches keep the tree intact differently:
+captures both stacks before its snapshot push (a commit that joins an open undo step pushes
+nothing, so it has none to capture) and, on throw, restores them via `UndoManager.restoreStacks` (a
+wholesale restore that also recovers an entry the push evicted at `MAX_UNDO`), emits
+`error{origin:'commit'}` on the event seam, then re-throws in DEV and swallows in production. The
+two commit branches keep the tree intact differently:
 
 - The **document branch** mutates a detached children copy and publishes it only on success, so a
   throw leaves the live tree untouched.
@@ -336,13 +337,13 @@ production. The two commit branches keep the tree intact differently:
   swaps it back on throw. Copy-path-on-write guarantees the pre-mutation array still reaches an
   intact tree at every depth, discarding every copy the mutation dirtied.
 
-The array swap alone can't reach a `snapshot:'skip'` container commit whose scope node was already
-unshared earlier in the same undo unit: copy-path-on-write is then a no-op, so the mutation's
-structural splice lands in place on a node the pre-mutation array still references. That's reachable
-through cross-block paste, where one snapshot push joins a delete and a paste that both commit as
-`snapshot:'skip'` structural splices. `__commit` closes it by also capturing each prepared scope's
-pre-mutate children/childIds arrays and reinstating them on throw (doc-scope skip commits were
-already recovered; there the mutated array is `deps.doc.children` itself).
+The array swap alone can't reach a container commit that joins an open undo step when its scope
+node was already unshared earlier in the same step: copy-path-on-write is then a no-op, so the
+mutation's structural splice lands in place on a node the pre-mutation array still references.
+That's reachable through cross-block paste, whose delete and paste are two structural commits in one
+step. `__commit` closes it by also capturing each prepared scope's pre-mutate children/childIds
+arrays and reinstating them on throw (a document-scope commit was already recovered; there the
+mutated array is `deps.doc.children` itself).
 
 One residual is open by design. The frame's byte registers reach each prepared scope's spine and its
 direct children (`savedRaws`) and the document's folded trailing line (`savedDocSuffix`), so what
