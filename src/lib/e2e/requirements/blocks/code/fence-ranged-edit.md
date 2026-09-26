@@ -1,63 +1,43 @@
-# Feature: Edits that reach a code block's fence lines
+# Feature: Edits that reach a code block's hidden fence lines
 
-A fenced code block's editable content is its **body** and the opener's **info string**.
-Everything else in the two fence lines (the marker runs, the opener's indentation, and the
-two line endings that mark off the body) is structure, and every gesture that would rewrite
-it (Backspace, Delete, type-over, cut, paste-over, select-all, a word delete, an IME
-composition started over a selection, an auto-pair delete) applies to the part of its range
-that overlaps the body instead.
+Where the mode hides a code block's fence lines (live mode, and reading mode, which takes no
+edits anyway), the block's editable content is its **body**, plus the opener's info string, which
+the language picker writes. Every gesture that would rewrite the rest of a hidden fence line
+(Backspace, Delete, type-over, cut, paste-over, select-all, a word delete, an IME composition
+started over a selection) applies to the part of its range that overlaps the body instead. The
+user can't see those bytes, so an edit must never change them.
 
-The boundary sits where the parser puts it. Each of these is one keystroke away, and each
-makes the code node swallow every following block at the next parse:
+Where the mode paints the fence lines, they're editable text instead, and the fence write rule
+keeps the block legal: `fence-line-editing.md`.
 
-| Edit                                    | Result                                                 |
-| --------------------------------------- | ------------------------------------------------------ |
-| one closer backtick deleted             | the fence never closes                                 |
-| one opener backtick deleted             | the block demotes; its closer opens an absorbing fence |
-| one character typed into the closer run | the closer stops matching                              |
-| a fourth leading space on the opener    | the block demotes to an indented code block            |
-
-The contract, in four parts:
+The contract, in three parts:
 
 - **Edits are clamped.** The edit applies to the part of its range that overlaps the body.
-  A range confined to the body, or to the info string, keeps the browser's own behavior:
-  retyping a language must keep working.
-- **An edit that touches structure alone does nothing.** It overlaps no part of the body, so
-  it rewrites nothing and spends no undo entry. An insertion is refused rather than moved to
-  the body edge: a character aimed at a fence must not land where the user never pointed. One
-  rule for every gesture that writes: typing, paste and cut all refuse at the same offsets.
-- **An unclosed fence keeps its marker run editable.** With no closer to orphan, demoting the
-  block to a paragraph is how a just-typed ` ``` ` is undone, and nothing gets absorbed.
-- **Copy stays verbatim.** A read that changes nothing keeps the literal bytes, fences
-  included. Cut is therefore lopsided by design: a verbatim copy plus a clamped delete, so
-  cutting a fence-only selection copies it and deletes nothing.
-
-**Un-fencing a closed block is not a gesture this block offers.** Editing the opener markers
-to demote a closed fence to a paragraph is what the third table row does, so it is refused.
-The exits that remain: select-all + Backspace empties the body and keeps the block; deleting
-the block whole (a cross-block selection, or Ctrl+A twice) removes it.
+- **An edit that touches hidden structure alone does nothing.** It overlaps no part of the body,
+  so it rewrites nothing and spends no undo entry.
+- **Copy stays verbatim.** A read that changes nothing keeps the bytes the selection covers.
 
 ## Happy paths
 
-- paste over a selection running from the body into the closer replaces only the body part
+- paste over a selection running from the body past its end replaces only the body part
   (paste's own delete-first step is clamped, not just the browser's delete)
 - undo after a clamped delete restores the block byte-for-byte (one entry, placed at the
   start of the clamped span)
 
 ## Edge cases
 
-- cut writes the selection to the clipboard verbatim, fence characters included, and
-  deletes only the body part
-- cut of a closer-only selection writes the fence to the clipboard and deletes nothing
-- a selection wholly inside the info string is edited verbatim: no clamp, no behavior change
 - select-all then Backspace empties the body and keeps the code block a code block (it does
   not convert to a paragraph, as an unguarded browser delete of the whole display would)
-- Backspace inside the closer run does nothing (the auto-pair delete reads a caret between two
-  backticks as a pair and must refuse there)
-- paste does nothing wherever typing does nothing: with the caret inside either marker run, and
-  over a selection made only of fence characters
-- an unclosed fence keeps its marker run editable: deleting it demotes the block to a
-  paragraph, byte-for-byte
+
+## Pinned below the browser
+
+No click or arrow puts a caret on a hidden fence line, so the gestures confined to one are
+driven against the mounted block (`code-fence-ranged-edit.test.ts`) rather than end to end:
+Backspace inside the closer run, a paste into either marker run or over a closer-only
+selection, and a cut of a closer-only selection each commit nothing, and a delete inside the
+body is applied by the block, since Chromium would take the hidden fence line beside it.
+(miss-analysis: when these fence lines became editable in source mode, the refusals were deleted
+with their source-mode tests instead of moved to the mode that still hides the lines)
 
 ## Unverified
 

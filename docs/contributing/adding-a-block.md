@@ -120,7 +120,7 @@ registerBlockKind('thematicBreak', {
 | `contentStartBackspace` | `'demote-first'`: Backspace at the content start drops the kind's own markers before it merges (headings, again)                                  |
 | `blockFocus`            | `'whole-block'`: an opaque childless block joins the focus-then-delete model (arrows stop on it; Backspace focuses it, a second press deletes it) |
 | `contextDependentKind`  | Kinds with no standalone line recognizer, whose container owns their syntax (a table cell)                                                        |
-| `normalizeRawWrite`     | Make a written raw legal as this kind's own bytes; the fenced code's rule is `schema/fenced-code-raw.ts`                                          |
+| `rawWrite`              | Make a written raw legal as this kind's own bytes, and map a caret through it; the fenced code's rule is `schema/fenced-code-raw.ts`              |
 | `renderImagesAsWidgets` | `false` opts out of image widgets (a table cell renders the alt text instead)                                                                     |
 | `foreignDragHitTest`    | Custom drop-target geometry: the EXACT hit, declining off-target                                                                                  |
 | `caretTargetAtPoint`    | Where a caret-placing gesture lands inside the block: the NEAREST target                                                                          |

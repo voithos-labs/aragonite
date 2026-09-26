@@ -161,8 +161,8 @@ const MARKER_CLASS_FILES: Record<string, string> = {
 	'src/lib/core/inline-render.ts': 'creates inline marker and ref-label spans',
 	'src/lib/core/inline/visibility.ts': 'names the families the hiding rule is stated over',
 	'src/lib/components/blocks/text/text-render.ts': 'creates the block-own prefix span',
-	'src/lib/components/blocks/code/code-renderer.ts': 'creates fence marker and fence-line spans',
-	'src/lib/plugins/latex/math-source.ts': 'creates the `$$` fence marker and fence-line spans',
+	'src/lib/components/blocks/code/code-renderer.ts':
+		'creates fence marker and fence-line spans, for every kind that holds its own fence',
 	'src/lib/invariants/marker-css-parity.ts':
 		'the DEV probe comparing the classification home against the stylesheet, one span per family'
 };
@@ -214,8 +214,8 @@ const MARKER_FAMILY_NAMERS: Record<string, string> = {
 		'identifies the marker-prefix widget, whose contenteditable="false" marker is no family of the rule',
 	'src/lib/ambient/ambient-dom.ts': 'creates that same widget',
 	'src/lib/components/blocks/text/text-render.ts': "creates the block's own prefix span",
-	'src/lib/components/blocks/code/code-renderer.ts': 'creates the fence marker spans',
-	'src/lib/plugins/latex/math-source.ts': 'creates the `$$` fence marker spans',
+	'src/lib/components/blocks/code/code-renderer.ts':
+		'creates the fence marker spans, for every kind that holds its own fence',
 	'src/lib/invariants/marker-css-parity.ts': 'mounts one probe span per family for the DEV probe'
 };
 

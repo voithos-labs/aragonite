@@ -24,7 +24,8 @@ export const codePasteSurface: PasteSurface = {
 			pasted: text,
 			fenceMarker: meta.fenceMarker,
 			fenceLength: meta.fenceLength,
-			closed: meta.closed
+			closed: meta.closed,
+			ending: lineEnding
 		});
 
 		return {

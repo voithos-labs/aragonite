@@ -4,6 +4,7 @@
  */
 
 import { reconcileFenceWrite } from '../../../schema/fenced-code-raw';
+import type { LineEnding } from '../../../core/lines';
 
 export interface CodePasteInput {
 	display: string;
@@ -12,6 +13,8 @@ export interface CodePasteInput {
 	fenceMarker: '`' | '~';
 	fenceLength: number;
 	closed: boolean;
+	/** The block's own line ending, for a closer line the rule puts back. */
+	ending: LineEnding;
 }
 
 export interface CodePasteResult {
@@ -26,14 +29,15 @@ export interface CodePasteResult {
  * already there, grows the fence instead of ending the block.
  */
 export function computeCodePaste(input: CodePasteInput): CodePasteResult {
-	const { display, selection, pasted, fenceMarker, fenceLength, closed } = input;
+	const { display, selection, pasted, fenceMarker, fenceLength, closed, ending } = input;
 	const { start, end } = selection;
 
 	const written = reconcileFenceWrite({
 		display: display.slice(0, start) + pasted + display.slice(end),
 		caret: start + pasted.length,
 		fence: { marker: fenceMarker, length: fenceLength, closed },
-		mode: 'literal'
+		mode: 'literal',
+		ending
 	});
 	return { text: written.display, cursor: written.caret };
 }

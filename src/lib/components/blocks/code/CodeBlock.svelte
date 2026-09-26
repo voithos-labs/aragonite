@@ -41,7 +41,7 @@
 		reconcileFenceWrite,
 		writeFenceInfo
 	} from '../../../schema/fenced-code-raw';
-	import { hidesMarkers } from '../../../presentation-mode';
+	import { hidesMarkers, paintsFocusedMarkers } from '../../../presentation-mode';
 	import CodeBlockRail from './CodeBlockRail.svelte';
 	import { computeFenceExit, computeTypedFenceExit } from './code-fence-exit';
 	import {
@@ -51,9 +51,11 @@
 		clampEnterOffsetToBody,
 		clampRangeToBody,
 		computeFenceRangedEdit,
+		computeRangedEdit,
 		crossesFenceBoundary,
 		fenceEditSpan,
-		isStructureOnlyRange
+		isStructureOnlyRange,
+		orderedRange
 	} from './code-fence-boundary';
 	import { metadataOf, type CstNode } from '../../../core/nodes';
 	import {
@@ -91,6 +93,9 @@
 		getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
 	const presentationMode = $derived(reading.mode());
 	const readOnly = $derived(presentationMode === 'reading');
+	// A fence line takes edits where the mode paints it, as the focused block's markers; where it
+	// is hidden, an edit that reaches it clamps to the body. A caret arriving lands in the body.
+	const fenceLinesEditable = $derived(paintsFocusedMarkers(presentationMode));
 	let el: HTMLDivElement | undefined = $state();
 	let composing = $state(false);
 	let pendingCursorOffset = $state<number | null>(null);
@@ -103,8 +108,8 @@
 		...wiring.deps,
 		getEl: () => el ?? null,
 		backend,
-		// A fence line is structure: a column landing stays in the body, and a placed offset
-		// that reaches a fence line clamps onto editable content.
+		// A caret arriving from outside lands on the body in every mode, by a column or a placed
+		// offset; only a click or an arrow inside the block reaches a fence line the mode paints.
 		columnWindow: () => bodyWindow(node),
 		clampLanding: (offset) => clampCaretToBody(node, offset),
 		getMyPath: () => myPath,
@@ -157,9 +162,12 @@
 			display,
 			caret,
 			fence: fenceShapeOf(node),
-			mode: 'authored'
+			mode: 'authored',
+			ending: blockEnding()
 		});
-		void blockEdit.updateBlockContent(index, written.display + blockEnding(), undoAnchor);
+		// The caret goes along: an edit that demotes the block lands it in whatever replaces it.
+		const bytes = written.display + blockEnding();
+		void blockEdit.updateBlockContent(index, bytes, undoAnchor, written.caret);
 		return written.caret;
 	}
 
@@ -195,6 +203,10 @@
 
 	useParkFocusOnUnmount(() => el ?? null, getEditorRoot);
 
+	// A commit can turn this block into another kind (a `math` info string makes a math fence),
+	// and a step deferred past that commit then has no code block left to act on.
+	const isStillCode = () => node.kind === 'fencedCode';
+
 	// ── The rail ──────────────────────────────────────────────────────────────
 
 	// The side gutter stands in for fence markers the mode does not draw, so source mode never gets
@@ -229,6 +241,7 @@
 		// Deferred past the commit's own caret placement, which focuses this block a second time
 		// and would blur a picker opened on the first. A bare fence is completed before it opens.
 		void tick().then(() => {
+			if (!isStillCode()) return;
 			const completed = completeBareFence();
 			if (!offerLanguage) return;
 			if (completed) {
@@ -308,6 +321,7 @@
 		// every child of the container and loses the caret.
 		el?.focus({ preventScroll: true });
 		void tick().then(() => {
+			if (!isStillCode()) return;
 			// Read the body after the commit lands. Writing a language lengthens the opener, so
 			// an offset measured against the node from before the commit points into the info
 			// string that just grew, putting the caret inside `js` where typing splits it.
@@ -327,7 +341,7 @@
 	// body here, before the composition takes over.
 	function onCompositionStart(): void {
 		const sel = backend.getRawSelection();
-		if (sel && crossesFenceBoundary(node, sel)) {
+		if (sel && !fenceLinesEditable && crossesFenceBoundary(node, sel)) {
 			const span = fenceEditSpan(node, sel);
 			setSelection(span.start, span.end);
 		}
@@ -421,11 +435,11 @@
 
 	/**
 	 * The one check for every browser edit that rewrites a range here: delete, forward delete,
-	 * typing over a selection, word delete and drag. One that crosses a fence line is moved
-	 * onto the body rather than left to splice the fence away.
+	 * typing over a selection, word delete and drag. Where the fence lines are hidden, one that
+	 * crosses a fence line is moved onto the body rather than left to splice the fence away.
 	 */
 	function guardFenceRangedEdit(e: InputEvent): boolean {
-		if (composing || !el) return false;
+		if (composing || !el || fenceLinesEditable) return false;
 		const range = pendingEditRange(e);
 		if (!range) return false;
 		if (!crossesFenceBoundary(node, range)) return guardHiddenFenceDelete(e, range);
@@ -448,7 +462,7 @@
 	 * deleting the last visible character of a line, also removes the unrendered fence line beside it.
 	 */
 	function guardHiddenFenceDelete(e: InputEvent, range: RawRange): boolean {
-		if (!showRail || !/^delete(?!By)/.test(e.inputType)) return false;
+		if (!/^delete(?!By)/.test(e.inputType)) return false;
 		e.preventDefault();
 		const span = clampRangeToBody(node, range);
 		if (span.end > span.start) {
@@ -734,24 +748,26 @@
 		caret: editableSurface.caret,
 		events: editorEvents,
 		onPasteImage,
-		// Copy is verbatim while the delete clamps: the clipboard keeps the literal bytes
-		// selected, fence characters included, and only the body half is removed.
+		// Copy is verbatim; where the fence lines are hidden the delete clamps, so the clipboard keeps
+		// the fence characters selected while only the body half is removed.
 		cutTail: (e) => {
 			e.clipboardData?.setData('text/plain', window.getSelection()?.toString() ?? '');
 			if (!el) return;
 			const selOffsets = backend.getRawSelection();
 			if (!selOffsets) return;
-			const edit = computeFenceRangedEdit(node, selOffsets, '');
+			const edit = fenceLinesEditable
+				? computeRangedEdit(getDisplayText(), selOffsets, '')
+				: computeFenceRangedEdit(node, selOffsets, '');
 			if (!edit) return;
 			pendingCursorOffset = commitDisplay(edit.newText, edit.newCursor, edit.newCursor);
 		},
 		pasteTail: async (pastedText) => {
 			if (!el) return;
-			// Paste refuses where typing refuses: a target confined to fence structure has
-			// nothing to paste into. The tree-op owns the splice, so the span goes to it.
+			// Where the fence lines are hidden, paste refuses where typing refuses: a target confined
+			// to fence structure has nothing to paste into. The tree-op owns the splice.
 			const target = currentRange();
-			if (isStructureOnlyRange(node, target)) return;
-			const sel = fenceEditSpan(node, target);
+			if (!fenceLinesEditable && isStructureOnlyRange(node, target)) return;
+			const sel = fenceLinesEditable ? orderedRange(target) : fenceEditSpan(node, target);
 			const result = await pasteDispatch(
 				{
 					pastedText,

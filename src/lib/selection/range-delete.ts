@@ -134,7 +134,11 @@ export function rangeDelete(
 	// A join can create a line neither side held: two lines each with a mid-line `</details>`
 	// become one that opens with it. The survivor lands in the start's container, so that
 	// container's body rule is applied here, before the kinds are derived from the bytes.
-	const mergedRaw = normalizeBodyWrite(blockNodeAt(doc, start.path.slice(0, -1))?.kind, join.raw);
+	const mergedRaw = normalizeBodyWrite(
+		blockNodeAt(doc, start.path.slice(0, -1)) ?? undefined,
+		join.raw,
+		documentLineEnding(doc)
+	);
 	// After both write rules and before either consumer: in live mode the runs the truncation
 	// left unpaired, and the pair a join brings back to back, are bytes the user never saw
 	// (live-mode.md § 4.5).

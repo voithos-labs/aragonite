@@ -179,7 +179,7 @@ const ALLOWLIST: Record<string, Exemption> = {
 	'src/lib/test/plugins/latex/raw-write-rule.test.ts': {
 		specifiers: ['$lib/tree-operations/node-primitives'],
 		reason:
-			'a kind declares normalizeRawWrite but nothing published applies one, so an author cannot ' +
+			'a kind declares rawWrite but nothing published applies one, so an author cannot ' +
 			'check what their rule makes of bytes a tree operation wrote'
 	},
 	'src/lib/test/plugins/latex/offset-audit.test.ts': {
@@ -206,8 +206,7 @@ const ALLOWLIST: Record<string, Exemption> = {
 			'$lib/selection/range-delete',
 			'$lib/tree-operations/sharing'
 		],
-		reason:
-			'nothing published applies a kind’s normalizeRawWrite or range-deletes a parsed document'
+		reason: 'nothing published applies a kind’s rawWrite or range-deletes a parsed document'
 	},
 	'src/lib/test/plugins/toc/options.test.ts': {
 		specifiers: ['$lib/schema/block-component-registry', '$lib/schema/plugin-activation'],

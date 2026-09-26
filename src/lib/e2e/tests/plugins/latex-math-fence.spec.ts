@@ -46,4 +46,31 @@ test.describe('plugin math fence: distinct kind, shared render', () => {
 		expect(await editor.bridge.getBlockKind(1)).toBe('mathFence');
 		expect(await roundTripStable(editor.page)).toBe(true);
 	});
+
+	// Picking `math` for a code block's language turns it into a math fence, and the code block
+	// that did it is gone by the time its own caret step would run.
+	test('picking math as a live code block’s language becomes a math fence', async ({ page }) => {
+		await editor.loadContent('para\n\nafter\n');
+		await editor.setPresentationMode('live');
+		await editor.focusBlockEnd(0);
+		await page.keyboard.press('Enter');
+		await page.keyboard.type('```math');
+		await page.keyboard.press('Enter');
+
+		await editor.bridge.waitForSourceEquals('para\n\n```math\n\n```\n\nafter\n');
+		await expect.poll(() => editor.bridge.getBlockKind(1)).toBe('mathFence');
+	});
+
+	test('stands off its neighbours by the same padding as a $$ block', async ({ page }) => {
+		await editor.loadContent('para\n\n$$\nx\n$$\n\npara\n\n```math\nx\n```\n\npara\n');
+		const padding = (kind: string) =>
+			page
+				.locator(`.block-host[data-block-kind='${kind}']`)
+				.evaluate(
+					(el) => `${getComputedStyle(el).paddingTop} ${getComputedStyle(el).paddingBottom}`
+				);
+
+		expect(await padding('mathBlock')).toBe('6px 6px');
+		expect(await padding('mathFence')).toBe(await padding('mathBlock'));
+	});
 });

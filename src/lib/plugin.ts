@@ -67,8 +67,9 @@ export type {
 	BlockKindAugmentation,
 	ContainerDescriptorGroup,
 	MergeRole,
-	RawWriteContext,
-	UnwrapRole
+	UnwrapRole,
+	WriteContext,
+	WriteRule
 } from './schema/block-kind-descriptor';
 // `rebuildRaw`'s optional second argument: the one child whose raw moved, for a rebuilder that
 // re-emits that child's region alone. Ignoring it re-derives the whole raw, which is correct.
@@ -130,6 +131,14 @@ export function highlightCode(body: string, language: string): DocumentFragment 
 // Re-exported so a host names the grammar type without importing highlight.js itself, which
 // it holds only transitively.
 export type { LanguageFn } from 'highlight.js';
+// The code block's own drawing of a fenced source, for a kind that holds its own fence: split
+// with `sliceFencedSource`, draw with `renderFencedSource` and your body painter.
+export {
+	sliceFencedSource,
+	renderFencedSource,
+	fenceBodyAsDrawn
+} from './components/blocks/code/code-renderer';
+export type { FencedSource } from './components/blocks/code/code-renderer';
 
 // ── Command vocabulary + keybindings (pre-freeze) ────────────────────────────
 // The built-in half; a plugin's own commands are created in the section below.
@@ -186,12 +195,23 @@ export { parseContainerBody } from './core/parser';
 export type { ContainerBodyWrap } from './core/parser';
 
 // ── Fence grammar (pre-freeze) ───────────────────────────────────────────────
-// The built-in CommonMark fence recognizers, so a plugin that takes over a fence (```mermaid)
-// never reimplements the rules. The opener match keeps the indent and info bytes verbatim, for
-// byte-exact rebuilds; `escalatedFenceLength` is the fence counterpart of `escalatedColonCount`,
-// which any kind that rebuilds its own raw around a body it did not parse needs.
-export { matchFenceOpen, matchFenceClose, escalatedFenceLength } from './core/parsers/fence-syntax';
-export type { FenceOpen } from './core/parsers/fence-syntax';
+// The built-in CommonMark fence grammar, so a plugin that takes over a fence (```mermaid) never
+// reimplements it: claim a fence with `matchFenceInfo`, read its extent with `scanFence` and its
+// parts with `fenceAnatomy`, and declare `fenceRawWrite` as the kind's `rawWrite`. A kind that
+// rebuilds its own raw around a body it did not parse sizes the fence with `escalatedFenceLength`.
+export {
+	matchFenceOpen,
+	matchFenceClose,
+	escalatedFenceLength,
+	findFenceCloser,
+	fenceAnatomy,
+	matchFenceInfo
+} from './core/parsers/fence-syntax';
+export type { FenceOpen, FenceRun, FenceAnatomy } from './core/parsers/fence-syntax';
+export { scanFence } from './core/parsers/fenced-code';
+export type { FenceScan } from './core/parsers/fenced-code';
+export { fenceRawWrite, fenceShapeOfRaw } from './schema/fenced-code-raw';
+export type { FenceShape } from './schema/fenced-code-raw';
 
 // ── HTML tag-line grammar (pre-freeze) ───────────────────────────────────────
 // CommonMark's type-6 tag-line shape for one tag name. What actually closes such a

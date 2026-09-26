@@ -233,8 +233,8 @@
 
 	/* The equation's cards are boxes like a code block's, and keep the same distance from their
 	   neighbours (editor.css, fencedCode). Padding, not margin: block heights are measured from
-	   the host's box. */
-	:global(.block-host[data-block-kind='mathBlock']) {
+	   the host's box. Keyed on this component, so every math kind it renders gets it. */
+	:global(.block-host):has(> .math-block) {
 		padding-block: 6px;
 	}
 

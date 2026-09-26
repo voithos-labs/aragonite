@@ -50,7 +50,7 @@ describe('updateNodeContent: contextDependentKind stickiness', () => {
 // Every cell gesture's text reaches the row's verbatim bytes through the write branch
 // above, so the legality pass belongs there. Three gestures carried it individually and
 // each lost it; these pin the write itself so a fourth cannot.
-describe('updateNodeContent: the kind’s normalizeRawWrite runs at the write', () => {
+describe('updateNodeContent: the kind’s rawWrite runs at the write', () => {
 	beforeEach(() => __resetSchemaRegistriesForTests());
 
 	/**

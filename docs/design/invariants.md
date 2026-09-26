@@ -1091,7 +1091,7 @@ Scanned over the library and the plugin-route author stand-in; the consumer exam
 writes the documented whole-document default), as are the published kits (fixtures are whole
 documents). `lint/call-site-rules.test.ts`.
 
-**G4.28 · Leaf raw-write rule parity.** A kind's own `normalizeRawWrite` reaches its bytes through
+**G4.28 · Leaf raw-write rule parity.** A kind's own `rawWrite` rule reaches its bytes through
 two readers in `node-primitives`: `writeOwnRaw` for a sink that writes in place, and `normalizeOwnRaw` for
 one that replaces the leaf with a reparse of the result. Exactly the documented sinks call each
 (find/replace's private clone, the same-block range merge, the degraded typed-char splice, the

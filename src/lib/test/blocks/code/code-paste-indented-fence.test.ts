@@ -5,8 +5,8 @@ type PasteArgs = Parameters<typeof computeCodePaste>[0];
 
 /** A closed 3-backtick fence; each case names only the fence facts it varies. */
 const paste = (
-	args: Omit<PasteArgs, 'fenceMarker' | 'fenceLength' | 'closed'> & Partial<PasteArgs>
-) => computeCodePaste({ fenceMarker: '`', fenceLength: 3, closed: true, ...args });
+	args: Omit<PasteArgs, 'fenceMarker' | 'fenceLength' | 'closed' | 'ending'> & Partial<PasteArgs>
+) => computeCodePaste({ fenceMarker: '`', fenceLength: 3, closed: true, ending: '\n', ...args });
 
 describe('computeCodePaste: indented fence opener (J2)', () => {
 	it('bumps an opener indented by 3 spaces and preserves the indent', () => {

@@ -12,7 +12,7 @@ import {
 const backtick = (length = 3, closed = true): FenceShape => ({ marker: '`', length, closed });
 
 function write(display: string, fence: FenceShape, mode: FenceWriteMode = 'authored', caret = 0) {
-	return reconcileFenceWrite({ display, caret, fence, mode });
+	return reconcileFenceWrite({ display, caret, fence, mode, ending: '\n' });
 }
 
 describe('reconcileFenceWrite: escalation', () => {
@@ -112,19 +112,20 @@ describe('reconcileFenceWrite: info-string sanitization', () => {
 	});
 });
 
-describe('reconcileFenceWrite: declines what it cannot read', () => {
-	it('leaves a display whose opener is not this block’s fence shape', () => {
-		const display = 'js\ncode\n```';
-		expect(write(display, backtick()).display).toBe(display);
+// Typed edits reach the fence lines where the mode paints them, so the typed path keeps one opener
+// and one closer too: a fence line left alone would read every block below as its body.
+describe('reconcileFenceWrite: a typed edit keeps one opener and one closer', () => {
+	it('drops the closer an edit to the opener stranded', () => {
+		expect(write('js\ncode\n```', backtick()).display).toBe('js\ncode');
+	});
+
+	it('puts back a closer an edit removed', () => {
+		expect(write('```js', backtick()).display).toBe('```js\n```');
 	});
 
 	it('leaves a closed fence whose closer is gone', () => {
 		const display = '```js\n```\ncode';
 		expect(write(display, backtick()).display).toBe(display);
-	});
-
-	it('leaves an opener-only display', () => {
-		expect(write('```js', backtick()).display).toBe('```js');
 	});
 });
 

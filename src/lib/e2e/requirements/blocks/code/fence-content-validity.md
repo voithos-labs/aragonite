@@ -1,6 +1,6 @@
 # Feature: Content a code block's fence cannot hold
 
-`fence-ranged-edit.md` decides where an edit may land. This file decides what the block's
+`fence-ranged-edit.md` and `fence-line-editing.md` decide where an edit may land. This file decides what the block's
 content regions may hold once it has: the two characters that used to break a fence from
 inside a region the contract calls editable, each checked against the parser (the
 `# Heading` below every fixture is the block a broken fence swallows):

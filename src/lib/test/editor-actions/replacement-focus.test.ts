@@ -87,7 +87,7 @@ describe('previewContentReparse reads the owning container', () => {
 	});
 
 	it('reports a same-kind edit once the details owner escapes the same text', () => {
-		const owner = declaredPluginKind(DETAILS);
+		const owner = { kind: declaredPluginKind(DETAILS), leadingTrivia: '', raw: '' };
 		expect(
 			previewContentReparse(bodyParagraph(), '</details>\n', defaultGrammarView, owner, '', '\n').op
 		).toBe('noop');
@@ -103,16 +103,14 @@ describe('previewContentReparse reads a task paragraph as the commit does', () =
 		const item = todo();
 		const text = '# beta\n';
 		expect(
-			previewContentReparse(item.children![0], text, defaultGrammarView, 'listItem', '', '\n', item)
-				.op
+			previewContentReparse(item.children![0], text, defaultGrammarView, item, '', '\n', item).op
 		).toBe('noop');
 	});
 
 	it('reports the kind change for the same text in a plain item', () => {
 		const item = parse('- beta\n').children[0].children![0];
 		expect(
-			previewContentReparse(item.children![0], '# beta\n', defaultGrammarView, 'listItem', '', '\n')
-				.op
+			previewContentReparse(item.children![0], '# beta\n', defaultGrammarView, item, '', '\n').op
 		).not.toBe('noop');
 	});
 });

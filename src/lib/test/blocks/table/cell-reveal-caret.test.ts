@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 //
-// The caret half of how a cell writes. `normalizeRawWrite` escapes every free `|` as the bytes
+// The caret half of how a cell writes. `rawWrite` escapes every free `|` as the bytes
 // are written, so an offset reported against just-written text lands one byte early for each
 // escape; the commit caret is mapped, while the pending cursor is passed separately and skips
 // that mapping. Only the commit half is covered here: `focusCell` is stubbed, so the "Enter stays
