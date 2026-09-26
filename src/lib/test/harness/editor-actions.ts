@@ -220,7 +220,7 @@ export function makeStubController(): UndoController & PasteCommitCoordinator {
 		isolateUndoEntry: vi.fn((write: () => void) => write()),
 		undoStep: vi.fn(async (_seed: unknown, run: () => Promise<unknown>) => void (await run())),
 		joinTypingBatch: vi.fn((write: () => unknown) => write()),
-		endUndoJoin: vi.fn(),
+		endUndoStep: vi.fn(),
 		commitStructural: vi.fn(),
 		commitContainerStructural: vi.fn(),
 		commitMultiScope: vi.fn(),

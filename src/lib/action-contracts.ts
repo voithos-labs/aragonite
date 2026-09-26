@@ -242,14 +242,15 @@ export interface CommitController {
 	 *  keystroke batch breaks on both sides: one Ctrl+Z takes back the command alone. */
 	isolateUndoEntry(write: () => void): void;
 	/**
-	 * Make every write made while `run`'s promise is pending one undo entry, until the author's
-	 * next input: the document before the first write, with the selection as it stood when the
-	 * step opened (`seed` when nothing is focused). A step that writes nothing leaves no entry.
+	 * Make every write made while `run`'s promise is pending one undo entry: the document before the
+	 * first write, with the selection as it stood when the step opened (`seed` when nothing is
+	 * focused). The step ends when the promise settles or at the author's next input, whichever
+	 * comes first, and a step that writes nothing leaves no entry.
 	 */
 	undoStep(seed: CommitSnapshotArg, run: () => Promise<unknown>): Promise<void>;
 	/** Called on the author's own input: every later write opens its own entry, even while a
 	 *  step's run is still pending. */
-	endUndoJoin(): void;
+	endUndoStep(): void;
 }
 
 export interface ContainerEditActions {

@@ -516,7 +516,7 @@
 
 	$effect(() => {
 		if (!editorEl) return;
-		return installUndoStepEnd(editorEl, () => controller.endUndoJoin());
+		return installUndoStepEnd(editorEl, () => controller.endUndoStep());
 	});
 
 	// Register as a body-chord handler so the document-level keydown routes a body-level

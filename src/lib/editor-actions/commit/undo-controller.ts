@@ -226,8 +226,8 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		}
 	}
 
-	// Synchronous: a commit pushes as it is called, so the join covers the call and not the
-	// awaited tail, where the next keystroke must still open its own batch.
+	// Synchronous: a commit pushes as it is called, so this covers the call, not the awaited tail.
+	// Safe because `updateBlockContent` pushes the keystroke's batch entry before its commit.
 	function joinTypingBatch<T>(write: () => T): T {
 		const outer = joiningTyping;
 		joiningTyping = true;
@@ -238,7 +238,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		}
 	}
 
-	function endUndoJoin(): void {
+	function endUndoStep(): void {
 		if (stepDepth === 0) return;
 		stepEnded = true;
 		stepEntry = null;
@@ -827,7 +827,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		flushDebouncedCheckpoint: textBatch.interrupt,
 		undoStep,
 		joinTypingBatch,
-		endUndoJoin,
+		endUndoStep,
 		isolateUndoEntry: (write) => {
 			// Both sides: the first break makes the write push its own snapshot instead of
 			// joining the burst before it, the second keeps the next keystroke out of it.
