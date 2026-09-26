@@ -4,7 +4,6 @@
 	import { readBlocks } from '../../../core/parser';
 	import { ambientHoldsTaskBox } from '../list/task-checkbox';
 	import { shownKind } from '../../../core/parsers/heading';
-	import type { ContentWrite } from '../../../action-contracts';
 	import type { DocumentView, NodeView } from '../../../core/node-views';
 	import type { EditorRects } from '../../../editor-rects';
 	import { enterLinkCardAtCaret, linkCardTargetAt } from '../../link-card/link-card-entry';
@@ -539,18 +538,13 @@
 					perform: () => {
 						const demoted = demoteBeforeMerge(offset);
 						if (!demoted) return void blockEdit.mergeWithPrevious(index);
-						// A command is not typing: the demote is its own undo step, so one Ctrl+Z puts
-						// the heading back whole rather than unwinding the burst around it.
-						let write!: ContentWrite;
-						controller.isolateUndoEntry(() => {
-							write = blockEdit.updateBlockContent(
-								index,
-								demoted.newRaw,
-								'literal',
-								offset,
-								demoted.caretOffset
-							);
-						});
+						const write = blockEdit.updateBlockContent(
+							index,
+							demoted.newRaw,
+							'literal',
+							offset,
+							demoted.caretOffset
+						);
 						setPendingCursorOffset(write.caret, 'demote');
 					}
 				};
@@ -656,7 +650,9 @@
 				? { code: 'command-during-reveal', message: `${id} mutated the block with a reveal open` }
 				: null
 		);
-		perform();
+		// A command is not typing: its bytes are their own undo step, so one Ctrl+Z undoes the
+		// command alone rather than the burst of typing around it.
+		controller.isolateUndoEntry(perform);
 	}
 
 	void ({
@@ -1067,16 +1063,12 @@
 		if (!toggled) return;
 		const { newDisplay, newSelStart, newSelEnd } = toggled;
 
-		// A command is not typing: the toggle's bytes are their own undo step in every mode.
-		let write!: ContentWrite;
-		controller.isolateUndoEntry(() => {
-			write = blockEdit.updateBlockContent(
-				index,
-				newDisplay + blockEnding(),
-				'literal',
-				newSelStart
-			);
-		});
+		const write = blockEdit.updateBlockContent(
+			index,
+			newDisplay + blockEnding(),
+			'literal',
+			newSelStart
+		);
 
 		tick().then(() => {
 			setSelection(write.caret, write.storedOffset(newSelEnd));
