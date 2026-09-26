@@ -18,16 +18,19 @@ const SOURCE = 'alpha beta\n\ngamma\n';
 const FROM: DragSource = { path: [0], start: 6, end: 10, inCell: false, text: 'beta' };
 const TO = { path: [1], offset: 0 };
 
-function makeDrop(decline = false) {
+/** `declined` writes resolve without committing, as a refused or rolled-back commit does. */
+function makeDrop(declined = 0) {
 	const harness = makeEditorActionsDeps(SOURCE);
 	const controller = createUndoController(harness.deps);
 	const real = createPasteCoordinator(controller, harness.deps.revealPath);
-	const coordinator: PasteCommitCoordinator = decline
-		? {
-				...real,
-				commitMultiScope: (async () => false) as PasteCommitCoordinator['commitMultiScope']
-			}
-		: real;
+	let calls = 0;
+	const coordinator: PasteCommitCoordinator = {
+		...real,
+		commitMultiScope: ((args) =>
+			calls++ < declined
+				? Promise.resolve(false)
+				: real.commitMultiScope(args)) as PasteCommitCoordinator['commitMultiScope']
+	};
 	const deps: SelectionDropDeps = {
 		editorRoot: document.createElement('div'),
 		getDoc: () => harness.deps.doc,
@@ -56,7 +59,17 @@ describe('dropping a selection into another block', () => {
 	});
 
 	it('leaves no undo entry when neither write lands', async () => {
-		const { deps, undo } = makeDrop(true);
+		const { deps, undo } = makeDrop(Infinity);
+
+		await runDrop(deps, FROM, TO, false);
+
+		expect(serialize(deps.getDoc())).toBe(SOURCE);
+		expect(undo()).toHaveLength(0);
+	});
+
+	// Miss-analysis: the case above declined both writes, and none let the insert land alone.
+	it('inserts nothing when the cut does not land, so a move never becomes a copy', async () => {
+		const { deps, undo } = makeDrop(1);
 
 		await runDrop(deps, FROM, TO, false);
 

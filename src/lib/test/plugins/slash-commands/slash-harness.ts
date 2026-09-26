@@ -65,6 +65,7 @@ export function slashHarness(initial: string, options: SlashCommandsOptions = {}
 			write(raw().slice(0, start) + bytes + raw().slice(end));
 			events.emit('edit', typedEdit(path));
 			await tick();
+			return true;
 		},
 		landCaret: async (_path, offset) => {
 			caret = offset;

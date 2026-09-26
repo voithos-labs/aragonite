@@ -55,14 +55,14 @@ function landTrailingSeparator(
 	args.doc.suffix = ending;
 }
 
-/** Returns how many blocks landed in the position, 0 when nothing was written: the body rule below
- *  can rewrite the list, so a caller whose next write addresses a later sibling asks here. */
-export async function replaceBlockAtParent(args: ReplaceBlockAtParentArgs): Promise<number> {
+/** Returns how many blocks landed in the position, or null when nothing was written: the body rule
+ *  below can rewrite the list, so a caller whose next write addresses a later sibling asks here. */
+export async function replaceBlockAtParent(args: ReplaceBlockAtParentArgs): Promise<number | null> {
 	const { doc, blockPath, controller, focusOffset, source } = args;
 
 	const blockIdx = blockPath[blockPath.length - 1];
 	const scope = resolveParentScope(doc, blockPath, controller);
-	if (!scope) return 0;
+	if (!scope) return null;
 
 	// A replacement is built before any content write sees it, so the owner's `bodyWrite` escape
 	// is applied here, to the clipboard blocks and the target's split halves alike.
@@ -117,5 +117,5 @@ export async function replaceBlockAtParent(args: ReplaceBlockAtParentArgs): Prom
 			return controller.landCaret([...scope.path, caret.index, ...at.path], at.offset);
 		}
 	});
-	return wrote ? replacement.length : 0;
+	return wrote ? replacement.length : null;
 }

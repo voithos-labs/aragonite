@@ -310,6 +310,8 @@ async function moveOrCopy(
 	// the second write moves away from is its first cell.
 	const sourceCaret = from.inCell ? 0 : from.start;
 	const spliced = await writeBlockRaw(deps, cut.path, () => cut.raw, sourceCaret);
+	// An insert after a cut that never landed would turn the move into a copy.
+	if (spliced === null) return;
 	const at = cut.path[cut.path.length - 1];
 	const target = shiftPathAfterSplice(to.path, cut.path.slice(0, -1), at, spliced);
 	await writeBlockRaw(deps, target, insert(to.offset, text), to.offset + text.length);
@@ -365,17 +367,17 @@ function cutFromCell(deps: SelectionDropDeps, from: DragSource, cell: CstNode): 
 /**
  * Replaces the block at `path` with the reparse of the bytes `rewrite` returns, in its parent's
  * child list. Returns how many blocks the position grew or shrank by, which keeps a second
- * write's path correct.
+ * write's path correct, or null when nothing was written.
  */
 async function writeBlockRaw(
 	deps: SelectionDropDeps,
 	path: number[],
 	rewrite: (displayRaw: string) => string,
 	caret: number
-): Promise<number> {
+): Promise<number | null> {
 	const doc = deps.getDoc();
 	const node = blockNodeAt(doc, path);
-	if (!node) return 0;
+	if (!node) return null;
 	// The bytes are built outside the block's own element, so the kind's write rule runs here.
 	const lineEnding = documentLineEnding(doc);
 	const written = normalizeOwnRaw(node, rewrite(trimTrailingLineEnding(node.raw)), lineEnding);
@@ -384,7 +386,7 @@ async function writeBlockRaw(
 	const parsed = parseReplacement(node, written, lineEnding, deps.reading.grammar, () => [
 		emptyParagraph(node.leadingTrivia ?? '', trailingLineEnding(node.raw, lineEnding))
 	]);
-	if (!parsed) return 0;
+	if (!parsed) return null;
 	const landed = await replaceBlockAtParent({
 		doc,
 		blockPath: path,
@@ -395,9 +397,8 @@ async function writeBlockRaw(
 		source: 'selection-drop',
 		grammar: deps.reading.grammar
 	});
-	// The count that landed, not the parse's: a container's body rule can rewrite the list. Zero
-	// means nothing was written, so nothing moved.
-	return Math.max(0, landed - 1);
+	// The count that landed, not the parse's: a container's body rule can rewrite the list.
+	return landed === null ? null : landed - 1;
 }
 
 // ── Small helpers ──────────────────────────────────────────────────────────

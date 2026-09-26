@@ -40,14 +40,15 @@ export interface InlineMenuStateDeps {
 	editorId: string;
 	/** The editor's resolver and grammar, so a trigger inside a construct reads as the render drew it. */
 	reading: Reading;
-	/** Splice `bytes` over `[start, end)` of the leaf at `path` as one undo entry. */
+	/** Splice `bytes` over `[start, end)` of the leaf at `path` as one undo entry; resolves to whether
+	 *  the leaf holds them. */
 	commitRange: (
 		path: number[],
 		start: number,
 		end: number,
 		bytes: string,
 		caretAfter: number
-	) => Promise<void>;
+	) => Promise<boolean>;
 	/** Land the caret at a raw offset, so the next keystroke addresses the document. */
 	landCaret: (path: number[], offset: number) => Promise<boolean>;
 	/** One undo entry for a pick and the block its source inserts; `path` and `offset` are where undo
@@ -361,7 +362,10 @@ export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuStat
 		// The write is this menu's own, not a keystroke: bytes ending in a trigger reopen nothing.
 		writing = true;
 		try {
-			await deps.commitRange(range.path, range.start, range.end, item.insert, caretAfter);
+			// A pick whose bytes never landed has no caret to place and nothing for onCommit to follow.
+			if (!(await deps.commitRange(range.path, range.start, range.end, item.insert, caretAfter))) {
+				return;
+			}
 			await deps.landCaret(range.path, caretAfter);
 		} catch (error) {
 			// Nobody is waiting on this write, so a refused one has to be reported here or vanish.
@@ -390,7 +394,7 @@ export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuStat
 		void (async () => {
 			writing = true;
 			try {
-				await deps.commitRange(caret.path, start, start, typed, caretAfter);
+				if (!(await deps.commitRange(caret.path, start, start, typed, caretAfter))) return;
 				await deps.landCaret(caret.path, caretAfter);
 			} catch (error) {
 				report(error, name);
