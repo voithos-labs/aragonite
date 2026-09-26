@@ -89,6 +89,17 @@ test.describe('list Tab', () => {
 		expect(src).toMatch(/^ {2}- Xthree$/m);
 	});
 
+	test('Tab on an item ending in a table lands at the start of its last cell', async () => {
+		await editor.loadContent('- a\n- b\n\n  | h1 | h2 |\n  | -- | -- |\n  | c1 | c2 |\n');
+		await editor.focusBlockAtPath([0, 1, 0], 0);
+		await editor.page.keyboard.press('Tab');
+		await editor.bridge.waitForSourceMatches(/^ {2}- b$/m);
+
+		await editor.typeText('x');
+		await editor.bridge.waitForSourceContains('x');
+		expect(await editor.bridge.getSource()).toContain('| c1 | xc2 |');
+	});
+
 	test('Tab into a fresh nested list focuses the moved item', async () => {
 		await editor.loadContent('- one\n- two\n- three\n');
 
