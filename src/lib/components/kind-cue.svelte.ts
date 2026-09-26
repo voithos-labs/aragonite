@@ -6,8 +6,8 @@
 
 import { SvelteMap } from 'svelte/reactivity';
 import type { AnyBlockKind } from '../core/nodes';
-import type { DocumentView, NodeView } from '../core/node-views';
-import { isBareHeadingOpener } from '../core/parsers/heading';
+import type { DocumentView } from '../core/node-views';
+import { shownKind } from '../core/parsers/heading';
 import { blockAccessibleName } from '../a11y-strings';
 import { hidesMarkers, type PresentationMode } from '../presentation-mode';
 import { blockNodeAt } from '../tree-operations/node-primitives';
@@ -53,9 +53,4 @@ export function createKindCue(deps: KindCueDeps): KindCue {
 		},
 		dismiss: (path) => void labels.delete(keyOf(path))
 	};
-}
-
-/** The kind a reader sees: a bare `#` still paints as the paragraph it was (`built-in-blocks.ts`). */
-export function shownKind(node: NodeView): AnyBlockKind {
-	return node.kind === 'heading' && isBareHeadingOpener(node.raw) ? 'paragraph' : node.kind;
 }

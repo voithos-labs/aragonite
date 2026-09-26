@@ -7,7 +7,7 @@
 
 import type { NodeView } from '../core/node-views';
 import { metadataOf } from '../core/nodes';
-import { isBareHeadingOpener } from '../core/parsers/heading';
+import { shownKind } from '../core/parsers/heading';
 import {
 	defineBlockComponent,
 	registerBlockComponent,
@@ -35,10 +35,7 @@ import { tableCaretAtPoint } from './blocks/table/table-caret-at-point';
 import { tableDragHitTest } from './blocks/table/table-drag-hit-test';
 
 function headingExtraProps(node: NodeView): Record<string, unknown> {
-	// The heading type arrives with the space after the hashes, never before: a bare `#` is an
-	// empty heading to CommonMark, but to a user it is the first byte of `#tag`, and a line that
-	// flashes to h1 size for that one keystroke reads as the editor fighting the tag.
-	if (isBareHeadingOpener(node.raw)) return { blockClass: 'paragraph-block' };
+	if (shownKind(node) === 'paragraph') return { blockClass: 'paragraph-block' };
 	const level = metadataOf(node, 'heading')?.level ?? 1;
 	return { blockClass: `heading-${level}` };
 }

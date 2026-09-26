@@ -13,6 +13,7 @@ import {
 	type TableAlignment
 } from './core/nodes';
 import { tryGetBlockKindDescriptor } from './schema/block-kind-descriptor';
+import { shownKind } from './core/parsers/heading';
 
 // ── Editor controls ──────────────────────────────────────────────────────────
 
@@ -75,9 +76,11 @@ export function blockKindLabel(kind: AnyBlockKind): string {
 	return tryGetBlockKindDescriptor(kind)?.label ?? humanizeKind(kind);
 }
 
-/** A block's accessible name: its kind's name, plus a heading's level or a code fence's
- *  language, which is what a reader moving block to block needs to tell them apart. */
+/** A block's accessible name: the name of the kind it shows as, plus a heading's level or a code
+ *  fence's language, which is what a reader moving block to block needs to tell them apart. */
 export function blockAccessibleName(node: NodeView): string {
+	const shown = shownKind(node);
+	if (shown !== node.kind) return blockKindLabel(shown);
 	const label = blockKindLabel(node.kind);
 	const level = headingLevel(node);
 	if (level !== null) return `${label} level ${level}`;
