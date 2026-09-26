@@ -369,6 +369,17 @@ export function landableDomTextBounds(container: ParentNode): {
 	return { start: asDomTextOffset(start), end: asDomTextOffset(Math.max(start, end)) };
 }
 
+/**
+ * A `<br>` that gives the caret a line nothing else paints, adding no text, so offsets are
+ * untouched. `role` is what the walks here tell apart: `closer` stands in for a hidden fence
+ * closer line, `break` for a pending hard break's line.
+ */
+export function createCaretAnchor(role: '' | 'closer' | 'break' = ''): HTMLBRElement {
+	const anchor = document.createElement('br');
+	anchor.dataset.caretAnchor = role;
+	return anchor;
+}
+
 /** Whether the next painted node after `text`, at any depth above it, is a caret anchor. */
 function followedByCaretAnchor(text: Node, root: ParentNode): boolean {
 	for (let node: Node | null = text; node && node !== root; node = node.parentNode) {

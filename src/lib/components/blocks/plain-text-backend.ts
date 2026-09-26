@@ -7,6 +7,7 @@
 
 import type { CursorBackend } from './editable-surface';
 import { asDomTextOffset, asRawOffset, type RawOffset } from '../../cursor/coordinate-spaces';
+import { createCaretAnchor } from '../../cursor/widget-offset';
 import {
 	createRangeFromOffsets,
 	setCursorOffset,
@@ -55,7 +56,5 @@ export function createContentOffsetBackend(getEl: () => HTMLElement | null): Con
  */
 export function anchorTrailingNewline(el: HTMLElement): void {
 	if (!el.textContent?.endsWith('\n')) return;
-	const anchor = document.createElement('br');
-	anchor.dataset.caretAnchor = '';
-	el.appendChild(anchor);
+	el.appendChild(createCaretAnchor());
 }

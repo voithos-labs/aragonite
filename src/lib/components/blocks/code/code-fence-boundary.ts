@@ -7,6 +7,7 @@
 import type { NodeView } from '../../../core/node-views';
 import { metadataOf } from '../../../core/nodes';
 import { displayLength, trimTrailingLineEnding } from '../../../core/lines';
+import { fenceAnatomy } from '../../../core/parsers/fence-syntax';
 import { sliceFencedCode, type FencedCodeSlice } from './code-renderer';
 import type { RawRange } from '../editable-surface';
 
@@ -161,13 +162,14 @@ function fenceRegions(node: NodeView): FenceRegions {
 	const displayEnd = displayLength(node.raw);
 	const body = bodyWindowOf(slice, displayEnd);
 	const openerTextEnd = Math.min(displayLength(slice.openerLine), displayEnd);
+	// The run is measured, so an opener a paste grew to four markers measures as four; a line past
+	// the three-space indent limit opens no fence and has no info string at all.
+	const marker = metadataOf(node, 'fencedCode').fenceMarker;
+	const opener = fenceAnatomy(slice.openerLine, { marker, length: 3 });
 	const hasCloser = slice.closerLine.length > 0;
-	const contentStart = hasCloser
-		? Math.min(
-				markerRunEnd(slice.openerLine, metadataOf(node, 'fencedCode').fenceMarker),
-				openerTextEnd
-			)
-		: 0;
+	let contentStart = 0;
+	if (!opener) contentStart = openerTextEnd;
+	else if (hasCloser) contentStart = Math.min(opener.runEnd, openerTextEnd);
 	return {
 		openerTextEnd,
 		openerContent: { start: contentStart, end: openerTextEnd },
@@ -176,20 +178,6 @@ function fenceRegions(node: NodeView): FenceRegions {
 		// closer line begins; an unclosed fence has no closer and collapses onto the end.
 		closerTextStart: Math.min(body.start + slice.body.length, displayEnd)
 	};
-}
-
-/**
- * Past the opener's indentation and marker run, which is where the info string starts. The run's
- * length is measured rather than read from `fenceLength`, so an opener a paste grew to four
- * markers measures as four. Past GFM's three-space indent limit there is no info string at all.
- */
-function markerRunEnd(openerLine: string, marker: string): number {
-	const MAX_INDENT = 3;
-	let index = 0;
-	while (index < MAX_INDENT && openerLine[index] === ' ') index++;
-	if (openerLine[index] !== marker) return openerLine.length;
-	while (openerLine[index] === marker) index++;
-	return index;
 }
 
 function orderedRange(range: RawRange): RawRange {

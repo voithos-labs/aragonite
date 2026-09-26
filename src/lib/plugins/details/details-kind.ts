@@ -19,7 +19,7 @@ import {
 	serializeChildren,
 	trimTrailingLineEnding,
 	matchFenceOpen,
-	matchFenceClose,
+	findFenceCloser,
 	htmlBlockTagLineMatcher,
 	OPENER_PRIORITIES,
 	type ContainerBodyWrap,
@@ -57,23 +57,26 @@ const canonicalTagLine = (text: string): TagVerdict =>
 const passthroughTagLine = htmlBlockTagLineMatcher('details');
 
 /**
- * A `</details>` inside a fenced code block is content on both sides of the round trip, so
- * neither the recognizer nor the escape may count it. Stateful, because the fence is.
+ * Each tag line in `[from, end)` with its verdict, in order, until `visit` returns true. A
+ * `</details>` inside a fenced code block is content on both sides of the round trip, so a
+ * fence's lines are skipped whole, to its closer or to `end` when nothing closes it.
  */
-function createTagScanner(tagLine: (text: string) => TagVerdict) {
-	let fence: { marker: '`' | '~'; length: number } | null = null;
-	return (text: string): TagVerdict => {
+function visitTagLines(
+	lines: readonly { text: string }[],
+	from: number,
+	end: number,
+	tagLine: (text: string) => TagVerdict,
+	visit: (index: number, verdict: TagVerdict) => boolean | void
+): void {
+	for (let i = from; i < end; i++) {
+		const fence = matchFenceOpen(lines[i].text);
 		if (fence) {
-			if (matchFenceClose(text, fence.marker, fence.length)) fence = null;
-			return null;
+			const closer = findFenceCloser(lines, i + 1, end, fence);
+			i = closer === -1 ? end : closer;
+			continue;
 		}
-		const opened = matchFenceOpen(text);
-		if (opened) {
-			fence = { marker: opened.marker, length: opened.length };
-			return null;
-		}
-		return tagLine(text);
-	};
+		if (visit(i, tagLine(lines[i].text))) return;
+	}
 }
 
 function unpairedTagLines(
@@ -81,15 +84,14 @@ function unpairedTagLines(
 	tagLine: (text: string) => TagVerdict,
 	settled: ReadonlySet<number>
 ): number[] {
-	const classify = createTagScanner(tagLine);
 	const openIndices: number[] = [];
 	const unpaired: number[] = [];
-	for (let i = 0; i < lines.length; i++) {
-		const verdict = classify(lines[i]);
-		if (settled.has(i)) continue;
+	const texts = lines.map((text) => ({ text }));
+	visitTagLines(texts, 0, texts.length, tagLine, (i, verdict) => {
+		if (settled.has(i)) return;
 		if (verdict === 'open') openIndices.push(i);
 		else if (verdict === 'close' && openIndices.pop() === undefined) unpaired.push(i);
-	}
+	});
 	return [...unpaired, ...openIndices];
 }
 
@@ -237,19 +239,11 @@ export function registerDetailsKind(): void {
 			// Depth-counted so nested details recurse via parse rather than closing early.
 			let depth = 1;
 			let closeIdx = -1;
-			const classify = createTagScanner(canonicalTagLine);
-			for (let i = summaryIdx + 1; i < ctx.end; i++) {
-				const tag = classify(ctx.lines[i].text);
-				if (tag === 'open') {
-					depth++;
-				} else if (tag === 'close') {
-					depth--;
-					if (depth === 0) {
-						closeIdx = i;
-						break;
-					}
-				}
-			}
+			visitTagLines(ctx.lines, summaryIdx + 1, ctx.end, canonicalTagLine, (i, tag) => {
+				if (tag === 'open') depth++;
+				else if (tag === 'close' && --depth === 0) closeIdx = i;
+				return closeIdx !== -1;
+			});
 			if (closeIdx === -1) return null; // unterminated declines to htmlBlock
 
 			const bodyText = ctx.lines

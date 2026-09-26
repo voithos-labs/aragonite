@@ -131,6 +131,14 @@ export function highlightCode(body: string, language: string): DocumentFragment 
 // Re-exported so a host names the grammar type without importing highlight.js itself, which
 // it holds only transitively.
 export type { LanguageFn } from 'highlight.js';
+// The code block's own drawing of a fenced source, for a kind that holds its own fence: split
+// with `sliceFencedSource`, draw with `renderFencedSource` and your body painter.
+export {
+	sliceFencedSource,
+	renderFencedSource,
+	fenceBodyAsDrawn
+} from './components/blocks/code/code-renderer';
+export type { FencedSource } from './components/blocks/code/code-renderer';
 
 // ── Command vocabulary + keybindings (pre-freeze) ────────────────────────────
 // The built-in half; a plugin's own commands are created in the section below.

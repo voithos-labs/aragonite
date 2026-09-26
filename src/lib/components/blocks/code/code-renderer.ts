@@ -1,17 +1,14 @@
 /**
- * Code-block renderer. Produces a DocumentFragment with dimmed marker spans
- * for fences and tokenized spans for the body. Invariant (G1.28):
- *   fragment.textContent === trimTrailingLineEnding(node.raw)
+ * Draws a fenced source, a code block's or any plugin kind's that holds its own fence: the fence
+ * lines as dimmed markers the marker-hiding modes collapse, the body as its caller paints it. The
+ * fragment's text is exactly the source's (G1.28).
  */
 
 import type { NodeView } from '../../../core/node-views';
 import { metadataOf } from '../../../core/nodes';
-import {
-	displayLines,
-	ownTrailingLineEnding,
-	splitLines,
-	trimTrailingLineEnding
-} from '../../../core/lines';
+import { displayLines, ownTrailingLineEnding, trimTrailingLineEnding } from '../../../core/lines';
+import { fenceAnatomy, type FenceRun } from '../../../core/parsers/fence-syntax';
+import { createCaretAnchor } from '../../../cursor/widget-offset';
 import { devWarn } from '../../../dev-warn';
 import { assertInvariant } from '../../../assert';
 import { checkRenderedTextFidelity } from '../../../invariants/render-fidelity';
@@ -29,38 +26,34 @@ export interface FencedCodeSlice {
 	infoString: string;
 }
 
-export function sliceFencedCode(node: NodeView): FencedCodeSlice {
-	const meta = metadataOf(node, 'fencedCode');
-	const raw = node.raw;
+/** A fenced source split at its fence lines: each line keeps its own ending. */
+export interface FencedSource {
+	opener: string;
+	body: string;
+	closer: string;
+}
 
-	const firstNewline = raw.indexOf('\n');
-	if (firstNewline === -1) {
-		return { openerLine: raw, body: '', closerLine: '', infoString: meta.info ?? '' };
-	}
-
-	const openerLine = raw.slice(0, firstNewline + 1);
-
-	if (!meta.closed) {
-		return {
-			openerLine,
-			body: raw.slice(openerLine.length),
-			closerLine: '',
-			infoString: meta.info ?? ''
-		};
-	}
-
-	const closerStart = findClosingFenceStart(
-		raw,
-		openerLine.length,
-		meta.fenceMarker,
-		meta.fenceLength
-	);
+/** `text` split where {@link fenceAnatomy} reads its fence lines; null when it opens no fence. */
+export function sliceFencedSource(text: string, fence?: FenceRun): FencedSource | null {
+	const anatomy = fenceAnatomy(text, fence);
+	if (!anatomy) return null;
 	return {
-		openerLine,
-		body: raw.slice(openerLine.length, closerStart),
-		closerLine: raw.slice(closerStart),
-		infoString: meta.info ?? ''
+		opener: text.slice(0, anatomy.bodyStart),
+		body: text.slice(anatomy.bodyStart, anatomy.closerStart),
+		closer: text.slice(anatomy.closerStart)
 	};
+}
+
+export function sliceFencedCode(node: NodeView): FencedCodeSlice {
+	const infoString = metadataOf(node, 'fencedCode').info ?? '';
+	const source = sliceFencedSource(node.raw, codeFenceRun(node));
+	if (!source) {
+		// Not a parse result: a line the grammar reads as no fence is all structure.
+		const bodyStart = node.raw.indexOf('\n') + 1 || node.raw.length;
+		const openerLine = node.raw.slice(0, bodyStart);
+		return { openerLine, body: node.raw.slice(bodyStart), closerLine: '', infoString };
+	}
+	return { openerLine: source.opener, body: source.body, closerLine: source.closer, infoString };
 }
 
 // ── hljs class → code-tok class mapping ───────────────────────────────────
@@ -197,18 +190,49 @@ function restoreLineEndings(root: Node, originalBody: string): void {
 	}
 }
 
-// ── Fence marker rendering ────────────────────────────────────────────────
+// ── Fenced source rendering ───────────────────────────────────────────────
 
-function makeMarkerSpan(text: string, extraClass?: string): HTMLSpanElement {
+/**
+ * The body as drawn: the line break before the closer belongs to the closer's fence line, so the
+ * modes that hide fence lines take the bottom blank line with it. A blank body keeps it, since
+ * that break is the only line the caret can sit on.
+ */
+export function fenceBodyAsDrawn(source: FencedSource): string {
+	const ending = ownTrailingLineEnding(source.body);
+	const rehomed = source.closer !== '' && ending !== '' && /\S/.test(source.body);
+	return rehomed ? source.body.slice(0, -ending.length) : source.body;
+}
+
+/** A fenced source as DOM: the fence lines as markers, the body through `paintBody`. */
+export function renderFencedSource(
+	source: FencedSource,
+	paintBody: (body: string) => Node
+): DocumentFragment {
+	const frag = document.createDocumentFragment();
+	const body = fenceBodyAsDrawn(source);
+	const separator = source.body.slice(body.length);
+	if (source.opener !== '') frag.appendChild(makeFenceLine(openerParts(source.opener)));
+	frag.appendChild(paintBody(body));
+	// Chromium paints no caret on an empty last body line with only the hidden closer after it, so
+	// an anchor holds that line; the modes that paint the closer hide it in CSS.
+	if (separator !== '' && body.endsWith('\n')) frag.appendChild(createCaretAnchor('closer'));
+	if (source.closer !== '') {
+		const parts: Node[] = separator !== '' ? [document.createTextNode(separator)] : [];
+		parts.push(makeMarkerSpan(source.closer, 'md-fence'));
+		frag.appendChild(makeFenceLine(parts));
+	}
+	return frag;
+}
+
+function makeMarkerSpan(text: string, extraClass: string): HTMLSpanElement {
 	const span = document.createElement('span');
-	span.className = extraClass ? `md-marker ${extraClass}` : 'md-marker';
+	span.className = `md-marker ${extraClass}`;
 	span.textContent = text;
 	return span;
 }
 
 // A fence line's newline is a bare text node CSS cannot reach, so wrapping the whole line lets
-// reading and preview modes collapse it with `display: none`. It changes no layout in source
-// mode, since an inline span under `white-space: pre` still breaks on its inner `\n`.
+// the marker-hiding modes collapse it with `display: none`.
 function makeFenceLine(parts: Node[]): HTMLSpanElement {
 	const line = document.createElement('span');
 	line.className = 'md-fence-line';
@@ -216,81 +240,31 @@ function makeFenceLine(parts: Node[]): HTMLSpanElement {
 	return line;
 }
 
-function renderOpenerLine(
-	slice: FencedCodeSlice,
-	fenceMarker: '`' | '~',
-	fenceLength: number
-): DocumentFragment {
-	const frag = document.createDocumentFragment();
-	if (slice.openerLine.length === 0) return frag;
-
-	const fenceChars = fenceMarker.repeat(fenceLength);
-	const [{ text: opener, ending }] = displayLines(slice.openerLine);
-
-	// The fence may sit behind 0–3 spaces of indent; carry it inside the fence-marker
-	// span so textContent keeps every opener byte.
-	const indent = opener.match(/^ {0,3}/)![0];
-
-	const parts: Node[] = [makeMarkerSpan(indent + fenceChars, 'md-fence')];
-
-	const afterFence = opener.slice(indent.length + fenceChars.length);
-	if (afterFence.length > 0) {
-		parts.push(makeMarkerSpan(afterFence, 'md-lang'));
-	}
-	if (ending !== '') {
-		parts.push(document.createTextNode(ending));
-	}
-
-	frag.appendChild(makeFenceLine(parts));
-	return frag;
-}
-
-function renderCloserLine(slice: FencedCodeSlice, leadingEnding: string): DocumentFragment {
-	const frag = document.createDocumentFragment();
-	if (slice.closerLine.length === 0) return frag;
-
-	const parts: Node[] = [];
-	// The line break before the closer belongs to the closer's fence line, not the
-	// body's last code line; owning it here lets the wrapper hide both together.
-	if (leadingEnding !== '') parts.push(document.createTextNode(leadingEnding));
-	parts.push(makeMarkerSpan(slice.closerLine, 'md-fence'));
-
-	frag.appendChild(makeFenceLine(parts));
-	return frag;
+/** The opener's indent and marker run, then its info string, then its line ending. */
+function openerParts(opener: string): Node[] {
+	const [{ text, ending }] = displayLines(opener);
+	const runEnd = fenceAnatomy(text)?.runEnd ?? text.length;
+	const parts: Node[] = [makeMarkerSpan(text.slice(0, runEnd), 'md-fence')];
+	if (runEnd < text.length) parts.push(makeMarkerSpan(text.slice(runEnd), 'md-lang'));
+	if (ending !== '') parts.push(document.createTextNode(ending));
+	return parts;
 }
 
 // ── Top-level render ─────────────────────────────────────────────────────
 
 /** `activation` is the editor's, so a language whose plugin it left out renders untokenized. */
 export function renderCodeBlock(node: NodeView, activation: PluginActivation): DocumentFragment {
-	const slice = trimSliceTail(sliceFencedCode(node));
-	const meta = metadataOf(node, 'fencedCode');
-	const frag = document.createDocumentFragment();
-
-	// The newline before the closer is re-homed onto the closer's fence line, so
-	// reading/preview collapse the bottom blank line with it. An all-blank body is the
-	// exception: stealing its terminating `\n` would drop a visible line.
-	const hasCloser = slice.closerLine.length > 0;
-	// `/\S/` deliberately conflates a whitespace-only body (spaces/tabs, no content
-	// line) with a truly-blank one: both keep their separator and render like blanks.
-	const bodyHasContentLine = /\S/.test(slice.body);
-	const bodyEnding = ownTrailingLineEnding(slice.body);
-	const separatorNewline = hasCloser && bodyEnding !== '' && bodyHasContentLine;
-	const bodyText = separatorNewline ? trimTrailingLineEnding(slice.body) : slice.body;
-
-	frag.appendChild(renderOpenerLine(slice, meta.fenceMarker, meta.fenceLength));
-	frag.appendChild(tokenizeBody(bodyText, slice.infoString, activation));
-	// Chromium paints no caret on an empty last body line with only the hidden closer after it, so
-	// a `br` anchors that line without touching textContent; source mode hides it in CSS.
-	if (separatorNewline && bodyText.endsWith('\n')) {
-		const anchor = document.createElement('br');
-		anchor.dataset.caretAnchor = 'closer';
-		frag.appendChild(anchor);
-	}
-	frag.appendChild(renderCloserLine(slice, separatorNewline ? bodyEnding : ''));
+	const display = trimTrailingLineEnding(node.raw);
+	const info = metadataOf(node, 'fencedCode').info ?? '';
+	const source = sliceFencedSource(display, codeFenceRun(node)) ?? {
+		opener: display,
+		body: '',
+		closer: ''
+	};
+	const frag = renderFencedSource(source, (body) => tokenizeBody(body, info, activation));
 
 	assertInvariant('rendered-text-fidelity', () =>
-		checkRenderedTextFidelity(frag.textContent ?? '', trimTrailingLineEnding(node.raw))
+		checkRenderedTextFidelity(frag.textContent ?? '', display)
 	);
 
 	return frag;
@@ -298,28 +272,7 @@ export function renderCodeBlock(node: NodeView, activation: PluginActivation): D
 
 // ── Internal ─────────────────────────────────────────────────────────────────
 
-// The block's trailing line ending never enters the fragments: strip it from whichever
-// part carries the tail, so G1.28 holds without a special case, CRLF included.
-function trimSliceTail(slice: FencedCodeSlice): FencedCodeSlice {
-	if (slice.closerLine.length > 0)
-		return { ...slice, closerLine: trimTrailingLineEnding(slice.closerLine) };
-	if (slice.body.length > 0) return { ...slice, body: trimTrailingLineEnding(slice.body) };
-	return { ...slice, openerLine: trimTrailingLineEnding(slice.openerLine) };
-}
-
-function findClosingFenceStart(
-	raw: string,
-	searchStart: number,
-	fenceMarker: '`' | '~',
-	fenceLength: number
-): number {
-	const fencePattern = new RegExp(`^ {0,3}${fenceMarker}{${fenceLength},}\\s*$`);
-
-	const lines = splitLines(raw.slice(searchStart));
-	for (let i = lines.length - 1; i >= 0; i--) {
-		if (fencePattern.test(lines[i].text)) return searchStart + lines[i].start;
-	}
-
-	// Unreachable when the parser's `closed` flag is consistent with raw.
-	return raw.length;
+function codeFenceRun(node: NodeView): FenceRun {
+	const meta = metadataOf(node, 'fencedCode');
+	return { marker: meta.fenceMarker, length: meta.fenceLength };
 }

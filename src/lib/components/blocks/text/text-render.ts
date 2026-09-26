@@ -19,7 +19,11 @@ import {
 import type { Reading } from '../../../schema/reading';
 import { renderInlineNodes, type ImageLoadPolicy } from '../../../core/inline-render';
 import type { DomTextOffset } from '../../../cursor/coordinate-spaces';
-import { CONTENT_EMPTY_ATTR, holdsOnlyMarkerChrome } from '../../../cursor/widget-offset';
+import {
+	CONTENT_EMPTY_ATTR,
+	createCaretAnchor,
+	holdsOnlyMarkerChrome
+} from '../../../cursor/widget-offset';
 import {
 	captureFocusedCaretWalkOffset,
 	restoreCaretAtWalkOffset
@@ -202,9 +206,7 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 		if (last instanceof HTMLElement && last.tagName === 'BR' && 'caretAnchor' in last.dataset) {
 			return;
 		}
-		const anchor = document.createElement('br');
-		anchor.dataset.caretAnchor = '';
-		el.appendChild(anchor);
+		el.appendChild(createCaretAnchor());
 	}
 
 	function captureCaretIfFocused(el: HTMLElement): DomTextOffset | null {
