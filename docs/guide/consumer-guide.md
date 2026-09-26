@@ -435,7 +435,7 @@ events.on('error', (err) => err);
 
 **`'source'`** is what you get by default: every Markdown marker renders, dimmed, and everything is editable.
 
-**`'reading'`** is a rendered reading view, and it writes no bytes. Markers are hidden by CSS (the document and its offsets are untouched), inline widgets (an image, a rendered emoji) draw, and list bullets and numbers show as rendered chrome (chrome: what the editor paints around the text, not bytes in the document). Blocks aren't `contenteditable` here, so there's no caret inside a block and you move around by mouse, the same deal as other reading views (Obsidian's reading mode has no caret either).
+**`'reading'`** is a rendered reading view, and it writes no bytes: every write is refused, whatever asked for it, and an edit still open in a block when you switch in is committed first. Markers are hidden by CSS (the document and its offsets are untouched), inline widgets (an image, a rendered emoji) draw, and list bullets and numbers show as rendered chrome (chrome: what the editor paints around the text, not bytes in the document). Blocks aren't `contenteditable` here, so there's no caret inside a block and you move around by mouse, the same deal as other reading views (Obsidian's reading mode has no caret either).
 
 - Inert: typing, paste, cut, Enter and Backspace, undo and redo, block commands, checkbox toggles, drag handles, table structure edits.
 - Still live: text selection, copy (the rendered text, markers excluded), scrolling, find (not replace), and links, which open on plain click since there's no caret to place.
