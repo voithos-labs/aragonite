@@ -56,16 +56,6 @@ describe('updateBlockMetadata', () => {
 		expect(deps.doc.children[0].metadata).toEqual({ taskChecked: true });
 	});
 
-	it("undoEntry: 'join'; no undo snapshot pushed", async () => {
-		const node = makeNode('paragraph', 'hello\n', { taskChecked: false });
-		const { deps, actions } = makeTopHarness([node]);
-
-		await actions.updateBlockMetadata(0, { taskChecked: true }, { undoEntry: 'join' });
-
-		expect(deps.undoManager.getStacks().undo).toHaveLength(0);
-		expect(node.metadata).toEqual({ taskChecked: true });
-	});
-
 	it('empty patch: no snapshot, no event, metadata unchanged', async () => {
 		const node = makeNode('paragraph', 'hello\n', { taskChecked: false });
 		const { deps, events, actions } = makeTopHarness([node]);
@@ -233,14 +223,6 @@ describe('updateBlockMetadata: container scope', () => {
 		expect(evt.op).toBe('metadataUpdate');
 		expect(evt.path).toEqual([containerIndex, 0]);
 		expect(evt.detail.fields).toEqual(['taskChecked']);
-	});
-
-	it(`undoEntry: 'join'; commitContainer called with "skip" sentinel (no snapshot pushed)`, async () => {
-		const { bundle, deps } = makeContainerSetup(1);
-
-		await bundle.blockEdit.updateBlockMetadata(0, { taskChecked: true }, { undoEntry: 'join' });
-
-		expect(deps.undoManager.getStacks().undo).toHaveLength(0);
 	});
 
 	it('empty patch: early-returns with no commitContainer call and no snapshot', async () => {

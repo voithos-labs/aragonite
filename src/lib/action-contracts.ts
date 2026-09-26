@@ -15,18 +15,11 @@ import type { WriteMode } from './schema/block-kind-descriptor';
 import type { DocPath } from './selection/path-math';
 
 /**
- * Where the caret goes back to, stored with a commit's undo snapshot: `path` is a
- * document-absolute `DocPath` and must resolve in the tree before the mutation; `'skip'`
- * joins the entry the caller already pushed. Built by the block-list factories
+ * Where the caret goes back to on undo when nothing is focused: `path` is a document-absolute
+ * `DocPath` and must resolve in the tree before the mutation. Built by the block-list factories
  * (`block-edit-scope.ts`) or the `path-math` helpers, never assembled at a call site.
  */
-export type CommitSnapshotArg = { path: DocPath; offset: number } | 'skip';
-
-/**
- * Who owns the undo entry: `'own'` (the default) pushes one, `'join'` means the caller
- * already pushed the entry covering this composite operation and this must not add one.
- */
-export type UndoEntryMode = 'own' | 'join';
+export type CommitSnapshotArg = { path: DocPath; offset: number };
 
 /**
  * Opt-in for structural commits that may legitimately do nothing. The commit then throws
@@ -92,7 +85,7 @@ export interface BlockEditActions {
 	updateBlockMetadata(
 		blockIndex: number,
 		metadata: Record<string, unknown>,
-		options?: { undoEntry?: UndoEntryMode; afterTick?: CommitAfterTick }
+		options?: { afterTick?: CommitAfterTick }
 	): void | Promise<void>;
 	/**
 	 * Replace the block at `blockIndex` with zero or more new blocks.
@@ -104,7 +97,7 @@ export interface BlockEditActions {
 		blockIndex: number,
 		replacement: CstNode[],
 		focus?: { replacementIndex: number; offset: number; path?: number[] },
-		options?: { undoEntry?: UndoEntryMode; snapshotOffset?: number }
+		options?: { snapshotOffset?: number }
 	): void | Promise<void>;
 }
 
@@ -230,20 +223,18 @@ export interface CommitContainerStructuralArgs {
 export interface CommitController {
 	/** The editor's structural-sharing counters, for copy-before-write outside a commit. */
 	sharing: SharingState;
-	pushUndoSnapshot(blockIndex: number, offset: number): void;
-	/** A snapshot whose fallback, when there is no caret, is a deep leaf path (a search match
-	 *  nested in a list item). */
-	pushUndoSnapshotPath(path: number[], offset: number): void;
 	/** Debounced typing snapshot; `leafPath` is the edited leaf's document-absolute path. */
 	pushUndoSnapshotDebounced(leafPath: number[], offset: number, batchKey?: string | number): void;
 	/** Start the batch's pause timer, once the keystroke's own edit is done. Paired with
 	 *  every `pushUndoSnapshotDebounced`, or the batch never ends on a pause. */
 	armUndoPause(): void;
-	commitStructural(args: CommitStructuralArgs): Promise<void>;
-	commitContainerStructural(args: CommitContainerStructuralArgs): Promise<void>;
+	/** Each commit resolves to whether bytes landed: false when declined, rolled back or a no-op
+	 *  it discarded. */
+	commitStructural(args: CommitStructuralArgs): Promise<boolean>;
+	commitContainerStructural(args: CommitContainerStructuralArgs): Promise<boolean>;
 	commitMultiScope<const S extends readonly MultiScopeTarget[]>(
 		args: CommitMultiScopeArgs<S>
-	): Promise<void>;
+	): Promise<boolean>;
 	/**
 	 * Expose the document root as a `MultiScopeTarget`, so a `commitMultiScope` caller can
 	 * include changes at the document level alongside containers (a cross-block delete whose
@@ -256,13 +247,16 @@ export interface CommitController {
 	/** Run a command's byte write as its own undo entry. A command is not typing, so the
 	 *  keystroke batch breaks on both sides: one Ctrl+Z takes back the command alone. */
 	isolateUndoEntry(write: () => void): void;
-	/** Make every write made while `run`'s promise is pending one undo entry, until the author's
-	 *  next input: the state before the first write, with the caret where it was. Each write still
-	 *  rolls back alone. */
-	joinUndoEntries(run: () => Promise<void>): Promise<void>;
+	/**
+	 * Make every write made while `run`'s promise is pending one undo entry: the document before the
+	 * first write, with the selection as it stood when the step opened (`seed` when nothing is
+	 * focused). The step ends when the promise settles or at the author's next input, whichever
+	 * comes first, and a step that writes nothing leaves no entry.
+	 */
+	undoStep(seed: CommitSnapshotArg, run: () => Promise<unknown>): Promise<void>;
 	/** Called on the author's own input: every later write opens its own entry, even while a
-	 *  join's run is still pending. */
-	endUndoJoin(): void;
+	 *  step's run is still pending. */
+	endUndoStep(): void;
 }
 
 export interface ContainerEditActions {
@@ -299,7 +293,7 @@ export interface ContainerEditActions {
 	 * write to state, emit the edit event, run the post-tick callback. `mutate` receives the
 	 * copied container with its working children attached; write through it, never a capture.
 	 */
-	commitContainer(args: CommitContainerStructuralArgs): Promise<void>;
+	commitContainer(args: CommitContainerStructuralArgs): Promise<boolean>;
 }
 
 // ── List context ───────────────────────────────────────────────────────────

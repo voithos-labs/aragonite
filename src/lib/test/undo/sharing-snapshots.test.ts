@@ -18,7 +18,7 @@ function makeHarness(source: string) {
 describe('structural-sharing snapshots', () => {
 	it('a snapshot push shares nodes instead of cloning them', () => {
 		const { deps, controller } = makeHarness('hello\n\nworld\n');
-		controller.pushUndoSnapshot(0, 0);
+		deps.undoManager.push(controller.captureCurrentState());
 		const entry = deps.undoManager.getStacks().undo[0];
 		expect(entry.snapshot.children[0]).toBe(deps.doc.children[0]);
 		expect(entry.snapshot.children[1]).toBe(deps.doc.children[1]);
@@ -28,13 +28,13 @@ describe('structural-sharing snapshots', () => {
 	it('a snapshot push bumps the epoch so live nodes read as shared', () => {
 		const { deps, controller } = makeHarness('hello\n');
 		expect(deps.sharing.isShared(deps.doc.children[0])).toBe(false);
-		controller.pushUndoSnapshot(0, 0);
+		deps.undoManager.push(controller.captureCurrentState());
 		expect(deps.sharing.isShared(deps.doc.children[0])).toBe(true);
 	});
 
 	it('undo restore bumps the epoch beyond the swap capture', async () => {
 		const { deps, controller, history } = makeHarness('hello\n');
-		controller.pushUndoSnapshot(0, 0);
+		deps.undoManager.push(controller.captureCurrentState());
 		const beforeUndo: { ownerEpoch?: number } = {};
 		deps.sharing.stamp(beforeUndo);
 		await history.requestUndo();
@@ -46,7 +46,7 @@ describe('structural-sharing snapshots', () => {
 
 	it('restore re-copies the children array so the stack entry never aliases the live array', async () => {
 		const { deps, controller, history } = makeHarness('hello\n');
-		controller.pushUndoSnapshot(0, 0);
+		deps.undoManager.push(controller.captureCurrentState());
 		const entry = deps.undoManager.getStacks().undo[0];
 		await history.requestUndo();
 		expect(deps.doc.children).not.toBe(entry.snapshot.children);
@@ -55,7 +55,7 @@ describe('structural-sharing snapshots', () => {
 
 	it('DEV integrity digest is stored at push and passes at unmutated restore', async () => {
 		const { deps, controller, history } = makeHarness('hello\n');
-		controller.pushUndoSnapshot(0, 0);
+		deps.undoManager.push(controller.captureCurrentState());
 		expect(deps.undoManager.getStacks().undo[0].integrity).toBeDefined();
 		await history.requestUndo();
 		expect(takeDevWarns()).toEqual([]);
@@ -69,7 +69,7 @@ describe('structural-sharing snapshots', () => {
 	it('a blank fill unshares the follower it hands the separator to', async () => {
 		const { deps, controller, history } = makeHarness('alpha\n\n\ndelta\n');
 		const actions = createBlockEditActions(deps, controller);
-		controller.pushUndoSnapshot(1, 0);
+		deps.undoManager.push(controller.captureCurrentState());
 
 		await actions.updateBlockContent(1, 'x\n', 'authored');
 		await history.requestUndo();
@@ -80,7 +80,7 @@ describe('structural-sharing snapshots', () => {
 
 	it('mutating a shared node between push and restore trips the integrity check', async () => {
 		const { deps, controller, history } = makeHarness('hello\n');
-		controller.pushUndoSnapshot(0, 0);
+		deps.undoManager.push(controller.captureCurrentState());
 		// Stands in for a missed copy-before-write: a raw write through a node the entry shares.
 		deps.doc.children[0].raw = 'corrupted\n';
 		await history.requestUndo();
@@ -96,7 +96,7 @@ describe('structural-sharing snapshots', () => {
 	// could ever trip it.
 	it('a blank fill inside a container unshares the follower it hands the separator to', async () => {
 		const h = makeNestedHarness('> alpha\n>\n>\n> delta\n', { index: 0 });
-		h.controller.pushUndoSnapshot(0, 0);
+		h.deps.undoManager.push(h.controller.captureCurrentState());
 		const shared = h.deps.undoManager.getStacks().undo[0].snapshot.children[0].children![2];
 		expect(shared.leadingTrivia).toBe('');
 
@@ -116,7 +116,7 @@ describe('structural-sharing snapshots', () => {
 		await actions.splitBlock(0, 5);
 		await actions.splitBlock(1, 0);
 		await actions.updateBlockContent(1, 'x\n', 'authored');
-		controller.pushUndoSnapshot(1, 0);
+		deps.undoManager.push(controller.captureCurrentState());
 		const shared = deps.undoManager.getStacks().undo.at(-1)!.snapshot.children[3];
 		expect(shared.leadingTrivia).toBe('\n');
 
@@ -129,7 +129,7 @@ describe('structural-sharing snapshots', () => {
 
 	it('emptying a block inside a container unshares the follower it settles', async () => {
 		const h = makeNestedHarness('> alpha\n>\n> x\n>\n> delta\n', { index: 0 });
-		h.controller.pushUndoSnapshot(0, 0);
+		h.deps.undoManager.push(h.controller.captureCurrentState());
 		const shared = h.deps.undoManager.getStacks().undo[0].snapshot.children[0].children![2];
 		expect(shared.leadingTrivia).toBe('\n');
 

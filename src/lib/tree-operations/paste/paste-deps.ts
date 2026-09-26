@@ -12,7 +12,7 @@ export type { CommitMultiScopeArgs, MultiScopeTarget };
 export interface PasteCommitCoordinator {
 	commitMultiScope<const S extends readonly MultiScopeTarget[]>(
 		args: CommitMultiScopeArgs<S>
-	): Promise<void>;
+	): Promise<boolean>;
 	getDocScope(): MultiScopeTarget;
 	/** Resolve a container node to its mounted reactive state. */
 	resolveState(node: CstNode): MultiScopeTarget['state'] | undefined;

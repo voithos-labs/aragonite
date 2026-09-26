@@ -85,7 +85,6 @@ async function tableCellScopedStructuralPaste(input: ScopedStructuralPasteInput)
 		blockPath: tablePath,
 		replacement,
 		controller: input.controller,
-		undoEntry: input.undoEntry,
 		// The last pasted block, before the second half of the table.
 		focusReplacementIndex: focusIndexBeforeResidue(replacement.length, secondHalf !== null),
 		focusOffset: CURSOR_END,

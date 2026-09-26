@@ -64,9 +64,9 @@ const SITES: Record<string, SiteStance> = {
 		why: 'same family: the endpoint-survivor and chrome-clear rebuild passes'
 	},
 	'src/lib/selection/range-delete-chrome.ts': {
-		declines: 2,
+		declines: 3,
 		sinks: 0,
-		why: 'same family: both endpoints of a wall range'
+		why: 'same family: both endpoints of a wall range, and a collapsed container removed whole'
 	},
 	'src/lib/selection/range-delete-table.ts': {
 		declines: 7,

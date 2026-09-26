@@ -39,7 +39,6 @@ function makeGatedEnv() {
 		getBlockElByPath: () => null,
 		revealPath: () => gate,
 		controller: env.controller,
-		pushUndoSnapshot: () => env.controller.pushUndoSnapshot(0, 0),
 		reading: fixtureReading()
 	};
 
@@ -75,6 +74,22 @@ describe('a cross-block paste whose delete resolves no caret', () => {
 		// The range start, read before the delete collapsed the selection: a report naming nothing
 		// would leave a host unable to say where the paste it must compensate for was aimed.
 		expect(errors[0].context?.path).toEqual([0]);
+	});
+
+	// #30. Miss-analysis: the case above read the error and the bytes, never the undo stack.
+	it('leaves no undo entry of its own: one Ctrl+Z takes back the delete it waited out', async () => {
+		const { env, handlers, mutCtx, releaseReveal } = makeGatedEnv();
+		env.selectionState.enterCrossBlock({ path: [0], offset: 2 }, { path: [2], offset: 3 });
+
+		const deleting = performCrossBlockDelete(mutCtx);
+		const pasting = handlers.handlePaste(makePasteEvent('DROPPED'));
+		releaseReveal();
+		await pasting;
+		await deleting;
+
+		const undo = env.deps.undoManager.getStacks().undo;
+		expect(undo).toHaveLength(1);
+		expect(serialize(undo[0].snapshot)).toBe(SOURCE);
 	});
 });
 

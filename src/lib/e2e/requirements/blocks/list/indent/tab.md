@@ -11,6 +11,8 @@ How Tab changes a list item's nesting level, including ordered-list numbering wh
 - Cursor stays in the indented item at offset 0 (not at end of nested content)
 - When the moved item has multiple paragraphs, the cursor lands at offset 0 of its last paragraph (the FOCUS_LAST_START contract clamps to 0, with no IndexSizeError fallback)
 - Focus follows the item through the container mutation, for both nested-list paths (appended to an existing list, or placed in a freshly created one): typing straight after Tab lands at the start of the moved item, never at the position it held before the move
+- When the moved item ends in a table, the caret lands at the start of the table's last cell, not its end (#540)
+  - Miss-analysis: every Tab scenario moved an item ending in prose, so the table's own reading of the "last child, at its start" offset was never reached
 
 ### Ordered list marker on Tab
 

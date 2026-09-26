@@ -16,16 +16,16 @@ import {
 import { offsetFromViewportPoint } from '../cursor/point-offset';
 import type { BlockElLookup } from '../editor-keys';
 import {
-	nextPath,
-	previousPath,
 	firstPath,
 	lastPath,
-	firstLeafAtOrAfter,
-	lastLeafAtOrBefore,
+	firstCaretLeaf,
+	lastCaretLeaf,
+	nextCaretPath,
+	previousCaretPath,
 	findCellPathForElement
 } from './path-lookup';
 import { nodeAt } from '../tree-operations/node-primitives';
-import { comparePaths, isStrictAncestorOf, pathsEqual } from './path-math';
+import { comparePaths, pathsEqual } from './path-math';
 import { displayLength } from '../core/lines';
 
 // ── Enter / Collapse / Scroll ──────────────────────────────────────────────
@@ -121,11 +121,11 @@ function extendFocusOrRestore(
 }
 
 /**
- * Extends focus to the next leaf in document order (Shift+ArrowDown or Shift+ArrowRight
- * leaving the block), entering cross-block mode if needed. Returns true if focus moved. The
- * vertical axis skips leaves the caret passes over (an image-only paragraph): a range covers
- * one either way. The horizontal axis stops on every leaf, so such a paragraph is selectable
- * in one step.
+ * Extends focus to the next leaf a caret can reach (Shift+ArrowDown or Shift+ArrowRight leaving
+ * the block), entering cross-block mode if needed; a closed container is only its title row, so
+ * the range covers its hidden body without opening it. Returns true if focus moved. The vertical
+ * axis skips leaves the caret passes over (an image-only paragraph); the horizontal axis stops on
+ * every leaf, so such a paragraph is selectable in one step.
  */
 export function extendFocusToNextBlock(
 	selection: SelectionState,
@@ -139,7 +139,7 @@ export function extendFocusToNextBlock(
 	const leafTarget =
 		axis === 'vertical'
 			? firstNonTransparentLeafAfter(doc, grammar, currentBlockPath)
-			: firstLeafAfter(doc, currentBlockPath);
+			: nextCaretPath(doc, currentBlockPath);
 	if (!leafTarget) return false;
 
 	if (!selection.isCrossBlock) {
@@ -166,7 +166,7 @@ export function extendFocusToPreviousBlock(
 	const leafTarget =
 		side === 'start'
 			? lastNonTransparentLeafBefore(doc, grammar, currentBlockPath)
-			: lastLeafBefore(doc, currentBlockPath);
+			: previousCaretPath(doc, currentBlockPath);
 	if (!leafTarget) return false;
 
 	if (!selection.isCrossBlock) {
@@ -190,7 +190,8 @@ export function extendFocusToDocEdge(
 	to: 'start' | 'end',
 	getBlockElByPath?: BlockElLookup
 ): boolean {
-	const edge = to === 'start' ? firstPath(doc) : lastPath(doc);
+	const edge =
+		to === 'start' ? firstCaretLeaf(doc, [0]) : lastCaretLeaf(doc, [doc.children.length - 1]);
 	if (!edge) return false;
 
 	const target = isTransparent(doc, grammar, edge)
@@ -215,6 +216,8 @@ export function selectWholeDocument(
 	doc: Document,
 	getBlockElByPath?: (path: number[]) => HTMLElement | null
 ): boolean {
+	// Not the caret-reachable order: the range has to cover a closed container's hidden body, so
+	// that a delete or a copy of the whole document takes it too.
 	const first = firstPath(doc);
 	const last = lastPath(doc);
 	if (!first || !last) return false;
@@ -316,22 +319,6 @@ export function widgetShiftAnchor(
 
 // ── Internal ───────────────────────────────────────────────────────────────
 
-/** First leaf reachable from `fromPath` going forward (descend or step). */
-function firstLeafAfter(doc: Document, fromPath: number[]): number[] | null {
-	const next = nextPath(doc, fromPath);
-	return next ? firstLeafAtOrAfter(doc, next) : null;
-}
-
-/** Last leaf reachable from `fromPath` going backward (descend or step). */
-function lastLeafBefore(doc: Document, fromPath: number[]): number[] | null {
-	// `previousPath` walks in document order (ancestor before descendant), so a first child's
-	// previous is its own container, and descending to that container's last leaf would move
-	// forward. Ancestors are skipped until a subtree that truly precedes is reached.
-	let prev = previousPath(doc, fromPath);
-	while (prev && isStrictAncestorOf(prev, fromPath)) prev = previousPath(doc, prev);
-	return prev ? lastLeafAtOrBefore(doc, prev) : null;
-}
-
 function isTransparent(doc: Document, grammar: GrammarView, path: number[]): boolean {
 	const node = nodeAt(doc, path);
 	// nodeAt returns the Document for an empty path; narrow it out (Document has no `raw`).
@@ -343,9 +330,9 @@ function firstNonTransparentLeafAfter(
 	grammar: GrammarView,
 	fromPath: number[]
 ): number[] | null {
-	let leaf = firstLeafAfter(doc, fromPath);
+	let leaf = nextCaretPath(doc, fromPath);
 	while (leaf && isTransparent(doc, grammar, leaf)) {
-		leaf = firstLeafAfter(doc, leaf);
+		leaf = nextCaretPath(doc, leaf);
 	}
 	return leaf;
 }
@@ -355,16 +342,16 @@ function lastNonTransparentLeafBefore(
 	grammar: GrammarView,
 	fromPath: number[]
 ): number[] | null {
-	let leaf = lastLeafBefore(doc, fromPath);
+	let leaf = previousCaretPath(doc, fromPath);
 	while (leaf && isTransparent(doc, grammar, leaf)) {
-		leaf = lastLeafBefore(doc, leaf);
+		leaf = previousCaretPath(doc, leaf);
 	}
 	return leaf;
 }
 
 /**
  * Starts at the edge leaf itself and steps inward to a text-bearing one, unlike
- * `firstLeafAfter` and `lastLeafBefore`, which step away from their start.
+ * `nextCaretPath` and `previousCaretPath`, which step away from their start.
  */
 function firstNonTransparentLeafFrom(
 	doc: Document,

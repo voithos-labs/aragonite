@@ -7,7 +7,12 @@
 // a container does inside is invisible to it); and a landing addressed by path carries its offset
 // down to the cell, which is how undo restores the exact spot.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
-import { CURSOR_END, CURSOR_START } from '$lib/block-component';
+import {
+	CURSOR_END,
+	CURSOR_EXACT_START,
+	CURSOR_START,
+	FOCUS_LAST_START
+} from '$lib/block-component';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import { installTableLayoutStubs, mountTable, type MountedTable } from './mount-table';
 
@@ -86,4 +91,32 @@ describe('the table lands a caret through the entry point and at the offset it w
 		row.parkCaret!(CURSOR_START);
 		expect(mounted.block.getCursorPosition!()).toEqual({ path: [2, 0], offset: 0 });
 	});
+});
+
+// Miss-analysis (GH #540): the table and the row each kept their own copy of the container's entry
+// rule, and every test entered them with 0, CURSOR_START or CURSOR_END, the three values the
+// copies agreed on; FOCUS_LAST_START and CURSOR_EXACT_START fell through to the last cell's end.
+describe('the table and a row read an entry offset as every container does', () => {
+	const cases: Array<[string, number, [number, number], number]> = [
+		['0', 0, [0, 0], 0],
+		['CURSOR_START', CURSOR_START, [0, 0], 0],
+		['CURSOR_EXACT_START', CURSOR_EXACT_START, [0, 0], 0],
+		['FOCUS_LAST_START', FOCUS_LAST_START, [2, 1], 0],
+		['CURSOR_END', CURSOR_END, [2, 1], 1]
+	];
+	for (const [name, offset, [row, col], at] of cases) {
+		for (const verb of ['focus', 'parkCaret'] as const) {
+			it(`${verb}(${name}) on the table lands at cell ${row},${col} offset ${at}`, () => {
+				mounted = mountTable(GRID);
+				mounted.block[verb]!(offset);
+				expect(mounted.block.getCursorPosition!()).toEqual({ path: [row, col], offset: at });
+			});
+
+			it(`${verb}(${name}) on the last row lands in its cell ${col} at offset ${at}`, () => {
+				mounted = mountTable(GRID);
+				mounted.block.getBlockComponentByPath!([2])![verb]!(offset);
+				expect(mounted.block.getCursorPosition!()).toEqual({ path: [2, col], offset: at });
+			});
+		}
+	}
 });

@@ -5,7 +5,7 @@
  * cross-block paste focuses through the DOM, since its range delete may unmount the origin block.
  */
 
-import type { BlockEditActions, UndoEntryMode } from '../../action-contracts';
+import type { BlockEditActions } from '../../action-contracts';
 import type { CstNode, Document } from '../../core/nodes';
 import type { Reading } from '../../schema/reading';
 import type { PluginActivation } from '../../schema/plugin-activation';
@@ -54,12 +54,13 @@ export interface PasteDispatchInput {
 
 export interface PasteDispatchContext {
 	doc: Document;
-	/** Action bundle for the target's level. Not used in cross-block (undoEntry: 'join') mode. */
+	/** Action bundle for the target's level. Not used on the cross-block route. */
 	blockEdit: BlockEditActions;
 	/** Commit coordinator, required by the multi-scope commit sites inside this module. */
 	controller: PasteCommitCoordinator;
-	/** `'join'`: the cross-block caller owns the undo entry, so no snapshot is pushed here. */
-	undoEntry?: UndoEntryMode;
+	/** The paste lands at the caret a cross-block range delete left: every write commits at the
+	 *  target's parent list, and a partly filled item may take a matching container's items. */
+	crossBlock?: boolean;
 	/** The instance's reading: the clipboard parse and the join branch's same-slot reparse read its
 	 *  grammar, so an unlisted plugin's opener never takes pasted bytes, and the delete half is a
 	 *  join its mode decides the cleanup of. */
@@ -140,7 +141,7 @@ export async function pasteDispatch(
 		input.targetPath,
 		target.offset,
 		parsed,
-		ctx.undoEntry === 'join',
+		ctx.crossBlock === true,
 		target.raw
 	);
 	if (unwrap) {
@@ -188,7 +189,6 @@ export async function pasteDispatch(
 			targetPath: input.targetPath,
 			blocks: blocks.slice(),
 			controller: ctx.controller,
-			undoEntry: ctx.undoEntry ?? 'own',
 			grammar: reading.grammar
 		});
 		return {};

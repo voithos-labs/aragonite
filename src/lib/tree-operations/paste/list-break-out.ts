@@ -110,7 +110,7 @@ export async function applyListBreakOut(
 
 	await ctx.controller.commitMultiScope({
 		scopes: [parentScope],
-		snapshot: ctx.undoEntry === 'join' ? 'skip' : { path: docPathFrom(plan.listPath), offset: 0 },
+		snapshot: { path: docPathFrom(plan.listPath), offset: 0 },
 		mutate: ([scopeView]) => {
 			spliceMany(scopeView.children, spliceIndex, 1, replacement);
 			const change: StructuralChange = {

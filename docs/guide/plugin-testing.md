@@ -138,11 +138,11 @@ fires[0];
 
 `setDevWarnSink` returns the sink it replaced, so a nested harness restores rather than clears.
 
-One prerequisite: warnings and invariant checks only run while the editor believes it's in a dev build, and a sink over a production build stays empty for the wrong reason. A Vitest suite gets the dev flag automatically, because its build resolves it. Under another runner, or a bundler that resolves no export conditions, call `configureEditorEnv({ isDev: true })` in your setup (add `isTest: true` if the suite also uses the reset) and `resetEditorEnv()` in teardown; that one switch turns on both.
+One prerequisite: warnings and invariant checks only run while the editor believes it's in a dev build, and a sink over a production build stays empty for the wrong reason. A Vitest suite gets the dev flag automatically, because its build resolves it. Under another runner, or a bundler that resolves no export conditions, call `configureEditorEnv({ isDev: true })` in your setup (add `isTest: true` if the suite also uses the reset) and `resetEditorEnv()` in teardown. That one switch turns both on.
 
 ### Proving a paste transform is wired
 
-`registerPasteTransform` writes into a registry nothing else on the public surface reads, so the subpath ships the driver. `applyPasteTransforms(text)` is the very function every clipboard-to-parse route runs, so driving it proves your transform is **wired**, not merely that your pure function works. It runs every installed plugin's transforms, as an editor with no `plugins` prop would; pass a list of plugin names, `applyPasteTransforms(text, ['parrot'])`, to run it as an editor listing only those (a transform your plugin's setup registered runs only when your plugin is in the list):
+`registerPasteTransform` writes into a registry nothing else on the public surface reads, so the subpath ships the driver. `applyPasteTransforms(text)` is the very function every clipboard-to-parse route runs, so driving it proves your transform is **wired**, not merely that your pure function works. By default it runs every installed plugin's transforms, the way an editor with no `plugins` prop would. Pass a list of plugin names, `applyPasteTransforms(text, ['parrot'])`, to run it as an editor listing only those (so a transform your plugin's setup registered runs only when your plugin is in the list):
 
 ```ts
 import { applyPasteTransforms } from '@voithos-labs/aragonite/testing';

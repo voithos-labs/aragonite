@@ -11,18 +11,19 @@ import type { MultiScopeTarget } from '$lib/action-contracts';
 import { makeBlockListState, makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
 import { takeDevWarns } from '$lib/test/support/warn-gate';
 import { makeListItem } from '$lib/test/harness/list-fixtures';
+import { asDocPath } from '$lib/selection/path-math';
 
 function harness(scopePath: number[]) {
 	const { deps, events } = makeEditorActionsDeps(parse('- a\n- b\n').children);
 	const controller = createUndoController(deps);
 	const state = makeBlockListState(() => deps.doc.children[0]);
 	// A pushed snapshot is what makes the live node shared, so a write through it corrupts history.
-	controller.pushUndoSnapshot(0, 0);
+	deps.undoManager.push(controller.captureCurrentState());
 	const scopes: MultiScopeTarget[] = [{ node: deps.doc.children[0], state, path: scopePath }];
-	const commit = (): Promise<void> =>
+	const commit = (): Promise<boolean> =>
 		controller.commitMultiScope({
 			scopes,
-			snapshot: 'skip',
+			snapshot: { path: asDocPath([0]), offset: 0 },
 			mutate: ([scope]) => {
 				scope.children.push(makeListItem('- c\n'));
 				return [{ op: 'insert', at: scope.children.length - 1, count: 1 }];

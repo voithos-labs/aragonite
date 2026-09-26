@@ -28,8 +28,7 @@ async function pasteAt(source: string, pastedText: string, targetPath: number[],
 		pasteContext({
 			doc: deps.doc,
 			blockEdit: makeStubBlockEdit(),
-			controller: coordinator,
-			undoEntry: 'own'
+			controller: coordinator
 		})
 	);
 	return { doc: deps.doc, landCaret };

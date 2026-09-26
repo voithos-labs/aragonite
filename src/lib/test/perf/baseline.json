@@ -141,7 +141,7 @@
 		}
 	},
 	"snapshotPush": {
-		"note": "Real undo-push path (pushUndoSnapshot over harness deps). The DEV-only integrity digest is included (vitest sets DEV); snapshotDigest isolates that share. The stack saturates at MAX_UNDO during sampling, so means include the shift-at-cap. Production push (DEV off) is O(top-level children) — far below these rows.",
+		"note": "Real undo-push path (the typing snapshot push over harness deps). The DEV-only integrity digest is included (vitest sets DEV); snapshotDigest isolates that share. The stack saturates at MAX_UNDO during sampling, so means include the shift-at-cap. Production push (DEV off) is O(top-level children) — far below these rows.",
 		"nested-containers-100KB": {
 			"mean-ms": 0.152,
 			"rme-pct": 0.34,

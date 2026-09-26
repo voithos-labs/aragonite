@@ -75,7 +75,7 @@ describe('G2.9 paste op-kind emission', () => {
 				doc: deps.doc,
 				blockEdit: makeStubBlockEdit(),
 				controller: coordinator,
-				undoEntry: 'join'
+				crossBlock: true
 			})
 		);
 

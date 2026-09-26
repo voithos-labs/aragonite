@@ -25,8 +25,7 @@ async function pasteOnFirstEmptyLine(source: string, markdown: string) {
 		pasteContext({
 			doc: deps.doc,
 			blockEdit: makeStubBlockEdit(),
-			controller: createPasteCoordinator(createUndoController(deps), deps.revealPath),
-			undoEntry: 'own'
+			controller: createPasteCoordinator(createUndoController(deps), deps.revealPath)
 		})
 	);
 	return deps.doc;

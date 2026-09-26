@@ -22,8 +22,8 @@ export interface FocusedSurfaceDeps {
 	isReading(): boolean;
 	/** Makes an empty top-level paragraph at `boundary` and focuses it. */
 	insertParagraph(boundary: number, text: string): void | Promise<void>;
-	/** The undo stack's join, so the paragraph `below` makes and the paste into it undo together. */
-	joinUndoEntries(run: () => Promise<void>): Promise<void>;
+	/** One undo entry for the paragraph `below` makes and the paste into it. */
+	undoStep(path: number[], offset: number, run: () => Promise<unknown>): Promise<void>;
 	/** The counter every byte write bumps (`reactivity/content-version.svelte.ts`). */
 	contentVersion(): number;
 }
@@ -59,7 +59,7 @@ export function createFocusedSurface(deps: FocusedSurfaceDeps): FocusedSurface {
 
 	async function insertBelow(topIndex: number, md: string): Promise<boolean> {
 		let inserted = false;
-		await deps.joinUndoEntries(async () => {
+		await deps.undoStep([topIndex], 0, async () => {
 			await deps.insertParagraph(topIndex + 1, '');
 			inserted = await insertAtFocus(md);
 		});

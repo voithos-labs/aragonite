@@ -11,7 +11,7 @@ import type { CstNode, Document } from '../../core/nodes';
 import { documentLineEnding } from '../../core/lines';
 import type { NodeView } from '../../core/node-views';
 import type { EditorSelection } from '../../selection/primitives';
-import type { GapCaretSelection, UndoEntry } from '../../undo/types';
+import type { UndoEntry } from '../../undo/types';
 import type { SelectionPoint } from '../../selection/primitives';
 import { digestDoc } from '../../invariants/snapshot-integrity';
 import { readCurrentSelection } from '../../selection/native-bridge';
@@ -63,6 +63,8 @@ import {
 	recordSnapshotClone,
 	setUndoGauge
 } from '../../perf/instruments';
+
+type EntrySelection = UndoEntry['selection'];
 
 // ── Dev invariant scoping (DEV-only paths) ────────────────────────────────────
 
@@ -157,97 +159,126 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 	 * What an entry records as "where the caret was". The gap caret outranks only the caller's
 	 * fallback, since no block ref reports it.
 	 */
-	function entrySelection(fallback: () => EditorSelection): EditorSelection | GapCaretSelection {
+	function entrySelection(fallback: () => EditorSelection): EntrySelection {
 		const live = readLive();
 		if (live) return live;
 		const gap = deps.selectionState.gapCaret;
 		return gap ? { gapCaret: gap } : fallback();
 	}
 
-	// ── Joined runs ──────────────────────────────────────────────────────────
+	// ── Undo steps ───────────────────────────────────────────────────────────
 
-	// A depth, so a join inside a join stays one entry. The entry is held by identity: a first
-	// write that rolls back removes it, and the next write must then open the run's entry.
-	let joinDepth = 0;
-	let joinedEntry: UndoEntry | null = null;
-	// Set by the author's input while a run is pending; until every run ends, writes push alone.
-	let joinEnded = false;
+	// The outermost open step owns these; a step inside a step adds only depth. The entry is held
+	// by identity: a first write that rolls back removes it, and the next write opens it again.
+	let stepDepth = 0;
+	let stepEntry: UndoEntry | null = null;
+	// Read when the step opens, since a gesture may collapse its range before its first write.
+	let stepSelection: EntrySelection | null = null;
+	let stepPushed = false;
+	// Set by the author's input while a step is open; until it closes, writes push alone.
+	let stepEnded = false;
+	// The entry the typing batch's first keystroke went into, and whether a keystroke's own
+	// commit is being called, which joins it.
+	let typingEntry: UndoEntry | null = null;
+	let joiningTyping = false;
 
-	function isJoinedPush(): boolean {
-		return (
-			joinDepth > 0 &&
-			!joinEnded &&
-			joinedEntry !== null &&
-			deps.undoManager.peekUndo() === joinedEntry
-		);
-	}
+	const inOpenStep = () => stepDepth > 0 && !stepEnded;
+	const isTop = (entry: UndoEntry | null) =>
+		entry !== null && deps.undoManager.peekUndo() === entry;
+
+	const joinsStep = () => inOpenStep() && isTop(stepEntry);
+	const isJoinedPush = () => (joiningTyping && isTop(typingEntry)) || joinsStep();
 
 	function pushEntry(entry: UndoEntry): void {
 		deps.undoManager.push(entry);
-		if (joinDepth > 0 && !joinEnded) joinedEntry = entry;
+		if (inOpenStep()) {
+			stepEntry = entry;
+			stepPushed = true;
+		}
 		recordSnapshotPerf();
 	}
 
-	async function joinUndoEntries(run: () => Promise<void>): Promise<void> {
-		// A join opened after the author's input is a new gesture, so it joins its own writes.
-		if (joinEnded) {
-			joinEnded = false;
-			joinedEntry = null;
+	/** The selection a push records: the open step's, else the push's own. */
+	function selectionFor(own: () => EntrySelection): EntrySelection {
+		return inOpenStep() && stepSelection ? stepSelection : own();
+	}
+
+	async function undoStep(seed: CommitSnapshotArg, run: () => Promise<unknown>): Promise<void> {
+		// A step opened after the author's input is a new gesture, so it groups its own writes.
+		if (stepDepth === 0 || stepEnded) {
+			stepEntry = null;
+			stepSelection = entrySelection(() => collapsedSelectionAtPath(seed.path, seed.offset));
+			stepEnded = false;
 		}
-		joinDepth++;
+		stepDepth++;
 		try {
 			await run();
 		} finally {
-			joinDepth--;
-			if (joinDepth === 0) {
-				joinedEntry = null;
-				joinEnded = false;
+			stepDepth--;
+			if (stepDepth === 0) {
+				// The next keystroke starts its own entry rather than joining the gesture's.
+				if (stepPushed && !stepEnded) textBatch.interrupt();
+				stepEntry = null;
+				stepSelection = null;
+				stepPushed = false;
+				stepEnded = false;
 			}
 		}
 	}
 
-	function endUndoJoin(): void {
-		if (joinDepth === 0) return;
-		joinEnded = true;
-		joinedEntry = null;
+	// Synchronous: a commit pushes as it is called, so this covers the call, not the awaited tail.
+	// Safe because `updateBlockContent` pushes the keystroke's batch entry before its commit.
+	function joinTypingBatch<T>(write: () => T): T {
+		const outer = joiningTyping;
+		joiningTyping = true;
+		try {
+			return write();
+		} finally {
+			joiningTyping = outer;
+		}
+	}
+
+	function endUndoStep(): void {
+		if (stepDepth === 0) return;
+		stepEnded = true;
+		stepEntry = null;
 	}
 
 	// ── Entry pushes ─────────────────────────────────────────────────────────
 
-	// A push inside a joined run after its first returns before the snapshot, so it neither
-	// marks the tree shared nor clears the redo stack.
-	function pushUndoSnapshotPath(fallbackPath: number[], offset: number): void {
+	// A push inside a step after its first returns before the snapshot, so it neither marks the
+	// tree shared nor clears the redo stack.
+	function pushCommitSnapshot(fallbackPath: number[], offset: number): void {
 		if (isJoinedPush() || !admitsSnapshot(deps.reading)) return;
 		pushEntry({
 			...shareSnapshot(),
 			blockIds: [...deps.blockIds],
-			selection: entrySelection(() => collapsedSelectionAtPath(fallbackPath, offset))
+			selection: selectionFor(() =>
+				entrySelection(() => collapsedSelectionAtPath(fallbackPath, offset))
+			)
 		});
-	}
-
-	// Top-level only: a caller with a deeper path must use pushUndoSnapshotPath, or its
-	// no-caret fallback restores to the top-level block instead of the edited leaf.
-	function pushUndoSnapshot(blockIndex: number, offset: number): void {
-		pushUndoSnapshotPath([blockIndex], offset);
 	}
 
 	// Path from the live focused leaf, offset from the caller: the live caret is already
 	// past the edit, but its path still points at the same leaf.
 	function pushTypingSnapshot(leafPath: number[], offset: number): void {
-		if (isJoinedPush()) return;
-		const live = readLive();
-		const liveIsCollapsed =
-			!!live &&
-			pathsEqual(live.anchor.path, live.focus.path) &&
-			live.anchor.offset === live.focus.offset;
-		const selection = liveIsCollapsed
-			? collapsedSelectionAtPath(live.anchor.path, offset)
-			: collapsedSelectionAtPath(leafPath, offset);
-		pushEntry({
-			...shareSnapshot(),
-			blockIds: [...deps.blockIds],
-			selection
+		if (joinsStep()) {
+			typingEntry = stepEntry;
+			return;
+		}
+		const selection = selectionFor(() => {
+			const live = readLive();
+			const liveIsCollapsed =
+				!!live &&
+				pathsEqual(live.anchor.path, live.focus.path) &&
+				live.anchor.offset === live.focus.offset;
+			return liveIsCollapsed
+				? collapsedSelectionAtPath(live.anchor.path, offset)
+				: collapsedSelectionAtPath(leafPath, offset);
 		});
+		const entry = { ...shareSnapshot(), blockIds: [...deps.blockIds], selection };
+		pushEntry(entry);
+		typingEntry = entry;
 	}
 
 	const textBatch = createTextBatch({
@@ -303,9 +334,10 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 	 * A container's per-scope state does not exist until `mutate` has copied it, so restore()
 	 * hands those to the `rollback` function.
 	 */
-	function captureRollbackFrame(args: CommitArgs): RollbackFrame {
-		// A whole-stack restore, not a pop: the push may evict the oldest entry at the cap.
-		const savedStacks = args.snapshot !== 'skip' ? deps.undoManager.getStacks() : null;
+	function captureRollbackFrame(args: CommitArgs, pushes: boolean): RollbackFrame {
+		// A whole-stack restore, not a pop: the push may evict the oldest entry at the cap. A
+		// commit that joins its step's entry pushes nothing, so it has no stacks to restore.
+		const savedStacks = pushes ? deps.undoManager.getStacks() : null;
 		// The container branch mutates the live tree in place; the document branch installs
 		// its children only on success, but its trailing-line fix-up can consume the live
 		// document's suffix, so the suffix is restored in both branches.
@@ -332,7 +364,10 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		});
 	}
 
-	function runCommitCeremony(args: CommitArgs): boolean {
+	/** `discarded` is a `discardIfNoop` commit that changed nothing: no write, but afterTick runs. */
+	type CommitOutcome = 'written' | 'discarded' | 'failed';
+
+	function runCommitCeremony(args: CommitArgs): CommitOutcome {
 		deps.caretMemory.forget();
 		textBatch.interrupt();
 
@@ -341,23 +376,21 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 			// runtime, so the number[] to DocPath conversion lives here.
 			assertCommitPaths(
 				deps.doc,
-				args.snapshot === 'skip' ? null : asDocPath(args.snapshot.path),
+				asDocPath(args.snapshot.path),
 				args.op?.eventPath ? asDocPath(args.op.eventPath) : null
 			);
 		}
 
 		// Outside the try: the stacks must be saved before the push below.
-		const rollback = captureRollbackFrame(args);
+		const rollback = captureRollbackFrame(args, !isJoinedPush());
 
 		// A `discardIfNoop` commit that changed nothing takes the throw path's restore minus
-		// the error event. afterTick still runs.
+		// the error event.
 		let discarded = false;
 		try {
-			if (args.snapshot !== 'skip') {
-				// Inside the try: readCurrentSelection walks live block refs, plugin leaves
-				// included, so it can throw like every other step.
-				pushUndoSnapshotPath(args.snapshot.path, args.snapshot.offset);
-			}
+			// Inside the try: readCurrentSelection walks live block refs, plugin leaves included,
+			// so it can throw like every other step.
+			pushCommitSnapshot(args.snapshot.path, args.snapshot.offset);
 			if (args.kind === 'document') {
 				const childrenCopy = [...deps.doc.children];
 				const idsCopy = [...deps.blockIds];
@@ -414,7 +447,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 			// Loud in dev; production swallows it so one failed edit does not kill the editor.
 			// The tree is intact either way: rolled back, or never installed.
 			if (isDevChecks()) throw err;
-			return false;
+			return 'failed';
 		}
 
 		if (!discarded) {
@@ -432,25 +465,24 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 			deps.events.emit('edit', toEditEvent(args.op, args.op.eventPath, Date.now()));
 		}
 
-		return true;
+		return discarded ? 'discarded' : 'written';
 	}
 
 	// Bracket the synchronous commit so the decorations never read a half-applied tree.
-	// Cleared before the first await.
-	async function __commit(args: CommitArgs): Promise<void> {
+	// Cleared before the first await. Resolves to whether bytes landed.
+	async function __commit(args: CommitArgs): Promise<boolean> {
 		const op =
 			args.op?.kind ?? (args.kind === 'document' ? 'commitStructural' : 'commitMultiScope');
-		const target = args.op?.eventPath ?? (args.snapshot === 'skip' ? null : args.snapshot.path);
-		const kindOf = () => (target ? blockNodeAt(deps.doc, target)?.kind : undefined);
-		if (!admitsWrite(deps.reading, op, kindOf)) return;
+		const target = args.op?.eventPath ?? args.snapshot.path;
+		if (!admitsWrite(deps.reading, op, () => blockNodeAt(deps.doc, target)?.kind)) return false;
 		beginCommit();
-		let committed: boolean;
+		let outcome: CommitOutcome;
 		try {
-			committed = runCommitCeremony(args);
+			outcome = runCommitCeremony(args);
 		} finally {
 			endCommit();
 		}
-		if (!committed) return;
+		if (outcome === 'failed') return false;
 		await tick();
 		try {
 			// Awaited: a caret placement that scrolls an unmounted target into view is async,
@@ -461,14 +493,14 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 			// afterTick is a reported no-op, not an unhandled rejection.
 			reportCommitError(args, err);
 		}
+		return outcome === 'written';
 	}
 
 	// ── Structural-mutation commit ───────────────────────────────────────────
-	/** `snapshot: 'skip'` lets composite operations share a single undo entry. */
 
-	async function commitStructural(args: CommitStructuralArgs): Promise<void> {
+	function commitStructural(args: CommitStructuralArgs): Promise<boolean> {
 		const { snapshot, mutate, op, afterTick, touchedNodes, discardIfNoop } = args;
-		await __commit({
+		return __commit({
 			kind: 'document',
 			snapshot,
 			mutate,
@@ -484,9 +516,9 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		});
 	}
 
-	async function commitContainerStructural(args: CommitContainerStructuralArgs): Promise<void> {
+	function commitContainerStructural(args: CommitContainerStructuralArgs): Promise<boolean> {
 		const { containerNode, path, state, snapshot, mutate, op, afterTick, discardIfNoop } = args;
-		await commitMultiScope({
+		return commitMultiScope({
 			scopes: [{ node: containerNode, state, path }],
 			snapshot,
 			mutate: ([scope]) => [mutate(scope)],
@@ -622,7 +654,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 	 */
 	async function commitMultiScope<const S extends readonly MultiScopeTarget[]>(
 		args: CommitMultiScopeArgs<S>
-	): Promise<void> {
+	): Promise<boolean> {
 		const { scopes, snapshot, mutate, op, afterTick, discardIfNoop, trackCaret } = args;
 		const prepared: PreparedScope[] = [];
 		// Containers whose kind the chain rebuild changed: the replacements are what the dev
@@ -634,7 +666,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		const folds: AncestrySeamFold[] = [];
 		let landing: FoldLanding | null = null;
 		let unwindFolds: (() => void) | null = null;
-		await __commit({
+		return __commit({
 			kind: 'container',
 			snapshot,
 			mutate: () => {
@@ -779,8 +811,6 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 
 	return {
 		sharing: deps.sharing,
-		pushUndoSnapshot,
-		pushUndoSnapshotPath,
 		pushUndoSnapshotDebounced: (leafPath, offset, batchKey) => {
 			if (admitsSnapshot(deps.reading)) textBatch.keystroke(leafPath, offset, batchKey);
 		},
@@ -795,8 +825,9 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 			historyGeneration++;
 		},
 		flushDebouncedCheckpoint: textBatch.interrupt,
-		joinUndoEntries,
-		endUndoJoin,
+		undoStep,
+		joinTypingBatch,
+		endUndoStep,
 		isolateUndoEntry: (write) => {
 			// Both sides: the first break makes the write push its own snapshot instead of
 			// joining the burst before it, the second keeps the next keystroke out of it.

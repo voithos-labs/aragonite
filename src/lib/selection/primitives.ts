@@ -4,14 +4,15 @@
  * live in `./path-math`.
  */
 
-import type { CommitSnapshotArg, UndoEntryMode } from '../action-contracts';
+import type { CommitSnapshotArg } from '../action-contracts';
 import type { DocumentView, NodeView } from '../core/node-views';
 import {
 	comparePaths,
 	isPathBetween,
 	isStrictAncestorOf,
 	pathHasPrefix,
-	pathsEqual
+	pathsEqual,
+	type DocPath
 } from './path-math';
 import {
 	asCellIndex,
@@ -71,6 +72,13 @@ export interface WholeBlockEndpoint {
  * an unresolved endpoint cannot reach a consumer.
  */
 export type SelectionEndpoint = SelectionPoint | WholeBlockEndpoint;
+
+/** Where a caret goes after an edit: a document path, which may name a container, and an offset
+ *  into the node there, raw or one of the special caret values in `block-component.ts`. */
+export interface CaretPosition {
+	readonly path: DocPath;
+	readonly offset: number;
+}
 
 export function isWholeBlockEndpoint(endpoint: SelectionEndpoint): endpoint is WholeBlockEndpoint {
 	return 'wholeBlock' in endpoint;
@@ -137,13 +145,9 @@ export function normalize(selection: EditorSelection): {
 
 // ── Undo snapshot ──────────────────────────────────────────────────────────
 
-/** A join delete uses the caller's undo snapshot; every other delete records its own position. */
-export function deleteSnapshot(
-	options: { undoEntry?: UndoEntryMode } | undefined,
-	path: number[],
-	offset = 0
-): CommitSnapshotArg {
-	return options?.undoEntry === 'join' ? 'skip' : { path: docPathFrom(path), offset };
+/** Where undo puts the caret back after a range delete, when nothing is focused. */
+export function deleteSnapshot(path: number[], offset = 0): CommitSnapshotArg {
+	return { path: docPathFrom(path), offset };
 }
 
 // ── Range walk ─────────────────────────────────────────────────────────────

@@ -76,7 +76,6 @@ describe('a delete that crosses both shared entries in one commit', () => {
 			getBlockElByPath: () => null,
 			revealPath: harness.deps.revealPath,
 			controller,
-			pushUndoSnapshot: () => controller.pushUndoSnapshot(0, 0),
 			reading: fixtureReading()
 		});
 		return harness;

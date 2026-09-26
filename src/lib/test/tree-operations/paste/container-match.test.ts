@@ -23,7 +23,7 @@ describe('container-matching paste: empty-target newline-termination (A1)', () =
 				doc,
 				blockEdit: makeStubBlockEdit(),
 				controller,
-				undoEntry: 'join'
+				crossBlock: true
 			})
 		);
 

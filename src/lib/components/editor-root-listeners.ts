@@ -5,6 +5,7 @@
 
 import { tick } from 'svelte';
 import { findSurfacePathForElement } from '../selection/path-lookup';
+import { BARE_MODIFIER_KEYS } from '../schema/keybindings';
 
 // ── Listener plumbing ───────────────────────────────────────────────
 
@@ -55,6 +56,26 @@ export function installModActiveTracker(root: HTMLElement): () => void {
 		onRoot(window, 'blur', reset),
 		onRoot(document, 'visibilitychange', onVisibility)
 	);
+}
+
+/**
+ * The author's own input in `root` ends its open undo step, so typing while a plugin's commit
+ * waits gets its own entry. Window capture runs before the root's handlers, so the key that starts
+ * a gesture ends the last step before opening its own; input elsewhere on the page is ignored.
+ */
+export function installUndoStepEnd(root: HTMLElement, endStep: () => void): () => void {
+	const win = root.ownerDocument.defaultView;
+	if (!win) return () => {};
+	const handler = (e: Event) => {
+		if (!(e.target instanceof Node) || !root.contains(e.target)) return;
+		// A held Shift or Ctrl is not input yet; the key it modifies is.
+		if (e instanceof KeyboardEvent && BARE_MODIFIER_KEYS.includes(e.key)) return;
+		endStep();
+	};
+	const removers = ['keydown', 'beforeinput', 'paste', 'cut', 'drop'].map((type) =>
+		onRoot(win, type, handler, { capture: true })
+	);
+	return () => removers.forEach((remove) => remove());
 }
 
 /**
