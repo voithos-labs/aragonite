@@ -23,6 +23,12 @@ import { normalizeCellRaw } from './table-cell-raw';
 import { normalizeFencedRaw } from './fenced-code-raw';
 import { registerInlineConstructPolicy } from './inline-construct-policy';
 import { wrapAsCodeSpan } from '../core/inline/backticks';
+import {
+	containerEstimate,
+	proseEstimate,
+	singleLineEstimate,
+	sourceLinesEstimate
+} from './height-estimates';
 
 // ── Content-range helpers ──────────────────────────────────────────────────
 
@@ -225,6 +231,8 @@ export function registerBuiltInDescriptors(): void {
 	registerBuiltInInlinePolicies();
 
 	registerBlockKind('paragraph', {
+		pageRole: 'prose',
+		estimateHeight: proseEstimate,
 		gapEdges: 'none',
 		mergeRole: 'prose',
 		editable: true,
@@ -239,6 +247,8 @@ export function registerBuiltInDescriptors(): void {
 		})
 	});
 	registerBlockKind('heading', {
+		pageRole: 'prose',
+		estimateHeight: proseEstimate,
 		gapEdges: 'none',
 		mergeRole: 'prose-absorber',
 		editable: true,
@@ -256,6 +266,8 @@ export function registerBuiltInDescriptors(): void {
 		})
 	});
 	registerBlockKind('setextHeading', {
+		pageRole: 'prose',
+		estimateHeight: proseEstimate,
 		gapEdges: 'none',
 		mergeRole: 'prose-absorber',
 		editable: true,
@@ -271,6 +283,8 @@ export function registerBuiltInDescriptors(): void {
 		})
 	});
 	registerBlockKind('fencedCode', {
+		pageRole: 'object',
+		estimateHeight: sourceLinesEstimate,
 		mergeRole: 'not-mergeable',
 		editable: true,
 		supportsInline: false,
@@ -311,6 +325,8 @@ export function registerBuiltInDescriptors(): void {
 		}
 	});
 	registerBlockKind('thematicBreak', {
+		pageRole: 'object',
+		estimateHeight: singleLineEstimate,
 		mergeRole: 'not-mergeable',
 		editable: false,
 		supportsInline: false,
@@ -347,6 +363,8 @@ export function registerBuiltInDescriptors(): void {
 		}
 	});
 	registerBlockKind('indentedCode', {
+		pageRole: 'object',
+		estimateHeight: sourceLinesEstimate,
 		gapEdges: 'none',
 		mergeRole: 'not-mergeable',
 		editable: true,
@@ -356,6 +374,8 @@ export function registerBuiltInDescriptors(): void {
 		closure: RAW_TEXT_LEAF_CLOSURE
 	});
 	registerBlockKind('htmlBlock', {
+		pageRole: 'object',
+		estimateHeight: sourceLinesEstimate,
 		gapEdges: 'none',
 		mergeRole: 'not-mergeable',
 		editable: true,
@@ -365,6 +385,8 @@ export function registerBuiltInDescriptors(): void {
 		closure: RAW_TEXT_LEAF_CLOSURE
 	});
 	registerBlockKind('linkReferenceDefinition', {
+		pageRole: 'object',
+		estimateHeight: proseEstimate,
 		gapEdges: 'none',
 		mergeRole: 'not-mergeable',
 		editable: true,
@@ -374,6 +396,8 @@ export function registerBuiltInDescriptors(): void {
 		closure: RAW_TEXT_LEAF_CLOSURE
 	});
 	registerBlockKind('table', {
+		pageRole: 'object',
+		estimateHeight: containerEstimate,
 		mergeRole: 'not-mergeable',
 		editable: true,
 		supportsInline: false,
@@ -406,6 +430,8 @@ export function registerBuiltInDescriptors(): void {
 		}
 	});
 	registerBlockKind('tableRow', {
+		pageRole: 'object',
+		estimateHeight: containerEstimate,
 		gapEdges: 'none',
 		mergeRole: 'not-mergeable',
 		editable: true,
@@ -434,6 +460,8 @@ export function registerBuiltInDescriptors(): void {
 		}
 	});
 	registerBlockKind('tableCell', {
+		pageRole: 'prose',
+		estimateHeight: proseEstimate,
 		gapEdges: 'none',
 		mergeRole: 'not-mergeable',
 		editable: true,
@@ -473,6 +501,8 @@ export function registerBuiltInDescriptors(): void {
 		}
 	});
 	registerBlockKind('unrecognized', {
+		pageRole: 'object',
+		estimateHeight: proseEstimate,
 		gapEdges: 'none',
 		mergeRole: 'self-merge',
 		editable: true,
@@ -491,6 +521,8 @@ export function registerBuiltInDescriptors(): void {
 		}
 	});
 	registerBlockKind('blockquote', {
+		pageRole: 'prose',
+		estimateHeight: containerEstimate,
 		gapEdges: 'none',
 		mergeRole: 'container',
 		editable: true,
@@ -523,6 +555,9 @@ export function registerBuiltInDescriptors(): void {
 		})
 	});
 	registerBlockKind('list', {
+		// Its items carry the handles: one on the list would sit over its first item's.
+		pageRole: 'prose',
+		estimateHeight: containerEstimate,
 		gapEdges: 'none',
 		mergeRole: 'container',
 		editable: true,
@@ -559,6 +594,8 @@ export function registerBuiltInDescriptors(): void {
 		})
 	});
 	registerBlockKind('listItem', {
+		pageRole: 'object',
+		estimateHeight: containerEstimate,
 		gapEdges: 'none',
 		mergeRole: 'container',
 		editable: true,

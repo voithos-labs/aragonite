@@ -9,6 +9,7 @@ import { createPluginRegistry } from './plugin-registry';
 import type { ChildRawChange } from './child-spans';
 import type { ClosureBlock } from './closure';
 import type { KeyBinding } from './keybindings';
+import type { HeightEstimateEnv } from './height-estimates';
 
 /**
  * The Backspace-merge roles (`docs/design/editor.md`, "Merge eligibility: roles, not pairs").
@@ -244,9 +245,21 @@ export interface BlockKindDescriptor {
 		clientX: number,
 		clientY: number
 	) => CaretTarget | null;
-	/** O(1) content-height estimate in px for windowing, with no subtree traversal. The height
-	 *  estimator adds the block's frame; a measured height still wins. */
-	estimateHeight?: (node: NodeView, env: { width: number }) => number;
+	/**
+	 * O(1) content-height estimate in px for windowing, with no subtree traversal; the helpers in
+	 * `height-estimates.ts` cover the common shapes. The estimator adds the block's frame, and a
+	 * measured height still wins. Absent, a container gets the container estimate, a leaf prose's.
+	 */
+	estimateHeight?: (node: NodeView, env: HeightEstimateEnv) => number;
+
+	// ── Presentation ──────────────────────────────────────────────────────────
+
+	/**
+	 * How the block reads on the page. `'prose'` is text the user writes in: it shows no drag
+	 * handle, and a right-click in a prose leaf opens the clipboard rows rather than a block menu.
+	 * `'object'` is a thing picked up whole, with a handle and a menu. Absent reads as `'object'`.
+	 */
+	pageRole?: 'prose' | 'object';
 }
 
 /**
@@ -281,7 +294,8 @@ export const DESCRIPTOR_FIELDS = [
 	'renderImagesAsWidgets',
 	'foreignDragHitTest',
 	'caretTargetAtPoint',
-	'estimateHeight'
+	'estimateHeight',
+	'pageRole'
 ] as const satisfies readonly (keyof BlockKindDescriptor)[];
 
 type MissingDescriptorField = Exclude<

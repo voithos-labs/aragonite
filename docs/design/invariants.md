@@ -253,6 +253,7 @@ Three families of seam run these checks:
 | G1.37 | No descriptor declares field pairs that cannot mean anything together               | A·N     |
 | G1.38 | A spliced container raw equals what a full rebuild would write                      | A·N     |
 | G1.39 | At most one block paints the editor's own caret at a time                           | A       |
+| G1.40 | Every built-in kind declares its page role and its height estimate                  | A·N     |
 
 ### The entries
 
@@ -623,6 +624,12 @@ just written, which no test can hand a predicate. Seam: the snap-caret paint eff
 `components/blocks/text/TextEditableBlock.svelte`, which calls
 `TextEditableBlock.svelte :: sweepOtherBlocksSnap` before it paints ·
 `e2e/tests/blocks/image/caret-synthetic-indicator.spec.ts`, and the e2e invariant watcher under it.
+
+**G1.40 · Built-in presentation facts** (`builtin-presentation-facts`). A plugin kind may leave
+`pageRole` and `estimateHeight` to their defaults (an object, and the container or prose estimate);
+a built-in may not, since a new built-in leaning on those defaults would take a plugin's guesses
+without anyone deciding it should. Predicate `checkBuiltinPresentationFacts` (`registry.ts`) ·
+bootstrap · `test/invariants/builtin-presentation-facts.test.ts`.
 
 ## Group 2: property and regression tested
 

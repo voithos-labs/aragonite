@@ -456,3 +456,33 @@ export function checkMergeRoleVocabulary(
 	}
 	return null;
 }
+
+export interface PresentationFactEntry {
+	kind: AnyBlockKind;
+	declaresPageRole: boolean;
+	declaresEstimateHeight: boolean;
+}
+
+/**
+ * G1.40: every built-in kind declares how it reads on the page and how tall it is likely to be.
+ * A plugin kind may leave both to their defaults; a built-in that did would take a plugin's
+ * guesses unnoticed. The caller passes built-in kinds only.
+ */
+export function checkBuiltinPresentationFacts(
+	entries: readonly PresentationFactEntry[]
+): InvariantViolation | null {
+	for (const { kind, declaresPageRole, declaresEstimateHeight } of entries) {
+		const missing = !declaresPageRole
+			? 'pageRole'
+			: !declaresEstimateHeight
+				? 'estimateHeight'
+				: null;
+		if (missing === null) continue;
+		return {
+			code: 'builtin-presentation-facts',
+			message: `built-in kind "${kind}" declares no ${missing}; declare it in built-in-descriptors.ts`,
+			detail: { kind, missing }
+		};
+	}
+	return null;
+}
