@@ -108,7 +108,6 @@ export function widgetInteractionDeps(
 		},
 		getLineEnding: () => '\n',
 		getEl: () => base.el,
-		getAmbientLength: () => 0,
 		getEditorContentWidth: () => 800,
 		widgetSelection: createWidgetSelectionState({ onSelect: () => {} }),
 		setSnapTarget: () => {},

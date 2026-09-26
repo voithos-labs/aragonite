@@ -10,7 +10,7 @@ import type { BlockEditActions, FocusActions } from '../../../action-contracts';
 import type { AnyInlineKind, InlineNode } from '../../../core/nodes';
 import type { NodeView } from '../../../core/node-views';
 import type { WidgetSelectionState } from '../../image/widget-selection-state.svelte';
-import type { AmbientCursorIO } from '../../../ambient/ambient-cursor';
+import type { SurfaceBackend } from '../../../cursor/surface-backend';
 import { resolvedInlineContent } from '../../../core/inline/inline-cache';
 import {
 	flattenInlineWidgets,
@@ -20,15 +20,12 @@ import {
 } from '../../../core/inline/inline-widgets';
 import { isVerticallyTransparentNode } from '../../../core/inline/transparency';
 import { trimTrailingLineEnding, trailingLineEnding, type LineEnding } from '../../../core/lines';
+import { asRawOffset } from '../../../cursor/coordinate-spaces';
 import {
-	asRawOffset,
-	toClampedRawOffset,
-	toDomTextOffset
-} from '../../../cursor/coordinate-spaces';
-import {
-	domTextOffsetAtNode,
-	createRangeAtDomTextOffsets,
-	rawSelectionFocus
+	extendSelectionToRaw as extendSelectionToRawIn,
+	rawOffsetAt,
+	rawSelectionFocus,
+	selectRawRange
 } from '../../../cursor/widget-offset';
 import { createSourceReveal, type SourceReveal } from '../../../cursor/reveal-source';
 import { nearestWidgetEdgeSeat, type WidgetEdgeCandidate } from '../../../cursor/widget-edge-snap';
@@ -62,9 +59,8 @@ export interface WidgetInteractionDeps {
 	getLineEnding: () => LineEnding;
 	get myPath(): number[];
 	getEl: () => HTMLElement | null;
-	getAmbientLength: () => number;
 	getEditorContentWidth: () => number;
-	cursor: AmbientCursorIO;
+	cursor: SurfaceBackend;
 	widgetSelection: WidgetSelectionState;
 	blockEdit: BlockEditActions;
 	focusActions: FocusActions;
@@ -338,7 +334,6 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 			get source() {
 				return source;
 			},
-			getAmbientLength: deps.getAmbientLength,
 			isRevealed: () => activeSourceNode !== null,
 			showSource: () => {
 				const container = deps.getEl();
@@ -390,12 +385,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		const editedDisplay = deps.readRawText();
 		const caretAfter =
 			caretOverride ??
-			(el && sourceNode
-				? toClampedRawOffset(
-						domTextOffsetAtNode(el, sourceNode, sourceNode.length),
-						deps.getAmbientLength()
-					)
-				: active.widgetEnd);
+			(el && sourceNode ? rawOffsetAt(el, sourceNode, sourceNode.length) : active.widgetEnd);
 		const { caretBefore, originalDisplay } = active;
 		// The reactive re-render rebuilds the widget, so drop the swap handles without
 		// restoring the DOM, then run the teardown.
@@ -469,29 +459,16 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		if (!el || !sel || sel.rangeCount === 0 || sel.isCollapsed) return null;
 		const range = sel.getRangeAt(0);
 		if (!el.contains(range.startContainer) || !el.contains(range.endContainer)) return null;
-		const ambient = deps.getAmbientLength();
-		const rawAt = (node: Node, offset: number) =>
-			toClampedRawOffset(domTextOffsetAtNode(el, node, offset), ambient);
 		return {
-			start: rawAt(range.startContainer, range.startOffset),
-			end: rawAt(range.endContainer, range.endOffset)
+			start: rawOffsetAt(el, range.startContainer, range.startOffset),
+			end: rawOffsetAt(el, range.endContainer, range.endOffset)
 		};
 	}
 
 	async function restoreRangeInBlock(span: { start: number; end: number }): Promise<void> {
 		await tick();
 		const el = deps.getEl();
-		const sel = window.getSelection();
-		if (!el || !sel) return;
-		const ambient = deps.getAmbientLength();
-		const range = createRangeAtDomTextOffsets(
-			el,
-			toDomTextOffset(asRawOffset(span.start), ambient),
-			toDomTextOffset(asRawOffset(span.end), ambient)
-		);
-		if (!range) return;
-		sel.removeAllRanges();
-		sel.addRange(range);
+		if (el) selectRawRange(el, span.start, span.end);
 	}
 
 	// Whether the caret is still inside is decided by raw offset through the shared traversal,
@@ -507,17 +484,10 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		if (!anchorNode || !focusNode) return false;
 		if (!el.contains(anchorNode) || !el.contains(focusNode)) return false;
 		if (activeSourceNode.contains(anchorNode) || activeSourceNode.contains(focusNode)) return false;
-		const ambient = deps.getAmbientLength();
-		const sourceStart = toClampedRawOffset(domTextOffsetAtNode(el, activeSourceNode, 0), ambient);
+		const sourceStart = rawOffsetAt(el, activeSourceNode, 0);
 		const sourceEnd = sourceStart + activeSourceNode.length;
-		const anchorOff = toClampedRawOffset(
-			domTextOffsetAtNode(el, anchorNode, sel.anchorOffset),
-			ambient
-		);
-		const focusOff = toClampedRawOffset(
-			domTextOffsetAtNode(el, focusNode, sel.focusOffset),
-			ambient
-		);
+		const anchorOff = rawOffsetAt(el, anchorNode, sel.anchorOffset);
+		const focusOff = rawOffsetAt(el, focusNode, sel.focusOffset);
 		const inSource = (o: number) => o >= sourceStart && o <= sourceEnd;
 		return !inSource(anchorOff) && !inSource(focusOff);
 	}
@@ -643,12 +613,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		if (revealState) {
 			const active = revealState;
 			const revealedStart =
-				activeSourceNode === null
-					? Number.POSITIVE_INFINITY
-					: toClampedRawOffset(
-							domTextOffsetAtNode(el, activeSourceNode, 0),
-							deps.getAmbientLength()
-						);
+				activeSourceNode === null ? Number.POSITIVE_INFINITY : rawOffsetAt(el, activeSourceNode, 0);
 			const rawBefore = deps.node.raw.length;
 			if (deps.readRawText() === active.originalDisplay) {
 				foldRevealNoEdit();
@@ -784,7 +749,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 				deps.widgetSelection.clear();
 				await deps.focusActions.moveFocus(deps.index + (left ? -1 : 1), left ? 'end' : 'start');
 			} else {
-				deps.cursor.setRaw(asRawOffset(left ? widget.start : widget.end));
+				deps.cursor.setRaw(asRawOffset(left ? widget.start : widget.end), { clamp: 'reachable' });
 				deps.widgetSelection.clear();
 			}
 			return true;
@@ -793,7 +758,9 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		// read: put one at the edge the key leaves from and decline, so the move runs from there.
 		const moveEdge = e.shiftKey ? null : caretMoveEdge(e.key);
 		if (moveEdge) {
-			deps.cursor.setRaw(asRawOffset(moveEdge === 'start' ? widget.start : widget.end));
+			deps.cursor.setRaw(asRawOffset(moveEdge === 'start' ? widget.start : widget.end), {
+				clamp: 'reachable'
+			});
 			deps.widgetSelection.clear();
 			return false;
 		}
@@ -810,7 +777,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		}
 		if (e.key === 'Escape') {
 			e.preventDefault();
-			deps.cursor.setRaw(asRawOffset(widget.end));
+			deps.cursor.setRaw(asRawOffset(widget.end), { clamp: 'reachable' });
 			deps.widgetSelection.clear();
 			return true;
 		}
@@ -936,7 +903,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		// browser answers that hit test with a position in the neighbouring text.
 		if (!seat.inside && caretIsInTextContent(el, live)) return;
 		el.focus();
-		deps.cursor.setRaw(asRawOffset(seat.offset));
+		deps.cursor.setRaw(asRawOffset(seat.offset), { clamp: 'reachable' });
 		// `setRaw` may have landed in a trailing text node, where the browser draws a caret.
 		if (!caretIsInTextContent(el, window.getSelection())) deps.setSnapTarget(seat.offset);
 	}
@@ -985,13 +952,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 
 	function extendSelectionToRaw(rawOffset: number): void {
 		const el = deps.getEl();
-		if (!el) return;
-		const sel = window.getSelection();
-		if (!sel || sel.rangeCount === 0) return;
-		const target = toDomTextOffset(asRawOffset(rawOffset), deps.getAmbientLength());
-		const range = createRangeAtDomTextOffsets(el, target, target);
-		if (!range) return;
-		sel.extend(range.endContainer, range.endOffset);
+		if (el) extendSelectionToRawIn(el, rawOffset);
 	}
 
 	return {

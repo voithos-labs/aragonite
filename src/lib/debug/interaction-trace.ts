@@ -65,14 +65,14 @@ export function traceRebuild(changed: string, force: boolean): void {
 	record('text-render', 'rebuild', { changed, force });
 }
 
-export function traceCursorCapture(walk: number): void {
+export function traceCursorCapture(raw: number): void {
 	if (!enabled) return;
-	record('text-render', 'cursor-capture', { walk });
+	record('text-render', 'cursor-capture', { raw });
 }
 
-export function traceCursorRestore(walk: number): void {
+export function traceCursorRestore(raw: number): void {
 	if (!enabled) return;
-	record('text-render', 'cursor-restore', { walk });
+	record('text-render', 'cursor-restore', { raw });
 }
 
 export function tracePendingCursorSet(source: string, offset: number | null): void {

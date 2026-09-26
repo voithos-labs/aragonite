@@ -8,7 +8,7 @@ import type { NodeView } from '../../../core/node-views';
 import { metadataOf } from '../../../core/nodes';
 import { displayLength, trimTrailingLineEnding } from '../../../core/lines';
 import { sliceFencedCode, type FencedCodeSlice } from './code-renderer';
-import type { RawRange } from '../editable-surface';
+import type { RawRange } from '../../../cursor/widget-offset';
 
 // ── Public API ──────────────────────────────────────────────────────────────
 

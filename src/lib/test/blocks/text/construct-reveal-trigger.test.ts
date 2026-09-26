@@ -47,7 +47,6 @@ describe('createConstructReveal: trigger', () => {
 				return harness.deps.reading;
 			},
 			getEl: () => el,
-			getAmbientLength: () => 0,
 			isCrossBlock: () => crossBlock
 		});
 	});

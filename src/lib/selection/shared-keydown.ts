@@ -198,7 +198,6 @@ export interface LandableBounds {
 export interface LandableBoundsContext {
 	/** textContent length in raw-content coordinates (the marker prefix excluded). */
 	getTextLen(): number;
-	getAmbientLength(): number;
 }
 
 /**

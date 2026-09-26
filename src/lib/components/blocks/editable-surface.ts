@@ -37,9 +37,9 @@ import {
 	asEditorX,
 	asRawOffset,
 	toClampedRawOffset,
-	toDomTextOffset,
 	type RawOffset
 } from '../../cursor/coordinate-spaces';
+import type { CursorBackend } from '../../cursor/surface-backend';
 import { findOffsetNearestX } from '../../cursor/sticky-measure';
 import { measurePartialRectsInContentEditable } from '../../cursor/overlay-rects';
 import { normalizeLineEndings } from '../../core/lines';
@@ -49,7 +49,13 @@ import {
 } from '../../selection/cross-block/dispatch';
 import { writeCrossBlockCopy, writeCrossBlockCut } from '../../selection/cross-block/clipboard';
 import { createImagePasteArm, type ImagePasteArm } from '../paste-image-arm';
-import { clampToLandableRaw, revealsNoMarkers } from '../../cursor/widget-offset';
+import {
+	markerPrefixLength,
+	revealsNoMarkers,
+	selectRawRange,
+	walkOffsetOfRaw,
+	type RawRange
+} from '../../cursor/widget-offset';
 import type { SharedKeydownContext } from '../../selection/shared-keydown';
 import {
 	isInteractionTraceEnabled,
@@ -113,16 +119,6 @@ export function editableSurfaceAttributes(
 }
 
 /**
- * Per-surface cursor I/O in raw-content coordinates (ambient marker excluded).
- * `buildRange` maps a raw-offset span to a DOM Range for selection writes.
- */
-export interface CursorBackend {
-	getRaw(): RawOffset | null;
-	setRaw(offset: RawOffset): void;
-	buildRange(start: RawOffset, end: RawOffset): Range | null;
-}
-
-/**
  * Guarded pending-caret restore. Applies only while `el` still holds focus, so a blur
  * between arming the restore and the render drops it instead of yanking the global
  * selection back. Callers clear their pending field unconditionally regardless.
@@ -140,9 +136,13 @@ export function consumePendingRestore<T>(
 
 export interface EditableSurfaceDeps {
 	getEl: () => HTMLElement | null;
-	/** Marker prefix length in raw units: 0 for a code block or cell, the marker's width for text. */
-	getAmbientLength: () => number;
 	backend: CursorBackend;
+	/** The raw range a column landing stays inside, for a block whose first or last visual line
+	 *  takes no caret (a code fence); the whole block when omitted. */
+	caretWindow?: () => RawRange;
+	/** What a placed offset becomes before it lands, sentinels included, for a block whose
+	 *  structure takes no caret; unchanged when omitted. */
+	clampLanding?: (offset: number) => number;
 	/** True while an ephemeral edit (inline-math source reveal) owns the DOM: the block
 	 *  commits on exit, so keyboard input and IME compositionend both skip the commit. */
 	isInputSuppressed?: () => boolean;
@@ -248,21 +248,13 @@ export interface ClipboardCaretIO {
 	focus: (offset: number) => void;
 }
 
-/** A span of a block's raw text. */
-export interface RawRange {
-	start: number;
-	end: number;
-}
-
 /** The BlockComponent methods shared verbatim across every editable surface. */
 export interface EditableSurfaceMethods {
 	focus(offset: number): void;
 	/** Required here, optional on `BlockComponent`: an editable surface is what the
 	 *  cross-block extend paths leave a caret in, so all of them go through here. */
 	parkCaret(offset: number): void;
-	/** `within` is the raw range the landing must stay inside, for a block whose first or last
-	 *  visual line takes no caret (a code fence); the default is the whole block. */
-	focusAtColumn(x: number, from: StickyColumnDirection, within?: RawRange): void;
+	focusAtColumn(x: number, from: StickyColumnDirection): void;
 	getCursorOffset(): number | null;
 	getSelectedText(): string;
 	setSelection(start: number, end: number): void;
@@ -303,7 +295,6 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		getCursorOffset: () => deps.backend.getRaw(),
 		getFocusOffset: deps.getFocusOffset,
 		getTextLen: deps.getTextLen,
-		getAmbientLength: deps.getAmbientLength,
 		getMyPath: deps.getMyPath,
 		getIndex: deps.getIndex,
 		crossBlock,
@@ -321,10 +312,9 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 	// ── BlockComponent surface ────────────────────────────────────────────────
 
 	/**
-	 * Every caret placement lands here, so every offset clamps to where a caret can sit: behind a
-	 * hidden marker run the next byte would join a construct the caret arrived outside of
-	 * (live-mode.md § 4.2). Where markers paint the clamp changes nothing; CURSOR_EXACT_START
-	 * skips it.
+	 * Every placement of the caret from outside the block lands here, so every offset clamps to
+	 * where a caret can sit: behind a hidden marker run the next byte would join a construct the
+	 * caret arrived outside of (live-mode.md § 4.2). CURSOR_EXACT_START skips that clamp.
 	 */
 	function parkCaret(offset: number): void {
 		const el = deps.getEl();
@@ -332,29 +322,28 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		// Placing a caret never scrolls; the caller that brings an off-screen target into view
 		// does that itself.
 		el.focus({ preventScroll: true });
-		if (offset === CURSOR_EXACT_START) {
-			deps.backend.setRaw(asRawOffset(0));
+		const landed = deps.clampLanding?.(offset) ?? offset;
+		if (landed === CURSOR_EXACT_START) {
+			deps.backend.setRaw(asRawOffset(0), { clamp: 'exact' });
 			return;
 		}
-		const requested = offset === CURSOR_START ? 0 : Math.max(0, offset);
-		deps.backend.setRaw(asRawOffset(clampToLandableRaw(el, requested)));
+		const requested = landed === CURSOR_START ? 0 : Math.max(0, landed);
+		deps.backend.setRaw(asRawOffset(requested), { clamp: 'reachable' });
 	}
 
 	const focus = placeCaret(deps.selection, parkCaret);
 
-	// The vertical move resolves by pixel and reaches `setRaw` on its own path, so it does not
-	// inherit parkCaret's sentinel rule: a column landing already stops on a painted glyph.
-	function focusAtColumn(x: number, from: StickyColumnDirection, within?: RawRange): void {
+	// A column landing stops on a painted glyph by measuring, so it writes its offset exact.
+	function focusAtColumn(x: number, from: StickyColumnDirection): void {
 		const el = deps.getEl();
 		if (!el) return;
 		el.focus({ preventScroll: true });
-		const ambientLength = deps.getAmbientLength();
-		// `within` is in raw offsets, so the default floor of raw 0 keeps the scan out of the
-		// container's marker prefix.
-		const min = toDomTextOffset(asRawOffset(within?.start ?? 0), ambientLength);
-		const max = within ? toDomTextOffset(asRawOffset(within.end), ambientLength) : undefined;
+		const within = deps.caretWindow?.();
+		// The default floor of raw 0 keeps the scan out of the container's marker prefix.
+		const min = walkOffsetOfRaw(el, within?.start ?? 0);
+		const max = within ? walkOffsetOfRaw(el, within.end) : undefined;
 		const walkOffset = findOffsetNearestX(el, asEditorX(x), from, min, max);
-		deps.backend.setRaw(toClampedRawOffset(walkOffset, ambientLength));
+		deps.backend.setRaw(toClampedRawOffset(walkOffset, markerPrefixLength(el)), { clamp: 'exact' });
 		// Announced like every other placement, but without `placeCaret`'s range clear: the
 		// vertical move that gets here has already collapsed whatever range it left.
 		deps.selection.announceSelection();
@@ -372,22 +361,17 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 	}
 
 	function setSelection(start: number, end: number): void {
-		if (!deps.getEl()) return;
-		const range = deps.backend.buildRange(asRawOffset(start), asRawOffset(end));
-		if (!range) return;
-		const sel = window.getSelection();
-		sel?.removeAllRanges();
-		sel?.addRange(range);
+		const el = deps.getEl();
+		if (el) selectRawRange(el, start, end);
 	}
 
 	function measurePartialRects(startOffset: number, endOffset: number): DOMRect[] {
 		const el = deps.getEl();
 		if (!el) return [];
-		const ambientLength = deps.getAmbientLength();
 		return measurePartialRectsInContentEditable(
 			el,
-			toDomTextOffset(asRawOffset(startOffset), ambientLength),
-			toDomTextOffset(asRawOffset(endOffset), ambientLength)
+			walkOffsetOfRaw(el, startOffset),
+			walkOffsetOfRaw(el, endOffset)
 		);
 	}
 

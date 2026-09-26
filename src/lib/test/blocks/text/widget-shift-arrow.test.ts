@@ -49,7 +49,7 @@ describe('handleShiftArrowIntoWidget: non-image inline widget', () => {
 	});
 
 	function makeInteraction() {
-		// Only `node`, `getEl`, `getAmbientLength` and `linkRef` are read on this path; the rest
+		// Only `node`, `getEl` and `linkRef` are read on this path; the rest
 		// stay throwing stubs, so any new dependency added later shows up at once.
 		const trap = () => {
 			throw new Error('unexpected dep access on the shift-arrow extension path');
@@ -65,7 +65,6 @@ describe('handleShiftArrowIntoWidget: non-image inline widget', () => {
 				return [0];
 			},
 			getEl: () => el,
-			getAmbientLength: () => 0,
 			getEditorContentWidth: trap,
 			cursor: new Proxy({}, { get: trap }),
 			widgetSelection: new Proxy({}, { get: trap }),

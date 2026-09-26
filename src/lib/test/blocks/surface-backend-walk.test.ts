@@ -1,13 +1,13 @@
 // @vitest-environment jsdom
 //
-// The code and leaf surfaces read and write the caret through the same offset walk as a live
+// Every editable surface reads and writes the caret through the same offset walk as a live
 // caret in prose: a widget counts its source bytes, and adjacent hidden spans are one run.
 // Miss-analysis: the plain-text backend had its own walk, tested only on containers with no
 // widget and one hidden span at a time, so its two disagreements with the shared walk had no
 // fixture to fail in (#498, #572).
 import { describe, it, expect, afterEach } from 'vitest';
 import { asRawOffset } from '../../cursor/coordinate-spaces';
-import { createContentOffsetBackend } from '../../components/blocks/plain-text-backend';
+import { createSurfaceBackend } from '../../cursor/surface-backend';
 
 afterEach(() => {
 	document.body.replaceChildren();
@@ -61,7 +61,7 @@ describe('the surface backend counts a widget by its source bytes', () => {
 
 	it('writes a raw offset past the widget into the text after it', () => {
 		const { el } = mountWithWidget();
-		createContentOffsetBackend(() => el).backend.setRaw(asRawOffset(9));
+		createSurfaceBackend({ getEl: () => el }).setRaw(asRawOffset(9), { clamp: 'exact' });
 		const { node, offset } = caret();
 		expect(node.textContent).toBe('cd');
 		expect(offset).toBe(1);
@@ -70,7 +70,7 @@ describe('the surface backend counts a widget by its source bytes', () => {
 	it('reads a caret past the widget back as the same raw offset', () => {
 		const { el, tail } = mountWithWidget();
 		window.getSelection()!.collapse(tail, 1);
-		expect(createContentOffsetBackend(() => el).backend.getRaw()).toBe(9);
+		expect(createSurfaceBackend({ getEl: () => el }).getRaw()).toBe(9);
 	});
 });
 
@@ -81,7 +81,7 @@ describe('the surface backend treats adjacent hidden fence lines as one run (#57
 		const closer = fenceLine('```');
 		el.append(opener, closer);
 		el.focus();
-		createContentOffsetBackend(() => el).backend.setRaw(asRawOffset(4));
+		createSurfaceBackend({ getEl: () => el }).setRaw(asRawOffset(4), { clamp: 'exact' });
 		const { node, offset } = caret();
 		const between =
 			node === el && el.childNodes[offset - 1] === opener && el.childNodes[offset] === closer;

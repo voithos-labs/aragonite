@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest';
-import { buildAmbientSpan, placeCaretAfterAmbientSpan } from '../../ambient/ambient-dom';
+import { buildAmbientSpan } from '../../ambient/ambient-dom';
+import { placeCaretAtRaw } from '../../cursor/widget-offset';
 
 describe('buildAmbientSpan', () => {
 	it('string input produces a single text-only span', () => {
@@ -114,7 +115,7 @@ describe('buildAmbientSpan', () => {
 // Miss-analysis (GH #115): the caret at raw 0 preferred the first text node after the span,
 // with no test over the traversal, so a widget at the start had its raw bytes silently skipped
 // and raw 0 read as that widget's end.
-describe('placeCaretAfterAmbientSpan', () => {
+describe('raw 0 behind a marker prefix', () => {
 	function mountListBlock(...afterSpan: Node[]): HTMLElement {
 		const block = document.createElement('div');
 		block.setAttribute('contenteditable', 'true');
@@ -132,7 +133,7 @@ describe('placeCaretAfterAmbientSpan', () => {
 
 	it('puts the caret in the first text node when text opens the content', () => {
 		const block = mountListBlock(document.createTextNode('tail'));
-		expect(placeCaretAfterAmbientSpan(block)).toBe(true);
+		expect(placeCaretAtRaw(block, 0, { clamp: 'exact' })).toBe(true);
 		const range = window.getSelection()!.getRangeAt(0);
 		expect(range.startContainer.textContent).toBe('tail');
 		expect(range.startOffset).toBe(0);
@@ -140,7 +141,7 @@ describe('placeCaretAfterAmbientSpan', () => {
 
 	it('puts the caret at the span boundary when a widget opens the content: its raw is not skippable', () => {
 		const block = mountListBlock(widget(), document.createTextNode(' tail'));
-		expect(placeCaretAfterAmbientSpan(block)).toBe(true);
+		expect(placeCaretAtRaw(block, 0, { clamp: 'exact' })).toBe(true);
 		const range = window.getSelection()!.getRangeAt(0);
 		expect(range.startContainer).toBe(block);
 		expect(range.startOffset).toBe(1);

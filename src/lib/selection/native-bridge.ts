@@ -1,31 +1,18 @@
 /**
  * Bridges the browser's Selection API and `SelectionPoint`. Callers provide the elements and
- * paths; nothing here walks the tree. A `SelectionPoint` offset counts raw bytes, so the
- * DOM-to-raw conversion subtracts a container's leading marker span, whose text counts toward
- * DOM offsets but not raw.
+ * paths; nothing here walks the tree. A `SelectionPoint` offset counts raw bytes, and every
+ * conversion goes through `cursor/widget-offset.ts`.
  */
 
 import type { SelectionPoint, EditorSelection } from './primitives';
 import type { SelectionState } from './selection-state.svelte';
 import type { BlockComponent } from '../block-component';
 import {
-	asDomTextOffset,
-	asRawOffset,
-	toClampedRawOffset,
-	toDomTextOffset
-} from '../cursor/coordinate-spaces';
-import { createRangeFromOffsets } from '../cursor/content-offsets';
-import {
-	clampToLandableRaw,
-	createRangeAtDomTextOffsets,
-	domTextOffsetAtNode
+	placeCaretAtRaw,
+	rawOffsetAt,
+	selectRawRange,
+	selectSurfaceContent
 } from '../cursor/widget-offset';
-import {
-	ambientLengthOf,
-	ambientSpanOf,
-	placeCaretAfterAmbientSpan,
-	pointAfterAmbientSpan
-} from '../ambient/ambient-dom';
 
 // ── Read native → SelectionPoint ────────────────────────────────────────────
 
@@ -47,30 +34,15 @@ export function readNativeCaretInBlock(
 	const useAnchor = !sel.isCollapsed && sel.anchorNode !== null && blockEl.contains(sel.anchorNode);
 	const node = useAnchor ? sel.anchorNode! : range.startContainer;
 	const nodeOffset = useAnchor ? sel.anchorOffset : range.startOffset;
-	const content = domTextOffsetAtNode(blockEl, node, nodeOffset);
-	return {
-		path: path.slice(),
-		offset: toClampedRawOffset(content, ambientLengthOf(blockEl))
-	};
+	return { path: path.slice(), offset: rawOffsetAt(blockEl, node, nodeOffset) };
 }
 
 // ── Apply SelectionPoint → native ───────────────────────────────────────────
 
-/**
- * Places a collapsed native caret at a `SelectionPoint`, clamped as `parkCaret` clamps: never
- * past a hidden marker run. Raw offset 0 behind a marker span goes after the span, because
- * Chromium bounces a caret out of `contenteditable="false"`.
- */
+/** Places a collapsed native caret at a `SelectionPoint`, clamped as `parkCaret` clamps: never
+ *  behind a hidden marker run. */
 export function applyCollapsedCaret(blockEl: HTMLElement, point: SelectionPoint): void {
-	const ambient = ambientLengthOf(blockEl);
-	const offset = clampToLandableRaw(blockEl, point.offset);
-	if (ambient > 0 && offset <= 0 && placeCaretAfterAmbientSpan(blockEl)) return;
-	const target = toDomTextOffset(asRawOffset(offset), ambient);
-	const range = createRangeAtDomTextOffsets(blockEl, target, target);
-	if (!range) return;
-	const sel = window.getSelection();
-	sel?.removeAllRanges();
-	sel?.addRange(range);
+	placeCaretAtRaw(blockEl, point.offset, { clamp: 'reachable' });
 }
 
 /**
@@ -91,25 +63,7 @@ export function focusCollapsedCaret(
 /** Selects an editable element's whole content, past its marker prefix: the first Ctrl+A
  *  range and the triple-click one. */
 export function applySurfaceContentRange(el: HTMLElement): void {
-	const ambient = ambientSpanOf(el);
-	const ambientLen = ambient?.textContent?.length ?? 0;
-	const textLen = el.textContent?.length ?? 0;
-
-	if (ambient && textLen > ambientLen) {
-		if (!placeCaretAfterAmbientSpan(el)) return;
-		// `textLen` counts the full textContent, marker included, so it is already a DOM text offset.
-		const endRange = createRangeFromOffsets(el, asDomTextOffset(textLen), asDomTextOffset(textLen));
-		if (endRange) {
-			window.getSelection()?.extend(endRange.endContainer, endRange.endOffset);
-		}
-		return;
-	}
-
-	const range = document.createRange();
-	range.selectNodeContents(el);
-	const sel = window.getSelection();
-	sel?.removeAllRanges();
-	sel?.addRange(range);
+	selectSurfaceContent(el);
 }
 
 /** Selects raw `[anchorOffset, focusOffset]` in one block, backward when the focus comes first. */
@@ -118,29 +72,7 @@ export function applySingleBlockRange(
 	anchorOffset: number,
 	focusOffset: number
 ): void {
-	const startOffset = Math.min(anchorOffset, focusOffset);
-	const ambient = ambientLengthOf(blockEl);
-	const range = createRangeAtDomTextOffsets(
-		blockEl,
-		toDomTextOffset(asRawOffset(startOffset), ambient),
-		toDomTextOffset(asRawOffset(Math.max(anchorOffset, focusOffset)), ambient)
-	);
-	if (!range) return;
-	const sel = window.getSelection();
-	// A start at raw 0 behind a marker span goes after the span, as a caret does: Chromium drops
-	// a range that opens inside `contenteditable="false"`.
-	const afterMarker = ambient > 0 && startOffset <= 0 ? pointAfterAmbientSpan(blockEl) : null;
-	const start = afterMarker ?? { node: range.startContainer, offset: range.startOffset };
-	if (focusOffset < anchorOffset) {
-		sel?.setBaseAndExtent(range.endContainer, range.endOffset, start.node, start.offset);
-		return;
-	}
-	if (afterMarker) {
-		sel?.setBaseAndExtent(start.node, start.offset, range.endContainer, range.endOffset);
-		return;
-	}
-	sel?.removeAllRanges();
-	sel?.addRange(range);
+	selectRawRange(blockEl, anchorOffset, focusOffset);
 }
 
 export function clearNativeSelection(): void {
@@ -208,7 +140,7 @@ function collapsedSelectionAt(path: number[], offset: number): EditorSelection {
 /**
  * The focused block's native selection as distinct anchor/focus raw offsets, so getSelection()
  * reports a within-block range instead of collapsing it to the caret. Null when collapsed or
- * outside the active block. Offsets convert through that block's leading marker length.
+ * outside the active block.
  */
 function nativeRangeInFocusedBlock(path: number[]): EditorSelection | null {
 	// Node-env callers (undo snapshot capture in unit tests) have no DOM; fall back to the
@@ -219,18 +151,9 @@ function nativeRangeInFocusedBlock(path: number[]): EditorSelection | null {
 	const sel = window.getSelection();
 	if (!sel || sel.isCollapsed || sel.anchorNode === null || sel.focusNode === null) return null;
 	if (!active.contains(sel.anchorNode) || !active.contains(sel.focusNode)) return null;
-	const ambient = ambientLengthOf(active);
-	const anchorOffset = toClampedRawOffset(
-		domTextOffsetAtNode(active, sel.anchorNode, sel.anchorOffset),
-		ambient
-	);
-	const focusOffset = toClampedRawOffset(
-		domTextOffsetAtNode(active, sel.focusNode, sel.focusOffset),
-		ambient
-	);
 	return {
-		anchor: { path: path.slice(), offset: anchorOffset },
-		focus: { path: path.slice(), offset: focusOffset }
+		anchor: { path: path.slice(), offset: rawOffsetAt(active, sel.anchorNode, sel.anchorOffset) },
+		focus: { path: path.slice(), offset: rawOffsetAt(active, sel.focusNode, sel.focusOffset) }
 	};
 }
 

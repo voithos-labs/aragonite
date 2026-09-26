@@ -44,7 +44,6 @@ export function harness(
 			return [0];
 		},
 		getEl: () => null,
-		getAmbientLength: () => 0,
 		getEditorContentWidth: () => 800,
 		cursor: new Proxy({}, { get: trap }),
 		widgetSelection,

@@ -52,7 +52,6 @@ export function makeEdgeDispatch(
 			);
 		},
 		getEl: () => el,
-		getAmbientLength: () => 0,
 		hasIslands: () => false,
 		getRawSelection: () => null,
 		blockEdit: {

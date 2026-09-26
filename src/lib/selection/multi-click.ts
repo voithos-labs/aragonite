@@ -5,7 +5,6 @@
  * platform, it walks into non-editable widgets, and a marker here never joins a word.
  */
 
-import { ambientLengthOf } from '../ambient/ambient-dom';
 import {
 	asDomTextOffset,
 	asRawOffset,
@@ -14,7 +13,11 @@ import {
 } from '../cursor/coordinate-spaces';
 import { caretOffsetAtPoint } from '../cursor/point-offset';
 import type { UserScrollport } from '../cursor/scroll-ancestors';
-import { containerDomTextLength, maskedWalkText } from '../cursor/widget-offset';
+import {
+	containerDomTextLength,
+	markerPrefixLength,
+	maskedWalkText
+} from '../cursor/widget-offset';
 import { isWholeBlockInputProxy } from '../editor-actions/whole-block-focus-surface';
 import type { BlockElLookup } from '../editor-keys';
 import { installDragListener, type DragGranularity } from './drag-pointer';
@@ -74,7 +77,7 @@ export function spanAround(
 	granularity: ClickGranularity,
 	rawOffset: number
 ): Span | null {
-	const ambient = ambientLengthOf(surface);
+	const ambient = markerPrefixLength(surface);
 	if (granularity === 'block') {
 		return { start: 0, end: toClampedRawOffset(containerDomTextLength(surface), ambient) };
 	}

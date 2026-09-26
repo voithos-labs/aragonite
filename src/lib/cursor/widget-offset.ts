@@ -102,6 +102,16 @@ export function selectRawRange(el: HTMLElement, anchor: number, focus: number): 
 	return writeSelection(caretPointAtRaw(el, anchor), caretPointAtRaw(el, focus));
 }
 
+/** Move the live selection's focus to raw `raw` in `el`, keeping its anchor. */
+export function extendSelectionToRaw(el: HTMLElement, raw: number): boolean {
+	const sel = window.getSelection();
+	if (!sel || sel.rangeCount === 0 || sel.anchorNode === null) return false;
+	return writeSelection(
+		{ node: sel.anchorNode, offset: sel.anchorOffset },
+		caretPointAtRaw(el, raw)
+	);
+}
+
 /**
  * Select `el`'s whole content, past its marker prefix when there is content to select: the first
  * Ctrl+A range, the triple click. With none, the whole contents, marker included.

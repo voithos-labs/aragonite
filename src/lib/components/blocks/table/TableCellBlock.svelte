@@ -40,18 +40,16 @@
 	import { tableCellCount } from '../../../selection/table-endpoint-snap';
 	import { pathsEqual } from '../../../selection/path-math';
 	import { applyDelimiterAutoPair } from '../text/delimiter-autopair';
-	import { hasSelection as hasSelectionHelper } from '../../../cursor/content-offsets';
 	import { FALLBACK_CONTENT_WIDTH } from '../../../cursor/typography-estimates';
 	import {
 		rawTextOfNode,
 		containerDomTextLength,
 		landableDomTextBounds,
-		createRangeAtDomTextOffsets,
 		screenVisibilityOf,
 		rawSelectionFocus
 	} from '../../../cursor/widget-offset';
-	import { asRawOffset, toDomTextOffset, type RawOffset } from '../../../cursor/coordinate-spaces';
-	import { createAmbientCursorIO } from '../../../ambient/ambient-cursor';
+	import { asRawOffset, type RawOffset } from '../../../cursor/coordinate-spaces';
+	import { createSurfaceBackend } from '../../../cursor/surface-backend';
 	import { getCurrentCursorEditorRelativeX } from '../../../cursor/sticky-measure';
 	import { handleSharedKeydown, handleSharedBeforeInput } from '../../../selection/shared-keydown';
 	import {
@@ -216,9 +214,8 @@
 
 	// A cell carries no marker prefix, so the factory gives plain widget-aware cursor reads
 	// in raw units; counting `textContent` would undercount a widget's bytes.
-	const cursor = createAmbientCursorIO({
-		getEl: () => el ?? null,
-		getAmbientLength: () => 0
+	const cursor = createSurfaceBackend({
+		getEl: () => el ?? null
 	});
 
 	const editableSurface = createEditableSurface({
@@ -227,14 +224,8 @@
 		// own escaping one above.
 		blockEdit,
 		getEl: () => el ?? null,
-		getAmbientLength: () => 0,
 		isInputSuppressed: () => revealing,
-		backend: {
-			getRaw: () => cursor.getRaw(),
-			setRaw: (offset) => cursor.setRaw(offset),
-			buildRange: (start, end) =>
-				createRangeAtDomTextOffsets(el!, toDomTextOffset(start, 0), toDomTextOffset(end, 0))
-		},
+		backend: cursor,
 		getMyPath: () => myPath,
 		getIndex: () => index,
 		getComposing: () => composing,
@@ -283,7 +274,6 @@
 			return myPath;
 		},
 		getEl: () => el ?? null,
-		getAmbientLength: () => 0,
 		getEditorContentWidth: () => getEditorRoot()?.clientWidth ?? FALLBACK_CONTENT_WIDTH,
 		cursor,
 		widgetSelection,
@@ -321,7 +311,6 @@
 			return reading;
 		},
 		getEl: () => el ?? null,
-		getAmbientLength: () => 0,
 		hasIslands: () =>
 			decorationEngine ? decorationEngine.islandsForPath(myPath).length > 0 : false,
 		getRawSelection: () => cursor.getRawSelection(),
@@ -335,7 +324,9 @@
 			if (widgetEditing(widget.kind)?.revealSource) {
 				widgetInteraction.enterWidget(widget, fromTrailingEdge);
 			} else {
-				cursor.setRaw(asRawOffset(fromTrailingEdge ? widget.start : widget.end));
+				cursor.setRaw(asRawOffset(fromTrailingEdge ? widget.start : widget.end), {
+					clamp: 'reachable'
+				});
 			}
 		},
 		// A cell draws no selection outline around a widget, so a drawn widget deletes whole
@@ -554,7 +545,8 @@
 		});
 		if (pendingCursorOffset !== null) {
 			consumePendingRestore(el, pendingCursorOffset, (offset) => {
-				if (!widgetInteraction.revealInterior(offset)) cursor.setRaw(asRawOffset(offset));
+				if (!widgetInteraction.revealInterior(offset))
+					cursor.setRaw(asRawOffset(offset), { clamp: 'exact' });
 			});
 			pendingCursorOffset = null;
 		}
@@ -615,7 +607,7 @@
 			offset,
 			contentStart: bounds.start,
 			contentEnd: bounds.end,
-			collapsed: !hasSelectionHelper(),
+			collapsed: cursor.getRawSelection() === null,
 			selectAllCount: selection.selectAllCount
 		};
 	}
@@ -791,7 +783,7 @@
 			hasSelection: () => cursor.getRawSelection() !== null,
 			isRevealing: widgetInteraction.isRevealing,
 			foldReveal: () => widgetInteraction.foldRevealBeforeMutation(),
-			setCaret: (offset) => cursor.setRaw(asRawOffset(offset)),
+			setCaret: (offset) => cursor.setRaw(asRawOffset(offset), { clamp: 'exact' }),
 			seatOutside: caretMemory.noteExtreme,
 			reading,
 			ownPairs,

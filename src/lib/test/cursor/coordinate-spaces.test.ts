@@ -20,7 +20,8 @@ import {
 	type DomTextOffset,
 	type RawOffset
 } from '../../cursor/coordinate-spaces';
-import type { CursorBackend, EditableSurfaceDeps } from '../../components/blocks/editable-surface';
+import type { EditableSurfaceDeps } from '../../components/blocks/editable-surface';
+import type { CursorBackend } from '../../cursor/surface-backend';
 
 describe('coordinate-space conversions', () => {
 	it('raw ↔ dom-text adds/subtracts the ambient length', () => {

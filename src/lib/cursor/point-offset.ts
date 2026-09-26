@@ -4,9 +4,7 @@
  * an atomic widget and a leading marker prefix count here exactly as they do for a live caret read.
  */
 
-import { ambientLengthOf } from '../ambient/ambient-dom';
-import { toClampedRawOffset } from './coordinate-spaces';
-import { domTextOffsetAtNode } from './widget-offset';
+import { rawOffsetAt } from './widget-offset';
 
 /**
  * The caret offset in `el` nearest a viewport point: the point clamps into `el`'s box first, so a
@@ -33,8 +31,7 @@ export function offsetFromViewportPoint(
 ): number | null {
 	const seat = caretSeatFromPoint(blockEl.ownerDocument, clientX, clientY);
 	if (!seat || !blockEl.contains(seat.node)) return null;
-	const content = domTextOffsetAtNode(blockEl, seat.node, seat.offset);
-	return toClampedRawOffset(content, ambientLengthOf(blockEl));
+	return rawOffsetAt(blockEl, seat.node, seat.offset);
 }
 
 /**

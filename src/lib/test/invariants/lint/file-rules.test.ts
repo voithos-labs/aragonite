@@ -335,8 +335,8 @@ const RULES: FileRule[] = [
 			'src/lib/cursor/widget-offset.ts': 'DomTextOffset home: the walk brands its returns',
 			'src/lib/cursor/content-offsets.ts': 'DomTextOffset home (widget-free variant)',
 			'src/lib/cursor/sticky-measure.ts': 'EditorX/ViewportX home + walk-offset candidate scan',
-			'src/lib/ambient/ambient-cursor.ts':
-				'RawOffset home: the marker-prefix module converts raw from walk space',
+			'src/lib/cursor/surface-backend.ts':
+				'RawOffset home for the caret intent a block records as a plain number (the snap target)',
 			'src/lib/selection/table-endpoint-snap.ts':
 				'CellIndex home: a row-major cell index from table geometry',
 			'src/lib/selection/primitives.ts':
@@ -348,8 +348,6 @@ const RULES: FileRule[] = [
 			// Public boundaries: number-typed surfaces branding at entry.
 			'src/lib/components/blocks/editable-surface.ts':
 				'BlockComponent boundary: public number offsets branded at entry',
-			'src/lib/components/blocks/plain-text-backend.ts':
-				'shared plain-text backend: with no marker prefix, DOM-text space is raw space',
 			'src/lib/components/blocks/editable-leaf.ts':
 				'plugin-leaf surface: zero-prefix DOM-text mutations brand raw offsets in place',
 			'src/lib/components/blocks/code/CodeBlock.svelte':
@@ -362,9 +360,6 @@ const RULES: FileRule[] = [
 				'table sticky-X exit re-enters the editor column state',
 			'src/lib/components/blocks/text/widget-interaction.ts':
 				'CST inline offsets (unbranded model values) enter cursor IO',
-			'src/lib/cursor/reveal-source.ts': 'block-source offsets (unbranded deps) enter the walk',
-			'src/lib/selection/native-bridge.ts':
-				'SelectionPoint offsets (unbranded) enter the walk; a textContent length is a DomTextOffset by construction',
 			'src/lib/selection/multi-click.ts':
 				'the point probe’s raw offsets and the segmenter’s walk-text indices (both unbranded) cross the walk in each direction'
 		},
@@ -539,8 +534,8 @@ const RULES: FileRule[] = [
 		population: (file) => ACTIVE_IDENTITY_RE.test(file.code),
 		matches: (file) => !HOST_AWARE_RE.test(file.code),
 		allowed: {
-			'src/lib/ambient/ambient-cursor.ts':
-				'the prose surface this cursor was constructed over; a whole-block kind has none',
+			'src/lib/cursor/surface-backend.ts':
+				'the editable surface this backend was built over; a whole-block kind builds none',
 			'src/lib/components/blocks/editable-surface.ts':
 				'the pending-restore guard, reachable only from an editable leaf surface',
 			'src/lib/cursor/content-offsets.ts':

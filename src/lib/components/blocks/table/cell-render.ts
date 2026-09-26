@@ -11,11 +11,12 @@ import type { ResolveLinkUrl } from '../../../editor-keys';
 import { computeInlineContent, contentLengthOf } from '../../../core/inline';
 import { renderInlineNodes } from '../../../core/inline-render';
 import { trimTrailingLineEnding } from '../../../core/lines';
+import { captureFocusedCaret } from '../../../cursor/focused-caret';
 import {
-	captureFocusedCaretWalkOffset,
-	restoreCaretAtWalkOffset
-} from '../../../cursor/focused-caret';
-import { CONTENT_EMPTY_ATTR, holdsOnlyMarkerChrome } from '../../../cursor/widget-offset';
+	CONTENT_EMPTY_ATTR,
+	holdsOnlyMarkerChrome,
+	placeCaretAtRaw
+} from '../../../cursor/widget-offset';
 import type { IndexedDecoration } from '../../../decorations/buckets';
 import { applyIslandDecorations, islandRenderKeyPart } from '../../../decorations/island-dom';
 import type { ReplaceDecoration, WidgetDecoration } from '../../../decorations/types';
@@ -109,7 +110,7 @@ export function createCellRender(deps: CellRenderDeps): CellRender {
 		);
 		// A decoration change rebuilds a focused cell with no restore pending, so the caret is
 		// carried across; an edit opts out because its own restore runs after.
-		const caretWalkOffset = (opts?.carryCaret ?? true) ? captureFocusedCaretWalkOffset(el) : null;
+		const caret = (opts?.carryCaret ?? true) ? captureFocusedCaret(el) : null;
 		// Bracketing the rebuild pools portal widgets, so an unchanged `$…$` keeps its
 		// instance across per-keystroke rebuilds. Decoration widgets are not pooled.
 		widgetPool.beginPass();
@@ -143,7 +144,7 @@ export function createCellRender(deps: CellRenderDeps): CellRender {
 		// nothing; the attribute is set before the restore, which uses the same traversal.
 		el.toggleAttribute(CONTENT_EMPTY_ATTR, holdsOnlyMarkerChrome(el));
 
-		if (caretWalkOffset !== null) restoreCaretAtWalkOffset(el, caretWalkOffset);
+		if (caret !== null) placeCaretAtRaw(el, caret, { clamp: 'exact' });
 	}
 
 	return {

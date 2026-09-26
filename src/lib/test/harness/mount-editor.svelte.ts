@@ -7,9 +7,7 @@ import { mount, unmount, flushSync } from 'svelte';
 import { SvelteMap } from 'svelte/reactivity';
 import Editor from '$lib/components/Editor.svelte';
 import type { EditorInstance, EditorProps } from '$lib/editor-props';
-import { ambientLengthOf } from '$lib/ambient/ambient-dom';
-import { asRawOffset, toDomTextOffset } from '$lib/cursor/coordinate-spaces';
-import { createRangeFromOffsets } from '$lib/cursor/content-offsets';
+import { placeCaretAtRaw, selectRawRange } from '$lib/cursor/widget-offset';
 import { settleEditor, pressKey } from '$lib/test/harness/settle';
 
 /** Every mount suite runs the published helpers, so a plugin author's stub is checked here. */
@@ -103,31 +101,20 @@ export function surfaceAt(mounted: MountedEditor, path: number[]): HTMLElement {
 	return el;
 }
 
-/** Put a real caret at `rawOffset` in `el`. The DOM carries any ambient marker in front of
- *  raw offsets, so the translation goes through the shared coordinate helpers. */
+/** Put a real caret at `rawOffset` in `el`, through the editor's own caret writer. */
 export function placeCaret(el: HTMLElement, rawOffset: number): void {
 	el.focus();
-	const dom = toDomTextOffset(asRawOffset(rawOffset), ambientLengthOf(el));
-	const range = createRangeFromOffsets(el, dom, dom);
-	if (!range) throw new Error(`offset ${rawOffset} is out of range for this block`);
-	const selection = window.getSelection();
-	selection?.removeAllRanges();
-	selection?.addRange(range);
+	if (!placeCaretAtRaw(el, rawOffset, { clamp: 'exact' })) {
+		throw new Error(`offset ${rawOffset} is out of range for this block`);
+	}
 }
 
 /** Select `[start, end)` of `el` as a native range, the way a drag inside one block leaves it. */
 export function selectRange(el: HTMLElement, start: number, end: number): void {
 	el.focus();
-	const ambient = ambientLengthOf(el);
-	const range = createRangeFromOffsets(
-		el,
-		toDomTextOffset(asRawOffset(start), ambient),
-		toDomTextOffset(asRawOffset(end), ambient)
-	);
-	if (!range) throw new Error(`range ${start}..${end} is out of range for this block`);
-	const selection = window.getSelection();
-	selection?.removeAllRanges();
-	selection?.addRange(range);
+	if (!selectRawRange(el, start, end)) {
+		throw new Error(`range ${start}..${end} is out of range for this block`);
+	}
 }
 
 /** Place the caret and dispatch a keydown from the block at `path`. The returned event's

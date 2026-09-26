@@ -8,7 +8,7 @@ import type { NodeView } from '../../../core/node-views';
 import type { DocumentGetter, PasteImageHook } from '../../../editor-keys';
 import type { EditorEvents } from '../../../editor-events';
 import type { WidgetSelectionState } from '../../image/widget-selection-state.svelte';
-import type { AmbientCursorIO } from '../../../ambient/ambient-cursor';
+import type { SurfaceBackend } from '../../../cursor/surface-backend';
 import type { CrossBlockHandlers } from '../../../selection/cross-block/dispatch';
 import type { PasteCommitCoordinator } from '../../../tree-operations/paste/paste-deps';
 import type { PluginActivation } from '../../../schema/plugin-activation';
@@ -34,7 +34,7 @@ export interface TextClipboardDeps {
 	get myPath(): number[];
 	/** Local caret reads go through `cursor`; `caret` is the narrower interface the shared
 	 *  clipboard code anchors an image insertion with, passed through and never read here. */
-	cursor: AmbientCursorIO;
+	cursor: SurfaceBackend;
 	caret: ClipboardCaretIO;
 	crossBlock: CrossBlockHandlers;
 	events: EditorEvents;

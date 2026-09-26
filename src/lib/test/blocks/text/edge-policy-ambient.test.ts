@@ -35,7 +35,6 @@ function mount(source: string, rawSelection: { start: number; end: number } | nu
 	const el = mountSurface([marker, text]);
 
 	const harness = makeEdgeDispatch(node, el, {
-		getAmbientLength: () => marker.textContent!.length,
 		getRawSelection: () =>
 			rawSelection && {
 				start: asRawOffset(rawSelection.start),

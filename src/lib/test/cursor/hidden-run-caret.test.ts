@@ -12,12 +12,12 @@ import {
 	domTextOffsetAtNode,
 	findDomTextLanding,
 	findDomTextOffsetTarget,
-	isHiddenMarkerText
+	isHiddenMarkerText,
+	placeCaretAtRaw
 } from '../../cursor/widget-offset';
-import { restoreCaretAtWalkOffset } from '../../cursor/focused-caret';
 import { findFirstTextNode, findLastTextNode } from '../../cursor/visual-lines';
 import { buildAmbientSpan } from '../../ambient/ambient-dom';
-import { createAmbientCursorIO } from '../../ambient/ambient-cursor';
+import { createSurfaceBackend } from '../../cursor/surface-backend';
 import { applyCollapsedCaret } from '../../selection/native-bridge';
 import { caretIsInTextContent } from '../../components/blocks/text/click-snap-guard';
 
@@ -245,14 +245,14 @@ function describePosition(pos: { node: Node; offset: number } | null): string {
 }
 
 describe('caret writes never caret position a range in hidden marker text', () => {
-	function cursorIO(block: HTMLElement, ambientLength = 0) {
-		return createAmbientCursorIO({ getEl: () => block, getAmbientLength: () => ambientLength });
+	function cursorIO(block: HTMLElement) {
+		return createSurfaceBackend({ getEl: () => block });
 	}
 
 	it('setRaw lands in visible content for a run-interior offset', () => {
 		const fx = mount({ mode: 'live' });
 		fx.block.focus();
-		cursorIO(fx.block).setRaw(asRawOffset(1));
+		cursorIO(fx.block).setRaw(asRawOffset(1), { clamp: 'exact' });
 		expect(caretPosition()).toEqual({ node: fx.body, offset: 0 });
 	});
 
@@ -260,7 +260,7 @@ describe('caret writes never caret position a range in hidden marker text', () =
 		const fx = mount({ mode: 'live' });
 		fx.block.focus();
 		const io = cursorIO(fx.block);
-		io.setRaw(asRawOffset(0));
+		io.setRaw(asRawOffset(0), { clamp: 'exact' });
 		expect(caretPosition()).toEqual({ node: fx.block, offset: 0 });
 		expect(io.getRaw()).toBe(0);
 	});
@@ -269,8 +269,8 @@ describe('caret writes never caret position a range in hidden marker text', () =
 		// `- **bold**`: the first text node after the marker prefix is the hidden `**`.
 		const fx = mount({ mode: 'live', ambient: '- ' });
 		fx.block.focus();
-		const io = cursorIO(fx.block, 2);
-		io.setRaw(asRawOffset(0));
+		const io = cursorIO(fx.block);
+		io.setRaw(asRawOffset(0), { clamp: 'exact' });
 		expect(isHiddenMarkerText(caretPosition().node, fx.block)).toBe(false);
 		expect(io.getRaw()).toBe(0);
 	});
@@ -281,16 +281,16 @@ describe('caret writes never caret position a range in hidden marker text', () =
 		expect(caretPosition()).toEqual({ node: fx.body, offset: 0 });
 	});
 
-	it('restoreCaretAtWalkOffset lands in visible content for a run-interior offset', () => {
+	it('placeCaretAtRaw lands in visible content for a run-interior offset', () => {
 		const fx = mount({ mode: 'live' });
-		restoreCaretAtWalkOffset(fx.block, asDomTextOffset(1));
+		placeCaretAtRaw(fx.block, 1, { clamp: 'exact' });
 		expect(caretPosition()).toEqual({ node: fx.body, offset: 0 });
 	});
 
 	it('puts the caret carets in marker text in source mode, where markers are visible', () => {
 		const fx = mount();
 		fx.block.focus();
-		cursorIO(fx.block).setRaw(asRawOffset(1));
+		cursorIO(fx.block).setRaw(asRawOffset(1), { clamp: 'exact' });
 		expect(caretPosition()).toEqual({ node: fx.openMarker, offset: 1 });
 	});
 });

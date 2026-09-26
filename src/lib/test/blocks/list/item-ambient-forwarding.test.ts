@@ -4,9 +4,9 @@
 // `ambientPrefixForFirst`, passed on to child 0 only, and drawn only by a prose block. So when
 // child 0 is a nested list (`- - a`) the outer marker has nowhere to go and is silently dropped.
 // That is deliberate, and exactly the kind of behaviour a well-meaning fix restores, so it is
-// measured against a control case through the same `ambientSpanOf` helper.
+// measured against a control case through the same `markerPrefixOf` helper.
 import { describe, it, expect, afterEach, beforeAll } from 'vitest';
-import { ambientSpanOf } from '$lib/ambient/ambient-dom';
+import { markerPrefixOf } from '$lib/cursor/widget-offset';
 import {
 	installLayoutStubs,
 	mountEditor,
@@ -25,14 +25,14 @@ describe('list item ambient marker forwarding', () => {
 	it('paints the marker on a prose child 0', () => {
 		mounted = mountEditor({ source: '- alpha\n' });
 
-		expect(ambientSpanOf(surfaceAt(mounted, [0, 0, 0]))?.textContent).toBe('- ');
+		expect(markerPrefixOf(surfaceAt(mounted, [0, 0, 0]))?.textContent).toBe('- ');
 	});
 
 	it('paints the item metadata marker, not a hardcoded bullet', () => {
 		mounted = mountEditor({ source: '1. alpha\n2. beta\n' });
 
-		expect(ambientSpanOf(surfaceAt(mounted, [0, 0, 0]))?.textContent).toBe('1. ');
-		expect(ambientSpanOf(surfaceAt(mounted, [0, 1, 0]))?.textContent).toBe('2. ');
+		expect(markerPrefixOf(surfaceAt(mounted, [0, 0, 0]))?.textContent).toBe('1. ');
+		expect(markerPrefixOf(surfaceAt(mounted, [0, 1, 0]))?.textContent).toBe('2. ');
 	});
 
 	// The deliberate drop: child 0 is a list, which takes no `ambientPrefix` prop, so the outer
@@ -43,7 +43,7 @@ describe('list item ambient marker forwarding', () => {
 		const markers = [...blockHostAt(mounted, [0]).querySelectorAll('.md-marker')];
 
 		expect(markers.map((m) => m.textContent)).toEqual(['- ']);
-		expect(ambientSpanOf(surfaceAt(mounted, [0, 0, 0, 0, 0]))?.textContent).toBe('- ');
+		expect(markerPrefixOf(surfaceAt(mounted, [0, 0, 0, 0, 0]))?.textContent).toBe('- ');
 		expect(mounted.source()).toBe('- - a\n');
 	});
 
@@ -52,7 +52,7 @@ describe('list item ambient marker forwarding', () => {
 	it('forwards to child 0 only', () => {
 		mounted = mountEditor({ source: '- alpha\n\n  beta\n' });
 
-		expect(ambientSpanOf(surfaceAt(mounted, [0, 0, 0]))?.textContent).toBe('- ');
-		expect(ambientSpanOf(surfaceAt(mounted, [0, 0, 1]))).toBeNull();
+		expect(markerPrefixOf(surfaceAt(mounted, [0, 0, 0]))?.textContent).toBe('- ');
+		expect(markerPrefixOf(surfaceAt(mounted, [0, 0, 1]))).toBeNull();
 	});
 });

@@ -9,9 +9,7 @@ import type { PluginActivation } from '../schema/plugin-activation';
 import type { CommitController } from '../action-contracts';
 import type { PasteCommitCoordinator } from '../tree-operations/paste/paste-deps';
 import { emitClipboardError, type EditorEvents } from '../editor-events';
-import { ambientLengthOf } from '../ambient/ambient-dom';
-import { toClampedRawOffset, toDomTextOffset } from '../cursor/coordinate-spaces';
-import { createRangeAtDomTextOffsets, domTextOffsetAtNode } from '../cursor/widget-offset';
+import { rawOffsetAt, rawRangeToDomRange } from '../cursor/widget-offset';
 import { documentLineEnding, trailingLineEnding, trimTrailingLineEnding } from '../core/lines';
 import { blockContentElAt } from '../components/block-el-lookup';
 import { replaceRangeRaw } from '../components/blocks/text/live-selection-edit';
@@ -226,15 +224,8 @@ function readSelectionSource(
 	if (!surface.contains(range.endContainer)) return DECLINED;
 	const found = findSurfaceForElement(surface);
 	if (!found) return DECLINED;
-	const ambient = ambientLengthOf(surface);
-	const start = toClampedRawOffset(
-		domTextOffsetAtNode(surface, range.startContainer, range.startOffset),
-		ambient
-	);
-	const end = toClampedRawOffset(
-		domTextOffsetAtNode(surface, range.endContainer, range.endOffset),
-		ambient
-	);
+	const start = rawOffsetAt(surface, range.startContainer, range.startOffset);
+	const end = rawOffsetAt(surface, range.endContainer, range.endOffset);
 	if (start >= end) return DECLINED;
 	const text = movedText(deps, { ...found, start, end });
 	return text === null ? DECLINED : { ...found, start, end, text };
@@ -258,11 +249,8 @@ function dropTarget(
 function dropCaretRect(root: HTMLElement, path: number[], offset: number): DropCaretRect | null {
 	const el = blockContentElAt(root, path);
 	if (!el) return null;
-	const at = toDomTextOffset(
-		charOffsetOf({ path, offset }, 'selection-drop:caret'),
-		ambientLengthOf(el)
-	);
-	const rect = createRangeAtDomTextOffsets(el, at, at)?.getBoundingClientRect();
+	const at = charOffsetOf({ path, offset }, 'selection-drop:caret');
+	const rect = rawRangeToDomRange(el, at, at)?.getBoundingClientRect();
 	if (rect && rect.height > 0) return { left: rect.left, top: rect.top, height: rect.height };
 	const box = el.getBoundingClientRect();
 	return box.height > 0 ? { left: box.left, top: box.top, height: box.height } : null;

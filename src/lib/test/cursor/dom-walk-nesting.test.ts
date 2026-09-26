@@ -3,14 +3,15 @@
 // (`core/inline-render-nesting.test.ts`) and nothing that reads it back, so every traversal in
 // caret space recursed once per level over a fragment the renderer had just survived.
 import { beforeAll, describe, expect, it, vi } from 'vitest';
-import { buildAmbientSpan, placeCaretAfterAmbientSpan } from '../../ambient/ambient-dom';
-import { createRangeFromOffsets } from '../../cursor/content-offsets';
+import { buildAmbientSpan } from '../../ambient/ambient-dom';
 import { domDescendants } from '../../cursor/dom-walk';
 import { asDomTextOffset } from '../../cursor/coordinate-spaces';
 import { findFirstTextNode, findLastTextNode } from '../../cursor/visual-lines';
 import {
 	containerDomTextLength,
+	createRangeAtDomTextOffsets,
 	domTextOffsetAtNode,
+	placeCaretAtRaw,
 	rawTextOfNode
 } from '../../cursor/widget-offset';
 
@@ -59,7 +60,7 @@ describe('caret-space DOM walks at input-controlled nesting depth', () => {
 	}, 120_000);
 
 	it('puts the caret at a range on the deepest text node', () => {
-		const range = createRangeFromOffsets(
+		const range = createRangeAtDomTextOffsets(
 			root,
 			asDomTextOffset(4),
 			asDomTextOffset(4 + LEAF.length)
@@ -81,19 +82,19 @@ describe('caret-space DOM walks at input-controlled nesting depth', () => {
 		// jsdom's own attach traversal overflows at this depth and it drops a detached range, so
 		// the position is read where it is set. The real selection is tested shallow in
 		// `ambient-dom.test.ts`.
-		const seated: Range[] = [];
-		const addRange = vi
-			.spyOn(window.Selection.prototype, 'addRange')
-			.mockImplementation((range) => void seated.push(range));
+		const seated: [Node, number][] = [];
+		const write = vi
+			.spyOn(window.Selection.prototype, 'setBaseAndExtent')
+			.mockImplementation((node, offset) => void seated.push([node, offset]));
 
 		try {
-			expect(placeCaretAfterAmbientSpan(block)).toBe(true);
+			expect(placeCaretAtRaw(block, 0, { clamp: 'exact' })).toBe(true);
 		} finally {
-			addRange.mockRestore();
+			write.mockRestore();
 		}
 		expect(seated).toHaveLength(1);
-		expect(seated[0].startContainer.textContent).toBe(LEAF[0]);
-		expect(seated[0].startOffset).toBe(0);
+		expect(seated[0][0].textContent).toBe(LEAF[0]);
+		expect(seated[0][1]).toBe(0);
 	}, 120_000);
 });
 

@@ -19,13 +19,8 @@ import {
 	type EditorServices,
 	type PluginEditorLookup
 } from '../../editor-keys';
-import { asDomTextOffset } from '../../cursor/coordinate-spaces';
-import {
-	setCursorOffset,
-	getCursorOffset,
-	getSelectionOffsets,
-	getRangeOffsets
-} from '../../cursor/content-offsets';
+import { asRawOffset } from '../../cursor/coordinate-spaces';
+import { createSurfaceBackend } from '../../cursor/surface-backend';
 import { handleSharedKeydown } from '../../selection/shared-keydown';
 import {
 	editableSurfaceAttributes,
@@ -36,7 +31,7 @@ import {
 	type EditableSurfaceAttributes
 } from './editable-surface';
 import { wireSurfaceContexts } from './surface-wiring.svelte';
-import { createContentOffsetBackend, anchorTrailingNewline } from './plain-text-backend';
+import { anchorTrailingNewline, plainTextOf } from './plain-text-backend';
 import {
 	CONTENT_EMPTY_ATTR,
 	chromeFreeText,
@@ -273,14 +268,14 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 
 	const sourceText = (): string => trimTrailingLineEnding(deps.getNode().raw);
 
-	const { backend, getFocusOffset, getTextLen, readText } = createContentOffsetBackend(() =>
-		deps.getEl()
-	);
+	const backend = createSurfaceBackend({ getEl: () => deps.getEl() });
+	// A leaf's text is its raw, so a computed caret lands exactly where the edit put it.
+	const setCaret = (offset: number): void =>
+		backend.setRaw(asRawOffset(offset), { clamp: 'exact' });
 
 	const editableSurface = createEditableSurface({
 		...wiring.deps,
 		getEl: () => deps.getEl(),
-		getAmbientLength: () => 0,
 		// render-primary edits are ephemeral (one commit on blur); plain commits per keystroke.
 		isInputSuppressed: () => mode === 'render-primary',
 		backend,
@@ -295,9 +290,9 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		setPendingCursor: (offset) => {
 			if (mode === 'plain') pendingCursor = offset;
 		},
-		getFocusOffset,
-		getTextLen,
-		readText,
+		getFocusOffset: backend.getFocusOffset,
+		getTextLen: () => plainTextOf(deps.getEl()).length,
+		readText: () => plainTextOf(deps.getEl()),
 		commitInput: (text, preEdit, saved) => {
 			if (mode === 'plain') {
 				void blockEdit.updateBlockContent(
@@ -329,7 +324,6 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		get source() {
 			return sourceText();
 		},
-		getAmbientLength: () => 0,
 		isRevealed,
 		// The one place a block's source is shown: it is called only when none is
 		// showing, so it fires once per open.
@@ -356,7 +350,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		if (!completed) return;
 		paintSource(el, completed.text);
 		deps.onSourceEdit?.(completed.text);
-		setCursorOffset(el, asDomTextOffset(completed.caret));
+		setCaret(completed.caret);
 	}
 
 	// ── Commit ─────────────────────────────────────────────────────────────────
@@ -466,9 +460,9 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	function repaintSource(): void {
 		const el = deps.getEl();
 		if (!el || !deps.renderSource || composing) return;
-		const offset = getCursorOffset(el);
+		const offset = backend.getRaw();
 		paintSource(el, el.textContent ?? '');
-		if (offset !== null) setCursorOffset(el, asDomTextOffset(offset));
+		if (offset !== null) setCaret(offset);
 	}
 
 	function syncSource(): void {
@@ -483,7 +477,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 			clearSourceHistory();
 			// Restore only while a caret is live: a rewrite from outside (undo, structural
 			// replace) must not steal focus.
-			consumePendingRestore(el, pending, (offset) => setCursorOffset(el, asDomTextOffset(offset)));
+			consumePendingRestore(el, pending, (offset) => setCaret(offset));
 		}
 	}
 
@@ -518,9 +512,9 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		if (!entry) return;
 		// The restored text is what the next keystroke must snapshot, so it opens its own batch.
 		sourceBatch.interrupt();
-		to.push({ text: el.textContent ?? '', caret: getCursorOffset(el) ?? 0 });
+		to.push({ text: el.textContent ?? '', caret: backend.getRaw() ?? 0 });
 		paintSource(el, entry.text);
-		setCursorOffset(el, asDomTextOffset(entry.caret));
+		setCaret(entry.caret);
 		deps.onSourceEdit?.(entry.text);
 	}
 
@@ -544,7 +538,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	function spliceSourceText(el: HTMLElement, start: number, end: number, insert: string): void {
 		const text = el.textContent ?? '';
 		const keystroke = end - start <= 1 && insert.length <= 1 && insert !== '\n';
-		if (deps.renderSource) recordSourceEdit(text, getCursorOffset(el) ?? start, keystroke);
+		if (deps.renderSource) recordSourceEdit(text, backend.getRaw() ?? start, keystroke);
 		const spliced = text.slice(0, start) + insert + text.slice(end);
 		// Emptying the body leaves the same markers-only source a bare block arrives as, so this
 		// edit applies the same completion that showing the source does.
@@ -553,7 +547,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		paintSource(el, next);
 		deps.onSourceEdit?.(next);
 		editableSurface.notePreEditOffset(start);
-		setCursorOffset(el, asDomTextOffset(completed?.caret ?? start + insert.length));
+		setCaret(completed?.caret ?? start + insert.length);
 		// Started once the edit has settled, so the gap measured is the one the user leaves.
 		if (deps.renderSource && keystroke) sourceBatch.armPause();
 		if (mode === 'plain') editableSurface.onInput();
@@ -575,7 +569,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		cutTail: (e) => {
 			const el = deps.getEl();
 			if (!el) return;
-			const sel = getSelectionOffsets(el);
+			const sel = backend.getRawSelection();
 			if (!sel || sel.start === sel.end) return;
 			e.clipboardData?.setData('text/plain', (el.textContent ?? '').slice(sel.start, sel.end));
 			spliceSourceText(el, sel.start, sel.end, '');
@@ -583,8 +577,8 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		pasteTail: (pastedText) => {
 			const el = deps.getEl();
 			if (!el) return;
-			const sel = getSelectionOffsets(el);
-			const start = sel ? sel.start : (getCursorOffset(el) ?? (el.textContent ?? '').length);
+			const sel = backend.getRawSelection();
+			const start = sel ? sel.start : (backend.getRaw() ?? (el.textContent ?? '').length);
 			const end = sel ? sel.end : start;
 			spliceSourceText(el, start, end, pastedText);
 		}
@@ -599,7 +593,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		const el = deps.getEl();
 		if (composing || !el) return;
 		// Enter in a shown source commits it from here, with no input event to read the caret at.
-		editableSurface.notePreEditOffset(getCursorOffset(el) ?? 0);
+		editableSurface.notePreEditOffset(backend.getRaw() ?? 0);
 
 		// Undo inside a shown painted source steps through this session's own edits, which the
 		// document sees as one entry written on blur. Resolved through the keymap like any chord.
@@ -621,7 +615,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		// block. Only with whitespace or nothing before the caret, so a key pressed right after a
 		// visible marker still edits that marker in source mode.
 		if (e.key === 'Backspace' && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) {
-			const offset = deps.renderSource ? getCursorOffset(el) : null;
+			const offset = deps.renderSource ? backend.getRaw() : null;
 			const text = el.textContent ?? '';
 			if (
 				offset !== null &&
@@ -651,7 +645,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 			e.preventDefault();
 			if (isReading()) return;
 			// Read before any fold: `setRevealed(false)` unmounts the element the offset lives in.
-			const offset = getCursorOffset(el) ?? (el.textContent ?? '').length;
+			const offset = backend.getRaw() ?? (el.textContent ?? '').length;
 			if (singleLine) {
 				// Through the hide, not a bare commit: it is the one place that decides whether an open
 				// reveal's bytes may still be written, and the split reads `node.raw` after it.
@@ -691,7 +685,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 				return;
 		}
 		const target = e.getTargetRanges()[0];
-		const range = target ? getRangeOffsets(el, target) : null;
+		const range = target ? backend.rawRangeOf(target) : null;
 		if (!range) return;
 		e.preventDefault();
 		const start = clampToLandableRaw(el, range.start);

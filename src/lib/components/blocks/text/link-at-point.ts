@@ -4,13 +4,11 @@
  * when a construct shows its source, so the card points at exactly what was drawn.
  */
 
-import { ambientLengthOf } from '../../../ambient/ambient-dom';
 import { inlineDescendants } from '../../../core/inline';
 import { resolvedInlineContent } from '../../../core/inline/inline-cache';
 import type { InlineNode } from '../../../core/nodes';
 import type { NodeView } from '../../../core/node-views';
-import { toClampedRawOffset } from '../../../cursor/coordinate-spaces';
-import { domTextOffsetAtNode } from '../../../cursor/widget-offset';
+import { rawOffsetAt } from '../../../cursor/widget-offset';
 import { isCardEditableInlineKind } from '../../../schema/inline-construct-policy';
 import { constructChainAtOffset } from './construct-reveal';
 import type { Reading } from '../../../schema/reading';
@@ -71,8 +69,5 @@ function caretRawOffset(contentEl: HTMLElement): number | null {
 	const sel = window.getSelection();
 	if (!sel || sel.rangeCount === 0 || !sel.focusNode) return null;
 	if (!contentEl.contains(sel.focusNode)) return null;
-	return toClampedRawOffset(
-		domTextOffsetAtNode(contentEl, sel.focusNode, sel.focusOffset),
-		ambientLengthOf(contentEl)
-	);
+	return rawOffsetAt(contentEl, sel.focusNode, sel.focusOffset);
 }

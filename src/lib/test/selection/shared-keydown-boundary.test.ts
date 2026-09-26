@@ -40,7 +40,6 @@ function makeCtx(over: {
 		getCursorOffset: () => over.cursorOffset,
 		getFocusOffset: () => over.focusOffset,
 		// A detached element reads as no presentation root, so the bounds never walk it.
-		getAmbientLength: () => 0,
 		getTextLen: () => over.textLen,
 		getMyPath: () => [1],
 		getIndex: () => 1,
