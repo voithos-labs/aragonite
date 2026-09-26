@@ -78,8 +78,7 @@
 		focusActions,
 		controller,
 		pasteCoordinator,
-		stickyColumn,
-		edgeAffinity,
+		caretMemory,
 		selection,
 		getDoc,
 		getEditorRoot,
@@ -248,7 +247,7 @@
 		languageOffered = true;
 		// A caret that stepped into an existing fence is passing through, and a picker would trap
 		// it; a click or an insert command records no arrival key, and that is the user authoring.
-		const steppedIn = metadataOf(node, 'fencedCode').closed && edgeAffinity.get() !== null;
+		const steppedIn = metadataOf(node, 'fencedCode').closed && caretMemory.side() !== null;
 		const offerLanguage = infoString === '' && bodyText().trim() === '' && !steppedIn;
 		// Deferred past the commit's own caret placement, which focuses this block a second time
 		// and would blur a picker opened on the first. A bare fence is completed before it opens.
@@ -750,8 +749,7 @@
 	// Code has no marker prefix, so a selection of its DOM text is a slice of its raw: copy
 	// falls back to the shared visible-selection default, and cut writes that before deleting.
 	const clipboard = createClipboardHandlers({
-		stickyColumn,
-		edgeAffinity,
+		caretMemory,
 		selection,
 		getDoc,
 		crossBlock,

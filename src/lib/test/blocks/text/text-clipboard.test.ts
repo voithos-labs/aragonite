@@ -17,6 +17,7 @@ import type { CstNode } from '$lib/core/nodes';
 import type { Commit } from './widget-selected-fixture';
 import { fixtureReading } from '../../harness/fixture-grammar';
 import { defaultGrammarView } from '$lib/schema/block-openers';
+import { stubCaretMemory } from '$lib/testing/headless-actions';
 
 function capturingEvent() {
 	const store = new Map<string, string>();
@@ -71,8 +72,7 @@ function harness(source: string, sourceStart: number, options: HarnessOptions = 
 		cursor: { getRaw: () => null, getRawSelection: () => null },
 		selection: { isCrossBlock: false, anchor: null, focus: null },
 		crossBlock: options.crossBlockDeclines ? { handlePaste: async () => false } : trap,
-		stickyColumn: { reset: () => {} },
-		edgeAffinity: { reset: () => {}, get: () => null, note: () => {}, noteTyping: () => {} },
+		caretMemory: stubCaretMemory(),
 		blockEdit: {
 			updateBlockContent: (index: number, raw: string, before: number, after: number) =>
 				void commits.push({ index, raw, before, after })
@@ -222,8 +222,7 @@ function foldSettleHarness() {
 		cursor: { getRaw: () => null, getRawSelection: () => null },
 		selection: { isCrossBlock: false, anchor: null, focus: null },
 		crossBlock: { handlePaste: async () => false, handleCut: async () => false },
-		stickyColumn: { reset: () => {} },
-		edgeAffinity: { reset: () => {}, get: () => null, note: () => {}, noteTyping: () => {} },
+		caretMemory: stubCaretMemory(),
 		blockEdit: { updateBlockContent: () => void order.push('seam-commit') },
 		pasteCoordinator: {},
 		getDoc: () => null,

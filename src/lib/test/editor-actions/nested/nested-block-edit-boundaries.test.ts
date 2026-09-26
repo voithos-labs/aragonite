@@ -11,7 +11,7 @@ import type { NestedActionsDeps } from '$lib/editor-actions/nested/nested-action
 import { registerDetailsKind, DETAILS } from '$lib/plugins/details/details-kind';
 import {
 	makeBlockListState,
-	makeStickyColumn,
+	makeCaretMemory,
 	makeStubBlockEdit,
 	makeStubContainerEdit,
 	makeStubFocus
@@ -36,7 +36,7 @@ function env(node: CstNode) {
 		index: CONTAINER_INDEX,
 		node,
 		path: [CONTAINER_INDEX],
-		stickyColumn: makeStickyColumn(),
+		stickyColumn: makeCaretMemory(),
 		parent
 	} as unknown as NestedActionsDeps;
 	return { blockEdit: createNestedBlockEdit(state, deps), parent, node };

@@ -29,8 +29,7 @@ import type { CommandErrorSink, CrossBlockCommandRouter } from '../../schema/blo
 import type { PluginActivation } from '../../schema/plugin-activation';
 import type { UndoController } from '../../editor-actions/deps';
 import type { PasteCommitCoordinator } from '../../tree-operations/paste/paste-deps';
-import type { StickyColumnState } from '../../cursor/sticky-column';
-import type { EdgeAffinityState } from '../../cursor/edge-affinity';
+import type { CaretMemory } from '../../cursor/caret-memory';
 import type { SelectionState } from '../../selection/selection-state.svelte';
 import type { SelectedWidgetHandle } from '../../selection/primitives';
 import { placeCaret } from '../../selection/caret-doors';
@@ -165,8 +164,7 @@ export interface EditableSurfaceDeps {
 	 *  host mode), for the cross-block drag-select autoscroll. */
 	getScrollHost: () => UserScrollport | null;
 	getEditorLifetime: () => AbortSignal | null;
-	stickyColumn: StickyColumnState;
-	edgeAffinity: EdgeAffinityState;
+	caretMemory: CaretMemory;
 	blockEdit: BlockEditActions;
 	controller: UndoController;
 	history: HistoryActions;
@@ -283,8 +281,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		getEditorRoot: deps.getEditorRoot,
 		getScrollHost: deps.getScrollHost,
 		getEditorLifetime: deps.getEditorLifetime,
-		stickyColumn: deps.stickyColumn,
-		edgeAffinity: deps.edgeAffinity,
+		caretMemory: deps.caretMemory,
 		blockEdit: deps.blockEdit,
 		controller: deps.controller,
 		history: deps.history,
@@ -311,13 +308,13 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		getIndex: deps.getIndex,
 		crossBlock,
 		selection: deps.selection,
-		stickyColumn: deps.stickyColumn,
-		edgeAffinity: deps.edgeAffinity,
+		caretMemory: deps.caretMemory,
 		history: deps.history,
 		focus: deps.focusActions,
 		getDoc: deps.getDoc,
 		getBlockElByPath: deps.getBlockElByPath,
 		activePlugins: deps.activePlugins,
+		getKeybindingOverrides: deps.getKeybindingOverrides,
 		reading: deps.reading
 	};
 
@@ -424,9 +421,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 	function commitDomRead(fromComposition: boolean): void {
 		if (deps.isInputSuppressed?.()) return;
 		deps.inputPrelude?.();
-		deps.stickyColumn.reset();
-		// The committed bytes belong to the content, however the caret got there.
-		deps.edgeAffinity.noteTyping();
+		deps.caretMemory.noteTyping();
 		const el = deps.getEl();
 		if (deps.getComposing() || !el) return;
 		const text = deps.readText();
@@ -508,8 +503,7 @@ export interface RevealFold {
  * `navigator.clipboard` is permission-gated and unreliable in Tauri's webview.
  */
 export interface ClipboardSurfaceDeps {
-	stickyColumn: StickyColumnState;
-	edgeAffinity: EdgeAffinityState;
+	caretMemory: CaretMemory;
 	selection: SelectionState;
 	getDoc: DocumentGetter;
 	crossBlock: CrossBlockHandlers;
@@ -571,8 +565,7 @@ export function createClipboardHandlers(deps: ClipboardSurfaceDeps): ClipboardHa
 	};
 
 	function onCopy(e: ClipboardEvent): void {
-		deps.stickyColumn.reset();
-		deps.edgeAffinity.reset();
+		deps.caretMemory.forget();
 		if (deps.isReadOnly()) {
 			e.preventDefault();
 			writeVisibleSelection(e);
@@ -589,8 +582,7 @@ export function createClipboardHandlers(deps: ClipboardSurfaceDeps): ClipboardHa
 	}
 
 	async function onCut(e: ClipboardEvent): Promise<void> {
-		deps.stickyColumn.reset();
-		deps.edgeAffinity.reset();
+		deps.caretMemory.forget();
 		e.preventDefault();
 		if (deps.isReadOnly()) {
 			onCopy(e);
@@ -613,8 +605,7 @@ export function createClipboardHandlers(deps: ClipboardSurfaceDeps): ClipboardHa
 		}
 		const fold = deps.foldReveal?.() ?? null;
 		await fold?.settled;
-		deps.stickyColumn.reset();
-		deps.edgeAffinity.reset();
+		deps.caretMemory.forget();
 		await pasteImages(deps, imageArm, e, images, fold?.caret ?? null);
 	}
 
@@ -628,8 +619,7 @@ export function createClipboardHandlers(deps: ClipboardSurfaceDeps): ClipboardHa
 		await fold?.settled;
 		if (text && deps.pastePreHook && (await deps.pastePreHook(text))) return;
 		if (await deps.crossBlock.handlePaste(e, text)) return;
-		deps.stickyColumn.reset();
-		deps.edgeAffinity.reset();
+		deps.caretMemory.forget();
 		if (!text) return;
 		await deps.pasteTail(text, fold?.caret ?? null);
 	}

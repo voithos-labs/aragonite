@@ -12,9 +12,8 @@ import type { BlockComponent } from '$lib/block-component';
 import type { CstNode, Document } from '$lib/core/nodes';
 import { documentLineEnding } from '$lib/core/lines';
 import { asEditorX } from '$lib/cursor/coordinate-spaces';
-import type { StickyColumnState } from '$lib/cursor/sticky-column';
-import type { EdgeAffinityState } from '$lib/cursor/edge-affinity';
-import { createPendingMarksState, type PendingMarksState } from '$lib/cursor/pending-marks';
+import { createCaretMemory, type CaretMemory } from '$lib/cursor/caret-memory';
+import type { PendingMarks } from '$lib/cursor/pending-marks';
 import type { InlineMarkKind } from '$lib/schema/inline-construct-policy';
 import type { EditorActionsDeps, UndoController } from '$lib/editor-actions/deps';
 import type { CommitScope, ScopeCommitArgs } from '$lib/editor-actions/block-edit-scope';
@@ -51,8 +50,7 @@ import {
 	createHeadlessActions,
 	stubBlockComponent,
 	stubBlockEdit,
-	stubEdgeAffinity,
-	stubStickyColumn,
+	stubCaretMemory,
 	type HeadlessActions,
 	type HeadlessActionsOptions
 } from '$lib/testing/headless-actions';
@@ -94,19 +92,16 @@ export function makeEmptyGapScope(): GapStopScope {
 	return makeGapScope('');
 }
 
-export function makeStickyColumn(x: number | null = null): Mocked<StickyColumnState> {
-	const stickyX = x === null ? null : asEditorX(x);
-	return spyEvery({ ...stubStickyColumn(), get: () => stickyX });
+/** A caret memory whose column reads `x`, every method a `vi.fn`; its marks are real (below). */
+export function makeCaretMemory(x: number | null = null): Mocked<CaretMemory> {
+	const column = x === null ? null : asEditorX(x);
+	return spyEvery({ ...stubCaretMemory(), column: () => column, pendingMarks: makePendingMarks() });
 }
 
-export function makeEdgeAffinity(): Mocked<EdgeAffinityState> {
-	return spyEvery(stubEdgeAffinity());
-}
-
-/** The real state, armed with `kinds`: a stub would hide the one property every consumer
+/** The real marks, armed with `kinds`: a stub would hide the one property every consumer
  *  depends on, that a set is spent exactly once. */
-export function makePendingMarks(...kinds: InlineMarkKind[]): PendingMarksState {
-	const marks = createPendingMarksState();
+export function makePendingMarks(...kinds: InlineMarkKind[]): PendingMarks {
+	const marks = createCaretMemory().pendingMarks;
 	for (const kind of kinds) marks.toggle(kind);
 	return marks;
 }
@@ -369,7 +364,7 @@ export interface NestedActionsDepsInput {
 	getNode: () => CstNode;
 	path: number[];
 	parent: NestedActionsDeps['parent'];
-	stickyColumn?: StickyColumnState;
+	caretMemory?: Pick<CaretMemory, 'column'>;
 	reading?: NestedActionsDeps['reading'];
 }
 
@@ -384,7 +379,7 @@ export function makeNestedActionsDeps(input: NestedActionsDepsInput): NestedActi
 			},
 			path: input.path
 		},
-		stickyColumn: input.stickyColumn ?? makeStickyColumn(),
+		caretMemory: input.caretMemory ?? makeCaretMemory(),
 		reading: input.reading ?? fixtureReading(),
 		parent: input.parent
 	};

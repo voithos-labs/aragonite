@@ -85,14 +85,16 @@ describe('cross-block keydown: compositionstart', () => {
 	// Both transient caret states reset unconditionally, before the range check: a composition is
 	// an edit, so neither a column captured by an earlier vertical arrow nor the side an earlier
 	// caret placement recorded may survive it.
-	it('resets the sticky column and the edge affinity even when it declines', () => {
+	it('forgets the column, the side and the marks even when it declines', () => {
 		const env = makeKeydownEnv(SOURCE);
-		env.stickyColumn.capture(asEditorX(600));
-		env.edgeAffinity.note({ key: 'ArrowRight', altKey: false });
+		env.caretMemory.captureColumn(asEditorX(600));
+		env.caretMemory.noteKey({ key: 'ArrowRight' }, null);
+		env.caretMemory.pendingMarks.toggle('strong');
 
 		env.keydown.handleCompositionStart();
 
-		expect(env.stickyColumn.get()).toBeNull();
-		expect(env.edgeAffinity.get()).toBeNull();
+		expect(env.caretMemory.column()).toBeNull();
+		expect(env.caretMemory.side()).toBeNull();
+		expect(env.caretMemory.pendingMarks.get()).toBeNull();
 	});
 });

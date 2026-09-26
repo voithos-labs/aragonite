@@ -2,13 +2,13 @@ import { describe, it, expect, vi } from 'vitest';
 import { consumeStickyLanding } from '$lib/editor-actions/focus/focus-landing';
 import { CURSOR_END, CURSOR_START } from '$lib/block-component';
 import { asEditorX } from '$lib/cursor/coordinate-spaces';
-import { createStickyColumnState, type StickyColumnState } from '$lib/cursor/sticky-column';
+import { createCaretMemory, type CaretMemory } from '$lib/cursor/caret-memory';
 import { stubBlockComponent } from '$lib/test/harness/editor-actions';
 
-function capturedSticky(x: number): StickyColumnState {
-	const sticky = createStickyColumnState();
-	sticky.capture(asEditorX(x));
-	return sticky;
+function capturedSticky(x: number): CaretMemory {
+	const memory = createCaretMemory();
+	memory.captureColumn(asEditorX(x));
+	return memory;
 }
 
 describe('consumeStickyLanding', () => {
@@ -19,7 +19,7 @@ describe('consumeStickyLanding', () => {
 			block,
 			3,
 			{ stickyColumnFrom: 'above' },
-			createStickyColumnState(),
+			createCaretMemory(),
 			retryAt
 		);
 		expect(retryAt).toHaveBeenCalledWith(4);
@@ -44,7 +44,7 @@ describe('consumeStickyLanding', () => {
 				image,
 				3,
 				{ stickyColumnFrom: from },
-				createStickyColumnState(),
+				createCaretMemory(),
 				retryAt
 			);
 			expect(image.enterEdgeWidget).toHaveBeenCalledWith(side);
@@ -60,7 +60,7 @@ describe('consumeStickyLanding', () => {
 			block,
 			3,
 			{ stickyColumnFrom: 'below' },
-			createStickyColumnState(),
+			createCaretMemory(),
 			retryAt
 		);
 		expect(retryAt).toHaveBeenCalledWith(2);
@@ -69,7 +69,7 @@ describe('consumeStickyLanding', () => {
 	it('horizontal move lands on a transparent block instead of skipping', async () => {
 		const block = stubBlockComponent({ focus: vi.fn(), isVerticallyTransparent: () => true });
 		const retryAt = vi.fn();
-		await consumeStickyLanding(block, 0, 'start', createStickyColumnState(), retryAt);
+		await consumeStickyLanding(block, 0, 'start', createCaretMemory(), retryAt);
 		expect(retryAt).not.toHaveBeenCalled();
 		expect(block.focus).toHaveBeenCalledWith(CURSOR_START);
 	});
@@ -77,7 +77,7 @@ describe('consumeStickyLanding', () => {
 	for (const side of ['start', 'end'] as const) {
 		it(`'${side}' prefers edge-widget entry when the block accepts`, async () => {
 			const block = stubBlockComponent({ focus: vi.fn(), enterEdgeWidget: vi.fn(() => true) });
-			await consumeStickyLanding(block, 0, side, createStickyColumnState(), vi.fn());
+			await consumeStickyLanding(block, 0, side, createCaretMemory(), vi.fn());
 			expect(block.enterEdgeWidget).toHaveBeenCalledWith(side);
 			expect(block.focus).not.toHaveBeenCalled();
 		});
@@ -85,7 +85,7 @@ describe('consumeStickyLanding', () => {
 
 	it('falls through to the caret when enterEdgeWidget declines', async () => {
 		const block = stubBlockComponent({ focus: vi.fn(), enterEdgeWidget: vi.fn(() => false) });
-		await consumeStickyLanding(block, 0, 'end', createStickyColumnState(), vi.fn());
+		await consumeStickyLanding(block, 0, 'end', createCaretMemory(), vi.fn());
 		expect(block.focus).toHaveBeenCalledWith(CURSOR_END);
 	});
 
@@ -108,7 +108,7 @@ describe('consumeStickyLanding', () => {
 			block,
 			0,
 			{ stickyColumnFrom: 'above' },
-			createStickyColumnState(),
+			createCaretMemory(),
 			vi.fn()
 		);
 		expect(block.focusAtColumn).not.toHaveBeenCalled();
@@ -121,7 +121,7 @@ describe('consumeStickyLanding', () => {
 			block,
 			0,
 			{ stickyColumnFrom: 'below' },
-			createStickyColumnState(),
+			createCaretMemory(),
 			vi.fn()
 		);
 		expect(block.focus).toHaveBeenCalledWith(CURSOR_END);
@@ -150,7 +150,7 @@ describe('consumeStickyLanding', () => {
 		];
 		for (const { position, offset } of cases) {
 			const block = stubBlockComponent({ focus: vi.fn() });
-			await consumeStickyLanding(block, 0, position, createStickyColumnState(), vi.fn());
+			await consumeStickyLanding(block, 0, position, createCaretMemory(), vi.fn());
 			expect(block.focus).toHaveBeenCalledWith(offset);
 		}
 	});

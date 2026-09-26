@@ -202,6 +202,29 @@ const RULES: FileRule[] = [
 		]
 	},
 	{
+		id: 'G4.31 the pending marks are spent only where typed or composed text is written',
+		matches: /\bpendingMarks\.consume\b/,
+		allowed: {
+			'src/lib/components/blocks/text/edge-policy-dispatch.ts':
+				'the typed byte at a collapsed live caret, written with the marks around it',
+			'src/lib/components/blocks/text/TextEditableBlock.svelte':
+				'hands the spend to the composition seat, which writes the composed text',
+			'src/lib/components/blocks/table/TableCellBlock.svelte':
+				'hands the spend to the cell’s composition seat, which writes the composed text'
+		},
+		reason:
+			'a set spent where no text is written is a promise dropped with nothing written: route the spend through the typing or composition write',
+		reaches: ['src/lib/components/blocks/text/edge-policy-dispatch.ts'],
+		hits: [
+			'const marks = deps.pendingMarks.consume();',
+			'consumePendingMarks: caretMemory.pendingMarks.consume,'
+		],
+		misses: [
+			'caretMemory.pendingMarks.toggle(format);',
+			'restore: caretMemory.pendingMarks.restore'
+		]
+	},
+	{
 		id: 'every dev-only check reads the build flag through env.ts',
 		matches: /from\s*['"]esm-env['"]/,
 		allowed: {

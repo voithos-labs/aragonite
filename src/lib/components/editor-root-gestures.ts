@@ -7,9 +7,8 @@
  */
 
 import type { BlockComponent } from '../block-component';
-import type { EdgeAffinityState } from '../cursor/edge-affinity';
+import type { CaretMemory } from '../cursor/caret-memory';
 import type { UserScrollport } from '../cursor/scroll-ancestors';
-import type { StickyColumnState } from '../cursor/sticky-column';
 import type { BlockElLookup, DocumentGetter } from '../editor-keys';
 import { resetForPointerDown } from '../selection/cross-block/pointer';
 import { createDeadSpaceCaret } from '../selection/dead-space-caret';
@@ -29,8 +28,7 @@ import type { Reading } from '../schema/reading';
 export interface RootGesturesDeps {
 	getDoc: DocumentGetter;
 	selection: SelectionState;
-	stickyColumn: StickyColumnState;
-	edgeAffinity: EdgeAffinityState;
+	caretMemory: Pick<CaretMemory, 'forget'>;
 	getBlockElByPath: BlockElLookup;
 	getBlockComponent(path: number[]): BlockComponent | null;
 	/** How a block gets mounted: what a click below the last mounted block goes through. */
@@ -66,8 +64,7 @@ const DRAG_SLOP_PX = 3;
 export function createRootGestures(deps: RootGesturesDeps): RootGestures {
 	const deadSpaceCaret = createDeadSpaceCaret({
 		getBlockComponent: (path) => deps.getBlockComponent(path),
-		resetSelectionForClick: () =>
-			resetForPointerDown(deps.selection, deps.stickyColumn, deps.edgeAffinity, false),
+		resetSelectionForClick: () => resetForPointerDown(deps.selection, deps.caretMemory, false),
 		gapScope: {
 			getDoc: deps.getDoc,
 			selection: deps.selection,
@@ -180,7 +177,7 @@ export function createRootGestures(deps: RootGesturesDeps): RootGestures {
 			const anchor = deadSpaceCaret.anchorAtPoint(root, e.clientX, e.clientY);
 			if (!anchor) return;
 			marginDrag = true;
-			resetForPointerDown(deps.selection, deps.stickyColumn, deps.edgeAffinity, false);
+			resetForPointerDown(deps.selection, deps.caretMemory, false);
 			// A block that runs its own drag from a nearby click (a table's cell rectangle) takes
 			// it; the generic drag is for blocks that have none.
 			if (!('offset' in anchor)) {

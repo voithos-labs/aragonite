@@ -242,8 +242,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	const {
 		blockEdit,
 		focusActions,
-		stickyColumn,
-		edgeAffinity,
+		caretMemory,
 		selection,
 		getDoc,
 		getBlockElByPath,
@@ -567,8 +566,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	// The leaf's DOM text is its raw, so copy writes the visible selection and cut and paste
 	// splice verbatim; the commit's reparse splits the block where the grammar demands.
 	const clipboard = createClipboardHandlers({
-		stickyColumn,
-		edgeAffinity,
+		caretMemory,
 		selection,
 		getDoc,
 		crossBlock,
@@ -745,7 +743,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		// Showing the source lands a caret, so the shared preamble has to run. Not through
 		// `crossBlock.handlePointerDown`: that hit-tests against the source text, which the
 		// rendered view is not.
-		resetForPointerDown(selection, stickyColumn, edgeAffinity, false);
+		resetForPointerDown(selection, caretMemory, false);
 		void revealSource(revealOffsetAt(e));
 	}
 

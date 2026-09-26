@@ -4,11 +4,12 @@ import { handleSharedKeydown, type SharedKeydownContext } from '$lib/selection/s
 import type { CrossBlockHandlers } from '$lib/selection/cross-block/dispatch';
 import type { FocusActions } from '$lib/action-contracts';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
-import { makeStickyColumn, makeEdgeAffinity } from '$lib/test/harness/editor-actions';
+import { makeCaretMemory } from '$lib/test/harness/editor-actions';
 import { registerGlobalCommand } from '$lib/schema/global-commands';
 import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { fixtureReading } from '$lib/test/harness/fixture-grammar';
+import { normalizeKeybindingOverrides } from '$lib/schema/keybinding-overrides';
 
 // The shared keydown that runs before every editable block's own dispatch. A plugin-global chord
 // must have its default prevented and still be deferred (return false) so the block's own
@@ -40,8 +41,8 @@ function makeCtx(): SharedKeydownContext {
 		getIndex: () => 0,
 		crossBlock: noCross,
 		selection: createSelectionState(),
-		stickyColumn: makeStickyColumn(),
-		edgeAffinity: makeEdgeAffinity(),
+		caretMemory: makeCaretMemory(),
+		getKeybindingOverrides: () => normalizeKeybindingOverrides([]),
 		history: { requestUndo() {}, requestRedo() {} } as unknown as SharedKeydownContext['history'],
 		focus: {} as FocusActions,
 		getDoc: () => ({ kind: 'document', children: [] }) as never,

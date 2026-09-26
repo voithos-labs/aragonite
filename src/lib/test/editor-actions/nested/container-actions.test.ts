@@ -41,7 +41,7 @@ const parentActions = {
 	focus: { id: 'focus' },
 	containerEdit: { id: 'c' }
 };
-const stickyColumn = { id: 'sticky' };
+const caretMemory = { id: 'caret memory' };
 const reading = fixtureReading();
 
 beforeEach(() => {
@@ -51,7 +51,7 @@ beforeEach(() => {
 	contexts.set(BLOCK_EDIT_KEY, parentActions.blockEdit);
 	contexts.set(FOCUS_KEY, parentActions.focus);
 	contexts.set(CONTAINER_EDIT_KEY, parentActions.containerEdit);
-	contexts.set(EDITOR_SERVICES_KEY, { stickyColumn });
+	contexts.set(EDITOR_SERVICES_KEY, { caretMemory });
 	contexts.set(EDITOR_DOC_KEY, { reading });
 });
 
@@ -75,7 +75,7 @@ describe('createContainerActions passes its inputs through to the child actions'
 		const { deps, listContext } = containerAt({ index: 0, node, path: [0] });
 		expect(deps.parentListContext).toBe(listContext);
 		expect(deps.reading).toBe(reading);
-		expect(deps.stickyColumn).toBe(stickyColumn);
+		expect(deps.caretMemory).toBe(caretMemory);
 		expect(deps.parent).toEqual(parentActions);
 	});
 

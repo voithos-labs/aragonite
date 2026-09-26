@@ -69,7 +69,7 @@ describe('an arrow at the grid’s vertical edge leaves the table', () => {
 
 		await pressKey(mounted.cell(2, 0), { key: 'ArrowDown' });
 
-		expect(mounted.stickyColumn.capture).toHaveBeenCalled();
+		expect(mounted.caretMemory.captureColumn).toHaveBeenCalled();
 		expect(vi.mocked(mounted.focus.moveFocus)).toHaveBeenCalledWith(1, {
 			stickyColumnFrom: 'above'
 		});

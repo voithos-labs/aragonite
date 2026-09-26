@@ -8,7 +8,7 @@ import { createSelectionState } from '../../selection/selection-state.svelte';
 import { applyCollapsedCaret, applySelectionToDom } from '../../selection/native-bridge';
 import { resetForPointerDown } from '../../selection/cross-block/pointer';
 import { extendFocusToNextBlock } from '../../selection/keyboard-extend';
-import { makeStickyColumn, makeEdgeAffinity } from '../harness/editor-actions';
+import { makeCaretMemory } from '../harness/editor-actions';
 import { parse } from '../../core/parser';
 import type { EditorSelection } from '../../selection/primitives';
 import { defaultGrammarView } from '$lib/schema/block-openers';
@@ -173,7 +173,7 @@ describe('unbatched entry-path emission counts', () => {
 		state.enterCrossBlock(at(0, 0), at(2, 3));
 		notifies = 0;
 
-		resetForPointerDown(state, makeStickyColumn(), makeEdgeAffinity(), false);
+		resetForPointerDown(state, makeCaretMemory(), false);
 
 		// The counter was already 0, so only the clear is a real mutation.
 		expect(notifies).toBe(1);
@@ -184,7 +184,7 @@ describe('unbatched entry-path emission counts', () => {
 		let notifies = 0;
 		const state = createSelectionState({ onChange: () => notifies++ });
 
-		resetForPointerDown(state, makeStickyColumn(), makeEdgeAffinity(), false);
+		resetForPointerDown(state, makeCaretMemory(), false);
 
 		expect(notifies).toBe(0);
 	});
@@ -198,7 +198,7 @@ describe('unbatched entry-path emission counts', () => {
 			state.setGapCaret({ parentPath: [], index: 1 });
 			notifies = 0;
 
-			resetForPointerDown(state, makeStickyColumn(), makeEdgeAffinity(), isShift);
+			resetForPointerDown(state, makeCaretMemory(), isShift);
 
 			expect(state.gapCaret).toBeNull();
 			expect(notifies).toBe(1);

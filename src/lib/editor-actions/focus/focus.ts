@@ -76,9 +76,9 @@ export function createFocusActions(
 			// Landing at a block's end is a jump to an extreme, not a step onto it, so which side
 			// of a hidden marker it means is decided per construct (docs/design/live-mode.md
 			// § 4.2). Without this the first byte typed after the move joins the closer.
-			if (position === 'end') deps.edgeAffinity.noteExtreme();
+			if (position === 'end') deps.caretMemory.noteExtreme();
 
-			await consumeStickyLanding(block, blockIndex, position, deps.stickyColumn, (i) =>
+			await consumeStickyLanding(block, blockIndex, position, deps.caretMemory, (i) =>
 				this.moveFocus(i, position, options)
 			);
 		}

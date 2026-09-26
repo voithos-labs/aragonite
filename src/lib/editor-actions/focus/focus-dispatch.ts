@@ -11,7 +11,7 @@ import {
 	type FocusPosition,
 	type StickyColumnDirection
 } from '../../block-component';
-import type { StickyColumnState } from '../../cursor/sticky-column';
+import type { CaretMemory } from '../../cursor/caret-memory';
 import { consumeStickyLanding, verticalArrival } from './focus-landing';
 
 /** What the calling container contributes to a move beyond the target itself. */
@@ -30,7 +30,7 @@ export async function dispatchMoveFocus(
 	refs: (BlockComponent | undefined)[],
 	innerIndex: number,
 	position: FocusPosition,
-	stickyColumn: StickyColumnState,
+	caretMemory: Pick<CaretMemory, 'column'>,
 	parent: { focus: FocusActions; index: number },
 	scope: MoveFocusScope = {}
 ): Promise<void> {
@@ -62,13 +62,13 @@ export async function dispatchMoveFocus(
 		// A child with no ref, or one that cannot take focus, must not stop the move: continue
 		// in its direction (editor.md § Focus traversal).
 		if (step !== 0) {
-			await dispatchMoveFocus(refs, innerIndex + step, position, stickyColumn, parent, scope);
+			await dispatchMoveFocus(refs, innerIndex + step, position, caretMemory, parent, scope);
 		}
 		return;
 	}
 
-	await consumeStickyLanding(block, innerIndex, position, stickyColumn, (i) =>
-		dispatchMoveFocus(refs, i, position, stickyColumn, parent, scope)
+	await consumeStickyLanding(block, innerIndex, position, caretMemory, (i) =>
+		dispatchMoveFocus(refs, i, position, caretMemory, parent, scope)
 	);
 }
 

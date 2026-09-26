@@ -14,6 +14,7 @@ import { createWidgetSelectionState } from '$lib/components/image/widget-selecti
 import type { CstNode } from '$lib/core/nodes';
 import { fixtureReading } from '../../harness/fixture-grammar';
 import { defaultGrammarView } from '$lib/schema/block-openers';
+import { stubCaretMemory } from '$lib/testing/headless-actions';
 
 const SOURCE = 'lead![cat](x) tail\n';
 const WIDGET = { start: 4, end: 13 };
@@ -71,8 +72,7 @@ describe('replacing a selected widget', () => {
 			cursor: { getRaw: () => null, getRawSelection: () => null },
 			selection: { isCrossBlock: false, anchor: null, focus: null },
 			crossBlock: { handlePaste: async () => false },
-			stickyColumn: { reset: () => {} },
-			edgeAffinity: { reset: () => {}, get: () => null, note: () => {}, noteTyping: () => {} },
+			caretMemory: stubCaretMemory(),
 			isReadOnly: () => false,
 			foldRevealBeforeMutation: () => null,
 			grammar: defaultGrammarView,

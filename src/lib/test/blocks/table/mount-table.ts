@@ -7,8 +7,8 @@ import TableBlock from '$lib/components/blocks/table/TableBlock.svelte';
 import type { BlockComponent } from '$lib/block-component';
 import type { CstNode, Document } from '$lib/core/nodes';
 import type { FocusActions } from '$lib/action-contracts';
-import type { StickyColumnState } from '$lib/cursor/sticky-column';
-import { makeStickyColumn, makeStubFocus } from '../../harness/editor-actions';
+import type { CaretMemory } from '$lib/cursor/caret-memory';
+import { makeCaretMemory, makeStubFocus } from '../../harness/editor-actions';
 import { mountBlock } from '../../harness/mount-block';
 import type { MountContextOverrides } from '../../harness/mount-context';
 import { blockHostAt, type MountedEditor } from '$lib/test/harness/mount-editor.svelte';
@@ -42,7 +42,7 @@ export interface MountedTable {
 		mountedRowWindow(): { start: number; end: number };
 	};
 	focus: FocusActions;
-	stickyColumn: StickyColumnState;
+	caretMemory: CaretMemory;
 	cell(rowIdx: number, colIdx: number): HTMLElement;
 	dispose: () => Promise<void>;
 }
@@ -51,10 +51,10 @@ export interface MountedTable {
  *  needs a real parent to re-render with the replaced node (`harness/mount-editor.svelte.ts`). */
 export function mountTable(source: string, overrides: MountContextOverrides = {}): MountedTable {
 	const focus = overrides.focus ?? makeStubFocus();
-	const stickyColumn = overrides.services?.stickyColumn ?? makeStickyColumn();
+	const caretMemory = overrides.services?.caretMemory ?? makeCaretMemory();
 	const mounted = mountBlock(TableBlock, {
 		source,
-		overrides: { ...overrides, focus, services: { ...overrides.services, stickyColumn } }
+		overrides: { ...overrides, focus, services: { ...overrides.services, caretMemory } }
 	});
 	const { doc, target, instance } = mounted;
 	const el = target.querySelector('[role="table"]') as HTMLElement;
@@ -66,7 +66,7 @@ export function mountTable(source: string, overrides: MountContextOverrides = {}
 		el,
 		block: instance as MountedTable['block'],
 		focus,
-		stickyColumn,
+		caretMemory,
 		cell: (rowIdx, colIdx) => {
 			const row = el.querySelector(`:scope > [data-table-row-idx="${rowIdx}"]`);
 			const cells = row?.querySelectorAll(':scope > .table-cell');

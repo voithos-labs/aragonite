@@ -32,9 +32,7 @@ import { createHeightOracle } from '$lib/cursor/height-oracle';
 import { createScrollport, type Scrollport } from '$lib/cursor/scrollport';
 import { HEIGHT_ESTIMATES } from '$lib/cursor/typography-estimates';
 import {
-	makeStickyColumn,
-	makeEdgeAffinity,
-	makePendingMarks,
+	makeCaretMemory,
 	makeStubBlockEdit,
 	makeStubContainerEdit,
 	makeStubFocus
@@ -69,9 +67,7 @@ function stubbedServices(getDoc: () => DocumentView): EditorServices {
 		decorations: createDecorationEngine({ getDoc }),
 		selection,
 		search: {} as EditorServices['search'],
-		stickyColumn: makeStickyColumn(),
-		edgeAffinity: makeEdgeAffinity(),
-		pendingMarks: makePendingMarks(),
+		caretMemory: makeCaretMemory(),
 		autoPairs: createAutoPairRecord(),
 		revealAnchor: createRevealAnchorState(),
 		// Real: every keydown on an editable block asks it what is selected.

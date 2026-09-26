@@ -9,10 +9,9 @@ import { CURSOR_END } from '$lib/block-component';
 import { registerBuiltInBlocks } from '$lib/components/built-in-blocks';
 import { createDeadSpaceCaret, type DeadSpaceCaretDeps } from '$lib/selection/dead-space-caret';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
-import { createStickyColumnState } from '$lib/cursor/sticky-column';
+import { createCaretMemory } from '$lib/cursor/caret-memory';
 import { makeEmptyGapScope } from '../harness/editor-actions';
 import { resetForPointerDown } from '$lib/selection/cross-block/pointer';
-import { makeEdgeAffinity } from '../harness/editor-actions';
 import { mountTableGrid } from './table-grid';
 
 registerBuiltInBlocks();
@@ -144,10 +143,10 @@ describe('placeCaretAtPoint landing walk', () => {
 
 		beforeEach(() => {
 			selection = createSelectionState();
-			const stickyColumn = createStickyColumnState();
+			const caretMemory = createCaretMemory();
 			// The real reset, not a spy: what this case asserts is the selection's fate, and a spy
 			// would pass on a call that ends nothing.
-			endRange = () => resetForPointerDown(selection, stickyColumn, makeEdgeAffinity(), false);
+			endRange = () => resetForPointerDown(selection, caretMemory, false);
 			selection.enterCrossBlock({ path: [0], offset: 0 }, { path: [2], offset: 4 });
 		});
 

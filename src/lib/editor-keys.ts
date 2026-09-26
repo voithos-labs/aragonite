@@ -27,9 +27,7 @@ import type { SelectionState } from './selection/selection-state.svelte';
 import type { SelectedWidgetHandle } from './selection/primitives';
 import type { SearchState } from './search/search-state.svelte';
 import type { DecorationEngine } from './decorations/decoration-state.svelte';
-import type { StickyColumnState } from './cursor/sticky-column';
-import type { EdgeAffinityState } from './cursor/edge-affinity';
-import type { PendingMarksState } from './cursor/pending-marks';
+import type { CaretMemory } from './cursor/caret-memory';
 import type { AutoPairRecord } from './components/blocks/text/auto-pair-record';
 import type { RevealAnchorState } from './cursor/reveal-anchor';
 import type { HeightOracle } from './cursor/height-oracle';
@@ -156,13 +154,9 @@ export interface EditorServices {
 	decorations: DecorationEngine;
 	selection: SelectionState;
 	search: SearchState;
-	stickyColumn: StickyColumnState;
-	/** Which side of an adjacent run of hidden markers the caret means; the code that writes
-	 *  bytes reads it and keeps its own default when the answer is null. */
-	edgeAffinity: EdgeAffinityState;
-	/** The constructs a toggle with no selection promised the next insertion. Dropped along
-	 *  with the edge affinity, and used up where typed and composed text is written. */
-	pendingMarks: PendingMarksState;
+	/** How the caret arrived: the sticky column, the side of a hidden marker run and the
+	 *  pending marks, kept and dropped as one. */
+	caretMemory: CaretMemory;
 	/** The empty delimiter pair the auto-pair last wrote, the only pair it steps over, collapses
 	 *  or deletes; each typing block takes its own view of it. */
 	autoPairs: AutoPairRecord;

@@ -134,8 +134,7 @@
 		focusActions,
 		controller,
 		pasteCoordinator,
-		stickyColumn,
-		edgeAffinity,
+		caretMemory,
 		selection,
 		getDoc,
 		getBlockElByPath,
@@ -147,7 +146,6 @@
 	const { grammar } = reading;
 	const tableContext = getContext<TableContext>(TABLE_CONTEXT_KEY);
 	const {
-		pendingMarks,
 		autoPairs,
 		widgetSelection,
 		linkCard,
@@ -262,10 +260,10 @@
 		getDisplayText: () => trimTrailingLineEnding(node.raw),
 		getInlines: () => resolvedInlineContent(node, reading),
 		reading,
-		getAffinity: () => edgeAffinity.get(),
+		getAffinity: caretMemory.side,
 		getScreen: () => screenVisibilityOf(el ?? null),
-		consumePendingMarks: () => pendingMarks.consume(),
-		restorePendingMarks: (marks) => pendingMarks.restore(marks)
+		consumePendingMarks: caretMemory.pendingMarks.consume,
+		restorePendingMarks: caretMemory.pendingMarks.restore
 	});
 
 	const crossBlock = editableSurface.crossBlock;
@@ -350,9 +348,9 @@
 				: undefined;
 		},
 		isReading: () => readOnly,
-		getEdgeAffinity: () => edgeAffinity.get(),
-		noteOutside: edgeAffinity.noteExtreme,
-		pendingMarks,
+		getEdgeAffinity: caretMemory.side,
+		noteOutside: caretMemory.noteExtreme,
+		pendingMarks: caretMemory.pendingMarks,
 		ownPairs,
 		installedAs: 'cell'
 	});
@@ -415,7 +413,7 @@
 		// waits for the next insertion instead (live-mode.md § 4.3).
 		if (reading.hidesDelimitersAtCaret() && offsets.start === offsets.end) {
 			controller.flushDebouncedCheckpoint();
-			pendingMarks.toggle(format);
+			caretMemory.pendingMarks.toggle(format);
 			return true;
 		}
 		// A cell has no markers of its own, so the whole read is content, taken from the DOM text
@@ -794,7 +792,7 @@
 			isRevealing: widgetInteraction.isRevealing,
 			foldReveal: () => widgetInteraction.foldRevealBeforeMutation(),
 			setCaret: (offset) => cursor.setRaw(asRawOffset(offset)),
-			seatOutside: edgeAffinity.noteExtreme,
+			seatOutside: caretMemory.noteExtreme,
 			reading,
 			ownPairs,
 			write: (text, caretBefore, caretAfter) => {
@@ -855,7 +853,7 @@
 			columnCount
 		};
 
-		resetForPointerDown(selection, stickyColumn, edgeAffinity, e.shiftKey);
+		resetForPointerDown(selection, caretMemory, e.shiftKey);
 
 		if (e.shiftKey) {
 			const prevCoords = cellCoordsOfElement(document.activeElement, tableEl);
@@ -907,8 +905,7 @@
 	}
 
 	const clipboard = createClipboardHandlers({
-		stickyColumn,
-		edgeAffinity,
+		caretMemory,
 		selection,
 		getDoc,
 		crossBlock,
@@ -1030,8 +1027,7 @@
 		if (action !== 'paste' && !hasRect && sel.start === sel.end) return;
 		// Clicking the menu item moved focus off the cell, so every branch refocuses before
 		// mutating: execCommand needs the restored range, paste needs a focused caret.
-		stickyColumn.reset();
-		edgeAffinity.reset();
+		caretMemory.forget();
 		el.focus({ preventScroll: true });
 		if (action === 'paste') {
 			let raw: string;

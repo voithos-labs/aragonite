@@ -8,7 +8,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { createFocusActions } from '$lib/editor-actions/focus/focus';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { createEdgeAffinityState } from '$lib/cursor/edge-affinity';
+import { createCaretMemory } from '$lib/cursor/caret-memory';
 import { makeEditorActionsDeps, stubBlockComponent } from '$lib/test/harness/editor-actions';
 import type { FocusPosition } from '$lib/block-component';
 
@@ -20,12 +20,12 @@ function harnessFor(source: string) {
 	const { deps, doc } = makeEditorActionsDeps(parse(source).children);
 	// The real state, not the harness mock: the assertion is the side it answers, and a mock
 	// answers null however the move calls it.
-	const affinity = createEdgeAffinityState();
-	deps.edgeAffinity = affinity;
+	const memory = createCaretMemory();
+	deps.caretMemory = memory;
 	deps.setBlockRefs(doc.children.map(() => stubBlockComponent({ focus: vi.fn() })));
 	const focus = createFocusActions(deps, createUndoController(deps));
 	return {
-		affinity,
+		memory,
 		move: (index: number, position: FocusPosition) => focus.moveFocus(index, position)
 	};
 }
@@ -36,16 +36,16 @@ describe("moveFocus: the side a landing at a block's end settles (#172)", () => 
 
 		await h.move(0, 'end');
 
-		expect(h.affinity.get()).toBe('outside');
+		expect(h.memory.side()).toBe('outside');
 	});
 
 	it('re-answers outside after a reset, the state every structural commit leaves behind', async () => {
 		const h = harnessFor(BOLD_ABOVE_FENCE);
-		h.affinity.reset();
+		h.memory.forget();
 
 		await h.move(0, 'end');
 
-		expect(h.affinity.get()).toBe('outside');
+		expect(h.memory.side()).toBe('outside');
 	});
 
 	// A numeric position is a caller that knows its byte (a split's second half), not an
@@ -55,6 +55,6 @@ describe("moveFocus: the side a landing at a block's end settles (#172)", () => 
 
 		await h.move(0, 3);
 
-		expect(h.affinity.get()).toBeNull();
+		expect(h.memory.side()).toBeNull();
 	});
 });

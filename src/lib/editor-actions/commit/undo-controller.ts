@@ -332,8 +332,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 	}
 
 	function runCommitCeremony(args: CommitArgs): boolean {
-		deps.stickyColumn.reset();
-		deps.edgeAffinity.reset();
+		deps.caretMemory.forget();
 		textBatch.interrupt();
 
 		if (isDevChecks()) {

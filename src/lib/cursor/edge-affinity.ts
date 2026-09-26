@@ -1,8 +1,7 @@
 /**
  * Edge affinity: which of the two raw offsets a caret means when it sits beside a hidden
- * marker run, whose interior paints nothing so both offsets land on one pixel. The shared
- * keydown handler records the key that put the caret there through `note`; the typing path
- * reads `get()` and keeps its own default when the answer is null.
+ * marker run, whose interior paints nothing so both offsets land on one pixel. The caret memory
+ * (`cursor/caret-memory.ts`) holds the answer; this module decides it from the key.
  */
 
 import { BARE_MODIFIER_KEYS, isCharacterKey } from '../schema/keybindings';
@@ -15,65 +14,10 @@ import { BARE_MODIFIER_KEYS, isCharacterKey } from '../schema/keybindings';
  */
 export type EdgeAffinity = 'near' | 'far' | 'outside';
 
-export interface EdgeAffinityState {
-	get(): EdgeAffinity | null;
-
-	/** The only entry point a keydown handler may use; `reset()` is for callers with no key. */
-	note(e: Pick<KeyboardEvent, 'key' | 'altKey'> & Partial<Pick<KeyboardEvent, 'metaKey'>>): void;
-
-	/** A committed keystroke belongs to the content whatever arrival preceded it. */
-	noteTyping(): void;
-
-	/**
-	 * The caret was placed at an end rather than stepped there (a range collapsing onto its own
-	 * edge). The key was directional but the caret took no step, so the side it means is relative
-	 * to the construct, the same answer Home and End give.
-	 */
-	noteExtreme(): void;
-
-	reset(): void;
-}
-
-export interface EdgeAffinityDeps {
-	/**
-	 * Short-lived caret state with this same lifetime (pending marks, `cursor/pending-marks.ts`)
-	 * clears on this callback, so every path that sets the affinity clears it too.
-	 */
-	onInvalidate?: () => void;
-}
-
-export function createEdgeAffinityState(deps: EdgeAffinityDeps = {}): EdgeAffinityState {
-	let affinity: EdgeAffinity | null = null;
-
-	/** Sets the side and clears everything riding on it in one step, so no caller can do the
-	 *  first without the second. */
-	function settle(next: EdgeAffinity | null): void {
-		affinity = next;
-		deps.onInvalidate?.();
-	}
-
-	return {
-		get: () => affinity,
-		noteTyping: () => settle('near'),
-		noteExtreme: () => settle('outside'),
-		reset: () => settle(null),
-		note: (e) => {
-			// Alt+Arrow is the block-reorder chord, not caret nav.
-			if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) return;
-			const action = classifyArrivalKey(e.key, e.metaKey);
-			// A preserved key left the caret where it was: the key combination that queues a pending
-			// mark and the character that uses it both preserve, so neither may clear the state.
-			if (action === 'preserve') return;
-			settle(action === 'reset' ? null : action);
-		}
-	};
-}
-
 /** What a keydown does to the affinity. */
 export type EdgeAffinityAction = EdgeAffinity | 'preserve' | 'reset';
 
-/** The decision {@link EdgeAffinityState.note} enacts. Pure on the key, so the matrix is
- *  testable without a DOM or a state instance. */
+/** Pure on the key, so the matrix is testable without a DOM or a memory instance. */
 export function classifyArrivalKey(key: string, metaKey = false): EdgeAffinityAction {
 	// macOS Cmd+Arrow jumps to the line's end, a placement rather than a step, so it takes
 	// Home/End's answer. Windows and Linux never deliver meta+arrow to the page.

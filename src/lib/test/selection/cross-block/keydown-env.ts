@@ -11,8 +11,11 @@ import type { CrossBlockMutationContext } from '$lib/selection/cross-block/ops';
 import { createCrossBlockKeydown } from '$lib/selection/cross-block/keydown';
 import { createCrossBlockCommands } from '$lib/selection/cross-block/format-toggle';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { createEdgeAffinityState } from '$lib/cursor/edge-affinity';
-import { createStickyColumnState } from '$lib/cursor/sticky-column';
+import { createCaretMemory } from '$lib/cursor/caret-memory';
+import {
+	normalizeKeybindingOverrides,
+	type KeybindingOverride
+} from '$lib/schema/keybinding-overrides';
 import type { Document } from '$lib/core/nodes';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
@@ -31,6 +34,8 @@ export interface KeydownEnvOptions {
 	 * them in, the only way to reach the caret-placing branch of `revealActiveEndpoint`.
 	 */
 	offWindowPaths?: number[][];
+	/** The consumer's `keybindings` prop, which the caret memory reads a chord through. */
+	keybindings?: KeybindingOverride[];
 }
 
 export function makeKeydownEnv(source: string | Document, opts: KeydownEnvOptions = {}) {
@@ -39,8 +44,8 @@ export function makeKeydownEnv(source: string | Document, opts: KeydownEnvOption
 	const harness = makeEditorActionsDeps(typeof source === 'string' ? parse(source) : source);
 	const controller = createUndoController(harness.deps);
 	const selection = harness.deps.selectionState;
-	const stickyColumn = createStickyColumnState();
-	const edgeAffinity = createEdgeAffinityState();
+	const caretMemory = createCaretMemory();
+	const overrides = normalizeKeybindingOverrides(opts.keybindings);
 
 	// One element per path: the extend walk reads element identity, never geometry.
 	const blockEls = new Map<string, HTMLElement>();
@@ -91,15 +96,14 @@ export function makeKeydownEnv(source: string | Document, opts: KeydownEnvOption
 		getDoc: () => harness.deps.doc,
 		getBlockElByPath,
 		revealPath,
-		stickyColumn,
-		edgeAffinity,
+		caretMemory,
 		controller,
 		history: { requestUndo: vi.fn(), requestRedo: vi.fn() },
 		pluginEditor: undefined,
 		reading: fixtureReading({}, opts.presentationMode),
 		onCommandError,
 		crossBlockCommands,
-		getKeybindingOverrides: () => ({ global: new Map(), byKind: new Map() }),
+		getKeybindingOverrides: () => overrides,
 		activePlugins: everyInstalledPlugin,
 		afterReactivity: async () => {}
 	} as unknown as CrossBlockDispatchContext;
@@ -107,8 +111,7 @@ export function makeKeydownEnv(source: string | Document, opts: KeydownEnvOption
 	return {
 		...harness,
 		selection,
-		stickyColumn,
-		edgeAffinity,
+		caretMemory,
 		controller,
 		ctx,
 		mutCtx,

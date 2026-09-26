@@ -10,7 +10,7 @@ import { dispatchMoveFocus } from '../focus/focus-dispatch';
 import type { NestedActionsDeps } from './nested-actions';
 
 export function createNestedFocus(state: BlockListState, deps: NestedActionsDeps): FocusActions {
-	const { stickyColumn, parent } = deps;
+	const { caretMemory, parent } = deps;
 	return {
 		// Scrolling a nested block into view is the editor's recursive `revealPath` descending
 		// through this container, so the container does not own it. The gap stop is forwarded
@@ -28,7 +28,7 @@ export function createNestedFocus(state: BlockListState, deps: NestedActionsDeps
 				state.innerBlockRefs,
 				innerIndex,
 				position,
-				stickyColumn,
+				caretMemory,
 				{ focus: parent.focus, index: deps.index },
 				{
 					// node.children.length is the truth: refs.length lags after a structural edit

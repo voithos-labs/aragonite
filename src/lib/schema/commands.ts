@@ -12,7 +12,7 @@ import { devReplacesRegistration } from './register-once';
 import { enrollTestReset } from './registry-reset';
 import { createPluginRegistry } from './plugin-registry';
 import { tryGetBlockKindDescriptor } from './block-kind-descriptor';
-import { normalizeChord, isChordWellFormed, type KeyBinding } from './keybindings';
+import { eventToChord, normalizeChord, isChordWellFormed, type KeyBinding } from './keybindings';
 import {
 	lookupOverride,
 	overrideDecision,
@@ -352,6 +352,25 @@ export function resolveBinding(
 	const override = overrideTier(overrides, kind, chord);
 	if (override !== undefined) return override;
 	return builtinKindBinding(chord, kind) ?? builtinGlobalBinding(chord, activation);
+}
+
+/**
+ * The command a keypress names at `kind`, overrides included, without running it; a keypress
+ * with no block under it (a null kind) resolves at global scope.
+ */
+export function commandForKey(
+	e: KeyboardEvent,
+	kind: AnyBlockKind | null,
+	overrides: KeybindingOverrideMap | undefined,
+	activation: PluginActivation
+): AnyCommandId | null {
+	const chord = eventToChord(e);
+	if (!chord) return null;
+	const binding =
+		kind === null
+			? resolveGlobalBinding(chord, overrides, activation)
+			: resolveBinding(chord, kind, overrides, activation);
+	return binding?.command ?? null;
 }
 
 /**

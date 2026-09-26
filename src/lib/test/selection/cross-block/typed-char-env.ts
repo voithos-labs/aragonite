@@ -25,8 +25,7 @@ export function makeEnv(source: string) {
 		selectionState: deps.selectionState,
 		controller,
 		blockEdit,
-		stickyColumn: deps.stickyColumn,
-		edgeAffinity: deps.edgeAffinity
+		caretMemory: deps.caretMemory
 	};
 }
 
@@ -59,8 +58,7 @@ export function makeHandlers(
 		selectedWidget: { range: () => null, clear: () => {} },
 		getScrollHost: () => null,
 		getEditorLifetime: () => null,
-		stickyColumn: env.stickyColumn,
-		edgeAffinity: env.edgeAffinity,
+		caretMemory: env.caretMemory,
 		blockEdit: env.blockEdit,
 		controller: env.controller,
 		history: { requestUndo() {}, requestRedo() {} },

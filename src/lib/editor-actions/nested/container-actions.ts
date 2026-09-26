@@ -64,7 +64,7 @@ export function createContainerActions(deps: ContainerActionsDeps): ContainerAct
 		focus: getContext<FocusActions>(FOCUS_KEY),
 		containerEdit: getContext<ContainerEditActions>(CONTAINER_EDIT_KEY)
 	};
-	const { stickyColumn } = getContext<EditorServices>(EDITOR_SERVICES_KEY);
+	const { caretMemory } = getContext<EditorServices>(EDITOR_SERVICES_KEY);
 	const { reading } = getContext<EditorDoc>(EDITOR_DOC_KEY);
 
 	const state = createBlockListState(deps.getNode);
@@ -83,7 +83,7 @@ export function createContainerActions(deps: ContainerActionsDeps): ContainerAct
 
 	const bundle = createStandardNestedActions(
 		state,
-		{ scope, stickyColumn, reading, parentListContext: deps.parentListContext, parent },
+		{ scope, caretMemory, reading, parentListContext: deps.parentListContext, parent },
 		deps.overrides?.({ scope, parent })
 	);
 	setNestedActionsContexts(bundle);

@@ -9,7 +9,7 @@ import { describe, expect, it } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { trimTrailingLineEnding } from '$lib/core/lines';
 import type { EdgeAffinity } from '$lib/cursor/edge-affinity';
-import type { PendingMarksState } from '$lib/cursor/pending-marks';
+import type { PendingMarks } from '$lib/cursor/pending-marks';
 import type { InlineMarkKind } from '$lib/schema/inline-construct-policy';
 import { makePendingMarks } from '$lib/test/harness/editor-actions';
 import {
@@ -22,7 +22,7 @@ import {
 } from './edge-policy-fixture';
 
 interface Harness extends EdgeDispatchHarness {
-	marks: PendingMarksState;
+	marks: PendingMarks;
 }
 
 function mount(

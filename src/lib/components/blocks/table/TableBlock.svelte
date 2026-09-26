@@ -56,7 +56,7 @@
 	});
 	const {
 		controller,
-		stickyColumn: editorStickyColumn,
+		caretMemory,
 		selection,
 		reorderAnnounce: announceReorder,
 		menuPresence
@@ -217,14 +217,14 @@
 			internalStickyColumn = null;
 		},
 		exitUpward(stickyX) {
-			editorStickyColumn.capture(asEditorX(stickyX));
+			caretMemory.captureColumn(asEditorX(stickyX));
 			internalStickyColumn = null;
 			focusActions.moveFocus(myPath[myPath.length - 1] - 1, {
 				stickyColumnFrom: 'below'
 			});
 		},
 		exitDownward(stickyX) {
-			editorStickyColumn.capture(asEditorX(stickyX));
+			caretMemory.captureColumn(asEditorX(stickyX));
 			internalStickyColumn = null;
 			focusActions.moveFocus(myPath[myPath.length - 1] + 1, {
 				stickyColumnFrom: 'above'

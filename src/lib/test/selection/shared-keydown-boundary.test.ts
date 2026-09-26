@@ -16,10 +16,10 @@ import {
 	extendFocusToPreviousBlock
 } from '../../selection/keyboard-extend';
 import { parse } from '../../core/parser';
-import { createStickyColumnState } from '../../cursor/sticky-column';
-import { createEdgeAffinityState } from '../../cursor/edge-affinity';
 import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 import { fixtureReading } from '$lib/test/harness/fixture-grammar';
+import { createCaretMemory } from '$lib/cursor/caret-memory';
+import { normalizeKeybindingOverrides } from '$lib/schema/keybinding-overrides';
 
 const toPrev = vi.mocked(extendFocusToPreviousBlock);
 const toNext = vi.mocked(extendFocusToNextBlock);
@@ -51,8 +51,8 @@ function makeCtx(over: {
 		selection: {
 			resetSelectAllCount: () => {}
 		} as unknown as SharedKeydownContext['selection'],
-		stickyColumn: createStickyColumnState(),
-		edgeAffinity: createEdgeAffinityState(),
+		caretMemory: createCaretMemory(),
+		getKeybindingOverrides: () => normalizeKeybindingOverrides([]),
 		history: {} as SharedKeydownContext['history'],
 		focus: {} as SharedKeydownContext['focus'],
 		getDoc: () => doc,

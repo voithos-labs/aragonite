@@ -55,8 +55,7 @@ export function createHistoryActions(
 	// snapshot after the stack moves, and emits the batch's pending `input` event so its
 	// bytes are not dropped from the edit events.
 	function beginHistorySwap(): void {
-		deps.stickyColumn.reset();
-		deps.edgeAffinity.reset();
+		deps.caretMemory.forget();
 		controller.flushDebouncedCheckpoint();
 	}
 

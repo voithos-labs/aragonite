@@ -37,7 +37,7 @@ import {
 	createHeadlessActions,
 	recordingFocus,
 	stubBlockEdit,
-	stubStickyColumn
+	stubCaretMemory
 } from './headless-actions';
 import {
 	assert,
@@ -270,7 +270,7 @@ export async function checkStripLocalIndexAddressing(
 				},
 				path: containerChain.slice(0, depth + 1)
 			},
-			stickyColumn: stubStickyColumn(),
+			caretMemory: stubCaretMemory(),
 			reading: kitReading(),
 			parent: {
 				blockEdit: parentBundle?.blockEdit ?? stubBlockEdit(),
@@ -523,7 +523,7 @@ export async function checkFocusBubbleTermination(
 					return node;
 				},
 				path: [index],
-				stickyColumn: stubStickyColumn(),
+				caretMemory: stubCaretMemory(),
 				reading: kitReading(),
 				parent: { blockEdit: stubBlockEdit(), focus, containerEdit: {} as never }
 			}

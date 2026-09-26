@@ -15,7 +15,7 @@ import type { NodeView } from '../../core/node-views';
 import { BLOCK_EDIT_KEY, CONTAINER_EDIT_KEY, FOCUS_KEY, HISTORY_KEY } from '../../editor-keys';
 import { assertInvariant } from '../../assert';
 import { checkNoContainerHistoryKey } from '../../invariants/context-keys';
-import type { StickyColumnState } from '../../cursor/sticky-column';
+import type { CaretMemory } from '../../cursor/caret-memory';
 import type { BlockListState } from '../../reactivity/block-list-state.svelte';
 import { createNestedBlockEdit } from './nested-block-edit';
 import { createNestedFocus } from './nested-focus';
@@ -45,7 +45,7 @@ export interface NestedActionsDeps {
 	node: NodeView;
 	/** Document-absolute path of `node`; the copy-before-write and the ancestor rebuild use it. */
 	path: number[];
-	stickyColumn: StickyColumnState;
+	caretMemory: Pick<CaretMemory, 'column'>;
 	/** The editor's reading, so a nested re-parse or completer reads only the syntax the editor
 	 *  switched on and a split's rebalance knows what its mode shows. */
 	reading: Reading;
@@ -90,7 +90,7 @@ export function createStandardNestedActions(
 		get path() {
 			return input.scope.path;
 		},
-		stickyColumn: input.stickyColumn,
+		caretMemory: input.caretMemory,
 		reading: input.reading,
 		parentListContext: input.parentListContext,
 		parent: input.parent

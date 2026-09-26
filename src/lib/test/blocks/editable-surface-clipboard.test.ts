@@ -44,13 +44,7 @@ function recorder(pasteText = ''): Recorder {
  *  selection routes past writeCrossBlock{Copy,Cut}, so the intra-block tails run doc-free. */
 function deps(log: string[], over: Partial<ClipboardSurfaceDeps> = {}): ClipboardSurfaceDeps {
 	return {
-		stickyColumn: { reset: () => log.push('reset') } as never,
-		edgeAffinity: {
-			reset: () => {},
-			get: () => null,
-			note: () => {},
-			noteTyping: () => {}
-		} as never,
+		caretMemory: { forget: () => log.push('forget') } as never,
 		selection: { isCrossBlock: false, anchor: null, focus: null } as never,
 		getDoc: () => null as never,
 		crossBlock: {
@@ -82,7 +76,7 @@ describe('clipboard skeleton: copy order', () => {
 			log.push('copyTail');
 		};
 		createClipboardHandlers(deps(log, { copyTail })).onCopy(rec.e);
-		expect(log).toEqual(['reset', 'copyTail']);
+		expect(log).toEqual(['forget', 'copyTail']);
 		expect(rec.prevented).toBe(true);
 	});
 
@@ -93,7 +87,7 @@ describe('clipboard skeleton: copy order', () => {
 		createClipboardHandlers(
 			deps(log, { isReadOnly: () => true, copyTail: () => void (tailRan = true) })
 		).onCopy(rec.e);
-		expect(log).toEqual(['reset']);
+		expect(log).toEqual(['forget']);
 		expect(tailRan).toBe(false);
 		expect(rec.prevented).toBe(true);
 		expect(rec.written()).toBe(''); // jsdom's empty selection
@@ -113,7 +107,7 @@ describe('clipboard skeleton: copy order', () => {
 				copyTail: () => void (tailRan = true)
 			})
 		).onCopy(rec.e);
-		expect(log).toEqual(['reset', 'copyPreHook']);
+		expect(log).toEqual(['forget', 'copyPreHook']);
 		expect(tailRan).toBe(false);
 	});
 });
@@ -130,7 +124,7 @@ describe('clipboard skeleton: cut order', () => {
 				}
 			})
 		).onCut(rec.e);
-		expect(log).toEqual(['reset', 'fold', 'cutTail']);
+		expect(log).toEqual(['forget', 'fold', 'cutTail']);
 		expect(rec.prevented).toBe(true);
 	});
 
@@ -151,7 +145,7 @@ describe('clipboard skeleton: cut order', () => {
 		).onCut(rec.e);
 		expect(folded).toBe(false);
 		expect(cutRan).toBe(false);
-		expect(log).toEqual(['reset', 'reset']); // outer cut + inner copy
+		expect(log).toEqual(['forget', 'forget']); // outer cut + inner copy
 		expect(rec.prevented).toBe(true);
 	});
 
@@ -168,7 +162,7 @@ describe('clipboard skeleton: cut order', () => {
 				cutTail: () => void (cutRan = true)
 			})
 		).onCut(rec.e);
-		expect(log).toEqual(['reset', 'cutPreHook']);
+		expect(log).toEqual(['forget', 'cutPreHook']);
 		expect(cutRan).toBe(false);
 	});
 });
@@ -197,7 +191,7 @@ describe('clipboard skeleton: paste order', () => {
 				}
 			})
 		).onPaste(rec.e);
-		expect(log).toEqual(['fold', 'crossblock-paste', 'reset', 'pasteTail:HELLO']);
+		expect(log).toEqual(['fold', 'crossblock-paste', 'forget', 'pasteTail:HELLO']);
 	});
 
 	it('reading mode prevents and stays inert: no cross-block, no tail', async () => {
@@ -219,7 +213,7 @@ describe('clipboard skeleton: paste order', () => {
 		await createClipboardHandlers(deps(log, { pasteTail: () => void (tailRan = true) })).onPaste(
 			rec.e
 		);
-		expect(log).toEqual(['crossblock-paste', 'reset']);
+		expect(log).toEqual(['crossblock-paste', 'forget']);
 		expect(tailRan).toBe(false);
 	});
 });
@@ -238,7 +232,7 @@ describe('clipboard skeleton: programmatic insertMarkdown', () => {
 			})
 		);
 		expect(await handlers.insertMarkdown('HELLO')).toBe(true);
-		expect(log).toEqual(['fold', 'crossblock-paste', 'reset', 'pasteTail:HELLO']);
+		expect(log).toEqual(['fold', 'crossblock-paste', 'forget', 'pasteTail:HELLO']);
 	});
 
 	it('hands the cross-block dispatch the payload, so a range is replaced rather than re-read', async () => {
@@ -280,6 +274,6 @@ describe('clipboard skeleton: programmatic insertMarkdown', () => {
 		const log: string[] = [];
 		const handlers = createClipboardHandlers(deps(log));
 		expect(await handlers.insertMarkdown('a\r\nb')).toBe(true);
-		expect(log).toEqual(['crossblock-paste', 'reset', 'pasteTail:a\nb']);
+		expect(log).toEqual(['crossblock-paste', 'forget', 'pasteTail:a\nb']);
 	});
 });

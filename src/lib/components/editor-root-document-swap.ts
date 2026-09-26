@@ -11,9 +11,8 @@ import {
 	buildLinkReferenceMap,
 	type LinkReferenceResolver
 } from '../core/inline/link-reference-resolver';
-import type { EdgeAffinityState } from '../cursor/edge-affinity';
+import type { CaretMemory } from '../cursor/caret-memory';
 import type { HeightOracle } from '../cursor/height-oracle';
-import type { StickyColumnState } from '../cursor/sticky-column';
 import type { SelectionState } from '../selection/selection-state.svelte';
 import { emptyParagraph, ensureEditableContainers } from '../tree-operations';
 import type { UndoManager } from '../undo/types';
@@ -51,8 +50,7 @@ export interface DocumentSwapDeps {
 	clearBlockRefs(): void;
 	heightOracle: Pick<HeightOracle, 'dropMeasured'>;
 	undoManager: Pick<UndoManager, 'clear'>;
-	stickyColumn: Pick<StickyColumnState, 'reset'>;
-	edgeAffinity: Pick<EdgeAffinityState, 'reset'>;
+	caretMemory: Pick<CaretMemory, 'forget'>;
 	/** Every menu Editor owns acts on a block or bytes of the outgoing document; a block's own
 	 *  menus unmount with it. Closed before the blocks unmount, which a menu may react to. */
 	closeMenus(): void;
@@ -85,8 +83,7 @@ export function createDocumentSwap(deps: DocumentSwapDeps): DocumentSwap {
 			// back: the block lists go back to estimates exactly as they do on first load.
 			deps.heightOracle.dropMeasured();
 			deps.undoManager.clear();
-			deps.stickyColumn.reset();
-			deps.edgeAffinity.reset();
+			deps.caretMemory.forget();
 			deps.closeMenus();
 			deps.widgetSelection.clear();
 			// Announced, not left to the clear: the swap usually arrives on a native-only caret, so
