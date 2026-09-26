@@ -19,13 +19,9 @@ function point(path: number[], offset: number): SelectionPoint {
 	return { path, offset };
 }
 
-function deleteRange(source: string, start: SelectionPoint, end: SelectionPoint) {
-	return rangeDelete(parse(source), start, end, createSharingState(), fixtureReading());
-}
-
-// Every closed case removes the block whole, so what is left reloads to the same tree.
+// Whatever the delete leaves has to reload to the same tree.
 function run(source: string, start: SelectionPoint, end: SelectionPoint) {
-	const result = deleteRange(source, start, end);
+	const result = rangeDelete(parse(source), start, end, createSharingState(), fixtureReading());
 	expectParseConverged(result.newDoc);
 	return { source: serialize(result.newDoc), caret: result.collapsedCaret };
 }
@@ -81,11 +77,19 @@ describe('a range ending on a closed title row', () => {
 	});
 });
 
+// Miss-analysis (GH #605): the wall-rule suite asserted bytes only, and an emptied body kept its
+// blank-line wrap, which no parse of a bodiless container produces.
 describe('an open details keeps the wall rule', () => {
-	it('a range from its title row clears the title in place and keeps the block', () => {
-		const result = deleteRange('Above\n\n' + OPEN + '\nMid\n', point([1, 0], 0), point([2], 0));
-		expect(serialize(result.newDoc)).toBe(
-			'Above\n\n<details open>\n<summary></summary>\n\n\n</details>\n\nMid\n'
+	it('a range from its title row empties the block to its title, and it reloads the same', () => {
+		const { source, caret } = run('Above\n\n' + OPEN + '\nMid\n', point([1, 0], 0), point([2], 0));
+		expect(source).toBe('Above\n\n<details open>\n<summary></summary>\n</details>\n\nMid\n');
+		expect(caret).toEqual({ path: [1, 0], offset: 0 });
+	});
+
+	it('a range from above into the title row keeps the body and its wrap', () => {
+		const { source } = run('Above\n\n' + OPEN + '\nMid\n', point([0], 2), point([1, 0], 3));
+		expect(source).toBe(
+			'Ab\n\n<details open>\n<summary></summary>\n\nShown\n\n</details>\n\nMid\n'
 		);
 	});
 });

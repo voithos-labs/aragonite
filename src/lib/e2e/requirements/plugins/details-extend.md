@@ -21,6 +21,8 @@ the editor's selection and the serialized bytes.
   removes the whole block, and a typed character lands where the range's other end was
 - Shift+Mod+End from the top of a document ending in a closed details stops on its title row,
   and Backspace then empties the document, hidden body included
+- an open details keeps its wall: a range from its title row into the block below empties it to
+  its title row, and the tree left behind is the one a reload of the bytes reads back (#605)
 
 ## Error cases
 

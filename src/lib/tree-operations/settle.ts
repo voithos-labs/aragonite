@@ -182,6 +182,20 @@ export function settleSeparatorOnBlank(
 }
 
 /**
+ * The parser moves a blank line beside a fence line into `innerPrefix`/`innerSuffix` only when
+ * body content sits past it, so a body a splice emptied keeps neither; a kept one reloads as a
+ * blank paragraph the live tree doesn't have.
+ */
+function dropWrapOfEmptiedBody(parent: SeparatorParent): void {
+	const slots = wrapSlotsOf(parent);
+	if (!slots || !bodyWrapOf(parent)) return;
+	if ((parent.children?.length ?? 0) > bodyStartIndex(parent)) return;
+	retireChildSpans(parent);
+	if (slots.innerPrefix) slots.innerPrefix = '';
+	if (slots.innerSuffix) slots.innerSuffix = '';
+}
+
+/**
  * The counterpart of the closer's line in {@link settleSeparatorOnBlank}: a tail block that
  * stops being blank gives the borrowed `innerSuffix` line back, or the container emits a line
  * nobody typed.
@@ -277,6 +291,7 @@ function settleSplicedWindow(
 		settleSeparatorOnBlank(parent, at + Math.max(added - 1, 0), sharing);
 	}
 	settleEmptyMarkerLists(parent, at, added, sharing);
+	dropWrapOfEmptiedBody(parent);
 	// Unconditional, and only here: a delete window at the tail names no surviving block, and
 	// the question is about the parent's last block whatever the window.
 	materializeTailSuffix(parent, sharing);
