@@ -165,8 +165,15 @@ export function createTextClipboard(deps: TextClipboardDeps): TextClipboard {
 				deps.getAmbientPrefix(),
 				documentLineEnding(deps.getDoc())
 			);
-			void deps.blockEdit.updateBlockContent(deps.index, edit.raw, 'literal', selOffsets.start);
-			deps.setPendingCursor(edit.caret);
+			deps.setPendingCursor(
+				deps.blockEdit.updateBlockContent(
+					deps.index,
+					edit.raw,
+					'literal',
+					selOffsets.start,
+					edit.caret
+				).caret
+			);
 		},
 
 		pasteTail: async (pastedText, foldedCaret) => {

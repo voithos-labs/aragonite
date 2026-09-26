@@ -309,7 +309,7 @@ Scenarios: `src/lib/e2e/requirements/presentation/live-link-card.md`.
 The card's second client, for the one hidden run a caret can't reach at all. A fence line is unlandable once the block has content, so the rail is the way into its info string (the text after the opening ` ``` `, usually a language name), and the place for whatever affordances a host earns by installing a hook.
 
 - It sits at the code box's top-right, outside the walk container, shows on hover or while the caret is inside, and in reading mode its language button is a plain label.
-- The language button opens a picker over every registered grammar; Enter or a pick writes the info span alone through the block's one display-commit entry (G4.24), as one isolated undo entry. A bare fence that has just taken the caret completes to opener, empty body line and closer, and opens the picker itself when it has no language, unless the caret stepped in from a neighbour (edge affinity records the arrival), since a picker taking focus there would trap a keyboard walk.
+- The language button opens a picker over every registered grammar; Enter or a pick writes the info span alone through the content write every gesture uses, as one isolated undo entry. A bare fence that has just taken the caret completes to opener, empty body line and closer, and opens the picker itself when it has no language, unless the caret stepped in from a neighbour (edge affinity records the arrival), since a picker taking focus there would trap a keyboard walk.
 - Copy writes the fence body to the clipboard; a run button and an overflow menu appear only for a host that installed `onRunCode` or `codeMenuItems`, and neither touches a byte.
 
 Scenarios: `src/lib/e2e/requirements/blocks/code/language-chip.md`.

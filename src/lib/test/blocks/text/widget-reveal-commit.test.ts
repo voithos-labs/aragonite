@@ -6,6 +6,7 @@
 // nothing pushing a useless undo entry, a caret taken from the widget's stale end after a commit,
 // and the cross-block rule moving out of the blur caller into the commit itself.
 import { recordingWrite } from '$lib/test/harness/editor-actions';
+import { withStoredCaret } from '$lib/editor-actions/stored-caret';
 import { describe, it, expect } from 'vitest';
 import { createWidgetInteraction } from '$lib/components/blocks/text/widget-interaction';
 import { MATH_INLINE } from '$lib/plugins/latex/latex-kind';
@@ -16,13 +17,17 @@ import { settleEditor } from '$lib/test/harness/settle';
 installMathInline();
 
 // A paragraph "Before $x^2$ after" mounted as TextEditableBlock renders it: the
-// math is one atomic [data-inline-widget] element between two real text nodes.
-function mountMathBlock() {
+// math is one atomic [data-inline-widget] element between two real text nodes. The write hands
+// back its caret moved by `shift`, as a kind's rule inserting bytes ahead of it would.
+function mountMathBlock(shift = 0) {
 	const { el, node, inlineWidgets } = mountWidgetBlock('Before $x^2$ after', MATH_INLINE);
 	const math = inlineWidgets[0];
 
 	const commits: Commit[] = [];
-	const pendingCursors: { offset: number | null; writtenText?: string }[] = [];
+	const pendingCursors: (number | null)[] = [];
+	const record = recordingWrite(({ index, raw, before, after }) =>
+		commits.push({ index, raw, before, after })
+	);
 	let crossBlock = false;
 
 	const trap = () => {
@@ -34,13 +39,14 @@ function mountMathBlock() {
 			{
 				cursor: new Proxy({}, { get: trap }),
 				blockEdit: {
-					updateBlockContent: recordingWrite(({ index, raw, before, after }) =>
-						commits.push({ index, raw, before, after })
-					)
+					updateBlockContent: (...args: Parameters<typeof record>) => {
+						const write = record(...args);
+						return withStoredCaret(write, write.caret + shift);
+					}
 				},
 				focusActions: new Proxy({}, { get: trap }),
-				setPendingCursor: (offset: number | null, writtenText?: string) => {
-					pendingCursors.push({ offset, writtenText });
+				setPendingCursor: (offset: number | null) => {
+					pendingCursors.push(offset);
 				},
 				setRevealing: () => {},
 				isCrossBlock: () => crossBlock
@@ -88,8 +94,8 @@ describe('commitReveal: no-edit short-circuit', () => {
 		expect(block.commits).toEqual([]);
 		expect(block.interaction.isRevealing()).toBe(false);
 		// Hidden again through the focus-checked pending cursor, landing at the widget's trailing
-		// edge. No text comes with it: nothing was written, so the offset already fits the CST.
-		expect(block.pendingCursors).toEqual([{ offset: block.math.end, writtenText: undefined }]);
+		// edge: nothing was written, so the offset already fits the CST.
+		expect(block.pendingCursors).toEqual([block.math.end]);
 	});
 });
 
@@ -153,18 +159,15 @@ describe('commitReveal: edit persistence and caret precision', () => {
 		expect(block.commits[0].after).toBe(block.math.end);
 	});
 
-	it('puts the caret together with the text that caret addresses', async () => {
-		const block = mountMathBlock();
+	// Only the write knows where a kind's rule moved the caret, so the one it hands back is parked.
+	it('parks the caret the write hands back, not the one it computed', async () => {
+		const block = mountMathBlock(100);
 		await block.reveal();
 		block.sourceNode().textContent = '$yx^2$';
 
 		commitViaFold(block.interaction);
 
-		// The pending cursor skips the write path a rewriting kind needs, so it can only be mapped
-		// against the text it counts into, which therefore has to travel with it.
-		expect(block.pendingCursors).toEqual([
-			{ offset: block.math.end + 1, writtenText: 'Before $yx^2$ after' }
-		]);
+		expect(block.pendingCursors).toEqual([block.math.end + 1 + 100]);
 	});
 });
 

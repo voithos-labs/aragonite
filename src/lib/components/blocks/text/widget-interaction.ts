@@ -66,10 +66,8 @@ export interface WidgetInteractionDeps {
 	blockEdit: BlockEditActions;
 	focusActions: FocusActions;
 	setSnapTarget: (offset: number | null) => void;
-	/** Remember a caret offset for the restore after the next render. `writtenText` is the
-	 *  text that offset counts into: a kind that rewrites bytes on commit moves the offset,
-	 *  and only that text can map it. */
-	setPendingCursor: (offset: number | null, writtenText?: string) => void;
+	/** Remember a caret offset, counted in the stored bytes, for the restore after the next render. */
+	setPendingCursor: (offset: number | null) => void;
 	/** The block's live DOM as raw text, read when a shown source is committed, to pick up
 	 *  the temporary edit that never went through the CST. */
 	readRawText: () => string;
@@ -395,11 +393,11 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		activeSourceNode = null;
 		revealedWidget = null;
 		resetReveal();
-		foldParkedCaret = caretAfter;
 		// No edit: hide the source without touching the CST. A write that changes nothing
 		// still pushes an undo entry, so the next Ctrl+Z would revert nothing instead of the
 		// user's previous action. Setting the pending cursor re-renders from the same CST.
 		if (editedDisplay === originalDisplay) {
+			foldParkedCaret = caretAfter;
 			deps.setPendingCursor(caretAfter);
 			return { caret: caretAfter, settled: tick() };
 		}
@@ -410,14 +408,15 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 			caretBefore,
 			caretAfter
 		);
-		deps.setPendingCursor(caretAfter, editedDisplay);
-		return { caret: caretAfter, settled: settleWrite(write) };
+		foldParkedCaret = write.caret;
+		deps.setPendingCursor(write.caret);
+		return { caret: write.caret, settled: settleWrite(write) };
 	}
 
 	// What "settled" means for every caller: the write landed and the render it forced has
 	// flushed. A rejection is swallowed, because the commit sequence rethrows only in dev
 	// builds, and forwarding it would let a dev-only throw cancel the gesture in progress.
-	async function settleWrite(write: void | Promise<void>): Promise<void> {
+	async function settleWrite(write: Promise<void>): Promise<void> {
 		try {
 			await write;
 		} catch {

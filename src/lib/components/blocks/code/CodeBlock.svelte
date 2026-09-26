@@ -36,11 +36,7 @@
 	import { indentLines, dedentLines, type IndentResult } from './code-indent';
 	import { computeCodeEnter } from './code-enter';
 	import { computeAutoPair } from './code-beforeinput';
-	import {
-		fenceShapeOf,
-		reconcileFenceWrite,
-		writeFenceInfo
-	} from '../../../schema/fenced-code-raw';
+	import { fenceShapeOf, writeFenceInfo } from '../../../schema/fenced-code-raw';
 	import { hidesMarkers, paintsFocusedMarkers } from '../../../presentation-mode';
 	import CodeBlockRail from './CodeBlockRail.svelte';
 	import { computeFenceExit, computeTypedFenceExit } from './code-fence-exit';
@@ -124,8 +120,6 @@
 		getFocusOffset: backend.getFocusOffset,
 		getTextLen: () => plainTextOf(el).length,
 		readText: () => plainTextOf(el),
-		// Gives back the caret the reconciled bytes need: the write rule can grow the
-		// fence or drop a character, either of which moves the caret off the DOM's.
 		commitInput: (text, preEdit, savedOffset) => commitDisplay(text, preEdit, savedOffset),
 		handleBeforeInput: onBeforeInput
 	});
@@ -153,22 +147,17 @@
 	}
 
 	/**
-	 * The one place this block commits displayed text: no gesture calls `updateBlockContent`
-	 * directly (checked by `lint/code-commit-funnel`). The fence rule runs inside rather than at
-	 * each caller, so every gesture gets fence reconciliation without asking.
+	 * Commit displayed text the user edited, returning the caret as stored: the write runs the
+	 * fence rule, which can grow the fence or drop a character, either of which moves the caret.
 	 */
 	function commitDisplay(display: string, undoAnchor: number, caret: number): number {
-		const written = reconcileFenceWrite({
-			display,
-			caret,
-			fence: fenceShapeOf(node),
-			mode: 'authored',
-			ending: blockEnding()
-		});
-		// The caret goes along: an edit that demotes the block lands it in whatever replaces it.
-		const bytes = written.display + blockEnding();
-		void blockEdit.updateBlockContent(index, bytes, 'authored', undoAnchor, written.caret);
-		return written.caret;
+		return blockEdit.updateBlockContent(
+			index,
+			display + blockEnding(),
+			'authored',
+			undoAnchor,
+			caret
+		).caret;
 	}
 
 	$effect(() => {

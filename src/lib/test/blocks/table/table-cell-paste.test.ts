@@ -106,7 +106,8 @@ describe('tableCellInlinePaste', () => {
 	it('inserts at offset, normalizing newlines and leaving the escape to the sink', () => {
 		const { newRaw, caretOffset, cells } = pasteIntoRow('pre', 3, 'a|b\nc');
 		expect(newRaw).toBe('prea|b c');
-		expect(caretOffset).toBe(3 + 'a\\|b c'.length);
+		// Counted in the spliced text: the write that escapes the pipe maps it.
+		expect(caretOffset).toBe(3 + 'a|b c'.length);
 		expect(cells).toEqual(['prea\\|b c', 'keep']);
 	});
 

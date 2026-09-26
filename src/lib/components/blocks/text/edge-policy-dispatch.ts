@@ -93,11 +93,9 @@ export interface EdgePolicyDispatchDeps {
 	/** Anchor/focus raw-content offsets of the live selection, or null when collapsed. */
 	getRawSelection: () => { start: RawOffset; end: RawOffset } | null;
 	blockEdit: BlockEditActions;
-	/** Remember a caret offset for the restore after the next render, tagged with the gesture for
-	 *  the debug trace. `writtenText` is the text that offset counts into, since a kind that
-	 *  rewrites bytes on commit shifts it; omit it where the caret sits ahead of every changed
-	 *  byte. */
-	setPendingCursor: (offset: number | null, source: string, writtenText?: string) => void;
+	/** Remember a caret offset, counted in the stored bytes, for the restore after the next
+	 *  render, tagged with the gesture for the debug trace. */
+	setPendingCursor: (offset: number | null, source: string) => void;
 	setSnapTarget: (offset: number | null) => void;
 	/** A widget's source is showing: the CST still calls it atomic, but the DOM holds editable
 	 *  text, so the widget branch does nothing and lets native editing run. */
@@ -237,14 +235,16 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		source: string,
 		caretBefore: number
 	): void {
-		void deps.blockEdit.updateBlockContent(
-			deps.index,
-			next + trailingLineEnding(deps.node.raw, deps.getLineEnding()),
-			'authored',
-			caretBefore,
-			caretAfter
+		deps.setPendingCursor(
+			deps.blockEdit.updateBlockContent(
+				deps.index,
+				next + trailingLineEnding(deps.node.raw, deps.getLineEnding()),
+				'authored',
+				caretBefore,
+				caretAfter
+			).caret,
+			source
 		);
-		deps.setPendingCursor(caretAfter, source, next);
 	}
 
 	function editDisplay(
@@ -339,14 +339,11 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 				deps.getAmbientPrefix?.() ?? '',
 				deps.getLineEnding()
 			);
-			void deps.blockEdit.updateBlockContent(
-				deps.index,
-				edit.raw,
-				'authored',
-				range.start,
-				edit.caret
+			deps.setPendingCursor(
+				deps.blockEdit.updateBlockContent(deps.index, edit.raw, 'authored', range.start, edit.caret)
+					.caret,
+				source
 			);
-			deps.setPendingCursor(edit.caret, source, edit.raw);
 			return;
 		}
 		const seatedAt = typingSeatAt(el, caretOffset, typed)?.offset ?? caretOffset;
@@ -390,14 +387,16 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 				// One keypress takes the whole construct, anchored at the caret before the delete
 				// so Ctrl+Z lands there.
 				const newRaw = node.raw.slice(0, widgetAt.start) + node.raw.slice(widgetAt.end);
-				void deps.blockEdit.updateBlockContent(
-					deps.index,
-					newRaw,
-					'authored',
-					caretOffset,
-					widgetAt.start
+				deps.setPendingCursor(
+					deps.blockEdit.updateBlockContent(
+						deps.index,
+						newRaw,
+						'authored',
+						caretOffset,
+						widgetAt.start
+					).caret,
+					'widget'
 				);
-				deps.setPendingCursor(widgetAt.start, 'widget');
 				return true;
 			}
 			// `onEdge: 'select'`, plus the kinds `enterWidget` sends to their source instead of
@@ -569,14 +568,11 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 				deps.getAmbientPrefix?.() ?? '',
 				deps.getLineEnding()
 			);
-			void deps.blockEdit.updateBlockContent(
-				deps.index,
-				edit.raw,
-				'authored',
-				range.start,
-				edit.caret
+			deps.setPendingCursor(
+				deps.blockEdit.updateBlockContent(deps.index, edit.raw, 'authored', range.start, edit.caret)
+					.caret,
+				'ambient-delete'
 			);
-			deps.setPendingCursor(edit.caret, 'ambient-delete');
 		}
 		return true;
 	}

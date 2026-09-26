@@ -4,7 +4,6 @@
  */
 
 import { CURSOR_END } from '../../../block-component';
-import { escapedCellOffset } from '../../../schema/table-cell-raw';
 import type { CstNode } from '../../../core/nodes';
 import { blockNodeAt } from '../../../tree-operations/node-primitives';
 import { cutRangeFromDisplay } from '../../../tree-operations/node-ops';
@@ -45,12 +44,9 @@ export function tableCellInlinePaste(
 		reading
 	);
 
-	const spliced = raw.slice(0, effectiveOffset) + cleaned + raw.slice(effectiveOffset);
-	// An escaped space, because the write path escapes the whole spliced raw and not just
-	// the pasted text: the insertion point can sit between a `\` and the `|` it frees.
 	return {
-		newRaw: spliced,
-		caretOffset: escapedCellOffset(spliced, effectiveOffset + cleaned.length)
+		newRaw: raw.slice(0, effectiveOffset) + cleaned + raw.slice(effectiveOffset),
+		caretOffset: effectiveOffset + cleaned.length
 	};
 }
 

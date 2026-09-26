@@ -833,11 +833,11 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.21 | Image bytes are written only through the one seam module                         | L       |
 | G4.22 | An e2e wait predicate must describe the post-operation shape                     | L       |
 | G4.23 | Every e2e spec pairs with a requirement file, and vice versa                     | L       |
-| G4.24 | The code surface commits through exactly one `updateBlockContent` call           | L       |
+| G4.24 | _Retired upward_: the content write runs a kind's rule and maps the caret        | T       |
 | G4.25 | No `import.meta` env read anywhere under `src/lib`                               | L       |
 | G4.26 | Comment budget: block length, no house words in comments or requirements         | L       |
 | G4.27 | Every `parse` call outside the parser declares its scope                         | L       |
-| G4.28 | Leaf raw writes reach bytes through the two sanctioned readers                   | L       |
+| G4.28 | A leaf raw write outside the content write names the kind's rule                 | L       |
 | G4.29 | Every file claiming a hardcoded chord is manifested with its chords and keys     | L       |
 | G4.30 | Hidden-marker classification has one rule, applied in both spaces                | L       |
 | G4.31 | The pending marks are spent only where typed or composed text is written         | L       |
@@ -1060,12 +1060,12 @@ one test for each spec; and a requirement list three times longer than the tests
 EQUALITY is refuted by measurement: one test routinely walks several bullets.
 `e2e/lint/requirement-spec-lockstep.test.ts`.
 
-**G4.24 · Code-surface commit route.** `CodeBlock.svelte` holds exactly one `updateBlockContent`
-call, and it's `commitDisplay`'s, so the fence write reconciliation (escalate a body line the parser
-would read as this block's closer; drop a backtick the info string can't hold) runs on every display
-commit rather than at the gestures that remembered it. Two gestures that predated the seam (Enter
-splitting a line around a mid-line run, and Shift+Tab dedenting an indented line to column 0) split
-the block by moving bytes while adding no character. `lint/code-commit-funnel.test.ts`.
+**G4.24 · Retired upward.** The rule was: `CodeBlock.svelte` holds exactly one `updateBlockContent`
+call, `commitDisplay`'s, because that's where the fence rule ran and a gesture writing around it
+skipped the rule. Now the content write runs every kind's `rawWrite` itself
+(`tree-operations/content-write.ts :: legalizeWrite`) and hands back the caret the rule moved, so
+there's no write to go around and the scan is deleted. `test/editor-actions/content-write-caret.test.ts`
+checks the rule and its caret through the write.
 
 **G4.25 · No `import.meta` env reads.** Nowhere under `src/lib`. It's a Vite-only extension, so
 outside a Vite bundle the object is undefined and a module-scope read throws at import time; the
@@ -1099,18 +1099,14 @@ Scanned over the library and the plugin-route author stand-in; the consumer exam
 writes the documented whole-document default), as are the published kits (fixtures are whole
 documents). `lint/call-site-rules.test.ts`.
 
-**G4.28 · Leaf raw-write rule parity.** A kind's own `rawWrite` rule reaches its bytes through
-two readers in `node-primitives`: `writeOwnRaw` for a sink that writes in place, and `normalizeOwnRaw` for
-one that replaces the leaf with a reparse of the result. Exactly the documented sinks call each
-(find/replace's private clone, the same-block range merge, the degraded typed-char splice, the
-container-matching paste; and the cross-block merge and the truncated-endpoint reparse), plus the
-table branch, which inherits the rule by routing through that shared reparse rather than naming a
-reader. G4.24 pins the code SURFACE's write sites, which is why find-and-replace could write a fence
-terminator into a code body (issue #45) and a delete past a closer could drop one (issue #55): the
-descriptor-hook route was unwatched, and a reparse re-derives honest metadata that no longer knows
-what the truncation took. The companion branches pin the fence rule to one implementation, in
-`schema/` rather than under `components/`, so a headless sink reaches it.
-`lint/leaf-raw-write-rule.test.ts`.
+**G4.28 · Leaf raw writes outside the content write.** The content write applies a kind's
+`rawWrite` on its own, but a few routes still write `<node>.raw` around it (find and replace's
+private clone, the range-delete merges, the degraded typed-char splice, the container-matching
+paste). Each of those names `writeOwnRaw` (writes in place) or `normalizeOwnRaw` (runs the rule
+ahead of the route's own reparse), or it's on a counted allowlist with the reason it can't reach a
+kind that declares a rule. That's the shape issue #45 shipped through: find and replace wrote a
+fence terminator into a code body because nothing asked the fence rule. The fence rule itself has
+one implementation, in `schema/` so a headless route reaches it. `lint/leaf-raw-write-rule.test.ts`.
 
 **G4.29 · Hardcoded-chord manifest.** Every library file that reads a `KeyboardEvent` modifier flag
 is named in `schema/reserved-chords.ts`, with the chords it claims outside the keymaps and the key

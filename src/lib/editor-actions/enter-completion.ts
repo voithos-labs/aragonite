@@ -75,7 +75,7 @@ export function withEnterCompletion(
 					{ snapshotOffset: offset }
 				);
 			});
-			return withStoredCaret(completed, write.caret);
+			return withStoredCaret(completed, write.caret, write.storedOffset);
 		}
 	};
 }

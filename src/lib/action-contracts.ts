@@ -45,9 +45,13 @@ export type CommitAfterTick = () => void | Promise<void>;
 
 /**
  * A content write in flight: awaiting it waits for the write to land, and `caret` is the landing
- * caret counted in the bytes as stored, known the moment the call returns.
+ * caret counted in the bytes as stored, known the moment the call returns. `storedOffset` maps
+ * any other offset into the written text the same way (a selection's far edge).
  */
-export type ContentWrite = Promise<void> & { readonly caret: number };
+export type ContentWrite = Promise<void> & {
+	readonly caret: number;
+	storedOffset(offset: number): number;
+};
 
 // ── Action sub-interfaces ──────────────────────────────────────────────────
 

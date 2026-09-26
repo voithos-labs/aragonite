@@ -2,6 +2,11 @@
 
 import type { ContentWrite } from '../action-contracts';
 
-export function withStoredCaret(done: Promise<void>, caret: number): ContentWrite {
-	return Object.assign(done, { caret });
+/** `storedOffset` defaults to the identity, right for a write no rule rewrites. */
+export function withStoredCaret(
+	done: Promise<void>,
+	caret: number,
+	storedOffset: (offset: number) => number = (offset) => offset
+): ContentWrite {
+	return Object.assign(done, { caret, storedOffset });
 }

@@ -80,12 +80,11 @@ letting a pasted run end the block.
 
 ## One place, not a rule per gesture
 
-The repair runs in the one call every display commit goes through
-(`commitDisplay`, pinned by G4.24) and, for routes that never cross the component
-(find-and-replace, cross-block joins, the range deletes that cut bytes short), where those
-routes write bytes, through the kind's write rule (`rawWrite`): in place through `writeOwnRaw`,
-or ahead of that route's own reparse through `normalizeOwnRaw`, both pinned by G4.28. Never
-once per gesture. That matters because a gesture can put an existing body run in closer
+The repair runs in the content write every commit goes through, which applies the kind's
+write rule (`rawWrite`) and hands back the caret it moved. Routes that write bytes around that
+write (find-and-replace, cross-block joins, the range deletes that cut bytes short) apply the
+same rule in place through `writeOwnRaw`, or ahead of that route's own reparse through
+`normalizeOwnRaw`, pinned by G4.28. Never once per gesture. That matters because a gesture can put an existing body run in closer
 position without adding a character: Enter splitting a line around a mid-line run, or
 Shift+Tab dedenting a four-space-indented run to column 0. Both were reachable while the
 rule sat at two of the block's ten commit sites, and both produce the same corruption.

@@ -169,7 +169,7 @@ export function createBlockEditActions(
 			const done = applyContentUpdate(blockIndex, write, caret).finally(() =>
 				controller.armUndoPause()
 			);
-			return withStoredCaret(done, caret);
+			return withStoredCaret(done, caret, write.storedOffset);
 		}
 	};
 

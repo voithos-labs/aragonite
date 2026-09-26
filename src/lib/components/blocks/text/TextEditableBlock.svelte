@@ -4,6 +4,7 @@
 	import { readBlocks } from '../../../core/parser';
 	import { ambientHoldsTaskBox } from '../list/task-checkbox';
 	import { shownKind } from '../../../core/parsers/heading';
+	import type { ContentWrite } from '../../../action-contracts';
 	import type { DocumentView, NodeView } from '../../../core/node-views';
 	import type { EditorRects } from '../../../editor-rects';
 	import { enterLinkCardAtCaret, linkCardTargetAt } from '../../link-card/link-card-entry';
@@ -501,8 +502,14 @@
 			case 'block.hardBreak':
 				return always(() => {
 					const { newRaw, caretOffset } = insertHardBreak(node.raw, offset, documentEnding());
-					blockEdit.updateBlockContent(index, newRaw, 'authored', offset);
-					setPendingCursorOffset(caretOffset, 'hard-break');
+					const write = blockEdit.updateBlockContent(
+						index,
+						newRaw,
+						'authored',
+						offset,
+						caretOffset
+					);
+					setPendingCursorOffset(write.caret, 'hard-break');
 				});
 			case 'block.insertTab':
 				return {
@@ -513,9 +520,15 @@
 						const { newRaw, caretOffset } = insertLiteralTab(node.raw, offset);
 						// The key types its own character, so its kind change is named as typing's is.
 						const before = shownKind(node);
-						const write = blockEdit.updateBlockContent(index, newRaw, 'authored', offset);
+						const write = blockEdit.updateBlockContent(
+							index,
+							newRaw,
+							'authored',
+							offset,
+							caretOffset
+						);
 						void kindCue.afterTypedWrite(write, myPath, before);
-						setPendingCursorOffset(caretOffset, 'insert-tab');
+						setPendingCursorOffset(write.caret, 'insert-tab');
 					}
 				};
 			case 'block.mergePrev':
@@ -528,16 +541,17 @@
 						if (!demoted) return void blockEdit.mergeWithPrevious(index);
 						// A command is not typing: the demote is its own undo step, so one Ctrl+Z puts
 						// the heading back whole rather than unwinding the burst around it.
-						controller.isolateUndoEntry(() =>
-							blockEdit.updateBlockContent(
+						let write!: ContentWrite;
+						controller.isolateUndoEntry(() => {
+							write = blockEdit.updateBlockContent(
 								index,
 								demoted.newRaw,
 								'literal',
 								offset,
 								demoted.caretOffset
-							)
-						);
-						setPendingCursorOffset(demoted.caretOffset, 'demote');
+							);
+						});
+						setPendingCursorOffset(write.caret, 'demote');
 					}
 				};
 			case 'block.mergeNext':
@@ -570,14 +584,14 @@
 							void blockEdit.replaceBlock(index, heading, focus, { snapshotOffset: offset });
 							return;
 						}
-						blockEdit.updateBlockContent(
+						const write = blockEdit.updateBlockContent(
 							index,
 							cycled.newRaw,
 							'literal',
 							offset,
 							cycled.caretOffset
 						);
-						setPendingCursorOffset(cycled.caretOffset, 'heading-cycle');
+						setPendingCursorOffset(write.caret, 'heading-cycle');
 					}
 				};
 			case 'block.moveUp':
@@ -901,14 +915,11 @@
 			ambientPrefixText,
 			widgetInteraction.isRevealing,
 			(edit) => {
-				void blockEdit.updateBlockContent(
-					index,
-					edit.raw,
-					'authored',
-					edit.range.start,
-					edit.caret
+				setPendingCursorOffset(
+					blockEdit.updateBlockContent(index, edit.raw, 'authored', edit.range.start, edit.caret)
+						.caret,
+					'live-selection-edit'
 				);
-				setPendingCursorOffset(edit.caret, 'live-selection-edit');
 			}
 		);
 	}
@@ -932,8 +943,10 @@
 			ownPairs,
 			write: (text, caretBefore, caretAfter) => {
 				const raw = text + blockEnding();
-				void blockEdit.updateBlockContent(index, raw, 'authored', caretBefore, caretAfter);
-				setPendingCursorOffset(caretAfter, 'delimiter-autopair');
+				setPendingCursorOffset(
+					blockEdit.updateBlockContent(index, raw, 'authored', caretBefore, caretAfter).caret,
+					'delimiter-autopair'
+				);
 			}
 		});
 	}
@@ -1055,12 +1068,18 @@
 		const { newDisplay, newSelStart, newSelEnd } = toggled;
 
 		// A command is not typing: the toggle's bytes are their own undo step in every mode.
-		controller.isolateUndoEntry(() =>
-			blockEdit.updateBlockContent(index, newDisplay + blockEnding(), 'literal', newSelStart)
-		);
+		let write!: ContentWrite;
+		controller.isolateUndoEntry(() => {
+			write = blockEdit.updateBlockContent(
+				index,
+				newDisplay + blockEnding(),
+				'literal',
+				newSelStart
+			);
+		});
 
 		tick().then(() => {
-			setSelection(newSelStart, newSelEnd);
+			setSelection(write.caret, write.storedOffset(newSelEnd));
 		});
 	}
 </script>

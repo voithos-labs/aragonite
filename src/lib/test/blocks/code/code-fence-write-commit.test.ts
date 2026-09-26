@@ -1,12 +1,14 @@
 // @vitest-environment jsdom
 //
-// The fence rule on the block's own commit path. A keystroke edits the contenteditable
-// and the CST hears about it through `input`, so what this layer shows, and neither the
-// pure rule nor an e2e can, is that both commit paths into
-// that path (a keystroke and an IME composition end) reconcile the bytes before they
-// reach the CST, rather than committing whatever the browser left in the DOM.
+// The fence rule on the block's own commit path. A keystroke edits the contenteditable and the
+// CST hears about it through `input`, so what this layer shows, and neither the pure rule nor an
+// e2e can, is that both commit paths (a keystroke and an IME composition end) hand the write
+// what the browser left as typed bytes, which the write's fence rule reconciles.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { placeCaretAtRaw } from '$lib/cursor/widget-offset';
+import { parse } from '$lib/core/parser';
+import { trimTrailingLineEnding } from '$lib/core/lines';
+import { legalizeWrite } from '$lib/tree-operations/content-write';
 import { mountCode, type MountedCode } from './mount-code';
 
 const SOURCE = '```js\nconst x = 1\n```\n';
@@ -20,10 +22,14 @@ function nativeEdit(display: string, caret: number): void {
 	placeCaretAtRaw(mounted.el, caret, { clamp: 'exact' });
 }
 
+/** The bytes the write stores for the one commit the block made. */
 function committed(): string {
 	const calls = vi.mocked(mounted.blockEdit.updateBlockContent).mock.calls;
 	expect(calls.length).toBe(1);
-	return (calls[0][1] as string).replace(/\n$/, '');
+	const [index, text, mode] = calls[0];
+	expect(mode).toBe('authored');
+	const target = { children: parse(SOURCE).children, owner: undefined, lineEnding: '\n' as const };
+	return trimTrailingLineEnding(legalizeWrite(target, index, text, mode).text);
 }
 
 beforeEach(() => {

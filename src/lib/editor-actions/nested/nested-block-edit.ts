@@ -136,7 +136,8 @@ export function createNestedBlockEdit(
 			// included: a batch whose timer never started never ends by pause.
 			return withStoredCaret(
 				work.finally(() => parent.containerEdit.armDebouncedPause()),
-				caret
+				caret,
+				write?.storedOffset
 			);
 		}
 	};

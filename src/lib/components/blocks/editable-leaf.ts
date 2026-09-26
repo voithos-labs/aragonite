@@ -294,15 +294,14 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		getTextLen: () => plainTextOf(deps.getEl()).length,
 		readText: () => plainTextOf(deps.getEl()),
 		commitInput: (text, preEdit, saved) => {
-			if (mode === 'plain') {
-				void blockEdit.updateBlockContent(
-					deps.getIndex(),
-					text + trailingLineEnding(deps.getNode().raw, documentLineEnding(getDoc())),
-					'authored',
-					preEdit,
-					saved
-				);
-			}
+			if (mode !== 'plain') return;
+			return blockEdit.updateBlockContent(
+				deps.getIndex(),
+				text + trailingLineEnding(deps.getNode().raw, documentLineEnding(getDoc())),
+				'authored',
+				preEdit,
+				saved
+			).caret;
 		},
 		handleBeforeInput: onBeforeInput
 	});
@@ -361,14 +360,12 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	function commitSource(edited: string): Promise<void> {
 		// One undo entry, anchored at the caret before the last edit; the post-edit caret follows
 		// the edit position.
-		return Promise.resolve(
-			blockEdit.updateBlockContent(
-				deps.getIndex(),
-				edited + trailingLineEnding(deps.getNode().raw, documentLineEnding(getDoc())),
-				'authored',
-				editableSurface.getPreEditOffset(),
-				edited.length
-			)
+		return blockEdit.updateBlockContent(
+			deps.getIndex(),
+			edited + trailingLineEnding(deps.getNode().raw, documentLineEnding(getDoc())),
+			'authored',
+			editableSurface.getPreEditOffset(),
+			edited.length
 		);
 	}
 

@@ -1,14 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { computeCodePaste } from '$lib/components/blocks/code/code-paste';
+import { pasteThroughWrite as paste } from './paste-through-write';
 
-type PasteArgs = Parameters<typeof computeCodePaste>[0];
-
-/** A closed 3-backtick fence; each case names only the fence facts it varies. */
-const paste = (
-	args: Omit<PasteArgs, 'fenceMarker' | 'fenceLength' | 'closed' | 'ending'> & Partial<PasteArgs>
-) => computeCodePaste({ fenceMarker: '`', fenceLength: 3, closed: true, ending: '\n', ...args });
-
-describe('computeCodePaste: indented fence opener (J2)', () => {
+describe('code paste: indented fence opener (J2)', () => {
 	it('bumps an opener indented by 3 spaces and preserves the indent', () => {
 		const result = paste({
 			display: '   ```\n\n   ```',
@@ -33,8 +26,7 @@ describe('computeCodePaste: indented fence opener (J2)', () => {
 		const result = paste({
 			display: '  ```\nfoo\n',
 			selection: { start: 10, end: 10 },
-			pasted: '```',
-			closed: false
+			pasted: '```'
 		});
 		expect(result.text).toBe('  ````\nfoo\n```');
 	});
@@ -43,8 +35,7 @@ describe('computeCodePaste: indented fence opener (J2)', () => {
 		const result = paste({
 			display: '  ~~~\n\n  ~~~',
 			selection: { start: 6, end: 6 },
-			pasted: '~~~',
-			fenceMarker: '~'
+			pasted: '~~~'
 		});
 		expect(result.text).toBe('  ~~~~\n~~~\n  ~~~~');
 	});
