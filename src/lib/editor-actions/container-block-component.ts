@@ -1,10 +1,7 @@
 /** The shared `BlockComponent` implementation for container blocks. */
 
 import {
-	CURSOR_END,
-	CURSOR_EXACT_START,
-	CURSOR_START,
-	FOCUS_LAST_START,
+	entryEdge,
 	type BlockComponent,
 	type ContainerBlockComponent,
 	type StickyColumnDirection
@@ -204,12 +201,9 @@ export function createContainerBlockComponent(
 		// Collapsed: only the title row is mounted, so an entry from below clamps to it
 		// rather than doing nothing on the unmounted last child.
 		const last = deps.isCollapsed?.() ? 0 : deps.nodeChildrenLength - 1;
-		const entersFirst = offset === 0 || offset === CURSOR_START || offset === CURSOR_EXACT_START;
-		const child = entersFirst ? deps.innerBlockRefs[0] : deps.innerBlockRefs[last];
-		if (!child) return;
-		if (offset === FOCUS_LAST_START) land(child, FOCUS_LAST_START);
-		else if (entersFirst) land(child, offset);
-		else land(child, CURSOR_END);
+		const edge = entryEdge(offset);
+		const child = deps.innerBlockRefs[edge.child === 'first' ? 0 : last];
+		if (child) land(child, edge.offset);
 	}
 
 	function parkCaret(offset: number): void {
