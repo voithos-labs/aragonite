@@ -188,8 +188,8 @@ const crossed: RawOffset = dom;
 
 The conversions that are allowed are named functions in `src/lib/cursor/coordinate-spaces.ts`
 (`toRawOffset`, `toDomTextOffset`, and friends), one per direction. And a source scan (G4.36)
-fails any native selection write outside that module, apart from a few declared files that select
-nodes they already hold.
+fails any native selection write outside `widget-offset.ts`, apart from a few declared files that
+select nodes they already hold.
 **Spec:** `docs/design/editor.md` § 6. ([rule 4](rules.md#the-five-rules))
 
 ## Registries are code, not state
@@ -216,13 +216,13 @@ between cases without a supported entry point, so `@voithos-labs/aragonite/testi
 `resetPluginPlatformForTests()`. That reset once walked a hand-kept list, and two public
 registries (block context actions, code languages) were never on it: a suite resetting in
 `beforeEach` saw one more copy of its context-menu row per case, and kept the first case's
-grammar for the rest. Now every registry is built by `createPluginRegistry`, which enrolls its
-reset as it builds the store, so there's no list to forget. The same store records which plugin
-made each entry and answers reads only through an editor's activation, so an entry can't leak
-into an editor that didn't list its plugin either. What the store can't reach is a copy kept
+grammar for the rest. Now every registry is built by `createPluginRegistry`, which signs the
+store up for the reset as it builds it, so there's no list to forget. The same store records which
+plugin made each entry and answers reads only through an editor's activation, so an entry can't
+leak into an editor that didn't list its plugin either. What the store can't reach is a copy kept
 outside it: highlight.js holds its own table of grammars, and the first cut of this fix left the
-first case's grammar there after the reset had cleared the registry. A copy outside the store
-checks itself against the store on every read (`code-renderer.ts :: tokenizeBody`).
+first case's grammar there after the reset had cleared the registry. So that copy now checks
+itself against the store on every read (`code-renderer.ts :: tokenizeBody`).
 
 **Guard:** the reset is built into `src/lib/schema/plugin-registry.ts` :: `createPluginRegistry`,
 and `src/lib/test/plugins/testing-barrel.test.ts` reads the plugin barrel's own exports, so a new
