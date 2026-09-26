@@ -270,3 +270,66 @@ describe('CodeBlock: a fence line the mode paints takes the edit', () => {
 		}
 	);
 });
+
+// Live mode is the one editable mode that hides the fence lines, and no pointer or arrow puts a
+// caret on them there, so these refusals are driven here rather than end to end.
+describe('CodeBlock: a gesture confined to a hidden fence line does nothing', () => {
+	/** A clipboard event with a plain-text payload, returning what the handler wrote back. */
+	function clipboardEvent(type: 'cut' | 'paste', text = ''): Map<string, string> {
+		const data = new Map([['text/plain', text]]);
+		const e = new Event(type, { bubbles: true, cancelable: true });
+		Object.defineProperty(e, 'clipboardData', {
+			value: {
+				getData: (format: string) => data.get(format) ?? '',
+				setData: (format: string, value: string) => data.set(format, value),
+				files: [],
+				items: [],
+				types: ['text/plain']
+			}
+		});
+		mounted.el.dispatchEvent(e);
+		return data;
+	}
+
+	const commits = () => vi.mocked(mounted.blockEdit.updateBlockContent).mock.calls.length;
+
+	it('Backspace inside the closer run is taken and commits nothing', async () => {
+		select(20, 20);
+		const e = beforeInput('deleteContentBackward');
+		await settleEditor();
+
+		expect(e.defaultPrevented).toBe(true);
+		expect(commits()).toBe(0);
+	});
+
+	it.each([
+		['with the caret inside the closer run', 19, 19],
+		['with the caret inside the opener run', 1, 1],
+		['over a closer-only selection', 18, 21]
+	])('a paste %s commits nothing', async (_label, start, end) => {
+		select(start, end);
+		clipboardEvent('paste', 'Y');
+		await settleEditor();
+
+		expect(commits()).toBe(0);
+	});
+
+	it('a cut of a closer-only selection commits nothing', async () => {
+		select(18, 21);
+		clipboardEvent('cut');
+		await settleEditor();
+
+		expect(commits()).toBe(0);
+	});
+
+	// Chromium, deleting the last character it paints on a line, also takes the hidden fence line
+	// beside it, so a delete inside the body is applied by the block rather than the browser.
+	it('a delete inside the body is taken and applied to the body alone', async () => {
+		select(10, 12);
+		const e = beforeInput('deleteContentBackward');
+		await settleEditor();
+
+		expect(e.defaultPrevented).toBe(true);
+		expect(committedText()).toBe('```js\nconsx = 1\n```');
+	});
+});

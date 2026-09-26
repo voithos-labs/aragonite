@@ -1,10 +1,11 @@
 # Feature: Edits that reach a code block's hidden fence lines
 
 Where the mode hides a code block's fence lines (live mode, and reading mode, which takes no
-edits anyway), the block's editable content is its **body** and nothing else. Every gesture that
-would rewrite a hidden fence line (Backspace, Delete, type-over, cut, paste-over, select-all, a
-word delete, an IME composition started over a selection) applies to the part of its range that
-overlaps the body instead. The user can't see those bytes, so an edit must never change them.
+edits anyway), the block's editable content is its **body**, plus the opener's info string, which
+the language picker writes. Every gesture that would rewrite the rest of a hidden fence line
+(Backspace, Delete, type-over, cut, paste-over, select-all, a word delete, an IME composition
+started over a selection) applies to the part of its range that overlaps the body instead. The
+user can't see those bytes, so an edit must never change them.
 
 Where the mode paints the fence lines, they're editable text instead, and the fence write rule
 keeps the block legal: `fence-line-editing.md`.
@@ -27,6 +28,16 @@ The contract, in three parts:
 
 - select-all then Backspace empties the body and keeps the code block a code block (it does
   not convert to a paragraph, as an unguarded browser delete of the whole display would)
+
+## Pinned below the browser
+
+No click or arrow puts a caret on a hidden fence line, so the gestures confined to one are
+driven against the mounted block (`code-fence-ranged-edit.test.ts`) rather than end to end:
+Backspace inside the closer run, a paste into either marker run or over a closer-only
+selection, and a cut of a closer-only selection each commit nothing, and a delete inside the
+body is applied by the block, since Chromium would take the hidden fence line beside it.
+(miss-analysis: when these fence lines became editable in source mode, the refusals were deleted
+with their source-mode tests instead of moved to the mode that still hides the lines)
 
 ## Unverified
 
