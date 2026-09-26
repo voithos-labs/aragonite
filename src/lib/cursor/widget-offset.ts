@@ -33,6 +33,9 @@ import { domDescendants } from './dom-walk';
 
 // ── Raw offsets and the caret ────────────────────────────────────────────────
 
+/** Marks the span holding a block's bytes past its content (a setext underline). */
+export const BLOCK_SUFFIX_ATTR = 'data-block-suffix';
+
 /** How a caret write treats its offset: `reachable` moves it onto a position the mode lets a caret
  *  sit at (never behind a hidden marker run); `exact` writes it as given. */
 export type CaretClamp = 'reachable' | 'exact';
@@ -128,12 +131,16 @@ export function extendSelectionToRaw(el: HTMLElement, raw: number): boolean {
 }
 
 /**
- * Select `el`'s whole content, past its marker prefix when there is content to select: the first
- * Ctrl+A range, the triple click. With none, the whole contents, marker included.
+ * Select `el`'s whole content, past its marker prefix and short of a structural suffix the mode
+ * hides, when there is content to select: the first Ctrl+A range, the triple click. With none,
+ * the whole contents, marker included.
  */
 export function selectSurfaceContent(el: HTMLElement): boolean {
-	const contentLength = containerDomTextLength(el) - markerPrefixLength(el);
-	if (markerPrefixOf(el) && contentLength > 0) return selectRawRange(el, 0, contentLength);
+	const suffix = hiddenSuffixLength(el);
+	const contentLength = containerDomTextLength(el) - markerPrefixLength(el) - suffix;
+	if ((markerPrefixOf(el) || suffix > 0) && contentLength > 0) {
+		return selectRawRange(el, 0, contentLength);
+	}
 	const range = document.createRange();
 	range.selectNodeContents(el);
 	return writeSelection(
@@ -457,6 +464,14 @@ export function createRangeAtDomTextOffsets(
 
 // ── Hidden marker runs ───────────────────────────────────────────────────────
 
+/** The text length of a block's trailing structure span (`BLOCK_SUFFIX_ATTR`) where the mode
+ *  hides it, else 0: bytes a range the user drew cannot have meant to take. */
+export function hiddenSuffixLength(el: HTMLElement): number {
+	const last = el.lastElementChild;
+	const text = last?.hasAttribute(BLOCK_SUFFIX_ATTR) ? last.firstChild : null;
+	return text && isHiddenMarkerText(text, el) ? (text.textContent?.length ?? 0) : 0;
+}
+
 /**
  * Whether `node` is text the mode's CSS paints nothing for: a marker span's own text under a
  * marker-hiding mode with no reveal on it. Decided from the marker families in
@@ -758,9 +773,21 @@ function positionBeside(el: Element, side: 'before' | 'after'): DomPosition | nu
 	}
 	const idx = Array.prototype.indexOf.call(parent.childNodes, el);
 	// A pending hard break's first anchor (`inline-render.ts`) ends the line the marker sat on;
-	// the position past the marker is the start of the next line, after that anchor.
+	// the position past the marker is the start of the next line, after that anchor, and so is
+	// the position before whatever follows the break's second anchor.
 	if (side === 'after' && isBreakAnchor(sibling)) return { node: parent, offset: idx + 2 };
+	if (side === 'before' && isBreakAnchor(sibling) && isBreakAnchor(sibling!.previousSibling)) {
+		return { node: parent, offset: idx - 1 };
+	}
 	return { node: parent, offset: side === 'before' ? idx : idx + 1 };
+}
+
+/** Whether a pending hard break's anchor stands between two sibling spans. */
+function breakAnchorBetween(from: Element, to: Element): boolean {
+	for (let node = from.nextSibling; node && node !== to; node = node.nextSibling) {
+		if (isBreakAnchor(node)) return true;
+	}
+	return false;
 }
 
 function isBreakAnchor(node: Node | null): boolean {
@@ -845,6 +872,12 @@ function* landingSegments(
 		// spans, and splitting the run there would create a caret position nothing paints.
 		if (run && seg.len === 0) continue;
 		if (seg.kind === 'text' && seg.hiddenRoot !== null) {
+			// A pending hard break's anchors start a line between two hidden runs (the break's
+			// backslash, a setext underline), and the caret sits at that line's start.
+			if (run && breakAnchorBetween(run.last, seg.hiddenRoot)) {
+				yield run;
+				run = null;
+			}
 			if (run) {
 				run.len += seg.len;
 				run.last = seg.hiddenRoot;

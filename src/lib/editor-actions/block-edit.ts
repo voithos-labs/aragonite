@@ -9,7 +9,11 @@ import type { BlockEditActions } from '../action-contracts';
 import { documentLineEnding } from '../core/lines';
 import { updateNodeContent as performUpdate, ensureUnsharedPath } from '../tree-operations';
 import { publishScopeFold } from './ancestry-folds';
-import type { SettledContent } from '../tree-operations/content-write';
+import {
+	legalizeWrite,
+	type LegalWrite,
+	type SettledContent
+} from '../tree-operations/content-write';
 import { stampStructuralChange } from '../tree-operations/structural-change';
 import type { EditorActionsDeps, UndoController } from './deps';
 import { createTopLevelScope } from './block-edit-scope';
@@ -17,6 +21,7 @@ import { createBlockEditCore } from './block-edit-core';
 import { withEnterCompletion } from './enter-completion';
 import { previewContentReparse, focusAfterContentReplace } from './replacement-focus';
 import { admitsWrite } from './commit/reading-write-gate';
+import { withStoredCaret } from './stored-caret';
 
 export function createBlockEditActions(
 	deps: EditorActionsDeps,
@@ -29,15 +34,16 @@ export function createBlockEditActions(
 	// around it and nothing inside can return past starting the pause timer.
 	async function applyContentUpdate(
 		blockIndex: number,
-		text: string,
-		preEditOffset?: number,
-		postEditFocusOffset?: number
+		write: LegalWrite,
+		preEditOffset: number | undefined,
+		focusOffset: number
 	): Promise<void> {
+		const { text } = write;
 		// The structural path's mutation runs inside a commit, so a multi-block splice never
 		// touches the live children array outside one.
 		const preview = previewContentReparse(
 			deps.doc.children[blockIndex],
-			text,
+			write,
 			deps.reading.grammar,
 			undefined,
 			blockIndex === deps.doc.children.length - 1 ? deps.doc.suffix : '',
@@ -45,7 +51,6 @@ export function createBlockEditActions(
 		);
 
 		if (preview.op !== 'noop') {
-			const focusOffset = postEditFocusOffset ?? preEditOffset ?? 0;
 			let settled: SettledContent = { change: { op: 'noop' }, textStart: 0 };
 			// Typing's own write, so it lands in the entry the keystroke's batch holds.
 			await controller.joinTypingBatch(() =>
@@ -72,7 +77,7 @@ export function createBlockEditActions(
 								}
 							},
 							blockIndex,
-							text,
+							write,
 							deps.reading.grammar,
 							view.sharing
 						);
@@ -100,7 +105,7 @@ export function createBlockEditActions(
 				lineEnding: documentLineEnding(deps.doc)
 			},
 			blockIndex,
-			text,
+			write,
 			deps.reading.grammar,
 			deps.sharing
 		);
@@ -113,13 +118,7 @@ export function createBlockEditActions(
 		deps.bumpContentVersion();
 		if (settled.change.op === 'noop') return;
 		await tick();
-		await focusAfterContentReplace(
-			[],
-			blockIndex,
-			settled,
-			postEditFocusOffset ?? preEditOffset ?? 0,
-			scope
-		);
+		await focusAfterContentReplace([], blockIndex, settled, focusOffset, scope);
 	}
 
 	const actions: BlockEditActions = {
@@ -149,13 +148,19 @@ export function createBlockEditActions(
 
 		// ── Content update (per-level) ────────────────────────────────────────
 
-		async updateBlockContent(
-			blockIndex: number,
-			text: string,
-			preEditOffset?: number,
-			postEditFocusOffset?: number
-		): Promise<void> {
+		updateBlockContent(blockIndex, text, mode, preEditOffset, postEditFocusOffset) {
 			deps.caretMemory.forget();
+			const write = legalizeWrite(
+				{
+					children: deps.doc.children,
+					owner: undefined,
+					lineEnding: documentLineEnding(deps.doc)
+				},
+				blockIndex,
+				text,
+				mode
+			);
+			const caret = write.storedOffset(postEditFocusOffset ?? preEditOffset ?? 0);
 			// Keyed by block id, not by index: a bare index names the position, so a different
 			// block arriving at the same index would continue its batch.
 			controller.pushUndoSnapshotDebounced(
@@ -165,11 +170,10 @@ export function createBlockEditActions(
 			);
 			// The pause timer starts once this keystroke's own work is done, throw included: a
 			// batch whose timer never started never ends by pause and swallows every later keystroke.
-			try {
-				await applyContentUpdate(blockIndex, text, preEditOffset, postEditFocusOffset);
-			} finally {
-				controller.armUndoPause();
-			}
+			const done = applyContentUpdate(blockIndex, write, preEditOffset, caret).finally(() =>
+				controller.armUndoPause()
+			);
+			return withStoredCaret(done, caret, write.storedOffset);
 		}
 	};
 

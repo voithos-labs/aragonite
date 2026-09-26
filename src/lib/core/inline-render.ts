@@ -10,7 +10,7 @@ import type { InlineNode } from './nodes';
 import { buildCoreInlineWidget } from './inline/inline-widgets';
 import type { GrammarView } from '../schema/block-openers';
 import { isAllowedHrefScheme } from './url-policy';
-import { firstDisplayLine, trimTrailingLineEnding } from './lines';
+import { firstDisplayLine } from './lines';
 
 // ── Render options ──────────────────────────────────────────────────────────
 
@@ -40,11 +40,11 @@ export interface RenderInlineOptions {
 	/** The editor's grammar: a widget kind whose plugin it leaves out renders as its source. */
 	grammar: GrammarView;
 	/**
-	 * Render a lone backslash ending the display as the hard break it is about to become: the
-	 * byte as a (hidden) marker plus two `br` anchors so the caret has a second line to sit on.
+	 * The block's content end, where a lone backslash is the hard break it is about to become:
+	 * drawn as a (hidden) marker plus two `br` anchors so the caret has a second line to sit on.
 	 * Only for a mode that hides markers; the DOM stays byte-identical elsewhere.
 	 */
-	pendingBreakSeat?: boolean;
+	pendingBreakAt?: number;
 	/**
 	 * Write the construct's raw range onto its marker spans as data attributes, so preview-inline
 	 * can find the spans to reveal. Attributes only, leaving textContent and the offset traversal
@@ -437,7 +437,9 @@ export function renderInlineNodes(
 		const child = renderNode(frame.nodes[frame.index++], raw, opts, frame.content);
 		if (child !== null) stack.push(child);
 	}
-	if (opts.pendingBreakSeat) paintPendingBreak(nodes, raw, root.content);
+	if (opts.pendingBreakAt !== undefined) {
+		paintPendingBreak(nodes, raw, opts.pendingBreakAt, root.content);
+	}
 	return root.content;
 }
 
@@ -446,11 +448,16 @@ export function renderInlineNodes(
  * as literal text until then; drawn as a hidden marker plus two `br` anchors, the user sees the new
  * line. A `br` adds no textContent, so raw offsets are unaffected.
  */
-function paintPendingBreak(nodes: InlineNode[], raw: string, frag: DocumentFragment): void {
+function paintPendingBreak(
+	nodes: InlineNode[],
+	raw: string,
+	contentEnd: number,
+	frag: DocumentFragment
+): void {
 	const last = nodes[nodes.length - 1];
 	if (!last || last.kind !== 'text' || raw[last.end - 1] !== '\\') return;
-	// Only the block's own line ending may follow the backslash.
-	if (trimTrailingLineEnding(raw.slice(last.end)) !== '') return;
+	// Only the block's own structure may follow the backslash: its line ending, or an underline.
+	if (last.end !== contentEnd) return;
 	const tail = frag.lastChild;
 	if (!tail || tail.nodeType !== Node.TEXT_NODE || !tail.textContent?.endsWith('\\')) return;
 	if (tail.textContent.length === 1) tail.remove();

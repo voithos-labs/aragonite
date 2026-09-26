@@ -12,6 +12,7 @@ import { makeStubBlockEdit } from '../../harness/editor-actions';
 import { editorMountContext } from '../../harness/mount-context';
 import { installMathInline } from './math-widget-fixture';
 import { settleEditor } from '$lib/test/harness/settle';
+import { withStoredCaret } from '$lib/editor-actions/stored-caret';
 
 installMathInline();
 
@@ -28,10 +29,14 @@ function mountMathParagraph() {
 		releaseWrite = resolve;
 	});
 	let writeLanded = false;
-	vi.mocked(blockEdit.updateBlockContent).mockImplementation(async () => {
-		await writeGate;
-		writeLanded = true;
-	});
+	vi.mocked(blockEdit.updateBlockContent).mockImplementation(() =>
+		withStoredCaret(
+			writeGate.then(() => {
+				writeLanded = true;
+			}),
+			0
+		)
+	);
 
 	const instance = mount(TextEditableBlock, {
 		target,

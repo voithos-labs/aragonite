@@ -5,6 +5,7 @@
  * {@link escapedCellOffset} map a caret exactly.
  */
 
+import { trimTrailingLineEnding } from '../core/lines';
 import type { WriteRule } from './block-kind-descriptor';
 
 /**
@@ -39,8 +40,12 @@ export function escapedCellOffset(text: string, offset: number): number {
 	return normalizeCellRaw(text.slice(0, offset)).length;
 }
 
-/** The cell's write rule; it reads nothing but the bytes. */
+/** The cell's write rule; it reads nothing but the bytes. A cell has no line ending of its own,
+ *  so the one a block write carries is dropped rather than turned into a space. */
 export const tableCellWrite: WriteRule = {
-	normalize: (raw) => normalizeCellRaw(raw),
-	mapOffset: (raw, offset) => escapedCellOffset(raw, offset)
+	normalize: (raw) => normalizeCellRaw(trimTrailingLineEnding(raw)),
+	mapOffset: (raw, offset) => {
+		const text = trimTrailingLineEnding(raw);
+		return escapedCellOffset(text, Math.min(offset, text.length));
+	}
 };

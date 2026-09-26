@@ -8,7 +8,7 @@
 
 import { metadataOf } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
-import { displayLength, displayLines, trimTrailingLineEnding } from '../core/lines';
+import { displayLength } from '../core/lines';
 import { containerClosure, type ClosureBlock } from './closure';
 import type { KeyBinding } from './keybindings';
 import { registerBlockKind } from './block-kind-descriptor';
@@ -21,6 +21,7 @@ import {
 } from './container-rebuilders';
 import { tableCellWrite } from './table-cell-raw';
 import { fencedCodeWrite } from './fenced-code-raw';
+import { setextHeadingContentRange, setextHeadingWrite } from './setext-raw';
 import { registerInlineConstructPolicy } from './inline-construct-policy';
 import { wrapAsCodeSpan } from '../core/inline/backticks';
 import {
@@ -41,17 +42,6 @@ function headingContentRange(node: NodeView): { start: number; end: number } {
 	while (i < raw.length && raw[i] === '#') i++;
 	if (i < raw.length && raw[i] === ' ') i++;
 	return { start: i, end: displayEnd };
-}
-
-// Setext headings carry a trailing underline line that is structural, not content.
-function setextHeadingContentRange(node: NodeView): { start: number; end: number } {
-	const display = trimTrailingLineEnding(node.raw);
-	const lines = displayLines(display);
-	if (lines.length < 2) return { start: 0, end: display.length };
-	// The content ends before the break above the underline, the display's last line.
-	const underline = lines[lines.length - 1];
-	const breakAbove = lines[lines.length - 2].ending;
-	return { start: 0, end: display.length - underline.text.length - breakAbove.length };
 }
 
 // ── Keymaps ───────────────────────────────────────────────────────────────
@@ -280,6 +270,7 @@ export function registerBuiltInDescriptors(): void {
 		editable: true,
 		supportsInline: true,
 		getContentRange: setextHeadingContentRange,
+		rawWrite: setextHeadingWrite,
 		contentStartBackspace: 'demote-first',
 		keymap: TEXT_EDITABLE_KEYMAP,
 		conformanceFixture: 'Title\n===\n',

@@ -25,7 +25,7 @@ describe('batched input event carries the leaf path', () => {
 		expect(h.deps.doc.children[0].children![0].kind).toBe('linkReferenceDefinition');
 
 		vi.useFakeTimers();
-		await h.bundle.blockEdit.updateBlockContent(0, '[a]: /url2\n', 9);
+		await h.bundle.blockEdit.updateBlockContent(0, '[a]: /url2\n', 'authored', 9);
 		vi.advanceTimersByTime(UNDO_DEBOUNCE_MS + 50);
 
 		const input = h.edits.find((e) => e.op === 'input');
@@ -39,7 +39,7 @@ describe('batched input event carries the leaf path', () => {
 		const h = makeNestedTyping('> see [d][d]\n');
 
 		vi.useFakeTimers();
-		await h.bundle.blockEdit.updateBlockContent(0, 'see [d][d]!\n', 10);
+		await h.bundle.blockEdit.updateBlockContent(0, 'see [d][d]!\n', 'authored', 10);
 		vi.advanceTimersByTime(UNDO_DEBOUNCE_MS + 50);
 
 		const input = h.edits.find((e) => e.op === 'input');

@@ -16,6 +16,8 @@ import { TABLE_CONTEXT_KEY } from '$lib/editor-keys';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import { createWidgetSelectionState } from '$lib/components/image/widget-selection-state.svelte';
 import { makeStubBlockEdit } from '../../harness/editor-actions';
+import { legalizeWrite } from '$lib/tree-operations/content-write';
+import { withStoredCaret } from '$lib/editor-actions/stored-caret';
 import { mountBlock } from '../../harness/mount-block';
 
 /** A cell renders no decorations unless a test installs some. */
@@ -84,8 +86,9 @@ export function mountCell(raw: string, policies: Partial<EditorPolicies> = {}): 
 	const selection = createSelectionState();
 	const tableContext = makeStubTableContext();
 	const refs: (BlockComponent | undefined)[] = [];
+	const doc = documentAround(node);
 	const mounted = mountBlock(TableCellBlock, {
-		doc: documentAround(node),
+		doc,
 		path: [0, 1, 0],
 		props: { rowIdx: 1, columnCount: 2, rowCount: 2, slots: refSlotsOver(refs) },
 		overrides: {
@@ -98,6 +101,15 @@ export function mountCell(raw: string, policies: Partial<EditorPolicies> = {}): 
 		},
 		context: [[TABLE_CONTEXT_KEY, tableContext]]
 	});
+	// Nothing is stored, but the caret comes back through the cell's real write rule.
+	const row = doc.children[0].children![1];
+	vi.mocked(mounted.blockEdit.updateBlockContent).mockImplementation(
+		(index, text, mode, caretBefore, caretAfter) => {
+			const body = { children: row.children!, owner: row, lineEnding: '\n' as const };
+			const write = legalizeWrite(body, index, text, mode);
+			return withStoredCaret(Promise.resolve(), write.storedOffset(caretAfter ?? caretBefore ?? 0));
+		}
+	);
 	return {
 		instance: mounted.instance as MountedCell['instance'],
 		el: mounted.target.querySelector('.table-cell') as HTMLElement,

@@ -68,7 +68,7 @@ describe('a commit whose ancestry settle ate its own scope', () => {
 	it('leaves the slot standing when the rebuilt opener still interrupts', async () => {
 		const h = makeNestedHarness('a\n> b\n', { index: 1 });
 
-		await h.bundle.blockEdit.updateBlockContent(0, 'bz\n', 1, 2);
+		await h.bundle.blockEdit.updateBlockContent(0, 'bz\n', 'authored', 1, 2);
 
 		expect(serialize(h.deps.doc)).toBe('a\n> bz\n');
 		expect(h.deps.doc.children.map((c) => c.kind)).toEqual(['paragraph', 'blockquote']);
@@ -89,7 +89,7 @@ describe('a commit whose ancestry settle ate its own scope', () => {
 		const errors: unknown[] = [];
 		h.events.on('error', (e) => errors.push(e));
 
-		await h.bundle.blockEdit.updateBlockContent(1, 'h\n');
+		await h.bundle.blockEdit.updateBlockContent(1, 'h\n', 'authored');
 
 		expect(h.deps.doc.children.map((c) => c.kind)).toEqual(['blockquote']);
 		expect(serialize(h.deps.doc)).toBe('> a\n> h\ntext\n');

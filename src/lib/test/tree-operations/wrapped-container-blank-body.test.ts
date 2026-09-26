@@ -46,8 +46,8 @@ describe('a blank run that is the whole wrapped body', () => {
 	it('survives emptying every body block through the content entry point', async () => {
 		const h = makeNestedHarness(':::callout Title\nBody1\n\nBody2\n:::\n', { index: 0 });
 
-		await h.bundle.blockEdit.updateBlockContent(1, '\n', 0, 0);
-		await h.bundle.blockEdit.updateBlockContent(2, '\n', 0, 0);
+		await h.bundle.blockEdit.updateBlockContent(1, '\n', 'authored', 0, 0);
+		await h.bundle.blockEdit.updateBlockContent(2, '\n', 'authored', 0, 0);
 
 		expect(serialize(h.deps.doc)).toBe(':::callout Title\n\n\n\n\n:::\n');
 		expectParseConverged(h.deps.doc);

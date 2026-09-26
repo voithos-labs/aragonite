@@ -35,6 +35,8 @@ import {
 	type NestedActionsOverrideFactory
 } from '$lib/editor-actions/nested/nested-actions';
 import type { PresentationMode } from '$lib/presentation-mode';
+import type { WriteMode } from '$lib/schema/block-kind-descriptor';
+import { withStoredCaret } from '$lib/editor-actions/stored-caret';
 import type { GrammarView } from '$lib/schema/block-openers';
 import { fixtureReading } from './fixture-grammar';
 import { parse } from '$lib/core/parser';
@@ -454,4 +456,46 @@ export function makeNestedHarness(
 		overrides
 	);
 	return { deps, events, controller, containerEdit, state, bundle, getNode, contentVersion };
+}
+
+/** The action bundle of the first table's body row `row` (the first by default): the one a
+ *  cell in that row writes through, over a real commit path. */
+export function mountBodyRow(source: string, row = 1) {
+	const { deps } = makeEditorActionsDeps(parse(source).children);
+	const controller = createUndoController(deps);
+	const getNode = () => deps.doc.children[0].children![row];
+	const bundle = createStandardNestedActions(
+		makeBlockListState(getNode),
+		makeNestedActionsDeps({
+			index: row,
+			getNode,
+			path: [0, row],
+			parent: {
+				blockEdit: makeStubBlockEdit(),
+				focus: makeStubFocus(),
+				containerEdit: createContainerEditActions(deps, controller)
+			}
+		})
+	);
+	return { deps, blockEdit: bundle.blockEdit };
+}
+
+/** One `updateBlockContent` call as a recording stub saw it. */
+export interface RecordedWrite {
+	index: number;
+	raw: string;
+	mode: WriteMode;
+	before: number | undefined;
+	after: number | undefined;
+}
+
+/** An `updateBlockContent` that stores nothing: it reports each call and hands back the caret it
+ *  was asked for, which is what the write returns when no rule rewrites the bytes. */
+export function recordingWrite(
+	record: (write: RecordedWrite) => void = () => {}
+): BlockEditActions['updateBlockContent'] {
+	return (index, raw, mode, before, after) => {
+		record({ index, raw, mode, before, after });
+		return withStoredCaret(Promise.resolve(), after ?? before ?? 0);
+	};
 }

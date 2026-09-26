@@ -168,7 +168,8 @@ describe('pasteDispatch: strategy routing end-to-end', () => {
 		const call = (blockEdit.updateBlockContent as ReturnType<typeof vi.fn>).mock.calls[0];
 		expect(call[0]).toBe(0);
 		expect(call[1]).toBe('hello XYZworld\n');
-		expect(call[2]).toBe(9);
+		expect(call[2]).toBe('literal');
+		expect(call[3]).toBe(9);
 		expect(blockEdit.replaceBlock).not.toHaveBeenCalled();
 	});
 

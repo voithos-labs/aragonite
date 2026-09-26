@@ -33,7 +33,7 @@ describe('checkSnapshotIntegrity (G1.9)', () => {
 
 	it('passes across a correctly unshared mutation sequence', async () => {
 		const { deps, blockEdit } = makeHarness('hello\n\nworld\n');
-		await blockEdit.updateBlockContent(0, 'hello more\n', 0);
+		await blockEdit.updateBlockContent(0, 'hello more\n', 'authored', 0);
 		await blockEdit.splitBlock(1, 2);
 		const { undo } = deps.undoManager.getStacks();
 		expect(undo.length).toBeGreaterThan(0);

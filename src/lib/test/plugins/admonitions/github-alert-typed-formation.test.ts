@@ -95,7 +95,7 @@ describe('github alert: per-keystroke marker formation', () => {
 
 		const atomic = makeEditorActionsDeps(parse('x\n').children);
 		const atomicActions = createBlockEditActions(atomic.deps, createUndoController(atomic.deps));
-		await atomicActions.updateBlockContent(0, '> [!TIP]\n', 1, 9);
+		await atomicActions.updateBlockContent(0, '> [!TIP]\n', 'authored', 1, 9);
 
 		expect(serialize(typed.deps.doc)).toBe(serialize(atomic.deps.doc));
 		expect(typed.getNode().kind).toBe(atomic.deps.doc.children[0].kind);

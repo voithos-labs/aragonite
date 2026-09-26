@@ -1,9 +1,9 @@
 # Feature: typing into a setext heading
 
-A setext heading keeps its structure in the underline below its title (`===` or `---`). No
-presentation mode draws that line, so the block's text on screen stops at the title, and every
-write that starts from what the screen holds has to put the underline back. Typing one character
-must change one character, and nothing else in the file.
+A setext heading keeps its structure in the underline below its title (`===` or `---`). The
+page draws that line as a marker (shown in source mode, hidden in live), so every write that
+starts from what the page holds carries the underline once. Typing one character must change one
+character, and nothing else in the file.
 
 Miss-analysis: the setext specs covered Enter and the merges and none typed into the heading, the
 unit suites had typing tests for cells and code blocks but not for prose blocks, and the shape

@@ -17,7 +17,7 @@ describe('nested updateBlockContent honors the instance grammar', () => {
 		const { deps, bundle } = driveTypeInContainer(createGrammarView((kind) => kind !== 'heading'));
 		expect(deps.doc.children[0].children?.[0].kind).toBe('paragraph');
 
-		await bundle.blockEdit.updateBlockContent(0, '# x\n', 0);
+		await bundle.blockEdit.updateBlockContent(0, '# x\n', 'authored', 0);
 
 		expect(deps.doc.children[0].children?.[0].kind).toBe('paragraph');
 	});
@@ -26,7 +26,7 @@ describe('nested updateBlockContent honors the instance grammar', () => {
 	it('the global grammar still materializes the heading', async () => {
 		const { deps, bundle } = driveTypeInContainer(undefined);
 
-		await bundle.blockEdit.updateBlockContent(0, '# x\n', 0);
+		await bundle.blockEdit.updateBlockContent(0, '# x\n', 'authored', 0);
 
 		expect(deps.doc.children[0].children?.[0].kind).toBe('heading');
 	});

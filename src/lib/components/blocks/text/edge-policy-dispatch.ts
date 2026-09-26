@@ -93,11 +93,9 @@ export interface EdgePolicyDispatchDeps {
 	/** Anchor/focus raw-content offsets of the live selection, or null when collapsed. */
 	getRawSelection: () => { start: RawOffset; end: RawOffset } | null;
 	blockEdit: BlockEditActions;
-	/** Remember a caret offset for the restore after the next render, tagged with the gesture for
-	 *  the debug trace. `writtenText` is the text that offset counts into, since a kind that
-	 *  rewrites bytes on commit shifts it; omit it where the caret sits ahead of every changed
-	 *  byte. */
-	setPendingCursor: (offset: number | null, source: string, writtenText?: string) => void;
+	/** Remember a caret offset, counted in the stored bytes, for the restore after the next
+	 *  render, tagged with the gesture for the debug trace. */
+	setPendingCursor: (offset: number | null, source: string) => void;
 	setSnapTarget: (offset: number | null) => void;
 	/** A widget's source is showing: the CST still calls it atomic, but the DOM holds editable
 	 *  text, so the widget branch does nothing and lets native editing run. */
@@ -237,13 +235,16 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		source: string,
 		caretBefore: number
 	): void {
-		void deps.blockEdit.updateBlockContent(
-			deps.index,
-			next + trailingLineEnding(deps.node.raw, deps.getLineEnding()),
-			caretBefore,
-			caretAfter
+		deps.setPendingCursor(
+			deps.blockEdit.updateBlockContent(
+				deps.index,
+				next + trailingLineEnding(deps.node.raw, deps.getLineEnding()),
+				'authored',
+				caretBefore,
+				caretAfter
+			).caret,
+			source
 		);
-		deps.setPendingCursor(caretAfter, source, next);
 	}
 
 	function editDisplay(
@@ -338,8 +339,11 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 				deps.getAmbientPrefix?.() ?? '',
 				deps.getLineEnding()
 			);
-			void deps.blockEdit.updateBlockContent(deps.index, edit.raw, range.start, edit.caret);
-			deps.setPendingCursor(edit.caret, source, edit.raw);
+			deps.setPendingCursor(
+				deps.blockEdit.updateBlockContent(deps.index, edit.raw, 'authored', range.start, edit.caret)
+					.caret,
+				source
+			);
 			return;
 		}
 		const seatedAt = typingSeatAt(el, caretOffset, typed)?.offset ?? caretOffset;
@@ -383,8 +387,16 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 				// One keypress takes the whole construct, anchored at the caret before the delete
 				// so Ctrl+Z lands there.
 				const newRaw = node.raw.slice(0, widgetAt.start) + node.raw.slice(widgetAt.end);
-				void deps.blockEdit.updateBlockContent(deps.index, newRaw, caretOffset, widgetAt.start);
-				deps.setPendingCursor(widgetAt.start, 'widget');
+				deps.setPendingCursor(
+					deps.blockEdit.updateBlockContent(
+						deps.index,
+						newRaw,
+						'authored',
+						caretOffset,
+						widgetAt.start
+					).caret,
+					'widget'
+				);
 				return true;
 			}
 			// `onEdge: 'select'`, plus the kinds `enterWidget` sends to their source instead of
@@ -556,8 +568,11 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 				deps.getAmbientPrefix?.() ?? '',
 				deps.getLineEnding()
 			);
-			void deps.blockEdit.updateBlockContent(deps.index, edit.raw, range.start, edit.caret);
-			deps.setPendingCursor(edit.caret, 'ambient-delete');
+			deps.setPendingCursor(
+				deps.blockEdit.updateBlockContent(deps.index, edit.raw, 'authored', range.start, edit.caret)
+					.caret,
+				'ambient-delete'
+			);
 		}
 		return true;
 	}
@@ -596,24 +611,32 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 
 	// ── Pending marks from a toggle ────────────────────────────────────────────
 
-	/** The byte after a hard break made at the end of a block, whose line ending is the block's
-	 *  own trailing one, so no caret can sit past it. The key lands after the break rather than
-	 *  between the backslash and its newline, where it would undo the break. */
+	/** The byte after a hard break made at the end of a block's content, whose line ending is the
+	 *  one after the content (the block's own, or the one above a setext underline), so no caret
+	 *  can sit past it. The key lands after the break rather than between the backslash and its
+	 *  newline, where it would undo the break. */
 	function handleTransitionalHardBreak(e: KeyboardEvent, caretOffset: RawOffset | null): boolean {
 		if (deps.isReading()) return false;
 		if (!isPlainTypingKey(e) || caretOffset === null || heldRange()) return false;
 		const d = display();
-		// Only at the very end, and only when the block's last byte is the break's backslash.
-		if (caretOffset !== d.length || !d.endsWith('\\')) return false;
+		const contentEnd = getContentRange(deps.node).end;
+		const text = d.slice(0, contentEnd);
+		// Only at the content end, and only when the content's last byte is the break's backslash.
+		if (caretOffset !== contentEnd || !text.endsWith('\\')) return false;
 		// An escaped backslash (`\\\\`) is content, not a break.
-		if (d.endsWith('\\\\')) return false;
+		if (text.endsWith('\\\\')) return false;
 		// Backslash before ASCII punctuation is an escape (`\|`, `\*`), never a break's backslash.
 		if (/^[!-/:-@[-`{-~]$/.test(e.key)) return false;
 		const ending = trailingLineEnding(deps.node.raw, deps.getLineEnding());
 		e.preventDefault();
 		deps.setSnapTarget(null);
-		const next = d + ending + e.key;
-		writeDisplay(next, next.length, 'transitional-hard-break', caretOffset);
+		const line = ending + e.key;
+		writeDisplay(
+			text + line + d.slice(contentEnd),
+			contentEnd + line.length,
+			'transitional-hard-break',
+			caretOffset
+		);
 		return true;
 	}
 

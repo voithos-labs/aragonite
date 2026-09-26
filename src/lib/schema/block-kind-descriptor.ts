@@ -85,15 +85,17 @@ export interface CaretTarget {
 	offset: number;
 }
 
+/**
+ * `authored` when the user is typing in the block, so bytes may be the block's own syntax half
+ * written; `literal` for content that arrives whole (a paste, a replace, a range delete).
+ */
+export type WriteMode = 'authored' | 'literal';
+
 /** What a write rule reads besides the bytes. */
 export interface WriteContext {
 	/** The block whose bytes are written: the kind's own node, or for a body write its container. */
 	node: NodeView;
-	/**
-	 * `authored` when the user is typing the block's own syntax, `literal` for content that
-	 * arrives whole (a paste, a replace, a range delete), which never counts as syntax typed.
-	 */
-	mode: 'authored' | 'literal';
+	mode: WriteMode;
 	/** The document's line ending, which a line the rule writes takes when the block has none. */
 	lineEnding: LineEnding;
 }

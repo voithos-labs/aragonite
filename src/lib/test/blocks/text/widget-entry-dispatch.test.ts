@@ -5,6 +5,8 @@
 // cross-block `enterEdgeWidget`. A kind that can show its source opens it at the edge the key
 // came from; one that cannot is selected and then stepped over. Covered in both places, so a
 // change that fixes only one of them fails here rather than only in e2e.
+import { recordingWrite } from '$lib/test/harness/editor-actions';
+import type { Commit } from './widget-selected-fixture';
 import { beforeEach, describe, it, expect } from 'vitest';
 import { createWidgetInteraction } from '$lib/components/blocks/text/widget-interaction';
 import { createWidgetSelectionState } from '$lib/components/image/widget-selection-state.svelte';
@@ -26,7 +28,7 @@ function mount(source: string, widgetKind: string) {
 	const { node, el, inlineWidgets } = mountWidgetBlock(source, widgetKind);
 	const widget = inlineWidgets[0];
 
-	const commits: { index: number; raw: string; before: number; after: number }[] = [];
+	const commits: Commit[] = [];
 	const widgetSelection = createWidgetSelectionState({ onSelect: () => {} });
 	const interaction = createWidgetInteraction(
 		widgetInteractionDeps(
@@ -34,7 +36,7 @@ function mount(source: string, widgetKind: string) {
 			{
 				cursor: new Proxy({}, { get: () => () => {} }),
 				widgetSelection,
-				blockEdit: { updateBlockContent: () => {} },
+				blockEdit: { updateBlockContent: recordingWrite() },
 				focusActions: new Proxy({}, { get: () => () => {} }),
 				setPendingCursor: () => {},
 				setRevealing: () => {},
@@ -47,8 +49,9 @@ function mount(source: string, widgetKind: string) {
 	// entry, which makes the same choice the cross-block `enterEdgeWidget` does.
 	const { dispatch } = makeEdgeDispatch(node, el, {
 		blockEdit: {
-			updateBlockContent: (index: number, raw: string, before: number, after: number) =>
+			updateBlockContent: recordingWrite(({ index, raw, before, after }) =>
 				commits.push({ index, raw, before, after })
+			)
 		} as unknown as BlockEditActions,
 		isRevealing: () => interaction.isRevealing(),
 		enterWidget: (w, fromTrailingEdge) => interaction.enterWidget(w, fromTrailingEdge)

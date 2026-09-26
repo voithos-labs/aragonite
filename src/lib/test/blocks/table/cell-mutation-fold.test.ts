@@ -8,6 +8,7 @@ import { describe, it, expect, afterEach, vi } from 'vitest';
 import { registerMathInline } from '$lib/plugins/latex/latex-kind';
 import { resetInlineState } from '../text/math-widget-fixture';
 import { mountCell } from './mount-cell';
+import { trimTrailingLineEnding } from '$lib/core/lines';
 import { settleEditor, dispatchKey } from '$lib/test/harness/settle';
 
 const CELL = 'x $a$ yz';
@@ -46,7 +47,7 @@ describe('a cell mutation folds the open reveal before it runs', () => {
 		await settleEditor();
 
 		const commits = vi.mocked(blockEdit.updateBlockContent).mock.calls;
-		expect(commits.map((c) => c[1])).toEqual(['x $a_n$ yz']);
+		expect(commits.map((c) => trimTrailingLineEnding(c[1]))).toEqual(['x $a_n$ yz']);
 		expect(tableContext.insertRowBelow).toHaveBeenCalledTimes(1);
 		expect(vi.mocked(blockEdit.updateBlockContent).mock.invocationCallOrder[0]).toBeLessThan(
 			vi.mocked(tableContext.insertRowBelow).mock.invocationCallOrder[0]
@@ -66,6 +67,8 @@ describe('a cell mutation folds the open reveal before it runs', () => {
 		instance.runCommand('format.toggleStrong');
 		await settleEditor();
 
-		expect(vi.mocked(blockEdit.updateBlockContent).mock.calls[0][1]).toBe('x $a_n$ yz');
+		expect(trimTrailingLineEnding(vi.mocked(blockEdit.updateBlockContent).mock.calls[0][1])).toBe(
+			'x $a_n$ yz'
+		);
 	});
 });

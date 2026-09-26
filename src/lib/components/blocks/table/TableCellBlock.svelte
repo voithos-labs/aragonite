@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { getContext, tick } from 'svelte';
-	import type { BlockEditActions, TableContext } from '../../../action-contracts';
+	import type { ContentWrite, TableContext } from '../../../action-contracts';
 	import { type BlockComponent } from '../../../block-component';
 	import { type CommandId } from '../../../schema/commands';
 	import { eventToChord } from '../../../schema/keybindings';
@@ -75,7 +75,6 @@
 		intraTableRectBounds,
 		intraTableRectGrid
 	} from './cell-clipboard';
-	import { escapedCellOffset } from '../../../schema/table-cell-raw';
 	import type { CellSelectionPoint, SelectionPoint } from '../../../selection/primitives';
 	import type { ClipboardAction } from './table-menu-model';
 	import {
@@ -128,7 +127,7 @@
 
 	const wiring = wireSurfaceContexts();
 	const {
-		blockEdit: parentBlockEdit,
+		blockEdit,
 		focusActions,
 		controller,
 		pasteCoordinator,
@@ -164,23 +163,6 @@
 	// A shared constant keeps an empty decoration list out of the render key.
 	const NO_ISLANDS: IndexedDecoration<WidgetDecoration | ReplaceDecoration>[] = [];
 
-	// ── How the cell writes its bytes ───────────────────────────────────────
-
-	// The kind's write rule escapes pipes, so `caretAfter` (counted in the unescaped text) is
-	// moved past the inserted backslashes; `caretBefore` already counts escaped bytes.
-	const blockEdit: BlockEditActions = {
-		...parentBlockEdit,
-		updateBlockContent(i, text, caretBefore, caretAfter) {
-			const cellText = trimTrailingLineEnding(text);
-			return parentBlockEdit.updateBlockContent(
-				i,
-				cellText,
-				caretBefore,
-				caretAfter === undefined ? undefined : escapedCellOffset(cellText, caretAfter)
-			);
-		}
-	};
-
 	let el: HTMLDivElement | undefined = $state();
 
 	// The cell renders no block host, so its own element carries the decorations addressed to it.
@@ -198,13 +180,10 @@
 	let revealing = $state(false);
 	let pendingCursorOffset = $state<number | null>(null);
 
-	// The only writer of `pendingCursorOffset` besides the render's clear. `writtenText` is the
-	// unescaped text `offset` counts into; without it the offset already counts escaped bytes.
-	function parkCursor(offset: number | null, writtenText?: string): void {
-		pendingCursorOffset =
-			offset === null || writtenText === undefined
-				? offset
-				: escapedCellOffset(writtenText, offset);
+	// The only writer of `pendingCursorOffset` besides the render's clear. The offset counts
+	// stored bytes, escapes included: a write hands back its caret already mapped.
+	function parkCursor(offset: number | null): void {
+		pendingCursorOffset = offset;
 	}
 
 	// Y matters for the hit test: a click at the same column on another visual line
@@ -218,9 +197,6 @@
 
 	const editableSurface = createEditableSurface({
 		...wiring.deps,
-		// The shared wiring's `blockEdit` is the parent's; this cell writes through its
-		// own escaping one above.
-		blockEdit,
 		getEl: () => el ?? null,
 		isInputSuppressed: () => revealing,
 		backend: cursor,
@@ -235,12 +211,8 @@
 		getTextLen: () => (el ? containerDomTextLength(el) : 0),
 		readText: () => readCellText(),
 		relocateComposedText: (after, composedAt) => compositionSeat.relocate(after, composedAt),
-		// `saved` re-focuses if the edit remounts the cell, so it is reported through
-		// the escaping write above.
-		commitInput: (text, preEdit, saved) => {
-			void blockEdit.updateBlockContent(index, text, preEdit, saved);
-			return escapedCellOffset(text, saved);
-		},
+		commitInput: (text, preEdit, saved) =>
+			blockEdit.updateBlockContent(index, text, 'authored', preEdit, saved).caret,
 		handleBeforeInput: onBeforeInput
 	});
 
@@ -259,7 +231,7 @@
 	const sharedCtx = editableSurface.sharedCtx;
 
 	// The same inline-widget code prose uses, with cell-shaped dependencies: no marker prefix,
-	// no snap indicator, since cells render no image widgets, and the escaping `blockEdit`.
+	// no snap indicator, since cells render no image widgets.
 	const widgetInteraction = createWidgetInteraction({
 		getLineEnding: () => documentLineEnding(getDoc()),
 		get node() {
@@ -278,7 +250,7 @@
 		blockEdit,
 		focusActions,
 		setSnapTarget: () => {},
-		setPendingCursor: (offset, writtenText) => parkCursor(offset, writtenText),
+		setPendingCursor: parkCursor,
 		readRawText: () => readCellText(),
 		setRevealing: (value) => {
 			revealing = value;
@@ -313,7 +285,7 @@
 			decorationEngine ? decorationEngine.islandsForPath(myPath).length > 0 : false,
 		getRawSelection: () => cursor.getRawSelection(),
 		blockEdit,
-		setPendingCursor: (offset, _source, writtenText) => parkCursor(offset, writtenText),
+		setPendingCursor: parkCursor,
 		setSnapTarget: () => {},
 		isRevealing: () => widgetInteraction.isRevealing(),
 		// A widget that cannot show its source, reached this way, was reached by an arrow
@@ -420,14 +392,19 @@
 		if (!result) return true;
 		// Anchor undo at the post-toggle caret, and keep it out of any typing batch: a command
 		// is not typing, so the toggle's bytes are their own undo step.
-		controller.isolateUndoEntry(() =>
-			blockEdit.updateBlockContent(index, result.newDisplay, result.newSelStart, result.newSelStart)
-		);
-		// The write may have inserted backslashes inside the toggled span, so both selection
-		// edges are read back through the escaping.
-		const selStart = escapedCellOffset(result.newDisplay, result.newSelStart);
-		const selEnd = escapedCellOffset(result.newDisplay, result.newSelEnd);
-		void tick().then(() => setSelection(selStart, selEnd));
+		let write!: ContentWrite;
+		controller.isolateUndoEntry(() => {
+			write = blockEdit.updateBlockContent(
+				index,
+				result.newDisplay,
+				'literal',
+				result.newSelStart,
+				result.newSelStart
+			);
+		});
+		// The write may have escaped a pipe inside the toggled span, so the far edge moves too.
+		const selEnd = write.storedOffset(result.newSelEnd);
+		void tick().then(() => setSelection(write.caret, selEnd));
 		return true;
 	}
 
@@ -765,8 +742,10 @@
 			'',
 			widgetInteraction.isRevealing,
 			(edit) => {
-				void blockEdit.updateBlockContent(index, edit.raw, edit.range.start, edit.caret);
-				parkCursor(edit.caret, edit.raw);
+				parkCursor(
+					blockEdit.updateBlockContent(index, edit.raw, 'authored', edit.range.start, edit.caret)
+						.caret
+				);
 			}
 		);
 	}
@@ -785,8 +764,9 @@
 			reading,
 			ownPairs,
 			write: (text, caretBefore, caretAfter) => {
-				void blockEdit.updateBlockContent(index, text, caretBefore, caretAfter);
-				parkCursor(caretAfter, text);
+				parkCursor(
+					blockEdit.updateBlockContent(index, text, 'authored', caretBefore, caretAfter).caret
+				);
 			}
 		});
 	}
@@ -809,8 +789,7 @@
 			const inserted = '<br>';
 			const newText = text.slice(0, offset) + inserted + text.slice(offset);
 			const caret = offset + inserted.length;
-			void blockEdit.updateBlockContent(index, newText, offset, caret);
-			parkCursor(caret, newText);
+			parkCursor(blockEdit.updateBlockContent(index, newText, 'authored', offset, caret).caret);
 			return;
 		}
 	}
@@ -960,8 +939,9 @@
 	function deleteCellRange(start: number, end: number): void {
 		const display = trimTrailingLineEnding(node.raw);
 		const cut = cutRangeFromDisplay(node, display, { start, end }, reading);
-		void blockEdit.updateBlockContent(index, cut.display, start, cut.offset);
-		parkCursor(cut.offset, cut.display);
+		parkCursor(
+			blockEdit.updateBlockContent(index, cut.display, 'literal', start, cut.offset).caret
+		);
 	}
 
 	async function applyCellPaste(
@@ -983,7 +963,6 @@
 				activePlugins
 			}
 		);
-		// Already escaped: the cell's paste surface reports its caret in escaped space.
 		if (result.inlineCaretOffset !== undefined) parkCursor(result.inlineCaretOffset);
 	}
 

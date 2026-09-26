@@ -47,7 +47,12 @@ describe('a clipboard pasted into a table cell', () => {
 	it('flattens text wrapped in blank lines into the cell', async () => {
 		const { doc, updateBlockContent } = await pasteIntoCell('  \nhello\nworld\n  ');
 
-		expect(updateBlockContent).toHaveBeenCalledWith(0, 'hello world1', expect.any(Number));
+		expect(updateBlockContent).toHaveBeenCalledWith(
+			0,
+			'hello world1',
+			'literal',
+			expect.any(Number)
+		);
 		expect(doc.children.map((c) => c.kind)).toEqual(['table']);
 	});
 

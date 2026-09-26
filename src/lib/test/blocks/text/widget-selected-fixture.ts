@@ -1,4 +1,5 @@
 import { parse } from '$lib/core/parser';
+import { recordingWrite, type RecordedWrite } from '$lib/test/harness/editor-actions';
 import {
 	createWidgetInteraction,
 	type WidgetInteractionDeps
@@ -9,12 +10,8 @@ import { fixtureReading } from '../../harness/fixture-grammar';
 import { defaultGrammarView } from '$lib/schema/block-openers';
 import type { Reading } from '$lib/schema/reading';
 
-export interface Commit {
-	index: number;
-	raw: string;
-	before: number;
-	after: number;
-}
+/** A recorded write less its mode. */
+export type Commit = Omit<RecordedWrite, 'mode'>;
 
 /** Wire `createWidgetInteraction` over a real parse with the widget at `sourceStart` already
  *  selected. Dependencies this path must not reach are proxy traps, so widening it fails loudly. */
@@ -48,9 +45,9 @@ export function harness(
 		cursor: new Proxy({}, { get: trap }),
 		widgetSelection,
 		blockEdit: {
-			updateBlockContent: (index: number, raw: string, before: number, after: number) => {
-				commits.push({ index, raw, before, after });
-			}
+			updateBlockContent: recordingWrite(({ index, raw, before, after }) =>
+				commits.push({ index, raw, before, after })
+			)
 		},
 		focusActions: new Proxy({}, { get: trap }),
 		setSnapTarget: trap,

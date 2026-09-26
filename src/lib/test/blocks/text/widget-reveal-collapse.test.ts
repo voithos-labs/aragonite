@@ -5,6 +5,7 @@
 // the commit and undo rules. What matters is where the selection is, not whether the block has
 // focus: a caret leaving the shown source while staying in the block hides it, and a click on a
 // second widget hides the first and shows the second as one sequence.
+import { recordingWrite } from '$lib/test/harness/editor-actions';
 import { describe, it, expect } from 'vitest';
 import { createWidgetInteraction } from '$lib/components/blocks/text/widget-interaction';
 import { MATH_INLINE } from '$lib/plugins/latex/latex-kind';
@@ -46,9 +47,9 @@ function mountTwoMathBlock() {
 			{
 				cursor: new Proxy({}, { get: trap }),
 				blockEdit: {
-					updateBlockContent: (...args: unknown[]) => {
-						commits.push(args);
-					}
+					updateBlockContent: recordingWrite(({ index, raw, before, after }) =>
+						commits.push([index, raw, before, after])
+					)
 				},
 				focusActions: new Proxy({}, { get: trap }),
 				setPendingCursor: (offset: number | null) => {

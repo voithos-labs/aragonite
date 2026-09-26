@@ -47,8 +47,8 @@ cannot destroy it.
 
 - Only the info-string span of the opening fence line is rewritten. Indent, marker run,
   line ending, body and closer are byte-identical through the write.
-- The write goes through the one call every display commit in the block uses (`commitDisplay`,
-  G4.24), so the fence write rule runs over it like every other gesture, and it lands as one
+- The write goes through the content write every gesture uses, so the fence write rule runs over
+  it like every other gesture, and it lands as one
   undo entry, kept apart on both sides, so neither a burst of typing before it nor one after it
   joins the entry.
 - A typed spelling the registry resolves is a name, not a query: it commits as typed, so `rs`

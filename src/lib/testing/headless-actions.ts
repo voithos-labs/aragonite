@@ -10,6 +10,7 @@ import type { CstNode, Document } from '../core/nodes';
 import { parse } from '../core/parser';
 import type { CaretMemory } from '../cursor/caret-memory';
 import type { EditorActionsDeps } from '../editor-actions/deps';
+import { withStoredCaret } from '../editor-actions/stored-caret';
 import { kitReading } from './kit-reading';
 import type { Reading } from '../schema/reading';
 import { createEditorEvents, type EditorEvents } from '../editor-events';
@@ -52,7 +53,8 @@ export function stubBlockEdit(): BlockEditActions {
 		mergeWithPrevious: () => {},
 		mergeWithNext: () => {},
 		deleteBlock: () => {},
-		updateBlockContent: () => {},
+		updateBlockContent: (_index, _text, _mode, preEditOffset, postEditFocusOffset) =>
+			withStoredCaret(Promise.resolve(), postEditFocusOffset ?? preEditOffset ?? 0),
 		updateBlockMetadata: () => {},
 		replaceBlock: () => {}
 	};

@@ -9,6 +9,7 @@ import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 import type { PresentationMode } from '$lib/presentation-mode';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { fixtureReading } from '$lib/test/harness/fixture-grammar';
+import { withStoredCaret } from '$lib/editor-actions/stored-caret';
 
 // Miss-analysis: which menu a right-click opens (a block's actions, the clipboard rows with or
 // without the insert flyout, or nothing) was pinned only through Playwright, one target per spec.
@@ -47,7 +48,7 @@ function harness(opts: { mode?: PresentationMode } = {}) {
 	let menu: BlockMenuModel | null = null;
 	const blockEdit = {
 		deleteBlock: vi.fn(async () => {}),
-		updateBlockContent: vi.fn(async () => {})
+		updateBlockContent: vi.fn(() => withStoredCaret(Promise.resolve(), 0))
 	};
 	const placeCaretAtPoint = vi.fn(() => true);
 	const insertMarkdown = vi.fn(async () => true);

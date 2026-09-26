@@ -1,13 +1,15 @@
 // @vitest-environment jsdom
 //
-// A remembered caret and the text it counts into travel together. The write path a kind wraps
-// around its commits maps the commit caret through that kind's `rawWrite` (a table cell
-// escapes every free `|`); `setPendingCursor` skips that path, so its offset can only be mapped
-// if the writer hands over the text it counts into. The two branches that compose new text need
-// it; the atomic-delete branch is the other half, leaving the caret ahead of every changed byte.
+// Every edge-dispatch branch that writes remembers the caret its write hands back, counted in the
+// stored bytes, never the one it computed in the text it wrote: a kind's rule (a table cell
+// escaping a free `|`) moves the caret, and only the write knows by how much.
+// Miss-analysis: each branch parked its own computed caret and carried the written text along for
+// a mapping two branches forgot, and no test gave the write a caret of its own to hand back.
 import { describe, expect, it } from 'vitest';
 import { asRawOffset } from '$lib/cursor/coordinate-spaces';
+import type { BlockEditActions } from '$lib/action-contracts';
 import type { CstNode } from '$lib/core/nodes';
+import { withStoredCaret } from '$lib/editor-actions/stored-caret';
 import { mountWidgetBlock } from './math-widget-fixture';
 import {
 	caretAfter,
@@ -17,17 +19,18 @@ import {
 	mountIslandBlock
 } from './edge-policy-fixture';
 
-interface Park {
-	offset: number | null;
-	source: string;
-	writtenText?: string;
-}
+/** How far the stand-in write moves every caret, as a rule inserting bytes ahead of it would. */
+const SHIFT = 100;
 
 function dispatchOver(node: CstNode, el: HTMLElement, hasIslands: boolean) {
-	const parks: Park[] = [];
+	const parks: { offset: number | null; source: string }[] = [];
 	const { dispatch } = makeEdgeDispatch(node, el, {
 		hasIslands: () => hasIslands,
-		setPendingCursor: (offset, source, writtenText) => parks.push({ offset, source, writtenText })
+		blockEdit: {
+			updateBlockContent: (_index, _text, _mode, before = 0, after = before) =>
+				withStoredCaret(Promise.resolve(), after + SHIFT)
+		} as Pick<BlockEditActions, 'updateBlockContent'> as BlockEditActions,
+		setPendingCursor: (offset, source) => parks.push({ offset, source })
 	});
 	return { dispatch, parks };
 }
@@ -46,41 +49,35 @@ function mountIsland(source: string, at: number) {
 
 installEdgeDispatchCleanup();
 
-describe('a branch that composes new text reports what its caret addresses', () => {
-	it('typing beside a CST widget puts the caret against the raw it just wrote', () => {
+describe('an edge-dispatch write parks the caret the write stored', () => {
+	it('typing beside a CST widget', () => {
 		const b = mountWidget('hello ![a](u) world', 'image');
 		caretAfter(b.island);
 
 		expect(b.dispatch.handleKeydown(key('z'), asRawOffset(b.widget.end))).toBe(true);
-		expect(b.parks).toEqual([
-			{ offset: b.widget.end + 1, source: 'widget', writtenText: 'hello ![a](u)z world' }
-		]);
+		expect(b.parks).toEqual([{ offset: b.widget.end + 1 + SHIFT, source: 'widget' }]);
 	});
 
-	it('typing beside a decoration widget puts the caret against the display it just wrote', () => {
+	it('typing beside a decoration widget', () => {
 		const b = mountIsland('hello\n', 5);
 		caretAfter(b.island);
 
 		expect(b.dispatch.handleKeydown(key('z'), asRawOffset(5))).toBe(true);
-		expect(b.parks).toEqual([{ offset: 6, source: 'island', writtenText: 'helloz' }]);
+		expect(b.parks).toEqual([{ offset: 6 + SHIFT, source: 'island' }]);
 	});
 
-	// The decoration edit path reports its text on both branches. Its delete maps to itself, but
-	// the rule belongs to the branch as a whole: splitting it per case is how a later caller misses.
-	it('deleting through a widget reports its text too, mapping to identity', () => {
+	it('deleting through a decoration widget', () => {
 		const b = mountIsland('hello\n', 5);
 		caretAfter(b.island);
 
 		expect(b.dispatch.handleKeydown(key('Backspace'), asRawOffset(5))).toBe(true);
-		expect(b.parks).toEqual([{ offset: 4, source: 'island', writtenText: 'hell' }]);
+		expect(b.parks).toEqual([{ offset: 4 + SHIFT, source: 'island' }]);
 	});
-});
 
-describe('a branch that slices raw reports no text: it puts the caret ahead of every changed byte', () => {
-	it('an atomic widget delete puts the caret at the widget start', () => {
+	it('an atomic widget delete', () => {
 		const b = mountWidget('a&copy;b', 'entityReference');
 
 		expect(b.dispatch.handleKeydown(key('Backspace'), asRawOffset(b.widget.end))).toBe(true);
-		expect(b.parks).toEqual([{ offset: b.widget.start, source: 'widget', writtenText: undefined }]);
+		expect(b.parks).toEqual([{ offset: b.widget.start + SHIFT, source: 'widget' }]);
 	});
 });

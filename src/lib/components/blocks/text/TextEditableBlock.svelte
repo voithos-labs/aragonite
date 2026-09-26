@@ -18,7 +18,7 @@
 	} from '../../../editor-keys';
 	import type { IndexedDecoration } from '../../../decorations/buckets';
 	import type { ReplaceDecoration, WidgetDecoration } from '../../../decorations/types';
-	import { getContentRange, isProseKind, undrawnSuffix } from '../../../core/inline';
+	import { getContentRange, isProseKind } from '../../../core/inline';
 	import { devWarn } from '../../../dev-warn';
 	import { resolvedInlineContent } from '../../../core/inline/inline-cache';
 	import { isInlineWidget } from '../../../core/inline/inline-widgets';
@@ -243,15 +243,17 @@
 		readText: () => readRawText(),
 		relocateComposedText: (after, composedAt) => compositionSeat.relocate(after, composedAt),
 		commitInput: (text, preEdit, saved) => {
-			const committed = text + blockEnding();
-			// An enclosing container may rewrite these bytes on the way in, so the caret restore
-			// reads the text actually stored; asked before the write, as the mapping requires.
-			const caret = blockEdit.mapCommittedOffset?.(index, committed, saved);
 			// Typed text is the one write whose kind change the block names (`kind-cue.svelte.ts`).
 			const before = shownKind(node);
-			const write = blockEdit.updateBlockContent(index, committed, preEdit, saved);
+			const write = blockEdit.updateBlockContent(
+				index,
+				text + blockEnding(),
+				'authored',
+				preEdit,
+				saved
+			);
 			void kindCue.afterTypedWrite(write, myPath, before);
-			return caret;
+			return write.caret;
 		},
 		inputPrelude: () => {
 			markKeystrokeStart();
@@ -459,11 +461,10 @@
 	}
 
 	/** The length the caret counts against: the DOM's while a source is shown, since the CST has
-	 *  not seen that edit, and never the undrawn suffix. Counting bytes no caret can reach traps
-	 *  the caret at the block's end, because no key reads as "at the boundary". */
+	 *  not seen that edit. */
 	function caretReach(): number {
-		if (widgetInteraction.isRevealing()) return readDomText().length;
-		return getDisplayText().length - undrawnSuffix(node).length;
+		if (widgetInteraction.isRevealing()) return readRawText().length;
+		return getDisplayText().length;
 	}
 
 	/** The offsets a caret can reach here, read from the same place the arrow exits use: a mode
@@ -498,9 +499,20 @@
 				return always(() => blockEdit.descendToBody(index));
 			case 'block.hardBreak':
 				return always(() => {
-					const { newRaw, caretOffset } = insertHardBreak(node.raw, offset, documentEnding());
-					blockEdit.updateBlockContent(index, newRaw, offset);
-					setPendingCursorOffset(caretOffset, 'hard-break');
+					const { newRaw, caretOffset } = insertHardBreak(
+						node.raw,
+						offset,
+						documentEnding(),
+						getContentRange(node).end
+					);
+					const write = blockEdit.updateBlockContent(
+						index,
+						newRaw,
+						'authored',
+						offset,
+						caretOffset
+					);
+					setPendingCursorOffset(write.caret, 'hard-break');
 				});
 			case 'block.insertTab':
 				return {
@@ -511,9 +523,15 @@
 						const { newRaw, caretOffset } = insertLiteralTab(node.raw, offset);
 						// The key types its own character, so its kind change is named as typing's is.
 						const before = shownKind(node);
-						const write = blockEdit.updateBlockContent(index, newRaw, offset);
+						const write = blockEdit.updateBlockContent(
+							index,
+							newRaw,
+							'authored',
+							offset,
+							caretOffset
+						);
 						void kindCue.afterTypedWrite(write, myPath, before);
-						setPendingCursorOffset(caretOffset, 'insert-tab');
+						setPendingCursorOffset(write.caret, 'insert-tab');
 					}
 				};
 			case 'block.mergePrev':
@@ -524,12 +542,14 @@
 					perform: () => {
 						const demoted = demoteBeforeMerge(offset);
 						if (!demoted) return void blockEdit.mergeWithPrevious(index);
-						// A command is not typing: the demote is its own undo step, so one Ctrl+Z puts
-						// the heading back whole rather than unwinding the burst around it.
-						controller.isolateUndoEntry(() =>
-							blockEdit.updateBlockContent(index, demoted.newRaw, offset, demoted.caretOffset)
+						const write = blockEdit.updateBlockContent(
+							index,
+							demoted.newRaw,
+							'literal',
+							offset,
+							demoted.caretOffset
 						);
-						setPendingCursorOffset(demoted.caretOffset, 'demote');
+						setPendingCursorOffset(write.caret, 'demote');
 					}
 				};
 			case 'block.mergeNext':
@@ -562,8 +582,14 @@
 							void blockEdit.replaceBlock(index, heading, focus, { snapshotOffset: offset });
 							return;
 						}
-						blockEdit.updateBlockContent(index, cycled.newRaw, offset, cycled.caretOffset);
-						setPendingCursorOffset(cycled.caretOffset, 'heading-cycle');
+						const write = blockEdit.updateBlockContent(
+							index,
+							cycled.newRaw,
+							'literal',
+							offset,
+							cycled.caretOffset
+						);
+						setPendingCursorOffset(write.caret, 'heading-cycle');
 					}
 				};
 			case 'block.moveUp':
@@ -628,7 +654,9 @@
 				? { code: 'command-during-reveal', message: `${id} mutated the block with a reveal open` }
 				: null
 		);
-		perform();
+		// A command is not typing: its bytes are their own undo step, so one Ctrl+Z undoes the
+		// command alone rather than the burst of typing around it.
+		controller.isolateUndoEntry(perform);
 	}
 
 	void ({
@@ -803,13 +831,7 @@
 
 	const onInput = editableSurface.onInput;
 
-	// The DOM stops at the content end, so the undrawn suffix (a setext underline) is added back;
-	// the content write drops it again when the title's last line is left blank.
 	function readRawText(): string {
-		return readDomText() + undrawnSuffix(node);
-	}
-
-	function readDomText(): string {
 		return el ? rawTextOfContent(el, node.raw) : '';
 	}
 
@@ -887,8 +909,11 @@
 			ambientPrefixText,
 			widgetInteraction.isRevealing,
 			(edit) => {
-				void blockEdit.updateBlockContent(index, edit.raw, edit.range.start, edit.caret);
-				setPendingCursorOffset(edit.caret, 'live-selection-edit');
+				setPendingCursorOffset(
+					blockEdit.updateBlockContent(index, edit.raw, 'authored', edit.range.start, edit.caret)
+						.caret,
+					'live-selection-edit'
+				);
 			}
 		);
 	}
@@ -912,8 +937,10 @@
 			ownPairs,
 			write: (text, caretBefore, caretAfter) => {
 				const raw = text + blockEnding();
-				void blockEdit.updateBlockContent(index, raw, caretBefore, caretAfter);
-				setPendingCursorOffset(caretAfter, 'delimiter-autopair');
+				setPendingCursorOffset(
+					blockEdit.updateBlockContent(index, raw, 'authored', caretBefore, caretAfter).caret,
+					'delimiter-autopair'
+				);
 			}
 		});
 	}
@@ -978,7 +1005,7 @@
 	function demoteEmptyHeadingOnBlur(): void {
 		if (readOnly || node.kind !== 'heading' || editableSurface.isDetached()) return;
 		const demoted = demoteEmptyAtxHeading(node.raw, getContentRange(node));
-		if (demoted) void blockEdit.updateBlockContent(index, demoted.newRaw, 0);
+		if (demoted) void blockEdit.updateBlockContent(index, demoted.newRaw, 'literal', 0);
 	}
 
 	function onClick(e: MouseEvent): void {
@@ -1034,13 +1061,15 @@
 		if (!toggled) return;
 		const { newDisplay, newSelStart, newSelEnd } = toggled;
 
-		// A command is not typing: the toggle's bytes are their own undo step in every mode.
-		controller.isolateUndoEntry(() =>
-			blockEdit.updateBlockContent(index, newDisplay + blockEnding(), newSelStart)
+		const write = blockEdit.updateBlockContent(
+			index,
+			newDisplay + blockEnding(),
+			'literal',
+			newSelStart
 		);
 
 		tick().then(() => {
-			setSelection(newSelStart, newSelEnd);
+			setSelection(write.caret, write.storedOffset(newSelEnd));
 		});
 	}
 </script>

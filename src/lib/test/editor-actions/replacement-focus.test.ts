@@ -9,6 +9,12 @@ import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { registerDetailsKind, DETAILS } from '$lib/plugins/details/details-kind';
 import { declaredPluginKind } from '$lib/schema/plugin-kind';
 import { defaultGrammarView } from '$lib/schema/block-openers';
+import { legalizeWrite } from '$lib/tree-operations/content-write';
+import type { NodeView } from '$lib/core/node-views';
+
+/** `text` made legal as the only child of `owner`, the way the write hands it to the trial. */
+const legalIn = (node: NodeView, text: string, owner?: NodeView) =>
+	legalizeWrite({ children: [node], owner, lineEnding: '\n' }, 0, text, 'literal');
 
 function focusBlockAt(path: number[]): void {
 	focusHostWithRawPath(JSON.stringify(path));
@@ -65,7 +71,7 @@ describe('focusMovedOutsideReplacement', () => {
 // The trial reparse picks between the structural commit and the routine typing path and
 // nothing re-decides it, so it must answer about the bytes the write actually stores, which
 // a container that rewrites its body's bytes makes differ.
-describe('previewContentReparse reads the owning container', () => {
+describe('previewContentReparse reads the write the owning container made legal', () => {
 	beforeEach(() => {
 		__resetSchemaRegistriesForTests();
 		registerDetailsKind();
@@ -74,23 +80,18 @@ describe('previewContentReparse reads the owning container', () => {
 	const bodyParagraph = () => parse('body\n').children[0];
 
 	it('reports a kind change for a bare terminator with no owner to escape it', () => {
-		expect(
-			previewContentReparse(
-				bodyParagraph(),
-				'</details>\n',
-				defaultGrammarView,
-				undefined,
-				'',
-				'\n'
-			).op
-		).not.toBe('noop');
+		const node = bodyParagraph();
+		const write = legalIn(node, '</details>\n');
+		expect(previewContentReparse(node, write, defaultGrammarView, undefined, '', '\n').op).not.toBe(
+			'noop'
+		);
 	});
 
 	it('reports a same-kind edit once the details owner escapes the same text', () => {
+		const node = bodyParagraph();
 		const owner = { kind: declaredPluginKind(DETAILS), leadingTrivia: '', raw: '' };
-		expect(
-			previewContentReparse(bodyParagraph(), '</details>\n', defaultGrammarView, owner, '', '\n').op
-		).toBe('noop');
+		const write = legalIn(node, '</details>\n', owner);
+		expect(previewContentReparse(node, write, defaultGrammarView, owner, '', '\n').op).toBe('noop');
 	});
 });
 
@@ -101,16 +102,17 @@ describe('previewContentReparse reads a task paragraph as the commit does', () =
 
 	it('reports a same-kind edit for `# ` typed after the task marker', () => {
 		const item = todo();
-		const text = '# beta\n';
+		const write = legalIn(item.children![0], '# beta\n', item);
 		expect(
-			previewContentReparse(item.children![0], text, defaultGrammarView, item, '', '\n', item).op
+			previewContentReparse(item.children![0], write, defaultGrammarView, item, '', '\n', item).op
 		).toBe('noop');
 	});
 
 	it('reports the kind change for the same text in a plain item', () => {
 		const item = parse('- beta\n').children[0].children![0];
+		const write = legalIn(item.children![0], '# beta\n', item);
 		expect(
-			previewContentReparse(item.children![0], '# beta\n', defaultGrammarView, item, '', '\n').op
+			previewContentReparse(item.children![0], write, defaultGrammarView, item, '', '\n').op
 		).not.toBe('noop');
 	});
 });

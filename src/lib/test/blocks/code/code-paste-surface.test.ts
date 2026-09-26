@@ -27,17 +27,18 @@ describe('code-paste-surface', () => {
 		expect(result.caretOffset).toBe(4 + ' XYZ'.length);
 	});
 
-	it('onInlinePaste bumps the fence when paste contains a run ≥ fenceLength', () => {
+	// The fence grows in the write that stores the splice (code-paste.test.ts), not here.
+	it('onInlinePaste hands back the plain splice even when it lands a fence run', () => {
 		const node = fencedCode('```\nbody\n```\n');
 		const result = codePasteSurface.onInlinePaste!(
 			node,
-			0,
-			'```\ninner\n```',
+			4,
+			'```\n',
 			undefined,
 			fixtureReading(),
 			'\n'
 		);
-		expect(result.newRaw).toMatch(/^````/);
+		expect(result.newRaw).toBe('```\n```\nbody\n```\n');
 	});
 
 	it('onInlinePaste with preDelete replaces the specified range', () => {

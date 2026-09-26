@@ -38,7 +38,7 @@ describe('a join absorb under an outstanding snapshot', () => {
 		const h = harness();
 		h.deps.undoManager.push(h.controller.captureCurrentState());
 
-		await h.actions.updateBlockContent(1, 'x# h\n', 0, 1);
+		await h.actions.updateBlockContent(1, 'x# h\n', 'authored', 0, 1);
 
 		expect(h.doc.children).toHaveLength(1);
 		expect(h.snapshotBytes()).toBe(TIGHT_JOIN);

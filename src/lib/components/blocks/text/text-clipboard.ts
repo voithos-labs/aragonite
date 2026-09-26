@@ -144,7 +144,7 @@ export function createTextClipboard(deps: TextClipboardDeps): TextClipboard {
 			if (widget === null) return false;
 			const { inline, preSelectOffset } = widget;
 			e.clipboardData?.setData('text/plain', deps.node.raw.slice(inline.start, inline.end));
-			void replaceSelectedWidget(deps, inline, preSelectOffset, '');
+			void replaceSelectedWidget(deps, inline, preSelectOffset, '', 'literal');
 			return true;
 		},
 
@@ -165,14 +165,27 @@ export function createTextClipboard(deps: TextClipboardDeps): TextClipboard {
 				deps.getAmbientPrefix(),
 				documentLineEnding(deps.getDoc())
 			);
-			void deps.blockEdit.updateBlockContent(deps.index, edit.raw, selOffsets.start);
-			deps.setPendingCursor(edit.caret);
+			deps.setPendingCursor(
+				deps.blockEdit.updateBlockContent(
+					deps.index,
+					edit.raw,
+					'literal',
+					selOffsets.start,
+					edit.caret
+				).caret
+			);
 		},
 
 		pasteTail: async (pastedText, foldedCaret) => {
 			const widget = selectedWidgetOnThisBlock();
 			if (widget !== null) {
-				await replaceSelectedWidget(deps, widget.inline, widget.preSelectOffset, pastedText);
+				await replaceSelectedWidget(
+					deps,
+					widget.inline,
+					widget.preSelectOffset,
+					pastedText,
+					'literal'
+				);
 				return;
 			}
 

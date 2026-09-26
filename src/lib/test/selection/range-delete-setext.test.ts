@@ -4,7 +4,7 @@
 // Miss-analysis: the cross-block delete was only driven from blocks whose structure sits in front
 // of their text, and only into blocks with no structure past their text, so the end block's
 // underline was never asked about.
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import { rangeDelete } from '../../selection/range-delete';
@@ -13,6 +13,7 @@ import type { PresentationMode } from '../../presentation-mode';
 import type { SelectionPoint } from '../../selection/primitives';
 import { describeConvergence } from '../harness/parse-converged';
 import { fixtureReading } from '../harness/fixture-grammar';
+import { registerChromePluginsForTests } from './chrome-plugins';
 
 function run(
 	source: string,
@@ -114,3 +115,33 @@ describe.each(['source', 'live'] as const)(
 		);
 	}
 );
+
+// GH #560. Miss-analysis: the table and titled-container branches keep their start block's head
+// through their own truncation, and every case above ended in a plain block.
+describe('a range delete from a setext title into a table or a container title', () => {
+	beforeEach(registerChromePluginsForTests);
+
+	it.each([
+		[
+			'a table',
+			'Title\n=====\n\n| a | b |\n| - | - |\n| 1 | 2 |\n',
+			{ path: [1], offset: 3, cellCoordinate: true as const }
+		],
+		[
+			'a callout title',
+			'Title\n=====\n\n:::callout Note\nBody\n:::\n',
+			{ path: [1, 0], offset: 2 }
+		],
+		[
+			'a details summary',
+			'Title\n=====\n\n<details>\n<summary>Sum</summary>\n\nbody\n\n</details>\n',
+			{ path: [1, 0], offset: 1 }
+		]
+	])('into %s keeps the underline under the kept title', (_label, source, end) => {
+		const { doc, caret } = run(source, { path: [0], offset: 2 }, end);
+
+		expect(doc.children[0].kind).toBe('setextHeading');
+		expect(doc.children[0].raw).toBe('Ti\n=====\n');
+		expect(caret).toEqual({ path: [0], offset: 2 });
+	});
+});

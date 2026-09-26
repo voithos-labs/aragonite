@@ -27,7 +27,7 @@ import {
 	trimTrailingLineEnding,
 	type LineEnding
 } from '../core/lines';
-import { undrawnSuffix } from '../core/inline';
+import { structuralSuffix } from '../core/inline';
 import { devWarn } from '../dev-warn';
 import { assignChildIdsDeep } from '../block-id';
 import { findMergeTarget } from '../schema/merge-rules';
@@ -353,23 +353,29 @@ export function cutRangeFromDisplay(
 	return { display: cleaned.raw, offset: cleaned.seam };
 }
 
+/** A cut into `node` moved out of its structural suffix: a join or a truncation that keeps the
+ *  block's head keeps the suffix whole after it. */
+export function cutBeforeSuffix(node: NodeView, cut: number): number {
+	const suffix = structuralSuffix(node);
+	return suffix ? Math.min(cut, displayLength(node.raw) - suffix.length) : cut;
+}
+
 /**
  * The bytes of a join: `survivor` cut at `cut`, then `absorbed`'s text from `from`, then the
- * survivor's undrawn structure (a setext underline), which stays under the joined text. The
- * absorbed block's own undrawn structure goes with that block. `writeTail` is the absorbed kind's
- * write rule; `start` and `end` are the offsets the join cut each block at.
+ * survivor's structural suffix (a setext underline), which stays under the joined text. The
+ * absorbed block's own suffix goes with that block. `writeTail` is the absorbed kind's write
+ * rule; `start` and `end` are the offsets the join cut each block at.
  */
-export function joinAboveUndrawn(
+export function joinKeepingSuffix(
 	survivor: NodeView,
 	cut: number,
 	absorbed: NodeView,
 	from: number,
 	writeTail: (tail: string) => string = (tail) => tail
 ): { raw: string; start: number; end: number } {
-	const kept = undrawnSuffix(survivor);
-	const dropped = undrawnSuffix(absorbed);
-	// No caret stands inside undrawn structure, so a cut past it is a cut at the content end.
-	const start = kept ? Math.min(cut, displayLength(survivor.raw) - kept.length) : cut;
+	const kept = structuralSuffix(survivor);
+	const dropped = structuralSuffix(absorbed);
+	const start = cutBeforeSuffix(survivor, cut);
 	const textEnd = displayLength(absorbed.raw) - dropped.length;
 	const end = dropped ? Math.min(from, textEnd) : from;
 	const tail = writeTail(
@@ -390,7 +396,7 @@ export function joinAboveUndrawn(
 
 /** The bytes two adjacent blocks make when `prev` absorbs `curr`, join cleanup included. */
 function joinRaw(prev: NodeView, curr: NodeView, reading: Reading): CleanedJoin {
-	const { raw, start } = joinAboveUndrawn(prev, displayLength(prev.raw), curr, 0);
+	const { raw, start } = joinKeepingSuffix(prev, displayLength(prev.raw), curr, 0);
 	return cleanJoinedRaw({
 		mergedRaw: raw,
 		seam: start,

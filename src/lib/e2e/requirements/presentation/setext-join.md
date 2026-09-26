@@ -1,9 +1,10 @@
 # Feature: joining into a setext heading
 
-A setext heading's underline is part of its structure and no presentation mode draws it, so the
-title's end is the block's end for the caret. A join into the heading puts the joined text on the
-title line and leaves the underline under it, the way Delete joins two paragraphs, and the heading
-stays a heading. Driven on `/test/editor` with `?presentationMode=` and real keys; the source,
+A setext heading's underline is part of its structure, drawn as a marker after the title. Where
+markers hide (live) the title's end is the block's end for the caret; where the underline paints
+(source, and preview-inline on the focused block) the block ends past it. A join into the heading
+puts the joined text on the title line and leaves the underline under it, the way Delete joins two
+paragraphs, and the heading stays a heading. Driven on `/test/editor` with `?presentationMode=` and real keys; the source,
 the block kind and the caret are what each scenario checks.
 
 Miss-analysis: the one pin on this join encoded Delete's refusal in live mode as the contract, so
@@ -15,7 +16,7 @@ never asked about.
 
 ## Happy paths
 
-- Delete at the title end, in source, live and preview-inline: the next block's text joins the title line and the underline stays under it (`Setext\n======\n\nnext\n` becomes `Setextnext\n======\n`); the caret sits between the two texts; the block is still a setext heading
+- Delete at the block's end, in source, live and preview-inline: the next block's text joins the title line and the underline stays under it (`Setext\n======\n\nnext\n` becomes `Setextnext\n======\n`); the caret sits between the two texts; the block is still a setext heading
 - one undo puts both blocks back
 - Backspace at the start of the block below makes the same join, in the same three modes
 
@@ -23,7 +24,7 @@ never asked about.
 
 - a range deleted from inside the title into the block below keeps the underline under the joined text, and the heading stays a heading
 - a range that ends inside a setext title, in source and live mode, takes that title's underline with it: from another setext title the first underline alone stays (`Setext\n======\n\nOther\n---\n` becomes `Sether\n======\n`), from a paragraph the result is a paragraph, and inside a quote the same holds; one undo puts both blocks back
-- ArrowRight at the title end moves the caret to the start of the next block in every mode: the underline is not a place the caret can reach
+- ArrowRight at the block's end moves the caret to the start of the next block in every mode
 - before a block that is not prose (a list, a table, a fenced code block), Delete at the title end does what it does at a paragraph's end there: the caret moves into that block and no byte changes
 
 ## User interactions

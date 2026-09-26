@@ -60,6 +60,6 @@ export async function typeSlowly(
 	let text = prefix;
 	for (const char of suffix) {
 		text += char;
-		await bundle.blockEdit.updateBlockContent(innerIndex, `${text}\n`, text.length - 1);
+		await bundle.blockEdit.updateBlockContent(innerIndex, `${text}\n`, 'authored', text.length - 1);
 	}
 }

@@ -8,6 +8,7 @@ import { unmount } from 'svelte';
 import { resetPluginPlatformForTests } from '$lib/testing';
 import { installLayoutStubs } from '$lib/test/harness/mount-editor.svelte';
 import { settleEditor, pressKey } from '$lib/test/harness/settle';
+import { withStoredCaret } from '$lib/editor-actions/stored-caret';
 import { leafDocument, mountRevealLeaf, registerRevealLeafKind } from './fixtures/reveal-leaf';
 
 const KIND = 'enter-leaf';
@@ -81,7 +82,9 @@ describe('Enter in an editable leaf', () => {
 		const writeGate = new Promise<void>((resolve) => {
 			releaseWrite = resolve;
 		});
-		vi.mocked(mounted.blockEdit.updateBlockContent).mockImplementation(() => writeGate);
+		vi.mocked(mounted.blockEdit.updateBlockContent).mockImplementation(() =>
+			withStoredCaret(writeGate, 0)
+		);
 
 		const el = await mounted.revealAtEnd();
 		// A draft the reveal holds and the CST has not seen; the caret goes back to its end.
@@ -90,7 +93,13 @@ describe('Enter in an editable leaf', () => {
 		await settleEditor();
 		await pressKey(el, { key: 'Enter' });
 
-		expect(mounted.blockEdit.updateBlockContent).toHaveBeenCalledWith(0, '@@ two\n', 6, 6);
+		expect(mounted.blockEdit.updateBlockContent).toHaveBeenCalledWith(
+			0,
+			'@@ two\n',
+			'authored',
+			6,
+			6
+		);
 		expect(mounted.blockEdit.splitBlock).not.toHaveBeenCalled();
 
 		releaseWrite();

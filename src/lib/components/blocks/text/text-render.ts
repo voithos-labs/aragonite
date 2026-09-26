@@ -14,12 +14,14 @@ import {
 	computeInlineContent,
 	contentLengthOf,
 	getContentRange,
-	isProseKind
+	isProseKind,
+	structuralSuffix
 } from '../../../core/inline';
 import type { Reading } from '../../../schema/reading';
 import { renderInlineNodes, type ImageLoadPolicy } from '../../../core/inline-render';
 import type { RawOffset } from '../../../cursor/coordinate-spaces';
 import {
+	BLOCK_SUFFIX_ATTR,
 	CONTENT_EMPTY_ATTR,
 	createCaretAnchor,
 	holdsOnlyMarkerChrome,
@@ -131,12 +133,18 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 		return widgetPool.acquire(node.kind, node, raw.slice(node.start, node.end));
 	}
 
-	// The dimmed marker part of the raw: whatever the kind's descriptor leaves out of
-	// the content range. Kinds that declare none give ''.
+	// The dimmed marker part of the raw ahead of the content range. Kinds that declare none give ''.
 	function getBlockMarkerPrefix(): string {
 		const node = deps.node;
 		const range = getContentRange(node);
 		return node.raw.slice(0, range.start);
+	}
+
+	function markerSpan(text: string): HTMLSpanElement {
+		const span = document.createElement('span');
+		span.className = 'md-marker';
+		span.textContent = text;
+		return span;
 	}
 
 	// The render path computes inline content on the pure path, never the caching
@@ -148,12 +156,7 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 			frag.appendChild(buildAmbientSpan(deps.ambientPrefix));
 		}
 		const blockOwnPrefix = getBlockMarkerPrefix();
-		if (blockOwnPrefix) {
-			const span = document.createElement('span');
-			span.className = 'md-marker';
-			span.textContent = blockOwnPrefix;
-			frag.appendChild(span);
-		}
+		if (blockOwnPrefix) frag.appendChild(markerSpan(blockOwnPrefix));
 		const descriptor = getBlockKindDescriptor(node.kind);
 		frag.appendChild(
 			renderInlineNodes(content, node.raw, {
@@ -168,19 +171,24 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 				// Data attributes only, for the code that shows construct markers; set in this
 				// mode alone so the other modes' DOM stays byte-identical.
 				tagConstructMarkers: deps.reading.mode() === 'preview-inline',
-				pendingBreakSeat: hidesMarkers(deps.reading.mode())
+				pendingBreakAt: hidesMarkers(deps.reading.mode()) ? contentLengthOf(node) : undefined
 			})
 		);
+		// The bytes past the content (a setext underline) are the block's own marker too, so the
+		// page holds the whole display and hides them where it hides the prefix.
+		const suffix = structuralSuffix(node);
+		if (suffix) {
+			const span = markerSpan(suffix);
+			span.setAttribute(BLOCK_SUFFIX_ATTR, '');
+			frag.appendChild(span);
+		}
 		return frag;
 	}
 
 	// No inline pass runs here, so the remainder is a verbatim text node.
 	function buildMarkerPrefixDOM(marker: string, rest: string): DocumentFragment {
 		const frag = document.createDocumentFragment();
-		const span = document.createElement('span');
-		span.className = 'md-marker';
-		span.textContent = marker;
-		frag.appendChild(span);
+		frag.appendChild(markerSpan(marker));
 		frag.appendChild(document.createTextNode(rest));
 		return frag;
 	}

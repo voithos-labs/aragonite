@@ -10,7 +10,6 @@ import type { DocumentView, NodeView } from '../core/node-views';
 import { readBlocks } from '../core/parser';
 import type { GrammarView } from '../schema/block-openers';
 import { documentLineEnding, trailingLineEnding, type LineEnding } from '../core/lines';
-import { dropSuffixUnderBlankLine } from '../core/inline';
 import { getBlockKindDescriptor, tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
 import { reservedChromeKindOf } from '../schema/reserved-chrome';
 
@@ -73,13 +72,11 @@ export const forBody = (parent: BodyParentArg, raw: string): string =>
 /**
  * `raw` made legal as `node`'s own bytes, for a write that replaces the node with a reparse: the
  * reparse re-derives metadata, so structure the rule restores from the old metadata is applied
- * first. An undrawn suffix under a blank line goes before the kind's own rule runs.
+ * first.
  */
 export function normalizeOwnRaw(node: NodeView, raw: string, lineEnding: LineEnding): string {
-	const descriptor = tryGetBlockKindDescriptor(node.kind);
-	if (!descriptor) return raw;
-	const kept = dropSuffixUnderBlankLine(node, raw);
-	return descriptor.rawWrite?.normalize(kept, { node, mode: 'literal', lineEnding }) ?? kept;
+	const rule = tryGetBlockKindDescriptor(node.kind)?.rawWrite;
+	return rule ? rule.normalize(raw, { node, mode: 'literal', lineEnding }) : raw;
 }
 
 /**
@@ -92,12 +89,15 @@ export function writeOwnRaw(
 	lineEnding: LineEnding,
 	grammar: GrammarView
 ): void {
-	const descriptor = tryGetBlockKindDescriptor(node.kind);
-	const legal = normalizeOwnRaw(node, raw, lineEnding);
+	installOwnRaw(node, normalizeOwnRaw(node, raw, lineEnding), grammar);
+}
+
+/** Bytes already made legal for `node`, written in place with its parse-owned metadata. */
+export function installOwnRaw(node: CstNode, legal: string, grammar: GrammarView): void {
 	node.raw = legal;
 	// A context-dependent kind's raw does not reparse to itself, so a fragment parse would only
 	// mis-read metadata that was never parse-derived.
-	if (descriptor?.contextDependentKind) return;
+	if (tryGetBlockKindDescriptor(node.kind)?.contextDependentKind) return;
 	// In place means no reparse replaces the node, so parse-owned metadata re-derives here.
 	const reparsed = readBlocks(legal, { grammar, scope: 'fragment' }).children;
 	if (reparsed.length === 1 && reparsed[0].kind === node.kind) node.metadata = reparsed[0].metadata;

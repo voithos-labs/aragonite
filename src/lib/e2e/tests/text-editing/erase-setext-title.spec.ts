@@ -115,7 +115,7 @@ for (const mode of ['source', 'live'] as const) {
 		for (const underline of ['===', '---', '----------']) {
 			test(`under a ${underline} underline leaves an empty paragraph`, async ({ page }) => {
 				const ep = await open(page, mode, `Plan\n${underline}\n\nnext\n`);
-				await ep.clickBlock(0);
+				await ep.clickBlockAtPath([0], 1);
 				await page.keyboard.press('End');
 				await backspace(page, 4);
 
@@ -128,7 +128,7 @@ for (const mode of ['source', 'live'] as const) {
 		for (const { name, erase, source, kinds: left, caretPath, caretOffset } of ERASES) {
 			test(`${name} leaves no divider, and one undo restores the title`, async ({ page }) => {
 				const ep = await open(page, mode, 'Plan\n---\n\nnext\n');
-				await ep.clickBlock(0);
+				await ep.clickBlockAtPath([0], 1);
 				await erase(ep, page);
 
 				await expect.poll(() => kinds(ep)).toEqual(left);

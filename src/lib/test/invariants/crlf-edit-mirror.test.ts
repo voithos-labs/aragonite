@@ -93,13 +93,20 @@ const GESTURES: EditGesture[] = [
 			insertHardBreak(
 				doc.children[0].raw,
 				displayLength(doc.children[0].raw),
-				documentLineEnding(doc)
+				documentLineEnding(doc),
+				displayLength(doc.children[0].raw)
 			).newRaw
 	},
 	{
 		name: 'hard break mid display',
 		source: 'abc\n',
-		apply: (doc) => insertHardBreak(doc.children[0].raw, 1, documentLineEnding(doc)).newRaw
+		apply: (doc) =>
+			insertHardBreak(
+				doc.children[0].raw,
+				1,
+				documentLineEnding(doc),
+				displayLength(doc.children[0].raw)
+			).newRaw
 	},
 	{
 		name: 'blockquote rebuild across a blank quote line',

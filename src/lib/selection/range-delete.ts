@@ -23,7 +23,7 @@ import { settleSeparatorOnBlank } from '../tree-operations/settle';
 import { isBlankParagraph } from '../core/parser';
 import { displayLength, documentLineEnding } from '../core/lines';
 import { deleteAtPath } from '../tree-operations/path-mutate';
-import { cleanJoinedRaw, joinAboveUndrawn } from '../tree-operations/node-ops';
+import { cleanJoinedRaw, joinKeepingSuffix } from '../tree-operations/node-ops';
 import {
 	deleteSubtreesIdentityGated,
 	installTruncatedEndpoint,
@@ -127,7 +127,7 @@ export function rangeDelete(
 				start: startCut,
 				end: endOffset
 			}
-		: joinAboveUndrawn(startBlock, startCut, endBlock, endOffset, (tail) =>
+		: joinKeepingSuffix(startBlock, startCut, endBlock, endOffset, (tail) =>
 				normalizeOwnRaw(endBlock, tail, documentLineEnding(doc))
 			);
 	const startOffset = join.start;

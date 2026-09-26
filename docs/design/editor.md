@@ -106,12 +106,12 @@ splitBlock(blockIndex, offset)
 mergeWithPrevious(blockIndex)            mergeWithNext(blockIndex)
 deleteBlock(blockIndex)
 insertParagraph(boundaryIndex, text)
-updateBlockContent(blockIndex, text, preEditOffset?, postEditFocusOffset?)
+updateBlockContent(blockIndex, text, mode, preEditOffset?, postEditFocusOffset?)
 updateBlockMetadata(blockIndex, metadata, options?)
 replaceBlock(blockIndex, replacement, focus?, options?)
 ```
 
-`blockIndex` is always relative to the calling block's own list, never the document. § 8 says who provides these bundles, and § 9 says what a local index means inside a container.
+`blockIndex` is always relative to the calling block's own list, never the document. `updateBlockContent` hands back the write's promise with the landing caret on it (`caret`), counted in the bytes as stored, since the kind's write rule can move it (§ 5). § 8 says who provides these bundles, and § 9 says what a local index means inside a container.
 
 ## 4. The editing surface
 
@@ -208,7 +208,7 @@ What the fields are for, by the section that explains each:
 - `keymap`, the declarative keybindings (next subsection), and `getContentRange`, the editable slice of `raw` (a heading's text after its `## `);
 - the two point-to-internals hooks a coordinate-addressed kind declares separately: `foreignDragHitTest`, the exact drag hit test, and `caretTargetAtPoint`, the nearest caret target a caret-placing gesture asks for (§ 4);
 - `gapEdges`, which edges of the block a caret may park against from outside (§ 10);
-- `rawWrite`, the kind's write rule for its own bytes, and `bodyWrite`, a container's rule for a child's bytes. Both have the same shape: `normalize` makes written bytes legal, and `mapOffset` moves a caret along with them. Each call also says whether the user is typing the block's syntax (`authored`) or the content arrived whole (`literal`). For now every call through the descriptor is `literal`, and typing only reaches a rule in the code block, which calls its fence rule itself. That rule (`schema/fenced-code-raw.ts :: fenceRawWrite`) keeps exactly one opener and one closer through any write from outside the block, and every fenced kind declares it. Typing in a math fence doesn't go through it yet (#593);
+- `rawWrite`, the kind's write rule for its own bytes, and `bodyWrite`, a container's rule for a child's bytes. Both have the same shape: `normalize` makes written bytes legal, and `mapOffset` moves a caret along with them. Every content write runs the block's rule and then its container's (`tree-operations/content-write.ts :: legalizeWrite`), and hands the caller its caret already moved, so no block maps a caret by hand. The write also tells the rule whether the user typed the bytes in the block (`authored`) or they arrived whole (`literal`, a paste or a replace): a fence the user's still typing is left alone, while a pasted closer grows the fence. Every fenced kind declares the code block's rule (`schema/fenced-code-raw.ts :: fenceRawWrite`), and a setext heading's rule drops its underline once the title above it is left blank (`schema/setext-raw.ts`);
 - how the block sits on the page. `pageRole` says whether it reads as prose (no drag handle; right-clicking its text opens the clipboard rows) or as an object you pick up whole. The drag handle and the context menu both ask `src/lib/schema/page-role.ts :: blockPageRole`, which also counts a paragraph of nothing but images as an object. `estimateHeight` is windowing's height guess until it gets to measure the block, and `dragLabel` is what the drag ghost calls a block whose text makes a bad label. Every built-in declares `pageRole` and `estimateHeight` (G1.40); a plugin that skips them gets an object, with the container or the prose height guess;
 - for containers, the `container` group: the contract and the raw rebuild (§ 9), `reservedChrome` (chrome: the parts of a block that are furniture, not content, like a title row; § 9), `containerPaste` (§ 10), and `unwrapRole` (§ 8).
 

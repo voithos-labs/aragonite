@@ -15,6 +15,7 @@ import {
 	type LineEnding
 } from '../../../core/lines';
 import { cleanJoinedRaw } from '../../../tree-operations/node-ops';
+import { getContentRange } from '../../../core/inline';
 
 export interface SelectionEdit {
 	/** The block's whole bytes after the edit, trailing line ending included. */
@@ -53,13 +54,18 @@ export function resolveLiveRangeEdit(
 	ambientPrefix = ''
 ): LiveRangeEdit | null {
 	if (!reading.hidesDelimitersAtCaret() || !rewritesTargetRange(e)) return null;
-	const range = pendingEditRange(e, cursor);
-	if (!range) return null;
+	const target = pendingEditRange(e, cursor);
+	if (!target) return null;
+	const range = paintedRange(node, target, reading);
 	const insert = replacementText(e);
-	if (range.start === range.end) {
+	if (target.start === target.end) {
 		return parkedCaretInsertion(node, cursor, range.start, insert, lineEnding);
 	}
-	const edit = resolveSelectionEdit(node, range, insert ?? '', reading, ambientPrefix);
+	// A range the browser would have taken past the painted content is always rewritten here.
+	const edit =
+		range.end < target.end
+			? replaceRangeRaw(node, range, insert ?? '', reading, ambientPrefix, lineEnding)
+			: resolveSelectionEdit(node, range, insert ?? '', reading, ambientPrefix);
 	if (!edit) return null;
 	return insert === null
 		? { kind: 'swallow' }
@@ -169,17 +175,32 @@ export function replaceRangeRaw(
 	ambientPrefix: string,
 	lineEnding: LineEnding
 ): SelectionEdit {
-	const cleaned = resolveSelectionEdit(node, range, typed, reading, ambientPrefix);
+	const { start, end } = paintedRange(node, range, reading);
+	const cleaned = resolveSelectionEdit(node, { start, end }, typed, reading, ambientPrefix);
 	if (cleaned) return cleaned;
 	const display = trimTrailingLineEnding(node.raw);
 	return {
 		raw:
-			display.slice(0, range.start) +
+			display.slice(0, start) +
 			typed +
-			display.slice(range.end) +
+			display.slice(end) +
 			trailingLineEnding(node.raw, lineEnding),
-		caret: range.start + typed.length
+		caret: start + typed.length
 	};
+}
+
+/**
+ * `range` cut back to the block's content end where the mode hides the structure after it (a
+ * setext underline): a range the user drew there cannot have meant bytes they never saw.
+ */
+function paintedRange(
+	node: NodeView,
+	range: { start: number; end: number },
+	reading: Reading
+): { start: number; end: number } {
+	if (!reading.hidesDelimitersAtCaret()) return range;
+	const end = getContentRange(node).end;
+	return { start: Math.min(range.start, end), end: Math.min(range.end, end) };
 }
 
 // ── Reading the event ────────────────────────────────────────────────────────

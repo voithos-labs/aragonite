@@ -12,10 +12,10 @@ import { makeNestedHarness } from '$lib/test/harness/editor-actions';
 describe('a leading space typed into an empty quoted child reaches the source', () => {
 	it('keeps the marker space and the content space apart, one keystroke at a time', async () => {
 		const h = makeNestedHarness('>\n', { index: 0 });
-		await h.bundle.blockEdit.updateBlockContent(0, ' \n', 0, 1);
+		await h.bundle.blockEdit.updateBlockContent(0, ' \n', 'authored', 0, 1);
 		expect(serialize(h.deps.doc)).toBe('>  \n');
 
-		await h.bundle.blockEdit.updateBlockContent(0, ' x\n', 1, 2);
+		await h.bundle.blockEdit.updateBlockContent(0, ' x\n', 'authored', 1, 2);
 		expect(serialize(h.deps.doc)).toBe('>  x\n');
 	});
 
@@ -23,7 +23,13 @@ describe('a leading space typed into an empty quoted child reaches the source', 
 	it('carries four content spaces, the indented-code opener’s width', async () => {
 		const h = makeNestedHarness('>\n', { index: 0 });
 		for (let typed = 1; typed <= 4; typed++) {
-			await h.bundle.blockEdit.updateBlockContent(0, `${' '.repeat(typed)}\n`, typed - 1, typed);
+			await h.bundle.blockEdit.updateBlockContent(
+				0,
+				`${' '.repeat(typed)}\n`,
+				'authored',
+				typed - 1,
+				typed
+			);
 		}
 		expect(serialize(h.deps.doc)).toBe('>     \n');
 	});

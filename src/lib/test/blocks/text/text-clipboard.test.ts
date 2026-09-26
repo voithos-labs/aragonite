@@ -5,6 +5,7 @@
 // cut also splices that slice out as one undoable commit. A real parse resolved through
 // `getInlineContent`, a captured ClipboardEvent stand-in, and the real widget-selection state,
 // with no branch on `kind === 'image'`.
+import { recordingWrite } from '$lib/test/harness/editor-actions';
 import { describe, it, expect } from 'vitest';
 import { tick } from 'svelte';
 import { parse } from '$lib/core/parser';
@@ -74,8 +75,9 @@ function harness(source: string, sourceStart: number, options: HarnessOptions = 
 		crossBlock: options.crossBlockDeclines ? { handlePaste: async () => false } : trap,
 		caretMemory: stubCaretMemory(),
 		blockEdit: {
-			updateBlockContent: (index: number, raw: string, before: number, after: number) =>
-				void commits.push({ index, raw, before, after })
+			updateBlockContent: recordingWrite(({ index, raw, before, after }) =>
+				commits.push({ index, raw, before, after })
+			)
 		},
 		pasteCoordinator: trap,
 		getDoc: () => {
@@ -223,7 +225,7 @@ function foldSettleHarness() {
 		selection: { isCrossBlock: false, anchor: null, focus: null },
 		crossBlock: { handlePaste: async () => false, handleCut: async () => false },
 		caretMemory: stubCaretMemory(),
-		blockEdit: { updateBlockContent: () => void order.push('seam-commit') },
+		blockEdit: { updateBlockContent: recordingWrite(() => order.push('seam-commit')) },
 		pasteCoordinator: {},
 		getDoc: () => null,
 		widgetSelection,

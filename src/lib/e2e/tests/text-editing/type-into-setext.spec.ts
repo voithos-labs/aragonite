@@ -3,8 +3,8 @@ import type { Page } from '@playwright/test';
 import { EditorPage } from '../../editor-page';
 import { attachIme } from '../../simulation/ime';
 
-// Typing into a setext heading keeps its underline. No mode draws the underline, so the text the
-// block reads back from its DOM stops at the title and the write has to put the underline back
+// Typing into a setext heading keeps its underline. The page draws the underline as a marker, so
+// the text the block reads back from its DOM carries it once
 // (`requirements/text-editing/type-into-setext.md`).
 
 async function open(page: Page, mode: 'source' | 'live', doc: string): Promise<EditorPage> {
@@ -26,7 +26,7 @@ for (const mode of ['source', 'live'] as const) {
 		for (const underline of ['---', '===', '----------']) {
 			test(`End then a character keeps a ${underline} underline`, async ({ page }) => {
 				const ep = await open(page, mode, `Plan\n${underline}\n`);
-				await ep.clickBlock(0);
+				await ep.clickBlockAtPath([0], 1);
 				await page.keyboard.press('End');
 				await page.keyboard.type('s');
 
@@ -37,7 +37,7 @@ for (const mode of ['source', 'live'] as const) {
 
 		test('Home then a character keeps the underline', async ({ page }) => {
 			const ep = await open(page, mode, 'Plan\n---\n');
-			await ep.clickBlock(0);
+			await ep.clickBlockAtPath([0], 1);
 			await page.keyboard.press('Home');
 			await page.keyboard.type('s');
 
@@ -48,7 +48,7 @@ for (const mode of ['source', 'live'] as const) {
 			page
 		}) => {
 			const ep = await open(page, mode, 'intro\n\nPlan\n===\n\nafter\n');
-			await ep.clickBlock(1);
+			await ep.clickBlockAtPath([1], 1);
 			await page.keyboard.press('End');
 			await page.keyboard.type('s');
 
@@ -60,7 +60,7 @@ for (const mode of ['source', 'live'] as const) {
 test.describe('typing into a setext heading: other shapes and routes', () => {
 	test('a CRLF document keeps its underline and its endings', async ({ page }) => {
 		const ep = await open(page, 'source', 'Plan\r\n===\r\n');
-		await ep.clickBlock(0);
+		await ep.clickBlockAtPath([0], 1);
 		await page.keyboard.press('End');
 		await page.keyboard.type('s');
 
@@ -85,7 +85,7 @@ test.describe('typing into a setext heading: other shapes and routes', () => {
 	test('a paste at the title end keeps the underline', async ({ page }) => {
 		const ep = await open(page, 'live', 'Plan\n---\n');
 		await ep.seedClipboard('ned');
-		await ep.clickBlock(0);
+		await ep.clickBlockAtPath([0], 1);
 		await page.keyboard.press('End');
 		await ep.paste();
 
@@ -94,7 +94,7 @@ test.describe('typing into a setext heading: other shapes and routes', () => {
 
 	test('an IME composition at the title end keeps the underline', async ({ page }) => {
 		const ep = await open(page, 'live', 'Plan\n---\n');
-		await ep.clickBlock(0);
+		await ep.clickBlockAtPath([0], 1);
 		await page.keyboard.press('End');
 		const ime = await attachIme(page);
 		await ime.compose('か');
@@ -105,7 +105,7 @@ test.describe('typing into a setext heading: other shapes and routes', () => {
 
 	test('one undo after typing puts the title back and keeps the underline', async ({ page }) => {
 		const ep = await open(page, 'live', 'Plan\n---\n');
-		await ep.clickBlock(0);
+		await ep.clickBlockAtPath([0], 1);
 		await page.keyboard.press('End');
 		await page.keyboard.type('s');
 		await expectSource(ep, 'Plans\n---\n');

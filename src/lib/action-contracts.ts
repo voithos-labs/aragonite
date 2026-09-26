@@ -11,6 +11,7 @@ import type { TrackedPosition } from './tree-operations/settle';
 import type { SharingState } from './tree-operations/sharing';
 import type { BlockComponent, FocusPosition } from './block-component';
 import type { ScopedOpDescriptor } from './schema/operations';
+import type { WriteMode } from './schema/block-kind-descriptor';
 import type { DocPath } from './selection/path-math';
 
 /**
@@ -35,6 +36,16 @@ export type DiscardIfNoop = boolean;
  */
 export type CommitAfterTick = () => void | Promise<void>;
 
+/**
+ * A content write in flight: awaiting it waits for the write to land, and `caret` is the landing
+ * caret counted in the bytes as stored, known the moment the call returns. `storedOffset` maps
+ * any other offset into the written text the same way (a selection's far edge).
+ */
+export type ContentWrite = Promise<void> & {
+	readonly caret: number;
+	storedOffset(offset: number): number;
+};
+
 // ── Action sub-interfaces ──────────────────────────────────────────────────
 
 export interface BlockEditActions {
@@ -54,23 +65,18 @@ export interface BlockEditActions {
 	mergeWithNext(blockIndex: number): void | Promise<void>;
 	deleteBlock(blockIndex: number): void | Promise<void>;
 	/**
-	 * `preEditOffset` is the caret position the undo snapshot records; `postEditFocusOffset` is where
-	 * the caret lands when a kind change remounts the block (typing `# ` on a paragraph),
-	 * defaulting to `preEditOffset`.
+	 * Write `text` as the block's bytes through its kind's write rule and this list's body rule
+	 * (`mode` says whether the user typed them). `preEditOffset` is the caret the undo snapshot
+	 * records, in the stored bytes; `postEditFocusOffset`, counted in `text` and defaulting to
+	 * `preEditOffset`, is where the caret lands, and comes back mapped as the result's `caret`.
 	 */
 	updateBlockContent(
 		blockIndex: number,
 		text: string,
+		mode: WriteMode,
 		preEditOffset?: number,
 		postEditFocusOffset?: number
-	): void | Promise<void>;
-	/**
-	 * Where a caret at `offset` ends up once this list has committed `text` to the block at
-	 * `blockIndex`: past a container's `bodyWrite` rewrite, and past a task marker the item moves
-	 * out of its first paragraph or back in. Ask before the write; returns `offset` unchanged
-	 * when nothing is rewritten.
-	 */
-	mapCommittedOffset?(blockIndex: number, text: string, offset: number): number;
+	): ContentWrite;
 	/**
 	 * Change block metadata without touching raw: for state held as metadata (task
 	 * checkboxes), not for metadata derived from raw like a heading's level (use

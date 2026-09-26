@@ -36,7 +36,8 @@ import {
 	nodeAt,
 	normalizeOwnRaw
 } from '../tree-operations/node-primitives';
-import { cleanJoinedRaw } from '../tree-operations/node-ops';
+import { cleanJoinedRaw, cutBeforeSuffix } from '../tree-operations/node-ops';
+import { structuralSuffix } from '../core/inline';
 import { ensureUnsharedPath } from '../tree-operations/unshare';
 import { rebuildUnsharedAncestry, rebuildUnsharedChain } from '../tree-operations/chain-rebuild';
 // The title-line branch imports this module back; the cycle is only inside function bodies,
@@ -171,20 +172,20 @@ export function truncateStartInPlace(
 	const cut = charOffsetOf(start, tag);
 	const ending = documentLineEnding(doc);
 	const lineEnding = trailingLineEnding(startBlock.raw, ending);
-	const head = isChrome
-		? { raw: startBlock.raw.slice(0, cut), seam: cut }
-		: cleanTruncatedProse(startBlock, 'head', cut, reading);
 	if (isChrome) {
-		startBlock.raw = terminateLine(head.raw, lineEnding);
-	} else {
-		installTruncatedEndpoint(
-			doc,
-			start.path,
-			reparseTruncatedEndpoint(startBlock, terminateLine(head.raw, lineEnding), ending, grammar),
-			sharing,
-			grammar
-		);
+		startBlock.raw = terminateLine(startBlock.raw.slice(0, cut), lineEnding);
+		return cut;
 	}
+	// The kept head keeps the block's structure after it (a setext underline), as a join does.
+	const head = cleanTruncatedProse(startBlock, 'head', cutBeforeSuffix(startBlock, cut), reading);
+	const kept = terminateLine(head.raw + structuralSuffix(startBlock), lineEnding);
+	installTruncatedEndpoint(
+		doc,
+		start.path,
+		reparseTruncatedEndpoint(startBlock, kept, ending, grammar),
+		sharing,
+		grammar
+	);
 	return head.seam;
 }
 
