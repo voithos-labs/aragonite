@@ -44,7 +44,7 @@ div.textContent; // 'a © b': the widget's six bytes are gone
 rawTextOfNode(div, raw); // 'a &copy; b': the walk puts them back
 ```
 
-So the read goes through that raw-aware DOM walk (`cursor/widget-offset.ts`), which sums text-node lengths _and_ widget raw lengths, marker-span text included. Excluding the lent marker is the same module's job: it reads the marker's length off the DOM and subtracts it (`rawOffsetAt`), and the raw read skips the marker span. Surfaces with neither complication (code blocks, plain plugin leaves) can read `textContent` directly, because for them it genuinely is `raw`.
+So the read goes through that raw-aware DOM walk (`cursor/widget-offset.ts`), which sums text-node lengths _and_ widget raw lengths, marker-span text included. Excluding the lent marker is the same module's job: it reads the marker's length off the DOM and subtracts it (`rawOffsetAt`), and the text read leaves the marker span out (`rawTextOfContent`). Surfaces with neither complication (code blocks, plain plugin leaves) can read `textContent` directly, because for them it genuinely is `raw`.
 
 IME composition (typing through an input method, think Chinese or Japanese input) suppresses the rebuild until the composition ends. Blocks without inline support are untouched by any of this.
 

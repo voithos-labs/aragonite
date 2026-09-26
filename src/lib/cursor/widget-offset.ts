@@ -63,12 +63,27 @@ export function markerPrefixLength(container: ParentNode): number {
 /** The raw offset of a live `(node, offset)` DOM position in `el`; a position inside the marker
  *  prefix reads as raw 0. */
 export function rawOffsetAt(el: HTMLElement, node: Node, offset: number): RawOffset {
-	return toClampedRawOffset(domTextOffsetAtNode(el, node, offset), markerPrefixLength(el));
+	return rawOfWalkOffset(el, domTextOffsetAtNode(el, node, offset));
 }
 
 /** A raw offset in `container` as a walk offset. */
 export function walkOffsetOfRaw(container: ParentNode, raw: number): DomTextOffset {
 	return toDomTextOffset(asRawOffset(raw), markerPrefixLength(container));
+}
+
+/** A walk offset in `container` as a raw offset; one inside the marker prefix reads as raw 0. */
+export function rawOfWalkOffset(container: ParentNode, walk: DomTextOffset): RawOffset {
+	return toClampedRawOffset(walk, markerPrefixLength(container));
+}
+
+/** The raw bytes `el` shows, its marker prefix left out: what a prose block reads back as its text. */
+export function rawTextOfContent(el: HTMLElement, raw: string): string {
+	const prefix = markerPrefixOf(el);
+	let out = '';
+	for (const child of Array.from(el.childNodes)) {
+		if (child !== prefix) out += rawTextOfNode(child, raw);
+	}
+	return out;
 }
 
 /** Raw offset of the live selection's focus inside `el`, or null when there is no selection or

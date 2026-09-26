@@ -7,9 +7,8 @@
 
 import { isDevChecks } from '../env';
 import type { ContentLength } from '../core/inline';
-import { toRawOffset } from '../cursor/coordinate-spaces';
 import {
-	markerPrefixLength,
+	rawOfWalkOffset,
 	rawRangeToDomRange,
 	rawTextOfNode,
 	walkOffsetOfRaw,
@@ -43,7 +42,6 @@ export function applyIslandDecorations(
 	opts: ApplyIslandsOpts
 ): Array<() => void> {
 	if (islands.length === 0) return [];
-	const prefixLength = markerPrefixLength(root);
 	const contentLength = opts.contentLength;
 	const destroys: Array<() => void> = [];
 
@@ -78,9 +76,9 @@ export function applyIslandDecorations(
 		let start = dec.start;
 		let end = dec.end;
 		const startSpan = widgetSpanContainingOffset(root, walkOffsetOfRaw(root, start));
-		if (startSpan) start = toRawOffset(startSpan.start, prefixLength);
+		if (startSpan) start = rawOfWalkOffset(root, startSpan.start);
 		const endSpan = widgetSpanContainingOffset(root, walkOffsetOfRaw(root, end));
-		if (endSpan) end = toRawOffset(endSpan.end, prefixLength);
+		if (endSpan) end = rawOfWalkOffset(root, endSpan.end);
 		if (startSpan || endSpan) {
 			devWarn(
 				'decorations',

@@ -212,8 +212,6 @@
 	let lastClickClientX: number | null = null;
 	let lastClickClientY: number | null = null;
 
-	// A cell carries no marker prefix, so the factory gives plain widget-aware cursor reads
-	// in raw units; counting `textContent` would undercount a widget's bytes.
 	const cursor = createSurfaceBackend({
 		getEl: () => el ?? null
 	});
@@ -574,7 +572,6 @@
 		return el ? rawTextOfNode(el, node.raw) : '';
 	}
 
-	// A cell has no marker prefix, so the traversal's offset is the raw offset.
 	function getRawFocusOffset(): RawOffset | null {
 		return el ? rawSelectionFocus(el) : null;
 	}

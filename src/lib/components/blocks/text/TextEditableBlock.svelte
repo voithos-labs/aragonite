@@ -74,7 +74,7 @@
 		landableStartAbutsIsland,
 		markerPrefixOf,
 		rawOffsetAt,
-		rawTextOfNode,
+		rawTextOfContent,
 		revealsNoMarkers,
 		screenVisibilityOf,
 		rawSelectionFocus
@@ -220,8 +220,6 @@
 		tracePendingCursorSet(source, offset);
 		pendingCursorOffset = offset;
 	}
-
-	const ambientLength = $derived(ambientPrefixText.length);
 
 	const cursor = createSurfaceBackend({
 		getEl: () => el ?? null,
@@ -811,17 +809,8 @@
 		return readDomText() + undrawnSuffix(node);
 	}
 
-	// Read the children one by one rather than `textContent`, so stray text nodes Chromium
-	// inserts around the marker span do not pollute the raw.
 	function readDomText(): string {
-		if (!el) return '';
-		const ambient = markerPrefixOf(el);
-		let out = '';
-		for (const child of Array.from(el.childNodes)) {
-			if (child === ambient) continue;
-			out += rawTextOfNode(child, node.raw);
-		}
-		return out;
+		return el ? rawTextOfContent(el, node.raw) : '';
 	}
 
 	// Captured before the shared handler: its cross-block half clears the arrival side, and the
@@ -870,7 +859,7 @@
 			e.key === 'Home' &&
 			!e.shiftKey &&
 			el &&
-			(ambientLength > 0 || landableStartAbutsIsland(el))
+			(markerPrefixOf(el) !== null || landableStartAbutsIsland(el))
 		) {
 			e.preventDefault();
 			focus(CURSOR_START);

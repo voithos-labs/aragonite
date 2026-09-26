@@ -105,7 +105,7 @@
 		backend,
 		// A fence line is structure: a column landing stays in the body, and a placed offset
 		// that reaches a fence line clamps onto editable content.
-		caretWindow: () => bodyWindow(node),
+		columnWindow: () => bodyWindow(node),
 		clampLanding: (offset) => clampCaretToBody(node, offset),
 		getMyPath: () => myPath,
 		getIndex: () => index,

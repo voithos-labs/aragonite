@@ -838,7 +838,7 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.33 | Live-mode byte candidates verify against what actually paints                  | L       |
 | G4.34 | Link bytes are written only through the one seam module                        | L       |
 | G4.35 | A construct stamps its markers exactly when its policy row says revealable     | L       |
-| G4.36 | A caret is written from a raw offset only through the one writer               | L       |
+| G4.36 | A selection is written from raw offsets only in the walk module                | L       |
 | G4.37 | Every surface rendering into a caret-walk container stamps content-empty       | L       |
 | G4.38 | Every editable surface publishes `insertMarkdown`                              | L       |
 | G4.39 | Every command surface publishes `runCommand`                                   | L       |
@@ -1184,14 +1184,17 @@ block rather than by reveal, and its row is what seats a typed byte outside them
 today means a kind with no declared live-mode behavior at all.
 `lint/stamp-revealable-parity.test.ts`.
 
-**G4.36 · Caret-write sites.** A caret written from a raw offset goes through one writer,
-`cursor/widget-offset.ts` :: `placeCaretAtRaw`: it skips the marker prefix, never lands behind a
-hidden marker run, and takes a required `clamp` (`reachable` or `exact`), so an unclamped write
-says so at its call. Scanned with per-file reasons and set equality: the native
-`addRange`/`setBaseAndExtent`/`extend` writers (the one writer, plus writers of a range over
-nodes they already hold), the files building a DOM position from a walk offset (the walk module
-and its measuring readers), the files naming `rawRangeToDomRange` (measuring and decorating
-only), and the surfaces building `focus` from `caret-doors`' `placeCaret`. `lint/manifest-rules.test.ts`.
+**G4.36 · Caret-write sites.** Every selection written from raw offsets is written in
+`cursor/widget-offset.ts`. A caret goes through `placeCaretAtRaw`, which skips the marker prefix,
+never lands behind a hidden marker run, and takes a required `clamp` (`reachable` or `exact`), so
+an unclamped write says so where it's called. A range goes through `selectRawRange`,
+`extendSelectionToRaw` or `selectSurfaceContent`, which skip the prefix the same way and don't
+clamp. Scanned with per-file reasons and set equality: the native selection writers (`addRange`,
+`setBaseAndExtent`, `extend`, `selectAllChildren`, and the two-argument `collapse` and
+`setPosition`), which outside that module are only files selecting nodes they already hold; the
+files building a DOM position from a walk offset (the walk module and its measuring readers); the
+files naming `rawRangeToDomRange` (measuring and decorating only); and the surfaces building
+`focus` from `caret-doors`' `placeCaret`. `lint/manifest-rules.test.ts`.
 
 **G4.37 · Content-empty stamp parity.** The files rendering a fragment into a contenteditable the
 caret walk reads (`renderInlineNodes`, `renderCodeBlock`) are exactly the files stamping

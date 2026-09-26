@@ -33,12 +33,7 @@ import type { CaretMemory } from '../../cursor/caret-memory';
 import type { SelectionState } from '../../selection/selection-state.svelte';
 import type { SelectedWidgetHandle } from '../../selection/primitives';
 import { placeCaret } from '../../selection/caret-doors';
-import {
-	asEditorX,
-	asRawOffset,
-	toClampedRawOffset,
-	type RawOffset
-} from '../../cursor/coordinate-spaces';
+import { asEditorX, asRawOffset, type RawOffset } from '../../cursor/coordinate-spaces';
 import type { CursorBackend } from '../../cursor/surface-backend';
 import { findOffsetNearestX } from '../../cursor/sticky-measure';
 import { measurePartialRectsInContentEditable } from '../../cursor/overlay-rects';
@@ -50,7 +45,7 @@ import {
 import { writeCrossBlockCopy, writeCrossBlockCut } from '../../selection/cross-block/clipboard';
 import { createImagePasteArm, type ImagePasteArm } from '../paste-image-arm';
 import {
-	markerPrefixLength,
+	rawOfWalkOffset,
 	revealsNoMarkers,
 	selectRawRange,
 	walkOffsetOfRaw,
@@ -137,11 +132,11 @@ export function consumePendingRestore<T>(
 export interface EditableSurfaceDeps {
 	getEl: () => HTMLElement | null;
 	backend: CursorBackend;
-	/** The raw range a column landing stays inside, for a block whose first or last visual line
-	 *  takes no caret (a code fence); the whole block when omitted. */
-	caretWindow?: () => RawRange;
-	/** What a placed offset becomes before it lands, sentinels included, for a block whose
-	 *  structure takes no caret; unchanged when omitted. */
+	/** The raw range `focusAtColumn` searches, for a block whose first or last visual line takes
+	 *  no caret (a code fence); the whole block when omitted. */
+	columnWindow?: () => RawRange;
+	/** What an offset handed to `focus` or `parkCaret` becomes before it lands. It receives the
+	 *  `CURSOR_START`, `CURSOR_END` and `CURSOR_EXACT_START` values as they are. */
 	clampLanding?: (offset: number) => number;
 	/** True while an ephemeral edit (inline-math source reveal) owns the DOM: the block
 	 *  commits on exit, so keyboard input and IME compositionend both skip the commit. */
@@ -338,12 +333,12 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		const el = deps.getEl();
 		if (!el) return;
 		el.focus({ preventScroll: true });
-		const within = deps.caretWindow?.();
+		const within = deps.columnWindow?.();
 		// The default floor of raw 0 keeps the scan out of the container's marker prefix.
 		const min = walkOffsetOfRaw(el, within?.start ?? 0);
 		const max = within ? walkOffsetOfRaw(el, within.end) : undefined;
 		const walkOffset = findOffsetNearestX(el, asEditorX(x), from, min, max);
-		deps.backend.setRaw(toClampedRawOffset(walkOffset, markerPrefixLength(el)), { clamp: 'exact' });
+		deps.backend.setRaw(rawOfWalkOffset(el, walkOffset), { clamp: 'exact' });
 		// Announced like every other placement, but without `placeCaret`'s range clear: the
 		// vertical move that gets here has already collapsed whatever range it left.
 		deps.selection.announceSelection();
