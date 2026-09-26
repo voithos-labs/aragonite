@@ -81,18 +81,23 @@ export function writeTableRow(node: CstNode, lineEnding: string): void {
 /**
  * Header, a rebuilt delimiter row, then the body rows. Every row is rebuilt first, so the first
  * structural edit normalizes the whole table's padding instead of leaving half of it padded. Every
- * line takes the table's ending: a row created by a structural edit has none of its own.
+ * line takes the table's ending, except the last line of a table that ends the document without
+ * one: that line stays open whichever row now holds it.
  */
 export function rebuildTableRaw(node: CstNode): void {
 	if (!node.children) return;
 	const meta = metadataOf(node, 'table');
 	const lineEnding = tableLineEnding(node);
+	const openTail = ownTrailingLineEnding(node.raw) === '';
 	for (const row of node.children) writeTableRow(row, lineEnding);
 	const headerRow = node.children[0];
 	const bodyRows = node.children.slice(1);
+	const lastBodyRow = bodyRows.at(-1);
+	if (openTail && lastBodyRow) writeTableRow(lastBodyRow, '');
 
 	const delimiterCells = meta.alignments.map(formatAlignmentCell).join(' | ');
-	const delimiterLine = '| ' + delimiterCells + ' |' + lineEnding;
+	const delimiterEnding = openTail && !lastBodyRow ? '' : lineEnding;
+	const delimiterLine = '| ' + delimiterCells + ' |' + delimiterEnding;
 
 	let raw = (headerRow?.raw ?? '') + delimiterLine;
 	for (const r of bodyRows) raw += r.raw;
