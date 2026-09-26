@@ -201,8 +201,10 @@
 	const overridesMap = $derived(normalizeKeybindingOverrides(keybindings));
 
 	// The single mode reported everywhere (root attribute, context getter, plugin contexts,
-	// events), and the one place a difference between effective and requested would show up.
-	const effectiveMode = $derived(presentationMode);
+	// events). It follows the requested mode only once the flip below has committed every edit
+	// the outgoing mode was holding, so those writes land in the mode they were typed in.
+	// svelte-ignore state_referenced_locally
+	let effectiveMode = $state(presentationMode);
 	// Replace is an edit, so it never engages in reading mode. One predicate feeds the
 	// write sites, the render gate, and the replace closures.
 	const canReplace = $derived(effectiveMode !== 'reading');
@@ -862,8 +864,11 @@
 		restoreCaret: (path, offset) => restoreThroughRevealRoad(caretAt(path, offset), 'mount')
 	});
 	$effect.pre(() => {
-		const mode = effectiveMode;
-		untrack(() => modeFlip.beforeFlip(mode));
+		const mode = presentationMode;
+		untrack(() => {
+			modeFlip.beforeFlip(mode);
+			effectiveMode = mode;
+		});
 	});
 	$effect(() => {
 		modeFlip.afterFlip(effectiveMode);
