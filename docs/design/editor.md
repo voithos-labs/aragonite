@@ -119,7 +119,7 @@ Markdown syntax is on screen at all times, styled: markers dimmed, content style
 
 Live mode hides every marker standing over content and stays editable, which turns the hidden runs into a caret problem rather than a paint one: a hidden run paints nothing, so one screen position names two raw offsets. Two mechanisms answer that:
 
-- **Edge affinity** records how the caret _arrived_ at such a boundary (stepped in, placed at an end, or committed a byte), so the typing position can tell "outside the construct" from "inside" at a position that looks the same either way (`cursor/edge-affinity.ts`, consumed by `components/blocks/text/edge-seat.ts`).
+- **Edge affinity** records how the caret _arrived_ at such a boundary (stepped in, placed at an end, or committed a byte), so the typing position can tell "outside the construct" from "inside" at a position that looks the same either way (decided by `cursor/edge-affinity.ts`, held by the caret memory in `cursor/caret-memory.ts`, consumed by `components/blocks/text/edge-seat.ts`).
 - **The inline-construct policy table** is where each construct declares what its own delimiters do: which side a typed byte lands on, whether emptying it unwraps, how a split treats it, whether it reveals its source to an entering caret (§ 6). Every reader takes one row instead of testing a kind (`schema/inline-construct-policy.ts`; the same table holds the two registered live-rewrite slots, the split rebalancer and the join cleaner).
 
 The full editing-rule catalog is [`live-mode.md`](live-mode.md).
@@ -480,10 +480,10 @@ Arrow navigation at block boundaries uses geometry, not offsets: the cursor rect
 **Sticky column.** Cross-block caret column memory. Within a block the browser's native sticky column handles vertical movement, and the editor layers on top only at block boundaries, where the native one resets.
 
 - **Capture.** A vertical arrow press captures the cursor's _editor-relative_ pixel X (scroll-invariant). Idempotent: the first press after a reset captures, later ones don't.
-- **Reset.** Nearly any other user action: typing, click, horizontal arrows, structural ops, undo/redo, editor blur, tab hidden. The carve-out is PageUp/PageDown and a bare modifier tap (Shift, Control, AltGraph, CapsLock and friends), which preserve it; `cursor/sticky-column.ts` :: `classifyStickyKey` is the matrix.
+- **Reset.** Nearly any other user action: typing, click, horizontal arrows, structural ops, undo/redo, editor blur, tab hidden. The carve-out is PageUp/PageDown and a bare modifier tap (Shift, Control, AltGraph, CapsLock and friends), which preserve it; `cursor/sticky-column.ts` :: `classifyStickyKey` is the matrix. A chord the keymap binds to a block move (Alt+ArrowUp unless a consumer rebinds it) moves no caret, so it neither captures nor resets. The column lives in the caret memory (`cursor/caret-memory.ts`) with the edge affinity and the pending marks, and every reset that isn't a key drops all three.
 - **Transparent blocks** (thematic break) pass through without capturing or resetting; **participating blocks** (text, code) capture and implement `focusAtColumn(x, from)`, prose and code differing only in rendered content, same helpers, same policy.
 
-Capture and consumption are split: the source block captures, and a separate focus dispatcher reads the value at cross-block transitions, either calling `focusAtColumn` or falling back to start/end focus. The surface is a pure receiver, null-handling lives in the dispatcher, and the `cursor/sticky-column.ts` header carries the authoritative two-axis contract. Sticky X is a **visual** lock, not a logical one: when a destination block scrolls internally, the visible column at a given X depends on its current `scrollLeft`, so re-entering a scrolled table lands the caret in the visible column nearest the captured X. By design.
+Capture and consumption are split: the source block captures, and a separate focus dispatcher reads the value at cross-block transitions, either calling `focusAtColumn` or falling back to start/end focus. The surface is a pure receiver, null-handling lives in the dispatcher, and the `cursor/caret-memory.ts` header carries the lifetime contract. Sticky X is a **visual** lock, not a logical one: when a destination block scrolls internally, the visible column at a given X depends on its current `scrollLeft`, so re-entering a scrolled table lands the caret in the visible column nearest the captured X. By design.
 
 ## 9. Containers
 
@@ -676,7 +676,7 @@ await scope.commit({
 });
 ```
 
-The commit's structural steps, in order (`src/lib/editor-actions/commit/undo-controller.ts` :: `runCommitCeremony` runs a few more around them: the sticky-column reset, the content-version bump, the gap-caret clear):
+The commit's structural steps, in order (`src/lib/editor-actions/commit/undo-controller.ts` :: `runCommitCeremony` runs a few more around them: forgetting the caret memory, the content-version bump, the gap-caret clear):
 
 1. capture the snapshot,
 2. unshare the written path,

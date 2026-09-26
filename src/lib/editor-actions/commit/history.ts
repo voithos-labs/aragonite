@@ -37,6 +37,7 @@ export function createHistoryActions(
 			getDoc: () => deps.doc,
 			selectionState: deps.selectionState,
 			getBlockElByPath: deps.getBlockElByPath,
+			caretMemory: deps.caretMemory,
 			// Mount, not scroll into view: a history swap must not move the viewport for
 			// a target already on screen.
 			revealTarget: async (path: number[]) => (await deps.revealPath(path)) !== null
@@ -55,8 +56,7 @@ export function createHistoryActions(
 	// snapshot after the stack moves, and emits the batch's pending `input` event so its
 	// bytes are not dropped from the edit events.
 	function beginHistorySwap(): void {
-		deps.stickyColumn.reset();
-		deps.edgeAffinity.reset();
+		deps.caretMemory.forget();
 		controller.flushDebouncedCheckpoint();
 	}
 

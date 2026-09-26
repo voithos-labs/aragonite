@@ -11,8 +11,7 @@ import type { BlockElLookup, DocumentGetter, PluginEditorLookup } from '../../ed
 import type { UserScrollport } from '../../cursor/scroll-ancestors';
 import type { SelectionState } from '../selection-state.svelte';
 import type { SelectedWidgetHandle } from '../primitives';
-import type { StickyColumnState } from '../../cursor/sticky-column';
-import type { EdgeAffinityState } from '../../cursor/edge-affinity';
+import type { CaretMemory } from '../../cursor/caret-memory';
 import type { CrossBlockMutationContext } from './ops';
 import type { CommitController } from '../../action-contracts';
 import type { KeybindingOverrideMap } from '../../schema/keybinding-overrides';
@@ -45,8 +44,7 @@ export interface CrossBlockDispatchContext {
 	getScrollHost: () => UserScrollport | null;
 	/** Aborted when the owning editor unmounts. See the document facet's `lifetime`. */
 	getEditorLifetime: () => AbortSignal | null;
-	stickyColumn: StickyColumnState;
-	edgeAffinity: EdgeAffinityState;
+	caretMemory: CaretMemory;
 	blockEdit: BlockEditActions;
 	controller: CommitController;
 	history: HistoryActions;

@@ -12,7 +12,7 @@ import { devReplacesRegistration } from './register-once';
 import { enrollTestReset } from './registry-reset';
 import { createPluginRegistry } from './plugin-registry';
 import { tryGetBlockKindDescriptor } from './block-kind-descriptor';
-import { normalizeChord, isChordWellFormed, type KeyBinding } from './keybindings';
+import { eventToChord, normalizeChord, isChordWellFormed, type KeyBinding } from './keybindings';
 import {
 	lookupOverride,
 	overrideDecision,
@@ -78,6 +78,17 @@ export type CommandId = GlobalCommandId | BlockCommandId;
 export const RANGE_DECLINED_COMMAND_IDS: ReadonlySet<string> = new Set<CommandId>([
 	'link.openCard',
 	'heading.cycle'
+]);
+
+/**
+ * Built-in commands that move the block or row holding the caret rather than the caret; a plugin
+ * declares its own through `registerBlockCommand`'s `movesBlock`. Read by `commandMovesBlock`.
+ */
+export const BLOCK_MOVE_COMMAND_IDS: ReadonlySet<string> = new Set<CommandId>([
+	'block.moveUp',
+	'block.moveDown',
+	'table.moveRowUp',
+	'table.moveRowDown'
 ]);
 
 /**
@@ -352,6 +363,25 @@ export function resolveBinding(
 	const override = overrideTier(overrides, kind, chord);
 	if (override !== undefined) return override;
 	return builtinKindBinding(chord, kind) ?? builtinGlobalBinding(chord, activation);
+}
+
+/**
+ * The command a keypress names at `kind`, overrides included, without running it; a keypress
+ * with no block under it (a null kind) resolves at global scope.
+ */
+export function commandForKey(
+	e: KeyboardEvent,
+	kind: AnyBlockKind | null,
+	overrides: KeybindingOverrideMap | undefined,
+	activation: PluginActivation
+): AnyCommandId | null {
+	const chord = eventToChord(e);
+	if (!chord) return null;
+	const binding =
+		kind === null
+			? resolveGlobalBinding(chord, overrides, activation)
+			: resolveBinding(chord, kind, overrides, activation);
+	return binding?.command ?? null;
 }
 
 /**

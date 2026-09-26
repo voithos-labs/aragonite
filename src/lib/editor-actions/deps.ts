@@ -1,7 +1,6 @@
 import type { BlockComponent } from '../block-component';
 import type { Document } from '../core/nodes';
-import type { StickyColumnState } from '../cursor/sticky-column';
-import type { EdgeAffinityState } from '../cursor/edge-affinity';
+import type { CaretMemory } from '../cursor/caret-memory';
 import type { BlockElLookup } from '../editor-keys';
 import type { SelectionState } from '../selection/selection-state.svelte';
 import type { EditorSelection } from '../selection/primitives';
@@ -28,8 +27,7 @@ export interface EditorActionsDeps {
 	bumpContentVersion(): void;
 	undoManager: UndoManager;
 	sharing: SharingState;
-	stickyColumn: StickyColumnState;
-	edgeAffinity: EdgeAffinityState;
+	caretMemory: CaretMemory;
 	selectionState: SelectionState;
 	/** The edge of the image selected whole, as a collapsed caret, or null with none selected:
 	 *  no block reports a caret meanwhile, so every live selection read answers with this one.

@@ -5,8 +5,7 @@
 
 import type { CrossBlockDispatchContext, PointerPressOptions } from './dispatch';
 import type { SelectionState } from '../selection-state.svelte';
-import type { StickyColumnState } from '../../cursor/sticky-column';
-import type { EdgeAffinityState } from '../../cursor/edge-affinity';
+import type { CaretMemory } from '../../cursor/caret-memory';
 import { handleShiftClick } from '../keyboard-extend';
 import { findBlockPathForElement } from '../path-lookup';
 import { clearNativeSelection } from '../native-bridge';
@@ -27,19 +26,17 @@ export function createCrossBlockPointer(ctx: CrossBlockDispatchContext): CrossBl
 }
 
 /**
- * The shared pointerdown reset for any block that handles cross-block input. Resets the sticky
- * column and the select-all counter, and on a plain click clears any active cross-block
- * selection so a fresh drag does not extend the prior range. The pointer counterpart of
- * `caret-doors.ts`, so it ends the gap caret too.
+ * The shared pointerdown reset for any block that handles cross-block input. Forgets how the
+ * caret arrived, resets the select-all counter, and on a plain click clears any active
+ * cross-block selection so a fresh drag does not extend the prior range. The pointer counterpart
+ * of `caret-doors.ts`, so it ends the gap caret too.
  */
 export function resetForPointerDown(
 	selection: SelectionState,
-	stickyColumn: StickyColumnState,
-	edgeAffinity: EdgeAffinityState,
+	caretMemory: Pick<CaretMemory, 'forget'>,
 	isShift: boolean
 ): void {
-	stickyColumn.reset();
-	edgeAffinity.reset();
+	caretMemory.forget();
 	selection.resetSelectAllCount();
 	// Unconditional, unlike the range branch: a gap caret is always collapsed, so a shift-click
 	// has no range to grow from it. Silent when no gap caret is live.
@@ -62,7 +59,7 @@ function handlePointerDown(
 	const { selection } = ctx;
 	const myPath = ctx.getMyPath();
 
-	resetForPointerDown(selection, ctx.stickyColumn, ctx.edgeAffinity, e.shiftKey);
+	resetForPointerDown(selection, ctx.caretMemory, e.shiftKey);
 
 	if (e.shiftKey) {
 		const prevActive = document.activeElement;

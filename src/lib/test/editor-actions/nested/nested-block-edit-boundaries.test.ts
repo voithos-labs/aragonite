@@ -11,11 +11,12 @@ import type { NestedActionsDeps } from '$lib/editor-actions/nested/nested-action
 import { registerDetailsKind, DETAILS } from '$lib/plugins/details/details-kind';
 import {
 	makeBlockListState,
-	makeStickyColumn,
+	makeCaretMemory,
 	makeStubBlockEdit,
 	makeStubContainerEdit,
 	makeStubFocus
 } from '$lib/test/harness/editor-actions';
+import { fixtureReading } from '../../harness/fixture-grammar';
 
 registerDetailsKind();
 
@@ -32,13 +33,14 @@ function env(node: CstNode) {
 		containerEdit: makeStubContainerEdit()
 	};
 	const state = makeBlockListState(() => node);
-	const deps = {
+	const deps: NestedActionsDeps = {
 		index: CONTAINER_INDEX,
 		node,
 		path: [CONTAINER_INDEX],
-		stickyColumn: makeStickyColumn(),
+		caretMemory: makeCaretMemory(),
+		reading: fixtureReading(),
 		parent
-	} as unknown as NestedActionsDeps;
+	};
 	return { blockEdit: createNestedBlockEdit(state, deps), parent, node };
 }
 

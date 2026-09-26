@@ -19,11 +19,11 @@ import { parse } from '../../core/parser';
 import type { CstNode } from '../../core/nodes';
 import { createTextRender } from '../../components/blocks/text/text-render';
 import { renderCodeBlock } from '../../components/blocks/code/code-renderer';
-import { createStickyColumnState } from '../../cursor/sticky-column';
-import { createEdgeAffinityState } from '../../cursor/edge-affinity';
 import { makeRenderHarness } from '$lib/test/harness/text-render';
 import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 import { fixtureReading } from '$lib/test/harness/fixture-grammar';
+import { createCaretMemory } from '$lib/cursor/caret-memory';
+import { normalizeKeybindingOverrides } from '$lib/schema/keybinding-overrides';
 
 const toPrev = vi.mocked(extendFocusToPreviousBlock);
 
@@ -71,8 +71,8 @@ function makeEnv(source: string, offset: number | null, mode?: string): Env {
 			selection: {
 				resetSelectAllCount: () => {}
 			} as unknown as SharedKeydownContext['selection'],
-			stickyColumn: createStickyColumnState(),
-			edgeAffinity: createEdgeAffinityState(),
+			caretMemory: createCaretMemory(),
+			getKeybindingOverrides: () => normalizeKeybindingOverrides([]),
 			history: {} as SharedKeydownContext['history'],
 			focus: { moveFocus } as unknown as SharedKeydownContext['focus'],
 			getDoc: () => doc,
@@ -182,10 +182,26 @@ describe('the keydown entry point notes the arrival', () => {
 	it('a forward arrow records the run’s near side, Home the construct-relative outside', async () => {
 		const { ctx } = makeEnv('Title\n', 2, 'live');
 		await handleSharedKeydown(press('ArrowRight'), ctx);
-		expect(ctx.edgeAffinity.get()).toBe('near');
+		expect(ctx.caretMemory.side()).toBe('near');
 		await handleSharedKeydown(press('ArrowLeft'), ctx);
-		expect(ctx.edgeAffinity.get()).toBe('far');
+		expect(ctx.caretMemory.side()).toBe('far');
 		await handleSharedKeydown(press('Home'), ctx);
-		expect(ctx.edgeAffinity.get()).toBe('outside');
+		expect(ctx.caretMemory.side()).toBe('outside');
+	});
+
+	// The shared handler reads the chord through the block's keymap before the memory sees it:
+	// the default reorder chord moves the block, so the caret's memory stays for the move's commit.
+	it('the reorder chord leaves the side and the pending marks alone', async () => {
+		const { ctx } = makeEnv('Title\n', 2, 'live');
+		await handleSharedKeydown(press('Home'), ctx);
+		ctx.caretMemory.pendingMarks.toggle('strong');
+		const reorder = new KeyboardEvent('keydown', {
+			key: 'ArrowUp',
+			altKey: true,
+			cancelable: true
+		});
+		await handleSharedKeydown(reorder, ctx);
+		expect(ctx.caretMemory.side()).toBe('outside');
+		expect([...(ctx.caretMemory.pendingMarks.get() ?? [])]).toEqual(['strong']);
 	});
 });

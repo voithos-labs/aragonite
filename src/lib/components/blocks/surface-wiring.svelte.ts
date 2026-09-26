@@ -21,7 +21,7 @@ import {
 import { emitCommandError } from '../../editor-events';
 import { eventToChord } from '../../schema/keybindings';
 import { dispatchKeyCommand, type KindCommandTarget } from '../../schema/block-commands';
-import { resolveBinding } from '../../schema/commands';
+import { commandForKey } from '../../schema/commands';
 import type { AnyBlockKind } from '../../core/nodes';
 import type { AnyCommandId } from '../../schema/command-id';
 import { parkFocusOnEditorRoot } from '../../selection/native-bridge';
@@ -37,8 +37,7 @@ export type SharedSurfaceDeps = Pick<
 	| 'getEditorRoot'
 	| 'getScrollHost'
 	| 'getEditorLifetime'
-	| 'stickyColumn'
-	| 'edgeAffinity'
+	| 'caretMemory'
 	| 'blockEdit'
 	| 'controller'
 	| 'history'
@@ -69,8 +68,7 @@ export function wireSurfaceContexts(): SurfaceWiring {
 	const {
 		controller,
 		pasteCoordinator,
-		stickyColumn,
-		edgeAffinity,
+		caretMemory,
 		selection,
 		activePlugins,
 		events,
@@ -96,8 +94,7 @@ export function wireSurfaceContexts(): SurfaceWiring {
 		getEditorRoot,
 		getScrollHost,
 		getEditorLifetime: () => editorLifetime ?? null,
-		stickyColumn,
-		edgeAffinity,
+		caretMemory,
 		blockEdit,
 		controller,
 		history,
@@ -137,11 +134,8 @@ export function wireSurfaceContexts(): SurfaceWiring {
 		return true;
 	};
 
-	const resolveChord = (e: KeyboardEvent, kind: AnyBlockKind): AnyCommandId | null => {
-		const chord = eventToChord(e);
-		if (!chord) return null;
-		return resolveBinding(chord, kind, keybindingOverrides(), activePlugins)?.command ?? null;
-	};
+	const resolveChord = (e: KeyboardEvent, kind: AnyBlockKind): AnyCommandId | null =>
+		commandForKey(e, kind, keybindingOverrides(), activePlugins);
 
 	return { deps, dispatchChord, resolveChord };
 }

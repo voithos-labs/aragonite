@@ -198,16 +198,10 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 		note: 'A Shift-press on a block is left to that block, which grows a range from the image.'
 	},
 	{
-		file: 'cursor/edge-affinity.ts',
+		file: 'cursor/caret-memory.ts',
 		chords: [],
-		keys: ['ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'End', 'Home', 'PageDown', 'PageUp'],
-		note: 'Classifies an arrival for the caret-side memory; consumes nothing.'
-	},
-	{
-		file: 'cursor/sticky-column.ts',
-		chords: [],
-		keys: ['ArrowDown', 'ArrowUp'],
-		note: 'Classifies a keystroke for the column memory; consumes nothing.'
+		keys: [],
+		note: 'Hands the meta flag to the arrival classifier: Cmd+Arrow is a line end. Consumes nothing.'
 	},
 	{
 		file: 'editor-actions/container-block-component.ts',

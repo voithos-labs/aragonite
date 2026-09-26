@@ -25,8 +25,7 @@
 		pluginEditor,
 		onCommandError,
 		getKeybindingOverrides,
-		stickyColumn,
-		edgeAffinity,
+		caretMemory,
 		selection,
 		reading
 	} = wiring.deps;
@@ -117,8 +116,8 @@
 			blockEdit,
 			focus: focusActions,
 			isReading,
-			stickyColumn,
-			edgeAffinity
+			caretMemory,
+			commandOf: (press) => wiring.resolveChord(press, node.kind)
 		});
 	}
 </script>

@@ -24,6 +24,7 @@ import { getBlockKindDescriptor } from '../../schema/block-kind-descriptor';
 import { expandContainerPatch, isCollapsedContainer } from '../../schema/reserved-chrome';
 import { dispatchKindCommand, type KindCommandTarget } from '../../schema/block-commands';
 import { eventToChord } from '../../schema/keybindings';
+import { commandForKey } from '../../schema/commands';
 import { isReadingMode, type PresentationMode } from '../../presentation-mode';
 import { devWarn } from '../../dev-warn';
 import { blockAccessibleName } from '../../a11y-strings';
@@ -325,8 +326,7 @@ export function buildContainerKindTarget(
 export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 	const history = getContext<HistoryActions>(HISTORY_KEY);
 	const {
-		stickyColumn,
-		edgeAffinity,
+		caretMemory,
 		selection,
 		reorder,
 		revealAnchor,
@@ -480,6 +480,9 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		activation: activePlugins
 	};
 
+	const commandOf = (e: KeyboardEvent) =>
+		commandForKey(e, deps.getNode().kind, keybindingOverrides(), activePlugins);
+
 	const handleKeydown = (e: KeyboardEvent): void => {
 		if (e.defaultPrevented) return;
 		const chord = eventToChord(e);
@@ -513,11 +516,9 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 
 	const moveFocusOut = (e: KeyboardEvent): boolean => {
 		if (e.shiftKey || e.altKey || e.ctrlKey || e.metaKey) return false;
-		// Classified by the key classifiers before the move (G2.10, G4.31). A plugin editor
-		// exposes no caret x to measure, so a vertical exit keeps the column it arrived with,
-		// exactly as a whole-block pass-through does.
-		stickyColumn.noteKey(e);
-		edgeAffinity.note(e);
+		// A plugin editor exposes no caret x to measure, so a vertical exit keeps the column it
+		// arrived with, exactly as a whole-block pass-through does.
+		caretMemory.noteKey(e, commandOf(e));
 		return focusAcrossBlockEdge(e.key, { getIndex: deps.getIndex, focus: parentFocus });
 	};
 
@@ -556,8 +557,8 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 			blockEdit: parentBlockEdit,
 			focus: parentFocus,
 			isReading: () => reading,
-			stickyColumn,
-			edgeAffinity
+			caretMemory,
+			commandOf
 		});
 	}
 

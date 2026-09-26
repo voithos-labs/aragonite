@@ -118,7 +118,7 @@ The wiring, for the curious:
 A byte typed where a marker run sits is placed by the edge resolver (`components/blocks/text/edge-seat.ts`), which reads the kind's policy first and how the caret arrived second.
 
 - A `never-extend` kind (link, autolink, image, escape, hard break) places the byte outside its delimiters, whichever side that lands on. Two halves of a URL are not two URLs, and a byte between an autolink's brackets would rewrite where the link goes.
-- A `symmetric-pair` kind follows how the caret arrived (`cursor/edge-affinity.ts`, the memory of which side of the edge the caret meant): stepping in from outside types outside, walking out from inside types inside. A click clears that memory, and with nothing on record the resolver picks the near side, so the construct the caret touches keeps the byte (the Google Docs click default).
+- A `symmetric-pair` kind follows how the caret arrived (the caret memory in `cursor/caret-memory.ts` holds which side of the edge the caret meant): stepping in from outside types outside, walking out from inside types inside. A click clears that memory, and with nothing on record the resolver picks the near side, so the construct the caret touches keeps the byte (the Google Docs click default).
 - A caret placed at an end rather than stepped there (Home, End, a selection collapsing onto its own edge, a structural operation landing the caret at a block's start or end) means outside the delimiters, whatever key produced it. The caret took no step, so the key's direction isn't read.
 - Pending marks (§ 4.3) outrank the arrival: a toggle is the newer instruction about the same bytes.
 - An IME run can't be intercepted per keystroke, so the composed text is moved once at commit, against the arrival and marks captured at `compositionstart` (`composition-seat.ts`).
@@ -171,9 +171,9 @@ resolveMarkedInsertion(raw, 11, 'X', new Set(['strong']), inlines); // at bold's
 ```
 
 - The mark resolves against the caret's construct chain (`pending-mark-insert.ts`; the chain is every construct enclosing the caret, outermost first). A kind the chain lacks wraps the insertion; a kind it carries escapes it, by close-and-reopen or by stepping outside the construct, as above.
-- The marks ride the edge affinity's invalidation (G4.31): whatever settles the arrival side clears them too, and a mode flip clears them.
+- The marks live in the caret memory beside the arrival side (G3.9): whatever settles the side clears them too, and a caret move that isn't a key (a click, a paste, an undo, a mode flip) forgets them with it. Only a text write spends them (G4.31).
 - A chord is not the only thing that sets them. A destructive press that unwraps a construct (§ 4.4) pends the kinds it took, so a format survives the delete that emptied it the way it survives a caret that never left.
-- A composition takes them at `compositionstart`, ahead of the affinity reset that would otherwise drop them mid-composition, and hands them back if it commits nothing: an IME cancel inserts no text, so the promise is still owed.
+- A composition takes them at `compositionstart`, ahead of the caret memory's forget that would otherwise drop them mid-composition, and hands them back if it commits nothing: an IME cancel inserts no text, so the promise is still owed.
 - A table cell's typing goes through the same resolver, so all of this holds in a cell.
 
 Over a SELECTION the same chord writes bytes at once, in every mode. Its question is coverage rather than edge adjacency: is the selected range already covered by a construct of the chord's kind?

@@ -6,6 +6,8 @@ import {
 } from '$lib/components/blocks/editable-surface';
 import { asRawOffset } from '$lib/cursor/coordinate-spaces';
 import { fixtureReading } from './fixture-grammar';
+import { stubCaretMemory } from '$lib/testing/headless-actions';
+import type { CaretMemory } from '$lib/cursor/caret-memory';
 
 export interface SurfaceHarness {
 	surface: ReturnType<typeof createEditableSurface>;
@@ -29,6 +31,8 @@ export function makeSurface(
 	options: {
 		presentationMode?: string;
 		handleBeforeInput?: EditableSurfaceDeps['handleBeforeInput'];
+		/** Inert by default; pass a real memory to see what an input does to it. */
+		caretMemory?: CaretMemory;
 	} = {}
 ): SurfaceHarness {
 	const el = document.createElement('div');
@@ -65,8 +69,7 @@ export function makeSurface(
 		},
 		setPendingCursor: () => {},
 		selection: { isCrossBlock: false },
-		stickyColumn: { reset: () => {} },
-		edgeAffinity: { reset: () => {}, get: () => null, note: () => {}, noteTyping: () => {} },
+		caretMemory: options.caretMemory ?? stubCaretMemory(),
 		focusActions: { revealPath: async () => null },
 		getDoc: () => null,
 		getBlockElByPath: () => null,

@@ -81,14 +81,13 @@ describe('a cross-block paste whose delete resolves no caret', () => {
 // The empty-payload return commits nothing, so no commit runs to clear the transient caret state
 // behind it; the branch's own resets are the only ones on that path.
 describe('a cross-block paste with an empty payload', () => {
-	it('consumes the event and still clears the sticky column and the edge affinity', async () => {
+	it('consumes the event and still forgets how the caret arrived', async () => {
 		const { env, handlers } = makeGatedEnv();
 		env.selectionState.enterCrossBlock({ path: [0], offset: 2 }, { path: [2], offset: 3 });
 
 		expect(await handlers.handlePaste(makePasteEvent(''))).toBe(true);
 
 		expect(serialize(env.doc)).toBe(SOURCE);
-		expect(env.stickyColumn.reset).toHaveBeenCalled();
-		expect(env.edgeAffinity.reset).toHaveBeenCalled();
+		expect(env.caretMemory.forget).toHaveBeenCalled();
 	});
 });

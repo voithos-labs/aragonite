@@ -641,7 +641,7 @@ No runtime seam sees these; the test suite is the whole enforcement. Test files 
 | G2.7  | A selection partitions cleanly, and `walkBetween` visits in order           | P     |
 | G2.8  | Split and merge round-trip; ids, refs and children stay aligned             | P·N   |
 | G2.9  | Paste emits its op kind by strategy, never by target depth                  | P     |
-| G2.10 | The sticky column resets everywhere it is captured                          | P·A   |
+| G2.10 | Every keydown path hands its key to the caret memory's classifier           | P·A   |
 | G2.11 | The inline scan covers every byte with known construct kinds, tiled         | P     |
 | G2.12 | A caret placement ends a live cross-block range, unless it is an extend     | L     |
 | G2.13 | An edit leaves a tree whose serialization reparses to the same block shape  | P·N   |
@@ -679,10 +679,11 @@ structural paste emits `replaceBlock`, container absorb and merge emit `paste`, 
 inline paste emits `updateContent`. A consumer counting pastes watches all three.
 `paste-op-kind.test.ts`.
 
-**G2.10 · Sticky-column resets.** The sticky column (the X position a vertical caret walk tries to
-keep across shorter lines) resets everywhere it's captured: the behavior matrix plus the
-capture-without-reset and keydown entry guards, run in jsdom. `sticky-column-matrix.test.ts`,
-`lint/sticky-column-capture-reset.test.ts`.
+**G2.10 · Sticky-column keys.** The sticky column (the X position a vertical caret walk tries to
+keep across shorter lines) is captured by a vertical arrow, kept through PageUp, PageDown and a
+bare modifier, and dropped by any other key. Every keydown path hands its key to the caret
+memory's `noteKey` rather than forgetting the memory outright: the behavior matrix plus the keydown
+entry guard, run in jsdom. `sticky-column-matrix.test.ts`, `lint/caret-memory-keydown.test.ts`.
 
 **G2.11 · Inline scan coverage.** The inline scan covers every byte, the constructs tile without
 gaps, and every node's kind is in the vocabulary: the built-in kinds plus those an installed plugin
@@ -735,6 +736,7 @@ Each entry says what the type retired, since that list is the receipts.
 | G3.6 | A container registration missing its rebuild, or a leaf claiming container fields | T     |
 | G3.7 | Arithmetic across two different coordinate spaces                                 | T     |
 | G3.8 | A reader writing a node's serialized bytes                                        | T     |
+| G3.9 | Forgetting one part of how the caret arrived without the others                   | T     |
 
 ### The entries
 
@@ -775,6 +777,13 @@ serialized bytes deep-readonly, the `childIds`/`childSpans`/`ownerEpoch` bookkee
 is G1.9 stated as a type: readers hold views, constructors and writers keep `CstNode`, and the
 unshare seam is the only way back to mutable (G4.13 scans for the casts). Retired: reader-side byte
 writes, and the "read-only by contract" prose on `BlockComponentProps.document`.
+
+**G3.9 · One caret memory.** `src/lib/cursor/caret-memory.ts` :: `createCaretMemory` holds the
+sticky column, the edge affinity and the pending marks. A keydown updates them through `noteKey`,
+and every other caret move (a click, a paste, an undo, a document swap, a blur, a mode switch, a
+caret the host or a menu places through the selection restore) calls `forget`, which drops all three. No member forgets one part alone, so a site that clears the
+column and leaves the side behind doesn't compile. Retired: G4.31's reset parity scan and G2.10's
+capture-without-reset pairing.
 
 ## Group 4: source scans
 
@@ -824,7 +833,7 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.28 | Leaf raw writes reach bytes through the two sanctioned readers                | L       |
 | G4.29 | Every file claiming a hardcoded chord is manifested with its chords and keys  | L       |
 | G4.30 | Hidden-marker classification has one rule, applied in both spaces             | L       |
-| G4.31 | Edge affinity and the pending marks reset wherever the sticky column does     | L       |
+| G4.31 | The pending marks are spent only where typed or composed text is written      | L       |
 | G4.32 | Every non-render inline read goes through `resolvedInlineContent`             | L       |
 | G4.33 | Live-mode byte candidates verify against what actually paints                 | L       |
 | G4.34 | Link bytes are written only through the one seam module                       | L       |
@@ -1125,22 +1134,12 @@ namer is a decision rather than a drift. The runtime backstop is the DEV parity 
 presentation e2e suite asserts it through the invariant-console gate.
 `lint/manifest-rules.test.ts`.
 
-**G4.31 · Affinity and pending-mark resets.** Edge affinity (the record of how the caret arrived at
-a block edge, which decides which side of a hidden marker run a typed byte lands on) and the pending
-marks (a format toggled at a collapsed caret, waiting to wrap the next typed character) are
-ephemeral caret state with the same lifetime as the sticky column: an arrival sets them, a commit
-invalidates them. So every file that calls `stickyColumn.reset()` clears the affinity at least as
-often, and every `noteKey` capture site also calls one of the affinity's classifiers. There are
-THREE capture entries, and the scan names all three: `note(e)` classifies a keydown, `noteTyping()`
-pins the committed byte, and `noteExtreme()` says the caret was SEATED at an extreme rather than
-stepped there (a range collapsing onto its own edge); the last one counts on both axes, since
-settling a side also invalidates the marks riding it. The column paid for this parity at N minus 1
-of N sites (G2.10); the affinity inherits the rule as a scan instead of at the next audit, because a
-side that survives an edit is spent by the typing seat on the wrong byte. The marks take it one rung
-higher: one construction composes them onto the affinity's invalidation, so the scan pins that
-composition, forbids a clear at any seam of their own, and holds the set-equality list of seats that
-spend them. The exception maps are empty by design; an entry is a stated hole.
-`lint/edge-affinity-capture-reset.test.ts`.
+**G4.31 · Pending marks are spent by a write.** The pending marks (a format toggled at a collapsed
+caret, waiting to wrap the next typed character) are spent only where typed or composed text is
+written: the typed-byte arm of the edge-policy dispatch and the composition writes of the two prose
+surfaces. A spend anywhere else drops the promise with nothing written. The reset half this entry
+used to carry, the affinity and the marks clearing wherever the sticky column did, retired upward
+to G3.9. `lint/file-rules.test.ts`.
 
 **G4.32 · Inline-cache one spelling.** Every non-render consumer reads the inline tree through
 `resolvedInlineContent`, so the resolver AND the signature travel together. The accessor keys one

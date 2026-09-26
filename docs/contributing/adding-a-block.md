@@ -247,11 +247,10 @@ A binding can carry an argument, which is how one command serves seven chords:
 Your block pulls what it needs from concern-specific Svelte contexts. Take only the ones you use:
 
 ```ts
-// components/blocks/list/ListBlock.svelte
+// in a block component's script
 const parentBlockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
 const parentFocus = getContext<FocusActions>(FOCUS_KEY);
-const { controller, stickyColumn, selection, registryView } =
-	getContext<EditorServices>(EDITOR_SERVICES_KEY);
+const { controller, selection } = getContext<EditorServices>(EDITOR_SERVICES_KEY);
 ```
 
 | Context                     | Gives you                                                                         |
@@ -466,18 +465,18 @@ The helper is unit-testable without mounting anything, and the dev warning for m
 
 Every editable block, prose or code, participates in the pixel-X sticky column, so a caret walking up a ragged column doesn't drift left. Nobody praises this when it works and everybody notices the moment it doesn't.
 
-The good news: if your block routes its keydown through `handleSharedKeydown` (`selection/shared-keydown.ts`) and builds its surface with `createEditableSurface` (`components/blocks/editable-surface.ts`), you already participate and there's nothing to write. The shared handler feeds every keydown to the sticky column:
+The good news: if your block routes its keydown through `handleSharedKeydown` (`selection/shared-keydown.ts`) and builds its surface with `createEditableSurface` (`components/blocks/editable-surface.ts`), you already participate and there's nothing to write. The shared handler feeds every keydown to the caret memory, which holds the sticky column:
 
 ```ts
 // selection/shared-keydown.ts
-ctx.stickyColumn.noteKey(e, () => getCurrentCursorEditorRelativeX(el));
+ctx.caretMemory.noteKey(e, commandAtBlock(e, ctx), () => getCurrentCursorEditorRelativeX(el));
 ```
 
 `noteKey`'s pure key matrix decides whether the press captures the column, resets it, or preserves it, and the editable surface owns the resets a keydown can't see (an input commit, composition included, plus copy, cut, and paste) along with `focusAtColumn` itself. `TextEditableBlock.svelte` and `components/blocks/code/CodeBlock.svelte` share this shape, so reference either.
 
 A hand-rolled surface takes on both halves itself:
 
-1. **Feed every keydown to `noteKey`**, as above. It's the one entry a keydown handler may use (`cursor/sticky-column.ts` says so in its header); pass the live-caret measure as the second argument so a capture key has an X to record. `reset()` stays public only for callers with no key to classify (lifecycle, commit, undo, paste).
+1. **Feed every keydown to `noteKey`**, as above, with the command the chord resolves to at your block (`schema/commands.ts` :: `commandForKey`), so a rebound block move isn't read as an arrow. It's the one call a keydown handler may make (G2.10 scans for it); pass the live-caret measure as the third argument so a capture key has an X to record. `forget()` is only for callers with no key to classify (lifecycle, commit, undo, paste).
 2. **Implement `focusAtColumn(x, from)`** with `findOffsetNearestX(el, x, from)` from `cursor/sticky-measure.ts`: place the cursor at the nearest offset on the first (`from === 'above'`) or last (`from === 'below'`) visual line that can show a caret. The editable surface's version, which also keeps the scan out of the marker region and takes an optional raw range for a block with lines a caret may not land on (a code fence):
 
 ```ts

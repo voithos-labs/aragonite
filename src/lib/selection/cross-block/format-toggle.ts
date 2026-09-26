@@ -24,6 +24,7 @@ import {
 	planCrossBlockFormat,
 	type CrossBlockFormatPlan
 } from './format-range';
+import type { CaretMemory } from '../../cursor/caret-memory';
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
@@ -39,6 +40,8 @@ export interface CrossBlockCommandDeps {
 	/** The active-marks memo's key alongside the range: the document is mutated in place, so its
 	 *  identity says nothing about whether it changed (`docs/design/editor.md` § 7). */
 	getContentVersion: () => number;
+	/** Forgotten by the restore that puts the range back after the rewrite. */
+	caretMemory: Pick<CaretMemory, 'forget'>;
 }
 
 export function createCrossBlockCommands(deps: CrossBlockCommandDeps): CrossBlockCommandRouter {
@@ -126,6 +129,7 @@ async function toggleFormatOverRange(
 				getDoc: deps.getDoc,
 				selectionState: deps.selection,
 				getBlockElByPath: deps.getBlockElByPath,
+				caretMemory: deps.caretMemory,
 				revealTarget: async (path) => (await deps.revealPath(path)) !== null
 			});
 		}

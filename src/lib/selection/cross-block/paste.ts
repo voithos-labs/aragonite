@@ -31,8 +31,7 @@ export async function handleCrossBlockPaste(
 ): Promise<boolean> {
 	if (!ctx.selection.isCrossBlock) return false;
 
-	ctx.stickyColumn.reset();
-	ctx.edgeAffinity.reset();
+	ctx.caretMemory.forget();
 	ctx.selection.resetSelectAllCount();
 	e?.preventDefault();
 	// `!== undefined`, not `??`: a caller supplying its own payload must never reach the

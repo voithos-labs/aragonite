@@ -7,7 +7,7 @@ import {
 import { CURSOR_END, CURSOR_START } from '$lib/block-component';
 import {
 	stubBlockComponent,
-	makeStickyColumn,
+	makeCaretMemory,
 	makeStubFocus
 } from '$lib/test/harness/editor-actions';
 
@@ -18,7 +18,7 @@ describe('dispatchMoveFocus', () => {
 			[stubBlockComponent({ focus: vi.fn() })],
 			-1,
 			'end',
-			makeStickyColumn(),
+			makeCaretMemory(),
 			{
 				focus: parentFocus,
 				index: 5
@@ -33,7 +33,7 @@ describe('dispatchMoveFocus', () => {
 			[stubBlockComponent({ focus: vi.fn() })],
 			1,
 			'start',
-			makeStickyColumn(),
+			makeCaretMemory(),
 			{
 				focus: parentFocus,
 				index: 5
@@ -48,7 +48,7 @@ describe('dispatchMoveFocus', () => {
 			[stubBlockComponent({ focus: vi.fn() })],
 			1,
 			'start',
-			makeStickyColumn(),
+			makeCaretMemory(),
 			{ focus: parentFocus, index: 5 },
 			{ options: { append: false } }
 		);
@@ -57,7 +57,7 @@ describe('dispatchMoveFocus', () => {
 
 	it('routes numeric position to child.focus(offset)', async () => {
 		const child = stubBlockComponent({ focus: vi.fn() });
-		await dispatchMoveFocus([child], 0, 3, makeStickyColumn(), {
+		await dispatchMoveFocus([child], 0, 3, makeCaretMemory(), {
 			focus: makeStubFocus(),
 			index: 0
 		});
@@ -66,7 +66,7 @@ describe('dispatchMoveFocus', () => {
 
 	it("routes 'end' position to child.focus(CURSOR_END)", async () => {
 		const child = stubBlockComponent({ focus: vi.fn() });
-		await dispatchMoveFocus([child], 0, 'end', makeStickyColumn(), {
+		await dispatchMoveFocus([child], 0, 'end', makeCaretMemory(), {
 			focus: makeStubFocus(),
 			index: 0
 		});
@@ -75,7 +75,7 @@ describe('dispatchMoveFocus', () => {
 
 	it('sticky-column variant uses focusAtColumn when sticky X is set', async () => {
 		const child = stubBlockComponent({ focus: vi.fn(), focusAtColumn: vi.fn() });
-		await dispatchMoveFocus([child], 0, { stickyColumnFrom: 'above' }, makeStickyColumn(42), {
+		await dispatchMoveFocus([child], 0, { stickyColumnFrom: 'above' }, makeCaretMemory(42), {
 			focus: makeStubFocus(),
 			index: 0
 		});
@@ -85,7 +85,7 @@ describe('dispatchMoveFocus', () => {
 
 	it('sticky-column variant falls back to focus(CURSOR_START) when from=above and no sticky X', async () => {
 		const child = stubBlockComponent({ focus: vi.fn(), focusAtColumn: vi.fn() });
-		await dispatchMoveFocus([child], 0, { stickyColumnFrom: 'above' }, makeStickyColumn(null), {
+		await dispatchMoveFocus([child], 0, { stickyColumnFrom: 'above' }, makeCaretMemory(null), {
 			focus: makeStubFocus(),
 			index: 0
 		});
@@ -95,7 +95,7 @@ describe('dispatchMoveFocus', () => {
 
 	it('sticky-column variant falls back to CURSOR_END when from=below and child lacks focusAtColumn', async () => {
 		const child = stubBlockComponent({ focus: vi.fn() });
-		await dispatchMoveFocus([child], 0, { stickyColumnFrom: 'below' }, makeStickyColumn(42), {
+		await dispatchMoveFocus([child], 0, { stickyColumnFrom: 'below' }, makeCaretMemory(42), {
 			focus: makeStubFocus(),
 			index: 0
 		});
@@ -107,7 +107,7 @@ describe('dispatchMoveFocus', () => {
 	it('non-focusable at the boundary: delegates upward in the move direction', async () => {
 		const child = stubBlockComponent({ focus: vi.fn(), focusable: false });
 		const parentFocus = makeStubFocus();
-		await dispatchMoveFocus([child], 0, 'start', makeStickyColumn(), {
+		await dispatchMoveFocus([child], 0, 'start', makeCaretMemory(), {
 			focus: parentFocus,
 			index: 0
 		});
@@ -120,7 +120,7 @@ describe('dispatchMoveFocus', () => {
 		const nonFocusable = stubBlockComponent({ focus: vi.fn(), focusable: false });
 		const focusable = stubBlockComponent({ focus: vi.fn(), focusable: true });
 		const parentFocus = makeStubFocus();
-		await dispatchMoveFocus([nonFocusable, focusable], 0, 'start', makeStickyColumn(), {
+		await dispatchMoveFocus([nonFocusable, focusable], 0, 'start', makeCaretMemory(), {
 			focus: parentFocus,
 			index: 0
 		});

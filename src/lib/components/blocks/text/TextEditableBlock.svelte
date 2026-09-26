@@ -138,8 +138,7 @@
 		focusActions,
 		controller,
 		pasteCoordinator,
-		stickyColumn,
-		edgeAffinity,
+		caretMemory,
 		selection,
 		getDoc,
 		getEditorRoot,
@@ -156,7 +155,6 @@
 	const listContext = getContext(LIST_CONTEXT_KEY);
 	const {
 		reorder,
-		pendingMarks,
 		autoPairs,
 		widgetSelection,
 		linkCard,
@@ -332,8 +330,7 @@
 		caret: editableSurface.caret,
 		crossBlock,
 		selection,
-		stickyColumn,
-		edgeAffinity,
+		caretMemory,
 		blockEdit,
 		pasteCoordinator,
 		activePlugins,
@@ -396,9 +393,9 @@
 		enterWidget: (widget, fromTrailingEdge) =>
 			widgetInteraction.enterWidget(widget, fromTrailingEdge),
 		isReading: () => readOnly,
-		getEdgeAffinity: () => edgeAffinity.get(),
-		noteOutside: edgeAffinity.noteExtreme,
-		pendingMarks,
+		getEdgeAffinity: caretMemory.side,
+		noteOutside: caretMemory.noteExtreme,
+		pendingMarks: caretMemory.pendingMarks,
 		ownPairs,
 		installedAs: 'block'
 	});
@@ -408,10 +405,10 @@
 		getDisplayText: () => getDisplayText(),
 		getInlines: () => resolvedInlineContent(node, reading),
 		reading,
-		getAffinity: () => edgeAffinity.get(),
+		getAffinity: caretMemory.side,
 		getScreen: () => screenVisibilityOf(el ?? null),
-		consumePendingMarks: () => pendingMarks.consume(),
-		restorePendingMarks: (marks) => pendingMarks.restore(marks),
+		consumePendingMarks: caretMemory.pendingMarks.consume,
+		restorePendingMarks: caretMemory.pendingMarks.restore,
 		getRawSelection: () => cursor.getRawSelection(),
 		// The same join rules `handleLiveSelectionEdit` uses, in the displayed bytes this
 		// returns (`commitInput` re-appends the trailing line ending).
@@ -938,7 +935,7 @@
 			isRevealing: widgetInteraction.isRevealing,
 			foldReveal: () => widgetInteraction.foldRevealBeforeMutation(),
 			setCaret: (offset) => cursor.setRaw(asRawOffset(offset)),
-			seatOutside: edgeAffinity.noteExtreme,
+			seatOutside: caretMemory.noteExtreme,
 			completesLine: (caret) =>
 				planTypedCompletion(node, caret, grammar, documentEnding()) !== null,
 			keepsBlockKind: (text) => keepsBlockKind(node, text, reading),
@@ -1052,7 +1049,7 @@
 			// The insertion that spends the mark starts its own undo entry, so it is never
 			// folded into the burst the chord interrupted.
 			controller.flushDebouncedCheckpoint();
-			pendingMarks.toggle(format);
+			caretMemory.pendingMarks.toggle(format);
 			return;
 		}
 

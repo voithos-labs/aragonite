@@ -9,10 +9,12 @@ import type { CrossBlockDispatchContext } from './dispatch';
 import type { BlockElLookup } from '../../editor-keys';
 import type { AnyBlockKind, CstNode, Document } from '../../core/nodes';
 import { performCrossBlockDelete, performCrossBlockDeleteSync } from './ops';
-import { isBlockNode } from '../../tree-operations/node-primitives';
+import { blockNodeAt, isBlockNode } from '../../tree-operations/node-primitives';
 import { isReadingMode } from '../../presentation-mode';
 import { eventToChord } from '../../schema/keybindings';
 import { dispatchKeyCommand } from '../../schema/block-commands';
+import { commandForKey } from '../../schema/commands';
+import type { AnyCommandId } from '../../schema/command-id';
 import {
 	collapseCrossBlock,
 	extendFocusToNextBlock,
@@ -42,6 +44,18 @@ export function createCrossBlockKeydown(
 	};
 }
 
+/** What a keypress resolves to at the block at `getMyPath`, or at global scope with none. */
+export function commandAtBlock(
+	e: KeyboardEvent,
+	ctx: Pick<
+		CrossBlockDispatchContext,
+		'getDoc' | 'getMyPath' | 'getKeybindingOverrides' | 'activePlugins'
+	>
+): AnyCommandId | null {
+	const kind = blockNodeAt(ctx.getDoc(), ctx.getMyPath())?.kind ?? null;
+	return commandForKey(e, kind, ctx.getKeybindingOverrides(), ctx.activePlugins);
+}
+
 // ── Keydown ────────────────────────────────────────────────────────────────
 
 async function handleKeyDown(
@@ -51,12 +65,10 @@ async function handleKeyDown(
 ): Promise<boolean> {
 	const { selection } = ctx;
 
-	// Before the dispatch, not after: every branch below can consume the key and return, and the
-	// collapse and extend branches run no commit, so a reset deferred to the shared keydown never
-	// fires. The dispatcher holds a range, not a caret, so it supplies no measurement; a collapse
-	// does.
-	ctx.stickyColumn.noteKey(e);
-	ctx.edgeAffinity.note(e);
+	// Before the dispatch: every branch below can consume the key, and the collapse and extend
+	// branches commit nothing, so nothing later would update the caret memory. No measurement:
+	// the dispatcher holds a range, not a caret.
+	ctx.caretMemory.noteKey(e, commandAtBlock(e, ctx));
 
 	// Mode-independent: the doc-edge extend behaves identically from a caret and an active range,
 	// so it dispatches once, ahead of the mode split.
@@ -343,7 +355,7 @@ async function collapseTo(
 	doc: Document,
 	getBlockElByPath: BlockElLookup
 ): Promise<void> {
-	ctx.edgeAffinity.noteExtreme();
+	ctx.caretMemory.noteExtreme();
 	await collapseCrossBlock(ctx.selection, to, doc, getBlockElByPath, ctx.revealPath);
 }
 
@@ -417,8 +429,7 @@ function handleCompositionStart(
 	ctx: CrossBlockDispatchContext,
 	mutCtx: CrossBlockMutationContext
 ): boolean {
-	ctx.stickyColumn.reset();
-	ctx.edgeAffinity.reset();
+	ctx.caretMemory.forget();
 	if (!ctx.selection.isCrossBlock) return false;
 	if (isReadingMode(ctx.reading.mode)) return false;
 	performCrossBlockDeleteSync(mutCtx);

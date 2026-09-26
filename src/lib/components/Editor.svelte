@@ -27,9 +27,7 @@
 		type ResolveImageUrl,
 		type ResolveLinkUrl
 	} from '../editor-keys';
-	import { createStickyColumnState } from '../cursor/sticky-column';
-	import { createEdgeAffinityState } from '../cursor/edge-affinity';
-	import { createPendingMarksState } from '../cursor/pending-marks';
+	import { createCaretMemory } from '../cursor/caret-memory';
 	import { createAutoPairRecord } from './blocks/text/auto-pair-record';
 	import { createRevealAnchorState } from '../cursor/reveal-anchor';
 	import { createHeightOracle } from '../cursor/height-oracle';
@@ -269,11 +267,7 @@
 	let typeScaleProbeEl: HTMLDivElement | undefined = $state();
 	const undoManager = createUndoManager();
 	const sharing = createSharingState();
-	const stickyColumn = createStickyColumnState();
-	// Composed, not wired up call site by call site: the marks are temporary caret state with
-	// exactly the edge affinity's lifetime, so whatever invalidates the affinity drops them too.
-	const pendingMarks = createPendingMarksState();
-	const edgeAffinity = createEdgeAffinityState({ onInvalidate: pendingMarks.reset });
+	const caretMemory = createCaretMemory();
 	const autoPairs = createAutoPairRecord();
 	const revealAnchor = createRevealAnchorState();
 	const operationsLog = createOperationsLog();
@@ -395,8 +389,7 @@
 			return heightOracle;
 		},
 		undoManager,
-		stickyColumn,
-		edgeAffinity,
+		caretMemory,
 		closeMenus: () => {
 			blockMenu = null;
 			inlineMenu.close();
@@ -501,8 +494,7 @@
 		return onRoot(root, 'focusout', (e: FocusEvent) => {
 			const next = e.relatedTarget as Node | null;
 			if (next && root.contains(next)) return;
-			stickyColumn.reset();
-			edgeAffinity.reset();
+			caretMemory.forget();
 		});
 	});
 
@@ -511,8 +503,7 @@
 	$effect(() =>
 		onRoot(document, 'visibilitychange', () => {
 			if (document.visibilityState === 'hidden') {
-				stickyColumn.reset();
-				edgeAffinity.reset();
+				caretMemory.forget();
 			}
 		})
 	);
@@ -610,8 +601,7 @@
 		setBlockRefs: (v) => replaceRefs(blockRefs, v),
 		undoManager,
 		sharing,
-		stickyColumn,
-		edgeAffinity,
+		caretMemory,
 		selectionState,
 		getSelectedWidgetCaret: selectedWidgetCaret,
 		getBlockElByPath,
@@ -789,7 +779,8 @@
 		revealPath,
 		controller,
 		reading,
-		getContentVersion: contentVersion.read
+		getContentVersion: contentVersion.read,
+		caretMemory
 	});
 
 	// The action bundles stay one per context key so a container re-provides exactly what
@@ -804,9 +795,7 @@
 		decorations: decorationEngine,
 		selection: selectionState,
 		search: searchState,
-		stickyColumn,
-		edgeAffinity,
-		pendingMarks,
+		caretMemory,
 		autoPairs,
 		revealAnchor,
 		widgetSelection,
@@ -864,7 +853,7 @@
 		announceSelection: selectionAnnouncer.announce,
 		getBlockElByPath,
 		isHostChrome,
-		edgeAffinity,
+		caretMemory,
 		// Built below; a mode switch runs after init, so the getter reads past the TDZ.
 		get heightOracle() {
 			return heightOracle;
@@ -885,8 +874,7 @@
 	const rootGestures = createRootGestures({
 		getDoc,
 		selection: selectionState,
-		stickyColumn,
-		edgeAffinity,
+		caretMemory,
 		getBlockElByPath,
 		getBlockComponent,
 		revealPath,
@@ -1014,8 +1002,7 @@
 		getEditorRoot: () => editorEl ?? null,
 		getScrollHost,
 		getEditorLifetime: () => lifetimeController.signal,
-		stickyColumn,
-		edgeAffinity,
+		caretMemory,
 		blockEdit,
 		controller,
 		history,
@@ -1280,6 +1267,7 @@
 			getDoc,
 			selectionState,
 			getBlockElByPath,
+			caretMemory,
 			revealTarget: async (path) =>
 				reveal === 'mount'
 					? (await revealPath(path)) !== null

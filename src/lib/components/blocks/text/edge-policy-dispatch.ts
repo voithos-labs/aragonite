@@ -21,7 +21,7 @@ import {
 } from '../../../core/lines';
 import { type RawOffset } from '../../../cursor/coordinate-spaces';
 import type { EdgeAffinity } from '../../../cursor/edge-affinity';
-import type { PendingMarksState } from '../../../cursor/pending-marks';
+import type { PendingMarks } from '../../../cursor/pending-marks';
 import {
 	landableRawBounds,
 	revealsNoMarkers,
@@ -126,7 +126,7 @@ export interface EdgePolicyDispatchDeps {
 	noteOutside?: () => void;
 	/** The constructs a toggle at a collapsed caret promised the next insertion. Read and spent
 	 *  here: the first byte after the chord is the insertion they were waiting for. */
-	pendingMarks: PendingMarksState;
+	pendingMarks: PendingMarks;
 	/** This block's view of the editor's record of the pair the auto-pair last wrote, which the
 	 *  auto-pair answers below read and a pair written here renews. */
 	ownPairs: BlockAutoPairs;

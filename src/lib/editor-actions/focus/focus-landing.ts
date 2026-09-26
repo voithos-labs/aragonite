@@ -10,13 +10,13 @@ import {
 	type FocusPosition,
 	type StickyColumnDirection
 } from '../../block-component';
-import type { StickyColumnState } from '../../cursor/sticky-column';
+import type { CaretMemory } from '../../cursor/caret-memory';
 
 export async function consumeStickyLanding(
 	block: BlockComponent,
 	index: number,
 	position: FocusPosition,
-	stickyColumn: StickyColumnState,
+	caretMemory: Pick<CaretMemory, 'column'>,
 	retryAt: (index: number) => Promise<void> | void
 ): Promise<void> {
 	const isStickyMove = typeof position === 'object' && 'stickyColumnFrom' in position;
@@ -37,7 +37,7 @@ export async function consumeStickyLanding(
 	if (position === 'end' && block.enterEdgeWidget?.('end')) return;
 
 	if (isStickyMove) {
-		const x = stickyColumn.get();
+		const x = caretMemory.column();
 		const from = position.stickyColumnFrom;
 		if (x !== null && block.focusAtColumn) {
 			block.focusAtColumn(x, from);

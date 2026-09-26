@@ -25,8 +25,8 @@ import type { Reading } from '../schema/reading';
 import { isCharacterKey } from '../schema/keybindings';
 import { displayLength, trimTrailingLineEnding } from '../core/lines';
 import { isVerticallyTransparentNode } from '../core/inline/transparency';
-import type { StickyColumnState } from '../cursor/sticky-column';
-import type { EdgeAffinityState } from '../cursor/edge-affinity';
+import type { CaretMemory } from '../cursor/caret-memory';
+import type { AnyCommandId } from '../schema/command-id';
 import type { SelectionState } from '../selection/selection-state.svelte';
 import { placeCaret } from '../selection/caret-doors';
 import {
@@ -87,8 +87,9 @@ export interface WholeBlockKeyDeps extends BlockEdgeExitDeps {
 	getRaw: () => string;
 	blockEdit: Pick<BlockEditActions, 'splitBlock' | 'deleteBlock' | 'insertParagraph'>;
 	isReading: () => boolean;
-	stickyColumn: Pick<StickyColumnState, 'noteKey'>;
-	edgeAffinity: Pick<EdgeAffinityState, 'note'>;
+	caretMemory: Pick<CaretMemory, 'noteKey'>;
+	/** What the keypress resolves to at this block's kind, overrides included. */
+	commandOf: (e: KeyboardEvent) => AnyCommandId | null;
 }
 
 /**
@@ -96,11 +97,9 @@ export interface WholeBlockKeyDeps extends BlockEdgeExitDeps {
  * factory, so a new check lands once instead of at both. Navigation is never checked.
  */
 export function handleWholeBlockKeys(e: KeyboardEvent, deps: WholeBlockKeyDeps): void {
-	// The key classifiers, before any branch: skipping them let a sticky column captured
-	// elsewhere survive a horizontal move through this block, and the side an exit lands on
-	// is the same one an arrow means anywhere. No `measureX`: there is no caret here.
-	deps.stickyColumn.noteKey(e);
-	deps.edgeAffinity.note(e);
+	// Before any branch, or a column captured elsewhere survives a horizontal move through this
+	// block. No `measureX`: a block focused whole has no caret to measure.
+	deps.caretMemory.noteKey(e, deps.commandOf(e));
 
 	if (e.key === 'Enter') {
 		e.preventDefault();

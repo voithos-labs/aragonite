@@ -8,8 +8,7 @@ import type { BlockEditActions, FocusActions } from '../action-contracts';
 import type { BlockComponent } from '../block-component';
 import type { CstNode, Document } from '../core/nodes';
 import { parse } from '../core/parser';
-import type { StickyColumnState } from '../cursor/sticky-column';
-import type { EdgeAffinityState } from '../cursor/edge-affinity';
+import type { CaretMemory } from '../cursor/caret-memory';
 import type { EditorActionsDeps } from '../editor-actions/deps';
 import { kitReading } from './kit-reading';
 import type { Reading } from '../schema/reading';
@@ -32,17 +31,16 @@ export function stubBlockComponent(overrides: Partial<BlockComponent> = {}): Blo
 	} as BlockComponent;
 }
 
-export function stubStickyColumn(): StickyColumnState {
-	return { get: () => null, reset: () => {}, capture: () => {}, noteKey: () => {} };
-}
-
-export function stubEdgeAffinity(): EdgeAffinityState {
+export function stubCaretMemory(): CaretMemory {
 	return {
-		get: () => null,
-		reset: () => {},
-		note: () => {},
+		column: () => null,
+		side: () => null,
+		pendingMarks: { get: () => null, toggle: () => {}, consume: () => null, restore: () => {} },
+		noteKey: () => {},
 		noteTyping: () => {},
-		noteExtreme: () => {}
+		noteExtreme: () => {},
+		captureColumn: () => {},
+		forget: () => {}
 	};
 }
 
@@ -83,8 +81,8 @@ export function recordingFocus(): RecordingFocus {
 // ── Editor-actions environment ───────────────────────────────────────────────
 
 export interface HeadlessActionsOptions {
-	/** Wraps each stubbed collaborator (the sticky column, the edge affinity, every block ref), so
-	 *  a runner's mock can record the calls. */
+	/** Wraps each stubbed collaborator (the caret memory, every block ref), so a runner's mock
+	 *  can record the calls. */
 	spy?: <T extends object>(stub: T) => T;
 	/** A construction option because `SelectionState` cannot take one later. */
 	onSelectionChange?: () => void;
@@ -148,8 +146,7 @@ export function createHeadlessActions(
 		bumpContentVersion: options.bumpContentVersion ?? (() => {}),
 		undoManager: createUndoManager(),
 		sharing: createSharingState(),
-		stickyColumn: spy(stubStickyColumn()),
-		edgeAffinity: spy(stubEdgeAffinity()),
+		caretMemory: spy(stubCaretMemory()),
 		// Document-aware, as the editor's own is: without the document a deep table endpoint is
 		// stored raw, and every dispatch sees endpoints the editor never makes.
 		selectionState: createSelectionState({

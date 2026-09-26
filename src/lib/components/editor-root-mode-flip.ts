@@ -10,7 +10,7 @@ import { tick } from 'svelte';
 import { isTextEntrySurface } from '../active-editor';
 import { ambientLengthOf } from '../ambient/ambient-dom';
 import { toClampedRawOffset } from '../cursor/coordinate-spaces';
-import type { EdgeAffinityState } from '../cursor/edge-affinity';
+import type { CaretMemory } from '../cursor/caret-memory';
 import type { HeightOracle } from '../cursor/height-oracle';
 import { domTextOffsetAtNode } from '../cursor/widget-offset';
 import type { EditorEvents } from '../editor-events';
@@ -31,7 +31,7 @@ export interface ModeFlipDeps {
 	announceSelection(): void;
 	getBlockElByPath: BlockElLookup;
 	isHostChrome(node: Node | null): boolean;
-	edgeAffinity: Pick<EdgeAffinityState, 'reset'>;
+	caretMemory: Pick<CaretMemory, 'forget'>;
 	heightOracle: Pick<HeightOracle, 'dropMeasured'>;
 	events: EditorEvents;
 	/** The bare-mount restore path: a mode change only changes the view, so it writes no
@@ -112,10 +112,10 @@ export function createModeFlip(deps: ModeFlipDeps): ModeFlip {
 		afterFlip(to) {
 			if (to === lastEffectiveMode) return;
 			lastEffectiveMode = to;
-			// Which markers paint just changed: an edge recorded against the old geometry no longer
-			// names the offset the user meant, and every measured height is the other mode's. No
-			// width bump with it: focus is gone, and a rebuild would lose the block held in place.
-			deps.edgeAffinity.reset();
+			// Which markers paint just changed: how the caret arrived was recorded against the old
+			// geometry, and every measured height is the other mode's. No width bump with it: focus
+			// is gone, and a rebuild would lose the block held in place.
+			deps.caretMemory.forget();
 			deps.heightOracle.dropMeasured();
 			if (to === 'reading') {
 				// The gap caret is the editor's own, not the browser's, so no blur reaches it:

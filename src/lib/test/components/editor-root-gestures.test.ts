@@ -2,13 +2,13 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { createRootGestures } from '$lib/components/editor-root-gestures';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
-import { createStickyColumnState } from '$lib/cursor/sticky-column';
-import { createEdgeAffinityState } from '$lib/cursor/edge-affinity';
 import { buildLinkReferenceMap } from '$lib/core/inline/link-reference-resolver';
 import { parse } from '$lib/core/parser';
 import type { BlockComponent } from '$lib/block-component';
 import type { PresentationMode } from '$lib/presentation-mode';
 import { fixtureReading } from '../harness/fixture-grammar';
+import { createCaretMemory } from '$lib/cursor/caret-memory';
+import { asEditorX } from '$lib/cursor/coordinate-spaces';
 
 // Miss-analysis: the click test and the margin drag's setup were driven only through Playwright,
 // so no jsdom test named a refusal (a widget that runs its own gesture, a modifier held down,
@@ -83,11 +83,11 @@ function harness(opts: { mode?: PresentationMode } = {}) {
 	const focus = vi.fn();
 	const component = { focusable: true, focus, startDragAtPoint } as unknown as BlockComponent;
 	const activateLink = vi.fn();
+	const caretMemory = createCaretMemory();
 	const gestures = createRootGestures({
 		getDoc: () => doc,
 		selection,
-		stickyColumn: createStickyColumnState(),
-		edgeAffinity: createEdgeAffinityState(),
+		caretMemory,
 		getBlockElByPath: () => nearest,
 		getBlockComponent: () => component,
 		revealPath: async () => component,
@@ -120,6 +120,7 @@ function harness(opts: { mode?: PresentationMode } = {}) {
 		link,
 		headerLink,
 		selection,
+		caretMemory,
 		gestures,
 		startDragAtPoint,
 		focus,
@@ -139,6 +140,18 @@ describe('editor-root gestures: the margin drag', () => {
 		expect(h.selection.isCrossBlock).toBe(false);
 		expect(h.startDragAtPoint).toHaveBeenCalledWith(10, 40, expect.any(MouseEvent));
 		expect(h.mouseDown(h.root).defaultPrevented).toBe(true);
+	});
+
+	// A click moves the caret without a key, so the column, the side and the marks go together:
+	// a side left behind would steer the next typed byte by an arrival the click replaced.
+	it('a dead-space press forgets how the caret arrived', () => {
+		const h = harness();
+		h.caretMemory.noteKey({ key: 'ArrowDown' }, null, () => asEditorX(120));
+		h.caretMemory.pendingMarks.toggle('strong');
+		h.press(h.root);
+		expect(h.caretMemory.column()).toBeNull();
+		expect(h.caretMemory.side()).toBeNull();
+		expect(h.caretMemory.pendingMarks.get()).toBeNull();
 	});
 
 	it.each<[string, MouseEventInit]>([

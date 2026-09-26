@@ -5,7 +5,7 @@
 // that took its focus.
 import { describe, it, expect, afterEach } from 'vitest';
 import { flushSync, tick } from 'svelte';
-import { createEdgeAffinityState } from '$lib/cursor/edge-affinity';
+import { createCaretMemory } from '$lib/cursor/caret-memory';
 import { mountCode, type MountedCode } from './mount-code';
 
 const BARE_FENCE = '```\n```\n';
@@ -19,11 +19,11 @@ afterEach(async () => {
 });
 
 async function focusFence(arrival: 'step' | 'seat'): Promise<void> {
-	const edgeAffinity = createEdgeAffinityState();
-	if (arrival === 'step') edgeAffinity.note({ key: 'ArrowRight', altKey: false });
+	const caretMemory = createCaretMemory();
+	if (arrival === 'step') caretMemory.noteKey({ key: 'ArrowRight' }, null);
 	mounted = mountCode(BARE_FENCE, {
 		policies: { presentationMode: () => 'live' },
-		services: { edgeAffinity }
+		services: { caretMemory }
 	});
 	mounted.el.focus();
 	flushSync();

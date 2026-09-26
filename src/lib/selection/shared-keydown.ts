@@ -1,16 +1,17 @@
 /**
  * Shared keydown prelude for contenteditable blocks: Ctrl+A counter, cross-block dispatch,
- * sticky-column capture/reset, undo/redo, arrow boundary navigation. Block-specific handlers
+ * the caret memory's key note, undo/redo, arrow boundary navigation. Block-specific handlers
  * (Enter, Backspace, Tab, formatting) stay in each component.
  */
 
 import type { FocusActions, HistoryActions } from '../action-contracts';
 import type { BlockElLookup, DocumentGetter } from '../editor-keys';
-import type { StickyColumnState } from '../cursor/sticky-column';
-import type { EdgeAffinityState } from '../cursor/edge-affinity';
+import type { CaretMemory } from '../cursor/caret-memory';
 import type { SelectionState } from './selection-state.svelte';
 import type { CrossBlockHandlers } from './cross-block/dispatch';
 import type { PluginActivation } from '../schema/plugin-activation';
+import type { KeybindingOverrideMap } from '../schema/keybinding-overrides';
+import { commandAtBlock } from './cross-block/keydown';
 import type { Reading } from '../schema/reading';
 import {
 	extendFocusToNextBlock,
@@ -36,14 +37,15 @@ export interface SharedKeydownContext extends LandableBoundsContext {
 	getDoc: DocumentGetter;
 	crossBlock: CrossBlockHandlers;
 	selection: SelectionState;
-	stickyColumn: StickyColumnState;
-	edgeAffinity: EdgeAffinityState;
+	caretMemory: CaretMemory;
 	history: HistoryActions;
 	focus: FocusActions;
 	getBlockElByPath: BlockElLookup;
 	/** The plugins this instance activated; without it the suppression below swallows a
 	 *  chord another editor's plugin owns. */
 	activePlugins: PluginActivation;
+	/** The consumer's key rebindings, so the caret memory reads a chord as what it now does. */
+	getKeybindingOverrides: () => KeybindingOverrideMap;
 	/** How the editor reads its bytes, whose grammar the vertical extension skips leaves by. */
 	reading: Reading;
 }
@@ -72,8 +74,7 @@ export async function handleSharedKeydown(
 	const el = ctx.getEl();
 	if (!el) return false;
 
-	ctx.stickyColumn.noteKey(e, () => getCurrentCursorEditorRelativeX(el));
-	ctx.edgeAffinity.note(e);
+	ctx.caretMemory.noteKey(e, commandAtBlock(e, ctx), () => getCurrentCursorEditorRelativeX(el));
 
 	// The browser's own undo/redo is suppressed on keydown, since Ctrl+Y fires no `historyRedo`
 	// beforeinput in Chromium and WebView2. The default chord table is the right question here:

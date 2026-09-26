@@ -57,6 +57,15 @@ test.describe('sticky column: reset triggers', () => {
 			tolerance: PIXEL_TOLERANCE * 3
 		},
 		{
+			name: 'a host setSelection',
+			reset: async () => {
+				const caret = { path: [1], offset: 0 };
+				expect(await editor.bridge.setSelection({ anchor: caret, focus: caret })).toBe(true);
+				await editor.waitForRenderFlush();
+			},
+			tolerance: PIXEL_TOLERANCE * 3
+		},
+		{
 			name: 'ArrowLeft',
 			reset: async () => {
 				await editor.page.keyboard.press('ArrowLeft');

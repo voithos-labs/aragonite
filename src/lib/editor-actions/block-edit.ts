@@ -123,15 +123,13 @@ export function createBlockEditActions(
 		insertParagraph: (boundaryIndex, text) => core.insertParagraph(boundaryIndex, text),
 
 		async mergeWithPrevious(blockIndex) {
-			deps.stickyColumn.reset();
-			deps.edgeAffinity.reset();
+			deps.caretMemory.forget();
 			if (blockIndex <= 0) return;
 			await core.mergeWithPreviousInterior(blockIndex);
 		},
 
 		async mergeWithNext(blockIndex) {
-			deps.stickyColumn.reset();
-			deps.edgeAffinity.reset();
+			deps.caretMemory.forget();
 			if (blockIndex >= deps.doc.children.length - 1) return;
 			await core.mergeWithNextInterior(blockIndex);
 		},
@@ -150,8 +148,7 @@ export function createBlockEditActions(
 			preEditOffset?: number,
 			postEditFocusOffset?: number
 		): Promise<void> {
-			deps.stickyColumn.reset();
-			deps.edgeAffinity.reset();
+			deps.caretMemory.forget();
 			// Keyed by block id, not by index: a bare index names the position, so a different
 			// block arriving at the same index would continue its batch.
 			controller.pushUndoSnapshotDebounced(

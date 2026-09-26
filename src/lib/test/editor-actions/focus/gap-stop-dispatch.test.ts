@@ -4,7 +4,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { dispatchMoveFocus } from '$lib/editor-actions/focus/focus-dispatch';
 import {
 	stubBlockComponent,
-	makeStickyColumn,
+	makeCaretMemory,
 	makeStubFocus
 } from '$lib/test/harness/editor-actions';
 import type { FocusPosition } from '$lib/block-component';
@@ -23,7 +23,7 @@ function dispatch(
 		[child, child],
 		innerIndex,
 		position,
-		makeStickyColumn(),
+		makeCaretMemory(),
 		{ focus: parentFocus, index: 3 },
 		{ childCount: 2, options, gapStop }
 	);

@@ -13,8 +13,7 @@ import type { CrossBlockHandlers } from '../../../selection/cross-block/dispatch
 import type { PasteCommitCoordinator } from '../../../tree-operations/paste/paste-deps';
 import type { PluginActivation } from '../../../schema/plugin-activation';
 import type { SelectionState } from '../../../selection/selection-state.svelte';
-import type { StickyColumnState } from '../../../cursor/sticky-column';
-import type { EdgeAffinityState } from '../../../cursor/edge-affinity';
+import type { CaretMemory } from '../../../cursor/caret-memory';
 import { resolvedInlineContent } from '../../../core/inline/inline-cache';
 import { isInlineWidget } from '../../../core/inline/inline-widgets';
 import {
@@ -41,8 +40,7 @@ export interface TextClipboardDeps {
 	events: EditorEvents;
 	onPasteImage: PasteImageHook | undefined;
 	selection: SelectionState;
-	stickyColumn: StickyColumnState;
-	edgeAffinity: EdgeAffinityState;
+	caretMemory: CaretMemory;
 	blockEdit: BlockEditActions;
 	pasteCoordinator: PasteCommitCoordinator;
 	/** The plugins this instance activated, so an unlisted plugin's paste transform stays out. */
@@ -103,8 +101,7 @@ export function createTextClipboard(deps: TextClipboardDeps): TextClipboard {
 	}
 
 	const handlers = createClipboardHandlers({
-		stickyColumn: deps.stickyColumn,
-		edgeAffinity: deps.edgeAffinity,
+		caretMemory: deps.caretMemory,
 		selection: deps.selection,
 		getDoc: deps.getDoc,
 		crossBlock: deps.crossBlock,

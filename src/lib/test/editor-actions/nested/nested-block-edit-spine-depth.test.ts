@@ -13,7 +13,7 @@ import { createNestedBlockEdit } from '$lib/editor-actions/nested/nested-block-e
 import type { NestedActionsDeps } from '$lib/editor-actions/nested/nested-actions';
 import {
 	makeBlockListState,
-	makeStickyColumn,
+	makeCaretMemory,
 	makeStubBlockEdit,
 	makeStubContainerEdit,
 	makeStubFocus
@@ -42,18 +42,18 @@ function typeInto(node: CstNode, chainDepth: number): void {
 			return false;
 		}
 	);
-	const deps = {
+	const deps: NestedActionsDeps = {
 		index: 1,
 		node,
 		path: CONTAINER_PATH,
-		stickyColumn: makeStickyColumn(),
+		caretMemory: makeCaretMemory(),
 		reading: fixtureReading(),
 		parent: {
 			blockEdit: makeStubBlockEdit(),
 			focus: makeStubFocus(),
 			containerEdit
 		}
-	} as unknown as NestedActionsDeps;
+	};
 	void createNestedBlockEdit(
 		makeBlockListState(() => node),
 		deps

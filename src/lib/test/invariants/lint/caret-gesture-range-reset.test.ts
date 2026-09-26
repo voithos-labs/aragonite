@@ -282,9 +282,9 @@ describe('G2.12 caret placement ends a live cross-block range', () => {
 		expect(missingDoors('if (crossBlock.handlePointerDown(e)) return;', 'both')).toEqual([
 			'resetForPointerDown'
 		]);
-		expect(
-			missingDoors('resetForPointerDown(selection, stickyColumn, e.shiftKey)', 'both')
-		).toEqual(['crossBlock.handlePointerDown']);
+		expect(missingDoors('resetForPointerDown(selection, caretMemory, e.shiftKey)', 'both')).toEqual(
+			['crossBlock.handlePointerDown']
+		);
 		expect(
 			missingDoors(
 				'if (crossBlock.handlePointerDown(e)) return; resetForPointerDown(a, b, c);',
