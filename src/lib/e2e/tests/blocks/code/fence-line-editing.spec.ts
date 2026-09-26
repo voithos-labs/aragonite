@@ -62,6 +62,16 @@ test.describe('code block: fence lines the mode paints', () => {
 		expect(await editor.bridge.getBlockKind(1)).toBe('paragraph');
 	});
 
+	test('an arrow from the body reaches the opener, and typing there writes the info', async () => {
+		await editor.focusBlock(0, BODY_MID);
+		await editor.page.keyboard.press('Home');
+		await editor.page.keyboard.press('ArrowUp');
+		await editor.page.keyboard.press('End');
+		await editor.page.keyboard.type('x');
+
+		await editor.bridge.waitForSourceEquals('```jsx\nconst x = 1\n```\n\nafter\n');
+	});
+
 	test('a selection inside the info string is edited verbatim', async () => {
 		await selectFrom(editor, 3, 2); // "js"
 		await editor.typeText('py');

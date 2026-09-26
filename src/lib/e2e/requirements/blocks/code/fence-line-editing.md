@@ -30,6 +30,8 @@ Where the mode hides the fence lines, edits clamp to the body instead: `fence-ra
 
 ## User interactions
 
+- ArrowUp from the body's first line reaches the opener; End and a typed character extend the
+  info string (`js` becomes `jsx`)
 - the preview modes take the same edit on the focused block, where they paint its fence lines
   (miss-analysis: every fence edit test ran in source mode against a clamp that held in every
   mode, and no test ever put an edit on a painted fence line)
