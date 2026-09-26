@@ -29,6 +29,7 @@
 	import { anchorTrailingNewline, plainTextOf } from '../plain-text-backend';
 	import { renderCodeBlock, sliceFencedCode } from './code-renderer';
 	import {
+		getCloserFor,
 		getLineLeadingWhitespace,
 		isBetweenEmptyPair,
 		isBetweenEmptyBracketPair
@@ -336,16 +337,18 @@
 	const onInput = editableSurface.onInput;
 	const onCompositionEnd = editableSurface.onCompositionEnd;
 
-	// An IME deletes the selection as it starts composing, and the `insertCompositionText`
-	// beforeinput event is not cancelable, so a selection crossing a fence is shrunk onto its
-	// body here, before the composition takes over.
+	// An IME deletes the selection as it starts composing, and its `insertCompositionText` is not
+	// cancelable, so with the fence lines hidden the block deletes the body part itself first.
 	function onCompositionStart(): void {
 		const sel = backend.getRawSelection();
-		if (sel && !fenceLinesEditable && crossesFenceBoundary(node, sel)) {
-			const span = fenceEditSpan(node, sel);
-			setSelection(span.start, span.end);
-		}
 		editableSurface.onCompositionStart();
+		if (!sel || sel.start === sel.end || fenceLinesEditable) return;
+		const edit = computeFenceRangedEdit(node, sel, '');
+		const caret = edit ? edit.newCursor : clampCaretToBody(node, sel.start);
+		// Synchronous, since the IME composes at wherever the caret is once this handler returns.
+		if (edit) pendingCursorOffset = commitDisplay(edit.newText, caret, caret);
+		else setSelection(caret, caret);
+		editableSurface.notePreEditOffset(caret);
 	}
 
 	async function onBeforeInput(e: InputEvent): Promise<void> {
@@ -373,7 +376,10 @@
 		if (!data || data.length !== 1) return;
 
 		const text = getDisplayText();
-		const selOffsets = backend.getRawSelection();
+		const rawSelection = backend.getRawSelection();
+		// A wrap is the one range edit that reaches here; with the fence lines hidden it wraps the body.
+		const selOffsets =
+			rawSelection && !fenceLinesEditable ? fenceEditSpan(node, rawSelection) : rawSelection;
 		const offset = selOffsets ? selOffsets.start : (backend.getRaw() ?? 0);
 
 		const meta = metadataOf(node, 'fencedCode');
@@ -394,10 +400,7 @@
 			typed: data,
 			unclosedBacktickFence: meta.closed === false && meta.fenceMarker === '`'
 		});
-		if (!result) {
-			if (!collapsed && !fenceLinesEditable) typeOverHiddenFence(e, text, selOffsets!, data);
-			return;
-		}
+		if (!result) return;
 
 		e.preventDefault();
 		if (result.kind === 'skip') {
@@ -445,7 +448,12 @@
 		if (composing || !el || fenceLinesEditable) return false;
 		const range = pendingEditRange(e);
 		if (!range) return false;
-		if (!crossesFenceBoundary(node, range)) return guardHiddenFenceDelete(e, range);
+		if (wrapsBody(e, range)) return false;
+		// Chromium's own replace of a range opening on a highlighted token also removes the hidden
+		// opener, so the block writes every replacement, inside the body or not.
+		if (!crossesFenceBoundary(node, range) && !replacesRange(e, range)) {
+			return guardHiddenFenceDelete(e, range);
+		}
 
 		e.preventDefault();
 		const insert = rangedEditInsertion(e, fenceEditSpan(node, range));
@@ -479,19 +487,18 @@
 		return true;
 	}
 
-	/**
-	 * A character typed over a body range while the fence lines are hidden, written by the block:
-	 * Chromium, replacing a range that opens on a highlighted token, also removes the hidden opener.
-	 */
-	function typeOverHiddenFence(e: InputEvent, text: string, range: RawRange, typed: string): void {
-		e.preventDefault();
-		const edit = computeRangedEdit(text, range, typed);
-		if (!edit) return;
-		pendingCursorOffset = commitDisplay(
-			edit.newText,
-			editableSurface.getPreEditOffset(),
-			edit.newCursor
-		);
+	function replacesRange(e: InputEvent, range: RawRange): boolean {
+		const replacing = e.inputType === 'insertText' || e.inputType === 'insertReplacementText';
+		return replacing && range.start !== range.end;
+	}
+
+	/** A bracket or quote typed over a range wraps it (the auto-pair path), unless the range
+	 *  holds no body at all. */
+	function wrapsBody(e: InputEvent, range: RawRange): boolean {
+		if (e.inputType !== 'insertText' || e.data?.length !== 1 || range.start === range.end) {
+			return false;
+		}
+		return getCloserFor(e.data) !== null && !isStructureOnlyRange(node, range);
 	}
 
 	/**

@@ -1,5 +1,6 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
+import { attachIme } from '../../../simulation/ime';
 
 // Where the mode hides a code block's fence lines (live mode here), every gesture over a range
 // applies only to the part of the selection inside the body, so neither hidden fence line can be
@@ -69,4 +70,63 @@ test.describe('code block: ranged edits reaching a hidden fence line', () => {
 		expect(await editor.bridge.getSource()).toBe('```js\n\n```\n');
 		expect(await editor.bridge.getBlockKind(0)).toBe('fencedCode');
 	});
+});
+
+// A range opening on the body's first highlighted word is where Chromium's own replace also
+// removes the hidden opener, so each way of replacing a range is its own row.
+// Display: opener [0,5) · body "const x = 1;\nfoo();\nbar();" [6,32) · closer [33,36).
+const LONG = '```js\nconst x = 1;\nfoo();\nbar();\n```\n';
+const ACROSS: [number, number] = [6, 21]; // from `const` into `foo`, across a line break
+const REST = 'o();\nbar();';
+
+type Step = (editor: EditorPage) => Promise<void>;
+const typeQ: Step = (editor) => editor.page.keyboard.type('Q');
+const composeA: Step = async (editor) => {
+	const ime = await attachIme(editor.page);
+	await ime.compose('あ');
+	await ime.commit('あ');
+};
+const shiftAcross: Step = (editor) => selectFrom(editor, ACROSS[0], ACROSS[1] - ACROSS[0]);
+
+const REPLACEMENTS: Array<[name: string, select: Step, replace: Step, body: string]> = [
+	[
+		'a typed key over a drag',
+		(e) => e.dragFromTo([0], ACROSS[0], [0], ACROSS[1]),
+		typeQ,
+		'Q' + REST
+	],
+	['a typed key over Shift+Arrow', shiftAcross, typeQ, 'Q' + REST],
+	['an emoji over Shift+Arrow', shiftAcross, (e) => e.page.keyboard.insertText('😀'), '😀' + REST],
+	['an IME composition over Shift+Arrow', shiftAcross, composeA, 'あ' + REST],
+	['an IME composition over the whole body', (e) => selectFrom(e, 6, 26), composeA, 'あ'],
+	[
+		'a typed key after Ctrl+A',
+		async (e) => {
+			await e.focusBlock(0, 10);
+			await e.selectAll();
+		},
+		typeQ,
+		'Q'
+	]
+];
+
+test.describe('code block: any replacement of a body range keeps the hidden fence lines', () => {
+	let editor: EditorPage;
+
+	test.beforeEach(async ({ page }) => {
+		editor = new EditorPage(page);
+		await editor.goto();
+		await editor.setPresentationMode('live');
+		await editor.loadContent(LONG);
+		await editor.getBlock(0).click();
+	});
+
+	for (const [name, select, replace, body] of REPLACEMENTS) {
+		test(`${name} replaces only body text`, async () => {
+			await select(editor);
+			await replace(editor);
+
+			await expect.poll(() => editor.bridge.getSource()).toBe('```js\n' + body + '\n```\n');
+		});
+	}
 });
