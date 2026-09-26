@@ -159,17 +159,19 @@ describe('Backspace at content start in live mode', () => {
 		}
 	});
 
-	// The underline is drawn in no mode, so the title's end is the block's end for the caret, and
-	// the join the command reaches lands the next block's text above the underline.
-	it.each<PresentationMode>(['live', 'source', 'preview-inline'])(
-		'takes mergeNext at a setext heading’s content end in %s',
-		(mode) => {
-			mounted = mountBlock('Title\n===\n', mode, 5);
+	// Where markers hide, the title's end is the block's end for the caret; where the underline
+	// paints, the caret can stand in it, so the block ends past it. Either way the join the
+	// command reaches lands the next block's text above the underline.
+	it.each<[PresentationMode, number]>([
+		['live', 5],
+		['source', 9],
+		['preview-inline', 9]
+	])('takes mergeNext at a setext heading’s last caret position in %s', (mode, end) => {
+		mounted = mountBlock('Title\n===\n', mode, end);
 
-			expect(mounted.instance.runCommand('block.mergeNext')).toBe(true);
-			expect(mounted.blockEdit.mergeWithNext).toHaveBeenCalledWith(0);
-		}
-	);
+		expect(mounted.instance.runCommand('block.mergeNext')).toBe(true);
+		expect(mounted.blockEdit.mergeWithNext).toHaveBeenCalledWith(0);
+	});
 
 	it('merges a kind that declares no demote, at its own content start', () => {
 		mounted = mountBlock('Title\n', 'live', 0);

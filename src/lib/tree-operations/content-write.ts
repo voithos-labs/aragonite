@@ -17,7 +17,6 @@ import {
 	ownTrailingLineEnding,
 	type LineEnding
 } from '../core/lines';
-import { dropSuffixUnderBlankLine } from '../core/inline';
 import { assignChildIdsDeep } from '../block-id';
 import { perfEnabled, recordContainerKindReparse } from '../perf/instruments';
 import {
@@ -95,8 +94,7 @@ export function legalizeWrite(
 	const lineEnding = 'lineEnding' in parent ? parent.lineEnding : documentLineEnding(parent);
 	const ownRule = tryGetBlockKindDescriptor(node.kind)?.rawWrite;
 	const ownCtx: WriteContext = { node, mode, lineEnding };
-	const kept = dropSuffixUnderBlankLine(node, text);
-	const own = ownRule ? ownRule.normalize(kept, ownCtx) : kept;
+	const own = ownRule ? ownRule.normalize(text, ownCtx) : text;
 	const bodyRule = owner ? tryGetBlockKindDescriptor(owner.kind)?.bodyWrite : undefined;
 	// A child's bytes are never the container's own syntax, so the body rule reads them as content.
 	const bodyCtx: WriteContext | undefined = owner && { node: owner, mode: 'literal', lineEnding };
@@ -104,7 +102,7 @@ export function legalizeWrite(
 	// A list item takes a typed task marker out of its first paragraph, or gives one back.
 	const markerShift = index === 0 && owner ? taskMarkerCaretShift(owner, stored) : 0;
 	const storedOffset = (offset: number): number => {
-		const inOwn = ownRule ? ownRule.mapOffset(kept, offset, ownCtx) : offset;
+		const inOwn = ownRule ? ownRule.mapOffset(text, offset, ownCtx) : offset;
 		const inBody = bodyRule && bodyCtx ? bodyRule.mapOffset(own, inOwn, bodyCtx) : inOwn;
 		return Math.max(inBody + markerShift, 0);
 	};

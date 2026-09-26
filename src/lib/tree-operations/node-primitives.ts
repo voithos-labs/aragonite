@@ -10,7 +10,6 @@ import type { DocumentView, NodeView } from '../core/node-views';
 import { readBlocks } from '../core/parser';
 import type { GrammarView } from '../schema/block-openers';
 import { documentLineEnding, trailingLineEnding, type LineEnding } from '../core/lines';
-import { dropSuffixUnderBlankLine } from '../core/inline';
 import { getBlockKindDescriptor, tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
 import { reservedChromeKindOf } from '../schema/reserved-chrome';
 
@@ -73,13 +72,11 @@ export const forBody = (parent: BodyParentArg, raw: string): string =>
 /**
  * `raw` made legal as `node`'s own bytes, for a write that replaces the node with a reparse: the
  * reparse re-derives metadata, so structure the rule restores from the old metadata is applied
- * first. An undrawn suffix under a blank line goes before the kind's own rule runs.
+ * first.
  */
 export function normalizeOwnRaw(node: NodeView, raw: string, lineEnding: LineEnding): string {
-	const descriptor = tryGetBlockKindDescriptor(node.kind);
-	if (!descriptor) return raw;
-	const kept = dropSuffixUnderBlankLine(node, raw);
-	return descriptor.rawWrite?.normalize(kept, { node, mode: 'literal', lineEnding }) ?? kept;
+	const rule = tryGetBlockKindDescriptor(node.kind)?.rawWrite;
+	return rule ? rule.normalize(raw, { node, mode: 'literal', lineEnding }) : raw;
 }
 
 /**

@@ -611,24 +611,32 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 
 	// ── Pending marks from a toggle ────────────────────────────────────────────
 
-	/** The byte after a hard break made at the end of a block, whose line ending is the block's
-	 *  own trailing one, so no caret can sit past it. The key lands after the break rather than
-	 *  between the backslash and its newline, where it would undo the break. */
+	/** The byte after a hard break made at the end of a block's content, whose line ending is the
+	 *  one after the content (the block's own, or the one above a setext underline), so no caret
+	 *  can sit past it. The key lands after the break rather than between the backslash and its
+	 *  newline, where it would undo the break. */
 	function handleTransitionalHardBreak(e: KeyboardEvent, caretOffset: RawOffset | null): boolean {
 		if (deps.isReading()) return false;
 		if (!isPlainTypingKey(e) || caretOffset === null || heldRange()) return false;
 		const d = display();
-		// Only at the very end, and only when the block's last byte is the break's backslash.
-		if (caretOffset !== d.length || !d.endsWith('\\')) return false;
+		const contentEnd = getContentRange(deps.node).end;
+		const text = d.slice(0, contentEnd);
+		// Only at the content end, and only when the content's last byte is the break's backslash.
+		if (caretOffset !== contentEnd || !text.endsWith('\\')) return false;
 		// An escaped backslash (`\\\\`) is content, not a break.
-		if (d.endsWith('\\\\')) return false;
+		if (text.endsWith('\\\\')) return false;
 		// Backslash before ASCII punctuation is an escape (`\|`, `\*`), never a break's backslash.
 		if (/^[!-/:-@[-`{-~]$/.test(e.key)) return false;
 		const ending = trailingLineEnding(deps.node.raw, deps.getLineEnding());
 		e.preventDefault();
 		deps.setSnapTarget(null);
-		const next = d + ending + e.key;
-		writeDisplay(next, next.length, 'transitional-hard-break', caretOffset);
+		const line = ending + e.key;
+		writeDisplay(
+			text + line + d.slice(contentEnd),
+			contentEnd + line.length,
+			'transitional-hard-break',
+			caretOffset
+		);
 		return true;
 	}
 

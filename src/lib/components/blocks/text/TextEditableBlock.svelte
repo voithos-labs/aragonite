@@ -18,7 +18,7 @@
 	} from '../../../editor-keys';
 	import type { IndexedDecoration } from '../../../decorations/buckets';
 	import type { ReplaceDecoration, WidgetDecoration } from '../../../decorations/types';
-	import { getContentRange, isProseKind, undrawnSuffix } from '../../../core/inline';
+	import { getContentRange, isProseKind } from '../../../core/inline';
 	import { devWarn } from '../../../dev-warn';
 	import { resolvedInlineContent } from '../../../core/inline/inline-cache';
 	import { isInlineWidget } from '../../../core/inline/inline-widgets';
@@ -461,11 +461,10 @@
 	}
 
 	/** The length the caret counts against: the DOM's while a source is shown, since the CST has
-	 *  not seen that edit, and never the undrawn suffix. Counting bytes no caret can reach traps
-	 *  the caret at the block's end, because no key reads as "at the boundary". */
+	 *  not seen that edit. */
 	function caretReach(): number {
-		if (widgetInteraction.isRevealing()) return readDomText().length;
-		return getDisplayText().length - undrawnSuffix(node).length;
+		if (widgetInteraction.isRevealing()) return readRawText().length;
+		return getDisplayText().length;
 	}
 
 	/** The offsets a caret can reach here, read from the same place the arrow exits use: a mode
@@ -500,7 +499,12 @@
 				return always(() => blockEdit.descendToBody(index));
 			case 'block.hardBreak':
 				return always(() => {
-					const { newRaw, caretOffset } = insertHardBreak(node.raw, offset, documentEnding());
+					const { newRaw, caretOffset } = insertHardBreak(
+						node.raw,
+						offset,
+						documentEnding(),
+						getContentRange(node).end
+					);
 					const write = blockEdit.updateBlockContent(
 						index,
 						newRaw,
@@ -827,13 +831,7 @@
 
 	const onInput = editableSurface.onInput;
 
-	// The DOM stops at the content end, so the undrawn suffix (a setext underline) is added back;
-	// the content write drops it again when the title's last line is left blank.
 	function readRawText(): string {
-		return readDomText() + undrawnSuffix(node);
-	}
-
-	function readDomText(): string {
 		return el ? rawTextOfContent(el, node.raw) : '';
 	}
 

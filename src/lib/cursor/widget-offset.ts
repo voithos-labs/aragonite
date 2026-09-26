@@ -758,9 +758,21 @@ function positionBeside(el: Element, side: 'before' | 'after'): DomPosition | nu
 	}
 	const idx = Array.prototype.indexOf.call(parent.childNodes, el);
 	// A pending hard break's first anchor (`inline-render.ts`) ends the line the marker sat on;
-	// the position past the marker is the start of the next line, after that anchor.
+	// the position past the marker is the start of the next line, after that anchor, and so is
+	// the position before whatever follows the break's second anchor.
 	if (side === 'after' && isBreakAnchor(sibling)) return { node: parent, offset: idx + 2 };
+	if (side === 'before' && isBreakAnchor(sibling) && isBreakAnchor(sibling!.previousSibling)) {
+		return { node: parent, offset: idx - 1 };
+	}
 	return { node: parent, offset: side === 'before' ? idx : idx + 1 };
+}
+
+/** Whether a pending hard break's anchor stands between two sibling spans. */
+function breakAnchorBetween(from: Element, to: Element): boolean {
+	for (let node = from.nextSibling; node && node !== to; node = node.nextSibling) {
+		if (isBreakAnchor(node)) return true;
+	}
+	return false;
 }
 
 function isBreakAnchor(node: Node | null): boolean {
@@ -845,6 +857,12 @@ function* landingSegments(
 		// spans, and splitting the run there would create a caret position nothing paints.
 		if (run && seg.len === 0) continue;
 		if (seg.kind === 'text' && seg.hiddenRoot !== null) {
+			// A pending hard break's anchors start a line between two hidden runs (the break's
+			// backslash, a setext underline), and the caret sits at that line's start.
+			if (run && breakAnchorBetween(run.last, seg.hiddenRoot)) {
+				yield run;
+				run = null;
+			}
 			if (run) {
 				run.len += seg.len;
 				run.last = seg.hiddenRoot;

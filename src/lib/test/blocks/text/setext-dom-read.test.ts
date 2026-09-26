@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 //
-// A setext heading's DOM holds only its title: no mode draws the underline. A write from the text
-// the block reads back carries the underline, unless the title's last line is empty.
+// A setext heading's DOM holds its title and its underline, drawn as a marker. A write from the
+// text the block reads back carries the underline once, and drops it when the title's last line
+// is left empty.
 // Miss-analysis: prose blocks had no mount-level typing tests, the shape property's retype writes
 // the stored bytes back and never reads the DOM, and no typing case erased the title.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
@@ -27,10 +28,14 @@ afterEach(async () => {
 	mounted = null;
 });
 
-/** Replace the heading's rendered text and fire the input the browser would. */
-async function typeInto(el: HTMLElement, text: string): Promise<void> {
+/** Replace the heading's title the way the browser edits it, leaving the underline the page drew,
+ *  and fire the input. */
+async function retitle(el: HTMLElement, title: string): Promise<void> {
 	el.focus();
-	el.textContent = text;
+	const underline = el.lastElementChild!;
+	expect(underline.classList.contains('md-marker')).toBe(true);
+	while (el.firstChild !== underline) el.firstChild!.remove();
+	el.insertBefore(document.createTextNode(title), underline);
 	el.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText' }));
 	await mounted!.settle();
 }
@@ -44,10 +49,8 @@ describe('typing into a setext heading keeps its underline', () => {
 		['a two-line title', 'Plan\nB\n---\n', 'Plan\nBs\n---\n']
 	])('%s', async (_label, source, typed) => {
 		mounted = mountEditor({ source });
-		const el = surfaceAt(mounted, [0]);
-		expect(el.textContent).not.toMatch(/[-=]{3}/);
 
-		await typeInto(el, typed.slice(0, typed.search(/\r?\n[-=]+\r?\n$/)));
+		await retitle(surfaceAt(mounted, [0]), typed.slice(0, typed.search(/\r?\n[-=]+\r?\n$/)));
 
 		expect(mounted.source()).toBe(typed);
 	});
@@ -64,7 +67,7 @@ describe('erasing a setext title drops its underline', () => {
 	])('%s', async (_label, source, left, written) => {
 		mounted = mountEditor({ source });
 
-		await typeInto(surfaceAt(mounted, [0]), left);
+		await retitle(surfaceAt(mounted, [0]), left);
 
 		expect(mounted.source()).toBe(written);
 		expect(mounted.target.textContent).not.toMatch(/[-=]{3}/);

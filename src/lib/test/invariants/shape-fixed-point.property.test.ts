@@ -20,7 +20,8 @@ import {
 	displayLength,
 	documentLineEnding,
 	firstLineEnding,
-	trailingLineEnding
+	trailingLineEnding,
+	trimTrailingLineEnding
 } from '$lib/core/lines';
 import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
 import {
@@ -28,7 +29,6 @@ import {
 	__resetLiveSplitRebalancerForTests
 } from '$lib/schema/inline-construct-policy';
 import { rebalanceLiveSplit } from '$lib/components/blocks/text/live-split-rebalance';
-import { getContentRange, undrawnSuffix } from '$lib/core/inline';
 import type { PresentationMode } from '$lib/presentation-mode';
 import { defaultGrammarView } from '$lib/schema/block-openers';
 import { rebuildUnsharedChain } from '$lib/tree-operations/chain-rebuild';
@@ -174,12 +174,9 @@ function applyRetype(doc: Document, at: number): void {
 	if (slots.length === 0) return;
 	const slot = slots[at % slots.length];
 	const node = slot.holder.children![slot.index];
-	const domText = node.raw.slice(0, getContentRange(node).end);
-	writeLeaf(
-		doc,
-		slot,
-		domText + undrawnSuffix(node) + trailingLineEnding(node.raw, documentLineEnding(doc))
-	);
+	// The page holds the whole display, a setext underline included.
+	const domText = trimTrailingLineEnding(node.raw);
+	writeLeaf(doc, slot, domText + trailingLineEnding(node.raw, documentLineEnding(doc)));
 }
 
 function writeLeaf(doc: Document, { holder, index, chain }: LeafSlot, text: string): void {

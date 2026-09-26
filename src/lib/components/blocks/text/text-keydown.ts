@@ -96,13 +96,25 @@ export function cycleHeading(
 }
 
 /**
- * Insert a GFM hard-break (a backslash at end of line) at `offset` within the display.
- * At end-of-display the break's own ending becomes the block's trailing ending, so the
- * break is transitional there until the next keystroke supplies its following line.
+ * Insert a GFM hard-break (a backslash at end of line) at `offset` within the display. At the
+ * content end the break has no following line yet: the line break after the content (the block's
+ * own ending, or the one above a setext underline) stands in for the break's until the next
+ * keystroke supplies the line.
  */
-export function insertHardBreak(raw: string, offset: number, ending: LineEnding): TextEditResult {
+export function insertHardBreak(
+	raw: string,
+	offset: number,
+	ending: LineEnding,
+	contentEnd: number
+): TextEditResult {
 	const display = trimTrailingLineEnding(raw);
 	const trailing = ownTrailingLineEnding(raw);
+	if (offset === contentEnd && contentEnd < display.length) {
+		return {
+			newRaw: raw.slice(0, contentEnd) + '\\' + raw.slice(contentEnd),
+			caretOffset: contentEnd + 1
+		};
+	}
 	// The break carries the block's own ending, else the document's `ending`: CommonMark reads a
 	// backslash before either LF or CRLF as a hard break, so a CRLF block stays CRLF.
 	const breakBytes = '\\' + trailingLineEnding(raw, ending);
