@@ -2,7 +2,7 @@
  * The one place a DOM position is translated to a raw offset and back, and the one place a caret
  * is written from a raw offset (`docs/design/editor.md`). The walk offset (`DomTextOffset`) sums
  * text-node lengths, the leading marker prefix's text included, plus each atomic widget's source
- * length; a raw offset is that minus the prefix length, which is read off the DOM here and nowhere else.
+ * length. A raw offset is that minus the prefix length, which this module reads off the DOM.
  */
 
 import {

@@ -1191,8 +1191,7 @@ says so at its call. Scanned with per-file reasons and set equality: the native
 `addRange`/`setBaseAndExtent`/`extend` writers (the one writer, plus writers of a range over
 nodes they already hold), the files building a DOM position from a walk offset (the walk module
 and its measuring readers), the files naming `rawRangeToDomRange` (measuring and decorating
-only), and the surfaces building `focus` from `caret-doors`' `placeCaret`. A new writer is a lint
-conversation, not a drift. `lint/manifest-rules.test.ts`.
+only), and the surfaces building `focus` from `caret-doors`' `placeCaret`. `lint/manifest-rules.test.ts`.
 
 **G4.37 · Content-empty stamp parity.** The files rendering a fragment into a contenteditable the
 caret walk reads (`renderInlineNodes`, `renderCodeBlock`) are exactly the files stamping
