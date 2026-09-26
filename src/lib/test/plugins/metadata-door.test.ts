@@ -29,6 +29,8 @@ describe('a metadata write in reading mode', () => {
 		const fires = takeDevWarns();
 		expect(fires.map((w) => w.tag)).toEqual([READING_WRITE_TAG]);
 		expect(fires[0].message).toContain("declined 'metadataUpdate' in reading mode");
+		// The block's kind, so a plugin author can tell which of their blocks asked.
+		expect(fires[0].message).toContain(`on a '${editor.doc.children[0].kind}' block`);
 	});
 
 	it('stays silent in production while still declining', async () => {

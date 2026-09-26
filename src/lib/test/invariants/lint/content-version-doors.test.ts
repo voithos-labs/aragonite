@@ -6,7 +6,13 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { collectEditorSources, stripComments, type SourceFile } from './scan-source';
+import {
+	callSites,
+	collectEditorSources,
+	enclosingFunction,
+	stripComments,
+	type SourceFile
+} from './scan-source';
 import { probeFile } from './file-rule';
 
 /** Every file naming the announcement, and the write it owns. */
@@ -33,15 +39,32 @@ const ROOT_UNSHARERS: Record<string, string> = {
 	'src/lib/editor-actions/container-edit.ts': 'announces'
 };
 
-/** The writers that must refuse reading mode: every root unsharer, plus the undo/redo swap. The
- *  `source` prop swap is the host replacing the document, which reading mode allows. */
-const READING_CHECKED = [
-	...Object.keys(ROOT_UNSHARERS),
-	'src/lib/editor-actions/commit/history.ts'
-].sort();
+type ReadingCheck = 'admitsWrite' | 'admitsSnapshot';
+
+/**
+ * The writers that must refuse reading mode (every root unsharer, plus the undo/redo swap), and in
+ * each the functions that must ask the check themselves. The `source` prop swap is the host
+ * replacing the document, which reading mode allows.
+ */
+const READING_CHECKED: Record<string, Partial<Record<ReadingCheck, string[]>>> = {
+	'src/lib/editor-actions/commit/undo-controller.ts': {
+		admitsWrite: ['__commit'],
+		admitsSnapshot: ['pushUndoSnapshotPath', 'pushUndoSnapshotDebounced']
+	},
+	'src/lib/editor-actions/block-edit.ts': { admitsWrite: ['applyContentUpdate'] },
+	'src/lib/editor-actions/container-edit.ts': { admitsWrite: ['withUnsharedSpine'] },
+	'src/lib/editor-actions/commit/history.ts': { admitsWrite: ['requestUndo', 'requestRedo'] }
+};
+
+/** `check:function` for each named function in `code` that never calls its check. */
+function missingReadingChecks(code: string, spec: Partial<Record<ReadingCheck, string[]>>) {
+	return Object.entries(spec).flatMap(([check, functions]) => {
+		const asking = new Set(callSites(code, check).map((s) => enclosingFunction(code, s.index)));
+		return (functions ?? []).filter((fn) => !asking.has(fn)).map((fn) => `${check}:${fn}`);
+	});
+}
 
 const ANNOUNCES = /\bbumpContentVersion\b|\bcontentVersion\.bump\b/;
-const ASKS_READING_CHECK = /\badmitsWrite\s*\(/;
 const UNSHARES_ROOT = /\bensureUnsharedPath\s*\(\s*deps\.doc\b/;
 
 function matching(sources: SourceFile[], re: RegExp): string[] {
@@ -77,12 +100,29 @@ describe('content-version entry-point census', () => {
 		expect(silent).toEqual([]);
 	});
 
-	it('every writer that must refuse reading mode asks the reading-mode check', () => {
-		const asking = matching(sources, ASKS_READING_CHECK);
+	it('every root unsharer names the functions that must ask the reading-mode check', () => {
+		const unnamed = Object.keys(ROOT_UNSHARERS).filter((relPath) => !(relPath in READING_CHECKED));
+		expect(unnamed).toEqual([]);
+	});
+
+	it('each of those functions asks the reading-mode check itself', () => {
+		const codeOf = new Map(sources.map((f) => [f.relPath, f.code]));
+		const missing = Object.entries(READING_CHECKED).flatMap(([relPath, spec]) =>
+			missingReadingChecks(codeOf.get(relPath) ?? '', spec).map((m) => `${relPath} ${m}`)
+		);
 		expect(
-			READING_CHECKED.filter((relPath) => !asking.includes(relPath)),
-			'a byte writer that never asks `admitsWrite` (editor-actions/commit/reading-write-gate.ts) writes in reading mode'
+			missing,
+			'a byte writer that skips `admitsWrite`, or an undo push that skips `admitsSnapshot`, writes in reading mode'
 		).toEqual([]);
+	});
+
+	it('the per-function check sees a sibling that asks while the named one does not', () => {
+		const code = stripComments(
+			'function requestUndo() { swap(); }\nfunction requestRedo() { if (!admitsWrite(r, "redo")) return; }'
+		);
+		expect(missingReadingChecks(code, { admitsWrite: ['requestUndo', 'requestRedo'] })).toEqual([
+			'admitsWrite:requestUndo'
+		]);
 	});
 
 	// ── Matcher self-tests (non-vacuity) ─────────────────────────────────────

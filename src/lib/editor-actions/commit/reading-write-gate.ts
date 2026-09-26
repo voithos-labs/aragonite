@@ -15,13 +15,22 @@ export const READING_WRITE_TAG = 'reading-write';
 
 // ── Public API ──────────────────────────────────────────────────────────────
 
-/** Whether a write naming `op` may land: false in reading mode, with a dev warning. */
-export function admitsWrite(reading: Reading, op: string): boolean {
+/**
+ * Whether a write naming `op` may land: false in reading mode, with a dev warning that names the
+ * block kind `kindOf` answers, so a plugin author can tell which of their blocks asked.
+ */
+export function admitsWrite(
+	reading: Reading,
+	op: string,
+	kindOf?: () => string | undefined
+): boolean {
 	if (!isReadOnly(reading)) return true;
 	if (editorEnv.isDev) {
+		const kind = kindOf?.();
+		const on = kind ? `on a '${kind}' block, ` : '';
 		devWarn(
 			READING_WRITE_TAG,
-			`declined '${op}' in reading mode, called from ${callerOf(new Error().stack)}`
+			`declined '${op}' in reading mode, ${on}called from ${callerOf(new Error().stack)}`
 		);
 	}
 	return false;

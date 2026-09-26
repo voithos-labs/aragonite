@@ -6,7 +6,7 @@
 import { describe, expect, it } from 'vitest';
 import { serialize } from '$lib/core/serializer';
 import type { EditEvent } from '$lib/editor-events';
-import type { EditorActionsDeps } from '$lib/editor-actions/deps';
+import type { EditorActionsDeps, UndoController } from '$lib/editor-actions/deps';
 import { createHistoryActions } from '$lib/editor-actions/commit/history';
 import { READING_WRITE_TAG } from '$lib/editor-actions/commit/reading-write-gate';
 import type { PresentationMode } from '$lib/presentation-mode';
@@ -136,6 +136,23 @@ describe('the reading-mode check at every byte-writing entry point', () => {
 			await writer.write();
 			expect(serialize(writer.deps.doc)).not.toBe(before);
 			expect(readingWrites()).toEqual([]);
+		});
+	}
+});
+
+// Miss-analysis: every row above pushes its snapshot inside a commit that is itself refused, so
+// the pushes that run ahead of a write (search's seed, a cross-block paste, a drop) went unchecked.
+describe('an undo snapshot pushed ahead of a write in reading mode', () => {
+	const PUSHES: [string, (controller: UndoController) => void][] = [
+		['pushUndoSnapshot', (c) => c.pushUndoSnapshot(0, 0)],
+		['pushUndoSnapshotPath', (c) => c.pushUndoSnapshotPath([0], 0)],
+		['pushUndoSnapshotDebounced', (c) => c.pushUndoSnapshotDebounced([0], 0)]
+	];
+	for (const [name, push] of PUSHES) {
+		it(`${name} leaves the undo stack empty`, () => {
+			const h = makeTopHarness('one\n', { reading: fixtureReading({}, 'reading') });
+			push(h.controller);
+			expect(h.deps.undoManager.canUndo).toBe(false);
 		});
 	}
 });

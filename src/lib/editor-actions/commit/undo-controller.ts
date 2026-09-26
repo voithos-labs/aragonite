@@ -20,7 +20,7 @@ import { assertInvariant } from '../../assert';
 import { beginCommit, endCommit } from '../../invariants/commit-scope';
 import { assignIds } from '../../block-id';
 import { replaceRefs } from '../../reactivity/publish-ref.svelte';
-import { nodeAt, type SeparatorParent } from '../../tree-operations/node-primitives';
+import { blockNodeAt, nodeAt, type SeparatorParent } from '../../tree-operations/node-primitives';
 import { settleSeparator } from '../../tree-operations/settle';
 import { ensureUnsharedPath } from '../../tree-operations/unshare';
 import {
@@ -440,7 +440,9 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 	async function __commit(args: CommitArgs): Promise<void> {
 		const op =
 			args.op?.kind ?? (args.kind === 'document' ? 'commitStructural' : 'commitMultiScope');
-		if (!admitsWrite(deps.reading, op)) return;
+		const target = args.op?.eventPath ?? (args.snapshot === 'skip' ? null : args.snapshot.path);
+		const kindOf = () => (target ? blockNodeAt(deps.doc, target)?.kind : undefined);
+		if (!admitsWrite(deps.reading, op, kindOf)) return;
 		beginCommit();
 		let committed: boolean;
 		try {

@@ -82,7 +82,9 @@ export function createBlockEditActions(
 			return;
 		}
 
-		if (!admitsWrite(deps.reading, 'updateContent')) return;
+		if (!admitsWrite(deps.reading, 'updateContent', () => deps.doc.children[blockIndex]?.kind)) {
+			return;
+		}
 		// Routine typing: an in-place write outside a commit, so copy the node first when an undo
 		// snapshot shares it. No suffix on purpose: the trial reparse already sent every case
 		// that turns the trailing line into a block through a commit, so none can happen here.
