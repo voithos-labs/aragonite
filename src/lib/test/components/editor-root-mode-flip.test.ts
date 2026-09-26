@@ -28,6 +28,7 @@ function harness(opts: { mode?: PresentationMode; selection?: EditorSelection | 
 
 	let mode: PresentationMode = opts.mode ?? 'source';
 	let snapshot = opts.selection ?? null;
+	let held: PresentationMode | null = null;
 	const calls = {
 		caretForgets: 0,
 		measuredDrops: 0,
@@ -56,6 +57,9 @@ function harness(opts: { mode?: PresentationMode; selection?: EditorSelection | 
 		events,
 		restoreCaret: async (path, offset) => {
 			calls.restores.push([path, offset]);
+		},
+		holdOutgoingMode: (next) => {
+			held = next;
 		}
 	});
 	/** Both halves in effect order, the mode already moved as the derived would have. */
@@ -66,8 +70,33 @@ function harness(opts: { mode?: PresentationMode; selection?: EditorSelection | 
 	};
 	const setMode = (next: PresentationMode) => (mode = next);
 	const setSnapshot = (next: EditorSelection | null) => (snapshot = next);
-	return { leaf, headerField, flip, calls, selection, flipTo, setMode, setSnapshot };
+	return {
+		leaf,
+		headerField,
+		flip,
+		calls,
+		selection,
+		flipTo,
+		setMode,
+		setSnapshot,
+		held: () => held
+	};
 }
+
+describe('editor-root mode flip: the outgoing mode', () => {
+	// Miss-analysis: the blur's commit was only checked for its bytes, never for the mode it saw.
+	it('is held only while the blur commits, so that write lands in the mode it was typed in', () => {
+		const h = harness({ mode: 'source' });
+		let heldAtBlur: PresentationMode | null | undefined;
+		h.leaf.addEventListener('blur', () => (heldAtBlur = h.held()));
+		h.leaf.focus();
+
+		h.flipTo('reading');
+
+		expect(heldAtBlur).toBe('source');
+		expect(h.held()).toBeNull();
+	});
+});
 
 describe('editor-root mode flip: the two halves', () => {
 	it('an unchanged mode is a no-op for both halves', () => {

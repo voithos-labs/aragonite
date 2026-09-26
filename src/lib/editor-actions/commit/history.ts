@@ -11,6 +11,7 @@ import { isGapSelection, type UndoEntry } from '../../undo/types';
 import { assertInvariant } from '../../assert';
 import { checkSnapshotIntegrity } from '../../invariants/snapshot-integrity';
 import { restoreGapCaret, restoreSelection } from '../../selection/selection-restore';
+import { admitsWrite } from './reading-write-gate';
 import type { EditorActionsDeps, UndoController } from '../deps';
 
 export function createHistoryActions(
@@ -62,6 +63,7 @@ export function createHistoryActions(
 
 	return {
 		async requestUndo(): Promise<void> {
+			if (!admitsWrite(deps.reading, 'undo')) return;
 			beginHistorySwap();
 			// Check the stack before capturing: captureCurrentState marks the whole tree as
 			// shared with a snapshot, forcing the next edit to copy its path first.
@@ -72,6 +74,7 @@ export function createHistoryActions(
 		},
 
 		async requestRedo(): Promise<void> {
+			if (!admitsWrite(deps.reading, 'redo')) return;
 			beginHistorySwap();
 			if (!deps.undoManager.canRedo) return;
 			const entry = deps.undoManager.redo(controller.captureCurrentState());

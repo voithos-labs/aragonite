@@ -222,27 +222,6 @@ export function composeExpandDoor(deps: {
 	};
 }
 
-/**
- * The `updateOwnMetadata` check: reading mode writes no bytes (plugin-contract.md), so the
- * commit declines as a no-op and dev mode names the kind that asked.
- */
-export function composeMetadataDoor(deps: {
-	getNode: () => NodeView;
-	getPresentationMode: () => PresentationMode;
-	commit: (patch: Record<string, unknown>, afterTick?: CommitAfterTick) => void | Promise<void>;
-}): ContainerBlock['updateOwnMetadata'] {
-	return (patch, afterTick) => {
-		if (isReadingMode(deps.getPresentationMode)) {
-			devWarn(
-				'plugin-container',
-				`updateOwnMetadata declined: reading mode writes no bytes (kind "${deps.getNode().kind}")`
-			);
-			return;
-		}
-		return deps.commit(patch, afterTick);
-	};
-}
-
 /** While collapsed the body is unmounted, so `descendToBody` would create an invisible one. */
 export function gateDescendOnCollapse(
 	isCollapsed: (() => boolean) | undefined,
@@ -460,12 +439,9 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		}
 	};
 
-	const updateOwnMetadata = composeMetadataDoor({
-		getNode: deps.getNode,
-		getPresentationMode,
-		commit: (patch, afterTick) =>
-			parentBlockEdit.updateBlockMetadata(deps.getIndex(), patch, { afterTick })
-	});
+	// Reading mode declines at the commit, which names the write in a dev build.
+	const updateOwnMetadata: ContainerBlock['updateOwnMetadata'] = (patch, afterTick) =>
+		parentBlockEdit.updateBlockMetadata(deps.getIndex(), patch, { afterTick });
 
 	const kindTarget = buildContainerKindTarget(deps, updateOwnMetadata, pluginEditor);
 

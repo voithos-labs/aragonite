@@ -299,9 +299,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		getTextLen,
 		readText,
 		commitInput: (text, preEdit, saved) => {
-			// `!isReading` is enforced here, so even if a plain-mode component keeps its
-			// source editable in reading mode, nothing reaches the CST.
-			if (mode === 'plain' && !isReading()) {
+			if (mode === 'plain') {
 				void blockEdit.updateBlockContent(
 					deps.getIndex(),
 					text + trailingLineEnding(deps.getNode().raw, documentLineEnding(getDoc())),

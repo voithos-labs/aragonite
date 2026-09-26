@@ -234,7 +234,7 @@ describe('editor-root keydown: dispatch order is required', () => {
 	});
 });
 
-// ── Reading mode (G4.19, second case) ────────────────────────────────────────
+// ── Reading mode ─────────────────────────────────────────────────────────────
 
 describe('editor-root keydown, reading-mode gate', () => {
 	it('runs an editor-global command in source mode', () => {

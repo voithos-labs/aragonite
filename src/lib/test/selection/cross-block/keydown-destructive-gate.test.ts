@@ -3,7 +3,7 @@
 // The destructive branch: Backspace or Delete over a cross-block range. It consumes the key
 // unconditionally (the range must never reach a per-block handler that deletes one character
 // against stale indices) but mutates only when the mode allows edits, so reading mode pulls in
-// two directions. G4.19's lint allowlists this file on the strength of these branches.
+// two directions.
 import { describe, it, expect } from 'vitest';
 import { makeKeydownEnv, press } from './keydown-env';
 

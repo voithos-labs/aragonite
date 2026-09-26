@@ -13,8 +13,11 @@ export interface SearchReplaceHarness extends EditorActionsHarness {
 	sr: ReturnType<typeof createSearchReplace>;
 }
 
-export function makeSearchReplace(input: string | CstNode[] | Document): SearchReplaceHarness {
-	const harness = makeEditorActionsDeps(typeof input === 'string' ? parse(input) : input);
+export function makeSearchReplace(
+	input: string | CstNode[] | Document,
+	options: Parameters<typeof makeEditorActionsDeps>[1] = {}
+): SearchReplaceHarness {
+	const harness = makeEditorActionsDeps(typeof input === 'string' ? parse(input) : input, options);
 	return { ...harness, sr: createSearchReplace(harness.deps, createUndoController(harness.deps)) };
 }
 

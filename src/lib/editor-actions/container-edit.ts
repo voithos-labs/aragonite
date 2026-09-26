@@ -8,9 +8,11 @@ import type { CstNode } from '../core/nodes';
 import { documentLineEnding, type LineEnding } from '../core/lines';
 import type { SharingState } from '../tree-operations/sharing';
 import { ensureUnsharedPath } from '../tree-operations/unshare';
+import { blockNodeAt } from '../tree-operations/node-primitives';
 import { rebuildUnsharedChain, type AncestrySeamFold } from '../tree-operations/chain-rebuild';
 import type { StructuralChange } from '../tree-operations/structural-change';
 import { publishAncestryFolds, publishScopeFold } from './ancestry-folds';
+import { admitsWrite } from './commit/reading-write-gate';
 import type { EditorActionsDeps, UndoController } from './deps';
 
 export function createContainerEditActions(
@@ -41,6 +43,9 @@ export function createContainerEditActions(
 			absPath: number[],
 			write: (chain: CstNode[], sharing: SharingState) => StructuralChange | void
 		): boolean {
+			if (!admitsWrite(deps.reading, 'updateContent', () => blockNodeAt(deps.doc, absPath)?.kind)) {
+				return false;
+			}
 			const chain = ensureUnsharedPath(deps.doc, absPath, deps.sharing);
 			// Read before the write: no level of the rebuild can recover the leaf's old bytes
 			// itself, and the ancestor fix-up needs them to locate the leaf's region.

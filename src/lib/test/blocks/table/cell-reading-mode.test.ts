@@ -2,7 +2,7 @@
 //
 // Reading mode makes a cell inert without making it dead: navigation still works and every edit
 // is refused. Two places refuse: the structural chords are keymap bindings, so the command
-// dispatch's own check (`reading-gate-parity`, G4.19) makes them do nothing, while the
+// dispatch's own reading-mode check makes them do nothing, while the
 // row-appending end of Tab and Enter is a navigation plan reading mode must keep, so the keydown
 // switch carries a check the dispatch cannot supply. One test per side of that split.
 import { describe, it, expect, beforeAll, afterEach, vi } from 'vitest';

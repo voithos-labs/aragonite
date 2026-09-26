@@ -20,7 +20,7 @@ import { assertInvariant } from '../../assert';
 import { beginCommit, endCommit } from '../../invariants/commit-scope';
 import { assignIds } from '../../block-id';
 import { replaceRefs } from '../../reactivity/publish-ref.svelte';
-import { nodeAt, type SeparatorParent } from '../../tree-operations/node-primitives';
+import { blockNodeAt, nodeAt, type SeparatorParent } from '../../tree-operations/node-primitives';
 import { settleSeparator } from '../../tree-operations/settle';
 import { ensureUnsharedPath } from '../../tree-operations/unshare';
 import {
@@ -31,6 +31,7 @@ import {
 } from '../../tree-operations/chain-rebuild';
 import { foldLandingFor, publishAncestryFolds, type FoldLanding } from '../ancestry-folds';
 import { createTextBatch } from './text-batch';
+import { admitsSnapshot, admitsWrite } from './reading-write-gate';
 import type { EditorActionsDeps, UndoController } from '../deps';
 import type {
 	CommitAfterTick,
@@ -216,7 +217,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 	// A push inside a joined run after its first returns before the snapshot, so it neither
 	// marks the tree shared nor clears the redo stack.
 	function pushUndoSnapshotPath(fallbackPath: number[], offset: number): void {
-		if (isJoinedPush()) return;
+		if (isJoinedPush() || !admitsSnapshot(deps.reading)) return;
 		pushEntry({
 			...shareSnapshot(),
 			blockIds: [...deps.blockIds],
@@ -437,6 +438,11 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 	// Bracket the synchronous commit so the decorations never read a half-applied tree.
 	// Cleared before the first await.
 	async function __commit(args: CommitArgs): Promise<void> {
+		const op =
+			args.op?.kind ?? (args.kind === 'document' ? 'commitStructural' : 'commitMultiScope');
+		const target = args.op?.eventPath ?? (args.snapshot === 'skip' ? null : args.snapshot.path);
+		const kindOf = () => (target ? blockNodeAt(deps.doc, target)?.kind : undefined);
+		if (!admitsWrite(deps.reading, op, kindOf)) return;
 		beginCommit();
 		let committed: boolean;
 		try {
@@ -775,7 +781,9 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		sharing: deps.sharing,
 		pushUndoSnapshot,
 		pushUndoSnapshotPath,
-		pushUndoSnapshotDebounced: textBatch.keystroke,
+		pushUndoSnapshotDebounced: (leafPath, offset, batchKey) => {
+			if (admitsSnapshot(deps.reading)) textBatch.keystroke(leafPath, offset, batchKey);
+		},
 		armUndoPause: textBatch.armPause,
 		commitStructural,
 		commitContainerStructural,
