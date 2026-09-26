@@ -134,6 +134,18 @@ const TOP_LEVEL: { label: string; before: string; after: string; move: Move }[] 
 		move: up([1])
 	},
 	{
+		label: 'a table moved to the tail leaves its last row unended',
+		before: '| h |\n|---|\n| 1 |\n\n# a',
+		after: '# a\n\n| h |\n|---|\n| 1 |',
+		move: up([1])
+	},
+	{
+		label: 'a last table moved up ends its last row',
+		before: '# a\n\n| h |\n|---|\n| 1 |',
+		after: '| h |\n|---|\n| 1 |\n\n# a',
+		move: up([1])
+	},
+	{
 		label: 'Alt+ArrowUp on the last block of a document that ends in a break',
 		before: 'a\n# b\n',
 		after: '# b\na\n',

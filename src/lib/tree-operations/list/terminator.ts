@@ -36,19 +36,27 @@ function rewriteLastLine(
 	const raw = write(node.raw);
 	if (raw === node.raw) return;
 	node.raw = raw;
-	// Only a strip container writes its children's raws as whole lines; a grid cell and an
-	// opaque body live inside a line their container emits.
 	const last = (node.children?.length ?? 0) - 1;
-	if (last < 0 || getBlockKindDescriptor(node.kind).containerContract !== 'strip') return;
-	dropChildSpans(node);
-	// A blank line closing the body is the last line; the parser keeps it out of the suffix
-	// while it is unended, so a last child already ended the other way marks it too.
-	if (node.innerSuffix || node.children![last].raw.endsWith('\n') !== wasEnded) {
-		node.innerSuffix = write(node.innerSuffix ?? '');
+	if (last < 0) return;
+	const contract = getBlockKindDescriptor(node.kind).containerContract;
+	if (contract === 'strip') {
+		dropChildSpans(node);
+		// A blank line closing the body is the last line; the parser keeps it out of the suffix
+		// while it is unended, so a last child already ended the other way marks it too.
+		if (node.innerSuffix || node.children![last].raw.endsWith('\n') !== wasEnded) {
+			node.innerSuffix = write(node.innerSuffix ?? '');
+			return;
+		}
+	} else if (contract !== 'grid' || !isGrid(node.children![last])) {
+		// A grid's rows are whole lines; a row's cells and an opaque body sit inside a line.
 		return;
 	}
 	const child = sharing ? ensureUnsharedChild(node, last, sharing) : node.children![last];
 	rewriteLastLine(child, write, sharing);
+}
+
+function isGrid(node: CstNode): boolean {
+	return getBlockKindDescriptor(node.kind).containerContract === 'grid';
 }
 
 export function ensureListItemNewlineTerminated(item: CstNode, ending: LineEnding): void {
