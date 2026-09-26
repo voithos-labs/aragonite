@@ -14,6 +14,7 @@ import {
 	firstDisplayLine,
 	firstLineEnding,
 	joinDisplayLines,
+	ownTrailingLineEnding,
 	trailingLineEnding,
 	trimTrailingLineEnding,
 	type DisplayLine,
@@ -21,6 +22,7 @@ import {
 } from '../core/lines';
 import {
 	escalatedFenceLength,
+	fenceAnatomy,
 	matchFenceClose,
 	matchFenceOpen
 } from '../core/parsers/fence-syntax';
@@ -42,6 +44,8 @@ export interface FenceWriteInput {
 	caret: number;
 	fence: FenceShape;
 	mode: FenceWriteMode;
+	/** The line ending a restored closer line takes: the block's own. */
+	ending: LineEnding;
 }
 
 export interface FenceWriteResult {
@@ -67,11 +71,29 @@ export function fenceRawWrite(shapeOf: (node: NodeView) => FenceShape): WriteRul
 /** The built-in code block's rule, sized by its parsed metadata. */
 export const fencedCodeWrite: WriteRule = fenceRawWrite(fenceShapeOf);
 
+/**
+ * The shape of a fenced block that keeps no fence metadata, read off its own opener line. A
+ * plugin kind declares its rule as `fenceRawWrite(fenceShapeOfRaw)`.
+ */
+export function fenceShapeOfRaw(node: NodeView): FenceShape {
+	const anatomy = fenceAnatomy(node.raw);
+	return anatomy
+		? { marker: anatomy.marker, length: anatomy.length, closed: anatomy.closed }
+		: { marker: '`', length: 3, closed: false };
+}
+
+/**
+ * The display text of a fenced block made legal, the caret carried along. The fence lines are
+ * fixed before the runs grow, so growing measures a body that ends where the closer does.
+ */
 export function reconcileFenceWrite(input: FenceWriteInput): FenceWriteResult {
-	const { fence, mode } = input;
+	const { mode, ending } = input;
+	const fence = writtenFence(input.display, input.fence, mode);
 	if (!fence.closed && mode === 'authored') return { display: input.display, caret: input.caret };
-	const unglued = separateGluedCloser(input);
-	return escalateFenceRuns({ ...input, ...sanitizeInfoString({ ...input, ...unglued }) });
+	const unglued = separateGluedCloser({ ...input, fence });
+	const lines = reconcileFenceLines(unglued, fence, ending);
+	const sanitized = sanitizeInfoString({ ...input, ...lines, fence });
+	return escalateFenceRuns({ ...input, ...sanitized, fence });
 }
 
 /**
@@ -91,9 +113,8 @@ export function writeFenceInfo(display: string, info: string, fence: FenceShape)
 // ── Internal ────────────────────────────────────────────────────────────────
 
 /**
- * A whole `raw` through the rule, with an offset into it carried along. The fence lines are fixed
- * first, so growing the runs measures a body that ends where the closer does. The trailing line
- * ending is the written one, else the block's.
+ * A whole `raw` through the rule, with an offset into it carried along. The trailing line ending
+ * is the written one, else the block's own: an unterminated last block stays unterminated.
  */
 function reconcileFenceRaw(
 	raw: string,
@@ -103,12 +124,9 @@ function reconcileFenceRaw(
 ): { raw: string; offset: number } {
 	const ending = trailingLineEnding(ctx.node.raw, ctx.lineEnding);
 	const display = trimTrailingLineEnding(raw);
-	const tail = trailingLineEnding(raw, ending);
-	const lines =
-		ctx.mode === 'literal'
-			? reconcileFenceLines({ display, caret: Math.min(offset, display.length) }, fence, ending)
-			: { display, caret: Math.min(offset, display.length) };
-	const written = reconcileFenceWrite({ ...lines, fence, mode: ctx.mode });
+	const tail = ownTrailingLineEnding(raw) || ownTrailingLineEnding(ctx.node.raw);
+	const caret = Math.min(offset, display.length);
+	const written = reconcileFenceWrite({ display, caret, fence, mode: ctx.mode, ending });
 	const intoTail = Math.min(Math.max(offset - display.length, 0), tail.length);
 	return { raw: written.display + tail, offset: written.caret + intoTail };
 }
@@ -125,6 +143,17 @@ function legalInfo(info: string, fence: FenceShape): string {
 	let start = 0;
 	while (kept[start] === fence.marker) start++;
 	return kept.slice(start);
+}
+
+/**
+ * The fence the written bytes carry. Content arriving whole is read as the grammar reads it, so an
+ * opener run a replace grew or shrank sizes the fence; typing keeps the block's own run, since a
+ * marker typed at the start of the info string is info, not a longer run.
+ */
+function writtenFence(display: string, fence: FenceShape, mode: FenceWriteMode): FenceShape {
+	if (mode === 'authored') return fence;
+	const anatomy = fenceAnatomy(firstDisplayLine(display).text, { marker: fence.marker, length: 3 });
+	return anatomy ? { ...fence, length: anatomy.length } : fence;
 }
 
 interface OpenerParts {
@@ -166,13 +195,12 @@ function reconcileFenceLines(
 }
 
 /**
- * Line 0 read as the block's own opener: its exact run, and info that is not a longer run. A
- * write whose only line reads as this fence's closer is not one: an opener never doubles as a
- * closer, and no block's metadata is left to size a fence from.
+ * Line 0 read as the block's own opener, at the run {@link writtenFence} sized. A write whose
+ * only line reads as this fence's closer is not one: an opener never doubles as a closer.
  */
 function ownOpener(lines: DisplayLine[], fence: FenceShape): OpenerParts | null {
 	const opener = splitOpener(lines[0].text, fence);
-	if (!opener || opener.info.startsWith(fence.marker)) return null;
+	if (!opener) return null;
 	if (lines.length === 1 && matchFenceClose(lines[0].text, fence.marker, fence.length)) return null;
 	return opener;
 }

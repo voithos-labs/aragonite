@@ -187,12 +187,23 @@ export { parseContainerBody } from './core/parser';
 export type { ContainerBodyWrap } from './core/parser';
 
 // ── Fence grammar (pre-freeze) ───────────────────────────────────────────────
-// The built-in CommonMark fence recognizers, so a plugin that takes over a fence (```mermaid)
-// never reimplements the rules. The opener match keeps the indent and info bytes verbatim, for
-// byte-exact rebuilds; `escalatedFenceLength` is the fence counterpart of `escalatedColonCount`,
-// which any kind that rebuilds its own raw around a body it did not parse needs.
-export { matchFenceOpen, matchFenceClose, escalatedFenceLength } from './core/parsers/fence-syntax';
-export type { FenceOpen } from './core/parsers/fence-syntax';
+// The built-in CommonMark fence grammar, so a plugin that takes over a fence (```mermaid) never
+// reimplements it: claim a fence with `matchFenceInfo`, read its extent with `scanFence` and its
+// parts with `fenceAnatomy`, and declare `fenceRawWrite` as the kind's `rawWrite`. A kind that
+// rebuilds its own raw around a body it did not parse sizes the fence with `escalatedFenceLength`.
+export {
+	matchFenceOpen,
+	matchFenceClose,
+	escalatedFenceLength,
+	findFenceCloser,
+	fenceAnatomy,
+	matchFenceInfo
+} from './core/parsers/fence-syntax';
+export type { FenceOpen, FenceRun, FenceAnatomy } from './core/parsers/fence-syntax';
+export { scanFence } from './core/parsers/fenced-code';
+export type { FenceScan } from './core/parsers/fenced-code';
+export { fenceRawWrite, fenceShapeOfRaw } from './schema/fenced-code-raw';
+export type { FenceShape } from './schema/fenced-code-raw';
 
 // ── HTML tag-line grammar (pre-freeze) ───────────────────────────────────────
 // CommonMark's type-6 tag-line shape for one tag name. What actually closes such a

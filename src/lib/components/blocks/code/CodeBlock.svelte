@@ -172,7 +172,8 @@
 			display,
 			caret,
 			fence: fenceShapeOf(node),
-			mode: 'authored'
+			mode: 'authored',
+			ending: blockEnding()
 		});
 		void blockEdit.updateBlockContent(index, written.display + blockEnding(), undoAnchor);
 		return written.caret;

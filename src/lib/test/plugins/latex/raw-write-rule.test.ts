@@ -69,11 +69,20 @@ describe('a truncating write of a ```math fence gets its closing line back', () 
 		);
 	});
 
-	it.each([
-		['a fence that still holds its closer', '```math\ny\n```\n'],
-		['a first line that is no longer a math fence', 'x^2\n```\n']
-	])('leaves %s alone', (_case, written) => {
-		expect(write('```math\nx^2\n```\n', written)).toBe(written);
+	it('leaves a fence that still holds its closer alone', () => {
+		expect(write('```math\nx^2\n```\n', '```math\ny\n```\n')).toBe('```math\ny\n```\n');
+	});
+
+	// Miss-analysis (#566): the kind's own copy of the rule restored a closer and nothing else,
+	// and no test wrote the two shapes the built-in code block already repairs.
+	it('drops the closer a write stranded by taking the opener line', () => {
+		expect(write('```math\nx^2\n```\n', 'x^2\n```\n')).toBe('x^2\n');
+	});
+
+	it('grows the fence past a body line that reads as the closer', () => {
+		expect(write('```math\nx^2\n```\n', '```math\n```\nx^2\n```\n')).toBe(
+			'````math\n```\nx^2\n````\n'
+		);
 	});
 });
 

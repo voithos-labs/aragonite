@@ -61,7 +61,7 @@ export interface KindConformanceReport {
 	kind: AnyBlockKind;
 	cells: KindCellReport[];
 	/** The leaf raw-write cell, run for every kind with a top-level fixture: a kind with no
-	 *  `rawWrite` must survive its closing line cut, a declarer its three writes. */
+	 *  `rawWrite` must survive its closing line cut, a declarer its five writes. */
 	rawWrite: { status: KindCellStatus; detail: string };
 }
 
@@ -415,8 +415,7 @@ function execRawWrite(
 	checkLeafRawWrite(kind, ctx.fixture);
 	return {
 		status: 'executed',
-		detail:
-			'three truncating writes, each idempotent, leaving the next block its own, caret map agreeing'
+		detail: 'five writes, each idempotent, leaving the next block its own, caret map agreeing'
 	};
 }
 
@@ -564,10 +563,11 @@ function checkClosingCutNeedsNoRule(kind: AnyBlockKind, fixture: string): void {
 }
 
 /**
- * Drives three truncating writes over `kind`'s fixture through its `rawWrite` rule: the closing
- * line cut, everything past the first line cut, and an empty write. Each result must be a fixed point of the rule, leave the block after it its
- * own, and come with a caret map that agrees with it; a closing line cut that leaves the first line
- * and a body keeps the kind, written in place with the document converged.
+ * Drives five writes over `kind`'s fixture through its `rawWrite` rule: the closing line cut,
+ * everything past the first line cut, an empty write, the first line cut, and the closing line
+ * copied into the body. Each result must be a fixed point of the rule, leave the next block its
+ * own, and come with a caret map that agrees with it; a closing line cut that leaves the first
+ * line and a body keeps the kind, written in place with the document converged.
  */
 export function checkLeafRawWrite(
 	kind: AnyBlockKind,
@@ -581,6 +581,14 @@ export function checkLeafRawWrite(
 		['everything past the first line cut', lines[0] + ending, false],
 		['an empty write', '', false]
 	];
+	if (lines.length > 1) {
+		const closer = lines[lines.length - 1];
+		const closerInBody = [lines[0], closer, ...lines.slice(1)];
+		writes.push(
+			['the first line cut', lines.slice(1).join(ending) + ending, false],
+			['the closing line copied into the body', closerInBody.join(ending) + ending, false]
+		);
+	}
 	for (const [label, written, keepsKind] of writes) {
 		const doc = parse(fixture + ending + RAW_WRITE_SENTINEL);
 		const node = doc.children[0];

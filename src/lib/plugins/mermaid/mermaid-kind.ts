@@ -12,18 +12,13 @@ import {
 	registerBlockCommand,
 	setPluginMetadata,
 	getPluginMetadata,
-	matchFenceOpen,
-	matchFenceClose,
+	matchFenceInfo,
 	escalatedFenceLength,
+	fenceRawWrite,
+	fenceShapeOfRaw,
+	scanFence,
 	OPENER_PRIORITIES,
-	trimTrailingLineEnding,
-	displayLines,
-	ownTrailingLineEnding,
-	trailingLineEnding,
-	type FenceOpen,
-	type CstNode,
-	type WriteContext,
-	type WriteRule
+	type CstNode
 } from '$lib/plugin';
 
 export const MERMAID = 'mermaid';
@@ -47,10 +42,7 @@ export interface MermaidMetadata {
 // The editor's own fence matcher, filtered on the info string's first word, so the CommonMark
 // fence rules stay in one place and never become a plugin's copy of them.
 
-function matchMermaidFence(text: string): FenceOpen | null {
-	const fence = matchFenceOpen(text);
-	return fence && fence.info.split(/\s+/)[0] === MERMAID ? fence : null;
-}
+const matchMermaidFence = matchFenceInfo(MERMAID);
 
 /**
  * The edit textarea normalizes to LF, so a CRLF-authored diagram needs its authored
@@ -92,30 +84,6 @@ function grownCloser(closerRaw: string, marker: '`' | '~', length: number): stri
 	if (!match) return closerRaw;
 	return match[1] + marker.repeat(Math.max(match[2].length, length)) + match[3];
 }
-
-/**
- * Put back a closing fence a truncating write dropped (a range delete or a find/replace over the
- * fence bytes), sized on the written opener's run, so the blocks below never become diagram
- * source. A first line that no longer opens a mermaid fence is left alone. The closer line takes
- * the block's own ending, else the document's.
- */
-function normalizeMermaidRaw(raw: string, ctx: WriteContext): string {
-	const display = trimTrailingLineEnding(raw);
-	const lines = displayLines(display);
-	const fence = matchMermaidFence(lines[0].text);
-	if (!fence) return raw;
-	const closes = (line: { text: string }) => matchFenceClose(line.text, fence.marker, fence.length);
-	if (lines.slice(1).some(closes)) return raw;
-	const closer = fence.indent + fence.marker.repeat(fence.length);
-	const ending = trailingLineEnding(ctx.node.raw, ctx.lineEnding);
-	return display + ending + closer + ownTrailingLineEnding(raw);
-}
-
-const mermaidWrite: WriteRule = {
-	normalize: normalizeMermaidRaw,
-	// The closer goes in after every written byte, so no offset moves.
-	mapOffset: (_raw, offset) => offset
-};
 
 // ── Component UI hooks ────────────────────────────────────────────────────────
 // `ctx.hooks` is how a command reaches the component; the handlers below cast it back to this
@@ -167,7 +135,7 @@ export function registerMermaidKind(): void {
 		// The character-count default would estimate a rendered diagram at about one line; the
 		// measured height replaces this on mount.
 		estimateHeight: () => 320,
-		rawWrite: mermaidWrite,
+		rawWrite: fenceRawWrite(fenceShapeOfRaw),
 		keymap: [{ chord: 'Mod+M', command: focusCommand }],
 		conformanceFixture: '```mermaid\ngraph TD\n```\n',
 		closure: {
@@ -216,20 +184,8 @@ export function registerMermaidKind(): void {
 			const fence = matchMermaidFence(ctx.line.text);
 			if (!fence) return null;
 
-			let closeIdx = -1;
-			for (let i = ctx.index + 1; i < ctx.end; i++) {
-				if (matchFenceClose(ctx.lines[i].text, fence.marker, fence.length)) {
-					closeIdx = i;
-					break;
-				}
-			}
 			// Unterminated consumes to end of input, like the built-in fence.
-			const codeEnd = closeIdx === -1 ? ctx.end : closeIdx;
-			const code = ctx.lines
-				.slice(ctx.index + 1, codeEnd)
-				.map((l) => l.raw)
-				.join('');
-
+			const scan = scanFence(ctx, fence);
 			const node: CstNode = {
 				kind: mermaid,
 				leadingTrivia: ctx.leadingTrivia,
@@ -237,17 +193,17 @@ export function registerMermaidKind(): void {
 				children: []
 			};
 			setPluginMetadata<MermaidMetadata>(node, {
-				code,
+				code: scan.body,
 				openerIndent: fence.indent,
 				fenceChar: fence.marker,
 				fenceLength: fence.length,
 				infoRaw: fence.infoRaw,
 				openerLineEnding: ctx.line.lineEnding,
-				closerRaw: closeIdx === -1 ? '' : ctx.lines[closeIdx].raw
+				closerRaw: scan.closer === -1 ? '' : ctx.lines[scan.closer].raw
 			});
 			// Raw comes from the rebuild, so opener and rebuild agree by construction.
 			rebuildMermaidRaw(node);
-			return { node, consumed: (closeIdx === -1 ? ctx.end : closeIdx + 1) - ctx.index };
+			return { node, consumed: scan.consumed };
 		}
 	});
 }

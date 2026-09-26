@@ -15,8 +15,11 @@ import {
 	registerBlockKind,
 	registerBlockOpener,
 	simpleLeafClosure,
-	matchFenceOpen,
-	matchFenceClose,
+	fenceAnatomy,
+	fenceRawWrite,
+	fenceShapeOfRaw,
+	matchFenceInfo,
+	scanFence,
 	OPENER_PRIORITIES,
 	trimTrailingLineEnding,
 	displayLines,
@@ -27,7 +30,6 @@ import {
 	type PluginInlineKind,
 	type InlineNode,
 	type CstNode,
-	type FenceOpen,
 	type WriteContext,
 	type WriteRule
 } from '$lib/plugin';
@@ -160,14 +162,8 @@ function mathCaretAtPoint(
  * Round-trip stays byte-level on `raw`, so this never feeds serialization.
  */
 export function mathDisplaySource(source: string): string {
-	if (/^[ \t]*(?:`{3,}|~{3,})/.test(source)) {
-		const firstBreak = source.indexOf('\n');
-		if (firstBreak === -1) return '';
-		const body = source
-			.slice(firstBreak + 1)
-			.replace(/(?:\r?\n)?[ \t]*(?:`{3,}|~{3,})[ \t]*\r?\n?$/, '');
-		return body.trim();
-	}
+	const fence = fenceAnatomy(source);
+	if (fence) return source.slice(fence.bodyStart, fence.closerStart).trim();
 	let inner = source;
 	if (inner.startsWith('$$')) inner = inner.slice(2);
 	if (inner.endsWith('$$')) inner = inner.slice(0, -2);
@@ -208,25 +204,6 @@ const mathBlockWrite: WriteRule = {
 			text.startsWith(BLOCK_FENCE) && text !== BLOCK_FENCE && !isBlockMathOpener(text);
 		return closesLineZero && offset > text.length ? offset + BLOCK_FENCE.length : offset;
 	}
-};
-
-/** The same rule for the ```math form, whose closer is always a line of its own. The run to close
- *  on comes from the written opener, not the block's old one. */
-function normalizeMathFenceRaw(raw: string, ctx: WriteContext): string {
-	const display = trimTrailingLineEnding(raw);
-	const lines = displayLines(display);
-	const fence = matchMathFence(lines[0].text);
-	if (!fence) return raw;
-	const closes = (line: { text: string }) => matchFenceClose(line.text, fence.marker, fence.length);
-	if (lines.slice(1).some(closes)) return raw;
-	const closer = fence.indent + fence.marker.repeat(fence.length);
-	return display + closerEnding(ctx) + closer + ownTrailingLineEnding(raw);
-}
-
-const mathFenceWrite: WriteRule = {
-	normalize: normalizeMathFenceRaw,
-	// The closer goes in after every written byte, so no offset moves.
-	mapOffset: (_raw, offset) => offset
 };
 
 // ── Block `$$…$$` display math ─────────────────────────────────────────────────
@@ -318,12 +295,7 @@ export function registerMathBlock(): void {
 // GitHub's third math form: a block holding its own source, like the `$$` block, rendered by
 // the same component.
 
-const FENCE_INFO_TOKEN = 'math';
-
-function matchMathFence(text: string): FenceOpen | null {
-	const fence = matchFenceOpen(text);
-	return fence && fence.info.split(/\s+/)[0] === FENCE_INFO_TOKEN ? fence : null;
-}
+const matchMathFence = matchFenceInfo('math');
 
 export function registerMathFence(): void {
 	const mathFence = declarePluginKind(MATH_FENCE);
@@ -336,7 +308,7 @@ export function registerMathFence(): void {
 		gapEdges: 'both',
 		caretTargetAtPoint: mathCaretAtPoint,
 		conformanceFixture: '```math\nx^2\n```\n',
-		rawWrite: mathFenceWrite,
+		rawWrite: fenceRawWrite(fenceShapeOfRaw),
 		closure: simpleLeafClosure({
 			focus: {
 				mode: 'implemented',
@@ -369,23 +341,12 @@ export function registerMathFence(): void {
 			const fence = matchMathFence(ctx.line.text);
 			if (!fence) return null;
 
-			let closeIdx = -1;
-			for (let i = ctx.index + 1; i < ctx.end; i++) {
-				if (matchFenceClose(ctx.lines[i].text, fence.marker, fence.length)) {
-					closeIdx = i;
-					break;
-				}
-			}
+			const scan = scanFence(ctx, fence);
 			// An unterminated fence backs out, so the built-in fencedCode takes it as a plain
 			// `math` code block, matching the `$$` block.
-			if (closeIdx === -1) return null;
-
-			const raw = ctx.lines
-				.slice(ctx.index, closeIdx + 1)
-				.map((l) => l.raw)
-				.join('');
-			const node: CstNode = { kind: mathFence, leadingTrivia: ctx.leadingTrivia, raw };
-			return { node, consumed: closeIdx + 1 - ctx.index };
+			if (scan.closer === -1) return null;
+			const node: CstNode = { kind: mathFence, leadingTrivia: ctx.leadingTrivia, raw: scan.raw };
+			return { node, consumed: scan.consumed };
 		}
 	});
 }
