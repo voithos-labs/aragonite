@@ -1585,8 +1585,6 @@ setVerdict; // 'conspiracy.setVerdict', branded as a command id
 registerBlockCommand(conspiracy, 'conspiracy.setVerdict', handler); // throws: already registered
 ```
 
-A command that moves the focused block among its siblings, rather than the caret within it, passes `{ movesBlock: true }`. Its keypress then isn't read as a caret move, the same as the built-in Alt+Arrow reorder: the key alone leaves the caret's column and marker side where they were, and a move that actually happens drops them with its commit, like any edit.
-
 A minted command dispatches on the two tiers that can hand it a `BlockCommandContext` (the focused node plus a metadata-commit route):
 
 - the **editable-leaf tier**, a `createEditableLeaf` block, resolved from the focused leaf's keymap;

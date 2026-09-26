@@ -80,10 +80,7 @@ export const RANGE_DECLINED_COMMAND_IDS: ReadonlySet<string> = new Set<CommandId
 	'heading.cycle'
 ]);
 
-/**
- * Built-in commands that move the block or row holding the caret rather than the caret; a plugin
- * declares its own through `registerBlockCommand`'s `movesBlock`. Read by `commandMovesBlock`.
- */
+/** Built-in commands that move the block or row holding the caret rather than the caret. */
 export const BLOCK_MOVE_COMMAND_IDS: ReadonlySet<string> = new Set<CommandId>([
 	'block.moveUp',
 	'block.moveDown',
