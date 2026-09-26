@@ -179,7 +179,9 @@
 			mode: 'authored',
 			ending: blockEnding()
 		});
-		void blockEdit.updateBlockContent(index, written.display + blockEnding(), undoAnchor);
+		// The caret goes along: an edit that demotes the block lands it in whatever replaces it.
+		const bytes = written.display + blockEnding();
+		void blockEdit.updateBlockContent(index, bytes, undoAnchor, written.caret);
 		return written.caret;
 	}
 
@@ -223,6 +225,10 @@
 
 	useParkFocusOnUnmount(() => el ?? null, getEditorRoot);
 
+	// A commit can turn this block into another kind (a `math` info string makes a math fence),
+	// and a step deferred past that commit then has no code block left to act on.
+	const isStillCode = () => node.kind === 'fencedCode';
+
 	// ── The rail ──────────────────────────────────────────────────────────────
 
 	// The side gutter stands in for fence markers the mode does not draw, so source mode never gets
@@ -257,6 +263,7 @@
 		// Deferred past the commit's own caret placement, which focuses this block a second time
 		// and would blur a picker opened on the first. A bare fence is completed before it opens.
 		void tick().then(() => {
+			if (!isStillCode()) return;
 			const completed = completeBareFence();
 			if (!offerLanguage) return;
 			if (completed) {
@@ -336,6 +343,7 @@
 		// every child of the container and loses the caret.
 		el?.focus({ preventScroll: true });
 		void tick().then(() => {
+			if (!isStillCode()) return;
 			// Read the body after the commit lands. Writing a language lengthens the opener, so
 			// an offset measured against the node from before the commit points into the info
 			// string that just grew, putting the caret inside `js` where typing splits it.

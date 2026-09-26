@@ -53,6 +53,22 @@ test.describe('code block: fence lines the mode paints', () => {
 		expect(await editor.bridge.getBlockKind(1)).toBe('paragraph');
 	});
 
+	// The demotion reparses the block into a paragraph, so the caret the edit left has to land in
+	// that paragraph where the typed character went, or the next key lands somewhere else.
+	for (const [label, act, expected] of [
+		['a character typed before the opener', () => editor.page.keyboard.type('x'), 'xQ```js'],
+		['a Backspace in the opener run', () => editor.page.keyboard.press('Backspace'), '``Qjs']
+	] as const) {
+		test(`the caret stays put after ${label} demotes the block`, async () => {
+			await editor.focusBlock(0, label.startsWith('a character') ? 0 : 3);
+			await act();
+			await expect.poll(() => editor.bridge.getBlockKind(0)).toBe('paragraph');
+			await editor.page.keyboard.type('Q');
+
+			await expect.poll(() => editor.bridge.getSource()).toContain(expected);
+		});
+	}
+
 	test('paste over the closer keeps a closer below the pasted text', async () => {
 		await editor.seedClipboard('Y');
 		await selectFrom(editor, 18, 3);
