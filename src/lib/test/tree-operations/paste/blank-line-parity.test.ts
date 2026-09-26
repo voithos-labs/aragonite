@@ -31,8 +31,7 @@ async function pasteAfterX(clipboard: string): Promise<Document> {
 		pasteContext({
 			doc: deps.doc,
 			blockEdit: makeStubBlockEdit(),
-			controller: createPasteCoordinator(createUndoController(deps), deps.revealPath),
-			undoEntry: 'own'
+			controller: createPasteCoordinator(createUndoController(deps), deps.revealPath)
 		})
 	);
 	return deps.doc;
@@ -63,8 +62,7 @@ async function pasteLive(
 		pasteContext({
 			doc: deps.doc,
 			blockEdit: createBlockEditActions(deps, controller),
-			controller: createPasteCoordinator(controller, deps.revealPath),
-			undoEntry: 'own'
+			controller: createPasteCoordinator(controller, deps.revealPath)
 		})
 	);
 	return { doc: deps.doc, history: createHistoryActions(deps, controller) };

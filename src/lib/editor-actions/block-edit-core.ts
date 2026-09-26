@@ -33,7 +33,7 @@ import {
 import { spliceMany } from '../tree-operations/splice-many';
 import { isMergeEligible, isBlockEditable } from '../schema/merge-rules';
 import { getBlockKindDescriptor } from '../schema/block-kind-descriptor';
-import type { CommitAfterTick, UndoEntryMode } from '../action-contracts';
+import type { CommitAfterTick } from '../action-contracts';
 import { landCaretInScope, type CommitScope, type MutationView } from './block-edit-scope';
 import { mergedElseFocusNext, mergedElseFocusPrevious } from './merge-fallback';
 
@@ -81,13 +81,13 @@ export interface BlockEditCore {
 	updateBlockMetadata(
 		i: number,
 		metadata: Record<string, unknown>,
-		options?: { undoEntry?: UndoEntryMode; afterTick?: CommitAfterTick }
+		options?: { afterTick?: CommitAfterTick }
 	): Promise<void>;
 	replaceBlock(
 		i: number,
 		replacement: CstNode[],
 		focus?: { replacementIndex: number; offset: number; path?: number[] },
-		options?: { undoEntry?: UndoEntryMode; snapshotOffset?: number }
+		options?: { snapshotOffset?: number }
 	): Promise<void>;
 }
 
@@ -259,7 +259,7 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 			// commit reads after mutate.
 			const touchedNodes: CstNode[] = [];
 			await scope.commit({
-				snapshot: options?.undoEntry === 'join' ? 'skip' : { index: i, offset: 0 },
+				snapshot: { index: i, offset: 0 },
 				eventTarget: i,
 				op: { kind: 'metadataUpdate', detail: { fields } },
 				touchedNodes,
@@ -287,10 +287,7 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 			if (i < 0 || i >= children.length) return;
 			// `snapshotOffset` is where the caret was, which undo restores; `focus.offset` is where
 			// it lands. They differ when the replacement puts it inside a new structure.
-			const snapshot =
-				options?.undoEntry === 'join'
-					? 'skip'
-					: { index: i, offset: options?.snapshotOffset ?? focus?.offset ?? 0 };
+			const snapshot = { index: i, offset: options?.snapshotOffset ?? focus?.offset ?? 0 };
 			await scope.commit({
 				snapshot,
 				eventTarget: i,

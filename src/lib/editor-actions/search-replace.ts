@@ -122,48 +122,42 @@ export function createSearchReplace(deps: EditorActionsDeps, controller: UndoCon
 		const indices = [...groups.keys()].sort((a, b) => b - a); // last-first keeps lower indices valid
 		if (indices.length === 0) return 0;
 		const seed = groups.get(indices[indices.length - 1])![0];
-		// One snapshot for the whole batch, pushed outside any commit, so a batch that applies
-		// nothing removes it below; otherwise the next Ctrl+Z would restore nothing.
-		const stacksBeforePush = deps.undoManager.getStacks();
-		controller.pushUndoSnapshotPath(seed.path, seed.start);
 		let newBlockCount = 0;
 		let applied = 0;
-		for (const topIndex of indices) {
-			const group = groups.get(topIndex)!;
-			let newNodes: CstNode[];
-			try {
-				newNodes = buildSubtree(topIndex, group, template);
-			} catch (error) {
-				// buildSubtree calls the kind's `rebuildRaw`, plugin code running outside any
-				// commit, so nothing else would report this error.
-				deps.events.emit('error', {
-					origin: 'commit',
-					error,
-					context: { op: 'replaceBlock', path: docPathFrom([topIndex]) }
-				});
-				break;
-			}
-			const replaced = deps.doc.children[topIndex];
-			if (!keepsItsKind(replaced, newNodes)) continue;
-			await controller.commitStructural({
-				snapshot: 'skip', // the batch shares the single snapshot pushed above
-				mutate: (children) => {
-					spliceMany(children, topIndex, 1, newNodes);
-					const change = replacePreservingFirst(topIndex, 1, newNodes.length);
-					stampStructuralChange(children, change, deps.sharing);
-					return change;
+		// One entry for the whole batch, and none when it applies nothing.
+		await controller.undoStep({ path: docPathFrom(seed.path), offset: seed.start }, async () => {
+			for (const topIndex of indices) {
+				const group = groups.get(topIndex)!;
+				let newNodes: CstNode[];
+				try {
+					newNodes = buildSubtree(topIndex, group, template);
+				} catch (error) {
+					// buildSubtree calls the kind's `rebuildRaw`, plugin code running outside any
+					// commit, so nothing else would report this error.
+					deps.events.emit('error', {
+						origin: 'commit',
+						error,
+						context: { op: 'replaceBlock', path: docPathFrom([topIndex]) }
+					});
+					break;
 				}
-				// op omitted: no per-commit edit event; one is emitted after the batch
-			});
-			// A declined commit (reading mode) leaves the block in place and counts for nothing.
-			if (deps.doc.children[topIndex] === replaced) continue;
-			newBlockCount += newNodes.length;
-			applied += group.length;
-		}
-		if (applied === 0) {
-			deps.undoManager.restoreStacks(stacksBeforePush);
-			return 0;
-		}
+				if (!keepsItsKind(deps.doc.children[topIndex], newNodes)) continue;
+				const wrote = await controller.commitStructural({
+					snapshot: { path: docPathFrom([topIndex]), offset: 0 },
+					mutate: (children) => {
+						spliceMany(children, topIndex, 1, newNodes);
+						const change = replacePreservingFirst(topIndex, 1, newNodes.length);
+						stampStructuralChange(children, change, deps.sharing);
+						return change;
+					}
+					// op omitted: no per-commit edit event; one is emitted after the batch
+				});
+				if (!wrote) continue;
+				newBlockCount += newNodes.length;
+				applied += group.length;
+			}
+		});
+		if (applied === 0) return 0;
 		// A single-subtree replace has one edited node, so the aggregate event carries its
 		// document-absolute path (editor.md §12); a multi-subtree batch genuinely has none.
 		const eventPath = indices.length === 1 ? docPathFrom([indices[0]]) : [];

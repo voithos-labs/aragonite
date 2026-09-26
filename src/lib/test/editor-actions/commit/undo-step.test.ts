@@ -8,7 +8,7 @@ import { serialize } from '$lib/core/serializer';
 
 // An async run of several writes is one undo entry: an inline-menu pick that clears its query and
 // then inserts a block below undoes in one press. Miss-analysis: the undo suites pinned each write's
-// own entry and the synchronous `'join'` flag, and no case ran writes spread across awaits.
+// own entry and the synchronous join flag, and no case ran writes spread across awaits.
 
 function makeEditor(source: string) {
 	const { deps } = makeEditorActionsDeps(parse(source).children);
@@ -16,14 +16,101 @@ function makeEditor(source: string) {
 	return { deps, controller, blockEdit: createBlockEditActions(deps, controller) };
 }
 
+const SEED = { path: asDocPath([0]), offset: 1 };
+
 const undoDepth = (deps: ReturnType<typeof makeEditor>['deps']) =>
 	deps.undoManager.getStacks().undo.length;
 
-describe('joinUndoEntries', () => {
+// #30. Miss-analysis: the grouping was tested only for runs that wrote, so no case asked what a
+// declined gesture leaves behind.
+describe('undoStep: a step that writes nothing', () => {
+	it('leaves no entry and keeps the redo stack', async () => {
+		const { deps, controller, blockEdit } = makeEditor('a\n');
+		await blockEdit.insertParagraph(1, 'b');
+		deps.undoManager.undo(controller.captureCurrentState());
+
+		await controller.undoStep(SEED, async () => {});
+
+		expect(undoDepth(deps)).toBe(0);
+		expect(deps.undoManager.canRedo).toBe(true);
+	});
+
+	it('leaves no entry when its only commit is declined as a no-op', async () => {
+		const { deps, controller } = makeEditor('a\n');
+
+		await controller.undoStep(SEED, () =>
+			controller.commitStructural({
+				snapshot: SEED,
+				mutate: () => ({ op: 'noop' }),
+				discardIfNoop: true
+			})
+		);
+
+		expect(undoDepth(deps)).toBe(0);
+	});
+});
+
+describe('undoStep: the entry it records', () => {
+	it('holds the selection the step opened with, not the one its first write sees', async () => {
+		const { deps, controller, blockEdit } = makeEditor('a\n\nb\n');
+		const range = { anchor: { path: [0], offset: 0 }, focus: { path: [1], offset: 1 } };
+		deps.selectionState.enterCrossBlock(range.anchor, range.focus);
+
+		await controller.undoStep(SEED, async () => {
+			deps.selectionState.collapse();
+			await blockEdit.insertParagraph(2, 'c');
+		});
+
+		expect(deps.undoManager.getStacks().undo[0].selection).toEqual(range);
+	});
+
+	it('falls back to the seed when nothing is focused', async () => {
+		const { deps, controller, blockEdit } = makeEditor('a\n');
+
+		await controller.undoStep(SEED, async () => {
+			await blockEdit.insertParagraph(1, 'b');
+		});
+
+		expect(deps.undoManager.getStacks().undo[0].selection).toEqual({
+			anchor: { path: [0], offset: 1 },
+			focus: { path: [0], offset: 1 }
+		});
+	});
+
+	it('takes a keystroke inside it into the same entry, and the next keystroke out of it', async () => {
+		const { deps, controller, blockEdit } = makeEditor('a\n');
+
+		await controller.undoStep(SEED, async () => {
+			await blockEdit.insertParagraph(1, 'b');
+			await blockEdit.updateBlockContent(1, 'bc\n', 1);
+		});
+		await blockEdit.updateBlockContent(1, 'bcd\n', 2);
+
+		expect(undoDepth(deps)).toBe(2);
+		controller.flushDebouncedCheckpoint();
+	});
+});
+
+describe('joinTypingBatch', () => {
+	it('keeps a keystroke that reparses into several blocks in the burst it ends', async () => {
+		const { deps, controller, blockEdit } = makeEditor('ab\n');
+
+		await blockEdit.updateBlockContent(0, 'abc\n', 2);
+		await blockEdit.updateBlockContent(0, 'abc\n\nd\n', 3);
+
+		const undo = deps.undoManager.getStacks().undo;
+		expect(deps.doc.children).toHaveLength(2);
+		expect(undo).toHaveLength(1);
+		expect(serialize(undo[0].snapshot)).toBe('ab\n');
+		controller.flushDebouncedCheckpoint();
+	});
+});
+
+describe('undoStep', () => {
 	it('three writes inside one run are one entry holding the state before the first', async () => {
 		const { deps, controller, blockEdit } = makeEditor('a\n');
 
-		await controller.joinUndoEntries(async () => {
+		await controller.undoStep(SEED, async () => {
 			await blockEdit.insertParagraph(1, 'b');
 			await blockEdit.insertParagraph(2, 'c');
 			await blockEdit.insertParagraph(3, 'd');
@@ -37,7 +124,7 @@ describe('joinUndoEntries', () => {
 	it('a write after the run has ended opens a new entry', async () => {
 		const { deps, controller, blockEdit } = makeEditor('a\n');
 
-		await controller.joinUndoEntries(async () => {
+		await controller.undoStep(SEED, async () => {
 			await blockEdit.insertParagraph(1, 'b');
 			await blockEdit.insertParagraph(2, 'c');
 		});
@@ -49,9 +136,9 @@ describe('joinUndoEntries', () => {
 	it('a nested run stays inside the outer one, even for writes after the inner ends', async () => {
 		const { deps, controller, blockEdit } = makeEditor('a\n');
 
-		await controller.joinUndoEntries(async () => {
+		await controller.undoStep(SEED, async () => {
 			await blockEdit.insertParagraph(1, 'b');
-			await controller.joinUndoEntries(async () => {
+			await controller.undoStep(SEED, async () => {
 				await blockEdit.insertParagraph(2, 'c');
 			});
 			await blockEdit.insertParagraph(3, 'd');
@@ -67,7 +154,7 @@ describe('joinUndoEntries', () => {
 		expect(undone).not.toBeNull();
 		expect(deps.undoManager.canRedo).toBe(true);
 
-		await controller.joinUndoEntries(async () => {
+		await controller.undoStep(SEED, async () => {
 			await blockEdit.insertParagraph(1, 'c');
 			await blockEdit.insertParagraph(2, 'd');
 		});
@@ -79,7 +166,7 @@ describe('joinUndoEntries', () => {
 	it('a first write that rolls back leaves the next write to open the entry', async () => {
 		const { deps, controller, blockEdit } = makeEditor('a\n');
 
-		await controller.joinUndoEntries(async () => {
+		await controller.undoStep(SEED, async () => {
 			await controller
 				.commitStructural({
 					snapshot: { path: asDocPath([0]), offset: 0 },
@@ -100,7 +187,7 @@ describe('joinUndoEntries', () => {
 		const { deps, controller, blockEdit } = makeEditor('a\n');
 
 		await expect(
-			controller.joinUndoEntries(async () => {
+			controller.undoStep(SEED, async () => {
 				await blockEdit.insertParagraph(1, 'b');
 				throw new Error('plugin failed');
 			})

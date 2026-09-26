@@ -42,7 +42,7 @@ describe("cross-block inline paste ('join'): commit sequence participation", () 
 				doc: deps.doc,
 				blockEdit: makeStubBlockEdit(),
 				controller: coordinator,
-				undoEntry: 'join'
+				crossBlock: true
 			})
 		);
 
@@ -62,7 +62,7 @@ describe("cross-block inline paste ('join'): commit sequence participation", () 
 				doc: deps.doc,
 				blockEdit: makeStubBlockEdit(),
 				controller: coordinator,
-				undoEntry: 'join'
+				crossBlock: true
 			})
 		);
 
@@ -80,7 +80,7 @@ describe("cross-block inline paste ('join'): commit sequence participation", () 
 				doc: deps.doc,
 				blockEdit: makeStubBlockEdit(),
 				controller: coordinator,
-				undoEntry: 'join'
+				crossBlock: true
 			})
 		);
 
@@ -100,7 +100,7 @@ describe("cross-block inline paste ('join'): commit sequence participation", () 
 				doc: deps.doc,
 				blockEdit: makeStubBlockEdit(),
 				controller: coordinator,
-				undoEntry: 'join'
+				crossBlock: true
 			})
 		);
 
@@ -120,7 +120,7 @@ describe("cross-block inline paste ('join'): commit sequence participation", () 
 				doc: deps.doc,
 				blockEdit: makeStubBlockEdit(),
 				controller: coordinator,
-				undoEntry: 'join'
+				crossBlock: true
 			})
 		);
 

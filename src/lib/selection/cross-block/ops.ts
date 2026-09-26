@@ -1,12 +1,11 @@
 /**
- * Cross-block mutation: delete a range, push undo, collapse, restore the caret. Commit
+ * Cross-block mutation: delete a range as one commit, collapse, restore the caret. Commit
  * routing: pure top-level (both endpoints at doc.children, no cross-path table) commits
  * structurally; anything nested or with a cross-path table endpoint needs one scope per
  * spliced container, since the whole-row snap splices `table.children`. Intra-table
  * full-table/row/column coverage routes to `range-delete-table-coverage`.
  */
 
-import type { UndoEntryMode } from '../../action-contracts';
 import type { SelectionState } from '../selection-state.svelte';
 import type { Reading } from '../../schema/reading';
 import { deleteSnapshot, type SelectionPoint } from '../primitives';
@@ -31,22 +30,30 @@ export interface CrossBlockMutationContext {
 	getBlockElByPath: (path: number[]) => HTMLElement | null;
 	revealPath: (path: number[]) => Promise<BlockComponent | null>;
 	controller: CommitController;
-	/** Push an undo snapshot immediately, bypassing the debounce. */
-	pushUndoSnapshot: () => void;
 	/** How the editor reads its bytes: the ancestor rebuild reads its grammar, and the join cleanup
 	 *  its link definitions and mode (live-mode.md § 4.5). */
 	reading: Reading;
 }
 
-/** Options for {@link performCrossBlockDelete}. Absent = plain delete, own snapshot and caret. */
+/** Options for {@link performCrossBlockDelete}. Absent = plain delete, own caret. */
 export interface CrossBlockDeleteOptions {
-	/** `'join'`: the caller already pushed a snapshot covering this delete. */
-	undoEntry?: UndoEntryMode;
 	/** The caller installs a final caret after further mutations. */
 	skipCaretRestore?: boolean;
 	/** Delete a range covering a whole table, row or column structurally; without it the cells
 	 *  are cleared and the table keeps its shape. */
 	tableCoverageDelete?: boolean;
+}
+
+/**
+ * Runs a cross-block gesture's writes as one undo entry holding the range as it stood; the range
+ * start is where undo puts the caret back when nothing is focused.
+ */
+export function rangeUndoStep(
+	ctx: CrossBlockMutationContext,
+	run: () => Promise<unknown>
+): Promise<void> {
+	const start = ctx.selection.start;
+	return ctx.controller.undoStep(deleteSnapshot(start?.path ?? [0], start?.offset ?? 0), run);
 }
 
 /**
@@ -109,22 +116,15 @@ async function runCrossBlockDelete(
 	if (options?.tableCoverageDelete && isPureTopLevel && samePath) {
 		const block = nodeAt(doc, start.path);
 		if (block && isBlockNode(block) && block.kind === 'table') {
-			const handled = await maybeCommitTableCoverageDelete(
-				ctx,
-				block,
-				start,
-				end,
-				options,
-				caretRestore
-			);
+			const handled = await maybeCommitTableCoverageDelete(ctx, block, start, end, caretRestore);
 			if (handled) return handled.caret;
 		}
 	}
 
 	if (isPureTopLevel) {
-		return await commitPureTopLevelDelete(ctx, start, end, options, caretRestore);
+		return await commitPureTopLevelDelete(ctx, start, end, caretRestore);
 	}
-	return await commitCrossContainerDelete(ctx, doc, start, end, options, caretRestore);
+	return await commitCrossContainerDelete(ctx, doc, start, end, caretRestore);
 }
 
 /**
@@ -151,12 +151,11 @@ async function commitPureTopLevelDelete(
 	ctx: CrossBlockMutationContext,
 	start: SelectionPoint,
 	end: SelectionPoint,
-	options: Pick<CrossBlockDeleteOptions, 'undoEntry'> | undefined,
 	caretRestore: ((caret: SelectionPoint | null) => void) | undefined
 ): Promise<SelectionPoint | null> {
 	let collapsedCaret: SelectionPoint | null = null;
 
-	const snapshot = deleteSnapshot(options, start.path, start.offset);
+	const snapshot = deleteSnapshot(start.path, start.offset);
 
 	const doc = ctx.getDoc();
 	await ctx.controller.commitStructural({
@@ -197,7 +196,6 @@ async function commitCrossContainerDelete(
 	doc: Document,
 	start: SelectionPoint,
 	end: SelectionPoint,
-	options: Pick<CrossBlockDeleteOptions, 'undoEntry'> | undefined,
 	caretRestore: ((caret: SelectionPoint | null) => void) | undefined
 ): Promise<SelectionPoint | null> {
 	const touched = collectTouchedContainers(doc, start.path, end.path);
@@ -219,7 +217,7 @@ async function commitCrossContainerDelete(
 		scopes,
 		// The selection start survives the delete (the start wins the collapse), so its path still
 		// resolves as the restore position.
-		snapshot: deleteSnapshot(options, start.path, start.offset),
+		snapshot: deleteSnapshot(start.path, start.offset),
 		mutate: (scopeViews) => {
 			const sharing = scopeViews[0].sharing;
 			// Opened before the mutation: paths go stale as `rangeDelete` splices, while the copied

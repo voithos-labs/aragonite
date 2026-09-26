@@ -34,10 +34,11 @@ const typedEdit = (path: number[]): EditEvent =>
 	({ op: 'input', path, detail: { byteLength: 1 }, timestamp: 0 }) as EditEvent;
 
 /** Blocks whose bytes and caret the test moves by hand, the way a keystroke would.
- *  `writeFails` makes the range splice refuse, the way a commit blocked elsewhere would. */
+ *  `writeFails` makes the range splice throw; `writeDeclines` makes it write nothing and say so,
+ *  the way a commit refused in reading mode does. */
 function harness(
 	initial: string,
-	{ arrive = true, writeFails = false, reading = fixtureReading() } = {}
+	{ arrive = true, writeFails = false, writeDeclines = false, reading = fixtureReading() } = {}
 ) {
 	let doc = parse(initial) as unknown as DocumentView;
 	/** Which block the caret is in; most tests give one and never leave it. */
@@ -74,12 +75,14 @@ function harness(
 		// the one the state has to hold off.
 		commitRange: async (path, start, end, bytes) => {
 			if (writeFails) throw new Error('write refused');
+			if (writeDeclines) return false;
 			commits.push(bytes);
 			splicesInJoin.push(joinDepth > 0);
 			const raw = doc.children[path[0]].raw;
 			write(path[0], raw.slice(0, start) + bytes + raw.slice(end));
 			events.emit('edit', typedEdit(path));
 			await tick();
+			return true;
 		},
 		landCaret: async (_path, offset) => {
 			caret = offset;
@@ -88,7 +91,7 @@ function harness(
 			await tick();
 			return true;
 		},
-		joinUndoEntries: async (run) => {
+		undoStep: async (_path, _offset, run) => {
 			joinDepth++;
 			try {
 				await run();
@@ -544,6 +547,23 @@ describe('navigation and commit', () => {
 		expect(h.raw()).toBe('see #wo');
 	});
 
+	// Miss-analysis: the refusal cases threw, so none let the splice resolve having written nothing.
+	it('a pick whose write is declined lands no caret and runs no onCommit', async () => {
+		const onCommit = vi.fn();
+		const h = harness('see ', { writeDeclines: true });
+		h.menu.registry.addSource(tags({ onCommit }));
+		await h.type('#wo');
+
+		expect(h.menu.commit()).toBe(true);
+		await tick();
+		await tick();
+		await tick();
+
+		expect(h.raw()).toBe('see #wo');
+		expect(h.landed).toEqual([]);
+		expect(onCommit).not.toHaveBeenCalled();
+	});
+
 	it('does not reopen on its own write, even where the pick ends in a trigger', async () => {
 		const h = harness('a ');
 		h.menu.registry.addSource(tags({ items: () => [item('odd', '#odd #')] }));
@@ -737,8 +757,9 @@ describe('a table cell', () => {
 			reading: fixtureReading(),
 			commitRange: async (_path, _start, _end, bytes) => {
 				commits.push(bytes);
+				return true;
 			},
-			joinUndoEntries: (run) => run(),
+			undoStep: async (_path, _offset, run) => void (await run()),
 			landCaret: async () => true
 		});
 		menu.registry.addSource(tags());

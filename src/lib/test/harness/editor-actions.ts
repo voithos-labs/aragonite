@@ -143,6 +143,7 @@ export function makeCommitScopeStub(
 				unshareChild: (i) => children[i]
 			});
 			await args.afterTick?.();
+			return true;
 		}
 	};
 	return { scope, commits, children };
@@ -213,13 +214,13 @@ export function makeStubContainerEdit(): ContainerEditActions {
 export function makeStubController(): UndoController & PasteCommitCoordinator {
 	return {
 		sharing: createSharingState(),
-		pushUndoSnapshot: vi.fn(),
 		pushUndoSnapshotDebounced: vi.fn(),
 		flushDebouncedCheckpoint: vi.fn(),
 		// Runs the write: the batch breaks are the stubbed half, the bytes are not.
 		isolateUndoEntry: vi.fn((write: () => void) => write()),
-		joinUndoEntries: vi.fn((run: () => Promise<void>) => run()),
-		endUndoJoin: vi.fn(),
+		undoStep: vi.fn(async (_seed: unknown, run: () => Promise<unknown>) => void (await run())),
+		joinTypingBatch: vi.fn((write: () => unknown) => write()),
+		endUndoStep: vi.fn(),
 		commitStructural: vi.fn(),
 		commitContainerStructural: vi.fn(),
 		commitMultiScope: vi.fn(),

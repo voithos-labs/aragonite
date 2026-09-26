@@ -41,8 +41,7 @@ describe('container-matching paste over a blank body block', () => {
 			pasteContext({
 				doc: deps.doc,
 				blockEdit: makeStubBlockEdit(),
-				controller: createPasteCoordinator(controller, deps.revealPath),
-				undoEntry: 'own'
+				controller: createPasteCoordinator(controller, deps.revealPath)
 			})
 		);
 

@@ -30,23 +30,31 @@ export interface InlineRangeCommit {
 	 * committing; 0 when it would store nothing.
 	 */
 	writtenDelta(path: number[], start: number, end: number, bytes: string): number;
-	/** Splice `bytes` over `[start, end)` of the leaf at `path`; `caretAfter` is the raw offset the
-	 *  entry's snapshot restores. A splice that changes no byte commits nothing. */
+	/**
+	 * Splice `bytes` over `[start, end)` of the leaf at `path`; `caretAfter` is the raw offset the
+	 * entry's snapshot restores. Resolves to whether the leaf holds the spliced bytes: true for a
+	 * splice that changes no byte (it commits nothing), false for a commit refused or rolled back.
+	 */
 	commitInlineRange(
 		path: number[],
 		start: number,
 		end: number,
 		bytes: string,
 		caretAfter: number
-	): Promise<void>;
+	): Promise<boolean>;
 }
 
 export function createInlineRangeCommit(deps: InlineRangeCommitDeps): InlineRangeCommit {
-	/** The leaf and its spliced raw, or null when the kind would store the bytes it has. */
-	function planSplice(path: number[], start: number, end: number, bytes: string) {
+	function leafAt(path: number[]) {
 		if (path.length === 0) return null;
 		const leaf = nodeAt(deps.getDoc() as DocumentView, path);
-		if (leaf === null || !isBlockNode(leaf)) return null;
+		return leaf !== null && isBlockNode(leaf) ? leaf : null;
+	}
+
+	/** The spliced raw, or null when there is no leaf or the kind would store the bytes it has. */
+	function planSplice(path: number[], start: number, end: number, bytes: string) {
+		const leaf = leafAt(path);
+		if (leaf === null) return null;
 		const newRaw = leaf.raw.slice(0, start) + bytes + leaf.raw.slice(end);
 		// Compared against the bytes the kind would actually store (G4.28), so a splice a table
 		// cell's pipe escaping cancels out adds no undo entry (dismissing an image after a resize).
@@ -64,9 +72,9 @@ export function createInlineRangeCommit(deps: InlineRangeCommitDeps): InlineRang
 		end: number,
 		bytes: string,
 		caretAfter: number
-	): Promise<void> {
+	): Promise<boolean> {
 		const plan = planSplice(path, start, end, bytes);
-		if (!plan) return;
+		if (!plan) return leafAt(path) !== null;
 		const { newRaw } = plan;
 
 		const { controller } = deps;
@@ -78,7 +86,7 @@ export function createInlineRangeCommit(deps: InlineRangeCommitDeps): InlineRang
 			eventPath: docPathFrom(path)
 		};
 		if (path.length === 1) {
-			await controller.commitStructural({
+			return controller.commitStructural({
 				snapshot,
 				mutate: (children) => {
 					ensureUnsharedPath({ children }, [leafIdx], controller.sharing);
@@ -107,7 +115,6 @@ export function createInlineRangeCommit(deps: InlineRangeCommitDeps): InlineRang
 				},
 				op
 			});
-			return;
 		}
 
 		// path.length > 1, so the parent is a container node, never the root.
@@ -115,8 +122,8 @@ export function createInlineRangeCommit(deps: InlineRangeCommitDeps): InlineRang
 			deps.getDoc() as DocumentView,
 			path.slice(0, -1)
 		);
-		if (container === null || !isBlockNode(container)) return;
-		await controller.commitContainerStructural({
+		if (container === null || !isBlockNode(container)) return false;
+		return controller.commitContainerStructural({
 			containerNode: container,
 			path: path.slice(0, -1),
 			state: expectStateForNode(container),

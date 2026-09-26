@@ -74,7 +74,7 @@ export function createContainerEditActions(
 			return replacements.length > 0;
 		},
 
-		commitContainer(args): Promise<void> {
+		commitContainer(args): Promise<boolean> {
 			return controller.commitContainerStructural(args);
 		}
 	};

@@ -47,38 +47,41 @@ export function createBlockEditActions(
 		if (preview.op !== 'noop') {
 			const focusOffset = postEditFocusOffset ?? preEditOffset ?? 0;
 			let settled: SettledContent = { change: { op: 'noop' }, textStart: 0 };
-			await scope.commit({
-				snapshot: 'skip',
-				eventTarget: blockIndex,
-				op: { kind: 'updateContent', detail: { length: text.length } },
-				// ownerKind undefined is the answer, not an omission: the document root has no
-				// body grammar. The suffix goes as accessors so the trailing-line fix-up reads
-				// and writes the live document.
-				mutate: (view) => {
-					view.unshareChild(blockIndex);
-					settled = performUpdate(
-						{
-							children: view.children,
-							ownerKind: undefined,
-							owner: undefined,
-							lineEnding: view.lineEnding,
-							get suffix() {
-								return deps.doc.suffix;
+			// Typing's own write, so it lands in the entry the keystroke's batch holds.
+			await controller.joinTypingBatch(() =>
+				scope.commit({
+					snapshot: { index: blockIndex, offset: preEditOffset ?? 0 },
+					eventTarget: blockIndex,
+					op: { kind: 'updateContent', detail: { length: text.length } },
+					// ownerKind undefined is the answer, not an omission: the document root has no
+					// body grammar. The suffix goes as accessors so the trailing-line fix-up reads
+					// and writes the live document.
+					mutate: (view) => {
+						view.unshareChild(blockIndex);
+						settled = performUpdate(
+							{
+								children: view.children,
+								ownerKind: undefined,
+								owner: undefined,
+								lineEnding: view.lineEnding,
+								get suffix() {
+									return deps.doc.suffix;
+								},
+								set suffix(value: string) {
+									deps.doc.suffix = value;
+								}
 							},
-							set suffix(value: string) {
-								deps.doc.suffix = value;
-							}
-						},
-						blockIndex,
-						text,
-						deps.reading.grammar,
-						view.sharing
-					);
-					stampStructuralChange(view.children, settled.change, view.sharing);
-					return settled.change;
-				},
-				afterTick: () => focusAfterContentReplace([], blockIndex, settled, focusOffset, scope)
-			});
+							blockIndex,
+							text,
+							deps.reading.grammar,
+							view.sharing
+						);
+						stampStructuralChange(view.children, settled.change, view.sharing);
+						return settled.change;
+					},
+					afterTick: () => focusAfterContentReplace([], blockIndex, settled, focusOffset, scope)
+				})
+			);
 			return;
 		}
 

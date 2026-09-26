@@ -81,7 +81,7 @@ describe('lazy inline: undo restore does no inline work', () => {
 		const controller = createUndoController(deps);
 		const history = createHistoryActions(deps, controller);
 
-		controller.pushUndoSnapshot(0, 0);
+		deps.undoManager.push(controller.captureCurrentState());
 		deps.doc.children[0].raw = 'edited\n';
 
 		resetPerfInstruments();

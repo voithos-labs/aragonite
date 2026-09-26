@@ -65,7 +65,7 @@ function harness(component: Partial<BlockComponent> = {}, opts: { writes?: boole
 		},
 		isReading: () => reading,
 		insertParagraph,
-		joinUndoEntries: async (run) => {
+		undoStep: async (_path, _offset, run) => {
 			calls.push('join opens');
 			await run();
 			calls.push('join closes');

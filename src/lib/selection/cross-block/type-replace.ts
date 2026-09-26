@@ -10,7 +10,7 @@ import type { CstNode } from '../../core/nodes';
 import { documentLineEnding } from '../../core/lines';
 import type { CrossBlockDispatchContext } from './dispatch';
 import type { CrossBlockMutationContext } from './ops';
-import { performCrossBlockDelete } from './ops';
+import { performCrossBlockDelete, rangeUndoStep } from './ops';
 import { charOffsetOf } from '../primitives';
 import { blockCoveredWhole } from '../covered-block';
 import { CURSOR_END } from '../../block-component';
@@ -52,7 +52,15 @@ export async function handleCrossBlockTypeReplace(
 		await replaceCoveredBlockWithText(ctx, mutCtx, typed, covered);
 		return;
 	}
+	// One entry for the delete and the character.
+	await rangeUndoStep(mutCtx, () => deleteThenType(ctx, mutCtx, typed));
+}
 
+async function deleteThenType(
+	ctx: CrossBlockDispatchContext,
+	mutCtx: CrossBlockMutationContext,
+	typed: string
+): Promise<void> {
 	const caret = await performCrossBlockDelete(mutCtx, { skipCaretRestore: true });
 	if (!caret) return;
 	// All caret placements below target caret.path's top-level block; mount it once here so each
@@ -71,7 +79,7 @@ export async function handleCrossBlockTypeReplace(
 	}
 
 	// `updateContent`, not `input`: consumers read `input` as the kind having held, and this
-	// reparse may change it. `snapshot: 'skip'` keeps the character in the delete's undo entry.
+	// reparse may change it.
 	const scope = resolveTypedCharScope(ctx, caret.path);
 	if (!scope) {
 		focusCollapsedCaret(ctx.getBlockElByPath, caret);
@@ -86,7 +94,7 @@ export async function handleCrossBlockTypeReplace(
 	let settled: SettledContent = { change: { op: 'noop' }, textStart: 0 };
 	await ctx.controller.commitMultiScope({
 		scopes: [scope],
-		snapshot: 'skip',
+		snapshot: { path: docPathFrom(caret.path), offset: caret.offset },
 		mutate: ([scopeView]) => {
 			const sharing = scopeView.sharing;
 			const charOffset = charOffsetOf(caret, 'cross-block-type-replace:slice');
@@ -178,19 +186,19 @@ async function replaceCoveredBlockWithText(
 	const parsed = parseReplacement(covered, typed, documentLineEnding(doc), ctx.reading.grammar);
 	if (!parsed) return;
 
-	mutCtx.pushUndoSnapshot();
-	ctx.selection.collapse();
-
-	await replaceBlockAtParent({
-		doc,
-		blockPath,
-		replacement: parsed.replacement,
-		controller: ctx.pasteCoordinator,
-		undoEntry: 'join',
-		focusReplacementIndex: parsed.replacement.length - 1,
-		focusOffset: CURSOR_END,
-		source: 'cross-block-covered-block',
-		grammar: ctx.reading.grammar
+	// Opened before the collapse, so the entry holds the range rather than the caret it leaves.
+	await rangeUndoStep(mutCtx, async () => {
+		ctx.selection.collapse();
+		await replaceBlockAtParent({
+			doc,
+			blockPath,
+			replacement: parsed.replacement,
+			controller: ctx.pasteCoordinator,
+			focusReplacementIndex: parsed.replacement.length - 1,
+			focusOffset: CURSOR_END,
+			source: 'cross-block-covered-block',
+			grammar: ctx.reading.grammar
+		});
 	});
 }
 

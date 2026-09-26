@@ -120,7 +120,6 @@ describe('details terminator escape at the paste door', () => {
 			blockPath: [0, 1],
 			replacement: [{ kind: 'htmlBlock', leadingTrivia: '', raw: '</details>\n' } as CstNode],
 			controller: h.controller,
-			undoEntry: 'join',
 			focusReplacementIndex: 0,
 			focusOffset: 0,
 			source: 'paste-dispatch'

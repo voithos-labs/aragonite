@@ -210,7 +210,7 @@ describe('commitMultiScope', () => {
 		};
 		const bad: CommitMultiScopeArgs<[MultiScopeTarget, MultiScopeTarget]> = {
 			scopes: [scopeA, scopeB],
-			snapshot: 'skip',
+			snapshot: { path: asDocPath([0]), offset: 0 },
 			// @ts-expect-error mutate must return exactly one StructuralChange per scope
 			mutate: () => [{ op: 'noop' }]
 		};

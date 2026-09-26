@@ -4,7 +4,7 @@
  * live in `./path-math`.
  */
 
-import type { CommitSnapshotArg, UndoEntryMode } from '../action-contracts';
+import type { CommitSnapshotArg } from '../action-contracts';
 import type { DocumentView, NodeView } from '../core/node-views';
 import {
 	comparePaths,
@@ -137,13 +137,9 @@ export function normalize(selection: EditorSelection): {
 
 // ── Undo snapshot ──────────────────────────────────────────────────────────
 
-/** A join delete uses the caller's undo snapshot; every other delete records its own position. */
-export function deleteSnapshot(
-	options: { undoEntry?: UndoEntryMode } | undefined,
-	path: number[],
-	offset = 0
-): CommitSnapshotArg {
-	return options?.undoEntry === 'join' ? 'skip' : { path: docPathFrom(path), offset };
+/** Where undo puts the caret back after a range delete, when nothing is focused. */
+export function deleteSnapshot(path: number[], offset = 0): CommitSnapshotArg {
+	return { path: docPathFrom(path), offset };
 }
 
 // ── Range walk ─────────────────────────────────────────────────────────────

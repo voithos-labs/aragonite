@@ -72,7 +72,6 @@ export function makeKeydownEnv(source: string | Document, opts: KeydownEnvOption
 		getBlockElByPath,
 		revealPath,
 		controller,
-		pushUndoSnapshot: () => controller.pushUndoSnapshot(0, 0),
 		reading: fixtureReading()
 	};
 
@@ -92,7 +91,6 @@ export function makeKeydownEnv(source: string | Document, opts: KeydownEnvOption
 	const ctx = {
 		getEl: () => getBlockElByPath(opts.myPath ?? [0]),
 		getMyPath: () => opts.myPath ?? [0],
-		getIndex: () => 0,
 		selection,
 		getDoc: () => harness.deps.doc,
 		getBlockElByPath,

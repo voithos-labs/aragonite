@@ -26,8 +26,7 @@ async function paste(source: string, offset: number, clipboard: string) {
 		pasteContext({
 			doc: deps.doc,
 			blockEdit: createBlockEditActions(deps, controller),
-			controller: createPasteCoordinator(controller, deps.revealPath),
-			undoEntry: 'own'
+			controller: createPasteCoordinator(controller, deps.revealPath)
 		})
 	);
 	return { doc: deps.doc, caret: result.inlineCaretOffset };

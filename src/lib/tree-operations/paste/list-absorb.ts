@@ -105,7 +105,7 @@ export async function applyListAbsorb(
 
 	await ctx.controller.commitMultiScope({
 		scopes: [{ node: outer, state: outerState, path: plan.listPath }],
-		snapshot: ctx.undoEntry === 'join' ? 'skip' : { path: docPathFrom(plan.listPath), offset: 0 },
+		snapshot: { path: docPathFrom(plan.listPath), offset: 0 },
 		mutate: ([scopeView]) => {
 			const sharing = scopeView.sharing;
 			spliceTerminatedItems(scopeView.children, plan.itemIndex, 1, replacement, lineEnding);

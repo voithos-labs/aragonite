@@ -53,7 +53,7 @@ describe('paste-dispatch: applyContainerMatchingMerge mutate-inside-commit invar
 				doc,
 				blockEdit: makeStubBlockEdit(),
 				controller,
-				undoEntry: 'join'
+				crossBlock: true
 			})
 		);
 
@@ -90,7 +90,7 @@ describe('paste-dispatch: applyContainerMatchingMerge mutate-inside-commit invar
 				doc,
 				blockEdit: makeStubBlockEdit(),
 				controller,
-				undoEntry: 'join'
+				crossBlock: true
 			})
 		);
 
@@ -118,7 +118,7 @@ describe('pasteDispatch: cross-block inline join reparse', () => {
 				doc: deps.doc,
 				blockEdit: makeStubBlockEdit(),
 				controller: createPasteCoordinator(createUndoController(deps), deps.revealPath),
-				undoEntry: 'join'
+				crossBlock: true
 			})
 		);
 
@@ -136,7 +136,7 @@ describe('pasteDispatch: cross-block inline join reparse', () => {
 				doc: deps.doc,
 				blockEdit: makeStubBlockEdit(),
 				controller: createPasteCoordinator(createUndoController(deps), deps.revealPath),
-				undoEntry: 'join',
+				crossBlock: true,
 				reading: fixtureReading({ grammar: createGrammarView((kind) => kind !== 'list') })
 			})
 		);

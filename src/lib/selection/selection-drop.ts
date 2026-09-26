@@ -29,6 +29,7 @@ import { blockNearPoint } from './nearest-block';
 import { findSurfaceForElement } from './path-lookup';
 import { charOffsetOf } from './primitives';
 import { containerAmbientPrefix } from './range-delete';
+import { docPathFrom } from '../cursor/coordinate-spaces';
 
 export interface SelectionDropDeps {
 	editorRoot: HTMLElement;
@@ -53,7 +54,7 @@ export interface DropCaretRect {
 }
 
 /** Where the drag started, in raw offsets of the element it started in. */
-interface DragSource {
+export interface DragSource {
 	/** The editable element the range sits in: a block, or a table cell. */
 	path: number[];
 	start: number;
@@ -146,8 +147,8 @@ export function installSelectionDrop(deps: SelectionDropDeps): () => void {
 		const target = dropTarget(deps, e.clientX, e.clientY);
 		if (!target) return;
 		void runDrop(deps, from, target, isCopyDrag(e)).catch((error) => {
-			// A throw between the two writes leaves an undo snapshot pushed and half the move
-			// applied; the host hears about it on the same channel paste errors use.
+			// A throw between the two writes leaves half the move applied; the host hears about it on
+			// the same channel paste errors use.
 			emitClipboardError(deps.events, { error, path: from.path });
 		});
 	};
@@ -273,7 +274,19 @@ function movedText(deps: SelectionDropDeps, from: Omit<DragSource, 'text'>): str
 
 // ── The commit ─────────────────────────────────────────────────────────────
 
-async function runDrop(
+export function runDrop(
+	deps: SelectionDropDeps,
+	from: DragSource,
+	to: { path: number[]; offset: number },
+	copy: boolean
+): Promise<void> {
+	// One entry for the cut and the insert, and none when neither lands.
+	return deps.controller.undoStep({ path: docPathFrom(from.path), offset: from.start }, () =>
+		moveOrCopy(deps, from, to, copy)
+	);
+}
+
+async function moveOrCopy(
 	deps: SelectionDropDeps,
 	from: DragSource,
 	to: { path: number[]; offset: number },
@@ -281,7 +294,7 @@ async function runDrop(
 ): Promise<void> {
 	const text = from.text;
 	if (copy) {
-		await writeBlockRaw(deps, to.path, insert(to.offset, text), to.offset + text.length, true);
+		await writeBlockRaw(deps, to.path, insert(to.offset, text), to.offset + text.length);
 		return;
 	}
 	const cut = cutFrom(deps, from);
@@ -290,17 +303,18 @@ async function runDrop(
 		const offset = dropOffsetAfterCut(to.offset, from.start, from.end, cut.shrunkBy);
 		if (offset === null) return;
 		const merged = spliceAt(cut.raw, offset, text);
-		await writeBlockRaw(deps, cut.path, () => merged, offset + text.length, true);
+		await writeBlockRaw(deps, cut.path, () => merged, offset + text.length);
 		return;
 	}
-	deps.controller.pushUndoSnapshotPath(from.path, from.start);
 	// A table's `focus` takes a cell, never a character offset (G1.29), so the temporary caret
 	// the second write moves away from is its first cell.
 	const sourceCaret = from.inCell ? 0 : from.start;
-	const spliced = await writeBlockRaw(deps, cut.path, () => cut.raw, sourceCaret, false);
+	const spliced = await writeBlockRaw(deps, cut.path, () => cut.raw, sourceCaret);
+	// An insert after a cut that never landed would turn the move into a copy.
+	if (spliced === null) return;
 	const at = cut.path[cut.path.length - 1];
 	const target = shiftPathAfterSplice(to.path, cut.path.slice(0, -1), at, spliced);
-	await writeBlockRaw(deps, target, insert(to.offset, text), to.offset + text.length, false);
+	await writeBlockRaw(deps, target, insert(to.offset, text), to.offset + text.length);
 }
 
 function insert(offset: number, text: string): (raw: string) => string {
@@ -353,18 +367,17 @@ function cutFromCell(deps: SelectionDropDeps, from: DragSource, cell: CstNode): 
 /**
  * Replaces the block at `path` with the reparse of the bytes `rewrite` returns, in its parent's
  * child list. Returns how many blocks the position grew or shrank by, which keeps a second
- * write's path correct. `own` pushes this write's own undo entry.
+ * write's path correct, or null when nothing was written.
  */
 async function writeBlockRaw(
 	deps: SelectionDropDeps,
 	path: number[],
 	rewrite: (displayRaw: string) => string,
-	caret: number,
-	own: boolean
-): Promise<number> {
+	caret: number
+): Promise<number | null> {
 	const doc = deps.getDoc();
 	const node = blockNodeAt(doc, path);
-	if (!node) return 0;
+	if (!node) return null;
 	// The bytes are built outside the block's own element, so the kind's write rule runs here.
 	const lineEnding = documentLineEnding(doc);
 	const written = normalizeOwnRaw(node, rewrite(trimTrailingLineEnding(node.raw)), lineEnding);
@@ -373,21 +386,19 @@ async function writeBlockRaw(
 	const parsed = parseReplacement(node, written, lineEnding, deps.reading.grammar, () => [
 		emptyParagraph(node.leadingTrivia ?? '', trailingLineEnding(node.raw, lineEnding))
 	]);
-	if (!parsed) return 0;
+	if (!parsed) return null;
 	const landed = await replaceBlockAtParent({
 		doc,
 		blockPath: path,
 		replacement: parsed.replacement,
 		controller: deps.coordinator,
-		undoEntry: own ? 'own' : 'join',
 		focusReplacementIndex: parsed.replacement.length - 1,
 		focusOffset: caret,
 		source: 'selection-drop',
 		grammar: deps.reading.grammar
 	});
-	// The count that landed, not the parse's: a container's body rule can rewrite the list. Zero
-	// means the parent was not mounted and nothing was written, so nothing moved.
-	return Math.max(0, landed - 1);
+	// The count that landed, not the parse's: a container's body rule can rewrite the list.
+	return landed === null ? null : landed - 1;
 }
 
 // ── Small helpers ──────────────────────────────────────────────────────────

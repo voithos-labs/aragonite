@@ -4,7 +4,6 @@
  * while holding the row-level nested bundle.
  */
 
-import type { UndoEntryMode } from '../../action-contracts';
 import type { OperationDetailMap } from '../../schema/operations';
 import type { CstNode, Document } from '../../core/nodes';
 import type { GrammarView } from '../../schema/block-openers';
@@ -29,7 +28,6 @@ export interface ReplaceBlockAtParentArgs {
 	blockPath: number[];
 	replacement: CstNode[];
 	controller: PasteCommitCoordinator;
-	undoEntry: UndoEntryMode;
 	/** Index into `replacement` to focus after the commit. */
 	focusReplacementIndex: number;
 	focusOffset: number;
@@ -57,14 +55,14 @@ function landTrailingSeparator(
 	args.doc.suffix = ending;
 }
 
-/** Returns how many blocks landed in the position: the body rule below can rewrite the list, so
- *  a caller whose next write addresses a later sibling asks here rather than counting its own. */
-export async function replaceBlockAtParent(args: ReplaceBlockAtParentArgs): Promise<number> {
-	const { doc, blockPath, controller, undoEntry, focusOffset, source } = args;
+/** Returns how many blocks landed in the position, or null when nothing was written: the body rule
+ *  below can rewrite the list, so a caller whose next write addresses a later sibling asks here. */
+export async function replaceBlockAtParent(args: ReplaceBlockAtParentArgs): Promise<number | null> {
+	const { doc, blockPath, controller, focusOffset, source } = args;
 
 	const blockIdx = blockPath[blockPath.length - 1];
 	const scope = resolveParentScope(doc, blockPath, controller);
-	if (!scope) return 0;
+	if (!scope) return null;
 
 	// A replacement is built before any content write sees it, so the owner's `bodyWrite` escape
 	// is applied here, to the clipboard blocks and the target's split halves alike.
@@ -86,9 +84,9 @@ export async function replaceBlockAtParent(args: ReplaceBlockAtParentArgs): Prom
 		oldBlock !== null && replacement.length > 0 && replacement[0].kind === oldBlock.kind;
 	const tailEnding = lineEnding;
 
-	await controller.commitMultiScope({
+	const wrote = await controller.commitMultiScope({
 		scopes: [scope],
-		snapshot: undoEntry === 'join' ? 'skip' : { path: docPathFrom(blockPath), offset: 0 },
+		snapshot: { path: docPathFrom(blockPath), offset: 0 },
 		mutate: ([scopeView]) => {
 			// Read before the splice, for the task-marker rule below.
 			const stood = taskMarkerMayStandBefore(scopeView.children[blockIdx]);
@@ -119,5 +117,5 @@ export async function replaceBlockAtParent(args: ReplaceBlockAtParentArgs): Prom
 			return controller.landCaret([...scope.path, caret.index, ...at.path], at.offset);
 		}
 	});
-	return replacement.length;
+	return wrote ? replacement.length : null;
 }

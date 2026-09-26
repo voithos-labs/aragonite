@@ -55,7 +55,6 @@ describe('a document-scaled splice', () => {
 			blockPath: [0],
 			replacement: clipboard(),
 			controller,
-			undoEntry: 'join',
 			focusReplacementIndex: 0,
 			focusOffset: 0,
 			source: 'paste-dispatch'

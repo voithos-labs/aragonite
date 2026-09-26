@@ -49,7 +49,7 @@ type ReadingCheck = 'admitsWrite' | 'admitsSnapshot';
 const READING_CHECKED: Record<string, Partial<Record<ReadingCheck, string[]>>> = {
 	'src/lib/editor-actions/commit/undo-controller.ts': {
 		admitsWrite: ['__commit'],
-		admitsSnapshot: ['pushUndoSnapshotPath', 'pushUndoSnapshotDebounced']
+		admitsSnapshot: ['pushCommitSnapshot', 'pushUndoSnapshotDebounced']
 	},
 	'src/lib/editor-actions/block-edit.ts': { admitsWrite: ['applyContentUpdate'] },
 	'src/lib/editor-actions/container-edit.ts': { admitsWrite: ['withUnsharedSpine'] },

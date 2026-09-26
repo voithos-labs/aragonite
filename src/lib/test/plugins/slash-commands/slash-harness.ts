@@ -65,6 +65,7 @@ export function slashHarness(initial: string, options: SlashCommandsOptions = {}
 			write(raw().slice(0, start) + bytes + raw().slice(end));
 			events.emit('edit', typedEdit(path));
 			await tick();
+			return true;
 		},
 		landCaret: async (_path, offset) => {
 			caret = offset;
@@ -72,7 +73,7 @@ export function slashHarness(initial: string, options: SlashCommandsOptions = {}
 			await tick();
 			return true;
 		},
-		joinUndoEntries: (run) => run()
+		undoStep: async (_path, _offset, run) => void (await run())
 	});
 
 	const editor = {

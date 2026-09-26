@@ -39,7 +39,7 @@ describe('the container-matching merge spends its residue settle', () => {
 				doc: deps.doc,
 				blockEdit: makeStubBlockEdit(),
 				controller: coordinator,
-				undoEntry: 'join'
+				crossBlock: true
 			})
 		);
 
