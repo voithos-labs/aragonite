@@ -26,15 +26,20 @@ const sourceOf = (page: Page, pane: Pane) =>
 		pane
 	);
 
+// The panes render server-side, so a block in the markup does not mean the page has hydrated;
+// the bridge is set from an effect, so its arrival does.
+async function gotoHydrated(page: Page): Promise<void> {
+	await page.goto('/test/plugins/activation');
+	await page.waitForFunction(() => '__activation' in window);
+}
+
 // Two editors over one seed: the first lists the parrot kind and the block-badge decoration
 // source, the second lists neither. The definitions are shared by the whole process, so the only
 // difference is which editor turned them on, and the `plugins` prop is that list
 // (requirements/plugins/plugins-prop-activation.md).
 test.describe('the plugins prop is the enablement set', () => {
 	test.beforeEach(async ({ page }) => {
-		await page.goto('/test/plugins/activation');
-		await page.getByTestId('editor-listing').locator('[data-block-kind]').first().waitFor();
-		await page.getByTestId('editor-not-listing').locator('[data-block-kind]').first().waitFor();
+		await gotoHydrated(page);
 	});
 
 	test('the listing editor renders the plugin component and its decorations', async ({ page }) => {
@@ -53,7 +58,6 @@ test.describe('the plugins prop is the enablement set', () => {
 	});
 
 	test('both trees reload as themselves in their own grammar', async ({ page }) => {
-		await page.waitForFunction(() => '__activation' in window);
 		expect(await convergedIn(page, 'listing')).toBe(true);
 		expect(await convergedIn(page, 'notListing')).toBe(true);
 	});
@@ -61,7 +65,6 @@ test.describe('the plugins prop is the enablement set', () => {
 	test('Enter before the unlisted fence leaves it prose that reloads as itself', async ({
 		page
 	}) => {
-		await page.waitForFunction(() => '__activation' in window);
 		const pane = page.getByTestId('editor-not-listing');
 		await pane.getByText('%%parrot party responsibly').click();
 		await page.keyboard.press('Home');
@@ -91,7 +94,6 @@ test.describe('the plugins prop is the enablement set', () => {
 	});
 
 	test('bold over dollars the editor draws as text wraps them in one run', async ({ page }) => {
-		await page.waitForFunction(() => '__activation' in window);
 		const pane = page.getByTestId('editor-not-listing');
 		await pane.locator('[data-block-kind="paragraph"]').filter({ hasText: '$' }).click();
 		await page.keyboard.press('Home');
@@ -104,7 +106,6 @@ test.describe('the plugins prop is the enablement set', () => {
 
 	// The fixture fails at teardown on any dev invariant, so passing is the no-warning check.
 	test('Enter inside the generic directive box commits without an invariant', async ({ page }) => {
-		await page.waitForFunction(() => '__activation' in window);
 		const box = page
 			.getByTestId('editor-not-listing')
 			.locator('[data-block-kind="directiveContainer"]');
@@ -136,18 +137,12 @@ test.describe('the plugins prop is the enablement set', () => {
 // asked for, and the parrot pane is the one that owns `%%parrot`.
 test.describe('activation scopes the chord and the paste grammar', () => {
 	test.beforeEach(async ({ page }) => {
-		await page.goto('/test/plugins/activation');
-		await page.getByTestId('editor-listing').locator('[data-block-kind]').first().waitFor();
-		await page.getByTestId('editor-not-listing').locator('[data-block-kind]').first().waitFor();
+		await gotoHydrated(page);
 	});
 
 	// GH #265: the chord was consumed for the whole process, so it died in the editor that never
 	// listed the plugin instead of reaching the app around it.
 	test('only the editor that listed the plugin claims its global chord', async ({ page }) => {
-		// The panes render server-side, so waiting on a block only proves the markup arrived; the
-		// bridge is an effect, and it exists once the page has hydrated.
-		await page.waitForFunction(() => '__activation' in window);
-
 		const reserved = await page.evaluate(() => {
 			const door = (window as unknown as { __activation: ActivationDoor }).__activation;
 			return {
