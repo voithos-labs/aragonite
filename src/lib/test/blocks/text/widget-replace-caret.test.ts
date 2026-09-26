@@ -15,6 +15,7 @@ import type { CstNode } from '$lib/core/nodes';
 import { fixtureReading } from '../../harness/fixture-grammar';
 import { defaultGrammarView } from '$lib/schema/block-openers';
 import { stubCaretMemory } from '$lib/testing/headless-actions';
+import { mountBodyRow } from '../../harness/editor-actions';
 
 const SOURCE = 'lead![cat](x) tail\n';
 const WIDGET = { start: 4, end: 13 };
@@ -63,6 +64,29 @@ describe('replacing a selected widget', () => {
 		finish();
 		await replaced;
 		expect(log.at(-1)).toBe('landed');
+	});
+
+	// GH #539: the cell's rule escapes the typed pipe, so the caret goes after both bytes.
+	it('parks the caret the write stored, past an escape the kind added', async () => {
+		const row = mountBodyRow('| a | b |\n| - | - |\n| x<br>y | z |\n');
+		const cell = () => row.deps.doc.children[0].children![1].children![0];
+		const parked: (number | null)[] = [];
+		const widgetSelection = createWidgetSelectionState({ onSelect: () => {} });
+		widgetSelection.select({ paragraphPath: [0, 1, 0], sourceStart: 1, preSelectOffset: 1 });
+		const deps = {
+			get node() {
+				return cell();
+			},
+			index: 0,
+			blockEdit: row.blockEdit,
+			widgetSelection,
+			setPendingCursor: (offset: number | null) => void parked.push(offset)
+		};
+
+		await replaceSelectedWidget(deps, { start: 1, end: 5 }, 1, '|');
+
+		expect(cell().raw).toBe('x\\|y');
+		expect(parked).toEqual([3]);
 	});
 
 	it('is the route a paste over the widget takes', async () => {

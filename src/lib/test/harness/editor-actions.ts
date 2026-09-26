@@ -454,3 +454,25 @@ export function makeNestedHarness(
 	);
 	return { deps, events, controller, containerEdit, state, bundle, getNode, contentVersion };
 }
+
+/** The action bundle of the first table's body row `row` (the first by default): the one a
+ *  cell in that row writes through, over a real commit path. */
+export function mountBodyRow(source: string, row = 1) {
+	const { deps } = makeEditorActionsDeps(parse(source).children);
+	const controller = createUndoController(deps);
+	const getNode = () => deps.doc.children[0].children![row];
+	const bundle = createStandardNestedActions(
+		makeBlockListState(getNode),
+		makeNestedActionsDeps({
+			index: row,
+			getNode,
+			path: [0, row],
+			parent: {
+				blockEdit: makeStubBlockEdit(),
+				focus: makeStubFocus(),
+				containerEdit: createContainerEditActions(deps, controller)
+			}
+		})
+	);
+	return { deps, blockEdit: bundle.blockEdit };
+}

@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { escapeUnescapedPipes, normalizeCellRaw } from '$lib/schema/table-cell-raw';
+import { parse } from '$lib/core/parser';
+import { escapeUnescapedPipes, normalizeCellRaw, tableCellWrite } from '$lib/schema/table-cell-raw';
 
 describe('escapeUnescapedPipes', () => {
 	it('escapes a bare pipe', () => {
@@ -53,5 +54,25 @@ describe('normalizeCellRaw', () => {
 		for (let i = 0; i <= text.length; i++) {
 			expect(whole.startsWith(normalizeCellRaw(text.slice(0, i)))).toBe(true);
 		}
+	});
+});
+
+// A cell has no line ending of its own, and a shared text route writes a block's text with one
+// appended, so the rule drops it rather than turning it into a trailing space.
+describe('the cell write rule', () => {
+	const ctx = {
+		node: parse('| a |\n| - |\n| x |\n').children[0],
+		mode: 'authored',
+		lineEnding: '\n'
+	} as const;
+
+	it('drops the trailing line ending a block write carries', () => {
+		expect(tableCellWrite.normalize('a|b\n', ctx)).toBe('a\\|b');
+		expect(tableCellWrite.normalize('a|b\r\n', ctx)).toBe('a\\|b');
+	});
+
+	it('maps a caret past the dropped ending onto the end of the stored bytes', () => {
+		expect(tableCellWrite.mapOffset('a|b\n', 2, ctx)).toBe(3);
+		expect(tableCellWrite.mapOffset('a|b\n', 4, ctx)).toBe(4);
 	});
 });
