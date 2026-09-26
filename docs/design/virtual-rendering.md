@@ -21,13 +21,13 @@ This is where the height model comes in. Every block gets a cheap guess from its
 (Maybe Irrelevant) Details for the Curious:
 
 - Guessing the height of a block is cheap (bounded at O(1)).
-- Every kind's guess is its descriptor's `estimateHeight`, `(node, env) => px`, where `env` carries the width and the type metrics. Built-ins pick one of the shapes in `src/lib/schema/height-estimates.ts` (wrapped prose, one line, source lines, a container by its children), a plugin that declares none gets the container or the prose shape, and a plugin with a tricky height supplies its own. The bundled mermaid plugin's is the whole story in one line:
+- Every kind guesses through its descriptor's `estimateHeight`, `(node, env) => px`, with the width and the type metrics in `env`. Built-ins pick a shape from `src/lib/schema/height-estimates.ts` (wrapped prose, one line, source lines, a container by its children). A plugin that doesn't bother gets the container or the prose one, and a plugin with a weird height brings its own. The bundled mermaid plugin's is the whole story in one line:
 
   ```ts
   estimateHeight: () => 320, // the skeleton's fixed height; the real one replaces it on mount
   ```
 
-  The pecking order: a collapsed container is guessed at one chrome row no matter what (its body never paints), then the kind's `estimateHeight`, and a real measurement beats everything.
+  The pecking order: a collapsed container is guessed at one chrome row no matter what (its body never paints), then the kind's own guess, and a real measurement beats everything.
 
 - The worst case for guessing is a block whose height has nothing to do with its source (a Mermaid diagram, a KaTeX render). One that renders at a stable skeleton size declares `estimateHeight` at that size and the guess is exact; one that truly can't know gets guessed as prose, self-corrects on first mount, and drifts the scrollbar thumb a bit more until then.
 - For every scope, the heights live in a binary indexed tree (i.e. Fenwick tree); this allows for things like "what pixel offset does block N start at" and "which block is at pixel P" to be answered in log time.

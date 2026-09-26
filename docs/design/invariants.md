@@ -625,9 +625,9 @@ just written, which no test can hand a predicate. Seam: the snap-caret paint eff
 `TextEditableBlock.svelte :: sweepOtherBlocksSnap` before it paints ·
 `e2e/tests/blocks/image/caret-synthetic-indicator.spec.ts`, and the e2e invariant watcher under it.
 
-**G1.40 · Built-in presentation facts** (`builtin-presentation-facts`). A plugin kind may leave
-`pageRole` and `estimateHeight` to their defaults (an object, and the container or prose estimate);
-a built-in may not, since a new built-in leaning on those defaults would take a plugin's guesses
+**G1.40 · Built-in presentation facts** (`builtin-presentation-facts`). A plugin kind can leave
+`pageRole` and `estimateHeight` out and get defaults (an object, with the container or prose guess).
+A built-in can't, since a new built-in leaning on those defaults would inherit a plugin's guesses
 without anyone deciding it should. Predicate `checkBuiltinPresentationFacts` (`registry.ts`) ·
 bootstrap · `test/invariants/builtin-presentation-facts.test.ts`.
 
@@ -1488,9 +1488,9 @@ reads a syntax the editor switched off or an unlisted plugin's opener (#429). On
 kits and the listed code that runs with no editor may import a defaulted reader.
 `lint/registry-view-reads.test.ts`.
 
-**G4.70 · Decorations keep off the editor's attributes.** A block decoration may set attributes on
-a block's own element, and a `data-` name the editor uses there answers the editor's lookups or
-paints a state it never set (a decoration setting `data-kind-cue` painted a permanent label). The
+**G4.70 · Decorations keep off the editor's attributes.** A block decoration can set attributes on
+a block's own element, and one of the editor's own `data-` names there answers the editor's lookups
+or paints a state it never set (a decoration setting `data-kind-cue` painted a permanent label). The
 scan collects every `data-` name the library's source sets or reads, `dataset` spellings included,
 and requires each in `src/lib/decorations/reserved-attrs.ts :: RESERVED_BLOCK_ATTRS` or in its
 short list of exceptions with a reason. `lint/reserved-block-attrs.test.ts`.
