@@ -1,15 +1,22 @@
 // Every position the caret-reachable order hands out is a leaf a mounted caret can sit in: no
 // ancestor is a collapsed container holding it in its hidden body. The generator mixes quotes,
-// nested lists, tables and open or closed details nested in each other, with non-ASCII text and
-// both line endings; with every details open, the caret order equals the coverage order.
+// nested lists, tables and open or closed details nested in each other, empty leaves and
+// summary-only details, non-ASCII text and both line endings; with every details open, the caret
+// order equals the coverage order.
 import { describe, it, expect, beforeAll } from 'vitest';
 import fc from 'fast-check';
 import { parse } from '../../core/parser';
 import type { CstNode, Document } from '../../core/nodes';
-import { CURSOR_END, CURSOR_START, FOCUS_LAST_START } from '../../block-component';
+import {
+	CURSOR_END,
+	CURSOR_EXACT_START,
+	CURSOR_START,
+	FOCUS_LAST_START
+} from '../../block-component';
+import { displayLength } from '../../core/lines';
 import { docPathFrom } from '../../cursor/coordinate-spaces';
 import { isBlockNode, nodeAt } from '../../tree-operations/node-primitives';
-import { isCollapsedContainer } from '../../schema/reserved-chrome';
+import { isCollapsedContainer, isReservedChromeChild } from '../../schema/reserved-chrome';
 import { isStrictAncestorOf } from '../../selection/path-math';
 import {
 	firstCaretLeaf,
@@ -37,15 +44,19 @@ type Block =
 	| { t: 'para'; text: string }
 	| { t: 'quote'; kids: Block[] }
 	| { t: 'list'; items: Block[][] }
-	| { t: 'table'; rows: number; cols: number }
-	| { t: 'details'; open: boolean; kids: Block[] };
+	| { t: 'table'; rows: number; cols: number; emptyCell: boolean }
+	| { t: 'details'; open: boolean; summary: string; kids: Block[] };
 
 const WORDS = ['alpha', 'é', '😀x', 'é', 'Ω beta', '**b**'];
 const arbPara = fc
 	.array(fc.constantFrom(...WORDS), { minLength: 1, maxLength: 3 })
 	.map((w): Block => ({ t: 'para', text: w.join(' ') }));
 const arbTable = fc
-	.record({ rows: fc.integer({ min: 1, max: 3 }), cols: fc.integer({ min: 2, max: 4 }) })
+	.record({
+		rows: fc.integer({ min: 1, max: 3 }),
+		cols: fc.integer({ min: 2, max: 4 }),
+		emptyCell: fc.boolean()
+	})
 	.map((r): Block => ({ t: 'table', ...r }));
 
 const { block: arbBlock } = fc.letrec<{ block: Block; kids: Block[] }>((tie) => ({
@@ -53,14 +64,20 @@ const { block: arbBlock } = fc.letrec<{ block: Block; kids: Block[] }>((tie) => 
 		{ maxDepth: 4, depthIdentifier: 'block' },
 		arbPara,
 		arbTable,
-		tie('kids').map((kids): Block => ({ t: 'quote', kids })),
+		fc.oneof(tie('kids'), fc.constant<Block[]>([])).map((kids): Block => ({ t: 'quote', kids })),
 		fc
 			.array(
 				fc.tuple(arbPara, tie('kids')).map(([p, rest]) => [p, ...rest.slice(0, 2)]),
 				{ minLength: 1, maxLength: 3 }
 			)
 			.map((items): Block => ({ t: 'list', items })),
-		fc.tuple(fc.boolean(), tie('kids')).map(([open, kids]): Block => ({ t: 'details', open, kids }))
+		fc
+			.tuple(
+				fc.boolean(),
+				fc.constantFrom('T', ''),
+				fc.oneof(tie('kids'), fc.constant<Block[]>([]))
+			)
+			.map(([open, summary, kids]): Block => ({ t: 'details', open, summary, kids }))
 	),
 	kids: fc.array(tie('block'), { minLength: 1, maxLength: 3 })
 }));
@@ -75,7 +92,7 @@ function linesOf(b: Block): string[] {
 		case 'para':
 			return [b.text];
 		case 'quote':
-			return stack(b.kids).map((l) => (l === '' ? '>' : `> ${l}`));
+			return b.kids.length > 0 ? stack(b.kids).map((l) => (l === '' ? '>' : `> ${l}`)) : ['>'];
 		case 'list':
 			return b.items.flatMap(([first, ...rest]) => {
 				const tail = rest.length > 0 ? ['', ...stack(rest)] : [];
@@ -84,18 +101,15 @@ function linesOf(b: Block): string[] {
 		case 'table': {
 			const row = (cell: (c: number) => string) =>
 				'| ' + Array.from({ length: b.cols }, (_, c) => cell(c)).join(' | ') + ' |';
-			const body = Array.from({ length: b.rows }, (_, r) => row((c) => `c${r}${c}`));
+			const cell = (r: number, c: number) => (b.emptyCell && r + c === 0 ? '' : `c${r}${c}`);
+			const body = Array.from({ length: b.rows }, (_, r) => row((c) => cell(r, c)));
 			return [row((c) => `h${c}`), row(() => '-'), ...body];
 		}
-		case 'details':
-			return [
-				b.open ? '<details open>' : '<details>',
-				'<summary>T</summary>',
-				'',
-				...stack(b.kids),
-				'',
-				'</details>'
-			];
+		case 'details': {
+			const body = b.kids.length > 0 ? ['', ...stack(b.kids), ''] : [];
+			const head = [b.open ? '<details open>' : '<details>', `<summary>${b.summary}</summary>`];
+			return [...head, ...body, '</details>'];
+		}
 	}
 }
 
@@ -158,6 +172,30 @@ function removeWithEmptiedAncestors(doc: Document, path: number[]): Document {
 	return doc;
 }
 
+/** Every block path but a title row, which a container always keeps (G1.14). */
+function removablePaths(doc: Document): number[][] {
+	return allPaths(doc).filter((p) => {
+		const parent = nodeAt(doc, p.slice(0, -1));
+		return !(parent && isBlockNode(parent) && isReservedChromeChild(parent, p[p.length - 1]));
+	});
+}
+
+function leafNode(doc: Document, path: number[] | null): CstNode | null {
+	return path ? (nodeAt(doc, path) as CstNode) : null;
+}
+
+/** The first caret leaf after `path`'s whole subtree, read before anything is removed. */
+function afterSubtree(doc: Document, path: number[]): number[] | null {
+	const last = lastCaretLeaf(doc, path);
+	return last ? nextCaretPath(doc, last) : null;
+}
+
+function pathOfNode(doc: Document, target: CstNode): number[] {
+	const found = allPaths(doc).find((p) => nodeAt(doc, p) === target);
+	if (!found) throw new Error('survivor node not in the tree');
+	return found;
+}
+
 function walk(start: number[] | null, step: (p: number[]) => number[] | null): number[][] {
 	const seen: number[][] = [];
 	for (let p = start; p; p = step(p)) seen.push(p);
@@ -202,6 +240,31 @@ describe('caret-reachable order', () => {
 		expect(nested(false)).toBe(true);
 	});
 
+	it('draws summary-only details and empty leaves in a quote, a summary and a table cell', () => {
+		const docs = fc.sample(arbDoc, { numRuns: 300, seed: 11 }).map((d) => parse(sourceOf(d)));
+		const nodes = docs.flatMap((doc) =>
+			allPaths(doc).map((p) => ({
+				node: nodeAt(doc, p) as CstNode,
+				parent: nodeAt(doc, p.slice(0, -1))
+			}))
+		);
+		const emptyLeafUnder = (kind: string) =>
+			nodes.some(
+				({ node, parent }) =>
+					!node.children?.length &&
+					displayLength(node.raw) === 0 &&
+					parent !== null &&
+					isBlockNode(parent) &&
+					parent.kind === kind
+			);
+		expect(nodes.some(({ node }) => node.kind === 'details' && node.children?.length === 1)).toBe(
+			true
+		);
+		expect(emptyLeafUnder('details')).toBe(true);
+		expect(emptyLeafUnder('blockquote')).toBe(true);
+		expect(emptyLeafUnder('tableRow')).toBe(true);
+	});
+
 	it('walks only leaves a mounted caret can reach, the same set in both directions', () => {
 		fc.assert(
 			fc.property(arbDoc, (d) => {
@@ -219,7 +282,14 @@ describe('caret-reachable order', () => {
 			fc.property(arbDoc, (d) => {
 				const doc = parse(sourceOf(d));
 				for (const path of allPaths(doc)) {
-					for (const offset of [0, CURSOR_START, CURSOR_END, FOCUS_LAST_START, 3]) {
+					for (const offset of [
+						0,
+						CURSOR_START,
+						CURSOR_EXACT_START,
+						CURSOR_END,
+						FOCUS_LAST_START,
+						3
+					]) {
 						const t = caretTargetFor(doc, { path: docPathFrom(path), offset });
 						expect(caretLanding(doc, t && [...t.leafPath]), `${path}@${offset}`).toBe(true);
 					}
@@ -229,16 +299,29 @@ describe('caret-reachable order', () => {
 		);
 	});
 
-	it('picks a reachable survivor after any single block is removed', () => {
+	// The expected survivor is read before the removal, by node, so the check does not depend on
+	// how the function reads the slot the removal left.
+	it('picks the reachable neighbour on the side asked after any single block is removed', () => {
 		fc.assert(
 			fc.property(arbDoc, (d) => {
 				const source = sourceOf(d);
-				for (const path of allPaths(parse(source))) {
-					const doc = removeWithEmptiedAncestors(parse(source), path);
+				for (const path of removablePaths(parse(source))) {
+					const doc = parse(source);
+					const before = leafNode(doc, previousCaretPath(doc, path));
+					const after = leafNode(doc, afterSubtree(doc, path));
+					removeWithEmptiedAncestors(doc, path);
+					const atEnd = before && { path: pathOfNode(doc, before), offset: CURSOR_END };
+					const atStart = after && { path: pathOfNode(doc, after), offset: CURSOR_START };
+					const want = {
+						before: atEnd ?? atStart ?? null,
+						after: atStart ?? atEnd ?? null
+					};
 					for (const side of ['before', 'after'] as const) {
 						const s = survivorAfterRemoval(doc, path, side);
-						const ok = s ? caretLanding(doc, [...s.path]) : doc.children.length === 0;
-						expect(ok, `${path} ${side}`).toBe(true);
+						expect(s && { path: [...s.path], offset: s.offset }, `${path} ${side}`).toEqual(
+							want[side]
+						);
+						if (s) expect(caretLanding(doc, [...s.path]), `${path} ${side}`).toBe(true);
 					}
 				}
 			}),
