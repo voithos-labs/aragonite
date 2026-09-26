@@ -716,8 +716,8 @@
 		const bounds = landableDomTextBounds(el);
 		const atEdge =
 			key === 'ArrowDown'
-				? isAtLastVisualLine(el, offset, bounds.end)
-				: isAtFirstVisualLine(el, offset, bounds.start);
+				? isAtLastVisualLine(el, offset, bounds)
+				: isAtFirstVisualLine(el, offset, bounds);
 		if (!atEdge) return false;
 
 		const tablePath = myPath.slice(0, -2);

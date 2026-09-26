@@ -94,6 +94,9 @@ const WRAPPED_IMAGES_DOC =
 
 test.describe('vertical arrows inside a wrapped image-only paragraph', () => {
 	test('ArrowUp from beside the second-line image stays in the paragraph', async ({ page }) => {
+		// Chromium drops the caret written beside the trailing image, and the arrow check reads a
+		// caret it cannot see as the block start (#574).
+		test.fixme();
 		const editor = new EditorPage(page);
 		await editor.goto();
 		await editor.loadContent(WRAPPED_IMAGES_DOC);

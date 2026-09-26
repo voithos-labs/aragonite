@@ -84,20 +84,25 @@ export function findLastTextNode(root: Node): Text | null {
 	return measurableText(root, containerOf(root), true);
 }
 
+/** The first and last offsets a caret can sit at in a block, which a hidden run moves inward. */
+export interface CaretBounds {
+	start: number;
+	end: number;
+}
+
 /**
- * True if the selection inside `el` sits on the first visual line; empty containers return true.
- * `fallbackOffset` (the snapped caret offset from `ambient-cursor.getRaw`) answers when there is
- * no live range, since Chromium drops the caret range next to atomic contenteditable=false
- * widgets across event-loop yields. It is compared against the block's first offset the caret
- * can sit at, which a leading hidden run moves off raw 0.
+ * True if the selection inside `el` sits on the first visual line; a block with no caret range
+ * returns true. `fallbackOffset` (the snapped caret offset from the surface backend's `getRaw`)
+ * answers when there is no live range, since Chromium drops the caret range next to atomic
+ * contenteditable=false widgets across event-loop yields.
  */
 export function isAtFirstVisualLine(
 	el: HTMLElement,
 	fallbackOffset: number,
-	contentStart: number
+	bounds: CaretBounds
 ): boolean {
-	return isAtEdgeVisualLine(el, () => fallbackOffset <= contentStart, {
-		isEmpty: (el.textContent ?? '').length === 0,
+	return isAtEdgeVisualLine(el, () => fallbackOffset <= bounds.start, {
+		isEmpty: bounds.start === bounds.end,
 		toStart: true,
 		boundaryTop: () => {
 			const firstText = findFirstTextNode(el);
@@ -110,10 +115,10 @@ export function isAtFirstVisualLine(
 export function isAtLastVisualLine(
 	el: HTMLElement,
 	fallbackOffset: number,
-	contentEnd: number
+	bounds: CaretBounds
 ): boolean {
-	return isAtEdgeVisualLine(el, () => fallbackOffset >= contentEnd, {
-		isEmpty: contentEnd === 0,
+	return isAtEdgeVisualLine(el, () => fallbackOffset >= bounds.end, {
+		isEmpty: bounds.start === bounds.end,
 		toStart: false,
 		boundaryTop: () => {
 			const lastText = findLastTextNode(el);
