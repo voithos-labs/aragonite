@@ -11,7 +11,8 @@ import {
 	isPathBetween,
 	isStrictAncestorOf,
 	pathHasPrefix,
-	pathsEqual
+	pathsEqual,
+	type DocPath
 } from './path-math';
 import {
 	asCellIndex,
@@ -71,6 +72,13 @@ export interface WholeBlockEndpoint {
  * an unresolved endpoint cannot reach a consumer.
  */
 export type SelectionEndpoint = SelectionPoint | WholeBlockEndpoint;
+
+/** Where a caret goes after an edit: a document path, which may name a container, and an offset
+ *  into the node there, raw or one of the special caret values in `block-component.ts`. */
+export interface CaretPosition {
+	readonly path: DocPath;
+	readonly offset: number;
+}
 
 export function isWholeBlockEndpoint(endpoint: SelectionEndpoint): endpoint is WholeBlockEndpoint {
 	return 'wholeBlock' in endpoint;

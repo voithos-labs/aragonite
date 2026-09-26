@@ -1,7 +1,9 @@
 /** Document-tree path navigation. Pure functions over a Document + path. */
 
 import type { CstNode, Document } from '../core/nodes';
-import { nodeAt } from '../tree-operations/node-primitives';
+import type { DocumentView, NodeView } from '../core/node-views';
+import { isBlockNode, nodeAt } from '../tree-operations/node-primitives';
+import { caretChildCount, isCollapsedContainer } from '../schema/reserved-chrome';
 import { TABLE_CELL_SELECTOR } from '../components/block-content-selector';
 
 /** Block immediately after `path` in doc order (children before siblings), else null. */
@@ -74,6 +76,99 @@ export function lastLeafAtOrBefore(doc: Document, path: number[]): number[] | nu
 		cur = [...cur, node.children.length - 1];
 	}
 	return null;
+}
+
+// ── Caret-reachable order ──────────────────────────────────────────────────
+// The same document order as above, except that a collapsed container is only its title row,
+// since a caret can never sit in its hidden body. Select-all keeps the functions above: its range
+// has to cover that body. Every function here returns a leaf path, never a container's.
+
+/** The first leaf a caret can reach at or inside `path`, or null when `path` does not resolve. */
+export function firstCaretLeaf(doc: DocumentView, path: readonly number[]): number[] | null {
+	return descendToCaretLeaf(doc, path, () => 0);
+}
+
+/** The last leaf a caret can reach at or inside `path`, or null when `path` does not resolve. */
+export function lastCaretLeaf(doc: DocumentView, path: readonly number[]): number[] | null {
+	return descendToCaretLeaf(doc, path, (node) => reachableChildCount(node) - 1);
+}
+
+/** The first caret leaf after `path` in document order, descending into it first when it has
+ *  children, as {@link nextPath} does. */
+export function nextCaretPath(doc: DocumentView, path: readonly number[]): number[] | null {
+	const node = nodeAt(doc, [...path]);
+	if (!node || path.length === 0) return null;
+	if (reachableChildCount(node) > 0) return firstCaretLeafFrom(doc, [...path, 0]);
+	return firstCaretLeafFrom(doc, [...path.slice(0, -1), path[path.length - 1] + 1]);
+}
+
+/** The last caret leaf before `path`'s subtree in document order; an ancestor of `path` is never
+ *  the answer. `path` need not resolve, so a slot a removed block left reads the same. */
+export function previousCaretPath(doc: DocumentView, path: readonly number[]): number[] | null {
+	const hiding = collapsedContainerHiding(doc, path);
+	if (hiding) return lastCaretLeaf(doc, [...hiding, 0]);
+	let slot = [...path];
+	while (slot.length > 0) {
+		const parentPath = slot.slice(0, -1);
+		const parent = nodeAt(doc, parentPath);
+		if (!parent) return null;
+		const before = Math.min(slot[slot.length - 1], reachableChildCount(parent)) - 1;
+		if (before >= 0) return lastCaretLeaf(doc, [...parentPath, before]);
+		slot = parentPath;
+	}
+	return null;
+}
+
+/** The first caret leaf at `slot` or after it, where `slot` may sit one past the end of its list
+ *  (the place a removed last child left). */
+export function firstCaretLeafFrom(doc: DocumentView, slot: readonly number[]): number[] | null {
+	const hiding = collapsedContainerHiding(doc, slot);
+	let at = hiding ? [...hiding.slice(0, -1), hiding[hiding.length - 1] + 1] : [...slot];
+	while (at.length > 0) {
+		const parentPath = at.slice(0, -1);
+		const parent = nodeAt(doc, parentPath);
+		if (!parent) return null;
+		if (at[at.length - 1] < reachableChildCount(parent)) return firstCaretLeaf(doc, at);
+		if (parentPath.length === 0) return null;
+		at = [...parentPath.slice(0, -1), parentPath[parentPath.length - 1] + 1];
+	}
+	return null;
+}
+
+/** The outermost collapsed container whose hidden body `path` runs through, or null. */
+export function collapsedContainerHiding(
+	doc: DocumentView,
+	path: readonly number[]
+): number[] | null {
+	for (let depth = 1; depth < path.length; depth++) {
+		if (path[depth] < 1) continue;
+		const container = nodeAt(doc, path.slice(0, depth));
+		if (container && isBlockNode(container) && isCollapsedContainer(container)) {
+			return path.slice(0, depth);
+		}
+	}
+	return null;
+}
+
+function descendToCaretLeaf(
+	doc: DocumentView,
+	path: readonly number[],
+	pick: (node: NodeView | DocumentView) => number
+): number[] | null {
+	const leaf = [...path];
+	let node = nodeAt(doc, leaf);
+	if (!node) return null;
+	while (reachableChildCount(node) > 0) {
+		const index = pick(node);
+		leaf.push(index);
+		node = node.children![index];
+	}
+	return leaf.length > 0 ? leaf : null;
+}
+
+// The document root is never collapsed, and has no descriptor to ask.
+function reachableChildCount(node: NodeView | DocumentView): number {
+	return isBlockNode(node) ? caretChildCount(node) : node.children.length;
 }
 
 /**
