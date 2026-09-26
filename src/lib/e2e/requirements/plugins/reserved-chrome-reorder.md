@@ -24,7 +24,7 @@ the number of handles read by path through `window.__test`, not visuals.
 
 ## Regression: the container itself still reorders
 
-- dragging the `<details>` own handle down past a sibling moves it at document level, and the root's block count is unchanged, so nothing is dropped or duplicated
+- dragging the `<details>` block's own handle down past a sibling moves it at document level, and the root's block count is unchanged, so nothing is dropped or duplicated
 
 ## User interactions
 
