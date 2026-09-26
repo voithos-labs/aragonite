@@ -3,6 +3,8 @@ import { describe, it, expect } from 'vitest';
 import { resolveSelectionPoint, restoreSelection } from '../../selection/selection-restore';
 import { createSelectionState } from '../../selection/selection-state.svelte';
 import { parse } from '../../core/parser';
+import { createCaretMemory } from '../../cursor/caret-memory';
+import { asEditorX } from '../../cursor/coordinate-spaces';
 
 const PROSE = 'Alpha one\n\nBravo two\n';
 const TABLE_2x2 = '| A | B |\n| --- | --- |\n| 1 | 2 |\n';
@@ -12,13 +14,16 @@ function restoreHarness(source: string, { mounted = true } = {}) {
 	const doc = parse(source);
 	const revealed: number[][] = [];
 	const selectionState = createSelectionState({ getDoc: () => doc });
+	const caretMemory = createCaretMemory();
 	return {
 		doc,
 		revealed,
 		selectionState,
+		caretMemory,
 		deps: {
 			getDoc: () => doc,
 			selectionState,
+			caretMemory,
 			getBlockElByPath: () => (mounted ? document.createElement('div') : null),
 			revealTarget: async (path: number[]): Promise<boolean> => {
 				revealed.push(path);
@@ -71,6 +76,33 @@ describe('resolveSelectionPoint, clamping per coordinate space', () => {
 		const snapshotPath = [1];
 		const point = resolveSelectionPoint(parse(PROSE), { path: snapshotPath, offset: 0 });
 		expect(point!.path).not.toBe(snapshotPath);
+	});
+});
+
+// Every programmatic placement (a host's setSelection, the link card's return, a mode switch's
+// restore) comes through here, so this is where the caret memory is forgotten.
+describe('restoreSelection forgets how the caret arrived', () => {
+	function arrived(h: ReturnType<typeof restoreHarness>) {
+		h.caretMemory.noteKey({ key: 'ArrowDown' }, null, () => asEditorX(240));
+		h.caretMemory.pendingMarks.toggle('strong');
+	}
+
+	it('a placed caret drops the column, the side and the marks', async () => {
+		const h = restoreHarness(PROSE);
+		arrived(h);
+		const caret = { path: [1], offset: 0 };
+		expect(await restoreSelection({ anchor: caret, focus: caret }, h.deps)).toBe('applied');
+		expect(h.caretMemory.column()).toBeNull();
+		expect(h.caretMemory.side()).toBeNull();
+		expect(h.caretMemory.pendingMarks.get()).toBeNull();
+	});
+
+	it('a declined restore leaves the memory alone, as it leaves everything else', async () => {
+		const h = restoreHarness(PROSE);
+		arrived(h);
+		const dead = { path: [9], offset: 0 };
+		expect(await restoreSelection({ anchor: dead, focus: dead }, h.deps)).toBe('unresolvable');
+		expect(h.caretMemory.column()).toBe(240);
 	});
 });
 

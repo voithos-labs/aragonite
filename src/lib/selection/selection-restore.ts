@@ -15,6 +15,7 @@ import { placeGapCaret } from './caret-doors';
 import { gapScopeChildren, type GapCaretPosition } from './gap-caret';
 import { tableCellCount } from './table-endpoint-snap';
 import type { SelectionState } from './selection-state.svelte';
+import type { CaretMemory } from '../cursor/caret-memory';
 
 /**
  * `unresolvable` is decided before anything happens and is the only outcome that leaves the
@@ -30,6 +31,8 @@ export interface SelectionRestoreDeps {
 	/** Mounts the block the caret will land in and reports whether it is ready. Injected because
 	 *  which path gets mounted is this module's rule and how far to scroll is the caller's. */
 	revealTarget(path: number[]): Promise<boolean>;
+	/** A placed caret did not arrive by a key, so how an earlier one arrived no longer applies. */
+	caretMemory: Pick<CaretMemory, 'forget'>;
 }
 
 /**
@@ -45,6 +48,7 @@ export async function restoreSelection(
 	const anchor = resolveSelectionPoint(doc, selection.anchor);
 	const focus = resolveSelectionPoint(doc, selection.focus);
 	if (!anchor || !focus) return 'unresolvable';
+	deps.caretMemory.forget();
 
 	// Mount exactly what the caret will land in: a cell-coordinate focus lands in its
 	// [table, row, col] cell, and table rows are windowed too.
@@ -64,6 +68,7 @@ export async function restoreGapCaret(
 ): Promise<SelectionRestoreOutcome> {
 	const children = gapScopeChildren(deps.getDoc(), pos.parentPath);
 	if (!children) return 'unresolvable';
+	deps.caretMemory.forget();
 
 	const index = Math.min(Math.max(pos.index, 0), children.length);
 	// The boundary itself mounts nothing; what must be on screen is the block it sits

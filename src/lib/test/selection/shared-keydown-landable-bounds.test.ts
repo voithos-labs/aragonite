@@ -188,4 +188,20 @@ describe('the keydown entry point notes the arrival', () => {
 		await handleSharedKeydown(press('Home'), ctx);
 		expect(ctx.caretMemory.side()).toBe('outside');
 	});
+
+	// The shared handler reads the chord through the block's keymap before the memory sees it:
+	// the default reorder chord moves the block, so the caret's memory stays for the move's commit.
+	it('the reorder chord leaves the side and the pending marks alone', async () => {
+		const { ctx } = makeEnv('Title\n', 2, 'live');
+		await handleSharedKeydown(press('Home'), ctx);
+		ctx.caretMemory.pendingMarks.toggle('strong');
+		const reorder = new KeyboardEvent('keydown', {
+			key: 'ArrowUp',
+			altKey: true,
+			cancelable: true
+		});
+		await handleSharedKeydown(reorder, ctx);
+		expect(ctx.caretMemory.side()).toBe('outside');
+		expect([...(ctx.caretMemory.pendingMarks.get() ?? [])]).toEqual(['strong']);
+	});
 });
