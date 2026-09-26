@@ -23,6 +23,10 @@ line, or what a hard break at the title's end writes (GH #468).
 - ArrowUp from the block below enters the heading: onto the underline's line in source mode, onto
   the title in live mode
 
+- source mode: a click at the middle of the heading lands on the underline's line (the block is
+  two lines there), so End then a key writes after the underline (`Plan` over `---s`) and the
+  block reads as a paragraph
+
 ## User interactions
 
 - a placed caret, then real arrow keys, Shift+Enter and a typed key

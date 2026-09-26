@@ -14,6 +14,7 @@ import {
 	typeInFirstBlock,
 	type MountedEditor
 } from '$lib/test/harness/mount-editor.svelte';
+import { pressKey } from '$lib/test/harness/settle';
 
 beforeAll(() => installLayoutStubs());
 afterEach(async () => {
@@ -41,5 +42,26 @@ for (const [id, arg] of [
 		await editor.settle();
 
 		expect(undoStack(editor)).toHaveLength(2);
+	});
+}
+
+// Counting entries alone passes with the entry pushed in the wrong place, so read the bytes back.
+for (const [id, arg, after] of [
+	['heading.cycle', 1, '# abc\n'],
+	['block.hardBreak', undefined, 'abc\\\n']
+] as const) {
+	it(`Ctrl+Z after ${id} undoes the command and leaves the typing`, async () => {
+		const editor = mountEditor({ source: 'ab\n' });
+		typeInFirstBlock(editor.target, 'abc');
+		await editor.settle();
+		placeCaret(surfaceAt(editor, [0]), 3);
+		editor.instance.runCommand(id, arg);
+		await editor.settle();
+		expect(editor.source()).toBe(after);
+
+		await pressKey(surfaceAt(editor, [0]), { key: 'z', ctrlKey: true });
+		await editor.settle();
+
+		expect(editor.source()).toBe('abc\n');
 	});
 }

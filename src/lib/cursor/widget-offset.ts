@@ -33,11 +33,11 @@ import { domDescendants } from './dom-walk';
 
 // ── Raw offsets and the caret ────────────────────────────────────────────────
 
-/** How a caret write treats its offset: `reachable` moves it onto a position the mode lets a caret
- *  sit at (never behind a hidden marker run); `exact` writes it as given. */
 /** Marks the span holding a block's bytes past its content (a setext underline). */
 export const BLOCK_SUFFIX_ATTR = 'data-block-suffix';
 
+/** How a caret write treats its offset: `reachable` moves it onto a position the mode lets a caret
+ *  sit at (never behind a hidden marker run); `exact` writes it as given. */
 export type CaretClamp = 'reachable' | 'exact';
 
 /** A span of a block's raw offsets. */
@@ -464,12 +464,6 @@ export function createRangeAtDomTextOffsets(
 
 // ── Hidden marker runs ───────────────────────────────────────────────────────
 
-/**
- * Whether `node` is text the mode's CSS paints nothing for: a marker span's own text under a
- * marker-hiding mode with no reveal on it. Decided from the marker families in
- * `core/inline/visibility.ts`, never from layout, since a `getComputedStyle` per keystroke is
- * too slow; that file and `styles/editor.css` must change together.
- */
 /** The text length of a block's trailing structure span (`BLOCK_SUFFIX_ATTR`) where the mode
  *  hides it, else 0: bytes a range the user drew cannot have meant to take. */
 export function hiddenSuffixLength(el: HTMLElement): number {
@@ -478,6 +472,12 @@ export function hiddenSuffixLength(el: HTMLElement): number {
 	return text && isHiddenMarkerText(text, el) ? (text.textContent?.length ?? 0) : 0;
 }
 
+/**
+ * Whether `node` is text the mode's CSS paints nothing for: a marker span's own text under a
+ * marker-hiding mode with no reveal on it. Decided from the marker families in
+ * `core/inline/visibility.ts`, never from layout, since a `getComputedStyle` per keystroke is
+ * too slow; that file and `styles/editor.css` must change together.
+ */
 export function isHiddenMarkerText(node: Node, container: HTMLElement): boolean {
 	if (node.nodeType !== Node.TEXT_NODE || !container.contains(node)) return false;
 	const mode = markerHidingMode(container);

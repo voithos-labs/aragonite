@@ -19,6 +19,21 @@ test.describe('the underline on screen', () => {
 	});
 });
 
+// The block is two lines in source mode, and a click at its middle lands on the second one, so
+// what the user types there edits the underline and the heading stops being one.
+test('source mode: a click at the block middle lands on the underline line', async ({ page }) => {
+	const ep = await enterPresentationMode(page, 'source', 'Plan\n---\n');
+	await ep.clickBlock(0);
+	await ep.waitForRenderFlush();
+	expect(await focusPath(ep)).toEqual([0]);
+	expect(await focusOffset(ep)).toBeGreaterThan(4);
+
+	await page.keyboard.press('End');
+	await ep.typeSlowly('s');
+	await ep.bridge.waitForSourceEquals('Plan\n---s\n');
+	expect(await ep.bridge.getBlockKind(0)).toBe('paragraph');
+});
+
 test.describe('moving the caret across the underline', () => {
 	test('source mode: ArrowDown from the title stops on the underline, then leaves', async ({
 		page

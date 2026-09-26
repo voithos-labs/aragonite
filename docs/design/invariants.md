@@ -833,7 +833,7 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.21 | Image bytes are written only through the one seam module                         | L       |
 | G4.22 | An e2e wait predicate must describe the post-operation shape                     | L       |
 | G4.23 | Every e2e spec pairs with a requirement file, and vice versa                     | L       |
-| G4.24 | _Retired upward_: the content write runs a kind's rule and maps the caret        | T       |
+| G4.24 | A block's write rule runs in the content write, which maps the caret             | T       |
 | G4.25 | No `import.meta` env read anywhere under `src/lib`                               | L       |
 | G4.26 | Comment budget: block length, no house words in comments or requirements         | L       |
 | G4.27 | Every `parse` call outside the parser declares its scope                         | L       |
@@ -1060,12 +1060,13 @@ one test for each spec; and a requirement list three times longer than the tests
 EQUALITY is refuted by measurement: one test routinely walks several bullets.
 `e2e/lint/requirement-spec-lockstep.test.ts`.
 
-**G4.24 · Retired upward.** The rule was: `CodeBlock.svelte` holds exactly one `updateBlockContent`
-call, `commitDisplay`'s, because that's where the fence rule ran and a gesture writing around it
-skipped the rule. Now the content write runs every kind's `rawWrite` itself
-(`tree-operations/content-write.ts :: legalizeWrite`) and hands back the caret the rule moved, so
-there's no write to go around and the scan is deleted. `test/editor-actions/content-write-caret.test.ts`
-checks the rule and its caret through the write.
+**G4.24 · A block's write rule runs in the content write.** Every content write goes
+through `tree-operations/content-write.ts :: legalizeWrite`, which runs the kind's `rawWrite` and
+then its container's `bodyWrite`, and hands back the caret already moved to where the rule left
+it. So a code block's fence gets grown or closed whichever gesture wrote it, and no block has to
+remember to call the rule itself. It's a type, not a scan: `updateNodeContent` only takes bytes
+that went through `legalizeWrite`, or plain text it runs through it on the way in.
+`test/editor-actions/content-write-caret.test.ts` checks the rule and its caret through the write.
 
 **G4.25 · No `import.meta` env reads.** Nowhere under `src/lib`. It's a Vite-only extension, so
 outside a Vite bundle the object is undefined and a module-scope read throws at import time; the
