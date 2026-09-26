@@ -23,6 +23,13 @@ export function isCollapsedContainer(node: NodeView): boolean {
 	return isCollapsedByDescriptor(tryGetBlockKindDescriptor(node.kind), node);
 }
 
+/** How many of `node`'s children a caret can reach: all of them, or only the title row while the
+ *  container is collapsed, so its last reachable child is this count minus one. */
+export function caretChildCount(node: NodeView): number {
+	const count = node.children?.length ?? 0;
+	return count > 0 && isCollapsedContainer(node) ? 1 : count;
+}
+
 /** The same answer for a caller that already holds the descriptor: the height estimator runs per
  *  node, where a second registry lookup would cost one per block of the document. */
 export function isCollapsedByDescriptor(

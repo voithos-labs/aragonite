@@ -35,7 +35,7 @@ import {
 import { rebuildUnsharedAncestry } from '../tree-operations/chain-rebuild';
 import { rebuildTableRowRaw } from '../schema/container-rebuilders';
 import { promoteFirstRowToHeader } from '../tree-operations/table-mutations';
-import { isCollapsedContainer } from '../schema/reserved-chrome';
+import { caretChildCount } from '../schema/reserved-chrome';
 import { nearestChromeContainer, isChromeChild } from './range-delete-chrome';
 
 // ── Public API ──────────────────────────────────────────────────────────────
@@ -419,7 +419,7 @@ function survivorEndCaret(node: CstNode, path: number[]): SelectionPoint {
 	let leaf = node;
 	const leafPath = path.slice();
 	while (leaf.children && leaf.children.length > 0) {
-		const next = isCollapsedContainer(leaf) ? 0 : leaf.children.length - 1;
+		const next = caretChildCount(leaf) - 1;
 		leaf = leaf.children[next];
 		leafPath.push(next);
 	}

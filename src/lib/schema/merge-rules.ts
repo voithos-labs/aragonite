@@ -6,7 +6,7 @@
 
 import type { CstNode } from '../core/nodes';
 import { getBlockKindDescriptor, type MergeRole } from './block-kind-descriptor';
-import { isCollapsedContainer } from './reserved-chrome';
+import { caretChildCount } from './reserved-chrome';
 
 // ── Merge Eligibility ───────────────────────────────────────────────────────
 
@@ -52,7 +52,7 @@ export function walkToDeepestMergeLeaf(node: CstNode, path: number[]): MergeTarg
 	if (!node.children || node.children.length === 0) {
 		return null;
 	}
-	const nextIndex = isCollapsedContainer(node) ? 0 : node.children.length - 1;
+	const nextIndex = caretChildCount(node) - 1;
 	return walkToDeepestMergeLeaf(node.children[nextIndex], [...path, nextIndex]);
 }
 

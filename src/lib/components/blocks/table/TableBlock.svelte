@@ -3,7 +3,7 @@
 	import type { CellPosition, TableAxisAction, TableContext } from '../../../action-contracts';
 	import {
 		CURSOR_END,
-		CURSOR_START,
+		entryEdge,
 		type BlockComponent,
 		type StickyColumnDirection
 	} from '../../../block-component';
@@ -411,28 +411,25 @@
 	export const editable = true;
 	export const focusable = true;
 
-	// One integer cannot address a cell, so an offset lands in the first or the last cell; a
+	// One integer cannot address a cell, so an entry offset lands in the first or the last cell; a
 	// caller that names a cell uses `focusByPath`.
-	function tableLanding(offset: number): {
-		rowIdx: number;
-		colIdx: number;
-		position: CellPosition;
-	} {
-		return offset === 0 || offset === CURSOR_START
-			? { rowIdx: 0, colIdx: 0, position: 'start' }
-			: { rowIdx: rowCount - 1, colIdx: columnCount - 1, position: 'end' };
+	function entryCell(offset: number): { rowIdx: number; colIdx: number; at: number } {
+		const edge = entryEdge(offset);
+		return edge.child === 'first'
+			? { rowIdx: 0, colIdx: 0, at: edge.offset }
+			: { rowIdx: rowCount - 1, colIdx: columnCount - 1, at: edge.offset };
 	}
 
 	export const focus = placeCaret(selection, (offset: number) => {
 		if (rowCount === 0) return;
-		const { rowIdx, colIdx, position } = tableLanding(offset);
-		focusCell(rowIdx, colIdx, position);
+		const { rowIdx, colIdx, at } = entryCell(offset);
+		focusCell(rowIdx, colIdx, at);
 	});
 
 	export function parkCaret(offset: number): void {
 		if (rowCount === 0) return;
-		const { rowIdx, colIdx, position } = tableLanding(offset);
-		cellRefAt(rowIdx, colIdx)?.parkCaret?.(position === 'start' ? CURSOR_START : CURSOR_END);
+		const { rowIdx, colIdx, at } = entryCell(offset);
+		cellRefAt(rowIdx, colIdx)?.parkCaret?.(at);
 	}
 
 	export function focusAtColumn(x: number, from: StickyColumnDirection): void {
