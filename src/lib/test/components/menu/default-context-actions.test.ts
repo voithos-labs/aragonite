@@ -88,8 +88,14 @@ describe('prose is the page background', () => {
 	it('treats a paragraph of several images, or of a reference image, as a picture', () => {
 		for (const picture of ['![a](x) ![b](y)\n', '![a][ref]\n\n[ref]: x\n', '[![a](x)](y)\n']) {
 			expect(isProse(picture), picture).toBe(false);
-			expect(noun(picture), picture).toBe('image');
 		}
+		expect(noun('![a][ref]\n\n[ref]: x\n')).toBe('image');
+		expect(noun('[![a](x)](y)\n')).toBe('image');
+	});
+
+	// "Remove image" on a paragraph of two would read as removing one of them.
+	it('names a paragraph of several images in the plural', () => {
+		expect(noun('![a](x) ![b](y)\n')).toBe('images');
 	});
 
 	// A reference with no definition renders as its text, so it reads as prose.

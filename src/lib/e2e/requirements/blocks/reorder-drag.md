@@ -25,6 +25,8 @@ for. The keyboard move is the opposite: the caret travels with the block.
 - A block dropped into a gap whose neighbors had no blank line between them (a heading
   interrupting the paragraph above it) arrives with one: the table stays a table under the
   paragraph, and the source reloads to the same three blocks.
+- A drag inside a quote marks the whole quote as its scope, bar and padding included, the way a
+  drag inside a list marks the list.
 - Drop outside any valid sibling gap / release without moving: no change.
 - Escape or pointercancel during a drag: cancelled, no change.
 - Dragging toward the viewport edge in a large document autoscrolls past the blocks windowing has not mounted, so a target off screen comes into reach and the drop still moves the block whole.
