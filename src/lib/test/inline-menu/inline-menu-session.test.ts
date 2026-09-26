@@ -135,7 +135,8 @@ describe('isProseOffset', () => {
 	const at = (raw: string): boolean => {
 		const offset = raw.indexOf('|');
 		const leaf = (parse(raw.replace('|', '') + '\n') as { children: NodeView[] }).children[0];
-		return isProseOffset(resolvedInlineContent(leaf, fixtureReading()), offset);
+		const reading = fixtureReading();
+		return isProseOffset(resolvedInlineContent(leaf, reading), offset, reading.grammar);
 	};
 
 	it('is true in ordinary text and in a link’s own text, which is prose', () => {

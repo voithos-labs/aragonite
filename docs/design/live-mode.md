@@ -59,10 +59,11 @@ How a construct behaves at its hidden edges is one row in the inline-construct p
 ```ts
 getInlineConstructPolicy('strong');
 // { edgeAffinity: 'symmetric-pair', autoUnwrapOnEmpty: true, splitBehavior: 'close-and-reopen',
-//   revealable: true, mark: { nestingRank: 0, markerBytes: '**', command: 'format.toggleStrong' } }
+//   revealable: true, prose: 'all',
+//   mark: { nestingRank: 0, markerBytes: '**', command: 'format.toggleStrong' } }
 getInlineConstructPolicy('link');
 // { edgeAffinity: 'never-extend', autoUnwrapOnEmpty: true, splitBehavior: 'close-and-reopen',
-//   revealable: true, cardEditable: true }
+//   revealable: true, cardEditable: true, prose: 'content' }
 getInlineConstructPolicy('text'); // undefined: no row, so no live-mode behavior at all
 ```
 
@@ -73,6 +74,7 @@ Field by field:
 - `splitBehavior`: what Enter inside it does (§ 4.4).
 - `revealable`: whether preview-inline may show its markers when the caret enters.
 - `cardEditable`: whether the link card (§ 4.6) is the way to its destination.
+- `prose`: how much of it is text the author writes, where a trigger like `#` may open the inline menu: all of it, only its content (a link's text), or none (a code span, an image). With no row, an inline widget kind (a plugin's formula) reads as none and anything else as all.
 - `mark`: what a format chord writes for it. The delimiter run, the rank it nests at when one insertion carries several marks, the command that toggles it, and a wrap function for a kind whose delimiters depend on what they enclose (a code span sizes its backtick fence past the longest run inside it).
 
 The same table holds the two registered rewrite slots, the split rebalancer (§ 4.4) and the join cleaner (§ 4.5). Each slot holds one function for every construct, and each has exactly one reader, in `tree-operations/node-ops.ts`.

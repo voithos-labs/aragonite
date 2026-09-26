@@ -194,6 +194,11 @@ export function augmentInlineWidgetKind(
 
 // Each lookup below takes the editor's grammar, which leaves out the plugins it did not list.
 
+/** Whether the kind renders as a widget under the editor's grammar, whatever one node's bytes. */
+export function isInlineWidgetKind(kind: AnyInlineKind, grammar: GrammarView): boolean {
+	return widgetOf(kind, grammar) !== undefined;
+}
+
 /** Kind-level recognition, independent of per-block render policy (renderImagesAsWidgets). */
 export function isInlineWidget(node: InlineNode, raw: string, grammar: GrammarView): boolean {
 	const descriptor = widgetOf(node.kind, grammar);

@@ -87,7 +87,8 @@ const POLICY_ARMS: Record<string, string> = {
 	'src/lib/schema/registration-checks.ts': 'the registration-time coherence check over every row',
 	'src/lib/selection/cross-block/format-toggle.ts':
 		'the cross-block arm: which mark a format command toggles',
-	'src/lib/tree-operations/node-ops.ts': 'the one reader of both registered rewrite slots'
+	'src/lib/tree-operations/node-ops.ts': 'the one reader of both registered rewrite slots',
+	'src/lib/inline-menu/inline-menu-session.ts': 'whether a trigger sits in prose: prose'
 };
 
 /** A file asking both tables, and why it needs both answers. Only a whole block legitimately
@@ -97,7 +98,9 @@ const POLICY_ARMS: Record<string, string> = {
 const BOTH_TABLE_READERS: Record<string, string> = {
 	'src/lib/components/blocks/text/TextEditableBlock.svelte':
 		'the prose surface: which mark a format command toggles, and whether a node is an island',
-	'src/lib/components/blocks/table/TableCellBlock.svelte': 'the same pair on the cell surface'
+	'src/lib/components/blocks/table/TableCellBlock.svelte': 'the same pair on the cell surface',
+	'src/lib/inline-menu/inline-menu-session.ts':
+		'a row declares how much of a construct is prose; a widget kind with no row shows source, not prose'
 };
 
 // ── The branches that answer by hand ─────────────────────────────────────────
@@ -118,7 +121,7 @@ const HAND_WRITTEN_ARMS: readonly HandWrittenArm[] = [
 		detection: 'kind-literal',
 		fate: 'outside',
 		reason:
-			'a label map, not an `arms` entry: it names block kinds only to name them in a menu row ("Remove code block"); no gesture reads it and no construct policy hangs on it'
+			'the menu noun "image" for a paragraph of pictures, not the inline kind: no gesture reads it and no construct policy hangs on it'
 	},
 	{
 		path: 'src/lib/components/menu/SelectionToolbar.svelte',

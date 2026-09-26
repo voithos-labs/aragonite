@@ -269,7 +269,8 @@ export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuStat
 		heldBack = false;
 		const opening = findOpening(sources.values(), caret.leaf.raw, caret.offset, from);
 		if (!opening) return;
-		if (!isProseOffset(resolvedInlineContent(caret.leaf, deps.reading), opening.start)) return;
+		const inline = resolvedInlineContent(caret.leaf, deps.reading);
+		if (!isProseOffset(inline, opening.start, deps.reading.grammar)) return;
 		if (isUnclosedDestination(caret.leaf.raw, opening.start)) return;
 		begin(opening.source, caret.path, opening.start, caret.offset);
 	}

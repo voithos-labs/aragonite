@@ -879,6 +879,7 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.67 | Every editor menu counts itself on `menuChange`                                | L       |
 | G4.68 | Every plugin registry read outside its module passes the editor's grammar      | L       |
 | G4.69 | Only the barrels, kits and no-editor code import the defaulted readers         | L       |
+| G4.70 | Every data attribute the editor names is reserved from block decorations       | L       |
 
 ### The entries
 
@@ -1486,6 +1487,13 @@ Code inside the library calls `readBlocks` and `readInline` instead, which requi
 reads a syntax the editor switched off or an unlisted plugin's opener (#429). Only the barrels, the
 kits and the listed code that runs with no editor may import a defaulted reader.
 `lint/registry-view-reads.test.ts`.
+
+**G4.70 · Decorations keep off the editor's attributes.** A block decoration may set attributes on
+a block's own element, and a `data-` name the editor uses there answers the editor's lookups or
+paints a state it never set (a decoration setting `data-kind-cue` painted a permanent label). The
+scan collects every `data-` name the library's source sets or reads, `dataset` spellings included,
+and requires each in `src/lib/decorations/reserved-attrs.ts :: RESERVED_BLOCK_ATTRS` or in its
+short list of exceptions with a reason. `lint/reserved-block-attrs.test.ts`.
 
 ## Accessibility
 

@@ -177,6 +177,8 @@ function registerBuiltInInlinePolicies(): void {
 			autoUnwrapOnEmpty: true,
 			splitBehavior: 'close-and-reopen',
 			revealable: true,
+			// A code span's content is literal, so a `#` typed there is code, not a tag.
+			prose: kind === 'inlineCode' ? 'none' : 'all',
 			mark: { nestingRank, ...mark }
 		});
 	});
@@ -187,14 +189,18 @@ function registerBuiltInInlinePolicies(): void {
 		autoUnwrapOnEmpty: true,
 		splitBehavior: 'close-and-reopen',
 		revealable: true,
-		cardEditable: true
+		cardEditable: true,
+		// The text is prose; the destination and the title are not.
+		prose: 'content'
 	});
 	// An image with an empty alt is still an image, and a split inside one moves bytes only.
 	registerInlineConstructPolicy('image', {
 		edgeAffinity: 'never-extend',
 		autoUnwrapOnEmpty: false,
 		splitBehavior: 'plain',
-		revealable: true
+		revealable: true,
+		// Its alt text is an attribute of the picture, not prose on the page.
+		prose: 'none'
 	});
 	// An autolink's `<` and `>` are a link's delimiters in another spelling: the destination is the
 	// text, so a character landing between the brackets changes where the link goes. Never-extend
@@ -204,7 +210,8 @@ function registerBuiltInInlinePolicies(): void {
 		edgeAffinity: 'never-extend',
 		autoUnwrapOnEmpty: false,
 		splitBehavior: 'plain',
-		revealable: false
+		revealable: false,
+		prose: 'none'
 	});
 	// Marker runs with no data attribute, always hidden in live mode: the `\X` pair and the
 	// trailing-space run delete as one unit, so nothing may rewrite their markers around an edit.

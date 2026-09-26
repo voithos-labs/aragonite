@@ -99,7 +99,8 @@ describe('built-in rows', () => {
 			autoUnwrapOnEmpty: true,
 			splitBehavior: 'close-and-reopen',
 			revealable: true,
-			cardEditable: true
+			cardEditable: true,
+			prose: 'content'
 		});
 	});
 
@@ -108,7 +109,8 @@ describe('built-in rows', () => {
 			edgeAffinity: 'never-extend',
 			autoUnwrapOnEmpty: false,
 			splitBehavior: 'plain',
-			revealable: true
+			revealable: true,
+			prose: 'none'
 		});
 	});
 

@@ -1,29 +1,58 @@
 /**
- * The attribute names a block decoration may not use. A decorated element (a block host, a list
- * item's box, a table row or cell) holds every element the offset traversal walks, so a reserved
- * `data-` name answers the ancestor lookups the CSS, that traversal, and selection and windowing
- * make through `closest()` or an ancestor selector.
+ * The attribute names a block decoration may not use: every `data-` name the editor and its bundled
+ * plugins set or read (a source scan, `reserved-block-attrs.test.ts`, holds the list to that). A
+ * decorated element holds every element the offset traversal walks, so one of these names on it
+ * answers a lookup the CSS, the traversal, selection or windowing makes, or paints a state.
  */
 
 import { devWarn } from '../dev-warn';
 
 export const RESERVED_BLOCK_ATTRS: ReadonlySet<string> = new Set([
-	'data-block-path',
+	'data-active',
+	'data-alert-source',
 	'data-block-kind',
+	'data-block-path',
+	'data-body-end',
+	'data-body-start',
+	'data-caret-anchor',
+	'data-construct-end',
+	'data-construct-start',
 	'data-content-empty',
+	'data-crop-corner',
 	'data-cross-block',
 	'data-decoration-island',
+	'data-drag-anchor',
+	'data-editor-theme',
+	'data-empty',
+	'data-failed-block',
 	'data-focused',
+	'data-footnote-label',
 	'data-gap-caret',
+	'data-group',
 	'data-image-overlay',
 	'data-image-widget',
+	'data-inline-menu',
 	'data-inline-widget',
+	'data-kind',
+	'data-kind-cue',
 	'data-link-card',
 	'data-list-marker',
+	'data-mod-active',
+	'data-mount-id',
+	'data-plain-click-jumps',
 	'data-pointer-gesture',
 	'data-presentation',
+	'data-render-count',
+	'data-reorder-scope',
+	'data-scroll-mode',
+	'data-source-end',
+	'data-source-start',
 	'data-table-row-idx',
-	'data-task-checked'
+	'data-task-checked',
+	'data-title-empty',
+	'data-trailing-spaces',
+	'data-whole-block-input',
+	'data-windowing'
 ]);
 
 /** The attributes every decorated element renders itself. A decoration's cleanup removes what
