@@ -3,8 +3,8 @@
 // The fence check at its own entry point: the mounted block's real beforeinput,
 // cut and compositionstart listeners, driven with a live DOM selection. The pure
 // clamp is covered by code-fence-boundary.test.ts; what only this layer can show is
-// that the block takes the browser's gesture, with `preventDefault`, and commits the
-// clamped text instead of letting the browser splice the fence away.
+// that, where the mode hides the fence lines, the block takes the browser's gesture with
+// `preventDefault` and commits the clamped text; where the mode paints them, it does not.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { asDomTextOffset } from '$lib/cursor/coordinate-spaces';
 import {
@@ -17,6 +17,9 @@ import { settleEditor } from '$lib/test/harness/settle';
 
 // display "```js\nconst x = 1\n```": opener text [0,5) · body [6,17] · closer text [18,21).
 const SOURCE = '```js\nconst x = 1\n```\n';
+
+/** Live mode hides every fence line, so an edit that reaches one clamps to the body. */
+const HIDDEN_FENCE_LINES = { policies: { presentationMode: () => 'live' as const } };
 
 let mounted: MountedCode;
 
@@ -58,7 +61,7 @@ function committedText(): string {
 }
 
 beforeEach(() => {
-	mounted = mountCode(SOURCE);
+	mounted = mountCode(SOURCE, HIDDEN_FENCE_LINES);
 });
 afterEach(async () => {
 	await mounted.dispose();
@@ -117,7 +120,7 @@ describe('CodeBlock: fence-crossing ranged edits', () => {
 	// insertParagraph is the same gesture and keeps the indent.
 	it('claims a paragraph break and keeps the body line indent', async () => {
 		await mounted.dispose();
-		mounted = mountCode('```js\n  const x = 1\n```\n');
+		mounted = mountCode('```js\n  const x = 1\n```\n', HIDDEN_FENCE_LINES);
 		select(14, 22);
 		const e = beforeInput('insertParagraph');
 		await settleEditor();
@@ -249,4 +252,21 @@ describe('CodeBlock: fence-crossing ranged edits', () => {
 
 		expect(getSelectionOffsets(mounted.el)).toEqual({ start: 12, end: 17 });
 	});
+});
+
+// Miss-analysis: every fence-edit test ran in source mode, where the fence lines paint, so the
+// clamp read as the rule for every mode and no test put an edit on a painted fence line.
+describe('CodeBlock: a fence line the mode paints takes the edit', () => {
+	it.each(['source', 'preview-block'] as const)(
+		'leaves a delete into the closer to the browser (%s)',
+		async (mode) => {
+			await mounted.dispose();
+			mounted = mountCode(SOURCE, { policies: { presentationMode: () => mode } });
+			select(12, 20);
+			const e = beforeInput('deleteContentBackward');
+			await settleEditor();
+
+			expect(e.defaultPrevented).toBe(false);
+		}
+	);
 });

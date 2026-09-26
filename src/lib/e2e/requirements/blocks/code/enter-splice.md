@@ -7,7 +7,7 @@ line, and the caret stays with the content, the same result Enter at that body e
 already produces. A splice before or inside the opener corrupts the raw (a phantom
 fence rendered from a leading `\n`); one inside the closer breaks the closer apart
 and leaves an unclosed fence. With a selection, Enter replaces it on the selection's
-body span, like every other ranged edit in this block (`fence-ranged-edit.md`);
+body span, like every ranged edit where the fence lines are hidden (`fence-ranged-edit.md`), and it keeps that clamp in every mode;
 that branch is pinned in `src/lib/test/blocks/code/code-fence-ranged-edit.test.ts`.
 
 ## Happy paths

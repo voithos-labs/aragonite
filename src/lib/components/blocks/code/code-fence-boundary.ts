@@ -1,7 +1,8 @@
 /**
- * Pure decisions that keep an edit off the fence lines of a fenced code block: rewriting either
- * fence leaves an unclosed one that absorbs the rest of the document at the next parse. Editable
- * content is the body plus the opener's info string. Display-text coordinates throughout.
+ * Pure decisions that keep a caret and an edit off a fenced code block's fence lines where the
+ * mode hides them; there, editable content is the body plus the opener's info string. Where the
+ * mode paints them, edits land and the fence write rule keeps one opener and one closer.
+ * Display-text coordinates throughout.
  */
 
 import type { NodeView } from '../../../core/node-views';
@@ -93,9 +94,8 @@ export function fenceEditSpan(node: NodeView, range: RawRange): RawRange {
 }
 
 /**
- * Where a caret may land: every way of placing one in this block goes through here. A caret
- * left on a fence line takes keystrokes the fence check refuses, so the landing looks like it
- * worked and the next character disappears.
+ * Where a caret arriving from outside the block lands, in every mode: on the body. On a hidden
+ * fence line it would take keystrokes the fence check refuses, so the next character disappears.
  */
 export function clampCaretToBody(node: NodeView, offset: number): number {
 	const caret = { start: offset, end: offset };
@@ -116,8 +116,8 @@ export function isStructureOnlyRange(node: NodeView, range: RawRange): boolean {
 }
 
 /**
- * The one splice over a range in place: the browser's delete and type-over, through the
- * beforeinput check, and cut. Null when there is nothing to rewrite, so no undo entry is used.
+ * The one splice over a range in place where the fence lines are hidden: the browser's delete
+ * and type-over, through the beforeinput check, and cut. Null when there is nothing to rewrite.
  */
 export function computeFenceRangedEdit(
 	node: NodeView,
@@ -125,8 +125,16 @@ export function computeFenceRangedEdit(
 	insert: string
 ): FenceRangedEdit | null {
 	if (isStructureOnlyRange(node, range)) return null;
-	const display = trimTrailingLineEnding(node.raw);
-	const span = fenceEditSpan(node, range);
+	return computeRangedEdit(trimTrailingLineEnding(node.raw), fenceEditSpan(node, range), insert);
+}
+
+/** `insert` spliced over `range` of `display`; null when it changes nothing, so no undo entry is used. */
+export function computeRangedEdit(
+	display: string,
+	range: RawRange,
+	insert: string
+): FenceRangedEdit | null {
+	const span = orderedRange(range);
 	const newText = display.slice(0, span.start) + insert + display.slice(span.end);
 	if (newText === display) return null;
 	return { newText, newCursor: span.start + insert.length };
@@ -180,7 +188,7 @@ function fenceRegions(node: NodeView): FenceRegions {
 	};
 }
 
-function orderedRange(range: RawRange): RawRange {
+export function orderedRange(range: RawRange): RawRange {
 	return {
 		start: Math.min(range.start, range.end),
 		end: Math.max(range.start, range.end)
