@@ -37,6 +37,9 @@ export interface ModeFlipDeps {
 	/** The bare-mount restore path: a mode change only changes the view, so it writes no
 	 *  scroll position. */
 	restoreCaret(path: number[], offset: number): Promise<unknown>;
+	/** Make the editor's reading answer `mode` (null: the requested mode again), so an edit the
+	 *  blur commits lands in the mode it was typed in. */
+	holdOutgoingMode(mode: PresentationMode | null): void;
 }
 
 export interface ModeFlip {
@@ -87,26 +90,31 @@ export function createModeFlip(deps: ModeFlipDeps): ModeFlip {
 		await deps.restoreCaret(caret.path, caret.offset);
 	}
 
+	// A mode change counts as a blur: showing markers or an in-progress composition closes through
+	// the blur handling that already exists. The host's own header is exempt, or a mode toggle
+	// would blur a title field mid-edit.
+	function blurForFlip(): void {
+		const active = document.activeElement;
+		if (!(active instanceof HTMLElement) || !deps.editorEl?.contains(active)) return;
+		if (deps.isHostChrome(active)) return;
+		active.blur();
+		// A blur the editor performs announces the selection it drops: the document listener only
+		// reports a range the browser still anchors in the root, and this one is gone.
+		deps.announceSelection();
+	}
+
 	return {
 		beforeFlip(to) {
 			if (to === preFlipSeenMode) return;
 			const from = preFlipSeenMode;
 			preFlipSeenMode = to;
-			// Reading keeps its entry snapshot: it has no caret of its own to recapture on the way out.
-			if (from !== 'reading') flipCaret = captureCaret();
-			// A mode change counts as a blur: showing markers or an in-progress composition closes
-			// through the blur handling that already exists. The host's own header is exempt, or a
-			// mode toggle would blur a title field mid-edit.
-			const active = document.activeElement;
-			if (
-				active instanceof HTMLElement &&
-				deps.editorEl?.contains(active) &&
-				!deps.isHostChrome(active)
-			) {
-				active.blur();
-				// A blur the editor performs announces the selection it drops: the document listener
-				// only reports a range the browser still anchors in the root, and this one is gone.
-				deps.announceSelection();
+			deps.holdOutgoingMode(from);
+			try {
+				// Reading keeps its entry snapshot: it has no caret of its own to recapture on the way out.
+				if (from !== 'reading') flipCaret = captureCaret();
+				blurForFlip();
+			} finally {
+				deps.holdOutgoingMode(null);
 			}
 		},
 		afterFlip(to) {

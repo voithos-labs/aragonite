@@ -24,7 +24,8 @@ function surfaceAt(path: number[]): { host: HTMLElement; surface: HTMLElement } 
 	return { host, surface };
 }
 
-function harness(component: Partial<BlockComponent> = {}) {
+/** `writes: false` has the block answer for an insert without moving a byte. */
+function harness(component: Partial<BlockComponent> = {}, opts: { writes?: boolean } = {}) {
 	const root = document.createElement('div');
 	const { host, surface } = surfaceAt([1]);
 	// The paragraph a `below` insert creates, which takes focus the way a new block does.
@@ -37,6 +38,7 @@ function harness(component: Partial<BlockComponent> = {}) {
 	const selection = { gapCaret: null as GapCaretPosition | null };
 	const doc = parse('# a\n\nprose\n');
 	let reading = false;
+	let version = 0;
 	const calls: string[] = [];
 	const insertParagraph = vi.fn(async (boundary: number) => {
 		calls.push(`paragraph at ${boundary}`);
@@ -53,10 +55,11 @@ function harness(component: Partial<BlockComponent> = {}) {
 			return {
 				...component,
 				insertMarkdown: insertMarkdown
-					? (md: string) => (
-							calls.push(`insert ${md.trim()} at ${JSON.stringify(path)}`),
-							insertMarkdown(md)
-						)
+					? (md: string) => {
+							calls.push(`insert ${md.trim()} at ${JSON.stringify(path)}`);
+							if (opts.writes !== false) version++;
+							return insertMarkdown(md);
+						}
 					: undefined
 			} as BlockComponent;
 		},
@@ -66,7 +69,8 @@ function harness(component: Partial<BlockComponent> = {}) {
 			calls.push('join opens');
 			await run();
 			calls.push('join closes');
-		}
+		},
+		contentVersion: () => version
 	});
 	return {
 		surface,
@@ -104,6 +108,14 @@ describe('editor-root focused surface', () => {
 		h.surface.focus();
 		expect(await h.focused.insertMarkdown('- ')).toBe(true);
 		expect(insertMarkdown).toHaveBeenCalledWith('- ');
+	});
+
+	// Miss-analysis: every stub that answered true also wrote, so `true` was never checked
+	// against bytes moving.
+	it('insertMarkdown answers false when the block handled it but no byte moved', async () => {
+		const h = harness({ insertMarkdown: async () => true }, { writes: false });
+		h.surface.focus();
+		expect(await h.focused.insertMarkdown('- ')).toBe(false);
 	});
 
 	it('insertMarkdown below makes a paragraph and inserts there, both in one undo join', async () => {

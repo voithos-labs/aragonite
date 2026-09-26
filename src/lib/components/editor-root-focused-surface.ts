@@ -24,6 +24,8 @@ export interface FocusedSurfaceDeps {
 	insertParagraph(boundary: number, text: string): void | Promise<void>;
 	/** The undo stack's join, so the paragraph `below` makes and the paste into it undo together. */
 	joinUndoEntries(run: () => Promise<void>): Promise<void>;
+	/** The counter every byte write bumps (`reactivity/content-version.svelte.ts`). */
+	contentVersion(): number;
 }
 
 export interface FocusedSurface {
@@ -45,10 +47,14 @@ export function createFocusedSurface(deps: FocusedSurfaceDeps): FocusedSurface {
 		return findSurfacePathForElement(active);
 	}
 
+	// True only when bytes moved: a block answers for the paste it handled, and a write the
+	// commit then refused (a switch to reading mid-insert) moves none.
 	async function insertAtFocus(md: string): Promise<boolean> {
 		const at = path();
 		if (!at) return false;
-		return (await deps.getBlockComponent(at)?.insertMarkdown?.(md)) ?? false;
+		const before = deps.contentVersion();
+		const handled = (await deps.getBlockComponent(at)?.insertMarkdown?.(md)) ?? false;
+		return handled && deps.contentVersion() !== before;
 	}
 
 	async function insertBelow(topIndex: number, md: string): Promise<boolean> {

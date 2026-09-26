@@ -127,7 +127,7 @@
 	import { insertCatalogue, type InsertEntry } from '../schema/insert-catalogue';
 	import { createRegistryView, type KindEnablement } from '../schema/registry-view';
 	import type { Reading } from '../schema/reading';
-	import { hidesDelimitersAtCaret } from '../presentation-mode';
+	import { hidesDelimitersAtCaret, type PresentationMode } from '../presentation-mode';
 	import BlockList from './BlockList.svelte';
 	import SearchBar from './SearchBar.svelte';
 	import SelectionToolbar from './menu/SelectionToolbar.svelte';
@@ -201,10 +201,11 @@
 	const overridesMap = $derived(normalizeKeybindingOverrides(keybindings));
 
 	// The single mode reported everywhere (root attribute, context getter, plugin contexts,
-	// events). It follows the requested mode only once the flip below has committed every edit
-	// the outgoing mode was holding, so those writes land in the mode they were typed in.
-	// svelte-ignore state_referenced_locally
-	let effectiveMode = $state(presentationMode);
+	// events), and the one place a difference between effective and requested would show up.
+	const effectiveMode = $derived(presentationMode);
+	// The mode being left, answered only while the switch commits the edits that mode was holding,
+	// so those writes land in the mode they were typed in. State, so a read made then is redone.
+	let outgoingMode = $state<PresentationMode | null>(null);
 	// Replace is an edit, so reading mode never offers it (the commit refuses the write anyway).
 	const canReplace = $derived(effectiveMode !== 'reading');
 
@@ -253,8 +254,8 @@
 		get resolverEpoch(): number {
 			return signatureEpoch;
 		},
-		mode: () => effectiveMode,
-		hidesDelimitersAtCaret: () => hidesDelimitersAtCaret(effectiveMode)
+		mode: () => outgoingMode ?? effectiveMode,
+		hidesDelimitersAtCaret: () => hidesDelimitersAtCaret(outgoingMode ?? effectiveMode)
 	};
 	// Plain, not `$state`: where the root list's child refs are stored (see `refSlotsOver`).
 	const blockRefs: (BlockComponent | undefined)[] = [];
@@ -391,11 +392,7 @@
 		},
 		undoManager,
 		caretMemory,
-		closeMenus: () => {
-			blockMenu = null;
-			inlineMenu.close();
-			linkCard.close();
-		},
+		closeMenus,
 		widgetSelection,
 		selection: selectionState,
 		// The counter bumps only when the link-reference signature differs; the resolver
@@ -461,9 +458,16 @@
 			!selectionState.isCrossBlock && window.getSelection()?.isCollapsed === false
 	});
 
-	// The card belongs to live mode alone; any other mode paints the destination bytes already.
+	function closeMenus(): void {
+		blockMenu = null;
+		inlineMenu.close();
+		linkCard.close();
+	}
+
+	// A menu opened in one mode offers that mode's edits, so a mode change closes every menu.
 	$effect(() => {
-		if (effectiveMode !== 'live') linkCard.close();
+		void effectiveMode;
+		untrack(closeMenus);
 	});
 
 	// ── Hidden-run class check ──────────────────────────────────────────
@@ -854,14 +858,14 @@
 			return heightOracle;
 		},
 		events,
-		restoreCaret: (path, offset) => restoreThroughRevealRoad(caretAt(path, offset), 'mount')
+		restoreCaret: (path, offset) => restoreThroughRevealRoad(caretAt(path, offset), 'mount'),
+		holdOutgoingMode: (mode) => {
+			outgoingMode = mode;
+		}
 	});
 	$effect.pre(() => {
-		const mode = presentationMode;
-		untrack(() => {
-			modeFlip.beforeFlip(mode);
-			effectiveMode = mode;
-		});
+		const mode = effectiveMode;
+		untrack(() => modeFlip.beforeFlip(mode));
 	});
 	$effect(() => {
 		modeFlip.afterFlip(effectiveMode);
@@ -1310,7 +1314,8 @@
 		getBlockComponent,
 		isReading: () => effectiveMode === 'reading',
 		insertParagraph: (boundary, text) => blockEdit.insertParagraph(boundary, text),
-		joinUndoEntries: (run) => controller.joinUndoEntries(run)
+		joinUndoEntries: (run) => controller.joinUndoEntries(run),
+		contentVersion: contentVersion.read
 	});
 
 	export function insertMarkdown(md: string, options?: InsertMarkdownOptions): Promise<boolean> {
