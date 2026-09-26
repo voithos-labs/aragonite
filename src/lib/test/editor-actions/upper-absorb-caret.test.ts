@@ -42,7 +42,7 @@ describe('caret after a fold above the edited block: top level', () => {
 		const h = makeTop('a\n# h\nb\n');
 
 		// One character typed at the heading's offset 0: the caret follows the byte it typed.
-		await h.actions.updateBlockContent(1, 'x# h\n', 0, 1);
+		await h.actions.updateBlockContent(1, 'x# h\n', 'authored', 0, 1);
 
 		expect(serialize(h.harness.doc)).toBe('a\nx# h\nb\n');
 		expect(h.harness.doc.children).toHaveLength(1);
@@ -56,7 +56,7 @@ describe('caret after a fold above the edited block: top level', () => {
 
 		// Caret after the `x` the first new block carries; the walk still has to clear the two
 		// bytes the predecessor put in front of it.
-		await h.actions.updateBlockContent(1, 'x\n\ny\n', 0, 1);
+		await h.actions.updateBlockContent(1, 'x\n\ny\n', 'authored', 0, 1);
 
 		expect(h.harness.doc.children.map((c) => c.raw)).toEqual(['a\nx\n', 'y\nb\n']);
 		expect(h.calls).toEqual([{ slot: 0, offset: 3 }]);
@@ -68,7 +68,7 @@ describe('caret after a fold above the edited block: top level', () => {
 	it('spends the blank branch textStart when emptying a heading folds it upward', async () => {
 		const h = makeTop('- item\n\n# h\n\n    code\n');
 
-		await h.actions.updateBlockContent(1, '\n', 1, 0);
+		await h.actions.updateBlockContent(1, '\n', 'authored', 1, 0);
 
 		expect(h.harness.doc.children.map((c) => [c.kind, c.raw])).toEqual([
 			['list', '- item\n\n\n    code\n']
@@ -80,7 +80,7 @@ describe('caret after a fold above the edited block: top level', () => {
 	it('leaves the caret alone where the join above still holds', async () => {
 		const h = makeTop('a\n\n# h\nb\n');
 
-		await h.actions.updateBlockContent(1, 'x# h\n', 0, 1);
+		await h.actions.updateBlockContent(1, 'x# h\n', 'authored', 0, 1);
 
 		expect(h.harness.doc.children.map((c) => c.raw)).toEqual(['a\n', 'x# h\nb\n']);
 		expect(h.calls).toEqual([{ slot: 1, offset: 1 }]);
@@ -93,7 +93,7 @@ describe('caret after a fold above the edited block: container body', () => {
 		const calls: FocusCall[] = [];
 		replaceRefs(h.state.innerBlockRefs, labelledRefs(h.getNode().children!.length, calls));
 
-		await h.bundle.blockEdit.updateBlockContent(1, 'x# h\n', 0, 1);
+		await h.bundle.blockEdit.updateBlockContent(1, 'x# h\n', 'authored', 0, 1);
 
 		expect(serialize(h.deps.doc)).toBe('> a\n> x# h\n> b\n');
 		expect(h.getNode().children!.map((c) => c.raw)).toEqual(['a\nx# h\nb\n']);

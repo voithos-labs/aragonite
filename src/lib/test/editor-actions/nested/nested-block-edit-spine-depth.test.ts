@@ -57,7 +57,7 @@ function typeInto(node: CstNode, chainDepth: number): void {
 	void createNestedBlockEdit(
 		makeBlockListState(() => node),
 		deps
-	).updateBlockContent(0, 'typed\n');
+	).updateBlockContent(0, 'typed\n', 'authored');
 }
 
 const SPINE_DEPTH = ['invariant:unshared-spine-depth'];

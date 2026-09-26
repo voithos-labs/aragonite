@@ -144,7 +144,7 @@ export function createRootMenus(deps: RootMenusDeps): RootMenus {
 				await deps.blockEdit.deleteBlock(index);
 			},
 			replaceRaw: async (raw: string) => {
-				await deps.blockEdit.updateBlockContent(index, raw);
+				await deps.blockEdit.updateBlockContent(index, raw, 'literal');
 			},
 			transformPaste: (text) => applyPasteTransforms(text, deps.activation),
 			lineEnding: documentLineEnding(deps.getDoc())

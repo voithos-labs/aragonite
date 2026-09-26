@@ -167,7 +167,7 @@
 		});
 		// The caret goes along: an edit that demotes the block lands it in whatever replaces it.
 		const bytes = written.display + blockEnding();
-		void blockEdit.updateBlockContent(index, bytes, undoAnchor, written.caret);
+		void blockEdit.updateBlockContent(index, bytes, 'authored', undoAnchor, written.caret);
 		return written.caret;
 	}
 

@@ -9,6 +9,7 @@ import {
 import { parse } from '$lib/core/parser';
 import { trimTrailingLineEnding } from '$lib/core/lines';
 import type { BlockEditActions } from '$lib/action-contracts';
+import { withStoredCaret } from '$lib/editor-actions/stored-caret';
 import type { CstNode } from '$lib/core/nodes';
 import { makePendingMarks } from '$lib/test/harness/editor-actions';
 import { createAutoPairRecord } from '$lib/components/blocks/text/auto-pair-record';
@@ -17,7 +18,7 @@ import { fixtureReading } from '../../harness/fixture-grammar';
 
 export { asRawOffset as at } from '$lib/cursor/coordinate-spaces';
 
-/** `updateBlockContent` argument tuples, newest last. */
+/** `updateBlockContent` argument tuples less the write mode, newest last. */
 export type EditTuple = [index: number, content: string, start: number, end: number];
 
 export interface EdgeDispatchHarness {
@@ -55,8 +56,11 @@ export function makeEdgeDispatch(
 		hasIslands: () => false,
 		getRawSelection: () => null,
 		blockEdit: {
-			updateBlockContent: (...args: unknown[]) => void edits.push(args as EditTuple)
-		} as unknown as BlockEditActions,
+			updateBlockContent: (index, content, _mode, start = 0, end = start) => {
+				edits.push([index, content, start, end]);
+				return withStoredCaret(Promise.resolve(), end);
+			}
+		} as Pick<BlockEditActions, 'updateBlockContent'> as BlockEditActions,
 		setPendingCursor: () => {},
 		setSnapTarget: () => {},
 		isRevealing: () => false,

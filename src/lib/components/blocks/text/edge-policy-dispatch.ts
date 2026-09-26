@@ -240,6 +240,7 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		void deps.blockEdit.updateBlockContent(
 			deps.index,
 			next + trailingLineEnding(deps.node.raw, deps.getLineEnding()),
+			'authored',
 			caretBefore,
 			caretAfter
 		);
@@ -338,7 +339,13 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 				deps.getAmbientPrefix?.() ?? '',
 				deps.getLineEnding()
 			);
-			void deps.blockEdit.updateBlockContent(deps.index, edit.raw, range.start, edit.caret);
+			void deps.blockEdit.updateBlockContent(
+				deps.index,
+				edit.raw,
+				'authored',
+				range.start,
+				edit.caret
+			);
 			deps.setPendingCursor(edit.caret, source, edit.raw);
 			return;
 		}
@@ -383,7 +390,13 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 				// One keypress takes the whole construct, anchored at the caret before the delete
 				// so Ctrl+Z lands there.
 				const newRaw = node.raw.slice(0, widgetAt.start) + node.raw.slice(widgetAt.end);
-				void deps.blockEdit.updateBlockContent(deps.index, newRaw, caretOffset, widgetAt.start);
+				void deps.blockEdit.updateBlockContent(
+					deps.index,
+					newRaw,
+					'authored',
+					caretOffset,
+					widgetAt.start
+				);
 				deps.setPendingCursor(widgetAt.start, 'widget');
 				return true;
 			}
@@ -556,7 +569,13 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 				deps.getAmbientPrefix?.() ?? '',
 				deps.getLineEnding()
 			);
-			void deps.blockEdit.updateBlockContent(deps.index, edit.raw, range.start, edit.caret);
+			void deps.blockEdit.updateBlockContent(
+				deps.index,
+				edit.raw,
+				'authored',
+				range.start,
+				edit.caret
+			);
 			deps.setPendingCursor(edit.caret, 'ambient-delete');
 		}
 		return true;

@@ -19,7 +19,7 @@ describe('github alert: formation through sibling paths', () => {
 	it('forms from a multi-block paste into the blockquote body', async () => {
 		const h = containerAt('> x\n', [0]);
 
-		await h.bundle.blockEdit.updateBlockContent(0, '[!TIP]\n\nbody\n', 1, 13);
+		await h.bundle.blockEdit.updateBlockContent(0, '[!TIP]\n\nbody\n', 'authored', 1, 13);
 
 		const alert = h.getNode();
 		expect(alert.kind).toBe('githubAlert');

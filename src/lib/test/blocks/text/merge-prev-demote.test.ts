@@ -67,7 +67,13 @@ describe('Backspace at content start in live mode', () => {
 		mounted = mountBlock('## Title\n', 'live', 3);
 
 		expect(mounted.instance.runCommand('block.mergePrev')).toBe(true);
-		expect(mounted.blockEdit.updateBlockContent).toHaveBeenCalledWith(0, 'Title\n', 3, 0);
+		expect(mounted.blockEdit.updateBlockContent).toHaveBeenCalledWith(
+			0,
+			'Title\n',
+			'literal',
+			3,
+			0
+		);
 		expect(mounted.blockEdit.mergeWithPrevious).not.toHaveBeenCalled();
 	});
 
@@ -77,7 +83,13 @@ describe('Backspace at content start in live mode', () => {
 		mounted = mountBlock('Title\n===\n', 'live', 0);
 
 		expect(mounted.instance.runCommand('block.mergePrev')).toBe(true);
-		expect(mounted.blockEdit.updateBlockContent).toHaveBeenCalledWith(0, 'Title\n', 0, 0);
+		expect(mounted.blockEdit.updateBlockContent).toHaveBeenCalledWith(
+			0,
+			'Title\n',
+			'literal',
+			0,
+			0
+		);
 		expect(mounted.blockEdit.mergeWithPrevious).not.toHaveBeenCalled();
 	});
 
@@ -88,7 +100,13 @@ describe('Backspace at content start in live mode', () => {
 		mounted = mountBlock('## Title\n', 'live', 0);
 
 		expect(mounted.instance.runCommand('block.mergePrev')).toBe(true);
-		expect(mounted.blockEdit.updateBlockContent).toHaveBeenCalledWith(0, 'Title\n', 0, 0);
+		expect(mounted.blockEdit.updateBlockContent).toHaveBeenCalledWith(
+			0,
+			'Title\n',
+			'literal',
+			0,
+			0
+		);
 		expect(mounted.blockEdit.mergeWithPrevious).not.toHaveBeenCalled();
 	});
 
@@ -99,7 +117,13 @@ describe('Backspace at content start in live mode', () => {
 		mounted = mountBlock('## **B** head\n', 'live', 5);
 
 		expect(mounted.instance.runCommand('block.mergePrev')).toBe(true);
-		expect(mounted.blockEdit.updateBlockContent).toHaveBeenCalledWith(0, '**B** head\n', 5, 2);
+		expect(mounted.blockEdit.updateBlockContent).toHaveBeenCalledWith(
+			0,
+			'**B** head\n',
+			'literal',
+			5,
+			2
+		);
 	});
 
 	// A reference construct is only a construct once the document's definitions resolve it: read
@@ -109,7 +133,13 @@ describe('Backspace at content start in live mode', () => {
 		mounted = mountBlock('## [B][r] head\n\n[r]: https://example.com\n', 'live', 4);
 
 		expect(mounted.instance.runCommand('block.mergePrev')).toBe(true);
-		expect(mounted.blockEdit.updateBlockContent).toHaveBeenCalledWith(0, '[B][r] head\n', 4, 1);
+		expect(mounted.blockEdit.updateBlockContent).toHaveBeenCalledWith(
+			0,
+			'[B][r] head\n',
+			'literal',
+			4,
+			1
+		);
 	});
 
 	// The other kind whose content start moves: a directive leaf's `::` is hidden too, so a key at

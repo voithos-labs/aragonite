@@ -19,13 +19,13 @@ const CAPABILITY_SITES: Record<string, string> = {
 	'src/lib/plugins/latex/latex-kind.ts': 'mathBlock and mathFence declare it, for their closers',
 	'src/lib/plugins/mermaid/mermaid-kind.ts': 'mermaid declares it, for its closing fence',
 	'src/lib/testing/kind-conformance.ts': "the kind kit's raw-write cell runs for every declarer",
-	[READERS_HOME]: 'the readers dispatch it'
+	[READERS_HOME]: 'the readers dispatch it',
+	'src/lib/tree-operations/content-write.ts': 'legalizeWrite applies it to every content write'
 };
 
 /** Every place that writes a leaf's raw in place and has to apply the kind's rule. */
 const READER_SITES: Record<string, string> = {
 	[READERS_HOME]: 'the reader itself',
-	'src/lib/tree-operations/content-write.ts': 'the context-dependent-kind write',
 	'src/lib/editor-actions/table-context.ts':
 		'pasteGrid, writing each pasted cell text in place through the tableCell rule',
 	'src/lib/editor-actions/search-replace.ts': 'substitutes into a private clone',

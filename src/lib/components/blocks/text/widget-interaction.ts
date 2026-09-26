@@ -51,6 +51,7 @@ import {
 	widgetElByStart
 } from './widget-adjacency';
 import type { Reading } from '../../../schema/reading';
+import type { WriteMode } from '../../../schema/block-kind-descriptor';
 
 export interface WidgetInteractionDeps {
 	get node(): NodeView;
@@ -208,18 +209,19 @@ export async function replaceSelectedWidget(
 	deps: WidgetReplaceDeps,
 	widget: { start: number; end: number },
 	preSelectOffset: number,
-	text: string
+	text: string,
+	mode: WriteMode
 ): Promise<void> {
 	const raw = deps.node.raw;
-	const caretAfter = widget.start + text.length;
 	const write = deps.blockEdit.updateBlockContent(
 		deps.index,
 		raw.slice(0, widget.start) + text + raw.slice(widget.end),
+		mode,
 		preSelectOffset,
-		caretAfter
+		widget.start + text.length
 	);
 	// Before the write's render, so the caret and the new bytes land in one flush.
-	deps.setPendingCursor(caretAfter);
+	deps.setPendingCursor(write.caret);
 	deps.widgetSelection.clear();
 	await write;
 	// The render that places the caret, so a caller awaiting the insert finds the caret there.
@@ -404,6 +406,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		const write = deps.blockEdit.updateBlockContent(
 			deps.index,
 			editedDisplay + trailingLineEnding(deps.node.raw, deps.getLineEnding()),
+			'authored',
 			caretBefore,
 			caretAfter
 		);
@@ -721,7 +724,13 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 				editorContentWidth: deps.getEditorContentWidth(),
 				presentationMode: deps.reading.mode(),
 				updateContent: (newRaw, caretBefore, caretAfter) =>
-					void deps.blockEdit.updateBlockContent(deps.index, newRaw, caretBefore, caretAfter)
+					void deps.blockEdit.updateBlockContent(
+						deps.index,
+						newRaw,
+						'authored',
+						caretBefore,
+						caretAfter
+					)
 			});
 			if (consumed) return true;
 		}
@@ -768,7 +777,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		// nothing.
 		const spliceWidget = (text: string): void => {
 			if (isReading()) return;
-			void replaceSelectedWidget(deps, widget, selectedWidget.preSelectOffset, text);
+			void replaceSelectedWidget(deps, widget, selectedWidget.preSelectOffset, text, 'authored');
 		};
 		if (e.key === 'Backspace' || e.key === 'Delete') {
 			e.preventDefault();

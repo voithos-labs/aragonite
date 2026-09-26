@@ -298,6 +298,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 				void blockEdit.updateBlockContent(
 					deps.getIndex(),
 					text + trailingLineEnding(deps.getNode().raw, documentLineEnding(getDoc())),
+					'authored',
 					preEdit,
 					saved
 				);
@@ -364,6 +365,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 			blockEdit.updateBlockContent(
 				deps.getIndex(),
 				edited + trailingLineEnding(deps.getNode().raw, documentLineEnding(getDoc())),
+				'authored',
 				editableSurface.getPreEditOffset(),
 				edited.length
 			)

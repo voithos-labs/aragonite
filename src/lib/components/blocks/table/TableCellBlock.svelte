@@ -166,19 +166,10 @@
 
 	// ── How the cell writes its bytes ───────────────────────────────────────
 
-	// The kind's write rule escapes pipes, so `caretAfter` (counted in the unescaped text) is
-	// moved past the inserted backslashes; `caretBefore` already counts escaped bytes.
 	const blockEdit: BlockEditActions = {
 		...parentBlockEdit,
-		updateBlockContent(i, text, caretBefore, caretAfter) {
-			const cellText = trimTrailingLineEnding(text);
-			return parentBlockEdit.updateBlockContent(
-				i,
-				cellText,
-				caretBefore,
-				caretAfter === undefined ? undefined : escapedCellOffset(cellText, caretAfter)
-			);
-		}
+		updateBlockContent: (i, text, mode, caretBefore, caretAfter) =>
+			parentBlockEdit.updateBlockContent(i, text, mode, caretBefore, caretAfter)
 	};
 
 	let el: HTMLDivElement | undefined = $state();
@@ -238,7 +229,7 @@
 		// `saved` re-focuses if the edit remounts the cell, so it is reported through
 		// the escaping write above.
 		commitInput: (text, preEdit, saved) => {
-			void blockEdit.updateBlockContent(index, text, preEdit, saved);
+			void blockEdit.updateBlockContent(index, text, 'authored', preEdit, saved);
 			return escapedCellOffset(text, saved);
 		},
 		handleBeforeInput: onBeforeInput
@@ -421,7 +412,13 @@
 		// Anchor undo at the post-toggle caret, and keep it out of any typing batch: a command
 		// is not typing, so the toggle's bytes are their own undo step.
 		controller.isolateUndoEntry(() =>
-			blockEdit.updateBlockContent(index, result.newDisplay, result.newSelStart, result.newSelStart)
+			blockEdit.updateBlockContent(
+				index,
+				result.newDisplay,
+				'literal',
+				result.newSelStart,
+				result.newSelStart
+			)
 		);
 		// The write may have inserted backslashes inside the toggled span, so both selection
 		// edges are read back through the escaping.
@@ -765,7 +762,13 @@
 			'',
 			widgetInteraction.isRevealing,
 			(edit) => {
-				void blockEdit.updateBlockContent(index, edit.raw, edit.range.start, edit.caret);
+				void blockEdit.updateBlockContent(
+					index,
+					edit.raw,
+					'authored',
+					edit.range.start,
+					edit.caret
+				);
 				parkCursor(edit.caret, edit.raw);
 			}
 		);
@@ -785,7 +788,7 @@
 			reading,
 			ownPairs,
 			write: (text, caretBefore, caretAfter) => {
-				void blockEdit.updateBlockContent(index, text, caretBefore, caretAfter);
+				void blockEdit.updateBlockContent(index, text, 'authored', caretBefore, caretAfter);
 				parkCursor(caretAfter, text);
 			}
 		});
@@ -809,7 +812,7 @@
 			const inserted = '<br>';
 			const newText = text.slice(0, offset) + inserted + text.slice(offset);
 			const caret = offset + inserted.length;
-			void blockEdit.updateBlockContent(index, newText, offset, caret);
+			void blockEdit.updateBlockContent(index, newText, 'authored', offset, caret);
 			parkCursor(caret, newText);
 			return;
 		}
@@ -960,7 +963,7 @@
 	function deleteCellRange(start: number, end: number): void {
 		const display = trimTrailingLineEnding(node.raw);
 		const cut = cutRangeFromDisplay(node, display, { start, end }, reading);
-		void blockEdit.updateBlockContent(index, cut.display, start, cut.offset);
+		void blockEdit.updateBlockContent(index, cut.display, 'literal', start, cut.offset);
 		parkCursor(cut.offset, cut.display);
 	}
 

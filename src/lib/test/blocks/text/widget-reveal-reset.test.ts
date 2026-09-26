@@ -3,6 +3,7 @@
 // Every way out of a shown source goes through the one resetReveal, so all of them leave the same
 // idle state and it can be used again afterwards. Anything an exit leaves behind, a `settling`
 // flag stuck true or a stale record, shows up as a broken second cycle.
+import { recordingWrite } from '$lib/test/harness/editor-actions';
 import { describe, it, expect } from 'vitest';
 import { createWidgetInteraction } from '$lib/components/blocks/text/widget-interaction';
 import { MATH_INLINE } from '$lib/plugins/latex/latex-kind';
@@ -28,7 +29,7 @@ function mountMathBlock() {
 		widgetInteractionDeps(
 			{ node, el },
 			{
-				blockEdit: { updateBlockContent: () => {} },
+				blockEdit: { updateBlockContent: recordingWrite() },
 				setPendingCursor: () => {},
 				setRevealing: (v: boolean) => {
 					revealingMirror = v;

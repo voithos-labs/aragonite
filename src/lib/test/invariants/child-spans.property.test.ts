@@ -235,7 +235,11 @@ describe('container child spans', () => {
 
 				// Writing a child's own bytes back fills the spans without moving anything.
 				const seedAt = leaves[c.seedAt % leaves.length];
-				await h.bundle.blockEdit.updateBlockContent(seedAt, container().children![seedAt].raw);
+				await h.bundle.blockEdit.updateBlockContent(
+					seedAt,
+					container().children![seedAt].raw,
+					'authored'
+				);
 				expect(container().raw, 'after the seeding write').toBe(fullRebuildOf(container()).raw);
 
 				const seeded = container().childSpans;
@@ -246,7 +250,7 @@ describe('container child spans', () => {
 				const at = targets[c.at % targets.length];
 				if (at >= (container().children?.length ?? 0)) return;
 				const text = c.prose ? 'edited\n' : c.text;
-				await h.bundle.blockEdit.updateBlockContent(at, text, 0, text.length);
+				await h.bundle.blockEdit.updateBlockContent(at, text, 'authored', 0, text.length);
 				if (seeded !== undefined) {
 					if (container().childSpans === seeded) spliced++;
 					else retired++;

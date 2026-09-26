@@ -99,7 +99,7 @@ describe('a tail split then typed, through the container bundle', () => {
 		await h.bundle.blockEdit.splitBlock(1, 9);
 		expectParseConverged(h.deps.doc);
 
-		await h.bundle.blockEdit.updateBlockContent(2, 'two\n', 3);
+		await h.bundle.blockEdit.updateBlockContent(2, 'two\n', 'authored', 3);
 
 		expect(serialize(h.deps.doc)).toBe(':::callout Title\nFirst one\n\ntwo\n:::\n');
 		expect(h.getNode().children).toHaveLength(3);
@@ -114,7 +114,7 @@ describe('a tail split then typed, through the container bundle', () => {
 		const body = (h.getNode().children ?? []).length - 1;
 
 		await h.bundle.blockEdit.splitBlock(body, 9);
-		await h.bundle.blockEdit.updateBlockContent(body + 1, 'two\n', 3);
+		await h.bundle.blockEdit.updateBlockContent(body + 1, 'two\n', 'authored', 3);
 
 		// The fixture's own blank against the closer is the stripped line by the time the tail
 		// run ends, so it goes with it: the release cannot tell an authored line from a borrowed

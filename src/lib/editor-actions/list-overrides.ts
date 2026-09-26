@@ -6,6 +6,7 @@
  */
 
 import type { BlockEditActions, ListContext } from '../action-contracts';
+import { withStoredCaret } from './stored-caret';
 import { displayLength } from '../core/lines';
 import type { NestedActionsOverrideFactory, NodeScope } from './nested/nested-actions';
 
@@ -20,7 +21,8 @@ export function createListOverrides(deps: ListOverridesDeps): NestedActionsOverr
 			// Items split through the item's own bundle; nothing calls the list's, and the shared
 			// core would run a prose split on a `listItem` if anything ever did.
 			splitBlock: async (): Promise<void> => {},
-			updateBlockContent: (): void => {},
+			updateBlockContent: (_index, _text, _mode, preEditOffset, postEditFocusOffset) =>
+				withStoredCaret(Promise.resolve(), postEditFocusOffset ?? preEditOffset ?? 0),
 
 			// Items are structural peers, not text to merge. Only the last item hands the merge
 			// to the parent, so the block after the list merges into the list's deepest leaf.

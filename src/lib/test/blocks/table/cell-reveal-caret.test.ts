@@ -47,12 +47,12 @@ describe('a reveal commit in a cell puts the caret its caret in escaped space', 
 		dispatchKey(el, { key: 'Enter' });
 		await settleEditor();
 
-		// The write escaped the free `|`, so the commit caret is 7, past `$a\|$`.
-		const [, , , committedCaret] = vi.mocked(blockEdit.updateBlockContent).mock.calls[0];
-		expect(committedCaret).toBe(7);
-		// The remembered caret counts into the same bytes, so it must be the same offset. Unmapped
-		// it is 6, between the inserted `\` and the `|` it frees, inside the widget just edited.
-		expect(instance.getCursorOffset()).toBe(committedCaret);
+		// The cell hands the write the caret counted in what it wrote, after `$a|$`; the write
+		// escapes the free `|` and hands back 7, past `$a\|$`. Unmapped it would sit at 6, between
+		// the inserted `\` and the `|` it frees, inside the widget just edited.
+		const [, , , , committedCaret] = vi.mocked(blockEdit.updateBlockContent).mock.calls[0];
+		expect(committedCaret).toBe(6);
+		expect(instance.getCursorOffset()).toBe(7);
 	});
 
 	it('a source edit with no free pipe puts the caret where it always did', async () => {
@@ -70,7 +70,7 @@ describe('a reveal commit in a cell puts the caret its caret in escaped space', 
 
 		// Non-vacuity: the mapping leaves the offset alone when nothing is inserted, so
 		// the escaping cannot be a blanket shift.
-		const [, , , committedCaret] = vi.mocked(blockEdit.updateBlockContent).mock.calls[0];
+		const [, , , , committedCaret] = vi.mocked(blockEdit.updateBlockContent).mock.calls[0];
 		expect(committedCaret).toBe(6);
 		expect(instance.getCursorOffset()).toBe(6);
 	});

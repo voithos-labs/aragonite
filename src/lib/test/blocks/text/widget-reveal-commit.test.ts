@@ -5,6 +5,7 @@
 // undo stack (plugins/latex-inline.spec.ts). Three failures it catches: a commit that changes
 // nothing pushing a useless undo entry, a caret taken from the widget's stale end after a commit,
 // and the cross-block rule moving out of the blur caller into the commit itself.
+import { recordingWrite } from '$lib/test/harness/editor-actions';
 import { describe, it, expect } from 'vitest';
 import { createWidgetInteraction } from '$lib/components/blocks/text/widget-interaction';
 import { MATH_INLINE } from '$lib/plugins/latex/latex-kind';
@@ -33,9 +34,9 @@ function mountMathBlock() {
 			{
 				cursor: new Proxy({}, { get: trap }),
 				blockEdit: {
-					updateBlockContent: (index: number, raw: string, before: number, after: number) => {
-						commits.push({ index, raw, before, after });
-					}
+					updateBlockContent: recordingWrite(({ index, raw, before, after }) =>
+						commits.push({ index, raw, before, after })
+					)
 				},
 				focusActions: new Proxy({}, { get: trap }),
 				setPendingCursor: (offset: number | null, writtenText?: string) => {

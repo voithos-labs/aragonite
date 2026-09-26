@@ -68,7 +68,7 @@ describe('live mode: every cell cut crosses the join', () => {
 		await settleCommit(mounted);
 
 		expect(clipboard.get('text/plain')).toBe('ld** *i');
-		expect(committedCalls(mounted)).toEqual([[0, 'bot', 4, 2]]);
+		expect(committedCalls(mounted)).toEqual([[0, 'bot', 'literal', 4, 2]]);
 	});
 
 	it('the context-menu cut takes the same join', async () => {
@@ -78,7 +78,7 @@ describe('live mode: every cell cut crosses the join', () => {
 
 		await mounted.ref().applyMenuClipboard!('cut', { start: 4, end: 11 });
 
-		expect(committedCalls(mounted)).toEqual([[0, 'bot', 4, 2]]);
+		expect(committedCalls(mounted)).toEqual([[0, 'bot', 'literal', 4, 2]]);
 	});
 
 	it('typing over the selection lands the character at the cleaned join', async () => {
@@ -90,7 +90,7 @@ describe('live mode: every cell cut crosses the join', () => {
 		await settleCommit(mounted);
 
 		expect(e.defaultPrevented).toBe(true);
-		expect(committedCalls(mounted)).toEqual([[0, 'boXt', 4, 3]]);
+		expect(committedCalls(mounted)).toEqual([[0, 'boXt', 'authored', 4, 3]]);
 	});
 
 	it('a native Backspace over the selection takes the same join', async () => {
@@ -102,7 +102,7 @@ describe('live mode: every cell cut crosses the join', () => {
 		await settleCommit(mounted);
 
 		expect(e.defaultPrevented).toBe(true);
-		expect(committedCalls(mounted)).toEqual([[0, 'bot', 4, 2]]);
+		expect(committedCalls(mounted)).toEqual([[0, 'bot', 'authored', 4, 2]]);
 	});
 
 	it('an escape ahead of the cut survives the join', async () => {
@@ -113,7 +113,7 @@ describe('live mode: every cell cut crosses the join', () => {
 		dispatchCut(mounted.el);
 		await settleCommit(mounted);
 
-		expect(committedCalls(mounted)).toEqual([[0, 'a\\|b bot', 9, 7]]);
+		expect(committedCalls(mounted)).toEqual([[0, 'a\\|b bot', 'literal', 9, 7]]);
 	});
 });
 
@@ -126,7 +126,7 @@ describe('source mode: the same cuts stay byte-literal', () => {
 		dispatchCut(mounted.el);
 		await settleCommit(mounted);
 
-		expect(committedCalls(mounted)).toEqual([[0, '**bot*', 4, 4]]);
+		expect(committedCalls(mounted)).toEqual([[0, '**bot*', 'literal', 4, 4]]);
 	});
 
 	it('type-over stays native, so grapheme and IME behavior are untouched', async () => {

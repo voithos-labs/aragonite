@@ -103,6 +103,7 @@ describe('a widget source shown in a setext heading closes with the underline', 
 		expect(blockEdit.updateBlockContent).toHaveBeenCalledWith(
 			0,
 			'$y$\n---\n',
+			'authored',
 			expect.any(Number),
 			expect.any(Number)
 		);

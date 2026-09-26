@@ -92,12 +92,15 @@ export function writeOwnRaw(
 	lineEnding: LineEnding,
 	grammar: GrammarView
 ): void {
-	const descriptor = tryGetBlockKindDescriptor(node.kind);
-	const legal = normalizeOwnRaw(node, raw, lineEnding);
+	installOwnRaw(node, normalizeOwnRaw(node, raw, lineEnding), grammar);
+}
+
+/** Bytes already made legal for `node`, written in place with its parse-owned metadata. */
+export function installOwnRaw(node: CstNode, legal: string, grammar: GrammarView): void {
 	node.raw = legal;
 	// A context-dependent kind's raw does not reparse to itself, so a fragment parse would only
 	// mis-read metadata that was never parse-derived.
-	if (descriptor?.contextDependentKind) return;
+	if (tryGetBlockKindDescriptor(node.kind)?.contextDependentKind) return;
 	// In place means no reparse replaces the node, so parse-owned metadata re-derives here.
 	const reparsed = readBlocks(legal, { grammar, scope: 'fragment' }).children;
 	if (reparsed.length === 1 && reparsed[0].kind === node.kind) node.metadata = reparsed[0].metadata;

@@ -7,6 +7,7 @@
 import { readBlocks } from '../core/parser';
 import { displayLength, splitLines, trailingLineEnding, type LineEnding } from '../core/lines';
 import type { BlockEditActions } from '../action-contracts';
+import { withStoredCaret } from './stored-caret';
 import type { CstNode } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import { getBlockKindDescriptor } from '../schema/block-kind-descriptor';
@@ -53,18 +54,28 @@ export function withEnterCompletion(
 		},
 		// A line an on-type completer recognises forms its structure at once. The write lands
 		// first, so the typed line is its own undo step and the replacement covers the stored bytes.
-		async updateBlockContent(index, text, preEditOffset, postEditFocusOffset) {
-			await blockEdit.updateBlockContent(index, text, preEditOffset, postEditFocusOffset);
-			const offset = postEditFocusOffset ?? preEditOffset;
-			if (offset === undefined) return;
-			const completion = planTypedCompletion(childAt(index), offset, grammar, getLineEnding());
-			if (!completion) return;
-			await blockEdit.replaceBlock(
+		updateBlockContent(index, text, mode, preEditOffset, postEditFocusOffset) {
+			const write = blockEdit.updateBlockContent(
 				index,
-				completion.replacement,
-				{ replacementIndex: 0, ...completion.caret },
-				{ snapshotOffset: offset }
+				text,
+				mode,
+				preEditOffset,
+				postEditFocusOffset
 			);
+			const asked = postEditFocusOffset ?? preEditOffset;
+			const completed = write.then(async () => {
+				if (asked === undefined) return;
+				const offset = write.caret;
+				const completion = planTypedCompletion(childAt(index), offset, grammar, getLineEnding());
+				if (!completion) return;
+				await blockEdit.replaceBlock(
+					index,
+					completion.replacement,
+					{ replacementIndex: 0, ...completion.caret },
+					{ snapshotOffset: offset }
+				);
+			});
+			return withStoredCaret(completed, write.caret);
 		}
 	};
 }

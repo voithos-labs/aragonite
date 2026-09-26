@@ -126,7 +126,7 @@ describe('footnote numbering rebuilds one subtree per edit', () => {
 		const doc = harness.doc as DocumentView;
 		expect([...footnoteNumbersFor(doc, harness.contentVersion()).keys()]).toEqual(['a', 'b']);
 
-		await blockEdit.updateBlockContent(0, 'Body [^z] and [^a].\n', 5, 9);
+		await blockEdit.updateBlockContent(0, 'Body [^z] and [^a].\n', 'authored', 5, 9);
 		expect([...footnoteNumbersFor(doc, harness.contentVersion()).keys()]).toEqual(['z', 'a', 'b']);
 	});
 

@@ -193,7 +193,7 @@ async function runTopOp(
 	const { c, i } = paragraphs[op.i % paragraphs.length];
 	if (op.t === 'typeTop') {
 		const text = trimTrailingLineEnding(c.raw) + 'x'.repeat(op.n + 1) + '\n';
-		await h.blockEdit.updateBlockContent(i, text, 0);
+		await h.blockEdit.updateBlockContent(i, text, 'authored', 0);
 	} else if (op.t === 'splitTop') {
 		await h.blockEdit.splitBlock(i, Math.min(op.off, displayLength(c.raw)));
 	} else {
@@ -217,7 +217,7 @@ async function runTypeChar(h: Harness, op: Extract<Op, { t: 'typeChar' }>): Prom
 	const ch = MARKDOWN_TYPE_CHARS[op.ch % MARKDOWN_TYPE_CHARS.length];
 	const next = [...cps.slice(0, at), ch, ...cps.slice(at)].join('');
 	const utf16At = cps.slice(0, at).join('').length;
-	await h.blockEdit.updateBlockContent(i, next + '\n', utf16At, utf16At + 1);
+	await h.blockEdit.updateBlockContent(i, next + '\n', 'authored', utf16At, utf16At + 1);
 }
 
 async function runListOp(
@@ -291,7 +291,7 @@ async function runListOp(
 			})
 		);
 		const text = trimTrailingLineEnding(leaf.raw) + 'y'.repeat(op.n + 1) + '\n';
-		await itemBundle.blockEdit.updateBlockContent(0, text, 0);
+		await itemBundle.blockEdit.updateBlockContent(0, text, 'authored', 0);
 	}
 }
 
@@ -306,7 +306,7 @@ async function runQuoteOp(h: Harness, op: { i: number; n: number }): Promise<voi
 	if (leaf.kind !== 'paragraph') return;
 	const bundle = nestedBundleAt(h, quoteIndex);
 	const text = trimTrailingLineEnding(leaf.raw) + 'q'.repeat(op.n + 1) + '\n';
-	await bundle.blockEdit.updateBlockContent(innerIdx, text, 0);
+	await bundle.blockEdit.updateBlockContent(innerIdx, text, 'authored', 0);
 }
 
 async function runTableOp(
@@ -349,7 +349,7 @@ async function runTableOp(
 			})
 		);
 		const text = trimTrailingLineEnding(row.children[colIdx].raw) + 'z'.repeat(op.n + 1);
-		await rowBundle.blockEdit.updateBlockContent(colIdx, text, 0);
+		await rowBundle.blockEdit.updateBlockContent(colIdx, text, 'authored', 0);
 		return;
 	}
 

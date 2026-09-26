@@ -38,7 +38,7 @@ describe('a destructive key at a mid-cell `<br>` edge deletes it whole, in one p
 			await settleEditor();
 
 			expect(vi.mocked(blockEdit.updateBlockContent).mock.calls).toHaveLength(1);
-			const [index, text, , caretAfter] = vi.mocked(blockEdit.updateBlockContent).mock.calls[0];
+			const [index, text, , , caretAfter] = vi.mocked(blockEdit.updateBlockContent).mock.calls[0];
 			expect(index).toBe(0);
 			expect(text).toBe('LeftRight');
 			expect(caretAfter).toBe(BR_START);

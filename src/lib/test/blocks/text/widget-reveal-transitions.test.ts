@@ -4,6 +4,7 @@
 // interaction factory, and the source-length precondition through the primitive that swaps the
 // DOM. The legal show-then-commit and show-then-cancel cycles are also covered as silent,
 // because an invariant that fires wrongly floods the console every e2e spec watches.
+import { recordingWrite } from '$lib/test/harness/editor-actions';
 import { describe, it, expect } from 'vitest';
 
 import { takeDevWarns } from '$lib/test/support/warn-gate';
@@ -25,7 +26,7 @@ function mountEdgeMathBlock() {
 		widgetInteractionDeps(
 			{ node, el },
 			{
-				blockEdit: { updateBlockContent: () => {} },
+				blockEdit: { updateBlockContent: recordingWrite() },
 				setPendingCursor: () => {},
 				setRevealing: () => {},
 				isCrossBlock: () => false

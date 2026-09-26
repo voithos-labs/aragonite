@@ -24,7 +24,7 @@ beforeEach(() => {
 	const controller = createUndoController(harness.deps);
 	const blockEdit = createBlockEditActions(harness.deps, controller);
 	surface = makeSurface((text, preEdit, saved) => {
-		void blockEdit.updateBlockContent(0, text + '\n', preEdit, saved);
+		void blockEdit.updateBlockContent(0, text + '\n', 'authored', preEdit, saved);
 	});
 	surface.el.textContent = 'hello world';
 });

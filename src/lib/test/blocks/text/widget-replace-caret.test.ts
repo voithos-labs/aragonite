@@ -16,6 +16,7 @@ import { fixtureReading } from '../../harness/fixture-grammar';
 import { defaultGrammarView } from '$lib/schema/block-openers';
 import { stubCaretMemory } from '$lib/testing/headless-actions';
 import { mountBodyRow } from '../../harness/editor-actions';
+import { withStoredCaret } from '$lib/editor-actions/stored-caret';
 
 const SOURCE = 'lead![cat](x) tail\n';
 const WIDGET = { start: 4, end: 13 };
@@ -37,14 +38,21 @@ function fixture() {
 			return [0];
 		},
 		blockEdit: {
-			updateBlockContent: (_: number, raw: string, before: number, after: number) => {
+			updateBlockContent: (
+				_: number,
+				raw: string,
+				_mode: string,
+				before: number,
+				after: number
+			) => {
 				log.push(`write ${raw.trimEnd()} ${before}->${after}`);
-				return new Promise<void>((resolve) => {
+				const done = new Promise<void>((resolve) => {
 					finishWrite = () => {
 						log.push('landed');
 						resolve();
 					};
 				});
+				return withStoredCaret(done, after);
 			}
 		},
 		widgetSelection,
@@ -57,7 +65,7 @@ describe('replacing a selected widget', () => {
 	it('sets the caret after the text before the write lands, and resolves after it', async () => {
 		const { deps, log, widgetSelection, finish } = fixture();
 
-		const replaced = replaceSelectedWidget(deps as never, WIDGET, 2, 'XY');
+		const replaced = replaceSelectedWidget(deps as never, WIDGET, 2, 'XY', 'authored');
 		expect(log).toEqual(['write leadXY tail 2->6', 'caret 6']);
 		expect(widgetSelection.getSelected()).toBeNull();
 
@@ -83,7 +91,7 @@ describe('replacing a selected widget', () => {
 			setPendingCursor: (offset: number | null) => void parked.push(offset)
 		};
 
-		await replaceSelectedWidget(deps, { start: 1, end: 5 }, 1, '|');
+		await replaceSelectedWidget(deps, { start: 1, end: 5 }, 1, '|', 'authored');
 
 		expect(cell().raw).toBe('x\\|y');
 		expect(parked).toEqual([3]);

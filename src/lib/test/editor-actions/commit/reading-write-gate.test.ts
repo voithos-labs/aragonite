@@ -62,7 +62,7 @@ const WRITERS: WriterRow[] = [
 			return {
 				deps: h.deps,
 				edits: h.edits,
-				write: () => h.actions.updateBlockContent(0, 'onex\n', 3, 4)
+				write: () => h.actions.updateBlockContent(0, 'onex\n', 'authored', 3, 4)
 			};
 		}
 	},
@@ -74,7 +74,7 @@ const WRITERS: WriterRow[] = [
 			return {
 				deps: h.deps,
 				edits: recordEdits(h.deps),
-				write: () => h.bundle.blockEdit.updateBlockContent(0, 'quotedx\n', 6, 7)
+				write: () => h.bundle.blockEdit.updateBlockContent(0, 'quotedx\n', 'authored', 6, 7)
 			};
 		}
 	},

@@ -64,7 +64,7 @@ async function emptyLeaf(source: string, leafPath: number[]): Promise<Document> 
 		containerEdit: createContainerEditActions(deps, controller)
 	};
 	const container = bundleAt(deps.doc, rootBundle, leafPath.slice(0, -1));
-	await container.blockEdit.updateBlockContent(leafPath[leafPath.length - 1], '\n', 0);
+	await container.blockEdit.updateBlockContent(leafPath[leafPath.length - 1], '\n', 'authored', 0);
 	return deps.doc;
 }
 

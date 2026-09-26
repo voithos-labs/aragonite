@@ -4,7 +4,11 @@
  */
 
 import { updateNodeContent } from '../tree-operations';
-import { settledCaretTarget, type SettledContent } from '../tree-operations/content-write';
+import {
+	settledCaretTarget,
+	type LegalWrite,
+	type SettledContent
+} from '../tree-operations/content-write';
 import { makeBlockNode, metadataOf } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import type { LineEnding } from '../core/lines';
@@ -22,7 +26,7 @@ import { landCaretInScope, type CommitScope } from './block-edit-scope';
  */
 export function previewContentReparse(
 	node: NodeView,
-	text: string,
+	write: LegalWrite,
 	grammar: Parameters<typeof updateNodeContent>[3],
 	owner: NodeView | undefined,
 	tailSuffix: string,
@@ -56,7 +60,7 @@ export function previewContentReparse(
 			lineEnding
 		},
 		0,
-		text,
+		write,
 		grammar
 	).change;
 }

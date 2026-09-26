@@ -243,15 +243,17 @@
 		readText: () => readRawText(),
 		relocateComposedText: (after, composedAt) => compositionSeat.relocate(after, composedAt),
 		commitInput: (text, preEdit, saved) => {
-			const committed = text + blockEnding();
-			// An enclosing container may rewrite these bytes on the way in, so the caret restore
-			// reads the text actually stored; asked before the write, as the mapping requires.
-			const caret = blockEdit.mapCommittedOffset?.(index, committed, saved);
 			// Typed text is the one write whose kind change the block names (`kind-cue.svelte.ts`).
 			const before = shownKind(node);
-			const write = blockEdit.updateBlockContent(index, committed, preEdit, saved);
+			const write = blockEdit.updateBlockContent(
+				index,
+				text + blockEnding(),
+				'authored',
+				preEdit,
+				saved
+			);
 			void kindCue.afterTypedWrite(write, myPath, before);
-			return caret;
+			return write.caret;
 		},
 		inputPrelude: () => {
 			markKeystrokeStart();
@@ -499,7 +501,7 @@
 			case 'block.hardBreak':
 				return always(() => {
 					const { newRaw, caretOffset } = insertHardBreak(node.raw, offset, documentEnding());
-					blockEdit.updateBlockContent(index, newRaw, offset);
+					blockEdit.updateBlockContent(index, newRaw, 'authored', offset);
 					setPendingCursorOffset(caretOffset, 'hard-break');
 				});
 			case 'block.insertTab':
@@ -511,7 +513,7 @@
 						const { newRaw, caretOffset } = insertLiteralTab(node.raw, offset);
 						// The key types its own character, so its kind change is named as typing's is.
 						const before = shownKind(node);
-						const write = blockEdit.updateBlockContent(index, newRaw, offset);
+						const write = blockEdit.updateBlockContent(index, newRaw, 'authored', offset);
 						void kindCue.afterTypedWrite(write, myPath, before);
 						setPendingCursorOffset(caretOffset, 'insert-tab');
 					}
@@ -527,7 +529,13 @@
 						// A command is not typing: the demote is its own undo step, so one Ctrl+Z puts
 						// the heading back whole rather than unwinding the burst around it.
 						controller.isolateUndoEntry(() =>
-							blockEdit.updateBlockContent(index, demoted.newRaw, offset, demoted.caretOffset)
+							blockEdit.updateBlockContent(
+								index,
+								demoted.newRaw,
+								'literal',
+								offset,
+								demoted.caretOffset
+							)
 						);
 						setPendingCursorOffset(demoted.caretOffset, 'demote');
 					}
@@ -562,7 +570,13 @@
 							void blockEdit.replaceBlock(index, heading, focus, { snapshotOffset: offset });
 							return;
 						}
-						blockEdit.updateBlockContent(index, cycled.newRaw, offset, cycled.caretOffset);
+						blockEdit.updateBlockContent(
+							index,
+							cycled.newRaw,
+							'literal',
+							offset,
+							cycled.caretOffset
+						);
 						setPendingCursorOffset(cycled.caretOffset, 'heading-cycle');
 					}
 				};
@@ -887,7 +901,13 @@
 			ambientPrefixText,
 			widgetInteraction.isRevealing,
 			(edit) => {
-				void blockEdit.updateBlockContent(index, edit.raw, edit.range.start, edit.caret);
+				void blockEdit.updateBlockContent(
+					index,
+					edit.raw,
+					'authored',
+					edit.range.start,
+					edit.caret
+				);
 				setPendingCursorOffset(edit.caret, 'live-selection-edit');
 			}
 		);
@@ -912,7 +932,7 @@
 			ownPairs,
 			write: (text, caretBefore, caretAfter) => {
 				const raw = text + blockEnding();
-				void blockEdit.updateBlockContent(index, raw, caretBefore, caretAfter);
+				void blockEdit.updateBlockContent(index, raw, 'authored', caretBefore, caretAfter);
 				setPendingCursorOffset(caretAfter, 'delimiter-autopair');
 			}
 		});
@@ -978,7 +998,7 @@
 	function demoteEmptyHeadingOnBlur(): void {
 		if (readOnly || node.kind !== 'heading' || editableSurface.isDetached()) return;
 		const demoted = demoteEmptyAtxHeading(node.raw, getContentRange(node));
-		if (demoted) void blockEdit.updateBlockContent(index, demoted.newRaw, 0);
+		if (demoted) void blockEdit.updateBlockContent(index, demoted.newRaw, 'literal', 0);
 	}
 
 	function onClick(e: MouseEvent): void {
@@ -1036,7 +1056,7 @@
 
 		// A command is not typing: the toggle's bytes are their own undo step in every mode.
 		controller.isolateUndoEntry(() =>
-			blockEdit.updateBlockContent(index, newDisplay + blockEnding(), newSelStart)
+			blockEdit.updateBlockContent(index, newDisplay + blockEnding(), 'literal', newSelStart)
 		);
 
 		tick().then(() => {

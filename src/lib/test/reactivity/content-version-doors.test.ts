@@ -36,7 +36,7 @@ describe('content version: every byte-writing entry point announces its write', 
 	it('the top-level routine-typing write announces a keystroke that changes no structure', async () => {
 		const editor = topLevelEditor('one\n');
 		const before = editor.contentVersion();
-		await editor.blockEdit.updateBlockContent(0, 'onex\n', 3, 4);
+		await editor.blockEdit.updateBlockContent(0, 'onex\n', 'authored', 3, 4);
 		expect(editor.doc.children[0].raw).toBe('onex\n');
 		expect(editor.contentVersion()).not.toBe(before);
 	});
@@ -44,7 +44,7 @@ describe('content version: every byte-writing entry point announces its write', 
 	it('the nested out-of-commit sequence write announces a keystroke inside a container', async () => {
 		const harness = makeNestedHarness('> quoted\n', { index: 0 });
 		const before = harness.contentVersion();
-		await harness.bundle.blockEdit.updateBlockContent(0, 'quotedx\n', 6, 7);
+		await harness.bundle.blockEdit.updateBlockContent(0, 'quotedx\n', 'authored', 6, 7);
 		expect(harness.getNode().children?.[0].raw).toBe('quotedx\n');
 		expect(harness.contentVersion()).not.toBe(before);
 	});

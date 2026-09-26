@@ -1,37 +1,47 @@
 /**
  * The content write: every byte that enters a node goes through `updateNodeContent`, the one
- * reparse path (editor.md § 6, § 8), and its container counterpart that re-derives a container's
- * kind from its rebuilt raw.
+ * reparse path (editor.md § 6, § 8), after `legalizeWrite` has made it legal for its position;
+ * and its container counterpart that re-derives a container's kind from its rebuilt raw.
  */
 
 import type { AnyBlockKind, CstNode, Document } from '../core/nodes';
-import type { NodeView } from '../core/node-views';
+import type { DocumentView, NodeView } from '../core/node-views';
 import { isBlankParagraph, readBlocks } from '../core/parser';
 import { escalatedFenceLength, matchFenceOpen } from '../core/parsers/fence-syntax';
 import { isBlockOpenerRegistered, type GrammarView } from '../schema/block-openers';
 import {
 	displayLines,
+	documentLineEnding,
 	firstLineEnding,
 	joinDisplayLines,
-	ownTrailingLineEnding
+	ownTrailingLineEnding,
+	type LineEnding
 } from '../core/lines';
 import { dropSuffixUnderBlankLine } from '../core/inline';
 import { assignChildIdsDeep } from '../block-id';
 import { perfEnabled, recordContainerKindReparse } from '../perf/instruments';
-import { getBlockKindDescriptor, tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
+import {
+	getBlockKindDescriptor,
+	tryGetBlockKindDescriptor,
+	type WriteContext,
+	type WriteMode
+} from '../schema/block-kind-descriptor';
 import type { SharingState } from './sharing';
 import { resyncChildIds } from './children';
 import { spliceMany } from './splice-many';
 import { leafAtRawOffset } from './container-offsets';
 import { replacePreservingFirst, type StructuralChange } from './structural-change';
-import { reconcileTaskMetadata, taskMarkerMayStandBefore } from './list/reconcile-task';
+import {
+	reconcileTaskMetadata,
+	taskMarkerCaretShift,
+	taskMarkerMayStandBefore
+} from './list/reconcile-task';
 import { fragmentReaderAt, type FragmentReader } from './list/task-paragraph';
 import {
 	NEXT_PROSE_LINE,
 	ensureEditableContainers,
-	forBody,
+	installOwnRaw,
 	parentLineEnding,
-	writeOwnRaw,
 	type BodyParentArg,
 	type NodeParent
 } from './node-primitives';
@@ -46,6 +56,61 @@ import {
 	type TrackedPosition
 } from './settle';
 
+// ── Making written bytes legal ──
+
+declare const legalWrite: unique symbol;
+
+/**
+ * Text made legal as a block's bytes by {@link legalizeWrite}, the one place that builds it, so
+ * a write that carries one has passed the kind's rule and its container's exactly once.
+ */
+export interface LegalWrite {
+	readonly text: string;
+	/** Where an offset into the text as the writer wrote it lands in the stored `text`. */
+	storedOffset(offset: number): number;
+	readonly [legalWrite]: true;
+}
+
+/** What {@link legalizeWrite} reads of a block's parent: its container and line ending. */
+export type WriteTarget =
+	| {
+			readonly children: readonly NodeView[];
+			readonly owner: NodeView | undefined;
+			readonly lineEnding: LineEnding;
+	  }
+	| DocumentView;
+
+/**
+ * `text` made legal as the bytes of the block at `index`: its kind's `rawWrite`, then the
+ * container's `bodyWrite`, both reading the tree as it stands before the write.
+ */
+export function legalizeWrite(
+	parent: WriteTarget,
+	index: number,
+	text: string,
+	mode: WriteMode
+): LegalWrite {
+	const node = parent.children[index];
+	const owner = 'owner' in parent ? parent.owner : undefined;
+	const lineEnding = 'lineEnding' in parent ? parent.lineEnding : documentLineEnding(parent);
+	const ownRule = tryGetBlockKindDescriptor(node.kind)?.rawWrite;
+	const ownCtx: WriteContext = { node, mode, lineEnding };
+	const kept = dropSuffixUnderBlankLine(node, text);
+	const own = ownRule ? ownRule.normalize(kept, ownCtx) : kept;
+	const bodyRule = owner ? tryGetBlockKindDescriptor(owner.kind)?.bodyWrite : undefined;
+	// A child's bytes are never the container's own syntax, so the body rule reads them as content.
+	const bodyCtx: WriteContext | undefined = owner && { node: owner, mode: 'literal', lineEnding };
+	const stored = bodyRule && bodyCtx ? bodyRule.normalize(own, bodyCtx) : own;
+	// A list item takes a typed task marker out of its first paragraph, or gives one back.
+	const markerShift = index === 0 && owner ? taskMarkerCaretShift(owner, stored) : 0;
+	const storedOffset = (offset: number): number => {
+		const inOwn = ownRule ? ownRule.mapOffset(kept, offset, ownCtx) : offset;
+		const inBody = bodyRule && bodyCtx ? bodyRule.mapOffset(own, inOwn, bodyCtx) : inOwn;
+		return Math.max(inBody + markerShift, 0);
+	};
+	return { text: stored, storedOffset } as LegalWrite;
+}
+
 // ── Update Content ──
 
 /** What a content write produced once its neighbours were fixed up: its change widened by every
@@ -59,18 +124,21 @@ export interface SettledContent {
 /**
  * Update raw and reparse. A kind change puts the reparsed block in the position rather than
  * reassigning `kind` in place, and multi-block text creates every parsed block; only a same-kind
- * single-block edit writes in place, so routine typing keeps the node's object identity.
+ * single-block edit writes in place, so routine typing keeps the node's object identity. Plain
+ * `text` is content arriving whole, made legal here; a {@link LegalWrite} already was.
  */
 export function updateNodeContent(
 	parent: BodyParentArg,
 	blockIndex: number,
-	text: string,
+	text: string | LegalWrite,
 	grammar: GrammarView,
 	sharing?: SharingState
 ): SettledContent {
+	const legal =
+		typeof text === 'string' ? legalizeWrite(parent, blockIndex, text, 'literal').text : text.text;
 	// Read before the write, which is what can put a block there the marker cannot stand before.
 	const stood = taskMarkerMayStandBefore(parent.children[blockIndex]);
-	const settled = writeAndSettleContent(parent, blockIndex, text, grammar, sharing);
+	const settled = writeAndSettleContent(parent, blockIndex, legal, grammar, sharing);
 	// A list item's task marker belongs to its first block, so the write that changed that block
 	// decides whether it keeps it. Before the container's raw rebuild, which writes the marker.
 	const owner = 'owner' in parent ? parent.owner : undefined;
@@ -226,22 +294,18 @@ function writeParsedContent(
 	const node = parent.children[blockIndex];
 	const oldKind = node.kind;
 	const oldDescriptor = getBlockKindDescriptor(oldKind);
-	// Before every reparse below, so the write lands on the kind its committed bytes describe:
-	// an underline left under an emptied title goes, and the container's escape (`bodyWrite`) runs.
-	const bodyText = forBody(parent, dropSuffixUnderBlankLine(node, text));
 	const lineEnding = parentLineEnding(parent);
 
-	// A context-dependent kind has no standalone recognizer, so reparsing would downgrade it:
-	// keep the kind and write raw through its own legality pass.
+	// A context-dependent kind has no standalone recognizer, so reparsing would downgrade it.
 	if (oldDescriptor.contextDependentKind) {
-		writeOwnRaw(node, bodyText, lineEnding, grammar);
+		installOwnRaw(node, text, grammar);
 		return { op: 'noop' };
 	}
 
 	const { text: newText, parsed: reparsed } = closeWrittenConstruct(
 		parent,
 		blockIndex,
-		bodyText,
+		text,
 		oldKind,
 		fragmentReaderAt('owner' in parent ? parent.owner : undefined, blockIndex, grammar)
 	);

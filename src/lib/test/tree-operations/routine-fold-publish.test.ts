@@ -18,7 +18,7 @@ describe('a routine content write whose settle folds', () => {
 		const h = makeTopHarness(SOURCE);
 		const before = h.getBlockIds();
 
-		await h.actions.updateBlockContent(1, '  b\n', 0);
+		await h.actions.updateBlockContent(1, '  b\n', 'authored', 0);
 
 		expect(serialize(h.deps.doc)).toBe('- a\n\n  b\n\nzz\n');
 		expect(describeConvergence(h.deps.doc)).toBeNull();
@@ -31,7 +31,7 @@ describe('a routine content write whose settle folds', () => {
 		const h = makeNestedHarness('> - a\n>\n>\n> zz\n', { index: 0 });
 		const before = [...h.state.innerBlockIds];
 
-		await h.bundle.blockEdit.updateBlockContent(1, '  b\n', 0);
+		await h.bundle.blockEdit.updateBlockContent(1, '  b\n', 'authored', 0);
 
 		expect(serialize(h.deps.doc)).toBe('> - a\n>\n>   b\n>\n> zz\n');
 		expect(describeConvergence(h.deps.doc)).toBeNull();

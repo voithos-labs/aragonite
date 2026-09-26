@@ -276,17 +276,23 @@ async function writeInsideContainer(
 	const body = trimTrailingLineEnding(seeded.raw);
 	// No delimiters, so the only run the screen checks count is the drawn character's.
 	const withSibling = body + ending + ending + 'seed' + ending;
-	await h.bundle.blockEdit.updateBlockContent(seed.path[1], withSibling);
+	await h.bundle.blockEdit.updateBlockContent(seed.path[1], withSibling, 'authored');
 
 	const node = children()[target.path[1]];
 	if (!node) return null;
 	if (gesture.kind === 'blank-in-container') {
 		const ending = trailingLineEnding(node.raw, '\n');
-		await h.bundle.blockEdit.updateBlockContent(target.path[1], ending, 1, 0);
+		await h.bundle.blockEdit.updateBlockContent(target.path[1], ending, 'authored', 1, 0);
 	} else {
 		const at = drawnOffset(node, gesture, gesture.endOffset);
 		const text = node.raw.slice(0, at) + gesture.char + node.raw.slice(at);
-		await h.bundle.blockEdit.updateBlockContent(target.path[1], text, at, at + gesture.char.length);
+		await h.bundle.blockEdit.updateBlockContent(
+			target.path[1],
+			text,
+			'authored',
+			at,
+			at + gesture.char.length
+		);
 	}
 	return { doc: h.deps.doc, bytes: serialize(h.deps.doc), claimed: false };
 }
@@ -384,7 +390,7 @@ async function nativePress(
 ): Promise<void> {
 	const { start, end } = getContentRange(node);
 	const write = (raw: string, caret: number) =>
-		h.blockEdit.updateBlockContent(index, raw, offset, caret);
+		h.blockEdit.updateBlockContent(index, raw, 'authored', offset, caret);
 	if (kind === 'type') {
 		// A typed byte reaches the editable element through the auto-pair handler in every mode
 		// (G4.65), so a typed delimiter writes what that handler writes: the matching closer, or
@@ -452,6 +458,7 @@ function toggleFormat(
 	void h.blockEdit.updateBlockContent(
 		index,
 		toggled.newDisplay + trailingLineEnding(node.raw, '\n'),
+		'authored',
 		range.start,
 		toggled.newSelStart
 	);
@@ -485,13 +492,14 @@ function wordDelete(
 		void h.blockEdit.updateBlockContent(
 			index,
 			splice(node.raw, range.start, range.end, ''),
+			'authored',
 			range.start,
 			range.start
 		);
 		return false;
 	}
 	if (edit.kind === 'rewrite') {
-		void h.blockEdit.updateBlockContent(index, edit.raw, edit.range.start, edit.caret);
+		void h.blockEdit.updateBlockContent(index, edit.raw, 'authored', edit.range.start, edit.caret);
 	}
 	return true;
 }
@@ -509,11 +517,17 @@ function replaceSelection(
 	if (range === null) return false;
 	const edit = resolveSelectionEdit(node, range, gesture.char, fixtureReading({}, mode));
 	if (edit) {
-		void h.blockEdit.updateBlockContent(index, edit.raw, range.start, edit.caret);
+		void h.blockEdit.updateBlockContent(index, edit.raw, 'authored', range.start, edit.caret);
 		return true;
 	}
 	const raw = splice(node.raw, range.start, range.end, gesture.char);
-	void h.blockEdit.updateBlockContent(index, raw, range.start, range.start + gesture.char.length);
+	void h.blockEdit.updateBlockContent(
+		index,
+		raw,
+		'authored',
+		range.start,
+		range.start + gesture.char.length
+	);
 	return false;
 }
 
