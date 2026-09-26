@@ -12,7 +12,8 @@ import {
 	normalizeKeybindingOverrides,
 	type KeybindingOverride
 } from '$lib/schema/keybinding-overrides';
-import { createRangeFromOffsets, getCursorOffset } from '$lib/cursor/content-offsets';
+import { createRangeAtDomTextOffsets } from '$lib/cursor/widget-offset';
+import { createSurfaceBackend } from '$lib/cursor/surface-backend';
 import { asDomTextOffset } from '$lib/cursor/coordinate-spaces';
 import { UNDO_DEBOUNCE_MS } from '$lib/editor-actions/commit/text-batch';
 import { installLayoutStubs } from '$lib/test/harness/mount-editor.svelte';
@@ -49,14 +50,14 @@ const pressUndoChord = (el: HTMLElement) => pressKey(el, { key: 'z', ctrlKey: tr
 
 /** One typed character as the browser delivers it: a collapsed target range at the caret. */
 async function typeChar(el: HTMLElement, char: string): Promise<void> {
-	const at = getCursorOffset(el) ?? (el.textContent ?? '').length;
+	const at = createSurfaceBackend({ getEl: () => el }).getRaw() ?? (el.textContent ?? '').length;
 	const e = new InputEvent('beforeinput', {
 		inputType: 'insertText',
 		data: char,
 		bubbles: true,
 		cancelable: true
 	});
-	const range = createRangeFromOffsets(el, asDomTextOffset(at), asDomTextOffset(at));
+	const range = createRangeAtDomTextOffsets(el, asDomTextOffset(at), asDomTextOffset(at));
 	Object.defineProperty(e, 'getTargetRanges', { value: () => (range ? [range] : []) });
 	el.dispatchEvent(e);
 	await settleEditor();
@@ -138,7 +139,7 @@ describe('a burst of typing inside an open painted reveal', () => {
 		await pressUndoChord(el);
 
 		expect(el.textContent).toBe(SOURCE);
-		expect(getCursorOffset(el)).toBe(SOURCE.length);
+		expect(createSurfaceBackend({ getEl: () => el }).getRaw()).toBe(SOURCE.length);
 		expect(mounted.history.requestUndo).not.toHaveBeenCalled();
 	});
 

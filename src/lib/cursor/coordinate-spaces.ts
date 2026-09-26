@@ -17,7 +17,7 @@ export type RawOffset = number & { readonly [rawOffsetBrand]: true };
 declare const domTextOffsetBrand: unique symbol;
 /**
  * Offset as the DOM walk counts it: the raw offset plus the leading marker prefix's text length.
- * Produced by `cursor/widget-offset.ts`, or `cursor/content-offsets.ts` where no widgets are involved.
+ * Produced only by `cursor/widget-offset.ts`.
  */
 export type DomTextOffset = number & { readonly [domTextOffsetBrand]: true };
 

@@ -333,7 +333,6 @@ const RULES: FileRule[] = [
 			[DOCPATH_HOME]: 'the DocPath brand and its base conversion (asDocPath)',
 			// Space homes.
 			'src/lib/cursor/widget-offset.ts': 'DomTextOffset home: the walk brands its returns',
-			'src/lib/cursor/content-offsets.ts': 'DomTextOffset home (widget-free variant)',
 			'src/lib/cursor/sticky-measure.ts': 'EditorX/ViewportX home + walk-offset candidate scan',
 			'src/lib/cursor/surface-backend.ts':
 				'RawOffset home for the caret intent a block records as a plain number (the snap target)',
@@ -538,8 +537,6 @@ const RULES: FileRule[] = [
 				'the editable surface this backend was built over; a whole-block kind builds none',
 			'src/lib/components/blocks/editable-surface.ts':
 				'the pending-restore guard, reachable only from an editable leaf surface',
-			'src/lib/cursor/content-offsets.ts':
-				'the caller supplies a block text surface, never the host',
 			'src/lib/cursor/reveal-source.ts':
 				'the reveal target is a text surface; the host paints no source',
 			'src/lib/selection/native-bridge.ts':

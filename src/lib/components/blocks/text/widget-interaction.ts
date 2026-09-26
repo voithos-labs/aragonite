@@ -894,7 +894,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		// whole token is that second click's; a third click belongs to the block.
 		if (clickCount === 2 && revealOpenedByLastClick && selectRevealedSource(clickX, clickY)) return;
 		// The snap below places a caret, so it does nothing while this block shows a selected
-		// range, which it would collapse; `clampOutOfAmbient` already carries that rule.
+		// range, which it would collapse; `clampOutOfMarkerPrefix` already carries that rule.
 		const live = window.getSelection();
 		if (surfaceHoldsRange(el, live)) return;
 		const seat = nearestWidgetEdgeSeat(measuredWidgets(el), clickX, clickY);

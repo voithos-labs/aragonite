@@ -291,7 +291,6 @@ const MANIFESTS: ManifestRule[] = [
 		declared: {
 			'src/lib/cursor/widget-offset.ts':
 				'placeCaretAtRaw and the raw range writers: the one translation from a raw offset to a native selection',
-			'src/lib/cursor/content-offsets.ts': 'setCursorOffset, until its last test caller moves',
 			'src/lib/components/blocks/text/edge-policy-dispatch.ts':
 				'selects a replace widget whole: a range over one element, not a raw offset',
 			'src/lib/components/blocks/text/widget-interaction.ts':

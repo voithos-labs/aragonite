@@ -7,11 +7,8 @@
 // clamped text instead of letting the browser splice the fence away.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { asDomTextOffset } from '$lib/cursor/coordinate-spaces';
-import {
-	createRangeFromOffsets,
-	getRangeOffsets,
-	getSelectionOffsets
-} from '$lib/cursor/content-offsets';
+import { createRangeAtDomTextOffsets } from '$lib/cursor/widget-offset';
+import { createSurfaceBackend } from '$lib/cursor/surface-backend';
 import { mountCode, type MountedCode } from './mount-code';
 import { settleEditor } from '$lib/test/harness/settle';
 
@@ -21,7 +18,11 @@ const SOURCE = '```js\nconst x = 1\n```\n';
 let mounted: MountedCode;
 
 function select(start: number, end: number): void {
-	const range = createRangeFromOffsets(mounted.el, asDomTextOffset(start), asDomTextOffset(end));
+	const range = createRangeAtDomTextOffsets(
+		mounted.el,
+		asDomTextOffset(start),
+		asDomTextOffset(end)
+	);
 	mounted.el.focus();
 	const sel = window.getSelection();
 	sel?.removeAllRanges();
@@ -170,7 +171,7 @@ describe('CodeBlock: fence-crossing ranged edits', () => {
 			bubbles: true,
 			cancelable: true
 		});
-		const target = createRangeFromOffsets(mounted.el, asDomTextOffset(3), asDomTextOffset(6));
+		const target = createRangeAtDomTextOffsets(mounted.el, asDomTextOffset(3), asDomTextOffset(6));
 		Object.defineProperty(e, 'getTargetRanges', { value: () => [target] });
 		mounted.el.dispatchEvent(e);
 		await settleEditor();
@@ -233,7 +234,10 @@ describe('CodeBlock: fence-crossing ranged edits', () => {
 		(mounted.instance as unknown as { focus(offset: number): void }).focus(asked);
 
 		const range = window.getSelection()!.getRangeAt(0);
-		expect(getRangeOffsets(mounted.el, range)).toEqual({ start: seated, end: seated });
+		expect(createSurfaceBackend({ getEl: () => mounted.el }).rawRangeOf(range)).toEqual({
+			start: seated,
+			end: seated
+		});
 
 		// The check refuses here, which is what "can be typed into" means for this block.
 		const e = beforeInput('insertText', 'X');
@@ -247,6 +251,9 @@ describe('CodeBlock: fence-crossing ranged edits', () => {
 		select(12, 20);
 		mounted.el.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true }));
 
-		expect(getSelectionOffsets(mounted.el)).toEqual({ start: 12, end: 17 });
+		expect(createSurfaceBackend({ getEl: () => mounted.el }).getRawSelection()).toEqual({
+			start: 12,
+			end: 17
+		});
 	});
 });

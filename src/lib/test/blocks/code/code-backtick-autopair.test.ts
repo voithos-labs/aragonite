@@ -6,7 +6,7 @@
 // derives that flag from its metadata had only e2e rows.
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { asDomTextOffset } from '$lib/cursor/coordinate-spaces';
-import { createRangeFromOffsets } from '$lib/cursor/content-offsets';
+import { createRangeAtDomTextOffsets } from '$lib/cursor/widget-offset';
 import { mountCode, type MountedCode } from './mount-code';
 import { settleEditor } from '$lib/test/harness/settle';
 
@@ -19,7 +19,7 @@ afterEach(async () => {
 
 async function typeBacktickAt(source: string, offset: number): Promise<InputEvent> {
 	mounted = mountCode(source);
-	const range = createRangeFromOffsets(
+	const range = createRangeAtDomTextOffsets(
 		mounted.el,
 		asDomTextOffset(offset),
 		asDomTextOffset(offset)

@@ -12,7 +12,7 @@ import { createTextRender } from '$lib/components/blocks/text/text-render';
 import { createLinkCardState } from '$lib/components/link-card/link-card-state.svelte';
 import { enterLinkCardAtCaret } from '$lib/components/link-card/link-card-entry';
 import { asDomTextOffset } from '$lib/cursor/coordinate-spaces';
-import { createRangeFromOffsets } from '$lib/cursor/content-offsets';
+import { createRangeAtDomTextOffsets } from '$lib/cursor/widget-offset';
 import { makeRenderHarness } from '$lib/test/harness/text-render';
 import { fixtureReading } from '../../harness/fixture-grammar';
 import type { Reading } from '$lib/schema/reading';
@@ -35,7 +35,7 @@ function mount(source: string): {
 function seat(el: HTMLElement, start: number, end: number): void {
 	const sel = window.getSelection()!;
 	sel.removeAllRanges();
-	sel.addRange(createRangeFromOffsets(el, asDomTextOffset(start), asDomTextOffset(end))!);
+	sel.addRange(createRangeAtDomTextOffsets(el, asDomTextOffset(start), asDomTextOffset(end))!);
 }
 
 function makeCard(crossBlock = false) {

@@ -6,8 +6,7 @@
 // that path (a keystroke and an IME composition end) reconcile the bytes before they
 // reach the CST, rather than committing whatever the browser left in the DOM.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { asDomTextOffset } from '$lib/cursor/coordinate-spaces';
-import { setCursorOffset } from '$lib/cursor/content-offsets';
+import { placeCaretAtRaw } from '$lib/cursor/widget-offset';
 import { mountCode, type MountedCode } from './mount-code';
 
 const SOURCE = '```js\nconst x = 1\n```\n';
@@ -18,7 +17,7 @@ let mounted: MountedCode;
 function nativeEdit(display: string, caret: number): void {
 	mounted.el.textContent = display;
 	mounted.el.focus();
-	setCursorOffset(mounted.el, asDomTextOffset(caret));
+	placeCaretAtRaw(mounted.el, caret, { clamp: 'exact' });
 }
 
 function committed(): string {
