@@ -44,8 +44,7 @@ describe('a paste over a selection inside a list item', () => {
 			pasteContext({
 				doc: deps.doc,
 				blockEdit: makeStubBlockEdit(),
-				controller: coordinator,
-				undoEntry: 'own'
+				controller: coordinator
 			})
 		);
 
@@ -66,8 +65,7 @@ describe('a paste over a selection inside a list item', () => {
 			pasteContext({
 				doc: deps.doc,
 				blockEdit: makeStubBlockEdit(),
-				controller: coordinator,
-				undoEntry: 'own'
+				controller: coordinator
 			})
 		);
 

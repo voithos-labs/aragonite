@@ -12,24 +12,23 @@ import {
 	registerStubBlockListState,
 	pasteContext
 } from '../../harness/editor-actions';
-import type { UndoEntryMode } from '$lib/action-contracts';
 import { CURSOR_END } from '$lib/block-component';
 
-/** `undoEntry` is the route selector: 'join' (cross-block) reaches container-match,
- *  'own' (single-block) falls through to the absorb route. */
+/** `crossBlock` is the route selector: the cross-block route reaches container-match, the
+ *  single-block route falls through to the absorb route. */
 async function pasteInto(
 	source: string,
 	pastedText: string,
 	targetPath: number[],
 	offset: number,
-	undoEntry: UndoEntryMode
+	crossBlock: boolean
 ) {
 	const { doc, controller } = makePasteCommit(source);
 	const landCaret = vi.spyOn(controller, 'landCaret');
 	registerStubBlockListState(doc.children[0]);
 	await pasteDispatch(
 		{ pastedText, targetPath, offset },
-		pasteContext({ doc, blockEdit: makeStubBlockEdit(), controller, undoEntry })
+		pasteContext({ doc, blockEdit: makeStubBlockEdit(), controller, crossBlock })
 	);
 	return landCaret;
 }
@@ -42,7 +41,7 @@ describe('structural paste lands its caret through the reveal join', () => {
 			'- x\n- y\n',
 			[0, 0, 0],
 			'al'.length,
-			'own'
+			false
 		);
 
 		expect(landCaret).toHaveBeenCalledTimes(1);
@@ -55,7 +54,7 @@ describe('structural paste lands its caret through the reveal join', () => {
 			'- x\n',
 			[0, 0, 0],
 			'alpha'.length,
-			'join'
+			true
 		);
 
 		// Doc-absolute path of the merged paragraph, before the reattached residue.
@@ -69,7 +68,7 @@ describe('structural paste lands its caret through the reveal join', () => {
 			'- x\n- y\n',
 			[0, 0, 0],
 			'alpha'.length,
-			'join'
+			true
 		);
 
 		expect(landCaret).toHaveBeenCalledTimes(1);

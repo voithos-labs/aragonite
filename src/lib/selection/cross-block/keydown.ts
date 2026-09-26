@@ -8,7 +8,7 @@ import type { CrossBlockMutationContext } from './ops';
 import type { CrossBlockDispatchContext } from './dispatch';
 import type { BlockElLookup } from '../../editor-keys';
 import type { AnyBlockKind, CstNode, Document } from '../../core/nodes';
-import { performCrossBlockDelete, performCrossBlockDeleteSync } from './ops';
+import { performCrossBlockDelete, performCrossBlockDeleteSync, rangeUndoStep } from './ops';
 import { blockNodeAt, isBlockNode } from '../../tree-operations/node-primitives';
 import { isReadingMode } from '../../presentation-mode';
 import { eventToChord } from '../../schema/keybindings';
@@ -125,13 +125,15 @@ async function handleCrossBlockActive(
 		// post-delete position, and for a table endpoint that is the [table, row, col] cell whose
 		// `runCommand` exists (the wrapper path has none).
 		const fallbackPath = (selection.start ?? selection.focus)?.path ?? myPath;
-		const collapsedCaret = await performCrossBlockDelete(mutCtx);
-		await ctx.afterReactivity();
-		const postDeleteDoc = getDoc();
-		const revealTarget = collapsedCaret?.path ?? fallbackPath;
-		const target = await ctx.revealPath(revealTarget);
-		const chord = eventToChord(e);
-		if (target?.runCommand && chord) {
+		// One entry for the delete and the command, so one Ctrl+Z brings the range back.
+		await rangeUndoStep(mutCtx, async () => {
+			const collapsedCaret = await performCrossBlockDelete(mutCtx);
+			await ctx.afterReactivity();
+			const postDeleteDoc = getDoc();
+			const revealTarget = collapsedCaret?.path ?? fallbackPath;
+			const target = await ctx.revealPath(revealTarget);
+			const chord = eventToChord(e);
+			if (!target?.runCommand || !chord) return;
 			dispatchKeyCommand(
 				chord,
 				{ kind: kindOfPath(revealTarget, postDeleteDoc), runCommand: target.runCommand },
@@ -146,7 +148,7 @@ async function handleCrossBlockActive(
 				ctx.getKeybindingOverrides(),
 				ctx.onCommandError
 			);
-		}
+		});
 		return true;
 	}
 

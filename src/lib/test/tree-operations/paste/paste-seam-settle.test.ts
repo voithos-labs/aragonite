@@ -29,8 +29,7 @@ describe('a structural paste whose result the block above absorbs', () => {
 			pasteContext({
 				doc: deps.doc,
 				blockEdit: makeStubBlockEdit(),
-				controller: createPasteCoordinator(controller, deps.revealPath),
-				undoEntry: 'own'
+				controller: createPasteCoordinator(controller, deps.revealPath)
 			})
 		);
 

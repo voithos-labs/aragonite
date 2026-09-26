@@ -36,7 +36,7 @@ function harness(source = TIGHT_JOIN) {
 describe('a join absorb under an outstanding snapshot', () => {
 	it('leaves the demotion fold’s shared predecessor byte-identical, and undo restores it', async () => {
 		const h = harness();
-		h.controller.pushUndoSnapshot(1, 0);
+		h.deps.undoManager.push(h.controller.captureCurrentState());
 
 		await h.actions.updateBlockContent(1, 'x# h\n', 0, 1);
 
@@ -52,7 +52,7 @@ describe('a join absorb under an outstanding snapshot', () => {
 
 	it('leaves the reorder fold’s shared window byte-identical, and undo restores it', async () => {
 		const h = harness();
-		h.controller.pushUndoSnapshot(1, 0);
+		h.deps.undoManager.push(h.controller.captureCurrentState());
 
 		await h.reorder.moveReorderUnit([1], 2);
 

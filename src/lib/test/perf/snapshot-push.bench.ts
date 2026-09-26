@@ -26,11 +26,13 @@ for (const shape of SHAPES) {
 		return { label, opts, doc: harness.doc, controller: createUndoController(harness.deps) };
 	});
 
-	describe(`pushUndoSnapshot ${shape}`, () => {
+	describe(`snapshot push ${shape}`, () => {
 		for (const { label, opts, controller } of cells) {
 			test(label, { timeout: BENCH_TIMEOUT }, async ({ bench }) => {
 				await bench(label, () => {
-					controller.pushUndoSnapshot(0, 0);
+					// The typing push, flushed so the next keystroke pushes again.
+					controller.pushUndoSnapshotDebounced([0], 0);
+					controller.flushDebouncedCheckpoint();
 				}).run({ warmupIterations: 1, ...opts });
 			});
 		}

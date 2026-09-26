@@ -72,7 +72,7 @@ export function slashHarness(initial: string, options: SlashCommandsOptions = {}
 			await tick();
 			return true;
 		},
-		joinUndoEntries: (run) => run()
+		undoStep: async (_path, _offset, run) => void (await run())
 	});
 
 	const editor = {

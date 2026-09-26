@@ -21,7 +21,7 @@ import {
 } from '../tree-operations/table-mutations';
 import { ensureUnsharedChildren } from '../tree-operations/unshare';
 import { cellRowCol, docPathFrom } from '../cursor/coordinate-spaces';
-import type { CrossBlockDeleteOptions, CrossBlockMutationContext } from './cross-block/ops';
+import type { CrossBlockMutationContext } from './cross-block/ops';
 
 // ── Coverage classification ──────────────────────────────────────────────────
 
@@ -65,7 +65,6 @@ export async function maybeCommitTableCoverageDelete(
 	table: CstNode,
 	start: SelectionPoint,
 	end: SelectionPoint,
-	options: Pick<CrossBlockDeleteOptions, 'undoEntry'> | undefined,
 	caretRestore: ((caret: SelectionPoint | null) => void) | undefined
 ): Promise<{ caret: SelectionPoint | null } | null> {
 	const meta = metadataOf(table, 'table');
@@ -79,32 +78,18 @@ export async function maybeCommitTableCoverageDelete(
 		case 'cells':
 			return null;
 		case 'table':
-			return { caret: await commitFullTableDelete(ctx, start, options, caretRestore) };
+			return { caret: await commitFullTableDelete(ctx, start, caretRestore) };
 		case 'row': {
 			// As with Ctrl+Shift+Backspace, at least one body row must remain. A refusal does nothing,
 			// since falling through to a cell clear would do something the user did not ask for.
 			if (!canDeleteRow(coverage.rowIdx, rowCount)) return { caret: null };
-			const caret = await commitRowDelete(
-				ctx,
-				table,
-				start,
-				coverage.rowIdx,
-				options,
-				caretRestore
-			);
+			const caret = await commitRowDelete(ctx, table, start, coverage.rowIdx, caretRestore);
 			return { caret };
 		}
 		case 'column': {
 			// Mirror Alt+Shift+Backspace: ≥2 columns must remain.
 			if (!canDeleteColumn(columnCount)) return { caret: null };
-			const caret = await commitColumnDelete(
-				ctx,
-				table,
-				start,
-				coverage.colIdx,
-				options,
-				caretRestore
-			);
+			const caret = await commitColumnDelete(ctx, table, start, coverage.colIdx, caretRestore);
 			return { caret };
 		}
 	}
@@ -113,11 +98,10 @@ export async function maybeCommitTableCoverageDelete(
 async function commitFullTableDelete(
 	ctx: CrossBlockMutationContext,
 	start: SelectionPoint,
-	options: Pick<CrossBlockDeleteOptions, 'undoEntry'> | undefined,
 	caretRestore: ((caret: SelectionPoint | null) => void) | undefined
 ): Promise<SelectionPoint | null> {
 	const tableIdx = start.path[0];
-	const snapshot = deleteSnapshot(options, [tableIdx]);
+	const snapshot = deleteSnapshot([tableIdx]);
 
 	let collapsedCaret: SelectionPoint | null = null;
 	// Read before the delete, which can leave no block to read a line ending from.
@@ -160,12 +144,11 @@ async function commitRowDelete(
 	table: CstNode,
 	start: SelectionPoint,
 	rowIdx: number,
-	options: Pick<CrossBlockDeleteOptions, 'undoEntry'> | undefined,
 	caretRestore: ((caret: SelectionPoint | null) => void) | undefined
 ): Promise<SelectionPoint | null> {
 	const tableIdx = start.path[0];
 	const rowsState = expectStateForNode(table);
-	const snapshot = deleteSnapshot(options, [tableIdx, rowIdx]);
+	const snapshot = deleteSnapshot([tableIdx, rowIdx]);
 
 	let collapsedCaret: SelectionPoint | null = null;
 	await ctx.controller.commitContainerStructural({
@@ -198,7 +181,6 @@ async function commitColumnDelete(
 	table: CstNode,
 	start: SelectionPoint,
 	colIdx: number,
-	options: Pick<CrossBlockDeleteOptions, 'undoEntry'> | undefined,
 	caretRestore: ((caret: SelectionPoint | null) => void) | undefined
 ): Promise<SelectionPoint | null> {
 	const tableIdx = start.path[0];
@@ -216,7 +198,7 @@ async function commitColumnDelete(
 		{ node: table, state: rowsState, path: [tableIdx] },
 		...mountedRowScopes
 	];
-	const snapshot = deleteSnapshot(options, [tableIdx]);
+	const snapshot = deleteSnapshot([tableIdx]);
 
 	let collapsedCaret: SelectionPoint | null = null;
 	await ctx.controller.commitMultiScope({

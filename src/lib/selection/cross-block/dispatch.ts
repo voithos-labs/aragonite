@@ -32,7 +32,6 @@ import { createCrossBlockPointer } from './pointer';
 export interface CrossBlockDispatchContext {
 	getEl: () => HTMLElement | null;
 	getMyPath: () => number[];
-	getIndex: () => number;
 
 	selection: SelectionState;
 	getDoc: DocumentGetter;
@@ -66,7 +65,6 @@ export interface CrossBlockDispatchContext {
 	 *  could not land. Non-nullable: skipping it drops a paste in silence. */
 	events: EditorEvents;
 
-	getCursorOffset: () => number | null;
 	/** An image selected whole, which a shift-press grows its range from. */
 	selectedWidget: SelectedWidgetHandle;
 
@@ -108,8 +106,6 @@ export function createCrossBlockHandlers(ctx: CrossBlockDispatchContext): CrossB
 		getBlockElByPath: ctx.getBlockElByPath,
 		revealPath: ctx.revealPath,
 		controller: ctx.controller,
-		pushUndoSnapshot: () =>
-			ctx.controller.pushUndoSnapshot(ctx.getIndex(), ctx.getCursorOffset() ?? 0),
 		reading: ctx.reading
 	};
 

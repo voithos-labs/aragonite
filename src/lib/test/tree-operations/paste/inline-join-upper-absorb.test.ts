@@ -31,7 +31,7 @@ describe('inline paste landing after a fold above the target', () => {
 				doc: deps.doc,
 				blockEdit: makeStubBlockEdit(),
 				controller: coordinator,
-				undoEntry: 'join'
+				crossBlock: true
 			})
 		);
 
@@ -54,7 +54,7 @@ describe('inline paste landing after a fold above the target', () => {
 				doc: deps.doc,
 				blockEdit: makeStubBlockEdit(),
 				controller: coordinator,
-				undoEntry: 'join'
+				crossBlock: true
 			})
 		);
 

@@ -73,7 +73,6 @@ function makeColumnCoverageEnv() {
 		getBlockElByPath: () => null,
 		revealPath: deps.revealPath,
 		controller,
-		pushUndoSnapshot: () => controller.pushUndoSnapshot(0, 0),
 		reading: fixtureReading()
 	};
 	return { deps, table, ctx, edits };
@@ -86,14 +85,7 @@ describe('coverage-driven column delete emits the table path with colIdx in the 
 		const end: SelectionPoint = { path: [0, 1, 0], offset: 2 };
 		deps.selectionState.enterCrossBlock(start, end);
 
-		const result = await maybeCommitTableCoverageDelete(
-			ctx,
-			table,
-			start,
-			end,
-			undefined,
-			undefined
-		);
+		const result = await maybeCommitTableCoverageDelete(ctx, table, start, end, undefined);
 
 		expect(result).not.toBeNull();
 		const del = edits.find((e) => e.op === 'tableDeleteColumn');

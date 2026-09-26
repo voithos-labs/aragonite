@@ -5,6 +5,7 @@ import { createBlockEditActions } from '$lib/editor-actions/block-edit';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
+import { asDocPath } from '$lib/selection/path-math';
 
 // A pending join ends at the author's next input, so a pick whose onCommit awaits something slow
 // cannot fold the author's typing into its entry. Miss-analysis: the join cases only ever wrote
@@ -16,6 +17,8 @@ function makeEditor(source: string) {
 	return { deps, controller, blockEdit: createBlockEditActions(deps, controller) };
 }
 
+const SEED = { path: asDocPath([0]), offset: 0 };
+
 function deferred(): { promise: Promise<void>; resolve: () => void } {
 	let resolve!: () => void;
 	const promise = new Promise<void>((r) => (resolve = r));
@@ -25,7 +28,7 @@ function deferred(): { promise: Promise<void>; resolve: () => void } {
 describe('a join ends at the author’s next input', () => {
 	it('a run that never resolves: two writes after the input open their own entries', async () => {
 		const { deps, controller, blockEdit } = makeEditor('a\n');
-		void controller.joinUndoEntries(async () => {
+		void controller.undoStep(SEED, async () => {
 			await blockEdit.insertParagraph(1, 'b');
 			await new Promise(() => {});
 		});
@@ -41,7 +44,7 @@ describe('a join ends at the author’s next input', () => {
 	it('the run’s own late write opens its entry, not folding under the author’s', async () => {
 		const { deps, controller, blockEdit } = makeEditor('a\n');
 		const hold = deferred();
-		const run = controller.joinUndoEntries(async () => {
+		const run = controller.undoStep(SEED, async () => {
 			await blockEdit.insertParagraph(1, 'b');
 			await hold.promise;
 			await blockEdit.insertParagraph(3, 'late');
@@ -63,14 +66,14 @@ describe('a join ends at the author’s next input', () => {
 
 	it('a join opened after the input joins its own writes again', async () => {
 		const { deps, controller, blockEdit } = makeEditor('a\n');
-		void controller.joinUndoEntries(async () => {
+		void controller.undoStep(SEED, async () => {
 			await blockEdit.insertParagraph(1, 'b');
 			await new Promise(() => {});
 		});
 		await tick();
 		controller.endUndoJoin();
 
-		await controller.joinUndoEntries(async () => {
+		await controller.undoStep(SEED, async () => {
 			await blockEdit.insertParagraph(2, 'c');
 			await blockEdit.insertParagraph(3, 'd');
 		});
@@ -82,7 +85,7 @@ describe('a join ends at the author’s next input', () => {
 		const { deps, controller, blockEdit } = makeEditor('a\n');
 		controller.endUndoJoin();
 
-		await controller.joinUndoEntries(async () => {
+		await controller.undoStep(SEED, async () => {
 			await blockEdit.insertParagraph(1, 'b');
 			await blockEdit.insertParagraph(2, 'c');
 		});

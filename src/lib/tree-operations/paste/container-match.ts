@@ -135,10 +135,7 @@ export async function applyContainerMatchingPaste(
 
 	templatePastedItemMarkers(unwrap.items, outer, unwrap.spliceIndex);
 
-	const snapshot =
-		ctx.undoEntry === 'join'
-			? ('skip' as const)
-			: { path: docPathFrom(unwrap.outerPath), offset: 0 };
+	const snapshot = { path: docPathFrom(unwrap.outerPath), offset: 0 };
 
 	await ctx.controller.commitMultiScope({
 		scopes: [{ node: outer, state: outerState, path: unwrap.outerPath }],
@@ -214,10 +211,7 @@ async function applyContainerMatchingMerge(
 	// siblings splice in, landing after the target.
 	templatePastedItemMarkers(remainingItems, outer, unwrap.spliceIndex + 1);
 
-	const snapshot =
-		ctx.undoEntry === 'join'
-			? ('skip' as const)
-			: { path: docPathFrom(unwrap.outerPath), offset: 0 };
+	const snapshot = { path: docPathFrom(unwrap.outerPath), offset: 0 };
 	/** The merged leaf sits below the scope node, so copy its whole ancestor chain. */
 	const ownMergedLeafSpine = (sharing: SharingState) => {
 		const chain = ensureUnsharedPath(ctx.doc, merge.targetLeafPath, sharing);

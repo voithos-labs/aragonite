@@ -109,6 +109,8 @@ describe('commit sequence: rollback on mutation throw', () => {
 		const state = makeBlockListState(() => deps.doc.children[0], ['id-a', 'id-b']);
 		const controller = createUndoController(deps);
 
+		// Held open, so the second commit below joins this entry rather than pushing its own.
+		void controller.undoStep({ path: asDocPath([0]), offset: 0 }, () => new Promise(() => {}));
 		// Pushes a real snapshot, so children[0] ends up copied out of it.
 		await controller.commitMultiScope({
 			scopes: [{ node: deps.doc.children[0], state, path: [0] }],
@@ -129,7 +131,7 @@ describe('commit sequence: rollback on mutation throw', () => {
 		await expect(
 			controller.commitMultiScope({
 				scopes,
-				snapshot: 'skip',
+				snapshot: { path: asDocPath([0]), offset: 0 },
 				mutate: ([scope]) => {
 					scope.children.splice(0, 1);
 					return [];
@@ -170,7 +172,7 @@ describe('commit sequence: rollback on mutation throw', () => {
 		const controller = createUndoController(deps);
 
 		// Two real commits then one undo leaves undo AND redo non-empty.
-		const appendItem = (raw: string, at: number): Promise<void> =>
+		const appendItem = (raw: string, at: number): Promise<boolean> =>
 			controller.commitMultiScope({
 				scopes: [{ node: deps.doc.children[0], state, path: [0] }],
 				snapshot: { path: asDocPath([0]), offset: 0 },

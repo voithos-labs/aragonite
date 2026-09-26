@@ -41,6 +41,11 @@ function makeDoc() {
 /** Takes the snapshot and copies the ancestors, so the joining commit below finds the
  *  outer blockquote already copied and splices into its live children array. */
 async function seedUndoUnit(h: ReturnType<typeof makeDoc>): Promise<void> {
+	// Held open, so the throwing commit joins this entry rather than pushing its own.
+	void h.controller.undoStep(
+		{ path: asDocPath([0, 0, 0]), offset: 0 },
+		() => new Promise(() => {})
+	);
 	await h.controller.commitMultiScope({
 		scopes: [{ node: h.inner(), path: [0, 0], state: createBlockListState(h.inner) }],
 		snapshot: { path: asDocPath([0, 0, 0]), offset: 0 },
@@ -60,7 +65,7 @@ async function throwingCommit(h: ReturnType<typeof makeDoc>): Promise<unknown> {
 				{ node: h.inner(), path: [0, 0], state: createBlockListState(h.inner) },
 				{ node: h.thrower(), path: [1], state: createBlockListState(h.thrower) }
 			],
-			snapshot: 'skip',
+			snapshot: { path: asDocPath([0, 0, 0]), offset: 0 },
 			mutate: ([innerScope]) => {
 				innerScope.children[0].raw = '[!TIP]\n';
 				return [{ op: 'noop' }, { op: 'noop' }];

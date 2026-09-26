@@ -1,4 +1,3 @@
-import type { UndoEntryMode } from '../action-contracts';
 import { isBuiltinBlockKind, type AnyBlockKind, type CstNode, type Document } from '../core/nodes';
 import type { LineEnding } from '../core/lines';
 import type { Reading } from '../schema/reading';
@@ -33,7 +32,6 @@ export interface ScopedStructuralPasteInput {
 	/** Pasted blocks, blank-line-materialized. */
 	blocks: CstNode[];
 	controller: PasteCommitCoordinator;
-	undoEntry: UndoEntryMode;
 	/** The instance grammar the splice's `bodyWrite` escape reparses in. */
 	grammar: GrammarView;
 }

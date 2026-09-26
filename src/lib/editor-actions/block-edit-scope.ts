@@ -40,8 +40,8 @@ export interface MutationView {
 }
 
 export interface ScopeCommitArgs {
-	/** Undo snapshot position as a local index in this list, or 'skip' to join a caller's entry. */
-	snapshot: { index: number; offset: number } | 'skip';
+	/** Where undo puts the caret back, as a local index in this list, when nothing is focused. */
+	snapshot: { index: number; offset: number };
 	/** Local index the edit event targets; the factory prefixes the scope's absolute path. */
 	eventTarget: number;
 	op: OpDescriptor;
@@ -69,7 +69,8 @@ export interface CommitScope {
 	reveal(index: number, path: readonly number[]): Promise<BlockComponent | null>;
 	/** An empty replaceBlock emits `delete` (container) or `replaceBlock{count:0}` (top-level). */
 	collapseEmptyReplaceToDelete: boolean;
-	commit(args: ScopeCommitArgs): Promise<void>;
+	/** Resolves to whether bytes landed. */
+	commit(args: ScopeCommitArgs): Promise<boolean>;
 }
 
 /**
@@ -116,12 +117,9 @@ export function createTopLevelScope(
 			afterTick,
 			touchedNodes,
 			discardIfNoop
-		}): Promise<void> {
+		}): Promise<boolean> {
 			return controller.commitStructural({
-				snapshot:
-					snapshot === 'skip'
-						? 'skip'
-						: { path: asDocPath([snapshot.index]), offset: snapshot.offset },
+				snapshot: { path: asDocPath([snapshot.index]), offset: snapshot.offset },
 				mutate: (children) =>
 					mutate({
 						children,
@@ -150,15 +148,12 @@ export function createContainerScope(state: BlockListState, deps: NestedActionsD
 		refAt: (i) => state.innerBlockRefs[i],
 		reveal: (index, path) => deps.parent.focus.revealPath([...deps.path, index, ...path]),
 		collapseEmptyReplaceToDelete: true,
-		commit({ snapshot, eventTarget, op, mutate, afterTick, discardIfNoop }): Promise<void> {
+		commit({ snapshot, eventTarget, op, mutate, afterTick, discardIfNoop }): Promise<boolean> {
 			return deps.parent.containerEdit.commitContainer({
 				containerNode: deps.node,
 				path: deps.path,
 				state,
-				snapshot:
-					snapshot === 'skip'
-						? 'skip'
-						: { path: extendDocPath(deps.path, snapshot.index), offset: snapshot.offset },
+				snapshot: { path: extendDocPath(deps.path, snapshot.index), offset: snapshot.offset },
 				mutate: (scope) =>
 					mutate({
 						children: scope.children,

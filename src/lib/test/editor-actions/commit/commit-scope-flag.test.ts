@@ -76,7 +76,7 @@ describe('commit scope', () => {
 			op: { kind: 'insertBlock', eventPath: asDocPath([1]) }
 		});
 
-		let nested: Promise<void> | null = null;
+		let nested: Promise<boolean> | null = null;
 		let handled = false;
 		let scopeOpenAfterNestedCommit: boolean | null = null;
 		deps.events.on('edit', () => {

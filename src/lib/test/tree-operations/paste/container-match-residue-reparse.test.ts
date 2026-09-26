@@ -29,7 +29,7 @@ describe('container-matching merge reattaches residue through the reparse shared
 				doc,
 				blockEdit: makeStubBlockEdit(),
 				controller,
-				undoEntry: 'join'
+				crossBlock: true
 			})
 		);
 

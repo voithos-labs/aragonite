@@ -31,7 +31,6 @@ describe('replaceBlockAtParent: id preservation', () => {
 			blockPath: [0],
 			replacement: [makePara('replaced\n'), makeHeading('# new\n')],
 			controller,
-			undoEntry: 'join',
 			focusReplacementIndex: 0,
 			focusOffset: 0,
 			source: 'paste-dispatch'
@@ -57,7 +56,6 @@ describe('replaceBlockAtParent: id preservation', () => {
 			blockPath: [0],
 			replacement: [makeHeading('# new\n'), makePara('after\n')],
 			controller,
-			undoEntry: 'join',
 			focusReplacementIndex: 0,
 			focusOffset: 0,
 			source: 'paste-dispatch'
@@ -89,7 +87,6 @@ describe('replaceBlockAtParent: id preservation', () => {
 			blockPath: [1],
 			replacement: [],
 			controller,
-			undoEntry: 'join',
 			focusReplacementIndex: 0,
 			focusOffset: 0,
 			source: 'paste-dispatch'
@@ -117,7 +114,6 @@ describe('replaceBlockAtParent: id preservation', () => {
 			blockPath: [0],
 			replacement: [makePara('plain\n')],
 			controller,
-			undoEntry: 'join',
 			focusReplacementIndex: 0,
 			focusOffset: 0,
 			source: 'paste-dispatch'

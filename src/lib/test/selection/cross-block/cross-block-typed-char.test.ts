@@ -55,7 +55,7 @@ describe('cross-block typed character: A2/A3 event symmetry', () => {
 		// delete+input and leave a single merged block.
 		env.selectionState.enterCrossBlock({ path: [0], offset: 5 }, { path: [1], offset: 0 });
 
-		const handlers = makeHandlers(env, [0], { getCursorOffset: () => 5 });
+		const handlers = makeHandlers(env, [0]);
 		await handlers.handleBeforeInput(makeBeforeInputEvent('X'));
 
 		expect(env.doc.children).toHaveLength(1);

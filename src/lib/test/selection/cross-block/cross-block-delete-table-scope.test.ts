@@ -34,7 +34,6 @@ function makeEnv(source: string) {
 		getBlockElByPath: () => null,
 		revealPath: harness.deps.revealPath,
 		controller,
-		pushUndoSnapshot: () => controller.pushUndoSnapshot(0, 0),
 		reading: fixtureReading()
 	};
 	return {

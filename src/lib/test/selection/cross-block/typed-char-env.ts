@@ -30,7 +30,6 @@ export function makeEnv(source: string) {
 }
 
 export interface HandlerOptions {
-	getCursorOffset?: () => number | null;
 	/** The caret's element lookup: the dispatch places its post-commit caret through this. */
 	getBlockElByPath?: (path: number[]) => HTMLElement | null;
 	/** Instance grammar the dispatch must forward onto its commit contexts. */
@@ -49,7 +48,6 @@ export function makeHandlers(
 	return createCrossBlockHandlers({
 		getEl: () => stubEl,
 		getMyPath: () => myPath,
-		getIndex: () => myPath[0],
 		selection: env.selectionState,
 		getDoc: () => env.doc,
 		getBlockElByPath: opts.getBlockElByPath ?? (() => null),
@@ -70,7 +68,6 @@ export function makeHandlers(
 		pasteCoordinator: createPasteCoordinator(env.controller, env.deps.revealPath),
 		activePlugins: everyInstalledPlugin,
 		events: env.events,
-		getCursorOffset: opts.getCursorOffset ?? (() => 0),
 		afterReactivity: async () => {}
 	});
 }

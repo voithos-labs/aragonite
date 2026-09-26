@@ -23,7 +23,7 @@ describe('container-matching paste at an unmounted outer scope', () => {
 				doc,
 				blockEdit: makeStubBlockEdit(),
 				controller,
-				undoEntry: 'join'
+				crossBlock: true
 			})
 		);
 

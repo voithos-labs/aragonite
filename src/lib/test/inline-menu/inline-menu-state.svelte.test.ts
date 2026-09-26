@@ -88,7 +88,7 @@ function harness(
 			await tick();
 			return true;
 		},
-		joinUndoEntries: async (run) => {
+		undoStep: async (_path, _offset, run) => {
 			joinDepth++;
 			try {
 				await run();
@@ -738,7 +738,7 @@ describe('a table cell', () => {
 			commitRange: async (_path, _start, _end, bytes) => {
 				commits.push(bytes);
 			},
-			joinUndoEntries: (run) => run(),
+			undoStep: async (_path, _offset, run) => void (await run()),
 			landCaret: async () => true
 		});
 		menu.registry.addSource(tags());

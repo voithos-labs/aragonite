@@ -28,7 +28,7 @@ async function pasteInto(source: string, targetPath: number[], text: string) {
 			doc,
 			blockEdit: makeStubBlockEdit(),
 			controller,
-			undoEntry: 'join'
+			crossBlock: true
 		})
 	);
 	return doc;

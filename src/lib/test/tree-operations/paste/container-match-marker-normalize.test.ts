@@ -66,7 +66,7 @@ describe('container-matching paste: marker normalization, both routes', () => {
 				doc,
 				blockEdit: makeStubBlockEdit(),
 				controller,
-				undoEntry: 'join'
+				crossBlock: true
 			})
 		);
 

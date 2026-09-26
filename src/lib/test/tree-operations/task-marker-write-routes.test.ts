@@ -84,7 +84,6 @@ describe('every write that can replace a to-do’s first block drops the marker 
 			blockPath: [0, 0, 0],
 			replacement: parse(TABLE).children,
 			controller,
-			undoEntry: 'own',
 			focusReplacementIndex: 0,
 			focusOffset: 0,
 			source: 'paste-dispatch'

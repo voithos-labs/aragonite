@@ -21,8 +21,8 @@ export async function applyInlineResult(
 	result: InlinePasteResult,
 	ctx: PasteDispatchContext
 ): Promise<InlineCaretLanding | undefined> {
-	if (ctx.undoEntry === 'join') {
-		return commitInlineJoin(targetPath, result, ctx);
+	if (ctx.crossBlock) {
+		return commitInlineCrossBlock(targetPath, result, ctx);
 	}
 
 	// Unawaited: the caller sets pendingCursorOffset in the same synchronous block, so both
@@ -33,11 +33,10 @@ export async function applyInlineResult(
 }
 
 /**
- * Cross-block inline paste. `'join'` means the caller already pushed the undo snapshot; the
- * commit still runs, to keep the parent's `childIds` aligned and report the edit. The write goes
- * through the reparse path, so a paste that completes marker syntax changes the block's kind.
+ * Cross-block inline paste, committed at the parent list so its `childIds` stay aligned. The write
+ * goes through the reparse path, so a paste that completes marker syntax changes the block's kind.
  */
-async function commitInlineJoin(
+async function commitInlineCrossBlock(
 	targetPath: number[],
 	result: InlinePasteResult,
 	ctx: PasteDispatchContext
@@ -50,7 +49,7 @@ async function commitInlineJoin(
 
 	await ctx.controller.commitMultiScope({
 		scopes: [scope],
-		snapshot: 'skip',
+		snapshot: { path: docPathFrom(targetPath), offset: 0 },
 		mutate: ([view]) => {
 			// The node may still be snapshot-shared, and the same-kind branch of the reparse
 			// writes its raw in place (G1.9).
@@ -98,7 +97,6 @@ export async function applyStructuralResult(
 		blockPath: targetPath,
 		replacement: result.replacement,
 		controller: ctx.controller,
-		undoEntry: ctx.undoEntry ?? 'own',
 		focusReplacementIndex: result.focusReplacementIndex,
 		focusOffset: result.focusOffset,
 		source: 'paste-dispatch',

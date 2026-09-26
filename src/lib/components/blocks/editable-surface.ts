@@ -260,7 +260,6 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 	const crossBlock = createCrossBlockHandlers({
 		getEl: () => deps.getEl(),
 		getMyPath: deps.getMyPath,
-		getIndex: deps.getIndex,
 		selection: deps.selection,
 		getDoc: deps.getDoc,
 		getBlockElByPath: deps.getBlockElByPath,
@@ -280,7 +279,6 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		pasteCoordinator: deps.pasteCoordinator,
 		activePlugins: deps.activePlugins,
 		events: deps.events,
-		getCursorOffset: () => deps.backend.getRaw(),
 		selectedWidget: deps.selectedWidget,
 		afterReactivity: () => tick()
 	});

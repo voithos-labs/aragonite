@@ -28,6 +28,7 @@
 		type ResolveLinkUrl
 	} from '../editor-keys';
 	import { createCaretMemory } from '../cursor/caret-memory';
+	import { docPathFrom } from '../cursor/coordinate-spaces';
 	import { createAutoPairRecord } from './blocks/text/auto-pair-record';
 	import { createRevealAnchorState } from '../cursor/reveal-anchor';
 	import { createHeightOracle } from '../cursor/height-oracle';
@@ -662,7 +663,7 @@
 		reading,
 		commitRange: inlineMenuCommit.commitInlineRange,
 		landCaret: landCaretAtOffset,
-		joinUndoEntries: (run) => controller.joinUndoEntries(run)
+		undoStep: (path, offset, run) => controller.undoStep({ path: docPathFrom(path), offset }, run)
 	});
 	const inlineMenus: InlineMenuRegistry = inlineMenu.registry;
 	$effect(() => () => inlineMenu.dispose());
@@ -999,7 +1000,6 @@
 	const editorCrossBlock = createCrossBlockHandlers({
 		getEl: () => editorEl ?? null,
 		getMyPath: () => selectionState.focus?.path ?? [],
-		getIndex: () => selectionState.focus?.path?.[0] ?? 0,
 		selection: selectionState,
 		getDoc,
 		getBlockElByPath,
@@ -1019,7 +1019,6 @@
 		getKeybindingOverrides: () => overridesMap,
 		activePlugins,
 		events,
-		getCursorOffset: () => selectionState.focus?.offset ?? null,
 		selectedWidget,
 		afterReactivity: () => tick()
 	});
@@ -1317,7 +1316,7 @@
 		getBlockComponent,
 		isReading: () => effectiveMode === 'reading',
 		insertParagraph: (boundary, text) => blockEdit.insertParagraph(boundary, text),
-		joinUndoEntries: (run) => controller.joinUndoEntries(run),
+		undoStep: (path, offset, run) => controller.undoStep({ path: docPathFrom(path), offset }, run),
 		contentVersion: contentVersion.read
 	});
 

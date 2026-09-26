@@ -5,6 +5,7 @@ import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import type { EditorSelection } from '$lib/selection/primitives';
+import { asDocPath } from '$lib/selection/path-math';
 import { makeEditorActionsDeps, stubBlockComponent } from '$lib/test/harness/editor-actions';
 
 // What an undo entry records while an image is selected whole, when the user's caret is the one
@@ -22,6 +23,15 @@ function harness(widgetCaret: EditorSelection | null) {
 	return { ...h, controller: createUndoController(h.deps) };
 }
 
+/** A commit that writes nothing new still records the entry, declaring `offset` in block [1]. */
+function commitAt(h: ReturnType<typeof harness>, offset: number): Promise<boolean> {
+	return h.controller.commitStructural({
+		snapshot: { path: asDocPath([1]), offset },
+		mutate: () => ({ op: 'noop' }),
+		touchedNodes: []
+	});
+}
+
 describe('an undo entry recorded while an image is selected', () => {
 	it('captureCurrentState stores the caret from before the selection, not the document start', () => {
 		const h = harness(BESIDE_IMAGE);
@@ -29,10 +39,10 @@ describe('an undo entry recorded while an image is selected', () => {
 		expect(h.controller.captureCurrentState().selection).toEqual(BESIDE_IMAGE);
 	});
 
-	it('a commit declaring its own coordinate stores the selected image caret instead', () => {
+	it('a commit declaring its own coordinate stores the selected image caret instead', async () => {
 		const h = harness(BESIDE_IMAGE);
 
-		h.controller.pushUndoSnapshotPath([1], 0);
+		await commitAt(h, 0);
 
 		expect(h.deps.undoManager.getStacks().undo.at(-1)!.selection).toEqual(BESIDE_IMAGE);
 	});
@@ -56,10 +66,10 @@ describe('an undo entry recorded while an image is selected', () => {
 		});
 	});
 
-	it('falls back to the declared coordinate when no image is selected', () => {
+	it('falls back to the declared coordinate when no image is selected', async () => {
 		const h = harness(null);
 
-		h.controller.pushUndoSnapshotPath([1], 2);
+		await commitAt(h, 2);
 
 		expect(h.deps.undoManager.getStacks().undo.at(-1)!.selection).toEqual({
 			anchor: { path: [1], offset: 2 },

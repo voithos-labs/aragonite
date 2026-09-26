@@ -51,6 +51,11 @@ function throwListRebuildAfter(okCalls: number): void {
 	});
 }
 
+/** An undo step left open, so each later commit joins the first one's entry. */
+function holdOneStep(controller: UndoController): void {
+	void controller.undoStep({ path: asDocPath([0]), offset: 0 }, () => new Promise(() => {}));
+}
+
 /** Outer list whose first item holds a nested list: two scopes, two chain depths. */
 function nestedListHarness(): {
 	deps: EditorActionsDeps;
@@ -79,6 +84,7 @@ describe('commit sequence: byte rollback across the chain rebuild', () => {
 
 		// Copy the whole ancestor chain at the current snapshot generation, so the second
 		// commit's copy before write does nothing and its rebuild writes in place.
+		holdOneStep(controller);
 		await controller.commitMultiScope({
 			scopes: scopes(),
 			snapshot: { path: asDocPath([0]), offset: 0 },
@@ -97,7 +103,7 @@ describe('commit sequence: byte rollback across the chain rebuild', () => {
 		await expect(
 			controller.commitMultiScope({
 				scopes: scopes(),
-				snapshot: 'skip',
+				snapshot: { path: asDocPath([0]), offset: 0 },
 				mutate: ([, innerScope]) => {
 					innerScope.children.push(makeListItem('  - z\n'));
 					return [{ op: 'noop' }, { op: 'insert', at: 2, count: 1 }];
@@ -113,6 +119,7 @@ describe('commit sequence: byte rollback across the chain rebuild', () => {
 	it('restores overlapping scopes whose chains include a node the mutation detached', async () => {
 		const { deps, controller, scopes } = nestedListHarness();
 		const parentItemState = makeBlockListState(() => deps.doc.children[0].children![0]);
+		holdOneStep(controller);
 
 		await controller.commitMultiScope({
 			scopes: scopes(),
@@ -141,7 +148,7 @@ describe('commit sequence: byte rollback across the chain rebuild', () => {
 						path: [0, 0]
 					}
 				],
-				snapshot: 'skip',
+				snapshot: { path: asDocPath([0]), offset: 0 },
 				mutate: ([outerScope, innerScope, parentItemScope]) => {
 					// Emptying then splicing out the nested list detaches the inner scope's own
 					// chain tail while two other scopes still hold it in theirs.

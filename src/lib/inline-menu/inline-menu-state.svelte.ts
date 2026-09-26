@@ -50,8 +50,9 @@ export interface InlineMenuStateDeps {
 	) => Promise<void>;
 	/** Land the caret at a raw offset, so the next keystroke addresses the document. */
 	landCaret: (path: number[], offset: number) => Promise<boolean>;
-	/** The undo stack's join, so a pick and the block its source inserts undo in one press. */
-	joinUndoEntries: (run: () => Promise<void>) => Promise<void>;
+	/** One undo entry for a pick and the block its source inserts; `path` and `offset` are where undo
+	 *  puts the caret back when nothing is focused. */
+	undoStep: (path: number[], offset: number, run: () => Promise<unknown>) => Promise<void>;
 }
 
 export interface InlineMenuState {
@@ -337,7 +338,7 @@ export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuStat
 		const live = session;
 		if (!live) return;
 		// One entry for the pick's own bytes and every block its source writes after them.
-		await deps.joinUndoEntries(() => writePick(live, item));
+		await deps.undoStep(live.path, live.start, () => writePick(live, item));
 	}
 
 	async function writePick(live: InlineMenuSession, item: InlineMenuItem): Promise<void> {

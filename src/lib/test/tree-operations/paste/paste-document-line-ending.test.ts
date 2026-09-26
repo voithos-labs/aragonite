@@ -25,8 +25,7 @@ async function paste(source: string, targetPath: number[], offset: number, clipb
 		pasteContext({
 			doc: deps.doc,
 			blockEdit: createBlockEditActions(deps, controller),
-			controller: createPasteCoordinator(controller, deps.revealPath),
-			undoEntry: 'own'
+			controller: createPasteCoordinator(controller, deps.revealPath)
 		})
 	);
 	return { source: serialize(deps.doc), caret: result.inlineCaretOffset };

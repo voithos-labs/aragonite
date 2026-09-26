@@ -74,8 +74,7 @@ async function pasteInto(
 		pasteContext({
 			doc: deps.doc,
 			blockEdit: createBlockEditActions(deps, controller),
-			controller: createPasteCoordinator(controller, deps.revealPath),
-			undoEntry: 'own'
+			controller: createPasteCoordinator(controller, deps.revealPath)
 		})
 	);
 	return deps.doc;
