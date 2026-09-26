@@ -4,7 +4,7 @@
  * outside it truncate in place, a covered title line is cleared rather than deleted (G1.14),
  * covered body children are deleted, and the container itself goes, as one splice with its
  * children intact, when the range covers its whole subtree or, while it is collapsed, has an
- * endpoint on its title row.
+ * endpoint on its title row and covers at least one character of that row or runs past it.
  */
 
 import type { Reading } from '../schema/reading';
@@ -59,7 +59,8 @@ export function involvesReservedChrome(
  * Deletes [start, end] under the wall rule. Both endpoints truncate in place (a title line by a
  * raw write, which keeps the kind through `contextDependentKind`; text by a reparse of the
  * surviving slice), and nothing merges across the wall. An endpoint on a collapsed container's
- * title row takes that container whole, since the range covers its hidden body. The collapsed
+ * title row takes that container whole, since the range covers its hidden body, unless the range
+ * ends at the row's first byte and so reaches nothing visible there. The collapsed
  * caret lands at the start, or where the start's container stood when it went.
  */
 export function chromeAwareRangeDelete(
@@ -88,7 +89,9 @@ export function chromeAwareRangeDelete(
 	// strictly between the endpoints.
 	const endWall = resolveEndWall(doc, start, end, null);
 	const wall =
-		endWall && collapsedTitleOwner(endC, end.path) ? { ...endWall, consumed: true } : endWall;
+		endWall && end.offset > 0 && collapsedTitleOwner(endC, end.path)
+			? { ...endWall, consumed: true }
+			: endWall;
 	const endConsumed = wall?.consumed ?? false;
 	const taken = startTaken ? [startTaken.path] : [];
 	const { plan, lcaPath } = planCrossBlockDeletion(doc, start, end, taken, wall, sharing);

@@ -72,14 +72,12 @@ describe('a range ending on a closed title row', () => {
 		expect(caret).toEqual({ path: [0], offset: 0 });
 	});
 
-	it('at the title start, covering no visible byte: the block still goes whole', () => {
-		const { source, caret } = run(
-			'Above\n\n' + CLOSED + '\nMid\n',
-			point([0], 5),
-			point([1, 0], 0)
-		);
-		expect(source).toBe('Above\n\nMid\n');
-		expect(caret).toEqual({ path: [0], offset: 5 });
+	// A delete never removes what the selection doesn't visibly reach.
+	it('at the title start, covering no visible character: nothing is deleted', () => {
+		const source = 'Above\n\n' + CLOSED + '\nMid\n';
+		const result = run(source, point([0], 5), point([1, 0], 0));
+		expect(result.source).toBe(source);
+		expect(result.caret).toEqual({ path: [0], offset: 5 });
 	});
 });
 
