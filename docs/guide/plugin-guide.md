@@ -130,11 +130,12 @@ export function parrotPlugin(): EditorPlugin {
 }
 ```
 
-The object you handed `registerBlockKind` is the kind's **descriptor**. Most of its fields read as they sound. Four don't:
+The object you handed `registerBlockKind` is the kind's **descriptor**. Most of its fields read as they sound. Five don't:
 
 - `gapEdges` is required so a caret can always reach the space beside your block. Answering `'none'` is a decision, not an omission ([Editable-content tiers](#editable-content-tiers) has the full story).
 - `closure` is required so every cross-cutting editor system (undo, search, selection, and the rest) gets a written answer from your kind. [The closure block](#the-closure-block) explains every cell.
 - `conformanceFixture` is optional. Supplying it enrolls your kind in the conformance kit, a bundled suite of checks every registered kind is run through ([plugin-testing.md](plugin-testing.md)).
+- `pageRole` is optional: how your block reads on the page. `'prose'` is for a block that reads as part of the text around it, the way a quote or a note does: it shows no drag handle, and a right-click in its text gets the clipboard rows. Left out, the block is an object a user picks up whole, with a handle and a menu of its own, which is what the parrot is.
 - `caretTargetAtPoint` is optional too: where a click inside your block puts the caret. Leave it out and a click on the folded view reveals the source at its first byte, which is a letdown when you clicked halfway into the caption.
 
 The parrot's answer is two steps. The caption and the source line are different strings, and `caretOffsetAtPoint` does the pixel half: hand it one of your own elements and the click, and it gives back the character offset nearest that point, clamped into the element's box, so a click on the bird above the caption still lands on a character. The arithmetic between the two strings is yours, and for the parrot it's the length of its own marker: an offset in the caption sits `'%%parrot '.length` further along the source.
@@ -1368,7 +1369,7 @@ Blocks are only half the story. An inline kind takes three calls, mirroring the 
 
 - **`declarePluginInlineKind(name)`** mints the inline kind and returns it, exactly as `declarePluginKind` does one level up; `declaredPluginInlineKind(name)` recovers it in a module that didn't mint it.
 - **`registerInlineSyntax(trigger, recognizer, options?)`** hooks the inline scanner on a single **trigger** character: at each occurrence of the trigger, your recognizer claims the syntax by returning a node, or declines with `null`. The options carry the prefix-rung and rewrite machinery this section works through.
-- **`registerInlineWidgetKind(kind, descriptor)`** says how the kind renders and edits: as a live **atomic widget**, one indivisible rendered thing the caret can sit beside but not inside, with the editing policy this section closes on.
+- **`registerInlineWidgetKind(kind, descriptor)`** says how the kind renders and edits: as a live **atomic widget**, one indivisible rendered thing the caret can sit beside but not inside, with the editing policy this section closes on. A widget's source is never prose, so a trigger character typed inside it (a `#` in a formula) opens no inline menu.
 
 The three together, for a `:shortcode:` kind on a trigger nothing else claims:
 
@@ -1636,7 +1637,7 @@ Chord strings follow the consumer guide's chord model: fixed-order `Mod` / `Alt`
 
 **`registerBlockContextActions(kind, name, provider)`**
 
-The right-click menu on a block of `kind` (a code block, a table, a plugin's own block) lists what its providers return, ahead of the editor's own rows (copy, replace with the clipboard, remove). Register from `setup`: the rows show only in the editors that list your plugin. The provider is consulted on every open, so it reads the block as it is then. Several may share one kind under different names, a taken name throws, and `EVERY_KIND` (`'*'`) registers for every kind. Prose is the page's background: a paragraph or heading keeps the browser's own menu and consults no provider.
+The right-click menu on a block of `kind` (a code block, a table, a plugin's own block) lists what its providers return, ahead of the editor's own rows (copy, replace with the clipboard, remove). Register from `setup`: the rows show only in the editors that list your plugin. The provider is consulted on every open, so it reads the block as it is then. Several may share one kind under different names, a taken name throws, and `EVERY_KIND` (`'*'`) registers for every kind. Prose is the page's background: a block that reads as text (its kind declares `pageRole: 'prose'`, as a paragraph or a heading does) gets the clipboard rows instead and consults no provider. The provider's third argument, `noun`, is what the menu calls the block ("code block", or "image" for a paragraph of pictures), for a label that reads like the editor's own rows.
 
 ```ts
 registerBlockContextActions(conspiracy, 'debunk', (node) => [
