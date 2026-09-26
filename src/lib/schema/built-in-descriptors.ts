@@ -19,8 +19,8 @@ import {
 	rebuildTableRaw,
 	rebuildTableRowRaw
 } from './container-rebuilders';
-import { normalizeCellRaw } from './table-cell-raw';
-import { normalizeFencedRaw } from './fenced-code-raw';
+import { tableCellWrite } from './table-cell-raw';
+import { fencedCodeWrite } from './fenced-code-raw';
 import { registerInlineConstructPolicy } from './inline-construct-policy';
 import { wrapAsCodeSpan } from '../core/inline/backticks';
 
@@ -276,7 +276,7 @@ export function registerBuiltInDescriptors(): void {
 		supportsInline: false,
 		// Enter inside the fence writes a code newline, so neither edge can grow a sibling.
 		gapEdges: 'both',
-		normalizeRawWrite: normalizeFencedRaw,
+		rawWrite: fencedCodeWrite,
 		keymap: [
 			{ chord: 'Enter', command: 'code.newline' },
 			{ chord: 'Tab', command: 'code.indent' },
@@ -439,7 +439,7 @@ export function registerBuiltInDescriptors(): void {
 		editable: true,
 		supportsInline: true,
 		contextDependentKind: true,
-		normalizeRawWrite: normalizeCellRaw,
+		rawWrite: tableCellWrite,
 		renderImagesAsWidgets: false,
 		keymap: TABLE_CELL_KEYMAP,
 		// No `conformanceFixture`: the table opener creates the cells, so one is never the

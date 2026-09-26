@@ -1,11 +1,10 @@
 /**
- * How a table cell takes in pasted text: the caret mapping that follows the backslashes the
- * write path inserts, plus the paste hooks it exposes. The bytes are the kind's business:
- * every hook hands back plain spliced text and `normalizeCellRaw` runs when it is written.
+ * How a table cell takes in pasted text. The bytes are the kind's business: every hook hands back
+ * plain spliced text, and the cell's write rule (`schema/table-cell-raw.ts`) runs when it is written.
  */
 
 import { CURSOR_END } from '../../../block-component';
-import { normalizeCellRaw } from '../../../schema/table-cell-raw';
+import { escapedCellOffset } from '../../../schema/table-cell-raw';
 import type { CstNode } from '../../../core/nodes';
 import { blockNodeAt } from '../../../tree-operations/node-primitives';
 import { cutRangeFromDisplay } from '../../../tree-operations/node-ops';
@@ -26,14 +25,6 @@ import type { Reading } from '../../../schema/reading';
 
 export function normalizeWhitespace(s: string): string {
 	return s.replace(/\n+/g, ' ').trim();
-}
-
-/**
- * Where `offset` lands once `normalizeCellRaw` has run, worked out by that same pass over
- * the prefix, so the caret cannot drift out of step with the bytes.
- */
-export function escapedCellOffset(text: string, offset: number): number {
-	return normalizeCellRaw(text.slice(0, offset)).length;
 }
 
 export function tableCellInlinePaste(

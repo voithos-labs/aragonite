@@ -79,7 +79,7 @@ describe('the bodyWrite escape reparse reads the instance grammar', () => {
 	];
 	const landedKinds = (grammar: GrammarView) =>
 		normalizeReplacementForBody(
-			declaredPluginKind(DETAILS),
+			{ kind: declaredPluginKind(DETAILS), leadingTrivia: '', raw: '' } as CstNode,
 			pasted(),
 			'\n',
 			grammar

@@ -43,7 +43,7 @@ export function computeFenceExit(input: FenceExitInput): FenceExitResult {
 			offset >= 1 &&
 			text[offset - 1] === '\n' &&
 			ending !== '' &&
-			matchFenceClose(lineAt(text, offset + ending.length), meta.fenceMarker, meta.fenceLength);
+			startsCloserLine(text, offset + ending.length, meta);
 		if (onEmptyLineBeforeCloser) {
 			return {
 				kind: 'exitWithEdit',
@@ -81,14 +81,18 @@ export function computeTypedFenceExit(input: TypedFenceExitInput): TypedFenceExi
 	if (run !== meta.fenceMarker.repeat(run.length) || run.length + 1 < meta.fenceLength) return none;
 
 	const below = offset + ending.length;
-	if (!matchFenceClose(lineAt(text, below), meta.fenceMarker, meta.fenceLength)) return none;
+	if (!startsCloserLine(text, below, meta)) return none;
 	// The run's line goes with the exit, as Enter's own exit takes the blank line.
 	return { kind: 'exitWithEdit', newText: text.slice(0, lineStart) + text.slice(below) };
 }
 
 // ── Internal ────────────────────────────────────────────────────────────────
 
-/** The line beginning at `start`, without its ending. */
-function lineAt(text: string, start: number): string {
-	return firstDisplayLine(text.slice(start)).text;
+/** Whether the line starting at `offset` closes the block's fence. */
+function startsCloserLine(text: string, offset: number, meta: FencedCodeMetadata): boolean {
+	return matchFenceClose(
+		firstDisplayLine(text.slice(offset)).text,
+		meta.fenceMarker,
+		meta.fenceLength
+	);
 }

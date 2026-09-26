@@ -9,7 +9,7 @@ import { makeSearchReplace, scanCompiled } from '$lib/test/harness/search-replac
 // block's fence instead of closing it, and a replacement that consumes the closer must get
 // it back (issue #55, same path). Miss-analysis (issue #45): the G4.24 lint checked the
 // component's write sites, and no test drove a byte write that reaches a fencedCode raw
-// without the component; the descriptor route (`normalizeRawWrite`) had no fence case at all.
+// without the component; the descriptor route (`rawWrite`) had no fence case at all.
 
 const scan = (doc: Document, query: string) => scanCompiled(doc, query, { caseSensitive: true });
 

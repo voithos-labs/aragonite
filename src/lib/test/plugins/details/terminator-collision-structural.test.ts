@@ -1,9 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse, serialize } from '$lib';
-import { declaredPluginKind } from '$lib/plugin';
 import { resetPluginPlatformForTests } from '$lib/testing';
 import { checkOpaqueStaleRaw } from '$lib/invariants/node-shape';
-import { registerDetailsKind, DETAILS } from '$lib/plugins/details/details-kind';
+import { registerDetailsKind } from '$lib/plugins/details/details-kind';
 import { splitNode } from '$lib/tree-operations/node-ops';
 import { rangeDelete } from '$lib/selection/range-delete';
 import { createSharingState } from '$lib/tree-operations/sharing';
@@ -21,7 +20,10 @@ beforeEach(() => {
 // escapes both: the anchored recognizer spares a tag line with text on either side, and the
 // split is what leaves it alone on its line.
 describe('details terminator escape at the split entry point', () => {
-	const detailsOwner = () => ({ ownerKind: declaredPluginKind(DETAILS), owner: undefined });
+	const detailsOwner = () => {
+		const owner = parse('<details>\n<summary>S</summary>\n\nbody\n\n</details>\n').children[0];
+		return { ownerKind: owner.kind, owner };
+	};
 
 	it('escapes the second half when the cut strands a trailing tag', () => {
 		const parent = {

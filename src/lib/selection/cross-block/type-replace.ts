@@ -101,13 +101,15 @@ export async function handleCrossBlockTypeReplace(
 				// Degraded, but still a body write: this branch splices raw with no reparse, so the
 				// container's write rule and the leaf's own are all that stand between a typed `>`
 				// or backtick and a terminator line.
+				const lineEnding = documentLineEnding(doc);
 				writeOwnRaw(
 					owned,
 					normalizeBodyWrite(
-						chain[chain.length - 2]?.kind,
-						owned.raw.slice(0, charOffset) + typed + owned.raw.slice(charOffset)
+						chain[chain.length - 2],
+						owned.raw.slice(0, charOffset) + typed + owned.raw.slice(charOffset),
+						lineEnding
 					),
-					documentLineEnding(doc),
+					lineEnding,
 					ctx.reading.grammar
 				);
 				rebuildUnsharedChain(doc, chain, sharing, null, ctx.reading.grammar);

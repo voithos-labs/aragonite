@@ -129,7 +129,8 @@ export function applyCrossBlockFormat(
 		if (!owned) continue;
 		// A line ending reaching a cell's raw would be turned into a space by the cell's write rule.
 		const raw = write.newDisplay + ownTrailingLineEnding(owned.raw);
-		writeOwnRaw(owned, normalizeBodyWrite(chain[chain.length - 2]?.kind, raw), lineEnding, grammar);
+		const body = normalizeBodyWrite(chain[chain.length - 2], raw, lineEnding);
+		writeOwnRaw(owned, body, lineEnding, grammar);
 		chains.push(chain);
 	}
 	// Every write lands before any rebuild, and a chain rebuild re-emits its whole ancestry from

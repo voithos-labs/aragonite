@@ -50,7 +50,13 @@ describe('a truncating write of a mermaid block gets its closing fence back', ()
 			'a paste over the closer',
 			'```mermaid\ngraph TD\n```\n',
 			'```mermaid\nA\nB',
-			'```mermaid\nA\nB\n```'
+			'```mermaid\nA\nB\n```\n'
+		],
+		[
+			'a body line that reads as the closer',
+			'```mermaid\ngraph TD\n```\n',
+			'```mermaid\n```\nA\n```\n',
+			'````mermaid\n```\nA\n````\n'
 		],
 		[
 			'a longer written opener run',
@@ -85,12 +91,20 @@ describe('a truncating write of a mermaid block gets its closing fence back', ()
 		]);
 	});
 
-	it.each([
-		['a fence that still holds its closer', '```mermaid\nA\n```\n'],
-		['a first line that no longer opens the block', 'graph TD\n```\n'],
-		['a fence whose info string is no longer mermaid', '```js\nA\n']
-	])('leaves %s alone', (_case, written) => {
-		expect(write('```mermaid\ngraph TD\n```\n', written)).toBe(written);
+	it('leaves a fence that still holds its closer alone', () => {
+		expect(write('```mermaid\ngraph TD\n```\n', '```mermaid\nA\n```\n')).toBe(
+			'```mermaid\nA\n```\n'
+		);
+	});
+
+	// Miss-analysis (#566): the plugin's own copy of the rule restored a closer and nothing else,
+	// and no test wrote the two shapes the built-in code block already repairs.
+	it('drops the closer a write stranded by taking the opener line', () => {
+		expect(write('```mermaid\ngraph TD\n```\n', 'graph TD\n```\n')).toBe('graph TD\n');
+	});
+
+	it('keeps a fence whose info string is no longer mermaid closed', () => {
+		expect(write('```mermaid\ngraph TD\n```\n', '```js\nA\n')).toBe('```js\nA\n```\n');
 	});
 
 	// Applied twice by two write paths in one operation, the second pass must add nothing.

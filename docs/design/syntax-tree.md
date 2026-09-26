@@ -195,6 +195,8 @@ parse('```\nx\n').children[0];
 //   metadata: { fenceMarker: '`', fenceLength: 3, info: '', closed: false } }
 ````
 
+The fence grammar has one home, `core/parsers/fence-syntax.ts`, and everything that reads a fence goes through it: the parser's closer search (`findFenceCloser`, via `core/parsers/fenced-code.ts :: scanFence`), the code block's renderer and caret rules, and the plugin kinds that hold their own fence (math, mermaid) all read a block's opener, body and closer with `fenceAnatomy`. The fence write rule (`schema/fenced-code-raw.ts`) keeps that anatomy legal through the code block's own typing and every write from outside a block: one opener line, one closer line. Typing in a plugin's fence doesn't reach the rule yet (#593).
+
 ### Blank lines
 
 The most-cited corner of the doc, so take it slow. The rule: one blank line between two blocks is the separator, and it folds into the next block's `leadingTrivia`. **Every further blank line in the run is an empty paragraph block of its own**, holding that line's exact bytes, whitespace-only lines included.

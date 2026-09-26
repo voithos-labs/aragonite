@@ -1,12 +1,14 @@
 /**
- * Pure decisions that keep an edit off the fence lines of a fenced code block: rewriting either
- * fence leaves an unclosed one that absorbs the rest of the document at the next parse. Editable
- * content is the body plus the opener's info string. Display-text coordinates throughout.
+ * Pure decisions that keep a caret and an edit off a fenced code block's fence lines where the
+ * mode hides them; there, editable content is the body plus the opener's info string. Where the
+ * mode paints them, edits land and the fence write rule keeps one opener and one closer.
+ * Display-text coordinates throughout.
  */
 
 import type { NodeView } from '../../../core/node-views';
 import { metadataOf } from '../../../core/nodes';
 import { displayLength, trimTrailingLineEnding } from '../../../core/lines';
+import { fenceAnatomy } from '../../../core/parsers/fence-syntax';
 import { sliceFencedCode, type FencedCodeSlice } from './code-renderer';
 import type { RawRange } from '../editable-surface';
 
@@ -70,9 +72,8 @@ export function clampRangeToBody(node: NodeView, range: RawRange): RawRange {
 
 /**
  * Does a pending edit reach out of the editable content, which is the body plus the opener's info
- * string? Every other offset on the fence lines is one keystroke from swallowing the blocks below
- * into the code node. An unclosed fence is the exception: with no closer to strand, its run is
- * content too, so demoting the block is how a just-typed ` ``` ` is undone.
+ * string (the language picker writes it)? An unclosed fence is the exception: with no closer to
+ * strand, its run is content too, so demoting the block is how a just-typed ` ``` ` is undone.
  */
 export function crossesFenceBoundary(node: NodeView, range: RawRange): boolean {
 	const { openerContent, body } = fenceRegions(node);
@@ -92,9 +93,8 @@ export function fenceEditSpan(node: NodeView, range: RawRange): RawRange {
 }
 
 /**
- * Where a caret may land: every way of placing one in this block goes through here. A caret
- * left on a fence line takes keystrokes the fence check refuses, so the landing looks like it
- * worked and the next character disappears.
+ * Where a caret arriving from outside the block lands, in every mode: on the body. On a hidden
+ * fence line it would take keystrokes the fence check refuses, so the next character disappears.
  */
 export function clampCaretToBody(node: NodeView, offset: number): number {
 	const caret = { start: offset, end: offset };
@@ -115,8 +115,8 @@ export function isStructureOnlyRange(node: NodeView, range: RawRange): boolean {
 }
 
 /**
- * The one splice over a range in place: the browser's delete and type-over, through the
- * beforeinput check, and cut. Null when there is nothing to rewrite, so no undo entry is used.
+ * The one splice over a range in place where the fence lines are hidden: the browser's delete
+ * and type-over, through the beforeinput check, and cut. Null when there is nothing to rewrite.
  */
 export function computeFenceRangedEdit(
 	node: NodeView,
@@ -124,8 +124,16 @@ export function computeFenceRangedEdit(
 	insert: string
 ): FenceRangedEdit | null {
 	if (isStructureOnlyRange(node, range)) return null;
-	const display = trimTrailingLineEnding(node.raw);
-	const span = fenceEditSpan(node, range);
+	return computeRangedEdit(trimTrailingLineEnding(node.raw), fenceEditSpan(node, range), insert);
+}
+
+/** `insert` spliced over `range` of `display`; null when it changes nothing, so no undo entry is used. */
+export function computeRangedEdit(
+	display: string,
+	range: RawRange,
+	insert: string
+): FenceRangedEdit | null {
+	const span = orderedRange(range);
 	const newText = display.slice(0, span.start) + insert + display.slice(span.end);
 	if (newText === display) return null;
 	return { newText, newCursor: span.start + insert.length };
@@ -161,13 +169,14 @@ function fenceRegions(node: NodeView): FenceRegions {
 	const displayEnd = displayLength(node.raw);
 	const body = bodyWindowOf(slice, displayEnd);
 	const openerTextEnd = Math.min(displayLength(slice.openerLine), displayEnd);
+	// The run is measured, so an opener a paste grew to four markers measures as four; a line past
+	// the three-space indent limit opens no fence and has no info string at all.
+	const marker = metadataOf(node, 'fencedCode').fenceMarker;
+	const opener = fenceAnatomy(slice.openerLine, { marker, length: 3 });
 	const hasCloser = slice.closerLine.length > 0;
-	const contentStart = hasCloser
-		? Math.min(
-				markerRunEnd(slice.openerLine, metadataOf(node, 'fencedCode').fenceMarker),
-				openerTextEnd
-			)
-		: 0;
+	let contentStart = 0;
+	if (!opener) contentStart = openerTextEnd;
+	else if (hasCloser) contentStart = Math.min(opener.runEnd, openerTextEnd);
 	return {
 		openerTextEnd,
 		openerContent: { start: contentStart, end: openerTextEnd },
@@ -178,21 +187,7 @@ function fenceRegions(node: NodeView): FenceRegions {
 	};
 }
 
-/**
- * Past the opener's indentation and marker run, which is where the info string starts. The run's
- * length is measured rather than read from `fenceLength`, so an opener a paste grew to four
- * markers measures as four. Past GFM's three-space indent limit there is no info string at all.
- */
-function markerRunEnd(openerLine: string, marker: string): number {
-	const MAX_INDENT = 3;
-	let index = 0;
-	while (index < MAX_INDENT && openerLine[index] === ' ') index++;
-	if (openerLine[index] !== marker) return openerLine.length;
-	while (openerLine[index] === marker) index++;
-	return index;
-}
-
-function orderedRange(range: RawRange): RawRange {
+export function orderedRange(range: RawRange): RawRange {
 	return {
 		start: Math.min(range.start, range.end),
 		end: Math.max(range.start, range.end)

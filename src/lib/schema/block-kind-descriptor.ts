@@ -84,10 +84,26 @@ export interface CaretTarget {
 	offset: number;
 }
 
-/** What a raw-write rule reads besides the bytes. */
-export interface RawWriteContext {
+/** What a write rule reads besides the bytes. */
+export interface WriteContext {
+	/** The block whose bytes are written: the kind's own node, or for a body write its container. */
+	node: NodeView;
+	/**
+	 * `authored` when the user is typing the block's own syntax, `literal` for content that
+	 * arrives whole (a paste, a replace, a range delete), which never counts as syntax typed.
+	 */
+	mode: 'authored' | 'literal';
 	/** The document's line ending, which a line the rule writes takes when the block has none. */
 	lineEnding: LineEnding;
+}
+
+/**
+ * How a kind makes written bytes legal: `normalize` repairs them, and `mapOffset` says where an
+ * offset into the written bytes lands in the repaired ones. `normalize` must be idempotent.
+ */
+export interface WriteRule {
+	normalize(raw: string, ctx: WriteContext): string;
+	mapOffset(raw: string, offset: number, ctx: WriteContext): number;
 }
 
 export interface BlockKindDescriptor {
@@ -146,21 +162,15 @@ export interface BlockKindDescriptor {
 	/**
 	 * Make `raw` legal as this kind's own bytes: escape what the grammar would restructure, and
 	 * repair the block's own syntax around a write that broke it (`schema/fenced-code-raw.ts` is
-	 * the worked example). Reads `node` for the block's own shape, must be idempotent, and must
-	 * give callers a caret mapping when a prefix of the input does not map to a prefix of the
-	 * output. Every write built outside the block's own editable text applies it.
+	 * the worked example). `ctx.node` is the block as it stood before the write.
 	 */
-	normalizeRawWrite?: (raw: string, node: NodeView, write: RawWriteContext) => string;
+	rawWrite?: WriteRule;
 	/**
 	 * Make text legal as a child's raw inside this container's body (container kinds only), for a
 	 * container whose fixed closing line (`</details>`) a body write could reproduce. Applied before
-	 * the reparse that derives the kind. `normalize` is idempotent and works line by line;
-	 * `mapOffset` is its exact caret mapping.
+	 * the reparse that derives the kind; `ctx.node` is the container.
 	 */
-	bodyWrite?: {
-		normalize: (raw: string) => string;
-		mapOffset: (raw: string, offset: number) => number;
-	};
+	bodyWrite?: WriteRule;
 	/**
 	 * Child 0 is a reserved leaf of the given kind: a title row whose bytes live in the container's
 	 * own raw. Enforced: always present, single-line, cleared rather than deleted by range edits,
@@ -266,7 +276,7 @@ export const DESCRIPTOR_FIELDS = [
 	'containerContract',
 	'bodyWrap',
 	'contextDependentKind',
-	'normalizeRawWrite',
+	'rawWrite',
 	'bodyWrite',
 	'reservedChrome',
 	'containerPaste',

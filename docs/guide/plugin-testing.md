@@ -211,7 +211,7 @@ Takes your kind (the value `declaredPluginKind` returns) and executes the headle
 - A `clipboard: inherit-default` cell proves a copy is a plain byte slice, with your kind at each end of the copied range in turn.
 - An `undo: inherit-default` cell proves one structural operation pushes exactly one undo entry.
 - A `searchPaint: not-supported` cell proves the document scan genuinely finds nothing in your kind.
-- The raw-write cell cuts the fixture's closing line and checks the block after it stays its own. A kind with no `normalizeRawWrite` fails here if the cut swallows that block (an unclosed fence reads everything below as its body), and the failure asks you to declare the rule. A kind that declares it has the rule driven through three truncating writes: the closing line cut, everything past the first line cut, and an empty write. Each result has to come back unchanged from a second pass of the rule and leave the block after it alone, and when the fixture has three or more lines the first write also has to keep your kind. This cell reads your descriptor rather than your closure block, so it reports on its own as `report.rawWrite`: `boundary` for a kind with the rule whose fixture sits inside a container, `exempt` for a kind with neither the rule nor a top-level fixture.
+- The raw-write cell cuts the fixture's closing line and checks the block after it stays its own. A kind with no `rawWrite` fails here if the cut swallows that block (an unclosed fence reads everything below as its body), and the failure asks you to declare the rule. A kind that declares it has the rule driven through five writes: the closing line cut, everything past the first line cut, an empty write, the first line cut (the opener gone, the closer left behind), and the closing line copied into the body. Each result has to come back unchanged from a second pass of the rule and leave the block after it alone, and when the fixture has three or more lines the first write also has to keep your kind. Your `mapOffset` is checked against `normalize` at every offset of each write: an offset before every byte the rule changed stays put, one after them moves by what the rule added or dropped, and none goes backwards. This cell reads your descriptor rather than your closure block, so it reports on its own as `report.rawWrite`: `boundary` for a kind with the rule whose fixture sits inside a container, `exempt` for a kind with neither the rule nor a top-level fixture.
 
 Cells whose mechanism only exists in a browser (focus, selection and search painting, reorder, and the note-taking simulation the platform runs over the kinds it enrolls) are recorded `boundary`; the kit won't fake them green. Covering those is a browser test's job (the editor's own e2e sweep does it for every registered kind that declares a `conformanceFixture`). For the parrot, the whole checkup is the test the [guide's quickstart](plugin-guide.md#the-first-fifteen-minutes) ends on:
 
@@ -363,8 +363,8 @@ container: {
 	contract: 'opaque',
 	rebuildRaw: rebuildMyRaw,
 	bodyWrite: {
-		normalize: (raw) => /* raw, made legal as a child of this container */,
-		mapOffset: (raw, offset) => /* where a caret at `offset` ends up after that */
+		normalize: (raw, ctx) => /* raw, made legal as a child of this container */,
+		mapOffset: (raw, offset, ctx) => /* where a caret at `offset` ends up after that */
 	}
 }
 ```
@@ -374,13 +374,13 @@ container: {
 - **Idempotent**: re-committing already-legal bytes changes nothing.
 - **Line-local**: it may read the whole raw to decide which lines to rewrite, but it never moves bytes across a line boundary.
 
-`mapOffset` is the rewrite's caret image: where a caret sitting at some offset in the typed bytes ends up in the committed ones. The pair ships as one object because a rewrite without its caret image strands the caret. The bundled `details` container's pair, over a body line that would close it early:
+`mapOffset` is the rewrite's caret image: where a caret sitting at some offset in the typed bytes ends up in the committed ones. The pair ships as one object, the `WriteRule` shape a kind's own `rawWrite` shares, because a rewrite without its caret image strands the caret. `ctx.node` is the container, and a body write is always `literal`. The bundled `details` container's pair, over a body line that would close it early:
 
 ```ts
 const typed = 'exhibit A\n</details>\nexhibit B\n';
-normalize(typed); // 'exhibit A\n&lt;/details>\nexhibit B\n'
-mapOffset(typed, 5); // 5, nothing changed before it
-mapOffset(typed, 21); // 24, the escape ahead of it grew the text by three
+normalize(typed, ctx); // 'exhibit A\n&lt;/details>\nexhibit B\n'
+mapOffset(typed, 5, ctx); // 5, nothing changed before it
+mapOffset(typed, 21, ctx); // 24, the escape ahead of it grew the text by three
 ```
 
 Two rules of thumb from that container. Ask the **grammar**, not your own spelling: what breaks `details` is everything the Markdown spec hands to raw-HTML passthrough, indented, upper-cased and trailing-space spellings included, which is looser than the canonical form your `rebuildRaw` emits, and `htmlBlockTagLineMatcher` from `@voithos-labs/aragonite/plugin` answers that question for a tag name. And rewrite the **minimum**: `details` escapes one `<` to `&lt;`, which renders as the literal tag both in the editor and on GitHub while matching no tag line, so the author still sees what they typed.

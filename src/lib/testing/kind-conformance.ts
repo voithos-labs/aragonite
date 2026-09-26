@@ -7,13 +7,11 @@
  */
 
 import type { AnyBlockKind, CstNode, Document } from '../core/nodes';
-import type { NodeView } from '../core/node-views';
 import {
 	displayLength,
 	documentLineEnding,
 	ownTrailingLineEnding,
-	trimTrailingLineEnding,
-	type LineEnding
+	trimTrailingLineEnding
 } from '../core/lines';
 import { parse } from '../core/parser';
 import { serialize } from '../core/serializer';
@@ -21,7 +19,8 @@ import type { ClosureCell, ClosureColumn } from '../schema/closure';
 import {
 	getBlockKindDescriptor,
 	type BlockKindDescriptor,
-	type MergeRole
+	type MergeRole,
+	type WriteRule
 } from '../schema/block-kind-descriptor';
 import { isMergeEligible } from '../schema/merge-rules';
 import { isWholeBlockUnit } from '../schema/whole-block-unit';
@@ -45,7 +44,6 @@ import {
 } from './conformance-core';
 import { createHeadlessActions } from './headless-actions';
 import { assertParseConverged } from './parse-convergence';
-import { normalizeOwnRaw } from '../tree-operations/node-primitives';
 
 // ── Report + profile ─────────────────────────────────────────────────────────
 
@@ -63,7 +61,7 @@ export interface KindConformanceReport {
 	kind: AnyBlockKind;
 	cells: KindCellReport[];
 	/** The leaf raw-write cell, run for every kind with a top-level fixture: a kind with no
-	 *  `normalizeRawWrite` must survive its closing line cut, a declarer its three writes. */
+	 *  `rawWrite` must survive its closing line cut, a declarer its five writes. */
 	rawWrite: { status: KindCellStatus; detail: string };
 }
 
@@ -395,30 +393,29 @@ function execRawWrite(
 	ctx: KindCellContext | null
 ): CellResult {
 	const hasTopLevelFixture = ctx !== null && ctx.nodePath.length === 1;
-	if (!descriptor.normalizeRawWrite) {
+	if (!descriptor.rawWrite) {
 		if (!hasTopLevelFixture) {
 			return {
 				status: 'exempt',
-				detail: 'declares no normalizeRawWrite and has no top-level conformanceFixture to cut'
+				detail: 'declares no rawWrite and has no top-level conformanceFixture to cut'
 			};
 		}
 		checkClosingCutNeedsNoRule(kind, ctx.fixture);
 		return {
 			status: 'executed',
-			detail:
-				'declares no normalizeRawWrite, and the closing line cut leaves the next block its own'
+			detail: 'declares no rawWrite, and the closing line cut leaves the next block its own'
 		};
 	}
 	if (!hasTopLevelFixture) {
 		return {
 			status: 'boundary',
-			detail: 'declares normalizeRawWrite but has no top-level conformanceFixture to write over'
+			detail: 'declares rawWrite but has no top-level conformanceFixture to write over'
 		};
 	}
 	checkLeafRawWrite(kind, ctx.fixture);
 	return {
 		status: 'executed',
-		detail: 'three truncating writes, each idempotent and leaving the next block its own'
+		detail: 'five writes, each idempotent, leaving the next block its own, caret map agreeing'
 	};
 }
 
@@ -551,7 +548,7 @@ function fixtureLines(fixture: string) {
 }
 
 /**
- * For a kind with no `normalizeRawWrite`: the fixture with its closing line cut must not absorb
+ * For a kind with no `rawWrite`: the fixture with its closing line cut must not absorb
  * the block after it, or a range delete over the closer turns the document below into its body.
  */
 function checkClosingCutNeedsNoRule(kind: AnyBlockKind, fixture: string): void {
@@ -559,36 +556,49 @@ function checkClosingCutNeedsNoRule(kind: AnyBlockKind, fixture: string): void {
 	const following = parse(closingCut + ending + RAW_WRITE_SENTINEL).children.at(-1);
 	if (following?.raw === RAW_WRITE_SENTINEL) return;
 	fail(
-		`"${kind}" declares no normalizeRawWrite, and the closing line cut (${show(closingCut)}) ` +
-			`swallows the next block (${show(RAW_WRITE_SENTINEL)}): declare normalizeRawWrite to ` +
+		`"${kind}" declares no rawWrite, and the closing line cut (${show(closingCut)}) ` +
+			`swallows the next block (${show(RAW_WRITE_SENTINEL)}): declare rawWrite to ` +
 			`put the closer back`
 	);
 }
 
 /**
- * Drives three truncating writes over `kind`'s fixture through its `normalizeRawWrite` rule: the
- * closing line cut, everything past the first line cut, and an empty write. Each result must be
- * a fixed point of the rule and must not absorb the block after it; a write that leaves the
- * block's first line and body keeps the kind, written in place with the document converged.
+ * Drives five writes over `kind`'s fixture through its `rawWrite` rule: the closing line cut,
+ * everything past the first line cut, an empty write, the first line cut, and the closing line
+ * copied into the body. Each result must be a fixed point of the rule, leave the next block its
+ * own, and come with a caret map that agrees with it; a closing line cut that leaves the first
+ * line and a body keeps the kind, written in place with the document converged.
  */
 export function checkLeafRawWrite(
 	kind: AnyBlockKind,
 	fixture: string,
-	normalize: (node: NodeView, raw: string, lineEnding: LineEnding) => string = normalizeOwnRaw
+	rule: WriteRule | undefined = getBlockKindDescriptor(kind).rawWrite
 ): void {
+	if (!rule) fail(`"${kind}" declares no rawWrite to drive`);
 	const { ending, lines, closingCut } = fixtureLines(fixture);
 	const writes: Array<[label: string, raw: string, keepsKind: boolean]> = [
 		['the closing line cut', closingCut, lines.length > 2],
 		['everything past the first line cut', lines[0] + ending, false],
 		['an empty write', '', false]
 	];
+	if (lines.length > 1) {
+		const closer = lines[lines.length - 1];
+		const closerInBody = [lines[0], closer, ...lines.slice(1)];
+		writes.push(
+			['the first line cut', lines.slice(1).join(ending) + ending, false],
+			['the closing line copied into the body', closerInBody.join(ending) + ending, false]
+		);
+	}
 	for (const [label, written, keepsKind] of writes) {
 		const doc = parse(fixture + ending + RAW_WRITE_SENTINEL);
 		const node = doc.children[0];
 		assertIs(node?.kind, kind, `"${kind}" fixture opens with the kind`);
-		const lineEnding = documentLineEnding(doc);
-		const legal = normalize(node, written, lineEnding);
-		assertIs(normalize(node, legal, lineEnding), legal, `"${kind}" rule is idempotent on ${label}`);
+		const ctx = { node, mode: 'literal', lineEnding: documentLineEnding(doc) } as const;
+		const legal = rule.normalize(written, ctx);
+		assertIs(rule.normalize(legal, ctx), legal, `"${kind}" rule is idempotent on ${label}`);
+		checkCaretMap(`"${kind}" caret map on ${label}`, written, legal, (offset) =>
+			rule.mapOffset(written, offset, ctx)
+		);
 
 		const following = parse(legal + ending + RAW_WRITE_SENTINEL).children.at(-1);
 		assertIs(
@@ -603,5 +613,42 @@ export function checkLeafRawWrite(
 		node.raw = legal;
 		node.metadata = reparsed[0].metadata;
 		assertParseConverged(doc, `"${kind}" written in place after ${label}`);
+	}
+}
+
+/**
+ * A caret map agrees with its rule when it keeps every offset in order and inside the output, and
+ * moves an offset only as far as the bytes the rule changed before it: one before every change
+ * stays, one after every change moves by the length the rule added or dropped. An offset at a
+ * changed span's edge may land on either side of it.
+ */
+function checkCaretMap(
+	label: string,
+	written: string,
+	legal: string,
+	mapOffset: (offset: number) => number
+): void {
+	const shorter = Math.min(written.length, legal.length);
+	let prefix = 0;
+	while (prefix < shorter && written[prefix] === legal[prefix]) prefix++;
+	let suffix = 0;
+	while (
+		suffix < shorter - prefix &&
+		written[written.length - 1 - suffix] === legal[legal.length - 1 - suffix]
+	) {
+		suffix++;
+	}
+	const grown = legal.length - written.length;
+	let previous = 0;
+	for (let offset = 0; offset <= written.length; offset++) {
+		const mapped = mapOffset(offset);
+		const at = `${label} at ${offset} (${show(written)} to ${show(legal)})`;
+		assert(mapped >= previous && mapped <= legal.length, `${at}: ${mapped} is out of order`);
+		previous = mapped;
+		if (written === legal || offset < prefix) {
+			assertIs(mapped, offset, `${at} stays, since the rule changed nothing before it`);
+		} else if (offset > written.length - suffix) {
+			assertIs(mapped, offset + grown, `${at} moves by what the rule changed before it`);
+		}
 	}
 }

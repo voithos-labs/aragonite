@@ -38,7 +38,12 @@ export function createNestedBlockEdit(
 	 */
 	function mapCommittedOffset(innerIndex: number, text: string, offset: number): number {
 		const bodyWrite = tryGetBlockKindDescriptor(deps.node.kind)?.bodyWrite;
-		const mapped = bodyWrite ? bodyWrite.mapOffset(text, offset) : offset;
+		const ctx = {
+			node: deps.node,
+			mode: 'literal',
+			lineEnding: deps.parent.containerEdit.lineEnding()
+		} as const;
+		const mapped = bodyWrite ? bodyWrite.mapOffset(text, offset, ctx) : offset;
 		if (innerIndex !== 0) return mapped;
 		return Math.max(mapped + taskMarkerCaretShift(deps.node, text), 0);
 	}
@@ -161,7 +166,7 @@ export function createNestedBlockEdit(
 			deps.node.children[innerIndex],
 			text,
 			deps.reading.grammar,
-			deps.node.kind,
+			deps.node,
 			'',
 			parent.containerEdit.lineEnding(),
 			followsTaskMarker(deps.node, innerIndex) ? deps.node : undefined

@@ -21,7 +21,10 @@ afterEach(() => resetPluginPlatformForTests());
 function probeKind(name: string, rule: (raw: string, node: { raw: string }) => string): string {
 	const kind = testLeaf(name, {
 		supportsInline: true,
-		normalizeRawWrite: rule
+		rawWrite: {
+			normalize: (raw, ctx) => rule(raw, ctx.node),
+			mapOffset: (_raw, offset) => offset
+		}
 	});
 	return kind;
 }
