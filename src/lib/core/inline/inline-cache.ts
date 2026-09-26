@@ -51,10 +51,13 @@ export function getInlineContent(
 	return content;
 }
 
+/** The parts of an editor's reading its inline parse needs. */
+export type InlineReading = Pick<Reading, 'grammar' | 'resolver' | 'resolverSignature'>;
+
 /**
  * The one spelling of `getInlineContent` over the editor's reading, so a non-render call site
  * cannot drop the signature or the grammar and desync from what render drew.
  */
-export function resolvedInlineContent(node: NodeView, reading: Reading): InlineNode[] {
+export function resolvedInlineContent(node: NodeView, reading: InlineReading): InlineNode[] {
 	return getInlineContent(node, reading.resolver, reading.resolverSignature, reading.grammar);
 }

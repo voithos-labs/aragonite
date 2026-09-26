@@ -7,6 +7,7 @@ import { declaredPluginKind } from '$lib/plugin';
 import { parse } from '$lib/core/parser';
 import { blockAccessibleName } from '$lib/a11y-strings';
 import { blockNoun } from '$lib/components/menu/default-context-actions';
+import { fixtureReading } from '$lib/test/harness/fixture-grammar';
 import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
 import { resetPluginPlatformForTests } from '$lib/testing';
 import { registerAdmonitions } from '$lib/plugins/admonitions/admonition-kind';
@@ -42,6 +43,6 @@ describe('bundled title-row labels', () => {
 		const row = parse(fixture).children[0].children![0];
 		expect(row.kind).toBe(declaredPluginKind(leaf));
 		expect(blockAccessibleName(row)).toBe(label);
-		expect(blockNoun(row)).toBe(label.toLowerCase());
+		expect(blockNoun(row, fixtureReading())).toBe(label.toLowerCase());
 	});
 });

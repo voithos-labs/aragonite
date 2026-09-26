@@ -20,7 +20,7 @@
 </script>
 
 <div class="blockquote-block" bind:this={boxEl}>
-	<BlockList {...blockListProps} reorderable={true} />
+	<BlockList {...blockListProps} />
 </div>
 
 <style>

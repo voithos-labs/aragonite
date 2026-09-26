@@ -151,14 +151,10 @@ export async function rangeInterrupt(
  * listed per note, so a fixture that gains an image gains the image gesture with it.
  */
 export async function availableRangeInterrupts(ctx: SimContext): Promise<RangeInterruptGesture[]> {
-	const [shape, imageOnlyBlock] = await Promise.all([
+	const [lastIsProse, imageOnlyBlock] = await Promise.all([
 		ctx.page.evaluate(() => {
-			const children = (window as any).__test.getDocument().children as {
-				kind: string;
-				raw: string;
-			}[];
-			const last = children[children.length - 1];
-			return { lastKind: last?.kind ?? '', lastRaw: last?.raw ?? '' };
+			const probe = (window as any).__test;
+			return probe.isProseLeafAt(probe.getBlockCount() - 1) as boolean;
 		}),
 		ctx.page.evaluate(findImageOnlyBlock)
 	]);
@@ -167,9 +163,8 @@ export async function availableRangeInterrupts(ctx: SimContext): Promise<RangeIn
 	const available: RangeInterruptGesture[] = ['dead-space-margin', 'escape'];
 	if (hasHandle) available.push('drag-handle-press');
 	// A click below the document resolves to the last block, so a caret lands only if that block
-	// has a character position: a thematic break has none, nor does a paragraph holding only an
-	// image.
-	if (PROSE_KINDS.has(shape.lastKind) && !shape.lastRaw.trimStart().startsWith('![')) {
+	// has a character position: prose does, a thematic break or a paragraph of pictures does not.
+	if (lastIsProse) {
 		available.push('dead-space-below');
 	}
 	// The prediction replaces the whole block, which is what the editor does only when the image
@@ -185,7 +180,6 @@ function findImageOnlyBlock(): number {
 	return children.findIndex((c) => /^!\[[^\]]*\]\([^)]*\)$/.test(c.raw.trim()));
 }
 
-const PROSE_KINDS = new Set(['paragraph', 'heading', 'setextHeading']);
 const RANGE_LEAF_KINDS = new Set(['paragraph', 'heading']);
 
 // ── Range builds ────────────────────────────────────────────────────────────

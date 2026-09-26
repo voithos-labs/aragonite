@@ -47,6 +47,8 @@ import { TABLE_CELL_SELECTOR } from '$lib/components/block-content-selector';
 import { domDescendants } from '$lib/cursor/dom-walk';
 import { isHiddenMarkerText } from '$lib/cursor/widget-offset';
 import { childIdDrifts } from '$lib/invariants/child-id-parity';
+import { isProseLeaf } from '$lib/schema/page-role';
+import { buildLinkReferenceMap } from '$lib/core/inline/link-reference-resolver';
 import ThrowOnRenderBlock from './ThrowOnRenderBlock.svelte';
 
 type EditorInstance = ReturnType<typeof Editor>;
@@ -412,6 +414,19 @@ export function installTestProbes({
 			container.children = [...(container.children ?? [])];
 		},
 		getBlockKind: (index: number) => editor.__test.getDocument().children[index]?.kind ?? '',
+		// Whether a top-level block is prose the caret writes in, as the editor's own reading says.
+		isProseLeafAt: (index: number): boolean => {
+			const doc = editor.__test.getDocument();
+			const node = doc.children[index];
+			if (!node) return false;
+			const refs = buildLinkReferenceMap(doc.children);
+			const grammar = editor.__test.getGrammar();
+			return isProseLeaf(node, {
+				grammar,
+				resolver: refs.resolve,
+				resolverSignature: refs.signature
+			});
+		},
 		getConformanceEntries: (): ConformanceSweepEntry[] =>
 			collectConformanceEntries(editor.__test.getGrammar()),
 		// A descriptor with no registered component reaches BlockHost's no-component branch and

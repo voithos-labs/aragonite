@@ -21,7 +21,9 @@ import { applyPasteTransforms } from '../tree-operations/paste/paste-transforms'
 import type { InsertEntry } from '../schema/insert-catalogue';
 import type { MenuEntry } from './menu/BlockMenu.svelte';
 import { runClipboardAction, type ClipboardAction } from './menu/clipboard-actions';
-import { isProseBackground } from './menu/default-context-actions';
+import { blockNoun } from './menu/default-context-actions';
+import { isProseLeaf } from '../schema/page-role';
+import type { Reading } from '../schema/reading';
 import { readBlockPath } from '../selection/path-lookup';
 import { documentLineEnding } from '../core/lines';
 
@@ -50,6 +52,8 @@ export interface RootMenusDeps {
 	insertCatalogue(): readonly InsertEntry[];
 	/** The plugins this editor lists, whose block actions and paste transforms the menu offers. */
 	activation: PluginActivation;
+	/** The editor's reading, which tells a paragraph of pictures from prose. */
+	reading: Reading;
 	setMenu(menu: BlockMenuModel | null): void;
 }
 
@@ -129,7 +133,8 @@ export function createRootMenus(deps: RootMenusDeps): RootMenus {
 	}
 
 	function openBlockActions(point: Point, host: HTMLElement, path: number[], node: NodeView): void {
-		const actions = blockContextActionsFor(node, path, deps.activation);
+		const noun = blockNoun(node, deps.reading);
+		const actions = blockContextActionsFor(node, path, deps.activation, noun);
 		if (actions.length === 0) return;
 		const index = path[0];
 		const ctx: BlockActionContext = {
@@ -182,10 +187,11 @@ export function createRootMenus(deps: RootMenusDeps): RootMenus {
 		const selected = !!native && !native.isCollapsed && root.contains(native.anchorNode);
 		// A nested block (a fence inside a list item) takes the clipboard rows for now.
 		const node = path.length === 1 ? deps.getDoc().children[path[0]] : undefined;
-		if (selected || !node || isProseBackground(node)) {
+		const prose = !!node && isProseLeaf(node, deps.reading);
+		if (selected || !node || prose) {
 			if (!selected) deps.placeCaretAtPoint(e.clientX, e.clientY);
 			// Top-level prose is where a sibling block makes sense.
-			openClipboardMenu(point, host, !selected && !!node && isProseBackground(node));
+			openClipboardMenu(point, host, !selected && prose);
 			return;
 		}
 		openBlockActions(point, host, path, node);

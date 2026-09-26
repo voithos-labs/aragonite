@@ -30,7 +30,8 @@ import type { LanguageFn } from 'highlight.js';
 import type { NodeView } from '$lib/core/node-views';
 
 const probeBlock = { kind: 'probe-rows', raw: 'x\n' } as unknown as NodeView;
-const rowIds = () => blockContextActionsFor(probeBlock, [0], everyInstalledPlugin).map((a) => a.id);
+const rowIds = () =>
+	blockContextActionsFor(probeBlock, [0], everyInstalledPlugin, 'block').map((a) => a.id);
 
 /** The highlighted spans, as `class:text`. */
 const tokens = (body: string) =>

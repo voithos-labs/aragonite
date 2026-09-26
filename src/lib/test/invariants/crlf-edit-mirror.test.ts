@@ -258,7 +258,7 @@ const GESTURES: EditGesture[] = [
 async function dissolveBlock(doc: Document, index: number): Promise<string> {
 	registerCodeContextActions();
 	const node = doc.children[index];
-	const dissolve = blockContextActionsFor(node, [index], everyInstalledPlugin).find(
+	const dissolve = blockContextActionsFor(node, [index], everyInstalledPlugin, 'block').find(
 		(action) => action.id === 'code.dissolve'
 	);
 	const written: string[] = [];

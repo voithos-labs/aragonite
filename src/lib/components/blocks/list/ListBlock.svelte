@@ -85,7 +85,8 @@
 	});
 </script>
 
-<div class="list-block" bind:this={boxEl}>
+<!-- The items reorder among themselves, which the drag reads off this mark. -->
+<div class="list-block" data-reorder-scope bind:this={boxEl}>
 	{#if win.active}
 		<div class="vr-spacer" style="height: {win.topSpacerPx}px"></div>
 	{/if}

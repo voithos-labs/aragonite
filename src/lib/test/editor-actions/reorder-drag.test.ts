@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { installReorderDrag } from '$lib/editor-actions/reorder-drag';
+import { parse } from '$lib/core/parser';
+import { fixtureReading } from '../harness/fixture-grammar';
 
 // Checks the root pointerdown listener's lifecycle: the unmount-mid-drag leak e2e cannot
 // reach. The per-drag document listeners are covered by the Escape and no-op e2e.
@@ -34,6 +36,8 @@ describe('installReorderDrag: root listener lifecycle', () => {
 			getScrollHost: () => editorRoot,
 			moveReorderUnit: async () => {},
 			overlay: { setGhost: () => {}, setLine: () => {} },
+			getDoc: () => parse(''),
+			reading: fixtureReading(),
 			lifetimeSignal: signal
 		};
 	}

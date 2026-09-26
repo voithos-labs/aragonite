@@ -20,7 +20,8 @@
 
 	// `slots` is supplied by the owner: a `bind:` $bindable array falls out of step with the
 	// owner's state when two effects write it. `reorderable` is true only when these children
-	// are themselves the things that reorder (document root, list, blockquote).
+	// are themselves the things that reorder: the document root, or a container whose kind
+	// declares `reorderChildren`.
 	let {
 		children,
 		blockIds,
@@ -72,7 +73,9 @@
 	});
 </script>
 
-<div class="block-list">
+<!-- A nested list whose children reorder marks itself, so a drag inside it can show where
+     it is confined to; the document root needs no such cue. -->
+<div class="block-list" data-reorder-scope={reorderable && parentPath.length > 0 ? '' : undefined}>
 	{#if active}
 		<div class="vr-spacer" style="height: {win!.topSpacerPx}px"></div>
 	{/if}

@@ -124,7 +124,8 @@ const PROBES: { entry: string; register(): void; registered(): boolean }[] = [
 			registerBlockContextActions('probe-block', 'probe', () => [
 				{ id: 'probe.row', label: 'Probe', run: () => {} }
 			]),
-		registered: () => blockContextActionsFor(blockNode(), [0], everyInstalledPlugin).length > 0
+		registered: () =>
+			blockContextActionsFor(blockNode(), [0], everyInstalledPlugin, 'block').length > 0
 	},
 	{
 		entry: 'registerChromeLeaf',
