@@ -84,6 +84,11 @@ describe('reconcileFenceWrite: a marker typed onto the opener run', () => {
 		expect(write('~~~~\ncode\n  ~~~', tilde, 'authored', 4).display).toBe('~~~~\ncode\n  ~~~~');
 	});
 
+	it('widens the closer for a marker a paste lands on the run', () => {
+		const pasted = write('````js\ncode\n```', backtick(), 'literal', 4).display;
+		expect(pasted).toBe('````js\ncode\n````');
+	});
+
 	it('leaves a closer already as long as the widened opener', () => {
 		expect(write('````js\ncode\n`````', backtick()).display).toBe('````js\ncode\n`````');
 	});

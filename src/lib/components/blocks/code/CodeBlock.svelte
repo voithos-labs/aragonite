@@ -394,6 +394,8 @@
 			return;
 		}
 
+		// A marker run is syntax, not code: a backtick typed onto one widens the fence instead.
+		if (collapsed && !isInBody(offset)) return;
 		const result = computeAutoPair({
 			text,
 			selection: selOffsets ?? { start: offset, end: offset },
@@ -485,6 +487,11 @@
 			);
 		}
 		return true;
+	}
+
+	function isInBody(offset: number): boolean {
+		const body = bodyWindow(node);
+		return offset >= body.start && offset <= body.end;
 	}
 
 	function replacesRange(e: InputEvent, range: RawRange): boolean {

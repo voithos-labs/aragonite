@@ -92,7 +92,7 @@ export function reconcileFenceWrite(input: FenceWriteInput): FenceWriteResult {
 	if (!input.fence.closed && mode === 'authored') {
 		return { display: input.display, caret: input.caret };
 	}
-	const widened = mode === 'authored' ? widenedCloser(input) : null;
+	const widened = widenedCloser(input);
 	const fence = widened?.fence ?? writtenFence(input.display, input.fence, mode);
 	const unglued = separateGluedCloser({ ...input, ...widened?.written, fence });
 	const lines = reconcileFenceLines(unglued, fence, ending);
@@ -151,8 +151,8 @@ function legalInfo(info: string, fence: FenceShape): string {
 
 /**
  * The fence the written bytes carry. Content arriving whole is read as the grammar reads it, so an
- * opener run a replace grew or shrank sizes the fence; typing keeps the block's own run, which
- * {@link widenedCloser} has already grown when a marker was typed onto it.
+ * opener run a replace grew or shrank sizes the fence; typing keeps the block's own run. A run
+ * grown over a closer that still matches it was sized by {@link widenedCloser} first.
  */
 function writtenFence(display: string, fence: FenceShape, mode: FenceWriteMode): FenceShape {
 	if (mode === 'authored') return fence;
@@ -161,8 +161,8 @@ function writtenFence(display: string, fence: FenceShape, mode: FenceWriteMode):
 }
 
 /**
- * A marker typed onto the opener's run lengthens the fence, so the closer grows to match: a closer
- * shorter than its opener closes nothing, and the fence would take every block below as its body.
+ * A marker typed or pasted onto the opener's run lengthens the fence, so the closer grows to match:
+ * a closer shorter than its opener closes nothing, and the fence would take every block below.
  */
 function widenedCloser(
 	input: FenceWriteInput

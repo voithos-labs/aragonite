@@ -27,6 +27,12 @@ Where the mode hides the fence lines, edits clamp to the body instead: `fence-ra
 - a backtick typed right after the opener's marker run widens the fence: the closer grows by
   the same backtick, so the block stays closed (miss-analysis: every opener edit here deleted or
   replaced, and the unit case for this keystroke pinned the dropped backtick as intended)
+- on a bare opener the typed backtick widens the fence by one, not two: nothing after the run
+  invites the auto-pair, which only pairs inside the body (miss-analysis: the widen case above
+  had an info string after the run, which kept the auto-pair from firing)
+- a backtick pasted right after the opener's marker run widens the closer the same way, instead
+  of leaving the old closer behind as a body line (miss-analysis: the widening was pinned for
+  typing only, and a paste writes through the rule's other mode)
 - paste over the closer: the pasted text lands and a closer follows it
 - an unclosed fence has no closer to strand, so deleting its marker run turns it back into a
   paragraph, byte-for-byte: that's how a just-typed ` ``` ` is taken back
