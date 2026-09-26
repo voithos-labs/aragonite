@@ -31,6 +31,7 @@ import {
 } from '../../tree-operations/chain-rebuild';
 import { foldLandingFor, publishAncestryFolds, type FoldLanding } from '../ancestry-folds';
 import { createTextBatch } from './text-batch';
+import { admitsSnapshot, admitsWrite } from './reading-write-gate';
 import type { EditorActionsDeps, UndoController } from '../deps';
 import type {
 	CommitAfterTick,
@@ -216,7 +217,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 	// A push inside a joined run after its first returns before the snapshot, so it neither
 	// marks the tree shared nor clears the redo stack.
 	function pushUndoSnapshotPath(fallbackPath: number[], offset: number): void {
-		if (isJoinedPush()) return;
+		if (isJoinedPush() || !admitsSnapshot(deps.reading)) return;
 		pushEntry({
 			...shareSnapshot(),
 			blockIds: [...deps.blockIds],
@@ -437,6 +438,9 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 	// Bracket the synchronous commit so the decorations never read a half-applied tree.
 	// Cleared before the first await.
 	async function __commit(args: CommitArgs): Promise<void> {
+		const op =
+			args.op?.kind ?? (args.kind === 'document' ? 'commitStructural' : 'commitMultiScope');
+		if (!admitsWrite(deps.reading, op)) return;
 		beginCommit();
 		let committed: boolean;
 		try {
@@ -775,7 +779,9 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		sharing: deps.sharing,
 		pushUndoSnapshot,
 		pushUndoSnapshotPath,
-		pushUndoSnapshotDebounced: textBatch.keystroke,
+		pushUndoSnapshotDebounced: (leafPath, offset, batchKey) => {
+			if (admitsSnapshot(deps.reading)) textBatch.keystroke(leafPath, offset, batchKey);
+		},
 		armUndoPause: textBatch.armPause,
 		commitStructural,
 		commitContainerStructural,

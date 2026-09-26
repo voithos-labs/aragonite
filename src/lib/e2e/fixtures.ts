@@ -1,12 +1,13 @@
 import { test as base, expect, type ConsoleMessage } from '@playwright/test';
 import { getContainerParityMismatches } from './container-parity';
-import { warnTagOfLine } from '../dev-warn';
+import { CENSUS_WARN_TAGS, warnTagOfLine } from '../dev-warn';
 
 // The shared e2e `test`, with two checks at teardown. The console watch: dev warnings tagged
 // `[aragonite:…]`, Svelte warnings tagged `[svelte] <code>`, uncaught page errors (`pageerror`),
 // and errors only `window.onerror` sees (`onerror:<message>`). A spec that trips one declares it
-// below; each declared one must fire while nothing else may. The container-parity walk covers
-// what the console cannot: BlockHost's error boundary swallows `each_key_duplicate` silently.
+// below; each declared one must fire while nothing else may, and a census tag is printed instead.
+// The container-parity walk covers what the console cannot: BlockHost's error boundary swallows
+// `each_key_duplicate` silently.
 
 interface WarnFixtures {
 	/** Invariant tags this spec deliberately triggers, e.g. `['late-opener-registration']`. */
@@ -59,7 +60,8 @@ export const test = base.extend<WarnFixtures>({
 	expectPageErrors: [[], { option: true }],
 	page: async (
 		{ page, expectInvariants, expectWarns, expectSvelteWarns, expectPageErrors },
-		use
+		use,
+		testInfo
 	) => {
 		const namespaced = expectWarns.filter((tag) => NAMESPACED.test(tag));
 		expect(
@@ -73,7 +75,13 @@ export const test = base.extend<WarnFixtures>({
 			const type = m.type();
 			if (type !== 'warning' && type !== 'error') return;
 			const fire = fireOf(m);
-			if (fire) fires.push(fire);
+			if (!fire) return;
+			// Printed to the run's output, since the browser console never reaches the reporter.
+			if (CENSUS_WARN_TAGS.includes(fire.tag)) {
+				console.log(`${fire.text} | spec: ${testInfo.titlePath.join(' > ')}`);
+				return;
+			}
+			fires.push(fire);
 		};
 		// An uncaught exception or rejection reaches Playwright here and never as a console line.
 		const onPageError = (e: Error) =>

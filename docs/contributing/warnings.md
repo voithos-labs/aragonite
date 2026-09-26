@@ -62,6 +62,8 @@ Either one blinds the gate for that whole file, so a source scan (G4.41 in `inva
 
 On the e2e side the expectation runs in both directions: a spec that trips a fire on purpose declares its tags, `test.use({ expectInvariants: ['late-opener-registration'] })` for a guard (the bare tag; `assertInvariant` prepends the `invariant:` half), `test.use({ expectWarns: ['tree-ops'] })` for a diagnostic, `test.use({ expectSvelteWarns: ['derived_inert'] })` for a Svelte code (the bare code; the watch prepends the `svelte:` half), `test.use({ expectPageErrors: [RESIZE_OBSERVER_LOOP] })` for a `window.onerror` message (matched whole). A declared tag that stops firing also fails the spec, so an expectation can't outlive its cause.
 
+One exception on purpose: a tag in `CENSUS_WARN_TAGS` (`src/lib/dev-warn.ts`) reds nothing. It lists every place a behavior happens before the editor starts refusing it, so every watcher prints the fire instead, with the test or spec that lit it, and you read the list back out of the run's log with `grep "aragonite:reading-write"` (Vitest's default reporter drops console output, so run the unit suite with `--reporter=verbose` for this). Right now the one census tag is `reading-write`: a document write that happened in reading mode.
+
 And if a fire ever shows up that no gate goes red for, that's a bug in the gate; file it.
 
 ## Claiming a fire in a unit test

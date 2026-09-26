@@ -11,6 +11,12 @@ export type DevWarnSink = (entry: DevWarnEntry) => void;
 let sink: DevWarnSink | null = null;
 
 /**
+ * Tags every warning watcher prints and never fails on, to list each place a behavior happens
+ * before the editor refuses it. The reading-mode write check reports through one until then (#493).
+ */
+export const CENSUS_WARN_TAGS: readonly string[] = ['reading-write'];
+
+/**
  * Send warnings to `next` instead of the console, and return the callback it replaced. For
  * a harness that needs to read them as data; it must work with any runner, so nothing here
  * may know about a test runner. Nothing registers one in production or on a dev server.

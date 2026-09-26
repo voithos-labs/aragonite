@@ -1,9 +1,8 @@
 /**
  * The content version is announced, not derived, so a function that writes bytes and stays silent
- * serves every whole-document memo a stale answer with nothing failing. Two checks: the
- * announcements are a declared set, and any write outside a commit, recognized by its copying of
- * ancestors off the editor's own `deps.doc`, enrols its file, so the next such write fails the
- * moment it is written rather than at the next review.
+ * serves every whole-document memo a stale answer with nothing failing. The announcements are a
+ * declared set, and any write outside a commit, recognized by its copying of ancestors off the
+ * editor's own `deps.doc`, enrols its file; each such writer also asks the reading-mode check.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -34,7 +33,15 @@ const ROOT_UNSHARERS: Record<string, string> = {
 	'src/lib/editor-actions/container-edit.ts': 'announces'
 };
 
+/** The writers that must refuse reading mode: every root unsharer, plus the undo/redo swap. The
+ *  `source` prop swap is the host replacing the document, which reading mode allows. */
+const READING_CHECKED = [
+	...Object.keys(ROOT_UNSHARERS),
+	'src/lib/editor-actions/commit/history.ts'
+].sort();
+
 const ANNOUNCES = /\bbumpContentVersion\b|\bcontentVersion\.bump\b/;
+const ASKS_READING_CHECK = /\badmitsWrite\s*\(/;
 const UNSHARES_ROOT = /\bensureUnsharedPath\s*\(\s*deps\.doc\b/;
 
 function matching(sources: SourceFile[], re: RegExp): string[] {
@@ -68,6 +75,14 @@ describe('content-version entry-point census', () => {
 	it('every root unsharer is the commit sequence or announces for itself', () => {
 		const silent = Object.keys(ROOT_UNSHARERS).filter((relPath) => !(relPath in ANNOUNCERS));
 		expect(silent).toEqual([]);
+	});
+
+	it('every writer that must refuse reading mode asks the reading-mode check', () => {
+		const asking = matching(sources, ASKS_READING_CHECK);
+		expect(
+			READING_CHECKED.filter((relPath) => !asking.includes(relPath)),
+			'a byte writer that never asks `admitsWrite` (editor-actions/commit/reading-write-gate.ts) writes in reading mode'
+		).toEqual([]);
 	});
 
 	// ── Matcher self-tests (non-vacuity) ─────────────────────────────────────

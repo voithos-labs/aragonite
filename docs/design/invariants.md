@@ -1318,7 +1318,9 @@ document bytes, never derived from a walk of the tree, so the announcements are 
 the shape an out-of-ceremony write has (unsharing a spine off the editor's own `deps.doc`) enrols
 its file. The commit ceremony covers every structural writer under it; the routine-typing writes,
 the history swap and the `source` prop swap answer for themselves. A silent write site serves every
-whole-document memo a stale answer with nothing failing. `lint/content-version-doors.test.ts`.
+whole-document memo a stale answer with nothing failing. The same scan holds every one of those
+writers but the `source` swap to asking the reading-mode check (`editor-actions/commit/reading-write-gate.ts`)
+before it writes. `lint/content-version-doors.test.ts`.
 
 **G4.53 · Descriptor-field roster.** `BlockKindDescriptor` and the field reference table in
 `docs/design/plugin-contract.md` are one set, both directions, keyed on the field-name column alone

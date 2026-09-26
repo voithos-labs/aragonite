@@ -1,14 +1,20 @@
 /**
  * Vitest setup that fails a unit test on any `devWarn` or Svelte runtime warning it did not claim
- * (`takeDevWarns`, `drainDevWarns`, `allowDevWarns`) and that `warn-allowlist.json` does not list.
- * Claims run in file-level `afterEach` hooks, so the config's `sequence.hooks: 'stack'` runs them
- * before this verdict. A per-file `afterAll` also fails a declared tag that never fired and a
- * warning that arrived after the last test.
+ * (`takeDevWarns`, `drainDevWarns`, `allowDevWarns`) and that `warn-allowlist.json` does not list;
+ * a census tag (`CENSUS_WARN_TAGS`) is printed instead. Claims run in file-level `afterEach` hooks,
+ * so the config's `sequence.hooks: 'stack'` runs them before this verdict. A per-file `afterAll`
+ * also fails a declared tag that never fired and a warning that arrived after the last test.
  */
 
 import { afterAll, afterEach, expect } from 'vitest';
 import { tick } from 'svelte';
-import { setDevWarnSink, warnTagOfLine, type DevWarnEntry, type DevWarnSink } from '$lib/dev-warn';
+import {
+	CENSUS_WARN_TAGS,
+	setDevWarnSink,
+	warnTagOfLine,
+	type DevWarnEntry,
+	type DevWarnSink
+} from '$lib/dev-warn';
 import { resetEditorEnv } from '$lib/env';
 import { __resetCommandWarningsForTests } from '$lib/schema/commands';
 import allowlist from './warn-allowlist.json';
@@ -51,7 +57,9 @@ export function drainDevWarns(): void {
 export function allowDevWarns(tags: string[]): DevWarnRecord[] {
 	for (const tag of tags) declaredTags.add(tag);
 	const drained = takeDevWarns();
-	const undeclared = drained.filter((record) => !tags.includes(record.tag));
+	const undeclared = drained.filter(
+		(record) => !tags.includes(record.tag) && !CENSUS_WARN_TAGS.includes(record.tag)
+	);
 	expect(undeclared, formatUndeclaredWarnFailure(tags, undeclared)).toEqual([]);
 	return drained;
 }
@@ -61,7 +69,9 @@ export function findUnallowlistedWarns(
 	rows: AllowedWarn[] = ALLOWED_WARNS
 ): DevWarnRecord[] {
 	return records.filter(
-		(record) => !rows.some((row) => row.tag === record.tag && row.site === record.site)
+		(record) =>
+			!CENSUS_WARN_TAGS.includes(record.tag) &&
+			!rows.some((row) => row.tag === record.tag && row.site === record.site)
 	);
 }
 
@@ -119,7 +129,17 @@ function listRecords(records: DevWarnRecord[]): string {
 const gateSink: DevWarnSink = (entry) => {
 	firedTags.add(entry.tag);
 	recorded.push({ ...entry, site: siteFromStack(new Error().stack) });
+	// A census fire fails nothing, so the run's log is the only place it can be read back from.
+	if (CENSUS_WARN_TAGS.includes(entry.tag)) {
+		console.log(`[aragonite:${entry.tag}] ${entry.message} | test: ${censusTestLabel()}`);
+	}
 };
+
+function censusTestLabel(): string {
+	const { testPath, currentTestName } = expect.getState();
+	const file = testPath?.replace(/\\/g, '/').replace(/^.*?(?=src\/lib\/)/, '') ?? '<no file>';
+	return `${file} > ${currentTestName ?? '<outside a test>'}`;
+}
 
 setDevWarnSink(gateSink);
 
