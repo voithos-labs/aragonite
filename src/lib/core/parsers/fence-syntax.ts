@@ -100,9 +100,9 @@ export interface FenceAnatomy extends FenceRun {
 }
 
 /**
- * Reads `raw` as a fenced block: line 0 must open with a run of `fence`'s marker at least
- * `fence.length` long (any fence marker when `fence` is omitted), and the fence is closed when a
- * line after it is the last one and closes that run. Null when line 0 opens no such run.
+ * Reads `raw` as a fenced block. Line 0 must open with a run of `fence`'s marker at least
+ * `fence.length` long (any fence marker when `fence` is omitted). The fence is closed when the
+ * last line, below line 0, closes that run. Null when line 0 opens no such run.
  */
 export function fenceAnatomy(raw: string, fence?: FenceRun): FenceAnatomy | null {
 	const lines = splitLines(raw);

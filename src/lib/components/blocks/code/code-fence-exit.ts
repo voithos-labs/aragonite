@@ -5,8 +5,8 @@
  */
 
 import type { FencedCodeMetadata } from '../../../core/nodes';
-import { lineEndingAt, ownTrailingLineEnding, splitLines } from '../../../core/lines';
-import { findFenceCloser } from '../../../core/parsers/fence-syntax';
+import { firstDisplayLine, lineEndingAt, ownTrailingLineEnding } from '../../../core/lines';
+import { matchFenceClose } from '../../../core/parsers/fence-syntax';
 
 export interface FenceExitInput {
 	text: string;
@@ -90,11 +90,9 @@ export function computeTypedFenceExit(input: TypedFenceExitInput): TypedFenceExi
 
 /** Whether the line starting at `offset` closes the block's fence. */
 function startsCloserLine(text: string, offset: number, meta: FencedCodeMetadata): boolean {
-	const line = splitLines(text.slice(offset)).slice(0, 1);
-	return (
-		findFenceCloser(line, 0, line.length, {
-			marker: meta.fenceMarker,
-			length: meta.fenceLength
-		}) === 0
+	return matchFenceClose(
+		firstDisplayLine(text.slice(offset)).text,
+		meta.fenceMarker,
+		meta.fenceLength
 	);
 }

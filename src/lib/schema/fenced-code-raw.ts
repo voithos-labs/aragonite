@@ -29,7 +29,7 @@ import {
 
 export interface FenceShape {
 	marker: '`' | '~';
-	/** The block's own marker-run length, from its metadata, not re-scanned from the write. */
+	/** The block's own marker-run length. A literal write re-reads it off the written opener. */
 	length: number;
 	closed: boolean;
 }

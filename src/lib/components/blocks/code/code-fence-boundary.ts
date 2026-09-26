@@ -72,9 +72,8 @@ export function clampRangeToBody(node: NodeView, range: RawRange): RawRange {
 
 /**
  * Does a pending edit reach out of the editable content, which is the body plus the opener's info
- * string? Every other offset on the fence lines is one keystroke from swallowing the blocks below
- * into the code node. An unclosed fence is the exception: with no closer to strand, its run is
- * content too, so demoting the block is how a just-typed ` ``` ` is undone.
+ * string (the language picker writes it)? An unclosed fence is the exception: with no closer to
+ * strand, its run is content too, so demoting the block is how a just-typed ` ``` ` is undone.
  */
 export function crossesFenceBoundary(node: NodeView, range: RawRange): boolean {
 	const { openerContent, body } = fenceRegions(node);

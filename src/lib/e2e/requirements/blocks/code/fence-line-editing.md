@@ -5,7 +5,7 @@ text wherever the mode paints them: always in source mode, and on the focused bl
 preview modes. A caret arriving from another block still lands in the body; a click or an arrow
 inside the block reaches the fence lines.
 
-A fence is one keystroke from swallowing the document: a closer that stops matching leaves the
+One stray keystroke on a fence line can break the fence: a closer that stops matching leaves the
 block open, and an opener that stops matching strands the closer, which then opens a fence over
 everything below. So every edit here goes through the fence write rule, which keeps exactly one
 opener line and one closer line, and the block after the code block always stays its own.
