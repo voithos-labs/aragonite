@@ -1,41 +1,62 @@
 /**
- * Ensure a list item's `raw` ends with a line ending, or `rebuildListRaw` joins adjacent items
- * into one line that reloads as one item. The ending is the document's, or a paste strands an LF
- * line in a CRLF list. Only mid-list splices normalize.
+ * The line ending at the end of a block's last line, written through the containers above it. A
+ * list item without one joins the next item on reload, so pasted items take the document's
+ * ending (an LF line in a CRLF list otherwise); a move gives it to the block that gains a
+ * follower.
  */
 
 import type { CstNode } from '../../core/nodes';
-import type { LineEnding } from '../../core/lines';
+import { terminateLine, trimTrailingLineEnding, type LineEnding } from '../../core/lines';
 import { spliceMany } from '../splice-many';
-import { rebuildContainerRawIfContainer } from '../../schema/container-raw';
+import type { SharingState } from '../sharing';
+import { ensureUnsharedChild } from '../unshare';
+import { dropChildSpans } from '../../schema/child-spans';
 import { getBlockKindDescriptor } from '../../schema/block-kind-descriptor';
 
 /**
- * The child holding the node's last line, or null when the node's own raw holds it. Only a
- * strip container serializes its children's raws as whole lines; a grid cell and an opaque
- * body live inside a line their container emits, so the ending belongs to the container.
+ * End the node's last line in `ending`, in its own raw and in every node below that holds the same
+ * line, so a container keeps the bytes of its other lines (a quote's lazy continuation lines) as
+ * they are. With `sharing`, each node below `node` is copied first.
  */
-function lastLineOwningChild(node: CstNode): CstNode | null {
-	if (getBlockKindDescriptor(node.kind).containerContract !== 'strip') return null;
-	const children = node.children;
-	if (!children || children.length === 0) return null;
-	return children[children.length - 1];
+export function terminateLastLine(node: CstNode, ending: LineEnding, sharing?: SharingState): void {
+	rewriteLastLine(node, (raw) => terminateLine(raw, ending), sharing);
 }
 
-/**
- * Terminate the deepest node that owns its own last line, then rebuild every strip container
- * above it: such a container's raw is derived from its children, so appending to it directly
- * leaves the two disagreeing (G1.1) and its tail item still unterminated.
- */
-export function terminateLastLine(node: CstNode, ending: LineEnding): void {
-	if (node.raw.endsWith('\n')) return;
-	const child = lastLineOwningChild(node);
-	if (!child) {
-		node.raw += ending;
+/** {@link terminateLastLine}'s inverse, for a block that becomes a document's unended last line. */
+export function releaseLastLine(node: CstNode, sharing?: SharingState): void {
+	rewriteLastLine(node, trimTrailingLineEnding, sharing);
+}
+
+function rewriteLastLine(
+	node: CstNode,
+	write: (raw: string) => string,
+	sharing: SharingState | undefined
+): void {
+	const wasEnded = node.raw.endsWith('\n');
+	const raw = write(node.raw);
+	if (raw === node.raw) return;
+	node.raw = raw;
+	const last = (node.children?.length ?? 0) - 1;
+	if (last < 0) return;
+	const contract = getBlockKindDescriptor(node.kind).containerContract;
+	if (contract === 'strip') {
+		dropChildSpans(node);
+		// A blank line closing the body is the last line; the parser keeps it out of the suffix
+		// while it is unended, so a last child already ended the other way marks it too.
+		if (node.innerSuffix || node.children![last].raw.endsWith('\n') !== wasEnded) {
+			node.innerSuffix = write(node.innerSuffix ?? '');
+			return;
+		}
+	} else if (contract !== 'grid' || !isGrid(node.children![last])) {
+		// A grid's rows are whole lines; a row's cells and an opaque body sit inside a line.
 		return;
 	}
-	terminateLastLine(child, ending);
-	rebuildContainerRawIfContainer(node);
+	const child = sharing ? ensureUnsharedChild(node, last, sharing) : node.children![last];
+	rewriteLastLine(child, write, sharing);
+}
+
+function isGrid(node: CstNode): boolean {
+	return getBlockKindDescriptor(node.kind).containerContract === 'grid';
 }
 
 export function ensureListItemNewlineTerminated(item: CstNode, ending: LineEnding): void {

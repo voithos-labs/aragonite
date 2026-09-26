@@ -5,6 +5,7 @@
  */
 
 import { CURSOR_START } from '../block-component';
+import { documentLineEnding } from '../core/lines';
 import type { CommandId } from '../schema/commands';
 import { reorderChildrenWithTrivia } from '../tree-operations/reorder';
 import { resolveReorderUnit, type ReorderUnit } from '../tree-operations/reorder-unit';
@@ -71,7 +72,8 @@ export function createReorderAction(
 						unit.index,
 						to,
 						deps.sharing,
-						deps.reading.grammar
+						deps.reading.grammar,
+						documentLineEnding(deps.doc)
 					);
 					landing = settled.landing;
 					return settled.change;
@@ -103,7 +105,8 @@ export function createReorderAction(
 					unit.index,
 					to,
 					scope.sharing,
-					deps.reading.grammar
+					deps.reading.grammar,
+					documentLineEnding(deps.doc)
 				);
 				landing = settled.landing;
 				if (unit.renumberMarkers) {

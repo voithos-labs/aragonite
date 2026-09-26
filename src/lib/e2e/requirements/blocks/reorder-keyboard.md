@@ -45,6 +45,12 @@ whether or not the drag handles are turned on.
 - A single undo after a reorder restores the source exactly as it was before the move.
 - Alt+ArrowUp on the first sibling / Alt+ArrowDown on the last does nothing
   (it is clamped: no move, no error).
+- In a document with no final line break, in LF and in CRLF, Alt+ArrowUp on the last block and
+  Alt+ArrowDown on the block above it keep the two blocks on lines of their own: the block that
+  gains a follower ends its line in the document's line ending, the block that becomes last gives
+  up its ending, and the document still has no final line break. One undo restores the source.
+  - Miss-analysis: every reorder fixture and the move property's generator ended the document in
+    a line break, so no move ever took or left an unterminated last line.
 
 ## User interactions
 

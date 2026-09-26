@@ -41,7 +41,7 @@ describe('an edit route reparses in the editor grammar', () => {
 	// global grammar reads that pair as prose then code and refuses the separator.
 	it('a reorder that lands an indented paragraph under prose separates the two', () => {
 		const doc = read('prose\n# h\n\n    moved\n');
-		reorderChildrenWithTrivia(doc.children, 2, 1, createSharingState(), noIndentedCode);
+		reorderChildrenWithTrivia(doc.children, 2, 1, createSharingState(), noIndentedCode, '\n');
 		expect(kindsOf(doc.children)).toEqual(['paragraph', 'paragraph', 'heading']);
 		expect(describeConvergence(doc, noIndentedCode)).toBeNull();
 	});

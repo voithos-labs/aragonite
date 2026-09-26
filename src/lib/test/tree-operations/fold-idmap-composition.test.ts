@@ -28,7 +28,8 @@ function reorderedIds(): string[] {
 		2,
 		1,
 		createSharingState(),
-		defaultGrammarView
+		defaultGrammarView,
+		'\n'
 	);
 	expect(doc.children.map((c) => c.kind)).toEqual(['list', 'paragraph']);
 
