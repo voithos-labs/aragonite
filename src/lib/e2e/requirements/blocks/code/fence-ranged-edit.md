@@ -28,6 +28,10 @@ The contract, in three parts:
 
 - select-all then Backspace empties the body and keeps the code block a code block (it does
   not convert to a paragraph, as an unguarded browser delete of the whole display would)
+- a character typed over a range that opens on the body's first highlighted word and crosses a
+  line break, selected by a drag or by Shift+Arrow, replaces only that body text, and both
+  fence lines stay (miss-analysis: the ranged cases here deleted or pasted, so no test typed over
+  a range, which the browser rewrote on its own and took the hidden opener with it)
 
 ## Pinned below the browser
 

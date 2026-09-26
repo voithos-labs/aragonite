@@ -46,6 +46,21 @@ test.describe('code block: ranged edits reaching a hidden fence line', () => {
 		expect(await editor.bridge.getSource()).toBe('```js\nconst Y\n```\n');
 	});
 
+	// The range opens on the highlighted `const` at the body start [6] and ends inside `foo` [20],
+	// across the line break.
+	for (const [gesture, select] of [
+		['a drag', () => editor.dragFromTo([0], 6, [0], 20)],
+		['Shift+Arrow', () => selectFrom(editor, 6, 14)]
+	] as const) {
+		test(`typing over ${gesture} from the body start across a line break keeps both fences`, async () => {
+			await editor.loadContent('```js\nconst x = 1;\nfoo();\n```\n');
+			await select();
+			await editor.page.keyboard.type('Q');
+
+			await expect.poll(() => editor.bridge.getSource()).toBe('```js\nQoo();\n```\n');
+		});
+	}
+
 	test('select-all then Backspace empties the body and keeps the code block', async () => {
 		await editor.page.keyboard.press('ControlOrMeta+a');
 		await editor.page.keyboard.press('Backspace');

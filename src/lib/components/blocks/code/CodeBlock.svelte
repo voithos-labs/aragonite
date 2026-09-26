@@ -394,7 +394,10 @@
 			typed: data,
 			unclosedBacktickFence: meta.closed === false && meta.fenceMarker === '`'
 		});
-		if (!result) return;
+		if (!result) {
+			if (!collapsed && !fenceLinesEditable) typeOverHiddenFence(e, text, selOffsets!, data);
+			return;
+		}
 
 		e.preventDefault();
 		if (result.kind === 'skip') {
@@ -474,6 +477,21 @@
 			);
 		}
 		return true;
+	}
+
+	/**
+	 * A character typed over a body range while the fence lines are hidden, written by the block:
+	 * Chromium, replacing a range that opens on a highlighted token, also removes the hidden opener.
+	 */
+	function typeOverHiddenFence(e: InputEvent, text: string, range: RawRange, typed: string): void {
+		e.preventDefault();
+		const edit = computeRangedEdit(text, range, typed);
+		if (!edit) return;
+		pendingCursorOffset = commitDisplay(
+			edit.newText,
+			editableSurface.getPreEditOffset(),
+			edit.newCursor
+		);
 	}
 
 	/**

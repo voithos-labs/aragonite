@@ -156,13 +156,15 @@ describe('CodeBlock: fence-crossing ranged edits', () => {
 		expect(mounted.blockEdit.updateBlockContent).not.toHaveBeenCalled();
 	});
 
-	it('leaves a selection inside one region to native handling', async () => {
+	// Chromium's own replace of a range can take the hidden opener with it, so the block writes
+	// even a type-over that stays inside one region.
+	it('writes a character typed over a range inside one region itself', async () => {
 		select(3, 5); // the info string
 		const e = beforeInput('insertText', 'p');
 		await settleEditor();
 
-		expect(e.defaultPrevented).toBe(false);
-		expect(mounted.blockEdit.updateBlockContent).not.toHaveBeenCalled();
+		expect(e.defaultPrevented).toBe(true);
+		expect(committedText()).toBe('```p\nconst x = 1\n```');
 	});
 
 	// The pending edit's target range covers a structural line ending. Chromium reports it
