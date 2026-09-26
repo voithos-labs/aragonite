@@ -76,7 +76,9 @@ test.describe('opaque containers decline nested reorder', () => {
 		await expect(ownHandle(page, [0])).toHaveCount(0); // and the note itself: prose
 	});
 
-	test('the <details> summary chrome row renders no handle', async ({ page }) => {
+	test('the <details> summary row renders no handle, and the details keeps its own', async ({
+		page
+	}) => {
 		await editor.loadContent(DETAILS);
 		const details = await readContainer(page, 0);
 		expect(details.kind).toBe('details');

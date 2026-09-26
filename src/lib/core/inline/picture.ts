@@ -7,12 +7,21 @@
 import type { InlineNode } from '../nodes';
 import type { NodeView } from '../node-views';
 import { resolvedInlineContent, type InlineReading } from './inline-cache';
+import { inlineDescendants } from './walk';
 
 export function isImageOnlyParagraph(node: NodeView, reading: InlineReading): boolean {
+	return pictureImageCount(node, reading) > 0;
+}
+
+/** How many images a paragraph of pictures holds; 0 for any block that is not one. */
+export function pictureImageCount(node: NodeView, reading: InlineReading): number {
 	// Most paragraphs hold no image at all, and this runs for every block that renders.
-	if (node.kind !== 'paragraph' || !node.raw.includes('![')) return false;
+	if (node.kind !== 'paragraph' || !node.raw.includes('![')) return 0;
 	const nodes = resolvedInlineContent(node, reading);
-	return nodes.some(isPicturePart) && nodes.every((part) => isPicturePart(part) || isBlank(part));
+	if (!nodes.every(isPictureOrBlank)) return 0;
+	let images = 0;
+	for (const part of inlineDescendants(nodes)) if (part.kind === 'image') images++;
+	return images;
 }
 
 // A linked image is still a picture: the link is where a click on it goes.

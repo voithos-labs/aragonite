@@ -6,9 +6,9 @@ into; nothing reflows mid-drag and the tree changes once, on release.
 
 The ghost carries a label rather than a sample of the text: a table's cells
 run together into `IngredientAmountWater35 L` and an equation reads as its own
-source, so every block that is not prose goes by the name a screen reader gives it
-(`Math block`, `Code block, ts`, `Diagram`, `Divider`), a table by its shape
-(`Table · 13 × 2`) and a picture as `Image`, while prose keeps its first words.
+source, so those kinds name themselves (`Table · 13 × 2`, `Equation`, `Code`,
+`Diagram`, `Divider`, `Details`, `Image`) and everything else keeps its first words. A kind
+names itself by declaring a `dragLabel`; a table goes by its shape.
 
 A drop focuses nothing. Focusing what was dropped would open whatever a caret
 opens there, such as an equation showing its source, which a drag never asked

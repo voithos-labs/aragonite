@@ -3,9 +3,9 @@
 An opaque plugin container, an admonition, a `<details>` or a callout, is not a parent whose
 children can be reordered. `resolveReorderUnit` stops at its boundary and declines, so a body
 leaf inside it has nothing to reorder and both the drag and the keyboard reorder do nothing at
-all. The inner `BlockList` renders with `reorderable: false`, so neither the reserved title row
-(a title or a summary) nor the body rows render a drag handle. The container itself is still a
-valid thing to reorder at the top level. These checks read behavior: the tree, the source and
+all. Its kind declares no `reorderChildren`, so the inner `BlockList` isn't reorderable and
+neither the reserved title row (a title or a summary) nor the body rows render a drag handle. The
+container itself is still a valid thing to reorder at the top level. These checks read behavior: the tree, the source and
 the number of handles read by path through `window.__test`, not visuals.
 
 ## Bug 2: no dead drag affordance
@@ -13,7 +13,8 @@ the number of handles read by path through `window.__test`, not visuals.
 - the admonition's title row (`[c, 0]`): no `.block-drag-handle`
 - the admonition's body rows (`[c, 1]`, `[c, 2]`): no `.block-drag-handle`
 - the `<details>` summary row (`[c, 0]`): no `.block-drag-handle`
-- the container's own host (`[c]`): keeps its handle, since it is a real unit at the top level
+- the admonition's own host (`[c]`): no handle either, since a note reads as prose
+- the `<details>` host (`[c]`): keeps its handle, since it is a real unit at the top level
 
 ## Bug 1: the shared resolver declines (both entry paths)
 
@@ -23,7 +24,7 @@ the number of handles read by path through `window.__test`, not visuals.
 
 ## Regression: the container itself still reorders
 
-- dragging the admonition's own handle down past a sibling moves it at document level, and the root's block count is unchanged, so nothing is dropped or duplicated
+- dragging the `<details>` own handle down past a sibling moves it at document level, and the root's block count is unchanged, so nothing is dropped or duplicated
 
 ## User interactions
 

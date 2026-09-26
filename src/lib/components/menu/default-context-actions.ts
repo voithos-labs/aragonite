@@ -6,14 +6,15 @@
  */
 import { blockKindLabel } from '../../a11y-strings';
 import type { NodeView } from '../../core/node-views';
-import { isImageOnlyParagraph } from '../../core/inline/picture';
+import { pictureImageCount } from '../../core/inline/picture';
 import type { InlineReading } from '../../core/inline/inline-cache';
 import { EVERY_KIND, registerBuiltinBlockContextActions } from '../../schema/context-actions';
 
-/** The noun the menu uses for a block: its kind's name mid-sentence, and "image" for a
- *  paragraph holding nothing but images. */
+/** The noun the menu uses for a block: its kind's name mid-sentence, and "image" or "images"
+ *  for a paragraph holding nothing but images. */
 export function blockNoun(node: NodeView, reading: InlineReading): string {
-	if (isImageOnlyParagraph(node, reading)) return 'image';
+	const images = pictureImageCount(node, reading);
+	if (images > 0) return images === 1 ? 'image' : 'images';
 	const label = blockKindLabel(node.kind);
 	// An initialism keeps its capitals: "HTML block", not "hTML block".
 	return /^.[A-Z]/.test(label) ? label : label.charAt(0).toLowerCase() + label.slice(1);

@@ -14,8 +14,7 @@ import { isImageOnlyParagraph } from '../core/inline/picture';
 import type { InlineReading } from '../core/inline/inline-cache';
 import type { NodeView } from '../core/node-views';
 import { blockNodeAt } from '../tree-operations/node-primitives';
-import { blockPageRole } from '../schema/page-role';
-import { blockAccessibleName } from '../a11y-strings';
+import { tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
 
 export interface ReorderDragOverlay {
 	setGhost(g: { clientX: number; clientY: number; label: string } | null): void;
@@ -87,7 +86,7 @@ function startSession(
 	const label = node ? ghostLabel(dragHost, node, ctx.reading) : 'Block';
 	// The container this unit moves within (null at top level). Marked for the drag's
 	// duration so a move confined to it reads as intentional, not broken.
-	const scopeEl = group.hasAttribute('data-reorder-scope') ? group : null;
+	const scopeEl = scopeBox(group);
 
 	let dropTo: number | null = null;
 
@@ -178,17 +177,29 @@ function indexOf(host: HTMLElement): number | null {
 }
 
 /**
- * The ghost's label. Prose keeps its first words, the best label it could have; an object is
- * named, since a table's cells run together and an equation reads as its own source. A list
- * item's path is its first child's, so it reads as that child's text.
+ * The ghost's label: a table's shape, the name a kind declares for a block whose text reads badly
+ * as one (a formula's source), and otherwise the block's first words.
  */
 function ghostLabel(host: HTMLElement, node: NodeView, reading: InlineReading): string {
-	if (node.kind === 'table') return tableLabel(host);
-	if (isImageOnlyParagraph(node, reading)) return 'Image';
-	if (blockPageRole(node, reading) === 'object') return blockAccessibleName(node);
+	const descriptor = tryGetBlockKindDescriptor(node.kind);
+	if (descriptor?.containerContract === 'grid') return tableLabel(host);
+	if (descriptor?.dragLabel) return descriptor.dragLabel;
 	const text = (host.textContent ?? '').trim().replace(/\s+/g, ' ');
-	if (!text) return blockAccessibleName(node);
+	if (!text) return isImageOnlyParagraph(node, reading) ? 'Image' : 'Block';
 	return text.length > 40 ? text.slice(0, 40) + '…' : text;
+}
+
+/**
+ * The box a drag inside a container is confined to: the whole container as drawn (a quote's bar
+ * and padding included), found from the child list marked as one whose children reorder.
+ */
+function scopeBox(group: HTMLElement): HTMLElement | null {
+	if (!group.hasAttribute('data-reorder-scope')) return null;
+	const host = group.parentElement?.closest('.block-host');
+	if (!host) return null;
+	return (
+		Array.from(host.children).find((child): child is HTMLElement => child.contains(group)) ?? null
+	);
 }
 
 /** Rows by columns: the shape is what tells one table from another at a glance. */

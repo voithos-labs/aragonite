@@ -291,6 +291,7 @@ export function registerBuiltInDescriptors(): void {
 	});
 	registerBlockKind('fencedCode', {
 		pageRole: 'object',
+		dragLabel: 'Code',
 		estimateHeight: sourceLinesEstimate,
 		mergeRole: 'not-mergeable',
 		editable: true,
@@ -333,6 +334,7 @@ export function registerBuiltInDescriptors(): void {
 	});
 	registerBlockKind('thematicBreak', {
 		pageRole: 'object',
+		dragLabel: 'Divider',
 		estimateHeight: singleLineEstimate,
 		mergeRole: 'not-mergeable',
 		editable: false,
