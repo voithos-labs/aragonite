@@ -1508,12 +1508,12 @@ setup(ctx) {
 
 ### The four decoration types
 
-| Type      | Shape                                                    | Renders as                                                                                                                                 |
-| --------- | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| `mark`    | `{ type: 'mark', path, start, end, class }`              | A positioned overlay span over the inline range; style it via the class                                                                    |
-| `widget`  | `{ type: 'widget', path, offset, widget }`               | A zero-width atomic island at the offset (ghost text's shape)                                                                              |
-| `replace` | `{ type: 'replace', path, start, end, widget?, class? }` | An atomic island covering the range; the hidden bytes stay in the document                                                                 |
-| `block`   | `{ type: 'block', path, class?, attrs?, badge? }`        | A class/attrs treatment on the whole block (a list item, table row or cell included), plus an optional badge widget (not on a row or cell) |
+| Type      | Shape                                                    | Renders as                                                                                                                                                                                                                                                                                             |
+| --------- | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `mark`    | `{ type: 'mark', path, start, end, class }`              | A positioned overlay span over the inline range; style it via the class                                                                                                                                                                                                                                |
+| `widget`  | `{ type: 'widget', path, offset, widget }`               | A zero-width atomic island at the offset (ghost text's shape)                                                                                                                                                                                                                                          |
+| `replace` | `{ type: 'replace', path, start, end, widget?, class? }` | An atomic island covering the range; the hidden bytes stay in the document                                                                                                                                                                                                                             |
+| `block`   | `{ type: 'block', path, class?, attrs?, badge? }`        | A class/attrs treatment on the whole block (a list item, table row or cell included), plus an optional badge widget (not on a row or cell). An attribute the editor uses itself (any `data-` name it sets or reads, `role`, `tabindex`, ...) is dropped with a dev warning, so pick a name of your own |
 
 One `provide` answer using two of them, shapes side by side:
 
