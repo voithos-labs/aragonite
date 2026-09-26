@@ -195,7 +195,7 @@ parse('```\nx\n').children[0];
 //   metadata: { fenceMarker: '`', fenceLength: 3, info: '', closed: false } }
 ````
 
-The fence grammar has one home, `core/parsers/fence-syntax.ts`, and everything that reads a fence goes through it: the parser's closer search (`findFenceCloser`, via `core/parsers/fenced-code.ts :: scanFence`), the code block's renderer and caret rules, and the plugin kinds that hold their own fence (math, mermaid) all read a block's opener, body and closer with `fenceAnatomy`. The fence write rule (`schema/fenced-code-raw.ts`) keeps that anatomy legal through the code block's own typing and every write from outside a block: one opener line, one closer line. Typing in a plugin's fence doesn't reach the rule yet (#593).
+The fence grammar lives in one file, `core/parsers/fence-syntax.ts`, and everything that reads a fence goes through it. The parser finds a closer with `findFenceCloser` (via `core/parsers/fenced-code.ts :: scanFence`), and the code block's renderer and caret rules, plus the plugin kinds that hold their own fence (math, mermaid), read a block's opener, body and closer with `fenceAnatomy`. The fence write rule (`schema/fenced-code-raw.ts`) keeps that shape legal, one opener line and one closer line, through the code block's own typing and through every write from outside a block. Typing in a plugin's fence doesn't reach the rule yet (#593).
 
 ### Blank lines
 

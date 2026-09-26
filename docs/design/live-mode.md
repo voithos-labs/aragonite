@@ -74,7 +74,7 @@ Field by field:
 - `splitBehavior`: what Enter inside it does (§ 4.4).
 - `revealable`: whether preview-inline may show its markers when the caret enters.
 - `cardEditable`: whether the link card (§ 4.6) is the way to its destination.
-- `prose`: how much of the construct is text the author writes, which is where a trigger like `#` may open the inline menu. That's all of it (bold), only its content (a link's text, not its URL), or none (a code span, an image). A kind with no row reads as all of it, unless it's an inline widget (a plugin's formula), which reads as none.
+- `prose`: how much of the construct is text the author writes, which decides where a trigger like `#` may open the inline menu. It's all of it (bold), only its content (a link's text, not its URL), or none (a code span, an image). A kind with no row counts as all of it, unless it's an inline widget (a plugin's formula), which counts as none.
 - `mark`: what a format chord writes for it. The delimiter run, the rank it nests at when one insertion carries several marks, the command that toggles it, and a wrap function for a kind whose delimiters depend on what they enclose (a code span sizes its backtick fence past the longest run inside it).
 
 The same table holds the two registered rewrite slots, the split rebalancer (§ 4.4) and the join cleaner (§ 4.5). Each slot holds one function for every construct, and each has exactly one reader, in `tree-operations/node-ops.ts`.
@@ -173,9 +173,9 @@ resolveMarkedInsertion(raw, 11, 'X', new Set(['strong']), inlines); // at bold's
 ```
 
 - The mark resolves against the caret's construct chain (`pending-mark-insert.ts`; the chain is every construct enclosing the caret, outermost first). A kind the chain lacks wraps the insertion; a kind it carries escapes it, by close-and-reopen or by stepping outside the construct, as above.
-- The marks live in the caret memory beside the arrival side (G3.9): whatever settles the side clears them too, and a caret move that isn't a key (a click, a paste, an undo, a mode flip) forgets them with it. Only a text write spends them (G4.31).
+- The marks live in the caret memory beside the arrival side (G3.9). Anything that changes the side clears them, and a caret move that isn't a key (a click, a paste, an undo, a mode switch) forgets them along with it. Only a text write spends them (G4.31).
 - A chord is not the only thing that sets them. A destructive press that unwraps a construct (§ 4.4) pends the kinds it took, so a format survives the delete that emptied it the way it survives a caret that never left.
-- A composition takes them at `compositionstart`, ahead of the caret memory's forget that would otherwise drop them mid-composition, and hands them back if it commits nothing: an IME cancel inserts no text, so the promise is still owed.
+- A composition takes them at `compositionstart`, before the caret memory's `forget` can drop them mid-composition, and hands them back if it commits nothing: an IME cancel inserts no text, so the promise is still owed.
 - A table cell's typing goes through the same resolver, so all of this holds in a cell.
 
 Over a SELECTION the same chord writes bytes at once, in every mode. Its question is coverage rather than edge adjacency: is the selected range already covered by a construct of the chord's kind?
@@ -286,7 +286,7 @@ cleanJoinedRaw(gone(9, 18, 'Some **bo\n')); // { raw: 'Some bo\n', seam: 7 }: th
 cleanJoinedRaw(gone(7, 11, 'Some **** text\n')); // { raw: 'Some  text\n', seam: 5 }: 'bold' selected, and the emptied pair goes with it
 ```
 
-- The join carries the editor's reading (`src/lib/schema/reading.ts`; `liveReading` and `sourceReading` above stand for one in each mode), and the cleanup runs only where it says the caret's block hides its delimiters.
+- The join carries the editor's `Reading` (`src/lib/schema/reading.ts`: its grammar, its link resolver and its presentation mode in one object; `liveReading` and `sourceReading` above stand for one in each mode). The cleanup runs only where the reading says the caret's block hides its delimiters.
 - What arrives here: Backspace merges, Delete, range deletes, typing over a selection, cut, and the delete half of a paste. A native ranged edit inside one block is re-expressed as a join of what survives on either side, so it crosses the same call (`live-selection-edit.ts`).
 - The range it rewrites comes off the EVENT, since a word or line delete reports one at a collapsed caret where the selection is empty, and every editable prose surface takes that branch (G4.44) rather than keeping its own list of input types.
 - The license is § 2's: live drops only what it never showed, verified against what the two sides showed, and otherwise the literal join stands.
