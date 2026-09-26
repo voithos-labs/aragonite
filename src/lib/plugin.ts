@@ -139,6 +139,7 @@ export type { KeyBinding } from './schema/keybindings';
 // ── Registering commands (pre-freeze) ────────────────────────────────────────
 // A (kind, name) block command creates a `PluginCommandId`; `AnyCommandId` covers both.
 export { registerBlockCommand } from './schema/block-commands';
+export type { BlockCommandOptions } from './schema/block-commands';
 // The block context menu: a kind's right-click actions, empty unless something registers them.
 export { registerBlockContextActions } from './schema/context-actions';
 export type {

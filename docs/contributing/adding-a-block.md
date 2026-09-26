@@ -247,11 +247,10 @@ A binding can carry an argument, which is how one command serves seven chords:
 Your block pulls what it needs from concern-specific Svelte contexts. Take only the ones you use:
 
 ```ts
-// components/blocks/list/ListBlock.svelte
+// in a block component's script
 const parentBlockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
 const parentFocus = getContext<FocusActions>(FOCUS_KEY);
-const { controller, stickyColumn, selection, registryView } =
-	getContext<EditorServices>(EDITOR_SERVICES_KEY);
+const { controller, selection } = getContext<EditorServices>(EDITOR_SERVICES_KEY);
 ```
 
 | Context                     | Gives you                                                                         |

@@ -780,8 +780,8 @@ writes, and the "read-only by contract" prose on `BlockComponentProps.document`.
 
 **G3.9 · One caret memory.** `src/lib/cursor/caret-memory.ts` :: `createCaretMemory` holds the
 sticky column, the edge affinity and the pending marks. A keydown updates them through `noteKey`,
-and every other caret move (a click, a paste, an undo, a document swap, a blur, a mode switch)
-calls `forget`, which drops all three. No member drops one part alone, so a site that clears the
+and every other caret move (a click, a paste, an undo, a document swap, a blur, a mode switch, a
+caret the host or a menu places through the selection restore) calls `forget`, which drops all three. No member forgets one part alone, so a site that clears the
 column and leaves the side behind doesn't compile. Retired: G4.31's reset parity scan and G2.10's
 capture-without-reset pairing.
 
@@ -1136,7 +1136,7 @@ presentation e2e suite asserts it through the invariant-console gate.
 
 **G4.31 · Pending marks are spent by a write.** The pending marks (a format toggled at a collapsed
 caret, waiting to wrap the next typed character) are spent only where typed or composed text is
-written: the typed-byte arm of the edge-policy dispatch and the composition seats of the two prose
+written: the typed-byte arm of the edge-policy dispatch and the composition writes of the two prose
 surfaces. A spend anywhere else drops the promise with nothing written. The reset half this entry
 used to carry, the affinity and the marks clearing wherever the sticky column did, retired upward
 to G3.9. `lint/file-rules.test.ts`.

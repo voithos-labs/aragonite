@@ -1566,7 +1566,7 @@ editor.rects.rangeRects([2], 4, 9); // [DOMRect { x: 96, y: 412, width: 38, heig
 
 ## Block commands
 
-**`registerBlockCommand(kind, name, handler)`**
+**`registerBlockCommand(kind, name, handler, options?)`**
 
 Mints a `(kind, name)` command and returns its id, which a keymap binding then targets; the walkthrough's `conspiracy.setVerdict` is the worked mint. The name is process-wide, but the registry key is `(kind, name)` and dispatch is kind-scoped, so you may reuse one command name across several of your own kinds (one `conspiracy.setVerdict` on every kind your plugin ships). A name already taken by a **different** plugin is rejected.
 
@@ -1580,6 +1580,8 @@ setVerdict; // 'conspiracy.setVerdict', branded as a command id
 // where it goes, in the descriptor: keymap: [{ chord: 'Mod+8', command: setVerdict, arg: 'debunked' }]
 registerBlockCommand(conspiracy, 'conspiracy.setVerdict', handler); // throws: already registered
 ```
+
+A command that moves the focused block among its siblings, rather than the caret within it, passes `{ movesBlock: true }`: the keypress then keeps the caret's column and marker side the way the built-in Alt+Arrow reorder does, and the move's own commit drops them.
 
 A minted command dispatches on the two tiers that can hand it a `BlockCommandContext` (the focused node plus a metadata-commit route):
 

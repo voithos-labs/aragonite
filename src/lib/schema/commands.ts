@@ -81,6 +81,17 @@ export const RANGE_DECLINED_COMMAND_IDS: ReadonlySet<string> = new Set<CommandId
 ]);
 
 /**
+ * Built-in commands that move the block or row holding the caret rather than the caret; a plugin
+ * declares its own through `registerBlockCommand`'s `movesBlock`. Read by `commandMovesBlock`.
+ */
+export const BLOCK_MOVE_COMMAND_IDS: ReadonlySet<string> = new Set<CommandId>([
+	'block.moveUp',
+	'block.moveDown',
+	'table.moveRowUp',
+	'table.moveRowDown'
+]);
+
+/**
  * Single-block commands that also have a cross-block form
  * (`selection/cross-block/format-toggle.ts`), reached through an injected router. Declined
  * wherever no router was passed, so a dispatch site that skips it cannot fall through to the

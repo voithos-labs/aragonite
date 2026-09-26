@@ -17,6 +17,7 @@ import {
 	isCommandRegistered,
 	warnDeadKeyCommand,
 	isBuiltinCommandId,
+	BLOCK_MOVE_COMMAND_IDS,
 	CROSS_BLOCK_RANGE_COMMAND_IDS,
 	RANGE_DECLINED_COMMAND_IDS,
 	type CommandDispatchPath,
@@ -52,6 +53,23 @@ const blockCommands = createPluginRegistry<string, BlockCommandHandler>({
 
 const compositeKey = (kind: AnyBlockKind, id: string): string => `${kind} ${id}`;
 
+// Keyed by command id, since a move is a fact about the command whichever kind binds it.
+const pluginBlockMoves = createPluginRegistry<string, true>({
+	label: 'registerBlockCommand movesBlock',
+	isBuiltin: () => false
+});
+
+export interface BlockCommandOptions {
+	/** The command moves the block holding the caret, not the caret: a keydown bound to it keeps
+	 *  how the caret arrived, and the move's own commit drops that. */
+	movesBlock?: boolean;
+}
+
+/** Whether a keydown resolving to `id` moves a block rather than the caret. */
+export function commandMovesBlock(id: AnyCommandId): boolean {
+	return BLOCK_MOVE_COMMAND_IDS.has(id) || pluginBlockMoves.has(id);
+}
+
 /**
  * A duplicate `(kind, name)` reports as a register-once conflict rather than an id collision, and
  * `mintCommandId` validates the name before the handler is stored, so an invalid name never
@@ -60,7 +78,8 @@ const compositeKey = (kind: AnyBlockKind, id: string): string => `${kind} ${id}`
 export function registerBlockCommand(
 	kind: AnyBlockKind,
 	name: string,
-	handler: BlockCommandHandler
+	handler: BlockCommandHandler,
+	options: BlockCommandOptions = {}
 ): PluginCommandId {
 	const key = compositeKey(kind, name);
 	// A taken key throws here, or on a dev server replaces the handler under the id it already has.
@@ -70,6 +89,7 @@ export function registerBlockCommand(
 		handler,
 		`registerBlockCommand: (${kind}, ${name}) is already registered — block commands are register-once`
 	);
+	if (options.movesBlock && !pluginBlockMoves.has(id)) pluginBlockMoves.register(id, true);
 	return id;
 }
 
