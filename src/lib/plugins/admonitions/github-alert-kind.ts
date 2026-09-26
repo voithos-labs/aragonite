@@ -111,6 +111,8 @@ export function registerGithubAlert(): void {
 
 	registerBlockKind(kind, {
 		label: 'Alert',
+		// A note reads as part of the text around it, so it shows no drag handle.
+		pageRole: 'prose',
 		gapEdges: 'none',
 		mergeRole: 'container',
 		editable: true,

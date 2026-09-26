@@ -4,7 +4,8 @@ import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import type { Document } from '$lib/core/nodes';
 import type { PresentationMode } from '$lib/presentation-mode';
-import { createKindCue, shownKind } from '$lib/components/kind-cue.svelte';
+import { createKindCue } from '$lib/components/kind-cue.svelte';
+import { shownKind } from '$lib/core/parsers/heading';
 
 function cueOver(source: string, mode: PresentationMode) {
 	let doc: Document = parse(source);

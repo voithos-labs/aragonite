@@ -9,6 +9,12 @@ import type { UserScrollport } from '../cursor/scroll-ancestors';
 import type { ReorderAction } from './reorder-action';
 import { createPointerDragSession } from '../selection/pointer-session';
 import { readBlockPath } from '../selection/path-lookup';
+import type { DocumentGetter } from '../editor-keys';
+import { isImageOnlyParagraph } from '../core/inline/picture';
+import type { InlineReading } from '../core/inline/inline-cache';
+import type { NodeView } from '../core/node-views';
+import { blockNodeAt } from '../tree-operations/node-primitives';
+import { tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
 
 export interface ReorderDragOverlay {
 	setGhost(g: { clientX: number; clientY: number; label: string } | null): void;
@@ -23,6 +29,9 @@ export interface ReorderDragContext {
 	getScrollHost: () => UserScrollport | null;
 	moveReorderUnit: ReorderAction['moveReorderUnit'];
 	overlay: ReorderDragOverlay;
+	/** The document and its reading, which name the dragged block on the ghost. */
+	getDoc: DocumentGetter;
+	reading: InlineReading;
 	/** Aborted on editor unmount, ending a drag whose pointerup can no longer fire. */
 	lifetimeSignal?: AbortSignal;
 }
@@ -73,13 +82,11 @@ function startSession(
 	const fromIndex = indexOf(dragHost);
 	const group = dragHost.parentElement;
 	if (!fromPath || fromIndex === null || !group) return null;
-	const siblingSelector = dragHost.classList.contains('list-item-block')
-		? '.list-item-block'
-		: '.block-host';
-	const label = ghostLabel(dragHost);
+	const node = blockNodeAt(ctx.getDoc(), fromPath);
+	const label = node ? ghostLabel(dragHost, node, ctx.reading) : 'Block';
 	// The container this unit moves within (null at top level). Marked for the drag's
 	// duration so a move confined to it reads as intentional, not broken.
-	const scopeEl = dragHost.closest('.list-block, .blockquote-block') as HTMLElement | null;
+	const scopeEl = scopeBox(group);
 
 	let dropTo: number | null = null;
 
@@ -87,7 +94,7 @@ function startSession(
 		const out: { index: number; rect: DOMRect }[] = [];
 		for (const el of Array.from(group!.children)) {
 			if (!(el instanceof HTMLElement)) continue;
-			if (!el.matches(siblingSelector) || !el.classList.contains('reorder-host')) continue;
+			if (!el.classList.contains('reorder-host')) continue;
 			const index = indexOf(el);
 			if (index !== null) out.push({ index, rect: el.getBoundingClientRect() });
 		}
@@ -170,28 +177,31 @@ function indexOf(host: HTMLElement): number | null {
 }
 
 /**
- * The ghost label for kinds whose text does not read as one: a table's cells run together
- * into `IngredientAmountWater35 L`, an equation reads as its own source. Prose keeps its
- * first words, which is the best label it could have.
+ * The ghost's label: a table's shape, the name a kind declares for a block whose text reads badly
+ * as one (a formula's source), and otherwise the block's first words.
  */
-const KIND_LABELS: Record<string, string> = {
-	table: 'Table',
-	mathBlock: 'Equation',
-	fencedCode: 'Code',
-	mermaid: 'Diagram',
-	thematicBreak: 'Divider',
-	details: 'Details',
-	image: 'Image'
-};
-
-function ghostLabel(host: HTMLElement): string {
-	const kind = host.dataset.blockKind ?? '';
-	if (kind === 'table') return tableLabel(host);
-	const named = KIND_LABELS[kind];
-	if (named) return named;
+function ghostLabel(host: HTMLElement, node: NodeView, reading: InlineReading): string {
+	const descriptor = tryGetBlockKindDescriptor(node.kind);
+	if (descriptor?.containerContract === 'grid') return tableLabel(host);
+	if (descriptor?.dragLabel) return descriptor.dragLabel;
+	// Before the text: a linked picture shows its link's bytes as text in source mode.
+	if (isImageOnlyParagraph(node, reading)) return 'Image';
 	const text = (host.textContent ?? '').trim().replace(/\s+/g, ' ');
-	if (!text) return host.querySelector('[data-image-widget]') ? 'Image' : 'Block';
+	if (!text) return 'Block';
 	return text.length > 40 ? text.slice(0, 40) + '…' : text;
+}
+
+/**
+ * The box a drag inside a container is confined to: the whole container as drawn (a quote's bar
+ * and padding included), found from the child list marked as one whose children reorder.
+ */
+function scopeBox(group: HTMLElement): HTMLElement | null {
+	if (!group.hasAttribute('data-reorder-scope')) return null;
+	const host = group.parentElement?.closest('.block-host');
+	if (!host) return null;
+	return (
+		Array.from(host.children).find((child): child is HTMLElement => child.contains(group)) ?? null
+	);
 }
 
 /** Rows by columns: the shape is what tells one table from another at a glance. */

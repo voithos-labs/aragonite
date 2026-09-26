@@ -1,29 +1,30 @@
 /**
- * The attribute names a block decoration may not use. A decorated element (a block host, a list
- * item's box, a table row or cell) holds every element the offset traversal walks, so a reserved
- * `data-` name answers the ancestor lookups the CSS, that traversal, and selection and windowing
- * make through `closest()` or an ancestor selector.
+ * The `data-` names a block decoration may not set: the ones the editor sets on a decorated element
+ * (a block host, a list item's box, a table row or cell) or reads there through a lookup or a
+ * stylesheet rule. A decoration taking one would answer that lookup or paint a state the editor
+ * never set. `reserved-block-attrs.test.ts` derives this list from the source and holds it to it.
  */
 
 import { devWarn } from '../dev-warn';
 
 export const RESERVED_BLOCK_ATTRS: ReadonlySet<string> = new Set([
-	'data-block-path',
 	'data-block-kind',
+	'data-block-path',
 	'data-content-empty',
-	'data-cross-block',
 	'data-decoration-island',
 	'data-focused',
-	'data-gap-caret',
 	'data-image-overlay',
 	'data-image-widget',
 	'data-inline-widget',
+	'data-kind-cue',
 	'data-link-card',
 	'data-list-marker',
 	'data-pointer-gesture',
 	'data-presentation',
+	'data-source-start',
 	'data-table-row-idx',
-	'data-task-checked'
+	'data-task-checked',
+	'data-whole-block-input'
 ]);
 
 /** The attributes every decorated element renders itself. A decoration's cleanup removes what

@@ -8,6 +8,7 @@
  */
 import {
 	ALL_BLOCK_KINDS,
+	isBuiltinBlockKind,
 	isBuiltinInlineKind,
 	type AnyBlockKind,
 	type AnyInlineKind
@@ -25,10 +26,12 @@ import {
 	checkContentStartBackspace,
 	checkDescriptorFieldCoherence,
 	checkInlineConstructPolicy,
+	checkBuiltinPresentationFacts,
 	type ClosureCoherenceEntry,
 	type ContentStartBackspaceEntry,
 	type DescriptorFieldEntry,
-	type MergeRoleEntry
+	type MergeRoleEntry,
+	type PresentationFactEntry
 } from '../invariants/registry';
 import { listInlineConstructPolicies } from './inline-construct-policy';
 import { isInlineKindDeclared } from './plugin-kind';
@@ -151,10 +154,20 @@ const descriptorFieldEntries = (
 		];
 	});
 
+const presentationFactEntries = (kinds: readonly AnyBlockKind[]): PresentationFactEntry[] =>
+	kinds.filter(isBuiltinBlockKind).map((kind) => {
+		const d = tryGetBlockKindDescriptor(kind);
+		return {
+			kind,
+			declaresPageRole: d?.pageRole !== undefined,
+			declaresEstimateHeight: d?.estimateHeight !== undefined
+		};
+	});
+
 const isKnownCommandId = (id: string): boolean => isBuiltinCommandId(id) || isPluginCommandId(id);
 
 /**
- * Run the registry checks (G1.2/10/11/17/18/24/30/32/37). The first call covers everything
+ * Run the registry checks (G1.2/10/11/17/18/24/30/32/37/40). The first call covers everything
  * registered; later calls check only the kinds registered since, plus the openers as a whole,
  * because a new opener's priority clash always involves another entry.
  */
@@ -190,6 +203,9 @@ export function flushPendingRegistrationChecks(
 	);
 	report('content-start-backspace', () =>
 		checkContentStartBackspace(contentStartBackspaceEntries(kinds))
+	);
+	report('builtin-presentation-facts', () =>
+		checkBuiltinPresentationFacts(presentationFactEntries(kinds))
 	);
 	for (const kind of work.lateOpeners) {
 		report('late-opener-registration', () => checkLateOpenerRegistration(kind, true));

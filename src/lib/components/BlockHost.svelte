@@ -56,7 +56,8 @@
 	// Per-instance enablement reaches the render path through the view; bare mounts
 	// read the global default.
 	const registryView = services?.registryView ?? defaultRegistryView;
-	const getDoc = getContext<EditorDoc | undefined>(EDITOR_DOC_KEY)?.doc;
+	const editorDoc = getContext<EditorDoc | undefined>(EDITOR_DOC_KEY);
+	const getDoc = editorDoc?.doc;
 	// Stable object, so a plain read rather than a getter.
 	const rects = services?.rects;
 	const policies = getContext<EditorPolicies | undefined>(EDITOR_POLICIES_KEY);
@@ -67,8 +68,16 @@
 	// The drag-handle prop already accounts for reading mode, but an image's handle does not
 	// wait for that prop, so reading mode is checked here too.
 	const isReading = $derived(policies?.presentationMode?.() === 'reading');
+	// A bare mount has no editor reading: every installed plugin's syntax, no link definitions.
+	const inlineReading = editorDoc?.reading ?? {
+		grammar: registryView.grammar,
+		resolver: undefined,
+		resolverSignature: ''
+	};
 	// A block with no drag handle (a paragraph) can still be dropped next to and moved by key.
-	const showsHandle = $derived(reorderable && !isReading && showsDragHandle(node, dragHandles));
+	const showsHandle = $derived(
+		reorderable && !isReading && showsDragHandle(node, dragHandles, inlineReading)
+	);
 
 	let myPath = $derived([...parentPath, index]);
 

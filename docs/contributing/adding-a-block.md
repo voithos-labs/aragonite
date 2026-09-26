@@ -29,7 +29,7 @@ flowchart LR
   R --> X["merge · paste · selection<br/>inline · container raw"]
 ```
 
-The **union member** is what makes the rest type-check. The **descriptor** says what your kind _is_ (mergeable? editable? a container?). The **component** says how it looks and how it takes input. The **opener** teaches the block parser to recognize your syntax, and you skip it entirely if your kind emerges from the paragraph fallback (setext headings and tables do).
+The **union member** is what makes the rest type-check. The **descriptor** says what your kind _is_ (mergeable? editable? a container? prose on the page, or an object you pick up?). The **component** says how it looks and how it takes input. The **opener** teaches the block parser to recognize your syntax, and you skip it entirely if your kind emerges from the paragraph fallback (setext headings and tables do).
 
 Everything downstream reads the registries (merge rules, BlockHost, the selection overlay, paste, the inline pipeline, container raw rebuild), which is why the inventory is that short. Adding a kind is additive.
 
@@ -85,7 +85,7 @@ export interface BlockMetadataByKind {
 
 ### 1. The descriptor
 
-Call `registerBlockKind(kind, registration)` from `schema/built-in-descriptors.ts` (the registry itself is `schema/block-kind-descriptor.ts`). Five fields are required: `gapEdges`, `mergeRole`, `editable`, `supportsInline`, and the `closure` block. The kind's name isn't one of them: a built-in's lives in `BUILT_IN_BLOCK_LABELS` in `src/lib/a11y-strings.ts`, the word a screen reader and the block menu use for it. That table is a `Record<BlockKind, string>`, so the compiler flags the entry you forgot. Here's the thematic break's descriptor, the smallest built-in:
+Call `registerBlockKind(kind, registration)` from `schema/built-in-descriptors.ts` (the registry itself is `schema/block-kind-descriptor.ts`). Five fields are required: `gapEdges`, `mergeRole`, `editable`, `supportsInline`, and the `closure` block. The kind's name isn't one of them: a built-in's lives in `BUILT_IN_BLOCK_LABELS` in `src/lib/a11y-strings.ts`, the word a screen reader and the block menu use for it. That table is a `Record<BlockKind, string>`, so the compiler flags the entry you forgot. Two more, `pageRole` and `estimateHeight`, are optional for a plugin but not for you. A plugin that skips them gets defaults, and a built-in that skipped them would quietly get those same defaults without anyone deciding it should, so the check that runs when an editor mounts (G1.40) fails it. Here's the thematic break's descriptor, the smallest built-in:
 
 ```ts
 // schema/built-in-descriptors.ts
@@ -96,6 +96,8 @@ registerBlockKind('thematicBreak', {
 	blockFocus: 'whole-block',
 	// Leading edge only: its focused Enter already inserts a paragraph below.
 	gapEdges: 'before',
+	pageRole: 'object',
+	estimateHeight: singleLineEstimate,
 	keymap: [
 		{ chord: 'Alt+ArrowUp', command: 'block.moveUp' },
 		{ chord: 'Alt+ArrowDown', command: 'block.moveDown' }
@@ -124,7 +126,11 @@ registerBlockKind('thematicBreak', {
 | `renderImagesAsWidgets` | `false` opts out of image widgets (a table cell renders the alt text instead)                                                                     |
 | `foreignDragHitTest`    | Custom drop-target geometry: the EXACT hit, declining off-target                                                                                  |
 | `caretTargetAtPoint`    | Where a caret-placing gesture lands inside the block: the NEAREST target                                                                          |
-| `estimateHeight`        | An O(1) height guess for windowing, when the default guess is far off for your kind                                                               |
+| `dragLabel`             | What the drag ghost calls the block when its text makes a bad label (code shows `Code`, not its first line)                                       |
+
+`pageRole` is how the block reads on the page. A `'prose'` block (a paragraph, a heading, a quote) gets no drag handle, and right-clicking its text opens the clipboard rows. An `'object'` (code, a table, a divider) gets a handle and its own block menu. There's one exception you don't declare: a paragraph holding nothing but images counts as an object whatever its kind says (`src/lib/schema/page-role.ts`).
+
+`estimateHeight` is the block's height guess until windowing (only mounting the blocks near the screen) gets to measure it. You prob don't need to write one. `src/lib/schema/height-estimates.ts` has one per common shape (wrapped prose, a single line, source lines, and `containerEstimate` for anything with children), so pick the closest.
 
 The `closure` block is the kind's written answer to every cross-cutting editor system (focus, selection paint, search, undo, and so on), one cell per column. The plugin guide teaches it cell by cell in ["The closure block"](../guide/plugin-guide.md#the-closure-block), and `docs/design/plugin-contract.md` § "Editable content and the closure matrix" is the full reference, so I won't repeat it. What's built-in specific is where the presets live:
 

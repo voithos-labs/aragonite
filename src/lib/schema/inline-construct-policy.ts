@@ -49,7 +49,15 @@ export interface InlineConstructPolicy {
 	cardEditable?: boolean;
 	/** Absent for a construct no format chord addresses. */
 	mark?: InlineMarkPolicy;
+	/**
+	 * How much of the construct is prose the author writes, where a trigger such as `#` may open
+	 * the inline menu: `'all'`, only its content range (`'content'`, a link's text), or `'none'`
+	 * (code, a destination). Absent reads as `'all'`, or `'none'` for an inline widget kind.
+	 */
+	prose?: InlineProseExtent;
 }
+
+export type InlineProseExtent = 'none' | 'content' | 'all';
 
 // Read with no editor at hand: a row matters only for a node of its kind, and only an editor
 // that activated the kind's plugin parses one, so the rows answer for every installed plugin.

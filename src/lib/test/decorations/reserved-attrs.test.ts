@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { acceptedBlockAttrs, RESERVED_BLOCK_ATTRS } from '$lib/decorations/reserved-attrs';
+import { acceptedBlockAttrs } from '$lib/decorations/reserved-attrs';
 import { takeDevWarns } from '../support/warn-gate';
 
 // The block host is an ancestor of every element the offset traversal walks, so a decoration
@@ -16,6 +16,25 @@ describe('acceptedBlockAttrs', () => {
 		expect(fires).toHaveLength(1);
 		expect(fires[0].message).toContain("'data-content-empty' is reserved");
 		expect(fires[0].details).toEqual({ path: [2] });
+	});
+
+	// A block decoration setting the kind cue's label would paint that label for good.
+	// Miss-analysis: the set was checked against a copy of itself, so no case named an attribute
+	// the editor had started setting since.
+	it('drops the attributes the kind cue and a whole-block input set', () => {
+		const attrs = { 'data-kind-cue': 'Heading', 'data-whole-block-input': '' };
+		expect(acceptedBlockAttrs(attrs, [0])).toEqual([]);
+		expect(takeDevWarns()).toHaveLength(2);
+	});
+
+	// A name the editor uses only inside a block (a menu row's state) reads nothing on the block's
+	// own element, so a decoration may take it.
+	it('lets through a name the editor sets only on an inner element', () => {
+		expect(acceptedBlockAttrs({ 'data-active': 'yes', 'data-group': 'a' }, [0])).toEqual([
+			['data-active', 'yes'],
+			['data-group', 'a']
+		]);
+		expect(takeDevWarns()).toEqual([]);
 	});
 
 	it("lets a decoration author's own attribute through untouched", () => {
@@ -83,28 +102,5 @@ describe('acceptedBlockAttrs', () => {
 
 	it('is empty for a decoration carrying no attrs', () => {
 		expect(acceptedBlockAttrs(undefined, [0])).toEqual([]);
-	});
-
-	// The names the offset traversal, the CSS, and selection and windowing look for on an
-	// ancestor. A new reader added without its name here is a hole the warning cannot see.
-	it('reserves the ancestor-read vocabulary', () => {
-		expect([...RESERVED_BLOCK_ATTRS].sort()).toEqual([
-			'data-block-kind',
-			'data-block-path',
-			'data-content-empty',
-			'data-cross-block',
-			'data-decoration-island',
-			'data-focused',
-			'data-gap-caret',
-			'data-image-overlay',
-			'data-image-widget',
-			'data-inline-widget',
-			'data-link-card',
-			'data-list-marker',
-			'data-pointer-gesture',
-			'data-presentation',
-			'data-table-row-idx',
-			'data-task-checked'
-		]);
 	});
 });

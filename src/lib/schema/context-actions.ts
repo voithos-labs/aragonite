@@ -35,7 +35,12 @@ export interface BlockContextAction {
 	run(ctx: BlockActionContext): void | Promise<void>;
 }
 
-export type BlockContextActionProvider = (node: NodeView, path: number[]) => BlockContextAction[];
+/** `noun` is what the menu calls the block ("code block", "image"), for a row's label. */
+export type BlockContextActionProvider = (
+	node: NodeView,
+	path: number[],
+	noun: string
+) => BlockContextAction[];
 
 // Filled by `registerBuiltinBlockContextActions`, whose providers survive the test reset.
 const builtinKeys = new Set<string>();
@@ -76,11 +81,12 @@ export function registerBuiltinBlockContextActions(
 export function blockContextActionsFor(
 	node: NodeView,
 	path: number[],
-	activation: PluginActivation
+	activation: PluginActivation,
+	noun: string
 ): BlockContextAction[] {
 	const active = providers.entries(activation).map(([, entry]) => entry);
 	return [
 		...active.filter((entry) => entry.kind === node.kind),
 		...active.filter((entry) => entry.kind === EVERY_KIND)
-	].flatMap(({ provider }) => provider(node, path));
+	].flatMap(({ provider }) => provider(node, path, noun));
 }

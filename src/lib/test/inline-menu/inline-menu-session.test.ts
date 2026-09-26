@@ -1,4 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { registerMathInline } from '$lib/plugins/latex/latex-kind';
+import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import {
 	findOpening,
 	isProseOffset,
@@ -133,7 +135,8 @@ describe('isProseOffset', () => {
 	const at = (raw: string): boolean => {
 		const offset = raw.indexOf('|');
 		const leaf = (parse(raw.replace('|', '') + '\n') as { children: NodeView[] }).children[0];
-		return isProseOffset(resolvedInlineContent(leaf, fixtureReading()), offset);
+		const reading = fixtureReading();
+		return isProseOffset(resolvedInlineContent(leaf, reading), offset, reading.grammar);
 	};
 
 	it('is true in ordinary text and in a link’s own text, which is prose', () => {
@@ -161,6 +164,21 @@ describe('isProseOffset', () => {
 		expect(at('see <https://a/|b> here')).toBe(false);
 		expect(at('see https://a/|b here')).toBe(false);
 		expect(at('see <span data="a|b"> here')).toBe(false);
+	});
+
+	// Miss-analysis: every case used a built-in construct, and the list of kinds that are not prose
+	// named built-ins only, so a plugin widget's source never met the check.
+	describe('inside a plugin widget', () => {
+		beforeEach(() => {
+			__resetSchemaRegistriesForTests();
+			registerMathInline();
+		});
+		afterEach(() => __resetSchemaRegistriesForTests());
+
+		it('is false in an inline formula’s source, which is not prose', () => {
+			expect(at('see $x |#y$ here')).toBe(false);
+			expect(at('see $x$ |#y')).toBe(true);
+		});
 	});
 });
 

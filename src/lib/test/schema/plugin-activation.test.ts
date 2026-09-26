@@ -97,8 +97,8 @@ describe('one activation rule for every plugin registration', () => {
 		]);
 		const node = { kind: 'probe-rows', raw: 'x\n' } as unknown as NodeView;
 
-		expect(blockContextActionsFor(node, [0], activationFor(['rows']))).toHaveLength(1);
-		expect(blockContextActionsFor(node, [0], activationFor([]))).toEqual([]);
+		expect(blockContextActionsFor(node, [0], activationFor(['rows']), 'block')).toHaveLength(1);
+		expect(blockContextActionsFor(node, [0], activationFor([]), 'block')).toEqual([]);
 	});
 
 	it('resolves nothing a plugin registered before its setup threw, in a default editor too', () => {

@@ -8,12 +8,14 @@ order. This file covers which blocks show a handle and when, not dragging.
 
 - hover a top-level block: its drag handle appears (opacity 0 → 1)
 - hover a list item: exactly one handle appears inside the item and its children
-- hover a blockquote child: its drag handle appears
+- hover a blockquote child: its drag handle appears. So does a child of any container whose
+  children reorder (a GitHub alert, a footnote), since a drag moves what Alt+Arrow moves
 
 ## Which blocks carry one
 
-- prose carries none: paragraph, heading, blockquote, and the note cards (admonition,
-  GitHub alert). They stay reorder units (`reorder-host`, keyboard reorder, a drop neighbour)
+- prose carries none: paragraph, heading of either syntax, blockquote, and the note cards
+  (admonition, GitHub alert). They stay reorder units (`reorder-host`, keyboard reorder, a drop
+  neighbour). Each kind declares which it is (its `pageRole`)
 - the list as a whole carries none either: its handle would sit in the gutter on top of its
   first item's and take the click with it, so hovering the first row would light the list's
   handle instead. A list moves one item at a time, so the items carry the handles

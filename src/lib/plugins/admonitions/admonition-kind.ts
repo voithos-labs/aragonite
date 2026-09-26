@@ -96,6 +96,8 @@ export function registerAdmonitions(options?: AdmonitionsOptions): void {
 
 	registerBlockKind(admonition, {
 		label: 'Admonition',
+		// A note reads as part of the text around it, so it shows no drag handle.
+		pageRole: 'prose',
 		mergeRole: 'container',
 		editable: true,
 		supportsInline: false,

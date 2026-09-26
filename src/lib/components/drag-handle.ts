@@ -1,44 +1,27 @@
 /**
  * The block drag handle's two rules: which blocks get one (the objects a user picks up whole,
- * never prose), and where it sits. A block without one still reorders by keyboard.
+ * never prose, as `schema/page-role.ts` tells them apart), and where it sits. A block without
+ * one still reorders by keyboard.
  */
 
 import type { NodeView } from '../core/node-views';
+import { isImageOnlyParagraph } from '../core/inline/picture';
+import type { InlineReading } from '../core/inline/inline-cache';
+import { blockPageRole } from '../schema/page-role';
 import { BLOCK_CONTENT_SELECTOR, DRAG_ANCHOR_ATTR } from './block-content-selector';
 
 /**
- * Prose (the page's background and its asides), plus the list wrapper, whose own handle would
- * sit in the gutter on top of its first item's and take the clicks with it. A list moves an
- * item at a time; the wrapper is not a thing to pick up.
- */
-const GRIPLESS_KINDS: ReadonlySet<string> = new Set([
-	'paragraph',
-	'heading',
-	'blockquote',
-	'admonition',
-	'githubAlert',
-	'list'
-]);
-
-/**
- * A paragraph holding nothing but images is a picture in the page, not prose: it reads as a
- * block of its own and is exactly what a user reaches to move. Missing a match here (an alt
- * text with an escaped bracket, an image beside a word) leaves a plain paragraph, no handle.
- */
-const IMAGE_ONLY_PARAGRAPH = /^\s*(?:!\[[^\]]*\](?:\([^)]*\)|\[[^\]]*\])\s*)+$/;
-
-export function isImageOnlyParagraph(node: NodeView): boolean {
-	return node.kind === 'paragraph' && IMAGE_ONLY_PARAGRAPH.test(node.raw);
-}
-
-/**
- * An image's handle does not wait for `blockDragHandles`: dragging it is the only way to move
+ * A picture's handle does not wait for `blockDragHandles`: dragging it is the only way to move
  * a picture with the pointer, and unlike prose it is a separate object a user expects to pick
  * up. The caller still checks reading mode, which shows no such controls at all.
  */
-export function showsDragHandle(node: NodeView, handlesEnabled: boolean): boolean {
-	if (isImageOnlyParagraph(node)) return true;
-	return handlesEnabled && !GRIPLESS_KINDS.has(node.kind);
+export function showsDragHandle(
+	node: NodeView,
+	handlesEnabled: boolean,
+	reading: InlineReading
+): boolean {
+	if (isImageOnlyParagraph(node, reading)) return true;
+	return handlesEnabled && blockPageRole(node, reading) === 'object';
 }
 
 /**

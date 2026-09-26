@@ -8,6 +8,7 @@ import { insertCatalogue } from '$lib/schema/insert-catalogue';
 import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 import type { PresentationMode } from '$lib/presentation-mode';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
+import { fixtureReading } from '$lib/test/harness/fixture-grammar';
 
 // Miss-analysis: which menu a right-click opens (a block's actions, the clipboard rows with or
 // without the insert flyout, or nothing) was pinned only through Playwright, one target per spec.
@@ -64,6 +65,7 @@ function harness(opts: { mode?: PresentationMode } = {}) {
 		insertMarkdown,
 		insertCatalogue: () => insertCatalogue(everyInstalledPlugin),
 		activation: everyInstalledPlugin,
+		reading: fixtureReading(),
 		setMenu: (next) => (menu = next)
 	});
 	root.addEventListener('contextmenu', menus.onRootContextMenu);

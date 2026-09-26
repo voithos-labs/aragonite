@@ -9,6 +9,7 @@ import { createPluginRegistry } from './plugin-registry';
 import type { ChildRawChange } from './child-spans';
 import type { ClosureBlock } from './closure';
 import type { KeyBinding } from './keybindings';
+import type { HeightEstimateEnv } from './height-estimates';
 
 /**
  * The Backspace-merge roles (`docs/design/editor.md`, "Merge eligibility: roles, not pairs").
@@ -254,9 +255,24 @@ export interface BlockKindDescriptor {
 		clientX: number,
 		clientY: number
 	) => CaretTarget | null;
-	/** O(1) content-height estimate in px for windowing, with no subtree traversal. The height
-	 *  estimator adds the block's frame; a measured height still wins. */
-	estimateHeight?: (node: NodeView, env: { width: number }) => number;
+	/**
+	 * O(1) content-height estimate in px for windowing, with no subtree traversal; the helpers in
+	 * `height-estimates.ts` cover the common shapes. The estimator adds the block's frame, and a
+	 * measured height still wins. Absent, a container gets the container estimate, a leaf prose's.
+	 */
+	estimateHeight?: (node: NodeView, env: HeightEstimateEnv) => number;
+
+	// ── Presentation ──────────────────────────────────────────────────────────
+
+	/**
+	 * How the block reads on the page. `'prose'` is text the user writes in: it shows no drag
+	 * handle, and a right-click in a prose leaf opens the clipboard rows rather than a block menu.
+	 * `'object'` is a thing picked up whole, with a handle and a menu. Absent reads as `'object'`.
+	 */
+	pageRole?: 'prose' | 'object';
+	/** What the drag ghost calls the block, for one whose text reads badly as a label (a formula's
+	 *  source). Absent, the ghost shows the block's first words; blank throws. */
+	dragLabel?: string;
 }
 
 /**
@@ -291,7 +307,9 @@ export const DESCRIPTOR_FIELDS = [
 	'renderImagesAsWidgets',
 	'foreignDragHitTest',
 	'caretTargetAtPoint',
-	'estimateHeight'
+	'estimateHeight',
+	'pageRole',
+	'dragLabel'
 ] as const satisfies readonly (keyof BlockKindDescriptor)[];
 
 type MissingDescriptorField = Exclude<
@@ -377,7 +395,8 @@ const registry = createPluginRegistry<AnyBlockKind, BlockKindDescriptor>({
 // ── Public API ──────────────────────────────────────────────────────────────
 
 export function registerBlockKind(kind: AnyBlockKind, registration: BlockKindRegistration): void {
-	rejectBlankLabel('registerBlockKind', kind, registration.label);
+	rejectBlankLabel('registerBlockKind', kind, 'label', registration.label);
+	rejectBlankLabel('registerBlockKind', kind, 'dragLabel', registration.dragLabel);
 	const owner = registry.has(kind) ? pluginKindOwner(kind) : null;
 	registry.register(
 		kind,
@@ -390,10 +409,15 @@ export function registerBlockKind(kind: AnyBlockKind, registration: BlockKindReg
 }
 
 // A blank label would render as an empty `aria-label`, leaving the block's textbox unnamed.
-function rejectBlankLabel(entry: string, kind: AnyBlockKind, label: string | undefined): void {
+function rejectBlankLabel(
+	entry: string,
+	kind: AnyBlockKind,
+	field: 'label' | 'dragLabel',
+	label: string | undefined
+): void {
 	if (label === undefined || label.trim() !== '') return;
 	throw new Error(
-		`${entry}: "${kind}" has a blank label; give it a name or omit label to use the kind's name.`
+		`${entry}: "${kind}" has a blank ${field}; give it a name or omit ${field} for the default.`
 	);
 }
 
@@ -419,7 +443,8 @@ function mergeBlockKindFields(
 			`${entry}: cannot augment "${kind}"; no base descriptor. Call registerBlockKind first.`
 		);
 	}
-	rejectBlankLabel(entry, kind, fields.label);
+	rejectBlankLabel(entry, kind, 'label', fields.label);
+	rejectBlankLabel(entry, kind, 'dragLabel', fields.dragLabel);
 	const { container, ...rest } = fields;
 	const next: BlockKindDescriptor = { ...existing, ...stripContainerOnlyKeys(rest) };
 	if (container) {

@@ -225,6 +225,8 @@ export function registerMathBlock(): void {
 	// `leadingTrivia + raw`, so a raw built from the exact fence bytes round-trips byte for byte.
 	registerBlockKind(mathBlock, {
 		label: 'Math block',
+		// A formula's source makes a poor label on the drag ghost.
+		dragLabel: 'Equation',
 		mergeRole: 'not-mergeable',
 		editable: true,
 		supportsInline: false,

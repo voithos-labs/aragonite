@@ -58,7 +58,7 @@ test.describe('opaque containers decline nested reorder', () => {
 
 	// ── Bug 2: no drag handle on the title row or the body rows ───────────────
 
-	// A note is prose, so it has no handle of its own either (`components/drag-handle.ts`); what
+	// A note is prose, so it has no handle of its own either (its descriptor's `pageRole`); what
 	// this pins is that nothing inside it can be reordered. The `<details>` case below is the
 	// container that does keep a handle, so together they separate "refuses reordering inside"
 	// from "has no handle at all".
@@ -76,7 +76,9 @@ test.describe('opaque containers decline nested reorder', () => {
 		await expect(ownHandle(page, [0])).toHaveCount(0); // and the note itself: prose
 	});
 
-	test('the <details> summary chrome row renders no handle', async ({ page }) => {
+	test('the <details> summary row renders no handle, and the details keeps its own', async ({
+		page
+	}) => {
 		await editor.loadContent(DETAILS);
 		const details = await readContainer(page, 0);
 		expect(details.kind).toBe('details');

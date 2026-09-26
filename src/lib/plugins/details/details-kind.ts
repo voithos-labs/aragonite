@@ -175,6 +175,7 @@ export function registerDetailsKind(): void {
 
 	registerBlockKind(details, {
 		label: 'Details',
+		dragLabel: 'Details',
 		mergeRole: 'container',
 		editable: true,
 		supportsInline: false,

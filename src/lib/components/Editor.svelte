@@ -923,6 +923,7 @@
 		insertMarkdown,
 		insertCatalogue: getInsertCatalogue,
 		activation: activePlugins,
+		reading,
 		setMenu: (menu) => (blockMenu = menu)
 	});
 
@@ -961,6 +962,8 @@
 			editorRoot: editorEl,
 			getScrollHost,
 			moveReorderUnit: reorder.moveReorderUnit,
+			getDoc,
+			reading,
 			overlay: {
 				setGhost: (g) => (reorderGhost = g),
 				setLine: (l) => (reorderLine = l)

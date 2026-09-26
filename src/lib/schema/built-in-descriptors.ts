@@ -23,6 +23,12 @@ import { tableCellWrite } from './table-cell-raw';
 import { fencedCodeWrite } from './fenced-code-raw';
 import { registerInlineConstructPolicy } from './inline-construct-policy';
 import { wrapAsCodeSpan } from '../core/inline/backticks';
+import {
+	containerEstimate,
+	proseEstimate,
+	singleLineEstimate,
+	sourceLinesEstimate
+} from './height-estimates';
 
 // ── Content-range helpers ──────────────────────────────────────────────────
 
@@ -171,6 +177,8 @@ function registerBuiltInInlinePolicies(): void {
 			autoUnwrapOnEmpty: true,
 			splitBehavior: 'close-and-reopen',
 			revealable: true,
+			// A code span's content is literal, so a `#` typed there is code, not a tag.
+			prose: kind === 'inlineCode' ? 'none' : 'all',
 			mark: { nestingRank, ...mark }
 		});
 	});
@@ -181,14 +189,18 @@ function registerBuiltInInlinePolicies(): void {
 		autoUnwrapOnEmpty: true,
 		splitBehavior: 'close-and-reopen',
 		revealable: true,
-		cardEditable: true
+		cardEditable: true,
+		// The text is prose; the destination and the title are not.
+		prose: 'content'
 	});
 	// An image with an empty alt is still an image, and a split inside one moves bytes only.
 	registerInlineConstructPolicy('image', {
 		edgeAffinity: 'never-extend',
 		autoUnwrapOnEmpty: false,
 		splitBehavior: 'plain',
-		revealable: true
+		revealable: true,
+		// Its alt text is an attribute of the picture, not prose on the page.
+		prose: 'none'
 	});
 	// An autolink's `<` and `>` are a link's delimiters in another spelling: the destination is the
 	// text, so a character landing between the brackets changes where the link goes. Never-extend
@@ -198,7 +210,8 @@ function registerBuiltInInlinePolicies(): void {
 		edgeAffinity: 'never-extend',
 		autoUnwrapOnEmpty: false,
 		splitBehavior: 'plain',
-		revealable: false
+		revealable: false,
+		prose: 'none'
 	});
 	// Marker runs with no data attribute, always hidden in live mode: the `\X` pair and the
 	// trailing-space run delete as one unit, so nothing may rewrite their markers around an edit.
@@ -225,6 +238,8 @@ export function registerBuiltInDescriptors(): void {
 	registerBuiltInInlinePolicies();
 
 	registerBlockKind('paragraph', {
+		pageRole: 'prose',
+		estimateHeight: proseEstimate,
 		gapEdges: 'none',
 		mergeRole: 'prose',
 		editable: true,
@@ -239,6 +254,8 @@ export function registerBuiltInDescriptors(): void {
 		})
 	});
 	registerBlockKind('heading', {
+		pageRole: 'prose',
+		estimateHeight: proseEstimate,
 		gapEdges: 'none',
 		mergeRole: 'prose-absorber',
 		editable: true,
@@ -256,6 +273,8 @@ export function registerBuiltInDescriptors(): void {
 		})
 	});
 	registerBlockKind('setextHeading', {
+		pageRole: 'prose',
+		estimateHeight: proseEstimate,
 		gapEdges: 'none',
 		mergeRole: 'prose-absorber',
 		editable: true,
@@ -271,6 +290,9 @@ export function registerBuiltInDescriptors(): void {
 		})
 	});
 	registerBlockKind('fencedCode', {
+		pageRole: 'object',
+		dragLabel: 'Code',
+		estimateHeight: sourceLinesEstimate,
 		mergeRole: 'not-mergeable',
 		editable: true,
 		supportsInline: false,
@@ -311,6 +333,9 @@ export function registerBuiltInDescriptors(): void {
 		}
 	});
 	registerBlockKind('thematicBreak', {
+		pageRole: 'object',
+		dragLabel: 'Divider',
+		estimateHeight: singleLineEstimate,
 		mergeRole: 'not-mergeable',
 		editable: false,
 		supportsInline: false,
@@ -347,6 +372,8 @@ export function registerBuiltInDescriptors(): void {
 		}
 	});
 	registerBlockKind('indentedCode', {
+		pageRole: 'object',
+		estimateHeight: sourceLinesEstimate,
 		gapEdges: 'none',
 		mergeRole: 'not-mergeable',
 		editable: true,
@@ -356,6 +383,8 @@ export function registerBuiltInDescriptors(): void {
 		closure: RAW_TEXT_LEAF_CLOSURE
 	});
 	registerBlockKind('htmlBlock', {
+		pageRole: 'object',
+		estimateHeight: sourceLinesEstimate,
 		gapEdges: 'none',
 		mergeRole: 'not-mergeable',
 		editable: true,
@@ -365,6 +394,8 @@ export function registerBuiltInDescriptors(): void {
 		closure: RAW_TEXT_LEAF_CLOSURE
 	});
 	registerBlockKind('linkReferenceDefinition', {
+		pageRole: 'object',
+		estimateHeight: proseEstimate,
 		gapEdges: 'none',
 		mergeRole: 'not-mergeable',
 		editable: true,
@@ -374,6 +405,8 @@ export function registerBuiltInDescriptors(): void {
 		closure: RAW_TEXT_LEAF_CLOSURE
 	});
 	registerBlockKind('table', {
+		pageRole: 'object',
+		estimateHeight: containerEstimate,
 		mergeRole: 'not-mergeable',
 		editable: true,
 		supportsInline: false,
@@ -406,6 +439,8 @@ export function registerBuiltInDescriptors(): void {
 		}
 	});
 	registerBlockKind('tableRow', {
+		pageRole: 'object',
+		estimateHeight: containerEstimate,
 		gapEdges: 'none',
 		mergeRole: 'not-mergeable',
 		editable: true,
@@ -434,6 +469,8 @@ export function registerBuiltInDescriptors(): void {
 		}
 	});
 	registerBlockKind('tableCell', {
+		pageRole: 'prose',
+		estimateHeight: proseEstimate,
 		gapEdges: 'none',
 		mergeRole: 'not-mergeable',
 		editable: true,
@@ -473,6 +510,8 @@ export function registerBuiltInDescriptors(): void {
 		}
 	});
 	registerBlockKind('unrecognized', {
+		pageRole: 'object',
+		estimateHeight: proseEstimate,
 		gapEdges: 'none',
 		mergeRole: 'self-merge',
 		editable: true,
@@ -491,6 +530,8 @@ export function registerBuiltInDescriptors(): void {
 		}
 	});
 	registerBlockKind('blockquote', {
+		pageRole: 'prose',
+		estimateHeight: containerEstimate,
 		gapEdges: 'none',
 		mergeRole: 'container',
 		editable: true,
@@ -523,6 +564,9 @@ export function registerBuiltInDescriptors(): void {
 		})
 	});
 	registerBlockKind('list', {
+		// Its items carry the handles: one on the list would sit over its first item's.
+		pageRole: 'prose',
+		estimateHeight: containerEstimate,
 		gapEdges: 'none',
 		mergeRole: 'container',
 		editable: true,
@@ -559,6 +603,8 @@ export function registerBuiltInDescriptors(): void {
 		})
 	});
 	registerBlockKind('listItem', {
+		pageRole: 'object',
+		estimateHeight: containerEstimate,
 		gapEdges: 'none',
 		mergeRole: 'container',
 		editable: true,

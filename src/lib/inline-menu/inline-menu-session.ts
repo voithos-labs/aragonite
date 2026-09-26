@@ -5,7 +5,13 @@
  */
 
 import { constructContentRange } from '../core/inline';
-import type { InlineNode } from '../core/nodes';
+import { isInlineWidgetKind } from '../core/inline/inline-widgets';
+import type { AnyInlineKind, InlineNode } from '../core/nodes';
+import type { GrammarView } from '../schema/block-openers';
+import {
+	getInlineConstructPolicy,
+	type InlineProseExtent
+} from '../schema/inline-construct-policy';
 import type { InlineMenuSource } from './types';
 
 /** Identity only, never a captured node: every keystroke republishes the leaf. */
@@ -54,25 +60,29 @@ export function findOpening(
 	return null;
 }
 
-/** Bytes a reader never reads as prose, wherever the offset falls inside them. */
-const NOT_PROSE_KINDS = new Set(['inlineCode', 'image', 'autolink', 'rawHtml']);
-
 /**
  * Whether a trigger starting at this offset in the leaf's inline tree sits in prose the author is
- * writing. It does not inside an inline code span, an image, an autolink or raw HTML, nor in a
- * link's destination or title; a link's own text is prose and a trigger there opens.
+ * writing, as each construct's policy row declares: not inside a code span, an image or a widget's
+ * source, nor in a link's destination; a link's own text is prose and a trigger there opens.
  */
-export function isProseOffset(nodes: InlineNode[], offset: number): boolean {
+export function isProseOffset(nodes: InlineNode[], offset: number, grammar: GrammarView): boolean {
 	for (const node of nodes) {
 		if (offset < node.start || offset >= node.end) continue;
-		if (NOT_PROSE_KINDS.has(node.kind)) return false;
-		if (node.kind === 'link') {
-			const text = constructContentRange(node);
-			if (!text || offset < text.start || offset >= text.end) return false;
+		const extent = proseExtent(node.kind, grammar);
+		if (extent === 'none') return false;
+		if (extent === 'content') {
+			const content = constructContentRange(node);
+			if (!content || offset < content.start || offset >= content.end) return false;
 		}
-		return node.children ? isProseOffset(node.children, offset) : true;
+		return node.children ? isProseOffset(node.children, offset, grammar) : true;
 	}
 	return true;
+}
+
+// A widget kind with no row (a plugin's formula) shows source, never prose.
+function proseExtent(kind: AnyInlineKind, grammar: GrammarView): InlineProseExtent {
+	const declared = getInlineConstructPolicy(kind)?.prose;
+	return declared ?? (isInlineWidgetKind(kind, grammar) ? 'none' : 'all');
 }
 
 /**

@@ -78,6 +78,22 @@ test.describe('drag to reorder', () => {
 		await expect(editor.page.locator('.reorder-scope')).toHaveCount(0);
 	});
 
+	// The cue covers the quote as drawn, its bar and padding included, not just the list inside it.
+	test('a drag inside a quote marks the whole quote as its scope', async () => {
+		await editor.loadContent('> ```\n> A\n> ```\n>\n> ```\n> B\n> ```\n');
+		const handle = await handleCenter('.blockquote-block .block-host', 'A');
+		await editor.page.mouse.move(handle.x, handle.y);
+		await editor.page.mouse.down();
+		await editor.page.mouse.move(handle.x + 30, handle.y + 24, { steps: 6 });
+
+		const scope = editor.page.locator('.reorder-scope');
+		await expect(scope).toHaveCount(1);
+		const quote = await editor.page.locator('.blockquote-block').boundingBox();
+		expect(await scope.boundingBox()).toEqual(quote);
+
+		await editor.page.mouse.up();
+	});
+
 	// A top-level drag reorders the document itself, so there is no container to mark and the
 	// cue must not appear: marking the whole editor would be noise.
 	test('a top-level drag marks no scope container', async () => {

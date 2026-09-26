@@ -3,7 +3,7 @@
 	import { CURSOR_START, type AmbientPrefix, type BlockComponent } from '../../../block-component';
 	import { readBlocks } from '../../../core/parser';
 	import { ambientHoldsTaskBox } from '../list/task-checkbox';
-	import { shownKind } from '../../kind-cue.svelte';
+	import { shownKind } from '../../../core/parsers/heading';
 	import type { DocumentView, NodeView } from '../../../core/node-views';
 	import type { EditorRects } from '../../../editor-rects';
 	import { enterLinkCardAtCaret, linkCardTargetAt } from '../../link-card/link-card-entry';

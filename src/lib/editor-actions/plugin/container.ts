@@ -431,9 +431,10 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		get window() {
 			return windowing.window;
 		},
-		// A plugin container is a reorder boundary, so a drag handle on a title or body row
-		// would be dead; the container itself reorders through its parent's BlockList.
-		reorderable: false,
+		// The same declaration the keyboard's reorder reads, so a drag moves what Alt+Arrow moves.
+		get reorderable() {
+			return getBlockKindDescriptor(deps.getNode().kind).reorderChildren !== undefined;
+		},
 		get ambientPrefixForFirst() {
 			return deps.getAmbientPrefix?.() ?? '';
 		}

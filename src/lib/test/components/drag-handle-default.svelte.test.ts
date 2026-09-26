@@ -44,6 +44,19 @@ describe('blockDragHandles default', () => {
 		expect(mounted.target.querySelectorAll('.list-item-block > .block-drag-handle').length).toBe(2);
 	});
 
+	// Miss-analysis: the no-handle case ran a paragraph only, so the heading form the kind list
+	// left out never met a test.
+	it('renders no handle on a heading of either syntax, and one on the code beside them', () => {
+		mounted = mountEditor({ source: '# Atx\n\nSetext\n===\n\n```\ncode\n```\n' });
+		const handleOn = (path: string) =>
+			mounted!.target.querySelector(
+				`.block-host[data-block-path="${path}"] > .block-drag-handle`
+			) !== null;
+		expect(handleOn('[0]')).toBe(false);
+		expect(handleOn('[1]')).toBe(false);
+		expect(handleOn('[2]')).toBe(true);
+	});
+
 	// A list item's drag stays inside its list, so a lone item's handle could drop nowhere.
 	it('renders no handle on the only item of a list', () => {
 		mounted = mountEditor({ source: '- [ ] lone task\n\nplain\n' });
