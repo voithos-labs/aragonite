@@ -36,6 +36,7 @@ describe('caretTargetFor', () => {
 	});
 
 	it('a dead path resolves to nothing', () => {
+		expect(target({ kind: 'document', prefix: '', children: [], suffix: '' }, [], 0)).toBeNull();
 		expect(target(parse('abc\n'), [3], 0)).toBeNull();
 		expect(target(parse('abc\n'), [0, 0], 0)).toBeNull();
 	});

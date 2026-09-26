@@ -42,7 +42,9 @@ export function caretTargetFor(
 			offset = CURSOR_END;
 		}
 		const node = nodeAt(doc, path)!;
-		if (!node.children?.length) return { leafPath: docPathFrom(path), offset };
+		if (!node.children?.length) {
+			return path.length > 0 ? { leafPath: docPathFrom(path), offset } : null;
+		}
 		const edge = entryEdge(offset);
 		const byteLeaf = edge.inside && isBlockNode(node) ? leafAtRawOffset(node, offset) : null;
 		if (byteLeaf) {
