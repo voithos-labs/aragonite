@@ -38,6 +38,7 @@ export function createHistoryActions(
 			getDoc: () => deps.doc,
 			selectionState: deps.selectionState,
 			getBlockElByPath: deps.getBlockElByPath,
+			caretMemory: deps.caretMemory,
 			// Mount, not scroll into view: a history swap must not move the viewport for
 			// a target already on screen.
 			revealTarget: async (path: number[]) => (await deps.revealPath(path)) !== null

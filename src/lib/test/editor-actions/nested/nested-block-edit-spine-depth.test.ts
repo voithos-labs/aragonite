@@ -42,18 +42,18 @@ function typeInto(node: CstNode, chainDepth: number): void {
 			return false;
 		}
 	);
-	const deps = {
+	const deps: NestedActionsDeps = {
 		index: 1,
 		node,
 		path: CONTAINER_PATH,
-		stickyColumn: makeCaretMemory(),
+		caretMemory: makeCaretMemory(),
 		reading: fixtureReading(),
 		parent: {
 			blockEdit: makeStubBlockEdit(),
 			focus: makeStubFocus(),
 			containerEdit
 		}
-	} as unknown as NestedActionsDeps;
+	};
 	void createNestedBlockEdit(
 		makeBlockListState(() => node),
 		deps

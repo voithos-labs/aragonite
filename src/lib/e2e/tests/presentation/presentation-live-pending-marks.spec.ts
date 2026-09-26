@@ -96,6 +96,22 @@ test.describe('live mode: a pended mark rides the next insertion', () => {
 
 		expect(await ep.bridge.getSource()).toBe(before);
 	});
+
+	// A host placing the caret moves it as surely as a click does, so the promise is dropped.
+	test('Mod+B then a host setSelection: the next keystroke types plain', async ({ page }) => {
+		await clickBlockSettled(ep, PLAIN);
+		await page.keyboard.press('End');
+		await ep.waitForRenderFlush();
+
+		await bold(page);
+		const caret = { path: [BOLD], offset: 0 };
+		expect(await ep.bridge.setSelection({ anchor: caret, focus: caret })).toBe(true);
+		await ep.waitForRenderFlush();
+		await page.keyboard.type('X');
+		await ep.bridge.waitForSourceContains('XSome **bold** text');
+
+		expect(await ep.bridge.getSource()).not.toContain('**X**');
+	});
 });
 
 // The two chords no other scenario uses: strikethrough's two-byte run and inline code's

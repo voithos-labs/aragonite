@@ -779,7 +779,8 @@
 		revealPath,
 		controller,
 		reading,
-		getContentVersion: contentVersion.read
+		getContentVersion: contentVersion.read,
+		caretMemory
 	});
 
 	// The action bundles stay one per context key so a container re-provides exactly what
@@ -1266,6 +1267,7 @@
 			getDoc,
 			selectionState,
 			getBlockElByPath,
+			caretMemory,
 			revealTarget: async (path) =>
 				reveal === 'mount'
 					? (await revealPath(path)) !== null

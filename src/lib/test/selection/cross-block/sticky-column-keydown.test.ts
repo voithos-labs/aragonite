@@ -51,7 +51,8 @@ describe('cross-block keydown: sticky column', () => {
 });
 
 // The dispatcher asks the paragraph's keymap what a chord does before it classifies the key, so
-// a rebound reorder is read as the move and the freed chord as an arrow.
+// a rebound reorder is read as the move and the freed chord as an arrow. Miss-analysis: both
+// classifiers matched the Alt+ArrowUp literal, and no test rebound the chord.
 describe('cross-block keydown: the reorder chord follows a rebinding', () => {
 	const keybindings: KeybindingOverride[] = [
 		{ chord: 'Alt+ArrowUp', command: null, kind: 'paragraph' },

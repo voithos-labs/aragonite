@@ -176,7 +176,8 @@ describe('a gesture that writes no bytes still absorbs (GH #180)', () => {
 			1,
 			0,
 			createSharingState(),
-			defaultGrammarView
+			defaultGrammarView,
+			'\n'
 		);
 
 		expect(doc.children.map((c) => [c.kind, c.raw])).toEqual([['fencedCode', '```\nx\n\na\n']]);

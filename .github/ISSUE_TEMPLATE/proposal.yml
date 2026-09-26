@@ -37,7 +37,8 @@ body:
         - 'test-coverage: suite shape and coverage gaps'
         - 'selection-caret: caret doors, gap caret, affinity, cross-block selection'
         - 'clipboard-paste: copy, cut, paste pipeline and transforms'
-        - 'presentation: live, preview, reading paint and editing rules'
+        - 'presentation: how each mode paints: source, preview, live and reading'
+        - 'live-mode: editing behind hidden markers: auto-pair, marker side, source reveal, joins'
 
   - type: markdown
     attributes:

@@ -1,4 +1,6 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
+import { registerBlockCommand } from '../../schema/block-commands';
+import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
 import { createCaretMemory, type CaretMemory } from '../../cursor/caret-memory';
 import { asEditorX } from '../../cursor/coordinate-spaces';
 import type { AnyCommandId } from '../../schema/command-id';
@@ -140,6 +142,28 @@ describe('noteKey reads the chord as the command it resolves to', () => {
 		const m = arrived();
 		m.noteKey({ key: 'Enter' }, 'block.split');
 		expect(snapshot(m)).toEqual({ column: null, side: null, marks: null });
+	});
+});
+
+// A plugin's reorder command is a block move like the built-in one once it says so at
+// registration; the memory reads the declaration, not a list of ids of its own.
+describe('noteKey reads a plugin command as a move when it is declared one', () => {
+	afterEach(() => __resetSchemaRegistriesForTests());
+
+	it('a command registered with movesBlock keeps the memory', () => {
+		const up = registerBlockCommand('paragraph', 'caretTest.moveUp', () => true, {
+			movesBlock: true
+		});
+		const m = arrived();
+		m.noteKey({ key: 'ArrowUp' }, up);
+		expect(snapshot(m)).toEqual({ column: 240, side: 'near', marks: ['strong'] });
+	});
+
+	it('an undeclared command is classified by its key', () => {
+		const other = registerBlockCommand('paragraph', 'caretTest.other', () => true);
+		const m = arrived();
+		m.noteKey({ key: 'ArrowUp' }, other);
+		expect(snapshot(m)).toEqual({ column: 240, side: 'far', marks: null });
 	});
 });
 

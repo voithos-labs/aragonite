@@ -84,7 +84,8 @@ export function makeKeydownEnv(source: string | Document, opts: KeydownEnvOption
 		revealPath,
 		controller,
 		reading: fixtureReading({}, opts.presentationMode),
-		getContentVersion: harness.contentVersion
+		getContentVersion: harness.contentVersion,
+		caretMemory
 	});
 
 	const onCommandError = vi.fn();

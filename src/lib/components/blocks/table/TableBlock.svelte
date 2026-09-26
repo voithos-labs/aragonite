@@ -56,7 +56,9 @@
 	});
 	const {
 		controller,
-		caretMemory,
+		// The table holds only the column write its exits need; every other caret memory call is
+		// the cell's, through the shared editable surface.
+		caretMemory: { captureColumn: captureExitColumn },
 		selection,
 		reorderAnnounce: announceReorder,
 		menuPresence
@@ -217,14 +219,14 @@
 			internalStickyColumn = null;
 		},
 		exitUpward(stickyX) {
-			caretMemory.captureColumn(asEditorX(stickyX));
+			captureExitColumn(asEditorX(stickyX));
 			internalStickyColumn = null;
 			focusActions.moveFocus(myPath[myPath.length - 1] - 1, {
 				stickyColumnFrom: 'below'
 			});
 		},
 		exitDownward(stickyX) {
-			caretMemory.captureColumn(asEditorX(stickyX));
+			captureExitColumn(asEditorX(stickyX));
 			internalStickyColumn = null;
 			focusActions.moveFocus(myPath[myPath.length - 1] + 1, {
 				stickyColumnFrom: 'above'

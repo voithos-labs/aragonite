@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
+import { documentLineEnding } from '$lib/core/lines';
 import { reorderChildrenWithTrivia } from '$lib/tree-operations/reorder';
 import { createSharingState } from '$lib/tree-operations/sharing';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
@@ -15,7 +16,14 @@ import { defaultGrammarView } from '$lib/schema/block-openers';
 
 function move(markdown: string, from: number, to: number) {
 	const doc = parse(markdown);
-	reorderChildrenWithTrivia(doc.children, from, to, createSharingState(), defaultGrammarView);
+	reorderChildrenWithTrivia(
+		doc.children,
+		from,
+		to,
+		createSharingState(),
+		defaultGrammarView,
+		documentLineEnding(doc)
+	);
 	return doc;
 }
 

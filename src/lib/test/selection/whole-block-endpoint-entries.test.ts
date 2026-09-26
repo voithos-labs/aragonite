@@ -22,6 +22,7 @@ import { restoreSelection } from '$lib/selection/selection-restore';
 import { readNativeCaretInBlock } from '$lib/selection/native-bridge';
 import { offsetFromViewportPoint } from '$lib/cursor/point-offset';
 import { parse } from '$lib/core/parser';
+import { createCaretMemory } from '$lib/cursor/caret-memory';
 
 const BREAK_DOC = 'Above text\n\n---\n\ntail text\n';
 const clickOffset = vi.mocked(offsetFromViewportPoint);
@@ -56,6 +57,7 @@ describe('whole-block endpoints arriving from an entry path', () => {
 				getDoc: () => doc,
 				selectionState: s,
 				getBlockElByPath: () => document.createElement('div'),
+				caretMemory: createCaretMemory(),
 				revealTarget: async () => true
 			}
 		);

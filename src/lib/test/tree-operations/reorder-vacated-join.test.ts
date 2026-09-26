@@ -25,7 +25,7 @@ const BLOCKS = {
 
 function moveHeadingUp(markdown: string) {
 	const doc = parse(markdown);
-	reorderChildrenWithTrivia(doc.children, 1, 0, createSharingState(), defaultGrammarView);
+	reorderChildrenWithTrivia(doc.children, 1, 0, createSharingState(), defaultGrammarView, '\n');
 	return doc;
 }
 

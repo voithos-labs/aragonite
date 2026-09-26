@@ -6,6 +6,9 @@ User actions that clear the captured sticky column. Anything other than plain or
 
 - Typing a character resets sticky column: the next ArrowDown captures fresh from the post-type caret X
 - Click / pointer down resets sticky column: the next ArrowDown captures from the clicked caret X
+- A host `setSelection` resets sticky column: the next ArrowDown captures from the placed caret X
+  - Miss-analysis: every reset case was a key or a pointer gesture, and the restore every
+    programmatic placement shares had no caller-level test, so it kept a column a click drops
 - ArrowLeft resets sticky column: the next ArrowDown captures from the post-left caret X
 - ArrowRight resets sticky column: the next ArrowDown captures from the post-right caret X
 - End resets sticky column: the next ArrowDown captures from the end-of-line caret X

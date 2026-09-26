@@ -128,6 +128,30 @@ test.describe('keyboard reorder', () => {
 		await editor.bridge.waitForSourceEquals(source);
 	});
 
+	// With no final line break, the block that gains a follower ends its line and the block that
+	// becomes last gives up its ending, in the document's own line ending.
+	for (const [ending, eol] of [
+		['LF', '\n'],
+		['CRLF', '\r\n']
+	] as const) {
+		for (const { chord, before, caretIn, after } of [
+			{ chord: 'Alt+ArrowUp', before: `a${eol}# b`, caretIn: 'b', after: `# b${eol}a` },
+			{ chord: 'Alt+ArrowDown', before: `# a${eol}b`, caretIn: 'a', after: `b${eol}# a` }
+		]) {
+			test(`${chord} with no final line break keeps both lines apart (${ending})`, async () => {
+				await editor.loadContent(before);
+				await editor.page.locator('[contenteditable="true"]', { hasText: caretIn }).click();
+				await editor.page.keyboard.press(chord);
+
+				await editor.bridge.waitForSourceEquals(after);
+				expect(await editor.parseConverged()).toBe(true);
+
+				await editor.page.keyboard.press('ControlOrMeta+z');
+				await editor.bridge.waitForSourceEquals(before);
+			});
+		}
+	}
+
 	// A move with no sibling in that direction must change nothing and add no undo entry, or the
 	// press at the boundary silently eats a Ctrl+Z. The unit test for the clamp skips the keymap
 	// dispatch this goes through.

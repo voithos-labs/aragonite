@@ -59,6 +59,10 @@ sequence.
   made, by the ordinary arrival rule, rather than wrapping a second pair of its own
 - an arrow step clears the mark: the caret moved, so the promise no longer applies to it
 - a click clears the mark, the same way it clears the arrival side
+- a host `setSelection` clears the mark as a click does: the next keystroke types plain where
+  the host put the caret
+  - Miss-analysis: every clearing scenario was a key or a click, so the restore shared by
+    `setSelection` and every other programmatic placement never met a pending mark
 
 - a press that empties the construct a mark just made hands that mark back: after `Mod+I`, a
   letter and a Backspace, the next letter is still italic. The delimiters went with the letter,

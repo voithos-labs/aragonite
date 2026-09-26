@@ -5,6 +5,7 @@ import { restoreGapCaret } from '$lib/selection/selection-restore';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import type { SelectionRestoreDeps } from '$lib/selection/selection-restore';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
+import { createCaretMemory } from '$lib/cursor/caret-memory';
 
 // The fixtures set table endpoints directly instead of through SelectionState, so the coordinate
 // check sees the un-normalized point.
@@ -23,6 +24,7 @@ function harness(overrides: Partial<SelectionRestoreDeps> = {}) {
 		getDoc: () => doc,
 		selectionState,
 		getBlockElByPath: () => null,
+		caretMemory: createCaretMemory(),
 		revealTarget: async (path) => {
 			revealed.push(path);
 			return true;
@@ -41,6 +43,19 @@ describe('restoreGapCaret', () => {
 		expect(outcome).toBe('applied');
 		expect(h.selectionState.gapCaret).toEqual({ parentPath: [], index: 1 });
 		expect(h.revealed).toEqual([[1]]);
+	});
+
+	// A restored gap caret is placed, not arrived at by a key, like any restored caret.
+	it('forgets the pending marks and the side a key recorded', async () => {
+		const memory = createCaretMemory();
+		memory.noteKey({ key: 'End' }, null);
+		memory.pendingMarks.toggle('strong');
+		const h = harness({ caretMemory: memory });
+
+		await restoreGapCaret({ parentPath: [], index: 1 }, h.deps);
+
+		expect(memory.side()).toBeNull();
+		expect(memory.pendingMarks.get()).toBeNull();
 	});
 
 	// At the end of the child list there is no block at the index, so the block before it is

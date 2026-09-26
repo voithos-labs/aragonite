@@ -12,6 +12,7 @@ import { classifyArrivalKey, type EdgeAffinity } from './edge-affinity';
 import { flipMark, type PendingMarks } from './pending-marks';
 import type { InlineMarkKind } from '../schema/inline-construct-policy';
 import type { AnyCommandId } from '../schema/command-id';
+import { commandMovesBlock } from '../schema/block-commands';
 import {
 	isInteractionTraceEnabled,
 	traceStickyCapture,
@@ -45,15 +46,6 @@ export interface CaretMemory {
 	/** A caret move that is not a key: a click, a paste, an undo, a document swap, a blur. */
 	forget(): void;
 }
-
-// These move the block or row the caret is in, not the caret, so its memory stays; the move's
-// own commit then forgets it.
-const MOVES_CARET_BLOCK: ReadonlySet<AnyCommandId> = new Set<AnyCommandId>([
-	'block.moveUp',
-	'block.moveDown',
-	'table.moveRowUp',
-	'table.moveRowDown'
-]);
 
 export function createCaretMemory(): CaretMemory {
 	let column: EditorX | null = null;
@@ -96,7 +88,8 @@ export function createCaretMemory(): CaretMemory {
 			}
 		},
 		noteKey: (e, command, measureX) => {
-			if (command !== null && MOVES_CARET_BLOCK.has(command)) return;
+			// A block move leaves the caret where it was; the move's own commit forgets the memory.
+			if (command !== null && commandMovesBlock(command)) return;
 
 			const columnAction = classifyStickyKey(e.key);
 			if (columnAction === 'reset') dropColumn();
