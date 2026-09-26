@@ -184,8 +184,10 @@ function ghostLabel(host: HTMLElement, node: NodeView, reading: InlineReading): 
 	const descriptor = tryGetBlockKindDescriptor(node.kind);
 	if (descriptor?.containerContract === 'grid') return tableLabel(host);
 	if (descriptor?.dragLabel) return descriptor.dragLabel;
+	// Before the text: a linked picture shows its link's bytes as text in source mode.
+	if (isImageOnlyParagraph(node, reading)) return 'Image';
 	const text = (host.textContent ?? '').trim().replace(/\s+/g, ' ');
-	if (!text) return isImageOnlyParagraph(node, reading) ? 'Image' : 'Block';
+	if (!text) return 'Block';
 	return text.length > 40 ? text.slice(0, 40) + '…' : text;
 }
 

@@ -8,7 +8,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { collectEditorSources, EDITOR_SRC, type SourceFile } from './scan-source';
+import { collectEditorSources, EDITOR_SRC, splitTopLevel, type SourceFile } from './scan-source';
 import { RESERVED_BLOCK_ATTRS } from '$lib/decorations/reserved-attrs';
 
 // ── Derivation ──────────────────────────────────────────────────────────────
@@ -33,23 +33,6 @@ function stringConstants(files: readonly SourceFile[]): Map<string, string> {
 const resolve = (text: string, constants: ReadonlyMap<string, string>) =>
 	text.replace(/\$\{\s*([A-Z_]+)\s*\}/g, (whole, name: string) => constants.get(name) ?? whole);
 
-/** Splits at `separators` outside parentheses and brackets. */
-function splitTopLevel(text: string, separators: RegExp): string[] {
-	const parts: string[] = [];
-	let depth = 0;
-	let current = '';
-	for (const ch of text) {
-		if (ch === '(' || ch === '[') depth++;
-		if (ch === ')' || ch === ']') depth--;
-		if (depth === 0 && separators.test(ch)) {
-			parts.push(current);
-			current = '';
-		} else current += ch;
-	}
-	parts.push(current);
-	return parts.filter((part) => part.trim() !== '');
-}
-
 /**
  * The `data-` names a selector reads on an element that could be a decorated one. A compound
  * qualifies when its classes are all a decorated element's and its tag, if any, is a div. As an
@@ -64,8 +47,10 @@ export function namesReadOnDecorated(selector: string, decorated: ReadonlySet<st
 		text = text.replace(/:(?:global|where|is)\(([^()]*)\)/g, '$1');
 	}
 	const names: string[] = [];
-	for (const one of splitTopLevel(text, /,/)) {
-		const compounds = splitTopLevel(one, /[\s>+~]/);
+	for (const one of splitTopLevel(text, ',').filter(Boolean)) {
+		// One space between compounds, so a split at the space finds each of them.
+		const spaced = one.replace(/\s*[>+~]\s*|\s+/g, ' ').trim();
+		const compounds = splitTopLevel(spaced, ' ').filter(Boolean);
 		compounds.forEach((compound, i) => {
 			if (!compound.includes('[data-')) return;
 			const outer = compound.replace(/\([^()]*\)/g, '');

@@ -21,7 +21,7 @@ This is where the height model comes in. Every block gets a cheap guess from its
 (Maybe Irrelevant) Details for the Curious:
 
 - Guessing the height of a block is cheap (bounded at O(1)).
-- Every kind guesses through its descriptor's `estimateHeight`, `(node, env) => px`, with the width and the type metrics in `env`. Built-ins pick a shape from `src/lib/schema/height-estimates.ts` (wrapped prose, one line, source lines, a container by its children). A plugin that doesn't bother gets the container or the prose one, and a plugin with a weird height brings its own. The bundled mermaid plugin's is the whole story in one line:
+- A kind guesses its own height with its descriptor's `estimateHeight`, `(node, env) => px`, with the width and the type metrics in `env`. Every built-in declares one, picking a shape from `src/lib/schema/height-estimates.ts` (wrapped prose, one line, source lines, a container by its children). A plugin that doesn't declare one gets the container shape or the prose one, and a plugin with a weird height brings its own. The bundled mermaid plugin's is the whole story in one line:
 
   ```ts
   estimateHeight: () => 320, // the skeleton's fixed height; the real one replaces it on mount
