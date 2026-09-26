@@ -12,7 +12,7 @@ import { classifyArrivalKey, type EdgeAffinity } from './edge-affinity';
 import { flipMark, type PendingMarks } from './pending-marks';
 import type { InlineMarkKind } from '../schema/inline-construct-policy';
 import type { AnyCommandId } from '../schema/command-id';
-import { commandMovesBlock } from '../schema/block-commands';
+import { BLOCK_MOVE_COMMAND_IDS } from '../schema/commands';
 import {
 	isInteractionTraceEnabled,
 	traceStickyCapture,
@@ -89,7 +89,7 @@ export function createCaretMemory(): CaretMemory {
 		},
 		noteKey: (e, command, measureX) => {
 			// A block move leaves the caret where it was; the move's own commit forgets the memory.
-			if (command !== null && commandMovesBlock(command)) return;
+			if (command !== null && BLOCK_MOVE_COMMAND_IDS.has(command)) return;
 
 			const columnAction = classifyStickyKey(e.key);
 			if (columnAction === 'reset') dropColumn();

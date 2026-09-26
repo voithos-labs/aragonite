@@ -25,7 +25,7 @@ read its answer from the harness-only `__registryEnablement` hook rather than fr
 - the editor that lists it holds the parrot node: its seed parses `%%parrot party responsibly` into a `[data-block-kind="parrot"]` block
 - both trees reload as themselves in their own editor's grammar (miss-analysis: the reload check read the global grammar, so a pane whose tree followed its own grammar could not be checked at all, and no spec asked)
 - the editor that lists it renders the plugin component: its parrot block shows `.parrot-block` and no `.raw-block` fallback
-- the editor that lists it attaches the decoration source: its heading carries the `.badge-h` badge widget
+- the editor that lists it attaches the decoration source: its heading carries the `.badge-h` badge widget (miss-analysis: setup waited for blocks in the server-rendered markup, which arrive before the page hydrates, so on a cold dev server the badge check timed out before the hook that adds the badge had run)
 - built-ins are untouched on both sides: each editor renders its heading and its `Body` paragraph
 
 ## Edge cases

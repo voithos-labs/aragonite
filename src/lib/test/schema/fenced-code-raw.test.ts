@@ -72,6 +72,28 @@ describe('reconcileFenceWrite: escalation', () => {
 	});
 });
 
+// Miss-analysis: the typed-run case was pinned as a dropped info character, and no case typed a
+// tilde there, where nothing drops it and the shorter closer left the fence open over the page.
+describe('reconcileFenceWrite: a marker typed onto the opener run', () => {
+	it('widens the closer with the opener, the caret staying after the typed marker', () => {
+		expect(write('````js\ncode\n```', backtick(), 'authored', 4)).toEqual({
+			display: '````js\ncode\n````',
+			caret: 4
+		});
+		const tilde: FenceShape = { marker: '~', length: 3, closed: true };
+		expect(write('~~~~\ncode\n  ~~~', tilde, 'authored', 4).display).toBe('~~~~\ncode\n  ~~~~');
+	});
+
+	it('widens the closer for a marker a paste lands on the run', () => {
+		const pasted = write('````js\ncode\n```', backtick(), 'literal', 4).display;
+		expect(pasted).toBe('````js\ncode\n````');
+	});
+
+	it('leaves a closer already as long as the widened opener', () => {
+		expect(write('````js\ncode\n`````', backtick()).display).toBe('````js\ncode\n`````');
+	});
+});
+
 describe('reconcileFenceWrite: info-string sanitization', () => {
 	// Parser-verified: "```j`s\nconst x = 1\n```" demotes the block and promotes its
 	// closer to an absorbing opener. No fence length can hold the character.
@@ -82,12 +104,6 @@ describe('reconcileFenceWrite: info-string sanitization', () => {
 	it('pulls the caret back past each dropped character', () => {
 		expect(write('```j`s\ncode\n```', backtick(), 'authored', 5).caret).toBe(4);
 		expect(write('```j`s\ncode\n```', backtick(), 'authored', 3).caret).toBe(3);
-	});
-
-	// A backtick typed at the head of the info string reads as a longer opener run
-	// once written, and a longer opener no longer matches its own closer.
-	it('drops one typed at the run boundary rather than reading it as a longer run', () => {
-		expect(write('````js\ncode\n```', backtick(), 'authored', 4).display).toBe('```js\ncode\n```');
 	});
 
 	it('drops every backtick a paste carries into the info string', () => {

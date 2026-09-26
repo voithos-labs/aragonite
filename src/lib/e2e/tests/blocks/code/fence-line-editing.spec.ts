@@ -69,6 +69,28 @@ test.describe('code block: fence lines the mode paints', () => {
 		});
 	}
 
+	// A bare opener has nothing after its run, where a typed backtick would otherwise auto-pair.
+	for (const [label, source, widened] of [
+		['an opener with an info string', SOURCE, '````js\nconst x = 1\n````\n\nafter\n'],
+		['a bare opener', '```\nx\n```\n\nafter\n', '````\nx\n````\n\nafter\n']
+	] as const) {
+		test(`a backtick typed at the end of ${label}'s run widens both fence lines by one`, async () => {
+			await editor.loadContent(source);
+			await editor.focusBlock(0, 3);
+			await editor.page.keyboard.type('`');
+
+			await expect.poll(() => editor.bridge.getSource()).toBe(widened);
+		});
+	}
+
+	test('a backtick pasted at the end of the opener run widens both fence lines', async () => {
+		await editor.seedClipboard('`');
+		await editor.focusBlock(0, 3);
+		await editor.paste();
+
+		await expect.poll(() => editor.bridge.getSource()).toBe('````js\nconst x = 1\n````\n\nafter\n');
+	});
+
 	test('paste over the closer keeps a closer below the pasted text', async () => {
 		await editor.seedClipboard('Y');
 		await selectFrom(editor, 18, 3);

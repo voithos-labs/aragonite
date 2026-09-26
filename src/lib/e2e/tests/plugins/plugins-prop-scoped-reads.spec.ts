@@ -51,6 +51,7 @@ test.describe('a plugin reads inline syntax the way its editor draws it', () => 
 	test.beforeEach(async ({ page }) => {
 		await page.goto('/test/plugins/activation?reads');
 		await page.getByTestId('editor-not-listing').locator('.toc-block-item').first().waitFor();
+		await page.waitForFunction(() => '__activation' in window);
 	});
 
 	test('the toc label reads the dollars as text only in the editor without latex', async ({
@@ -67,6 +68,7 @@ test.describe('footnotes number the references their editor draws', () => {
 	test.beforeEach(async ({ page }) => {
 		await page.goto('/test/plugins/activation?reads');
 		await page.getByTestId('editor-not-listing').locator('.footnote-ref').first().waitFor();
+		await page.waitForFunction(() => '__activation' in window);
 	});
 
 	test('a reference inside dollars the editor draws as text takes the first number', async ({

@@ -28,6 +28,13 @@ The contract, in three parts:
 
 - select-all then Backspace empties the body and keeps the code block a code block (it does
   not convert to a paragraph, as an unguarded browser delete of the whole display would)
+- any replacement of a range keeps both fence lines: over a range that opens on the body's first
+  highlighted word, a typed key (after a drag, Shift+Arrow or Ctrl+A), an emoji and an IME
+  composition each replace only body text (miss-analysis: the ranged cases here deleted or
+  pasted, so no test replaced a range, which the browser rewrote on its own and took the hidden
+  opener with it; the first fix then covered one typed character, and a review found the rest)
+- an IME composition over the whole body replaces it: the block deletes the selected body text
+  as the composition starts, so the composed text lands inside the fence
 
 ## Pinned below the browser
 
@@ -38,12 +45,6 @@ selection, and a cut of a closer-only selection each commit nothing, and a delet
 body is applied by the block, since Chromium would take the hidden fence line beside it.
 (miss-analysis: when these fence lines became editable in source mode, the refusals were deleted
 with their source-mode tests instead of moved to the mode that still hides the lines)
-
-## Unverified
-
-- an IME composition started over a fence-crossing selection moves the selection onto its
-  body span before composing. Pinned at the component level (`code-fence-ranged-edit.test.ts`);
-  browser-level IME behavior is not simulated by this harness.
 
 ## Out of scope
 

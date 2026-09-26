@@ -50,6 +50,7 @@ export type Op =
 	| { t: 'tableInsertColumn'; i: number }
 	| { t: 'tableDeleteColumn'; i: number }
 	| { t: 'tableReorderRow'; i: number; dir: -1 | 1 }
+	| { t: 'tableReorderColumn'; i: number; dir: -1 | 1 }
 	| { t: 'tableCycleAlignment'; i: number }
 	| { t: 'typeCell'; r: number; c: number; n: number }
 	| { t: 'rangeDelete'; a: number; b: number; off: number }
@@ -84,6 +85,11 @@ export const arbOp: fc.Arbitrary<Op> = fc.oneof(
 	fc.record({
 		t: fc.constant('tableReorderRow' as const),
 		i: fc.nat(4),
+		dir: fc.constantFrom(-1 as const, 1 as const)
+	}),
+	fc.record({
+		t: fc.constant('tableReorderColumn' as const),
+		i: fc.nat(3),
 		dir: fc.constantFrom(-1 as const, 1 as const)
 	}),
 	fc.record({ t: fc.constant('tableCycleAlignment' as const), i: fc.nat(3) }),
@@ -173,6 +179,7 @@ export async function runOp(h: Harness, op: Op): Promise<void> {
 		case 'tableInsertColumn':
 		case 'tableDeleteColumn':
 		case 'tableReorderRow':
+		case 'tableReorderColumn':
 		case 'tableCycleAlignment':
 		case 'typeCell':
 			return runTableOp(h, op);
@@ -320,6 +327,7 @@ async function runTableOp(
 				| 'tableInsertColumn'
 				| 'tableDeleteColumn'
 				| 'tableReorderRow'
+				| 'tableReorderColumn'
 				| 'tableCycleAlignment'
 				| 'typeCell';
 		}
@@ -381,6 +389,9 @@ async function runTableOp(
 	else if (op.t === 'tableReorderRow') {
 		const rowIdx = op.i % rowCount;
 		await (op.dir === -1 ? ctx.moveRowUp(rowIdx) : ctx.moveRowDown(rowIdx));
+	} else if (op.t === 'tableReorderColumn') {
+		const colIdx = op.i % colCount;
+		await (op.dir === -1 ? ctx.moveColumnLeft(colIdx) : ctx.moveColumnRight(colIdx));
 	} else await ctx.cycleAlignment(op.i % colCount);
 }
 

@@ -43,6 +43,26 @@ describe('completeBareMathSource rebuilds from the block’s own delimiters', ()
 	}
 });
 
+// Miss-analysis: every math fixture was LF, so no case saw the opener line read with its `\r`.
+describe('math sources on CRLF keep their line endings', () => {
+	const completes: Array<[source: string, text: string, caret: number]> = [
+		['```math\r\n```', '```math\r\n\r\n```', 9],
+		['$$\r\n$$', '$$\r\n\r\n$$', 4]
+	];
+	for (const [source, text, caret] of completes) {
+		it(`completes ${JSON.stringify(source)} on CRLF`, () => {
+			expect(completeBareMathSource(source)).toEqual({ text, caret });
+		});
+	}
+
+	it('reads a CRLF $$ block as a fence around its body', () => {
+		const source = '$$\r\nx^2\r\n$$';
+		const { start, end } = mathBodySpan(source);
+		expect(source.slice(start, end)).toBe('x^2');
+		expect(renderMathSource(source).querySelectorAll('.md-fence-line')).toHaveLength(2);
+	});
+});
+
 describe('mathBodySpan names the body of either shape', () => {
 	const cases: Array<[source: string, body: string]> = [
 		['$$x^2$$', 'x^2'],

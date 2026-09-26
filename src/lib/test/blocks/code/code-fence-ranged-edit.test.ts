@@ -156,13 +156,18 @@ describe('CodeBlock: fence-crossing ranged edits', () => {
 		expect(mounted.blockEdit.updateBlockContent).not.toHaveBeenCalled();
 	});
 
-	it('leaves a selection inside one region to native handling', async () => {
-		select(3, 5); // the info string
-		const e = beforeInput('insertText', 'p');
+	// Chromium's own replace of a range can take the hidden opener with it, so the block writes
+	// even a type-over that stays inside one region.
+	it.each([
+		['a character over the info string', 3, 5, 'p', '```p\nconst x = 1\n```'],
+		['an emoji over body text', 6, 11, '😀', '```js\n😀 x = 1\n```']
+	])('writes %s itself', async (_name, start, end, data, text) => {
+		select(start, end);
+		const e = beforeInput('insertText', data);
 		await settleEditor();
 
-		expect(e.defaultPrevented).toBe(false);
-		expect(mounted.blockEdit.updateBlockContent).not.toHaveBeenCalled();
+		expect(e.defaultPrevented).toBe(true);
+		expect(committedText()).toBe(text);
 	});
 
 	// The pending edit's target range covers a structural line ending. Chromium reports it
@@ -248,16 +253,25 @@ describe('CodeBlock: fence-crossing ranged edits', () => {
 		expect(e.defaultPrevented).toBe(false);
 	});
 
-	// beforeinput's insertCompositionText is not cancelable, so the guard cannot reach
-	// an IME; the selection has to be shrunk before the composition takes over.
-	it('compositionstart re-puts the caret at a fence-crossing selection onto the body', () => {
-		select(12, 20);
+	// beforeinput's insertCompositionText is not cancelable, so the guard cannot reach an IME;
+	// the block deletes the body part of the selection before the composition takes over.
+	it.each([
+		['a fence-crossing selection', 12, 20, '```js\nconst \n```'],
+		['a body-only selection', 6, 12, '```js\nx = 1\n```']
+	])('compositionstart over %s deletes its body part first', async (_name, start, end, text) => {
+		select(start, end);
+		mounted.el.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true }));
+		await settleEditor();
+
+		expect(committedText()).toBe(text);
+	});
+
+	it('compositionstart over fence structure alone collapses onto the body and writes nothing', () => {
+		select(18, 21);
 		mounted.el.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true }));
 
-		expect(createSurfaceBackend({ getEl: () => mounted.el }).getRawSelection()).toEqual({
-			start: 12,
-			end: 17
-		});
+		expect(createSurfaceBackend({ getEl: () => mounted.el }).getRaw()).toBe(17);
+		expect(mounted.blockEdit.updateBlockContent).not.toHaveBeenCalled();
 	});
 });
 
