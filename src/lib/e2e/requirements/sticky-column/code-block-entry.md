@@ -23,3 +23,7 @@ Entering a code block via ArrowDown from the block above and via ArrowUp from th
 The landing comparison sat under `if (captureDelta < 5)`, so whether it ran at all was decided by the fixture's text, the host's font metrics and the viewport rather than by the editor. No check catches an assertion that stops running: G4.23 pairs a requirement with its spec, it does not ask whether a scenario's assertion is reachable. The general rule: a spec never guards an assertion on measured data, the bound absorbs the measurement instead.
 
 The `DEFAULT_CONTENT` scenario clicked the block above the fence at its top edge, which in that fixture is the first item of a three-item list, so its ArrowDown landed in the second item and the "above" leg measured a list column against a code column. The two agreed by pixel coincidence until the code box's padding changed. A landing scenario asserts which block the caret landed in before it measures where.
+
+The fence-line scenario typed a character and read the source, and the fence write rule moved a
+stray byte into the body before the source was read, so dropping the body window left it green.
+It now reads where the caret landed first, before anything is typed.

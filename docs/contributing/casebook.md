@@ -165,9 +165,11 @@ assertInvariant('commit-path-dialect', () =>
 ## DOM to raw offset translation has one home
 
 The DOM ↔ raw translation (raw: a node's verbatim source bytes, markers included) lives in
-`src/lib/cursor/widget-offset.ts`, plus the ambient helpers that wrap it for the marker a container
-lends its first child. Offset arithmetic duplicated anywhere else agrees with the shared walk right
-up until it doesn't.
+`src/lib/cursor/widget-offset.ts`. It reads the length of the marker a container lends its first
+child straight off the DOM, turns a DOM position back into raw with `rawOffsetAt`, and writes the
+selection from raw offsets: `placeCaretAtRaw` for a caret (which has to say whether it clamps),
+`selectRawRange` and friends for a range. Offset math done anywhere else agrees with it right up until it
+doesn't (a second walk once counted a widget by its text instead of its bytes).
 
 **Incident.** Every offset bug in the audit traced to arithmetic done outside it.
 
@@ -185,8 +187,10 @@ const crossed: RawOffset = dom;
 ```
 
 The conversions that are allowed are named functions in `src/lib/cursor/coordinate-spaces.ts`
-(`toRawOffset`, `toDomTextOffset`, and friends), one per direction. **Spec:**
-`docs/design/editor.md` § 6. ([rule 4](rules.md#the-five-rules))
+(`toRawOffset`, `toDomTextOffset`, and friends), one per direction. And a source scan (G4.36)
+fails any native selection write outside that module, apart from a few declared files that select
+nodes they already hold.
+**Spec:** `docs/design/editor.md` § 6. ([rule 4](rules.md#the-five-rules))
 
 ## Registries are code, not state
 

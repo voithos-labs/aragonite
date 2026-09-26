@@ -9,7 +9,7 @@ import { describe, it, expect, afterEach, vi } from 'vitest';
 import { unmount } from 'svelte';
 import TextEditableBlock from '$lib/components/blocks/text/TextEditableBlock.svelte';
 import { asDomTextOffset } from '$lib/cursor/coordinate-spaces';
-import { createRangeFromOffsets } from '$lib/cursor/content-offsets';
+import { createRangeAtDomTextOffsets } from '$lib/cursor/widget-offset';
 import { cleanLiveJoinSeam } from '$lib/components/blocks/text/live-join-seam';
 import { registerLiveJoinSeamCleaner } from '$lib/schema/inline-construct-policy';
 import { makeStubBlockEdit } from '../../harness/editor-actions';
@@ -35,7 +35,7 @@ function seat(el: HTMLElement, start: number, end: number): void {
 	el.focus();
 	const sel = window.getSelection();
 	sel?.removeAllRanges();
-	sel?.addRange(createRangeFromOffsets(el, asDomTextOffset(start), asDomTextOffset(end))!);
+	sel?.addRange(createRangeAtDomTextOffsets(el, asDomTextOffset(start), asDomTextOffset(end))!);
 }
 
 /** A key the browser reports a target range for, which is what a word or line delete is, whether
@@ -55,7 +55,7 @@ async function press(
 		...init
 	});
 	if (target) {
-		const range = createRangeFromOffsets(
+		const range = createRangeAtDomTextOffsets(
 			el,
 			asDomTextOffset(target.start),
 			asDomTextOffset(target.end)

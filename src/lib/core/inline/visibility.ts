@@ -28,15 +28,20 @@ export const MARKER_FAMILY_SELECTOR = Object.values(FAMILY_CLASS)
 	.join(', ');
 
 /**
- * The family `el` belongs to, or null for anything else. A `contenteditable="false"` marker is a
- * container's leading marker prefix (`> `, `- `), which keeps its box in every mode
- * (`ambient/ambient-cursor.ts`), so it belongs to no family.
+ * Whether `el` is a container's leading marker prefix (`> `, `- `): the read-only marker span a
+ * container draws before its first child's text, which keeps its box in every mode.
  */
+export function isMarkerPrefixSpan(el: Element): boolean {
+	return (
+		el.classList.contains(FAMILY_CLASS.marker) && el.getAttribute('contenteditable') === 'false'
+	);
+}
+
+/** The family `el` belongs to, or null for anything else. A marker prefix span belongs to none,
+ *  since no mode hides it. */
 export function markerFamilyOf(el: Element): MarkerFamily | null {
 	const classes = el.classList;
-	if (classes.contains(FAMILY_CLASS.marker)) {
-		return el.getAttribute('contenteditable') === 'false' ? null : 'marker';
-	}
+	if (classes.contains(FAMILY_CLASS.marker)) return isMarkerPrefixSpan(el) ? null : 'marker';
 	if (classes.contains(FAMILY_CLASS['fence-line'])) return 'fence-line';
 	if (classes.contains(FAMILY_CLASS['ref-label'])) return 'ref-label';
 	return null;

@@ -139,8 +139,6 @@ const CLASSIFICATION_RE =
 	/(?:classList\.contains|closest|matches|querySelector(?:All)?)\s*\(\s*['"`][^'"`]*(?:md-marker|md-fence-line|md-ref-label|md-construct-reveal|data-construct-|data-presentation|data-focused|data-content-empty)|(?:get|has)Attribute\s*\(\s*['"`]data-(?:presentation|construct-|focused|content-empty)|(?<![\w.])(?:markerFamilyOf|familyHidesText|familyPaintsAlone)\s*\(/;
 
 const NON_CLASSIFYING_READERS: Record<string, string> = {
-	'src/lib/ambient/ambient-dom.ts':
-		'marker-prefix span identity: a contenteditable="false" marker keeps its box, so the hidden-run rule excludes it by construction',
 	'src/lib/components/blocks/text/construct-reveal.ts':
 		'the preview-inline reveal writer: it stamps the class the classification reads, and asks nothing about hiding',
 	'src/lib/invariants/marker-css-parity.ts':
@@ -288,81 +286,69 @@ const MANIFESTS: ManifestRule[] = [
 		misses: ['buildImageEditBytes(image, raw, fields)']
 	},
 	{
-		id: 'G4.36 the files naming setRaw are the declared backends and caret writers',
-		matches: namesToken('setRaw'),
+		id: 'G4.36 the files writing the native selection are the one caret writer and the node-range writers',
+		// Only the two-argument collapse and setPosition: Range.collapse(true) and the editor's own
+		// selectionState.collapse() take one argument or none, and write no caret.
+		matches:
+			/\.(?:addRange|setBaseAndExtent|extend|selectAllChildren)\s*\(|\.(?:collapse|setPosition)\s*\([^,()]*,/,
 		declared: {
-			'src/lib/ambient/ambient-cursor.ts':
-				'defines the raw write: the offset walk + the marker-prefix landing',
-			'src/lib/components/blocks/editable-surface.ts':
-				'the caret placement and column entries; the clamp to a position the caret can sit at lives here',
-			'src/lib/components/blocks/plain-text-backend.ts':
-				'the plugin-leaf backend over content offsets',
-			'src/lib/components/blocks/table/TableCellBlock.svelte':
-				'its backend forward; widget steps and the pending-cursor restore',
-			'src/lib/components/blocks/text/TextEditableBlock.svelte':
-				'its backend forward; the pending-cursor restore',
+			'src/lib/cursor/widget-offset.ts':
+				'placeCaretAtRaw and the raw range writers: the one translation from a raw offset to a native selection',
+			'src/lib/components/blocks/text/edge-policy-dispatch.ts':
+				'selects a replace widget whole: a range over one element, not a raw offset',
 			'src/lib/components/blocks/text/widget-interaction.ts':
-				'widget entry/exit positions beside an atomic inline widget'
+				"a double-click selects the revealed token whole, over the reveal's own text node",
+			'src/lib/selection/caret-restore.ts': 'the menu-blur restore of a Range it saved itself'
 		},
 		reason:
-			'a caret write is where a raw offset becomes a DOM position; a new writer must apply the clamp or forward to one that does (G2.12)',
+			'a caret written from a raw offset goes through placeCaretAtRaw, which skips the marker prefix and clamps; any other native write must be a range over nodes it already holds',
 		hits: [
-			'deps.backend.setRaw(asRawOffset(0));',
-			'setRaw: (offset) => write(offset),',
-			'const write = io.setRaw;'
+			'sel?.addRange(range);',
+			'sel.setBaseAndExtent(n, 0, n, 0);',
+			'sel.extend(node, 2);',
+			'window.getSelection()?.collapse(node, 2);',
+			'sel.setPosition(node, 2);',
+			'sel.selectAllChildren(node);'
 		],
-		misses: ['// setRaw is the entry', 'const mySetRaw = 1;']
+		misses: [
+			'sel.getRangeAt(0);',
+			'selectionState.collapse();',
+			'range.collapse(true);',
+			'sel.collapseToEnd();'
+		]
 	},
 	{
-		id: 'G4.36 the files naming setToAmbientBoundary are the declared one',
-		matches: namesToken('setToAmbientBoundary'),
+		id: 'G4.36 a DOM position is built from a walk offset only in the walk module and its measuring readers',
+		matches: namesToken(
+			'(?:createRangeAtDomTextOffsets|findDomTextOffsetTarget|findDomTextLanding)'
+		),
 		declared: {
-			'src/lib/ambient/ambient-cursor.ts':
-				'defines it; every other caller routes through a caret writer'
+			'src/lib/cursor/widget-offset.ts': 'defines the walk and the one caret writer over it',
+			'src/lib/cursor/overlay-rects.ts': "measures a range's client rects, and writes no caret",
+			'src/lib/cursor/sticky-measure.ts':
+				'measures the caret box a column scan compares, and writes no caret'
 		},
-		reason: 'the raw-0 landing under a marker prefix has one home',
-		hits: ['setToAmbientBoundary(el);'],
-		misses: ['// setToAmbientBoundary lands at raw 0']
+		reason:
+			'a DOM position built outside the walk module skips the prefix and clamp rules a caret write needs; write a caret with placeCaretAtRaw',
+		hits: [
+			'const range = createRangeAtDomTextOffsets(el, a, a);',
+			'findDomTextOffsetTarget(el, t)'
+		],
+		misses: ['// createRangeAtDomTextOffsets is the walk', 'rawRangeToDomRange(el, 0, 1)']
 	},
 	{
-		id: 'G4.36 the files writing the native selection are the declared ones',
-		matches: /\.(addRange|setBaseAndExtent)\s*\(/,
+		id: 'G4.36 the files naming rawRangeToDomRange measure or decorate, never place a caret',
+		matches: namesToken('rawRangeToDomRange'),
 		declared: {
-			'src/lib/ambient/ambient-cursor.ts': 'the raw write lands as a native range',
-			'src/lib/ambient/ambient-dom.ts': 'placeCaretAfterAmbientSpan, the shared boundary landing',
-			'src/lib/components/blocks/code/CodeBlock.svelte': 'its setSelection range write',
-			'src/lib/components/blocks/editable-surface.ts': 'the factory setSelection range write',
-			'src/lib/components/blocks/text/edge-policy-dispatch.ts':
-				'selects a replace widget whole: a range, not a caret position',
-			'src/lib/components/blocks/text/widget-interaction.ts':
-				"a double-click selects the revealed token whole, over the reveal's own text node, and a range carries across the rebuild when a shown source is hidden",
-			'src/lib/cursor/content-offsets.ts': 'setCursorOffset, the content-offset write helper',
-			'src/lib/cursor/focused-caret.ts':
-				'restoreCaretAtWalkOffset, the carry across a render rebuild',
-			'src/lib/selection/caret-restore.ts': 'the menu-blur saved-range restore',
-			'src/lib/selection/native-bridge.ts':
-				'the SelectionPoint entry: the collapsed-caret clamp and the surface-content range live here'
+			'src/lib/cursor/widget-offset.ts': 'defines it',
+			'src/lib/decorations/island-dom.ts':
+				'inserts and replaces decoration widgets in a built fragment',
+			'src/lib/selection/selection-drop.ts': "measures the drop caret's rect"
 		},
-		reason: 'a native selection write outside the declared writers skips the clamp',
-		hits: ['sel?.addRange(range);', 'sel.setBaseAndExtent(n, 0, n, 0);'],
-		misses: ['sel.getRangeAt(0);']
-	},
-	{
-		id: 'G4.36 the files naming the caret-write helpers are the declared ones',
-		matches: /(?<![\w'"])(setCursorOffset|restoreCaretAtWalkOffset)\b/,
-		declared: {
-			'src/lib/cursor/content-offsets.ts': 'defines setCursorOffset',
-			'src/lib/cursor/focused-caret.ts': 'defines restoreCaretAtWalkOffset',
-			'src/lib/components/blocks/code/CodeBlock.svelte': 'DOM-first commit landing',
-			'src/lib/components/blocks/editable-leaf.ts': 'pending restore + paste landing',
-			'src/lib/components/blocks/plain-text-backend.ts': 'the backend write forward',
-			'src/lib/components/blocks/table/cell-render.ts': 'render-rebuild caret carry',
-			'src/lib/components/blocks/text/text-render.ts': 'render-rebuild caret carry',
-			'src/lib/cursor/reveal-source.ts': 'reveal fold caret carry'
-		},
-		reason: 'the two helpers hide a native write the selection scan cannot see',
-		hits: ['setCursorOffset(el, at);', 'restoreCaretAtWalkOffset(root, offset);'],
-		misses: ['// setCursorOffset is the helper']
+		reason:
+			'a range from raw offsets is for measuring or decorating; a caret goes through placeCaretAtRaw',
+		hits: ['rawRangeToDomRange(root, 0, 3)'],
+		misses: ['// rawRangeToDomRange measures']
 	},
 	{
 		id: 'G4.36 the files building a public focus from placeCaret are the declared surfaces',

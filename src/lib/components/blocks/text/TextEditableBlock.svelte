@@ -27,7 +27,6 @@
 		trimTrailingLineEnding,
 		trailingLineEnding
 	} from '../../../core/lines';
-	import { hasSelection as hasSelectionHelper } from '../../../cursor/content-offsets';
 	import { caretIsInTextContent, seatIsInTextContent } from './click-snap-guard';
 	import { caretSeatFromPoint } from '../../../cursor/point-offset';
 	import { FALLBACK_CONTENT_WIDTH } from '../../../cursor/typography-estimates';
@@ -72,21 +71,16 @@
 	} from '../editable-surface';
 	import { wireSurfaceContexts, useParkFocusOnUnmount } from '../surface-wiring.svelte';
 	import {
-		domTextOffsetAtNode,
 		landableStartAbutsIsland,
-		rawTextOfNode,
-		createRangeAtDomTextOffsets,
+		markerPrefixOf,
+		rawOffsetAt,
+		rawTextOfContent,
 		revealsNoMarkers,
 		screenVisibilityOf,
-		selectionFocusWalkOffset
+		rawSelectionFocus
 	} from '../../../cursor/widget-offset';
-	import { ambientSpanOf } from '../../../ambient/ambient-dom';
-	import {
-		asRawOffset,
-		toClampedRawOffset,
-		toDomTextOffset
-	} from '../../../cursor/coordinate-spaces';
-	import { createAmbientCursorIO } from '../../../ambient/ambient-cursor';
+	import { asRawOffset } from '../../../cursor/coordinate-spaces';
+	import { createSurfaceBackend } from '../../../cursor/surface-backend';
 	import { type CommandId } from '../../../schema/commands';
 	import { reorderRunCommand } from '../../../editor-actions/reorder-action';
 	import { planTypedCompletion } from '../../../editor-actions/enter-completion';
@@ -227,29 +221,16 @@
 		pendingCursorOffset = offset;
 	}
 
-	const ambientLength = $derived(ambientPrefixText.length);
-
-	const cursor = createAmbientCursorIO({
+	const cursor = createSurfaceBackend({
 		getEl: () => el ?? null,
-		getAmbientLength: () => ambientLength,
 		getSnapTarget: () => lastSnapTargetOffset
 	});
 
 	const editableSurface = createEditableSurface({
 		...wiring.deps,
 		getEl: () => el ?? null,
-		getAmbientLength: () => ambientLength,
 		isInputSuppressed: () => revealing,
-		backend: {
-			getRaw: () => cursor.getRaw(),
-			setRaw: (offset) => cursor.setRaw(offset),
-			buildRange: (start, end) =>
-				createRangeAtDomTextOffsets(
-					el!,
-					toDomTextOffset(start, ambientLength),
-					toDomTextOffset(end, ambientLength)
-				)
-		},
+		backend: cursor,
 		getMyPath: () => myPath,
 		getIndex: () => index,
 		getComposing: () => composing,
@@ -257,7 +238,7 @@
 			composing = value;
 		},
 		setPendingCursor: (offset) => setPendingCursorOffset(offset, 'surface'),
-		getFocusOffset: () => (el ? selectionFocusWalkOffset(el, ambientLength) : null),
+		getFocusOffset: () => (el ? rawSelectionFocus(el) : null),
 		getTextLen: () => caretReach(),
 		readText: () => readRawText(),
 		relocateComposedText: (after, composedAt) => compositionSeat.relocate(after, composedAt),
@@ -294,7 +275,6 @@
 			return myPath;
 		},
 		getEl: () => el ?? null,
-		getAmbientLength: () => ambientLength,
 		getEditorContentWidth: () => getEditorRoot()?.clientWidth ?? FALLBACK_CONTENT_WIDTH,
 		cursor,
 		widgetSelection,
@@ -358,7 +338,6 @@
 			return reading;
 		},
 		getEl: () => el ?? null,
-		getAmbientLength: () => ambientLength,
 		isCrossBlock: () => selection.isCrossBlock
 	});
 
@@ -379,7 +358,6 @@
 			return reading;
 		},
 		getEl: () => el ?? null,
-		getAmbientLength: () => ambientLength,
 		getAmbientPrefix: () => ambientPrefixText,
 		hasIslands: () =>
 			decorationEngine ? decorationEngine.islandsForPath(myPath).length > 0 : false,
@@ -542,7 +520,7 @@
 				return {
 					// At or before, not equal: a caret can still be placed at an offset the DOM
 					// traversal moves forward, and a strict test would make the key do nothing.
-					applies: () => offset <= caretBounds().start && !hasSelectionHelper(),
+					applies: () => offset <= caretBounds().start && cursor.getRawSelection() === null,
 					perform: () => {
 						const demoted = demoteBeforeMerge(offset);
 						if (!demoted) return void blockEdit.mergeWithPrevious(index);
@@ -556,7 +534,7 @@
 				};
 			case 'block.mergeNext':
 				return {
-					applies: () => offset >= caretBounds().end && !hasSelectionHelper(),
+					applies: () => offset >= caretBounds().end && cursor.getRawSelection() === null,
 					perform: () => void blockEdit.mergeWithNext(index)
 				};
 			case 'link.openCard':
@@ -696,7 +674,8 @@
 			// offset, and restoring would pull the selection back into the blurred block.
 			// The clear runs either way, so a skipped restore is dropped, not left pending.
 			const applied = consumePendingRestore(el ?? null, pendingCursorOffset, (offset) => {
-				if (!widgetInteraction.revealInterior(offset)) cursor.setRaw(asRawOffset(offset));
+				if (!widgetInteraction.revealInterior(offset))
+					cursor.setRaw(asRawOffset(offset), { clamp: 'exact' });
 			});
 			tracePendingCursorConsume(pendingCursorOffset, applied);
 			pendingCursorOffset = null;
@@ -725,8 +704,7 @@
 			armSnapTarget(null);
 			return;
 		}
-		const content = domTextOffsetAtNode(root, range.startContainer, range.startOffset);
-		const off = toClampedRawOffset(content, ambientLength);
+		const off = rawOffsetAt(root, range.startContainer, range.startOffset);
 		if (off !== lastSnapTargetOffset) armSnapTarget(null);
 	}
 
@@ -831,17 +809,8 @@
 		return readDomText() + undrawnSuffix(node);
 	}
 
-	// Read the children one by one rather than `textContent`, so stray text nodes Chromium
-	// inserts around the marker span do not pollute the raw.
 	function readDomText(): string {
-		if (!el) return '';
-		const ambient = ambientLength > 0 ? ambientSpanOf(el) : null;
-		let out = '';
-		for (const child of Array.from(el.childNodes)) {
-			if (child === ambient) continue;
-			out += rawTextOfNode(child, node.raw);
-		}
-		return out;
+		return el ? rawTextOfContent(el, node.raw) : '';
 	}
 
 	// Captured before the shared handler: its cross-block half clears the arrival side, and the
@@ -890,7 +859,7 @@
 			e.key === 'Home' &&
 			!e.shiftKey &&
 			el &&
-			(ambientLength > 0 || landableStartAbutsIsland(el))
+			(markerPrefixOf(el) !== null || landableStartAbutsIsland(el))
 		) {
 			e.preventDefault();
 			focus(CURSOR_START);
@@ -934,7 +903,7 @@
 			hasSelection: () => cursor.getRawSelection() !== null,
 			isRevealing: widgetInteraction.isRevealing,
 			foldReveal: () => widgetInteraction.foldRevealBeforeMutation(),
-			setCaret: (offset) => cursor.setRaw(asRawOffset(offset)),
+			setCaret: (offset) => cursor.setRaw(asRawOffset(offset), { clamp: 'exact' }),
 			seatOutside: caretMemory.noteExtreme,
 			completesLine: (caret) =>
 				planTypedCompletion(node, caret, grammar, documentEnding()) !== null,
@@ -1020,7 +989,7 @@
 		const y = lastClickClientY;
 		lastClickClientX = null;
 		lastClickClientY = null;
-		cursor.clampOutOfAmbient();
+		cursor.clampOutOfMarkerPrefix();
 		widgetInteraction.snapClickToWidgetEdge(x, y, {
 			modified: e.ctrlKey || e.metaKey,
 			clickCount: e.detail,

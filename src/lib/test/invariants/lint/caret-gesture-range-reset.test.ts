@@ -116,8 +116,6 @@ const PARK_DOOR_CALLERS: Record<string, string> = {
 		"implementation: the container walk lands through its child's park door",
 	'src/lib/components/blocks/editable-leaf.ts':
 		"implementation: the leaf's park door over the shared surface",
-	'src/lib/components/blocks/code/CodeBlock.svelte':
-		'implementation: clamps the parked offset onto fence body before delegating',
 	'src/lib/components/blocks/table/TableBlock.svelte':
 		'implementation: the 2D park collapses to a cell park',
 	'src/lib/components/blocks/table/TableRowBlock.svelte':

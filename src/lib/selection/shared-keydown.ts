@@ -100,7 +100,7 @@ export async function handleSharedKeydown(
 
 	if (e.key === 'ArrowUp') {
 		const offset = shiftOffset ?? ctx.getCursorOffset() ?? 0;
-		if (isAtFirstVisualLine(el, offset, bounds().start)) {
+		if (isAtFirstVisualLine(el, offset, bounds())) {
 			// Cross the boundary only when focus is already at the block's first reachable
 			// offset, so native Shift+ArrowUp extension has nowhere left to go within it.
 			if (e.shiftKey && offset <= bounds().start) {
@@ -126,7 +126,7 @@ export async function handleSharedKeydown(
 
 	if (e.key === 'ArrowDown') {
 		const offset = shiftOffset ?? ctx.getCursorOffset() ?? 0;
-		if (isAtLastVisualLine(el, offset, bounds().end)) {
+		if (isAtLastVisualLine(el, offset, bounds())) {
 			// Cross the boundary only when focus is already at the block's last reachable
 			// offset, so native Shift+ArrowDown extension has nowhere left to go.
 			if (e.shiftKey && offset >= bounds().end) {
@@ -198,7 +198,6 @@ export interface LandableBounds {
 export interface LandableBoundsContext {
 	/** textContent length in raw-content coordinates (the marker prefix excluded). */
 	getTextLen(): number;
-	getAmbientLength(): number;
 }
 
 /**
@@ -209,7 +208,7 @@ export interface LandableBoundsContext {
  * close with a run nothing paints. Every block-edge check reads this, not 0 and length.
  */
 export function caretLandableBounds(ctx: LandableBoundsContext, el: HTMLElement): LandableBounds {
-	return landableRawBounds(el, ctx.getAmbientLength()) ?? { start: 0, end: ctx.getTextLen() };
+	return landableRawBounds(el) ?? { start: 0, end: ctx.getTextLen() };
 }
 
 // ── Shared beforeinput prelude ─────────────────────────────────────────────

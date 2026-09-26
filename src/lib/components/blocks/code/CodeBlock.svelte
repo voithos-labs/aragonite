@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { getContext, tick } from 'svelte';
-	import { type BlockComponent, type StickyColumnDirection } from '../../../block-component';
+	import { type BlockComponent } from '../../../block-component';
 	import type { NodeView } from '../../../core/node-views';
 	import {
 		EDITOR_POLICIES_KEY,
@@ -9,26 +9,24 @@
 		type EditorPolicies,
 		type EditorServices
 	} from '../../../editor-keys';
-	import { asDomTextOffset } from '../../../cursor/coordinate-spaces';
-	import { CONTENT_EMPTY_ATTR, holdsOnlyMarkerChrome } from '../../../cursor/widget-offset';
+	import { asRawOffset } from '../../../cursor/coordinate-spaces';
 	import {
-		createRangeFromOffsets,
-		setCursorOffset,
-		getRangeOffsets,
-		getSelectionOffsets,
-		hasSelection
-	} from '../../../cursor/content-offsets';
+		CONTENT_EMPTY_ATTR,
+		holdsOnlyMarkerChrome,
+		selectRawRange,
+		type RawRange
+	} from '../../../cursor/widget-offset';
+	import { createSurfaceBackend } from '../../../cursor/surface-backend';
 	import { handleSharedKeydown, handleSharedBeforeInput } from '../../../selection/shared-keydown';
 	import {
 		createEditableSurface,
 		createClipboardHandlers,
 		consumePendingRestore,
 		editableSurfaceAttributes,
-		withKeydownVerdict,
-		type RawRange
+		withKeydownVerdict
 	} from '../editable-surface';
 	import { wireSurfaceContexts, useParkFocusOnUnmount } from '../surface-wiring.svelte';
-	import { createContentOffsetBackend, anchorTrailingNewline } from '../plain-text-backend';
+	import { anchorTrailingNewline, plainTextOf } from '../plain-text-backend';
 	import { renderCodeBlock, sliceFencedCode } from './code-renderer';
 	import {
 		getLineLeadingWhitespace,
@@ -104,15 +102,16 @@
 	let pendingSelection = $state<{ start: number; end: number } | null>(null);
 	let lastRenderedRaw = '';
 
-	const { backend, getFocusOffset, getTextLen, readText } = createContentOffsetBackend(
-		() => el ?? null
-	);
+	const backend = createSurfaceBackend({ getEl: () => el ?? null });
 
 	const editableSurface = createEditableSurface({
 		...wiring.deps,
 		getEl: () => el ?? null,
-		getAmbientLength: () => 0,
 		backend,
+		// A caret arriving from outside lands on the body in every mode, by a column or a placed
+		// offset; only a click or an arrow inside the block reaches a fence line the mode paints.
+		columnWindow: () => bodyWindow(node),
+		clampLanding: (offset) => clampCaretToBody(node, offset),
 		getMyPath: () => myPath,
 		getIndex: () => index,
 		getComposing: () => composing,
@@ -122,9 +121,9 @@
 		setPendingCursor: (offset) => {
 			pendingCursorOffset = offset;
 		},
-		getFocusOffset,
-		getTextLen,
-		readText,
+		getFocusOffset: backend.getFocusOffset,
+		getTextLen: () => plainTextOf(el).length,
+		readText: () => plainTextOf(el),
 		// Gives back the caret the reconciled bytes need: the write rule can grow the
 		// fence or drop a character, either of which moves the caret off the DOM's.
 		commitInput: (text, preEdit, savedOffset) => commitDisplay(text, preEdit, savedOffset),
@@ -139,22 +138,9 @@
 	export const editable = true;
 	export const focusable = true;
 
-	// A caret arriving from outside lands on the body in every mode, remembered or placed; only
-	// a click or an arrow inside the block reaches a fence line the mode paints.
-	export function focus(offset: number): void {
-		editableSurface.surface.focus(clampCaretToBody(node, offset));
-	}
-
-	export function parkCaret(offset: number): void {
-		editableSurface.surface.parkCaret(clampCaretToBody(node, offset));
-	}
-
-	// A vertical arrival is an arrival too: the column lookup is bounded to the body, or it would
-	// land on a fence line.
-	export function focusAtColumn(x: number, from: StickyColumnDirection): void {
-		editableSurface.surface.focusAtColumn(x, from, bodyWindow(node));
-	}
-
+	export const focus = editableSurface.surface.focus;
+	export const parkCaret = editableSurface.surface.parkCaret;
+	export const focusAtColumn = editableSurface.surface.focusAtColumn;
 	export const getCursorOffset = editableSurface.surface.getCursorOffset;
 	export const getSelectedText = editableSurface.surface.getSelectedText;
 	export const setSelection = editableSurface.surface.setSelection;
@@ -202,22 +188,14 @@
 		// blocks moves the caret to the split-off sibling, and a blur would otherwise yank
 		// the global selection back. The pending fields clear either way, never set again.
 		if (pendingSelection !== null) {
-			consumePendingRestore(el, pendingSelection, (range) => {
-				const domRange = createRangeFromOffsets(
-					el!,
-					asDomTextOffset(range.start),
-					asDomTextOffset(range.end)
-				);
-				if (!domRange) return;
-				const sel = window.getSelection();
-				sel?.removeAllRanges();
-				sel?.addRange(domRange);
-			});
+			consumePendingRestore(el, pendingSelection, (range) =>
+				selectRawRange(el!, range.start, range.end)
+			);
 			pendingSelection = null;
 			pendingCursorOffset = null;
 		} else if (pendingCursorOffset !== null) {
 			consumePendingRestore(el, pendingCursorOffset, (offset) =>
-				setCursorOffset(el!, asDomTextOffset(offset))
+				backend.setRaw(asRawOffset(offset), { clamp: 'exact' })
 			);
 			pendingCursorOffset = null;
 		}
@@ -362,7 +340,7 @@
 	// beforeinput event is not cancelable, so a selection crossing a fence is shrunk onto its
 	// body here, before the composition takes over.
 	function onCompositionStart(): void {
-		const sel = el ? getSelectionOffsets(el) : null;
+		const sel = backend.getRawSelection();
 		if (sel && !fenceLinesEditable && crossesFenceBoundary(node, sel)) {
 			const span = fenceEditSpan(node, sel);
 			setSelection(span.start, span.end);
@@ -395,7 +373,7 @@
 		if (!data || data.length !== 1) return;
 
 		const text = getDisplayText();
-		const selOffsets = getSelectionOffsets(el);
+		const selOffsets = backend.getRawSelection();
 		const offset = selOffsets ? selOffsets.start : (backend.getRaw() ?? 0);
 
 		const meta = metadataOf(node, 'fencedCode');
@@ -420,7 +398,7 @@
 
 		e.preventDefault();
 		if (result.kind === 'skip') {
-			setCursorOffset(el, asDomTextOffset(result.caretOffset));
+			backend.setRaw(asRawOffset(result.caretOffset), { clamp: 'exact' });
 			return;
 		}
 		if (result.kind === 'wrap') {
@@ -462,7 +440,7 @@
 	 */
 	function guardFenceRangedEdit(e: InputEvent): boolean {
 		if (composing || !el || fenceLinesEditable) return false;
-		const range = pendingEditRange(e, el);
+		const range = pendingEditRange(e);
 		if (!range) return false;
 		if (!crossesFenceBoundary(node, range)) return guardHiddenFenceDelete(e, range);
 
@@ -503,10 +481,10 @@
 	 * delete at a collapsed caret reports the word rather than the caret; it is feature-detected
 	 * because jsdom does not implement it.
 	 */
-	function pendingEditRange(e: InputEvent, surface: HTMLElement): RawRange | null {
+	function pendingEditRange(e: InputEvent): RawRange | null {
 		const targets = typeof e.getTargetRanges === 'function' ? e.getTargetRanges() : [];
-		if (targets.length > 0) return getRangeOffsets(surface, targets[0]);
-		const selected = getSelectionOffsets(surface);
+		if (targets.length > 0) return backend.rawRangeOf(targets[0]);
+		const selected = backend.getRawSelection();
 		if (selected) return selected;
 		const caret = backend.getRaw();
 		return caret === null ? null : { start: caret, end: caret };
@@ -572,7 +550,7 @@
 	}
 
 	function codeBackspace(): boolean {
-		if (!el || hasSelection()) return false;
+		if (!el || backend.getRawSelection() !== null) return false;
 		const offset = backend.getRaw() ?? 0;
 		// offset===0 is the universal contract; the classifyFenceBoundary check catches the
 		// fence boundary, where a native Backspace would delete the opener's terminating `\n`.
@@ -604,7 +582,7 @@
 	}
 
 	function codeDelete(): boolean {
-		if (!el || hasSelection()) return false;
+		if (!el || backend.getRawSelection() !== null) return false;
 		const offset = backend.getRaw() ?? 0;
 		if (classifyFenceBoundary({ node, offset, forward: true }).kind === 'exitNext') {
 			// The root's forward asymmetry (past-end appends a paragraph) would strand a
@@ -719,7 +697,7 @@
 
 	function currentRange(): { start: number; end: number } {
 		if (!el) return { start: 0, end: 0 };
-		const sel = getSelectionOffsets(el);
+		const sel = backend.getRawSelection();
 		if (sel) return sel;
 		const cursor = backend.getRaw() ?? 0;
 		return { start: cursor, end: cursor };
@@ -775,7 +753,7 @@
 		cutTail: (e) => {
 			e.clipboardData?.setData('text/plain', window.getSelection()?.toString() ?? '');
 			if (!el) return;
-			const selOffsets = getSelectionOffsets(el);
+			const selOffsets = backend.getRawSelection();
 			if (!selOffsets) return;
 			const edit = fenceLinesEditable
 				? computeRangedEdit(getDisplayText(), selOffsets, '')

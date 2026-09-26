@@ -18,16 +18,14 @@ import {
 } from '../../../core/inline';
 import type { Reading } from '../../../schema/reading';
 import { renderInlineNodes, type ImageLoadPolicy } from '../../../core/inline-render';
-import type { DomTextOffset } from '../../../cursor/coordinate-spaces';
+import type { RawOffset } from '../../../cursor/coordinate-spaces';
 import {
 	CONTENT_EMPTY_ATTR,
 	createCaretAnchor,
-	holdsOnlyMarkerChrome
+	holdsOnlyMarkerChrome,
+	placeCaretAtRaw
 } from '../../../cursor/widget-offset';
-import {
-	captureFocusedCaretWalkOffset,
-	restoreCaretAtWalkOffset
-} from '../../../cursor/focused-caret';
+import { captureFocusedCaret } from '../../../cursor/focused-caret';
 import type { IndexedDecoration } from '../../../decorations/buckets';
 import { applyIslandDecorations, islandRenderKeyPart } from '../../../decorations/island-dom';
 import type { ReplaceDecoration, WidgetDecoration } from '../../../decorations/types';
@@ -209,15 +207,15 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 		el.appendChild(createCaretAnchor());
 	}
 
-	function captureCaretIfFocused(el: HTMLElement): DomTextOffset | null {
-		const walk = captureFocusedCaretWalkOffset(el);
-		if (walk !== null) traceCursorCapture(walk);
-		return walk;
+	function captureCaretIfFocused(el: HTMLElement): RawOffset | null {
+		const raw = captureFocusedCaret(el);
+		if (raw !== null) traceCursorCapture(raw);
+		return raw;
 	}
 
-	function restoreCaret(el: HTMLElement, walkOffset: DomTextOffset): void {
-		restoreCaretAtWalkOffset(el, walkOffset);
-		traceCursorRestore(walkOffset);
+	function restoreCaret(el: HTMLElement, raw: RawOffset): void {
+		placeCaretAtRaw(el, raw, { clamp: 'exact' });
+		traceCursorRestore(raw);
 	}
 
 	function render(opts?: { forceRebuild?: boolean; carryCaret?: boolean }): void {
@@ -243,7 +241,7 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 		const renderKey = `${deps.ambientPrefixText}\0${node.raw}\0${refKeyPart}\0${imgKeyPart}\0${modeKeyPart}\0${node.kind}${islandRenderKeyPart(islands)}`;
 		const forceRebuild = opts?.forceRebuild ?? false;
 		const carryCaret = opts?.carryCaret ?? true;
-		let carriedCaret: DomTextOffset | null = null;
+		let carriedCaret: RawOffset | null = null;
 
 		if (isProseKind(node.kind)) {
 			if (renderKey === lastRenderedKey && !forceRebuild) return;
@@ -257,7 +255,7 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 			);
 			// Rebuilds from the edit path skip the capture-and-restore pair: the component's
 			// pending restore overwrites the selection right after, so it would be wasted.
-			const caretWalkOffset = carryCaret ? captureCaretIfFocused(el) : null;
+			const carried = carryCaret ? captureCaretIfFocused(el) : null;
 			// Bracketing the rebuild pools portal widgets: the sweep destroys only those the
 			// previous DOM held and this build did not reuse. Decoration widgets are not pooled.
 			widgetPool.beginPass();
@@ -265,7 +263,6 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 			el.replaceChildren(buildInlineDOM(content));
 			islandDestroys = applyIslandDecorations(el, node.raw, islands, {
 				contentLength: contentLengthOf(node),
-				ambientLength: deps.ambientPrefixText.length,
 				mountWidget: (spec, dec) => mountDecorationWidget(spec, dec, deps.reportRenderError),
 				onSkipped: (dec, reason) => devWarn('decorations', `decoration skipped: ${reason}`, dec)
 			});
@@ -274,7 +271,7 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 				traceIslandsApplied(islands.length);
 			}
 			widgetPool.sweep();
-			carriedCaret = caretWalkOffset;
+			carriedCaret = carried;
 		} else {
 			// An empty pass clears any widget stranded by a prose-to-non-prose kind change in
 			// place, which reuses this same component instance.

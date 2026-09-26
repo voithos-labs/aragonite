@@ -24,10 +24,10 @@ import type { EdgeAffinity } from '../../../cursor/edge-affinity';
 import type { PendingMarks } from '../../../cursor/pending-marks';
 import {
 	landableRawBounds,
+	markerPrefixOf,
 	revealsNoMarkers,
 	screenVisibilityOf
 } from '../../../cursor/widget-offset';
-import { ambientSpanOf } from '../../../ambient/ambient-dom';
 import { recordIslandKeyScan } from '../../../perf/instruments';
 import { caretIsInTextContent, hasModifier, isPlainTypingKey } from './click-snap-guard';
 import { createMarkerCompletion } from './marker-completion';
@@ -83,7 +83,6 @@ export interface EdgePolicyDispatchDeps {
 	/** How the editor reads its bytes, the grammar the render path drew widgets with included. */
 	get reading(): Reading;
 	getEl: () => HTMLElement | null;
-	getAmbientLength: () => number;
 	/** The container's marker prefix this block renders under, which the join rules read a
 	 *  candidate back through. Optional because a block that is not a container's child draws
 	 *  none, and '' is the right answer there rather than an inherited one. */
@@ -533,8 +532,8 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		const range = heldRange();
 		if (!range) return false;
 		const el = deps.getEl();
-		if (!el || deps.getAmbientLength() <= 0) return false;
-		const ambient = ambientSpanOf(el);
+		if (!el) return false;
+		const ambient = markerPrefixOf(el);
 		const sel = window.getSelection();
 		const touchesAmbient =
 			!!ambient &&
@@ -580,7 +579,7 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		// gesture (merge, or nothing): a hidden run straddling the start would otherwise take
 		// the first visible character forward.
 		if (e.key === 'Backspace') {
-			const bounds = landableRawBounds(el, deps.getAmbientLength());
+			const bounds = landableRawBounds(el);
 			if (bounds && caretOffset <= bounds.start) return false;
 		}
 		const deletion = edgeDeletionAt(

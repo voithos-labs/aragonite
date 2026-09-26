@@ -11,8 +11,7 @@ import type { NodeView } from '../../../core/node-views';
 import { inlineDescendants } from '../../../core/inline';
 import { resolvedInlineContent } from '../../../core/inline/inline-cache';
 import { isRevealableInlineKind } from '../../../schema/inline-construct-policy';
-import { toClampedRawOffset } from '../../../cursor/coordinate-spaces';
-import { CONSTRUCT_REVEAL_CLASS, domTextOffsetAtNode } from '../../../cursor/widget-offset';
+import { CONSTRUCT_REVEAL_CLASS, rawOffsetAt } from '../../../cursor/widget-offset';
 import {
 	isInteractionTraceEnabled,
 	traceRevealOpen,
@@ -48,7 +47,6 @@ export interface ConstructRevealDeps {
 	get node(): NodeView;
 	get reading(): Reading;
 	getEl: () => HTMLElement | null;
-	getAmbientLength: () => number;
 	/** A cross-block selection freezes what is shown, so a drag anchored in visible marker
 	 *  text keeps its layout. */
 	isCrossBlock: () => boolean;
@@ -87,10 +85,7 @@ export function createConstructReveal(deps: ConstructRevealDeps): ConstructRevea
 		if (!el || deps.reading.mode() !== 'preview-inline') return null;
 		const sel = window.getSelection();
 		if (!sel || sel.rangeCount === 0 || !sel.focusNode || !el.contains(sel.focusNode)) return null;
-		return toClampedRawOffset(
-			domTextOffsetAtNode(el, sel.focusNode, sel.focusOffset),
-			deps.getAmbientLength()
-		);
+		return rawOffsetAt(el, sel.focusNode, sel.focusOffset);
 	}
 
 	function inlines(): InlineNode[] {

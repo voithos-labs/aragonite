@@ -6,12 +6,12 @@
  */
 
 import { isDevChecks } from '../env';
-import { ambientSpanOf } from '../ambient/ambient-dom';
 import type { ContentLength } from '../core/inline';
-import { asRawOffset, toDomTextOffset, toRawOffset } from '../cursor/coordinate-spaces';
 import {
-	createRangeAtDomTextOffsets,
+	rawOfWalkOffset,
+	rawRangeToDomRange,
 	rawTextOfNode,
+	walkOffsetOfRaw,
 	widgetSpanContainingOffset
 } from '../cursor/widget-offset';
 import { devWarn } from '../dev-warn';
@@ -31,10 +31,6 @@ export interface ApplyIslandsOpts {
 	onSkipped?: (dec: Decoration, reason: string) => void; // where a dev warning is reported
 	/** Raw-space length of the block's rendered content (see {@link ContentLength}). */
 	contentLength: ContentLength;
-	/** The rendered length of the container's marker prefix. These offsets are relative to raw
-	 *  and the shared traversal counts that prefix as ordinary text, so every boundary adds it.
-	 *  Default 0. */
-	ambientLength?: number;
 }
 
 /** Mutates `root`, the freshly built inline fragment. Returns one destroy function per
@@ -46,7 +42,6 @@ export function applyIslandDecorations(
 	opts: ApplyIslandsOpts
 ): Array<() => void> {
 	if (islands.length === 0) return [];
-	const ambientLength = opts.ambientLength ?? 0;
 	const contentLength = opts.contentLength;
 	const destroys: Array<() => void> = [];
 
@@ -58,8 +53,7 @@ export function applyIslandDecorations(
 
 	function applyWidget(dec: WidgetDecoration): void {
 		if (dec.offset < 0 || dec.offset > contentLength) return;
-		const walkOffset = toDomTextOffset(asRawOffset(dec.offset), ambientLength);
-		const range = createRangeAtDomTextOffsets(root, walkOffset, walkOffset);
+		const range = rawRangeToDomRange(root, dec.offset, dec.offset);
 		if (!range) {
 			opts.onSkipped?.(dec, 'no DOM position at offset');
 			return;
@@ -72,7 +66,7 @@ export function applyIslandDecorations(
 		destroys.push(mounted.destroy);
 		const island = buildIsland(dec.offset, dec.offset);
 		island.appendChild(mounted.el);
-		insertHoistedOutOfAmbient(range, island);
+		range.insertNode(island);
 	}
 
 	function applyReplace(dec: ReplaceDecoration): void {
@@ -81,34 +75,21 @@ export function applyIslandDecorations(
 		// span still equals the bytes it displaces.
 		let start = dec.start;
 		let end = dec.end;
-		const startSpan = widgetSpanContainingOffset(
-			root,
-			toDomTextOffset(asRawOffset(start), ambientLength)
-		);
-		if (startSpan) start = toRawOffset(startSpan.start, ambientLength);
-		const endSpan = widgetSpanContainingOffset(
-			root,
-			toDomTextOffset(asRawOffset(end), ambientLength)
-		);
-		if (endSpan) end = toRawOffset(endSpan.end, ambientLength);
+		const startSpan = widgetSpanContainingOffset(root, walkOffsetOfRaw(root, start));
+		if (startSpan) start = rawOfWalkOffset(root, startSpan.start);
+		const endSpan = widgetSpanContainingOffset(root, walkOffsetOfRaw(root, end));
+		if (endSpan) end = rawOfWalkOffset(root, endSpan.end);
 		if (startSpan || endSpan) {
 			devWarn(
 				'decorations',
 				`replace boundary inside an atomic widget; snapped ${dec.start}..${dec.end} outward to ${start}..${end}`
 			);
 		}
-		const range = createRangeAtDomTextOffsets(
-			root,
-			toDomTextOffset(asRawOffset(start), ambientLength),
-			toDomTextOffset(asRawOffset(end), ambientLength)
-		);
+		const range = rawRangeToDomRange(root, start, end);
 		if (!range) {
 			opts.onSkipped?.(dec, 'no DOM range for span');
 			return;
 		}
-		const ambient = ambientSpanOf(root);
-		if (ambient && ambient.contains(range.startContainer)) range.setStartAfter(ambient);
-
 		const extracted = range.extractContents();
 		if (isDevChecks()) {
 			const displaced = rawTextOfNode(extracted, raw);
@@ -127,17 +108,6 @@ export function applyIslandDecorations(
 				destroys.push(mounted.destroy);
 				island.appendChild(mounted.el);
 			}
-		}
-		range.insertNode(island);
-	}
-
-	// The traversal resolves a position at the marker prefix's boundary to the end of that
-	// span's text, but the widget has to go after the span, never inside the read-only marker.
-	function insertHoistedOutOfAmbient(range: Range, island: HTMLElement): void {
-		const ambient = ambientSpanOf(root);
-		if (ambient && ambient.contains(range.startContainer)) {
-			ambient.after(island);
-			return;
 		}
 		range.insertNode(island);
 	}

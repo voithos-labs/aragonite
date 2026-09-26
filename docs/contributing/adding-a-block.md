@@ -483,20 +483,19 @@ ctx.caretMemory.noteKey(e, commandAtBlock(e, ctx), () => getCurrentCursorEditorR
 A hand-rolled surface takes on both halves itself:
 
 1. **Feed every keydown to `noteKey`**, as above, with the command the chord resolves to at your block (`schema/commands.ts` :: `commandForKey`), so a rebound block move isn't read as an arrow. It's the one call a keydown handler may make (G2.10 scans for it); pass the live-caret measure as the third argument so a capture key has an X to record. `forget()` is only for callers with no key to classify (lifecycle, commit, undo, paste).
-2. **Implement `focusAtColumn(x, from)`** with `findOffsetNearestX(el, x, from)` from `cursor/sticky-measure.ts`: place the cursor at the nearest offset on the first (`from === 'above'`) or last (`from === 'below'`) visual line that can show a caret. The editable surface's version, which also keeps the scan out of the marker region and takes an optional raw range for a block with lines a caret may not land on (a code fence):
+2. **Implement `focusAtColumn(x, from)`** with `findOffsetNearestX(el, x, from)` from `cursor/sticky-measure.ts`: place the cursor at the nearest offset on the first (`from === 'above'`) or last (`from === 'below'`) visual line that can show a caret. The editable surface's version, which also keeps the scan out of the marker region and reads the block's declared `columnWindow` for a block with lines a caret may not land on (a code fence):
 
 ```ts
 // components/blocks/editable-surface.ts
-function focusAtColumn(x: number, from: StickyColumnDirection, within?: RawRange): void {
+function focusAtColumn(x: number, from: StickyColumnDirection): void {
 	const el = deps.getEl();
 	if (!el) return;
-	el.focus();
-	const ambientLength = deps.getAmbientLength();
-	const min = toDomTextOffset(asRawOffset(within?.start ?? 0), ambientLength);
-	const max = within ? toDomTextOffset(asRawOffset(within.end), ambientLength) : undefined;
-	deps.backend.setRaw(
-		toClampedRawOffset(findOffsetNearestX(el, asEditorX(x), from, min, max), ambientLength)
-	);
+	el.focus({ preventScroll: true });
+	const within = deps.columnWindow?.();
+	const min = walkOffsetOfRaw(el, within?.start ?? 0);
+	const max = within ? walkOffsetOfRaw(el, within.end) : undefined;
+	const walkOffset = findOffsetNearestX(el, asEditorX(x), from, min, max);
+	deps.backend.setRaw(rawOfWalkOffset(el, walkOffset), { clamp: 'exact' });
 }
 ```
 

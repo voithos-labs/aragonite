@@ -85,6 +85,11 @@ test.describe('sticky column: code block entry symmetry', () => {
 			// fence line is a different column from a landing in the body.
 			await editor.loadContent(fenced('bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', 'javascript'));
 			await captureEntry(editor, 1, from);
+			// The body line is raw [14, 44]: past "```javascript\n", before "\n```".
+			const landed = await editor.bridge.getSelectionPaths();
+			expect(landed?.focus.path).toEqual([1]);
+			expect(landed?.focus.offset).toBeGreaterThanOrEqual(14);
+			expect(landed?.focus.offset).toBeLessThanOrEqual(44);
 			await editor.typeText('X');
 			await editor.bridge.waitForSourceContains('X');
 			const src = await editor.bridge.getSource();

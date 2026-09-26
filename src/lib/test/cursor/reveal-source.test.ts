@@ -54,7 +54,7 @@ function mountBlock(ambientPrefix = ''): HTMLElement {
 // The swap is done the way the inline code does it: `showSource` replaces the widget with a
 // text node, `showRendered` rebuilds it, and the captured node is how a test tells the states
 // apart.
-function depsFor(el: HTMLElement, ambientPrefix = '') {
+function depsFor(el: HTMLElement) {
 	let sourceNode: Text | null = null;
 	return {
 		get container() {
@@ -69,7 +69,6 @@ function depsFor(el: HTMLElement, ambientPrefix = '') {
 		get source() {
 			return SOURCE;
 		},
-		getAmbientLength: () => ambientPrefix.length,
 		isRevealed: () => sourceNode !== null,
 		showSource: () => {
 			const widget = el.querySelector<HTMLElement>(
@@ -197,19 +196,19 @@ describe('source-reveal: ambient-included offsets (list-item / blockquote math)'
 	});
 
 	it('reveal(offset) lands the caret at ambientLength + sourceStart + offset', async () => {
-		const reveal = createSourceReveal(depsFor(el, AMBIENT));
+		const reveal = createSourceReveal(depsFor(el));
 		await reveal.reveal(2);
 		expect(caretRaw(el)).toBe(AMBIENT.length + SRC_START + 2);
 	});
 
 	it('reveal() defaults to the leading edge in ambient-included space', async () => {
-		const reveal = createSourceReveal(depsFor(el, AMBIENT));
+		const reveal = createSourceReveal(depsFor(el));
 		await reveal.reveal();
 		expect(caretRaw(el)).toBe(AMBIENT.length + SRC_START);
 	});
 
 	it('commit() lands the caret at ambientLength + sourceEnd', async () => {
-		const reveal = createSourceReveal(depsFor(el, AMBIENT));
+		const reveal = createSourceReveal(depsFor(el));
 		await reveal.reveal(2);
 		await reveal.commit();
 		expect(caretRaw(el)).toBe(AMBIENT.length + SRC_END);

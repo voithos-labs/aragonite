@@ -4,7 +4,9 @@ import {
 	createEditableSurface,
 	type EditableSurfaceDeps
 } from '$lib/components/blocks/editable-surface';
-import { asRawOffset } from '$lib/cursor/coordinate-spaces';
+import { asRawOffset, type RawOffset } from '$lib/cursor/coordinate-spaces';
+import { createSurfaceBackend } from '$lib/cursor/surface-backend';
+import { rawOffsetAt, type CaretClamp } from '$lib/cursor/widget-offset';
 import { fixtureReading } from './fixture-grammar';
 import { stubCaretMemory } from '$lib/testing/headless-actions';
 import type { CaretMemory } from '$lib/cursor/caret-memory';
@@ -13,7 +15,7 @@ export interface SurfaceHarness {
 	surface: ReturnType<typeof createEditableSurface>;
 	/** Recorded by the default commitInput; empty when a custom one is passed. */
 	commits: Array<{ text: string; preEdit: number; saved: number }>;
-	/** Every raw offset the editable element wrote through `backend.setRaw`, in order. */
+	/** Where each `backend.setRaw` put the caret, read back as a raw offset, in order. */
 	seats: number[];
 	el: HTMLElement;
 	setCaret: (offset: number) => void;
@@ -50,16 +52,17 @@ export function makeSurface(
 	let composing = false;
 	const commits: SurfaceHarness['commits'] = [];
 	const seats: number[] = [];
+	const writer = createSurfaceBackend({ getEl: () => el });
 
 	const deps = {
 		getEl: () => el,
-		getAmbientLength: () => 0,
 		backend: {
 			getRaw: () => asRawOffset(caret),
-			setRaw: (offset: number) => {
-				seats.push(offset);
-			},
-			buildRange: () => null
+			setRaw: (offset: RawOffset, placement: { clamp: CaretClamp }) => {
+				writer.setRaw(offset, placement);
+				const sel = window.getSelection();
+				seats.push(sel?.focusNode ? rawOffsetAt(el, sel.focusNode, sel.focusOffset) : offset);
+			}
 		},
 		getMyPath: () => [0],
 		getIndex: () => 0,

@@ -142,7 +142,6 @@ function mountMarkerLed(clamped: boolean): EdgeDispatchHarness & { entered: numb
 
 	const entered: number[] = [];
 	const harness = makeEdgeDispatch(node, el, {
-		getAmbientLength: () => marker.textContent!.length,
 		enterWidget: (widget) => entered.push(widget.start),
 		getRawSelection: () => (clamped ? { start: asRawOffset(0), end: asRawOffset(0) } : null)
 	});

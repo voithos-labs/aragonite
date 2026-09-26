@@ -5,16 +5,15 @@
  * platform, it walks into non-editable widgets, and a marker here never joins a word.
  */
 
-import { ambientLengthOf } from '../ambient/ambient-dom';
-import {
-	asDomTextOffset,
-	asRawOffset,
-	toClampedRawOffset,
-	toDomTextOffset
-} from '../cursor/coordinate-spaces';
+import { asDomTextOffset } from '../cursor/coordinate-spaces';
 import { caretOffsetAtPoint } from '../cursor/point-offset';
 import type { UserScrollport } from '../cursor/scroll-ancestors';
-import { containerDomTextLength, maskedWalkText } from '../cursor/widget-offset';
+import {
+	containerDomTextLength,
+	maskedWalkText,
+	rawOfWalkOffset,
+	walkOffsetOfRaw
+} from '../cursor/widget-offset';
 import { isWholeBlockInputProxy } from '../editor-actions/whole-block-focus-surface';
 import type { BlockElLookup } from '../editor-keys';
 import { installDragListener, type DragGranularity } from './drag-pointer';
@@ -74,16 +73,14 @@ export function spanAround(
 	granularity: ClickGranularity,
 	rawOffset: number
 ): Span | null {
-	const ambient = ambientLengthOf(surface);
 	if (granularity === 'block') {
-		return { start: 0, end: toClampedRawOffset(containerDomTextLength(surface), ambient) };
+		return { start: 0, end: rawOfWalkOffset(surface, containerDomTextLength(surface)) };
 	}
-	const walk = toDomTextOffset(asRawOffset(rawOffset), ambient);
-	const span = wordSpanAt(maskedWalkText(surface), walk);
+	const span = wordSpanAt(maskedWalkText(surface), walkOffsetOfRaw(surface, rawOffset));
 	if (!span) return null;
 	return {
-		start: toClampedRawOffset(asDomTextOffset(span.start), ambient),
-		end: toClampedRawOffset(asDomTextOffset(span.end), ambient)
+		start: rawOfWalkOffset(surface, asDomTextOffset(span.start)),
+		end: rawOfWalkOffset(surface, asDomTextOffset(span.end))
 	};
 }
 

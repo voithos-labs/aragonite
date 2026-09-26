@@ -50,7 +50,6 @@ function surface(source: string, options: Options): Surface {
 
 function wire(node: CstNode, el: HTMLElement, options: Options): EdgeDispatchHarness {
 	return makeEdgeDispatch(node, el, {
-		getAmbientLength: () => options.ambientLength ?? 0,
 		hasIslands: () => options.hasIslands ?? false,
 		getRawSelection: () =>
 			options.rawSelection

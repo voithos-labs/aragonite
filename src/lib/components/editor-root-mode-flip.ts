@@ -8,11 +8,9 @@
 
 import { tick } from 'svelte';
 import { isTextEntrySurface } from '../active-editor';
-import { ambientLengthOf } from '../ambient/ambient-dom';
-import { toClampedRawOffset } from '../cursor/coordinate-spaces';
 import type { CaretMemory } from '../cursor/caret-memory';
 import type { HeightOracle } from '../cursor/height-oracle';
-import { domTextOffsetAtNode } from '../cursor/widget-offset';
+import { rawOffsetAt } from '../cursor/widget-offset';
 import type { EditorEvents } from '../editor-events';
 import type { BlockElLookup } from '../editor-keys';
 import type { PresentationMode } from '../presentation-mode';
@@ -74,10 +72,7 @@ export function createModeFlip(deps: ModeFlipDeps): ModeFlip {
 		if (!path) return null;
 		const contentEl = deps.getBlockElByPath(path);
 		if (!contentEl?.contains(node)) return null;
-		const offset = toClampedRawOffset(
-			domTextOffsetAtNode(contentEl, node, sel.focusOffset),
-			ambientLengthOf(contentEl)
-		);
+		const offset = rawOffsetAt(contentEl, node, sel.focusOffset);
 		return { path, offset };
 	}
 

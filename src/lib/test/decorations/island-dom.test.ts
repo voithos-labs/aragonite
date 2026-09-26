@@ -109,7 +109,7 @@ describe('applyIslandDecorations', () => {
 		const raw = 'task text';
 		const frag = build(raw);
 		frag.prepend(buildAmbientSpan('- ')); // ambient bytes are NOT in raw
-		applyIslandDecorations(frag, raw, [idx(widgetAt(0))], { ...optsFor(raw), ambientLength: 2 });
+		applyIslandDecorations(frag, raw, [idx(widgetAt(0))], optsFor(raw));
 		const island = frag.querySelector('[data-decoration-island]')!;
 		expect(island.previousSibling).toBe(frag.firstChild); // lands after the ambient span
 		expect(walkRawTextSkippingAmbient(frag, raw)).toBe(raw);

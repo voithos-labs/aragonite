@@ -88,7 +88,6 @@ describe('reveal transitions: the shared core source-length precondition (G1.26)
 			get source() {
 				return '$x$'; // length 3 ≠ 5
 			},
-			getAmbientLength: () => 0,
 			isRevealed: () => false,
 			showSource: () => {},
 			showRendered: () => {}

@@ -354,7 +354,6 @@ async function pressEdgeKey(
 			return fixtureReading();
 		},
 		getEl: () => el,
-		getAmbientLength: () => 0,
 		hasIslands: () => false,
 		getRawSelection: () => null,
 		blockEdit: h.blockEdit,

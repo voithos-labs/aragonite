@@ -1,14 +1,16 @@
 // @vitest-environment jsdom
 //
-// The widget-free traversal follows the same hidden-run rule as the one beside it: a span the
-// mode paints nothing for is nowhere the caret can sit, so a range never starts or ends in it.
-// Miss-analysis: `content-offsets.test.ts` builds bare containers with no `data-presentation`
-// root, so the widget rule was tested and the hidden-run one had no fixture to fail in, and a
-// live-mode code block put its caret inside the hidden opener fence unobserved.
+// A code block's fence lines under a mode that hides them are nowhere the caret can sit, so a
+// range from raw offsets never starts or ends in one, and a caret write never lands in one.
+// Miss-analysis: the plain-text walk's suite built bare containers with no `data-presentation`
+// root, so the hidden-run rule had no fixture to fail in, and a live-mode code block put its caret
+// inside the hidden opener fence unobserved.
 import { describe, it, expect, afterEach } from 'vitest';
-import { asDomTextOffset } from '../../cursor/coordinate-spaces';
-import { createRangeFromOffsets, setCursorOffset } from '../../cursor/content-offsets';
-import { isHiddenMarkerText } from '../../cursor/widget-offset';
+import {
+	isHiddenMarkerText,
+	placeCaretAtRaw,
+	rawRangeToDomRange
+} from '../../cursor/widget-offset';
 
 interface Fixture {
 	block: HTMLElement;
@@ -50,15 +52,11 @@ afterEach(() => {
 	window.getSelection()?.removeAllRanges();
 });
 
-describe('createRangeFromOffsets: hidden marker runs are opaque', () => {
+describe('rawRangeToDomRange: hidden fence lines are opaque', () => {
 	for (const offset of [0, 3, 6]) {
 		it(`puts the caret no endpoint in the hidden opener fence at offset ${offset}`, () => {
 			const fx = mount('live');
-			const range = createRangeFromOffsets(
-				fx.block,
-				asDomTextOffset(offset),
-				asDomTextOffset(offset)
-			)!;
+			const range = rawRangeToDomRange(fx.block, offset, offset)!;
 			expect(isHiddenMarkerText(range.startContainer, fx.block)).toBe(false);
 			expect(isHiddenMarkerText(range.endContainer, fx.block)).toBe(false);
 		});
@@ -66,20 +64,20 @@ describe('createRangeFromOffsets: hidden marker runs are opaque', () => {
 
 	it('still resolves an exact position inside the visible body', () => {
 		const fx = mount('live');
-		const range = createRangeFromOffsets(fx.block, asDomTextOffset(8), asDomTextOffset(8))!;
+		const range = rawRangeToDomRange(fx.block, 8, 8)!;
 		expect(range.startContainer).toBe(fx.body);
 		expect(range.startOffset).toBe(2);
 	});
 
 	it('puts the caret no endpoint in the hidden closer fence', () => {
 		const fx = mount('live');
-		const range = createRangeFromOffsets(fx.block, asDomTextOffset(21), asDomTextOffset(21))!;
+		const range = rawRangeToDomRange(fx.block, 21, 21)!;
 		expect(isHiddenMarkerText(range.startContainer, fx.block)).toBe(false);
 	});
 
 	it('spans the whole block without descending into either fence', () => {
 		const fx = mount('live');
-		const range = createRangeFromOffsets(fx.block, asDomTextOffset(0), asDomTextOffset(22))!;
+		const range = rawRangeToDomRange(fx.block, 0, 22)!;
 		expect(isHiddenMarkerText(range.startContainer, fx.block)).toBe(false);
 		expect(isHiddenMarkerText(range.endContainer, fx.block)).toBe(false);
 		expect(range.toString()).toContain('const x = 1;');
@@ -88,22 +86,22 @@ describe('createRangeFromOffsets: hidden marker runs are opaque', () => {
 	// Source mode paints the fences, so they are ordinary text the caret may enter.
 	it('leaves source mode alone', () => {
 		const fx = mount();
-		const range = createRangeFromOffsets(fx.block, asDomTextOffset(3), asDomTextOffset(3))!;
+		const range = rawRangeToDomRange(fx.block, 3, 3)!;
 		expect(range.startContainer).toBe(fx.openerText);
 		expect(range.startOffset).toBe(3);
 	});
 });
 
-describe('setCursorOffset: the corrupting landing', () => {
+describe('placeCaretAtRaw: the corrupting landing', () => {
 	it('never drops the caret inside the hidden opener fence', () => {
 		const fx = mount('live');
-		setCursorOffset(fx.block, asDomTextOffset(0));
+		placeCaretAtRaw(fx.block, 0, { clamp: 'exact' });
 		expect(isHiddenMarkerText(caretNode(), fx.block)).toBe(false);
 	});
 
 	it('drops it in the fence text in source mode, where the bytes are visible', () => {
 		const fx = mount();
-		setCursorOffset(fx.block, asDomTextOffset(0));
+		placeCaretAtRaw(fx.block, 0, { clamp: 'exact' });
 		expect(caretNode()).toBe(fx.openerText);
 	});
 });

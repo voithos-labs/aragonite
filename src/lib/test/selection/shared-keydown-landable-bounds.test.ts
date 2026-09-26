@@ -61,7 +61,6 @@ function makeEnv(source: string, offset: number | null, mode?: string): Env {
 			getCursorOffset: () => offset,
 			getFocusOffset: () => offset,
 			getTextLen: () => source.replace(/\n+$/, '').length,
-			getAmbientLength: () => 0,
 			getMyPath: () => [0],
 			getIndex: () => 1,
 			crossBlock: {

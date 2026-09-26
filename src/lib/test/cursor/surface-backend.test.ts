@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 //
-// Miss-analysis: every case here handed the IO a live element, so the read order behind a dead
-// one was never asked.
+// The caret reads and writes every editable surface builds, behind a list item's marker prefix.
+// Miss-analysis: every case here handed the backend a live element, so the read order behind a
+// dead one was never asked.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { createAmbientCursorIO } from '../../ambient/ambient-cursor';
+import { createSurfaceBackend } from '../../cursor/surface-backend';
 import { asRawOffset } from '../../cursor/coordinate-spaces';
 
 // Fixture: a list item's prose element: the marker span "- " (traversal offsets [0,2)) then
@@ -34,11 +35,7 @@ function mount(): void {
 }
 
 function cursorIO(snapTarget: number | null = null) {
-	return createAmbientCursorIO({
-		getEl: () => el,
-		getAmbientLength: () => AMBIENT.length,
-		getSnapTarget: () => snapTarget
-	});
+	return createSurfaceBackend({ getEl: () => el, getSnapTarget: () => snapTarget });
 }
 
 function select(startNode: Node, startOffset: number, endNode: Node, endOffset: number): void {
@@ -164,11 +161,11 @@ describe('getRaw', () => {
 	});
 });
 
-describe('clampOutOfAmbient', () => {
+describe('clampOutOfMarkerPrefix', () => {
 	it('puts the caret a marker-interior caret after the marker span', () => {
 		el.focus();
 		select(marker.firstChild!, 1, marker.firstChild!, 1);
-		cursorIO().clampOutOfAmbient();
+		cursorIO().clampOutOfMarkerPrefix();
 
 		const sel = window.getSelection()!;
 		expect(sel.focusNode).toBe(text);
@@ -178,7 +175,7 @@ describe('clampOutOfAmbient', () => {
 	it('leaves a caret already past the marker alone', () => {
 		el.focus();
 		select(text, 2, text, 2);
-		cursorIO().clampOutOfAmbient();
+		cursorIO().clampOutOfMarkerPrefix();
 
 		const sel = window.getSelection()!;
 		expect(sel.focusNode).toBe(text);
@@ -188,33 +185,24 @@ describe('clampOutOfAmbient', () => {
 	it('does not move a caret while the surface is unfocused', () => {
 		elsewhere.focus();
 		select(marker.firstChild!, 1, marker.firstChild!, 1);
-		cursorIO().clampOutOfAmbient();
+		cursorIO().clampOutOfMarkerPrefix();
 
 		const sel = window.getSelection()!;
 		expect(sel.focusNode).toBe(marker.firstChild);
 	});
 
 	// The element can be gone before a click reaches it: a widget's own handler navigates, the
-	// window re-slices, and the block unmounts mid-dispatch. At the real call site
-	// `getAmbientLength` is a `$derived` on that owner, so reading it first reads a dead one.
-	it('reads no ambient length once the surface is gone', () => {
-		let reads = 0;
-		createAmbientCursorIO({
-			getEl: () => null,
-			getAmbientLength: () => {
-				reads++;
-				return AMBIENT.length;
-			}
-		}).clampOutOfAmbient();
-
-		expect(reads).toBe(0);
+	// window re-slices, and the block unmounts mid-dispatch.
+	it('does nothing once the surface is gone', () => {
+		createSurfaceBackend({ getEl: () => null }).clampOutOfMarkerPrefix();
+		expect(window.getSelection()!.rangeCount).toBe(0);
 	});
 });
 
 describe('setRaw', () => {
 	it('lands raw 0 just after the marker widget, never inside it', () => {
 		el.focus();
-		cursorIO().setRaw(asRawOffset(0));
+		cursorIO().setRaw(asRawOffset(0), { clamp: 'exact' });
 
 		const sel = window.getSelection()!;
 		expect(marker.contains(sel.focusNode)).toBe(false);
@@ -224,7 +212,7 @@ describe('setRaw', () => {
 
 	it('offsets past the marker land at ambientLength + offset in walk space', () => {
 		el.focus();
-		cursorIO().setRaw(asRawOffset(3));
+		cursorIO().setRaw(asRawOffset(3), { clamp: 'exact' });
 
 		const sel = window.getSelection()!;
 		expect(sel.focusNode).toBe(text);

@@ -845,7 +845,7 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.33 | Live-mode byte candidates verify against what actually paints                    | L       |
 | G4.34 | Link bytes are written only through the one seam module                          | L       |
 | G4.35 | A construct stamps its markers exactly when its policy row says revealable       | L       |
-| G4.36 | Caret positions are written only at the named write sites                        | L       |
+| G4.36 | A selection is written from raw offsets only in the walk module                  | L       |
 | G4.37 | Every surface rendering into a caret-walk container stamps content-empty         | L       |
 | G4.38 | Every editable surface publishes `insertMarkdown`                                | L       |
 | G4.39 | Every command surface publishes `runCommand`                                     | L       |
@@ -1192,17 +1192,17 @@ block rather than by reveal, and its row is what seats a typed byte outside them
 today means a kind with no declared live-mode behavior at all.
 `lint/stamp-revealable-parity.test.ts`.
 
-**G4.36 · Caret-write sites.** No module outside the named homes writes a caret position; G4.33's
-twin over seats instead of bytes. A caret write is where a raw offset becomes a DOM seat, and every
-home applies the landable clamp or forwards to one that does (the park entry and
-`applyCollapsedCaret` hold the clamp; the rest forward), so a caller can't seat a caret behind a
-hidden marker run and hand the typing seat a position no arrow walk produces. Five name-level
-set-scans with per-file reasons and set equality: the `setRaw` namers (one per cursor backend),
-`setToAmbientBoundary` (one home), the native `addRange`/`setBaseAndExtent` writers, the two
-caret-write helpers (`setCursorOffset`, `restoreCaretAtWalkOffset`), and the surfaces building
-`focus` from `caret-doors`' `placeCaret`. A new writer in any of the five lists is a lint
-conversation, not a drift; the class arrived as site-by-site marker-string sweeps that didn't
-converge until the count was closed. `lint/manifest-rules.test.ts`.
+**G4.36 · Caret-write sites.** Every selection written from raw offsets is written in
+`cursor/widget-offset.ts`. A caret goes through `placeCaretAtRaw`, which skips the marker prefix,
+never lands behind a hidden marker run, and takes a required `clamp` (`reachable` or `exact`), so
+an unclamped write says so where it's called. A range goes through `selectRawRange`,
+`extendSelectionToRaw` or `selectSurfaceContent`, which skip the prefix the same way and don't
+clamp. Scanned with per-file reasons and set equality: the native selection writers (`addRange`,
+`setBaseAndExtent`, `extend`, `selectAllChildren`, and the two-argument `collapse` and
+`setPosition`), which outside that module are only files selecting nodes they already hold; the
+files building a DOM position from a walk offset (the walk module and its measuring readers); the
+files naming `rawRangeToDomRange` (measuring and decorating only); and the surfaces building
+`focus` from `caret-doors`' `placeCaret`. `lint/manifest-rules.test.ts`.
 
 **G4.37 · Content-empty stamp parity.** The files rendering a fragment into a contenteditable the
 caret walk reads (`renderInlineNodes`, `renderCodeBlock`) are exactly the files stamping
