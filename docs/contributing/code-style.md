@@ -138,7 +138,7 @@ AssertionError: expected [ { …(4) } ] to deeply equal []
 + ]
 ```
 
-The second bans the private words (the list sits in `src/lib/test/invariants/lint/comment-house-words.test.ts`) from every comment under `src/lib` and `src/routes`, and names the file that holds one. Here's one planted `seam`:
+The second bans the private words (the list sits in `src/lib/test/invariants/lint/comment-house-words.test.ts`) from every comment under `src/lib` and `src/routes`, and names the file that holds one. Here's what one planted `seam` gets you:
 
 ```
 $ npx vitest run src/lib/test/invariants/lint/comment-house-words.test.ts
@@ -153,7 +153,7 @@ AssertionError: expected [ { …(2) } ] to deeply equal []
 + ]
 ```
 
-The same test holds the requirement files under `src/lib/e2e/requirements/` to zero too: a private word in a scenario or a miss-analysis line fails the suite. Headings, code spans and fenced samples don't count. The design and contributing docs still carry some, so each doc there is pinned to a baseline that only goes down; delete some and the baseline is stale until you lower it, a one-number edit in that file.
+The same test holds the requirement files under `src/lib/e2e/requirements/` to zero too: a private word in a scenario or a miss-analysis line fails the suite. Headings, code spans and fenced samples don't count. The design and contributing docs still carry some, so each of those docs is pinned to a baseline that only goes down. Delete a few and the test fails until you lower that doc's baseline, a one-number edit in the same test file.
 
 ## Directories
 

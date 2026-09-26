@@ -135,19 +135,19 @@ import TextEditableBlock from '$lib/components/blocks/text/TextEditableBlock.sve
 import { mountBlock } from '../../harness/mount-block';
 
 const { target, blockEdit, dispose } = mountBlock(TextEditableBlock, {
-	source: 'hello
-',
+	source: 'hello\n',
 	overrides: { services: { decorations: noIslands } }
 });
 // blockEdit is spied: expect(blockEdit.updateBlockContent).toHaveBeenCalledWith(...)
 ```
 
 When the editor grows a newly required context, that costs one harness edit instead of a fix
-across every block-mount test. A bare mount keeps the node it was handed, since nothing above it
-re-renders after a commit; a test that makes more than one gesture mounts the whole Editor with
-`src/lib/test/harness/mount-editor.svelte.ts :: mountEditor`, whose `props` a test writes the way a
-host does. After a gesture, either mount waits with `src/lib/test/harness/settle.ts :: settleEditor`
-(or sends the key with `pressKey`), never a timer.
+across every block-mount test. One catch: a bare mount keeps the node it was
+handed, since nothing above it re-renders after a commit. So a test that makes more than one
+gesture mounts the whole Editor with `src/lib/test/harness/mount-editor.svelte.ts :: mountEditor`
+instead, and writes its `props` the way a host would. After a gesture, either mount waits with
+`src/lib/test/harness/settle.ts :: settleEditor` (or sends the key with `pressKey`), never with a
+timer.
 
 ### A dev warning fails its test
 
@@ -464,15 +464,15 @@ The details:
 - G4.23 (`src/lib/e2e/lint/requirement-spec-lockstep.test.ts`) enforces the lockstep: both
   directions, the stem collision two specs could hide behind, per-file shape, and a requirement
   list that ran 3× ahead of its spec's test count. The test count is what
-  `playwright test --list` reports for the spec, so a loop over rows counts each row it
-  generates. That last rule is allowlisted, and an entry there states its reason: count
+  `playwright test --list` reports for the spec, so a test generated in a loop counts once per
+  row. That last rule is allowlisted, and an entry there states its reason: count
   EQUALITY is refuted by measurement (one test routinely walks several bullets), so padding the
   suite to satisfy a count is never the fix.
 - `e2e/tests/perf/` holds two families, and the basename decides which project collects a spec:
   `*.perf.spec.ts` goes to the env-gated `e2e-perf` (and `e2e-perf-prod`), `vr-*.spec.ts`
   directly under `perf/` goes to `e2e-vr`, which rides `npm test`. Name a spec into the wrong
-  family and it silently stops running in the suite you meant. The lockstep scan reds on a
-  spec no project lists, and G4.17 on one that two projects list. Requirement files pair by the stem with the `.perf` suffix stripped.
+  family and it silently stops running in the suite you meant. The lockstep scan fails a
+  spec no project lists, and G4.17 fails one that two projects list. Requirement files pair by the stem with the `.perf` suffix stripped.
 - **Per-block subfolder rule.** A block area earns a subfolder under `tests/blocks/` and a
   `test:e2e:blocks:<block>` script at 3 spec files. Below that, specs stay flat under the
   parent category.
@@ -538,7 +538,7 @@ walk with the keyboard instead.
 **Aim a pointer through `src/lib/e2e/text-runs.ts`, never a DOM walk of your own.** `pointAtRaw`
 asks the block where a raw offset sits on screen, and `textRunRect` finds a word in the text the
 mode actually paints. A walk written in the spec counts a widget's glyph or a hidden marker its
-own way and aims beside the offset it meant; a source scan fails any `createTreeWalker` under
+own way and aims beside the offset it meant, so a source scan fails any `createTreeWalker` under
 `src/lib/e2e/tests/`.
 
 **Use `getBlockCount()` for structural assertions after a split.** The bridge reads the live
@@ -730,9 +730,9 @@ deep bullet nesting in the outline, a nested `> >` blockquote in the reading not
 A session that scripts its own gestures rather than typing a whole note starts the same way.
 `makeSimContext` (`tests/simulation/helpers.ts`) bundles the page, the page object, an
 expectation tracker seeded from the current source, and the error collector into the one
-context every oracle reads; `assertCheckpoint` is the one checkpoint sweep (no errors, container
-ids, nested state, round-trip, a valid selection, and parse convergence unless the note waives
-it). From `tests/simulation/table-ops.spec.ts`:
+context every oracle reads; `assertCheckpoint` is the one checkpoint sweep (no errors, every
+container's child ids in step, nested state, round-trip, a valid selection, and parse convergence
+unless the note waives it). From `tests/simulation/table-ops.spec.ts`:
 
 ```ts
 import { Gestures } from '../../simulation/gestures';

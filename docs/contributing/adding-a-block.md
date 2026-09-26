@@ -85,7 +85,7 @@ export interface BlockMetadataByKind {
 
 ### 1. The descriptor
 
-Call `registerBlockKind(kind, registration)` from `schema/built-in-descriptors.ts` (the registry itself is `schema/block-kind-descriptor.ts`). Five fields are required: `gapEdges`, `mergeRole`, `editable`, `supportsInline`, and the `closure` block. The kind's name isn't one of them: a built-in's lives in `BUILT_IN_BLOCK_LABELS` in `src/lib/a11y-strings.ts`, the word a screen reader and the block menu use for it. That table is a `Record<BlockKind, string>`, so the compiler flags the entry you forgot. Two more, `pageRole` and `estimateHeight`, are optional for a plugin but not for you. A plugin that skips them gets defaults, and a built-in that skipped them would quietly get those same defaults without anyone deciding it should, so the check that runs when an editor mounts (G1.40) fails it. Here's the thematic break's descriptor, the smallest built-in:
+Call `registerBlockKind(kind, registration)` from `schema/built-in-descriptors.ts` (the registry itself is `schema/block-kind-descriptor.ts`). Five fields are required: `gapEdges`, `mergeRole`, `editable`, `supportsInline`, and the `closure` block. The kind's name isn't one of them: a built-in's lives in `BUILT_IN_BLOCK_LABELS` in `src/lib/a11y-strings.ts`, the word a screen reader and the block menu use for it. That table is a `Record<BlockKind, string>`, so the compiler flags the entry you forgot. Two more, `pageRole` and `estimateHeight`, are optional for a plugin but not for you. A plugin that skips them gets defaults. A built-in that skipped them would quietly get the same defaults without anyone deciding it should, so a check that runs when an editor mounts (G1.40) fails it. Here's the thematic break's descriptor, the smallest built-in:
 
 ```ts
 // schema/built-in-descriptors.ts
@@ -307,11 +307,18 @@ First, the cheap way out. A container with nothing kind-specific to say can use 
 </div>
 ```
 
-The list and the table need more than the blockquote, so they call the half of that factory that builds the child actions, and wire the rest themselves. That's what the rest of this section is about. A container builds its children's reactive state and a default action bundle, then overrides only what genuinely needs kind-specific behavior. That's usually less than you expect going in.
+The list and the table need more than the blockquote, so they call only the half of that factory that builds the child actions, and wire the rest themselves. That's what the rest of this section is about. A container builds its children's reactive state and a default action bundle, then overrides only what genuinely needs kind-specific behavior (usually less than you'd expect going in).
 
-**`createContainerActions({ getNode, getIndex, getPath, overrides?, parentListContext? })`** (`src/lib/editor-actions/nested/container-actions.ts`) is that half, and every container calls it: the list, the list item, the table, the table row, and `createContainerBlock` itself. It reads the parent's action bundle and the editor's reading from context, builds the children's block-list state, builds the default `{ blockEdit, focus, containerEdit }` bundle, provides it to the children, and hands you the pieces back (`scope`, `state`, `parent`, `reading`). The bundle's methods handle split, merge, delete, content, and replace uniformly, and Backspace-at-start dispatches by the kind's declared `unwrapRole`.
+**`createContainerActions({ getNode, getIndex, getPath, overrides?, parentListContext? })`** (`src/lib/editor-actions/nested/container-actions.ts`) is that half, and every container calls it: the list, the list item, the table, the table row, and `createContainerBlock` itself. What it does, in order:
 
-Call it once during component init. It reads the action contexts before it sets them, so a context your container needs from its own parent (a list reading the enclosing list's context) is read before the call. The getters are the point: a by-value node freezes on the node your container mounted with and misses the deep-clone reassignment an undo does, so the state ends up pointing at a tree nobody's rendering. Nothing throws. This is the incident behind rules.md's "reactive state crosses module boundaries as getters, never values" (`casebook.md`), and the factory's types hold it: `getNode` is `() => NodeView`, so passing a node fails `npm run check`. The list's wiring:
+1. reads the parent's action bundle and the editor's reading (its grammar, link resolver and mode) from context,
+2. builds the children's block-list state,
+3. builds the default `{ blockEdit, focus, containerEdit }` bundle and provides it to the children,
+4. hands you the pieces back: `scope`, `state`, `bundle`, `parent` and `reading`.
+
+The bundle's methods handle split, merge, delete, content, and replace the same way for every container, and Backspace at the start of a child dispatches by the kind's declared `unwrapRole`.
+
+Call it once during component init. It reads the action contexts before it sets them, so if your container needs a context from its own parent (a list reading the enclosing list's context), read that before the call. And pass getters, never the node itself. A by-value node freezes on the node your container mounted with and misses the deep-clone reassignment an undo does, so the state ends up pointing at a tree nobody's rendering, and nothing throws. That's the incident behind rules.md's "reactive state crosses module boundaries as getters, never values" (`casebook.md`). The factory's types hold it for you: `getNode` is `() => NodeView`, so passing a node fails `npm run check`. The list's wiring:
 
 ```ts
 // components/blocks/list/ListBlock.svelte
@@ -326,7 +333,7 @@ const { scope, state: listState, parent, reading } = createContainerActions({
 });
 ```
 
-A container needing custom behavior passes `overrides`. It gets the container's scope and its parent's actions and returns an override factory, which receives the fully built default bundle and returns per-sub-interface partial overrides. Those chain back by calling `defaults.blockEdit.splitBlock(...)` directly, so the override set is visible at the call site and type-checked against each sub-interface. The list declining a split and delegating only its last item's forward merge:
+A container needing custom behavior passes `overrides`, a function from the container's scope and its parent's actions to an override factory. The factory gets the fully built default bundle and returns partial overrides, one per sub-interface (`blockEdit`, `focus`, `containerEdit`). Those chain back by calling `defaults.blockEdit.splitBlock(...)` directly, so the override set is visible at the call site and type-checked against each sub-interface. The list declining a split and delegating only its last item's forward merge:
 
 ```ts
 // editor-actions/list-overrides.ts
@@ -351,7 +358,7 @@ A trivial container passes no overrides and is done, as the table and the table 
 
 **`dispatchFocusByPath` / `dispatchFocusAtColumn`** (`editor-actions/focus/focus-dispatch.ts`) are the pure dispatchers your `focusByPath` / `focusAtColumn` exports delegate to.
 
-**`setNestedActionsContexts(bundle)`** publishes the bundle to nested descendants in one call.
+**`setNestedActionsContexts(bundle)`** is how `createContainerActions` provides the bundle to nested descendants, so you never call it yourself.
 
 Two things containers don't do: they don't set `HISTORY_KEY` (undo/redo walks up to the editor root), and they don't rebuild their own raw. The commit primitives rebuild the unshared spine (the chain of parents from the root down to the edited node, already copied out of sharing) after every structural mutation, invoking the `rebuildRaw` you declared at registration.
 
@@ -482,8 +489,8 @@ ctx.caretMemory.noteKey(e, commandAtBlock(e, ctx), () => getCurrentCursorEditorR
 
 A hand-rolled surface takes on both halves itself:
 
-1. **Feed every keydown to `noteKey`**, as above, with the command the chord resolves to at your block (`schema/commands.ts` :: `commandForKey`), so a rebound block move isn't read as an arrow. It's the one call a keydown handler may make (G2.10 scans for it); pass the live-caret measure as the third argument so a capture key has an X to record. `forget()` is only for callers with no key to classify (lifecycle, commit, undo, paste).
-2. **Implement `focusAtColumn(x, from)`** with `findOffsetNearestX(el, x, from)` from `cursor/sticky-measure.ts`: place the cursor at the nearest offset on the first (`from === 'above'`) or last (`from === 'below'`) visual line that can show a caret. The editable surface's version, which also keeps the scan out of the marker region and reads the block's declared `columnWindow` for a block with lines a caret may not land on (a code fence):
+1. **Feed every keydown to `noteKey`**, as above, with the command the chord resolves to at your block (`schema/commands.ts` :: `commandForKey`), so a rebound block move isn't read as an arrow. It's the only caret-memory call a keydown handler may make (G2.10 scans for that). Pass the live caret's measure as the third argument, so a capture key has an X to record. `forget()` is for callers with no key to classify (lifecycle, commit, undo, paste).
+2. **Implement `focusAtColumn(x, from)`** with `findOffsetNearestX(el, x, from)` from `cursor/sticky-measure.ts`: place the cursor at the nearest offset on the first (`from === 'above'`) or last (`from === 'below'`) visual line that can show a caret. The editable surface's version, which also keeps the scan out of the marker region and reads the surface's `columnWindow` for a block whose first or last line a caret arriving from another block shouldn't land on (a code block's fence lines):
 
 ```ts
 // components/blocks/editable-surface.ts
@@ -512,7 +519,7 @@ import rust from 'highlight.js/lib/languages/rust';
 registerBuiltinLanguage('rust', rust, ['rs']);
 ```
 
-One import from `highlight.js/lib/languages/<name>`, one `registerBuiltinLanguage('<name>', <grammar>, [aliases])` call. The built-in form is what keeps the language through the test reset; a host's own languages go through the public `registerLanguage`. Nothing else changes; the language is live on the next editor mount.
+One import from `highlight.js/lib/languages/<name>`, one `registerBuiltinLanguage('<name>', <grammar>, [aliases])` call. The built-in form is what keeps your language through the test reset. A host's own languages go through the public `registerLanguage`. Nothing else changes; the language is live on the next editor mount.
 
 ## Testing
 

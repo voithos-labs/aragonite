@@ -1585,7 +1585,7 @@ setVerdict; // 'conspiracy.setVerdict', branded as a command id
 registerBlockCommand(conspiracy, 'conspiracy.setVerdict', handler); // throws: already registered
 ```
 
-A command that moves the focused block among its siblings, rather than the caret within it, passes `{ movesBlock: true }`: the keypress then keeps the caret's column and marker side the way the built-in Alt+Arrow reorder does, and the move's own commit drops them.
+A command that moves the focused block among its siblings, rather than the caret within it, passes `{ movesBlock: true }`. Its keypress then isn't read as a caret move, the same as the built-in Alt+Arrow reorder: the key alone leaves the caret's column and marker side where they were, and a move that actually happens drops them with its commit, like any edit.
 
 A minted command dispatches on the two tiers that can hand it a `BlockCommandContext` (the focused node plus a metadata-commit route):
 
@@ -1640,7 +1640,7 @@ Chord strings follow the consumer guide's chord model: fixed-order `Mod` / `Alt`
 
 **`registerBlockContextActions(kind, name, provider)`**
 
-The right-click menu on a block of `kind` (a code block, a table, a plugin's own block) lists what its providers return, ahead of the editor's own rows (copy, replace with the clipboard, remove). Register from `setup`: the rows show only in the editors that list your plugin. The provider is consulted on every open, so it reads the block as it is then. Several may share one kind under different names, a taken name throws, and `EVERY_KIND` (`'*'`) registers for every kind. Prose never asks your provider: right-clicking the text of a block whose kind declares `pageRole: 'prose'` (a paragraph, a heading) gives the clipboard rows instead. The provider's third argument, `noun`, is what the menu calls the block ("code block", or "images" for a paragraph of two pictures), handy when you want a label that matches the editor's own "Copy code block".
+The right-click menu on a block of `kind` (a code block, a table, a plugin's own block) lists what its providers return, ahead of the editor's own rows (copy, replace with the clipboard, remove). Register from `setup`; the rows show only in the editors that list your plugin. The provider is consulted on every open, so it reads the block as it is then. Several providers can share one kind under different names (a taken name throws), and `EVERY_KIND` (`'*'`) registers for every kind. Prose never asks your provider: right-clicking the text of a block whose kind declares `pageRole: 'prose'` (a paragraph, a heading) gives the clipboard rows instead. The provider's third argument, `noun`, is what the menu calls the block ("code block", or "images" for a paragraph of two pictures), handy when you want a label that matches the editor's own "Copy code block".
 
 ```ts
 registerBlockContextActions(conspiracy, 'debunk', (node) => [
@@ -1653,7 +1653,7 @@ registerBlockContextActions(conspiracy, 'debunk', (node) => [
 ]);
 ```
 
-`run` receives a `BlockActionContext`: the node, its path, `deleteBlock()`, and `replaceRaw(raw)`, which rewrites the block's bytes wholesale and reparses them, the road the default replace row takes. Each is one undo entry. A line those bytes add takes `ctx.lineEnding`, the document's, so a CRLF document stays CRLF. An action that writes clipboard text runs it through `transformPaste(text)` first, so it gets the rewrites a paste into that editor would. `icon` names a glyph the editor's menus already draw (the same set the code rail and the table menu use); a row without one shows none. `danger` paints the row in the error colour, for an action that is not one undo away.
+`run` receives a `BlockActionContext`: the node, its path, `deleteBlock()`, and `replaceRaw(raw)`, which rewrites the block's bytes wholesale and reparses them, the same path the default replace row takes. Each is one undo entry. End any line you add to those bytes with `ctx.lineEnding` (the document's), so a CRLF document stays CRLF. An action that writes clipboard text runs it through `transformPaste(text)` first, so it gets the rewrites a paste into that editor would. `icon` names a glyph the editor's menus already draw (the same set the code rail and the table menu use); a row without one shows none. `danger` paints the row in the error colour, for an action that is not one undo away.
 
 ## Paste transforms
 

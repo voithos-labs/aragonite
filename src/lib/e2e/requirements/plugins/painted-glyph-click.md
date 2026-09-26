@@ -7,8 +7,8 @@ alone, never at a point computed from a raw offset, so a miscount in that walk s
 wrong reported offset. It lives in the plugins project because the emoji widget needs its seed.
 
 The document is `- alpha beta`, then `Mood :smile: today`, then `Some **bold** text`. Each click
-aims at a glyph a little way into its text, away from the edge of a marker or widget, where the
-caret position is decided by the browser's edge rules rather than by the walk.
+aims a little way into the text rather than right at the edge of a marker or widget, since at an
+edge the browser's own rules pick the caret position, not the walk.
 
 Miss-analysis: every click test aimed through the editor's own raw-to-DOM mapping, which reads the
 same prefix length, widget length and hidden-marker count as the DOM-to-raw walk the click goes
