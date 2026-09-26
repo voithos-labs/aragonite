@@ -9,7 +9,9 @@ import {
 	destroyMountedEditors,
 	installLayoutStubs,
 	mountEditor,
+	placeCaret,
 	pressKeyAt,
+	selectRange,
 	surfaceAt
 } from '$lib/test/harness/mount-editor.svelte';
 import { pressKey } from '$lib/test/harness/settle';
@@ -35,6 +37,41 @@ describe('the underline is on the page', () => {
 
 		const source = mountEditor({ source: 'Plan\n===\n', presentationMode: 'source' });
 		expect(landableRawBounds(surfaceAt(source, [0]))).toBeNull();
+	});
+});
+
+// Where markers hide, the underline is on the page but not on screen, so no range the user drew
+// can have meant to remove it.
+describe('live mode: a range that runs to the block end stops at the title', () => {
+	function beforeInput(el: HTMLElement, inputType: string, data: string | null = null): void {
+		el.dispatchEvent(
+			new InputEvent('beforeinput', { inputType, data, bubbles: true, cancelable: true })
+		);
+	}
+
+	it.each([
+		['typing over the whole block', 0, 'insertText', 'x', 'x\n===\n'],
+		['deleting to the block end', 2, 'deleteContentBackward', null, 'Pl\n===\n']
+	])('%s keeps the underline', async (_label, from, inputType, data, written) => {
+		const mounted = mountEditor({ source: 'Plan\n===\n', presentationMode: 'live' });
+		const el = surfaceAt(mounted, [0]);
+		selectRange(el, from, 8);
+
+		beforeInput(el, inputType, data);
+		await mounted.settle();
+
+		expect(mounted.source()).toBe(written);
+	});
+
+	it('the first select-all selects the title alone', async () => {
+		const mounted = mountEditor({ source: 'Plan\n===\n', presentationMode: 'live' });
+		const el = surfaceAt(mounted, [0]);
+		placeCaret(el, 2);
+
+		await pressKey(el, { key: 'a', ctrlKey: true });
+
+		const range = window.getSelection()!.getRangeAt(0);
+		expect(range.toString()).toBe('Plan');
 	});
 });
 

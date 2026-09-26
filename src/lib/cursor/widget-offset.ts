@@ -35,6 +35,9 @@ import { domDescendants } from './dom-walk';
 
 /** How a caret write treats its offset: `reachable` moves it onto a position the mode lets a caret
  *  sit at (never behind a hidden marker run); `exact` writes it as given. */
+/** Marks the span holding a block's bytes past its content (a setext underline). */
+export const BLOCK_SUFFIX_ATTR = 'data-block-suffix';
+
 export type CaretClamp = 'reachable' | 'exact';
 
 /** A span of a block's raw offsets. */
@@ -128,12 +131,16 @@ export function extendSelectionToRaw(el: HTMLElement, raw: number): boolean {
 }
 
 /**
- * Select `el`'s whole content, past its marker prefix when there is content to select: the first
- * Ctrl+A range, the triple click. With none, the whole contents, marker included.
+ * Select `el`'s whole content, past its marker prefix and short of a structural suffix the mode
+ * hides, when there is content to select: the first Ctrl+A range, the triple click. With none,
+ * the whole contents, marker included.
  */
 export function selectSurfaceContent(el: HTMLElement): boolean {
-	const contentLength = containerDomTextLength(el) - markerPrefixLength(el);
-	if (markerPrefixOf(el) && contentLength > 0) return selectRawRange(el, 0, contentLength);
+	const suffix = hiddenSuffixLength(el);
+	const contentLength = containerDomTextLength(el) - markerPrefixLength(el) - suffix;
+	if ((markerPrefixOf(el) || suffix > 0) && contentLength > 0) {
+		return selectRawRange(el, 0, contentLength);
+	}
 	const range = document.createRange();
 	range.selectNodeContents(el);
 	return writeSelection(
@@ -463,6 +470,14 @@ export function createRangeAtDomTextOffsets(
  * `core/inline/visibility.ts`, never from layout, since a `getComputedStyle` per keystroke is
  * too slow; that file and `styles/editor.css` must change together.
  */
+/** The text length of a block's trailing structure span (`BLOCK_SUFFIX_ATTR`) where the mode
+ *  hides it, else 0: bytes a range the user drew cannot have meant to take. */
+export function hiddenSuffixLength(el: HTMLElement): number {
+	const last = el.lastElementChild;
+	const text = last?.hasAttribute(BLOCK_SUFFIX_ATTR) ? last.firstChild : null;
+	return text && isHiddenMarkerText(text, el) ? (text.textContent?.length ?? 0) : 0;
+}
+
 export function isHiddenMarkerText(node: Node, container: HTMLElement): boolean {
 	if (node.nodeType !== Node.TEXT_NODE || !container.contains(node)) return false;
 	const mode = markerHidingMode(container);

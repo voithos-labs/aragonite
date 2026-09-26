@@ -21,6 +21,7 @@ import type { Reading } from '../../../schema/reading';
 import { renderInlineNodes, type ImageLoadPolicy } from '../../../core/inline-render';
 import type { RawOffset } from '../../../cursor/coordinate-spaces';
 import {
+	BLOCK_SUFFIX_ATTR,
 	CONTENT_EMPTY_ATTR,
 	createCaretAnchor,
 	holdsOnlyMarkerChrome,
@@ -176,7 +177,11 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 		// The bytes past the content (a setext underline) are the block's own marker too, so the
 		// page holds the whole display and hides them where it hides the prefix.
 		const suffix = structuralSuffix(node);
-		if (suffix) frag.appendChild(markerSpan(suffix));
+		if (suffix) {
+			const span = markerSpan(suffix);
+			span.setAttribute(BLOCK_SUFFIX_ATTR, '');
+			frag.appendChild(span);
+		}
 		return frag;
 	}
 
