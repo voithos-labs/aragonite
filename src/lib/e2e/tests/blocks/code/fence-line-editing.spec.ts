@@ -69,6 +69,13 @@ test.describe('code block: fence lines the mode paints', () => {
 		});
 	}
 
+	test('a backtick typed at the end of the opener run widens both fence lines', async () => {
+		await editor.focusBlock(0, 3);
+		await editor.page.keyboard.type('`');
+
+		await expect.poll(() => editor.bridge.getSource()).toBe('````js\nconst x = 1\n````\n\nafter\n');
+	});
+
 	test('paste over the closer keeps a closer below the pasted text', async () => {
 		await editor.seedClipboard('Y');
 		await selectFrom(editor, 18, 3);

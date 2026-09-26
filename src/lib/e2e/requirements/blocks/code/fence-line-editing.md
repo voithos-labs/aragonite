@@ -24,6 +24,9 @@ Where the mode hides the fence lines, edits clamp to the body instead: `fence-ra
   follows it, so the block stays closed
 - Backspace inside the opener run: the block demotes to a paragraph and the closer goes with
   it, so nothing below is absorbed
+- a backtick typed right after the opener's marker run widens the fence: the closer grows by
+  the same backtick, so the block stays closed (miss-analysis: every opener edit here deleted or
+  replaced, and the unit case for this keystroke pinned the dropped backtick as intended)
 - paste over the closer: the pasted text lands and a closer follows it
 - an unclosed fence has no closer to strand, so deleting its marker run turns it back into a
   paragraph, byte-for-byte: that's how a just-typed ` ``` ` is taken back

@@ -1,9 +1,9 @@
 /**
  * The rule for writing a fenced block's bytes, declared on the kind as `rawWrite`. It puts back a
  * closer a truncating write dropped, removes one such a write stranded, grows both marker runs past
- * a body line that would read as the closer, and drops backticks from a backtick fence's info
- * string (CommonMark §4.5), moving the caret with every byte it adds or drops. A fence the user is
- * still typing (open, `authored`) is left alone.
+ * a body line that would read as the closer or with a marker typed onto the opener's run, and
+ * drops backticks from a backtick fence's info string (CommonMark §4.5), moving the caret with
+ * every byte it adds or drops. A fence the user is still typing (open, `authored`) is left alone.
  */
 
 import { metadataOf } from '../core/nodes';
@@ -23,6 +23,7 @@ import {
 import {
 	escalatedFenceLength,
 	fenceAnatomy,
+	fenceRunLength,
 	matchFenceClose,
 	matchFenceOpen
 } from '../core/parsers/fence-syntax';
@@ -88,9 +89,12 @@ export function fenceShapeOfRaw(node: NodeView): FenceShape {
  */
 export function reconcileFenceWrite(input: FenceWriteInput): FenceWriteResult {
 	const { mode, ending } = input;
-	const fence = writtenFence(input.display, input.fence, mode);
-	if (!fence.closed && mode === 'authored') return { display: input.display, caret: input.caret };
-	const unglued = separateGluedCloser({ ...input, fence });
+	if (!input.fence.closed && mode === 'authored') {
+		return { display: input.display, caret: input.caret };
+	}
+	const widened = mode === 'authored' ? widenedCloser(input) : null;
+	const fence = widened?.fence ?? writtenFence(input.display, input.fence, mode);
+	const unglued = separateGluedCloser({ ...input, ...widened?.written, fence });
 	const lines = reconcileFenceLines(unglued, fence, ending);
 	const sanitized = sanitizeInfoString({ ...input, ...lines, fence });
 	return escalateFenceRuns({ ...input, ...sanitized, fence });
@@ -147,13 +151,37 @@ function legalInfo(info: string, fence: FenceShape): string {
 
 /**
  * The fence the written bytes carry. Content arriving whole is read as the grammar reads it, so an
- * opener run a replace grew or shrank sizes the fence; typing keeps the block's own run, since a
- * marker typed at the start of the info string is info, not a longer run.
+ * opener run a replace grew or shrank sizes the fence; typing keeps the block's own run, which
+ * {@link widenedCloser} has already grown when a marker was typed onto it.
  */
 function writtenFence(display: string, fence: FenceShape, mode: FenceWriteMode): FenceShape {
 	if (mode === 'authored') return fence;
 	const anatomy = fenceAnatomy(firstDisplayLine(display).text, { marker: fence.marker, length: 3 });
 	return anatomy ? { ...fence, length: anatomy.length } : fence;
+}
+
+/**
+ * A marker typed onto the opener's run lengthens the fence, so the closer grows to match: a closer
+ * shorter than its opener closes nothing, and the fence would take every block below as its body.
+ */
+function widenedCloser(
+	input: FenceWriteInput
+): { written: FenceWriteResult; fence: FenceShape } | null {
+	const { display, caret, fence } = input;
+	const lines = displayLines(display);
+	const opener = fenceAnatomy(lines[0].text, fence);
+	const closerIndex = lastCloserIndex(lines, fence);
+	if (!opener || opener.length === fence.length || closerIndex < 1) return null;
+	const closer = lines[closerIndex].text;
+	const grow = Math.max(opener.length - fenceRunLength(closer, fence.marker), 0);
+	const at = lineStartOffset(display, closerIndex) + /^ */.exec(closer)![0].length;
+	return {
+		written: {
+			display: display.slice(0, at) + fence.marker.repeat(grow) + display.slice(at),
+			caret: caret > at ? caret + grow : caret
+		},
+		fence: { ...fence, length: opener.length }
+	};
 }
 
 interface OpenerParts {
@@ -163,10 +191,7 @@ interface OpenerParts {
 	runEnd: number;
 }
 
-/**
- * Split by the block's own run length rather than by re-scanning the written line: a backtick
- * typed at the start of the info string must read as info, not as a longer run.
- */
+/** Split at the fence's known run length, so a marker past it reads as info string. */
 function splitOpener(line: string, fence: FenceShape): OpenerParts | null {
 	const indent = /^ {0,3}/.exec(line)![0];
 	const runEnd = indent.length + fence.length;

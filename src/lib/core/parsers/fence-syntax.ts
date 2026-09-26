@@ -54,7 +54,7 @@ export function escalatedFenceLength(body: string, marker: '`' | '~', minimum: n
 	);
 }
 
-function fenceRunLength(text: string, marker: '`' | '~'): number {
+export function fenceRunLength(text: string, marker: '`' | '~'): number {
 	let index = 0;
 	while (text[index] === ' ') index++;
 	let run = 0;
