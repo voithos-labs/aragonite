@@ -148,7 +148,11 @@ describe('the drag ghost names what it carries', () => {
 		expect(ghostFor(source, text)).toBe(text);
 	});
 
-	it('a paragraph of pictures reads Image', () => {
-		expect(ghostFor('![a](x)\n', '')).toBe('Image');
+	// A linked picture in source mode shows its link's bytes as text, which is no label at all.
+	it.each([
+		['![a](x)\n', ''],
+		['[![a](x)](https://example.com)\n', '[](https://example.com)']
+	])('a paragraph of pictures reads Image: %j', (source, text) => {
+		expect(ghostFor(source, text)).toBe('Image');
 	});
 });

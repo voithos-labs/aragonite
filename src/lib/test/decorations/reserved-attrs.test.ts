@@ -21,14 +21,20 @@ describe('acceptedBlockAttrs', () => {
 	// A block decoration setting the kind cue's label would paint that label for good.
 	// Miss-analysis: the set was checked against a copy of itself, so no case named an attribute
 	// the editor had started setting since.
-	it('drops the attributes the kind cue, a whole-block input and a held modifier set', () => {
-		const attrs = {
-			'data-kind-cue': 'Heading',
-			'data-whole-block-input': '',
-			'data-mod-active': ''
-		};
+	it('drops the attributes the kind cue and a whole-block input set', () => {
+		const attrs = { 'data-kind-cue': 'Heading', 'data-whole-block-input': '' };
 		expect(acceptedBlockAttrs(attrs, [0])).toEqual([]);
-		expect(takeDevWarns()).toHaveLength(3);
+		expect(takeDevWarns()).toHaveLength(2);
+	});
+
+	// A name the editor uses only inside a block (a menu row's state) reads nothing on the block's
+	// own element, so a decoration may take it.
+	it('lets through a name the editor sets only on an inner element', () => {
+		expect(acceptedBlockAttrs({ 'data-active': 'yes', 'data-group': 'a' }, [0])).toEqual([
+			['data-active', 'yes'],
+			['data-group', 'a']
+		]);
+		expect(takeDevWarns()).toEqual([]);
 	});
 
 	it("lets a decoration author's own attribute through untouched", () => {
