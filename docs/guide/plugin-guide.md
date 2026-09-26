@@ -1181,7 +1181,7 @@ leaf.getEditor(); // this editor's EditorContext for your plugin, undefined in a
 
 That text carries every newline your source holds, which makes **`white-space: pre-wrap` (or `pre`) on your source element part of the contract** for any leaf whose bytes can span lines. Without it the browser collapses the line breaks on screen while the offset walk goes on counting them, and the caret sits nowhere near where it looks.
 
-**A painted source.** By default the source is one text node. A `renderSource(text)` dep paints it as DOM instead (fence lines the marker-hiding modes collapse, highlight tokens; the `highlightCode` export is the code block's own tokenizer), and the factory asserts `textContent === text` on every paint, so a painter that drops a byte fails loudly in dev rather than corrupting a commit. A painted source takes its plain-text edits from the leaf, not the browser: typing, Enter, deletes and pastes splice the text and repaint, each reported through `onSourceEdit(text)` so a live preview can follow the draft, and undo inside the open reveal walks those edits back before it reaches the document's history. `repaintSource()` re-runs the painter after a native edit (an IME commit), and `completeBareSource(text)` lets a kind complete a chrome-only source (a `$$` straight over `$$`) to the shape a caret can sit in, asked as the source is revealed and again after any edit that empties it, so a one-line `$$x^2$$` that loses its `x^2` never shows bare fences. Block math is the worked example.
+**A painted source.** By default the source is one text node. A `renderSource(text)` dep paints it as DOM instead (fence lines the marker-hiding modes collapse, highlight tokens; `renderFencedSource` draws a fenced source the way the code block does, and `highlightCode` is its tokenizer), and the factory asserts `textContent === text` on every paint, so a painter that drops a byte fails loudly in dev rather than corrupting a commit. A painted source takes its plain-text edits from the leaf, not the browser: typing, Enter, deletes and pastes splice the text and repaint, each reported through `onSourceEdit(text)` so a live preview can follow the draft, and undo inside the open reveal walks those edits back before it reaches the document's history. `repaintSource()` re-runs the painter after a native edit (an IME commit), and `completeBareSource(text)` lets a kind complete a chrome-only source (a `$$` straight over `$$`) to the shape a caret can sit in, asked as the source is revealed and again after any edit that empties it, so a one-line `$$x^2$$` that loses its `x^2` never shows bare fences. Block math is the worked example.
 
 A leaf whose bytes are one line (the parrot's opener claims exactly one) declares `singleLine: true` and needs none of that. Enter in one of those ends the block: the text after the caret becomes a paragraph below and the caret goes with it, which is what Enter does in a heading. With the flag off, the default, Enter types a newline.
 
@@ -1281,7 +1281,8 @@ fence claim ──▶ opaque container, NO children ──▶ component renders 
                   rebuildRaw re-emits the fence     commits ride updateOwnMetadata
 ```
 
-- **Claim your grammar, decline everything else.** The opener accepts exactly the fences the built-in `fencedCode` would, gated on the info string's first word, and must price **ahead** of `fencedCode` ([Opener priority](#opener-priority)). Declining returns the fence to `fencedCode`, which is also your uninstall story: without the plugin the same bytes parse as a plain code block and round-trip unchanged. Pin both states with round-trip tests. Match the fence with `matchFenceOpen` / `matchFenceClose`, and never carry your own copy of the CommonMark fence rules.
+- **Claim your grammar, decline everything else.** The opener accepts exactly the fences the built-in `fencedCode` would, gated on the info string's first word, and must price **ahead** of `fencedCode` ([Opener priority](#opener-priority)). Declining returns the fence to `fencedCode`, which is also your uninstall story: without the plugin the same bytes parse as a plain code block and round-trip unchanged. Pin both states with round-trip tests. Claim the fence with `matchFenceInfo('mermaid')` and read its extent with `scanFence`, which closes where the parser does, and never carry your own copy of the CommonMark fence rules.
+- **Declare the fence's write rule.** A find/replace or a range delete writes your block's bytes without your component, and a fence is one byte away from swallowing the document: a body line that reads as the closer ends the block early, and an opener removed while the closer stays opens a fence over everything below. `rawWrite: fenceRawWrite(fenceShapeOfRaw)` is the code block's own rule: it grows both runs past a closer-shaped body line, puts back a closer a write cut, and drops one a write stranded.
 - **Code in metadata, an empty container around it.** Register the kind with `container: { contract: 'opaque', rebuildRaw }` and give nodes `children: []`. The source text and every fence byte the rebuild needs (indent, marker, info string, closer shape) go into typed plugin metadata, primitive values only, and `rebuildRaw` re-emits the exact bytes from them. Build the parsed node's `raw` by calling your own rebuild, so opener and rebuild agree by construction.
 - **Edit mode commits through `updateOwnMetadata`.** The component swaps its body to a plugin-owned `<textarea>` seeded from metadata; commit (Ctrl+Enter, blur) writes the new code with the container factory's `updateOwnMetadata`, which is one undoable entry, with your `rebuildRaw` re-emitting the fence so `getSource()` reflects the edit byte-exactly. Escape cancels without touching the tree.
 - **Inject the renderer, memoize it, own its CSS.** The engine is the consumer's dependency: take it as a plugin option (`mermaidPlugin({ renderer })`) and pass it by module to the component. Wrap it in `createBoundedMemo` so re-renders of unchanged code do zero engine work. An async renderer stores the render promise as the cached value (in-flight work is shared, and a failure is cached like a success), and a renderer whose result holds a live DOM node passes a `cloneOnRead` so each caller gets its own copy. Resolve failures to a legible inline error, never a throw, and render a static code fallback with a note when no renderer is configured. The engine's stylesheet travels with the renderer module, so import it there, where no route can forget it: a KaTeX-based renderer needs `katex/dist/katex.min.css`, or its MathML accessibility tree lays out unclipped and every equation paints twice.
@@ -1289,17 +1290,19 @@ fence claim ──▶ opaque container, NO children ──▶ component renders 
 - **Interior interactivity stays inside your DOM.** Pan/zoom, buttons, overlays: put `POINTER_GESTURE_ATTR` on the element whose drags are yours (only while the gesture is armed, if it isn't always), or the editor reads the press as the start of a selection and paints a range over your pan. `stopPropagation()` on pointerdown can't do this, since Svelte delivers pointer events from the app root and the editor's listener has already run. A focus view is just a fixed-position overlay in the component's own tree, so mount it in place, focus it on open, close on Escape.
 - **View-state commands reach the component through `ctx.hooks`.** See [Block commands](#block-commands).
 
-The two helpers from that list, with what they hand back:
+The fence helpers from that list, with what they hand back:
 
-`````ts
-matchFenceOpen('```mermaid'); // { marker: '`', length: 3, info: 'mermaid', indent: '', infoRaw: 'mermaid' }
-matchFenceOpen('  ~~~ js title'); // { marker: '~', length: 3, info: 'js title', indent: '  ', infoRaw: ' js title' }
-matchFenceOpen('hello'); // null, so hand the line back
-matchFenceClose('````  ', '`', 3); // true: a longer run with trailing space still closes a three-backtick fence
+````ts
+const matchMermaid = matchFenceInfo('mermaid');
+matchMermaid('```mermaid'); // { marker: '`', length: 3, info: 'mermaid', indent: '', infoRaw: 'mermaid' }
+matchMermaid('  ~~~ mermaid title'); // { marker: '~', length: 3, info: 'mermaid title', indent: '  ', ... }
+matchMermaid('```js'); // null: the code block keeps it
+scanFence(ctx, fence); // { closer: 3, consumed: 4, raw: '```mermaid\n...```\n', body: '...' }
+fenceRawWrite(fenceShapeOfRaw).normalize('graph TD\n```\n', ctx); // 'graph TD\n': the stranded closer goes
 
 const render = createBoundedMemo<string, Promise<SVGElement>>({ cap: 32 });
 render(`${theme}\0${code}`, () => engine.render(code, theme)); // computes once per key; past 32 entries the least recently used one goes
-`````
+````
 
 **What you give up with the textarea.** The code text isn't editor-native: no cross-block selection through it, the textarea's caret and IME are the browser's rather than the editor's, and so is its undo. A chord raised inside your surface reaches the browser, not the editor's history, so the draft has its own undo stack and the editor's chords resume once focus leaves.
 
