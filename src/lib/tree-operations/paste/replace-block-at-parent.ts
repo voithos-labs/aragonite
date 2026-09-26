@@ -6,7 +6,7 @@
 
 import type { UndoEntryMode } from '../../action-contracts';
 import type { OperationDetailMap } from '../../schema/operations';
-import type { AnyBlockKind, CstNode, Document } from '../../core/nodes';
+import type { CstNode, Document } from '../../core/nodes';
 import type { GrammarView } from '../../schema/block-openers';
 import type { PasteCommitCoordinator } from './paste-deps';
 import { nodeAt } from '../node-primitives';
@@ -68,10 +68,10 @@ export async function replaceBlockAtParent(args: ReplaceBlockAtParentArgs): Prom
 
 	// A replacement is built before any content write sees it, so the owner's `bodyWrite` escape
 	// is applied here, to the clipboard blocks and the target's split halves alike.
-	const ownerKind = blockPath.length > 1 ? (scope.node.kind as AnyBlockKind) : undefined;
+	const owner = blockPath.length > 1 ? scope.node : undefined;
 	const lineEnding = documentLineEnding(doc);
 	const { replacement, mapIndex } = normalizeReplacementForBody(
-		ownerKind,
+		owner,
 		args.replacement,
 		lineEnding,
 		args.grammar

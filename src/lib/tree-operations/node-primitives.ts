@@ -52,18 +52,23 @@ export type SeparatorParent = {
 export const parentLineEnding = (parent: BodyParentArg): LineEnding =>
 	'lineEnding' in parent ? parent.lineEnding : documentLineEnding(parent);
 
-const ownerKindOf = (parent: BodyParentArg): AnyBlockKind | undefined =>
-	'ownerKind' in parent ? parent.ownerKind : undefined;
-
-/** Text made legal as a child's raw inside a container of kind `ownerKind`. */
-export function normalizeBodyWrite(ownerKind: AnyBlockKind | undefined, raw: string): string {
-	const owner = ownerKind === undefined ? undefined : tryGetBlockKindDescriptor(ownerKind);
-	return owner?.bodyWrite?.normalize(raw) ?? raw;
+/**
+ * Text made legal as a child's raw inside `owner`'s body. A child's bytes are never the
+ * container's own syntax, so the write is always `literal`.
+ */
+export function normalizeBodyWrite(
+	owner: NodeView | undefined,
+	raw: string,
+	lineEnding: LineEnding
+): string {
+	if (!owner) return raw;
+	const rule = tryGetBlockKindDescriptor(owner.kind)?.bodyWrite;
+	return rule ? rule.normalize(raw, { node: owner, mode: 'literal', lineEnding }) : raw;
 }
 
-/** {@link normalizeBodyWrite} for a caller holding the parent rather than the owner's kind. */
+/** {@link normalizeBodyWrite} for a caller holding the parent rather than the owner. */
 export const forBody = (parent: BodyParentArg, raw: string): string =>
-	normalizeBodyWrite(ownerKindOf(parent), raw);
+	normalizeBodyWrite('owner' in parent ? parent.owner : undefined, raw, parentLineEnding(parent));
 
 /**
  * `raw` made legal as `node`'s own bytes, for a write that replaces the node with a reparse: the
@@ -74,7 +79,7 @@ export function normalizeOwnRaw(node: NodeView, raw: string, lineEnding: LineEnd
 	const descriptor = tryGetBlockKindDescriptor(node.kind);
 	if (!descriptor) return raw;
 	const kept = dropSuffixUnderBlankLine(node, raw);
-	return descriptor.normalizeRawWrite?.(kept, node, { lineEnding }) ?? kept;
+	return descriptor.rawWrite?.normalize(kept, { node, mode: 'literal', lineEnding }) ?? kept;
 }
 
 /**

@@ -77,7 +77,7 @@
 		intraTableRectBounds,
 		intraTableRectGrid
 	} from './cell-clipboard';
-	import { escapedCellOffset } from './table-cell-paste';
+	import { escapedCellOffset } from '../../../schema/table-cell-raw';
 	import type { CellSelectionPoint, SelectionPoint } from '../../../selection/primitives';
 	import type { ClipboardAction } from './table-menu-model';
 	import {

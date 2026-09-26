@@ -1,9 +1,11 @@
 /**
- * The rule for writing a table cell's bytes, declared on the kind as `normalizeRawWrite`. A cell's
- * bytes go into its row unchanged, so a bare `|` or line break reaching them would split the row
- * and delete the last column's content. Both passes work prefix by prefix, which is what lets
- * `escapedCellOffset` (`components/blocks/table/table-cell-paste.ts`) map a caret exactly.
+ * The rule for writing a table cell's bytes, declared on the kind as `rawWrite`. A cell's bytes
+ * go into its row unchanged, so a bare `|` or line break reaching them would split the row and
+ * delete the last column's content. Both passes work prefix by prefix, which is what lets
+ * {@link escapedCellOffset} map a caret exactly.
  */
+
+import type { WriteRule } from './block-kind-descriptor';
 
 /**
  * Escape every `|` an odd run of backslashes has not already escaped. Running it twice changes
@@ -28,3 +30,17 @@ export function escapeUnescapedPipes(s: string): string {
 export function normalizeCellRaw(raw: string): string {
 	return escapeUnescapedPipes(raw.replace(/\r?\n/g, ' '));
 }
+
+/**
+ * Where `offset` lands once {@link normalizeCellRaw} has run, worked out by that same pass over
+ * the prefix, so the caret cannot drift out of step with the bytes.
+ */
+export function escapedCellOffset(text: string, offset: number): number {
+	return normalizeCellRaw(text.slice(0, offset)).length;
+}
+
+/** The cell's write rule; it reads nothing but the bytes. */
+export const tableCellWrite: WriteRule = {
+	normalize: (raw) => normalizeCellRaw(raw),
+	mapOffset: (raw, offset) => escapedCellOffset(raw, offset)
+};

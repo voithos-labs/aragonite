@@ -28,8 +28,8 @@ import {
 	type InlineNode,
 	type CstNode,
 	type FenceOpen,
-	type NodeView,
-	type RawWriteContext
+	type WriteContext,
+	type WriteRule
 } from '$lib/plugin';
 import MathInline from './MathInline.svelte';
 import { registerMathBlockCompleter } from './math-completion';
@@ -177,21 +177,20 @@ export function mathDisplaySource(source: string): string {
 // ── Writing a block's own bytes ────────────────────────────────────────────────
 
 /** The ending a restored closer line takes: the block's own, else the document's. */
-const closerEnding = (node: NodeView, write: RawWriteContext) =>
-	trailingLineEnding(node.raw, write.lineEnding);
+const closerEnding = (ctx: WriteContext) => trailingLineEnding(ctx.node.raw, ctx.lineEnding);
 
 /**
- * The `$$` kind's `normalizeRawWrite`: put back a closer a truncating write dropped, as a fenced
- * code block does. A first line that no longer opens the block is left alone.
+ * The `$$` kind's write rule: put back a closer a truncating write dropped, as a fenced code
+ * block does. A first line that no longer opens the block is left alone.
  */
-function normalizeMathBlockRaw(raw: string, node: NodeView, write: RawWriteContext): string {
+function normalizeMathBlockRaw(raw: string, ctx: WriteContext): string {
 	const display = trimTrailingLineEnding(raw);
 	const lines = displayLines(display);
 	const { text } = lines[0];
 	if (!text.startsWith(BLOCK_FENCE)) return raw;
 	if (text === BLOCK_FENCE) {
 		if (lines.slice(1).some((line) => line.text === BLOCK_FENCE)) return raw;
-		return display + closerEnding(node, write) + BLOCK_FENCE + ownTrailingLineEnding(raw);
+		return display + closerEnding(ctx) + BLOCK_FENCE + ownTrailingLineEnding(raw);
 	}
 	if (isBlockMathOpener(text)) return raw;
 	// The one-line form closes on line 0, so the lines a join brought along stay their own blocks.
@@ -199,9 +198,21 @@ function normalizeMathBlockRaw(raw: string, node: NodeView, write: RawWriteConte
 	return joinDisplayLines(lines) + ownTrailingLineEnding(raw);
 }
 
+const mathBlockWrite: WriteRule = {
+	normalize: normalizeMathBlockRaw,
+	// A restored closer line goes after every written byte; only the one-line form's closer lands
+	// mid-write, at the end of line 0.
+	mapOffset: (raw, offset) => {
+		const { text } = displayLines(raw)[0];
+		const closesLineZero =
+			text.startsWith(BLOCK_FENCE) && text !== BLOCK_FENCE && !isBlockMathOpener(text);
+		return closesLineZero && offset > text.length ? offset + BLOCK_FENCE.length : offset;
+	}
+};
+
 /** The same rule for the ```math form, whose closer is always a line of its own. The run to close
  *  on comes from the written opener, not the block's old one. */
-function normalizeMathFenceRaw(raw: string, node: NodeView, write: RawWriteContext): string {
+function normalizeMathFenceRaw(raw: string, ctx: WriteContext): string {
 	const display = trimTrailingLineEnding(raw);
 	const lines = displayLines(display);
 	const fence = matchMathFence(lines[0].text);
@@ -209,8 +220,14 @@ function normalizeMathFenceRaw(raw: string, node: NodeView, write: RawWriteConte
 	const closes = (line: { text: string }) => matchFenceClose(line.text, fence.marker, fence.length);
 	if (lines.slice(1).some(closes)) return raw;
 	const closer = fence.indent + fence.marker.repeat(fence.length);
-	return display + closerEnding(node, write) + closer + ownTrailingLineEnding(raw);
+	return display + closerEnding(ctx) + closer + ownTrailingLineEnding(raw);
 }
+
+const mathFenceWrite: WriteRule = {
+	normalize: normalizeMathFenceRaw,
+	// The closer goes in after every written byte, so no offset moves.
+	mapOffset: (_raw, offset) => offset
+};
 
 // ── Block `$$…$$` display math ─────────────────────────────────────────────────
 
@@ -239,7 +256,7 @@ export function registerMathBlock(): void {
 		gapEdges: 'both',
 		conformanceFixture: '$$\nx^2\n$$\n',
 		caretTargetAtPoint: mathCaretAtPoint,
-		normalizeRawWrite: normalizeMathBlockRaw,
+		rawWrite: mathBlockWrite,
 		closure: simpleLeafClosure({
 			focus: {
 				mode: 'implemented',
@@ -319,7 +336,7 @@ export function registerMathFence(): void {
 		gapEdges: 'both',
 		caretTargetAtPoint: mathCaretAtPoint,
 		conformanceFixture: '```math\nx^2\n```\n',
-		normalizeRawWrite: normalizeMathFenceRaw,
+		rawWrite: mathFenceWrite,
 		closure: simpleLeafClosure({
 			focus: {
 				mode: 'implemented',

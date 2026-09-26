@@ -5,7 +5,7 @@
 
 import { updateNodeContent } from '../tree-operations';
 import { settledCaretTarget, type SettledContent } from '../tree-operations/content-write';
-import { makeBlockNode, metadataOf, type AnyBlockKind } from '../core/nodes';
+import { makeBlockNode, metadataOf } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import type { LineEnding } from '../core/lines';
 import type { StructuralChange } from '../tree-operations/structural-change';
@@ -24,7 +24,7 @@ export function previewContentReparse(
 	node: NodeView,
 	text: string,
 	grammar: Parameters<typeof updateNodeContent>[3],
-	ownerKind: AnyBlockKind | undefined,
+	owner: NodeView | undefined,
 	tailSuffix: string,
 	lineEnding: LineEnding,
 	taskItem?: NodeView
@@ -34,22 +34,27 @@ export function previewContentReparse(
 		leadingTrivia: node.leadingTrivia,
 		raw: node.raw
 	});
-	// The owner kind goes along, or the trial answers about different bytes than the commit
-	// writes; the owner node stays out, since a trial must not write the real container. The
-	// suffix goes by value for the same reason: the trial may only consume the copy.
-	// `taskItem` is the task item whose paragraph this is: a copy of it makes the trial read the
-	// text after the marker as the commit will.
-	const owner =
-		taskItem &&
+	// The owner goes along as a copy, or the trial answers about different bytes than the commit
+	// writes; a trial must not write the real container, and the suffix goes by value for the same
+	// reason. `taskItem` is the task item whose paragraph this is: its marker on the copy makes the
+	// trial read the text after the marker as the commit will.
+	const ownerCopy =
+		owner &&
 		makeBlockNode({
-			kind: taskItem.kind,
+			kind: owner.kind,
 			leadingTrivia: '',
-			raw: taskItem.raw,
-			metadata: { ...metadataOf(taskItem, 'listItem') },
+			raw: owner.raw,
+			metadata: taskItem ? { ...metadataOf(taskItem, 'listItem') } : undefined,
 			children: [probe]
 		});
 	return updateNodeContent(
-		{ children: [probe], ownerKind, owner, suffix: tailSuffix, lineEnding },
+		{
+			children: [probe],
+			ownerKind: owner?.kind,
+			owner: ownerCopy,
+			suffix: tailSuffix,
+			lineEnding
+		},
 		0,
 		text,
 		grammar

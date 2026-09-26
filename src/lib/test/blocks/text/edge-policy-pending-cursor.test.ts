@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 //
 // A remembered caret and the text it counts into travel together. The write path a kind wraps
-// around its commits maps the commit caret through that kind's `normalizeRawWrite` (a table cell
+// around its commits maps the commit caret through that kind's `rawWrite` (a table cell
 // escapes every free `|`); `setPendingCursor` skips that path, so its offset can only be mapped
 // if the writer hands over the text it counts into. The two branches that compose new text need
 // it; the atomic-delete branch is the other half, leaving the caret ahead of every changed byte.

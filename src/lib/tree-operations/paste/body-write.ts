@@ -4,8 +4,9 @@
  * strategy-picking parse and to the built replacement at the splice.
  */
 
-import type { AnyBlockKind, CstNode, Document } from '../../core/nodes';
-import type { LineEnding } from '../../core/lines';
+import type { CstNode, Document } from '../../core/nodes';
+import type { NodeView } from '../../core/node-views';
+import { documentLineEnding, type LineEnding } from '../../core/lines';
 import type { GrammarView } from '../../schema/block-openers';
 import { readBlocks } from '../../core/parser';
 import { tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
@@ -24,9 +25,10 @@ export function normalizeClipboardForBody(
 	text: string
 ): string {
 	let out = text;
+	const lineEnding = documentLineEnding(doc);
 	for (let depth = targetPath.length - 1; depth >= 1; depth--) {
 		const ancestor = nodeAt(doc, targetPath.slice(0, depth));
-		if (ancestor && isBlockNode(ancestor)) out = normalizeBodyWrite(ancestor.kind, out);
+		if (ancestor && isBlockNode(ancestor)) out = normalizeBodyWrite(ancestor, out, lineEnding);
 	}
 	return out;
 }
@@ -38,23 +40,23 @@ export interface BodyLegalReplacement {
 }
 
 /**
- * Replacement nodes made legal as `ownerKind` children. A changed raw reparses whole, so
+ * Replacement nodes made legal as `owner`'s children. A changed raw reparses whole, so
  * the landed kind follows the escaped bytes and a container's children stay in step.
  */
 export function normalizeReplacementForBody(
-	ownerKind: AnyBlockKind | undefined,
+	owner: NodeView | undefined,
 	replacement: CstNode[],
 	ending: LineEnding,
 	grammar: GrammarView
 ): BodyLegalReplacement {
-	if (ownerKind === undefined || !tryGetBlockKindDescriptor(ownerKind)?.bodyWrite) {
+	if (owner === undefined || !tryGetBlockKindDescriptor(owner.kind)?.bodyWrite) {
 		return { replacement, mapIndex: (i) => i };
 	}
 	const out: CstNode[] = [];
 	const starts: number[] = [];
 	for (const node of replacement) {
 		starts.push(out.length);
-		const escaped = normalizeBodyWrite(ownerKind, node.raw);
+		const escaped = normalizeBodyWrite(owner, node.raw, ending);
 		if (escaped === node.raw) {
 			out.push(node);
 			continue;

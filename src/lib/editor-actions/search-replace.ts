@@ -60,11 +60,13 @@ export function createSearchReplace(deps: EditorActionsDeps, controller: UndoCon
 			// Reparsing a private clone bypasses `updateNodeContent`, so its two byte rules (the
 			// kind's own raw rule and the owner's bodyWrite escape) are applied here.
 			const owner = rel.length > 0 ? descend(child, rel.slice(0, -1)) : null;
+			const lineEnding = documentLineEnding(deps.doc);
 			const substituted = normalizeBodyWrite(
-				owner?.kind,
-				applyRangesToText(leaf.raw, ranges, template)
+				owner ?? undefined,
+				applyRangesToText(leaf.raw, ranges, template),
+				lineEnding
 			);
-			writeOwnRaw(leaf, substituted, documentLineEnding(deps.doc), deps.reading.grammar);
+			writeOwnRaw(leaf, substituted, lineEnding, deps.reading.grammar);
 		}
 		// A nested leaf's edit must be written up into the clone's container raws before the
 		// reparse from `child.raw`, through the rebuild typing uses, which also recomputes the blank

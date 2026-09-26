@@ -22,8 +22,8 @@ import {
 	trailingLineEnding,
 	type FenceOpen,
 	type CstNode,
-	type NodeView,
-	type RawWriteContext
+	type WriteContext,
+	type WriteRule
 } from '$lib/plugin';
 
 export const MERMAID = 'mermaid';
@@ -99,7 +99,7 @@ function grownCloser(closerRaw: string, marker: '`' | '~', length: number): stri
  * source. A first line that no longer opens a mermaid fence is left alone. The closer line takes
  * the block's own ending, else the document's.
  */
-function normalizeMermaidRaw(raw: string, node: NodeView, write: RawWriteContext): string {
+function normalizeMermaidRaw(raw: string, ctx: WriteContext): string {
 	const display = trimTrailingLineEnding(raw);
 	const lines = displayLines(display);
 	const fence = matchMermaidFence(lines[0].text);
@@ -107,9 +107,15 @@ function normalizeMermaidRaw(raw: string, node: NodeView, write: RawWriteContext
 	const closes = (line: { text: string }) => matchFenceClose(line.text, fence.marker, fence.length);
 	if (lines.slice(1).some(closes)) return raw;
 	const closer = fence.indent + fence.marker.repeat(fence.length);
-	const ending = trailingLineEnding(node.raw, write.lineEnding);
+	const ending = trailingLineEnding(ctx.node.raw, ctx.lineEnding);
 	return display + ending + closer + ownTrailingLineEnding(raw);
 }
+
+const mermaidWrite: WriteRule = {
+	normalize: normalizeMermaidRaw,
+	// The closer goes in after every written byte, so no offset moves.
+	mapOffset: (_raw, offset) => offset
+};
 
 // ── Component UI hooks ────────────────────────────────────────────────────────
 // `ctx.hooks` is how a command reaches the component; the handlers below cast it back to this
@@ -161,7 +167,7 @@ export function registerMermaidKind(): void {
 		// The character-count default would estimate a rendered diagram at about one line; the
 		// measured height replaces this on mount.
 		estimateHeight: () => 320,
-		normalizeRawWrite: normalizeMermaidRaw,
+		rawWrite: mermaidWrite,
 		keymap: [{ chord: 'Mod+M', command: focusCommand }],
 		conformanceFixture: '```mermaid\ngraph TD\n```\n',
 		closure: {

@@ -31,6 +31,10 @@ beforeEach(() => {
 
 const OPEN_DETAILS = '<details>\n<summary>T</summary>\n\nbody\n\n</details>\n';
 
+/** What a body write runs under: the details block it lands in. */
+const bodyCtx = () =>
+	({ node: parse(OPEN_DETAILS).children[0], mode: 'literal', lineEnding: '\n' }) as const;
+
 function mountDetails(source: string) {
 	const harness = makeEditorActionsDeps(parse(source).children);
 	const controller = createUndoController(harness.deps);
@@ -170,8 +174,8 @@ describe('details terminator escape caret image', () => {
 		];
 
 		for (const input of inputs) {
-			const once = normalize(input);
-			expect(normalize(once)).toBe(once);
+			const once = normalize(input, bodyCtx());
+			expect(normalize(once, bodyCtx())).toBe(once);
 		}
 	});
 
@@ -183,7 +187,10 @@ describe('details terminator escape caret image', () => {
 
 		for (const raw of inputs) {
 			for (let offset = 0; offset <= raw.length; offset++) {
-				const mapped = bodyWrite.normalize(raw).slice(0, bodyWrite.mapOffset(raw, offset));
+				const ctx = bodyCtx();
+				const mapped = bodyWrite
+					.normalize(raw, ctx)
+					.slice(0, bodyWrite.mapOffset(raw, offset, ctx));
 				expect(mapped.replaceAll('&lt;', '<')).toBe(raw.slice(0, offset));
 			}
 		}

@@ -1,5 +1,5 @@
 /**
- * A kind's own raw-write rule (`normalizeRawWrite`) reaches its bytes through two functions,
+ * A kind's own raw-write rule (`rawWrite`) reaches its bytes through two functions,
  * `writeOwnRaw` in place and `normalizeOwnRaw` for a caller that reparses the result, and every
  * write to a leaf's raw that bypasses the kind's own component calls one. The
  * lists of sites make the next such write a decision; the allowlist of bare writes below makes a
@@ -52,9 +52,7 @@ const PRE_REPARSE_SITES: Record<string, string> = {
 	'src/lib/editor-actions/inline-range-commit.ts':
 		'reads the rule ahead of the write to decide whether the splice changes a byte at all',
 	'src/lib/selection/selection-drop.ts':
-		'a drop writes the bytes it cut from or spliced into a block ahead of their reparse',
-	'src/lib/testing/kind-conformance.ts':
-		"the kind kit's raw-write cell drives each declarer's rule over its fixture"
+		'a drop writes the bytes it cut from or spliced into a block ahead of their reparse'
 };
 
 /**
@@ -91,7 +89,7 @@ const ESCALATION_SITES: Record<string, string> = {
 	'src/lib/plugin.ts': 'the author barrel: a plugin rebuilding its own raw needs the same rule'
 };
 
-const CAPABILITY = /\bnormalizeRawWrite\b/;
+const CAPABILITY = /\brawWrite\b/;
 const READER = /\bwriteOwnRaw\b/;
 const PRE_REPARSE_READER = /\bnormalizeOwnRaw\b/;
 const PRE_REPARSE_HELPER = /\breparseTruncatedEndpoint\b/;
@@ -111,7 +109,7 @@ describe('the kind’s own raw-write rule runs at every byte sink', () => {
 	});
 
 	it.each(['tableCell', 'fencedCode'] as const)('%s declares the capability', (kind) => {
-		expect(typeof getBlockKindDescriptor(kind).normalizeRawWrite).toBe('function');
+		expect(typeof getBlockKindDescriptor(kind).rawWrite?.mapOffset).toBe('function');
 	});
 
 	it('the readers live at their home and dispatch whatever the kind declared', () => {

@@ -567,7 +567,8 @@ export function checkTerminatorCollision(
 	assertIs(node?.kind, kind, 'terminatorCollisionFixture source opens with a node of the kind');
 
 	const bodyWrite = getBlockKindDescriptor(kind).bodyWrite;
-	const body = bodyWrite ? bodyWrite.normalize(fixture.bodyRaw) : fixture.bodyRaw;
+	const ctx = { node, mode: 'literal', lineEnding: documentLineEnding(doc) } as const;
+	const body = bodyWrite ? bodyWrite.normalize(fixture.bodyRaw, ctx) : fixture.bodyRaw;
 	const children = node.children ?? [];
 	const before = node.raw;
 	if (children.length > 0) {

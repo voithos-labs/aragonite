@@ -1,4 +1,4 @@
-// The kind kit's raw-write cell: a kind that declares `normalizeRawWrite` has its rule driven
+// The kind kit's raw-write cell: a kind that declares `rawWrite` has its rule driven
 // through truncating writes over its fixture, and a kind without one must survive its closer's cut.
 // Miss-analysis: the cell exempted every kind with no rule, so a fenced kind that never declared
 // one passed the kit while a range delete over its closer swallowed the document below.
@@ -11,17 +11,14 @@ import {
 	registerBlockOpener
 } from '$lib/plugin';
 import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
-import { normalizeFencedRaw } from '$lib/schema/fenced-code-raw';
+import { fencedCodeWrite } from '$lib/schema/fenced-code-raw';
+import type { WriteRule } from '$lib/schema/block-kind-descriptor';
 import { resetPluginPlatformForTests, runKindConformance } from '$lib/testing';
 import { checkLeafRawWrite } from '$lib/testing/kind-conformance';
 import { registerMathBlock, MATH_BLOCK, MATH_FENCE } from '$lib/plugins/latex/latex-kind';
 import { registerMermaidKind, MERMAID } from '$lib/plugins/mermaid/mermaid-kind';
-import type { NodeView } from '$lib/core/node-views';
 import type { AnyBlockKind } from '$lib/core/nodes';
 import { testLeaf } from '$lib/test/harness/test-kinds';
-
-/** The write context a rule receives in an LF or a CRLF document. */
-const LF_WRITE = { lineEnding: '\n' } as const;
 
 beforeEach(() => {
 	resetPluginPlatformForTests();
@@ -92,23 +89,44 @@ describe('kind conformance: the raw-write cell fails a kind that needs a rule an
 
 describe('kind conformance: the raw-write cell fails a broken rule', () => {
 	const fixture = getBlockKindDescriptor('fencedCode').conformanceFixture!;
+	const keepsOffsets = (normalize: WriteRule['normalize']): WriteRule => ({
+		normalize,
+		mapOffset: (_raw, offset) => offset
+	});
 
 	it('fails a rule that drops the closer', () => {
-		const dropsCloser = (node: NodeView, raw: string) =>
-			normalizeFencedRaw(raw, node, LF_WRITE).replace(/```\n$/, '');
+		const dropsCloser = keepsOffsets((raw, ctx) =>
+			fencedCodeWrite.normalize(raw, ctx).replace(/```\n$/, '')
+		);
 		expect(() => checkLeafRawWrite('fencedCode', fixture, dropsCloser)).toThrow(
 			/the closing line cut/
 		);
 	});
 
 	it('fails a rule that repairs nothing', () => {
-		expect(() => checkLeafRawWrite('fencedCode', fixture, (_node, raw) => raw)).toThrow(
-			/the closing line cut/
-		);
+		expect(() =>
+			checkLeafRawWrite(
+				'fencedCode',
+				fixture,
+				keepsOffsets((raw) => raw)
+			)
+		).toThrow(/the closing line cut/);
 	});
 
 	it('fails a rule that is not idempotent', () => {
-		const grows = (_node: NodeView, raw: string) => raw + 'x';
+		const grows = keepsOffsets((raw) => raw + 'x');
 		expect(() => checkLeafRawWrite('fencedCode', fixture, grows)).toThrow(/idempotent/);
+	});
+
+	it('fails a caret map that moves an offset the rule left alone', () => {
+		const drifts: WriteRule = { ...fencedCodeWrite, mapOffset: (_raw, offset) => offset + 1 };
+		expect(() => checkLeafRawWrite('fencedCode', fixture, drifts)).toThrow(/at 0 .* stays/);
+	});
+
+	it('fails a caret map that ignores the bytes the rule inserted before an offset', () => {
+		const indents = keepsOffsets((raw) => (raw.startsWith(' ') ? raw : ' ' + raw));
+		expect(() => checkLeafRawWrite('fencedCode', fixture, indents)).toThrow(
+			/at 1 .* moves by what the rule changed/
+		);
 	});
 });

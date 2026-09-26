@@ -3,10 +3,10 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import type { CstNode } from '../../../core/nodes';
 import type { PresentationMode } from '../../../presentation-mode';
 import {
-	escapedCellOffset,
 	normalizeWhitespace,
 	tableCellInlinePaste
 } from '../../../components/blocks/table/table-cell-paste';
+import { escapedCellOffset } from '../../../schema/table-cell-raw';
 import type { PasteRange } from '../../../tree-operations/paste-surfaces';
 import { updateNodeContent } from '../../../tree-operations/content-write';
 import { writeTableRow } from '../../../schema/container-rebuilders';

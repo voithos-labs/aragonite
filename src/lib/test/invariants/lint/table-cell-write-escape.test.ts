@@ -14,12 +14,10 @@ const CELL = 'src/lib/components/blocks/table/TableCellBlock.svelte';
 /** The rule itself has one implementation; a second is what let two escapes disagree. */
 const RULE_HOME = 'src/lib/schema/table-cell-raw.ts';
 const RULE_READERS: Record<string, string> = {
-	[RULE_HOME]: 'the implementation',
-	'src/lib/schema/built-in-descriptors.ts': 'the tableCell declaration',
-	'src/lib/components/blocks/table/table-cell-paste.ts': 'escapedCellOffset, the caret image'
+	[RULE_HOME]: 'the implementation, its caret map and the rule the kind declares'
 };
 
-const CAPABILITY = /\bnormalizeRawWrite\b/;
+const CAPABILITY = /\brawWrite\b/;
 // `?.` included: an optional-chained bundle write is the same write, and only the
 // receiver-name rule below stands between it and a bare raw.
 const WRITE_CALL = /\b(\w+)\??\.updateBlockContent\s*\(/g;
@@ -102,7 +100,7 @@ describe('every cell content write routes through the caret-mapping wrapper', ()
 	});
 
 	it('a capability mention inside a comment cannot satisfy the scan', () => {
-		const commented = '// the write goes through normalizeRawWrite\nconst x = 1;\n';
+		const commented = '// the write goes through rawWrite\nconst x = 1;\n';
 		expect(CAPABILITY.test(commented)).toBe(true);
 		expect(CAPABILITY.test(stripComments(commented))).toBe(false);
 	});
