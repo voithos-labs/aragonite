@@ -12,7 +12,7 @@ import { createReorderAction, reorderRunCommand } from '$lib/editor-actions/reor
 import type { ReorderAction } from '$lib/editor-actions/reorder-action';
 import type { CommandId } from '$lib/schema/commands';
 import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
-import { expectParseConverged } from '$lib/test/harness/parse-converged';
+import type { CstNode } from '$lib/core/nodes';
 import { makeReorderContainer } from './reorder-harness';
 
 type Move = (reorder: ReorderAction) => Promise<void>;
@@ -42,6 +42,18 @@ const command =
 		expect(claimed).toBe(true);
 		await pending;
 	};
+
+// Every node's own bytes, not only the structure: a later edit rebuilds a container from its
+// children, so a child left with the wrong ending surfaces then.
+type Layout = { kind: string; trivia: string; raw: string; suffix: string; children?: Layout[] };
+const layoutOf = (nodes: readonly CstNode[]): Layout[] =>
+	nodes.map((n) => ({
+		kind: n.kind,
+		trivia: n.leadingTrivia,
+		raw: n.raw,
+		suffix: n.innerSuffix ?? '',
+		children: n.children && layoutOf(n.children)
+	}));
 
 function makeTop(source: string) {
 	const harness = makeEditorActionsDeps(parse(source).children);
@@ -98,6 +110,30 @@ const TOP_LEVEL: { label: string; before: string; after: string; move: Move }[] 
 		move: up([1])
 	},
 	{
+		label: 'a drop below a last quote that ends in lazy lines keeps them lazy',
+		before: 'a\n> q\nlazy',
+		after: '> q\nlazy\n\na',
+		move: drop([0], 1)
+	},
+	{
+		label: 'a quote ending in a blank quote line, moved to the tail, leaves it unended',
+		before: '> a\n>\n# b',
+		after: '# b\n> a\n>',
+		move: up([1])
+	},
+	{
+		label: 'a last quote ending in a blank quote line, moved up, ends it',
+		before: '# b\n> a\n>',
+		after: '> a\n>\n# b',
+		move: up([1])
+	},
+	{
+		label: 'a last list item ending in a blank line, moved up, ends it',
+		before: '# b\n- a\n  ',
+		after: '- a\n  \n# b',
+		move: up([1])
+	},
+	{
 		label: 'Alt+ArrowUp on the last block of a document that ends in a break',
 		before: 'a\n# b\n',
 		after: '# b\na\n',
@@ -112,7 +148,7 @@ describe('a top-level move keeps every line ended and the document’s final sta
 		await move(h.reorder);
 
 		expect(serialize(h.doc)).toBe(after);
-		expectParseConverged(h.doc);
+		expect(layoutOf(h.doc.children)).toEqual(layoutOf(parse(after).children));
 		await h.undo();
 		expect(serialize(h.doc)).toBe(before);
 	});
@@ -176,7 +212,7 @@ describe('a move inside a container that ends the document keeps its lines ended
 		await move(h.reorder);
 
 		expect(serialize(h.doc)).toBe(after);
-		h.assertStable();
+		expect(layoutOf(h.doc.children)).toEqual(layoutOf(parse(after).children));
 		await h.undo();
 		expect(serialize(h.doc)).toBe(before);
 	});

@@ -132,7 +132,8 @@ describe('a reorder lands its block whole beside any neighbour', () => {
 							from,
 							to,
 							createSharingState(),
-							defaultGrammarView
+							defaultGrammarView,
+							shape.eol
 						);
 						const label = `${JSON.stringify(md)} move ${from}->${to}`;
 						expect(
@@ -143,7 +144,11 @@ describe('a reorder lands its block whole beside any neighbour', () => {
 						const out = serialize(doc);
 						const bare = shape.eol === '\r\n' ? /(^|[^\r])\n/.test(out) : /\r/.test(out);
 						expect(bare, `${label}: a separator carries the wrong line ending`).toBe(false);
-						expect(out.endsWith('\n'), `${label}: the final line break changed`).toBe(shape.closed);
+						// A blank line is its own line break, so a document now ending in one ends in a break.
+						const blankTail = isBlankParagraph(doc.children[doc.children.length - 1]);
+						expect(out.endsWith('\n'), `${label}: the final line break changed`).toBe(
+							shape.closed || blankTail
+						);
 					}
 				}
 			}),

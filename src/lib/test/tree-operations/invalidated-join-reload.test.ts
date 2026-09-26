@@ -98,7 +98,14 @@ describe('a reorder settles the joins the move disturbed (GH #21)', () => {
 	it('folds the pair an interrupter moved out from between', () => {
 		const doc = parse('a\n# h\nb\n');
 
-		const result = reorderChildrenWithTrivia(doc.children, 1, 2, sharing(), defaultGrammarView);
+		const result = reorderChildrenWithTrivia(
+			doc.children,
+			1,
+			2,
+			sharing(),
+			defaultGrammarView,
+			'\n'
+		);
 
 		expect(serialize(doc)).toBe('a\nb\n# h\n');
 		expect(describeConvergence(doc)).toBeNull();
@@ -120,7 +127,14 @@ describe('a reorder settles the joins the move disturbed (GH #21)', () => {
 	it('folds the pair the move left below the window', () => {
 		const doc = parse('a\n# h\nb\n');
 
-		const result = reorderChildrenWithTrivia(doc.children, 1, 0, sharing(), defaultGrammarView);
+		const result = reorderChildrenWithTrivia(
+			doc.children,
+			1,
+			0,
+			sharing(),
+			defaultGrammarView,
+			'\n'
+		);
 
 		expect(serialize(doc)).toBe('# h\na\nb\n');
 		expect(describeConvergence(doc)).toBeNull();
@@ -131,7 +145,14 @@ describe('a reorder settles the joins the move disturbed (GH #21)', () => {
 	it('stays a plain permutation where every join holds', () => {
 		const doc = parse('a\n\nb\n\nc\n');
 
-		const result = reorderChildrenWithTrivia(doc.children, 0, 2, sharing(), defaultGrammarView);
+		const result = reorderChildrenWithTrivia(
+			doc.children,
+			0,
+			2,
+			sharing(),
+			defaultGrammarView,
+			'\n'
+		);
 
 		expect(serialize(doc)).toBe('b\n\nc\n\na\n');
 		expect(result.change).toEqual({
@@ -151,7 +172,7 @@ describe('a reorder settles the joins the move disturbed (GH #21)', () => {
 		const doc = parse('- a\n- # h\n- b\n');
 		const items = doc.children[0].children!;
 
-		const result = reorderChildrenWithTrivia(items, 1, 2, sharing(), defaultGrammarView);
+		const result = reorderChildrenWithTrivia(items, 1, 2, sharing(), defaultGrammarView, '\n');
 
 		expect(items.map((c) => c.raw)).toEqual(['- a\n', '- b\n', '- # h\n']);
 		expect(result.landing).toBe(2);

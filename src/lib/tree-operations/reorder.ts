@@ -1,8 +1,9 @@
 import type { CstNode } from '../core/nodes';
 import { isBlankParagraph, readBlocks } from '../core/parser';
-import { lineEndingAt, ownTrailingLineEnding } from '../core/lines';
+import { lineEndingAt, ownTrailingLineEnding, type LineEnding } from '../core/lines';
 import type { SharingState } from './sharing';
 import { ensureUnsharedChild } from './unshare';
+import { releaseLastLine, terminateLastLine } from './list/terminator';
 import { absorbWindowSeams, settleSeparatorOnBlank, type SettledSplice } from './settle';
 import type { StructuralChange } from './structural-change';
 import { devWarn } from '../dev-warn';
@@ -49,7 +50,9 @@ export function reorderChildrenWithTrivia(
 	to: number,
 	sharing: SharingState,
 	/** The editor's grammar, in which the checks below reread each pair of moved blocks. */
-	grammar: GrammarView
+	grammar: GrammarView,
+	/** The document's line ending, for a block that stops being the document's last line. */
+	lineEnding: LineEnding
 ): SettledSplice {
 	if (from === to) return { change: { op: 'noop' }, landing: to };
 	if (isReorderOutOfBounds(from, to, children.length)) {
@@ -57,6 +60,10 @@ export function reorderChildrenWithTrivia(
 	}
 	const lo = Math.min(from, to);
 	const hi = Math.max(from, to);
+	const tail = children.length - 1;
+	// Only the document's last line can lack an ending, and a move that reaches it changes which
+	// block holds that line.
+	const openTail = hi === tail && ownTrailingLineEnding(children[tail].raw) === '';
 	// Whether the moved block sat flush against both its neighbours, read before the rotation.
 	const flushAround = !children[from].leadingTrivia && !children[from + 1]?.leadingTrivia;
 	const windowTrivia: string[] = [];
@@ -67,6 +74,7 @@ export function reorderChildrenWithTrivia(
 	for (let k = 0; k < windowTrivia.length; k++) {
 		children[lo + k].leadingTrivia = windowTrivia[k];
 	}
+	if (openTail) handOverOpenTail(children, from === tail ? to : tail - 1, sharing, lineEnding);
 	// Each join the move touches gets a blank line where the two blocks would read as one; the
 	// pair the moved block left rejoins only if it sat flush against both of them.
 	const vacated = from < to ? from : from + 1;
@@ -79,6 +87,23 @@ export function reorderChildrenWithTrivia(
 		if (isBlankParagraph(children[at])) settleSeparatorOnBlank({ children }, at, sharing);
 	}
 	return absorbWindowSeams({ children }, lo, hi - lo + 1, to, change, grammar, sharing);
+}
+
+/**
+ * In a document with no final line break, the block that left the last position ends its line and
+ * the block now there gives up its ending. A blank block is nothing but its line break, so it
+ * keeps it, and the document ends in that blank line.
+ */
+function handOverOpenTail(
+	children: CstNode[],
+	formerTail: number,
+	sharing: SharingState,
+	lineEnding: LineEnding
+): void {
+	terminateLastLine(ensureUnsharedChild({ children }, formerTail, sharing), lineEnding, sharing);
+	const tail = children.length - 1;
+	if (isBlankParagraph(children[tail])) return;
+	releaseLastLine(ensureUnsharedChild({ children }, tail, sharing), sharing);
 }
 
 /**
