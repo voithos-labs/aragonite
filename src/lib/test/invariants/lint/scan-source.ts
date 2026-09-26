@@ -297,9 +297,12 @@ function skipRegex(code: string, i: number): number | null {
 /**
  * Operand position, which is where a `/` opens a regex; after a value it divides. `}` is not
  * one: TypeScript's own parser finds no regex preceded by `}` anywhere in the tree, while
- * Svelte markup (`{a}/{b}`) is full of the shape.
+ * Svelte markup (`{a}/{b}`) is full of the shape. A lone `<` or `>` is markup's too (`</p>`).
  */
-const REGEX_OPERAND_CHARS = new Set(['(', ',', '=', ':', '[', '!', '&', '|', '?', '{', ';']);
+const REGEX_OPERAND_CHARS = new Set([
+	...['(', ',', '=', ':', '[', '!', '&', '|', '?', '{', ';'],
+	...['+', '-', '*', '%', '^', '~']
+]);
 
 /** Reserved words an expression directly follows, so a `/` after one opens a regex (`if` for
  *  Svelte's `{#if …}`). A plain identifier never joins: it can be a value. */
@@ -324,7 +327,10 @@ function opensRegex(code: string, at: number): boolean {
 	let i = at - 1;
 	while (i >= 0 && /\s/.test(code[i])) i--;
 	if (i < 0) return true;
-	if (code[i] === '>') return code[i - 1] === '=';
+	if (code[i] === '>') return code[i - 1] === '=' || code[i - 1] === '>';
+	if (code[i] === '<') return code[i - 1] === '<';
+	// After a postfix `i++` or `i--` the slash divides.
+	if ((code[i] === '+' || code[i] === '-') && code[i - 1] === code[i]) return false;
 	if (REGEX_OPERAND_CHARS.has(code[i])) return true;
 	let start = i + 1;
 	while (start > 0 && /[\w$]/.test(code[start - 1])) start--;

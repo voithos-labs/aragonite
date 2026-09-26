@@ -159,6 +159,20 @@ const MARKUP_CORPUS: Array<[source: string, classes: string]> = [
 	['<!-- x -->', 'cccccccccc']
 ];
 
+/** A slash after each operator opens a regex, the one after a postfix `++` or `--` divides. The
+ *  regex holds a `(` so a misread also unbalances a bracket walk. */
+const BINARY = '+ - * ** % & | ^ << >> >>> && || ?? == != === !== <= >= = += **= >>>= &&= ??=';
+const SLASH_AFTER_OPERATOR: Array<[op: string, source: string, opensRegex: boolean]> = [
+	...BINARY.split(' ').map((op): [string, string, boolean] => [op, `x ${op} /[(]/.exec(s);`, true]),
+	...['~', '!', '+', '-'].map((op): [string, string, boolean] => [
+		`unary ${op}`,
+		`x = ${op}/[(]/.exec(s);`,
+		true
+	]),
+	['postfix ++', 'x = i++ / 2 / 3;', false],
+	['postfix --', 'x = i-- / 2 / 3;', false]
+];
+
 describe('G4.57 the scan lexer reads what TypeScript reads', () => {
 	const classified = collectEditorSources().map((file) => ({
 		file,
@@ -223,6 +237,17 @@ describe('G4.57 the scan lexer reads what TypeScript reads', () => {
 	it('markup shapes TypeScript cannot lex keep their class', () => {
 		for (const [source, classes] of MARKUP_CORPUS) expect(classLine(source), source).toBe(classes);
 	});
+
+	// Miss-analysis: no scanned file puts a regex after an arithmetic, bitwise or `??` operator,
+	// so the differential had nothing to disagree on and the predecessor list stayed short.
+	it.each(SLASH_AFTER_OPERATOR)(
+		'a slash after %s lexes as TypeScript reads it',
+		(_op, source, opensRegex) => {
+			const oracle = typescriptClasses(source, 'probe.ts');
+			expect(oracle.includes(classOf('regex')), source).toBe(opensRegex);
+			expect(classLine(source)).toBe(Array.from(oracle, (cls) => CLASS_LETTERS[cls]).join(''));
+		}
+	);
 
 	// ── Reference self-tests (non-vacuity) ───────────────────────────────────
 
