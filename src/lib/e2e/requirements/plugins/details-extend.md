@@ -17,6 +17,10 @@ the editor's selection and the serialized bytes.
 
 - a delete of the grown range removes the whole details block, its hidden body included, and
   joins the blocks on either side as for any other covered block
+- a range whose moving end stops on the title row covers the hidden body too: Backspace there
+  removes the whole block, and a typed character lands where the range's other end was
+- Shift+Mod+End from the top of a document ending in a closed details stops on its title row,
+  and Backspace then empties the document, hidden body included
 
 ## Error cases
 
@@ -26,3 +30,5 @@ the editor's selection and the serialized bytes.
 
 - Every extension scenario crossed open containers, so the extension's step into a hidden body,
   and the reveal that then opened the block to mount it (#562), had nothing that could see it.
+- The first version of this spec grew the range past the title row before deleting, so no test
+  deleted a range that ended on the row, and the kept body under an emptied title (#601) passed.

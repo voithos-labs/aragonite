@@ -75,4 +75,35 @@ test.describe('plugin container: extending a selection past a closed <details>',
 		await editor.bridge.waitForSourceEquals('AboveBelow\n');
 		expect(await capturedErrors(page)).toEqual([]);
 	});
+
+	test('Backspace over a range ending on a closed title row takes the whole block', async ({
+		page
+	}) => {
+		await editor.loadContent('Above\n\n' + CLOSED + '\nMid\n\nBelow\n');
+		await editor.focusBlockAtPath([3], 0);
+		await page.keyboard.press('Shift+ArrowUp');
+		await page.keyboard.press('Shift+ArrowUp');
+		await expect.poll(() => focusPath(editor)).toEqual({ path: [1, 0], offset: 0 });
+
+		await page.keyboard.press('Backspace');
+		await editor.bridge.waitForSourceEquals('Above\n\nBelow\n');
+		await editor.typeText('x');
+		await editor.bridge.waitForSourceEquals('Above\n\nxBelow\n');
+		expect(await capturedErrors(page)).toEqual([]);
+	});
+
+	test('Shift+Mod+End into a closed details, then Backspace, empties the document', async ({
+		page
+	}) => {
+		await editor.loadContent('Above\n\n' + CLOSED);
+		await editor.focusBlockAtPath([0], 0);
+		await page.keyboard.press('Shift+ControlOrMeta+End');
+		await expect.poll(() => focusPath(editor)).toEqual({ path: [1, 0], offset: 3 });
+
+		await page.keyboard.press('Backspace');
+		await editor.bridge.waitForSourceEquals('\n');
+		await editor.typeText('x');
+		await editor.bridge.waitForSourceEquals('x\n');
+		expect(await capturedErrors(page)).toEqual([]);
+	});
 });
