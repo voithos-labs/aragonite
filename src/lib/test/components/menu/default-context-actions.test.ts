@@ -73,6 +73,16 @@ describe('prose is the page background', () => {
 		expect(isProseBackground(block('![a](x)\n'))).toBe(false);
 		expect(isProseBackground(block(FENCE))).toBe(false);
 	});
+
+	// Miss-analysis: every picture case held one inline image, the only shape the menu's own
+	// pattern knew, while the drag handle's pattern also took several images and references.
+	it('treats a paragraph of several images, or of a reference image, as a picture', () => {
+		const pictures = [block('![a](x) ![b](y)\n'), block('![a][ref]\n\n[ref]: x\n')];
+		for (const picture of pictures) {
+			expect(isProseBackground(picture), picture.raw).toBe(false);
+			expect(blockNoun(picture), picture.raw).toBe('image');
+		}
+	});
 });
 
 describe('the default context actions', () => {

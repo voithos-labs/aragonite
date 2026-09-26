@@ -21,6 +21,13 @@ describe('blockAccessibleName', () => {
 		expect(blockAccessibleName(first('```\nx\n```\n'))).toBe('Code block');
 	});
 
+	// Miss-analysis: the heading cases all had text, and the bare `#` paints as a paragraph in a
+	// module the name never asked.
+	it('names a bare `#` a paragraph, which is what it paints as', () => {
+		expect(blockAccessibleName(first('#\n'))).toBe('Paragraph');
+		expect(blockAccessibleName(first('# \n'))).toBe('Heading level 1');
+	});
+
 	it('names the rest by kind alone', () => {
 		expect(blockAccessibleName(first('text\n'))).toBe('Paragraph');
 		expect(blockAccessibleName(first('***\n'))).toBe('Divider');

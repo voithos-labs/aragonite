@@ -18,6 +18,19 @@ describe('acceptedBlockAttrs', () => {
 		expect(fires[0].details).toEqual({ path: [2] });
 	});
 
+	// A block decoration setting the kind cue's label would paint that label for good.
+	// Miss-analysis: the set was checked against a copy of itself, so no case named an attribute
+	// the editor had started setting since.
+	it('drops the attributes the kind cue, a whole-block input and a held modifier set', () => {
+		const attrs = {
+			'data-kind-cue': 'Heading',
+			'data-whole-block-input': '',
+			'data-mod-active': ''
+		};
+		expect(acceptedBlockAttrs(attrs, [0])).toEqual([]);
+		expect(takeDevWarns()).toHaveLength(3);
+	});
+
 	it("lets a decoration author's own attribute through untouched", () => {
 		expect(acceptedBlockAttrs({ 'data-review-state': 'stale' }, [0])).toEqual([
 			['data-review-state', 'stale']
