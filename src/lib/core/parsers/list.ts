@@ -24,7 +24,10 @@ const MARKER = `(?:${BULLET}|${withDelimiter('\\d{1,9}')})`;
 const GAP = '[ \\t]+';
 const ITEM_START = new RegExp(`^( {0,3})(${MARKER}${GAP})`);
 const CONTENTLESS_ITEM = new RegExp(`^ {0,3}${MARKER}${GAP}$`);
-const INTERRUPTING_ITEM = new RegExp(`^ {0,3}(?:${BULLET}|${withDelimiter('1')})${GAP}[^ \\t]`);
+// Content after the gap: neither a space or tab nor a line ending the splitter left on the line.
+const INTERRUPTING_ITEM = new RegExp(
+	`^ {0,3}(?:${BULLET}|${withDelimiter('1')})${GAP}[^ \\t\\r\\n]`
+);
 
 export function matchListItem(
 	text: string

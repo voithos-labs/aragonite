@@ -10,7 +10,7 @@ import { cutRangeFromDisplay } from '../../../tree-operations/node-ops';
 import { sliceTableAtRow } from '../../../tree-operations/paste/table-slice';
 import { focusIndexBeforeResidue } from '../../../tree-operations/paste/focus-target';
 import { landClipboardBlocks, landedAfter } from '../../../tree-operations/paste/paste-replacement';
-import { documentLineEnding } from '../../../core/lines';
+import { documentLineEnding, trimWhitespace } from '../../../core/lines';
 import { replaceBlockAtParent } from '../../../tree-operations/paste/replace-block-at-parent';
 import type {
 	InlinePasteResult,
@@ -23,7 +23,7 @@ import type { Reading } from '../../../schema/reading';
 // ── Public API ─────────────────────────────────────────────────────────────
 
 export function normalizeWhitespace(s: string): string {
-	return s.replace(/\n+/g, ' ').trim();
+	return trimWhitespace(s.replace(/\n+/g, ' '));
 }
 
 export function tableCellInlinePaste(

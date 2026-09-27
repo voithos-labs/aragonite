@@ -26,8 +26,13 @@ export function isBlankText(text: string): boolean {
 	return BLANK_TEXT.test(text);
 }
 
+/** A line ending a pattern admits at the end of a line's text: the document's last line can end
+ *  in a lone `\r`, which the line splitter leaves in the text, and a plugin may pass an ending. */
+export const OPTIONAL_LINE_ENDING = '(?:\\r\\n?|\\n)?';
+
 /** GFM §2.1's whitespace character: space, tab, LF, VT, FF, CR. Narrower than JS `\s`. */
-export const WHITESPACE_CLASS = '[ \\t\\n\\v\\f\\r]';
+export const WHITESPACE_CHARS = ' \\t\\n\\v\\f\\r';
+export const WHITESPACE_CLASS = `[${WHITESPACE_CHARS}]`;
 export const WHITESPACE_RUN = new RegExp(`${WHITESPACE_CLASS}+`);
 const WHITESPACE_CHAR = new RegExp(`^${WHITESPACE_CLASS}$`);
 const EDGE_WHITESPACE = new RegExp(`^${WHITESPACE_CLASS}+|${WHITESPACE_CLASS}+$`, 'g');

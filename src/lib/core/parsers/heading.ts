@@ -2,9 +2,13 @@
 // because it emerges from paragraph continuation.
 
 import type { AnyBlockKind } from '../nodes';
+import { OPTIONAL_LINE_ENDING } from '../lines';
+
+// GFM §4.2: the hashes end at a space, a tab or the line's end.
+const OPENING = new RegExp(`^ {0,3}(#{1,6})(?:[ \\t]|${OPTIONAL_LINE_ENDING}$)`);
 
 export function matchHeading(text: string): { level: number } | null {
-	const m = text.match(/^ {0,3}(#{1,6})(?:[ \t]|$)/);
+	const m = text.match(OPENING);
 	return m ? { level: m[1].length } : null;
 }
 

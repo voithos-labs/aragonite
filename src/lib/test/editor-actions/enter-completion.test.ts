@@ -77,7 +77,7 @@ registerBlockCompleter(declarePluginKind('spec-empty'), {
 // A non-breaking space draws a character, so its completion is kept.
 registerBlockCompleter(declarePluginKind('spec-nbsp'), {
 	tryComplete: (line) =>
-		line === 'nbsp me' ? { lines: [' '], caret: { path: [], line: 0, column: 0 } } : null
+		line === 'nbsp me' ? { lines: ['\u00a0'], caret: { path: [], line: 0, column: 0 } } : null
 });
 
 describe('Enter completion: which presses reach a completer', () => {

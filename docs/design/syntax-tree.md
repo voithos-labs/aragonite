@@ -307,7 +307,7 @@ Every GFM block type is implemented with its own kind:
 
 Inline: emphasis and strong (`*`, `_`, `**`, `__`), strikethrough, inline code, links, images, autolinks (bare URLs and emails), hard line breaks, and reference-style links and images.
 
-Every rule reads whitespace the way GFM does (§ 2.1): spaces and tabs where a rule asks for them, and the ASCII whitespace set where it says whitespace. A non-breaking space is never one of them, so `#<NBSP>foo` is a paragraph, not a heading, and a bare link runs straight through one. The one outsider is emphasis, whose flanking rule is written over Unicode whitespace. `src/lib/test/gfm-conformance/whitespace-class.test.ts` pins each shape.
+Every rule reads whitespace the way GFM does (§ 2.1): spaces and tabs where a rule asks for them, and the ASCII whitespace set where it says whitespace. A non-breaking space is never one of them, so `#<NBSP>foo` is a paragraph, not a heading, and a bare link runs straight through one. The outsiders are emphasis and the code that edits it, since the flanking rule is written over Unicode whitespace. Plugin grammars (directives, math) still read JS's whitespace until #509. `src/lib/test/gfm-conformance/whitespace-class.test.ts` pins each shape.
 
 The table row's mismatch note, since it bites:
 

@@ -99,9 +99,29 @@ describe('a non-breaking space is content where commonmark.js is no reference', 
 	});
 });
 
+// A document's last line can end in a lone `\r`, which the line splitter leaves in the line's
+// text. Each rule that allows trailing spaces or tabs has to allow the ending after them too.
+const LONE_CR_SHAPES: { rule: string; source: string }[] = [
+	{ rule: 'thematic break', source: 'a\n\n***\r' },
+	{ rule: 'thematic break after spaces', source: 'a\n\n- - - \r' },
+	{ rule: 'bare ATX heading', source: 'a\n\n##\r' },
+	{ rule: 'setext underline', source: 'a\n===\r' },
+	{ rule: 'setext underline after spaces', source: 'a\n---  \r' },
+	{ rule: 'a content-less item under a paragraph', source: 'a\n- \r' }
+];
+
+describe('a lone carriage return ends the last line for every trailing-space rule', () => {
+	it.each(LONE_CR_SHAPES.map((s): [string, string] => [s.rule, s.source]))(
+		'%s',
+		(_rule, source) => {
+			expect(editorOutline(source)).toEqual(referenceOutline(source));
+		}
+	);
+});
+
 describe('whitespace-class shapes round-trip byte-for-byte', () => {
 	roundTripCases(
-		[...REFERENCE_SHAPES, ...HAND_PINNED_SOURCES].map(({ rule, source }) => ({
+		[...REFERENCE_SHAPES, ...HAND_PINNED_SOURCES, ...LONE_CR_SHAPES].map(({ rule, source }) => ({
 			name: rule,
 			source
 		}))

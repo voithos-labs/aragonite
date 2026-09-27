@@ -65,7 +65,7 @@ describe('matchFenceClose', () => {
 		['the other marker', '~~~', '`', 3],
 		['a closer with an info string', '``` js', '`', 3],
 		['a four-space-indented closer', '    ```', '`', 3],
-		['a closer followed by a non-breaking space', '``` ', '`', 3],
+		['a closer followed by a non-breaking space', '```\u00a0', '`', 3],
 		['a closer followed by text on the next line', '```\nx', '`', 3]
 	];
 	for (const [label, line, marker, min] of declined) {
@@ -118,8 +118,8 @@ describe('fenceLanguage and matchFenceInfo', () => {
 	});
 
 	it('keeps a non-breaking space inside the word', () => {
-		expect(fenceLanguage('mermaid x')).toBe('mermaid x');
-		expect(matchFenceInfo('mermaid')('```mermaid x')).toBeNull();
+		expect(fenceLanguage('mermaid\u00a0x')).toBe('mermaid\u00a0x');
+		expect(matchFenceInfo('mermaid')('```mermaid\u00a0x')).toBeNull();
 		expect(matchFenceInfo('mermaid')('```mermaid x')).not.toBeNull();
 	});
 });

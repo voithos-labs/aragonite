@@ -583,8 +583,10 @@ const RULES: FileRule[] = [
 			'src/lib/components/link-card/LinkCard.svelte': 'a URL typed into the link card',
 			'src/lib/components/link-card/LinkCardHost.svelte': 'a URL typed into the link card',
 			'src/lib/components/blocks/text/link-source-bytes.ts': 'the URL the link command was given',
-			'src/lib/tree-operations/table-grid-clipboard.ts':
-				'spreadsheet clipboard text, whose padding a grid paste drops; the Markdown rows split through core/parsers/table.ts'
+			'src/lib/plugins/latex/BlockMath.svelte':
+				'whether the render shows ink, not whether the Markdown is blank',
+			'src/lib/plugins/mermaid/MermaidBlock.svelte':
+				'whether the render shows ink, not whether the Markdown is blank'
 		},
 		reason:
 			'`trim()` also drops a non-breaking space, which GFM (§2.1) counts as content: test document text with `isBlankText` (core/lines.ts), or allow a string that is no document text here, with why',
@@ -602,21 +604,25 @@ const RULES: FileRule[] = [
 		]
 	},
 	{
-		id: 'G4.72 the Markdown grammar reads GFM whitespace, not JS \\s',
+		id: 'G4.72 the Markdown grammar reads GFM whitespace, not JS \\s or trim()',
 		population: (file) =>
 			under('src/lib/core/parsers/')(file) || GRAMMAR_FILES.includes(file.relPath),
-		matches: /\\[sS]/,
+		matches: /\\[sS]|\.trim(?:Start|End)?\(/,
 		reaches: GRAMMAR_FILES,
 		reason:
-			'JS `\\s` admits a non-breaking space, and GFM (§2.1) never does: a rule wanting spaces or tabs says `[ \\t]`, one wanting whitespace reads `WHITESPACE_CLASS` or `isWhitespaceChar` (core/lines.ts)',
+			'JS `\\s` and `trim()` admit a non-breaking space, and GFM (§2.1) never does: a rule wanting spaces or tabs says `[ \\t]`, one wanting whitespace reads `WHITESPACE_CLASS`, `isWhitespaceChar` or `trimWhitespace` (core/lines.ts)',
 		hits: [
 			at(PARSER_PROBE, 'const m = text.match(/^#(?:\\s|$)/);'),
 			at(PARSER_PROBE, 'new RegExp(`^x\\\\s*$`);'),
+			at(PARSER_PROBE, 'const trimmed = text.trim();'),
+			at(PARSER_PROBE, 'const head = text.trimStart();'),
+			at(PARSER_PROBE, 'const tail = text.trimEnd();'),
 			at('src/lib/core/inline/scan/autolinks.ts', 'const m = s.match(/^(\\S+)/);')
 		],
 		misses: [
 			at(PARSER_PROBE, 'const m = text.match(/^#(?:[ \\t]|$)/);'),
 			at(PARSER_PROBE, 'isWhitespaceChar(ch); // JS \\s is too wide'),
+			at(PARSER_PROBE, 'const info = trimWhitespace(raw);'),
 			at('src/lib/core/inline/scan/emphasis.ts', 'return /\\s/.test(ch);')
 		]
 	}

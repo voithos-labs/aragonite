@@ -7,7 +7,6 @@
 	import {
 		createContainerBlock,
 		getPluginMetadata,
-		isBlankText,
 		trimTrailingLineEnding,
 		normalizeLineEndings,
 		type NodeView
@@ -56,7 +55,7 @@
 
 	// An empty diagram has no picture to draw and mermaid rejects it, so it opens straight into
 	// the textarea; reading mode, which writes no bytes, gets a placeholder instead.
-	const isEmpty = $derived(isBlankText(displayCode));
+	const isEmpty = $derived(displayCode.trim() === '');
 	const isReading = $derived(getPresentationMode() === 'reading');
 
 	// ── Rendering ───────────────────────────────────────────────────────────────

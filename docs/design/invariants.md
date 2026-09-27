@@ -883,7 +883,7 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.69 | Only entry points, kits and editor-free code read with the default grammar       | L       |
 | G4.70 | A decoration can't set a data attribute the editor uses on a block's own element | L       |
 | G4.71 | An emptiness test on text reads GFM's blank, not `String.trim()`                 | L       |
-| G4.72 | The Markdown grammar reads GFM's whitespace, not JS `\s`                         | L       |
+| G4.72 | The Markdown grammar reads GFM's whitespace, not JS `\s` or `trim()`             | L       |
 
 ### The entries
 
@@ -1509,21 +1509,24 @@ them. `src/lib/decorations/reserved-attrs.ts :: RESERVED_BLOCK_ATTRS` has to mat
 exactly, so a name the editor only uses inside a block (a menu row's `data-active`) stays free for
 decorations. `lint/reserved-block-attrs.test.ts`.
 
-**G4.71 · Blank means spaces and tabs.** GFM (§2.1) calls a line blank when it holds only spaces
+**G4.71 · Blank means spaces and tabs.** GFM (§ 2.1) calls a line blank when it holds only spaces
 and tabs, so a block holding a non-breaking space isn't empty. `String.trim()` disagrees, since it
 drops every Unicode space, and a rule that fires on an empty block (Enter leaving a list or a
 quote, a paste replacing its target) then deletes a character somebody typed. Text a document holds
 is tested with `src/lib/core/lines.ts :: isBlankText`. The scan fails on `trim()` used as an
-emptiness test anywhere else, and its allowlist is the strings no document holds (a URL typed into
-the link card, an accessible label, spreadsheet clipboard text). `lint/file-rules.test.ts`.
+emptiness test anywhere else. Its allowlist is the strings no document holds (a URL typed into
+the link card, an accessible label), plus the math and mermaid blocks, which ask whether their
+render draws anything. A non-breaking space draws nothing, so there `trim()` is the right
+question. `lint/file-rules.test.ts`.
 
 **G4.72 · The grammar's whitespace is GFM's.** Where a rule wants spaces or tabs (after a list
 marker, around a rule's markers, under a setext title), it says `[ \t]`. Where the spec says
 whitespace (an autolink's boundary, a tag's attributes, label matching, the info string's trim)
-it means the ASCII set of §2.1, which `src/lib/core/lines.ts :: isWhitespaceChar` reads. JS `\s`
-admits a non-breaking space either way, so the scan fails on it in `core/parsers/` and the other
-grammar files. Emphasis is the one exception, and it lives outside the scan: its flanking rule is
-written over Unicode whitespace on purpose. `lint/file-rules.test.ts`.
+it means the ASCII set of § 2.1, which `src/lib/core/lines.ts :: isWhitespaceChar` reads. JS `\s`
+and `trim()` admit a non-breaking space either way, so the scan fails on either in `core/parsers/`
+and the other grammar files. Emphasis and the code that edits it stay outside the scan, since
+the flanking rule is written over Unicode whitespace. Plugin grammars (`core/directive/`) follow
+#509. `lint/file-rules.test.ts`.
 
 ## Accessibility
 

@@ -6,11 +6,12 @@
  */
 
 import type { NodeView } from '../core/node-views';
+import { isBlankText, trimWhitespace } from '../core/lines';
 
 /** Rows of cell texts, rectangular: every row padded to the widest. Null for a non-grid payload. */
 export function parseClipboardGrid(text: string): string[][] | null {
 	const lines = text.replace(/\r\n?/g, '\n').split('\n');
-	while (lines.length && lines[lines.length - 1].trim() === '') lines.pop();
+	while (lines.length && isBlankText(lines[lines.length - 1])) lines.pop();
 	if (lines.length === 0) return null;
 	const rows = parseGfmRows(lines) ?? parseTsvRows(lines);
 	if (!rows || rows.length === 0) return null;
@@ -20,16 +21,17 @@ export function parseClipboardGrid(text: string): string[][] | null {
 	return rows.map((row) => [...row, ...Array<string>(width - row.length).fill('')]);
 }
 
-// Every line a pipe row; the delimiter line (second, all dashes and colons) is dropped.
+// Every line a pipe row; the delimiter line (second, all dashes and colons) is dropped. Cells
+// trim GFM whitespace only, as the table parser does, so a non-breaking space at an edge stays.
 function parseGfmRows(lines: string[]): string[][] | null {
-	if (!lines.every((line) => /^\s*\|.*\|\s*$/.test(line))) return null;
+	if (!lines.every((line) => /^\|.*\|$/.test(trimWhitespace(line)))) return null;
 	const rows = lines.map(splitPipeRow);
 	if (rows.length >= 2 && rows[1].every((cell) => /^:?-+:?$/.test(cell))) rows.splice(1, 1);
 	return rows;
 }
 
 function splitPipeRow(line: string): string[] {
-	const inner = line.trim().slice(1, -1);
+	const inner = trimWhitespace(line).slice(1, -1);
 	const cells: string[] = [];
 	let cell = '';
 	for (let i = 0; i < inner.length; i++) {
@@ -38,11 +40,11 @@ function splitPipeRow(line: string): string[] {
 			cell += '|';
 			i++;
 		} else if (ch === '|') {
-			cells.push(cell.trim());
+			cells.push(trimWhitespace(cell));
 			cell = '';
 		} else cell += ch;
 	}
-	cells.push(cell.trim());
+	cells.push(trimWhitespace(cell));
 	return cells;
 }
 

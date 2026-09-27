@@ -1,7 +1,7 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
-const NBSP = ' ';
+const NBSP = '\u00a0';
 
 test.describe('a non-breaking space is content', () => {
 	let editor: EditorPage;

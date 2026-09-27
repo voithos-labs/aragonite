@@ -7,7 +7,7 @@
 <script lang="ts">
 	// A render-primary editable block: all editing behavior lives in `createEditableLeaf`, so
 	// this component owns only how the render and the source are laid out.
-	import { createEditableLeaf, isBlankText, type BlockComponent, type NodeView } from '$lib/plugin';
+	import { createEditableLeaf, type BlockComponent, type NodeView } from '$lib/plugin';
 	// The layout toggle cycles through these, and its label names the layout it switches to.
 	type MathLayout = MathBlockLayout;
 	const LAYOUT_NEXT: Record<MathLayout, MathLayout> = {
@@ -100,7 +100,7 @@
 		renderEl.dataset.bodyEnd = String(body.end);
 		// An empty equation renders nothing, which would leave an invisible block the user cannot
 		// find to delete; it keeps the card's fill instead, like an empty code fence.
-		renderEl.toggleAttribute('data-empty', isBlankText(source));
+		renderEl.toggleAttribute('data-empty', source.trim() === '');
 		renderCount += 1;
 		renderEl.dataset.renderCount = String(renderCount);
 	});

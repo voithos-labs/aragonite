@@ -5,7 +5,7 @@
  */
 
 import { escalateTerminatorRun } from '../terminator-escalation';
-import { splitLines, trimWhitespace, WHITESPACE_RUN } from '../lines';
+import { OPTIONAL_LINE_ENDING, splitLines, trimWhitespace, WHITESPACE_RUN } from '../lines';
 
 /**
  * The fence-open shape, re-exported on `@voithos-labs/aragonite/plugin` for fence-claiming openers:
@@ -37,8 +37,8 @@ export function matchFenceOpen(text: string): FenceOpen | null {
 }
 
 // GFM §4.5: only spaces or tabs follow a closer. The line ending is for a caller that passes one.
-const BACKTICK_CLOSE = /^ {0,3}(`{3,})[ \t]*(?:\r\n?|\n)?$/;
-const TILDE_CLOSE = /^ {0,3}(~{3,})[ \t]*(?:\r\n?|\n)?$/;
+const BACKTICK_CLOSE = new RegExp(`^ {0,3}(\`{3,})[ \\t]*${OPTIONAL_LINE_ENDING}$`);
+const TILDE_CLOSE = new RegExp(`^ {0,3}(~{3,})[ \\t]*${OPTIONAL_LINE_ENDING}$`);
 
 export function matchFenceClose(text: string, marker: '`' | '~', minLength: number): boolean {
 	const pattern = marker === '`' ? BACKTICK_CLOSE : TILDE_CLOSE;

@@ -5,13 +5,13 @@
  * keeping a copy that could drift.
  */
 
-import { WHITESPACE_CLASS } from '../lines';
+import { WHITESPACE_CHARS, WHITESPACE_CLASS } from '../lines';
 
 export type HtmlFormKind = 'openTag' | 'closeTag' | 'comment' | 'pi' | 'declaration' | 'cdata';
 
 // `W` is GFM whitespace (§2.1), so a non-breaking space inside a tag makes it no tag.
 const W = WHITESPACE_CLASS;
-const UNQUOTED_VALUE = `[^ \\t\\n\\v\\f\\r"'=<>\`]+`;
+const UNQUOTED_VALUE = `[^${WHITESPACE_CHARS}"'=<>\`]+`;
 const OPEN_TAG = new RegExp(
 	`<[A-Za-z][A-Za-z0-9-]*(?:${W}+[a-zA-Z_:][a-zA-Z0-9_.:-]*(?:${W}*=${W}*(?:${UNQUOTED_VALUE}|"[^"]*"|'[^']*'))?)*${W}*\\/?>`
 );
