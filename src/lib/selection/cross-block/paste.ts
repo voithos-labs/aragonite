@@ -18,7 +18,6 @@ import { pasteDispatch } from '../../tree-operations/paste/dispatch';
 import { applyPasteTransforms } from '../../tree-operations/paste/paste-transforms';
 import { blockNodeAt, nodeAt } from '../../tree-operations/node-primitives';
 import { pathsEqual } from '../path-math';
-import { replaceBlockAtParent } from '../../tree-operations/paste/replace-block-at-parent';
 import { parseReplacement } from '../../tree-operations/paste/replacement-parse';
 import { emitClipboardError } from '../../editor-events';
 
@@ -131,7 +130,7 @@ function wholeTablePath(selection: SelectionState, doc: Document): number[] | nu
 	return lo === 0 && hi === cellCount - 1 ? anchor.path.slice() : null;
 }
 
-/** Through `replaceBlockAtParent`, so the splice lands at the enclosing container's scope rather
+/** Through the paste coordinator, so the splice lands at the enclosing container's scope rather
  *  than the row-level `blockEdit` a table row passes down. */
 async function replaceCoveredBlockWithPaste(
 	ctx: CrossBlockDispatchContext,
@@ -156,18 +155,13 @@ async function replaceCoveredBlockWithPaste(
 	// Opened before the collapse, so the entry holds the range rather than the caret it leaves.
 	await rangeUndoStep(mutCtx, async () => {
 		ctx.selection.collapse();
-		await replaceBlockAtParent({
-			doc,
+		await ctx.pasteCoordinator.replaceBlock(
 			blockPath,
-			replacement: parsed.replacement,
-			controller: ctx.pasteCoordinator,
-			focusReplacementIndex: parsed.replacement.length - 1,
-			focusOffset: CURSOR_END,
-			source: 'cross-block-covered-block',
-			grammar: ctx.reading.grammar,
+			parsed.replacement,
+			{ replacementIndex: parsed.replacement.length - 1, offset: CURSOR_END },
 			// The block's whole position is the target, with nothing reattached after the pasted
 			// text, so the trailing blank line comes in unfiltered.
-			trailingSeparator: parsed.suffix
-		});
+			{ source: 'cross-block-covered-block', trailingBlank: parsed.suffix !== '' }
+		);
 	});
 }

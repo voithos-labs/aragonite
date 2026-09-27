@@ -4,7 +4,6 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { spliceChildrenSettled } from '$lib/tree-operations/settle';
-import { replaceBlockAtParent } from '$lib/tree-operations/paste/replace-block-at-parent';
 import { createPasteCoordinator } from '$lib/editor-actions/paste-coordinator';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
@@ -45,16 +44,12 @@ describe('a document-scaled splice', () => {
 		const harness = makeEditorActionsDeps([para('original\n')]);
 		const controller = createPasteCoordinator(harness.deps, createUndoController(harness.deps));
 
-		await replaceBlockAtParent({
-			grammar: defaultGrammarView,
-			doc: harness.doc,
-			blockPath: [0],
-			replacement: clipboard(),
-			controller,
-			focusReplacementIndex: 0,
-			focusOffset: 0,
-			source: 'paste-dispatch'
-		});
+		await controller.replaceBlock(
+			[0],
+			clipboard(),
+			{ replacementIndex: 0, offset: 0 },
+			{ source: 'paste-dispatch' }
+		);
 
 		expect(harness.doc.children).toHaveLength(OVER_LIMIT);
 		expect(harness.getBlockIds()).toHaveLength(OVER_LIMIT);

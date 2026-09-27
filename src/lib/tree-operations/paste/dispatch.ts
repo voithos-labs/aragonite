@@ -184,8 +184,7 @@ export async function pasteDispatch(
 			doc: ctx.doc,
 			targetPath: input.targetPath,
 			blocks: blocks.slice(),
-			controller: ctx.controller,
-			grammar: reading.grammar
+			controller: ctx.controller
 		});
 		return {};
 	}

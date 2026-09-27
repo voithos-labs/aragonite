@@ -12,7 +12,6 @@ import { performCrossBlockDelete, rangeUndoStep } from './ops';
 import { charOffsetOf } from '../primitives';
 import { blockCoveredWhole } from '../covered-block';
 import { CURSOR_END } from '../../block-component';
-import { replaceBlockAtParent } from '../../tree-operations/paste/replace-block-at-parent';
 import { parseReplacement } from '../../tree-operations/paste/replacement-parse';
 import { blockNodeAt } from '../../tree-operations/node-primitives';
 import { focusCollapsedCaret } from '../native-bridge';
@@ -94,15 +93,11 @@ async function replaceCoveredBlockWithText(
 	// Opened before the collapse, so the entry holds the range rather than the caret it leaves.
 	await rangeUndoStep(mutCtx, async () => {
 		ctx.selection.collapse();
-		await replaceBlockAtParent({
-			doc,
+		await ctx.pasteCoordinator.replaceBlock(
 			blockPath,
-			replacement: parsed.replacement,
-			controller: ctx.pasteCoordinator,
-			focusReplacementIndex: parsed.replacement.length - 1,
-			focusOffset: CURSOR_END,
-			source: 'cross-block-covered-block',
-			grammar: ctx.reading.grammar
-		});
+			parsed.replacement,
+			{ replacementIndex: parsed.replacement.length - 1, offset: CURSOR_END },
+			{ source: 'cross-block-covered-block' }
+		);
 	});
 }

@@ -1,7 +1,7 @@
 /**
- * The commit scope a paste addresses when it replaces or splices a block: the block's parent
- * container, resolved from the path rather than from whatever `blockEdit` is in scope, since a
- * caller holding a nested bundle's `blockEdit` would go through the wrong container.
+ * The commit scope a paste addresses when it splices at a block's parent container, resolved from
+ * the path rather than from whatever `blockEdit` is in scope, since a caller holding a nested
+ * bundle's `blockEdit` would go through the wrong container.
  */
 
 import type { CstNode, Document } from '../../core/nodes';

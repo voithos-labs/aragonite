@@ -11,7 +11,7 @@ import type { TrackedPosition } from './tree-operations/settle';
 import type { SharingState } from './tree-operations/sharing';
 import type { BodyParent } from './tree-operations/node-primitives';
 import type { BlockComponent, FocusPosition } from './block-component';
-import type { ScopedOpDescriptor } from './schema/operations';
+import type { OperationDetailMap, ScopedOpDescriptor } from './schema/operations';
 import type { WriteMode } from './schema/block-kind-descriptor';
 import type { DocPath } from './selection/path-math';
 import type { CaretPosition } from './selection/primitives';
@@ -293,6 +293,30 @@ export interface LeafTextOptions {
 	/** Runs after the tick, before a collapsed ancestor places the caret itself. */
 	afterTick?: (landed: LeafWriteLanded) => void | Promise<void>;
 }
+
+// ── Replace ─────────────────────────────────────────────────────────────────
+
+/** Which replacement block the caret lands in, at `offset` (`CURSOR_END` for its end) or at
+ *  `path` below it. */
+export interface ReplaceFocus {
+	replacementIndex: number;
+	offset: number;
+	path?: number[];
+}
+
+export interface ReplaceOptions {
+	/** Where undo puts the caret back, when it differs from where the replacement lands it. */
+	snapshotOffset?: number;
+	/** A clipboard's own trailing blank line, landed as the document's when nothing follows. */
+	trailingBlank?: boolean;
+	/** The route a paste or a drop names in the edit event, in place of the block count. */
+	source?: ReplaceSource;
+}
+
+export type ReplaceSource = Extract<
+	OperationDetailMap['replaceBlock'],
+	{ source: unknown }
+>['source'];
 
 // ── List context ───────────────────────────────────────────────────────────
 

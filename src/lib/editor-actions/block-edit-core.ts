@@ -9,7 +9,7 @@ import { CURSOR_END, CURSOR_EXACT_START, CURSOR_START } from '../block-component
 import type { CstNode } from '../core/nodes';
 import { displayLength, documentLineEnding } from '../core/lines';
 import type { BodyParent } from '../tree-operations/node-primitives';
-import type { OpDescriptor, OperationDetailMap } from '../schema/operations';
+import type { OpDescriptor } from '../schema/operations';
 import { normalizeReplacementForBody } from '../tree-operations/paste/body-write';
 import { landedPastePosition, trackedPasteCaret } from '../tree-operations/paste/focus-target';
 import {
@@ -43,7 +43,10 @@ import type {
 	CommitAfterTick,
 	LeafTextOptions,
 	LeafWriteLanded,
-	LeafWriteResult
+	LeafWriteResult,
+	ReplaceFocus,
+	ReplaceOptions,
+	ReplaceSource
 } from '../action-contracts';
 import {
 	legalizeWrite,
@@ -232,28 +235,6 @@ export interface BlockEditCore {
 		options?: ReplaceOptions
 	): Promise<number | null>;
 }
-
-/** Which replacement block the caret lands in, at `offset` (`CURSOR_END` for its end) or at
- *  `path` below it. */
-export interface ReplaceFocus {
-	replacementIndex: number;
-	offset: number;
-	path?: number[];
-}
-
-export interface ReplaceOptions {
-	/** Where undo puts the caret back, when it differs from where the replacement lands it. */
-	snapshotOffset?: number;
-	/** A clipboard's own trailing blank line, landed as the document's when nothing follows. */
-	trailingBlank?: boolean;
-	/** The route a paste or a drop names in the edit event, in place of the block count. */
-	source?: ReplaceSource;
-}
-
-export type ReplaceSource = Extract<
-	OperationDetailMap['replaceBlock'],
-	{ source: unknown }
->['source'];
 
 /** The edit event a replace names: a paste route's source, else how many blocks landed. A
  *  container reports an empty replace as the delete it is. */

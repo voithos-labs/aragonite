@@ -176,30 +176,20 @@ describe('pasteDispatch: strategy routing end-to-end', () => {
 
 	// Routing at the doc scope bypasses blockEdit, so a caller passing a nested-bundle
 	// blockEdit cannot misroute the splice into a child container.
-	it('structural strategy: multi-block clipboard routes through controller.commitMultiScope at doc scope', async () => {
+	it('structural strategy: multi-block clipboard replaces the target through the coordinator', async () => {
 		const doc = parse('target\n');
 		const blockEdit = makeStubBlockEdit();
 		const controller = makeStubController();
-		const docScope = {
-			node: doc,
-			state: { innerBlockIds: ['iid-0'], innerBlockRefs: [undefined] }
-		};
-		(controller.getDocScope as ReturnType<typeof vi.fn>).mockReturnValue(docScope);
-		(controller.commitMultiScope as ReturnType<typeof vi.fn>).mockImplementation(({ mutate }) => {
-			mutate([{ children: [...doc.children], node: doc, sharing: createSharingState() }]);
-		});
 
 		await pasteDispatch(
 			{ pastedText: '# heading\n\nbody\n', targetPath: [0], offset: 6 },
 			pasteContext({ doc, blockEdit, controller })
 		);
 
-		expect(controller.commitMultiScope).toHaveBeenCalledOnce();
-		const args = (controller.commitMultiScope as ReturnType<typeof vi.fn>).mock.calls[0][0];
-		expect(args.scopes).toHaveLength(1);
-		expect(args.scopes[0]).toBe(docScope);
-		expect(args.op.kind).toBe('replaceBlock');
-		expect(args.op.eventPath).toEqual([0]);
+		expect(controller.replaceBlock).toHaveBeenCalledOnce();
+		const [path, , , opts] = (controller.replaceBlock as ReturnType<typeof vi.fn>).mock.calls[0];
+		expect(path).toEqual([0]);
+		expect(opts.source).toBe('paste-dispatch');
 
 		expect(blockEdit.replaceBlock).not.toHaveBeenCalled();
 		expect(blockEdit.updateBlockContent).not.toHaveBeenCalled();

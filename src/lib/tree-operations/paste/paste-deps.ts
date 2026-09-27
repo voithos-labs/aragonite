@@ -8,7 +8,9 @@ import type {
 	CommitMultiScopeArgs,
 	LeafTextOptions,
 	LeafWriteResult,
-	MultiScopeTarget
+	MultiScopeTarget,
+	ReplaceFocus,
+	ReplaceSource
 } from '../../action-contracts';
 import type { CstNode } from '../../core/nodes';
 
@@ -27,4 +29,12 @@ export interface PasteCommitCoordinator {
 	/** Write `text` into the leaf at `leafPath` as one commit at its parent list, through the write
 	 *  every keystroke takes. */
 	commitLeafText(leafPath: number[], text: string, opts: LeafTextOptions): Promise<LeafWriteResult>;
+	/** Replace the block at `blockPath` as one commit at its parent list, through the replace every
+	 *  level takes. Resolves to how many blocks landed, or null when nothing was written. */
+	replaceBlock(
+		blockPath: number[],
+		replacement: CstNode[],
+		focus: ReplaceFocus,
+		opts: { source: ReplaceSource; trailingBlank?: boolean }
+	): Promise<number | null>;
 }

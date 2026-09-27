@@ -4,7 +4,6 @@ import { leafAtRawOffset } from '../container-offsets';
 import { blockNodeAt } from '../node-primitives';
 import type { InlinePasteResult, StructuralPasteResult } from '../paste-surfaces';
 import type { PasteDispatchContext, InlineCaretLanding } from './dispatch';
-import { replaceBlockAtParent } from './replace-block-at-parent';
 
 /**
  * Apply an inline paste, reporting where the caret lands in the stored bytes. A cross-block paste
@@ -61,15 +60,10 @@ export async function applyStructuralResult(
 	ctx: PasteDispatchContext,
 	trailingSeparator = ''
 ): Promise<void> {
-	await replaceBlockAtParent({
-		doc: ctx.doc,
-		blockPath: targetPath,
-		replacement: result.replacement,
-		controller: ctx.controller,
-		focusReplacementIndex: result.focusReplacementIndex,
-		focusOffset: result.focusOffset,
-		source: 'paste-dispatch',
-		trailingSeparator,
-		grammar: ctx.reading.grammar
-	});
+	await ctx.controller.replaceBlock(
+		targetPath,
+		result.replacement,
+		{ replacementIndex: result.focusReplacementIndex, offset: result.focusOffset },
+		{ source: 'paste-dispatch', trailingBlank: trailingSeparator !== '' }
+	);
 }

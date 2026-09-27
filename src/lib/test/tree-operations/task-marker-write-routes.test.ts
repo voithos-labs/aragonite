@@ -6,7 +6,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse, serialize, type CstNode, type ListItemMetadata } from '$lib';
 import { updateNodeContent } from '$lib/tree-operations/content-write';
-import { replaceBlockAtParent } from '$lib/tree-operations/paste/replace-block-at-parent';
 import { createBlockEditCore } from '$lib/editor-actions/block-edit-core';
 import { resetPluginPlatformForTests } from '$lib/testing';
 import {
@@ -85,16 +84,12 @@ describe('every write that can replace a to-do’s first block drops the marker 
 		const { doc, controller } = makePasteCommit('- [ ] alpha\n');
 		registerStubBlockListState(doc.children[0].children![0]);
 
-		await replaceBlockAtParent({
-			grammar: defaultGrammarView,
-			doc,
-			blockPath: [0, 0, 0],
-			replacement: parse(TABLE).children,
-			controller,
-			focusReplacementIndex: 0,
-			focusOffset: 0,
-			source: 'paste-dispatch'
-		});
+		await controller.replaceBlock(
+			[0, 0, 0],
+			parse(TABLE).children,
+			{ replacementIndex: 0, offset: 0 },
+			{ source: 'paste-dispatch' }
+		);
 
 		const item = doc.children[0].children![0];
 		expect(item.children![0].kind).toBe('table');

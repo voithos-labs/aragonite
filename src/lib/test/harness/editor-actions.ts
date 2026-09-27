@@ -246,6 +246,8 @@ export function makeStubController(): UndoController & PasteCommitCoordinator {
 		commitMultiScope: vi.fn(),
 		getDocScope: vi.fn(),
 		captureCurrentState: vi.fn(),
+		commitLeafText: vi.fn(async () => ({ wrote: false })),
+		replaceBlock: vi.fn(async () => null),
 		resolveState: getStateForNode,
 		expectState: expectStateForNode,
 		focusByPath: vi.fn()

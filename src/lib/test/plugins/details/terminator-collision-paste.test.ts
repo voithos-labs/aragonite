@@ -6,7 +6,6 @@ import { checkOpaqueStaleRaw } from '$lib/invariants/node-shape';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createPasteCoordinator } from '$lib/editor-actions/paste-coordinator';
 import { pasteDispatch } from '$lib/tree-operations/paste/dispatch';
-import { replaceBlockAtParent } from '$lib/tree-operations/paste/replace-block-at-parent';
 import { registerBlockListState } from '$lib/reactivity/state-registry';
 import { registerDetailsKind } from '$lib/plugins/details/details-kind';
 import {
@@ -108,16 +107,12 @@ describe('details terminator escape at the paste door', () => {
 	it('the splice sink escapes an htmlBlock terminator and re-derives its kind', async () => {
 		const h = mountDoc(OPEN_DETAILS);
 
-		await replaceBlockAtParent({
-			grammar: defaultGrammarView,
-			doc: h.doc,
-			blockPath: [0, 1],
-			replacement: [{ kind: 'htmlBlock', leadingTrivia: '', raw: '</details>\n' } as CstNode],
-			controller: h.controller,
-			focusReplacementIndex: 0,
-			focusOffset: 0,
-			source: 'paste-dispatch'
-		});
+		await h.controller.replaceBlock(
+			[0, 1],
+			[{ kind: 'htmlBlock', leadingTrivia: '', raw: '</details>\n' } as CstNode],
+			{ replacementIndex: 0, offset: 0 },
+			{ source: 'paste-dispatch' }
+		);
 
 		const child = h.doc.children[0].children?.[1];
 		expect(child?.raw).toBe('&lt;/details>\n');

@@ -11,7 +11,6 @@ import { sliceTableAtRow } from '../../../tree-operations/paste/table-slice';
 import { focusIndexBeforeResidue } from '../../../tree-operations/paste/focus-target';
 import { landClipboardBlocks, landedAfter } from '../../../tree-operations/paste/paste-replacement';
 import { documentLineEnding, trimWhitespace } from '../../../core/lines';
-import { replaceBlockAtParent } from '../../../tree-operations/paste/replace-block-at-parent';
 import type {
 	InlinePasteResult,
 	PasteRange,
@@ -60,7 +59,7 @@ export const tableCellPasteSurface: PasteSurface = {
 // ── Internal ───────────────────────────────────────────────────────────────
 
 // The cell's blockEdit is the row-level nested bundle (its `replaceBlock` targets the
-// row's cells), so the splice routes through `replaceBlockAtParent` at the table's parent.
+// row's cells), so the splice goes through the paste coordinator at the table's parent.
 async function tableCellScopedStructuralPaste(input: ScopedStructuralPasteInput): Promise<void> {
 	const tablePath = input.targetPath.slice(0, -2);
 	const rowIdx = input.targetPath[input.targetPath.length - 2];
@@ -80,15 +79,14 @@ async function tableCellScopedStructuralPaste(input: ScopedStructuralPasteInput)
 	// The rows below the cell stay a table: with no blank line, the last block would read them.
 	if (secondHalf) replacement.push(last ? landedAfter(last, secondHalf, lineEnding) : secondHalf);
 
-	await replaceBlockAtParent({
-		doc: input.doc,
-		blockPath: tablePath,
+	await input.controller.replaceBlock(
+		tablePath,
 		replacement,
-		controller: input.controller,
 		// The last pasted block, before the second half of the table.
-		focusReplacementIndex: focusIndexBeforeResidue(replacement.length, secondHalf !== null),
-		focusOffset: CURSOR_END,
-		source: 'paste-dispatch-table-cell',
-		grammar: input.grammar
-	});
+		{
+			replacementIndex: focusIndexBeforeResidue(replacement.length, secondHalf !== null),
+			offset: CURSOR_END
+		},
+		{ source: 'paste-dispatch-table-cell' }
+	);
 }

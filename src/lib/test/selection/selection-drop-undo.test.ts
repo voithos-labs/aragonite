@@ -24,10 +24,8 @@ function makeDrop(declined = 0) {
 	let calls = 0;
 	const coordinator: PasteCommitCoordinator = {
 		...real,
-		commitMultiScope: ((args) =>
-			calls++ < declined
-				? Promise.resolve(false)
-				: real.commitMultiScope(args)) as PasteCommitCoordinator['commitMultiScope']
+		replaceBlock: (...args) =>
+			calls++ < declined ? Promise.resolve(null) : real.replaceBlock(...args)
 	};
 	const deps: SelectionDropDeps = {
 		editorRoot: document.createElement('div'),
