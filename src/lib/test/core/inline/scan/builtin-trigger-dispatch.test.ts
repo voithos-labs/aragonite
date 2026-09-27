@@ -36,9 +36,18 @@ function handlerRunOn(char: string): unknown {
 }
 
 describe('built-in trigger dispatch', () => {
+	// The fast bail's lookup array covers ASCII only, so a longer or wider key would never scan.
+	it('keys every trigger by one ASCII character', () => {
+		const misfits = [...BUILTIN_TRIGGERS.keys()].filter(
+			(char) => char.length !== 1 || char.charCodeAt(0) >= 128
+		);
+		expect(misfits).toEqual([]);
+	});
+
 	it('runs the table row handler for each trigger and none for any other character', () => {
-		const chars = [...Array.from({ length: 128 }, (_, code) => String.fromCharCode(code)), 'é'];
-		const drift = chars.filter(
+		const ascii = Array.from({ length: 128 }, (_, code) => String.fromCharCode(code));
+		const chars = new Set([...ascii, 'é', ...BUILTIN_TRIGGERS.keys()]);
+		const drift = [...chars].filter(
 			(char) => handlerRunOn(char) !== BUILTIN_TRIGGERS.get(char)?.handler
 		);
 		expect(drift.map((char) => JSON.stringify(char))).toEqual([]);

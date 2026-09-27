@@ -75,9 +75,8 @@ numbers and their difference.
   the growth attributable to the document rather than to the widgets reading it.
 - plain prose under an installed handler on an unreserved character (`?seed=emoji`): ordinary
   prose with no trigger in it at all. `needsScan`, the check that lets plain prose skip the inline
-  scan, doesn't normally look for `:`, so registering emoji turns on its per-character check for
-  the whole document, the cost of giving up that
-  the standing ceilings are blindest to. That the handler is installed is shown by a `:tada:`
+  scan, only looks at a `:` when `//` follows, so registering emoji turns on its per-character
+  check for the whole document, the cost the standing ceilings are blindest to. That the handler is installed is shown by a `:tada:`
   document loaded before the fixture, since plain prose creates no widget.
 
 **Confound, recorded because no route here is a clean control:** `/test/plugins`

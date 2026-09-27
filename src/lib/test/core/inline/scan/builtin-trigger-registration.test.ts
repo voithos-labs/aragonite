@@ -58,7 +58,7 @@ describe('built-in inline triggers, as a plugin sees them', () => {
 		expect(refused).toEqual([']']);
 	});
 
-	it('makes the fast bail check a registered trigger only where it would skip it', () => {
+	it('turns the probe on for every unreserved trigger and `!`', () => {
 		const unreserved = CANDIDATES.filter((char) => !isReservedInlineTrigger(char));
 		expect(charsWhere(probesOnceRegistered)).toEqual([...unreserved, '!'].sort());
 	});

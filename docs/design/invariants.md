@@ -1012,13 +1012,16 @@ collects runs nowhere; G4.23 catches that one, since every spec must list a test
 
 **G4.18 · Inline-trigger parity.** The characters the inline scanner handles itself live in one
 table, `core/inline/scan/triggers.ts :: BUILTIN_TRIGGERS`: each row is a handler plus when the fast
-bail (the check that lets plain prose skip the scan loop) looks for it. The fast bail and the
-plugin registry's reserved triggers read that table, so a new built-in trigger is one row, and a
-trigger with no route or two routes can't be written down anymore. The scan loop still dispatches
-through a `switch` with direct calls, since a lookup in the table measured slower, so a unit test
-runs every character through the scan and checks that the switch runs exactly the row's handler
-(`test/core/inline/scan/builtin-trigger-dispatch.test.ts`). A source scan pins the pre-switch
-prefix consultation to one site ahead of the switch, so no single case grows its own copy.
+bail (the check that lets plain prose skip the scan loop) looks for it: always, only while a
+plugin handler is registered on it, or never. The fast bail and the plugin registry's reserved
+triggers read that table, so a new built-in trigger is one row there plus one case in the switch,
+and each row carries exactly one of those three settings.
+
+The scan loop dispatches through a `switch` with direct calls, because a table lookup measured
+slower. A unit test runs every ASCII character, plus every key of the table, through the scan and
+checks the switch runs exactly the row's handler
+(`test/core/inline/scan/builtin-trigger-dispatch.test.ts`). A source scan pins the check that runs
+plugin prefix handlers before the switch to one site, so no single case grows its own copy.
 `lint/inline-prefix-consultation.test.ts`.
 
 **G4.19 · Retired upward.** The rule was: every command dispatch site passes the reading-mode

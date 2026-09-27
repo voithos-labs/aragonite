@@ -58,7 +58,7 @@ describe('needsScan probes a registered "w" trigger', () => {
 	});
 });
 
-// `!` is reserved yet held out of SPECIAL_CHARS, so its prefix handlers need the same probe.
+// `!` is reserved, yet the fast bail skips it by default, so its prefix handlers need the same probe.
 // `!{k=v}` carries no `[`, so only the probe can save it from the fast bail.
 describe('needsScan probes a registered "!" prefix inline syntax handler', () => {
 	it('empty registry: "!{k=v}" stays one byte-identical text node', () => {

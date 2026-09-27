@@ -97,7 +97,7 @@ const unreservedRegistry = new Map<string, InlineRung[]>();
 const autoPairTriggers = new Map<string, Set<string | null>>();
 
 // Triggers the fast bail (`needsScan`, scan/index.ts) must check while a handler is registered
-// on them, so a handler on a trigger the fast bail always checks costs nothing.
+// on them, so a handler on a reserved trigger the fast bail always checks costs nothing.
 const scanProbeTriggers = new Set<string>();
 
 // ── Registration ───────────────────────────────────────────────────────────────
