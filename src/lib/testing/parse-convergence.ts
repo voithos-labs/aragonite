@@ -10,9 +10,8 @@ import { parse } from '../core/parser';
 import { serialize } from '../core/serializer';
 import { show } from './conformance-core';
 
-// Typed against BlockMetadataByKind so a renamed or removed field is a compile error; a field
-// that is added still has to be listed here by hand. Fields the editor adds (childIds,
-// ownerEpoch) do not come from the parser, so a reparse never produces them.
+// Typed against BlockMetadataByKind so a renamed or removed field fails to compile, though an
+// added one is listed by hand; editor-added fields (childIds, ownerEpoch) never come from a parse.
 const METADATA_FIELDS: {
 	[K in keyof BlockMetadataByKind]?: readonly (keyof BlockMetadataByKind[K])[];
 } = {

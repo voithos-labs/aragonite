@@ -10,11 +10,8 @@ import katex from 'katex';
 import 'katex/dist/katex.min.css';
 import type { MathRenderer } from './math-renderer';
 
-/**
- * `throwOnError: false` keeps a malformed formula from crashing the editor. KaTeX's own fallback
- * is replaced with the source painted as an error: red, in the code font, the parser's message
- * on hover, so a broken formula reads as what the author typed, not as a sentence about it.
- */
+/** `throwOnError: false` keeps a malformed formula from crashing the editor; the fallback paints
+ *  the typed source as an error (red, code font, the parser's message on hover). */
 export const katexRenderer: MathRenderer = (source, { display }) => {
 	const container = document.createElement('span');
 	container.innerHTML = katex.renderToString(source, {

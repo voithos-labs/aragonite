@@ -56,11 +56,8 @@ const canonicalTagLine = (text: string): TagVerdict =>
  *  and therefore of what closes the element in a browser. */
 const passthroughTagLine = htmlBlockTagLineMatcher('details');
 
-/**
- * Each tag line in `[from, end)` with its verdict, in order, until `visit` returns true. A
- * `</details>` inside a fenced code block is content on both sides of the round trip, so a
- * fence's lines are skipped whole, to its closer or to `end` when nothing closes it.
- */
+/** Each tag line in `[from, end)` with its verdict, in order, until `visit` returns true; a fenced
+ *  code block's lines are skipped whole, since a `</details>` inside one is content. */
 function visitTagLines(
 	lines: readonly { text: string }[],
 	from: number,
@@ -95,11 +92,8 @@ function unpairedTagLines(
 	return [...unpaired, ...openIndices];
 }
 
-/**
- * Two passes, because this recognizer and a browser disagree about what counts as a tag line,
- * and only repeating until nothing changes leaves neither of them holding a stray tag. It
- * terminates because every round escapes at least one line and escaping never creates a tag.
- */
+/** Repeats until nothing changes, since this recognizer and a browser disagree on what a tag line
+ *  is; every round escapes a line and escaping never creates a tag, so it ends. */
 function strayTagLines(lines: readonly string[]): Set<number> {
 	const escaped = new Set<number>();
 	for (;;) {

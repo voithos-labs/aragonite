@@ -1,9 +1,8 @@
 /**
- * The container conformance kit (G4.3), published at `@voithos-labs/aragonite/testing`. Register
- * your kind, then point the kit at it with fixtures and a coverage table saying, per invariant,
- * whether it asserts or is excused; a silent skip is not allowed and a thin reason fails the run.
- * The plugin guide's "Conformance-testing a container" says what each cell expects. A cell that
- * asserts drives the real per-kind action path, stopping at the nested-action default and a DOM.
+ * The container conformance kit, published at `@voithos-labs/aragonite/testing`. Register your
+ * kind, then run the kit with fixtures and a coverage table saying, per invariant, whether the cell
+ * asserts or is excused; a thin excuse fails the run. What each cell expects:
+ * `docs/guide/plugin-testing.md` § The container checkup.
  */
 
 import type { ContainerEditActions, FocusActions } from '../action-contracts';
@@ -75,12 +74,8 @@ export interface LocalIndexFixture {
 export interface TerminatorCollisionFixture {
 	source: string;
 	bodyRaw: string;
-	/**
-	 * Required when the fixture node parses with no children (a whole block whose body lives in
-	 * metadata): the kit hands over bytes already run through the kind's `bodyWrite` rule and the
-	 * fixture puts them wherever that container's body lives. The rebuild and the comparison
-	 * against a fresh parse stay the kit's.
-	 */
+	/** Required when the fixture node parses childless (its body lives in metadata): puts the
+	 *  kit's `bodyWrite`-normalized bytes wherever that container keeps its body. */
 	writeBody?: (node: CstNode, body: string) => void;
 }
 
@@ -94,11 +89,8 @@ export interface ContainerConformanceProfile {
 	/** Required when `terminatorCollision` asserts. `bodyRaw` goes through the kind's
 	 *  `bodyWrite` rule, so it names the bytes a user types, not what reaches the tree. */
 	terminatorCollisionFixture?: TerminatorCollisionFixture;
-	/**
-	 * Why no behavioral cell asserts. A profile excusing every one of them tests nothing while
-	 * reporting a reviewed reason per cell, so the all-excused shape is declared once, at the
-	 * profile, rather than assembled cell by cell.
-	 */
+	/** Why no behavioral cell asserts: required when the profile excuses them all, and rejected
+	 *  when any cell asserts. */
 	wholeProfileExemption?: string;
 	localIndex: ConformanceCoverage;
 	ancestry: ConformanceCoverage;
@@ -132,11 +124,8 @@ export interface ContainerConformanceCell {
 	run: (kind: AnyBlockKind, profile: ContainerConformanceProfile) => void | Promise<void>;
 }
 
-/**
- * The kit's cells as data, so every sweep runs the same set: {@link runContainerConformance} and
- * the registry-derived built-in sweep both iterate this rather than listing cells by hand, which
- * is what makes cell N+1 unmissable at either caller.
- */
+/** The kit's cells as data, so {@link runContainerConformance} and the built-in sweep run the
+ *  same set and a new cell reaches both. */
 export const CONTAINER_CONFORMANCE_CELLS: readonly ContainerConformanceCell[] = [
 	{
 		cell: 'localIndex',
@@ -234,11 +223,8 @@ export async function runContainerConformance(
 
 // ── (a) local-index addressing ───────────────────────────────────────────────
 
-/**
- * Asserts that the addressed child is the one that changed (by content) and that the emitted path
- * is the chain of local indices. The non-first, non-zero setup is what tells local addressing from
- * global: at chain [0,0] child 0 the two are the same.
- */
+/** Asserts the addressed child is the one removed and the emitted path is the chain of local
+ *  indices; the fixture avoids chain [0,0] child 0, where local and global indices coincide. */
 export async function checkStripLocalIndexAddressing(
 	profile: ContainerConformanceProfile
 ): Promise<void> {
@@ -310,11 +296,8 @@ export async function checkStripLocalIndexAddressing(
 	assertParseConverged(doc, 'doc converges after a local-index op');
 }
 
-/**
- * Grid local addressing: a table column op addresses cells by (rowIdx, colIdx) and emits
- * the table's own local path. The leading paragraph keeps the table at a non-zero doc
- * index, so a flat global offset would not coincide with the local one.
- */
+/** A table column op addresses cells by (rowIdx, colIdx) and emits the table's own path; the
+ *  leading paragraph keeps the table off index 0, so a global index would differ. */
 export async function checkGridLocalIndexAddressing(): Promise<void> {
 	const parsed = parse('lead para\n\n| h1 | h2 |\n| --- | --- |\n| a | b |\n');
 	assertIs(parsed.children[1].kind, 'table', 'table at non-zero doc index');
@@ -339,8 +322,8 @@ export async function checkGridLocalIndexAddressing(): Promise<void> {
 	assert(editEvent, 'tableInsertColumn edit event fired');
 	assertIndices(editEvent.path, [1], 'column op emits the table’s own local path');
 
-	// The same check the strip case makes, which the grid case above went without: a column op
-	// that left the table's raw stale, or a row the delimiter no longer describes, fails here.
+	// A column op that left the table's raw stale, or a row the delimiter row does not match,
+	// fails here.
 	assertParseConverged(doc, 'doc converges after a grid column op');
 }
 
@@ -393,19 +376,15 @@ export function checkInnermostFirstAncestry(
 	const marker = `zzmark-${kind}`;
 	leaf.raw = marker + '\n';
 
-	// Fresh sharing state, no callback for merged containers, and the global grammar: this checks
-	// only that raw propagates, and a kit owning neither ids nor refs could reconcile no splice in
-	// the parent's child list anyway.
+	// Fresh sharing state, no merge callback and the global grammar: the check covers only raw
+	// propagation, and the kit owns no ids to reconcile a splice with.
 	rebuildUnsharedAncestry(doc, leafPath, createSharingState(), null, defaultGrammarView);
 
 	assert(root.raw.includes(marker), `root raw reflects the deep leaf edit through "${kind}"`);
 }
 
-/**
- * Mutation probe proving the ancestry check is non-vacuous: a reversed (outer→inner)
- * rebuild leaves the root stale for a strip/opaque container. Returns false for a
- * container that re-derives its whole subtree (grid), which is why grid excuses ancestry.
- */
+/** Shows the ancestry check can fail: an outer-to-inner rebuild leaves a strip or opaque root
+ *  stale. False for a grid, which re-derives its whole subtree and so excuses ancestry. */
 export function reversedAncestryLeavesRootStale(profile: ContainerConformanceProfile): boolean {
 	const { source, leafPath } = profile.deepNesting;
 	const doc = parse(source);
@@ -495,12 +474,8 @@ async function checkTableColumnOneUndo(): Promise<void> {
 
 // ── (d) focus-bubble termination at root ─────────────────────────────────────
 
-/**
- * Bubble an out-of-range ArrowUp through a real 2-level chain (kind-under-test → strip
- * outer at its own top edge → recording root) and assert it reaches the root exactly
- * once. Driving the kind's own bundle rather than `dispatchMoveFocus` is what catches a
- * container whose focus wiring re-enters or double-escapes.
- */
+/** Bubbles an out-of-range ArrowUp through the kind's own focus bundle, under a blockquote at its
+ *  top edge, and asserts the root sees it once, catching wiring that re-enters or escapes twice. */
 export async function checkFocusBubbleTermination(
 	kind: AnyBlockKind,
 	profile: ContainerConformanceProfile
@@ -547,13 +522,8 @@ export async function checkFocusBubbleTermination(
 
 // ── (f) terminator collision ─────────────────────────────────────────────────
 
-/**
- * Writes a terminator-shaped line into the container's body through `bodyWrite`, the same entry
- * point the commit path uses, and requires the live tree to still match a fresh parse. That match
- * is the test, not byte round-trip: `serialize(parse(s)) === s` holds right through a collision
- * while the container silently stops containing what it says it does. A container with no children
- * (body in metadata) writes the same bytes through the fixture's own `writeBody`.
- */
+/** Writes a terminator-shaped body line through `bodyWrite`, as the commit path does, and requires
+ *  the tree to match a fresh parse, since byte round-trip holds even through a collision. */
 export function checkTerminatorCollision(
 	kind: AnyBlockKind,
 	profile: ContainerConformanceProfile
@@ -592,11 +562,8 @@ export function checkTerminatorCollision(
 
 // ── (e) declaration sanity ───────────────────────────────────────────────────
 
-/**
- * Hold the kind to its schema declarations. A declared `unwrapRole` must name implemented
- * strategies because the nested dispatcher indexes them unguarded, and a capability whose only
- * job is a cell's repair may not ship behind that cell's excuse.
- */
+/** Holds the kind to its declarations: an `unwrapRole` names implemented strategies, which the
+ *  nested dispatcher indexes unguarded, and an opaque or `bodyWrite` kind asserts collision. */
 export function checkDeclarationSanity(
 	kind: AnyBlockKind,
 	profile: ContainerConformanceProfile
@@ -653,11 +620,8 @@ export function checkDeclarationSanity(
 	assertContentStartSpaceIsRebuilt(kind, descriptor);
 }
 
-/**
- * `rebuildRaw`'s changed-child hint is a shortcut, never a different answer: the same children
- * rebuilt with and without it are the same bytes. A rebuilder that ignores the hint passes here
- * by construction, which is what makes the argument optional to adopt.
- */
+/** `rebuildRaw`'s changed-child hint is a shortcut, never a different answer: the same children
+ *  rebuilt with and without it give the same bytes. */
 function assertHintedRebuildMatchesFull(
 	kind: AnyBlockKind,
 	descriptor: BlockKindDescriptor,
@@ -667,8 +631,8 @@ function assertHintedRebuildMatchesFull(
 	if (!children?.length) return;
 	const index = children.length - 1;
 	const previousRaw = children[index].raw;
-	// Doubling keeps whatever line shape the fixture's own child had, and with one operand the
-	// cross-node join census still reads this as a kind re-emitting its own bytes.
+	// Doubling keeps the child's own line shape, and with one operand the cross-node join check
+	// still reads it as the kind re-emitting its own bytes.
 	children[index].raw = previousRaw.repeat(2);
 
 	descriptor.rebuildRaw!(node, { index, previousRaw });
@@ -685,11 +649,8 @@ function assertHintedRebuildMatchesFull(
  *  ends in it by accident. */
 const CONTENT_START_PROBE = 'probe';
 
-/**
- * `container.contentStartSpace` swallows the user's space, so the bytes only stay honest where the
- * rebuild writes that space back on a content line. A kind that declares it without doing so eats
- * the keystroke instead of holding it.
- */
+/** `container.contentStartSpace` swallows the user's space, so the rebuild must write it back on a
+ *  content line or the keystroke is lost. */
 function assertContentStartSpaceIsRebuilt(
 	kind: AnyBlockKind,
 	descriptor: BlockKindDescriptor
@@ -722,12 +683,8 @@ function assertContentStartSpaceIsRebuilt(
 	);
 }
 
-/**
- * `container.bodyWrap` is tested, never taken on trust: the code that recomputes blank-line
- * separators reads it to decide whether a freed blank line belongs to the wrap, and a kind whose
- * parse disagrees loses the start of its body on reload
- * (`tree-operations/settle.clearRedundantSeparator`).
- */
+/** `container.bodyWrap` is tested, not trusted: `clearRedundantSeparator` reads it to place a freed
+ *  blank line, and a kind whose parse disagrees loses the start of its body on reload. */
 function assertBodyWrapMatchesParse(kind: AnyBlockKind, descriptor: BlockKindDescriptor): void {
 	if (descriptor.containerContract === 'grid') return;
 	const fixture = descriptor.conformanceFixture;

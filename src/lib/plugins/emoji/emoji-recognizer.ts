@@ -30,11 +30,8 @@ function isShortcodeChar(code: number): boolean {
 	);
 }
 
-/**
- * Matches only when the shortcode is in the table, and carries the glyph on `decoded`, the
- * same field a decoded entity uses. The name is sliced only after a closing colon has bounded
- * a non-empty run, so the common no-match paths allocate nothing.
- */
+/** Matches only a shortcode in the table, carrying the glyph on `decoded` as an entity does; the
+ *  name is sliced only once a closing colon bounds it, so a miss allocates nothing. */
 export function recognizeEmoji(
 	raw: string,
 	pos: number,

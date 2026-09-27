@@ -12,11 +12,8 @@ export function isMathBlockLayout(value: unknown): value is MathBlockLayout {
 	return MATH_BLOCK_LAYOUTS.includes(value as MathBlockLayout);
 }
 
-/**
- * The starting layout: this editor's per-instance plugin options first (`{ plugin, options:
- * { blockLayout } }`), then the factory's own default (`latexPlugin({ blockLayout })`), then
- * `split`. An unknown value falls through rather than throwing.
- */
+/** The starting layout: this editor's per-instance plugin options, then the factory's
+ *  `latexPlugin({ blockLayout })`, then `split`; an unknown value falls through, never throws. */
 export function resolveDefaultLayout(
 	options: unknown,
 	fallback: MathBlockLayout = 'split'

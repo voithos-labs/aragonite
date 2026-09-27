@@ -1,9 +1,8 @@
 /**
  * The conformance kit for an inline syntax handler (`InlineRung`), published at
- * `@voithos-labs/aragonite/testing` alongside `runKindConformance` and the container kit. It
- * reads the live registry, so it works across `resetPluginPlatformForTests()` cycles. The four
- * cells a profile declares are required, not optional, because byte round-trip cannot see any of
- * them, and where the kit can disprove an exemption it does. Failures throw a plain `Error`.
+ * `@voithos-labs/aragonite/testing`. It reads the live registry, so it works across
+ * `resetPluginPlatformForTests()` cycles. The four cells a profile declares are required because
+ * byte round-trip sees none of them, and the kit disproves an exemption where it can.
  */
 
 import {
@@ -95,11 +94,8 @@ export interface InlineConformanceReport {
 
 // ── Runner ───────────────────────────────────────────────────────────────────
 
-/**
- * A detail line for a cell that ran, or an explicit status. A check that skipped its work says
- * `boundary`: reporting `asserted` where nothing ran is the silent skip these statuses exist to
- * refuse.
- */
+/** A detail line for a cell that ran, or an explicit status: a check that skipped its work
+ *  reports `boundary`, never `asserted`. */
 type CellOutcome = string | { status: 'asserted' | 'boundary'; detail: string };
 
 /**
@@ -215,11 +211,8 @@ function locateRung(profile: InlineConformanceProfile, prefix: string): InlineRu
 
 // ── Claim resolution ─────────────────────────────────────────────────────────
 
-/**
- * Every node this handler produced from `source`, in document order. Ownership is read two ways,
- * because a handler's own kind carries no mark by design: either the declared kind, or the claim
- * the scan marks on a built-in kind produced over the handler's bytes.
- */
+/** Every node this handler produced from `source`, in document order: its declared kind (which
+ *  carries no mark), or a built-in node the scan marked with the handler's `syntaxClaim`. */
 function mintedNodes(
 	source: string,
 	profile: InlineConformanceProfile,
@@ -296,11 +289,8 @@ function interleavings(fixture: string, trigger: string): string[] {
 	];
 }
 
-/**
- * How far into `fixture` its own opener ends. Cutting a scan range there leaves the last
- * consultation on a prefix whose closer is out of range, which is what a heading's excluded `#`
- * run does to any construct straddling it.
- */
+/** How far into `fixture` its own opener ends; a scan range cut there strands a prefix whose
+ *  closer is out of range, as a heading's excluded `#` run does. */
 function openerWidth(fixture: string, prefix: string): number {
 	const at = fixture.indexOf(prefix);
 	return at < 0 ? prefix.length : at + prefix.length;
@@ -318,10 +308,8 @@ function checkRoundTrip(profile: InlineConformanceProfile, rung: InlineRung): st
 			);
 			assertScanTiles(source, source.length);
 
-			// Scan ranges that stop short of the raw (a heading's excluded `#` run, a table
-			// cell's `|`): the tail is real grammar, so a terminator search written without
-			// an `end` bound reaches into it. Two cut points because where the boundary falls
-			// relative to a construct is the variable.
+			// A scan range short of the raw (a heading's excluded `#` run) catches a terminator
+			// search with no `end` bound; two cut points vary where the boundary falls.
 			assertScanTiles(source + fixture, source.length);
 			assertScanTiles(source + fixture, source.length + openerWidth(fixture, rung.prefix));
 			count++;
@@ -330,12 +318,8 @@ function checkRoundTrip(profile: InlineConformanceProfile, rung: InlineRung): st
 	return `${count} source(s) round-trip byte-for-byte and tile their scan range`;
 }
 
-/**
- * `serialize(parse(s))` works from the raw bytes and never sees a handler at all, so what a
- * handler can break is the scanner's contract: the nodes cover `[0, end)` with no gap or overlap,
- * and their slices reassemble the scanned bytes. An overrun past `end` never reaches here,
- * because the dispatch throws on it (`scan/index.ts`).
- */
+/** Round-trip never sees a handler, so check the scanner's contract: the nodes tile `[0, end)`
+ *  with no gap or overlap and their slices reassemble the bytes. */
 function assertScanTiles(raw: string, end: number): void {
 	const nodes = parseInline(raw, 0, end);
 	let cursor = 0;
@@ -357,11 +341,8 @@ function assertScanTiles(raw: string, end: number): void {
 
 // ── overlapDecline ───────────────────────────────────────────────────────────
 
-/**
- * At every position the scan would consult this handler, the recognizer returns null. Declining
- * leaves the scan state untouched, so declining everywhere is what guarantees the built-in
- * construct sees byte-identical input.
- */
+/** At every position the scan would consult this handler the recognizer returns null, so the
+ *  built-in construct sees byte-identical input. */
 function checkOverlapDecline(profile: InlineConformanceProfile, rung: InlineRung): string {
 	const fixtures = profile.overlapFixtures ?? [];
 	let consulted = 0;
@@ -451,11 +432,8 @@ function checkWidgetAtomicity(profile: InlineConformanceProfile, rung: InlineRun
 	return 'recognition, self-delimiting claim, island contract, and offset-walk length';
 }
 
-/**
- * The claimed bytes have to stand alone: `data-source-*` hands exactly this slice to the clipboard
- * and to a source view, and a slice that only forms in its original context pastes back as broken
- * prose while the document it came from round-trips perfectly.
- */
+/** The claimed bytes must re-form on their own: `data-source-*` hands exactly this slice to the
+ *  clipboard and a source view, where a context-dependent slice pastes back broken. */
 function assertSelfDelimiting(fixture: string, node: InlineNode, kind: AnyInlineKind): void {
 	const slice = fixture.slice(node.start, node.end);
 	const alone = parseInline(slice, 0, slice.length);
@@ -491,11 +469,8 @@ function assertIslandContract(fixture: string, node: InlineNode, kind: AnyInline
 	);
 }
 
-/**
- * The DOM-to-offset traversal counts a widget as its source span, never as what it renders: an
- * emoji showing one glyph for seven raw bytes still counts seven. Every caret offset in the block
- * depends on this, and nothing in the bytes shows when it is wrong.
- */
+/** The DOM-to-offset traversal counts a widget as its source span, not what it renders (seven
+ *  bytes for one emoji glyph); every caret offset in the block depends on it. */
 function assertWalkLengthIsRawLength(fixture: string): void {
 	const container = document.createElement('div');
 	container.appendChild(
@@ -582,12 +557,8 @@ function assertPolicyVocabulary(policy: InlineWidgetEditingPolicy, kind: AnyInli
 
 // ── imageClaim ───────────────────────────────────────────────────────────────
 
-/**
- * A handler that produces a built-in kind borrows the editor's model for bytes of its own, and
- * the editor writes that model back out as built-in grammar, so without `rewriteImage` a resize
- * turns `![[cat.png|300]]` into GFM. The document round-trips the whole time; it is just a
- * different document.
- */
+/** A handler producing a built-in kind borrows the editor's model for its own bytes, so without
+ *  `rewriteImage` a resize writes `![[cat.png|300]]` back as GFM, which still round-trips. */
 function checkImageClaimStamp(profile: InlineConformanceProfile, rung: InlineRung): string {
 	let stamped = 0;
 	for (const fixture of profile.fixtures) {
@@ -622,11 +593,8 @@ function checkImageClaimStamp(profile: InlineConformanceProfile, rung: InlineRun
 	return `${stamped} built-in node(s) stamped, rewriteImage reproduces its own input`;
 }
 
-/**
- * The hook has to re-emit the node it was handed, unedited. The commit drops a byte-identical
- * result without warning, so a hook that cannot reproduce its own input shows up as an edit that
- * silently does nothing.
- */
+/** The hook must re-emit the node it was handed unedited; the commit drops a byte-identical
+ *  result, so a hook that cannot reproduce its input shows up as an edit that does nothing. */
 function assertRewriteReproducesSource(fixture: string, node: InlineNode, rung: InlineRung): void {
 	assert(
 		rung.rewriteImage !== undefined,

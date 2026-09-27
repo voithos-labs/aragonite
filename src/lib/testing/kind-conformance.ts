@@ -1,9 +1,8 @@
 /**
- * The generic per-kind conformance battery, the runnable half of the closure table. Registering a
- * block kind enrolls it: one cell per `ClosureColumn`, taken from the kind's `closure` block and
- * its `conformanceFixture`. A cell runs only where headless code can observe what it checks;
- * everything else is recorded as `boundary` or `exempt`, never stubbed green. It works under any
- * runner: failures are plain `Error`s and nothing here imports one.
+ * The generic per-kind conformance battery: registering a block kind enrolls it, one cell per
+ * `ClosureColumn`, read from the kind's `closure` block and `conformanceFixture`. A cell runs only
+ * where headless code can observe what it checks; the rest is reported `boundary` or `exempt`,
+ * never stubbed green.
  */
 
 import type { AnyBlockKind, CstNode, Document } from '../core/nodes';
@@ -152,8 +151,8 @@ function buildContext(kind: AnyBlockKind, descriptor: BlockKindDescriptor): Kind
 	if (!nodePath) {
 		fail(`kind conformance failed for "${kind}": conformanceFixture parses to no "${kind}" node`);
 	}
-	// The one place every check receives the fixture, so the rule they all rely on, that the node
-	// sits at `doc.children[0]`, is fixed here: undo deletes it, the byte-slice copy starts from it.
+	// Every check receives the fixture here, so the rule they rely on (the node at
+	// `doc.children[0]`) is enforced once: undo deletes it and the byte-slice copy starts from it.
 	if (nodePath[0] !== 0) {
 		fail(
 			`kind conformance failed for "${kind}": conformanceFixture must open with the "${kind}" ` +
@@ -264,10 +263,8 @@ function execRoundTrip(
 	return { status: 'executed', detail: 'byte round-trip' };
 }
 
-/**
- * An independent restatement of the merge-role → Backspace-merge table
- * (docs/design/editor.md); re-deriving it from `isMergeEligible` would be vacuous.
- */
+/** An independent restatement of the merge-role table (`docs/design/editor.md` § Merge
+ *  eligibility: roles, not pairs); derived from `isMergeEligible` it would test nothing. */
 const MERGE_ROLE_EXPECTATION: Record<
 	MergeRole,
 	{ currentIntoProse: boolean; prevForProse: boolean; self: boolean }
@@ -424,13 +421,8 @@ function execRawWrite(
 const TRAILING_SENTINEL = '\n\nclipboard sentinel\n';
 const LEADING_SENTINEL = 'clipboard lead\n\n';
 
-/**
- * Asserts that the default cross-block copy over `kind`'s fixture carries its bytes with nothing
- * synthesized for the kind, at both endpoint roles, which is what `clipboard: inherit-default`
- * honestly means. The endpoints go through the real selection code, so the expectation states the
- * contract rather than recomputing the slice under test. The fixture parses to `kind` at
- * `children[0]`, and the kit adds its marker block on the side the copy sweeps across.
- */
+/** Asserts the default cross-block copy over `kind`'s fixture is a raw byte slice at both endpoint
+ *  roles, which is what `clipboard: inherit-default` means; the fixture opens with `kind`. */
 export function checkCopyIsRawByteSlice(kind: AnyBlockKind, fixture: string): void {
 	assertIs(
 		parse(fixture).children[0]?.kind,
@@ -501,11 +493,8 @@ function bytesBetween(children: CstNode[], from: number, to: number): string {
 		.join('');
 }
 
-/**
- * The production create, store and slice chain: the endpoints are normalized in `SelectionState`
- * exactly as a real gesture's would be, so a kind whose offsets that code rewrites is copied the
- * way the editor copies it.
- */
+/** Copies through the production selection code, so a kind whose endpoints `SelectionState`
+ *  normalizes is copied the way the editor copies it. */
 function copyThroughFunnel(doc: Document, anchor: SelectionPoint, focus: SelectionPoint): string {
 	const selection = createSelectionState({ getDoc: () => doc });
 	selection.enterCrossBlock(anchor, focus);
@@ -562,13 +551,8 @@ function checkClosingCutNeedsNoRule(kind: AnyBlockKind, fixture: string): void {
 	);
 }
 
-/**
- * Drives five writes over `kind`'s fixture through its `rawWrite` rule: the closing line cut,
- * everything past the first line cut, an empty write, the first line cut, and the closing line
- * copied into the body. Each result must be a fixed point of the rule, leave the next block its
- * own, and come with a caret map that agrees with it; a closing line cut that leaves the first
- * line and a body keeps the kind, written in place with the document converged.
- */
+/** Drives five writes over `kind`'s fixture through its `rawWrite` rule; each result must be a
+ *  fixed point of the rule, leave the next block its own, and have an agreeing caret map. */
 export function checkLeafRawWrite(
 	kind: AnyBlockKind,
 	fixture: string,
@@ -616,12 +600,8 @@ export function checkLeafRawWrite(
 	}
 }
 
-/**
- * A caret map agrees with its rule when it keeps every offset in order and inside the output, and
- * moves an offset only as far as the bytes the rule changed before it: one before every change
- * stays, one after every change moves by the length the rule added or dropped. An offset at a
- * changed span's edge may land on either side of it.
- */
+/** A caret map agrees with its rule when offsets stay ordered and in range, one before every
+ *  change stays, and one after every change moves by the length the rule added or dropped. */
 function checkCaretMap(
 	label: string,
 	written: string,

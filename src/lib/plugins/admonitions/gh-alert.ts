@@ -41,11 +41,8 @@ export interface AlertConversion {
 	changed: boolean;
 }
 
-/**
- * Each emitted line keeps its source line ending so CRLF survives; a line with none of its own
- * takes `ending`, the text's. The body converts in the same pass: stripping a
- * quote level promotes a nested `> [!TIP]` to a top-level marker a later pass would convert again.
- */
+/** Each emitted line keeps its own ending, else `ending`, so CRLF survives. The body converts in
+ *  the same pass, since stripping a quote level exposes a nested `> [!TIP]` to a second pass. */
 function emitDirective(name: string, source: ParsedLine[], fallback: LineEnding): string {
 	const stripped = source
 		.slice(1)

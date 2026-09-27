@@ -8,11 +8,8 @@ import { definePlugin, type EditorPlugin } from '$lib/plugin';
 import { createOccurrenceSource } from './occurrence-source';
 
 export interface HighlightOccurrencesOptions {
-	/**
-	 * Called when the word index is rebuilt: on a document change, not on a caret move, with
-	 * how many blocks that rebuild had to tokenize. Public so a test can check the caching
-	 * against this wiring rather than a copy of it.
-	 */
+	/** Called when the word index is rebuilt (a document change, not a caret move) with how many
+	 *  blocks it tokenized; public so a test can check this wiring's caching. */
 	onScan?: (stats: { tokenizedLeaves: number }) => void;
 }
 

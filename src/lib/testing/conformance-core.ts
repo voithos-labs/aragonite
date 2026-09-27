@@ -1,7 +1,6 @@
 /**
- * Shared plumbing for the conformance kits: the assertion helpers and tree traversals
- * `container-conformance.ts` (G4.3) and `kind-conformance.ts` sit on. A failure is a plain thrown
- * `Error`, so reaching for one of these never forces a suite to load a test runner.
+ * The assertion helpers and tree traversals the conformance kits share. A failure is a plain
+ * thrown `Error`, so using one never forces a suite to load a test runner.
  */
 
 import type { AnyBlockKind, CstNode, Document } from '../core/nodes';
@@ -62,10 +61,8 @@ export function assertExemptionDocumented(cell: ConformanceCoverage, label: stri
 }
 
 /**
- * For a byte-faithful (strip or opaque) rebuild, `rebuildRaw` is the inverse of the parse: it has
- * to reproduce the same bytes, not just run twice with the same wrong output. Grid rebuilds
- * canonicalize delimiter and padding widths by contract, so they use the determinism cell instead.
- * This writes `node.raw` in place, so pass a fresh parse, never a node a cell shares.
+ * A byte-faithful rebuild must reproduce the parsed bytes (a grid one canonicalizes widths, so it
+ * only has to run). Writes `node.raw` in place: pass a fresh parse, never a node a cell shares.
  */
 export function assertRebuildIsParseCanonical(
 	descriptor: BlockKindDescriptor,

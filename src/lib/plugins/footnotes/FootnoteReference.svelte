@@ -17,9 +17,8 @@
 	// svelte-ignore state_referenced_locally
 	const label = source.slice(2, -1);
 
-	// Reactive, not computed once: widgets are keyed on the source, so this instance survives a
-	// renumber caused by a reference added elsewhere. The version is read inside the derived, so
-	// the shared numbering pass stays subscribed rather than snapshotted.
+	// Reactive, since a widget keyed on its source survives a renumber from a reference added
+	// elsewhere; reading the version inside keeps the shared numbering pass subscribed.
 	const display = $derived.by(() => {
 		const doc = getDocument?.();
 		if (!doc) return label;

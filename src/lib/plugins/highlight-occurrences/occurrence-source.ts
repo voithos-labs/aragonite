@@ -29,11 +29,8 @@ export interface OccurrenceSourceDeps {
 export interface OccurrenceSource {
 	readonly source: DecorationSource;
 	setSelection(selection: EditorSelection | null): void;
-	/**
-	 * Report an `edit` op. Any op turns the marks back on; only `input`, the batched flush at
-	 * the end of a typing burst, leaves the next `editEpoch` readable as another keystroke.
-	 * Returns whether the caller must invalidate to show marks that were being held back.
-	 */
+	/** Report an `edit` op: any op shows the marks again, and only `input` (a typing burst's flush)
+	 *  leaves the next `editEpoch` a keystroke. Returns whether the caller must invalidate. */
 	noteEdit(op: string): boolean;
 	/** Report a `sourceSwap`: the next `editEpoch` is the new document, never a keystroke.
 	 *  Returns whether the caller must invalidate, as `noteEdit` does. */

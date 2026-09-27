@@ -37,16 +37,14 @@
 
 	function commitDisclosure() {
 		const isOpen = open;
-		// Collapsing unmounts the body, orphaning a caret inside it, so move it to the summary
-		// in the commit's afterTick. Read before the commit: the toggle suppresses mousedown,
-		// so a mouse toggle leaves the caret in the body.
+		// Collapsing unmounts the body and orphans a caret inside it, so the caret moves to the
+		// summary after the commit; the toggle suppresses mousedown, so a click leaves it there.
 		const pos = isOpen ? (containerApi.getCursorPosition?.() ?? null) : null;
 		const caretInBody = pos != null && pos.path[0] >= 1;
 		updateOwnMetadata({ open: !isOpen }, caretInBody ? () => containerApi.focus(0) : undefined);
 	}
 
-	// Reading mode gets the handler that cannot write at all, rather than one that checks the
-	// mode and declines, so nothing reachable from here can turn a toggle into an edit.
+	// Reading mode gets a handler that cannot write at all, so no toggle there becomes an edit.
 	const onToggle = $derived(reading ? reader.toggle : commitDisclosure);
 
 	export { containerApi };
