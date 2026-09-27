@@ -24,12 +24,8 @@ import { checkChildIdParity } from './child-id-parity';
 import { checkChildSpansLockstep, checkIdsChildrenLockstep } from './structural-descriptor';
 import { checkSnapshotIntegrity, type SnapshotEntry } from './snapshot-integrity';
 
-/**
- * Checks only the nodes a commit touched, never the whole tree. Each predicate filters by kind
- * itself. Call it after the commit's `rebuildRaw`, so a strip container's raw is the output
- * that rebuild just produced. The reparses read the editor's grammar, so syntax the editor left
- * out cannot make a node look stale.
- */
+/** Checks only the nodes a commit touched. Call it after the commit's `rebuildRaw`, so a strip
+ *  container's raw is that rebuild's output. */
 export function assertCommittedNodes(nodes: CstNode[], grammar: GrammarView): void {
 	for (const node of nodes) {
 		assertInvariant('stale-raw', () => checkStaleRaw(node, grammar));
@@ -43,10 +39,8 @@ export function assertCommittedNodes(nodes: CstNode[], grammar: GrammarView): vo
 	}
 }
 
-/**
- * Checks, before the commit mutates anything, that both declared paths are document-absolute
- * (G1.16, `commit-paths.ts`). Null skips a path this commit does not carry.
- */
+/** Checks, before the commit mutates anything, that both declared paths are document-absolute
+ *  (G1.16); null skips a path the commit does not carry. */
 export function assertCommitPaths(
 	doc: Document,
 	snapshotPath: DocPath | null,
@@ -64,32 +58,23 @@ export function assertCommitPaths(
 	}
 }
 
-/**
- * G1.9, once per commit: only the newest undo entry could have been corrupted by this commit's
- * mutations, so only its digest is re-checked. Older entries are covered when they are
- * restored, in `editor-actions/commit/history.ts`.
- */
+/** G1.9, once per commit: only the newest undo entry can have been corrupted by this commit, so
+ *  only its digest is re-checked; older entries are checked when they are restored. */
 export function assertUndoTopIntegrity(entry: SnapshotEntry | undefined): void {
 	if (!entry) return;
 	assertInvariant('snapshot-integrity', () => checkSnapshotIntegrity(entry));
 }
 
-/**
- * G1.36, the reading half, run wherever ids are written to state: the descriptor's own bounds
- * check cannot catch a change that fits its array but describes the wrong range, and an id
- * array that is too short reaches Svelte's keyed each as missing keys.
- */
+/** G1.36, the reading half, run wherever ids are written to state: an id array that is too short
+ *  reaches Svelte's keyed each as missing keys. */
 export function assertIdsInLockstep(seam: string, idCount: number, childCount: number): void {
 	assertInvariant('ids-children-lockstep', () =>
 		checkIdsChildrenLockstep(seam, idCount, childCount)
 	);
 }
 
-/**
- * The registry-wide checks, run when the editor mounts. The flush runs the full sweep the first
- * time and only the registrations added since the previous flush after that. The inline-policy
- * check sits outside that latch: it runs on every mount, over the whole table (G1.31).
- */
+/** The registry-wide checks, run on mount: the full sweep the first time, then only the
+ *  registrations added since. The inline-policy check runs on every mount (G1.31). */
 export function runStartupInvariantChecks(): void {
 	flushPendingRegistrationChecks();
 	checkInlineConstructPoliciesAtMount();

@@ -14,7 +14,7 @@ import {
 } from '../schema/inline-construct-policy';
 import type { InlineMenuSource } from './types';
 
-/** Identity only, never a captured node: every keystroke republishes the leaf. */
+/** Identity only, never a captured node: every keystroke writes a new leaf to state. */
 export interface InlineMenuSession {
 	source: string;
 	path: number[];
@@ -28,12 +28,8 @@ export interface InlineMenuOpening {
 	start: number;
 }
 
-/**
- * The source a just-typed run opens. `from` is where that run began: a burst of keystrokes
- * publishes as one change, so the trigger may sit anywhere in `[from, caret)`. The trigger
- * nearest the caret wins, and where two end at the same byte the longer does, so `[[` is never
- * read as a `[` source's press. A source that declines hands over to the next candidate.
- */
+/** The source a just-typed run opens; `from` is where the run began, since a burst of keystrokes
+ *  arrives as one change. The trigger nearest the caret wins, then the longer, so `[[` beats `[`. */
 export function findOpening(
 	sources: Iterable<InlineMenuSource>,
 	raw: string,
@@ -60,11 +56,8 @@ export function findOpening(
 	return null;
 }
 
-/**
- * Whether a trigger starting at this offset in the leaf's inline tree sits in prose the author is
- * writing, as each construct's policy row declares: not inside a code span, an image or a widget's
- * source, nor in a link's destination; a link's own text is prose and a trigger there opens.
- */
+/** Whether a trigger at this offset sits in prose the author is writing, as each construct's
+ *  policy row declares: a link's text is prose, its destination and a code span are not. */
 export function isProseOffset(nodes: InlineNode[], offset: number, grammar: GrammarView): boolean {
 	for (const node of nodes) {
 		if (offset < node.start || offset >= node.end) continue;
@@ -85,11 +78,8 @@ function proseExtent(kind: AnyInlineKind, grammar: GrammarView): InlineProseExte
 	return declared ?? (isInlineWidgetKind(kind, grammar) ? 'none' : 'all');
 }
 
-/**
- * Whether the offset sits in a link or image destination the author opened with `](` and has not
- * closed. Those bytes are text until the `)` lands, so the inline tree has no link to decline,
- * and a destination reaches no further than its own line.
- */
+/** Whether the offset sits in a destination opened with `](` and not yet closed: those bytes are
+ *  text until the `)` lands, so the inline tree has no link to decline. */
 export function isUnclosedDestination(raw: string, offset: number): boolean {
 	const lineStart = raw.lastIndexOf('\n', offset - 1) + 1;
 	for (let i = offset - 1; i >= lineStart; i--) {
@@ -102,11 +92,8 @@ export function isUnclosedDestination(raw: string, offset: number): boolean {
 	return false;
 }
 
-/**
- * Where the run the author just typed began, or null if the change from `previous` to `raw` is
- * anything other than bytes inserted so as to end at the caret: a deletion, a caret that only
- * moved, an edit elsewhere in the leaf.
- */
+/** Where the just-typed run began, or null when the change from `previous` to `raw` is anything
+ *  but bytes inserted to end at the caret (a deletion, a caret move, an edit elsewhere). */
 export function typedRunStart(previous: string, raw: string, caret: number): number | null {
 	const length = raw.length - previous.length;
 	if (length <= 0 || length > caret) return null;
@@ -118,10 +105,8 @@ function acceptsQuery(source: InlineMenuSource, query: string): boolean {
 	return source.accepts ? source.accepts(query) : !/[\r\n]/.test(query);
 }
 
-/**
- * The open session's query at this caret, or null once the session is over: the trigger's bytes
- * are gone, the caret stepped out in front of the query, or the source declines what was typed.
- */
+/** The open session's query at this caret, or null once the session is over: the trigger is
+ *  gone, the caret stepped in front of the query, or the source declines what was typed. */
 export function sessionQuery(
 	session: InlineMenuSession,
 	source: InlineMenuSource,

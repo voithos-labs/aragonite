@@ -1,9 +1,8 @@
 /**
  * Inline menus: a list the editor opens under the caret while the author types after a trigger,
- * `#` for a tag or `[[` for a link to another document. The editor owns everything a host cannot
- * do from outside without racing it: noticing the trigger as the bytes are typed, claiming the
- * navigation keys while the list is up, anchoring to the typed range, and replacing that range
- * with the pick as one undo entry. A source supplies the trigger and the items.
+ * `#` for a tag or `[[` for a link. The editor owns what a host cannot do from outside without
+ * racing it: spotting the trigger as it is typed, holding the navigation keys while the list is
+ * up, and replacing the typed range with the pick as one undo entry. A source supplies the rest.
  */
 
 import type { Component } from 'svelte';
@@ -18,11 +17,8 @@ export interface InlineMenuItem {
 	detail?: string;
 	/** A menu glyph drawn before the label by the default row. */
 	icon?: MenuIconName;
-	/**
-	 * The bytes that replace the trigger and the query, the caret landing after them. One line of
-	 * inline bytes: a line break is refused and reported, and a block-level insert is `onCommit`'s
-	 * job. Empty is legal, and removes the trigger and the query.
-	 */
+	/** The bytes that replace the trigger and the query, the caret after them. One line: a line break
+	 *  is refused and reported, and a block-level insert is `onCommit`'s job. Empty is legal. */
 	insert: string;
 }
 
@@ -52,23 +48,16 @@ export interface InlineMenuSource {
 	 * triggers both end at the caret, the longer wins.
 	 */
 	trigger: string;
-	/**
-	 * Whether a trigger whose first byte is `raw[pos]` opens. Absent means anywhere. A tag declines
-	 * mid-word so `C#` stays text. Not consulted by `open()`, whose gesture is the author's say-so.
-	 */
+	/** Whether a trigger whose first byte is `raw[pos]` opens (absent: anywhere), so a tag can
+	 *  decline mid-word and `C#` stays text. `open()` never asks. */
 	opensAt?(raw: string, pos: number): boolean;
 	/** Whether the session outlives this query. Absent means any query without a line break. */
 	accepts?(query: string): boolean;
-	/**
-	 * The list for a query. An empty list hides the menu and releases the keys, while the session
-	 * stays alive for the next keystroke. A rejected promise reads as an empty list and is
-	 * reported on the `error` event.
-	 */
+	/** The list for a query. An empty list hides the menu and releases the keys but keeps the
+	 *  session; a rejected promise reads as empty and is reported on the `error` event. */
 	items(query: InlineMenuQuery): InlineMenuItem[] | Promise<InlineMenuItem[]>;
-	/** After a pick's bytes have landed. The range is the one the pick replaced, not where the
-	 *  bytes now sit: the caret is at `start + insert.length`. Writes made while a returned
-	 *  promise is pending join the pick's undo entry until the author's next input in this editor,
-	 *  so await them. */
+	/** Runs after the pick's bytes land, with the caret at `start + insert.length`. Writes made while
+	 *  a returned promise is pending join the pick's undo entry, so await them. */
 	onCommit?(item: InlineMenuItem, query: Omit<InlineMenuQuery, 'signal'>): void | Promise<void>;
 	/** Paints one row's content in place of the default label and detail. */
 	row?: Component<InlineMenuRowProps>;
@@ -85,13 +74,8 @@ export interface InlineMenuOpenOptions {
 
 export interface InlineMenuRegistry {
 	addSource(source: InlineMenuSource): InlineMenuSourceHandle;
-	/**
-	 * The entry for a shortcut or a toolbar button: type the source's trigger at the caret, then
-	 * `options.query` if given, as one undo entry, and open its menu there over that query. False,
-	 * and nothing is written, for an unknown name, in reading mode, with no collapsed caret in a
-	 * prose block, and for a query holding a line break. A query the source's `accepts` declines is
-	 * still written, and opens nothing.
-	 */
+	/** Types the source's trigger and `options.query` at the caret as one undo entry and opens the
+	 *  menu. False, writing nothing, for an unknown name, reading mode, no prose caret, or a newline. */
 	open(name: string, options?: InlineMenuOpenOptions): boolean;
 	/** Close the open menu, leaving what was typed. */
 	close(): void;

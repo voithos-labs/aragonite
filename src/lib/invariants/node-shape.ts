@@ -10,12 +10,8 @@ import type { InvariantViolation } from '../assert';
 
 // ── G1.5: category ↔ field legality ──────────────────────────────────────────
 
-/**
- * G1.5: a node's fields match its kind's category. It only forbids, never requires: a container
- * can be briefly childless mid-edit. Fields the editor adds (`childIds`, `ownerEpoch`) are legal
- * on every kind and go unchecked, and `mergeRole` belongs to the kind, so it is checked once at
- * registration (G1.30).
- */
+/** G1.5: a node's fields match its kind's category. It only forbids, never requires, since a
+ *  container can be briefly childless mid-edit. */
 export function checkCategoryFields(node: CstNode): InvariantViolation | null {
 	const d = getBlockKindDescriptor(node.kind);
 
@@ -28,9 +24,8 @@ export function checkCategoryFields(node: CstNode): InvariantViolation | null {
 	if (!d.isContainer && node.innerSuffix !== undefined) {
 		return illegalField(node.kind, 'innerSuffix', 'leaf carries container structural field');
 	}
-	// Only a body that starts under a title line of the container's own can strip a blank into
-	// `innerPrefix` (`core/parser.parseContainerBody`). Elsewhere the body opens on the
-	// container's first line, and a filled field would emit a line no parse can produce.
+	// Only a body under the container's own title line can strip a blank into `innerPrefix`
+	// (`core/parser.parseContainerBody`); elsewhere a filled field emits a line no parse produces.
 	if (d.bodyWrap?.afterOpenerLine !== true && node.innerPrefix) {
 		return illegalField(node.kind, 'innerPrefix', 'container declares no opener-line body wrap');
 	}
@@ -47,12 +42,8 @@ function illegalField(kind: string, field: string, why: string): InvariantViolat
 
 // ── G1.1: container raw not stale ─────────────────────────────────────────────
 
-/**
- * G1.1: a strip container's `raw` agrees with its `children`: `strip(raw) === serialize(children)`.
- * It reparses `raw` in the editor's grammar (every installed plugin when absent) and compares the
- * stripped inner bytes, which a faithful non-canonical parse and the editor's empty-paragraph
- * placeholder both survive. Strip containers only, and recursively.
- */
+/** G1.1: a strip container's raw agrees with its children, `strip(raw) === serialize(children)`,
+ *  reparsed in the editor's grammar and checked recursively. */
 export function checkStaleRaw(node: CstNode, grammar: GrammarView): InvariantViolation | null {
 	if (getBlockKindDescriptor(node.kind).containerContract !== 'strip') return null;
 
@@ -75,12 +66,8 @@ export function checkStaleRaw(node: CstNode, grammar: GrammarView): InvariantVio
 	return null;
 }
 
-/**
- * The one block `node.raw` must reparse to, or undefined. Being a single block is half the rule:
- * bytes that belong to a following sibling leave the first block's inner content intact, so
- * comparing that block alone would call a container whose raw has grown faithful. `listItem` is
- * never a top-level block, so its raw reparses to a `list` wrapping it alone.
- */
+/** The one block `node.raw` must reparse to, or undefined: bytes that parse as a following sibling
+ *  leave the first block intact. A `listItem`'s raw reparses to a `list` wrapping it alone. */
 function soleCorrespondent(blocks: CstNode[], node: CstNode): CstNode | undefined {
 	if (blocks.length !== 1) return undefined;
 	const top = blocks[0];
@@ -95,11 +82,8 @@ function clampForDetail(raw: string): string {
 	return raw.length > MAX_RAW_IN_DETAIL ? raw.slice(0, MAX_RAW_IN_DETAIL) + '…' : raw;
 }
 
-/**
- * Checks `strip(node.raw) === serialize(node.children)` at this level, then recurses: joining
- * bytes at the parent level cannot see a child whose own raw and children disagree while its raw
- * still matches.
- */
+/** Checks this level, then recurses: a child whose own raw and children disagree can still leave
+ *  its parent's joined bytes matching. */
 function rawFaithful(reparsed: CstNode | undefined, node: CstNode): boolean {
 	if (!reparsed) return false;
 	if (strippedInner(reparsed) !== strippedInner(node)) return false;
@@ -126,11 +110,8 @@ function stripContainerChildren(node: CstNode): CstNode[] {
 
 // ── G1.12: opaque container raw not stale ─────────────────────────────────────
 
-/**
- * G1.12: G1.1's staleness check for opaque containers, reparsing `raw` in the editor's grammar
- * (every installed plugin when absent). Raw that no longer reparses to one block of this kind
- * fires only when the parser can recognize the kind at all; otherwise there is nothing to check.
- */
+/** G1.12: G1.1's staleness check for opaque containers. Raw that stops reparsing to one block of
+ *  this kind fires only when the parser can recognize the kind at all. */
 export function checkOpaqueStaleRaw(
 	node: CstNode,
 	grammar: GrammarView
@@ -159,21 +140,14 @@ export function checkOpaqueStaleRaw(
 	return null;
 }
 
-/**
- * Can `readBlocks(raw)` produce this kind at all? Two registries answer: the kind owns a block opener,
- * or it is a directive the shared `:::` opener recognizes. Checking openers alone would exempt
- * every directive kind as unrecognizable.
- */
+/** Whether `readBlocks(raw)` can produce this kind: it owns a block opener, or it is a directive
+ *  the shared `:::` opener recognizes. */
 function hasStandaloneRecognizer(kind: CstNode['kind']): boolean {
 	return listRegisteredOpeners().some((o) => o.kind === kind) || isDirectiveKind(kind);
 }
 
-/**
- * The same check, aware of a reserved title child: its bytes live in the container's opener line,
- * so a reparse puts it before any blank lines while the live tree may legally hold a transient
- * blank after it. So compare the title's raw by position and the body bytes as one unit; a title
- * that is missing or in the wrong place is G1.14's finding, not staleness.
- */
+/** The same check with a reserved title child, whose bytes sit in the opener line: the live tree
+ *  may hold a blank after it, so the title compares by position and the body as one unit. */
 function opaqueRawFaithful(reparsed: CstNode, node: CstNode): boolean {
 	const chromeKind = reservedChromeKindOf(node.kind);
 	const liveChrome = node.children?.[0];
@@ -196,11 +170,8 @@ function opaqueRawFaithful(reparsed: CstNode, node: CstNode): boolean {
 
 // ── G1.13: opaque rebuild determinism ─────────────────────────────────────────
 
-/**
- * G1.13: a plugin's `rebuildRaw` produces the same bytes every time for the same committed state,
- * which is what G1.12's single reparse relies on. The two trial runs are compared against each
- * other, never against `node.raw`, which a faithful parse may legally differ from.
- */
+/** G1.13: a plugin's `rebuildRaw` gives the same bytes every time for the same state, which G1.12's
+ *  single reparse relies on. The two trial runs compare to each other, never to `node.raw`. */
 export function checkOpaqueRebuildDeterminism(node: CstNode): InvariantViolation | null {
 	const descriptor = getBlockKindDescriptor(node.kind);
 	if (descriptor.containerContract !== 'opaque' || !descriptor.rebuildRaw) return null;
@@ -215,11 +186,8 @@ export function checkOpaqueRebuildDeterminism(node: CstNode): InvariantViolation
 	};
 }
 
-/**
- * `rebuildRaw` may write only `raw`. The trial run copies the children array and the metadata
- * record so a misbehaving rebuilder cannot reach the live node. The child nodes themselves stay
- * shared: protecting those would cost a deep clone on every commit.
- */
+/** `rebuildRaw` may write only `raw`, so the trial run copies the children array and metadata; the
+ *  child nodes stay shared, since protecting them would cost a deep clone per commit. */
 function probeRebuild(node: CstNode, rebuildRaw: (probe: CstNode) => void): string {
 	const probe = { ...node };
 	if (probe.children) probe.children = [...probe.children];
@@ -230,11 +198,8 @@ function probeRebuild(node: CstNode, rebuildRaw: (probe: CstNode) => void): stri
 
 // ── G1.14: reserved-chrome slot ───────────────────────────────────────────────
 
-/**
- * G1.14: a container that declares `reservedChrome` always holds a leaf of the declared kind at
- * child 0. A failure here means an operation deleted or changed that child instead of emptying
- * it.
- */
+/** G1.14: a container declaring `reservedChrome` holds a leaf of that kind at child 0; a failure
+ *  means an operation deleted or replaced that child instead of emptying it. */
 export function checkReservedChromeSlot(node: CstNode): InvariantViolation | null {
 	const chromeKind = reservedChromeKindOf(node.kind);
 	if (chromeKind === undefined) return null;
@@ -250,11 +215,8 @@ export function checkReservedChromeSlot(node: CstNode): InvariantViolation | nul
 
 // ── G1.6: clone-safe metadata ─────────────────────────────────────────────────
 
-/**
- * G1.6: metadata survives the one-level copy undo makes, so every value is a primitive or an
- * array of primitives. Anything deeper would stay shared by reference with the snapshot and
- * corrupt undo.
- */
+/** G1.6: metadata survives undo's one-level copy, so every value is a primitive or an array of
+ *  primitives; anything deeper would stay shared with the snapshot and corrupt undo. */
 export function checkCloneSafeMetadata(node: NodeView): InvariantViolation | null {
 	if (!node.metadata) return null;
 
