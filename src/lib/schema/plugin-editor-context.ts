@@ -1,7 +1,7 @@
 /**
  * One `EditorContext` per editor and plugin: the object `onEditor` callbacks, global-command
  * handlers and `BlockCommandContext.editor` all receive. `document` is a getter so every read is
- * live (rules.md: getters, not values).
+ * live (`docs/contributing/rules.md` § The five rules).
  */
 import type { DocumentView, NodeView } from '../core/node-views';
 import type { InlineNode } from '../core/nodes';

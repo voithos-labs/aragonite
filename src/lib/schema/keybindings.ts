@@ -60,7 +60,7 @@ export function isSelectAllChord(e: ChordKeys): boolean {
 	return eventToChord(e) === 'Mod+A';
 }
 
-/** Whether a key ends a run of select-all presses: any chord but Mod+A. A held modifier doesn't. */
+/** Whether a key ends a run of select-all keypresses: any chord but Mod+A, not a held modifier. */
 export function endsSelectAllRun(e: ChordKeys): boolean {
 	return eventToChord(e) !== null && !isSelectAllChord(e);
 }

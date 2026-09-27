@@ -1,9 +1,9 @@
 /**
- * Which modifier chords a mounted editor consumes. Keymap chords are listed from the registries;
- * chords taken by hand-written keydown branches are not, so they go in `HARDCODED_CHORD_SITES`
- * below, and the G4.29 source scan fails until a new such file is added there. Bare keys are out
- * of scope: a focused document owns them regardless. A listed file must keep its literal key
- * comparisons and modifier reads, which are the scan's evidence.
+ * Which modifier chords a mounted editor consumes. Keymap chords come from the registries; chords
+ * taken by hand-written keydown branches are listed in `HARDCODED_CHORD_SITES`, and a source scan
+ * fails until a new such file is added there (G4.29). A listed file keeps its literal key
+ * comparisons and modifier reads, the scan's evidence. Bare keys are out of scope: the document
+ * owns them.
  */
 import { getAllRegisteredKinds } from './block-kind-descriptor';
 import { GLOBAL_KEYMAP, kindKeymap, pluginGlobalChords, reservedUiChords } from './commands';
@@ -16,7 +16,7 @@ import { eventToChord } from './keybindings';
 
 /** One library file that reads a KeyboardEvent modifier flag, and the chords it consumes. */
 export interface HardcodedChordSite {
-	/** Path under `src/lib`, as G4.29's scan reports it. */
+	/** Path under `src/lib`, as the source scan reports it. */
 	file: string;
 	/** Modifier chords the file consumes outside every keymap. */
 	chords: readonly string[];
@@ -325,8 +325,8 @@ export function collectReservedChords(options: ReservedChordOptions): ReadonlySe
 			...overrideBoundChords(options.keybindings)
 		].filter(carriesModifier)
 	);
-	// A global disable unbinds the chord at every command tier. A hardcoded branch never
-	// consults the override map, so it keeps its claim.
+	// A global disable unbinds the chord at every command level. A hardcoded branch never
+	// consults the override map, so it keeps the chord.
 	for (const chord of globallyDisabledChords(options.keybindings)) {
 		if (!HARDCODED_CHORDS.has(chord)) claimed.delete(chord);
 	}
@@ -348,7 +348,7 @@ function carriesModifier(chord: string): boolean {
 }
 
 /** Only the kinds this editor resolves: an unlisted plugin's kind renders nowhere here, so its
- *  keymap claims nothing. */
+ *  keymap takes no chord. */
 function registeredKeymapChords(activation: PluginActivation): string[] {
 	const isEnabled = kindEnablementFor(activation);
 	return getAllRegisteredKinds()

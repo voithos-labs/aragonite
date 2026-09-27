@@ -15,7 +15,6 @@ export interface BlockActionContext {
 	node: NodeView;
 	/** The block's path from the document root. Top-level blocks only, for now. */
 	path: number[];
-	/** Remove the block. */
 	deleteBlock(): Promise<void>;
 	/** Replace the block's bytes wholesale; the result reparses to whatever those bytes are. */
 	replaceRaw(raw: string): Promise<void>;
@@ -51,9 +50,8 @@ const providers = createPluginRegistry<
 >({ label: 'registerBlockContextActions', isBuiltin: (key) => builtinKeys.has(key) });
 
 /**
- * Add a provider for `kind`, or for every kind with `EVERY_KIND`, under a `name` unique to that
- * kind. Throws when the name is taken for the kind. A plugin's rows show only in the editors that
- * list the plugin.
+ * Add a provider for `kind`, or every kind with `EVERY_KIND`, under a `name` unique to that kind
+ * (a taken name throws). A plugin's rows show only in the editors that list the plugin.
  */
 export function registerBlockContextActions(
 	kind: string,

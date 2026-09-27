@@ -1,9 +1,8 @@
 /**
  * Per-editor resolution over the process-wide definitions
- * (docs/design/plugin-contract.md § Per-instance enablement). The default view resolves what
- * every installed plugin registered, the same grammar a `parse()` with no editor reads. A view
- * with `plugins` leaves out what an unlisted plugin registered, and `syntax` drops the built-in
- * syntaxes a host switched off; the descriptor is never filtered, since a disabled kind needs it.
+ * (`docs/design/plugin-contract.md` § Per-instance enablement). The default view resolves every
+ * installed plugin, as a bare `parse()` does; `plugins` leaves out an unlisted plugin's entries
+ * and `syntax` a switched-off syntax. The descriptor is never filtered: a disabled kind needs it.
  */
 import { isBuiltinBlockKind, type AnyBlockKind } from '../core/nodes';
 import { getBlockComponent, type BlockComponentEntry } from './block-component-registry';
@@ -39,8 +38,7 @@ export interface RegistryView {
 
 /**
  * A kind whose plugin this editor did not activate, or whose setup threw, resolves no component
- * and drops its opener. A kind no plugin owns is never filtered, which covers the built-ins and
- * any kind registered outside a plugin install.
+ * and drops its opener; a kind no plugin owns, built-ins included, is never filtered.
  */
 export function kindEnablementFor(activation: PluginActivation): KindEnablement {
 	return (kind) => resolvesIn(activation, pluginKindOwner(kind));

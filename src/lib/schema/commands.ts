@@ -1,9 +1,8 @@
 /**
  * The command ids, the global command registry, and chord-to-binding resolution. Global commands
- * (undo/redo) are plain functions over a small context; block commands run on the focused block
- * or a registered block-command handler. The chord dispatchers live in `./block-commands`, so this
- * file has no runtime import of it. It may not import the editor's action contracts either, so
- * `GlobalCommandContext` is the shape `HistoryActions` happens to satisfy.
+ * (undo/redo) are plain functions over a small context; block commands run on the focused block.
+ * The chord dispatchers live in `./block-commands`, and the editor's actions satisfy
+ * `GlobalCommandContext` by shape, so this file imports neither at runtime.
  */
 import type { AnyBlockKind } from '../core/nodes';
 import type { AnyCommandId } from './command-id';
@@ -70,10 +69,8 @@ export type BlockCommandId = (typeof BLOCK_COMMAND_IDS)[number];
 export type CommandId = GlobalCommandId | BlockCommandId;
 
 /**
- * Commands that rewrite one block and have no cross-block form: dispatch declines them outright
- * while a selection spans blocks. Membership is about what the handler does, not the id's prefix:
- * the link card writes over one block's offsets and a heading level belongs to one block, so a
- * range spanning blocks leaves neither anything to act on.
+ * Commands that rewrite one block and have no cross-block form, declined while a selection spans
+ * blocks. Membership follows what the handler does (the link card, a heading level), not the id.
  */
 export const RANGE_DECLINED_COMMAND_IDS: ReadonlySet<string> = new Set<CommandId>([
 	'link.openCard',
@@ -89,10 +86,8 @@ export const BLOCK_MOVE_COMMAND_IDS: ReadonlySet<string> = new Set<CommandId>([
 ]);
 
 /**
- * Single-block commands that also have a cross-block form
- * (`selection/cross-block/format-toggle.ts`), reached through an injected router. Declined
- * wherever no router was passed, so a dispatch site that skips it cannot fall through to the
- * focused block's own offsets.
+ * Single-block commands with a cross-block form (`selection/cross-block/format-toggle.ts`),
+ * declined wherever no router was injected so they never fall through to the focused block.
  */
 export const CROSS_BLOCK_RANGE_COMMAND_IDS: ReadonlySet<string> = new Set<CommandId>([
 	'format.toggleStrong',
@@ -102,9 +97,8 @@ export const CROSS_BLOCK_RANGE_COMMAND_IDS: ReadonlySet<string> = new Set<Comman
 ]);
 
 /**
- * The command ids a host's selection toolbar invokes through `EditorInstance.runCommand`; the
- * other ids stay internal. Every id here is in one of the two sets above, so `canRunCommand` can
- * tell a toolbar which of its buttons a cross-block selection leaves nothing to act on.
+ * The ids a host's selection toolbar invokes through `EditorInstance.runCommand`. Each is in one of
+ * the two sets above, so `canRunCommand` can tell a toolbar which buttons a range leaves idle.
  */
 export const TOOLBAR_COMMANDS = {
 	toggleStrong: 'format.toggleStrong',
@@ -177,9 +171,8 @@ export type CommandDispatchPath = 'chord' | 'door' | 'plugin-global' | 'global-c
 const warnedDeadKeys = new Set<string>();
 
 /**
- * Dev-warn once per (id, path) that a command reached no runnable handler on `path`: a key that
- * does nothing. Unreachable, not unregistered: a plugin command resolves only where the dispatch
- * target supplies a command context.
+ * Dev-warn once per (id, path) that a command reached no runnable handler: a key that does nothing.
+ * Unreachable rather than unregistered: a plugin command needs the target's command context.
  */
 export function warnDeadKeyCommand(id: AnyCommandId, path: CommandDispatchPath): void {
 	const key = `${path} ${id}`;
@@ -337,10 +330,8 @@ function builtinGlobalBinding(chord: string, activation: PluginActivation): KeyB
 }
 
 /**
- * Resolution for a chord that bubbled to a container: override(kind), override(global), then the
- * built-in kind keymap. No built-in global fallthrough: undo/redo belong to the focused leaf, and
- * a container re-firing them would double-fire. Consumer overrides do apply at both scopes, so a
- * global disable unbinds a chord a kind defines, and a global bind shadows the kind binding.
+ * A chord bubbled to a container: override(kind), override(global), then the built-in kind keymap.
+ * No built-in global fallthrough, since undo/redo belong to the focused leaf and would double-fire.
  */
 export function resolveKindBinding(
 	chord: string,
@@ -387,10 +378,8 @@ export function commandForKey(
 }
 
 /**
- * True when the built-in keymap, or a plugin-global chord active under `activation`, binds this
- * exact chord before any consumer override; never a modified variant like `Mod+Alt+Y`. Ignores
- * overrides on purpose: it answers which chords have a browser default to suppress, not which
- * command runs. `runGlobalChord`/`runGlobalChordOnKind` answer the dispatch question.
+ * Whether the built-in keymap or an active plugin-global chord binds this exact chord, ignoring
+ * overrides: the question is which chords have a browser default to suppress, not what runs.
  */
 export function isDefaultGlobalChord(chord: string, activation: PluginActivation): boolean {
 	return builtinGlobalBinding(chord, activation) !== null;
@@ -411,9 +400,8 @@ export function resolveGlobalBinding(
 }
 
 /**
- * Run whatever `chord` binds at global scope, for the places with no focused block whose kind
- * keymap could apply: the editor root holding a caret in an unmounted block, the gap caret's
- * proxy. True means the keypress was consumed, which a disabled chord is without running anything.
+ * Run what `chord` binds at global scope where no focused block's keymap applies (a caret in an
+ * unmounted block, the gap caret). True means consumed, which a disabled chord is too.
  */
 export function runGlobalChord(chord: string, context: CommandDispatchContext): boolean {
 	const binding = resolveGlobalBinding(chord, context.keybindingOverrides(), context.activation);
@@ -444,9 +432,8 @@ function runClaimedGlobalChord(
 ): boolean {
 	const run = binding ? getCommand(binding.command, context.activation) : undefined;
 	const consumed = !!run || isDefaultGlobalChord(chord, context.activation);
-	// A resolved binding no global command backs is dead only where nothing else can answer it:
-	// consumed here and inert, or declined at a block with no kind dispatch under it. A kind keymap
-	// chord declining into that dispatch is the normal handoff.
+	// A binding no global command backs is dead only where nothing else can answer it; a kind
+	// keymap chord declining into the block's own dispatch is the normal handoff.
 	if (binding && !run && (consumed || !kindDispatchBelow)) {
 		warnDeadKeyCommand(binding.command, 'global-chord');
 	}

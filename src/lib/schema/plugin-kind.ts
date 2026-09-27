@@ -59,9 +59,8 @@ export function owningPluginEditor(
 }
 
 /**
- * The branded kind for a name already declared, so a module that did not declare it gets the
- * branded type without an unchecked cast. Throws for an undeclared name, so a typo cannot quietly
- * register against a kind that does not exist.
+ * The branded kind for a declared name, without an unchecked cast. Throws for an undeclared name,
+ * so a typo cannot quietly register against a kind that does not exist.
  */
 export function declaredPluginKind(name: string): PluginBlockKind {
 	if (!declaredPluginKinds.has(name)) {
@@ -73,9 +72,8 @@ export function declaredPluginKind(name: string): PluginBlockKind {
 }
 
 /**
- * Has this name been declared? A module that may run twice (hot reload, a re-imported
- * registration) asks first instead of catching {@link declarePluginKind}'s or
- * {@link declaredPluginKind}'s throw.
+ * A module that may run twice (hot reload, a re-imported registration) asks this first instead of
+ * catching {@link declarePluginKind}'s or {@link declaredPluginKind}'s throw.
  */
 export function isBlockKindDeclared(name: string): boolean {
 	return declaredPluginKinds.has(name);

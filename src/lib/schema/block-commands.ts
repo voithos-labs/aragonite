@@ -33,9 +33,8 @@ export interface BlockCommandContext {
 	arg: unknown;
 	updateMetadata(patch: Record<string, unknown>): void;
 	/**
-	 * The mounted component's view-state hooks, which the plugin casts to its own hooks type;
-	 * the editor never learns the shape. `undefined` when no component is mounted, and a handler
-	 * must decline cleanly then.
+	 * The mounted component's view-state hooks, cast by the plugin to its own type. `undefined`
+	 * when no component is mounted, and a handler must then decline cleanly.
 	 */
 	hooks?: unknown;
 	/** The dispatching editor's per-plugin `EditorContext` (document, events, options).
@@ -56,9 +55,8 @@ const compositeKey = (kind: AnyBlockKind, id: string): string => `${kind} ${id}`
 const MOVE_STEP: Partial<Record<string, -1 | 1>> = { 'block.moveUp': -1, 'block.moveDown': 1 };
 
 /**
- * A duplicate `(kind, name)` reports as a register-once conflict rather than an id collision, and
- * `mintCommandId` validates the name before the handler is stored, so an invalid name never
- * leaves an orphaned handler.
+ * A duplicate `(kind, name)` reports as a register-once conflict, not an id collision, and the
+ * name is validated before the handler is stored, so an invalid name leaves no orphaned handler.
  */
 export function registerBlockCommand(
 	kind: AnyBlockKind,
@@ -132,9 +130,8 @@ export interface KindCommandTarget {
 	/** The block's own built-in commands. Absent on a block that owns none (a plugin container),
 	 *  where a built-in id declines. */
 	runCommand?(id: AnyCommandId, arg?: unknown): boolean;
-	// The node plus a metadata-commit route a plugin block command runs against, supplied by the
-	// block holding the focus. A target without it resolves no plugin command, so both the dispatch
-	// and the "can this run" read fall through to `runCommand`.
+	// What a plugin block command runs against, supplied by the focused block; without it no
+	// plugin command resolves, and both dispatch and the "can this run" read fall to `runCommand`.
 	getCommandContext?(): Omit<BlockCommandContext, 'arg'>;
 	/** Whether the id is toggled on at this block's caret or selection, which a toolbar shows as
 	 *  pressed. Absent means the block has no toggle state to report, which reads as inactive. */
@@ -179,9 +176,8 @@ type BlockLocalResolution =
 type CommandResolution = { tier: 'global'; run: GlobalCommandRun } | BlockLocalResolution;
 
 /**
- * The block-level lookups, in dispatch order. A global id resolves as dead here: the leaf path has
- * already run it, and the container bubble has no global level on purpose, so a container can
- * never re-fire the focused leaf's undo.
+ * The block-level lookups, in dispatch order. A global id resolves as dead here, since the leaf
+ * already ran it and a container must never re-fire the focused leaf's undo.
  */
 function resolveBlockLocalCommand(
 	id: AnyCommandId,
@@ -260,9 +256,8 @@ type RangeRoute =
 	| { kind: 'cross-block'; router: CrossBlockCommandRouter };
 
 /**
- * Where an id goes while a selection spans blocks. The single-block commands have no one block to
- * take their offsets from, so they either route to the cross-block handler or decline; everything
- * else is safe over a range and runs on the focused block (`RANGE_DECLINED_COMMAND_IDS`).
+ * While a selection spans blocks, a single-block command routes to the cross-block handler or
+ * declines (`RANGE_DECLINED_COMMAND_IDS`); anything else runs on the focused block.
  */
 function rangeRouteFor(id: AnyCommandId, gates: CommandGates): RangeRoute {
 	// Called directly, not optionally: a caller without the getter throws rather than skipping.
@@ -292,10 +287,8 @@ function runResolvedCommand(
 }
 
 /**
- * The read behind `EditorInstance.canRunCommand`: the same checks and the same lookup the
- * dispatch uses, never a second derivation. Silent on purpose: a host may ask on every selection
- * change, so an unreachable id spends none of the one-time dead-key warnings. `editor-props.ts`
- * states the contract this answers.
+ * The read behind `EditorInstance.canRunCommand`, through the dispatch's own checks and lookup.
+ * Silent, since a host may ask on every selection change and must not spend the dead-key warnings.
  */
 export function canRunCommandById(
 	id: AnyCommandId,
@@ -309,9 +302,8 @@ export function canRunCommandById(
 	return tier === 'global' || tier === 'minted' || tier === 'builtin' || tier === 'move';
 }
 
-/** The read behind `EditorInstance.isCommandActive`, `canRunCommandById`'s sibling: state rather
- *  than permission, so a disabled button may still show as pressed. Whoever would run the command
- *  answers: the cross-block handler over a range, the focused block at a caret. */
+/** The read behind `EditorInstance.isCommandActive`: state, not permission, so a disabled button
+ *  may still show pressed. Whoever would run the command answers. */
 export function isCommandActiveById(
 	id: AnyCommandId,
 	target: KindCommandTarget | null,

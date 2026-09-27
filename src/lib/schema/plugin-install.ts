@@ -20,9 +20,8 @@ export interface EditorPlugin<Options = unknown> {
 }
 
 // ── Setup-time context + per-editor subscription ─────────────────────────────
-// `setup` receives a `PluginSetupContext` for this install; `onEditor` registers a callback that
-// runs once per mounted `<Editor>`. Option types flow through the generic, but `setup` stays
-// method syntax (bivariant parameters) so a plugin with typed options is still assignable.
+// `onEditor` registers a callback that runs once per mounted `<Editor>`. `setup` stays method
+// syntax (bivariant parameters) so a plugin with typed options is still assignable.
 
 export interface PluginSetupContext<Options = unknown> {
 	onEditor(cb: OnEditorCallback<Options>): void;
@@ -55,9 +54,8 @@ export interface EditorContext<Options = unknown> {
 	/** `EditorInstance.runCommand` for this editor: false, and nothing written, on an unknown id,
 	 *  in reading mode, or with nothing focused for a block command. */
 	readonly runCommand: (commandId: string, arg?: unknown) => boolean;
-	/** Inline-parse a prose leaf in this editor's syntax, so a plugin its `plugins` prop left out
-	 *  reads as text, as the editor draws it. Uncached, safe to pass on its own; reference links
-	 *  come back unresolved. */
+	/** Inline-parse a prose leaf in this editor's syntax, so an inactive plugin's syntax reads as
+	 *  text, as the editor draws it. Uncached; reference links come back unresolved. */
 	readonly computeInlineContent: (node: NodeView) => InlineNode[];
 	/** A getter, so always live: the mode in effect. The `presentationModeChange` event signals a change. */
 	readonly presentationMode: PresentationMode;
@@ -67,10 +65,8 @@ export interface EditorContext<Options = unknown> {
 }
 
 // ── Process-global install state ─────────────────────────────────────────────
-// A plugin is code: its setup writes into register-once registries, so it runs at most once per
-// process. `failed` keeps the name of a plugin whose setup threw together with the original error,
-// since a half-finished setup cannot re-run and a later attempt must say to reload without losing
-// the cause.
+// A plugin's setup writes into register-once registries, so it runs at most once per process.
+// `failed` keeps a thrown setup's error, so a later attempt can say to reload and keep the cause.
 
 const installed = new Map<string, EditorPlugin>();
 const failed = new Map<string, unknown>();
@@ -122,9 +118,8 @@ export function installPlugins(plugins: readonly EditorPlugin[]): void {
 export type EditorPluginEntry = EditorPlugin | { plugin: EditorPlugin; options?: unknown };
 
 /**
- * Split a `plugins` prop into the install list and a name-to-options map. The options belong to
- * one editor even though a plugin installs once per process. A plugin listed twice keeps its first
- * entry, the same first-wins rule `installPlugins` uses, so the options map cannot disagree.
+ * The options belong to one editor even though a plugin installs once per process. A plugin listed
+ * twice keeps its first entry, the rule `installPlugins` uses, so the two cannot disagree.
  */
 export function normalizePluginEntries(entries: readonly EditorPluginEntry[]): {
 	plugins: EditorPlugin[];

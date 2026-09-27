@@ -24,9 +24,8 @@ const quoteLine = (text: string): string => (text === '' ? '>' : '> ' + text);
 // ── List ─────────────────────────────────────────────────────────────────────
 
 /**
- * Rebuild a list item's `raw`: marker on the first line, indentation on continuations. A separator
- * line stays unindented; an empty block's line at the body's end is indented, which keeps it
- * inside the item on reload.
+ * Rebuild a list item's `raw`: marker on the first line, indentation on continuations. Separator
+ * lines stay bare, but an empty block's line at the body's end is indented to stay in the item.
  */
 export function rebuildListItemRaw(node: CstNode, changed?: ChildRawChange): void {
 	if (!node.children || !node.metadata) return;
@@ -66,10 +65,8 @@ export function tableLineEnding(table: NodeView): LineEnding {
 }
 
 /**
- * The same bytes with a line ending the row does not carry itself: a row created by a structural
- * edit has none from the source, so the table supplies it. Separate from the rebuilder above
- * because `rebuildRaw`'s second parameter is the changed-child hint. The row's surplus cells,
- * the ones GFM does not render, follow its rendered ones.
+ * The row's bytes with the table's line ending, since a row a structural edit created has none of
+ * its own. The surplus cells, which GFM does not render, follow the rendered ones.
  */
 export function writeTableRow(node: CstNode, lineEnding: string): void {
 	if (!node.children) return;
@@ -79,10 +76,8 @@ export function writeTableRow(node: CstNode, lineEnding: string): void {
 }
 
 /**
- * Header, a rebuilt delimiter row, then the body rows. Every row is rebuilt first, so the first
- * structural edit normalizes the whole table's padding instead of leaving half of it padded. Every
- * line takes the table's ending, except the last line of a table that ends the document without
- * one: that line stays open whichever row now holds it.
+ * Every row is rebuilt, so the first structural edit normalizes the whole table's padding. The last
+ * line of a table that ends the document with no line ending stays open, whichever row holds it.
  */
 export function rebuildTableRaw(node: CstNode): void {
 	if (!node.children) return;

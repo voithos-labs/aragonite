@@ -43,16 +43,14 @@ export interface InlineConstructPolicy {
 	autoUnwrapOnEmpty: boolean;
 	splitBehavior: 'close-and-reopen' | 'plain';
 	revealable: boolean;
-	/** Whether the link card is how this construct's destination is edited, the only way left in a
-	 *  mode that shows the user no URL (live-mode.md § 4.6). Absent reads as no: an image's
-	 *  destination has its own editor, and an autolink's destination is the text on screen. */
+	/** Whether the link card edits this construct's destination, the only way in a mode that hides
+	 *  the URL (`docs/design/live-mode.md` § 4.6 The link card). Absent reads as no. */
 	cardEditable?: boolean;
 	/** Absent for a construct no format chord addresses. */
 	mark?: InlineMarkPolicy;
 	/**
-	 * How much of the construct is prose the author writes, where a trigger such as `#` may open
-	 * the inline menu: `'all'`, only its content range (`'content'`, a link's text), or `'none'`
-	 * (code, a destination). Absent reads as `'all'`, or `'none'` for an inline widget kind.
+	 * How much of the construct is prose, where a trigger such as `#` may open the inline menu.
+	 * Absent reads as `'all'`, or `'none'` for an inline widget kind.
 	 */
 	prose?: InlineProseExtent;
 }
@@ -81,7 +79,7 @@ export function registerInlineConstructPolicy(
 }
 
 /** Runs before the register-once check, so it throws in every environment: that check forgives a
- *  duplicate row, never an invalid one. G1.31 states the rule and still backs it up. */
+ *  duplicate row, never an invalid one. */
 function assertMarkCommandMintable(kind: AnyInlineKind, mark: InlineMarkPolicy | undefined): void {
 	if (!mark || isBuiltinInlineKind(kind) || !isBuiltinCommandId(mark.command)) return;
 	throw new Error(
@@ -89,9 +87,8 @@ function assertMarkCommandMintable(kind: AnyInlineKind, mark: InlineMarkPolicy |
 	);
 }
 
-/** The code that opens the card reaches only revealable kinds (`link-at-point.ts`), so a row that
- *  asks for the card without `revealable` asks for something that can never open. Thrown here
- *  rather than left as a silent no-op at the click. */
+/** The card opens only on revealable kinds (`link-at-point.ts`), so a row asking for it without
+ *  `revealable` throws here rather than failing silently at the click. */
 function assertCardImpliesRevealable(kind: AnyInlineKind, policy: InlineConstructPolicy): void {
 	if (!policy.cardEditable || policy.revealable) return;
 	throw new Error(
@@ -143,7 +140,7 @@ export function listInlineMarks(): readonly InlineMark[] {
 	return marks.sort((a, b) => a.mark.nestingRank - b.mark.nestingRank);
 }
 
-/** The mark a command toggles, or null when no row claims that command. */
+/** The mark a command toggles, or null when no row names that command. */
 export function inlineMarkForCommand(command: string): InlineMark | null {
 	return listInlineMarks().find((entry) => entry.mark.command === command) ?? null;
 }
@@ -196,13 +193,11 @@ export interface JoinSeam {
 	/** Belongs to one editor, so it is passed on the call: a reference link parsed without it reads
 	 *  as plain brackets, and the cleanup would skip a construct the user saw as a link. */
 	reading: Reading;
-	/** Text the caller will insert at the join once the cleanup returns. Absent for a plain delete;
-	 *  when present it is part of the bytes the cleanup has to check, since typed text changes what
-	 *  a surviving delimiter pairs against. */
+	/** Text the caller will insert at the join after the cleanup, absent for a plain delete. The
+	 *  cleanup checks it too, since typed text changes what a surviving delimiter pairs against. */
 	typed?: string;
-	/** The container's marker prefix the surviving side sits under (`- `, `> `). Absent where the
-	 *  block has none. The result is parsed back through it: an item's body starting with a space
-	 *  would otherwise reparse under a wider marker than the tree holds. */
+	/** The container's marker prefix over the surviving side (`- `, `> `), if any. The result is
+	 *  parsed back through it, or a body opening with a space reparses under a wider marker. */
 	ambientPrefix?: string;
 }
 

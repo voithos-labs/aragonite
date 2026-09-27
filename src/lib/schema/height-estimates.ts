@@ -74,9 +74,8 @@ export function sourceLinesEstimate(node: NodeView, env: HeightEstimateEnv): num
 }
 
 /**
- * A container by its contract: a grid by its rows, or by its whole source wrapped when its cells
- * wrap past that; any other container by the larger of a line per child and its text wrapped, since
- * the first ignores wrap and the second ignores each child's own margin.
+ * A grid takes the larger of its rows and its source wrapped; any other container the larger of a
+ * line per child and its text wrapped, since the first ignores wrapping and the second margins.
  */
 export function containerEstimate(node: NodeView, env: HeightEstimateEnv): number {
 	const wrapped = wrappedLines(node.raw.length, env) * env.lineHeight;
