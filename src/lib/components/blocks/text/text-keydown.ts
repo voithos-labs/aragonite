@@ -4,7 +4,7 @@
  * The component owns the wiring; these own the string math.
  */
 
-import type { ContentRange } from '../../../core/inline';
+import { sameLineSuffixOf, type ContentRange } from '../../../core/inline';
 import {
 	displayLength,
 	ownTrailingLineEnding,
@@ -86,21 +86,21 @@ export function insertHardBreak(
 	raw: string,
 	offset: number,
 	ending: LineEnding,
-	contentEnd: number
+	content: ContentRange
 ): TextEditResult {
 	const display = trimTrailingLineEnding(raw);
 	const trailing = ownTrailingLineEnding(raw);
-	if (offset === contentEnd && contentEnd < display.length) {
+	if (offset === content.end && content.end < display.length) {
 		return {
-			newRaw: raw.slice(0, contentEnd) + '\\' + raw.slice(contentEnd),
-			caretOffset: contentEnd + 1
+			newRaw: raw.slice(0, content.end) + '\\' + raw.slice(content.end),
+			caretOffset: content.end + 1
 		};
 	}
-	const suffix = display.slice(contentEnd);
-	if (offset < contentEnd && suffix && !/^[\r\n]/.test(suffix)) {
+	const lineTail = sameLineSuffixOf(raw, content.end);
+	if (offset >= content.start && offset < content.end && lineTail) {
 		return breakBeforeLine(
-			display.slice(0, offset) + '\\' + suffix,
-			display.slice(offset, contentEnd)
+			display.slice(0, offset) + '\\' + lineTail,
+			display.slice(offset, content.end) + display.slice(content.end + lineTail.length)
 		);
 	}
 	return breakBeforeLine(display.slice(0, offset) + '\\', display.slice(offset));

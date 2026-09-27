@@ -37,11 +37,11 @@ describe('the page and the edit code read one fence off a code span', () => {
 		scanned('`` a`b ``'),
 		scanned('` `'),
 		// A plugin's own syntax for a built-in code span, which `text` places.
-		['a plugin-made span', { kind: 'inlineCode', start: 0, end: 5, text: 'x' }, '{{x}}'],
+		['a plugin-made span is 2 wide', { kind: 'inlineCode', start: 0, end: 5, text: 'x' }, '{{x}}'],
 		// No `text` to place the content, so the whole node is content.
-		['a span with no text', { kind: 'inlineCode', start: 0, end: 3 }, '`x`'],
+		['a span with no text is 0 wide', { kind: 'inlineCode', start: 0, end: 3 }, '`x`'],
 		[
-			'a span whose text leaves an odd split',
+			'a span whose text leaves an odd split is 0 wide',
 			{ kind: 'inlineCode', start: 0, end: 4, text: 'x' },
 			'`x``'
 		]
@@ -52,15 +52,15 @@ describe('the page and the edit code read one fence off a code span', () => {
 
 describe('codeSpanFence', () => {
 	it.each([
-		['a scanned double fence', parseInline('`` a`b ``', 0, 9)[0], 2],
-		['a plugin-made span', { kind: 'inlineCode', start: 0, end: 5, text: 'x' }, 2],
-		['a span with no text', { kind: 'inlineCode', start: 0, end: 3 }, 0],
+		['a scanned double fence is 2 wide', parseInline('`` a`b ``', 0, 9)[0], 2],
+		['a plugin-made span is 2 wide', { kind: 'inlineCode', start: 0, end: 5, text: 'x' }, 2],
+		['a span with no text is 0 wide', { kind: 'inlineCode', start: 0, end: 3 }, 0],
 		[
-			'a span whose text leaves an odd split',
+			'a span whose text leaves an odd split is 0 wide',
 			{ kind: 'inlineCode', start: 0, end: 4, text: 'x' },
 			0
 		]
-	] as [string, InlineNode, number][])('%s is %i wide', (_label, node, fence) => {
+	] as [string, InlineNode, number][])('%s', (_label, node, fence) => {
 		expect(codeSpanFence(node)).toBe(fence);
 	});
 });

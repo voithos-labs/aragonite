@@ -503,7 +503,7 @@
 						node.raw,
 						offset,
 						documentEnding(),
-						getContentRange(node).end
+						getContentRange(node)
 					);
 					const write = blockEdit.updateBlockContent(
 						index,

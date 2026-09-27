@@ -2,7 +2,7 @@
 
 import type { AnyInlineKind, CstNode, InlineNode } from '../nodes';
 import type { NodeView } from '../node-views';
-import { displayLength } from '../lines';
+import { displayLength, firstDisplayLine } from '../lines';
 import { getBlockKindDescriptor } from '../../schema/block-kind-descriptor';
 // Registered before any descriptor read, headless of the editor mount. Explicit call: a bare
 // side-effect import is tree-shaken from the production build.
@@ -49,9 +49,13 @@ export function structuralSuffix(node: NodeView): string {
 /** The structural suffix's part on the text's own line, an ATX closing run: a line break made
  *  at the text's end goes after it. A setext underline starts on a line of its own. */
 export function sameLineSuffix(node: NodeView): string {
-	const suffix = structuralSuffix(node);
-	const lineBreak = suffix.search(/[\r\n]/);
-	return lineBreak === -1 ? suffix : suffix.slice(0, lineBreak);
+	if (!isProseKind(node.kind)) return '';
+	return sameLineSuffixOf(node.raw, getContentRange(node).end);
+}
+
+/** {@link sameLineSuffix} over a prose block's raw and its content end. */
+export function sameLineSuffixOf(raw: string, contentEnd: number): string {
+	return firstDisplayLine(raw.slice(contentEnd, displayLength(raw))).text;
 }
 
 /** The one place a {@link ContentLength} is created. */
