@@ -98,6 +98,52 @@ describe('history swap: the restored selection notifies once, after the placemen
 
 		expect(log).toEqual(['place', 'notify']);
 	});
+
+	// Dropping the outgoing range before the document swap must not announce it: the only
+	// notification is still the restored selection's.
+	it('stays at one notification when a cross-block range was standing', async () => {
+		const log: string[] = [];
+		const { deps } = makeEditorActionsDeps(
+			[makeNode('paragraph', 'aaa\n'), makeNode('paragraph', 'bbb\n')],
+			{ onSelectionChange: () => log.push('notify') }
+		);
+		deps.getBlockElByPath = () => {
+			log.push('place');
+			return null;
+		};
+		const history = createHistoryActions(deps, createUndoController(deps));
+		deps.undoManager.push({
+			snapshot: { ...deps.doc, children: [...deps.doc.children] },
+			blockIds: [...deps.blockIds],
+			selection: { anchor: { path: [1], offset: 2 }, focus: { path: [1], offset: 2 } }
+		});
+		deps.selectionState.enterCrossBlock({ path: [0], offset: 0 }, { path: [1], offset: 1 });
+		log.length = 0;
+
+		await history.requestUndo();
+
+		expect(log).toEqual(['place', 'notify']);
+	});
+
+	it('announces once when the restored selection no longer resolves', async () => {
+		const log: string[] = [];
+		const { deps } = makeEditorActionsDeps([makeNode('paragraph', 'aaa\n')], {
+			onSelectionChange: () => log.push('notify')
+		});
+		const history = createHistoryActions(deps, createUndoController(deps));
+		deps.undoManager.push({
+			snapshot: { ...deps.doc, children: [...deps.doc.children] },
+			blockIds: [...deps.blockIds],
+			selection: { anchor: { path: [5], offset: 0 }, focus: { path: [5], offset: 0 } }
+		});
+		deps.selectionState.enterCrossBlock({ path: [0], offset: 0 }, { path: [1], offset: 1 });
+		log.length = 0;
+
+		await history.requestUndo();
+
+		expect(log).toEqual(['notify']);
+		expect(deps.selectionState.isCrossBlock).toBe(false);
+	});
 });
 
 // Flush, not discard: the pending `input` event must reach edit listeners (discarding

@@ -1,14 +1,14 @@
 /**
  * G1.29: a stored endpoint's offset is read in its own block's coordinates. On a block that counts
- * cells (a table) it is a flagged cell index, the rectangle inside one table included; elsewhere a
- * character offset inside `[0, displayLength(raw)]`, and inside a kind with no character positions
- * one of those two ends, because anything between them cuts an opaque block in half.
+ * cells (a table) it is a flagged cell index inside the grid, a rectangle's corners included.
+ * Elsewhere it's a character offset inside `[0, displayLength(raw)]`, and inside a kind with no
+ * character positions one of those two ends, because anything between them cuts an opaque block.
  */
 
 import type { DocumentView, NodeView } from '../core/node-views';
 import { displayLength } from '../core/lines';
 import { isWholeBlockUnit } from '../schema/whole-block-unit';
-import { countsCells } from '../schema/block-kind-descriptor';
+import { countsCells, tableCellCount } from '../schema/block-kind-descriptor';
 import type { InvariantViolation } from '../assert';
 
 /**
@@ -57,7 +57,14 @@ function checkCellCoordinate(
 	point: EndpointCoordinate,
 	node: NodeView
 ): InvariantViolation | null {
-	if (countsCells(node)) return null;
+	if (countsCells(node)) {
+		if (point.offset >= 0 && point.offset < tableCellCount(node)) return null;
+		return {
+			code: 'endpoint-cell-index-out-of-range',
+			message: `cross-block ${role} [${point.path.join(',')}] carries cell index ${point.offset}, outside the table's 0..${tableCellCount(node) - 1}`,
+			detail: { role, path: [...point.path], offset: point.offset }
+		};
+	}
 	return {
 		code: 'endpoint-cell-coordinate-off-table',
 		message: `cross-block ${role} [${point.path.join(',')}] carries a cell index (${point.offset}) against a "${node.kind}", which has no cells`,

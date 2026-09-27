@@ -8,10 +8,10 @@
 import type { DocumentView, NodeView } from '../core/node-views';
 import { metadataOf } from '../core/nodes';
 import { nodeAt } from '../tree-operations/node-primitives';
-import { countsCells } from '../schema/block-kind-descriptor';
+import { clampCellIndex, countsCells, tableCellCount } from '../schema/block-kind-descriptor';
 import type { CellSelectionPoint, SelectionPoint } from './primitives';
 import { cellIndexOf, cellPoint } from './primitives';
-import { asCellIndex, cellIndexAt, cellRowCol } from '../cursor/coordinate-spaces';
+import { asCellIndex, rowMajorCellIndex, cellRowCol } from '../cursor/coordinate-spaces';
 import { comparePaths, pathHasPrefix } from './path-math';
 import { devWarn } from '../dev-warn';
 
@@ -32,9 +32,9 @@ export function normalizeTableEndpoint(
 		const node = nodeAt(doc, tablePath);
 		if (!node || !countsCells(node)) continue;
 		// On the table's own path the offset is already the cell index.
-		if (d === path.length - 1) return cellPoint(tablePath, offset);
+		if (d === path.length - 1) return cellPoint(tablePath, clampCellIndex(node, offset));
 		const colCount = metadataOf(node, 'table').columnCount;
-		return cellPoint(tablePath, cellIndexAt(path[d + 1], path[d + 2] ?? 0, colCount));
+		return cellPoint(tablePath, rowMajorCellIndex(path[d + 1], path[d + 2] ?? 0, colCount));
 	}
 	return { path: path.slice(), offset };
 }
@@ -47,17 +47,8 @@ export function wholeTableEndpoint(
 ): CellSelectionPoint | null {
 	const node = nodeAt(doc, path);
 	if (!node || !countsCells(node)) return null;
-	const offset = side === 'end' ? Math.max(tableCellCount(node) - 1, 0) : 0;
+	const offset = side === 'end' ? clampCellIndex(node, Infinity) : 0;
 	return cellPoint(path, offset);
-}
-
-/**
- * How many cells a table's index space holds, the exclusive upper bound on any row-major cell
- * index. `node` must be a table block; the metadata read is unchecked, so other kinds give NaN.
- * Lives beside the bounds check below so a caller's clamp and the check cannot drift apart.
- */
-export function tableCellCount(node: NodeView): number {
-	return (node.children?.length ?? 0) * metadataOf(node, 'table').columnCount;
 }
 
 /** One cell of a grid, with the doc-absolute path that addresses it. */
@@ -87,7 +78,7 @@ export function gridEndpointCellIndex(
 	// On the grid's own path an unflagged offset counts characters, which address no cell.
 	if (point.path.length === gridPath.length) return point.cellCoordinate ? point.offset : null;
 	const [row, col = 0] = point.path.slice(gridPath.length);
-	return cellIndexAt(row, col, gridColumnCount(grid));
+	return rowMajorCellIndex(row, col, gridColumnCount(grid));
 }
 
 /**
@@ -174,7 +165,7 @@ function snapEndpoint(
 	const colCount = metadataOf(node, 'table').columnCount;
 	const cellIdx = cellIndexOf(point, 'snapCrossBlockTableEndpoints');
 	const { row } = cellRowCol(cellIdx, colCount);
-	const snappedOffset = cellIndexAt(row, side === 'start' ? 0 : colCount - 1, colCount);
+	const snappedOffset = rowMajorCellIndex(row, side === 'start' ? 0 : colCount - 1, colCount);
 	if (snappedOffset === cellIdx) return point;
 	return cellPoint(point.path, snappedOffset);
 }

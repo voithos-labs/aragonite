@@ -209,7 +209,7 @@ describe('applySelectionToDom: restore routing', () => {
 		const requested: number[][] = [];
 
 		applySelectionToDom(
-			// A flagged anchor and an unflagged focus on the table path, cell index 3.
+			// A bare focus on the table path, cell index 3, which the state flags as it stores it.
 			{ anchor: { path: [0], offset: 0, cellCoordinate: true }, focus: { path: [0], offset: 3 } },
 			s,
 			(p) => {

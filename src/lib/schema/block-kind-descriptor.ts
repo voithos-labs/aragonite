@@ -1,4 +1,4 @@
-import { isBuiltinBlockKind, type AnyBlockKind, type CstNode } from '../core/nodes';
+import { isBuiltinBlockKind, metadataOf, type AnyBlockKind, type CstNode } from '../core/nodes';
 import type { DocumentView, NodeView } from '../core/node-views';
 import type { LineEnding } from '../core/lines';
 import type { ContainerBodyWrap } from '../core/parser';
@@ -533,6 +533,19 @@ export function countsCells(
 	node: NodeView | DocumentView
 ): node is Extract<NodeView, { kind: 'table' }> {
 	return 'raw' in node && node.kind === 'table';
+}
+
+/**
+ * How many cells a table's index space holds, the exclusive upper bound on any row-major cell
+ * index. `node` must be a table block; the metadata read is unchecked, so other kinds give NaN.
+ */
+export function tableCellCount(node: NodeView): number {
+	return (node.children?.length ?? 0) * metadataOf(node, 'table').columnCount;
+}
+
+/** A cell index clamped into a table's grid: the one ceiling every reader of cell space uses. */
+export function clampCellIndex(node: NodeView, cellIdx: number): number {
+	return Math.min(Math.max(cellIdx, 0), Math.max(tableCellCount(node) - 1, 0));
 }
 
 /**

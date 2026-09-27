@@ -72,6 +72,11 @@ export interface SelectionState {
 	extendFocus(point: SelectionEndpoint): void;
 	collapse(): void;
 	clear(): void;
+	/**
+	 * Drops the range and gap caret without notifying, for a document swap: the old endpoints
+	 * address the outgoing tree, and the restore that follows announces the new selection.
+	 */
+	dropForDocumentSwap(): void;
 	setGapCaret(pos: GapCaretPosition): void;
 	clearGapCaret(): void;
 	incrementSelectAllCount(): void;
@@ -229,8 +234,8 @@ class SelectionStateImpl implements SelectionState {
 	enterCrossBlock(anchor: SelectionEndpoint, focus: SelectionEndpoint): void {
 		this.#gapCaret = null;
 		// Both ends on the same block with no text: the block itself is the range, stored as its
-		// full byte span (a table's first and last cell) and flagged, since a same-path pair is
-		// refused as text below.
+		// full byte span (a table's first and last cell) and marked as a whole unit, since a
+		// same-path pair is refused as text below.
 		if (
 			isWholeBlockEndpoint(anchor) &&
 			isWholeBlockEndpoint(focus) &&
@@ -339,11 +344,15 @@ class SelectionStateImpl implements SelectionState {
 
 	collapse(): void {
 		if (!this.#hasCaretClaim()) return;
+		this.dropForDocumentSwap();
+		this.#notify();
+	}
+
+	dropForDocumentSwap(): void {
 		this.#anchor = null;
 		this.#focus = null;
 		this.#gapCaret = null;
 		this.#wholeUnit = null;
-		this.#notify();
 	}
 
 	clear(): void {

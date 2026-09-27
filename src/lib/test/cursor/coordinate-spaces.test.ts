@@ -4,7 +4,7 @@
 import { describe, it, expect } from 'vitest';
 import {
 	asCellIndex,
-	cellIndexAt,
+	rowMajorCellIndex,
 	cellRectBounds,
 	cellRowCol,
 	asDomTextOffset,
@@ -131,14 +131,14 @@ describe('cellRowCol', () => {
 	});
 });
 
-describe('cellIndexAt', () => {
+describe('rowMajorCellIndex', () => {
 	it('encodes grid coordinates as the row-major index cellRowCol decodes', () => {
-		expect(cellIndexAt(0, 0, 3)).toBe(0);
-		expect(cellIndexAt(1, 0, 3)).toBe(3);
-		expect(cellIndexAt(2, 1, 3)).toBe(7);
+		expect(rowMajorCellIndex(0, 0, 3)).toBe(0);
+		expect(rowMajorCellIndex(1, 0, 3)).toBe(3);
+		expect(rowMajorCellIndex(2, 1, 3)).toBe(7);
 		for (let idx = 0; idx < 12; idx++) {
 			const { row, col } = cellRowCol(idx, 4);
-			expect(cellIndexAt(row, col, 4)).toBe(idx);
+			expect(rowMajorCellIndex(row, col, 4)).toBe(idx);
 		}
 	});
 });

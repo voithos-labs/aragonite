@@ -19,6 +19,17 @@ describe('G1.29 cross-block endpoint coordinates', () => {
 		expect(violation?.message).toContain('anchor');
 	});
 
+	// A flagged index past the last cell reads rows that don't exist: copy invents empty rows and
+	// delete throws.
+	it('flags a cell index past the last cell', () => {
+		const violation = checkCrossBlockEndpointCoordinates(
+			doc(),
+			{ path: [0], offset: 4, cellCoordinate: true },
+			{ path: [1], offset: 0 }
+		);
+		expect(violation?.code).toBe('endpoint-cell-index-out-of-range');
+	});
+
 	it('passes a flagged table endpoint', () => {
 		const cell = { path: [0], offset: 1, cellCoordinate: true };
 		expect(checkCrossBlockEndpointCoordinates(doc(), cell, { path: [1], offset: 0 })).toBeNull();

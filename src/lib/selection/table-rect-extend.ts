@@ -9,7 +9,7 @@ import type { DocumentView } from '../core/node-views';
 import { metadataOf } from '../core/nodes';
 import { nodeAt } from '../tree-operations/node-primitives';
 import { countsCells } from '../schema/block-kind-descriptor';
-import { cellIndexAt, cellRowCol } from '../cursor/coordinate-spaces';
+import { rowMajorCellIndex, cellRowCol } from '../cursor/coordinate-spaces';
 import { cellIndexOf, type SelectionPoint } from './primitives';
 import { pathsEqual } from './path-math';
 
@@ -43,7 +43,7 @@ export function intraTableRectExtension(
 	const { row, col } = cellRowCol(cellIndexOf(focus, 'intraTableRectExtension'), colCount);
 	const at = (r: number, c: number): TableRectExtension => ({
 		kind: 'cell',
-		offset: cellIndexAt(r, c, colCount)
+		offset: rowMajorCellIndex(r, c, colCount)
 	});
 
 	switch (key) {

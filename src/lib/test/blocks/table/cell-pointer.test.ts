@@ -10,7 +10,7 @@ import {
 	type CellAnchor
 } from '../../../components/blocks/table/cell-pointer';
 import { createSelectionState } from '../../../selection/selection-state.svelte';
-import type { DocumentView } from '../../../core/node-views';
+import { parse } from '../../../core/parser';
 
 describe('handleCellShiftClick', () => {
 	function makeAnchor(rowIdx: number, colIdx: number): CellAnchor {
@@ -49,6 +49,19 @@ describe('handleCellShiftClick', () => {
 		expect(sel.focus).toEqual({ path: [2], offset: 6, cellCoordinate: true });
 	});
 
+	// Miss-analysis: every shift-click row started from nothing or from a painted rectangle, so no
+	// row told "a range stands" apart from "a rectangle is painted", and a helper keyed on the
+	// first stayed green.
+	it('re-anchors at the pressed-from cell when only a one-cell pair stands', () => {
+		const sel = createSelectionState();
+		const corner = (offset: number) => ({ path: [2], offset, cellCoordinate: true as const });
+		// The pair Shift+Down then Shift+Up leaves: a range standing, nothing painted.
+		sel.enterCrossBlock(corner(0), corner(0));
+		handleCellShiftClick(sel, makeAnchor(1, 1), { rowIdx: 2, colIdx: 2 });
+		expect(sel.anchor).toEqual(corner(4));
+		expect(sel.focus).toEqual(corner(8));
+	});
+
 	it('does not mutate the input tablePath', () => {
 		const sel = createSelectionState();
 		const anchor = makeAnchor(0, 0);
@@ -61,20 +74,7 @@ describe('handleCellShiftClick', () => {
 	// Reading a rectangle inside one table, where the ends normalise and the snap is skipped,
 	// must not fire the coordinate-space warning.
 	it('reads the same-table rectangle without a coordinate-space warn', () => {
-		const doc = {
-			kind: 'document',
-			prefix: '',
-			suffix: '',
-			children: [
-				{
-					kind: 'table',
-					leadingTrivia: '',
-					raw: '',
-					metadata: { columnCount: 3, alignments: ['none', 'none', 'none'] },
-					children: []
-				}
-			]
-		} as unknown as DocumentView;
+		const doc = parse('| A | B | C |\n| --- | --- | --- |\n| 1 | 2 | 3 |\n');
 		const sel = createSelectionState({ getDoc: () => doc });
 		handleCellShiftClick(sel, { ...makeAnchor(0, 0), tablePath: [0] }, { rowIdx: 1, colIdx: 2 });
 		void sel.start;

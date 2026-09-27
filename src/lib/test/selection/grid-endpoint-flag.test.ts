@@ -57,6 +57,15 @@ describe('an endpoint on a table path is stored as a cell index', () => {
 		expect(state.anchor).toEqual(cell(0));
 	});
 
+	// Miss-analysis: every bare-offset row used an index inside the grid, so nothing asked what an
+	// offset past the last cell becomes once no one warns about it.
+	it('clamps a bare offset past the last cell to the last cell', () => {
+		const doc = parse('para\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n');
+		const state = createSelectionState({ getDoc: () => doc });
+		state.enterCrossBlock({ path: [0], offset: 2 }, { path: [1], offset: 40 });
+		expect(state.focus).toEqual({ path: [1], offset: 5, cellCoordinate: true });
+	});
+
 	it('extendFocus flags a bare focus on a table reached from prose', () => {
 		const { state } = tableState();
 		state.enterCrossBlock({ path: [1], offset: 2 }, cell(5));
@@ -65,7 +74,7 @@ describe('an endpoint on a table path is stored as a cell index', () => {
 	});
 });
 
-// Undo entries written before the flag existed hold bare points on a table path.
+// A host's `setSelection` can hand in bare points on a table path.
 describe('a restored endpoint on a table path comes back flagged', () => {
 	it('resolveSelectionPoint flags a bare table point', () => {
 		expect(resolveSelectionPoint(parse(TABLE), { path: [0], offset: 4 })).toEqual(cell(4));

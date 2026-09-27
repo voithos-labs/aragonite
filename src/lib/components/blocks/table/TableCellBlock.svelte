@@ -37,7 +37,7 @@
 		parseClipboardGrid,
 		tileGridTo
 	} from '../../../tree-operations/table-grid-clipboard';
-	import { tableCellCount } from '../../../selection/table-endpoint-snap';
+	import { tableCellCount } from '../../../schema/block-kind-descriptor';
 	import { pathsEqual } from '../../../selection/path-math';
 	import { applyDelimiterAutoPair } from '../text/delimiter-autopair';
 	import { FALLBACK_CONTENT_WIDTH } from '../../../cursor/typography-estimates';
@@ -48,7 +48,11 @@
 		screenVisibilityOf,
 		rawSelectionFocus
 	} from '../../../cursor/widget-offset';
-	import { asRawOffset, cellIndexAt, type RawOffset } from '../../../cursor/coordinate-spaces';
+	import {
+		asRawOffset,
+		rowMajorCellIndex,
+		type RawOffset
+	} from '../../../cursor/coordinate-spaces';
 	import { createSurfaceBackend } from '../../../cursor/surface-backend';
 	import { getCurrentCursorEditorRelativeX } from '../../../cursor/sticky-measure';
 	import { handleSharedKeydown, handleSharedBeforeInput } from '../../../selection/shared-keydown';
@@ -695,7 +699,7 @@
 		if (!atEdge) return false;
 
 		const tablePath = myPath.slice(0, -2);
-		const anchor = cellPoint(tablePath, cellIndexAt(rowIdx, colIdx, columnCount));
+		const anchor = cellPoint(tablePath, rowMajorCellIndex(rowIdx, colIdx, columnCount));
 		const ext = intraTableRectExtension(getDoc(), anchor, anchor, key);
 		if (!ext) return false;
 

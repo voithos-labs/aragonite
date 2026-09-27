@@ -490,7 +490,9 @@ Predicate `checkRenderedTextFidelity` (`render-fidelity.ts`) · seams
 coordinate space says. On a table that's a cell index, and the point has to say so with
 `cellCoordinate: true`: every point on a table path, the two corners of a rectangle inside one
 table included. Readers trust the flag, so a bare offset on a table reads as characters, and
-rangeDelete's generic branch then corrupts the grid.
+rangeDelete's generic branch then corrupts the grid. The index has to land inside the grid too:
+one past the last cell makes copy invent empty rows and delete throw, so the normalizer and the
+restore both clamp to `src/lib/schema/block-kind-descriptor.ts :: clampCellIndex`.
 Both directions fire, because a cell index stored against a block with no cells is the same
 corruption from the opposite producer. Every other char endpoint must land inside its block's
 raw, and inside a kind with no character positions (childless `blockFocus: 'whole-block'`) on one

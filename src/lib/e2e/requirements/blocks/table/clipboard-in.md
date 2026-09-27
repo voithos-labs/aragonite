@@ -45,12 +45,12 @@ A grid is data for the cells rather than a block to splice between them, which i
 - Whole-table selection (a rectangle dragged over every cell; Ctrl+A steps cell → document and offers no table stage) + paste a paragraph: the table block is removed and replaced by the pasted block(s) at the table's position. Single Ctrl+Z restores the original table.
 - Undo then redo of that whole-table paste: the undo brings back the table bytes and the cell
   rectangle, both corners counting cells, and the redo brings back the paragraph with no
-  rectangle left over it
-  - Miss-analysis: the whole-table tests stopped at the undo, and the stale rectangle only
-    meets the wrong tree when the next history step swaps the paragraph back in under it
+  rectangle left over it.
 
 ## Miss-analysis
 
+- The whole-table paste tests stopped at the undo, and a stale rectangle only meets the wrong
+  tree when the next history step swaps the paragraph back in under it.
 - Moving blank lines onto the blocks turned a copy's whitespace-only edge lines into blocks, which
   sent an ordinary cell paste down the route that breaks the table; the pass that made that change
   picked its e2e projects by the files it touched, so e2e-blocks never ran. Under it sat the real

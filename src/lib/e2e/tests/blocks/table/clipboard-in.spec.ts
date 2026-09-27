@@ -283,7 +283,7 @@ test.describe('table block: paste in', () => {
 	});
 
 	// The undo restores the cell rectangle; the redo then swaps the paragraph back in under it,
-	// which is where a reader met the rectangle's cell index on a paragraph (#602).
+	// where a reader could meet the rectangle's cell index on a paragraph.
 	test('undo and redo of a whole-table paste restore each side without a stale rectangle', async ({
 		page
 	}) => {

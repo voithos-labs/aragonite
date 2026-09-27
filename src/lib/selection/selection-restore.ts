@@ -13,8 +13,7 @@ import { cellPoint, type EditorSelection, type SelectionPoint } from './primitiv
 import { applySelectionToDom } from './native-bridge';
 import { placeGapCaret } from './caret-doors';
 import { gapScopeChildren, type GapCaretPosition } from './gap-caret';
-import { tableCellCount } from './table-endpoint-snap';
-import { countsCells } from '../schema/block-kind-descriptor';
+import { clampCellIndex, countsCells } from '../schema/block-kind-descriptor';
 import type { SelectionState } from './selection-state.svelte';
 import type { CaretMemory } from '../cursor/caret-memory';
 
@@ -94,10 +93,9 @@ export function resolveSelectionPoint(
 	if (node === null || !isBlockNode(node)) return null;
 
 	const cells = countsCells(node);
-	// Through `tableCellCount`, not a local product: this ceiling and `cellEndpointDeepPath`'s
-	// bounds check must be the same number, or a clamped index fails that check.
-	const limit = cells ? tableCellCount(node) - 1 : node.raw.length;
-	const offset = Math.min(Math.max(point.offset, 0), Math.max(limit, 0));
+	const offset = cells
+		? clampCellIndex(node, point.offset)
+		: Math.min(Math.max(point.offset, 0), node.raw.length);
 
 	// Path copied so a restored endpoint never aliases the caller's snapshot.
 	return cells || point.cellCoordinate

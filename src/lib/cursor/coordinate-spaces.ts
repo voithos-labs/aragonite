@@ -90,7 +90,7 @@ export function cellRowCol(cellIdx: number, colCount: number): { row: number; co
 }
 
 /** Grid coordinates to the row-major cell index {@link cellRowCol} decodes. */
-export function cellIndexAt(row: number, col: number, colCount: number): CellIndex {
+export function rowMajorCellIndex(row: number, col: number, colCount: number): CellIndex {
 	return asCellIndex(row * colCount + col);
 }
 

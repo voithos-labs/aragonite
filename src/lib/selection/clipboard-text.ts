@@ -8,7 +8,8 @@ import type { DocumentView, NodeView } from '../core/node-views';
 import { cloneMetadata } from '../tree-operations/clone';
 import { isBlockNode, nodeAt } from '../tree-operations/node-primitives';
 import { walkBetween, normalize, charOffsetOf, cellIndexOf } from './primitives';
-import { snapCrossBlockTableEndpoints, tableCellCount } from './table-endpoint-snap';
+import { snapCrossBlockTableEndpoints } from './table-endpoint-snap';
+import { tableCellCount } from '../schema/block-kind-descriptor';
 import { isStrictAncestorOf, pathHasPrefix, pathsEqual, sharedPrefixLength } from './path-math';
 import { cellRowCol } from '../cursor/coordinate-spaces';
 import {

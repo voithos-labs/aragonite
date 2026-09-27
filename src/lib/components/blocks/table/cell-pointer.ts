@@ -10,7 +10,7 @@ import {
 	type CellSelectionPoint,
 	type SelectionEndpoint
 } from '../../../selection/primitives';
-import { cellIndexAt } from '../../../cursor/coordinate-spaces';
+import { rowMajorCellIndex } from '../../../cursor/coordinate-spaces';
 import { createPointerDragSession } from '../../../selection/pointer-session';
 import { blockNearPoint } from '../../../selection/nearest-block';
 import { firstScrollableDescendant } from '../../../cursor/scroll-ancestors';
@@ -76,7 +76,10 @@ export function installCellDragListener(
 	}
 
 	function extendToCell(rowIdx: number, colIdx: number): void {
-		const focus = cellPoint(anchor.tablePath, cellIndexAt(rowIdx, colIdx, anchor.columnCount));
+		const focus = cellPoint(
+			anchor.tablePath,
+			rowMajorCellIndex(rowIdx, colIdx, anchor.columnCount)
+		);
 		enterOrExtend(ctx.selection, anchorPoint, focus);
 	}
 
@@ -107,7 +110,7 @@ export function handleCellShiftClick(
 ): void {
 	const focus = cellPoint(
 		anchor.tablePath,
-		cellIndexAt(target.rowIdx, target.colIdx, anchor.columnCount)
+		rowMajorCellIndex(target.rowIdx, target.colIdx, anchor.columnCount)
 	);
 	enterOrExtend(selection, anchorCellPoint(anchor), focus);
 }
@@ -115,7 +118,10 @@ export function handleCellShiftClick(
 // ── Shared ─────────────────────────────────────────────────────────────────
 
 function anchorCellPoint(anchor: CellAnchor): CellSelectionPoint {
-	return cellPoint(anchor.tablePath, cellIndexAt(anchor.rowIdx, anchor.colIdx, anchor.columnCount));
+	return cellPoint(
+		anchor.tablePath,
+		rowMajorCellIndex(anchor.rowIdx, anchor.colIdx, anchor.columnCount)
+	);
 }
 
 /** The first move past the anchor starts the range; later ones only move its focus. */

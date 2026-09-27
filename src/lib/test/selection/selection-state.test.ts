@@ -66,11 +66,9 @@ describe('SelectionState lifecycle', () => {
 describe('SelectionState.isCustomRendered', () => {
 	const tableSource = '| A | B |\n| --- | --- |\n| 1 | 2 |\n';
 
-	it('is true for a same-path table rect (flagged anchor, cell-index selection)', () => {
+	it('is true for a same-path table rect of two cells', () => {
 		const doc = parse(tableSource);
 		const s = createSelectionState({ getDoc: () => doc });
-		// Real rects flag the anchor as a cell coordinate (cell-pointer.ts); an
-		// unflagged char pair would collapse to single-block instead.
 		s.enterCrossBlock({ path: [0], offset: 0, cellCoordinate: true }, { path: [0], offset: 1 });
 		expect(s.isCustomRendered).toBe(true);
 	});

@@ -24,8 +24,8 @@ describe('isGridKind', () => {
 	});
 });
 
-// A grid's cells are column landings, so vertical travel stops on it even when every cell holds
-// only an image, whichever kind declared the grid.
+// The caret stops in every cell of a grid, so vertical travel stops on it even when every cell
+// holds only an image, whichever kind declared the grid.
 describe('vertical transparency reads the grid contract', () => {
 	it('is false for a plugin grid whose cells are all image-only', () => {
 		const grid = gridOf(registerPluginGrid(), [['![a](/a.png)', '![b](/b.png)']]);

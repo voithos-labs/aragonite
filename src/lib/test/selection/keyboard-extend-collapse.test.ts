@@ -26,12 +26,11 @@ function caretOffset(): number {
 	return window.getSelection()?.anchorOffset ?? -1;
 }
 
-// A rectangle inside a table carries a flagged anchor and an unflagged focus
-// (`cross-block/keydown.ts` extends by the same-path convention), so either collapse target's
-// offset is a cell index and must resolve to that cell, not to a character offset into the
-// table's rendered text.
+// Either corner of a rectangle inside a table is a cell index, so collapsing to it must resolve
+// that cell, not a character offset into the table's rendered text. The focus is handed in bare,
+// so the row also covers the state flagging it on the way in.
 describe('collapseCrossBlock over an intra-table rectangle', () => {
-	it('resolves the deep cell path when the collapse target is the unflagged focus', async () => {
+	it('resolves the deep cell path when the collapse target is the focus', async () => {
 		const { selection, cellRef, revealPath, getBlockElByPath } = harness();
 		selection.enterCrossBlock(
 			{ path: [0], offset: 0, cellCoordinate: true },
