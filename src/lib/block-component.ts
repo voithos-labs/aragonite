@@ -7,6 +7,7 @@
 
 import type { DocumentView, NodeView } from './core/node-views';
 import type { EditorRects } from './editor-rects';
+import type { ChildList } from './reactivity/child-list';
 
 // ── Sentinels ──────────────────────────────────────────────────────────────
 
@@ -223,6 +224,11 @@ export interface BlockComponent {
 	 */
 	revealByPath?(path: number[]): Promise<BlockComponent | null>;
 	/**
+	 * This block's children as the editor walks down to one: their refs, the render window that
+	 * mounts them, and the collapse a navigation may open. Containers, tables and rows have one.
+	 */
+	childList?(): ChildList;
+	/**
 	 * Deep cursor position for blocks with nested blocks inside (table cells): the path from
 	 * this block to the leaf holding the cursor, plus the offset in it. Preferred over
 	 * getCursorOffset by getSelection() when implemented.
@@ -329,6 +335,7 @@ export type ContainerBlockComponent = BlockComponent &
 			| 'focusByPath'
 			| 'getBlockComponentByPath'
 			| 'revealByPath'
+			| 'childList'
 			| 'focusAtColumn'
 			| 'isVerticallyTransparent'
 			| 'enterEdgeWidget'

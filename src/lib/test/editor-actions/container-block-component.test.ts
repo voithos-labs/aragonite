@@ -4,7 +4,7 @@ import { createContainerBlockComponent } from '$lib/editor-actions/container-blo
 import { CURSOR_END, FOCUS_LAST_START, type BlockComponent } from '$lib/block-component';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import type { AnyBlockKind, CstNode } from '$lib/core/nodes';
-import { makeShimDeps } from '$lib/test/harness/editor-actions';
+import { makeShimChildList, makeShimDeps } from '$lib/test/harness/editor-actions';
 
 function makeRef(overrides: Partial<BlockComponent> = {}): BlockComponent {
 	return {
@@ -75,7 +75,9 @@ describe('createContainerBlockComponent', () => {
 	// The body is unmounted, so an entry from below must clamp to child 0, never the absent
 	// last ref.
 	function collapsedContainer(refs: BlockComponent[]): BlockComponent {
-		return createContainerBlockComponent(makeShimDeps(refs, { isCollapsed: () => true }));
+		return createContainerBlockComponent(
+			makeShimDeps(refs, { childList: makeShimChildList(refs, { isCollapsed: () => true }) })
+		);
 	}
 
 	it('collapsed: focus(FOCUS_LAST_START) clamps to child 0, not the last child', () => {
@@ -125,7 +127,7 @@ describe('createContainerBlockComponent', () => {
 			]
 		};
 		const c = createContainerBlockComponent(
-			makeShimDeps([], { nodeChildrenLength: 1, node: imageOnly })
+			makeShimDeps([], { childList: makeShimChildList([], { count: () => 1 }), node: imageOnly })
 		);
 		expect(c.isVerticallyTransparent?.()).toBe(true);
 	});
@@ -258,7 +260,7 @@ describe('createContainerBlockComponent: measurePartialRects (opaque single-unit
 	}): BlockComponent {
 		return createContainerBlockComponent(
 			makeShimDeps([], {
-				nodeChildrenLength: over.childCount ?? 0,
+				childList: makeShimChildList([], { count: () => over.childCount ?? 0 }),
 				node: mermaidNode(),
 				getBoxEl: over.getBoxEl
 			})

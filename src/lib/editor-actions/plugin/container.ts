@@ -40,6 +40,7 @@ import type { EditorContext } from '../../schema/plugin-install';
 import { owningPluginEditor } from '../../schema/plugin-kind';
 import type { WindowResult } from '../../reactivity/block-window.svelte';
 import type { RefSlots } from '../../reactivity/publish-ref.svelte';
+import type { ChildList } from '../../reactivity/child-list';
 import { useContainerWindowing } from '../../reactivity/use-container-windowing.svelte';
 import { createContainerExitOverrides } from '../container-exit-overrides';
 import {
@@ -182,7 +183,7 @@ export function composeCollapseProbe(
 	};
 }
 
-/** Expand a collapsed body before a scroll-into-view descends into it, as an undoable commit of
+/** Open a collapsed body before a navigation descends into it, as an undoable commit of
  *  `reservedChrome.expandPatch`; declines in reading mode, which commits nothing. */
 export function composeExpandDoor(deps: {
 	getNode: () => NodeView;
@@ -345,14 +346,19 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 			})
 		: undefined;
 
-	// Through a closure, not the `updateOwnMetadata` value: that const is declared below,
-	// and is only ever read when a scroll-into-view expands the container.
-	const expandCollapsed = composeExpandDoor({
-		getNode: deps.getNode,
+	const childList: ChildList = {
+		count: () => deps.getNode().children?.length ?? 0,
+		refs: listState.refSlots,
+		windowing,
 		isCollapsed: collapsed,
-		getPresentationMode,
-		commit: (patch) => updateOwnMetadata(patch)
-	});
+		// Through a closure, not the `updateOwnMetadata` value: that const is declared below.
+		openCollapsed: composeExpandDoor({
+			getNode: deps.getNode,
+			isCollapsed: collapsed,
+			getPresentationMode,
+			commit: (patch) => updateOwnMetadata(patch)
+		})
+	};
 
 	const containerApi = createContainerBlockComponent({
 		// The kind's descriptor is the declaration; the mounted component only reports it.
@@ -364,17 +370,10 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		get innerBlockRefs() {
 			return listState.innerBlockRefs;
 		},
-		refSlots: listState.refSlots,
-		get nodeChildrenLength() {
-			return deps.getNode().children?.length ?? 0;
-		},
+		childList,
 		get node() {
 			return deps.getNode();
 		},
-		revealChild: windowing.revealChild,
-		isInWindow: windowing.isInWindow,
-		isCollapsed: collapsed,
-		expandCollapsed,
 		getFocusEl: wholeBlockSurface,
 		getBoxEl: () => deps.getBoxEl(),
 		inputProxy

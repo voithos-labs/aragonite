@@ -1,10 +1,12 @@
 <script lang="ts">
 	import { getContext } from 'svelte';
+	import type { TableContext } from '../../../action-contracts';
 	import { entryEdge, type BlockComponent } from '../../../block-component';
 	import type { NodeView } from '../../../core/node-views';
 	import {
 		EDITOR_SERVICES_KEY,
 		PARENT_SCOPE_SINK_KEY,
+		TABLE_CONTEXT_KEY,
 		type EditorServices,
 		type ParentScopeSink
 	} from '../../../editor-keys';
@@ -12,6 +14,7 @@
 	import { useMountGauge } from '../../../perf/use-mount-gauge.svelte';
 	import { createContainerActions } from '../../../editor-actions/nested/container-actions';
 	import { publishRefSlot, type RefSlots } from '../../../reactivity/publish-ref.svelte';
+	import { componentAt, type ChildList } from '../../../reactivity/child-list';
 	import { useBlockDecorations } from '../../../decorations/use-block-decorations.svelte';
 	import TableCellBlock from './TableCellBlock.svelte';
 
@@ -48,6 +51,8 @@
 
 	let rowEl: HTMLElement | undefined = $state();
 	const parentSink = getContext<ParentScopeSink | undefined>(PARENT_SCOPE_SINK_KEY);
+	// Absent only when a row mounts outside a table, as a unit test's might.
+	const tableContext = getContext<TableContext | undefined>(TABLE_CONTEXT_KEY);
 
 	useMountGauge();
 
@@ -118,13 +123,21 @@
 		cellRef?.focus(rest.length === 0 ? offset : 0);
 	}
 
+	// Cells aren't windowed, so a mounted row has every cell in range; the grid's own sideways
+	// scroll is what brings a far column into view.
+	const cellList: ChildList = {
+		count: () => node.children?.length ?? 0,
+		refs: cellsState.refSlots,
+		windowing: { revealChild: async () => {}, isInWindow: () => true },
+		bringChildIntoView: (colIdx) => tableContext?.revealColumn(rowIdx, colIdx)
+	};
+
+	function childList(): ChildList {
+		return cellList;
+	}
+
 	export function getBlockComponentByPath(path: number[]): BlockComponent | null {
-		if (path.length === 0) return null;
-		const [colIdx, ...rest] = path;
-		const cellRef = cellsState.innerBlockRefs[colIdx];
-		if (!cellRef) return null;
-		if (rest.length === 0) return cellRef;
-		return cellRef.getBlockComponentByPath?.(rest) ?? null;
+		return componentAt(cellList, path);
 	}
 
 	export function getCursorPosition(): { path: number[]; offset: number } | null {
@@ -148,7 +161,8 @@
 			getCursorOffset,
 			getCursorPosition,
 			focusByPath,
-			getBlockComponentByPath
+			getBlockComponentByPath,
+			childList
 		} satisfies BlockComponent;
 		return publishRefSlot(slots, index, self, rowEl);
 	});

@@ -150,15 +150,14 @@
 		get innerBlockRefs() {
 			return listState.innerBlockRefs;
 		},
-		refSlots: listState.refSlots,
-		get nodeChildrenLength() {
-			return node.children?.length ?? 0;
+		childList: {
+			count: () => node.children?.length ?? 0,
+			refs: listState.refSlots,
+			windowing
 		},
 		get node() {
 			return node;
-		},
-		revealChild: windowing.revealChild,
-		isInWindow: windowing.isInWindow
+		}
 	});
 
 	$effect(() => {

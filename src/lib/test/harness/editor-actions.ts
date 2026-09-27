@@ -25,6 +25,7 @@ import { asDocPath } from '$lib/selection/path-math';
 import { docPathFrom } from '$lib/cursor/coordinate-spaces';
 import type { ContainerBlockComponentDeps } from '$lib/editor-actions/container-block-component';
 import { refSlotsOver } from '$lib/reactivity/publish-ref.svelte';
+import type { ChildList } from '$lib/reactivity/child-list';
 import type { PasteCommitCoordinator } from '$lib/tree-operations/paste/paste-deps';
 import type { PasteDispatchContext } from '$lib/tree-operations/paste/dispatch';
 import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
@@ -183,7 +184,20 @@ function paragraphListNode(childCount: number): CstNode {
 	};
 }
 
-/** The five members every container shim repeats; `over` adds a test's own. Copied by property
+/** A child list over `refs` with no render window: every ref counts as mounted. */
+export function makeShimChildList(
+	refs: (BlockComponent | undefined)[],
+	over: Partial<ChildList> = {}
+): ChildList {
+	return {
+		count: () => refs.length,
+		refs: refSlotsOver(refs),
+		windowing: { revealChild: async () => {}, isInWindow: () => true },
+		...over
+	};
+}
+
+/** The members every container shim repeats; `over` adds a test's own. Copied by property
  *  descriptor, so a getter in `over` stays live instead of freezing at call time. */
 export function makeShimDeps(
 	refs: (BlockComponent | undefined)[],
@@ -195,10 +209,7 @@ export function makeShimDeps(
 		get innerBlockRefs() {
 			return refs;
 		},
-		refSlots: refSlotsOver(refs),
-		get nodeChildrenLength() {
-			return refs.length;
-		},
+		childList: makeShimChildList(refs),
 		get node() {
 			return paragraphListNode(refs.length);
 		}

@@ -13,6 +13,7 @@ import SurfacelessBlock from './fixtures/SurfacelessBlock.svelte';
 import { mountBlockHost, type MountedHost } from './mount-host';
 import { installEditorDomStubsForTests } from '$lib/testing';
 import { testLeaf } from '$lib/test/harness/test-kinds';
+import { makeShimChildList } from '$lib/test/harness/editor-actions';
 
 // The vitest setup registers the built-in descriptors only, but the container
 // assertions need BlockHost to dispatch a real blockquote.
@@ -39,6 +40,7 @@ describe('resolveBlockSurface', () => {
 		focusByPath: () => {},
 		getBlockComponentByPath: () => null,
 		revealByPath: async () => null,
+		childList: () => makeShimChildList([]),
 		focusAtColumn: () => {},
 		isVerticallyTransparent: () => false,
 		enterEdgeWidget: () => false
@@ -73,6 +75,7 @@ describe('BlockHost publishes the resolved surface, not the instance', () => {
 		expect(typeof ref?.focusByPath).toBe('function');
 		expect(typeof ref?.getBlockComponentByPath).toBe('function');
 		expect(typeof ref?.revealByPath).toBe('function');
+		expect(typeof ref?.childList).toBe('function');
 		expect((ref as { containerApi?: unknown }).containerApi).toBeUndefined();
 	});
 

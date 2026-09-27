@@ -6,12 +6,8 @@ import {
 	type ContainerBlockComponent,
 	type StickyColumnDirection
 } from '../block-component';
-import {
-	dispatchFocusByPath,
-	dispatchFocusAtColumn,
-	dispatchGetBlockComponentByPath
-} from './focus/focus-dispatch';
-import { revealChildOrWait, type RefSlots } from '../reactivity/publish-ref.svelte';
+import { dispatchFocusByPath, dispatchFocusAtColumn } from './focus/focus-dispatch';
+import { componentAt, descendTo, type ChildList } from '../reactivity/child-list';
 import type { AnyBlockKind } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import type { BlockEditActions, FocusActions } from '../action-contracts';
@@ -152,25 +148,14 @@ export interface ContainerBlockComponentDeps {
 	 *  reaches no child to borrow it from. */
 	readonly selection: SelectionState;
 	readonly innerBlockRefs: (BlockComponent | undefined)[];
-	/** The same list's ref slots: the array is for the dispatch walks, this is for waiting on
-	 *  a mount, which needs an identity replacing the array cannot invalidate. */
-	readonly refSlots: RefSlots<BlockComponent>;
-	readonly nodeChildrenLength: number;
+	/** The same children as a descent reads them: their count, ref slots, render window and
+	 *  collapse. `childList()` publishes it. */
+	readonly childList: ChildList;
 	/** For the widget-only check, which reads the node so it works for an unmounted
 	 *  container where `innerBlockRefs` is sparse (VR-6). */
 	readonly node: NodeView;
 	/** How the editor reads its bytes, whose grammar the widget-only check reads the node in. */
 	readonly reading: Reading;
-	/** Scroll this container so child `index` is mounted; resolves after a tick. */
-	readonly revealChild?: (index: number) => Promise<void>;
-	/** Lets the scroll-into-view give up instead of hanging when a scroll missed (VR-5). */
-	readonly isInWindow?: (index: number) => boolean;
-	/** While true only the title row is mounted, so a focus entering the container at its
-	 *  end clamps to that row rather than doing nothing on an unmounted child. */
-	readonly isCollapsed?: () => boolean;
-	/** Open this container so a scroll-into-view can descend into its hidden body, as a real
-	 *  committed edit. Absent leaves it to stop on the title row. */
-	readonly expandCollapsed?: () => Promise<boolean>;
 	/** The focus element of a childless container focused as a whole, already composed
 	 *  through `composeWholeBlockFocusSurface`. */
 	readonly getFocusEl?: () => HTMLElement | null | undefined;
@@ -199,10 +184,11 @@ export function createContainerBlockComponent(
 			landFocus(focusEl);
 			return;
 		}
-		if (deps.nodeChildrenLength === 0) return;
+		const count = deps.childList.count();
+		if (count === 0) return;
 		// Collapsed: only the title row is mounted, so an entry from below clamps to it
 		// rather than doing nothing on the unmounted last child.
-		const last = deps.isCollapsed?.() ? 0 : deps.nodeChildrenLength - 1;
+		const last = deps.childList.isCollapsed?.() ? 0 : count - 1;
 		const edge = entryEdge(offset);
 		const child = deps.innerBlockRefs[edge.child === 'first' ? 0 : last];
 		if (child) land(child, edge.offset);
@@ -243,29 +229,12 @@ export function createContainerBlockComponent(
 			dispatchFocusByPath(deps.innerBlockRefs, path, offset);
 		},
 		getBlockComponentByPath(path: number[]): BlockComponent | null {
-			return dispatchGetBlockComponentByPath(deps.innerBlockRefs, path);
+			return componentAt(deps.childList, path);
 		},
-		async revealByPath(path: number[]): Promise<BlockComponent | null> {
-			if (path.length === 0) return null;
-			const [head, ...rest] = path;
-			// Only a body target needs the container opened; the title row stays mounted.
-			// Awaited because everything below must run against the post-commit tree.
-			if (head >= 1 && deps.isCollapsed?.()) await deps.expandCollapsed?.();
-			if (deps.revealChild) {
-				await revealChildOrWait(head, {
-					slots: deps.refSlots,
-					childCount: deps.nodeChildrenLength,
-					revealChild: deps.revealChild,
-					isInWindow: deps.isInWindow
-				});
-			}
-			const ref = deps.innerBlockRefs[head];
-			if (!ref) return null;
-			if (rest.length === 0) return ref;
-			return ref.revealByPath
-				? ref.revealByPath(rest)
-				: (ref.getBlockComponentByPath?.(rest) ?? null);
+		revealByPath(path: number[]): Promise<BlockComponent | null> {
+			return descendTo(deps.childList, path, { openCollapsed: true });
 		},
+		childList: () => deps.childList,
 		focusAtColumn(x: number, from: StickyColumnDirection) {
 			// Whole-block focus has no column to land in, so a vertical entry focuses the block
 			// itself, like the plain-arrow path.
@@ -277,21 +246,22 @@ export function createContainerBlockComponent(
 				deps.selection.announceSelection();
 				return;
 			}
-			if (deps.nodeChildrenLength === 0) return;
+			if (deps.childList.count() === 0) return;
 			dispatchFocusAtColumn(deps.innerBlockRefs, x, from);
 		},
 		isVerticallyTransparent(): boolean {
 			return isVerticallyTransparentNode(deps.node, deps.reading.grammar);
 		},
 		enterEdgeWidget(side: 'start' | 'end'): boolean {
-			if (deps.nodeChildrenLength === 0) return false;
-			const edge = side === 'start' ? 0 : deps.nodeChildrenLength - 1;
+			const count = deps.childList.count();
+			if (count === 0) return false;
+			const edge = side === 'start' ? 0 : count - 1;
 			return deps.innerBlockRefs[edge]?.enterEdgeWidget?.(side) ?? false;
 		},
 		measurePartialRects(start: number, end: number): DOMRect[] {
 			// A childless container is one unit and measures its whole box. One with children
 			// returns nothing; the overlay measures its children instead.
-			if (deps.nodeChildrenLength > 0) return [];
+			if (deps.childList.count() > 0) return [];
 			const box = deps.getBoxEl?.();
 			if (!box || end <= start) return [];
 			return [box.getBoundingClientRect()];

@@ -27,7 +27,7 @@
 	import { selectedCells } from './selected-cells';
 	import { useContainerWindowing } from '../../../reactivity/use-container-windowing.svelte';
 	import { sliceWindow } from '../../../reactivity/window-slice';
-	import { revealChildOrWait } from '../../../reactivity/publish-ref.svelte';
+	import { componentAt, descendTo, type ChildList } from '../../../reactivity/child-list';
 	import { createContainerActions } from '../../../editor-actions/nested/container-actions';
 	import { createTableMutationsContext } from '../../../editor-actions/table-context';
 	import TableRowBlock from './TableRowBlock.svelte';
@@ -209,6 +209,7 @@
 
 	const ctx: TableContext = {
 		focusCell,
+		revealColumn,
 		getStickyColumn() {
 			return internalStickyColumn;
 		},
@@ -445,30 +446,22 @@
 		rowRefAt(rowIdx)?.focusByPath?.([colIdx, ...rest], offset);
 	}
 
-	export function getBlockComponentByPath(path: number[]): BlockComponent | null {
-		if (path.length === 0) return null;
-		const [rowIdx, ...rest] = path;
-		const rowRef = rowsState.innerBlockRefs[rowIdx];
-		if (!rowRef) return null;
-		if (rest.length === 0) return rowRef;
-		return rowRef.getBlockComponentByPath?.(rest) ?? null;
+	const rowList: ChildList = {
+		count: () => rowCount,
+		refs: rowsState.refSlots,
+		windowing
+	};
+
+	export function childList(): ChildList {
+		return rowList;
 	}
 
-	export async function revealByPath(path: number[]): Promise<BlockComponent | null> {
-		if (path.length === 0) return null;
-		const [rowIdx, ...rest] = path;
-		await revealChildOrWait(rowIdx, {
-			slots: rowsState.refSlots,
-			childCount: rowCount,
-			revealChild: windowing.revealChild,
-			isInWindow: windowing.isInWindow
-		});
-		const rowRef = rowsState.innerBlockRefs[rowIdx];
-		if (!rowRef) return null;
-		if (rest.length === 0) return rowRef;
-		return rowRef.revealByPath
-			? await rowRef.revealByPath(rest)
-			: (rowRef.getBlockComponentByPath?.(rest) ?? null);
+	export function getBlockComponentByPath(path: number[]): BlockComponent | null {
+		return componentAt(rowList, path);
+	}
+
+	export function revealByPath(path: number[]): Promise<BlockComponent | null> {
+		return descendTo(rowList, path, { openCollapsed: true });
 	}
 
 	// See `focus()`: two-dimensional, so there is no single offset; `getCursorPosition` has it.
@@ -547,6 +540,7 @@
 		focusByPath,
 		getBlockComponentByPath,
 		revealByPath,
+		childList,
 		getCursorOffset,
 		getCursorPosition,
 		measurePartialRects,

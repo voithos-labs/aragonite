@@ -37,7 +37,8 @@
 	import { installSelectionDrop, type DropCaretRect } from '../selection/selection-drop';
 	import { createContentVersion } from '../reactivity/content-version.svelte';
 	import { useContainerWindowing } from '../reactivity/use-container-windowing.svelte';
-	import { refSlotsOver, replaceRefs, revealChildOrWait } from '../reactivity/publish-ref.svelte';
+	import { refSlotsOver, replaceRefs } from '../reactivity/publish-ref.svelte';
+	import { componentAt, descendTo, type ChildList } from '../reactivity/child-list';
 	import { createSelectionState } from '../selection/selection-state.svelte';
 	import { createSelectionDescription } from '../selection/selection-description';
 	import { EDITOR_LABEL, movedBlockToPosition } from '../a11y-strings';
@@ -514,36 +515,26 @@
 	const getBlockElByPath: BlockElLookup = (path) =>
 		editorEl ? blockContentElAt(editorEl, path) : null;
 
+	// The root list as a descent reads it; the window's calls go through arrows because
+	// `topWindowing` is declared further down.
+	const rootList: ChildList = {
+		count: () => doc.children.length,
+		refs: blockRefSlots,
+		windowing: {
+			revealChild: (index) => topWindowing.revealChild(index),
+			isInWindow: (index) => topWindowing.isInWindow(index)
+		}
+	};
+
 	// The non-scrolling counterpart of `revealPath`, shared by the rect API and the test hooks.
 	function getBlockComponent(path: number[]): BlockComponent | null {
-		if (path.length === 0) return null;
-		const [first, ...rest] = path;
-		const ref = blockRefs[first];
-		if (!ref) return null;
-		if (rest.length === 0) return ref;
-		return ref.getBlockComponentByPath?.(rest) ?? null;
+		return componentAt(rootList, path);
 	}
 
 	// ── Action Bundles ──────────────────────────────────────────────────
 
-	// A hoisted function, so the deps below can name it before `topWindowing` is declared.
-	async function revealPath(path: number[]): Promise<BlockComponent | null> {
-		if (path.length === 0) return null;
-		const top = path[0];
-		// Gives up rather than hanging when stale heights leave `top` outside the recomputed
-		// window (VR-5).
-		await revealChildOrWait(top, {
-			slots: blockRefSlots,
-			childCount: doc.children.length,
-			revealChild: topWindowing.revealChild,
-			isInWindow: topWindowing.isInWindow
-		});
-		const ref = blockRefs[top];
-		if (!ref) return null;
-		if (path.length === 1) return ref;
-		return ref.revealByPath
-			? await ref.revealByPath(path.slice(1))
-			: (ref.getBlockComponentByPath?.(path.slice(1)) ?? null);
+	function revealPath(path: number[]): Promise<BlockComponent | null> {
+		return descendTo(rootList, path, { openCollapsed: true });
 	}
 
 	const editorActionsDeps: EditorActionsDeps = {
