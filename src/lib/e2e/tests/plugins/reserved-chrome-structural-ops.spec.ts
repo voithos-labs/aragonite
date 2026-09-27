@@ -64,7 +64,8 @@ test.describe('reserved child-0 chrome: structural ops + paste', () => {
 		await editor.pressDeclined('Backspace');
 
 		// The callout declares its title row as `reservedChrome`, which keeps child 0 in place on
-		// Backspace, so nothing is lifted out and the title is neither moved nor destroyed.
+		// Backspace, so nothing is lifted out and the caret stays in the title.
+		expect(await activeBlockPath(page)).toEqual([1, 0]);
 		const callout = await readCallout(page, 1);
 		expect(callout.rootCount).toBe(2);
 		expect(callout.childCount).toBe(2);

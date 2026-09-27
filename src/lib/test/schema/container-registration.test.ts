@@ -5,6 +5,7 @@ import {
 	getBlockKindDescriptor,
 	registerBlockKind,
 	tryGetBlockKindDescriptor,
+	type BlockKindAugmentation,
 	type BlockKindRegistration
 } from '$lib/schema/block-kind-descriptor';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
@@ -74,7 +75,7 @@ describe('registerBlockKind normalizes the container group', () => {
 	});
 
 	// A widened value escapes excess-property checks, so what the code strips at runtime is the
-	// only protection to test; the registration's cast stands in for a JS caller.
+	// only protection to test; the casts here stand in for a JS caller.
 	it('a widened flat descriptor cannot smuggle container-only fields past the group', () => {
 		const kind = declarePluginKind('norm-widened');
 		registerBlockKind(kind, getBlockKindDescriptor('blockquote') as BlockKindRegistration);
@@ -91,7 +92,10 @@ describe('registerBlockKind normalizes the container group', () => {
 	it('a widened flat descriptor cannot smuggle container-only fields through augment', () => {
 		const kind = declarePluginKind('aug-widened');
 		registerBlockKind(kind, leaf);
-		augmentBlockKind(kind, getBlockKindDescriptor('blockquote'));
+		augmentBlockKind(
+			kind,
+			getBlockKindDescriptor('blockquote') as unknown as BlockKindAugmentation
+		);
 
 		const d = tryGetBlockKindDescriptor(kind)!;
 		expect(d.isContainer).toBe(false);

@@ -135,7 +135,7 @@ describe('G4.3 conformance kit: a broken plugin container fails', () => {
 					middleChildBackspace: 'default-merge'
 				}
 			}
-		} as BlockKindAugmentation);
+		} as unknown as BlockKindAugmentation);
 
 		await expect(runContainerConformance(CALLOUT_KIND(), calloutProfile)).rejects.toThrow(
 			/declarations: callout first-child unwrap strategy "no-such-strategy" is implemented/

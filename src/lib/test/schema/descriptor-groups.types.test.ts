@@ -35,6 +35,9 @@ const typePins = (): void => {
 	// @ts-expect-error a whole-block unit has no caret positions for inline content to live at
 	registerBlockKind(kind, { ...leaf, blockFocus: 'whole-block', supportsInline: true });
 
+	// @ts-expect-error a whole-block unit has no caret, so there's no content start to Backspace at
+	registerBlockKind(kind, { ...leaf, blockFocus: 'whole-block', contentStart: { range } });
+
 	// @ts-expect-error a title row means the block is never childless, so whole-block focus never engages
 	registerBlockKind(kind, {
 		...leaf,
@@ -103,6 +106,14 @@ const typePins = (): void => {
 			}
 		}
 	});
+
+	// A widened value skips the excess-property check, so the fixed fields are typed `never`.
+	const widenedFocus = { label: 'x', blockFocus: 'whole-block' as const };
+	// @ts-expect-error a widened value can't carry a fixed field past the augment either
+	augmentBlockKind(kind, widenedFocus);
+	const widenedGroup = { contract: 'opaque' as const, reservedChrome: { kind: title } };
+	// @ts-expect-error nor a fixed container field inside a widened group
+	augmentBlockKind(kind, { container: widenedGroup });
 };
 void typePins;
 

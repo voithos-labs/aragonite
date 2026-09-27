@@ -400,7 +400,10 @@ export type BlockKindRegistration = WholeBlockRegistration | CaretBlockRegistrat
  * depends on are fixed at registration.
  */
 export type BlockKindAugmentation = Partial<RegistrationBase> & {
-	container?: Partial<ContainerBase>;
+	blockFocus?: never;
+	supportsInline?: never;
+	contentStart?: never;
+	container?: Partial<ContainerBase> & { reservedChrome?: never; unwrapRole?: never };
 };
 
 // ── Registry ────────────────────────────────────────────────────────────────

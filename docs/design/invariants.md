@@ -806,7 +806,8 @@ together as `contentStart`, and a container with a title row declares only its m
 strategy, since keeping the title row on Backspace is implied. `augmentBlockKind` takes none of
 these fields, so an augment can't assemble a pair behind the registration's back.
 `test/schema/descriptor-groups.types.test.ts` holds one `@ts-expect-error` per pair. Retired:
-G1.32, four of G1.37's five pairs, and G1.18's not-a-container branch.
+G1.32 and four of G1.37's five pairs; G1.18's not-a-container branch, unreachable since G3.6, went
+with them.
 
 ## Group 4: source scans
 
