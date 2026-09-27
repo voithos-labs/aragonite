@@ -225,7 +225,6 @@ cNo.....................................oc
 	export const getSelectedText = leaf.getSelectedText;
 	export const setSelection = leaf.setSelection;
 	export const measurePartialRects = leaf.measurePartialRects;
-	export const runCommand = leaf.runCommand;
 	export const insertMarkdown = leaf.insertMarkdown;
 </script>
 
@@ -338,7 +337,7 @@ The editing half is the factory call, the `revealed` flag, two spreads, and the 
 
 - `revealed` is yours. The factory flips it through `setRevealed` (on when a click or an arrow lands in the block, off when the caret leaves), and the `{#if}` swaps the two views on it.
 - `surfaceProps` goes on the source line. `renderProps` goes on the block wrapper, so a click anywhere in the block reveals, bird included, and lands where `caretTargetAtPoint` said. Spread both; a folded view that takes the click but not the keys swallows undo while it holds focus.
-- `focus`, `getCursorOffset`, `editable` and `focusable` are the four every block component must export. The other seven are how `insertMarkdown`, `runCommand`, and a selection landing reach your block, so keep them.
+- `focus`, `getCursorOffset`, `editable` and `focusable` are the four every block component must export. The other six are how `insertMarkdown` and a selection landing reach your block, so keep them.
 - The commit happens when the caret leaves, not per keystroke. Reveal, type, arrow out: one undo entry, and the caption follows the new raw.
 - `singleLine: true` says the bytes are one line (the opener claims exactly one), so Enter ends the block instead of typing a newline nothing could show you: whatever sits after the caret becomes a paragraph below, and the caret goes with it, same as in a heading. A leaf whose bytes can span lines leaves the flag off and gives its source element `white-space: pre-wrap` instead, for a reason [The editable leaf](#the-editable-leaf) explains.
 

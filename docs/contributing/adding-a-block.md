@@ -230,7 +230,7 @@ Priority orders the parser's attempts, ascending, and the built-in order is sing
 
 ## Commands
 
-A component that declares a `keymap`, or that can be a cross-block focus target, implements `runCommand(id, arg?): boolean`: the block-local bodies the keybinding dispatcher invokes. New ids go in `BLOCK_COMMAND_IDS` (`schema/commands.ts`), and G1.11 fires at bootstrap if a keymap names an unknown command or binds one chord twice. `docs/design/editor.md` § Schema has the dispatch story.
+A component whose keymap binds a built-in command other than the two reorder ids, or that can be a cross-block focus target, implements `runCommand(id, arg?): boolean`: the block-local bodies the keybinding dispatcher invokes. New ids go in `BLOCK_COMMAND_IDS` (`schema/commands.ts`), and G1.11 fires at bootstrap if a keymap names an unknown command or binds one chord twice. `docs/design/editor.md` § Schema has the dispatch story.
 
 The two reorder ids are the exception, and you don't write a case for them. `block.moveUp` and `block.moveDown` move whichever block hands the dispatch its path, so a component passes `getPath` with its chord and that's it. The thematic break owns no other command, so it has no `runCommand` at all:
 

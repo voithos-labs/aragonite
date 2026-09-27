@@ -319,7 +319,7 @@ Two more things before you wire buttons:
 
 `canRunCommand(commandId: string): boolean`
 
-Tells you whether `runCommand(id)` would reach the command right now, which is what greys a toolbar button out instead of hiding it. It answers `false` exactly where `runCommand` declines before dispatch: an unknown id, reading mode, a block-scoped id with nothing focused, and the link editor or a heading level while the selection spans blocks. `true` means reachable, not that it'll write (across blocks it may find no block that can hold the mark), so keep reading `runCommand`'s boolean too.
+Tells you whether `runCommand(id)` would reach the command right now, which is what greys a toolbar button out instead of hiding it. It answers `false` exactly where `runCommand` declines before dispatch: an unknown id, reading mode, a block-scoped id with nothing focused, a built-in text command on a block that has no body for it (a divider, or a plugin block like a diagram or a formula), and the link editor or a heading level while the selection spans blocks. `true` means reachable, not that it'll write (across blocks it may find no block that can hold the mark), so keep reading `runCommand`'s boolean too.
 
 ```ts
 // with a selection spanning two paragraphs
@@ -806,9 +806,9 @@ Scoping by kind is what makes the shared structural chords reachable, since a ch
 
 **Scope table chords to `tableCell`, not `table`.** Inside a table the cell holds the caret, so the cell's kind is what resolves a chord: `{ kind: 'tableCell', chord: 'Mod+Enter', command: null }` frees the insert-row chord, while the same entry scoped to `table` resolves against a block that never gets a keystroke and silently does nothing.
 
-Two cell gestures sit outside the keymap entirely, because both depend on where the caret sits inside the cell rather than on the chord: arrow navigation between cells, and the three-stage `Mod+A` (cell text, then the table, then the document). They aren't commands, so the two override directions are asymmetric:
+Two cell gestures sit outside the keymap entirely, because both depend on where the caret sits inside the cell rather than on the chord: arrow navigation between cells, and the two-press `Mod+A` (the cell's text, then the document). They aren't commands, so the two override directions are asymmetric:
 
-- A **disable** can't reach them. `{ kind: 'tableCell', chord: 'Mod+A', command: null }` unbinds nothing (there was no binding) and the three-stage gesture keeps running.
+- A **disable** can't reach them. `{ kind: 'tableCell', chord: 'Mod+A', command: null }` unbinds nothing (there was no binding) and the two presses keep working.
 - A **bind** shadows them completely. The second entry above, `ArrowUp` bound to `table.deleteRow`, resolves first and the cell never navigates. That's the intended precedence (an explicit binding wins), but it means claiming an arrow or `Mod+A` for your own command takes the built-in gesture with it.
 
 Disabling `Tab` or `Enter` for `tableCell` likewise leaves the cell with no way to reach the next cell or append a row, so scope those deliberately.

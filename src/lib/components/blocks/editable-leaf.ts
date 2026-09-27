@@ -53,7 +53,6 @@ import {
 } from '../../core/lines';
 import type { PresentationMode } from '../../presentation-mode';
 import { tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
-import { type CommandId } from '../../schema/commands';
 import { type BlockCommandContext } from '../../schema/block-commands';
 import type { EditorContext } from '../../schema/plugin-install';
 import { owningPluginEditor } from '../../schema/plugin-kind';
@@ -193,7 +192,6 @@ export interface EditableLeaf {
 	getSelectedText(): string;
 	setSelection(start: number, end: number): void;
 	measurePartialRects(startOffset: number, endOffset: number): DOMRect[];
-	runCommand(id: CommandId): boolean;
 
 	// ── Programmatic edits ─────────────────────────────────────────────────────
 	/** Insert Markdown at the caret exactly as pasting it here would, without the clipboard:
@@ -429,12 +427,6 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		})();
 	}
 
-	// The leaf owns no built-in command: its reorder resolves in the editor's dispatch, against
-	// its path. The published member stays, answering no, for components that export it.
-	function runCommand(_id: CommandId): boolean {
-		return false;
-	}
-
 	const getCommandContext = () => buildLeafCommandContext(deps, blockEdit, pluginEditor);
 
 	// ── View sync ──────────────────────────────────────────────────────────────
@@ -588,7 +580,6 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	const dispatchChord = (e: KeyboardEvent): boolean =>
 		wiring.dispatchChord(e, {
 			kind: deps.getNode().kind,
-			runCommand,
 			getCommandContext,
 			getPath: deps.getPath
 		});
@@ -823,7 +814,6 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 			const box = getBlockElByPath(deps.getPath());
 			return box ? [box.getBoundingClientRect()] : [];
 		},
-		runCommand,
 
 		insertMarkdown: clipboard.insertMarkdown,
 

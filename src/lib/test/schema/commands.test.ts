@@ -158,7 +158,7 @@ describe('tableCell keymap: the table’s whole keyboard vocabulary', () => {
 	});
 
 	it('leaves the bare arrows and Mod+A unbound: both depend on the caret’s position', () => {
-		// Cell navigation and the three-stage select-all read where the caret sits inside
+		// Cell navigation and the two-press select-all read where the caret sits inside
 		// the cell, which a chord cannot express, so they stay with the keydown plan.
 		for (const chord of ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']) {
 			expect(resolveBinding(chord, 'tableCell', undefined, everyInstalledPlugin), chord).toBeNull();

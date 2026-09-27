@@ -152,12 +152,12 @@ export interface EditorInstance {
 	 */
 	runCommand(commandId: string, arg?: unknown): boolean;
 	/**
-	 * Whether `runCommand(id)` would reach that command's handler right now, asked in the same
-	 * place that would run it, so a host can grey a toolbar button out instead of hiding it.
-	 * False wherever dispatch declines before it starts: an unknown id, reading mode, a block-local
-	 * id with nothing focused (a gap caret included, where only the global ids stay live), and the
-	 * link editor while a cross-block range is painted. True means reachable, not successful: the
-	 * handler still decides whether it writes, and over a range it may reach no block at all.
+	 * Whether `runCommand(id)` would reach that command's handler right now, so a host can grey a
+	 * toolbar button out. False wherever dispatch declines before it starts: an unknown id, reading
+	 * mode, a block-local id with nothing focused (a gap caret keeps the global ids), a text command
+	 * on a block with no body for it (a divider, a plugin leaf), and the link editor over a
+	 * cross-block range. True means reachable, not successful: the handler still decides whether
+	 * it writes, and over a range it may reach no block at all.
 	 */
 	canRunCommand(commandId: string): boolean;
 	/**

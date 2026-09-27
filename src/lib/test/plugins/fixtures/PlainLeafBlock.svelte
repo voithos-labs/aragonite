@@ -25,7 +25,6 @@
 	export const getSelectedText = leaf.getSelectedText;
 	export const setSelection = leaf.setSelection;
 	export const measurePartialRects = leaf.measurePartialRects;
-	export const runCommand = leaf.runCommand;
 
 	void ({
 		editable,
@@ -36,8 +35,7 @@
 		getCursorOffset,
 		getSelectedText,
 		setSelection,
-		measurePartialRects,
-		runCommand
+		measurePartialRects
 	} satisfies BlockComponent);
 </script>
 
