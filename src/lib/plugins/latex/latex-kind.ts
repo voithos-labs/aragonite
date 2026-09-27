@@ -61,12 +61,8 @@ const nextDollarFrom = createScanIndex(indexDollars);
 /** Money, written the way prose writes it: a whole number between the delimiters. */
 const isPriceSpan = (body: string) => /^\d[\d.,]*$/.test(body);
 
-/**
- * Pandoc's rule, with one difference. A match always ends at the next `$`, whichever one that
- * is, and a closer that does not qualify leaves the opener literal; a closer needs a non-space
- * before it and no digit after it. Our addition: a span that is only a number is a price
- * (`$5$`), so a typed price stays prose.
- */
+/** Pandoc's rule: a match ends at the next `$`, and a closer with a space before it or a digit
+ *  after leaves the opener literal. Added: a span that is only a number (`$5$`) stays prose. */
 function recognizeMath(
 	raw: string,
 	pos: number,
@@ -176,10 +172,8 @@ export function mathDisplaySource(source: string): string {
 /** The ending a restored closer line takes: the block's own, else the document's. */
 const closerEnding = (ctx: WriteContext) => trailingLineEnding(ctx.node.raw, ctx.lineEnding);
 
-/**
- * The `$$` kind's write rule: put back a closer a truncating write dropped, as a fenced code
- * block does. A first line that no longer opens the block is left alone.
- */
+/** The `$$` kind's write rule: put back a closer a truncating write dropped, as a fenced code
+ *  block does; a first line that does not open the block is left alone. */
 function normalizeMathBlockRaw(raw: string, ctx: WriteContext): string {
 	const display = trimTrailingLineEnding(raw);
 	const lines = displayLines(display);

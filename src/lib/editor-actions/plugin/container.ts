@@ -70,11 +70,8 @@ export interface ContainerBlockDeps {
 	getIndex(): number;
 	getPath(): number[];
 	getBoxEl(): HTMLElement | undefined;
-	/**
-	 * Opt into whole-block focus for a childless container: the element that takes DOM
-	 * focus. The kind must also declare `blockFocus: 'whole-block'`. Supply an element for
-	 * every steady state; a null falls back to the box with a dev warning.
-	 */
+	/** The element that takes DOM focus, opting a childless container into whole-block focus (the
+	 *  kind also declares `blockFocus: 'whole-block'`); null falls back to the box, with a dev warning. */
 	getFocusEl?: () => HTMLElement | null | undefined;
 	/** Escape hatch only: the collapsed state comes from a declared `reservedChrome.isCollapsed`. */
 	isCollapsed?: () => boolean;
@@ -130,11 +127,8 @@ export interface ContainerBlock {
 	 * rather than CSS must key its render on this and re-render when it changes.
 	 */
 	getTheme(): string;
-	/**
-	 * This editor instance's options for the plugin owning this block's kind, from its
-	 * `{ plugin, options }` entry, so two editors in one process configure the same kind
-	 * differently. `unknown`, like `commandHooks`: the plugin narrows it.
-	 */
+	/** This editor's options for the plugin owning this block's kind (its `{ plugin, options }`
+	 *  entry), so two editors can configure one kind differently. `unknown`: the plugin narrows it. */
 	getOptions(): unknown;
 	/** This editor's context for the plugin that owns this block's kind; undefined in a bare
 	 *  harness. Its `computeInlineContent` reads the inline syntax this editor draws. */
@@ -154,29 +148,18 @@ export interface ContainerBlock {
 	 * kind's keymap. Kind keymap only, so a bubbled undo or redo never fires twice.
 	 */
 	handleKeydown(e: KeyboardEvent): void;
-	/**
-	 * Hand the caret to the neighbour a plain arrow points at: the exit for a plugin's own
-	 * editor whose caret has reached its edge. Goes through the editor's focus traversal, so
-	 * the move skips unfocusable blocks, enters containers and scrolls unmounted targets
-	 * into view. False for a modified or non-arrow key: leave it to the browser.
-	 */
+	/** Hand the caret, through the editor's focus traversal, to the neighbour a plain arrow points
+	 *  at once a plugin editor's caret reaches its edge. False for a modified or non-arrow key. */
 	moveFocusOut(e: KeyboardEvent): boolean;
-	/**
-	 * The user's scroll position, read now. Call before a state change that swaps this
-	 * block's view for one of a different height, then await the returned restore: the
-	 * scroll container is back where it was once the swap has rendered. A scroll-into-view
-	 * in progress takes priority, and the restore does nothing.
-	 */
+	/** Read the scroll position before swapping this block's view for one of another height, and
+	 *  await the returned restore after the swap renders. A scroll-into-view in progress wins. */
 	captureScrollPosition(): () => Promise<void>;
 }
 
 // ── Collapsed-container checks ───────────────────────────────────────────────
 
-/**
- * "Collapsed" has one definition: the descriptor's `reservedChrome.isCollapsed`. An explicit
- * dep is checked against it in dev, except in reading mode, which cannot write: there a
- * section the user opened is legitimately ahead of the document.
- */
+/** Collapsed means the descriptor's `reservedChrome.isCollapsed`; a dev build checks an explicit dep
+ *  against it, except in reading mode, where a section the user opened is ahead of the document. */
 export function composeCollapseProbe(
 	explicit: (() => boolean) | undefined,
 	getNode: () => NodeView,
@@ -199,11 +182,8 @@ export function composeCollapseProbe(
 	};
 }
 
-/**
- * The expand a scroll-into-view runs before descending into a collapsed body. Commits
- * `reservedChrome.expandPatch` as a real undoable edit, not a view that disagrees with the
- * CST; declines in reading mode, which commits nothing.
- */
+/** Expand a collapsed body before a scroll-into-view descends into it, as an undoable commit of
+ *  `reservedChrome.expandPatch`; declines in reading mode, which commits nothing. */
 export function composeExpandDoor(deps: {
 	getNode: () => NodeView;
 	isCollapsed: () => boolean;
@@ -230,11 +210,8 @@ export function gateDescendOnCollapse(
 	};
 }
 
-/**
- * While collapsed only the title row is mounted, so an interior `moveFocus` aimed at a body
- * index stops on the unmounted ref. Body targets go past the container instead, the same
- * exit an open container's past-the-end move takes.
- */
+/** While collapsed only the title row is mounted, so a `moveFocus` at a body index goes past the
+ *  container instead, as an open container's past-the-end move does. */
 export function gateMoveFocusOnCollapse(
 	isCollapsed: (() => boolean) | undefined,
 	moveWithin: FocusActions['moveFocus'],

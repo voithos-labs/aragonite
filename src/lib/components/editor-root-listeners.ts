@@ -30,11 +30,8 @@ export function removeAll(...removers: (() => void)[]): () => void {
 
 // ── Install bundles ─────────────────────────────────────────────────
 
-/**
- * Only Ctrl/Cmd+click activates a link, so CSS switches links to a pointer cursor
- * off `data-mod-active`. Reset on blur and visibility loss, or a modifier released
- * while the page is unfocused sticks the cursor on.
- */
+/** Only Ctrl/Cmd+click activates a link, so CSS shows the pointer off `data-mod-active`; reset on
+ *  blur and visibility loss, so a key released while unfocused cannot stick it. */
 export function installModActiveTracker(root: HTMLElement): () => void {
 	// Track the last reflected state so ordinary typing never touches the DOM,
 	// keeping the attribute write off the keystroke hot path (perf:check).
@@ -58,11 +55,8 @@ export function installModActiveTracker(root: HTMLElement): () => void {
 	);
 }
 
-/**
- * The author's own input in `root` ends its open undo step, so typing while a plugin's commit
- * waits gets its own entry. Window capture runs before the root's handlers, so the key that starts
- * a gesture ends the last step before opening its own; input elsewhere on the page is ignored.
- */
+/** The user's input in `root` ends the open undo step, so typing while a plugin's commit waits
+ *  gets its own entry; window capture ends it before the root's handlers open the next. */
 export function installUndoStepEnd(root: HTMLElement, endStep: () => void): () => void {
 	const win = root.ownerDocument.defaultView;
 	if (!win) return () => {};
@@ -78,11 +72,8 @@ export function installUndoStepEnd(root: HTMLElement, endStep: () => void): () =
 	return () => removers.forEach((remove) => remove());
 }
 
-/**
- * A block stays held in place only until the user's next gesture on the resolved scroll
- * container. Not `scroll`: a programmatic correction fires that too, and would release the
- * hold half way through.
- */
+/** A block stays held in place until the user's next gesture on the scroll container; not
+ *  `scroll`, which a programmatic correction fires too. */
 export function installRevealAnchorRelease(port: EventTarget, release: () => void): () => void {
 	return removeAll(
 		onRoot(port, 'keydown', release),
@@ -103,11 +94,8 @@ export interface SelectionChangeBridgeDeps {
 	isWidgetSelected(): boolean;
 }
 
-/**
- * Caret motion the editor did not perform itself: a click, and single-block moves, which never
- * go through SelectionState. Scoped to `root`, silent about a position already announced, and
- * it drops a caret that appears in a block while an inline widget is selected whole.
- */
+/** Announces caret motion the editor did not make (a click, a move within one block), and drops
+ *  a caret that appears while an inline widget is selected whole. */
 export function installSelectionChangeBridge(deps: SelectionChangeBridgeDeps): () => void {
 	const handler = () => {
 		const sel = window.getSelection();
@@ -138,12 +126,8 @@ function inBlockSurface(node: Node): boolean {
 	return findSurfacePathForElement(el) !== null;
 }
 
-/**
- * Losing focus is a selection change no browser event reports: the native range can survive
- * unfocused while the editor's own read goes null, so this announces it. Decided after the
- * flush, never at focusout: a structural commit unmounts the focused block and puts focus back
- * after its own tick, and focus that came back never left.
- */
+/** Announces losing focus, a selection change no browser event reports; decided after the
+ *  flush, since a structural commit refocuses its block a tick later. */
 export function installEditorBlurAnnouncer(deps: {
 	root: HTMLElement;
 	announce: () => void;

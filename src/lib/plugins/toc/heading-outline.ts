@@ -17,11 +17,8 @@ import {
 /** Deepest heading level a document can list; `[[toc]]` has no meaning past GFM's six. */
 export const MAX_HEADING_DEPTH = 6;
 
-/**
- * The depth from this editor's `{ plugin, options }` entry, else `fallback`, which is the
- * factory argument's default for a plain install. Options arrive as `unknown`, so anything but
- * a whole number in 1..6 is not a depth and falls back rather than listing nothing.
- */
+/** The depth from this editor's `{ plugin, options }` entry, else `fallback` (the factory default);
+ *  anything but a whole number in 1..6 falls back rather than listing nothing. */
 export function resolveMaxDepth(options: unknown, fallback: number): number {
 	const declared = (options as { maxDepth?: unknown } | undefined)?.maxDepth;
 	if (typeof declared !== 'number' || !Number.isInteger(declared)) return fallback;

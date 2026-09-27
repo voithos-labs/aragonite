@@ -16,15 +16,13 @@
 		"<svg xmlns='http://www.w3.org/2000/svg' width='400' height='300'></svg>"
 	)}`;
 
-	// An image that sizes late, inside the document: mounted under `imageLoadPolicy="placeholder"`
-	// until the spec changes the policy, so the late sizing happens inside the editor's own
-	// subtree, which is the case the anchoring opt-out decides.
+	// Mounted under `imageLoadPolicy="placeholder"` until the spec changes the policy, so the
+	// image sizes late inside the editor's own subtree, where the scroll-anchoring opt-out applies.
 	const IMAGE_BLOCK_INDEX = 6;
 	// A divider shows a drag handle where prose does not; the drag spec grabs this one.
 	const HANDLE_BLOCK_INDEX = 30;
-	// `?blocks=` sizes the entry: the default is long enough to turn windowing on, and a short
-	// one is the same embedding below that point, where the browser's own scroll anchoring still
-	// runs. Built once: a fixture that reparsed on navigation would not be what the spec measured.
+	// The default is long enough to turn windowing on; a short `?blocks=` keeps the browser's own
+	// scroll anchoring. Built once, so the fixture is the one the spec measured.
 	// svelte-ignore state_referenced_locally
 	const ENTRY =
 		Array.from({ length: data.blocks }, (_, i) =>
@@ -104,8 +102,8 @@
 		width: 400px;
 		height: auto;
 	}
-	/* Padding, no overflow: host mode drops the editor's own padding, and the drag handle on
-	   hover sits at left:-0.85rem, which a wrapper with no room would clip away. */
+	/* Padding, no overflow: host mode drops the editor's own padding, and the drag handle
+	   hangs off the block's left edge, where a wrapper with no room would clip it. */
 	.entry {
 		padding: 0.75rem 1rem;
 	}

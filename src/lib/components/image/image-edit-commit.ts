@@ -46,11 +46,8 @@ export interface SelectedImageFields {
 
 export interface ImageEditCommitter {
 	getSelectedImageFields(): SelectedImageFields | null;
-	/**
-	 * The popover's write. `target` and `seenFields` are the image the popover last showed, not
-	 * the live selection; nothing is written unless the image at `target` still reads as
-	 * `seenFields`, so a draft never lands on another image, even after a document swap.
-	 */
+	/** Writes only if the image at `target` still reads as `seenFields`, the image the popover
+	 *  last showed, so a draft never lands on another image. */
 	commitImageEdit(target: WidgetTarget, seenFields: ImageFields, newFields: ImageFields): void;
 	/** The bytes `commitImageEdit` would write, or `null` if it would refuse; the popover
 	 *  compares against these to see whether anything changed. */
@@ -60,9 +57,8 @@ export interface ImageEditCommitter {
 	dismissImagePopover(): void;
 	getEditorContentWidth(): number;
 	attachWidgetSelectListener(): () => void;
-	/** Clears the widget selection when the document no longer holds an image at its bytes; the
-	 *  image's own commits keep its start byte, and one to an image before it moves the selection
-	 *  with its bytes, so both keep it selected. */
+	/** Clears the widget selection once no image starts at its bytes; commits to this image or
+	 *  to one before it keep it selected. */
 	clearStaleSelection(): void;
 	syncOverlayToWidget(getOverlay: () => HTMLElement | null): () => void;
 }
@@ -232,9 +228,8 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 		const editorEl = getEditorEl();
 		if (!overlayEl || !editorEl) return noop;
 
-		// Each commit rebuilds the inline DOM, so a captured widget ref would observe a
-		// detached node forever: re-resolve on every update and re-attach the observer
-		// when widget identity changes.
+		// Each commit rebuilds the inline DOM, so the widget is re-resolved on every update and
+		// the observer re-attached when it changes.
 		let observer: ResizeObserver | null = null;
 		let observed: HTMLElement | null = null;
 
@@ -263,9 +258,8 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 		const unsubscribeEdit = events.on('edit', update);
 		window.addEventListener('resize', update);
 
-		// Sibling images settling their dimensions shift the selected widget's y without
-		// resizing it, which the ResizeObserver never sees. Capture phase: neither
-		// event bubbles.
+		// Sibling images settling shift the widget's y without resizing it; capture phase,
+		// since neither event bubbles.
 		const onImgSettle = (e: Event) => {
 			if (e.target instanceof HTMLImageElement) update();
 		};

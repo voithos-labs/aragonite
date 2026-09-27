@@ -41,9 +41,8 @@ export async function dispatchMoveFocus(
 			? parent.focus.moveFocus(targetIndex, position, options)
 			: parent.focus.moveFocus(targetIndex, position);
 	const step = traversalStep(position);
-	// Before any ref is read, so the CST alone decides the boundary and an unmounted child
-	// cannot change the answer. The container's two edges are boundaries like any other:
-	// this is also what keeps the delegation below from leaving the container.
+	// Before any ref is read, so the CST alone decides the boundary; the container's own edges are
+	// boundaries too, which keeps the delegation below from leaving the container.
 	if (gapStop && step !== 0 && !options?.skipGapStop) {
 		if (gapStop(step > 0 ? innerIndex : innerIndex + 1)) return;
 	}
@@ -60,7 +59,7 @@ export async function dispatchMoveFocus(
 	const block = refs[innerIndex];
 	if (!block?.focusable) {
 		// A child with no ref, or one that cannot take focus, must not stop the move: continue
-		// in its direction (editor.md § Focus traversal).
+		// in its direction (`docs/design/editor.md` § Focus traversal).
 		if (step !== 0) {
 			await dispatchMoveFocus(refs, innerIndex + step, position, caretMemory, parent, scope);
 		}
@@ -83,10 +82,8 @@ export function traversalStep(position: FocusPosition): -1 | 0 | 1 {
 	return 0;
 }
 
-/**
- * Scrolls nothing into view, so an unmounted target does nothing; a caller that cannot keep
- * the target mounted goes through the async `revealByPath` (docs/design/virtual-rendering.md).
- */
+/** Scrolls nothing into view, so an unmounted target does nothing; a caller that cannot keep
+ *  the target mounted goes through the async `revealByPath`. */
 export function dispatchFocusByPath(
 	refs: (BlockComponent | undefined)[],
 	path: number[],

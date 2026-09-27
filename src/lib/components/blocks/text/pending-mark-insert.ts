@@ -30,12 +30,8 @@ export interface MarkedInsertion {
 	caret: number;
 }
 
-/**
- * The insertion `text` at `caretOffset` makes under `marks`. Null when the marks name nothing to
- * do, or when no candidate parses back to what was asked: Markdown cannot express every
- * combination at every caret, and a byte that types plainly beats one that shows delimiters.
- * `reading` must be the one `inlines` was read with, since every candidate is compared to them.
- */
+/** The insertion `text` at `caretOffset` makes under `marks`, or null when no candidate parses back
+ *  as asked. `reading` must be the one `inlines` was read with. */
 export function resolveMarkedInsertion(
 	display: string,
 	caretOffset: number,
@@ -52,9 +48,8 @@ export function resolveMarkedInsertion(
 		.map((entry) => entry.kind)
 		.filter((kind) => marks.has(kind) && !chain.some((node) => node.mark === kind));
 	const removedKinds = new Set<AnyInlineKind>(removed.map((node) => node.kind));
-	// What must enclose the inserted text afterwards: every construct the caret was inside, minus
-	// the ones this chord removes, plus the ones it adds. Ancestors with no mark are in it too,
-	// which is what stops an escape from carrying the byte out of a link it was inside.
+	// Ancestors with no mark stay in the intended chain, which stops an escape from carrying the
+	// byte out of a link it was inside.
 	const intended = new Set<AnyInlineKind>([
 		...chain.map((node) => node.kind).filter((kind) => !removedKinds.has(kind)),
 		...applied
@@ -108,9 +103,8 @@ function* candidateInsertions(
 	const outside = chain.slice(0, depth);
 	const payload = marksToWrite(intended, outside);
 
-	// A link or a widget between the caret and the construct being escaped cannot be cut open: its
-	// closer is not a mirror of its opener the way a mark's is, and splicing inside one writes
-	// literal bytes into content. Only stepping outside is available there.
+	// A link or widget between the caret and the escaped construct cannot be cut open, since its
+	// closer does not mirror its opener, so only stepping outside is tried.
 	if (escaped.every((node) => isSymmetricPair(node.kind))) {
 		yield splitOpen(display, caretOffset, text, escaped, payload);
 	}
@@ -121,8 +115,7 @@ function* candidateInsertions(
 }
 
 /** The marks the insertion must write for itself: the intended ones its surroundings do not
- *  already provide, outermost first. Policy entries rather than bare kinds, so nothing downstream
- *  has to look a marker up and miss. */
+ *  already provide, outermost first. */
 function marksToWrite(
 	intended: ReadonlySet<AnyInlineKind>,
 	provided: readonly ChainNode[]
@@ -149,9 +142,8 @@ function spliceWrapped(
 	};
 }
 
-/** Close every escaped construct before the insertion and reopen it after, the split that keeps
- *  the user's text where they put it. An empty half would leave a pair enclosing nothing, the
- *  invisible `****` live mode must never create, so that side steps outside the run. */
+/** Close every escaped construct before the insertion and reopen it after. A side left empty
+ *  steps outside the run instead, since live mode never writes a pair around nothing. */
 function splitOpen(
 	display: string,
 	caretOffset: number,
@@ -184,12 +176,8 @@ interface BlockBefore {
 	kinds: ReadonlySet<AnyInlineKind>;
 }
 
-/**
- * Three questions, and a candidate answers all of them or it is not written. Did the mark take,
- * so that exactly the intended constructs enclose the inserted text? Did every construct the
- * block already held survive, since a delimiter run shared between two pairings can rebind under
- * any splice and lose one nobody asked to give up? And is the rewrite invisible otherwise?
- */
+/** A candidate is written only if exactly the intended constructs enclose the inserted text, every
+ *  construct the block held survives (a shared run can rebind), and nothing else shows a change. */
 function parsesAsIntended(
 	candidate: Candidate,
 	text: string,
@@ -260,11 +248,8 @@ function isSymmetricPair(kind: AnyInlineKind): boolean {
 	return getInlineConstructPolicy(kind)?.edgeAffinity === 'symmetric-pair';
 }
 
-/**
- * Every construct holding `offset`, outermost first; one missing here would be missing from
- * `intended`, and a candidate could destroy it unnoticed. Exported for the depth test, which needs
- * a tree no real insertion could be rendered at.
- */
+/** Every construct holding `offset`, outermost first; one missing here could be destroyed unnoticed.
+ *  Exported for the depth test. */
 export function constructChainAt(offset: number, inlines: readonly InlineNode[]): ChainNode[] {
 	const holds = (node: InlineNode): boolean => holdsOffset(node, offset);
 	const chain: ChainNode[] = [];

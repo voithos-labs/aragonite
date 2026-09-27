@@ -81,9 +81,8 @@ export function createLinkCardCommitter(deps: LinkCardCommitterDeps): LinkCardCo
 		if (!resolved) return null;
 		const { block, link } = resolved;
 		const current = linkFieldsFromInline(link, block.raw);
-		// A reference form cannot hold a new destination without editing its definition, which
-		// lives in another block; changing the url is the user choosing the inline form. The
-		// title comes along either way: the card never shows it, so it is not the card's to drop.
+		// A reference form cannot take a new url without editing its definition elsewhere, so a
+		// changed url writes the inline form; the title comes along either way.
 		const fields: LinkFields =
 			url === current.url
 				? current
@@ -128,9 +127,8 @@ export function createLinkCardCommitter(deps: LinkCardCommitterDeps): LinkCardCo
 
 	async function write(path: number[], start: number, end: number, bytes: string): Promise<void> {
 		await inlineRange.commitInlineRange(path, start, end, bytes, start);
-		// The construct's outer start, which is also the offset the undo entry records: the caret
-		// before an undo and the caret after it then agree, and a remove-link lands where the
-		// unwrapped text now begins.
+		// The construct's outer start, which the undo entry records too, so the caret before and
+		// after an undo agree.
 		await deps.landCaret(path, start);
 	}
 
@@ -166,9 +164,8 @@ export function createLinkCardCommitter(deps: LinkCardCommitterDeps): LinkCardCo
 			cardEl.style.left = `${rect.left - editorRect.left - borderLeft + editorEl.scrollLeft}px`;
 		};
 
-		// The setup measure reads the document, and letting that register would make the caller's
-		// $effect tear down and re-wire these listeners on every keystroke. The `edit` subscription
-		// below is the one document trigger.
+		// Untracked setup measure, or the caller's $effect would re-wire these listeners on every
+		// keystroke; the `edit` subscription below is the document trigger.
 		const unwireScroll = wireOverlayRemeasure({
 			el: cardEl,
 			editorRoot: editorEl,

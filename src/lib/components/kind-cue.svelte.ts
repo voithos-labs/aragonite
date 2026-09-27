@@ -13,7 +13,7 @@ import { hidesMarkers, type PresentationMode } from '../presentation-mode';
 import { blockNodeAt } from '../tree-operations/node-primitives';
 
 export interface KindCue {
-	/** Once `write` settles, cue the block at `path` if its shown kind is no longer `before`. */
+	/** Once `write` settles, cue the block at `path` if its shown kind differs from `before`. */
 	afterTypedWrite(
 		write: void | Promise<void>,
 		path: readonly number[],

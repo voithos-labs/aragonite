@@ -391,7 +391,7 @@
 		menu = null;
 	}
 
-	// ── focusout: reset internal sticky when focus leaves the table ────────
+	// ── Sticky column resets when focus leaves the table ───────────────────
 
 	$effect(() => {
 		if (!tableEl) return;
@@ -568,8 +568,7 @@
 	}
 </script>
 
-<!-- Delegated listeners for the cell grid, since the cells are what the user interacts with.
-     Whether the role should be table or grid is an accessibility question still open. -->
+<!-- Delegated listeners for the cell grid, since the cells are what the user interacts with. -->
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 <div
 	bind:this={tableEl}

@@ -96,12 +96,8 @@ interface SubtreeEntry {
 
 const refsBySubtree = new WeakMap<NodeView, SubtreeEntry>();
 
-/**
- * One top-level subtree's references, cached against the bytes they came from, so a
- * keystroke re-parses that subtree and reuses every other. Safe because the serializer never
- * recurses (`editor.md` § 12): a subtree's `raw` is its whole byte image, kept that way by the
- * `raw` rebuild that runs up its ancestors.
- */
+/** One top-level subtree's references, cached against its `raw` (the subtree's whole byte
+ *  image), so a keystroke re-parses only the subtree it changed. */
 function subtreeRefs(node: NodeView, reader: InlineReader): readonly FootnoteReference[] {
 	const cached = refsBySubtree.get(node);
 	if (cached && cached.raw === node.raw && cached.kind === node.kind && cached.reader === reader)
@@ -119,11 +115,8 @@ const numberingByDocument = new WeakMap<
 	{ version: number; reader: InlineReader; numbers: Map<string, number> }
 >();
 
-/**
- * One numbering per flush rather than one per widget. `contentVersion` must be in the key: the
- * `$state` document is changed in place, so a cache keyed on identity alone would hit forever
- * and return a stale map.
- */
+/** One numbering per flush, not per widget, keyed on `contentVersion` too: the `$state` document
+ *  changes in place, so an identity key alone would return a stale map. */
 export function footnoteNumbersFor(
 	document: DocumentView,
 	contentVersion: number,

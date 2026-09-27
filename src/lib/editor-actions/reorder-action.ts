@@ -141,9 +141,8 @@ export function createReorderAction(
 	}
 
 	return {
-		// A dropped block is not a block the user asked to edit: focusing it opens whatever a
-		// caret opens there (an equation shows its source), which a drag did not ask for. The
-		// keyboard nudge is the opposite: the caret must move with the block.
+		// A drop leaves the caret out, since focusing a block opens whatever a caret opens there (an
+		// equation's source); the keyboard nudge moves the caret with the block.
 		moveReorderUnit: (fromPath, toIndex) => run(fromPath, () => toIndex, false),
 		nudgeReorderUnit: (fromPath, dir) => run(fromPath, (index) => index + dir, true)
 	};

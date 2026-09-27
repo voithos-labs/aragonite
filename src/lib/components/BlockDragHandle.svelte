@@ -4,8 +4,8 @@
 	import { alignDragHandle } from './drag-handle';
 </script>
 
-<!-- aria-hidden and not focusable: keyboard reorder (Alt+Arrow) is the path a screen
-	reader sees and can operate, so this mouse-only handle stays out of the tab order. -->
+<!-- Hidden from assistive tech and the tab order: keyboard reorder (Alt+Arrow) is the
+	accessible path. -->
 <span
 	class="block-drag-handle"
 	aria-hidden="true"
@@ -18,16 +18,12 @@
 <style>
 	.block-drag-handle {
 		position: absolute;
-		/* Sits inside the editor's own left padding, so the handle clears the block's left
-		   border instead of being clipped behind it (overflow-x:auto). */
+		/* In the editor's left padding, so the block's `overflow-x: auto` cannot clip it. */
 		left: -1.25rem;
-		/* Runs from the gutter to the content's left edge (width equals |left|) so a pointer
-		   moving in from the block never crosses an unhovered gap, which would hide the handle
-		   and, since a hidden one takes no pointer events, leave it unreachable. Stopping at
-		   the content's left edge keeps a click on the first character from starting a drag. */
+		/* Reaches the content's left edge, so a pointer moving out of the block never crosses a
+		   gap that would hide the handle, and stops there so the first character stays clickable. */
 		width: 1.25rem;
-		/* Full-height click strip so the handle is reachable at any height; the visible
-		   handle sits on the block's first line. */
+		/* A full-height strip; the visible handle sits on the block's first line. */
 		top: 0;
 		bottom: 0;
 		opacity: 0;
@@ -37,18 +33,14 @@
 		color: var(--color-ui-muted, #a4a4a4);
 	}
 
-	/* Flush left in the strip (the glyph ends a few pixels clear of the content), centred on
-	   the line that `alignDragHandle` measures and writes as an inline `top`.
-
-	   Always clickable, unlike the strip around it: a handle you can reach only by first
-	   hovering its block is a menu you cross the block to open. Its own box, not the
-	   full-height strip, which would swallow every gutter click the block has. */
+	/* Centred on the line `alignDragHandle` measures. Always clickable, unlike the strip, so
+	   the handle needs no hover first without the strip swallowing every gutter click. */
 	.grip {
 		position: absolute;
 		left: 0;
 		width: 100%;
 		height: 1.25rem;
-		/* the em line gives the same first-line centre in browsers without lh (Safari < 16.4) */
+		/* The `em` fallback is for browsers without `lh` (Safari before 16.4). */
 		top: 0.75em;
 		top: 0.5lh;
 		transform: translateY(-50%);
@@ -58,9 +50,8 @@
 		pointer-events: auto;
 	}
 
-	/* The click target is bigger than the glyph: a 16px box in a gutter is one the pointer
-	   misses between two rows, and a miss reads as the handle belonging to the block above.
-	   Never past the strip's right edge, which is the content's first character. */
+	/* A click target bigger than the 16px glyph, which a pointer misses between rows; it never
+	   passes the strip's right edge, the content's first character. */
 	.grip::before {
 		content: '';
 		position: absolute;

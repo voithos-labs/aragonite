@@ -60,9 +60,8 @@ export function createHistoryActions(
 		deps.events.emit('edit', { op, path: [], timestamp: Date.now() });
 	}
 
-	// Flush, not discard: `interrupt` clears the debounce timer so it cannot push a stale
-	// snapshot after the stack moves, and emits the batch's pending `input` event so its
-	// bytes are not dropped from the edit events.
+	// Flush, not discard: the pending batch's `input` event must still be emitted, and its timer
+	// must not push a stale snapshot after the stack moves.
 	function beginHistorySwap(): void {
 		deps.caretMemory.forget();
 		controller.flushDebouncedCheckpoint();

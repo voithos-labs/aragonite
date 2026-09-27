@@ -25,12 +25,8 @@ export interface WidgetPoolAdapter<H> {
 }
 
 export interface WidgetPool {
-	/**
-	 * Adopt the oldest un-adopted live instance for the key, marking it adopted this
-	 * pass, otherwise build a new one. Only during a render pass: every request sits inside a
-	 * beginPass/sweep bracket. Key-only lookup cannot distinguish byte-identical
-	 * duplicates, so an out-of-pass caller holding a specific element must restore it.
-	 */
+	/** Adopts the oldest unadopted instance for the key, else builds one; call only inside a
+	 *  beginPass/sweep bracket. Identical sources share a key, so a caller holding one restores it. */
 	acquire(kind: AnyInlineKind, inline: InlineNode, source: string): HTMLElement | null;
 	/** Open a rebuild pass: un-adopt every instance so this pass re-earns them. */
 	beginPass(): void;
@@ -148,12 +144,8 @@ export interface SvelteWidgetPoolDeps {
 	reading: Reading;
 }
 
-/**
- * The pool wired to Svelte mounting. A synchronous mount throw is caught, reported and surfaced as
- * null so the caller falls back to the raw span. The getters sit alongside the frozen
- * `{ inline, source }` snapshot as live props: reuse keys on `${kind} ${source}`, so an instance
- * outlives a mode switch or an edit elsewhere that a frozen value would not.
- */
+/** A mount throw is reported and returns null, so the caller falls back to the raw span. The
+ *  getters are live props beside the frozen snapshot, since a pooled instance outlives a mode switch. */
 export function createSvelteWidgetPool(deps: SvelteWidgetPoolDeps): WidgetPool {
 	const { reportError, getTheme, getDocument, getContentVersion, navigateTo, reading } = deps;
 	const { grammar } = reading;

@@ -1,6 +1,6 @@
 <script lang="ts" module>
 	/**
-	 * A limestone-styled list menu the editor opens at a point: a block's context menu (rows run
+	 * A list menu the editor opens at a point: a block's context menu (rows run
 	 * that kind's registered actions) and the prose menu's clipboard rows with its "Insert block"
 	 * flyout (rows insert Markdown into a new paragraph). Pointer- and keyboard-driven without
 	 * ever taking focus, so the caret it acts on stays exactly where it is.
@@ -240,7 +240,7 @@
 	.block-menu-label {
 		flex: 1;
 	}
-	/* limestone's submenu: a second panel hung off the row's right edge. */
+	/* The submenu: a second panel hung off the row's right edge. */
 	.block-menu-flyout {
 		position: absolute;
 		left: 100%;

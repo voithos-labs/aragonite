@@ -67,8 +67,7 @@
 		if (revealed) e.preventDefault();
 	}
 
-	// Per block and per session: a layout change is about this one equation, not a document
-	// preference. The start comes from this editor's plugin options, else the factory default.
+	// Per block and per session, starting from this editor's plugin options or the factory default.
 	// svelte-ignore state_referenced_locally
 	let layout = $state<MathLayout>(resolveDefaultLayout(leaf.getOptions(), blockLayout));
 	const previewOpen = $derived(layout !== 'source');
@@ -229,9 +228,8 @@
 		gap: 6px;
 	}
 
-	/* The equation's cards are boxes like a code block's, and keep the same distance from their
-	   neighbours (editor.css, fencedCode). Padding, not margin: block heights are measured from
-	   the host's box. Keyed on this component, so every math kind it renders gets it. */
+	/* The equation's cards keep a code block's distance from their neighbours (editor.css);
+	   padding, not margin, because block heights are measured from the host's box. */
 	:global(.block-host):has(> .math-block) {
 		padding-block: 6px;
 	}

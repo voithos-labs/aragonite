@@ -102,9 +102,8 @@ export function createStandardNestedActions(
 	const containerEdit = deps.parent.containerEdit;
 
 	const defaults: NestedActionsBundle = { blockEdit, focus, containerEdit };
-	// Above the override spread, so a container replacing `splitBlock` keeps the Enter
-	// completion its subtree needs. `defaults` stays unwrapped: an override chaining back into
-	// it is already past the check, and checking again would spend one Enter on two.
+	// Above the override spread, so a container replacing `splitBlock` keeps its Enter completion;
+	// `defaults` stays unwrapped, or an override chaining into it would run the check twice.
 	const childAt = (index: number) => deps.node.children?.[index];
 	const getLineEnding = () => containerEdit.lineEnding();
 	if (!overrideFactory) {

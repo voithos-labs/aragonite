@@ -33,9 +33,8 @@ export interface FocusedSurface {
 	/** Null for a gap caret's stand-in element; global commands still reach the dispatch,
 	 *  exactly as the gap caret's own chord handling does. */
 	commandTarget(): KindCommandTarget | null;
-	/** Routed the way a paste event is: transforms, delete-first, one undo entry and focus
-	 *  all live in the block. `below` pastes into a new paragraph after the top-level block.
-	 *  The focused block is read at the call; the promise resolves once the insert has landed. */
+	/** Routed like a paste event, so the rules live in the block; `below` pastes into a new
+	 *  paragraph after the top-level block. Resolves once the insert has landed. */
 	insertMarkdown(md: string, options?: InsertMarkdownOptions): Promise<boolean>;
 }
 

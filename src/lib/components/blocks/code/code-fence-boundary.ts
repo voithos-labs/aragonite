@@ -26,12 +26,8 @@ export type FenceBoundaryResult =
 	| { kind: 'exitPrev' } // crossing the opener boundary backward
 	| { kind: 'exitNext' }; // crossing the closer boundary forward
 
-/**
- * Classify a Backspace/Delete against the two body boundaries: Backspace at bodyStart
- * would delete the opener's terminating `\n`, and Delete at bodyEnd the body's; either
- * reparses the block in a different shape, so both become a move of the focus instead.
- * What else a keystroke may rewrite is `crossesFenceBoundary`'s question.
- */
+/** Backspace at the body start would delete the opener's `\n`, and Delete at the body end the
+ *  body's; either reshapes the block, so both move focus out instead. */
 export function classifyFenceBoundary(input: FenceBoundaryInput): FenceBoundaryResult {
 	const { node, offset, forward } = input;
 
@@ -46,12 +42,8 @@ export function classifyFenceBoundary(input: FenceBoundaryInput): FenceBoundaryR
 	return { kind: 'allow' };
 }
 
-/**
- * Clamp an Enter out of both fence lines onto the nearest body edge: a `\n` inside
- * the opener reshapes the fence, one inside the closer breaks it apart. Each
- * fence line's inner edge is left alone: splicing after the info string, or at the
- * start of the closer line, is already safe.
- */
+/** A `\n` inside either fence line breaks the fence, so an Enter there moves to the nearest body
+ *  edge; each fence line's inner edge is already safe and stays put. */
 export function clampEnterOffsetToBody(node: NodeView, offset: number): number {
 	const { openerTextEnd, body, closerTextStart } = fenceRegions(node);
 	if (offset < openerTextEnd) return body.start;
@@ -59,22 +51,16 @@ export function clampEnterOffsetToBody(node: NodeView, offset: number): number {
 	return offset;
 }
 
-/**
- * Clamp a whole range onto the body, unconditionally, for gestures that rewrite entire lines
- * (Tab indent, Shift+Tab dedent), where a tab on the closer pushes it past GFM's three-space
- * limit and one on the opener demotes the block. Other range gestures use `fenceEditSpan`.
- */
+/** For gestures that rewrite whole lines (indent, dedent): a tab on the closer pushes it past
+ *  GFM's three-space limit, and one on the opener demotes the block. */
 export function clampRangeToBody(node: NodeView, range: RawRange): RawRange {
 	const { start: lo, end: hi } = bodyWindow(node);
 	const clamp = (offset: number) => Math.min(Math.max(offset, lo), hi);
 	return { start: clamp(range.start), end: clamp(range.end) };
 }
 
-/**
- * Does a pending edit reach out of the editable content, which is the body plus the opener's info
- * string (the language picker writes it)? An unclosed fence is the exception: with no closer to
- * strand, its run is content too, so demoting the block is how a just-typed ` ``` ` is undone.
- */
+/** Whether an edit reaches past the body and the opener's info string. An unclosed fence's run
+ *  counts as content, so deleting it is how a just-typed ` ``` ` is undone. */
 export function crossesFenceBoundary(node: NodeView, range: RawRange): boolean {
 	const { openerContent, body } = fenceRegions(node);
 	const lo = Math.min(range.start, range.end);
@@ -102,11 +88,8 @@ export function clampCaretToBody(node: NodeView, offset: number): number {
 	return clampRangeToBody(node, caret).start;
 }
 
-/**
- * The refusal rule shared by every mutating gesture here: a range that reached structure and kept
- * no body after the clamp is declined, not re-sited to a body edge the user never pointed at.
- * Paste consults it directly, since it splices through the paste tree-op.
- */
+/** A range that reached the fence lines and keeps no body after the clamp is declined, rather
+ *  than moved to a body edge the user never pointed at. */
 export function isStructureOnlyRange(node: NodeView, range: RawRange): boolean {
 	const ordered = orderedRange(range);
 	if (!crossesFenceBoundary(node, ordered)) return false;
@@ -202,11 +185,8 @@ function bodyWindowOf(slice: FencedCodeSlice, displayEnd: number): RawRange {
 	return { start, end: Math.min(Math.max(bounds.end, start), displayEnd) };
 }
 
-/**
- * The body's display-text bounds, excluding both fence lines. `end` reads the body's
- * own trailing ending through `displayLength`, so a CRLF document's boundary does not
- * land between the `\r` and the `\n`.
- */
+/** `end` reads the body's trailing ending through `displayLength`, so a CRLF boundary never
+ *  lands between the `\r` and the `\n`. */
 function fenceBodyBounds(slice: FencedCodeSlice): RawRange {
 	const start = slice.openerLine.length;
 	return { start, end: start + displayLength(slice.body) };

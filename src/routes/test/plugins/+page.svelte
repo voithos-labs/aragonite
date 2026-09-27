@@ -62,7 +62,7 @@
 		tags: [tagsPlugin()],
 		// The same tags as mark decorations over plain text: no widget, no source to show.
 		'tags-marks': [tagMarks],
-		// Every inline-menu source at once: `#`, `[[`, `@` and `/` must not take each other's presses.
+		// Every inline-menu source at once: `#`, `[[`, `@` and `/` must not take each other's keys.
 		'inline-menu': [tagMarks, docLinkMenuPlugin(), heldCommitMenuPlugin(), DEMO_SLASH_COMMANDS],
 		// `%%parrot` is a narrower form of the base memo fixture's `%%`, and the bird animates on
 		// an interval; kept to its own seed so neither reaches another suite.
@@ -76,8 +76,7 @@
 		'fold-table': [foldPlugin],
 		badge: [blockBadgePlugin],
 		// `?seed=sim` puts long-lived decoration sources under the simulation's corruption
-		// checks; the simulations load their own document over the empty seed, and the widget
-		// source keys on sentinels only that document holds.
+		// checks; the widget source keys on markers only the simulation's own document holds.
 		sim: [simMarkPlugin, simIslandPlugin]
 	};
 </script>
@@ -148,17 +147,15 @@
 		''
 	].join('\n');
 
-	// `?seed=<name>` swaps in another plugin's document; callout is the default. The seed comes
-	// from the load function, so server and client render the same document once: the harness
-	// never navigates again, and the probes own `source` from then on.
+	// The seed comes from the load function, so server and client render the same document;
+	// after that the probes own `source`.
 	const SEEDS: Record<string, string> = {
 		callout: ':::callout Title\nFirst\n:::\n',
 		details: '<details open>\n<summary>Summary</summary>\n\nBody\n\n</details>\n',
 		admonitions: ADMONITIONS_SEED,
 		math: 'Before $x^2$ after\n\nNext\n',
-		// Two inline equations in one paragraph: clicking elsewhere in the same block must
-		// collapse the shown source, and clicking the second widget while the first is open
-		// must switch.
+		// Two inline equations in one paragraph: a click elsewhere in the block collapses the
+		// shown source, and a click on the second widget switches to it.
 		'math-two': 'Sum $E=mc^2$ and $a^2+b^2=c^2$ tail\n\nNext\n',
 		// A second visual line puts real text directly below the widget, so the hit test that
 		// shows the source is exercised on both axes.
@@ -205,9 +202,8 @@
 		// A footnote definition whose body is one editable paragraph: the container's editing,
 		// Backspace and undo case.
 		footnotes: 'A note reference [^a] in prose.\n\n[^a]: The note body.\n',
-		// The references sit in block 1, so typing an earlier reference into block 0 renumbers
-		// block 1's widgets although block 1 is never edited: a renumber that reusing a widget
-		// by key cannot produce.
+		// Typing an earlier reference into block 0 renumbers block 1's widgets although block 1
+		// is never edited, which a widget reused by key would miss.
 		'footnotes-ref':
 			'Intro line here.\n\nBody has [^a] and [^b] here.\n\n[^a]: First note.\n\n[^b]: Second note.\n',
 		// A `:smile:` mid-prose (block 0) plus a plain typing target (block 1).
@@ -223,9 +219,8 @@
 		tags: 'Filed under #project and #work/admin today\n\n#inbox leads this line\n\n# Heading with #tag inside\n\nType here\n',
 		'tags-marks':
 			'Filed under #project and #work/admin today\n\n#inbox leads this line\n\n# Heading with #tag inside\n\nType here\n',
-		// Three tags to suggest (`project` twice, so it ranks first), a typing target, a list item,
-		// an inline code span where a `#` is not syntax, and a link whose destination is not prose
-		// either.
+		// `project` appears twice so it ranks first; the code span and the link destination are
+		// places where `#` is not a tag.
 		'inline-menu':
 			'Filed under #project and #work/admin and #project\n\n#inbox leads\n\nType here\n\n- item\n\nIn `code` span\n\nSee [the docs](https://example.com/) here\n'
 	};
@@ -273,9 +268,8 @@
 	function canConvertSource(s: string): boolean {
 		return hasGithubAlert(s) && convertGithubAlertsInDocument(s).changed;
 	}
-	// Deliberately not a $derived: canConvertSource parses, and a parse during render races the
-	// page's asynchronous plugin installs. The first parse has to come after registration, or
-	// every opener reports a late registration.
+	// Not a $derived: canConvertSource parses, and a parse during render would run before the
+	// asynchronous plugin installs and report every opener as a late registration.
 	// eslint-disable-next-line svelte/prefer-writable-derived -- the delay is required (see above)
 	let canConvert = $state(false);
 	$effect(() => {

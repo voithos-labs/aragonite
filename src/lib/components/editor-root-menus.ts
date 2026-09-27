@@ -167,9 +167,8 @@ export function createRootMenus(deps: RootMenusDeps): RootMenus {
 		});
 	}
 
-	// A right-click on a block (a fence, an equation, an image) opens that block's context menu.
-	// Prose is the page's background and a selection belongs to the host's popover, so both get
-	// the clipboard rows; the margin shows nothing at all.
+	// A right-click on a block opens its own menu; prose and a selection get the clipboard rows,
+	// and the margin shows nothing.
 	function onRootContextMenu(e: MouseEvent): void {
 		const root = deps.editorEl;
 		if (e.defaultPrevented || deps.mode === 'reading' || !root) return;
@@ -185,7 +184,7 @@ export function createRootMenus(deps: RootMenusDeps): RootMenus {
 		const point = { x: e.clientX, y: e.clientY };
 		const native = window.getSelection();
 		const selected = !!native && !native.isCollapsed && root.contains(native.anchorNode);
-		// A nested block (a fence inside a list item) takes the clipboard rows for now.
+		// A nested block (a fence inside a list item) gets the clipboard rows.
 		const node = path.length === 1 ? deps.getDoc().children[path[0]] : undefined;
 		const prose = !!node && isProseLeaf(node, deps.reading);
 		if (selected || !node || prose) {

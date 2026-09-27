@@ -264,8 +264,8 @@
 	// A widget's editing policy under this editor's grammar, the one the cell rendered with.
 	const widgetEditing = (kind: AnyInlineKind) => getInlineWidgetEditing(kind, grammar);
 
-	// The one caret-edge dispatch (G4.12), the same code prose uses: a plain edge key against
-	// a CST widget or a decoration widget resolves against its declared policy.
+	// The caret-edge dispatch prose uses, so an edge key against a CST or decoration widget
+	// resolves against its declared policy here too (G4.12).
 	const edgeDispatch = createEdgePolicyDispatch({
 		getLineEnding: () => documentLineEnding(getDoc()),
 		get node() {
@@ -461,8 +461,8 @@
 		return true;
 	}
 
-	// The one place this shape is written: the row mounts this cell with no `bind:this`, so the
-	// published reference is the only way a caller reaches it, which the G4.38 scan checks.
+	// The row mounts this cell without `bind:this`, so this registered reference is the only way
+	// a caller reaches it (G4.38).
 	$effect(() => {
 		if (!slots) return;
 		const self = {
@@ -976,7 +976,7 @@
 		sel: { start: number; end: number }
 	): Promise<void> {
 		if (!el) return;
-		// Belt behind TableBlock's menu-open gate: paste and cut mutate.
+		// Backs up TableBlock's menu, which already stays shut in reading mode: paste and cut mutate.
 		if (readOnly && action !== 'copy') return;
 		// Right-click deliberately skips the pointerdown reset, so a source may still be showing
 		// and `sel` was captured against that DOM, which is why it is hidden before anything else.

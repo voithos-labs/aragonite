@@ -68,9 +68,8 @@ export function createSearchReplace(deps: EditorActionsDeps, controller: UndoCon
 			);
 			writeOwnRaw(leaf, substituted, lineEnding, deps.reading.grammar);
 		}
-		// A nested leaf's edit must be written up into the clone's container raws before the
-		// reparse from `child.raw`, through the rebuild typing uses, which also recomputes the blank
-		// line above a list emptied to its marker. A top-level leaf needs none.
+		// Before the reparse from `child.raw`, a nested leaf's edit is written up into the clone's
+		// container raws by the same rebuild typing uses; a top-level leaf needs none.
 		const cloneSharing = createSharingState();
 		for (const ranges of byLeaf.values()) {
 			const rel = ranges[0].path.slice(1);
@@ -89,12 +88,8 @@ export function createSearchReplace(deps: EditorActionsDeps, controller: UndoCon
 		return normalizeReplacementTrivia(child, newNodes);
 	}
 
-	/**
-	 * A match can land on a container node itself. A childless one was scanned as a leaf, and
-	 * this path reparses rather than writing in place, so the kind re-derives its metadata from
-	 * the substituted bytes and nothing goes stale. One with children is excluded: its raw is
-	 * rebuilt from theirs, and substituting into it would make the two disagree (G1.12/G1.13).
-	 */
+	/** A childless container matched as a leaf is reparsed, so its metadata follows the new bytes;
+	 *  one with children is excluded, as its raw is rebuilt from theirs (G1.12/G1.13). */
 	function isReplaceable(match: Match): boolean {
 		const top: CstNode | undefined = deps.doc.children[match.path[0]];
 		const node = top ? descend(top, match.path.slice(1)) : null;
@@ -102,15 +97,11 @@ export function createSearchReplace(deps: EditorActionsDeps, controller: UndoCon
 		return !getBlockKindDescriptor(node.kind).isContainer || (node.children?.length ?? 0) === 0;
 	}
 
-	/**
-	 * The one hazard the reparse cannot absorb: a substitution that breaks a container's opener
-	 * line comes back as a different kind entirely, a diagram silently becoming a plain code
-	 * block. Accepted for leaves, declined here.
-	 */
+	/** A substitution that breaks a container's opener line reparses as another kind (a diagram
+	 *  becoming a code block). Leaves accept that; a container's replace is declined. */
 	function keepsItsKind(before: CstNode, after: CstNode[]): boolean {
-		// Only where the substitution wrote the container's own raw: a childless one, scanned as
-		// a leaf. One with children had a child edited, and a kind change there is the ordinary
-		// structural replace every leaf already gets.
+		// Only a childless container had its own raw substituted; in one with children a child
+		// was edited, and a kind change there is the ordinary structural replace.
 		const childless = (before.children?.length ?? 0) === 0;
 		if (!childless || !getBlockKindDescriptor(before.kind).isContainer) return true;
 		return after.length === 1 && after[0].kind === before.kind;
@@ -158,8 +149,7 @@ export function createSearchReplace(deps: EditorActionsDeps, controller: UndoCon
 			}
 		});
 		if (applied === 0) return 0;
-		// A single-subtree replace has one edited node, so the aggregate event carries its
-		// document-absolute path (editor.md §12); a multi-subtree batch genuinely has none.
+		// A single-subtree replace names its block's path in the event; a multi-subtree batch has none.
 		const eventPath = indices.length === 1 ? docPathFrom([indices[0]]) : [];
 		deps.events.emit(
 			'edit',

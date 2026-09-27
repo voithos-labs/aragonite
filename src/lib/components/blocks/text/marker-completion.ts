@@ -12,13 +12,8 @@ import { tryGetBlockKindDescriptor } from '../../../schema/block-kind-descriptor
 import { rawOffsetOfLeaf } from '../../../tree-operations/container-offsets';
 
 export interface MarkerCompletion {
-	/**
-	 * Take a bare space at `caretOffset` for the container's marker, or leave it to the content.
-	 * `parent` is the block's nearest ancestor container, so a nested quote completes at its own
-	 * depth, and null at the document root; `index` is the block's place among its children.
-	 * Taken once per child: a taken space writes nothing, so only this memory tells the second
-	 * space from the first, and the second is the only way to type a leading space there.
-	 */
+	/** Take a bare space at `caretOffset` for the nearest container's marker (`parent`, null at the
+	 *  root), once per child: a second space there is content, the only way to type a leading one. */
 	claimSpace(node: NodeView, parent: NodeView | null, index: number, caretOffset: number): boolean;
 }
 

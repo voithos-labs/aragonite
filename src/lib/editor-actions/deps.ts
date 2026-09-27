@@ -21,22 +21,19 @@ export interface EditorActionsDeps {
 	setDoc(doc: Document): void;
 	setBlockIds(ids: string[]): void;
 	setBlockRefs(refs: (BlockComponent | undefined)[]): void;
-	/** Announce that the document's bytes changed (`reactivity/content-version.svelte.ts`).
-	 *  The commit sequence calls it once per commit; every writer outside a commit must call
-	 *  it itself (G4.52 lists them). */
+	/** Announce that the document's bytes changed. A commit calls it once; a writer outside a
+	 *  commit must call it itself (G4.52). */
 	bumpContentVersion(): void;
 	undoManager: UndoManager;
 	sharing: SharingState;
 	caretMemory: CaretMemory;
 	selectionState: SelectionState;
-	/** The edge of the image selected whole, as a collapsed caret, or null with none selected:
-	 *  no block reports a caret meanwhile, so every live selection read answers with this one.
-	 *  Absent in harnesses. */
+	/** The edge of the image selected whole, as a collapsed caret (null with none, absent in
+	 *  harnesses); no block reports a caret meanwhile, so selection reads answer with this one. */
 	getSelectedWidgetCaret?: () => EditorSelection | null;
 	getBlockElByPath: BlockElLookup;
-	/** Scroll an unmounted top-level block into the rendered window, wait for it to mount,
-	 *  and return its component (null if unreachable). An already-mounted block returns
-	 *  at once without scrolling. */
+	/** Scroll the block at `path` into view level by level, wait for it to mount, and return its
+	 *  component (null if unreachable); a mounted block returns at once. */
 	revealPath(path: number[]): Promise<BlockComponent | null>;
 	events: EditorEvents;
 	/** How the editor reads its bytes: a re-parse or completer reads only the syntax it switched

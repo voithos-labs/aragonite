@@ -1,9 +1,7 @@
 /**
- * Editor-root pointer gestures: click handling in priority order, first match wins (the link
- * card, link activation, the caret for a click on empty space, a click on a block's own box),
- * the margin drag the browser cannot start from a non-editable element, and the multi-click
- * handling over the same click test. The installing `$effect` stays in `Editor.svelte` as a
- * check plus one install call.
+ * Editor-root pointer gestures: clicks in priority order (the link card, link activation, the
+ * caret for empty space, a block's own box), the margin drag the browser cannot start from a
+ * non-editable element, and multi-click selection.
  */
 
 import type { BlockComponent } from '../block-component';
@@ -51,9 +49,8 @@ export interface RootGestures {
 	placeCaretAtPoint(root: HTMLElement, x: number, y: number): boolean;
 }
 
-// Empty space, and the parts of a block that are neither editable nor controls (a rendered
-// equation, a diagram, a card's face): the browser cannot grow a selection from a click there,
-// so the editor runs the drag itself. A whole-block input proxy is editable in name only.
+// Empty space and a block's non-editable parts (a rendered equation, a diagram, a whole-block
+// input proxy) grow no native selection, so the editor runs the drag from there.
 const NOT_A_DRAG_START =
 	'[contenteditable="true"]:not([data-whole-block-input]), ' +
 	'button:not(.editor-tail-row), input, textarea, select, a, summary, [role="checkbox"], ' +
@@ -154,21 +151,18 @@ export function createRootGestures(deps: RootGesturesDeps): RootGestures {
 			marginDrag = false;
 			if (dragged) return;
 			if (deadSpaceCaret.handleClick(root, e)) return;
-			// A click the editor took on a block's own box (a host's padding beside a table, a rule,
-			// a closed equation's face) that did not move is a click on that block; the helper above
-			// handles only empty space, so the same lookup happens here.
+			// A still click on a block's own box (padding beside a table, a rule, a closed
+			// equation's face) places the caret in that block, as empty space does.
 			if (pressed && !deadSpaceCaret.isDeadSpaceTarget(root, e.target)) {
 				if (deadSpaceCaret.placeAtPoint(root, e.clientX, e.clientY)) return;
 			}
-			// Handled by nothing above: a click on nothing still leaves what was being edited (an
-			// equation showing its source closes on blur), since the margin click suppressed the
-			// browser's own blur.
+			// A click on nothing still ends the edit in progress, since the margin click suppressed
+			// the browser's own blur.
 			if (pressed) blurEditingSurface(root);
 		};
 
-		// The browser cannot grow a selection from a non-editable element into an editable block,
-		// so the editor runs the drag itself, starting where a click there would put the caret.
-		// The mousedown's default is suppressed so no native selection fights it; `click` fires.
+		// Starts where a click would put the caret; mousedown's default is suppressed so no native
+		// selection fights the drag, and `click` still fires.
 		const startMarginDrag = (e: PointerEvent) => {
 			marginDrag = false;
 			marginDown = { x: e.clientX, y: e.clientY };

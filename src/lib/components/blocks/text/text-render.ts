@@ -85,11 +85,8 @@ export interface TextRenderDeps {
 }
 
 export interface TextRender {
-	/**
-	 * Rebuild the block's children from the node's current state. Skips work on an unchanged
-	 * render key unless `forceRebuild`, which a pending cursor restore passes so the DOM is
-	 * rebuilt anyway. `carryCaret` re-anchors the caret; the edit path passes false.
-	 */
+	/** Rebuild the block's children, skipped on an unchanged render key unless `forceRebuild` (a
+	 *  pending cursor restore). `carryCaret` re-anchors the caret; the edit path passes false. */
 	render(opts?: { forceRebuild?: boolean; carryCaret?: boolean }): void;
 	/** Destroy every pooled widget instance, called when the block unmounts. */
 	dispose(): void;
@@ -255,9 +252,8 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 		const mode = deps.reading.mode();
 		const modeKeyPart = mode === 'source' ? '' : mode;
 		const islands = deps.islands;
-		// The kind is a render input, not just a branch selector: two prose kinds can share
-		// a raw when the registry gains an opener for bytes already in the document, and
-		// the memo would then early-return onto the previous kind's DOM.
+		// The kind is part of the key: two prose kinds can share a raw once the registry gains an
+		// opener for bytes already in the document.
 		const renderKey = `${deps.ambientPrefixText}\0${node.raw}\0${refKeyPart}\0${imgKeyPart}\0${modeKeyPart}\0${node.kind}${islandRenderKeyPart(islands)}`;
 		const forceRebuild = opts?.forceRebuild ?? false;
 		const carryCaret = opts?.carryCaret ?? true;
@@ -313,9 +309,8 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 			}
 		}
 
-		// Always set: after this pass the DOM matches the render key even where a branch
-		// skipped its write, and a key left stale by a skipped write would let a later
-		// render early-return onto old DOM.
+		// Always set, even where a branch skipped its write: a stale key would let a later render
+		// return early onto outdated DOM.
 		lastRenderedKey = renderKey;
 		ensureBr(el);
 		// This attribute decides which spans the caret can land in, so it is set first.

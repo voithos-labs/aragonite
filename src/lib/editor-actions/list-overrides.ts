@@ -43,11 +43,8 @@ export interface ListItemOverridesDeps {
 	listContext: ListContext;
 }
 
-/**
- * A list item's Enter: an empty item leaves the list, Enter at the item's end starts the next
- * item, and anywhere else splits the item in two. Backspace at an inner index of 0 or less is
- * the default already.
- */
+/** A list item's Enter: an empty item leaves the list, at the item's end it starts the next
+ *  item, anywhere else it splits the item. Backspace keeps the default. */
 export function createListItemOverrides(deps: ListItemOverridesDeps): NestedActionsOverrideFactory {
 	return () => ({
 		blockEdit: {

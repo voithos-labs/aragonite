@@ -102,11 +102,8 @@ export interface HeadlessActions {
 	getBlockRefs(): (BlockComponent | undefined)[];
 }
 
-/**
- * An `EditorActionsDeps` over `source`, with every block treated as mounted. Pass a whole parsed
- * `Document` (or the source text) rather than its children: its `suffix` holds the trailing blank
- * line a children-only fixture loses.
- */
+/** An `EditorActionsDeps` over `source`, every block treated as mounted. Pass the whole `Document`
+ *  or source text, not its children, which lose the trailing blank line its `suffix` holds. */
 export function createHeadlessActions(
 	source: string | Document | CstNode[],
 	options: HeadlessActionsOptions = {}

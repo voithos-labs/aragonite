@@ -31,12 +31,8 @@ export interface EdgeSeat {
 	kind: AnyInlineKind;
 }
 
-/**
- * Where `typed` belongs when the caret sits at `caretOffset`, or null when the offset touches no
- * construct marker run, the kind declares no policy, or no candidate earns the write. Refusing is
- * the honest fallback: the byte then lands at the caret, which is what the browser writes anyway.
- * `reading` must be the one `inlines` was read with, or a reference link reads as brackets.
- */
+/** Where `typed` belongs when the caret sits at `caretOffset`, or null to let it land at the caret.
+ *  `reading` must be the one `inlines` was read with, or a reference link reads as brackets. */
 export function resolveEdgeSeat(
 	caretOffset: number,
 	inlines: readonly InlineNode[],
@@ -80,11 +76,8 @@ export function resolveEdgeSeat(
 	return null;
 }
 
-/**
- * The bytes an IME composition's commit should have written. The `insertCompositionText`
- * beforeinput event is not cancelable, so the keystroke cannot be intercepted; the composed run
- * is moved once instead, on the commit that lands it. Null leaves the reading as it is.
- */
+/** The bytes an IME composition's commit should have written. `insertCompositionText` cannot be
+ *  cancelled, so the composed run is moved once, on the commit that lands it. */
 export function relocateComposedRun(
 	before: string,
 	after: string,
@@ -114,13 +107,8 @@ export function plainInsertionAt(before: string, after: string, at: number): str
 	return after.slice(at, at + length);
 }
 
-/**
- * Every raw offset the caret's screen position allows, and empty where no marker run touches the
- * caret. Hidden runs that abut name the same position, so a whole stretch of them is one position
- * and each boundary in it is allowed; an offset inside a run's own bytes sits inside some
- * construct's delimiters, where no byte belongs. A caret strictly inside a run is one of those,
- * so the result can leave out the very caret it was asked about.
- */
+/** Every raw offset the caret's screen position allows: each boundary in a stretch of abutting
+ *  hidden runs, never an offset inside a run's bytes, which may exclude the caret itself. */
 export function seatOffsetsAt(
 	caretOffset: number,
 	inlines: readonly InlineNode[],
@@ -158,11 +146,8 @@ function offsetForSide(run: MarkerRun, side: EdgeAffinity): number {
 const otherEnd = (run: MarkerRun, side: EdgeAffinity): number =>
 	offsetForSide(run, side) === run.start ? run.end : run.start;
 
-/**
- * The offsets to try, best first: the side the policy names, the run's other end (a byte one side
- * destroys the other can keep), the caret itself, then the rest of the screen position, nearest
- * the policy's side first.
- */
+/** The offsets to try, best first: the policy's side, the run's other end, the caret itself, then
+ *  the rest of the screen position, nearest the policy's side first. */
 function candidateOffsets(
 	run: MarkerRun,
 	edgeAffinity: InlineConstructPolicy['edgeAffinity'],
@@ -170,10 +155,8 @@ function candidateOffsets(
 	caretOffset: number,
 	runs: readonly MarkerRun[]
 ): number[] {
-	// `never-extend` resolves like the end of a line: past the construct's delimiters, which is
-	// the run's near side at an opener and its far side at a closer. A symmetric pair follows the
-	// side the caret arrived from, defaulting to the near side, as Google Docs does
-	// (live-mode.md § 4.2).
+	// `never-extend` lands past the construct's delimiters; a symmetric pair follows the side the
+	// caret arrived from, else the near side (`docs/design/live-mode.md` § 4.2).
 	const side: EdgeAffinity = edgeAffinity === 'never-extend' ? 'outside' : (affinity ?? 'near');
 	const preferred = offsetForSide(run, side);
 	const ranked = [preferred, otherEnd(run, side), caretOffset];
@@ -243,22 +226,16 @@ function markerRuns(
 	return runs;
 }
 
-/**
- * The run `offset` sits in, its own boundaries included: the last in pre-order, so the innermost
- * construct at a shared boundary wins. Inside the run counts too, not only its two ends, because
- * a doubled code fence is a run a caret can be handed the middle of.
- */
+/** The run `offset` sits in, boundaries and interior included (a caret can be handed the middle of
+ *  a doubled code fence); the last in pre-order, so the innermost construct wins. */
 const runAt = (offset: number, runs: readonly MarkerRun[]): MarkerRun | null =>
 	runs.reduce<MarkerRun | null>(
 		(found, run) => (offset >= run.start && offset <= run.end ? run : found),
 		null
 	);
 
-/**
- * What a construct with no children draws, as a range in the block's own bytes: the outer bounds
- * of its visible runs, asked of the render in the block's own mode (G4.33). That range is one
- * continuous stretch, held by `test/core/inline/painted-contiguity.property`.
- */
+/** What a childless construct draws, as the outer bounds of its visible runs in the block's own
+ *  mode, asked of the render (G4.33); `painted-contiguity.property` holds it contiguous. */
 function paintedRange(
 	node: InlineNode,
 	raw: string,

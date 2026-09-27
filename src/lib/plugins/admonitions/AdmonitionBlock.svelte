@@ -66,9 +66,8 @@
 		border-left: 3px solid var(--adm-accent);
 	}
 
-	/* One block per kind sets everything that varies: accent, icon glyph, untitled label. Fixed
-	   hex, not theme tokens: GitHub's alert palette is one color per kind, so admonitions look
-	   the same whatever theme the host uses. */
+	/* One block per kind sets what varies, in fixed hex after GitHub's one-color-per-kind alert
+	   palette, so an admonition looks the same whatever theme the host uses. */
 	.admonition[data-kind='note'] {
 		--adm-accent: #1f6feb;
 		--adm-label: 'Note';

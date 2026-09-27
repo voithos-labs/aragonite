@@ -24,9 +24,8 @@
 		'# Title $*x*$\n\n[[toc]]\n\na :smile: b\n\na $x$ b\n\n' +
 		'n $[^x]$ m [^y]\n\n[^x]: first note\n\n[^y]: second note\n';
 
-	// Each editor parses the seed in its own grammar: the first reads a parrot block, an emoji, a
-	// note and math; the second, which listed none of those plugins, reads the parrot bytes as a
-	// paragraph, the shortcode and the dollars as text, and the fence as the generic directive.
+	// The first editor reads a parrot block, an emoji, a note and math; the second lists none of
+	// those plugins, so it reads the same bytes as paragraphs, plain text and a generic directive.
 	const SEED =
 		'# Heading :smile:\n\n%%parrot party responsibly\n\n:::note\n\nTip\n\n:::\n\n$**x**$\n\nBody\n';
 </script>
@@ -47,10 +46,8 @@
 	trackParityDocument(() => listing);
 	trackParityDocument(() => notListing);
 
-	// Nothing in the DOM shows which chords an instance took: a chord this one never took is a
-	// chord the host keeps, and only `reservedChords` and `claimsChord` answer that. Recorded
-	// from a real keystroke as it passes, so the spec presses the keys rather than inventing an
-	// event.
+	// Nothing in the DOM shows which chords an instance handles, so `claimsChord` is recorded
+	// from each real keystroke as it passes.
 	const claims: { listing: boolean; notListing: boolean }[] = [];
 
 	$effect(() => {

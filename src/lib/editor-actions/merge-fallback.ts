@@ -7,11 +7,8 @@
 import { CURSOR_END, CURSOR_START, type BlockComponent } from '../block-component';
 import type { StructuralChange } from '../tree-operations/structural-change';
 
-/**
- * A null result means the previous block had no reachable text leaf, or the join was
- * refused, so nothing merged: put the caret at its end instead. The nullable input makes
- * ignoring the no-merge case a compile error.
- */
+/** Null means nothing merged (no reachable text leaf, or a refused join), so the caret goes to
+ *  the previous block's end. Taking the nullable result makes skipping that case a type error. */
 export function mergedElseFocusPrevious<T>(
 	result: T | null,
 	previous: BlockComponent | undefined
@@ -20,11 +17,8 @@ export function mergedElseFocusPrevious<T>(
 	return result;
 }
 
-/**
- * The forward counterpart, over the commit's own change: `noop` means the join was refused
- * (the joined bytes parse as several blocks, and one slot holds one node), so the caret
- * crosses into the block that stayed. Returns whether the merge happened.
- */
+/** A `noop` change means the join was refused (the joined bytes parse as several blocks), so
+ *  the caret crosses into the next block. Returns whether the merge happened. */
 export function mergedElseFocusNext(
 	change: StructuralChange,
 	next: BlockComponent | undefined

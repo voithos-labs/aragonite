@@ -47,11 +47,8 @@ export function mathBodySpan(text: string): { start: number; end: number } {
 	return { start, end: start + fenceBodyAsDrawn(source).length };
 }
 
-/**
- * A block with no body line (`$$$$`, `$$\n$$`, a ```math straight on its closer) has nowhere for
- * a caret once the fence lines hide, so it gains one empty body line with the caret on it. A block
- * with a body line, blank or not, is left alone.
- */
+/** A block with no body line (`$$$$`, `$$\n$$`) has no caret position once the fence lines hide,
+ *  so it gains one empty body line with the caret on it. */
 export function completeBareMathSource(text: string): { text: string; caret: number } | null {
 	const { opener, body, closer } = sliceMathSource(text);
 	if (!opener || !closer) return null;

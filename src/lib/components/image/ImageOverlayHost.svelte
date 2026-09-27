@@ -41,13 +41,12 @@
 	} = $props();
 
 	let imageOverlayEl: HTMLDivElement | undefined = $state();
-	// While cropping, the pointer over the image belongs to the crop; the handle stands aside.
+	// While cropping, the pointer over the image belongs to the crop; the resize handle yields.
 	let cropping = $state(false);
 
 	const { reading } = getContext<EditorDoc>(EDITOR_DOC_KEY);
 
-	// Props are stable for the editor's lifetime, so capturing once is deliberate:
-	// reactive values already come in as getters.
+	// Captured once: props are stable for the editor's lifetime, and reactive ones are getters.
 	// svelte-ignore state_referenced_locally
 	const imageEdit = createImageEditCommitter({
 		getDoc,

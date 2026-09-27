@@ -143,8 +143,8 @@
 		min-height: 0;
 	}
 
-	/* A chip per release family, both modes and the link is more row than a phone column can
-	   hold even wrapped, so the header condenses and drops what a phone cannot use. */
+	/* The chips, both modes and the link overflow a phone column even wrapped, so the header
+	   condenses and drops what a phone cannot use. */
 	@media (max-width: 640px) {
 		.changelog-header {
 			gap: 0.3rem 0.45rem;
@@ -162,8 +162,7 @@
 			font-size: 0.7rem;
 			padding: 0.1rem 0.4rem;
 		}
-		/* inline-flex holds a group on one line no width can break, which is what put the
-		   older families off screen; the family group takes a row and wraps inside it. */
+		/* The family group takes its own row and wraps, so no family runs off screen. */
 		.changelog-chips {
 			flex-wrap: wrap;
 		}

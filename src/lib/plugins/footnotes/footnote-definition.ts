@@ -59,12 +59,8 @@ function keepsParagraphOpen(strippedText: string, grammar: OpenContext['grammar'
 	return true;
 }
 
-/**
- * A line indented to the body, whitespace-only or not, continues the definition; bare blank lines
- * are taken in only while such a line follows, so a trailing bare run belongs to the document. An
- * unindented non-blank line continues only as a lazy continuation of an open body paragraph
- * (CommonMark §5.1, as cmark-gfm applies it).
- */
+/** A line indented to the body continues the definition, bare blank lines only while such a line
+ *  follows; an unindented line continues only lazily, into an open paragraph (CommonMark §5.1). */
 function scanDefinitionEnd(ctx: OpenContext): number {
 	let lastContent = ctx.index;
 	let paragraphOpen = keepsParagraphOpen(ctx.line.text.replace(MARKER_STRIP, ''), ctx.grammar);

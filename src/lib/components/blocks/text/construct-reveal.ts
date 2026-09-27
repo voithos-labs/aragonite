@@ -56,14 +56,11 @@ export interface ConstructReveal {
 	/** Work out the caret's chain again and set the marker classes to match. Pass `force`
 	 *  after a rebuild: new spans carry no class even when the chain is unchanged. */
 	update(force?: boolean): void;
-	/** A synchronous backstop on keydown that only shows markers, never hides them: Chromium
-	 *  runs input events ahead of normal tasks, so fast arrow keys outrun the `selectionchange`
-	 *  update and would step against markers still hidden. Shows the caret's chain plus
-	 *  `delta`'s (0 for neither). */
+	/** Show (never hide) the caret's chain plus `delta`'s on keydown: fast arrow keys outrun the
+	 *  `selectionchange` update and would step against markers still hidden. */
 	prepareStep(delta: -1 | 0 | 1): void;
-	/** Keydown wiring for `prepareStep`. It holds the key names so the component carries no
-	 *  destructive-key literals, which the G4.12 scan reads as an interceptor; nothing here
-	 *  calls `preventDefault` or consumes an event. */
+	/** Keydown wiring for `prepareStep`, holding the key names so the component carries no
+	 *  destructive-key literals for the interceptor scan to flag (G4.12). Consumes no event. */
 	prepareForKeydown(e: KeyboardEvent): void;
 }
 
@@ -177,7 +174,7 @@ export function createConstructReveal(deps: ConstructRevealDeps): ConstructRevea
 				if (!chain.some((c) => c.start === n.start && c.end === n.end)) chain.push(toEntry(n));
 			}
 		}
-		// This only shows markers: hiding them again is the selection handler's job.
+		// `prepareStep` only shows markers; hiding them is the selection handler's job.
 		if (chain.length === 0) return;
 		const key = chainKey(chain);
 		if (key === appliedKey) return;

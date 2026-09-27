@@ -1,7 +1,7 @@
 /**
  * The commit sequence (`runCommitCeremony`): undo snapshot, copy before write, mutate,
- * rollback on failure. Owns G1.9: a node shared with an undo snapshot is read-only until
- * the commit copies it. Keystroke batching is in text-batch.ts.
+ * rollback on failure. A node shared with an undo snapshot stays read-only until the commit
+ * copies it (G1.9). Keystroke batching is in text-batch.ts.
  */
 
 import { isDevChecks } from '../../env';
@@ -66,7 +66,7 @@ import {
 
 type EntrySelection = UndoEntry['selection'];
 
-// ── Dev invariant scoping (DEV-only paths) ────────────────────────────────────
+// ── Dev invariant scoping (dev-only paths) ────────────────────────────────────
 
 /** A `noop` change names no new positions, so the caller passes its leaf via `explicit`. */
 function touchedFromChange(
@@ -106,10 +106,8 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 
 	// ── Snapshot pushers ─────────────────────────────────────────────────────
 
-	/**
-	 * Snapshots share the live tree's nodes; only the top-level children array is copied.
-	 * G1.9: an edit copies the path it writes first (`tree-operations/unshare.ts`).
-	 */
+	/** Snapshots share the live tree's nodes and copy only the top-level children array, so an
+	 *  edit copies the path it writes first (G1.9, `tree-operations/unshare.ts`). */
 	function shareSnapshot(): Pick<UndoEntry, 'snapshot' | 'integrity'> {
 		deps.sharing.markSnapshotTaken();
 		const snapshot: Document = {
@@ -311,18 +309,14 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		restore(): void;
 	}
 
-	/**
-	 * Everything a commit that throws, or bails on discardIfNoop, restores, in one place.
-	 * A container's per-scope state does not exist until `mutate` has copied it, so restore()
-	 * hands those to the `rollback` function.
-	 */
+	/** Everything a commit that throws or bails on discardIfNoop restores; a container's per-scope
+	 *  state exists only once `mutate` has copied it, so restore() hands those to `rollback`. */
 	function captureRollbackFrame(args: CommitArgs, pushes: boolean): RollbackFrame {
 		// A whole-stack restore, not a pop: the push may evict the oldest entry at the cap. A
 		// commit that joins its step's entry pushes nothing, so it has no stacks to restore.
 		const savedStacks = pushes ? deps.undoManager.getStacks() : null;
-		// The container branch mutates the live tree in place; the document branch installs
-		// its children only on success, but its trailing-line fix-up can consume the live
-		// document's suffix, so the suffix is restored in both branches.
+		// The container branch mutates the live tree in place, and the document branch's
+		// trailing-line fix-up can consume the live document's suffix, so both restore the suffix.
 		const savedDocChildren = args.kind === 'container' ? [...deps.doc.children] : null;
 		const savedDocSuffix = deps.doc.suffix;
 		return {
@@ -337,7 +331,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		};
 	}
 
-	/** The one path to the `error` event, so every throw site reports alike (editor.md §12). */
+	/** The one path to the `error` event, so every throw site reports alike (`docs/design/editor.md` § The event channel). */
 	function reportCommitError(args: CommitArgs, error: unknown): void {
 		deps.events.emit('error', {
 			origin: 'commit',
@@ -419,8 +413,8 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 				}
 			}
 			if (!discarded && isDevChecks()) {
-				// G1.9: a missed copy before write corrupts the newest undo entry, so catch it at
-				// the commit, not at some distant undo. Never throws.
+				// A missed copy before write corrupts the newest undo entry, so the commit catches it
+				// rather than some distant undo (G1.9). Never throws.
 				assertUndoTopIntegrity(deps.undoManager.peekUndo() ?? undefined);
 			}
 		} catch (err) {
@@ -433,13 +427,11 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		}
 
 		if (!discarded) {
-			// After both branches have installed their result, so nothing can cache the new
-			// version against a half-installed tree. A discarded commit rolled its own mutation
-			// back, and announcing it would claim bytes that never moved.
+			// After both branches installed their result, so nothing caches the new version against
+			// a half-installed tree; a discarded commit rolled back, so it announces nothing.
 			deps.bumpContentVersion();
-			// The gap caret names a boundary index, and a commit moves what that index names.
-			// Ended here rather than remapped: nothing can say which boundary the user meant
-			// afterwards. After the push above, so the entry this commit stored keeps the gap.
+			// A commit moves what the gap caret's boundary index names, and nothing can say which
+			// boundary the user meant; after the push, so the stored entry keeps the gap.
 			deps.selectionState.clearGapCaret();
 		}
 
@@ -633,11 +625,8 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		replaceRefs(p.target.state.innerBlockRefs, p.refs);
 	}
 
-	/**
-	 * One structural commit across several containers: one undo snapshot, one edit event.
-	 * Each scope's ancestors are copied before `mutate` and their raws rebuilt after, deepest
-	 * first. Mutate through the provided scope views, never nodes read before the commit.
-	 */
+	/** One structural commit across several containers: one undo snapshot, one edit event. Mutate
+	 *  through the provided scope views, never nodes read before the commit. */
 	async function commitMultiScope<const S extends readonly MultiScopeTarget[]>(
 		args: CommitMultiScopeArgs<S>
 	): Promise<boolean> {
@@ -646,9 +635,8 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		// Containers whose kind the chain rebuild changed: the replacements are what the dev
 		// checks read, and the index is what an unwind restores.
 		const reclassified: ContainerReclassification[] = [];
-		// Containers the ancestor rebuild collapsed into their parent, with where the caret
-		// then goes: a collapse recreates every block in its range, so a scope it swallowed
-		// has no ref left to focus.
+		// Containers the ancestor rebuild collapsed into their parent, with where the caret goes: a
+		// collapse recreates every block in its range, so a swallowed scope has no ref to focus.
 		const folds: AncestrySeamFold[] = [];
 		let landing: FoldLanding | null = null;
 		let unwindFolds: (() => void) | null = null;
@@ -682,9 +670,8 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 					);
 					publishScopeView(prepared[i], changeList[i]);
 				}
-				// Deepest chains first: an inner scope's raw must be current before an outer
-				// chain concatenates it. Truncating to the attached prefix keeps a scope spliced
-				// out of the tree from being rebuilt off its emptied children.
+				// Deepest first, so an outer chain concatenates current inner raws; the attached prefix
+				// keeps a scope spliced out of the tree from being rebuilt off its emptied children.
 				for (const p of [...prepared].sort((a, b) => b.chain.length - a.chain.length)) {
 					const before = folds.length;
 					reclassified.push(
@@ -710,15 +697,14 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 				try {
 					await afterTick?.();
 				} finally {
-					// After the caller's caret placement and regardless of it: the collapse
-					// swallowed the scope that placement addressed, so it found no ref, or read
-					// through a detached node.
+					// After the caller's caret placement and regardless of it: the collapse swallowed
+					// the scope that placement addressed, so it found no ref or a detached node.
 					if (landing) (await deps.revealPath(landing.path))?.focus(landing.offset);
 				}
 			},
 			discardIfNoop,
-			// A detached scope is no longer part of the tree; checking one would fire stale-raw
-			// on a node the document no longer contains.
+			// A detached scope is outside the tree, and checking it would fire stale-raw on a node
+			// the document does not contain.
 			touchedNodes: () =>
 				[
 					...prepared
@@ -740,7 +726,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 					p.owned.children = p.savedChildren;
 					p.owned.childIds = p.savedChildIds;
 					// Bytes as well as shape: the chain rebuild calls plugin `rebuildRaw`, so an
-					// unwind would otherwise leave raws the children no longer justify.
+					// unwind would otherwise leave raws the restored children do not match.
 					for (const { node, raw } of p.savedRaws) {
 						node.raw = raw;
 						dropChildSpans(node);
@@ -779,9 +765,8 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 
 	// ── State capture / checkpoint control ──────────────────────────────────
 
-	// Every undo or redo replaces the whole tree, so a caret placement that waited across one
-	// is aimed at content that no longer exists. Only ever increments: a placement compares
-	// two readings, it never reads the value.
+	// Every undo or redo replaces the whole tree, so a caret placement that waited across one aims
+	// at content that is gone. Only increments: a placement compares two readings, not the value.
 	let historyGeneration = 0;
 
 	function captureCurrentState(): UndoEntry {

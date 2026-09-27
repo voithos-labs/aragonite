@@ -21,11 +21,8 @@ const BASE_CONFIG: MermaidConfig = {
 
 const MERMAID_THEMES = new Set<string>(['default', 'base', 'dark', 'forest', 'neutral']);
 
-/**
- * Mermaid's own names pass through, so a consumer can name its editor theme `'forest'` and
- * get it; anything else falls to mermaid's light palette. Wrapping this renderer to rewrite
- * `context.theme` is how a custom theme maps onto one of mermaid's.
- */
+/** Mermaid's own theme names pass through (an editor theme named `'forest'` gets it) and anything
+ *  else gets its light palette; wrap the renderer to map a custom theme onto one of mermaid's. */
 function toMermaidTheme(editorTheme: string): MermaidTheme {
 	return (MERMAID_THEMES.has(editorTheme) ? editorTheme : 'default') as MermaidTheme;
 }

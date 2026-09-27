@@ -27,9 +27,8 @@ export function docLinkMenuPlugin(): EditorPlugin {
 					// A closing bracket is the author finishing the link by hand.
 					accepts: (query) => !/[\]\n]/.test(query),
 					items: async ({ query, signal }) => {
-						// The answer arrives a turn late, as a read off an index would. Supersession
-						// under real latency is pinned in the state's unit battery, which can hold a
-						// promise open; a timer here would be the sequencing hack G4.4 forbids.
+						// A turn late, as a read off an index would be; a timer would sequence by timing,
+						// which the source scans forbid (G4.4).
 						await Promise.resolve();
 						if (signal.aborted) return [];
 						const wanted = query.trim().toLowerCase();

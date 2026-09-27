@@ -53,11 +53,8 @@ export function joinMermaidBody(draft: string, lineEnding: string): string {
 	return draft.replaceAll('\n', lineEnding) + lineEnding;
 }
 
-/**
- * The opener's inverse, and what every code edit goes through. The body is a metadata string
- * this kind never re-parses, so the fence is sized against it here: a diagram line that reads
- * as this block's closer would otherwise cut the block short on its next load.
- */
+/** The opener's inverse, which every code edit goes through; the fence is sized against the body
+ *  here, since a diagram line reading as the closer would cut the block short on reload. */
 export function rebuildMermaidRaw(node: CstNode): void {
 	const meta = getPluginMetadata<MermaidMetadata>(node);
 	if (!meta) return;
@@ -74,11 +71,8 @@ export function rebuildMermaidRaw(node: CstNode): void {
 			: meta.closerRaw);
 }
 
-/**
- * Grow a verbatim closer line's run to `length`, keeping its indent, trailing spaces and line
- * ending. An unterminated block has no closer line and gains none: the parser reads it to the end
- * of input either way.
- */
+/** Grow a verbatim closer line's run to `length`, keeping its indent, trailing spaces and ending;
+ *  an unterminated block has no closer line and gains none. */
 function grownCloser(closerRaw: string, marker: '`' | '~', length: number): string {
 	const match = /^( {0,3})([`~]+)(.*)$/s.exec(closerRaw);
 	if (!match) return closerRaw;

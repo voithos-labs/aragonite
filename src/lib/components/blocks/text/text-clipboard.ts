@@ -68,11 +68,8 @@ export interface TextClipboardDeps {
 }
 
 export interface TextClipboard extends ClipboardHandlers {
-	/**
-	 * The block's own handler for a copy, cut or paste the editor root received: selecting a
-	 * widget clears the browser selection, so a block with no text position for a caret gets its
-	 * events at `<body>`, where no block's own binding sees them.
-	 */
+	/** The block's handler for a clipboard event the editor root received: a selected widget clears
+	 *  the browser selection, so the event arrives at `<body>`, past the block's own binding. */
 	claimRootClipboard(event: ClipboardEvent): void;
 }
 

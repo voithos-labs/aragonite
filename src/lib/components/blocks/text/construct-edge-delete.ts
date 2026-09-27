@@ -73,18 +73,16 @@ export type EdgeDeletion = EdgeDeletionWrite | EdgeDeletionSwallow;
  * content side of the caret, or a cut with no hidden run beside it, which the browser gets right.
  */
 export function resolveEdgeDeletion(query: EdgeDeletionQuery): EdgeDeletion | null {
-	// Visible delimiters are bytes the user saw, so there is no hidden run to protect here and the
-	// licence to drop one (live-mode.md § 2) does not apply: the key stays with the browser.
-	// Everything below runs past this check, which is why it can all use the content reading.
+	// Visible delimiters are bytes the user saw, so the key stays with the browser; everything
+	// below can therefore use the content reading.
 	if (query.screen.chromePaints) return null;
 	const { display, content, caret, direction } = query;
 	const constructs = policyConstructs(query.inlines);
 	const target = deletionTarget(display, constructs, content, caret, direction);
 	if (!target) return null;
 
-	// What decides is what sits beside the deleted span, not beside the caret: the browser deletes
-	// from where the byte is. With no hidden run beside the cut the key stays with the browser,
-	// which handles graphemes and IME.
+	// Decided beside the deleted span, not the caret. With no hidden run beside the cut the key
+	// stays with the browser, which handles graphemes and IME.
 	const plain = expandThroughEmptied(constructs, target);
 	const native = nativeCut(caret, direction);
 	const touchesHiddenRun =
@@ -129,11 +127,8 @@ function nativeCut(caret: number, direction: DeleteDirection): Span {
 		: { start: caret, end: caret + 1 };
 }
 
-/**
- * The first thing the user can see on `direction`'s side of the caret: delimiter bytes are
- * stepped over, an atomic run is taken whole, and the scan stops at the content range because
- * the block's own structural bytes are not ours to touch.
- */
+/** The first thing the user can see on `direction`'s side of the caret. The scan stops at the
+ *  content range, since the block's own structural bytes are never deleted here. */
 function deletionTarget(
 	display: string,
 	constructs: readonly PolicyConstruct[],
@@ -164,11 +159,8 @@ function codePointAt(display: string, at: number): Span {
 	return { start, end: isHighSurrogate(display.charCodeAt(start)) ? start + 2 : start + 1 };
 }
 
-/**
- * The second try for a key whose plain cut does not parse back: take the delimiter runs the cut
- * now sits between along with it, the "these two constructs become one" the user sees when the
- * character between them goes. Checked against the screen, not the structure.
- */
+/** The second try when the plain cut does not parse back: also take the delimiter runs the cut sits
+ *  between, so the two constructs become one as the user sees it. */
 function widenThroughRuns(constructs: readonly PolicyConstruct[], cut: Span): Span {
 	let { start, end } = cut;
 	while (isDelimiterByte(constructs, start - 1)) start--;

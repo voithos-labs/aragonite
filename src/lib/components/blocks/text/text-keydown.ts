@@ -40,24 +40,15 @@ function endingPastContent(raw: string, contentEnd: number): string {
 	return /(?:\r\n?|\n)$/.exec(raw.slice(contentEnd))?.[0] ?? '';
 }
 
-/**
- * An ATX heading left with no text is a marker standing over nothing: unfocused it draws
- * nothing, since the marker-only data attribute only applies while focused, so the block would
- * survive invisibly and come back as a `#` on the next click. On blur it becomes the empty
- * paragraph it looks like.
- */
+/** An ATX heading with no text draws nothing when unfocused, so on blur it becomes the empty
+ *  paragraph it looks like rather than a `#` that reappears on the next click. */
 export function demoteEmptyAtxHeading(raw: string, content: ContentRange): TextEditResult | null {
 	if (content.start === 0 || content.end > content.start) return null;
 	return demoteToParagraph(raw, content, 0);
 }
 
-/**
- * Re-mark the block's content with an ATX prefix for `level`, replacing whatever structural bytes
- * the current kind keeps. It reads the same content range {@link demoteToParagraph} does, so an
- * indented `  ## x` or a setext underline is given up rather than left in the new heading's text.
- * `level === 0` is the demotion, and null there means the content already is the whole displayed
- * text. Idempotent, not a toggle: stripping happens only by asking for level 0.
- */
+/** Re-mark the content with an ATX prefix for `level`, replacing the current kind's structural
+ *  bytes. Not a toggle: level 0 demotes, and null there means there was nothing to strip. */
 export function cycleHeading(
 	raw: string,
 	content: ContentRange,

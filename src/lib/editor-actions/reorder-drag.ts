@@ -23,16 +23,15 @@ export interface ReorderDragOverlay {
 
 export interface ReorderDragContext {
 	editorRoot: HTMLElement;
-	/** What autoscrolls when the drag reaches an edge: the root in self mode, the host's
-	 *  scroll container in host mode (where the root does not scroll), the window when the
-	 *  page scrolls. Never `editorRoot` directly (`cursor/scroll-ancestors`). */
+	/** What autoscrolls when the drag reaches an edge, per scroll mode: the root, the host's scroll
+	 *  container, or the window. Never `editorRoot` directly (`cursor/scroll-ancestors`). */
 	getScrollHost: () => UserScrollport | null;
 	moveReorderUnit: ReorderAction['moveReorderUnit'];
 	overlay: ReorderDragOverlay;
 	/** The document and its reading, which name the dragged block on the ghost. */
 	getDoc: DocumentGetter;
 	reading: InlineReading;
-	/** Aborted on editor unmount, ending a drag whose pointerup can no longer fire. */
+	/** Aborted on editor unmount, ending a drag whose pointerup would never arrive. */
 	lifetimeSignal?: AbortSignal;
 }
 
@@ -104,9 +103,8 @@ function startSession(
 
 	function process(clientX: number, clientY: number): void {
 		const sibs = siblings();
-		// rawR is the original index to drop before. Removing the dragged item shifts later
-		// indices down by one, hence the adjustment so a downward drop lands where the line
-		// showed.
+		// rawR is the original index to drop before; removing the dragged item shifts later indices
+		// down one, so a downward drop is adjusted to land where the line showed.
 		let rawR = sibs.length ? sibs[sibs.length - 1].index + 1 : fromIndex! + 1;
 		let line = sibs.length
 			? {

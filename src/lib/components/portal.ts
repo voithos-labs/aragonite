@@ -4,11 +4,8 @@
  * reactive tree, so only its position in the DOM moves.
  */
 
-/**
- * Attachment factory: appends the node to `target`, and puts it back where it was when the
- * target changes or the attachment tears down. A null target leaves the node where it is,
- * which is how this stays off by default.
- */
+/** Appends the node to `target` and puts it back when the target changes or the attachment
+ *  tears down; a null target leaves the node where it is. */
 export function portalInto(target: HTMLElement | null | undefined) {
 	return (node: HTMLElement): (() => void) | void => {
 		if (!target) return;

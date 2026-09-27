@@ -18,8 +18,8 @@
 	import { tick, untrack } from 'svelte';
 	import type { MenuPresence } from '../../menu/menu-presence.svelte';
 
-	// The icon each entry carries, following limestone's context menus: an icon beside every
-	// entry, and the destructive ones in the accent colour.
+	// Every entry carries an icon, and the destructive ones take the accent colour, as the host
+	// app's context menus do.
 	const ICONS: Record<TableAxisAction | ClipboardAction, MenuIconName> = {
 		insertRowAbove: 'plus',
 		insertRowBelow: 'plus',
@@ -66,8 +66,7 @@
 	/** The open flyout, if any: hover or ArrowRight on its row opens it, ArrowLeft closes it. */
 	let openGroup = $state<'row' | 'column' | null>(null);
 
-	// The menu follows its open point on scroll and resize, clamped into the viewport once, when
-	// its size is known; re-clamping would float it over unrelated content.
+	// Clamped into the viewport once, when its size is known: re-clamping would float it away.
 	// svelte-ignore state_referenced_locally
 	let at = $state({ x, y });
 	let shift = $state<{ x: number; y: number } | null>(null);
@@ -360,7 +359,7 @@
 	.table-action-menu-group {
 		position: relative;
 	}
-	/* A submenu, as in limestone: a second panel hung off the row's right edge. */
+	/* A submenu: a second panel hung off the row's right edge. */
 	.table-action-menu-flyout {
 		position: absolute;
 		left: 100%;

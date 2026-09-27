@@ -29,12 +29,8 @@ export interface EnterCompletion {
 	caret: { path: number[]; offset: number };
 }
 
-/**
- * Wraps a composed `splitBlock` with the completer check. It sits above the container overrides
- * rather than inside the split, so a container that replaces `splitBlock` cannot lose the
- * completion for its subtree; the blockquote exit's second check lands on a container, which
- * always declines.
- */
+/** Wraps a composed `splitBlock` with the completer check, above the container overrides so a
+ *  container replacing `splitBlock` keeps the completion for its subtree. */
 export function withEnterCompletion(
 	blockEdit: BlockEditActions,
 	childAt: (index: number) => NodeView | undefined,
@@ -129,9 +125,8 @@ function planCompletion(
 	const lineEnding = trailingLineEnding(node.raw, ending);
 	const raw = claim.lines.map((text) => text + lineEnding).join('');
 	const replacement = readBlocks(raw, { grammar, scope: 'fragment' }).children;
-	// A completion that shows nothing would replace the typed line with a delete, or with blank
-	// lines a reload reads as neither. Blank lines parse back as empty paragraphs, so the check
-	// is per node rather than by child count.
+	// A completion of only blank lines would replace the typed line with a delete; the check is per
+	// node because blank lines parse back as empty paragraphs.
 	if (replacement.every((node) => isBlankText(node.raw))) return null;
 	return { replacement, caret: resolveCaret(replacement[0], claim.caret) };
 }

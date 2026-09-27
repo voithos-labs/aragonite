@@ -64,9 +64,8 @@
 	// $derived, not a mount-time snapshot: a runtime prop toggle must reach blocks
 	// that window in and out after the change, not just those mounted at mount.
 	const dragHandles = $derived(getDragHandles?.() ?? false);
-	// The drag handle is the only way to reorder with a pointer, and a reorder needs a sibling:
-	// a lone item still counts as one (a dragged sibling never arrives, and the class costs
-	// nothing) and simply shows nothing to grab.
+	// A reorder needs a sibling, so a lone item shows no handle; it stays a reorder host, which
+	// costs nothing, since a dragged sibling never arrives.
 	const showsHandle = $derived(showsListItemDragHandle(itemCount, dragHandles));
 	const presentationMode = $derived(reading.mode());
 	const readOnly = $derived(presentationMode === 'reading');
@@ -169,7 +168,7 @@
 
 	// ── Commands ────────────────────────────────────────────────────────
 
-	// Not part of the BlockComponent interface, since the published reference is
+	// Not part of the BlockComponent interface, since the registered reference is
 	// `containerApi` rather than this instance; the handler below closes over it.
 	function runCommand(id: AnyCommandId): boolean {
 		switch (id) {
@@ -222,9 +221,8 @@
 	<!-- The item paints its own selection box: it renders no BlockHost, so a range that
 		 holds it whole has nothing else to draw one over its marker and its content. -->
 	<SelectionOverlay path={myPath} delegatesPainting />
-	<!-- A list item is a reorder unit; its inner content BlockList passes the
-		 default reorderable={false}, so the paragraph inside gets no handle. A lone item
-		 renders none either: its drag is list-scoped and there is no sibling to pass. -->
+	<!-- A list item is the reorder unit, so its inner BlockList keeps `reorderable={false}` and
+		 the paragraph inside gets no handle; a lone item shows none either. -->
 	{#if showsHandle}
 		<BlockDragHandle />
 	{/if}

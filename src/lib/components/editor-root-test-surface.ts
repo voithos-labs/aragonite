@@ -30,8 +30,8 @@ export interface EditorTestSurface {
 	/** The gap caret has no public selection shape and no paint, so arrival is observable
 	 *  only here. */
 	getGapCaret(): GapCaretPosition | null;
-	/** The engine, not the `addSource`-only registry: its per-path buckets are the only place
-	 *  a stale bucket shows, since jsdom measures every range at zero width. */
+	/** The decoration engine, not the `addSource`-only registry: its per-path buckets are the
+	 *  only place a stale bucket shows, since jsdom measures every range at zero width. */
 	getDecorationEngine(): DecorationEngine;
 	/** Root-constructed and handed down through context, so its lifetime against a document
 	 *  swap cannot be checked headlessly. */

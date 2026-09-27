@@ -63,11 +63,8 @@ export function computeFenceExit(input: FenceExitInput): FenceExitResult {
 	return { kind: 'none' };
 }
 
-/**
- * The block's other way out: a closer run typed on the body's empty last line leaves the block
- * and its bytes never land (written, the fence rule would grow the fence). A run anywhere else
- * is content.
- */
+/** A closer run typed on the body's empty last line leaves the block unwritten, since written
+ *  it would grow the fence; a run anywhere else is content. */
 export function computeTypedFenceExit(input: TypedFenceExitInput): TypedFenceExitResult {
 	const { text, offset, meta, typed } = input;
 	const none = { kind: 'none' } as const;

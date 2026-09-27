@@ -80,9 +80,7 @@ export function registerCalloutKind(): void {
 	const callout = declarePluginKind(CALLOUT);
 	const calloutTitle = declarePluginKind(CALLOUT_TITLE);
 
-	// A shortcut travelling up from a block inside resolves here and commits through the
-	// container's own metadata update; the patch merges over the fence bytes, so the closing
-	// `:::` survives.
+	// The metadata patch merges over the stored fence bytes, so the closing `:::` survives.
 	const setKind = registerBlockCommand(callout, 'callout.setKind', (ctx) => {
 		if (typeof ctx.arg !== 'string') return false;
 		ctx.updateMetadata({ calloutType: ctx.arg });
@@ -130,9 +128,8 @@ export function registerCalloutKind(): void {
 				via: 'callout chrome/range-delete e2e under the [invariant:] watcher'
 			}
 		}),
-		// Mod+7 and Mod+8, not Mod+Shift+1 and 2: the browser translates a Shift-held digit by
-		// keyboard layout ('1' becomes '!'), so eventToChord would emit `Mod+Shift+!` and never
-		// match. 7 and 8 also sit past the Mod+0 to Mod+6 that heading.cycle uses.
+		// Not Mod+Shift+digit: the browser turns a Shift-held digit into its layout's symbol, so
+		// the chord would never match. Mod+0 to Mod+6 belong to heading.cycle.
 		keymap: [
 			{ chord: 'Mod+7', command: setKind, arg: CALLOUT },
 			{ chord: 'Mod+8', command: setKind, arg: ASIDE }

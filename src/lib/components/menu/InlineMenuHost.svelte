@@ -7,7 +7,7 @@
 	import type { MenuPresence } from './menu-presence.svelte';
 	import { eventToChord } from '../../schema/keybindings';
 
-	// Mounted unconditionally by Editor: the key claim and the anchoring must observe the session
+	// Mounted unconditionally by Editor: the key handling and the anchoring must observe the session
 	// opening, so the open/closed `{#if}` lives here rather than at the mount site.
 	let {
 		menu,
@@ -56,8 +56,8 @@
 		void view?.end;
 		void view?.items;
 		place();
-		// An `edit` publishes the bytes before the leaf has re-rendered them; the rects are the
-		// new ones a tick later.
+		// The `edit` event fires before the leaf re-renders the bytes; the rects are current a
+		// tick later.
 		const unsubscribe = events.on('edit', () => void tick().then(place));
 		window.addEventListener('scroll', place, true);
 		window.addEventListener('resize', place);
@@ -90,9 +90,8 @@
 		return () => root.removeEventListener('keydown', onKeyDown, true);
 	});
 
-	// The baseline the first bytes in a leaf are read against, taken just before they land.
-	// Every input route fires beforeinput (a keystroke, an IME commit, a paste, a script's
-	// insertText), including the ones no caret move precedes.
+	// The baseline a leaf's first bytes are read against, taken on beforeinput, which every input
+	// route fires, including the ones no caret move precedes.
 	$effect(() => {
 		const root = getEditorEl();
 		if (!root) return;

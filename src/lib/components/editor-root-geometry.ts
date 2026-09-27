@@ -57,12 +57,8 @@ export interface TypeScaleProbeDeps {
 	onScale(next: number): void;
 }
 
-/**
- * The width watcher's sibling: a font-size change puts the height estimates off several-fold,
- * so a document tall enough to need windowing can fail to window at all. No other box in the
- * root reports it, hence the `1em` element measured here; the scale is relative to the size
- * `HEIGHT_ESTIMATES` were calibrated at.
- */
+/** A font-size change can throw the height estimates off enough that windowing never starts;
+ *  the `1em` element reports it, as a scale against `HEIGHT_ESTIMATES`. */
 export function installTypeScaleProbe(el: HTMLElement, deps: TypeScaleProbeDeps): () => void {
 	const apply = (fontSizePx: number) => {
 		const next = fontSizePx / ESTIMATE_BASE_FONT_SIZE;
@@ -92,12 +88,8 @@ export interface HeaderSlotCompensationDeps {
 	revealHoldsScroll(): boolean;
 }
 
-/**
- * The header's height is not in the height table, so while the editor owns the scroll
- * correction a growing header would slide the document under the user. Compensating from the
- * header's own resize adds to `correctAnchor` instead of double-correcting; a scroll already
- * being held for a block wins over it.
- */
+/** The header is not in the height table, so its own resize adds to the scroll correction, or a
+ *  growing header would slide the document; a block already held in place wins. */
 export function installHeaderSlotCompensation(deps: HeaderSlotCompensationDeps): () => void {
 	const { el, port } = deps;
 	let lastHeight = el.getBoundingClientRect().height;

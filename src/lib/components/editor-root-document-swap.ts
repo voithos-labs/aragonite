@@ -86,9 +86,8 @@ export function createDocumentSwap(deps: DocumentSwapDeps): DocumentSwap {
 			deps.caretMemory.forget();
 			deps.closeMenus();
 			deps.widgetSelection.clear();
-			// Announced, not left to the clear: the swap usually arrives on a native-only caret, so
-			// nothing editor-owned moves and subscribers would keep painting the outgoing document's
-			// selection. Batched, so a real range still emits once.
+			// Announced explicitly: on a native-only caret the clear sees no change, and subscribers
+			// would keep the outgoing document's selection. Batched, so a real range emits once.
 			deps.selection.batch(() => {
 				deps.selection.clear();
 				deps.selection.announceSelection();

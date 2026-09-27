@@ -46,7 +46,7 @@ export type SharedSurfaceDeps = Pick<
 >;
 
 export interface SurfaceWiring {
-	/** Spread first into `createEditableSurface`; per-surface fields follow and may override. */
+	/** Spread first into `createEditableSurface`; per-block fields follow and may override. */
 	deps: SharedSurfaceDeps;
 	/** Resolve a chord at `target` through the editor's command context; consumes a handled event. */
 	dispatchChord(e: KeyboardEvent, target: KindCommandTarget): boolean;

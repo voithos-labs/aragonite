@@ -19,12 +19,8 @@ import BlockMath from './BlockMath.svelte';
 
 export interface LatexPluginOptions {
 	renderer: MathRenderer;
-	/**
-	 * How a `$$` block opens for editing: `split` (source beside the preview, the default),
-	 * `stacked` (preview below), or `source` (no preview). Read when the plugin is defined, so it
-	 * is the default for a plain install; an editor's `{ plugin, options: { blockLayout } }`
-	 * entry overrides it. The block's own toggle cycles from whichever applies.
-	 */
+	/** How a `$$` block opens for editing on a plain install (`math-layout.ts`); an editor's
+	 *  `{ plugin, options: { blockLayout } }` entry overrides it. */
 	blockLayout?: MathBlockLayout;
 }
 

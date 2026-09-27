@@ -26,9 +26,8 @@ export const DEMO_MERMAID = mermaidPlugin({ renderer: mermaidRenderer });
 export const DEMO_PARROT = parrotPlugin();
 // Opt-in for a consumer; the showcase opts in, so `/` lists the blocks there.
 export const DEMO_SLASH_COMMANDS = slashCommandsPlugin();
-// `#tag` inside the text, as mark decorations over ordinary characters: the tag keeps every
-// gesture the browser gives text, and is nowhere a widget. Kept out of `DEMO_PLUGINS`, the tour
-// of the bundled plugins; the showcase installs this one on its own.
+// Tags as mark decorations over plain text, so a tag keeps every text gesture. Kept out of
+// `DEMO_PLUGINS`, the tour of the bundled plugins; the showcase installs it on its own.
 export const DEMO_TAGS = tagMarksPlugin();
 
 export const DEMO_PLUGINS = [

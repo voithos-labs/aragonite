@@ -90,9 +90,8 @@
      content inside a focusable widget is not reachable by every AT (axe nested-interactive). -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div bind:this={boxEl} class="thematic-break-block" onkeydown={onKeyDown}>
-	<!-- Focusable by pointer and by the editor, never by Tab: the named host beside it is the
-	     block's one tab stop. No role, since a focusable separator is a slider to ARIA; the
-	     `<hr>` carries the separator semantics. -->
+	<!-- Focusable by pointer and the editor, never by Tab: the host beside it is the tab stop. No
+	     role, since ARIA reads a focusable separator as a slider; the `<hr>` carries it. -->
 	<div bind:this={el} tabindex="-1" class="thematic-break-rule">
 		<hr />
 	</div>

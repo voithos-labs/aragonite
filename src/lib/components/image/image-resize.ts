@@ -29,11 +29,8 @@ export function snapWidth(width: number, maxWidth: number, snapThresholdPx: numb
 	return rounded;
 }
 
-/**
- * The height a release saves: the one the drag showed. An aspect-locked drag lets the height
- * follow the width, so it saves `|N` and leaves the rest to the renderer; an unlocked drag
- * keeps the height the image already had, which only the explicit `|NxM` form can carry.
- */
+/** The height the drag showed: none for an aspect-locked drag (`|N`, the renderer derives it),
+ *  the existing height for an unlocked one, which needs the `|NxM` form. */
 export function resolveDraggedHeight(
 	aspectLocked: boolean,
 	previewHeight: number

@@ -70,11 +70,8 @@ export interface BlockEdgeExitDeps {
 	focus: Pick<FocusActions, 'moveFocus'>;
 }
 
-/**
- * The four plain-arrow exits out of a block, in the direction the key points. Shared by
- * whole-block focus and the plugin container's `moveFocusOut`, so a plugin editor that
- * reaches its own edge lands the same way the built-ins do. False for any other key.
- */
+/** The plain-arrow exits out of a block, shared by whole-block focus and a plugin container's
+ *  `moveFocusOut`, so a plugin editor leaves its edge as the built-ins do. False for other keys. */
 export function focusAcrossBlockEdge(key: string, deps: BlockEdgeExitDeps): boolean {
 	const index = deps.getIndex();
 	if (key === 'ArrowUp') void deps.focus.moveFocus(index - 1, { stickyColumnFrom: 'below' });
@@ -275,8 +272,8 @@ export function createContainerBlockComponent(
 			const focusEl = deps.getFocusEl?.();
 			if (focusEl) {
 				landFocus(focusEl);
-				// Announced here because this branch reaches neither `placeCaret` nor the
-				// editable surface, the two placements that announce for everything else.
+				// Announced here because this branch reaches neither `placeCaret` nor a text block's
+				// editable element, the two placements that announce for everything else.
 				deps.selection.announceSelection();
 				return;
 			}

@@ -42,9 +42,8 @@ export function resolveLinkAtPoint(query: LinkPointQuery): LinkPointResolution |
 	const offset = caretRawOffset(query.contentEl);
 	if (offset === null) return null;
 	const inlines = resolvedInlineContent(query.block, query.reading);
-	// Outermost first, so the last card-editable link in the chain is the one whose bytes enclose
-	// the click most tightly. It is the same chain used when a construct shows its source, which
-	// admits only kinds that can do so, so an autolink never reaches this filter anyway.
+	// The chain is outermost first, so its last card-editable link is the one that encloses the
+	// click most tightly.
 	const link = constructChainAtOffset(inlines, offset).filter(isCardEditable).at(-1);
 	if (link === undefined) return null;
 	return { target: { path: query.path, sourceStart: link.start }, link };

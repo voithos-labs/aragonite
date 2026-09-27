@@ -52,23 +52,15 @@ export function createEditorRootClipboard(deps: EditorRootClipboardDeps): Editor
 		crossBlock: deps.crossBlock
 	});
 
-	/**
-	 * The event landed nowhere: on this root, or on the body through the retarget above.
-	 * Deliberately not "inside the root but not a block": the search input and a host's
-	 * header field are both inside and own their own clipboard. The body case is limited to
-	 * this instance, because the listener sees every editor on the page.
-	 */
+	/** On this root, or on the body with this instance holding the chord; the search input and a
+	 *  header field sit inside the root and keep their own clipboard. */
 	function landedNowhere(root: HTMLElement, target: EventTarget | null): boolean {
 		if (target === root) return true;
 		return (target === null || target === root.ownerDocument.body) && claimsBodyChord(root);
 	}
 
-	/**
-	 * Who owns an event that reached no block. `defaultPrevented` is how a block says it handled
-	 * the event: every branch of their shared clipboard code prevents before it writes, and the
-	 * one branch that falls through to the browser is a collapsed cell caret, which is neither
-	 * state below. The order does not matter: the two selections clear each other.
-	 */
+	/** A block marks an event it handled with `defaultPrevented`. The two states cannot coexist,
+	 *  so their order does not matter. */
 	function targetOf(event: ClipboardEvent, root: HTMLElement): RootClipboardTarget | null {
 		if (event.defaultPrevented) return null;
 		if (!landedNowhere(root, event.target)) return null;
@@ -98,11 +90,8 @@ export function createEditorRootClipboard(deps: EditorRootClipboardDeps): Editor
 		}
 	};
 
-	/**
-	 * Images first, in the same order a block does it: the root gets an image-only paste
-	 * whenever the focus endpoint has no caret, and going straight to the cross-block branch
-	 * would throw it away for want of any `text/plain`.
-	 */
+	/** Images first, as a block does: an image-only paste has no `text/plain` for the
+	 *  cross-block branch to use. */
 	async function paste(event: ClipboardEvent): Promise<void> {
 		// Read the range synchronously with the event, while the cross-block handling still
 		// guarantees a selection: below the await, a read could only report nothing.
