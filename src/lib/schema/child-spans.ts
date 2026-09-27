@@ -78,9 +78,11 @@ export function rebuildStripRaw(node: CstNode, prefix: LinePrefix, changed?: Chi
 	// A separator line stays bare, as the parser reads it. A blank line that belongs to a leaf and
 	// ends the body keeps the body's indent, or a reload would read it as outside the container.
 	const render: RenderChild = (trivia, raw, first, tailIsBlank, leaf) => {
-		const separators = renderPrefixed(trivia, prefix, first, false);
-		const ownTail = leaf && tailIsBlank();
-		return separators + renderPrefixed(raw, prefix, first && separators === '', ownTail);
+		const separators = renderPrefixed(trivia, prefix, first, () => false);
+		return (
+			separators +
+			renderPrefixed(raw, prefix, first && separators === '', () => leaf && tailIsBlank())
+		);
 	};
 	if (
 		changed &&
@@ -122,7 +124,7 @@ export function rebuildStripRaw(node: CstNode, prefix: LinePrefix, changed?: Chi
 
 	if (suffix !== '') {
 		if (openLine) return rebuildWholeStrip(node, prefix);
-		out += renderPrefixed(suffix, prefix, out.length === 0, true);
+		out += renderPrefixed(suffix, prefix, out.length === 0, () => true);
 	}
 	node.raw = out;
 	node.childSpans = spans;
@@ -134,7 +136,7 @@ function rebuildWholeStrip(node: CstNode, prefix: LinePrefix): void {
 		concatChildren(node.children!) + (node.innerSuffix ?? ''),
 		prefix,
 		true,
-		true
+		() => true
 	);
 }
 
@@ -144,19 +146,20 @@ const renderVerbatim: RenderChild = (trivia, raw) => trivia + raw;
 
 const isWhitespaceOnly = (text: string): boolean => !/[^ \t\r\n]/.test(text);
 
-/** `inBlankTail` marks the blank lines after the text's last content line as the body's tail. */
+/** `inBlankTail` says whether the blank lines after the text's last content line end the body;
+ *  it is asked only when there are some, since answering can read every later sibling. */
 function renderPrefixed(
 	text: string,
 	prefix: LinePrefix,
 	first: boolean,
-	inBlankTail: boolean
+	inBlankTail: () => boolean
 ): string {
 	if (text === '') return '';
 	let out = '';
 	const lines = splitLines(text);
 	let lastContent = lines.length - 1;
 	while (lastContent >= 0 && isBlankLine(lines[lastContent].text)) lastContent--;
-	const endsBlank = lastContent < lines.length - 1 && inBlankTail;
+	const endsBlank = lastContent < lines.length - 1 && inBlankTail();
 	for (let i = 0; i < lines.length; i++) {
 		const line = lines[i];
 		out += prefix(line.text, first && i === 0, endsBlank && i > lastContent) + line.lineEnding;

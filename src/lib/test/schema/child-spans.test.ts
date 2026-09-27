@@ -6,6 +6,7 @@ import { makeBlockNode, type BlockMetadata, type CstNode } from '$lib/core/nodes
 import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
 import { pushChild, spliceChildren } from '$lib/tree-operations/children';
 import { reorderChildren } from '$lib/tree-operations/reorder';
+import { enablePerfInstruments, disablePerfInstruments } from '$lib/perf/instruments';
 
 const paragraph = (raw: string, leadingTrivia = ''): CstNode =>
 	makeBlockNode({ kind: 'paragraph', leadingTrivia, raw });
@@ -152,5 +153,31 @@ describe('the children entry points drop the spans they invalidate', () => {
 		expect(node.childSpans).toBeUndefined();
 		rebuild(node);
 		expect(node.raw).toBe('> a\n> c\n> d\n');
+	});
+});
+
+// Miss: only the perf gate saw a keystroke in a big quote's first child read every later sibling;
+// no unit test counted what a one-child splice reads.
+describe('a one-child splice reads only the child it rewrites', () => {
+	it('never reads a later sibling for text that does not end blank', () => {
+		const children = Array.from({ length: 2000 }, (_, i) => paragraph(`p${i}\n`, i ? '\n' : ''));
+		const node = container('blockquote', children);
+		// Counts indexed reads the way the editor's `$state` array pays for them, one trap each.
+		let siblingReads = 0;
+		node.children = new Proxy(children, {
+			get(target, key, receiver) {
+				if (typeof key === 'string' && Number(key) > 0) siblingReads++;
+				return Reflect.get(target, key, receiver);
+			}
+		});
+		// The perf instruments skip the dev belt's full rebuild, as they do in the perf gate.
+		enablePerfInstruments();
+		try {
+			rewriteChild(node, 0, 'p0x\n');
+		} finally {
+			disablePerfInstruments();
+		}
+		expect(node.raw.startsWith('> p0x\n>\n> p1\n')).toBe(true);
+		expect(siblingReads).toBe(0);
 	});
 });
