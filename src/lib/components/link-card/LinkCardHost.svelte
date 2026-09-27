@@ -9,6 +9,9 @@
 	import type { LinkCardState } from './link-card-state.svelte';
 	import type { MenuPresence } from '../menu/menu-presence.svelte';
 	import type { Reading } from '../../schema/reading';
+	import type { CommandDispatchContext } from '../../schema/block-commands';
+	import { commandForKey } from '../../schema/commands';
+	import { blockNodeAt } from '../../tree-operations/node-primitives';
 
 	// Mounted unconditionally by Editor: the anchoring and dismiss effects must observe the card's
 	// target changing, so the open/closed `{#if}` lives here rather than at the mount site.
@@ -24,7 +27,8 @@
 		resolveLinkUrl,
 		caretRestore,
 		reading,
-		menuPresence
+		menuPresence,
+		commands
 	}: {
 		card: LinkCardState;
 		controller: UndoController;
@@ -39,6 +43,8 @@
 		caretRestore: CaretRestore;
 		reading: Reading;
 		menuPresence: MenuPresence;
+		/** The editor's command dispatch, which says what a keypress means at the card's block. */
+		commands: CommandDispatchContext;
 	} = $props();
 
 	let cardEl: HTMLDivElement | undefined = $state();
@@ -125,6 +131,14 @@
 		linkCard.commitCreate(target, url);
 	}
 
+	// Resolved at the block the card edits, so a consumer's rebinding of the chord is the one
+	// the card takes.
+	function opensCard(e: KeyboardEvent): boolean {
+		const path = card.getTarget()?.path ?? card.getCreateTarget()?.path;
+		const kind = path ? (blockNodeAt(getDoc(), path)?.kind ?? null) : null;
+		return commandForKey(e, kind, commands) === 'link.openCard';
+	}
+
 	function remove(): void {
 		const target = card.getTarget();
 		if (!target) return;
@@ -146,6 +160,7 @@
 					onCommit={commit}
 					onOpenLink={activateLink}
 					onRemove={remove}
+					{opensCard}
 					resolveHref={(url) => resolveHref({ resolveLinkUrl }, url)}
 				/>
 			{/key}
@@ -161,6 +176,7 @@
 				canWrite={true}
 				onCommit={commitCreate}
 				onOpenLink={activateLink}
+				{opensCard}
 				resolveHref={(url) => resolveHref({ resolveLinkUrl }, url)}
 			/>
 		{/key}

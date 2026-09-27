@@ -32,6 +32,7 @@ describe('slashCommands.open', () => {
 				history: { requestUndo() {}, requestRedo() {} },
 				activation: everyInstalledPlugin,
 				pluginEditor: () => editor,
+				onCommandError: () => {},
 				arg
 			});
 

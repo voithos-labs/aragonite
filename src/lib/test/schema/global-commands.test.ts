@@ -21,6 +21,7 @@ import {
 	type EditorContext
 } from '$lib/schema/plugin-install';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
+import { commandContext } from '../support/command-context';
 
 const editor = {
 	editorId: 'e',
@@ -32,6 +33,7 @@ const ctx = (over?: Partial<GlobalCommandContext>): GlobalCommandContext => ({
 	history: { requestUndo() {}, requestRedo() {} },
 	activation: everyInstalledPlugin,
 	pluginEditor: () => editor,
+	onCommandError: () => {},
 	...over
 });
 
@@ -114,6 +116,11 @@ describe('registerGlobalCommand', () => {
 		expect(resolveBinding('W', 'paragraph', undefined, everyInstalledPlugin)).toBeNull();
 	});
 
+	it('binds a chord declared out of modifier order under its normal form', () => {
+		registerGlobalCommand('demo.order', () => true, { chord: 'Shift+Mod+j' });
+		expect(pluginGlobalBinding('Mod+Shift+J', everyInstalledPlugin)?.chord).toBe('Mod+Shift+J');
+	});
+
 	it('a chord collision leaves no partial state: the name can still be created afterward', () => {
 		expect(() => registerGlobalCommand('demo.retry', () => true, { chord: 'Mod+Z' })).toThrow();
 		expect(() =>
@@ -131,12 +138,7 @@ describe('registerGlobalCommand', () => {
 // Miss-analysis: every handler test ignored the argument, so neither dispatch site was ever asked
 // to carry one through to a plugin-global handler.
 describe('a global command handler receives the dispatch argument', () => {
-	const dispatchContext = {
-		...ctx(),
-		getPresentationMode: () => 'source' as const,
-		isCrossBlockRange: () => false,
-		crossBlockCommands: undefined
-	};
+	const dispatchContext = commandContext({ pluginEditor: () => editor });
 
 	function recordingCommand(chord?: string) {
 		const received: unknown[] = [];
@@ -156,14 +158,15 @@ describe('a global command handler receives the dispatch argument', () => {
 		const { id, received } = recordingCommand();
 		const overrides = normalizeKeybindingOverrides([{ chord: 'Mod+Shift+9', command: id, arg: 3 }]);
 		const target = { kind: 'paragraph' as const, runCommand: () => false };
-		expect(dispatchKeyCommand('Mod+Shift+9', target, dispatchContext, overrides)).toBe(true);
-		expect(runGlobalChord('Mod+Shift+9', overrides, { ...ctx(), isReading: false })).toBe(true);
+		const rebound = { ...dispatchContext, keybindingOverrides: () => overrides };
+		expect(dispatchKeyCommand('Mod+Shift+9', target, rebound)).toBe(true);
+		expect(runGlobalChord('Mod+Shift+9', rebound)).toBe(true);
 		expect(received).toEqual([3, 3]);
 	});
 
 	it('as undefined from a chord with no argument', () => {
 		const { received } = recordingCommand('Mod+Shift+9');
-		runGlobalChord('Mod+Shift+9', undefined, { ...ctx(), isReading: false });
+		runGlobalChord('Mod+Shift+9', dispatchContext);
 		expect(received).toEqual([undefined]);
 	});
 });

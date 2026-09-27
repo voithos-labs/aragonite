@@ -114,9 +114,8 @@ function surfaceParity(
 
 // ── G4.39 command surfaces ───────────────────────────────────────────────────
 
-/** A component owning a command surface: a surface factory, or its own chord dispatch. */
-const COMMAND_SURFACE_RE =
-	/\bcreateEditable(?:Surface|Leaf)\s*\(|\bdispatchKeyCommand\s*\(|\bdispatchChord\s*\(/;
+/** A component mounting the text surface, which carries the built-in command bodies. */
+const COMMAND_SURFACE_RE = /\bcreateEditableSurface\s*\(/;
 const PUBLISHES_RUN_COMMAND_RE = /\bexport\s+(?:const|function)\s+runCommand\b/;
 
 // ── G4.47 whole-block editing host ───────────────────────────────────────────
@@ -510,26 +509,22 @@ const RULES: FileRule[] = [
 		'a prose surface hands its typed delimiters to applyDelimiterAutoPair, which pairs, steps over and closes them; a local copy drifts'
 	),
 	{
-		id: 'G4.39 every component mounting a command surface publishes runCommand',
+		id: 'G4.39 every component mounting the text surface publishes runCommand',
 		population: (file) => svelteOnly(file) && COMMAND_SURFACE_RE.test(file.code),
 		matches: (file) => !PUBLISHES_RUN_COMMAND_RE.test(file.code),
 		reason:
-			'without an instance export of runCommand, editor.runCommand() declines on that block; a surface that genuinely takes no command belongs in this message, not in silence',
-		// The dispatch-only signal is what widens this population past G4.38's.
-		reaches: ['src/lib/components/blocks/ThematicBreakBlock.svelte'],
-		atLeast: 5,
+			'without an instance export of runCommand, editor.runCommand() declines every built-in text command on that block',
+		reaches: ['src/lib/components/blocks/table/TableCellBlock.svelte'],
+		atLeast: 3,
 		hits: [
 			at('x.svelte', 'const s = createEditableSurface({'),
-			at('x.svelte', 'const leaf = createEditableLeaf({'),
-			at('x.svelte', 'if (chord && dispatchKeyCommand(chord, target, ctx))'),
-			at('x.svelte', 'if (wiring.dispatchChord(e, { kind, runCommand }))'),
 			at('x.svelte', 'createEditableSurface({}); const x = component.runCommand;'),
 			at('x.svelte', 'createEditableSurface({}); if (!component?.runCommand) return null;')
 		],
 		misses: [
-			at('x.svelte', 'dispatchKindCommand(chord, target, gates)'),
-			at('x.svelte', 'import type { EditableLeaf } from'),
-			at('x.svelte', 'createEditableSurface({}); export const runCommand = leaf.runCommand;'),
+			at('x.svelte', 'const leaf = createEditableLeaf({'),
+			at('x.svelte', 'if (wiring.dispatchChord(e, { kind, getPath }))'),
+			at('x.svelte', 'createEditableSurface({}); export const runCommand = surfaceRunCommand;'),
 			at(
 				'x.svelte',
 				'createEditableSurface({}); export function runCommand(id: CommandId): boolean {'

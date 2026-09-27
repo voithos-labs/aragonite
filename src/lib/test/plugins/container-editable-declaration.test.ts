@@ -5,77 +5,11 @@
 // Miss-analysis: the shim hardcoded `editable: true`, so no fixture could declare otherwise and
 // every existing container test read that hardcoded value back, with no kind to pin the rest.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mount, unmount, flushSync } from 'svelte';
-import {
-	declarePluginKind,
-	declaredPluginKind,
-	registerBlockKind,
-	registerBlockComponent,
-	defineBlockComponent,
-	containerClosure
-} from '$lib/plugin';
+import { flushSync } from 'svelte';
+import { declaredPluginKind } from '$lib/plugin';
 import { installEditorDomStubsForTests, resetPluginPlatformForTests } from '$lib/testing';
 import { isBlockEditable } from '$lib/schema/merge-rules';
-import type { CstNode, Document } from '$lib/core/nodes';
-import type { ContainerBlockComponent } from '$lib/block-component';
-import { makeStubBlockEdit } from '../harness/editor-actions';
-import { editorMountContext } from '../harness/mount-context';
-import OpaqueContainerBlock from './fixtures/OpaqueContainerBlock.svelte';
-
-const KIND = 'opaque-fixture-container';
-
-function registerOpaqueKind(): void {
-	const kind = declarePluginKind(KIND);
-	registerBlockKind(kind, {
-		gapEdges: 'none',
-		mergeRole: 'not-mergeable',
-		// The declaration under test: a block whose only edit path would be its own UI.
-		editable: false,
-		supportsInline: false,
-		blockFocus: 'whole-block',
-		container: { contract: 'opaque', rebuildRaw: (node) => node.raw },
-		closure: containerClosure({
-			roundTripVia: 'opaque — raw is authoritative, rebuilt verbatim',
-			focus: { mode: 'implemented', via: 'blockFocus=whole-block via the container shim' },
-			mergeBackspace: { mode: 'implemented', via: 'blockFocus=whole-block focus-then-delete' },
-			undo: { mode: 'not-supported', reason: 'the fixture commits no bytes of its own' },
-			simOracle: { mode: 'not-supported', reason: 'test fixture, never in a shipped document' }
-		})
-	});
-	registerBlockComponent(declaredPluginKind(KIND), defineBlockComponent(OpaqueContainerBlock));
-}
-
-interface MountedOpaque {
-	containerApi: ContainerBlockComponent;
-	box: HTMLElement;
-	surface: HTMLElement;
-	blockEdit: ReturnType<typeof makeStubBlockEdit>;
-	dispose(): Promise<void>;
-}
-
-function mountOpaque(): MountedOpaque {
-	const node: CstNode = { kind: declaredPluginKind(KIND), leadingTrivia: '', raw: 'diagram\n' };
-	const doc: Document = { kind: 'document', prefix: '', children: [node], suffix: '' };
-	const blockEdit = makeStubBlockEdit();
-	const target = document.createElement('div');
-	document.body.appendChild(target);
-	const instance = mount(OpaqueContainerBlock, {
-		target,
-		props: { node, index: 0, myPath: [0] },
-		context: editorMountContext({ blockEdit, doc: { doc: () => doc } })
-	});
-	flushSync();
-	return {
-		containerApi: instance.containerApi,
-		box: target.querySelector('.opaque-container') as HTMLElement,
-		surface: target.querySelector('.opaque-surface') as HTMLElement,
-		blockEdit,
-		dispose: async () => {
-			await unmount(instance);
-			target.remove();
-		}
-	};
-}
+import { OPAQUE_KIND as KIND, mountOpaque, registerOpaqueKind } from './fixtures/opaque-container';
 
 beforeEach(() => {
 	resetPluginPlatformForTests();

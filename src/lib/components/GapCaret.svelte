@@ -6,18 +6,16 @@
 	 * input is refused at `beforeinput`.
 	 */
 	import { getContext } from 'svelte';
-	import type { BlockEditActions, FocusActions, HistoryActions } from '../action-contracts';
+	import type { BlockEditActions, FocusActions } from '../action-contracts';
 	import { GAP_CARET_LABEL } from '../a11y-strings';
 	import {
 		EDITOR_DOC_KEY,
 		EDITOR_POLICIES_KEY,
 		EDITOR_SERVICES_KEY,
-		HISTORY_KEY,
 		type EditorDoc,
 		type EditorPolicies,
 		type EditorServices
 	} from '../editor-keys';
-	import { emitCommandError } from '../editor-events';
 	import { runGlobalChord } from '../schema/commands';
 	import { eventToChord } from '../schema/keybindings';
 	import { isReadingMode } from '../presentation-mode';
@@ -38,7 +36,6 @@
 	const selection = services?.selection;
 	const policies = getContext<EditorPolicies | undefined>(EDITOR_POLICIES_KEY);
 	const editorDoc = getContext<EditorDoc | undefined>(EDITOR_DOC_KEY);
-	const history = getContext<HistoryActions | undefined>(HISTORY_KEY);
 
 	let proxyEl: HTMLElement | undefined = $state();
 	let composing = false;
@@ -73,38 +70,15 @@
 	 * focus, and the root's own handler answers only a caret with no focused element at all.
 	 * Reading mode still takes the chord, or the browser's own undo would run on this element.
 	 */
-	function handleGlobalChord(
-		event: KeyboardEvent,
-		deps: {
-			history: HistoryActions;
-			doc: EditorDoc;
-			events: EditorServices['events'];
-			activation: EditorServices['activePlugins'];
-		}
-	): boolean {
+	function handleGlobalChord(event: KeyboardEvent): boolean {
 		const chord = eventToChord(event);
-		if (!chord) return false;
-		const consumed = runGlobalChord(chord, policies?.keybindingOverrides(), {
-			isReading,
-			history: deps.history,
-			pluginEditor: deps.doc.pluginEditor,
-			activation: deps.activation,
-			onCommandError: (report) => emitCommandError(deps.events, report)
-		});
-		if (consumed) event.preventDefault();
-		return consumed;
+		if (!chord || !services || !runGlobalChord(chord, services.commands)) return false;
+		event.preventDefault();
+		return true;
 	}
 
 	function onKeyDown(event: KeyboardEvent): void {
-		if (history && editorDoc && services) {
-			const deps = {
-				history,
-				doc: editorDoc,
-				events: services.events,
-				activation: services.activePlugins
-			};
-			if (handleGlobalChord(event, deps)) return;
-		}
+		if (handleGlobalChord(event)) return;
 		// Any other modified chord belongs to whatever the root or the host does with it.
 		if (event.ctrlKey || event.metaKey || event.altKey) return;
 		switch (event.key) {

@@ -105,8 +105,8 @@ test.describe('table block: caret/selection recovery on undo', () => {
 	});
 
 	test('undo after column delete via cross-block coverage restores selection', async ({ page }) => {
-		// Drag down column 0 (header "A" to body cell "4") to cover a column: the three-stage
-		// Ctrl+A goes cell, table, document without ever isolating a column.
+		// Drag down column 0 (header "A" to body cell "4") to cover a column: Ctrl+A goes cell,
+		// then document, without ever isolating a column.
 		const tableInfo = await page.evaluate(() => {
 			const tableEl = document.querySelector('[role="table"]') as HTMLElement;
 			tableEl.scrollIntoView({ block: 'center' });

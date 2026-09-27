@@ -23,7 +23,7 @@ import { makeRenderHarness } from '$lib/test/harness/text-render';
 import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 import { fixtureReading } from '$lib/test/harness/fixture-grammar';
 import { createCaretMemory } from '$lib/cursor/caret-memory';
-import { normalizeKeybindingOverrides } from '$lib/schema/keybinding-overrides';
+import { commandContext } from '$lib/test/support/command-context';
 
 const toPrev = vi.mocked(extendFocusToPreviousBlock);
 
@@ -55,7 +55,7 @@ function makeEnv(source: string, offset: number | null, mode?: string): Env {
 		// is what let a new required reader ship unanswered here.
 		ctx: {
 			// No plugins stood up here, so every installed one is active.
-			activePlugins: everyInstalledPlugin,
+			commands: commandContext(),
 			reading: fixtureReading(),
 			getEl: () => el,
 			getCursorOffset: () => offset,
@@ -71,7 +71,6 @@ function makeEnv(source: string, offset: number | null, mode?: string): Env {
 				resetSelectAllCount: () => {}
 			} as unknown as SharedKeydownContext['selection'],
 			caretMemory: createCaretMemory(),
-			getKeybindingOverrides: () => normalizeKeybindingOverrides([]),
 			history: {} as SharedKeydownContext['history'],
 			focus: { moveFocus } as unknown as SharedKeydownContext['focus'],
 			getDoc: () => doc,

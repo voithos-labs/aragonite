@@ -273,6 +273,11 @@ export interface BlockComponent {
 	 */
 	isCommandActive?(id: import('./schema/command-id').AnyCommandId): boolean;
 	/**
+	 * Run `run` once this block's shown widget source, which lives in the DOM only, is written
+	 * back. A block that never shows one omits it; a command from outside the block waits on it.
+	 */
+	afterSourceCommit?(run: () => void): void;
+	/**
 	 * Current raw-offset selection in an editable leaf, a collapsed caret as
 	 * `{start: n, end: n}`. Captured before a right-click menu steals focus.
 	 */

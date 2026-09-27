@@ -5,7 +5,6 @@
 import { createCrossBlockHandlers } from '$lib/selection/cross-block/dispatch';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createPasteCoordinator } from '$lib/editor-actions/paste-coordinator';
-import { normalizeKeybindingOverrides } from '$lib/schema/keybinding-overrides';
 import { createBlockEditActions } from '$lib/editor-actions/block-edit';
 import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
 import type { BlockComponent } from '$lib/block-component';
@@ -13,6 +12,7 @@ import { type GrammarView } from '$lib/schema/block-openers';
 import type { SelectionState } from '$lib/selection/selection-state.svelte';
 import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 import { fixtureReading } from '../../harness/fixture-grammar';
+import { commandContext } from '../../support/command-context';
 
 export function makeEnv(source: string) {
 	const { deps, doc, events } = makeEditorActionsDeps(source);
@@ -59,12 +59,8 @@ export function makeHandlers(
 		caretMemory: env.caretMemory,
 		blockEdit: env.blockEdit,
 		controller: env.controller,
-		history: { requestUndo() {}, requestRedo() {} },
-		pluginEditor: undefined,
 		reading: fixtureReading(opts.grammar ? { grammar: opts.grammar } : {}),
-		onCommandError: undefined,
-		crossBlockCommands: { canRun: () => false, run: () => false, isActive: () => false },
-		getKeybindingOverrides: () => normalizeKeybindingOverrides(undefined),
+		commands: commandContext({ isCrossBlockRange: () => env.selectionState.isCrossBlock }),
 		pasteCoordinator: createPasteCoordinator(env.controller, env.deps.revealPath),
 		activePlugins: everyInstalledPlugin,
 		events: env.events,

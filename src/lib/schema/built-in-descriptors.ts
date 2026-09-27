@@ -333,10 +333,6 @@ export function registerBuiltInDescriptors(): void {
 		blockFocus: 'whole-block',
 		// Leading edge only: its focused Enter already inserts a paragraph below.
 		gapEdges: 'before',
-		keymap: [
-			{ chord: 'Alt+ArrowUp', command: 'block.moveUp' },
-			{ chord: 'Alt+ArrowDown', command: 'block.moveDown' }
-		],
 		conformanceFixture: '---\n',
 		closure: {
 			roundTrip: { mode: 'inherit-default' },

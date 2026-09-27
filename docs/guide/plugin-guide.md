@@ -225,7 +225,6 @@ cNo.....................................oc
 	export const getSelectedText = leaf.getSelectedText;
 	export const setSelection = leaf.setSelection;
 	export const measurePartialRects = leaf.measurePartialRects;
-	export const runCommand = leaf.runCommand;
 	export const insertMarkdown = leaf.insertMarkdown;
 </script>
 
@@ -338,7 +337,7 @@ The editing half is the factory call, the `revealed` flag, two spreads, and the 
 
 - `revealed` is yours. The factory flips it through `setRevealed` (on when a click or an arrow lands in the block, off when the caret leaves), and the `{#if}` swaps the two views on it.
 - `surfaceProps` goes on the source line. `renderProps` goes on the block wrapper, so a click anywhere in the block reveals, bird included, and lands where `caretTargetAtPoint` said. Spread both; a folded view that takes the click but not the keys swallows undo while it holds focus.
-- `focus`, `getCursorOffset`, `editable` and `focusable` are the four every block component must export. The other seven are how `insertMarkdown`, `runCommand`, and a selection landing reach your block, so keep them.
+- `focus`, `getCursorOffset`, `editable` and `focusable` are the four every block component must export. The other six are how `insertMarkdown` and a selection landing reach your block, so keep them.
 - The commit happens when the caret leaves, not per keystroke. Reveal, type, arrow out: one undo entry, and the caption follows the new raw.
 - `singleLine: true` says the bytes are one line (the opener claims exactly one), so Enter ends the block instead of typing a newline nothing could show you: whatever sits after the caret becomes a paragraph below, and the caret goes with it, same as in a heading. A leaf whose bytes can span lines leaves the flag off and gives its source element `white-space: pre-wrap` instead, for a reason [The editable leaf](#the-editable-leaf) explains.
 
@@ -1244,7 +1243,7 @@ In `reading` mode the platform does most of it for you, which is why most plugin
 
 - your editable leaf never reveals and never commits;
 - chord dispatch (block commands, global commands, keymaps) is swallowed at the dispatcher;
-- the container factory gates whole-block Enter/Backspace/reorder;
+- the container factory gates whole-block Enter and Backspace (its reorder is a keymap chord, so the line above covers it);
 - marker spans hide by CSS.
 
 You read the mode yourself in two cases: when your component owns an edit affordance of its own (a toolbar button, a click-to-edit swap, an interactive widget) which must go inert, the bundled mermaid block's Edit button and the details disclosure being the worked examples, or when your rendering should genuinely differ between a source view and a reading view.
@@ -1632,7 +1631,7 @@ registerGlobalCommand('mine.undo', handler, { chord: 'Mod+Z' }); // throws: alre
 registerGlobalCommand('mine.bold', handler, { chord: 'Mod+B' }); // fine: fires on a thematic break, yields to bold in a paragraph
 ```
 
-Chord strings follow the consumer guide's chord model: fixed-order `Mod` / `Alt` / `Shift` plus the key's own value. Shifted-symbol chords aren't modeled, so bind plain digits and letters.
+Chord strings follow the consumer guide's chord model: fixed-order `Mod` / `Alt` / `Shift` plus the key's own value. Shifted-symbol chords aren't modeled, so bind plain digits and letters. A chord the editor can't read throws when you register it, here and in a kind's `keymap` alike (`registerBlockKind`, `augmentBlockKind`). So `Ctrl+B` (it's `Mod+B`) fails at startup instead of quietly becoming a bare `B` that fires on every keypress.
 
 ## Block context actions
 

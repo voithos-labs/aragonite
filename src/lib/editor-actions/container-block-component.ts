@@ -15,11 +15,14 @@ import { revealChildOrWait, type RefSlots } from '../reactivity/publish-ref.svel
 import type { AnyBlockKind } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import type { BlockEditActions, FocusActions } from '../action-contracts';
-import { runGlobalChordOnKind, type GlobalCommandContext } from '../schema/commands';
-import type { KeybindingOverrideMap } from '../schema/keybinding-overrides';
-import type { PluginActivation } from '../schema/plugin-activation';
+import { runGlobalChordOnKind } from '../schema/commands';
+import {
+	dispatchKindCommand,
+	type CommandDispatchContext,
+	type KindCommandTarget
+} from '../schema/block-commands';
 import type { Reading } from '../schema/reading';
-import { isCharacterKey } from '../schema/keybindings';
+import { eventToChord, isCharacterKey } from '../schema/keybindings';
 import { displayLength, trimTrailingLineEnding } from '../core/lines';
 import { isVerticallyTransparentNode } from '../core/inline/transparency';
 import type { CaretMemory } from '../cursor/caret-memory';
@@ -33,31 +36,36 @@ import {
 } from './whole-block-focus-surface';
 import { devWarn } from '../dev-warn';
 
-export interface EditorGlobalChordDeps extends Pick<
-	GlobalCommandContext,
-	'history' | 'pluginEditor' | 'onCommandError'
-> {
-	getKind: () => AnyBlockKind;
-	getKeybindingOverrides: () => KeybindingOverrideMap | undefined;
-	isReading: () => boolean;
-	/** A whole-block component without it would consume an unlisted plugin's chord. */
-	activation: PluginActivation;
+/**
+ * Undo, redo and plugin-global chords for a block focused as a whole: no inner leaf runs them for
+ * it, and the editor root declines while focus sits on the block. Consumed in reading mode too,
+ * or a read-only document would get the browser's own undo.
+ */
+export function dispatchWholeBlockGlobalChord(
+	e: KeyboardEvent,
+	kind: AnyBlockKind,
+	commands: CommandDispatchContext
+): boolean {
+	const chord = eventToChord(e);
+	if (!chord || !runGlobalChordOnKind(chord, kind, commands)) return false;
+	e.preventDefault();
+	return true;
 }
 
 /**
- * Undo and redo for a block focused as a whole: no inner leaf runs the global chords for it,
- * and the editor root declines while focus sits on the block. `true` means consumed, in
- * reading mode too, since skipping `dispatchKeyCommand` would otherwise hand a read-only
- * document the browser's native undo.
+ * A chord at a container, resolved against the container's own kind only: a key that bubbled up
+ * from a focused leaf has already met the global chords there.
  */
-export function handleEditorGlobalChord(chord: string, deps: EditorGlobalChordDeps): boolean {
-	return runGlobalChordOnKind(chord, deps.getKind(), deps.getKeybindingOverrides(), {
-		isReading: deps.isReading(),
-		history: deps.history,
-		pluginEditor: deps.pluginEditor,
-		onCommandError: deps.onCommandError,
-		activation: deps.activation
-	});
+export function dispatchContainerChord(
+	e: KeyboardEvent,
+	target: KindCommandTarget,
+	commands: CommandDispatchContext
+): boolean {
+	if (e.defaultPrevented) return false;
+	const chord = eventToChord(e);
+	if (!chord || !dispatchKindCommand(chord, target, commands)) return false;
+	e.preventDefault();
+	return true;
 }
 
 export interface BlockEdgeExitDeps {

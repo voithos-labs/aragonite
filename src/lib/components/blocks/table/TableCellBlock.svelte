@@ -3,7 +3,7 @@
 	import type { ContentWrite, TableContext } from '../../../action-contracts';
 	import { type BlockComponent } from '../../../block-component';
 	import { type CommandId } from '../../../schema/commands';
-	import { eventToChord } from '../../../schema/keybindings';
+	import { endsSelectAllRun } from '../../../schema/keybindings';
 	import {
 		createInlineFormatActiveMemo,
 		toggleInlineFormat
@@ -97,9 +97,6 @@
 
 	type ExitDirection = 'up' | 'down';
 
-	// The chord that continues a select-all run rather than ending it.
-	const SELECT_ALL_CHORD = 'Mod+A';
-
 	let {
 		node,
 		index,
@@ -146,7 +143,6 @@
 		autoPairs,
 		widgetSelection,
 		linkCard,
-		reorder,
 		rects,
 		decorations: decorationEngine
 	} = getContext<EditorServices>(EDITOR_SERVICES_KEY);
@@ -410,7 +406,7 @@
 
 	// A shown source holds bytes the tree has not seen, so a command runs only after the source
 	// is hidden and its edit written.
-	function afterRevealFold(run: () => void): void {
+	export function afterSourceCommit(run: () => void): void {
 		if (!widgetInteraction.isRevealing()) {
 			run();
 			return;
@@ -436,16 +432,12 @@
 			return () =>
 				void tableContext[axisCommand.action](axisCommand.axis === 'row' ? rowIdx : colIdx);
 		}
-		// Moves the whole table: a reorder resolves at the nearest ancestor that reorders its
-		// children, which a table's grid rows do not.
-		if (id === 'block.moveUp' || id === 'block.moveDown') {
-			return () => void reorder.nudgeReorderUnit(myPath, id === 'block.moveUp' ? -1 : 1);
-		}
 		if (id !== 'cell.enter' && id !== 'cell.tab' && id !== 'cell.shiftTab') return null;
 		const plan = cellKeydownPlan(
 			{
 				key: id === 'cell.enter' ? 'Enter' : 'Tab',
-				ctrlOrMeta: false,
+				ctrlKey: false,
+				metaKey: false,
 				shiftKey: id === 'cell.shiftTab',
 				altKey: false
 			},
@@ -461,7 +453,7 @@
 		if (!el) return false;
 		const perform = cellCommand(id, el);
 		if (!perform) return false;
-		afterRevealFold(perform);
+		afterSourceCommit(perform);
 		return true;
 	}
 
@@ -480,6 +472,7 @@
 			setSelection,
 			measurePartialRects,
 			runCommand,
+			afterSourceCommit,
 			getSelectionOffsets,
 			applyMenuClipboard,
 			snapCaretToPoint,
@@ -590,9 +583,8 @@
 		if (composing || !el) return;
 
 		// Ahead of the plan: the shared handling's reset runs only on the 'native' branch, so a
-		// key the plan takes would leave the select-all run active. A bare modifier gives null.
-		const chord = eventToChord(e);
-		if (chord !== null && chord !== SELECT_ALL_CHORD) selection.resetSelectAllCount();
+		// key the plan takes would leave the select-all run active.
+		if (endsSelectAllRun(e)) selection.resetSelectAllCount();
 
 		// Must run before `cellKeydownPlan`, which takes arrows and calls `preventDefault`
 		// without reaching here, leaving a live selection the next keystroke would replace.
@@ -616,12 +608,17 @@
 
 		// Before the plan, whose boundary branches ignore modifiers and would eat a column move at
 		// the cell's left edge; also the one point a consumer's `keybindings` override reaches.
-		if (wiring.dispatchChord(e, { kind: node.kind, runCommand })) return;
+		// A move from the cell moves the whole table: the reorder resolves at the nearest ancestor
+		// that reorders its children, which a table's grid rows do not.
+		const target = {
+			kind: node.kind,
+			runCommand,
+			getPath: () => myPath,
+			afterSourceCommit
+		};
+		if (wiring.dispatchChord(e, target)) return;
 
-		const plan = cellKeydownPlan(
-			{ key: e.key, ctrlOrMeta: e.ctrlKey || e.metaKey, shiftKey: e.shiftKey, altKey: e.altKey },
-			cellPlanState(caretBeforeKey)
-		);
+		const plan = cellKeydownPlan(e, cellPlanState(caretBeforeKey));
 
 		switch (plan.kind) {
 			case 'native': {

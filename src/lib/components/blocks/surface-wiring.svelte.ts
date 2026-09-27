@@ -1,8 +1,9 @@
 /**
  * The context wiring every editable-block component threads identically: one init-time bundle
- * of the shared `EditableSurfaceDeps` fields, plus chord dispatch built over the same gates and
- * the shared teardown that moves focus away. Call it during component init, since it reads
- * `getContext`; `createEditableSurface` itself stays context-free so the jsdom harness can build it.
+ * of the shared `EditableSurfaceDeps` fields, plus chord dispatch over the editor's one command
+ * context and the shared teardown that moves focus away. Call it during component init, since it
+ * reads `getContext`; `createEditableSurface` itself stays context-free so the jsdom harness can
+ * build it.
  */
 
 import { getContext } from 'svelte';
@@ -10,15 +11,12 @@ import type { BlockEditActions, FocusActions, HistoryActions } from '../../actio
 import {
 	BLOCK_EDIT_KEY,
 	EDITOR_DOC_KEY,
-	EDITOR_POLICIES_KEY,
 	EDITOR_SERVICES_KEY,
 	FOCUS_KEY,
 	HISTORY_KEY,
 	type EditorDoc,
-	type EditorPolicies,
 	type EditorServices
 } from '../../editor-keys';
-import { emitCommandError } from '../../editor-events';
 import { eventToChord } from '../../schema/keybindings';
 import { dispatchKeyCommand, type KindCommandTarget } from '../../schema/block-commands';
 import { commandForKey } from '../../schema/commands';
@@ -41,21 +39,19 @@ export type SharedSurfaceDeps = Pick<
 	| 'blockEdit'
 	| 'controller'
 	| 'history'
-	| 'pluginEditor'
-	| 'getKeybindingOverrides'
 	| 'pasteCoordinator'
 	| 'activePlugins'
 	| 'events'
 	| 'selectedWidget'
 	| 'reading'
-	| 'onCommandError'
-	| 'crossBlockCommands'
+	| 'commands'
 >;
 
 export interface SurfaceWiring {
 	/** Spread first into `createEditableSurface`; per-surface fields follow and may override. */
 	deps: SharedSurfaceDeps;
-	/** Resolve a chord at `target` through the shared gates; consumes the event when spent. */
+	/** Resolve a chord at `target` through the editor's command context; consumes the event
+	 *  when spent. */
 	dispatchChord(e: KeyboardEvent, target: KindCommandTarget): boolean;
 	/** The command a keypress names at `kind`, overrides included, without running it. */
 	resolveChord(e: KeyboardEvent, kind: AnyBlockKind): AnyCommandId | null;
@@ -72,17 +68,15 @@ export function wireSurfaceContexts(): SurfaceWiring {
 		selection,
 		activePlugins,
 		events,
-		crossBlockCommands,
+		commands,
 		selectedWidget
 	} = getContext<EditorServices>(EDITOR_SERVICES_KEY);
-	const { keybindingOverrides } = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
 	const {
 		blockElLookup: getBlockElByPath,
 		doc: getDoc,
 		editorRoot: getEditorRoot,
 		scrollHost: getScrollHost,
 		lifetime: editorLifetime,
-		pluginEditor,
 		reading
 	} = getContext<EditorDoc>(EDITOR_DOC_KEY);
 
@@ -98,44 +92,23 @@ export function wireSurfaceContexts(): SurfaceWiring {
 		blockEdit,
 		controller,
 		history,
-		pluginEditor,
-		getKeybindingOverrides: keybindingOverrides,
 		pasteCoordinator,
 		activePlugins,
 		events,
 		selectedWidget,
 		reading,
-		crossBlockCommands,
-		onCommandError: (report) => emitCommandError(events, report)
+		commands
 	};
 
 	const dispatchChord = (e: KeyboardEvent, target: KindCommandTarget): boolean => {
 		const chord = eventToChord(e);
-		if (
-			!chord ||
-			!dispatchKeyCommand(
-				chord,
-				target,
-				{
-					history,
-					pluginEditor,
-					activation: activePlugins,
-					getPresentationMode: reading.mode,
-					isCrossBlockRange: () => selection.isCrossBlock,
-					crossBlockCommands: crossBlockCommands
-				},
-				keybindingOverrides(),
-				deps.onCommandError
-			)
-		) {
-			return false;
-		}
+		if (!chord || !dispatchKeyCommand(chord, target, commands)) return false;
 		e.preventDefault();
 		return true;
 	};
 
 	const resolveChord = (e: KeyboardEvent, kind: AnyBlockKind): AnyCommandId | null =>
-		commandForKey(e, kind, keybindingOverrides(), activePlugins);
+		commandForKey(e, kind, commands);
 
 	return { deps, dispatchChord, resolveChord };
 }

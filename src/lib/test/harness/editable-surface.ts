@@ -10,6 +10,7 @@ import { rawOffsetAt, type CaretClamp } from '$lib/cursor/widget-offset';
 import { fixtureReading } from './fixture-grammar';
 import { stubCaretMemory } from '$lib/testing/headless-actions';
 import type { CaretMemory } from '$lib/cursor/caret-memory';
+import { commandContext } from '../support/command-context';
 
 export interface SurfaceHarness {
 	surface: ReturnType<typeof createEditableSurface>;
@@ -82,11 +83,9 @@ export function makeSurface(
 		blockEdit: {},
 		controller: {},
 		history: {},
-		pluginEditor: undefined,
 		getPresentationMode: () => 'source' as const,
 		reading: fixtureReading(),
-		onCommandError: undefined,
-		getKeybindingOverrides: () => ({}),
+		commands: commandContext(),
 		pasteCoordinator: {},
 		getFocusOffset: () => null,
 		getTextLen: () => (el.textContent ?? '').length,

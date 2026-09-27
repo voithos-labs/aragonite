@@ -224,7 +224,7 @@ Three families of seam run these checks:
 | G1.8  | `getContentRange` is well-formed for every kind that has one                        | A·P·N   |
 | G1.9  | No mutation writes bytes through a node an undo entry shares                        | T·A·P·N |
 | G1.10 | Every opener's kind has a descriptor; opener priorities are unique                  | A·N     |
-| G1.11 | Every keymap chord is well-formed, unique per kind, and names a known command       | A·N     |
+| G1.11 | Every keymap chord is unique per kind and names a known command                     | A·N     |
 | G1.12 | An opaque container's raw still reparses to its live children                       | A·N     |
 | G1.13 | An opaque `rebuildRaw` is deterministic over committed state                        | A·N     |
 | G1.14 | A container declaring `reservedChrome` holds its chrome leaf at child 0             | A·N     |
@@ -358,9 +358,11 @@ only reachable via an internal malformed-change bug, which DEV re-throws. Covere
 **G1.10 · Opener-registry coherence.** Every opener's kind has a descriptor, and opener priorities
 are unique. Predicate `checkOpenerRegistry` (`registry.ts`) · bootstrap · `opener-registry.test.ts`.
 
-**G1.11 · Keymap coherence.** Every keymap chord is well-formed (Mod/Alt/Shift plus a non-empty key)
-and names a known command id, and chords are unique per kind. Predicate `checkKeymapCoherence`
-(`registry.ts`) · bootstrap · `keymap-coherence.test.ts`.
+**G1.11 · Keymap coherence.** Every keymap chord names a known command id, and chords are unique
+per kind. A malformed chord never gets this far: `registerBlockKind` and `augmentBlockKind` throw on
+it, in every build. The command check waits for bootstrap because a plugin can register its kind
+before the command its keymap binds. Predicate `checkKeymapCoherence` (`registry.ts`) · bootstrap ·
+`keymap-coherence.test.ts`.
 
 **G1.12 · Opaque container raw not stale.** The raw reparses to children that byte-match the live
 children, chrome compared positionally for `reservedChrome` declarers. A kind with a standalone
@@ -850,7 +852,7 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.36 | A selection is written from raw offsets only in `widget-offset.ts`               | L       |
 | G4.37 | Every surface rendering into a caret-walk container stamps content-empty         | L       |
 | G4.38 | Every editable surface publishes `insertMarkdown`                                | L       |
-| G4.39 | Every command surface publishes `runCommand`                                     | L       |
+| G4.39 | Every text-surface component publishes `runCommand`                              | L       |
 | G4.40 | The three rewrite-claim lists are one set                                        | N       |
 | G4.41 | No test file mocks `dev-warn` or spies `console.warn`                            | L       |
 | G4.42 | No module writes a sibling's `leadingTrivia` by hand                             | L       |
@@ -1228,12 +1230,13 @@ instance exports have no spread and `BlockComponent` declares the method optiona
 is hand-written per component. Surface N+1 would compile clean and silently decline every
 `editor.insertMarkdown()` on its blocks. `lint/insert-door-surface-parity.test.ts`.
 
-**G4.39 · Command surface parity.** Every component mounting a command surface publishes
-`runCommand` as an instance export. G4.38's twin over the semantic entry, with a population wider by
-one signal: a component dispatching chords itself is a command surface even where no
-editable-surface factory built it (the thematic break is `editable = false` and still takes
-commands). `BlockComponent` declares the method optional, so surface N+1 would compile clean and
-decline every `editor.runCommand()` on its blocks. `lint/file-rules.test.ts`.
+**G4.39 · Command surface parity.** Every component mounting the text surface
+(`createEditableSurface`) publishes `runCommand` as an instance export, since that's where the
+built-in text commands (bold, split, heading and friends) have their bodies. G4.38's twin over the
+semantic entry. `BlockComponent` declares the method optional, so surface N+1 would compile clean
+and decline every built-in `editor.runCommand()` on its blocks. The two reorder ids don't count:
+they resolve in the dispatch against the block's path, so a divider or a plugin leaf owns no
+`runCommand` at all. `lint/file-rules.test.ts`.
 
 **G4.40 · Rewrite-claim set parity.** Three lists name one set of rewrites: the ids the built-in
 keymaps bind to a rewrite over one block's own selection, the ids the dispatch seam answers

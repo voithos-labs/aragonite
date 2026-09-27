@@ -12,7 +12,7 @@ import { devReplacesRegistration } from './register-once';
 import { enrollTestReset } from './registry-reset';
 import { createPluginRegistry } from './plugin-registry';
 import { tryGetBlockKindDescriptor } from './block-kind-descriptor';
-import { eventToChord, normalizeChord, isChordWellFormed, type KeyBinding } from './keybindings';
+import { eventToChord, registeredChord, type KeyBinding } from './keybindings';
 import {
 	lookupOverride,
 	overrideDecision,
@@ -21,8 +21,8 @@ import {
 // Type-only imports, so this file has no runtime dependency on plugin-install or block-commands.
 import type { EditorContext } from './plugin-install';
 import type { PluginActivation } from './plugin-activation';
-import type { CommandErrorSink } from './block-commands';
-import type { PresentationMode } from '../presentation-mode';
+import type { CommandDispatchContext, CommandErrorSink } from './block-commands';
+import { isReadingMode, type PresentationMode } from '../presentation-mode';
 
 export const GLOBAL_COMMAND_IDS = ['history.undo', 'history.redo'] as const;
 export const BLOCK_COMMAND_IDS = [
@@ -129,8 +129,8 @@ export interface GlobalCommandContext {
 	/** The effective presentation mode, read live; the reading-mode check reads this, not the
 	 *  plugin lookup. Absent (a history-only context) means source mode. */
 	getPresentationMode?: () => PresentationMode;
-	/** Injected by `dispatchKeyCommand`; receives a caught handler throw. */
-	onCommandError?: CommandErrorSink;
+	/** Receives a caught handler throw. */
+	onCommandError: CommandErrorSink;
 	/** The argument `runCommand(id, arg)` or the chord's binding carried, injected per dispatch. */
 	arg?: unknown;
 }
@@ -224,11 +224,11 @@ const pluginGlobalKeymap = createPluginRegistry<string, KeyBinding>({
 const RESERVED_UI_CHORDS = new Set(['Mod+F', 'Mod+H']);
 
 /**
- * True when the editor UI intercepts a chord outside the command resolvers. The single source
- * both the plugin-global registration guard and the editor-root keydown handler read.
+ * True when the editor UI intercepts a normalized chord outside the command resolvers. The single
+ * source both the plugin-global registration guard and the editor-root keydown handler read.
  */
 export function isReservedUiChord(chord: string): boolean {
-	return RESERVED_UI_CHORDS.has(normalizeChord(chord));
+	return RESERVED_UI_CHORDS.has(chord);
 }
 
 /** The same pair, for the callers that must enumerate it rather than test one chord. */
@@ -237,24 +237,18 @@ export function reservedUiChords(): readonly string[] {
 }
 
 /**
- * `candidateCommand` is the id the incoming registration will bind (the name is the id). A
- * dev-server re-evaluation re-binding its own command to its own chord is a harmless replace, not
- * a collision; reserved chords and cross-command collisions still throw.
+ * Returns the chord's normal form, or throws when it can't be bound. `candidateCommand` is the id
+ * the incoming registration will bind (the name is the id); a dev-server re-evaluation re-binding
+ * its own command to its own chord is a harmless replace, not a collision.
  */
 export function assertPluginGlobalChordAvailable(
 	rawChord: string,
 	candidateCommand?: string
-): void {
-	// Throws rather than warn-and-drop: a malformed chord (`'Ctrl+B'` collapsing to a bare `'B'`)
-	// would bind a handler that fires on every plain keypress. Thrown before the id is created
-	// (`global-commands.ts`), so a rejected registration leaves no orphaned command.
-	if (!isChordWellFormed(rawChord)) {
-		throw new Error(
-			`plugin global chord "${rawChord}" is malformed: modifiers must be Mod/Alt/Shift and the key non-empty`
-		);
-	}
-	const chord = normalizeChord(rawChord);
-	if (RESERVED_UI_CHORDS.has(chord)) {
+): string {
+	// Thrown before the id is created (`global-commands.ts`), so a rejected registration leaves
+	// no orphaned command.
+	const chord = registeredChord(rawChord, 'registerGlobalCommand');
+	if (isReservedUiChord(chord)) {
 		throw new Error(
 			`plugin global chord "${rawChord}" is reserved by the editor UI (search): pick another chord`
 		);
@@ -264,18 +258,19 @@ export function assertPluginGlobalChordAvailable(
 	const collision =
 		findByChord(GLOBAL_KEYMAP, chord) ?? pluginGlobalKeymap.getIgnoringActivation(chord);
 	if (collision) {
-		if (devReplacesRegistration() && collision.command === candidateCommand) return;
+		if (devReplacesRegistration() && collision.command === candidateCommand) return chord;
 		throw new Error(
 			`plugin global chord "${rawChord}" is already bound to "${collision.command}": global chords are register-once`
 		);
 	}
+	return chord;
 }
 
 export function registerPluginGlobalBinding(binding: KeyBinding): void {
-	assertPluginGlobalChordAvailable(binding.chord, binding.command);
+	const chord = assertPluginGlobalChordAvailable(binding.chord, binding.command);
 	// The check above already let a dev re-evaluation of the same command through, so the
 	// registry's own duplicate rule only ever replaces here.
-	pluginGlobalKeymap.register(normalizeChord(binding.chord), binding);
+	pluginGlobalKeymap.register(chord, { ...binding, chord });
 }
 
 export function pluginGlobalBinding(
@@ -299,16 +294,30 @@ export function pluginGlobalChords(activation: PluginActivation): readonly strin
 	return pluginGlobalKeymap.entries(activation).map(([chord]) => chord);
 }
 
-/** First binding in `bindings` whose chord normalizes to the already-normalized `chord`. */
-function findByChord(
-	bindings: readonly KeyBinding[] | undefined,
-	chord: string
-): KeyBinding | null {
-	return bindings?.find((b) => normalizeChord(b.chord) === chord) ?? null;
+/** First binding in `bindings` for `chord`; every stored chord is normalized already. */
+function findByChord(bindings: readonly KeyBinding[], chord: string): KeyBinding | null {
+	return bindings.find((b) => b.chord === chord) ?? null;
+}
+
+// A block focused as a whole has no text keymap to carry the reorder chords every other block
+// takes, so it gets them here unless its kind binds the chord itself. Added on read, not at
+// registration, so an augment that changes `blockFocus` never leaves stale defaults behind.
+const WHOLE_BLOCK_KEYMAP: readonly KeyBinding[] = [
+	{ chord: 'Alt+ArrowUp', command: 'block.moveUp' },
+	{ chord: 'Alt+ArrowDown', command: 'block.moveDown' }
+];
+
+/** The bindings a kind resolves: its declared keymap, plus the whole-block defaults above. */
+export function kindKeymap(kind: AnyBlockKind): readonly KeyBinding[] {
+	const descriptor = tryGetBlockKindDescriptor(kind);
+	const declared = descriptor?.keymap ?? [];
+	if (descriptor?.blockFocus !== 'whole-block') return declared;
+	const bound = new Set(declared.map((binding) => binding.chord));
+	return [...declared, ...WHOLE_BLOCK_KEYMAP.filter((binding) => !bound.has(binding.chord))];
 }
 
 function builtinKindBinding(chord: string, kind: AnyBlockKind): KeyBinding | null {
-	return findByChord(tryGetBlockKindDescriptor(kind)?.keymap, chord);
+	return findByChord(kindKeymap(kind), chord);
 }
 
 /**
@@ -369,15 +378,15 @@ export function resolveBinding(
 export function commandForKey(
 	e: KeyboardEvent,
 	kind: AnyBlockKind | null,
-	overrides: KeybindingOverrideMap | undefined,
-	activation: PluginActivation
+	ctx: Pick<CommandDispatchContext, 'keybindingOverrides' | 'activation'>
 ): AnyCommandId | null {
 	const chord = eventToChord(e);
 	if (!chord) return null;
+	const overrides = ctx.keybindingOverrides();
 	const binding =
 		kind === null
-			? resolveGlobalBinding(chord, overrides, activation)
-			: resolveBinding(chord, kind, overrides, activation);
+			? resolveGlobalBinding(chord, overrides, ctx.activation)
+			: resolveBinding(chord, kind, overrides, ctx.activation);
 	return binding?.command ?? null;
 }
 
@@ -405,28 +414,14 @@ export function resolveGlobalBinding(
 	return builtinGlobalBinding(chord, activation);
 }
 
-/** Reading mode consumes a bound chord and runs nothing: falling through would hand a read-only
- *  document the browser's own undo history. */
-export interface GlobalChordContext extends GlobalCommandContext {
-	isReading: boolean;
-}
-
 /**
  * Run whatever `chord` binds at global scope, for the places with no focused block whose kind
  * keymap could apply: the editor root holding a caret in an unmounted block, the gap caret's
  * proxy. True means the keypress was consumed, which a disabled chord is without running anything.
  */
-export function runGlobalChord(
-	chord: string,
-	overrides: KeybindingOverrideMap | undefined,
-	context: GlobalChordContext
-): boolean {
-	return runClaimedGlobalChord(
-		resolveGlobalBinding(chord, overrides, context.activation),
-		chord,
-		context,
-		false
-	);
+export function runGlobalChord(chord: string, context: CommandDispatchContext): boolean {
+	const binding = resolveGlobalBinding(chord, context.keybindingOverrides(), context.activation);
+	return runClaimedGlobalChord(binding, chord, context, false);
 }
 
 /**
@@ -436,23 +431,22 @@ export function runGlobalChord(
 export function runGlobalChordOnKind(
 	chord: string,
 	kind: AnyBlockKind,
-	overrides: KeybindingOverrideMap | undefined,
-	context: GlobalChordContext
+	context: CommandDispatchContext
 ): boolean {
-	return runClaimedGlobalChord(
-		resolveBinding(chord, kind, overrides, context.activation),
-		chord,
-		context,
-		true
-	);
+	const overrides = context.keybindingOverrides();
+	const binding = resolveBinding(chord, kind, overrides, context.activation);
+	return runClaimedGlobalChord(binding, chord, context, true);
 }
 
-/** A chord the built-in tables bind is consumed whatever an override left it resolving to: the
- *  fall-through is the browser's own history, which bypasses the CST undo stack. */
+/**
+ * A chord the built-in tables bind is consumed whatever an override left it resolving to: the
+ * fall-through is the browser's own history, which bypasses the CST undo stack. Reading mode
+ * consumes a bound chord the same way and runs nothing.
+ */
 function runClaimedGlobalChord(
 	binding: KeyBinding | null,
 	chord: string,
-	context: GlobalChordContext,
+	context: CommandDispatchContext,
 	kindDispatchBelow: boolean
 ): boolean {
 	const run = binding ? getCommand(binding.command, context.activation) : undefined;
@@ -464,6 +458,6 @@ function runClaimedGlobalChord(
 		warnDeadKeyCommand(binding.command, 'global-chord');
 	}
 	if (!consumed) return false;
-	if (!context.isReading) run?.({ ...context, arg: binding?.arg });
+	if (!isReadingMode(context.getPresentationMode)) run?.({ ...context, arg: binding?.arg });
 	return true;
 }

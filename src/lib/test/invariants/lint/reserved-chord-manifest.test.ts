@@ -14,14 +14,15 @@ import { collectEditorSources, EDITOR_SRC, type SourceFile } from './scan-source
 
 // ── The scan ─────────────────────────────────────────────────────────────────
 
-// `ctrlOrMeta` is the projected flag the table cell's pure plan takes instead of the event.
-const MODIFIER_READ = /\.(?:ctrlKey|metaKey|altKey|shiftKey)\b|\bctrlOrMeta\b/;
+const MODIFIER_READ = /\.(?:ctrlKey|metaKey|altKey|shiftKey)\b/;
 
 const KEY_EQUALITY = /\bkey\s*===\s*'([^']*)'/g;
 // `if (e.key !== 'X') return;` consumes X on the branch below it as surely as an equality does.
 const KEY_INEQUALITY = /\bkey\s*!==\s*'([^']*)'/g;
 const KEY_PREFIX = /\bkey\.startsWith\('([^']*)'\)/g;
 const CASE_LABEL = /\bcase\s*'([^']*)'\s*:/g;
+// A whole chord compared against `eventToChord`'s result (`chord === 'Mod+A'`) compares its key.
+const CHORD_COMPARISON = /[!=]==\s*'(?:(?:Mod|Alt|Shift)\+)+([^'+]+)'/g;
 
 /**
  * Every KeyboardEvent key name is one character or CapitalCamel (UI Events key values), so
@@ -40,6 +41,7 @@ export function harvestKeys(code: string): string[] {
 		if (isKeyName(literal)) keys.add(literal);
 	for (const [, literal] of code.matchAll(CASE_LABEL)) if (isKeyName(literal)) keys.add(literal);
 	for (const [, prefix] of code.matchAll(KEY_PREFIX)) if (isKeyName(prefix)) keys.add(`${prefix}*`);
+	for (const [, key] of code.matchAll(CHORD_COMPARISON)) if (isKeyName(key)) keys.add(key);
 	return [...keys].sort();
 }
 
@@ -123,7 +125,6 @@ describe('G4.29 scan non-vacuity', () => {
 	it('rejects a file that reads no modifier flag', () => {
 		expect(MODIFIER_READ.test('const chord = eventToChord(e);')).toBe(false);
 		expect(MODIFIER_READ.test('if (e.shiftKey) return;')).toBe(true);
-		expect(MODIFIER_READ.test('if (e.ctrlOrMeta) return;')).toBe(true);
 	});
 
 	// Miss-analysis: the harvest's own cases used only `===` and `case`, so a branch guarding with
@@ -137,8 +138,9 @@ describe('G4.29 scan non-vacuity', () => {
 				if (key === 'a') {}
 				if (e.key !== 'Tab') return;
 				switch (plan.kind) { case 'select-all-step': break; }
+				return eventToChord(e) === 'Mod+Shift+Z';
 			`)
-		).toEqual(['Arrow*', 'ArrowUp', 'F10', 'Tab', 'a']);
+		).toEqual(['Arrow*', 'ArrowUp', 'F10', 'Tab', 'Z', 'a']);
 	});
 
 	it('the evidence assertion can fail', () => {

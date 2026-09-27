@@ -386,28 +386,10 @@ interface ClaimRow {
  * derive it. A claim a token family already rows must not appear here.
  */
 const CLAIM_ROWS: Record<ClaimKey, ClaimRow> = {
-	// The card opens over a link in any text block, so it claims for the paragraph they share.
-	'Mod+K @ components/link-card/LinkCard.svelte': {
-		row: "Edit a link's URL (live mode)",
-		command: 'link.openCard',
-		kind: 'paragraph'
-	},
 	'Shift+Tab @ components/blocks/table/cell-keydown-plan.ts': {
 		row: 'Move between cells',
 		command: 'cell.shiftTab',
 		kind: 'tableCell'
-	},
-	// Any plugin container focused as a whole takes this branch; it has no kind of its own, so it
-	// claims for the paragraph whose reorder every block shares.
-	'Alt+ArrowUp @ editor-actions/plugin/container.ts': {
-		row: 'Move block up / down',
-		command: 'block.moveUp',
-		kind: 'paragraph'
-	},
-	'Alt+ArrowDown @ editor-actions/plugin/container.ts': {
-		row: 'Move block up / down',
-		command: 'block.moveDown',
-		kind: 'paragraph'
 	}
 };
 
@@ -458,9 +440,9 @@ const UNLISTED_BY_DESIGN: Record<ClaimKey, string> = {
 		'components/blocks/table/TableBlock.svelte',
 		'the Tables preamble documents it in prose as the keyboard route to the cell menu'
 	),
-	...unlisted(['Mod+A'], 'components/blocks/table/cell-keydown-plan.ts', SELECTION_PREAMBLE),
+	...unlisted(['Mod+A'], 'schema/keybindings.ts', SELECTION_PREAMBLE),
 	...unlisted(
-		['Mod+A', 'Mod+Shift+Home', 'Mod+Shift+End', ...SHIFT_ARROWS],
+		['Mod+Shift+Home', 'Mod+Shift+End', ...SHIFT_ARROWS],
 		'selection/cross-block/keydown.ts',
 		SELECTION_PREAMBLE
 	),

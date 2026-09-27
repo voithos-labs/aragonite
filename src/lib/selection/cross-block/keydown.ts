@@ -11,7 +11,7 @@ import type { AnyBlockKind, CstNode, Document } from '../../core/nodes';
 import { performCrossBlockDelete, performCrossBlockDeleteSync, rangeUndoStep } from './ops';
 import { blockNodeAt, isBlockNode } from '../../tree-operations/node-primitives';
 import { isReadingMode } from '../../presentation-mode';
-import { eventToChord } from '../../schema/keybindings';
+import { eventToChord, isSelectAllChord } from '../../schema/keybindings';
 import { dispatchKeyCommand } from '../../schema/block-commands';
 import { commandForKey } from '../../schema/commands';
 import type { AnyCommandId } from '../../schema/command-id';
@@ -47,13 +47,10 @@ export function createCrossBlockKeydown(
 /** What a keypress resolves to at the block at `getMyPath`, or at global scope with none. */
 export function commandAtBlock(
 	e: KeyboardEvent,
-	ctx: Pick<
-		CrossBlockDispatchContext,
-		'getDoc' | 'getMyPath' | 'getKeybindingOverrides' | 'activePlugins'
-	>
+	ctx: Pick<CrossBlockDispatchContext, 'getDoc' | 'getMyPath' | 'commands'>
 ): AnyCommandId | null {
 	const kind = blockNodeAt(ctx.getDoc(), ctx.getMyPath())?.kind ?? null;
-	return commandForKey(e, kind, ctx.getKeybindingOverrides(), ctx.activePlugins);
+	return commandForKey(e, kind, ctx.commands);
 }
 
 // ── Keydown ────────────────────────────────────────────────────────────────
@@ -136,17 +133,12 @@ async function handleCrossBlockActive(
 			if (!target?.runCommand || !chord) return;
 			dispatchKeyCommand(
 				chord,
-				{ kind: kindOfPath(revealTarget, postDeleteDoc), runCommand: target.runCommand },
 				{
-					history: ctx.history,
-					pluginEditor: ctx.pluginEditor,
-					activation: ctx.activePlugins,
-					getPresentationMode: ctx.reading.mode,
-					isCrossBlockRange: () => selection.isCrossBlock,
-					crossBlockCommands: ctx.crossBlockCommands
+					kind: kindOfPath(revealTarget, postDeleteDoc),
+					runCommand: target.runCommand,
+					getPath: () => revealTarget
 				},
-				ctx.getKeybindingOverrides(),
-				ctx.onCommandError
+				ctx.commands
 			);
 		});
 		return true;
@@ -242,7 +234,7 @@ async function handleCrossBlockActive(
 		return true;
 	}
 
-	if ((e.ctrlKey || e.metaKey) && e.key === 'a' && !e.shiftKey) {
+	if (isSelectAllChord(e)) {
 		e.preventDefault();
 		selectWholeDocument(selection, doc, getBlockElByPath);
 		return true;
@@ -260,7 +252,7 @@ async function handleCrossBlockEntry(
 	if (!el) return false;
 	const { selection, getDoc } = ctx;
 
-	if ((e.ctrlKey || e.metaKey) && e.key === 'a' && !e.shiftKey) {
+	if (isSelectAllChord(e)) {
 		e.preventDefault();
 		selection.incrementSelectAllCount();
 		if (selection.selectAllCount === 1) {
@@ -295,18 +287,10 @@ async function dispatchOverRange(
 		// dispatcher ahead of any per-block `runCommand`, so an absent one is not a decline.
 		{
 			kind: kindOfPath(path, ctx.getDoc()),
-			runCommand: (id, arg) => surface?.runCommand?.(id, arg) ?? false
+			runCommand: (id, arg) => surface?.runCommand?.(id, arg) ?? false,
+			getPath: () => path
 		},
-		{
-			history: ctx.history,
-			pluginEditor: ctx.pluginEditor,
-			activation: ctx.activePlugins,
-			getPresentationMode: ctx.reading.mode,
-			isCrossBlockRange: () => ctx.selection.isCrossBlock,
-			crossBlockCommands: ctx.crossBlockCommands
-		},
-		ctx.getKeybindingOverrides(),
-		ctx.onCommandError
+		ctx.commands
 	);
 }
 

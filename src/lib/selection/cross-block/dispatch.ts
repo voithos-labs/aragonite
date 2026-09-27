@@ -5,17 +5,16 @@
  * `keydown.ts` and pointer in `pointer.ts`; paste and type-replace pass through here.
  */
 
-import type { BlockEditActions, HistoryActions } from '../../action-contracts';
+import type { BlockEditActions } from '../../action-contracts';
 import type { BlockComponent } from '../../block-component';
-import type { BlockElLookup, DocumentGetter, PluginEditorLookup } from '../../editor-keys';
+import type { BlockElLookup, DocumentGetter } from '../../editor-keys';
 import type { UserScrollport } from '../../cursor/scroll-ancestors';
 import type { SelectionState } from '../selection-state.svelte';
 import type { SelectedWidgetHandle } from '../primitives';
 import type { CaretMemory } from '../../cursor/caret-memory';
 import type { CrossBlockMutationContext } from './ops';
 import type { CommitController } from '../../action-contracts';
-import type { KeybindingOverrideMap } from '../../schema/keybinding-overrides';
-import type { CommandErrorSink, CrossBlockCommandRouter } from '../../schema/block-commands';
+import type { CommandDispatchContext } from '../../schema/block-commands';
 import type { EditorEvents } from '../../editor-events';
 import type { Reading } from '../../schema/reading';
 import type { PluginActivation } from '../../schema/plugin-activation';
@@ -46,18 +45,11 @@ export interface CrossBlockDispatchContext {
 	caretMemory: CaretMemory;
 	blockEdit: BlockEditActions;
 	controller: CommitController;
-	history: HistoryActions;
-	// Passed so a post-delete command dispatch reaches a plugin-global handler and contains its
-	// throw. Required but nullable, so a new context constructor cannot silently skip it.
-	pluginEditor: PluginEditorLookup | undefined;
 	/** How the editor reads its bytes: the delete's join cleanup and the paste reparse read it, and
 	 *  the destructive branches refuse its reading mode. */
 	reading: Reading;
-	onCommandError: CommandErrorSink | undefined;
-	/** The handler a format chord takes over the live range; the dispatcher routes there rather
-	 *  than declining. Non-nullable: without it a format chord is swallowed and nothing happens. */
-	crossBlockCommands: CrossBlockCommandRouter;
-	getKeybindingOverrides: () => KeybindingOverrideMap;
+	/** The editor's command dispatch, which a chord claimed over a range is handed to. */
+	commands: CommandDispatchContext;
 	pasteCoordinator: PasteCommitCoordinator;
 	/** The plugins this instance activated, forwarded to the paste hooks. */
 	activePlugins: PluginActivation;

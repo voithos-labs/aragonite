@@ -6,6 +6,7 @@ import {
 	resolveKindBinding
 } from '$lib/schema/commands';
 import { dispatchKeyCommand } from '$lib/schema/block-commands';
+import { commandContext } from '../support/command-context';
 import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 import { augmentBuiltin, tryGetBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
 
@@ -14,11 +15,13 @@ describe('global command registry', () => {
 		const history = { requestUndo: vi.fn(), requestRedo: vi.fn() };
 		getCommand('history.undo', everyInstalledPlugin)!({
 			history,
-			activation: everyInstalledPlugin
+			activation: everyInstalledPlugin,
+			onCommandError: () => {}
 		});
 		getCommand('history.redo', everyInstalledPlugin)!({
 			history,
-			activation: everyInstalledPlugin
+			activation: everyInstalledPlugin,
+			onCommandError: () => {}
 		});
 		expect(history.requestUndo).toHaveBeenCalledOnce();
 		expect(history.requestRedo).toHaveBeenCalledOnce();
@@ -31,18 +34,13 @@ describe('global command registry', () => {
 });
 
 describe('dispatchKeyCommand', () => {
-	const ctx = {
-		history: { requestUndo: vi.fn(), requestRedo: vi.fn() },
-		activation: everyInstalledPlugin,
-		getPresentationMode: () => 'source' as const,
-		isCrossBlockRange: () => false,
-		crossBlockCommands: undefined
-	};
+	const history = { requestUndo: vi.fn(), requestRedo: vi.fn() };
+	const ctx = commandContext({ history });
 	it('routes a global chord to the global command (no runCommand call)', () => {
 		const runCommand = vi.fn(() => true);
 		expect(dispatchKeyCommand('Mod+Z', { kind: 'paragraph', runCommand }, ctx)).toBe(true);
 		expect(runCommand).not.toHaveBeenCalled();
-		expect(ctx.history.requestUndo).toHaveBeenCalled();
+		expect(history.requestUndo).toHaveBeenCalled();
 	});
 	it('routes an unmatched chord to neither and returns false', () => {
 		const runCommand = vi.fn(() => true);
@@ -160,7 +158,7 @@ describe('tableCell keymap: the table’s whole keyboard vocabulary', () => {
 	});
 
 	it('leaves the bare arrows and Mod+A unbound: both depend on the caret’s position', () => {
-		// Cell navigation and the three-stage select-all read where the caret sits inside
+		// Cell navigation and the two-press select-all read where the caret sits inside
 		// the cell, which a chord cannot express, so they stay with the keydown plan.
 		for (const chord of ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']) {
 			expect(resolveBinding(chord, 'tableCell', undefined, everyInstalledPlugin), chord).toBeNull();

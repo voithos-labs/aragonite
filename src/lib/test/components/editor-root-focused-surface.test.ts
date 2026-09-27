@@ -148,14 +148,18 @@ describe('editor-root focused surface', () => {
 		h.surface.focus();
 		const target = h.focused.commandTarget()!;
 		expect(target.kind).toBe('paragraph');
-		expect(target.runCommand('x' as never, 1)).toBe(true);
+		expect(target.runCommand?.('x' as never, 1)).toBe(true);
 		expect(runCommand).toHaveBeenCalledWith('x', 1);
 		expect(target.isCommandActive?.('x' as never)).toBe(true);
 	});
 
-	it('a block with no command surface is no target', () => {
+	// A block with no command bodies of its own still moves: the dispatch runs its reorder
+	// against the path, and every other built-in id declines for want of a `runCommand`.
+	it('a block with no command bodies is a target that only carries its path', () => {
 		const h = harness({ insertMarkdown: async () => true });
 		h.surface.focus();
-		expect(h.focused.commandTarget()).toBeNull();
+		const target = h.focused.commandTarget()!;
+		expect(target.runCommand).toBeUndefined();
+		expect(target.getPath?.()).toEqual(h.focused.path());
 	});
 });

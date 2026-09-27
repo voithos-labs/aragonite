@@ -1,14 +1,15 @@
 import { describe, it, expect } from 'vitest';
 import {
 	cellKeydownPlan,
-	type CellKeyInput,
 	type CellKeyPlan,
 	type CellKeyState
 } from '../../../components/blocks/table/cell-keydown-plan';
+import type { ChordKeys } from '../../../schema/keybindings';
 
-const key = (k: string, mods: Partial<CellKeyInput> = {}): CellKeyInput => ({
+const key = (k: string, mods: Partial<ChordKeys> = {}): ChordKeys => ({
 	key: k,
-	ctrlOrMeta: false,
+	ctrlKey: false,
+	metaKey: false,
 	shiftKey: false,
 	altKey: false,
 	...mods
@@ -43,7 +44,7 @@ const cell = (
 // reaches the plan was taken by nothing and must navigate; `native` hands it to the prose path,
 // which moves between siblings by index.
 describe('cellKeydownPlan: an unclaimed modified arrow still navigates', () => {
-	const cases: Array<[string, CellKeyInput, Partial<CellKeyState>, CellKeyPlan]> = [
+	const cases: Array<[string, ChordKeys, Partial<CellKeyState>, CellKeyPlan]> = [
 		[
 			'Alt+ArrowUp',
 			key('ArrowUp', { altKey: true }),
@@ -52,7 +53,7 @@ describe('cellKeydownPlan: an unclaimed modified arrow still navigates', () => {
 		],
 		[
 			'Mod+ArrowDown',
-			key('ArrowDown', { ctrlOrMeta: true }),
+			key('ArrowDown', { ctrlKey: true }),
 			{},
 			{ ...cell(2, 1, 'start'), setStickyColumn: 1 }
 		],
@@ -64,7 +65,7 @@ describe('cellKeydownPlan: an unclaimed modified arrow still navigates', () => {
 		],
 		[
 			'Mod+ArrowRight at the right edge',
-			key('ArrowRight', { ctrlOrMeta: true }),
+			key('ArrowRight', { ctrlKey: true }),
 			{ offset: 3 },
 			cell(1, 2, 'start')
 		]
@@ -85,7 +86,7 @@ describe('cellKeydownPlan: ctrl+a select-all stepping', () => {
 	];
 	for (const [selectAllCount, step] of steps) {
 		it(`count ${selectAllCount} → ${step}`, () => {
-			expect(cellKeydownPlan(key('a', { ctrlOrMeta: true }), state({ selectAllCount }))).toEqual({
+			expect(cellKeydownPlan(key('a', { ctrlKey: true }), state({ selectAllCount }))).toEqual({
 				kind: 'select-all-step',
 				step
 			});
@@ -95,7 +96,7 @@ describe('cellKeydownPlan: ctrl+a select-all stepping', () => {
 	// CapsLock reports the letter uppercased, so testing only `'a'` would miss the staged
 	// select-all entirely: the plan falls through to 'native' and the counter never moves.
 	it('starts the run with CapsLock on', () => {
-		expect(cellKeydownPlan(key('A', { ctrlOrMeta: true }), state({ selectAllCount: 1 }))).toEqual({
+		expect(cellKeydownPlan(key('A', { ctrlKey: true }), state({ selectAllCount: 1 }))).toEqual({
 			kind: 'select-all-step',
 			step: 'document'
 		});
@@ -103,7 +104,7 @@ describe('cellKeydownPlan: ctrl+a select-all stepping', () => {
 });
 
 describe('cellKeydownPlan: arrow boundary moves', () => {
-	const cases: Array<[string, CellKeyInput, Partial<CellKeyState>, CellKeyPlan]> = [
+	const cases: Array<[string, ChordKeys, Partial<CellKeyState>, CellKeyPlan]> = [
 		['ArrowLeft at offset 0 mid-row', key('ArrowLeft'), { offset: 0 }, cell(1, 0, 'end')],
 		[
 			'ArrowLeft at offset 0 first cell',
@@ -158,7 +159,7 @@ describe('cellKeydownPlan: arrow boundary moves', () => {
 });
 
 describe('cellKeydownPlan: tab and enter', () => {
-	const cases: Array<[string, CellKeyInput, Partial<CellKeyState>, CellKeyPlan]> = [
+	const cases: Array<[string, ChordKeys, Partial<CellKeyState>, CellKeyPlan]> = [
 		['Tab mid-table', key('Tab'), {}, cell(1, 2, 'start')],
 		['Tab last cell', key('Tab'), { rowIdx: 2, colIdx: 2 }, { kind: 'insert-row-below' }],
 		['Shift+Tab mid-table', key('Tab', { shiftKey: true }), {}, cell(1, 0, 'end')],
@@ -179,7 +180,7 @@ describe('cellKeydownPlan: tab and enter', () => {
 });
 
 describe('cellKeydownPlan: backspace, delete, and native fallthrough', () => {
-	const cases: Array<[string, CellKeyInput, Partial<CellKeyState>, CellKeyPlan]> = [
+	const cases: Array<[string, ChordKeys, Partial<CellKeyState>, CellKeyPlan]> = [
 		['Backspace at offset 0', key('Backspace'), { offset: 0 }, cell(1, 0, 'end')],
 		[
 			'Backspace at offset 0 with selection',

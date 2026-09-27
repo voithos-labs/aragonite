@@ -30,8 +30,8 @@ export interface FocusedSurfaceDeps {
 
 export interface FocusedSurface {
 	path(): number[] | null;
-	/** Null for a gap caret's stand-in element or a block that runs no commands; global commands
-	 *  still reach the dispatch, exactly as the gap caret's own chord handling does. */
+	/** Null for a gap caret's stand-in element; global commands still reach the dispatch,
+	 *  exactly as the gap caret's own chord handling does. */
 	commandTarget(): KindCommandTarget | null;
 	/** Routed the way a paste event is: transforms, delete-first, one undo entry and focus
 	 *  all live in the block. `below` pastes into a new paragraph after the top-level block.
@@ -73,13 +73,14 @@ export function createFocusedSurface(deps: FocusedSurfaceDeps): FocusedSurface {
 			if (!at) return null;
 			const component = deps.getBlockComponent(at);
 			const node = blockNodeAt(deps.getDoc(), at);
-			if (!component?.runCommand || !node) return null;
+			if (!component || !node) return null;
+			const { runCommand, isCommandActive, afterSourceCommit } = component;
 			return {
 				kind: node.kind,
-				runCommand: (id, arg) => component.runCommand!(id, arg),
-				isCommandActive: component.isCommandActive
-					? (id) => component.isCommandActive!(id)
-					: undefined
+				runCommand: runCommand && ((id, arg) => runCommand.call(component, id, arg)),
+				isCommandActive: isCommandActive && ((id) => isCommandActive.call(component, id)),
+				getPath: () => at,
+				afterSourceCommit: afterSourceCommit && ((run) => afterSourceCommit.call(component, run))
 			};
 		},
 		insertMarkdown(md, options) {

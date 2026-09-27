@@ -41,8 +41,6 @@ import {
 import { parkFocusOnEditorRoot } from '../../selection/native-bridge';
 import { assertInvariant } from '../../assert';
 import { checkRenderedTextFidelity } from '../../invariants/render-fidelity';
-import { resolveBinding } from '../../schema/commands';
-import { eventToChord } from '../../schema/keybindings';
 import { resetForPointerDown } from '../../selection/cross-block/pointer';
 import { placeCaret } from '../../selection/caret-doors';
 import { createSourceReveal } from '../../cursor/reveal-source';
@@ -55,11 +53,9 @@ import {
 } from '../../core/lines';
 import type { PresentationMode } from '../../presentation-mode';
 import { tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
-import { type CommandId } from '../../schema/commands';
 import { type BlockCommandContext } from '../../schema/block-commands';
 import type { EditorContext } from '../../schema/plugin-install';
 import { owningPluginEditor } from '../../schema/plugin-kind';
-import { reorderRunCommand } from '../../editor-actions/reorder-action';
 import { createTextBatch } from '../../editor-actions/commit/text-batch';
 
 export type EditableLeafMode = 'plain' | 'render-primary';
@@ -196,7 +192,6 @@ export interface EditableLeaf {
 	getSelectedText(): string;
 	setSelection(start: number, end: number): void;
 	measurePartialRects(startOffset: number, endOffset: number): DOMRect[];
-	runCommand(id: CommandId): boolean;
 
 	// ── Programmatic edits ─────────────────────────────────────────────────────
 	/** Insert Markdown at the caret exactly as pasting it here would, without the clipboard:
@@ -247,17 +242,13 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		getDoc,
 		getBlockElByPath,
 		getEditorRoot,
-		pluginEditor,
-		activePlugins,
 		events: editorEvents,
-		reading
+		reading,
+		commands
 	} = wiring.deps;
-	const { reorder, inlineMenuCombobox } = getContext<EditorServices>(EDITOR_SERVICES_KEY);
-	const {
-		theme: getThemeCtx,
-		keybindingOverrides,
-		onPasteImage
-	} = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
+	const { pluginEditor } = commands;
+	const { inlineMenuCombobox } = getContext<EditorServices>(EDITOR_SERVICES_KEY);
+	const { theme: getThemeCtx, onPasteImage } = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
 	const getPresentationMode = reading.mode;
 	const getTheme = (): string => getThemeCtx?.() ?? 'dark';
 	// Resolved by the kind's recorded owner, like the command context's `editor`.
@@ -436,10 +427,6 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		})();
 	}
 
-	function runCommand(id: CommandId): boolean {
-		return reorderRunCommand(id, reorder, deps.getPath);
-	}
-
 	const getCommandContext = () => buildLeafCommandContext(deps, blockEdit, pluginEditor);
 
 	// ── View sync ──────────────────────────────────────────────────────────────
@@ -591,7 +578,11 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	/** Resolve a chord at this leaf's kind and report whether it was consumed. Both views spend
 	 *  it: undo belongs to the block whatever half of the swap holds focus. */
 	const dispatchChord = (e: KeyboardEvent): boolean =>
-		wiring.dispatchChord(e, { kind: deps.getNode().kind, runCommand, getCommandContext });
+		wiring.dispatchChord(e, {
+			kind: deps.getNode().kind,
+			getCommandContext,
+			getPath: deps.getPath
+		});
 
 	async function handleKeydown(e: KeyboardEvent): Promise<void> {
 		const el = deps.getEl();
@@ -602,7 +593,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		// Undo inside a shown painted source steps through this session's own edits, which the
 		// document sees as one entry written on blur. Resolved through the keymap like any chord.
 		if (deps.renderSource && isRevealed()) {
-			const command = historyCommandFor(e);
+			const command = wiring.resolveChord(e, deps.getNode().kind);
 			if (command === 'history.undo' && sourceUndo.length > 0) {
 				e.preventDefault();
 				restoreSourceEntry(el, sourceUndo, sourceRedo);
@@ -695,13 +686,6 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		const start = clampToLandableRaw(el, range.start);
 		const end = Math.max(start, clampToLandableRaw(el, range.end));
 		spliceSourceText(el, start, end, insert);
-	}
-
-	function historyCommandFor(e: KeyboardEvent): string | undefined {
-		const chord = eventToChord(e);
-		if (!chord) return undefined;
-		return resolveBinding(chord, deps.getNode().kind, keybindingOverrides(), activePlugins)
-			?.command;
 	}
 
 	function hasSelectionIn(el: HTMLElement): boolean {
@@ -830,7 +814,6 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 			const box = getBlockElByPath(deps.getPath());
 			return box ? [box.getBoundingClientRect()] : [];
 		},
-		runCommand,
 
 		insertMarkdown: clipboard.insertMarkdown,
 

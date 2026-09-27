@@ -14,25 +14,16 @@ import { normalizeKeybindingOverrides } from '$lib/schema/keybinding-overrides';
 import type { AnyCommandId } from '$lib/schema/command-id';
 import type { PresentationMode } from '$lib/presentation-mode';
 import { takeDevWarns } from '../support/warn-gate';
-import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
+import { commandContext, commandContextWith } from '../support/command-context';
 
 afterEach(() => {
 	__resetSchemaRegistriesForTests();
 });
 
 let undos = 0;
-function context(over: Partial<CommandDispatchContext> = {}): CommandDispatchContext {
-	return {
-		history: { requestUndo: () => void undos++, requestRedo: () => {} },
-		activation: everyInstalledPlugin,
-		getPresentationMode: () => 'source',
-		isCrossBlockRange: () => false,
-		crossBlockCommands: undefined,
-		...over
-	};
-}
-
+const context = (over: Parameters<typeof commandContext>[0] = {}) =>
+	commandContext({ history: { requestUndo: () => void undos++, requestRedo: () => {} }, ...over });
 function target(ran: string[]): KindCommandTarget {
 	return {
 		kind: 'paragraph',
@@ -68,7 +59,7 @@ describe('runCommandById level order', () => {
 		const overrides = normalizeKeybindingOverrides([
 			{ chord: 'Mod+Shift+K', command: id, kind: 'paragraph' }
 		]);
-		expect(dispatchKeyCommand('Mod+Shift+K', surface, context(), overrides)).toBe(true);
+		expect(dispatchKeyCommand('Mod+Shift+K', surface, commandContextWith(overrides))).toBe(true);
 
 		expect(globals).toBe(2);
 		expect(ranBlock).toEqual([]);
@@ -140,9 +131,9 @@ describe('runCommandById gates', () => {
 			{ chord: 'Mod+Alt+G', command: 'format.toggleStrong', kind: 'paragraph' },
 			{ chord: 'Mod+Alt+L', command: 'link.openCard', kind: 'paragraph' }
 		]);
-		const ctx = context({ isCrossBlockRange: () => true });
-		expect(dispatchKeyCommand('Mod+Alt+G', target(ran), ctx, overrides)).toBe(false);
-		expect(dispatchKeyCommand('Mod+Alt+L', target(ran), ctx, overrides)).toBe(false);
+		const ctx = commandContextWith(overrides, { isCrossBlockRange: () => true });
+		expect(dispatchKeyCommand('Mod+Alt+G', target(ran), ctx)).toBe(false);
+		expect(dispatchKeyCommand('Mod+Alt+L', target(ran), ctx)).toBe(false);
 		expect(ran).toEqual([]);
 	});
 });

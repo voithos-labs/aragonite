@@ -117,7 +117,6 @@
 	export const getSelectedText = leaf.getSelectedText;
 	export const setSelection = leaf.setSelection;
 	export const measurePartialRects = leaf.measurePartialRects;
-	export const runCommand = leaf.runCommand;
 	export const insertMarkdown = leaf.insertMarkdown;
 
 	void ({
@@ -130,7 +129,6 @@
 		getSelectedText,
 		setSelection,
 		measurePartialRects,
-		runCommand,
 		insertMarkdown
 	} satisfies BlockComponent);
 </script>

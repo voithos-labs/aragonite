@@ -17,7 +17,7 @@ import type { EditorContext } from './schema/plugin-install';
 import type { RegistryView } from './schema/registry-view';
 import type { Reading } from './schema/reading';
 import type { PluginActivation } from './schema/plugin-activation';
-import type { CrossBlockCommandRouter } from './schema/block-commands';
+import type { CommandDispatchContext } from './schema/block-commands';
 import type { EditorRects } from './editor-rects';
 import type { EditorEvents } from './editor-events';
 import type { UndoController } from './editor-actions/deps';
@@ -182,9 +182,9 @@ export interface EditorServices {
 	/** The instance's `EditorRects`, handed to every block component as a prop so a block can
 	 *  measure, scroll into view, or scroll to a path through one entry point. */
 	rects: EditorRects;
-	/** The branch a format command takes while a cross-block range is painted, threaded into
-	 *  every dispatch check so the chord, the per-kind rebinding and `runCommand` share it. */
-	crossBlockCommands: CrossBlockCommandRouter;
+	/** What every chord and `runCommand` in this editor dispatches against: one history, one set
+	 *  of overrides, one error channel. */
+	commands: CommandDispatchContext;
 	/** How many editor menus are showing; a block's own menu attaches `track` to its root. */
 	menuPresence: MenuPresence;
 	/** The label a typed kind change leaves on its block for a moment (`kind-cue.svelte.ts`). */

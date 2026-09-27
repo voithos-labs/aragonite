@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 //
-// The three-stage Ctrl+A inside a cell, from the cell's text to the whole table to the whole
-// document, counts keypresses on the shared `SelectionState`. That counter's reset on keydown
+// The two-press Ctrl+A inside a cell, from the cell's text to the whole document, counts
+// keypresses on the shared `SelectionState`. That counter's reset on keydown
 // must stay reachable from every branch the cell takes, not from the 'native' branch alone, or a
 // key the cell handles leaves a stage pending and the next Ctrl+A skips one.
 import { describe, it, expect, afterEach, beforeAll } from 'vitest';

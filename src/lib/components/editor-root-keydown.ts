@@ -8,32 +8,22 @@
  */
 
 import { claimsBodyChord, isForeignTextEntry } from '../active-editor';
-import type { PluginEditorLookup } from '../editor-keys';
-import type { PluginActivation } from '../schema/plugin-activation';
-import type { PresentationMode } from '../presentation-mode';
 import type { SearchState } from '../search/search-state.svelte';
 import type { CrossBlockHandlers } from '../selection/cross-block/dispatch';
-import type { CommandErrorSink } from '../schema/block-commands';
-import type { KeybindingOverrideMap } from '../schema/keybinding-overrides';
-import { isReservedUiChord, runGlobalChord, type GlobalCommandContext } from '../schema/commands';
+import type { CommandDispatchContext } from '../schema/block-commands';
+import { isReservedUiChord, runGlobalChord } from '../schema/commands';
 import { eventToChord, isCharacterKey } from '../schema/keybindings';
 
 export interface EditorRootKeydownDeps {
-	/** Getters, never values: capturing them would freeze the reading-mode check and the
-	 *  override map at construction time. */
+	/** Getters, never values: capturing them would freeze the flags at construction time. */
 	get searchBarEnabled(): boolean;
-	get mode(): PresentationMode;
 	/** One predicate, so the root Mod+H and the bar's chevron cannot diverge on when
 	 *  the replace row may open. */
 	get canReplace(): boolean;
-	get keybindingOverrides(): KeybindingOverrideMap;
 	get isCrossBlock(): boolean;
 	search: SearchState;
-	history: GlobalCommandContext['history'];
-	pluginEditor: PluginEditorLookup;
-	/** The plugins this instance activated, so the root takes only its own plugins' chords. */
-	activation: PluginActivation;
-	onCommandError: CommandErrorSink;
+	/** The editor's command dispatch, which takes only this instance's plugins' chords. */
+	commands: CommandDispatchContext;
 	crossBlock: Pick<CrossBlockHandlers, 'handleKeyDown' | 'insertText'>;
 	/** True for nodes in the host's own header: they sit inside `root.contains`
 	 *  without being the editor's own content. */
@@ -118,18 +108,8 @@ export function createEditorRootKeydown(deps: EditorRootKeydownDeps): EditorRoot
 			if (!ownsWindowedOutCaret(root, active)) return;
 
 			// No block is focused here, so resolve globally, overrides included, or a consumer's
-			// global rebind would be dead in this one place. `runGlobalChord` applies the
-			// reading-mode check and reports whether it handled the key.
-			if (
-				chord &&
-				runGlobalChord(chord, deps.keybindingOverrides, {
-					isReading: deps.mode === 'reading',
-					history: deps.history,
-					pluginEditor: deps.pluginEditor,
-					activation: deps.activation,
-					onCommandError: deps.onCommandError
-				})
-			) {
+			// global rebind would be dead in this one place.
+			if (chord && runGlobalChord(chord, deps.commands)) {
 				event.preventDefault();
 				return;
 			}

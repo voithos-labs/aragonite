@@ -16,10 +16,9 @@ import {
 	extendFocusToPreviousBlock
 } from '../../selection/keyboard-extend';
 import { parse } from '../../core/parser';
-import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 import { fixtureReading } from '$lib/test/harness/fixture-grammar';
 import { createCaretMemory } from '$lib/cursor/caret-memory';
-import { normalizeKeybindingOverrides } from '$lib/schema/keybinding-overrides';
+import { commandContext } from '$lib/test/support/command-context';
 
 const toPrev = vi.mocked(extendFocusToPreviousBlock);
 const toNext = vi.mocked(extendFocusToNextBlock);
@@ -34,7 +33,7 @@ function makeCtx(over: {
 	// blanket cast is what let a new required reader ship unanswered here.
 	return {
 		// No plugins stood up here, so every installed one is active.
-		activePlugins: everyInstalledPlugin,
+		commands: commandContext(),
 		reading: fixtureReading(),
 		getEl: () => document.createElement('div'),
 		getCursorOffset: () => over.cursorOffset,
@@ -51,7 +50,6 @@ function makeCtx(over: {
 			resetSelectAllCount: () => {}
 		} as unknown as SharedKeydownContext['selection'],
 		caretMemory: createCaretMemory(),
-		getKeybindingOverrides: () => normalizeKeybindingOverrides([]),
 		history: {} as SharedKeydownContext['history'],
 		focus: {} as SharedKeydownContext['focus'],
 		getDoc: () => doc,
