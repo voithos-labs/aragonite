@@ -203,6 +203,9 @@ export interface EditableLeaf {
 	/** Commit edited source as one undo entry, fire and forget; the parse decides update / kind
 	 *  change / structural split. */
 	commitSource(edited: string): void;
+	/** Run `run` once a shown source is hidden and written, so a move from outside the block takes
+	 *  the edit along: publish it as the component's `afterSourceCommit`. */
+	afterSourceCommit(run: () => void): void;
 }
 
 /**
@@ -397,6 +400,12 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		await commitSource(edited);
 	}
 
+	// Forced, because a cross-block range would put the write off a frame and the command runs now.
+	function afterSourceCommit(run: () => void): void {
+		if (mode !== 'render-primary' || !isRevealed()) return run();
+		void commitReveal(true).then(run);
+	}
+
 	// ── BlockComponent surface ─────────────────────────────────────────────────
 
 	function parkCaret(offset: number): void {
@@ -581,7 +590,8 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		wiring.dispatchChord(e, {
 			kind: deps.getNode().kind,
 			getCommandContext,
-			getPath: deps.getPath
+			getPath: deps.getPath,
+			afterSourceCommit
 		});
 
 	async function handleKeydown(e: KeyboardEvent): Promise<void> {
@@ -821,6 +831,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 			if (mode !== 'render-primary') return Promise.resolve(surface.focus(offset));
 			return isReading() ? Promise.resolve() : revealSource(offset);
 		},
-		commitSource: (edited) => void commitSource(edited)
+		commitSource: (edited) => void commitSource(edited),
+		afterSourceCommit
 	};
 }

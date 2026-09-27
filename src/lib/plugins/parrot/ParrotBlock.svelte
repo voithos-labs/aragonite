@@ -246,6 +246,7 @@ cNd.........................................;lOc
 	export const setSelection = leaf.setSelection;
 	export const measurePartialRects = leaf.measurePartialRects;
 	export const insertMarkdown = leaf.insertMarkdown;
+	export const afterSourceCommit = leaf.afterSourceCommit;
 </script>
 
 <div

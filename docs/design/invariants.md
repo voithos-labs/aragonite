@@ -892,6 +892,7 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.70 | A decoration can't set a data attribute the editor uses on a block's own element | L       |
 | G4.71 | An emptiness test on text reads GFM's blank, not `String.trim()`                 | L       |
 | G4.72 | The Markdown grammar reads GFM's whitespace, not JS `\s` or `trim()`             | L       |
+| G4.73 | Every editable-leaf component publishes `afterSourceCommit`                      | L       |
 
 ### The entries
 
@@ -1546,6 +1547,14 @@ and the bundled plugins are in the scan too. The plugins read the same helpers t
 isn't Markdown (the slash menu's typed query, a render's ink check, a KaTeX error message), each
 with why. The math plugin's `$` flanking test is on it too: it reads Unicode whitespace the way
 emphasis does, so a French price like `5 $` stays prose. `lint/file-rules.test.ts`.
+
+**G4.73 · Leaf source-commit parity.** Every component mounting an editable leaf
+(`createEditableLeaf`) publishes `afterSourceCommit` as an instance export. A render-primary leaf
+holds an open source's edit in the DOM until blur, and a move from outside the block (a host's
+`editor.runCommand('block.moveDown')`, a move chord the kind binds) waits on that hook to write it
+first. `BlockComponent` declares it optional, so leaf N+1 would compile clean and lose the edit on
+every such move. A third-party plugin is outside the scan and gets the same one-line re-export in
+the plugin guide. `lint/file-rules.test.ts`.
 
 ## Accessibility
 

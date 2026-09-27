@@ -13,7 +13,9 @@ import {
 } from '$lib/test/harness/mount-editor.svelte';
 import { pressKey, dispatchKey } from '$lib/test/harness/settle';
 import { resetPluginPlatformForTests } from '$lib/testing';
-import { latexPlugin } from '$lib/plugins/latex';
+import { latexPlugin, MATH_BLOCK } from '$lib/plugins/latex';
+import type { KeybindingOverride } from '$lib/schema/keybinding-overrides';
+import { declarePluginKind } from '$lib/schema/plugin-kind';
 import type { MathRenderer } from '$lib/plugins/latex/math-renderer';
 
 const stubRenderer: MathRenderer = () => ({ dom: document.createElement('span') });
@@ -30,7 +32,12 @@ afterEach(async () => {
 	resetPluginPlatformForTests();
 });
 
-type Seam = { getBlockComponent(path: number[]): { enterEdgeWidget?(side: 'start'): boolean } };
+type Seam = {
+	getBlockComponent(path: number[]): {
+		enterEdgeWidget?(side: 'start'): boolean;
+		focus?(offset: number): void;
+	};
+};
 
 /** Show the `$x$` widget's source in the block at `path`, and edit it to `$y$` in the DOM. */
 async function showAndEditSource(mounted: MountedEditor<Seam>, surface: HTMLElement) {
@@ -93,4 +100,53 @@ describe('a move from a block showing a widget source', () => {
 			expect(mounted.source()).toBe('next\n\n| h |\n| --- |\n| a $y$ |\n');
 		});
 	}
+});
+
+// Miss-analysis: the block rows above covered the text block and the cell, and no row moved a
+// plugin block built on the editable leaf, whose command target had no hook to write its source.
+describe('a move from a math block showing its source', () => {
+	const MOVE_KEY: KeybindingOverride = {
+		chord: 'Alt+ArrowDown',
+		command: 'block.moveDown',
+		kind: declarePluginKind(MATH_BLOCK)
+	};
+
+	/** Show the `$$` block's source and edit `old` to `new` in the DOM, where the edit lives until blur. */
+	async function mountWithEditedMath(keybindings: KeybindingOverride[] = []) {
+		const mounted = mountEditor<Seam>({
+			source: '$$\nold\n$$\n\nnext\n',
+			plugins: [latexPlugin({ renderer: stubRenderer })],
+			keybindings
+		});
+		await mounted.settle();
+		mounted.instance.__test.getBlockComponent([0]).focus?.(3);
+		await mounted.settle();
+		const source = mounted.target.querySelector<HTMLElement>('.math-block-source');
+		expect(source, 'the math source is not showing').not.toBeNull();
+		source!.textContent = '$$\nnew\n$$';
+		return { mounted, source: source! };
+	}
+
+	for (const via of ['host', 'key'] as const) {
+		it(`writes the source first (${via})`, async () => {
+			const { mounted, source } = await mountWithEditedMath(via === 'key' ? [MOVE_KEY] : []);
+
+			await move(mounted, source, via, { key: 'ArrowDown', altKey: true });
+
+			expect(mounted.source()).toBe('next\n\n$$\nnew\n$$\n');
+			mounted.instance.runCommand('history.undo');
+			await mounted.settle();
+			expect(mounted.source()).toBe('$$\nnew\n$$\n\nnext\n');
+		});
+	}
+
+	it('keeps the edit when the kind binds no move key', async () => {
+		const { mounted, source } = await mountWithEditedMath();
+
+		await pressKey(source, { key: 'ArrowDown', altKey: true });
+		expect(mounted.source()).toBe('$$\nold\n$$\n\nnext\n');
+		source.dispatchEvent(new FocusEvent('focusout', { bubbles: true }));
+		await mounted.settle();
+		expect(mounted.source()).toBe('$$\nnew\n$$\n\nnext\n');
+	});
 });
