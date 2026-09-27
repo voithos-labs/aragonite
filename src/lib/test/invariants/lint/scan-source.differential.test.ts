@@ -1,9 +1,8 @@
 /**
- * G4.57: the guards' own lexer, held against TypeScript's. Every source-scan census reads code
- * through `spanAt`, so a literal it misreads shrinks a dozen populations at once with nothing
- * red. Each character of every scanned `.ts` file and every `.svelte` script block is classified
- * comment/string/template/regex/code by both, and the two must agree. TypeScript cannot lex
- * markup, so the markup half is pinned against a corpus instead.
+ * The source-scan lexer, held against TypeScript's (G4.57). Every census reads code through
+ * `spanAt`, so a literal it misreads shrinks a dozen populations at once with nothing failing.
+ * Both classify each character of every scanned `.ts` file and `.svelte` script block and must
+ * agree; TypeScript cannot lex markup, so the markup half is pinned against a corpus instead.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -145,10 +144,8 @@ function classLine(source: string): string {
 	return Array.from(lexicalClasses(source), (cls) => CLASS_LETTERS[cls]).join('');
 }
 
-/** Markup shapes TypeScript cannot lex. The last two record a simplification rather than the
- *  truth: inside a quoted attribute an interpolation reads as string text, and markup prose
- *  opens a string on an apostrophe. Each is confined to its line and blanks nothing, so a
- *  census loses at most one line's brackets and never a byte to blanking. */
+/** Markup shapes TypeScript cannot lex. The last two pin a simplification, each confined to its
+ *  line: an interpolation in a quoted attribute reads as string, a prose apostrophe opens one. */
 const MARKUP_CORPUS: Array<[source: string, classes: string]> = [
 	['{a}/{b /* c */}', '.......ccccccc.'],
 	['<Foo {...rest} /><Bar {...rest} />', '.'.repeat(34)],
@@ -196,8 +193,8 @@ describe('G4.57 the scan lexer reads what TypeScript reads', () => {
 		).toEqual([]);
 	});
 
-	// G4.26 and G4.48 lex the test tree and `src/routes` as well, so the reference has to reach
-	// what they read. Collected inside the test, where the timeout covers it.
+	// The comment and wall-clock lints also lex the test tree and `src/routes` (G4.26, G4.48);
+	// collected inside the test, where the timeout covers it.
 	it('the wider census corpus, tests and routes included, lexes the same', () => {
 		// Deduped by path: `REPO_WIDE_ROOTS` already carries `src/routes/test/plugins`, and a
 		// file scanned twice reports its divergence twice.
@@ -238,8 +235,7 @@ describe('G4.57 the scan lexer reads what TypeScript reads', () => {
 		for (const [source, classes] of MARKUP_CORPUS) expect(classLine(source), source).toBe(classes);
 	});
 
-	// Miss-analysis: no scanned file puts a regex after an arithmetic, bitwise or `??` operator,
-	// so the differential had nothing to disagree on and the predecessor list stayed short.
+	// Miss-analysis: no scanned file puts a regex after an arithmetic, bitwise or `??` operator.
 	it.each(SLASH_AFTER_OPERATOR)(
 		'a slash after %s lexes as TypeScript reads it',
 		(_op, source, opensRegex) => {

@@ -1,7 +1,6 @@
 /**
- * The per-call scan's own probes, run once here rather than in every rule table: a failing call
- * is keyed by its enclosing function, a declaration and a comment mention are never calls, an
- * allowlist key survives an edit above it and reds once stale, and an unclosed call is a violation.
+ * Self-tests for the shared per-call scan in `call-site-rule.ts`, run once here rather than in
+ * every rule table.
  */
 
 import { describe, it, expect } from 'vitest';

@@ -1,8 +1,7 @@
 /**
- * G2.10's keydown rule, checked by scanning the source because it does not fit in a type: every
- * keydown path tells the caret memory about the key through `noteKey`, which decides what the key
- * does to the column, the side and the marks. A handler calling `forget()` instead is the shape
- * that let the cross-block dispatcher drop the column on keys it consumed.
+ * Every keydown path tells the caret memory about the key through `noteKey`, which decides what
+ * the key does to the column, the side and the marks (G2.10). A source scan, since no type can say
+ * it; a handler calling `forget()` instead drops the column on keys it consumes.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -11,11 +10,8 @@ import { collectEditorSources } from './scan-source';
 const FORGET_RE_ALL = /\bcaretMemory\.forget\s*\(/g;
 const NOTE_KEY_RE = /\bcaretMemory\.noteKey\s*\(/;
 
-/**
- * The keydown entry paths, each of which has to go through `noteKey`. Listed explicitly rather
- * than derived from the file name, which misses entry paths like the whole-block key tail, where
- * four arrows were consumed with the column left untouched.
- */
+/** The keydown entry paths, each of which has to go through `noteKey`. Listed by hand, since a
+ *  file-name match misses entry paths like the container components' key handling. */
 const KEYDOWN_ENTRY_FILES = [
 	'src/lib/selection/shared-keydown.ts',
 	'src/lib/selection/cross-block/keydown.ts',
@@ -33,12 +29,8 @@ const KEYDOWN_FORGET_EXCEPTIONS: Record<string, { count: number; why: string }> 
 
 const isKeydownFile = (relPath: string) => /keydown/i.test(relPath);
 
-/**
- * Every file the file-name scan picks up. The scan catches a dispatcher nobody added to
- * `KEYDOWN_ENTRY_FILES`, but it also picks up files holding no caret memory, which pass its
- * zero-forget check trivially. Pinning the set exactly turns a new keydown-named file into a
- * decision: dispatcher, router, or pure transform.
- */
+/** Every file the file-name scan picks up, pinned exactly so a new keydown-named file forces a
+ *  decision: a dispatcher joins `KEYDOWN_ENTRY_FILES`, anything else says why it's exempt. */
 const KEYDOWN_PATH_NAMED_FILES: Record<string, string> = {
 	'src/lib/selection/shared-keydown.ts': 'dispatcher: classifies through noteKey',
 	'src/lib/selection/cross-block/keydown.ts': 'dispatcher: classifies through noteKey',
@@ -110,8 +102,8 @@ describe('G2.10 keydown entry-point guard', () => {
 
 	// ── Matcher self-tests (non-vacuity) ─────────────────────────────────────
 
-	// The file-name matcher covers the direct-forget rule only: the list of entry paths is its own,
-	// so one whose file name omits "keydown" is still held to `noteKey`.
+	// The file-name matcher covers the direct-forget rule only; an entry path whose file name omits
+	// "keydown" is still held to `noteKey` through its own list.
 	it('the forget-scan matcher selects the path-named modules and skips unrelated sources', () => {
 		expect(isKeydownFile('src/lib/selection/shared-keydown.ts')).toBe(true);
 		expect(isKeydownFile('src/lib/selection/cross-block/keydown.ts')).toBe(true);

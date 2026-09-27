@@ -11,12 +11,8 @@ import { describe, it, expect } from 'vitest';
 import { EDITOR_SRC, collectEditorSources, type SourceFile } from './scan-source';
 import { probeFile } from './file-rule';
 
-/**
- * Where a live gesture can live: the block components and the caret, selection, tree and view
- * layers they dispatch into. `core/` and `schema/` sit outside on purpose, because the parser
- * names every kind to build the tree and the table's own registration names every kind to declare
- * its rows.
- */
+/** Where a live gesture can live: the block components and the layers they dispatch into. `core/`
+ *  and `schema/` sit outside, since the parser and the table's registration name every kind. */
 const GESTURE_ROOTS = [
 	'components',
 	'cursor',
@@ -70,7 +66,7 @@ const namesConstructKind = (file: SourceFile): boolean => KIND_LITERAL.test(file
 // ── The branches that read rows ──────────────────────────────────────────────
 
 /** Every reader of the table, and which column it is there for. Set equality both ways, so a new
- *  reader is a decision rather than a silent eighth opinion on a row's meaning. */
+ *  reader is a decision rather than one more silent opinion on a row's meaning. */
 const POLICY_ARMS: Record<string, string> = {
 	'src/lib/components/blocks/text/construct-edge-delete.ts':
 		'the destructive arm: autoUnwrapOnEmpty, and the mark column to say which unwrapped construct a chord can write again',
@@ -94,10 +90,8 @@ const POLICY_ARMS: Record<string, string> = {
 	'src/lib/inline-menu/inline-menu-session.ts': 'whether a trigger sits in prose: prose'
 };
 
-/** A file asking both tables, and why it needs both answers. Only a whole block legitimately
- *  does: it hosts every inline kind at once, so it meets the delimiter-run question and the
- *  widget question on the same keystroke. Anything below a block asking both is the boundary
- *  blurring, which is what this list is here to make visible. */
+/** A file asking both tables, and why. Only a whole block legitimately does, hosting every inline
+ *  kind at once; anything below a block asking both blurs the boundary between the tables. */
 const BOTH_TABLE_READERS: Record<string, string> = {
 	'src/lib/components/blocks/text/TextEditableBlock.svelte':
 		'the prose surface: which mark a format command toggles, and whether a node is an island',

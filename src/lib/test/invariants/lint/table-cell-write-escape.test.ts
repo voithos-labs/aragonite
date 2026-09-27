@@ -1,8 +1,8 @@
 /**
  * The table cell's escape has one implementation. A cell's raw is joined verbatim into its row,
  * and the parser truncates a row that reparses wider than the delimiter's column count, so one
- * unescaped `|` silently deletes the last column's content; a second escape is what once let two
- * of them disagree. The content write applies it and maps the caret (`content-write-caret`).
+ * unescaped `|` silently deletes the last column's content. The content write applies the escape
+ * and maps the caret (`content-write-caret`).
  */
 
 import { describe, it, expect } from 'vitest';

@@ -1,5 +1,5 @@
 /**
- * G4.60, every spread into a call's argument list in shipped source is declared. A spread passes
+ * Every spread into a call's argument list in shipped source is declared (G4.60). A spread passes
  * one argument per element, and a list past the engine's limit throws "Maximum call stack size
  * exceeded" at the call, leaving the operation half done. A site declares either the ceiling its
  * count can't pass, or that the count grows with the document. Array-literal spread (`[...x]`)

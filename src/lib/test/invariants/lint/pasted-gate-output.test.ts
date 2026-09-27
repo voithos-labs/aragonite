@@ -3,7 +3,7 @@
  * `check-codebase-map.mjs` deliberately cannot see. So every pasted `codebase-map:`, `docs-links:`
  * or `docs-pack:` line is matched against what the script actually prints, green run and failure
  * run alike. `…` and `...` are the elision markers the docs already use, and match anything;
- * everything else is literal, so a drifted count or a reworded suffix reds the run.
+ * everything else is literal, so a drifted count or a reworded suffix fails the run.
  */
 import { describe, it, expect } from 'vitest';
 import { execFileSync, type ExecFileSyncOptionsWithStringEncoding } from 'node:child_process';
@@ -18,11 +18,8 @@ const PREFIXES = ['codebase-map:', 'docs-links:', 'docs-pack:'];
 
 // ── What the scripts print ───────────────────────────────────────────────────
 
-/**
- * Both scripts read their corpus from the working directory, so a failure run is a temp tree
- * holding one doc that breaks the rule. Without it only the green half of each message set
- * would ever be compared.
- */
+/** Both scripts read their corpus from the working directory, so a failure run is a temp tree
+ *  holding one doc that breaks the rule; without it only green-run messages would be compared. */
 const FAILURE_CORPORA: Record<string, (dir: string) => void> = {
 	'check-codebase-map.mjs': (dir) => {
 		mkdirSync(path.join(dir, 'docs/design'), { recursive: true });

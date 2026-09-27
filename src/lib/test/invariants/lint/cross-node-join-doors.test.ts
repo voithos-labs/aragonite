@@ -30,11 +30,8 @@ const JOIN_INTO_LEAF_CALLERS: Record<string, string> = {
 	'src/lib/tree-operations/list/unwrap-merge.ts': 'the list-item merge (M1)'
 };
 
-/**
- * Files whose byte expressions concatenate several sources without being a destructive join,
- * each with the reason. A kind re-emitting its own bytes from its own children joins nothing a
- * caller could have been looking at.
- */
+/** Files whose byte expressions concatenate several sources without a destructive join, each with
+ *  the reason; a kind re-emitting its own bytes from its own children joins nothing. */
 const NON_JOIN_CONCATENATIONS: Record<string, string> = {
 	'src/lib/plugins/admonitions/github-alert-kind.ts':
 		"the alert's own rebuildRaw: its marker meets its own body",
@@ -59,11 +56,8 @@ function isSourceOperand(operand: string): boolean {
 const joinsSources = (expr: string): boolean =>
 	splitTopLevel(expr, '+').filter(isSourceOperand).length > 1;
 
-/**
- * Every byte expression a file writes into a leaf: the right-hand side of a `.raw =` statement,
- * and the bytes argument of the two functions that apply a kind's rule, which is where a join
- * writes.
- */
+/** Every byte expression a file writes into a leaf: the right-hand side of a `.raw =` statement,
+ *  and the bytes argument of the two functions that apply a kind's rule. */
 function byteExpressions(file: SourceFile): string[] {
 	const assignments = rawAssignments([file]).map((w) => w.statement.replace(/^\.raw\s*\+?=/, ''));
 	const calls = ['writeOwnRaw', 'normalizeOwnRaw'].flatMap((reader) =>
@@ -120,8 +114,7 @@ describe('cross-node join entry-point census', () => {
 		expect(joinsSources("'| ' + cells.join(' | ')")).toBe(false);
 	});
 
-	// Miss-analysis: the private split knew quotes and brackets only, and its own cases fed it
-	// nothing else, so a regex quantifier read as two sources meeting with no test to say so.
+	// Miss-analysis: the private split knew quotes and brackets only, and no case fed it a regex.
 	it('a quantifier inside a regex literal is not an operand boundary', () => {
 		expect(joinsSources('/a+b/.test(head) ? head : head + lineEnding')).toBe(false);
 	});

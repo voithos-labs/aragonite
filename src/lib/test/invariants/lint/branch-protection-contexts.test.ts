@@ -1,10 +1,8 @@
 /**
- * The required status-check contexts in `scripts/apply-branch-protection.mjs` come in two halves:
- * ci.yml's job ids, each matrix job expanded the way GitHub names its checks, and the externals
- * declared there against the workflow reporting each one. Hand-kept, the list rots in two silent
- * directions: a context nothing reports leaves every PR waiting forever, and a dropped one leaves
- * a job running while gating nothing. Neither shows before the flip to public, since the API
- * plan-gates protection on a private free-plan repo.
+ * The required status-check contexts in `scripts/apply-branch-protection.mjs` match what the
+ * workflows report: ci.yml's job ids, matrix jobs expanded the way GitHub names them, and each
+ * declared external against the workflow reporting it. A context nothing reports leaves every PR
+ * waiting forever, and a dropped one leaves a job running while gating nothing.
  */
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -200,8 +198,7 @@ describe('branch protection ↔ workflow check names', () => {
 });
 
 // ── Non-vacuity self-tests ───────────────────────────────────────────────────
-// A reader that parses nothing makes both directions above pass on two empty sets, which is
-// the failure this census exists to prevent.
+// A reader that parses nothing would pass both directions above on two empty sets.
 
 describe('branch-protection context readers: self-tests', () => {
 	it('finds the real job set, matrix shards expanded', () => {

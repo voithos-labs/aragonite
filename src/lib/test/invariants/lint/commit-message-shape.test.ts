@@ -1,7 +1,7 @@
 /**
- * G4.58: one commit-message rule, two callers. `scripts/lint-commit-message.mjs` holds the only
+ * One commit-message rule, two callers (G4.58): `scripts/lint-commit-message.mjs` holds the only
  * definition of the enforced shape, and both the `commit-msg` hook and the CI step over a pull
- * request's range call it. Left to documentation alone, the rule drifts.
+ * request's range call it.
  */
 
 import { describe, it, expect, afterAll } from 'vitest';
@@ -135,8 +135,7 @@ describe('G4.58 commit-message shape: the two entry points', () => {
 		expect(unitJob).toContain("base.ref != 'main'");
 	});
 
-	// Miss-analysis: the exemption for a bot subject and the config that decided what dependabot
-	// actually writes lived in different files, and no case ever fed the linter a real bot subject.
+	// Miss-analysis: the bot exemption and dependabot's config lived apart, never fed a real subject.
 	it('dependabot writes the default `Bump ...` subject the exemption matches', () => {
 		const dependabot = readFileSync(path.join(ROOT, '.github/dependabot.yml'), 'utf8');
 		expect(dependabot).not.toMatch(/^\s*commit-message:/m);

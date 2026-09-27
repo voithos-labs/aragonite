@@ -1,6 +1,6 @@
 /**
- * G4.67: every menu the editor renders counts itself on `menuChange` by attaching the menu
- * presence count to its own root element. Each menu element either carries the attach in its
+ * Every menu the editor renders counts itself on `menuChange` by attaching the menu presence
+ * count to its own root element (G4.67). Each menu element either carries the attach in its
  * opening tag or is listed below with the reason it does not, so a second menu added to a file
  * that already counts one cannot open without the host hearing it.
  */

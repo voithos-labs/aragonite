@@ -1,9 +1,8 @@
 /**
- * Plugin CSS token ownership: the domain G4.6 (css-ownership.test.ts) excludes, covering
- * both the bundled plugins and the dev fixtures. Every `var(--…)` a plugin reads must
- * resolve to a token editor-theme.css declares or one the plugin declares itself; a read
- * in neither set is dead, rendering its inline fallback forever with no theme override
- * able to reach it.
+ * CSS token ownership for the bundled plugins and the dev fixtures, which css-ownership.test.ts
+ * excludes. Every `var(--…)` a plugin reads resolves to a token editor-theme.css declares or one
+ * the plugin declares itself; a read in neither set renders its inline fallback forever, out of
+ * any theme's reach.
  */
 import { describe, it, expect } from 'vitest';
 import path from 'node:path';
@@ -49,7 +48,7 @@ describe('plugin CSS ownership: every var() read resolves to a real token', () =
 		const themeTokens = new Set(declsIn(readEditorFile('styles/editor-theme.css').code));
 		const sources = pluginComponentSources();
 		// Local declarations pool tree-wide, not per file: custom properties cascade from
-		// ancestors, so per-file scoping would be the stricter but wrong approximation.
+		// ancestors.
 		const localTokens = new Set(sources.flatMap((f) => declsIn(f.code)));
 		const allowed = new Set([...themeTokens, ...localTokens]);
 

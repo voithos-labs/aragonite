@@ -1,10 +1,8 @@
 /**
- * Bundled-plugin import boundary: a file under `src/lib/plugins/**` may import only the
- * public authoring barrel, relative paths inside its own plugin, and `svelte`. This is
- * the dogfood proof that the barrel is complete: a bundled plugin reaching into `$lib`
- * deep paths means the public surface is missing something, so fix the barrel, not the
- * import. One exception: a `renderer.ts` may import its declared rendering engine, an
- * adapter split that keeps the heavy dependency off the plugin's core.
+ * A file under `src/lib/plugins/**` imports only the public authoring barrel, relative paths
+ * inside its own plugin, and `svelte`, which proves the barrel is complete: a deep `$lib` import
+ * means the barrel is missing something, so fix the barrel, not the import. A `renderer.ts` may
+ * also import its declared rendering engine, keeping the heavy dependency off the plugin's core.
  */
 import { describe, it, expect } from 'vitest';
 import path from 'node:path';

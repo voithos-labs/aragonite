@@ -1,9 +1,8 @@
 /**
  * `scripts/build-docs-pack.mjs` resolves every in-pack `#anchor` against its target doc's headings,
- * slugged as GitHub renders them, so a renamed heading reds `npm run lint` instead of stranding a
- * link inside the npm tarball. These tests keep that check from passing on nothing. Miss-analysis:
- * the gate dropped the fragment before checking, so no test could tell a resolved anchor from an
- * ignored one.
+ * slugged as GitHub renders them, so a renamed heading fails `npm run lint` instead of stranding a
+ * link inside the npm tarball. These tests keep that check from passing on nothing.
+ * Miss-analysis: the gate dropped the fragment before checking, and no test could tell.
  */
 import { describe, it, expect } from 'vitest';
 import { execFileSync } from 'node:child_process';
@@ -42,8 +41,7 @@ describe('in-pack anchors: the index', () => {
 		expect(anchorsOf(fenced).has('install-deps')).toBe(false);
 	});
 
-	// Miss-analysis: every heading the index was tested on was plain words, where the repo's slug
-	// and GitHub's agree, so the rule that decides a punctuated or repeated heading was never pinned.
+	// Miss-analysis: the index was tested on plain-word headings only, where both slugs agree.
 	it('slugs a heading the way GitHub renders its anchor', () => {
 		expect(
 			githubAnchors([

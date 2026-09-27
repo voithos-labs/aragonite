@@ -1,7 +1,6 @@
 /**
- * G4.x: no plugin kind name in a core dispatch layer (`editor.md` § 1). The
- * coupling that shipped read correctly and passed every behavioral test, so only a scan
- * catches the directional smell of core naming a plugin kind. Scope is
+ * No plugin kind name in a core dispatch layer (`editor.md` § 1). Core naming a plugin kind
+ * reads correctly and passes every behavioral test, so only a scan catches it. Scope is
  * `tree-operations/`, `editor-actions/` and `selection/`; the forbidden set derives from
  * what the first-party plugins brand, and built-in kinds are core's own vocabulary.
  */

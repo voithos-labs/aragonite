@@ -1,8 +1,8 @@
 /**
- * The content version is announced, not derived, so a function that writes bytes and stays silent
- * serves every whole-document memo a stale answer with nothing failing. The announcements are a
- * declared set, and any write outside a commit, recognized by its copying of ancestors off the
- * editor's own `deps.doc`, enrols its file; each such writer also asks the reading-mode check.
+ * The content version is announced, not derived, so a function that writes bytes without
+ * announcing serves every whole-document memo a stale answer. Every announcing file is declared,
+ * so is every byte write outside a commit (it copies ancestors off `deps.doc`), and each such
+ * writer checks for reading mode.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -27,11 +27,8 @@ const ANNOUNCERS: Record<string, string> = {
 	'src/lib/testing/headless-actions.ts': 'the published harness counts what its doors announced'
 };
 
-/**
- * Copying ancestors off `deps.doc` is what a byte write in the action layer looks like: inside a
- * commit the ancestors are reached through the mutate's own view instead. Each entry is either
- * the commit itself or announces the new version.
- */
+/** A byte write outside a commit copies ancestors off `deps.doc` (a commit reaches them through its
+ *  own view); each such file is the commit itself or announces the new version. */
 const ROOT_UNSHARERS: Record<string, string> = {
 	'src/lib/editor-actions/commit/undo-controller.ts': 'the ceremony itself',
 	'src/lib/editor-actions/leaf-write.ts': 'announces'
@@ -39,11 +36,8 @@ const ROOT_UNSHARERS: Record<string, string> = {
 
 type ReadingCheck = 'admitsWrite' | 'admitsSnapshot';
 
-/**
- * The writers that must refuse reading mode (every root unsharer, plus the undo/redo swap), and in
- * each the functions that must ask the check themselves. The `source` prop swap is the host
- * replacing the document, which reading mode allows.
- */
+/** Writers that must refuse reading mode, and the functions in each that must ask the check. The
+ *  `source` prop swap is absent: reading mode allows the host to replace the document. */
 const READING_CHECKED: Record<string, Partial<Record<ReadingCheck, string[]>>> = {
 	'src/lib/editor-actions/commit/undo-controller.ts': {
 		admitsWrite: ['__commit'],

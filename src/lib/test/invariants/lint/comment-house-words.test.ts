@@ -1,6 +1,6 @@
 /**
- * G4.26, the vocabulary half: the repo's private words appear in no comment and no requirement
- * file, and each design or contributing doc holds no more than its baseline. The list holds
+ * The repo's private words appear in no comment and no requirement file, and each design or
+ * contributing doc holds no more than its baseline (G4.26, vocabulary half). The list holds
  * only words a developer new to the repo cannot decode from English;
  * `docs/contributing/code-style.md` carries the rule and the plain replacements.
  */

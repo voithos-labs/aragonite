@@ -1,9 +1,8 @@
 /**
- * G4.46: the ancestry rebuild's `folds` callback is required but may be null. A merged container
- * splices the parent's children array, so only a caller that reconciles that list's ids and refs
- * may pass one. The type stops an omission; it cannot stop the next caller answering `null`
- * because reconciling was inconvenient, and a wrong id length is permanent. Hence the map below:
- * every production call site with the position it takes and why.
+ * Every production call to the ancestry rebuild, with whether it passes a `folds` callback or
+ * `null` and why (G4.46). A merged container splices the parent's children array, so only a
+ * caller that reconciles that list's ids and refs may pass a callback; the type forces a choice
+ * but cannot stop a convenient `null`, and a wrong id length is permanent.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -17,7 +16,7 @@ const FOLDS_ARGUMENT = 3;
 interface SiteStance {
 	/** Calls answering the literal `null`. */
 	declines: number;
-	/** Calls passing a callback, which claims the caller can reconcile a splice in the parent. */
+	/** Calls passing a callback, which asserts the caller can reconcile a splice in the parent. */
 	sinks: number;
 	why: string;
 }
@@ -137,8 +136,7 @@ describe('ancestry-rebuild fold-sink source-scan', () => {
 		}
 	});
 
-	// The declining set is a judgement call, so the map is only worth its lines while a reader can
-	// see one: a reason too thin to argue with is the shape this scan is meant to stop.
+	// Passing `null` is a judgement call, so every entry must give a reason worth arguing with.
 	it('every stance states a reason', () => {
 		for (const [relPath, stance] of Object.entries(SITES)) {
 			expect(stance.why.length, `${relPath} states no substantive reason`).toBeGreaterThan(40);

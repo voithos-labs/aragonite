@@ -1,9 +1,7 @@
 /**
- * G4.53: the descriptor field reference (`docs/design/plugin-contract.md`) and
- * `BlockKindDescriptor` are one set, both directions. The registration shape freezes at 1.0, so a
- * field landing undocumented and a row outliving its field are the two ways the published
- * inventory stops being the inventory. Keyed on the field-name column alone, so the prose columns
- * stay free to be rewritten.
+ * The descriptor field reference (`docs/design/plugin-contract.md`) and `BlockKindDescriptor` are
+ * one set, both directions, since the registration shape freezes at 1.0 (G4.53). Keyed on the
+ * field-name column alone, so the prose columns stay free to be rewritten.
  */
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -67,8 +65,7 @@ describe('G4.53 descriptor field reference ↔ BlockKindDescriptor', () => {
 });
 
 // ── Non-vacuity self-tests ───────────────────────────────────────────────────
-// A parser that finds nothing lets both directions pass on empty sets, which is the
-// failure this census exists to prevent.
+// A parser that finds nothing would pass both directions on empty sets.
 
 describe('G4.53 parse non-vacuity', () => {
 	it('finds the real section and a representative field of each level', () => {

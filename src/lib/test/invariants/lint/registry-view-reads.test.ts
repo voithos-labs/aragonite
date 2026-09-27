@@ -1,5 +1,5 @@
 /**
- * G4.68 and G4.69: every read the editor makes resolves through the editor's grammar, so a
+ * Every read the editor makes resolves through the editor's grammar (G4.68, G4.69), so a
  * plugin it left out, or a syntax it switched off, stays out (docs/design/plugin-contract.md
  * § Per-instance enablement). Internal readers take the grammar or the reading as a required
  * parameter; the scans below hold the parts a type cannot: who imports the published readers that
@@ -161,10 +161,8 @@ describe('G4.68 the every-plugin fallback is spelled only in its listed places',
 	});
 });
 
-// Type pins: the inline cache, the render options and the action deps require the grammar, so a
-// call leaving it out fails `npm run check` rather than reading every installed plugin.
-// Miss-analysis: each typed the grammar optional, and the scan above sees only a fallback spelled
-// out, never a caller that omits the field.
+// The cache, render options and action deps require the grammar; omitting it fails `npm run check`.
+// Miss-analysis: each typed the grammar optional, and the scan sees only a spelled-out fallback.
 export function inlineCacheCallWithoutGrammar(node: NodeView, reading: Reading): void {
 	// @ts-expect-error the reading carries the editor's grammar
 	resolvedInlineContent(node, { resolver: reading.resolver });
@@ -196,7 +194,7 @@ export function actionDepsWithoutGrammar(
 	return deps;
 }
 
-// ── #443 the resolver a drawn tree was read with ─────────────────────────────
+// ── The resolver a drawn tree was read with ──────────────────────────────────
 
 const REWRITE_PROBE = 'src/lib/components/blocks/text/probe.ts';
 
