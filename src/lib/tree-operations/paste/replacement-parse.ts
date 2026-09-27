@@ -1,13 +1,19 @@
 /**
  * The bytes a block is replaced by, parsed the one way every replace-at-parent caller needs them:
- * terminated in the original's own line ending, else the document's, reparsed in the instance
- * grammar, carrying the original's leading blank lines, with editable containers ensured.
+ * their line breaks in the document's ending, terminated in the original's own ending, else the
+ * document's, reparsed in the instance grammar, carrying the original's leading blank lines, with
+ * editable containers ensured.
  */
 
 import type { CstNode } from '../../core/nodes';
 import type { GrammarView } from '../../schema/block-openers';
 import { readBlocks } from '../../core/parser';
-import { terminateLine, trailingLineEnding, type LineEnding } from '../../core/lines';
+import {
+	terminateLine,
+	trailingLineEnding,
+	withLineEnding,
+	type LineEnding
+} from '../../core/lines';
 import { ensureEditableContainers, normalizeReplacementTrivia } from '../node-primitives';
 
 export interface ParsedReplacement {
@@ -28,7 +34,8 @@ export function parseReplacement(
 	fallback?: () => CstNode[]
 ): ParsedReplacement | null {
 	const lineEnding = trailingLineEnding(original.raw, ending);
-	const parsed = readBlocks(terminateLine(raw, lineEnding), { grammar, scope: 'fragment' });
+	const bytes = terminateLine(withLineEnding(raw, ending), lineEnding);
+	const parsed = readBlocks(bytes, { grammar, scope: 'fragment' });
 	const children = parsed.children.length > 0 ? parsed.children : fallback?.();
 	if (!children || children.length === 0) return null;
 	const replacement = normalizeReplacementTrivia(original, children);

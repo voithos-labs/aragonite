@@ -7,7 +7,7 @@
 import { tick } from 'svelte';
 import { CURSOR_END, CURSOR_EXACT_START, CURSOR_START } from '../block-component';
 import type { CstNode } from '../core/nodes';
-import { displayLength, documentLineEnding } from '../core/lines';
+import { displayLength, documentLineEnding, withLineEnding } from '../core/lines';
 import type { BodyParent } from '../tree-operations/node-primitives';
 import type { OpDescriptor } from '../schema/operations';
 import { normalizeReplacementForBody } from '../tree-operations/paste/body-write';
@@ -197,8 +197,8 @@ export async function commitLeafTextAt(
 }
 
 /**
- * A command's rewrite of the block at `path`, its own undo entry whatever typing came before; the
- * caret moves to the block's start only when the write put new blocks in its place.
+ * A command's rewrite of the block at `path` in the document's line ending, its own undo entry
+ * whatever typing came before; the caret moves to the block's start only when new blocks land.
  */
 export async function replaceBlockRaw(
 	root: EditorRoot,
@@ -208,7 +208,10 @@ export async function replaceBlockRaw(
 	const scope = createPathScope(root, docPathFrom(path.slice(0, -1)));
 	const index = path[path.length - 1];
 	if (!scope || !scope.children()[index]) return;
-	await commitLeafText(scope, index, legalizeWrite(scope.target(), index, raw, 'literal'), {
+	const target = scope.target();
+	const lineEnding = 'lineEnding' in target ? target.lineEnding : documentLineEnding(target);
+	const write = legalizeWrite(target, index, withLineEnding(raw, lineEnding), 'literal');
+	await commitLeafText(scope, index, write, {
 		snapshotOffset: 0,
 		caret: 0,
 		afterTick: (landed) => (landed.replaced ? landUnlessFocusMoved(scope, landed) : undefined)

@@ -28,6 +28,8 @@ import { createSharingState } from '../../tree-operations/sharing';
 import { ensureEditableContainers } from '../../tree-operations/node-primitives';
 import { buildExitReplacement } from '../../tree-operations/list/exit-replacement';
 import { pasteDispatch } from '../../tree-operations/paste/dispatch';
+import { parseReplacement } from '../../tree-operations/paste/replacement-parse';
+import { replaceBlockRaw } from '../../editor-actions/block-edit-core';
 import { createPasteCoordinator } from '../../editor-actions/paste-coordinator';
 import { createUndoController } from '../../editor-actions/commit/undo-controller';
 import { createBlockEditActions } from '../../editor-actions/block-edit';
@@ -344,6 +346,30 @@ function pasteRoutes(): EditGesture[] {
 			name: 'lines into a code block',
 			source: '```\ncode\n```\n',
 			apply: paste([0], afterCode, 'x\ny')
+		},
+		// Miss-analysis: the rows below build their bytes outside `pasteDispatch`, and every row
+		// here went through it, so neither route met a document whose ending differed from LF.
+		{
+			name: 'blocks replacing a block the selection covers whole',
+			source: 'abc\n\nAfter\n',
+			apply: (doc) =>
+				serializeNodes(
+					parseReplacement(
+						doc.children[0],
+						'x\ny\n\nz',
+						documentLineEnding(doc),
+						fixtureReading().grammar
+					)!.replacement
+				)
+		},
+		{
+			name: 'the block menu replacing a code block with the clipboard',
+			source: 'first\n\n```\ncode\n```\n',
+			apply: async (doc) => {
+				const { deps, controller } = makeTopHarness(doc);
+				await replaceBlockRaw({ deps, controller }, [1], 'x\ny\n');
+				return serialize(deps.doc);
+			}
 		}
 	];
 }

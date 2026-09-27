@@ -7,6 +7,7 @@ import type { PluginActivation } from '../../schema/plugin-activation';
 import { createPluginRegistry } from '../../schema/plugin-registry';
 import { devWarn } from '../../dev-warn';
 import { editorEnv } from '../../env';
+import { normalizeLineEndings } from '../../core/lines';
 
 export interface PasteTransform {
 	/** Unique across the process; a duplicate registration throws. */
@@ -41,11 +42,11 @@ export function isPasteTransformRegistered(name: string): boolean {
 }
 
 /**
- * Run every transform `activation` resolves over `text` in registration order, each seeing the
- * prior's output; a null return leaves the running text untouched.
+ * Run every transform `activation` resolves over `text`, its line breaks made LF, in registration
+ * order, each seeing the prior's output; a null return leaves the running text untouched.
  */
 export function applyPasteTransforms(text: string, activation: PluginActivation): string {
-	let result = text;
+	let result = normalizeLineEndings(text);
 	for (const [, transform] of transforms.entries(activation)) {
 		const next = runContained(transform, result, 'pipeline');
 		if (next === null) continue;
