@@ -37,7 +37,7 @@ import { rebuildTableRowRaw } from '../schema/container-rebuilders';
 import { promoteFirstRowToHeader } from '../tree-operations/table-mutations';
 import { caretChildCount } from '../schema/reserved-chrome';
 import { nearestChromeContainer, isChromeChild } from './range-delete-chrome';
-import { countsCells } from './table-endpoint-snap';
+import { countsCells } from '../schema/block-kind-descriptor';
 
 // ── Public API ──────────────────────────────────────────────────────────────
 

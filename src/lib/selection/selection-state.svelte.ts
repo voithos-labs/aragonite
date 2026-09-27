@@ -238,11 +238,14 @@ class SelectionStateImpl implements SelectionState {
 		) {
 			const path = anchor.path.slice();
 			const doc = this.#getDoc?.();
-			this.#anchor = (doc && wholeTableEndpoint(doc, path, 'start')) ?? { path, offset: 0 };
-			this.#focus = (doc && wholeTableEndpoint(doc, path, 'end')) ?? {
+			const a = (doc && wholeTableEndpoint(doc, path, 'start')) ?? { path, offset: 0 };
+			const f = (doc && wholeTableEndpoint(doc, path, 'end')) ?? {
 				path: path.slice(),
 				offset: this.#byteLengthAt(path)
 			};
+			this.#assertEndpointCoordinates(a, f);
+			this.#anchor = a;
+			this.#focus = f;
 			this.#wholeUnit = path.slice();
 			this.#notify();
 			return;
@@ -297,8 +300,8 @@ class SelectionStateImpl implements SelectionState {
 		return node && 'raw' in node ? displayLength(node.raw) : 0;
 	}
 
-	// The coordinate check (G1.29) runs where the pair is stored, as a backstop behind
-	// `#normalizePoint`; both `enterCrossBlock` and `extendFocus` call it because both store a pair.
+	// The coordinate check (G1.29) runs wherever a pair is stored, as a backstop behind
+	// `#normalizePoint`, so every write to the anchor and focus fields passes through it.
 	#assertEndpointCoordinates(anchor: SelectionPoint, focus: SelectionPoint): void {
 		const getDoc = this.#getDoc;
 		if (!getDoc) return;

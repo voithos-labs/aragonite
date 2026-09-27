@@ -7,23 +7,13 @@
 
 import type { DocumentView, NodeView } from '../core/node-views';
 import { metadataOf } from '../core/nodes';
-import { isBlockNode, nodeAt } from '../tree-operations/node-primitives';
+import { nodeAt } from '../tree-operations/node-primitives';
+import { countsCells } from '../schema/block-kind-descriptor';
 import type { CellSelectionPoint, SelectionPoint } from './primitives';
 import { cellIndexOf, cellPoint } from './primitives';
 import { asCellIndex, cellIndexAt, cellRowCol } from '../cursor/coordinate-spaces';
 import { comparePaths, pathHasPrefix } from './path-math';
 import { devWarn } from '../dev-warn';
-
-/**
- * Whether an endpoint on this block's own path counts cells rather than characters. Every
- * reader of that fact asks here, so the kind test lives in one place. Tables only: a plugin grid
- * keeps deep cell paths with character offsets until its kind can describe its cells (#242).
- */
-export function countsCells(
-	node: NodeView | DocumentView
-): node is Extract<NodeView, { kind: 'table' }> {
-	return isBlockNode(node) && node.kind === 'table';
-}
 
 /**
  * The one conversion into cell space: an endpoint on a table's path, or on one of its cells, is

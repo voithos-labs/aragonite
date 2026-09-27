@@ -1,5 +1,5 @@
 import { isBuiltinBlockKind, type AnyBlockKind, type CstNode } from '../core/nodes';
-import type { NodeView } from '../core/node-views';
+import type { DocumentView, NodeView } from '../core/node-views';
 import type { LineEnding } from '../core/lines';
 import type { ContainerBodyWrap } from '../core/parser';
 import { enqueueRegistrationCheck } from './registration-pending';
@@ -522,6 +522,17 @@ export function tryGetBlockKindDescriptor(kind: AnyBlockKind): BlockKindDescript
  *  cell is in a grid when its parent row is one. */
 export function isGridKind(kind: AnyBlockKind): boolean {
 	return tryGetBlockKindDescriptor(kind)?.containerContract === 'grid';
+}
+
+/**
+ * Whether an endpoint on this block's own path counts cells rather than characters, the fact
+ * the selection model and G1.29 both read. Tables only: a plugin grid keeps deep cell paths with
+ * character offsets until its kind can describe its cells (#242).
+ */
+export function countsCells(
+	node: NodeView | DocumentView
+): node is Extract<NodeView, { kind: 'table' }> {
+	return 'raw' in node && node.kind === 'table';
 }
 
 /**

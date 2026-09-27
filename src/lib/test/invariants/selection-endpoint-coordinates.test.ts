@@ -24,12 +24,21 @@ describe('G1.29 cross-block endpoint coordinates', () => {
 		expect(checkCrossBlockEndpointCoordinates(doc(), cell, { path: [1], offset: 0 })).toBeNull();
 	});
 
-	// An intra-table rectangle shares the table path and leaves its focus unflagged
-	// by the SelectionPoint convention: the offsets are cell indices regardless.
-	it('exempts a same-path pair', () => {
-		expect(
-			checkCrossBlockEndpointCoordinates(doc(), { path: [0], offset: 0 }, { path: [0], offset: 3 })
-		).toBeNull();
+	// Miss-analysis: this row once asserted the exemption itself, so the rectangle's bare focus
+	// passed the guard, and a reader that trusted the flag read a cell index as characters (#602).
+	it('flags the bare focus of a rectangle inside one table', () => {
+		const violation = checkCrossBlockEndpointCoordinates(
+			doc(),
+			{ path: [0], offset: 0, cellCoordinate: true },
+			{ path: [0], offset: 3 }
+		);
+		expect(violation?.code).toBe('endpoint-cell-coordinate');
+		expect(violation?.message).toContain('focus');
+	});
+
+	it('passes a rectangle inside one table with both corners flagged', () => {
+		const corner = (offset: number) => ({ path: [0], offset, cellCoordinate: true });
+		expect(checkCrossBlockEndpointCoordinates(doc(), corner(0), corner(3))).toBeNull();
 	});
 
 	it('ignores endpoints that resolve to prose or to nothing', () => {

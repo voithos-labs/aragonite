@@ -9,7 +9,7 @@ import { metadataOf } from '../../../core/nodes';
 import { isBlockNode, nodeAt } from '../../../tree-operations/node-primitives';
 import { pathsEqual } from '../../../selection/path-math';
 import { cellIndexOf } from '../../../selection/primitives';
-import { countsCells } from '../../../selection/table-endpoint-snap';
+import { countsCells } from '../../../schema/block-kind-descriptor';
 import { cellRectBounds } from '../../../cursor/coordinate-spaces';
 import { copyRectangleAsSubTable } from '../../../tree-operations/sub-table-copy';
 import { rectangleGrid } from '../../../tree-operations/table-grid-clipboard';

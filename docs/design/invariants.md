@@ -487,19 +487,23 @@ Predicate `checkRenderedTextFidelity` (`render-fidelity.ts`) · seams
 `test/blocks/editable-leaf-painted-fidelity.test.ts`.
 
 **G1.29 · Cross-block endpoint coordinates.** An endpoint's offset means what its own block's
-coordinate space says. A table endpoint carries `cellCoordinate: true`, so it reads as a cell index
-and never as a character count: a table path IS cell space, and a char offset stored there routes
-rangeDelete down the generic branch and corrupts the grid. Both directions fire, since a cell index
-stored against a block with no cells is the same corruption from the opposite producer. Every other
-char endpoint must land inside its block's raw, and inside a kind with no character positions
-(childless `blockFocus: 'whole-block'`) on one of the two ends, because an interior offset there
-slices an opaque unit in half, so copy truncates the syntax and delete destroys it. Same-path pairs
-are exempt (an intra-table rectangle's focus is unflagged by convention). Each rule has a normalizer
-meant to make it unfireable, and each has been missed once (a length-1 table path; a character
-hit-test over a rendered diagram). The producers are fixed, and this is the backstop for producer
-N+1. Predicate `checkCrossBlockEndpointCoordinates` (`selection-endpoints.ts`) · seam
-`selection/selection-state.svelte.ts :: enterCrossBlock` and `extendFocus` ·
-`selection-endpoint-coordinates.test.ts`.
+coordinate space says. On a table that's a cell index, and the point has to say so with
+`cellCoordinate: true`: every point on a table path, the two corners of a rectangle inside one
+table included. Readers trust the flag, so a bare offset on a table reads as characters, and
+rangeDelete's generic branch then corrupts the grid.
+Both directions fire, because a cell index stored against a block with no cells is the same
+corruption from the opposite producer. Every other char endpoint must land inside its block's
+raw, and inside a kind with no character positions (childless `blockFocus: 'whole-block'`) on one
+of the two ends, because an interior offset there slices an opaque unit in half, so copy truncates
+the syntax and delete destroys it. Which blocks count cells is one fact,
+`src/lib/schema/block-kind-descriptor.ts :: countsCells`, read by the normalizer and this check
+alike. It's tables only for now: a plugin grid keeps its deep `[grid, row, col]` endpoints with
+char offsets until its kind can describe its cells (#242). Each rule has a normalizer meant to make
+it unfireable, and each has been missed once (a length-1 table path; a character hit-test over a
+rendered diagram). The producers are fixed, and this is the backstop for producer N+1. Predicate
+`checkCrossBlockEndpointCoordinates` (`selection-endpoints.ts`) · seam
+`selection/selection-state.svelte.ts :: enterCrossBlock` and `extendFocus`, the only two ways a
+pair gets stored · `selection-endpoint-coordinates.test.ts`.
 
 **G1.30 · Merge-role vocabulary.** Every registered kind declares a `mergeRole` from the known set;
 an unknown role makes the merge dispatcher fall through silently on every gesture that reaches the

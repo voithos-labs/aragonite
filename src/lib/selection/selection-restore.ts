@@ -13,7 +13,8 @@ import { cellPoint, type EditorSelection, type SelectionPoint } from './primitiv
 import { applySelectionToDom } from './native-bridge';
 import { placeGapCaret } from './caret-doors';
 import { gapScopeChildren, type GapCaretPosition } from './gap-caret';
-import { countsCells, tableCellCount } from './table-endpoint-snap';
+import { tableCellCount } from './table-endpoint-snap';
+import { countsCells } from '../schema/block-kind-descriptor';
 import type { SelectionState } from './selection-state.svelte';
 import type { CaretMemory } from '../cursor/caret-memory';
 

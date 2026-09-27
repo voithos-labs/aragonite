@@ -240,7 +240,7 @@ Out-of-range offsets clamp, each in its own coordinate space: a character offset
 You can leave the flag off when you build a selection by hand. An offset on a table's path always counts cells, so plain numbers there paint the rectangle with those two cells at its corners, and `getSelection()` hands it back flagged:
 
 ```ts
-// a table at [3], two columns wide: cell 0 is its top-left, cell 5 the right cell of its third row
+// a two-column table at [3]; cells count row by row from the header, so 5 is the third row's right cell
 await editor.setSelection({ anchor: { path: [3], offset: 0 }, focus: { path: [3], offset: 5 } });
 editor.getSelection();
 // {

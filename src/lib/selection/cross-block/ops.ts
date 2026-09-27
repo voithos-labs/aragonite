@@ -17,7 +17,7 @@ import { rangeDelete } from '../range-delete';
 import { trackChildIds, type StructuralChange } from '../../tree-operations/structural-change';
 import { documentBody, isBlockNode, nodeAt } from '../../tree-operations/node-primitives';
 import { pathsEqual } from '../path-math';
-import { countsCells } from '../table-endpoint-snap';
+import { countsCells } from '../../schema/block-kind-descriptor';
 import { docPathFrom } from '../../cursor/coordinate-spaces';
 import { getStateForNode } from '../../reactivity/state-registry';
 import type { BlockListState } from '../../reactivity/block-list-state.svelte';
