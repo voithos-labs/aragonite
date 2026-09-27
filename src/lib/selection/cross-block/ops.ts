@@ -15,7 +15,7 @@ import type { CommitController, MultiScopeTarget } from '../../action-contracts'
 import { focusCollapsedCaret } from '../native-bridge';
 import { rangeDelete } from '../range-delete';
 import { trackChildIds, type StructuralChange } from '../../tree-operations/structural-change';
-import { isBlockNode, nodeAt } from '../../tree-operations/node-primitives';
+import { documentBody, isBlockNode, nodeAt } from '../../tree-operations/node-primitives';
 import { pathsEqual } from '../path-math';
 import { docPathFrom } from '../../cursor/coordinate-spaces';
 import { getStateForNode } from '../../reactivity/state-registry';
@@ -161,21 +161,9 @@ async function commitPureTopLevelDelete(
 	await ctx.controller.commitStructural({
 		snapshot,
 		mutate: (topLevelChildren) => {
-			// The prefix stays inert; the suffix reads and writes through to the live document, so
-			// the trailing-blank-line fix-up can write one.
-			const proxyDoc: Document = {
-				kind: 'document',
-				prefix: '',
-				children: topLevelChildren,
-				get suffix() {
-					return doc.suffix;
-				},
-				set suffix(value: string) {
-					doc.suffix = value;
-				}
-			};
-			const ledger = trackChildIds(proxyDoc);
-			const result = rangeDelete(proxyDoc, start, end, ctx.controller.sharing, ctx.reading);
+			const body = documentBody(doc, topLevelChildren);
+			const ledger = trackChildIds(body);
+			const result = rangeDelete(body, start, end, ctx.controller.sharing, ctx.reading);
 			collapsedCaret = result.collapsedCaret;
 			ctx.selection.collapse();
 			return ledger.read();

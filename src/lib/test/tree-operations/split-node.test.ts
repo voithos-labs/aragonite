@@ -142,7 +142,6 @@ describe('splitNode on arbitrary parent', () => {
 	it('splitNode works on a container children array', () => {
 		const parent = {
 			children: [{ kind: 'paragraph' as const, leadingTrivia: '', raw: 'Hello World\n' }],
-			ownerKind: undefined,
 			owner: undefined,
 			lineEnding: '\n' as const
 		};

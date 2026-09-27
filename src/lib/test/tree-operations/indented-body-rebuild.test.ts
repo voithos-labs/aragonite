@@ -33,7 +33,6 @@ function typeX(doc: Document, path: number[]): void {
 	updateNodeContent(
 		{
 			children: owner.children!,
-			ownerKind: owner.kind,
 			owner,
 			lineEnding: documentLineEnding(doc)
 		},

@@ -24,7 +24,6 @@ function quotedBody(): { doc: Document; body: BodyParent } {
 		doc,
 		body: {
 			children: quote.children!,
-			ownerKind: quote.kind,
 			owner: quote,
 			lineEnding: documentLineEnding(doc)
 		}

@@ -20,7 +20,6 @@ function writeTaskText(doc: Document, listIndex: number, item: number, text: str
 	updateNodeContent(
 		{
 			children: owner.children!,
-			ownerKind: owner.kind,
 			owner,
 			lineEnding: documentLineEnding(doc)
 		},

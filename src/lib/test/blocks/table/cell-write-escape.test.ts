@@ -19,7 +19,6 @@ import { defaultGrammarView } from '$lib/schema/block-openers';
 /** A children array as the body parent a write reads, owned by nothing, in an LF document. */
 const asBody = (parent: { children?: CstNode[] }) => ({
 	children: parent.children!,
-	ownerKind: undefined,
 	owner: undefined,
 	lineEnding: '\n' as const
 });

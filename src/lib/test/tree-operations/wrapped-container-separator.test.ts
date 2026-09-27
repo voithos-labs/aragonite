@@ -22,7 +22,6 @@ import { defaultGrammarView } from '$lib/schema/block-openers';
 function bodyParentOf(container: CstNode) {
 	return {
 		children: container.children!,
-		ownerKind: container.kind,
 		owner: container,
 		lineEnding: firstLineEnding(container.raw) ?? '\n'
 	};
@@ -104,7 +103,6 @@ describe('emptying a body block against the wrap’s chrome lines', () => {
 		updateNodeContent(
 			{
 				children: container.children!,
-				ownerKind: container.kind,
 				owner: container,
 				lineEnding: firstLineEnding(container.raw) ?? '\n'
 			},

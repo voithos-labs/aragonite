@@ -6,10 +6,10 @@
  */
 
 import type { OpDescriptor } from '../schema/operations';
-import type { CommitAfterTick, ContainerScope } from '../action-contracts';
-import type { AnyBlockKind, CstNode } from '../core/nodes';
+import type { CommitAfterTick } from '../action-contracts';
+import { documentBody, type BodyParent } from '../tree-operations/node-primitives';
+import type { CstNode } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
-import { documentLineEnding, type LineEnding } from '../core/lines';
 import type { StructuralChange } from '../tree-operations/structural-change';
 import type { SharingState } from '../tree-operations/sharing';
 import type { Reading } from '../schema/reading';
@@ -23,18 +23,11 @@ import type { BlockListState } from '../reactivity/block-list-state.svelte';
 
 /** The copied children the core's `mutate` writes through, the same shape at both levels. */
 export interface MutationView {
-	children: CstNode[];
-	sharing: SharingState;
-	/** The document's line ending, which every line the mutation writes takes. */
-	lineEnding: LineEnding;
-	/** The container these children belong to, for mutations whose bytes must satisfy
-	 *  its grammar (`bodyWrite`). Absent at the document root. */
-	ownerKind?: AnyBlockKind;
-	/** The container node itself, for fix-ups that write its opener or closer. Nullable
-	 *  rather than optional so each adapter answers; `undefined` is the document root. */
-	owner: CstNode | undefined;
+	/** The children this mutation writes and the container they belong to. */
+	readonly body: BodyParent;
+	readonly sharing: SharingState;
 	/** The editor's reading, for mutations that re-parse and joins that clean up after themselves. */
-	reading: Reading;
+	readonly reading: Reading;
 	/** Copy the child at `i` out of the undo snapshot before an in-place write; returns the copy. */
 	unshareChild(i: number): CstNode;
 }
@@ -89,15 +82,6 @@ export async function landCaretInScope(
 	else ref?.focusByPath?.([...path], offset);
 }
 
-/** The owner the tree operations read for a container commit; {@link MutationView}'s
- *  counterpart. */
-export const scopeParentOf = (scope: ContainerScope) => ({
-	children: scope.children,
-	ownerKind: scope.node.kind,
-	owner: scope.node,
-	lineEnding: scope.lineEnding
-});
-
 // ── Top-level adapter ────────────────────────────────────────────────────────
 
 export function createTopLevelScope(
@@ -122,10 +106,8 @@ export function createTopLevelScope(
 				snapshot: { path: asDocPath([snapshot.index]), offset: snapshot.offset },
 				mutate: (children) =>
 					mutate({
-						children,
+						body: documentBody(deps.doc, children),
 						sharing: deps.sharing,
-						lineEnding: documentLineEnding(deps.doc),
-						owner: undefined,
 						reading: deps.reading,
 						unshareChild: (i) => ensureUnsharedPath({ children }, [i], deps.sharing)[0]
 					}),
@@ -156,11 +138,8 @@ export function createContainerScope(state: BlockListState, deps: NestedActionsD
 				snapshot: { path: extendDocPath(deps.path, snapshot.index), offset: snapshot.offset },
 				mutate: (scope) =>
 					mutate({
-						children: scope.children,
+						body: scope.body,
 						sharing: scope.sharing,
-						lineEnding: scope.lineEnding,
-						ownerKind: scope.node.kind,
-						owner: scope.node,
 						reading: deps.reading,
 						unshareChild: (i) => ensureUnsharedChild(scope.node, i, scope.sharing)
 					}),

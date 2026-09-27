@@ -34,16 +34,8 @@ import { spliceMany } from '../tree-operations/splice-many';
 import { isMergeEligible, isBlockEditable } from '../schema/merge-rules';
 import { getBlockKindDescriptor } from '../schema/block-kind-descriptor';
 import type { CommitAfterTick } from '../action-contracts';
-import { landCaretInScope, type CommitScope, type MutationView } from './block-edit-scope';
+import { landCaretInScope, type CommitScope } from './block-edit-scope';
 import { mergedElseFocusNext, mergedElseFocusPrevious } from './merge-fallback';
-
-/** The owner the tree operations read, taken live off the commit's copied view. */
-const bodyParentOf = (view: MutationView) => ({
-	children: view.children,
-	ownerKind: view.ownerKind,
-	owner: view.owner,
-	lineEnding: view.lineEnding
-});
 
 /** What both merge directions do when the neighbour cannot merge; `dir` names its side. */
 async function handleIneligibleNeighbor(scope: CommitScope, i: number, dir: -1 | 1): Promise<void> {
@@ -63,8 +55,7 @@ async function handleIneligibleNeighbor(scope: CommitScope, i: number, dir: -1 |
 		snapshot: { index: i, offset: dir < 0 ? 0 : CURSOR_END },
 		eventTarget: neighbor,
 		op: { kind: 'delete' },
-		mutate: (view) =>
-			performDelete(bodyParentOf(view), neighbor, view.reading.grammar, view.sharing),
+		mutate: (view) => performDelete(view.body, neighbor, view.reading.grammar, view.sharing),
 		afterTick: () =>
 			scope.refAt(dir < 0 ? neighbor : i)?.focus(dir < 0 ? CURSOR_START : CURSOR_END),
 		discardIfNoop: true
@@ -104,9 +95,9 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 				eventTarget: i,
 				op: { kind: 'split', detail: { at: offset } },
 				mutate: (view) => {
-					split = performSplit(bodyParentOf(view), i, offset, view.sharing, view.reading);
+					split = performSplit(view.body, i, offset, view.sharing, view.reading);
 					secondHalfIndex = split.secondHalfIndex;
-					stampStructuralChange(view.children, split.change, view.sharing);
+					stampStructuralChange(view.body.children, split.change, view.sharing);
 					return split.change;
 				},
 				afterTick: () => {
@@ -132,10 +123,10 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 				eventTarget: i + 1,
 				op: { kind: 'appendBlock' },
 				mutate: (view) => {
-					const body = emptyParagraph('', view.lineEnding);
-					view.children.splice(i + 1, 0, body);
+					const body = emptyParagraph('', view.body.lineEnding);
+					view.body.children.splice(i + 1, 0, body);
 					const change: StructuralChange = { op: 'insert', at: i + 1, count: 1 };
-					stampStructuralChange(view.children, change, view.sharing);
+					stampStructuralChange(view.body.children, change, view.sharing);
 					return change;
 				},
 				afterTick: () => scope.refAt(i + 1)?.focus(0)
@@ -152,20 +143,19 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 				eventTarget: i,
 				op: { kind: 'insertBlock' },
 				mutate: (view) => {
-					const lineEnding = view.lineEnding;
+					const lineEnding = view.body.lineEnding;
 					// Only the first block of a list owns no separator; anywhere else the new
 					// paragraph needs a blank line after its predecessor, whatever the displaced
 					// sibling carried.
-					const trivia = i > 0 ? lineEnding : (view.children[0]?.leadingTrivia ?? '');
-					view.children.splice(i, 0, paragraphNode(trivia, text, lineEnding));
+					const trivia = i > 0 ? lineEnding : (view.body.children[0]?.leadingTrivia ?? '');
+					view.body.children.splice(i, 0, paragraphNode(trivia, text, lineEnding));
 					const change: StructuralChange = { op: 'insert', at: i, count: 1 };
-					stampStructuralChange(view.children, change, view.sharing);
+					stampStructuralChange(view.body.children, change, view.sharing);
 					// The new paragraph is a block of its own on both sides, which the commit's
 					// blank-line fix-up cannot infer: the displaced sibling is no longer first, so
 					// it needs its own separator, and an empty paragraph is itself a blank line.
-					const parent = bodyParentOf(view);
-					restoreSeparatorOnFill(parent, i + 1, view.sharing);
-					dropDoubledSeparator(parent, i, view.sharing);
+					restoreSeparatorOnFill(view.body, i + 1, view.sharing);
+					dropDoubledSeparator(view.body, i, view.sharing);
 					return change;
 				},
 				afterTick: () => scope.refAt(i)?.focus(displayLength(text))
@@ -188,7 +178,7 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 				eventTarget: i,
 				op: { kind: 'merge', detail: { direction: 'prev' } },
 				mutate: (view) => {
-					mergeResult = mergeIntoPrevDeepLeaf(bodyParentOf(view), i, view.sharing, view.reading);
+					mergeResult = mergeIntoPrevDeepLeaf(view.body, i, view.sharing, view.reading);
 					return mergeResult?.change ?? { op: 'noop' };
 				},
 				afterTick: async () => {
@@ -222,8 +212,8 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 				eventTarget: i,
 				op: { kind: 'merge', detail: { direction: 'next' } },
 				mutate: (view) => {
-					merged = performMergeNext({ children: view.children }, i, view.reading);
-					stampStructuralChange(view.children, merged.change, view.sharing);
+					merged = performMergeNext({ children: view.body.children }, i, view.reading);
+					stampStructuralChange(view.body.children, merged.change, view.sharing);
 					return merged.change;
 				},
 				afterTick: () => {
@@ -240,7 +230,7 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 				snapshot: { index: i, offset: 0 },
 				eventTarget: i,
 				op: { kind: 'delete' },
-				mutate: (view) => performDelete(bodyParentOf(view), i, view.reading.grammar, view.sharing),
+				mutate: (view) => performDelete(view.body, i, view.reading.grammar, view.sharing),
 				afterTick: () => {
 					const focusIdx = Math.min(i, scope.children().length - 1);
 					if (focusIdx >= 0) scope.refAt(focusIdx)?.focus(CURSOR_START);
@@ -269,7 +259,7 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 					// The chain rebuild re-derives the kind, since metadata can rewrite the opener
 					// line (an alert's type). No collapses: this mutate reports `noop` for the list.
 					const [reclassified] = rebuildUnsharedChain(
-						{ children: view.children },
+						{ children: view.body.children },
 						[node],
 						view.sharing,
 						null,
@@ -301,19 +291,19 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 						: { kind: 'replaceBlock', detail: { count: replacement.length } },
 				mutate: (view) => {
 					if (replacement.length === 0) {
-						view.children.splice(i, 1);
+						view.body.children.splice(i, 1);
 						return { op: 'delete', at: i, count: 1 };
 					}
 					// Read before the splice, for the task-marker rule below.
-					const stood = taskMarkerMayStandBefore(view.children[i]);
-					const normalized = normalizeReplacementTrivia(view.children[i], replacement);
-					for (const node of normalized) ensureEditableContainers(node, view.lineEnding);
-					spliceMany(view.children, i, 1, normalized);
+					const stood = taskMarkerMayStandBefore(view.body.children[i]);
+					const normalized = normalizeReplacementTrivia(view.body.children[i], replacement);
+					for (const node of normalized) ensureEditableContainers(node, view.body.lineEnding);
+					spliceMany(view.body.children, i, 1, normalized);
 					const change = replacePreservingFirst(i, 1, normalized.length);
-					stampStructuralChange(view.children, change, view.sharing);
+					stampStructuralChange(view.body.children, change, view.sharing);
 					// One of the three writes that can put a new block in a list item's first
 					// position, and so take the task marker with the paragraph that carried it.
-					if (view.owner) reconcileTaskMetadata(view.owner, i, stood, view.sharing);
+					if (view.body.owner) reconcileTaskMetadata(view.body.owner, i, stood, view.sharing);
 					return change;
 				},
 				afterTick: async () => {

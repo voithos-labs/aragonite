@@ -9,7 +9,7 @@ import type { CstNode } from '../core/nodes';
 import { metadataOf } from '../core/nodes';
 import type { MultiScopeTarget } from '../action-contracts';
 import type { StructuralChange } from '../tree-operations/structural-change';
-import { emptyParagraph } from '../tree-operations/node-primitives';
+import { documentBody, emptyParagraph } from '../tree-operations/node-primitives';
 import { deleteNode } from '../tree-operations/settle';
 import { documentLineEnding } from '../core/lines';
 import { expectStateForNode, getStateForNode } from '../reactivity/state-registry';
@@ -110,7 +110,7 @@ async function commitFullTableDelete(
 		snapshot,
 		mutate: (children) => {
 			const change = deleteNode(
-				{ children, ownerKind: undefined, owner: undefined, lineEnding },
+				documentBody(ctx.getDoc(), children),
 				tableIdx,
 				ctx.reading.grammar,
 				ctx.controller.sharing

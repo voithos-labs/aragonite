@@ -23,7 +23,6 @@ import type { Reading } from '$lib/schema/reading';
 /** A children array as the body parent a write reads, owned by nothing, in an LF document. */
 const asBody = (parent: { children?: CstNode[] }) => ({
 	children: parent.children!,
-	ownerKind: undefined,
 	owner: undefined,
 	lineEnding: '\n' as const
 });

@@ -20,7 +20,7 @@ import { assertInvariant } from '../../assert';
 import { beginCommit, endCommit } from '../../invariants/commit-scope';
 import { assignIds } from '../../block-id';
 import { replaceRefs } from '../../reactivity/publish-ref.svelte';
-import { blockNodeAt, nodeAt, type SeparatorParent } from '../../tree-operations/node-primitives';
+import { blockNodeAt, documentBody, nodeAt } from '../../tree-operations/node-primitives';
 import { settleSeparator } from '../../tree-operations/settle';
 import { ensureUnsharedPath } from '../../tree-operations/unshare';
 import {
@@ -93,24 +93,6 @@ function touchedContainersWithChildren(containers: CstNode[] | undefined): CstNo
 
 export function createUndoController(deps: EditorActionsDeps): UndoController {
 	// ── Selection helpers ─────────────────────────────────────────────────────
-
-	/**
-	 * The document as the blank-line fix-up's parent, over the mutate's working array. The
-	 * suffix goes as accessors: a fix-up at the end consumes the trailing blank line the
-	 * live document keeps in its suffix, and the rollback restores it.
-	 */
-	function docSettleParent(children: CstNode[]): SeparatorParent {
-		return {
-			kind: 'document',
-			children,
-			get suffix() {
-				return deps.doc.suffix;
-			},
-			set suffix(value: string) {
-				deps.doc.suffix = value;
-			}
-		};
-	}
 
 	function collapsedSelectionAt(blockIndex: number, offset: number): EditorSelection {
 		const point: SelectionPoint = { path: [blockIndex], offset };
@@ -399,7 +381,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 				// `deps.doc.children` is still the pre-mutate array here (`publish` swaps it),
 				// so the blank-line fix-up reads which blocks were blank off it directly.
 				const change = settleSeparator(
-					docSettleParent(childrenCopy),
+					documentBody(deps.doc, childrenCopy),
 					deps.doc.children,
 					args.mutate(childrenCopy),
 					deps.reading.grammar,
@@ -607,6 +589,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		const savedChildIds = owned.childIds;
 		const savedRaws = captureScopeRaws(chain, owned);
 		owned.children = [...(owned.children ?? [])];
+		const lineEnding = documentLineEnding(deps.doc);
 		return {
 			target: s,
 			isDoc,
@@ -616,7 +599,10 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 				node: owned,
 				children: owned.children!,
 				sharing: deps.sharing,
-				lineEnding: documentLineEnding(deps.doc)
+				lineEnding,
+				body: isDoc
+					? documentBody(deps.doc, owned.children!)
+					: { children: owned.children!, owner: owned, lineEnding }
 			},
 			ids,
 			refs,
@@ -687,7 +673,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 					// `savedChildren` is the pre-mutate array `prepareScopeView` swapped out, so
 					// the blank-line fix-up reads which blocks were blank off it.
 					changeList[i] = settleSeparator(
-						prepared[i].owned as SeparatorParent,
+						prepared[i].view.body,
 						prepared[i].savedChildren ?? [],
 						changeList[i],
 						deps.reading.grammar,

@@ -22,7 +22,7 @@ beforeEach(() => {
 describe('details terminator escape at the split entry point', () => {
 	const detailsOwner = () => {
 		const owner = parse('<details>\n<summary>S</summary>\n\nbody\n\n</details>\n').children[0];
-		return { ownerKind: owner.kind, owner };
+		return { owner };
 	};
 
 	it('escapes the second half when the cut strands a trailing tag', () => {
@@ -54,7 +54,6 @@ describe('details terminator escape at the split entry point', () => {
 	it('leaves both halves alone at the document root, where no container claims them', () => {
 		const parent = {
 			children: parse('foo</details>\n').children,
-			ownerKind: undefined,
 			owner: undefined,
 			lineEnding: '\n' as const
 		};

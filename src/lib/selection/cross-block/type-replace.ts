@@ -129,18 +129,7 @@ async function deleteThenType(
 			// never introduces a blank line, so the multi-block replacement branch is unreachable.
 			const owned = ensureUnsharedChild(scopeView.node, leafIndex, sharing);
 			const newText = owned.raw.slice(0, charOffset) + typed + owned.raw.slice(charOffset);
-			settled = updateNodeContent(
-				{
-					children: scopeView.children,
-					ownerKind: scopeView.node.kind,
-					owner: scopeView.node,
-					lineEnding: scopeView.lineEnding
-				},
-				leafIndex,
-				newText,
-				ctx.reading.grammar,
-				sharing
-			);
+			settled = updateNodeContent(scopeView.body, leafIndex, newText, ctx.reading.grammar, sharing);
 			stampStructuralChange(scopeView.children, settled.change, sharing);
 			return [settled.change];
 		},

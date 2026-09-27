@@ -136,11 +136,12 @@ export function makeCommitScopeStub(
 		async commit(args) {
 			commits.push(args);
 			args.mutate({
-				children,
+				body: {
+					children,
+					owner: opts.owner,
+					lineEnding: documentLineEnding({ kind: 'document', prefix: '', children, suffix: '' })
+				},
 				sharing,
-				lineEnding: documentLineEnding({ kind: 'document', prefix: '', children, suffix: '' }),
-				ownerKind: opts.owner?.kind,
-				owner: opts.owner,
 				reading: fixtureReading(),
 				unshareChild: (i) => children[i]
 			});

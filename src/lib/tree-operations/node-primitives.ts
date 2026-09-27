@@ -5,7 +5,7 @@
  * ancestors are copied (`unshare.ts`), or through `commitMultiScope` when the change is structural.
  */
 
-import type { AnyBlockKind, CstNode, Document } from '../core/nodes';
+import type { CstNode, Document } from '../core/nodes';
 import type { DocumentView, NodeView } from '../core/node-views';
 import { readBlocks } from '../core/parser';
 import type { GrammarView } from '../schema/block-openers';
@@ -23,12 +23,12 @@ export type NodeParent = { children: CstNode[] };
  * `innerPrefix`/`innerSuffix`. Nullable, not optional: leaving the owner out is a compile error.
  */
 export type BodyParent = NodeParent & {
-	ownerKind: AnyBlockKind | undefined;
+	/** The container these children belong to; undefined is the document root, which has no rule. */
 	owner: CstNode | undefined;
 	/** The document's line ending, which every line an op writes into these children takes. */
 	lineEnding: LineEnding;
-	// Optional, not nullable: only a caller inside a commit may carry the document's trailing
-	// blank line, because the fix-up that consumes it appends a block.
+	// The document's trailing blank line, from `documentBody` or a trial's copy; a container keeps
+	// its own in `innerSuffix`, reached through `owner`.
 	suffix?: string;
 };
 
@@ -36,12 +36,35 @@ export type BodyParent = NodeParent & {
 export type BodyParentArg = BodyParent | Document;
 
 /**
+ * The document as a body: its children (the commit's working copy, when given) and its trailing
+ * blank line, read and written through to the live document so a rollback restores it.
+ */
+export function documentBody(
+	doc: Document,
+	children: CstNode[] = doc.children
+): Document & BodyParent {
+	// No `childIds`: an op that tracks ids on its parent must not splice the live document's array.
+	return {
+		kind: 'document',
+		prefix: doc.prefix,
+		children,
+		owner: undefined,
+		lineEnding: documentLineEnding(doc),
+		get suffix() {
+			return doc.suffix;
+		},
+		set suffix(value: string) {
+			doc.suffix = value;
+		}
+	};
+}
+
+/**
  * What the separator fix-ups accept: anything that can say where the body starts. Wider than
  * the content writes, since a fix-up writes a line ending, not body text.
  */
 export type SeparatorParent = {
 	kind?: string;
-	ownerKind?: AnyBlockKind;
 	suffix?: string;
 	children?: CstNode[];
 	owner?: CstNode;

@@ -35,7 +35,6 @@ describe('a content write that empties a setext title', () => {
 		updateNodeContent(
 			{
 				children: quote.children!,
-				ownerKind: 'blockquote',
 				owner: quote,
 				lineEnding: documentLineEnding(doc)
 			},

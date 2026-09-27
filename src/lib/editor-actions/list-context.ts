@@ -209,12 +209,7 @@ export function createListContext(deps: ListContextDeps): ListContext {
 					const preSpliceLen = itemChildren.length;
 
 					const split = performSplit(
-						{
-							children: itemChildren,
-							ownerKind: itemScope.node.kind,
-							owner: itemScope.node,
-							lineEnding: itemScope.lineEnding
-						},
+						itemScope.body,
 						innerIndex,
 						offset,
 						sharing,

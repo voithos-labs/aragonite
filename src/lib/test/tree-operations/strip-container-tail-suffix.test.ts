@@ -47,7 +47,6 @@ function empty(doc: Document, path: number[]): void {
 	updateNodeContent(
 		{
 			children: owner.children!,
-			ownerKind: owner.kind,
 			owner,
 			lineEnding: documentLineEnding(doc)
 		},
@@ -110,7 +109,6 @@ describe("blanking a blockquote's last block turns its trailing line into a bloc
 		const change = deleteNode(
 			{
 				children: quote.children!,
-				ownerKind: quote.kind,
 				owner: quote,
 				lineEnding: documentLineEnding(doc)
 			},
