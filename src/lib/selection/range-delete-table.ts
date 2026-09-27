@@ -1,9 +1,8 @@
 /**
- * The `rangeDelete` branch for a table endpoint: a table's selection offsets are cell indices,
- * so the text merge does not apply. Surviving blocks are found afterwards by scanning for the
- * node ({@link survivorPath}) rather than by index arithmetic, because deletions and cleanup
- * shift sibling indices at any depth. One scan per delete, on a Backspace or Delete keystroke,
- * so the linear cost is accepted.
+ * The `rangeDelete` branch for a table endpoint: a table's selection offsets are cell indices, so
+ * the text merge does not apply. Surviving blocks are found afterwards by scanning for the node
+ * ({@link survivorPath}), since deletions and cleanup shift sibling indices at any depth; one
+ * linear scan per Backspace or Delete is cheap enough.
  */
 
 import type { GrammarView } from '../schema/block-openers';
@@ -88,10 +87,8 @@ export function tableAwareRangeDelete(
 	return deleteFromProseIntoTable(doc, start, end, startBlock, endBlock, sharing, grammar, reading);
 }
 
-/**
- * The copied node for an endpoint whose chain came back short, through `ensureUnsharedNode`
- * rather than a bare reference into the live tree. A miss here is a caller bug.
- */
+/** The copied node for an endpoint whose chain came back short, never a bare reference into the
+ *  live tree; a miss here is a caller bug. */
 function ownedEndpoint(doc: Document, path: number[], sharing: SharingState): CstNode {
 	const node = blockNodeAt(doc, path);
 	if (!node) throw new Error('rangeDelete(table): endpoint path does not resolve to a block node');
@@ -269,9 +266,8 @@ function deleteFromTableIntoProse(
 	};
 }
 
-// Deep [...tablePath, row, col] caret into the surviving table's anchor cell: the cell is
-// cleared from the anchor onward, so its end offset is its displayLength. anchorCol === 0 means
-// the anchor row itself was removed, so fall back to the previous row's last cell.
+// The caret in the surviving table's anchor cell, which is cleared from the anchor on, so at its
+// end; an anchor in column 0 means its row was removed, so the previous row's last cell.
 function survivingAnchorCellCaret(
 	table: CstNode,
 	startPath: number[],
@@ -365,9 +361,8 @@ function deleteAcrossTwoTables(
 	return { newDoc: doc, collapsedCaret, tableRowSplices };
 }
 
-// Every block the caret could land in was removed, so a survivor is sought in the deleted
-// block's own container, walking outward when the cleanup took that too. `lineEnding` is the
-// document's, which a filler paragraph takes.
+// Every block the caret could land in was removed, so a survivor is sought in the deleted block's
+// own container, walking outward when the cleanup took that too.
 function caretNearestSurvivor(
 	doc: Document,
 	startPath: number[],
@@ -470,11 +465,8 @@ interface CellDeleteOutcome {
 	splice: { at: number; count: number } | null;
 }
 
-/**
- * Clear cells in `[startCellIdx, endCellIdx)`, remove rows fully inside the range, promote the
- * next surviving row to header when row 0 goes. Mutates in place. Reports whether the table
- * itself should be removed and the row window it spliced, so the commit can sync row state.
- */
+/** Clears the cells in `[startCellIdx, endCellIdx)` and removes rows fully inside the range,
+ *  reporting the row window spliced so the commit can sync row state. */
 function deleteCellsAndCollapse(
 	table: CstNode,
 	startCellIdx: number,

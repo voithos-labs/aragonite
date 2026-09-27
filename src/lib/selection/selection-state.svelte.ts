@@ -25,16 +25,11 @@ import { checkCrossBlockEndpointCoordinates } from '../invariants/selection-endp
 // ── Public factory ──────────────────────────────────────────────────────────
 
 export interface SelectionStateOptions {
-	/**
-	 * Fires after any mutation, or once at the end of a {@link SelectionState.batch} that
-	 * contained one. Subscribers read the selection back via `editor.getSelection()`;
-	 * `placementOnly` says a caret placement was all this flush held.
-	 */
+	/** Fires after any mutation, or once at the end of a {@link SelectionState.batch} that held
+	 *  one; `placementOnly` says a caret placement was all the flush held. */
 	onChange?: (change: { placementOnly: boolean }) => void;
-	/**
-	 * Document accessor. Absent in harnesses that only exercise cross-block semantics; without
-	 * it no point is normalized, so a table endpoint is stored exactly as the caller wrote it.
-	 */
+	/** Document accessor. Absent in harnesses that only exercise cross-block semantics, where no
+	 *  point is normalized and a table endpoint is stored as written. */
 	getDoc?: () => DocumentView;
 }
 
@@ -58,12 +53,8 @@ export interface SelectionState {
 	readonly selectAllCount: number;
 	/** The third mode: a collapsed caret in a between-blocks boundary (`gap-caret.ts`). */
 	readonly gapCaret: GapCaretPosition | null;
-	/**
-	 * One block taken whole as the entire range: a click on a leaf with no text (an equation)
-	 * dragged inside it. The stored pair spans the block's bytes on one path, which the
-	 * same-path check would otherwise refuse, so the overlay reads this to paint the block as a
-	 * unit.
-	 */
+	/** One block taken whole as the range (a drag inside a leaf with no text, such as an equation),
+	 *  which the same-path check would otherwise refuse; the overlay paints it as a unit. */
 	readonly wholeUnitPath: number[] | null;
 
 	// Every mutator below is silent when it changes nothing: a reset that clears what is
@@ -80,12 +71,8 @@ export interface SelectionState {
 	incrementSelectAllCount(): void;
 	resetSelectAllCount(): void;
 
-	/**
-	 * Notifies for a selection change this state cannot see. Subscribers read the editor back
-	 * through `getSelection()`, which also reports a caret the editor just placed, a native
-	 * caret a restore placed and a document a `source` swap replaced; none of those moves a
-	 * field the mutators above check. Coalesces inside a {@link SelectionState.batch}.
-	 */
+	/** Notifies for a change no mutator above sees (a caret the editor placed, a restore, a source
+	 *  swap), since subscribers read back through `getSelection()`. Coalesces inside a batch. */
 	announceSelection(): void;
 
 	/**
@@ -94,12 +81,8 @@ export interface SelectionState {
 	 */
 	announcePlacement(): void;
 
-	/**
-	 * Holds the change notification until `mutate` returns, then fires once if anything
-	 * changed. Nests, and flushes even when the body throws. Code that writes state and also
-	 * places a caret must wrap both: subscribers read the editor back on notify, so a notify
-	 * between the two reports a caret the DOM has not moved yet.
-	 */
+	/** Holds the change notification until `mutate` returns, then fires once; nests, and flushes on
+	 *  a throw. Wrap a state write and its caret placement so no notify lands between the two. */
 	batch(mutate: () => void): void;
 
 	/** Classifies a pair `resolveSelectionPoint` returned, for a DOM restore, touching no state: a
@@ -273,9 +256,8 @@ class SelectionStateImpl implements SelectionState {
 			this.#wholeUnit = null;
 		}
 		const f = this.#normalizePoint(point, this.#anchor.path);
-		// A focus back on the anchor's text leaf shrinks to a single-block range. No equal-offset
-		// exception, unlike `#isSamePathProseRange`: `extendFocus` never starts a pair, so landing
-		// exactly on the anchor offset is a collapse that must not be stored either.
+		// A focus back on the anchor's text leaf shrinks to a single-block range, even at the
+		// anchor's own offset: `extendFocus` never starts a pair, so landing there is a collapse.
 		if (pathsEqual(this.#anchor.path, f.path) && !isCellPair(this.#anchor, f)) {
 			this.#anchor = null;
 			this.#focus = null;

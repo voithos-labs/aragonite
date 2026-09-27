@@ -1,10 +1,8 @@
 /**
  * The `rangeDelete` branch for a container with a `reservedChrome` child (a details block's
- * summary line), the wall rule: nothing merges across such a container's edge. Endpoints
- * outside it truncate in place, a covered title line is cleared rather than deleted (G1.14),
- * covered body children are deleted, and the container itself goes, as one splice with its
- * children intact, when the range covers its whole subtree or, while it is collapsed, has an
- * endpoint on its title row and covers at least one character of that row or runs past it.
+ * summary line): nothing merges across such a container's edge. A covered title line is cleared,
+ * not deleted, so the title leaf stays at child 0 (G1.14); the container goes as one splice only
+ * when the range covers its whole subtree or reaches into its collapsed title row.
  */
 
 import type { Reading } from '../schema/reading';
@@ -35,11 +33,8 @@ import { survivorAfterRemoval } from './caret-target';
 
 // ── Public API ──────────────────────────────────────────────────────────────
 
-/**
- * True when the range must take the wall branch: an endpoint sits inside a `reservedChrome`
- * container the range crosses out of or into, or the range starts in the title line itself.
- * Same-block, body-only, and enclose-from-outside ranges stay on the plain branch.
- */
+/** Whether the range takes the title-line branch: an endpoint sits inside a `reservedChrome`
+ *  container the range crosses into or out of, or the range starts on the title line itself. */
 export function involvesReservedChrome(
 	doc: Document,
 	start: SelectionPoint,
@@ -55,14 +50,8 @@ export function involvesReservedChrome(
 	return true;
 }
 
-/**
- * Deletes [start, end] under the wall rule. Both endpoints truncate in place (a title line by a
- * raw write, which keeps the kind through `contextDependentKind`; text by a reparse of the
- * surviving slice), and nothing merges across the wall. An endpoint on a collapsed container's
- * title row takes that container whole, since the range covers its hidden body, unless the range
- * ends at the row's first byte and so reaches nothing visible there. The collapsed
- * caret lands at the start, or where the start's container stood when it went.
- */
+/** Deletes [start, end] with nothing merging across a title-line container's edge; an endpoint
+ *  on a collapsed title row takes that container whole, since the range covers its hidden body. */
 export function chromeAwareRangeDelete(
 	doc: Document,
 	start: SelectionPoint,
@@ -78,15 +67,13 @@ export function chromeAwareRangeDelete(
 		return removeWhole(doc, startTaken.path, sharing, reading);
 	}
 
-	// Copy every chain that will be written before node identities are captured (G1.9): chains
-	// stay valid across splices, paths do not.
+	// Copy every chain that will be written before node identities are captured: chains stay
+	// valid across splices, paths do not (G1.9).
 	const startChain = ensureUnsharedPath(doc, start.path, sharing);
 	const endChain = ensureUnsharedPath(doc, end.path, sharing);
 
-	// Only a collapsed start container is marked for deletion; otherwise both endpoints truncate
-	// in place below. `resolveEndWall` returns null when the start sits inside the end container,
-	// which needs no title-line clear either way, since that container's child 0 is never
-	// strictly between the endpoints.
+	// `resolveEndWall` is null when the start sits inside the end container, which needs no
+	// title-line clear, since that container's child 0 is never strictly between the endpoints.
 	const endWall = resolveEndWall(doc, start, end, null);
 	const wall =
 		endWall && end.offset > 0 && collapsedTitleOwner(endC, end.path)
@@ -182,7 +169,7 @@ function caretWhereRemoved(doc: Document, path: number[], sharing: SharingState)
 
 // ── Wall primitives (shared with the table branch) ──────────────────────────
 // `involvesTable` is checked before `involvesReservedChrome`, so a range with a table endpoint
-// goes to `range-delete-table.ts`; these helpers keep the wall rule in one place for both.
+// goes to `range-delete-table.ts`; these helpers keep the no-merge rule in one place for both.
 
 export interface ChromeContainer {
 	path: number[];

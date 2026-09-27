@@ -58,12 +58,8 @@ function gridColumnCount(grid: NodeView): number {
 	return grid.children?.[0]?.children?.length ?? 0;
 }
 
-/**
- * `point`'s index in `grid`'s cell space, or null where it addresses no cell of the grid (the
- * side the range runs past, which reads as the grid's own edge). A table's endpoint arrives on
- * the grid path already carrying the index; a plugin grid's keeps the `[grid, row, col]` path
- * G1.29 permits, and resolves through the same width {@link coveredGridCells} decodes with.
- */
+/** `point`'s index in `grid`'s cell space, or null on a side the range runs past. A plugin grid's
+ *  `[grid, row, col]` path decodes with the same width {@link coveredGridCells} uses. */
 export function gridEndpointCellIndex(
 	grid: NodeView,
 	gridPath: number[],
@@ -76,14 +72,8 @@ export function gridEndpointCellIndex(
 	return rowMajorCellIndex(row, col, gridColumnCount(grid));
 }
 
-/**
- * The cells a range covers inside one grid, in document order. `from` and `to` are the range's
- * cell indices in document order (`from <= to`; unordered inputs return fewer cells or none),
- * null on a side the range runs past. Both inside is the rectangle they span, which the overlay
- * paints and `range-delete-table` clears; one inside is a run up to that cell inclusive. The
- * grid must be rows of cells of equal width: anything else returns the wrong cells or none,
- * since every index is decoded with row 0's width.
- */
+/** The cells a range covers inside one grid: the rectangle ordered indices `from` and `to` span,
+ *  or a run up to the one inside when the other side is null. Rows must share row 0's width. */
 export function coveredGridCells(
 	grid: NodeView,
 	gridPath: number[],

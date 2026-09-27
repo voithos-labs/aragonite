@@ -61,10 +61,8 @@ export async function handleSharedKeydown(
 
 	ctx.caretMemory.noteKey(e, commandAtBlock(e, ctx), () => getCurrentCursorEditorRelativeX(el));
 
-	// The browser's own undo/redo is suppressed on keydown, since Ctrl+Y fires no `historyRedo`
-	// beforeinput in Chromium and WebView2. The default chord table is the right question here:
-	// it names the chords with a native history default, and running the command is the block's
-	// own dispatch, one branch further on.
+	// Ctrl+Y fires no `historyRedo` beforeinput in Chromium and WebView2, so every chord with a
+	// native history default is suppressed here; the block's own dispatch runs the command.
 	const historyChord = eventToChord(e);
 	if (historyChord && isDefaultGlobalChord(historyChord, ctx.commands.activation)) {
 		e.preventDefault();
@@ -136,9 +134,8 @@ export async function handleSharedKeydown(
 	}
 
 	if (e.key === 'ArrowLeft') {
-		// Shift+Arrow reads focus, not anchor: getCursorOffset() gives the range start, which is
-		// the anchor for a forward selection. That would extend cross-block while focus is
-		// contracting toward a non-zero anchor, and misfire for backward selections.
+		// Shift+Arrow reads the focus, since `getCursorOffset()` gives the range start: the anchor
+		// of a forward selection, which would extend across blocks while the focus contracts.
 		const offset = e.shiftKey ? (ctx.getFocusOffset() ?? bounds().start) : ctx.getCursorOffset();
 		if (offset !== null && offset <= bounds().start) {
 			if (e.shiftKey) {
@@ -185,23 +182,16 @@ export interface LandableBoundsContext {
 	getTextLen(): number;
 }
 
-/**
- * The raw offsets a caret can actually reach in this block, from the same walk that places the
- * caret. A mode that hides a block's markers puts those bytes out of reach, so the exits move
- * in to what the DOM can land on; the kind's declared content range is not that bound, since a
- * paragraph, a fenced code block and a table cell each declare the whole raw and still open or
- * close with a run nothing paints. Every block-edge check reads this, not 0 and length.
- */
+/** The raw offsets a caret can reach in the block, from the same walk that places it: hidden
+ *  markers put bytes out of reach, so every block-edge check reads this, not 0 and length. */
 export function caretLandableBounds(ctx: LandableBoundsContext, el: HTMLElement): LandableBounds {
 	return landableRawBounds(el) ?? { start: 0, end: ctx.getTextLen() };
 }
 
 // ── Shared beforeinput prelude ─────────────────────────────────────────────
 
-/**
- * Routes historyUndo/historyRedo through the undo controller and delegates cross-block
- * paste/type-replace. True when the caller should return early from its own `onBeforeInput`.
- */
+/** Routes historyUndo/historyRedo through the undo controller and delegates cross-block paste
+ *  and typing; true when the caller should return early from its own `onBeforeInput`. */
 export async function handleSharedBeforeInput(
 	e: InputEvent,
 	ctx: { history: HistoryActions; crossBlock: CrossBlockHandlers }

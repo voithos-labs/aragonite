@@ -1,9 +1,8 @@
 /**
- * The one path from a stored selection back onto the live editor: resolve it against the
- * current tree, mount the block the caret will land in, then place it. Both callers (an
- * undo/redo swap and the consumer's `setSelection`) come through here, so the resolve, clamp
- * and mount rules cannot differ between them. A gap caret takes {@link restoreGapCaret}, the
- * same steps minus the endpoint pair.
+ * The one path from a stored selection back onto the live editor: resolve it against the current
+ * tree, mount the block the caret will land in, then place it. Undo/redo and the consumer's
+ * `setSelection` both come through here, so the resolve, clamp and mount rules can't differ. A
+ * gap caret takes {@link restoreGapCaret}, the same steps minus the endpoint pair.
  */
 
 import type { DocumentView } from '../core/node-views';
@@ -31,15 +30,12 @@ export interface SelectionRestoreDeps {
 	/** Mounts the block the caret will land in and reports whether it is ready. Injected because
 	 *  which path gets mounted is this module's rule and how far to scroll is the caller's. */
 	revealTarget(path: number[]): Promise<boolean>;
-	/** A placed caret did not arrive by a key, so how an earlier one arrived no longer applies. */
+	/** Cleared on each restore, since a placed caret did not arrive by a key. */
 	caretMemory: Pick<CaretMemory, 'forget'>;
 }
 
-/**
- * Restores a snapshot. Never throws; an endpoint whose path no longer addresses a block is
- * declined before anything is mounted, so a dead snapshot cannot move the viewport or disturb
- * a live selection. What a decline does about the on-screen selection is the caller's policy.
- */
+/** Restores a snapshot and never throws. An endpoint whose path addresses no block is declined
+ *  before anything mounts, so a dead snapshot moves no viewport and disturbs no live selection. */
 export async function restoreSelection(
 	selection: EditorSelection,
 	deps: SelectionRestoreDeps
@@ -57,11 +53,8 @@ export async function restoreSelection(
 	return revealed && placed ? 'applied' : 'unplaced';
 }
 
-/**
- * Restores a gap caret. Only the child-list check of `gapEligibleAt` runs, not the full
- * eligibility check: the tree being restored is the one the gap was created against, so
- * `gapEdges` cannot have changed, but the path can now name something no BlockList renders.
- */
+/** Restores a gap caret with only the child-list check: the tree is the one the gap was made
+ *  against, so its `gapEdges` hold, but the path may name something no BlockList renders. */
 export async function restoreGapCaret(
 	pos: GapCaretPosition,
 	deps: SelectionRestoreDeps

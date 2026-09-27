@@ -32,8 +32,8 @@ export function normalizeCharEndpoint(
 	if (isWholeBlockUnit(node)) {
 		return endpoint.offset === 0 || endpoint.offset === end ? endpoint : wholeUnit;
 	}
-	// Clamps the range, then snaps to a scalar boundary: `setSelection` takes plain numbers, so
-	// this is the only check between a caller's arithmetic and a delete that splits a surrogate pair.
+	// `setSelection` takes plain numbers, so the snap here is the only check between a caller's
+	// arithmetic and a delete that splits a surrogate pair.
 	const clamped = snapToScalarBoundary(node.raw, Math.min(Math.max(endpoint.offset, 0), end));
 	return clamped === endpoint.offset ? endpoint : { path: endpoint.path.slice(), offset: clamped };
 }

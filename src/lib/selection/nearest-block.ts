@@ -32,12 +32,8 @@ export function measureBlocks(root: HTMLElement): MeasuredBlock[] {
 	}));
 }
 
-/**
- * The band a `y` belongs to. `belowAll` marks a point past the last band, the end-of-document
- * gesture, which lands at a trailing corner rather than under its own x. A y in a gap resolves to
- * the nearest band, so no point is left unanswered. Bands arrive in document order and may nest,
- * so containment scans forward, outermost wins.
- */
+/** The band a `y` belongs to; a y in a gap resolves to the nearest band, so no point is left
+ *  unanswered. `belowAll` marks a point past the last band, which lands at a trailing corner. */
 export function nearestBand(
 	bands: BlockBand[],
 	y: number
@@ -64,7 +60,7 @@ export function nearestBand(
 
 // ── Probing ────────────────────────────────────────────────────────────────
 
-/** The band's own probe point: {@link clampPointIntoBox}, except that `belowAll` takes the
+/** The point a band is hit-tested at: {@link clampPointIntoBox}, except that `belowAll` takes the
  *  trailing corner (the block's last position) rather than the point's own x. */
 export function probePointIn(
 	rect: DOMRect,

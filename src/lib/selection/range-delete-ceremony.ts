@@ -1,9 +1,8 @@
 /**
- * The deletion steps every `rangeDelete` branch (plain, title-line, table) shares: covered
- * paths are spliced out in reverse document order, each only while it still holds the node
- * captured up front, then emptied ancestors are cleaned up. The wall branches also reduce the
- * covered paths to subtree roots, so a container leaves as one splice with its children intact
- * and the undo entry holds a whole detached node.
+ * The deletion steps every `rangeDelete` branch (plain, title-line, table) shares: covered paths
+ * are spliced out in reverse document order, each only while it still holds the node captured up
+ * front, then emptied ancestors are cleaned up. The title-line and table branches splice a covered
+ * container as one subtree root, so the undo entry holds a whole detached node.
  */
 
 import type { GrammarView } from '../schema/block-openers';
@@ -54,12 +53,8 @@ function filterToSubtreeRoots(paths: number[][]): number[][] {
 	return paths.filter((p) => !paths.some((q) => isStrictAncestorOf(q, p)));
 }
 
-/**
- * Deletes in reverse document order, each path only while it still holds the node captured up
- * front: a deeper delete plus cleanup can shift a survivor into an outer position. The caller
- * must have copied every parent chain before calling, so the identity check compares the
- * copies (G1.9).
- */
+/** Deletes in reverse order, each path only while it holds its captured node (cleanup can move a
+ *  survivor there); the caller copies parent chains first so the check compares copies (G1.9). */
 export function deleteSubtreesIdentityGated(
 	doc: Document,
 	deletionPaths: number[][],
@@ -80,12 +75,8 @@ export function deleteSubtreesIdentityGated(
 	}
 }
 
-/**
- * A truncation in a wall branch is half a join: the delimiter runs it leaves unpaired are bytes
- * the user never saw in live mode, so the kept text side goes through the same cleanup a join
- * does, as a join with the block's own edge (live-mode.md § 4.5). Identity outside live mode.
- * A title line's raw write never comes here; it stays byte for byte.
- */
+/** A truncation is half a join, so in live mode the kept text drops unpaired delimiter runs:
+ *  `docs/design/live-mode.md` § 4.5 Joins clean up where they meet. */
 function cleanTruncatedProse(
 	node: CstNode,
 	kept: 'head' | 'tail',
@@ -109,13 +100,8 @@ function cleanTruncatedProse(
 	return cleanJoinedRaw({ ...join, reading });
 }
 
-/**
- * Reparses the bytes that survive at an endpoint's position, through the source kind's own
- * write rule first: the reparse derives metadata from bytes, so anything the truncation dropped
- * and the rule restores (a fence closer) has to be back before it runs. The position's leading
- * blank lines carry over, and an empty slice gives a bare paragraph on the source block's line
- * ending, else the document's (`ending`).
- */
+/** Reparses the bytes that survive at an endpoint, through the source kind's write rule first,
+ *  so what the rule restores (a fence closer) is back before the reparse derives metadata. */
 export function reparseTruncatedEndpoint(
 	node: CstNode,
 	slice: string,
@@ -138,10 +124,8 @@ export function reparseTruncatedEndpoint(
 	return cloned;
 }
 
-/**
- * Installs an endpoint's replacement, marked as the live tree's own copy. `replaceAtPath` fixes
- * up the blank lines a truncation left around the position (G2.13).
- */
+/** Installs an endpoint's replacement as the live tree's own copy; `replaceAtPath` fixes the blank
+ *  lines around it so the tree reparses to the same block shape (G2.13). */
 export function installTruncatedEndpoint(
 	doc: Document,
 	path: number[],
@@ -153,12 +137,8 @@ export function installTruncatedEndpoint(
 	replaceAtPath(doc, path, replacement, sharing, grammar);
 }
 
-/**
- * Truncates the start endpoint in place, after the planned deletion. A title line keeps its
- * bytes as they are, by a raw write; a text head goes through the unpaired-run cleanup and is
- * reinstalled by reparse. Returns the offset the collapsed caret lands on. `isChrome` is read
- * by the caller before any splice moved the tree.
- */
+/** Truncates the start endpoint in place, after the planned deletion, and returns the caret's
+ *  offset. `isChrome` must be read before any splice moved the tree. */
 export function truncateStartInPlace(
 	doc: Document,
 	start: SelectionPoint,
@@ -189,12 +169,8 @@ export function truncateStartInPlace(
 	return head.seam;
 }
 
-/**
- * Truncates the end endpoint in place, before the planned deletion, while its path is still
- * valid: a title line by raw write, text through the cleanup and reparse. Returns the surviving
- * tail node re-read through the tree (design rule 5) for a caller that must find it after the
- * splices.
- */
+/** Truncates the end endpoint in place, before the planned deletion while its path is valid,
+ *  and returns the surviving tail as re-read through the tree, never the raw copy. */
 export function truncateEndInPlace(
 	doc: Document,
 	end: SelectionPoint,
@@ -224,19 +200,15 @@ export function truncateEndInPlace(
 
 // ── Cross-block deletion plan (title-line and table branches) ───────────────
 // The branches interleave endpoint truncation with applyPlannedDeletion differently (end
-// before, start after), so the truncation atoms take their call position from the caller.
+// before, start after), so each truncation step takes its call position from the caller.
 
 export interface EndWall {
 	container: ChromeContainer;
 	consumed: boolean;
 }
 
-/**
- * The title-line container holding the end point, when the range enters it from outside.
- * `consumed` means the whole subtree is covered (a text end at the last byte, or an emptied
- * table at the end of the container's last-child chain), so the container is deleted as one
- * unit.
- */
+/** The title-line container holding the end point when the range enters it from outside;
+ *  `consumed` means the range covers its whole subtree, so it is deleted as one unit. */
 export function resolveEndWall(
 	doc: Document,
 	start: SelectionPoint,
@@ -260,12 +232,8 @@ export interface DeletionPlan {
 	sharing: SharingState;
 }
 
-/**
- * The covered subtree roots plus the endpoint paths the caller marks for removal, honouring
- * the wall: a surviving end container's covered title line is cleared rather than deleted
- * (returned as a copied chain for the caller's raw write), and a consumed container becomes
- * one unit delete.
- */
+/** The covered subtree roots plus the caller's endpoint paths. A surviving end container's
+ *  covered title line is cleared rather than deleted; a consumed one is deleted whole. */
 function collectDeletionPlan(
 	doc: Document,
 	start: SelectionPoint,
@@ -296,12 +264,8 @@ function collectDeletionPlan(
 	return { deletionPaths: filterToSubtreeRoots(candidates), chromeClearChain, sharing };
 }
 
-/**
- * Plans the deletion through {@link collectDeletionPlan}, copies every deletion path's parent
- * chain before any splice (G1.9), and finds the common ancestor the cleanup stops at. The
- * caller resolves `wall` itself, since its `consumed` flag also decides each branch's endpoint
- * truncation.
- */
+/** Plans the deletion, copying each parent chain first so no splice writes through a node undo
+ *  shares (G1.9). The caller resolves `wall`, whose `consumed` flag also decides truncation. */
 export function planCrossBlockDeletion(
 	doc: Document,
 	start: SelectionPoint,
@@ -317,11 +281,8 @@ export function planCrossBlockDeletion(
 	return { plan, lcaPath: lowestCommonAncestor(start.path, end.path) };
 }
 
-/**
- * Applies the plan: clears a surviving end container's covered title line (a raw write, never
- * a node delete), then splices the covered subtrees in reverse document order with the
- * identity check.
- */
+/** Applies the plan: clears a surviving end container's covered title line (a raw write, never a
+ *  node delete), then splices the covered subtrees. */
 export function applyPlannedDeletion(
 	doc: Document,
 	plan: DeletionPlan,
@@ -333,11 +294,8 @@ export function applyPlannedDeletion(
 	deleteSubtreesIdentityGated(doc, plan.deletionPaths, lcaPath, plan.sharing, grammar);
 }
 
-/**
- * Rebuilds every deletion path's surviving ancestors, then the cleared title line's opener
- * (through the saved chain, so the rebuild survives the splices). Branch-specific rebuilds stay
- * at their call sites.
- */
+/** Rebuilds every deletion path's surviving ancestors, then the cleared title line's opener
+ *  through the saved chain, so the rebuild survives the splices. */
 export function rebuildSharedAncestries(
 	doc: Document,
 	plan: DeletionPlan,

@@ -1,6 +1,4 @@
-/**
- * Cross-block clipboard text collection.
- */
+/** Builds the plain text a cross-block selection puts on the clipboard. */
 
 import type { SelectionPoint } from './primitives';
 import { makeBlockNode, metadataOf, type CstNode } from '../core/nodes';
@@ -25,12 +23,8 @@ import { getBlockKindDescriptor, tryGetBlockKindDescriptor } from '../schema/blo
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
-/**
- * The plain text of a cross-block selection: the start block's tail, every middle block's
- * blank lines plus raw, the end block's head. A container's raw already holds its children,
- * so its descendants are skipped. A leaf endpoint at a block boundary is promoted to its
- * outermost container inside the selection so list markers and blockquote prefixes survive.
- */
+/** The plain text of a cross-block selection. A leaf endpoint at a block boundary is promoted
+ *  to its outermost container inside the selection, so list and quote markers survive. */
 export function collectCrossBlockText(
 	doc: DocumentView,
 	anchor: SelectionPoint,
@@ -175,10 +169,8 @@ export function collectCrossBlockText(
 
 // ── Internal ───────────────────────────────────────────────────────────────
 
-/**
- * Table portion for the half-open cell range `[startCellIdx, endCellIdxExclusive)`. Selection
- * is row-rectangular by GFM constraint, so emit `[startRow..endRow] × all columns`.
- */
+/** The table rows the half-open cell range touches, every column included, since a table
+ *  selection is row-rectangular by GFM constraint. */
 function emitTablePortion(
 	table: NodeView,
 	startCellIdx: number,
@@ -198,12 +190,8 @@ function emitTablePortion(
 	);
 }
 
-/**
- * The list or quote marker a partial slice of a sole-child leaf keeps ("3. thi" rather than
- * "thi"): without it, CommonMark lets a following "N." line join the paragraph and the pasted
- * text collapses into one block. Only a sole child qualifies, since an earlier sibling would
- * sit between the marker and this leaf's raw.
- */
+/** The list or quote marker a partial slice of a sole-child leaf keeps ("3. thi", not "thi"):
+ *  without it, a following "N." line joins the pasted paragraph and the text becomes one block. */
 function soleChildContainerPrefix(
 	doc: DocumentView,
 	leafPath: number[],
@@ -218,12 +206,8 @@ function soleChildContainerPrefix(
 	return parent.raw.slice(0, parent.raw.length - leafRaw.length);
 }
 
-/**
- * The kind's `rebuildRaw` when a copy endpoint inside `container`'s title line can be re-emitted
- * as a truncated opener, or null. Only an `'opaque'` container qualifies: its syntax is an
- * opener plus a closer, so a shortened title is still a valid opener. Both endpoints consult
- * this one function, so the rule cannot hold at one end and not the other.
- */
+/** The kind's `rebuildRaw` when a copy endpoint in `container`'s title line can be re-emitted as
+ *  a truncated opener; only an `'opaque'` container's shortened title stays a valid opener. */
 function chromeWrapperRebuild(
 	container: NodeView,
 	childIndex: number
@@ -234,13 +218,8 @@ function chromeWrapperRebuild(
 	return descriptor.rebuildRaw ?? null;
 }
 
-/**
- * The bytes for a copy that ends inside a container's title line. A plain `raw.slice` would
- * paste back as a bare paragraph, so a container with the truncated title and an empty body is
- * built and the kind's own `rebuildRaw` serializes it. Metadata is copied first (it holds only
- * primitives, so a shallow copy suffices, G1.6) because `rebuildRaw` is plugin code that must
- * not alias the live tree.
- */
+/** The bytes for a copy that ends inside a container's title line, rebuilt as a container with
+ *  an empty body, since a plain `raw.slice` would paste back as a bare paragraph. */
 function endChromeContainerBytes(
 	doc: DocumentView,
 	end: SelectionPoint,
@@ -258,6 +237,7 @@ function endChromeContainerBytes(
 		kind: parent.kind,
 		leadingTrivia: '',
 		raw: '',
+		// `rebuildRaw` is plugin code, so it gets a copy of the metadata, never the live tree's.
 		metadata: parent.metadata ? cloneMetadata(parent.metadata) : undefined,
 		innerPrefix: '',
 		innerSuffix: '',
@@ -281,10 +261,8 @@ interface ChromeStartContainer {
 	rebuildRaw: (node: CstNode) => void;
 }
 
-/**
- * The container whose title line the copy starts inside, when its opener can be re-emitted
- * around the collected body; null otherwise.
- */
+/** The container whose title line the copy starts inside, when its opener can be re-emitted
+ *  around the collected body. */
 function startChromeContainer(
 	doc: DocumentView,
 	start: SelectionPoint,
@@ -305,13 +283,8 @@ function startChromeContainer(
 	};
 }
 
-/**
- * Re-emits the container around `body` with the truncated title in the opener line. One
- * `rebuildRaw` call over the real body keeps opener and closer in agreement: a directive fence
- * widens when its body contains the terminator. `exited` means the selection ran past the
- * container's end, so its trailing blank lines belong to the copy; otherwise the body gets a
- * line ending instead.
- */
+/** Re-emits the container around `body` in one `rebuildRaw` call, so a fence that widens for its
+ *  body keeps opener and closer in agreement. `exited`: the selection ran past the container. */
 function wrapChromeStartContainer(
 	start: ChromeStartContainer,
 	body: string,
@@ -346,10 +319,8 @@ function wrapChromeStartContainer(
 	return synthetic.raw;
 }
 
-/**
- * Walks up from a leaf endpoint to the outermost container that lies entirely inside the
- * selection: on the start side every step must be a first child, on the end side a last child.
- */
+/** The outermost container above a leaf endpoint that lies entirely inside the selection: each
+ *  step up is a first child on the start side, a last child on the end side. */
 function promoteToContainer(
 	doc: DocumentView,
 	leafPath: number[],

@@ -1,6 +1,6 @@
 /**
  * Where a caret lands for a position that may name a container, a collapsed container's hidden
- * body, or the slot a removed block left, decided on the tree alone before anything mounts. A
+ * body, or the position a removed block left, decided on the tree alone before anything mounts. A
  * collapsed container counts as its title row throughout, so no answer here opens one.
  */
 
@@ -22,11 +22,8 @@ export interface CaretTarget {
 
 // ── Public API ──────────────────────────────────────────────────────────────
 
-/**
- * The leaf a caret at `pos` sits in, and its offset there; null when the path no longer
- * resolves. A path into a collapsed body lands at the end of that container's title row unless
- * `openCollapsed` is set, which only a navigation that opens the container passes.
- */
+/** The leaf and offset a caret at `pos` takes, or null for a path that addresses nothing. A
+ *  path into a collapsed body lands at its title row's end unless `openCollapsed` is set. */
 export function caretTargetFor(
 	doc: DocumentView,
 	pos: CaretPosition,
@@ -58,11 +55,8 @@ export function caretTargetFor(
 	}
 }
 
-/**
- * Where the caret goes once the block at `removedPath` is gone, read on the tree after the
- * removal. `'before'` (Backspace, and a removal with no key) takes the end of the previous
- * block, else the start of the next; `'after'` (Delete) the reverse. Null for an emptied document.
- */
+/** Where the caret goes once the block at `removedPath` is gone, read on the tree after the
+ *  removal: `'before'` prefers the previous block's end, `'after'` the next block's start. */
 export function survivorAfterRemoval(
 	doc: DocumentView,
 	removedPath: readonly number[],
@@ -79,7 +73,7 @@ export function survivorAfterRemoval(
 
 // ── Internal ────────────────────────────────────────────────────────────────
 
-/** `removedPath`, or the slot of its nearest ancestor when the removal emptied the parent and the
+/** `removedPath`, or its nearest ancestor's position when the removal emptied the parent and the
  *  commit's fix-up took it too (its path then resolves to nothing, or to a childless neighbour). */
 function liveSlot(doc: DocumentView, removedPath: readonly number[]): number[] | null {
 	let slot = [...removedPath];

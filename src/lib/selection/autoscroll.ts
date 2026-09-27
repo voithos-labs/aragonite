@@ -8,7 +8,6 @@ import type { UserScrollport } from '../cursor/scroll-ancestors';
 
 const EDGE_THRESHOLD_PX = 30;
 
-/** The four edges the pointer is compared against. `getBoundingClientRect()` is one. */
 interface EdgeBox {
 	left: number;
 	right: number;
@@ -32,10 +31,8 @@ export interface AutoScrollDeps {
 	getPointer: () => { clientX: number; clientY: number } | null;
 	getTargets: (clientX: number, clientY: number) => UserScrollport[];
 	onScrolled?: () => void;
-	/**
-	 * Restrict scrolling to one axis (default both). The column reorder drag pins the pointer in
-	 * the table's top band, where vertical evaluation would spin on a horizontal-only scroller.
-	 */
+	/** Restricts scrolling to one axis (default both), for a drag that pins the pointer in one
+	 *  edge band, where the other axis would scroll a container meant to move only one way. */
 	axis?: 'horizontal' | 'vertical' | 'both';
 }
 

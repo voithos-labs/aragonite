@@ -1,4 +1,4 @@
-/** Document-tree path navigation. Pure functions over a Document + path. */
+/** Walks the document tree by path, and reads block paths off the DOM. */
 
 import type { CstNode, Document } from '../core/nodes';
 import type { DocumentView, NodeView } from '../core/node-views';
@@ -79,9 +79,8 @@ export function lastLeafAtOrBefore(doc: Document, path: number[]): number[] | nu
 }
 
 // ── Caret-reachable order ──────────────────────────────────────────────────
-// The same document order as above, except that a collapsed container is only its title row,
-// since a caret can never sit in its hidden body. Select-all keeps the functions above: its range
-// has to cover that body. Every function here returns a leaf path, never a container's.
+// The same order as above, but a collapsed container is only its title row, since a caret never
+// sits in its hidden body; select-all keeps the functions above, as its range covers that body.
 
 /** The first leaf a caret can reach at or inside `path`, or null when `path` does not resolve. */
 export function firstCaretLeaf(doc: DocumentView, path: readonly number[]): number[] | null {
@@ -103,7 +102,7 @@ export function nextCaretPath(doc: DocumentView, path: readonly number[]): numbe
 }
 
 /** The last caret leaf before `path`'s subtree in document order; an ancestor of `path` is never
- *  the answer. `path` need not resolve, so a slot a removed block left reads the same. */
+ *  the answer. `path` need not resolve, so the position a removed block left reads the same. */
 export function previousCaretPath(doc: DocumentView, path: readonly number[]): number[] | null {
 	const hiding = collapsedContainerHiding(doc, path);
 	if (hiding) return lastCaretLeaf(doc, [...hiding, 0]);
@@ -171,11 +170,8 @@ function reachableChildCount(node: NodeView | DocumentView): number {
 	return isBlockNode(node) ? caretChildCount(node) : node.children.length;
 }
 
-/**
- * The document path an element's own `data-block-path` carries, and the one place anything reads
- * that attribute. A plugin may own it with content of its own, so anything but a list of numbers
- * resolves to null, never a throw or a path-shaped lie.
- */
+/** The path an element's own `data-block-path` carries, read in one place: a plugin may own the
+ *  attribute with content of its own, so anything but a list of numbers reads as null. */
 export function readBlockPath(el: Element | null): number[] | null {
 	const attr = el?.getAttribute('data-block-path');
 	if (!attr) return null;
@@ -197,13 +193,8 @@ export function findBlockPathForElement(el: Element | null): number[] | null {
 	return null;
 }
 
-/**
- * The `[...tablePath, row, col]` path of an element inside a table cell. Only block hosts carry
- * `data-block-path`, so {@link findBlockPathForElement} stops at the table and returns a path
- * whose offsets are cell indices, while a caret read from the same element is in characters.
- * Anything resolving an endpoint path from the DOM must come through here. Null outside a
- * grid; the grid is addressed by `data-table-row-idx` and `TABLE_CELL_SELECTOR`.
- */
+/** The `[...tablePath, row, col]` path of an element in a table cell: only block hosts carry a
+ *  path, so a DOM-read endpoint in a cell must come through here or it reads as the table's. */
 export function findCellPathForElement(el: Element | null): number[] | null {
 	const cellEl = el?.closest(TABLE_CELL_SELECTOR) ?? null;
 	if (!cellEl) return null;
