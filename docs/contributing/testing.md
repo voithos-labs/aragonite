@@ -618,6 +618,13 @@ nesting_ against commonmark, so emphasis classified into the wrong kinds fails e
 bytes still tile. That's the gap a byte-conservation or offset-tiling property can't see. It
 allows only the divergence classes the baseline documents as deliberate.
 
+The spec's link reference definition examples get a check of their own
+(`gfm-conformance/definition-examples.test.ts`), because the inline differ skips any input that
+defines a reference. Each example is compared as a whole document: which definitions commonmark.js
+found, what each one resolves to, and the blocks left around them. An example we don't match on
+purpose sits in the baseline's `definitionDeviations` with its reason, and it fails the day it
+starts matching, same as the inline entries.
+
 ## Property suites and fresh seeds
 
 A gate that fails differently each time is a gate people learn to ignore, so the property/fuzz

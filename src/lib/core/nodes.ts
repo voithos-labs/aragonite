@@ -79,8 +79,11 @@ export interface ThematicBreakMetadata {
 }
 
 export interface LinkReferenceDefinitionMetadata {
+	/** The label's source bytes, unnormalized. */
 	label: string;
+	/** Escapes resolved and percent-encoded, the value an inline link's `url` holds. */
 	url?: string;
+	/** Escapes resolved, the value an inline link's `title` holds. */
 	title?: string;
 }
 

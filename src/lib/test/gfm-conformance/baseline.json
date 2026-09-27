@@ -60,5 +60,11 @@
 			"class": "image-alt-structure",
 			"note": "deliberate: alt is the raw label bytes — the editor's product model; the spec's plain-text alt is a render-layer concern outside the scanner's contract"
 		}
+	],
+	"definitionDeviations": [
+		{
+			"example": 208,
+			"note": "a label is read on the definition's first line, so a label that spans lines leaves a paragraph"
+		}
 	]
 }

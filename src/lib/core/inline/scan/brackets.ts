@@ -2,13 +2,13 @@
  * Bracket stack for inline and reference links/images (CommonMark §6.3), ported onto the flat
  * working-node list. A failed `]` leaves its brackets literal, except full/collapsed references
  * that miss the resolver: those commit to one opaque `unresolvedReference` node (editor deviation).
- * `url`/`title` are spec-processed for inline forms and byte-exact from the resolver for reference
- * forms; neither is ever serialized, so offsets stay lossless.
+ * `url`/`title` are spec-processed in both forms (a reference form's come from its definition);
+ * neither is ever serialized, so offsets stay lossless.
  */
 
 import type { InlineNode } from '../../nodes';
-import { ESCAPABLE_PUNCTUATION } from '../../escapable';
 import { parseImageDimensions } from '../image-dimensions';
+import { parseLinkDestination, parseLinkTitle } from '../link-destination';
 import { normalizeLinkLabel, type ResolvedReference } from '../link-reference-resolver';
 import { processEmphasis } from './emphasis';
 import {
@@ -18,7 +18,6 @@ import {
 	type Bracket,
 	type ScanContext
 } from './scan-state';
-import { processDestination, unescapeSpecString } from './url';
 
 // ── Scan-time handlers ──────────────────────────────────────────────────────
 
@@ -224,14 +223,14 @@ function emitUnresolvedReference(ctx: ScanContext, bracket: Bracket, ref: Refere
 function parseInlineLinkTail(raw: string, pos: number, end: number): LinkTarget | null {
 	if (pos >= end || raw[pos] !== '(') return null;
 	let i = skipSpnl(raw, pos + 1, end);
-	const dest = parseDestination(raw, i, end);
+	const dest = parseLinkDestination(raw, i, end);
 	if (dest === null) return null;
 	i = skipSpnl(raw, dest.end, end);
 
 	// A title needs real whitespace after the destination; a quote abutting it is destination content.
 	let title: string | undefined;
 	if (i > dest.end) {
-		const parsed = parseTitle(raw, i, end);
+		const parsed = parseLinkTitle(raw, i, end);
 		if (parsed !== null) {
 			title = parsed.title;
 			i = skipSpnl(raw, parsed.end, end);
@@ -241,7 +240,7 @@ function parseInlineLinkTail(raw: string, pos: number, end: number): LinkTarget 
 	return { url: dest.url, ...(title !== undefined ? { title } : {}), end: i + 1 };
 }
 
-/** The reference's spnl: spaces, at most one newline, spaces — tabs excluded. */
+/** commonmark.js's optional whitespace: spaces, at most one newline, spaces, but no tab. */
 function skipSpnl(raw: string, pos: number, end: number): number {
 	while (pos < end && raw[pos] === ' ') pos++;
 	if (pos < end && raw[pos] === '\n') {
@@ -249,86 +248,4 @@ function skipSpnl(raw: string, pos: number, end: number): number {
 		while (pos < end && raw[pos] === ' ') pos++;
 	}
 	return pos;
-}
-
-function parseDestination(
-	raw: string,
-	pos: number,
-	end: number
-): { url: string; end: number } | null {
-	if (pos < end && raw[pos] === '<') return parseAngleDestination(raw, pos, end);
-	return parseBareDestination(raw, pos, end);
-}
-
-function parseAngleDestination(
-	raw: string,
-	pos: number,
-	end: number
-): { url: string; end: number } | null {
-	let i = pos + 1;
-	while (i < end) {
-		const ch = raw[i];
-		if (ch === '>') return { url: processDestination(raw.slice(pos + 1, i)), end: i + 1 };
-		if (ch === '<' || ch === '\n' || ch === '\u0000') return null;
-		if (ch === '\\') {
-			const next = i + 1 < end ? raw[i + 1] : '';
-			if (next === '' || next === '\n' || next === '\r' || next === '\u2028' || next === '\u2029') {
-				return null;
-			}
-			i += 2;
-		} else {
-			i++;
-		}
-	}
-	return null;
-}
-
-// The reference's destination terminator set (reWhitespaceChar): other control characters,
-// and U+00A0, are destination content.
-const DESTINATION_TERMINATORS = new Set(' \t\n\u000b\u000c\r');
-
-/** Bare form: balanced parens, no depth cap. Empty is valid only just before the closing `)`. */
-function parseBareDestination(
-	raw: string,
-	pos: number,
-	end: number
-): { url: string; end: number } | null {
-	let i = pos;
-	let openParens = 0;
-	while (i < end) {
-		const ch = raw[i];
-		if (ch === '\\' && i + 1 < end && ESCAPABLE_PUNCTUATION.has(raw[i + 1])) {
-			i += 2;
-		} else if (ch === '(') {
-			openParens++;
-			i++;
-		} else if (ch === ')') {
-			if (openParens < 1) break;
-			openParens--;
-			i++;
-		} else if (DESTINATION_TERMINATORS.has(ch)) {
-			break;
-		} else {
-			i++;
-		}
-	}
-	if (i === pos && (i >= end || raw[i] !== ')')) return null;
-	if (openParens !== 0) return null;
-	return { url: processDestination(raw.slice(pos, i)), end: i };
-}
-
-/** Paren titles cannot nest. */
-function parseTitle(raw: string, pos: number, end: number): { title: string; end: number } | null {
-	const marker = raw[pos];
-	if (marker !== '"' && marker !== "'" && marker !== '(') return null;
-	const close = marker === '(' ? ')' : marker;
-	let i = pos + 1;
-	while (i < end) {
-		const ch = raw[i];
-		if (ch === close) return { title: unescapeSpecString(raw.slice(pos + 1, i)), end: i + 1 };
-		if (ch === '\u0000' || (marker === '(' && ch === '(')) return null;
-		if (ch === '\\' && i + 1 < end) i += 2;
-		else i++;
-	}
-	return null;
 }
