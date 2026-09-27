@@ -66,10 +66,8 @@ test.describe('table block: cell right-click menu', () => {
 	});
 
 	// ── Row and Column flyouts ─────────────────────────────────────────────
-	//
-	// The insert and move actions live one level down, behind the "Row" and "Column" rows; a
-	// hover opens the flyout, the same way the pointer really reaches them. These cover what
-	// each action does, routed off the clicked cell.
+	// The insert and move actions sit behind the "Row" and "Column" rows, opened by hover as the
+	// pointer really reaches them.
 
 	test('the Row flyout inserts a body row directly below the clicked row', async ({ page }) => {
 		await openFlyout(page, 2, 'Row'); // body cell ("1"), rowIdx 1
@@ -147,8 +145,7 @@ test.describe('table block: cell right-click menu', () => {
 	});
 
 	// Activating an alignment segment must return focus to a cell and announce through the live
-	// region, not drop focus to `<body>` silently. Driven through the menu's real roving focus,
-	// not a programmatic press on the segment.
+	// region, driven through the menu's real roving focus.
 	test('keyboard-driven alignment restores focus to a cell and announces', async ({ page }) => {
 		await editor.loadContent(TABLE_3COL);
 		await page.locator('.table-cell').nth(4).click(); // body row, column B ("2")

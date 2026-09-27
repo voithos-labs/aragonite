@@ -3,7 +3,7 @@ import { EditorPage } from '../../../editor-page';
 import { openImageField } from './helpers';
 
 // The image toolbar's alt field is a popover over the document and reports on `menuChange`; the
-// toolbar a selected image shows is selection chrome and reports nothing.
+// toolbar a selected image shows is part of the selection and reports nothing.
 // Requirements: `requirements/blocks/image/menu-change.md`.
 
 test.describe('image: the alt field on menuChange', () => {

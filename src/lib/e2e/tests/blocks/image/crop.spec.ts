@@ -26,7 +26,7 @@ test.describe('image crop', () => {
 		await waitForFirstImageLoaded(page);
 		const widget = page.locator('[data-image-widget]').first();
 
-		// A single click only selects it: the toolbar appears, the pan surface does not.
+		// A single click only selects the image: the toolbar appears, the pan area does not.
 		await widget.click();
 		await expect(page.locator('.md-image-properties')).toBeVisible();
 		await expect(page.locator('.md-image-crop-surface')).toHaveCount(0);
@@ -134,9 +134,8 @@ test.describe('image crop', () => {
 		await editor.bridge.waitForSourceContains('![cat|300x150@50,50]');
 	});
 
-	// The resize preview follows the frame, not the `<img>`: for a crop the `<img>` is the picture
-	// panned inside the frame, so previewing on it bulges out of the frame mid-drag, and above
-	// zoom 1 the drag starts from the painted picture's width and jumps.
+	// The resize preview follows the frame, not the `<img>`, which for a crop is the panned
+	// picture: previewing on it bulges out of the frame, and above zoom 1 the drag jumps.
 	test('the drag handle previews on the frame while resizing a cropped image', async ({ page }) => {
 		await editor.loadContent('![cat|300x150@30,60,2](/test-fixtures/sample.png)\n');
 		await waitForFirstImageLoaded(page);

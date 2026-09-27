@@ -41,7 +41,7 @@ test.describe('list marker, hanging-indent style scoped by ambient length', () =
 		});
 
 		// The indent is a fixed em width fitted to the editor's font; another font can draw the
-		// marker a fraction of a pixel wider, which no reader sees.
+		// marker a fraction of a pixel wider, which no user sees.
 		expect(paddingLeft).toBeGreaterThanOrEqual(marker!.width - 1);
 	});
 

@@ -39,7 +39,7 @@ for (const mode of ['source', 'live'] as const) {
 	});
 }
 
-// The branch for a container's marker prefix (GH #110) and the one for a leading widget agree.
+// The branch for a container's marker prefix and the one for a leading widget agree.
 test('a list item opening with an image lands Home before the image too', async ({ page }) => {
 	const ep = new EditorPage(page);
 	await ep.goto();

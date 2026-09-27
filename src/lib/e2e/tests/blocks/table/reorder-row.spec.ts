@@ -50,9 +50,8 @@ test.describe('table block: keyboard row reorder', () => {
 		expect(await editor.bridge.getSource()).toBe(before);
 	});
 
-	// At the boundary: a move with no body row in that direction must change nothing and add no
-	// undo entry, or the press silently eats a Ctrl+Z. Type, press at the boundary, then Ctrl+Z
-	// must undo the typing.
+	// A move with no body row in that direction must change nothing and add no undo entry, or it
+	// silently eats a Ctrl+Z: the Ctrl+Z after it must undo the typing.
 	test('Alt+ArrowUp on the first body row is a no-op and creates no undo entry', async ({
 		page
 	}) => {
@@ -110,16 +109,13 @@ test.describe('table block: keyboard row reorder', () => {
 		);
 	});
 
-	// Undo in a real browser on a table whose bytes are not canonical: the reorder's
-	// `rebuildTableRaw` canonicalizes the live view, so undo must restore the exact original tight
-	// bytes. One reorder and undo does not reach `moveRow`'s `ensureUnsharedChildren`, which needs
-	// an earlier shared snapshot.
+	// `rebuildTableRaw` canonicalizes a table whose bytes are not canonical, so undo must restore
+	// the exact tight bytes; one reorder cannot reach `moveRow`'s copy-before-write.
 	test('reorder→undo restores a non-canonical table source byte-exactly', async ({ page }) => {
 		const NONCANON = '|A|B|\n|---|---|\n|1|2|\n|3|4|\n';
 		await editor.loadContent(NONCANON);
-		// Compare against the loaded source, not the literal: `getSource()` normalizes trailing
-		// whitespace. The `toContain` proves the load did not canonicalize the cells (a canonical
-		// `| 1 | 2 |` does not contain `|1|2|`).
+		// Compared against the loaded source, since `getSource()` normalizes trailing whitespace;
+		// the `toContain` proves the load kept the tight cells (`|1|2|`).
 		const original = await editor.bridge.getSource();
 		expect(original).toContain('|1|2|');
 

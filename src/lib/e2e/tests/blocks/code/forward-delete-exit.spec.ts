@@ -4,13 +4,12 @@ import { EditorPage } from '../../../editor-page';
 // The exit check finds the next block inside the code block's own container, never against the
 // root's child count. See `requirements/blocks/code/forward-delete-exit.md`.
 
-// Raw offset of the closer boundary for the body "code\n" (== bodyEnd). Shared by every code block
-// here: the offset is local to the block's own contenteditable, and the `> ` a quote draws is
-// not part of that text.
+// Raw offset of the closer boundary for the body "code\n", the same in every code block here: the
+// offset is local to the block's own editable element, which excludes a quote's `> `.
 const CLOSER_BOUNDARY = 8;
 
-// Forward Delete at the closer only ever moves focus, so every call waits on the press being
-// declined rather than on the source.
+// Forward Delete at the closer only moves focus, so every call waits on the key being declined
+// rather than on the source.
 async function pressDeleteAtCloser(editor: EditorPage, path: number[]) {
 	await editor.focusBlockAtPath(path, CLOSER_BOUNDARY);
 	await editor.pressDeclined('Delete');
@@ -48,8 +47,8 @@ test.describe('code block: forward-Delete at closer exit', () => {
 		expect(await editor.bridge.getBlockKind(1)).toBe('paragraph');
 		const blockCountBefore = await editor.bridge.getBlockCount();
 
-		// The fence ends the blockquote, so the exit meets the gap at the end of the container's
-		// own child list first (`requirements/selection/gap-caret-arrival.md`); the next Delete leaves.
+		// The fence ends the blockquote, so the exit meets the gap at the end of the quote's child
+		// list first (`requirements/selection/gap-caret-arrival.md`).
 		await pressDeleteAtCloser(editor, [0, 0]);
 		await editor.bridge.waitForGapCaret({ parentPath: [0], index: 1 });
 		await editor.page.keyboard.press('Delete');

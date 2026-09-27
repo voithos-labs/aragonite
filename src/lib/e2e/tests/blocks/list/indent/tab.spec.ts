@@ -53,10 +53,8 @@ test.describe('list Tab', () => {
 		expect(source).not.toMatch(/^\s+1\. B$/m);
 	});
 
-	// `indentItem` passes `focus(-1)` down to the leaf paragraph, and a leaf handing -1 straight to
-	// `cursor.setRaw` throws `IndexSizeError` and silently does nothing. Only a target with no
-	// marker in front of it, so not the first child of its list item, reaches that, hence the
-	// extra paragraph.
+	// A leaf handing `indentItem`'s `focus(-1)` straight to `cursor.setRaw` throws; only a target
+	// that is not its item's first child reaches that, hence the extra paragraph.
 	test('Tab cascades cursor to start of moved item continuation paragraph', async () => {
 		await editor.loadContent('- Item 1\n- Item 2\n\n  continuation\n');
 		// Item 2 is the second listItem at path [0, 1]; its first paragraph is the "Item 2" line,

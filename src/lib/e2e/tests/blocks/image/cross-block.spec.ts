@@ -31,7 +31,7 @@ test.describe('image cross-block selection', () => {
 		await editor.loadContent('a![cat](/test-fixtures/sample.png)b\n');
 		await editor.focusBlockStart(0);
 		await page.keyboard.press('ArrowRight');
-		// One Shift+ArrowRight jumps the whole widget; a second press would extend into 'b'.
+		// One Shift+ArrowRight jumps the whole widget; a second would extend into 'b'.
 		await page.keyboard.press('Shift+ArrowRight');
 		await page.keyboard.press('Backspace');
 		await editor.bridge.waitForSourceNotContains('![cat]');

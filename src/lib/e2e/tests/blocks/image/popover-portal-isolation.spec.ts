@@ -24,9 +24,8 @@ test.describe('image popover portal isolation', () => {
 		expect(await altInput.inputValue()).toContain(' v2');
 	});
 
-	// With the popover inside the widget, clicking between its inputs fires the widget's
-	// `pointerdown` and re-dispatches `image-widget-select`, so the move effect runs again and the
-	// brief detach blurs the field shut.
+	// With the popover inside the widget, a click between its inputs fires the widget's
+	// `pointerdown` and reselects it, and the move's brief detach blurs the field shut.
 	test('toggling the alt field keeps the toolbar open', async ({ page }) => {
 		await editor.loadContent('![cat](/test-fixtures/sample.png)\n');
 		const widget = page.locator('[data-image-widget]').first();
@@ -42,9 +41,8 @@ test.describe('image popover portal isolation', () => {
 		await expect(page.locator('.md-image-properties input')).toBeFocused();
 	});
 
-	// Moving the overlay inside the widget carries Svelte's whitespace text nodes with it, and on a
-	// `display: block` widget those make an inline line box that grows it by one line height on
-	// open.
+	// Moving the overlay inside the widget carries Svelte's whitespace text nodes along, which on a
+	// `display: block` widget grow it by one line height on open.
 	test('opening popover does not shift the widget or the block below it', async ({ page }) => {
 		await editor.loadContent('intro\n\n![cat|400x200](/test-fixtures/sample.png)\n\nfollowing.\n');
 		const widget = page.locator('[data-image-widget]').first();
@@ -67,9 +65,8 @@ test.describe('image popover portal isolation', () => {
 		expect(belowYAfter).toBe(belowYBefore);
 	});
 
-	// Anchored inside the widget's DOM the popover sits on the first visual line of a list-item
-	// paragraph, with the item's wrapped trailing text beside it; rendering it at the editor root
-	// keeps its bounds out of the list item's flow.
+	// Inside the widget's DOM the popover sits on a list-item paragraph's first line, beside the
+	// item's wrapped text; rendering it at the editor root keeps it out of the item's flow.
 	test('popover field labels stay inside popover bounds when image is in a list', async ({
 		page
 	}) => {

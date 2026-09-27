@@ -1,8 +1,8 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 
-// Every way the caret enters and leaves a fence whose lines the mode hides: the offsets it can
-// sit at are the body's, and no press at an edge may reach a hidden fence line.
+// Every way the caret enters and leaves a fence whose lines the mode hides: the offsets it can sit
+// at are the body's, and no key at an edge may reach a hidden fence line.
 // Requirements: `e2e/requirements/blocks/code/live-navigation.md`.
 
 const DOC = 'Before\n\n```js\nconst x = 1;\nfoo();\n```\n\nAfter\n';

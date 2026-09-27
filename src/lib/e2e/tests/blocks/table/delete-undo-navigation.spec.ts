@@ -23,8 +23,8 @@ test.describe('table block: delete + undo + arrow navigation', () => {
 	test('after delete-table-then-undo, ArrowDown from above can enter the table', async ({
 		page
 	}) => {
-		// Three Ctrl+A presses: cell, table (cross-block intra-table), document.
-		// Two presses gets us the table-coverage selection that Backspace deletes.
+		// Ctrl+A steps from cell to table to document; the second gives the table-wide selection
+		// that Backspace deletes.
 		await page.locator('.table-cell').nth(4).click();
 		await page.keyboard.press('ControlOrMeta+a');
 		await page.keyboard.press('ControlOrMeta+a');

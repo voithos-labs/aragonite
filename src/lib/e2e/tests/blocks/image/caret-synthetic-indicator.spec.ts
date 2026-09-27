@@ -39,10 +39,8 @@ const caretColorOfFocusedBlock = (page: Page): Promise<string> =>
 		return getComputedStyle(block).caretColor;
 	});
 
-// The editor's own caret marker is the fallback for where the browser cannot render one: it
-// appears only at a widget boundary with no text node to anchor to, or when Chromium dropped the
-// caret. Where the native caret renders it stays absent, so the two never compete and one caret
-// means one position (G1.39).
+// The editor draws its own caret marker only where the browser cannot: at a widget boundary with no
+// text node, or after Chromium dropped the caret, so one caret means one position (G1.39).
 test.describe('synthetic caret indicator at widget boundary', () => {
 	let editor: EditorPage;
 
@@ -81,15 +79,13 @@ test.describe('synthetic caret indicator at widget boundary', () => {
 		await clickPastImageRightEdge(page);
 		await expect(page.locator('[data-image-widget].md-snap-after')).toHaveCount(1);
 
-		// The other half of keeping the two carets from competing: at an element-level offset the
-		// editor cannot see whether Chromium painted a native caret, so hiding it is the only way
-		// left.
+		// At an element-level offset the editor cannot see whether Chromium painted a native caret,
+		// so it hides that caret.
 		expect(await caretColorOfFocusedBlock(page)).toBe('rgba(0, 0, 0, 0)');
 	});
 
-	// Beside an image widget the browser puts its own caret at an element-level offset, where
-	// Chromium paints a taller stroke for as long as the button is down. Hiding it from the press
-	// keeps that stroke from showing first and the editor's own caret after it.
+	// Beside an image widget Chromium paints a taller native caret while the button is down, so the
+	// caret is hidden from pointerdown on.
 	test('the native caret is dark from the press, before the click arms the synthetic', async ({
 		page
 	}) => {
@@ -250,10 +246,8 @@ test.describe('synthetic caret indicator at widget boundary', () => {
 		expect(await paintedCarets(page)).toEqual(['[0,0,0]']);
 	});
 
-	// One caret is one position: the editor's own range owns the position while it is up, so no
-	// block may still be painting a caret of its own underneath it. A range whose focus lands back
-	// on the armed offset leaves the browser's caret exactly where the snap put it, so nothing
-	// about the caret's own position says the paint should go.
+	// While the editor's own range is up, no block may still paint its caret underneath, even when
+	// the range's focus returns to the armed offset and the browser's caret has not moved.
 	test('no synthetic caret is painted while a cross-block range is up', async ({ page }) => {
 		await editor.loadContent(TWO_IMAGE_DOC);
 		await waitForAllImagesLoaded(page);
@@ -269,8 +263,8 @@ test.describe('synthetic caret indicator at widget boundary', () => {
 		await expect.poll(() => paintedCarets(page)).toEqual([]);
 	});
 
-	// The press half, which the drag's own pointerdown answers before any range exists: kept
-	// because it is the gesture a user makes, not because it reaches the rule above.
+	// Pointerdown, which the drag answers before any range exists, kept because it is the gesture a
+	// user makes.
 	test('synthetic caret clears when a press lands in another block', async ({ page }) => {
 		await editor.loadContent(TWO_IMAGE_DOC);
 		await waitForAllImagesLoaded(page);

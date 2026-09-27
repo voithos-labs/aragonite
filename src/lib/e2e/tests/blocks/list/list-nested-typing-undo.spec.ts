@@ -51,9 +51,8 @@ test.describe('nested list item, typing + undo', () => {
 		await editor.bridge.waitForSourceEquals(before);
 	});
 
-	// A focus change between sibling items must break the debounced batch even before the 250ms
-	// flush: keying the batch on the outer container's block index alone makes sibling leaves
-	// share one.
+	// A focus change between sibling items must end the typing batch before the 250ms pause, or the
+	// batch keyed on the outer container's index spans both leaves.
 	test('focus change between sibling items inside debounce window still breaks the batch', async () => {
 		const before = await editor.bridge.getSource();
 

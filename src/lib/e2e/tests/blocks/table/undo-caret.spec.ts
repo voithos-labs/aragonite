@@ -78,7 +78,7 @@ test.describe('table block: caret/selection recovery on undo', () => {
 	test('undo after deleting a substring inside a cell restores caret to that cell', async ({
 		page
 	}) => {
-		// Multi-char middle cell so substring delete is meaningful (the user repro).
+		// A multi-character middle cell, so a substring delete means something.
 		await editor.loadContent(
 			'| A | Column | C |\n| --- | --- | --- |\n| 1 | Column | 3 |\n| 4 | data | 6 |\n'
 		);
@@ -131,8 +131,8 @@ test.describe('table block: caret/selection recovery on undo', () => {
 
 		const before = await editor.bridge.getSource();
 		await page.keyboard.press('Backspace');
-		// Settle on column A's disappearance: '| A | B | C |' contains '| B | C |',
-		// so waiting for the post-delete header would return before the Backspace ran.
+		// Waits for column A to go: '| A | B | C |' contains '| B | C |', so waiting for the
+		// post-delete header would return before the Backspace ran.
 		await editor.bridge.waitForSourceNotContains('| A |');
 
 		await editor.undo();

@@ -35,9 +35,8 @@ test.describe('reorder hover handle', () => {
 		await expect(handle).toHaveCSS('opacity', '1');
 	});
 
-	// Can it be reached: the earlier tests hover the block's center and pass even when the handle
-	// cannot be. If the margin between block and handle is outside the hover region, the handle
-	// hides mid-move and, with `pointer-events: none` once hidden, can never catch the pointer.
+	// If the margin between block and handle is outside the hover region, the handle hides mid-move
+	// and, with `pointer-events: none`, can never catch the pointer.
 	test('the revealed handle stays reachable as the pointer moves onto it', async ({ page }) => {
 		await editor.loadContent('```js\nplain code here\n```\n\nsecond block\n');
 		const top = page.locator('.block-host[data-block-kind="fencedCode"]').last();
@@ -86,8 +85,7 @@ test.describe('reorder hover handle', () => {
 	});
 
 	// The handle's hit area must span the block's full height, or approaching a tall block at
-	// mid-height leaves the block, hides the handle and strands the pointer: the direction the
-	// earlier test does not cover.
+	// mid-height hides the handle and strands the pointer.
 	test('a tall block handle is reachable when approached at mid-height', async ({ page }) => {
 		await editor.loadContent('```js\nline one\nline two\nline three\nline four\n```\n\ntail\n');
 		const code = page.locator('.block-host[data-block-kind="fencedCode"]').first();

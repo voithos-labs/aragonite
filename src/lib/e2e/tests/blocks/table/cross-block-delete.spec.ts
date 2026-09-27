@@ -65,9 +65,8 @@ test.describe('table block: cross-block delete', () => {
 	});
 
 	test('Case 2: mid-table → paragraph below Backspace clears whole rows', async ({ page }) => {
-		// Whole-row snap: a drag that starts in a body cell marks that anchor as a cell coordinate,
-		// matching the keyboard path, so the anchor's whole row and every row below go: dragging
-		// from row 1 removes body rows 1 and 2.
+		// Whole-row snap: a drag starting in a body cell marks its anchor as a cell coordinate, as
+		// the keyboard does, so body rows 1 and 2 go when the drag starts in row 1.
 		await editor.loadContent(`${TABLE_2x3}\nfollow paragraph\n`);
 		const [cellBox, paraBox] = await boxesOf(
 			page.locator('.table-cell').nth(3), // body row 1, col 1 = "2"
@@ -240,9 +239,8 @@ test.describe('table block: cross-block delete', () => {
 		await editor.waitForCrossBlock(true);
 		await editor.pressDeclined('Backspace');
 		const source = await editor.bridge.getSource();
-		// The grid must stay valid: paragraph text from outside must never fuse into a cell, which
-		// would read `| 3 | 4after |`. Whole-row snap removes the anchor's entire bottom row;
-		// "after" stays a paragraph.
+		// Paragraph text must never fuse into a cell as `| 3 | 4after |`: the snap removes the
+		// anchor's whole bottom row and "after" stays a paragraph.
 		expect(source).toContain('| --- | --- |');
 		expect(source).not.toContain('4after');
 		expect(source).not.toContain('| 3 |');
@@ -254,14 +252,12 @@ test.describe('table block: cross-block delete', () => {
 	test('typing over a selection spanning two separate tables lands in a surviving cell, no grid corruption', async ({
 		page
 	}) => {
-		// Two adjacent tables: both endpoints are flagged cell coordinates, so the whole-row snap
-		// removes the touched rows in both. Typing over the selection splices the character at a
-		// deep surviving cell, never through the grid markup.
+		// Two adjacent tables, both endpoints cell coordinates: the snap removes the touched rows
+		// in both, and typing over the range lands in a surviving cell.
 		await editor.loadContent(`${TABLE_2x3}\n${TABLE_2x3}`);
 		const cells = page.locator('.table-cell');
-		// Anchor in the first table's body cell "2" (idx 3), focus in the second table's header
-		// cell "B" (idx 7): the focus must hit-test to a flagged cell coordinate, or the snap
-		// clears the wrong cell and leaves an empty leading cell.
+		// Anchor in the first table's body cell "2" (idx 3), focus in the second's header cell "B"
+		// (idx 7), which must read as a cell coordinate or the snap clears the wrong cell.
 		const [fromBox, toBox] = await boxesOf(cells.nth(3), cells.nth(7));
 		await dragBetweenBoxes(page, fromBox, toBox);
 		await editor.waitForCrossBlock(true);
@@ -282,10 +278,8 @@ test.describe('table block: cross-block delete', () => {
 	test('Case 2 into a nested prose end (blockquote paragraph) truncates the tail without erroring', async ({
 		page
 	}) => {
-		// The nested endpoint is what makes this bite: a blockquote paragraph end routes the delete
-		// through the cross-container commit, which runs `rangeDelete` on the live `$state`
-		// document. The reparsed tail spliced there is wrapped in a proxy, so resolving the
-		// survivor path by node identity throws "surviving block not found".
+		// A blockquote endpoint routes the delete through the cross-container commit on the live
+		// `$state` document, whose proxied tail a lookup by node identity would miss.
 		const pageErrors = capturePageErrors(page);
 
 		const source = `${TABLE_2x3}\n> quoted text\n`;
@@ -299,8 +293,8 @@ test.describe('table block: cross-block delete', () => {
 		await dragBetweenBoxes(page, cellBox, { x: endPoint.x, y: endPoint.y, width: 0, height: 0 });
 		await editor.waitForCrossBlock(true);
 		await page.keyboard.press('Delete');
-		// Bounded settle: on success the source mutates; on the survivor-path throw
-		// the commit aborts and `pageerror` fires. Either resolves well under 250ms.
+		// A fixed wait: success changes the source, while the survivor-lookup throw aborts the
+		// commit and fires `pageerror`; either happens well under 250ms.
 		await page.waitForTimeout(250);
 
 		const capturedErrors: string[] = await page.evaluate(() =>

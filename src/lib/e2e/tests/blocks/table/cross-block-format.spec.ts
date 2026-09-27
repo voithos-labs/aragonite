@@ -43,10 +43,8 @@ test.describe('table block: cross-block format toggle', () => {
 		page
 	}) => {
 		await editor.loadContent(`head\n\n${TABLE_2x3}`);
-		// From the paragraph's first character into body row 1, col 1 ("2"): the whole-row snap
-		// pulls the run to that row's last cell, so the row is marked whole and row 2 is untouched.
-		// A measured start point rather than the text box's centre, which lands past "head" and
-		// gives the paragraph an empty span.
+		// From the paragraph's first character into body row 1, col 1: the snap marks the whole row
+		// and leaves row 2. The start is measured, since the text box's centre lands past "head".
 		const start = await pointAtRaw(editor.page, [0], 0);
 		const cell = await page.locator('.table-cell').nth(3).boundingBox();
 		if (!cell) throw new Error('missing cell bounding box');

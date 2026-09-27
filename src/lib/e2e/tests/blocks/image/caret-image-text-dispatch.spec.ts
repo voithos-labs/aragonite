@@ -26,9 +26,8 @@ async function setupStaleInlineParagraph(editor: EditorPage, page: Page): Promis
 	await editor.focusBlockStart(2);
 }
 
-/** Where the typed character landed inside the paragraph's trailing text, and -1 when it landed
- *  anywhere else: the read that tells a landing in the text from one at the image's leading
- *  edge, where nothing paints a caret. */
+/** Where the typed character landed in the paragraph's trailing text, or -1 anywhere else, which
+ *  tells a landing in the text from one at the image's leading edge. */
 function typedIndexInTrailingText(src: string): number {
 	const trailing = /!\[pic\|120x80\]\([^)]+\)([^\n]*)/.exec(src)?.[1] ?? '';
 	return trailing.replace('X', '') === TRAILING ? trailing.indexOf('X') : -1;

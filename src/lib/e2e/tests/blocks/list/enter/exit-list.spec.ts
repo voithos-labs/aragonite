@@ -28,9 +28,8 @@ test.describe('list Enter: exit list on empty item', () => {
 		expect(counts.listItems).toBe(2);
 	});
 
-	// Exiting a list reuses the `ListBlock` instance (the replace keeps the list's id) and swaps in
-	// a shorter node; the inner `{#each}` re-keys, but `innerBlockRefs` can keep a stale trailing
-	// entry. The DOM count above cannot see that; `auditBlockListStateConsistency` can.
+	// Exiting a list keeps the `ListBlock` instance with a shorter node, where `innerBlockRefs` can
+	// keep a stale trailing entry that only `auditBlockListStateConsistency` sees.
 	test('Enter exiting a list leaves the surviving list BlockListState in sync', async () => {
 		await editor.loadContent('- Alpha\n- Beta\n');
 		const beta = editor.page.locator('[contenteditable="true"]', { hasText: 'Beta' });

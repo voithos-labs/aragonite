@@ -156,9 +156,8 @@ test.describe('table cell: inline rendering', () => {
 		await expect(second).toBeFocused();
 	});
 
-	// Crossing a mid-cell `<br>` with arrows is the browser's own contenteditable and the keys
-	// never reach the caret-edge dispatch, so this only guards that navigation stays on an editable
-	// cell. That dispatch's step-over is pinned by the destructive-key case below.
+	// Arrows across a mid-cell `<br>` are the browser's own editing and never reach the caret-edge
+	// dispatch, so this only guards that navigation stays on an editable cell.
 	test('arrowing across a mid-cell <br> keeps focus on a cell, never stranding it', async ({
 		page
 	}) => {
@@ -174,9 +173,8 @@ test.describe('table cell: inline rendering', () => {
 		expect(await editor.bridge.getSource()).toContain('| x<br>y | z |');
 	});
 
-	// A destructive key at a `<br>` edge is the one gesture that reaches the caret-edge dispatch
-	// here, since arrows go native: prose's select-then-delete needs a selection overlay a cell
-	// never paints, so it shows nothing on the first press and eats a stray byte on the second.
+	// A destructive key at a `<br>` edge reaches the caret-edge dispatch, where prose's
+	// select-then-delete would show nothing and then eat a stray byte.
 	test('Backspace at a mid-cell <br> trailing edge deletes the whole tag in one press', async ({
 		page
 	}) => {

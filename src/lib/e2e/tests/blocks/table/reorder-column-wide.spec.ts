@@ -28,7 +28,7 @@ test.describe('table block: column move on a wide (overflowing) table', () => {
 		await editor.loadContent(WIDE_TABLE);
 		const tableEl = page.locator('[role="table"]').first();
 
-		// Precondition: columns actually overflow, or the off-screen claim is vacuous.
+		// Precondition: the columns overflow, or the off-screen check is vacuous.
 		expect(await tableEl.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(true);
 
 		// The rightmost header cell fully visible at scrollLeft 0; its right neighbour is clipped.

@@ -119,9 +119,8 @@ test.describe('code block editing: happy paths', () => {
 	test('typing at the body start (opener-line end) lands in the body, not the opener', async ({
 		page
 	}) => {
-		// Chromium under `white-space: pre` mis-routes insertText when the caret sits at the end of
-		// a `\n` nested in a styled span; `.md-fence-line` must not reintroduce it. DOM offset 6 =
-		// body start.
+		// Chromium under `white-space: pre` misroutes insertText at the end of a `\n` inside a
+		// styled span, which `.md-fence-line` must not bring back. DOM offset 6 is the body start.
 		await editor.loadContent('```js\nconst x = 1;\n```\n');
 		await editor.focusBlockStart(0);
 		for (let i = 0; i < 6; i++) await page.keyboard.press('ArrowRight');

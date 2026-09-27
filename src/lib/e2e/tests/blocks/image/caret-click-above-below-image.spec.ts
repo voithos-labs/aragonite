@@ -2,8 +2,8 @@ import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 import { pointOffImageLine, waitForFirstImageLoaded } from './helpers';
 
-// A picture sits on the baseline, so its paragraph's box is taller than it is. A press in the
-// strip above or below the picture is still a press on the block's only line.
+// A picture sits on the baseline, so its paragraph's box is taller than it is. A click in the strip
+// above or below the picture is still a click on the block's only line.
 // Requirements: `e2e/requirements/blocks/image/caret-click-above-below-image.md`.
 
 const IMAGE_PARAGRAPH = 'alpha\n\n![pic|300x200](/test-fixtures/sample.png)\n\nomega\n';

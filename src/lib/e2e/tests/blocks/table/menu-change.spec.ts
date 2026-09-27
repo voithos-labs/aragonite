@@ -2,7 +2,7 @@ import type { Page } from '@playwright/test';
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 
-// The cell menu reports on `menuChange` like every editor menu, so a host's own selection chrome
+// The cell menu reports on `menuChange` like every editor menu, so a host's own selection toolbar
 // steps aside for it. Requirements: `requirements/blocks/table/menu-change.md`.
 const TABLE = '| A | B |\n| --- | --- |\n| 1 | 2 |\n';
 

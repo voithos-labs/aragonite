@@ -105,7 +105,7 @@ test.describe('image popover commit', () => {
 		if (!w1Box || !w2Box) throw new Error('widget boxes missing');
 		await page.mouse.click(w1Box.x + w1Box.width / 2, w1Box.y + w1Box.height / 2);
 		await (await openImageField(page)).fill('EDITED');
-		// Switch to image 2: the old popover unmounts and commits to image 1.
+		// Switching to image 2 unmounts image 1's popover, which commits to image 1.
 		await page.mouse.click(w2Box.x + w2Box.width / 2, w2Box.y + w2Box.height / 2);
 		await page.locator('[contenteditable="true"]').last().click();
 		await editor.bridge.waitForSourceContains('EDITED');

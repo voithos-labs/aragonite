@@ -126,9 +126,8 @@ test.describe('list Backspace: M1 merge on non-first item', () => {
 	test('M1 opaque previous leaf (fenced code): no merge, no crash, caret falls back', async ({
 		page
 	}) => {
-		// Backspace at the start of the item after a fenced-code-only item must change no structure
-		// and move the caret into the code block; throwing inside the commit steps crashes in dev
-		// and does nothing at all in production.
+		// Backspace after a fenced-code-only item must change no structure and move the caret into
+		// the code block; a throw inside the commit crashes in dev and does nothing in production.
 		const pageErrors = capturePageErrors(page);
 
 		await editor.loadContent('- ```\n  code\n  ```\n- text\n');
