@@ -35,7 +35,8 @@ import {
 	nodeAt,
 	normalizeOwnRaw
 } from '../tree-operations/node-primitives';
-import { cleanJoinedRaw, cutBeforeSuffix } from '../tree-operations/node-ops';
+import { cleanJoinedRaw } from '../tree-operations/node-ops';
+import { cutBeforeSuffix } from '../tree-operations/structural-suffix';
 import { structuralSuffix } from '../core/inline';
 import { ensureUnsharedPath } from '../tree-operations/unshare';
 import { rebuildUnsharedAncestry, rebuildUnsharedChain } from '../tree-operations/chain-rebuild';

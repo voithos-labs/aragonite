@@ -168,13 +168,29 @@ function writeAndSettleContent(
 		const widened = widenForTailMint(change, settled, parent.children.length);
 		return settleWriteSeams(parent, blockIndex, lastWritten, widened, sharing, grammar);
 	}
-	// Same-kind typing skips the neighbour reparse unless the first line's indent moved or a blank
-	// line stays blank: the indent decides whether a list item above takes it in.
-	if (change.op === 'noop' && !wasBlank && !indentMoved) return { change, textStart: 0 };
+	// Same-kind typing skips the neighbour reparse unless the first line's indent moved, a blank line
+	// stays blank, or this block or the one above reads the lines below it (editor.md § 8).
+	if (change.op === 'noop' && !wasBlank && !indentMoved && !readerBeside(parent, blockIndex)) {
+		return { change, textStart: 0 };
+	}
 	return settleWriteSeams(parent, blockIndex, lastWritten, change, sharing, grammar);
 }
 
 const leadingIndent = (text: string): string => /^[ \t]*/.exec(text)![0];
+
+const readsFollowingLines = (node: NodeView | undefined): boolean =>
+	node !== undefined && tryGetBlockKindDescriptor(node.kind)?.readsFollowingLines === true;
+
+/** Whether the written block or the one right above it reads the lines below it with no blank
+ *  line between, where a write that kept its kind can still move the join. */
+function readerBeside(parent: BodyParentArg, blockIndex: number): boolean {
+	const { children } = parent;
+	const below = children[blockIndex + 1];
+	return (
+		(children[blockIndex].leadingTrivia === '' && readsFollowingLines(children[blockIndex - 1])) ||
+		(below?.leadingTrivia === '' && readsFollowingLines(children[blockIndex]))
+	);
+}
 
 /**
  * Merge across every join the write disturbed, and report where the written text ended up, since

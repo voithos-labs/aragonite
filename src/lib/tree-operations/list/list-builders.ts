@@ -6,7 +6,7 @@ import { trailingLineEnding, type LineEnding } from '../../core/lines';
 import { rebuildListItemRaw, rebuildListRaw } from '../../schema/container-rebuilders';
 import { cloneMetadata, cloneNode } from '../clone';
 import { parseCutResidue, parseFirstBlock } from '../parse-block';
-import { cutKeepingSuffix } from '../paste/cut-keeping-suffix';
+import { cutKeepingStructure } from '../structural-suffix';
 import { renumberOrderedListFrom } from './ordered-markers';
 import { assignIds } from '../../block-id';
 import { readBlocks } from '../../core/parser';
@@ -114,7 +114,7 @@ export function splitLeafForPaste(
 	grammar: GrammarView
 ): { leadingNode: CstNode | null; trailingNodes: CstNode[]; lineEnding: LineEnding } {
 	const lineEnding = trailingLineEnding(raw, ending);
-	const { head: leadingText, rest } = cutKeepingSuffix({ ...leaf, raw }, offset);
+	const { head: leadingText, rest } = cutKeepingStructure({ ...leaf, raw }, offset);
 	const trailingText = rest.replace(/^[ \t]/, '');
 
 	const leadingNode =

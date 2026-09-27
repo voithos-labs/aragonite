@@ -28,6 +28,7 @@
 	export const setSelection = leaf.setSelection;
 	export const measurePartialRects = leaf.measurePartialRects;
 	export const insertMarkdown = leaf.insertMarkdown;
+	export const afterSourceCommit = leaf.afterSourceCommit;
 
 	void ({
 		editable,
@@ -39,7 +40,8 @@
 		getSelectedText,
 		setSelection,
 		measurePartialRects,
-		insertMarkdown
+		insertMarkdown,
+		afterSourceCommit
 	} satisfies BlockComponent);
 </script>
 

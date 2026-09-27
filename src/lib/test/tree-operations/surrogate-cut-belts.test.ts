@@ -50,8 +50,8 @@ const BELT_MEMBERS: Record<string, string> = {
 	'src/lib/selection/char-endpoint-snap.ts': 'the selection endpoint clamp',
 	'src/lib/tree-operations/node-ops.ts':
 		"the split's line-ending cut and the single-block range cut",
-	'src/lib/tree-operations/paste/cut-keeping-suffix.ts':
-		"a paste's before/after slices, for the structural paste and the absorb split's item halves",
+	'src/lib/tree-operations/structural-suffix.ts':
+		"the split's and a paste's halves, for the structural paste and the absorb split's items",
 	'src/lib/components/blocks/text/live-selection-edit.ts':
 		'the native ranged edit re-expressed as a join'
 };

@@ -368,6 +368,7 @@ export function registerBuiltInDescriptors(): void {
 		supportsInline: false,
 		keymap: TEXT_EDITABLE_KEYMAP,
 		conformanceFixture: '<div>\nhtml\n</div>\n',
+		readsFollowingLines: true,
 		closure: RAW_TEXT_LEAF_CLOSURE
 	});
 	registerBlockKind('linkReferenceDefinition', {
@@ -379,6 +380,7 @@ export function registerBuiltInDescriptors(): void {
 		supportsInline: false,
 		keymap: TEXT_EDITABLE_KEYMAP,
 		conformanceFixture: '[id]: /url "title"\n',
+		readsFollowingLines: true,
 		closure: RAW_TEXT_LEAF_CLOSURE
 	});
 	registerBlockKind('table', {

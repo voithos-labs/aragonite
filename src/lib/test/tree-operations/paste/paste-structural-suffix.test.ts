@@ -19,7 +19,24 @@ describe('a multi-block paste keeps the leaf’s structure past its text on the 
 			3,
 			['ab\n===\n', 'abc\n', 'def\n', 'cd\n']
 		],
-		['a setext underline, at the title’s start', 'Hi\n===\n', 0, ['abc\n', 'def\n', 'Hi\n===\n']]
+		['a setext underline, at the title’s start', 'Hi\n===\n', 0, ['abc\n', 'def\n', 'Hi\n===\n']],
+		// The whitespace after the cut goes with the head, as a split takes it, or it reloads blank.
+		[
+			'a setext underline, inside a line’s trailing whitespace',
+			'Title \nMore\n=====\n',
+			5,
+			['Title \n=====\n', 'abc\n', 'def\n', 'More\n']
+		],
+		// Miss-analysis for the next three: every head-of-text row cut a setext title, whose text
+		// starts at 0, so no row cut an ATX heading between its marker and its text.
+		['an ATX heading, at the text’s start', '# Hi\n', 2, ['abc\n', 'def\n', '# Hi\n']],
+		[
+			'an ATX heading with a closing run, at the text’s start',
+			'# Hi #\n',
+			2,
+			['abc\n', 'def\n', '# Hi #\n']
+		],
+		['an ATX heading, inside its marker', '## Hi\n', 1, ['abc\n', 'def\n', '## Hi\n']]
 	])('%s', (_label, source, offset, raws) => {
 		const leaf = parse(source).children[0];
 		const { nodes } = buildPastedReplacement(leaf, offset, PASTED, '\n', defaultGrammarView);
@@ -37,5 +54,18 @@ describe('a multi-block paste keeps the leaf’s structure past its text on the 
 		);
 		expect(leadingNode?.raw).toBe('# Hi #\n');
 		expect(trailingNodes).toEqual([]);
+	});
+
+	it('a paste that splits a list item at a heading’s text start moves the whole heading', () => {
+		const leaf = parse('# Hi\n').children[0];
+		const { leadingNode, trailingNodes } = splitLeafForPaste(
+			leaf,
+			2,
+			'\n',
+			leaf.raw,
+			defaultGrammarView
+		);
+		expect(leadingNode).toBeNull();
+		expect(trailingNodes.map((node) => node.raw)).toEqual(['# Hi\n']);
 	});
 });
