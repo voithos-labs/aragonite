@@ -206,9 +206,9 @@ list is that you hear it from the terminal instead of from the review.
    `playwright test --list` shows for the spec needs a reason in the scan's allowlist (a test
    generated in a loop counts once per row).
    `npx vitest run src/lib/e2e/lint/requirement-spec-lockstep.test.ts`
-2. **Every comment fits the budget** (G4.26): no block over six text lines, no file header over
-   seven, and no house word (seam, door, funnel, mint, and the rest of
-   [`glossary.md`](glossary.md)) in any comment. A requirement file carries none in its body
+2. **Every comment fits the budget** (G4.26): no directory gains a block over two text lines (five
+   for a header), no block anywhere goes past six (seven for a header), and no house word (seam,
+   door, funnel, mint, and the rest of [`glossary.md`](glossary.md)) in any comment. A requirement file carries none in its body
    text either.
    `npx vitest run src/lib/test/invariants/lint/comment-budget.test.ts src/lib/test/invariants/lint/comment-house-words.test.ts`
 3. **Every token the editor's CSS reads is declared in `src/lib/styles/editor-theme.css`**, every
