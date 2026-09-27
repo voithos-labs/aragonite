@@ -183,12 +183,14 @@ const leadingIndent = (text: string): string => /^[ \t]*/.exec(text)![0];
 const readsFollowingLines = (node: NodeView | undefined): boolean =>
 	node !== undefined && tryGetBlockKindDescriptor(node.kind)?.readsFollowingLines === true;
 
-/** Whether the written block or the one right above it reads the lines below it, where a write
- *  that kept its kind can still move a join. */
+/** Whether the written block or the one right above it reads the lines below it with no blank
+ *  line between, where a write that kept its kind can still move the join. */
 function readerBeside(parent: BodyParentArg, blockIndex: number): boolean {
+	const { children } = parent;
+	const below = children[blockIndex + 1];
 	return (
-		readsFollowingLines(parent.children[blockIndex - 1]) ||
-		readsFollowingLines(parent.children[blockIndex])
+		(children[blockIndex].leadingTrivia === '' && readsFollowingLines(children[blockIndex - 1])) ||
+		(below?.leadingTrivia === '' && readsFollowingLines(children[blockIndex]))
 	);
 }
 

@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
-// A move from a text block or table cell showing a widget's source writes the source first, from
-// the key and from `runCommand` alike, so the moved block keeps the edit and one undo reverts it.
+// A move from a block showing a source the tree hasn't seen (a widget's in a text block or cell, a
+// math block's own) writes it first, from the key and from `runCommand` alike, so the moved block
+// keeps the edit and one undo reverts it.
 // Miss-analysis: the one move-after-source test used a hand-built target, not the components'.
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
