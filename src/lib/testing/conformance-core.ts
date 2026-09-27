@@ -5,6 +5,8 @@
 
 import type { AnyBlockKind, CstNode, Document } from '../core/nodes';
 import { parse } from '../core/parser';
+import { ancestorsOf, walkBlocks } from '../core/paths';
+import { blockNodeAt } from '../tree-operations/node-primitives';
 import type { BlockKindDescriptor } from '../schema/block-kind-descriptor';
 
 // ── Coverage vocabulary ──────────────────────────────────────────────────────
@@ -156,35 +158,32 @@ export function firstChildOfKind(source: string, kind: AnyBlockKind): CstNode {
 	return node;
 }
 
-export function nodeAtPath(root: Document | CstNode, path: number[]): CstNode {
-	let cur: Document | CstNode = root;
-	for (const i of path) {
-		assert(cur.children, 'path step has children');
-		cur = cur.children[i];
-	}
-	assert('raw' in cur, 'path resolves to a block node');
-	return cur;
+export function nodeAtPath(doc: Document, path: number[]): CstNode {
+	const node = blockNodeAt(doc, path);
+	assert(node, 'path resolves to a block node');
+	return node;
 }
 
 /** First node of `kind` in a pre-order traversal (the kind may be nested below the root). */
 export function findFirstOfKind(root: Document | CstNode, kind: AnyBlockKind): CstNode | null {
-	for (const child of root.children ?? []) {
-		if (child.kind === kind) return child;
-		const found = findFirstOfKind(child, kind);
-		if (found) return found;
-	}
-	return null;
+	let found: CstNode | null = null;
+	walkBlocks(root, (node) => {
+		if (node.kind !== kind) return;
+		found = node;
+		return 'stop';
+	});
+	return found;
 }
 
-/** Document-rooted path of the first node of `kind` in a pre-order traversal, or null. */
+/** Path from `root` to the first node of `kind` in a pre-order traversal, or null. */
 export function findFirstPathOfKind(root: Document | CstNode, kind: AnyBlockKind): number[] | null {
-	const children = root.children ?? [];
-	for (let i = 0; i < children.length; i++) {
-		if (children[i].kind === kind) return [i];
-		const deeper = findFirstPathOfKind(children[i], kind);
-		if (deeper) return [i, ...deeper];
-	}
-	return null;
+	let found: number[] | null = null;
+	walkBlocks(root, (node, path) => {
+		if (node.kind !== kind) return;
+		found = path;
+		return 'stop';
+	});
+	return found;
 }
 
 export function pathPassesThroughKind(
@@ -192,10 +191,5 @@ export function pathPassesThroughKind(
 	leafPath: number[],
 	kind: AnyBlockKind
 ): boolean {
-	let cur: Document | CstNode = doc;
-	for (let depth = 0; depth < leafPath.length - 1; depth++) {
-		cur = cur.children![leafPath[depth]];
-		if (cur.kind === kind) return true;
-	}
-	return false;
+	return ancestorsOf(doc, leafPath).some((node) => node.kind === kind);
 }

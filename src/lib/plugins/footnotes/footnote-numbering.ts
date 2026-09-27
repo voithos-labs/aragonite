@@ -8,6 +8,7 @@
 import {
 	computeInlineContent,
 	isProseKind,
+	walkBlocks,
 	type DocumentView,
 	type EditorContext,
 	type InlineNode,
@@ -39,20 +40,14 @@ function collectRefsInInline(
 	}
 }
 
-function collectRefsInSubtree(
+function collectRefsInLeaf(
 	node: NodeView,
-	basePath: number[],
+	path: number[],
 	out: FootnoteReference[],
 	reader: InlineReader
 ): void {
-	if (node.children && node.children.length > 0) {
-		node.children.forEach((child, index) =>
-			collectRefsInSubtree(child, [...basePath, index], out, reader)
-		);
-		return;
-	}
-	if (!isProseKind(node.kind)) return;
-	collectRefsInInline(reader(node), basePath, out);
+	if (node.children?.length || !isProseKind(node.kind)) return;
+	collectRefsInInline(reader(node), path, out);
 }
 
 export function collectFootnoteReferences(
@@ -103,7 +98,8 @@ function subtreeRefs(node: NodeView, reader: InlineReader): readonly FootnoteRef
 	if (cached && cached.raw === node.raw && cached.kind === node.kind && cached.reader === reader)
 		return cached.refs;
 	const refs: FootnoteReference[] = [];
-	collectRefsInSubtree(node, [], refs, reader);
+	collectRefsInLeaf(node, [], refs, reader);
+	walkBlocks(node, (child, path) => collectRefsInLeaf(child, path, refs, reader));
 	refsBySubtree.set(node, { raw: node.raw, kind: node.kind, reader, refs });
 	return refs;
 }

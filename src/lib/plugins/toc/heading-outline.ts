@@ -8,10 +8,10 @@ import {
 	computeInlineContent,
 	headingLevel,
 	trimWhitespace,
+	walkBlocks,
 	type DocumentView,
 	type EditorContext,
-	type InlineNode,
-	type NodeView
+	type InlineNode
 } from '$lib/plugin';
 
 /** Deepest heading level a document can list; `[[toc]]` has no meaning past GFM's six. */
@@ -58,26 +58,19 @@ export function collectHeadings(
 	read: EditorContext['computeInlineContent'] = computeInlineContent
 ): TocEntry[] {
 	const entries: TocEntry[] = [];
-
-	const walk = (children: readonly NodeView[], basePath: number[]): void => {
-		children.forEach((node, index) => {
-			const path = [...basePath, index];
-			const level = headingLevel(node);
-			if (level !== null) {
-				if (level <= maxDepth) {
-					entries.push({
-						id: path.join('.'),
-						path,
-						level,
-						label: trimWhitespace(projectInlineText(read(node), node.raw))
-					});
-				}
-			} else if (node.children && node.children.length > 0) {
-				walk(node.children, path);
-			}
-		});
-	};
-
-	walk(document?.children ?? [], []);
+	if (!document) return entries;
+	walkBlocks(document, (node, path) => {
+		const level = headingLevel(node);
+		if (level === null) return;
+		if (level <= maxDepth) {
+			entries.push({
+				id: path.join('.'),
+				path,
+				level,
+				label: trimWhitespace(projectInlineText(read(node), node.raw))
+			});
+		}
+		return 'skip';
+	});
 	return entries;
 }

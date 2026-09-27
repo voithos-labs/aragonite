@@ -6,9 +6,10 @@
  */
 
 import type { ContainerEditActions, FocusActions } from '../action-contracts';
-import type { AnyBlockKind, CstNode, Document } from '../core/nodes';
+import type { AnyBlockKind, CstNode } from '../core/nodes';
 import { documentLineEnding, splitLines, trailingLineEnding } from '../core/lines';
 import { parse } from '../core/parser';
+import { ancestorsOf } from '../core/paths';
 import { createContainerEditActions } from '../editor-actions/container-edit';
 import { createUndoController } from '../editor-actions/commit/undo-controller';
 import {
@@ -336,14 +337,8 @@ export function reversedAncestryLeavesRootStale(profile: ContainerConformancePro
 	const marker = 'reversed-mark';
 	leaf.raw = marker + '\n';
 
-	const ancestors: CstNode[] = [];
-	let cur: Document | CstNode = doc;
-	for (let depth = 0; depth < leafPath.length - 1; depth++) {
-		cur = cur.children![leafPath[depth]];
-		ancestors.push(cur);
-	}
 	// Outermost-first: each ancestor rebuilt before its descendants are fresh.
-	for (const a of ancestors) rebuildContainerRawIfContainer(a);
+	for (const ancestor of ancestorsOf(doc, leafPath)) rebuildContainerRawIfContainer(ancestor);
 
 	return !root.raw.includes(marker);
 }

@@ -5,8 +5,8 @@
  */
 
 import {
+	blockNodeAt,
 	isBlankText,
-	type DocumentView,
 	type EditorContext,
 	type InlineMenuSource,
 	type InsertEntry,
@@ -101,7 +101,8 @@ export function createSlashSource(
 				action.run(editor, argument ?? undefined);
 			} else {
 				// An empty line becomes the block; a line with text keeps it and gets the block below.
-				const empty = isBlankText(leafRaw(editor.document, range.path));
+				// Copied because `blockNodeAt` takes a mutable path and the range's is readonly.
+				const empty = isBlankText(blockNodeAt(editor.document, [...range.path])?.raw ?? '');
 				// Awaited, so the block lands inside the pick's undo entry.
 				await editor.insertMarkdown(action.build(argument).markdown, {
 					placement: empty ? 'caret' : 'below'
@@ -162,11 +163,4 @@ function hostRow(entry: SlashCommandEntry): SlashRow {
 function argumentDetail(row: SlashRow, argument: string): string | undefined {
 	if (row.action.kind === 'insert') return row.action.build(argument).detail;
 	return argument === '' ? undefined : argument;
-}
-
-/** The raw of the block at `path`, read through the live document on every call. */
-function leafRaw(doc: DocumentView, path: readonly number[]): string {
-	let node: { readonly children?: readonly unknown[]; readonly raw?: string } | undefined = doc;
-	for (const index of path) node = node?.children?.[index] as typeof node;
-	return node?.raw ?? '';
 }
