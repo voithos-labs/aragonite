@@ -1,6 +1,5 @@
 // Replace in reading mode: every commit in the batch is declined, so the batch reports nothing.
-// Miss-analysis: every replace test ran in source mode, where each commit lands, so the batch's
-// count of what it applied was never checked against what the commits actually wrote.
+// Miss-analysis: every replace test ran in source mode, so no count was checked against a refusal.
 import { describe, expect, it } from 'vitest';
 import { serialize } from '$lib/core/serializer';
 import type { EditEvent } from '$lib/editor-events';

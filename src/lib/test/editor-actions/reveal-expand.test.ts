@@ -4,9 +4,8 @@ import { createContainerBlockComponent } from '$lib/editor-actions/container-blo
 import type { BlockComponent } from '$lib/block-component';
 import { makeShimDeps, stubBlockComponent } from '$lib/test/harness/editor-actions';
 
-// A scroll-into-view aimed into a collapsed container expands it first, so the descent
-// runs against the expanded tree instead of stopping on the hidden body. The expand itself
-// is composed a layer up and tested in `test/plugins/expand-door.test.ts`.
+// A scroll-into-view aimed into a collapsed container expands it first, so the descent runs
+// against the expanded tree; `test/plugins/expand-door.test.ts` covers the expand itself.
 
 function shim(over: {
 	refs: (BlockComponent | undefined)[];
@@ -62,7 +61,7 @@ describe('revealByPath, expanding a collapsed container', () => {
 		expect(expandCollapsed).not.toHaveBeenCalled();
 	});
 
-	// The fallback: a kind declaring no expand scrolls into view as it did before the expand existed.
+	// The fallback: a kind declaring no expand scrolls into view without expanding.
 	it('degrades when the kind declares no entry point', async () => {
 		const resolved = await shim({
 			refs: [stubBlockComponent(), undefined],

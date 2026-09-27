@@ -21,12 +21,10 @@ import { takeDevWarns } from '$lib/test/support/warn-gate';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
 import type { BlockComponent } from '$lib/block-component';
 
-// A nested delete stops the list interrupting the paragraph above, and the ancestor fix-up
-// merges the two into one. The commit that caused it lives in a container the merge swallowed,
-// so the caret, the parent's ids and refs and the undo entry all need answers the container's
-// own change cannot give.
-// Miss-analysis: every container-commit test asserted the container's own children, and a
-// collapse at the container's own index changes an array no assertion in that family reads.
+// A nested delete can stop a list interrupting the paragraph above, so the ancestor fix-up
+// merges the two and swallows the container the commit ran in; the caret, the parent's ids and
+// refs, and the undo entry must still come out right.
+// Miss-analysis: container-commit tests asserted the container's own children, never the parent's.
 
 const SOURCE = 'a\n1. x\n2. y\n';
 
@@ -63,8 +61,8 @@ describe('a commit whose ancestry settle ate its own scope', () => {
 		expect(h.errors).toEqual([]);
 	});
 
-	// Routine typing in a body's first block moves the container's opener line; one that still
-	// interrupts keeps its index, through the in-place write since the kind is unchanged.
+	// Typing in a body's first block rebuilds the container's opener line; a container that still
+	// interrupts keeps its index, and the unchanged kind keeps the write in place.
 	it('leaves the slot standing when the rebuilt opener still interrupts', async () => {
 		const h = makeNestedHarness('a\n> b\n', { index: 1 });
 
@@ -75,11 +73,7 @@ describe('a commit whose ancestry settle ate its own scope', () => {
 		expect(h.deps.blockIds).toHaveLength(2);
 	});
 
-	// The other cause of the same collapse: a body write that demotes a child stops the
-	// container interrupting its follower. It arrives through the non-noop preview, a different
-	// route into the same fix-up than the delete above.
-	// Miss-analysis: the content write's only test was at the tree operation, so no assertion
-	// covered the ids and refs, caret or undo entry for a collapse a write caused.
+	// Miss-analysis: a collapse caused by a body write was tested only at the tree operation.
 	it('folds the follower a body write let the container continue into', async () => {
 		const h = makeNestedHarness('> a\n> # h\ntext\n', { index: 0 });
 		const survivor: number[] = [];

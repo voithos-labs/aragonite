@@ -48,8 +48,8 @@ describe('commit sequence: rollback on mutation throw', () => {
 		const state = makeBlockListState(() => deps.doc.children[0], ['id-a', 'id-b']);
 		const controller = createUndoController(deps);
 
-		// Populates redo so both stacks have something to restore: a regression restoring
-		// only undo stays invisible to an undo-length-only assertion.
+		// Populates redo so both stacks have something to restore: a rollback restoring only
+		// undo would pass an undo-length-only assertion.
 		await controller.commitMultiScope({
 			scopes: [{ node: deps.doc.children[0], state, path: [0] }],
 			snapshot: { path: asDocPath([0]), offset: 0 },
@@ -86,8 +86,8 @@ describe('commit sequence: rollback on mutation throw', () => {
 		const originalContainer = deps.doc.children[0];
 		const childrenBefore = concatChildren(originalContainer.children ?? []);
 
-		// Splices the live scope view, then trips the arity check: the real "throws AFTER
-		// all splices completed" path. Array (not tuple) typing lets the wrong arity compile.
+		// Splices the live scope view, then trips the arity check, so the throw comes after every
+		// splice. Array (not tuple) typing lets the wrong arity compile.
 		const scopes: MultiScopeTarget[] = [{ node: originalContainer, state, path: [0] }];
 		await expect(
 			controller.commitMultiScope({
@@ -124,9 +124,8 @@ describe('commit sequence: rollback on mutation throw', () => {
 		const ownedContainer = deps.doc.children[0];
 		const childrenBefore = concatChildren(ownedContainer.children ?? []);
 
-		// A join into the same undo entry against an already copied node: the copy before
-		// write does nothing and the splice lands in place, where a top-level array swap
-		// cannot reach it.
+		// Joining an entry whose node is already copied, the splice lands in place, where a
+		// top-level array swap cannot reach it.
 		const scopes: MultiScopeTarget[] = [{ node: ownedContainer, state, path: [0] }];
 		await expect(
 			controller.commitMultiScope({
@@ -171,7 +170,7 @@ describe('commit sequence: rollback on mutation throw', () => {
 		const state = makeBlockListState(() => deps.doc.children[0], ['id-a', 'id-b']);
 		const controller = createUndoController(deps);
 
-		// Two real commits then one undo leaves undo AND redo non-empty.
+		// Two real commits then one undo leaves undo and redo non-empty.
 		const appendItem = (raw: string, at: number): Promise<boolean> =>
 			controller.commitMultiScope({
 				scopes: [{ node: deps.doc.children[0], state, path: [0] }],

@@ -205,9 +205,7 @@ describe('replace: matches on childless opaque containers are skipped', () => {
 });
 
 describe('replace: a batch that applies nothing leaves no undo entry', () => {
-	// Miss-analysis: the undo assertions all counted entries after a successful batch, and the
-	// throw case was tested on its error event alone, so the snapshot pushed before the loop,
-	// the one thing no commit rolls back, had no case looking at it on the failing path.
+	// Miss-analysis: the throw case asserted its error event only, never the snapshot pushed first.
 	it('restores the stacks when the first subtree throws in its rebuild', async () => {
 		__resetSchemaRegistriesForTests();
 		const brittle = testContainer('replace-brittle', {
@@ -235,10 +233,7 @@ describe('replace: a batch that applies nothing leaves no undo entry', () => {
 });
 
 describe('replace: a childless opaque container reparses its own bytes', () => {
-	// Miss-analysis (#41): the container case was tested only by its decline, with a fixture
-	// kind whose opener was never registered, so the decline read as "containers are excluded"
-	// when the real rule is kind stability, and the reachable half (a registered kind that
-	// survives the substitution) had no case at all.
+	// Miss-analysis (GH #41): containers were tested only by a decline of an unregistered opener.
 	beforeEach(() => {
 		__resetSchemaRegistriesForTests();
 		registerMermaidKind();

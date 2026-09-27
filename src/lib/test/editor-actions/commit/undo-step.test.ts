@@ -7,8 +7,8 @@ import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 
 // An async run of several writes is one undo entry: an inline-menu pick that clears its query and
-// then inserts a block below undoes in one press. Miss-analysis: the undo suites pinned each write's
-// own entry and the synchronous join flag, and no case ran writes spread across awaits.
+// then inserts a block below undoes in one press.
+// Miss-analysis: no undo case ran a step's writes spread across awaits.
 
 function makeEditor(source: string) {
 	const { deps } = makeEditorActionsDeps(parse(source).children);
@@ -21,8 +21,7 @@ const SEED = { path: asDocPath([0]), offset: 1 };
 const undoDepth = (deps: ReturnType<typeof makeEditor>['deps']) =>
 	deps.undoManager.getStacks().undo.length;
 
-// #30. Miss-analysis: the grouping was tested only for runs that wrote, so no case asked what a
-// declined gesture leaves behind.
+// Miss-analysis (GH #30): grouping was tested only on runs that wrote, never a declined gesture.
 describe('undoStep: a step that writes nothing', () => {
 	it('leaves no entry and keeps the redo stack', async () => {
 		const { deps, controller, blockEdit } = makeEditor('a\n');

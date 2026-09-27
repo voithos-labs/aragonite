@@ -13,12 +13,8 @@ import {
 	pasteContext
 } from '$lib/test/harness/editor-actions';
 
-// The container-matching paste merge reattaches the text after the caret through
-// `updateNodeContent` and threw the returned change away, so a fix-up that spliced the
-// pasted item's own body left its ids unsynced and the caret on an index chosen before it ran.
-// Miss-analysis: the reattach was tested on bytes and on the landed item's kinds, never on
-// the item's id array or on where the fix-up put the caret; the discard is enforced by a
-// predicate in a different function, so no case here could observe it.
+// The paste merge must apply the change `updateNodeContent` returns when it reattaches the tail.
+// Miss-analysis: the reattach was tested on bytes and kinds, never on the item's ids or the caret.
 
 describe('the container-matching merge spends its residue settle', () => {
 	it('keeps the pasted item’s ids in step and lands the caret through the settle', async () => {

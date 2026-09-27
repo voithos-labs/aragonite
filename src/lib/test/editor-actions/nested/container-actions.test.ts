@@ -1,5 +1,4 @@
-// Miss-analysis: every container reached `createContainerActions` only through a mounted editor,
-// where a dropped parent list context or a copied position surfaced only in e2e.
+// Miss-analysis: `createContainerActions` was tested only through a mounted editor, in e2e.
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { ListContext } from '$lib/action-contracts';
 import type { NodeView } from '$lib/core/node-views';

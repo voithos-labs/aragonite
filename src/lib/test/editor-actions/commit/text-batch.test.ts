@@ -34,10 +34,7 @@ describe('text-batch lifecycle', () => {
 		expect(pushSnapshot).toHaveBeenCalledTimes(2);
 	});
 
-	// Miss-analysis (#71): every case started the pause timer inside `keystroke`, so nothing
-	// could tell a timer that starts when the user stops typing from one that starts when the
-	// editor starts working; on a host where a keystroke's own processing approaches 250 ms
-	// those are the difference between one undo entry per burst and one per character.
+	// Miss-analysis (GH #71): every case started the pause timer inside a fast `keystroke`.
 	it('the window opens at the branch, not at the keystroke: a slow settle spends no budget', () => {
 		const { batch, pushSnapshot } = harness();
 		batch.keystroke([1], 0);

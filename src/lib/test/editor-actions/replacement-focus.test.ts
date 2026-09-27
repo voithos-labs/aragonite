@@ -68,9 +68,8 @@ describe('focusMovedOutsideReplacement', () => {
 	});
 });
 
-// The trial reparse picks between the structural commit and the routine typing path and
-// nothing re-decides it, so it must answer about the bytes the write actually stores, which
-// a container that rewrites its body's bytes makes differ.
+// The trial reparse alone picks the structural commit or the typing path, so it must read the
+// bytes the write stores, which differ when a container rewrites its body's bytes.
 describe('previewContentReparse reads the write the owning container made legal', () => {
 	beforeEach(() => {
 		__resetSchemaRegistriesForTests();
@@ -95,8 +94,7 @@ describe('previewContentReparse reads the write the owning container made legal'
 	});
 });
 
-// Miss-analysis: the trial always read a body leaf standalone, so `# ` typed into a to-do looked
-// like a kind change and sent every later keystroke through its own structural commit.
+// Miss-analysis: the trial read a body leaf standalone, and no case typed `# ` into a to-do.
 describe('previewContentReparse reads a task paragraph as the commit does', () => {
 	const todo = () => parse('- [ ] beta\n').children[0].children![0];
 

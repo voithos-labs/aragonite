@@ -96,7 +96,7 @@ describe('commit sequence: byte rollback across the chain rebuild', () => {
 
 		const rawsBefore = collectRaws(deps.doc.children);
 
-		// Chains sort deepest-first, so the outer list is reached twice — the throw
+		// Chains sort deepest-first, so the outer list is reached twice: the throw
 		// lands on the third rebuild, after two writes.
 		throwListRebuildAfter(2);
 
@@ -169,9 +169,8 @@ describe('commit sequence: byte rollback across the chain rebuild', () => {
 		expect(serialize(deps.doc)).toBe(treeBefore);
 	});
 
-	// The trailing blank line the document keeps in its suffix is state of its own: the fix-up
-	// at the end consumes it through live accessors while the children it belonged to are still
-	// an uninstalled copy, so a throw that restores the tree without it leaves the line gone.
+	// The document's trailing blank line lives in its suffix, which the final fix-up consumes while
+	// the new children are still an uninstalled copy, so a rollback must restore the suffix too.
 	it('restores the document suffix a throwing commit had already spent', async () => {
 		const { deps } = makeEditorActionsDeps(parse('alpha\n\n'));
 		const controller = createUndoController(deps);

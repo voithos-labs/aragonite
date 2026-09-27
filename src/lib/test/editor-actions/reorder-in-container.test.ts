@@ -2,10 +2,9 @@ import { describe, it, expect } from 'vitest';
 import { serialize } from '$lib/core/serializer';
 import { makeReorderContainer } from './reorder-harness';
 
-// GH #477: inside a container the move kept no blank line between the pair it left, so a quote's
-// HTML block took the nested quote below it, a paragraph took a table, and two paragraphs a blank
-// line kept apart merged. A container's children take the same rule the document's do.
-// Miss-analysis: the #461 and #476 pins moved top-level blocks only, and the rule ran only there.
+// Inside a container a move must keep a blank line between the pair it leaves, or a quote's HTML
+// block takes the nested quote below it, a paragraph takes a table, and two paragraphs merge.
+// Miss-analysis (GH #477): the earlier reorder pins moved top-level blocks only.
 
 const TABLE = '| A | B |\n| --- | --- |\n| 1 | 2 |';
 const quoted = (text: string, indent = '') =>

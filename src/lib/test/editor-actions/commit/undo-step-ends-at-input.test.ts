@@ -7,9 +7,9 @@ import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { asDocPath } from '$lib/selection/path-math';
 
-// An open undo step ends at the author's next input, so a pick whose onCommit awaits something slow
-// cannot fold the author's typing into its entry. Miss-analysis: the step cases only ever wrote
-// from inside the run, and none held a run open while something else wrote.
+// An open undo step ends at the author's next input, so a pick whose onCommit awaits something
+// slow cannot fold the author's typing into its entry.
+// Miss-analysis: step cases only wrote from inside the run, never while a run was held open.
 
 function makeEditor(source: string) {
 	const { deps } = makeEditorActionsDeps(parse(source).children);

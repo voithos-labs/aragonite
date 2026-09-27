@@ -74,7 +74,7 @@ describe('debounce batch key: top-level blocks', () => {
 		const blockEdit = createBlockEditActions(deps, controller);
 
 		await blockEdit.updateBlockContent(0, 'a1\n', 'authored', 1);
-		// A slot-keyed batch cannot see this and folds the next keystroke into the
+		// A batch keyed by index cannot see this and folds the next keystroke into the
 		// previous block's undo entry.
 		deps.setBlockIds(['block-new', deps.blockIds[1]]);
 		await blockEdit.updateBlockContent(0, 'x1\n', 'authored', 1);

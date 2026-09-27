@@ -72,9 +72,8 @@ describe('history swap: the outgoing selection never meets the incoming tree', (
 	});
 });
 
-// Nothing else checks that undo keeps sharing the selection restore with the consumer's
-// setSelection; growing its own would re-open the stale notification the shared restore's
-// batching closed.
+// Undo shares the selection restore with the consumer's setSelection; a restore of its own
+// could notify before the block is placed.
 describe('history swap: the restored selection notifies once, after the placement', () => {
 	it('emits after the applier has looked for the block, not before', async () => {
 		const log: string[] = [];

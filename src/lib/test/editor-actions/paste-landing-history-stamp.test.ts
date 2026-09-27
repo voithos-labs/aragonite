@@ -1,6 +1,4 @@
-// Miss-analysis (#31): the paste's caret placement was only ever tested with nothing else
-// touching the undo stack, so the one interleaving that misplaces the caret, an undo
-// finishing while the placement waits for its target to scroll into view, had no test.
+// Miss-analysis (GH #31): no test finished an undo while the paste's caret placement waited.
 import { describe, it, expect, vi } from 'vitest';
 import { createPasteCoordinator } from '$lib/editor-actions/paste-coordinator';
 import type { UndoController } from '$lib/editor-actions/deps';

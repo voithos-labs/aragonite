@@ -105,8 +105,7 @@ describe('inline-range commit: nested', () => {
 	});
 });
 
-// Miss-analysis: every splice here wrote over existing bytes, and the one `open()` e2e typed its
-// trigger mid-word, so no test ever filled or emptied a blank paragraph through this path.
+// Miss-analysis: every splice here wrote over existing bytes, never into a blank paragraph.
 describe('inline-range commit: a blank paragraph filled or emptied', () => {
 	/** What a reload of the saved bytes reads, next to what the tree holds. */
 	function reloadDiff(doc: { children: readonly { kind: string }[] }) {

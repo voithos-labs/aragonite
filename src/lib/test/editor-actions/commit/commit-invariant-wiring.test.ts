@@ -1,7 +1,6 @@
-// The invariant predicates are unit-tested as pure functions, but nothing proved the
-// commit calls them over the nodes it touched: an empty `touchedNodes` function and a
-// deleted `assertCommittedNodes` call both stayed green. Each commit family wires them
-// separately, so each gets its own case.
+// The commit must run the invariant predicates over the nodes it touched. Each commit family
+// wires them separately, so each gets its own case.
+// Miss-analysis: the predicates were tested only as pure functions, never through a commit.
 
 import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
@@ -52,8 +51,7 @@ describe('commit sequence fires the node invariants over its touched nodes', () 
 	});
 
 	// ── Family 2: top-level metadata-noop document branch (explicit touchedNodes) ─
-	// `op: 'noop'` leaves the commit unable to infer the changed node, so this branch
-	// must name it explicitly or the node goes unchecked.
+	// `op: 'noop'` names no changed node, so this branch must name it or the node goes unchecked.
 	it('a top-level updateBlockMetadata over a stale nested raw fires stale-raw', async () => {
 		const { deps } = makeEditorActionsDeps(parse(NESTED_BQ).children);
 		const controller = createUndoController(deps);

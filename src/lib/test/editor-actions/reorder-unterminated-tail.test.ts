@@ -1,7 +1,6 @@
-// GH #587: in a document with no final line break, a move that gives the last block a follower
-// must end its line, and the block that becomes last gives up its ending instead.
-// Miss-analysis: every reorder fixture ended in a line break, the property generator included,
-// so no move ever took or left the document's unterminated last line.
+// In a document with no final line break, a move that gives the last block a follower must end
+// its line, and the block that becomes last gives up its ending instead.
+// Miss-analysis (GH #587): every reorder fixture ended in a line break, generator included.
 
 import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';

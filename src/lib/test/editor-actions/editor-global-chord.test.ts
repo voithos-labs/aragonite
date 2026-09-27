@@ -7,10 +7,7 @@ import { commandContextWith } from '../support/command-context';
 
 // The handler a block focused as a whole carries: no inner leaf runs the global chords for
 // it, and the editor root declines while focus sits on the block itself.
-//
-// Miss-analysis for the rebind cases below: every override case here re-pointed a chord the
-// built-in table already owned, so the handler's first check answered true for reasons that
-// had nothing to do with the override, and its blindness to overrides was invisible.
+// Miss-analysis: each override case rebound a chord the built-ins own, so override blindness hid.
 
 function makeDeps(overrides?: Parameters<typeof normalizeKeybindingOverrides>[0]) {
 	const requestUndo = vi.fn();

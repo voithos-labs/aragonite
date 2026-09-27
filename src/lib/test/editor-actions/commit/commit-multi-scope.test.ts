@@ -81,10 +81,8 @@ describe('commitMultiScope', () => {
 		expect(editHandler).toHaveBeenCalledTimes(1);
 	});
 
-	// A container that never mounted has no `childIds` at all, which is not the same as an
-	// empty one, and the paste commit reaches exactly that scope through its unmounted stand-in
-	// (`tree-operations/paste/parent-scope.ts`). Miss-analysis: every fixture in this file
-	// creates ids first, so the commit was only ever asked to grow an array that already fit.
+	// The paste commit can reach a never-mounted container, whose `childIds` is absent, not empty.
+	// Miss-analysis: every fixture here creates ids first, so no commit grew an array from nothing.
 	it('a scope that never mounted publishes one id per child, not one per insert', async () => {
 		const { deps } = makeEditorActionsDeps([makeListNode(['- a\n', '- b\n', '- c\n'])]);
 		const owned = deps.doc.children[0];

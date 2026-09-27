@@ -71,7 +71,7 @@ describe('updateBlockMetadata', () => {
 	});
 
 	// A `noop` commit leaves the dev-mode stale-raw check unable to infer the touched node, so
-	// the top-level scope must name it or the write gets no G1.1, G1.12 or G1.13 check.
+	// the top-level scope must name it or the write goes unchecked (G1.1, G1.12, G1.13).
 	it('names the resynced node for the dev check (parity with the container scope)', async () => {
 		const node = makeNode('paragraph', 'hello\n', { taskChecked: false });
 		const { deps, controller, actions } = makeTopHarness([node]);

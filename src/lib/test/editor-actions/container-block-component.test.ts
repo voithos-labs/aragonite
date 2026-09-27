@@ -33,8 +33,7 @@ describe('createContainerBlockComponent', () => {
 		expect(c.focusable).toBe(true);
 	});
 
-	// Miss-analysis: the flag was a literal `true` nothing read, so no test could tell a
-	// declared value from the hardcoded one; the only test was the default it never left.
+	// Miss-analysis: the only test checked the default, which a hardcoded `true` also passed.
 	it('reports the declared editable value, re-read live', () => {
 		let declared = false;
 		const c = createContainerBlockComponent(
@@ -247,9 +246,8 @@ describe('createContainerBlockComponent: whole-block focus (getFocusEl)', () => 
 	});
 });
 
-// The component always exposes measurePartialRects, which the search and decoration
-// overlays measure a childless container through. A container with children returns
-// nothing and is never asked: the overlay checks delegatesPainting, not this return.
+// The search and decoration overlays measure a childless container through measurePartialRects;
+// a container with children returns nothing, and the overlays never ask it.
 describe('createContainerBlockComponent: measurePartialRects (opaque single-unit)', () => {
 	const RECT = { left: 4, top: 8, width: 120, height: 40 } as unknown as DOMRect;
 	const boxEl = () => ({ getBoundingClientRect: () => RECT }) as unknown as HTMLElement;

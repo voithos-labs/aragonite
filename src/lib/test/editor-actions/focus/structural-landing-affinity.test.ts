@@ -1,9 +1,6 @@
 // @vitest-environment jsdom
-//
-// The side of a hidden marker a cross-block move lands on. Miss-analysis (#172): the affinity
-// suite covered the key classifier and the selection collapse, and nothing asked what a
-// moveFocus arrival answers; a missing call is invisible to tests written against the calls
-// that exist.
+// The side of a hidden marker a cross-block move lands on.
+// Miss-analysis (GH #172): the affinity suite never asked what a moveFocus arrival answers.
 import { describe, it, expect, vi } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { createFocusActions } from '$lib/editor-actions/focus/focus';
@@ -12,8 +9,8 @@ import { createCaretMemory } from '$lib/cursor/caret-memory';
 import { makeEditorActionsDeps, stubBlockComponent } from '$lib/test/harness/editor-actions';
 import type { FocusPosition } from '$lib/block-component';
 
-// `**bold**` above a fence: the caret lands in the closer's hidden run, where 'near' reads as
-// inside the construct and 'outside' as after it (docs/design/live-mode.md § 4.2).
+// `**bold**` above a fence: the caret lands in the closer's hidden run, where 'near' means inside
+// the construct and 'outside' after it (`docs/design/live-mode.md` § 4.2 Typing at a hidden edge).
 const BOLD_ABOVE_FENCE = 'a **bold**\n\n```\ncode\n```\n';
 
 function harnessFor(source: string) {

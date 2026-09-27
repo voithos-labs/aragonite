@@ -60,8 +60,7 @@ describe('commit scope', () => {
 		expect(isCommitInProgress()).toBe(false);
 	});
 
-	// Miss-analysis: every case above ran one commit at a time, so none reached a second commit
-	// started from the `edit` handler the first one emits into (GH #292).
+	// Miss-analysis (GH #292): no case ran a commit from inside an `edit` handler.
 	it('keeps the scope open after a commit nested in an edit handler, until the outer one ends', async () => {
 		const { deps, doc } = makeEditorActionsDeps([makeNode('paragraph', 'hello\n')]);
 		const controller = createUndoController(deps);

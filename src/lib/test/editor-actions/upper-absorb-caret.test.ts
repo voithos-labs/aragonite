@@ -8,14 +8,13 @@ import {
 } from '$lib/test/harness/editor-actions';
 import type { BlockComponent } from '$lib/block-component';
 
-// The caret half of GH #21: once the write's fix-up merges the block into the one above, the
-// surviving block is the predecessor, so the caret must add the bytes that predecessor put in
-// front of the typed ones. Miss-analysis: every content-write test asserted the tree, never
-// which ref the commit focused, so a restore aimed at the pre-merge index could not fail.
+// Once the write's fix-up merges the block into the one above, the surviving block is the
+// predecessor, so the caret must add the bytes that predecessor put in front of the typed ones.
+// Miss-analysis (GH #21): content-write tests asserted the tree, never which ref got focus.
 
 interface FocusCall {
 	slot: number;
-	/** Below the slot, where the caret lands in a leaf inside a container. */
+	/** Below the index, where the caret lands in a leaf inside a container. */
 	path?: number[];
 	offset: unknown;
 }
@@ -62,9 +61,8 @@ describe('caret after a fold above the edited block: top level', () => {
 		expect(h.calls).toEqual([{ slot: 0, offset: 3 }]);
 	});
 
-	// The blank case reaches the same path when emptying changes the kind: a heading emptied to
-	// a blank line is a non-noop trial, so the commit runs and the list above swallows the line.
-	// The blank case's textStart puts the caret on that line, now the item's second child.
+	// A heading emptied to a blank line changes kind, so the commit runs and the list above takes
+	// the line; the blank case's textStart puts the caret there, as the item's second child.
 	it('spends the blank branch textStart when emptying a heading folds it upward', async () => {
 		const h = makeTop('- item\n\n# h\n\n    code\n');
 

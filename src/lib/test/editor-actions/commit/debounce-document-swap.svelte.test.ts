@@ -1,9 +1,7 @@
 // @vitest-environment jsdom
-//
-// A debounce timer surviving a `source` swap or an unmount fires `edit { op: 'input' }`
-// carrying the old document's path against the document that replaced it. Asked of the
-// mounted component on purpose: the batch could always be interrupted, but no lifecycle
-// hook called it.
+// A debounce timer that survives a `source` swap or an unmount would fire `edit { op: 'input' }`
+// with the outgoing document's path against the incoming one. The mounted component drives
+// the case, since only its lifecycle hooks interrupt the batch.
 import { describe, it, expect, beforeAll, afterEach, vi } from 'vitest';
 import { flushSync, tick } from 'svelte';
 import {

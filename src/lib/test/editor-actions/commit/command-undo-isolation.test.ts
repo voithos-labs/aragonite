@@ -5,10 +5,8 @@ import { createUndoController } from '$lib/editor-actions/commit/undo-controller
 import { parse } from '$lib/core/parser';
 
 // A command's bytes are not typing: a format toggle pressed mid-burst must be its own undo
-// step, so one Ctrl+Z takes the formatting off and leaves the words. Miss-analysis: the
-// undo-granularity suite only tested structural commits, which break the batch inside the
-// commit; a command's text edit shares `updateBlockContent` with keystrokes and was assumed
-// batched, so nothing contradicted the merging.
+// step, so one Ctrl+Z takes the formatting off and leaves the words.
+// Miss-analysis: the undo-granularity suite tested only structural commits, never a command.
 
 function makeEditor(source: string) {
 	const { deps } = makeEditorActionsDeps(parse(source).children);
@@ -44,7 +42,7 @@ describe('a command-path text edit owns its undo entry', () => {
 	});
 
 	// The isolation is symmetric: without the trailing break the next keystroke joins the
-	// toggle's batch and one Ctrl+Z would revert the toggle AND the typing after it.
+	// toggle's batch and one Ctrl+Z would revert the toggle and the typing after it.
 	it('typing after the toggle starts a fresh batch', async () => {
 		const { deps, controller, blockEdit } = makeEditor('ab\n');
 

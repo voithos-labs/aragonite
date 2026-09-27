@@ -25,10 +25,8 @@ vi.mock('svelte', async (original) => ({
 	onMount: (fn: () => unknown) => mountCallbacks.push(fn)
 }));
 
-// The hidden editing host is contenteditable, so every check that asks "is a plugin's own
-// editor holding this?" would answer yes about the editor's own host. These are the three
-// places that would then go wrong: the focus-element composition, the component's focus
-// placement, and the component's cursor-offset report.
+// The hidden editing host is contenteditable, so each "is a plugin's own editor holding this?"
+// check must exclude it: the focus-element composition, focus placement and offset report.
 
 function attach<T extends HTMLElement>(el: T): T {
 	document.body.appendChild(el);
@@ -124,8 +122,8 @@ describe('container shim routing through the host', () => {
 		expect(document.activeElement).not.toBe(boxEl);
 	});
 
-	// Identity against the declared element reported null with focus one sibling away, which
-	// reads to every caller as "this block does not hold the caret".
+	// Comparing against the declared element alone would report null with focus one sibling away,
+	// which every caller reads as "this block does not hold the caret".
 	it('reports offset 0 while the host holds focus, and null once focus leaves the block', () => {
 		const boxEl = box();
 		const host = proxyIn(boxEl);
@@ -141,8 +139,7 @@ describe('container shim routing through the host', () => {
 	});
 });
 
-// Miss-analysis: the only label pin mounted a divider, whose name never changes, so no test
-// asked whether a name read at mount could go stale.
+// Miss-analysis: the only label pin mounted a divider, whose name never changes.
 describe('the editing host names its block', () => {
 	it('reads the name again on each focus, so a changed name is the one announced', () => {
 		const boxEl = box();
@@ -166,8 +163,7 @@ describe('the editing host names its block', () => {
 	});
 });
 
-// Miss-analysis: the proxy's own reading check was never driven, so nothing showed that a
-// character reaching the host in reading mode writes no paragraph once the commit owns the check.
+// Miss-analysis: no test typed a character into the host in reading mode.
 describe('the editing host in reading mode', () => {
 	it('is not editable, and a character that reaches it anyway writes nothing', async () => {
 		const editor = makeTopHarness('---\n', { reading: fixtureReading({}, 'reading') });

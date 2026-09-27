@@ -15,11 +15,8 @@ import { expectParseConverged } from '$lib/test/harness/parse-converged';
 import { asDocPath } from '$lib/selection/path-math';
 import { fixtureReading } from '../../harness/fixture-grammar';
 
-// The commit fixes up the blank lines around every splice against the pre-mutate children it
-// still holds (`tree-operations/settle.settleSeparator`). Two contracts the wiring must keep.
-// Miss-analysis: the fix-up lived at each splice site, so no case ever asked what a second
-// fix-up over the same range does, nor whether a check reading post-splice state could still
-// see which blocks were blank. Both only became askable when the rule moved into the commit.
+// The commit's blank-line fix-up must change nothing over a range its mutate already fixed up.
+// Miss-analysis: the fix-up lived at each splice site, so no case ran a second one over one range.
 
 describe('the commit sequence settle over a window its mutate already settled', () => {
 	it('leaves an emptied block alone rather than settling its run twice', async () => {
@@ -43,11 +40,8 @@ describe('the commit sequence settle over a window its mutate already settled', 
 	});
 });
 
-// A cross-block delete crosses both fix-up entries in one commit: `rangeDelete` splices
-// through the path-addressed write inside `mutate`, then the commit fixes up the scope's
-// change over the same range. The truncated start block is a new node, so the survivor filter
-// reads the original as removed, and a blank one takes the restore branch on top of what the
-// splice already fixed.
+// A cross-block delete splices inside `mutate`, then the commit fixes up the same range; the
+// truncated start block is a new node, so a blank one must not be fixed up a second time.
 describe('a delete that crosses both shared entries in one commit', () => {
 	function deleteAcross(
 		source: string,
@@ -88,7 +82,7 @@ describe('a delete that crosses both shared entries in one commit', () => {
 		expectParseConverged(h.deps.doc);
 	});
 
-	// The split shape: the blank slot holds no line and its follower holds the run's one.
+	// The split shape: the blank block holds no line and its follower holds the run's one.
 	it('settles once when the range starts in a split-shaped blank block', () => {
 		const split = parse('alpha\n\ndelta\n\nomega\n');
 		splitNode(split, 0, 5, undefined, fixtureReading());
@@ -106,21 +100,18 @@ describe('a delete that crosses both shared entries in one commit', () => {
 	});
 });
 
-// The gap-caret Enter below the last block of a document with a trailing blank line in its
-// suffix: the new paragraph is blank, so the fix-up turns the suffix line into a block, and
-// the reported change must include that growth or `applyStructuralChangeToIdsRefs`
-// under-counts. Bytes stay green through the mismatch, hence the assertions on the arrays.
+// The new paragraph is blank, so the fix-up turns the suffix's trailing blank line into a block,
+// and the reported change must count it or the id and ref arrays fall one short.
 describe('an insert whose settle materializes the folded tail line', () => {
-	// Miss-analysis: `makeEditorActionsDeps` hardcoded `suffix: ''`, so a top-level fixture built
-	// the natural way could not hold a trailing blank line: unreachable, not merely untested.
+	// Miss-analysis: `makeEditorActionsDeps` hardcoded `suffix: ''`, so no fixture had a tail line.
 	it('keeps blockIds and refs in step with the tree', async () => {
 		const h = makeTopHarness(parse('alpha\n\n'));
 		expect(h.deps.doc.suffix).toBe('\n');
 
 		await h.actions.insertParagraph(1, '');
 
-		// Three blocks: the new paragraph is blank, so the suffix line can no longer stay in
-		// the suffix; it is a block the reload would read anyway (GH #129's rule, via an insert).
+		// Three blocks: the new paragraph is blank, so the suffix line cannot stay in the suffix;
+		// it is a block a reload would read anyway.
 		expect(serialize(h.deps.doc)).toBe('alpha\n\n\n\n');
 		expect(h.deps.doc.children).toHaveLength(3);
 		expect(h.getBlockIds()).toHaveLength(h.deps.doc.children.length);
@@ -128,9 +119,7 @@ describe('an insert whose settle materializes the folded tail line', () => {
 		expectParseConverged(h.deps.doc);
 	});
 
-	// The delete counterpart (GH #168). Miss-analysis: the fix-up asked the trailing-line
-	// question only through `settleSeparatorOnBlank`, which a delete at the end never reaches
-	// (it checks the index the delete vacated), so no delete ever handled the trailing line.
+	// Miss-analysis (GH #168): no case deleted a block with a trailing blank line in the suffix.
 	it('keeps them in step when a delete leaves the tail blank against the folded line', async () => {
 		const h = makeTopHarness(parse('alpha\n\n\nbeta\n\n'));
 		expect(h.deps.doc.suffix).toBe('\n');
