@@ -386,12 +386,6 @@ interface ClaimRow {
  * derive it. A claim a token family already rows must not appear here.
  */
 const CLAIM_ROWS: Record<ClaimKey, ClaimRow> = {
-	// The card opens over a link in any text block, so it claims for the paragraph they share.
-	'Mod+K @ components/link-card/LinkCard.svelte': {
-		row: "Edit a link's URL (live mode)",
-		command: 'link.openCard',
-		kind: 'paragraph'
-	},
 	'Shift+Tab @ components/blocks/table/cell-keydown-plan.ts': {
 		row: 'Move between cells',
 		command: 'cell.shiftTab',

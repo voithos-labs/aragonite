@@ -11,8 +11,8 @@ import {
 	normalizeKeybindingOverrides,
 	type KeybindingOverride
 } from '$lib/schema/keybinding-overrides';
-import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 import { takeDevWarns } from '$lib/test/support/warn-gate';
+import { commandContextWith } from '$lib/test/support/command-context';
 
 function makeDeps(isReading = () => false, keybindings: KeybindingOverride[] = []) {
 	const splitBlock = vi.fn();
@@ -28,7 +28,7 @@ function makeDeps(isReading = () => false, keybindings: KeybindingOverride[] = [
 		focus: { moveFocus },
 		isReading,
 		caretMemory,
-		commandOf: (e) => commandForKey(e, 'thematicBreak', overrides, everyInstalledPlugin)
+		commandOf: (e) => commandForKey(e, 'thematicBreak', commandContextWith(overrides))
 	};
 	return { deps, splitBlock, deleteBlock, insertParagraph, moveFocus, caretMemory };
 }

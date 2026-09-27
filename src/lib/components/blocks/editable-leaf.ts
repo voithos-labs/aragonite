@@ -41,8 +41,6 @@ import {
 import { parkFocusOnEditorRoot } from '../../selection/native-bridge';
 import { assertInvariant } from '../../assert';
 import { checkRenderedTextFidelity } from '../../invariants/render-fidelity';
-import { resolveBinding } from '../../schema/commands';
-import { eventToChord } from '../../schema/keybindings';
 import { resetForPointerDown } from '../../selection/cross-block/pointer';
 import { placeCaret } from '../../selection/caret-doors';
 import { createSourceReveal } from '../../cursor/reveal-source';
@@ -247,17 +245,13 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		getDoc,
 		getBlockElByPath,
 		getEditorRoot,
-		pluginEditor,
-		activePlugins,
 		events: editorEvents,
-		reading
+		reading,
+		commands
 	} = wiring.deps;
+	const { pluginEditor } = commands;
 	const { reorder, inlineMenuCombobox } = getContext<EditorServices>(EDITOR_SERVICES_KEY);
-	const {
-		theme: getThemeCtx,
-		keybindingOverrides,
-		onPasteImage
-	} = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
+	const { theme: getThemeCtx, onPasteImage } = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
 	const getPresentationMode = reading.mode;
 	const getTheme = (): string => getThemeCtx?.() ?? 'dark';
 	// Resolved by the kind's recorded owner, like the command context's `editor`.
@@ -602,7 +596,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		// Undo inside a shown painted source steps through this session's own edits, which the
 		// document sees as one entry written on blur. Resolved through the keymap like any chord.
 		if (deps.renderSource && isRevealed()) {
-			const command = historyCommandFor(e);
+			const command = wiring.resolveChord(e, deps.getNode().kind);
 			if (command === 'history.undo' && sourceUndo.length > 0) {
 				e.preventDefault();
 				restoreSourceEntry(el, sourceUndo, sourceRedo);
@@ -695,13 +689,6 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		const start = clampToLandableRaw(el, range.start);
 		const end = Math.max(start, clampToLandableRaw(el, range.end));
 		spliceSourceText(el, start, end, insert);
-	}
-
-	function historyCommandFor(e: KeyboardEvent): string | undefined {
-		const chord = eventToChord(e);
-		if (!chord) return undefined;
-		return resolveBinding(chord, deps.getNode().kind, keybindingOverrides(), activePlugins)
-			?.command;
 	}
 
 	function hasSelectionIn(el: HTMLElement): boolean {

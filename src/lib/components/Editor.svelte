@@ -758,8 +758,6 @@
 
 	// ── Context provision ───────────────────────────────────────────────
 
-	// One per instance, shared by every dispatch site's checks: the chord handler, a block's
-	// rebound chord and `runCommand` must all reach the same cross-block code.
 	const crossBlockCommands = createCrossBlockCommands({
 		selection: selectionState,
 		getDoc,
@@ -770,6 +768,19 @@
 		getContentVersion: contentVersion.read,
 		caretMemory
 	});
+
+	// The one context every chord and `runCommand` dispatches against, so no dispatch site can
+	// answer with its own history, mode, overrides, range handling or error channel.
+	const commands: CommandDispatchContext = {
+		history,
+		pluginEditor: pluginEditorLookup,
+		activation: activePlugins,
+		getPresentationMode: reading.mode,
+		isCrossBlockRange: () => selectionState.isCrossBlock,
+		crossBlockCommands,
+		keybindingOverrides: () => overridesMap,
+		onCommandError: commandErrorSink
+	};
 
 	// The action bundles stay one per context key so a container re-provides exactly what
 	// it overrides; the history bundle must have a single provider (G1.4).
@@ -797,7 +808,7 @@
 		registryView,
 		activePlugins,
 		rects,
-		crossBlockCommands,
+		commands,
 		menuPresence,
 		kindCue
 	} satisfies EditorServices);
@@ -998,13 +1009,9 @@
 		caretMemory,
 		blockEdit,
 		controller,
-		history,
-		pluginEditor: pluginEditorLookup,
 		reading,
-		onCommandError: commandErrorSink,
-		crossBlockCommands,
+		commands,
 		pasteCoordinator,
-		getKeybindingOverrides: () => overridesMap,
 		activePlugins,
 		events,
 		selectedWidget,
@@ -1018,23 +1025,14 @@
 		get searchBarEnabled() {
 			return searchBar;
 		},
-		get mode() {
-			return reading.mode();
-		},
 		get canReplace() {
 			return canReplace;
-		},
-		get keybindingOverrides() {
-			return overridesMap;
 		},
 		get isCrossBlock() {
 			return selectionState.isCrossBlock;
 		},
 		search: searchState,
-		history,
-		pluginEditor: pluginEditorLookup,
-		activation: activePlugins,
-		onCommandError: commandErrorSink,
+		commands,
 		crossBlock: editorCrossBlock,
 		isHostChrome,
 		saveSearchRange: searchCaret.save,
@@ -1312,43 +1310,20 @@
 		return focusedSurface.insertMarkdown(md, options);
 	}
 
-	const commandDispatchContext: CommandDispatchContext = {
-		history,
-		pluginEditor: pluginEditorLookup,
-		activation: activePlugins,
-		getPresentationMode: reading.mode,
-		isCrossBlockRange: () => selectionState.isCrossBlock,
-		crossBlockCommands: crossBlockCommands
-	};
-
 	export function runCommand(commandId: string, arg?: unknown): boolean {
-		return runCommandById(
-			commandId as AnyCommandId,
-			arg,
-			focusedSurface.commandTarget(),
-			commandDispatchContext,
-			commandErrorSink
-		);
+		return runCommandById(commandId as AnyCommandId, arg, focusedSurface.commandTarget(), commands);
 	}
 
 	// Asks through the same path `runCommand` dispatches through, so what a host greys out and
 	// what a click refuses cannot drift. See `editor-props.ts` for the contract.
 	export function canRunCommand(commandId: string): boolean {
-		return canRunCommandById(
-			commandId as AnyCommandId,
-			focusedSurface.commandTarget(),
-			commandDispatchContext
-		);
+		return canRunCommandById(commandId as AnyCommandId, focusedSurface.commandTarget(), commands);
 	}
 
 	// State, not whether it is allowed: the focused editable reports its own toggle state, so a
 	// toolbar's pressed look reads the same bytes the toggle would rewrite. See `editor-props.ts`.
 	export function isCommandActive(commandId: string): boolean {
-		return isCommandActiveById(
-			commandId as AnyCommandId,
-			focusedSurface.commandTarget(),
-			commandDispatchContext
-		);
+		return isCommandActiveById(commandId as AnyCommandId, focusedSurface.commandTarget(), commands);
 	}
 
 	export function getEvents(): EditorEvents {
@@ -1536,6 +1511,7 @@
 		caretRestore={linkCardCaret}
 		{reading}
 		{menuPresence}
+		{commands}
 	/>
 	<InlineMenuHost
 		menu={inlineMenu}

@@ -235,7 +235,7 @@ Chord resolution and the public `EditorInstance.runCommand` entry meet at one id
 - a format toggle routes to the **cross-block executor**, injected into the dispatch point's checks because a schema leaf may not import selection machinery;
 - everything else is range-safe and **runs on the focused surface**.
 
-An entry path that threads no executor declines the toggles too, so a dispatch site added later can't fall through to the focused block's offsets.
+The editor builds one command context (`schema/block-commands.ts` :: `CommandDispatchContext`: its history, plugin lookup, mode, overrides, range executor and error channel), and every entry path reads that same object, so a dispatch site added later can't turn up with its own copy missing a piece. A container a key bubbles up to never takes the cross-block route, since the toggles belong to the leaf below it.
 
 <details>
 <summary>How the cross-block toggle actually works</summary>

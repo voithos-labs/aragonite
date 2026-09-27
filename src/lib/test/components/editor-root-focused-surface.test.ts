@@ -148,7 +148,7 @@ describe('editor-root focused surface', () => {
 		h.surface.focus();
 		const target = h.focused.commandTarget()!;
 		expect(target.kind).toBe('paragraph');
-		expect(target.runCommand('x' as never, 1)).toBe(true);
+		expect(target.runCommand?.('x' as never, 1)).toBe(true);
 		expect(runCommand).toHaveBeenCalledWith('x', 1);
 		expect(target.isCommandActive?.('x' as never)).toBe(true);
 	});

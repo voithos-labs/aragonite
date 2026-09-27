@@ -1,5 +1,4 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 import { dispatchKindCommand, registerBlockCommand } from '$lib/schema/block-commands';
 import { normalizeChordStrict } from '$lib/schema/keybindings';
 import type { KeybindingOverrideMap } from '$lib/schema/keybinding-overrides';
@@ -10,14 +9,7 @@ import { buildContainerKindTarget } from '$lib/editor-actions/plugin/container';
 import type { AnyBlockKind, CstNode } from '$lib/core/nodes';
 import type { AnyCommandId } from '$lib/schema/command-id';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
-
-// No cross-block range in these cases; the range decline has its own suite.
-const GATES = {
-	getPresentationMode: () => 'source' as const,
-	isCrossBlockRange: () => false,
-	crossBlockCommands: undefined,
-	activation: everyInstalledPlugin
-};
+import { commandContextWith } from '$lib/test/support/command-context';
 
 // Declared once at module scope: the reset clears the command registry, not the
 // plugin-kind declarations, so a per-test declare would double-throw.
@@ -60,8 +52,7 @@ describe('plugin container kind-command target', () => {
 		const handled = dispatchKindCommand(
 			'Mod+Shift+K',
 			buildContainerKindTarget({ getNode: () => node }, updateOwnMetadata),
-			GATES,
-			overrides
+			commandContextWith(overrides)
 		);
 
 		expect(handled).toBe(true);
@@ -83,8 +74,7 @@ describe('plugin container kind-command target', () => {
 		const handled = dispatchKindCommand(
 			'Mod+Shift+K',
 			buildContainerKindTarget({ getNode: () => node, commandHooks: () => hooks }, vi.fn()),
-			GATES,
-			overrides
+			commandContextWith(overrides)
 		);
 
 		expect(handled).toBe(true);
@@ -101,8 +91,7 @@ describe('plugin container kind-command target', () => {
 		dispatchKindCommand(
 			'Mod+Shift+K',
 			buildContainerKindTarget({ getNode: () => node }, vi.fn()),
-			GATES,
-			overrides
+			commandContextWith(overrides)
 		);
 
 		expect(handler.mock.calls[0][0].hooks).toBeUndefined();

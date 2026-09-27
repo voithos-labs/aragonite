@@ -3,13 +3,13 @@ import { dispatchKeyCommand, registerBlockCommand } from '$lib/schema/block-comm
 import { normalizeChordStrict } from '$lib/schema/keybindings';
 import type { KeybindingOverrideMap } from '$lib/schema/keybinding-overrides';
 import { declarePluginKind } from '$lib/schema/plugin-kind';
-import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 import type { EditorContext } from '$lib/schema/plugin-install';
 import { declareOwnedKind } from '$lib/test/support/owned-kind';
 import { buildLeafCommandContext } from '$lib/components/blocks/editable-leaf';
 import type { AnyBlockKind, CstNode } from '$lib/core/nodes';
 import type { AnyCommandId } from '$lib/schema/command-id';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
+import { commandContextWith } from '$lib/test/support/command-context';
 
 // Branded plugin kinds, declared once at module scope (the reset clears commands,
 // not kind declarations; a per-test declare would double-throw).
@@ -31,14 +31,6 @@ function bindKindChord(
 		byKind: new Map([[kind, new Map([[normalized, { chord: normalized, command }]])]])
 	};
 }
-
-const GATES = {
-	history: { requestUndo() {}, requestRedo() {} },
-	activation: everyInstalledPlugin,
-	getPresentationMode: () => 'source' as const,
-	isCrossBlockRange: () => false,
-	crossBlockCommands: undefined
-};
 
 type BuildArgs = Parameters<typeof buildLeafCommandContext>;
 type CtxOverrides = Partial<Omit<BuildArgs[0], 'getIndex'> & BuildArgs[1]> & {
@@ -119,7 +111,7 @@ describe('editable-leaf command context', () => {
 			getCommandContext: () => buildCtx({ getNode: () => node, commandHooks: () => hooks })
 		};
 
-		const handled = dispatchKeyCommand('Mod+Shift+K', target, GATES, overrides);
+		const handled = dispatchKeyCommand('Mod+Shift+K', target, commandContextWith(overrides));
 		expect(handled).toBe(true);
 		expect(hooks.openFocusView).toHaveBeenCalledTimes(1);
 	});

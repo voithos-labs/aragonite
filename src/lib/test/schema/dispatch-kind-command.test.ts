@@ -1,20 +1,13 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 import { dispatchKindCommand, registerBlockCommand } from '$lib/schema/block-commands';
 import { mintCommandId } from '$lib/schema/command-id';
 import { normalizeKeybindingOverrides } from '$lib/schema/keybinding-overrides';
 import { takeDevWarns } from '../support/warn-gate';
+import { commandContext, commandContextWith } from '../support/command-context';
 import type { CstNode } from '$lib/core/nodes';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
 // No cross-block range in these cases; the dispatch's range decline has its own suite.
-const GATES = {
-	getPresentationMode: () => 'source' as const,
-	isCrossBlockRange: () => false,
-	crossBlockCommands: undefined,
-	activation: everyInstalledPlugin
-};
-
 const listItemNode = (): CstNode => ({
 	kind: 'listItem',
 	leadingTrivia: '',
@@ -41,8 +34,7 @@ describe('container-bubble dispatch over the block-command registry', () => {
 		const handled = dispatchKindCommand(
 			'Mod+Shift+K',
 			{ kind: 'listItem', runCommand, getCommandContext: () => ({ node, updateMetadata }) },
-			GATES,
-			overrides
+			commandContextWith(overrides)
 		);
 
 		expect(handled).toBe(true);
@@ -62,14 +54,12 @@ describe('container-bubble dispatch over the block-command registry', () => {
 		const first = dispatchKindCommand(
 			'Mod+Shift+K',
 			{ kind: 'listItem', runCommand },
-			GATES,
-			overrides
+			commandContextWith(overrides)
 		);
 		const second = dispatchKindCommand(
 			'Mod+Shift+K',
 			{ kind: 'listItem', runCommand },
-			GATES,
-			overrides
+			commandContextWith(overrides)
 		);
 
 		expect(first).toBe(false);
@@ -82,7 +72,7 @@ describe('container-bubble dispatch over the block-command registry', () => {
 		const runCommand = vi.fn(() => true);
 
 		// The built-in listItem keymap binds Tab → list.indent.
-		const handled = dispatchKindCommand('Tab', { kind: 'listItem', runCommand }, GATES);
+		const handled = dispatchKindCommand('Tab', { kind: 'listItem', runCommand }, commandContext());
 
 		expect(handled).toBe(true);
 		expect(runCommand).toHaveBeenCalledWith('list.indent', undefined);
@@ -90,7 +80,11 @@ describe('container-bubble dispatch over the block-command registry', () => {
 
 	it('returns false without warning when no binding resolves', () => {
 		const runCommand = vi.fn(() => false);
-		const handled = dispatchKindCommand('Mod+J', { kind: 'listItem', runCommand }, GATES);
+		const handled = dispatchKindCommand(
+			'Mod+J',
+			{ kind: 'listItem', runCommand },
+			commandContext()
+		);
 		expect(handled).toBe(false);
 		expect(runCommand).not.toHaveBeenCalled();
 		expect(takeDevWarns()).toEqual([]);
@@ -106,8 +100,7 @@ describe('container-bubble dispatch over the block-command registry', () => {
 		const handled = dispatchKindCommand(
 			'Mod+J',
 			{ kind: 'listItem', runCommand },
-			GATES,
-			overrides
+			commandContextWith(overrides)
 		);
 
 		expect(handled).toBe(false);

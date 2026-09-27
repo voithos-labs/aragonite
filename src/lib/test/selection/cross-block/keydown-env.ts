@@ -23,6 +23,7 @@ import { installEditorDomStubsForTests } from '$lib/testing';
 import { makeEditorActionsDeps } from '../../harness/editor-actions';
 import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 import { fixtureReading } from '../../harness/fixture-grammar';
+import { commandContextWith } from '../../support/command-context';
 
 export interface KeydownEnvOptions {
 	presentationMode?: PresentationMode;
@@ -97,12 +98,14 @@ export function makeKeydownEnv(source: string | Document, opts: KeydownEnvOption
 		revealPath,
 		caretMemory,
 		controller,
-		history: { requestUndo: vi.fn(), requestRedo: vi.fn() },
-		pluginEditor: undefined,
 		reading: fixtureReading({}, opts.presentationMode),
-		onCommandError,
-		crossBlockCommands,
-		getKeybindingOverrides: () => overrides,
+		commands: commandContextWith(overrides, {
+			history: { requestUndo: vi.fn(), requestRedo: vi.fn() },
+			getPresentationMode: () => opts.presentationMode ?? 'source',
+			isCrossBlockRange: () => selection.isCrossBlock,
+			crossBlockCommands,
+			onCommandError
+		}),
 		activePlugins: everyInstalledPlugin,
 		afterReactivity: async () => {}
 	} as unknown as CrossBlockDispatchContext;

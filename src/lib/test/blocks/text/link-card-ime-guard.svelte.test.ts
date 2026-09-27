@@ -14,6 +14,7 @@ import type { UndoController } from '$lib/editor-actions/deps';
 import type { CaretRestore } from '$lib/selection/caret-restore';
 import { fixtureReading } from '../../harness/fixture-grammar';
 import { defaultGrammarView } from '$lib/schema/block-openers';
+import { commandContext } from '../../support/command-context';
 
 function key(name: string, isComposing: boolean): KeyboardEvent {
 	return new KeyboardEvent('keydown', { key: name, isComposing, bubbles: true, cancelable: true });
@@ -34,6 +35,7 @@ function mountCard() {
 			onCommit,
 			onOpenLink: vi.fn(),
 			onRemove: vi.fn(),
+			opensCard: () => false,
 			resolveHref: (raw: string) => raw
 		}
 	});
@@ -90,7 +92,8 @@ async function mountHost() {
 			reading: fixtureReading(),
 			grammar: defaultGrammarView,
 			caretRestore: { save: vi.fn(), saveCurrent: vi.fn(), restore } as CaretRestore,
-			menuPresence: createMenuPresence()
+			menuPresence: createMenuPresence(),
+			commands: commandContext()
 		}
 	});
 	card.enter({ path: [0], sourceStart: 6 });

@@ -22,6 +22,7 @@ function openCard(url: string, resolveLinkUrl: (raw: string) => string = (u) => 
 			onCommit: vi.fn(),
 			onOpenLink,
 			onRemove: vi.fn(),
+			opensCard: () => false,
 			resolveHref: (raw: string) => resolveHref({ resolveLinkUrl }, raw)
 		}
 	});

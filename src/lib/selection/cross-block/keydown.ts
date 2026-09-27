@@ -47,13 +47,10 @@ export function createCrossBlockKeydown(
 /** What a keypress resolves to at the block at `getMyPath`, or at global scope with none. */
 export function commandAtBlock(
 	e: KeyboardEvent,
-	ctx: Pick<
-		CrossBlockDispatchContext,
-		'getDoc' | 'getMyPath' | 'getKeybindingOverrides' | 'activePlugins'
-	>
+	ctx: Pick<CrossBlockDispatchContext, 'getDoc' | 'getMyPath' | 'commands'>
 ): AnyCommandId | null {
 	const kind = blockNodeAt(ctx.getDoc(), ctx.getMyPath())?.kind ?? null;
-	return commandForKey(e, kind, ctx.getKeybindingOverrides(), ctx.activePlugins);
+	return commandForKey(e, kind, ctx.commands);
 }
 
 // ── Keydown ────────────────────────────────────────────────────────────────
@@ -137,16 +134,7 @@ async function handleCrossBlockActive(
 			dispatchKeyCommand(
 				chord,
 				{ kind: kindOfPath(revealTarget, postDeleteDoc), runCommand: target.runCommand },
-				{
-					history: ctx.history,
-					pluginEditor: ctx.pluginEditor,
-					activation: ctx.activePlugins,
-					getPresentationMode: ctx.reading.mode,
-					isCrossBlockRange: () => selection.isCrossBlock,
-					crossBlockCommands: ctx.crossBlockCommands
-				},
-				ctx.getKeybindingOverrides(),
-				ctx.onCommandError
+				ctx.commands
 			);
 		});
 		return true;
@@ -297,16 +285,7 @@ async function dispatchOverRange(
 			kind: kindOfPath(path, ctx.getDoc()),
 			runCommand: (id, arg) => surface?.runCommand?.(id, arg) ?? false
 		},
-		{
-			history: ctx.history,
-			pluginEditor: ctx.pluginEditor,
-			activation: ctx.activePlugins,
-			getPresentationMode: ctx.reading.mode,
-			isCrossBlockRange: () => ctx.selection.isCrossBlock,
-			crossBlockCommands: ctx.crossBlockCommands
-		},
-		ctx.getKeybindingOverrides(),
-		ctx.onCommandError
+		ctx.commands
 	);
 }
 

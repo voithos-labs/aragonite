@@ -8,9 +8,9 @@ import {
 	resolveBinding,
 	resolveGlobalBinding,
 	runGlobalChord,
-	pluginGlobalChords,
-	type GlobalChordContext
+	pluginGlobalChords
 } from '$lib/schema/commands';
+import type { CommandDispatchContext } from '$lib/schema/block-commands';
 import { chordIsClaimed, collectReservedChords } from '$lib/schema/reserved-chords';
 import { activationFor, everyInstalledPlugin } from '$lib/schema/plugin-activation';
 import {
@@ -20,6 +20,7 @@ import {
 	type EditorContext
 } from '$lib/schema/plugin-install';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
+import { commandContext } from '../support/command-context';
 
 const CHORD = 'Mod+Shift+9';
 
@@ -28,14 +29,12 @@ const notListing = activationFor(['other']);
 
 let ran = 0;
 
-function chordContext(activation: typeof listing): GlobalChordContext {
-	return {
-		isReading: false,
-		history: { requestUndo() {}, requestRedo() {} },
+function chordContext(activation: typeof listing): CommandDispatchContext {
+	return commandContext({
 		pluginEditor: (name) =>
 			activation.isActive(name) ? ({} as never as EditorContext) : undefined,
 		activation
-	};
+	});
 }
 
 beforeEach(() => {
@@ -57,7 +56,7 @@ describe('a plugin-global chord is claimed only where the plugin is activated', 
 		expect(resolveGlobalBinding(CHORD, undefined, listing)?.command).toBe('scoped.act');
 		expect(resolveBinding(CHORD, 'paragraph', undefined, listing)?.command).toBe('scoped.act');
 		expect(isDefaultGlobalChord(CHORD, listing)).toBe(true);
-		expect(runGlobalChord(CHORD, undefined, chordContext(listing))).toBe(true);
+		expect(runGlobalChord(CHORD, chordContext(listing))).toBe(true);
 		expect(ran).toBe(1);
 	});
 
@@ -67,7 +66,7 @@ describe('a plugin-global chord is claimed only where the plugin is activated', 
 		expect(resolveGlobalBinding(CHORD, undefined, notListing)).toBeNull();
 		expect(resolveBinding(CHORD, 'paragraph', undefined, notListing)).toBeNull();
 		expect(isDefaultGlobalChord(CHORD, notListing)).toBe(false);
-		expect(runGlobalChord(CHORD, undefined, chordContext(notListing))).toBe(false);
+		expect(runGlobalChord(CHORD, chordContext(notListing))).toBe(false);
 		expect(ran).toBe(0);
 	});
 

@@ -18,6 +18,7 @@
 		onCommit,
 		onOpenLink,
 		onRemove,
+		opensCard,
 		resolveHref
 	}: {
 		url: string;
@@ -30,6 +31,8 @@
 		onOpenLink: (url: string, event: MouseEvent) => void;
 		/** Absent in create mode: there is no construct to remove until Enter writes one. */
 		onRemove?: () => void;
+		/** Whether a keypress is a chord the keymap binds to opening this card. */
+		opensCard: (e: KeyboardEvent) => boolean;
 		/** The href as the render path resolves it: a consumer rewrite, then the scheme
 		 *  allowlist. Undefined means a blocked scheme, which Open must never be handed. */
 		resolveHref: (url: string) => string | undefined;
@@ -90,12 +93,9 @@
 			stepTrap(e.shiftKey);
 			return;
 		}
-		// The entry chord asks again for the card focus is already inside, so it does nothing
-		// here, but it is still taken: nothing the editor owns hands `Mod+K` back to the browser.
-		// CapsLock uppercases the key without a Shift modifier, which is still the plain chord.
-		if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && (e.key === 'k' || e.key === 'K')) {
-			e.preventDefault();
-		}
+		// The entry chord asks again for the card focus is already inside, so it does nothing here,
+		// but it is still taken: nothing the editor owns hands that chord back to the browser.
+		if (opensCard(e)) e.preventDefault();
 	}
 
 	function handleUrlKeyDown(e: KeyboardEvent): void {

@@ -16,12 +16,13 @@
 	import { useMountGauge } from '../../../perf/use-mount-gauge.svelte';
 	import { createContainerActions } from '../../../editor-actions/nested/container-actions';
 	import { createListItemOverrides } from '../../../editor-actions/list-overrides';
-	import { createContainerBlockComponent } from '../../../editor-actions/container-block-component';
+	import {
+		createContainerBlockComponent,
+		dispatchContainerChord
+	} from '../../../editor-actions/container-block-component';
 	import { buildTaskItemAmbient } from './task-checkbox';
 	import BlockList from '../../BlockList.svelte';
 	import { publishRefSlot, type RefSlots } from '../../../reactivity/publish-ref.svelte';
-	import { eventToChord } from '../../../schema/keybindings';
-	import { dispatchKindCommand } from '../../../schema/block-commands';
 	import type { AnyCommandId } from '../../../schema/command-id';
 	import BlockDragHandle from '../../BlockDragHandle.svelte';
 	import SelectionOverlay from '../../SelectionOverlay.svelte';
@@ -43,10 +44,9 @@
 		slots?: RefSlots<BlockComponent>;
 	} = $props();
 
-	const { selection, decorations, events, activePlugins } =
+	const { selection, decorations, events, commands } =
 		getContext<EditorServices>(EDITOR_SERVICES_KEY);
-	const { keybindingOverrides, blockDragHandles: getDragHandles } =
-		getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
+	const { blockDragHandles: getDragHandles } = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
 
 	const listContext = getContext<ListContext>(LIST_CONTEXT_KEY);
 	const {
@@ -187,33 +187,14 @@
 	}
 
 	// Tab, Shift+Tab and Mod+Enter bubble here from the inner paragraph, which binds none of them
-	// or declines without calling `preventDefault`. Only kind commands are dispatched: the contenteditable's
-	// async handler prevents the default only after an await, so resolving global commands here
-	// would fire undo or redo a second time.
+	// or declines without calling `preventDefault`. Only kind commands are dispatched: the
+	// paragraph's async handler prevents the default only after an await, so resolving global
+	// commands here would fire undo or redo a second time.
 	function handleKeydown(e: KeyboardEvent): void {
-		if (e.defaultPrevented) return;
 		// A key a nested item declined is still that item's: the task toggle must not reach the
 		// task it sits in.
 		if (!(e.target instanceof Element) || e.target.closest('.list-item-block') !== boxEl) return;
-		const chord = eventToChord(e);
-		if (!chord) return;
-		if (
-			dispatchKindCommand(
-				chord,
-				{ kind: node.kind, runCommand },
-				{
-					getPresentationMode: reading.mode,
-					activation: activePlugins,
-					isCrossBlockRange: () => selection?.isCrossBlock ?? false,
-					// A key bubbling to a container carries no range command: the block below owns
-					// the format ids.
-					crossBlockCommands: undefined
-				},
-				keybindingOverrides()
-			)
-		) {
-			e.preventDefault();
-		}
+		dispatchContainerChord(e, { kind: node.kind, runCommand }, commands);
 	}
 </script>
 

@@ -7,25 +7,10 @@ import {
 } from '$lib/schema/block-commands';
 import { __resetCommandWarningsForTests } from '$lib/schema/commands';
 import { normalizeKeybindingOverrides } from '$lib/schema/keybinding-overrides';
-import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 import type { CstNode } from '$lib/core/nodes';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
+import { commandContext, commandContextWith } from '../support/command-context';
 
-const ctx = {
-	history: { requestUndo() {}, requestRedo() {} },
-	activation: everyInstalledPlugin,
-	getPresentationMode: () => 'source' as const,
-	isCrossBlockRange: () => false,
-	crossBlockCommands: undefined
-};
-
-// No cross-block range in these cases; the dispatch's range decline has its own suite.
-const GATES = {
-	getPresentationMode: () => 'source' as const,
-	isCrossBlockRange: () => false,
-	crossBlockCommands: undefined,
-	activation: everyInstalledPlugin
-};
 const nodeOf = (kind: string): CstNode =>
 	({
 		kind: kind as CstNode['kind'],
@@ -55,8 +40,7 @@ describe('leaf-path dispatch of a created block command', () => {
 		const handled = dispatchKeyCommand(
 			'Mod+Shift+K',
 			{ kind: 'paragraph', runCommand, getCommandContext: () => ({ node, updateMetadata }) },
-			ctx,
-			overrides
+			commandContextWith(overrides)
 		);
 
 		expect(handled).toBe(true);
@@ -86,9 +70,7 @@ describe('a throwing plugin handler is contained at the command dispatch', () =>
 				runCommand: () => false,
 				getCommandContext: () => ({ node, updateMetadata: () => {} })
 			},
-			ctx,
-			overrides,
-			(r) => reports.push(r)
+			commandContextWith(overrides, { onCommandError: (r) => reports.push(r) })
 		);
 
 		expect(handled).toBe(true);
@@ -113,36 +95,11 @@ describe('a throwing plugin handler is contained at the command dispatch', () =>
 				runCommand: () => false,
 				getCommandContext: () => ({ node, updateMetadata: () => {} })
 			},
-			GATES,
-			overrides,
-			(r: CommandErrorReport) => reports.push(r)
+			commandContextWith(overrides, { onCommandError: (r) => reports.push(r) })
 		);
 
 		expect(handled).toBe(true);
 		expect(reports[0]).toMatchObject({ kind: 'listItem', command: id, error: boom });
-	});
-
-	it('contains the throw even with no sink wired: safety is unconditional', () => {
-		const id = registerBlockCommand('paragraph', 'demo.boom', () => {
-			throw new Error('unwired');
-		});
-		const overrides = normalizeKeybindingOverrides([
-			{ chord: 'Mod+Shift+K', command: id, kind: 'paragraph' }
-		]);
-		const node = nodeOf('paragraph');
-
-		expect(() =>
-			dispatchKeyCommand(
-				'Mod+Shift+K',
-				{
-					kind: 'paragraph',
-					runCommand: () => false,
-					getCommandContext: () => ({ node, updateMetadata: () => {} })
-				},
-				ctx,
-				overrides
-			)
-		).not.toThrow();
 	});
 
 	it('does not contain a built-in command throw: editor bugs stay loud', () => {
@@ -151,8 +108,8 @@ describe('a throwing plugin handler is contained at the command dispatch', () =>
 		const runCommand = vi.fn(() => {
 			throw new Error('builtin boom');
 		});
-		expect(() => dispatchKeyCommand('Mod+B', { kind: 'paragraph', runCommand }, ctx)).toThrow(
-			'builtin boom'
-		);
+		expect(() =>
+			dispatchKeyCommand('Mod+B', { kind: 'paragraph', runCommand }, commandContext())
+		).toThrow('builtin boom');
 	});
 });

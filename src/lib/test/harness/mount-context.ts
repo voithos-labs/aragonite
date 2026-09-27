@@ -24,7 +24,7 @@ import { createLinkCardState } from '$lib/components/link-card/link-card-state.s
 import { createMenuPresence } from '$lib/components/menu/menu-presence.svelte';
 import { defaultRegistryView } from '$lib/schema/registry-view';
 import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
-import { createEditorEvents } from '$lib/editor-events';
+import { createEditorEvents, emitCommandError } from '$lib/editor-events';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import { createRevealAnchorState } from '$lib/cursor/reveal-anchor';
 import { createAutoPairRecord } from '$lib/components/blocks/text/auto-pair-record';
@@ -96,8 +96,8 @@ function stubbedServices(getDoc: () => DocumentView): EditorServices {
 		registryView: defaultRegistryView,
 		activePlugins: everyInstalledPlugin,
 		rects: {} as EditorServices['rects'],
-		// Real, and inert: a bare mount has no cross-block range, so every member answers no.
-		crossBlockCommands: { canRun: () => false, run: () => false, isActive: () => false },
+		// Filled in by `editorMountContext`, which reads the other groups' overrides.
+		commands: {} as EditorServices['commands'],
 		// A bare mount has no announcer and no host to show a label on.
 		kindCue: { afterTypedWrite: async () => {}, labelAt: () => undefined, dismiss: () => {} }
 	};
@@ -182,10 +182,24 @@ export function editorMountContext(overrides: MountContextOverrides = {}): Map<s
 	});
 	const doc: EditorDoc = withDerivedScrollport({ ...docBase, ...overrides.doc });
 	const services: EditorServices = { ...stubbedServices(doc.doc), ...overrides.services };
+	const history = overrides.history ?? { requestUndo: vi.fn(), requestRedo: vi.fn() };
+	// The editor's one command context, read from the groups above so a test's override of the
+	// history, the policies or a service reaches every chord the block dispatches.
+	services.commands = overrides.services?.commands ?? {
+		history,
+		pluginEditor: doc.pluginEditor,
+		activation: services.activePlugins,
+		getPresentationMode: () => doc.reading.mode(),
+		isCrossBlockRange: () => services.selection.isCrossBlock,
+		// Inert: a bare mount has no cross-block range, so every member answers no.
+		crossBlockCommands: { canRun: () => false, run: () => false, isActive: () => false },
+		keybindingOverrides: () => policies.keybindingOverrides(),
+		onCommandError: (report) => emitCommandError(services.events, report)
+	};
 	return new Map<symbol, unknown>([
 		[BLOCK_EDIT_KEY, overrides.blockEdit ?? makeStubBlockEdit()],
 		[FOCUS_KEY, overrides.focus ?? makeStubFocus()],
-		[HISTORY_KEY, overrides.history ?? { requestUndo: vi.fn(), requestRedo: vi.fn() }],
+		[HISTORY_KEY, history],
 		[CONTAINER_EDIT_KEY, overrides.containerEdit ?? makeStubContainerEdit()],
 		[EDITOR_SERVICES_KEY, services],
 		[EDITOR_POLICIES_KEY, policies],

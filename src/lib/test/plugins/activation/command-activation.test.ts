@@ -9,19 +9,13 @@ import { definePlugin, installPlugins, type EditorContext } from '$lib/schema/pl
 import { activationFor, type PluginActivation } from '$lib/schema/plugin-activation';
 import type { AnyCommandId } from '$lib/schema/command-id';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
+import { commandContext } from '$lib/test/support/command-context';
 
 afterEach(() => __resetSchemaRegistriesForTests());
 
 // A plugin context for any name, so only the command registry's own activation check can refuse.
 function context(activation: PluginActivation): CommandDispatchContext {
-	return {
-		history: { requestUndo: () => {}, requestRedo: () => {} },
-		pluginEditor: () => ({ editorId: 'e1' }) as EditorContext,
-		activation,
-		getPresentationMode: () => 'source',
-		isCrossBlockRange: () => false,
-		crossBlockCommands: undefined
-	};
+	return commandContext({ pluginEditor: () => ({ editorId: 'e1' }) as EditorContext, activation });
 }
 
 const paragraph: KindCommandTarget = {

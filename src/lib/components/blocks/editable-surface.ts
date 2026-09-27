@@ -14,18 +14,12 @@ import {
 	type StickyColumnDirection
 } from '../../block-component';
 import type { UserScrollport } from '../../cursor/scroll-ancestors';
-import type {
-	BlockElLookup,
-	DocumentGetter,
-	PasteImageHook,
-	PluginEditorLookup
-} from '../../editor-keys';
+import type { BlockElLookup, DocumentGetter, PasteImageHook } from '../../editor-keys';
 import { emitClipboardError, type EditorEvents } from '../../editor-events';
 import type { InlineMenuCombobox } from '../../inline-menu/inline-menu-state.svelte';
 import type { NodeView } from '../../core/node-views';
 import { blockAccessibleName } from '../../a11y-strings';
-import type { KeybindingOverrideMap } from '../../schema/keybinding-overrides';
-import type { CommandErrorSink, CrossBlockCommandRouter } from '../../schema/block-commands';
+import type { CommandDispatchContext } from '../../schema/block-commands';
 import type { PluginActivation } from '../../schema/plugin-activation';
 import type { UndoController } from '../../editor-actions/deps';
 import type { PasteCommitCoordinator } from '../../tree-operations/paste/paste-deps';
@@ -163,17 +157,11 @@ export interface EditableSurfaceDeps {
 	blockEdit: BlockEditActions;
 	controller: UndoController;
 	history: HistoryActions;
-	// This editor's plugin context and its command-error callback, for cross-block dispatch.
-	// Required (undefinable value) so a surface can't skip the thread and silently
-	// contain plugin throws.
-	pluginEditor: PluginEditorLookup | undefined;
 	/** How this editor reads its bytes, for the cross-block join rules, the join-paste reparse and
 	 *  the reading-mode check. */
 	reading: Reading;
-	onCommandError: CommandErrorSink | undefined;
-	/** The handler a range command goes to, passed to the cross-block composer. */
-	crossBlockCommands: CrossBlockCommandRouter;
-	getKeybindingOverrides: () => KeybindingOverrideMap;
+	/** The editor's command dispatch, which the keydown and cross-block handlers read. */
+	commands: CommandDispatchContext;
 	pasteCoordinator: PasteCommitCoordinator;
 	/** The plugins this instance activated, forwarded to the paste-transform pipeline. */
 	activePlugins: PluginActivation;
@@ -270,12 +258,8 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		caretMemory: deps.caretMemory,
 		blockEdit: deps.blockEdit,
 		controller: deps.controller,
-		history: deps.history,
-		pluginEditor: deps.pluginEditor,
 		reading: deps.reading,
-		onCommandError: deps.onCommandError,
-		crossBlockCommands: deps.crossBlockCommands,
-		getKeybindingOverrides: deps.getKeybindingOverrides,
+		commands: deps.commands,
 		pasteCoordinator: deps.pasteCoordinator,
 		activePlugins: deps.activePlugins,
 		events: deps.events,
@@ -297,8 +281,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		focus: deps.focusActions,
 		getDoc: deps.getDoc,
 		getBlockElByPath: deps.getBlockElByPath,
-		activePlugins: deps.activePlugins,
-		getKeybindingOverrides: deps.getKeybindingOverrides,
+		commands: deps.commands,
 		reading: deps.reading
 	};
 

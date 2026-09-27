@@ -7,7 +7,6 @@ import {
 	runCommandById,
 	dispatchKeyCommand,
 	registerBlockCommand,
-	type CommandDispatchContext,
 	type KindCommandTarget
 } from '$lib/schema/block-commands';
 import { TOOLBAR_COMMANDS } from '$lib/index';
@@ -16,23 +15,12 @@ import type { AnyCommandId } from '$lib/schema/command-id';
 import type { NodeView } from '$lib/core/node-views';
 import type { PresentationMode } from '$lib/presentation-mode';
 import { allowDevWarns } from '../support/warn-gate';
-import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
+import { commandContext as context } from '../support/command-context';
 
 afterEach(() => {
 	__resetSchemaRegistriesForTests();
 });
-
-function context(over: Partial<CommandDispatchContext> = {}): CommandDispatchContext {
-	return {
-		history: { requestUndo: () => {}, requestRedo: () => {} },
-		activation: everyInstalledPlugin,
-		getPresentationMode: () => 'source',
-		isCrossBlockRange: () => false,
-		crossBlockCommands: undefined,
-		...over
-	};
-}
 
 /** A focused block that answers every built-in id, so the answer comes from the dispatch alone. */
 const surface = (): KindCommandTarget => ({ kind: 'paragraph', runCommand: () => true });
@@ -143,10 +131,17 @@ describe('the read agrees with the dispatch it describes', () => {
 			{ chord: 'Mod+Alt+G', command: 'format.toggleStrong', kind: 'paragraph' }
 		]);
 		expect(canRunCommandById('format.toggleStrong', surface(), ctx)).toBe(false);
-		expect(dispatchKeyCommand('Mod+Alt+G', surface(), ctx, overrides)).toBe(false);
+		expect(
+			dispatchKeyCommand('Mod+Alt+G', surface(), { ...ctx, keybindingOverrides: () => overrides })
+		).toBe(false);
 
 		const collapsed = context();
 		expect(canRunCommandById('format.toggleStrong', surface(), collapsed)).toBe(true);
-		expect(dispatchKeyCommand('Mod+Alt+G', surface(), collapsed, overrides)).toBe(true);
+		expect(
+			dispatchKeyCommand('Mod+Alt+G', surface(), {
+				...collapsed,
+				keybindingOverrides: () => overrides
+			})
+		).toBe(true);
 	});
 });

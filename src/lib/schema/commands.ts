@@ -21,8 +21,8 @@ import {
 // Type-only imports, so this file has no runtime dependency on plugin-install or block-commands.
 import type { EditorContext } from './plugin-install';
 import type { PluginActivation } from './plugin-activation';
-import type { CommandErrorSink } from './block-commands';
-import type { PresentationMode } from '../presentation-mode';
+import type { CommandDispatchContext, CommandErrorSink } from './block-commands';
+import { isReadingMode, type PresentationMode } from '../presentation-mode';
 
 export const GLOBAL_COMMAND_IDS = ['history.undo', 'history.redo'] as const;
 export const BLOCK_COMMAND_IDS = [
@@ -129,7 +129,7 @@ export interface GlobalCommandContext {
 	/** The effective presentation mode, read live; the reading-mode check reads this, not the
 	 *  plugin lookup. Absent (a history-only context) means source mode. */
 	getPresentationMode?: () => PresentationMode;
-	/** Injected by `dispatchKeyCommand`; receives a caught handler throw. */
+	/** Receives a caught handler throw. */
 	onCommandError?: CommandErrorSink;
 	/** The argument `runCommand(id, arg)` or the chord's binding carried, injected per dispatch. */
 	arg?: unknown;
@@ -369,15 +369,15 @@ export function resolveBinding(
 export function commandForKey(
 	e: KeyboardEvent,
 	kind: AnyBlockKind | null,
-	overrides: KeybindingOverrideMap | undefined,
-	activation: PluginActivation
+	ctx: Pick<CommandDispatchContext, 'keybindingOverrides' | 'activation'>
 ): AnyCommandId | null {
 	const chord = eventToChord(e);
 	if (!chord) return null;
+	const overrides = ctx.keybindingOverrides();
 	const binding =
 		kind === null
-			? resolveGlobalBinding(chord, overrides, activation)
-			: resolveBinding(chord, kind, overrides, activation);
+			? resolveGlobalBinding(chord, overrides, ctx.activation)
+			: resolveBinding(chord, kind, overrides, ctx.activation);
 	return binding?.command ?? null;
 }
 
@@ -405,28 +405,14 @@ export function resolveGlobalBinding(
 	return builtinGlobalBinding(chord, activation);
 }
 
-/** Reading mode consumes a bound chord and runs nothing: falling through would hand a read-only
- *  document the browser's own undo history. */
-export interface GlobalChordContext extends GlobalCommandContext {
-	isReading: boolean;
-}
-
 /**
  * Run whatever `chord` binds at global scope, for the places with no focused block whose kind
  * keymap could apply: the editor root holding a caret in an unmounted block, the gap caret's
  * proxy. True means the keypress was consumed, which a disabled chord is without running anything.
  */
-export function runGlobalChord(
-	chord: string,
-	overrides: KeybindingOverrideMap | undefined,
-	context: GlobalChordContext
-): boolean {
-	return runClaimedGlobalChord(
-		resolveGlobalBinding(chord, overrides, context.activation),
-		chord,
-		context,
-		false
-	);
+export function runGlobalChord(chord: string, context: CommandDispatchContext): boolean {
+	const binding = resolveGlobalBinding(chord, context.keybindingOverrides(), context.activation);
+	return runClaimedGlobalChord(binding, chord, context, false);
 }
 
 /**
@@ -436,23 +422,22 @@ export function runGlobalChord(
 export function runGlobalChordOnKind(
 	chord: string,
 	kind: AnyBlockKind,
-	overrides: KeybindingOverrideMap | undefined,
-	context: GlobalChordContext
+	context: CommandDispatchContext
 ): boolean {
-	return runClaimedGlobalChord(
-		resolveBinding(chord, kind, overrides, context.activation),
-		chord,
-		context,
-		true
-	);
+	const overrides = context.keybindingOverrides();
+	const binding = resolveBinding(chord, kind, overrides, context.activation);
+	return runClaimedGlobalChord(binding, chord, context, true);
 }
 
-/** A chord the built-in tables bind is consumed whatever an override left it resolving to: the
- *  fall-through is the browser's own history, which bypasses the CST undo stack. */
+/**
+ * A chord the built-in tables bind is consumed whatever an override left it resolving to: the
+ * fall-through is the browser's own history, which bypasses the CST undo stack. Reading mode
+ * consumes a bound chord the same way and runs nothing.
+ */
 function runClaimedGlobalChord(
 	binding: KeyBinding | null,
 	chord: string,
-	context: GlobalChordContext,
+	context: CommandDispatchContext,
 	kindDispatchBelow: boolean
 ): boolean {
 	const run = binding ? getCommand(binding.command, context.activation) : undefined;
@@ -464,6 +449,6 @@ function runClaimedGlobalChord(
 		warnDeadKeyCommand(binding.command, 'global-chord');
 	}
 	if (!consumed) return false;
-	if (!context.isReading) run?.({ ...context, arg: binding?.arg });
+	if (!isReadingMode(context.getPresentationMode)) run?.({ ...context, arg: binding?.arg });
 	return true;
 }

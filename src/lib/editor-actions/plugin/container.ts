@@ -15,15 +15,13 @@ import type {
 	BlockEditActions,
 	CommitAfterTick,
 	FocusActions,
-	HistoryActions,
 	MoveFocusOptions
 } from '../../action-contracts';
 import type { NodeView } from '../../core/node-views';
 import type { AmbientPrefix, BlockComponent, ContainerBlockComponent } from '../../block-component';
 import { getBlockKindDescriptor } from '../../schema/block-kind-descriptor';
 import { expandContainerPatch, isCollapsedContainer } from '../../schema/reserved-chrome';
-import { dispatchKindCommand, type KindCommandTarget } from '../../schema/block-commands';
-import { eventToChord } from '../../schema/keybindings';
+import type { KindCommandTarget } from '../../schema/block-commands';
 import { commandForKey } from '../../schema/commands';
 import { isReadingMode, type PresentationMode } from '../../presentation-mode';
 import { devWarn } from '../../dev-warn';
@@ -32,14 +30,12 @@ import {
 	EDITOR_DOC_KEY,
 	EDITOR_POLICIES_KEY,
 	EDITOR_SERVICES_KEY,
-	HISTORY_KEY,
 	type EditorDoc,
 	type EditorPolicies,
 	type EditorServices,
 	type PluginEditorLookup
 } from '../../editor-keys';
 import { captureScrollPosition } from '../../cursor/scroll-hold';
-import { emitCommandError } from '../../editor-events';
 import type { EditorContext } from '../../schema/plugin-install';
 import { owningPluginEditor } from '../../schema/plugin-kind';
 import type { WindowResult } from '../../reactivity/block-window.svelte';
@@ -48,8 +44,9 @@ import { useContainerWindowing } from '../../reactivity/use-container-windowing.
 import { createContainerExitOverrides } from '../container-exit-overrides';
 import {
 	createContainerBlockComponent,
+	dispatchContainerChord,
+	dispatchWholeBlockGlobalChord,
 	focusAcrossBlockEdge,
-	handleEditorGlobalChord,
 	handleWholeBlockKeys
 } from '../container-block-component';
 import {
@@ -275,8 +272,8 @@ export function composeCollapseGates(
 // ── Kind-command target ──────────────────────────────────────────────────────
 
 /**
- * The kind-command target a plugin container hands to `dispatchKindCommand`. `runCommand`
- * is inert: a plugin container owns no built-in kind commands, so a chord resolves only
+ * The kind-command target a plugin container hands to `dispatchKindCommand`. It has no
+ * `runCommand`: a plugin container owns no built-in kind commands, so a chord resolves only
  * through a registered one.
  */
 export function buildContainerKindTarget(
@@ -288,7 +285,6 @@ export function buildContainerKindTarget(
 		get kind() {
 			return deps.getNode().kind;
 		},
-		runCommand: () => false,
 		getCommandContext: () => ({
 			node: deps.getNode(),
 			updateMetadata: (patch) => {
@@ -303,16 +299,9 @@ export function buildContainerKindTarget(
 // ── Factory ──────────────────────────────────────────────────────────────────
 
 export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
-	const history = getContext<HistoryActions>(HISTORY_KEY);
-	const {
-		caretMemory,
-		selection,
-		reorder,
-		revealAnchor,
-		events: editorEvents,
-		activePlugins
-	} = getContext<EditorServices>(EDITOR_SERVICES_KEY);
-	const { keybindingOverrides, theme: getTheme } = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
+	const { caretMemory, selection, reorder, revealAnchor, commands } =
+		getContext<EditorServices>(EDITOR_SERVICES_KEY);
+	const { theme: getTheme } = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
 	const { pluginEditor, reading } = getContext<EditorDoc>(EDITOR_DOC_KEY);
 	const getPresentationMode = reading.mode;
 
@@ -446,48 +435,15 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 
 	const kindTarget = buildContainerKindTarget(deps, updateOwnMetadata, pluginEditor);
 
-	const globalChordDeps = {
-		getKind: () => deps.getNode().kind,
-		history,
-		pluginEditor,
-		onCommandError: (report: Parameters<typeof emitCommandError>[1]) =>
-			emitCommandError(editorEvents, report),
-		getKeybindingOverrides: keybindingOverrides,
-		isReading: () => isReadingMode(getPresentationMode),
-		activation: activePlugins
-	};
-
-	const commandOf = (e: KeyboardEvent) =>
-		commandForKey(e, deps.getNode().kind, keybindingOverrides(), activePlugins);
+	const commandOf = (e: KeyboardEvent) => commandForKey(e, deps.getNode().kind, commands);
 
 	const handleKeydown = (e: KeyboardEvent): void => {
 		if (e.defaultPrevented) return;
-		const chord = eventToChord(e);
 		// Only when this block itself holds focus: a chord bubbling from an inner leaf already
 		// met the global chords there, and running it here would fire it twice.
-		if (chord && ownsWholeBlockFocus(e) && handleEditorGlobalChord(chord, globalChordDeps)) {
-			e.preventDefault();
+		if (ownsWholeBlockFocus(e) && dispatchWholeBlockGlobalChord(e, deps.getNode().kind, commands))
 			return;
-		}
-		if (
-			chord &&
-			dispatchKindCommand(
-				chord,
-				kindTarget,
-				// A chord bubbling to a container carries no range command: the leaf below owns the format ids.
-				{
-					getPresentationMode,
-					activation: activePlugins,
-					isCrossBlockRange: () => selection.isCrossBlock,
-					crossBlockCommands: undefined
-				},
-				keybindingOverrides(),
-				(report) => emitCommandError(editorEvents, report)
-			)
-		) {
-			e.preventDefault();
-			return;
-		}
+		if (dispatchContainerChord(e, kindTarget, commands)) return;
 		handleWholeBlockKeydown(e);
 	};
 

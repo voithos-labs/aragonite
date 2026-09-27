@@ -11,7 +11,7 @@ import {
 } from '$lib/schema/keybinding-overrides';
 import type { PresentationMode } from '$lib/presentation-mode';
 import type { SearchState } from '$lib/search/search-state.svelte';
-import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
+import { commandContext } from '../support/command-context';
 
 // The search bar's live state, cut down to what the root handler drives. `isOpen`
 // tracks open and closed so the Escape branch and the savedRange check see real state.
@@ -71,27 +71,22 @@ function harness(): Harness {
 	let overrides: KeybindingOverride[] | undefined;
 
 	const deps: EditorRootKeydownDeps = {
-		// No plugins stood up here, so every installed one is active.
-		activation: everyInstalledPlugin,
 		get searchBarEnabled() {
 			return searchBar;
 		},
-		get mode() {
-			return mode;
-		},
 		get canReplace() {
 			return mode !== 'reading';
-		},
-		get keybindingOverrides() {
-			return normalizeKeybindingOverrides(overrides);
 		},
 		get isCrossBlock() {
 			return crossBlock;
 		},
 		search: search.state as unknown as SearchState,
-		history: { requestUndo: () => void undoCount++, requestRedo: () => void redoCount++ },
-		pluginEditor: () => undefined as never,
-		onCommandError: () => {},
+		// No plugins stood up here, so every installed one is active.
+		commands: commandContext({
+			history: { requestUndo: () => void undoCount++, requestRedo: () => void redoCount++ },
+			getPresentationMode: () => mode,
+			keybindingOverrides: () => normalizeKeybindingOverrides(overrides)
+		}),
 		crossBlock: {
 			handleKeyDown: (e) => {
 				crossBlockKeys.push(e);

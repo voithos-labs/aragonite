@@ -9,8 +9,7 @@ import type { BlockElLookup, DocumentGetter } from '../editor-keys';
 import type { CaretMemory } from '../cursor/caret-memory';
 import type { SelectionState } from './selection-state.svelte';
 import type { CrossBlockHandlers } from './cross-block/dispatch';
-import type { PluginActivation } from '../schema/plugin-activation';
-import type { KeybindingOverrideMap } from '../schema/keybinding-overrides';
+import type { CommandDispatchContext } from '../schema/block-commands';
 import { commandAtBlock } from './cross-block/keydown';
 import type { Reading } from '../schema/reading';
 import {
@@ -41,11 +40,9 @@ export interface SharedKeydownContext extends LandableBoundsContext {
 	history: HistoryActions;
 	focus: FocusActions;
 	getBlockElByPath: BlockElLookup;
-	/** The plugins this instance activated; without it the suppression below swallows a
-	 *  chord another editor's plugin owns. */
-	activePlugins: PluginActivation;
-	/** The consumer's key rebindings, so the caret memory reads a chord as what it now does. */
-	getKeybindingOverrides: () => KeybindingOverrideMap;
+	/** The editor's command dispatch: the caret memory reads a chord as what it now does, and the
+	 *  history suppression below takes only this editor's plugin chords. */
+	commands: CommandDispatchContext;
 	/** How the editor reads its bytes, whose grammar the vertical extension skips leaves by. */
 	reading: Reading;
 }
@@ -81,7 +78,7 @@ export async function handleSharedKeydown(
 	// it names the chords with a native history default, and running the command is the block's
 	// own dispatch, one branch further on.
 	const historyChord = eventToChord(e);
-	if (historyChord && isDefaultGlobalChord(historyChord, ctx.activePlugins)) {
+	if (historyChord && isDefaultGlobalChord(historyChord, ctx.commands.activation)) {
 		e.preventDefault();
 		return false;
 	}

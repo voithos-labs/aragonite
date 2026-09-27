@@ -6,6 +6,7 @@ import {
 	resolveKindBinding
 } from '$lib/schema/commands';
 import { dispatchKeyCommand } from '$lib/schema/block-commands';
+import { commandContext } from '../support/command-context';
 import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 import { augmentBuiltin, tryGetBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
 
@@ -31,18 +32,13 @@ describe('global command registry', () => {
 });
 
 describe('dispatchKeyCommand', () => {
-	const ctx = {
-		history: { requestUndo: vi.fn(), requestRedo: vi.fn() },
-		activation: everyInstalledPlugin,
-		getPresentationMode: () => 'source' as const,
-		isCrossBlockRange: () => false,
-		crossBlockCommands: undefined
-	};
+	const history = { requestUndo: vi.fn(), requestRedo: vi.fn() };
+	const ctx = commandContext({ history });
 	it('routes a global chord to the global command (no runCommand call)', () => {
 		const runCommand = vi.fn(() => true);
 		expect(dispatchKeyCommand('Mod+Z', { kind: 'paragraph', runCommand }, ctx)).toBe(true);
 		expect(runCommand).not.toHaveBeenCalled();
-		expect(ctx.history.requestUndo).toHaveBeenCalled();
+		expect(history.requestUndo).toHaveBeenCalled();
 	});
 	it('routes an unmatched chord to neither and returns false', () => {
 		const runCommand = vi.fn(() => true);
