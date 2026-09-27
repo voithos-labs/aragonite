@@ -56,3 +56,63 @@ test.describe('live mode: keys at the end of the text', () => {
 		await ep.bridge.waitForSourceEquals('# Hi #t\n\nnext\n');
 	});
 });
+
+// The same gesture on the three heading shapes: the structure past the text goes with the text.
+test.describe('live mode: emptying the text', () => {
+	for (const source of ['# H\n\nnext\n', '# H #\n\nnext\n', 'H\n===\n\nnext\n']) {
+		test(`Backspace over the last character of ${JSON.stringify(source)} leaves an empty paragraph`, async ({
+			page
+		}) => {
+			const ep = await enterPresentationMode(page, 'live', source);
+			await ep.focusBlockAtPath([0], 1);
+			await page.keyboard.press('End');
+			await page.keyboard.press('Backspace');
+			await ep.bridge.waitForSourceEquals('\nnext\n');
+			await ep.typeSlowly('k');
+			await ep.bridge.waitForSourceEquals('k\n\nnext\n');
+		});
+	}
+
+	test('selecting the text and pressing Backspace leaves an empty paragraph', async ({ page }) => {
+		const ep = await enterPresentationMode(page, 'live', DOC);
+		await ep.focusBlockAtPath([0], 3);
+		await page.keyboard.press('End');
+		await page.keyboard.press('Shift+Home');
+		await page.keyboard.press('Backspace');
+		await ep.bridge.waitForSourceEquals('\nnext\n');
+		await ep.typeSlowly('k');
+		await ep.bridge.waitForSourceEquals('k\n\nnext\n');
+	});
+});
+
+test.describe('live mode: the closing run stays on the heading', () => {
+	for (const [source, written] of [
+		['# Hi\n\nnext\n', '# H\\\nwi\n\nnext\n'],
+		['# Hi #\n\nnext\n', '# H\\ #\nwi\n\nnext\n']
+	]) {
+		test(`Shift+Enter inside the text of ${JSON.stringify(source)}, then a key`, async ({
+			page
+		}) => {
+			const ep = await enterPresentationMode(page, 'live', source);
+			await ep.focusBlockAtPath([0], 3);
+			await page.keyboard.press('Shift+Enter');
+			await ep.typeSlowly('w');
+			await ep.bridge.waitForSourceEquals(written);
+		});
+	}
+
+	for (const [source, written] of [
+		['# Hi\n\nnext\n', '# Hi\n\nabc\n\ndef\n\nnext\n'],
+		['# Hi #\n\nnext\n', '# Hi #\n\nabc\n\ndef\n\nnext\n'],
+		['Hi\n===\n\nnext\n', 'Hi\n===\n\nabc\n\ndef\n\nnext\n']
+	]) {
+		test(`pasting two paragraphs at the end of ${JSON.stringify(source)}`, async ({ page }) => {
+			const ep = await enterPresentationMode(page, 'live', source);
+			await ep.seedClipboard('abc\n\ndef');
+			await ep.focusBlockAtPath([0], 1);
+			await page.keyboard.press('End');
+			await ep.paste();
+			await ep.bridge.waitForSourceEquals(written);
+		});
+	}
+});

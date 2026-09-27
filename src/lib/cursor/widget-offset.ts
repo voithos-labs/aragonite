@@ -79,14 +79,23 @@ export function rawOfWalkOffset(container: ParentNode, walk: DomTextOffset): Raw
 	return toClampedRawOffset(walk, markerPrefixLength(container));
 }
 
-/** The raw bytes `el` shows, its marker prefix left out: what a prose block reads back as its text. */
+/** The raw bytes `el` shows, its marker prefix left out: what a prose block reads back as its text.
+ *  Empty when only the block's trailing structure is left. */
 export function rawTextOfContent(el: HTMLElement, raw: string): string {
 	const prefix = markerPrefixOf(el);
 	let out = '';
+	let holdsMoreThanSuffix = false;
 	for (const child of Array.from(el.childNodes)) {
-		if (child !== prefix) out += rawTextOfNode(child, raw);
+		if (child === prefix) continue;
+		const text = rawTextOfNode(child, raw);
+		out += text;
+		if (text && !(child instanceof Element && child.hasAttribute(BLOCK_SUFFIX_ATTR))) {
+			holdsMoreThanSuffix = true;
+		}
 	}
-	return out;
+	// A heading's closing run or a setext underline belongs to the text above it, so a read
+	// holding nothing else is an emptied block.
+	return holdsMoreThanSuffix ? out : '';
 }
 
 /** Raw offset of the live selection's focus inside `el`, or null when there is no selection or

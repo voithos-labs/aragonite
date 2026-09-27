@@ -1,11 +1,15 @@
 import { describe, it, expect } from 'vitest';
-import { demoteEmptyAtxHeading, demoteToParagraph } from '$lib/components/blocks/text/text-keydown';
+import {
+	cycleHeading,
+	demoteEmptyAtxHeading,
+	demoteToParagraph
+} from '$lib/components/blocks/text/text-keydown';
 import { getContentRange } from '$lib/core/inline';
 import { parse } from '$lib/core/parser';
 
 // Backspace at a live heading's content start drops the block's own structural bytes before it
-// merges anything. Which bytes those are comes from the kind's content range: a prefix for ATX,
-// a suffix for setext, the same declaration read from both ends.
+// merges anything. Which bytes those are comes from the kind's content range: everything outside
+// it, an ATX heading's `# ` and closing run, a setext underline.
 
 describe('demoteToParagraph', () => {
 	it('drops an ATX prefix and lands the caret where the content now starts', () => {
@@ -52,6 +56,15 @@ describe('demoteToParagraph: an ATX closing run', () => {
 
 	it('clamps a caret inside the closing run to the content end', () => {
 		expect(demoteHeading('# Hi #\n', 6)).toEqual({ newRaw: 'Hi\n', caretOffset: 2 });
+	});
+
+	// Miss-analysis: the line ending was read with the LF/CRLF helper, and no case ended a
+	// document's last line in a lone `\r`, which the closing run then carried away.
+	it('keeps a lone `\r` ending the document’s last line, demoted or re-marked', () => {
+		const raw = '# Hi #\r';
+		const content = getContentRange(parse(raw).children[0]);
+		expect(demoteToParagraph(raw, content, 2)?.newRaw).toBe('Hi\r');
+		expect(cycleHeading(raw, content, 2, 2)?.newRaw).toBe('## Hi\r');
 	});
 });
 

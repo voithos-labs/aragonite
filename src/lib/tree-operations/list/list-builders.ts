@@ -2,15 +2,11 @@
 
 import type { CstNode, ListItemMetadata, ListMetadata } from '../../core/nodes';
 import type { NodeView } from '../../core/node-views';
-import {
-	snapToScalarBoundary,
-	trailingLineEnding,
-	trimTrailingLineEnding,
-	type LineEnding
-} from '../../core/lines';
+import { trailingLineEnding, type LineEnding } from '../../core/lines';
 import { rebuildListItemRaw, rebuildListRaw } from '../../schema/container-rebuilders';
 import { cloneMetadata, cloneNode } from '../clone';
 import { parseCutResidue, parseFirstBlock } from '../parse-block';
+import { cutKeepingSuffix } from '../paste/cut-keeping-suffix';
 import { renumberOrderedListFrom } from './ordered-markers';
 import { assignIds } from '../../block-id';
 import { readBlocks } from '../../core/parser';
@@ -121,12 +117,8 @@ export function splitLeafForPaste(
 	grammar: GrammarView
 ): { leadingNode: CstNode | null; trailingNodes: CstNode[]; lineEnding: LineEnding } {
 	const lineEnding = trailingLineEnding(raw, ending);
-	const display = trimTrailingLineEnding(raw);
-	// Off any scalar interior first: the halves become separate items, so a pair cut here is
-	// unrecoverable bytes rather than a recoverable edit.
-	const cut = snapToScalarBoundary(display, offset);
-	const leadingText = display.slice(0, cut);
-	const trailingText = display.slice(cut).replace(/^[ \t]/, '');
+	const { head: leadingText, rest } = cutKeepingSuffix({ ...leaf, raw }, offset);
+	const trailingText = rest.replace(/^[ \t]/, '');
 
 	const leadingNode =
 		leadingText.length > 0 ? parseFirstBlock(leadingText + lineEnding, grammar) : null;

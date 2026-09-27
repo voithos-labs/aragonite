@@ -31,9 +31,14 @@ export function demoteToParagraph(
 	if (content.start === 0 && content.end === displayLength(raw)) return null;
 	const inContent = Math.min(Math.max(preEditOffset, content.start), content.end);
 	return {
-		newRaw: raw.slice(content.start, content.end) + ownTrailingLineEnding(raw),
+		newRaw: raw.slice(content.start, content.end) + endingPastContent(raw, content.end),
 		caretOffset: inContent - content.start
 	};
+}
+
+// The line ending the dropped structure ended in, a lone `\r` on a document's last line included.
+function endingPastContent(raw: string, contentEnd: number): string {
+	return /(?:\r\n?|\n)$/.exec(raw.slice(contentEnd))?.[0] ?? '';
 }
 
 /**
@@ -65,7 +70,7 @@ export function cycleHeading(
 	const newDisplay = prefix + raw.slice(content.start, content.end);
 	const inContent = Math.min(Math.max(preEditOffset, content.start), content.end);
 	return {
-		newRaw: newDisplay + ownTrailingLineEnding(raw),
+		newRaw: newDisplay + endingPastContent(raw, content.end),
 		caretOffset: prefix.length + (inContent - content.start)
 	};
 }
@@ -74,7 +79,8 @@ export function cycleHeading(
  * Insert a GFM hard-break (a backslash at end of line) at `offset` within the display. At the
  * content end the break has no following line yet: the line break after the content (the block's
  * own ending, or the one above a setext underline) stands in for the break's until the next
- * keystroke supplies the line.
+ * keystroke supplies the line. Inside the text, structure on the text's own line (a heading's
+ * closing run) stays on that line, before the break.
  */
 export function insertHardBreak(
 	raw: string,
@@ -90,17 +96,29 @@ export function insertHardBreak(
 			caretOffset: contentEnd + 1
 		};
 	}
-	// The break carries the block's own ending, else the document's `ending`: CommonMark reads a
-	// backslash before either LF or CRLF as a hard break, so a CRLF block stays CRLF.
-	const breakBytes = '\\' + trailingLineEnding(raw, ending);
-	const newDisplay = display.slice(0, offset) + breakBytes + display.slice(offset);
-	// At end-of-display the inserted ending is itself the trailing ending; reattaching
-	// the original would double it into a blank line and break list-item continuation.
-	const newRaw = offset >= display.length ? newDisplay : newDisplay + trailing;
-	return {
-		newRaw,
-		caretOffset: Math.min(offset + breakBytes.length, displayLength(newRaw))
-	};
+	const suffix = display.slice(contentEnd);
+	if (offset < contentEnd && suffix && !/^[\r\n]/.test(suffix)) {
+		return breakBeforeLine(
+			display.slice(0, offset) + '\\' + suffix,
+			display.slice(offset, contentEnd)
+		);
+	}
+	return breakBeforeLine(display.slice(0, offset) + '\\', display.slice(offset));
+
+	/** `head`, the break's line ending, then `rest` on the new line. */
+	function breakBeforeLine(head: string, rest: string): TextEditResult {
+		// The break carries the block's own ending, else the document's `ending`: CommonMark reads
+		// a backslash before either LF or CRLF as a hard break, so a CRLF block stays CRLF.
+		const breakEnding = trailingLineEnding(raw, ending);
+		const newDisplay = head + breakEnding + rest;
+		// With nothing after the break, the inserted ending is itself the trailing ending;
+		// reattaching the original would double it into a blank line and break list continuation.
+		const newRaw = rest === '' ? newDisplay : newDisplay + trailing;
+		return {
+			newRaw,
+			caretOffset: Math.min(head.length + breakEnding.length, displayLength(newRaw))
+		};
+	}
 }
 
 /** Insert a literal tab character at `offset` within the display portion. */

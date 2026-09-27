@@ -48,6 +48,21 @@ describe('insertHardBreak', () => {
 	});
 });
 
+// Miss-analysis: every case broke a paragraph or a setext title, so no case had structure on the
+// text's own line, which the break moved into the next block.
+describe('insertHardBreak: a heading’s closing run stays on the heading’s line', () => {
+	it('in the middle of the text, the rest goes to the new line without the run', () => {
+		expect(insertHardBreak('# Hi #\n', 3, '\n', 4)).toEqual({
+			newRaw: '# H\\ #\ni\n',
+			caretOffset: 7
+		});
+	});
+
+	it('leaves a setext underline under the title for a break in its middle', () => {
+		expect(insertHardBreak('Plan\n===\n', 2, '\n', 4).newRaw).toBe('Pl\\\nan\n===\n');
+	});
+});
+
 describe('insertLiteralTab', () => {
 	it.each([
 		[0, '\tfoo\n', 1],
