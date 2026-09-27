@@ -87,8 +87,8 @@ describe('flushPendingRegistrationChecks', () => {
 	});
 
 	it('reports an opener registered pre-flush after an editorless grammar read', () => {
-		// A `parse()` with no editor marks the grammar used without running the checks (nothing is
-		// pending), so `didFirstFlush` stays false, which is the gap G1.17 covers.
+		// A `parse()` with no editor marks the grammar used without running the checks, so
+		// `didFirstFlush` stays false and a late opener must still warn (G1.17).
 		getOrderedOpeners();
 		const kind = declarePluginKind('pre-flush-late');
 		registerBlockKind(kind, leaf);
@@ -259,8 +259,8 @@ describe('reservedChrome coherence at the flush', () => {
 	});
 });
 
-// The predicate is unit-tested in test/invariants/closure-coherence.test.ts; this pins the
-// G1.24 wiring, which every predicate test would stay green without.
+// The predicate is unit-tested in test/invariants/closure-coherence.test.ts; these cases check
+// that the flush actually runs it (G1.24).
 describe('closure coherence at the flush', () => {
 	it('flags a registered kind whose closure is incoherent with its descriptor', () => {
 		const kind = declarePluginKind('incoherent-closure');
