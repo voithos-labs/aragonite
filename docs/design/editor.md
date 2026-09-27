@@ -216,7 +216,7 @@ The group is why an illegal leaf/container mix is a compile error rather than a 
 
 ### Commands and keybindings
 
-A kind's `keymap` maps a chord to a command id. The chord string is normalized before lookup (`schema/keybindings.ts` :: `eventToChord`), and `Mod` folds Ctrl and Cmd into one token, so a binding is `{ chord: 'Mod+B', command: 'format.toggleStrong' }` on every platform; why nothing in the tree detects the platform, and what that costs the test harness, is [`../contributing/codebase-map.md`](../contributing/codebase-map.md) § Keyboard and chords. Global commands (undo/redo, a plugin's registered global) are free functions rather than per-kind entries. Keystroke-to-operation mapping is declarative, so there's no per-component `onKeyDown` branching to keep in sync.
+A kind's `keymap` maps a chord to a command id. Registration checks each chord and stores it normalized (`schema/keybindings.ts` :: `registeredChord`), so a mistyped `Ctrl+B` throws there instead of turning into a bare `B`. A keypress gets the same normal form (`eventToChord`), and `Mod` folds Ctrl and Cmd into one token, so a binding is `{ chord: 'Mod+B', command: 'format.toggleStrong' }` on every platform; why nothing in the tree detects the platform, and what that costs the test harness, is [`../contributing/codebase-map.md`](../contributing/codebase-map.md) § Keyboard and chords. Global commands (undo/redo, a plugin's registered global) are free functions rather than per-kind entries. Keystroke-to-operation mapping is declarative, so there's no per-component `onKeyDown` branching to keep in sync.
 
 A focused leaf resolves a chord through the consumer's overrides first, then three keymap tiers (`schema/commands.ts` :: `resolveBinding`):
 

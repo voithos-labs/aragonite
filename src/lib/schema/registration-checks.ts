@@ -46,7 +46,6 @@ import { isBlockComponentRegistered } from './block-component-registry';
 import { listRegisteredOpeners } from './block-openers';
 import { isBuiltinCommandId } from './commands';
 import { isPluginCommandId } from './command-id';
-import { normalizeChord, isChordWellFormed } from './keybindings';
 import {
 	takeRegistrationFlushWork,
 	__resetRegistrationChecksForTests
@@ -186,9 +185,7 @@ export function flushPendingRegistrationChecks(
 	// reserved-chrome check covers plugin kinds at startup instead.
 	const kinds = work.firstFlush ? getAllRegisteredKinds() : work.kinds;
 	report('opener-registry', () => checkOpenerRegistry(listRegisteredOpeners(), hasDescriptor));
-	report('keymap-coherence', () =>
-		checkKeymapCoherence(keymapEntries(kinds), isKnownCommandId, normalizeChord, isChordWellFormed)
-	);
+	report('keymap-coherence', () => checkKeymapCoherence(keymapEntries(kinds), isKnownCommandId));
 	report('reserved-chrome-coherence', () =>
 		checkReservedChromeCoherence(reservedChromeEntries(kinds), hasDescriptor, hasComponent)
 	);

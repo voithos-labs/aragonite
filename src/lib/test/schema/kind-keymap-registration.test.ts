@@ -6,6 +6,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { augmentBlockKind } from '$lib/plugin';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
+import { resolveBinding } from '$lib/schema/commands';
+import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 import { testLeaf } from '../harness/test-kinds';
 
 beforeEach(__resetSchemaRegistriesForTests);
@@ -31,5 +33,18 @@ describe('a malformed kind keymap chord', () => {
 		expect(() =>
 			testLeaf('spec-good-chord', { keymap: [{ chord: 'Mod+B', command: 'format.toggleStrong' }] })
 		).not.toThrow();
+	});
+
+	// The resolvers compare stored chords without normalizing, so registration must store the
+	// normal form or a chord declared out of modifier order would never match a keypress.
+	it.each(['register', 'augment'])('a chord declared out of order binds at %s', (entry) => {
+		const keymap = [{ chord: 'Shift+Mod+b', command: 'format.toggleStrong' as const }];
+		const kind =
+			entry === 'register' ? testLeaf('spec-order', { keymap }) : testLeaf('spec-order-aug');
+		if (entry === 'augment') augmentBlockKind(kind, { keymap });
+
+		expect(resolveBinding('Mod+Shift+B', kind, undefined, everyInstalledPlugin)?.command).toBe(
+			'format.toggleStrong'
+		);
 	});
 });

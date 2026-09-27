@@ -36,7 +36,7 @@ export function registerGlobalCommand(
 		try {
 			return handler(editor, ctx.arg);
 		} catch (error) {
-			ctx.onCommandError?.({ command: id, plugin: owner ?? undefined, error });
+			ctx.onCommandError({ command: id, plugin: owner ?? undefined, error });
 			return true;
 		}
 	});

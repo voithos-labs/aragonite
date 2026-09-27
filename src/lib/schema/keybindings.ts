@@ -75,10 +75,7 @@ export function normalizeChord(chord: string): string {
 
 const VALID_MODIFIERS = new Set<string>(MOD_ORDER);
 
-/**
- * Why a chord is malformed, or null when it is well-formed. Shared core of the strict paths;
- * keeping the reason lets `normalizeChordStrict` name it in the warn.
- */
+/** Why a chord is malformed, or null when it's well-formed; the strict paths name it. */
 function chordDefect(chord: string): string | null {
 	const parts = chord.split('+');
 	const key = parts.pop() ?? '';
@@ -87,13 +84,19 @@ function chordDefect(chord: string): string | null {
 	return bad === undefined ? null : `unrecognized modifier "${bad}" (use Mod/Alt/Shift)`;
 }
 
-/**
- * The well-formedness the strict ingestion paths gate on, so a mis-typed `'Ctrl+B'` can't
- * collapse to a bare `'B'` that fires on every keypress. Pure: the caller decides whether to
- * warn, throw, or report.
- */
+/** Whether a chord is well-formed: Mod/Alt/Shift modifiers and a non-empty key. */
 export function isChordWellFormed(chord: string): boolean {
 	return chordDefect(chord) === null;
+}
+
+/**
+ * Validate then normalize a chord a registration declares, throwing on a malformed one, so a
+ * mis-typed `'Ctrl+B'` never collapses to a bare `'B'` that fires on every keypress.
+ */
+export function registeredChord(chord: string, entry: string): string {
+	const defect = chordDefect(chord);
+	if (defect !== null) throw new Error(`${entry}: chord "${chord}" is malformed: ${defect}`);
+	return normalizeChord(chord);
 }
 
 /**

@@ -8,7 +8,7 @@ import { pluginKindOwner } from './plugin-kind';
 import { createPluginRegistry } from './plugin-registry';
 import type { ChildRawChange } from './child-spans';
 import type { ClosureBlock } from './closure';
-import type { KeyBinding } from './keybindings';
+import { registeredChord, type KeyBinding } from './keybindings';
 import type { HeightEstimateEnv } from './height-estimates';
 
 /**
@@ -217,7 +217,8 @@ export interface BlockKindDescriptor {
 	contentStartSpace?: 'complete-marker';
 	/** This container's direct children reorder among themselves. Absent means they do not. */
 	reorderChildren?: ReorderChildrenRole;
-	/** Chord -> command map, consulted before the global table so a kind can shadow a global. */
+	/** Chord -> command map, consulted before the global table so a kind can shadow a global.
+	 *  Registration throws on a malformed chord and stores the rest normalized. */
 	keymap?: KeyBinding[];
 	/** True when the block's raw contains inline syntax the inline parser should process on every edit. */
 	supportsInline: boolean;
@@ -399,10 +400,13 @@ const registry = createPluginRegistry<AnyBlockKind, BlockKindDescriptor>({
 export function registerBlockKind(kind: AnyBlockKind, registration: BlockKindRegistration): void {
 	rejectBlankLabel('registerBlockKind', kind, 'label', registration.label);
 	rejectBlankLabel('registerBlockKind', kind, 'dragLabel', registration.dragLabel);
+	const descriptor = normalizeRegistration(registration);
+	if (descriptor.keymap)
+		descriptor.keymap = registeredKeymap('registerBlockKind', kind, descriptor.keymap);
 	const owner = registry.has(kind) ? pluginKindOwner(kind) : null;
 	registry.register(
 		kind,
-		normalizeRegistration(registration),
+		descriptor,
 		`registerBlockKind: "${kind}" is already registered. Kinds are register-once — ` +
 			`use augmentBlockKind to merge fields into an existing registration.` +
 			(owner ? ` — first declared by plugin '${owner}'` : '')
@@ -421,6 +425,14 @@ function rejectBlankLabel(
 	throw new Error(
 		`${entry}: "${kind}" has a blank ${field}; give it a name or omit ${field} for the default.`
 	);
+}
+
+// Every chord is checked and normalized once here, so the resolvers compare stored chords as is.
+function registeredKeymap(entry: string, kind: AnyBlockKind, keymap: KeyBinding[]): KeyBinding[] {
+	return keymap.map((binding) => ({
+		...binding,
+		chord: registeredChord(binding.chord, `${entry}: "${kind}" keymap`)
+	}));
 }
 
 // The flat part is stripped and isContainer derived, so the `container` group is the only source
@@ -449,6 +461,7 @@ function mergeBlockKindFields(
 	rejectBlankLabel(entry, kind, 'dragLabel', fields.dragLabel);
 	const { container, ...rest } = fields;
 	const next: BlockKindDescriptor = { ...existing, ...stripContainerOnlyKeys(rest) };
+	if (rest.keymap) next.keymap = registeredKeymap(entry, kind, rest.keymap);
 	if (container) {
 		if (!existing.isContainer) {
 			throw new Error(

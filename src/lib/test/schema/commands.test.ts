@@ -15,11 +15,13 @@ describe('global command registry', () => {
 		const history = { requestUndo: vi.fn(), requestRedo: vi.fn() };
 		getCommand('history.undo', everyInstalledPlugin)!({
 			history,
-			activation: everyInstalledPlugin
+			activation: everyInstalledPlugin,
+			onCommandError: () => {}
 		});
 		getCommand('history.redo', everyInstalledPlugin)!({
 			history,
-			activation: everyInstalledPlugin
+			activation: everyInstalledPlugin,
+			onCommandError: () => {}
 		});
 		expect(history.requestUndo).toHaveBeenCalledOnce();
 		expect(history.requestRedo).toHaveBeenCalledOnce();

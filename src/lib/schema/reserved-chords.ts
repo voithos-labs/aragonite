@@ -10,7 +10,7 @@ import { GLOBAL_KEYMAP, kindKeymap, pluginGlobalChords, reservedUiChords } from 
 import type { KeybindingOverrideMap } from './keybinding-overrides';
 import type { PluginActivation } from './plugin-activation';
 import { kindEnablementFor } from './registry-view';
-import { eventToChord, normalizeChord } from './keybindings';
+import { eventToChord } from './keybindings';
 
 // ── The hardcoded-chord list ─────────────────────────────────────────────────
 
@@ -294,7 +294,7 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 ];
 
 const HARDCODED_CHORDS: ReadonlySet<string> = new Set(
-	HARDCODED_CHORD_SITES.flatMap((site) => site.chords).map(normalizeChord)
+	HARDCODED_CHORD_SITES.flatMap((site) => site.chords)
 );
 
 // ── Composition ──────────────────────────────────────────────────────────────
@@ -323,9 +323,7 @@ export function collectReservedChords(options: ReservedChordOptions): ReadonlySe
 			...HARDCODED_CHORDS,
 			...(options.searchBar ? reservedUiChords() : []),
 			...overrideBoundChords(options.keybindings)
-		]
-			.map(normalizeChord)
-			.filter(carriesModifier)
+		].filter(carriesModifier)
 	);
 	// A global disable unbinds the chord at every command tier. A hardcoded branch never
 	// consults the override map, so it keeps its claim.

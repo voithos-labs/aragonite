@@ -224,7 +224,7 @@ Three families of seam run these checks:
 | G1.8  | `getContentRange` is well-formed for every kind that has one                        | A·P·N   |
 | G1.9  | No mutation writes bytes through a node an undo entry shares                        | T·A·P·N |
 | G1.10 | Every opener's kind has a descriptor; opener priorities are unique                  | A·N     |
-| G1.11 | Every keymap chord is well-formed, unique per kind, and names a known command       | A·N     |
+| G1.11 | Every keymap chord is unique per kind and names a known command                     | A·N     |
 | G1.12 | An opaque container's raw still reparses to its live children                       | A·N     |
 | G1.13 | An opaque `rebuildRaw` is deterministic over committed state                        | A·N     |
 | G1.14 | A container declaring `reservedChrome` holds its chrome leaf at child 0             | A·N     |
@@ -358,9 +358,11 @@ only reachable via an internal malformed-change bug, which DEV re-throws. Covere
 **G1.10 · Opener-registry coherence.** Every opener's kind has a descriptor, and opener priorities
 are unique. Predicate `checkOpenerRegistry` (`registry.ts`) · bootstrap · `opener-registry.test.ts`.
 
-**G1.11 · Keymap coherence.** Every keymap chord is well-formed (Mod/Alt/Shift plus a non-empty key)
-and names a known command id, and chords are unique per kind. Predicate `checkKeymapCoherence`
-(`registry.ts`) · bootstrap · `keymap-coherence.test.ts`.
+**G1.11 · Keymap coherence.** Every keymap chord names a known command id, and chords are unique
+per kind. A malformed chord never gets this far: `registerBlockKind` and `augmentBlockKind` throw on
+it, in every build. The command check waits for bootstrap because a plugin can register its kind
+before the command its keymap binds. Predicate `checkKeymapCoherence` (`registry.ts`) · bootstrap ·
+`keymap-coherence.test.ts`.
 
 **G1.12 · Opaque container raw not stale.** The raw reparses to children that byte-match the live
 children, chrome compared positionally for `reservedChrome` declarers. A kind with a standalone

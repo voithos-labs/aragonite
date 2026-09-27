@@ -1632,7 +1632,7 @@ registerGlobalCommand('mine.undo', handler, { chord: 'Mod+Z' }); // throws: alre
 registerGlobalCommand('mine.bold', handler, { chord: 'Mod+B' }); // fine: fires on a thematic break, yields to bold in a paragraph
 ```
 
-Chord strings follow the consumer guide's chord model: fixed-order `Mod` / `Alt` / `Shift` plus the key's own value. Shifted-symbol chords aren't modeled, so bind plain digits and letters.
+Chord strings follow the consumer guide's chord model: fixed-order `Mod` / `Alt` / `Shift` plus the key's own value. Shifted-symbol chords aren't modeled, so bind plain digits and letters. A chord the editor can't read throws when you register it, here and in a kind's `keymap` alike (`registerBlockKind`, `augmentBlockKind`). So `Ctrl+B` (it's `Mod+B`) fails at startup instead of quietly becoming a bare `B` that fires on every keypress.
 
 ## Block context actions
 

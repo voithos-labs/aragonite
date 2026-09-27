@@ -78,28 +78,19 @@ export interface KeymapCoherenceEntry {
 }
 
 /**
- * G1.11: every binding uses a well-formed chord naming a known command, and a kind's chords are
- * unique once normalized. A mistyped `Ctrl+B` collapses to a bare `B` that fires on every
- * keypress, and a duplicate leaves dispatch order up to the declaration order. Chords are scoped
- * per kind.
+ * G1.11: every binding names a known command, and a kind binds each chord once (a duplicate
+ * leaves dispatch to declaration order). Registration already threw on a malformed chord and
+ * stored the rest normalized. The command check waits for this flush because a plugin can
+ * register its kind before the command the keymap names.
  */
 export function checkKeymapCoherence(
 	entries: readonly KeymapCoherenceEntry[],
-	isKnownCommand: (id: string) => boolean,
-	normalizeChord: (chord: string) => string,
-	isChordWellFormed: (chord: string) => boolean
+	isKnownCommand: (id: string) => boolean
 ): InvariantViolation | null {
 	for (const { kind, keymap } of entries) {
 		if (!keymap) continue;
 		const seenChords = new Set<string>();
 		for (const binding of keymap) {
-			if (!isChordWellFormed(binding.chord)) {
-				return {
-					code: 'keymap-coherence',
-					message: `kind "${kind}" binds malformed chord "${binding.chord}": modifiers must be Mod/Alt/Shift and the key non-empty`,
-					detail: { kind, chord: binding.chord, issue: 'malformed' }
-				};
-			}
 			if (!isKnownCommand(binding.command)) {
 				return {
 					code: 'keymap-coherence',
@@ -107,7 +98,7 @@ export function checkKeymapCoherence(
 					detail: { kind, chord: binding.chord, command: binding.command }
 				};
 			}
-			const chord = normalizeChord(binding.chord);
+			const chord = binding.chord;
 			if (seenChords.has(chord)) {
 				return {
 					code: 'keymap-coherence',

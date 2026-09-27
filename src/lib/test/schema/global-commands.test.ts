@@ -33,6 +33,7 @@ const ctx = (over?: Partial<GlobalCommandContext>): GlobalCommandContext => ({
 	history: { requestUndo() {}, requestRedo() {} },
 	activation: everyInstalledPlugin,
 	pluginEditor: () => editor,
+	onCommandError: () => {},
 	...over
 });
 
@@ -113,6 +114,11 @@ describe('registerGlobalCommand', () => {
 		);
 		expect(pluginGlobalBinding('W', everyInstalledPlugin)).toBeNull();
 		expect(resolveBinding('W', 'paragraph', undefined, everyInstalledPlugin)).toBeNull();
+	});
+
+	it('binds a chord declared out of modifier order under its normal form', () => {
+		registerGlobalCommand('demo.order', () => true, { chord: 'Shift+Mod+j' });
+		expect(pluginGlobalBinding('Mod+Shift+J', everyInstalledPlugin)?.chord).toBe('Mod+Shift+J');
 	});
 
 	it('a chord collision leaves no partial state: the name can still be created afterward', () => {
