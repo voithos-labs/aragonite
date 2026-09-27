@@ -5,14 +5,9 @@
 // a specific degradation: no caret placed, the range survives, the scroll still runs. Pinned here
 // because what must not happen (a fallback to the range-ending `focus`, or a throw) is invisible
 // to every extend spec.
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { CURSOR_START, type BlockComponent } from '$lib/block-component';
 import { makeKeydownEnv, press } from './keydown-env';
-import { allowDevWarns } from '$lib/test/support/warn-gate';
-
-// The fixtures set table endpoints directly instead of through SelectionState, so the coordinate
-// check sees the un-normalized point.
-afterEach(() => allowDevWarns(['invariant:cross-block-endpoint-coordinates']));
 
 const SOURCE = 'alpha\n\nbeta\n\ngamma\n';
 /** The document-end leaf `Ctrl+Shift+End` extends to, held windowed out. */

@@ -281,4 +281,30 @@ test.describe('table block: paste in', () => {
 		await editor.bridge.waitForSourceContains('| --- | --- |');
 		expect((await editor.bridge.getSource()).replace(/\s+$/, '')).toBe(source.replace(/\s+$/, ''));
 	});
+
+	// The undo restores the cell rectangle; the redo then swaps the paragraph back in under it,
+	// which is where a reader met the rectangle's cell index on a paragraph (#602).
+	test('undo and redo of a whole-table paste restore each side without a stale rectangle', async ({
+		page
+	}) => {
+		await editor.loadContent(TABLE_2BODY);
+		await dragBetweenCells(page, 0, 5);
+		await editor.waitForCrossBlock(true);
+		await editor.seedClipboard('replaced text\n');
+		await editor.paste();
+		await editor.bridge.waitForSourceContains('replaced text');
+
+		await editor.undo();
+		await editor.bridge.waitForSourceContains('| --- | --- |');
+		expect(await editor.bridge.getSource()).toBe(TABLE_2BODY);
+		expect(await editor.bridge.getSelection()).toEqual({
+			anchor: { path: [0], offset: 0, cellCoordinate: true },
+			focus: { path: [0], offset: 5, cellCoordinate: true }
+		});
+
+		await editor.redo();
+		await editor.bridge.waitForSourceNotContains('| --- | --- |');
+		expect(await editor.bridge.getSource()).toBe('replaced text\n');
+		await editor.waitForCrossBlock(false);
+	});
 });

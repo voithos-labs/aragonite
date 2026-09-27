@@ -32,10 +32,7 @@ function selectionWithRect(tablePath: number[]) {
 	const selection = createSelectionState();
 	selection.enterCrossBlock(
 		{ path: tablePath, offset: 0, cellCoordinate: true } as CellSelectionPoint,
-		{
-			path: tablePath,
-			offset: 3
-		}
+		{ path: tablePath, offset: 3, cellCoordinate: true } as CellSelectionPoint
 	);
 	return selection;
 }

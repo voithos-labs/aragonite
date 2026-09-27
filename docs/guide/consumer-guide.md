@@ -206,7 +206,7 @@ editor.getSelection();
 // }
 ```
 
-`anchor` is where the selection started and `focus` is where it ends, so a plain caret has the two equal. `offset` is a character index into the block's source, with one exception: inside a table it's a cell index (row by row), and the point carries `cellCoordinate: true` to say so. Well, mostly. A selection lying wholly inside one table uses cell indices without the flag, so check the block's kind (`getBlockKindAt(anchor.path) === 'table'`) before you trust `offset` as a character. [The selection toolbar recipe](#recipe-a-selection-toolbar) shows this in place.
+`anchor` is where the selection started and `focus` is where it ends, so a plain caret has the two equal. `offset` is a character index into the block's source, with one exception: inside a table it's a cell index (row by row), and the point carries `cellCoordinate: true` to say so. That goes for both ends of a rectangle of cells inside one table too, so the flag is the only thing you need to check before trusting `offset` as a character.
 
 ### Restoring a selection
 
@@ -236,6 +236,18 @@ Two notes on the third shape:
 - Branch on it as "the viewport did not end up where I asked", never as "nothing happened". Re-placing a fallback selection there would discard a caret that landed correctly.
 
 Out-of-range offsets clamp, each in its own coordinate space: a character offset clamps to the block's source length, and an endpoint addressing a table clamps to the last cell, so a huge offset there becomes the bottom-right cell rather than a character position.
+
+You can leave the flag off when you build a selection by hand. An offset on a table's path always counts cells, so plain numbers there paint the rectangle with those two cells at its corners, and `getSelection()` hands it back flagged:
+
+```ts
+// a table at [3], two columns wide: cell 0 is its top-left, cell 5 the right cell of its third row
+await editor.setSelection({ anchor: { path: [3], offset: 0 }, focus: { path: [3], offset: 5 } });
+editor.getSelection();
+// {
+//   anchor: { path: [3], offset: 0, cellCoordinate: true },
+//   focus: { path: [3], offset: 5, cellCoordinate: true }
+// }
+```
 
 What `selectionChange` reports while a restore runs:
 
@@ -1098,7 +1110,7 @@ The editor ships one: a popover that opens beside a prose selection with the mar
 1. **Subscribe to `selectionChange`.** A `null` payload or a collapsed selection (anchor equals focus) hides the bar.
 2. **Put the endpoints in document order first.** `normalizeSelection(snapshot)` answers `{ start, end }` (by path, then by offset when the paths match), so a backward drag anchors exactly like a forward one. Anchor to `start`; a hand-rolled comparison gets the container-and-its-child pair wrong, where the shorter path is the earlier one.
 3. **Cross-block selections** (start and end in different blocks): anchor to `rangeRects(start.path, start.offset, SELECTION_END)`, the start block's rects from the selection to its end. Rect `[0]` is the first visual line; place the bar above its top-left.
-4. **Single-block selections**: `getSelection()` reports the range's real endpoints, so anchor with `rangeRects(start.path, start.offset, end.offset)`, the same call with a real end offset in place of `SELECTION_END`. (Reading the native `window.getSelection()` range works too, since within one block the editor delegates selection to the browser.) A selection **inside a table** shares the table's path on both endpoints and carries cell indices in `offset`, which the `cellCoordinate` flag need not mark, so exclude it with `getBlockKindAt(start.path) === 'table'`, never by the flag alone.
+4. **Single-block selections**: `getSelection()` reports the range's real endpoints, so anchor with `rangeRects(start.path, start.offset, end.offset)`, the same call with a real end offset in place of `SELECTION_END`. (Reading the native `window.getSelection()` range works too, since within one block the editor delegates selection to the browser.) A selection **inside a table** shares the table's path on both endpoints and carries cell indices in `offset`, with `cellCoordinate: true` on both, so exclude it by that flag or, as the snippet below does, by `getBlockKindAt(start.path) === 'table'`.
 5. **Re-anchor on the next `selectionChange`, not on scroll.** Rects are viewport-space snapshots; a `position: fixed` bar drifts under scroll until the selection next changes. Wire a scroll listener only if your UX demands live tracking.
 6. **Fire the buttons through `runCommand`, not synthetic keystrokes.** `runCommand(TOOLBAR_COMMANDS.toggleStrong)` says what the button means; a synthesized `Ctrl+B` says which key the button impersonates, and a user's rebind then silently rewires it.
 7. **Grey the declining buttons out with `canRunCommand`, on the same `selectionChange`.** Ask it per button and disable the ones that answer `false`, so a selection spanning blocks shows the link button dimmed rather than dead while the format toggles stay live (the editor's own bar goes one further and drops a labelled row the door declines, which is why its heading picker vanishes there). Still read `runCommand`'s boolean, per [Toolbar commands](#toolbar-commands).

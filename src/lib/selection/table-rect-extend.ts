@@ -7,9 +7,10 @@
 
 import type { DocumentView } from '../core/node-views';
 import { metadataOf } from '../core/nodes';
-import { isBlockNode, nodeAt } from '../tree-operations/node-primitives';
+import { nodeAt } from '../tree-operations/node-primitives';
+import { countsCells } from './table-endpoint-snap';
 import { cellRowCol } from '../cursor/coordinate-spaces';
-import type { SelectionPoint } from './primitives';
+import { cellIndexOf, type SelectionPoint } from './primitives';
 import { pathsEqual } from './path-math';
 
 export type ArrowKey = 'ArrowUp' | 'ArrowDown' | 'ArrowLeft' | 'ArrowRight';
@@ -20,8 +21,8 @@ export type TableRectExtension =
 
 /**
  * The extension a Shift+Arrow produces for an intra-table rectangle, or null when the selection
- * is not a same-table rectangle. `anchor === focus` is a valid one-cell rectangle, so the first
- * Shift+Arrow starts here too. Offsets are cell indices, as the shared table path implies.
+ * is not a same-table pair of cell endpoints. `anchor === focus` is a valid one-cell rectangle,
+ * so the first Shift+Arrow starts here too.
  */
 export function intraTableRectExtension(
 	doc: DocumentView,
@@ -29,16 +30,17 @@ export function intraTableRectExtension(
 	focus: SelectionPoint | null,
 	key: ArrowKey
 ): TableRectExtension | null {
-	if (!anchor || !focus || !pathsEqual(anchor.path, focus.path)) return null;
+	if (!anchor?.cellCoordinate || !focus?.cellCoordinate) return null;
+	if (!pathsEqual(anchor.path, focus.path)) return null;
 	const node = nodeAt(doc, focus.path);
-	if (!node || !isBlockNode(node) || node.kind !== 'table') return null;
+	if (!node || !countsCells(node)) return null;
 
 	const colCount = metadataOf(node, 'table').columnCount;
 	const rowCount = node.children?.length ?? 0;
 	if (colCount === 0 || rowCount === 0) return null;
 
 	const path = focus.path;
-	const { row, col } = cellRowCol(focus.offset, colCount);
+	const { row, col } = cellRowCol(cellIndexOf(focus, 'intraTableRectExtension'), colCount);
 
 	switch (key) {
 		case 'ArrowDown':

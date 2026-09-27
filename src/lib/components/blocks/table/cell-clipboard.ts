@@ -8,6 +8,8 @@ import type { SelectionState } from '../../../selection/selection-state.svelte';
 import { metadataOf } from '../../../core/nodes';
 import { isBlockNode, nodeAt } from '../../../tree-operations/node-primitives';
 import { pathsEqual } from '../../../selection/path-math';
+import { cellIndexOf } from '../../../selection/primitives';
+import { countsCells } from '../../../selection/table-endpoint-snap';
 import { cellRowCol } from '../../../cursor/coordinate-spaces';
 import { copyRectangleAsSubTable } from '../../../tree-operations/sub-table-copy';
 import { rectangleGrid } from '../../../tree-operations/table-grid-clipboard';
@@ -23,14 +25,19 @@ export interface IntraTableRect {
 	focusCellIdx: number;
 }
 
-/** A rectangle's endpoints share the table path, so each offset is a row-major cell index.
- *  Callers compare `tablePath` with their own: the rectangle belongs to one table at most. */
+/** The cell rectangle inside one table, or null. Callers compare `tablePath` with their own:
+ *  the rectangle belongs to one table at most. */
 export function intraTableRect(selection: SelectionState): IntraTableRect | null {
 	const { anchor, focus } = selection;
-	if (!selection.isCustomRendered || !anchor || !focus || !pathsEqual(anchor.path, focus.path)) {
+	if (!selection.isCustomRendered || !anchor?.cellCoordinate || !focus?.cellCoordinate) {
 		return null;
 	}
-	return { tablePath: anchor.path, anchorCellIdx: anchor.offset, focusCellIdx: focus.offset };
+	if (!pathsEqual(anchor.path, focus.path)) return null;
+	return {
+		tablePath: anchor.path,
+		anchorCellIdx: cellIndexOf(anchor, 'intraTableRect:anchor'),
+		focusCellIdx: cellIndexOf(focus, 'intraTableRect:focus')
+	};
 }
 
 /** The GFM sub-table for the current selection, or null when it isn't a rectangle. */
@@ -39,7 +46,7 @@ export function intraTableRectPayload(deps: CellClipboardDeps): string | null {
 	if (!rect) return null;
 
 	const tableNode = nodeAt(deps.getDoc(), rect.tablePath);
-	if (!tableNode || !isBlockNode(tableNode) || tableNode.kind !== 'table') return null;
+	if (!tableNode || !countsCells(tableNode)) return null;
 
 	const colCount = metadataOf(tableNode, 'table').columnCount;
 	const a = cellRowCol(rect.anchorCellIdx, colCount);
@@ -58,7 +65,7 @@ export function intraTableRectBounds(
 	const rect = intraTableRect(deps.selection);
 	if (!rect) return null;
 	const tableNode = nodeAt(deps.getDoc(), rect.tablePath);
-	if (!tableNode || !isBlockNode(tableNode) || tableNode.kind !== 'table') return null;
+	if (!tableNode || !countsCells(tableNode)) return null;
 	const colCount = metadataOf(tableNode, 'table').columnCount;
 	const a = cellRowCol(rect.anchorCellIdx, colCount);
 	const b = cellRowCol(rect.focusCellIdx, colCount);

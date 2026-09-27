@@ -165,7 +165,11 @@ async function handleCrossBlockActive(
 		if (ext) {
 			e.preventDefault();
 			if (ext.kind === 'cell') {
-				selection.extendFocus({ path: selection.focus!.path.slice(), offset: ext.offset });
+				selection.extendFocus({
+					path: selection.focus!.path.slice(),
+					offset: ext.offset,
+					cellCoordinate: true
+				});
 			} else if (ext.direction === 'forward') {
 				extendFocusToNextBlock(
 					selection,

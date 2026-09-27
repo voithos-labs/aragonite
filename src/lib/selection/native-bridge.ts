@@ -220,7 +220,9 @@ function placeRestoredSelection(
 	// events dispatch there (Chromium otherwise routes paste to <body>); a cell-coordinate focus
 	// names the table wrapper, so the caret goes in the cell instead.
 	selectionState.enterCrossBlock(selection.anchor, selection.focus);
-	if (focusCollapsedCaret(getBlockElByPath, selectionState.cellLandingFor(selection.focus))) {
+	// The stored focus, which normalization may have turned into a cell index.
+	const focus = selectionState.focus ?? selection.focus;
+	if (focusCollapsedCaret(getBlockElByPath, selectionState.cellLandingFor(focus))) {
 		return true;
 	}
 	clearNativeSelection();

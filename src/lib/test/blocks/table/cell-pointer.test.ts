@@ -23,28 +23,30 @@ describe('handleCellShiftClick', () => {
 		};
 	}
 
-	// The anchor carries cellCoordinate so a later extend out of the table snaps its whole row,
-	// matching the drag anchor; the focus keeps the offset its context establishes.
+	// Both corners carry cellCoordinate, so a later extend out of the table snaps whole rows.
 	it('builds shallow-path multi-cell selection from cold state', () => {
 		const sel = createSelectionState();
 		handleCellShiftClick(sel, makeAnchor(0, 0), { rowIdx: 1, colIdx: 2 });
 		expect(sel.anchor).toEqual({ path: [2], offset: 0, cellCoordinate: true });
-		expect(sel.focus).toEqual({ path: [2], offset: 5 });
+		expect(sel.focus).toEqual({ path: [2], offset: 5, cellCoordinate: true });
 	});
 
 	it('extends focus when already in custom-rendered mode', () => {
 		const sel = createSelectionState();
-		sel.enterCrossBlock({ path: [2], offset: 0, cellCoordinate: true }, { path: [2], offset: 1 });
+		sel.enterCrossBlock(
+			{ path: [2], offset: 0, cellCoordinate: true },
+			{ path: [2], offset: 1, cellCoordinate: true }
+		);
 		handleCellShiftClick(sel, makeAnchor(0, 0), { rowIdx: 2, colIdx: 2 });
 		expect(sel.anchor).toEqual({ path: [2], offset: 0, cellCoordinate: true });
-		expect(sel.focus).toEqual({ path: [2], offset: 8 });
+		expect(sel.focus).toEqual({ path: [2], offset: 8, cellCoordinate: true });
 	});
 
 	it('encodes anchor at non-origin cell', () => {
 		const sel = createSelectionState();
 		handleCellShiftClick(sel, makeAnchor(1, 1), { rowIdx: 2, colIdx: 0 });
 		expect(sel.anchor).toEqual({ path: [2], offset: 4, cellCoordinate: true });
-		expect(sel.focus).toEqual({ path: [2], offset: 6 });
+		expect(sel.focus).toEqual({ path: [2], offset: 6, cellCoordinate: true });
 	});
 
 	it('does not mutate the input tablePath', () => {

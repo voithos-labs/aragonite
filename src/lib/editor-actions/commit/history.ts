@@ -27,6 +27,9 @@ export function createHistoryActions(
 		// whichever side of the document write its scroll-into-view finishes on.
 		controller.noteHistorySwap();
 		deps.sharing.markSnapshotTaken();
+		// The standing range addresses the outgoing tree; a reader in the render below would
+		// otherwise read it against the incoming one, where its path can name another block.
+		deps.selectionState.collapse();
 		deps.setDoc({ ...entry.snapshot, children: [...entry.snapshot.children] });
 		deps.bumpContentVersion();
 		// A copy: live state splices this array in place, and the entry stays on the stack.

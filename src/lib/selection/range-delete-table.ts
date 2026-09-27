@@ -107,14 +107,13 @@ function deleteWithinTable(
 	sharing: SharingState,
 	grammar: GrammarView
 ): RangeDeleteResult {
-	// Endpoints inside one table share its path and are not flagged, so `.offset` reads directly;
-	// `cellIndexOf` would warn for nothing here.
-	clearRectangularCells(table, start.offset, end.offset);
+	const startCell = cellIndexOf(start, 'deleteWithinTable:start');
+	clearRectangularCells(table, startCell, cellIndexOf(end, 'deleteWithinTable:end'));
 	rebuildUnsharedAncestry(doc, start.path, sharing, null, grammar);
 
 	const meta = metadataOf(table, 'table');
 	const cellsPerRow = meta.columnCount;
-	const { row: anchorRow, col: anchorCol } = cellRowCol(start.offset, cellsPerRow);
+	const { row: anchorRow, col: anchorCol } = cellRowCol(startCell, cellsPerRow);
 
 	return {
 		newDoc: doc,

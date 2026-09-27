@@ -49,6 +49,30 @@ describe('history swap: a snapshot whose selection no longer resolves', () => {
 	});
 });
 
+// Miss-analysis: every history test restored into the tree the selection was made in, so none
+// saw a reader pair the incoming tree with the outgoing selection before the restore ran.
+describe('history swap: the outgoing selection never meets the incoming tree', () => {
+	it('drops the standing range before the document swaps', async () => {
+		const { deps, history } = makeSetup();
+		deps.undoManager.push({
+			snapshot: { ...deps.doc, children: [...deps.doc.children] },
+			blockIds: [...deps.blockIds],
+			selection: { anchor: { path: [0], offset: 1 }, focus: { path: [0], offset: 1 } }
+		});
+		deps.selectionState.enterCrossBlock({ path: [0], offset: 0 }, { path: [1], offset: 1 });
+		const setDoc = deps.setDoc;
+		let heldAtSwap: unknown = 'not swapped';
+		deps.setDoc = (doc) => {
+			heldAtSwap = deps.selectionState.anchor;
+			setDoc(doc);
+		};
+
+		await history.requestUndo();
+
+		expect(heldAtSwap).toBeNull();
+	});
+});
+
 // Nothing else checks that undo keeps sharing the selection restore with the consumer's
 // setSelection; growing its own would re-open the stale notification the shared restore's
 // batching closed.

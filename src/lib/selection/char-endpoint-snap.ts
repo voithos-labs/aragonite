@@ -14,8 +14,8 @@ import { isWholeBlockEndpoint, type SelectionEndpoint, type SelectionPoint } fro
 
 /**
  * `endpoint` clamped into its block's character range. Equal paths have no document order and
- * no cross-block range, so they resolve to the block start. Tables pass through untouched; the
- * cell snap owns them.
+ * no cross-block range, so they resolve to the block start. A table endpoint never arrives: the
+ * cell snap has already turned it into a cell index.
  */
 export function normalizeCharEndpoint(
 	doc: DocumentView,
@@ -32,7 +32,6 @@ export function normalizeCharEndpoint(
 		offset: comparePaths(endpoint.path, otherPath) > 0 ? end : 0
 	};
 	if (isWholeBlockEndpoint(endpoint)) return wholeUnit;
-	if (node.kind === 'table') return endpoint;
 	if (isWholeBlockUnit(node)) {
 		return endpoint.offset === 0 || endpoint.offset === end ? endpoint : wholeUnit;
 	}

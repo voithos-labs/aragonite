@@ -1,11 +1,11 @@
 /**
  * Pointer drag and Shift+click across a table's cells, and the cell hit tests they use. A
  * rectangle inside one table is a selection whose two endpoints both name the table's path,
- * with row-major cell indices as offsets.
+ * with flagged row-major cell indices as offsets.
  */
 
 import type { SelectionState } from '../../../selection/selection-state.svelte';
-import type { CellSelectionPoint, SelectionPoint } from '../../../selection/primitives';
+import type { CellSelectionPoint } from '../../../selection/primitives';
 import { createPointerDragSession } from '../../../selection/pointer-session';
 import { blockNearPoint } from '../../../selection/nearest-block';
 import { firstScrollableDescendant } from '../../../cursor/scroll-ancestors';
@@ -76,10 +76,10 @@ export function installCellDragListener(
 	}
 
 	function extendToCell(rowIdx: number, colIdx: number): void {
-		const cellIdx = rowIdx * anchor.columnCount + colIdx;
-		const focusPoint: SelectionPoint = {
+		const focusPoint: CellSelectionPoint = {
 			path: anchor.tablePath.slice(),
-			offset: cellIdx
+			offset: rowIdx * anchor.columnCount + colIdx,
+			cellCoordinate: true
 		};
 		if (!ctx.selection.isCustomRendered) {
 			ctx.selection.enterCrossBlock(anchorPoint, focusPoint);
@@ -121,19 +121,14 @@ export function handleCellShiftClick(
 	const focusCellIdx = target.rowIdx * anchor.columnCount + target.colIdx;
 	const tablePath = anchor.tablePath.slice();
 
+	const focus = { path: tablePath, offset: focusCellIdx, cellCoordinate: true } as const;
 	if (selection.isCustomRendered) {
-		selection.extendFocus({ path: tablePath, offset: focusCellIdx });
+		selection.extendFocus(focus);
 		return;
 	}
-	// Flagged row-major to match the drag anchor, so a later exit-the-table extend snaps
-	// whole rows. The focus stays unflagged: same-table extends short-circuit the snap.
 	selection.enterCrossBlock(
-		{
-			path: tablePath.slice(),
-			offset: anchorCellIdx,
-			cellCoordinate: true
-		} satisfies CellSelectionPoint,
-		{ path: tablePath.slice(), offset: focusCellIdx }
+		{ path: tablePath.slice(), offset: anchorCellIdx, cellCoordinate: true },
+		{ ...focus, path: tablePath.slice() }
 	);
 }
 

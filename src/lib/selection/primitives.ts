@@ -55,8 +55,8 @@ export interface CellSelectionPoint {
 /**
  * One selection endpoint, discriminated on `cellCoordinate`; an empty path is the document
  * root. `offset` keeps its name on both variants and the flag says which space it is in, so
- * read it through {@link charOffsetOf} or {@link cellIndexOf}. The exception: a selection
- * inside one table shares the table path and carries cell indices on unflagged points.
+ * read it through {@link charOffsetOf} or {@link cellIndexOf}. `SelectionState` flags every
+ * point on a table path, so a host may pass plain numbers there.
  */
 export type SelectionPoint = CharSelectionPoint | CellSelectionPoint;
 

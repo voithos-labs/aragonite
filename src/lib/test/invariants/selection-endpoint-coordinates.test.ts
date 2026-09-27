@@ -119,18 +119,31 @@ describe('G1.29 character-offset range', () => {
 	});
 });
 
-// #normalizePoint's walk runs `path.length - 1` iterations, so a length-1 table path
-// passes through with its character offset intact: the shape the belt exists for.
+// Normalization passes a flagged point through untouched, so a cell index a caller put on a
+// block with no cells reaches the storing site as written.
 describe('G1.29 fires from the storing site', () => {
-	it('warns when a length-1 table path is stored with a character offset', () => {
+	it('warns when a cell index is stored against a paragraph', () => {
 		const tree = doc();
 		const selection = createSelectionState({ getDoc: () => tree });
 
-		selection.enterCrossBlock({ path: [0], offset: 5 }, { path: [1], offset: 0 });
+		selection.enterCrossBlock(
+			{ path: [0], offset: 1, cellCoordinate: true },
+			{ path: [1], offset: 2, cellCoordinate: true }
+		);
 
 		expect(takeDevWarns().map((w) => w.tag)).toEqual([
 			'invariant:cross-block-endpoint-coordinates'
 		]);
+	});
+
+	it('stores a character offset on a table path as the cell index it names', () => {
+		const tree = doc();
+		const selection = createSelectionState({ getDoc: () => tree });
+
+		selection.enterCrossBlock({ path: [0], offset: 3 }, { path: [1], offset: 0 });
+
+		expect(selection.anchor).toEqual({ path: [0], offset: 3, cellCoordinate: true });
+		expect(takeDevWarns()).toEqual([]);
 	});
 
 	it('stays silent when the shared path snapped a whole-block endpoint', () => {

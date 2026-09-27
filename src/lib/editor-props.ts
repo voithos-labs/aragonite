@@ -122,7 +122,8 @@ export interface EditorInstance {
 	 * first, and true means it got there, not merely that it mounted. Never throws: an
 	 * out-of-range offset clamps in that endpoint's own coordinate space (a table
 	 * endpoint's row-major cell index clamps to the last cell, not a character position),
-	 * and an unresolvable path, or a scroll that never arrives, resolves false.
+	 * and an unresolvable path, or a scroll that never arrives, resolves false. An offset on a
+	 * table's path counts cells whether or not it carries `cellCoordinate`.
 	 */
 	setSelection(selection: EditorSelection): Promise<boolean>;
 	/**

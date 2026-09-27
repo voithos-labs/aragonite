@@ -4,7 +4,7 @@
  * cross-block range delete. Subset (cell) coverage returns null for the caller's cell-clear.
  */
 
-import { deleteSnapshot, type SelectionPoint } from './primitives';
+import { cellIndexOf, deleteSnapshot, type SelectionPoint } from './primitives';
 import type { CstNode } from '../core/nodes';
 import { metadataOf } from '../core/nodes';
 import type { MultiScopeTarget } from '../action-contracts';
@@ -70,9 +70,12 @@ export async function maybeCommitTableCoverageDelete(
 	const meta = metadataOf(table, 'table');
 	const columnCount = meta.columnCount;
 	const rowCount = table.children?.length ?? 0;
-	// Endpoints inside one table share its path and are not flagged, so the offsets read directly
-	// as cell indices.
-	const coverage = classifyTableSelectionCoverage(start.offset, end.offset, columnCount, rowCount);
+	const coverage = classifyTableSelectionCoverage(
+		cellIndexOf(start, 'maybeCommitTableCoverageDelete:start'),
+		cellIndexOf(end, 'maybeCommitTableCoverageDelete:end'),
+		columnCount,
+		rowCount
+	);
 
 	switch (coverage.kind) {
 		case 'cells':

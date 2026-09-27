@@ -41,29 +41,29 @@ export function collectCrossBlockText(
 	const endNode = nodeAt(doc, end.path);
 	if (!startNode || !endNode) return '';
 
-	// On a table an offset is a cell index, not a character (see `SelectionPoint`). A same-path
-	// pair inside one table reads the offsets directly; a cross-block pair goes through
-	// `cellIndexOf`.
-	if (pathsEqual(start.path, end.path) && isBlockNode(startNode) && startNode.kind === 'table') {
+	// A cell point's offset is a cell index, not a character (see `SelectionPoint`).
+	if (pathsEqual(start.path, end.path) && start.cellCoordinate && isBlockNode(startNode)) {
+		const from = cellIndexOf(start, 'collectCrossBlockText:rectStart');
+		const to = cellIndexOf(end, 'collectCrossBlockText:rectEnd');
 		// Cell offsets are inclusive at both ends, hence the `+ 1`. Equal offsets are a caret in
 		// one cell, not a rectangle, so the cell's own native copy handles it.
-		if (start.offset === end.offset) return '';
-		return emitTablePortion(startNode, start.offset, end.offset + 1);
+		if (from === to) return '';
+		return emitTablePortion(startNode, from, to + 1);
 	}
 
 	const startRaw = isBlockNode(startNode) ? startNode.raw : '';
 	const endRaw = isBlockNode(endNode) ? endNode.raw : '';
 
-	// One block selected whole (`SelectionState.wholeUnitPath`) is the only same-path pair outside
-	// a table, and the head/tail split below would emit its bytes twice.
-	if (pathsEqual(start.path, end.path) && !start.cellCoordinate) {
+	// One block selected whole (`SelectionState.wholeUnitPath`) is the only character pair on one
+	// path, and the head/tail split below would emit its bytes twice.
+	if (pathsEqual(start.path, end.path)) {
 		return startRaw.slice(start.offset, end.offset);
 	}
 
 	let effectiveStartPath = start.path;
 	let chromeStart: ChromeStartContainer | null = null;
 	let startTail = '';
-	if (isBlockNode(startNode) && startNode.kind === 'table') {
+	if (start.cellCoordinate && isBlockNode(startNode)) {
 		const tableNode = startNode;
 		const colCount = metadataOf(tableNode, 'table').columnCount;
 		const allCellsCount = tableNode.children!.length * colCount;
@@ -97,7 +97,7 @@ export function collectCrossBlockText(
 
 	let effectiveEndPath = end.path;
 	let endHead: string;
-	if (isBlockNode(endNode) && endNode.kind === 'table') {
+	if (end.cellCoordinate && isBlockNode(endNode)) {
 		// The snapped end cell is inclusive and `emitTablePortion` takes an exclusive end, so the
 		// `+ 1` makes the copied rows match what a delete would remove.
 		endHead = emitTablePortion(endNode, 0, cellIndexOf(end, 'collectCrossBlockText:endTable') + 1);

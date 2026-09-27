@@ -43,6 +43,11 @@ A grid is data for the cells rather than a block to splice between them, which i
   it when the rectangle's sides are multiples of the grid's (a 1×2 grid over a 2×2 rectangle
   fills both rows), else placed once.
 - Whole-table selection (a rectangle dragged over every cell; Ctrl+A steps cell → document and offers no table stage) + paste a paragraph: the table block is removed and replaced by the pasted block(s) at the table's position. Single Ctrl+Z restores the original table.
+- Undo then redo of that whole-table paste: the undo brings back the table bytes and the cell
+  rectangle, both corners counting cells, and the redo brings back the paragraph with no
+  rectangle left over it
+  - Miss-analysis: the whole-table tests stopped at the undo, and the stale rectangle only
+    meets the wrong tree when the next history step swaps the paragraph back in under it
 
 ## Miss-analysis
 

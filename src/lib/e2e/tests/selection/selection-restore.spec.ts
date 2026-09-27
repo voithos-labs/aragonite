@@ -243,6 +243,24 @@ test.describe('selection: setSelection restores a getSelection snapshot', () => 
 		expect(await page.locator('.selection-overlay').count()).toBeGreaterThan(0);
 	});
 
+	// A host that builds a rectangle from plain numbers never learned the flag; the table path is
+	// what says the offsets count cells.
+	test('plain offsets on a table path paint a cell rectangle', async ({ page }) => {
+		await editor.loadContent(TABLE_3x3);
+		expect(
+			await editor.bridge.setSelection({
+				anchor: { path: [0], offset: 0 },
+				focus: { path: [0], offset: 4 }
+			})
+		).toBe(true);
+		await editor.waitForCrossBlock(true);
+		expect(await editor.bridge.getSelection()).toEqual({
+			anchor: { path: [0], offset: 0, cellCoordinate: true },
+			focus: { path: [0], offset: 4, cellCoordinate: true }
+		});
+		expect(await page.locator('.selection-overlay').count()).toBeGreaterThan(0);
+	});
+
 	test('places the selection in reading mode', async ({ page }) => {
 		await editor.loadContent(PROSE);
 		await editor.clickBlockAtPath([1], 5);

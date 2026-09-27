@@ -3,7 +3,6 @@ import { parse } from '$lib/core/parser';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { maybeCommitTableCoverageDelete } from '$lib/selection/range-delete-table-coverage';
 import type { CrossBlockMutationContext } from '$lib/selection/cross-block/ops';
-import type { SelectionPoint } from '$lib/selection/primitives';
 import { registerBlockListState } from '$lib/reactivity/state-registry';
 import { makeBlockListState, makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
 import { makeTableMutations } from './table-mutations-harness';
@@ -81,11 +80,13 @@ function makeColumnCoverageEnv() {
 describe('coverage-driven column delete emits the table path with colIdx in the detail', () => {
 	it('a full-column selection targets the table, not the column index', async () => {
 		const { deps, table, ctx, edits } = makeColumnCoverageEnv();
-		const start: SelectionPoint = { path: [0, 0, 0], offset: 0 };
-		const end: SelectionPoint = { path: [0, 1, 0], offset: 2 };
-		deps.selectionState.enterCrossBlock(start, end);
+		deps.selectionState.enterCrossBlock(
+			{ path: [0, 0, 0], offset: 0 },
+			{ path: [0, 1, 0], offset: 0 }
+		);
+		const { start, end } = deps.selectionState;
 
-		const result = await maybeCommitTableCoverageDelete(ctx, table, start, end, undefined);
+		const result = await maybeCommitTableCoverageDelete(ctx, table, start!, end!, undefined);
 
 		expect(result).not.toBeNull();
 		const del = edits.find((e) => e.op === 'tableDeleteColumn');

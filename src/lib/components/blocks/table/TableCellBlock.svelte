@@ -75,7 +75,7 @@
 		intraTableRectBounds,
 		intraTableRectGrid
 	} from './cell-clipboard';
-	import type { CellSelectionPoint, SelectionPoint } from '../../../selection/primitives';
+	import type { CellSelectionPoint } from '../../../selection/primitives';
 	import type { ClipboardAction } from './table-menu-model';
 	import {
 		installCellDragListener,
@@ -696,22 +696,21 @@
 
 		const tablePath = myPath.slice(0, -2);
 		const currentIdx = rowIdx * columnCount + colIdx;
-		const currentPoint: SelectionPoint = { path: tablePath, offset: currentIdx };
-		const ext = intraTableRectExtension(getDoc(), currentPoint, currentPoint, key);
-		if (!ext) return false;
-
 		const anchor = {
 			path: tablePath,
 			offset: currentIdx,
 			cellCoordinate: true
 		} satisfies CellSelectionPoint;
+		const ext = intraTableRectExtension(getDoc(), anchor, anchor, key);
+		if (!ext) return false;
+
 		if (ext.kind === 'cell') {
-			selection.enterCrossBlock(anchor, { path: tablePath.slice(), offset: ext.offset });
+			selection.enterCrossBlock(anchor, { ...anchor, path: tablePath.slice(), offset: ext.offset });
 			return true;
 		}
 		// Recorded before the block-level extend answers, so a refusal (no block past the table)
 		// takes it back: left behind, the next Backspace would delete a whole cell through it.
-		selection.enterCrossBlock(anchor, { path: tablePath.slice(), offset: currentIdx });
+		selection.enterCrossBlock(anchor, { ...anchor, path: tablePath.slice() });
 		const extended =
 			ext.direction === 'forward'
 				? extendFocusToNextBlock(selection, getDoc(), grammar, el, ext.fromCellPath, 'vertical')

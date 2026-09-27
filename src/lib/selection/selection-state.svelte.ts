@@ -13,10 +13,11 @@ import { isWholeBlockEndpoint, normalize } from './primitives';
 import {
 	cellEndpointDeepPath,
 	normalizeTableEndpoint,
-	snapCrossBlockTableEndpoints
+	snapCrossBlockTableEndpoints,
+	wholeTableEndpoint
 } from './table-endpoint-snap';
 import { normalizeCharEndpoint } from './char-endpoint-snap';
-import { pathsEqual } from './path-math';
+import { comparePaths, pathsEqual } from './path-math';
 import { displayLength } from '../core/lines';
 import { assertInvariant } from '../assert';
 import { checkCrossBlockEndpointCoordinates } from '../invariants/selection-endpoints';
@@ -31,8 +32,8 @@ export interface SelectionStateOptions {
 	 */
 	onChange?: (change: { placementOnly: boolean }) => void;
 	/**
-	 * Document accessor. Absent in harnesses that only exercise cross-block semantics;
-	 * without it `isCustomRendered` cannot see intra-table rects and mirrors `isCrossBlock`.
+	 * Document accessor. Absent in harnesses that only exercise cross-block semantics; without
+	 * it no point is normalized, so a table endpoint is stored exactly as the caller wrote it.
 	 */
 	getDoc?: () => DocumentView;
 }
@@ -49,7 +50,7 @@ export interface SelectionState {
 	readonly isCrossBlock: boolean;
 	/**
 	 * True when the overlay paints instead of the native browser highlight: every
-	 * cross-block selection, plus same-path multi-offset selections inside tables.
+	 * cross-block selection, plus a rectangle of two or more cells inside one table.
 	 */
 	readonly isCustomRendered: boolean;
 	readonly start: SelectionPoint | null;
@@ -101,22 +102,28 @@ export interface SelectionState {
 	/**
 	 * Classifies an anchor/focus pair for a DOM restore without touching state, so no spurious
 	 * cross-block `onChange` fires. A same-path text range is 'single-block' (native highlight);
-	 * a cross-block range or a rectangle inside a table is 'custom' (overlay).
+	 * a cross-block range or a rectangle inside a table is 'custom' (overlay). Takes the pair
+	 * `resolveSelectionPoint` returns, which flags every offset on a table path.
 	 */
 	restoreRoute(
 		anchor: SelectionPoint,
 		focus: SelectionPoint
 	): 'collapsed' | 'single-block' | 'custom';
 	/**
-	 * Where a caret lands for `point`: an endpoint inside a table addresses the table block by
-	 * cell index, so it lands in the cell's own `[table, row, col]` leaf at offset 0. Any other
-	 * point lands as itself. Every mount and every caret placement goes through here, so no
-	 * caller can put a cell index on the table wrapper as a character offset.
+	 * Where a caret lands for `point`: a cell endpoint addresses the table block by cell index,
+	 * so it lands in the cell's own `[table, row, col]` leaf at offset 0. Any other point lands
+	 * as itself. Every mount and every caret placement goes through here, so no caller can put a
+	 * cell index on the table wrapper as a character offset.
 	 */
 	cellLandingFor(point: SelectionPoint): SelectionPoint;
 }
 
 // ── Implementation ──────────────────────────────────────────────────────────
+
+// Normalization flags both corners of a rectangle, so either flag names the pair's space.
+function isCellPair(a: SelectionPoint, f: SelectionPoint): boolean {
+	return a.cellCoordinate === true || f.cellCoordinate === true;
+}
 
 class SelectionStateImpl implements SelectionState {
 	#anchor: SelectionPoint | null = $state(null);
@@ -188,17 +195,13 @@ class SelectionStateImpl implements SelectionState {
 	}
 
 	get isCustomRendered(): boolean {
-		const getDoc = this.#getDoc;
-		if (!getDoc) return this.isCrossBlock;
 		const anchor = this.#anchor;
 		const focus = this.#focus;
 		if (!anchor || !focus) return false;
 		if (this.#wholeUnit) return true;
 		if (!pathsEqual(anchor.path, focus.path)) return true;
-		if (anchor.offset === focus.offset) return false;
-		const node = nodeAt(getDoc(), anchor.path);
-		if (!node) return false;
-		return node.kind === 'table';
+		// A same-path pair is one cell (the browser's) or a rectangle of cells (the overlay's).
+		return anchor.offset !== focus.offset && isCellPair(anchor, focus);
 	}
 
 	get start(): SelectionPoint | null {
@@ -226,15 +229,20 @@ class SelectionStateImpl implements SelectionState {
 	enterCrossBlock(anchor: SelectionEndpoint, focus: SelectionEndpoint): void {
 		this.#gapCaret = null;
 		// Both ends on the same block with no text: the block itself is the range, stored as its
-		// full byte span and flagged, since a same-path pair is refused as text below.
+		// full byte span (a table's first and last cell) and flagged, since a same-path pair is
+		// refused as text below.
 		if (
 			isWholeBlockEndpoint(anchor) &&
 			isWholeBlockEndpoint(focus) &&
 			pathsEqual(anchor.path, focus.path)
 		) {
 			const path = anchor.path.slice();
-			this.#anchor = { path, offset: 0 };
-			this.#focus = { path: path.slice(), offset: this.#byteLengthAt(path) };
+			const doc = this.#getDoc?.();
+			this.#anchor = (doc && wholeTableEndpoint(doc, path, 'start')) ?? { path, offset: 0 };
+			this.#focus = (doc && wholeTableEndpoint(doc, path, 'end')) ?? {
+				path: path.slice(),
+				offset: this.#byteLengthAt(path)
+			};
 			this.#wholeUnit = path.slice();
 			this.#notify();
 			return;
@@ -244,9 +252,8 @@ class SelectionStateImpl implements SelectionState {
 		const f = this.#normalizePoint(focus, anchor.path);
 		// A same-path text pair is a single-block range the browser owns; storing it would create
 		// an invisible cross-block state, so it is refused here, where every entry path passes. A
-		// rectangle inside a table shares the table path but is flagged as a cell coordinate, and
-		// the keyboard's equal-offset starting pair is kept so its immediate `extendFocus` has an
-		// anchor.
+		// rectangle inside a table shares the table path but both corners count cells, and the
+		// keyboard's equal-offset starting pair is kept so its immediate `extendFocus` has an anchor.
 		if (this.#isSamePathProseRange(a, f)) {
 			this.#anchor = null;
 			this.#focus = null;
@@ -274,11 +281,7 @@ class SelectionStateImpl implements SelectionState {
 		// A focus back on the anchor's text leaf shrinks to a single-block range. No equal-offset
 		// exception, unlike `#isSamePathProseRange`: `extendFocus` never starts a pair, so landing
 		// exactly on the anchor offset is a collapse that must not be stored either.
-		if (
-			pathsEqual(this.#anchor.path, f.path) &&
-			!this.#anchor.cellCoordinate &&
-			!f.cellCoordinate
-		) {
+		if (pathsEqual(this.#anchor.path, f.path) && !isCellPair(this.#anchor, f)) {
 			this.#anchor = null;
 			this.#focus = null;
 		} else {
@@ -307,23 +310,25 @@ class SelectionStateImpl implements SelectionState {
 	// Same text leaf, distinct offsets: the shape that must never enter cross-block state.
 	// Equal-offset pairs are excluded so the keyboard's starting pair survives to its extend.
 	#isSamePathProseRange(a: SelectionPoint, f: SelectionPoint): boolean {
-		return (
-			pathsEqual(a.path, f.path) && !a.cellCoordinate && !f.cellCoordinate && a.offset !== f.offset
-		);
+		return pathsEqual(a.path, f.path) && !isCellPair(a, f) && a.offset !== f.offset;
 	}
 
 	// The one place every entry path (keyboard, shift-click, drag, select-all, undo restore)
-	// normalizes: a table endpoint is never stored as a cell path with a character offset, and a
+	// normalizes: every endpoint on or inside a table is stored as a flagged cell index, and a
 	// character offset is never stored outside its block's range. Never normalize at a call site
-	// instead. Idempotent; without a document nothing can be measured, so points pass through as
-	// they are.
+	// instead. Idempotent; without a document nothing can be measured, so points pass through.
 	#normalizePoint(point: SelectionEndpoint, otherPath: readonly number[]): SelectionPoint {
 		const getDoc = this.#getDoc;
 		if (!getDoc) {
 			return isWholeBlockEndpoint(point) ? { path: point.path.slice(), offset: 0 } : point;
 		}
 		const doc = getDoc();
-		if (isWholeBlockEndpoint(point)) return normalizeCharEndpoint(doc, point, otherPath);
+		if (isWholeBlockEndpoint(point)) {
+			const side = comparePaths(point.path, otherPath) > 0 ? 'end' : 'start';
+			return (
+				wholeTableEndpoint(doc, point.path, side) ?? normalizeCharEndpoint(doc, point, otherPath)
+			);
+		}
 		if (point.cellCoordinate) return point;
 		const snapped = normalizeTableEndpoint(doc, point.path, point.offset);
 		return snapped.cellCoordinate ? snapped : normalizeCharEndpoint(doc, snapped, otherPath);
@@ -381,20 +386,12 @@ class SelectionStateImpl implements SelectionState {
 	): 'collapsed' | 'single-block' | 'custom' {
 		if (!pathsEqual(anchor.path, focus.path)) return 'custom';
 		if (anchor.offset === focus.offset) return 'collapsed';
-		// Same path, distinct offsets: a table cell rect (flagged endpoint, or a table node
-		// under the shared path) paints via the overlay; prose is a native range.
-		if (anchor.cellCoordinate || focus.cellCoordinate) return 'custom';
-		const getDoc = this.#getDoc;
-		if (!getDoc) return 'single-block';
-		const node = nodeAt(getDoc(), anchor.path);
-		return node?.kind === 'table' ? 'custom' : 'single-block';
+		return isCellPair(anchor, focus) ? 'custom' : 'single-block';
 	}
 
 	cellLandingFor(point: SelectionPoint): SelectionPoint {
 		const getDoc = this.#getDoc;
 		if (!getDoc) return point;
-		// `cellEndpointDeepPath` decides by node kind: an endpoint inside a table is unflagged and
-		// still a cell index, and a non-table path returns null.
 		const deepPath = cellEndpointDeepPath(getDoc(), point);
 		return deepPath ? { path: deepPath, offset: 0 } : point;
 	}
