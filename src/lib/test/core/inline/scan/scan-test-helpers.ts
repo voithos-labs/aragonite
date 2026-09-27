@@ -60,11 +60,8 @@ function emphasisMarkerLen(node: InlineNode): number | undefined {
 	return openLen;
 }
 
-/**
- * Every emphasis-family, link, and image node tiles as leading marker + children +
- * trailing marker; a link's `](…)` starts where its last child ends, since children
- * cover only the label interior.
- */
+/** Emphasis-family, link and image nodes tile as leading marker + children + trailing marker;
+ *  a link's `](…)` starts where its last child ends, since children cover only the label. */
 export function assertConstructCoverage(nodes: InlineNode[]): void {
 	for (const node of nodes) {
 		const markerLen = emphasisMarkerLen(node);

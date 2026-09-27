@@ -3,12 +3,8 @@ import { describe, it, expect } from 'vitest';
 import type { PresentationMode } from '$lib/presentation-mode';
 import { press } from './format-toggle-fixture';
 
-// A wrap splices its markers at the selection's endpoints, so an endpoint landing strictly inside
-// an atomic construct strands a delimiter that re-pairs: the bytes move, and the range the
-// selection lands on is not the one the new markers formatted. Split and absorb refused such a cut
-// already; the wrap asks the same predicate. Miss-analysis: no wrap case ever placed a selection
-// endpoint inside an atomic construct, so the rule sat unobserved at two of the toggle's three
-// writers: sibling-path parity, one writer short.
+// A wrap endpoint inside an atomic construct strands a delimiter that re-pairs, so it is refused.
+// Miss-analysis: no wrap case put a selection endpoint inside an atomic construct.
 
 const MODES: PresentationMode[] = ['source', 'live'];
 const ESCAPED = 'a\\*escaped\\* b';
@@ -37,9 +33,7 @@ describe.each(MODES)('a wrap whose endpoint cuts a construct declines (%s)', (mo
 	});
 });
 
-// The markers a wrap writes can merge with a neighbouring run instead of forming their own span:
-// `*em*` wrapped in `**` reparses as one nested stack whose strong sits inside the emphasis. Every
-// byte of content still carries the mark, so the merged bytes verify and both modes write them.
+// `*em*` wrapped in `**` merges into one stack, but every content byte still carries the mark.
 // Miss-analysis: every wrap case selected a bare word, so no marker ever re-paired.
 describe.each(MODES)('a wrap whose markers merge with a neighbouring run (%s)', (mode) => {
 	it('writes the merged stack and reads the mark it wrote', () => {
@@ -70,11 +64,8 @@ describe.each(MODES)('a wrap whose markers merge with a neighbouring run (%s)', 
 	});
 });
 
-// A selection taking one of the run's delimiters merges too, and the stack it lands in covers the
-// content rather than the bytes the selection named: the coverage check the marker-hiding wrap
-// carries on top of the screen check, and the one branch where the two modes still differ.
-// Miss-analysis: a rewrite folded the fork into a `describe.each` and dropped its only
-// decline-side pin, which the G2.14 property cannot see, since it excuses a decline.
+// Taking one of a run's delimiters merges into a stack that misses the selection; live declines.
+// Miss-analysis: the G2.14 property excuses a decline, so only this case can see one.
 describe('a wrap whose merged bytes leave the selection uncovered', () => {
 	const HALF_RUN = { display: '*em* z', start: 0, end: 3, format: 'strong' } as const;
 

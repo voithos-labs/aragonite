@@ -88,8 +88,7 @@ describe('link edit bytes: adversarial destinations', () => {
 		expect(editUrl('[t](old)', 'u\\)')).toBe('[t](u%5C\\))');
 	});
 
-	// Miss-analysis: the hostile alphabet carried no line breaks, so a multi-line paste built
-	// bytes the check refused, and the whole edit failed silently instead of encoding them.
+	// Miss-analysis: the hostile alphabet carried no line breaks, so no multi-line paste was built.
 	it('encodes line breaks, which otherwise break the construct and decline the edit', () => {
 		expect(editUrl('[t](old)', 'a\nb')).toBe('[t](a%0Ab)');
 		expect(editUrl('[t](old)', 'a\r\nb')).toBe('[t](a%0D%0Ab)');

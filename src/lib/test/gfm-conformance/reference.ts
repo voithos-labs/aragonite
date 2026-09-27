@@ -6,7 +6,7 @@
  */
 import { Parser, Node } from 'commonmark';
 
-// @types/commonmark omits the option; commonmark.js 0.31.2 supports it.
+// @types/commonmark omits the option that commonmark.js supports.
 declare module 'commonmark' {
 	interface ParserOptions {
 		sourcepos?: boolean;
@@ -43,11 +43,8 @@ export function referenceInlineNodes(markdown: string): Node[] | null {
 	return 'nodes' in reading ? reading.nodes : null;
 }
 
-/**
- * Sourcepos counts the raw line, so it misses both the trailing whitespace the inline
- * parser trims and the leading whitespace the block layer strips — hence the two extra
- * checks. A trailing newline fails the span check on purpose: content bytes to us only.
- */
+/** Sourcepos misses the trailing whitespace the inline parser trims and the leading whitespace
+ *  the block layer strips, so each gets a check. A trailing newline, content to ours, fails. */
 function paragraphIsEntireInput(paragraph: Node, markdown: string): boolean {
 	const lines = markdown.split('\n');
 	const lastLine = lines[lines.length - 1];

@@ -1,5 +1,4 @@
-// Miss-analysis: every task fixture put plain prose after the marker, so nothing drew a line whose
-// text after `[ ] ` would open a block, and the body parse read `# note` there as a heading.
+// Miss-analysis: every task fixture put plain prose after `[ ] `, never text that opens a block.
 import { describe, it, expect } from 'vitest';
 import { parse } from '../../../core/parser';
 import { serialize } from '../../../core/serializer';

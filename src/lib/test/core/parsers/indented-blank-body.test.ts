@@ -6,7 +6,7 @@ import { serialize } from '$lib/core/serializer';
 import { layoutOf, triviaRawOf } from '$lib/test/harness/parse-converged';
 
 // A whitespace-only line indented to a body's content column belongs to that body; a bare blank
-// line still ends it (GH #406). The second test file for the class is
+// line still ends it. The second test file for the class is
 // `tree-operations/indented-body-tail-blank.test.ts`, which blanks a body's last block.
 
 beforeAll(() => {

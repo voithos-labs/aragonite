@@ -1,8 +1,5 @@
 // @vitest-environment jsdom
-// Miss-analysis (C-M6): every render fixture came from parseInline, whose nodes are well-formed
-// by construction, so no case asked what the renderer emits over a node a plugin handler created
-// (the built-in kinds `stampClaim` allows), and the searches that read past `node.end` had
-// nothing to fail against.
+// Miss-analysis: every render fixture came from parseInline, never a node a plugin handler built.
 import { describe, it, expect } from 'vitest';
 import { renderInlineNodes } from '../../core/inline-render';
 import type { InlineNode } from '../../core/nodes';

@@ -66,8 +66,8 @@ describe('ranges', () => {
 	});
 
 	it('escape lookback is clamped to the range start', () => {
-		// Unreachable via any current getContentRange, but pinned so it cannot silently
-		// flip: an out-of-range `\` must not suppress a span inside the range.
+		// No getContentRange reaches this, but it is pinned so it cannot silently flip: an
+		// out-of-range `\` must not suppress a span inside the range.
 		const nodes = scanInline('x\\`a`', 2, 5, undefined, defaultGrammarView);
 		assertTotalCoverage(nodes, 2, 5);
 		expect(nodes).toEqual([codeNode(2, 5, 'a')]);

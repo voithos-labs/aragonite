@@ -1,9 +1,7 @@
 // @vitest-environment jsdom
-//
 // A wrap trims the selection's boundary whitespace before it writes, in every mode, so the same
-// toggle taken three times over wraps, strips and wraps again. Miss-analysis: every case in these
-// suites toggled once, so the `** word**` a marker-showing mode wrote was never handed to a second
-// toggle: bytes no parse reads as a run, which that toggle doubled into `****`.
+// toggle taken three times over wraps, strips and wraps again.
+// Miss-analysis: every case toggled once, so a wrap's `** word**` never met a second toggle.
 import { describe, it, expect } from 'vitest';
 import { toggleInlineFormat, type InlineFormatEdit } from '$lib/core/inline/format-toggle';
 import type { PresentationMode } from '$lib/presentation-mode';

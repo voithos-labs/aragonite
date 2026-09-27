@@ -177,8 +177,7 @@ describe('inline-render: href + autolink anchor', () => {
 		expect(a?.getAttribute('title')).toBe('the title');
 	});
 
-	// Miss-analysis: no test asked what an untitled link discloses on hover, so live mode shipped
-	// with hidden destinations and no affordance revealing where a link goes.
+	// Miss-analysis: no test asked what an untitled link discloses on hover.
 	it('untitled link discloses its resolved destination as the title', () => {
 		const raw = '[text](https://example.com)';
 		const inline = parseInline(raw, 0, raw.length);

@@ -1,7 +1,5 @@
-// Miss-analysis (#135): the blockquote and list lazy suites only pinned lines the
-// paragraph-interrupt registry already rejects, so the wider rule — any outer block start ends
-// laziness, the §4.4 interrupt exceptions not applying — had no case at all. Expected shapes
-// verified against cmark-gfm via api.github.com/markdown.
+// Miss-analysis (GH #135): the lazy suites tried only lines the paragraph-interrupt check rejects.
+// Expected shapes checked against cmark-gfm via api.github.com/markdown.
 import { describe, it, expect } from 'vitest';
 import { parse } from '../../../core/parser';
 import { serialize } from '../../../core/serializer';

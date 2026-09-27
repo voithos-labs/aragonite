@@ -54,8 +54,7 @@ describe('buildAmbientSpan', () => {
 		expect(onClick).toHaveBeenCalledOnce();
 	});
 
-	// Miss-analysis (#254): the range could say only `checkbox` and take only a click, so a
-	// footnote's way back had no role, name or key to offer a keyboard user.
+	// Miss-analysis (GH #254): marker ranges were tested only as clickable checkboxes, not links.
 	it('a focusable link range carries its name and tab stop, and Enter or Space activates it', () => {
 		const onActivate = vi.fn();
 		const span = buildAmbientSpan({
@@ -112,9 +111,7 @@ describe('buildAmbientSpan', () => {
 	});
 });
 
-// Miss-analysis (GH #115): the caret at raw 0 preferred the first text node after the span,
-// with no test over the traversal, so a widget at the start had its raw bytes silently skipped
-// and raw 0 read as that widget's end.
+// Miss-analysis (GH #115): no test placed the caret at raw 0 with a widget opening the content.
 describe('raw 0 behind a marker prefix', () => {
 	function mountListBlock(...afterSpan: Node[]): HTMLElement {
 		const block = document.createElement('div');

@@ -37,8 +37,7 @@ describe('isVerticallyTransparentNode', () => {
 		);
 	});
 
-	// VR-6 fixes the windowed/non-windowed divergence for image-only blocks and
-	// deliberately leaves thematic-break behavior alone.
+	// The predicate answers the same windowed or not (VR-6); a thematic break is never transparent.
 	it('is false for a thematic break', () => {
 		expect(isVerticallyTransparentNode(block('---\n'), defaultGrammarView)).toBe(false);
 	});

@@ -4,9 +4,7 @@ import { serialize } from '$lib/core/serializer';
 import type { CstNode } from '$lib/core/nodes';
 import { roundTripCases } from '$lib/test/support/round-trip';
 
-// Miss-analysis (blank-line reload loss): a shape assertion over the Enter-split bytes would have
-// caught it; the round-trip suites asserted bytes, which folding blank lines into `leadingTrivia`
-// preserves.
+// Miss-analysis: round-trip suites checked bytes, which folding blanks into `leadingTrivia` keeps.
 
 type Layout = [kind: string, leadingTrivia: string, raw: string];
 

@@ -4,12 +4,8 @@ import type { PresentationMode } from '$lib/presentation-mode';
 import type { InlineMarkKind } from '$lib/schema/inline-construct-policy';
 import { press } from './format-toggle-fixture';
 
-// A mode that shows delimiters makes the marker bytes selectable, so a selection can cut into a
-// run: `*bold*` inside `**bold**`, `_under_` inside `__under__`, `~del~` inside `~~del~~`. Read
-// standalone the slice is a construct of its own, and acting on that reading sheds one delimiter
-// layer onto a run of the same kind — so only the block's own parse may drive the strip.
-// Miss-analysis: every sole-strip case selected a construct the full-context parse held at exactly
-// that range, so the standalone reading and the full reading never disagreed under test.
+// A slice of a run (`*b*` in `**b**`) parses alone as a construct; the block's parse decides.
+// Miss-analysis: every strip case selected exactly a construct the block's parse held.
 
 const MODES: PresentationMode[] = ['source', 'live'];
 

@@ -46,9 +46,8 @@ export interface Press {
 	mode: PresentationMode;
 }
 
-/** One toggle with its pressed-state read on both sides, for the suites that assert the toolbar
- *  state and the write agree. A decline leaves the read where it was, so `activeAfter` reports
- *  `active`. */
+/** One toggle with its pressed-state read on both sides; a decline leaves the read where it was,
+ *  so `activeAfter` reports `active`. */
 export function press({ display, start, end, format, mode }: Press) {
 	const edit: InlineFormatEdit = {
 		display,

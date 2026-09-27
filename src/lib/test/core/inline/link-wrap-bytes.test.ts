@@ -6,8 +6,7 @@ import { buildLinkWrapBytes, canWrapRangeAsLink } from '$lib/core/inline/link-so
 import { fixtureReading } from '../../harness/fixture-grammar';
 
 // The create half of the byte writer: what `[selected text](url)` may be written over, and how
-// the selected bytes and the destination are escaped on the way. Refusals are covered as closely
-// as wraps.
+// the selected bytes and the destination are escaped. Refusals are covered as closely as wraps.
 
 describe('link wrap bytes, creating a construct over plain text', () => {
 	it('wraps the range and encodes the destination bytes that would end it', () => {

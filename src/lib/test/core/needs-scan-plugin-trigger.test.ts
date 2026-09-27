@@ -37,7 +37,7 @@ describe('needsScan probes a registered ":" trigger', () => {
 });
 
 // `w`/`W` are the `PROBE_WWW` branch, sibling to `:` above: the registry probe must run in
-// both conditional-probe branches (sibling-path parity).
+// both conditional-probe branches.
 describe('needsScan probes a registered "w" trigger', () => {
 	it('empty registry: "wx" stays one byte-identical text node', () => {
 		expect(parseInline('wx', 0, 2)).toEqual([{ kind: 'text', start: 0, end: 2, text: 'wx' }]);

@@ -50,9 +50,8 @@ describe('isInlineFormatActive', () => {
 		expect(activeAt('`code run`', 3, 3, 'inlineCode')).toBe(true);
 	});
 
-	// A link parses as a sole span of its own kind, so the policy-row test is the only thing
-	// between the shared predicate and a pressed state for a shortcut no row can write. Both
-	// readers ask it.
+	// A link parses as a sole span of its own kind, so the policy-row check alone keeps a pressed
+	// state off a shortcut no row can write; both readers ask it.
 	it('declines a kind whose policy row declares no mark, through either reader', () => {
 		const raw = '[a](b)';
 		const edit = {

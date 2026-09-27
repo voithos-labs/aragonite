@@ -51,9 +51,7 @@ describe('url-policy: defaultLinkActivation', () => {
 		expect(open).toHaveBeenCalledWith('https://example.com', '_blank', 'noopener,noreferrer');
 	});
 
-	// Miss-analysis: the blocked branch was pinned through a console spy, the one reader the warn
-	// gate cannot see, so a bare production `console.warn` read as covered while bypassing the
-	// dev-warn path, and no case asked what a host learns when a link is refused.
+	// Miss-analysis: the blocked branch was checked through a console spy the warn gate cannot see.
 	it('refuses disallowed schemes (incl. control-byte obfuscation) and reports each one', () => {
 		const open = vi.spyOn(window, 'open').mockReturnValue(null);
 		const blocked: string[] = [];

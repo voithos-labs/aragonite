@@ -12,7 +12,7 @@ import { registerInlineSyntax } from '$lib/core/inline/scan/plugin-syntax';
 import { fixtureReading } from '../harness/fixture-grammar';
 import { grammarListing } from '../plugins/activation/grammar-listing';
 
-// `%%…%%` claims its bytes ahead of a code span inside it, in an editor that lists the plugin.
+// `%%…%%` takes its bytes ahead of any code span inside it, in an editor that lists the plugin.
 const masker = definePlugin({
 	name: 'masker',
 	setup() {
@@ -33,15 +33,13 @@ const item = (id: string, insert = id): InlineMenuItem => ({ id, label: id, inse
 const typedEdit = (path: number[]): EditEvent =>
 	({ op: 'input', path, detail: { byteLength: 1 }, timestamp: 0 }) as EditEvent;
 
-/** Blocks whose bytes and caret the test moves by hand, the way a keystroke would.
- *  `writeFails` makes the range splice throw; `writeDeclines` makes it write nothing and say so,
- *  the way a commit refused in reading mode does. */
+/** Blocks whose bytes and caret the test moves by hand, the way a keystroke would. `writeFails`
+ *  makes the range splice throw; `writeDeclines` makes it write nothing, as reading mode does. */
 function harness(
 	initial: string,
 	{ arrive = true, writeFails = false, writeDeclines = false, reading = fixtureReading() } = {}
 ) {
 	let doc = parse(initial) as unknown as DocumentView;
-	/** Which block the caret is in; most tests give one and never leave it. */
 	let block = 0;
 	let caret: number | null = initial.length;
 	let mode: PresentationMode = 'source';
@@ -142,7 +140,7 @@ function harness(
 			caret = at + text.length;
 			if (notified) events.emit('edit', typedEdit([block]));
 		},
-		/** A burst the editor publishes as a single change: fast typing, an IME commit. */
+		/** A burst the editor reports as a single change: fast typing, an IME commit. */
 		async burst(text: string) {
 			await settle();
 			const raw = doc.children[block]?.raw ?? '';
@@ -152,10 +150,8 @@ function harness(
 			events.emit('edit', typedEdit([block]));
 			await tick();
 		},
-		/**
-		 * The caret reaches a block no read has seen and the first byte lands there in a single
-		 * read: the line Enter just made, typed on before the split's own change is read.
-		 */
+		/** The caret reaches a block no read has seen and its first byte lands in the same read:
+		 *  the line Enter just made, typed on before the split's own change is read. */
 		async arriveAndType(index: number, text: string) {
 			await settle();
 			block = index;
@@ -259,9 +255,7 @@ describe('a typed trigger opens its source', () => {
 		expect(unprimed.menu.getOpen()).toBeNull();
 	});
 
-	// Miss-analysis: every test reached a new leaf through a read of its own, so none ever let the
-	// caret's arrival and the first byte there publish as one change, which is what fast typing
-	// after Enter does.
+	// Miss-analysis: no test let a new leaf's arrival and first byte land as one change.
 	it('opens where a new leaf’s arrival and its first byte are one read', async () => {
 		const h = harness('see\n\n\n');
 		h.menu.registry.addSource(tags());
@@ -275,7 +269,7 @@ describe('a typed trigger opens its source', () => {
 		const h = harness('see ');
 		h.menu.registry.addSource(tags());
 		await h.moveTo(4);
-		// keydown `#`, its byte, keydown `w`, its byte: two presses, one published change.
+		// keydown `#`, its byte, keydown `w`, its byte: two keypresses, one reported change.
 		h.menu.primeBaseline();
 		h.menu.primeBaseline();
 		await h.burst('#w');
@@ -314,8 +308,7 @@ describe('a typed trigger opens its source', () => {
 		expect(h.menu.getOpen()).toBeNull();
 	});
 
-	// Miss-analysis: the prose check read the leaf with no link-reference ref, so it saw no link
-	// definitions and every plugin's syntax, and no harness handed the menu an editor's ref.
+	// Miss-analysis: no harness handed the menu an editor's ref, so the prose check ran without one.
 	it.each([
 		['a resolved reference link’s label', '[t][r]', 5, fixtureReading({ resolver: toR }), false],
 		['an unresolved reference link’s label', '[t][r]', 5, fixtureReading(), true],
@@ -383,8 +376,7 @@ describe('an open session follows the caret', () => {
 });
 
 describe('the list a source lands', () => {
-	// Miss-analysis: every source a test wrote made its own ids unique, so nothing ever handed
-	// the list two rows under one id, which is what the keyed render cannot draw.
+	// Miss-analysis: every test source gave unique ids, so no list held two rows under one id.
 	it('keeps the first of two rows sharing an id, and reports the source', async () => {
 		const h = harness('a ');
 		h.menu.registry.addSource(
@@ -467,8 +459,7 @@ describe('navigation and commit', () => {
 		expect(onCommit.mock.calls[0][1]).toEqual({ query: 'wo', path: [0], start: 4, end: 7 });
 	});
 
-	// Miss-analysis: every pick here came after the last key's read had run; the simulation's slash
-	// pick on a loaded CI runner was the first to press Enter ahead of it, and left `te` behind.
+	// Miss-analysis: every pick here came after the last key's read had run, never ahead of it.
 	it.each([
 		['its read is pending', true],
 		['its edit is still deferred', false]
@@ -489,8 +480,7 @@ describe('navigation and commit', () => {
 		}
 	);
 
-	// Miss-analysis: onCommit was called and never awaited, and no test asked whether the block
-	// it inserts shares the pick's undo entry.
+	// Miss-analysis: no test asked whether the block onCommit inserts shares the pick's undo entry.
 	it('runs the splice and an awaited onCommit inside one undo join', async () => {
 		const h = harness('see ');
 		let release!: () => void;
@@ -507,8 +497,7 @@ describe('navigation and commit', () => {
 		await vi.waitFor(() => expect(h.insideJoin()).toBe(false));
 	});
 
-	// Miss-analysis: every commit test used a one-line insert, so nothing ever offered the write
-	// point bytes a paragraph's raw cannot hold, and no test could see it take them.
+	// Miss-analysis: every commit test used a one-line insert, never bytes a paragraph cannot hold.
 	it('refuses a pick whose insert holds a line break, and reports it', async () => {
 		const h = harness('see ');
 		h.menu.registry.addSource(tags({ items: () => [item('bad', 'a\n\nb')] }));
@@ -534,8 +523,7 @@ describe('navigation and commit', () => {
 		expect(h.errors).toEqual([]);
 	});
 
-	// Miss-analysis: every commit test gave the state a write that resolves, so none ever let the
-	// range splice refuse, and the rejection nobody was waiting on went unseen.
+	// Miss-analysis: every commit test gave the state a write that resolves, never one that throws.
 	it('reports a pick whose write fails, and leaves the typed bytes alone', async () => {
 		const h = harness('see ', { writeFails: true });
 		h.menu.registry.addSource(tags());
@@ -635,8 +623,7 @@ describe('open(name): opening by name, a shortcut or a button', () => {
 		expect(h.menu.getOpen()).toMatchObject({ start: 3, end: 4, query: '' });
 	});
 
-	// Miss-analysis: the only failing write a test had ever given the state was a source that
-	// throws, which never reaches the trigger `open` types before the list would show.
+	// Miss-analysis: no test let the trigger write from `open` fail, only a source that throws.
 	it('reports a failed trigger write, and opens nothing', async () => {
 		const h = harness('mid', { writeFails: true });
 		h.menu.registry.addSource(tags());
@@ -697,8 +684,7 @@ describe('the registry', () => {
 		expect(() => h.menu.registry.addSource(tags())).toThrow(/already exists/);
 	});
 
-	// Miss-analysis: every registry test registered its source before the first keystroke, so none
-	// let `seen` outlive a source.
+	// Miss-analysis: every registry test added its source first, so `seen` never outlived one.
 	it('starts a source added again from a fresh baseline', async () => {
 		const h = harness('see ');
 		const handle = h.menu.registry.addSource(tags());
@@ -714,16 +700,15 @@ describe('the registry', () => {
 		expect(h.menu.getOpen()).toMatchObject({ start: 10, query: '' });
 	});
 
-	// Miss-analysis: every registry test ran against a live editor, so none ever added a source
-	// after the editor unmounted and watched the handle it got back open nothing, ever.
+	// Miss-analysis: every registry test ran against a live editor, never one already unmounted.
 	it('refuses a source added after the editor is gone', () => {
 		const h = harness('a ');
 		h.menu.dispose();
 		expect(() => h.menu.registry.addSource(tags())).toThrow(/tags/);
 	});
 
-	// An empty trigger would open on every keystroke and a trigger with a line break could never
-	// be typed, so both are refused where a source arrives rather than skipped where it is read.
+	// An empty trigger would open on every keystroke and one with a line break could never be
+	// typed, so both are refused when the source is added.
 	it('refuses a trigger that is empty or holds a line break', () => {
 		const h = harness('a ');
 		expect(() => h.menu.registry.addSource(tags({ trigger: '' }))).toThrow(/trigger/);
@@ -733,8 +718,7 @@ describe('the registry', () => {
 	});
 });
 
-// Miss-analysis: no test, unit or e2e, typed a trigger in a table cell, so the contract's
-// "never a table cell" rule held only for a selection that covers whole cells.
+// Miss-analysis: no test, unit or e2e, typed a trigger in a table cell.
 describe('a table cell', () => {
 	const CELL = [0, 1, 1];
 

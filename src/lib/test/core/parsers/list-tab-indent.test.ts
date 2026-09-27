@@ -6,10 +6,9 @@ import { serialize } from '$lib/core/serializer';
 import type { CstNode } from '$lib/core/nodes';
 
 // A tab in a body's indentation counts to the next multiple of four columns, as CommonMark
-// expands it (GH #437; expectations checked against commonmark.js). The document keeps its tab;
-// a child holds the columns left over as spaces, so it reads alone as it reads in the body.
-// Miss-analysis: every body-membership pin indented with spaces, and the shape property drew tab
-// lines only where the space-only count happened to agree, so the count was never contradicted.
+// expands it (expectations checked against commonmark.js). The document keeps its tab; a child
+// holds the columns left over as spaces, so it reads alone as it reads in the body.
+// Miss-analysis (GH #437): no case put a tab where counting it as one space gives another answer.
 
 beforeAll(() => {
 	installPlugins([footnotesPlugin()]);

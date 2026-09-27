@@ -59,8 +59,7 @@ describe('http/https autolink: valid domain (GFM §6.9)', () => {
 	});
 });
 
-// Miss-analysis: the file header claimed a deliberate divergence without naming one, and no
-// case pinned a dotless host, so the behavior was unpinned in either direction.
+// Miss-analysis: no case pinned a dotless host, so the divergence went unpinned either way.
 describe("a scheme'd host needs no period: the deliberate divergence", () => {
 	// GFM §6.9's valid-domain rule wants at least one period, and cmark-gfm keeps these
 	// literal. Kept because `http://localhost` is what a dev note is full of.

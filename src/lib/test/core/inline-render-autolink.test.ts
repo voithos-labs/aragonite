@@ -1,6 +1,5 @@
 // @vitest-environment jsdom
-// Miss-analysis: the reading-mode marker sweep enumerated the arms that already emit `md-marker`,
-// so the autolink arm — which emitted none — was never a row anything could assert on.
+// Miss-analysis: the reading-mode marker sweep listed only renders that emit `md-marker`.
 import { describe, it, expect } from 'vitest';
 import { parseInline } from '../../core/inline';
 import { renderInlineNodes } from '../../core/inline-render';

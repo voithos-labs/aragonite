@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { parseInline } from '../../../core/inline';
 import { expectBoundedGrowth, measureScanGrowth } from '../../harness/scan-growth';
 
-/** G2.11 total coverage: every byte of the block is claimed by exactly one node. */
+/** Every byte of the block is claimed by exactly one node (G2.11). */
 const tiles = (source: string) =>
 	parseInline(source, 0, source.length)
 		.map((n) => source.slice(n.start, n.end))
@@ -10,10 +10,8 @@ const tiles = (source: string) =>
 
 const scan = (source: string) => void parseInline(source, 0, source.length);
 
-// Three inline scans that go super-linear when unbounded: the entity `;` search, the autolink
-// paren trim, and the code-span backtick matcher. Each is measured as the N-versus-4N ratio rather
-// than a wall-clock budget, so the bound does not depend on the machine, and the output is
-// asserted beside it at one size.
+// Three inline scans go super-linear when unbounded: the entity `;` search, the autolink paren
+// trim and the code-span backtick matcher. An N-versus-4N ratio keeps each bound machine-free.
 
 describe('adversarial scan bounds', () => {
 	it('entity-candidate flood scans within a bounded growth ratio, output unchanged', () => {

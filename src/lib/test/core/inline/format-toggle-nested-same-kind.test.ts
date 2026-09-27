@@ -6,11 +6,8 @@ import type { PresentationMode } from '$lib/presentation-mode';
 import { press } from './format-toggle-fixture';
 import { renderOptions } from '../../harness/fixture-grammar';
 
-// A run nested inside a run of its OWN kind: shedding the inner one leaves the selection covered by
-// the outer, so the answer the coverage read promised is both coming off — the outer split around
-// the selection, the inner stripped inside it. Miss-analysis: every nested case in these suites and
-// in the G2.14 corpus was cross-kind (`~~**mix**~~`, `***both***`), so no test ever drew a strip
-// whose result a same-kind run still covered, or whose stripped content held one.
+// A run inside one of its own kind: unapplying splits the outer and strips the inner, both off.
+// Miss-analysis: every nested case here and in the G2.14 corpus was cross-kind.
 
 const MODES: PresentationMode[] = ['source', 'live'];
 
@@ -39,8 +36,8 @@ describe.each(MODES)('a same-kind run nested inside another (%s)', (mode) => {
 		expect(screenOf(wrote!)).toBe(screenOf(display));
 	});
 
-	// The strip's own content can hold a run of its kind, which only the split's marker shedding
-	// used to reach: a whole-range unapply must not leave part of the range formatted.
+	// The strip's own content can hold a run of its kind, and a whole-range unapply must not leave
+	// part of the range formatted.
 	it.each([
 		['~~a ~b~ c~~', 'strikethrough'],
 		['**a **b** c**', 'strong']

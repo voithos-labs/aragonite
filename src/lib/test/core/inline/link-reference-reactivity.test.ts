@@ -11,7 +11,7 @@ import type { CstNode, InlineNode } from '../../../core/nodes';
  * call-through to these helpers, so this stays robust to Svelte runtime details.
  */
 describe('link-reference reactivity pipeline', () => {
-	// The signature keys the cache, so re-resolving the same node after an LRD change
+	// The signature keys the cache, so re-resolving the same node after a definition change
 	// (identical raw, new signature) must thread the fresh map through.
 	function firstProseInlineContent(doc: { children: CstNode[] }): InlineNode[] {
 		const map = buildLinkReferenceMap(doc.children);
@@ -59,7 +59,7 @@ describe('link-reference reactivity pipeline', () => {
 	});
 
 	it('signature is stable across no-op rebuilds', () => {
-		// The render-memo key rides the signature, so an unchanged LRD set must not
+		// The render-memo key rides the signature, so an unchanged set of definitions must not
 		// invalidate a reference block's render.
 		const doc = parse('Just text.\n\n[go]: https://example.com\n');
 		const m1 = buildLinkReferenceMap(doc.children);
