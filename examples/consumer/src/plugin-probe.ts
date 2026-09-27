@@ -1,11 +1,11 @@
 import { declarePluginKind } from '@voithos-labs/aragonite/plugin';
-import type { BlockKindDescriptor } from '@voithos-labs/aragonite/plugin';
+import type { BlockKindRegistration } from '@voithos-labs/aragonite/plugin';
 
 // Type-level proof the frozen authoring surface resolves from outside the repo; never
 // called, since the runtime callout registration lives in src/plugins/callout.
-export const _probe = (): { kind: string; describe: (d: BlockKindDescriptor) => string } => ({
+export const _probe = (): { kind: string; describe: (r: BlockKindRegistration) => string } => ({
 	kind: declarePluginKind('probe-kind'),
-	describe: (d) => d.mergeRole
+	describe: (r) => r.mergeRole
 });
 
 // Type-level proof the mermaid renderer subpath resolves, type-only by necessity: a runtime

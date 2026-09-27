@@ -1,11 +1,19 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { augmentBlockKind, declaredPluginKind, type UnwrapRole } from '$lib/plugin';
+import {
+	augmentBlockKind,
+	declarePluginKind,
+	declaredPluginKind,
+	registerBlockKind,
+	type BlockKindRegistration
+} from '$lib/plugin';
 import {
 	resetPluginPlatformForTests,
 	reversedAncestryLeavesRootStale,
 	runContainerConformance,
 	type ContainerConformanceProfile
 } from '$lib/testing';
+import { checkDeclarationSanity } from '$lib/testing/container-conformance';
+import { testClosure } from '$lib/test/support/closure';
 import { registerCalloutKind, CALLOUT } from '../../../routes/test/plugins/callout/callout-kind';
 import { registerDetailsKind, DETAILS } from '$lib/plugins/details/details-kind';
 
@@ -125,20 +133,28 @@ describe('G4.3 conformance kit: a broken plugin container fails', () => {
 		);
 	});
 
-	it('fails declaration sanity when unwrapRole names a strategy the registries do not implement', async () => {
-		// The cast is the point: a JS plugin can declare an unwrapRole nothing
-		// implements, and the nested Backspace dispatcher indexes it unguarded.
-		augmentBlockKind(CALLOUT_KIND(), {
+	// The cast is the point: a JS plugin can register an unwrapRole nothing implements, and the
+	// nested Backspace dispatcher indexes it unguarded. Augment refuses the field, so it registers.
+	it('fails declaration sanity when unwrapRole names a strategy the registries do not implement', () => {
+		const kind = declarePluginKind('unwrap-typo');
+		registerBlockKind(kind, {
+			gapEdges: 'none',
+			mergeRole: 'container',
+			editable: true,
+			supportsInline: false,
+			closure: testClosure,
 			container: {
+				contract: 'strip',
+				rebuildRaw: () => {},
 				unwrapRole: {
-					firstChildBackspace: 'no-such-strategy' as UnwrapRole['firstChildBackspace'],
+					firstChildBackspace: 'no-such-strategy',
 					middleChildBackspace: 'default-merge'
 				}
 			}
-		});
+		} as unknown as BlockKindRegistration);
 
-		await expect(runContainerConformance(CALLOUT_KIND(), calloutProfile)).rejects.toThrow(
-			/declarations: callout first-child unwrap strategy "no-such-strategy" is implemented/
+		expect(() => checkDeclarationSanity(kind, calloutProfile)).toThrow(
+			/unwrap-typo first-child unwrap strategy "no-such-strategy" is implemented/
 		);
 	});
 

@@ -7,6 +7,7 @@ import { registerChromeLeaf } from '$lib/plugin';
 import {
 	registerBlockKind,
 	type BlockKindRegistration,
+	type CaretBlockRegistration,
 	type ContainerDescriptorGroup
 } from '$lib/schema/block-kind-descriptor';
 import { declarePluginKind } from '$lib/schema/plugin-kind';
@@ -26,12 +27,16 @@ export function testLeaf(name: string, over: Partial<BlockKindRegistration> = {}
 	return kind;
 }
 
+// Distributes over the group's two shapes, so a title row still decides the unwrap role's type.
+type ContractOptional<G> = G extends { contract: infer C }
+	? Omit<G, 'contract'> & { contract?: C }
+	: never;
+
 /** A container kind, opaque unless `container` names another contract. */
 export function testContainer(
 	name: string,
-	container: Omit<ContainerDescriptorGroup, 'contract'> &
-		Partial<Pick<ContainerDescriptorGroup, 'contract'>>,
-	over: Partial<BlockKindRegistration> = {}
+	container: ContractOptional<ContainerDescriptorGroup>,
+	over: Partial<CaretBlockRegistration> = {}
 ): PluginBlockKind {
 	return testLeaf(name, {
 		mergeRole: 'container',

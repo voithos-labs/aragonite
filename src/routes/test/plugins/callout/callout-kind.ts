@@ -105,10 +105,7 @@ export function registerCalloutKind(): void {
 			rebuildRaw: rebuildCalloutRaw,
 			bodyWrap: DIRECTIVE_BODY_WRAP,
 			reservedChrome: { kind: calloutTitle },
-			unwrapRole: {
-				firstChildBackspace: 'keep-reserved-chrome',
-				middleChildBackspace: 'default-merge'
-			}
+			unwrapRole: { middleChildBackspace: 'default-merge' }
 		},
 		conformanceFixture: ':::callout My Title\n\nbody\n\n:::\n',
 		closure: containerClosure({

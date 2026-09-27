@@ -118,9 +118,8 @@ registerBlockKind('thematicBreak', {
 | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `keymap`                | Declarative chord → command bindings; see [Commands](#commands)                                                                                                                                   |
 | `conformanceFixture`    | Source that parses to your kind. **The field the conformance kit enrols on** ([Testing](#testing))                                                                                                |
-| `getContentRange`       | Kinds whose editable span is narrower than their raw (a heading's `# `)                                                                                                                           |
-| `contentStartBackspace` | `'demote-first'`: Backspace at the content start drops the kind's own markers before it merges (headings, again)                                                                                  |
-| `blockFocus`            | `'whole-block'`: an opaque childless block joins the focus-then-delete model (arrows stop on it; Backspace focuses it, a second press deletes it)                                                 |
+| `contentStart`          | `{ range, backspace? }`: `range` when the editable span is narrower than raw (a heading's `# `); `backspace: 'demote-first'` drops those markers on Backspace before a merge                      |
+| `blockFocus`            | `'whole-block'`: an opaque childless block joins the focus-then-delete model (arrows stop on it; Backspace focuses, a second press deletes); needs `supportsInline: false`                        |
 | `contextDependentKind`  | Kinds with no standalone line recognizer, whose container owns their syntax (a table cell)                                                                                                        |
 | `readsFollowingLines`   | Kinds whose syntax can take the next lines as their own (a link definition's title, an HTML block left open), so a same-kind write beside one still checks whether the two blocks now read as one |
 | `rawWrite`              | Make a written raw legal as this kind's own bytes, and map a caret through it; the fenced code's rule is `schema/fenced-code-raw.ts`                                                              |
@@ -163,7 +162,7 @@ Required, together:
 
 Optional, each earning its place:
 
-- `reservedChrome`: child 0 is a title leaf whose bytes live in the container's own raw (chrome: the parts of a block that are furniture, not content). Register the chrome kind itself through `registerChromeLeaf`.
+- `reservedChrome`: child 0 is a title leaf whose bytes live in the container's own raw (chrome: the parts of a block that are furniture, not content). Register the chrome kind itself through `registerChromeLeaf`. Backspace at the title's start always keeps it, so a container with one declares only `unwrapRole.middleChildBackspace`.
 - `containerPaste`: kind-specific paste routing, for a clipboard whose top block is your kind landing inside a same-kind ancestor.
 - `unwrapRole`: the Backspace-at-start strategy; see `editor-actions/unwrap-strategies.ts`.
 - `bodyWrap`: for a container whose body sits between its own opener and closer lines (a `:::note` fence, say). Pass the same wrap your opener parsed the body with, and the parser then moves the blank line next to the chrome into the wrap instead of into a body block.

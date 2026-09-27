@@ -80,7 +80,7 @@ export function registerDirectiveKinds(): void {
 		mergeRole: 'not-mergeable',
 		editable: true,
 		supportsInline: false,
-		getContentRange: directiveLeafContentRange,
+		contentStart: { range: directiveLeafContentRange },
 		keymap: DIRECTIVE_LEAF_KEYMAP,
 		conformanceFixture: '::spoiler\n',
 		closure: {

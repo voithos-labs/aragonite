@@ -185,10 +185,7 @@ export function registerDetailsKind(): void {
 				isCollapsed: (node) => !getPluginMetadata<DetailsMetadata>(node)?.open,
 				expandPatch: () => ({ open: true }) satisfies Partial<DetailsMetadata>
 			},
-			unwrapRole: {
-				firstChildBackspace: 'keep-reserved-chrome',
-				middleChildBackspace: 'default-merge'
-			},
+			unwrapRole: { middleChildBackspace: 'default-merge' },
 			bodyWrite: { normalize: escapeStrayDetailsTags, mapOffset: mapStrayEscapeOffset }
 		},
 		conformanceFixture: '<details>\n<summary>Title</summary>\n\nbody\n\n</details>\n',

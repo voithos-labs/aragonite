@@ -63,7 +63,7 @@ const typePins = (): void => {
 void typePins;
 
 // ── Read-side wiring ──────────────────────────────────────────────────────────
-// closure is a flat field, so stripContainerOnlyKeys must keep it whether the kind registers as
+// closure is a flat field, so the registration strip must keep it whether the kind registers as
 // a leaf or with a container group, the same path blockFocus takes.
 describe('closure lands on the read-side descriptor', () => {
 	it('survives leaf registration', () => {

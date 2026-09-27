@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // The block-edge commands in a mode that draws no marker: the caret's reachable bounds are the
-// kind's content range, and a kind declaring `contentStartBackspace: 'demote-first'` gives up its
-// own structural bytes before the merge sees the key.
+// kind's content range, and a kind registering `contentStart.backspace: 'demote-first'` gives up
+// its own structural bytes before the merge sees the key.
 // Miss-analysis: the commands were tested only at raw 0, where every mode agrees on the bound.
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { mount, unmount, flushSync } from 'svelte';

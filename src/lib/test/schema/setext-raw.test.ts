@@ -30,7 +30,7 @@ describe('structuralSuffix', () => {
 
 	it('is empty for a kind that is not prose, whatever its content range', () => {
 		const kind = testLeaf('short-range-leaf', {
-			getContentRange: () => ({ start: 0, end: 2 }),
+			contentStart: { range: () => ({ start: 0, end: 2 }) },
 			closure: simpleLeafClosure({
 				focus: { mode: 'implemented', via: 'native caret in the raw-editable surface' },
 				searchPaint: { mode: 'inherit-default' },

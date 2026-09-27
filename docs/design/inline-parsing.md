@@ -80,7 +80,7 @@ The only _runtime_ coordinate translation is between the DOM and raw, and it liv
 
 ### Scope
 
-The inline parser operates on the **content range** within a block's `raw`, the part between the block-level markers (after a heading's `## `, and before its closing `#` run if it has one). The range comes from the descriptor's `getContentRange` hook, so kind registration is the single source; a kind that declares none parses all of `raw`. Returned nodes carry offsets relative to the block's own `raw`, not to the content range:
+The inline parser operates on the **content range** within a block's `raw`, the part between the block-level markers (after a heading's `## `, and before its closing `#` run if it has one). The range is whatever the kind registers as `contentStart.range`, so kind registration is the single source; a kind that declares none parses all of `raw`. Returned nodes carry offsets relative to the block's own `raw`, not to the content range:
 
 ```ts
 const h = parse('## Title **x**\n').children[0];

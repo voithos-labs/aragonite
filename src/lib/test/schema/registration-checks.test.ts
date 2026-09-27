@@ -240,8 +240,8 @@ describe('keymap coherence at the incremental flush', () => {
 	});
 });
 
-// The registration shape cannot express a leaf declaring `reservedChrome`, so only a missing
-// `chromeKind` part can be built here; the invariant's own suite calls the leaf case directly.
+// The predicate is unit-tested in test/invariants/reserved-chrome-coherence.test.ts; this case
+// checks that the flush actually runs it (G1.18).
 describe('reservedChrome coherence at the flush', () => {
 	it('flags a chrome kind with no registered component (first-flush sweep)', () => {
 		const title = declarePluginKind('rc-descriptor-only');

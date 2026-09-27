@@ -240,10 +240,9 @@ export function registerBuiltInDescriptors(): void {
 		mergeRole: 'prose-absorber',
 		editable: true,
 		supportsInline: true,
-		getContentRange: headingContentRange,
 		// Live mode shows no `## `, so the first Backspace the user can aim at it removes the
 		// structure they can see; the second merges, through the usual path.
-		contentStartBackspace: 'demote-first',
+		contentStart: { range: headingContentRange, backspace: 'demote-first' },
 		keymap: TEXT_EDITABLE_KEYMAP,
 		conformanceFixture: '# Heading\n',
 		closure: proseLeafClosure({
@@ -259,9 +258,8 @@ export function registerBuiltInDescriptors(): void {
 		mergeRole: 'prose-absorber',
 		editable: true,
 		supportsInline: true,
-		getContentRange: setextHeadingContentRange,
+		contentStart: { range: setextHeadingContentRange, backspace: 'demote-first' },
 		rawWrite: setextHeadingWrite,
-		contentStartBackspace: 'demote-first',
 		keymap: TEXT_EDITABLE_KEYMAP,
 		conformanceFixture: 'Title\n===\n',
 		closure: proseLeafClosure({
