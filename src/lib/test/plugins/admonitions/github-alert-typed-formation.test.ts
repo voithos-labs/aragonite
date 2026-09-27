@@ -5,7 +5,7 @@ import { createBlockEditActions } from '$lib/editor-actions/block-edit';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { describeConvergence, parseConverges } from '$lib/testing/parse-convergence';
 import { nodeAt } from '$lib/tree-operations';
-import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
+import { makeContainerHarness, makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
 import { containerAt, typeSlowly } from './formation-harness';
 
 // Per-keystroke `> [!TYPE]` formation. Typing the marker one character at a time only
@@ -28,12 +28,22 @@ describe('github alert: per-keystroke marker formation', () => {
 		expect(serialize(h.deps.doc)).toBe('> [!TIP]\n>\n');
 	});
 
-	it('lands the caret in the alert body, which the marker line no longer holds', async () => {
-		const h = containerAt('> [!TI\n', [0]);
+	// The quote the caret was typed in is gone once it reclassifies, so the landing is read off
+	// the caret's byte in the new alert, which sits at the body's start.
+	// Miss-analysis: this row asserted the old re-entry at the container's start, never the
+	// position, and no row typed the marker in a quote below the root's direct child.
+	it.each([
+		{ where: 'at the root', source: '> [!TI\n> body\n', quote: [0] },
+		{ where: 'inside a list item', source: '- > [!TI\n  > body\n', quote: [0, 0, 0] }
+	])('lands the caret at the alert body start $where', async ({ source, quote }) => {
+		const h = makeContainerHarness(source, quote);
 
-		await typeSlowly(h.bundle, 0, '[!TI', 'P]');
+		await h.bundle.blockEdit.updateBlockContent(0, '[!TIP\nbody\n', 'authored', 4, 5);
+		await h.bundle.blockEdit.updateBlockContent(0, '[!TIP]\nbody\n', 'authored', 5, 6);
 
-		expect(h.parentFocus.moveFocus).toHaveBeenCalledWith(0, 'start');
+		expect(h.getNode().kind).toBe('githubAlert');
+		expect(h.getNode().children!.map((c) => c.raw)).toEqual(['body\n']);
+		expect(h.focus.landings).toEqual([{ path: [...quote, 0], offset: 0 }]);
 	});
 
 	it('keeps a multi-block body addressable, ids and all', async () => {

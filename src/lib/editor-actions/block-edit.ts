@@ -7,21 +7,12 @@
 import { tick } from 'svelte';
 import type { BlockEditActions } from '../action-contracts';
 import { documentLineEnding } from '../core/lines';
-import { updateNodeContent as performUpdate, ensureUnsharedPath } from '../tree-operations';
-import { documentBody } from '../tree-operations/node-primitives';
-import { publishScopeFold } from './ancestry-folds';
-import {
-	legalizeWrite,
-	type LegalWrite,
-	type SettledContent
-} from '../tree-operations/content-write';
-import { stampStructuralChange } from '../tree-operations/structural-change';
+import { legalizeWrite, type LegalWrite } from '../tree-operations/content-write';
 import type { EditorActionsDeps, UndoController } from './deps';
 import { createTopLevelScope } from './block-edit-scope';
-import { createBlockEditCore } from './block-edit-core';
+import { commitLeafText, createBlockEditCore } from './block-edit-core';
 import { withEnterCompletion } from './enter-completion';
-import { previewContentReparse, focusAfterContentReplace } from './replacement-focus';
-import { admitsWrite } from './commit/reading-write-gate';
+import { previewContentReparse, landUnlessFocusMoved } from './replacement-focus';
 import { withStoredCaret } from './stored-caret';
 
 export function createBlockEditActions(
@@ -31,75 +22,25 @@ export function createBlockEditActions(
 	const scope = createTopLevelScope(deps, controller);
 	const core = createBlockEditCore(scope);
 
-	// The keystroke's own work, split out so `updateBlockContent` owns the batch bookkeeping
-	// around it and nothing inside can return past starting the pause timer.
 	async function applyContentUpdate(
 		blockIndex: number,
 		write: LegalWrite,
 		preEditOffset: number | undefined,
-		focusOffset: number
+		caret: number
 	): Promise<void> {
-		const { text } = write;
-		// The structural path's mutation runs inside a commit, so a multi-block splice never
-		// touches the live children array outside one.
-		const preview = previewContentReparse(
-			deps.doc.children[blockIndex],
-			write,
-			deps.reading.grammar,
-			undefined,
-			blockIndex === deps.doc.children.length - 1 ? deps.doc.suffix : '',
-			documentLineEnding(deps.doc)
-		);
-
+		const preview = previewContentReparse(scope.target(), blockIndex, write, deps.reading.grammar);
 		if (preview.op !== 'noop') {
-			let settled: SettledContent = { change: { op: 'noop' }, textStart: 0 };
-			// Typing's own write, so it lands in the entry the keystroke's batch holds.
-			await controller.joinTypingBatch(() =>
-				scope.commit({
-					snapshot: { index: blockIndex, offset: preEditOffset ?? 0 },
-					eventTarget: blockIndex,
-					op: { kind: 'updateContent', detail: { length: text.length } },
-					mutate: (view) => {
-						view.unshareChild(blockIndex);
-						settled = performUpdate(
-							view.body,
-							blockIndex,
-							write,
-							deps.reading.grammar,
-							view.sharing
-						);
-						stampStructuralChange(view.body.children, settled.change, view.sharing);
-						return settled.change;
-					},
-					afterTick: () => focusAfterContentReplace([], blockIndex, settled, focusOffset, scope)
-				})
-			);
+			await commitLeafText(scope, blockIndex, write, {
+				snapshotOffset: preEditOffset ?? 0,
+				caret,
+				afterTick: (landed) => landUnlessFocusMoved(scope, landed)
+			});
 			return;
 		}
-
-		if (!admitsWrite(deps.reading, 'updateContent', () => deps.doc.children[blockIndex]?.kind)) {
-			return;
-		}
-		// Routine typing: an in-place write outside a commit, so copy the node first when an undo
-		// snapshot shares it.
-		ensureUnsharedPath(deps.doc, [blockIndex], deps.sharing);
-		const settled = performUpdate(
-			documentBody(deps.doc),
-			blockIndex,
-			write,
-			deps.reading.grammar,
-			deps.sharing
-		);
-		// Filling a blank block can still merge it into a neighbour here (the single-node trial
-		// had no neighbour to merge into), so this path writes its own change to state and
-		// places the caret again, which a commit would otherwise have done.
-		if (settled.change.op !== 'noop') publishScopeFold(deps, undefined, settled.change);
-		// After that write to state, as a commit announces after its own, and before the early
-		// return: the leaf's raw is already written, and an ordinary keystroke ends as `noop`.
-		deps.bumpContentVersion();
-		if (settled.change.op === 'noop') return;
+		const written = scope.writeInPlace(blockIndex, write, caret);
+		if (!written.wrote || !written.relanding) return;
 		await tick();
-		await focusAfterContentReplace([], blockIndex, settled, focusOffset, scope);
+		await landUnlessFocusMoved(scope, written.relanding);
 	}
 
 	const actions: BlockEditActions = {
@@ -131,19 +72,10 @@ export function createBlockEditActions(
 
 		updateBlockContent(blockIndex, text, mode, preEditOffset, postEditFocusOffset) {
 			deps.caretMemory.forget();
-			const write = legalizeWrite(documentBody(deps.doc), blockIndex, text, mode);
+			const write = legalizeWrite(scope.target(), blockIndex, text, mode);
 			const caret = write.storedOffset(postEditFocusOffset ?? preEditOffset ?? 0);
-			// Keyed by block id, not by index: a bare index names the position, so a different
-			// block arriving at the same index would continue its batch.
-			controller.pushUndoSnapshotDebounced(
-				[blockIndex],
-				preEditOffset ?? 0,
-				deps.blockIds[blockIndex]
-			);
-			// The pause timer starts once this keystroke's own work is done, throw included: a
-			// batch whose timer never started never ends by pause and swallows every later keystroke.
-			const done = applyContentUpdate(blockIndex, write, preEditOffset, caret).finally(() =>
-				controller.armUndoPause()
+			const done = scope.typeIn(blockIndex, preEditOffset ?? 0, () =>
+				applyContentUpdate(blockIndex, write, preEditOffset, caret)
 			);
 			return withStoredCaret(done, caret, write.storedOffset);
 		}

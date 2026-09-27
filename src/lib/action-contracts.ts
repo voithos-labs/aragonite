@@ -14,6 +14,8 @@ import type { BlockComponent, FocusPosition } from './block-component';
 import type { ScopedOpDescriptor } from './schema/operations';
 import type { WriteMode } from './schema/block-kind-descriptor';
 import type { DocPath } from './selection/path-math';
+import type { CaretPosition } from './selection/primitives';
+import type { LegalWrite } from './tree-operations/content-write';
 
 /**
  * Where the caret goes back to on undo when nothing is focused: `path` is a document-absolute
@@ -262,41 +264,47 @@ export interface CommitController {
 	endUndoStep(): void;
 }
 
+/**
+ * What a container reaches the editor root for, forwarded unchanged through nested containers.
+ * A keystroke goes through `typeInLeaf` and then one of two routes: a commit, or
+ * `writeLeafInPlace` for a write that keeps the leaf's kind (`editor-actions/leaf-write.ts`).
+ */
 export interface ContainerEditActions {
-	/**
-	 * Push a debounced undo snapshot for routine text input. `leafPath` is the edited
-	 * leaf's document-absolute path; `batchKey` (its stable block id) breaks the batch on
-	 * focus moves between sibling leaves.
-	 */
-	pushDebouncedCheckpoint(leafPath: number[], offset: number, batchKey?: string | number): void;
-	/** The checkpoint's other half: start the pause timer once the keystroke's edit is done. */
-	armDebouncedPause(): void;
 	/** The document's line ending, which every line a write below the root creates takes. */
 	lineEnding(): LineEnding;
 	/**
-	 * Tell the view about a raw change made outside the commit call, forwarded unchanged
-	 * through nested containers. It rebuilds no raw itself: a writer outside a commit
-	 * rebuilds through `withUnsharedSpine`, which works on its own copies.
-	 */
-	nudgeReactivity(): void;
-	/**
-	 * Copy-before-write wrapper for writes outside a commit (routine typing): copies the
-	 * ancestor chain from the document root to `absPath`, calls `write` with that chain
-	 * (outermost first) and the counter for copying anything off it, then rebuilds
-	 * innermost-first. The caller still pushes its own checkpoint and notifies the view. True
-	 * means the rebuild changed a container's kind (typing out `> [!TIP]`), remounting the
-	 * edited leaf, so the caller replaces the caret; `write` returns its own change to report.
-	 */
-	withUnsharedSpine(
-		absPath: number[],
-		write: (chain: CstNode[], sharing: SharingState) => StructuralChange | void
-	): boolean;
-	/**
-	 * The preferred way to change a container's structure: copy the ancestor chain, snapshot,
-	 * write to state, emit the edit event, run the post-tick callback. `mutate` receives the
-	 * copied container with its working children attached; write through it, never a capture.
+	 * Change a container's structure: copy the ancestor chain, snapshot, write to state, emit
+	 * the edit event, run the post-tick callback. `mutate` receives the copied container with
+	 * its working children attached; write through it, never a capture.
 	 */
 	commitContainer(args: CommitContainerStructuralArgs): Promise<boolean>;
+	/** Push the typing burst's undo entry for the leaf at `leafPath`, then run `work` joined to
+	 *  it; `batchKey` is the leaf's id, so a move to a sibling leaf starts a new burst. */
+	typeInLeaf<T>(
+		leafPath: DocPath,
+		preEditOffset: number,
+		batchKey: string,
+		work: () => Promise<T>
+	): Promise<T>;
+	/** The keystroke's write outside a commit, for a write that keeps the leaf's kind. */
+	writeLeafInPlace(leafPath: DocPath, write: LegalWrite, caret: number): InPlaceResult;
+}
+
+export type InPlaceResult =
+	| { readonly wrote: false }
+	| {
+			readonly wrote: true;
+			/** Where the caret belongs when the write took it out of the leaf's element: a merge the
+			 *  write caused, an ancestor whose kind changed or that collapsed. Null when the leaf's
+			 *  own element keeps the caret. */
+			readonly relanding: Relanding | null;
+	  };
+
+/** A caret to put back after a write, and the blocks the write left where it wrote: focus already
+ *  outside them means a blur committed the write, and the caret stays where it went. */
+export interface Relanding {
+	readonly caret: CaretPosition;
+	readonly window: { readonly list: DocPath; readonly at: number; readonly count: number };
 }
 
 // ── List context ───────────────────────────────────────────────────────────

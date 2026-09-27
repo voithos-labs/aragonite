@@ -45,7 +45,7 @@ export interface NestedActionsDeps {
 	node: NodeView;
 	/** Document-absolute path of `node`; the copy-before-write and the ancestor rebuild use it. */
 	path: number[];
-	caretMemory: Pick<CaretMemory, 'column'>;
+	caretMemory: Pick<CaretMemory, 'column' | 'forget'>;
 	/** The editor's reading, so a nested re-parse or completer reads only the syntax the editor
 	 *  switched on and a split's rebalance knows what its mode shows. */
 	reading: Reading;

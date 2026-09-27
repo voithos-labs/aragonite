@@ -9,6 +9,7 @@ import { createStandardNestedActions } from '$lib/editor-actions/nested/nested-a
 import { registerBlockListState } from '$lib/reactivity/state-registry';
 import {
 	makeBlockListState,
+	makeContainerHarness,
 	makeEditorActionsDeps,
 	makeNestedActionsDeps,
 	makeNestedHarness,
@@ -64,7 +65,7 @@ describe('a commit whose ancestry settle ate its own scope', () => {
 
 	// The other side, on the path that pays for it on every keystroke: routine typing in a
 	// body's first block moves the container's opener line, and one that still interrupts keeps
-	// its index. The kind is unchanged, so this is the noop-preview route through `withUnsharedSpine`.
+	// its index. The kind is unchanged, so this is the in-place write.
 	it('leaves the slot standing when the rebuilt opener still interrupts', async () => {
 		const h = makeNestedHarness('a\n> b\n', { index: 1 });
 
@@ -125,6 +126,24 @@ describe('a commit whose ancestry settle ate its own scope', () => {
 		expect(serialize(h.deps.doc)).toBe(SOURCE);
 		expect(h.deps.doc.children.map((c) => c.kind)).toEqual(['paragraph', 'list']);
 		expect(h.deps.blockIds).toHaveLength(2);
+	});
+});
+
+// Blanking the item writes in place, and the quote above it then takes in the paragraph that
+// followed it, so the element the caret was in is rebuilt: the caret goes back where it was typed.
+// Miss-analysis: the in-place write's fold tests asserted ids and bytes, and that write placed no
+// caret at all after an ancestor collapsed, so nothing asked where the caret went.
+describe('a keystroke whose container collapses into its follower', () => {
+	it('lands the caret where it was typed', async () => {
+		const h = makeContainerHarness('> a\n> - b\ntext\n', [0, 1, 0]);
+		expect(h.deps.doc.children.map((c) => c.kind)).toEqual(['blockquote', 'paragraph']);
+
+		await h.bundle.blockEdit.updateBlockContent(0, '\n', 'authored', 1, 0);
+
+		expect(serialize(h.deps.doc)).toBe('> a\n>\n> - \ntext\n');
+		expect(h.deps.doc.children.map((c) => c.kind)).toEqual(['blockquote']);
+		expect(describeConvergence(h.deps.doc)).toBeNull();
+		expect(h.focus.landings).toEqual([{ path: [0, 1, 0, 0], offset: 0 }]);
 	});
 });
 

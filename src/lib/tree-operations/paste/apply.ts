@@ -2,10 +2,11 @@
 
 import {
 	legalizeWrite,
-	settledCaretTarget,
+	settledCaretPosition,
 	updateNodeContent,
 	type SettledContent
 } from '../content-write';
+import { leafAtRawOffset } from '../container-offsets';
 import { ensureUnsharedChild } from '../unshare';
 import { docPathFrom } from '../../cursor/coordinate-spaces';
 import { stampStructuralChange } from '../structural-change';
@@ -82,10 +83,12 @@ async function commitInlineCrossBlock(
 
 	// The paste can demote the block's kind, and a merge into the block above left that block
 	// holding the pasted bytes, so the caller's own caret target is stale.
-	const target = settledCaretTarget(settled, leafIndex, caret, siblings);
+	const at = settledCaretPosition(settled, leafIndex, caret, siblings);
+	const block = siblings[at.index];
+	const leaf = (block?.children?.length && leafAtRawOffset(block, at.offset)) || null;
 	return {
-		path: [...targetPath.slice(0, -1), target.index, ...target.path],
-		offset: target.offset
+		path: [...targetPath.slice(0, -1), at.index, ...(leaf?.path ?? [])],
+		offset: leaf?.offset ?? at.offset
 	};
 }
 

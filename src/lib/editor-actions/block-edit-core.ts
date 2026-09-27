@@ -33,7 +33,13 @@ import {
 import { spliceMany } from '../tree-operations/splice-many';
 import { isMergeEligible, isBlockEditable } from '../schema/merge-rules';
 import { getBlockKindDescriptor } from '../schema/block-kind-descriptor';
-import type { CommitAfterTick } from '../action-contracts';
+import type { CommitAfterTick, Relanding } from '../action-contracts';
+import {
+	settledCaretPosition,
+	updateNodeContent,
+	type LegalWrite,
+	type SettledContent
+} from '../tree-operations/content-write';
 import { landCaretInScope, type CommitScope } from './block-edit-scope';
 import { mergedElseFocusNext, mergedElseFocusPrevious } from './merge-fallback';
 
@@ -60,6 +66,71 @@ async function handleIneligibleNeighbor(scope: CommitScope, i: number, dir: -1 |
 			scope.refAt(dir < 0 ? neighbor : i)?.focus(dir < 0 ? CURSOR_START : CURSOR_END),
 		discardIfNoop: true
 	});
+}
+
+// ── One leaf's new text through a commit ─────────────────────────────────────
+
+export type LeafWriteResult = { readonly wrote: false } | LeafWriteLanded;
+
+/** `caret` is where the caret belongs after the write and the fix-up in its own list, and `window`
+ *  the written block's replacement run after that fix-up. An ancestor that collapsed lands where
+ *  the commit puts it, after this. */
+export interface LeafWriteLanded extends Relanding {
+	readonly wrote: true;
+	/** Whether the write put new blocks in the position rather than rewriting the leaf. */
+	readonly replaced: boolean;
+}
+
+/**
+ * One commit writing new text into child `index`: the copy, the content write against the list's
+ * body, and the caret after the write's own fix-up. `snapshotOffset` is where undo puts the caret
+ * back when nothing is focused and `caret` the caret to carry through, both in the stored bytes.
+ */
+export async function commitLeafText(
+	scope: CommitScope,
+	index: number,
+	write: LegalWrite,
+	opts: {
+		snapshotOffset: number;
+		caret: number;
+		/** Runs after the tick, before an ancestor's collapse lands the caret itself. */
+		afterTick?: (landed: LeafWriteLanded) => void | Promise<void>;
+	}
+): Promise<LeafWriteResult> {
+	let settled: SettledContent = { change: { op: 'noop' }, textStart: 0 };
+	let landed: LeafWriteLanded | null = null;
+	// A same-kind write reports `noop`, so the stale-raw check needs the leaf named.
+	const touchedNodes: CstNode[] = [];
+	const wrote = await scope.commit({
+		snapshot: { index, offset: opts.snapshotOffset },
+		eventTarget: index,
+		op: { kind: 'updateContent', detail: { length: write.text.length } },
+		touchedNodes,
+		mutate: (view) => {
+			view.unshareChild(index);
+			settled = updateNodeContent(view.body, index, write, view.reading.grammar, view.sharing);
+			touchedNodes.push(view.body.children[index]);
+			stampStructuralChange(view.body.children, settled.change, view.sharing);
+			return settled.change;
+		},
+		afterTick: async () => {
+			const { change } = settled;
+			const at = settledCaretPosition(settled, index, opts.caret, scope.children());
+			const replaced = change.op === 'replace';
+			landed = {
+				wrote: true,
+				caret: scope.at(at.index, [], at.offset),
+				window: {
+					list: scope.path,
+					at: replaced ? change.at : index,
+					count: replaced ? change.newCount : 1
+				},
+				replaced: change.op !== 'noop'
+			};
+			await opts.afterTick?.(landed);
+		}
+	});
+	return wrote && landed ? landed : { wrote: false };
 }
 
 export interface BlockEditCore {

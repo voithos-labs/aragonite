@@ -137,8 +137,7 @@ const ACTIVE_IDENTITY_RE = /document\.activeElement\s*[!=]==|[!=]==\s*document\.
 /** The definition sites declare the members rather than spending them as a pair. */
 const CHECKPOINT_DECLARATIONS = [
 	'src/lib/action-contracts.ts',
-	'src/lib/editor-actions/commit/undo-controller.ts',
-	'src/lib/editor-actions/container-edit.ts'
+	'src/lib/editor-actions/commit/undo-controller.ts'
 ];
 
 function pairing(
@@ -327,13 +326,6 @@ const RULES: FileRule[] = [
 		/\barmUndoPause\s*\(/,
 		'pushUndoSnapshotDebounced',
 		'armUndoPause'
-	),
-	pairing(
-		'G4.51 the container: no file pushes a debounced checkpoint without arming the pause',
-		/\bpushDebouncedCheckpoint\s*\(/,
-		/\barmDebouncedPause\s*\(/,
-		'pushDebouncedCheckpoint',
-		'armDebouncedPause'
 	),
 	{
 		id: 'G4.15 every bare `as <Brand>` cast lives in the brand’s home module',

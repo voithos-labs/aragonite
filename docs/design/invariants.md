@@ -409,9 +409,9 @@ checked over all scopes _before_ any spine is unshared, since a stale-but-in-ran
 unshare and rebuild the wrong spine. An inline-closure guard (see How a guard is built), netted by
 the e2e invariant watcher. Seam `editor-actions/commit/undo-controller.ts`.
 
-**G1.20 · Unshared-spine depth.** The chain `withUnsharedSpine` hands back is as deep as the leaf
-path it was given. A short chain means the caller is about to mutate a node it doesn't own. Inline
-closure, watcher-netted. Seam `editor-actions/nested/nested-block-edit.ts`.
+**G1.20 · Unshared-spine depth.** The chain the keystroke's in-place write copies is as deep as
+the leaf path it was given. A short chain means the write is about to change a node it doesn't
+own, so it writes nothing. Inline closure, watcher-netted. Seam `editor-actions/leaf-write.ts`.
 
 **G1.21 · Column-scope alignment.** Each row scope in a column edit IS the corresponding child of
 the owned table, so the id/ref sync lands on the rows the splice actually walked. This guard's tag,

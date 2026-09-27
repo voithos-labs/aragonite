@@ -33,7 +33,7 @@ export function resolveParentScope(
  * node's `childIds`, so only ref alignment is lost on the stand-in.
  */
 export function containerScopeState(
-	controller: PasteCommitCoordinator,
+	controller: Pick<PasteCommitCoordinator, 'resolveState'>,
 	node: CstNode
 ): MultiScopeTarget['state'] {
 	const mounted = controller.resolveState(node);

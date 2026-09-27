@@ -27,7 +27,7 @@ describe('collapse gates layer onto the base override map', () => {
 	});
 
 	it('keeps surfaces the gates do not touch', () => {
-		const containerEdit = { nudgeReactivity: vi.fn() };
+		const containerEdit = { lineEnding: vi.fn(() => '\n' as const) };
 		const composed = composeCollapseGates({ containerEdit }, gates);
 
 		expect(composed.containerEdit).toBe(containerEdit);

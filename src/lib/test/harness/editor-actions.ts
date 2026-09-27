@@ -16,7 +16,13 @@ import { createCaretMemory, type CaretMemory } from '$lib/cursor/caret-memory';
 import type { PendingMarks } from '$lib/cursor/pending-marks';
 import type { InlineMarkKind } from '$lib/schema/inline-construct-policy';
 import type { EditorActionsDeps, UndoController } from '$lib/editor-actions/deps';
-import type { CommitScope, ScopeCommitArgs } from '$lib/editor-actions/block-edit-scope';
+import {
+	landCaretInScope,
+	type CommitScope,
+	type ScopeCommitArgs
+} from '$lib/editor-actions/block-edit-scope';
+import { asDocPath } from '$lib/selection/path-math';
+import { docPathFrom } from '$lib/cursor/coordinate-spaces';
 import type { ContainerBlockComponentDeps } from '$lib/editor-actions/container-block-component';
 import { refSlotsOver } from '$lib/reactivity/publish-ref.svelte';
 import type { PasteCommitCoordinator } from '$lib/tree-operations/paste/paste-deps';
@@ -45,6 +51,7 @@ import { mountBlockListState } from '$lib/testing/headless-block-list.svelte';
 import type { BlockListState } from '$lib/reactivity/block-list-state.svelte';
 import { getStateForNode, expectStateForNode } from '$lib/reactivity/state-registry';
 import { createSharingState } from '$lib/tree-operations/sharing';
+import { nodeAt } from '$lib/tree-operations/node-primitives';
 import { createPasteCoordinator } from '$lib/editor-actions/paste-coordinator';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import type { GapStopScope } from '$lib/selection/gap-caret';
@@ -118,7 +125,8 @@ export function makeBlockListState(getNode: () => CstNode, ids?: string[]): Bloc
 
 // ── CommitScope stub ─────────────────────────────────────────────────────────
 
-/** Runs the real mutate against a live children array, recording commits. */
+/** Runs the real mutate against a live children array, recording commits. A keystroke's
+ *  in-place route writes nothing here: the suites over this stub drive the commit routes. */
 export function makeCommitScopeStub(
 	children: CstNode[],
 	opts: { refs?: (BlockComponent | undefined)[]; collapse?: boolean; owner?: CstNode } = {}
@@ -126,8 +134,15 @@ export function makeCommitScopeStub(
 	const refs = opts.refs ?? [];
 	const commits: ScopeCommitArgs[] = [];
 	const sharing = createSharingState();
+	const lineEnding = () =>
+		documentLineEnding({ kind: 'document', prefix: '', children, suffix: '' });
 	const scope: CommitScope = {
+		path: asDocPath([]),
+		reading: fixtureReading(),
+		caretMemory: stubCaretMemory(),
 		children: () => children,
+		target: () => ({ children, owner: opts.owner, lineEnding: lineEnding() }),
+		idAt: (i) => `block-${i}`,
 		refAt: (i) => refs[i],
 		// No render window here: every ref counts as mounted.
 		reveal: async (i, path) =>
@@ -136,18 +151,18 @@ export function makeCommitScopeStub(
 		async commit(args) {
 			commits.push(args);
 			args.mutate({
-				body: {
-					children,
-					owner: opts.owner,
-					lineEnding: documentLineEnding({ kind: 'document', prefix: '', children, suffix: '' })
-				},
+				body: { children, owner: opts.owner, lineEnding: lineEnding() },
 				sharing,
 				reading: fixtureReading(),
 				unshareChild: (i) => children[i]
 			});
 			await args.afterTick?.();
 			return true;
-		}
+		},
+		typeIn: (_i, _offset, work) => work(),
+		writeInPlace: () => ({ wrote: false }),
+		at: (i, subPath, offset) => ({ path: docPathFrom([i, ...subPath]), offset }),
+		land: (pos) => landCaretInScope(scope, pos.path[0], pos.path.slice(1), pos.offset)
 	};
 	return { scope, commits, children };
 }
@@ -206,11 +221,9 @@ export function makeStubFocus(): FocusActions {
 export function makeStubContainerEdit(): ContainerEditActions {
 	return {
 		commitContainer: vi.fn(),
-		pushDebouncedCheckpoint: vi.fn(),
-		armDebouncedPause: vi.fn(),
 		lineEnding: () => '\n',
-		nudgeReactivity: vi.fn(),
-		withUnsharedSpine: vi.fn(() => false)
+		typeInLeaf: vi.fn((_path, _offset, _key, work) => work()),
+		writeLeafInPlace: vi.fn(() => ({ wrote: false as const }))
 	};
 }
 
@@ -368,7 +381,7 @@ export interface NestedActionsDepsInput {
 	getNode: () => CstNode;
 	path: number[];
 	parent: NestedActionsDeps['parent'];
-	caretMemory?: Pick<CaretMemory, 'column'>;
+	caretMemory?: Pick<CaretMemory, 'column' | 'forget'>;
 	reading?: NestedActionsDeps['reading'];
 }
 
@@ -419,14 +432,30 @@ export function makeNestedHarness(
 	const source = typeof input === 'string' ? parse(input) : input;
 	const nodes = Array.isArray(source) ? source : source.children;
 	const index = opts.index ?? nodes.length - 1;
+	// One reading for the root and the container, as the editor hands both the same one.
+	const reading =
+		opts.grammar || opts.presentationMode
+			? fixtureReading(opts.grammar ? { grammar: opts.grammar } : {}, opts.presentationMode)
+			: undefined;
 	const { deps, events, contentVersion } = makeEditorActionsDeps(
 		source,
-		opts.presentationMode ? { reading: fixtureReading({}, opts.presentationMode) } : {}
+		reading ? { reading } : {}
 	);
 	const controller = createUndoController(deps);
 	const containerEdit = createContainerEditActions(deps, controller);
 	const getNode = () => deps.doc.children[index];
 	const state = makeBlockListState(getNode);
+	// The editor's descent in miniature: a path into this container reaches its own refs.
+	const descendingFocus = (): FocusActions => ({
+		...makeStubFocus(),
+		revealPath: async (path) => {
+			if (path[0] !== index || path.length < 2) return deps.revealPath(path);
+			const ref = state.innerBlockRefs[path[1]];
+			return path.length === 2
+				? (ref ?? null)
+				: (ref?.getBlockComponentByPath?.(path.slice(2)) ?? null);
+		}
+	});
 	const overrides = opts.listOverrides
 		? createListOverrides({
 				scope: {
@@ -449,14 +478,53 @@ export function makeNestedHarness(
 			index,
 			getNode,
 			path: [index],
-			reading: opts.grammar
-				? fixtureReading({ grammar: opts.grammar }, opts.presentationMode)
-				: deps.reading,
-			parent: { blockEdit: makeStubBlockEdit(), focus: makeStubFocus(), containerEdit }
+			reading: deps.reading,
+			parent: { blockEdit: makeStubBlockEdit(), focus: descendingFocus(), containerEdit }
 		}),
 		overrides
 	);
 	return { deps, events, controller, containerEdit, state, bundle, getNode, contentVersion };
+}
+
+/** A root focus whose `revealPath` hands back a component that records where it was focused,
+ *  standing in for the editor's own descent to a mounted block. */
+export function makeLandingFocus(): FocusActions & {
+	landings: { path: number[]; offset: number }[];
+} {
+	const landings: { path: number[]; offset: number }[] = [];
+	return {
+		landings,
+		moveFocus: vi.fn(),
+		revealPath: async (path) =>
+			stubBlockComponent({ focus: (offset) => landings.push({ path: [...path], offset }) }),
+		tryGapStop: () => false
+	};
+}
+
+/** The container at `containerPath`, at any depth, over the real root: its node is read live
+ *  through the document, since a commit replaces every ancestor it copies. */
+export function makeContainerHarness(source: string, containerPath: number[]) {
+	const harness = makeEditorActionsDeps(parse(source));
+	const controller = createUndoController(harness.deps);
+	const focus = makeLandingFocus();
+	const getNode = () => nodeAt(harness.deps.doc, containerPath) as CstNode;
+	const state = makeBlockListState(getNode);
+	const bundle = createStandardNestedActions(
+		state,
+		makeNestedActionsDeps({
+			index: containerPath[containerPath.length - 1],
+			getNode,
+			path: containerPath,
+			parent: {
+				blockEdit: makeStubBlockEdit(),
+				focus,
+				containerEdit: createContainerEditActions(harness.deps, controller)
+			}
+		})
+	);
+	const edits: EditEvent[] = [];
+	harness.events.on('edit', (e) => edits.push(e));
+	return { ...harness, controller, bundle, state, getNode, focus, edits };
 }
 
 /** The action bundle of the first table's body row `row` (the first by default): the one a
