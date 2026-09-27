@@ -65,12 +65,12 @@ function mintFollowerItem(prevMeta: ListItemMetadata | undefined, children: CstN
 
 export function createListContext(deps: ListContextDeps): ListContext {
 	return {
-		async indentItem(itemIndex: number): Promise<void> {
+		async indentItem(itemIndex: number): Promise<boolean> {
 			const node = deps.scope.node;
-			if (!node.children || itemIndex === 0) return;
+			if (!node.children || itemIndex === 0) return false;
 
 			const prevItem = node.children[itemIndex - 1];
-			if (!prevItem.children) return;
+			if (!prevItem.children) return false;
 
 			const ordered = metadataOf(node, 'list').ordered;
 			const existingNestedIdx = prevItem.children.findIndex(
@@ -93,7 +93,7 @@ export function createListContext(deps: ListContextDeps): ListContext {
 						path: [...deps.scope.path, itemIndex - 1]
 					};
 
-			await deps.controller.commitMultiScope({
+			return deps.controller.commitMultiScope({
 				scopes: [{ node, state: deps.state, path: deps.scope.path }, destination],
 				snapshot: { path: extendDocPath(deps.scope.path, itemIndex), offset: 0 },
 				mutate: ([outerScope, destScope]) => {
@@ -140,18 +140,18 @@ export function createListContext(deps: ListContextDeps): ListContext {
 			});
 		},
 
-		async unindentItem(itemIndex: number): Promise<void> {
-			if (!deps.parentListContext || !deps.scope.node.children) return;
-			await deps.parentListContext.promoteNestedItem(
+		async unindentItem(itemIndex: number): Promise<boolean> {
+			if (!deps.parentListContext || !deps.scope.node.children) return false;
+			return deps.parentListContext.promoteNestedItem(
 				deps.parentListContext.getContainingItemIndex(),
 				deps.scope.node,
 				itemIndex
 			);
 		},
 
-		async insertItemAfter(itemIndex: number, newItem?: CstNode): Promise<void> {
+		async insertItemAfter(itemIndex: number, newItem?: CstNode): Promise<boolean> {
 			const node = deps.scope.node;
-			if (!node.children) return;
+			if (!node.children) return false;
 
 			if (!newItem) {
 				const prevItem = node.children[itemIndex];
@@ -162,7 +162,7 @@ export function createListContext(deps: ListContextDeps): ListContext {
 				);
 			}
 
-			await deps.controller.commitMultiScope({
+			return deps.controller.commitMultiScope({
 				scopes: [{ node, state: deps.state, path: deps.scope.path }],
 				snapshot: { path: docPathFrom(deps.scope.path), offset: 0 },
 				mutate: ([scope]) => {
@@ -183,17 +183,21 @@ export function createListContext(deps: ListContextDeps): ListContext {
 			});
 		},
 
-		async splitItemAtOffset(itemIndex: number, innerIndex: number, offset: number): Promise<void> {
+		async splitItemAtOffset(
+			itemIndex: number,
+			innerIndex: number,
+			offset: number
+		): Promise<boolean> {
 			const outerList = deps.scope.node;
-			if (!outerList.children) return;
+			if (!outerList.children) return false;
 
 			const item = outerList.children[itemIndex];
-			if (!item.children) return;
+			if (!item.children) return false;
 
 			const itemState = expectStateForNode(item);
 
 			// Both lists in one commit, so mid-item Enter is a single undo entry.
-			await deps.controller.commitMultiScope({
+			return deps.controller.commitMultiScope({
 				scopes: [
 					{ node: outerList, state: deps.state, path: deps.scope.path },
 					{ node: item, state: itemState, path: [...deps.scope.path, itemIndex] }
@@ -256,15 +260,15 @@ export function createListContext(deps: ListContextDeps): ListContext {
 			parentItemIdx: number,
 			nestedListNode: NodeView,
 			nestedItemIdx: number
-		): Promise<void> {
+		): Promise<boolean> {
 			const node = deps.scope.node;
-			if (!node.children || !nestedListNode.children) return;
+			if (!node.children || !nestedListNode.children) return false;
 
 			const parentItem = node.children[parentItemIdx];
-			if (!parentItem?.children) return;
+			if (!parentItem?.children) return false;
 
 			const nestedIdxInParent = parentItem.children.indexOf(nestedListNode);
-			if (nestedIdxInParent === -1) return;
+			if (nestedIdxInParent === -1) return false;
 
 			// Removing the last item empties the nested list, which needs a third scope to splice
 			// the empty list out of parentItem's children.
@@ -288,7 +292,7 @@ export function createListContext(deps: ListContextDeps): ListContext {
 				});
 			}
 
-			await deps.controller.commitMultiScope({
+			return deps.controller.commitMultiScope({
 				scopes,
 				// The promoted item's pre-move path (its nested-list slot).
 				snapshot: {
@@ -348,23 +352,22 @@ export function createListContext(deps: ListContextDeps): ListContext {
 			return -1;
 		},
 
-		async exitListAtItem(itemIndex: number): Promise<void> {
+		async exitListAtItem(itemIndex: number): Promise<boolean> {
 			const node = deps.scope.node;
-			if (!node.children) return;
+			if (!node.children) return false;
 
 			// In a nested list one Enter outdents one level, like Shift+Tab. Only the outermost
 			// list exits straight to a paragraph.
 			if (deps.parentListContext) {
-				await deps.parentListContext.promoteNestedItem(
+				return deps.parentListContext.promoteNestedItem(
 					deps.parentListContext.getContainingItemIndex(),
 					node,
 					itemIndex
 				);
-				return;
 			}
 
 			const replacement = buildExitReplacement(node, itemIndex, deps.getLineEnding());
-			await deps.parentBlockEdit.replaceBlock(deps.scope.index, replacement.blocks, {
+			return deps.parentBlockEdit.replaceBlock(deps.scope.index, replacement.blocks, {
 				replacementIndex: replacement.paragraphIndex,
 				offset: 0
 			});

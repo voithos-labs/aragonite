@@ -5,6 +5,7 @@ import { buildLinkReferenceMap } from '$lib/core/inline/link-reference-resolver'
 import { serialize } from '$lib/core/serializer';
 import { createHistoryActions } from '$lib/editor-actions/commit/history';
 import { makeEnv, makeHandlers, selectAcross, makeBeforeInputEvent } from './typed-char-env';
+import { fixtureReading } from '../../harness/fixture-grammar';
 import type { CstNode } from '$lib/core/nodes';
 import type { EditEvent } from '$lib/editor-events';
 import type { LinkReferenceResolver } from '$lib/core/inline/link-reference-resolver';
@@ -165,5 +166,20 @@ describe('cross-block typed character: link-reference resolver freshness', () =>
 
 		expect((env.doc.children[0] as CstNode).kind).toBe('linkReferenceDefinition');
 		expect(resolver()('label')).toEqual({ url: '/a' });
+	});
+});
+
+// No beforeinput fires in reading mode; forced, the typed character's own reading-mode check stops it.
+// Miss-analysis: the dispatch's check stood in front of that one, so neither was ever tested alone.
+describe('cross-block typed character forced in reading mode', () => {
+	it('consumes the key and writes nothing', async () => {
+		const env = makeEnv('hello\n\nworld\n', fixtureReading({}, 'reading'));
+		selectAcross(env.selectionState, [0], [1]);
+		const event = makeBeforeInputEvent('X');
+
+		expect(await makeHandlers(env, [0]).handleBeforeInput(event)).toBe(true);
+
+		expect(event.defaultPrevented).toBe(true);
+		expect(serialize(env.doc)).toBe('hello\n\nworld\n');
 	});
 });

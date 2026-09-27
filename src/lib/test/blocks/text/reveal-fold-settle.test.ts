@@ -32,6 +32,7 @@ function mountMathParagraph() {
 		withStoredCaret(
 			writeGate.then(() => {
 				writeLanded = true;
+				return true;
 			}),
 			0
 		)

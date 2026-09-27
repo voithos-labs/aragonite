@@ -16,7 +16,7 @@ import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
 import type { CstNode } from '$lib/core/nodes';
 import { makeReorderContainer } from './reorder-harness';
 
-type Move = (reorder: ReorderAction) => Promise<void>;
+type Move = (reorder: ReorderAction) => Promise<unknown>;
 
 // The Alt+Arrow chords and the whole-block menu command both nudge; a drop moves by index.
 const up =
@@ -35,7 +35,7 @@ const drop =
 const command =
 	(id: CommandId, path: number[]): Move =>
 	async (r) => {
-		let pending: Promise<void> = Promise.resolve();
+		let pending: Promise<boolean> = Promise.resolve(false);
 		const reorder = {
 			nudgeReorderUnit: (p: number[], dir: -1 | 1) => (pending = r.nudgeReorderUnit(p, dir))
 		};

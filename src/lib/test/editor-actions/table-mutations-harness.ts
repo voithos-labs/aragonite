@@ -31,11 +31,11 @@ export function makeTableMutations(
 			);
 		}
 	}
-	const controller = createUndoController(deps);
+	const announceEdit = vi.fn();
+	const controller = createUndoController(deps, announceEdit);
 	const edits: EditEvent[] = [];
 	events.on('edit', (e) => edits.push(e));
 	const focusCell = vi.fn();
-	const announceReorder = vi.fn();
 	const focusedCell = opts.focusedCell === undefined ? { rowIdx: 1, colIdx: 1 } : opts.focusedCell;
 	const mutations = createTableMutationsContext({
 		get node() {
@@ -53,8 +53,7 @@ export function makeTableMutations(
 		parentContainerEdit: createContainerEditActions(deps, controller),
 		controller,
 		reading: deps.reading,
-		focusCell,
-		announceReorder
+		focusCell
 	});
-	return { deps, mutations, edits, focusCell, announceReorder };
+	return { deps, mutations, edits, focusCell, announceEdit };
 }

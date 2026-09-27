@@ -35,6 +35,7 @@ import { admitsSnapshot, admitsWrite } from './reading-write-gate';
 import type { EditorActionsDeps, UndoController } from '../deps';
 import type {
 	CommitAfterTick,
+	CommitAnnouncement,
 	CommitContainerStructuralArgs,
 	CommitMultiScopeArgs,
 	CommitSnapshotArg,
@@ -91,7 +92,12 @@ function touchedContainersWithChildren(containers: CstNode[] | undefined): CstNo
 	return out;
 }
 
-export function createUndoController(deps: EditorActionsDeps): UndoController {
+/** `announceEdit` speaks a commit's announcement in the editor's edit live region; only the
+ *  controller holds it, so nothing but a commit that wrote can speak there. Silent by default. */
+export function createUndoController(
+	deps: EditorActionsDeps,
+	announceEdit: (message: string) => void = () => {}
+): UndoController {
 	// ── Selection helpers ─────────────────────────────────────────────────────
 
 	function collapsedSelectionAt(blockIndex: number, offset: number): EditorSelection {
@@ -283,6 +289,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 				publish: (children: CstNode[], ids: string[], refs: (BlockComponent | undefined)[]) => void;
 				op?: ScopedOpDescriptor;
 				afterTick?: CommitAfterTick;
+				announce?: CommitAnnouncement;
 				/** Nodes for the dev check when the change names none (an in-place `op: 'noop'`). */
 				touchedNodes?: CstNode[];
 				discardIfNoop?: boolean;
@@ -296,6 +303,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 				publish: () => void;
 				op?: ScopedOpDescriptor;
 				afterTick?: CommitAfterTick;
+				announce?: CommitAnnouncement;
 				/** A function, since the copied nodes only exist once `mutate` has made them. */
 				touchedNodes?: () => CstNode[];
 				/**
@@ -469,13 +477,16 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 			// afterTick is a reported no-op, not an unhandled rejection.
 			reportCommitError(args, err);
 		}
-		return outcome === 'written';
+		if (outcome !== 'written') return false;
+		if (args.announce) announceEdit(args.announce());
+		return true;
 	}
 
 	// ── Structural-mutation commit ───────────────────────────────────────────
 
 	function commitStructural(args: CommitStructuralArgs): Promise<boolean> {
-		const { snapshot, mutate, op, afterTick, touchedNodes, discardIfNoop, trackCaret } = args;
+		const { snapshot, mutate, op, afterTick, announce, touchedNodes, discardIfNoop, trackCaret } =
+			args;
 		return __commit({
 			kind: 'document',
 			snapshot,
@@ -487,6 +498,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 			},
 			op,
 			afterTick,
+			announce,
 			touchedNodes,
 			discardIfNoop,
 			trackCaret
@@ -501,6 +513,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 			mutate: ([scope]) => [mutate(scope)],
 			op,
 			afterTick,
+			announce: args.announce,
 			discardIfNoop,
 			trackCaret: [args.trackCaret]
 		});
@@ -706,6 +719,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 					if (landing) (await deps.revealPath(landing.path))?.focus(landing.offset);
 				}
 			},
+			announce: args.announce,
 			discardIfNoop,
 			// A detached scope is outside the tree, and checking it would fire stale-raw on a node
 			// the document does not contain.

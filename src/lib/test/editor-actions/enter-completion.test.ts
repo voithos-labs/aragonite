@@ -39,9 +39,8 @@ function seamOver(scope: CommitScope): BlockEditActions {
 	const core = createBlockEditCore(scope);
 	const consulted: Pick<BlockEditActions, 'splitBlock' | 'replaceBlock'> = {
 		splitBlock: (i, offset) => core.split(i, offset),
-		replaceBlock: async (i, replacement, focus, options) => {
-			await core.replaceBlock(i, replacement, focus, options);
-		}
+		replaceBlock: async (i, replacement, focus, options) =>
+			(await core.replaceBlock(i, replacement, focus, options)) !== null
 	};
 	return withEnterCompletion(
 		consulted as BlockEditActions,

@@ -12,7 +12,7 @@ import type { NestedActionsDeps } from './nested-actions';
 import { firstChildUnwrapStrategies, middleChildUnwrapStrategies } from '../unwrap-strategies';
 import { createContainerScope } from '../block-edit-scope';
 import { contentUpdate, createBlockEditCore } from '../block-edit-core';
-import { withStoredCaret } from '../stored-caret';
+import { refusedWrite } from '../stored-caret';
 
 export function createNestedBlockEdit(
 	state: BlockListState,
@@ -26,49 +26,45 @@ export function createNestedBlockEdit(
 	const blockEdit: BlockEditActions = {
 		// ── Structural mutations (interior → core, edges → parent) ─────────────
 		async splitBlock(innerIndex, offset) {
-			if (!deps.node.children) return;
-			await core.split(innerIndex, offset);
+			if (!deps.node.children) return false;
+			return core.split(innerIndex, offset);
 		},
 
 		async descendToBody(innerIndex) {
-			if (!deps.node.children) return;
-			await core.descendToBody(innerIndex);
+			if (!deps.node.children) return false;
+			return core.descendToBody(innerIndex);
 		},
 
 		async insertParagraph(boundaryIndex, text) {
-			if (!deps.node.children) return;
-			await core.insertParagraph(boundaryIndex, text);
+			if (!deps.node.children) return false;
+			return core.insertParagraph(boundaryIndex, text);
 		},
 
 		async mergeWithPrevious(innerIndex) {
-			if (!deps.node.children) return;
+			if (!deps.node.children) return false;
 
 			const unwrapRole = tryGetBlockKindDescriptor(deps.node.kind)?.unwrapRole;
 
 			if (innerIndex <= 0) {
 				if (unwrapRole) {
-					await firstChildUnwrapStrategies[unwrapRole.firstChildBackspace]({ deps, state });
-					return;
+					return firstChildUnwrapStrategies[unwrapRole.firstChildBackspace]({ deps, state });
 				}
-				// A container with no unwrap role hands the merge to its parent. Awaited so the
-				// caller's follow-up (focus placement) runs after the parent is done.
-				await parent.blockEdit.mergeWithPrevious(deps.index);
-				return;
+				// A container with no unwrap role hands the merge to its parent.
+				return parent.blockEdit.mergeWithPrevious(deps.index);
 			}
 
 			if (unwrapRole && unwrapRole.middleChildBackspace !== 'default-merge') {
-				await middleChildUnwrapStrategies[unwrapRole.middleChildBackspace](
+				return middleChildUnwrapStrategies[unwrapRole.middleChildBackspace](
 					{ deps, state },
 					innerIndex
 				);
-				return;
 			}
 
-			await core.mergeWithPreviousInterior(innerIndex);
+			return core.mergeWithPreviousInterior(innerIndex);
 		},
 
 		async mergeWithNext(innerIndex) {
-			if (!deps.node.children) return;
+			if (!deps.node.children) return false;
 
 			if (innerIndex >= deps.node.children.length - 1) {
 				return parent.blockEdit.mergeWithNext(deps.index);
@@ -78,34 +74,31 @@ export function createNestedBlockEdit(
 			// container without editing; `append: false` keeps a last block from appending one.
 			if (isCollapsedContainer(deps.node)) {
 				await parent.focus.moveFocus(deps.index + 1, 'start', { append: false });
-				return;
+				return false;
 			}
 
-			await core.mergeWithNextInterior(innerIndex);
+			return core.mergeWithNextInterior(innerIndex);
 		},
 
 		async deleteBlock(innerIndex) {
-			if (!deps.node.children) return;
+			if (!deps.node.children) return false;
 
 			if (deps.node.children.length <= 1) {
 				return parent.blockEdit.deleteBlock(deps.index);
 			}
 
-			await core.deleteInterior(innerIndex);
+			return core.deleteInterior(innerIndex);
 		},
 
 		updateBlockMetadata: (innerIndex, metadata, options) =>
 			core.updateBlockMetadata(innerIndex, metadata, options),
 
-		replaceBlock: async (innerIndex, replacement, focus, options) => {
-			await core.replaceBlock(innerIndex, replacement, focus, options);
-		},
+		replaceBlock: async (innerIndex, replacement, focus, options) =>
+			(await core.replaceBlock(innerIndex, replacement, focus, options)) !== null,
 
 		updateBlockContent(innerIndex, text, mode, preEditOffset, postEditFocusOffset) {
-			if (deps.node.children) {
-				return writeContent(innerIndex, text, mode, preEditOffset, postEditFocusOffset);
-			}
-			return withStoredCaret(Promise.resolve(), postEditFocusOffset ?? preEditOffset ?? 0);
+			if (!deps.node.children) return refusedWrite();
+			return writeContent(innerIndex, text, mode, preEditOffset, postEditFocusOffset);
 		}
 	};
 

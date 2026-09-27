@@ -249,7 +249,7 @@
 				saved
 			);
 			void kindCue.afterTypedWrite(write, myPath, before);
-			return write.caret;
+			return write.admitted ? write.caret : null;
 		},
 		inputPrelude: () => {
 			markKeystrokeStart();
@@ -506,7 +506,7 @@
 						offset,
 						caretOffset
 					);
-					setPendingCursorOffset(write.caret, 'hard-break');
+					if (write.admitted) setPendingCursorOffset(write.caret, 'hard-break');
 				});
 			case 'block.insertTab':
 				return {
@@ -525,7 +525,7 @@
 							caretOffset
 						);
 						void kindCue.afterTypedWrite(write, myPath, before);
-						setPendingCursorOffset(write.caret, 'insert-tab');
+						if (write.admitted) setPendingCursorOffset(write.caret, 'insert-tab');
 					}
 				};
 			case 'block.mergePrev':
@@ -543,7 +543,7 @@
 							offset,
 							demoted.caretOffset
 						);
-						setPendingCursorOffset(write.caret, 'demote');
+						if (write.admitted) setPendingCursorOffset(write.caret, 'demote');
 					}
 				};
 			case 'block.mergeNext':
@@ -581,7 +581,7 @@
 							offset,
 							cycled.caretOffset
 						);
-						setPendingCursorOffset(write.caret, 'heading-cycle');
+						if (write.admitted) setPendingCursorOffset(write.caret, 'heading-cycle');
 					}
 				};
 			default: {
@@ -887,11 +887,14 @@
 			ambientPrefixText,
 			widgetInteraction.isRevealing,
 			(edit) => {
-				setPendingCursorOffset(
-					blockEdit.updateBlockContent(index, edit.raw, 'authored', edit.range.start, edit.caret)
-						.caret,
-					'live-selection-edit'
+				const write = blockEdit.updateBlockContent(
+					index,
+					edit.raw,
+					'authored',
+					edit.range.start,
+					edit.caret
 				);
+				if (write.admitted) setPendingCursorOffset(write.caret, 'live-selection-edit');
 			}
 		);
 	}
@@ -915,10 +918,8 @@
 			ownPairs,
 			write: (text, caretBefore, caretAfter) => {
 				const raw = text + blockEnding();
-				setPendingCursorOffset(
-					blockEdit.updateBlockContent(index, raw, 'authored', caretBefore, caretAfter).caret,
-					'delimiter-autopair'
-				);
+				const write = blockEdit.updateBlockContent(index, raw, 'authored', caretBefore, caretAfter);
+				if (write.admitted) setPendingCursorOffset(write.caret, 'delimiter-autopair');
 			}
 		});
 	}
@@ -1037,6 +1038,7 @@
 			'literal',
 			newSelStart
 		);
+		if (!write.admitted) return;
 
 		tick().then(() => {
 			setSelection(write.caret, write.storedOffset(newSelEnd));

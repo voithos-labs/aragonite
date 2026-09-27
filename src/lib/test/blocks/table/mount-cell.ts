@@ -106,7 +106,10 @@ export function mountCell(raw: string, policies: Partial<EditorPolicies> = {}): 
 		(index, text, mode, caretBefore, caretAfter) => {
 			const body = { children: row.children!, owner: row, lineEnding: '\n' as const };
 			const write = legalizeWrite(body, index, text, mode);
-			return withStoredCaret(Promise.resolve(), write.storedOffset(caretAfter ?? caretBefore ?? 0));
+			return withStoredCaret(
+				Promise.resolve(true),
+				write.storedOffset(caretAfter ?? caretBefore ?? 0)
+			);
 		}
 	);
 	return {

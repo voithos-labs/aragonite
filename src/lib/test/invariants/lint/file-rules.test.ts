@@ -306,6 +306,20 @@ const RULES: FileRule[] = [
 		]
 	},
 	{
+		id: 'an edit reaches the live region only through a commit’s announcement',
+		matches: /\bannounceEdit\b/,
+		allowed: {
+			'src/lib/editor-actions/commit/undo-controller.ts':
+				'the commit, which speaks only when bytes landed',
+			'src/lib/editor-actions/index.ts': 'hands the announcer to the undo controller alone',
+			'src/lib/components/Editor.svelte': 'owns the live region and builds the controller'
+		},
+		reason:
+			'the announcer reaches only the undo controller; held anywhere else, a refused, failed or discarded edit could still tell a screen reader it happened. Pass `announce` to the commit',
+		hits: ['deps.announceEdit(message)', 'const { announceEdit } = (deps as any).root.deps;'],
+		misses: ["announce: () => 'Deleted row',\nconst announcement = editAnnouncement;"]
+	},
+	{
 		id: 'G4.14 component props reading the CST are typed as readonly views',
 		population: svelteOnly,
 		matches: /\b(node|document|doc)\??\s*:\s*(CstNode|Document)\b/,

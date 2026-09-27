@@ -42,7 +42,11 @@ export interface KeydownEnvOptions {
 export function makeKeydownEnv(source: string | Document, opts: KeydownEnvOptions = {}) {
 	// The extend branches scroll the moved endpoint into view; jsdom has no layout.
 	installEditorDomStubsForTests();
-	const harness = makeEditorActionsDeps(typeof source === 'string' ? parse(source) : source);
+	// One reading for the dispatch and the commits, as the editor hands both the same one.
+	const reading = fixtureReading({}, opts.presentationMode);
+	const harness = makeEditorActionsDeps(typeof source === 'string' ? parse(source) : source, {
+		reading
+	});
 	const controller = createUndoController(harness.deps);
 	const selection = harness.deps.selectionState;
 	const caretMemory = createCaretMemory();
@@ -73,7 +77,7 @@ export function makeKeydownEnv(source: string | Document, opts: KeydownEnvOption
 		getBlockElByPath,
 		revealPath,
 		controller,
-		reading: fixtureReading()
+		reading
 	};
 
 	// The real handler, so a format chord over a range moves the bytes it would move in production.
@@ -83,7 +87,7 @@ export function makeKeydownEnv(source: string | Document, opts: KeydownEnvOption
 		getBlockElByPath,
 		revealPath,
 		controller,
-		reading: fixtureReading({}, opts.presentationMode),
+		reading,
 		getContentVersion: harness.contentVersion,
 		caretMemory
 	});
@@ -98,7 +102,7 @@ export function makeKeydownEnv(source: string | Document, opts: KeydownEnvOption
 		revealPath,
 		caretMemory,
 		controller,
-		reading: fixtureReading({}, opts.presentationMode),
+		reading,
 		commands: commandContextWith(overrides, {
 			history: { requestUndo: vi.fn(), requestRedo: vi.fn() },
 			getPresentationMode: () => opts.presentationMode ?? 'source',

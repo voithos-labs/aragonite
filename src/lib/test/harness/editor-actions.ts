@@ -5,6 +5,7 @@ import { vi, type Mocked } from 'vitest';
 import type {
 	BlockEditActions,
 	ContainerEditActions,
+	ContentWrite,
 	FocusActions,
 	ListContext
 } from '$lib/action-contracts';
@@ -602,6 +603,12 @@ export function mountBodyRow(source: string, row = 1) {
 	return { deps, blockEdit: bundle.blockEdit };
 }
 
+/** The caret an admitted write reports; throws when the reading-mode check refused the write. */
+export function admittedCaret(write: ContentWrite): number {
+	if (!write.admitted) throw new Error('the write was refused, so it has no caret');
+	return write.caret;
+}
+
 /** One `updateBlockContent` call as a recording stub saw it. */
 export interface RecordedWrite {
 	index: number;
@@ -615,9 +622,11 @@ export interface RecordedWrite {
  *  was asked for, which is what the write returns when no rule rewrites the bytes. */
 export function recordingWrite(
 	record: (write: RecordedWrite) => void = () => {}
-): BlockEditActions['updateBlockContent'] {
+): (
+	...args: Parameters<BlockEditActions['updateBlockContent']>
+) => ReturnType<typeof withStoredCaret> {
 	return (index, raw, mode, before, after) => {
 		record({ index, raw, mode, before, after });
-		return withStoredCaret(Promise.resolve(), after ?? before ?? 0);
+		return withStoredCaret(Promise.resolve(true), after ?? before ?? 0);
 	};
 }

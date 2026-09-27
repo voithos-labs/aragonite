@@ -109,9 +109,10 @@ export interface CommandGates {
 	crossBlockCommands: CrossBlockCommandRouter;
 }
 
-/** Moves the block at a path one step among its siblings: the editor's reorder action. */
+/** Moves the block at a path one step among its siblings: the editor's reorder action. Resolves to
+ *  whether the move landed. */
 export interface BlockMover {
-	nudgeReorderUnit(path: number[], dir: -1 | 1): Promise<void>;
+	nudgeReorderUnit(path: number[], dir: -1 | 1): Promise<boolean>;
 }
 
 /** Everything a chord or `EditorInstance.runCommand` dispatches against, built once per editor so

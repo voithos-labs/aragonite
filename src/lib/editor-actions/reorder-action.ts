@@ -6,6 +6,7 @@
 
 import { CURSOR_START } from '../block-component';
 import { documentLineEnding } from '../core/lines';
+import { movedBlockToPosition } from '../a11y-strings';
 import { reorderChildrenWithTrivia } from '../tree-operations/reorder';
 import { resolveReorderUnit, type ReorderUnit } from '../tree-operations/reorder-unit';
 import { blockNodeAt, nodeAt } from '../tree-operations/node-primitives';
@@ -15,21 +16,15 @@ import { readCurrentSelection } from '../selection/native-bridge';
 import { extendDocPath, docPathFrom } from '../cursor/coordinate-spaces';
 import type { EditorActionsDeps, UndoController } from './deps';
 
+/** Each move resolves to whether it landed. */
 export interface ReorderAction {
-	moveReorderUnit(fromPath: number[], toIndex: number): Promise<void>;
-	nudgeReorderUnit(fromPath: number[], dir: -1 | 1): Promise<void>;
-}
-
-/** Where the move landed and how many siblings survive it, both read after the commit. */
-interface ReorderOutcome {
-	landing: number;
-	total: number;
+	moveReorderUnit(fromPath: number[], toIndex: number): Promise<boolean>;
+	nudgeReorderUnit(fromPath: number[], dir: -1 | 1): Promise<boolean>;
 }
 
 export function createReorderAction(
 	deps: EditorActionsDeps,
-	controller: UndoController,
-	onReorder?: (to: number, total: number) => void
+	controller: UndoController
 ): ReorderAction {
 	function caretOffset(): number {
 		const widgetCaret = deps.getSelectedWidgetCaret ?? (() => null);
@@ -38,16 +33,16 @@ export function createReorderAction(
 		);
 	}
 
-	async function commitReorder(
+	function commitReorder(
 		unit: ReorderUnit,
 		to: number,
 		offset: number,
 		focusAfter: boolean
-	): Promise<ReorderOutcome | null> {
+	): Promise<boolean> {
 		let landing = to;
 
 		if (unit.scope === 'document') {
-			await controller.commitStructural({
+			return controller.commitStructural({
 				snapshot: { path: docPathFrom([unit.index]), offset },
 				op: {
 					kind: 'reorder',
@@ -68,15 +63,15 @@ export function createReorderAction(
 				},
 				afterTick: () => {
 					if (focusAfter) deps.blockRefs[landing]?.focus(CURSOR_START);
-				}
+				},
+				announce: () => movedBlockToPosition(landing + 1, deps.doc.children.length)
 			});
-			return { landing, total: deps.doc.children.length };
 		}
 
 		const parent = blockNodeAt(deps.doc, unit.parentPath);
-		if (!parent) return null;
+		if (!parent) return Promise.resolve(false);
 		const state = expectStateForNode(parent);
-		await controller.commitContainerStructural({
+		return controller.commitContainerStructural({
 			containerNode: parent,
 			path: unit.parentPath,
 			state,
@@ -106,11 +101,15 @@ export function createReorderAction(
 			},
 			afterTick: () => {
 				if (focusAfter) state.innerBlockRefs[landing]?.focus(CURSOR_START);
-			}
+			},
+			// Re-resolved, not `parent`: the commit's copy-before-write replaced that node, so the
+			// one resolved above still holds the pre-move children.
+			announce: () =>
+				movedBlockToPosition(
+					landing + 1,
+					blockNodeAt(deps.doc, unit.parentPath)?.children?.length ?? 0
+				)
 		});
-		// Re-resolved, not `parent`: the commit's copy-before-write replaced that node, so the
-		// one resolved above still holds the pre-move children.
-		return { landing, total: blockNodeAt(deps.doc, unit.parentPath)?.children?.length ?? 0 };
 	}
 
 	function resolveAndClamp(
@@ -130,14 +129,13 @@ export function createReorderAction(
 		fromPath: number[],
 		computeTo: (currentIndex: number) => number,
 		focusAfter: boolean
-	): Promise<void> {
+	): Promise<boolean> {
 		const target = resolveAndClamp(fromPath, computeTo);
-		if (!target) return;
+		if (!target) return false;
 		// Drop any cross-block selection so the overlay does not fight the move; the commit's
 		// afterTick places the caret again when the caller wants it.
 		deps.selectionState.collapse();
-		const outcome = await commitReorder(target.unit, target.to, caretOffset(), focusAfter);
-		if (outcome) onReorder?.(outcome.landing, outcome.total);
+		return commitReorder(target.unit, target.to, caretOffset(), focusAfter);
 	}
 
 	return {

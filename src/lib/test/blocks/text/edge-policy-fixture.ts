@@ -58,7 +58,7 @@ export function makeEdgeDispatch(
 		blockEdit: {
 			updateBlockContent: (index, content, _mode, start = 0, end = start) => {
 				edits.push([index, content, start, end]);
-				return withStoredCaret(Promise.resolve(), end);
+				return withStoredCaret(Promise.resolve(true), end);
 			}
 		} as Pick<BlockEditActions, 'updateBlockContent'> as BlockEditActions,
 		setPendingCursor: () => {},

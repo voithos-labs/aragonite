@@ -394,7 +394,6 @@ function handleCompositionStart(
 ): boolean {
 	ctx.caretMemory.forget();
 	if (!ctx.selection.isCrossBlock) return false;
-	if (isReadingMode(ctx.reading.mode)) return false;
 	performCrossBlockDeleteSync(mutCtx);
 	return true;
 }

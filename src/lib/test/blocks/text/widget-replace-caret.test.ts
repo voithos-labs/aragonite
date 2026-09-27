@@ -45,10 +45,10 @@ function fixture() {
 				after: number
 			) => {
 				log.push(`write ${raw.trimEnd()} ${before}->${after}`);
-				const done = new Promise<void>((resolve) => {
+				const done = new Promise<boolean>((resolve) => {
 					finishWrite = () => {
 						log.push('landed');
-						resolve();
+						resolve(true);
 					};
 				});
 				return withStoredCaret(done, after);

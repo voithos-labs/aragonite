@@ -27,7 +27,7 @@ export async function applyInlineResult(
 		'literal',
 		result.caretOffset
 	);
-	return { path: targetPath, offset: write.caret };
+	return write.admitted ? { path: targetPath, offset: write.caret } : undefined;
 }
 
 /**

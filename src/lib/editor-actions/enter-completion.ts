@@ -39,15 +39,12 @@ export function withEnterCompletion(
 ): BlockEditActions {
 	return {
 		...blockEdit,
-		async splitBlock(index: number, offset: number): Promise<void> {
+		async splitBlock(index: number, offset: number): Promise<boolean> {
 			const completion = planEnterCompletion(childAt(index), offset, grammar, getLineEnding());
-			if (!completion) {
-				await blockEdit.splitBlock(index, offset);
-				return;
-			}
+			if (!completion) return blockEdit.splitBlock(index, offset);
 			// `snapshotOffset` is where the caret was, so one undo restores the typed line with the
 			// caret at its end rather than in front of it.
-			await blockEdit.replaceBlock(
+			return blockEdit.replaceBlock(
 				index,
 				completion.replacement,
 				{ replacementIndex: 0, ...completion.caret },
@@ -64,20 +61,26 @@ export function withEnterCompletion(
 				preEditOffset,
 				postEditFocusOffset
 			);
+			if (!write.admitted) return write;
 			const asked = postEditFocusOffset ?? preEditOffset;
-			const completed = write.then(async () => {
-				if (asked === undefined) return;
-				const offset = write.caret;
-				const completion = planTypedCompletion(childAt(index), offset, grammar, getLineEnding());
-				if (!completion) return;
-				await blockEdit.replaceBlock(
+			const plan = () =>
+				asked === undefined
+					? null
+					: planTypedCompletion(childAt(index), write.caret, grammar, getLineEnding());
+			// A write that keeps the caret landed in place already, so its completion is known now.
+			const keepsCaret = write.keepsCaret && plan() === null;
+			const completed = write.then(async (wrote) => {
+				const completion = plan();
+				if (!completion) return wrote;
+				const replaced = await blockEdit.replaceBlock(
 					index,
 					completion.replacement,
 					{ replacementIndex: 0, ...completion.caret },
-					{ snapshotOffset: offset }
+					{ snapshotOffset: write.caret }
 				);
+				return wrote || replaced;
 			});
-			return withStoredCaret(completed, write.caret, write.storedOffset);
+			return withStoredCaret(completed, write.caret, write.storedOffset, keepsCaret);
 		}
 	};
 }

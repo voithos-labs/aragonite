@@ -6,7 +6,7 @@
  */
 
 import type { BlockEditActions, ListContext } from '../action-contracts';
-import { withStoredCaret } from './stored-caret';
+import { refusedWrite } from './stored-caret';
 import { displayLength, isBlankText } from '../core/lines';
 import type { NestedActionsOverrideFactory, NodeScope } from './nested/nested-actions';
 
@@ -20,18 +20,15 @@ export function createListOverrides(deps: ListOverridesDeps): NestedActionsOverr
 		blockEdit: {
 			// Items split through the item's own bundle; nothing calls the list's, and the shared
 			// core would run a prose split on a `listItem` if anything ever did.
-			splitBlock: async (): Promise<void> => {},
-			updateBlockContent: (_index, _text, _mode, preEditOffset, postEditFocusOffset) =>
-				withStoredCaret(Promise.resolve(), postEditFocusOffset ?? preEditOffset ?? 0),
+			splitBlock: async (): Promise<boolean> => false,
+			updateBlockContent: () => refusedWrite(),
 
 			// Items are structural peers, not text to merge. Only the last item hands the merge
 			// to the parent, so the block after the list merges into the list's deepest leaf.
-			mergeWithNext: async (itemIndex: number): Promise<void> => {
+			mergeWithNext: async (itemIndex: number): Promise<boolean> => {
 				const node = deps.scope.node;
-				if (!node.children) return;
-				if (itemIndex >= node.children.length - 1) {
-					await deps.parentBlockEdit.mergeWithNext(deps.scope.index);
-				}
+				if (!node.children || itemIndex < node.children.length - 1) return false;
+				return deps.parentBlockEdit.mergeWithNext(deps.scope.index);
 			}
 		}
 	});
@@ -48,27 +45,23 @@ export interface ListItemOverridesDeps {
 export function createListItemOverrides(deps: ListItemOverridesDeps): NestedActionsOverrideFactory {
 	return () => ({
 		blockEdit: {
-			splitBlock: async (innerIndex: number, offset: number): Promise<void> => {
+			splitBlock: async (innerIndex: number, offset: number): Promise<boolean> => {
 				const { node, index } = deps.scope;
-				if (!node.children) return;
+				if (!node.children) return false;
 
 				// Looser than `isItemUserEmpty`: trailing structural children stay until
 				// `exitListAtItem` moves them.
 				const firstChild = node.children[0];
 				if (firstChild?.kind === 'paragraph' && isBlankText(firstChild.raw)) {
-					await deps.listContext.exitListAtItem(index);
-					return;
+					return deps.listContext.exitListAtItem(index);
 				}
 
 				const lastChild = node.children[node.children.length - 1];
 				const atEnd =
 					innerIndex === node.children.length - 1 && offset >= displayLength(lastChild.raw);
-				if (atEnd) {
-					await deps.listContext.insertItemAfter(index);
-					return;
-				}
+				if (atEnd) return deps.listContext.insertItemAfter(index);
 
-				await deps.listContext.splitItemAtOffset(index, innerIndex, offset);
+				return deps.listContext.splitItemAtOffset(index, innerIndex, offset);
 			}
 		}
 	});

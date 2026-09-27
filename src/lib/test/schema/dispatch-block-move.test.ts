@@ -13,7 +13,7 @@ import { normalizeKeybindingOverrides } from '$lib/schema/keybinding-overrides';
 import { commandContext, commandContextWith } from '../support/command-context';
 
 function mover() {
-	return { nudgeReorderUnit: vi.fn(async () => {}) };
+	return { nudgeReorderUnit: vi.fn(async () => true) };
 }
 
 describe('the reorder chords at the dispatch', () => {

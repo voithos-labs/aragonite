@@ -5,9 +5,12 @@ import { createUndoController } from '$lib/editor-actions/commit/undo-controller
 import { createReorderAction } from '$lib/editor-actions/reorder-action';
 import { createBlockListState } from '$lib/reactivity/block-list-state.svelte';
 import { registerBlockListState } from '$lib/reactivity/state-registry';
-import { movedBlockToPosition } from '$lib/a11y-strings';
 import { stubBlockComponent, makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
 import type { BlockComponent } from '$lib/block-component';
+import { READING_WRITE_TAG } from '$lib/editor-actions/commit/reading-write-gate';
+import type { PresentationMode } from '$lib/presentation-mode';
+import { fixtureReading } from '../harness/fixture-grammar';
+import { takeDevWarns } from '../support/warn-gate';
 
 // What a reorder reports, at both levels: the a11y announcement and where the caret goes. A
 // move can make two neighbours merge, and the merge changes both the destination and the
@@ -33,22 +36,27 @@ function refsAnsweringEverySlot(
 	});
 }
 
-function makeTop(source: string) {
-	const harness = makeEditorActionsDeps(parse(source));
+/** Deps in `mode`, and a controller that records what the edit live region was told. */
+function announcingDeps(source: string, mode: PresentationMode) {
+	const announced: string[] = [];
+	const harness = makeEditorActionsDeps(parse(source), { reading: fixtureReading({}, mode) });
+	const controller = createUndoController(harness.deps, (message) => announced.push(message));
+	return { harness, announced, controller };
+}
+
+function makeTop(source: string, mode: PresentationMode = 'source') {
+	const { harness, announced, controller } = announcingDeps(source, mode);
 	const focused: number[] = [];
 	const refs = refsAnsweringEverySlot(harness.getBlockRefs(), focused);
 	const deps = new Proxy(harness.deps, {
 		get: (target, prop) => (prop === 'blockRefs' ? refs : Reflect.get(target, prop, target))
 	});
-	const announced: string[] = [];
-	const reorder = createReorderAction(deps, createUndoController(harness.deps), (to, total) =>
-		announced.push(movedBlockToPosition(to + 1, total))
-	);
+	const reorder = createReorderAction(deps, controller);
 	return { doc: harness.doc, reorder, announced, focused };
 }
 
-function makeContainer(source: string) {
-	const harness = makeEditorActionsDeps(parse(source));
+function makeContainer(source: string, mode: PresentationMode = 'source') {
+	const { harness, announced, controller } = announcingDeps(source, mode);
 	const node = () => harness.doc.children[0];
 	const state = createBlockListState(node);
 	const focused: number[] = [];
@@ -59,12 +67,7 @@ function makeContainer(source: string) {
 			get: (target, prop) => (prop === 'innerBlockRefs' ? refs : Reflect.get(target, prop, target))
 		})
 	);
-	const announced: string[] = [];
-	const reorder = createReorderAction(
-		harness.deps,
-		createUndoController(harness.deps),
-		(to, total) => announced.push(movedBlockToPosition(to + 1, total))
-	);
+	const reorder = createReorderAction(harness.deps, controller);
 	return { doc: harness.doc, node, reorder, announced, focused };
 }
 
@@ -120,5 +123,24 @@ describe('reorder announcement and landing: container scope', () => {
 		await h.reorder.nudgeReorderUnit([0, 1], 1);
 
 		expect(h.focused).toEqual([1]);
+	});
+});
+
+// Reading mode refuses the move commands first; called anyway, the action must announce no move.
+// Miss-analysis: every announcement case wrote; none asked the action about a refused commit.
+describe('a reorder the commit refuses', () => {
+	it.each([
+		['document', () => makeTop('a\n\nb\n', 'reading'), [0]],
+		['container', () => makeContainer('> a\n>\n> b\n', 'reading'), [0, 0]]
+	] as const)('at %s scope resolves false and announces nothing', async (_, make, from) => {
+		const h = make();
+		const before = serialize(h.doc);
+
+		const moved = await h.reorder.moveReorderUnit([...from], 1);
+
+		expect(h.announced).toEqual([]);
+		expect(moved).toBe(false);
+		expect(serialize(h.doc)).toBe(before);
+		expect(takeDevWarns().map((w) => w.tag)).toEqual([READING_WRITE_TAG]);
 	});
 });

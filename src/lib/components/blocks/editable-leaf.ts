@@ -267,13 +267,14 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		readText: () => plainTextOf(deps.getEl()),
 		commitInput: (text, preEdit, saved) => {
 			if (mode !== 'plain') return;
-			return blockEdit.updateBlockContent(
+			const write = blockEdit.updateBlockContent(
 				deps.getIndex(),
 				text + trailingLineEnding(deps.getNode().raw, documentLineEnding(getDoc())),
 				'authored',
 				preEdit,
 				saved
-			).caret;
+			);
+			return write.admitted ? write.caret : null;
 		},
 		handleBeforeInput: onBeforeInput
 	});
@@ -326,7 +327,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 
 	// Returns the commit's own promise, so a caller that has to act on the committed bytes
 	// (a single-line Enter's split) can wait for the write to land.
-	function commitSource(edited: string): Promise<void> {
+	function commitSource(edited: string): Promise<boolean> {
 		return blockEdit.updateBlockContent(
 			deps.getIndex(),
 			edited + trailingLineEnding(deps.getNode().raw, documentLineEnding(getDoc())),

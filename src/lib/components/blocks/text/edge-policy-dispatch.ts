@@ -232,16 +232,14 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		source: string,
 		caretBefore: number
 	): void {
-		deps.setPendingCursor(
-			deps.blockEdit.updateBlockContent(
-				deps.index,
-				next + trailingLineEnding(deps.node.raw, deps.getLineEnding()),
-				'authored',
-				caretBefore,
-				caretAfter
-			).caret,
-			source
+		const write = deps.blockEdit.updateBlockContent(
+			deps.index,
+			next + trailingLineEnding(deps.node.raw, deps.getLineEnding()),
+			'authored',
+			caretBefore,
+			caretAfter
 		);
+		if (write.admitted) deps.setPendingCursor(write.caret, source);
 	}
 
 	function editDisplay(
@@ -331,11 +329,14 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 				deps.getAmbientPrefix?.() ?? '',
 				deps.getLineEnding()
 			);
-			deps.setPendingCursor(
-				deps.blockEdit.updateBlockContent(deps.index, edit.raw, 'authored', range.start, edit.caret)
-					.caret,
-				source
+			const write = deps.blockEdit.updateBlockContent(
+				deps.index,
+				edit.raw,
+				'authored',
+				range.start,
+				edit.caret
 			);
+			if (write.admitted) deps.setPendingCursor(write.caret, source);
 			return;
 		}
 		const seatedAt = typingSeatAt(el, caretOffset, typed)?.offset ?? caretOffset;
@@ -378,16 +379,14 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 				// One keypress takes the whole construct, anchored at the caret before the delete
 				// so Ctrl+Z lands there.
 				const newRaw = node.raw.slice(0, widgetAt.start) + node.raw.slice(widgetAt.end);
-				deps.setPendingCursor(
-					deps.blockEdit.updateBlockContent(
-						deps.index,
-						newRaw,
-						'authored',
-						caretOffset,
-						widgetAt.start
-					).caret,
-					'widget'
+				const write = deps.blockEdit.updateBlockContent(
+					deps.index,
+					newRaw,
+					'authored',
+					caretOffset,
+					widgetAt.start
 				);
+				if (write.admitted) deps.setPendingCursor(write.caret, 'widget');
 				return true;
 			}
 			// `onEdge: 'select'`, plus the kinds `enterWidget` sends to their source instead of
@@ -556,11 +555,14 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 				deps.getAmbientPrefix?.() ?? '',
 				deps.getLineEnding()
 			);
-			deps.setPendingCursor(
-				deps.blockEdit.updateBlockContent(deps.index, edit.raw, 'authored', range.start, edit.caret)
-					.caret,
-				'ambient-delete'
+			const write = deps.blockEdit.updateBlockContent(
+				deps.index,
+				edit.raw,
+				'authored',
+				range.start,
+				edit.caret
 			);
+			if (write.admitted) deps.setPendingCursor(write.caret, 'ambient-delete');
 		}
 		return true;
 	}
@@ -634,7 +636,6 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 	/** A printable key while a toggle at a collapsed caret has marks pending. The marks are the newer
 	 *  instruction, so they outrank the arrival side (`docs/design/live-mode.md` § 4.3). */
 	function handlePendingMarks(e: KeyboardEvent, caretOffset: RawOffset | null): boolean {
-		if (deps.isReading()) return false;
 		if (!isPlainTypingKey(e) || caretOffset === null || heldRange()) return false;
 		// Only a block that draws no delimiters holds pending marks; switching mode clears them, so
 		// nothing is stranded.

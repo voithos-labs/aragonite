@@ -63,7 +63,7 @@ describe('G2.10 classifyStickyKey decision matrix', () => {
 // commit primitive's unconditional reset.
 
 describe('G2.10 structural reset policy', () => {
-	async function exercise(run: (actions: BlockEditActions) => void | Promise<void>): Promise<Mock> {
+	async function exercise(run: (actions: BlockEditActions) => Promise<unknown>): Promise<Mock> {
 		const { deps } = makeEditorActionsDeps([makeNode('paragraph', 'hello world\n')]);
 		const controller = createUndoController(deps);
 		const actions = createBlockEditActions(deps, controller);

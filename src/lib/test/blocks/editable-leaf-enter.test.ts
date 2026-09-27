@@ -7,6 +7,8 @@ import { installLayoutStubs } from '$lib/test/harness/mount-editor.svelte';
 import { settleEditor, pressKey } from '$lib/test/harness/settle';
 import { withStoredCaret } from '$lib/editor-actions/stored-caret';
 import { leafDocument, mountRevealLeaf, registerRevealLeafKind } from './fixtures/reveal-leaf';
+import PlainOneLineLeafBlock from './fixtures/PlainOneLineLeafBlock.svelte';
+import { mountBlock } from '../harness/mount-block';
 
 const KIND = 'enter-leaf';
 const RAW = '@@ one\n';
@@ -74,8 +76,8 @@ describe('Enter in an editable leaf', () => {
 	it('lands the fold’s write before the split reads the block’s bytes', async () => {
 		mounted = mountLeaf(true);
 		let releaseWrite!: () => void;
-		const writeGate = new Promise<void>((resolve) => {
-			releaseWrite = resolve;
+		const writeGate = new Promise<boolean>((resolve) => {
+			releaseWrite = () => resolve(true);
 		});
 		vi.mocked(mounted.blockEdit.updateBlockContent).mockImplementation(() =>
 			withStoredCaret(writeGate, 0)
@@ -100,5 +102,25 @@ describe('Enter in an editable leaf', () => {
 		releaseWrite();
 		await settleEditor();
 		expect(mounted.blockEdit.splitBlock).toHaveBeenCalledWith(0, 6);
+	});
+});
+
+// A plain leaf's source stays focusable in reading mode, so its Enter arrives and the leaf's own
+// reading-mode check is what keeps the split from asking the write.
+describe('Enter in a plain one-line leaf in reading mode', () => {
+	it('arrives, and splits nothing', async () => {
+		const kind = registerRevealLeafKind(KIND);
+		const plain = mountBlock(PlainOneLineLeafBlock, {
+			doc: leafDocument(kind, RAW),
+			overrides: { policies: { presentationMode: () => 'reading' } }
+		});
+		const el = plain.target.querySelector<HTMLElement>('.plain-one-line-source')!;
+		el.focus();
+
+		const pressed = await pressKey(el, { key: 'Enter' });
+
+		expect(pressed.defaultPrevented).toBe(true);
+		expect(plain.blockEdit.splitBlock).not.toHaveBeenCalled();
+		await plain.dispose();
 	});
 });

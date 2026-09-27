@@ -40,30 +40,50 @@ export type DiscardIfNoop = boolean;
 export type CommitAfterTick = () => void | Promise<void>;
 
 /**
- * A content write in flight: awaiting it waits for the write to land, and `caret` is the landing
- * caret counted in the bytes as stored, known the moment the call returns. `storedOffset` maps
- * any other offset into the written text the same way (a selection's far edge).
+ * What a screen reader hears about a commit (a move, a table edit) in the editor's edit live
+ * region, read after `afterTick` and only when bytes landed. That region hears nothing else, so a
+ * refused, failed or discarded commit says nothing there.
  */
-export type ContentWrite = Promise<void> & {
+export type CommitAnnouncement = () => string;
+
+/**
+ * A content write in flight, resolving to whether bytes landed. `admitted` is known the moment the
+ * call returns: false means the write was turned away before it touched anything (reading mode, or
+ * a list with no text of its own to write). Only an admitted write has a caret: the landing offset
+ * in the bytes as stored, with `storedOffset` mapping any other offset the same way.
+ */
+export type ContentWrite = Promise<boolean> & (RefusedContentWrite | AdmittedContentWrite);
+
+export interface RefusedContentWrite {
+	readonly admitted: false;
+}
+
+export interface AdmittedContentWrite {
+	readonly admitted: true;
 	readonly caret: number;
 	storedOffset(offset: number): number;
-};
+	/** False when the write places the caret itself (a new kind, a merge, a changed container),
+	 *  so the block must not put its own caret back. */
+	readonly keepsCaret: boolean;
+}
 
 // ── Action sub-interfaces ──────────────────────────────────────────────────
 
+/** Every edit a block asks of its list. Each resolves to whether bytes landed; a focus move
+ *  that writes nothing resolves false. */
 export interface BlockEditActions {
-	splitBlock(blockIndex: number, offset: number): void | Promise<void>;
+	splitBlock(blockIndex: number, offset: number): Promise<boolean>;
 	/**
 	 * Focus the block after `blockIndex` in this list, creating an empty paragraph when it is
 	 * the last child. If the next block is not mounted the caret stays put, key consumed.
 	 */
-	descendToBody(blockIndex: number): void | Promise<void>;
+	descendToBody(blockIndex: number): Promise<boolean>;
 	/** @internal Create a paragraph holding `text` at a boundary of this list, caret after the
 	 *  text; `boundaryIndex === children.length` appends. */
-	insertParagraph(boundaryIndex: number, text: string): void | Promise<void>;
-	mergeWithPrevious(blockIndex: number): void | Promise<void>;
-	mergeWithNext(blockIndex: number): void | Promise<void>;
-	deleteBlock(blockIndex: number): void | Promise<void>;
+	insertParagraph(boundaryIndex: number, text: string): Promise<boolean>;
+	mergeWithPrevious(blockIndex: number): Promise<boolean>;
+	mergeWithNext(blockIndex: number): Promise<boolean>;
+	deleteBlock(blockIndex: number): Promise<boolean>;
 	/** Write `text` as the block's bytes through its kind's and this list's write rules. Undo
 	 *  records `preEditOffset`; `postEditFocusOffset` (in `text`) comes back mapped as `caret`. */
 	updateBlockContent(
@@ -79,7 +99,7 @@ export interface BlockEditActions {
 		blockIndex: number,
 		metadata: Record<string, unknown>,
 		options?: { afterTick?: CommitAfterTick }
-	): void | Promise<void>;
+	): Promise<boolean>;
 	/** Replace the block with zero or more blocks (none is `deleteBlock`). `focus.path` addresses a
 	 *  caret inside the replacement; `snapshotOffset` is the undo entry's caret. */
 	replaceBlock(
@@ -87,7 +107,7 @@ export interface BlockEditActions {
 		replacement: CstNode[],
 		focus?: { replacementIndex: number; offset: number; path?: number[] },
 		options?: { snapshotOffset?: number }
-	): void | Promise<void>;
+	): Promise<boolean>;
 }
 
 export interface MoveFocusOptions {
@@ -163,6 +183,7 @@ export interface CommitMultiScopeArgs<
 	};
 	op?: ScopedOpDescriptor;
 	afterTick?: CommitAfterTick;
+	announce?: CommitAnnouncement;
 	discardIfNoop?: DiscardIfNoop;
 	/** Caret positions each list's fix-up updates in place, parallel to `scopes`, since a collapsing
 	 *  container moves the bytes under them; `afterTick` reads them back off the same objects. */
@@ -174,6 +195,7 @@ export interface CommitStructuralArgs {
 	mutate: (children: CstNode[]) => StructuralChange;
 	op?: ScopedOpDescriptor;
 	afterTick?: CommitAfterTick;
+	announce?: CommitAnnouncement;
 	/** Leaves for the dev invariant check when `mutate` returns `noop` (an in-place kind change). */
 	touchedNodes?: CstNode[];
 	discardIfNoop?: DiscardIfNoop;
@@ -196,6 +218,7 @@ export interface CommitContainerStructuralArgs {
 	mutate: (scope: ContainerScope) => StructuralChange;
 	op?: ScopedOpDescriptor;
 	afterTick?: CommitAfterTick;
+	announce?: CommitAnnouncement;
 	discardIfNoop?: DiscardIfNoop;
 	/** A caret position the container's fix-up updates in place; `afterTick` reads it back. */
 	trackCaret?: TrackedPosition;
@@ -320,23 +343,24 @@ export type ReplaceSource = Extract<
 
 // ── List context ───────────────────────────────────────────────────────────
 
+/** A list's item edits; each resolves to whether bytes landed. */
 export interface ListContext {
-	insertItemAfter(itemIndex: number, newItem?: CstNode): Promise<void>;
-	exitListAtItem(itemIndex: number): Promise<void>;
-	indentItem(itemIndex: number): Promise<void>;
-	unindentItem(itemIndex: number): Promise<void>;
+	insertItemAfter(itemIndex: number, newItem?: CstNode): Promise<boolean>;
+	exitListAtItem(itemIndex: number): Promise<boolean>;
+	indentItem(itemIndex: number): Promise<boolean>;
+	unindentItem(itemIndex: number): Promise<boolean>;
 	/**
 	 * Split the item mid-content: first half stays, second half moves into a
 	 * new sibling item. Emits exactly one undo snapshot and one edit event.
 	 */
-	splitItemAtOffset(itemIndex: number, innerIndex: number, offset: number): Promise<void>;
+	splitItemAtOffset(itemIndex: number, innerIndex: number, offset: number): Promise<boolean>;
 	/** Promote a nested list item to this parent list's level; `nestedListNode` is a live-tree
 	 *  reference, and writes go through the commit. */
 	promoteNestedItem(
 		parentItemIndex: number,
 		nestedListNode: NodeView,
 		nestedItemIndex: number
-	): Promise<void>;
+	): Promise<boolean>;
 	/** Returns this list's index in its enclosing list (for nested-list promotion). */
 	getContainingItemIndex(): number;
 }

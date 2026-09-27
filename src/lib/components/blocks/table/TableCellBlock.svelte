@@ -186,6 +186,11 @@
 		pendingCursorOffset = offset;
 	}
 
+	// A refused write landed no bytes, so it parks no caret.
+	function parkWrite(write: ContentWrite): void {
+		if (write.admitted) parkCursor(write.caret);
+	}
+
 	// Y matters for the hit test: a click at the same column on another visual line
 	// must not open a source.
 	let lastClickClientX: number | null = null;
@@ -211,8 +216,10 @@
 		getTextLen: () => (el ? containerDomTextLength(el) : 0),
 		readText: () => readCellText(),
 		relocateComposedText: (after, composedAt) => compositionSeat.relocate(after, composedAt),
-		commitInput: (text, preEdit, saved) =>
-			blockEdit.updateBlockContent(index, text, 'authored', preEdit, saved).caret,
+		commitInput: (text, preEdit, saved) => {
+			const write = blockEdit.updateBlockContent(index, text, 'authored', preEdit, saved);
+			return write.admitted ? write.caret : null;
+		},
 		handleBeforeInput: onBeforeInput
 	});
 
@@ -402,9 +409,11 @@
 				result.newSelStart
 			);
 		});
+		if (!write.admitted) return true;
 		// The write may have escaped a pipe inside the toggled span, so the far edge moves too.
+		const selStart = write.caret;
 		const selEnd = write.storedOffset(result.newSelEnd);
-		void tick().then(() => setSelection(write.caret, selEnd));
+		void tick().then(() => setSelection(selStart, selEnd));
 		return true;
 	}
 
@@ -735,9 +744,8 @@
 			'',
 			widgetInteraction.isRevealing,
 			(edit) => {
-				parkCursor(
+				parkWrite(
 					blockEdit.updateBlockContent(index, edit.raw, 'authored', edit.range.start, edit.caret)
-						.caret
 				);
 			}
 		);
@@ -757,9 +765,7 @@
 			reading,
 			ownPairs,
 			write: (text, caretBefore, caretAfter) => {
-				parkCursor(
-					blockEdit.updateBlockContent(index, text, 'authored', caretBefore, caretAfter).caret
-				);
+				parkWrite(blockEdit.updateBlockContent(index, text, 'authored', caretBefore, caretAfter));
 			}
 		});
 	}
@@ -782,7 +788,7 @@
 			const inserted = '<br>';
 			const newText = text.slice(0, offset) + inserted + text.slice(offset);
 			const caret = offset + inserted.length;
-			parkCursor(blockEdit.updateBlockContent(index, newText, 'authored', offset, caret).caret);
+			parkWrite(blockEdit.updateBlockContent(index, newText, 'authored', offset, caret));
 			return;
 		}
 	}
@@ -932,9 +938,7 @@
 	function deleteCellRange(start: number, end: number): void {
 		const display = trimTrailingLineEnding(node.raw);
 		const cut = cutRangeFromDisplay(node, display, { start, end }, reading);
-		parkCursor(
-			blockEdit.updateBlockContent(index, cut.display, 'literal', start, cut.offset).caret
-		);
+		parkWrite(blockEdit.updateBlockContent(index, cut.display, 'literal', start, cut.offset));
 	}
 
 	async function applyCellPaste(
@@ -976,8 +980,6 @@
 		sel: { start: number; end: number }
 	): Promise<void> {
 		if (!el) return;
-		// Backs up TableBlock's menu, which already stays shut in reading mode: paste and cut mutate.
-		if (readOnly && action !== 'copy') return;
 		// Right-click deliberately skips the pointerdown reset, so a source may still be showing
 		// and `sel` was captured against that DOM, which is why it is hidden before anything else.
 		const fold = widgetInteraction.foldRevealBeforeMutation();

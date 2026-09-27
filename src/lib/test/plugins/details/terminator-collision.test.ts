@@ -16,6 +16,7 @@ import { checkOpaqueStaleRaw } from '$lib/invariants/node-shape';
 import { registerDetailsKind, DETAILS } from '$lib/plugins/details/details-kind';
 import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
 import { fixtureGrammar } from '$lib/test/harness/fixture-grammar';
+import { admittedCaret } from '$lib/test/harness/editor-actions';
 
 /**
  * `</details>` is a fixed terminator with no fence length to grow, so the fix happens on the
@@ -143,7 +144,7 @@ describe('details terminator escape caret image', () => {
 		// the `<` ahead of it grew to `&lt;`.
 		const write = h.bundle.blockEdit.updateBlockContent(1, '</details>\n', 'authored', 0, 10);
 		await write;
-		expect(write.caret).toBe(13);
+		expect(admittedCaret(write)).toBe(13);
 	});
 
 	it('leaves a caret in an untouched line where it was', async () => {
@@ -151,7 +152,7 @@ describe('details terminator escape caret image', () => {
 
 		const write = h.bundle.blockEdit.updateBlockContent(1, 'plain body\n', 'authored', 0, 5);
 		await write;
-		expect(write.caret).toBe(5);
+		expect(admittedCaret(write)).toBe(5);
 	});
 
 	it('is a no-op over already-escaped bytes, so a re-commit cannot double-escape', async () => {
@@ -159,7 +160,7 @@ describe('details terminator escape caret image', () => {
 
 		const write = h.bundle.blockEdit.updateBlockContent(1, '&lt;/details>\n', 'authored', 0, 13);
 		await write;
-		expect(write.caret).toBe(13);
+		expect(admittedCaret(write)).toBe(13);
 	});
 
 	// The contract names `normalize` as the idempotent member; assert it directly

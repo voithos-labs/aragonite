@@ -61,23 +61,27 @@ import { docPathFrom } from '../cursor/coordinate-spaces';
 import { mergedElseFocusNext, mergedElseFocusPrevious } from './merge-fallback';
 import { previewContentReparse, landUnlessFocusMoved } from './replacement-focus';
 import { admitsWrite } from './commit/reading-write-gate';
-import { withStoredCaret } from './stored-caret';
+import { refusedWrite, withStoredCaret } from './stored-caret';
 
 /** What both merge directions do when the neighbour cannot merge; `dir` names its side. */
-async function handleIneligibleNeighbor(scope: CommitScope, i: number, dir: -1 | 1): Promise<void> {
+async function handleIneligibleNeighbor(
+	scope: CommitScope,
+	i: number,
+	dir: -1 | 1
+): Promise<boolean> {
 	const neighbor = i + dir;
 	const neighborKind = scope.children()[neighbor].kind;
 	// A neighbour focused as a whole is focused, not deleted: the first keypress highlights
 	// it, a second deletes it. First so an editable but not mergeable kind never stops here.
 	if (getBlockKindDescriptor(neighborKind).blockFocus === 'whole-block') {
 		scope.refAt(neighbor)?.focus(0);
-		return;
+		return false;
 	}
 	if (isBlockEditable(neighborKind)) {
 		scope.refAt(neighbor)?.focus(dir < 0 ? CURSOR_END : CURSOR_START);
-		return;
+		return false;
 	}
-	await scope.commit({
+	return scope.commit({
 		snapshot: { index: i, offset: dir < 0 ? 0 : CURSOR_END },
 		eventTarget: neighbor,
 		op: { kind: 'delete' },
@@ -97,28 +101,31 @@ async function handleIneligibleNeighbor(scope: CommitScope, i: number, dir: -1 |
 export function contentUpdate(scope: CommitScope): BlockEditActions['updateBlockContent'] {
 	return (index, text, mode, preEditOffset, postEditFocusOffset) => {
 		scope.caretMemory.forget();
+		const kind = () => scope.children()[index]?.kind;
+		if (!admitsWrite(scope.reading, 'updateContent', kind)) return refusedWrite();
 		const write = legalizeWrite(scope.target(), index, text, mode);
 		const caret = write.storedOffset(postEditFocusOffset ?? preEditOffset ?? 0);
-		const kind = () => scope.children()[index]?.kind;
-		if (!admitsWrite(scope.reading, 'updateContent', kind)) {
-			return withStoredCaret(Promise.resolve(), caret, write.storedOffset);
-		}
+		// Decided before `work` first yields, which `typeIn` runs up to before it returns.
+		let keepsCaret = false;
 		const done = scope.typeIn(index, preEditOffset ?? 0, async () => {
 			const trial = previewContentReparse(scope.target(), index, write, scope.reading.grammar);
 			if (trial.op !== 'noop') {
-				await commitLeafText(scope, index, write, {
+				const landed = await commitLeafText(scope, index, write, {
 					snapshotOffset: preEditOffset ?? 0,
 					caret,
 					afterTick: (landed) => landUnlessFocusMoved(scope, landed)
 				});
-				return;
+				return landed.wrote;
 			}
 			const written = scope.writeInPlace(index, write, caret);
-			if (!written.wrote || !written.relanding) return;
+			if (!written.wrote) return false;
+			keepsCaret = !written.relanding;
+			if (!written.relanding) return true;
 			await tick();
 			await landUnlessFocusMoved(scope, written.relanding);
+			return true;
 		});
-		return withStoredCaret(done, caret, write.storedOffset);
+		return withStoredCaret(done, caret, write.storedOffset, keepsCaret);
 	};
 }
 
@@ -218,18 +225,19 @@ export async function replaceBlockRaw(
 	});
 }
 
+/** Each edit resolves to whether bytes landed. */
 export interface BlockEditCore {
-	split(i: number, offset: number): Promise<void>;
-	descendToBody(i: number): Promise<void>;
-	insertParagraph(i: number, text: string): Promise<void>;
-	mergeWithPreviousInterior(i: number): Promise<void>;
-	mergeWithNextInterior(i: number): Promise<void>;
-	deleteInterior(i: number): Promise<void>;
+	split(i: number, offset: number): Promise<boolean>;
+	descendToBody(i: number): Promise<boolean>;
+	insertParagraph(i: number, text: string): Promise<boolean>;
+	mergeWithPreviousInterior(i: number): Promise<boolean>;
+	mergeWithNextInterior(i: number): Promise<boolean>;
+	deleteInterior(i: number): Promise<boolean>;
 	updateBlockMetadata(
 		i: number,
 		metadata: Record<string, unknown>,
 		options?: { afterTick?: CommitAfterTick }
-	): Promise<void>;
+	): Promise<boolean>;
 	/** Resolves to how many blocks landed in the position, or null when nothing was written. */
 	replaceBlock(
 		i: number,
@@ -265,7 +273,7 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 			// several blocks pushes the second half further down (G1.34 checks the index).
 			let secondHalfIndex = i + 1;
 			let split: SplitResult | undefined;
-			await scope.commit({
+			return scope.commit({
 				snapshot: { index: i, offset },
 				eventTarget: i,
 				op: { kind: 'split', detail: { at: offset } },
@@ -291,9 +299,9 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 			// or a collapsed body) leaves the caret where it is, on purpose.
 			if (i + 1 < children.length) {
 				scope.refAt(i + 1)?.focus(CURSOR_START);
-				return;
+				return false;
 			}
-			await scope.commit({
+			return scope.commit({
 				snapshot: { index: i, offset: 0 },
 				eventTarget: i + 1,
 				op: { kind: 'appendBlock' },
@@ -313,7 +321,7 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 		 * boundary index, so `children.length` appends; the caret lands after the given text.
 		 */
 		async insertParagraph(i, text) {
-			await scope.commit({
+			return scope.commit({
 				snapshot: { index: i, offset: 0 },
 				eventTarget: i,
 				op: { kind: 'insertBlock' },
@@ -340,13 +348,10 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 			const prevKind = children[i - 1].kind;
 			const currKind = children[i].kind;
 
-			if (!isMergeEligible(prevKind, currKind)) {
-				await handleIneligibleNeighbor(scope, i, -1);
-				return;
-			}
+			if (!isMergeEligible(prevKind, currKind)) return handleIneligibleNeighbor(scope, i, -1);
 
 			let mergeResult: ReturnType<typeof mergeIntoPrevDeepLeaf> = null;
-			await scope.commit({
+			return scope.commit({
 				snapshot: { index: i, offset: 0 },
 				eventTarget: i,
 				op: { kind: 'merge', detail: { direction: 'prev' } },
@@ -371,15 +376,12 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 			const currKind = children[i].kind;
 			const nextKind = children[i + 1].kind;
 
-			if (!isMergeEligible(currKind, nextKind)) {
-				await handleIneligibleNeighbor(scope, i, 1);
-				return;
-			}
+			if (!isMergeEligible(currKind, nextKind)) return handleIneligibleNeighbor(scope, i, 1);
 
 			// The caret offset is the primitive's answer, not `displayLength` read beforehand: live
 			// mode's clean-up at the join can drop marker runs and move where the two blocks met.
 			let merged: MergeResult = { change: { op: 'noop' }, joinOffset: 0 };
-			await scope.commit({
+			return scope.commit({
 				snapshot: { index: i, offset: CURSOR_END },
 				eventTarget: i,
 				op: { kind: 'merge', detail: { direction: 'next' } },
@@ -398,7 +400,7 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 		},
 
 		async deleteInterior(i) {
-			await scope.commit({
+			return scope.commit({
 				snapshot: { index: i, offset: 0 },
 				eventTarget: i,
 				op: { kind: 'delete' },
@@ -413,13 +415,13 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 
 		async updateBlockMetadata(i, metadata, options) {
 			const children = scope.children();
-			if (i < 0 || i >= children.length) return;
+			if (i < 0 || i >= children.length) return false;
 			const fields = Object.keys(metadata);
-			if (fields.length === 0) return;
+			if (fields.length === 0) return false;
 			// `mutate` returns noop, so the stale-raw check needs the changed node named; the copy
 			// exists only after unshareChild, so the commit reads this array after mutate.
 			const touchedNodes: CstNode[] = [];
-			await scope.commit({
+			return scope.commit({
 				snapshot: { index: i, offset: 0 },
 				eventTarget: i,
 				op: { kind: 'metadataUpdate', detail: { fields } },

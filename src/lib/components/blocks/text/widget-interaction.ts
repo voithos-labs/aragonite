@@ -213,7 +213,7 @@ export async function replaceSelectedWidget(
 		widget.start + text.length
 	);
 	// Before the write's render, so the caret and the new bytes land in one flush.
-	deps.setPendingCursor(write.caret);
+	if (write.admitted) deps.setPendingCursor(write.caret);
 	deps.widgetSelection.clear();
 	await write;
 	// The render that places the caret, so a caller awaiting the insert finds the caret there.
@@ -395,14 +395,16 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 			caretBefore,
 			caretAfter
 		);
-		foldParkedCaret = write.caret;
-		deps.setPendingCursor(write.caret);
-		return { caret: write.caret, settled: settleWrite(write) };
+		// A refused write leaves the bytes as the reveal found them, where the caret began.
+		const caret = write.admitted ? write.caret : caretBefore;
+		foldParkedCaret = caret;
+		deps.setPendingCursor(caret);
+		return { caret, settled: settleWrite(write) };
 	}
 
 	// A rejection is swallowed: the commit rethrows only in dev builds, and a dev-only throw must
 	// not cancel the gesture in progress.
-	async function settleWrite(write: Promise<void>): Promise<void> {
+	async function settleWrite(write: Promise<unknown>): Promise<void> {
 		try {
 			await write;
 		} catch {

@@ -111,7 +111,17 @@ updateBlockMetadata(blockIndex, metadata, options?)
 replaceBlock(blockIndex, replacement, focus?, options?)
 ```
 
-`blockIndex` is always relative to the calling block's own list, never the document. `updateBlockContent` hands back the write's promise with the landing caret on it (`caret`), counted in the bytes as stored, since the kind's write rule can move it (§ 5). § 8 says who provides these bundles, and § 9 says what a local index means inside a container.
+`blockIndex` is always relative to the calling block's own list, never the document. Every member resolves to whether bytes landed, so a focus move that writes nothing (say, `descendToBody` onto a block that's already there) resolves `false`.
+
+`updateBlockContent` hands back the write's promise with a bit more on it, readable the moment the call returns. `admitted` says whether reading mode let the write through, and only an admitted write has a caret. That's `caret`, the landing offset counted in the bytes as stored (the kind's write rule can move it, § 5), and `keepsCaret`, which is false when the write puts the caret somewhere itself (a new kind, a merge into the block above, a container that changed kind).
+
+```ts
+const write = blockEdit.updateBlockContent(index, 'Hello!\n', 'authored', 5, 6);
+if (write.admitted) setPendingCursor(write.caret); // 6, unless a rule moved it
+await write; // true once the bytes are in
+```
+
+§ 8 says who provides these bundles, and § 9 says what a local index means inside a container.
 
 ## 4. The editing surface
 
@@ -679,7 +689,7 @@ A gesture can't push an entry ahead of its write any more; all it gets is the st
 
 ### The commit primitive
 
-Every structural mutation routes through one internal commit helper. Three entry points name the three scopes (`src/lib/action-contracts.ts` :: `CommitController`): **`commitStructural`** (the document's children array), **`commitContainerStructural`** (one container's children array), and **`commitMultiScope`** (several container states in one logical step, a cross-container delete or an indent/unindent: one snapshot, one edit event, one atomic reactivity publish across every touched scope). A caller describes the change and the helper runs the commit steps around it, and each entry point resolves to whether any bytes landed (false when reading mode refused the write, the commit rolled back, or a `discardIfNoop` commit found nothing had changed). The split, from `editor-actions/block-edit-core.ts`:
+Every structural mutation routes through one internal commit helper. Three entry points name the three scopes (`src/lib/action-contracts.ts` :: `CommitController`): **`commitStructural`** (the document's children array), **`commitContainerStructural`** (one container's children array), and **`commitMultiScope`** (several container states in one logical step, a cross-container delete or an indent/unindent: one snapshot, one edit event, one atomic reactivity publish across every touched scope). A caller describes the change and the helper runs the commit steps around it, and each entry point resolves to whether any bytes landed (false when reading mode refused the write, the commit rolled back, or a `discardIfNoop` commit found nothing had changed). A commit can also pass `announce`, the line a screen reader hears about it ("Moved block to position 2 of 3", "Deleted row"). That line goes to the editor's edit live region, a hidden `aria-live` element screen readers read out when its text changes (the selection and the kind cue each have their own). Only the undo controller can write to it, and only after a commit that wrote, so a move that didn't happen is never announced. The split, from `editor-actions/block-edit-core.ts`:
 
 ```ts
 await scope.commit({
@@ -703,11 +713,12 @@ The commit's structural steps, in order (`src/lib/editor-actions/commit/undo-con
 5. publish the new children atomically,
 6. rebuild every enclosing container's `raw`, deepest first, asking each container's own slot on the way out (§ 9),
 7. emit an `edit` event,
-8. `await tick()`, then run the caller-supplied post-tick callback (focus landing, cursor placement), itself awaited.
+8. `await tick()`, then run the caller-supplied post-tick callback (focus landing, cursor placement), itself awaited,
+9. speak the caller's `announce` line in the edit live region, when the commit wrote.
 
 Because step 8 awaits, a landing that must first reveal an off-window target is expressible there rather than fire-and-forget, and a landing that deliberately doesn't make its commit wait says so by returning nothing. Callers pick a scope; they never assemble the steps, and **this is the canonical entry for any new structural mutation** (the op-log isn't a commit step; it subscribes to `edit` downstream). The top-level and container action factories share one core through a `CommitScope` adapter, so the structural-edit sequence is single-sourced and the factories differ only in scope wiring and container-only concerns.
 
-**Reading mode is refused where the bytes are written.** Every entry point that writes the document asks `src/lib/editor-actions/commit/reading-write-gate.ts` :: `admitsWrite` first: the three commit scopes, the keystroke's in-place write (`src/lib/editor-actions/leaf-write.ts` :: `createLeafTyping`), and undo/redo. In reading mode each one declines, pushing no snapshot and emitting no event. A keystroke asks once, before it picks between a commit and the in-place write, so a refused key warns once. A dev build also warns `[aragonite:reading-write]` with the operation, the block's kind and the caller, since whatever got there offered a write it shouldn't have. The reading-mode checks still left on gestures hide an affordance, or keep a promise the refusal can't keep by itself (a `runCommand` that answers `false`, a key the editor still consumes). A mode switch commits whatever an open block is holding before the new mode takes effect, so that edit lands in the mode it was typed in.
+**Reading mode is refused where the bytes are written.** Every entry point that writes the document asks `src/lib/editor-actions/commit/reading-write-gate.ts` :: `admitsWrite` first: the three commit scopes, the keystroke's in-place write (`src/lib/editor-actions/leaf-write.ts` :: `createLeafTyping`), and undo/redo. In reading mode each one declines, pushing no snapshot and emitting no event. A keystroke asks once, before it picks between a commit and the in-place write, so a refused key warns once, and it comes back with `admitted: false` and no caret for its caller to park. A dev build also warns `[aragonite:reading-write]` with the operation, the block's kind and the caller, since whatever got there offered a write it shouldn't have. The reading-mode checks still left on gestures hide an affordance, or keep a promise the refusal can't keep by itself (a `runCommand` that answers `false`, a key the editor still consumes). A mode switch commits whatever an open block is holding before the new mode takes effect, so that edit lands in the mode it was typed in.
 
 One snapshot still comes from outside the primitive: the typing batch's, pushed at a burst's first keystroke before its write, because an ordinary keystroke writes in place without a commit at all.
 

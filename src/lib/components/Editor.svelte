@@ -41,7 +41,7 @@
 	import { componentAt, descendTo, type ChildList } from '../reactivity/child-list';
 	import { createSelectionState } from '../selection/selection-state.svelte';
 	import { createSelectionDescription } from '../selection/selection-description';
-	import { EDITOR_LABEL, movedBlockToPosition } from '../a11y-strings';
+	import { EDITOR_LABEL } from '../a11y-strings';
 	import TailInsert from './TailInsert.svelte';
 	import BlockMenu from './menu/BlockMenu.svelte';
 	import { createMenuPresence } from './menu/menu-presence.svelte';
@@ -326,8 +326,16 @@
 			: ''
 	);
 
-	// Its own live region: sharing `selectionDescription`'s would drop the move announcement.
-	let reorderAnnouncement = $state('');
+	// The edit live region, its own: sharing `selectionDescription`'s would drop a move's
+	// announcement. Only the undo controller speaks here, from a commit that wrote.
+	let editAnnouncement = $state('');
+	const announceEdit = async (message: string) => {
+		// Clear first: Svelte skips the DOM write on a ===-equal assignment, which drops
+		// the second of two identical announcements.
+		editAnnouncement = '';
+		await tick();
+		editAnnouncement = message;
+	};
 
 	// One element each for the whole editor, so dragging costs nothing per mounted block.
 	let reorderGhost = $state<{ clientX: number; clientY: number; label: string } | null>(null);
@@ -569,8 +577,10 @@
 		events,
 		reading
 	};
-	const { blockEdit, focus, history, containerEdit, controller } =
-		createEditorActions(editorActionsDeps);
+	const { blockEdit, focus, history, containerEdit, controller } = createEditorActions(
+		editorActionsDeps,
+		announceEdit
+	);
 
 	// A getter, so block components read the live doc rather than the one they mounted with.
 	const getDoc: DocumentGetter = () => doc;
@@ -680,16 +690,7 @@
 	// Lives here, not in SearchBar, so the root Ctrl+H and the bar's chevron share it.
 	let replaceExpanded = $state(false);
 
-	const announceReorder = async (message: string) => {
-		// Clear first: Svelte skips the DOM write on a ===-equal assignment, which drops
-		// the second of two identical announcements.
-		reorderAnnouncement = '';
-		await tick();
-		reorderAnnouncement = message;
-	};
-	const reorder = createReorderAction(editorActionsDeps, controller, (to, total) => {
-		announceReorder(movedBlockToPosition(to + 1, total));
-	});
+	const reorder = createReorderAction(editorActionsDeps, controller);
 
 	// Cleared first like the reorder announcement, so two headings in a row announce twice.
 	let kindAnnouncement = $state('');
@@ -752,7 +753,6 @@
 		controller,
 		pasteCoordinator,
 		reorder,
-		reorderAnnounce: announceReorder,
 		registryView,
 		activePlugins,
 		rects,
@@ -1425,7 +1425,7 @@
 		measureRange={rects.rangeRects}
 	/>
 	<div class="editor-sr-live" role="status" aria-live="polite">{selectionDescription}</div>
-	<div class="editor-sr-live-reorder" role="status" aria-live="polite">{reorderAnnouncement}</div>
+	<div class="editor-sr-live-reorder" role="status" aria-live="polite">{editAnnouncement}</div>
 	<div class="editor-sr-live-kind" role="status" aria-live="polite">{kindAnnouncement}</div>
 	{#if reorderLine}
 		<div
