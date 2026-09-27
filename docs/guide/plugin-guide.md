@@ -1370,7 +1370,7 @@ A block component gets its own node, which is fine right up until it isn't: a ta
 
 `document` is a **`DocumentView`**, read-only by type ([Views](#views-what-you-read-what-you-own)). Deriving from it is the whole point; mutation stays a commit concern.
 
-Reading `document.children` gets you the top-level blocks and nothing else, so a heading inside a quote or a list item would go missing. That's what the walk is for.
+Reading `document.children` gets you the top-level blocks and nothing else, so a heading inside a quote or a list item would go missing. That's what `walkBlocks` is for.
 
 **`walkBlocks(root, visit, basePath?)`**
 

@@ -1,7 +1,4 @@
-/**
- * Traversals of the block tree by path. A visitor owns every path array it is handed: the
- * traversal never writes to one afterwards, so keeping it is safe.
- */
+/** Traversals of the block tree by path. */
 
 import type { CstNode, Document } from './nodes';
 import type { DocumentView, NodeView } from './node-views';
@@ -9,8 +6,8 @@ import type { DocumentView, NodeView } from './node-views';
 type WalkControl = void | 'skip' | 'stop';
 type Parent<N> = { readonly children?: readonly N[] };
 
-/** Every block under `root` (not `root` itself) in document order, parents first, each path after
- *  `basePath`. `'skip'` leaves out a node's children; `'stop'` ends the walk and returns true. */
+/** Every block under `root`, not `root` itself, parents first; each path starts with `basePath` and
+ *  is the visitor's to keep. `'skip'` leaves out a node's children; `'stop'` ends it, returning true. */
 export function walkBlocks(
 	root: Document | CstNode,
 	visit: (node: CstNode, path: number[]) => WalkControl,
