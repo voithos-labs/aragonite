@@ -1,5 +1,6 @@
 import { test, expect } from '../fixtures';
 import { EditorPage } from '../editor-page';
+import { freezeInPageClock } from '../page-probes';
 
 // The trailing insert row and the block menu: a click on the row adds a paragraph at the end of
 // the document, and every menu the editor opens is driven by the keyboard without taking focus,
@@ -105,5 +106,30 @@ test.describe('trailing insert row and the block menu', () => {
 		await menu.getByRole('menuitem', { name: 'Remove code block' }).click();
 		await editor.bridge.waitForSourceNotContains('```');
 		expect(await editor.bridge.getSource()).toBe('first\n\nlast\n');
+	});
+
+	test('Replace with clipboard right after typing in the block is its own undo step', async ({
+		page
+	}) => {
+		await editor.loadContent('first\n\n```\ncode\n```\n');
+		// One line with no ending: the row adds the document's own.
+		await page.evaluate(() => navigator.clipboard.writeText('replaced'));
+		// The end of the code line, in the fence's own bytes: `\`\`\`\ncode`.
+		await editor.focusBlockAtPath([1], 8);
+		// Frozen, so the typing burst is still open when the menu row runs.
+		await freezeInPageClock(page);
+		await editor.typeSlowly('x');
+		// Polled from the test process: an in-page poll would wait on the frozen clock.
+		const source = () => editor.bridge.getSource();
+		await expect.poll(source).toContain('codex');
+
+		await page.locator('[data-block-kind="fencedCode"]').first().click({ button: 'right' });
+		const menu = page.getByRole('menu', { name: 'Block actions' });
+		await menu.getByRole('menuitem', { name: 'Replace with clipboard' }).click();
+		await expect.poll(source).toBe('first\n\nreplaced\n');
+
+		await editor.undo();
+
+		await expect.poll(source).toBe('first\n\n```\ncodex\n```\n');
 	});
 });
