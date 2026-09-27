@@ -241,14 +241,8 @@ function assertOpenerRawMatches(ctx: OpenContext, result: BlockOpenerResult): vo
 
 export { isBlankLine };
 
-/** Nothing but blank lines: what the blank-line rule makes an empty paragraph from. Goes once
- *  `tree-operations/node-ops.ts` reads `isBlankText`. */
-export function isBlankSource(source: string): boolean {
-	return isBlankText(source);
-}
-
 export function isBlankParagraph(node: { kind: string; raw: string }): boolean {
-	return node.kind === 'paragraph' && isBlankSource(node.raw);
+	return node.kind === 'paragraph' && isBlankText(node.raw);
 }
 
 export function joinRaw(lines: ParsedLine[], startIndex: number, endIndex: number): string {

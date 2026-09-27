@@ -32,7 +32,7 @@ registerBlockCompleter(declarePluginKind('indent-box'), {
 describe('an edit route reparses in the editor grammar', () => {
 	it('a merge that leads with four spaces leaves a paragraph', () => {
 		const doc = read('    lead\n\ntail\n');
-		mergeWithNext(doc, 0, fixtureReading({ grammar: noIndentedCode }));
+		mergeWithNext(doc, 0, fixtureReading({ grammar: noIndentedCode }), undefined);
 		expect(kindsOf(doc.children)).toEqual(['paragraph']);
 		expect(describeConvergence(doc, noIndentedCode)).toBeNull();
 	});

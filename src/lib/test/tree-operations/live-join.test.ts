@@ -33,10 +33,12 @@ const merged = (
 
 describe('each merge primitive drops the join pair in live', () => {
 	it('mergeWithNext', () => {
-		expect(merged('live', (doc) => void mergeWithNext(doc, 0, fixtureReading({}, 'live')))).toBe(
-			REJOINED
-		);
-		expect(merged(undefined, (doc) => void mergeWithNext(doc, 0, fixtureReading()))).toBe(RESIDUE);
+		expect(
+			merged('live', (doc) => void mergeWithNext(doc, 0, fixtureReading({}, 'live'), undefined))
+		).toBe(REJOINED);
+		expect(
+			merged(undefined, (doc) => void mergeWithNext(doc, 0, fixtureReading(), undefined))
+		).toBe(RESIDUE);
 	});
 
 	it('mergeIntoPrevDeepLeaf', () => {
@@ -65,8 +67,8 @@ describe('the join offset the caret rides moves with the runs the cleanup droppe
 
 	it('the forward merge reports the same join', () => {
 		const doc = parse(SPLIT_BOLD);
-		expect(mergeWithNext(doc, 0, fixtureReading({}, 'live')).joinOffset).toBe(9);
-		expect(mergeWithNext(parse(SPLIT_BOLD), 0, fixtureReading()).joinOffset).toBe(11);
+		expect(mergeWithNext(doc, 0, fixtureReading({}, 'live'), undefined).joinOffset).toBe(9);
+		expect(mergeWithNext(parse(SPLIT_BOLD), 0, fixtureReading(), undefined).joinOffset).toBe(11);
 	});
 });
 

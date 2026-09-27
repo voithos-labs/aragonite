@@ -3,9 +3,7 @@
  * destructive one crosses `cleanJoinedRaw`: live paints no delimiter, so a literal concatenation
  * surfaces the marker runs the join orphaned (live-mode.md § 4.5). The census runs both ways: the
  * files that call the cleaner are declared, and so is every other file building such a
- * concatenation, each
- * with the reason it is not a destructive join. `mergeListItemIntoPrevious` shipped outside both
- * because its signature could not reach the cleaner, which no one-directional scan can see.
+ * concatenation, each with the reason it is not a destructive join.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -20,8 +18,7 @@ import {
 /** Every file naming the cleaner, and what it joins. */
 const CLEANER_READERS: Record<string, string> = {
 	'src/lib/tree-operations/node-ops.ts':
-		'defines it, and crosses it from the split cut, the range cut and both merge primitives',
-	'src/lib/tree-operations/list/unwrap-merge.ts': 'the list-item merge (M1)',
+		'defines it, and crosses it from the split cut, the range cut and `joinIntoLeaf`, the one join into a leaf',
 	'src/lib/selection/range-delete.ts': 'the same-block and cross-block range merges',
 	'src/lib/selection/range-delete-ceremony.ts': 'the shared endpoint join',
 	'src/lib/components/blocks/text/live-selection-edit.ts': 'the native ranged edit'

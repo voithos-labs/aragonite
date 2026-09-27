@@ -124,7 +124,7 @@ describe('details terminator escape at the join entry points', () => {
 			'Backspace',
 			(parent: BodyParent) => mergeIntoPrevDeepLeaf(parent, 2, undefined, fixtureReading())
 		],
-		['Delete', (parent: BodyParent) => mergeWithNext(parent, 1, fixtureReading())]
+		['Delete', (parent: BodyParent) => mergeWithNext(parent, 1, fixtureReading(), undefined)]
 	])('%s escapes a terminator the join forms', (_key, join) => {
 		const { doc, details } = joinInBody(join);
 

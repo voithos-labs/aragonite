@@ -212,7 +212,7 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 				eventTarget: i,
 				op: { kind: 'merge', detail: { direction: 'next' } },
 				mutate: (view) => {
-					merged = performMergeNext({ children: view.body.children }, i, view.reading);
+					merged = performMergeNext(view.body, i, view.reading, view.sharing);
 					stampStructuralChange(view.body.children, merged.change, view.sharing);
 					return merged.change;
 				},

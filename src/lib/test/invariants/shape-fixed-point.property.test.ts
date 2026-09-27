@@ -117,9 +117,8 @@ function applyFill(doc: Document, at: number): void {
 
 /**
  * Backspace and Delete across a block boundary, indexed over the merge-eligible adjacent pairs so
- * the draw always lands on one. Both paths: the forward one reparses the concatenation, the
- * backward one writes the previous block's deepest prose leaf. Different writes, one shape
- * contract (GH #166).
+ * the draw always lands on one. Both write the joined text into the surviving block's leaf and
+ * remove the block they absorbed, under one shape contract (GH #166).
  */
 function applyMerge(doc: Document, at: number, op: 'mergePrev' | 'mergeNext'): void {
 	const pairs = doc.children.flatMap((node, i) =>
@@ -132,7 +131,7 @@ function applyMerge(doc: Document, at: number, op: 'mergePrev' | 'mergeNext'): v
 			? (mergeIntoPrevDeepLeaf(body, i, undefined, fixtureReading())?.change ?? {
 					op: 'noop'
 				})
-			: mergeWithNext(body, i - 1, fixtureReading()).change
+			: mergeWithNext(body, i - 1, fixtureReading(), undefined).change
 	);
 }
 
