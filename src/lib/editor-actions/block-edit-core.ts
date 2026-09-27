@@ -248,8 +248,8 @@ function replaceOp(
 	return { kind: 'replaceBlock', detail: { count } };
 }
 
-/** The clipboard's trailing blank line as the document's own, only at a tail with nothing after it
- *  and no line there yet; a container's tail declines, since its fence-line fix-up owns that line. */
+/** The clipboard's trailing blank line as the document's own, at its end when none is there yet.
+ *  A container's body has no `suffix` (its fence-line fix-up owns that line), so it gets none. */
 function landTrailingBlank(body: BodyParent, afterIndex: number): void {
 	if (body.suffix !== '' || afterIndex !== body.children.length) return;
 	body.suffix = body.lineEnding;

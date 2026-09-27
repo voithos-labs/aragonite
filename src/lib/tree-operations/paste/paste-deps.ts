@@ -13,6 +13,7 @@ import type {
 	ReplaceSource
 } from '../../action-contracts';
 import type { CstNode } from '../../core/nodes';
+import type { NodeView } from '../../core/node-views';
 
 export type { CommitMultiScopeArgs, MultiScopeTarget };
 
@@ -22,7 +23,7 @@ export interface PasteCommitCoordinator {
 	): Promise<boolean>;
 	getDocScope(): MultiScopeTarget;
 	/** Resolve a container node to its mounted reactive state. */
-	resolveState(node: CstNode): MultiScopeTarget['state'] | undefined;
+	resolveState(node: NodeView): MultiScopeTarget['state'] | undefined;
 	/** Land the caret at a document-absolute path, scrolling an unmounted target into view first,
 	 *  since a structural paste's target can sit past the mounted range (VR-12). */
 	landCaret(path: number[], offset: number): Promise<void>;

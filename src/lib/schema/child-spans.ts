@@ -75,8 +75,8 @@ export function rebuildConcatRaw(node: CstNode, changed?: ChildRawChange): void 
  */
 export function rebuildStripRaw(node: CstNode, prefix: LinePrefix, changed?: ChildRawChange): void {
 	const children = node.children!;
-	// A separator line stays bare, as the parser reads it; a leaf's own blank lines in the body's
-	// blank tail, an empty block's or the last ones of a paragraph's, keep the body's indent.
+	// A separator line stays bare, as the parser reads it. A blank line that belongs to a leaf and
+	// ends the body keeps the body's indent, or a reload would read it as outside the container.
 	const render: RenderChild = (trivia, raw, first, tailIsBlank, leaf) => {
 		const separators = renderPrefixed(trivia, prefix, first, false);
 		const ownTail = leaf && tailIsBlank();

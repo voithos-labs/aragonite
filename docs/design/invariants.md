@@ -1125,14 +1125,16 @@ Scanned over the library and the plugin-route author stand-in; the consumer exam
 writes the documented whole-document default), as are the published kits (fixtures are whole
 documents). `lint/call-site-rules.test.ts`.
 
-**G4.28 · Leaf raw writes outside the content write.** The content write applies a kind's
-`rawWrite` on its own, but a few routes still write `<node>.raw` around it (the range-delete
-merges, and find and replace's private clone, which asks `legalizeWrite` for the bytes itself).
-Each of those names `writeOwnRaw` (writes in place), `normalizeOwnRaw` (runs the rule ahead of the
-route's own reparse) or `legalizeWrite`, or it's on a counted allowlist with the reason it can't
-reach a kind that declares a rule. That's the shape issue #45 shipped through: find and replace wrote a
-fence terminator into a code body because nothing asked the fence rule. The fence rule itself has
-one implementation, in `schema/` so a headless route reaches it. `lint/leaf-raw-write-rule.test.ts`.
+**G4.28 · Leaf raw writes outside the content write.** The content write applies a kind's `rawWrite`
+on its own, but a few routes still write `<node>.raw` around it (the range-delete merges, and find
+and replace's private clone, which asks `legalizeWrite` for the bytes itself). The lint holds one
+thing: every `<node>.raw =` statement outside `tree-operations/node-primitives.ts` (home of
+`writeOwnRaw` and `installOwnRaw`) is on a counted allowlist, each with the reason it can't reach a
+kind that declares a rule. Whether a route hands its bytes to `normalizeOwnRaw` or `legalizeWrite`
+before writing them is left to review; the lint doesn't read that. That's the shape issue #45
+shipped through: find and replace wrote a fence terminator into a code body because nothing asked
+the fence rule. The fence rule itself has one implementation, in `schema/` so a headless route
+reaches it. `lint/leaf-raw-write-rule.test.ts`.
 
 **G4.29 · Hardcoded-chord manifest.** Every library file that reads a `KeyboardEvent` modifier flag
 is named in `schema/reserved-chords.ts`, with the chords it claims outside the keymaps and the key
