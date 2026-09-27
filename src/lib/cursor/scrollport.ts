@@ -27,9 +27,8 @@ export function createScrollport(target: UserScrollport): Scrollport {
 	);
 }
 
-/** Adds the relative write every scroll correction goes through. The scroll container snaps a
- *  fractional write to a device pixel, so the refused fraction is kept for the next call, or a
- *  run of corrections would slide the content by their sum. */
+/** Adds the relative write every scroll correction goes through. The container snaps a fractional
+ *  write to a device pixel, so the refused fraction is kept, or a run of corrections would drift. */
 export function withRelativeScroll(base: Omit<Scrollport, 'scrollBy'>): Scrollport {
 	let carried = 0;
 	let written: number | null = null;
@@ -72,10 +71,8 @@ function elementScrollport(el: HTMLElement): Omit<Scrollport, 'scrollBy'> {
 	};
 }
 
-/** The page's own viewport. Measuring and writing use different elements on purpose, the same
- *  split `selection/autoscroll.ts` makes: the viewport is the visible box, whereas
- *  `document.scrollingElement`, whose box is the whole multi-thousand-pixel document, is the only
- *  thing that moves. */
+/** The page's own viewport, measured through the visible viewport but written through
+ *  `document.scrollingElement`, the only thing that moves (as `selection/autoscroll.ts` does). */
 function pageScrollport(): Omit<Scrollport, 'scrollBy'> {
 	const scroller = () => document.scrollingElement;
 	return {

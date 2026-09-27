@@ -6,11 +6,8 @@
 
 import { rawOffsetAt } from './widget-offset';
 
-/**
- * The caret offset in `el` nearest a viewport point: the point clamps into `el`'s box first, so a
- * click on the block's frame above or beside the text still names one, as `caretTargetAtPoint`
- * requires, since a caret-placing gesture must land. Null where the element holds no text position.
- */
+/** The caret offset in `el` nearest a viewport point, clamped into `el`'s box first so a click on
+ *  the frame still names one, as `caretTargetAtPoint` requires. Null where `el` holds no text. */
 export function caretOffsetAtPoint(
 	el: HTMLElement,
 	clientX: number,
@@ -34,11 +31,8 @@ export function offsetFromViewportPoint(
 	return rawOffsetAt(blockEl, seat.node, seat.offset);
 }
 
-/**
- * The DOM position a caret placed at this point would take, from the browser's own hit test, so
- * where a press is about to land can be read before it lands. `caretRangeFromPoint` is
- * Chromium/WebKit (all Tauri webviews); `caretPositionFromPoint` is the Firefox-style fallback.
- */
+/** The DOM position a caret placed at this point would take, from the browser's own hit test:
+ *  `caretRangeFromPoint` on Chromium and WebKit, `caretPositionFromPoint` as the Firefox fallback. */
 export function caretSeatFromPoint(
 	doc: Document,
 	clientX: number,

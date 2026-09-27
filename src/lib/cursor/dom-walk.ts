@@ -6,13 +6,8 @@
  * failed-block fallback.
  */
 
-/**
- * `root`, then its descendants, in document order. `fromEnd` mirrors that walk rather than
- * reversing it (each level's children come last-first, a parent still ahead of them), so a search
- * for the last matching leaf reads the leaves in the order it wants. `descend` declines a node's
- * children; the node itself is still yielded. Each child list is read when its parent pops, so a
- * caller that rewrites the tree must finish the walk first.
- */
+/** `root`, then its descendants in document order, or mirrored by `fromEnd` (a parent still ahead
+ *  of its children). Child lists are read lazily, so finish the walk before rewriting the tree. */
 export function* domDescendants(
 	root: Node,
 	descend?: (node: Node) => boolean,

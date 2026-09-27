@@ -16,9 +16,8 @@ export interface RevealClaim {
 	/** Drop the held block, but only if this claim still holds it; a superseded claim's release
 	 *  does nothing. */
 	release(): void;
-	/** True once a later claim was made, the only signal that another scroll-into-view owns the
-	 *  viewport. An empty slot (released by the user or by this claim) is not one, and is no
-	 *  reason for a scroll in progress to abandon what it was asked to do. */
+	/** True once a later claim was made, the only sign another scroll-into-view owns the viewport.
+	 *  An empty slot is no reason for a scroll in progress to abandon its target. */
 	isSuperseded(): boolean;
 }
 
@@ -36,9 +35,8 @@ export function createRevealAnchorState(): RevealAnchorState {
 	type ClaimToken = { superseded: boolean };
 
 	let target: RevealTarget | null = null;
-	// A new claim supersedes the last claim made, not the current holder: reading the holder
-	// would let `claim, release, claim` leave the first scroll-into-view believing it still owns
-	// the viewport (two correction loops writing one scrollTop).
+	// A new claim supersedes the last claim made, not the current holder, or `claim, release, claim`
+	// would leave the first scroll-into-view believing it still owns the viewport.
 	let owner: ClaimToken | null = null;
 	let lastMinted: ClaimToken | null = null;
 

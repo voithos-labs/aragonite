@@ -30,11 +30,8 @@ export interface CaretMemory {
 	/** The marks a toggle at a collapsed caret promised; `forget` drops them with the rest. */
 	readonly pendingMarks: PendingMarks;
 
-	/**
-	 * Classify a keydown. `command` is what the chord resolves to at the focused block, so a
-	 * rebound chord is read as what it now does. `measureX` reads the live caret's x on a vertical
-	 * arrow; a caller holding a range omits it, and the column is then kept.
-	 */
+	/** Classify a keydown; `command` is the chord's meaning at the focused block, so a rebound chord
+	 *  reads as what it does. Without `measureX` (a caller holding a range) the column is kept. */
 	noteKey(e: ArrivalKey, command: AnyCommandId | null, measureX?: () => EditorX | null): void;
 	/** A committed keystroke: the byte belongs to the content, whatever arrival preceded it. */
 	noteTyping(): void;
@@ -64,7 +61,7 @@ export function createCaretMemory(): CaretMemory {
 		traceStickyCapture(x);
 	}
 
-	// A caret that changed sides is a caret the promised marks no longer apply to.
+	// Promised marks belong to one side of the caret, so a caret that changed sides drops them.
 	function settleSide(next: EdgeAffinity | null): void {
 		side = next;
 		marks = null;

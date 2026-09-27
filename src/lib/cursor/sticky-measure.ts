@@ -44,12 +44,8 @@ export interface CaretProbe {
 	borrowed: boolean;
 }
 
-/**
- * The caret's box at a DOM-walk offset, under the offset the caret would really take: an offset
- * inside an atomic widget resolves to the position beside it, which names that widget's boundary.
- * A position beside a widget has no box of its own and borrows the widget's near edge. Null where
- * the offset measures to nothing.
- */
+/** The caret's box at a DOM-walk offset, under the offset the caret would really take; a position
+ *  beside a widget borrows the widget's near edge. Null where the offset measures to nothing. */
 export function caretBoxAt(container: HTMLElement, offset: DomTextOffset): CaretProbe | null {
 	const landing = findDomTextLanding(container, offset);
 	if (!landing) return null;
@@ -71,13 +67,8 @@ export function caretBoxAt(container: HTMLElement, offset: DomTextOffset): Caret
 	};
 }
 
-/**
- * Offset on the first or last caret-bearing visual line whose caret box is closest to
- * `editorRelativeX`. A linear scan, since `getClientRects` left values are non-monotonic on BiDi
- * lines and binary search would be wrong. `minOffset` and `maxOffset` bound the landing: the
- * container's marker prefix is out by default, and a caller adds the lines a caret may not land
- * on (a code block's fences).
- */
+/** The offset on the first or last caret-bearing line nearest `editorRelativeX`, by linear scan
+ *  since BiDi rect lefts are non-monotonic. `minOffset` and `maxOffset` bound the answer. */
 export function findOffsetNearestX(
 	container: HTMLElement,
 	editorRelativeX: EditorX,
@@ -146,9 +137,8 @@ export function findOffsetNearestX(
 
 const STOP_AFTER_LINES = 3;
 
-/** The probed edge's line as a walk inward sees it, and whether a box has gone further past it
- *  than `allowance` (read off the first box) lets the walk continue. Distances are between
- *  bottoms, the edge the band filter compares. */
+/** The probed edge's line as an inward walk sees it, and whether a box has gone further past it
+ *  than `allowance` (read off the first box) allows. Distances are between bottoms. */
 function createEdgeTracker(forward: boolean, allowance: (first: CaretRect) => number) {
 	let edge: CaretRect | null = null;
 	let limit = 0;
