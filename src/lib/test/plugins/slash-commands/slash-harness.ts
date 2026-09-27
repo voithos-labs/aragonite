@@ -4,33 +4,17 @@
  * asked for: which Markdown, where, and which command.
  */
 import { tick } from 'svelte';
-import { parse, type DocumentView, type InsertEntry } from '$lib';
+import { parse, type DocumentView } from '$lib';
 import type { EditorContext, InsertMarkdownOptions } from '$lib/plugin';
 import { createEditorEvents, type EditEvent } from '$lib/editor-events';
 import { createInlineMenuState } from '$lib/inline-menu/inline-menu-state.svelte';
+import { insertCatalogue } from '$lib/schema/insert-catalogue';
+import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 import {
 	createSlashSource,
 	type SlashCommandsOptions
 } from '$lib/plugins/slash-commands/slash-source';
 import { fixtureReading } from '../../harness/fixture-grammar';
-
-const entry = (id: string, label: string, keywords: string[], markdown: string): InsertEntry => ({
-	id,
-	label,
-	icon: 'plus',
-	keywords,
-	markdown
-});
-
-/** The built-in catalogue's shape, in its order. */
-export const CATALOGUE: readonly InsertEntry[] = [
-	entry('bullet', 'Bulleted list', ['bullet', 'list'], '- '),
-	entry('todo', 'To-do list', ['todo', 'td', 'task', 'list'], '- [ ] '),
-	entry('quote', 'Quote', ['blockquote'], '> '),
-	entry('divider', 'Divider', ['rule'], '---\n'),
-	entry('code', 'Code block', ['fence'], '```\n\n```\n'),
-	entry('table', 'Table', ['grid'], '| Column | Column |\n| --- | --- |\n|  |  |\n')
-];
 
 const typedEdit = (path: number[]): EditEvent =>
 	({ op: 'input', path, detail: { byteLength: 1 }, timestamp: 0 }) as EditEvent;
@@ -81,7 +65,10 @@ export function slashHarness(initial: string, options: SlashCommandsOptions = {}
 		get document() {
 			return doc;
 		},
-		insertCatalogue: CATALOGUE,
+		// The real catalogue, so a plugin a test installs lists its entries as in an editor.
+		get insertCatalogue() {
+			return insertCatalogue(everyInstalledPlugin);
+		},
 		inlineMenus: menu.registry,
 		options,
 		insertMarkdown: (markdown: string, opts?: InsertMarkdownOptions) => {

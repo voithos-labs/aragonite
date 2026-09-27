@@ -1,4 +1,7 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { installPlugins } from '$lib';
+import { definePlugin, registerInsertEntry, type InsertEntry } from '$lib/plugin';
+import { resetPluginPlatformForTests } from '$lib/testing';
 import type { SlashCommandEntry } from '$lib/plugins/slash-commands';
 import { slashHarness } from './slash-harness';
 
@@ -17,6 +20,7 @@ describe('the slash list', () => {
 		await h.type('/');
 		expect(h.rows()).toEqual([
 			'Bulleted list',
+			'Numbered list',
 			'To-do list',
 			'Quote',
 			'Code block',
@@ -43,6 +47,42 @@ describe('the slash list', () => {
 		await h.type('/table 3x4');
 		expect(h.rows()).toEqual(['Table']);
 		expect(h.details()).toEqual(['3×4']);
+	});
+
+	it('a space with no word after it yet shows no dim text, and Enter inserts the entry as is', async () => {
+		const h = slashHarness('');
+		await h.type('/table ');
+		expect(h.rows()).toEqual(['Table']);
+		expect(h.details()).toEqual([undefined]);
+		await h.pick();
+		expect(h.inserted).toEqual([
+			{ markdown: '| Column | Column |\n| --- | --- |\n|  |  |\n', placement: 'caret' }
+		]);
+	});
+});
+
+describe('a plugin insert entry with an argument', () => {
+	beforeEach(() => resetPluginPlatformForTests());
+
+	const stickyNote: InsertEntry = {
+		id: 'sticky',
+		label: 'Sticky note',
+		icon: 'plus',
+		keywords: ['postit'],
+		markdown: ':::sticky\n\n:::\n',
+		withArgument: (colour) => ({ markdown: `:::sticky ${colour}\n\n:::\n`, detail: colour })
+	};
+
+	it('offers the argument in the list and inserts the Markdown the entry builds from it', async () => {
+		installPlugins([
+			definePlugin({ name: 'sticky-notes', setup: () => registerInsertEntry(stickyNote) })
+		]);
+		const h = slashHarness('');
+		await h.type('/sticky yellow');
+		expect(h.rows()).toEqual(['Sticky note']);
+		expect(h.details()).toEqual(['yellow']);
+		await h.pick();
+		expect(h.inserted).toEqual([{ markdown: ':::sticky yellow\n\n:::\n', placement: 'caret' }]);
 	});
 });
 
