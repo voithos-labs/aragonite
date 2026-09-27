@@ -208,6 +208,10 @@ const ALLOWLIST: Record<string, Exemption> = {
 		],
 		reason: 'nothing published applies a kind’s rawWrite or range-deletes a parsed document'
 	},
+	'src/lib/test/plugins/parrot/caption.test.ts': {
+		specifiers: ['$lib/schema/block-kind-descriptor'],
+		reason: "no registry read-back: the kind's caretTargetAtPoint cannot be read back to call"
+	},
 	'src/lib/test/plugins/toc/options.test.ts': {
 		specifiers: ['$lib/schema/block-component-registry', '$lib/schema/plugin-activation'],
 		reason:
