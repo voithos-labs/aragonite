@@ -72,7 +72,7 @@ describe('descendTo, opening a collapsed container', () => {
 		expect(openCollapsed).not.toHaveBeenCalled();
 	});
 
-	// A kind that declares no open stops at the title row rather than waiting on the body.
+	// A kind that declares no open gives up with null rather than waiting on the body.
 	it('degrades when the kind declares no way to open', async () => {
 		const root = rootHolding(
 			container([stubBlockComponent(), undefined], { isCollapsed: () => true })

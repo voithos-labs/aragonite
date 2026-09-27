@@ -107,7 +107,7 @@ describe('descendTo', () => {
 
 			expect(await descendTo(root, [0, 1])).toBeNull();
 			expect(openCollapsed).not.toHaveBeenCalled();
-			// The title row is where a landing into the body goes instead, and it is mounted.
+			// The title row stays mounted and reachable while the body is hidden.
 			expect(await descendTo(root, [0, 0])).toBe(title);
 		});
 

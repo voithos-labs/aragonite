@@ -86,8 +86,7 @@ test.describe('plugin container: <details> collapsible', () => {
 		expect(await capturedErrors(page)).toEqual([]);
 	});
 
-	// A caret put back into the hidden body opens it, for now: the landing that would retarget it
-	// to the title row comes with the landing service, and until then opening keeps it placed.
+	// Nothing retargets a caret aimed into a hidden body, so the descent opens the body to place it.
 	test('a caret put back into a closed body opens the details and lands there', async ({
 		page
 	}) => {

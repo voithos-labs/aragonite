@@ -4,7 +4,6 @@
  * The editor root, every container, the table and each table row publish one.
  */
 import type { BlockComponent } from '../block-component';
-import type { ListWindowing } from './list-windowing.svelte';
 import { revealChildOrWait, type RefSlots } from './publish-ref.svelte';
 
 /** One mounted child list, as the descent reads it. Every field is read live. */
@@ -12,12 +11,17 @@ export interface ChildList {
 	count(): number;
 	readonly refs: RefSlots<BlockComponent>;
 	/** Required, so a list that cannot say whether a child is in range cannot exist. */
-	readonly windowing: Pick<ListWindowing, 'revealChild' | 'isInWindow'>;
+	readonly windowing: {
+		/** Scrolls this list so child `index` is inside the mounted range; resolves after a tick. */
+		revealChild(index: number): Promise<void>;
+		/** Whether `index` is inside the mounted range. */
+		isInWindow(index: number): boolean;
+	};
 	/** Scrolls child `index` into this list's own scroller on another axis (a table's columns). */
 	bringChildIntoView?(index: number): void;
 	/** True while only the title row (child 0) is mounted. */
 	isCollapsed?(): boolean;
-	/** Opens a collapsed body as an undoable commit; only a navigation descent calls it. */
+	/** Opens a collapsed body as an undoable commit, for a descent asked to open one. */
 	openCollapsed?(): Promise<boolean>;
 }
 

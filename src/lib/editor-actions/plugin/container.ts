@@ -184,7 +184,7 @@ export function composeCollapseProbe(
 	};
 }
 
-/** Open a collapsed body before a navigation descends into it, as an undoable commit of
+/** Open a collapsed body before a descent goes into it, as an undoable commit of
  *  `reservedChrome.expandPatch`; declines in reading mode, which commits nothing. */
 export function composeExpandDoor(deps: {
 	getNode: () => NodeView;

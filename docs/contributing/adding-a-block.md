@@ -310,7 +310,7 @@ First, the cheap way out. A container with nothing kind-specific to say can use 
 
 The list and the table need more than the blockquote, so they call only the half of that factory that builds the child actions, and wire the rest themselves. That's what the rest of this section is about. A container builds its children's reactive state and a default action bundle, then overrides only what genuinely needs kind-specific behavior (usually less than you'd expect going in).
 
-**`createContainerActions({ getNode, getIndex, getPath, overrides?, parentListContext? })`** (`src/lib/editor-actions/nested/container-actions.ts`) is that half, and every container calls it: the list, the list item, the table, the table row, and `createContainerBlock` itself. What it does, in order:
+**`createContainerActions({ getNode, getIndex, getPath, childList, overrides?, parentListContext? })`** (`src/lib/editor-actions/nested/container-actions.ts`) is that half, and every container calls it: the list, the list item, the table, the table row, and `createContainerBlock` itself. What it does, in order:
 
 1. reads the parent's action bundle and the editor's reading (its grammar, link resolver and mode) from context,
 2. builds the children's block-list state,
@@ -330,9 +330,13 @@ const { scope, state: listState, parent, reading } = createContainerActions({
 	getIndex: () => index,
 	getPath: () => myPath,
 	parentListContext,
-	overrides: ({ scope, parent }) => createListOverrides({ scope, parentBlockEdit: parent.blockEdit })
+	overrides: ({ scope, parent }) => createListOverrides({ scope, parentBlockEdit: parent.blockEdit }),
+	// Read when a move needs it, so it can name the `childList` const built further down.
+	childList: () => childList
 });
 ```
+
+`childList` is your children as the editor walks down to one: how many there are, their component refs, and the render window that mounts them. You build it once windowing exists (next section), and it's what lets a caret move onto a child the window left out mount it first.
 
 A container needing custom behavior passes `overrides`, a function from the container's scope and its parent's actions to an override factory. The factory gets the fully built default bundle and returns partial overrides, one per sub-interface (`blockEdit`, `focus`, `containerEdit`). Those chain back by calling `defaults.blockEdit.splitBlock(...)` directly, so the override set is visible at the call site and type-checked against each sub-interface. The list declining a split and delegating only its last item's forward merge:
 
@@ -429,19 +433,21 @@ const windowing = useContainerWindowing({
 | `provideLeafChannel`          | `true` when direct children are BlockHosts; `false` for direct-`{#each}` scopes      |
 | `isCollapsed`                 | Optional: `true` while only the chrome row should be mounted (a collapsed container) |
 
-The hook reads the rest of the windowing machinery (the height estimates, the focused path, the width counter, the parent's measurement sink) from context itself; you never touch any of it. It returns a handle: render `windowing.window`'s slice into your `{#each}`, and hand it to `createContainerBlockComponent` as the window of your `childList`, the list a walk down to an off-window child scrolls and waits on:
+The hook reads the rest of the windowing machinery (the height estimates, the focused path, the width counter, the parent's measurement sink) from context itself; you never touch any of it. It returns a handle: render `windowing.window`'s slice into your `{#each}`, and make it the window of your `childList`. One `childList` const feeds both calls, the `createContainerActions` getter above and `createContainerBlockComponent` here:
 
 ```ts
 // components/blocks/list/ListBlock.svelte
+const childList: ChildList = {
+	count: () => node.children?.length ?? 0,
+	refs: listState.refSlots,
+	windowing
+};
+
 export const containerApi = createContainerBlockComponent({
 	selection,
 	reading,
 	get innerBlockRefs() { return listState.innerBlockRefs; },
-	childList: {
-		count: () => node.children?.length ?? 0,
-		refs: listState.refSlots,
-		windowing
-	},
+	childList,
 	get node() { return node; }
 });
 ```

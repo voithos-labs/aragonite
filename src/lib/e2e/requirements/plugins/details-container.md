@@ -46,5 +46,5 @@ body child really does unmount. These checks read behavior: the tree read by pat
 ## Miss-analysis
 
 - The caret-into-a-closed-body case: every existing check reached a hidden body through a
-  navigation (the outline, search), whose walk kept opening it, so a change that stopped the
-  other walks from opening one went unnoticed until a reviewer asked.
+  navigation (the outline, search), whose walk kept opening it, so no check covered the walks
+  an edit's caret or a restore takes.
