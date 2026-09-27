@@ -47,6 +47,7 @@ The groups, in page order:
 | [Parse and serialize](#parse-and-serialize)             | Markdown in, tree out, and back again                                                        |
 | [Grammar scanners](#grammar-scanners)                   | The editor's own code-fence, HTML-tag, and blockquote rules, reusable so you never fork them |
 | [Node access and metadata](#node-access-and-metadata)   | Reading the document tree, and storing your own data on a block                              |
+| [Injected renderers](#injected-renderers)               | A library the host hands you to draw your block (KaTeX, mermaid), cached per theme           |
 | [Performance helpers](#performance-helpers)             | A small cache and a scan index for render and recognition work                               |
 
 ### The plugin unit
@@ -410,6 +411,19 @@ _(pre-freeze / unstable, beyond the stable metadata pair `setPluginMetadata` / `
 | `headingLevel`                           | A heading's level, ATX or setext, null for anything else: the outline read a table-of-contents plugin wants                                                                                                                                              |
 | `computeInlineContent`                   | Inline-parse a prose leaf with every installed plugin's syntax, for a pipeline with no editor mounted; inside an editor use `editor.computeInlineContent`, which reads only what that editor lists. Uncached; reference-style links come back unresolved |
 | `isProseKind`                            | Does this kind host inline content? The gate that keeps a code block's bytes out of an inline walk                                                                                                                                                       |
+
+### Injected renderers
+
+_(pre-freeze / unstable)_ For a block or widget drawn by a library the host hands your plugin (KaTeX, mermaid). A **renderer slot** is the one place that library plugs in: your plugin's setup calls `set`, your component calls `render`, and the slot handles the caching and the fallbacks. The [render-primary recipe](plugin-guide.md#recipe-a-render-primary-block) walks through one.
+
+| Export                              | Role                                                                                                                                                                                                                                                                                                                                                      |
+| ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `createRendererSlot`                | A slot for a renderer that answers right away. Each render is cached under the editor's theme plus your `key(input)`, so a theme switch redraws and switching back is a cache hit. With no renderer set you get `missing(input)`; when it throws, `failed(input, error)`, cached like a success. Pass `cloneOnRead` when the output holds a live DOM node |
+| `createAsyncRendererSlot`           | The same for a renderer that returns a promise. The promise is what's cached, so two blocks asking for one diagram share a single call, and a rejection resolves through `failed`                                                                                                                                                                         |
+| `RendererSlot`, `AsyncRendererSlot` | What the two hand back: `set(renderer)` (`null` removes it, and either way the cache empties), `configured`, and `render(input, ctx)`. `resetPluginPlatformForTests` removes the renderer too                                                                                                                                                             |
+| `RendererSlotSpec`                  | What you pass either one: `key`, `missing`, `failed`, and an optional `cap` (256 renders by default)                                                                                                                                                                                                                                                      |
+| `RenderContext`                     | `{ theme }`, the second argument to every `render` and to your renderer. It's required, so nothing gets drawn or cached without a theme. Read the theme with `getTheme()` inside your render effect, since that read is what redraws the block on a switch                                                                                                |
+| `renderSourceFallback`              | `renderSourceFallback(source, message)` builds the typed source in the code font and the error color, with `message` on hover: a decent `missing` or `failed` output for anything drawn from source text                                                                                                                                                  |
 
 ### Performance helpers
 
