@@ -34,11 +34,8 @@ export interface InlineRangeCommit {
 	 * committing; 0 when it would store nothing.
 	 */
 	writtenDelta(path: number[], start: number, end: number, bytes: string): number;
-	/**
-	 * Splice `bytes` over `[start, end)` of the leaf at `path`; `caretAfter` is the raw offset the
-	 * entry's snapshot restores. Resolves to whether the leaf holds the spliced bytes: true for a
-	 * splice that changes no byte (it commits nothing), false for a commit refused or rolled back.
-	 */
+	/** Splice `bytes` over `[start, end)` of the leaf at `path`; the undo entry restores the caret
+	 *  to `caretAfter`. Resolves whether the leaf holds the bytes (true for a no-change splice). */
 	commitInlineRange(
 		path: number[],
 		start: number,

@@ -12,13 +12,12 @@ import type { NestedActionsDeps } from './nested-actions';
 export function createNestedFocus(state: BlockListState, deps: NestedActionsDeps): FocusActions {
 	const { caretMemory, parent } = deps;
 	return {
-		// Scrolling a nested block into view is the editor's recursive `revealPath` descending
-		// through this container, so the container does not own it. The gap stop is forwarded
-		// for the same reason: the root holds the document and selection reads.
+		// The root holds the document and selection reads, so scrolling into view (its recursive
+		// `revealPath` descends through here) and the gap stop are forwarded to it.
 		revealPath: parent.focus.revealPath,
 		tryGapStop: parent.focus.tryGapStop,
 		// Unlike the root `moveFocus`, never scrolls an unmounted child into view: the caller
-		// keeps the target mounted (docs/design/virtual-rendering.md).
+		// keeps the target mounted.
 		async moveFocus(
 			innerIndex: number,
 			position: FocusPosition,

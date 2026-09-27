@@ -100,7 +100,7 @@ export function registerChromeLeaf<
 		kind,
 		defineBlockComponent(component, () => ({ blockClass: opts.blockClass }))
 	);
-	// Inline-only, so `surfaceForcesInline` holds if a paste ever reaches surface resolution:
+	// Inline-only, so `surfaceForcesInline` holds if a paste ever reaches the paste-target lookup:
 	// a second line of defense behind the check that already flattens title-row pastes.
 	registerPasteSurface({ kind, onInlinePaste: defaultInlineHook });
 }

@@ -113,7 +113,7 @@ export function createListContext(deps: ListContextDeps): ListContext {
 						sharing.stamp(shell);
 						destScope.children.push(shell);
 						// Write, then read back (tree-operations/unshare.ts): the writes below go
-						// through the value in the tree, not the list the proxy has now observed.
+						// through the value in the tree, not the list the proxy has observed.
 						destList = destScope.children[destScope.children.length - 1];
 					}
 

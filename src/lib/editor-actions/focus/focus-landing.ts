@@ -57,12 +57,8 @@ export async function consumeStickyLanding(
 /** What a vertical arrival does at a block: enter its widget, pass over it, or place a caret. */
 export type VerticalArrival = 'entered' | 'transparent' | 'seat';
 
-/**
- * Whether a vertical move stops at a block, shared by the per-block arrival and a container's
- * column entry. A widget-only block has no column, so the move passes over it unless its edge
- * widget takes the arrival, which is a stop of its own from either side. `'entered'` means the
- * widget already took it, so the caller stops rather than entering it again.
- */
+/** Whether a vertical move stops at a block: a widget-only block is passed over unless its edge
+ *  widget takes the arrival (`'entered'`, so the caller must not enter it again). */
 export function verticalArrival(
 	block: BlockComponent,
 	from: StickyColumnDirection

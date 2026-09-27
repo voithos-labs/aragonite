@@ -19,7 +19,7 @@ export function createPasteCoordinator(
 			const stamp = controller.historyGeneration();
 			const block = await revealPath(path);
 			// An undo or redo that finished while the target was scrolling into view swapped
-			// the tree, so this path no longer names what the paste aimed at.
+			// the tree, so this path may name a different block than the paste aimed at.
 			if (controller.historyGeneration() !== stamp) return;
 			block?.focus(offset);
 		}

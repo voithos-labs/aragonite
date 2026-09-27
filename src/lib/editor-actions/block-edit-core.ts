@@ -193,8 +193,7 @@ export interface BlockEditCore {
 export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 	const core: BlockEditCore = {
 		async split(i, offset) {
-			// Offset 0 is not special: empty block above, content below, caret on the content. The
-			// caret index is the primitive's answer, not `i + 1`: a first half that parses to
+			// The caret index is the primitive's answer, not `i + 1`: a first half that parses to
 			// several blocks pushes the second half further down (G1.34 checks the index).
 			let secondHalfIndex = i + 1;
 			let split: SplitResult | undefined;
@@ -252,16 +251,14 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 				op: { kind: 'insertBlock' },
 				mutate: (view) => {
 					const lineEnding = view.body.lineEnding;
-					// Only the first block of a list owns no separator; anywhere else the new
-					// paragraph needs a blank line after its predecessor, whatever the displaced
-					// sibling carried.
+					// Only a list's first block has no separator; anywhere else the new paragraph needs
+					// a blank line after its predecessor, whatever the displaced sibling carried.
 					const trivia = i > 0 ? lineEnding : (view.body.children[0]?.leadingTrivia ?? '');
 					view.body.children.splice(i, 0, paragraphNode(trivia, text, lineEnding));
 					const change: StructuralChange = { op: 'insert', at: i, count: 1 };
 					stampStructuralChange(view.body.children, change, view.sharing);
-					// The new paragraph is a block of its own on both sides, which the commit's
-					// blank-line fix-up cannot infer: the displaced sibling is no longer first, so
-					// it needs its own separator, and an empty paragraph is itself a blank line.
+					// The commit's blank-line fix-up cannot infer that the displaced sibling, pushed off
+					// the first position, needs a separator, or that an empty paragraph is a blank line.
 					restoreSeparatorOnFill(view.body, i + 1, view.sharing);
 					dropDoubledSeparator(view.body, i, view.sharing);
 					return change;
@@ -311,9 +308,8 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 				return;
 			}
 
-			// The caret offset is the primitive's answer, not `displayLength` read beforehand:
-			// live mode's clean-up at the join drops marker runs on the first block's side and
-			// moves where the two met.
+			// The caret offset is the primitive's answer, not `displayLength` read beforehand: live
+			// mode's clean-up at the join can drop marker runs and move where the two blocks met.
 			let merged: MergeResult = { change: { op: 'noop' }, joinOffset: 0 };
 			await scope.commit({
 				snapshot: { index: i, offset: CURSOR_END },
@@ -352,9 +348,8 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 			if (i < 0 || i >= children.length) return;
 			const fields = Object.keys(metadata);
 			if (fields.length === 0) return;
-			// `mutate` returns noop, so the commit's dev-mode stale-raw check cannot infer the
-			// changed node. The copy exists only after unshareChild, hence a stable array the
-			// commit reads after mutate.
+			// `mutate` returns noop, so the stale-raw check needs the changed node named; the copy
+			// exists only after unshareChild, so the commit reads this array after mutate.
 			const touchedNodes: CstNode[] = [];
 			await scope.commit({
 				snapshot: { index: i, offset: 0 },

@@ -132,11 +132,8 @@ export function createTableMutationsContext(
 		});
 	}
 
-	/**
-	 * The table scope plus one per mounted row: a row's BlockListState registers on mount,
-	 * so scoping an unmounted row throws and takes the edit with it. The bytes still reach
-	 * every row, through the table scope.
-	 */
+	/** The table scope plus one per mounted row: an unmounted row has no registered state and
+	 *  would throw, and the table scope carries the bytes to every row anyway. */
 	function mountedColumnScopes(): { scopes: MultiScopeTarget[]; rowIndices: number[] } {
 		const { node, myPath, rowsState } = deps;
 		const scopes: MultiScopeTarget[] = [{ node, state: rowsState, path: [...myPath] }];
@@ -187,10 +184,8 @@ export function createTableMutationsContext(
 		});
 	}
 
-	// The table grows at the bottom and the right only, so each scope's change is one
-	// contiguous insert: rows for the table, cells for every mounted row. Cell texts go through
-	// the cell kind's own raw rule in place, and the table raw is rebuilt once, delimiter line
-	// included.
+	// The table grows only at the bottom and right, so each scope's change is one contiguous
+	// insert; cell texts take the cell kind's raw rule in place, and the table raw is rebuilt once.
 	async function pasteGrid(
 		origin: { rowIdx: number; colIdx: number },
 		grid: string[][]
@@ -205,9 +200,8 @@ export function createTableMutationsContext(
 			scopes,
 			snapshot: { path: docPathFrom(myPath), offset: 0 },
 			mutate: ([tableScope, ...rowScopes]) => {
-				// The subtree, not just the children: the cell writes below land at depth two,
-				// and a row's cells stay shared with the undo snapshot when only the rows are
-				// copied, so the write would reach the snapshot and undo would keep the paste.
+				// The subtree, not just the children: cell writes land at depth two, and cells still
+				// shared with the undo snapshot would carry the paste into it.
 				ensureUnsharedSubtree(tableScope.node, tableScope.sharing);
 				assertInvariant('column-scope-alignment', () =>
 					rowScopes.every((s, i) => s.node === tableScope.node.children?.[rowIndices[i]])

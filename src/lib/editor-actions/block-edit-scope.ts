@@ -55,11 +55,8 @@ export interface ScopeCommitArgs {
 	/** Filled by `mutate` for the dev-mode stale-raw check when it returns `noop`; only the root
 	 *  reads them, since a container's commit checks its whole copied container. */
 	touchedNodes?: CstNode[];
-	/**
-	 * A structural edit that can legitimately change nothing, so the commit discards the
-	 * snapshot rather than push a dead entry. Never on content or metadata commits: their
-	 * `noop` still carries a byte change (action-contracts `DiscardIfNoop`).
-	 */
+	/** A structural edit that can change nothing, so the commit discards its snapshot. Never on
+	 *  content or metadata commits, whose `noop` still carries a byte change (`DiscardIfNoop`). */
 	discardIfNoop?: boolean;
 }
 

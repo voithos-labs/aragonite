@@ -74,9 +74,8 @@ export function createNestedBlockEdit(
 				return parent.blockEdit.mergeWithNext(deps.index);
 			}
 
-			// A collapsed container's body is unmounted, so forward Delete exits past the container
-			// rather than stopping on the invisible body: a focus move, no edit. `append: false`
-			// keeps the last-block case inert rather than appending a paragraph.
+			// A collapsed container's body is unmounted, so forward Delete moves focus past the
+			// container without editing; `append: false` keeps a last block from appending one.
 			if (isCollapsedContainer(deps.node)) {
 				await parent.focus.moveFocus(deps.index + 1, 'start', { append: false });
 				return;

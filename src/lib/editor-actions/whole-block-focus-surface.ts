@@ -18,11 +18,8 @@ export function isWholeBlockInputProxy(target: EventTarget | null): boolean {
 	return target instanceof Element && target.hasAttribute(WHOLE_BLOCK_INPUT_ATTR);
 }
 
-/**
- * A key pressed in a plugin's own text editor belongs to that editor, never to the whole-block
- * key handling: Backspace inside an edit textarea edits text. The hidden host is excluded
- * here rather than at each check, so a later caller cannot forget it.
- */
+/** A key pressed in a plugin's own text editor belongs to that editor (Backspace in a textarea
+ *  edits text). The hidden host is excluded here, so no caller can forget it. */
 export function isEditableEventTarget(target: EventTarget | null): boolean {
 	if (!(target instanceof HTMLElement)) return false;
 	if (isWholeBlockInputProxy(target)) return false;
@@ -32,11 +29,8 @@ export function isEditableEventTarget(target: EventTarget | null): boolean {
 
 // ── Tab order ────────────────────────────────────────────────────────────────
 
-/**
- * The hidden host is the block's one tab stop, so a declared element that is not itself an
- * editor leaves the tab order (editor.md § 8). Applied on every read, since a render state
- * that appears after mount supplies a new element.
- */
+/** The hidden host is the block's one tab stop, so a declared element that is not an editor
+ *  leaves the tab order. Applied on every read, since a later render state supplies a new one. */
 export function demoteDeclaredFromTabOrder(declared: HTMLElement | null): HTMLElement | null {
 	if (declared && declared.tabIndex >= 0 && !isEditableEventTarget(declared)) {
 		declared.tabIndex = -1;
@@ -44,11 +38,8 @@ export function demoteDeclaredFromTabOrder(declared: HTMLElement | null): HTMLEl
 	return declared;
 }
 
-/**
- * The fallback behind `getFocusEl`: an absent declared element degrades to the focusable
- * box, never a silent no-op that strands the caret. The one legitimate null survives: a
- * plugin-owned editable inside the box holding focus.
- */
+/** A missing declared element falls back to the focusable box, so the caret is never stranded;
+ *  null only while a plugin-owned editable inside the box holds focus. */
 export function composeWholeBlockFocusSurface(
 	getFocusEl: () => HTMLElement | null | undefined,
 	getBoxEl: () => HTMLElement | null | undefined,
@@ -73,9 +64,8 @@ export function composeWholeBlockFocusSurface(
 	};
 }
 
-// The fallback's own rule, and the inverse of the demotion above: the fallback box is a plain
-// div, focusable only once it gets a tabindex. An element already focusable keeps what it
-// has; this only ever adds reachability, never removes it.
+// The fallback box is a plain div, focusable only with a tabindex; an element already focusable
+// keeps what it has, so this only ever adds reachability.
 export function focusWholeBlockEl(el: HTMLElement): void {
 	if (el.tabIndex < 0 && !el.hasAttribute('tabindex')) el.tabIndex = -1;
 	el.focus();
@@ -144,14 +134,12 @@ export function createWholeBlockInputProxy(deps: WholeBlockInputProxyDeps): Whol
 	function onFocusIn(event: FocusEvent): void {
 		// A Tab lands on the host without passing `focusProxy`, so the name is refreshed here too.
 		if (proxy && event.target === proxy) syncProxyState();
-		// Read before the identity test, so focus arriving anywhere in the box (the host's own
-		// included) re-applies the demotion to whatever element the current render state
-		// supplies, which takes it out of the tab order before the next keypress, not after.
+		// Before the identity test, so focus arriving anywhere in the box takes the current render
+		// state's declared element out of the tab order before the next keypress.
 		if (!proxy || event.target !== declaredSurface()) return;
 		if (isEditableEventTarget(event.target)) return;
-		// The host's own Shift+Tab lands here on its way out; bouncing it back would trap focus
-		// in the block. Every other arrival is passed on, a toolbar button included, or the click
-		// after one leaves the declared element holding focus and drops IME again.
+		// The host's own Shift+Tab passes here on its way out, and bouncing it would trap focus. Any
+		// other arrival (a toolbar button too) moves on, or the declared element keeps focus without IME.
 		if (event.relatedTarget === proxy) return;
 		focusProxy();
 	}

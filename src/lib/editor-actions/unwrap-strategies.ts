@@ -1,6 +1,6 @@
 /**
- * The Backspace unwrap strategies, selected by a container's declared `unwrapRole`
- * (schema/block-kind-descriptor.ts) from the container's blockEdit.
+ * The Backspace unwrap strategies a container's declared `unwrapRole` selects, run from the
+ * container's blockEdit (`docs/design/editor.md` § Container unwrap).
  */
 
 import { CURSOR_END, CURSOR_START } from '../block-component';
@@ -49,18 +49,17 @@ async function deleteEmptyItem(
 
 // ── First-child strategies ──────────────────────────────────────────────────
 
-/** Rule U2 for the quote shape: the opener lives on the first line, so the lift drops it. */
+/** Lift the first child out of a quote-shaped container, whose opener goes with it (U2). */
 async function liftFirstChildDroppingOpener({ deps }: UnwrapStrategyDeps): Promise<void> {
 	await spliceLift(deps, unwrapFirstChildFromQuote(deps.node));
 }
 
-/** Rule U2 for a container whose syntax survives the lift: the remainder keeps its kind. */
+/** Lift the first child out of a container whose syntax survives, so the rest keeps its kind (U2). */
 async function liftFirstChildAndKeepContainer({ deps }: UnwrapStrategyDeps): Promise<void> {
 	await spliceLift(deps, liftFirstChildKeepingContainer(deps.node));
 }
 
-/** Rule U2's declared decline: child 0 is the container's title row, and a lift would carry
- *  it out. */
+/** Leaves the tree alone: child 0 is the container's title row, and a lift would carry it out. */
 async function keepReservedChrome(): Promise<void> {}
 
 async function spliceLift(deps: NestedActionsDeps, replacement: CstNode[]): Promise<void> {
@@ -71,8 +70,8 @@ async function spliceLift(deps: NestedActionsDeps, replacement: CstNode[]): Prom
 	});
 }
 
-/** The first list item's cascade: promote if nested, delete if empty, delete the list if it
- *  is the only item, else rule U1. */
+/** The first list item: promote if nested, delete if empty, delete the list if it is the only
+ *  item, else unwrap its first paragraph before the list (U1). */
 async function listItemCascadeFirst(strategy: UnwrapStrategyDeps): Promise<void> {
 	const { deps, state } = strategy;
 	const node = deps.node;
@@ -110,8 +109,7 @@ async function listItemCascadeFirst(strategy: UnwrapStrategyDeps): Promise<void>
 
 // ── Middle-child strategies ─────────────────────────────────────────────────
 
-/** A middle list item: delete and renumber if empty, else rule M1, merge into the deepest
- *  text above. */
+/** A middle list item: delete and renumber if empty, else merge into the deepest text above (M1). */
 async function listItemCascadeMiddle(
 	strategy: UnwrapStrategyDeps,
 	itemIndex: number
@@ -128,8 +126,7 @@ async function listItemCascadeMiddle(
 		return;
 	}
 
-	// Rule M1: merge into the deepest visible text above. A previous leaf with no editable
-	// text gives the merge no target, so the tree stays put and only the caret moves.
+	// A previous leaf with no editable text gives the merge no target, so only the caret moves.
 	let mergePoint: { targetPath: number[]; offset: number } | null = null;
 	await deps.parent.containerEdit.commitContainer({
 		containerNode: node,
