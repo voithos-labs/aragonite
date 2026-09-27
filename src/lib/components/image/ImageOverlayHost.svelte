@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { getContext, untrack } from 'svelte';
 	import type { Document, ImageFields } from '../../core/nodes';
-	import type { UndoController } from '../../editor-actions/deps';
+	import type { InlineRangeCommit } from '../../editor-actions/inline-range-commit';
 	import { EDITOR_DOC_KEY, type EditorDoc } from '../../editor-keys';
 	import type { EditorEvents } from '../../editor-events';
 	import { installWidgetRangePainter } from '../../selection/widget-range-paint';
@@ -20,7 +20,7 @@
 	// widget-selection changes, so the selected-widget {#if} lives here.
 	let {
 		widgetSelection,
-		controller,
+		inlineRange,
 		events,
 		getDoc,
 		getContentVersion,
@@ -30,7 +30,7 @@
 		menuPresence
 	}: {
 		widgetSelection: WidgetSelectionState;
-		controller: UndoController;
+		inlineRange: InlineRangeCommit;
 		events: EditorEvents;
 		getDoc: () => Document;
 		getContentVersion: () => number;
@@ -52,7 +52,7 @@
 		getDoc,
 		getEditorEl,
 		widgetSelection,
-		controller,
+		inlineRange,
 		events,
 		reading
 	});

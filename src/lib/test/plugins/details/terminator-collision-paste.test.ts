@@ -28,10 +28,7 @@ beforeEach(() => {
 
 function mountDoc(source: string) {
 	const harness = makeEditorActionsDeps(parse(source).children);
-	const controller = createPasteCoordinator(
-		createUndoController(harness.deps),
-		harness.deps.revealPath
-	);
+	const controller = createPasteCoordinator(harness.deps, createUndoController(harness.deps));
 	const container = harness.deps.doc.children[0];
 	if (container.children) {
 		registerBlockListState(

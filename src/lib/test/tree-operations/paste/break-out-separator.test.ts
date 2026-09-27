@@ -25,7 +25,7 @@ async function pasteInto(doc: Document, targetPath: number[], offset: number, cl
 		pasteContext({
 			doc: deps.doc,
 			blockEdit: createBlockEditActions(deps, controller),
-			controller: createPasteCoordinator(controller, deps.revealPath)
+			controller: createPasteCoordinator(deps, controller)
 		})
 	);
 	return deps.doc;

@@ -12,10 +12,12 @@ import { type GrammarView } from '$lib/schema/block-openers';
 import type { SelectionState } from '$lib/selection/selection-state.svelte';
 import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 import { fixtureReading } from '../../harness/fixture-grammar';
+import type { Reading } from '$lib/schema/reading';
 import { commandContext } from '../../support/command-context';
 
-export function makeEnv(source: string) {
-	const { deps, doc, events } = makeEditorActionsDeps(source);
+/** `reading` is the editor's own, which every write reads off the root. */
+export function makeEnv(source: string, reading?: Reading) {
+	const { deps, doc, events } = makeEditorActionsDeps(source, { reading });
 	const controller = createUndoController(deps);
 	const blockEdit = createBlockEditActions(deps, controller);
 	return {
@@ -61,7 +63,7 @@ export function makeHandlers(
 		controller: env.controller,
 		reading: fixtureReading(opts.grammar ? { grammar: opts.grammar } : {}),
 		commands: commandContext({ isCrossBlockRange: () => env.selectionState.isCrossBlock }),
-		pasteCoordinator: createPasteCoordinator(env.controller, env.deps.revealPath),
+		pasteCoordinator: createPasteCoordinator(env.deps, env.controller),
 		activePlugins: everyInstalledPlugin,
 		events: env.events,
 		afterReactivity: async () => {}

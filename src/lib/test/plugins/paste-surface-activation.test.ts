@@ -59,7 +59,7 @@ async function pasteUnder(activePlugins: PluginActivation): Promise<string[]> {
 		{
 			doc: deps.doc,
 			blockEdit: makeStubBlockEdit(),
-			controller: createPasteCoordinator(createUndoController(deps), deps.revealPath),
+			controller: createPasteCoordinator(deps, createUndoController(deps)),
 			reading: fixtureReading(),
 			activePlugins
 		}

@@ -43,10 +43,7 @@ describe('a document-scaled splice', () => {
 
 	it('lands through the paste route', async () => {
 		const harness = makeEditorActionsDeps([para('original\n')]);
-		const controller = createPasteCoordinator(
-			createUndoController(harness.deps),
-			harness.deps.revealPath
-		);
+		const controller = createPasteCoordinator(harness.deps, createUndoController(harness.deps));
 
 		await replaceBlockAtParent({
 			grammar: defaultGrammarView,

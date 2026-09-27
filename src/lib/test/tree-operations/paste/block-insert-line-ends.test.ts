@@ -32,7 +32,7 @@ async function insert(source: string, targetPath: number[], offset: number, mark
 		pasteContext({
 			doc: deps.doc,
 			blockEdit: makeStubBlockEdit(),
-			controller: createPasteCoordinator(createUndoController(deps), deps.revealPath)
+			controller: createPasteCoordinator(deps, createUndoController(deps))
 		})
 	);
 	return deps.doc;

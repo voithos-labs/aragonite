@@ -138,6 +138,7 @@
 	import { createInlineMenuState } from '../inline-menu/inline-menu-state.svelte';
 	import type { InlineMenuRegistry } from '../inline-menu/types';
 	import { createInlineRangeCommit } from '../editor-actions/inline-range-commit';
+	import { replaceBlockRaw } from '../editor-actions/block-edit-core';
 	import { createLinkCardState } from './link-card/link-card-state.svelte';
 	import { runStartupInvariantChecks } from '../invariants/install';
 	import { assertInvariant } from '../assert';
@@ -606,7 +607,7 @@
 
 	// The typed-trigger menus (`#tag`, `[[link`); a pick commits as one undo step, like the
 	// link card's edits.
-	const inlineMenuCommit = createInlineRangeCommit({ getDoc, controller, reading });
+	const inlineRange = createInlineRangeCommit({ deps: editorActionsDeps, controller });
 	const inlineMenu = createInlineMenuState({
 		getDoc,
 		getSelection,
@@ -614,7 +615,7 @@
 		events,
 		editorId,
 		reading,
-		commitRange: inlineMenuCommit.commitInlineRange,
+		commitRange: inlineRange.commitInlineRange,
 		landCaret: landCaretAtOffset,
 		undoStep: (path, offset, run) => controller.undoStep({ path: docPathFrom(path), offset }, run)
 	});
@@ -665,7 +666,7 @@
 	// other's broken-state recompute.
 	const brokenImageUrls = new Set<string>();
 
-	const pasteCoordinator = createPasteCoordinator(controller, revealPath);
+	const pasteCoordinator = createPasteCoordinator(editorActionsDeps, controller);
 
 	// The document caret while the search bar or link card holds focus; one each, so a card
 	// opened over the search bar cannot overwrite the caret the bar restores.
@@ -871,6 +872,8 @@
 		getDoc,
 		isHostChrome,
 		blockEdit,
+		replaceRaw: (index, raw) =>
+			replaceBlockRaw({ deps: editorActionsDeps, controller }, [index], raw),
 		placeCaretAtPoint,
 		insertMarkdown,
 		insertCatalogue: getInsertCatalogue,
@@ -1397,7 +1400,7 @@
 	{/if}
 	<ImageOverlayHost
 		{widgetSelection}
-		{controller}
+		{inlineRange}
 		{events}
 		{getDoc}
 		getContentVersion={contentVersion.read}
@@ -1408,7 +1411,7 @@
 	/>
 	<LinkCardHost
 		card={linkCard}
-		{controller}
+		{inlineRange}
 		{events}
 		{getDoc}
 		getEditorEl={() => editorEl ?? null}

@@ -3,8 +3,7 @@ import { resolvedInlineContent } from '../../core/inline/inline-cache';
 import { flattenInlineWidgets } from '../../core/inline/inline-widgets';
 import type { Document, ImageFields, InlineNode } from '../../core/nodes';
 import type { NodeView } from '../../core/node-views';
-import type { UndoController } from '../../editor-actions/deps';
-import { createInlineRangeCommit } from '../../editor-actions/inline-range-commit';
+import type { InlineRangeCommit } from '../../editor-actions/inline-range-commit';
 import type { EditorEvents } from '../../editor-events';
 import { FALLBACK_CONTENT_WIDTH } from '../../cursor/typography-estimates';
 import { blockNodeAt } from '../../tree-operations/node-primitives';
@@ -32,7 +31,8 @@ export interface ImageEditCommitterDeps {
 	getDoc: () => Document;
 	getEditorEl: () => HTMLElement | null;
 	widgetSelection: WidgetSelectionState;
-	controller: UndoController;
+	/** The editor's inline range write, which every popover edit goes through. */
+	inlineRange: InlineRangeCommit;
 	events: EditorEvents;
 	/** How the editor reads its bytes: the image is found in the block as drawn, and the block's
 	 *  own raw-write rule reads its grammar. */
@@ -64,8 +64,7 @@ export interface ImageEditCommitter {
 }
 
 export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEditCommitter {
-	const { getDoc, getEditorEl, widgetSelection, controller, events } = deps;
-	const inlineRange = createInlineRangeCommit({ getDoc, controller, reading: deps.reading });
+	const { getDoc, getEditorEl, widgetSelection, inlineRange, events } = deps;
 
 	function queryWidgetEl(paragraphPath: number[], sourceStart: number): HTMLElement | null {
 		const root = getEditorEl();

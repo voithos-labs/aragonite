@@ -32,7 +32,7 @@ async function paste(source: string, targetPath: number[], offset: number, clipb
 		pasteContext({
 			doc: deps.doc,
 			blockEdit: makeStubBlockEdit(),
-			controller: createPasteCoordinator(createUndoController(deps), deps.revealPath)
+			controller: createPasteCoordinator(deps, createUndoController(deps))
 		})
 	);
 	return deps.doc;

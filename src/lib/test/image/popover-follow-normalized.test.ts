@@ -10,7 +10,7 @@ import { getInlineContent } from '../../core/inline/inline-cache';
 import { parse } from '../../core/parser';
 import type { CstNode, Document } from '../../core/nodes';
 import { createEditorEvents } from '../../editor-events';
-import { makeStubController } from '../harness/editor-actions';
+import { makeInlineRange, makeStubController } from '../harness/editor-actions';
 import { fixtureReading } from '../harness/fixture-grammar';
 import { testLeaf } from '$lib/test/harness/test-kinds';
 
@@ -37,7 +37,7 @@ function secondImageSelected(kind: string) {
 		getDoc: () => doc,
 		getEditorEl: () => null,
 		widgetSelection,
-		controller: makeStubController(),
+		inlineRange: makeInlineRange(() => doc, makeStubController()),
 		events: createEditorEvents(),
 		reading: fixtureReading()
 	});

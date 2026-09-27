@@ -5,6 +5,7 @@
  */
 
 import type { CstNode, Document } from '../../core/nodes';
+import type { NodeView } from '../../core/node-views';
 import { nodeAt } from '../node-primitives';
 import { devWarn } from '../../dev-warn';
 import type { MultiScopeTarget, PasteCommitCoordinator } from './paste-deps';
@@ -40,5 +41,10 @@ export function containerScopeState(
 		'paste',
 		`committing at an unmounted ${node.kind} scope: ids realign, component refs do not`
 	);
+	return detachedScopeState(node);
+}
+
+/** The state of a container with no mounted list: its ids, and no component refs. */
+export function detachedScopeState(node: NodeView): MultiScopeTarget['state'] {
 	return { innerBlockIds: [...(node.childIds ?? [])], innerBlockRefs: [] };
 }

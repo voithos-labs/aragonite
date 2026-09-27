@@ -4,7 +4,12 @@
  * `tree-operations -> reactivity` back-edges out of the graph.
  */
 
-import type { CommitMultiScopeArgs, MultiScopeTarget } from '../../action-contracts';
+import type {
+	CommitMultiScopeArgs,
+	LeafTextOptions,
+	LeafWriteResult,
+	MultiScopeTarget
+} from '../../action-contracts';
 import type { CstNode } from '../../core/nodes';
 
 export type { CommitMultiScopeArgs, MultiScopeTarget };
@@ -19,4 +24,7 @@ export interface PasteCommitCoordinator {
 	/** Land the caret at a document-absolute path, scrolling an unmounted target into view first,
 	 *  since a structural paste's target can sit past the mounted range (VR-12). */
 	landCaret(path: number[], offset: number): Promise<void>;
+	/** Write `text` into the leaf at `leafPath` as one commit at its parent list, through the write
+	 *  every keystroke takes. */
+	commitLeafText(leafPath: number[], text: string, opts: LeafTextOptions): Promise<LeafWriteResult>;
 }

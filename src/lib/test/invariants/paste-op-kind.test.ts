@@ -24,7 +24,7 @@ function editOps(handler: Mock<(e: EditEvent) => void>): string[] {
 describe('G2.9 paste op-kind emission', () => {
 	it('a default structural paste emits replaceBlock, not paste', async () => {
 		const { deps, events } = makeEditorActionsDeps([parse('hello world\n').children[0]]);
-		const coordinator = createPasteCoordinator(createUndoController(deps), deps.revealPath);
+		const coordinator = createPasteCoordinator(deps, createUndoController(deps));
 
 		const onEdit = vi.fn<(e: EditEvent) => void>();
 		events.on('edit', onEdit);
@@ -41,7 +41,7 @@ describe('G2.9 paste op-kind emission', () => {
 
 	it('a list-absorb paste emits paste, not replaceBlock', async () => {
 		const { deps, events } = makeEditorActionsDeps([parse('1. one\n2. two\n').children[0]]);
-		const coordinator = createPasteCoordinator(createUndoController(deps), deps.revealPath);
+		const coordinator = createPasteCoordinator(deps, createUndoController(deps));
 
 		// list-absorb commits on the outer list scope, resolved through the registry.
 		const liveList = () => deps.doc.children[0];
@@ -63,7 +63,7 @@ describe('G2.9 paste op-kind emission', () => {
 
 	it('a cross-block inline paste emits updateContent, not paste or replaceBlock', async () => {
 		const { deps, events } = makeEditorActionsDeps(parse('hello world\n').children);
-		const coordinator = createPasteCoordinator(createUndoController(deps), deps.revealPath);
+		const coordinator = createPasteCoordinator(deps, createUndoController(deps));
 
 		const onEdit = vi.fn<(e: EditEvent) => void>();
 		events.on('edit', onEdit);

@@ -56,3 +56,9 @@ export interface UndoController extends CommitController {
 	/** Announce an undo or redo. Only the history restore may call it. */
 	noteHistorySwap(): void;
 }
+
+/** The editor root's deps and controller, which a write addressed by document path starts from. */
+export interface EditorRoot {
+	deps: EditorActionsDeps;
+	controller: UndoController;
+}

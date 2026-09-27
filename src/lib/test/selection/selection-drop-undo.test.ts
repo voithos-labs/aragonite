@@ -20,7 +20,7 @@ const TO = { path: [1], offset: 0 };
 function makeDrop(declined = 0) {
 	const harness = makeEditorActionsDeps(SOURCE);
 	const controller = createUndoController(harness.deps);
-	const real = createPasteCoordinator(controller, harness.deps.revealPath);
+	const real = createPasteCoordinator(harness.deps, controller);
 	let calls = 0;
 	const coordinator: PasteCommitCoordinator = {
 		...real,

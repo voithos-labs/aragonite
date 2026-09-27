@@ -1,7 +1,7 @@
 // Miss-analysis (GH #31): no test finished an undo while the paste's caret placement waited.
 import { describe, it, expect, vi } from 'vitest';
 import { createPasteCoordinator } from '$lib/editor-actions/paste-coordinator';
-import type { UndoController } from '$lib/editor-actions/deps';
+import type { EditorActionsDeps, UndoController } from '$lib/editor-actions/deps';
 import type { BlockComponent } from '$lib/block-component';
 
 /** Only the two members the caret placement reads; the rest of the controller never runs here. */
@@ -22,7 +22,8 @@ function coordinatorWith(duringReveal?: (controller: UndoController) => void) {
 		duringReveal?.(controller);
 		return { focus } as unknown as BlockComponent;
 	});
-	return { focus, coordinator: createPasteCoordinator(controller, revealPath) };
+	const deps = { revealPath } as unknown as EditorActionsDeps;
+	return { focus, coordinator: createPasteCoordinator(deps, controller) };
 }
 
 describe('paste landing vs an in-flight history swap', () => {

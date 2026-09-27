@@ -16,7 +16,8 @@ export interface BlockActionContext {
 	/** The block's path from the document root. Top-level blocks only, for now. */
 	path: number[];
 	deleteBlock(): Promise<void>;
-	/** Replace the block's bytes wholesale; the result reparses to whatever those bytes are. */
+	/** Replace the block's bytes wholesale as one undo entry of its own; the result reparses to
+	 *  whatever those bytes are. */
 	replaceRaw(raw: string): Promise<void>;
 	/** The document's line ending, which a line in `replaceRaw`'s bytes takes. */
 	lineEnding: LineEnding;

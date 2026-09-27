@@ -270,6 +270,26 @@ export interface Relanding {
 	readonly window: { readonly list: DocPath; readonly at: number; readonly count: number };
 }
 
+/** What a commit writing new text into one leaf resolves to. */
+export type LeafWriteResult = { readonly wrote: false } | LeafWriteLanded;
+
+/** `caret` is where the caret goes after the write and its list's fix-up, and `window` the
+ *  written block's replacement run; a collapsed ancestor places the caret itself afterwards. */
+export interface LeafWriteLanded extends Relanding {
+	readonly wrote: true;
+	/** Whether the write put new blocks in the position rather than rewriting the leaf. */
+	readonly replaced: boolean;
+}
+
+/** A leaf write by document path: `caret` is an offset into the text as written, `snapshotOffset`
+ *  one into the old bytes, where undo puts the caret back when nothing is focused. */
+export interface LeafTextOptions {
+	caret: number;
+	snapshotOffset: number;
+	/** Runs after the tick, before a collapsed ancestor places the caret itself. */
+	afterTick?: (landed: LeafWriteLanded) => void | Promise<void>;
+}
+
 // ── List context ───────────────────────────────────────────────────────────
 
 export interface ListContext {

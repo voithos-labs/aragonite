@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { Document } from '../../core/nodes';
-	import type { UndoController } from '../../editor-actions/deps';
+	import type { InlineRangeCommit } from '../../editor-actions/inline-range-commit';
 	import type { EditorEvents } from '../../editor-events';
 	import type { CaretRestore } from '../../selection/caret-restore';
 	import { resolveHref } from '../../core/inline-render';
@@ -17,7 +17,7 @@
 	// target changing, so the open/closed `{#if}` lives here rather than at the mount site.
 	let {
 		card,
-		controller,
+		inlineRange,
 		events,
 		getDoc,
 		getEditorEl,
@@ -31,7 +31,7 @@
 		commands
 	}: {
 		card: LinkCardState;
-		controller: UndoController;
+		inlineRange: InlineRangeCommit;
 		events: EditorEvents;
 		getDoc: () => Document;
 		getEditorEl: () => HTMLElement | null;
@@ -56,7 +56,7 @@
 		getEditorEl,
 		getTarget: card.getTarget,
 		getCreateTarget: card.getCreateTarget,
-		controller,
+		inlineRange,
 		events,
 		measureRange,
 		landCaret,

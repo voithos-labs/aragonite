@@ -9,7 +9,6 @@ import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 import type { PresentationMode } from '$lib/presentation-mode';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { fixtureReading } from '$lib/test/harness/fixture-grammar';
-import { withStoredCaret } from '$lib/editor-actions/stored-caret';
 
 // Miss-analysis: which menu a right-click opens was tested only through Playwright.
 
@@ -46,8 +45,7 @@ function harness(opts: { mode?: PresentationMode } = {}) {
 
 	let menu: BlockMenuModel | null = null;
 	const blockEdit = {
-		deleteBlock: vi.fn(async () => {}),
-		updateBlockContent: vi.fn(() => withStoredCaret(Promise.resolve(), 0))
+		deleteBlock: vi.fn(async () => {})
 	};
 	const placeCaretAtPoint = vi.fn(() => true);
 	const insertMarkdown = vi.fn(async () => true);
@@ -61,6 +59,7 @@ function harness(opts: { mode?: PresentationMode } = {}) {
 		getDoc: () => doc,
 		isHostChrome: (node) => !!node && header.contains(node),
 		blockEdit,
+		replaceRaw: vi.fn(async () => {}),
 		placeCaretAtPoint,
 		insertMarkdown,
 		insertCatalogue: () => insertCatalogue(everyInstalledPlugin),

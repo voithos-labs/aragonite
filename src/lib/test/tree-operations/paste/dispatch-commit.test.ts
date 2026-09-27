@@ -117,7 +117,7 @@ describe('pasteDispatch: cross-block inline join reparse', () => {
 			pasteContext({
 				doc: deps.doc,
 				blockEdit: makeStubBlockEdit(),
-				controller: createPasteCoordinator(createUndoController(deps), deps.revealPath),
+				controller: createPasteCoordinator(deps, createUndoController(deps)),
 				crossBlock: true
 			})
 		);
@@ -128,16 +128,17 @@ describe('pasteDispatch: cross-block inline join reparse', () => {
 
 	// The join reparse is a content commit, so it parses with the editor instance's grammar.
 	it('threads the instance grammar so a disabled list opener leaves a paragraph', async () => {
-		const { deps } = makeEditorActionsDeps(parse('. item\n').children);
+		const reading = fixtureReading({ grammar: createGrammarView((kind) => kind !== 'list') });
+		const { deps } = makeEditorActionsDeps(parse('. item\n').children, { reading });
 
 		await pasteDispatch(
 			{ pastedText: '1', targetPath: [0], offset: 0 },
 			pasteContext({
 				doc: deps.doc,
 				blockEdit: makeStubBlockEdit(),
-				controller: createPasteCoordinator(createUndoController(deps), deps.revealPath),
+				controller: createPasteCoordinator(deps, createUndoController(deps)),
 				crossBlock: true,
-				reading: fixtureReading({ grammar: createGrammarView((kind) => kind !== 'list') })
+				reading
 			})
 		);
 

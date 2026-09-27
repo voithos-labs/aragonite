@@ -34,7 +34,13 @@ import {
 import { spliceMany } from '../tree-operations/splice-many';
 import { isMergeEligible, isBlockEditable } from '../schema/merge-rules';
 import { getBlockKindDescriptor } from '../schema/block-kind-descriptor';
-import type { BlockEditActions, CommitAfterTick, Relanding } from '../action-contracts';
+import type {
+	BlockEditActions,
+	CommitAfterTick,
+	LeafTextOptions,
+	LeafWriteLanded,
+	LeafWriteResult
+} from '../action-contracts';
 import {
 	legalizeWrite,
 	settledCaretPosition,
@@ -42,7 +48,9 @@ import {
 	type LegalWrite,
 	type SettledContent
 } from '../tree-operations/content-write';
-import { landCaretInScope, type CommitScope } from './block-edit-scope';
+import { createPathScope, landCaretInScope, type CommitScope } from './block-edit-scope';
+import type { EditorRoot } from './deps';
+import { docPathFrom } from '../cursor/coordinate-spaces';
 import { mergedElseFocusNext, mergedElseFocusPrevious } from './merge-fallback';
 import { previewContentReparse, landUnlessFocusMoved } from './replacement-focus';
 import { admitsWrite } from './commit/reading-write-gate';
@@ -109,16 +117,6 @@ export function contentUpdate(scope: CommitScope): BlockEditActions['updateBlock
 
 // ── One leaf's new text through a commit ─────────────────────────────────────
 
-export type LeafWriteResult = { readonly wrote: false } | LeafWriteLanded;
-
-/** `caret` is where the caret goes after the write and its list's fix-up, and `window` the
- *  written block's replacement run; a collapsed ancestor places the caret itself afterwards. */
-export interface LeafWriteLanded extends Relanding {
-	readonly wrote: true;
-	/** Whether the write put new blocks in the position rather than rewriting the leaf. */
-	readonly replaced: boolean;
-}
-
 /**
  * Commit new text into child `index`. Offsets are in stored bytes: `snapshotOffset` is where undo
  * puts the caret back when nothing is focused, `caret` where it goes after the write.
@@ -168,6 +166,46 @@ export async function commitLeafText(
 		}
 	});
 	return wrote && landed ? landed : { wrote: false };
+}
+
+/**
+ * {@link commitLeafText} for a caller holding the leaf's document path: `text` as written, made
+ * legal against the leaf's parent, with `caret` an offset into it.
+ */
+export async function commitLeafTextAt(
+	root: EditorRoot,
+	leafPath: readonly number[],
+	text: string,
+	opts: LeafTextOptions
+): Promise<LeafWriteResult> {
+	const scope = createPathScope(root, docPathFrom(leafPath.slice(0, -1)));
+	const index = leafPath[leafPath.length - 1];
+	if (!scope || !scope.children()[index]) return { wrote: false };
+	const write = legalizeWrite(scope.target(), index, text, 'literal');
+	return commitLeafText(scope, index, write, {
+		snapshotOffset: opts.snapshotOffset,
+		caret: write.storedOffset(opts.caret),
+		afterTick: opts.afterTick
+	});
+}
+
+/**
+ * A command's rewrite of the block at `path`, its own undo entry whatever typing came before; the
+ * caret moves to the block's start only when the write put new blocks in its place.
+ */
+export async function replaceBlockRaw(
+	root: EditorRoot,
+	path: readonly number[],
+	raw: string
+): Promise<void> {
+	const scope = createPathScope(root, docPathFrom(path.slice(0, -1)));
+	const index = path[path.length - 1];
+	if (!scope || !scope.children()[index]) return;
+	await commitLeafText(scope, index, legalizeWrite(scope.target(), index, raw, 'literal'), {
+		snapshotOffset: 0,
+		caret: 0,
+		afterTick: (landed) => (landed.replaced ? landUnlessFocusMoved(scope, landed) : undefined)
+	});
 }
 
 export interface BlockEditCore {

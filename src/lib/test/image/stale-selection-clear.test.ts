@@ -9,7 +9,7 @@ import type { CstNode } from '../../core/nodes';
 import { createWidgetSelectionState } from '../../components/image/widget-selection-state.svelte';
 import { parse } from '../../core/parser';
 import { createEditorEvents } from '../../editor-events';
-import { makeStubController } from '../harness/editor-actions';
+import { makeInlineRange, makeStubController } from '../harness/editor-actions';
 import type { Document } from '../../core/nodes';
 import { fixtureReading } from '../harness/fixture-grammar';
 
@@ -21,7 +21,7 @@ describe('a selected image whose bytes an edit moves', () => {
 			getDoc: () => doc,
 			getEditorEl: () => null,
 			widgetSelection,
-			controller: makeStubController(),
+			inlineRange: makeInlineRange(() => doc, makeStubController()),
 			events: createEditorEvents(),
 			reading: fixtureReading()
 		});

@@ -23,7 +23,7 @@ function harnessFor(source: string) {
 		makeBlockListState(() => deps.doc.children[0])
 	);
 	const controller = createUndoController(deps);
-	return { deps, coordinator: createPasteCoordinator(controller, deps.revealPath) };
+	return { deps, coordinator: createPasteCoordinator(deps, controller) };
 }
 
 describe('a paste over a selection inside a list item', () => {

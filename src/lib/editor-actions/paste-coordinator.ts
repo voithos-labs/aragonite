@@ -4,11 +4,13 @@
 import type { PasteCommitCoordinator } from '../tree-operations/paste/paste-deps';
 import type { EditorActionsDeps, UndoController } from './deps';
 import { getStateForNode } from '../reactivity/state-registry';
+import { commitLeafTextAt } from './block-edit-core';
 
 export function createPasteCoordinator(
-	controller: UndoController,
-	revealPath: EditorActionsDeps['revealPath']
+	deps: EditorActionsDeps,
+	controller: UndoController
 ): PasteCommitCoordinator {
+	const root = { deps, controller };
 	return {
 		commitMultiScope: controller.commitMultiScope,
 		getDocScope: controller.getDocScope,
@@ -17,11 +19,12 @@ export function createPasteCoordinator(
 		resolveState: getStateForNode,
 		landCaret: async (path, offset) => {
 			const stamp = controller.historyGeneration();
-			const block = await revealPath(path);
+			const block = await deps.revealPath(path);
 			// An undo or redo that finished while the target was scrolling into view swapped
 			// the tree, so this path may name a different block than the paste aimed at.
 			if (controller.historyGeneration() !== stamp) return;
 			block?.focus(offset);
-		}
+		},
+		commitLeafText: (leafPath, text, opts) => commitLeafTextAt(root, leafPath, text, opts)
 	};
 }

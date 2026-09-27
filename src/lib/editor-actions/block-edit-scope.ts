@@ -21,13 +21,13 @@ import type { Reading } from '../schema/reading';
 import type { BlockComponent } from '../block-component';
 import type { CaretMemory } from '../cursor/caret-memory';
 import { ensureUnsharedPath, ensureUnsharedChild } from '../tree-operations';
-import { containerScopeState } from '../tree-operations/paste/parent-scope';
+import { detachedScopeState } from '../tree-operations/paste/parent-scope';
 import { asDocPath, type DocPath } from '../selection/path-math';
 import type { CaretPosition } from '../selection/primitives';
 import { caretTargetFor, type CaretTarget } from '../selection/caret-target';
 import { docPathFrom, extendDocPath } from '../cursor/coordinate-spaces';
 import { getStateForNode } from '../reactivity/state-registry';
-import type { EditorActionsDeps, UndoController } from './deps';
+import type { EditorActionsDeps, EditorRoot, UndoController } from './deps';
 import type { NestedActionsDeps } from './nested/nested-actions';
 import type { BlockListState } from '../reactivity/block-list-state.svelte';
 import { createLeafTyping } from './leaf-write';
@@ -192,12 +192,9 @@ export function createContainerScope(state: BlockListState, deps: NestedActionsD
 	});
 }
 
-/** The scope of the list at `parentPath`: the root's at the empty path, null where no container
- *  stands. Build it after any earlier commit of the gesture, which may replace the container. */
-export function createPathScope(
-	root: { deps: EditorActionsDeps; controller: UndoController },
-	parentPath: DocPath
-): CommitScope | null {
+/** The list at `parentPath` (the root's at `[]`), null where no container stands; build it after a
+ *  gesture's earlier commit. It lands the caret by path, so an unmounted container needs no refs. */
+export function createPathScope(root: EditorRoot, parentPath: DocPath): CommitScope | null {
 	const { deps, controller } = root;
 	if (parentPath.length === 0) return createTopLevelScope(deps, controller);
 	const node = blockNodeAt(deps.doc, parentPath);
@@ -205,7 +202,7 @@ export function createPathScope(
 	return containerScope({
 		node: () => blockNodeAt(deps.doc, parentPath) ?? node,
 		path: () => parentPath,
-		state: containerScopeState({ resolveState: getStateForNode }, node),
+		state: getStateForNode(node) ?? detachedScopeState(node),
 		reading: () => deps.reading,
 		caretMemory: deps.caretMemory,
 		containerEdit: createContainerEditActions(deps, controller),
