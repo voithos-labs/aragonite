@@ -42,6 +42,12 @@ never emptied, and no scenario broke or pasted into a heading with structure pas
 Miss-analysis for the last two: the break at the text's end was only tried on blocks with
 nothing past their text, so no scenario saw the run drawn, and then written, on the new line.
 
+- preview-block: after Shift+Enter at the text's end, a key starts the new line (`# Hi\ #` over
+  `w`), and a key typed between the shown run's space and its `#` lands there (`# Hi\ x#`)
+
+Miss-analysis: every preview-block scenario left the caret where Shift+Enter put it, so none
+typed with the caret inside a run the page shows.
+
 - live mode, inside a list item: Backspace over the text's last character keeps both markers
   (`- #  #`), and the next key writes the heading's text between them (`- # k #`)
 - live mode: a key typed into an empty heading with a closing run (`#  #`) lands between the

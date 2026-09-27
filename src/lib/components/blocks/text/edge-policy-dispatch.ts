@@ -23,6 +23,7 @@ import { type RawOffset } from '../../../cursor/coordinate-spaces';
 import type { EdgeAffinity } from '../../../cursor/edge-affinity';
 import type { PendingMarks } from '../../../cursor/pending-marks';
 import {
+	hiddenSuffixLength,
 	landableRawBounds,
 	markerPrefixOf,
 	revealsNoMarkers,
@@ -629,11 +630,17 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		const contentEnd = getContentRange(deps.node).end;
 		// A heading's closing run stays on the heading's line, so the new line starts past it.
 		const lineEnd = contentEnd + sameLineSuffix(deps.node).length;
-		// Where the break's new line is drawn (`paintPendingBreak`), a caret on it reads past the run.
-		const caretEnd = hidesMarkers(deps.reading.mode()) ? lineEnd : contentEnd;
+		const el = deps.getEl();
+		// The caret past the backslash, or where the new line is drawn (`paintPendingBreak`, past
+		// the run); a hidden run draws its whole span at that one spot.
+		const onBreak =
+			el !== null && hiddenSuffixLength(el) > 0
+				? caretOffset >= contentEnd && caretOffset <= lineEnd
+				: caretOffset === contentEnd ||
+					(hidesMarkers(deps.reading.mode()) && caretOffset === lineEnd);
 		const text = d.slice(0, contentEnd);
-		// Only at the content end, and only when the content's last byte is the break's backslash.
-		if (caretOffset < contentEnd || caretOffset > caretEnd || !text.endsWith('\\')) return false;
+		// Only there, and only when the content's last byte is the break's backslash.
+		if (!onBreak || !text.endsWith('\\')) return false;
 		// An escaped backslash (`\\\\`) is content, not a break.
 		if (text.endsWith('\\\\')) return false;
 		// Backslash before ASCII punctuation is an escape (`\|`, `\*`), never a break's backslash.

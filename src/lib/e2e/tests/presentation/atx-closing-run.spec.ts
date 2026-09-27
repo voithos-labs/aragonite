@@ -171,7 +171,7 @@ test.describe('live mode: the closing run stays on the heading', () => {
 		});
 	}
 
-	test('preview-block: Shift+Enter at the end of the text shows the run on the heading line', async ({
+	test('preview-block: Shift+Enter at the end of the text shows the run on the heading line, and a key starts the new line', async ({
 		page
 	}) => {
 		const ep = await enterPresentationMode(page, 'preview-block', DOC);
@@ -179,6 +179,17 @@ test.describe('live mode: the closing run stays on the heading', () => {
 		await page.keyboard.press('Shift+Enter');
 		await ep.bridge.waitForSourceEquals('# Hi\\ #\n\nnext\n');
 		expect((await ep.getBlock(0).innerText()).split('\n')[0]).toBe('# Hi\\ #');
+		await ep.typeSlowly('w');
+		await ep.bridge.waitForSourceEquals('# Hi\\ #\nw\n\nnext\n');
+	});
+
+	test("preview-block: a key between the shown run's space and its # lands there", async ({
+		page
+	}) => {
+		const ep = await enterPresentationMode(page, 'preview-block', '# Hi\\ #\n\nnext\n');
+		await ep.focusBlockAtPath([0], 6);
+		await ep.typeSlowly('x');
+		await ep.bridge.waitForSourceEquals('# Hi\\ x#\n\nnext\n');
 	});
 
 	for (const [source, written] of [
