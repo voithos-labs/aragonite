@@ -1,6 +1,7 @@
 /**
  * The root FocusActions: caret movement across top-level blocks, vertical moves that keep
- * the sticky column, and the paragraph appended when a move goes past the document's end.
+ * the sticky column, and the paragraph appended when a move goes past the document's end
+ * (outside reading mode).
  */
 
 import type { FocusActions, MoveFocusOptions } from '../../action-contracts';
@@ -12,6 +13,7 @@ import { traversalStep } from './focus-dispatch';
 import { consumeStickyLanding } from './focus-landing';
 import { docPathFrom } from '../../cursor/coordinate-spaces';
 import { tryGapStop, type GapStopScope } from '../../selection/gap-caret';
+import { isReadingMode } from '../../presentation-mode';
 
 export function createFocusActions(
 	deps: EditorActionsDeps,
@@ -41,7 +43,8 @@ export function createFocusActions(
 			if (stopsAtGaps && gapStopAt([], step > 0 ? blockIndex : blockIndex + 1)) return;
 			if (blockIndex < 0) return;
 			if (blockIndex >= deps.doc.children.length) {
-				if (options?.append === false) return;
+				// Reading mode writes nothing, so a move past the last block just stops there.
+				if (options?.append === false || isReadingMode(deps.reading.mode)) return;
 				// Past the last block: appended through a commit so it is in undo history and edit
 				// events. The separating blank line and the paragraph's own line are both line
 				// endings, so both take the document's.
