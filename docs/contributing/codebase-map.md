@@ -202,8 +202,9 @@ flowchart TD
 ```
 
 **Two primitives, and callers pick one on purpose.** `src/lib/components/Editor.svelte` ::
-`revealPath` is the **mount** primitive: it makes the target exist and promises nothing about the
-viewport. `src/lib/editor-rects.ts` :: `createEditorRects` wraps a mount as `scrollTo`, which claims,
+`revealPath` is the **mount** primitive: it makes the target exist and doesn't scroll the editor
+to it (a table it passes through still scrolls its own grid sideways to a far cell's column, or
+the caret would land where you can't see it). `src/lib/editor-rects.ts` :: `createEditorRects` wraps a mount as `scrollTo`, which claims,
 mounts, scrolls, and settles. A history swap injects the bare mount, so undo doesn't yank the
 viewport; a navigation injects the scrolling one. Both open a collapsed body on the way, as one
 undo entry, since that's what gets a caret aimed into the hidden body placed.
