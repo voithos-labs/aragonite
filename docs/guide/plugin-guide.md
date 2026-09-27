@@ -425,9 +425,11 @@ One dev-time softening. Under a dev server, re-evaluating a registration module 
 
 A **plugin unit** is the installable package: a name plus a `setup` that runs your `register*` calls.
 
-**`definePlugin({ name, setup })`**
+**`definePlugin({ name, setup, defaults?, parseOptions? })`**
 
-Validates the unit at definition time (the name is a lowercase first letter followed by letters, digits, and hyphens, and `setup` has to be a function) and returns an `EditorPlugin`. By convention you export a **factory**, meaning `export function myPlugin(deps?)` returns the unit, and the factory's argument carries any **process-global dependency** the plugin needs (a render engine, say, which is the same for every editor). Configuration that could differ per editor takes a different path ([One process, many editors](#one-process-many-editors)); the factory argument is only for what never varies between editors.
+Validates the unit at definition time (the name is a lowercase first letter followed by letters, digits, and hyphens, and `setup` has to be a function) and returns an `EditorPlugin`. The two optional fields are for options that can differ per editor: `defaults` is where every editor's options start, and `parseOptions` checks what an editor passes ([the options recipe](#recipe-per-instance-options-and-the-factory-closure-trap) has both).
+
+By convention you export a **factory**, meaning `export function myPlugin(deps?)` returns the unit. The factory's argument is where a **process-global dependency** comes in (a render engine, say, which is the same for every editor), and it can fill your `defaults` too. What it can't do is give two editors different values; that takes a different path ([One process, many editors](#one-process-many-editors)).
 
 ```ts
 export function myPlugin(options?: { renderer?: Renderer }): EditorPlugin {
@@ -541,7 +543,7 @@ setup(ctx) {
 | `document`                     | A live getter for the root document, as a read-only `DocumentView` ([Views](#views-what-you-read-what-you-own))                                                                                  |
 | `documentGeneration`           | How many times a `source` write has replaced the document, live but not reactive: subscribe to the `sourceSwap` event to hear a change                                                           |
 | `events`                       | The subscribe-only event view; `events.on('edit', …)` returns a disposer                                                                                                                         |
-| `options`                      | The options this editor passed, typed once you write `definePlugin<Options>` (recipe below)                                                                                                      |
+| `options`                      | Your `defaults` with this editor's options merged over them (just the defaults if it passed none), typed once you write `definePlugin<Options>` (recipe below)                                   |
 | `decorations`                  | This editor's decoration registry, where you register a source ([Decorations](#decorations))                                                                                                     |
 | `rects`                        | This editor's viewport-space geometry: block box, range rects, caret, reveal, navigation                                                                                                         |
 | `inlineMenus`                  | This editor's registry for lists opened by a typed trigger ([Recipe: a typed-trigger menu](consumer-guide.md#recipe-a-typed-trigger-menu))                                                       |
@@ -578,10 +580,10 @@ function recount(editor: EditorContext<WordCountOptions>): void {
 
 export const wordCountPlugin = definePlugin<WordCountOptions>({
 	name: 'word-count',
+	defaults: { live: true }, // what a bare-unit install reads
 	setup(ctx) {
 		ctx.onEditor((editor) => {
-			// A bare-unit install passes no options, so default them.
-			const { live } = editor.options ?? { live: true };
+			const { live } = editor.options;
 			recount(editor); // seed on mount
 			const off = live ? editor.events.on('edit', () => recount(editor)) : () => {};
 			return () => {
@@ -602,9 +604,35 @@ Two editors share one process-global registration but may still want different o
 <Editor source={right} plugins={[{ plugin: wordCountPlugin, options: { live: false } }]} />
 ```
 
-`definePlugin<WordCountOptions>` carries the type through, so `editor.options` reads typed inside `onEditor` with no cast.
+Whatever an editor passes lands on your `defaults` one field at a time. A field it passes replaces yours whole (an array too, nothing gets concatenated), and a field it leaves out keeps its default. The bundled slash commands plugin shows it best, since its factory argument is its `defaults`:
 
-**The trap.** Don't hold per-instance config in the plugin factory's closure. `wordCountPlugin({ live: false })` looks like it configures the instance, but a plugin installs once per process, so only the first editor's factory value ever takes effect and the second is silently ignored. The question that decides it: _would two editors ever want different values?_ If yes, it's per-instance: pass it through the prop entry and read `editor.options`. If no (a render engine, a shared parser), the factory argument is the right home.
+```ts
+const stamp = { id: 'stamp', label: 'Stamp', insert: 'approved' }; // one host row
+slashCommandsPlugin({ entries: [stamp] }); // defaults: { entries: [stamp] }
+
+// this editor's options      editor.options
+// (none, a bare unit)        { entries: [stamp] }
+// { exclude: ['table'] }     { entries: [stamp], exclude: ['table'] }
+// { entries: [] }            { entries: [] }
+```
+
+`definePlugin<WordCountOptions>` carries the type through, so `editor.options` reads typed inside `onEditor` with no cast. The type is your word, though, not a check. What checks is **`parseOptions(raw)`**: it gets an editor's options exactly as the host wrote them (once per editor, and only if the host wrote some) and returns the fields to apply. Leave a field out and it keeps its default. Throw, and the editor reports it on its `error` event (origin `subscriber`, naming your plugin) and runs your plugin on its defaults, so somebody's typo never takes their document down.
+
+```ts
+export const wordCountPlugin = definePlugin<WordCountOptions>({
+	name: 'word-count',
+	defaults: { live: true },
+	parseOptions(raw) {
+		const live = (raw as Partial<WordCountOptions> | null)?.live;
+		return typeof live === 'boolean' ? { live } : {}; // { live: 'yes' } keeps live: true
+	},
+	setup(ctx) {
+		/* the recipe above */
+	}
+});
+```
+
+**The trap.** Don't hold per-instance config in the plugin factory's closure. `wordCountPlugin({ live: false })` looks like it configures the instance, but a plugin installs once per process, so only the first editor's factory value ever takes effect and the second is silently ignored. The question that decides it: _would two editors ever want different values?_ If yes, it's per-instance: pass it through the prop entry and read `editor.options`. If no (a render engine, a shared parser), the factory argument is the right home. A factory argument that fills `defaults` is fine too: it's every editor's starting value, and each editor's entry can still override it.
 
 ## Walkthrough: a `:::conspiracy` container end to end
 
@@ -904,7 +932,7 @@ The factory returns more than the walkthrough destructures:
 | `moveFocusOut`          | A plugin-owned editing surface whose caret ran off its own edge; hands the caret to the neighbour a plain arrow points at, through the editor's focus traversal, so the landing skips non-focusable blocks, enters containers, and reveals an unmounted target like any other arrow                                                                                            |
 | `getPresentationMode`   | Your rendering or a gesture needs the live presentation mode ([Presentation modes](#presentation-modes))                                                                                                                                                                                                                                                                       |
 | `getTheme`              | Your content's colors are painted by an engine rather than styled by CSS; token-styled chrome needs neither this nor `getPresentationMode`, it rethemes through the cascade                                                                                                                                                                                                    |
-| `getOptions`            | This editor's options for the plugin that owns your kind, typed `unknown` (it's shorthand for `getEditor()?.options`). It's the per-instance channel a factory argument can't reach ([the options recipe](#recipe-per-instance-options-and-the-factory-closure-trap))                                                                                                          |
+| `getOptions`            | This editor's options for the plugin that owns your kind, your `defaults` included, typed `unknown` (it's shorthand for `getEditor()?.options`). It's how a value differs per editor, which a factory argument can't do ([the options recipe](#recipe-per-instance-options-and-the-factory-closure-trap))                                                                      |
 | `getEditor`             | This editor's `EditorContext` for the plugin that owns your kind, undefined only in a bare test harness. Its `computeInlineContent` reads the syntax this editor draws. If your helper's reader defaults to the free `computeInlineContent`, pass it `getEditor()?.computeInlineContent` and it still parses in a bare harness (the bundled toc and footnotes do exactly this) |
 | `captureScrollPosition` | Your component is about to swap its view for one of a different height (a tall diagram for its short source card) and the reader is scrolled right at it. Call it before the swap, await what it hands back after, and the page stays where the reader left it instead of clamping to the shorter layout in between                                                            |
 
@@ -914,7 +942,7 @@ const { updateOwnMetadata, getPresentationMode, getTheme, getOptions, captureScr
 updateOwnMetadata({ name: 'debunked' }); // one undo entry; rebuildRaw re-emits the opener line as :::debunked
 getPresentationMode(); // 'source'
 getTheme(); // 'dark'
-getOptions(); // whatever this editor's { plugin, options } entry carried; undefined for a bare unit
+getOptions(); // your defaults with this editor's { plugin, options } entry merged over them
 const restore = captureScrollPosition(); // before the swap...
 editing = true;
 await restore(); // ...and after; a no-op when nothing moved
@@ -1182,7 +1210,7 @@ const leaf = createEditableLeaf({
 });
 leaf.sourceText; // the block's raw minus its trailing line ending
 leaf.getPresentationMode(); // 'source'
-leaf.getOptions(); // this editor's options for your plugin, typed unknown
+leaf.getOptions(); // this editor's options for your plugin, defaults included, typed unknown
 leaf.getEditor(); // this editor's EditorContext for your plugin, undefined in a bare harness
 ```
 
@@ -1215,7 +1243,7 @@ commit(edited text) ── parse ──▶ same kind?        update in place, ca
 
 Editing past your own fence therefore re-splits the document instead of wedging foreign text into your node, and the round-trip holds through every commit.
 
-**Per-instance configuration.** `leaf.getOptions()` returns this editor instance's options for the plugin owning your kind, typed `unknown` for you to narrow. It's the same route as the container factory's `getOptions()`, one tier down, and the same rule applies ([the options recipe](#recipe-per-instance-options-and-the-factory-closure-trap)). The bundled toc block resolves `maxDepth` this way and falls back to the factory argument, which then serves as the default for an instance declaring none.
+**Per-instance configuration.** `leaf.getOptions()` returns this editor's options for the plugin owning your kind, already merged over your `defaults`. It's typed `unknown`, so cast it to your options type, and it's `undefined` only with no editor around (a component mounted bare in a unit test). It's the same route as the container factory's `getOptions()`, one tier down, and the same rule applies ([the options recipe](#recipe-per-instance-options-and-the-factory-closure-trap)). The bundled toc block reads its `maxDepth` this way, with `tocPlugin({ maxDepth })` filling the default.
 
 Block math (`$$…$$` in the bundled `@voithos-labs/aragonite/plugins/latex` plugin) is the worked example, and it's smaller than you'd expect: its component script is the factory call, one render effect (KaTeX), a `{...leaf.surfaceProps}` spread on the source, and one-line re-exports of the returned surface. Registration is the ordinary leaf recipe: `registerBlockKind` (no container group), `registerBlockOpener`, `registerBlockComponent`. Its `caretTargetAtPoint` is the other half of the parrot's: where the parrot's caption is the source bytes minus a prefix, KaTeX paints glyphs no offset maps back to, so the render effect stamps the body's span on the rendered element and the hook walks that span in proportion to how far along the press fell.
 
@@ -1624,9 +1652,9 @@ setup(ctx) {
 	registerGlobalCommand(
 		'wordCount.log',
 		(editor) => {
-			// The mint is not generic-bound: the handler gets EditorContext<unknown>,
-			// so narrow options here (onEditor's callback is where they read typed).
-			const opts = editor.options as WordCountOptions | undefined;
+			// The handler isn't bound to your options type: it gets EditorContext<unknown>,
+			// so cast options here (onEditor's callback is where they read typed).
+			const opts = editor.options as WordCountOptions;
 			console.log(`[${editor.editorId}]`, countByEditor.get(editor.editorId), opts);
 			return true; // handled
 		},
