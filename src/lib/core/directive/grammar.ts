@@ -4,6 +4,7 @@
  * the verbatim `info` (leading separator included), the body wrap, and a matched closer exactly.
  */
 
+import { WHITESPACE_CHARS } from '../lines';
 import { escalateTerminatorRun } from '../terminator-escalation';
 
 // ── Opener / closer ───────────────────────────────────────────────────────────
@@ -94,10 +95,11 @@ export interface DirectiveAttributes {
 	properties: Record<string, string>;
 }
 
-const LABEL = /^\s*\[([^\]]*)\]/;
+// The info string is one line, so the spaces before a label are spaces and tabs.
+const LABEL = /^[ \t]*\[([^\]]*)\]/;
 const BRACES = /\{([^}]*)\}/;
 // Quoted segments fold in, so `title="a b"` stays one token instead of splitting on its space.
-const ATTR_TOKEN = /(?:[^\s"]+|"[^"]*")+/g;
+const ATTR_TOKEN = new RegExp(`(?:[^${WHITESPACE_CHARS}"]+|"[^"]*")+`, 'g');
 
 /**
  * Opt-in `info -> structure` reader for a leading `[label]` and a `{#id .class key=val}` block.

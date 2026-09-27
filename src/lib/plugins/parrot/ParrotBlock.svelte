@@ -1,6 +1,6 @@
 <!-- ParrotBlock.svelte -->
 <script lang="ts">
-	import { createEditableLeaf, type NodeView } from '$lib/plugin';
+	import { createEditableLeaf, trimWhitespace, type NodeView } from '$lib/plugin';
 
 	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
 	let sourceEl: HTMLDivElement | undefined = $state();
@@ -226,7 +226,7 @@ cNd.........................................;lOc
 	// The clip window's height, which is why every frame has to be the same number of rows.
 	const FRAME_ROWS = FRAMES[0].split('\n').length;
 
-	const caption = $derived(node.raw.slice('%%parrot'.length).trim());
+	const caption = $derived(trimWhitespace(node.raw.slice('%%parrot'.length)));
 
 	export const editable = true;
 	export const focusable = true;

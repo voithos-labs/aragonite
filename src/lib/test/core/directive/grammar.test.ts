@@ -158,3 +158,19 @@ describe('parseDirectiveAttributes', () => {
 		expect(parseDirectiveAttributes('  My Title')).toEqual({ classes: [], properties: {} });
 	});
 });
+
+// Miss-analysis: every attribute case spaced its tokens with ASCII spaces, so JS `\s` admitting
+// a non-breaking space never met an input where it disagreed with Markdown's whitespace.
+describe('parseDirectiveAttributes reads Markdown whitespace, where a non-breaking space is text', () => {
+	const NBSP = '\u00a0';
+
+	it('finds a label behind spaces and a tab, and none behind a non-breaking space', () => {
+		expect(parseDirectiveAttributes(' \t[x]').label).toBe('x');
+		expect(parseDirectiveAttributes(`${NBSP}[x]`).label).toBeUndefined();
+	});
+
+	it('splits attribute tokens on a tab, never on a non-breaking space', () => {
+		expect(parseDirectiveAttributes('{.a\t.b}').classes).toEqual(['a', 'b']);
+		expect(parseDirectiveAttributes(`{.a${NBSP}.b}`).classes).toEqual([`a${NBSP}.b`]);
+	});
+});

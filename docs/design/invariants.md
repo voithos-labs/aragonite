@@ -1531,8 +1531,11 @@ whitespace (an autolink's boundary, a tag's attributes, label matching, the info
 it means the ASCII set of § 2.1, which `src/lib/core/lines.ts :: isWhitespaceChar` reads. JS `\s`
 and `trim()` admit a non-breaking space either way, so the scan fails on either in `core/parsers/`
 and the other grammar files. Emphasis and the code that edits it stay outside the scan, since
-the flanking rule is written over Unicode whitespace. Plugin grammars (`core/directive/`) follow
-#509. `lint/file-rules.test.ts`.
+the flanking rule is written over Unicode whitespace. The directive grammar (`core/directive/`)
+and the bundled plugins are in the scan too, reading the same helpers through
+`src/lib/plugin.ts`. Its allowlist is the few plugin files whose `\s` or `trim()` reads text that
+isn't Markdown (the slash menu's typed query, a render's ink check, a heading's outline label),
+each with why. `lint/file-rules.test.ts`.
 
 ## Accessibility
 

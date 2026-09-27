@@ -35,6 +35,17 @@ describe('admonition round-trip (registered)', () => {
 		expect(node.children?.[1].kind).toBe('paragraph');
 	});
 
+	// Miss-analysis: every title was spaced with ASCII, so `trim()` dropping a typed non-breaking
+	// space never met a test.
+	it('trims Markdown whitespace off the title and keeps a non-breaking space', () => {
+		expect(parse(':::tip \tPro tip\t\nBody.\n:::\n').children[0].children?.[0].raw).toBe(
+			'Pro tip\n'
+		);
+		expect(parse(':::tip\u00a0Pro tip\nBody.\n:::\n').children[0].children?.[0].raw).toBe(
+			'\u00a0Pro tip\n'
+		);
+	});
+
 	it('gives an untitled admonition an empty title leaf', () => {
 		const doc = parse(':::note\nBody.\n:::\n');
 		expect(doc.children[0].children?.[0].raw).toBe('\n');

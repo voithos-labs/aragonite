@@ -13,6 +13,7 @@ import {
 	defineBlockComponent,
 	getPluginMetadata,
 	isBlankLine,
+	isWhitespaceChar,
 	lineStartsOuterBlock,
 	parseContainerBody,
 	registerBlockComponent,
@@ -31,17 +32,23 @@ export interface FootnoteDefMetadata {
 	label: string;
 }
 
-const OPENER = /^ {0,3}\[\^([^\]\s]+)\]:/;
-const MARKER_STRIP = /^ {0,3}\[\^[^\]\s]+\]: ?/;
+const OPENER = /^ {0,3}\[\^([^\]]+)\]:/;
+const MARKER_STRIP = /^ {0,3}\[\^[^\]]+\]: ?/;
 // Four columns, a tab counting to the next multiple of four, so no tab reaches past the body.
 const CONTINUATION_INDENT = /^(?: {0,3}\t| {4})/;
 const CONTINUATION_MARKER = '    ';
+
+/** The `[^label]:` a line opens with, where the label holds no Markdown whitespace. */
+function matchOpener(text: string): RegExpExecArray | null {
+	const match = OPENER.exec(text);
+	return match && ![...match[1]].some(isWhitespaceChar) ? match : null;
+}
 
 /** Per-line approximation of the body's open-paragraph state, as in the core blockquote/list
  *  lazy models: laziness reaches only the body's own top-level paragraph. */
 function keepsParagraphOpen(strippedText: string, grammar: OpenContext['grammar']): boolean {
 	if (isBlankLine(strippedText)) return false;
-	if (OPENER.test(strippedText)) return false;
+	if (matchOpener(strippedText)) return false;
 	for (const opener of grammar.orderedOpeners()) {
 		const interrupts = opener.interruptsParagraph;
 		if (interrupts !== false && interrupts(strippedText)) return false;
@@ -86,7 +93,7 @@ function scanDefinitionEnd(ctx: OpenContext): number {
 }
 
 function tryOpen(ctx: OpenContext): BlockOpenerResult | null {
-	const match = OPENER.exec(ctx.line.text);
+	const match = matchOpener(ctx.line.text);
 	if (!match) return null;
 
 	const next = scanDefinitionEnd(ctx);

@@ -18,7 +18,8 @@ afterEach(resetPluginPlatformForTests);
 describe('block math Enter completer: which lines it claims', () => {
 	it.each([
 		['$$', 'the bare fence'],
-		['  $$  ', 'surrounding whitespace, which the typed line may carry']
+		['  $$  ', 'surrounding whitespace, which the typed line may carry'],
+		['\t$$\t', 'tabs, which are Markdown whitespace too']
 	])('claims %j (%s)', (line) => {
 		expect(tryCompleteMathBlock(line)).not.toBeNull();
 	});
@@ -28,7 +29,10 @@ describe('block math Enter completer: which lines it claims', () => {
 		['$$ x', 'an opener with body text on it — no multi-line form is implied'],
 		['$$$', 'a longer run, which is not the fence'],
 		['$', 'the inline marker'],
-		['', 'an empty line']
+		['', 'an empty line'],
+		// Miss-analysis: the whitespace case used ASCII spaces only, so `trim()` taking a
+		// non-breaking space, which Markdown counts as text, went unseen.
+		['$$\u00a0', 'a non-breaking space, which is text rather than whitespace']
 	])('declines %j (%s)', (line) => {
 		expect(tryCompleteMathBlock(line)).toBeNull();
 	});

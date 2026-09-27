@@ -147,7 +147,7 @@ On the opener, `priority` decides where you sit in the built-in openers' dispatc
 ```svelte
 <!-- ParrotBlock.svelte -->
 <script lang="ts">
-	import { createEditableLeaf, type NodeView } from '@voithos-labs/aragonite/plugin';
+	import { createEditableLeaf, trimWhitespace, type NodeView } from '@voithos-labs/aragonite/plugin';
 
 	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
 	let sourceEl: HTMLDivElement | undefined = $state();
@@ -214,7 +214,7 @@ cNo.....................................oc
 	// The clip window's height, which is why every frame has to be the same number of rows.
 	const FRAME_ROWS = FRAMES[0].split('\n').length;
 
-	const caption = $derived(node.raw.slice('%%parrot'.length).trim());
+	const caption = $derived(trimWhitespace(node.raw.slice('%%parrot'.length)));
 
 	export const editable = true;
 	export const focusable = true;
@@ -623,6 +623,7 @@ import {
 	registerChromeLeaf,
 	registerDirective,
 	setPluginMetadata,
+	trimWhitespace,
 	type CstNode,
 	type EditorPlugin,
 	type ParsedDirective
@@ -644,7 +645,7 @@ export interface ConspiracyMetadata {
 // from the opener line); children 1+ are the parsed evidence. The fence bytes go to
 // metadata so the raw can be rebuilt after an edit.
 function conspiracyFromDirective(parsed: ParsedDirective): CstNode {
-	const theory = parsed.fence.info.trim();
+	const theory = trimWhitespace(parsed.fence.info);
 	const node: CstNode = {
 		kind: declaredPluginKind(CONSPIRACY),
 		leadingTrivia: parsed.leadingTrivia,
@@ -1110,7 +1111,7 @@ An opener recognizes syntax that's already there. A grammar whose lines must be 
 ```ts
 registerBlockCompleter(myKind, {
 	tryComplete: (line) =>
-		line.trim() === '$$'
+		trimWhitespace(line) === '$$'
 			? { lines: ['$$', '', '$$'], caret: { path: [], line: 1, column: 0 } }
 			: null
 });

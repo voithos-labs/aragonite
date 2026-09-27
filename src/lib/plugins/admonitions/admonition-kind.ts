@@ -19,6 +19,7 @@ import {
 	isDirectiveRegistered,
 	setPluginMetadata,
 	getPluginMetadata,
+	trimWhitespace,
 	type CstNode,
 	type ParsedDirective,
 	type PluginBlockKind
@@ -45,7 +46,7 @@ export interface AdmonitionsOptions {
 /** Child 0 is the title (the opener line's info, editable); children 1+ are the body. */
 function admonitionFromDirective(kind: PluginBlockKind, titleKind: PluginBlockKind) {
 	return (parsed: ParsedDirective): CstNode => {
-		const title = parsed.fence.info.trim();
+		const title = trimWhitespace(parsed.fence.info);
 		const node: CstNode = {
 			kind,
 			leadingTrivia: parsed.leadingTrivia,

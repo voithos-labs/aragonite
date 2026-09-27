@@ -11,18 +11,17 @@ import {
 	declarePluginInlineKind,
 	registerInlineSyntax,
 	registerInlineWidgetKind,
+	isWhitespaceChar,
 	type InlineNode,
 	type PluginInlineKind
 } from '$lib/plugin';
 import FootnoteReference from './FootnoteReference.svelte';
 import { FOOTNOTE_REF_KIND } from './constants';
 
-const isWhitespace = (ch: string) => /\s/.test(ch);
-
 function indexLabelTerminators(raw: string): Int32Array {
 	const positions: number[] = [];
 	for (let i = 0; i < raw.length; i++) {
-		if (raw[i] === ']' || isWhitespace(raw[i])) positions.push(i);
+		if (raw[i] === ']' || isWhitespaceChar(raw[i])) positions.push(i);
 	}
 	return Int32Array.from(positions);
 }

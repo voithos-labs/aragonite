@@ -35,7 +35,8 @@ describe('inline math is dormant until registered', () => {
 // before it is not whitespace and the char after it is not a digit; and a span that is purely a
 // number is a price, not a formula. Miss-analysis: the table paired a letter opener with a digit
 // closer (`$x^2$`) and a digit opener with no closer (`$5`, `$5 and $10`), never a digit opener
-// with a valid closer, which is the one case the first-byte check got wrong.
+// with a valid closer, which is the one case the first-byte check got wrong; and it spaced with
+// ASCII only, so JS `\s` treating a non-breaking space as whitespace went unseen.
 describe('$ flanking recognition', () => {
 	beforeEach(() => registerMathInline());
 
@@ -55,13 +56,21 @@ describe('$ flanking recognition', () => {
 		['$5.00$', false],
 		['$10-$20', false],
 		['$x$5', false],
-		['a$b', false]
+		['a$b', false],
+		// A tab or a line break is Markdown whitespace, the same as a space.
+		['$\tx$', false],
+		['$x\n$', false]
 	];
 	for (const [raw, recognized] of cases) {
 		it(`${raw} → ${recognized ? 'math' : 'no math'}`, () => {
 			expect(mathNodesIn(raw).length > 0).toBe(recognized);
 		});
 	}
+
+	it('reads a non-breaking space beside either delimiter as text, not whitespace', () => {
+		expect(mathNodesIn('$\u00a0x$')).toHaveLength(1);
+		expect(mathNodesIn('$x\u00a0$')).toHaveLength(1);
+	});
 
 	it('spans the full $…$ with start at the open $', () => {
 		const [node] = mathNodesIn('a $x^2$ b');
