@@ -307,8 +307,24 @@ function findByChord(
 	return bindings?.find((b) => normalizeChord(b.chord) === chord) ?? null;
 }
 
+// A block focused as a whole has no text keymap to carry the reorder chords every other block
+// takes, so it gets them here unless its kind binds the chord itself.
+const WHOLE_BLOCK_KEYMAP: readonly KeyBinding[] = [
+	{ chord: 'Alt+ArrowUp', command: 'block.moveUp' },
+	{ chord: 'Alt+ArrowDown', command: 'block.moveDown' }
+];
+
+/** The bindings a kind resolves: its declared keymap, plus the whole-block defaults above. */
+export function kindKeymap(kind: AnyBlockKind): readonly KeyBinding[] {
+	const descriptor = tryGetBlockKindDescriptor(kind);
+	const declared = descriptor?.keymap ?? [];
+	if (descriptor?.blockFocus !== 'whole-block') return declared;
+	const bound = new Set(declared.map((binding) => normalizeChord(binding.chord)));
+	return [...declared, ...WHOLE_BLOCK_KEYMAP.filter((b) => !bound.has(normalizeChord(b.chord)))];
+}
+
 function builtinKindBinding(chord: string, kind: AnyBlockKind): KeyBinding | null {
-	return findByChord(tryGetBlockKindDescriptor(kind)?.keymap, chord);
+	return findByChord(kindKeymap(kind), chord);
 }
 
 /**

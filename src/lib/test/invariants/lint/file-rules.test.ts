@@ -515,6 +515,10 @@ const RULES: FileRule[] = [
 		matches: (file) => !PUBLISHES_RUN_COMMAND_RE.test(file.code),
 		reason:
 			'without an instance export of runCommand, editor.runCommand() declines on that block; a surface that genuinely takes no command belongs in this message, not in silence',
+		allowed: {
+			'src/lib/components/blocks/ThematicBreakBlock.svelte':
+				'owns no command body: its only chords, the reorder pair, resolve in the dispatch against its path'
+		},
 		// The dispatch-only signal is what widens this population past G4.38's.
 		reaches: ['src/lib/components/blocks/ThematicBreakBlock.svelte'],
 		atLeast: 5,

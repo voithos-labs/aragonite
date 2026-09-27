@@ -299,7 +299,7 @@ export function buildContainerKindTarget(
 // ── Factory ──────────────────────────────────────────────────────────────────
 
 export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
-	const { caretMemory, selection, reorder, revealAnchor, commands } =
+	const { caretMemory, selection, revealAnchor, commands } =
 		getContext<EditorServices>(EDITOR_SERVICES_KEY);
 	const { theme: getTheme } = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
 	const { pluginEditor, reading } = getContext<EditorDoc>(EDITOR_DOC_KEY);
@@ -434,17 +434,26 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		parentBlockEdit.updateBlockMetadata(deps.getIndex(), patch, { afterTick });
 
 	const kindTarget = buildContainerKindTarget(deps, updateOwnMetadata, pluginEditor);
+	// Focused as a whole, the block is the one a reorder chord moves; a key bubbling from an
+	// inner leaf was that leaf's to move.
+	const wholeBlockTarget: KindCommandTarget = {
+		get kind() {
+			return kindTarget.kind;
+		},
+		getCommandContext: kindTarget.getCommandContext,
+		getPath: deps.getPath
+	};
 
 	const commandOf = (e: KeyboardEvent) => commandForKey(e, deps.getNode().kind, commands);
 
 	const handleKeydown = (e: KeyboardEvent): void => {
 		if (e.defaultPrevented) return;
+		const ownsFocus = ownsWholeBlockFocus(e);
 		// Only when this block itself holds focus: a chord bubbling from an inner leaf already
 		// met the global chords there, and running it here would fire it twice.
-		if (ownsWholeBlockFocus(e) && dispatchWholeBlockGlobalChord(e, deps.getNode().kind, commands))
-			return;
-		if (dispatchContainerChord(e, kindTarget, commands)) return;
-		handleWholeBlockKeydown(e);
+		if (ownsFocus && dispatchWholeBlockGlobalChord(e, deps.getNode().kind, commands)) return;
+		if (dispatchContainerChord(e, ownsFocus ? wholeBlockTarget : kindTarget, commands)) return;
+		if (ownsFocus) handleWholeBlockKeydown(e);
 	};
 
 	const moveFocusOut = (e: KeyboardEvent): boolean => {
@@ -468,28 +477,15 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		return !isEditableEventTarget(e.target);
 	}
 
-	// The whole-block key handling, dispatched from the wrapper's bubble phase.
+	// The whole-block key handling, dispatched from the wrapper's bubble phase. A whole-block
+	// element is focusable by tabindex regardless of contenteditable, so it runs in reading mode.
 	function handleWholeBlockKeydown(e: KeyboardEvent): void {
-		if (!ownsWholeBlockFocus(e)) return;
-
-		// A whole-block element is focusable by tabindex regardless of contenteditable, so
-		// this path is live in reading mode: arrows work, edits are blocked.
-		const reading = isReadingMode(getPresentationMode);
-
-		// Alt-arrow reorder is inline because `runCommand` is inert here, so unlike
-		// ThematicBreak it cannot come from dispatchKindCommand.
-		if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
-			e.preventDefault();
-			if (!reading) void reorder.nudgeReorderUnit(deps.getPath(), e.key === 'ArrowUp' ? -1 : 1);
-			return;
-		}
-
 		handleWholeBlockKeys(e, {
 			getIndex: deps.getIndex,
 			getRaw: () => deps.getNode().raw,
 			blockEdit: parentBlockEdit,
 			focus: parentFocus,
-			isReading: () => reading,
+			isReading: () => isReadingMode(getPresentationMode),
 			caretMemory,
 			commandOf
 		});

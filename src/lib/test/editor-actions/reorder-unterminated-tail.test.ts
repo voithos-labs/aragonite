@@ -8,7 +8,9 @@ import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createHistoryActions } from '$lib/editor-actions/commit/history';
-import { createReorderAction, reorderRunCommand } from '$lib/editor-actions/reorder-action';
+import { createReorderAction } from '$lib/editor-actions/reorder-action';
+import { runCommandById } from '$lib/schema/block-commands';
+import { commandContext } from '$lib/test/support/command-context';
 import type { ReorderAction } from '$lib/editor-actions/reorder-action';
 import type { CommandId } from '$lib/schema/commands';
 import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
@@ -30,16 +32,16 @@ const drop =
 	(path: number[], to: number): Move =>
 	(r) =>
 		r.moveReorderUnit(path, to);
+// The command dispatch every block's reorder chord resolves through, with the move at `path`.
 const command =
 	(id: CommandId, path: number[]): Move =>
 	async (r) => {
 		let pending: Promise<void> = Promise.resolve();
-		const claimed = reorderRunCommand(
-			id,
-			{ nudgeReorderUnit: (p, dir) => (pending = r.nudgeReorderUnit(p, dir)) },
-			() => path
-		);
-		expect(claimed).toBe(true);
+		const reorder = {
+			nudgeReorderUnit: (p: number[], dir: -1 | 1) => (pending = r.nudgeReorderUnit(p, dir))
+		};
+		const target = { kind: 'paragraph' as const, getPath: () => path };
+		expect(runCommandById(id, undefined, target, commandContext({ reorder }))).toBe(true);
 		await pending;
 	};
 

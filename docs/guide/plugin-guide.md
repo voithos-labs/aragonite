@@ -1244,7 +1244,7 @@ In `reading` mode the platform does most of it for you, which is why most plugin
 
 - your editable leaf never reveals and never commits;
 - chord dispatch (block commands, global commands, keymaps) is swallowed at the dispatcher;
-- the container factory gates whole-block Enter/Backspace/reorder;
+- the container factory gates whole-block Enter and Backspace (its reorder is a keymap chord, so the line above covers it);
 - marker spans hide by CSS.
 
 You read the mode yourself in two cases: when your component owns an edit affordance of its own (a toolbar button, a click-to-edit swap, an interactive widget) which must go inert, the bundled mermaid block's Edit button and the details disclosure being the worked examples, or when your rendering should genuinely differ between a source view and a reading view.

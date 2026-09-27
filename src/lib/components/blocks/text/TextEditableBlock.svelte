@@ -82,7 +82,6 @@
 	import { asRawOffset } from '../../../cursor/coordinate-spaces';
 	import { createSurfaceBackend } from '../../../cursor/surface-backend';
 	import { type CommandId } from '../../../schema/commands';
-	import { reorderRunCommand } from '../../../editor-actions/reorder-action';
 	import { planTypedCompletion } from '../../../editor-actions/enter-completion';
 	import {
 		perfEnabled,
@@ -148,7 +147,6 @@
 	// Present inside a list item, whose ListItemBlock owns Tab-as-indent.
 	const listContext = getContext(LIST_CONTEXT_KEY);
 	const {
-		reorder,
 		autoPairs,
 		widgetSelection,
 		linkCard,
@@ -592,10 +590,6 @@
 						setPendingCursorOffset(write.caret, 'heading-cycle');
 					}
 				};
-			case 'block.moveUp':
-			case 'block.moveDown':
-				// Through `always`, not a bare call: every `perform` runs after a source is hidden.
-				return always(() => void reorderRunCommand(id, reorder, () => myPath));
 			default: {
 				// The format chords come from the policy table, not from branches here: a construct
 				// that declares a mark names the command that toggles it, so a new markable kind
@@ -613,16 +607,17 @@
 		const offset = cursor.getRaw() ?? 0;
 		const command = blockCommand(id, arg, offset, cursor.getRawSelection());
 		if (!command || !command.applies()) return false;
-		if (!widgetInteraction.isRevealing()) {
-			performBlockCommand(id, command.perform);
-			return true;
-		}
-		// A shown source holds this block's bytes in the DOM only, so every `perform` would splice
-		// the old source: hide it, wait for the write, then act. Hiding is handed the user's
-		// offset, which is valid because the committed text is the DOM text it was measured on.
-		const fold = widgetInteraction.foldRevealBeforeMutation(offset);
-		void (fold?.settled ?? tick()).then(() => performBlockCommand(id, command.perform));
+		afterSourceCommit(() => performBlockCommand(id, command.perform), offset);
 		return true;
+	}
+
+	// A shown source holds this block's bytes in the DOM only, so a command, a move included,
+	// would act on the old source: hide it, wait for the write, then run. Hiding is handed the
+	// user's offset, which is valid because the committed text is the DOM text it was measured on.
+	function afterSourceCommit(run: () => void, offset = cursor.getRaw() ?? 0): void {
+		if (!widgetInteraction.isRevealing()) return run();
+		const fold = widgetInteraction.foldRevealBeforeMutation(offset);
+		void (fold?.settled ?? tick()).then(run);
 	}
 
 	// A toolbar asks once per button on every selection change, so the buttons share the parse.
@@ -888,7 +883,8 @@
 			return;
 		}
 
-		if (wiring.dispatchChord(e, { kind: node.kind, runCommand })) return;
+		const target = { kind: node.kind, runCommand, getPath: () => myPath, afterSourceCommit };
+		if (wiring.dispatchChord(e, target)) return;
 	}
 
 	const onKeyDownTraced = withKeydownVerdict(onKeyDown);

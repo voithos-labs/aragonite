@@ -194,7 +194,8 @@ export function editorMountContext(overrides: MountContextOverrides = {}): Map<s
 		// Inert: a bare mount has no cross-block range, so every member answers no.
 		crossBlockCommands: { canRun: () => false, run: () => false, isActive: () => false },
 		keybindingOverrides: () => policies.keybindingOverrides(),
-		onCommandError: (report) => emitCommandError(services.events, report)
+		onCommandError: (report) => emitCommandError(services.events, report),
+		reorder: services.reorder
 	};
 	return new Map<symbol, unknown>([
 		[BLOCK_EDIT_KEY, overrides.blockEdit ?? makeStubBlockEdit()],

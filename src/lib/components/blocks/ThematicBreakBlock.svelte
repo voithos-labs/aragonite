@@ -1,14 +1,10 @@
 <script lang="ts">
-	import { getContext } from 'svelte';
 	import type { BlockComponent } from '../../block-component';
 	import type { NodeView } from '../../core/node-views';
-	import { EDITOR_SERVICES_KEY, type EditorServices } from '../../editor-keys';
-	import { type CommandId } from '../../schema/commands';
 	import {
 		dispatchWholeBlockGlobalChord,
 		handleWholeBlockKeys
 	} from '../../editor-actions/container-block-component';
-	import { reorderRunCommand } from '../../editor-actions/reorder-action';
 	import { createWholeBlockInputProxy } from '../../editor-actions/whole-block-focus-surface';
 	import { blockAccessibleName } from '../../a11y-strings';
 	import { placeCaret } from '../../selection/caret-doors';
@@ -18,7 +14,6 @@
 
 	const wiring = wireSurfaceContexts();
 	const { blockEdit, focusActions, caretMemory, selection, reading, commands } = wiring.deps;
-	const { reorder } = getContext<EditorServices>(EDITOR_SERVICES_KEY);
 	// Tabindex-focusable independent of contenteditable, so keydown stays live in
 	// reading mode; the edit branches below gate on this instead.
 	const isReading = () => reading.mode() === 'reading';
@@ -54,10 +49,6 @@
 		return 0;
 	}
 
-	export function runCommand(id: CommandId): boolean {
-		return reorderRunCommand(id, reorder, () => myPath);
-	}
-
 	// The rule has no text to measure, so any non-empty range over it is its whole box, which
 	// is what a range ending on it, or the rule taken as a unit, draws.
 	export function measurePartialRects(startOffset: number, endOffset: number): DOMRect[] {
@@ -70,7 +61,6 @@
 		focus,
 		parkCaret,
 		getCursorOffset,
-		runCommand,
 		measurePartialRects
 	} satisfies BlockComponent);
 
@@ -82,7 +72,7 @@
 		if (dispatchWholeBlockGlobalChord(e, node.kind, commands)) return;
 
 		// Kind keymap (Alt+↑/↓ reorder) must precede the plain-arrow navigation below.
-		if (wiring.dispatchChord(e, { kind: node.kind, runCommand })) return;
+		if (wiring.dispatchChord(e, { kind: node.kind, getPath: () => myPath })) return;
 
 		// The whole-block-focus key tail, shared with the plugin container factory.
 		handleWholeBlockKeys(e, {

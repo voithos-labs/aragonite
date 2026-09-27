@@ -390,18 +390,6 @@ const CLAIM_ROWS: Record<ClaimKey, ClaimRow> = {
 		row: 'Move between cells',
 		command: 'cell.shiftTab',
 		kind: 'tableCell'
-	},
-	// Any plugin container focused as a whole takes this branch; it has no kind of its own, so it
-	// claims for the paragraph whose reorder every block shares.
-	'Alt+ArrowUp @ editor-actions/plugin/container.ts': {
-		row: 'Move block up / down',
-		command: 'block.moveUp',
-		kind: 'paragraph'
-	},
-	'Alt+ArrowDown @ editor-actions/plugin/container.ts': {
-		row: 'Move block up / down',
-		command: 'block.moveDown',
-		kind: 'paragraph'
 	}
 };
 

@@ -6,7 +6,6 @@
 
 import { CURSOR_START } from '../block-component';
 import { documentLineEnding } from '../core/lines';
-import type { CommandId } from '../schema/commands';
 import { reorderChildrenWithTrivia } from '../tree-operations/reorder';
 import { resolveReorderUnit, type ReorderUnit } from '../tree-operations/reorder-unit';
 import { blockNodeAt, nodeAt } from '../tree-operations/node-primitives';
@@ -19,17 +18,6 @@ import type { EditorActionsDeps, UndoController } from './deps';
 export interface ReorderAction {
 	moveReorderUnit(fromPath: number[], toIndex: number): Promise<void>;
 	nudgeReorderUnit(fromPath: number[], dir: -1 | 1): Promise<void>;
-}
-
-/** The two command ids that mean a reorder nudge, handled once for every block's `runCommand`. */
-export function reorderRunCommand(
-	id: CommandId,
-	reorder: Pick<ReorderAction, 'nudgeReorderUnit'>,
-	getPath: () => number[]
-): boolean {
-	if (id !== 'block.moveUp' && id !== 'block.moveDown') return false;
-	void reorder.nudgeReorderUnit(getPath(), id === 'block.moveUp' ? -1 : 1);
-	return true;
 }
 
 /** Where the move landed and how many siblings survive it, both read after the commit. */

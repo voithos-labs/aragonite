@@ -779,7 +779,8 @@
 		isCrossBlockRange: () => selectionState.isCrossBlock,
 		crossBlockCommands,
 		keybindingOverrides: () => overridesMap,
-		onCommandError: commandErrorSink
+		onCommandError: commandErrorSink,
+		reorder
 	};
 
 	// The action bundles stay one per context key so a container re-provides exactly what

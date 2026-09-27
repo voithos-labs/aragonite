@@ -146,7 +146,6 @@
 		autoPairs,
 		widgetSelection,
 		linkCard,
-		reorder,
 		rects,
 		decorations: decorationEngine
 	} = getContext<EditorServices>(EDITOR_SERVICES_KEY);
@@ -436,11 +435,6 @@
 			return () =>
 				void tableContext[axisCommand.action](axisCommand.axis === 'row' ? rowIdx : colIdx);
 		}
-		// Moves the whole table: a reorder resolves at the nearest ancestor that reorders its
-		// children, which a table's grid rows do not.
-		if (id === 'block.moveUp' || id === 'block.moveDown') {
-			return () => void reorder.nudgeReorderUnit(myPath, id === 'block.moveUp' ? -1 : 1);
-		}
 		if (id !== 'cell.enter' && id !== 'cell.tab' && id !== 'cell.shiftTab') return null;
 		const plan = cellKeydownPlan(
 			{
@@ -616,7 +610,15 @@
 
 		// Before the plan, whose boundary branches ignore modifiers and would eat a column move at
 		// the cell's left edge; also the one point a consumer's `keybindings` override reaches.
-		if (wiring.dispatchChord(e, { kind: node.kind, runCommand })) return;
+		// A move from the cell moves the whole table: the reorder resolves at the nearest ancestor
+		// that reorders its children, which a table's grid rows do not.
+		const target = {
+			kind: node.kind,
+			runCommand,
+			getPath: () => myPath,
+			afterSourceCommit: afterRevealFold
+		};
+		if (wiring.dispatchChord(e, target)) return;
 
 		const plan = cellKeydownPlan(
 			{ key: e.key, ctrlOrMeta: e.ctrlKey || e.metaKey, shiftKey: e.shiftKey, altKey: e.altKey },

@@ -800,7 +800,7 @@ The `keybindings` prop rebinds (or disables, with `command: null`) chords that g
 />
 ```
 
-An override's `kind` scope takes a plugin kind too; name it through the plugin's exported kind constant, which is a branded string, so a raw literal won't typecheck. A bind reaches every surface the editor owns, including the ones with no focused block for a kind scope to apply to: the caret between two blocks, a block focused as a whole (a thematic break), and the document with nothing focused inside it. A disable unbinds the command but the press is still consumed, as [Which shortcuts the editor consumes](#which-shortcuts-the-editor-consumes) explains.
+An override's `kind` scope takes a plugin kind too; name it through the plugin's exported kind constant, which is a branded string, so a raw literal won't typecheck. A bind reaches every surface the editor owns, including the ones with no focused block for a kind scope to apply to: the caret between two blocks, a block focused as a whole (a thematic break, a plugin diagram), and the document with nothing focused inside it. A disable unbinds the command but the press is still consumed, as [Which shortcuts the editor consumes](#which-shortcuts-the-editor-consumes) explains.
 
 Scoping by kind is what makes the shared structural chords reachable, since a chord like `Tab` is bound separately on every kind that wants it. The first entry above frees `Tab` inside list items (for focus traversal in a form-embedded editor, say) and leaves `Tab` alone in code blocks and prose.
 

@@ -52,6 +52,9 @@ const blockCommands = createPluginRegistry<string, BlockCommandHandler>({
 
 const compositeKey = (kind: AnyBlockKind, id: string): string => `${kind} ${id}`;
 
+// The two ids every block answers the same way, so they resolve here rather than per component.
+const MOVE_STEP: Partial<Record<string, -1 | 1>> = { 'block.moveUp': -1, 'block.moveDown': 1 };
+
 /**
  * A duplicate `(kind, name)` reports as a register-once conflict rather than an id collision, and
  * `mintCommandId` validates the name before the handler is stored, so an invalid name never
@@ -108,6 +111,11 @@ export interface CommandGates {
 	crossBlockCommands: CrossBlockCommandRouter;
 }
 
+/** Moves the block at a path one step among its siblings: the editor's reorder action. */
+export interface BlockMover {
+	nudgeReorderUnit(path: number[], dir: -1 | 1): Promise<void>;
+}
+
 /**
  * Everything a chord or `EditorInstance.runCommand` dispatches against. The editor builds one and
  * every dispatch site reads it, so no site can answer with its own history, overrides or error
@@ -118,6 +126,8 @@ export interface CommandDispatchContext extends CommandGates {
 	pluginEditor: GlobalCommandContext['pluginEditor'];
 	keybindingOverrides(): KeybindingOverrideMap | undefined;
 	onCommandError: CommandErrorSink;
+	/** Runs `block.moveUp` and `block.moveDown` for every block, against the target's path. */
+	reorder: BlockMover;
 }
 
 export interface KindCommandTarget {
@@ -132,6 +142,12 @@ export interface KindCommandTarget {
 	/** Whether the id is toggled on at this block's caret or selection, which a toolbar shows as
 	 *  pressed. Absent means the block has no toggle state to report, which reads as inactive. */
 	isCommandActive?(id: AnyCommandId): boolean;
+	/** The focused block's path, which `block.moveUp` and `block.moveDown` move. A container a key
+	 *  bubbles up to supplies none: the block below it already ran the move. */
+	getPath?(): number[];
+	/** Runs `run` once a source the block shows is hidden and written, so a move carries the
+	 *  written bytes. Absent runs it at once. */
+	afterSourceCommit?(run: () => void): void;
 }
 
 /**
@@ -162,6 +178,7 @@ type BlockLocalResolution =
 			context: Omit<BlockCommandContext, 'arg'>;
 	  }
 	| { tier: 'builtin'; target: KindCommandTarget }
+	| { tier: 'move'; target: KindCommandTarget; path: () => number[]; dir: -1 | 1 }
 	| { tier: 'dead' }
 	| { tier: 'no-surface' }
 	| { tier: 'unlisted' };
@@ -185,8 +202,11 @@ function resolveBlockLocalCommand(
 	// read a host may run per selection change.
 	const context = handler ? target.getCommandContext?.() : undefined;
 	if (handler && context) return { tier: 'minted', target, handler, context };
-	if (isBuiltinCommandId(id))
+	const dir = MOVE_STEP[id];
+	if (dir && target.getPath) return { tier: 'move', target, path: target.getPath, dir };
+	if (isBuiltinCommandId(id)) {
 		return target.runCommand ? { tier: 'builtin', target } : { tier: 'no-surface' };
+	}
 	const installedElsewhere =
 		isCommandRegistered(id) || blockCommands.has(compositeKey(target.kind, id));
 	return installedElsewhere && !handler ? { tier: 'unlisted' } : { tier: 'dead' };
@@ -214,18 +234,25 @@ function runBlockLocalCommand(
 	id: AnyCommandId,
 	arg: unknown,
 	path: CommandDispatchPath,
-	onCommandError: CommandErrorSink
+	ctx: CommandDispatchContext
 ): boolean {
 	switch (resolved.tier) {
 		case 'minted':
 			try {
 				return resolved.handler({ ...resolved.context, arg });
 			} catch (error) {
-				onCommandError({ kind: resolved.target.kind, command: id, error });
+				ctx.onCommandError({ kind: resolved.target.kind, command: id, error });
 				return true;
 			}
 		case 'builtin':
 			return resolved.target.runCommand?.(id, arg) ?? false;
+		case 'move': {
+			const { target, path, dir } = resolved;
+			const move = () => void ctx.reorder.nudgeReorderUnit(path(), dir);
+			if (target.afterSourceCommit) target.afterSourceCommit(move);
+			else move();
+			return true;
+		}
 		case 'dead':
 			warnDeadKeyCommand(id, path);
 			return false;
@@ -276,7 +303,7 @@ function runResolvedCommand(
 	if (route.kind === 'cross-block') return route.router.run(id);
 	const resolved = resolveCommand(id, target, ctx.activation);
 	if (resolved.tier === 'global') return resolved.run({ ...ctx, arg });
-	return runBlockLocalCommand(resolved, id, arg, path, ctx.onCommandError);
+	return runBlockLocalCommand(resolved, id, arg, path, ctx);
 }
 
 /**
@@ -294,7 +321,7 @@ export function canRunCommandById(
 	const route = rangeRouteFor(id, gates);
 	if (route.kind !== 'block-local') return route.kind === 'cross-block';
 	const { tier } = resolveCommand(id, target, gates.activation);
-	return tier === 'global' || tier === 'minted' || tier === 'builtin';
+	return tier === 'global' || tier === 'minted' || tier === 'builtin' || tier === 'move';
 }
 
 /** The read behind `EditorInstance.isCommandActive`, `canRunCommandById`'s sibling: state rather
@@ -349,5 +376,5 @@ export function dispatchKindCommand(
 	if (!binding || isReadingMode(ctx.getPresentationMode)) return false;
 	if (rangeRouteFor(binding.command, ctx).kind !== 'block-local') return false;
 	const resolved = resolveBlockLocalCommand(binding.command, target, ctx.activation);
-	return runBlockLocalCommand(resolved, binding.command, binding.arg, 'chord', ctx.onCommandError);
+	return runBlockLocalCommand(resolved, binding.command, binding.arg, 'chord', ctx);
 }

@@ -57,7 +57,6 @@ import { type CommandId } from '../../schema/commands';
 import { type BlockCommandContext } from '../../schema/block-commands';
 import type { EditorContext } from '../../schema/plugin-install';
 import { owningPluginEditor } from '../../schema/plugin-kind';
-import { reorderRunCommand } from '../../editor-actions/reorder-action';
 import { createTextBatch } from '../../editor-actions/commit/text-batch';
 
 export type EditableLeafMode = 'plain' | 'render-primary';
@@ -250,7 +249,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		commands
 	} = wiring.deps;
 	const { pluginEditor } = commands;
-	const { reorder, inlineMenuCombobox } = getContext<EditorServices>(EDITOR_SERVICES_KEY);
+	const { inlineMenuCombobox } = getContext<EditorServices>(EDITOR_SERVICES_KEY);
 	const { theme: getThemeCtx, onPasteImage } = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
 	const getPresentationMode = reading.mode;
 	const getTheme = (): string => getThemeCtx?.() ?? 'dark';
@@ -430,8 +429,10 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		})();
 	}
 
-	function runCommand(id: CommandId): boolean {
-		return reorderRunCommand(id, reorder, deps.getPath);
+	// The leaf owns no built-in command: its reorder resolves in the editor's dispatch, against
+	// its path. The published member stays, answering no, for components that export it.
+	function runCommand(_id: CommandId): boolean {
+		return false;
 	}
 
 	const getCommandContext = () => buildLeafCommandContext(deps, blockEdit, pluginEditor);
@@ -585,7 +586,12 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	/** Resolve a chord at this leaf's kind and report whether it was consumed. Both views spend
 	 *  it: undo belongs to the block whatever half of the swap holds focus. */
 	const dispatchChord = (e: KeyboardEvent): boolean =>
-		wiring.dispatchChord(e, { kind: deps.getNode().kind, runCommand, getCommandContext });
+		wiring.dispatchChord(e, {
+			kind: deps.getNode().kind,
+			runCommand,
+			getCommandContext,
+			getPath: deps.getPath
+		});
 
 	async function handleKeydown(e: KeyboardEvent): Promise<void> {
 		const el = deps.getEl();

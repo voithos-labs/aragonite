@@ -64,7 +64,6 @@
 	import { pasteDispatch } from '../../../tree-operations/paste/dispatch';
 	import { nodeAt, emptyParagraph } from '../../../tree-operations';
 	import { type CommandId } from '../../../schema/commands';
-	import { reorderRunCommand } from '../../../editor-actions/reorder-action';
 
 	const ELECTRIC_INDENT_UNIT = '\t';
 
@@ -86,7 +85,7 @@
 	} = wiring.deps;
 	// The ending a line written into this block takes: its own, else the document's.
 	const blockEnding = () => trailingLineEnding(node.raw, documentLineEnding(getDoc()));
-	const { reorder, menuPresence } = getContext<EditorServices>(EDITOR_SERVICES_KEY);
+	const { menuPresence } = getContext<EditorServices>(EDITOR_SERVICES_KEY);
 	const { onPasteImage, onRunCode, codeMenuItems } =
 		getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
 	const presentationMode = $derived(reading.mode());
@@ -538,7 +537,7 @@
 
 		if ((await handleSharedKeydown(e, sharedCtx)) || editableSurface.isDetached()) return;
 
-		if (wiring.dispatchChord(e, { kind: node.kind, runCommand })) return;
+		if (wiring.dispatchChord(e, { kind: node.kind, runCommand, getPath: () => myPath })) return;
 	}
 
 	const onKeyDownTraced = withKeydownVerdict(onKeyDown);
@@ -546,7 +545,6 @@
 	// ── Commands ────────────────────────────────────────────────────────
 
 	export function runCommand(id: CommandId): boolean {
-		if (reorderRunCommand(id, reorder, () => myPath)) return true;
 		switch (id) {
 			case 'format.toggleStrong':
 			case 'format.toggleEmphasis':

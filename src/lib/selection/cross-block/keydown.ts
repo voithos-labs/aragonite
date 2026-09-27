@@ -133,7 +133,11 @@ async function handleCrossBlockActive(
 			if (!target?.runCommand || !chord) return;
 			dispatchKeyCommand(
 				chord,
-				{ kind: kindOfPath(revealTarget, postDeleteDoc), runCommand: target.runCommand },
+				{
+					kind: kindOfPath(revealTarget, postDeleteDoc),
+					runCommand: target.runCommand,
+					getPath: () => revealTarget
+				},
 				ctx.commands
 			);
 		});
@@ -283,7 +287,8 @@ async function dispatchOverRange(
 		// dispatcher ahead of any per-block `runCommand`, so an absent one is not a decline.
 		{
 			kind: kindOfPath(path, ctx.getDoc()),
-			runCommand: (id, arg) => surface?.runCommand?.(id, arg) ?? false
+			runCommand: (id, arg) => surface?.runCommand?.(id, arg) ?? false,
+			getPath: () => path
 		},
 		ctx.commands
 	);

@@ -5,8 +5,8 @@
  * of scope: a focused document owns them regardless. A listed file must keep its literal key
  * comparisons and modifier reads, which are the scan's evidence.
  */
-import { getAllRegisteredKinds, tryGetBlockKindDescriptor } from './block-kind-descriptor';
-import { GLOBAL_KEYMAP, pluginGlobalChords, reservedUiChords } from './commands';
+import { getAllRegisteredKinds } from './block-kind-descriptor';
+import { GLOBAL_KEYMAP, kindKeymap, pluginGlobalChords, reservedUiChords } from './commands';
 import type { KeybindingOverrideMap } from './keybinding-overrides';
 import type { PluginActivation } from './plugin-activation';
 import { kindEnablementFor } from './registry-view';
@@ -221,9 +221,9 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 	},
 	{
 		file: 'editor-actions/plugin/container.ts',
-		chords: ['Alt+ArrowUp', 'Alt+ArrowDown'],
-		keys: ['ArrowDown', 'ArrowUp'],
-		note: 'Reorder for plugin containers, whose command dispatch is inert.'
+		chords: [],
+		keys: [],
+		note: 'The arrow exit for a plugin editor declines every modified key rather than claiming one.'
 	},
 	{
 		file: 'plugins/footnotes/FootnoteDefinition.svelte',
@@ -380,9 +380,7 @@ function registeredKeymapChords(activation: PluginActivation): string[] {
 	const isEnabled = kindEnablementFor(activation);
 	return getAllRegisteredKinds()
 		.filter(isEnabled)
-		.flatMap(
-			(kind) => tryGetBlockKindDescriptor(kind)?.keymap?.map((binding) => binding.chord) ?? []
-		);
+		.flatMap((kind) => kindKeymap(kind).map((binding) => binding.chord));
 }
 
 function overrideBoundChords(overrides: KeybindingOverrideMap | undefined): string[] {
