@@ -2,19 +2,24 @@
  * Places the caret from a viewport point: a click in the editor's dead space (the padding
  * beside a block, the area below the last one) and the public `placeCaretAtPoint`, which share
  * one walk. A point between two blocks may become a gap caret; otherwise it clamps into the
- * nearest mounted block and resolves there. Only mounted blocks are measured, so "below the
- * last block" is checked against the CST rather than the DOM (VR-6).
+ * nearest mounted block, goes down a container to the child level with it, and resolves there.
+ * Only mounted blocks are measured, so "below the last block" is checked against the CST.
  */
 
 import { CURSOR_END, type BlockComponent } from '../block-component';
-import { blockAtPoint, type BlockHit } from './block-hit-test';
+import { blockAtPoint, holdsOwnText, type BlockHit } from './block-hit-test';
 import type { CaretTarget } from '../schema/block-kind-descriptor';
-import { measureBlocks, nearestBand, probePointIn, type MeasuredBlock } from './nearest-block';
+import {
+	descendToLevelChild,
+	measureBlocks,
+	nearestBand,
+	probePointIn,
+	type MeasuredBlock,
+	type ProbedHit
+} from './nearest-block';
 import { placeGapCaret } from './caret-doors';
 import { canGapStop, type GapStopScope } from './gap-caret';
-import { caretOffsetAtPoint, offsetFromViewportPoint } from '../cursor/point-offset';
-import { readBlockPath } from './path-lookup';
-import { pathsEqual } from './path-math';
+import { caretOffsetAtPoint } from '../cursor/point-offset';
 import type { SelectionEndpoint } from './primitives';
 
 // ── Public API ─────────────────────────────────────────────────────────────
@@ -104,10 +109,9 @@ export function createDeadSpaceCaret(deps: DeadSpaceCaretDeps): DeadSpaceCaret {
 			return true;
 		}
 
-		const { x: probeX, y: probeY } = probePointIn(blocks[band.index].rect, x, y, band.belowAll);
-
-		const hit = blockAtPoint(root, probeX, probeY);
-		if (!hit) return false;
+		const near = hitInBand(root, blocks, band, x, y);
+		if (!near) return false;
+		const { hit, x: probeX, y: probeY } = near;
 		// A text block puts the caret on the line the click is level with, as any editor does. A
 		// block with no text (an equation, a table, a rule), or one showing its source only while
 		// it is being edited, has no such line: a click that was not on the block is a click on
@@ -138,11 +142,7 @@ export function createDeadSpaceCaret(deps: DeadSpaceCaretDeps): DeadSpaceCaret {
 	}
 
 	/** The nearest block's hit for a click, with the probe point clamped into its box. */
-	function hitNearPoint(
-		root: HTMLElement,
-		x: number,
-		y: number
-	): { hit: BlockHit; probeX: number; probeY: number } | null {
+	function hitNearPoint(root: HTMLElement, x: number, y: number): ProbedHit | null {
 		const blocks = measureBlocks(root);
 		const band = nearestBand(
 			blocks.map((b) => b.rect),
@@ -150,15 +150,13 @@ export function createDeadSpaceCaret(deps: DeadSpaceCaretDeps): DeadSpaceCaret {
 		);
 		if (!band) return null;
 		if (band.belowAll && lastMountedTopLevel(blocks) !== deps.lastBlockIndex()) return null;
-		const { x: probeX, y: probeY } = probePointIn(blocks[band.index].rect, x, y, band.belowAll);
-		const hit = blockAtPoint(root, probeX, probeY);
-		return hit && { hit, probeX, probeY };
+		return hitInBand(root, blocks, band, x, y);
 	}
 
 	function anchorAtPoint(root: HTMLElement, x: number, y: number): SelectionEndpoint | null {
 		const near = hitNearPoint(root, x, y);
 		if (!near) return null;
-		const { hit, probeX, probeY } = near;
+		const { hit, x: probeX, y: probeY } = near;
 		// No text to measure against (a rendered equation, a rule, a table), so the whole block is
 		// the unit and its side is picked later by the drag's direction. An offset would put a
 		// range end at the block's start and leave the block out; a cell would turn the drag into
@@ -236,6 +234,20 @@ function rootBoundaryOutsideBands(blocks: MeasuredBlock[], y: number): number | 
 	return null;
 }
 
+/** The block a band answers for a point: the point clamped into the band's box, then handed
+ *  down to the child level with it when the box is a container's. */
+function hitInBand(
+	root: HTMLElement,
+	blocks: MeasuredBlock[],
+	band: { index: number; belowAll: boolean },
+	x: number,
+	y: number
+): ProbedHit | null {
+	const probe = probePointIn(blocks[band.index].rect, x, y, band.belowAll);
+	const hit = blockAtPoint(root, probe.x, probe.y);
+	return hit && descendToLevelChild(root, { hit, ...probe }, band.belowAll);
+}
+
 /** The component the landing addresses: this one for a text block, else the cell a grid
  *  kind's inner path names. */
 function leafOf(component: BlockComponent, path: number[]): BlockComponent | null {
@@ -273,14 +285,11 @@ function landingFor(hit: BlockHit, probeX: number, probeY: number): CaretTarget 
 	// A leaf with no text (a rule, a rendered equation) reaches here only when clicked on its
 	// own box: the block itself is the landing, and its `focus` ignores the offset.
 	if (!hit.charSurface) return { path: [], offset: 0 };
-	// Reading mode turns contenteditable off, and a non-editable leaf has no character position.
-	if (!hit.charSurface.matches('[contenteditable="true"]')) return null;
+	// Reading mode turns editing off, so no text is a block's own there. A container that kept
+	// the point has only its children's text, none of it level with the point.
+	if (!holdsOwnText(hit)) return null;
 	// A block whose box pads its own text (a code block) lands a point in that padding on the
-	// nearest line; a container's first editable is a child's, which the point was not aimed at.
-	const textHost = readBlockPath(hit.charSurface.closest('[data-block-path]'));
-	const ownText = textHost !== null && pathsEqual(textHost, hit.path);
-	const offset = ownText
-		? caretOffsetAtPoint(hit.charSurface, probeX, probeY)
-		: offsetFromViewportPoint(hit.charSurface, probeX, probeY);
+	// nearest line.
+	const offset = caretOffsetAtPoint(hit.charSurface, probeX, probeY);
 	return offset === null ? null : { path: [], offset };
 }

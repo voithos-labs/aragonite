@@ -51,10 +51,9 @@ that takes only root-targeted clicks leaves that strip dead.
   exactly as it found it.
 - A drag-select released in a padded list's gutter keeps its selection: the press half
   of the gesture is what tells them apart, since the release reports the list either way.
-- The scan for the nearest strip covers the whole root, so a click in a nested list's
-  gutter resolves the nearest line across the document rather than within that container.
-  Geometrically that is the line the click is level with, so the answer is the same one
-  and there is no separate rule.
+- A click beside a line inside a container (a quote, a nested list, an alert) lands on that
+  line, not on the container's first line. Those scenarios are in
+  `dead-space-click-containers.md`.
 - A landing further down (a table cell) is handed the same point, but a cell paints no
   caret of its own, so only the caret position moves. The routing is pinned in a unit
   test (`test/selection/dead-space-caret-routing.test.ts`), not asserted here.

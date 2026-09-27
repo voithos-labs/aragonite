@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach, beforeEach } from 'vitest';
-import { blockNearPoint, nearestBand } from '$lib/selection/nearest-block';
+import { blockNearPoint, descendToLevelChild, nearestBand } from '$lib/selection/nearest-block';
+import { blockAtPoint } from '$lib/selection/block-hit-test';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { testLeaf } from '$lib/test/harness/test-kinds';
 
@@ -142,5 +143,82 @@ describe('blockNearPoint', () => {
 	it('declines when nothing is mounted', () => {
 		root.replaceChildren();
 		expect(blockNearPoint(root, 10, 10)).toBeNull();
+	});
+});
+
+// Which child a point on a container's own box is handed to. The layout comes from
+// e2e/tests/selection/dead-space-click-containers.spec.ts; this pins the choice between the
+// container's own text row and its children, which no e2e fixture has on both sides.
+describe('descendToLevelChild', () => {
+	type Box = { left: number; right: number; top: number; bottom: number };
+	const CONTAINER: Box = { left: 0, right: 300, top: 100, bottom: 200 };
+	const TITLE: Box = { left: 20, right: 300, top: 100, bottom: 120 };
+	const CHILDREN: Box[] = [
+		{ left: 20, right: 300, top: 120, bottom: 150 },
+		{ left: 20, right: 300, top: 160, bottom: 190 }
+	];
+	let root: HTMLElement;
+	let boxes: { el: HTMLElement; box: Box }[];
+	const origFromPoint = document.elementFromPoint;
+
+	function mount(withTitle: boolean) {
+		root = document.createElement('div');
+		document.body.appendChild(root);
+		const container = host(root, [0], CONTAINER);
+		boxes = [{ el: container, box: CONTAINER }];
+		if (withTitle) editable(container, TITLE);
+		CHILDREN.forEach((box, i) => {
+			const child = host(container, [0, i], box);
+			editable(child, box);
+			boxes.push({ el: child, box });
+		});
+		// The innermost block host under the point, as the browser's hit test would find it.
+		document.elementFromPoint = ((x: number, y: number) =>
+			boxes.findLast(
+				({ box }) => x >= box.left && x <= box.right && y >= box.top && y <= box.bottom
+			)?.el ?? null) as typeof document.elementFromPoint;
+	}
+
+	function host(parent: HTMLElement, path: number[], box: Box): HTMLElement {
+		const el = parent.appendChild(document.createElement('div'));
+		el.setAttribute('data-block-path', JSON.stringify(path));
+		el.getBoundingClientRect = () => box as DOMRect;
+		return el;
+	}
+
+	function editable(parent: HTMLElement, box: Box) {
+		const el = parent.appendChild(document.createElement('div'));
+		el.setAttribute('contenteditable', 'true');
+		el.getBoundingClientRect = () => box as DOMRect;
+	}
+
+	function descendFrom(x: number, y: number) {
+		const hit = blockAtPoint(root, x, y);
+		if (!hit) throw new Error('the fixture put no block under the point');
+		return descendToLevelChild(root, { hit, x, y });
+	}
+
+	afterEach(() => {
+		document.elementFromPoint = origFromPoint;
+		root.remove();
+	});
+
+	it('hands a point in the gutter to the child level with it, not the first one', () => {
+		mount(true);
+		const landed = descendFrom(5, 170);
+
+		expect(landed.hit.path).toEqual([0, 1]);
+		expect(landed).toMatchObject({ x: 21, y: 170 });
+	});
+
+	it('keeps a point level with the container’s own text row', () => {
+		mount(true);
+		expect(descendFrom(5, 110).hit.path).toEqual([0]);
+	});
+
+	it('gives a point between children to the nearer one when the container has no text', () => {
+		mount(false);
+		expect(descendFrom(5, 110).hit.path).toEqual([0, 0]);
+		expect(descendFrom(5, 157).hit.path).toEqual([0, 1]);
 	});
 });

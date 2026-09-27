@@ -1,15 +1,16 @@
 /**
  * The mounted block nearest a viewport point, and the endpoint that point addresses. A gesture
  * that must answer every point (a dead-space click, a drag into the margin) resolves an
- * off-block point here instead of declining it. The clamped probe point stays inside this
- * module: hit-testing a text block at the original point would return no offset at all. Only
- * mounted blocks are measured; a caller answering for a windowed-out tail handles that itself.
+ * off-block point here instead of declining it: clamped into the nearest box, then handed down
+ * a container to the child level with it. Only mounted blocks are measured; a caller answering
+ * for a windowed-out tail handles that itself.
  */
 
 import { clampPointIntoBox } from '../cursor/point-offset';
-import { blockAtPoint, endpointAtPoint, type BlockHit } from './block-hit-test';
+import { blockAtPoint, endpointAtPoint, holdsOwnText, type BlockHit } from './block-hit-test';
 import type { SelectionEndpoint } from './primitives';
 import { readBlockPath } from './path-lookup';
+import { isStrictAncestorOf } from './path-math';
 
 // ── Bands ──────────────────────────────────────────────────────────────────
 
@@ -90,23 +91,61 @@ export function blockNearPoint(
 	clientY: number
 ): NearestBlock | null {
 	const direct = blockAtPoint(editorRoot, clientX, clientY);
-	if (direct) return addressedAt(direct, clientX, clientY);
+	if (direct)
+		return addressedAt(descendToLevelChild(editorRoot, { hit: direct, x: clientX, y: clientY }));
 
 	const rects = blockHosts(editorRoot).map((el) => el.getBoundingClientRect());
 	const band = nearestBand(rects, clientY);
 	if (!band) return null;
 	const probe = probePointIn(rects[band.index], clientX, clientY, band.belowAll);
 	const hit = blockAtPoint(editorRoot, probe.x, probe.y);
-	return hit && addressedAt(hit, probe.x, probe.y);
+	return hit && addressedAt(descendToLevelChild(editorRoot, { hit, ...probe }, band.belowAll));
+}
+
+// ── Descent ────────────────────────────────────────────────────────────────
+
+/** A hit and the point it was hit-tested at. */
+export interface ProbedHit {
+	hit: BlockHit;
+	x: number;
+	y: number;
+}
+
+/**
+ * Hands a point on a container's own box (a quote's gutter, a list's indent) to the child block
+ * level with it, and on down through nested containers, so the point lands on the line it is
+ * level with at any depth. A container with a text row of its own (an alert's title) keeps a
+ * point no child is level with. `belowAll` keeps the end-of-document corner on the way down.
+ */
+export function descendToLevelChild(
+	root: HTMLElement,
+	probed: ProbedHit,
+	belowAll = false
+): ProbedHit {
+	let current = probed;
+	for (;;) {
+		const { hit, x, y } = current;
+		// A grid kind resolves points inside itself through its own hooks.
+		if (hit.foreignDragHitTest || hit.caretTargetAtPoint) return current;
+		const rects = blockHosts(hit.host).map((el) => el.getBoundingClientRect());
+		const band = nearestBand(rects, y);
+		if (!band) return current;
+		if (holdsOwnText(hit) && !rects.some((r) => y >= r.top && y <= r.bottom)) return current;
+		const probe = probePointIn(rects[band.index], x, y, belowAll);
+		const next = blockAtPoint(root, probe.x, probe.y);
+		// Something drawn over the child answered instead, so the container keeps the point.
+		if (!next || !isStrictAncestorOf(hit.path, next.path)) return current;
+		current = { hit: next, ...probe };
+	}
 }
 
 // ── Internal ───────────────────────────────────────────────────────────────
 
-function addressedAt(hit: BlockHit, probeX: number, probeY: number): NearestBlock {
-	return { path: hit.path, endpointHere: () => endpointAtPoint(hit, probeX, probeY) };
+function addressedAt({ hit, x, y }: ProbedHit): NearestBlock {
+	return { path: hit.path, endpointHere: () => endpointAtPoint(hit, x, y) };
 }
 
-/** The one selector for the mounted hosts, so the two walks above cannot drift apart. */
+/** The one selector for the mounted hosts, so the walks above cannot drift apart. */
 function blockHosts(root: HTMLElement): HTMLElement[] {
 	return [...root.querySelectorAll<HTMLElement>('[data-block-path]')];
 }
