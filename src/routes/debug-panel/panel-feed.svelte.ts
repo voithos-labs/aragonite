@@ -54,9 +54,8 @@ export function createDebugPanelFeed(getEditor: () => EditorInstance | undefined
 		get opsLogTick() {
 			return tick;
 		},
-		// The live tree first: the panel's job is the state a reparse cannot show (a block whose
-		// kind no longer matches its raw text, a short-lived block the serializer trims). Where
-		// the two differ is the bug.
+		// The live tree first, since the panel shows what a reparse cannot (a block whose kind
+		// differs from its raw text, a short-lived block the serializer trims).
 		getCst: () => {
 			const editor = getEditor();
 			// In the editor's grammar, so an editor with a syntax off reparses the way it renders.

@@ -248,9 +248,8 @@
 		font-size: 0.85rem;
 		color: var(--color-accent, #567b67);
 	}
-	/* A reading column, not the whole window, but the scroll container is the window's full
-	   width: the scrollbar sits at the screen's edge and the margins are the editor's own empty
-	   space, where a drag can start. The column is the root's padding, centred at 1000px. */
+	/* The scroll container spans the window so its margins are the editor's own empty space,
+	   where a drag can start; the reading column is the root's padding. */
 	.showcase-editor {
 		flex: 1;
 		display: flex;
@@ -269,9 +268,8 @@
 		background: rgba(250, 204, 21, 0.18);
 	}
 
-	/* Eleven controls over four rows ate a quarter of a phone screen before the document
-	   got a pixel. The demo is the document, so the header condenses and drops what a
-	   phone cannot use. */
+	/* On a phone the header condenses and drops what a phone cannot use, so the document
+	   keeps the screen. */
 	@media (max-width: 640px) {
 		.showcase-header {
 			gap: 0.3rem 0.45rem;
@@ -290,8 +288,7 @@
 			font-size: 0.7rem;
 			padding: 0.1rem 0.4rem;
 		}
-		/* inline-flex holds the pills on one line no width can break, which is what put
-		   `live` past the right edge; the group takes a row and wraps inside it instead. */
+		/* The mode group takes its own row and wraps, so no pill runs past the right edge. */
 		.showcase-modes {
 			margin-left: 0;
 			flex: 1 0 100%;
@@ -300,8 +297,8 @@
 		}
 	}
 
-	/* Every header control clears the minimum touch size, the links included. That costs the
-	   condensed header two of the rows it saved: a control nobody can hit is not a saved row. */
+	/* Every header control clears the minimum touch size, the links included, even at the
+	   cost of header rows. */
 	@media (pointer: coarse) {
 		.showcase-mode,
 		.showcase-toggle,

@@ -1,5 +1,5 @@
-// An example of the per-instance context: the working proof that the document, the identity
-// and the events replace an API of state fields.
+// An example of the per-instance context: the plugin reads the document, the editor's identity
+// and its events from it.
 import { definePlugin, registerGlobalCommand, type EditorContext } from '$lib/plugin';
 
 export interface DocStatsOptions {

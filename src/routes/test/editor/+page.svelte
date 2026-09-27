@@ -1,9 +1,8 @@
 <script lang="ts">
 	import { Editor, type PresentationMode } from '$lib';
-	// `?extraLanguage=on` registers a grammar the editor does not bundle, through the same public
-	// API a host uses (`@voithos-labs/aragonite/plugin`). This is the worked example for that
-	// export: one import, one call, before any editor mounts. Off by default, because the language
-	// list is geometry the picker specs read.
+	// `?extraLanguage=on` registers a grammar the editor does not bundle, through the public API a
+	// host uses (`@voithos-labs/aragonite/plugin`): one import, one call, before any editor mounts.
+	// Off by default, because the picker specs measure the language list.
 	import { isLanguageRegistered, registerLanguage } from '$lib/plugin';
 	import elixir from 'highlight.js/lib/languages/elixir';
 	import { HARNESS_SHOWCASE_CONTENT } from '$lib/e2e/test-content';
@@ -26,9 +25,8 @@
 	// panel at the new editor instance (bind:this reassigns it).
 	let editor = $state<ReturnType<typeof Editor>>();
 
-	// On by default here, unlike the library (opt-in), so the handle specs get it without a param;
-	// `?dragHandles=false` turns it off. Fixed at mount, so the header checkbox remounts through
-	// {#key}, passing the content across.
+	// On by default here, unlike the library, so the handle specs need no param. Fixed at mount,
+	// so the header checkbox remounts through {#key}, passing the content across.
 	let dragHandlesOn = $state(param('dragHandles') !== 'false');
 
 	function toggleDragHandles() {
@@ -40,28 +38,24 @@
 	// swapped behind this stable function. Off by default, which is the case with no hook at all.
 	const onPasteImage = param('imagePaste') === 'on' ? harnessPasteImage : undefined;
 
-	// `?header=on` mounts a host header inside the editor's scroll container, off by default
-	// because anything above the blocks shifts the geometry specs across the suite measure. Its
-	// toggle sits outside that container, so clicking it cannot scroll the position under test.
+	// Off by default because anything above the blocks shifts what the geometry specs measure. The
+	// header's toggle sits outside the scroll container, so clicking it cannot scroll the page.
 	const headerOn = param('header') === 'on';
 	let headerTall = $state(false);
 
-	// At module scope this would run during SSR too, where it does nothing; the check keeps the
-	// registration on the client, still ahead of the editor's own mount below. Languages are
-	// register-once, and a second visit to this page runs this again.
+	// Languages are register-once, and a second visit to this page runs this again, so the call
+	// asks first.
 	const extraLanguagesOn = param('extraLanguage') === 'on';
 	if (extraLanguagesOn && !isLanguageRegistered('elixir')) {
 		registerLanguage('elixir', elixir, ['ex', 'exs']);
 	}
 
-	// `?slash=on` lists the slash-commands plugin, for the simulation's slash gesture. Off by
-	// default: `/` would open a list in every spec that types one after a space. Created here, not
-	// taken from the showcase's set, whose module would load KaTeX's stylesheet into this page.
+	// Off by default: `/` would open a menu in every spec that types one after a space. Created
+	// here because the showcase's plugin module would load KaTeX's stylesheet into this page.
 	const slashPlugins = param('slash') === 'on' ? [slashCommandsPlugin()] : undefined;
 
-	// `?codeActions=on` installs stand-in host hooks for the code block's side gutter, so the run
-	// and overflow buttons render. Off by default: that gutter's width is geometry the block
-	// specs measure, and the editor ships neither hook.
+	// Stand-in host hooks, so the code block gutter's run and overflow buttons render. Off by
+	// default, since the block specs measure that gutter's width.
 	const codeActionsOn = param('codeActions') === 'on';
 	// Recorded on the body dataset rather than rendered: a visible readout would shift the
 	// block geometry the rest of the suite measures, and this only has to prove the hook fired.
@@ -162,9 +156,8 @@
 	</div>
 {/snippet}
 
-<!-- The host-chrome token block keys on the attribute sitting on the same element as the class,
-     so a wrapper with only the class gets editor tokens and a page around them that does not
-     follow: the showcase route's shape. -->
+<!-- The light host-chrome tokens apply only where the attribute sits on the same element as
+     the class, so this wrapper has both. -->
 <div class="test-harness aragonite-editor-theme" data-editor-theme={editorTheme}>
 	<header class="demo-header">
 		<div class="demo-heading">
@@ -283,10 +276,8 @@
 		display: flex;
 		gap: 6px;
 	}
-	/* The demo dresses itself as the host app the editor ships into (limestone): its page
-	   background, its UI typeface, and a proportional text face, which is that app's own default
-	   for `--font-editor`. Code stays monospace through `--font-code`, so this page is also the
-	   worked example of the two typefaces pulling apart. */
+	/* Dressed as the host app the editor ships into: a proportional `--font-editor` with code
+	   kept monospace through `--font-code`, the example of the two typefaces pulling apart. */
 	.test-harness {
 		width: 100vw;
 		height: 100vh;

@@ -4,11 +4,8 @@
 	// The whole shared set, so the host palette is judged with every plugin's own UI installed.
 	import { DEMO_PLUGINS } from '../../demo-plugins';
 
-	/**
-	 * The themed-host embedding: host-chrome tokens declared on the page wrapper and no
-	 * `.aragonite-editor-theme` anywhere, so the editor reads a host's cascade the way an app's
-	 * own theme system feeds it. The token names mirror the first integration's.
-	 */
+	// Host-chrome tokens on the page wrapper and no `.aragonite-editor-theme` anywhere, so the
+	// editor reads the host's cascade the way an app's own theme system feeds it.
 
 	interface HostTheme {
 		name: string;
