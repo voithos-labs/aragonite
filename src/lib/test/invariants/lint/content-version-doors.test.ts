@@ -20,8 +20,7 @@ const ANNOUNCERS: Record<string, string> = {
 	'src/lib/editor-actions/deps.ts': 'the declaration',
 	'src/lib/editor-actions/commit/undo-controller.ts':
 		'the ceremony, covering both publish arms and every structural writer under them',
-	'src/lib/editor-actions/block-edit.ts': 'the top-level routine-typing write',
-	'src/lib/editor-actions/container-edit.ts': 'the nested out-of-ceremony write door',
+	'src/lib/editor-actions/leaf-write.ts': 'the keystroke written in place, at every depth',
 	'src/lib/editor-actions/commit/history.ts': 'the undo/redo tree swap',
 	'src/lib/components/Editor.svelte': 'the wiring',
 	'src/lib/components/editor-root-document-swap.ts': 'the `source` prop swap',
@@ -35,8 +34,7 @@ const ANNOUNCERS: Record<string, string> = {
  */
 const ROOT_UNSHARERS: Record<string, string> = {
 	'src/lib/editor-actions/commit/undo-controller.ts': 'the ceremony itself',
-	'src/lib/editor-actions/block-edit.ts': 'announces',
-	'src/lib/editor-actions/container-edit.ts': 'announces'
+	'src/lib/editor-actions/leaf-write.ts': 'announces'
 };
 
 type ReadingCheck = 'admitsWrite' | 'admitsSnapshot';
@@ -51,8 +49,7 @@ const READING_CHECKED: Record<string, Partial<Record<ReadingCheck, string[]>>> =
 		admitsWrite: ['__commit'],
 		admitsSnapshot: ['pushCommitSnapshot', 'pushUndoSnapshotDebounced']
 	},
-	'src/lib/editor-actions/block-edit.ts': { admitsWrite: ['applyContentUpdate'] },
-	'src/lib/editor-actions/container-edit.ts': { admitsWrite: ['withUnsharedSpine'] },
+	'src/lib/editor-actions/leaf-write.ts': { admitsWrite: ['writeLeafInPlace'] },
 	'src/lib/editor-actions/commit/history.ts': { admitsWrite: ['requestUndo', 'requestRedo'] }
 };
 

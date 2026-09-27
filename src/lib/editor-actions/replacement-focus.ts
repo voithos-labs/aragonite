@@ -1,47 +1,45 @@
 /**
- * Shared by both `updateBlockContent`s: the trial reparse that picks between a structural
- * commit and routine typing, and the caret restore after a structural commit.
+ * The keystroke's two helpers around its write: the trial reparse that picks between a commit and
+ * the in-place write, and putting the caret back after a write that moved it.
  */
 
 import { updateNodeContent } from '../tree-operations';
-import {
-	settledCaretTarget,
-	type LegalWrite,
-	type SettledContent
-} from '../tree-operations/content-write';
+import type { LegalWrite, WriteTarget } from '../tree-operations/content-write';
 import { makeBlockNode, metadataOf } from '../core/nodes';
-import type { NodeView } from '../core/node-views';
-import type { LineEnding } from '../core/lines';
+import { documentLineEnding } from '../core/lines';
 import type { StructuralChange } from '../tree-operations/structural-change';
+import { followsTaskMarker } from '../tree-operations/list/task-paragraph';
 import { readBlockPath } from '../selection/path-lookup';
-import { landCaretInScope, type CommitScope } from './block-edit-scope';
+import type { CommitScope } from './block-edit-scope';
+import type { Relanding } from '../action-contracts';
 
 // ── Trial reparse ────────────────────────────────────────────────────────────
 
 /**
- * Run the content update on a throwaway copy of the node to pick between the structural
- * commit and the routine typing path; the live tree is untouched. `tailSuffix` is the
- * trailing blank line (kept in its suffix) when `node` is the last block, else `''`: blanking
- * the last block turns that line into a block, which is structural and needs a commit.
+ * Run the content write on a throwaway copy of child `index` of `target` to pick between a commit
+ * and the in-place write; the live tree is untouched. The document's trailing blank line goes
+ * along for its last block: blanking that block turns the line into a block, which needs a commit.
  */
 export function previewContentReparse(
-	node: NodeView,
+	target: WriteTarget,
+	index: number,
 	write: LegalWrite,
-	grammar: Parameters<typeof updateNodeContent>[3],
-	owner: NodeView | undefined,
-	tailSuffix: string,
-	lineEnding: LineEnding,
-	taskItem?: NodeView
+	grammar: Parameters<typeof updateNodeContent>[3]
 ): StructuralChange {
+	const node = target.children[index];
+	const owner = 'owner' in target ? target.owner : undefined;
+	const tailSuffix =
+		index === target.children.length - 1 && 'suffix' in target ? target.suffix : '';
+	const lineEnding = 'lineEnding' in target ? target.lineEnding : documentLineEnding(target);
 	const probe = makeBlockNode({
 		kind: node.kind,
 		leadingTrivia: node.leadingTrivia,
 		raw: node.raw
 	});
-	// The owner goes along as a copy, or the trial answers about different bytes than the commit
-	// writes; a trial must not write the real container, and the suffix goes by value for the same
-	// reason. `taskItem` is the task item whose paragraph this is: its marker on the copy makes the
-	// trial read the text after the marker as the commit will.
+	// The owner goes along as a copy, or the trial answers about different bytes than the write
+	// stores. A task item's marker rides on the copy, so the trial reads the text after it as the
+	// write will.
+	const taskItem = followsTaskMarker(owner, index) ? owner : undefined;
 	const ownerCopy =
 		owner &&
 		makeBlockNode({
@@ -52,52 +50,38 @@ export function previewContentReparse(
 			children: [probe]
 		});
 	return updateNodeContent(
-		{
-			children: [probe],
-			owner: ownerCopy,
-			suffix: tailSuffix,
-			lineEnding
-		},
+		{ children: [probe], owner: ownerCopy, suffix: tailSuffix, lineEnding },
 		0,
 		write,
 		grammar
 	).change;
 }
 
-// ── Post-replacement focus ───────────────────────────────────────────────────
+// ── Putting the caret back ───────────────────────────────────────────────────
 
-/**
- * Restore the caret after a structural content commit. A no-op when focus already moved on.
- */
-export async function focusAfterContentReplace(
-	scopePath: number[],
-	at: number,
-	settled: SettledContent,
-	focusOffset: number,
-	scope: CommitScope
+/** Land `relanding`'s caret through `scope`, unless focus already left the blocks it wrote. */
+export async function landUnlessFocusMoved(
+	scope: CommitScope,
+	relanding: Relanding
 ): Promise<void> {
-	const { change } = settled;
-	const count = change.op === 'replace' ? change.newCount : 1;
-	// The index after the fix-up, not the one the edit named: a collapse above moved both.
-	const windowAt = change.op === 'replace' ? change.at : at;
-	if (focusMovedOutsideReplacement(scopePath, windowAt, count)) return;
-	const target = settledCaretTarget(settled, at, focusOffset, scope.children());
-	await landCaretInScope(scope, target.index, target.path, target.offset);
+	const { list, at, count } = relanding.window;
+	if (focusMovedOutsideReplacement(list, at, count)) return;
+	await scope.land(relanding.caret);
 }
 
 /**
- * A typing commit needs the caret restored; a blur commit (revealed source collapsing as
- * focus lands elsewhere) must not pull it back. The test is where focus is at afterTick
- * time: a `data-block-path` outside the replaced range means it moved on.
+ * A typing write needs the caret put back; a blur commit (a revealed source collapsing as focus
+ * lands elsewhere) must not pull it back. The test is where focus is when the caret would land:
+ * a `data-block-path` outside the written blocks means it moved on.
  */
 export function focusMovedOutsideReplacement(
-	scopePath: number[],
+	scopePath: readonly number[],
 	at: number,
 	count: number
 ): boolean {
 	if (typeof document === 'undefined') return false;
 	const host = document.activeElement?.closest?.('[data-block-path]') ?? null;
-	// No readable path means a remount removed the focused element, so run the restore.
+	// No readable path means a remount removed the focused element, so the caret goes back.
 	const path = readBlockPath(host);
 	if (!path) return false;
 	for (let depth = 0; depth < scopePath.length; depth++) {

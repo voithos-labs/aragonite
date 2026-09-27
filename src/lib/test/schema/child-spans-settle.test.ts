@@ -75,7 +75,7 @@ function fullRebuildRawOf(node: CstNode): string {
 	return copy.raw;
 }
 
-/** `editor-actions/container-edit.ts` `withUnsharedSpine`, minus the component layer. */
+/** The keystroke's in-place write (`editor-actions/leaf-write.ts`), minus the component layer. */
 function typeInto(doc: ReturnType<typeof parse>, path: number[], text: string): CstNode | null {
 	const sharing = createSharingState();
 	const chain = ensureUnsharedPath(doc, path, sharing);

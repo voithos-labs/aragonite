@@ -82,16 +82,16 @@ describe('previewContentReparse reads the write the owning container made legal'
 	it('reports a kind change for a bare terminator with no owner to escape it', () => {
 		const node = bodyParagraph();
 		const write = legalIn(node, '</details>\n');
-		expect(previewContentReparse(node, write, defaultGrammarView, undefined, '', '\n').op).not.toBe(
-			'noop'
-		);
+		const target = { children: [node], owner: undefined, lineEnding: '\n' as const };
+		expect(previewContentReparse(target, 0, write, defaultGrammarView).op).not.toBe('noop');
 	});
 
 	it('reports a same-kind edit once the details owner escapes the same text', () => {
 		const node = bodyParagraph();
 		const owner = { kind: declaredPluginKind(DETAILS), leadingTrivia: '', raw: '' };
 		const write = legalIn(node, '</details>\n', owner);
-		expect(previewContentReparse(node, write, defaultGrammarView, owner, '', '\n').op).toBe('noop');
+		const target = { children: [node], owner, lineEnding: '\n' as const };
+		expect(previewContentReparse(target, 0, write, defaultGrammarView).op).toBe('noop');
 	});
 });
 
@@ -103,16 +103,14 @@ describe('previewContentReparse reads a task paragraph as the commit does', () =
 	it('reports a same-kind edit for `# ` typed after the task marker', () => {
 		const item = todo();
 		const write = legalIn(item.children![0], '# beta\n', item);
-		expect(
-			previewContentReparse(item.children![0], write, defaultGrammarView, item, '', '\n', item).op
-		).toBe('noop');
+		const target = { children: item.children!, owner: item, lineEnding: '\n' as const };
+		expect(previewContentReparse(target, 0, write, defaultGrammarView).op).toBe('noop');
 	});
 
 	it('reports the kind change for the same text in a plain item', () => {
 		const item = parse('- beta\n').children[0].children![0];
 		const write = legalIn(item.children![0], '# beta\n', item);
-		expect(
-			previewContentReparse(item.children![0], write, defaultGrammarView, item, '', '\n').op
-		).not.toBe('noop');
+		const target = { children: item.children!, owner: item, lineEnding: '\n' as const };
+		expect(previewContentReparse(target, 0, write, defaultGrammarView).op).not.toBe('noop');
 	});
 });

@@ -23,10 +23,11 @@ import {
 } from '../../tree-operations/node-primitives';
 import {
 	updateNodeContent,
-	settledCaretTarget,
+	settledCaretPosition,
 	type SettledContent
 } from '../../tree-operations/content-write';
 import { focusCollapsedCaret } from '../native-bridge';
+import { caretTargetFor } from '../caret-target';
 import {
 	ensureUnsharedChild,
 	ensureUnsharedNode,
@@ -144,15 +145,16 @@ async function deleteThenType(
 			// A fix-up that merged the leaf into the block above left that block holding the typed
 			// bytes, so the position the delete resolved is no longer where the caret belongs.
 			const siblings = scopeChildrenOf(ctx, scope.path);
-			const target = settledCaretTarget(settled, leafIndex, caret.offset + typed.length, siblings);
-			const path = [...caret.path.slice(0, -1), target.index];
+			const at = settledCaretPosition(settled, leafIndex, caret.offset + typed.length, siblings);
+			const path = [...caret.path.slice(0, -1), at.index];
 			// The mount above covered the position the delete resolved; a merge can put the caret
 			// on one the render window never held.
-			if (target.index !== leafIndex) await ctx.revealPath(path);
-			focusCollapsedCaret(ctx.getBlockElByPath, {
-				path: [...path, ...target.path],
-				offset: target.offset
-			});
+			if (at.index !== leafIndex) await ctx.revealPath(path);
+			const leaf = caretTargetFor(ctx.getDoc(), { path: docPathFrom(path), offset: at.offset });
+			focusCollapsedCaret(
+				ctx.getBlockElByPath,
+				leaf ? { path: [...leaf.leafPath], offset: leaf.offset } : { path, offset: at.offset }
+			);
 		}
 	});
 }

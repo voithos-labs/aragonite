@@ -14,7 +14,8 @@ import {
 	trimTrailingLineEnding
 } from '../../core/lines';
 import { nodeAt, writeOwnRaw } from '../node-primitives';
-import { settledCaretTarget, updateNodeContent, type SettledContent } from '../content-write';
+import { settledCaretPosition, updateNodeContent, type SettledContent } from '../content-write';
+import { leafAtRawOffset } from '../container-offsets';
 import { containerPasteFor } from './container-paste';
 import { rebuildContainerRawIfContainer } from '../../schema/container-raw';
 import { ensureUnsharedNode, ensureUnsharedPath } from '../unshare';
@@ -315,10 +316,13 @@ async function applyContainerMatchingMerge(
 			// A char offset in the last spliced item's paragraph, so land on the paragraph rather
 			// than CURSOR_END on the item, at the position the residue's own fix-up left it in.
 			const lastInsertedIdx = unwrap.spliceIndex + remainingItems.length;
-			const target = settledCaretTarget(residue, 0, lastDisplay.length, lastItem.children ?? []);
+			const children = lastItem.children ?? [];
+			const at = settledCaretPosition(residue, 0, lastDisplay.length, children);
+			const block = children[at.index];
+			const leaf = (block?.children?.length && leafAtRawOffset(block, at.offset)) || null;
 			return ctx.controller.landCaret(
-				[...unwrap.outerPath, lastInsertedIdx, target.index, ...target.path],
-				target.offset
+				[...unwrap.outerPath, lastInsertedIdx, at.index, ...(leaf?.path ?? [])],
+				leaf?.offset ?? at.offset
 			);
 		}
 	});

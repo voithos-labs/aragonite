@@ -11,7 +11,7 @@ import {
 	MATH_BLOCK,
 	MATH_FENCE
 } from '$lib/plugins/latex/latex-kind';
-import { makeTopHarness } from '$lib/test/harness/editor-actions';
+import { makeContainerHarness, makeTopHarness } from '$lib/test/harness/editor-actions';
 
 beforeEach(() => {
 	resetPluginPlatformForTests();
@@ -27,6 +27,17 @@ describe('typing a closer-shaped line into a math fence', () => {
 
 		expect(h.deps.doc.children.map((c) => c.kind)).toEqual([MATH_FENCE, 'paragraph']);
 		expect(serialize(h.deps.doc)).toBe('````math\nx\n```\ny\n````\n\npara\n');
+	});
+
+	// The quote's keystroke takes the write path a container shares with the top level.
+	it('does the same inside a quote', async () => {
+		const h = makeContainerHarness('> ```math\n> x\n> ```\n>\n> para\n', [0]);
+		expect(h.getNode().children![0].kind).toBe(MATH_FENCE);
+
+		await h.bundle.blockEdit.updateBlockContent(0, '```math\nx\n```\ny\n```\n', 'authored', 10, 14);
+
+		expect(h.getNode().children!.map((c) => c.kind)).toEqual([MATH_FENCE, 'paragraph']);
+		expect(serialize(h.deps.doc)).toBe('> ````math\n> x\n> ```\n> y\n> ````\n>\n> para\n');
 	});
 });
 

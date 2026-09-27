@@ -28,10 +28,10 @@ const SITES: Record<string, SiteStance> = {
 		sinks: 1,
 		why: 'the multi-scope commit sequence owns the doc-level ids/refs and every prepared scope’s state, so it reconciles and publishes the fold’s unwind'
 	},
-	'src/lib/editor-actions/container-edit.ts': {
+	'src/lib/editor-actions/leaf-write.ts': {
 		declines: 0,
 		sinks: 1,
-		why: 'the ordinary typing path; it publishes no descriptor of its own, so it reconciles the splice directly'
+		why: 'the keystroke written in place; it publishes no descriptor of its own, so it reconciles the splice directly'
 	},
 	'src/lib/tree-operations/chain-rebuild.ts': {
 		declines: 0,
