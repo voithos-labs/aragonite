@@ -40,16 +40,17 @@ export type DiscardIfNoop = boolean;
 export type CommitAfterTick = () => void | Promise<void>;
 
 /**
- * What a screen reader hears about a commit, read after `afterTick` and only when bytes landed:
- * a refused, failed or discarded commit says nothing. The one way an edit reaches the editor's
- * live region, so a move can't be announced unless it happened.
+ * What a screen reader hears about a commit (a move, a table edit) in the editor's edit live
+ * region, read after `afterTick` and only when bytes landed. That region hears nothing else, so a
+ * refused, failed or discarded commit says nothing there.
  */
 export type CommitAnnouncement = () => string;
 
 /**
- * A content write in flight, resolving to whether bytes landed. Whether the reading-mode check
- * admitted it is known the moment the call returns, and only an admitted write has a caret: the
- * landing offset in the bytes as stored, with `storedOffset` mapping any other offset the same way.
+ * A content write in flight, resolving to whether bytes landed. `admitted` is known the moment the
+ * call returns: false means the write was turned away before it touched anything (reading mode, or
+ * a list with no text of its own to write). Only an admitted write has a caret: the landing offset
+ * in the bytes as stored, with `storedOffset` mapping any other offset the same way.
  */
 export type ContentWrite = Promise<boolean> & (RefusedContentWrite | AdmittedContentWrite);
 

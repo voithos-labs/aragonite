@@ -6,6 +6,7 @@ import type { StructuralChange } from '$lib/tree-operations/structural-change';
 import type { PresentationMode } from '$lib/presentation-mode';
 import { asDocPath } from '$lib/selection/path-math';
 import { READING_WRITE_TAG } from '$lib/editor-actions/commit/reading-write-gate';
+import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { makeNestedHarness, makeTopHarness } from '../../harness/editor-actions';
 import { fixtureReading } from '../../harness/fixture-grammar';
 import { takeDevWarns } from '../../support/warn-gate';
@@ -27,17 +28,14 @@ async function commitAt(scope: 'document' | 'container', writes: Writes, mode: P
 		afterTick: () => void log.push('caret'),
 		announce: () => 'Moved'
 	};
+	const say = (message: string) => void log.push(`said ${message}`);
 	if (scope === 'document') {
-		const h = makeTopHarness('a\n\nb\n', {
-			reading: fixtureReading({}, mode),
-			announceEdit: (message) => log.push(`said ${message}`)
-		});
-		const wrote = await h.controller.commitStructural({ ...common, mutate });
+		const h = makeTopHarness('a\n\nb\n', { reading: fixtureReading({}, mode) });
+		const wrote = await createUndoController(h.deps, say).commitStructural({ ...common, mutate });
 		return { wrote, log };
 	}
 	const h = makeNestedHarness('> a\n>\n> b\n', { index: 0, presentationMode: mode });
-	h.deps.announceEdit = (message) => log.push(`said ${message}`);
-	const wrote = await h.containerEdit.commitContainer({
+	const wrote = await createUndoController(h.deps, say).commitContainerStructural({
 		...common,
 		containerNode: h.getNode(),
 		path: [0],

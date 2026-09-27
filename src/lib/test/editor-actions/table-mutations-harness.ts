@@ -19,10 +19,7 @@ export function makeTableMutations(
 		rowIds?: string[];
 	} = {}
 ) {
-	const announceReorder = vi.fn();
-	const { deps, events } = makeEditorActionsDeps([parse(source).children[0]], {
-		announceEdit: announceReorder
-	});
+	const { deps, events } = makeEditorActionsDeps([parse(source).children[0]]);
 	const liveTable = () => deps.doc.children[0];
 	const rowsState = makeBlockListState(liveTable, opts.rowIds);
 	if (opts.mountedRows) {
@@ -34,7 +31,8 @@ export function makeTableMutations(
 			);
 		}
 	}
-	const controller = createUndoController(deps);
+	const announceEdit = vi.fn();
+	const controller = createUndoController(deps, announceEdit);
 	const edits: EditEvent[] = [];
 	events.on('edit', (e) => edits.push(e));
 	const focusCell = vi.fn();
@@ -57,5 +55,5 @@ export function makeTableMutations(
 		reading: deps.reading,
 		focusCell
 	});
-	return { deps, mutations, edits, focusCell, announceReorder };
+	return { deps, mutations, edits, focusCell, announceEdit };
 }

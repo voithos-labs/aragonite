@@ -36,29 +36,27 @@ function refsAnsweringEverySlot(
 	});
 }
 
-/** Deps in `mode` that record what the editor's live region was told. */
+/** Deps in `mode`, and a controller that records what the edit live region was told. */
 function announcingDeps(source: string, mode: PresentationMode) {
 	const announced: string[] = [];
-	const harness = makeEditorActionsDeps(parse(source), {
-		reading: fixtureReading({}, mode),
-		announceEdit: (message) => announced.push(message)
-	});
-	return { harness, announced };
+	const harness = makeEditorActionsDeps(parse(source), { reading: fixtureReading({}, mode) });
+	const controller = createUndoController(harness.deps, (message) => announced.push(message));
+	return { harness, announced, controller };
 }
 
 function makeTop(source: string, mode: PresentationMode = 'source') {
-	const { harness, announced } = announcingDeps(source, mode);
+	const { harness, announced, controller } = announcingDeps(source, mode);
 	const focused: number[] = [];
 	const refs = refsAnsweringEverySlot(harness.getBlockRefs(), focused);
 	const deps = new Proxy(harness.deps, {
 		get: (target, prop) => (prop === 'blockRefs' ? refs : Reflect.get(target, prop, target))
 	});
-	const reorder = createReorderAction(deps, createUndoController(harness.deps));
+	const reorder = createReorderAction(deps, controller);
 	return { doc: harness.doc, reorder, announced, focused };
 }
 
 function makeContainer(source: string, mode: PresentationMode = 'source') {
-	const { harness, announced } = announcingDeps(source, mode);
+	const { harness, announced, controller } = announcingDeps(source, mode);
 	const node = () => harness.doc.children[0];
 	const state = createBlockListState(node);
 	const focused: number[] = [];
@@ -69,7 +67,7 @@ function makeContainer(source: string, mode: PresentationMode = 'source') {
 			get: (target, prop) => (prop === 'innerBlockRefs' ? refs : Reflect.get(target, prop, target))
 		})
 	);
-	const reorder = createReorderAction(harness.deps, createUndoController(harness.deps));
+	const reorder = createReorderAction(harness.deps, controller);
 	return { doc: harness.doc, node, reorder, announced, focused };
 }
 

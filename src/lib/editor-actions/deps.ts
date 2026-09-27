@@ -36,8 +36,6 @@ export interface EditorActionsDeps {
 	 *  component (null if unreachable); a mounted block returns at once. */
 	revealPath(path: number[]): Promise<BlockComponent | null>;
 	events: EditorEvents;
-	/** Speak `message` in the editor's live region. Only a commit calls it, from its `announce`. */
-	announceEdit(message: string): void;
 	/** How the editor reads its bytes: a re-parse or completer reads only the syntax it switched
 	 *  on, a rewrite parses the reference links the renderer drew, a write refuses reading mode. */
 	reading: Reading;

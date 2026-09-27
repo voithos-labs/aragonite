@@ -689,7 +689,7 @@ A gesture can't push an entry ahead of its write any more; all it gets is the st
 
 ### The commit primitive
 
-Every structural mutation routes through one internal commit helper. Three entry points name the three scopes (`src/lib/action-contracts.ts` :: `CommitController`): **`commitStructural`** (the document's children array), **`commitContainerStructural`** (one container's children array), and **`commitMultiScope`** (several container states in one logical step, a cross-container delete or an indent/unindent: one snapshot, one edit event, one atomic reactivity publish across every touched scope). A caller describes the change and the helper runs the commit steps around it, and each entry point resolves to whether any bytes landed (false when reading mode refused the write, the commit rolled back, or a `discardIfNoop` commit found nothing had changed). A commit's `announce` is what a screen reader hears about it ("Moved block to position 2 of 3", "Deleted row"). It's spoken only on that same "bytes landed", after the caret is placed, and it's the only way an edit reaches that live region, so a move that didn't happen can't be announced. The split, from `editor-actions/block-edit-core.ts`:
+Every structural mutation routes through one internal commit helper. Three entry points name the three scopes (`src/lib/action-contracts.ts` :: `CommitController`): **`commitStructural`** (the document's children array), **`commitContainerStructural`** (one container's children array), and **`commitMultiScope`** (several container states in one logical step, a cross-container delete or an indent/unindent: one snapshot, one edit event, one atomic reactivity publish across every touched scope). A caller describes the change and the helper runs the commit steps around it, and each entry point resolves to whether any bytes landed (false when reading mode refused the write, the commit rolled back, or a `discardIfNoop` commit found nothing had changed). A commit can also pass `announce`, the line a screen reader hears about it ("Moved block to position 2 of 3", "Deleted row"). That line goes to the editor's edit live region, a hidden `aria-live` element screen readers read out when its text changes (the selection and the kind cue each have their own). Only the undo controller can write to it, and only after a commit that wrote, so a move that didn't happen is never announced. The split, from `editor-actions/block-edit-core.ts`:
 
 ```ts
 await scope.commit({
@@ -713,7 +713,8 @@ The commit's structural steps, in order (`src/lib/editor-actions/commit/undo-con
 5. publish the new children atomically,
 6. rebuild every enclosing container's `raw`, deepest first, asking each container's own slot on the way out (§ 9),
 7. emit an `edit` event,
-8. `await tick()`, then run the caller-supplied post-tick callback (focus landing, cursor placement), itself awaited.
+8. `await tick()`, then run the caller-supplied post-tick callback (focus landing, cursor placement), itself awaited,
+9. speak the caller's `announce` line in the edit live region, when the commit wrote.
 
 Because step 8 awaits, a landing that must first reveal an off-window target is expressible there rather than fire-and-forget, and a landing that deliberately doesn't make its commit wait says so by returning nothing. Callers pick a scope; they never assemble the steps, and **this is the canonical entry for any new structural mutation** (the op-log isn't a commit step; it subscribes to `edit` downstream). The top-level and container action factories share one core through a `CommitScope` adapter, so the structural-edit sequence is single-sourced and the factories differ only in scope wiring and container-only concerns.
 

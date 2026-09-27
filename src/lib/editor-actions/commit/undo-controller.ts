@@ -92,7 +92,12 @@ function touchedContainersWithChildren(containers: CstNode[] | undefined): CstNo
 	return out;
 }
 
-export function createUndoController(deps: EditorActionsDeps): UndoController {
+/** `announceEdit` speaks a commit's announcement in the editor's edit live region; only the
+ *  controller holds it, so nothing but a commit that wrote can speak there. Silent by default. */
+export function createUndoController(
+	deps: EditorActionsDeps,
+	announceEdit: (message: string) => void = () => {}
+): UndoController {
 	// ── Selection helpers ─────────────────────────────────────────────────────
 
 	function collapsedSelectionAt(blockIndex: number, offset: number): EditorSelection {
@@ -473,7 +478,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 			reportCommitError(args, err);
 		}
 		if (outcome !== 'written') return false;
-		if (args.announce) deps.announceEdit(args.announce());
+		if (args.announce) announceEdit(args.announce());
 		return true;
 	}
 

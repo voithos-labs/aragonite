@@ -326,14 +326,15 @@
 			: ''
 	);
 
-	// Its own live region: sharing `selectionDescription`'s would drop the move announcement.
-	let reorderAnnouncement = $state('');
+	// The edit live region, its own: sharing `selectionDescription`'s would drop a move's
+	// announcement. Only the undo controller speaks here, from a commit that wrote.
+	let editAnnouncement = $state('');
 	const announceEdit = async (message: string) => {
 		// Clear first: Svelte skips the DOM write on a ===-equal assignment, which drops
 		// the second of two identical announcements.
-		reorderAnnouncement = '';
+		editAnnouncement = '';
 		await tick();
-		reorderAnnouncement = message;
+		editAnnouncement = message;
 	};
 
 	// One element each for the whole editor, so dragging costs nothing per mounted block.
@@ -574,11 +575,12 @@
 		getBlockElByPath,
 		revealPath,
 		events,
-		announceEdit,
 		reading
 	};
-	const { blockEdit, focus, history, containerEdit, controller } =
-		createEditorActions(editorActionsDeps);
+	const { blockEdit, focus, history, containerEdit, controller } = createEditorActions(
+		editorActionsDeps,
+		announceEdit
+	);
 
 	// A getter, so block components read the live doc rather than the one they mounted with.
 	const getDoc: DocumentGetter = () => doc;
@@ -1423,7 +1425,7 @@
 		measureRange={rects.rangeRects}
 	/>
 	<div class="editor-sr-live" role="status" aria-live="polite">{selectionDescription}</div>
-	<div class="editor-sr-live-reorder" role="status" aria-live="polite">{reorderAnnouncement}</div>
+	<div class="editor-sr-live-reorder" role="status" aria-live="polite">{editAnnouncement}</div>
 	<div class="editor-sr-live-kind" role="status" aria-live="polite">{kindAnnouncement}</div>
 	{#if reorderLine}
 		<div

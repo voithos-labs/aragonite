@@ -11,20 +11,20 @@ const mutationsFor = (focusedCell: { rowIdx: number; colIdx: number } | null) =>
 
 describe('setColumnAlignment: focus restore + announcement', () => {
 	it('refocuses the originating cell in the aligned column and announces', async () => {
-		const { mutations, focusCell, announceReorder } = mutationsFor({ rowIdx: 1, colIdx: 1 });
+		const { mutations, focusCell, announceEdit } = mutationsFor({ rowIdx: 1, colIdx: 1 });
 
 		await mutations.setColumnAlignment(1, 'center');
 
 		expect(focusCell).toHaveBeenCalledWith(1, 1, 'start');
-		expect(announceReorder).toHaveBeenCalledWith('Column aligned center');
+		expect(announceEdit).toHaveBeenCalledWith('Column aligned center');
 	});
 
 	it('falls back to row 0 of the aligned column when no cell is focused (menu-driven)', async () => {
-		const { mutations, focusCell, announceReorder } = mutationsFor(null);
+		const { mutations, focusCell, announceEdit } = mutationsFor(null);
 
 		await mutations.setColumnAlignment(0, 'right');
 
 		expect(focusCell).toHaveBeenCalledWith(0, 0, 'start');
-		expect(announceReorder).toHaveBeenCalledWith('Column aligned right');
+		expect(announceEdit).toHaveBeenCalledWith('Column aligned right');
 	});
 });
