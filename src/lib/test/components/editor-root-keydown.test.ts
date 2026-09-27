@@ -275,9 +275,7 @@ describe('editor-root keydown, reading-mode gate', () => {
 
 // ── Consumer keybinding overrides ────────────────────────────────────────────
 
-// Miss-analysis for the rebind case below: every override case here re-pointed a chord the
-// built-in table already owned, so the branch's first check answered true for reasons that
-// had nothing to do with the override, and its ignoring overrides never showed.
+// Miss-analysis: every override case re-pointed a chord the built-in table already owned.
 describe('editor-root keydown: global-scope binding resolution', () => {
 	it('resolves the chord through a consumer override, not the built-in table', () => {
 		const h = harness();
@@ -392,9 +390,8 @@ describe('editor-root keydown: body-chord containment', () => {
 });
 
 // ── Focused-element containment ──────────────────────────────────────────────
-// It answers a caret with no focused element at all, never "anything focused inside the
-// root". Anything that holds focus, a block or the gap caret's own element, handles its
-// own chords, and widening this would run every such chord twice.
+// The root answers only a caret with no focused element: a focused block or gap caret handles
+// its own chords, and widening the root's check would run each such chord twice.
 
 describe('editor-root keydown: a focused surface inside the root owns its chords', () => {
 	it('a global chord resolves nothing while a focusable child holds focus', () => {
@@ -453,10 +450,8 @@ describe('editor-root keydown: foreign text-entry yields Find', () => {
 });
 
 // ── The host's header ────────────────────────────────────────────────────────
-// `root.contains(active)` is true for the host's own header, so the "focus is in this
-// editor" tests read it as their own content and a host title field loses Find while it
-// is being typed in. What tells them apart is the header: the same field one level up
-// still counts as the editor's.
+// `root.contains(active)` is true for the host's header too, so a host title field would lose
+// Find while typed in; only the header element tells the two apart.
 
 describe('editor-root keydown: host chrome owns its own keystrokes', () => {
 	it('yields a search chord to a text field in the header slot', () => {

@@ -83,8 +83,7 @@ describe('prose is the page background', () => {
 		expect(isProse(FENCE)).toBe(false);
 	});
 
-	// Miss-analysis: every picture case held one inline image, the only shape the menu's own
-	// pattern knew, while the drag handle's pattern also took several images and references.
+	// Miss-analysis: every picture case held one inline image, never several or a reference.
 	it('treats a paragraph of several images, or of a reference image, as a picture', () => {
 		for (const picture of ['![a](x) ![b](y)\n', '![a][ref]\n\n[ref]: x\n', '[![a](x)](y)\n']) {
 			expect(isProse(picture), picture).toBe(false);

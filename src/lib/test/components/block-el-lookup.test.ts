@@ -3,8 +3,7 @@ import { describe, it, expect } from 'vitest';
 import { blockContentElAt } from '$lib/components/block-el-lookup';
 import { mountTableGrid } from '../selection/table-grid';
 
-// Miss-analysis: the cell descent (a deep path through a wrapper-less cell grid) had no test of
-// its own; every consumer test mounted a table and read the answer back through a caret.
+// Miss-analysis: the descent into a table cell was tested only through a caret on a mounted table.
 
 function hostAt(path: number[]): { host: HTMLElement; content: HTMLElement } {
 	const host = document.createElement('div');

@@ -1,8 +1,7 @@
 // @vitest-environment jsdom
 // A block menu opened in source mode and picked after a switch to reading mode reaches the commit
-// with no mode check of its own (#517); the commit's reading-mode check is what answers it.
-// Miss-analysis: every reading-mode test switched modes before opening a menu, and the menu's
-// only reading check sits on the right-click, so no test picked a row after the switch.
+// with no mode check of its own; the commit's reading-mode check is what answers it.
+// Miss-analysis (GH #517): every reading-mode test switched modes before opening a menu.
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createRootMenus, type BlockMenuModel } from '$lib/components/editor-root-menus';
 import { registerDefaultContextActions } from '$lib/components/menu/default-context-actions';

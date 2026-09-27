@@ -1,10 +1,7 @@
 // @vitest-environment jsdom
-//
-// BlockHost's error boundary stands between one bad plugin component and a blank
-// document. Two halves, neither visible from the source: the failed block still shows
-// its bytes and reports on the error event, and the boundary recovers on a byte change.
-// A small document never unmounts the host to remount it, so an edit that fixes the
-// input is the only way back.
+// BlockHost's error boundary keeps one bad plugin component from blanking the document: the failed
+// block still shows its bytes and reports on the error event, and the boundary recovers on a byte
+// change, the only way back since a small document never remounts the host.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { flushSync } from 'svelte';
 import { parse } from '$lib/core/parser';

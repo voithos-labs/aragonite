@@ -1,5 +1,4 @@
 // @vitest-environment jsdom
-//
 // Mounts the kind-to-component dispatch once per class of kind, so a mis-wired registry
 // or a lost fallback fails here as a block that did not render rather than reaching
 // review; the source scan (invariants/lint/block-host-prop-thread) cannot see either.

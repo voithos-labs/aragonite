@@ -3,8 +3,7 @@
 // the mode just asked for (the outgoing mode is held only while the switch commits its edits), a
 // menu closes, and `insertMarkdown` answers true only when bytes moved.
 
-// Miss-analysis: every mode-switch test settled between the prop write and the next call, so a
-// mode that followed the prop one flush late read correctly in all of them.
+// Miss-analysis: every mode-switch test settled between the prop write and the next call.
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
 	destroyMountedEditors,
@@ -78,8 +77,7 @@ describe('a call in the same task as a mode switch', () => {
 	});
 });
 
-// Miss-analysis: the block menu was the one editor menu no mode switch closed, and no test left
-// a menu open across a switch (#517's route).
+// Miss-analysis (GH #517): no test left a menu open across a mode switch.
 describe('a menu open across a switch to reading', () => {
 	it('closes, so none of its rows is offered in reading mode', async () => {
 		registerDefaultContextActions();
@@ -97,8 +95,7 @@ describe('a menu open across a switch to reading', () => {
 	});
 });
 
-// Miss-analysis: every insertMarkdown test either wrote or was refused before its first await,
-// so `true` never had to mean that bytes moved.
+// Miss-analysis: every insertMarkdown test wrote or was refused before its first await.
 describe('insertMarkdown across a switch to reading', () => {
 	it('answers false when the switch lands before its write, which is refused', async () => {
 		const mounted = mountEditor({ source: 'para\n' });

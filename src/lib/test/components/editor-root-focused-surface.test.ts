@@ -5,10 +5,7 @@ import { parse } from '$lib/core/parser';
 import type { BlockComponent } from '$lib/block-component';
 import type { GapCaretPosition } from '$lib/selection/gap-caret';
 
-// Miss-analysis: the public entry points were tested through a mounted editor with a caret in
-// a block, so nothing named what they answer for a gap caret, a focus outside the root, or a
-// block that runs no commands. The below insert's two writes were never asked to share an
-// undo entry, so each pushed its own.
+// Miss-analysis: the entry points were tested only with a caret in a block, never at a gap.
 
 beforeEach(() => {
 	document.body.replaceChildren();
@@ -110,8 +107,7 @@ describe('editor-root focused surface', () => {
 		expect(insertMarkdown).toHaveBeenCalledWith('- ');
 	});
 
-	// Miss-analysis: every stub that answered true also wrote, so `true` was never checked
-	// against bytes moving.
+	// Miss-analysis: every stub that answered true also wrote, so `true` never meant bytes moved.
 	it('insertMarkdown answers false when the block handled it but no byte moved', async () => {
 		const h = harness({ insertMarkdown: async () => true }, { writes: false });
 		h.surface.focus();

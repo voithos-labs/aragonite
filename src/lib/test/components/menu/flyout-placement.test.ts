@@ -2,9 +2,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { keepFlyoutOnScreen } from '$lib/components/menu/flyout-placement';
 
-// The attachment writes the viewport correction inline over the CSS that hangs a flyout off its
-// row's right edge: lifted by the overflow at the bottom, flipped to the left at the right edge
-// when the parent menu leaves room there, untouched where it fits.
+// A flyout that overflows the viewport is lifted at the bottom and flipped left at the right edge
+// when the parent menu leaves room, by inline styles over the CSS placement.
 
 function rect(r: Partial<DOMRect>): DOMRect {
 	return { x: 0, y: 0, top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0, ...r } as DOMRect;

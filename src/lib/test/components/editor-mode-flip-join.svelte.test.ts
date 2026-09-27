@@ -1,6 +1,5 @@
 // @vitest-environment jsdom
-// Miss-analysis: every unit join test built its reading with a fixed mode, so an editor reading
-// that kept the mode it mounted with passed them all and only failed in e2e.
+// Miss-analysis: every unit join test built its reading with a fixed mode, never a switched one.
 import { describe, it, expect, afterEach, beforeAll } from 'vitest';
 import {
 	installLayoutStubs,

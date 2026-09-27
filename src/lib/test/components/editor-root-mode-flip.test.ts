@@ -15,8 +15,7 @@ const caretAt = (path: number[], offset: number): EditorSelection => ({
 	focus: { path, offset }
 });
 
-// Miss-analysis: every mode-change test drove a mounted editor, where the caret coming back
-// could be the restore path's doing; nothing pinned which mode captured and which restored.
+// Miss-analysis: every mode-change test drove a mounted editor, never which mode captured.
 function harness(opts: { mode?: PresentationMode; selection?: EditorSelection | null } = {}) {
 	const root = document.createElement('div');
 	const leaf = document.createElement('button');

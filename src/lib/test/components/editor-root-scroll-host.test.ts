@@ -2,9 +2,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { createScrollHostResolution } from '$lib/components/editor-root-scroll-host';
 
-// Miss-analysis: host-mode resolution was pinned only by e2e over a real scroller, so nothing
-// named the caching (a scroller swapped after the first read is not seen) or the self-mode
-// answers.
+// Miss-analysis: scroll-host resolution was tested only by e2e, never its caching or self mode.
 
 beforeEach(() => {
 	document.body.replaceChildren();

@@ -1,10 +1,7 @@
 // @vitest-environment jsdom
-//
-// The two things BlockHost hands its child that nothing else can: the props it reads from
-// editor context, and the child-ref entry every container's focus, scroll and clipboard
-// descent goes through. Only the registered-component branch is checked by behaviour here;
-// the fallback accepts `document` for symmetry and never binds it, so both stay pinned by
-// the source scan in invariants/lint/block-host-prop-thread.
+// The two things BlockHost hands its child that nothing else can: the props it reads from editor
+// context, and the child-ref entry every container's descent goes through. Only the registered
+// component is checked here; `invariants/lint/block-host-prop-thread` covers the fallback.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { flushSync } from 'svelte';
 import { parse } from '$lib/core/parser';
@@ -85,9 +82,8 @@ describe('BlockHost publishes its component into the caller’s ref slot', () =>
 	});
 
 	it('moves the ref to the new slot when its index shifts, clearing the old one', () => {
-		// A reorder or an inserted sibling re-indexes a live host; the ref entry must
-		// follow, or the container's focus descent finds the wrong block
-		// (publish-ref.svelte).
+		// A reorder or an inserted sibling re-indexes a live host; the ref entry must follow, or
+		// the container's focus descent finds the wrong block.
 		const props: HostProps = $state({ index: 1 });
 		mounted = mountAtSlot(props);
 		expect(mounted.refs[1]).toBeDefined();

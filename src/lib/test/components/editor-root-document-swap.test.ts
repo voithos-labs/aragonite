@@ -8,9 +8,7 @@ import type { LinkReferenceResolver } from '$lib/core/inline/link-reference-reso
 import { defaultGrammarView } from '$lib/schema/block-openers';
 import { createRegistryView } from '$lib/schema/registry-view';
 
-// Miss-analysis: the swap was pinned through a mounted editor one consequence at a time
-// (heights, undo, the selection announcement), so a step dropped from the middle of the
-// sequence failed no unit test; and no step closed a menu, since no spec swapped under one.
+// Miss-analysis: the swap was tested one consequence at a time, so a dropped middle step passed.
 
 describe('initDocument', () => {
 	it('parses the empty source to one empty LF paragraph', () => {
