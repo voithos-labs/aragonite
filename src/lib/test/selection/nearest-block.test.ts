@@ -146,9 +146,8 @@ describe('blockNearPoint', () => {
 	});
 });
 
-// Which child a point on a container's own box is handed to. The layout comes from
-// e2e/tests/selection/dead-space-click-containers.spec.ts; this pins the container's own
-// editable row, which no built-in container has, and the guard that ends the walk.
+// Which child a point on a container's own box goes to, when the container has an editable row
+// of its own (no built-in one does), and the guard that ends the search.
 describe('descendToLevelChild', () => {
 	type Box = { left: number; right: number; top: number; bottom: number };
 	const CONTAINER: Box = { left: 0, right: 300, top: 100, bottom: 200 };
@@ -216,7 +215,7 @@ describe('descendToLevelChild', () => {
 		expect(descendFrom(5, 110).hit.path).toEqual([0]);
 	});
 
-	// Without the guard the walk re-hits the container forever; the hit-test budget turns that
+	// Without the guard the search re-hits the container forever; the hit-test budget turns that
 	// synchronous hang into a failure.
 	it('keeps the point when something the container draws covers the child', () => {
 		mount(false);

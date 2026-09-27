@@ -21,7 +21,7 @@ const TOGGLES = [
 	TOOLBAR_COMMANDS.toggleCode
 ] as const;
 
-// A painted range unless a case says otherwise.
+// Every case has a painted range unless it says otherwise.
 const context = (over: Parameters<typeof commandContext>[0] = {}) =>
 	commandContext({ isCrossBlockRange: () => true, ...over });
 
@@ -65,8 +65,7 @@ describe('a range command with the branch wired', () => {
 	});
 });
 
-// The case that matters: a router that reaches nothing, and the rewrites must decline there
-// rather than rewriting against the focused block.
+// A router that reaches nothing makes the rewrites decline rather than rewrite the focused block.
 describe('a range command whose branch reaches nothing', () => {
 	it.each(TOGGLES)('%s declines, and the focused surface is never asked', (id) => {
 		const run = vi.fn(() => true);
@@ -91,8 +90,7 @@ describe('the pressed-state read follows the same route', () => {
 	});
 });
 
-// Miss-analysis: each container once passed no router of its own, and when the one context took
-// that away no test dispatched a range-routed chord at a container with a live router.
+// Miss-analysis: no test dispatched a range-routed chord at a container with a live router.
 describe('a chord that bubbles to a container over a range', () => {
 	it('declines, and neither the cross-block handler nor the container runs it', () => {
 		const run = vi.fn(() => true);

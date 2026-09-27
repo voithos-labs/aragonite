@@ -1,5 +1,5 @@
-// Which characters a plugin may claim as its inline trigger, over every ASCII character plus a
-// few beyond it, and which registrations make the scanner's fast bail check the trigger.
+// Which characters a plugin may register as its inline trigger, over every ASCII character plus
+// a few beyond it, and which registrations make the scanner's fast bail check the trigger.
 import { afterEach, describe, expect, it } from 'vitest';
 import {
 	hasScanProbeRungs,

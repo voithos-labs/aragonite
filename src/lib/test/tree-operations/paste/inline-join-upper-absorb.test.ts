@@ -14,11 +14,8 @@ import {
 } from '$lib/test/harness/editor-actions';
 import type { BlockListState } from '$lib/reactivity/block-list-state.svelte';
 
-// GH #21's paste path: an inline paste at a heading's offset 0 demotes it, the fix-up merges
-// the join above, and the caret must follow the byte into the merged predecessor.
-// Miss-analysis: this path used the content write's caret answer with no pin of its own; two waves'
-// reviews proved a caret placement pinned only at the primitive keeps a caller green when it
-// regresses (reverting this path's caret placement survived the full unit suite).
+// An inline paste at a heading's start demotes it into the block above; the caret follows its byte.
+// Miss-analysis: the caret was pinned only at the content-write primitive, never at this caller.
 
 describe('inline paste landing after a fold above the target', () => {
 	it('answers the merged predecessor and the shifted offset at top level', async () => {

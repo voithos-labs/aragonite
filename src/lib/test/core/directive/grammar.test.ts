@@ -59,8 +59,7 @@ describe('matchDirectiveOpener', () => {
 		});
 		expect(matchDirectiveOpener(':::1x')).toBeNull();
 	});
-	// Miss-analysis: every info string was ASCII, so JS `.` stopping at a line separator, which
-	// the line splitter leaves inside a line, never met a test.
+	// Miss-analysis: every info string was ASCII, so none held a line separator inside a line.
 	it('reads the info string to the end of the line, whatever it holds', () => {
 		expect(matchDirectiveOpener(':::tip\u2028Title')?.info).toBe('\u2028Title');
 		expect(matchDirectiveOpener(':::tip a\u2029b')?.info).toBe(' a\u2029b');
@@ -166,8 +165,7 @@ describe('parseDirectiveAttributes', () => {
 	});
 });
 
-// Miss-analysis: every attribute case spaced its tokens with ASCII spaces, so JS `\s` admitting
-// a non-breaking space never met an input where it disagreed with Markdown's whitespace.
+// Miss-analysis: every attribute case spaced its tokens with ASCII, never a non-breaking space.
 describe('parseDirectiveAttributes reads Markdown whitespace, where a non-breaking space is text', () => {
 	const NBSP = '\u00a0';
 

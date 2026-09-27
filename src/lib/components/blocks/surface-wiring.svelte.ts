@@ -1,9 +1,7 @@
 /**
- * The context wiring every editable-block component threads identically: one init-time bundle
- * of the shared `EditableSurfaceDeps` fields, plus chord dispatch over the editor's one command
- * context and the shared teardown that moves focus away. Call it during component init, since it
- * reads `getContext`; `createEditableSurface` itself stays context-free so the jsdom harness can
- * build it.
+ * The context wiring every editable-block component shares: the common `EditableSurfaceDeps`
+ * fields, chord dispatch through the editor's command context, and the focus-away teardown.
+ * Call it during component init, since it reads `getContext`.
  */
 
 import { getContext } from 'svelte';
@@ -50,8 +48,7 @@ export type SharedSurfaceDeps = Pick<
 export interface SurfaceWiring {
 	/** Spread first into `createEditableSurface`; per-surface fields follow and may override. */
 	deps: SharedSurfaceDeps;
-	/** Resolve a chord at `target` through the editor's command context; consumes the event
-	 *  when spent. */
+	/** Resolve a chord at `target` through the editor's command context; consumes a handled event. */
 	dispatchChord(e: KeyboardEvent, target: KindCommandTarget): boolean;
 	/** The command a keypress names at `kind`, overrides included, without running it. */
 	resolveChord(e: KeyboardEvent, kind: AnyBlockKind): AnyCommandId | null;

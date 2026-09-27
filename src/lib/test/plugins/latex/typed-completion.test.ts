@@ -30,8 +30,7 @@ describe('block math Enter completer: which lines it claims', () => {
 		['$$$', 'a longer run, which is not the fence'],
 		['$', 'the inline marker'],
 		['', 'an empty line'],
-		// Miss-analysis: the whitespace case used ASCII spaces only, so `trim()` taking a
-		// non-breaking space, which Markdown counts as text, went unseen.
+		// Miss-analysis: the whitespace case used ASCII spaces only, never a non-breaking space.
 		['$$\u00a0', 'a non-breaking space, which is text rather than whitespace']
 	])('declines %j (%s)', (line) => {
 		expect(tryCompleteMathBlock(line)).toBeNull();

@@ -17,8 +17,7 @@ describe('collectHeadings: level, path, order', () => {
 		expect(entries.map((e) => e.path)).toEqual([[0], [1], [2]]);
 	});
 
-	// Miss-analysis: every heading was ASCII, so the label's `trim()` taking a non-breaking
-	// space typed into the heading never met a test.
+	// Miss-analysis: every heading was ASCII, never one holding a typed non-breaking space.
 	it('trims Markdown whitespace off a label and keeps a non-breaking space', () => {
 		const doc = parse('# \u00a0One\t\n');
 		expect(collectHeadings(doc, 6).map((e) => e.label)).toEqual(['\u00a0One']);

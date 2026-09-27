@@ -3,8 +3,7 @@ import { parseInline } from '$lib/core/inline';
 import { parse } from '$lib/core/parser';
 
 // A NUL inside an angle-bracket destination or a title refuses it, for inline links and
-// definitions alike. commonmark.js replaces NUL with U+FFFD before parsing and keeps both; the
-// editor keeps the raw bytes it reads, so the refusal is the rule, pinned here on both readers.
+// definitions alike; commonmark.js swaps NUL for U+FFFD first, so this pin is by hand.
 const NUL = '\u0000';
 
 describe('a NUL refuses an angle-bracket destination or a title', () => {

@@ -31,12 +31,8 @@ describe('inline math is dormant until registered', () => {
 	});
 });
 
-// The spec: open valid when the char after `$` is not whitespace; close valid when the char
-// before it is not whitespace and the char after it is not a digit; and a span that is purely a
-// number is a price, not a formula. Miss-analysis: the table paired a letter opener with a digit
-// closer (`$x^2$`) and a digit opener with no closer (`$5`, `$5 and $10`), never a digit opener
-// with a valid closer, which is the one case the first-byte check got wrong; and it spaced with
-// ASCII only, so JS `\s` treating a non-breaking space as whitespace went unseen.
+// `$` flanking: no whitespace inside either delimiter, no digit after the closer, no pure number.
+// Miss-analysis: no case paired a digit opener with a valid closer or held a non-breaking space.
 describe('$ flanking recognition', () => {
 	beforeEach(() => registerMathInline());
 
@@ -101,9 +97,7 @@ describe('a claim ends at the first later $, or not at all', () => {
 		['$x$5 and $y$', [[9, 12]]],
 		// A space before a `$` ends the attempt where it stands: `$a` stays literal.
 		['$a $b$', [[3, 6]]],
-		// Miss-analysis: every price here was written the English way, so no case put the
-		// non-breaking space a French keyboard types before `$`, and narrowing the flank to
-		// Markdown whitespace turned the prices into a formula unseen.
+		// Miss-analysis: no price used the non-breaking space a French keyboard types before `$`.
 		['Prix : 5\u00a0$, puis 10\u00a0$.', []]
 	];
 	for (const [raw, spans] of claims) {

@@ -58,8 +58,8 @@ describe('needsScan probes a registered "w" trigger', () => {
 	});
 });
 
-// `!` is reserved, yet the fast bail skips it by default, so its prefix handlers need the same probe.
-// `!{k=v}` carries no `[`, so only the probe can save it from the fast bail.
+// `!` is reserved, yet the fast bail skips it by default, so a prefix handler on it needs a
+// check of its own: `!{k=v}` carries no `[` to stop the fast bail.
 describe('needsScan probes a registered "!" prefix inline syntax handler', () => {
 	it('empty registry: "!{k=v}" stays one byte-identical text node', () => {
 		expect(parseInline('!{k=v}', 0, 6)).toEqual([

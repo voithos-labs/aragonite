@@ -135,8 +135,7 @@ describe('mergeWithNext edge cases', () => {
 	});
 });
 
-// Miss-analysis: the forward join used to replace both blocks with a fresh one, so no test saw the
-// separator fix-up hand the absorbed block's blank line to the block that survived above it.
+// Miss-analysis: no test checked where the absorbed block's blank line goes after a join.
 describe('mergeWithNext through the separator fix-up', () => {
 	it('drops the absorbed block’s separator instead of moving it above the surviving block', () => {
 		// The shape-fixed-point property's shrunk counterexample.
@@ -147,8 +146,7 @@ describe('mergeWithNext through the separator fix-up', () => {
 	});
 });
 
-// Miss-analysis: every join fixture ended its document with a line ending, so the Backspace join
-// adding one to a last line that had none was never compared with the Delete join, which didn't.
+// Miss-analysis: every join fixture ended its document with a line ending.
 describe('a join into a document with no final line ending', () => {
 	it.each([
 		[

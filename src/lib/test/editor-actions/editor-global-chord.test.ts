@@ -15,7 +15,7 @@ import { commandContextWith } from '../support/command-context';
 function makeDeps(overrides?: Parameters<typeof normalizeKeybindingOverrides>[0]) {
 	const requestUndo = vi.fn();
 	const requestRedo = vi.fn();
-	// No plugins stood up here, so every installed one is active.
+	// No plugins are activated here, so every installed one is active.
 	const deps = commandContextWith(normalizeKeybindingOverrides(overrides), {
 		history: { requestUndo, requestRedo }
 	});

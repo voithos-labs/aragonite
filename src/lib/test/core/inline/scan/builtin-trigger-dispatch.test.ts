@@ -1,5 +1,5 @@
-// G4.18: for every character, the scanner's switch runs exactly the handler the built-in
-// trigger table (core/inline/scan/triggers.ts) lists for it, so the two cannot drift apart.
+// For every character, the scanner's switch runs exactly the handler the built-in trigger
+// table (`core/inline/scan/triggers.ts`) lists for it, so the two cannot drift apart.
 import { describe, expect, it, vi } from 'vitest';
 import { scanInline } from '$lib/core/inline/scan';
 import { BUILTIN_TRIGGERS } from '$lib/core/inline/scan/triggers';
@@ -7,7 +7,6 @@ import { defaultGrammarView } from '$lib/schema/block-openers';
 
 const calls = vi.hoisted(() => [] as { handler: unknown; pos: number }[]);
 
-// Each scan handler is wrapped to record itself and where it ran, then delegates to the real one.
 const recordHandlers = vi.hoisted(
 	() => (module: Record<string, unknown>) =>
 		Object.fromEntries(

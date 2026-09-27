@@ -1,5 +1,4 @@
-// Miss-analysis: paste tests cut paragraphs and list items only, so no case pasted into a block
-// with structure past its text, which the cut handed to the last pasted block.
+// Miss-analysis: no paste case cut a block with structure past its text.
 import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { defaultGrammarView } from '$lib/schema/block-openers';
@@ -13,8 +12,7 @@ describe('a multi-block paste keeps the leaf’s structure past its text on the 
 		['a heading’s closing run, at the text’s end', '# Hi #\n', 4, ['# Hi #\n', 'abc\n', 'def\n']],
 		['a heading’s closing run, mid-text', '# Hi #\n', 3, ['# H #\n', 'abc\n', 'def\n', 'i\n']],
 		['a setext underline, at the title’s end', 'Hi\n===\n', 2, ['Hi\n===\n', 'abc\n', 'def\n']],
-		// Miss-analysis for the next two: every setext row cut at the title's end, so neither the
-		// line-ending trim nor the start-of-text rule had a row that could fail.
+		// Miss-analysis for the next two: every setext row cut at the title's end.
 		[
 			'a setext underline, at the start of the title’s second line',
 			'ab\ncd\n===\n',

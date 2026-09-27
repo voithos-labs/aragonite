@@ -114,7 +114,7 @@ function surfaceParity(
 
 // ── G4.39 command surfaces ───────────────────────────────────────────────────
 
-/** A component mounting the text surface, which carries the built-in command bodies. */
+/** A component building a text block's editable area, which holds the built-in command bodies. */
 const COMMAND_SURFACE_RE = /\bcreateEditableSurface\s*\(/;
 const PUBLISHES_RUN_COMMAND_RE = /\bexport\s+(?:const|function)\s+runCommand\b/;
 

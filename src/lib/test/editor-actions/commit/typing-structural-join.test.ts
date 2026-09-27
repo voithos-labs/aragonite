@@ -1,7 +1,6 @@
 // A keystroke that changes its block's kind joins the undo entry its typing burst opened, at
-// every depth (GH #471, #22).
-// Miss-analysis: the batch suites typed same-kind bursts and the kind-change suites typed one key
-// at the top level, so no test ended a burst with a kind change inside a container.
+// every depth.
+// Miss-analysis: no test ended a typing burst with a kind change inside a container.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { serialize } from '$lib/core/serializer';
 import type { BlockEditActions } from '$lib/action-contracts';
@@ -107,7 +106,7 @@ describe('a typing burst that ends in a kind change is one undo entry', () => {
 
 				expect(nodeAt(typed.doc, leafPath)?.kind).toBe(kind);
 				// The emptied underline stays as a blank line inside the item's paragraph, which a
-				// reload reads differently: a separate defect, claimed here so this row tests undo.
+				// reload reads differently: a separate defect, declared here so this row tests undo.
 				if (level === 'in a list item' && kind === 'paragraph')
 					allowDevWarns(['invariant:stale-raw']);
 				const entries = typed.undoEntries();

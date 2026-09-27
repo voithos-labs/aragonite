@@ -1,9 +1,7 @@
 // @vitest-environment jsdom
-// Inside the open link card, whatever chord opens the card is taken and does nothing, so a
+// Inside the open link card, whatever chord opens the card is consumed and does nothing, so a
 // consumer's rebinding never falls through to the browser's own action for that chord.
-//
-// Miss-analysis: the card's own test pressed only the default Mod+K, which the card matched by
-// key, so no test rebound `link.openCard` and pressed the new chord inside the card.
+// Miss-analysis: the card's tests pressed only the default Mod+K, never a rebound chord.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import {
 	installLayoutStubs,

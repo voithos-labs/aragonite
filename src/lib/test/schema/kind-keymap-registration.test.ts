@@ -1,8 +1,6 @@
 // A kind's keymap chords are checked when the kind registers, in every build, so a mistyped
 // `Ctrl+B` never collapses to a bare `B` that fires on each plain keypress.
-//
-// Miss-analysis: the keymap check ran only in a dev build's bootstrap pass, and no test
-// registered a malformed chord and asked what the stored keymap then binds.
+// Miss-analysis: no test registered a malformed chord and read the stored keymap.
 import { describe, it, expect, beforeEach } from 'vitest';
 import { augmentBlockKind } from '$lib/plugin';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';

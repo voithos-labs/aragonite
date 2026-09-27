@@ -1,7 +1,6 @@
-// What a keystroke does before it writes, at the root and inside a container: it forgets how the
-// caret arrived, and in reading mode it stops there, before the typing batch and the trial reparse.
-// Miss-analysis: the reading-mode rows checked bytes and the one warning, which the in-place write
-// and the commit also give on their own, and no row read the caret memory after a key.
+// What a keystroke does before it writes, at the root and in a container: it forgets how the
+// caret arrived, and in reading mode it stops before the typing batch and the trial reparse.
+// Miss-analysis: the reading-mode rows never read the caret memory after a key.
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { createCaretMemory, type CaretMemory } from '$lib/cursor/caret-memory';

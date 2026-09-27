@@ -1,9 +1,7 @@
 // @vitest-environment jsdom
 // Two Mod+A presses select the whole document from every editable block, CapsLock on or off.
-// CapsLock uppercases `e.key` without a Shift, so the press still means Mod+A.
-//
-// Miss-analysis: every select-all test pressed a lowercase `a`, and each block compared the key
-// literally, so the uppercase key CapsLock sends never reached a test.
+// CapsLock uppercases `e.key` without a Shift, so the key still means Mod+A.
+// Miss-analysis: every select-all test pressed a lowercase `a`.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import {
 	installLayoutStubs,
@@ -39,7 +37,7 @@ describe('two-stage Mod+A', () => {
 		}
 	}
 
-	// With the document already selected, a third press lands on the live range's own branch.
+	// With the document already selected, a third keypress takes the live range's branch.
 	it('a third press of key "A" keeps the whole document selected', async () => {
 		const mounted = mountEditor({ source: 'alpha\n\nomega\n' });
 		const el = surfaceAt(mounted, [0]);

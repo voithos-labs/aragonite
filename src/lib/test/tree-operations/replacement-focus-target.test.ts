@@ -68,8 +68,8 @@ describe('settledCaretPosition', () => {
 	});
 });
 
-// A write that turns its block into a container lands in a leaf inside it, since a raw offset
-// into a container names no caret position (GH #456): the landing resolves the settled position.
+// A write that turns its block into a container puts the caret in a leaf inside it, since a raw
+// offset into a container names no caret position.
 // Miss-analysis: every case here landed in a leaf, so nothing asked where a raw offset into a
 // quote or a list goes, and the component walked it to the container's last child.
 describe('the settled position in a container the write made', () => {

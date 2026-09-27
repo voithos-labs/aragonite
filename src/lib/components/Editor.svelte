@@ -769,8 +769,8 @@
 		caretMemory
 	});
 
-	// The one context every chord and `runCommand` dispatches against, so no dispatch site can
-	// answer with its own history, mode, overrides, range handling or error channel.
+	// Every chord and `runCommand` dispatches against this one context, so all share one history,
+	// mode, overrides, range handling and error channel.
 	const commands: CommandDispatchContext = {
 		history,
 		pluginEditor: pluginEditorLookup,

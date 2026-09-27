@@ -67,8 +67,7 @@
 	// ── Event Handlers ──────────────────────────────────────────────────
 
 	function onKeyDown(e: KeyboardEvent): void {
-		// Shared with the plugin container factory, so undo/redo from a block's own focus has one
-		// definition instead of a built-in and a plugin copy.
+		// Plugin containers run the same handler for undo and redo while focused as a whole.
 		if (dispatchWholeBlockGlobalChord(e, node.kind, commands)) return;
 
 		// Kind keymap (Alt+↑/↓ reorder) must precede the plain-arrow navigation below.

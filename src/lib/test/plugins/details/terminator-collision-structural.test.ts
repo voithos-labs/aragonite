@@ -104,8 +104,7 @@ describe('details terminator escape at the cross-block entry points', () => {
 	});
 });
 
-// Miss-analysis: the join tests ran at the document root or in a list, where no container body
-// rule applies, so neither the Backspace join nor the Delete join was ever run inside a details body.
+// Miss-analysis: no join test ran inside a details body, where the body rule applies.
 type BodyParent = Parameters<typeof mergeIntoPrevDeepLeaf>[0];
 
 describe('details terminator escape at the join entry points', () => {

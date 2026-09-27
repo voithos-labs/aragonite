@@ -180,9 +180,7 @@ describe('reference resolution with escaped brackets in label', () => {
 	});
 });
 
-// Miss-analysis: the definition parser kept its own destination and title reader, and every
-// definition fixture used plain URLs and titles, so no escape, angle-bracket `<` or percent
-// encoding ever met it where the inline link reader already handled them.
+// Miss-analysis: no definition fixture held an escape, an angle bracket or percent encoding.
 describe('a definition reads its destination and title the way an inline link does (#567)', () => {
 	const inlineTarget = (source: string) => {
 		const [link] = parseInline(source, 0, source.length);
@@ -209,8 +207,7 @@ describe('a definition reads its destination and title the way an inline link do
 	});
 });
 
-// Miss-analysis: the definition parser read a title on one line only, and every title fixture
-// fit on one, so §4.7's title that continues across lines never ran.
+// Miss-analysis: every definition title fixture fit on one line.
 describe('a definition title may span lines, never a blank one', () => {
 	const definitionOf = (source: string) => {
 		const doc = parse(source);
@@ -255,8 +252,7 @@ describe("the whitespace between a definition's parts", () => {
 		expect(meta).toEqual({ label: 'foo', url: '/url', title: 't' });
 	});
 
-	// Miss-analysis: the definition fixtures all ended in `\n`, so the document's last line
-	// ending in a lone `\r`, which stays in the line's text, never reached the definition parser.
+	// Miss-analysis: every definition fixture ended in `\n`, never a lone `\r`.
 	it('ends a last line that carries a lone carriage return', () => {
 		const source = '[foo]: /url\r';
 		expect(parse(source).children.map((n) => n.kind)).toEqual(['linkReferenceDefinition']);
@@ -264,8 +260,7 @@ describe("the whitespace between a definition's parts", () => {
 	});
 });
 
-// Miss-analysis: the definition parser kept its own label reader, and every label fixture was
-// short, one line and free of a bare `[`, so the §6.3 label rule inline references use never ran.
+// Miss-analysis: every label fixture was short, on one line and free of a bare `[`.
 describe('a definition reads its label the way a reference link does', () => {
 	it('refuses an unescaped `[` inside the label', () => {
 		expect(parseOne('[a[b]: /u\n')).toBeNull();

@@ -93,8 +93,8 @@
 			stepTrap(e.shiftKey);
 			return;
 		}
-		// The entry chord asks again for the card focus is already inside, so it does nothing here,
-		// but it is still taken: nothing the editor owns hands that chord back to the browser.
+		// The chord that opens the card does nothing inside it, but is still consumed so the
+		// browser never runs its own action for that chord.
 		if (opensCard(e)) e.preventDefault();
 	}
 

@@ -115,11 +115,8 @@ function applyFill(doc: Document, at: number): void {
 	settled(doc, () => updateNodeContent(doc, target, text, defaultGrammarView).change);
 }
 
-/**
- * Backspace and Delete across a block boundary, indexed over the merge-eligible adjacent pairs so
- * the draw always lands on one. Both write the joined text into the surviving block's leaf and
- * remove the block they absorbed, under one shape contract (GH #166).
- */
+/** Backspace and Delete across a block boundary, drawn over the merge-eligible adjacent pairs;
+ *  both write the joined text into the surviving block's leaf and remove the one it absorbed. */
 function applyMerge(doc: Document, at: number, op: 'mergePrev' | 'mergeNext'): void {
 	const pairs = doc.children.flatMap((node, i) =>
 		i > 0 && isMergeEligible(doc.children[i - 1].kind, node.kind) ? [i] : []

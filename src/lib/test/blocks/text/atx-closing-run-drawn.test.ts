@@ -1,9 +1,7 @@
 // @vitest-environment jsdom
-//
 // An ATX heading's closing `#` run (GFM §4.2) is drawn as a marker after the text, hidden where
 // markers hide, and the keys at the content's end keep it after the text.
-// Miss-analysis: the content range ran to the line's end, so the page drew the closing run as
-// heading text, and no heading test had a closing run to notice.
+// Miss-analysis: no heading render test had a closing run, so drawing it as heading text passed.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import {
 	destroyMountedEditors,
@@ -34,8 +32,7 @@ describe('the closing run is on the page', () => {
 	});
 });
 
-/** Put `text` where the browser would when typing into the heading's text, before the closing
- *  run the page drew, and fire the input. */
+/** Type `text` the way the browser would, before the drawn closing run, and fire the input. */
 async function typeBeforeClosingRun(mounted: MountedEditor, text: string): Promise<void> {
 	const el = surfaceAt(mounted, [0]);
 	el.focus();

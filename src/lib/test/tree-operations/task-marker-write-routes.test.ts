@@ -1,11 +1,8 @@
 // @vitest-environment jsdom
 // (the paste route commits through a controller that reads the mounted block-list state.)
 
-/**
- * The wiring, not the rule: a task marker stands in front of a paragraph, and each write that can
- * put another block in that position drops it. `reconcile-task.test.ts` covers what the rule
- * decides; each test here fails when its own route loses the call.
- */
+// Each write that can put another block in front of a task's paragraph drops the task marker;
+// each test fails when its own route loses the call. `reconcile-task.test.ts` covers the rule.
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse, serialize, type CstNode, type ListItemMetadata } from '$lib';

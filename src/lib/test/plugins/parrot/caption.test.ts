@@ -1,9 +1,6 @@
 // @vitest-environment jsdom
 // The parrot's caption: the bytes after the marker, without the Markdown whitespace around them.
-//
-// Miss-analysis: every caption case was ASCII with one space after the marker, so `trim()`
-// dropping a typed non-breaking space, and a press mapped as marker-plus-one-space, had nothing
-// to fail.
+// Miss-analysis: every caption case was ASCII with one space after the marker.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { installEditorDomStubsForTests, resetPluginPlatformForTests } from '$lib/testing';
 import { parrotPlugin, PARROT } from '$lib/plugins/parrot';
@@ -17,7 +14,7 @@ const mountParrot = (source: string): HTMLElement =>
 const captionOf = (source: string): string | null | undefined =>
 	mountParrot(source).querySelector('.parrot-caption')?.textContent;
 
-/** The source offset a press on the caption's first character reveals the source at. */
+/** The source offset a click on the caption's first character shows the source at. */
 function offsetAtCaptionStart(source: string): number | undefined {
 	const root = mountParrot(source);
 	const caption = root.querySelector<HTMLElement>('.parrot-caption')!;

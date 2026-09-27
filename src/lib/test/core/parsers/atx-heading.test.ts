@@ -1,5 +1,4 @@
-// Miss-analysis: the content range had its own prefix scan beside `matchHeading`, and every heading
-// test wrote `# ` with a space and no closing run, so neither a tab nor a §4.2 closer was ever read.
+// Miss-analysis: every heading test wrote `# ` with a space and no closing run.
 import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { getContentRange, structuralSuffix } from '$lib/core/inline';

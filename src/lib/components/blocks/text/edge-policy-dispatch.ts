@@ -613,10 +613,8 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 
 	// ── Pending marks from a toggle ────────────────────────────────────────────
 
-	/** The byte after a hard break made at the end of a block's content, whose line ending is the
-	 *  one ending the content's line (the block's own, or the one above a setext underline), so no
-	 *  caret can sit past it. The key lands after the break rather than between the backslash and
-	 *  its newline, where it would undo the break. */
+	/** A key typed on a hard break at the end of a block's content goes on the new line, not
+	 *  between the backslash and its line ending, where it would undo the break. */
 	function handleTransitionalHardBreak(e: KeyboardEvent, caretOffset: RawOffset | null): boolean {
 		if (deps.isReading()) return false;
 		if (!isPlainTypingKey(e) || caretOffset === null || heldRange()) return false;
@@ -633,7 +631,6 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 				: caretOffset === contentEnd ||
 					(hidesMarkers(deps.reading.mode()) && caretOffset === lineEnd);
 		const text = d.slice(0, contentEnd);
-		// Only there, and only when the content's last byte is the break's backslash.
 		if (!onBreak || !text.endsWith('\\')) return false;
 		// An escaped backslash (`\\\\`) is content, not a break.
 		if (text.endsWith('\\\\')) return false;

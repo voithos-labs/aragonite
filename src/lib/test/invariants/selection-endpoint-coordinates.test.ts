@@ -35,8 +35,7 @@ describe('G1.29 cross-block endpoint coordinates', () => {
 		expect(checkCrossBlockEndpointCoordinates(doc(), cell, { path: [1], offset: 0 })).toBeNull();
 	});
 
-	// Miss-analysis: this row once asserted the exemption itself, so the rectangle's bare focus
-	// passed the guard, and a reader that trusted the flag read a cell index as characters.
+	// Miss-analysis: no row held a rectangle's bare focus to the guard.
 	it('flags the bare focus of a rectangle inside one table', () => {
 		const violation = checkCrossBlockEndpointCoordinates(
 			doc(),
