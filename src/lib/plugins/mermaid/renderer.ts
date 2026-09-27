@@ -53,7 +53,7 @@ async function renderThemed(code: string, id: string, theme: MermaidTheme): Prom
  * side of a theme change would interleave and one diagram would come back half-themed.
  */
 export const mermaidRenderer: MermaidRenderer = (code, id, context) => {
-	const theme = toMermaidTheme(context?.theme ?? 'dark');
+	const theme = toMermaidTheme(context.theme);
 	const svg = queue.then(() => renderThemed(code, id, theme));
 	// The chain must survive a rejection, or one bad diagram strands every later render.
 	queue = svg.then(

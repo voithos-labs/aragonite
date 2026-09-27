@@ -35,7 +35,7 @@ export interface CellRenderDeps {
 	resolveLinkUrl: ResolveLinkUrl;
 	/** The editor's theme name, passed on to widgets. Not part of the render key: this DOM
 	 *  is themed by CSS, so only a widget that draws its own colors reads it. */
-	getTheme?: () => string;
+	getTheme: () => string;
 	/** Live root document for widgets that derive from it. A getter, so a pooled widget
 	 *  re-reads the current document across edits rather than a mount-time snapshot. */
 	getDocument: () => DocumentView | undefined;

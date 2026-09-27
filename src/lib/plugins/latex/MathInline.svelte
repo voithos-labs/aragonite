@@ -21,7 +21,7 @@
 	// Inside a client $effect, so server rendering emits no widget DOM; the theme read is what
 	// redraws the formula on a theme switch.
 	$effect(() => {
-		const theme = getTheme?.() ?? 'dark';
+		const theme = getTheme();
 		el.replaceChildren(mathSlot.render({ source: inner, display: false }, { theme }).dom);
 	});
 </script>

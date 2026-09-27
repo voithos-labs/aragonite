@@ -51,8 +51,8 @@ export interface InlineWidgetComponentProps {
 	/** Absent reads as 'source'. */
 	getPresentationMode?: () => PresentationMode;
 	/** A widget whose body a renderer such as KaTeX draws emits colors no stylesheet reaches, so
-	 *  it keys its render on this. One styled with CSS tokens needs nothing. Absent is 'dark'. */
-	getTheme?: () => string;
+	 *  it keys its render on this. One styled with CSS tokens needs nothing. */
+	getTheme: () => string;
 	/** The pool keys on `${kind} ${source}`, so a widget whose value derives from the document
 	 *  (footnote numbering) needs this to survive edits elsewhere that change no source. */
 	getDocument?: () => DocumentView | undefined;

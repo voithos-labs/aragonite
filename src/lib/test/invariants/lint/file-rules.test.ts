@@ -676,6 +676,27 @@ const RULES: FileRule[] = [
 			at('src/lib/core/inline/scan/emphasis.ts', 'return /\\s/.test(ch);'),
 			at('src/lib/plugins/mermaid/mermaid-kind.ts', 'const match = /^([`~]+)(.*)$/s.exec(raw);')
 		]
+	},
+	{
+		id: 'the theme a host leaves unset is defaulted once, by the editor',
+		// Single quotes in the default: a markup attribute (`theme="light"`) is a host passing one.
+		matches: /(?:\?\?|\|\|)\s*['"](?:dark|light)['"]|\btheme\s*=\s*'/,
+		allowed: {
+			'src/lib/components/Editor.svelte': 'the `theme` prop default every reader is handed'
+		},
+		reason:
+			'a reader defaulting the theme itself can draw in a theme the editor is not in: read the required getter the editor passes down (`EditorPolicies.theme`, a widget’s `getTheme`)',
+		hits: [
+			"const theme = getTheme?.() ?? 'dark';",
+			"toMermaidTheme(context?.theme || 'light');",
+			"let { theme = 'dark' } = $props();"
+		],
+		misses: [
+			'const theme = getTheme();',
+			"if (theme === 'dark') return;",
+			'<Editor {source} theme="light" />',
+			"const MERMAID_THEMES = new Set(['default', 'dark']);"
+		]
 	}
 ];
 

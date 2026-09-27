@@ -224,9 +224,8 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	} = wiring.deps;
 	const { pluginEditor } = commands;
 	const { inlineMenuCombobox } = getContext<EditorServices>(EDITOR_SERVICES_KEY);
-	const { theme: getThemeCtx, onPasteImage } = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
+	const { theme: getTheme, onPasteImage } = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
 	const getPresentationMode = reading.mode;
-	const getTheme = (): string => getThemeCtx?.() ?? 'dark';
 	// Resolved by the kind's recorded owner, like the command context's `editor`.
 	const getEditor = (): EditorContext | undefined =>
 		owningPluginEditor(pluginEditor, deps.getNode().kind);

@@ -23,6 +23,8 @@ export function blockNode(source: string): CstNode {
 export interface RenderHarnessOverrides {
 	mode?: PresentationMode;
 	imageLoadPolicy?: ImageLoadPolicy;
+	/** The theme its widgets draw with; the harness has no editor to take one from. */
+	theme?: string;
 	/** The link definitions the block draws with; the mode stays the harness's own. */
 	reading?: Partial<Reading>;
 }
@@ -67,6 +69,7 @@ export function makeRenderHarness(
 			return policy;
 		},
 		reading: fixtureReading({ ...overrides.reading, mode: () => mode }),
+		getTheme: () => overrides.theme ?? 'dark',
 		get islands() {
 			return islands;
 		},

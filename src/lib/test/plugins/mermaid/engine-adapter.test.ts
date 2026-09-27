@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { MermaidRenderContext } from '$lib/plugins/mermaid/mermaid-renderer';
+import type { MermaidRenderer } from '$lib/plugins/mermaid/mermaid-renderer';
 import { settleEditor } from '$lib/test/harness/settle';
 
 const engine = vi.hoisted(() => ({ initialize: vi.fn(), render: vi.fn() }));
@@ -22,13 +22,10 @@ vi.mock('mermaid', () => {
 const drawSvg = async (_id: string, code: string) => ({ svg: `<svg>${code}</svg>` });
 const BASE_CONFIG = { startOnLoad: false, securityLevel: 'strict', suppressErrorRendering: true };
 
-// The subpath is published, so its callers need not be typed: the context is optional here.
-type LooseRenderer = (code: string, id: string, context?: MermaidRenderContext) => Promise<string>;
-
 /** The remembered theme and the render queue are module-wide, so each case starts fresh. */
-async function freshAdapter(): Promise<LooseRenderer> {
+async function freshAdapter(): Promise<MermaidRenderer> {
 	vi.resetModules();
-	return (await import('$lib/plugins/mermaid/renderer')).mermaidRenderer as LooseRenderer;
+	return (await import('$lib/plugins/mermaid/renderer')).mermaidRenderer;
 }
 
 beforeEach(() => {
@@ -52,19 +49,14 @@ describe('mermaid engine adapter', () => {
 	// A fresh adapter per row: the remembered theme would swallow a second row mapping to
 	// the same mermaid theme, and that row would assert nothing.
 	it('passes mermaid theme names through and falls back for anything else', async () => {
-		const cases: [editorTheme: string | undefined, mermaidTheme: string][] = [
+		const cases: [editorTheme: string, mermaidTheme: string][] = [
 			['forest', 'forest'],
-			['limestone-night', 'default'],
-			[undefined, 'dark'] // an untyped caller omitting the context still picks a palette
+			['limestone-night', 'default']
 		];
 		for (const [editorTheme, mermaidTheme] of cases) {
 			engine.initialize.mockClear();
 			const render = await freshAdapter();
-			await render(
-				'graph TD',
-				'id-a',
-				editorTheme === undefined ? undefined : { theme: editorTheme }
-			);
+			await render('graph TD', 'id-a', { theme: editorTheme });
 			expect(engine.initialize).toHaveBeenCalledTimes(1);
 			expect(engine.initialize).toHaveBeenCalledWith(
 				expect.objectContaining({ theme: mermaidTheme })
