@@ -1,10 +1,9 @@
 import { test, expect } from '../fixtures';
 import { EditorPage } from '../editor-page';
 
-// A top-level list position holding a reference to a component that is no longer in the page
-// must be dropped and the block mounted again, not descended into. The stale reference is
-// planted on purpose, because the cleanup race that leaves one behind cannot be reproduced
-// on demand.
+// A top-level list position holding a reference to a component that has left the page must be
+// dropped and the block mounted again, not descended into. The stale reference is planted on
+// purpose, because the cleanup race that leaves one behind cannot be reproduced on demand.
 test.describe('reveal into a stale top-level ref slot', () => {
 	let editor: EditorPage;
 
@@ -26,8 +25,7 @@ test.describe('reveal into a stale top-level ref slot', () => {
 			.poll(() => page.evaluate(() => (window as any).__test.getBlockCursorSurface([0]).exists))
 			.toBe(false);
 
-		// Plant the stale reference: the captured one now points at a component no longer in
-		// the page.
+		// Plant the stale reference: the captured one points at a component that has left the page.
 		expect(await page.evaluate(() => (window as any).__test.replantBlockRef(0))).toBe(true);
 
 		// A search scrolls to the first list item's unique text.

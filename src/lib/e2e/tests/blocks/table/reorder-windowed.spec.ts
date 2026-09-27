@@ -6,7 +6,7 @@ import { capturePageErrors } from '../../../page-probes';
 
 // Header + N distinguishable body rows; row k's first cell is `rk`. Tall enough that body rows
 // window out, so once the editor is scrolled to the bottom row 0 is unmounted and a mounted
-// row's local position no longer equals its CST index. Both the chord and the menu must move the
+// row's local position differs from its CST index. Both the chord and the menu must move the
 // row at its absolute index. Requirements: `requirements/blocks/table/reorder-windowed.md`.
 function tallTable(bodyRows: number): string {
 	const lines = ['| key | val |', '| --- | --- |'];

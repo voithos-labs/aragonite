@@ -178,7 +178,7 @@ function scanSettleSites(): { vacuous: SettleSite[]; total: number } {
 				}
 				const argument = readArgument(body, event.index, constants);
 				if (event.kind === 'load') {
-					// A load replaces the document; keeping the old one too would let a stale
+					// A load replaces the document; keeping the replaced one would let a stale
 					// fixture clear a predicate that the live document would not.
 					loaded = argument?.string === undefined ? null : [argument.string];
 					stateIsKnown = true;
