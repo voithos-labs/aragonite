@@ -62,7 +62,10 @@ function containerAt(position: { index: number; node: NodeView; path: number[] }
 		getIndex: () => position.index,
 		getPath: () => position.path,
 		parentListContext: listContext,
-		overrides
+		overrides,
+		childList: () => {
+			throw new Error('no move reaches the child list here');
+		}
 	});
 	const [call] = built.calls;
 	return { actions, listContext, overrides, deps: call.deps as NestedActionsInput, call };

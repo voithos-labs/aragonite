@@ -17,6 +17,7 @@ import { assertInvariant } from '../../assert';
 import { checkNoContainerHistoryKey } from '../../invariants/context-keys';
 import type { CaretMemory } from '../../cursor/caret-memory';
 import type { BlockListState } from '../../reactivity/block-list-state.svelte';
+import type { ChildList } from '../../reactivity/child-list';
 import { createNestedBlockEdit } from './nested-block-edit';
 import { createNestedFocus } from './nested-focus';
 import { withEnterCompletion } from '../enter-completion';
@@ -45,12 +46,15 @@ export interface NestedActionsDeps {
 	node: NodeView;
 	/** Document-absolute path of `node`; the copy-before-write and the ancestor rebuild use it. */
 	path: number[];
-	caretMemory: Pick<CaretMemory, 'column' | 'forget'>;
+	caretMemory: Pick<CaretMemory, 'column' | 'forget' | 'noteExtreme'>;
 	/** The editor's reading, so a nested re-parse or completer reads only the syntax the editor
 	 *  switched on and a split's rebalance knows what its mode shows. */
 	reading: Reading;
 	/** The enclosing list's context, when this container is a list nested in one. */
 	parentListContext?: ListContext;
+	/** This container's children as a descent reads them, so a move onto a windowed-out child
+	 *  mounts it. A headless suite omits it: with no render window, every stored ref is mounted. */
+	childList?: () => ChildList;
 	parent: {
 		blockEdit: BlockEditActions;
 		focus: FocusActions;
@@ -93,6 +97,7 @@ export function createStandardNestedActions(
 		caretMemory: input.caretMemory,
 		reading: input.reading,
 		parentListContext: input.parentListContext,
+		childList: input.childList,
 		parent: input.parent
 	};
 	const blockEdit = createNestedBlockEdit(state, deps);

@@ -43,6 +43,7 @@ import type { RefSlots } from '../../reactivity/publish-ref.svelte';
 import type { ChildList } from '../../reactivity/child-list';
 import { useContainerWindowing } from '../../reactivity/use-container-windowing.svelte';
 import { createContainerExitOverrides } from '../container-exit-overrides';
+import { delegateMoveFocus } from '../focus/focus-dispatch';
 import {
 	createContainerBlockComponent,
 	dispatchContainerChord,
@@ -221,9 +222,7 @@ export function gateMoveFocusOnCollapse(
 ): FocusActions['moveFocus'] {
 	return async (innerIndex, position, options?: MoveFocusOptions) => {
 		if (innerIndex >= 1 && isCollapsed?.()) {
-			// Omit the options arg when unset, mirroring dispatchMoveFocus's own delegation.
-			if (options) await parentFocus.moveFocus(getIndex() + 1, position, options);
-			else await parentFocus.moveFocus(getIndex() + 1, position);
+			await delegateMoveFocus(parentFocus, getIndex() + 1, position, options);
 			return;
 		}
 		await moveWithin(innerIndex, position, options);
@@ -294,6 +293,7 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		getNode: deps.getNode,
 		getIndex: deps.getIndex,
 		getPath: deps.getPath,
+		childList: () => childList,
 		// The exit rules and the collapse gates override the same defaults, so they coexist; for a
 		// container that cannot collapse the gates are inert.
 		overrides:

@@ -26,6 +26,7 @@ import { docPathFrom } from '$lib/cursor/coordinate-spaces';
 import type { ContainerBlockComponentDeps } from '$lib/editor-actions/container-block-component';
 import { refSlotsOver } from '$lib/reactivity/publish-ref.svelte';
 import { componentAt, type ChildList } from '$lib/reactivity/child-list';
+import { delegateMoveFocus, type MoveFocusScope } from '$lib/editor-actions/focus/focus-dispatch';
 import type { PasteCommitCoordinator } from '$lib/tree-operations/paste/paste-deps';
 import type { PasteDispatchContext } from '$lib/tree-operations/paste/dispatch';
 import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
@@ -169,7 +170,7 @@ export function makeCommitScopeStub(
 
 // ── Container-shim deps ──────────────────────────────────────────────────────
 
-function paragraphListNode(childCount: number): CstNode {
+export function paragraphListNode(childCount: number): CstNode {
 	return {
 		kind: 'list',
 		leadingTrivia: '',
@@ -220,6 +221,25 @@ export function makeShimDeps(
 
 export function makeStubBlockEdit(): Mocked<BlockEditActions> {
 	return spyEvery(stubBlockEdit());
+}
+
+/** A container's side of a focus move over `refs`, every ref mounted, handing a move off
+ *  either end to `parentFocus` the way a nested container does. */
+export function makeListFocusScope(
+	refs: (BlockComponent | undefined)[],
+	parentFocus: FocusActions,
+	parentIndex: number,
+	over: Partial<MoveFocusScope> = {}
+): MoveFocusScope {
+	return {
+		count: () => refs.length,
+		mount: async (index) => refs[index] ?? null,
+		leave: async (step, position, options) => {
+			await delegateMoveFocus(parentFocus, parentIndex + step, position, options);
+		},
+		gapStop: () => false,
+		...over
+	};
 }
 
 // revealPath resolves null: these consumers assert on moveFocus, not on the
@@ -391,7 +411,7 @@ export interface NestedActionsDepsInput {
 	getNode: () => CstNode;
 	path: number[];
 	parent: NestedActionsDeps['parent'];
-	caretMemory?: Pick<CaretMemory, 'column' | 'forget'>;
+	caretMemory?: NestedActionsDeps['caretMemory'];
 	reading?: NestedActionsDeps['reading'];
 }
 

@@ -126,3 +126,39 @@ test.describe('keyboard navigation', () => {
 		await editor.bridge.waitForSourceContains('hi Hello.');
 	});
 });
+
+// Backspace leaves no side of its own, so the move's end arrival decides it; the top level and a
+// quote run different traversals, so each route runs.
+const CLOSER_SIDE_ROUTES = [
+	{
+		where: 'at the top level',
+		source: '**a**\n\n```\ncode\n```\n',
+		from: [1],
+		typed: '**a**x\n\n```\ncode\n```\n'
+	},
+	{
+		where: 'inside a quote',
+		source: '> **a**\n>\n> ```\n> code\n> ```\n',
+		from: [0, 1],
+		typed: '> **a**x\n>\n> ```\n> code\n> ```\n'
+	}
+] as const;
+
+test.describe('keyboard navigation: leaving a code block into a hidden closer, live mode', () => {
+	for (const { where, source, from, typed } of CLOSER_SIDE_ROUTES) {
+		test(`Backspace out of a code body types after the bold closer above, ${where}`, async ({
+			page
+		}) => {
+			const editor = new EditorPage(page);
+			await editor.goto('?presentationMode=live');
+			await editor.loadContent(source);
+			await expect(editor.editorContainer).toHaveAttribute('data-presentation', 'live');
+
+			// Raw offset 4 is the body's start, just past the opening fence line.
+			await editor.focusBlockAtPath([...from], 4);
+			await page.keyboard.press('Backspace');
+			await page.keyboard.type('x');
+			await editor.bridge.waitForSource((s) => s === typed);
+		});
+	}
+});

@@ -1,6 +1,6 @@
 /**
- * Pure dispatchers for focus inside a container: moveFocus, focusByPath, focusAtColumn.
- * No Svelte context or reactivity; everything comes in as parameters.
+ * Pure dispatchers for focus across a block list: moveFocus for the root and every container,
+ * and focusByPath and focusAtColumn inside a container. Everything comes in as parameters.
  */
 
 import type { FocusActions, MoveFocusOptions } from '../../action-contracts';
@@ -14,61 +14,56 @@ import {
 import type { CaretMemory } from '../../cursor/caret-memory';
 import { consumeStickyLanding, verticalArrival } from './focus-landing';
 
-/** What the calling container contributes to a move beyond the target itself. */
+/** One block list's side of a focus move, the root's or a container's. */
 export interface MoveFocusScope {
-	/** Overrides `refs.length` for the upper bound: the two diverge for one render cycle
-	 *  after a structural op, and without it the cursor escapes the container. */
-	childCount?: number;
-	/** The caller's own options, forwarded verbatim on upward delegation. */
-	options?: MoveFocusOptions;
-	/** Bound to this container's own boundaries (`selection/gap-caret.ts`). */
-	gapStop?: (boundaryIndex: number) => boolean;
+	/** The child count from the tree: the mounted refs lag a structural edit by a render. */
+	count(): number;
+	/** Child `index`'s component, scrolled into the mounted range first if it's windowed out. */
+	mount(index: number): Promise<BlockComponent | null>;
+	/** A move before the first child (-1) or past the last (1): a container hands it to its
+	 *  parent, the root stops or appends a paragraph. */
+	leave(step: -1 | 1, position: FocusPosition, options?: MoveFocusOptions): Promise<void>;
+	/** Bound to this list's own boundaries (`selection/gap-caret.ts`). */
+	gapStop(boundaryIndex: number): boolean;
 }
 
-/** Move focus within a container, or delegate upward when out of range. */
+/** The one focus traversal, run by the root and by every container over its own list. */
 export async function dispatchMoveFocus(
-	refs: (BlockComponent | undefined)[],
-	innerIndex: number,
+	scope: MoveFocusScope,
+	index: number,
 	position: FocusPosition,
-	caretMemory: Pick<CaretMemory, 'column'>,
-	parent: { focus: FocusActions; index: number },
-	scope: MoveFocusScope = {}
+	caretMemory: Pick<CaretMemory, 'column' | 'noteExtreme'>,
+	options?: MoveFocusOptions
 ): Promise<void> {
-	const { childCount, options, gapStop } = scope;
-	// Omit the options arg when unset so the common path stays a two-arg call.
-	const delegate = (targetIndex: number) =>
-		options
-			? parent.focus.moveFocus(targetIndex, position, options)
-			: parent.focus.moveFocus(targetIndex, position);
 	const step = traversalStep(position);
-	// Before any ref is read, so the CST alone decides the boundary; the container's own edges are
-	// boundaries too, which keeps the delegation below from leaving the container.
-	if (gapStop && step !== 0 && !options?.skipGapStop) {
-		if (gapStop(step > 0 ? innerIndex : innerIndex + 1)) return;
-	}
-	if (innerIndex < 0) {
-		await delegate(parent.index - 1);
-		return;
-	}
-	const upperBound = childCount ?? refs.length;
-	if (innerIndex >= upperBound) {
-		await delegate(parent.index + 1);
+	// Before any ref is read, so the tree alone decides the boundary; the list's own edges are
+	// boundaries too, which keeps the move from leaving it.
+	if (step !== 0 && !options?.skipGapStop && scope.gapStop(step > 0 ? index : index + 1)) return;
+	if (index < 0 || index >= scope.count()) {
+		await scope.leave(index < 0 ? -1 : 1, position, options);
 		return;
 	}
 
-	const block = refs[innerIndex];
+	const block = await scope.mount(index);
+	const retry = (i: number) => dispatchMoveFocus(scope, i, position, caretMemory, options);
 	if (!block?.focusable) {
-		// A child with no ref, or one that cannot take focus, must not stop the move: continue
-		// in its direction (`docs/design/editor.md` § Focus traversal).
-		if (step !== 0) {
-			await dispatchMoveFocus(refs, innerIndex + step, position, caretMemory, parent, scope);
-		}
+		// A child that can't take focus must not stop the move: continue in its direction
+		// (`docs/design/editor.md` § Focus traversal).
+		if (step !== 0) await retry(index + step);
 		return;
 	}
+	await consumeStickyLanding(block, index, position, caretMemory, retry);
+}
 
-	await consumeStickyLanding(block, innerIndex, position, caretMemory, (i) =>
-		dispatchMoveFocus(refs, i, position, caretMemory, parent, scope)
-	);
+/** A move handed to `focus`, with the options argument left off when there are none, so the
+ *  common call keeps two arguments. */
+export function delegateMoveFocus(
+	focus: Pick<FocusActions, 'moveFocus'>,
+	index: number,
+	position: FocusPosition,
+	options?: MoveFocusOptions
+): void | Promise<void> {
+	return options ? focus.moveFocus(index, position, options) : focus.moveFocus(index, position);
 }
 
 /**

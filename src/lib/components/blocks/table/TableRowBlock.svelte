@@ -46,7 +46,8 @@
 	const { state: cellsState } = createContainerActions({
 		getNode: () => node,
 		getIndex: () => index,
-		getPath: () => myPath
+		getPath: () => myPath,
+		childList: () => cellList
 	});
 
 	let rowEl: HTMLElement | undefined = $state();

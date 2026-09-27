@@ -82,6 +82,16 @@ describe('consumeStickyLanding', () => {
 		});
 	}
 
+	// Every traversal ends here, the root's and a container's, so the side is set once for both.
+	it("'end' puts the caret outside a hidden closer; 'start' leaves the side alone", async () => {
+		const memory = createCaretMemory();
+		await consumeStickyLanding(stubBlockComponent(), 0, 'start', memory, vi.fn());
+		expect(memory.side()).toBeNull();
+
+		await consumeStickyLanding(stubBlockComponent(), 0, 'end', memory, vi.fn());
+		expect(memory.side()).toBe('outside');
+	});
+
 	it('falls through to the caret when enterEdgeWidget declines', async () => {
 		const block = stubBlockComponent({ focus: vi.fn(), enterEdgeWidget: vi.fn(() => false) });
 		await consumeStickyLanding(block, 0, 'end', createCaretMemory(), vi.fn());

@@ -52,7 +52,8 @@
 	} = createContainerActions({
 		getNode: () => node,
 		getIndex: () => index,
-		getPath: () => myPath
+		getPath: () => myPath,
+		childList: () => rowList
 	});
 	const {
 		controller,

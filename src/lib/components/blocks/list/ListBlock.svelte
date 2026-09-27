@@ -10,6 +10,7 @@
 	import { createContainerActions } from '../../../editor-actions/nested/container-actions';
 	import { createContainerBlockComponent } from '../../../editor-actions/container-block-component';
 	import ListItemBlock from './ListItemBlock.svelte';
+	import type { ChildList } from '../../../reactivity/child-list';
 
 	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
 
@@ -31,7 +32,8 @@
 		getPath: () => myPath,
 		parentListContext,
 		overrides: ({ scope, parent }) =>
-			createListOverrides({ scope, parentBlockEdit: parent.blockEdit })
+			createListOverrides({ scope, parentBlockEdit: parent.blockEdit }),
+		childList: () => childList
 	});
 
 	const listContext = createListContext({
@@ -65,6 +67,12 @@
 	let win = $derived(windowing.window);
 	let bounds = $derived(sliceWindow((node.children ?? []).length, win));
 
+	const childList: ChildList = {
+		count: () => node.children?.length ?? 0,
+		refs: listState.refSlots,
+		windowing
+	};
+
 	// ── BlockComponent interface ────────────────────────────────────────
 
 	export const containerApi = createContainerBlockComponent({
@@ -73,11 +81,7 @@
 		get innerBlockRefs() {
 			return listState.innerBlockRefs;
 		},
-		childList: {
-			count: () => node.children?.length ?? 0,
-			refs: listState.refSlots,
-			windowing
-		},
+		childList,
 		get node() {
 			return node;
 		}
