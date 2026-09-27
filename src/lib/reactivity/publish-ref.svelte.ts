@@ -12,9 +12,8 @@ export interface RefSlots<T> {
 	get(index: number): T | undefined;
 }
 
-/** Builds the accessors over a list's ref array. The array itself, never a getter: a cleanup
- *  that ran against a replaced array would leave a dead ref in the live one. Replace contents
- *  with `replaceRefs`. */
+/** Takes the array itself, never a getter: a cleanup run against a replaced array would leave a
+ *  dead ref in the live one. Replace contents with `replaceRefs`. */
 export function refSlotsOver<T>(refs: (T | undefined)[]): RefSlots<T> {
 	return {
 		set: (index, ref) => {
@@ -34,12 +33,8 @@ export function replaceRefs<T>(
 	for (let i = 0; i < values.length; i++) target[i] = values[i];
 }
 
-/**
- * Replaces `bind:this={refs[i]}` in a keyed each: Svelte 5's `bind:this` does not re-target
- * when the iteration index shifts. The cleanup is conditional because the order of effect
- * cleanups across siblings is not guaranteed, and clearing unconditionally would overwrite a
- * neighbour's entry. `el` is the ref's own box, which is what lets `isSlotDetached` answer.
- */
+/** Replaces `bind:this={refs[i]}` in a keyed each, which doesn't re-target when the index
+ *  shifts. `el` is the ref's own box, which `isSlotDetached` reads. */
 export function publishRefSlot<T>(
 	slots: RefSlots<T>,
 	index: number,
@@ -48,8 +43,8 @@ export function publishRefSlot<T>(
 ): () => void {
 	slots.set(index, ref);
 	if (el && typeof ref === 'object' && ref !== null) publishedElements.set(ref, el);
-	// The cleanup compares against what the entry actually holds, not the ref passed in;
-	// untracked, since writers run inside effects and would invalidate themselves.
+	// Sibling cleanups run in no set order, so a cleanup clears the entry only if it still holds
+	// this mount's ref; read untracked, since writers run inside effects.
 	const publishedRef = untrack(() => slots.get(index));
 	if (publishedRef !== undefined) resolveMountWaiters(slots, index);
 	return () => {
@@ -61,9 +56,8 @@ export function publishRefSlot<T>(
 
 // ── Mount attachment ─────────────────────────────────────────────────────────
 
-// Keyed on the ref's identity, not on (slots, index): a wholesale `replaceRefs` moves a
-// saved ref that no writer will run for again, and only the ref itself still knows its box.
-// Weak, so the entry dies with the ref rather than outliving the list.
+// Keyed on the ref, not (slots, index): a wholesale `replaceRefs` moves a saved ref that no
+// writer will run for again, and only the ref itself still knows its box.
 const publishedElements = new WeakMap<object, Element>();
 
 /** True when the entry's ref is a mount whose element already left the DOM. Asks the DOM, never
@@ -85,7 +79,7 @@ export interface RevealChildOptions<T> {
 	/** Scroll this list so child `index` is in the mounted range; resolves after a tick. */
 	readonly revealChild: (index: number) => Promise<void>;
 	/** True when `index` is in the list's mounted range after `revealChild`, which lets the wait
-	 *  give up instead of hanging (VR-5). Every production caller supplies it. */
+	 *  give up instead of hanging (VR-5). */
 	readonly isInWindow?: (index: number) => boolean;
 }
 

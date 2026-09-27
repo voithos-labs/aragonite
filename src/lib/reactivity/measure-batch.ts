@@ -6,14 +6,12 @@
  */
 
 export interface MeasureEntry {
-	/** Read this entry's DOM height (a layout read). */
 	readHeight: () => number;
-	/** Write the measured height into the height table (a write that dirties layout). */
+	/** Writes the measured height into the height table, which can dirty layout. */
 	applyHeight: (height: number) => void;
 }
 
-/** Read every entry's height, then apply every write. A height of 0 or less (not laid out,
- *  or jsdom) is skipped on write; the read still happens, so the two phases stay separate. */
+/** A height of 0 or less (not laid out, or under jsdom) is never written. */
 export function runMeasureBatch(entries: Iterable<MeasureEntry>): void {
 	const measured: { applyHeight: (height: number) => void; height: number }[] = [];
 	for (const entry of entries) {

@@ -18,8 +18,8 @@ export function registerBlockListState(node: NodeView, state: BlockListState): v
 	}
 }
 
-/** A dev-mode signal, checked a tick later because Svelte mounts a remount's new component
- *  before tearing down the old one: a loser still holding child refs then has a live rival. */
+/** Checked a tick later because Svelte mounts a remount's new component before tearing down the
+ *  one it replaces; a replaced state still holding child refs after that has a live rival. */
 async function reportContestedClaim(
 	node: NodeView,
 	loser: BlockListState,
@@ -40,9 +40,8 @@ export function getStateForNode(node: NodeView): BlockListState | undefined {
 	return stateRegistry.get(node);
 }
 
-/** The strict version, for a caller holding a live-tree node whose container must be
- *  mounted. `getStateForNode` stays for the ancestor traversals where a missing entry is a
- *  valid answer. */
+/** The strict lookup, for a live-tree node whose container must be mounted. Ancestor
+ *  traversals, where a missing entry is a valid answer, use `getStateForNode`. */
 export function expectStateForNode(node: NodeView): BlockListState {
 	const state = stateRegistry.get(node);
 	if (!state) {

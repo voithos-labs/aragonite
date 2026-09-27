@@ -22,7 +22,7 @@ export interface ContainerWindowingOpts {
 	/** This container's index in the list above it, for the subtotal it reports upward. A
 	 *  getter, so a reorder reports under the current index. Ignored at the root. */
 	getIndex: () => number;
-	/** This list's path; the depth of its leaf channel is its length. `[]` at the root. */
+	/** This list's path; `[]` at the root. */
 	getParentPath: () => number[];
 	getChildren: () => readonly NodeView[];
 	getChildIds: () => string[];
@@ -30,8 +30,8 @@ export interface ContainerWindowingOpts {
 	getListEl: () => HTMLElement | null;
 	/** The element the parent measures for this list's height. Omit at the root. */
 	getOwnEl?: () => HTMLElement | null;
-	/** True when this list's direct children are `BlockHost`s, which means it provides the
-	 *  leaf channel. False for a list that renders its children with `{#each}` (list, table). */
+	/** True when this list's direct children are `BlockHost`s, which record their own heights
+	 *  through the leaf height channel; false for a list that renders them with `{#each}`. */
 	provideLeafChannel: boolean;
 	/** True while collapsed; see `ListWindowingDeps.isCollapsed`. */
 	isCollapsed?: () => boolean;
@@ -61,11 +61,8 @@ export function placementOf(
 	};
 }
 
-/**
- * One windowing unit per container, whether it renders a `BlockList` or its own `{#each}`:
- * reads the windowing contexts, builds `createListWindowing` with the shared constants, and
- * provides the subtotal callback and the leaf channel. Call synchronously during init.
- */
+/** One windowing unit per container, whether it renders a `BlockList` or its own `{#each}`.
+ *  Call synchronously during component init, since it reads and sets context. */
 export function useContainerWindowing(opts: ContainerWindowingOpts): ListWindowing {
 	const {
 		heightOracle: oracle,
@@ -78,8 +75,8 @@ export function useContainerWindowing(opts: ContainerWindowingOpts): ListWindowi
 	} = getContext<EditorDoc>(EDITOR_DOC_KEY);
 	const parentSink = getContext<ParentScopeSink | undefined>(PARENT_SCOPE_SINK_KEY);
 	const revealAnchor = getContext<EditorServices | undefined>(EDITOR_SERVICES_KEY)?.revealAnchor;
-	// Only one list may do this: a nested list keeps holding the block at the top of the
-	// viewport, or their corrections would fight over one `scrollTop`.
+	// Only the root list holds the scrolled-to block in place; a nested list holds the block at
+	// the top of the viewport, or the two corrections would fight over one `scrollTop`.
 	const claimsRevealAnchor = opts.getParentPath().length === 0;
 
 	const windowing = createListWindowing({
