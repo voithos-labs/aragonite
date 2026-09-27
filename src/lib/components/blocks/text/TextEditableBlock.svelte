@@ -18,7 +18,7 @@
 	} from '../../../editor-keys';
 	import type { IndexedDecoration } from '../../../decorations/buckets';
 	import type { ReplaceDecoration, WidgetDecoration } from '../../../decorations/types';
-	import { getContentRange, isProseKind } from '../../../core/inline';
+	import { getContentRange, isProseKind, structuralSuffix } from '../../../core/inline';
 	import { devWarn } from '../../../dev-warn';
 	import { resolvedInlineContent } from '../../../core/inline/inline-cache';
 	import { isInlineWidget } from '../../../core/inline/inline-widgets';
@@ -832,7 +832,7 @@
 	const onInput = editableSurface.onInput;
 
 	function readRawText(): string {
-		return el ? rawTextOfContent(el, node.raw) : '';
+		return el ? rawTextOfContent(el, node.raw, structuralSuffix(node)) : '';
 	}
 
 	// Captured before the shared handler: its cross-block half clears the arrival side, and the

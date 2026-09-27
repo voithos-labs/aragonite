@@ -84,18 +84,20 @@ export function rawOfWalkOffset(container: ParentNode, walk: DomTextOffset): Raw
 }
 
 /** The raw bytes `el` shows, its marker prefix left out: what a prose block reads back as its text.
- *  Empty when only the block's trailing structure is left. */
-export function rawTextOfContent(el: HTMLElement, raw: string): string {
+ *  `suffix` is the block's structural suffix as rendered; empty when only that is left. */
+export function rawTextOfContent(el: HTMLElement, raw: string, suffix: string): string {
 	const prefix = markerPrefixOf(el);
 	let out = '';
-	let suffixText = '';
 	let holdsMoreThanSuffix = false;
 	for (const child of Array.from(el.childNodes)) {
 		if (child === prefix) continue;
 		const text = rawTextOfNode(child, raw);
 		if (child instanceof Element && child.hasAttribute(BLOCK_SUFFIX_ATTR)) {
-			if (suffixOutlivesEdit(el, child)) suffixText = text;
-			out += suffixText;
+			// A key typed over the whole text lands at the start of the structure span.
+			const typed = text.endsWith(suffix) ? text.slice(0, text.length - suffix.length) : '';
+			out += typed;
+			if (typed) holdsMoreThanSuffix = true;
+			if (suffixOutlivesEdit(el, child)) out += text.slice(typed.length);
 			continue;
 		}
 		out += text;
@@ -106,12 +108,12 @@ export function rawTextOfContent(el: HTMLElement, raw: string): string {
 	return holdsMoreThanSuffix ? out : '';
 }
 
-// A heading's closing run goes with its `#` marker: the browser dropping the marker span in an
-// edit that replaced the whole text means the run goes too.
+// A heading's closing run goes with a hidden `#` marker the browser dropped, since the user saw
+// neither; a shown run stays unless it was selected too.
 function suffixOutlivesEdit(el: HTMLElement, suffix: Element): boolean {
 	if (suffix.getAttribute(BLOCK_SUFFIX_ATTR) !== 'after-prefix') return true;
 	const prefix = el.querySelector(`:scope > [${BLOCK_PREFIX_ATTR}]`);
-	return (prefix?.textContent ?? '') !== '';
+	return (prefix?.textContent ?? '') !== '' || !isHiddenMarkerRoot(suffix, el);
 }
 
 /** Raw offset of the live selection's focus inside `el`, or null when there is no selection or

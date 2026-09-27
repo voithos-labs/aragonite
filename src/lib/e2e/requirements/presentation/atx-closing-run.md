@@ -3,8 +3,9 @@
 An ATX heading may end in a closing run of `#`s after a space or tab (GFM §4.2): `# Hi #` is the
 heading `Hi`. The page draws the run as a marker after the text, the way it draws the opening `#`:
 source mode shows it dimmed, and live mode hides it, so the caret stops at the end of the text.
-The run stays on the heading when you break, paste or type inside the text, and an edit that
-takes the heading's `#` takes the run with it. Driven on `/test/editor` with `?presentationMode=`
+The run stays on the heading when you break, paste or type inside the text. Where the markers
+hide, an edit that takes the hidden `# ` takes the run too; where they show, the run stays unless
+the selection covered it. Driven on `/test/editor` with `?presentationMode=`
 and real keys.
 
 Miss-analysis: the heading's text ran to the line's end, so the run was drawn as heading text and
@@ -58,6 +59,15 @@ typed with the caret inside a run the page shows.
 Miss-analysis for the last three: the emptying scenarios ran at the top level only, where the
 browser drops the `#` span, so no scenario kept the markers of an empty heading or replaced the
 whole text with a key.
+
+- source mode: selecting `# Hi` and typing `x` keeps the run the selection left (`x #`, a
+  paragraph), inside a list item too (`- x #`)
+- source, preview-block and preview-inline: selecting the `# ` and pressing Backspace keeps the
+  shown run (`Hi #`)
+
+Miss-analysis for the last two: the emptied-read rows drew the typed key as its own node, never
+inside the run's span where the browser writes it, and the dropped-marker scenarios ran with the
+markers hidden only, so none deleted a shown `# ` on its own.
 
 ## User interactions
 

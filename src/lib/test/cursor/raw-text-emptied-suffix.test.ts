@@ -16,20 +16,29 @@ function block(html: string): HTMLElement {
 	return el;
 }
 
+/** The same, inside a live-mode editor, where the block's markers hide. */
+function live(html: string): HTMLElement {
+	const root = document.createElement('div');
+	root.setAttribute('data-presentation', 'live');
+	const el = block(html);
+	root.appendChild(el);
+	return el;
+}
+
 const SUFFIX = `<span class="md-marker" ${BLOCK_SUFFIX_ATTR}=""> #</span>`;
 const SETEXT = `<span class="md-marker" ${BLOCK_SUFFIX_ATTR}="">\n===</span>`;
 
 describe('reading back a block whose text was emptied', () => {
 	it('reads nothing when only the trailing structure is left', () => {
-		expect(rawTextOfContent(block(SUFFIX), '# H #\n')).toBe('');
-		expect(rawTextOfContent(block(`${SUFFIX}<br>`), '# H #\n')).toBe('');
+		expect(rawTextOfContent(block(SUFFIX), '# H #\n', ' #')).toBe('');
+		expect(rawTextOfContent(block(`${SUFFIX}<br>`), '# H #\n', ' #')).toBe('');
 	});
 
 	it('keeps the structure while anything else is left, a marker included', () => {
-		expect(rawTextOfContent(block(`<span class="md-marker"># </span>${SUFFIX}`), '# H #\n')).toBe(
-			'#  #'
-		);
-		expect(rawTextOfContent(block(`H${SUFFIX}x`), '# H #\n')).toBe('H #x');
+		expect(
+			rawTextOfContent(block(`<span class="md-marker"># </span>${SUFFIX}`), '# H #\n', ' #')
+		).toBe('#  #');
+		expect(rawTextOfContent(block(`H${SUFFIX}x`), '# H #\n', ' #')).toBe('H #x');
 	});
 });
 
@@ -39,18 +48,37 @@ describe('reading back a heading whose `#` marker the browser dropped', () => {
 	const RUN = `<span class="md-marker" ${BLOCK_SUFFIX_ATTR}="after-prefix"> #</span>`;
 	const HASH = `<span class="md-marker" ${BLOCK_PREFIX_ATTR}=""># </span>`;
 
-	it('drops the closing run with it', () => {
-		expect(rawTextOfContent(block(` ${RUN}`), '# Hi #\n')).toBe(' ');
-		expect(rawTextOfContent(block(`x${RUN}`), '# Hi #\n')).toBe('x');
+	it('drops the closing run with it where the marker was hidden', () => {
+		expect(rawTextOfContent(live(` ${RUN}`), '# Hi #\n', ' #')).toBe(' ');
+		expect(rawTextOfContent(live(`x${RUN}`), '# Hi #\n', ' #')).toBe('x');
+	});
+
+	// Miss-analysis: the dropped-marker rows ran with markers hidden only, so none asked about a
+	// shown `# ` deleted on its own, where the run the user left unselected went with it.
+	it('keeps a shown run when only the shown marker went', () => {
+		expect(rawTextOfContent(block(`Hi${RUN}`), '# Hi #\n', ' #')).toBe('Hi #');
 	});
 
 	it('keeps the run while the marker is there', () => {
-		expect(rawTextOfContent(block(`${HASH}x${RUN}`), '# Hi #\n')).toBe('# x #');
-		expect(rawTextOfContent(block(`${HASH}${RUN}`), '# Hi #\n')).toBe('#  #');
+		expect(rawTextOfContent(block(`${HASH}x${RUN}`), '# Hi #\n', ' #')).toBe('# x #');
+		expect(rawTextOfContent(block(`${HASH}${RUN}`), '# Hi #\n', ' #')).toBe('#  #');
 	});
 
 	it('keeps a setext underline, which follows no marker span', () => {
-		expect(rawTextOfContent(block(`x${SETEXT}`), 'Hi\n===\n')).toBe('x\n===');
+		expect(rawTextOfContent(block(`x${SETEXT}`), 'Hi\n===\n', '\n===')).toBe('x\n===');
+	});
+});
+
+// Miss-analysis: the emptied-read rows drew the typed text as its own node, never inside the
+// structure span, where the browser writes a key that replaced the text before it.
+describe('reading back a key the browser wrote into the structure span', () => {
+	const typedRun = `<span class="md-marker" ${BLOCK_SUFFIX_ATTR}="after-prefix">x #</span>`;
+
+	it('reads the key as text and the rest as the structure', () => {
+		expect(rawTextOfContent(live(typedRun), '# Hi #\n', ' #')).toBe('x');
+		expect(rawTextOfContent(block(typedRun), '# Hi #\n', ' #')).toBe('x #');
+		const typedUnderline = `<span class="md-marker" ${BLOCK_SUFFIX_ATTR}="">x\n===</span>`;
+		expect(rawTextOfContent(block(typedUnderline), 'Hi\n===\n', '\n===')).toBe('x\n===');
 	});
 });
 

@@ -137,6 +137,35 @@ test.describe('live mode: emptying the text', () => {
 	});
 });
 
+// Where the run is on screen, an edit takes it only when the selection did.
+test.describe('shown closing run: a selection that leaves it keeps it', () => {
+	for (const [source, path, written] of [
+		[DOC, [0], 'x #\n\nnext\n'],
+		['- # Hi #\n- b\n', [0, 0, 0], '- x #\n- b\n']
+	] as const) {
+		test(`source mode: selecting "# Hi" of ${JSON.stringify(source)} and typing x keeps the run`, async ({
+			page
+		}) => {
+			const ep = await enterPresentationMode(page, 'source', source);
+			await ep.focusBlockAtPath([...path], 4);
+			await page.keyboard.press('Shift+Home');
+			await ep.typeSlowly('x');
+			await ep.bridge.waitForSourceEquals(written);
+		});
+	}
+
+	for (const mode of ['source', 'preview-block', 'preview-inline'] as const) {
+		test(`${mode}: selecting the "# " and pressing Backspace keeps the run`, async ({ page }) => {
+			const ep = await enterPresentationMode(page, mode, DOC);
+			await ep.focusBlockAtPath([0], 0);
+			await page.keyboard.press('Shift+ArrowRight');
+			await page.keyboard.press('Shift+ArrowRight');
+			await page.keyboard.press('Backspace');
+			await ep.bridge.waitForSourceEquals('Hi #\n\nnext\n');
+		});
+	}
+});
+
 test.describe('live mode: the closing run stays on the heading', () => {
 	for (const [source, written] of [
 		['# Hi\n\nnext\n', '# H\\\nwi\n\nnext\n'],
