@@ -1,11 +1,12 @@
 /**
  * Moving a block among its siblings, for drag-and-drop and the keyboard nudge, as one commit.
  * A move can make two neighbours merge, so the caret and the announcement use the index the
- * reorder reports, not the destination the clamp picked. A refused move announces nothing.
+ * reorder reports, not the destination the clamp picked.
  */
 
 import { CURSOR_START } from '../block-component';
 import { documentLineEnding } from '../core/lines';
+import { movedBlockToPosition } from '../a11y-strings';
 import { reorderChildrenWithTrivia } from '../tree-operations/reorder';
 import { resolveReorderUnit, type ReorderUnit } from '../tree-operations/reorder-unit';
 import { blockNodeAt, nodeAt } from '../tree-operations/node-primitives';
@@ -21,16 +22,9 @@ export interface ReorderAction {
 	nudgeReorderUnit(fromPath: number[], dir: -1 | 1): Promise<boolean>;
 }
 
-/** Where a landed move put the unit and how many siblings survive it, read after the commit. */
-interface ReorderOutcome {
-	landing: number;
-	total: number;
-}
-
 export function createReorderAction(
 	deps: EditorActionsDeps,
-	controller: UndoController,
-	onReorder?: (to: number, total: number) => void
+	controller: UndoController
 ): ReorderAction {
 	function caretOffset(): number {
 		const widgetCaret = deps.getSelectedWidgetCaret ?? (() => null);
@@ -39,16 +33,16 @@ export function createReorderAction(
 		);
 	}
 
-	async function commitReorder(
+	function commitReorder(
 		unit: ReorderUnit,
 		to: number,
 		offset: number,
 		focusAfter: boolean
-	): Promise<ReorderOutcome | null> {
+	): Promise<boolean> {
 		let landing = to;
 
 		if (unit.scope === 'document') {
-			const moved = await controller.commitStructural({
+			return controller.commitStructural({
 				snapshot: { path: docPathFrom([unit.index]), offset },
 				op: {
 					kind: 'reorder',
@@ -69,15 +63,15 @@ export function createReorderAction(
 				},
 				afterTick: () => {
 					if (focusAfter) deps.blockRefs[landing]?.focus(CURSOR_START);
-				}
+				},
+				announce: () => movedBlockToPosition(landing + 1, deps.doc.children.length)
 			});
-			return moved ? { landing, total: deps.doc.children.length } : null;
 		}
 
 		const parent = blockNodeAt(deps.doc, unit.parentPath);
-		if (!parent) return null;
+		if (!parent) return Promise.resolve(false);
 		const state = expectStateForNode(parent);
-		const moved = await controller.commitContainerStructural({
+		return controller.commitContainerStructural({
 			containerNode: parent,
 			path: unit.parentPath,
 			state,
@@ -107,12 +101,15 @@ export function createReorderAction(
 			},
 			afterTick: () => {
 				if (focusAfter) state.innerBlockRefs[landing]?.focus(CURSOR_START);
-			}
+			},
+			// Re-resolved, not `parent`: the commit's copy-before-write replaced that node, so the
+			// one resolved above still holds the pre-move children.
+			announce: () =>
+				movedBlockToPosition(
+					landing + 1,
+					blockNodeAt(deps.doc, unit.parentPath)?.children?.length ?? 0
+				)
 		});
-		if (!moved) return null;
-		// Re-resolved, not `parent`: the commit's copy-before-write replaced that node, so the
-		// one resolved above still holds the pre-move children.
-		return { landing, total: blockNodeAt(deps.doc, unit.parentPath)?.children?.length ?? 0 };
 	}
 
 	function resolveAndClamp(
@@ -138,10 +135,7 @@ export function createReorderAction(
 		// Drop any cross-block selection so the overlay does not fight the move; the commit's
 		// afterTick places the caret again when the caller wants it.
 		deps.selectionState.collapse();
-		const outcome = await commitReorder(target.unit, target.to, caretOffset(), focusAfter);
-		if (!outcome) return false;
-		onReorder?.(outcome.landing, outcome.total);
-		return true;
+		return commitReorder(target.unit, target.to, caretOffset(), focusAfter);
 	}
 
 	return {

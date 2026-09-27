@@ -3,7 +3,12 @@
  * helpers and BlockComponent; only structural edits live here.
  */
 
-import type { CellPosition, ContainerEditActions, TableContext } from '../action-contracts';
+import type {
+	CellPosition,
+	CommitAnnouncement,
+	ContainerEditActions,
+	TableContext
+} from '../action-contracts';
 import type { OpDescriptor } from '../schema/operations';
 import type { CstNode } from '../core/nodes';
 import type { Reading } from '../schema/reading';
@@ -79,7 +84,6 @@ export interface TableMutationsContextDeps {
 	parentContainerEdit: ContainerEditActions;
 	controller: UndoController;
 	focusCell: (rowIdx: number, colIdx: number, position: CellPosition) => void;
-	announceReorder: (message: string) => void;
 	/** The editor's reading, whose grammar the cell writes use. */
 	reading: Reading;
 }
@@ -125,10 +129,8 @@ export function createTableMutationsContext(
 				detail: { rowIdx, side },
 				eventPath: extendDocPath(myPath, insertAt)
 			},
-			afterTick: () => {
-				focusCell(insertAt, 0, 'start');
-				deps.announceReorder(INSERTED_ROW);
-			}
+			afterTick: () => focusCell(insertAt, 0, 'start'),
+			announce: () => INSERTED_ROW
 		});
 	}
 
@@ -154,6 +156,7 @@ export function createTableMutationsContext(
 			{ kind: 'tableInsertColumn' | 'tableDeleteColumn' | 'tableReorderColumn' }
 		>;
 		afterTick: () => void;
+		announce: CommitAnnouncement;
 	}): Promise<void> {
 		const { myPath, controller } = deps;
 		const { scopes, rowIndices } = mountedColumnScopes();
@@ -180,7 +183,8 @@ export function createTableMutationsContext(
 				return [{ op: 'noop' }, ...rowIndices.map((i) => perRow[i])];
 			},
 			op: { ...opts.op, eventPath: docPathFrom(myPath) },
-			afterTick: opts.afterTick
+			afterTick: opts.afterTick,
+			announce: opts.announce
 		});
 	}
 
@@ -248,11 +252,8 @@ export function createTableMutationsContext(
 		await commitColumnEdit({
 			mutateColumns: (table) => insertEmptyColumn(table, colIdx, side),
 			op: { kind: 'tableInsertColumn', detail: { colIdx, side } },
-			afterTick: () => {
-				const targetRow = focusedCell?.rowIdx ?? 0;
-				focusCell(targetRow, insertAt, 'start');
-				deps.announceReorder(INSERTED_COLUMN);
-			}
+			afterTick: () => focusCell(focusedCell?.rowIdx ?? 0, insertAt, 'start'),
+			announce: () => INSERTED_COLUMN
 		});
 	}
 
@@ -280,10 +281,8 @@ export function createTableMutationsContext(
 				return change;
 			},
 			op: { kind: 'tableReorderRow', detail: { from, to }, eventPath: extendDocPath(myPath, to) },
-			afterTick: () => {
-				focusCell(to, col, 'start');
-				deps.announceReorder(movedRowToPosition(to, rowCount - 1));
-			}
+			afterTick: () => focusCell(to, col, 'start'),
+			announce: () => movedRowToPosition(to, rowCount - 1)
 		});
 	}
 
@@ -306,10 +305,8 @@ export function createTableMutationsContext(
 		await commitColumnEdit({
 			mutateColumns: (table) => mutMoveColumn(table, from, to),
 			op: { kind: 'tableReorderColumn', detail: { from, to } },
-			afterTick: () => {
-				focusCell(row, to, 'start');
-				deps.announceReorder(movedColumnToPosition(to + 1, columnCount));
-			}
+			afterTick: () => focusCell(row, to, 'start'),
+			announce: () => movedColumnToPosition(to + 1, columnCount)
 		});
 	}
 
@@ -352,8 +349,8 @@ export function createTableMutationsContext(
 					detail: { rowIdx },
 					eventPath: extendDocPath(myPath, rowIdx)
 				},
+				announce: () => DELETED_ROW,
 				afterTick: () => {
-					deps.announceReorder(DELETED_ROW);
 					// Read through `deps.node`: the `node` read above is the pre-commit object the
 					// undo snapshot still shares, so its child count is stale after the delete.
 					const newRowCount = deps.node.children?.length ?? 0;
@@ -373,8 +370,8 @@ export function createTableMutationsContext(
 			await commitColumnEdit({
 				mutateColumns: (table) => mutDeleteColumn(table, colIdx),
 				op: { kind: 'tableDeleteColumn', detail: { colIdx } },
+				announce: () => DELETED_COLUMN,
 				afterTick: () => {
-					deps.announceReorder(DELETED_COLUMN);
 					// deps.node, not the stale pre-commit object, as in deleteRow.
 					const newColumnCount = metadataOf(deps.node, 'table').columnCount;
 					if (newColumnCount === 0) return;
@@ -419,12 +416,8 @@ export function createTableMutationsContext(
 					return { op: 'noop' };
 				},
 				op: { kind: 'tableSetAlignment', detail: { colIdx }, eventPath: docPathFrom(myPath) },
-				afterTick: () => {
-					focusCell(cell?.rowIdx ?? 0, colIdx, 'start');
-					deps.announceReorder(
-						alignment === 'none' ? COLUMN_ALIGNMENT_CLEARED : columnAligned(alignment)
-					);
-				}
+				afterTick: () => focusCell(cell?.rowIdx ?? 0, colIdx, 'start'),
+				announce: () => (alignment === 'none' ? COLUMN_ALIGNMENT_CLEARED : columnAligned(alignment))
 			});
 		}
 	};

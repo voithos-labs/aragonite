@@ -306,6 +306,18 @@ const RULES: FileRule[] = [
 		]
 	},
 	{
+		id: 'an edit reaches the live region only through a commit’s announcement',
+		matches: /\.announceEdit\s*\(/,
+		allowed: {
+			'src/lib/editor-actions/commit/undo-controller.ts':
+				'the commit, which speaks only when bytes landed'
+		},
+		reason:
+			'announced anywhere else, a refused, failed or discarded edit can still tell a screen reader it happened; pass `announce` to the commit',
+		hits: ['deps.announceEdit(message)', 'this.deps.announceEdit (msg)'],
+		misses: ['announceEdit: (message) => log.push(message),\nconst { announceEdit } = deps;']
+	},
+	{
 		id: 'G4.14 component props reading the CST are typed as readonly views',
 		population: svelteOnly,
 		matches: /\b(node|document|doc)\??\s*:\s*(CstNode|Document)\b/,

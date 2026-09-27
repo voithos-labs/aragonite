@@ -5,7 +5,6 @@ import { createUndoController } from '$lib/editor-actions/commit/undo-controller
 import { createReorderAction } from '$lib/editor-actions/reorder-action';
 import { createBlockListState } from '$lib/reactivity/block-list-state.svelte';
 import { registerBlockListState } from '$lib/reactivity/state-registry';
-import { movedBlockToPosition } from '$lib/a11y-strings';
 import { stubBlockComponent, makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
 import type { BlockComponent } from '$lib/block-component';
 import { READING_WRITE_TAG } from '$lib/editor-actions/commit/reading-write-gate';
@@ -37,22 +36,29 @@ function refsAnsweringEverySlot(
 	});
 }
 
+/** Deps in `mode` that record what the editor's live region was told. */
+function announcingDeps(source: string, mode: PresentationMode) {
+	const announced: string[] = [];
+	const harness = makeEditorActionsDeps(parse(source), {
+		reading: fixtureReading({}, mode),
+		announceEdit: (message) => announced.push(message)
+	});
+	return { harness, announced };
+}
+
 function makeTop(source: string, mode: PresentationMode = 'source') {
-	const harness = makeEditorActionsDeps(parse(source), { reading: fixtureReading({}, mode) });
+	const { harness, announced } = announcingDeps(source, mode);
 	const focused: number[] = [];
 	const refs = refsAnsweringEverySlot(harness.getBlockRefs(), focused);
 	const deps = new Proxy(harness.deps, {
 		get: (target, prop) => (prop === 'blockRefs' ? refs : Reflect.get(target, prop, target))
 	});
-	const announced: string[] = [];
-	const reorder = createReorderAction(deps, createUndoController(harness.deps), (to, total) =>
-		announced.push(movedBlockToPosition(to + 1, total))
-	);
+	const reorder = createReorderAction(deps, createUndoController(harness.deps));
 	return { doc: harness.doc, reorder, announced, focused };
 }
 
 function makeContainer(source: string, mode: PresentationMode = 'source') {
-	const harness = makeEditorActionsDeps(parse(source), { reading: fixtureReading({}, mode) });
+	const { harness, announced } = announcingDeps(source, mode);
 	const node = () => harness.doc.children[0];
 	const state = createBlockListState(node);
 	const focused: number[] = [];
@@ -63,12 +69,7 @@ function makeContainer(source: string, mode: PresentationMode = 'source') {
 			get: (target, prop) => (prop === 'innerBlockRefs' ? refs : Reflect.get(target, prop, target))
 		})
 	);
-	const announced: string[] = [];
-	const reorder = createReorderAction(
-		harness.deps,
-		createUndoController(harness.deps),
-		(to, total) => announced.push(movedBlockToPosition(to + 1, total))
-	);
+	const reorder = createReorderAction(harness.deps, createUndoController(harness.deps));
 	return { doc: harness.doc, node, reorder, announced, focused };
 }
 

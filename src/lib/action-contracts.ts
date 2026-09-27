@@ -40,6 +40,13 @@ export type DiscardIfNoop = boolean;
 export type CommitAfterTick = () => void | Promise<void>;
 
 /**
+ * What a screen reader hears about a commit, read after `afterTick` and only when bytes landed:
+ * a refused, failed or discarded commit says nothing. The one way an edit reaches the editor's
+ * live region, so a move can't be announced unless it happened.
+ */
+export type CommitAnnouncement = () => string;
+
+/**
  * A content write in flight, resolving to whether bytes landed. Whether the reading-mode check
  * admitted it is known the moment the call returns, and only an admitted write has a caret: the
  * landing offset in the bytes as stored, with `storedOffset` mapping any other offset the same way.
@@ -175,6 +182,7 @@ export interface CommitMultiScopeArgs<
 	};
 	op?: ScopedOpDescriptor;
 	afterTick?: CommitAfterTick;
+	announce?: CommitAnnouncement;
 	discardIfNoop?: DiscardIfNoop;
 	/** Caret positions each list's fix-up updates in place, parallel to `scopes`, since a collapsing
 	 *  container moves the bytes under them; `afterTick` reads them back off the same objects. */
@@ -186,6 +194,7 @@ export interface CommitStructuralArgs {
 	mutate: (children: CstNode[]) => StructuralChange;
 	op?: ScopedOpDescriptor;
 	afterTick?: CommitAfterTick;
+	announce?: CommitAnnouncement;
 	/** Leaves for the dev invariant check when `mutate` returns `noop` (an in-place kind change). */
 	touchedNodes?: CstNode[];
 	discardIfNoop?: DiscardIfNoop;
@@ -208,6 +217,7 @@ export interface CommitContainerStructuralArgs {
 	mutate: (scope: ContainerScope) => StructuralChange;
 	op?: ScopedOpDescriptor;
 	afterTick?: CommitAfterTick;
+	announce?: CommitAnnouncement;
 	discardIfNoop?: DiscardIfNoop;
 	/** A caret position the container's fix-up updates in place; `afterTick` reads it back. */
 	trackCaret?: TrackedPosition;

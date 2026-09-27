@@ -91,7 +91,6 @@ function stubbedServices(getDoc: () => DocumentView): EditorServices {
 		} as EditorServices['controller'],
 		pasteCoordinator: {} as EditorServices['pasteCoordinator'],
 		reorder: {} as EditorServices['reorder'],
-		reorderAnnounce: () => {},
 		registryView: defaultRegistryView,
 		activePlugins: everyInstalledPlugin,
 		rects: {} as EditorServices['rects'],

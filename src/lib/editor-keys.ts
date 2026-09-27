@@ -37,7 +37,6 @@ import type { KindCue } from './components/kind-cue.svelte';
 
 // ── Shared value-shape types ─────────────────────────────────────────────────
 
-export type ReorderAnnounce = (message: string) => void;
 export type KeybindingOverridesGetter = () => KeybindingOverrideMap;
 export type ResolveImageUrl = (rawUrl: string) => string;
 export type ResolveLinkUrl = (rawUrl: string) => string;
@@ -165,7 +164,6 @@ export interface EditorServices {
 	controller: UndoController;
 	pasteCoordinator: PasteCommitCoordinator;
 	reorder: ReorderAction;
-	reorderAnnounce: ReorderAnnounce;
 	/** This instance's view of the global block definitions, so a per-instance list of
 	 *  enabled kinds reaches the render path. */
 	registryView: RegistryView;

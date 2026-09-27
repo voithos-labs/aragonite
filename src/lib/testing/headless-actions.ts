@@ -96,6 +96,8 @@ export interface HeadlessActionsOptions {
 	 *  Absent, every installed plugin in styled source. */
 	reading?: Reading;
 	bumpContentVersion?: () => void;
+	/** What a commit's announcement is spoken through; nothing hears it by default. */
+	announceEdit?: (message: string) => void;
 }
 
 export interface HeadlessActions {
@@ -159,6 +161,7 @@ export function createHeadlessActions(
 		getBlockElByPath: () => null,
 		revealPath: (path: number[]) => descendTo(rootList, path),
 		events,
+		announceEdit: options.announceEdit ?? (() => {}),
 		// An author's suite runs with no editor, so every installed plugin is in the grammar.
 		reading: options.reading ?? kitReading()
 	};

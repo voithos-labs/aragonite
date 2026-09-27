@@ -61,7 +61,6 @@
 		// the cell's, through the shared editable surface.
 		caretMemory: { captureColumn: captureExitColumn },
 		selection,
-		reorderAnnounce: announceReorder,
 		menuPresence
 	} = getContext<EditorServices>(EDITOR_SERVICES_KEY);
 	const {
@@ -210,8 +209,7 @@
 		},
 		parentContainerEdit,
 		controller,
-		focusCell,
-		announceReorder
+		focusCell
 	});
 
 	const ctx: TableContext = {

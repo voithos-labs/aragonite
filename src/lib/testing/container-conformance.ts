@@ -354,8 +354,7 @@ function mountTableMutations(children: CstNode[], tableIndex: number) {
 		parentContainerEdit: rootContainerEdit,
 		controller,
 		reading: deps.reading,
-		focusCell: () => {},
-		announceReorder: () => {}
+		focusCell: () => {}
 	});
 	return { ctx, deps, doc, events };
 }
