@@ -20,12 +20,7 @@ import { assertInvariant } from '../../assert';
 import { beginCommit, endCommit } from '../../invariants/commit-scope';
 import { assignIds } from '../../block-id';
 import { replaceRefs } from '../../reactivity/publish-ref.svelte';
-import {
-	blockNodeAt,
-	documentBody,
-	nodeAt,
-	type SeparatorParent
-} from '../../tree-operations/node-primitives';
+import { blockNodeAt, documentBody, nodeAt } from '../../tree-operations/node-primitives';
 import { settleSeparator } from '../../tree-operations/settle';
 import { ensureUnsharedPath } from '../../tree-operations/unshare';
 import {
@@ -678,7 +673,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 					// `savedChildren` is the pre-mutate array `prepareScopeView` swapped out, so
 					// the blank-line fix-up reads which blocks were blank off it.
 					changeList[i] = settleSeparator(
-						prepared[i].owned as SeparatorParent,
+						prepared[i].view.body,
 						prepared[i].savedChildren ?? [],
 						changeList[i],
 						deps.reading.grammar,

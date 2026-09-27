@@ -1,29 +1,56 @@
 import { describe, it, expect } from 'vitest';
 import { serialize } from '$lib/core/serializer';
+import { displayLength } from '$lib/core/lines';
 import { asDocPath } from '$lib/selection/path-math';
 import { updateNodeContent } from '$lib/tree-operations/content-write';
 import { ensureUnsharedChild } from '$lib/tree-operations/unshare';
 import { stampStructuralChange } from '$lib/tree-operations/structural-change';
-import { makeTopHarness } from '$lib/test/harness/editor-actions';
+import { makeTopHarness, type TopHarness } from '$lib/test/harness/editor-actions';
 import { expectParseConverged } from '$lib/test/harness/parse-converged';
 
 // Every top-level write hands the tree operations the document as a body, trailing blank line
-// included, so each route leaves the bytes and blocks the others leave. Miss-analysis: the
-// document scope of a multi-scope commit was never driven by a write that blanks the last block.
+// included, so each route leaves the blocks a reload reads. Miss-analysis: the document scope of
+// a multi-scope commit was never driven by a write that blanks the last block.
 
-describe('emptying a middle block in place, with a trailing blank line', () => {
-	// The in-place write's fix-up reads the trailing line to decide whether it becomes a block.
-	it('leaves the trailing line where the parser keeps it', async () => {
-		const h = makeTopHarness('alpha\n\nx\n\nomega\n\n');
-		expect(h.doc.suffix).toBe('\n');
+/** Documents whose parse keeps a trailing blank line aside, under different last blocks. */
+const SOURCES = [
+	'a\n\nb\n\n',
+	'a\n\n# h\n\n',
+	'a\r\n\r\nb\r\n\r\n',
+	'> q\n\nb\n\n',
+	'a\n\n```\nc\n```\n\n'
+];
 
-		await h.actions.updateBlockContent(1, '\n', 'authored');
+/** The structural edits a user can make at the last block, which no trial reparse checks. */
+const TAIL_EDITS: [string, (h: TopHarness, last: number) => Promise<void> | void][] = [
+	['delete', (h, last) => h.actions.deleteBlock(last)],
+	[
+		'split at the end',
+		(h, last) => h.actions.splitBlock(last, displayLength(h.deps.doc.children[last].raw))
+	],
+	['split at the start', (h, last) => h.actions.splitBlock(last, 0)],
+	['append an empty paragraph', (h, last) => h.actions.insertParagraph(last + 1, '')],
+	['append a paragraph with text', (h, last) => h.actions.insertParagraph(last + 1, 'new')],
+	['merge into the previous block', (h, last) => h.actions.mergeWithPrevious(last)],
+	['merge the previous block into it', (h, last) => h.actions.mergeWithNext(last - 1)],
+	['replace with nothing', (h, last) => h.actions.replaceBlock(last, [])],
+	['update to blank', (h, last) => h.actions.updateBlockContent(last, '\n', 'authored')],
+	['update to text', (h, last) => h.actions.updateBlockContent(last, 'z\n', 'authored')]
+];
 
-		expect(serialize(h.deps.doc)).toBe('alpha\n\n\nomega\n\n');
-		expect(h.deps.doc.suffix).toBe('\n');
-		expect(h.getBlockIds()).toHaveLength(h.deps.doc.children.length);
-		expectParseConverged(h.deps.doc);
-	});
+describe('a structural edit at the last block, with a trailing blank line', () => {
+	for (const source of SOURCES) {
+		for (const [name, edit] of TAIL_EDITS) {
+			it(`${JSON.stringify(source)}: ${name} leaves the blocks a reload reads`, async () => {
+				const h = makeTopHarness(source);
+				expect(h.deps.doc.suffix).not.toBe('');
+				await edit(h, h.deps.doc.children.length - 1);
+
+				expectParseConverged(h.deps.doc);
+				expect(h.getBlockIds()).toHaveLength(h.deps.doc.children.length);
+			});
+		}
+	}
 });
 
 describe('the document scope of a multi-scope commit', () => {

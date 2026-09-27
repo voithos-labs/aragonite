@@ -7,10 +7,9 @@
 
 import type { OpDescriptor } from '../schema/operations';
 import type { CommitAfterTick } from '../action-contracts';
-import type { BodyParent } from '../tree-operations/node-primitives';
+import { documentBody, type BodyParent } from '../tree-operations/node-primitives';
 import type { CstNode } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
-import { documentLineEnding } from '../core/lines';
 import type { StructuralChange } from '../tree-operations/structural-change';
 import type { SharingState } from '../tree-operations/sharing';
 import type { Reading } from '../schema/reading';
@@ -107,8 +106,7 @@ export function createTopLevelScope(
 				snapshot: { path: asDocPath([snapshot.index]), offset: snapshot.offset },
 				mutate: (children) =>
 					mutate({
-						// No suffix: the commit's own fix-up owns the document's trailing line.
-						body: { children, owner: undefined, lineEnding: documentLineEnding(deps.doc) },
+						body: documentBody(deps.doc, children),
 						sharing: deps.sharing,
 						reading: deps.reading,
 						unshareChild: (i) => ensureUnsharedPath({ children }, [i], deps.sharing)[0]

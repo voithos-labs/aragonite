@@ -244,7 +244,7 @@ const RULES: FileRule[] = [
 				'documentBody: the trailing blank line read and written through to the live document'
 		},
 		reason:
-			'a hand-built document body drifts from documentBody (its owner, its line ending, the ids it leaves out): call documentBody',
+			'a getter over the document’s trailing blank line is a second document body beside documentBody: call documentBody',
 		reaches: ['src/lib/tree-operations/node-primitives.ts'],
 		hits: [
 			'const p = { children, get suffix() { return doc.suffix; } };',

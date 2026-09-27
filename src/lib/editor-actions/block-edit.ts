@@ -62,7 +62,7 @@ export function createBlockEditActions(
 					mutate: (view) => {
 						view.unshareChild(blockIndex);
 						settled = performUpdate(
-							documentBody(deps.doc, view.body.children),
+							view.body,
 							blockIndex,
 							write,
 							deps.reading.grammar,
@@ -131,16 +131,7 @@ export function createBlockEditActions(
 
 		updateBlockContent(blockIndex, text, mode, preEditOffset, postEditFocusOffset) {
 			deps.caretMemory.forget();
-			const write = legalizeWrite(
-				{
-					children: deps.doc.children,
-					owner: undefined,
-					lineEnding: documentLineEnding(deps.doc)
-				},
-				blockIndex,
-				text,
-				mode
-			);
+			const write = legalizeWrite(documentBody(deps.doc), blockIndex, text, mode);
 			const caret = write.storedOffset(postEditFocusOffset ?? preEditOffset ?? 0);
 			// Keyed by block id, not by index: a bare index names the position, so a different
 			// block arriving at the same index would continue its batch.
