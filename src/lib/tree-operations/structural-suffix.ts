@@ -14,11 +14,8 @@ import {
 	trimTrailingLineEnding
 } from '../core/lines';
 
-/**
- * `node`'s text cut at `offset` for a split or a paste, both halves without a final line ending.
- * A cut at or before an ATX heading's text moves the whole heading into `rest`, since an empty
- * heading is nothing anyone asked for; a structural suffix stays on `head` after its text.
- */
+/** `node`'s text cut at `offset` for a split or a paste, both halves without a final line ending.
+ *  A cut at or before an ATX heading's text moves the whole heading into `rest`. */
 export function cutKeepingStructure(
 	node: NodeView,
 	offset: number
@@ -54,12 +51,8 @@ export function cutBeforeSuffix(node: NodeView, cut: number): number {
 	return suffix ? Math.min(cut, displayLength(node.raw) - suffix.length) : cut;
 }
 
-/**
- * The bytes of a join: `survivor` cut at `cut`, then `absorbed`'s text from `from`, then the
- * survivor's structural suffix, which stays under the joined text. The absorbed block's own
- * suffix goes with that block. `writeTail` is the absorbed kind's write rule; `start` and `end`
- * are the offsets the join cut each block at.
- */
+/** The bytes of a join: `survivor` cut at `cut`, `absorbed`'s text from `from`, then the survivor's
+ *  structural suffix. `writeTail` is the absorbed kind's write rule; `start`/`end` are the cuts. */
 export function joinKeepingSuffix(
 	survivor: NodeView,
 	cut: number,

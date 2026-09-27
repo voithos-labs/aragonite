@@ -20,8 +20,8 @@ describe('a multi-block paste keeps the leaf’s structure past its text on the 
 			['ab\n===\n', 'abc\n', 'def\n', 'cd\n']
 		],
 		['a setext underline, at the title’s start', 'Hi\n===\n', 0, ['abc\n', 'def\n', 'Hi\n===\n']],
-		// Miss-analysis for the next three (#623): every head-of-text row cut a setext title, whose
-		// text starts at 0, so no row cut an ATX heading between its marker and its text.
+		// Miss-analysis for the next three: every head-of-text row cut a setext title, whose text
+		// starts at 0, so no row cut an ATX heading between its marker and its text.
 		['an ATX heading, at the text’s start', '# Hi\n', 2, ['abc\n', 'def\n', '# Hi\n']],
 		[
 			'an ATX heading with a closing run, at the text’s start',
