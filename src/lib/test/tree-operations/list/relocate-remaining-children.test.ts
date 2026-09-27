@@ -55,4 +55,17 @@ describe('relocateRemainingChildren (via mergeListItemIntoPrevious)', () => {
 		expectParseConverged(doc);
 		expect(serialize(parse(source))).toBe(source);
 	});
+
+	// Miss-analysis: every row joined into a paragraph that stayed one, so none showed the
+	// relocation still reads the target item after the join changed the target leaf's kind.
+	it('a join that changes the target kind still moves the trailing sublist under the target item', () => {
+		const { doc, source } = mergeAndConverge('- ######\n- #x\n  - sub\n', 1);
+
+		expect(source).toBe('- #######x\n  - sub\n');
+		expect(doc.children[0].children![0].children!.map((c) => c.kind)).toEqual([
+			'paragraph',
+			'list'
+		]);
+		expectParseConverged(doc);
+	});
 });

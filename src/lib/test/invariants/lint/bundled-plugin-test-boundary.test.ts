@@ -117,7 +117,7 @@ const ALLOWLIST: Record<string, Exemption> = {
 			'$lib/tree-operations/sharing'
 		],
 		reason:
-			'nothing published splits or range-deletes a parsed document, and no published opaque ' +
+			'nothing published splits, joins or range-deletes a parsed document, and no published opaque ' +
 			'stale-raw predicate to hold the result to'
 	},
 	'src/lib/test/plugins/emoji/coexistence.test.ts': {
