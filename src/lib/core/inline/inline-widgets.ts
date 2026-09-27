@@ -56,11 +56,8 @@ export interface InlineWidgetComponentProps {
 	/** The pool keys on `${kind} ${source}`, so a widget whose value derives from the document
 	 *  (footnote numbering) needs this to survive edits elsewhere that change no source. */
 	getDocument?: () => DocumentView | undefined;
-	/**
-	 * Memo key for a whole-document derivation: the `$state` document is mutated in place, so
-	 * its identity never changes and an identity-keyed memo would hit forever on stale data.
-	 * Read it inside the widget's `$derived`; that read is what subscribes it to edits anywhere.
-	 */
+	/** Memo key for a whole-document derivation, since the `$state` document mutates in place and
+	 *  keeps its identity. Read it inside the widget's `$derived` to re-run on edits anywhere. */
 	getContentVersion?: () => number;
 	/** `EditorRects.navigateTo`: mount, scroll to and put the caret at a raw offset in a block
 	 *  path. Absent in a bare harness, so a widget that navigates declines rather than throws. */
@@ -70,12 +67,8 @@ export interface InlineWidgetComponentProps {
 	computeInlineContent?: (node: NodeView) => InlineNode[];
 }
 
-/**
- * The editor's activation gesture, shared by the editable element deciding whether to show the
- * source and the widget deciding whether to act: Ctrl/Cmd+click while editing, a plain click in
- * reading mode, where there is no caret for a plain click to place. The same rule links use
- * (`Editor.svelte`).
- */
+/** Shared by the editable element deciding whether to show the source and the widget deciding
+ *  whether to act. Reading mode has no caret to place, so a plain click activates, as for links. */
 export function isWidgetActivationClick(modified: boolean, mode: PresentationMode): boolean {
 	return modified || mode === 'reading';
 }
@@ -93,18 +86,11 @@ export const ON_EDGE_POLICIES = ['select', 'step-over'] as const;
  */
 export interface InlineWidgetEditingPolicy {
 	revealSource?: boolean;
-	/**
-	 * Where this kind's editable content sits inside its source span, as offsets relative to
-	 * that span (`$x$` answers `{ start: 1, end: 2 }`). It bounds a caret entering the source,
-	 * and `end` is where a click that shows the source puts the caret when the kind maps no point
-	 * of its own. Only the kind knows its delimiters; absent, the caret stays at the leading edge.
-	 */
+	/** The editable content's offsets in the source span (`$x$` gives `{ start: 1, end: 2 }`),
+	 *  bounding the caret; a click with no mapped point lands at `end`. Absent: the start edge. */
 	revealContentSpan?: (source: string) => { start: number; end: number } | null;
-	/**
-	 * The offset in `source` a click on the rendered widget names, so the caret goes where the
-	 * click landed rather than to one edge. Only the kind can map its render back to bytes (a
-	 * KaTeX widget draws glyphs, not source); null declines this point and keeps the fallback.
-	 */
+	/** The `source` offset under a click, so the caret goes where the user clicked; only the kind
+	 *  can map its render (KaTeX glyphs) back to bytes. Null keeps the fallback. */
 	revealOffsetAtPoint?: (
 		widgetEl: HTMLElement,
 		source: string,
@@ -120,7 +106,7 @@ export interface InlineWidgetEditingPolicy {
 }
 
 export interface InlineWidgetEditingContext {
-	/** The bytes are read-only (G1.9); edits go through `updateContent`. */
+	/** Read-only, since an undo entry may share the node (G1.9); edit through `updateContent`. */
 	node: NodeView;
 	inline: InlineNode;
 	widgetStart: number;
@@ -173,11 +159,8 @@ export function registerInlineWidgetKind(
 	);
 }
 
-/**
- * Layer editing fields onto an already-registered kind. The editor-layer wire-up
- * (components/built-in-blocks.ts) attaches behavior here that would otherwise make a core
- * registration import a downstream layer. Throws for an unregistered kind.
- */
+/** Lets the editor layer (`components/built-in-blocks.ts`) attach editing behavior without a core
+ *  registration importing it. Throws for an unregistered kind. */
 export function augmentInlineWidgetKind(
 	kind: AnyInlineKind,
 	editing: Partial<InlineWidgetEditingPolicy>
@@ -225,11 +208,8 @@ export function getInlineWidgetComponent(
 	return widgetOf(kind, grammar)?.component;
 }
 
-/**
- * Every live widget reachable from `nodes`, in document order. Descends so a widget nested in a
- * non-widget parent is found (the `image` inside `[![alt][ref]][repo]`), but never into a
- * widget's own children, which are atomic. `raw` is the enclosing block's source.
- */
+/** Descends into non-widget parents (the `image` inside `[![alt][ref]][repo]`) but never into a
+ *  widget, whose children are atomic. `raw` is the enclosing block's source. */
 export function flattenInlineWidgets(
 	nodes: ReadonlyArray<InlineNode>,
 	raw: string,
@@ -243,11 +223,8 @@ export function flattenInlineWidgets(
 	return out;
 }
 
-/**
- * A `component` kind routes through the injected `buildPortalWidget` because the component layer
- * owns Svelte mounting and `core/` stays framework-free. Null when the node is not a widget, its
- * builder is injected per render (image), or the portal builder is absent or failed.
- */
+/** A `component` kind mounts through the injected `buildPortalWidget`, keeping `core/` free of
+ *  Svelte. Null for a non-widget, an image (built per render), or a missing or failed portal. */
 export function buildCoreInlineWidget(
 	node: InlineNode,
 	raw: string,

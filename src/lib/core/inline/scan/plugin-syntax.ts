@@ -30,26 +30,16 @@ export const INLINE_PRIORITIES = {
 } as const;
 
 export interface InlineSyntaxOptions {
-	/**
-	 * Multi-character prefix beginning with the trigger; required for a reserved trigger. It is
-	 * consulted ahead of the built-in handler, so a prefix that also opens a built-in construct
-	 * outranks it, and the recognizer must decline that overlap itself (the plugin guide's
-	 * reserved-trigger section).
-	 */
+	/** Two or more characters starting with the trigger; required for a reserved trigger, where it
+	 *  runs before the built-in handler, so decline a built-in construct it also opens. */
 	prefix?: string;
 	/** Lower is consulted first. Defaults to `INLINE_PRIORITIES.plugin`. */
 	priority?: number;
-	/**
-	 * Re-serializer for the built-in `image` nodes this recognizer creates; without it the editor
-	 * declines those edits rather than writing GFM over the claimed bytes. Return `null` for
-	 * anything your grammar cannot hold (the plugin guide's inline section).
-	 */
+	/** Re-serializes the `image` nodes this recognizer creates; without it the editor refuses
+	 *  their edits rather than write GFM over your syntax. Return `null` for what it can't hold. */
 	rewriteImage?: ImageSyntaxRewriter;
-	/**
-	 * The trigger is a symmetric one-byte delimiter (`$…$`) that typing should close at once: the
-	 * matching closer lands after the caret, so the new opener pairs with it rather than with a
-	 * later formula's delimiter (`delimiter-autopair.ts`). Bare triggers only.
-	 */
+	/** Typing the trigger (`$…$`) inserts its closer after the caret, so the opener pairs with it
+	 *  rather than a later formula's delimiter (`delimiter-autopair.ts`). Bare triggers only. */
 	autoPair?: boolean;
 }
 
@@ -221,7 +211,7 @@ export function hasInlineSyntax(): boolean {
 	return unreservedRegistry.size > 0;
 }
 
-/** Read once per scan, so an empty set leaves `needsScan` at its pre-plugin cost. */
+/** Read once per scan, so with no probed trigger `needsScan` pays nothing extra per character. */
 export function hasScanProbeRungs(): boolean {
 	return scanProbeTriggers.size > 0;
 }

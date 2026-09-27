@@ -24,7 +24,8 @@ export interface LinkReferenceMap {
 	readonly signature: string;
 }
 
-/** Collects LRDs nested inside containers too. First-wins on duplicate labels (§4.7). */
+/** Collects link reference definitions nested in containers too; a label's first definition
+ *  wins (§4.7). */
 export function buildLinkReferenceMap(nodes: CstNode[]): LinkReferenceMap {
 	const entries = new Map<string, ResolvedReference>();
 	collectLinkReferences(nodes, entries);
@@ -44,7 +45,7 @@ export function buildLinkReferenceMap(nodes: CstNode[]): LinkReferenceMap {
 
 function collectLinkReferences(nodes: CstNode[], entries: Map<string, ResolvedReference>): void {
 	const stack: CstNode[] = [];
-	// Reversed push, so pop order is document order — which is what first-wins reads.
+	// Reversed push, so pop order is document order and the first definition wins.
 	const push = (level: CstNode[]) => {
 		for (let i = level.length - 1; i >= 0; i--) stack.push(level[i]);
 	};
@@ -55,7 +56,7 @@ function collectLinkReferences(nodes: CstNode[], entries: Map<string, ResolvedRe
 			const meta = metadataOf(node, 'linkReferenceDefinition');
 			if (meta?.label === undefined || meta.url === undefined) continue;
 			const key = normalizeLinkLabel(meta.label);
-			if (entries.has(key)) continue; // first-wins
+			if (entries.has(key)) continue;
 			entries.set(
 				key,
 				meta.title !== undefined

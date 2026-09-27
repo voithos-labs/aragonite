@@ -5,9 +5,8 @@
  */
 
 /**
- * Wrap `content` as a code span. The fence runs one backtick past the longest run it encloses, so
- * nothing inside can close it; content touching a backtick at either edge takes a space pad too,
- * without which the fence and that byte merge into one longer run and the span closes elsewhere.
+ * The fence runs one backtick past the longest run inside, so nothing inside closes it; content
+ * with a backtick at an edge gets a space pad, or that backtick would merge into the fence.
  */
 export function wrapAsCodeSpan(content: string): string {
 	const fence = '`'.repeat(longestBacktickRun(content) + 1);

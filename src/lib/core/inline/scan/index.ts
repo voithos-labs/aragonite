@@ -39,9 +39,8 @@ for (const [char, { scanned }] of BUILTIN_TRIGGERS) {
 }
 SPECIAL[0x40] = 1; // @
 
-// GFM bare http/www autolinks contain no character from the set above, so their starts get
-// conditional probes: `:` counts only when `//` follows, `w`/`W` only on a `www.` prefix. The
-// lookahead may read past `end` and over-trigger, which costs one wasted scan, never a node.
+// Bare http/www autolinks hold no character above, so `:` counts only before `//` and `w`/`W`
+// only on `www.`; a lookahead past `end` costs one wasted scan, never a node.
 const PROBE_SCHEME = 2;
 const PROBE_WWW = 3;
 SPECIAL[0x3a] = PROBE_SCHEME; // :
@@ -82,9 +81,8 @@ function needsScan(raw: string, start: number, end: number): boolean {
 	return false;
 }
 
-// Tries a trigger's plugin handlers in dispatch order: the first whose prefix matches at `ctx.pos`,
-// whose plugin this editor lists, and whose recognizer claims wins. The claim checks live here
-// once, for both dispatch paths, after the decline so a declining handler leaves `ctx` untouched.
+// The first handler whose prefix matches at `ctx.pos`, whose plugin this editor lists and whose
+// recognizer returns a node wins; that node is checked here, once for both dispatch paths.
 function tryRungs(
 	ctx: ScanContext,
 	rungs: InlineRung[] | undefined,

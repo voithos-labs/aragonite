@@ -31,11 +31,8 @@ export function handleAmpersand(ctx: ScanContext): void {
 	else ctx.pos++;
 }
 
-/**
- * §6.7 trailing-spaces form: two-plus spaces before the newline become a hardLineBreak covering
- * spaces + newline; one space is a softbreak. Lookback is clamped to the pending text run, so
- * spaces inside an already-consumed node cannot count.
- */
+/** §6.7: two or more spaces before the newline make a hard break covering them and the newline.
+ *  The lookback stops at the pending text run, so spaces inside an earlier node never count. */
 export function handleNewline(ctx: ScanContext): void {
 	const { raw, pos, textStart } = ctx;
 	let i = pos - 1;

@@ -67,11 +67,8 @@ function urlRunEnd(raw: string, from: number, end: number): number {
 
 const HOST_CHAR = /[\p{L}\p{N}_.-]/u;
 
-/**
- * GFM §6.9: no underscore in either of a domain's last two dot-separated segments, so
- * `www.xxx._yyy.zzz` stays literal while `www._xxx.yyy.zzz` links. cmark-gfm's extra exemption
- * for 10+-dot hosts is an implementation artifact, deliberately not reproduced (file header).
- */
+/** GFM §6.9: no underscore in a domain's last two dot-separated segments, so `www.xxx._yyy.zzz`
+ *  stays literal while `www._xxx.yyy.zzz` links; cmark-gfm's 10+-dot exemption is left out. */
 function hasValidDomain(raw: string, domainStart: number, limit: number): boolean {
 	let hostEnd = domainStart;
 	while (hostEnd < limit && HOST_CHAR.test(raw[hostEnd])) hostEnd++;
@@ -175,11 +172,8 @@ function scanChildren(raw: string, scanStart: number, nodes: InlineNode[]): void
 	}
 }
 
-/**
- * The replacement is accumulated and written back rather than spliced per run: spreading a match
- * array as call arguments hits V8's argument limit past ~65k matches, and the block never heals.
- * `openBrackets` counts the `[` still open where `nodes` start.
- */
+/** Written back once rather than spliced per run, since spreading ~65k matches as arguments hits
+ *  V8's argument limit. `openBrackets` counts the `[` still open where `nodes` start. */
 function spliceBareAutolinks(
 	raw: string,
 	scanStart: number,
@@ -247,11 +241,8 @@ function spliceRun(raw: string, runNodes: InlineNode[], matches: InlineNode[]): 
 	return out;
 }
 
-/**
- * A text run's bare autolinks. As in cmark-gfm, the www and url forms match only where no `[`
- * is open (a text `[` is one no link closed; each `]` closes the latest), while the email form
- * matches anywhere. `brackets.open` carries that count from one run to the next.
- */
+/** As in cmark-gfm, the www and url forms match only where no `[` is open, while the email form
+ *  matches anywhere. `brackets.open` carries that count from one run to the next. */
 function scanRunForBareAutolinks(
 	raw: string,
 	scanStart: number,
@@ -327,8 +318,8 @@ function matchBareWwwAutolink(
 	let urlEnd = urlRunEnd(raw, pos + 4, end);
 	if (urlEnd <= pos + 4) return null;
 	urlEnd = trimTrailingPunctuation(raw, pos, urlEnd);
-	// `.` is trailing punctuation, so the trim can cross the `www.` prefix and leave a bare
-	// `www`, a live link to a host the user never wrote. Hence at-or-below floor checks here.
+	// `.` is trailing punctuation, so the trim can cut into `www.` and leave a bare `www`, a
+	// link to a host the user never wrote; the check below refuses that.
 	if (urlEnd <= pos + 4) return null;
 	if (!hasValidDomain(raw, pos, urlEnd)) return null;
 	// GFM §6.9: a www autolink carries no scheme in its bytes. The raw span stays verbatim;
@@ -341,13 +332,8 @@ const EMAIL_DOMAIN_CHAR = /[A-Za-z0-9_-]/;
 const EMAIL_LABEL_START = /[A-Za-z0-9]/;
 const EMAIL_DOMAIN_END = /[A-Za-z]/;
 
-/**
- * The email domain per GFM §6.9: alphanumerics/`-`/`_` separated by periods, at least one
- * period, no `-`/`_` at the end. Past that prose the rule is cmark-gfm's: the last character
- * must be a LETTER, and a `.` separates labels only when an alphanumeric follows (`a@b._c` and
- * `a@b.c1` stay literal; `a@.b` is accepted). An xmpp address also takes `/` for its resource
- * part, as cmark-gfm does. Returns the domain end, or -1.
- */
+/** GFM §6.9's email domain plus cmark-gfm's rules: it ends in a letter, and a `.` separates labels
+ *  only before an alphanumeric (`a@b._c` is literal). An xmpp address may hold `/`. -1 if none. */
 function scanEmailDomain(
 	raw: string,
 	domainStart: number,
@@ -392,7 +378,7 @@ function matchBareEmailAutolink(
 ): InlineNode | null {
 	let localStart = atPos;
 	while (localStart > claimedEnd && EMAIL_LOCAL.test(raw[localStart - 1])) localStart--;
-	if (localStart === atPos) return null; // empty local-part
+	if (localStart === atPos) return null;
 	const prefix = emailPrefixBefore(raw, localStart, claimedEnd);
 	const linkStart = localStart - (prefix?.length ?? 0);
 	// The boundary applies at the URL's start: the prefix when there is one, else the local part.

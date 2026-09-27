@@ -5,11 +5,8 @@
 
 import type { InlineNode } from '../nodes';
 
-/**
- * Each node, then its children, in source order; `descend` returning false skips a node's
- * children but still yields the node. A consumer that rewrites `children` must finish the walk
- * first: each child list is copied onto the stack when its parent pops.
- */
+/** `descend` returning false skips a node's children but still yields the node. Finish the walk
+ *  before rewriting any `children`: a child list is read only after its parent is yielded. */
 export function* inlineDescendants(
 	nodes: readonly InlineNode[],
 	descend?: (node: InlineNode) => boolean

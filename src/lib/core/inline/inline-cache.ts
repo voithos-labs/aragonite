@@ -1,9 +1,8 @@
 /**
- * Lazy `inlineContent` accessor for non-render consumers, over a node-keyed WeakMap.
- * Non-reactive by design: never call from the render path (which uses computeInlineContent),
- * since a reactive read plus write here corrupts a keyed `{#each}` (G4.2).
- * One sub-entry per signature space, so resolver-less and signature-bearing callers cannot
- * evict each other on a bracket-bearing block. A slot answers only the grammar it was parsed in.
+ * Lazy `inlineContent` accessor for code outside the render path, over a node-keyed WeakMap.
+ * Never call it from the render path, which uses `computeInlineContent`: a reactive read plus a
+ * cache write there corrupts a keyed `{#each}` (G4.2). Resolver-less and resolving callers get
+ * separate slots so they never evict each other, and a slot answers only its own grammar.
  */
 import type { InlineNode } from '../nodes';
 import type { NodeView } from '../node-views';
@@ -33,8 +32,8 @@ export function getInlineContent(
 	grammar: GrammarView
 ): InlineNode[] {
 	if (!isProseKind(node.kind)) return [];
-	// A block resolves through an LRD only if it holds a bracket; mirroring the render gate keeps
-	// a bracketless block off both the resolver and the signature.
+	// A block resolves a link reference definition only if it holds a bracket; the render path
+	// checks the same, so a bracketless block skips both the resolver and the signature.
 	const hasRef = node.raw.includes('[');
 	const sig = hasRef ? signature : '';
 	const effectiveResolver = hasRef ? resolver : undefined;
@@ -46,7 +45,6 @@ export function getInlineContent(
 		return hit.content;
 	}
 	const content = computeInlineContent(node, effectiveResolver, grammar);
-	// Spread, so refilling one slot keeps the other one untouched.
 	cache.set(node, { ...entry, [slot]: { raw: node.raw, signature: sig, grammar, content } });
 	return content;
 }
@@ -54,10 +52,8 @@ export function getInlineContent(
 /** The parts of an editor's reading its inline parse needs. */
 export type InlineReading = Pick<Reading, 'grammar' | 'resolver' | 'resolverSignature'>;
 
-/**
- * The one spelling of `getInlineContent` over the editor's reading, so a non-render call site
- * cannot drop the signature or the grammar and desync from what render drew.
- */
+/** Takes the whole reading, so a call site outside the render path cannot drop the signature or
+ *  the grammar and disagree with what the render path drew. */
 export function resolvedInlineContent(node: NodeView, reading: InlineReading): InlineNode[] {
 	return getInlineContent(node, reading.resolver, reading.resolverSignature, reading.grammar);
 }
