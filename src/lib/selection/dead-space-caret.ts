@@ -12,7 +12,9 @@ import type { CaretTarget } from '../schema/block-kind-descriptor';
 import { measureBlocks, nearestBand, probePointIn, type MeasuredBlock } from './nearest-block';
 import { placeGapCaret } from './caret-doors';
 import { canGapStop, type GapStopScope } from './gap-caret';
-import { offsetFromViewportPoint } from '../cursor/point-offset';
+import { caretOffsetAtPoint, offsetFromViewportPoint } from '../cursor/point-offset';
+import { readBlockPath } from './path-lookup';
+import { pathsEqual } from './path-math';
 import type { SelectionEndpoint } from './primitives';
 
 // ── Public API ─────────────────────────────────────────────────────────────
@@ -273,6 +275,12 @@ function landingFor(hit: BlockHit, probeX: number, probeY: number): CaretTarget 
 	if (!hit.charSurface) return { path: [], offset: 0 };
 	// Reading mode turns contenteditable off, and a non-editable leaf has no character position.
 	if (!hit.charSurface.matches('[contenteditable="true"]')) return null;
-	const offset = offsetFromViewportPoint(hit.charSurface, probeX, probeY);
+	// A block whose box pads its own text (a code block) lands a point in that padding on the
+	// nearest line; a container's first editable is a child's, which the point was not aimed at.
+	const textHost = readBlockPath(hit.charSurface.closest('[data-block-path]'));
+	const ownText = textHost !== null && pathsEqual(textHost, hit.path);
+	const offset = ownText
+		? caretOffsetAtPoint(hit.charSurface, probeX, probeY)
+		: offsetFromViewportPoint(hit.charSurface, probeX, probeY);
 	return offset === null ? null : { path: [], offset };
 }
