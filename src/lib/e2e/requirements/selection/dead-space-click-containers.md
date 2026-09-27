@@ -18,14 +18,16 @@ strip just left of the text.
 
 ## User interactions
 
-- Drag from the first paragraph into the editor's edge beside a quote's third line: the range
-  ends where a click at that spot puts the caret, not back in the paragraph it started in.
+- Drag from the first paragraph to beside a quote's third line, released at the editor's edge,
+  at the quote's edge, or just left of the text: the range ends where a click at that spot puts
+  the caret, not back in the paragraph it started in. The quote's edge and the strip left of the
+  text sit on the quote's own box, which the drag resolves separately from a point off every
+  block, so all three get a row.
 
 ## Edge cases
 
-- A container with a text row of its own (an alert's title) keeps a click level with that row;
-  only a click level with a child line goes to the child. Pinned in a unit test
-  (`test/selection/nearest-block.test.ts`), since no fixture here has both.
+- A container with an editable row of its own keeps a click level with that row. No built-in
+  container has one, so the unit test pins it (`test/selection/nearest-block.test.ts`).
 - The indent beside a nested list's line holds that line's drag handle, so the editor's edge is
   the only margin there, and a click on the handle belongs to the handle.
 

@@ -147,8 +147,8 @@ describe('blockNearPoint', () => {
 });
 
 // Which child a point on a container's own box is handed to. The layout comes from
-// e2e/tests/selection/dead-space-click-containers.spec.ts; this pins the choice between the
-// container's own text row and its children, which no e2e fixture has on both sides.
+// e2e/tests/selection/dead-space-click-containers.spec.ts; this pins the container's own
+// editable row, which no built-in container has, and the guard that ends the walk.
 describe('descendToLevelChild', () => {
 	type Box = { left: number; right: number; top: number; bottom: number };
 	const CONTAINER: Box = { left: 0, right: 300, top: 100, bottom: 200 };
@@ -214,6 +214,19 @@ describe('descendToLevelChild', () => {
 	it('keeps a point level with the container’s own text row', () => {
 		mount(true);
 		expect(descendFrom(5, 110).hit.path).toEqual([0]);
+	});
+
+	// Without the guard the walk re-hits the container forever; the hit-test budget turns that
+	// synchronous hang into a failure.
+	it('keeps the point when something the container draws covers the child', () => {
+		mount(false);
+		let hitTests = 0;
+		document.elementFromPoint = (() => {
+			if (++hitTests > 50) throw new Error('the walk never stopped re-hitting the container');
+			return boxes[0].el;
+		}) as typeof document.elementFromPoint;
+		const hit = blockAtPoint(root, 5, 170)!;
+		expect(descendToLevelChild(root, { hit, x: 5, y: 170 }).hit.path).toEqual([0]);
 	});
 
 	it('gives a point between children to the nearer one when the container has no text', () => {

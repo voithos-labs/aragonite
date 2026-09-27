@@ -114,8 +114,8 @@ export interface ProbedHit {
 /**
  * Hands a point on a container's own box (a quote's gutter, a list's indent) to the child block
  * level with it, and on down through nested containers, so the point lands on the line it is
- * level with at any depth. A container with a text row of its own (an alert's title) keeps a
- * point no child is level with. `belowAll` keeps the end-of-document corner on the way down.
+ * level with at any depth. A container with an editable row of its own, which a plugin kind
+ * may draw, keeps a point no child is level with. `belowAll` keeps the end-of-document corner on the way down.
  */
 export function descendToLevelChild(
 	root: HTMLElement,
