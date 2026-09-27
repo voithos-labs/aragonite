@@ -174,8 +174,8 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 				pendingBreakAt: hidesMarkers(deps.reading.mode()) ? contentLengthOf(node) : undefined
 			})
 		);
-		// The bytes past the content (a setext underline) are the block's own marker too, so the
-		// page holds the whole display and hides them where it hides the prefix.
+		// The bytes past the content (a setext underline, a heading's closing `#` run) are the
+		// block's own marker too, so the page holds the whole display and hides them with the prefix.
 		const suffix = structuralSuffix(node);
 		if (suffix) {
 			const span = markerSpan(suffix);

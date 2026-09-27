@@ -250,7 +250,7 @@ A body's indentation counts in columns, and a tab reaches the next multiple of f
 
 ## 4. Inline nodes
 
-Inline content is a tree of `InlineNode` objects over a prose block's content range, the part of `raw` after the block-level markers (after `## ` for a heading). Every node carries `start`/`end` byte offsets into the parent block's **own** `raw`, covering its full range _including_ its markers, so the editor can map DOM cursor positions to raw offsets and back.
+Inline content is a tree of `InlineNode` objects over a prose block's content range, the part of `raw` between the block-level markers (after a heading's `## `, and before its closing `#` run if it has one). Every node carries `start`/`end` byte offsets into the parent block's **own** `raw`, covering its full range _including_ its markers, so the editor can map DOM cursor positions to raw offsets and back.
 
 Inline nodes nest. `**bold *and italic***` is a strong containing a text and an emphasis, which itself contains a text:
 

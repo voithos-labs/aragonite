@@ -9,6 +9,7 @@
 import { metadataOf } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import { displayLength } from '../core/lines';
+import { matchHeading } from '../core/parsers/heading';
 import { containerClosure, type ClosureBlock } from './closure';
 import type { KeyBinding } from './keybindings';
 import { registerBlockKind } from './block-kind-descriptor';
@@ -33,15 +34,11 @@ import {
 
 // ── Content-range helpers ──────────────────────────────────────────────────
 
-// Headings carry a `# ` prefix that is not part of the editable text.
+// The heading's marker bytes, its `# ` and any closing `#` run, sit outside the editable text.
 function headingContentRange(node: NodeView): { start: number; end: number } {
-	const raw = node.raw;
-	const displayEnd = displayLength(raw);
-	let i = 0;
-	while (i < raw.length && raw[i] === ' ') i++;
-	while (i < raw.length && raw[i] === '#') i++;
-	if (i < raw.length && raw[i] === ' ') i++;
-	return { start: i, end: displayEnd };
+	const heading = matchHeading(node.raw);
+	if (!heading) return { start: 0, end: displayLength(node.raw) };
+	return { start: heading.contentStart, end: heading.contentEnd };
 }
 
 // ── Keymaps ───────────────────────────────────────────────────────────────

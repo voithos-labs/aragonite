@@ -19,45 +19,20 @@ export interface TextEditResult {
 }
 
 /**
- * Give up the block's own structural bytes, whichever end the kind keeps them at: a prefix for
- * ATX, an underline line for setext. Both sides read the kind's content range and nothing else, so
- * a prefix rewrite cannot disagree with the check that let the key through (`  ## x` is a heading
- * whose `#`s a `^#` regex never reaches). Null where the content is the whole displayed text.
+ * Give up the block's own structural bytes at both ends: an ATX heading's `# ` and closing run, a
+ * setext underline. Reads the kind's content range and nothing else, so the rewrite cannot
+ * disagree with the check that let the key through. Null where the content is the whole display.
  */
 export function demoteToParagraph(
 	raw: string,
 	content: ContentRange,
 	preEditOffset: number
 ): TextEditResult | null {
-	if (content.start > 0) return dropStructuralPrefix(raw, content.start, preEditOffset);
-	if (content.end < displayLength(raw))
-		return dropStructuralSuffix(raw, content.end, preEditOffset);
-	return null;
-}
-
-/** Drop everything before `contentStart`: a heading's marker prefix and any spaces before it,
- *  which sit ahead of every caret the content range allows. */
-export function dropStructuralPrefix(
-	raw: string,
-	contentStart: number,
-	preEditOffset: number
-): TextEditResult {
+	if (content.start === 0 && content.end === displayLength(raw)) return null;
+	const inContent = Math.min(Math.max(preEditOffset, content.start), content.end);
 	return {
-		newRaw: raw.slice(contentStart),
-		caretOffset: Math.max(0, preEditOffset - contentStart)
-	};
-}
-
-/** Drop everything past `contentEnd` but the block's own trailing line ending: the setext
- *  underline, which sits after every caret the content range allows. */
-export function dropStructuralSuffix(
-	raw: string,
-	contentEnd: number,
-	preEditOffset: number
-): TextEditResult {
-	return {
-		newRaw: raw.slice(0, contentEnd) + ownTrailingLineEnding(raw),
-		caretOffset: Math.min(preEditOffset, contentEnd)
+		newRaw: raw.slice(content.start, content.end) + ownTrailingLineEnding(raw),
+		caretOffset: inContent - content.start
 	};
 }
 

@@ -1,9 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import {
-	demoteEmptyAtxHeading,
-	demoteToParagraph,
-	dropStructuralSuffix
-} from '$lib/components/blocks/text/text-keydown';
+import { demoteEmptyAtxHeading, demoteToParagraph } from '$lib/components/blocks/text/text-keydown';
+import { getContentRange } from '$lib/core/inline';
+import { parse } from '$lib/core/parser';
 
 // Backspace at a live heading's content start drops the block's own structural bytes before it
 // merges anything. Which bytes those are comes from the kind's content range: a prefix for ATX,
@@ -41,9 +39,25 @@ describe('demoteToParagraph', () => {
 	});
 });
 
-describe('dropStructuralSuffix', () => {
+// Miss-analysis: every case handed in a range with nothing past an ATX heading's content, so a
+// closing `#` run (GFM §4.2), which the range now leaves out, was never demoted.
+describe('demoteToParagraph: an ATX closing run', () => {
+	function demoteHeading(raw: string, offset: number) {
+		return demoteToParagraph(raw, getContentRange(parse(raw).children[0]), offset);
+	}
+
+	it('drops the closing run with the prefix and keeps the block’s own line ending', () => {
+		expect(demoteHeading('## Title ##\r\n', 3)).toEqual({ newRaw: 'Title\r\n', caretOffset: 0 });
+	});
+
+	it('clamps a caret inside the closing run to the content end', () => {
+		expect(demoteHeading('# Hi #\n', 6)).toEqual({ newRaw: 'Hi\n', caretOffset: 2 });
+	});
+});
+
+describe('demoteToParagraph: a setext underline', () => {
 	it('keeps the block’s own trailing line ending', () => {
-		expect(dropStructuralSuffix('Title\r\n===\r\n', 5, 0)).toEqual({
+		expect(demoteToParagraph('Title\r\n===\r\n', { start: 0, end: 5 }, 0)).toEqual({
 			newRaw: 'Title\r\n',
 			caretOffset: 0
 		});
@@ -52,7 +66,7 @@ describe('dropStructuralSuffix', () => {
 	// The suffix is entirely past the caret, so an offset inside the content survives untouched;
 	// one somehow past it clamps rather than pointing into bytes that no longer exist.
 	it('clamps a caret past the content end', () => {
-		expect(dropStructuralSuffix('Title\n===\n', 5, 8)).toEqual({
+		expect(demoteToParagraph('Title\n===\n', { start: 0, end: 5 }, 8)).toEqual({
 			newRaw: 'Title\n',
 			caretOffset: 5
 		});
@@ -65,6 +79,16 @@ describe('dropStructuralSuffix', () => {
 describe('demoteEmptyAtxHeading', () => {
 	it('drops the marker of a heading left with no text', () => {
 		expect(demoteEmptyAtxHeading('## \n', { start: 3, end: 3 })).toEqual({
+			newRaw: '\n',
+			caretOffset: 0
+		});
+	});
+
+	// An empty heading spelled with a closing run: dropping the prefix alone leaves `#`, a heading
+	// again, standing over nothing.
+	it('drops the closing run of an empty heading too', () => {
+		const raw = '# #\n';
+		expect(demoteEmptyAtxHeading(raw, getContentRange(parse(raw).children[0]))).toEqual({
 			newRaw: '\n',
 			caretOffset: 0
 		});
