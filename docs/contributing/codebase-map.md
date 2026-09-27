@@ -276,8 +276,8 @@ question: `splitNode` asks it directly, while
 `reorderChildrenWithTrivia`, and the container-slot ask below all go through
 `absorbWindowSeams`, the window walker over both edges a splice disturbed. Absorbing the join
 ABOVE leaves the predecessor holding the written bytes, so the content entry reports where its
-text ended up, and `settledCaretPosition` is what each caret placement spends: the two
-`updateBlockContent` levels, the cross-block typed character, the cross-block inline paste, and
+text ended up, and `settledCaretPosition` is what each caret placement spends: the keystroke at every
+depth, the cross-block typed character, the cross-block inline paste, and
 the residue a matching list paste leaves.
 
 One reading the absorb must never converge to is a construct the WRITE itself left open, so the

@@ -4,6 +4,7 @@
  * the parent, no unwrap dispatch; the factories add those.
  */
 
+import { tick } from 'svelte';
 import { CURSOR_END, CURSOR_EXACT_START, CURSOR_START } from '../block-component';
 import type { CstNode } from '../core/nodes';
 import { displayLength } from '../core/lines';
@@ -33,8 +34,9 @@ import {
 import { spliceMany } from '../tree-operations/splice-many';
 import { isMergeEligible, isBlockEditable } from '../schema/merge-rules';
 import { getBlockKindDescriptor } from '../schema/block-kind-descriptor';
-import type { CommitAfterTick, Relanding } from '../action-contracts';
+import type { BlockEditActions, CommitAfterTick, Relanding } from '../action-contracts';
 import {
+	legalizeWrite,
 	settledCaretPosition,
 	updateNodeContent,
 	type LegalWrite,
@@ -42,6 +44,9 @@ import {
 } from '../tree-operations/content-write';
 import { landCaretInScope, type CommitScope } from './block-edit-scope';
 import { mergedElseFocusNext, mergedElseFocusPrevious } from './merge-fallback';
+import { previewContentReparse, landUnlessFocusMoved } from './replacement-focus';
+import { admitsWrite } from './commit/reading-write-gate';
+import { withStoredCaret } from './stored-caret';
 
 /** What both merge directions do when the neighbour cannot merge; `dir` names its side. */
 async function handleIneligibleNeighbor(scope: CommitScope, i: number, dir: -1 | 1): Promise<void> {
@@ -66,6 +71,41 @@ async function handleIneligibleNeighbor(scope: CommitScope, i: number, dir: -1 |
 			scope.refAt(dir < 0 ? neighbor : i)?.focus(dir < 0 ? CURSOR_START : CURSOR_END),
 		discardIfNoop: true
 	});
+}
+
+// ── The keystroke ────────────────────────────────────────────────────────────
+
+/**
+ * The `updateBlockContent` every level exposes: one keystroke's write, grouped with its typing
+ * burst, through a commit when the trial reparse sees the block change and in place otherwise.
+ * Nothing awaits between the burst's push and the commit call, or the commit opens an entry of its own.
+ */
+export function contentUpdate(scope: CommitScope): BlockEditActions['updateBlockContent'] {
+	return (index, text, mode, preEditOffset, postEditFocusOffset) => {
+		scope.caretMemory.forget();
+		const write = legalizeWrite(scope.target(), index, text, mode);
+		const caret = write.storedOffset(postEditFocusOffset ?? preEditOffset ?? 0);
+		const kind = () => scope.children()[index]?.kind;
+		if (!admitsWrite(scope.reading, 'updateContent', kind)) {
+			return withStoredCaret(Promise.resolve(), caret, write.storedOffset);
+		}
+		const done = scope.typeIn(index, preEditOffset ?? 0, async () => {
+			const trial = previewContentReparse(scope.target(), index, write, scope.reading.grammar);
+			if (trial.op !== 'noop') {
+				await commitLeafText(scope, index, write, {
+					snapshotOffset: preEditOffset ?? 0,
+					caret,
+					afterTick: (landed) => landUnlessFocusMoved(scope, landed)
+				});
+				return;
+			}
+			const written = scope.writeInPlace(index, write, caret);
+			if (!written.wrote || !written.relanding) return;
+			await tick();
+			await landUnlessFocusMoved(scope, written.relanding);
+		});
+		return withStoredCaret(done, caret, write.storedOffset);
+	};
 }
 
 // ── One leaf's new text through a commit ─────────────────────────────────────

@@ -2,7 +2,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { nodeAt } from '$lib/tree-operations/node-primitives';
 import { lrdMapCouldChange } from '$lib/components/lrd-map-gate';
 import { UNDO_DEBOUNCE_MS } from '$lib/editor-actions/commit/text-batch';
-import { makeNestedHarness } from '$lib/test/harness/editor-actions';
+import { makeNestedHarness, makeTopHarness } from '$lib/test/harness/editor-actions';
 import type { EditEvent } from '$lib/editor-events';
 
 // Why the leaf path matters: `lrdMapCouldChange` reads the event path, so a container-level
@@ -46,5 +46,24 @@ describe('batched input event carries the leaf path', () => {
 		expect(input).toBeDefined();
 		expect(input!.path).toEqual([0, 0]);
 		expect(lrdMapCouldChange(h.deps.doc, input!)).toBe(false);
+	});
+});
+
+// Miss-analysis: every flush here came from a same-kind burst, and a keystroke whose kind change
+// commits skipped the batch below the root, so no row counted it.
+describe('a burst ending in a kind change counts that keystroke', () => {
+	it.each([
+		{ level: 'the top level', source: 'x\n', path: [0] },
+		{ level: 'a quote', source: '> x\n', path: [0, 0] }
+	])('in $level', async ({ source, path }) => {
+		const h = path.length === 1 ? makeTopHarness(source) : makeNestedTyping(source);
+		const actions = 'actions' in h ? h.actions : h.bundle.blockEdit;
+
+		await actions.updateBlockContent(0, '#x\n', 'authored', 0, 1);
+		await actions.updateBlockContent(0, '# x\n', 'authored', 1, 2);
+
+		expect(nodeAt(h.deps.doc, path)?.kind).toBe('heading');
+		const inputs = h.edits.filter((e) => e.op === 'input');
+		expect(inputs.map((e) => [e.path, e.detail])).toEqual([[path, { byteLength: 2 }]]);
 	});
 });

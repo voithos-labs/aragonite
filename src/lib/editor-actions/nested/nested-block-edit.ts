@@ -1,21 +1,17 @@
 /**
- * A container's BlockEditActions. Interior edits go through the shared `block-edit-core`
- * against a container `CommitScope`; this wrapper owns what the core cannot: the children
- * guards, handing edge cases up to `parent.blockEdit`, the unwrap dispatch, and
- * `updateBlockContent`.
+ * A container's BlockEditActions: the shared `block-edit-core` against a container
+ * `CommitScope`, plus what the core cannot own: the children guards, handing edge cases up to
+ * `parent.blockEdit`, and the unwrap dispatch.
  */
 
-import { tick } from 'svelte';
 import type { BlockEditActions } from '../../action-contracts';
 import type { BlockListState } from '../../reactivity/block-list-state.svelte';
-import { legalizeWrite, type LegalWrite } from '../../tree-operations/content-write';
 import { tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
 import { isCollapsedContainer } from '../../schema/reserved-chrome';
 import type { NestedActionsDeps } from './nested-actions';
 import { firstChildUnwrapStrategies, middleChildUnwrapStrategies } from '../unwrap-strategies';
 import { createContainerScope } from '../block-edit-scope';
-import { commitLeafText, createBlockEditCore } from '../block-edit-core';
-import { previewContentReparse, landUnlessFocusMoved } from '../replacement-focus';
+import { contentUpdate, createBlockEditCore } from '../block-edit-core';
 import { withStoredCaret } from '../stored-caret';
 
 export function createNestedBlockEdit(
@@ -25,6 +21,7 @@ export function createNestedBlockEdit(
 	const { parent } = deps;
 	const scope = createContainerScope(state, deps);
 	const core = createBlockEditCore(scope);
+	const writeContent = contentUpdate(scope);
 
 	const blockEdit: BlockEditActions = {
 		// ── Structural mutations (interior → core, edges → parent) ─────────────
@@ -104,41 +101,13 @@ export function createNestedBlockEdit(
 		replaceBlock: (innerIndex, replacement, focus, options) =>
 			core.replaceBlock(innerIndex, replacement, focus, options),
 
-		// ── In-place leaf edits (per-level) ────────────────────────────────────
 		updateBlockContent(innerIndex, text, mode, preEditOffset, postEditFocusOffset) {
-			const asked = postEditFocusOffset ?? preEditOffset ?? 0;
-			if (!deps.node.children) return withStoredCaret(Promise.resolve(), asked);
-			const write = legalizeWrite(scope.target(), innerIndex, text, mode);
-			const caret = write.storedOffset(asked);
-			const work = applyContentUpdate(innerIndex, write, preEditOffset, caret);
-			return withStoredCaret(work, caret, write.storedOffset);
+			if (deps.node.children) {
+				return writeContent(innerIndex, text, mode, preEditOffset, postEditFocusOffset);
+			}
+			return withStoredCaret(Promise.resolve(), postEditFocusOffset ?? preEditOffset ?? 0);
 		}
 	};
-
-	async function applyContentUpdate(
-		innerIndex: number,
-		write: LegalWrite,
-		preEditOffset: number | undefined,
-		caret: number
-	): Promise<void> {
-		if (!deps.node.children) return;
-		const preview = previewContentReparse(scope.target(), innerIndex, write, deps.reading.grammar);
-		if (preview.op !== 'noop') {
-			await commitLeafText(scope, innerIndex, write, {
-				snapshotOffset: preEditOffset ?? 0,
-				caret,
-				afterTick: (landed) => landUnlessFocusMoved(scope, landed)
-			});
-			return;
-		}
-		scope.caretMemory.forget();
-		await scope.typeIn(innerIndex, preEditOffset ?? 0, async () => {
-			const written = scope.writeInPlace(innerIndex, write, caret);
-			if (!written.wrote || !written.relanding) return;
-			await tick();
-			await landUnlessFocusMoved(scope, written.relanding);
-		});
-	}
 
 	return blockEdit;
 }

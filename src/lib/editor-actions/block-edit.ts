@@ -1,19 +1,14 @@
 /**
- * The top-level BlockEditActions. Structural edits go through the shared `block-edit-core`
- * against a top-level `CommitScope`; this adds the edge guards and the one per-level method
- * the core cannot share, `updateBlockContent`.
+ * The top-level BlockEditActions: the shared `block-edit-core` against a top-level
+ * `CommitScope`, with the edge guards the root adds.
  */
 
-import { tick } from 'svelte';
 import type { BlockEditActions } from '../action-contracts';
 import { documentLineEnding } from '../core/lines';
-import { legalizeWrite, type LegalWrite } from '../tree-operations/content-write';
 import type { EditorActionsDeps, UndoController } from './deps';
 import { createTopLevelScope } from './block-edit-scope';
-import { commitLeafText, createBlockEditCore } from './block-edit-core';
+import { contentUpdate, createBlockEditCore } from './block-edit-core';
 import { withEnterCompletion } from './enter-completion';
-import { previewContentReparse, landUnlessFocusMoved } from './replacement-focus';
-import { withStoredCaret } from './stored-caret';
 
 export function createBlockEditActions(
 	deps: EditorActionsDeps,
@@ -21,27 +16,6 @@ export function createBlockEditActions(
 ): BlockEditActions {
 	const scope = createTopLevelScope(deps, controller);
 	const core = createBlockEditCore(scope);
-
-	async function applyContentUpdate(
-		blockIndex: number,
-		write: LegalWrite,
-		preEditOffset: number | undefined,
-		caret: number
-	): Promise<void> {
-		const preview = previewContentReparse(scope.target(), blockIndex, write, deps.reading.grammar);
-		if (preview.op !== 'noop') {
-			await commitLeafText(scope, blockIndex, write, {
-				snapshotOffset: preEditOffset ?? 0,
-				caret,
-				afterTick: (landed) => landUnlessFocusMoved(scope, landed)
-			});
-			return;
-		}
-		const written = scope.writeInPlace(blockIndex, write, caret);
-		if (!written.wrote || !written.relanding) return;
-		await tick();
-		await landUnlessFocusMoved(scope, written.relanding);
-	}
 
 	const actions: BlockEditActions = {
 		// ── Structural split / merge / delete (shared core) ───────────────────
@@ -68,17 +42,7 @@ export function createBlockEditActions(
 		replaceBlock: (blockIndex, replacement, focus, options) =>
 			core.replaceBlock(blockIndex, replacement, focus, options),
 
-		// ── Content update (per-level) ────────────────────────────────────────
-
-		updateBlockContent(blockIndex, text, mode, preEditOffset, postEditFocusOffset) {
-			deps.caretMemory.forget();
-			const write = legalizeWrite(scope.target(), blockIndex, text, mode);
-			const caret = write.storedOffset(postEditFocusOffset ?? preEditOffset ?? 0);
-			const done = scope.typeIn(blockIndex, preEditOffset ?? 0, () =>
-				applyContentUpdate(blockIndex, write, preEditOffset, caret)
-			);
-			return withStoredCaret(done, caret, write.storedOffset);
-		}
+		updateBlockContent: contentUpdate(scope)
 	};
 
 	return withEnterCompletion(
