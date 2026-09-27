@@ -61,9 +61,7 @@ for (const theme of ['light', 'dark'] as const) {
 
 		for (const { mode } of PANELS) {
 			const ep = new EditorPage(page);
-			// Drag handles off and the default theme: a handle showing in one panel and not
-			// another, or a theme that differs between strips, would read as a difference
-			// between the modes.
+			// Drag handles off and the default theme, so neither reads as a difference between the modes.
 			await ep.goto(`?presentationMode=${mode}&dragHandles=false`);
 			await ep.loadContent(NOTE);
 

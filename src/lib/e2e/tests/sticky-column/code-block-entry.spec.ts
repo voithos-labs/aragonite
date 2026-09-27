@@ -180,11 +180,8 @@ test.describe('sticky column: code block entry symmetry', () => {
 		);
 		expect(cellWidth).toBeGreaterThan(0);
 
-		// Entry from above and from below lands on different body lines, where rounding to the
-		// nearest column can honestly differ by one character cell. So the bound is a measured
-		// cell rather than the same-line `PIXEL_TOLERANCE` the sibling tests use, widened by
-		// however far the two clicks' own captured columns fell apart. A broken sticky column
-		// lands several cells away and still fails.
+		// Entry from above and below lands on different body lines, where rounding can differ by one
+		// character cell, so the bound is a measured cell widened by the clicks' own column gap.
 		const captureDelta = Math.abs(capturedAboveX - capturedBelowX);
 		expect(Math.abs(landAboveX - landBelowX)).toBeLessThan(
 			cellWidth + PIXEL_TOLERANCE + captureDelta

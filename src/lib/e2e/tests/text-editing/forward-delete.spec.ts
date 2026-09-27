@@ -17,8 +17,8 @@ test.describe('forward delete', () => {
 		await editor.bridge.waitForSourceContains('Helloworld');
 	});
 
-	// The forward counterpart of the Backspace two-step (`text-editing/edge-cases.spec.ts`):
-	// the thematic break takes whole-block focus first, and deletes on the second press.
+	// The forward counterpart of the Backspace two-step (`text-editing/edge-cases.spec.ts`): the
+	// thematic break takes whole-block focus first, and deletes on the second keypress.
 	test('Delete before thematic break focuses it, and a second press removes it', async () => {
 		await editor.loadContent('Hello\n\n---\n');
 		expect(await editor.bridge.getBlockCount()).toBe(2);

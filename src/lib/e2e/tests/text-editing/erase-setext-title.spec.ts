@@ -100,7 +100,7 @@ const ERASES: {
 	}
 ];
 
-/** Press on the selected text and drag it to `to`: the browser's own selection drag. */
+/** Drags the selected text to `to`: the browser's own selection drag. */
 async function dragSelection(page: Page, from: Point, to: Point): Promise<void> {
 	await page.mouse.move(from.x, from.y);
 	await page.mouse.down();

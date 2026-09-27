@@ -8,7 +8,8 @@ const MARKER_LEAD =
 const MARKER_TAIL =
 	'rest of para **bold one**\n\nrest of para **bold two**\n\nrest of para **bold three**\n';
 
-/** Start at the far block and press twice, so the second press is the one that must cross. */
+/** Start at the far block and press ArrowDown twice, so the second keypress is the one that must
+ *  cross. */
 const DIRECTIONS = [
 	{ key: 'ArrowUp', edge: 'first', start: 2, line: 0 },
 	{ key: 'ArrowDown', edge: 'last', start: 0, line: 4 }
@@ -22,9 +23,8 @@ test.describe('sticky column: rapid cross-block navigation (timing)', () => {
 		await editor.goto();
 	});
 
-	// `isAtFirstVisualLine` and `isAtLastVisualLine` must still see the block boundary under
-	// rapid input when the first or last child is not a text node (heading markers, inline
-	// markup spans); miss it and the browser's own arrow clamps inside the block.
+	// The visual-line checks must see the block boundary under rapid input when the first or last
+	// child is not a text node, or the browser's own arrow clamps inside the block.
 	async function crossesRapidly(
 		doc: string,
 		{ key, start, line }: (typeof DIRECTIONS)[number]

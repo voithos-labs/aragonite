@@ -59,10 +59,8 @@ test.describe('undo and redo', () => {
 	});
 
 	test('undo across a paragraph→htmlBlock flip restores the rendered DOM, not just the source', async () => {
-		// Typing the last character of `<div` reparses the paragraph as an html block, and the
-		// browser has already inserted it, so the DOM matches before the render runs. Checked on
-		// the rendered DOM rather than the source: the tree is right after undo either way, and
-		// only a stale DOM would write the undone byte back on the next keystroke.
+		// Typing the last character of `<div` reparses the paragraph as an html block after the browser
+		// inserted it, so only a stale DOM would write the undone byte back on the next keystroke.
 		await editor.loadContent('<di\n');
 		await editor.focusBlockEnd(0);
 		await editor.typeText('v');

@@ -30,8 +30,7 @@ test.describe('insert toolbar', () => {
 		await expect(table).toBeEnabled();
 	});
 
-	// Miss-analysis: the greying was only ever tested on the way to enabled, and no scenario
-	// took focus out of the editor, so nothing noticed that a blur reported nothing.
+	// Miss-analysis: no scenario moved focus out of the editor, so a silent blur passed.
 	test('buttons grey again when focus leaves the editor', async ({ page }) => {
 		const table = page.getByTestId('insert-table');
 		await editor.clickBlock(0);

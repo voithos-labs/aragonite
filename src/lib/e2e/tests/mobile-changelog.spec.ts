@@ -1,18 +1,16 @@
 import { test, expect } from '../fixtures';
 import { waitForEditorHydrated } from '../page-probes';
 
-// The `/changelog` route at phone width, where the header's single row, which could not wrap,
-// pushed the older release groups, both mode chips and the link past the right edge with no way
-// to scroll to them. At the fixed 1280 viewport the row fits. Everything else about the route is
-// in plugins/changelog-route.spec.ts. Requirements: e2e/requirements/mobile-changelog.md.
+// The `/changelog` route at phone width, where a header row that could not wrap would push the
+// older release groups, both mode chips and the link past the right edge. Everything else about the
+// route is in plugins/changelog-route.spec.ts. Requirements: e2e/requirements/mobile-changelog.md.
 
 const PHONE = { width: 320, height: 640 };
 
 // The first release group, so no later one can take its place at the end of the picker.
 const OLDEST = '0.1';
-// Anchored, and read once before the tap: the newest group's title starts with this one's, so
-// an unanchored match would pass on either document. `toHaveText` keeps the space after the
-// heading's marker in the string it matches, hence the `\s*`.
+// Anchored, since the newest group's title starts with this one's; `toHaveText` keeps the space
+// after the heading's marker, hence the `\s*`.
 const OLDEST_TITLE = /Changelog 0\.1\s*$/;
 
 test.use({ viewport: PHONE, hasTouch: true });

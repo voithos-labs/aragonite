@@ -1,9 +1,9 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
-// Each row selects a run by real Shift+ArrowRight presses from a raw offset, then presses one
-// chord: the toggle wraps the run, strips the delimiters already around it, splits the construct
-// a sub-range selection sits inside, or absorbs the same-format runs a wider selection touches.
+// Each row selects a run with Shift+ArrowRight from a raw offset, then applies one chord: the
+// toggle wraps the run, strips the delimiters already around it, splits the construct a sub-range
+// selection sits inside, or absorbs the same-format runs a wider selection touches.
 const TOGGLES = [
 	{
 		chord: 'Ctrl+B',

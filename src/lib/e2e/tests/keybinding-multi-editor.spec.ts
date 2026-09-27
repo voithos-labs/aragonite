@@ -63,31 +63,26 @@ test.describe('multi-editor document-chord containment', () => {
 		await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
 		await page.keyboard.press('ControlOrMeta+z');
 
-		// Ignoring keys that arrive on <body> would leave undo dead once the caret's block is
-		// unmounted (perf/vr-reveal F2); taking them always would reach too far, which is what
-		// the last-interacted rule prevents.
+		// Ignoring keys that arrive on <body> would leave undo dead once the caret's block unmounts;
+		// taking them always would reach too far, which the last-interacted rule prevents.
 		await expect(left).not.toContainText('LEFTMARK');
 		await expect(right).toContainText('RIGHTMARK');
 	});
 });
 
 test.describe('single-editor document-chord claim', () => {
-	// What a single editor on a page takes: it takes the key when focus is inside it, on a
-	// control of the app's that is not a text field, or on <body>; it leaves the key alone when
-	// focus is in a text field of the app's, so it never takes a shortcut from a field the user
-	// is typing in.
+	// A single editor takes the key when focus is inside it, on an app control that is not a text
+	// field, or on <body>, and never from an app text field the user is typing in.
 
-	// Focus on a control beside the editor is neither inside it nor on <body>, so a rule that
-	// demands one of those strands the shortcut, and only a single editor taking it can deliver
-	// it. That is what broke Ctrl+H after a click on the reading-mode toggle.
+	// Focus on a control beside the editor is neither inside it nor on <body>, so a rule demanding
+	// one of those would strand the shortcut, as after a click on the reading-mode toggle.
 	test('the sole editor claims Ctrl+F while an outside control holds focus', async ({ page }) => {
 		const editor = new EditorPage(page);
 		await editor.goto();
 		await editor.loadContent('# Title\n\nAlpha paragraph\n');
 
-		// Focus a header control outside the editor without clicking, since a click would
-		// switch the mode. Focus now rests on a real element that is neither <body> nor inside
-		// the editor, which is the state a click on the reading-mode toggle leaves behind.
+		// Focuses a header control without clicking, since a click would switch the mode: focus rests
+		// on an element neither <body> nor inside the editor, as a toggle click leaves it.
 		await page.getByTestId('presentation-toggle').focus();
 		await expect
 			.poll(() =>

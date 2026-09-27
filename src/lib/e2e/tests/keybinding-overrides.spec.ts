@@ -110,10 +110,8 @@ test.describe('keybinding-override prop', () => {
 	});
 });
 
-// A caret in a gap focuses a hidden host of its own, so the editor root's handler declines and
-// that host resolves the binding itself. No block is focused and there is no kind to fall back
-// on, so this is where a check that ignores overrides is fatal rather than merely wrong:
-// nothing else on the way can run the rebound command.
+// A caret in a gap focuses a hidden host, so the root handler declines and the host resolves the
+// binding itself; with no block or kind to fall back on, nothing else can run the rebound command.
 test.describe('override fires where no block holds focus', () => {
 	test('Mod+Alt+U undo fires at the gap caret between two blocks', async ({ page }) => {
 		const editor = new EditorPage(page);

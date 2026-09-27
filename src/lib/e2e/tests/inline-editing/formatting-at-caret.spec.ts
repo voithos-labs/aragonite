@@ -3,7 +3,7 @@ import { EditorPage } from '../../editor-page';
 
 // Mod+B with no selection: where the pair lands and how undo takes it back
 // (`requirements/inline-editing/formatting-at-caret.md`). Which pair the toggle writes is
-// pinned in `test/core/inline/format-toggle-caret.test.ts`.
+// checked in `test/core/inline/format-toggle-caret.test.ts`.
 
 test.describe('inline formatting at a collapsed caret', () => {
 	let editor: EditorPage;
@@ -35,9 +35,8 @@ test.describe('inline formatting at a collapsed caret', () => {
 		expect((await editor.bridge.getSource()).trim()).toBe('Hello world');
 	});
 
-	// A command is not typing: the toggle breaks the keystroke batch on both sides, so the typing
-	// it opened unwinds first and the pair survives that press. Pinned so a change to the
-	// checkpoint machinery cannot move it silently.
+	// The toggle breaks the keystroke batch on both sides, so the typing it opened unwinds first and
+	// the pair survives that undo.
 	test('text typed inside the pair unwinds before the toggle does', async ({ page }) => {
 		await editor.loadContent('Hello \n');
 		await editor.focusBlockEnd(0);

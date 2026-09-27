@@ -101,7 +101,7 @@ test.describe('sticky column: a paragraph whose only content is widgets', () => 
 		for (let i = 0; i < 5; i++) await page.keyboard.press('ArrowRight');
 		await editor.waitForRenderFlush();
 		const nearest = await widgetsLeftOfColumn(page, await editor.getCaretPixelX());
-		// Neither end of the run, so the landing is one the pre-fix search could not return.
+		// Neither end of the run, so the landing needs the search across the widget boundaries.
 		expect(nearest).toBeGreaterThan(0);
 		expect(nearest).toBeLessThan(10);
 		await page.keyboard.press('ArrowDown');
