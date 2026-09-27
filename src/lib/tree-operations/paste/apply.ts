@@ -66,15 +66,9 @@ async function commitInlineCrossBlock(
 			// The node may still be snapshot-shared, and the same-kind branch of the reparse
 			// writes its raw in place (G1.9).
 			ensureUnsharedChild(view, leafIndex, view.sharing);
-			const body = {
-				children: view.children,
-				ownerKind: view.node.kind,
-				owner: view.node,
-				lineEnding: view.lineEnding
-			};
-			const write = legalizeWrite(body, leafIndex, result.newRaw, 'literal');
+			const write = legalizeWrite(view.body, leafIndex, result.newRaw, 'literal');
 			caret = write.storedOffset(result.caretOffset);
-			settled = updateNodeContent(body, leafIndex, write, ctx.reading.grammar, view.sharing);
+			settled = updateNodeContent(view.body, leafIndex, write, ctx.reading.grammar, view.sharing);
 			siblings = view.children;
 			stampStructuralChange(view.children, settled.change, view.sharing);
 			return [settled.change];

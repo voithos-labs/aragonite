@@ -18,7 +18,6 @@ import {
 import type { BlockListState } from '../reactivity/block-list-state.svelte';
 import type { NestedActionsDeps } from './nested/nested-actions';
 import { mergedElseFocusPrevious } from './merge-fallback';
-import { scopeParentOf } from './block-edit-scope';
 import { extendDocPath } from '../cursor/coordinate-spaces';
 
 export interface UnwrapStrategyDeps {
@@ -39,12 +38,7 @@ async function deleteEmptyItem(
 		state,
 		snapshot: { path: extendDocPath(deps.path, itemIndex), offset: 0 },
 		mutate: (scope) => {
-			const change = performDelete(
-				scopeParentOf(scope),
-				itemIndex,
-				deps.reading.grammar,
-				scope.sharing
-			);
+			const change = performDelete(scope.body, itemIndex, deps.reading.grammar, scope.sharing);
 			renumberOrderedList(scope.node, itemIndex, scope.sharing);
 			return change;
 		},

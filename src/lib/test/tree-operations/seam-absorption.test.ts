@@ -77,7 +77,7 @@ describe('a splice absorbs a join the reload would fold (GH #61)', () => {
 	it('a list-scope delete never absorbs items into a nested list', () => {
 		const doc = parse('1. First\n2. Second\n3. Third\n');
 		const list = doc.children[0];
-		const parent = { children: list.children!, ownerKind: list.kind, owner: list };
+		const parent = { children: list.children!, owner: list };
 
 		const change = deleteNode(parent as never, 1, defaultGrammarView);
 

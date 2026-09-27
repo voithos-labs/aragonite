@@ -24,7 +24,6 @@ function writeBody(container: CstNode, at: number, text: string): void {
 	updateNodeContent(
 		{
 			children: container.children!,
-			ownerKind: container.kind,
 			owner: container,
 			lineEnding: firstLineEnding(container.raw) ?? '\n'
 		},

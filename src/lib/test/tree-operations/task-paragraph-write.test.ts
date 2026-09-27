@@ -19,7 +19,6 @@ function writeFirstTaskChild(doc: Document, text: string): CstNode {
 	updateNodeContent(
 		{
 			children: item.children!,
-			ownerKind: item.kind,
 			owner: item,
 			lineEnding: documentLineEnding(doc)
 		},

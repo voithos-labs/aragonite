@@ -103,7 +103,6 @@ describe('a write closes the construct its own bytes leave open (GH #180)', () =
 		updateNodeContent(
 			{
 				children: quote.children!,
-				ownerKind: quote.kind,
 				owner: quote,
 				lineEnding: documentLineEnding(doc)
 			},

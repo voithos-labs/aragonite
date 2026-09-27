@@ -267,7 +267,7 @@ async function applyContainerMatchingMerge(
 			// The residue can cross a kind boundary (a fence closer landing in a paragraph),
 			// so it reattaches through the reparse path, never a bare write.
 			residue = updateNodeContent(
-				{ children: lastItem.children!, ownerKind: lastItem.kind, owner: lastItem, lineEnding },
+				{ children: lastItem.children!, owner: lastItem, lineEnding },
 				0,
 				lastDisplay + displayAfter + lastLineEnding,
 				ctx.reading.grammar,

@@ -49,7 +49,6 @@ describe('split separator: the half that absorbs gets one', () => {
 		splitNode(
 			{
 				children: quote.children!,
-				ownerKind: quote.kind,
 				owner: quote,
 				lineEnding: documentLineEnding(doc)
 			},

@@ -895,9 +895,9 @@ function retireChildSpans(parent: SeparatorParent): void {
 	if (owner) dropChildSpans(owner);
 }
 
-/** The kind whose body these children are: the one the caller named, or the owner node's own. */
-function ownerKindNameOf(parent: SeparatorParent): string | undefined {
-	return 'ownerKind' in parent ? parent.ownerKind : parent.kind;
+/** The kind whose body these children are: the named owner's, or the parent node's own. */
+export function ownerKindNameOf(parent: SeparatorParent): string | undefined {
+	return 'owner' in parent ? parent.owner?.kind : parent.kind;
 }
 
 function bodyStartFor(kind: string | undefined): number {

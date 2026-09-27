@@ -23,7 +23,6 @@ function emptyBodyChild(container: CstNode, at: number): void {
 	updateNodeContent(
 		{
 			children: container.children!,
-			ownerKind: container.kind,
 			owner: container,
 			lineEnding: firstLineEnding(container.raw) ?? '\n'
 		},

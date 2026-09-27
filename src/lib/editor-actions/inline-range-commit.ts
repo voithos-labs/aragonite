@@ -11,10 +11,14 @@ import { docPathFrom } from '../cursor/coordinate-spaces';
 import { expectStateForNode } from '../reactivity/state-registry';
 import type { Reading } from '../schema/reading';
 import { updateNodeContent } from '../tree-operations/content-write';
-import { isBlockNode, nodeAt, normalizeOwnRaw } from '../tree-operations/node-primitives';
+import {
+	documentBody,
+	isBlockNode,
+	nodeAt,
+	normalizeOwnRaw
+} from '../tree-operations/node-primitives';
 import { stampStructuralChange } from '../tree-operations/structural-change';
 import { ensureUnsharedChild, ensureUnsharedPath } from '../tree-operations/unshare';
-import { scopeParentOf } from './block-edit-scope';
 import type { UndoController } from './deps';
 
 export interface InlineRangeCommitDeps {
@@ -90,21 +94,8 @@ export function createInlineRangeCommit(deps: InlineRangeCommitDeps): InlineRang
 				snapshot,
 				mutate: (children) => {
 					ensureUnsharedPath({ children }, [leafIdx], controller.sharing);
-					const doc = deps.getDoc();
-					const parent = {
-						children,
-						ownerKind: undefined,
-						owner: undefined,
-						lineEnding: documentLineEnding(doc),
-						get suffix() {
-							return doc.suffix;
-						},
-						set suffix(value: string) {
-							doc.suffix = value;
-						}
-					};
 					const { change } = updateNodeContent(
-						parent,
+						documentBody(deps.getDoc(), children),
 						leafIdx,
 						newRaw,
 						deps.reading.grammar,
@@ -131,7 +122,7 @@ export function createInlineRangeCommit(deps: InlineRangeCommitDeps): InlineRang
 			mutate: (scope) => {
 				ensureUnsharedChild(scope.node, leafIdx, scope.sharing);
 				const { change } = updateNodeContent(
-					scopeParentOf(scope),
+					scope.body,
 					leafIdx,
 					newRaw,
 					deps.reading.grammar,

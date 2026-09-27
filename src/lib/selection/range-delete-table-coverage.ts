@@ -110,7 +110,7 @@ async function commitFullTableDelete(
 		snapshot,
 		mutate: (children) => {
 			const change = deleteNode(
-				{ children, ownerKind: undefined, owner: undefined, lineEnding },
+				{ children, owner: undefined, lineEnding },
 				tableIdx,
 				ctx.reading.grammar,
 				ctx.controller.sharing

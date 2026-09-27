@@ -8,6 +8,7 @@ import { tick } from 'svelte';
 import type { BlockEditActions } from '../action-contracts';
 import { documentLineEnding } from '../core/lines';
 import { updateNodeContent as performUpdate, ensureUnsharedPath } from '../tree-operations';
+import { documentBody } from '../tree-operations/node-primitives';
 import { publishScopeFold } from './ancestry-folds';
 import {
 	legalizeWrite,
@@ -58,30 +59,16 @@ export function createBlockEditActions(
 					snapshot: { index: blockIndex, offset: preEditOffset ?? 0 },
 					eventTarget: blockIndex,
 					op: { kind: 'updateContent', detail: { length: text.length } },
-					// ownerKind undefined is the answer, not an omission: the document root has no
-					// body grammar. The suffix goes as accessors so the trailing-line fix-up reads
-					// and writes the live document.
 					mutate: (view) => {
 						view.unshareChild(blockIndex);
 						settled = performUpdate(
-							{
-								children: view.children,
-								ownerKind: undefined,
-								owner: undefined,
-								lineEnding: view.lineEnding,
-								get suffix() {
-									return deps.doc.suffix;
-								},
-								set suffix(value: string) {
-									deps.doc.suffix = value;
-								}
-							},
+							documentBody(deps.doc, view.body.children),
 							blockIndex,
 							write,
 							deps.reading.grammar,
 							view.sharing
 						);
-						stampStructuralChange(view.children, settled.change, view.sharing);
+						stampStructuralChange(view.body.children, settled.change, view.sharing);
 						return settled.change;
 					},
 					afterTick: () => focusAfterContentReplace([], blockIndex, settled, focusOffset, scope)
@@ -94,16 +81,10 @@ export function createBlockEditActions(
 			return;
 		}
 		// Routine typing: an in-place write outside a commit, so copy the node first when an undo
-		// snapshot shares it. No suffix on purpose: the trial reparse already sent every case
-		// that turns the trailing line into a block through a commit, so none can happen here.
+		// snapshot shares it.
 		ensureUnsharedPath(deps.doc, [blockIndex], deps.sharing);
 		const settled = performUpdate(
-			{
-				children: deps.doc.children,
-				ownerKind: undefined,
-				owner: undefined,
-				lineEnding: documentLineEnding(deps.doc)
-			},
+			documentBody(deps.doc),
 			blockIndex,
 			write,
 			deps.reading.grammar,

@@ -187,7 +187,7 @@ function writeLeaf(doc: Document, { holder, index, chain }: LeafSlot, text: stri
 	else {
 		const owner = holder as CstNode;
 		updateNodeContent(
-			{ children, ownerKind: owner.kind, owner, lineEnding: documentLineEnding(doc) },
+			{ children, owner, lineEnding: documentLineEnding(doc) },
 			index,
 			text,
 			defaultGrammarView

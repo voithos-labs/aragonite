@@ -9,6 +9,7 @@ import type { LineEnding } from './core/lines';
 import type { StructuralChange } from './tree-operations/structural-change';
 import type { TrackedPosition } from './tree-operations/settle';
 import type { SharingState } from './tree-operations/sharing';
+import type { BodyParent } from './tree-operations/node-primitives';
 import type { BlockComponent, FocusPosition } from './block-component';
 import type { ScopedOpDescriptor } from './schema/operations';
 import type { WriteMode } from './schema/block-kind-descriptor';
@@ -146,6 +147,8 @@ export interface ContainerScope {
 	sharing: SharingState;
 	/** The document's line ending, which every line the mutation writes takes. */
 	lineEnding: LineEnding;
+	/** `children` as the body the tree operations write; at the document root it has no owner. */
+	readonly body: BodyParent;
 }
 
 // ── Multi-scope commit ──────────────────────────────────────────────────────

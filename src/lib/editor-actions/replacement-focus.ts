@@ -54,7 +54,6 @@ export function previewContentReparse(
 	return updateNodeContent(
 		{
 			children: [probe],
-			ownerKind: owner?.kind,
 			owner: ownerCopy,
 			suffix: tailSuffix,
 			lineEnding
