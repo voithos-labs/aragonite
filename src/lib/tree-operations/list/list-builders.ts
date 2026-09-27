@@ -85,9 +85,8 @@ function mintListItem(
 }
 
 /**
- * A bare list shell with empty raw. Unlike `assembleListHalf` it neither renumbers nor
- * rebuilds raw; a live-tree caller owns that and must route it through `sharing` so the
- * moved items are copied before being written (`unshare.ts`).
+ * A bare list shell that neither renumbers nor rebuilds raw; a live-tree caller does both through
+ * `sharing`, so the moved items are copied before being written.
  */
 export function buildListShell(ordered: boolean, children: CstNode[]): CstNode {
 	const metadata: ListMetadata = { ordered };
@@ -104,10 +103,8 @@ export function buildListShell(ordered: boolean, children: CstNode[]): CstNode {
 // ── Paste split ──────────────────────────────────────────────────────────────
 
 /**
- * Slice a leaf's raw at `offset` for a paste-style split, re-parsing each half; the trailing
- * half is every block its lines make. One leading space or tab is trimmed from it, which would
- * otherwise double the space after the new marker. `raw` overrides the leaf's own bytes, which
- * a paste that ran a delete half first supplies; `ending` is the document's.
+ * Split a leaf's raw at `offset` for a paste, trimming one leading space or tab off the trailing
+ * half so the new marker's space isn't doubled. `raw` overrides the leaf's bytes after a delete.
  */
 export function splitLeafForPaste(
 	leaf: CstNode,
@@ -129,9 +126,8 @@ export function splitLeafForPaste(
 }
 
 /**
- * The leading and trailing items replacing `item` when a paste splits it at
- * `(innerIndex, offset)`. Either side is null when the caret sits flush against a
- * boundary. `targetRaw` overrides the target leaf's bytes, as in `splitLeafForPaste`.
+ * The items replacing `item` when a paste splits it at `(innerIndex, offset)`; either is null when
+ * the caret sits flush against a boundary.
  */
 export function buildSplitItems(
 	item: CstNode,
@@ -172,9 +168,8 @@ export function buildSplitItems(
 }
 
 /**
- * The item holding the text after a split. Its first block goes on the marker line unless the
- * reload reads that line otherwise (indented code there reads as a wider marker); then it opens
- * on the line after an empty marker, which is how the parser reads an item starting that way.
+ * The item holding the text after a split, its first block on the marker line unless the reload
+ * reads that line otherwise (indented code reads as a wider marker), then below an empty marker.
  */
 function trailingItemFor(
 	template: CstNode,

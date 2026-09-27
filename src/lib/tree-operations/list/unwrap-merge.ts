@@ -1,7 +1,6 @@
 /**
- * Structural list-item reshaping for U1 (unwrap a list's first item) and M1 (merge a
- * non-first item into the deepest text leaf of the preceding item). Both preserve absolute
- * indent and keep ordered-marker sequences intact.
+ * Unwrapping a list's first item, and merging a later item into the deepest text leaf of the one
+ * before it. Both keep each block's absolute indent and the ordered-marker sequence.
  */
 
 import type { CstNode, ListMetadata } from '../../core/nodes';
@@ -22,9 +21,8 @@ import { assignIds } from '../../block-id';
 import { pushChild } from '../children';
 
 /**
- * Unwrap a list's first item (Rule U1) without mutating the input. Output order: the item's
- * non-promoting children lifted in place, then the shrunk parent list with the promoted
- * sub-list items prepended and ordered markers renumbered.
+ * Unwrap a list's first item without mutating the input: the item's other children lifted out,
+ * then the rest of the list with the promoted sub-list items first.
  */
 export function unwrapFirstItemFromList(list: NodeView): CstNode[] {
 	if (list.kind !== 'list' || !list.children || list.children.length === 0) {
@@ -79,7 +77,7 @@ export function unwrapFirstItemFromList(list: NodeView): CstNode[] {
 	return liftedBlocks;
 }
 
-/** M1's target-finder; null when no prose leaf is reachable. */
+/** The merge target's path; null when no prose leaf is reachable. */
 function findDeepestVisibleTextTarget(list: CstNode, targetItemIndex: number): number[] | null {
 	if (!list.children || targetItemIndex < 0 || targetItemIndex >= list.children.length) {
 		return null;
@@ -90,9 +88,8 @@ function findDeepestVisibleTextTarget(list: CstNode, targetItemIndex: number): n
 }
 
 /**
- * The depth-1 sibling list that "preserve absolute indent" promotes into: the last list
- * child of the merge target's top-level item, only when the target sits deep enough
- * (path length >= 4). Unshares the list it resolves.
+ * The last list child of the merge target's top-level item, where a deep target's nested items
+ * go to keep their indent. Unshares the list it resolves.
  */
 function depthOneListFor(
 	list: CstNode,
@@ -111,9 +108,8 @@ function depthOneListFor(
 }
 
 /**
- * Move the merged-away item's remaining children, keeping their absolute indent: nested-list
- * items promote to the depth-1 sibling list when the merge target sits deeper, everything else
- * joins the target item. Each child is copied first, so the undo entry's deleted item stays intact.
+ * Move the merged item's remaining children to where they keep their absolute indent, copying each
+ * first so the undo entry's deleted item stays intact.
  */
 function relocateRemainingChildren(
 	list: CstNode,
@@ -196,7 +192,7 @@ export function mergeListItemIntoPrevious(
 	rebuildAncestryRaw(list, targetPath);
 
 	if (metadataOf(list, 'list')?.ordered) {
-		// M1 only removes a non-first item, so children[0] keeps the list's original base;
+		// The merge only removes a non-first item, so children[0] keeps the list's starting number;
 		// renumber from 1 to continue it rather than resetting the sequence.
 		renumberOrderedList(list, 1, sharing);
 		rebuildListRaw(list);

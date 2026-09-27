@@ -39,9 +39,8 @@ export interface ListBreakOut {
 }
 
 /**
- * The break-out plan, or null: requires a top block declaring `containerPaste.siblingAbsorb`
- * whose `matchesAncestor` rejects the nearest list ancestor (matching pastes belong to
- * `list-absorb` and must not also trigger here), targeting a direct leaf of the listItem.
+ * The break-out plan when a top block declaring `containerPaste.siblingAbsorb` does not match the
+ * nearest list and the target is a direct leaf of its item; null otherwise.
  */
 export function findListBreakOut(
 	doc: Document,
@@ -146,9 +145,8 @@ export interface ListBreakOutReplacement {
 }
 
 /**
- * Split `list` at `(itemIndex, innerIndex, offset)` and splice `pastedBlocks` between the
- * halves. `hasTrailingResidue` lets the caller land the caret on the last pasted block
- * rather than the residue. Input nodes are cloned, not mutated.
+ * Split `list` at `(itemIndex, innerIndex, offset)` and splice `pastedBlocks` between the halves,
+ * cloning every input node rather than mutating it.
  */
 export function buildListBreakOutReplacement(
 	list: CstNode,

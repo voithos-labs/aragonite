@@ -12,20 +12,16 @@ import type { TrackedPosition } from '../settle';
 import { leafAtRawOffset, type LeafPosition } from '../container-offsets';
 
 /**
- * Focus index for the replacement: the last pasted node. Defined once so every structural route
- * skips the reattached residue identically. Applies only where the residue is a separate node;
- * a route that reattaches it inside the last pasted leaf lands at a char offset in a different
- * coordinate space.
+ * The last pasted node's index, shared so every structural route skips a residue node the same
+ * way; a residue reattached inside the last pasted leaf is not a node and isn't counted.
  */
 export function focusIndexBeforeResidue(replacementLength: number, hasResidue: boolean): number {
 	return hasResidue && replacementLength >= 2 ? replacementLength - 2 : replacementLength - 1;
 }
 
 /**
- * The position the fix-up must keep updated: the end of the pasted bytes, as an index into the
- * list. `CURSOR_END` resolves to the node's own display end here: the sentinel value handed to
- * the tracker would clamp to whatever a merge reattached behind it, which is the bug it exists
- * to prevent.
+ * The end of the pasted bytes, for the fix-up's merges to keep updated. `CURSOR_END` resolves to
+ * the node's display end here, or the tracker would clamp it past whatever a merge reattached.
  */
 export function trackedPasteCaret(
 	replacement: readonly CstNode[],
@@ -41,10 +37,8 @@ export function trackedPasteCaret(
 }
 
 /**
- * Where the caret sits, given {@link trackedPasteCaret}'s updated position: the leaf inside the
- * landed block holding the tracked byte, as a path below that block and an offset in the leaf.
- * Anything the caller named itself stands as given, and a block whose bytes map to no leaf
- * (a table) takes the caret at its end.
+ * The leaf and offset holding the tracked byte inside the landed block. An offset the caller named
+ * stands as given, and a block whose bytes map to no leaf (a table) takes the caret at its end.
  */
 export function landedPastePosition(
 	landed: NodeView | undefined,

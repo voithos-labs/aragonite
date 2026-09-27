@@ -33,10 +33,8 @@ export interface ListAbsorb {
 }
 
 /**
- * The absorb plan, or null when any precondition fails: a single top block declaring
- * `containerPaste.siblingAbsorb`, whose `matchesAncestor` accepts the nearest list
- * ancestor, targeting a direct leaf of the listItem. Mismatched types fall through to
- * `findListBreakOut`.
+ * The absorb plan when a single top block declaring `containerPaste.siblingAbsorb` matches the
+ * nearest list and the target is a direct leaf of its item; null otherwise.
  */
 export function findListAbsorb(
 	doc: Document,

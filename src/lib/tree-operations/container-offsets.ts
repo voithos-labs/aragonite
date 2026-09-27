@@ -1,8 +1,7 @@
 /**
- * Between a byte offset in a block's `raw` and a caret position in one of its leaves. A caret
- * sits in a leaf, while a fix-up that merges blocks tracks a position as an offset into the
- * merged block's raw; a container's raw re-prefixes its children's lines (`> `, an item's indent),
- * so the offset is mapped line by line. Only a `'strip'` container's layout is known here.
+ * Maps between a byte offset in a block's `raw` and a caret position in one of its leaves, for a
+ * fix-up that tracks the caret through a merge. A container's raw re-prefixes its children's lines
+ * (`> `, an item's indent), so the map goes line by line; only a `'strip'` container's is known.
  */
 
 import type { NodeView } from '../core/node-views';
@@ -19,9 +18,8 @@ export interface LeafPosition {
 // ── Public API ───────────────────────────────────────────────────────────────
 
 /**
- * The leaf and offset `rawOffset` addresses inside `node`, descending through every container on
- * the way. Null when a container on the way is not a strip container, whose bytes this module
- * cannot map to its children.
+ * The leaf and offset `rawOffset` addresses inside `node`; null when a container on the way is
+ * not a strip container, whose bytes this module can't map to its children.
  */
 export function leafAtRawOffset(node: NodeView, rawOffset: number): LeafPosition | null {
 	const descriptor = tryGetBlockKindDescriptor(node.kind);
@@ -71,9 +69,8 @@ export function rawOffsetOfLeaf(
 // ── Line mapping ─────────────────────────────────────────────────────────────
 
 /**
- * A strip container's raw and its body (`innerPrefix`, the children's bytes, `innerSuffix`) as
- * lines. The body's lines are the raw's last lines, each with some prefix in front (none on a
- * lazy continuation line); any raw line above them is the container's own opener.
+ * A strip container's raw and body as lines: the body is the raw's last lines, each behind a
+ * prefix (none on a lazy continuation line), and any raw line above them is the opener.
  */
 interface LineTable {
 	raw: ParsedLine[];

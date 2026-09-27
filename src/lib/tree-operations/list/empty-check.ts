@@ -2,9 +2,8 @@ import type { NodeView } from '../../core/node-views';
 import { isBlankText } from '../../core/lines';
 
 /**
- * A list item is "user-empty" when every leaf descendant's raw is blank. Deliberately
- * stronger than testing the first child: a shallow check drops trailing content whenever
- * the first paragraph happens to be empty.
+ * A list item is empty to the user when every leaf's raw is blank; checking only the first child
+ * would drop trailing content under an empty first paragraph.
  */
 export function isItemUserEmpty(item: NodeView): boolean {
 	if (!item.children || item.children.length === 0) return true;

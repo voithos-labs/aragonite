@@ -20,10 +20,8 @@ export function pushChild(container: CstNode, child: CstNode): void {
 }
 
 /**
- * Bring `childIds` back to `children`'s length after an in-place children swap. The
- * surviving prefix keeps its ids: fresh ids for all would remount every child under
- * Svelte's keyed each, the identity the swapping branches exist to preserve. No-op when
- * the array is absent; the mounting BlockList backfills it.
+ * Bring `childIds` back to `children`'s length after an in-place swap. The surviving prefix keeps
+ * its ids, since fresh ones would remount every child under Svelte's keyed each.
  */
 export function resyncChildIds(container: CstNode): void {
 	dropChildSpans(container);

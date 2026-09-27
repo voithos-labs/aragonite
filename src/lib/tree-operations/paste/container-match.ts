@@ -49,9 +49,8 @@ interface ContainerUnwrap {
 }
 
 /**
- * Whether to flatten the paste into a matching ancestor container. Empty target
- * descendants always unwrap; non-empty ones only in cross-block context, so a single-block
- * paste into a partially-filled item keeps the nested-sub-container behavior.
+ * Whether to flatten the paste into a matching ancestor container: an empty target always, a
+ * filled one only across blocks, so a single-block paste into a filled item nests a sub-container.
  */
 export function findContainerMatchingUnwrap(
 	doc: Document,
@@ -116,9 +115,8 @@ function isEmptyContainerChild(
 }
 
 /**
- * The one paragraph an unwrapped item's text may be spliced as. The merge slices a display
- * offset out of the target leaf and reattaches the residue, which only prose bytes can address,
- * so both writes re-check this rather than trusting the finder's check from a distance.
+ * The one paragraph an unwrapped item's text may be spliced as. Only prose bytes can take the
+ * merge's display offset, so both writes re-check rather than trust the finder.
  */
 function singleParagraphChildOf(node: CstNode): CstNode | null {
 	if (!node.children || node.children.length !== 1) return null;

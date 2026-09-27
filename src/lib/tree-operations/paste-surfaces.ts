@@ -38,15 +38,11 @@ export interface ScopedStructuralPasteInput {
 
 export interface PasteSurface {
 	kind: AnyBlockKind;
-	/**
-	 * This kind's editable element holds text, never blocks (a table cell), so a blank block at
-	 * the clipboard's edge is the copy's packaging: it neither picks the route nor lands in a
-	 * structural splice.
-	 */
+	/** The kind's editable element holds text, never blocks (a table cell), so a blank block at the
+	 *  clipboard's edge is packaging: it neither picks the route nor lands in a splice. */
 	blankEdgesArePackaging?: boolean;
-	/** Splice `text` into `node` at `offset` (optionally pre-deleting a range). Pure. `reading` is
-	 *  the editor's: the pre-delete is a join, cleaned where the caret's block hides its delimiters.
-	 *  `lineEnding` is the document's, which every line a hook writes takes. */
+	/** Pure. The pre-delete is a join, cleaned per `reading` like any other; every line the hook
+	 *  writes takes `lineEnding`, the document's. */
 	onInlinePaste?(
 		node: CstNode,
 		offset: number,

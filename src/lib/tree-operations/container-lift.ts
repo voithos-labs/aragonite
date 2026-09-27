@@ -1,8 +1,7 @@
 /**
- * Lift a container's first child out while the container itself survives (Rule U2's other
- * shape): the remainder keeps its kind and its `rebuildRaw` re-emits the syntax, so a marker
- * held in metadata survives. `blockquote.ts`'s `unwrapFirstChildFromQuote` is the shape
- * where the opener lives on the first line and the lift drops it.
+ * Lift a container's first child out while the container survives: the remainder keeps its kind
+ * and `rebuildRaw` re-emits its syntax, so a marker held in metadata survives. For a quote whose
+ * marker sits on the opener line, `unwrapFirstChildFromQuote` drops it instead.
  */
 
 import type { CstNode } from '../core/nodes';

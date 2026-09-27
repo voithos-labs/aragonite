@@ -1,5 +1,5 @@
 /**
- * The partition the first-item unwrap (Rule U1) and the empty-item exit share: a nested list whose
+ * The partition the first-item unwrap and the empty-item exit share: a nested list whose
  * `ordered` matches the parent gives its items to the parent level, everything else lifts out as a
  * sibling block. Output is fully owned; the input is not mutated.
  */

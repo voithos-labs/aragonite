@@ -10,7 +10,7 @@ import { devWarn } from '../dev-warn';
 import type { GrammarView } from '../schema/block-openers';
 
 // A stale index (a mid-drag delete shrank the array) would splice `undefined` into the
-// $state tree, so both entry points bail through this before any copy or write.
+// $state tree, so both entry points check the bounds before any copy or write.
 function isReorderOutOfBounds(from: number, to: number, len: number): boolean {
 	if (from < 0 || from >= len || to < 0 || to >= len) {
 		devWarn('reorder', `reorder out of bounds: from=${from} to=${to} len=${len}`);
@@ -38,11 +38,8 @@ export function reorderChildren(children: CstNode[], from: number, to: number): 
 }
 
 /**
- * Reorder children while keeping block separators with their positions. A separator is stored as
- * the next child's `leadingTrivia` but read per position, so it belongs to the position, not the
- * node. Writing it is a byte write, so the spanned children are copied first (`unshare.ts`) and
- * `children` must already be an owned array. The result carries where the block ended up: a
- * merge fixing a join the move broke can sit above the moved block.
+ * Reorder children, each separator staying with its position rather than its node. `children`
+ * must be an owned array; the result's `landing` counts any merge the move set off.
  */
 export function reorderChildrenWithTrivia(
 	children: CstNode[],
@@ -90,9 +87,8 @@ export function reorderChildrenWithTrivia(
 }
 
 /**
- * In a document with no final line break, the block that left the last position ends its line and
- * the block now there gives up its ending. A blank block is nothing but its line break, so it
- * keeps it, and the document ends in that blank line.
+ * With no final line break, the block that stops being last gains a line ending and the one that
+ * becomes last gives its up, unless it is blank, since a blank block is nothing but that break.
  */
 function handOverOpenTail(
 	children: CstNode[],
@@ -107,10 +103,8 @@ function handOverOpenTail(
 }
 
 /**
- * Give the follower at `at` a separator where the reload would otherwise not read the two
- * blocks back as themselves, and only then: a block that swallows across a blank line (an
- * unterminated fence taking the prose below it) is the reload's true reading, left to the
- * neighbour merge, which its tests pin.
+ * Give the follower at `at` a separator only where the reload would not read the two blocks back
+ * as themselves; a block that swallows across a blank line is left to the neighbour merge.
  */
 function separateSeam(
 	children: CstNode[],
@@ -121,7 +115,7 @@ function separateSeam(
 	if (at <= 0 || at >= children.length) return;
 	const prev = children[at - 1];
 	const next = children[at];
-	// The block above has this one below it, so it closes its line in the document's ending.
+	// The block above is not the last, so its line ending is the document's.
 	const apart = withLeadingLine(next.leadingTrivia, ownTrailingLineEnding(prev.raw));
 	if (apart === next.leadingTrivia) return;
 	const readsAsBoth = (trivia: string) => readsAsPair(prev, trivia, next, grammar);

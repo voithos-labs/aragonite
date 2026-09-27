@@ -61,9 +61,8 @@ export interface PasteDispatchContext {
 	/** The paste lands at the caret a cross-block range delete left: every write commits at the
 	 *  target's parent list, and a partly filled item may take a matching container's items. */
 	crossBlock?: boolean;
-	/** The instance's reading: the clipboard parse and the join branch's same-slot reparse read its
-	 *  grammar, so an unlisted plugin's opener never takes pasted bytes, and the delete half is a
-	 *  join its mode decides the cleanup of. */
+	/** The clipboard parse and the join's reparse use its grammar, so an unlisted plugin's opener
+	 *  never takes pasted bytes; its mode decides the delete half's cleanup. */
 	reading: Reading;
 	/** The plugins this instance activated, so an unlisted plugin's paste hooks stay out. */
 	activePlugins: PluginActivation;
@@ -76,11 +75,8 @@ export interface InlineCaretLanding {
 }
 
 export interface PasteDispatchResult {
-	/**
-	 * Inline-paste caret offset; undefined for structural paste, which handles focus
-	 * itself. Single-block callers apply it synchronously with the raw mutation so both
-	 * land in one reactive flush.
-	 */
+	/** Undefined for a structural paste, which places its own caret. Single-block callers apply it
+	 *  with the raw write, so both land in one reactive flush. */
 	inlineCaretOffset?: number;
 	/** Where the cross-block route's caret ended up, when a merge above the target moved the
 	 *  block itself. */
@@ -229,10 +225,8 @@ function targetAfterPreDelete(
 }
 
 /**
- * A clipboard's trailing blank line is content the parser keeps in `suffix`, which the inline
- * route pastes verbatim, so the structural route lands it too. Only where nothing follows the
- * pasted blocks in the splice (a residue carries its own separator), and never for a kind that
- * treats blank edges as packaging.
+ * The clipboard's trailing blank line (`suffix`), which the inline route pastes verbatim too;
+ * landed only where no residue follows the pasted blocks and the kind keeps blank edges.
  */
 function trailingSeparatorOf(
 	parsed: Document,

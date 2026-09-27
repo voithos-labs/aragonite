@@ -5,9 +5,8 @@ import { spliceChildrenSettled } from './settle';
 import { ensureUnsharedPath } from './unshare';
 
 /**
- * Walk up from `deletedPath`'s parent, removing containers the delete emptied, and stop at
- * `lcaPath` (the range's lowest common ancestor, `[]` for the root), whose containers still hold
- * the start block. Each level is copied before its child is removed (`unshare.ts` header).
+ * Remove the containers a delete emptied, walking up from `deletedPath`'s parent to `lcaPath`
+ * (the range's lowest common ancestor), whose containers still hold the start block.
  */
 export function cascadeCleanupEmptyAncestors(
 	doc: Document,

@@ -14,9 +14,8 @@ import { dropChildSpans } from '../../schema/child-spans';
 import { getBlockKindDescriptor } from '../../schema/block-kind-descriptor';
 
 /**
- * End the node's last line in `ending`, in its own raw and in every node below that holds the same
- * line, so a container keeps the bytes of its other lines (a quote's lazy continuation lines) as
- * they are. With `sharing`, each node below `node` is copied first.
+ * End the node's last line in `ending`, in its own raw and in every node below holding that line,
+ * so a container's other lines (a quote's lazy continuation lines) keep their bytes.
  */
 export function terminateLastLine(node: CstNode, ending: LineEnding, sharing?: SharingState): void {
 	rewriteLastLine(node, (raw) => terminateLine(raw, ending), sharing);

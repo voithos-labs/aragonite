@@ -19,9 +19,8 @@ export interface CutResidue {
 }
 
 /**
- * The text after a paste's cut in a leaf, as blocks. A cut at the end of a line leaves that
- * line's break at the head of the text; it is handed back as `endedLine` rather than read as a
- * blank block, so the caller decides where the break goes.
+ * The text after a paste's cut, as blocks; a line break left at its head comes back as
+ * `endedLine` rather than a blank block, so the caller decides where the break goes.
  */
 export function parseCutResidue(
 	text: string,

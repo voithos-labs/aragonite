@@ -27,8 +27,8 @@ export type StructuralChange =
 	  };
 
 /**
- * Replace [at, at+count) where the first new item inherits the old first item's id and ref,
- * preserving Svelte keyed identity (cursor, IME composition) across the swap.
+ * Replace [at, at+count), the first new item keeping the first replaced item's id and ref so its
+ * component (caret, IME composition) survives the swap.
  */
 export function replacePreservingFirst(
 	at: number,
@@ -39,9 +39,8 @@ export function replacePreservingFirst(
 }
 
 /**
- * Mark the nodes a change's insert/replace window created as owned by the live tree (existing
- * nodes go through `unshare.ts`), and give every container in them `childIds`: a freshly parsed
- * node has none, and a reused component's nested keyed `{#each}` renders before its re-init.
+ * Mark the nodes the change's window created as owned by the live tree, and give every container
+ * in them `childIds`, since a reused component's keyed `{#each}` renders before its re-init.
  */
 export function stampStructuralChange(
 	children: CstNode[],
@@ -104,9 +103,8 @@ export function applyStructuralChangeToIdsRefs(
 type IdCarrier = { children?: CstNode[]; childIds?: string[] };
 
 /**
- * Borrow `parent.childIds` as the record the splice functions write their net effect into, so a
- * caller running several of them reports what they add up to instead of re-deriving it from
- * lengths (a merge during the fix-up moves positions the caller's own window never named).
+ * Borrow `parent.childIds` to record what several splice functions add up to, since a merge in
+ * the fix-up moves positions the caller's own window never named.
  */
 export function trackChildIds(parent: IdCarrier): {
 	read: () => StructuralChange;
