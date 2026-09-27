@@ -80,9 +80,8 @@ test.describe('component-portal inline widgets', () => {
 	}) => {
 		const idBefore = await editor.mountId();
 
-		// Two open-then-cancel cycles with no render between. Cancelling restores the exact
-		// detached element, so the pool is left alone and no duplicate can mount: the id must hold
-		// through both cycles and the next real render.
+		// Two open-then-cancel cycles with no render between: cancelling restores the exact detached
+		// element, so the id must hold through both cycles and the next real render.
 		for (let cycle = 0; cycle < 2; cycle++) {
 			await clickWidgetCenter(editor.mathWidget);
 			await expect(editor.mathWidget).toHaveCount(0);
@@ -109,9 +108,8 @@ test.describe('component-portal inline widgets', () => {
 		const secondId = await editor.mountId(1);
 		expect(firstId).not.toBe(secondId);
 
-		// Open the second widget, then Escape. Looking the instance up by key alone returns the
-		// oldest one in the pool, and replaceWith moves the first widget's element into the
-		// second's place, so the first formula disappears and the DOM no longer matches the CST.
+		// A key-only lookup would return the pool's oldest instance, and replaceWith would move the
+		// first widget's element into the second's place, so the first formula would vanish.
 		await clickWidgetCenter(editor.mathWidget.nth(1));
 		await expect(editor.mathWidget).toHaveCount(1);
 		await page.keyboard.press('Escape');

@@ -2,12 +2,10 @@ import { test, expect } from '../../fixtures';
 import { DetailsPage, activeBlockPath, bodyHostCount, capturedErrors } from './details-helpers';
 
 /**
- * Scrolling into a collapsed body from the search side: the caret half. Searching for text in an
- * unmounted body child drives the real path against a collapsed details, which expands and commits
- * that. It is not the proof that nothing hangs (VR-5), which is covered by
- * `list-windowing-collapse.svelte.test.ts` and `reveal-child-or-wait.test.ts`. What it proves is
- * that the expansion leaves a working editor behind; the bytes and undo are in
- * details-reveal-expand.spec.ts.
+ * Searching for text in an unmounted body child of a collapsed details expands and commits it, and
+ * leaves a working editor behind. That nothing hangs is covered by
+ * `list-windowing-collapse.svelte.test.ts` and `reveal-child-or-wait.test.ts`; the bytes and undo
+ * are in details-reveal-expand.spec.ts.
  */
 
 // A closed details whose body holds a word found only there, plus a sibling below. Search scans
@@ -43,9 +41,8 @@ test.describe('plugin container: <details> reveal-into-collapsed', () => {
 		await page.getByRole('textbox', { name: 'Find' }).click();
 		await page.keyboard.type('Zebra');
 
-		// The word is found, since the scan reaches the unmounted body, so mounting [0, 1] was
-		// really attempted. The count proves the path ran, not that it finished: the rescan is
-		// synchronous and the mount is not awaited.
+		// The scan reaches the unmounted body, so the count proves the mount was attempted, not
+		// finished: the rescan is synchronous and the mount is not awaited.
 		await expect(page.locator('.search-count')).toHaveText(/1\s*\/\s*1/);
 
 		// The container expanded and committed: the body child mounts and `open` is in the
@@ -69,9 +66,8 @@ test.describe('plugin container: <details> reveal-into-collapsed', () => {
 		// edit, which touches only the summary's bytes.
 		await editor.typeText('!');
 		await editor.bridge.waitForSourceContains('<summary>Sum!</summary>');
-		// The expansion survives that edit: `rebuildDetailsRaw` regenerates the opener line from
-		// metadata on every child write, so a summary keystroke is exactly where a committed `open`
-		// would silently be rebuilt away.
+		// `rebuildDetailsRaw` regenerates the opener line from metadata on every child write, so a
+		// summary keystroke is where a committed `open` would be dropped.
 		expect(await editor.bridge.getSource()).toContain('<details open>\n');
 		expect(await capturedErrors(page)).toEqual([]);
 	});

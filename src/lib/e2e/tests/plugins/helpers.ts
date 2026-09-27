@@ -90,9 +90,8 @@ async function clickWidgetAt(widget: Locator, xOf: (width: number) => number): P
 	await target.click({ position: { x: xOf(box.width), y: box.height / 2 } });
 }
 
-// Show a render-first widget's source by clicking it and waiting for the swap: the rendered widget
-// disappears (count 0) and its source becomes editable text. Block math shows a separate
-// `.math-block-source` element, so it is waited for its own way.
+// Shows a render-first widget's source by clicking it and waiting for the rendered widget to go;
+// block math shows a separate `.math-block-source`, waited for its own way.
 export async function revealWidget(widget: Locator): Promise<void> {
 	await clickWidgetCenter(widget);
 	await expect(widget).toHaveCount(0);
@@ -107,9 +106,8 @@ export interface ContainerState {
 	childKinds: string[];
 	// Leaf raws with trailing newlines stripped, so they read as the visible text.
 	childTexts: string[];
-	// The container node's own raw, which its rebuildRaw must regenerate from the children after
-	// every edit. childTexts and roundTripStable both still pass with a stale container raw; only
-	// this shows the rebuild ran.
+	// The container's own raw, which rebuildRaw regenerates after every edit: childTexts and
+	// roundTripStable both pass with a stale container raw, so only this shows the rebuild ran.
 	raw: string;
 }
 

@@ -2,12 +2,10 @@ import { test, expect } from '../../fixtures';
 import { PluginsPage } from './helpers';
 
 /**
- * Exactly one caret is painted for one caret position, at an inline-math widget's edge. The rule
- * does not depend on the kind and lives with the image tests
- * (blocks/image/caret-synthetic-indicator.spec.ts); this is the plugin counterpart, because the
- * widget a consumer hit it on was math and the image suite runs on a route with no plugins
- * installed. Nothing here can assert the pixel, since Playwright never captures a browser's own
- * caret, only that both carets were live.
+ * Exactly one caret is painted per caret position at an inline-math widget's edge: the plugin
+ * counterpart of blocks/image/caret-synthetic-indicator.spec.ts, whose route installs no plugins.
+ * Playwright never captures the browser's own caret, so this checks which carets were live, not
+ * pixels.
  */
 
 test.describe('inline math: one caret per caret position', () => {
@@ -21,11 +19,8 @@ test.describe('inline math: one caret per caret position', () => {
 		const box = await widget.boundingBox();
 		if (!box) throw new Error('math widget has no bounding box');
 
-		// Click to the right of the widget with no trailing text to land in: the caret goes to an
-		// element-level offset, where the editor paints its own caret because Chromium's is
-		// unreliable there. When Chromium does paint one the user sees two, so the block's own
-		// caret goes dark while the painted one is up, which is the only way to keep them apart
-		// without asking the browser what it drew.
+		// Right of a widget with no trailing text, the caret sits at an element offset where the editor
+		// paints its own caret, so the block's native caret goes dark while that one shows.
 		await page.mouse.click(box.x + box.width + 25, box.y + box.height / 2);
 		await expect(page.locator('[data-inline-widget].md-snap-after')).toHaveCount(1);
 		const caretColor = await page.evaluate(

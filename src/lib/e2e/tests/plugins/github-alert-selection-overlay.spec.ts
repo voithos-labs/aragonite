@@ -38,7 +38,7 @@ test.describe('cross-block selection overlay - a GitHub alert held whole', () =>
 		expect(await boxCoversTitle(page)).toBe(true);
 	});
 
-	// The gesture from the original report, whose endpoints land mid-word, not at the block edges.
+	// Endpoints land mid-word, not at the block edges.
 	test('a pointer drag across the alert paints the same one box', async ({ page }) => {
 		await dragBetweenPoints(
 			page,

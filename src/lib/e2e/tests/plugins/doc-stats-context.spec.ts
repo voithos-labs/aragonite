@@ -2,11 +2,9 @@ import { test, expect } from '../../fixtures';
 import type { Page } from '@playwright/test';
 import { PluginsPage } from './helpers';
 
-// The doc-stats dogfood writes one record per live editor to `window.__docStats`
-// (requirements/plugins/doc-stats-context.md), which is what every test here reads.
-// Single-instance scenarios run on `/test/plugins?seed=docstats` (docStats is a bare entry there,
-// so its label is the 'default' options fallback); multi-instance scenarios on
-// `/test/plugins/multi` (labels left/right).
+// The doc-stats plugin writes one record per live editor to `window.__docStats`, which every test
+// here reads (requirements/plugins/doc-stats-context.md). Single-editor cases run on
+// `/test/plugins?seed=docstats`, labeled 'default'; two-editor cases on `/test/plugins/multi`.
 
 interface StatsRecord {
 	label: string;
@@ -38,10 +36,8 @@ async function waitForStats(
 	return readStats(page);
 }
 
-// The plugin copies references to its records into `window.__docStats`, so this write corrupts the
-// plugin's own entries. Only a recompute for one editor replaces that editor's record, which is
-// what makes "the chord recomputed this editor" visible: its block count recovers while another
-// editor's stays at -1.
+// The plugin's `window.__docStats` entries are its own records, so this write corrupts them, and
+// only a recompute for one editor replaces that editor's record.
 async function poisonStats(page: Page): Promise<void> {
 	await page.evaluate(() => {
 		for (const record of Object.values(window.__docStats ?? {})) record.blocks = -1;
@@ -71,7 +67,7 @@ test.describe('doc-stats context chain: single instance', () => {
 	test('an edit event recomputes stats: typing updates the edit count', async ({ page }) => {
 		await editor.clickBlock(0);
 		await editor.typeSlowly(' plus');
-		// The `input` edit event flushes on the undo batch debounce; the poll settles on it.
+		// The `input` edit event flushes after the typing pause; the poll waits for it.
 		await waitForStats(
 			page,
 			(s) => (Object.values(s)[0]?.edits ?? 0) >= 1 && Object.values(s)[0]?.blocks === 2
@@ -88,10 +84,9 @@ test.describe('doc-stats context chain: single instance', () => {
 	});
 });
 
-// ── The regression test: the attach survives a structural edit ──────────────
-// Attaching inside a tracking effect would tear down and re-run on the first change to `children`,
-// resetting the closure's running edit count and briefly dropping the record. Counting up across a
-// split, an undo and an input, then a chord that still resolves, pins the non-tracking attach.
+// ── The attach survives a structural edit ───────────────────────────────────
+// Attaching inside a tracking effect would re-run on the first `children` change, resetting the
+// edit count and dropping the record; a split, an undo, an input and a working chord rule that out.
 
 test.describe('doc-stats context chain: attach survives a structural edit', () => {
 	test('Enter split + undo leave the subscription live and the chord resolving', async ({

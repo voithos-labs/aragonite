@@ -75,8 +75,8 @@ test.describe('plugin container: footnote definition', () => {
 		const lifted = await readContainer(page, 1);
 		expect(lifted.kind).toBe('paragraph');
 		await expect.poll(() => activeBlockPath(page)).toEqual([1]);
-		// Numbering is over references, not definitions, so the now-orphaned reference keeps
-		// its number and renders rather than throwing.
+		// Numbering counts references, not definitions, so the orphaned reference keeps its number and
+		// renders rather than throwing.
 		await expect(page.locator('.footnote-ref')).toHaveText('1');
 		expect(await capturedErrors(page)).toEqual([]);
 	});
@@ -139,10 +139,8 @@ test.describe('plugin container: footnote definition', () => {
 		await page.keyboard.press('Enter');
 		await editor.waitForRenderFlush();
 
-		// One key at a time: the `[^b]` prefix briefly mounts an inline reference widget on its
-		// closing `]`, and the body is typed against that widget's trailing edge before the
-		// reparse turns the line into a definition marker. The separating space is not typed,
-		// because `:` completes the marker to `[^b]: `.
+		// Typed key by key: `[^b]` briefly mounts a reference widget on its `]` and the body is typed
+		// against it before the reparse makes a definition. `:` completes the marker's space itself.
 		await editor.typeSlowly('[^b]:');
 		await editor.typeSlowly('brand new note');
 		await editor.bridge.waitForSourceContains('[^b]: brand new note');

@@ -99,10 +99,8 @@ test.describe('block math editing edges (live)', () => {
 	});
 });
 
-// A one-line `$$x^2$$` carries its closer on the body's own line, so a range through the body
-// reaches it and the truncation would leave the block open. Written past the block's editable
-// element, so the closer comes back and the block absorbs what the range reached, as a fenced
-// code block does.
+// A one-line `$$x^2$$` keeps its closer on the body's line, so a range through the body reaches
+// it; the closer comes back and the block absorbs the range, as a fenced code block does.
 test.describe('a range out of the body keeps the block (live)', () => {
 	let editor: BlockMathPage;
 

@@ -11,9 +11,8 @@ const FILLER = 140;
 export const NAV_REFS = 'Body has [^a] and [^b] and [^zz] here.';
 
 /**
- * References in the first block, 140 filler paragraphs, then the definitions: long enough that
- * the definitions start unmounted, so a jump has to mount its target. `[^zz]` has no definition,
- * so it is the reference a jump must do nothing for.
+ * References, 140 filler paragraphs, then the definitions, so the definitions start unmounted and
+ * a jump must mount its target. `[^zz]` has no definition, so a jump from it must do nothing.
  */
 export function navDoc(): { md: string; defA: number; defB: number } {
 	const parts = [NAV_REFS];

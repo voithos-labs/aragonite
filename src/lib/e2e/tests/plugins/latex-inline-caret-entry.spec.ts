@@ -2,11 +2,10 @@ import { test, expect } from '../../fixtures';
 import { PluginsPage } from './helpers';
 
 /**
- * Stepping the caret left or right into an inline-math widget opens its source, the Obsidian
- * model, and the caret never rests in the invisible selected-widget state. Which of the two the
- * dispatch picks is pinned in widget-entry-dispatch.test.ts; this drives the real keyboard
- * gestures and checks which side the caret ended on by typing a marker character. For contrast,
- * an image selects instead: blocks/image/{caret-arrows-horizontal,backspace-delete}.spec.ts.
+ * Stepping the caret left or right into an inline-math widget opens its source, and the caret
+ * never rests in the invisible selected-widget state. widget-entry-dispatch.test.ts checks which
+ * the dispatch picks; this drives the real keys and reads the caret's side by typing a marker. An
+ * image selects instead: blocks/image/{caret-arrows-horizontal,backspace-delete}.spec.ts.
  */
 
 class MathEntryPage extends PluginsPage {

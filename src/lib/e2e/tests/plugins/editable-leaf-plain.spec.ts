@@ -97,9 +97,8 @@ test.describe('plain-mode editable leaf: the %% memo kind', () => {
 		});
 		await editor.paste();
 
-		// The text/plain payload lands verbatim, and its newline splits the second line off as a
-		// paragraph, so the document holds `a\nb`. Without the leaf's own onpaste the browser's
-		// paste drops HTML markup into the block and the per-keystroke commit joins the lines.
+		// The text/plain payload lands verbatim, its newline splitting off a paragraph; without the
+		// leaf's own onpaste, HTML markup would land and the commit would join the lines.
 		await editor.bridge.waitForSourceContains('%% memo texta\nb');
 		const html = await page.evaluate(() => document.querySelector('.memo-block')?.innerHTML ?? '');
 		expect(html).not.toContain('<b>');
@@ -152,9 +151,8 @@ test.describe('plain-mode editable leaf: the %% memo kind', () => {
 			await editor.seedClipboard('INSERTED');
 			await editor.paste();
 
-			// The leaf's paste handler sends the selected range through the cross-block delete and
-			// paste, so the selection collapses and the text lands; unreached, the cross-block
-			// state sticks.
+			// The leaf's paste handler sends the range through the cross-block delete and paste, so the
+			// selection collapses and the text lands; unreached, the cross-block state sticks.
 			await editor.waitForCrossBlock(false);
 			await editor.bridge.waitForSourceContains('INSERTED');
 			expect(await roundTripStable(page)).toBe(true);

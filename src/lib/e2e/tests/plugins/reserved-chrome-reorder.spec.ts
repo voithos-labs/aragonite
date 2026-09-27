@@ -14,9 +14,8 @@ function ownHandle(page: Page, path: number[]): Locator {
 	return page.locator(`[data-block-path='${JSON.stringify(path)}'] > .block-drag-handle`);
 }
 
-// Bring up a top-level container's own handle and drag it with a real pointer to a drop target.
-// Hovering anywhere in the container brings up its handle once no inner row can be reordered,
-// which is what the `:not(:has(.reorder-host:hover))` rule gives.
+// Hovering anywhere in the container brings up its own handle once no inner row can be reordered
+// (the `:not(:has(.reorder-host:hover))` rule), then a real pointer drags it to a drop target.
 async function dragContainerHandle(
 	page: Page,
 	containerKind: string,
@@ -42,9 +41,8 @@ async function dragContainerHandle(
 }
 
 const ADMONITION = ':::tip Pro tip\nBody one\n\nBody two\n:::\n';
-// Siblings above and below, so a reorder aimed at the wrong list would move the container to a
-// different document index; a container on its own would simply do nothing and hide that. The
-// admonition sits at document index 1, its body one at [1, 1].
+// Siblings on both sides, so a reorder aimed at the wrong list changes the container's index,
+// where a lone container would hide it. The admonition is block 1, its body one at [1, 1].
 const ADMONITION_SIBLINGS = 'TOP\n\n:::tip Pro tip\nBody one\n\nBody two\n:::\n\nTAIL\n';
 const DETAILS = '<details open>\n<summary>Summary</summary>\n\nDetails body\n\n</details>\n';
 
@@ -58,10 +56,8 @@ test.describe('opaque containers decline nested reorder', () => {
 
 	// ── Bug 2: no drag handle on the title row or the body rows ───────────────
 
-	// A note is prose, so it has no handle of its own either (its descriptor's `pageRole`); what
-	// this pins is that nothing inside it can be reordered. The `<details>` case below is the
-	// container that does keep a handle, so together they separate "refuses reordering inside"
-	// from "has no handle at all".
+	// A note is prose, so it has no handle of its own (its descriptor's `pageRole`); the `<details>`
+	// case below keeps one, separating "refuses reordering inside" from "has no handle at all".
 	test('an admonition renders no handle on its chrome, its body rows, or itself', async ({
 		page
 	}) => {

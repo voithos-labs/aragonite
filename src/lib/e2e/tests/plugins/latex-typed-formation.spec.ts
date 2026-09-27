@@ -94,8 +94,7 @@ test.describe('block math: typed formation', () => {
 	});
 
 	// A render-first block commits on blur, so opening the source and blurring is the unit an undo
-	// follows. Undoing from inside the still-focused source does nothing today (#161), so the blur
-	// is the gesture under test rather than a workaround the caret assertions could skip.
+	// follows.
 	test('one undo after the blur restores the paragraph byte-for-byte', async ({ page }) => {
 		await editor.loadContent('Before\n\n\n');
 		await typeAtEnd(editor, 1, '$$');

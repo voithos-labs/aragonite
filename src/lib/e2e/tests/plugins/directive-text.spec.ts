@@ -2,11 +2,9 @@ import { test, expect } from '../../fixtures';
 import { PluginsPage, revealWidget, roundTripStable } from './helpers';
 
 /**
- * The inline directive widget: `:name[label]{attrs}` renders as one atomic
- * `.directive-text-widget` and is edited by showing its source on focus, the same shared mechanism
- * the inline-math `$…$` widget uses (latex-inline.spec.ts). Unlike math, this widget renders its
- * source verbatim but dimmed, so `:abbr[HTML]` sits in the block text either way: what the tests
- * read is the widget count, 1 rendered and 0 while the source shows, not the source string itself.
+ * The inline directive widget: `:name[label]{attrs}` renders as one atomic `.directive-text-widget`
+ * and shows its source on focus, like the inline-math widget. It renders its source verbatim but
+ * dimmed, so the tests read the widget count (1 rendered, 0 while the source shows), not the text.
  */
 
 const SEED = 'see :abbr[HTML] here\n\nNext\n';

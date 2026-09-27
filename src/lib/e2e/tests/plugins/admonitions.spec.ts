@@ -2,10 +2,10 @@ import { test, expect } from '../../fixtures';
 import { PluginsPage, readContainer, readDoc, roundTripStable } from './helpers';
 
 /**
- * Admonitions dogfood battery. Five directive names resolve to one `admonition` kind that reads its
- * variant from metadata; child 0 is the editable title row, and the opener line is rebuilt from the
- * children and that metadata. What happens when the plugin is not installed is covered in
- * test/plugins/admonitions/fallback.test.ts.
+ * The admonitions plugin suite. Five directive names resolve to one `admonition` kind that reads
+ * its variant from metadata; child 0 is the editable title row, and the opener line is rebuilt from
+ * the children and that metadata. Without the plugin installed, see
+ * `test/plugins/admonitions/fallback.test.ts`.
  */
 
 test.describe('plugin admonitions', () => {
@@ -60,7 +60,7 @@ test.describe('plugin admonitions', () => {
 		await editor.typeText('Read me');
 
 		await editor.bridge.waitForSourceContains(':::important Read me');
-		// The placeholder is gone: the box no longer flags the title empty.
+		// Once titled, the box stops flagging the title empty.
 		await expect(page.locator(".admonition[data-kind='important']")).toHaveAttribute(
 			'data-title-empty',
 			'false'

@@ -15,8 +15,8 @@ test.describe('inline delimiter auto-pair', () => {
 		await editor.setPresentationMode('live');
 	});
 
-	// The bug this guards: a lone `$` ahead of an existing formula pairing with that formula's
-	// closer and wrapping the prose between them.
+	// A lone `$` ahead of an existing formula must not pair with that formula's closer and wrap the
+	// prose between them.
 	test('a $ typed ahead of a formula pairs with its own paired closer, not the formula', async ({
 		page
 	}) => {

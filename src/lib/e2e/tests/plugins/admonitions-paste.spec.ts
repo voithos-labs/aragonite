@@ -2,10 +2,9 @@ import { test, expect } from '../../fixtures';
 import { PluginsPage, readDoc, roundTripStable } from './helpers';
 
 /**
- * Native GitHub alerts on paste. With rendering shipped, the admonitions plugin's paste transform
- * is opt-in (default off), so a pasted `> [!TYPE]` blockquote keeps its GitHub bytes and lands as a
- * native `githubAlert`, never rewritten to `:::name`. The opt-in rewrite is unit-covered
- * (github-alert-paste-opt-in).
+ * Native GitHub alerts on paste. The admonitions plugin's paste rewrite is opt-in, so a pasted
+ * `> [!TYPE]` blockquote keeps its GitHub bytes and lands as a native `githubAlert`, never
+ * `:::name`. The opt-in rewrite is unit-covered (`github-alert-paste-opt-in`).
  */
 
 test.describe('plugin admonitions: native alert paste', () => {
@@ -57,9 +56,8 @@ test.describe('plugin admonitions: native alert paste', () => {
 		expect(kinds).toContain('fencedCode');
 	});
 
-	// Pasting over a whole selected table goes around the shared paste dispatch and parses the
-	// pasted text itself, so this pins that it lands the alert natively too; that the two paths
-	// call `applyPasteTransforms` alike is checked by the source scan G4.11.
+	// Pasting over a whole selected table parses the text itself, outside the shared paste dispatch,
+	// so this checks it lands the alert natively too (G4.11 holds both to `applyPasteTransforms`).
 	test('whole-table-selection paste replaces the table with a native alert', async ({ page }) => {
 		await editor.loadContent('before\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n\nafter\n');
 		await page.locator('.table-cell').nth(2).click();

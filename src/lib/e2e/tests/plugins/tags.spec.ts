@@ -3,11 +3,10 @@ import type { Page } from '@playwright/test';
 import { PluginsPage, capturedErrors } from './helpers';
 
 /**
- * In-body `#tag` as a plugin inline widget, limestone's own integration reproduced in the harness
- * (`routes/test/plugins/tags`): a bare `#` trigger, a widget that paints the tag, `revealSource`
- * for editing and `claimsActivationClick` for navigation. Seed `tags`: a tag mid-prose and a
- * nested one in block 0, a tag opening block 1 (the case the heading opener contests), a tag
- * inside a heading's content in block 2, and a plain typing target in block 3.
+ * In-body `#tag` as a plugin inline widget, the limestone integration reproduced in the harness
+ * (`routes/test/plugins/tags`): a bare `#` trigger, `revealSource` for editing and
+ * `claimsActivationClick` for navigation. Seed `tags`: tags mid-prose and nested (block 0), opening
+ * block 1, inside a heading (block 2), and a typing target (block 3).
  * Requirements: e2e/requirements/plugins/tags.md.
  */
 
@@ -16,7 +15,7 @@ const tagChip = (editor: PluginsPage, name: string) =>
 
 const selectedText = (page: Page) => page.evaluate(() => window.getSelection()?.toString() ?? '');
 
-/** A real press-move-release across the glyph, stepped so the drag session sees several moves. */
+/** A real mouse down, move and up across the glyph, stepped so the drag sees several moves. */
 async function dragFromTag(editor: PluginsPage, name: string, toX: (left: number) => number) {
 	const box = await tagChip(editor, name).boundingBox();
 	if (!box) throw new Error(`no box for #${name}`);

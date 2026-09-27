@@ -4,21 +4,19 @@ import { DetailsPage, bodyHostCount, capturedErrors } from './details-helpers';
 import { blockView, tocEntry } from './helpers';
 
 /**
- * Scrolling to a block inside a collapsed container expands it
- * (requirements/plugins/details-reveal-expand.md). A collapsed `<details>` clamps its window to the
- * summary row, so aiming at a body child finds the target outside the mounted window and gives up,
- * leaving a dead outline click, unless the kind is asked to expand first. These tests prove that
- * expanding, mounting and scrolling compose on the real path, as one undo entry. The reading-mode
- * case is details-reveal.spec.ts.
+ * Scrolling to a block inside a collapsed container expands it first
+ * (requirements/plugins/details-reveal-expand.md): a closed `<details>` mounts only its summary, so
+ * without the expansion an outline click on a body heading does nothing. Expanding, mounting and
+ * scrolling run on the real path as one undo entry; the reading-mode case is
+ * details-reveal.spec.ts.
  */
 
 // A capped viewport makes the editor a real scroll container, so the collapsed section and its
 // tail stay unmounted and the navigation click has real work to do.
 test.use({ viewport: { width: 1000, height: 700 } });
 
-// `[[toc]]` at block 0 so the entries have a stable locator, a visible heading, then a closed
-// details whose body holds both a heading, the outline's target, and a word found nowhere else,
-// the search target, and finally filler so the document scrolls.
+// `[[toc]]` at block 0 for stable entry locators, a visible heading, then a closed details whose
+// body holds the outline's target heading and a unique search word, then filler to scroll.
 function collapsedDoc(): string {
 	const parts = [
 		'[[toc]]',

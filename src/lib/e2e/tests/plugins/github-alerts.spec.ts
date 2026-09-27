@@ -11,7 +11,7 @@ import {
 /**
  * Native GitHub alerts: a `> [!TYPE]` blockquote renders as a styled alert box with its bytes
  * untouched, editable in the body, kind-stable across edits. On `/test/plugins?seed=admonitions`
- * the seed's native alert is a `caution` (block 5); the callout dogfood owns `note`/`warning`, so a
+ * the seeded native alert is a `caution` (block 5); the callout plugin owns `note`/`warning`, so a
  * typed alert uses `tip`.
  */
 
@@ -83,9 +83,8 @@ test.describe('plugin github alerts', () => {
 		await editor.focusBlockAtPath([0, 1], 0); // start of the second body paragraph
 		await page.keyboard.press('Backspace');
 
-		// The middle child merges into the previous body block the ordinary way. The alert stays
-		// one githubAlert with its marker intact: the merge stays inside it, never lifting the
-		// block out or dropping the marker.
+		// The middle child merges into the previous body block the ordinary way; the alert stays one
+		// `githubAlert` with its marker, never lifting the block out.
 		const alert = await waitForContainer(page, 0, (s) => s.childCount === 1);
 		expect(alert.rootCount).toBe(1);
 		expect(alert.kind).toBe('githubAlert');
@@ -124,10 +123,8 @@ test.describe('plugin github alerts', () => {
 		await editor.loadContent('Start here.\n');
 		await editor.focusBlockEnd(0);
 		await page.keyboard.press('Enter');
-		// One key at a time, so the editor crosses the promotion to a blockquote at `>`, the
-		// inline handler for `[`, and the reclassification as an alert at `]` as separate input
-		// events. Completing the marker makes an empty alert with the caret in its body, so the
-		// body is typed straight on, with no second Enter, which would leave the quote.
+		// Typed key by key, so blockquote, inline handler and alert arrive as separate input events at
+		// `>`, `[` and `]`; the completed marker leaves the caret in the body.
 		await editor.typeSlowly('>');
 		await waitForDoc(page, (s) => s.kinds[1] === 'blockquote');
 		await editor.typeSlowly('[!TIP]');

@@ -1,11 +1,10 @@
 import { test, expect } from '../../fixtures';
 import { PluginsPage, activeBlockPath, roundTripStable } from './helpers';
 
-// The gap caret between opaque containers (#93): callout beside callout, details beside callout,
-// and the case where a marker-prefixed container declines
-// (requirements/plugins/gap-caret-opaque-containers.md). How a gap caret arrives, creates a block
-// and undoes is covered in selection/gap-caret-*.spec.ts; the bytes are the reference here because
-// an opaque container's raw is rebuilt rather than sliced.
+// The gap caret between opaque containers: callout beside callout, details beside callout, and a
+// marker-prefixed container that declines (requirements/plugins/gap-caret-opaque-containers.md).
+// Arrival, creation and undo are in selection/gap-caret-*.spec.ts; the bytes are the reference here
+// because an opaque container's raw is rebuilt rather than sliced.
 
 const CALLOUT_A = ':::note Alpha\nalpha\n:::\n';
 const CALLOUT_B = ':::tip Beta\nbeta\n:::\n';
@@ -16,7 +15,7 @@ const CLOSED_DETAILS = '<details>\n<summary>Sum</summary>\n\nbody a\n\n</details
 /** details, admonition, paragraph: the boundary that qualifies is 1. */
 const DETAILS_THEN_CALLOUT = `${OPEN_DETAILS}\n${CALLOUT_B}\ntail\n`;
 const COLLAPSED_THEN_CALLOUT = `${CLOSED_DETAILS}\n${CALLOUT_B}\ntail\n`;
-/** blockquote, blockquote: the pinned case where no gap caret appears. */
+/** blockquote, blockquote: the case where no gap caret appears. */
 const TWO_QUOTES = '> alpha\n\n> beta\n';
 const AT_BOUNDARY = { parentPath: [], index: 1 };
 const AT_DOC_START = { parentPath: [], index: 0 };

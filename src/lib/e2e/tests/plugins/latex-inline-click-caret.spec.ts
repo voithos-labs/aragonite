@@ -3,9 +3,8 @@ import { MathRevealPage } from './latex-reveal-helpers';
 
 /**
  * Where a click on a rendered `$…$` widget puts the caret
- * (requirements/plugins/latex-inline-click-caret.md). The block form already reads the click as a
- * place in the equation; the inline widget put every click at the formula's end, so editing the
- * start of a formula was a click plus several arrow steps back.
+ * (requirements/plugins/latex-inline-click-caret.md): the click reads as a place in the equation,
+ * as it does on the block form, so editing a formula's start takes one click.
  */
 
 const LONG_FORMULA = 'Before $alpha+beta$ after\n\nNext\n';
