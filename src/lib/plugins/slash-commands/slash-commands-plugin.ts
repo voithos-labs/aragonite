@@ -37,9 +37,7 @@ export function slashCommandsPlugin(options: SlashCommandsOptions = {}): EditorP
 				{ chord: 'Mod+/' }
 			);
 			ctx.onEditor((editor) => {
-				const handle = editor.inlineMenus.addSource(
-					createSlashSource(editor, () => editor.options)
-				);
+				const handle = editor.inlineMenus.addSource(createSlashSource(editor));
 				return () => handle.dispose();
 			});
 		}

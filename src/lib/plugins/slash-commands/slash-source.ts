@@ -59,13 +59,10 @@ interface SlashRow extends FilterableEntry {
 
 const HEADING_LEVELS = [1, 2, 3];
 
-/** The source one editor lists; `options` are read per call, so a host passing new ones sees them. */
-export function createSlashSource(
-	editor: EditorContext,
-	getOptions: () => SlashCommandsOptions
-): InlineMenuSource {
+/** The `/` source for one editor: its rows come from `editor.options` and the live catalogue. */
+export function createSlashSource(editor: EditorContext<SlashCommandsOptions>): InlineMenuSource {
 	function rows(): SlashRow[] {
-		const { entries = [], exclude = [] } = getOptions();
+		const { entries = [], exclude = [] } = editor.options;
 		const hidden = new Set([...exclude, ...entries.map((entry) => entry.id)]);
 		const builtIn = [
 			...editor.insertCatalogue.map(catalogueRow),

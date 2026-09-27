@@ -71,8 +71,8 @@ export function slashHarness(initial: string, options: SlashCommandsOptions = {}
 			options,
 			insertMarkdown: host.insertMarkdown,
 			runCommand: host.runCommand
-		} as unknown as EditorContext;
-		host.inlineMenus.addSource(createSlashSource(editor, () => options));
+		} as unknown as EditorContext<SlashCommandsOptions>;
+		host.inlineMenus.addSource(createSlashSource(editor));
 		return editor;
 	});
 }
