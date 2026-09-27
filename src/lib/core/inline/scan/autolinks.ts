@@ -86,12 +86,12 @@ function hasValidDomain(raw: string, domainStart: number, limit: number): boolea
 }
 
 /**
- * GFM §6.9: valid only at start-of-region or after whitespace (§2.1's ASCII set, as cmark-gfm's
- * `cmark_isspace`), `*`, `_`, `~`, or `(`. Applied to
- * every bare form here, per the spec text; cmark-gfm applies it to the `www.` form alone.
+ * GFM §6.9: valid only at the scan range start or after whitespace (§2.1's ASCII set, as
+ * cmark-gfm's `cmark_isspace`), `*`, `_`, `~`, or `(`, whichever node holds that source byte.
+ * Applied to every bare form here, per the spec text; cmark-gfm applies it to `www.` alone.
  */
-export function isValidLeadingBoundary(raw: string, pos: number, regionStart: number): boolean {
-	if (pos <= regionStart) return true;
+export function isValidLeadingBoundary(raw: string, pos: number, scanStart: number): boolean {
+	if (pos <= scanStart) return true;
 	const ch = raw[pos - 1];
 	return isWhitespaceChar(ch) || ch === '*' || ch === '_' || ch === '~' || ch === '(';
 }
@@ -142,11 +142,11 @@ function matchAngleConstruct(raw: string, pos: number, end: number): InlineNode 
  * delimiters are pruned. Children of already-built nodes are scanned too, except a link's.
  */
 export function scanGfmAutolinks(ctx: ScanContext): void {
-	const matches = spliceBareAutolinks(ctx.raw, ctx.nodes, 0);
+	const matches = spliceBareAutolinks(ctx.raw, ctx.start, ctx.nodes, 0);
 	if (matches.length > 0) {
 		ctx.delimiters = ctx.delimiters.filter((d) => !meetsAMatch(matches, d.node.start, d.node.end));
 	}
-	scanChildren(ctx.raw, ctx.nodes);
+	scanChildren(ctx.raw, ctx.start, ctx.nodes);
 }
 
 /** Matches are disjoint and ascending; the linear alternative is quadratic on a dense block. */
@@ -161,7 +161,7 @@ function meetsAMatch(matches: InlineNode[], start: number, end: number): boolean
 	return lo < matches.length && matches[lo].start < end;
 }
 
-function scanChildren(raw: string, nodes: InlineNode[]): void {
+function scanChildren(raw: string, scanStart: number, nodes: InlineNode[]): void {
 	// Iterative: nesting depth is input-controlled, so per-level recursion overflows the stack.
 	const pending: InlineNode[][] = [nodes];
 	while (pending.length > 0) {
@@ -171,7 +171,7 @@ function scanChildren(raw: string, nodes: InlineNode[]): void {
 			if (node.kind === 'link') continue;
 			if (node.children !== undefined && node.children.length > 0) {
 				// An image's alt sits inside its own open bracket.
-				spliceBareAutolinks(raw, node.children, node.kind === 'image' ? 1 : 0);
+				spliceBareAutolinks(raw, scanStart, node.children, node.kind === 'image' ? 1 : 0);
 				pending.push(node.children);
 			}
 		}
@@ -183,7 +183,12 @@ function scanChildren(raw: string, nodes: InlineNode[]): void {
  * array as call arguments hits V8's argument limit past ~65k matches, and the block never heals.
  * `openBrackets` counts the `[` still open where `nodes` start.
  */
-function spliceBareAutolinks(raw: string, nodes: InlineNode[], openBrackets: number): InlineNode[] {
+function spliceBareAutolinks(
+	raw: string,
+	scanStart: number,
+	nodes: InlineNode[],
+	openBrackets: number
+): InlineNode[] {
 	const all: InlineNode[] = [];
 	const rebuilt: InlineNode[] = [];
 	const brackets = { open: openBrackets };
@@ -196,7 +201,7 @@ function spliceBareAutolinks(raw: string, nodes: InlineNode[], openBrackets: num
 		}
 		let j = i;
 		while (j + 1 < nodes.length && nodes[j + 1].kind === 'text') j++;
-		const matches = scanRunForBareAutolinks(raw, nodes[i].start, nodes[j].end, brackets);
+		const matches = scanRunForBareAutolinks(raw, scanStart, nodes[i].start, nodes[j].end, brackets);
 		if (matches.length === 0) {
 			for (let k = i; k <= j; k++) rebuilt.push(nodes[k]);
 		} else {
@@ -252,6 +257,7 @@ function spliceRun(raw: string, runNodes: InlineNode[], matches: InlineNode[]): 
  */
 function scanRunForBareAutolinks(
 	raw: string,
+	scanStart: number,
 	start: number,
 	end: number,
 	brackets: { open: number }
@@ -265,10 +271,10 @@ function scanRunForBareAutolinks(
 		let matched: InlineNode | null = null;
 		if (ch === '[') brackets.open++;
 		else if (ch === ']') brackets.open = Math.max(0, brackets.open - 1);
-		else if (ch === '@') matched = matchBareEmailAutolink(raw, pos, start, end, claimedEnd);
+		else if (ch === '@') matched = matchBareEmailAutolink(raw, pos, scanStart, end, claimedEnd);
 		else if (brackets.open === 0) {
-			if (ch === 'h' || ch === 'H') matched = matchBareHttpAutolink(raw, pos, start, end);
-			else if (ch === 'w' || ch === 'W') matched = matchBareWwwAutolink(raw, pos, start, end);
+			if (ch === 'h' || ch === 'H') matched = matchBareHttpAutolink(raw, pos, scanStart, end);
+			else if (ch === 'w' || ch === 'W') matched = matchBareWwwAutolink(raw, pos, scanStart, end);
 		}
 		if (matched !== null) {
 			out.push(matched);
@@ -299,10 +305,10 @@ function matchesCI(raw: string, pos: number, lit: string): boolean {
 function matchBareHttpAutolink(
 	raw: string,
 	pos: number,
-	regionStart: number,
+	scanStart: number,
 	end: number
 ): InlineNode | null {
-	if (!isValidLeadingBoundary(raw, pos, regionStart)) return null;
+	if (!isValidLeadingBoundary(raw, pos, scanStart)) return null;
 	const schemeLen = matchesCI(raw, pos, 'https://') ? 8 : matchesCI(raw, pos, 'http://') ? 7 : 0;
 	if (schemeLen === 0) return null;
 	let urlEnd = urlRunEnd(raw, pos + schemeLen, end);
@@ -316,10 +322,10 @@ function matchBareHttpAutolink(
 function matchBareWwwAutolink(
 	raw: string,
 	pos: number,
-	regionStart: number,
+	scanStart: number,
 	end: number
 ): InlineNode | null {
-	if (!isValidLeadingBoundary(raw, pos, regionStart)) return null;
+	if (!isValidLeadingBoundary(raw, pos, scanStart)) return null;
 	if (!matchesCI(raw, pos, 'www.')) return null;
 	let urlEnd = urlRunEnd(raw, pos + 4, end);
 	if (urlEnd <= pos + 4) return null;
@@ -383,7 +389,7 @@ function emailPrefixBefore(raw: string, localStart: number, floor: number) {
 function matchBareEmailAutolink(
 	raw: string,
 	atPos: number,
-	regionStart: number,
+	scanStart: number,
 	regionEnd: number,
 	claimedEnd: number
 ): InlineNode | null {
@@ -393,7 +399,7 @@ function matchBareEmailAutolink(
 	const prefix = emailPrefixBefore(raw, localStart, claimedEnd);
 	const linkStart = localStart - (prefix?.length ?? 0);
 	// The boundary applies at the URL's start: the prefix when there is one, else the local part.
-	if (!isValidLeadingBoundary(raw, linkStart, regionStart)) return null;
+	if (!isValidLeadingBoundary(raw, linkStart, scanStart)) return null;
 
 	const domainEnd = scanEmailDomain(raw, atPos + 1, regionEnd, prefix === 'xmpp:');
 	if (domainEnd < 0) return null;

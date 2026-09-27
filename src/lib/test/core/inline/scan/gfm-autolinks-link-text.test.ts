@@ -66,8 +66,22 @@ describeScanCases(
 		],
 		[
 			'email in an image alt links',
+			'![mail me@x.co](/u)',
+			[
+				imageNode(
+					0,
+					19,
+					[textNode(2, 7, 'mail '), autolinkNode(7, 14, 'mailto:me@x.co')],
+					'mail me@x.co',
+					'/u'
+				)
+			]
+		],
+		[
+			// GFM's leading boundary: the `[` before the address is no boundary, alt or not.
+			'email right after the alt bracket stays text',
 			'![me@x.co](/u)',
-			[imageNode(0, 14, [autolinkNode(2, 9, 'mailto:me@x.co')], 'me@x.co', '/u')]
+			[imageNode(0, 14, [textNode(2, 9, 'me@x.co')], 'me@x.co', '/u')]
 		]
 	],
 	resolverOf({ r: { url: '/r' }, 'foo@bar.com': { url: '/f' } })

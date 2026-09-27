@@ -10,6 +10,8 @@ import type { LinkReferenceResolver } from '../link-reference-resolver';
 
 export interface ScanContext {
 	raw: string;
+	/** Where the scan range begins, which GFM's autolink boundary treats as a line start. */
+	start: number;
 	pos: number;
 	end: number;
 	/** Working list, flat, offset-ordered; emphasis wraps later. */
@@ -54,6 +56,7 @@ export function createScanContext(
 ): ScanContext {
 	return {
 		raw,
+		start,
 		pos: start,
 		end,
 		nodes: [],
