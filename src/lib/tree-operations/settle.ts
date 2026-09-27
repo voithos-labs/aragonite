@@ -263,12 +263,14 @@ function tailSuffixSlotOf(
 /**
  * Recompute the separators around a splice, then ask whether the window's neighbours now re-read
  * as one block. `removed` is the pre-splice span, the only record of which blocks were blank;
- * `tracked` follows the merges for a caller landing a caret in the spliced bytes.
+ * `vacated` is the separator the window's first position lost; `tracked` follows the merges for
+ * a caller landing a caret in the spliced bytes.
  */
 function settleSplicedWindow(
 	parent: SeparatorParent,
 	at: number,
 	removed: readonly CstNode[],
+	vacated: string,
 	added: number,
 	change: StructuralChange,
 	grammar: GrammarView,
@@ -279,7 +281,7 @@ function settleSplicedWindow(
 	// Read before the branches below: `settleSeparatorOnBlank` can append the tail line as a
 	// block, and a count read after it would leave that growth outside the reported window.
 	const beforeMint = parent.children.length;
-	handDownVacatedSeparator(parent, at, removed[0]?.leadingTrivia ?? '', sharing);
+	handDownVacatedSeparator(parent, at, vacated, sharing);
 	clearRedundantSeparator(parent, at, sharing);
 	if (removed.some(isBlankParagraph)) {
 		// Both ends: the removed blank line was this position's own separator and the one the
@@ -373,10 +375,15 @@ export function settleSeparator(
 	const removed = before
 		.slice(window.at, window.at + window.removed)
 		.filter((node) => !survivors.has(node));
+	// Only a block removed from the window's first position leaves a separator behind there; one
+	// absorbed below a surviving block (a forward join) takes its separator with it.
+	const first = before[window.at];
+	const vacated = first && !survivors.has(first) ? first.leadingTrivia : '';
 	return settleSplicedWindow(
 		parent,
 		window.at,
 		removed,
+		vacated,
 		window.added,
 		change,
 		grammar,
@@ -423,6 +430,7 @@ export function spliceChildrenSettled(
 		parent as SeparatorParent,
 		at,
 		removed,
+		removed[0]?.leadingTrivia ?? '',
 		replacement.length,
 		{ op: 'noop' },
 		grammar,

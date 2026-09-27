@@ -2,8 +2,8 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { parse, serialize } from '$lib';
 import { resetPluginPlatformForTests } from '$lib/testing';
 import { checkOpaqueStaleRaw } from '$lib/invariants/node-shape';
-import { registerDetailsKind } from '$lib/plugins/details/details-kind';
-import { splitNode } from '$lib/tree-operations/node-ops';
+import { rebuildDetailsRaw, registerDetailsKind } from '$lib/plugins/details/details-kind';
+import { mergeIntoPrevDeepLeaf, mergeWithNext, splitNode } from '$lib/tree-operations/node-ops';
 import { rangeDelete } from '$lib/selection/range-delete';
 import { createSharingState } from '$lib/tree-operations/sharing';
 import { fixtureReading, fixtureGrammar } from '../../harness/fixture-grammar';
@@ -101,5 +101,35 @@ describe('details terminator escape at the cross-block entry points', () => {
 
 		expect(parse(serialize(doc)).children.map((c) => c.kind)).toEqual(['details']);
 		expect(checkOpaqueStaleRaw(doc.children[0], fixtureGrammar)).toBeNull();
+	});
+});
+
+// Miss-analysis: the join tests ran at the document root or in a list, where no container body
+// rule applies, so neither the Backspace join nor the Delete join was ever run inside a details body.
+type BodyParent = Parameters<typeof mergeIntoPrevDeepLeaf>[0];
+
+describe('details terminator escape at the join entry points', () => {
+	const SPLIT_TAG = '<details>\n<summary>T</summary>\n\n</det\n\nails>\n\n</details>\n';
+
+	const joinInBody = (join: (parent: BodyParent) => void) => {
+		const doc = parse(SPLIT_TAG);
+		const details = doc.children[0];
+		join({ children: details.children!, owner: details, lineEnding: '\n' });
+		rebuildDetailsRaw(details);
+		return { doc, details };
+	};
+
+	it.each([
+		[
+			'Backspace',
+			(parent: BodyParent) => mergeIntoPrevDeepLeaf(parent, 2, undefined, fixtureReading())
+		],
+		['Delete', (parent: BodyParent) => mergeWithNext(parent, 1, fixtureReading(), undefined)]
+	])('%s escapes a terminator the join forms', (_key, join) => {
+		const { doc, details } = joinInBody(join);
+
+		expect(details.children?.map((c) => c.raw)).toEqual(['T\n', '&lt;/details>\n']);
+		expect(parse(serialize(doc)).children.map((c) => c.kind)).toEqual(['details']);
+		expect(checkOpaqueStaleRaw(details, fixtureGrammar)).toBeNull();
 	});
 });

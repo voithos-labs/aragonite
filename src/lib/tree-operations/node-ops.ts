@@ -7,7 +7,7 @@
 import { isDevChecks } from '../env';
 import { headingLevel, type CstNode } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
-import { isBlankParagraph, isBlankSource, readBlocks } from '../core/parser';
+import { isBlankParagraph, readBlocks } from '../core/parser';
 import type { GrammarView } from '../schema/block-openers';
 import {
 	getLiveJoinSeamCleaner,
@@ -18,7 +18,7 @@ import {
 import type { Reading } from '../schema/reading';
 import {
 	displayLength,
-	firstLineEnding,
+	isBlankText,
 	lineEndingAt,
 	ownTrailingLineEnding,
 	snapToScalarBoundary,
@@ -47,15 +47,14 @@ import {
 	NEXT_PROSE_LINE,
 	ensureEditableContainers,
 	forBody,
-	normalizeOwnRaw,
 	parentLineEnding,
-	type BodyParentArg,
-	type NodeParent
+	type BodyParentArg
 } from './node-primitives';
 import { absorbSeamReading, deleteNode, type TrackedPosition } from './settle';
 import { leafAtRawOffset, rawOffsetOfLeaf } from './container-offsets';
 import { CURSOR_END } from '../block-component';
-import { adoptReparsedFields, probeLineOpensAsProse } from './content-write';
+import { adoptReparsedFields, legalizeWrite, probeLineOpensAsProse } from './content-write';
+import { reconcileTaskMetadata, taskMarkerMayStandBefore } from './list/reconcile-task';
 import { fragmentReaderAt, type FragmentReader } from './list/task-paragraph';
 
 // ── Split ──
@@ -230,8 +229,8 @@ function splitSeparator(
 	successor: CstNode | undefined,
 	grammar: GrammarView
 ): string {
-	if (isBlankSource(secondRaw)) {
-		const trivia = blankBlockTrivia(isBlankSource(firstRaw), successor, lineEnding);
+	if (isBlankText(secondRaw)) {
+		const trivia = blankBlockTrivia(isBlankText(firstRaw), successor, lineEnding);
 		// A body that swallows blank lines (an unclosed fence) takes the separator inside
 		// itself and gains nothing, so ask the bytes rather than assume.
 		const becomesBlock = blankHalfBecomesBlock(firstRaw, secondRaw, lineEnding, grammar);
@@ -424,6 +423,56 @@ export interface MergeIntoPrevResult {
 }
 
 /**
+ * Join `absorbed`'s text onto the end of the leaf at `path` below `parent`: the join cleanup, the
+ * kind's and the container's write rules, a reparse that may change the leaf's kind, the task
+ * marker, and the ancestors' bytes. Null, with nothing written, when the joined bytes read as
+ * several blocks. `absorbed` stays where it is; removing it is the caller's.
+ */
+export function joinIntoLeaf(
+	parent: BodyParentArg,
+	path: readonly number[],
+	absorbed: NodeView,
+	reading: Reading,
+	sharing: SharingState | undefined
+): { joinOffset: number } | null {
+	const slot = path[path.length - 1];
+	// The decision is read off the live tree before any copy-on-write: copying the ancestors is
+	// a write, and a refused join must leave the pair exactly as it stands.
+	const holder = {
+		children: holderChildrenAt(parent.children, path),
+		owner: ownerAt(parent, path),
+		lineEnding: parentLineEnding(parent)
+	};
+	const target = holder.children[slot];
+	const { raw, seam } = joinRaw(target, absorbed, reading);
+	const legal = legalizeWrite(holder, slot, raw, 'literal');
+	const merged = mergedLeafFor(
+		target,
+		legal.text,
+		fragmentReaderAt(holder.owner, slot, reading.grammar)
+	);
+	if (!merged) return null;
+	// Read before the write, which is what can put a block there the task marker cannot stand before.
+	const stood = taskMarkerMayStandBefore(target);
+
+	// The join writes the leaf's raw plus every ancestor's rebuilt raw, so copy the whole
+	// ancestor chain first and resolve through the owned copies (`unshare.ts` header).
+	if (sharing) ensureUnsharedPath(parent, [...path], sharing);
+	installMergedLeaf(
+		holderChildrenAt(parent.children, path),
+		slot,
+		merged,
+		sharing,
+		holder.lineEnding
+	);
+	// Before the ancestors' rebuild, which writes the list item's task marker.
+	const owner = ownerAt(parent, path);
+	if (owner) reconcileTaskMetadata(owner, slot, stood, sharing);
+	if (path.length > 1) rebuildAncestryRaw(parent.children[path[0]], path.slice(1));
+	return { joinOffset: legal.storedOffset(seam) };
+}
+
+/**
  * Merge `curr` into the deepest prose leaf of `prev`, writing into that leaf rather than
  * reparsing concatenated raw, which preserves prev's component identity and IME state. Null when
  * no mergeable leaf exists, so the caller can fall back to move-focus.
@@ -440,33 +489,11 @@ export function mergeIntoPrevDeepLeaf(
 	if (!mergeTarget) return null;
 
 	const leafPath = [blockIndex - 1, ...mergeTarget.path];
-	const slot = leafPath[leafPath.length - 1];
-	// The decision is read off the live tree before any copy-on-write: copying the ancestors is
-	// a write, and a refused join must leave the pair exactly as it stands.
-	const target = holderChildrenAt(parent.children, leafPath)[slot];
 	const curr = parent.children[blockIndex];
-	// The target has a block after it, so it ends its line and this is the document's ending.
-	const lineEnding = trailingLineEnding(target.raw, parentLineEnding(parent));
-	const { raw: mergedRaw, seam: joinOffset } = joinRaw(target, curr, reading);
-	const read = fragmentReaderAt(ownerAt(parent, leafPath), slot, reading.grammar);
-	const merged = mergedLeafFor(
-		target,
-		trimTrailingLineEnding(mergedRaw) + lineEnding,
-		read,
-		lineEnding
-	);
+	const merged = joinIntoLeaf(parent, leafPath, curr, reading, sharing);
 	if (!merged) return null;
 
-	// The merge writes the deep leaf's raw plus every ancestor's rebuilt raw, so copy the whole
-	// ancestor chain first and resolve through the owned copies.
-	if (sharing) ensureUnsharedPath(parent, leafPath, sharing);
-	// Write, then re-read through the tree (`unshare.ts` header), down to the leaf's own position
-	// so a kind change can put a new node there.
-	installMergedLeaf(holderChildrenAt(parent.children, leafPath), slot, merged, sharing, lineEnding);
-	if (mergeTarget.path.length > 0) {
-		rebuildAncestryRaw(parent.children[blockIndex - 1], mergeTarget.path);
-	}
-
+	const { joinOffset } = merged;
 	const joined: JoinLanding = { index: blockIndex - 1, targetPath: mergeTarget.path, joinOffset };
 	const at = rawOffsetOfLeaf(parent.children[blockIndex - 1], mergeTarget.path, joinOffset);
 	const tracked = at === null ? undefined : { index: blockIndex - 1, offset: at };
@@ -492,7 +519,7 @@ function landingAfterFixUp(
 }
 
 /** The container holding `path`'s last index: the parent's own owner for a one-step path. */
-function ownerAt(parent: BodyParentArg, path: number[]): CstNode | undefined {
+function ownerAt(parent: BodyParentArg, path: readonly number[]): CstNode | undefined {
 	if (path.length === 1) return 'owner' in parent ? parent.owner : undefined;
 	let owner = parent.children[path[0]];
 	for (const index of path.slice(1, -1)) owner = owner.children![index];
@@ -500,31 +527,23 @@ function ownerAt(parent: BodyParentArg, path: number[]): CstNode | undefined {
 }
 
 /** The children array holding `path`'s last index, walked from `children`. */
-function holderChildrenAt(children: CstNode[], path: number[]): CstNode[] {
+function holderChildrenAt(children: CstNode[], path: readonly number[]): CstNode[] {
 	let holder = children;
 	for (const index of path.slice(0, -1)) holder = holder[index].children!;
 	return holder;
 }
 
-/** What the deep-leaf write installs: the legal bytes, plus their reparse where the kind has
- *  one. The parsed blocks are passed whole rather than as their first, so the install can check
- *  it received one (G1.35). */
+/** What the leaf write installs: the legal bytes, plus their reparse where the kind has one. The
+ *  parsed blocks are passed whole rather than as their first, so the install can check it
+ *  received one (G1.35). */
 interface MergedLeaf {
 	written: string;
 	blocks: readonly CstNode[];
 }
 
-/**
- * The deep-leaf merge's decision: the absorbed bytes pass through the kind's own write rule and
- * a fragment reparse. Null when they read as several blocks, since the leaf holds one (G1.35).
- */
-function mergedLeafFor(
-	target: CstNode,
-	raw: string,
-	read: FragmentReader,
-	lineEnding: LineEnding
-): MergedLeaf | null {
-	const written = normalizeOwnRaw(target, raw, lineEnding);
+/** The join's decision: the legal bytes' fragment reparse, null when they read as several blocks,
+ *  since the leaf holds one (G1.35). */
+function mergedLeafFor(target: CstNode, written: string, read: FragmentReader): MergedLeaf | null {
 	// A context-dependent kind has no standalone recognizer, so its bytes are never read back
 	// as blocks and the write keeps the kind.
 	if (tryGetBlockKindDescriptor(target.kind)?.contextDependentKind) {
@@ -563,28 +582,24 @@ function installMergedLeaf(
 }
 
 /**
- * Merge the node at `blockIndex` with its successor; combined raw is re-parsed in the editor's
- * grammar and the merged block inherits the current block's ID. Noop at the tail.
+ * Merge the node at `blockIndex` with its successor through {@link joinIntoLeaf}, then remove the
+ * successor. The merged block keeps the current block's ID. Noop at the tail or on a refused join.
  */
 export function mergeWithNext(
-	parent: NodeParent,
+	parent: BodyParentArg,
 	blockIndex: number,
-	reading: Reading
+	reading: Reading,
+	sharing: SharingState | undefined
 ): MergeResult {
 	if (blockIndex < 0 || blockIndex >= parent.children.length - 1) {
 		return { change: { op: 'noop' }, joinOffset: 0 };
 	}
 
-	const curr = parent.children[blockIndex];
 	const next = parent.children[blockIndex + 1];
-
-	const { raw: mergedRaw, seam } = joinRaw(curr, next, reading);
-	const mergedNode = reparseAsNode(mergedRaw, curr.leadingTrivia, reading.grammar);
-	if (!mergedNode) return { change: { op: 'noop' }, joinOffset: 0 };
-	const installed = [mergedNode];
-	assertSingleNodeSink('mergeWithNext', installed);
-	parent.children.splice(blockIndex, 2, ...installed);
-	return { change: replacePreservingFirst(blockIndex, 2, 1), joinOffset: seam };
+	const merged = joinIntoLeaf(parent, [blockIndex], next, reading, sharing);
+	if (!merged) return { change: { op: 'noop' }, joinOffset: 0 };
+	parent.children.splice(blockIndex + 1, 1);
+	return { change: replacePreservingFirst(blockIndex, 2, 1), joinOffset: merged.joinOffset };
 }
 
 // ── Reparse helper (private) ──
@@ -606,23 +621,4 @@ function reparseAsNodes(
 	doc.children[0].leadingTrivia = leadingTrivia;
 	for (const node of doc.children) ensureEditableContainers(node, ending);
 	return { nodes: doc.children, suffix: doc.suffix };
-}
-
-/**
- * The single-block counterpart for the merges: a join whose bytes read as several blocks does
- * not fit one position, so null refuses it rather than truncating (G1.35).
- */
-function reparseAsNode(raw: string, leadingTrivia: string, grammar: GrammarView): CstNode | null {
-	// A join ends in its second block's ending: the document's, unless it joined the last line.
-	const { nodes, suffix } = reparseAsNodes(
-		raw,
-		leadingTrivia,
-		(text) => readBlocks(text, { grammar, scope: 'fragment' }),
-		firstLineEnding(raw) ?? '\n'
-	);
-	if (nodes.length > 1) return null;
-	// A single-block write has no follower to give the split-off blank line to, so it stays in
-	// the block's bytes.
-	nodes[0].raw += suffix;
-	return nodes[0];
 }

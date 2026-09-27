@@ -557,15 +557,15 @@ seam `tree-operations/node-ops.ts :: assertSplitLanding`, crossed by
 `editor-actions/block-edit-core.ts` and `editor-actions/list-context.ts` · `split-landing.test.ts`.
 
 **G1.35 · Single-node sink.** A sink (a slot that installs exactly one node) never installs bytes
-that reparse to several. Both merge routes reach one: the forward merge reparses the concatenation,
-and the deep-leaf merge writes the previous block's leaf. A join whose bytes read as two blocks is
-refused there rather than truncated to the first (a line vanishes from the document) or written
-whole into the surviving slot (the tree stops agreeing with its own reload); both routes then return
-noop and the caret moves across the boundary instead (GH #166). The question is asked at the WRITE,
+that reparse to several. Every join reaches one: Backspace, Delete and the list-item merge all write
+the joined text into the surviving block's leaf through `joinIntoLeaf`. A join whose bytes read as
+two blocks is refused there rather than truncated to the first (a line vanishes from the document)
+or written whole into the surviving slot (the tree stops agreeing with its own reload); the join
+returns null, the gesture changes nothing, and the caret moves across the boundary instead (GH #166). The question is asked at the WRITE,
 over the nodes going into the slot, so the guard answers for sink N+1: one that skips the refusal
 its siblings make, or splices a plural replacement where one node belongs. Arriving plural is legal;
 installing plural is the fire. Predicate `checkSingleNodeSink` (`single-node-sink.ts`) · seam
-`tree-operations/node-ops.ts :: reparseAsNode` and `mergedLeafFor` ·
+`tree-operations/node-ops.ts :: mergedLeafFor` ·
 `test/tree-operations/merge-multi-block-refusal.test.ts`.
 
 **G1.36 · Structural-descriptor coherence.** A `StructuralChange` (the record a mutation publishes
@@ -1280,7 +1280,7 @@ reader never saw. The fenced-code surface is outside the set for a reason the sc
 holds no inline constructs to strand. `lint/file-rules.test.ts`.
 
 **G4.45 · Settle coverage for bare tree ops.** The bare tree-op primitives (`splitNode`,
-`deleteNode`, the three merge entries) splice a body without settling it, so every file importing
+`deleteNode`, the two merge entries) splice a body without settling it, so every file importing
 one is declared with the commit whose settle covers its writes, and each is asserted to reach a
 commit entry or a settle entry. Keyed on the IMPORT, so an alias still enrolls its file and a
 same-named action-bundle method doesn't. The tail rule (GH #168) lives in the settle: a caller

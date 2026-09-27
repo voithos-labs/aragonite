@@ -3,13 +3,12 @@
  * destructive one crosses `cleanJoinedRaw`: live paints no delimiter, so a literal concatenation
  * surfaces the marker runs the join orphaned (live-mode.md § 4.5). The census runs both ways: the
  * files that call the cleaner are declared, and so is every other file building such a
- * concatenation, each
- * with the reason it is not a destructive join. `mergeListItemIntoPrevious` shipped outside both
- * because its signature could not reach the cleaner, which no one-directional scan can see.
+ * concatenation, each with the reason it is not a destructive join.
  */
 
 import { describe, it, expect } from 'vitest';
 import {
+	callsAnywhere,
 	callsTo,
 	collectEditorSources,
 	rawAssignments,
@@ -20,11 +19,16 @@ import {
 /** Every file naming the cleaner, and what it joins. */
 const CLEANER_READERS: Record<string, string> = {
 	'src/lib/tree-operations/node-ops.ts':
-		'defines it, and crosses it from the split cut, the range cut and both merge primitives',
-	'src/lib/tree-operations/list/unwrap-merge.ts': 'the list-item merge (M1)',
+		'defines it, and crosses it from the split cut, the range cut and `joinIntoLeaf`, the one join into a leaf',
 	'src/lib/selection/range-delete.ts': 'the same-block and cross-block range merges',
 	'src/lib/selection/range-delete-ceremony.ts': 'the shared endpoint join',
 	'src/lib/components/blocks/text/live-selection-edit.ts': 'the native ranged edit'
+};
+
+/** Every file calling the one join into a leaf, and what it joins. */
+const JOIN_INTO_LEAF_CALLERS: Record<string, string> = {
+	'src/lib/tree-operations/node-ops.ts': 'defines it; the Backspace and Delete joins call it',
+	'src/lib/tree-operations/list/unwrap-merge.ts': 'the list-item merge (M1)'
 };
 
 /**
@@ -83,6 +87,16 @@ describe('cross-node join entry-point census', () => {
 		).toEqual(Object.keys(CLEANER_READERS).sort());
 	});
 
+	it('the files calling joinIntoLeaf are the declared ones', () => {
+		expect(
+			sources
+				.filter((file) => callsAnywhere(file.code, 'joinIntoLeaf'))
+				.map((f) => f.relPath)
+				.sort(),
+			'a new caller of the one join into a leaf: declare what it joins'
+		).toEqual(Object.keys(JOIN_INTO_LEAF_CALLERS).sort());
+	});
+
 	it('every file concatenating several sources into a leaf’s bytes names the cleaner or is manifested', () => {
 		const concatenating = sources
 			.filter((file) => byteExpressions(file).some(joinsSources))
@@ -111,6 +125,13 @@ describe('cross-node join entry-point census', () => {
 	// nothing else, so a regex quantifier read as two sources meeting with no test to say so.
 	it('a quantifier inside a regex literal is not an operand boundary', () => {
 		expect(joinsSources('/a+b/.test(head) ? head : head + lineEnding')).toBe(false);
+	});
+
+	it('a call to joinIntoLeaf is seen, and a name that only contains it is not', () => {
+		expect(
+			callsAnywhere('const r = joinIntoLeaf(body, [0], next, reading, sharing);', 'joinIntoLeaf')
+		).toBe(true);
+		expect(callsAnywhere('const r = rejoinIntoLeafs(body);', 'joinIntoLeaf')).toBe(false);
 	});
 
 	it('an undeclared file building a join fails the set equality', () => {

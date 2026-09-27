@@ -127,7 +127,10 @@ describe('a splice absorbs a join the reload would fold (GH #61)', () => {
 			'fencedCode'
 		]);
 
-		const change = settled(doc, (body) => mergeWithNext(body, 0, fixtureReading()).change);
+		const change = settled(
+			doc,
+			(body) => mergeWithNext(body, 0, fixtureReading(), undefined).change
+		);
 
 		// Both blank lines reach the item's content column (a tab counts to the next four).
 		expect(doc.children.map((c) => [c.kind, c.leadingTrivia, c.raw])).toEqual([
@@ -143,7 +146,10 @@ describe('a splice absorbs a join the reload would fold (GH #61)', () => {
 		const doc = parse('- a\n\nb\n\n    code\n \t \n\t\n\n');
 		expect(doc.suffix).toBe('\n');
 
-		const change = settled(doc, (body) => mergeWithNext(body, 0, fixtureReading()).change);
+		const change = settled(
+			doc,
+			(body) => mergeWithNext(body, 0, fixtureReading(), undefined).change
+		);
 
 		expect(doc.children.map((c) => [c.kind, c.leadingTrivia, c.raw])).toEqual([
 			['list', '', '- ab\n\n    code\n \t \n\t\n']

@@ -13,7 +13,7 @@ import { fixtureReading } from '../harness/fixture-grammar';
 const joins = {
 	'Delete (the forward join)': (source: string) => {
 		const doc = parse(source);
-		const { joinOffset } = mergeWithNext(doc, 0, fixtureReading());
+		const { joinOffset } = mergeWithNext(doc, 0, fixtureReading(), undefined);
 		return { doc, joinOffset };
 	},
 	'Backspace (the backward join)': (source: string) => {

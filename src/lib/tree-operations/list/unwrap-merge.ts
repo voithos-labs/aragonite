@@ -8,8 +8,8 @@ import type { CstNode, ListMetadata } from '../../core/nodes';
 import type { NodeView } from '../../core/node-views';
 import type { Reading } from '../../schema/reading';
 import { metadataOf } from '../../core/nodes';
-import { ownTrailingLineEnding, trimTrailingLineEnding } from '../../core/lines';
-import { cleanJoinedRaw } from '../node-ops';
+import { trailingLineEnding } from '../../core/lines';
+import { joinIntoLeaf } from '../node-ops';
 import type { SharingState } from '../sharing';
 import { cloneMetadata, cloneNode } from '../clone';
 import { rebuildAncestryRaw } from '../../schema/container-raw';
@@ -17,7 +17,7 @@ import { rebuildListRaw } from '../../schema/container-rebuilders';
 import { walkToDeepestMergeLeaf } from '../../schema/merge-rules';
 import { orderedBaseOf, renumberOrderedList, renumberOrderedListFrom } from './ordered-markers';
 import { partitionItemChildren } from './item-partition';
-import { ensureUnsharedChild, ensureUnsharedNode, ensureUnsharedPath } from '../unshare';
+import { ensureUnsharedChild, ensureUnsharedNode } from '../unshare';
 import { assignIds } from '../../block-id';
 import { pushChild } from '../children';
 
@@ -155,9 +155,10 @@ function relocateRemainingChildren(
 /**
  * Merge the list item at `currentIndex` into the deepest text-bearing leaf of the
  * preceding item, mutating `list` in place and returning the merge point for the caret.
- * `targetPath`'s trailing index is the last paragraph in the target item, not always 0.
- * Null when the previous item exposes only an opaque deepest leaf: a legitimate outcome the
- * caller falls back from, unlike a bad `currentIndex`, which throws.
+ * `targetPath`'s trailing index is the last prose leaf in the target item, not always 0.
+ * Null when there is nothing to join (an opaque deepest leaf, an item not opening with a
+ * paragraph, a join reading as several blocks), which the caller falls back from; a bad
+ * `currentIndex` throws.
  */
 export function mergeListItemIntoPrevious(
 	list: CstNode,
@@ -177,55 +178,19 @@ export function mergeListItemIntoPrevious(
 		throw new Error(`mergeListItemIntoPrevious: invalid currentIndex ${currentIndex}`);
 	}
 
-	const previousIndex = currentIndex - 1;
-	const targetPath = findDeepestVisibleTextTarget(list, previousIndex);
+	const targetPath = findDeepestVisibleTextTarget(list, currentIndex - 1);
 	if (!targetPath) return null;
-
-	// Before any capture: the walk below must see the owned copies, and the target
-	// paragraph's raw is written in place.
-	if (sharing) ensureUnsharedPath({ children: list.children }, targetPath, sharing);
-
-	let targetItem: CstNode = list;
-	for (let i = 0; i < targetPath.length - 1; i++) {
-		targetItem = targetItem.children![targetPath[i]];
-	}
-	// A loose item's walker ends past 0, so reading children[0] would mutate the wrong
-	// paragraph.
-	const targetParagraphIndex = targetPath[targetPath.length - 1];
-	const targetParagraph = targetItem.children?.[targetParagraphIndex];
-	if (!targetParagraph || targetParagraph.kind !== 'paragraph') {
-		throw new Error('mergeListItemIntoPrevious: target path does not end at a paragraph');
-	}
-	const targetOriginalText = trimTrailingLineEnding(targetParagraph.raw ?? '');
-
 	const currentItem = children[currentIndex];
-	if (
-		!currentItem.children ||
-		currentItem.children.length === 0 ||
-		currentItem.children[0].kind !== 'paragraph'
-	) {
-		throw new Error('mergeListItemIntoPrevious: current item does not start with a paragraph');
-	}
-
-	const currentFirstParagraph = currentItem.children[0];
-	const currentFirstText = trimTrailingLineEnding(currentFirstParagraph.raw ?? '');
+	const absorbed = currentItem.children?.[0];
+	if (absorbed?.kind !== 'paragraph') return null;
 
 	// The target has the current item below it, so it closes its line with the document's ending.
-	const lineEnding = ownTrailingLineEnding(targetParagraph.raw ?? '');
-	// Every destructive join goes through the join cleanup, M1 included: a literal concatenation
-	// would show the delimiter runs the join left unpaired, which live mode had hidden.
-	const joined = cleanJoinedRaw({
-		mergedRaw: targetOriginalText + currentFirstText,
-		seam: targetOriginalText.length,
-		start: { node: targetParagraph, offset: targetOriginalText.length },
-		end: { node: currentFirstParagraph, offset: 0 },
-		reading
-	});
-	// The caret follows the cleaned join offset: a run dropped on the target's side moves where
-	// the two halves met.
-	const mergeOffset = joined.seam;
-	targetParagraph.raw = joined.raw + lineEnding;
+	const lineEnding = trailingLineEnding(nodeAt(list, targetPath).raw, '\n');
+	const body = { children: list.children, owner: list, lineEnding };
+	const joined = joinIntoLeaf(body, targetPath, absorbed, reading, sharing);
+	if (!joined) return null;
 
+	const targetItem = nodeAt(list, targetPath.slice(0, -1));
 	relocateRemainingChildren(list, targetPath, targetItem, currentItem, lineEnding, sharing);
 
 	children.splice(currentIndex, 1);
@@ -243,5 +208,12 @@ export function mergeListItemIntoPrevious(
 		rebuildListRaw(list);
 	}
 
-	return { mergePoint: { targetPath, offset: mergeOffset } };
+	return { mergePoint: { targetPath, offset: joined.joinOffset } };
+}
+
+/** The node at `path` below `root`, re-read through the tree. */
+function nodeAt(root: CstNode, path: readonly number[]): CstNode {
+	let node = root;
+	for (const index of path) node = node.children![index];
+	return node;
 }

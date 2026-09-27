@@ -12,6 +12,10 @@ nothing can never pass as coverage inside a full session. These run on their own
   a top-level block
 - para→heading (absorber): the paragraph is absorbed and the heading stays a heading
 - para→list: the paragraph merges into the preceding list, dropping a top-level block
+- list M1 under a heading item joins: Backspace at the start of `next` in `- # Plan` / `- next`
+  joins it onto the heading (`- # Plannext`) instead of leaving the source unchanged
+  (miss-analysis: every merge fixture here had a paragraph to join into, so the gesture never
+  reached the heading target a list item's merge also stops at)
 
 ## Happy paths: container exit
 

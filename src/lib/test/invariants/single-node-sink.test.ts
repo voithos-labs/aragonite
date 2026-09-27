@@ -40,13 +40,13 @@ describe('G1.35 single-node sink', () => {
 	// node, however many arrived (GH #166's join reads as two blocks and is declined).
 	it('stays silent through the merge entry points, refused join included', () => {
 		const plural = parse('# h\ntext\nmore\n');
-		expect(mergeWithNext(plural, 0, fixtureReading()).change).toEqual({
+		expect(mergeWithNext(plural, 0, fixtureReading(), undefined).change).toEqual({
 			op: 'noop'
 		});
 		expect(takeDevWarns()).toEqual([]);
 
 		const ordinary = parse('alpha\n\nbeta\n');
-		expect(mergeWithNext(ordinary, 0, fixtureReading()).change.op).toBe('replace');
+		expect(mergeWithNext(ordinary, 0, fixtureReading(), undefined).change.op).toBe('replace');
 		expect(takeDevWarns()).toEqual([]);
 	});
 });

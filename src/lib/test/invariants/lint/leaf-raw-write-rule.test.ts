@@ -47,8 +47,8 @@ const BARE_RAW_WRITE_ALLOWLIST: Record<string, { count: number; why: string }> =
 		why: 'the reparse path every write takes: each one is re-read from a parse, restores bytes the slot already held, or re-attaches the blank line that parse stripped (GH #97)'
 	},
 	'src/lib/tree-operations/node-ops.ts': {
-		count: 4,
-		why: 'the split and the single-block reparse re-attach the blank line that parse stripped (GH #97); both deep-leaf merge branches land bytes that already crossed `normalizeOwnRaw` and a fragment reparse (GH #54)'
+		count: 3,
+		why: 'the split re-attaches the blank line that parse stripped (GH #97); both branches of `joinIntoLeaf` land bytes that already crossed `legalizeWrite` and a fragment reparse (GH #54)'
 	},
 	'src/lib/tree-operations/settle.ts': {
 		count: 1,
@@ -102,10 +102,6 @@ const BARE_RAW_WRITE_ALLOWLIST: Record<string, { count: number; why: string }> =
 	'src/lib/tree-operations/list/reconcile-task.ts': {
 		count: 2,
 		why: "moves the task marker between the item's metadata and its first paragraph, kind-guarded to paragraph"
-	},
-	'src/lib/tree-operations/list/unwrap-merge.ts': {
-		count: 1,
-		why: 'the list-item merge target, which throws unless it is a paragraph'
 	},
 	'src/lib/tree-operations/list/terminator.ts': {
 		count: 1,
