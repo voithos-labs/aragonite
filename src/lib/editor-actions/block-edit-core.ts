@@ -7,7 +7,11 @@
 import { tick } from 'svelte';
 import { CURSOR_END, CURSOR_EXACT_START, CURSOR_START } from '../block-component';
 import type { CstNode } from '../core/nodes';
-import { displayLength } from '../core/lines';
+import { displayLength, documentLineEnding } from '../core/lines';
+import type { BodyParent } from '../tree-operations/node-primitives';
+import type { OpDescriptor, OperationDetailMap } from '../schema/operations';
+import { normalizeReplacementForBody } from '../tree-operations/paste/body-write';
+import { landedPastePosition, trackedPasteCaret } from '../tree-operations/paste/focus-target';
 import {
 	splitNode as performSplit,
 	assertSplitLanding,
@@ -220,12 +224,54 @@ export interface BlockEditCore {
 		metadata: Record<string, unknown>,
 		options?: { afterTick?: CommitAfterTick }
 	): Promise<void>;
+	/** Resolves to how many blocks landed in the position, or null when nothing was written. */
 	replaceBlock(
 		i: number,
 		replacement: CstNode[],
-		focus?: { replacementIndex: number; offset: number; path?: number[] },
-		options?: { snapshotOffset?: number }
-	): Promise<void>;
+		focus?: ReplaceFocus,
+		options?: ReplaceOptions
+	): Promise<number | null>;
+}
+
+/** Which replacement block the caret lands in, at `offset` (`CURSOR_END` for its end) or at
+ *  `path` below it. */
+export interface ReplaceFocus {
+	replacementIndex: number;
+	offset: number;
+	path?: number[];
+}
+
+export interface ReplaceOptions {
+	/** Where undo puts the caret back, when it differs from where the replacement lands it. */
+	snapshotOffset?: number;
+	/** A clipboard's own trailing blank line, landed as the document's when nothing follows. */
+	trailingBlank?: boolean;
+	/** The route a paste or a drop names in the edit event, in place of the block count. */
+	source?: ReplaceSource;
+}
+
+export type ReplaceSource = Extract<
+	OperationDetailMap['replaceBlock'],
+	{ source: unknown }
+>['source'];
+
+/** The edit event a replace names: a paste route's source, else how many blocks landed. A
+ *  container reports an empty replace as the delete it is. */
+function replaceOp(
+	scope: CommitScope,
+	count: number,
+	source: ReplaceSource | undefined
+): OpDescriptor {
+	if (source) return { kind: 'replaceBlock', detail: { source } };
+	if (count === 0 && scope.collapseEmptyReplaceToDelete) return { kind: 'delete' };
+	return { kind: 'replaceBlock', detail: { count } };
+}
+
+/** The clipboard's trailing blank line as the document's own, only at a tail with nothing after it
+ *  and no line there yet; a container's tail declines, since its fence-line fix-up owns that line. */
+function landTrailingBlank(body: BodyParent, afterIndex: number): void {
+	if (body.suffix !== '' || afterIndex !== body.children.length) return;
+	body.suffix = body.lineEnding;
 }
 
 export function createBlockEditCore(scope: CommitScope): BlockEditCore {
@@ -413,45 +459,68 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 			});
 		},
 
-		async replaceBlock(i, replacement, focus, options) {
+		async replaceBlock(i, given, focus, options) {
 			const children = scope.children();
-			if (i < 0 || i >= children.length) return;
+			if (i < 0 || i >= children.length) return null;
+			// A replacement is built before any content write sees it, so the container's body rule
+			// is applied here, to every block in it.
+			const target = scope.target();
+			const owner = 'owner' in target ? target.owner : undefined;
+			const lineEnding = 'lineEnding' in target ? target.lineEnding : documentLineEnding(target);
+			const { replacement, mapIndex } = normalizeReplacementForBody(
+				owner,
+				given,
+				lineEnding,
+				scope.reading.grammar
+			);
+			const focusIndex = focus ? mapIndex(focus.replacementIndex) : 0;
+			// The fix-up's merges can move where the caret belongs, so the commit keeps it updated.
+			const tracked = focus
+				? trackedPasteCaret(replacement, i, focusIndex, focus.offset)
+				: undefined;
 			// `snapshotOffset` is where the caret was, which undo restores; `focus.offset` is where
 			// it lands. They differ when the replacement puts it inside a new structure.
 			const snapshot = { index: i, offset: options?.snapshotOffset ?? focus?.offset ?? 0 };
-			await scope.commit({
+			const wrote = await scope.commit({
 				snapshot,
 				eventTarget: i,
-				// The op kind for an empty replace is per level: top-level emits
-				// `replaceBlock{count:0}`, a container `delete`. The change is `delete` either way.
-				op:
-					replacement.length === 0
-						? scope.collapseEmptyReplaceToDelete
-							? { kind: 'delete' }
-							: { kind: 'replaceBlock', detail: { count: 0 } }
-						: { kind: 'replaceBlock', detail: { count: replacement.length } },
+				op: replaceOp(scope, replacement.length, options?.source),
+				trackCaret: tracked,
 				mutate: (view) => {
 					if (replacement.length === 0) {
 						view.body.children.splice(i, 1);
 						return { op: 'delete', at: i, count: 1 };
 					}
+					const old = view.body.children[i];
 					// Read before the splice, for the task-marker rule below.
-					const stood = taskMarkerMayStandBefore(view.body.children[i]);
-					const normalized = normalizeReplacementTrivia(view.body.children[i], replacement);
+					const stood = taskMarkerMayStandBefore(old);
+					const normalized = normalizeReplacementTrivia(old, replacement);
 					for (const node of normalized) ensureEditableContainers(node, view.body.lineEnding);
 					spliceMany(view.body.children, i, 1, normalized);
-					const change = replacePreservingFirst(i, 1, normalized.length);
+					// The first id carries over only to a block of the same kind, whose component the
+					// position keeps; another kind mounts a component of its own anyway.
+					const change: StructuralChange =
+						normalized[0].kind === old.kind
+							? replacePreservingFirst(i, 1, normalized.length)
+							: { op: 'replace', at: i, count: 1, newCount: normalized.length };
 					stampStructuralChange(view.body.children, change, view.sharing);
-					// One of the three writes that can put a new block in a list item's first
-					// position, and so take the task marker with the paragraph that carried it.
+					// A new block in a list item's first position takes the task marker with the
+					// paragraph that carried it; every replace reconciles it here.
 					if (view.body.owner) reconcileTaskMetadata(view.body.owner, i, stood, view.sharing);
+					if (options?.trailingBlank) landTrailingBlank(view.body, i + normalized.length);
 					return change;
 				},
 				afterTick: async () => {
-					if (!focus || replacement.length === 0) return;
-					await landCaretInScope(scope, i + focus.replacementIndex, focus.path ?? [], focus.offset);
+					if (!focus || !tracked || replacement.length === 0) return;
+					if (focus.path) {
+						await scope.land(scope.at(i + focusIndex, focus.path, focus.offset));
+						return;
+					}
+					const at = landedPastePosition(scope.children()[tracked.index], tracked, focus.offset);
+					await scope.land(scope.at(tracked.index, at.path, at.offset));
 				}
 			});
+			return wrote ? replacement.length : null;
 		}
 	};
 

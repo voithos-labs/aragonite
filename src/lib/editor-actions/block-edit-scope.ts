@@ -16,6 +16,7 @@ import type { CstNode } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import type { StructuralChange } from '../tree-operations/structural-change';
 import type { SharingState } from '../tree-operations/sharing';
+import type { TrackedPosition } from '../tree-operations/settle';
 import type { LegalWrite, WriteTarget } from '../tree-operations/content-write';
 import type { Reading } from '../schema/reading';
 import type { BlockComponent } from '../block-component';
@@ -58,6 +59,8 @@ export interface ScopeCommitArgs {
 	/** A structural edit that can change nothing, so the commit discards its snapshot. Never on
 	 *  content or metadata commits, whose `noop` still carries a byte change (`DiscardIfNoop`). */
 	discardIfNoop?: boolean;
+	/** A local position the list's fix-up updates in place, read back in `afterTick`. */
+	trackCaret?: TrackedPosition;
 }
 
 export interface CommitScope {
@@ -136,7 +139,8 @@ export function createTopLevelScope(
 			mutate,
 			afterTick,
 			touchedNodes,
-			discardIfNoop
+			discardIfNoop,
+			trackCaret
 		}): Promise<boolean> {
 			return controller.commitStructural({
 				snapshot: { path: asDocPath([snapshot.index]), offset: snapshot.offset },
@@ -150,7 +154,8 @@ export function createTopLevelScope(
 				op: { ...op, eventPath: asDocPath([eventTarget]) },
 				afterTick,
 				touchedNodes,
-				discardIfNoop
+				discardIfNoop,
+				trackCaret
 			});
 		},
 		typeIn: (i, preEditOffset, work) =>
@@ -231,7 +236,15 @@ function containerScope(parts: ContainerParts): CommitScope {
 		refAt: (i) => parts.state.innerBlockRefs[i],
 		reveal: (index, path) => parts.revealPath([...parts.path(), index, ...path]),
 		collapseEmptyReplaceToDelete: true,
-		commit({ snapshot, eventTarget, op, mutate, afterTick, discardIfNoop }): Promise<boolean> {
+		commit({
+			snapshot,
+			eventTarget,
+			op,
+			mutate,
+			afterTick,
+			discardIfNoop,
+			trackCaret
+		}): Promise<boolean> {
 			return parts.containerEdit.commitContainer({
 				containerNode: parts.node(),
 				path: parts.path(),
@@ -246,7 +259,8 @@ function containerScope(parts: ContainerParts): CommitScope {
 					}),
 				op: { ...op, eventPath: extendDocPath(parts.path(), eventTarget) },
 				afterTick,
-				discardIfNoop
+				discardIfNoop,
+				trackCaret
 			});
 		},
 		typeIn: (i, preEditOffset, work) =>

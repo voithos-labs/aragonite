@@ -177,6 +177,8 @@ export interface CommitStructuralArgs {
 	/** Leaves for the dev invariant check when `mutate` returns `noop` (an in-place kind change). */
 	touchedNodes?: CstNode[];
 	discardIfNoop?: DiscardIfNoop;
+	/** A caret position the document's fix-up updates in place; `afterTick` reads it back. */
+	trackCaret?: TrackedPosition;
 }
 
 export interface CommitContainerStructuralArgs {
@@ -195,6 +197,8 @@ export interface CommitContainerStructuralArgs {
 	op?: ScopedOpDescriptor;
 	afterTick?: CommitAfterTick;
 	discardIfNoop?: DiscardIfNoop;
+	/** A caret position the container's fix-up updates in place; `afterTick` reads it back. */
+	trackCaret?: TrackedPosition;
 }
 
 /**

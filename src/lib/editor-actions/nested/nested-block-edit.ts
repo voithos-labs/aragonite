@@ -97,8 +97,9 @@ export function createNestedBlockEdit(
 		updateBlockMetadata: (innerIndex, metadata, options) =>
 			core.updateBlockMetadata(innerIndex, metadata, options),
 
-		replaceBlock: (innerIndex, replacement, focus, options) =>
-			core.replaceBlock(innerIndex, replacement, focus, options),
+		replaceBlock: async (innerIndex, replacement, focus, options) => {
+			await core.replaceBlock(innerIndex, replacement, focus, options);
+		},
 
 		updateBlockContent(innerIndex, text, mode, preEditOffset, postEditFocusOffset) {
 			if (deps.node.children) {
