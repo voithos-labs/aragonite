@@ -132,4 +132,30 @@ test.describe('trailing insert row and the block menu', () => {
 
 		await expect.poll(source).toBe('first\n\n```\ncodex\n```\n');
 	});
+
+	const replaceEndings = [
+		{
+			name: 'a CRLF clipboard into an LF document',
+			doc: 'first\n\n```\ncode\n```\n',
+			clipboard: 'x\r\ny\r\n',
+			after: 'first\n\nx\ny\n'
+		},
+		{
+			name: 'an LF clipboard into a CRLF document',
+			doc: 'first\r\n\r\n```\r\ncode\r\n```\r\n',
+			clipboard: 'x\ny',
+			after: 'first\r\n\r\nx\r\ny\r\n'
+		}
+	];
+	for (const { name, doc, clipboard, after } of replaceEndings) {
+		test(`Replace with clipboard writes the document's line ending: ${name}`, async ({ page }) => {
+			await editor.loadContent(doc);
+			await page.evaluate((text) => navigator.clipboard.writeText(text), clipboard);
+			await page.locator('[data-block-kind="fencedCode"]').first().click({ button: 'right' });
+			const menu = page.getByRole('menu', { name: 'Block actions' });
+			await menu.getByRole('menuitem', { name: 'Replace with clipboard' }).click();
+			await editor.bridge.waitForSourceNotContains('```');
+			expect(await editor.bridge.getSource()).toBe(after);
+		});
+	}
 });

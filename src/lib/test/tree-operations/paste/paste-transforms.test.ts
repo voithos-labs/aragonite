@@ -66,6 +66,21 @@ describe('paste-transforms registry', () => {
 		expect(applyPasteTransforms('seed', everyInstalledPlugin)).toBe('seed');
 	});
 
+	// Miss-analysis: every caller in the suite passed LF text, and the block menu's replace row
+	// was the one caller handing the pipeline the clipboard's CRLF.
+	it('hands the first transform LF text whatever line breaks the caller passed', () => {
+		const seen: string[] = [];
+		registerPasteTransform({
+			name: 'reader',
+			transform: (text) => {
+				seen.push(text);
+				return null;
+			}
+		});
+		expect(applyPasteTransforms('a\r\nb\r\n', everyInstalledPlugin)).toBe('a\nb\n');
+		expect(seen).toEqual(['a\nb\n']);
+	});
+
 	it('throws on a duplicate name (register-once)', () => {
 		registerPasteTransform(appending('dup', '-a'));
 		expect(() => registerPasteTransform(appending('dup', '-b'))).toThrow(/already registered/i);
