@@ -410,6 +410,8 @@ _(pre-freeze / unstable, beyond the stable metadata pair `setPluginMetadata` / `
 | `headingLevel`                           | A heading's level, ATX or setext, null for anything else: the outline read a table-of-contents plugin wants                                                                                                                                              |
 | `computeInlineContent`                   | Inline-parse a prose leaf with every installed plugin's syntax, for a pipeline with no editor mounted; inside an editor use `editor.computeInlineContent`, which reads only what that editor lists. Uncached; reference-style links come back unresolved |
 | `isProseKind`                            | Does this kind host inline content? The gate that keeps a code block's bytes out of an inline walk                                                                                                                                                       |
+| `walkBlocks`                             | Visit every block under a document or a block, parents first, each with its path (yours to keep). Return `'skip'` to leave a block's children out, `'stop'` to quit (it returns true). Walking a subtree? Pass its path third to get document paths      |
+| `blockNodeAt`                            | The block at a path, or null when there's none. The empty path is the document itself, which isn't a block, so that's null too                                                                                                                           |
 
 ### Performance helpers
 
