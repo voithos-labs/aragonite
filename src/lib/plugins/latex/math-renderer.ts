@@ -1,57 +1,38 @@
 /**
- * Where the renderer is plugged in: `latexPlugin({ renderer })` sets it at install time, so the
- * plugin's own code never imports one. Widgets and blocks read the current renderer through
- * this module because their props are fixed at mount and carry no renderer. One cache for the
- * whole document means a repeated formula renders once.
+ * Where the math renderer is plugged in: `latexPlugin({ renderer })` sets it at install time, so
+ * the plugin's own code never imports KaTeX. Blocks and widgets render through `mathSlot`
+ * because their props carry no renderer; one cache for the whole document means a repeated
+ * formula renders once per theme.
  */
 
-import { createBoundedMemo } from '$lib/plugin';
+import { createRendererSlot, renderSourceFallback } from '$lib/plugin';
 
+/** `theme` is for an adapter that draws its own colors; one written against `{ display }` alone
+ *  stays assignable. */
 export type MathRenderer = (
 	source: string,
-	opts: { display: boolean }
-) => { dom: HTMLElement; error?: string };
+	opts: { display: boolean; theme: string }
+) => MathRender;
 
-// ── Cached wrapper ────────────────────────────────────────────────────────────
-
-const MEMO_CAP = 256;
-
-/**
- * Caches the render work, not the node: `cloneOnRead` is what lets `inner` run once per key
- * while each caller still gets its own detached node to mount.
- */
-export function createMemoizedRenderer(inner: MathRenderer): MathRenderer {
-	const memo = createBoundedMemo<string, { dom: HTMLElement; error?: string }>({
-		cap: MEMO_CAP,
-		cloneOnRead: (entry) => ({ dom: entry.dom.cloneNode(true) as HTMLElement, error: entry.error })
-	});
-	return (source, opts) => memo(`${source}\x00${opts.display}`, () => inner(source, opts));
+export interface MathRender {
+	dom: HTMLElement;
+	error?: string;
 }
 
-// ── Where the renderer is set ───────────────────────────────────────────────────
-
-// Deliberately no default: this file must not import a renderer, and the plugin's required
-// `renderer` option guarantees one is set before any widget mounts.
-let activeRenderer: MathRenderer | null = null;
-
-export function setMathRenderer(renderer: MathRenderer): void {
-	activeRenderer = createMemoizedRenderer(renderer);
-}
-
-export function renderInlineMath(source: string): { dom: HTMLElement; error?: string } {
-	return render(source, false);
-}
-
-export function renderDisplayMath(source: string): { dom: HTMLElement; error?: string } {
-	return render(source, true);
-}
-
-function render(source: string, display: boolean): { dom: HTMLElement; error?: string } {
-	if (!activeRenderer) {
-		const dom = document.createElement('span');
-		dom.className = 'math-error';
-		dom.textContent = 'Math error: renderer not configured';
-		return { dom, error: 'renderer not configured' };
+export const mathSlot = createRendererSlot<{ source: string; display: boolean }, MathRender>({
+	key: ({ source, display }) => `${display}\0${source}`,
+	// A cached node can sit in one place only, so every caller mounts its own copy.
+	cloneOnRead: ({ dom, error }) => ({ dom: dom.cloneNode(true) as HTMLElement, error }),
+	missing: ({ source }) => ({ dom: renderSourceFallback(source, 'Math renderer not configured') }),
+	failed: ({ source }, error) => {
+		const message = error instanceof Error ? error.message : String(error);
+		return { dom: mathErrorNode(source, message), error: message };
 	}
-	return activeRenderer(source, { display });
+});
+
+/** A formula the renderer rejected: its typed source, with the parser's message on hover. */
+export function mathErrorNode(source: string, message: string): HTMLElement {
+	const dom = renderSourceFallback(source, message);
+	dom.className = 'math-error';
+	return dom;
 }

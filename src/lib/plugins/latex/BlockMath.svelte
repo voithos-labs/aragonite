@@ -20,7 +20,7 @@
 		stacked: 'Preview below the source',
 		source: 'Source only'
 	};
-	import { renderDisplayMath } from './math-renderer';
+	import { mathSlot } from './math-renderer';
 	import { mathDisplaySource } from './latex-kind';
 	import { completeBareMathSource, mathBodySpan, renderMathSource } from './math-source';
 	import { resolveDefaultLayout, type MathBlockLayout } from './math-layout';
@@ -83,15 +83,16 @@
 
 	// ── View rendering ──────────────────────────────────────────────────────────
 
-	// Re-runs on every remount of the render div and on any source change; the document-wide
-	// cache clones a stored node, so a repeated formula is cheap.
+	// Re-runs on a remount of the render div, a source change and a theme switch; the
+	// document-wide cache clones a stored node, so a repeated formula is cheap.
 	$effect(() => {
 		if (!renderEl) return;
 		// Runs while the source is showing too: the side-by-side layout keeps a live preview, so
 		// the equation re-renders as it is typed rather than only when the source closes.
 		const text = draft ?? leaf.sourceText;
 		const source = mathDisplaySource(text);
-		renderEl.replaceChildren(renderDisplayMath(source).dom);
+		const theme = leaf.getTheme();
+		renderEl.replaceChildren(mathSlot.render({ source, display: true }, { theme }).dom);
 		// Where a click on the glyphs puts the caret: `caretTargetAtPoint` on the kind descriptor
 		// sees only the rendered element and has no other route to the bytes behind it.
 		const body = mathBodySpan(text);

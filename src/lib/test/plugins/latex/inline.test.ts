@@ -11,11 +11,6 @@ import {
 	getInlineWidgetEditing
 } from '$lib/core/inline/inline-widgets';
 import { registerMathInline, MATH_INLINE } from '$lib/plugins/latex/latex-kind';
-import {
-	renderInlineMath,
-	setMathRenderer,
-	type MathRenderer
-} from '$lib/plugins/latex/math-renderer';
 
 beforeEach(resetPluginPlatformForTests);
 afterEach(resetPluginPlatformForTests);
@@ -183,31 +178,5 @@ describe('math widget dispatch', () => {
 		expect(span?.('$a$')).toEqual({ start: 1, end: 2 });
 		// Too short to hold delimiters plus content: no span rather than a nonsense one.
 		expect(span?.('$')).toBeNull();
-	});
-});
-
-// A consumer's renderer (`latexPlugin({ renderer })` calls `setMathRenderer`) has to reach the
-// inline render MathInline reads, not a fixed one.
-describe('injected renderer threading', () => {
-	const displayModes: boolean[] = [];
-	const tagRenderer: MathRenderer = (source, { display }) => {
-		displayModes.push(display);
-		const dom = document.createElement('span');
-		dom.className = 'tagged-math';
-		dom.textContent = `tagged:${source}`;
-		return { dom };
-	};
-
-	it('routes the injected renderer into the inline math render, in text mode', () => {
-		setMathRenderer(tagRenderer);
-		registerMathInline();
-		// MathInline renders through renderInlineMath over the `$`-stripped interior;
-		// the document-wide cache returns a clone of the renderer's node.
-		const { dom } = renderInlineMath('x');
-		expect(dom.className).toBe('tagged-math');
-		expect(dom.textContent).toBe('tagged:x');
-		// Inline `$…$` is text-mode math: passing `display: true` would render centered
-		// block math for every inline formula, and no other test would catch it.
-		expect(displayModes).toEqual([false]);
 	});
 });

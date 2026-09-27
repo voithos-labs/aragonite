@@ -1,95 +1,88 @@
 /**
  * @vitest-environment jsdom
  *
- * The render layer that holds no renderer of its own. `createMemoizedRenderer`'s caching is
- * what this file proves; the KaTeX adapter it wraps is proven in `renderer.test.ts`.
+ * The math renderer slot as `latexPlugin` wires it: the display flag and theme reaching the
+ * injected renderer, per-formula caching, and a throw painted as the formula's source. The KaTeX
+ * adapter itself is proven in `renderer.test.ts`.
  */
-import { describe, it, expect, vi } from 'vitest';
-import {
-	createMemoizedRenderer,
-	setMathRenderer,
-	renderInlineMath,
-	renderDisplayMath
-} from '$lib/plugins/latex/math-renderer';
+import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
+import { installPlugins } from '$lib';
+import { resetPluginPlatformForTests } from '$lib/testing';
+import { latexPlugin } from '$lib/plugins/latex';
+import { mathSlot, type MathRenderer } from '$lib/plugins/latex/math-renderer';
 
-describe('createMemoizedRenderer', () => {
-	it('runs inner once per (source, display) and hands back a fresh node each call', () => {
-		const inner = vi.fn((source: string, _opts: { display: boolean }) => {
-			const dom = document.createElement('span');
-			dom.textContent = source;
-			return { dom };
-		});
-		const render = createMemoizedRenderer(inner);
+beforeEach(resetPluginPlatformForTests);
+afterEach(resetPluginPlatformForTests);
 
-		const first = render('x^2', { display: false });
-		const second = render('x^2', { display: false });
+const DARK = { theme: 'dark' };
 
-		expect(inner).toHaveBeenCalledTimes(1);
-		// A live node can't sit in two places: repeats must clone, not alias the cache.
-		expect(second.dom).not.toBe(first.dom);
-		expect(first.dom.textContent).toBe('x^2');
-		expect(second.dom.textContent).toBe('x^2');
-	});
+function install(renderer: MathRenderer): void {
+	installPlugins([latexPlugin({ renderer })]);
+}
 
-	it('keys on display: the same source in display mode is a distinct entry', () => {
-		const inner = vi.fn((source: string, opts: { display: boolean }) => {
-			const dom = document.createElement('span');
-			dom.textContent = `${source}:${opts.display}`;
-			return { dom };
-		});
-		const render = createMemoizedRenderer(inner);
+const echo = vi.fn<MathRenderer>((source, opts) => ({
+	dom: Object.assign(document.createElement('span'), {
+		textContent: `${source}:${opts.display}:${opts.theme}`
+	})
+}));
 
-		render('x^2', { display: false });
-		render('x^2', { display: true });
-
-		expect(inner).toHaveBeenCalledTimes(2);
-	});
-
-	// The `inner` spy counts renders: a cache keyed on anything but the source string, or none,
-	// would render an untouched equation again and fail the last assertion.
-	it('re-renders only the edited equation; untouched ones stay cache hits (A2)', () => {
-		const inner = vi.fn((source: string, _opts: { display: boolean }) => {
-			const dom = document.createElement('span');
-			dom.textContent = source;
-			return { dom };
-		});
-		const render = createMemoizedRenderer(inner);
-
-		// A three-equation document: one render each.
-		for (const eq of ['a^2', 'b^2', 'c^2']) render(eq, { display: false });
-		expect(inner).toHaveBeenCalledTimes(3);
-
-		// Edit one equation (a^2 → a^3): exactly one new render.
-		render('a^3', { display: false });
-		expect(inner).toHaveBeenCalledTimes(4);
-
-		// The reactive re-run an edit triggers re-renders the untouched neighbours;
-		// all cache hits, so the count holds.
-		for (const eq of ['b^2', 'c^2']) render(eq, { display: false });
-		expect(inner).toHaveBeenCalledTimes(4);
-	});
-
-	// The eviction rules are pinned once on the shared helper in bounded-memo.test.ts;
-	// these pin the wrapper's own behavior instead.
+beforeEach(() => {
+	echo.mockClear();
 });
 
-describe('the injection point', () => {
-	// The cache key includes `display`; this pins the two functions passing the flag through,
-	// since a `renderDisplayMath` passing `display: false` serves inline HTML for every block.
-	it('renderInlineMath and renderDisplayMath each thread their own display flag', () => {
-		const inner = vi.fn((source: string, opts: { display: boolean }) => {
-			const dom = document.createElement('span');
-			dom.textContent = `${source}:${opts.display}`;
-			return { dom };
+describe('the math renderer slot', () => {
+	// A block passing `display: false` would serve inline math for every block, and nothing else
+	// would notice.
+	it('hands the renderer its display flag and the theme', () => {
+		install(echo);
+
+		expect(mathSlot.render({ source: 'x^2', display: false }, DARK).dom.textContent).toBe(
+			'x^2:false:dark'
+		);
+		expect(mathSlot.render({ source: 'x^2', display: true }, DARK).dom.textContent).toBe(
+			'x^2:true:dark'
+		);
+		expect(echo).toHaveBeenNthCalledWith(1, 'x^2', { display: false, theme: 'dark' });
+		expect(echo).toHaveBeenNthCalledWith(2, 'x^2', { display: true, theme: 'dark' });
+	});
+
+	it('renders a formula once and hands every caller its own node', () => {
+		install(echo);
+
+		const first = mathSlot.render({ source: 'x^2', display: false }, DARK);
+		const second = mathSlot.render({ source: 'x^2', display: false }, DARK);
+
+		expect(echo).toHaveBeenCalledTimes(1);
+		// A live node can't sit in two places: repeats must clone, not alias the cache.
+		expect(second.dom).not.toBe(first.dom);
+		expect(second.dom.textContent).toBe('x^2:false:dark');
+	});
+
+	// The spy counts renders: a cache keyed on anything but the formula, or none, would render an
+	// untouched equation again and fail the last assertion.
+	it('re-renders only the edited equation; untouched ones stay cache hits (A2)', () => {
+		install(echo);
+		const render = (source: string) => mathSlot.render({ source, display: false }, DARK);
+
+		for (const eq of ['a^2', 'b^2', 'c^2']) render(eq);
+		expect(echo).toHaveBeenCalledTimes(3);
+
+		render('a^3');
+		expect(echo).toHaveBeenCalledTimes(4);
+
+		for (const eq of ['b^2', 'c^2']) render(eq);
+		expect(echo).toHaveBeenCalledTimes(4);
+	});
+
+	it('paints a throwing renderer as the formula source, marked as a math error', () => {
+		install(() => {
+			throw new Error('Undefined control sequence');
 		});
-		setMathRenderer(inner);
 
-		const inline = renderInlineMath('x^2');
-		const display = renderDisplayMath('x^2');
-
-		expect(inner).toHaveBeenNthCalledWith(1, 'x^2', { display: false });
-		expect(inner).toHaveBeenNthCalledWith(2, 'x^2', { display: true });
-		expect(inline.dom.textContent).toBe('x^2:false');
-		expect(display.dom.textContent).toBe('x^2:true');
+		const { dom, error } = mathSlot.render({ source: '\\nope', display: false }, DARK);
+		expect(error).toBe('Undefined control sequence');
+		expect(dom.className).toBe('math-error');
+		expect(dom.textContent).toBe('\\nope');
+		expect(dom.title).toBe('Undefined control sequence');
 	});
 });

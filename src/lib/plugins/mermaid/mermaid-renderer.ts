@@ -1,11 +1,10 @@
 /**
- * Where the renderer is plugged in: this module holds the current renderer and the cache, never
- * mermaid itself, which stays behind the `/renderer` subpath so it never lands in the main
- * bundle. The renderer is held here rather than passed in because `MermaidBlock` mounts with
- * the standard block props. No default: with no renderer the code is shown as plain text.
+ * Where the mermaid renderer is plugged in: `mermaidSlot` holds it and its cache, never mermaid
+ * itself, which stays behind the `/renderer` subpath so it never lands in the main bundle.
+ * `MermaidBlock` mounts with the standard block props, so it reads the renderer from here.
  */
 
-import { createBoundedMemo } from '$lib/plugin';
+import { createAsyncRendererSlot, type RenderContext } from '$lib/plugin';
 
 /** What the editor knows at render time that the diagram text does not carry. */
 export interface MermaidRenderContext {
@@ -26,39 +25,18 @@ export interface MermaidRenderResult {
 	error?: string;
 }
 
-/** Exported so the eviction test takes its entry count from the real limit. */
-export const MERMAID_MEMO_CAP = 256;
+export const mermaidSlot = createAsyncRendererSlot<string, MermaidRenderResult>({
+	key: (code) => code,
+	missing: () => ({ error: 'renderer not configured' }),
+	failed: (_code, error) => ({ error: error instanceof Error ? error.message : String(error) })
+});
 
-const newMemo = () =>
-	createBoundedMemo<string, Promise<MermaidRenderResult>>({ cap: MERMAID_MEMO_CAP });
-
-let activeRenderer: MermaidRenderer | null = null;
-// The cache has no clear method, so building a new one is how a renderer swap empties it.
-let memo = newMemo();
 let renderSeq = 0;
 
-export function setMermaidRenderer(renderer: MermaidRenderer | null): void {
-	activeRenderer = renderer;
-	memo = newMemo();
-}
-
-export function hasMermaidRenderer(): boolean {
-	return activeRenderer !== null;
-}
-
-/**
- * Keyed on theme and code, so switching the theme back is a cache hit. A parse failure resolves
- * to an `error` and is cached like a success.
- */
-export function renderMermaid(code: string, theme: string): Promise<MermaidRenderResult> {
-	// Joined with a NUL so no (theme, code) pair can run together into another pair's key.
-	return memo(`${theme}\0${code}`, () => {
-		const renderer = activeRenderer;
-		return renderer
-			? renderer(code, `aragonite-mermaid-${renderSeq++}`, { theme }).then(
-					(svg) => ({ svg }),
-					(reason) => ({ error: reason instanceof Error ? reason.message : String(reason) })
-				)
-			: Promise.resolve({ error: 'renderer not configured' });
-	});
+/** Mermaid needs a fresh element id per render, which the slot's `(code, ctx)` call leaves out. */
+export function adaptMermaidRenderer(
+	renderer: MermaidRenderer
+): (code: string, ctx: RenderContext) => Promise<MermaidRenderResult> {
+	return (code, { theme }) =>
+		renderer(code, `aragonite-mermaid-${renderSeq++}`, { theme }).then((svg) => ({ svg }));
 }

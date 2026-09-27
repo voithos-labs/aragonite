@@ -6,11 +6,11 @@
 
 <script lang="ts">
 	import type { InlineWidgetComponentProps } from '$lib/plugin';
-	import { renderInlineMath } from './math-renderer';
+	import { mathSlot } from './math-renderer';
 
 	// Read once at mount on purpose: the widget remounts on any source change, so the
 	// `$`-stripped interior can never go stale.
-	let { source }: InlineWidgetComponentProps = $props();
+	let { source, getTheme }: InlineWidgetComponentProps = $props();
 	// svelte-ignore state_referenced_locally
 	const inner = source.slice(1, -1);
 	// eslint-disable-next-line no-useless-assignment -- <script module> counter read by the next instance mount
@@ -18,10 +18,11 @@
 
 	let el: HTMLSpanElement;
 
-	// Inside a client $effect, so server rendering emits no widget DOM; the interior never
-	// changes, so it runs once per instance.
+	// Inside a client $effect, so server rendering emits no widget DOM; the theme read is what
+	// redraws the formula on a theme switch.
 	$effect(() => {
-		el.replaceChildren(renderInlineMath(inner).dom);
+		const theme = getTheme?.() ?? 'dark';
+		el.replaceChildren(mathSlot.render({ source: inner, display: false }, { theme }).dom);
 	});
 </script>
 

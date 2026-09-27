@@ -1,7 +1,6 @@
 /**
- * `renderer` is required because there is no built-in default; `katexRenderer` is the
- * one-import way to supply it. The plugin installs this setup once per process, so it runs
- * unguarded.
+ * `katexRenderer` is the one-import way to supply `renderer`; without one, each formula shows its
+ * source. The plugin installs this setup once per process, so it runs unguarded.
  */
 
 import {
@@ -13,23 +12,26 @@ import {
 	type EditorPlugin
 } from '$lib/plugin';
 import { registerMathInline, registerMathBlock, MATH_BLOCK, MATH_FENCE } from './latex-kind';
-import { setMathRenderer, type MathRenderer } from './math-renderer';
+import { mathSlot, type MathRenderer } from './math-renderer';
 import { isMathBlockLayout, type MathBlockLayout } from './math-layout';
 import BlockMath from './BlockMath.svelte';
 
 export interface LatexPluginOptions {
-	renderer: MathRenderer;
+	renderer?: MathRenderer;
 	/** How a `$$` block opens for editing on a plain install (`math-layout.ts`); an editor's
 	 *  `{ plugin, options: { blockLayout } }` entry overrides it. */
 	blockLayout?: MathBlockLayout;
 }
 
-export function latexPlugin(options: LatexPluginOptions): EditorPlugin {
+export function latexPlugin(options: LatexPluginOptions = {}): EditorPlugin {
+	const { renderer } = options;
 	const blockLayout = isMathBlockLayout(options.blockLayout) ? options.blockLayout : 'split';
 	return definePlugin({
 		name: 'latex',
 		setup() {
-			setMathRenderer(options.renderer);
+			mathSlot.set(
+				renderer ? ({ source, display }, { theme }) => renderer(source, { display, theme }) : null
+			);
 			registerMathInline();
 			// registerMathBlock also registers the ```math fence kind; both render through BlockMath.
 			registerMathBlock();

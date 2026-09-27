@@ -27,11 +27,10 @@ function roundTrips(source: string): boolean {
 
 beforeAll(() => {
 	resetPluginPlatformForTests();
-	// The parser never renders, so a no-op renderer satisfies latex's required option.
 	installPlugins([
 		footnotesPlugin(),
 		emojiPlugin(),
-		latexPlugin({ renderer: () => ({ dom: document.createElement('span') }) }),
+		latexPlugin(),
 		admonitionsPlugin(),
 		detailsPlugin()
 	]);

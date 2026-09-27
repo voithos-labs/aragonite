@@ -12,7 +12,7 @@
 		type NodeView
 	} from '$lib/plugin';
 	import { joinMermaidBody, type MermaidMetadata } from './mermaid-kind';
-	import { hasMermaidRenderer, renderMermaid, type MermaidRenderResult } from './mermaid-renderer';
+	import { mermaidSlot, type MermaidRenderResult } from './mermaid-renderer';
 
 	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
 
@@ -66,9 +66,9 @@
 		// Reading the theme here is what makes this effect re-run when the theme changes, and
 		// it must redraw because mermaid writes colors into the SVG.
 		const theme = getTheme();
-		if (isEmpty || !hasMermaidRenderer()) return;
+		if (isEmpty || !mermaidSlot.configured) return;
 		let stale = false;
-		void renderMermaid(current, theme).then(async (result) => {
+		void mermaidSlot.render(current, { theme }).then(async (result) => {
 			if (stale) return;
 			// A redraw replaces only the rendered element, so only focus inside it is handed back:
 			// the editor's hidden input and the toolbar are children of the box and survive.
@@ -87,7 +87,7 @@
 	const surfaceState = $derived(
 		isEmpty
 			? 'empty'
-			: !hasMermaidRenderer()
+			: !mermaidSlot.configured
 				? 'no-renderer'
 				: rendered?.error
 					? 'error'
