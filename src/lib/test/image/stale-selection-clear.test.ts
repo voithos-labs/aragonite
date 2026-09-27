@@ -4,7 +4,7 @@ import { defaultGrammarView } from '$lib/schema/block-openers';
 import { describe, it, expect } from 'vitest';
 import { tick } from 'svelte';
 import { createImageEditCommitter } from '../../components/image/image-edit-commit';
-import { imageFieldsFromInline } from '../../components/image/image-source-bytes';
+import { imageFieldsFromInline } from '../../core/inline/image-source-bytes';
 import { getInlineContent } from '../../core/inline/inline-cache';
 import type { CstNode } from '../../core/nodes';
 import { createWidgetSelectionState } from '../../components/image/widget-selection-state.svelte';

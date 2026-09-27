@@ -10,7 +10,7 @@ import {
 	buildLinkEditBytes,
 	buildLinkUnwrapBytes,
 	linkFieldsFromInline
-} from '$lib/components/blocks/text/link-source-bytes';
+} from '$lib/core/inline/link-source-bytes';
 import { fixtureReading } from '../../harness/fixture-grammar';
 
 // Every case states the displayed bytes the writer is offered, because it checks its candidate

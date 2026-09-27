@@ -8,7 +8,11 @@ import { createInlineRangeCommit } from '../../editor-actions/inline-range-commi
 import type { EditorEvents } from '../../editor-events';
 import { FALLBACK_CONTENT_WIDTH } from '../../cursor/typography-estimates';
 import { blockNodeAt } from '../../tree-operations/node-primitives';
-import { buildImageEditBytes, imageFieldsFromInline, sameImageFields } from './image-source-bytes';
+import {
+	buildImageEditBytes,
+	imageFieldsFromInline,
+	sameImageFields
+} from '../../core/inline/image-source-bytes';
 import type { WidgetSelectionState, WidgetTarget } from './widget-selection-state.svelte';
 import type { Reading } from '../../schema/reading';
 

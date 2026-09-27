@@ -1,9 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import {
-	buildImageSourceBytes,
-	imageFieldsFromInline
-} from '../../components/image/image-source-bytes';
-import { parseInline } from '../../core/inline';
+import { buildImageSourceBytes, imageFieldsFromInline } from '$lib/core/inline/image-source-bytes';
+import { parseInline } from '$lib/core/inline';
 
 describe('buildImageSourceBytes', () => {
 	it('basic image with alt + url', () => {

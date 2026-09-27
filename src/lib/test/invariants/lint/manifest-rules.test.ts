@@ -24,8 +24,8 @@ const inKeys = (...groups: Record<string, string>[]) => {
 
 // ── G4.21 / G4.34 the image and link byte writers ────────────────────────────
 
-const IMAGE_BYTES = 'src/lib/components/image/image-source-bytes.ts';
-const LINK_BYTES = 'src/lib/components/blocks/text/link-source-bytes.ts';
+const IMAGE_BYTES = 'src/lib/core/inline/image-source-bytes.ts';
+const LINK_BYTES = 'src/lib/core/inline/link-source-bytes.ts';
 const IMAGE_POPOVER = 'src/lib/components/image/ImageProperties.svelte';
 
 // ── G4.36 caret writes ───────────────────────────────────────────────────────
@@ -181,7 +181,7 @@ const REWRITE_MODULES: Record<string, string> = {
 	[ORACLE_HOME]: 'the one home for what the reader sees',
 	'src/lib/components/blocks/text/construct-edge-delete.ts': 'the destructive edge delete',
 	'src/lib/components/blocks/text/edge-seat.ts': 'the typing position at a construct edge',
-	'src/lib/components/blocks/text/link-source-bytes.ts': 'the link byte writer',
+	'src/lib/core/inline/link-source-bytes.ts': 'the link byte writer',
 	'src/lib/components/blocks/text/live-join-seam.ts': 'the join cleaner',
 	'src/lib/components/blocks/text/live-split-rebalance.ts': 'the split rebalancer',
 	'src/lib/components/blocks/text/pending-mark-insert.ts': 'the pending-mark resolver',

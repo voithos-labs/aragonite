@@ -5,12 +5,12 @@
  * source, which a private scan of the parse tree cannot see.
  */
 
-import { inlineDescendants, readInline } from '../../../core/inline';
-import { encodeDestination, escapeTitle } from '../../../core/inline/destination-bytes';
-import type { Reading } from '../../../schema/reading';
-import { CONTENT_VISIBILITY, renderedText } from '../../../core/inline/visibility';
-import type { InlineNode } from '../../../core/nodes';
-import { devWarn } from '../../../dev-warn';
+import { inlineDescendants, readInline } from './index';
+import { encodeDestination, escapeTitle } from './destination-bytes';
+import type { Reading } from '../../schema/reading';
+import { CONTENT_VISIBILITY, renderedText } from './visibility';
+import type { InlineNode } from '../nodes';
+import { devWarn } from '../../dev-warn';
 
 // ── The one write path ──────────────────────────────────────────────────────
 

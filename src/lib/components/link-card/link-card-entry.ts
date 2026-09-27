@@ -5,7 +5,7 @@
  * stays in the document. Live mode only: every other mode paints the destination.
  */
 
-import { canWrapRangeAsLink } from '../blocks/text/link-source-bytes';
+import { canWrapRangeAsLink } from '../../core/inline/link-source-bytes';
 import {
 	resolveLinkAtPoint,
 	type LinkPointQuery,

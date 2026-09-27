@@ -8,7 +8,7 @@
 	import ImageProperties from './ImageProperties.svelte';
 	import ImageResizeHandles from './ImageResizeHandles.svelte';
 	import { createImageEditCommitter } from './image-edit-commit';
-	import { imageFieldsFromInline } from './image-source-bytes';
+	import { imageFieldsFromInline } from '../../core/inline/image-source-bytes';
 	import type { MenuPresence } from '../menu/menu-presence.svelte';
 	import {
 		pressLeavesImage,

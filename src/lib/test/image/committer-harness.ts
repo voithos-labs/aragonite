@@ -6,7 +6,7 @@
 import { defaultGrammarView } from '$lib/schema/block-openers';
 import { vi } from 'vitest';
 import { createImageEditCommitter } from '../../components/image/image-edit-commit';
-import { imageFieldsFromInline } from '../../components/image/image-source-bytes';
+import { imageFieldsFromInline } from '../../core/inline/image-source-bytes';
 import { getInlineContent } from '../../core/inline/inline-cache';
 import { parse } from '../../core/parser';
 import { makeStubController } from '../harness/editor-actions';

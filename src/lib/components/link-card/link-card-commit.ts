@@ -19,7 +19,7 @@ import {
 	buildLinkWrapBytes,
 	linkFieldsFromInline,
 	type LinkFields
-} from '../blocks/text/link-source-bytes';
+} from '../../core/inline/link-source-bytes';
 import type { CreateLinkTarget } from './link-card-state.svelte';
 import type { Reading } from '../../schema/reading';
 

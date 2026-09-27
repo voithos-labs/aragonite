@@ -1,5 +1,6 @@
-// `|N` / `|NxM` is an Obsidian extension, not part of GFM. The `@X,Y[,Z]` tail on the `NxM`
-// form is this editor's own: the pan and zoom of the image inside that frame.
+// The size hint at the end of an image's alt text, read and written here. `|N` / `|NxM` is an
+// Obsidian extension, not part of GFM; the `@X,Y[,Z]` tail on the `NxM` form is this editor's
+// own: the pan and zoom of the image inside that frame.
 
 import type { ImageCrop } from '../nodes';
 
@@ -18,6 +19,8 @@ export interface ParsedImageAlt {
 }
 
 const NO_HINT = { width: undefined, height: undefined, crop: undefined };
+
+// ── Reading ─────────────────────────────────────────────────────────────────
 
 export function parseImageDimensions(alt: string): ParsedImageAlt {
 	const lastPipe = boundedLastPipe(alt);
@@ -81,4 +84,24 @@ function parseStrictInt(s: string): number | null {
 	const n = Number(s);
 	if (n <= 0 || n > MAX_DIMENSION) return null;
 	return n;
+}
+
+// ── Writing ─────────────────────────────────────────────────────────────────
+
+/** The suffix `parseImageDimensions` reads back as these values; empty for no width. */
+export function buildDimSuffix(
+	width: number | undefined,
+	height: number | undefined,
+	crop: ImageCrop | undefined
+): string {
+	if (width === undefined) return '';
+	if (height === undefined) return `|${width}`;
+	return `|${width}x${height}${crop ? buildCropTail(crop) : ''}`;
+}
+
+/** Whole percents; the zoom only when it is one worth writing, trimmed to what it needs. */
+function buildCropTail(crop: ImageCrop): string {
+	const z = Math.round(crop.z * 100) / 100;
+	const zoom = z === 1 ? '' : `,${String(z)}`;
+	return `@${Math.round(crop.x)},${Math.round(crop.y)}${zoom}`;
 }

@@ -602,7 +602,7 @@ const RULES: FileRule[] = [
 				'the paste menu row skips a clipboard that holds nothing to paste',
 			'src/lib/components/link-card/LinkCard.svelte': 'a URL typed into the link card',
 			'src/lib/components/link-card/LinkCardHost.svelte': 'a URL typed into the link card',
-			'src/lib/components/blocks/text/link-source-bytes.ts': 'the URL the link command was given',
+			'src/lib/core/inline/link-source-bytes.ts': 'the URL the link command was given',
 			'src/lib/plugins/latex/BlockMath.svelte':
 				'whether the render shows ink, not whether the Markdown is blank',
 			'src/lib/plugins/mermaid/MermaidBlock.svelte':
