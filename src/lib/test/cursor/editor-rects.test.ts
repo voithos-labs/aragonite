@@ -46,8 +46,7 @@ function makeRects(el: HTMLElement | null, unmountedPath?: number[]) {
 
 // ── Harness for the refinement loop ──────────────────────────────────────────
 // `makeRects` passes a null root, so its refinement loop never runs. These give the loop a real
-// root and a scriptable top per path: [initialTop, ...topAfterEachScrollIntoView], visible below
-// ROOT_BOTTOM, the shape of a first scroll landing short and the loop correcting it.
+// root and a scripted top per path: [initialTop, ...topAfterEachScrollIntoView].
 const ROOT_BOTTOM = 100;
 const EL_HEIGHT = 20;
 
@@ -144,8 +143,7 @@ describe('EditorRects.scrollTo', () => {
 
 describe('EditorRects.scrollTo: claim ownership', () => {
 	// Every final release runs through the claim, so a scroll another one took over cannot take
-	// the newer hold with it. Both cases that release themselves are covered: the 'center'
-	// refinement and the hand-back.
+	// the newer hold with it.
 	for (const [name, opts] of [
 		['a center refine', { block: 'center' } as const],
 		['a hand-back restore', { hold: false } as const]
@@ -178,9 +176,8 @@ describe('EditorRects.scrollTo: claim ownership', () => {
 	});
 });
 
-// Why a claim was lost decides whether the refinement keeps working: another scroll owns the
-// viewport, while the user taking over ends only the lasting hold, and must not report a
-// restore that had not finished arriving as one that never would.
+// Why the claim was lost decides whether the refinement continues: another scroll owns the
+// viewport, while a user takeover ends only the lasting hold.
 describe('EditorRects.scrollTo: the settle, and who may end it', () => {
 	it('a superseded reveal stops scrolling for its own target and reports it out of view', async () => {
 		const h = makeSettlingRects({ '[1]': [500, 0], '[2]': [500, 0] });

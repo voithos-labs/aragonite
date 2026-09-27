@@ -4,12 +4,9 @@ import type { EdgeAffinityAction } from '../../cursor/edge-affinity';
 import { flipMark } from '../../cursor/pending-marks';
 import type { InlineMarkKind } from '../../schema/inline-construct-policy';
 
-// The marks a toggle with no selection promises the next insertion. Two properties carry the
-// contract: exactly one insertion uses them up, and everything that moves the caret drops
-// them. The second holds because they live in the caret memory with the column and the side,
-// so nothing can drop one without the others. Miss-analysis (a lifecycle gap, not a bug fix):
-// the sticky column and the affinity are tested only where they are set, so a third rider needs
-// its own table or nothing asserts that it is cleared.
+// The marks a toggle with no selection promises the next insertion: exactly one insertion uses
+// them up, and anything that moves the caret drops them along with the column and the side.
+// Miss-analysis: the column and side were tested only where set, so nothing asserted a clear.
 
 const kinds = (marks: ReadonlySet<InlineMarkKind> | null): InlineMarkKind[] =>
 	marks === null ? [] : [...marks].sort();
@@ -35,8 +32,8 @@ describe('flipMark', () => {
 	});
 });
 
-// Everything that settles which side the caret arrived on drops the marks too, so the table of
-// what clears them is the arrival table. Driving it through the memory is what tests that.
+// Everything that decides which side the caret arrived on drops the marks too, so the arrival
+// table is the table of what clears them; driving it through the memory tests that.
 describe('pending marks clear with the caret side', () => {
 	function pended(): CaretMemory {
 		const memory = createCaretMemory();

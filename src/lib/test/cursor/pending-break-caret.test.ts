@@ -1,10 +1,7 @@
 // @vitest-environment jsdom
-//
-// A pending hard break's two anchors start a line of their own, between the break's hidden
-// backslash and whatever hidden run follows (a setext underline), so a caret at the break sits at
-// that line's start and reads back as the same raw offset.
-// Miss-analysis: every pending break the suite built ended its block, so no hidden run followed
-// the anchors and the walk merged the two runs into one the caret could not stop inside.
+// A pending hard break's two anchors start a line of their own between the break's hidden
+// backslash and any hidden run after it, so a caret at the break reads back as the same offset.
+// Miss-analysis: every pending break the suite built ended its block, so no hidden run followed.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import {
 	destroyMountedEditors,

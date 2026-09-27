@@ -9,17 +9,15 @@ import {
 	rawTextOfNode
 } from '../../cursor/widget-offset';
 
-// Fixture: the paragraph "a $x^2$ b", whose $…$ math renders as one widget the caret cannot
-// enter. Offsets into the block's source, marker prefix excluded: "a " = [0,2); the widget
-// "$x^2$" = [2,7); " b" = [7,9).
+// The paragraph "a $x^2$ b", whose math renders as one widget the caret cannot enter. Source
+// offsets, marker prefix excluded: "a " = [0,2), the widget = [2,7), " b" = [7,9).
 const BLOCK_RAW = 'a $x^2$ b';
 const SRC_START = 2;
 const SRC_END = 7;
 const SOURCE = BLOCK_RAW.slice(SRC_START, SRC_END); // "$x^2$"
 
-// Its inner `textContent` is deliberately one character against a 5-byte source range, so a
-// traversal reading `textContent` instead of `data-source-*` would disagree (the same shape as
-// widget-offset.test.ts).
+// One character of `textContent` against a 5-byte source range, so a traversal reading
+// `textContent` instead of `data-source-*` would disagree.
 function renderedWidget(): HTMLElement {
 	const w = document.createElement('span');
 	w.setAttribute('data-inline-widget', '');
@@ -32,9 +30,8 @@ function renderedWidget(): HTMLElement {
 	return w;
 }
 
-// `ambientPrefix` stands in for a container's marker span (a list item's "- ", a blockquote's
-// "> "): real leading text the DOM traversal counts but the block's source excludes. No prefix
-// means a plain paragraph.
+// `ambientPrefix` stands in for a container's marker span: leading text the DOM traversal counts
+// but the block's source excludes.
 function mountBlock(ambientPrefix = ''): HTMLElement {
 	const el = document.createElement('div');
 	el.setAttribute('contenteditable', 'true');
@@ -51,9 +48,8 @@ function mountBlock(ambientPrefix = ''): HTMLElement {
 	return el;
 }
 
-// The swap is done the way the inline code does it: `showSource` replaces the widget with a
-// text node, `showRendered` rebuilds it, and the captured node is how a test tells the states
-// apart.
+// Swaps the way the inline code does: `showSource` replaces the widget with a text node and
+// `showRendered` rebuilds it; the captured node tells a test which state it is in.
 function depsFor(el: HTMLElement) {
 	let sourceNode: Text | null = null;
 	return {
@@ -106,9 +102,8 @@ describe('source-reveal: caret-landing model (ambient = 0)', () => {
 	});
 
 	it('an opaque widget cannot address an interior source offset: it snaps to an edge', () => {
-		// Why showing the source matters: with the widget rendered, an offset inside its source
-		// (start+2) resolves to the trailing edge, since a widget the caret cannot enter answers
-		// only `SRC_START` or `SRC_END`.
+		// With the widget rendered, an offset inside its source resolves to the trailing edge,
+		// since a widget the caret cannot enter answers only `SRC_START` or `SRC_END`.
 		const pos = findDomTextOffsetTarget(el, asDomTextOffset(SRC_START + 2));
 		expect(pos).not.toBeNull();
 		expect(domTextOffsetAtNode(el, pos!.node, pos!.offset)).toBe(SRC_END);
@@ -180,9 +175,8 @@ describe('source-reveal: caret-landing model (ambient = 0)', () => {
 });
 
 describe('source-reveal: ambient-included offsets (list-item / blockquote math)', () => {
-	// A two-character marker prefix the DOM traversal counts but the block's source excludes:
-	// every caret lands at `ambientLength + blockSourceOffset`, and passing the bare block offset
-	// lands short by the prefix's length.
+	// The DOM traversal counts the marker prefix and the block's source excludes it, so every caret
+	// lands at `ambientLength + blockSourceOffset`.
 	const AMBIENT = '- ';
 	let el: HTMLElement;
 
@@ -257,9 +251,8 @@ describe('source-reveal: highest-risk edges', () => {
 	});
 
 	it('reveal→commit with no edit is a CST-free view toggle, nothing for undo to span', async () => {
-		// This suite's limit: the call changes only temporary DOM, so a cycle with no edit is
-		// byte-identical and adds no undo entry; Ctrl+Z across showing the source and committing is
-		// the LaTeX e2e's subject.
+		// The call changes only temporary DOM, so a cycle with no edit adds no undo entry; undo
+		// across a source edit is the LaTeX e2e's subject.
 		const reveal = createSourceReveal(depsFor(el));
 		const before = el.querySelector('[data-inline-widget]')!;
 		const stamp = (w: Element) =>

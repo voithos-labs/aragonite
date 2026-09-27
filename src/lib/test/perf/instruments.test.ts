@@ -220,8 +220,7 @@ describe('perf boundaries', () => {
 	});
 });
 
-// Miss-analysis: the switch read Vitest's own env variable, and every suite runs under Vitest, so
-// the override a suite on another runner is told to call never reached it.
+// Miss-analysis: the switch read Vitest's own env variable, and every suite runs under Vitest.
 describe('the perf switch reads the editor environment', () => {
 	afterEach(() => {
 		vi.unstubAllEnvs();

@@ -1,11 +1,8 @@
 // @vitest-environment jsdom
-//
-// Markers standing over no content: which containers the render path marks, and what that
-// attribute does to the offset traversal. A block whose only bytes are its own markers has
-// nowhere for the caret to sit while they hide, so the two places that apply the hiding rule,
-// this traversal and the stylesheet, paint those markers in live and preview but never reading.
-// Miss-analysis: the traversal's own tests mounted only blocks with content beside their
-// markers, so the `{len, len}` bound was asserted as a bound and never as a caret trap.
+// Markers standing over no content: which containers the render path marks, and how the offset
+// traversal treats them. Such a block's markers paint in live and preview, so the caret has
+// somewhere to sit, but never in reading.
+// Miss-analysis: the traversal's tests always had content beside the markers, so no caret trap.
 import { describe, it, expect, afterEach } from 'vitest';
 import {
 	holdsOnlyMarkerChrome,
@@ -64,8 +61,8 @@ describe('holdsOnlyMarkerChrome: the mark condition', () => {
 	// hidden, so a block holding only labels would be marked for a paint that never comes.
 	it('a reference label is chrome the mark does not paint, and never content', () => {
 		expect(holdsOnlyMarkerChrome(mountBlock({}, span('md-ref-label', '[ref]')))).toBe(false);
-		// #141's shape: a label beside a paintable marker must not read as content standing behind
-		// it, or the block goes unmarked, paints nothing, and G1.33 fires with nothing to paint.
+		// A label beside a paintable marker must not read as content behind it, or the block goes
+		// unmarked and paints nothing (G1.33).
 		const withLabel = mountBlock(
 			{ mode: 'live', stamped: true },
 			span('md-marker', '['),

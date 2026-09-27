@@ -1,5 +1,4 @@
 // @vitest-environment jsdom
-//
 // The one caret writer and the one reader: a raw offset lands past the marker prefix and, when
 // asked to, onto a position the caret can reach; a DOM position reads back through the same
 // prefix length, taken from the DOM.

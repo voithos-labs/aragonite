@@ -1,5 +1,4 @@
 // @vitest-environment jsdom
-//
 // jsdom lays nothing out, so the browser's rect methods are patched on the prototype (the code
 // under test calls `document.createRange()` itself, so stubbing one range never reaches it).
 // Each fake rect comes from the collapsed range's (startContainer, startOffset), so the code's
@@ -188,10 +187,8 @@ describe('sticky-measure geometry', () => {
 			expect(above).not.toBe(below);
 		});
 
+		// Miss-analysis: the fixture spaced lines four line-heights apart, never a real page's gap.
 		it('keeps the line above out of the search when the lines sit a normal gap apart', () => {
-			// Miss-analysis: the fixture spaced wrapped lines four line-heights apart, so the
-			// tolerance the band filter allowed was never asked to be smaller than a real page's
-			// gap between one line's descenders and the next line's ascenders.
 			block.style.lineHeight = `${LINE_HEIGHT + 2}px`;
 			lineGap = LINE_HEIGHT + 2;
 			wrapAt = 12;

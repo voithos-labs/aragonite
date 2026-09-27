@@ -1,8 +1,6 @@
 // @vitest-environment jsdom
-//
 // The caret reads and writes every editable surface builds, behind a list item's marker prefix.
-// Miss-analysis: every case here handed the backend a live element, so the read order behind a
-// dead one was never asked.
+// Miss-analysis: every case here handed the backend a live element, never a dead one.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createSurfaceBackend } from '../../cursor/surface-backend';
 import { asRawOffset } from '../../cursor/coordinate-spaces';

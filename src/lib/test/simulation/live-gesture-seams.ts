@@ -89,10 +89,8 @@ export interface Applied {
 
 // ── The block's editable element, as much as a keystroke reads ───────────────
 
-/** The block's rendered DOM: its leading marker span, the inline render, and the content-empty
- *  data attribute. Images render as their source text (the render path's fallback where no widget
- *  is registered), which keeps every byte in one caret space instead of behind a widget the caret
- *  cannot enter. */
+/** The block's rendered DOM. Images render as their source text, the fallback with no widget
+ *  registered, so every byte stays where the caret can reach it. */
 function mountBlock(node: CstNode, mode: PresentationMode | undefined): HTMLElement {
 	const root = document.createElement('div');
 	if (mode) root.setAttribute('data-presentation', mode);
@@ -157,12 +155,8 @@ function harnessFor(source: string, mode: PresentationMode | undefined): Harness
 	};
 }
 
-/**
- * The leaves a gesture can reach. A caret-edge keypress, a split and a selection replace go through
- * the document-level action bundle, so they reach top-level prose only; a range delete takes paths,
- * so it reaches a container's children too. One function, because the draw aims its offset at the
- * very node the applier will pick.
- */
+/** Shared by the draw and the applier, so a drawn offset aims at the very node the applier picks.
+ *  Only the container writes and the range gestures reach a container's children. */
 export function gestureTargets(doc: Document, kind: GestureKind): ProseLeaf[] {
 	if (kind === 'type-in-container' || kind === 'blank-in-container') return containerLeaves(doc);
 	if (spansLeaves(kind)) return proseLeaves(doc);
@@ -171,9 +165,8 @@ export function gestureTargets(doc: Document, kind: GestureKind): ProseLeaf[] {
 	);
 }
 
-/** Whether a drawn offset landed inside a surrogate pair, read before the offset reaches any
- *  editing call: that is the shape a caller's own arithmetic can produce, and the one this harness
- *  must count rather than quietly move. */
+/** Read before the offset reaches any editing call: a caller's own arithmetic can produce a
+ *  mid-pair offset, so the harness counts it rather than quietly moving it. */
 export function drawsMidScalar(doc: Document, gesture: Gesture): boolean {
 	return drawnSites(doc, gesture).some(
 		({ node, offset }) => snapToScalarBoundary(node.raw, offset) !== offset
@@ -209,12 +202,8 @@ function contentOffset(node: CstNode, offset: number): number {
 	return start + (offset % Math.max(1, end - start + 1));
 }
 
-/**
- * The drawn offset as this gesture's own entry point delivers it. A keypress and a selection come
- * from the browser, which never reports an offset inside a surrogate pair, so the harness matches
- * that. The split takes an offset a caller computed, and the range delete one the selection store
- * holds ({@link storedEndpoint}): both arrive raw, and production code is what has to catch them.
- */
+/** The browser never reports an offset inside a surrogate pair, so keypresses and selections snap;
+ *  the split and the range gestures take raw offsets, which production code has to catch. */
 function throughDoor(node: CstNode, offset: number, kind: GestureKind): number {
 	return kind === 'enter' || spansLeaves(kind) ? offset : snapToScalarBoundary(node.raw, offset);
 }
@@ -245,13 +234,8 @@ function containerLeaves(doc: Document): ProseLeaf[] {
 	return proseLeaves(doc).filter((leaf) => leaf.path.length === 2);
 }
 
-/**
- * Writing inside a container, twice. One write cannot reach the bug class: the first write into a
- * container builds its child spans and the second uses them (`schema/child-spans.ts`). The first
- * also adds the sibling whose separating line the second write's fix-up moves, since the drawn
- * documents give a container a single line. The second write types the drawn character or empties
- * the leaf, and emptying is what makes the fix-up drop the following block's blank line.
- */
+/** Two writes, since the first builds the container's child spans (`schema/child-spans.ts`) and
+ *  adds the sibling whose blank line the second write's fix-up moves or drops. */
 async function writeInsideContainer(
 	source: string,
 	gesture: Gesture,
@@ -392,9 +376,8 @@ async function nativePress(
 	const write = (raw: string, caret: number) =>
 		h.blockEdit.updateBlockContent(index, raw, 'authored', offset, caret);
 	if (kind === 'type') {
-		// A typed byte reaches the editable element through the auto-pair handler in every mode
-		// (G4.65), so a typed delimiter writes what that handler writes: the matching closer, or
-		// nothing where the caret steps over one. A drawn document holds no pair it wrote.
+		// Every typed byte goes through the delimiter auto-pair handler in every mode (G4.65); a
+		// drawn document holds no pair that handler wrote.
 		const paired = resolveDelimiterAutoPair(
 			trimTrailingLineEnding(node.raw),
 			{ start, end },

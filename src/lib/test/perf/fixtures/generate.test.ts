@@ -36,9 +36,8 @@ describe('fixture generators', () => {
 		});
 	}
 
-	// The baseline numbers are keyed to these exact bytes, so editing the corpus has to fail
-	// loudly and force a deliberate re-baseline. One test per shape: an inline snapshot needs its
-	// own call site, so a loop cannot carry them.
+	// The baseline numbers are keyed to these exact bytes, so a corpus edit must fail and force a
+	// re-baseline; a loop can't carry them, since each inline snapshot needs its own call site.
 	it('flat-prose: exact output pinned', () => {
 		expect(generateFixture('flat-prose', 200, 7)).toMatchInlineSnapshot(`
 			"## alpha alpha papa lima

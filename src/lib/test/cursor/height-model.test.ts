@@ -64,8 +64,8 @@ describe('HeightModel', () => {
 		expect(m.indexAtOffset(5)).toBe(3);
 	});
 
-	// VR-9: a read or write out of range must not corrupt the Fenwick tree: an old height
-	// recorded at i === count, NaN offsets past it, and an update that never ends on a negative index.
+	// A read or write out of range must not corrupt the Fenwick tree with a stale height, a NaN
+	// offset or an update that never ends (VR-9).
 	it('ignores a setHeight at or past the count instead of recording a stale height', () => {
 		const m = new HeightModel([10, 20, 30]); // count 3
 		m.setHeight(3, 50);

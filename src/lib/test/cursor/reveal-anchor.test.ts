@@ -45,9 +45,8 @@ describe('reveal anchor', () => {
 		expect(stale.isSuperseded()).toBe(true);
 	});
 
-	// A claim still in progress outlives the hold it lost, so the next scroll owns the viewport
-	// over it; reading the slot instead of the last claim made leaves the newer one with nobody to
-	// take over from.
+	// A claim in progress outlives the hold it lost, so whether it was taken over reads the last
+	// claim made, not the slot, which may already be empty.
 	it('a later claim supersedes an earlier one across an emptied slot', () => {
 		const anchor = createRevealAnchorState();
 		const inFlight = anchor.claim([1]);

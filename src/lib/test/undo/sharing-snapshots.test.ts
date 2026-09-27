@@ -61,11 +61,8 @@ describe('structural-sharing snapshots', () => {
 		expect(takeDevWarns()).toEqual([]);
 	});
 
-	// GH #73: filling a blank block hands the block after it the separator the blank line used to
-	// be, and the caller's copy-before-write never covered that node, since it owns only the block
-	// being typed into.
-	// Miss-analysis: every sharing case drove a write to the block the gesture names, so the one
-	// operation that writes another block's bytes had no test.
+	// Filling a blank block hands its separator to the next block, which the caller never copied.
+	// Miss-analysis: GH #73; every sharing case wrote only the block the gesture names.
 	it('a blank fill unshares the follower it hands the separator to', async () => {
 		const { deps, controller, history } = makeHarness('alpha\n\n\ndelta\n');
 		const actions = createBlockEditActions(deps, controller);
@@ -89,11 +86,8 @@ describe('structural-sharing snapshots', () => {
 		expect(fires[0].message).toContain('undo: snapshot digest mismatch');
 		expect(fires[0].details).toBe('snapshot-integrity');
 	});
-	// GH #73: the nested path hands the next block the same separator, and copying the ancestor
-	// chain copies the container, so the snapshot's digest never sees a write to a grandchild that
-	// is still shared.
-	// Miss-analysis: the check only descends from the document root, so no nested sharing case
-	// could ever trip it.
+	// Copying the ancestors copies the container, so the digest never sees the shared grandchild.
+	// Miss-analysis: GH #73; the digest descends only from the root, so no nested case trips it.
 	it('a blank fill inside a container unshares the follower it hands the separator to', async () => {
 		const h = makeNestedHarness('> alpha\n>\n>\n> delta\n', { index: 0 });
 		h.deps.undoManager.push(h.controller.captureCurrentState());
@@ -106,10 +100,8 @@ describe('structural-sharing snapshots', () => {
 		expect(shared.leadingTrivia).toBe('');
 	});
 
-	// GH #96: the change in the other direction takes a separator back, and the block giving it
-	// up can sit two positions below the one the gesture names, the furthest any fix-up reaches.
-	// Miss-analysis: the #73 cases tested a write to the very next block, so a fix-up reaching
-	// further would have shipped writes to other blocks with no copy first.
+	// Taking a separator back can write the block two below, the furthest a fix-up reaches.
+	// Miss-analysis: GH #96; the separator cases only ever wrote the very next block.
 	it('emptying a block unshares the run member two slots below it', async () => {
 		const { deps, controller } = makeHarness('Hello\n\nSecond\n');
 		const actions = createBlockEditActions(deps, controller);

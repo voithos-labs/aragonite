@@ -53,9 +53,8 @@ describe('container kind re-derivation gate', () => {
 		expect(reparses()).toBe(0);
 	});
 
-	// The first condition passes and the second holds: each of these rewrites the container's
-	// opener line on every keystroke while the opener's answer stays the same. These are the rows
-	// that put the cost on the container-size axis when only the first condition exists.
+	// Each of these rewrites the container's opener line on every keystroke without changing the
+	// opener's answer, so only the second condition keeps them from reparsing.
 	it.each([
 		['blockquote first paragraph', '> head\n>\n> body\n', [0, 0]],
 		['list first item', '- one\n- two\n- three\n', [0, 0, 0]]
@@ -65,9 +64,8 @@ describe('container kind re-derivation gate', () => {
 		expect(reparses()).toBe(0);
 	});
 
-	// A directive's opener declines when shown one line (it wants its `:::` closer), so the
-	// second condition can never confirm it and only the first holds here. Typing costs nothing:
-	// that line carries only the directive name.
+	// A directive's opener declines a lone line (it wants its `:::` closer), so only the first
+	// condition applies, and typing in the body never touches the line with the directive name.
 	it('reparses nothing while typing into a directive container body', () => {
 		typeInto(':::spoiler\n\nbody\n\n:::\n', [0, 0], KEYSTROKES);
 

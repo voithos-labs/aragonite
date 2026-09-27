@@ -1,8 +1,6 @@
 // @vitest-environment jsdom
 
-// Miss-analysis: this shipped as a scroll writer with no test at its own level, so the two
-// rules that keep it out of the editor's way (do nothing while a scroll into view is running,
-// write nothing when the position never moved) rode entirely on one e2e that exercises neither.
+// Miss-analysis: the scroll writer's two rules rode on one e2e that exercised neither.
 
 import { describe, it, expect, afterEach } from 'vitest';
 import { captureScrollPosition } from '../../cursor/scroll-hold';

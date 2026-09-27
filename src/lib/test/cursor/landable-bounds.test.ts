@@ -1,11 +1,8 @@
 // @vitest-environment jsdom
-//
-// The furthest a caret can actually sit at each end of a block, which is what every check at a
-// block's edge compares against. A run of hidden markers holds no caret position at all, and
-// the far side of the container's marker prefix is raw 0, so a bound at either end moves past
-// them; every other widget the caret cannot enter keeps both of its boundaries.
-// Miss-analysis: block exits used to read the kind's declared content range, so no test could
-// see a block whose unreachable bytes the CST calls content: a fence, a cell's `[ref]`.
+// The furthest a caret can sit at each end of a block, which every check at a block's edge
+// compares against: bounds move past hidden marker runs and the container's marker prefix, while
+// every other widget the caret cannot enter keeps both of its boundaries.
+// Miss-analysis: block exits read the declared content range, blind to unreachable content bytes.
 import { describe, it, expect, afterEach } from 'vitest';
 import { landableDomTextBounds } from '../../cursor/widget-offset';
 import { buildAmbientSpan } from '../../ambient/ambient-dom';
@@ -101,8 +98,7 @@ describe('landableDomTextBounds: widgets the caret cannot enter', () => {
 	});
 });
 
-// Miss-analysis: every case with trailing markers ended its reachable text on a character, so
-// the position after a final `\n`, which sits on the hidden closer's line, was never asked for.
+// Miss-analysis: every trailing-marker case ended on a character, never on a final `\n`.
 describe('landableDomTextBounds: a trailing newline before hidden chrome', () => {
 	it('ends before the newline, whose far side is a line nothing paints', () => {
 		const emptyBody = mountBlock(

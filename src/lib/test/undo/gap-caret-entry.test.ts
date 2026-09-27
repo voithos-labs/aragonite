@@ -7,9 +7,8 @@ import { placeGapCaret } from '$lib/selection/caret-doors';
 import { isGapSelection } from '$lib/undo/types';
 import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
 
-// What an undo entry records when the caret sits between blocks. Every block is mounted here
-// and reports no cursor (jsdom places no caret of its own), so that position has to win over
-// the declared fallback coordinate, not merely over missing refs.
+// An undo entry taken with the caret between blocks records that position. Every block here is
+// mounted but reports no caret, so the gap must also beat the declared fallback coordinate.
 
 const TABLE_THEN_FENCE = '| a |\n| - |\n\n```\nx\n```\n';
 const AT_BOUNDARY = { parentPath: [], index: 1 };

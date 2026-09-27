@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 
-// Miss-analysis: the e2e fixture relayed only thrown page errors, so the loop error a host
-// observed mid-delivery raises through `window.onerror` alone went unseen until it did.
+// Miss-analysis: the e2e fixture relayed only thrown page errors, not ones via `window.onerror`.
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { observeResize } from '../../cursor/observe-resize';

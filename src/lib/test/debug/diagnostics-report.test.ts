@@ -37,8 +37,7 @@ describe('buildDiagnosticsReport', () => {
 		expect(out).toContain(SECRET);
 	});
 
-	// Miss-analysis: every case fed the report prose bodies, so nothing produced the one thing a
-	// diagnostics dump most reliably contains: a document with a code fence in it.
+	// Miss-analysis: every case fed prose bodies, so no report ever held a code fence.
 	it('escalates a section fence past a fence run in its own body', () => {
 		const out = buildDiagnosticsReport({
 			timestamp: 't',

@@ -21,9 +21,8 @@ export function mountBlock(options: MountOptions, ...parts: Node[]): HTMLElement
 	block.append(...parts);
 	root.appendChild(block);
 	document.body.appendChild(root);
-	// The attribute paints only while the block has focus (the `:focus-within` rule in
-	// `editor.css`, which `screenVisibilityOf` mirrors), and a marked fixture is asking about the
-	// painted state; the unfocused one is `mountBlock({ stamped: true, unfocused: true })`.
+	// The attribute paints only while the block has focus (`editor.css`'s `:focus-within` rule),
+	// and a marked fixture asks about the painted state unless it opts out with `unfocused`.
 	if (options.stamped && !options.unfocused) block.focus();
 	return block;
 }
