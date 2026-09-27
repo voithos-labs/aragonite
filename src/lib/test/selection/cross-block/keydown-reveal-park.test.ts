@@ -1,10 +1,8 @@
 // @vitest-environment jsdom
-//
-// `revealActiveEndpoint`'s text branch: the only caller of `parkCaret`, reachable only when the
-// endpoint is windowed out. `parkCaret` is optional on `BlockComponent`, and the contract promises
-// a specific degradation: no caret placed, the range survives, the scroll still runs. Pinned here
-// because what must not happen (a fallback to the range-ending `focus`, or a throw) is invisible
-// to every extend spec.
+// `revealActiveEndpoint`'s text branch, the only caller of `parkCaret`, reachable only when the
+// endpoint is windowed out. `parkCaret` is optional on `BlockComponent`, and without it the
+// contract promises no caret placed, the range kept and the scroll still run, which no extend
+// spec can see.
 import { describe, it, expect, vi } from 'vitest';
 import { CURSOR_START, type BlockComponent } from '$lib/block-component';
 import { makeKeydownEnv, press } from './keydown-env';
@@ -47,8 +45,7 @@ describe('revealActiveEndpoint puts the caret in a revealed off-window endpoint'
 		expect(env.selection.focus?.path).toEqual(ENDPOINT);
 	});
 
-	// Miss-analysis (GH #111): the cell branch placed a literal 0, and this suite pinned only the
-	// text branch's offset; a start sentinel discarded by the cell's `parkCaret` was invisible.
+	// Miss-analysis: GH #111; the suite pinned the text branch's offset, never the cell branch's.
 	it('the cell branch passes the start sentinel, so the cell entry point clamps and classifies', async () => {
 		const ref = endpointRef(true);
 		const env = makeKeydownEnv('alpha\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n', {

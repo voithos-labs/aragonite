@@ -83,8 +83,7 @@ describe('createEditorEvents', () => {
 		events.emit('edit', { op: 'delete', path: [0], timestamp: 0 });
 
 		expect(called).toEqual(['a', 'b-throwing', 'c']);
-		// Through the dev-warning channel, not the console: an error swallowed where no gate can
-		// see it is how a subscriber overflowed the stack on every run unnoticed (GH #246).
+		// Through the dev-warning channel, not the console, so a test gate sees the error.
 		expect(takeDevWarns().map((w) => w.tag)).toEqual(['events']);
 	});
 
@@ -99,8 +98,8 @@ describe('createEditorEvents', () => {
 
 		events.emit('edit', { op: 'delete', path: [0], timestamp: 0 });
 
-		// `devWarn` is silent in production, so with no console branch the consumer's own exception
-		// vanishes where an unguarded throw would have shown up (GH #246).
+		// `devWarn` is silent in production, so without a console branch the consumer's exception
+		// would vanish.
 		expect(errSpy.mock.calls.map((args) => args[args.length - 1])).toEqual([thrown]);
 		errSpy.mockRestore();
 	});

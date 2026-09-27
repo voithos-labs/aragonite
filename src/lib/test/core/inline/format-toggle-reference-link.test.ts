@@ -16,10 +16,8 @@ import { planCrossBlockFormat } from '$lib/selection/cross-block/format-range';
 import type { Reading } from '$lib/schema/reading';
 import { fixtureReading } from '$lib/test/harness/fixture-grammar';
 
-// The format toggle reads a block with the link definitions it was drawn with, so a selection
-// cutting into a reference link is refused the way one cutting into an inline link is (GH #455).
-// Miss-analysis: every toggle fixture used inline links, which read the same with or without the
-// document's definitions, and the edit the toggle took had no field to carry them.
+// The toggle reads a block with its link definitions, so a cut into a reference link is refused.
+// Miss-analysis (GH #455): every toggle fixture used inline links, never a reference link.
 
 const DEFINITION = '[ref]: https://x.com\n';
 const resolver: LinkReferenceResolver = buildLinkReferenceMap(parse(DEFINITION).children).resolve;

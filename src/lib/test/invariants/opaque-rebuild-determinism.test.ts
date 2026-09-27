@@ -18,7 +18,7 @@ describe('checkOpaqueRebuildDeterminism (opaque containers)', () => {
 	}
 
 	// The node's raw is deliberately non-canonical relative to the rebuilder:
-	// the two probe outputs are compared to each other, never to node.raw.
+	// the two rebuild outputs are compared to each other, never to node.raw.
 	it('passes for a deterministic rebuilder even when its output differs from raw', () => {
 		const kind = testContainer('spec-det', {
 			rebuildRaw: (node) => {

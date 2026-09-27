@@ -1,12 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { classifyArrivalKey, type EdgeAffinityAction } from '../../cursor/edge-affinity';
 
-// The arrival table decides which of two offsets sharing one pixel a caret means. It depends
-// only on the key, so the table is the test. Direction is the rule for single steps: a step
-// stops on the side of the run it came from, so a keypress never changes which construct the
-// caret is in. It is not the rule for the ends of a line, which are relative to the construct
-// and answer `outside` in both directions. Miss-analysis: the table shipped ignoring direction
-// (every arrow `inside`) with nothing to contradict it until the e2e rows for typing did.
+// The arrival table decides which of two offsets sharing one pixel a caret means. A single step
+// stops on the side of the run it came from; the ends of a line answer `outside` both ways.
+// Miss-analysis: the table ignored direction, and nothing contradicted it until e2e typing rows.
 describe('classifyArrivalKey', () => {
 	const MATRIX: Record<string, EdgeAffinityAction> = {
 		ArrowLeft: 'far',
@@ -26,7 +23,7 @@ describe('classifyArrivalKey', () => {
 		a: 'preserve',
 		' ': 'preserve',
 		é: 'preserve',
-		// Astral-plane keys arrive as one code point in two UTF-16 units (GH #122).
+		// Astral-plane keys arrive as one code point in two UTF-16 units.
 		'😀': 'preserve',
 		'𝄞': 'preserve',
 		Enter: 'reset',
@@ -45,7 +42,7 @@ describe('classifyArrivalKey', () => {
 	}
 
 	// On macOS the caret jumps to the line's edge, which is a placement rather than a step, so
-	// the answer is Home and End's, relative to the construct, not the arrow's (GH #124).
+	// the answer is Home and End's, relative to the construct, not the arrow's.
 	it('meta+ArrowLeft/Right classify as line extremes, not steps', () => {
 		expect(classifyArrivalKey('ArrowLeft', true)).toBe('outside');
 		expect(classifyArrivalKey('ArrowRight', true)).toBe('outside');

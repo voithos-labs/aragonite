@@ -10,11 +10,8 @@ import { makeEditorActionsDeps, pasteContext } from '$lib/test/harness/editor-ac
 import { describeConvergence } from '$lib/test/harness/parse-converged';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
-// A one-paragraph clipboard pastes inline, its line breaks landing as the paragraph's own. A
-// break at the clipboard's end that would meet the end of a line breaks nothing, and kept, it
-// left the paragraph holding a blank line the reload reads as a block (GH #442).
-// Miss-analysis: the inline pins pasted clipboards ending in content or in a whole blank line,
-// so a single trailing line ending, what copying one line usually gives, was never pasted.
+// A line break ending a one-paragraph clipboard is dropped, or it reloads as a blank block.
+// Miss-analysis: GH #442, no inline test pasted a clipboard ending in one line ending.
 
 beforeEach(() => __resetSchemaRegistriesForTests());
 

@@ -1,7 +1,5 @@
 // @vitest-environment jsdom
-// Miss-analysis: `cursor/height-oracle` tests the cache's own methods and every windowing
-// suite hands the block lists a stub estimator, so no test ever ran the real one across the
-// one change where all of its keys die at once.
+// Miss-analysis: windowing suites stub the estimator, so none ran the real one across a swap.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { tick } from 'svelte';
 import {

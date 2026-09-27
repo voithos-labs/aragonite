@@ -9,7 +9,7 @@ import { fixtureReading } from '../harness/fixture-grammar';
 import { defaultGrammarView } from '$lib/schema/block-openers';
 
 // The typing-equals-loading rule at tree level: the simulation compares source bytes across the
-// two paths, so a shape that only the typed side holds survived it.
+// two paths, so a shape that only the typed side holds would pass it.
 
 /** "1", Enter, Enter, "2": the Enter-split byte policy, driven through the ops. */
 function typeOneEnterEnterTwo(): Document {
@@ -42,9 +42,7 @@ describe('a typed blank line survives the reload', () => {
 	});
 });
 
-// The tree-level case under the typed-fence e2e gesture, which pinned the earlier shape (a lone
-// blank line was document whitespace, so typing created a block below it) until this rule made
-// it a block of its own.
+// A lone blank line is a block of its own, so typing into it fills that block.
 describe('a lone blank document is the block you type into', () => {
 	it('fills that block rather than leaving a blank line above the new one', () => {
 		const doc = parse('\n');
@@ -58,11 +56,8 @@ describe('a lone blank document is the block you type into', () => {
 	});
 });
 
-// A blank block opened above an existing separator carries none of its own; the run below opens
-// it. Typing there ends the blank line, and with it the arrangement that let the separator go.
-// Miss-analysis: the split's own bytes were pinned, and so was typing into a blank line at the
-// document tail (where the blank half does carry a separator); no case typed into a blank line
-// with a block below it, the one shape whose reload merged the halves back.
+// A blank block Enter opens above a separator carries none, so typing into it takes the line back.
+// Miss-analysis: no case typed into a blank line with a block below it.
 describe('typing into the blank line an Enter opened', () => {
 	it('takes back the separator the blank line was standing in for', () => {
 		const doc = parse('Hello world\n\nSecond paragraph\n');
@@ -112,11 +107,8 @@ describe('typing into the blank line an Enter opened', () => {
 	});
 });
 
-// A blank line a load produced carries the separator in its own `leadingTrivia` and leaves the
-// follower none, so the fill's new separator has to land on the follower instead: the shape
-// every reload produces, and the one branch `restoreSeparatorOnFill` alone cannot reach.
-// Miss-analysis: every case above drives the split-produced shape, where the follower already
-// carries the separator; none typed into a blank block the parser had produced.
+// A loaded blank line carries the separator itself, so the fill moves it onto the follower.
+// Miss-analysis: every case above drove the split shape, never a blank block the parser produced.
 describe('typing into a blank line the load created', () => {
 	it('hands the separator to the follower the blank line was standing in for', () => {
 		const doc = parse('alpha\n\n\ndelta\n');

@@ -91,9 +91,8 @@ describe('performCrossBlockDeleteSync: commit-primitive convergence', () => {
 	});
 });
 
-// GH #129 through the cross-block delete: a delete that blanks the tail block exposes the
-// document's trailing blank line, so both commit paths must let the fix-up write it and report
-// the grown tail to the id sync.
+// A delete that blanks the tail block exposes the document's trailing blank line, so both commit
+// paths must let the fix-up write it and report the grown tail to the id sync.
 describe('cross-block delete beside the folded trailing blank (GH #129)', () => {
 	it('pure top-level: the whole-content delete materializes the fold in step', async () => {
 		const env = makeEnv('alpha\n\nbeta\n\n');

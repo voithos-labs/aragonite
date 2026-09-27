@@ -1,14 +1,7 @@
 // @vitest-environment jsdom
-// (cross-block range-delete entries capture a cross-block selection; restoring
-// one routes through window.getSelection.)
-
-/**
- * The main test for structural sharing in undo: random sequences of operations over the real
- * action factories with undo and redo mixed in, since one missed copy-before-write corrupts one
- * entry and only a byte comparison catches it. The comparison runs at the final state only: a
- * split mid-paragraph may legally serialize as one paragraph after a single operation, so only
- * the fully unwound state catches a restore whose bytes are right but whose structure drifted.
- */
+// The main test of structural sharing in undo: random runs of real action-factory operations
+// with undo and redo mixed in, since one missed copy-before-write corrupts one entry. Bytes are
+// compared only once fully unwound, since a mid-paragraph split may serialize as one paragraph.
 
 import { describe, it, expect } from 'vitest';
 import fc from 'fast-check';
@@ -68,7 +61,6 @@ describe('undo restoration property (structural sharing)', () => {
 						}
 					}
 
-					// The model tracked the real stacks in lockstep.
 					expect(expectedUndo.length).toBe(stacks().undo.length);
 					expect(expectedRedo.length).toBe(stacks().redo.length);
 

@@ -1,11 +1,7 @@
 // @vitest-environment jsdom
-/**
- * Enrollment: every bundled inline handler runs the published conformance kit. A handler
- * shipping in this repo is the kit's first consumer, so a cell no bundled handler can pass
- * is a cell that has not been paid for.
- *
- * The kit's own failure demonstrations live in `inline-conformance-red.test.ts`.
- */
+// Every bundled inline handler runs the published conformance kit as its first consumer, so a
+// cell no bundled handler can pass has not earned its runtime. The kit's failing cases live in
+// `inline-conformance-red.test.ts`.
 
 import { beforeEach, describe, expect, it } from 'vitest';
 import { installPlugins } from '$lib';

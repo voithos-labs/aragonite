@@ -1,10 +1,7 @@
 // @vitest-environment jsdom
-//
-// Which blocks need to handle Home themselves: the first position the caret can sit at is next
-// to a widget it cannot enter, so no text node holds that position and the browser's own Home
-// puts the caret past the widget (GH #115).
-// Miss-analysis: the bounds suite tested where that first position is, but nothing tested
-// whether a text position can express it, which is what the Home handler decides on.
+// Which blocks handle Home themselves: when the first caret position sits beside a widget the
+// caret cannot enter, no text node holds it and the browser's Home lands past the widget.
+// Miss-analysis: GH #115; bounds tests found that position but never whether text can express it.
 import { describe, it, expect, afterEach } from 'vitest';
 import { landableStartAbutsIsland } from '../../cursor/widget-offset';
 import { buildAmbientSpan } from '../../ambient/ambient-dom';

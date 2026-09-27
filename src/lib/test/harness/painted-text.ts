@@ -1,8 +1,7 @@
 /**
- * What a block actually paints, read off the rendered DOM with marker subtrees skipped. The checks
- * that use it deliberately share the renderer, not `renderedText`, which the code under test calls
- * itself: a check sharing that would echo it instead of testing it. The marker families come from
- * the rule that defines them, so a private copy of the list cannot go stale.
+ * What a block actually paints, read off the rendered DOM with marker subtrees skipped. It shares
+ * the renderer but not `renderedText`, which the code under test calls itself, so a check using it
+ * tests that code rather than echoing it.
  */
 
 import { parseInline } from '$lib/core/inline';
@@ -23,9 +22,8 @@ export function paintedText(raw: string): string {
 	return out;
 }
 
-/** Code-point boundaries only, for these checks rather than for the caret: they judge painted text
- *  and construct kinds, neither of which can see a slice through a single scalar, so a stop in the
- *  middle of a pair would pass anyway. The gesture fuzzer covers that class. */
+/** Code-point boundaries only: painted text and construct kinds cannot see a cut through a
+ *  surrogate pair, which the gesture fuzzer covers. */
 export function caretPositions(text: string): number[] {
 	const stops = [0];
 	for (const char of text) stops.push(stops[stops.length - 1] + char.length);

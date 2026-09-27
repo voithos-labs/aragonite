@@ -1,9 +1,6 @@
-// The commit-time reparse reads one block's text with no positional context, so before
-// issue #52 a position-scoped opener saw line 0 wherever the edited block sat.
-// Miss-analysis: the clean-room author pinned both directions from outside the repo, and
-// nothing in-repo could red: every conformance kit fixture is a whole document, and no
-// shipped kind depends on position, so the battery has no position-scoped exemplar. The
-// fixture now lives in `test/support/position-scoped-kind.ts`.
+// The commit-time reparse reads one block's text with no positional context, so a commit must
+// not create a position-scoped kind wherever the edited block sits.
+// Miss-analysis: GH #52, kit fixtures are whole documents and no built-in kind reads position.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
@@ -27,9 +24,8 @@ describe('a position-scoped kind and the commit-time reparse', () => {
 		expect(doc.children.map((c) => c.kind)).not.toContain(kind);
 	});
 
-	// The narrowing this fix accepts: a position-scoped kind arrives from a document parse
-	// only, so authoring one in place needs a reload. Positional context on the commit
-	// reparse (issue #52's fix direction 1) would flip this pin.
+	// A position-scoped kind comes only from a document parse, so authoring one in place needs a
+	// reload; positional context on the commit reparse would change this.
 	it('a document-top content commit does not create it either', () => {
 		const kind = registerDocumentTopKind();
 		const doc = parse('intro\n\nbody\n');
@@ -39,9 +35,8 @@ describe('a position-scoped kind and the commit-time reparse', () => {
 		expect(doc.children.map((c) => c.kind)).not.toContain(kind);
 	});
 
-	// Pins a known divergence (issue #21's kind-agnostic class: two blocks whose bytes
-	// jointly reparse as one, with nothing reparsing across a block boundary after a
-	// commit). Not closed by the parse-scope signal; do not delete this to make it green.
+	// A known divergence: nothing reparses across a block boundary after a commit, so two blocks
+	// whose bytes read as one stay split. Don't delete this to make it green.
 	it('breaking the closer and restoring it leaves the halves split', () => {
 		const kind = registerDocumentTopKind();
 		const source = FRONT_MATTER + '\nbody\n';

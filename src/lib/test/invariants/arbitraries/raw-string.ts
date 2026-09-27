@@ -16,9 +16,8 @@ const whitespaceRuns = ['', ' ', '  ', '\t', ' \t ', '   '];
 // meets a control character no grammar mentions and the round-trip has to hold over it anyway.
 const controls = ['\u0000', '\u0001', '\u001f', '\u007f'];
 
-// Lazy continuations the parser must absorb without re-deriving the prefix. Indents
-// straddle the CommonMark block-indent boundary deliberately: at four columns the `>`
-// becomes content of an indented code block instead of a quote marker.
+// Lazy continuations the parser must absorb without re-deriving the prefix; at four columns of
+// indent the `>` becomes indented code instead of a quote marker.
 const lazyQuoteShapes = [
 	'> ',
 	'>',
@@ -50,11 +49,8 @@ const arbFragment = fc.oneof(
 
 // ── Public arbitraries ──────────────────────────────────────────────────────
 
-/**
- * Garbage source biased toward markdown-significant content: random unicode,
- * markers, mixed CR/LF/CRLF, entities, escapes, lazy-quote shapes. Round-trip
- * must hold byte-for-byte regardless of how this parses.
- */
+/** Garbage source biased toward markdown-significant content; round-trip must hold byte-for-byte
+ *  however it parses. */
 export const arbRawString = fc.array(arbFragment, { maxLength: 40 }).map((parts) => parts.join(''));
 
 /** CRLF-heavy source: mixed CR, LF, CRLF and lone \r interleaved with content. */

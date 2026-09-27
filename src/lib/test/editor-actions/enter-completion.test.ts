@@ -50,9 +50,8 @@ function seamOver(scope: CommitScope): BlockEditActions {
 	);
 }
 
-// A second completer whose caret sits on a line the completion creates, which the table's
-// cell-addressed caret cannot exercise. Kind-name order puts it ahead of `table`; its trigger
-// is ordinary prose, so no other case in this file reaches it.
+// A completer whose caret lands on a line the completion creates, which a table cell cannot
+// test; it runs before `table` by kind name, so its trigger is prose no other case types.
 registerBlockCompleter(declarePluginKind('spec-fence'), {
 	tryComplete: (line) =>
 		line === 'fence me'
@@ -101,8 +100,8 @@ describe('Enter completion: which presses reach a completer', () => {
 		).toBeNull();
 	});
 
-	// The firing gates are the prose merge role and the whole-raw content range; together they
-	// keep a kind's own markers (an indent, a `# `) from ever reaching a completer as typed text.
+	// A completer fires only for the prose merge role over the whole-raw content range, which keeps
+	// a kind's own markers (an indent, a `# `) from ever reaching it as typed text.
 	it.each([
 		['    | a | b |\n', 'indentedCode'],
 		['# | a | b |\n', 'heading'],
@@ -145,7 +144,7 @@ describe('Enter completion: the caret the join resolves', () => {
 		expect(plan.caret).toEqual({ path: [], offset });
 	});
 
-	// The table's caret addresses an empty cell, whose raw holds no lines at all — the resolution
+	// The table's caret addresses an empty cell, whose raw holds no lines at all: the resolution
 	// must read that as column 0 in the cell rather than falling off the line list.
 	it('resolves a path-addressed caret inside a childless empty cell', () => {
 		const plan = planEnterCompletion(leaf('| a | b |\r\n'), 9, defaultGrammarView, '\n')!;
@@ -182,9 +181,8 @@ describe('Enter completion: what the composed split commits', () => {
 		expect(children.map((c) => c.raw)).toEqual(['| a \n', '| b |\n']);
 	});
 
-	// A completion that shows nothing replaces the typed line with a delete, or with blank lines
-	// a reload reads as neither: it is declined, so Enter stays the ordinary split. The blank
-	// shapes parse to paragraphs, which is why a count alone cannot see them.
+	// A completion that shows nothing, a delete or blank lines that reload as empty paragraphs, is
+	// declined so Enter stays the ordinary split; a block count alone cannot see the blank shapes.
 	it.each(Object.keys(PAINTS_NOTHING))('falls through on the %j claim', async (line) => {
 		const raw = `${line}\n`;
 		expect(planEnterCompletion(leaf(raw), line.length, defaultGrammarView, '\n')).toBeNull();

@@ -5,8 +5,7 @@
 
 	let { node }: { node: NodeView } = $props();
 
-	// Reading at init is the point: the throw must happen during the child's
-	// mount, which is the failure the host's boundary exists to catch.
+	// The throw must happen during mount, the failure the host's boundary exists to catch.
 	// svelte-ignore state_referenced_locally
 	if (node.raw.includes('boom')) throw new Error('render exploded');
 

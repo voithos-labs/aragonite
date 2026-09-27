@@ -1,16 +1,12 @@
-// Miss-analysis: the snap's geometry was only ever exercised on blocks holding one widget,
-// where "the first widget the point is past" and "the widget nearest the point" agree, so no
-// test could tell the two rules apart and a row of touching widgets always answered the first.
-// The case for a point inside one had the same shape: every candidate was selected whole, so
-// "inside declines" read as geometry rather than as the select-the-whole-thing rule it is.
+// Miss-analysis: one-widget fixtures made "first widget passed" and "nearest widget" agree.
+// A point inside a widget declines by rule, not geometry: only a character-like one names an edge.
 import { describe, it, expect } from 'vitest';
 import { nearestWidgetEdgeSeat, type WidgetEdgeCandidate } from '../../cursor/widget-edge-snap';
 
 const ROW = { top: 0, bottom: 20 };
 
-/** Four touching widgets on one row, each 20px wide and 7 raw bytes long. `seatsInside` is the
- *  rule for a widget that behaves like a character: a click on the glyph names an edge instead
- *  of selecting the whole thing. */
+/** `count` touching widgets on one row, each 20px wide and 7 raw bytes long. `seatsInside` makes
+ *  each behave like a character, so a click on its glyph names an edge. */
 function flushRun(count: number, seatsInside = false): WidgetEdgeCandidate[] {
 	return Array.from({ length: count }, (_, i) => ({
 		start: i * 7,

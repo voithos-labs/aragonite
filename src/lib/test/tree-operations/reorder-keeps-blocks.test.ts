@@ -1,7 +1,5 @@
-// A reorder must not change what the document contains. Blank lines are nodes here, and a
-// blank node does not travel with the block a drag moves, so a block could land flush under a
-// paragraph that then read its rows as its own text: a table dissolving into the prose above
-// it, and the same for any block a paragraph can continue into.
+// A reorder must not change what the document contains: a blank-line node doesn't travel with the
+// block a drag moves, so a block landing flush under a paragraph must not become its text.
 import { describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
@@ -9,10 +7,8 @@ import { reorderChildrenWithTrivia } from '../../tree-operations/reorder';
 import { createSharingState } from '../../tree-operations/sharing';
 import { defaultGrammarView } from '$lib/schema/block-openers';
 
-// The joins that bite: a table and a list under prose (a paragraph continues into both), a
-// quote, a heading, and a fence that cannot be continued into. Blank-line nodes throughout.
-// The doubled blank lines are the point: an extra blank line is a node of its own, and that
-// node does not travel with the block below it.
+// Blocks a paragraph can continue into and blocks it can't, with doubled blank lines, since an
+// extra blank line is a node that doesn't travel with the block below it.
 const DOC = [
 	'Intro prose that runs on.',
 	'',

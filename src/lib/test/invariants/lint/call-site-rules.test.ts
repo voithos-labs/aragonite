@@ -39,8 +39,8 @@ const RULES: CallSiteRule[] = [
 	},
 	{
 		id: 'G4.27 every parse() call outside the parser declares its scope',
-		// The consumer example writes the documented default (whole-document parses); the rule is
-		// about internal reparse sites, so it binds the library and the plugin-route author stand-in.
+		// The consumer example writes the documented default (a whole-document parse); the rule
+		// binds the library's own reparse sites and the reference plugins under the routes.
 		population: notUnder('examples/consumer/src/', 'src/lib/core/parser.ts', 'src/lib/testing/'),
 		calls: ['parse'],
 		holds: (args) => args.includes('scope:'),

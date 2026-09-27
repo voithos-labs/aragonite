@@ -1,8 +1,7 @@
 // A plugin kind that holds its own fence keeps one opener and one closer through a replace, as a
 // code block does: a body line turned into the closer grows the fence, and an opener replaced
-// away takes its stranded closer with it, so the block below stays its own (#566).
-// Miss-analysis: every fence replace test drove the built-in code block; the plugin kinds each
-// kept a private copy of a quarter of its rule, and no test wrote either missing shape at them.
+// away takes its stranded closer with it, so the block below stays its own.
+// Miss-analysis (GH #566): every fence replace test drove the built-in code block alone.
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse, serialize } from '$lib';
 import { resetPluginPlatformForTests } from '$lib/testing';

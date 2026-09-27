@@ -21,8 +21,7 @@ afterEach(() => {
 
 // ── Blur announcer ───────────────────────────────────────────────────────────
 
-// Miss-analysis: every selectionChange emitter fired on selections the editor still held, so no
-// test ever moved focus out of the editor and asked whether subscribers heard about it.
+// Miss-analysis: no selectionChange test moved focus out of the editor.
 describe('editor-root listeners: blur announcer', () => {
 	function announcer() {
 		const root = document.createElement('div');
@@ -210,8 +209,7 @@ describe('editor-root listeners: selectionchange bridge', () => {
 		window.getSelection()?.collapse(el.firstChild, 0);
 	}
 
-	// Miss-analysis: the image-selection specs read the selected text, which a collapsed caret
-	// leaves empty, so a caret the browser put beside a selected widget was never asserted.
+	// Miss-analysis: the image-selection specs read the selected text, which a caret leaves empty.
 	it('drops, and never announces, a caret the browser puts beside a selected widget', () => {
 		const b = bridge(true);
 		caretInside(b.content);
@@ -228,8 +226,7 @@ describe('editor-root listeners: selectionchange bridge', () => {
 		expect(b.emits()).toBe(1);
 	});
 
-	// Miss-analysis: the popover spec types into the alt field and reads the source, which a drop
-	// that only resets the field's cursor position leaves right most of the time.
+	// Miss-analysis: the popover spec read only the source, which a reset cursor rarely breaks.
 	it('keeps a caret in a popover field while a widget is selected', () => {
 		const b = bridge(true);
 		window.getSelection()?.collapse(b.popover, 0);

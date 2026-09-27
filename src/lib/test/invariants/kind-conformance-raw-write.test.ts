@@ -1,7 +1,6 @@
 // The kind kit's raw-write cell: a kind that declares `rawWrite` has its rule driven
 // through truncating writes over its fixture, and a kind without one must survive its closer's cut.
-// Miss-analysis: the cell exempted every kind with no rule, so a fenced kind that never declared
-// one passed the kit while a range delete over its closer swallowed the document below.
+// Miss-analysis: the cell exempted every ruleless kind, so a fence losing its closer passed the kit.
 import { describe, it, expect, beforeEach } from 'vitest';
 import {
 	declaredPluginKind,

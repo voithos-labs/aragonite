@@ -1,5 +1,4 @@
-// Miss-analysis: the task-marker tests typed prose into a to-do and the heading tests typed outside
-// a list, so no write read a task paragraph's new text the way the parser reads the item's bytes.
+// Miss-analysis: no test typed a heading marker into a task paragraph, only outside a list.
 import { describe, it, expect } from 'vitest';
 import type { CstNode, Document } from '$lib/core/nodes';
 import { parse } from '$lib/core/parser';

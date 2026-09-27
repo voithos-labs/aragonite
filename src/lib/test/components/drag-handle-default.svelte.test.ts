@@ -1,8 +1,6 @@
 // @vitest-environment jsdom
-//
-// The hover drag handle is on by default, and `false` turns it off. Miss-analysis: the e2e suite
-// pinned `blockDragHandles=false` but drove every other case through a test page that passes the
-// prop explicitly, so nothing anywhere asserted the default, the one value every consumer gets.
+// The hover drag handle is on by default, and `false` turns it off.
+// Miss-analysis: every e2e case passed `blockDragHandles` explicitly, so none asserted the default.
 import { describe, it, expect, afterEach } from 'vitest';
 import {
 	installLayoutStubs,
@@ -44,8 +42,7 @@ describe('blockDragHandles default', () => {
 		expect(mounted.target.querySelectorAll('.list-item-block > .block-drag-handle').length).toBe(2);
 	});
 
-	// Miss-analysis: the no-handle case ran a paragraph only, so the heading form the kind list
-	// left out never met a test.
+	// Miss-analysis: the no-handle case ran a paragraph only, never a heading.
 	it('renders no handle on a heading of either syntax, and one on the code beside them', () => {
 		mounted = mountEditor({ source: '# Atx\n\nSetext\n===\n\n```\ncode\n```\n' });
 		const handleOn = (path: string) =>

@@ -1,8 +1,5 @@
 // @vitest-environment jsdom
-//
-// Miss-analysis: the rail's host hooks shipped pinned by the compiler alone, so a rail rendering
-// the run affordance with no hook installed, or handing a hook the fence lines along with the
-// body, would have passed every gate.
+// Miss-analysis: only the type checker covered the code block gutter's host hooks.
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { flushSync } from 'svelte';
 import type { CodeMenuItem, CodeRunRequest } from '$lib/editor-keys';

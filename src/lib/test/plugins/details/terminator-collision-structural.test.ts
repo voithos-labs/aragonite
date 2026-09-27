@@ -16,9 +16,8 @@ beforeEach(() => {
 	registerDetailsKind();
 });
 
-// Enter is the second way into the body. Both halves are reachable, which is why the write
-// escapes both: the anchored recognizer spares a tag line with text on either side, and the
-// split is what leaves it alone on its line.
+// Enter is the second way into the body: the split can leave a tag alone on its line that the
+// anchored recognizer spared while text sat beside it, so the write escapes both halves.
 describe('details terminator escape at the split entry point', () => {
 	const detailsOwner = () => {
 		const owner = parse('<details>\n<summary>S</summary>\n\nbody\n\n</details>\n').children[0];
@@ -63,9 +62,8 @@ describe('details terminator escape at the split entry point', () => {
 	});
 });
 
-// The cross-block operations write the body themselves rather than going through the
-// per-block path. Joining two lines can create a terminator line out of two that each held
-// none, which is why they need the rule as much as typing does.
+// The cross-block operations write the body themselves, and joining two lines can make a
+// terminator line out of two that held none, so they need the rule as much as typing does.
 describe('details terminator escape at the cross-block entry points', () => {
 	// Both children are ordinary loaded shapes: the tag sits mid-line, where the
 	// anchored recognizer never sees it. The delete is what strands it at column 0.

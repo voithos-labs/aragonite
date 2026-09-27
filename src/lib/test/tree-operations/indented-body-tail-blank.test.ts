@@ -12,9 +12,8 @@ import { settled } from '$lib/test/harness/settle-funnel';
 import { defaultGrammarView } from '$lib/schema/block-openers';
 
 // A list item's or footnote's body ends where its indentation ends, so an emptied last block's
-// own line is written with the body's indent and reloads as the empty paragraph it is (GH #406).
-// Miss-analysis: the shape property skipped every list-item body for a different shape, and no
-// unit case blanked the last block of an indent-delimited body.
+// own line is written with the body's indent and reloads as the empty paragraph it is.
+// Miss-analysis: GH #406, no case blanked the last block of an indent-delimited body.
 
 beforeAll(() => {
 	installPlugins([footnotesPlugin()]);

@@ -1,9 +1,8 @@
 /**
- * G4.29: the hardcoded-chord manifest (`schema/reserved-chords.ts`) covers every library
- * file that reads a KeyboardEvent modifier flag, and each entry's key evidence still matches
- * the file. The scan is structural on both axes: a branch cannot claim a chord without
- * reading a modifier flag (file axis) or without comparing a key (evidence axis), so a new
- * claim fails the gate until the manifest names it.
+ * The hardcoded-chord manifest (`schema/reserved-chords.ts`) covers every library file that
+ * reads a KeyboardEvent modifier flag, and each entry's key evidence still matches the file
+ * (G4.29). A branch cannot claim a chord without reading a modifier flag and comparing a key, so
+ * a new claim fails the gate until the manifest names it.
  */
 import { describe, it, expect } from 'vitest';
 import { collectReservedChords, HARDCODED_CHORD_SITES } from '$lib/schema/reserved-chords';
@@ -24,11 +23,8 @@ const CASE_LABEL = /\bcase\s*'([^']*)'\s*:/g;
 // A whole chord compared against `eventToChord`'s result (`chord === 'Mod+A'`) compares its key.
 const CHORD_COMPARISON = /[!=]==\s*'(?:(?:Mod|Alt|Shift)\+)+([^'+]+)'/g;
 
-/**
- * Every KeyboardEvent key name is one character or CapitalCamel (UI Events key values), so
- * the filter admits extra non-key strings but can never drop a key: the safe direction for
- * a gate whose failure mode is a silent miss.
- */
+/** Every KeyboardEvent key name is one character or CapitalCamel (UI Events key values), so the
+ *  filter may admit extra strings but never drops a key, the safe side for a gate. */
 function isKeyName(literal: string): boolean {
 	return literal.length === 1 || /^[A-Z][A-Za-z0-9]*$/.test(literal);
 }
@@ -95,8 +91,7 @@ describe('G4.29 hardcoded-chord manifest ↔ library keydown sites', () => {
 });
 
 // ── Non-vacuity self-tests ───────────────────────────────────────────────────
-// An over-escaped pattern that matches nothing lets every assertion above pass on an
-// empty set, which is the failure this rule exists to prevent.
+// An over-escaped pattern that matches nothing would pass every assertion above on an empty set.
 
 describe('G4.29 scan non-vacuity', () => {
 	it('finds the modifier readers it is meant to find', () => {
@@ -109,9 +104,8 @@ describe('G4.29 scan non-vacuity', () => {
 		expect(found.some((path) => path.endsWith('.svelte'))).toBe(true);
 	});
 
-	// The link card's entry chord rides the kind keymaps, so `collectReservedChords` enumerates it
-	// from the registry. A card host that started reading a modifier flag would be a second,
-	// unenumerated claim on the same chord; the card's own field swallow is manifested instead.
+	// The link card's entry chord rides the kind keymaps, so `collectReservedChords` finds it in the
+	// registry; a card host reading a modifier flag would be a second, unlisted claim on the chord.
 	it('Mod+K reaches reservedChords from the keymaps, not from a hand-written branch', () => {
 		registerBuiltInDescriptors();
 		expect(
@@ -127,8 +121,7 @@ describe('G4.29 scan non-vacuity', () => {
 		expect(MODIFIER_READ.test('if (e.shiftKey) return;')).toBe(true);
 	});
 
-	// Miss-analysis: the harvest's own cases used only `===` and `case`, so a branch guarding with
-	// `!==` alone never met the matcher.
+	// Miss-analysis: the harvest's own cases used only `===` and `case`, never a `!==` guard.
 	it('harvests each key-comparison shape and drops non-key literals', () => {
 		expect(
 			harvestKeys(`

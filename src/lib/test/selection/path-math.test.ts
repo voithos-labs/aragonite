@@ -99,9 +99,8 @@ describe('isPathBetween', () => {
 });
 
 describe('DocPath brand', () => {
-	// A compile-time pin with nothing to run: the commit-path check demands a `DocPath`, and an
-	// unused `@ts-expect-error` is itself a check error, so a green `npm run check` proves all
-	// three constructors.
+	// Checked at compile time only: an unused `@ts-expect-error` is itself an error, so a green
+	// `npm run check` proves the commit-path guard takes all three constructors and no bare path.
 	it('the commit-path guard rejects an unminted path but accepts every create', () => {
 		type GuardPath = Parameters<typeof checkCommitPathAddressable>[1];
 

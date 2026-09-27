@@ -1,7 +1,6 @@
 /**
- * The file scan's own probes, run once here rather than in every rule table: a match outside
- * the allowlist is a violation, an allowed file is not, a stale entry and an unreached file each
- * red, the population bounds the scan, and a token inside a comment cannot trip it.
+ * Self-tests for the shared per-file scan in `file-rule.ts`, run once here rather than in every
+ * rule table.
  */
 
 import { describe, it, expect } from 'vitest';

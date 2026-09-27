@@ -10,9 +10,7 @@ afterEach(() => {
 	document.body.replaceChildren();
 });
 
-// Miss-analysis: the focused path and the attribute were only ever asserted through a mounted
-// editor in one mode, so nothing covered keeping the path on a focusout inside the root, or
-// re-applying the attribute on a mode change, on their own.
+// Miss-analysis: focus path and attribute were tested only through a mounted editor in one mode.
 function editor(mode: PresentationMode = 'source') {
 	const root = document.createElement('div');
 	const host = (path: number[]) => {
@@ -105,8 +103,7 @@ describe('editor-root focus attribution: data-focused', () => {
 		expect(e.marked()).toEqual([]);
 	});
 
-	// Miss-analysis: every mark test moved focus with no button down, so nothing showed the mark
-	// painting mid-press, where it moves the text the browser is about to place the caret in.
+	// Miss-analysis: every mark test moved focus with no button down, never mid-press.
 	it.each(['pointerup', 'pointercancel'])(
 		'a held press keeps the mark where it was until %s',
 		(release) => {
@@ -123,8 +120,7 @@ describe('editor-root focus attribution: data-focused', () => {
 		}
 	);
 
-	// Miss-analysis: the held-press rows all ended in a release, so none showed a press whose
-	// release never reaches the page leaving the old block painted.
+	// Miss-analysis: every held-press row ended in a release that reached the page.
 	it('focus leaves mid-press with no release: the mark goes with it', () => {
 		const e = editor('preview-block');
 		e.focusIn(e.first.leaf);

@@ -1,5 +1,4 @@
 // @vitest-environment jsdom
-//
 // The entry paths that reach a whole-block kind with a character offset in hand: a shift-click's
 // hit-test, and the restore path a consumer's `setSelection` takes. Both must leave
 // `enterCrossBlock` holding a whole-block endpoint.

@@ -11,7 +11,7 @@ import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
 import { takeDevWarns } from '../support/warn-gate';
 import type { Document } from '../../core/nodes';
 
-// Drives the parser's DEV trust checks without a real misbehaving plugin. The kind name is
+// Drives the parser's dev-mode trust checks without a real misbehaving plugin. The kind name is
 // decoupled from the sentinel because kind names may not contain the sentinel's symbols.
 function registerSyntheticOpener(
 	kindName: string,

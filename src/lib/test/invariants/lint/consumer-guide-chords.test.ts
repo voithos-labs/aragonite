@@ -1,9 +1,8 @@
 /**
- * Consumer-guide chord coherence, both directions: every row of § Keyboard shortcuts resolves to
- * the command it claims, and every chord the editor or a bundled plugin binds or claims has its
- * own row. Keymap families resolve against the registry, the rest against literal tokens in their
- * dispatch files; the reverse sweep matches a chord with the kind, keymap, plugin or file that
- * owns it, so a chord with two meanings needs a row for each.
+ * The consumer guide's § Keyboard shortcuts and the shipped chords agree both ways: every row
+ * resolves to the command it names, and every chord the editor or a bundled plugin binds or
+ * handles has its own row. The reverse sweep matches a chord with the kind, keymap, plugin or
+ * file that owns it, so a chord with two meanings needs a row for each.
  */
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -95,11 +94,8 @@ export interface DocRow {
 	chords: string[];
 }
 
-/**
- * The section's rows, family header carried down. Parenthetical prose is stripped first so its
- * incidental backtick tokens aren't mistaken for chords; an escaped pipe is table content, not a
- * cell boundary, so the row spelling a header out survives the split.
- */
+/** The section's rows, family header carried down. Parenthetical prose is stripped so its backtick
+ *  tokens aren't read as chords; an escaped pipe is table content, not a cell boundary. */
 export function parseRows(section: string): DocRow[] {
 	const rows: DocRow[] = [];
 	let family: string | null = null;
@@ -132,11 +128,8 @@ function shortcutSection(): string {
 
 // ── What each row targets ───────────────────────────────────────────────────
 
-/**
- * The command ids a row's chords must resolve to, and the kind whose surface holds the caret when
- * they do. The kind matters: `Tab` is three different commands across three rows, and a
- * row that resolved on any kind would say nothing about which one it documents.
- */
+/** The command ids a row's chords must resolve to, and the kind holding the caret when they do;
+ *  the kind matters because `Tab` is three different commands across three rows. */
 const ROW_TARGETS: Record<string, { kind: AnyBlockKind; commands: CommandId[] }> = {
 	'Bold (toggle strong)': { kind: 'paragraph', commands: ['format.toggleStrong'] },
 	'Italic (toggle emphasis)': { kind: 'paragraph', commands: ['format.toggleEmphasis'] },
@@ -227,7 +220,7 @@ const KEYMAP_FAMILIES = [
 // ── Dispatch sites outside the keymap ───────────────────────────────────────
 
 // Each family names the files it reads and, per chord, the tokens that chord must show in their
-// comment-stripped source. The files are also what makes a keydown claim in one of them rowed.
+// comment-stripped source; a keydown claim in one of those files is documented by the family.
 interface TokenFamily {
 	files: string[];
 	tokens: Record<string, string[]>;
@@ -292,12 +285,8 @@ export function tokensResolve(family: string, chord: string): boolean {
 
 // ── What the code claims ────────────────────────────────────────────────────
 
-/**
- * A chord and its owner: the block kind whose keymap binds it, `global` for the editor-global
- * keymap, a bundled plugin's name for its global command, or the `src/lib` file whose keydown
- * branch claims it. One chord can mean different things to different owners (`Mod+Enter` checks
- * a task item and inserts a table row), so the reverse sweep matches a claim, never a bare chord.
- */
+/** A chord and its owner (a kind's keymap, `global`, a bundled plugin, or a `src/lib` file). One
+ *  chord means different things to different owners, so the sweep never matches a bare chord. */
 type ClaimKey = `${string} @ ${string}`;
 
 const claimKey = (chord: string, owner: string): ClaimKey => `${chord} @ ${owner}`;
@@ -373,7 +362,7 @@ export function familyRowFor(docRows: DocRow[], key: ClaimKey): string | null {
 
 /**
  * A keydown claim's row in a keymap family, the command the claiming branch runs, and the kind
- * whose surface holds the caret when it runs. The row must serve that kind, as a bound claim's must.
+ * holding the caret when it runs. The row must serve that kind, as a bound claim's must.
  */
 interface ClaimRow {
 	row: string;
@@ -604,8 +593,7 @@ describe('consumer-guide chord coherence: self-tests', () => {
 		expect(hardcodedClaims.length).toBeGreaterThan(10);
 	});
 
-	// Miss-analysis: the sweep read kind keymaps alone, so an undocumented chord in the global
-	// keymap or a bundled plugin's global command passed; no case put one there.
+	// Miss-analysis: the sweep read kind keymaps alone, and no case put a chord anywhere else.
 	it('sweeps the global keymap, bundled plugin globals and bundled plugin kinds', () => {
 		const keys = boundClaims().map(({ chord, owner }) => claimKey(chord, owner));
 		expect(keys).toContain('Mod+Z @ global');
@@ -613,8 +601,7 @@ describe('consumer-guide chord coherence: self-tests', () => {
 		expect(keys).toContain('Mod+M @ mermaid');
 	});
 
-	// Miss-analysis: a file-owned exemption was checked against the claim list alone, so a row
-	// added for its chord left the exemption standing.
+	// Miss-analysis: a file-owned exemption was checked against the claim list, never the rows.
 	it('rows a keydown claim through the token family that reads its file, and only that one', () => {
 		expect(familyRowFor(rows, 'Mod+Enter @ plugins/mermaid/MermaidBlock.svelte')).toBe(
 			'Finish editing a diagram'
@@ -623,8 +610,7 @@ describe('consumer-guide chord coherence: self-tests', () => {
 		expect(familyRowFor(rows, 'Shift+F10 @ components/blocks/table/TableBlock.svelte')).toBeNull();
 	});
 
-	// Miss-analysis: the sweep keyed documented chords by string alone, and no case gave it one chord
-	// with two meanings, so a row for either meaning satisfied both.
+	// Miss-analysis: chords were keyed by string alone, and no case held one chord with two meanings.
 	it('matches a bound chord to the row for its command, not to any row sharing the chord', () => {
 		const tablesOnly = rows.filter((row) => row.action === 'Insert row below / above');
 		const insertRow = { chord: 'Mod+Enter', owner: 'tableCell', ownerKind: 'tableCell' as const };
@@ -634,8 +620,7 @@ describe('consumer-guide chord coherence: self-tests', () => {
 		expect(rowsDocument(rows, { ...toggleTask, command: 'list.toggleTask' })).toBe(true);
 	});
 
-	// Miss-analysis: the sweep keyed a bound claim by chord and command alone, so the admonition
-	// title's Enter row documented the details summary's Enter, and removing the Details row passed.
+	// Miss-analysis: claims were keyed by chord and command alone; no case had two kinds share one.
 	it('matches a bound claim to a row for its own kind, not a sibling kind running the same command', () => {
 		const summary = declaredPluginKind(DETAILS_SUMMARY);
 		const summaryEnter = {
@@ -653,8 +638,7 @@ describe('consumer-guide chord coherence: self-tests', () => {
 		).toBe(false);
 	});
 
-	// Miss-analysis: a hand-written entry was checked only against its own row, so re-pointing a
-	// claim at another kind's row, together with that row's own command, passed.
+	// Miss-analysis: a hand-written entry was checked against its own row, never the row's kind.
 	it('refuses a hand-written entry whose row serves another kind than the claiming surface', () => {
 		const key: ClaimKey = 'Shift+Tab @ components/blocks/table/cell-keydown-plan.ts';
 		const listRow = {

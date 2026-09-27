@@ -1,5 +1,4 @@
 // @vitest-environment jsdom
-//
 // When the selection channel notifies, and what the editor looks like at that
 // moment. Subscribers read the editor back on notify (`getSelection()`), so an
 // emission that escapes mid-restore reports a caret the restore is about to move.
@@ -163,9 +162,8 @@ describe('SelectionState.batch', () => {
 	});
 });
 
-// The restore path is the only entry path wrapped in a batch. These pin the counts of the paths
-// that are not: a mutator that changed nothing must stay silent, so a subscriber's read-back is
-// never triggered by a gesture the selection slept through (#29).
+// Only the restore path is wrapped in a batch, so on every other path a mutator that changed
+// nothing must stay silent, or subscribers read back after a gesture that moved no selection.
 describe('unbatched entry-path emission counts', () => {
 	it('a pointerdown that collapses a cross-block selection notifies once', () => {
 		let notifies = 0;
@@ -205,8 +203,7 @@ describe('unbatched entry-path emission counts', () => {
 		}
 	});
 
-	// Miss-analysis (#29): the mutators were pinned through their callers, where a real mutation
-	// always came along, so no test ever asked what a mutator does with nothing to change.
+	// Miss-analysis: GH #29; mutators were only tested through callers, where a real change came.
 	it('every mutator is silent when it changes nothing', () => {
 		let notifies = 0;
 		const state = createSelectionState({ onChange: () => notifies++ });

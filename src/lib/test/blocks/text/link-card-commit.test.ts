@@ -59,8 +59,7 @@ describe('link card commit: which fields survive a url edit', () => {
 		expect(card.raw()).toBe('Visit [x](old) now\n');
 	});
 
-	// Miss-analysis: the unchanged-URL case above used a destination the serializer reproduces
-	// byte for byte, so the rebuild and rewrite it really did looked like doing nothing.
+	// Miss-analysis: the case above used a URL the serializer reproduces exactly, hiding the rewrite.
 	it('an unchanged url never respells author bytes the serializer would normalize', async () => {
 		const card = makeCard('Visit [x](<a b>) now\n');
 		// What the field shows for the angle form, committed back untouched.

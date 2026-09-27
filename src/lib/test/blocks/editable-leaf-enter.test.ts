@@ -1,8 +1,5 @@
 // @vitest-environment jsdom
-//
-// Miss-analysis: every editable-leaf case was written against a multi-line kind (block math, the
-// `@@` harness leaf), so the literal newline Enter inserts was always visible and always wanted,
-// and no test asked what a one-line leaf does with a byte it cannot show.
+// Miss-analysis: every editable-leaf case used a multi-line kind, so none asked a one-line leaf.
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { unmount } from 'svelte';
 import { resetPluginPlatformForTests } from '$lib/testing';
@@ -56,19 +53,17 @@ describe('Enter in an editable leaf', () => {
 		await pressKey(el, { key: 'Enter' });
 
 		expect(mounted.blockEdit.splitBlock).toHaveBeenCalledWith(0, SOURCE.length);
-		// The fold is the split's precondition, so the source is back to its rendered view.
+		// The split first collapses the revealed source, so the block shows its rendered view.
 		expect(mounted.source()).toBeNull();
 	});
 
-	// Miss-analysis: every case here dispatched the key and awaited it on a leaf nothing
-	// touched, so no test ever asked what the handler does when the block it addresses stops
-	// existing between two of its own steps.
+	// Miss-analysis: every case awaited the key on an untouched leaf, never one unmounted mid-step.
 	it('drops the press whose container unmounted the leaf mid-step', async () => {
 		mounted = mountLeaf(true);
 		const el = await mounted.revealAtEnd();
 
-		// Svelte's delegated walk does not await the handler, so the container above claims the
-		// key and tears the block down while the shared step is still pending.
+		// Svelte's delegated dispatch does not await the handler, so the container above takes the
+		// key and tears the block down while the leaf's Enter handling is still pending.
 		el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
 		el.remove();
 		await settleEditor();

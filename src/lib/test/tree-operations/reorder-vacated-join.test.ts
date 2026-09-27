@@ -6,12 +6,9 @@ import { createSharingState } from '$lib/tree-operations/sharing';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
 import { defaultGrammarView } from '$lib/schema/block-openers';
 
-// GH #476: moving a block out from between two blocks rejoined them flush, and the upper one took
-// the lower in (a table read as prose, a rule as a setext underline, two quotes as one). The join
-// keeps a blank line when either side of the moved block had one; a pair that was flush on both
-// sides rejoins, which is what deleting the moved block would leave.
-// Miss-analysis: the property suite exempted any rejoined pair from its content check, so a merge
-// the move invented passed as the reload's own reading.
+// Moving a block out from between two keeps a blank line in the join when either side of it had
+// one; a pair flush on both sides rejoins, as deleting the moved block would leave it.
+// Miss-analysis: GH #476, the property suite exempted any rejoined pair from its content check.
 
 const BLOCKS = {
 	prose: 'Intro prose that runs on.',

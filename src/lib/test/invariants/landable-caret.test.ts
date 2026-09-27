@@ -1,8 +1,5 @@
 // @vitest-environment jsdom
-//
-// Miss-analysis: the caret-placing calls were checked for where they put the caret (the clamp to
-// a position the caret can sit at, G4.36) and never for whether the block they put it in paints
-// anything at all, so a block with no such position was a shape no check named.
+// Miss-analysis: the caret checks asked where a caret went, never whether its block paints at all.
 import { describe, it, expect, afterEach } from 'vitest';
 import { checkLandableCaret } from '../../invariants/landable-caret';
 import { CONTENT_EMPTY_ATTR } from '../../cursor/widget-offset';
@@ -20,7 +17,7 @@ function block(mode: string | undefined, marker: string, stamped = false): HTMLE
 	root.appendChild(el);
 	document.body.appendChild(root);
 	// The attribute paints only under focus (the stylesheet's `:focus-within` rule), which is the
-	// state "once its markers paint" asks about.
+	// state the "once its chrome paints" case asks about.
 	if (stamped) el.focus();
 	return el;
 }

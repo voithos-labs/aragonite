@@ -1,8 +1,7 @@
 // @vitest-environment jsdom
-//
 // The cross-block toggle's span split and its direction rule: the anchor's tail, each middle
 // block's content, the focus block's head, all rewritten the one way the range's own coverage
-// says. Whether a keystroke lands is the commit's business; which spans it would touch is this file's.
+// says. Whether a keystroke lands is the commit's business and tested there.
 import { defaultGrammarView } from '$lib/schema/block-openers';
 import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';

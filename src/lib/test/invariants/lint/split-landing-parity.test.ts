@@ -1,8 +1,8 @@
 /**
- * The bypass G1.34 names, closed here: the dev-mode check only fires where a caller calls it, so
- * a split site that puts its caret at `i + 1` never reaches it and reopens the problem, because a
- * first half that reparses into several blocks pushes the second half down and the caret lands on
- * the first half's tail. Every split caller reads the primitive's answer and asserts against it.
+ * Every split caller reads the split primitive's landing answer and asserts against it, rather
+ * than putting its caret at `i + 1`: a first half that reparses into several blocks pushes the
+ * second half down, and the caret lands on the first half's tail. The dev-mode check only fires
+ * where a caller calls it, so this scan covers the sites that don't (G1.34).
  */
 
 import { describe, it, expect } from 'vitest';
@@ -57,7 +57,7 @@ describe('G1.34 split-landing parity census', () => {
 	});
 
 	// Per call site, not per file: an allowlisted caller growing a second split whose landing it
-	// recomputes would pass a scan done per file, which is the bypass this exists to close.
+	// recomputes would pass a scan done per file.
 	it('each split call in a caller carries its own landing assertion', () => {
 		for (const file of sources.filter((f) => namesSplit(f) && !NON_LANDING.has(f.relPath))) {
 			const { code } = file;

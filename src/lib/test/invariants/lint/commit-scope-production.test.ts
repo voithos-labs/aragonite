@@ -1,8 +1,8 @@
 /**
- * G4.61: the commit scope is production-live. `invariants/commit-scope.ts` routes the
- * decorations' deferral, not only a DEV assertion, so a build-flag guard on its depth counter
- * would leave `invalidate()` running inside the commit in production while every test stayed
- * green (`esm-env` resolves DEV to true under vitest, so no behavior test can see this).
+ * The commit scope in `invariants/commit-scope.ts` runs in production too, since it defers the
+ * decorations' invalidation (G4.61): a DEV guard on its depth counter would run `invalidate()`
+ * inside the commit in production. Only a source scan can see that, because `esm-env` resolves
+ * DEV to true under vitest.
  */
 
 import { describe, it, expect } from 'vitest';

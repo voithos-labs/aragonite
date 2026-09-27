@@ -81,8 +81,7 @@ describe('kind enablement derived from an instance activation set', () => {
 	});
 });
 
-// Miss-analysis: each activation copy was tested against a listed or unlisted plugin, never a
-// failed one, and the context-action read had no activation to test at all.
+// Miss-analysis: no activation test used a failed plugin, and context actions had no activation.
 describe('one activation rule for every plugin registration', () => {
 	it('shows a plugin context action only in an editor that lists the plugin', () => {
 		installPlugins([
@@ -128,9 +127,7 @@ describe('one activation rule for every plugin registration', () => {
 	});
 });
 
-// Miss-analysis: every case registered a kind and its component from the same plugin, so the
-// view's kind check and the component registry's own check always agreed, and a component that
-// answered to its registering plugin instead went unseen.
+// Miss-analysis: every case registered a kind and its component from one plugin, so checks agreed.
 describe("a kind's component answers to the plugin that owns the kind", () => {
 	it('resolves only where the kind owner is listed, whichever plugin registered the component', () => {
 		let kind: PluginBlockKind | undefined;

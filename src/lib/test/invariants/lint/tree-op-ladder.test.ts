@@ -1,7 +1,7 @@
 /**
- * G4.64: the six files node-ops split into have a fixed order, and every import between them
- * points down that order. A module cycle between two of them can pass every behavioral test, so
- * only a source scan can hold the shape.
+ * The tree-operation files below have a fixed order, and every import between them points down
+ * that order (G4.64). A module cycle between two of them can pass every behavioral test, so only
+ * a source scan can hold the shape.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -42,8 +42,8 @@ function upwardEdges(relPath: string, rung: number, code: string): string[] {
 }
 
 describe('G4.64 the tree-ops layer order', () => {
-	// Library-internal: the order names six files under src/lib, so the plugin and consumer
-	// stand-ins have nothing to model.
+	// Library-internal: the order names files under src/lib, so the reference plugins and the
+	// consumer example have nothing to model.
 	const rungs = collectEditorSources(EDITOR_SRC)
 		.map((f) => ({ ...f, rung: rungOfFile(f.relPath) }))
 		.filter((f) => f.rung >= 0);

@@ -10,8 +10,7 @@ import { fixtureReading } from '../../harness/fixture-grammar';
 
 // The mermaid kind declares a raw-write rule that puts back a closing fence a truncating write
 // dropped, so bytes written past the diagram's own editor cannot swallow the blocks below it.
-// Miss-analysis: every mermaid write test went through the code editor's metadata commit, and
-// the raw-write rule's pins covered the kinds that declared it, not the ones that did not.
+// Miss-analysis: every mermaid write test went through the code editor's metadata commit.
 
 /** The rule as a write path reaches it: dispatched off the node's own kind. */
 function write(source: string, raw: string): string {
@@ -97,8 +96,7 @@ describe('a truncating write of a mermaid block gets its closing fence back', ()
 		);
 	});
 
-	// Miss-analysis (#566): the plugin's own copy of the rule restored a closer and nothing else,
-	// and no test wrote the two shapes the built-in code block already repairs.
+	// Miss-analysis: no test wrote the two shapes the built-in code block repairs (GH #566).
 	it('drops the closer a write stranded by taking the opener line', () => {
 		expect(write('```mermaid\ngraph TD\n```\n', 'graph TD\n```\n')).toBe('graph TD\n');
 	});
@@ -115,8 +113,7 @@ describe('a truncating write of a mermaid block gets its closing fence back', ()
 	});
 });
 
-// Miss-analysis: every closer-restore fixture was LF, so a closer written in LF into a CRLF block
-// read as correct; the last line of a document carries no ending to copy.
+// Miss-analysis: every closer-restore fixture was LF, so none hit a CRLF last line with no ending.
 describe('a closing fence restored into the unterminated last block of a CRLF document', () => {
 	it('is CRLF', () => {
 		expect(write('```mermaid\r\ngraph TD\r\n```', '```mermaid\r\nA')).toBe(

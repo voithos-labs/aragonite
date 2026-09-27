@@ -7,10 +7,9 @@ import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
 
 // A list whose first item is emptied right under a paragraph needs a blank line above it: a bare
-// marker cannot interrupt a paragraph, so the bytes would reload as a setext heading (GH #438).
-// Typing already settles that line; a replace that empties the item must too.
-// Miss-analysis: the replace pins asserted bytes and events, none emptied a first item under a
-// paragraph, and convergence passed because the fold read the heading the bytes spelled.
+// marker cannot interrupt a paragraph, so the bytes would reload as a setext heading.
+// Typing already adds that line; a replace that empties the item must too.
+// Miss-analysis (GH #438): no replace test emptied a first item under a paragraph.
 
 describe('a replace that empties the first item under a paragraph', () => {
 	it.each([

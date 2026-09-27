@@ -107,10 +107,8 @@ describe('delimiter auto-pair', () => {
 		expect(type('a ~~~', 5, '~')).toBeNull();
 	});
 
-	// A closer typed by hand, with no partner there to step over, completes the construct, and the
-	// byte after it belongs outside, so it is written and the caret goes past the run.
-	// Miss-analysis: every closing case here had a partner to step over, so none typed the byte
-	// that makes the construct and asked which side the next one lands on.
+	// A closer typed with no partner to step over completes the construct; the caret goes past it.
+	// Miss-analysis: every closing case had a partner to step over, so none typed the closer itself.
 	it('a closer typed with no paired closer ahead closes the construct', () => {
 		expect(type('Some *ab', 8, '*')).toEqual(closed('Some *ab*', 9));
 		expect(type('Some `ab', 8, '`')).toEqual(closed('Some `ab`', 9));

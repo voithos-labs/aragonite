@@ -1,8 +1,6 @@
 // @vitest-environment jsdom
-//
-// Moving a click to a widget edge places a caret, so it does nothing while a range is already
-// selected. Miss-analysis: every such test started from a collapsed caret, and the check read the
-// start container's node type, so no test ever called it over a selected range.
+// Moving a click to a widget edge places a caret, so it does nothing while a range is selected.
+// Miss-analysis: every snap test started from a collapsed caret, never over a selected range.
 import { describe, it, expect } from 'vitest';
 import { createWidgetInteraction } from '$lib/components/blocks/text/widget-interaction';
 import { MATH_INLINE } from '$lib/plugins/latex/latex-kind';

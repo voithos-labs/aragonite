@@ -1,8 +1,5 @@
 // @vitest-environment jsdom
-//
-// Miss-analysis: the widget-edge fixture held one widget, so its whole walk was a handful of
-// probes and nothing measured how far a vertical arrival scans a block made only of widgets.
-//
+// Miss-analysis: the widget-edge fixture held one widget, so no long scan across widgets was run.
 // jsdom lays nothing out, so the rect methods are patched on the prototype: a collapsed range
 // answers with no rect, as a browser does beside a `contenteditable=false` widget, and a range
 // around a widget answers with that widget's box on a grid of lines.
@@ -137,8 +134,7 @@ describe('a vertical arrival into a paragraph made only of widgets', () => {
 		expect(landed).toBe(2 * PER_LINE * SOURCE_LENGTH + 2);
 	});
 
-	// Miss-analysis: every case above held widgets alone or text past them, so no walk started on
-	// a letter and then met widget boxes, which never ended it and were probed at every offset.
+	// Miss-analysis: no case above started a walk on a letter and then met widget boxes.
 	describe('with one letter before the widgets', () => {
 		beforeEach(() => {
 			block.prepend(document.createTextNode('x'));

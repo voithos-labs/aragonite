@@ -1,7 +1,5 @@
 // @vitest-environment jsdom
-// Miss-analysis: the width path was tested only by the narrowing case in the anchoring suite,
-// where the two corrections happen to pick the same block and cancel out; no case made the
-// half-estimated table in between name a different block at the top of the viewport.
+// Miss-analysis: the one width case had both corrections pick the same block, so they cancelled.
 import { describe, it, expect } from 'vitest';
 import { flushSync } from 'svelte';
 import type { HeightOracle } from '../../cursor/height-oracle';

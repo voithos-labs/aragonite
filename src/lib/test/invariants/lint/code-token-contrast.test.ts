@@ -1,17 +1,9 @@
 /**
- * WCAG AA for the text the editor paints, computed from the declared palette in both themes
- * against the surface and the fence (`--color-bg-secondary` composited over it): every
- * `--code-tok-*` color, the UI grey tokens that paint text (also over the menu background),
- * the greys that mark text as done or inert, each marker color at the `--syntax-marker-dim`
- * opacity, and raw-block text at the opacity its block is drawn with. The axe gate cannot
- * certify this: it scans the harness page.
+ * WCAG AA for every color the editor paints text with, computed from the declared palette in both
+ * themes against each background it paints on, with marker dims and block fades applied. The axe
+ * gate cannot certify this: it scans the harness page, not the library's declared surfaces.
+ * Miss-analysis (#290 #396 #397 #427 #428): the gate listed some text colors, never all of them.
  */
-// Miss-analysis: the a11y gate measured the demo shell's background, so nothing ever
-// computed a ratio against the library's declared surfaces, and no gate enumerated the
-// token family, so three declarations sharing one failing hex read as one known failure.
-// Miss-analysis (#290 #396 #397 #427 #428): the gate knew only the code tokens, then only named
-// greys on the document's surfaces, so dimmed markers, greys over menus, alpha greys, a grey left
-// off the list and text faded by its block's opacity all failed unseen.
 import { describe, it, expect } from 'vitest';
 import { readEditorFile, stripComments } from './scan-source';
 import { declaredValue, themeBlocks } from './theme-css';
@@ -119,8 +111,8 @@ const UI_TEXT_TOKENS = [
  *  listed inherits the prose color, which `currentColor` resolves to. */
 const MARKER_COLOR_TOKENS = ['--syntax-heading', '--syntax-emphasis', '--syntax-list'];
 
-/** The greys that set text apart as done or inert: a checked task, a reference label, a link
- *  whose scheme is refused, and inline raw HTML. All paint inside the document. */
+/** The greys that set text apart as done or inert, such as a checked task. All paint inside the
+ *  document, so they are measured on the surface and the fence only. */
 const DE_EMPHASIS_TOKENS = [
 	'--syntax-task-done',
 	'--md-ref-label-color',
@@ -253,19 +245,19 @@ describe('WCAG AA: UI text, done or inert text, dimmed markers and faded blocks 
 			);
 			expect(Number(themeValue(theme)('--syntax-marker-dim'))).toBeGreaterThan(0);
 		}
-		// The greys the widenings were built to catch: the light muted grey that shipped at 3.3:1,
-		// and the muted greys that read 4.2 and 4.3:1 over the menu background.
+		// Greys below AA must fail: a light muted grey at 3.3:1, and muted greys at 4.2 and 4.3:1
+		// over the menu background.
 		expect(contrastRatio([0x83, 0x83, 0x7b], paletteFor('light').surface)).toBeLessThan(
 			AA_CONTRAST
 		);
 		expect(contrastRatio([0x67, 0x67, 0x61], paletteFor('light').menu)).toBeLessThan(AA_CONTRAST);
 		expect(contrastRatio([0x8f, 0x8f, 0x89], paletteFor('dark').menu)).toBeLessThan(AA_CONTRAST);
 		expect(contrastRatio([0x71, 0x71, 0x6a], paletteFor('light').menu)).toBeLessThan(AA_CONTRAST);
-		// And the checked task's alpha grey, which read 2.2:1 composited over the light surface.
+		// An alpha grey like the checked task's, at 2.2:1 composited over the light surface.
 		const surface = paletteFor('light').surface;
 		const taskDone = resolvePaint('rgba(128, 128, 128, 0.7)', themeValue('light'));
 		expect(contrastRatio(taskDone(surface), surface)).toBeLessThan(AA_CONTRAST);
-		// And light prose in a reference definition at 0.85 x 0.75, which read 4.2:1.
+		// Light prose in a reference definition faded 0.85 x 0.75, at 4.2:1.
 		expect(contrastRatio(composite([0x2a, 0x2a, 0x27], 0.6375, surface), surface)).toBeLessThan(
 			AA_CONTRAST
 		);
@@ -307,7 +299,7 @@ describe('WCAG AA: code tokens against the surfaces the editor paints them on', 
 		expect(dark.colors.has('--code-tok-variable')).toBe(false);
 		expect(dark.fence).not.toEqual(dark.surface);
 		expect(contrastRatio([0, 0, 0], [255, 255, 255])).toBeCloseTo(21, 5);
-		// The comment grey this gate was built to catch: the assertion must be able to fail.
+		// A comment grey below AA over the fence, so the assertion above can fail.
 		expect(contrastRatio([0x75, 0x71, 0x5e], dark.fence)).toBeLessThan(AA_CONTRAST);
 	});
 });

@@ -8,9 +8,7 @@ import {
 } from './excuses';
 import type { NormalNode } from './normalize';
 
-// Miss-analysis: the excuse rule's only test was the property's own self-test, which bucketed
-// inputs by the same input predicate it was auditing, so the rule agreed with itself; nothing
-// ever fed it a divergence whose input matched a class its diverging kinds did not.
+// Miss-analysis: the excuse rule's only test was a self-test sharing its input predicate.
 
 function text(value: string): NormalNode {
 	return { kind: 'text', text: value };

@@ -10,7 +10,7 @@ import { expectParseConverged } from '$lib/test/harness/parse-converged';
 
 const TABLE = '| a | b |\n| - | - |\n| c | d |\n';
 const FENCE = '```\ncode\n```\n';
-/** paragraph, table, fencedCode, paragraph — the eligible boundary is 2. */
+/** paragraph, table, fencedCode, paragraph: the eligible boundary is 2. */
 const TABLE_THEN_FENCE = `para\n\n${TABLE}\n${FENCE}\ntail\n`;
 
 describe('a paragraph created at a boundary round-trips', () => {
@@ -30,8 +30,8 @@ describe('a paragraph created at a boundary round-trips', () => {
 		]);
 	});
 
-	// A blank block is itself a blank line (G2.13), so it shares the follower's separator rather
-	// than stacking a second one that would reload as an extra empty paragraph.
+	// A blank block is itself a blank line, so it shares the follower's separator rather than
+	// stacking a second one that would reload as an extra empty paragraph (G2.13).
 	it('is empty when Enter creates it, and shares its follower separator', async () => {
 		const h = makeTopHarness(TABLE_THEN_FENCE);
 
@@ -42,9 +42,8 @@ describe('a paragraph created at a boundary round-trips', () => {
 		expect(h.doc.children).toHaveLength(5);
 	});
 
-	// The first block's own fill correctly declines a separator at bodyStart, so the block the
-	// new paragraph displaced is the one that needs the line, in source only, which no byte
-	// round-trip sees.
+	// The first block's fill declines a separator at bodyStart, so the displaced block must supply
+	// the line itself; a missing one shows in the bytes, never in a round-trip.
 	it('hands the displaced head its own separator once the new block is typed into', async () => {
 		const h = makeTopHarness(`${TABLE}\n${FENCE}`);
 
@@ -55,7 +54,7 @@ describe('a paragraph created at a boundary round-trips', () => {
 		expectParseConverged(h.doc);
 	});
 
-	// The first index owns no separator, so the new paragraph takes the old first block's and
+	// The first index owns no separator, so the new paragraph takes the displaced block's and
 	// hands one back.
 	it('at the scope head pushes the separator down to the block it displaced', async () => {
 		const h = makeTopHarness(`${TABLE}\n${FENCE}`);

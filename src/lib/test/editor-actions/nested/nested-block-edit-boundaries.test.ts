@@ -1,5 +1,4 @@
 // @vitest-environment jsdom
-//
 // `createNestedBlockEdit`'s own contribution over the shared block-edit core is entirely
 // boundary logic: which calls stay inside the container and which hand up to the parent.
 // An edge merge that stayed interior silently does nothing; an interior merge that went to
@@ -122,8 +121,8 @@ describe('nested block edit: collapsed forward-merge', () => {
 });
 
 describe('nested block edit: childless guards', () => {
-	// What matters about `if (!deps.node.children) return` is that it returns without
-	// calling the parent, so a childless container never asks its parent to act for it.
+	// A childless container returns without calling the parent, so it never asks its parent to
+	// act for it.
 	it('return without delegating upward when the container has no children', async () => {
 		const { blockEdit, parent } = env({ kind: 'listItem', leadingTrivia: '', raw: '' } as CstNode);
 

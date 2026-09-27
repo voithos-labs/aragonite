@@ -50,9 +50,7 @@ describe('spliceChildren', () => {
 		expect(c.childIds).toHaveLength(c.children!.length);
 	});
 
-	// Miss-analysis: this case asserted the replaced position took a fresh id, which read as a
-	// deliberate contract; nothing compared this splice against its in-commit counterpart, where
-	// `replacePreservingFirst` has always let a replacement's head keep the position's id.
+	// Miss-analysis: no test compared this splice with `replacePreservingFirst`'s id rule.
 	it('a replacement’s head continues its slot; survivors and later slots keep their own', () => {
 		const c = bq([para('a\n'), para('b\n'), para('c\n')], ['id-a', 'id-b', 'id-c']);
 		spliceChildren(c, 1, 1, [para('x\n'), para('y\n')]);

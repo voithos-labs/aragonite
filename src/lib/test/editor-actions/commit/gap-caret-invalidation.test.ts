@@ -1,15 +1,13 @@
-// What a structural commit does to a live gap caret. The gap names a boundary index, so a
-// commit that inserts or removes a sibling ahead of it silently points it at a different
-// boundary. Miss-analysis (Sel-F4): every gap test drives the gap's own gestures, where the
-// new paragraph ends the gap anyway; an edit arriving from elsewhere (search replace-all, a
-// host edit, a plugin) had no test at all, so nothing observed the gap surviving one.
+// What a structural commit does to a live gap caret: the gap names a boundary index, so an
+// insert or removal ahead of it would silently point it at a different boundary.
+// Miss-analysis: gap tests drove only the gap's own gestures, never an edit from elsewhere.
 import { describe, it, expect } from 'vitest';
 import { isGapSelection } from '$lib/undo/types';
 import { makeTopHarness } from '$lib/test/harness/editor-actions';
 
 const TABLE = '| a | b |\n| - | - |\n| c | d |\n';
 const FENCE = '```\ncode\n```\n';
-/** paragraph, table, fencedCode, paragraph — the eligible boundary is 2. */
+/** paragraph, table, fencedCode, paragraph: the eligible boundary is 2. */
 const TABLE_THEN_FENCE = `para\n\n${TABLE}\n${FENCE}\ntail\n`;
 const GAP = { parentPath: [], index: 2 };
 

@@ -1,8 +1,7 @@
 // @vitest-environment jsdom
-
 // The open edit box against a document that changes underneath it: a write to the live CST
 // from elsewhere (a host undo, a structural replace) must reach the textarea, or the blur
-// commit writes text based on bytes that no longer exist.
+// commit writes text based on bytes the document has since dropped.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { flushSync } from 'svelte';
 import type { CstNode, Document } from '$lib';

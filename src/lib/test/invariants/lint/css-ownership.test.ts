@@ -1,10 +1,8 @@
 /**
- * CSS-ownership guards (G4.6). The editor module owns its CSS: app.css holds no
- * editor-owned rules or tokens, every editor-owned token read is declared in
- * editor-theme.css, every host-token read carries a fallback so an extracted
- * editor renders with no host theme, and no read falls outside the two families
- * (an off-family typo like `--text-muted` can never be declared, so it would
- * silently render its fallback forever). See docs/design/invariants.md.
+ * The editor module owns its CSS (G4.6): app.css holds no editor-owned rules or tokens, every
+ * editor-owned token read is declared in editor-theme.css, every host-token read carries a
+ * fallback so an extracted editor renders with no host theme, and no read falls outside the two
+ * families (an off-family typo like `--text-muted` can never be declared).
  */
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -27,9 +25,8 @@ const OWNED_TOKEN =
 const HOST_TOKEN = /^--(?:color|radius)-[a-z0-9-]+$/;
 const ANY_READ = /var\(\s*(--[a-z0-9-]+)/g;
 
-// Bundled plugins own private palettes, guarded by plugin-css-ownership.test.ts, so they
-// are off-family here by design. The exclusion is scoped to family membership alone:
-// plugins stay under the G4.6b/G4.6c guards.
+// Bundled plugins own private palettes, guarded by plugin-css-ownership.test.ts, so they skip
+// the family check here but not the fallback and declaration checks.
 const isPluginSource = (relPath: string): boolean => relPath.startsWith('src/lib/plugins/');
 
 function editorCssSurfaces(): Array<{ rel: string; text: string }> {
@@ -119,9 +116,8 @@ describe('G4.6 CSS ownership: every token read belongs to a declared family', ()
 });
 
 // ── G4.6d: host-chrome defaults sit behind the opt-in class alone ────────────
-// A host-chrome default declared on `.editor` shadows what a themed host cascades from
-// `:root`, forcing every such consumer into bridge rules. The exception is host-family
-// names a host vocabulary does not carry: the editor supplies those in both modes.
+// A host-chrome default on `.editor` shadows what a themed host cascades from `:root`, except
+// for host-family names no host vocabulary carries, which the editor supplies in both modes.
 
 const EDITOR_SUPPLIED_HOST_NAMED = new Set([
 	'--color-bg-secondary',

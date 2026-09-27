@@ -1,5 +1,4 @@
 // @vitest-environment jsdom
-//
 // A mark's `interactive.onClick` is plugin code running on a user gesture, and editor.md §12
 // makes the `error` channel the one place every contained failure is reported, so this click
 // handler has to report a throw there like every other decoration entry point does.

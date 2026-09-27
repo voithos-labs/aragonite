@@ -1,9 +1,8 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// `handleShiftClick` makes two DOM reads (the click's caret offset and the previously focused
-// block's anchor caret) that need a laid-out contenteditable jsdom cannot provide, so they are
-// mocked and the branch logic exercised instead.
+// `handleShiftClick`'s two DOM reads (the click's caret offset and the prior block's anchor
+// caret) need layout jsdom lacks, so they are mocked and the branch logic tested instead.
 vi.mock('../../selection/native-bridge', async (importOriginal) => ({
 	...(await importOriginal<typeof import('../../selection/native-bridge')>()),
 	readNativeCaretInBlock: vi.fn(),
@@ -80,8 +79,7 @@ describe('handleShiftClick', () => {
 	});
 });
 
-// Miss-analysis: every case here grew from a caret the previous block still held, so none asked
-// where a shift-press anchors while an image is selected whole and no caret exists.
+// Miss-analysis: every case started from a caret the previous block held, never a selected image.
 describe('handleShiftClick with an image selected whole', () => {
 	// `before ![pic](img) after`: the image spans raw 7 to 18 of block 0.
 	const IMAGE: SelectedWidgetRange = { path: [0], start: 7, end: 18 };

@@ -12,8 +12,7 @@ import {
 	traceRevealFold
 } from '$lib/debug/interaction-trace';
 
-// The trace is module-global (a documented limitation of v1), so every case restores the
-// shared switch and buffer around itself.
+// The trace is module-global, so every case restores the shared switch and buffer around itself.
 beforeEach(() => {
 	resetInteractionTrace();
 	enableInteractionTrace();
@@ -77,9 +76,7 @@ describe('interaction-trace ring buffer', () => {
 	});
 });
 
-// Miss-analysis: the checks for absence that rely on it pass either way, so nothing but this
-// could catch a count the ring buffer takes back when it drops an entry; the e2e helper would
-// simply wait out its timeout and report the key as having reached no block.
+// Miss-analysis: e2e absence checks pass either way, so none caught a count lost on eviction.
 describe('interaction-trace keydown verdicts', () => {
 	it('counts only while enabled', () => {
 		disableInteractionTrace();

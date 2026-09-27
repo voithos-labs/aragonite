@@ -1,9 +1,7 @@
 // @vitest-environment jsdom
-//
-// CodeBlock's insertLineBreak composition gate, driven through the mounted component's real
-// listeners (the branch lives in the component, not an extracted helper): an IME emitting
-// insertLineBreak mid-composition must not sync the CST; the same event after
-// compositionend splices its newline.
+// CodeBlock's `insertLineBreak` check during composition, driven through the mounted component's
+// real listeners since the branch lives in the component: mid-composition the event must not sync
+// the CST, and after `compositionend` it splices its newline.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { mountCode, type MountedCode } from './mount-code';
 import { settleEditor } from '$lib/test/harness/settle';

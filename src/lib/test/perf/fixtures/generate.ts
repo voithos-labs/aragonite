@@ -44,14 +44,8 @@ export function generateUniformBlocks(
 	return out.join('\n\n') + '\n';
 }
 
-/**
- * A deep chain of containers where every level holds `bytesPerLevel` of sibling content beside
- * the one that continues down, so rebuilding the ancestors costs the sum over levels: the
- * depth-times-bytes axis that `FIXTURE_SHAPES`' single `targetBytes` knob cannot express. It
- * wraps from the inside out with the serializer's own prefix transform, so the result
- * round-trips by construction; a list level adds two containers to the rebuild chain, making
- * the chain about 1.5 times the wrap depth.
- */
+/** A deep chain of containers, each level holding `bytesPerLevel` of siblings beside the one that
+ *  continues down, so an ancestor rebuild costs the sum over levels; round-trips by design. */
 export function generateDeepNested(depth: number, bytesPerLevel: number, seed = 42): string {
 	const rand = mulberry32(seed);
 	const wordsPerLevel = Math.max(1, Math.round(bytesPerLevel / BYTES_PER_WORD));
@@ -66,14 +60,8 @@ export function generateDeepNested(depth: number, bytesPerLevel: number, seed = 
 export const TRIGGER_DENSE_KINDS = ['bracket-footnote', 'colon', 'dollar'] as const;
 export type TriggerDenseKind = (typeof TRIGGER_DENSE_KINDS)[number];
 
-/**
- * Prose dense in one inline trigger character, for the report-only rows that measure an
- * installed inline handler's cost. Kept out of `FIXTURE_SHAPES`, which feed every gated row,
- * because a plugin's handler is a plugin's business, not a ceiling the editor has to meet. Each
- * isolates its handler's main cost: `colon` mostly declines, `dollar` is shell prose (#27) with
- * one real span, and `bracket-footnote` has no definitions so the control route parses the same
- * document, though its row includes renumbering the references across the whole document.
- */
+/** Prose dense in one inline trigger character, for report-only rows timing a plugin's inline
+ *  handler; kept out of the gated `FIXTURE_SHAPES`, since a plugin's cost is not the editor's. */
 export function generateTriggerDense(
 	kind: TriggerDenseKind,
 	targetBytes: number,
@@ -91,9 +79,8 @@ export function generateTriggerDense(
 	return chunks.join('');
 }
 
-/** The path to the deepest leaf you can type in, in a `generateDeepNested` document. In a
- *  blockquote the child that continues down is the second one (the sibling comes first); in a
- *  list it is one level deeper, inside the single `listItem`. */
+/** In a blockquote the child that continues down comes second, after the sibling; in a list it
+ *  sits one level deeper, inside the single `listItem`. */
 export function deepNestedLeafPath(depth: number): number[] {
 	const path = [0];
 	for (let level = 1; level <= depth; level++) {

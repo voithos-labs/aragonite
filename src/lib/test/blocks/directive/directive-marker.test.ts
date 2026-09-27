@@ -1,5 +1,4 @@
 // @vitest-environment jsdom
-//
 // The generic `:::name` container's marker is the opener line itself, so it is sliced out of
 // `raw`. Rebuilding it from metadata (colon count plus name) drops everything else the line
 // can hold: attributes and trailing spaces round-trip through the CST, and they belong in the

@@ -1,5 +1,4 @@
 // @vitest-environment jsdom
-//
 // The defensive branch in handleCrossBlockPaste that consumes the event and inserts nothing.
 // Reachable through the delete's own re-entrancy serialization: a paste arriving while a delete is
 // waiting on its mount waits it out, and the delete collapses the selection on its way through.
@@ -76,7 +75,7 @@ describe('a cross-block paste whose delete resolves no caret', () => {
 		expect(errors[0].context?.path).toEqual([0]);
 	});
 
-	// #30. Miss-analysis: the case above read the error and the bytes, never the undo stack.
+	// Miss-analysis: GH #30; the case above read the error and the bytes, never the undo stack.
 	it('leaves no undo entry of its own: one Ctrl+Z takes back the delete it waited out', async () => {
 		const { env, handlers, mutCtx, releaseReveal } = makeGatedEnv();
 		env.selectionState.enterCrossBlock({ path: [0], offset: 2 }, { path: [2], offset: 3 });

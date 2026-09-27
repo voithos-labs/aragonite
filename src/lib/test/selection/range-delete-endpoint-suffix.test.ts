@@ -5,8 +5,7 @@ import { serialize } from '../../core/serializer';
 import { createSharingState } from '../../tree-operations/sharing';
 import { fixtureReading } from '../harness/fixture-grammar';
 
-// Miss-analysis: every truncated-endpoint pin cut inside prose lines, so no surviving slice
-// ever ended in a blank line — only indented code holds one inside a leaf's raw.
+// Miss-analysis: truncation cases cut only prose; only indented code keeps a blank line in its raw.
 function run(
 	source: string,
 	start: { path: number[]; offset: number },

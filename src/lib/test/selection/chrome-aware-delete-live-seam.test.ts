@@ -1,11 +1,8 @@
 // @vitest-environment jsdom
-//
-// The title-line wall's range delete truncates both endpoints in place with no join, so the
-// delimiter runs a cut leaves unpaired must still go through the live-mode cleanup, or they
-// paint as literal `**`. A text truncation is half a join and takes the cleanup's unpaired-run
-// half; a title line's own raw write stays byte for byte, outside the cleanup's view (GH #133).
-// Miss-analysis: the table branch's fix pinned its own text truncations, but nothing selected
-// across the title-line wall without a table, the sibling branch that skips the join the same way.
+// A range delete across a title line truncates both endpoints in place with no join, so a
+// delimiter run the cut leaves unpaired must still go through the live-mode cleanup, or it paints
+// as literal `**`. The title line's own bytes stay byte for byte, outside the cleanup.
+// Miss-analysis: GH #133; no case selected across a title line without a table in the range.
 import { afterEach, beforeEach, describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
@@ -64,8 +61,8 @@ describe('a live chrome-crossing delete drops the runs its truncation stranded',
 		expect(source).toContain('ld text\n');
 	});
 
-	// The wall: the title line's bytes are the container's own line, so its truncation stays byte
-	// for byte even in live mode; the cleanup never sees across it.
+	// The title line's bytes are the container's own line, so their truncation stays byte for
+	// byte even in live mode.
 	it('a chrome endpoint keeps its truncation byte-literal in live', () => {
 		const marked = 'Above\n\n:::callout **Ti**tle\nBody\n:::\n\nBelow\n';
 		const { source } = run(marked, { path: [0], offset: 2 }, { path: [1, 0], offset: 4 }, 'live');

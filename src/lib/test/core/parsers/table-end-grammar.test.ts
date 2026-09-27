@@ -1,9 +1,7 @@
 // A table's rows end where the editor's grammar opens another block, read over the lines that
-// follow rather than one line alone: a `$$` fence needs its closing line to open, and a syntax the
-// editor switched off opens nothing. Expected shapes follow the paragraph's reading of the same
-// lines, which already asks the whole grammar.
-// Miss-analysis: every table-boundary pin used a one-line built-in opener under the default
-// grammar, so a check that saw one line and no grammar was never contradicted.
+// follow: a `$$` fence needs its closing line to open, and a syntax switched off opens nothing.
+// Expected shapes follow the paragraph's reading of the same lines, which asks the whole grammar.
+// Miss-analysis: every table-boundary case used a one-line built-in opener and the default grammar.
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';

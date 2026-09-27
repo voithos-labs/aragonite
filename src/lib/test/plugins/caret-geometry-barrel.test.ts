@@ -1,5 +1,4 @@
-// Miss-analysis: `caretTargetAtPoint` shipped as a descriptor field with no test asking whether
-// a plugin could fill it, so the barrel could be missing every piece of the answer and stay green.
+// Miss-analysis: no test asked whether a plugin could fill `caretTargetAtPoint` from the barrel.
 import { describe, it, expect } from 'vitest';
 import * as pluginBarrel from '$lib/plugin';
 import { CURSOR_END } from '$lib/block-component';

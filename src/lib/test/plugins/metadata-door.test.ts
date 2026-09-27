@@ -1,7 +1,6 @@
 // A plugin container's `updateOwnMetadata` is the parent's `updateBlockMetadata`, so reading mode
 // refuses it at the commit like every other write, with the dev warning naming the operation.
-// Miss-analysis: `updateOwnMetadata` is handed straight to plugin components, and no test drove
-// that plugin-facing write in reading mode (GH #38).
+// Miss-analysis: no test drove a plugin component's `updateOwnMetadata` in reading mode (GH #38).
 import { describe, it, expect } from 'vitest';
 import { serialize } from '$lib/core/serializer';
 import { READING_WRITE_TAG } from '$lib/editor-actions/commit/reading-write-gate';

@@ -1,9 +1,7 @@
 // @vitest-environment jsdom
-//
-// The gap caret's stand-in element holds focus of its own, so the editor root stands aside and
-// this component resolves the global chords itself. Miss-analysis: the gap caret had no keydown
-// test at all, so the one component that exists because "the root cannot answer here" was never
-// asked what it does with a rebound global chord.
+// The gap caret's stand-in element holds focus of its own, so the editor root yields and the gap
+// caret resolves the global chords itself.
+// Miss-analysis: the gap caret had no keydown test at all.
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { mount, unmount, flushSync } from 'svelte';
 import GapCaret from '$lib/components/GapCaret.svelte';

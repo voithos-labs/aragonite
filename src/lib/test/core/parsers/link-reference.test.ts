@@ -118,9 +118,8 @@ describe('parseLinkReferenceDefinition, invalidating tails and interruptions', (
 	});
 });
 
-// Miss-analysis (C-M7): the label cases all carried visible text, so the one label rule that
-// is not about brackets — §4.7's "at least one non-whitespace character" — was never asked.
-// Expected shapes verified against cmark-gfm via api.github.com/markdown.
+// Miss-analysis: every label case carried visible text, so §4.7's non-whitespace rule went unasked.
+// Expected shapes checked against cmark-gfm via api.github.com/markdown.
 describe('parseLinkReferenceDefinition: whitespace-only label', () => {
 	for (const label of [' ', '\t', '   ']) {
 		it(`rejects the label ${JSON.stringify(label)}`, () => {
@@ -141,9 +140,8 @@ describe('parseLinkReferenceDefinition: whitespace-only label', () => {
 	});
 });
 
-// Miss-analysis: the next-line destination cases all used lines the interrupt registry
-// rejects, so the OTHER way a line closes the label line — underlining it as a setext
-// heading, which no opener knows about — was never asked. cmark-gfm verified.
+// Miss-analysis: no next-line destination case was a setext underline, which no opener knows.
+// Expected shapes checked against cmark-gfm.
 describe('parseLinkReferenceDefinition: a setext underline is no next-line destination', () => {
 	for (const underline of ['---', '=']) {
 		it(`reads a bare label above ${JSON.stringify(underline)} as a setext heading`, () => {

@@ -14,11 +14,8 @@ export const EDITOR_SRC = path.resolve('src/lib');
 /** The demo/dev harness tree. Reachable only with `includeTests`: most of it sits under `test`. */
 export const ROUTES_SRC = path.resolve('src/routes');
 
-/**
- * The roots a repo-wide scan covers: the library plus the reference plugins and the consumer
- * example, which stand in for an outside author and must not model a violation. A lint about
- * library internals alone passes `EDITOR_SRC` and says why.
- */
+/** The library plus the reference plugins and the consumer example, which stand in for an outside
+ *  author and must not model a violation. A library-only lint passes `EDITOR_SRC` and says why. */
 export const REPO_WIDE_ROOTS = [
 	EDITOR_SRC,
 	path.resolve('src/routes/test/plugins'),
@@ -34,11 +31,8 @@ export interface SourceFile {
 	code: string;
 }
 
-/**
- * Blank comments to spaces, preserving offsets, so a token inside a comment can't trip a code
- * scan. A marker inside a string, template or regex literal is text: blanking one truncates the
- * line and drops whatever followed from the census that reads it.
- */
+/** Blank comments to spaces, preserving offsets, so a token inside a comment can't trip a code
+ *  scan. A comment marker inside a string, template or regex literal is text and stays. */
 export function stripComments(text: string): string {
 	let out = '';
 	let i = 0;
@@ -85,11 +79,8 @@ export function readSource(relPath: string): SourceFile {
 	return { relPath, text, code: stripComments(text) };
 }
 
-/**
- * Every `.ts`/`.svelte` file under `dir` (default: every root in `REPO_WIDE_ROOTS`), skipping
- * `test`, `e2e` and `.d.ts`. `includeTests` covers the whole packaged tree; `includeStyles` adds
- * `.css`, off by default because a `url(//…)` would blank as a comment.
- */
+/** Every `.ts`/`.svelte` file under `dir` (default `REPO_WIDE_ROOTS`) but `.d.ts`, and `test`/`e2e`
+ *  unless `includeTests`. `.css` is opt-in (`includeStyles`): a `url(//…)` blanks as a comment. */
 export function collectEditorSources(
 	dir?: string,
 	options: { includeTests?: boolean; includeStyles?: boolean } = {}
@@ -118,11 +109,8 @@ export function bundledPluginDirs(): string[] {
 
 // ── Literal-aware walk ───────────────────────────────────────────────────────
 
-/**
- * Visit each character of `code` from `from` that is real code: strings, templates, comments
- * and regex literals are stepped over whole, so a bracket, comma or semicolon inside one never
- * reaches a census. Returns the index `visit` stopped at, or `code.length` if it ran out.
- */
+/** Visit each character of `code` from `from` that is real code, stepping over literals and
+ *  comments whole; returns the index `visit` stopped at, or `code.length` if it ran out. */
 export function walkCode(
 	code: string,
 	from: number,
@@ -194,8 +182,8 @@ function spanAt(code: string, i: number): Span | null {
 	const ch = code[i];
 	if (ch === "'" || ch === '"') return { end: skipString(code, i), kind: 'literal' };
 	if (ch === '`') return { end: skipTemplate(code, i), kind: 'template' };
-	// Markup's comment form, unconditional rather than `.svelte`-only: the walk reaches this
-	// only in code position, and G4.57's TypeScript check fails if a `.ts` file ever writes one.
+	// Markup's comment form, unconditional rather than `.svelte`-only: the walk reaches it only in
+	// code position, and the TypeScript differential fails if a `.ts` file ever writes one (G4.57).
 	if (ch === '<') {
 		return code.startsWith('<!--', i) ? { end: skipMarkupComment(code, i), kind: 'comment' } : null;
 	}
@@ -294,11 +282,8 @@ function skipRegex(code: string, i: number): number | null {
 	return null;
 }
 
-/**
- * Operand position, which is where a `/` opens a regex; after a value it divides. `}` is not
- * one: TypeScript's own parser finds no regex preceded by `}` anywhere in the tree, while
- * Svelte markup (`{a}/{b}`) is full of the shape. A lone `<` or `>` is markup's too (`</p>`).
- */
+/** Operand position, where a `/` opens a regex; after a value it divides. `}` and a lone `<` or `>`
+ *  are left out, since Svelte markup (`{a}/{b}`, `</p>`) is full of those shapes. */
 const REGEX_OPERAND_CHARS = new Set([
 	...['(', ',', '=', ':', '[', '!', '&', '|', '?', '{', ';'],
 	...['+', '-', '*', '%', '^', '~']
@@ -396,11 +381,8 @@ function classifyRange(code: string, from: number, to: number, out: Uint8Array):
 
 const CONTROL_KEYWORDS = new Set(['if', 'for', 'while', 'switch', 'catch', 'do', 'else', 'with']);
 
-/**
- * The nearest named function around `at`, walking out through blocks and anonymous scopes, or
- * `<module>` at the top level. Allowlists key on `relPath :: name`, which survives edits above
- * the site. Pass `classes` when naming several sites in one file.
- */
+/** The nearest named function around `at`, or `<module>` at the top level; allowlists key on
+ *  `relPath :: name`, which survives edits above the site. Pass `classes` for several sites. */
 export function enclosingFunction(
 	code: string,
 	at: number,
@@ -583,12 +565,8 @@ function skipTypeParameters(text: string, cls: Uint8Array, at: number): number {
 /** Bound on a statement's span, so a missing semicolon can't swallow the rest of the file. */
 const MAX_STATEMENT_SPAN = 600;
 
-/**
- * Every `<expr>.raw = …;` / `.raw += …;` statement, terminated at the semicolon and not at a
- * newline: Prettier wraps exactly the long concatenations G4.20's literal check reads, and
- * stopping at the first newline truncates them to `.raw =` with no right-hand side in sight.
- * G4.28 reads the same statements as its bare-write census.
- */
+/** Every `<expr>.raw = …;` / `.raw += …;` statement, ended at the semicolon rather than a newline,
+ *  since Prettier wraps exactly the long concatenations the line-ending check reads (G4.20). */
 export function rawAssignments(
 	sources: SourceFile[]
 ): Array<{ relPath: string; statement: string }> {
@@ -618,8 +596,8 @@ export function rawAssignments(
 // ── Call arguments ───────────────────────────────────────────────────────────
 
 /**
- * A call to `name`. A spread (`...name(`) counts as one, because these scans read call sites and
- * a result spread into an array is where one of them hid; a property access (`x.name(`) does not.
+ * A call to `name`. A spread (`...name(`) counts as one, since a result spread into an array is
+ * still a call site; a property access (`x.name(`) does not.
  */
 function callSiteRegex(name: string): RegExp {
 	return new RegExp(`(?:(?<![\\w$.])|(?<=\\.\\.\\.))${name}\\s*\\(`, 'g');
@@ -742,11 +720,8 @@ export interface ImportSpecifier {
 	kind: 'static' | 'side-effect' | 'dynamic' | 'reexport';
 }
 
-/**
- * Every module a file imports or re-exports from, read in code position only: an import-shaped
- * line inside a string, template or comment is text. A static, side-effect or re-export form must
- * start its line, so a CSS `@import` in a `<style>` block is never one.
- */
+/** Every module a file imports or re-exports from, read in code position only. A static,
+ *  side-effect or re-export form must start its line, so a CSS `@import` never counts. */
 export function importSpecifiers(code: string): ImportSpecifier[] {
 	const out: ImportSpecifier[] = [];
 	walkCode(code, 0, (ch, at) => {
@@ -829,11 +804,8 @@ const CHARACTER_TEST = /[!=]==\s*(['"`])[()[\]{}'"`]\1|(['"`])[()[\]{}'"`]\2\s*[
 /** A literal naming a comment marker, the first step of stripping comments by hand. */
 const COMMENT_MARKERS = new Set(['//', '/*', '*/', '<!--', '-->']);
 
-/**
- * What in a lint's own code reads source by hand instead of through this module: a directory
- * walk, a comment marker, or a loop testing characters for brackets or quotes outside a
- * {@link walkCode} callback. Empty for a file that reads code only through the shared lexer.
- */
+/** What in a lint's own code reads source by hand instead of through this module: a directory
+ *  walk, a comment marker, or a bracket or quote test outside a {@link walkCode} callback. */
 export function handRolledLexing(code: string): string[] {
 	const classes = lexicalClasses(code);
 	const found: string[] = [];

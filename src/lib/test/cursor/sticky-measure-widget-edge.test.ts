@@ -1,9 +1,5 @@
 // @vitest-environment jsdom
-//
-// Miss-analysis: the sticky-measure fixture held one text node, the one shape a collapsed range
-// always measures, so nothing asked what the column reads or lands on in a block whose only
-// content is a widget the caret can only sit beside.
-//
+// Miss-analysis: the sticky fixture held one text node, never a block whose content is a widget.
 // jsdom lays nothing out, so the rect methods are patched on the prototype: a collapsed range
 // answers with no rect, the way a browser does beside a `contenteditable=false` widget, and a
 // range around a node answers with the widget's box.

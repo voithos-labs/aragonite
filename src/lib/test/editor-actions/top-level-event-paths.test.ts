@@ -8,9 +8,8 @@ import { testLeaf } from '$lib/test/harness/test-kinds';
 // Top-level and container event paths agree: both emit the edit's target, never the
 // snapshot index.
 
-/** Not editable and not focused as a whole: the shape a merge from a neighbouring caret
- *  deletes. Every non-editable built-in takes the focus path instead, so the delete branch
- *  is reachable only through a plugin kind. */
+/** Not editable and not focused as a whole, the shape a merge from a neighbouring caret deletes;
+ *  only a plugin kind reaches it, since every non-editable built-in takes the focus path. */
 function inertNode(): CstNode {
 	const kind = testLeaf('spec-inert-top-level', {
 		editable: false

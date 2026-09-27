@@ -1,10 +1,8 @@
 // @vitest-environment jsdom
-//
-// The path every typed character in a cell takes, end to end. A cell's raw is joined verbatim
-// into its row, so a `|` reaching `cell.raw` unescaped reparses the row wider than the delimiter
-// row's column count and the parser truncates it, deleting the last column's content silently.
-// The three gestures that compute their own bytes belong to cell-write-escape.test.ts; this
-// covers `commitInput`, the one allowed caller under G4.20.
+// Every typed character in a cell goes through `commitInput`. A cell's raw is joined verbatim
+// into its row, so an unescaped `|` in `cell.raw` reparses the row too wide and the parser
+// silently drops the last column. Gestures that write their own bytes are in
+// `cell-write-escape.test.ts`.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { metadataOf } from '$lib/core/nodes';
@@ -51,8 +49,7 @@ describe('a cell commits the bytes it was typed, escaped for its row', () => {
 	});
 
 	it('leaves text with no free pipe exactly as typed', async () => {
-		// Non-vacuity: the escaping is not a blanket rewrite, so ordinary typing must
-		// arrive byte for byte.
+		// The escaping is not a blanket rewrite, so ordinary typing must arrive byte for byte.
 		mounted = mountEditor({ source: GRID });
 
 		await typeInto(1, 0, 'plain text');

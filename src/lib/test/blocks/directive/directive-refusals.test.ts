@@ -1,10 +1,8 @@
 // @vitest-environment jsdom
-//
-// What `createContainerBlock`'s optional dependencies mean when a plugin passes none of them.
-// Each helper has its own unit test proving it refuses; none shows what that refusal looks
-// like in a mounted component, and the generic directive container is the only shipped one
-// that takes all those branches at once. The failure they guard is quiet and uniform: a
-// container that starts handling keys or writing bytes where it should have done nothing.
+// What `createContainerBlock` does when a plugin passes none of its optional dependencies, in a
+// mounted component: each helper's refusal is unit-tested alone, and the generic directive
+// container is the only shipped one that takes every such branch. A failure here is a container
+// handling keys or writing bytes where it should do nothing.
 import { describe, it, expect, beforeAll, afterEach, vi } from 'vitest';
 import type { EditorServices } from '$lib/editor-keys';
 import { makeStubFocus } from '../../harness/editor-actions';

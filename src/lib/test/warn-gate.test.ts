@@ -1,5 +1,4 @@
-// Miss-analysis: `devWarn` returned early under Vitest, so nothing could see what the dev-mode
-// checks reported.
+// Miss-analysis: `devWarn` returned early under Vitest, so no test saw what dev checks reported.
 
 import { describe, it, expect } from 'vitest';
 import { tick } from 'svelte';

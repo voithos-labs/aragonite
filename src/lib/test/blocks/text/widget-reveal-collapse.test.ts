@@ -1,10 +1,8 @@
 // @vitest-environment jsdom
-//
-// When a shown source is hidden again, driven through the real createWidgetInteraction over a
-// mounted DOM with two math widgets; the sibling of widget-reveal-commit.test.ts, which covers
-// the commit and undo rules. What matters is where the selection is, not whether the block has
-// focus: a caret leaving the shown source while staying in the block hides it, and a click on a
-// second widget hides the first and shows the second as one sequence.
+// When a shown source is hidden again, through the real `createWidgetInteraction` over two math
+// widgets (commit and undo rules are `widget-reveal-commit.test.ts`). A caret leaving the source
+// within the block hides it, and a click on a second widget hides the first and shows the second
+// as one sequence.
 import { recordingWrite } from '$lib/test/harness/editor-actions';
 import { describe, it, expect } from 'vitest';
 import { createWidgetInteraction } from '$lib/components/blocks/text/widget-interaction';
@@ -100,9 +98,8 @@ describe('foldRevealIfSelectionEscaped: containment scope', () => {
 
 		expect(b.interaction.isRevealing()).toBe(false);
 		expect(b.commits).toEqual([]);
-		// The same element, not an equal one: the very element that was detached returns to its
-		// place. Written as a boolean on purpose, since a `.toBe(domNode)` diff would trip
-		// Svelte's `$state` proxy and hide it.
+		// The very element that was detached returns; a boolean, since a `.toBe(domNode)` diff
+		// would trip Svelte's `$state` proxy.
 		expect(b.el.childNodes[1] === b.firstWidget).toBe(true);
 	});
 

@@ -69,7 +69,7 @@ describe('reconcileTaskMetadata', () => {
 	it('demotes task listItem when effective first line no longer matches', () => {
 		// The user deleted the `]` from `[x]`.
 		const item = makeListItem('x something\n', taskMeta('[', false));
-		// A stripped state that, recombined with the broken marker, no longer parses as a task.
+		// A stripped state that, recombined with the broken marker, doesn't parse as a task.
 		reconcileTaskMetadata(item, 0, false);
 		const meta = item.metadata as ListItemMetadata;
 		expect(meta.taskItem).toBe(false);
@@ -124,8 +124,7 @@ describe('reconcileTaskMetadata', () => {
 		expect(meta.taskItem).toBe(false);
 	});
 
-	// Miss-analysis: the reconcile tests all held a paragraph first child, the only shape the
-	// promote and demote branches read, so the branch for every other kind had no test.
+	// Miss-analysis: every reconcile test held a paragraph first child, never another kind.
 	it('drops the marker when the first block stopped being a paragraph', () => {
 		const item = makeListItem('# beta\n', taskMeta());
 		item.children![0].kind = 'heading';
@@ -138,9 +137,7 @@ describe('reconcileTaskMetadata', () => {
 		expect(item.children![0].raw).toBe('# beta\n');
 	});
 
-	// Miss-analysis: every reconcile test described a write that had just re-kinded the first
-	// child, so nothing described a keystroke inside an item that arrived from the parser already
-	// holding a heading, and a rule keyed on the child's kind alone read the two states the same.
+	// Miss-analysis: no reconcile test typed inside an item the parser loaded with a heading first.
 	it('keeps the marker on an item that was loaded with a heading first block', () => {
 		const item = makeListItem('# beta\n', taskMeta());
 		item.children![0].kind = 'heading';
@@ -154,9 +151,7 @@ describe('reconcileTaskMetadata', () => {
 		expect(item.children![0].raw).toBe('# beta\n');
 	});
 
-	// Miss-analysis: the reconcile tests all described a typed opener, so none described the block
-	// the Enter completer puts in the first position, the one write route that carried no
-	// reconcile at all.
+	// Miss-analysis: every reconcile test used a typed opener, never the Enter completer's block.
 	it('drops the marker when a write replaced the paragraph with a table', () => {
 		const item = makeListItem('| a | b |\n| --- | --- |\n', taskMeta());
 		item.children![0].kind = 'table';

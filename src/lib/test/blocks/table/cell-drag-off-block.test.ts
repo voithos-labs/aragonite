@@ -1,9 +1,7 @@
 // @vitest-environment jsdom
-//
 // A cell drag that leaves the table and lands off every block, in the margin or a side gutter,
-// which is what one coalesced frame hands over when the pointer moves fast. Miss-analysis: no
-// test drove a move through `installCellDragListener` at all, since its suite covers shift-click
-// and the grid selectors, so the extend into a foreign block was never asked about a missed hit.
+// which is what one coalesced frame hands over when the pointer moves fast.
+// Miss-analysis: no test drove a pointer move through `installCellDragListener`.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
 	installCellDragListener,

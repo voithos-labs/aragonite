@@ -52,7 +52,7 @@ describe('a prose→table delete leaves bytes the parser still reads as a table'
 
 	it('leaves the surviving paragraph line-terminated when the table is consumed whole', () => {
 		// Same truncation, no table left to separate from — so the loss shows as a
-		// document that no longer ends on a line ending.
+		// document that does not end on a line ending.
 		const bytes = deletedBytes(PROSE_THEN_TABLE, { path: [0], offset: 5 }, cell([1], 5));
 
 		expect(bytes).toBe('intro\n');

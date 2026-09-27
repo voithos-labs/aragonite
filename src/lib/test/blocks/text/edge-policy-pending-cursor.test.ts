@@ -1,10 +1,8 @@
 // @vitest-environment jsdom
-//
 // Every edge-dispatch branch that writes remembers the caret its write hands back, counted in the
 // stored bytes, never the one it computed in the text it wrote: a kind's rule (a table cell
 // escaping a free `|`) moves the caret, and only the write knows by how much.
-// Miss-analysis: each branch parked its own computed caret and carried the written text along for
-// a mapping two branches forgot, and no test gave the write a caret of its own to hand back.
+// Miss-analysis: branches kept their own computed caret; no test's write moved the caret.
 import { describe, expect, it } from 'vitest';
 import { asRawOffset } from '$lib/cursor/coordinate-spaces';
 import type { BlockEditActions } from '$lib/action-contracts';

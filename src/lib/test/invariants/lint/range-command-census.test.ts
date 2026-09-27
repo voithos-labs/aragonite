@@ -1,8 +1,7 @@
 /**
- * G4.50: the cross-block sets are maintained by hand, so a new block command answers the range
- * question in exactly one of three ways: declined outright, routed to the cross-block branch, or
- * recorded as range-safe with the reason. An id in no table fails here the day it is written,
- * rather than at the review that finds the command and the chord path disagreeing over a range.
+ * The cross-block sets are maintained by hand, so a new block command answers the range question
+ * in exactly one of three ways (G4.50): declined outright, routed to the cross-block branch, or
+ * recorded as range-safe with the reason. An id in no table fails here the day it is written.
  */
 
 import { describe, it, expect } from 'vitest';

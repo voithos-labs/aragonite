@@ -9,10 +9,8 @@ import type { BlockComponent } from '$lib/block-component';
 import type { PasteImageHook } from '$lib/editor-keys';
 import type { CrossBlockHandlers } from '$lib/selection/cross-block/dispatch';
 
-// The case this routing exists for: Chromium retargets the clipboard event to <body> when
-// the selection found no caret to put, which happens at a cross-block endpoint or with a
-// selected inline widget. Driven through `target`, not `activeElement`: a block still held
-// focus in every real reproduction.
+// Chromium retargets a clipboard event to <body> when the selection has no caret, at a cross-block
+// endpoint or a selected widget; driven through `target`, since a block still holds focus.
 
 interface HarnessOptions {
 	onPasteImage?: PasteImageHook;
@@ -37,9 +35,8 @@ function harness(options: HarnessOptions = {}) {
 		handlePaste: async (_e: ClipboardEvent, replacement?: string) => {
 			pasted.push(replacement);
 			if (options.crossBlockClaims ?? true) return true;
-			// The real code refuses only by re-reading a collapsed selection. Leaving the
-			// range in place would make a `selection.start` read at refusal time look
-			// correct, which is the exact bug this test exists to catch.
+			// The real code refuses only by re-reading a collapsed selection; a range left in
+			// place would make a `selection.start` read at refusal time look correct.
 			selection.collapse();
 			return false;
 		},
@@ -207,9 +204,8 @@ describe('editor-root clipboard routing', () => {
 			expect(seen).toEqual([]);
 		});
 
-		// The editor never shows both states at once, so the widget is the final answer:
-		// writing the cross-block range as well would serve a selection its own caller
-		// cannot have handed it. The block here writes nothing, so any write is the range's.
+		// The editor never shows both states at once, so the widget is the final answer. The block
+		// here writes nothing, so any write is the range's.
 		it('never falls through to the cross-block branch, even with a range live', () => {
 			const { block, seen } = widgetBlock();
 			const h = harness({ widgetBlock: block });

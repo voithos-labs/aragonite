@@ -6,12 +6,9 @@ import { serialize } from '$lib/core/serializer';
 import { makeNestedHarness, makeTopHarness } from '$lib/test/harness/editor-actions';
 import { expectParseConverged } from '$lib/test/harness/parse-converged';
 
-// The gesture the tree-level tests model (`tree-operations/emptied-block-reload.test.ts`),
-// driven through the bundles a consumer holds: `TextEditableBlock.commitInput` sends the
-// block's own line ending when its text goes empty, so emptying a paragraph is an ordinary
-// content commit. Miss-analysis: the blank-line fix-ups were tested at the tree level and
-// through the fill gesture's bundle path only, so no bundle case ever emptied a block; the
-// path the defect reached the consumer through had no case at all.
+// Emptying a block through the bundles a consumer holds: `TextEditableBlock.commitInput` sends
+// the block's own line ending when its text goes empty, so emptying is an ordinary content commit.
+// Miss-analysis: the blank-line fix-ups were tested at the tree level, never through a bundle.
 
 describe('emptying a block through the top-level bundle', () => {
 	it('leaves bytes that reload as the blocks still on screen', async () => {
@@ -24,7 +21,7 @@ describe('emptying a block through the top-level bundle', () => {
 		expectParseConverged(h.deps.doc);
 	});
 
-	// The separator the run gives up sits two slots below the block the gesture names, because a
+	// The separator the run gives up sits two indexes below the block the gesture names, because a
 	// split leaves it on the follower.
 	it('reaches the separator a split left below the blank line it opened', async () => {
 		const h = makeTopHarness('Hello\n\nSecond\n');
@@ -65,9 +62,8 @@ describe('emptying a block inside a container', () => {
 	});
 });
 
-// GH #129 at the bundle: blanking the last block must turn the suffix's trailing blank line
-// into a block, which is structural, so the routine-typing trial has to send it through a
-// commit and blockIds must grow with the tree.
+// Blanking the last block turns the suffix's trailing blank line into a block, a structural
+// change, so the typing trial must send it through a commit and blockIds must grow with the tree.
 describe('emptying the tail block of a suffix-folded document', () => {
 	it('materializes the folded line structurally and keeps blockIds in step', async () => {
 		// The whole-document parse keeps the trailing blank line in the suffix, which the fixture needs.

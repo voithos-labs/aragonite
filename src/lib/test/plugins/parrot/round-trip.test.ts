@@ -22,7 +22,7 @@ describe('parrot is dormant until installed', () => {
 });
 
 // The opener takes a line on the bare `%%parrot` prefix, with no separator required, so
-// `%%parrots` is a parrot whose caption starts mid-word. Pinned as the grammar it is.
+// `%%parrots` is a parrot whose caption starts mid-word.
 describe('parrot recognition', () => {
 	beforeEach(installParrot);
 
@@ -62,9 +62,8 @@ describe('parrot recognition', () => {
 	});
 });
 
-// The component derives its caption as `node.raw.slice('%%parrot'.length).trim()`, so what
-// this pins is the parser's half: the whole line, marker and caption alike, ends up in `raw`.
-// The rendered caption belongs to the e2e (requirements/plugins/parrot.md).
+// The component derives its caption as `node.raw.slice('%%parrot'.length).trim()`, so the parser
+// must keep the whole line in `raw`; the rendered caption belongs to the e2e.
 describe('the caption bytes survive in the node raw', () => {
 	beforeEach(installParrot);
 
@@ -80,9 +79,8 @@ describe('the caption bytes survive in the node raw', () => {
 	});
 });
 
-// The round trip is the guarantee that matters: serialize re-emits `leadingTrivia + raw`, so
-// a `raw` taken verbatim from the consumed line round-trips. The declined shapes prove this
-// opener leaves every byte it does not take alone.
+// Serialize re-emits `leadingTrivia + raw`, so a `raw` taken verbatim from the line round-trips;
+// the declined shapes prove the opener leaves every byte it does not take alone.
 describe('parrot round-trip', () => {
 	beforeEach(installParrot);
 

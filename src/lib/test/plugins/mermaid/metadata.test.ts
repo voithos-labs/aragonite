@@ -9,7 +9,7 @@ import {
 } from '$lib/plugins/mermaid/mermaid-kind';
 
 // An opaque container serializes `raw` verbatim, so the byte round trip passes even when the
-// metadata was captured wrongly. These pin the rebuild instead, which is what every
+// metadata was captured wrongly. The cases pin the rebuild instead, which is what every
 // `updateOwnMetadata` commit goes through.
 
 function parseMermaid(src: string): CstNode {

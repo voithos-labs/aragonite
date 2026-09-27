@@ -1,5 +1,4 @@
 // @vitest-environment jsdom
-//
 // `editor.runCommand` driven through a real mount, so the assertions are on committed bytes and
 // the real undo stack rather than a stubbed action bundle: a toolbar button must land the same
 // single entry the chord does.

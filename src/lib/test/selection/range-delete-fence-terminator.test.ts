@@ -12,11 +12,8 @@ import { fixtureReading } from '../harness/fixture-grammar';
 // `SelectionState` would have snapped to a cell coordinate.
 afterEach(() => allowDevWarns(['deleteFromProseIntoTable:end']));
 
-// The cross-block delete writes a code block's bytes itself, not through the code block's
-// component: the same-block branch writes the merged raw with no reparse behind it, so a join
-// that creates a closer line out of two lines holding none splits the block on reload. The same
-// class as issue #45, by another path. Miss-analysis: `range-delete.test.ts` drove text joins
-// only, and the fence rule was pinned at the component's write path, which this branch never uses.
+// A same-block join that makes a closer line out of two plain lines must not split the fence.
+// Miss-analysis: joins were tested on text only, and the fence rule only at the component's write.
 
 const sharing = () => createSharingState();
 
@@ -83,12 +80,8 @@ describe('range delete inside a fenced code block', () => {
 	});
 });
 
-// Issue #55, #45 from the other side: a range reaching past the closer loses a terminator the
-// metadata still claims, which no fence widening can repair, since there is no run to grow. The
-// editor keeps the block and its siblings, so the bytes are made legal for that shape.
-// Miss-analysis: the #45 pins drove joins inside one block (a created terminator) and stopped at
-// the one branch that writes raw in place; the truncation branches reparse, which re-derives
-// honest `closed: false` metadata, so no pin could see the loss without a fenced-code endpoint.
+// A range past the closer loses a terminator the metadata still claims, so the delete restores it.
+// Miss-analysis: GH #55; the fence pins joined inside one block and never truncated past a closer.
 describe('range delete that consumes a fenced code closer', () => {
 	it('restores the closer the same-block range swallowed', () => {
 		const doc = parse('```js\nbody\n```\n\npara\n');

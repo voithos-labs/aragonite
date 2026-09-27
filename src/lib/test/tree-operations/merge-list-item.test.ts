@@ -108,8 +108,7 @@ describe('mergeListItemIntoPrevious', () => {
 	});
 
 	it('row 5b: target item is loose, trailing paragraph index is not 0', () => {
-		// A loose target lands findDeepestVisibleTextTarget on A.children[1]; a path-slice bug
-		// cascaded focus to A.children[0].
+		// A loose target puts `findDeepestVisibleTextTarget` on A.children[1], not A.children[0].
 		const list = parseList('- A\n\n  extra\n- B\n');
 
 		const { mergePoint } = mergeExpectingTarget(list, list.children!.slice(), 1);
@@ -165,8 +164,8 @@ describe('mergeListItemIntoPrevious', () => {
 	});
 
 	it('opaque previous leaf (fenced code): returns null without throwing or mutating', () => {
-		// A not-mergeable previous item leaves the walker no text-bearing leaf: M1 must report
-		// no-target for the caller's focus-move fallback, not throw inside the commit.
+		// A not-mergeable previous item leaves the walker no text-bearing leaf, so the merge reports
+		// no target for the caller's focus-move fallback rather than throwing inside the commit.
 		const list = parseList('- ```\n  code\n  ```\n- text\n');
 		const children = list.children!.slice();
 		const before = children.length;

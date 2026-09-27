@@ -300,7 +300,7 @@ describe('caret-reachable order', () => {
 	});
 
 	// The expected survivor is read before the removal, by node, so the check does not depend on
-	// how the function reads the slot the removal left.
+	// how the function reads the position the removal left.
 	it('picks the reachable neighbour on the side asked after any single block is removed', () => {
 		fc.assert(
 			fc.property(arbDoc, (d) => {

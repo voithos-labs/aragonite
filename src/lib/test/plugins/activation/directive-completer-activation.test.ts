@@ -1,8 +1,5 @@
 // @vitest-environment jsdom
-//
-// Miss-analysis: the directive and completer suites ran with every installed plugin active, and
-// admonitions' setup attributed the shared `:::` kinds to itself, so no test parsed a fence or
-// pressed Enter in an editor that left the owning plugin out (GH #266).
+// Miss-analysis: no test parsed a fence or pressed Enter with the owning plugin left out (GH #266).
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { resetPluginPlatformForTests } from '$lib/testing';
 import { definePlugin, installPlugins } from '$lib/schema/plugin-install';
@@ -59,8 +56,7 @@ describe('an unlisted directive name resolves to the generic directive', () => {
 		expect(noteKind(grammarListing(['unlisted']))).toBe(DIRECTIVE_CONTAINER);
 	});
 
-	// Miss-analysis: these cases parsed the generic kinds in an editor without admonitions but never
-	// asked for their component, which the component registry filters by its own registering plugin.
+	// Miss-analysis: no case asked for the generic kinds' component with admonitions left out.
 	it('draws the generic container with its own component where admonitions is left out', () => {
 		const view = createRegistryView({ plugins: activationFor(['unlisted']) });
 		expect(view.component(declaredPluginKind(DIRECTIVE_CONTAINER))).toBeDefined();

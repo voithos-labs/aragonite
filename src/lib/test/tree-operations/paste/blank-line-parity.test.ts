@@ -18,8 +18,8 @@ import { triviaRawOf } from '$lib/test/harness/parse-converged';
 import { fixtureReading } from '../../harness/fixture-grammar';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
-// A pasted blank line must reach the same shape the same bytes reach by loading or typing
-// (GH #20). Paste parses the clipboard, so the parser's separator rule is the whole answer.
+// A pasted blank line must reach the same shape the same bytes reach by loading or typing.
+// Paste parses the clipboard, so the parser's separator rule is the whole answer.
 
 /** Paste `clipboard` at the end of a one-paragraph document. */
 async function pasteAfterX(clipboard: string): Promise<Document> {
@@ -81,9 +81,7 @@ describe('a pasted blank line follows the parser rule', () => {
 		expect(raws(await pasteAfterX('one\n\n\ntwo\n'))).toEqual(['x\n', 'one\n', '\n', 'two\n']);
 	});
 
-	// Miss-analysis (clipboard-leading blank run): every parity case pasted a clipboard whose
-	// first block was non-blank, so the branch treating a blank block as its own separator was
-	// never driven and the pasted run landed one row short of what its bytes reload as.
+	// Miss-analysis: every parity case pasted a clipboard whose first block was non-blank.
 	it('separates a clipboard that opens with a blank run from the block above', async () => {
 		const pasted = await pasteAfterX('\n\ntail\n');
 		expect(pasted.children.map((n) => [n.leadingTrivia, n.raw])).toEqual([
@@ -107,12 +105,8 @@ describe('a pasted blank line follows the parser rule', () => {
 	});
 });
 
-// GH #73: a blank block is the separating line of the block below it, so pasting over one takes
-// that line away from a follower nobody restores it for. Two byte-equivalent shapes reach the
-// position (a load puts the separator in the blank's own `leadingTrivia`, an Enter split puts
-// it in the follower's) and the fix-up has to answer for both.
-// Miss-analysis: every parity case above pastes at the document tail, where the target has no
-// follower at all, so the branch that loses one was unreachable.
+// Pasting over a blank block must hand its separating line back to the block below it.
+// Miss-analysis: GH #73, every parity case above pasted at the document tail, with no follower.
 describe('pasting over a blank line settles the separators it consumed', () => {
 	it('hands the follower back the line a load-shaped blank slot was holding', async () => {
 		const pasted = await pasteAtHeadOf(parse('alpha\n\n\ndelta\n'), 1, 'X\n\nY\n');
@@ -155,11 +149,8 @@ describe('pasting over a blank line settles the separators it consumed', () => {
 	});
 });
 
-// GH #131: the parser keeps a clipboard's one trailing blank line in `doc.suffix` (a second
-// already becomes a block), and the structural route read children only, so the same copied
-// separation survived an inline paste and vanished on a structural one.
-// Miss-analysis: every parity case pasted a clipboard whose bytes ended in content or in a run
-// long enough to become blocks, so the single-line suffix was the one shape none of them carried.
+// A clipboard's one trailing blank line lives in `doc.suffix`, which a structural paste must read.
+// Miss-analysis: GH #131, no parity case ended its clipboard in exactly one blank line.
 describe('a clipboard’s trailing blank line is content', () => {
 	it('keeps it at the document tail, where nothing else stands for the separation', async () => {
 		const { doc } = await pasteLive(parse('x\n'), [0], 1, '# h\n\n');
@@ -169,8 +160,6 @@ describe('a clipboard’s trailing blank line is content', () => {
 		expect(layout(parse(serialize(doc)))).toEqual(layout(doc));
 	});
 
-	// The route that never lost it: the same bytes through the inline splice, which is what makes
-	// the structural branch's answer a parity fix rather than a new opinion.
 	it('keeps it on the inline route too', async () => {
 		const { doc } = await pasteLive(parse('x\n'), [0], 1, 'one\n\n');
 
@@ -198,10 +187,8 @@ describe('a clipboard’s trailing blank line is content', () => {
 		expect(doc.suffix).toBe('\r\n');
 	});
 
-	// The document's own bytes are not the only CRLF question: an empty suffix gets a new line,
-	// and a clipboard normalized to LF at every entry point cannot say which ending (G4.20).
-	// Miss-analysis: the CRLF-mirror check's gestures drew no paste at the document tail, and
-	// G4.20's shape scans see literal newlines only, which a data-derived suffix never is.
+	// An empty suffix takes the document's ending, which an LF clipboard can't say (G4.20).
+	// Miss-analysis: the CRLF scans see literal newlines only, and no gesture pasted at the tail.
 	it('creates the tail separator in a CRLF document’s own ending', async () => {
 		const { doc } = await pasteLive(parse('x\r\n'), [0], 1, '# h\n\n');
 

@@ -14,11 +14,8 @@ import {
 import { describeConvergence } from '$lib/test/harness/parse-converged';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
-// The text after the caret of a multi-block paste is every block it parses to, and a caret at a
-// line's end hands that line's break to the text after it; parsing only the first block of that
-// text deleted the rest of the paragraph (GH #436).
-// Miss-analysis: every residue pin cut a one-line leaf, so no paste put a line break after the
-// caret, and convergence passed because the shortened document is a valid tree of its own.
+// The text after the caret is every block it parses to, with the break a line-end caret leaves.
+// Miss-analysis: GH #436, every residue test cut a one-line leaf, and the shortened tree converged.
 
 beforeEach(() => __resetSchemaRegistriesForTests());
 

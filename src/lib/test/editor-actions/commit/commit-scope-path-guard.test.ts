@@ -33,8 +33,8 @@ function harness(scopePath: number[]) {
 }
 
 describe('commitMultiScope bails on a scope path that ran off the tree', () => {
-	// [99]: the whole walk misses. [0, 99]: the walk stops partway, so the fallback handed
-	// over the ancestor, the same bug one level less obvious.
+	// [99]: the whole walk misses. [0, 99]: the walk stops partway, where a fallback would
+	// hand over the ancestor instead.
 	for (const scopePath of [[99], [0, 99]]) {
 		it(`writes nothing through the shared tree for path [${scopePath.join(',')}]`, async () => {
 			const { deps, commit } = harness(scopePath);

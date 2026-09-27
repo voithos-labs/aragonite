@@ -1,8 +1,5 @@
 // @vitest-environment jsdom
-//
-// Miss-analysis: every inline plugin test scanned through the process-wide registry, and the
-// two-editor page listed no inline plugin, so nothing ever scanned a trigger in an editor that
-// left its plugin out, and the unowned registries reached every editor (GH #266).
+// Miss-analysis: nothing scanned an inline trigger in an editor that left its plugin out (GH #266).
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { resetPluginPlatformForTests } from '$lib/testing';
 import { definePlugin, installPlugins } from '$lib/schema/plugin-install';

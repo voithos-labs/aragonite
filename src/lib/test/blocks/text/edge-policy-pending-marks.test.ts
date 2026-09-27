@@ -1,10 +1,8 @@
 // @vitest-environment jsdom
-//
-// The caret-edge dispatch's toggle branch. A chord at a collapsed caret in live mode writes no
-// bytes; it leaves a mark pending, and the first printable key after it carries that mark into
-// the CST as one commit. This is where the promise is spent: the pure rewrite is covered in
-// pending-mark-insert.test.ts, and this holds that the branch takes the key, spends the marks
-// exactly once, and outranks the arrival side the rules below would have read.
+// The caret-edge dispatch's toggle branch: a chord at a collapsed caret in live mode leaves a mark
+// pending, and the first printable key carries it into the CST as one commit. The pure rewrite is
+// `pending-mark-insert.test.ts`; this suite holds that the branch takes the key, spends the marks
+// once, and outranks the arrival side.
 import { describe, expect, it } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { trimTrailingLineEnding } from '$lib/core/lines';
@@ -137,9 +135,8 @@ describe('the toggle caret position claims only a plain byte at a collapsed care
 	});
 });
 
-// A construct the press empties is unwrapped, so the caret ends up inside nothing and the mark the
-// user had on would be lost. Handing it back keeps the chord's meaning: the next byte is still
-// italic, and the next chord still turns it off.
+// A construct the key empties is unwrapped, so its mark is handed back: the next byte keeps the
+// format, and the next chord still turns it off.
 describe('a press that empties a construct hands its mark back', () => {
 	it('leaves the emptied construct’s mark pending for the next byte', () => {
 		const h = mount('plain*x*\n', []);

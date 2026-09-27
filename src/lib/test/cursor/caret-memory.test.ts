@@ -6,9 +6,8 @@ import { asEditorX } from '../../cursor/coordinate-spaces';
 import type { AnyCommandId } from '../../schema/command-id';
 
 // The caret's short-lived memory has one lifetime: a key updates all of it, anything else drops
-// all of it. The key tables live beside their classifiers; this file holds how the three parts
-// move together. Miss-analysis: each part was tested alone, so a site resetting the column
-// without the side passed every test until a typed byte landed on the stale side.
+// all of it; this file holds how its three parts move together.
+// Miss-analysis: each part was tested alone, so resetting the column without the side passed.
 
 const measure = (x: number | null) => () => (x === null ? null : asEditorX(x));
 
@@ -118,7 +117,7 @@ describe('noteKey reads the chord as the command it resolves to', () => {
 		});
 	}
 
-	// `block.moveUp` rebound off Alt+ArrowUp: the old chord is now an ordinary arrow, and the new
+	// `block.moveUp` rebound off Alt+ArrowUp: the default chord is an ordinary arrow, and the new
 	// chord, whatever its key, is the move.
 	it('an unbound Alt+ArrowUp is an arrow like any other', () => {
 		const m = arrived();

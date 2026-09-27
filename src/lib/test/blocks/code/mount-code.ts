@@ -1,4 +1,4 @@
-// One CodeBlock mounted from Markdown, with the stub blockEdit as the commit sink the caller
+// One CodeBlock mounted from Markdown, with a stub blockEdit recording the commits the caller
 // reads back.
 
 import CodeBlock from '$lib/components/blocks/code/CodeBlock.svelte';

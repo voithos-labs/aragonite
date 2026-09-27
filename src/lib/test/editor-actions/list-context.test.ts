@@ -88,8 +88,7 @@ describe('list-context: splitItemAtOffset', () => {
 		expect(listState.innerBlockIds).toHaveLength(2);
 	});
 
-	// Miss-analysis (GH #98): every split test here used a single-block first half, so
-	// `innerIndex + 1` always was the second half and the splice boundary went unobserved.
+	// Miss-analysis (GH #98): every split test here used a first half that parsed to one block.
 	it('a plural first half stays whole; only the second half moves to the new item', async () => {
 		// Enter at the end of the blank line inside the item's indented code: the first half
 		// reparses to [code, blank], and the new item must start at the second half.

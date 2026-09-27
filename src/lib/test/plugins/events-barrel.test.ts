@@ -9,8 +9,8 @@ import type {
 	OperationKind
 } from '$lib/plugin';
 
-// The event API is not frozen yet. This pins the payload types a plugin's `edit` handler
-// needs, so a dropped re-export fails here rather than turning `op` into a bare string in a
+// The event API is not frozen yet, so the suite pins only the payload types a plugin's `edit`
+// handler needs: a dropped re-export fails here rather than turning `op` into a bare string in a
 // downstream plugin.
 describe('@voithos-labs/aragonite/plugin event payloads', () => {
 	it('keeps the emitter itself off the barrel: a plugin subscribes, never emits', () => {

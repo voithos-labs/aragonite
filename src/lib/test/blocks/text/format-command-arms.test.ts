@@ -1,5 +1,4 @@
 // @vitest-environment jsdom
-//
 // Each format command needs a handler on this block: an id with none does nothing, and the chord
 // falls through to the browser's own contenteditable bold. The handler also passes the content
 // range in, since a toggle over a heading must reach `getContentRange`, not the whole raw.

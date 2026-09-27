@@ -12,12 +12,8 @@ import {
 } from '$lib/test/harness/editor-actions';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
 
-// GH #183: no paste route asked the join, so a clipboard whose landed blocks stop interrupting
-// the neighbour above them left the live tree one block richer than its reload. The check now
-// sits beside the separator fix-up every commit goes through, so paste inherits it per route.
-// Miss-analysis: the paste suites assert the bytes and the caret; convergence was checked only
-// where the clipboard's own blank lines were the subject, never where the target's neighbour
-// could absorb what landed.
+// Pasted blocks can stop interrupting the block above, so every commit's join check covers paste.
+// Miss-analysis: GH #183, no paste test let the block above absorb what was pasted.
 
 describe('a structural paste whose result the block above absorbs', () => {
 	it('settles the join the splice disturbed', async () => {

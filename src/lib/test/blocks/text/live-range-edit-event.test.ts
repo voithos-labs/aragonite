@@ -1,10 +1,7 @@
 // @vitest-environment jsdom
-//
-// The event half of the live range edit: what `resolveLiveRangeEdit` makes of the range an
-// InputEvent carries. The joins themselves are covered through `resolveSelectionEdit`; these
-// cases cover the reading, where the browser's target range and the DOM caret can disagree.
-// Miss-analysis: every join test handed the resolver a range of its own, so none asked what
-// happens when `getTargetRanges()` reports a collapsed caret away from where the caret sits.
+// What `resolveLiveRangeEdit` makes of the range an InputEvent carries, where the browser's target
+// range and the DOM caret can disagree. The joins are covered through `resolveSelectionEdit`.
+// Miss-analysis: join tests passed their own range, never a collapsed target away from the caret.
 import { afterEach, describe, expect, it } from 'vitest';
 import { parse } from '$lib/core/parser';
 import {

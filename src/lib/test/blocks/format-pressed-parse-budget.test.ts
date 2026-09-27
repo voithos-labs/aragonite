@@ -1,9 +1,7 @@
 // @vitest-environment jsdom
-//
 // A toolbar asks `isCommandActive` once per button on every `selectionChange`, so the mark ids
 // share one parse of the focused block, and the next edit invalidates that read.
-// Miss-analysis: the perf gate is ship-only and had not run since 2026-08-20, and no unit pin
-// bounded the pressed read's parse count per selection change.
+// Miss-analysis: only the ship-time perf gate bounded the parses a toolbar repaint spends.
 import { describe, it, expect, beforeAll, beforeEach, afterEach } from 'vitest';
 import { TOOLBAR_COMMANDS } from '$lib';
 import type { AnyCommandId } from '$lib/schema/command-id';

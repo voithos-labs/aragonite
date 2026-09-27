@@ -4,8 +4,8 @@ import { takeDevWarns } from '../support/warn-gate';
 
 // The block host is an ancestor of every element the offset traversal walks, so a decoration
 // using one of the editor's own `data-` names answers an ancestor lookup that traversal and the
-// CSS both read. Miss-analysis: writing those attributes was never validated and no test named
-// the hazard, so it was invisible both to the CSS comparison and to the checks it protects.
+// CSS both read.
+// Miss-analysis: no test named the hazard, so writing those attributes went unvalidated.
 
 describe('acceptedBlockAttrs', () => {
 	it('drops a reserved attribute and warns, naming it', () => {
@@ -19,8 +19,7 @@ describe('acceptedBlockAttrs', () => {
 	});
 
 	// A block decoration setting the kind cue's label would paint that label for good.
-	// Miss-analysis: the set was checked against a copy of itself, so no case named an attribute
-	// the editor had started setting since.
+	// Miss-analysis: the set was checked against a copy of itself, never the editor's newer names.
 	it('drops the attributes the kind cue and a whole-block input set', () => {
 		const attrs = { 'data-kind-cue': 'Heading', 'data-whole-block-input': '' };
 		expect(acceptedBlockAttrs(attrs, [0])).toEqual([]);
@@ -74,8 +73,8 @@ describe('acceptedBlockAttrs', () => {
 		]);
 	});
 
-	// Every decorated element renders these, and cleanup would strip them. Miss-analysis: only
-	// each element's extras were refused and no row passed `class`, so `class` got through.
+	// Every decorated element renders these, and cleanup would strip them.
+	// Miss-analysis: no row passed `class`, so only each element's extras were refused.
 	it.each(['class', 'contenteditable', 'role', 'style', 'tabindex'])(
 		"drops '%s', an attribute every decorated element renders itself",
 		(name) => {

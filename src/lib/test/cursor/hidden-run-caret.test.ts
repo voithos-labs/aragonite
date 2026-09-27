@@ -1,11 +1,7 @@
 // @vitest-environment jsdom
-//
-// The caret cannot enter a run of hidden markers: a mode that hides markers and shows none of
-// them back leaves `display:none` text in the traversal, which reads have to move out of and
-// writes must never put a range inside.
-// Miss-analysis: every existing offset suite builds a bare container with no
-// `data-presentation` root, so no test could see a run hidden by the mode at all, and the
-// traversal was only ever exercised in the shape source mode produces.
+// The caret cannot enter a run of hidden markers: a mode that hides markers leaves `display:none`
+// text in the traversal, which reads have to move out of and writes must never put a range inside.
+// Miss-analysis: every offset suite built bare containers with no `data-presentation` root.
 import { describe, it, expect, afterEach } from 'vitest';
 import { asDomTextOffset, asRawOffset } from '../../cursor/coordinate-spaces';
 import {
@@ -143,9 +139,8 @@ describe('isHiddenMarkerText: the marker-hiding CSS families, read structurally'
 	});
 
 	it('answers true for an unstamped ref label in a focused preview-inline host', () => {
-		// The stylesheet's rule for a marker with no attribute is limited to `.md-marker`; a
-		// reference label shows only by class. Reachable: a table cell renders inline with no
-		// construct attributes in any mode, so its `[ref]` label has none and is still display:none.
+		// The stylesheet's no-attribute rule covers only `.md-marker`, so a reference label shows
+		// by class alone: a table cell's `[ref]` label has no construct attribute and stays hidden.
 		const fx = mount({ mode: 'preview-inline', focused: true });
 		const label = appendSpan(fx.block, 'md-ref-label', '[ref]');
 		expect(isHiddenMarkerText(label.firstChild!, fx.block)).toBe(true);
@@ -185,9 +180,7 @@ describe('domTextOffsetAtNode: a hidden run has no interior walk positions', () 
 		expect(domTextOffsetAtNode(fx.block, fx.body, 0)).toBe(2);
 	});
 
-	// Miss-analysis (GH #126): every fixture for joining runs used adjacent spans, so the empty
-	// text node Chromium leaves between spans, which contributes nothing but is still a boundary,
-	// was never in a traversal any test watched, and it split the run in two.
+	// Miss-analysis: GH #126; joining fixtures used adjacent spans, never an empty text node.
 	describe('a zero-length text node between hidden spans does not split the run', () => {
 		function mountWithEmptyBetween() {
 			const fx = mount({ mode: 'live', blockPrefix: '## ' });
@@ -209,12 +202,8 @@ describe('domTextOffsetAtNode: a hidden run has no interior walk positions', () 
 	});
 });
 
-// The check lives where all of these place the caret, not as a snap repeated at each call.
-// `[ab](u) text` as the link renders it, both runs inside the link element. A target at the
-// closer's end is the prose's first position, not the slot after the hidden span: Chromium
-// moves that slot back across the run, so a byte typed there landed inside the link.
-// Miss-analysis: every row targeted the inside or the start of a run; none asked where a
-// commit placing the caret past a hidden closer puts the DOM caret.
+// Chromium moves the slot after a hidden closer back across the run, so aim at the next text.
+// Miss-analysis: every row targeted a run's inside or start, never the position past its closer.
 describe('a target past a hidden closer lands in the text that follows', () => {
 	it('prefers the following text node over the slot after the hidden span', () => {
 		const fx = mount({ mode: 'live' });

@@ -18,7 +18,7 @@ export interface FileRule {
 	population?: (file: SourceFile) => boolean;
 	/** A file in the population that matches is a violation, unless `allowed` names it. */
 	matches: RegExp | ((file: SourceFile) => boolean);
-	/** Files that may match, each with its reason; an entry that no longer matches fails. */
+	/** Files that may match, each with its reason; an entry that stops matching fails. */
 	allowed?: Record<string, string>;
 	/** What a violation means, printed with the offending paths. */
 	reason: string;

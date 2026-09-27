@@ -1,9 +1,7 @@
 // @vitest-environment jsdom
-//
-// A structural paste lands at the end of the pasted run, so its target index scales with
-// the clipboard, not the caret, and the caret placement goes through the path that mounts
-// an unmounted target first (VR-12). The other paste suites never run `afterTick`, so
-// nothing else observes where the caret ends up at all.
+// A structural paste puts the caret at the end of the pasted run, so its index scales with the
+// clipboard, not the caret, and the placement mounts an unmounted target first (VR-12).
+// No other paste suite checks where the caret ends up.
 import { describe, it, expect, vi } from 'vitest';
 import { pasteDispatch } from '$lib/tree-operations/paste/dispatch';
 import {

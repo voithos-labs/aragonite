@@ -6,10 +6,8 @@ import { resetPluginPlatformForTests } from '$lib/testing';
 import { rawTextOfNode } from '$lib/cursor/widget-offset';
 import { registerMathInline, MATH_INLINE } from '$lib/plugins/latex/latex-kind';
 
-// The wrapper span the render layer puts around a component widget, with interior text that
-// is not the source bytes, standing in for KaTeX's rendered glyphs. Mounting the real
-// MathInline component is left to the e2e; the traversal under test reads only the four
-// attributes and the fact that the interior text is non-empty and not the source.
+// The render layer's wrapper span around a component widget, with glyph-like text in place of
+// KaTeX's; the traversal reads only its attributes, so the real component is left to the e2e.
 function stampMathWidget(node: InlineNode): HTMLElement {
 	const wrapper = document.createElement('span');
 	wrapper.dataset.inlineWidget = '';
@@ -24,9 +22,8 @@ function stampMathWidget(node: InlineNode): HTMLElement {
 	return wrapper;
 }
 
-// Byte survival for a widget with interior text (G1.9). Inline math is the first widget whose
-// rendered interior text is not its source bytes, so it is the first case where reading back
-// `.textContent` instead of the widget-aware traversal leaks glyphs and drops the source.
+// Inline math's rendered text is not its source bytes, so reading back `.textContent` instead
+// of the widget-aware traversal would leak glyphs and drop the source.
 
 const BLOCK_RAW = 'a $x^2$ b';
 const SOURCE = '$x^2$';
@@ -71,9 +68,8 @@ describe('inline-math widget: nonzero-interior byte survival', () => {
 		expect(rawTextOfNode(el, BLOCK_RAW)).toBe(BLOCK_RAW);
 	});
 
-	// The traversal reads text nodes verbatim and the widget through `data-source-*` against
-	// the raw it was rendered from, so an edit to the surrounding text is captured while the
-	// widget's own bytes stay exact.
+	// The traversal reads text nodes verbatim and the widget through `data-source-*`, so an edit
+	// around the widget is captured while the widget's own bytes stay exact.
 	it('typing after the widget survives read-back with the source intact', () => {
 		const { el } = mountRenderedBlock();
 		(el.lastChild as Text).data += '!';

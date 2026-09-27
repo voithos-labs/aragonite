@@ -29,11 +29,8 @@ function parsesToTable(payload: string, columns: number, rows: number, label: st
 		throw new Error(`${label}: payload is not lossless GFM`);
 }
 
-/**
- * Drives `copyRectangleAsSubTable`, the function the closure `via` names. The
- * single-column sub-rectangle is the discriminating case: reparsing to a narrower table
- * is something no raw byte slice could produce, so the copy genuinely synthesizes.
- */
+/** Drives `copyRectangleAsSubTable`, the closure's `via`; only a synthesized copy, never a byte
+ *  slice, reparses a single-column sub-rectangle as a narrower table. */
 function checkTableRectCopy(ctx: KindCellContext): void {
 	const table = ctx.node;
 	const cols = metadataOf(table, 'table').columnCount;

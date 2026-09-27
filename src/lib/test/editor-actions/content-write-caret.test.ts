@@ -1,7 +1,6 @@
 // The caret a writer computed moves with whatever the kind's rule and the container's rule
 // inserted or dropped, once, inside the content write that stores the bytes.
-// Miss-analysis: each kind mapped its caret beside its own component (the cell's escaping
-// wrapper, the code block's commit), so no test ever asked the one write for a caret at all.
+// Miss-analysis: each kind mapped its caret beside its own component, so no test asked the write.
 import { describe, it, expect } from 'vitest';
 import { mountBodyRow, makeTopHarness } from '$lib/test/harness/editor-actions';
 

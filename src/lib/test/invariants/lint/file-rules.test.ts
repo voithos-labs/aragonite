@@ -364,7 +364,7 @@ const RULES: FileRule[] = [
 		allowed: {
 			[COORDINATE_HOME]: 'the numeric-space conversions themselves',
 			[DOCPATH_HOME]: 'the DocPath brand and its base conversion (asDocPath)',
-			// Space homes.
+			// Modules that own a coordinate space.
 			'src/lib/cursor/widget-offset.ts': 'DomTextOffset home: the walk brands its returns',
 			'src/lib/cursor/sticky-measure.ts': 'EditorX/ViewportX home + walk-offset candidate scan',
 			'src/lib/cursor/surface-backend.ts':
@@ -377,7 +377,7 @@ const RULES: FileRule[] = [
 				'DocPath home: the scope factories brand the commit args’ document-absolute paths',
 			'src/lib/editor-actions/commit/undo-controller.ts':
 				'DocPath at the commit sequence, gating the G1.16 guard entry',
-			// Public boundaries: number-typed surfaces branding at entry.
+			// Public boundaries, where plain-number offsets are branded on entry.
 			'src/lib/components/blocks/editable-surface.ts':
 				'BlockComponent boundary: public number offsets branded at entry',
 			'src/lib/components/blocks/editable-leaf.ts':

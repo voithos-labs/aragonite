@@ -52,10 +52,8 @@ describe('ensureListItemNewlineTerminated', () => {
 		expect(item.raw).toBe('- a\n  - b\n');
 	});
 
-	// The descent stops above a node whose children are not whole lines: a grid cell's bytes sit
-	// inside the row's line, so an ending appended there splits the row and corrupts the table.
-	// Miss-analysis: every descent case ended in a prose leaf or a strip container, so the branch
-	// reaching a kind whose raw is not a line of its own was never driven.
+	// A grid cell's bytes sit inside the row's line, so an ending appended there splits the row.
+	// Miss-analysis: every descent case ended in a prose leaf or a strip container, never a cell.
 	it('stops above a grid cell rather than splitting the row', () => {
 		const source = '- | a | b |\n  | --- | --- |\n  | c | d |';
 		const item = parse(source).children[0].children![0];
@@ -67,10 +65,8 @@ describe('ensureListItemNewlineTerminated', () => {
 		expect(checkStaleRaw(item, defaultGrammarView)).toBeNull();
 	});
 
-	// The opaque counterpart of the grid case, and the one that fails silently: the descent used
-	// to reach a body block already ending in `\n`, return, and leave the item unterminated, the
-	// state `spliceTerminatedItems` exists to prevent. `directiveContainer` is core's own `:::`
-	// fallback, so the branch needs no plugin.
+	// `directiveContainer` is core's own `:::` fallback, so the opaque case needs no plugin.
+	// Miss-analysis: no case drove the descent into an opaque body, where it fails silently.
 	it('stops above an opaque container body rather than leaving the item unterminated', () => {
 		activateDirectiveGrammar();
 		const source = '- text\n\n  :::note Heads up\n  body\n  :::';

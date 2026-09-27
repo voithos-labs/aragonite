@@ -1,9 +1,8 @@
 /**
  * Every splice recomputes its blank-line separators through the one shared function, so no module
  * writes a sibling's `leadingTrivia` by hand (syntax-tree.md § Blank lines). The failure is
- * silent: byte round-trip stays green while the document reloads to a different block count. It
- * compares sets of names with a reason for each exemption, so the next splice site fails the
- * moment it is written rather than at the next review.
+ * silent: byte round-trip stays green while the document reloads to a different block count, so
+ * each exemption states a reason and the next splice site fails the moment it is written.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -127,15 +126,11 @@ describe('separator-write entry-point census', () => {
 
 // ── The span drop, inside those functions’ own file ───────────────────────
 
-/**
- * One of these functions rewrites bytes the owner's child spans describe, so it drops those spans
- * (`schema/child-spans.ts`). The lists above fix which files may write a separator; this one fixes
- * which functions may, and every one of them has to drop the spans. The next such function fails
- * this the moment it is written rather than waiting for a test case to reach it.
- */
+/** A function writing a separator rewrites bytes the owner's child spans describe, so it must drop
+ *  those spans (`schema/child-spans.ts`); the lists above fix the files, this one the functions. */
 const DOORS_FILE = 'tree-operations/settle.ts';
 
-/** The files that took over node-ops’ other separator writes, held to the same rule. */
+/** The other files writing separators, held to the same rule. */
 const CARRY_FILES = [
 	'tree-operations/node-ops.ts',
 	'tree-operations/content-write.ts',
@@ -163,10 +158,8 @@ describe('every separator entry point retires the child spans it invalidates', (
 		.flatMap((file) => functionBodies(readEditorFile(file).code))
 		.filter((fn) => WRITES_SEPARATOR_BYTES.test(fn.body));
 
-	/**
-	 * Each of these functions by name: every one drops the spans first, before its own checks. A
-	 * drop that has slid below an early return stops happening on the paths that take it.
-	 */
+	/** The separator writers in the shared file, each of which drops the spans first, since a drop
+	 *  below an early return is skipped on the paths that take it. */
 	const DOORS = [
 		'clearRedundantSeparator',
 		'dropDoubledSeparator',
@@ -203,12 +196,8 @@ describe('every separator entry point retires the child spans it invalidates', (
 		);
 	});
 
-	/**
-	 * Writers that account for the spans some other way, each with its reason. Two are reached only
-	 * from functions that drop the spans before dispatching; the rest write the line of a node they
-	 * are creating, or write one inside a splice that changes the child count, which refuses the
-	 * next region rewrite.
-	 */
+	/** Writers that account for the spans some other way, each with its reason: a caller drops them
+	 *  first, the node is new, or a splice changes the child count, refusing a region rewrite. */
 	const ANSWERED_ELSEWHERE: Record<string, string> = {
 		mintSeparator:
 			'reached only from the three entry points and separateTableFollower, which all retire first',

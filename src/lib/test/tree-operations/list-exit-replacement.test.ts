@@ -155,9 +155,8 @@ describe('buildExitReplacement', () => {
 	});
 });
 
-// Without a blank line the parser lazy-continues the exit paragraph into the list's last
-// item on reload, so the live tree diverges from its own serialization. The exit
-// paragraph owns the separator.
+// Without a blank line the reload lazily continues the exit paragraph into the list's last item,
+// so the exit paragraph carries the separator.
 describe('buildExitReplacement blank-line separator (parse convergence)', () => {
 	it('last-item exit: a typed line after the surviving list stays a separate paragraph', () => {
 		const { doc, list } = parseListDoc('- First\n- Last\n');

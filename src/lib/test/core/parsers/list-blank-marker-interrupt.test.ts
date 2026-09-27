@@ -4,13 +4,9 @@ import { serialize } from '../../../core/serializer';
 import { canInterruptParagraph } from '../../../core/parsers/list';
 import type { Document } from '../../../core/nodes';
 
-// CommonMark §5.2's second interrupt condition: a list may interrupt a paragraph only if its
-// first item is not empty. Readings below were taken from commonmark 0.31.2, which agrees with
-// cmark-gfm here (no GFM extension touches list interruption).
-//
-// Miss-analysis: `list-lazy-continuation.test.ts` covered the ordered-start-at-1 half of §5.2
-// and every fixture in it gave the marker content, so the empty-marker half had no pin at any
-// level, and the parser read `a` over a bare `- ` as a list where the references read a heading.
+// CommonMark §5.2: a list may interrupt a paragraph only if its first item is not empty. Readings
+// below come from commonmark.js, which agrees with cmark-gfm here.
+// Miss-analysis: every §5.2 fixture gave the marker content, so the empty-marker half had no case.
 
 function topKinds(doc: Document): string[] {
 	return doc.children.map((c) => (c.kind === 'list' ? `list(${c.children!.length})` : c.kind));
@@ -34,8 +30,8 @@ describe('an empty marker does not interrupt a paragraph', () => {
 		});
 	}
 
-	// Controls: the same markers WITH content still interrupt, so the fix is the emptiness
-	// condition and not a blanket refusal.
+	// Controls: the same markers with content still interrupt, so the rule is about emptiness,
+	// not a blanket refusal.
 	const controls: [name: string, source: string, top: string[]][] = [
 		['bullet with content', 'a\n* x\n', ['paragraph', 'list(1)']],
 		['dash with content', 'a\n- x\n', ['paragraph', 'list(1)']],

@@ -93,9 +93,8 @@ describe('state-registry', () => {
 			}
 		);
 
-		// The handover on a remount: the losing mount is torn down within the same flush, so by the
-		// time the question is asked again it holds no refs to orphan. Warning here would fire on
-		// every list indent.
+		// On a remount the losing mount is torn down in the same flush and holds no refs, so a
+		// warning here would fire on every list indent.
 		it('stays silent when the loser was torn down in the same flush', async () => {
 			const node = makeFakeNode();
 			const loser = stateWithRefs(true);
@@ -107,8 +106,8 @@ describe('state-registry', () => {
 			expect(takeDevWarns()).toEqual([]);
 		});
 
-		// A third registration means the earlier pair is already past, so reporting it would name a
-		// winner that no longer owns the node.
+		// After a third registration, reporting the earlier pair would name a winner that has lost
+		// the node.
 		it('stays silent when a later registration superseded the contested winner', async () => {
 			const node = makeFakeNode();
 			registerBlockListState(node, stateWithRefs(true));

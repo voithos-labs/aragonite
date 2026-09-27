@@ -19,14 +19,12 @@ function run(input: string | Document, start: SelectionPoint, end: SelectionPoin
 	return { doc: result.newDoc, source: serialize(result.newDoc), caret: result.collapsedCaret };
 }
 
-// Cross-block table end endpoints are snapped to whole rows before rangeDelete
-// (table-endpoint-snap.ts), so end.offset is the inclusive last cell of its row and the delete
-// clears [0, end.offset].
+// A gesture's end endpoint arrives snapped to its row's last cell (`table-endpoint-snap.ts`); these
+// hand-built ones are not, and rangeDelete clears cells 0 through end.offset inclusive.
 describe('rangeDelete: Case 1 (prose anchor → cell focus mid-table)', () => {
 	it('clears cells [0..end] inclusive, removes fully-covered rows, promotes header', () => {
-		// Doc: paragraph + 4-row table (header + 3 body rows).
-		// end.offset = 2 (inclusive) → clears cells 0,1,2 (header row entirely, plus body row 1's
-		// cell 0)
+		// Paragraph + 4-row table (header + 3 body rows). end.offset 2 (inclusive) clears cells
+		// 0,1,2: the whole header row plus body row 1's cell 0.
 		const { doc, source, caret } = run(
 			`intro paragraph\n\n${TWO_COL_FOUR_ROW}`,
 			{ path: [0], offset: 5 },
@@ -81,9 +79,8 @@ describe('rangeDelete: Case 1 (prose anchor → cell focus mid-table)', () => {
 	});
 
 	it('nested end table survives a deleted middle block: container raw rebuilds at the shifted path', () => {
-		// para[0], middle[1], blockquote[2] wrapping the table. Deleting middle shifts the blockquote
-		// to [1], so the ancestry rebuild must follow the surviving table, not the stale end path.
-		// end.offset = 2 (inclusive) → clears cells 0,1,2: header row removed, body promoted.
+		// Deleting `middle` shifts the blockquote to [1], so the ancestry rebuild must follow the
+		// surviving table, not the stale end path; end.offset 2 removes the header row.
 		const { doc, source } = run(
 			'para\n\nmiddle\n\n> | A | B |\n> | --- | --- |\n> | 1 | 2 |\n',
 			{ path: [0], offset: 2 },
@@ -108,9 +105,8 @@ describe('rangeDelete: Case 1 (prose anchor → cell focus mid-table)', () => {
 
 describe('rangeDelete: Case 2 (cell anchor mid-table → prose focus below)', () => {
 	it('clears cells [start..lastCell] in start row, removes rows below, header unchanged', () => {
-		// Anchor at cell 3 (row 1, col 1) clears cells 3..end: body rows 2 (4,5) and 3 (6,7) are
-		// fully in range and removed, while row 1 keeps col 0.
-		// Focus 7 chars in: 'follow ' | 'paragraph'. Drops the 7-char head.
+		// Anchor cell 3 (row 1, col 1) clears cells 3..end, removing body rows 2 and 3 whole; the
+		// focus 7 characters in drops the head 'follow '.
 		const { doc } = run(
 			`${TWO_COL_FOUR_ROW}\nfollow paragraph\n`,
 			{ path: [0], offset: 3 },
@@ -128,7 +124,6 @@ describe('rangeDelete: Case 2 (cell anchor mid-table → prose focus below)', ()
 		expect(table.children![1].children![0].raw).toBe('1');
 		expect(table.children![1].children![1].raw).toBe('');
 
-		// Surviving paragraph head should be 'paragraph' (offset 6 = after 'follow ')
 		const para = survivors[1];
 		expect(para.kind).toBe('paragraph');
 		expect(para.raw.trimEnd()).toBe('paragraph');

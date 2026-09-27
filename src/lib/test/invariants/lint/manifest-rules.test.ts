@@ -82,8 +82,8 @@ const readSiteRoles = Object.fromEntries(
 const IMPORTS_BARE_PRIMITIVE =
 	/import\s*\{[^}]*\b(?:splitNode|deleteNode|mergeWithNext|mergeIntoPrevDeepLeaf)\b[^}]*\}\s*from\s*'[^']*(?:tree-operations|node-ops)/s;
 
-/** The commit entries that settle the window afterwards, plus the two settle entries themselves;
- *  a leading dot is the norm here, since they are reached on a controller or a scope. */
+/** The commit entries that fix up the neighbours afterwards, plus the two fix-up functions
+ *  themselves; a leading dot is the norm, since they are reached on a controller or a scope. */
 const REACHES_SETTLE =
 	/\b(commitStructural|commitMultiScope|commitContainer|settleSeparator|spliceChildrenSettled)\s*\(|\.\s*commit\s*\(/;
 
@@ -203,9 +203,8 @@ const PRE_DELETE_NAMERS: Record<string, string> = {
 		'the one splicer: a fenced body has no inline constructs to clean'
 };
 
-/** Only the render-path reader in `visibility.ts` answers which marker spans a hiding mode drops;
- *  the rest create the class, identify their own span, or probe it. A component's `<style>` names classes to paint them,
- *  which G4.30's list holds, so `.svelte` files sit this rule out. */
+/** Only the render-path reader in `visibility.ts` answers which marker spans a hiding mode drops.
+ *  `.svelte` files sit this rule out: their styles belong to the hidden-run rule above. */
 const MARKER_FAMILY_NAMERS: Record<string, string> = {
 	'src/lib/core/inline/visibility.ts':
 		'the one module that states the families and drops what hides',

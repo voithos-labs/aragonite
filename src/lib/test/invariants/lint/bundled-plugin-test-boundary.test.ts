@@ -1,10 +1,8 @@
 /**
- * G4.63: a file under a per-plugin test directory reaches into aragonite only where an outside
- * author could. That means the published entry points (`$lib`, `$lib/plugin`, `$lib/testing`),
- * the plugin's own source, another plugin's published subpath, the copyable in-repo test support,
- * and relative paths outside library code; an npm package is the author's own business. G4.16 is
- * the same check one layer out: that one shows the barrels can build a plugin, this one that they
- * can test it. An allowlist entry names a public entry point that does not exist yet.
+ * A file under a per-plugin test directory imports from aragonite only what an outside author
+ * could (G4.63): the published entry points, the plugin's own source, another plugin's published
+ * subpath, the copyable in-repo test support, and relative paths outside library code. An
+ * allowlist entry names the public entry point that does not exist yet.
  */
 import { describe, it, expect } from 'vitest';
 import path from 'node:path';
@@ -21,13 +19,7 @@ interface Exemption {
 	reason: string;
 }
 
-/**
- * Eleven entry points are missing, and every entry below names the one it waits on: a headless
- * editor-actions environment, tree mutation off a parsed document, the opaque-raw checks, the
- * parse comparison, registry read-back, the perf instruments, the built-in text block, an inline
- * node's raw text, a kind's own raw-write rule, a headless inline-menu session, and command
- * dispatch off a mounted editor. Adding one empties its entries.
- */
+/** Publishing the entry point an entry waits on empties that entry, and a dead one fails below. */
 const ALLOWLIST: Record<string, Exemption> = {
 	'src/lib/test/plugins/admonitions/blockquote-indent-cap.test.ts': {
 		specifiers: ['$lib/schema/block-kind-descriptor'],
@@ -266,8 +258,7 @@ function suiteOf(relPath: string): string | null {
 }
 
 function isAllowedSpecifier(relPath: string, specifier: string): boolean {
-	// A relative path is fine unless it lands in library code, which would be a way around every
-	// rule below; `../../../core/parser` is the shape being closed.
+	// A relative path into library code would get around every rule below.
 	if (specifier.startsWith('.')) {
 		const resolved = path.posix.normalize(path.posix.join(path.posix.dirname(relPath), specifier));
 		return !resolved.startsWith('src/lib/') || resolved.startsWith('src/lib/test/');

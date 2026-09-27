@@ -21,8 +21,8 @@ import {
 	assertConstructCoverage
 } from '../core/inline/scan/scan-test-helpers';
 
-// G2.11: every byte of [start, end) lands in exactly one top-level node range, construct children
-// cover their parent minus its markers, and every kind is one the editor knows. A conformance
+// Every byte of [start, end) lands in exactly one top-level node range, construct children cover
+// their parent minus its markers, and every kind is one the editor knows (G2.11). A conformance
 // comparison cannot judge this, because CommonMark carries no offsets.
 
 // `satisfies` keeps this runtime mirror exhaustive: a union change without a matching
@@ -45,11 +45,8 @@ const KIND_VOCABULARY = {
 
 const KNOWN_KINDS: ReadonlySet<string> = new Set(Object.keys(KIND_VOCABULARY));
 
-/**
- * The half about kind names: every kind is a built-in, or one an installed plugin declared. Split
- * from the tiling half because a registered inline handler emits its own declared kind, so
- * asserting the union alone would throw on the name before it could test tiling.
- */
+/** The kind-name half, split from tiling because a registered inline handler emits its own
+ *  declared kind, which the built-in union alone would reject before tiling is tested. */
 function assertKindVocabulary(nodes: InlineNode[]): void {
 	for (const node of nodes) {
 		if (!KNOWN_KINDS.has(node.kind) && !isInlineKindDeclared(node.kind)) {

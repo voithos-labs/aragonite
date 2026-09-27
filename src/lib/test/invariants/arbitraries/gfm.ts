@@ -7,17 +7,12 @@ import { withDrawnLineEnding } from './line-endings';
 
 // ── Leaf-block source fragments ─────────────────────────────────────────────
 
-// The minority case, and the same characters `inline.ts` uses: what these words move is offset
-// arithmetic (a multi-unit scalar under a slice), not the block grammar, so a rate high enough to
-// reach every structural path is enough and ASCII stays the bulk of the bytes.
+// A minority of the bytes: these words exercise offset arithmetic (a multi-unit scalar under a
+// slice), not the block grammar, so a rate that reaches every structural path is enough.
 export const nonAsciiWord = fc.constantFrom('汉字', '\u00e9m', 'e\u0301m', '😀', '👩‍👦');
 
-/**
- * Bytes that start a construct, placed inside prose. A pipe confined to the table generator makes
- * a pipe-bearing line that is not a table undrawable, and a block marker only ever seen at the
- * start of a line never gets to interrupt one. Both are shapes whose defects come from the
- * difference between what a line looks like and what it parses as.
- */
+/** Construct-starting bytes inside prose, so a pipe line that is not a table, or a block marker
+ *  mid-line, can be drawn at all. */
 const mintingWord = fc.constantFrom('|', 'a | b', '|x|', '#', '>', '- x', ':::', '`|`', '---');
 
 const inlineText = fc
@@ -82,9 +77,8 @@ const linkRefDef = fc
 	)
 	.map(([label, url, title]) => `[${label}]: ${url}${title}\n`);
 
-// headerDelta lets the header/delimiter cell counts disagree: GFM §4.10 makes
-// the mismatch a paragraph, not a table, and round-trip must hold either way. A line with no
-// pipe after the rows is one more row (GFM example 201).
+// headerDelta lets the header and delimiter cell counts disagree, which GFM §4.10 makes a
+// paragraph; a line with no pipe after the rows is one more row (GFM example 201).
 const table = fc
 	.tuple(
 		fc.integer({ min: 1, max: 3 }),
@@ -103,11 +97,8 @@ const table = fc
 		return header + delim + rows + pipelessRow;
 	});
 
-/**
- * Blank runs, not just blank counts: one line separates and every later one is a block of its own
- * (`design/syntax-tree.md`), so the length of the run and each line's own bytes both move the
- * parsed shape. Whitespace-only lines count as blank under GFM §2.1 and must survive verbatim.
- */
+/** Blank runs, since one blank line separates and each later one is a block of its own; the
+ *  whitespace-only lines are blank under GFM §2.1 and must survive verbatim. */
 const blankLine = fc.constantFrom('\n', ' \n', '  \n', '\t\n', ' \t \n');
 const blankRun = fc.array(blankLine, { maxLength: 4 }).map((lines) => lines.join(''));
 
@@ -169,12 +160,8 @@ const lfDoc = fc
 /** Valid-ish GFM source with bounded nesting depth (~3), emitted as a source string. */
 export const arbGfmDoc = withDrawnLineEnding(lfDoc);
 
-/**
- * The same blocks, but every gap holds at least one blank line: a real document's shape, and what
- * an editing pass runs on. A gap with no blank line lets a split's kind change pull the next block
- * into the new half (indented code cannot interrupt a paragraph), a separate defect class that
- * would mask the blank-line rule.
- */
+/** Every gap holds a blank line, as in a real document: without one, a split's kind change can
+ *  pull the next block into the new half, a separate defect class that masks the blank-line rule. */
 export const arbBlankSeparatedGfmDoc = withDrawnLineEnding(
 	fc
 		.array(fc.tuple(fc.array(blankLine, { minLength: 1, maxLength: 3 }), block), {
@@ -186,11 +173,8 @@ export const arbBlankSeparatedGfmDoc = withDrawnLineEnding(
 
 // ── Leading-indent dimension ────────────────────────────────────────────────
 
-/**
- * Indents straddling the CommonMark block-indent boundary: up to three spaces a marker still
- * opens its block, at four the line is indented code, and a tab counts as four columns. Every
- * composed block sits at column 0, so that rule is otherwise unreachable.
- */
+/** Indents either side of CommonMark's limit, where four columns (or a tab) turn a marker into
+ *  indented code; every composed block otherwise sits at column 0. */
 const blockIndent = fc.constantFrom('', ' ', '  ', '   ', '    ', '     ', '\t', ' \t', '   \t');
 
 function indentBlock(source: string, indent: string, firstLineOnly: boolean): string {
@@ -206,11 +190,8 @@ function indentBlock(source: string, indent: string, firstLineOnly: boolean): st
 		.join('\n');
 }
 
-/**
- * GFM documents with a leading indent per block. `firstLineOnly` is its own dimension:
- * indenting only the opener leaves continuation lines at column 0, which is where a
- * container's prefix re-derivation and a lazy continuation disagree about the indent.
- */
+/** `firstLineOnly` indents just the opener, leaving continuation lines at column 0, where a
+ *  container's prefix re-derivation and a lazy continuation disagree about the indent. */
 export const arbIndentedGfmDoc = withDrawnLineEnding(
 	fc
 		.array(fc.tuple(blankRun, blockIndent, block, fc.boolean()), {

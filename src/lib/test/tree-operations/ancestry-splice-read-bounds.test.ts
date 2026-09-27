@@ -7,10 +7,9 @@ import { ensureUnsharedPath } from '../../tree-operations/unshare';
 import { rebuildUnsharedChain } from '../../tree-operations/chain-rebuild';
 import { defaultGrammarView } from '$lib/schema/block-openers';
 
-// The point of the child spans: a keystroke rewrites one region instead of re-joining the
-// container. Wall-clock cannot say which happened on a given host; counting the sibling
-// elements the rebuild reads can, and it fails the day the hint stops reaching a level.
-// Instrumented, because that is the one dev shape without G1.38's rebuild behind the splice.
+// Child spans let a keystroke rewrite one region instead of re-joining the container, which
+// wall-clock time can't show on every host, so these tests count the sibling elements read.
+// Perf instruments are on because they skip the dev check that re-derives each splice (G1.38).
 afterEach(disablePerfInstruments);
 
 it('a keystroke inside a large container reads O(1) sibling elements, not O(children)', () => {
@@ -43,9 +42,8 @@ it('a keystroke inside a large container reads O(1) sibling elements, not O(chil
 	expect(reads).toBeLessThan(10);
 });
 
-// The other half of the same rule: a hint is passed up only from the caller that named the leaf's
-// bytes, so a structural caller re-derives at every level (`editor.md` § 9). A fresh spans array
-// is what a full rebuild leaves behind; the splice writes the one it was handed.
+// Only a caller that named the leaf's bytes passes a hint, so a structural rebuild re-derives each
+// level; a fresh spans array marks a full rebuild, and a splice writes the one it was handed.
 it('a hintless rebuild re-derives at every level, and a hinted one splices at every level', () => {
 	const source = '- one\n\n  body\n\n  tail\n';
 	const path = [0, 0, 1];

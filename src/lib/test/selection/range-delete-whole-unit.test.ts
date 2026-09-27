@@ -11,8 +11,7 @@ import { fixtureReading } from '../harness/fixture-grammar';
 // A block with no positions inside it (a rule, a diagram) is in a range whole or not at all, so
 // a range that covers it deletes the node: the same-block branch's byte write would leave a rule
 // holding a bare line ending, which no reload reads as a rule.
-// Miss-analysis: every same-block fixture was text, whose emptied survivor is a legal block; the
-// whole-block drag was the first gesture to hand this branch a kind that has no empty form.
+// Miss-analysis: every same-block fixture was text, whose emptied survivor is a legal block.
 
 function del(source: string, start: SelectionPoint, end: SelectionPoint) {
 	const doc: Document = parse(source);

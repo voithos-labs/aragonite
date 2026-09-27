@@ -1,10 +1,7 @@
 // @vitest-environment jsdom
-//
-// What the editor root's caret-hiding attribute keys on. Two callers ask two questions of one
-// state: the overlay draws when `isCustomRendered`, while the root hid the browser caret when
-// `isCrossBlock`, so every state where those disagree hides the caret with nothing drawn in its
-// place. Miss-analysis (Sel-F1): the e2e helper waits on the attribute, which made it the answer
-// to "is a selection live" everywhere, and no test compared it against what the overlay draws.
+// The editor root hides the browser caret only while the selection overlay draws in its place,
+// or a state where the two disagree leaves nothing on screen.
+// Miss-analysis: no test compared the caret-hiding attribute with what the overlay draws.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import {
 	installLayoutStubs,

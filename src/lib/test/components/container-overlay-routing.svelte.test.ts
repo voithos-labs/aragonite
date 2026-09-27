@@ -1,12 +1,7 @@
 // @vitest-environment jsdom
-//
-// Who paints a container's selection box: one the range covers whole paints its own, markers
-// included; one the range cuts through leaves it to the children it cuts. Asserted at the host
-// that decides, since nothing on a `containerApi` tells the two cases apart.
-//
-// Miss-analysis: the previous test asserted "a container with children paints nothing", true
-// wherever every visible row is a child block, so a container that draws a row of its own had
-// no box at any level.
+// A container the range covers whole paints its own selection box, markers included; one the range
+// cuts through leaves it to the children it cuts. Asserted at the host that decides.
+// Miss-analysis: no test had a container that draws a row of its own under a range.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { flushSync } from 'svelte';
 import { parse } from '$lib/core/parser';
@@ -92,8 +87,7 @@ describe('a container the range holds whole paints one box', () => {
 	});
 });
 
-// Miss-analysis: every container case above is one BlockHost mounts, so no test covered a
-// container that renders none of its own and had nothing left to paint its box.
+// Miss-analysis: every case above mounts through BlockHost, never a container without one.
 describe('a list item the range holds whole paints its own box', () => {
 	/** Items 0 and 3 hold the endpoints, so items 1 and 2 are the ones held whole. */
 	function rangeAcrossFourItems() {

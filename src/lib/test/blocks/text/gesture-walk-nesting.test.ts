@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
-// Miss-analysis: the depth tests for GH #200 reached the render and caret paths and stopped
-// there, so the code reading the same tree one gesture later (showing a source, the link card,
-// joins, splits, pending marks) had no test at all and still recursed once per nesting level.
+// The gesture paths that read the inline tree walk a deeply nested chain without recursing.
+// Miss-analysis: GH #200's depth tests stopped at render and caret; gesture paths still recursed.
 import { describe, expect, it } from 'vitest';
 import { parseInline } from '$lib/core/inline';
 import type { InlineNode } from '$lib/core/nodes';

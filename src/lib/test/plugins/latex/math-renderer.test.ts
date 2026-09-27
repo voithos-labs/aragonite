@@ -45,9 +45,8 @@ describe('createMemoizedRenderer', () => {
 		expect(inner).toHaveBeenCalledTimes(2);
 	});
 
-	// Editing one equation re-renders only that one. The `inner` spy is the render counter:
-	// a cache keyed on anything but the source string, or no cache at all, would call it
-	// again on an untouched equation and fail the last assertion.
+	// The `inner` spy counts renders: a cache keyed on anything but the source string, or none,
+	// would render an untouched equation again and fail the last assertion.
 	it('re-renders only the edited equation; untouched ones stay cache hits (A2)', () => {
 		const inner = vi.fn((source: string, _opts: { display: boolean }) => {
 			const dom = document.createElement('span');

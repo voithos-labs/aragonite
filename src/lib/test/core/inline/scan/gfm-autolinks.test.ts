@@ -92,7 +92,7 @@ describeScanCases('urls stop where claimed constructs start', [
 		'https://x.com&amp;y',
 		[autolinkNode(0, 13, 'https://x.com'), entityNode(13, 18, '&'), textNode(18, 19, 'y')]
 	],
-	// Sibling-path parity with the `&amp;` arm: a fix to one must not skip the other.
+	// The same rule as the `&amp;` row, so a fix to one cannot skip the other.
 	[
 		'named entity ends the url',
 		'https://x.com&copy;y',

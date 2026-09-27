@@ -33,8 +33,8 @@ function restoreHarness(source: string, { mounted = true } = {}) {
 	};
 }
 
-// The e2e cannot discriminate this: an over-long DOM offset already degrades to the container end
-// when the range is built, so the browser hides a missing model clamp.
+// An e2e cannot catch a missing model clamp: the browser already degrades an over-long DOM offset
+// to the container end when the range is built.
 describe('resolveSelectionPoint, clamping per coordinate space', () => {
 	it('clamps a prose offset to the block raw length', () => {
 		const doc = parse(PROSE);
@@ -80,7 +80,7 @@ describe('resolveSelectionPoint, clamping per coordinate space', () => {
 });
 
 // Every programmatic placement (a host's setSelection, the link card's return, a mode switch's
-// restore) comes through here, so this is where the caret memory is forgotten.
+// restore) goes through `restoreSelection`, so that is where the caret memory is forgotten.
 describe('restoreSelection forgets how the caret arrived', () => {
 	function arrived(h: ReturnType<typeof restoreHarness>) {
 		h.caretMemory.noteKey({ key: 'ArrowDown' }, null, () => asEditorX(240));

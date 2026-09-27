@@ -1,10 +1,7 @@
 // @vitest-environment jsdom
-//
-// BlockHost is the one place that knows a container hands over its whole `BlockComponent`
-// interface under a single `containerApi` export (Svelte 5 instance exports cannot be
-// spread, so redeclaring the members by hand loses one at a time). A ref entry left
-// holding the raw instance is a block the caret can never reach, and it fails nowhere
-// near here, so the result is asserted at the ref entry, over a real container.
+// BlockHost unwraps the `containerApi` export a container hands over its whole interface under.
+// A ref entry left holding the raw instance is a block the caret can never reach, failing far from
+// here, so the result is asserted at the ref entry over a real container.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { resolveBlockSurface, type ContainerBlockComponent } from '$lib/block-component';

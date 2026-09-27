@@ -1,8 +1,7 @@
 // @vitest-environment jsdom
-// A mode switch folds an open source view through its blur, and that commit must land while the
+// A mode switch closes an open source view through its blur, and that commit must land while the
 // editor is still in the mode the user typed in: a switch to reading would otherwise refuse it.
-// Miss-analysis: the flip's commit was pinned only by e2e byte checks, and nothing read the mode
-// the write saw, so a commit landing after the switch passed until reading mode refused writes.
+// Miss-analysis: the switch's commit was checked only for its bytes, never for the mode it saw.
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
 	destroyMountedEditors,

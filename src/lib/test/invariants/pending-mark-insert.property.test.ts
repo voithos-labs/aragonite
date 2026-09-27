@@ -14,15 +14,10 @@ import { caretPositions, countOnScreen, paintedText } from '$lib/test/harness/pa
 import { arbInlineSource, freshOrFixedSeed } from './arbitraries';
 import { fixtureReading } from '$lib/test/harness/fixture-grammar';
 
-// A pending mark rewrites bytes the user never sees, so the only honest check is what the render
-// path does with them: at every caret, for every subset of marks, the toggle took exactly (or
-// nothing was written), the painted text gained only the typed character with no delimiter beside
-// it, and the original bytes survive.
+// A pending mark rewrites bytes the user never sees, so the render path is the check: at every
+// caret the toggle took exactly or wrote nothing, only the typed letter painted, no byte was lost.
 
-// Miss-analysis, twice over: single-word fixtures missed every shape needing whitespace, nesting
-// or a boundary that cannot be marked; then this file's own check was a traversal copied from the
-// resolver's, blind in the same place (an autolink's `<` and `>` read as content), so a shape that
-// killed the link passed both. Asking the renderer is what closes it, see `paintedText`.
+// Miss-analysis: single-word fixtures and a check copied from the resolver shared its blind spots.
 
 const PARAMS = { numRuns: 500, seed: freshOrFixedSeed(707707) } as const;
 
@@ -39,11 +34,8 @@ const MARK_SUBSETS: InlineMarkKind[][] = [
  *  kills shows up the same way. */
 const DELIMITERS = '*_~`<>';
 
-/**
- * The chain a toggle is resolved against, from the spec's two containment rules: a construct with
- * children includes its own edges, where continued typing extends it, and a childless one does
- * not, so its edges are ordinary insertion points.
- */
+/** The chain a toggle resolves against: a construct with children includes its own edges, where
+ *  typing extends it, and a childless one does not, so its edges are ordinary insertion points. */
 function chainAt(raw: string, offset: number): Set<string> {
 	const kinds = new Set<string>();
 	const visit = (nodes: readonly InlineNode[]): void => {
@@ -75,11 +67,8 @@ function kindsCovering(raw: string, start: number, end: number): Set<string> {
 	return kinds;
 }
 
-/**
- * Every construct kind anywhere in the block. A flat count that shares no code with the resolver,
- * neither its chain traversal nor the render path its own check reads. That independence is the
- * point: a rewrite can satisfy both of those and still have eaten a construct somewhere else.
- */
+/** Every construct kind in the block, by a flat count sharing no code with the resolver or the
+ *  render path, since a rewrite can satisfy both and still have eaten a construct elsewhere. */
 function kindsPresent(raw: string): Set<string> {
 	const kinds = new Set<string>();
 	const visit = (nodes: readonly InlineNode[]): void => {

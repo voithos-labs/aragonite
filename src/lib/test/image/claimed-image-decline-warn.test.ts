@@ -1,9 +1,7 @@
 // @vitest-environment jsdom
 /**
- * The dev-mode warning when an image edit is refused: dropping the commit keeps the author's
- * bytes, and the warning keeps that from being a mystery. The three outcomes are tested together
- * because the interesting one is a hook returning the same bytes back, which the commit's
- * equality check drops with no warning: that is why a hook must refuse a field it cannot store.
+ * The dev-mode warning when a plugin's hook refuses an image edit. A hook returning the same bytes
+ * gets no warning (the commit drops it as unchanged), so a hook must refuse what it cannot store.
  */
 
 import { afterEach, describe, it, expect } from 'vitest';

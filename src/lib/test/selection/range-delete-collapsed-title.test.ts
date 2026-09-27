@@ -1,7 +1,6 @@
 // A range with an endpoint on a closed details block's title row covers the hidden body, so its
-// delete takes the whole block, from either side (#601); an open one keeps the wall rule.
-// Miss-analysis: every wall-rule case used an open container, so no range endpoint ever sat on a
-// title row whose body the reader could not see.
+// delete takes the whole block, from either side; an open one keeps the wall rule.
+// Miss-analysis: GH #601; every wall-rule case used an open container, never a hidden body.
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
@@ -77,8 +76,7 @@ describe('a range ending on a closed title row', () => {
 	});
 });
 
-// Miss-analysis (GH #605): the wall-rule suite asserted bytes only, and an emptied body kept its
-// blank-line wrap, which no parse of a bodiless container produces.
+// Miss-analysis: GH #605; the wall-rule suite asserted bytes only, never an emptied body's shape.
 describe('an open details keeps the wall rule', () => {
 	it('a range from its title row empties the block to its title, and it reloads the same', () => {
 		const { source, caret } = run('Above\n\n' + OPEN + '\nMid\n', point([1, 0], 0), point([2], 0));

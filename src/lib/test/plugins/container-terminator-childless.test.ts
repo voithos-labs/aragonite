@@ -46,7 +46,7 @@ function registerProbeKind(name: 'probe-wide' | 'probe-fixed'): AnyBlockKind {
 
 	const kind = testLeaf(name, { container: { contract: 'opaque', rebuildRaw } });
 	registerBlockOpener(kind, {
-		// The built-in fence matcher accepts `~~~` with any info, so this must price ahead of it.
+		// The built-in fence matcher accepts `~~~` with any info, so the probe opener runs first.
 		priority: OPENER_PRIORITIES.fencedCode - 5,
 		interruptsParagraph: (line) => OPEN.exec(line)?.[2] === name,
 		tryOpen(ctx) {

@@ -1,6 +1,5 @@
 // @vitest-environment jsdom
-// Miss-analysis: every suite that ran the container kit used the node environment, where Svelte
-// compiles effects away, so none saw the kit's block-list state throw outside a component.
+// Miss-analysis: every container-kit suite ran in node, where Svelte compiles effects away.
 import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { getStateForNode } from '$lib/reactivity/state-registry';

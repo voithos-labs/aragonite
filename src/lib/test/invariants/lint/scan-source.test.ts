@@ -1,9 +1,7 @@
 /**
- * The scan harness's own coverage guard. Every repo-wide lint inherits its blind spots
- * from `collectEditorSources()`, so a root silently dropping out of the default set
- * narrows a dozen guards at once. A missing root throws in `readdirSync`; what needs
- * asserting is the softer regression: a root still present but no longer reached, or a
- * file collected twice because a lint re-adds a root the default already covers.
+ * Coverage guard for `collectEditorSources()`, whose blind spots every repo-wide lint inherits.
+ * A missing root throws in `readdirSync`, so what needs asserting is a root still present but not
+ * reached, or a file collected twice because a lint re-adds a root the default already covers.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -74,8 +72,8 @@ describe('repo-wide scan roots', () => {
 	});
 });
 
-// The population G4.44 and G4.65 bind: a factory-mounted `.svelte` surface with its own
-// beforeinput listener that hosts inline constructs. Any one mark alone is not a prose surface.
+// The prose-surface rules bind a factory-mounted `.svelte` component with its own beforeinput
+// listener that hosts inline constructs (G4.44, G4.65); any one mark alone is not enough.
 describe('isProseSurface', () => {
 	const probe = (text: string) =>
 		isProseSurface({ relPath: 'src/lib/components/blocks/x/Probe.svelte', text, code: text });
@@ -146,8 +144,7 @@ describe('balancedCall', () => {
 	});
 });
 
-// Miss-analysis: the walkers' own cases fed them strings and nested parens, never a regex
-// literal, so the quote tracking's blindness to one was pinned as a fallback instead of caught.
+// Miss-analysis: the walkers' own cases fed them strings and nested parens, never a regex literal.
 describe('literal-aware walking', () => {
 	it('balances a call whose argument holds a regex literal', () => {
 		const regexArg = 'encode(title.replace(/"/g, "x"))';
@@ -197,8 +194,7 @@ describe('literal-aware walking', () => {
 		);
 	});
 
-	// Miss-analysis: every strip case was TypeScript source, so no fixture ever put a token inside
-	// a `.svelte` markup comment: the one comment form the blanking did not know.
+	// Miss-analysis: every strip case was TypeScript source, never a `.svelte` markup comment.
 	it('blanks a markup comment, so a census cannot count the site inside one', () => {
 		const markup = '<!-- <BlockHost path={[]} /> -->\n<BlockHost path={[]} />';
 		const code = stripComments(markup);

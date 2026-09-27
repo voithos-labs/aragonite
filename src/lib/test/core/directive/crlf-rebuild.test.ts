@@ -37,8 +37,7 @@ describe('directive rebuild preserves CRLF chrome line endings', () => {
 		expect(node.raw).toBe(':::custom\nedited\n:::\n');
 	});
 
-	// Each fence line keeps its own ending: a `closerNewline` that records only presence
-	// re-emits the closer with the opener's ending.
+	// Each fence line keeps its own ending, so the closer is not re-emitted with the opener's.
 	it("keeps the closer's own ending when it differs from the opener", () => {
 		const node = parse(':::custom\nbody\n:::\r\n').children[0];
 

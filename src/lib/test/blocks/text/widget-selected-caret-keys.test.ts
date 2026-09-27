@@ -1,8 +1,6 @@
 // @vitest-environment jsdom
-//
-// Miss-analysis: every selected-widget key case here was a modifier chord or an edit key, and
-// the e2e arrow specs stepped past an image with a caret beside it, never from a selected one,
-// so the catch-all consume at the end ate the vertical arrows, Home, End and the page keys.
+// A selected widget leaves vertical arrows, Home, End and the page keys to the shared caret move.
+// Miss-analysis: key cases were chords or edit keys, and e2e never stepped from a selected image.
 import { describe, it, expect } from 'vitest';
 import { harness } from './widget-selected-fixture';
 

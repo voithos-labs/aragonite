@@ -141,8 +141,8 @@ describe('reorder action: plugin (opaque) container declines', () => {
 		__resetSchemaRegistriesForTests();
 	});
 
-	// The cause of the whole-alert move: a resolver that does not decline hands back the
-	// container's document index, so a body-leaf gesture permutes the top-level array instead.
+	// A resolver that does not decline hands back the container's document index, so a body-leaf
+	// gesture would permute the top-level array instead.
 	function makeDeclineHarness() {
 		const { container: containerKind, chrome: chromeKind } = testChromeContainer(
 			'spec-container',

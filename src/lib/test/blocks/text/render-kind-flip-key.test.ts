@@ -30,8 +30,8 @@ describe('text-render key across a prose→non-prose flip', () => {
 });
 
 describe('text-render key across a prose→prose flip', () => {
-	// Both kinds render through the same prose branch, so the key's early return is the only thing
-	// between them, and a registry gaining an opener for bytes already in the document makes this.
+	// Both kinds render through the same prose branch, so only the key tells them apart; a registry
+	// gaining an opener for bytes already in the document makes the same change.
 	it('rebuilds when the kind changes under an unchanged raw', () => {
 		const heading = blockNode('# a\n');
 		expect(heading.kind).toBe('heading');

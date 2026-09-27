@@ -1,5 +1,4 @@
-// Miss-analysis: every table fixture ended in a line break, so no test saw the table rebuild
-// give the document's last line an ending it never had.
+// Miss-analysis: every table fixture ended in a line break, so no rebuild met an open last line.
 import { describe, it, expect } from 'vitest';
 import { serialize } from '$lib/core/serializer';
 import { makeHarness, runOp, type Op } from '$lib/test/undo/restoration-ops';

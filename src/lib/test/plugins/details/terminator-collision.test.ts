@@ -74,9 +74,8 @@ describe('details terminator collision through the real commit path', () => {
 		expect(checkOpaqueStaleRaw(h.deps.doc.children[0], fixtureGrammar)).toBeNull();
 	});
 
-	// The open tag is the same collision from the other side: unescaped it inflates
-	// the opener's depth counter, so the scan finds no matching close and the
-	// details kind disappears entirely on reload.
+	// The open tag is the same collision from the other side: unescaped it inflates the opener's
+	// depth count, so the scan finds no close and the details kind vanishes on reload.
 	it('escapes a body child that becomes the open tag', async () => {
 		const h = mountDetails(OPEN_DETAILS);
 		await h.bundle.blockEdit.updateBlockContent(1, '<details>\n', 'authored', 0);
@@ -95,9 +94,8 @@ describe('details terminator collision through the real commit path', () => {
 		expect(serialize(parse(bytes))).toBe(bytes);
 	});
 
-	// The fence-bearing sibling: a fenced body line reproducing the tag is content
-	// the container's own scan already skips, so the escape must decline. Escaping
-	// here would corrupt the code's text: entities do not decode inside a fence.
+	// A fenced body line reproducing the tag is content the container's scan already skips, and
+	// entities do not decode inside a fence, so escaping it would corrupt the code's text.
 	it('declines to escape a close tag inside a fenced code body', async () => {
 		const h = mountDetails(OPEN_DETAILS);
 		await h.bundle.blockEdit.updateBlockContent(1, '```\n</details>\n```\n', 'authored', 0);
@@ -106,9 +104,8 @@ describe('details terminator collision through the real commit path', () => {
 		expect(checkOpaqueStaleRaw(h.deps.doc.children[0], fixtureGrammar)).toBeNull();
 	});
 
-	// What closes the element is raw-HTML passthrough, looser than the container's own
-	// recognizer: each of these reloads intact here yet closes the element on GitHub, so
-	// the escape follows the spec's tag-line shape, not this recognizer's.
+	// Raw-HTML passthrough closes the element more loosely than the container's recognizer:
+	// each of these reloads intact here yet closes it on GitHub, so the escape follows the spec.
 	const passthroughVariants = [
 		[' </details>', ' &lt;/details>'],
 		['   </details>', '   &lt;/details>'],
@@ -202,9 +199,8 @@ describe('details terminator escape caret image', () => {
 		}
 	});
 
-	// `</details` with no `>` yet is already a type-6 line, and a browser left holding it
-	// swallows what follows. Escaping from that keystroke on also keeps the block from
-	// flipping through htmlBlock, so no state along the way changes the kind.
+	// `</details` with no `>` is already a type-6 line that swallows what follows in a browser;
+	// escaping from that keystroke on also keeps the kind from passing through htmlBlock.
 	it('escapes from the first keystroke the spec would pass through, never oscillating', async () => {
 		const h = mountDetails(OPEN_DETAILS);
 		const typed = '</details>';

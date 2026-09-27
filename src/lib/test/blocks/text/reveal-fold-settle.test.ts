@@ -1,5 +1,4 @@
 // @vitest-environment jsdom
-//
 // A block command hides a shown source before it writes, and must not act until that write has
 // landed. A commit that changes the block's kind takes the structural path, whose completion is
 // a promise rather than a fixed number of ticks, so waiting one tick instead would leave the

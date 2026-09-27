@@ -1,10 +1,8 @@
 /**
- * An `input` edit event means "this commit held the block's kind": a premise the LRD
- * signature-epoch gate (`components/lrd-map-gate.ts`) reads and cannot verify, since it
- * runs post-commit. It holds only while exactly one site emits `input`. Both declaration
- * shapes are scanned, so emitter N+1 fails whichever it reaches for; an op kind assembled
- * from a variable has no literal to match, and `test/lrd-map-gate.test.ts` is the
- * outcome-level belt for that.
+ * An `input` edit event means "this commit held the block's kind", a premise the LRD signature
+ * check (`components/lrd-map-gate.ts`) reads but cannot verify after the commit, so exactly one
+ * site may emit `input`. An op kind built from a variable has no literal to match; the outcome
+ * test `test/lrd-map-gate.test.ts` covers that case.
  */
 
 import { describe, it, expect } from 'vitest';

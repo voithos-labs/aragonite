@@ -86,9 +86,8 @@ describe('mermaid engine adapter', () => {
 		expect(engine.initialize).toHaveBeenCalledTimes(3);
 	});
 
-	// `initialize` replaces the whole config rather than patching it, so a change that sent
-	// only `{ theme }` would drop suppressErrorRendering and mermaid would inject its own
-	// error SVG instead of rejecting.
+	// `initialize` replaces the whole config, so sending only `{ theme }` would drop
+	// suppressErrorRendering and mermaid would inject its own error SVG instead of rejecting.
 	it('re-sends the whole base config on every initialize', async () => {
 		const render = await freshAdapter();
 		await render('a', 'id-1', { theme: 'dark' });

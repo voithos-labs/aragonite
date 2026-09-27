@@ -4,9 +4,9 @@ import { classifyBlockForSelection, normalize, walkBetween } from '../../selecti
 import { comparePaths, pathsEqual } from '../../selection/path-math';
 import { allBlockPaths, arbDocWithSelection, freshOrFixedSeed } from './arbitraries';
 
-// G2.7: the two cross-block selection primitives must cohere: walkBetween's output is
-// exactly the blocks classifyBlockForSelection calls 'middle', duplicate-free and in
-// document order. Endpoints come from real block paths, so classification is never vacuous.
+// The two cross-block selection primitives must cohere (G2.7): walkBetween's output is exactly
+// the blocks classifyBlockForSelection calls 'middle', duplicate-free and in document order.
+// Endpoints come from real block paths, so classification is never vacuous.
 
 const PARAMS = { numRuns: 1000, seed: freshOrFixedSeed(424242) } as const;
 

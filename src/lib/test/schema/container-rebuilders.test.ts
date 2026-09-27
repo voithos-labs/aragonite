@@ -56,10 +56,8 @@ describe('rebuildListRaw', () => {
 	});
 });
 
-// GH #76: both kinds open their body on the container's own first line, so `innerPrefix` is
-// pinned empty, and using it emitted an opener line no parse produces ('- item' rebuilding to
-// '- \n  item'). Miss-analysis: every rebuilder case built its node with that field already
-// empty, so the branch reading it was reachable only from a hand-built node no test wrote.
+// Both kinds open their body on the container's own first line, so a rebuild ignores `innerPrefix`.
+// Miss-analysis: GH #76; every rebuilder case built its node with `innerPrefix` already empty.
 describe('the wrap-less rebuilders ignore innerPrefix', () => {
 	it.each([
 		['blockquote', '> quoted\n', (n: CstNode) => rebuildBlockquoteRaw(n)],

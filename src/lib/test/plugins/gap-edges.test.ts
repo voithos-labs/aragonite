@@ -1,7 +1,7 @@
 // The bundled plugin kinds' `gapEdges` declarations, read through the eligibility check
 // rather than off the descriptor: what a declaration is for is the boundary it opens, and
 // asserting the field would survive the check forgetting to consult it. Deleting any bundled
-// declaration fails a row here; the strip rows pin the kinds that stay undeclared (#93).
+// declaration fails a row here; the strip rows pin the kinds that stay undeclared.
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { registerBuiltInBlocks } from '$lib/components/built-in-blocks';
@@ -82,9 +82,8 @@ describe('gapEdges declarations of the bundled plugin kinds', () => {
 		expect(eligibleBetween('prose\n', TABLE)).toBe(false);
 	});
 
-	// The toc is a render-primary block like the math forms, and its rendered view gives the
-	// caret nowhere to sit at either edge. Miss-analysis: the declared set was pinned kind by
-	// kind, so a kind that never declared had no row to fail and an omission looked deliberate.
+	// The toc's rendered view gives the caret nowhere to sit at either edge, like the math forms.
+	// Miss-analysis: the declared set was pinned kind by kind, so an undeclared kind had no row.
 	it('opens the toc boundary against another trapped kind in either order', () => {
 		expect(eligibleBetween(MATH_BLOCK, TOC)).toBe(true);
 		expect(eligibleBetween(TOC, MATH_BLOCK)).toBe(true);

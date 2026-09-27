@@ -1,8 +1,7 @@
 // @vitest-environment jsdom
-//
 // A gesture's undo entry stays open until its own editor's author types, whatever happens
-// elsewhere on the page (#520). Miss-analysis: the step-end suites drove the controller alone,
-// and no mounted test ever put a second editor beside the first.
+// elsewhere on the page.
+// Miss-analysis (GH #520): no mounted test put a second editor beside the first.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import type { UndoEntry } from '$lib/undo/types';
 import {

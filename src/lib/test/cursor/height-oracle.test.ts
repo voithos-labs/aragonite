@@ -76,9 +76,8 @@ describe('createHeightOracle', () => {
 		expect(o.estimate(row, 800)).toBe(24 * 1 + 16);
 	});
 
-	// Containers estimate from their child count: at least one line plus margins per child, and
-	// at least the wrapped length of the whole raw; going by the raw alone undercounts a container
-	// with several children.
+	// A container estimates at least one line plus margins per child, and at least the wrapped
+	// length of its whole raw, which alone undercounts a container with several children.
 	it('estimates a child-less container by its blob-wrap (no children term)', () => {
 		const o = createHeightOracle(opts);
 		const quote: CstNode = {
@@ -146,9 +145,8 @@ describe('createHeightOracle', () => {
 		expect(o.estimate(hr, 200)).toBe(24 + 16);
 	});
 
-	// A rendered image is far taller than its `![alt](url)` source, so the character-based
-	// estimate puts an image-only paragraph at about one line; the floor keeps windowing and the
-	// spacers honest.
+	// A rendered image is far taller than its `![alt](url)` source, so an image-only paragraph gets
+	// a floor instead of the one-line character estimate.
 	it('floors an image-bearing paragraph at imageBlockMinHeight', () => {
 		const o = createHeightOracle(opts);
 		const img: CstNode = { kind: 'paragraph', leadingTrivia: '', raw: '![A photo|400](pic.png)' };
@@ -235,9 +233,8 @@ describe('createHeightOracle', () => {
 		expect(o.estimate(open, 800)).toBe(20 * 24 + 16);
 	});
 
-	// A descriptor's own O(1) estimate replaces the character-based default (a rendered diagram
-	// or embed dwarfs its source text). The block's margins are still added, and a measured height
-	// still wins.
+	// A descriptor's own estimate replaces the character-based default (a diagram dwarfs its
+	// source); the block's margins are still added, and a measured height still wins.
 	it('a descriptor estimateHeight wins over the default branch, plus block chrome', () => {
 		const o = createHeightOracle(opts);
 		const estimated = testLeaf('oracle-estimate-height', {

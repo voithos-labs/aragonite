@@ -4,8 +4,7 @@ import type { BlockComponent } from '$lib/block-component';
 import { makeCommitScopeStub, stubBlockComponent } from '$lib/test/harness/editor-actions';
 
 // After a write, the caret goes to its target block only once that block is mounted.
-// Miss-analysis: every caret test mounted all its refs up front, so a caret placement that never
-// waited for a mount could not fail; a join into a long list's last item lost the caret.
+// Miss-analysis: every caret test mounted its refs up front, so none waited for a mount.
 
 interface FocusCall {
 	path?: number[];

@@ -1,10 +1,7 @@
 // @vitest-environment jsdom
-//
-// `commitReveal`'s undo and caret rules, driven through the real createWidgetInteraction over a
-// mounted math-widget DOM: above the primitive (cursor/reveal-source.test.ts) and below the e2e
-// undo stack (plugins/latex-inline.spec.ts). Three failures it catches: a commit that changes
-// nothing pushing a useless undo entry, a caret taken from the widget's stale end after a commit,
-// and the cross-block rule moving out of the blur caller into the commit itself.
+// `commitReveal`'s undo and caret rules through the real `createWidgetInteraction` over a mounted
+// math widget. It catches a commit that changes nothing pushing an undo entry, a caret taken from
+// the widget's stale end, and the cross-block rule moving from the blur caller into the commit.
 import { recordingWrite } from '$lib/test/harness/editor-actions';
 import { withStoredCaret } from '$lib/editor-actions/stored-caret';
 import { describe, it, expect } from 'vitest';
@@ -16,9 +13,8 @@ import { settleEditor } from '$lib/test/harness/settle';
 
 installMathInline();
 
-// A paragraph "Before $x^2$ after" mounted as TextEditableBlock renders it: the
-// math is one atomic [data-inline-widget] element between two real text nodes. The write hands
-// back its caret moved by `shift`, as a kind's rule inserting bytes ahead of it would.
+// "Before $x^2$ after" as TextEditableBlock renders it, math between two text nodes. The write
+// hands back its caret moved by `shift`, as a kind's rule inserting bytes ahead of it would.
 function mountMathBlock(shift = 0) {
 	const { el, node, inlineWidgets } = mountWidgetBlock('Before $x^2$ after', MATH_INLINE);
 	const math = inlineWidgets[0];

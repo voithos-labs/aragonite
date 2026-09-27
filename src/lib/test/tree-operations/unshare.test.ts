@@ -108,8 +108,8 @@ it('ensureUnsharedChild treats an out-of-range index the same before and after a
 	expect(takeDevWarns().map((w) => w.tag)).toEqual(['invariant:unshare-path-in-range']);
 });
 
-// G1.22 is the one axis separating the two copy-on-write walks: the strict path flags an
-// off-the-end index, the tolerant rebuild swallows it (a delete leaves short paths behind).
+// The strict copy-on-write walk flags an off-the-end index and the tolerant rebuild swallows it,
+// since a delete leaves short paths behind (G1.22).
 it('fires G1.22 only on the strict unshare path, never on the tolerant rebuild', () => {
 	const strict = sharedDoc('para\n');
 	ensureUnsharedPath(strict.doc, [5], strict.sharing);

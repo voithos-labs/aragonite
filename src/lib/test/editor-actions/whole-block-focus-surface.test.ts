@@ -74,10 +74,7 @@ describe('composeWholeBlockFocusSurface', () => {
 	});
 });
 
-// Miss-analysis: the one-tab-stop rule was prose beside the proxy's `tabIndex = 0`, and the
-// only case that measured a tab order drove the built-in separator, which already declares
-// -1 in its markup. Nothing read a supplied element's tabindex, so the two kinds that
-// declare 0 (mermaid's five render states, the container fixture) passed every test.
+// Miss-analysis: the one tab-order case drove the separator, whose markup already declares -1.
 describe('the declared surface leaves the tab order', () => {
 	function surfaceOver(getDeclared: () => HTMLElement | null) {
 		return composeWholeBlockFocusSurface(
@@ -156,8 +153,8 @@ describe('container shim through a composed fallback surface', () => {
 		expect(boxEl.getAttribute('tabindex')).toBe('0');
 	});
 
-	// An empty diagram declares its edit textarea as the focus element: already in the tab
-	// order, so setting -1 took it out. The check above guarded only an explicit tabindex.
+	// An empty diagram declares its edit textarea as the focus element, already in the tab order,
+	// so focus() must not set -1 on it.
 	it('focus() leaves an already-focusable surface’s tab order alone', () => {
 		const boxEl = box();
 		const textarea = document.createElement('textarea');

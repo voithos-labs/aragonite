@@ -87,8 +87,8 @@ describe('flushPendingRegistrationChecks', () => {
 	});
 
 	it('reports an opener registered pre-flush after an editorless grammar read', () => {
-		// A `parse()` with no editor marks the grammar used without running the checks (nothing is
-		// pending), so `didFirstFlush` stays false, which is the gap G1.17 covers.
+		// A `parse()` with no editor marks the grammar used without running the checks, so
+		// `didFirstFlush` stays false and a late opener must still warn (G1.17).
 		getOrderedOpeners();
 		const kind = declarePluginKind('pre-flush-late');
 		registerBlockKind(kind, leaf);
@@ -240,9 +240,8 @@ describe('keymap coherence at the incremental flush', () => {
 	});
 });
 
-// A leaf declaring reservedChrome is unrepresentable through the registration shape, so
-// only chrome-kind gaps are constructible here; the not-container branch is covered by
-// direct call in test/invariants/reserved-chrome-coherence.test.ts.
+// The registration shape cannot express a leaf declaring `reservedChrome`, so only a missing
+// `chromeKind` part can be built here; the invariant's own suite calls the leaf case directly.
 describe('reservedChrome coherence at the flush', () => {
 	it('flags a chrome kind with no registered component (first-flush sweep)', () => {
 		const title = declarePluginKind('rc-descriptor-only');
@@ -260,12 +259,12 @@ describe('reservedChrome coherence at the flush', () => {
 	});
 });
 
-// The predicate is unit-tested in test/invariants/closure-coherence.test.ts; this pins the
-// G1.24 wiring, which every predicate test would stay green without.
+// The predicate is unit-tested in test/invariants/closure-coherence.test.ts; these cases check
+// that the flush actually runs it (G1.24).
 describe('closure coherence at the flush', () => {
 	it('flags a registered kind whose closure is incoherent with its descriptor', () => {
 		const kind = declarePluginKind('incoherent-closure');
-		// not-mergeable + mergeBackspace inherit-default → G1.24 rule (b).
+		// A not-mergeable kind has no default merge for `mergeBackspace` to inherit (G1.24).
 		registerBlockKind(kind, {
 			...leaf,
 			closure: { ...testClosure, mergeBackspace: { mode: 'inherit-default' } }
@@ -282,7 +281,7 @@ describe('closure coherence at the flush', () => {
 });
 
 // The predicate is unit-tested in test/invariants/descriptor-field-coherence.test.ts; the
-// opener arm is the one the flush alone can supply, since no descriptor field records it.
+// opener check is the one the flush alone can supply, since no descriptor field records it.
 describe('descriptor field coherence at the flush', () => {
 	it('flags a context-dependent kind that also registers an opener', () => {
 		const kind = declarePluginKind('ctx-dependent-opener');

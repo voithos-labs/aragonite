@@ -1,9 +1,6 @@
 // @vitest-environment jsdom
-//
-// Where a composed run is placed, at the wiring level: what a `compositionend` commit writes
-// in each presentation mode. Miss-analysis: that mode check lived only at the keydown
-// dispatch; no composition-path test ever ran outside live mode, so the ungated sibling
-// moved bytes a source-mode user had placed beside a visible delimiter.
+// Where a composed run is placed: what a `compositionend` commit writes in each presentation mode.
+// Miss-analysis: no composition test ran outside live mode, so only keydown checked the mode.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { parseInline } from '$lib/core/inline';
@@ -56,7 +53,7 @@ function makeSeatHarness(source: string, affinity: EdgeAffinity | null): SeatHar
 	const surface = makeSurface(undefined, (after, composedAt) => seat.relocate(after, composedAt));
 	surface.el.textContent = source;
 
-	// Browser order as the block wires it: capture first, then the block's own start half.
+	// Browser order as the block wires it: the caret capture first, then the block's own start.
 	const compose = (domAfter: string, caretAt: number): void => {
 		surface.setCaret(caretAt);
 		seat.noteStart();
@@ -87,8 +84,8 @@ describe('the composition caret position is gated on the mode, like its keydown 
 });
 
 describe('a composition over a selection takes the join', () => {
-	// Same fixture as live-selection-edit: selecting [9,21) crosses `**`'s closer and `*`'s
-	// opener, so the literal replace strands both runs on screen.
+	// Selecting [9,21) crosses `**`'s closer and `*`'s opener, so a literal replace leaves both
+	// marker runs unpaired on screen.
 	const MIXED = 'Some **bold** and *italic* words';
 
 	it('live mode cleans the stranded runs and lands the run at the cleaned join', () => {

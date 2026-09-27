@@ -1,8 +1,7 @@
 /**
- * The shared per-call scan. A rule names the callees whose call sites it binds and a predicate
- * every call's argument text must satisfy; `describeCallSiteRules` runs a table of rules over one
- * source collection. A call whose parens never close is a violation: the scan could not read it.
- * An allowlist names a function, not a line, so an edit above the site leaves the entry valid.
+ * The shared per-call scan: a rule names the callees it binds and a predicate every call's
+ * argument text must satisfy, and `describeCallSiteRules` runs a table of rules over one source
+ * collection. A call whose parens never close is a violation, since the scan could not read it.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -18,8 +17,8 @@ export interface CallSiteRule {
 	calls: readonly string[];
 	/** True when the call's argument text satisfies the rule. */
 	holds: (args: string, callee: string) => boolean;
-	/** Functions whose calls may fail, keyed `relPath :: function`, each with its reason; a key
-	 *  with no failing call left fails. */
+	/** Functions whose calls may fail, keyed `relPath :: function` so an edit above the site keeps
+	 *  the key valid, each with its reason; a key with no failing call left fails. */
 	allowed?: Record<string, string>;
 	/** What a violation means, printed with the offending calls. */
 	reason: string;

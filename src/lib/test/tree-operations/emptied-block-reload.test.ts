@@ -10,12 +10,9 @@ import type { Document } from '$lib/core/nodes';
 import { fixtureReading } from '../harness/fixture-grammar';
 import { defaultGrammarView } from '$lib/schema/block-openers';
 
-// The reverse of the typed-blank-line cases (`typed-blank-lines-reload.test.ts`): a block that
-// becomes blank joins the blank run around it, and a run carries exactly the one separating line
-// its reload produces. Two of them reload as an empty paragraph nobody typed; none merges the
-// run's head into the block above.
-// Miss-analysis: every blank-line case drove the fill direction (a blank block gaining content),
-// so nothing emptied a block, and `updateNodeContent` fixed up one direction of the transition.
+// A block that turns blank joins the blank run around it, and the run carries exactly the one
+// separating line its reload produces; the reverse of `typed-blank-lines-reload.test.ts`.
+// Miss-analysis: every blank-line case drove the fill direction, so no case emptied a block.
 
 /** The gesture: `TextEditableBlock.commitInput` sends `text + trailingLineEnding(raw, '\n')`, so an
  *  emptied block sends the line ending alone. */
@@ -92,10 +89,8 @@ describe('emptying a block settles the run it joins', () => {
 	});
 });
 
-// A fence terminates itself, so the paragraph under it carries no separator, and once that
-// paragraph is blank, the run holds none and the reload swallows the block instead of doubling it.
-// Miss-analysis: the class was filed as doubling, and a doubling-only fix reads the same red as
-// green here; only a check over the run's whole line count sees both signs.
+// A fence ends itself, so once the paragraph under it is blank, the fix-up creates its separator.
+// Miss-analysis: the class was filed as doubling, so no case checked a run left one line short.
 describe('emptying a block the run above cannot separate from', () => {
 	it('creates the separator a self-terminating predecessor never had to supply', () => {
 		const doc = parse('```\nc\n```\nx\n');
@@ -105,9 +100,8 @@ describe('emptying a block the run above cannot separate from', () => {
 		expectReloadsAsItStands(doc, '```\nc\n```\n\n\n');
 	});
 
-	// The run's one line already stands, on the follower rather than the run head. Both
-	// placements are the same bytes and reload alike, so the fix-up leaves it where it is
-	// instead of moving it, hence bytes and convergence here, not a layout match.
+	// The run's one line already sits on the follower, the same bytes as on the run head, so the
+	// fix-up leaves it there, and the check is bytes and convergence, not a layout match.
 	it('leaves the line the follower already holds alone', () => {
 		const doc = parse('```\nc\n```\nx\n\nb\n');
 
@@ -138,12 +132,8 @@ describe('emptying a block that must supply nothing', () => {
 	});
 });
 
-// Indentation alone delimits indented code, so a block turning blank puts bytes back to back that
-// re-read as fewer blocks: the join `deleteNode` has always merged, and the content write must
-// too. G2.13's `empty` branch sat behind a `holdsIndentedCode` precondition for exactly these
-// shapes. Miss-analysis: the property branch excluded them by precondition, and its fixed seed
-// does not draw the shape even with the precondition off, so it could not have failed on this
-// class either way, and the deterministic cases are what actually guard the write.
+// A block turning blank beside indented code can join bytes that reread as fewer blocks.
+// Miss-analysis: the shape property excluded these by precondition, and its seed never drew them.
 describe('emptying a block beside indentation-delimited content', () => {
 	it('absorbs the join the two neighbours now make', () => {
 		const doc = parse('**b**\n\n    code\n\n\n**b**\n\n    code\n\n> q\n');

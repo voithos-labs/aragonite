@@ -19,9 +19,8 @@ describe('toc is dormant until registered', () => {
 	});
 });
 
-// Grammar: the opener takes only the exact line `[[toc]]`. Indentation or trailing content
-// falls through to a paragraph, and that strictness is what keeps this opener out of the way
-// in every other plugin's documents.
+// The opener takes only the exact line `[[toc]]`; indentation or trailing content stays a
+// paragraph, which keeps the opener out of every other plugin's documents.
 describe('toc recognition', () => {
 	beforeEach(registerTocBlock);
 
@@ -59,9 +58,8 @@ describe('toc recognition', () => {
 	});
 });
 
-// The round trip is the guarantee that matters: serialize re-emits `leadingTrivia + raw`, so
-// a `raw` taken verbatim from the consumed line round-trips byte for byte. The declined rows
-// prove the shapes it does not take keep their bytes too.
+// Serialize re-emits `leadingTrivia + raw`, so a `raw` taken verbatim from the line round-trips;
+// the declined rows prove the shapes the opener does not take keep their bytes too.
 describe('toc round-trip', () => {
 	beforeEach(registerTocBlock);
 

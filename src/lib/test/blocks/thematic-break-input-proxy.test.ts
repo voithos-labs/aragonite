@@ -1,11 +1,7 @@
 // @vitest-environment jsdom
-//
-// Regression pin for #144: a printable that arrives as `beforeinput` rather than a plain keydown
-// such as an AltGr production or an IME commit, was dropped whole at a whole-block-focused kind,
-// focused element was a bare `tabindex=0` div with no editing host under it.
-//
-// Miss-analysis: `whole-block-keys.test.ts` pinned every branch of the keydown tail, and the tail
-// is the whole insertion, and no test asked whether the other input path existed at all.
+// A printable that arrives as `beforeinput` with no keydown behind it (an AltGr production, an
+// IME commit) reaches a whole-block-focused kind through the editing host under its focus.
+// Miss-analysis: every test went through keydown; none sent a bare `beforeinput` (GH #144).
 import { describe, it, expect, afterEach } from 'vitest';
 import { BREAK_INDEX as INDEX, mountBreak, type MountedBreak } from './mount-break';
 

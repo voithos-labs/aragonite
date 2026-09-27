@@ -1,10 +1,8 @@
 // @vitest-environment jsdom
-//
-// The two branches that run while cross-block mode is not yet active, plus the compositionstart
-// half the same factory returns. Ctrl+A escalates over two presses keyed off a count on
-// `SelectionState`, so a press that forgot to increment leaves it stuck at one block.
-// compositionstart has no beforeinput to wait for: an active range must be deleted synchronously
-// or composed text lands on a stale one.
+// The two branches that run while cross-block mode is not yet active, plus compositionstart.
+// Ctrl+A escalates over two presses counted on `SelectionState`, so a press that forgot to count
+// leaves it stuck at one block; compositionstart has no beforeinput to wait for, so an active range
+// must be deleted synchronously or composed text lands on a stale one.
 import { describe, it, expect } from 'vitest';
 import { asEditorX } from '$lib/cursor/coordinate-spaces';
 import { makeKeydownEnv, press } from './keydown-env';
@@ -82,9 +80,8 @@ describe('cross-block keydown: compositionstart', () => {
 		expect(env.selection.isCrossBlock).toBe(true);
 	});
 
-	// Both transient caret states reset unconditionally, before the range check: a composition is
-	// an edit, so neither a column captured by an earlier vertical arrow nor the side an earlier
-	// caret placement recorded may survive it.
+	// Both transient caret states reset before the range check: a composition is an edit, so no
+	// column from an earlier vertical arrow and no side an earlier placement recorded survives it.
 	it('forgets the column, the side and the marks even when it declines', () => {
 		const env = makeKeydownEnv(SOURCE);
 		env.caretMemory.captureColumn(asEditorX(600));

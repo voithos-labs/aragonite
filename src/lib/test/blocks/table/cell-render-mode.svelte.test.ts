@@ -1,6 +1,5 @@
 // @vitest-environment jsdom
-// Miss-analysis: the cell render was tested against raw, references and decorations but never
-// against the mode, so nothing asked whether it carried the same inputs a prose block does.
+// Miss-analysis: the cell render was tested against raw, references and decorations, never mode.
 import { afterEach, describe, it, expect } from 'vitest';
 import { flushSync } from 'svelte';
 import { createCellRender, type CellRender } from '$lib/components/blocks/table/cell-render';
@@ -15,7 +14,7 @@ import { fixtureReading } from '$lib/test/harness/fixture-grammar';
 
 const WIDGET_SOURCE = '%%w%%';
 
-/** A `%%…%%` inline handler whose widget component renders the two live values. */
+/** A `%%…%%` inline handler whose widget renders the presentation mode and theme. */
 function registerModeWidget(): void {
 	const kind = declarePluginInlineKind('modeReadingWidget');
 	registerInlineSyntax('%', (raw, pos, end) => {
@@ -37,8 +36,8 @@ afterEach(() => {
 function mountCell(raw: string) {
 	const el = document.createElement('div');
 	const node: CstNode = { kind: 'tableCell', leadingTrivia: '', raw };
-	// $state, because production reads both terms off reactive editor policy: a plain
-	// variable would let a widget's `$derived` cache the first value and pass anyway.
+	// Production reads mode and theme off reactive editor policy; a plain variable would let a
+	// widget's `$derived` cache the first value and pass anyway.
 	let mode = $state<PresentationMode>('source');
 	let theme = $state('light');
 	const render = createCellRender({
@@ -79,7 +78,7 @@ describe('cell-render presentation-mode key segment', () => {
 
 		cell.setMode('reading');
 		cell.render.render();
-		// The key gained its mode segment, so the DOM rebuilt; hiding stays CSS-only.
+		// The mode is part of the render key, so the DOM rebuilt; the hiding itself is CSS.
 		expect(cell.el.firstChild).not.toBe(before);
 		expect(cell.el.textContent).toBe('*x*');
 	});
@@ -90,7 +89,7 @@ describe('cell-render presentation-mode key segment', () => {
 		cell.render.render();
 		const first = cell.el.firstChild;
 		cell.render.render();
-		// The keystroke path pays for the term only when the mode actually moves.
+		// A keystroke's render rebuilds for the mode only when the mode actually changes.
 		expect(cell.el.firstChild).toBe(first);
 	});
 });

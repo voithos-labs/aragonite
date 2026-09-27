@@ -11,12 +11,8 @@ import {
 	pasteContext
 } from '$lib/test/harness/editor-actions';
 
-// The structural counterpart of `inline-join-upper-absorb`: the fix-up merges the paste's
-// window, so the precomputed block index and its `CURSOR_END` both stop naming the end of the
-// pasted bytes; the residue the merge reattached sits behind them.
-// Miss-analysis: the structural-paste caret suites pin the block index and the resulting bytes,
-// never the offset inside the landed block, so `CURSOR_END`'s meaning changing under the fix-up
-// was unobservable; no fixture put the target's residue where the last pasted block absorbs it.
+// The fix-up can merge pasted blocks into neighbours, so the caret follows bytes, not an index.
+// Miss-analysis: the structural-paste caret tests checked the block index, never the offset in it.
 
 async function pasteAt(source: string, pastedText: string, targetPath: number[], offset: number) {
 	const { deps } = makeEditorActionsDeps(parse(source));
@@ -57,7 +53,7 @@ describe('structural paste landing after the splice settle folds', () => {
 		expect(landCaret).toHaveBeenCalledWith([2], 'two'.length);
 	});
 
-	// The merged head is a container here, so the pasted bytes end inside one of its leaves (GH #193).
+	// The merged head is a container here, so the pasted bytes end inside one of its leaves.
 	it('lands inside the container leaf that absorbed the residue', async () => {
 		const { doc, landCaret } = await pasteAt('helloworld\n', '- item', [0], 5);
 
@@ -65,7 +61,7 @@ describe('structural paste landing after the splice settle folds', () => {
 		expect(landCaret).toHaveBeenCalledWith([1, 0, 0], 'item'.length);
 	});
 
-	// The quote takes the line after the caret in lazily (GH #447).
+	// The quote takes the line after the caret in lazily.
 	it('lands after the pasted quote text, not after the line it absorbed', async () => {
 		const { doc, landCaret } = await pasteAt('abc\nAfter\n', '> q', [0], 3);
 

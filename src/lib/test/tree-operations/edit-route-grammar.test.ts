@@ -1,6 +1,5 @@
-// Miss-analysis: the split moved to the editor grammar with a pin of its own, and no case asked
-// the merge, reorder, completion or range delete routes to reparse in anything but the global
-// grammar, so each could still make a kind the editor had switched off (GH #429).
+// Every edit route that reparses reads the editor's grammar, so none makes a kind it switched off.
+// Miss-analysis: GH #429, only the split was ever tested against the editor's grammar.
 
 import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';

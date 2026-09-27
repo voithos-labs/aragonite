@@ -11,11 +11,8 @@ const CRLF_WRITE = { lineEnding: '\r\n' } as const;
 const literalWrite = (raw: string, node: CstNode, write: typeof LF_WRITE | typeof CRLF_WRITE) =>
 	fencedCodeWrite.normalize(raw, { node, mode: 'literal', lineEnding: write.lineEnding });
 
-// The mirror image at the same entry point: a write that took the block's own opener leaves the
-// closer behind as a run nothing claims, and that run opens a fence over the real blocks below
-// (issue #58). Miss-analysis: the #55 tests drove writes that keep the opener and lose the closer,
-// the only shape a truncation from the start makes; nothing drove a cut at the end, so the rule's
-// decline looked correct instead of like half a rule.
+// A write that took the opener leaves the closer as an unowned run that fences the blocks below.
+// Miss-analysis: GH #58; every truncation test kept the opener, so none left a closer behind.
 
 const codeNode = (source: string): CstNode => parse(source).children[0];
 
@@ -48,14 +45,14 @@ describe('the fence rule as a literal write: the stranded closer', () => {
 		expect(literalWrite('~~~~~\n', tilde, LF_WRITE)).toBe('\n');
 	});
 
-	// Reads both as this fence's closer and as a bare opener; the block it would open is one
-	// nothing claims, so the closer reading wins and the run goes.
+	// The line reads both as this fence's closer and as a bare opener; no block owns what it would
+	// open, so the closer reading wins and the run goes.
 	it('drops a lone closer line', () => {
 		const bare = codeNode('```\nbody\n```\n');
 		expect(literalWrite('```\n', bare, LF_WRITE)).toBe('\n');
 	});
 
-	// Only an open line that could close on the run (same marker, no longer) really closes it; an
+	// Only an open line that could close on the run (same marker, not longer) really closes it; an
 	// open line with a different marker is body text the run never closed.
 	it('drops it past a foreign-marker open line above', () => {
 		expect(literalWrite('~~~\nbody\n```\n', closed, LF_WRITE)).toBe('~~~\nbody\n');

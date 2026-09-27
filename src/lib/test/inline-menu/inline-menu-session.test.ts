@@ -55,7 +55,7 @@ describe('findOpening', () => {
 	});
 
 	it('finds nothing in a run that typed no trigger', () => {
-		// The `#` was already there: typing on after it is not a press of the trigger.
+		// The `#` was already there, so typing on after it does not type the trigger.
 		expect(findOpening([tag, link], 'see #a', 6, 5)).toBeNull();
 		expect(findOpening([tag, link], 'x', 1, 0)).toBeNull();
 	});
@@ -128,8 +128,7 @@ describe('sessionQuery', () => {
 	});
 });
 
-// Miss-analysis: the only position any test ever excluded was an inline code span, so the other
-// bytes a reader does not read as prose were never asked about at all.
+// Miss-analysis: the only non-prose position any test checked was an inline code span.
 describe('isProseOffset', () => {
 	/** Whether a trigger typed at the `|` in `raw` would be in prose. */
 	const at = (raw: string): boolean => {
@@ -166,8 +165,7 @@ describe('isProseOffset', () => {
 		expect(at('see <span data="a|b"> here')).toBe(false);
 	});
 
-	// Miss-analysis: every case used a built-in construct, and the list of kinds that are not prose
-	// named built-ins only, so a plugin widget's source never met the check.
+	// Miss-analysis: every case used a built-in construct, never a plugin widget's source.
 	describe('inside a plugin widget', () => {
 		beforeEach(() => {
 			__resetSchemaRegistriesForTests();
@@ -182,8 +180,7 @@ describe('isProseOffset', () => {
 	});
 });
 
-// Miss-analysis: every position case ran through the inline tree, which holds a link only once
-// the parser has closed one, so a destination the author was still typing was never asked about.
+// Miss-analysis: every case had a closed link, so no test typed into a destination with no `)`.
 describe('isUnclosedDestination', () => {
 	/** Whether a trigger typed at the `|` in `raw` sits in a destination with no `)` yet. */
 	const at = (raw: string): boolean =>

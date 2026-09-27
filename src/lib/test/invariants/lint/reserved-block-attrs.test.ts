@@ -1,10 +1,8 @@
 /**
- * G4.70: the `data-` names a block decoration may not set are exactly the ones the editor uses on a
- * decorated element (a block host, a list item's box, a table row or cell): set on its tag, looked
- * up through `closest()`, or read by a selector that could match it as an ancestor or as the element
- * styled. The scan derives that set and holds `RESERVED_BLOCK_ATTRS` to it both ways.
- * Miss-analysis: the reserved set was pinned against a copy of itself, so an attribute added later
- * (the kind cue's label) never had to be reserved and a decoration could paint it.
+ * The `data-` names a block decoration may not set are exactly the ones the editor uses on a
+ * decorated element (G4.70): set on its tag, looked up through `closest()`, or read by a selector
+ * that could match it. The scan derives that set and holds `RESERVED_BLOCK_ATTRS` to it both ways.
+ * Miss-analysis: the reserved set was pinned against a copy of itself, never the editor's usage.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -33,13 +31,8 @@ function stringConstants(files: readonly SourceFile[]): Map<string, string> {
 const resolve = (text: string, constants: ReadonlyMap<string, string>) =>
 	text.replace(/\$\{\s*([A-Z_]+)\s*\}/g, (whole, name: string) => constants.get(name) ?? whole);
 
-/**
- * The `data-` names a selector reads on an element that could be a decorated one. A compound
- * qualifies when its classes are all a decorated element's and its tag, if any, is a div. As an
- * ancestor it reads its names on whatever contains the match; as the styled element it must also
- * name something a decorated element carries (its class, `[contenteditable]`), since a bare
- * `[data-x]` there only finds an inner element that set the name itself.
- */
+/** The `data-` names a selector reads on an element that could be decorated; a bare `[data-x]` on
+ *  the styled element only finds an inner element that set the name itself, so it doesn't count. */
 export function namesReadOnDecorated(selector: string, decorated: ReadonlySet<string>): string[] {
 	let text = selector;
 	for (let prev = ''; prev !== text;) {

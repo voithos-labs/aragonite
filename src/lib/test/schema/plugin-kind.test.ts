@@ -14,8 +14,7 @@ describe('declarePluginKind', () => {
 		expect(() => declarePluginKind('tableRow')).toThrow(/built-in/);
 	});
 
-	// Miss-analysis: `RESERVED_KIND_NAMES` had no test at all, so its membership was pinned
-	// nowhere and a reserved name spelled differently elsewhere could never fail a gate.
+	// Miss-analysis: `RESERVED_KIND_NAMES` had no test, so its membership was pinned nowhere.
 	it('rejects the structural sentinels a live kind would shadow', () => {
 		expect(() => declarePluginKind('document')).toThrow(/reserved/);
 		expect(() => declarePluginKind('global')).toThrow(/reserved/);

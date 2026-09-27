@@ -15,11 +15,8 @@ import { describeConvergence } from '$lib/test/harness/parse-converged';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { ensurePasteSurface } from '$lib/test/support/paste-surface';
 
-// A block pasted or inserted with no line ending of its own took the next block's blank line as
-// its ending, and a block landed after a table's cell had no blank line before or after it, so
-// the reload read other blocks than the editor held (GH #415).
-// Miss-analysis: every structural paste pin ended its clipboard in a line ending, and no pin
-// landed blocks from a cell with a block or a table half after them.
+// Pasted or inserted blocks keep their own line ending and blank lines, even from a table cell.
+// Miss-analysis: GH #415, every paste test's clipboard ended in a line ending, none left a cell.
 
 const TABLE = '| a | b |\n| --- | --- |\n| c |  |\n';
 

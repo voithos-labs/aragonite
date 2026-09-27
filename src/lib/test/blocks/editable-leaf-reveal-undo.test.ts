@@ -1,8 +1,5 @@
 // @vitest-environment jsdom
-//
-// Miss-analysis: the reveal's own undo read Mod+Z off the keydown by hand, so nothing at this
-// level could ask what a host's rebind or disable does to it; the reserved-chords manifest was
-// the only thing that noticed, one layer away from the behaviour.
+// Miss-analysis: no test at the leaf rebound or disabled the undo chord a reveal answers.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { unmount } from 'svelte';
 import { resetPluginPlatformForTests } from '$lib/testing';

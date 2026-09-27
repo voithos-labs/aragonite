@@ -1,10 +1,8 @@
 // @vitest-environment jsdom
-//
 // Every destructive gesture a prose block can receive, at the point that decides whether it
-// reaches the join rules: the caret-edge branch declines a chorded key, so it arrives as
-// `beforeinput` at a collapsed caret whose target range is the whole word.
-// Miss-analysis: the join rules' own suite drives ranges directly and this layer had no test at
-// all, so both checks that fail open (a null selection, a three-entry input-type list) were unseen.
+// reaches the join rules: a chorded key arrives as `beforeinput` at a collapsed caret whose
+// target range is the whole word.
+// Miss-analysis: this layer had no test, so its two checks that fail open went unseen.
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { unmount } from 'svelte';
 import TextEditableBlock from '$lib/components/blocks/text/TextEditableBlock.svelte';
@@ -112,7 +110,7 @@ describe('a destructive chord at a collapsed caret reaches the join', () => {
 		expect(committed(mounted.blockEdit)).toEqual(['Xail\n']);
 	});
 
-	// The payload is part of what the cleanup checks (GH #165): `**brave**` strands nothing, so it
+	// The payload is part of what the cleanup checks: `**brave**` strands nothing, so it
 	// refuses and the replacement stays inside the run the user saw.
 	it('leaves a replacement that fills the run to the browser', async () => {
 		mounted = mountText(BOLD);
@@ -158,9 +156,8 @@ describe('what the branch leaves to the browser', () => {
 		expect(committed(mounted.blockEdit)).toEqual([]);
 	});
 
-	// Paste and composition have their own handling; taking one here writes the block twice, once
-	// from this branch and once from the composition's own commit over the same range. The delete
-	// half of the composition family is what an insert-only list misses.
+	// Paste and composition have their own handling, so taking one here writes the block twice;
+	// the composition's delete types are what an insert-only list misses.
 	it.each([
 		'insertFromPaste',
 		'insertCompositionText',

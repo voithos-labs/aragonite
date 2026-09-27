@@ -1,5 +1,4 @@
 // @vitest-environment jsdom
-//
 // What `blockAtPoint` hands back for each combination of the two descriptor hooks. `charSurface`
 // is the answer that matters: a kind with no character positions must report none, or a consumer
 // hit-tests the block wrapper and gets a plausible but wrong offset instead of a refusal. The
@@ -45,8 +44,8 @@ describe('blockAtPoint hook plumbing', () => {
 	}
 
 	it('gives a caret-only kind its editable surface, and still carries the caret hook', () => {
-		// The case that matters: a custom caret landing does not make a kind a grid for a drag, so
-		// the drag paths keep an element they can hit-test characters against.
+		// A custom caret target does not make a kind a grid for a drag, so the drag paths keep an
+		// element they can hit-test characters against.
 		const hit = withKind('caretOnlyKind', { caretTargetAtPoint: () => CARET_TARGET });
 
 		expect(hit?.charSurface).toBe(editable);
@@ -92,9 +91,7 @@ describe('blockAtPoint hook plumbing', () => {
 		expect(hit?.caretTargetAtPoint?.(10, 10)).toEqual(CARET_TARGET);
 	});
 
-	// Miss-analysis: the hit-test had no test at its own level for a wrapper whose only
-	// contenteditable is the hidden input host, so the exclusion that keeps a drag released on a
-	// whole-block kind selecting it whole could be deleted with every test staying green.
+	// Miss-analysis: no hit-test case had a wrapper whose only editable is the hidden input host.
 	it('reports no surface when the only editable descendant is the hidden input host', () => {
 		editable.remove();
 		const rule = wrapper.appendChild(document.createElement('div'));

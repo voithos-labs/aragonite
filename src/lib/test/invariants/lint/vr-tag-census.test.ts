@@ -1,7 +1,7 @@
 /**
- * G4.59: the VR tag catalog (`docs/design/virtual-rendering.md`) and the tags cited under `src/`
- * are one set, both directions. Scanned over raw text, comments included: a citation is almost
- * always a comment, so the house comment-stripping lexer would erase the population it counts.
+ * The VR tag catalog (`docs/design/virtual-rendering.md`) and the tags cited under `src/` are
+ * one set, both directions (G4.59). Scanned over raw text, comments included: a citation is almost
+ * always a comment, so the shared comment-stripping lexer would erase the population it counts.
  */
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -79,8 +79,7 @@ describe('G4.59 VR tag catalog ↔ its citations', () => {
 });
 
 // ── Non-vacuity self-tests ───────────────────────────────────────────────────
-// An empty corpus or an empty catalog lets both directions pass on nothing, which is the
-// failure this census exists to prevent.
+// An empty corpus or an empty catalog would pass both directions on nothing.
 
 describe('G4.59 scan non-vacuity', () => {
 	it('reaches every file kind a tag is cited from', () => {

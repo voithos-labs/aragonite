@@ -1,6 +1,5 @@
-// Miss-analysis: round-trip.test.ts pinned only indented continuations, and no suite compared
-// the definition's extent with cmark-gfm's lazy-continuation reading (#24), so the scan's
-// missing paragraph state was invisible. Shapes checked live against api.github.com/markdown.
+// Miss-analysis: no suite compared the definition's extent with cmark-gfm's lazy reading (GH #24).
+// Shapes checked live against api.github.com/markdown.
 import { beforeEach, describe, expect, it } from 'vitest';
 import { installPlugins, parse, serialize } from '$lib';
 import { resetPluginPlatformForTests } from '$lib/testing';
@@ -56,9 +55,8 @@ describe('footnote definition lazy continuation (absorbed lines)', () => {
 		expect(serialize(doc)).toBe('[^a]: one\r\nlazy\r\n');
 	});
 
-	// GitHub keeps both as literal paragraph text: a setext underline cannot be lazy, and a
-	// link reference definition is not a block start in cmark. The absorbed `===` reparses
-	// as a setext heading here, the same body reading the core blockquote model uses.
+	// GitHub keeps both as paragraph text; here the absorbed `===` reparses as a setext heading,
+	// the same body reading the core blockquote model uses.
 	it('absorbs setext-underline and link-reference-definition shaped lines', () => {
 		expect(parseKinds('[^a]: one\n===\n')).toEqual([FOOTNOTE_DEF_KIND]);
 		const lrd = parse('[^a]: one\n[x]: /url\n');
@@ -97,9 +95,8 @@ describe('footnote definition lazy continuation (lines that end it)', () => {
 		expect(doc.children[0].raw).toBe('[^a]: one\n');
 	});
 
-	// GitHub reads the lazy line into the nested item's paragraph; this scan approximates
-	// the open paragraph per line (as the core blockquote/list models do), so laziness
-	// reaches only the body's own top-level paragraph and the definition ends instead.
+	// GitHub reads the lazy line into the nested item's paragraph, but the scan tracks the open
+	// paragraph per line, as the core blockquote and list models do, so the definition ends.
 	it('ends after an indented line that opens a block in the body', () => {
 		expect(parseKinds('[^a]: one\n    - x\nlazy\n')).toEqual([FOOTNOTE_DEF_KIND, 'paragraph']);
 	});

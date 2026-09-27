@@ -66,9 +66,7 @@ describe('G1.29 cross-block endpoint coordinates', () => {
 		expect(violation?.message).toContain('focus');
 	});
 
-	// Miss-analysis (M-3): the fixtures only ever put a char offset on a table, so the flag's
-	// other direction, a cell index stored against a block that has no cells, was never
-	// asked, and `cellCoordinate` short-circuited before any node was resolved.
+	// Miss-analysis: fixtures only put a char offset on a table, never a cell index on a non-table.
 	it('flags a cell coordinate on a block that is not a table', () => {
 		const violation = checkCrossBlockEndpointCoordinates(
 			doc(),

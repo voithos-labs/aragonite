@@ -1,8 +1,5 @@
 // @vitest-environment jsdom
-//
-// Miss-analysis: transform scoping was pinned only on `applyPasteTransforms` itself, and no test
-// pasted through `pasteDispatch` into a plugin kind's block under an activation that left the
-// plugin out, so the kind-keyed surface lookup ran an unlisted plugin's hook unseen (GH #394).
+// Miss-analysis: no test pasted into a plugin kind's block with that plugin left out (GH #394).
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { resetPluginPlatformForTests } from '$lib/testing';
 import { definePlugin, installPlugins } from '$lib/schema/plugin-install';
@@ -71,7 +68,7 @@ async function pasteUnder(activePlugins: PluginActivation): Promise<string[]> {
 }
 
 describe("a plugin's paste hooks run only in an editor that lists it", () => {
-	// The transform's repeat is the dev idempotence probe re-running it on its own output.
+	// The transform's repeat is the dev-mode idempotence check re-running it on its own output.
 	it('runs the transform and the surface where the plugin is listed', async () => {
 		expect(await pasteUnder(activationFor(['listed']))).toEqual([
 			'transform',

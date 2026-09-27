@@ -1,8 +1,5 @@
 // @vitest-environment jsdom
-//
-// Miss-analysis (#43): the container's marker prefix was only ever asserted where it paints, so
-// only the happy case was pinned: a first child that ignores the prop dropped it silently, and
-// no case read what the list handed over rather than what the child drew.
+// Miss-analysis (GH #43): the marker prefix was asserted where it paints, never as handed over.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { mount, unmount, flushSync } from 'svelte';
 import BlockList from '$lib/components/BlockList.svelte';

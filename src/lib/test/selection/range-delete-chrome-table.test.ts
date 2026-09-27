@@ -19,10 +19,8 @@ afterEach(() =>
 	])
 );
 
-// The title-line wall meets the table branch: `involvesTable` is checked before
-// `involvesReservedChrome`, so these ranges take the table branch and the wall must hold there
-// too. Table endpoints carry already-snapped cell indices (start = row start, end = inclusive
-// last cell of its row).
+// `involvesTable` is checked before `involvesReservedChrome`, so these ranges take the table branch
+// and the title-line wall must hold there too. Table endpoints are already-snapped cell indices.
 
 // [0]=Above, [1]=note ([1,0]=title, [1,1]=table of rows (a,b)/(1,2)), [2]=Below.
 const TBL_FIXTURE =
@@ -107,9 +105,8 @@ describe('chrome wall × table branch: table endpoint outside the container', ()
 		expect(caret).toEqual({ path: [0, 0, 1], offset: 1 });
 	});
 
-	// The copy-before-write check (G1.9) for the title-line end truncation: the kept tail is
-	// written into the title raw in place, so a branch that copied too little would write through
-	// a node the undo snapshot shares. The child node is asserted.
+	// The end truncation writes the kept tail into the title raw in place, so it must write a copy,
+	// never the node the undo snapshot shares (G1.9).
 	it('chrome-end truncate writes an unshared copy, never the snapshot-shared title node', () => {
 		const doc = parse(TBL_ABOVE_FIXTURE);
 		const snapshotTitle = doc.children[1].children![0];

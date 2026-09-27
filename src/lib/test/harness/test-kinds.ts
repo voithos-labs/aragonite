@@ -40,9 +40,8 @@ export function testContainer(
 	});
 }
 
-/** An opaque container whose child 0 is a title row, registered the way a plugin registers one:
- *  the title kind through the published `registerChromeLeaf`, with its component and paste
- *  surface, so the container is one production can build. */
+/** An opaque container whose child 0 is a title row, its title kind registered through the
+ *  published `registerChromeLeaf` the way a plugin does, so production can build it. */
 export function testChromeContainer(
 	name: string,
 	chromeName = `${name}-title`

@@ -75,8 +75,7 @@ describe('convertGithubAlertsInDocument', () => {
 	});
 });
 
-// Miss-analysis: every document fixture was LF, and the converter reads one block's raw, so an
-// alert on a CRLF document's unterminated last line had no ending of its own to copy.
+// Miss-analysis: every document fixture was LF, so no alert sat on an unterminated CRLF last line.
 describe('convertGithubAlertsInDocument in a CRLF document', () => {
 	it("closes an alert on the unterminated last line with the document's ending", () => {
 		expect(convertGithubAlertsInDocument('a\r\n\r\n> [!NOTE]').converted).toBe(

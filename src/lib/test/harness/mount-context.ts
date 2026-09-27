@@ -55,9 +55,8 @@ export interface MountContextOverrides {
 	doc?: Partial<EditorDoc>;
 }
 
-/** A member a bare mount actually calls is wired to its production factory, empty: a stub that
- *  answers only the members reached today breaks the moment a component reaches one more. The
- *  rest keep a `{}` cast. */
+/** A member a bare mount calls gets its empty production factory, since a partial stub breaks
+ *  when a component reaches one more member; the rest keep a `{}` cast. */
 function stubbedServices(getDoc: () => DocumentView): EditorServices {
 	const selection = createSelectionState();
 	return {
@@ -120,9 +119,8 @@ function stubbedPolicies(): EditorPolicies {
 }
 
 function stubbedDoc(emptyDoc: Document): EditorDoc {
-	// Fresh on every read: a bare mount has no reactive graph to invalidate a
-	// derived on, so "always a memo miss" is the only stub that can't hand a
-	// consumer a stale answer. A test measuring memo hits supplies its own.
+	// Fresh on every read: with no reactive graph to invalidate a memo, always missing is the only
+	// answer that is never stale. A test measuring memo hits supplies its own.
 	let version = 0;
 	return {
 		doc: () => emptyDoc,
@@ -150,9 +148,8 @@ function stubbedDoc(emptyDoc: Document): EditorDoc {
 	};
 }
 
-/** Self mode's own wiring: an editor root supplied without a scroll container is the scroll
- *  container, so a harness that stubs scroll geometry on the root has windowing read it, as in
- *  production. */
+/** An editor root given no scroll container is its own, as in production, so geometry a harness
+ *  stubs on the root is what windowing reads. */
 function withDerivedScrollport(doc: EditorDoc): EditorDoc {
 	if (doc.scrollport() !== null) return doc;
 	let port: Scrollport | null = null;

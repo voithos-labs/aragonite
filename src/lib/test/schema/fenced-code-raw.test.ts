@@ -72,8 +72,7 @@ describe('reconcileFenceWrite: escalation', () => {
 	});
 });
 
-// Miss-analysis: the typed-run case was pinned as a dropped info character, and no case typed a
-// tilde there, where nothing drops it and the shorter closer left the fence open over the page.
+// Miss-analysis: no case typed a tilde onto the opener run, where the shorter closer left it open.
 describe('reconcileFenceWrite: a marker typed onto the opener run', () => {
 	it('widens the closer with the opener, the caret staying after the typed marker', () => {
 		expect(write('````js\ncode\n```', backtick(), 'authored', 4)).toEqual({

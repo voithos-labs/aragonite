@@ -1,7 +1,5 @@
 // @vitest-environment jsdom
-// Miss-analysis: the exact lookup was only ever reached through a hit test that had already
-// clamped the point, so no test named the clamp, and the one kind that needed it (the parrot's
-// source view) kept its own copy, where a regression would show up as a caret at byte 0.
+// Miss-analysis: only a pre-clamped hit test reached the exact lookup, so no test named the clamp.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { caretOffsetAtPoint, offsetFromViewportPoint } from '../../cursor/point-offset';
 

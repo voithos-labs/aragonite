@@ -7,8 +7,7 @@ import { fixtureReading } from '../harness/fixture-grammar';
 
 // A join into a setext heading lands the text on the title line, above the underline: joined past
 // it, `======next` reparses as paragraph text and the heading's structure comes into view.
-// Miss-analysis: the only pin on this join encoded Delete's refusal, so no test asked what the
-// join should write, and Backspace from the block below was never run against a setext heading.
+// Miss-analysis: the only test of this join checked Delete's refusal, never what Backspace writes.
 
 const joins = {
 	'Delete (the forward join)': (source: string) => {

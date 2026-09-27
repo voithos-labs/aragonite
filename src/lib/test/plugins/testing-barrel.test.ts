@@ -60,10 +60,8 @@ import { stripComments } from '../invariants/lint/scan-source';
 import { testClosure } from '$lib/test/support/closure';
 
 // ── One probe per public registration ────────────────────────────────────────
-// Each registers once through a register or declare function the plugin barrel exports, and
-// says whether that registration is still there. The list is checked against the barrel's own
-// exports, so a new public registration without a probe reds, and one the reset misses reds
-// on the second install.
+// Each check registers through an exported register or declare function and reports whether it
+// survives; the list is held to the barrel's exports, and a reset that misses one reds.
 
 let block: PluginBlockKind;
 let chrome: PluginBlockKind;
@@ -304,17 +302,15 @@ describe('@voithos-labs/aragonite/testing dependency rules', () => {
 		expect(sources.flatMap((s) => s.specifiers).length).toBeGreaterThan(5);
 	});
 
-	// The kit runs inside an author's own test case, so a static runner import would force
-	// that runner on every suite reaching for `resetPluginPlatformForTests` alone, including
-	// one on Jest or node:test. It throws plain `Error`s instead.
+	// The kit runs inside an author's own test case, so a static runner import would force that
+	// runner on every suite, Jest or node:test included; the kit throws plain `Error`s instead.
 	it('imports no test runner', () => {
 		const offenders = offendersMatching(sources, /^(vitest|jest|@jest\/|node:test|chai)/);
 		expect(offenders, 'runner imports on the published testing surface').toEqual([]);
 	});
 
-	// `prune-dist.mjs` deletes `dist/test` before pack and `verify-pack.mjs` rejects any
-	// that ship, so an import reaching into `test/` resolves in the repo and 404s in the
-	// published package, a break no in-repo suite sees.
+	// `prune-dist.mjs` and `verify-pack.mjs` keep `dist/test` out of the package, so an import
+	// into `test/` resolves in the repo and 404s in the published package.
 	it('reaches into no directory that is stripped from the published package', () => {
 		const offenders = offendersMatching(sources, /(^|\/)(test|e2e)\//);
 		expect(offenders, 'imports of paths pruned from dist/').toEqual([]);

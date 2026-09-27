@@ -6,9 +6,8 @@ import { resetPluginPlatformForTests } from '$lib/testing';
 import { DIRECTIVE_TEXT } from '$lib/core/directive/kinds';
 import { emojiPlugin, EMOJI_KIND } from '$lib/plugins/emoji';
 
-// Both grammars use the bare `:` trigger, and the same (trigger, prefix, priority) may not be
-// registered twice, so emoji's `plugin + 10` priority is what lets them coexist. The grammars
-// do not overlap, so the order only decides which is asked first.
+// Both grammars use the bare `:` trigger and one (trigger, prefix, priority) registers once, so
+// emoji's `plugin + 10` priority lets them coexist; the order only decides which is asked first.
 beforeEach(() => {
 	resetPluginPlatformForTests();
 	activateDirectives();
@@ -42,9 +41,8 @@ describe('emoji and the directive text level coexist on `:`', () => {
 	});
 });
 
-// The other install order a consumer can write: emoji takes `:` first, so an activation
-// asking "does anyone own `:`" rather than "have I already registered" would skip its own
-// recognizer and leave the directive handler dead. A byte round trip would not notice.
+// Emoji takes `:` first here, so an activation asking "does anyone own `:`" instead of "have I
+// registered" would skip the directive recognizer, which a byte round trip would not notice.
 describe('the directive text level survives a plugin that took `:` first', () => {
 	beforeEach(() => {
 		resetPluginPlatformForTests();

@@ -83,9 +83,8 @@ describe('resolveReorderUnit', () => {
 	});
 });
 
-// An opaque container is not a reorderable parent: the resolver declines at its boundary
-// rather than teleporting to the document position. A native reorderable parent nested in
-// the body still wins first, so the decline cannot over-reach.
+// An opaque container is not a reorderable parent, so the resolver stops at its boundary, but a
+// native reorderable parent nested in its body still wins first.
 describe('resolveReorderUnit: plugin (opaque) container', () => {
 	beforeEach(() => {
 		__resetSchemaRegistriesForTests();
@@ -113,7 +112,7 @@ describe('resolveReorderUnit: plugin (opaque) container', () => {
 
 	it('a body leaf declines to null: no walk-past to the document slot', () => {
 		const doc = opaqueContainer([{ kind: 'paragraph', leadingTrivia: '', raw: 'body\n' }]);
-		// The teleport: returning { parentPath: [], index: 1 }, the whole container's position.
+		// Walking past it would return { parentPath: [], index: 1 }, the whole container's position.
 		expect(resolveReorderUnit(doc, [1, 1])).toBeNull();
 	});
 

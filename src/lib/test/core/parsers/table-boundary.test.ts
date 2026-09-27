@@ -1,7 +1,5 @@
-// Miss-analysis (C-I1): table.test.ts pinned only the pipeless terminator, so no case asked
-// what a pipe-carrying block start does. The absorption round-trips on load, which is why the
-// property suites stayed green — the bytes are only rewritten by the next structural edit.
-// Expected shapes verified against cmark-gfm via api.github.com/markdown.
+// Miss-analysis: table.test.ts covered only the pipeless terminator, not a block start with a pipe.
+// Expected shapes checked against cmark-gfm via api.github.com/markdown.
 import { describe, it, expect } from 'vitest';
 import { parse } from '../../../core/parser';
 import { serialize } from '../../../core/serializer';

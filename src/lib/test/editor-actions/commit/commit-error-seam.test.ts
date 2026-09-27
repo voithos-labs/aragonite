@@ -1,6 +1,6 @@
-// `docs/design/editor.md` §12: the `error` event is the one report for every contained
-// failure, and `origin: 'commit'` is the commit's share of it. Both throw sites here run
-// plugin code: the snapshot push's ref walk and the post-tick callback.
+// The `error` event reports every contained failure, and `origin: 'commit'` is the commit's
+// share of it. Both throw sites here run plugin code: the snapshot push's ref walk and the
+// post-tick callback.
 import { describe, it, expect, afterEach } from 'vitest';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { parse } from '$lib/core/parser';

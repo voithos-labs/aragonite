@@ -5,10 +5,9 @@ import { createSharingState } from '../../tree-operations/sharing';
 import { describeConvergence } from '../harness/parse-converged';
 import { fixtureReading } from '../harness/fixture-grammar';
 
-// GH #54: the same-block branch writes the joined bytes in place, so parse-owned metadata must
-// re-derive in `writeOwnRaw` or the live node drifts from what its bytes parse to.
-// Miss-analysis: every same-block delete pin asserted bytes and caret, never the metadata the
-// parse-convergence check reads, so a stale heading level passed green suites until the #45 sweep.
+// The same-block branch writes the joined bytes in place, so parse-owned metadata must re-derive
+// in `writeOwnRaw` or the live node drifts from what its bytes parse to.
+// Miss-analysis: GH #54; same-block delete pins asserted bytes and caret, never derived metadata.
 
 describe('a same-block delete re-derives parse-owned metadata (GH #54)', () => {
 	it('deleting a marker byte from a heading refreshes its level', () => {

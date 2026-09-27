@@ -1,5 +1,4 @@
-// Miss-analysis: cell trimming was tested with ASCII padding only, so no case put a non-breaking
-// space at a cell's edge, where `String.trim()` dropped it on the first edit to its row.
+// Miss-analysis: only ASCII cell padding was tested, so `String.trim()` eating a nbsp went unseen.
 import { describe, expect, it } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';

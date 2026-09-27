@@ -1,9 +1,7 @@
 // @vitest-environment jsdom
-//
-// G1.26 fired through the real code: re-entering during the settle window through the public
-// interaction factory, and the source-length precondition through the primitive that swaps the
-// DOM. The legal show-then-commit and show-then-cancel cycles are also covered as silent,
-// because an invariant that fires wrongly floods the console every e2e spec watches.
+// The shown-source guard fires through real code, on a second entry before the first finishes
+// and on the source-length check at the DOM swap (G1.26). Legal show-then-commit and cancel cycles
+// stay silent, since a guard that fires wrongly floods the console every e2e spec watches.
 import { recordingWrite } from '$lib/test/harness/editor-actions';
 import { describe, it, expect } from 'vitest';
 

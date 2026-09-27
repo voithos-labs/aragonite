@@ -77,8 +77,7 @@ describe('installReorderDrag: root listener lifecycle', () => {
 	});
 });
 
-// The ghost's label keeps the words the drag was designed with: an object Finn named reads that
-// name, and anything else reads its first words.
+// A block with a designed ghost label reads that name, and anything else reads its first words.
 // Miss-analysis: only the table's label had a test, so renaming the rest never went red.
 describe('the drag ghost names what it carries', () => {
 	beforeAll(() => {

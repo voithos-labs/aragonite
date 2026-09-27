@@ -1,5 +1,4 @@
-// Miss-analysis: nothing tied the selected image's stored bytes to the document, so an undo that
-// moved the image left a selection pointing at nothing, and no test edited under a selected image.
+// Miss-analysis: no test edited under a selected image, so an undo that moved it went unchecked.
 import { defaultGrammarView } from '$lib/schema/block-openers';
 import { describe, it, expect } from 'vitest';
 import { tick } from 'svelte';
@@ -52,8 +51,7 @@ describe('a selected image whose bytes an edit moves', () => {
 		expect(s.widgetSelection.getSelected()?.sourceStart).toBe(4);
 	});
 
-	// Miss-analysis: both cases above moved or kept the selected image itself, so none wrote a
-	// different image in front of it, which the popover does when a click moves on to a second one.
+	// Miss-analysis: no case wrote an image in front of the selected one, as the popover does.
 	it('follows a second image that a written edit to the first one moved', async () => {
 		const s = selectedAt('![a](a.png) ![b](a.png)\n', 12);
 		const first = { paragraphPath: [0], sourceStart: 0, preSelectOffset: 11 };

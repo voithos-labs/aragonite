@@ -1,7 +1,6 @@
-// A container rebuild re-emits bytes the keystroke never touched, so it must
-// reproduce the source's line endings exactly (G4.20). Fixtures come from `parse`
-// rather than hand-built nodes: the defects here were in how the rebuilder splits
-// a CRLF body, and a hand-built child raw would let the test agree with the bug.
+// A container rebuild re-emits bytes the keystroke never touched, so it must reproduce the
+// source's line endings exactly (G4.20). Fixtures come from `parse`, since a hand-built child raw
+// would agree with a rebuilder that splits a CRLF body wrong.
 import { describe, it, expect } from 'vitest';
 import {
 	rebuildBlockquoteRaw,

@@ -1,9 +1,7 @@
 // @vitest-environment jsdom
-//
-// The table's structural keys end to end: a real keystroke on a real cell, and the document that
-// came out. These chords are `tableCell` keymap bindings, so the planner can only be asked to
-// decline them (cell-keydown-plan.test.ts) and the behaviour has to be covered where it happens.
-// A full Editor mount, because each case writes and replaces the node.
+// The table's structural keys end to end, a real keystroke on a cell in a full Editor mount and
+// the document that came out. These chords are `tableCell` keymap bindings, so the keydown
+// planner only declines them and the behaviour has to be covered here.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import {
 	installLayoutStubs,
@@ -104,8 +102,8 @@ describe('a chord in a cell mutates the table it names', () => {
 		});
 	}
 
-	// The other way round: the reorder refuses at the boundary, so the chord must neither
-	// move the header nor push an undo entry.
+	// The reorder refuses at the header boundary, so the chord must neither move the header nor
+	// push an undo entry.
 	it('Alt+ArrowUp on the first body row leaves the table alone', async () => {
 		mounted = mountEditor({ source: GRID });
 

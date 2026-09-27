@@ -1,9 +1,7 @@
 // @vitest-environment jsdom
-//
 // Starting a rectangle inside a table records a cross-block pair before it knows whether the
-// extend that leaves the table can land. Miss-analysis (Sel-F1): the keyboard requirement file
-// covers the refusing gesture with a paragraph as the last block, where nothing is recorded at
-// all; a table records the pair first and then hears the extend refuse, and no test covered it.
+// extend that leaves the table can land.
+// Miss-analysis: the refused extend was tested only with a paragraph last, which records nothing.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import {
 	installLayoutStubs,
@@ -23,8 +21,7 @@ beforeAll(() => {
 	return () => restoreLayout();
 });
 
-// The reported case exactly: the table is the last block, so a downward exit from its last
-// row has nowhere to land.
+// The table is the last block, so a downward exit from its last row has nowhere to land.
 const TABLE_LAST = 'intro\n\n| aa | bb |\n| -- | -- |\n| cc | wxyz |\n';
 
 let mounted: MountedEditor | null = null;
@@ -43,9 +40,8 @@ describe('a rectangle entry that cannot leave the table leaves nothing behind', 
 
 		await pressKey(last, { key: 'ArrowDown', shiftKey: true });
 
-		// The caret is still the cell's own. A stored pair would report the table block with a
-		// cell index instead, and it would be invisible: the overlay declines a pair with the
-		// same path and offset, and the root hides the browser caret while one stands.
+		// A stored pair would report the table block with a cell index instead, and nothing
+		// would show it: the overlay skips a same-point pair and the browser caret is hidden.
 		expect(mounted.instance.getSelection()?.anchor.path).toEqual([1, 1, 1]);
 	});
 
@@ -62,9 +58,8 @@ describe('a rectangle entry that cannot leave the table leaves nothing behind', 
 		expect(mounted.source()).toContain('| cc | wxyz |');
 	});
 
-	// What falling through produces where a next block does exist: the key reaches the shared
-	// prose extend, whose next block in document order is the cell to the right. Recorded here
-	// because consuming the key outright would leave the invisible pair instead.
+	// Where a next block exists, the key falls through to the shared prose extend, whose next
+	// block in document order is the cell to the right.
 	it('a declined exit from a cell with a sibling after it grows the rect sideways', async () => {
 		mounted = mountEditor({ source: TABLE_LAST });
 		const first = cell(1, 0);

@@ -19,9 +19,8 @@ import { allowDevWarns } from '$lib/test/support/warn-gate';
 // through a commit, which is what the shared-node check reports.
 afterEach(() => allowDevWarns(['invariant:snapshot-integrity']));
 
-// `inlineComputeCount` has one caller in production, `computeInlineContent`, so it counts
-// exactly how often the inline tree is built: an eager parse reintroduced anywhere bumps it
-// where these checks expect zero.
+// Only `computeInlineContent` bumps `inlineComputeCount`, so an eager inline parse reintroduced
+// anywhere shows up where these checks expect zero.
 
 function para(raw: string): CstNode {
 	return { kind: 'paragraph', leadingTrivia: '', raw };
@@ -44,8 +43,7 @@ describe('lazy inline: common keystroke computes once', () => {
 		};
 
 		updateNodeContent(parent, 1, 'beta!\n', defaultGrammarView);
-		// The content-update path block-parses kind/metadata/children but must not
-		// build the inline tree. An eager double-parse here is the regression.
+		// The content-update path parses the block but must not build its inline tree.
 		expect(perfSnapshot().inlineComputeCount).toBe(0);
 
 		computeInlineContent(parent.children[1], undefined, defaultGrammarView);

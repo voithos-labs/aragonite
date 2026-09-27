@@ -70,9 +70,8 @@ describe('composeCollapseProbe', () => {
 		expect(fires[0].message).toMatch(/collapse-probe-container/);
 	});
 
-	// Reading mode is the one place the view may disagree with the document, because a
-	// toggle there writes no bytes. Without the exception the editor dev-warns for as
-	// long as the section stays open.
+	// Reading mode may show a view the document disagrees with, because a toggle there writes no
+	// bytes; without the exception the editor dev-warns as long as the section stays open.
 	it('allows a reading-mode view divergence without warning', () => {
 		const kind = registerCollapsible();
 		const node = containerNode(kind, false); // the document says collapsed

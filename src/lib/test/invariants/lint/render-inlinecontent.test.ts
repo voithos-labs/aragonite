@@ -1,9 +1,8 @@
 /**
- * G4.2 (perf-hygiene): the prose render path computes inline content via the pure
- * `computeInlineContent`, never the caching accessor. The cache is a non-reactive
- * WeakMap, so a render reading it would skip render-relevant changes the pure compute
- * always sees. Non-render consumers may use the accessor, hence the scope: the DOM-build
- * file plus the render `$effect`.
+ * The prose render path computes inline content through the pure `computeInlineContent`, never
+ * the caching accessor (G4.2): the cache is a non-reactive WeakMap, so a render reading it would
+ * miss changes the pure compute sees. Non-render consumers may use the accessor, hence the scope:
+ * the DOM-build file plus the render `$effect`.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -18,11 +17,8 @@ function callsCachingAccessor(code: string): boolean {
 	return /\bgetInlineContent\b/.test(code);
 }
 
-/**
- * Extract a render `$effect` block by anchoring on its render dispatch. Returns null if
- * the anchor is absent; callers must treat that as a hard failure, or a rename silently
- * disables the scan.
- */
+/** A render `$effect` block, found by its render dispatch, or null when the anchor is absent;
+ *  callers must fail on null, or a rename silently disables the scan. */
 export function extractRenderEffect(rawText: string, anchor = 'textRender.render'): string | null {
 	const code = stripComments(rawText);
 	const anchorAt = code.indexOf(anchor);

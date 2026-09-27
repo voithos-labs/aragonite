@@ -1,7 +1,5 @@
 // @vitest-environment jsdom
-// Miss-analysis: the depth pins stopped at the renderer and the offset walk
-// (`inline-render-nesting.test.ts`) and never followed their output one call further, so every
-// walk over a rendered fragment or a parsed inline tree recursed per level, unpinned.
+// Miss-analysis: the depth pins stopped at the renderer and the offset walk, never the walks after.
 import { defaultGrammarView } from '$lib/schema/block-openers';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { CstNode, InlineNode } from '../../core/nodes';
@@ -19,9 +17,8 @@ afterEach(() => __resetSchemaRegistriesForTests());
 // Both constants assume the default V8 stack; raising `--stack-size` turns these pins green
 // against a recursive walk.
 const MODEL_DEPTH = 32_000;
-// jsdom's insert bookkeeping is superlinear in tree depth (a native DOM is not), so the
-// environment, not the walk, caps the one pin that renders. The margin is thin (a recursive
-// version overflows a few thousand levels below this), so a roomier stack greens the pin.
+// jsdom's insert bookkeeping is superlinear in tree depth, so jsdom, not the walk, caps the pin
+// that renders; a recursive walk overflows only a few thousand levels below it.
 const RENDER_DEPTH = 8_000;
 
 /**

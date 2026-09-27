@@ -1,10 +1,8 @@
 // @vitest-environment jsdom
-//
-// The caret-edge dispatch's decoration-widget branch (edge-policy-dispatch). It holds two rules
-// e2e cannot: modifier chords such as word-delete stay with the browser, since these rules take
-// only plain edge keys, and a printable key at an element-level caret becomes a CST edit, which
-// ordinary typing can mask byte for byte in a real browser. A third group holds the precedence a
-// user can see: a CST widget wins the shared caret edge over a decoration widget.
+// The caret-edge dispatch's decoration-widget branch, for two rules e2e cannot hold: modifier
+// chords such as word-delete stay with the browser, and a printable key at an element-level caret
+// becomes a CST edit, which real typing can mask byte for byte. A CST widget also wins the shared
+// caret edge over a decoration widget.
 import { defaultGrammarView } from '$lib/schema/block-openers';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createWidgetSelectionState } from '$lib/components/image/widget-selection-state.svelte';

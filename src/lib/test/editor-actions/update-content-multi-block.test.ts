@@ -3,8 +3,8 @@ import { serialize } from '$lib/core/serializer';
 import { makeNestedHarness, makeTopHarness } from '$lib/test/harness/editor-actions';
 
 // Text parsing to several blocks must replace the block with all of them at both levels.
-// Cramming the extras into the first node's raw (the stuck-fence bug) leaves the live
-// CST disagreeing with parse(serialize(doc)).
+// Cramming the extras into the first node's raw leaves the live CST disagreeing with
+// parse(serialize(doc)).
 
 describe('top-level updateBlockContent with multi-block text', () => {
 	it('replaces the block with every parsed block and resyncs ids/refs', async () => {

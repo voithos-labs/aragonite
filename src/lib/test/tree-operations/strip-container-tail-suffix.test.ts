@@ -11,11 +11,9 @@ import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
 import { defaultGrammarView } from '$lib/schema/block-openers';
 
-// A blockquote keeps its body's one trailing blank line in `innerSuffix` only while its last
-// block is non-blank, as the document keeps its own in `suffix`; once that block turns blank the
-// reload reads the line as one more empty paragraph, so the fix-up makes it a block (GH #393).
-// Miss-analysis: the shape property drew a quote ending on a bare `>` line under a blanked
-// paragraph only eight shrink steps deep, and no unit case blanked the paragraph above that line.
+// A blockquote keeps its body's one trailing blank line in `innerSuffix` only while its last block
+// is non-blank, so once that block turns blank the fix-up makes the line a block.
+// Miss-analysis: GH #393, no case blanked the paragraph above a quote's trailing bare `>` line.
 
 beforeAll(() => {
 	installPlugins([admonitionsPlugin()]);

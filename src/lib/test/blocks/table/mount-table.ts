@@ -1,7 +1,6 @@
 // A whole table mounted from Markdown: TableBlock over real TableRowBlock and TableCellBlock
-// children, so a gesture in a cell reaches the table context the way it does in the editor.
-// Mounts of a cell on its own (cell-write-escape, cell-reveal-caret) stub that context; these
-// tests are about what the table does with it.
+// children, so a gesture in a cell reaches the table context the way it does in the editor
+// (`mount-cell.ts` stubs that context instead).
 
 import TableBlock from '$lib/components/blocks/table/TableBlock.svelte';
 import type { BlockComponent } from '$lib/block-component';
@@ -35,7 +34,7 @@ export interface MountedTable {
 	readonly table: CstNode;
 	/** The `[role="table"]` grid element. */
 	el: HTMLElement;
-	/** TableBlock's own BlockComponent surface. */
+	/** TableBlock's own BlockComponent interface. */
 	block: BlockComponent & {
 		measurePartialRects(start: number, end: number): DOMRect[];
 		cellRect(rowIdx: number, colIdx: number): DOMRect | null;

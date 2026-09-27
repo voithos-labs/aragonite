@@ -75,7 +75,6 @@ describe('__resetSchemaRegistriesForTests', () => {
 		expect(getBlockComponent(kind, everyInstalledPlugin)).toBeUndefined();
 		expect(listRegisteredOpeners().some((o) => o.kind === kind)).toBe(false);
 
-		// Built-ins survive the reset.
 		expect(getBlockKindDescriptor('paragraph')).toBeDefined();
 		expect(getCommand('history.undo', everyInstalledPlugin)).toBeDefined();
 

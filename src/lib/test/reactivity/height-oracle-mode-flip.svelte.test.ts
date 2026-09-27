@@ -1,8 +1,5 @@
 // @vitest-environment jsdom
-// Miss-analysis: the mode switch's own suites assert the caret, the edge affinity and the
-// event, and the windowing suites stub the height estimator out, so nothing asked what a switch
-// does to heights the other mode measured. The "no rebuild" half is the rest of that miss: the
-// first fix paired the drop with a width bump, and only the presentation e2e saw the scroll.
+// Miss-analysis: windowing suites stub the estimator, so no test asked what a mode switch drops.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import {
 	installLayoutStubs,
@@ -46,10 +43,8 @@ describe('a presentation-mode flip does not keep the heights the other mode meas
 		expect(oracle.measured(WINDOWED_OUT_ID)).toBeUndefined();
 	});
 
-	// The drop happens on its own. Bumping the width version here forces a rebuild, and the mode
-	// switch has already blurred, so the window recomputes with no block held, unmounts the
-	// caret's block, and placing the caret again scrolls it back, losing the user's place (#221).
-	// Each block re-measures on its own mount instead, which costs the user nothing.
+	// A width bump would rebuild with no block held (the switch has blurred), unmounting the
+	// caret's block and losing the user's place; each block re-measures on its own mount instead.
 	it('forces no rebuild: the flip moves the width version for nobody', async () => {
 		const { instance: editor, props } = mountAtSource();
 		const before = editor.__test.getWidthVersion();

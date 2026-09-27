@@ -8,11 +8,9 @@ import { expectParseConverged } from '../harness/parse-converged';
 import type { SelectionPoint } from '$lib/selection/primitives';
 import { fixtureReading } from '../harness/fixture-grammar';
 
-// Issue #60: the plain merge installed the survivor straight from a fragment reparse, which
-// creates its own leading blank lines, so the start block's separator was dropped and its bytes
-// ran into the block above, one paragraph on reload. Miss-analysis: every cross-block fixture put
-// the start endpoint in the document's first block, whose leading blank lines are '' either way,
-// and asserted the merged bytes without ever reparsing them.
+// The plain merge must keep the start block's separator: a survivor taken straight from a fragment
+// reparse gets the fragment's own leading blank lines and runs into the block above on reload.
+// Miss-analysis: GH #60; every fixture started in the first block, and none reparsed the bytes.
 
 const sharing = () => createSharingState();
 
@@ -95,8 +93,8 @@ describe('cross-block merge keeps the start block’s separator', () => {
 	});
 });
 
-// The wall branches install their endpoints through the shared reparse, which always kept the
-// position's leading blank lines. Pinned here so the plain branch's fix and theirs stay one rule.
+// The wall branches install their endpoints through the shared reparse, which keeps the position's
+// leading blank lines; covered here so every branch holds the same rule.
 describe('the wall branches keep it too', () => {
 	beforeEach(registerCalloutForTests);
 

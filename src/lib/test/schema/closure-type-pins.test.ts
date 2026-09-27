@@ -85,7 +85,7 @@ describe('closure lands on the read-side descriptor', () => {
 });
 
 // ── Preset coherence (G1.24) ────────────────────────────────────────────────
-// The type gate cannot see `mergeRole`, so only a runtime cross-check catches a baked
+// The type check cannot see `mergeRole`, so only a runtime cross-check catches a baked
 // cell "simplified" back to inherit-default.
 describe('simpleLeafClosure keeps a not-mergeable leaf coherent', () => {
 	const cells = {
@@ -119,8 +119,8 @@ describe('simpleLeafClosure keeps a not-mergeable leaf coherent', () => {
 	});
 });
 
-// The container half of G1.24 the leaf preset cannot cover: a container's roundTrip must be
-// `implemented`, and only a runtime cross-check catches that fixed mode being loosened.
+// A container's roundTrip must be `implemented`, which the leaf preset cannot cover, so only a
+// runtime cross-check catches that fixed mode being loosened (G1.24).
 describe('containerClosure keeps a strip container coherent', () => {
 	const cells = {
 		roundTripVia: 'container contract=opaque — rebuildRaw',

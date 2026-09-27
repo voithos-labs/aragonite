@@ -1,5 +1,4 @@
 // @vitest-environment jsdom
-//
 // Indenting a list item moves the item's node into a new parent, so a mount on its way out
 // and a fresh one register it at once. The registry has to read that as a handover rather than
 // corruption, and has to land on the new one: the entry must be the live mount's state, or

@@ -1,12 +1,8 @@
 // @vitest-environment jsdom
-//
 // Where a per-block span meets bytes the single-block toggle cannot mark soundly: an edge landing
 // on whitespace, and a write whose delimiters form no construct. The span split and the direction
 // rule are `./format-range.test.ts`.
-//
-// Miss-analysis: every partial span in that file started and ended on a word boundary, and every
-// e2e range was a whole-document Mod+A, so no test ever put a space at a span's edge, the one
-// place the source-mode wrap candidate list has a second entry the mode never reaches.
+// Miss-analysis: every partial span there started and ended on a word boundary, never a space.
 import { defaultGrammarView } from '$lib/schema/block-openers';
 import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
@@ -82,17 +78,16 @@ describe('a span whose edge lands on whitespace', () => {
 		expect(tail.startOffset).toBe('alpha '.length);
 	});
 
-	// A second keystroke that does nothing is the visible half of the bug: bytes that form no
-	// construct read as unmarked, so the range never toggles back.
+	// A second keystroke that does nothing is the visible symptom: bytes that form no construct
+	// read as unmarked, so the range never toggles back.
 	it('leaves bytes a second press unwraps, rather than a dead key', () => {
 		const once = toggle(HEAD.source, HEAD.start, HEAD.end)!;
 		expect(toggle(once, at([0], 0), at([1], '**beta**'.length))).toBe('alpha\n\nbeta gamma\n');
 	});
 });
 
-// The toggle's wrap is unverified wherever the mode paints delimiters, so a span whose write
-// forms no construct still comes back as a candidate. Only the coverage re-read after the
-// write refuses it, which is what keeps a second keystroke from piling up delimiters.
+// Where the mode paints delimiters the wrap is unverified, so only the coverage re-read after the
+// write refuses a span that formed no construct, keeping a second press from piling them up.
 describe('a write that formed no construct', () => {
 	// `**alpha***` — the block's own trailing `*` joins the closing run and the pair never closes.
 	const TRAILING_MARKER = 'alpha*\n\nbeta\n';

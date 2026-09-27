@@ -62,9 +62,8 @@ describe('math fence claims and declines', () => {
 	}
 });
 
-// An unterminated fence falls through to the built-in fencedCode (the same as the `$$` block,
-// not mermaid's consume-to-end-of-input), so it becomes a plain `math` code block; the bytes
-// are identical either way.
+// An unterminated fence falls through to the built-in fencedCode, as the `$$` block does and
+// mermaid does not, becoming a plain `math` code block with identical bytes.
 describe('unterminated math fence declines to fencedCode', () => {
 	beforeEach(() => {
 		resetPluginPlatformForTests();

@@ -63,8 +63,8 @@ describe('composeExpandDoor', () => {
 		expect(d.commit).not.toHaveBeenCalled();
 	});
 
-	// The floor: a collapsible kind that declares no `expandPatch` opens without committing
-	// anything, rather than the editor inventing a patch on its behalf.
+	// A collapsible kind that declares no `expandPatch` opens without committing anything,
+	// rather than the editor inventing a patch on its behalf.
 	it('declines when the kind declares no expandPatch', async () => {
 		const d = door(registerCollapsible('door-none', false), {});
 

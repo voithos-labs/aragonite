@@ -26,8 +26,7 @@ describe('consumeStickyLanding', () => {
 		expect(block.focus).not.toHaveBeenCalled();
 	});
 
-	// Miss-analysis (#326): the same rule lived in the container's column entry too, and no test
-	// read the two together, so a block was a stop on one path and passed over on the other.
+	// Miss-analysis (GH #326): no test read the container's column entry beside the per-block rule.
 	it.each([
 		['above', 'start'],
 		['below', 'end']
@@ -139,9 +138,8 @@ describe('consumeStickyLanding', () => {
 		expect(block.focus).toHaveBeenCalledWith(CURSOR_END);
 	});
 
-	// A numeric position is a caller that knows its byte and passes through; 'start' and 'end'
-	// are arrivals, each passed as its sentinel so the block's focus may clamp it onto an offset
-	// the caret can sit at.
+	// A numeric position passes through as the caller's byte; 'start' and 'end' pass as sentinels
+	// so the block's focus may clamp them onto an offset the caret can sit at.
 	it('lands numeric positions literally and the edges through their sentinels', async () => {
 		const cases: Array<{ position: number | 'start' | 'end'; offset: number }> = [
 			{ position: 7, offset: 7 },

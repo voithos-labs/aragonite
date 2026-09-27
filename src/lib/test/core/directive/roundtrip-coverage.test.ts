@@ -19,10 +19,8 @@ import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
 activateDirectiveGrammar(); // before any parse
 
-// The acceptance gate for directives: a generator spanning the whole construct space, asserting
-// serialize(parse(src)) === src. Curated non-ASCII pools (not fc.unicode) keep CJK, astral and
-// combining boundary shapes reachable, and the reachability self-tests below prove the generator
-// can produce the bug-carrying shapes (rules.md).
+// Round-trips a generator spanning every directive shape. Curated non-ASCII pools keep CJK,
+// astral and combining boundaries reachable, and the self-tests below prove they are reached.
 
 const isNonAscii = (s: string): boolean => [...s].some((ch) => (ch.codePointAt(0) ?? 0) > 0x7f);
 
@@ -35,7 +33,7 @@ const arbGenericName = fc
 	.tuple(fc.constantFrom(...NAME_START), fc.array(fc.constantFrom(...NAME_CHAR), { maxLength: 6 }))
 	.map(([head, tail]) => head + tail.join(''));
 
-// `note`/`warning` are registered on the container arm below; a generic draw may also
+// `note`/`warning` are registered as container kinds below; a generic draw may also
 // land on them, so both the registry-dispatch and the fallback path must round-trip.
 const arbName = fc.oneof(
 	{ arbitrary: arbGenericName, weight: 4 },
@@ -171,7 +169,7 @@ function arbContainerBody(parentColon: number): fc.Arbitrary<string> {
 	return fc.oneof(...arms);
 }
 
-// `cap` bounds this container's opener AND closer colon runs so a nested one stays
+// `cap` bounds this container's opener and closer colon runs so a nested one stays
 // strictly under its parent; the top-level cap leaves room for a longer closer.
 function arbContainer(cap: number): fc.Arbitrary<string> {
 	const maxColon = Math.min(6, cap);
@@ -242,8 +240,8 @@ function collectContainerInfos(nodes: CstNode[], out: string[]): void {
 // ── Properties ────────────────────────────────────────────────────────────────
 
 const PARAMS = { numRuns: 500, seed: freshOrFixedSeed(424242) } as const;
-// Fixed rather than threaded through the fresh lane: the reachability self-tests must
-// stay deterministic, since a fresh seed could miss a rare shape and flake.
+// A fixed seed keeps the reachability self-tests deterministic; a fresh one could miss a rare
+// shape and flake.
 const SAMPLE_PARAMS = { numRuns: 3000, seed: 20260709 } as const;
 
 describe('directive total-coverage round-trip', () => {
@@ -294,8 +292,8 @@ describe('directive total-coverage round-trip', () => {
 		);
 	});
 
-	// Reachability evidence: the SAME arbitrary the properties run on must be able
-	// to produce the bug-carrying shapes, or the coverage is illusory.
+	// The arbitrary the properties run on must be able to produce the bug-carrying shapes, or
+	// the coverage is illusory.
 	it('can generate a container nested inside a container', () => {
 		expect(samples.some((src) => hasNesting(parse(src).children))).toBe(true);
 	});

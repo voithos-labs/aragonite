@@ -1,10 +1,9 @@
 /**
- * G4.55: docs name the package `@voithos-labs/aragonite`, never the bare `aragonite`, which
- * belongs to a stranger's npm package. `docs/changelog/` is exempt, recording what shipped
- * under the name of the day.
+ * Docs name the package `@voithos-labs/aragonite`, never the bare `aragonite`, which belongs to
+ * a stranger's npm package (G4.55). `docs/changelog/` is exempt, recording what shipped under the
+ * name of the day.
  *
- * Miss-analysis: the scope rename matched quoted and backticked forms only, so two survivors in
- * a plain code block went unseen twice, and no gate anywhere reads a package name.
+ * Miss-analysis: the scope rename matched quoted and backticked forms only, and no gate read names.
  */
 
 import { describe, it, expect } from 'vitest';

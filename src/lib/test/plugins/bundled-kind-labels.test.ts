@@ -1,7 +1,6 @@
 // A bundled block's name for a screen reader and the block menu is declared on its kind, not read
 // back from the kind string, so renaming a kind cannot rename the block a reader hears.
-// Miss-analysis: only the alert declared a label, and a title row had no way to declare one; the
-// rest read right, or read as their humanized kind string, and nothing pinned any of them.
+// Miss-analysis: only the alert declared a label, and nothing pinned the other bundled names.
 import { describe, it, expect, beforeEach } from 'vitest';
 import { declaredPluginKind } from '$lib/plugin';
 import { parse } from '$lib/core/parser';

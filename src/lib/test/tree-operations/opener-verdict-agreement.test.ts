@@ -18,9 +18,8 @@ import type { AnyBlockKind, CstNode } from '$lib/core/nodes';
 // needs a later line to decide must land in the conservative half here, loudly.
 
 /**
- * Kinds whose opener declines a one-line trial parse, so the check stays conservative for
- * them and every edit to their opener line pays the full container parse. Falling through
- * is the safe answer, so membership here is a cost, not a correctness problem.
+ * Kinds whose opener declines a one-line trial parse, so every edit to their opener line pays the
+ * full container parse: a cost, not a correctness problem.
  */
 const CONSERVATIVE = new Set(['directiveContainer', 'admonition', 'details', 'callout']);
 

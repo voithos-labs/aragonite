@@ -40,9 +40,8 @@ const cell = (
 	position
 });
 
-// The structural chords are keymap bindings (cell-table-chords.test.ts), so an arrow that
-// reaches the plan was taken by nothing and must navigate; `native` hands it to the prose path,
-// which moves between siblings by index.
+// The structural chords are keymap bindings, so an arrow that reaches the plan was taken by
+// nothing and must navigate; `native` hands it to the prose path, which moves by sibling index.
 describe('cellKeydownPlan: an unclaimed modified arrow still navigates', () => {
 	const cases: Array<[string, ChordKeys, Partial<CellKeyState>, CellKeyPlan]> = [
 		[

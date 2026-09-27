@@ -11,8 +11,7 @@ import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { fixtureReading } from '$lib/test/harness/fixture-grammar';
 import { withStoredCaret } from '$lib/editor-actions/stored-caret';
 
-// Miss-analysis: which menu a right-click opens (a block's actions, the clipboard rows with or
-// without the insert flyout, or nothing) was pinned only through Playwright, one target per spec.
+// Miss-analysis: which menu a right-click opens was tested only through Playwright.
 
 beforeEach(() => {
 	document.body.replaceChildren();

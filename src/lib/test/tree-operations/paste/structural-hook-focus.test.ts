@@ -39,8 +39,7 @@ describe('defaultStructuralHook: caret at end of pasted content', () => {
 		expect((result.replacement[result.focusReplacementIndex].raw ?? '').trim()).toBe('two');
 	});
 
-	// Miss-analysis (GH #436): every fixture's residue was one line, so one residue node was
-	// assumed and never checked.
+	// Miss-analysis: GH #436, every fixture's residue was one line, so one residue node was assumed.
 	it('focuses the last pasted block when the residue is several blocks', () => {
 		const result = defaultStructuralHook(
 			para('abc\n    code\nmore\n'),

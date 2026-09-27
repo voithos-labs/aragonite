@@ -1,9 +1,7 @@
 // @vitest-environment jsdom
-// Deciding which visual line a caret is on needs rect measurement, which jsdom zeroes out, so
-// the browser's rect methods are patched on the prototype (the code under test calls
-// `document.createRange()` itself, so stubbing one range never reaches it). Each fake rect comes
-// from the range's (startContainer, startOffset), so the real text-node traversal and the line
-// comparison run against it.
+// Which visual line a caret is on needs rects, which jsdom zeroes, so the rect methods are patched
+// on the prototype (the code calls `document.createRange()` itself). Each fake rect comes from the
+// range's (startContainer, startOffset), so the real traversal and line comparison run against it.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
@@ -267,9 +265,7 @@ describe('isAtFirstVisualLine / isAtLastVisualLine', () => {
 	});
 });
 
-// Miss-analysis: the branch with no rect was exercised only with the caret inside a text node,
-// the one shape Chromium always measures, so nothing asked about a caret at the element level
-// beside a widget, where the widget's own box is what says which line it is on.
+// Miss-analysis: the no-rect branch ran only with the caret in a text node, never beside a widget.
 describe('a caret with no rect of its own reads the line off the box it sits against', () => {
 	let block: HTMLElement;
 	let island: HTMLElement;
@@ -328,8 +324,7 @@ describe('a caret with no rect of its own reads the line off the box it sits aga
 		expect(isAtLastVisualLine(block, 6, { start: 0, end: 6 })).toBe(true);
 	});
 
-	// Miss-analysis (#574): every widget-only fixture held one widget with a glyph of text, so no
-	// case had a block with no text at all, which the first-line check read as an empty block.
+	// Miss-analysis: GH #574; every widget-only fixture had a glyph of text, never none at all.
 	it('a caret beside the second of two wrapped images is not on the first line', () => {
 		const image = (): HTMLElement => {
 			const el = document.createElement('span');

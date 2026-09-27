@@ -1,7 +1,5 @@
 // @vitest-environment jsdom
-// Miss-analysis: every measure test registered a child whose height was already final and then
-// flushed, so no test mounted a block whose content arrives in a later effect of the same
-// flush, which is what every BlockHost does; reading it empty only showed up as a jerk in e2e.
+// Miss-analysis: no measure test mounted a block whose content arrives later in the same flush.
 import { describe, it, expect } from 'vitest';
 import { flushSync, tick } from 'svelte';
 import { fixedOracle, makePara, mountListWindowing } from '../harness/list-windowing.svelte';

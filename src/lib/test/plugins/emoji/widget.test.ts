@@ -9,9 +9,8 @@ import { registerEmoji, buildEmojiWidget, EMOJI_KIND } from '$lib/plugins/emoji/
 beforeEach(resetPluginPlatformForTests);
 afterEach(resetPluginPlatformForTests);
 
-// Shaped like a decoded entity: a `[data-inline-widget]` span whose text is the glyph and
-// whose source bytes sit on `data-source-*`, so the DOM-to-offset traversal reads `:smile:`
-// back while the DOM shows 😄.
+// Shaped like a decoded entity: the glyph as text and the source bytes on `data-source-*`, so
+// the DOM-to-offset traversal reads `:smile:` back while the DOM shows 😄.
 describe('buildEmojiWidget: atomic widget shell', () => {
 	it('marks the widget marker, source span, and the glyph', () => {
 		const node: InlineNode = {

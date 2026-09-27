@@ -1,10 +1,8 @@
 /**
- * G4.38: every editable block publishes `insertMarkdown`. The shared clipboard code creates it
- * for all of them, but Svelte 5 instance exports cannot be spread, so the last step is written by
- * hand per component and `BlockComponent` declares the member optional: the next block would
- * compile fine and silently decline every `editor.insertMarkdown`. Two routes deliver it, and
- * this reads whichever one the component actually uses: an instance export, or the object it
- * hands `publishRefSlot`.
+ * Every editable block publishes `insertMarkdown` (G4.38). Svelte 5 instance exports cannot be
+ * spread and `BlockComponent` declares the member optional, so a block missing it would compile
+ * and quietly ignore every `editor.insertMarkdown`. The scan reads whichever route the component
+ * uses: an instance export, or the object it hands `publishRefSlot`.
  */
 import { describe, it, expect } from 'vitest';
 import { balancedRegion, callArguments, callsTo, collectEditorSources } from './scan-source';
@@ -28,11 +26,8 @@ function surfaceComponents(): Array<{ relPath: string; code: string }> {
 
 // ── The published-object route ───────────────────────────────────────────
 
-/**
- * Members of the object a component hands `publishRefSlot`, or null where it publishes no such
- * object. Matched to the published argument by name: an object nothing publishes is as misleading
- * as an instance export nobody reads.
- */
+/** Members of the object a component hands `publishRefSlot`, or null where it publishes none.
+ *  Matched to the published argument by name, since an object nothing publishes doesn't count. */
 function publishedSurfaceMembers(code: string): string[] | null {
 	for (const declared of code.matchAll(/(?:const|let)\s+([A-Za-z_$][\w$]*)\s*=\s*\{/g)) {
 		const open = declared.index + declared[0].length - 1;

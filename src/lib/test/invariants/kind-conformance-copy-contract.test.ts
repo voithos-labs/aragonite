@@ -3,8 +3,8 @@
 // at either endpoint role.
 import { describe, it, expect, vi, afterEach } from 'vitest';
 
-// A collector that puts an interior offset back on a whole-unit endpoint: the pre-fix bytes.
-// Keyed on the endpoint's own value, so neither side depends on the kit's anchor/focus order.
+// A collector that puts an interior offset back on a whole-unit endpoint, the bytes the cell must
+// reject; keyed on the endpoint's own value, so neither side depends on the kit's anchor order.
 const stub = vi.hoisted(() => ({ mode: 'off' as 'off' | 'unit-start' | 'unit-end' }));
 vi.mock('$lib/selection/clipboard-text', async (importOriginal) => {
 	const actual = await importOriginal<typeof import('$lib/selection/clipboard-text')>();

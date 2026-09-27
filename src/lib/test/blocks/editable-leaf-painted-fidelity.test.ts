@@ -1,8 +1,5 @@
 // @vitest-environment jsdom
-//
-// Miss-analysis: the painter's fidelity was a header promise ("text-preserving by construction")
-// with no guard behind it; the code block asserted its own render, so no test ever asked what a
-// plugin's painter hands the leaf.
+// Miss-analysis: only the code block's own painter was tested, never a plugin's painter.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { unmount } from 'svelte';
 import { resetPluginPlatformForTests } from '$lib/testing';

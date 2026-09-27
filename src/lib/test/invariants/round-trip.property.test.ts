@@ -13,8 +13,8 @@ import {
 } from './arbitraries';
 import { describeRoundTrips } from '$lib/test/support/round-trip';
 
-// G2.1 marquee invariant: serialize(parse(s)) === s for all inputs. The parser is total
-// and the serializer is pure byte concatenation, so any counterexample is a real defect.
+// serialize(parse(s)) === s for all inputs (G2.1). The parser is total and the serializer
+// is pure byte concatenation, so any counterexample is a real defect.
 
 const PARAMS = { numRuns: 1000, seed: freshOrFixedSeed(424242) } as const;
 
@@ -45,8 +45,8 @@ describe('G2.1 round-trip + totality', () => {
 	});
 });
 
-// G2.2: the parser absorbs unterminated blocks to EOF rather than recovering, and
-// round-trip must hold for those truncated states too.
+// The parser absorbs unterminated blocks to EOF rather than recovering, and round-trip
+// must hold for those truncated states too (G2.2).
 describeRoundTrips('G2.2 EOF edge states', [
 	{ name: 'unclosed fenced code (backticks)', source: '```js\ncode\nmore' },
 	{ name: 'unclosed fenced code, trailing newline', source: '```\ncode\n' },
@@ -58,9 +58,8 @@ describeRoundTrips('G2.2 EOF edge states', [
 	{ name: 'unterminated CDATA', source: '<![CDATA[\ndata' }
 ]);
 
-// The large sizes: reaching the scale complexity defects live at, not sampling it densely.
-// Shrinking is off because a 100KB counterexample shrinks for minutes and the raw case is
-// already the diagnostic: the shapes are chosen, not searched.
+// Shrinking is off: a 100KB counterexample shrinks for minutes, and the chosen shapes are
+// already the diagnostic.
 describe('G2.1 round-trip at scale', () => {
 	it('serialize(parse(s)) === s over ~100KB floods, runs and unclosed containers', () => {
 		fc.assert(fc.property(arbLargeDoc, roundTrips), {

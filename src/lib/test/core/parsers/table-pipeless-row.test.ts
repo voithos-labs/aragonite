@@ -1,8 +1,7 @@
 // A line with no pipe straight after a table's rows is one more row, as GFM reads it (spec example
-// 201); only a blank line or the start of another block ends the table (GH #439). Expected shapes
+// 201); only a blank line or the start of another block ends the table. Expected shapes
 // checked against cmark-gfm through api.github.com/markdown.
-// Miss-analysis: every table-boundary pin gave the line below a table a pipe or a block marker,
-// so the pipe test standing in for GFM's rule was never contradicted.
+// Miss-analysis (GH #439): every case gave the line below a table a pipe or a block marker.
 import { describe, it, expect } from 'vitest';
 import { parse } from '../../../core/parser';
 import { serialize } from '../../../core/serializer';

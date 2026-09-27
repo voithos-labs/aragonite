@@ -131,7 +131,7 @@ describe('survivorAfterRemoval', () => {
 	}
 
 	it('reads the slot of the nearest surviving ancestor when the parent went too', () => {
-		// The quote holding [1, 0] is gone as well, so the slot is [1], past the end.
+		// The quote holding [1, 0] is gone as well, so the position is [1], past the end.
 		const doc = removeChildAt(parse('a\n\n> q\n'), [1]);
 		for (const side of ['before', 'after'] as const) {
 			expect(survivorAfterRemoval(doc, [1, 0], side)).toEqual({ path: [0], offset: CURSOR_END });

@@ -6,10 +6,8 @@ import { parse } from '$lib/core/parser';
 import { takeDevWarns } from '$lib/test/support/warn-gate';
 import { fixtureReading } from '../harness/fixture-grammar';
 
-// G1.35 asks its question at the write, over the nodes a one-block write target is installing.
-// Miss-analysis: the check took `installed` as `count <= 1` from both call sites, so it was always
-// null and the catalog row claimed a failure path no input could reach: the refusal above it did
-// all the work, and nothing answered for the next write target.
+// The single-node check runs at the write, over what a one-block write target installs (G1.35).
+// Miss-analysis: both call sites passed `count <= 1` as `installed`, so the check never fired.
 
 const node = (raw: string): CstNode => ({ kind: 'paragraph', leadingTrivia: '', raw });
 
@@ -37,7 +35,7 @@ describe('G1.35 single-node sink', () => {
 	});
 
 	// The refusal comes first and still holds: the call is made on every real merge and answers one
-	// node, however many arrived (GH #166's join reads as two blocks and is declined).
+	// node, however many arrived (a join whose bytes read as two blocks is declined).
 	it('stays silent through the merge entry points, refused join included', () => {
 		const plural = parse('# h\ntext\nmore\n');
 		expect(mergeWithNext(plural, 0, fixtureReading(), undefined).change).toEqual({

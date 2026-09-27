@@ -1,12 +1,8 @@
 // @vitest-environment jsdom
-//
 // A plugin grid inside a cross-block format range. `containerContract: 'grid'` is a declarable
 // plugin contract, so the toggle's grid branch is reached by kinds with no table metadata, whose
-// endpoints never snap to cell space: a range edge inside one arrives as a deep `[grid, row, col]`
-// path.
-//
-// Miss-analysis: every case fed the branch a parsed table with the grid wholly inside the range,
-// so neither a metadata-free grid nor an endpoint inside one was ever put to it.
+// endpoints never snap to cell space and arrive as deep `[grid, row, col]` paths.
+// Miss-analysis: every case fed the branch a parsed table lying wholly inside the range.
 import { defaultGrammarView } from '$lib/schema/block-openers';
 import { afterEach, describe, expect, it } from 'vitest';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
@@ -48,8 +44,8 @@ describe('a grid whose kind carries no table metadata', () => {
 		).not.toThrow();
 	});
 
-	// The other half of the same bug: metadata present but holding a shape of the plugin's own,
-	// where the column count read is `undefined` rather than a throw.
+	// Metadata present but in the plugin's own shape, where the column count read is `undefined`
+	// rather than a throw.
 	it('reads its own rows when the metadata belongs to the plugin', () => {
 		const grid = gridOf(registerPluginGrid(), [['a', 'b']]);
 		setPluginMetadata(grid, { label: 'mine' });
@@ -131,8 +127,8 @@ describe('a range endpoint deep inside a plugin grid', () => {
 		]);
 	});
 
-	// The active-marks read splits the same range into spans, so it inherits the fix: the cells
-	// past the endpoint must not vote the toolbar's mark off.
+	// The active-marks read splits the same range into spans, so the cells past the endpoint must
+	// not vote the toolbar's mark off either.
 	it('reads pressed from the covered cells alone', () => {
 		const doc = docAround(
 			gridOf(registerPluginGrid(), [
@@ -147,9 +143,8 @@ describe('a range endpoint deep inside a plugin grid', () => {
 		).toBe(true);
 	});
 
-	// An endpoint on the grid's own path counts cells only where the path is cell space. A plugin
-	// grid rendering one editable element over its cells lands a character offset there, which
-	// addresses no cell.
+	// A plugin grid rendering one editable element over its cells puts a character offset on the
+	// grid's own path, and that offset addresses no cell.
 	it('reads a char offset on the grid’s own path as the grid’s edge, not as a cell index', () => {
 		const doc = docAround(gridOf(registerPluginGrid(), TWO_BY_TWO));
 

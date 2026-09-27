@@ -1,7 +1,6 @@
 /**
- * Widget edge-select and vertical transparency come from the widget registry, not from the image
- * kind: a non-image live widget (the built-in `<br>` rawHtml widget) must pass the same entry
- * predicates. Tying recognition to `kind === 'image'` turns the `<br>` assertions red.
+ * Widget edge-select and vertical transparency come from the widget registry, not the image kind,
+ * so a non-image live widget (the built-in `<br>` rawHtml widget) passes the same entry predicates.
  * A standalone `<br>\n` parses as an HTML block (CommonMark §4.6 type 7), so a transparent
  * `<br>`-only paragraph needs content that cannot open one, hence `<br><br>`.
  */

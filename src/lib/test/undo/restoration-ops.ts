@@ -208,9 +208,8 @@ async function runTopOp(
 	}
 }
 
-/** Writes through the same `updateBlockContent` call TextEditableBlock types on, which
- *  reparses, so a `>` at offset 0 changes the block's kind exactly as a real keystroke would,
- *  and the comparison holds only if that change is byte-faithful. */
+/** Writes through `updateBlockContent`, the call TextEditableBlock types through, so a `>` at
+ *  offset 0 reparses the block's kind exactly as a real keystroke would. */
 async function runTypeChar(h: Harness, op: Extract<Op, { t: 'typeChar' }>): Promise<void> {
 	const doc = h.deps.doc;
 	const paragraphs = doc.children

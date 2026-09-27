@@ -1,5 +1,5 @@
 /**
- * G4.20: every line the editor writes takes the document's line ending. The fallback of
+ * Every line the editor writes takes the document's line ending (G4.20). The fallback of
  * `core/lines.ts :: trailingLineEnding` is a required argument, so the type holds the ending
  * choice; these scans hold what the type cannot see, a line split that leaves a CRLF line's `\r`
  * on its text, and a newline literal written into a node's bytes.
@@ -64,11 +64,8 @@ function stringLiterals(code: string): Array<{ start: number; text: string }> {
 
 /** A newline escape inside a source string literal: the two characters `\` and `n`. */
 const LITERAL_NEWLINE = /\\n/;
-/**
- * The literal reaches the emitted bytes rather than only being read (a `split` separator, an
- * `endsWith` check, an `??` default). A literal moved into a variable first slips past; the
- * CRLF-mirror test covers that case.
- */
+/** The literal reaches the emitted bytes rather than only being read (a `split` separator, an
+ *  `endsWith` check). A literal in a variable slips past; the CRLF-mirror test covers that. */
 const EMITTED_BEFORE = /(?:\+|\braw\s*\+?=)\s*$/;
 const EMITTED_AFTER = /^\s*\+/;
 
@@ -171,8 +168,8 @@ describe('G4.20: extractor and matcher self-tests', () => {
 	});
 
 	it('reads a right-hand side Prettier wrapped onto its own line', () => {
-		// The shape a long concatenation is actually formatted as, and the whole subject of
-		// this check. Stopping at the first newline truncated it to `.raw =`.
+		// The shape a long concatenation is actually formatted as, which a scan stopping at the
+		// first newline would truncate to `.raw =`.
 		const wrapped = "node.raw =\n\tmeta.indent +\n\tmeta.body +\n\t'|\\n';";
 		const found = rawAssignments([{ relPath: 'x', text: wrapped, code: wrapped }]);
 		expect(found).toHaveLength(1);

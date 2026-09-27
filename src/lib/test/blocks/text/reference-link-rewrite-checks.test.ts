@@ -18,11 +18,8 @@ import { createCompositionSeat } from '$lib/components/blocks/text/composition-s
 import type { InlineMarkKind } from '$lib/schema/inline-construct-policy';
 import { fixtureReading } from '$lib/test/harness/fixture-grammar';
 
-// Each live rewrite reparses its candidate and compares it with the tree the block drew, which
-// was read with the document's link definitions; a candidate read without them sees every
-// reference link as brackets, so the two readings disagree beside one (GH #443).
-// Miss-analysis: every rewrite fixture used inline links and autolinks, which read the same with
-// or without a resolver, and the unit harnesses passed no resolver even to build the drawn tree.
+// Each live rewrite reads its candidate with the link definitions the drawn tree was read with.
+// Miss-analysis: GH #443, rewrite fixtures used only links that read the same without a resolver.
 
 const LIVE = screenVisibility('live', { chromePaints: false });
 

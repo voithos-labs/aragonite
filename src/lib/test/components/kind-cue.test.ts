@@ -1,5 +1,4 @@
-// Miss-analysis: nothing reported a typed kind change at all, so no test could tell a keystroke
-// that changed the block from one that kept it, or a hidden-marker mode from source mode.
+// Miss-analysis: nothing reported a typed kind change, so no test could tell one from none.
 import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import type { Document } from '$lib/core/nodes';
@@ -67,8 +66,7 @@ describe('the kind cue', () => {
 		expect(cue.labelAt([0])).toBeUndefined();
 	});
 
-	// Miss-analysis: the label was keyed by path alone and every case left the cued block in place,
-	// so none saw an undo inside the fade put a paragraph where the heading was.
+	// Miss-analysis: every case left the cued block in place, never undone inside the fade.
 	it('drops the label once an undo inside the fade takes the kind back', async () => {
 		const { cue, typeTo, undoTo } = cueOver('title\n', 'live');
 		await typeTo('# title\n');

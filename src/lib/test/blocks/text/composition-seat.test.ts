@@ -87,9 +87,8 @@ describe('pending marks beat the arrival side', () => {
 	});
 });
 
-// The capture takes the marks at `compositionstart`, which spends them whether or not the
-// composition ever commits. A cancelled IME run inserts nothing, so what the toggle promised is
-// still due to the next insertion.
+// Taking the marks at `compositionstart` spends them even when the composition never commits,
+// so a cancelled IME run must hand them back for the next insertion.
 describe('a composition that commits nothing returns the marks it took', () => {
 	it('hands back a set no commit spent', () => {
 		const live = liveState('hello', 'far');

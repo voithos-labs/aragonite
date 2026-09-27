@@ -1,8 +1,5 @@
 // @vitest-environment jsdom
-//
-// Miss-analysis: what a prose editable says about an open inline menu was asserted only on the
-// built-in paragraph, so the other editable the editor ships, the one a plugin builds with
-// `createEditableLeaf`, was never asked and could say nothing at all.
+// Miss-analysis: the open inline menu's ARIA was asserted only on the paragraph, never on a leaf.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { unmount, flushSync } from 'svelte';
 import { resetPluginPlatformForTests } from '$lib/testing';

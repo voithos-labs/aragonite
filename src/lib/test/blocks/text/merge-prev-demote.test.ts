@@ -1,10 +1,8 @@
 // @vitest-environment jsdom
-//
 // The block-edge commands in a mode that draws no marker: the caret's reachable bounds are the
 // kind's content range, and a kind declaring `contentStartBackspace: 'demote-first'` gives up its
 // own structural bytes before the merge sees the key.
-// Miss-analysis: those commands were covered only through their byte effects at raw 0, which
-// every mode agrees on, so nothing could observe the bound moving, the one thing live changes.
+// Miss-analysis: the commands were tested only at raw 0, where every mode agrees on the bound.
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { mount, unmount, flushSync } from 'svelte';
 import TextEditableBlock from '$lib/components/blocks/text/TextEditableBlock.svelte';
@@ -93,9 +91,8 @@ describe('Backspace at content start in live mode', () => {
 		expect(mounted.blockEdit.mergeWithPrevious).not.toHaveBeenCalled();
 	});
 
-	// Raw 0 sits behind the hidden prefix, so no traversal reports it, but a caret can still be
-	// placed there, and a check testing equality would make the key do nothing. It reads at or
-	// before the reachable start, so the gesture does the visible thing either way.
+	// Raw 0 sits behind the hidden prefix, yet a caret can be placed there, so the check reads at
+	// or before the reachable start rather than equal to it.
 	it('still demotes from raw 0, an offset behind the unpainted prefix', () => {
 		mounted = mountBlock('## Title\n', 'live', 0);
 
@@ -110,9 +107,8 @@ describe('Backspace at content start in live mode', () => {
 		expect(mounted.blockEdit.mergeWithPrevious).not.toHaveBeenCalled();
 	});
 
-	// A heading opening with a construct hides two runs before its first visible byte, and the
-	// traversal reports that offset, so the bound has to be the reachable one or the key does
-	// nothing.
+	// A heading opening with a construct hides two runs before its first visible byte, so the
+	// bound must be the offset the traversal reports.
 	it('demotes a heading that opens with a construct, at the caret the walk reports', () => {
 		mounted = mountBlock('## **B** head\n', 'live', 5);
 
@@ -126,9 +122,8 @@ describe('Backspace at content start in live mode', () => {
 		);
 	});
 
-	// A reference construct is only a construct once the document's definitions resolve it: read
-	// without them `[B][r]` is plain text, its `[`s are content, and the bound stays at the `#`s
-	// where no caret ever lands. The bounds read the tree the render drew, resolver included.
+	// `[B][r]` is a construct only once the document's definitions resolve it, so the bounds read
+	// the tree the render drew, resolver included.
 	it('demotes a heading opening with a reference link', () => {
 		mounted = mountBlock('## [B][r] head\n\n[r]: https://example.com\n', 'live', 4);
 
@@ -142,11 +137,8 @@ describe('Backspace at content start in live mode', () => {
 		);
 	});
 
-	// The other kind whose content start moves: a directive leaf's `::` is hidden too, so a key at
-	// its content start reaches the merge, where `not-mergeable` turns it into a focus move.
-	// Asserted through the declarations that code reads, since the leaf's opener needs the
-	// plugin's grammar, which a bare block mount does not set up, and the paragraph case above
-	// already drives the undeclared path end to end.
+	// A directive leaf's hidden `::` sends a content-start key to the merge; checked through the
+	// declarations, since the leaf's opener needs the plugin grammar a bare mount does not set up.
 	it('leaves a declared-content kind with no demote to the cascade', () => {
 		registerDirectiveKinds();
 		try {
@@ -159,9 +151,8 @@ describe('Backspace at content start in live mode', () => {
 		}
 	});
 
-	// Where markers hide, the title's end is the block's end for the caret; where the underline
-	// paints, the caret can stand in it, so the block ends past it. Either way the join the
-	// command reaches lands the next block's text above the underline.
+	// The block's end for the caret is the title's end where markers hide and past the underline
+	// where it paints; either way the join lands the next block's text above the underline.
 	it.each<[PresentationMode, number]>([
 		['live', 5],
 		['source', 9],
@@ -183,7 +174,7 @@ describe('Backspace at content start in live mode', () => {
 });
 
 // Source mode and the preview modes draw the prefix, so the bytes beside the caret are the user's
-// to delete and raw 0 is the block's start exactly as before.
+// to delete and raw 0 is the block's start.
 describe('the same press outside a marker-hiding mode', () => {
 	it.each<PresentationMode>(['source', 'preview-inline'])('merges at raw 0 in %s', (mode) => {
 		mounted = mountBlock('## Title\n', mode, 0);

@@ -29,8 +29,8 @@ describe('paste-dispatch: strategy selection', () => {
 	);
 });
 
-// A kind that holds no blocks skips over the copy's packaging; every other target reads the
-// clipboard whole, which is what keeps a pasted blank run a blank run in prose.
+// A kind that holds no blocks ignores the blank blocks a copy wraps around its content; every
+// other target reads the clipboard whole, which keeps a pasted blank run a blank run in prose.
 describe('paste-dispatch: the clipboard’s content blocks', () => {
 	const WRAPPED = '  \nhello\nworld\n  ';
 

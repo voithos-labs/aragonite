@@ -1,9 +1,8 @@
 // @vitest-environment jsdom
-//
-// The IME composition window driven through the real surface skeleton in browser order:
-// start, then input events, then end, which ends at `input` and reads the DOM back. Covers
-// gate, the exactly-once end commit, the offset pair the commit receives, and G1.27. The
-// commit's downstream effects are pinned in editable-surface-composition-commit.
+// The IME composition window driven through the shared editable core in browser order: input
+// inside the window never commits, the end commits once with the offsets captured at start, and
+// an end with no start warns (G1.27). What the commit then does is in
+// `editable-surface-composition-commit.test.ts`.
 import { describe, it, expect, afterEach } from 'vitest';
 
 import { takeDevWarns } from '../support/warn-gate';

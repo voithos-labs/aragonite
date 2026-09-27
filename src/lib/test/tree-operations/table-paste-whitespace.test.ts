@@ -1,5 +1,4 @@
-// Miss-analysis: the row rebuild's fix had no sibling test on the two paste routes into a cell,
-// which trimmed their own copies of a row with `String.trim()` and dropped an edge NBSP.
+// Miss-analysis: the two paste routes into a cell had no test beside the row rebuild's NBSP fix.
 import { describe, expect, it } from 'vitest';
 import { parseClipboardGrid } from '$lib/tree-operations/table-grid-clipboard';
 import { normalizeWhitespace } from '$lib/components/blocks/table/table-cell-paste';

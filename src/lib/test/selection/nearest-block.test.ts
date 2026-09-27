@@ -6,8 +6,7 @@ import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { testLeaf } from '$lib/test/harness/test-kinds';
 
 // Which block a point off every block belongs to, and where inside it the gesture is answered.
-// The geometry half needs real layout and is pinned by e2e/tests/selection/dead-space-click.spec.ts;
-// this is the arithmetic, where the off-by-ones live.
+// The geometry needs real layout, so `e2e/tests/selection/dead-space-click.spec.ts` covers it.
 
 const BANDS = [
 	{ top: 100, bottom: 130 },
@@ -54,10 +53,8 @@ describe('nearestBand', () => {
 	});
 });
 
-// Where the endpoint gets hit-tested. The probe point is deliberately not returned, so this is
-// its only observation point: a grid kind records the point its own hook was handed. An
-// unclamped off-block point resolves to no offset at all on a text block, which would drop a
-// whole drag gesture whose moves were coalesced into one.
+// A grid kind records the point its hook is handed, the only view of the clamped point. Unclamped,
+// an off-block point resolves to no offset on a text block and drops a whole coalesced drag.
 describe('blockNearPoint', () => {
 	const BOXES = [
 		{ left: 100, right: 300, top: 100, bottom: 140 },

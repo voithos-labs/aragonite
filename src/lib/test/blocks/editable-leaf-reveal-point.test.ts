@@ -1,10 +1,5 @@
 // @vitest-environment jsdom
-//
-// Miss-analysis: every render-primary case drove the reveal through `parkCaret`, which is handed
-// an offset, so nothing exercised the one entry that has to work one out, and the hardcoded 0
-// click handler passed was never read back; and no fixture ever spread `renderProps` anywhere the
-// fold kept, so both handlers re-firing on the way up from the revealed source went unseen. The
-// pointer-down alone then stood in for a click, so moving it to the release went unseen too.
+// Miss-analysis: reveals came only through `parkCaret`, and no fixture spread `renderProps`.
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { unmount } from 'svelte';
 import type { BlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
@@ -18,8 +13,8 @@ const RAW = '@@ one two\n';
 
 function mountLeaf(caretTargetAtPoint?: BlockKindDescriptor['caretTargetAtPoint']) {
 	const kind = registerRevealLeafKind(KIND, { caretTargetAtPoint });
-	// The `data-block-path` element BlockHost renders, because that, not the component's own
-	// root, is what every caller of `caretTargetAtPoint` binds the hook to.
+	// Every caller of `caretTargetAtPoint` binds the hook to BlockHost's `data-block-path`
+	// element, not the component's own root.
 	const host = document.createElement('div');
 	host.setAttribute('data-block-path', '[0]');
 	document.body.appendChild(host);

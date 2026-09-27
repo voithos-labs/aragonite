@@ -1,5 +1,5 @@
 /**
- * G4.28: a write to a leaf's raw outside the content write names the kind's rule. The content
+ * A write to a leaf's raw outside the content write names the kind's rule (G4.28). The content
  * write applies the rule itself (`legalizeWrite`); a route that writes `<node>.raw` around it
  * goes through `writeOwnRaw` or `normalizeOwnRaw`, or is counted below with the reason it cannot
  * reach a kind that declares a rule. The fence rule keeps one implementation.
@@ -35,11 +35,8 @@ function namesInCode(sources: { relPath: string; code: string }[], re: RegExp): 
 
 // ── The bare write: a byte write that names neither function ─────────────────
 
-/**
- * Files holding a `<node>.raw =` write that consults no kind rule, each with the count it is
- * allowed: an entry per file with no count would let the next write in unnoticed. An allowed write
- * is either a kind re-emitting its own bytes, or one that cannot reach a kind declaring a rule.
- */
+/** Files holding a `<node>.raw =` write that consults no kind rule, counted so a new write fails.
+ *  Each is a kind re-emitting its own bytes, or a write that cannot reach a kind with a rule. */
 const BARE_RAW_WRITE_ALLOWLIST: Record<string, { count: number; why: string }> = {
 	[READERS_HOME]: { count: 1, why: 'the one allowed writer itself' },
 	'src/lib/tree-operations/content-write.ts': {

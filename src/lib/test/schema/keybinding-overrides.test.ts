@@ -83,7 +83,6 @@ describe('override-aware resolution (commands.ts)', () => {
 		expect(resolveBinding('Enter', 'paragraph', map, everyInstalledPlugin)?.command).toBe(
 			'history.undo'
 		);
-		// without overrides, Enter on paragraph is the built-in split
 		expect(resolveBinding('Enter', 'paragraph', undefined, everyInstalledPlugin)?.command).toBe(
 			'block.split'
 		);

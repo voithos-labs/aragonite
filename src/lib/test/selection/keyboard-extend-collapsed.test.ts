@@ -1,8 +1,7 @@
 // @vitest-environment jsdom
 // Extending a selection past a closed details stops on its title row, the only part a caret can
 // reach, and never names a hidden body leaf; select-all still covers that body.
-// Miss-analysis: every extension test walked open containers only, so the coverage walk's step
-// into a hidden body (which the reveal then opened, #562) had no fixture that could see it.
+// Miss-analysis: GH #562; every extension test walked open containers, never a hidden body.
 import { describe, it, expect, beforeEach } from 'vitest';
 import {
 	extendFocusToDocEdge,

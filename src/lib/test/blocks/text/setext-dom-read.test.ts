@@ -1,10 +1,8 @@
 // @vitest-environment jsdom
-//
 // A setext heading's DOM holds its title and its underline, drawn as a marker. A write from the
 // text the block reads back carries the underline once, and drops it when the title's last line
 // is left empty.
-// Miss-analysis: prose blocks had no mount-level typing tests, the shape property's retype writes
-// the stored bytes back and never reads the DOM, and no typing case erased the title.
+// Miss-analysis: prose blocks had no mount-level typing tests, and none erased a setext title.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { mount, unmount, flushSync } from 'svelte';
 import TextEditableBlock from '$lib/components/blocks/text/TextEditableBlock.svelte';

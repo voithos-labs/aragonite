@@ -8,11 +8,9 @@ import { describeConvergence } from '$lib/test/harness/parse-converged';
 import { fixtureReading } from '../harness/fixture-grammar';
 import { defaultGrammarView } from '$lib/schema/block-openers';
 
-// GH #54: the in-place write discipline left kind and parse-owned metadata stale: the write
-// re-derived metadata only after its own rule rewrote the bytes, and the deep-leaf merge
-// wrote absorbed bytes with no reparse at all.
-// Miss-analysis: the write's only behavioral pins went through the fence rule's rewrites, so a
-// write whose bytes arrived already legal never reached a metadata assertion.
+// The in-place write re-derives kind and parse-owned metadata from its bytes whether or not its own
+// rule rewrote them, and the deep-leaf merge reparses what it absorbs.
+// Miss-analysis: GH #54, the write's tests all went through the fence rule's rewrites.
 
 describe('writeOwnRaw re-derives parse-owned metadata (GH #54)', () => {
 	it('a heading write refreshes the level its bytes now carry', () => {

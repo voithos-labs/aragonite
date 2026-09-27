@@ -1,11 +1,8 @@
 // @vitest-environment jsdom
-//
-// A table-crossing delete truncates its text endpoint in place with no join, so the delimiter
-// runs the cut leaves unpaired must still go through the live-mode cleanup, or they paint as
-// literal `**`. The truncation is half a join and takes the cleanup's unpaired-run half; source
-// mode stays byte for byte. Miss-analysis: the live-join pins all crossed text-to-text merges,
-// where `cleanJoinedRaw` runs; no pin selected across the table wall, the one branch that skips
-// the join.
+// A table-crossing delete truncates its text endpoint in place with no join, so a delimiter run
+// the cut leaves unpaired must still go through the live-mode cleanup, or it paints as literal
+// `**`; source mode stays byte for byte.
+// Miss-analysis: the live-join cases only crossed text-to-text merges, never the table branch.
 import { afterEach, beforeEach, describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';

@@ -19,10 +19,8 @@ afterEach(() =>
 	])
 );
 
-// Pins the shared cross-block deletion steps (`planCrossBlockDeletion`, `applyPlannedDeletion`,
-// `rebuildSharedAncestries`). Each case routes through the same helpers but truncates its text
-// endpoint on a different side of the delete, and finds its shifted survivor by node identity:
-// a block strictly inside the range shifts that document index.
+// Each case truncates its text endpoint on a different side of the shared cross-block deletion
+// steps, and finds its survivor by node identity, since a delete inside the range shifts it.
 
 function run(source: string, start: SelectionPoint, end: SelectionPoint) {
 	const result = rangeDelete(parse(source), start, end, createSharingState(), fixtureReading());

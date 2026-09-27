@@ -1,7 +1,4 @@
-// Miss-analysis: the one row that put a bare URL in a link's text pinned the nested autolink as
-// correct, and nothing compared the shape to cmark-gfm, which leaves a link's text unlinked. The
-// open-bracket rows: the image alt row pinned the editor's own reading, and no row put an address
-// after a bracket that never closed (GH #422).
+// Miss-analysis (GH #422): no row checked an address in a link's text or after `[` with cmark-gfm.
 import {
 	autolinkNode,
 	describeScanCases,

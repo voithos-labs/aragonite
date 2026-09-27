@@ -10,9 +10,7 @@ import {
 } from '$lib/test/harness/editor-actions';
 import type { CstNode } from '$lib/core/nodes';
 
-// Miss-analysis (GH #220): each list action was tested alone and only over sublists holding
-// items, so no test asked the actions that put an item into a sublist what a childless one
-// means; #202 closed the same shape one action over, in the lift direction.
+// Miss-analysis (GH #220): each list action was tested only over sublists that held items.
 
 interface KindShape {
 	kind: string;
@@ -45,8 +43,8 @@ function listWithChildlessSublist(spelling: 'undefined' | 'empty'): CstNode {
 	return list;
 }
 
-// `[]` is truthy, so it already reaches the sublist scope; `undefined` is the case that was red
-// first and `[]` the guard that keeps the two spellings answering alike.
+// A childless sublist spells its children `[]` or `undefined`, and only `[]` is truthy, so both
+// spellings run to keep them answering alike.
 describe.each([{ spelling: 'undefined' as const }, { spelling: 'empty' as const }])(
 	'indentItem into a childless matching sublist (children: $spelling)',
 	({ spelling }) => {

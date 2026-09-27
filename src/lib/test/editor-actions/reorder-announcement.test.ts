@@ -12,13 +12,11 @@ import type { BlockComponent } from '$lib/block-component';
 // What a reorder reports, at both levels: the a11y announcement and where the caret goes. A
 // move can make two neighbours merge, and the merge changes both the destination and the
 // sibling count, neither of which the pre-commit node can answer, since the commit copies it.
-// Miss-analysis: onReorder had no test at any level, so the container's stale total shipped;
-// the caret index was tested at the primitive alone, never at the action that uses it.
+// Miss-analysis: onReorder had no test at any level, and the caret index only at the primitive.
 
 /**
- * Every index answers, and each records the index it was asked for. A merge's change carries
- * `idMap: {0:0}`, so the array itself holds `undefined` where a mounted editor holds a
- * component; this models the mounted document rather than the headless splice.
+ * Every index answers and records the index it was asked for, as a mounted document does: a
+ * merge's `idMap: {0:0}` leaves `undefined` where a mounted editor holds a component.
  */
 function refsAnsweringEverySlot(
 	slots: (BlockComponent | undefined)[],

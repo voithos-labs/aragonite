@@ -23,10 +23,8 @@ export interface SurfaceHarness {
 }
 
 /**
- * An editable surface over a real contenteditable: a test simulates the IME by assigning
- * `el.textContent`, as the browser does, and sets the caret by hand because jsdom has none. Only
- * the reads the composition path makes are real. `presentationMode` mounts the block under a root
- * carrying that mode, where caret-position lookup reads it.
+ * An editable block over a real contenteditable: a test simulates the IME by assigning
+ * `el.textContent`, as the browser does, and sets the caret by hand because jsdom has none.
  */
 export function makeSurface(
 	commitInput?: EditableSurfaceDeps['commitInput'],

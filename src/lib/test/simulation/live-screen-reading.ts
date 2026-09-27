@@ -45,9 +45,8 @@ export function chromePaints(node: CstNode): boolean {
 	return range.start > 0 || paintsOnlyChrome(nodes, node.raw, renderOptions());
 }
 
-/** The content behind every marker family: the reading a before/after comparison needs, since a
- *  block's markers stop painting the moment content arrives and a screen diff would call that
- *  bytes lost. */
+/** The content behind every marker, for before/after comparisons: a block's markers stop painting
+ *  once content arrives, which a screen diff would call bytes lost. */
 export function documentContentText(holder: Document | CstNode): string {
 	return (holder.children ?? [])
 		.map((child) => {
@@ -60,11 +59,8 @@ export function documentContentText(holder: Document | CstNode): string {
 		.join('\n');
 }
 
-/**
- * The residue live-mode.md § 4.1 forbids, counted where it actually hides: a delimiter pair
- * enclosing nothing whose every byte goes unpainted. The same run painted as literal text is on
- * screen, so it is a byte the user met rather than residue, which is the distinction § 4.1 draws.
- */
+/** Delimiter pairs enclosing nothing whose every byte goes unpainted (live-mode.md § 4.1); the
+ *  same run painted as literal text is a byte the user saw, not residue. */
 export function unpaintedResidue(holder: Document | CstNode): number {
 	return (holder.children ?? []).reduce((total, child) => {
 		if (child.children !== undefined) return total + unpaintedResidue(child);
@@ -85,18 +81,15 @@ export function unpaintedResidue(holder: Document | CstNode): number {
 }
 
 /** Trailing whitespace collapses on screen, so a check comparing two readings must not see it: a
- *  live split may rightly drop a run the user never met (#106). */
+ *  live split may rightly drop a run the user never saw. */
 export const normalizeScreen = (text: string): string =>
 	text
 		.split('\n')
 		.map((line) => line.replace(/[ \t]+$/, ''))
 		.join('\n');
 
-/**
- * The offsets a gesture aimed at a hidden edge lands on: every boundary of a run the user cannot
- * see, plus the start and end of the content. These are the positions live-mode.md § 1 calls
- * ambiguous, and an even draw reaches them too rarely to search between the scripted flows.
- */
+/** Every boundary of a run the user cannot see, plus the content's ends: the positions live-mode.md
+ *  § 1 calls ambiguous, which an even draw reaches too rarely. */
 export function hiddenEdgeOffsets(node: CstNode): number[] {
 	if (!readable(node)) return [];
 	const range = getContentRange(node);

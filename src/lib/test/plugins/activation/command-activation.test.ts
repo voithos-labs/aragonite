@@ -1,6 +1,4 @@
-// Miss-analysis: the activation suites pressed a plugin's chord in an editor that left it out,
-// but no case asked `runCommand` for the plugin's id there, so a command registry that ignored
-// the activation still passed.
+// Miss-analysis: no case asked `runCommand` for a plugin's id in an editor that left it out.
 import { afterEach, describe, expect, it } from 'vitest';
 import { runCommandById, registerBlockCommand } from '$lib/schema/block-commands';
 import type { CommandDispatchContext, KindCommandTarget } from '$lib/schema/block-commands';

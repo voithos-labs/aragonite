@@ -1,5 +1,4 @@
-// Miss-analysis: the task-aware reader reached typed writes and merges but not the list split, and
-// the shape property keeps list-item bodies out of its split gesture, so no case split a to-do.
+// Miss-analysis: the task-aware reader missed the list split, and no case split a to-do.
 
 import { describe, it, expect } from 'vitest';
 import { registerBlockListState } from '$lib/reactivity/state-registry';

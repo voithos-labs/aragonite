@@ -1,8 +1,5 @@
 // @vitest-environment jsdom
-//
-// Miss-analysis: the language offer was pinned by clicking into a fence, where no arrival key
-// is recorded, so moving through an empty fence with the keyboard never meets the picker
-// that took its focus.
+// Miss-analysis: the language offer was tested by clicking into a fence, never by keyboard arrival.
 import { describe, it, expect, afterEach } from 'vitest';
 import { flushSync, tick } from 'svelte';
 import { createCaretMemory } from '$lib/cursor/caret-memory';

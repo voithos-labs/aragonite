@@ -1,8 +1,6 @@
 // @vitest-environment jsdom
-//
-// Miss-analysis: G1.33 fired from inside one function's own body, so no test ever drove a caret
-// placement the platform did not write itself (a plugin's own `parkCaret`, or the render-primary
-// scroll into view), and the whole bypass class sat outside the suite.
+// Every caret placement, the platform's or a plugin's, meets the marker-only caret check (G1.33).
+// Miss-analysis: the check ran inside one function, so no test drove a caret call it didn't make.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import type { Component } from 'svelte';
 import type { BlockComponent, BlockComponentExports, BlockComponentProps } from '$lib/plugin';
@@ -135,9 +133,8 @@ describe('G1.33 fires from the focus boundary', () => {
 		expect(takeDevWarns()).toEqual([]);
 	});
 
-	// The branch for a block that takes no keystroke. No built-in reaches it, because a built-in is
-	// `contenteditable="false"` only in reading mode, which the mode check already excludes, so
-	// nothing else tells the next reader this branch matters for plugin blocks.
+	// No built-in reaches the inert branch: a built-in is `contenteditable="false"` only in reading
+	// mode, which the mode check already excludes, so only plugin blocks rely on it.
 	it('does nothing for an inert surface, over chrome the rogue entry point fires on', async () => {
 		const editor = await mountWith(
 			INERT_MARKER,

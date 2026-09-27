@@ -6,12 +6,9 @@ import { parse } from '$lib/core/parser';
 import type { BlockComponent } from '$lib/block-component';
 import { defaultGrammarView } from '$lib/schema/block-openers';
 
-// GH #178: a merge reported `idMap: {0:0}`, so every position below it took a fresh id and
-// remounted, including blocks the gesture never touched, whose identity the incoming change still
-// described.
-// Miss-analysis: the reorder pins assert the permutation the reorder produces, and the merge pins
-// assert the window a merge collapses; no case ran a reorder whose window a merge then ate, so
-// the composition of the two was never read at all.
+// A reorder whose window a merge then collapses keeps the ids of the blocks it never touched, or
+// every position below the merge remounts.
+// Miss-analysis: GH #178, no case ran a reorder whose window a merge then collapsed.
 
 /** A list above an indented paragraph: their adjacent bytes re-read as one list on reload. */
 const SOURCE = '- a\n\nx\n\n  b\n';

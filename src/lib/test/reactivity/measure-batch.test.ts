@@ -1,9 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import { runMeasureBatch, type MeasureEntry } from '../../reactivity/measure-batch';
 
-// VR-4: every mounted block's height is read before any height is written, because a read
-// after a write hits a layout that write dirtied, which forces one synchronous reflow per block
-// during a fast scroll.
+// Every mounted block's height is read before any is written, since a read after a write forces
+// a synchronous reflow per block during a fast scroll (VR-4).
 
 /** Records every read and write as a labelled event on one timeline, so a test can assert
  *  that all the reads come before all the writes however many entries there are. */

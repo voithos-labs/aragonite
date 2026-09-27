@@ -8,8 +8,8 @@ import { registerTocBlock, TOC_BLOCK } from '$lib/plugins/toc/toc-plugin';
 import { registerMathBlock, MATH_BLOCK, MATH_FENCE } from '$lib/plugins/latex/latex-kind';
 import { registerMemoBlock, MEMO_BLOCK } from '../../../routes/test/plugins/memo/memo-kind';
 
-// The blocks built on simpleLeafClosure. Checking G1.24 against their real registered
-// descriptors fails an inconsistent change at install time, not at the next render.
+// The blocks built on simpleLeafClosure, checked against their registered descriptors so a
+// closure that disagrees fails at install time, not at the next render (G1.24).
 const MIGRATED: { kind: string; install: () => void }[] = [
 	{ kind: TOC_BLOCK, install: registerTocBlock },
 	{ kind: MATH_BLOCK, install: registerMathBlock },

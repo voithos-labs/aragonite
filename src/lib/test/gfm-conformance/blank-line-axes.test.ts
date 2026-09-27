@@ -3,9 +3,9 @@ import { roundTripCases } from '$lib/test/support/round-trip';
 import { editorOutline, referenceOutline } from './block-outline';
 
 /**
- * Narrowing the blank-line test to space and tab (GFM §2.1) moves block structure on several
- * axes at once, so each is pinned against commonmark.js, which the GFM extensions leave right
- * for §2.1, §4.4, §4.6, §5.1 and §5.2. Block outlines only: the reference's inline stage
+ * A blank line holds only spaces and tabs (GFM §2.1), which shapes block structure on several
+ * axes; each is pinned against commonmark.js, which the GFM extensions leave right for §2.1,
+ * §4.4, §4.6, §5.1 and §5.2. Block outlines only: the reference's inline stage
  * `String.trim()`s a non-breaking space cmark-gfm keeps.
  */
 

@@ -41,8 +41,7 @@ describe('readCurrentSelection: unfocused editor', () => {
 	});
 });
 
-// Miss-analysis: the undo capture read the selected image first, and no test asked the public
-// read, which answered with the caret the browser puts back at the paragraph's start.
+// Miss-analysis: only the undo capture was tested with a selected image, never the public read.
 describe('readCurrentSelection: an image selected whole', () => {
 	it("answers the image's edge, not the caret a block reports", () => {
 		const imageEnd = { path: [0], offset: 41 };
@@ -87,9 +86,7 @@ describe('undo selection snapshots: cellCoordinate round-trip', () => {
 	});
 });
 
-// Miss-analysis (GH #111): the clamp lived at one caller (the collapse path), so a restore
-// arriving through any other caller (a range delete's descended-leaf caret at literal 0) put the
-// native caret behind the hidden run, and no test observed `applyCollapsedCaret` itself.
+// Miss-analysis: GH #111; the clamp sat at one caller, and no test observed `applyCollapsedCaret`.
 describe('applyCollapsedCaret: the reachable clamp lives in the one writer', () => {
 	afterEach(() => document.body.replaceChildren());
 
@@ -181,8 +178,7 @@ describe('applySelectionToDom: restore routing', () => {
 		document.body.replaceChildren();
 	});
 
-	// Miss-analysis: the backward case above has no marker span, and the marker branch ran before
-	// the direction check, so no test asked for a backward range that starts at raw 0 behind one.
+	// Miss-analysis: the backward case above had no marker span, so none began at raw 0 behind one.
 	it('keeps a backward range backward when it starts at raw 0 behind a marker span', () => {
 		const block = document.createElement('div');
 		block.setAttribute('contenteditable', 'true');
@@ -223,9 +219,7 @@ describe('applySelectionToDom: restore routing', () => {
 		expect(requested).toEqual([[0, 1, 1]]);
 	});
 
-	// Miss-analysis: the restore path's table coverage all came in through the cross-block branch,
-	// where a cell endpoint had to be translated to paint anything. The collapsed branch looks
-	// like text from the outside, so nothing ever asked which space its offset was in.
+	// Miss-analysis: table restores were only tested cross-block, never as a collapsed cell caret.
 	it('lands a collapsed cell selection in the cell, not at a char offset on the table', () => {
 		const doc = parse(TABLE_ONLY);
 		const s = createSelectionState({ getDoc: () => doc });

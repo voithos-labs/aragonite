@@ -1,9 +1,6 @@
 // @vitest-environment jsdom
 // Two editors, one process, one installed toc definition, two depths.
-//
-// Miss-analysis: the depth was pinned at the factory argument and at the extraProps closure, both
-// of which are process-wide by construction, and no test mounted a second instance, so nothing
-// could observe the first install fixing the depth for the other.
+// Miss-analysis: no test mounted a second toc instance, so a process-wide depth went unseen.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import type { EditorPluginEntry } from '$lib/plugin';
 import { installEditorDomStubsForTests, resetPluginPlatformForTests } from '$lib/testing';

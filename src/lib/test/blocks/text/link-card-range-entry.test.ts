@@ -1,10 +1,7 @@
 // @vitest-environment jsdom
-//
-// The chord over a range that lies wholly inside one link edits that link. Create refuses those
-// bytes, since they already belong to a construct, so without this branch the key does nothing
-// while the toolbar still shows the button pressed: an enabled button that neither opens nor
-// writes. Miss-analysis: every create case drove a range over plain text or one crossing a
-// construct, so a range contained in one, the shape both branches refuse, never reached the entry.
+// The chord over a range wholly inside one link edits that link. Create refuses those bytes, so
+// without this branch the key would do nothing while the toolbar shows the button pressed.
+// Miss-analysis: create cases used ranges over plain text or across a construct, never inside one.
 import { describe, it, expect, afterEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import type { CstNode } from '$lib/core/nodes';

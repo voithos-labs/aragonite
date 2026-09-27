@@ -76,9 +76,8 @@ describe('footnote definition rebuildRaw re-emits marker + continuation indent',
 	});
 });
 
-// The definition's continuation scan and its body parse both ask the one
-// blank-line predicate, so GFM §2.1 (space and tab only) reaches into the plugin:
-// a non-breaking space is content on both.
+// The definition's continuation scan and its body parse ask one blank-line predicate (GFM §2.1,
+// space and tab only), so a non-breaking space is content on both.
 describe('footnote definition treats a non-breaking space as content', () => {
 	const NBSP = String.fromCharCode(0xa0);
 

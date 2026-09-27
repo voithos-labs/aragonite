@@ -1,5 +1,4 @@
 // @vitest-environment jsdom
-//
 // From a click to a construct: the click's raw offset through the shared traversal, then the
 // construct chain filtered to the kinds whose destination is hidden. A link with a blocked scheme
 // resolves like any other, since the card is how a user fixes a blocked URL.

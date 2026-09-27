@@ -1,7 +1,5 @@
 // @vitest-environment jsdom
-//
-// Miss-analysis: the auto-pair and on-type completer suites ran with every installed plugin
-// active, so removing either owner check left every test green.
+// Miss-analysis: the auto-pair and completer suites never ran with their owning plugin left out.
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { resetPluginPlatformForTests } from '$lib/testing';
 import { definePlugin, installPlugins } from '$lib/schema/plugin-install';

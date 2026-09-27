@@ -1,8 +1,7 @@
 // Every entry point that writes document bytes asks the reading-mode check before writing: a
 // reading-mode write is declined with no undo entry and no edit event, and reports itself. One row
 // per byte-writing entry point.
-// Miss-analysis: no writer read the mode, so each route relied on its own caller's check, and no
-// test drove a writer in reading mode to see whether anything stopped it.
+// Miss-analysis: no test drove a writer in reading mode, so each leaned on its caller's check.
 import { describe, expect, it } from 'vitest';
 import { serialize } from '$lib/core/serializer';
 import type { EditEvent } from '$lib/editor-events';
@@ -140,8 +139,7 @@ describe('the reading-mode check at every byte-writing entry point', () => {
 	}
 });
 
-// Miss-analysis: every row above pushes its snapshot inside a commit that is itself refused, so
-// the typing push, which runs ahead of its write, went unchecked.
+// Miss-analysis: every row above is refused inside its commit, never the typing push ahead of it.
 describe('an undo snapshot pushed ahead of a write in reading mode', () => {
 	it('the typing push leaves the undo stack empty', () => {
 		const h = makeTopHarness('one\n', { reading: fixtureReading({}, 'reading') });

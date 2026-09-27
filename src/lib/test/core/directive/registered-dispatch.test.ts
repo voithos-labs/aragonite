@@ -11,8 +11,8 @@ import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
 activateDirectiveGrammar(); // before any parse
 
-// Sibling-path parity: the leaf and text tiers must dispatch a registered name exactly as
-// the container tier does (pinned in roundtrip-property.test.ts).
+// Leaf and text directives must dispatch a registered name exactly as a container does
+// (pinned in roundtrip-property.test.ts).
 
 const CUSTOM_LEAF = declarePluginKind('directiveCustomLeafProbe');
 const FACTORY_LEAF = declarePluginKind('directiveFactoryLeafProbe');

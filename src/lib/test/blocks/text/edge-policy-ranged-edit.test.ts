@@ -1,9 +1,7 @@
 // @vitest-environment jsdom
-//
 // A plain edit key over a selected range. The dispatch reads the range's start as its caret, so
-// the branches that answer for the construct beside a caret would answer for the widget a
-// widget-led block starts with. Miss-analysis: every range test selected from prose and every
-// widget-edge test pressed at a collapsed caret, so nothing crossed the two.
+// branches that answer for a construct beside a caret would answer for a block's leading widget.
+// Miss-analysis: range tests selected prose, widget tests used a collapsed caret; none did both.
 import { describe, expect, it } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { trimTrailingLineEnding } from '$lib/core/lines';
@@ -28,11 +26,8 @@ function selectWholeSurface(el: HTMLElement): void {
 	sel.addRange(range);
 }
 
-/**
- * A block whose first inline node is a widget: `&copy;` deletes atomically and steps over,
- * `![a](u)` selects then deletes, the two edge policies a leading widget can carry. `ranged`
- * selects from `from` to the end of the displayed text.
- */
+/** A block led by a widget (`&copy;` steps over, `![a](u)` selects then deletes); `ranged`
+ *  selects from `from` to the end of the displayed text. */
 function mountWidgetLed(
 	source: string,
 	ranged: boolean,
@@ -148,8 +143,7 @@ function mountMarkerLed(clamped: boolean): EdgeDispatchHarness & { entered: numb
 	return { ...harness, entered };
 }
 
-// Miss-analysis: the two readings of "a range is held" were never put under one selection, so a
-// shape that is a range to one and a caret to the other had no test to disagree in.
+// Miss-analysis: no test put the DOM's and the clamped reading of a range under one selection.
 describe('a range whose ends both clamp into the container marker prefix', () => {
 	it('every branch reads it as a range: the leading entity survives the key', () => {
 		const h = mountMarkerLed(true);

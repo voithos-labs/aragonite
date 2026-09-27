@@ -57,9 +57,8 @@ function evaluateInput(input: string): ReferenceSkip | 'equal' | Divergence {
 	const reading = referenceInlineReading(input);
 	if ('skip' in reading) return reading.skip;
 	const theirs = normalizeReference(reading.nodes);
-	// No resolver, deliberately: the reference wrapper skips every input whose
-	// parse consumed a refmap entry (reference.ts span guard), so a resolver
-	// would never fire — unresolvedReference deviations are invisible here by design.
+	// No resolver: the reference wrapper skips every input whose parse consumed a refmap entry,
+	// so a resolver would never fire here.
 	const ours = normalizeAragonite(parseInline(input, 0, input.length), input);
 	return normalEqual(ours, theirs) ? 'equal' : { input, ours, theirs };
 }

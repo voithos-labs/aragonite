@@ -1,8 +1,6 @@
 // A body row wider than the header keeps its extra cells through every edit. GFM renders only
 // the header's column count (spec example 204), but the cells past it are bytes the file holds.
-// Miss-analysis: the table tests wrote rows as wide as their header, and the shape property's
-// retype gesture skipped table rows because of this very loss, so nothing drove a write into one.
-// The range delete's own header promotion was then left out: only `deleteRow` drove one.
+// Miss-analysis: every table test wrote rows as wide as their header.
 import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';

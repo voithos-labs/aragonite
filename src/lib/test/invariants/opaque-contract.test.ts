@@ -179,8 +179,8 @@ describe('checkOpaqueStaleRaw (opaque containers)', () => {
 		});
 	}
 
-	// The split: with an opener registered, a raw that no longer reparses to its kind has really
-	// drifted, rather than being the case with no opener, which cannot be checked at all.
+	// With an opener registered, a raw that reparses to another kind has really drifted, unlike a
+	// kind with no opener, which cannot be checked at all.
 	it('fires when a registered-opener kind reparses to a divergent kind', () => {
 		const note = registerNoteKind();
 		const node = parseNote('::note Title\nbody\n::\n');

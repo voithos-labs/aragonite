@@ -1,5 +1,4 @@
-// Miss-analysis: every follow case wrote a paragraph, whose kind stores the bytes it is given, so
-// no test wrote an image in a kind whose own write rule changes or refuses the bytes.
+// Miss-analysis: every follow case wrote a paragraph, never a kind whose write rule changes bytes.
 import { afterEach, describe, expect, it } from 'vitest';
 import { tick } from 'svelte';
 import { resetPluginPlatformForTests } from '$lib/testing';

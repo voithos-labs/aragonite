@@ -10,7 +10,7 @@ import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
 import type { AnyBlockKind, CstNode } from '$lib/core/nodes';
 import { testContainer } from '$lib/test/harness/test-kinds';
 
-// A commit that unwinds after the chain rebuild changed a container's kind wrote a
+// A commit that unwinds after its chain rebuild changed a container's kind has written a
 // replacement into a live nested children array, which no other rollback step reaches:
 // the array swap restores `doc.children` and `savedChildren` restores the swapped-out
 // node's own children, not the index now holding a different node.
@@ -91,7 +91,7 @@ describe('a commit that unwinds after a container was re-kinded', () => {
 		expect(h.inner().kind).toBe('blockquote');
 	});
 
-	// The slot alone is not enough: a swap keeps the bytes, so the replacement would
+	// The index alone is not enough: a swap keeps the bytes, so the replacement would
 	// serialize identically. Only the restored body distinguishes the two.
 	it('leaves the restored body and the bytes as they were before the commit', async () => {
 		const h = makeDoc();

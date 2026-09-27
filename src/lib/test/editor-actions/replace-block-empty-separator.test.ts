@@ -3,12 +3,9 @@ import { serialize } from '$lib/core/serializer';
 import { makeNestedHarness, makeTopHarness } from '$lib/test/harness/editor-actions';
 import { expectParseConverged } from '$lib/test/harness/parse-converged';
 
-// An empty replacement removes a block, so it must do what `deleteNode` does: hand the
-// vacated separating line down to the successor, and drop the one a blank predecessor now
-// provides (syntax-tree.md § Blank lines).
-// Miss-analysis: `replace-block-id-preservation.test.ts` and the enter-completion suites drive
-// non-empty replacements only, where `normalizeReplacementTrivia` hands the index's line to
-// the new first block; the empty case splices bare and had no test at all.
+// An empty replacement removes a block, so it must do what `deleteNode` does: hand the vacated
+// separating line down to the successor, and drop the one a blank predecessor provides.
+// Miss-analysis: every replaceBlock suite drove non-empty replacements, never an empty one.
 
 describe('replacing a block with nothing settles the separators it freed', () => {
 	it('hands the vacated line down to a successor that carries none', async () => {

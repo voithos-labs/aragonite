@@ -43,11 +43,8 @@ export function drainDevWarns(): void {
 	takeDevWarns();
 }
 
-/**
- * Drain, refusing any tag the caller did not declare. For a fixture that provokes a warning the
- * test is not about. Every declared tag has to fire somewhere in the file, or the file's
- * `afterAll` summary names it stale.
- */
+/** Drain, refusing any tag not in `tags`, for a fixture's warning the test is not about. Each
+ *  declared tag must fire somewhere in the file, or the `afterAll` summary names it stale. */
 export function allowDevWarns(tags: string[]): DevWarnRecord[] {
 	for (const tag of tags) declaredTags.add(tag);
 	const drained = takeDevWarns();

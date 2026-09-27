@@ -1,9 +1,5 @@
 // @vitest-environment jsdom
-//
-// Miss-analysis: the rule that a cell hides a shown source before editing was covered only on the
-// two paths that already followed it, the Enter case and the shared clipboard handlers, and every
-// other case drove an edit with no source shown, so the rule looked enforced while three sibling
-// paths ran past it, and the table rebuild that discards the edit leaves the bytes well formed.
+// Miss-analysis: hiding a shown source before a cell edit was tested on two of its paths only.
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { registerMathInline } from '$lib/plugins/latex/latex-kind';
 import { resetInlineState } from '../text/math-widget-fixture';
@@ -54,8 +50,8 @@ describe('a cell mutation folds the open reveal before it runs', () => {
 		);
 	});
 
-	// The commit-by-accident case: the toggle reads the shown DOM text and writes it back as the
-	// cell's raw, leaving the source showing over bytes it no longer matches.
+	// Without hiding the source first, the toggle reads the shown DOM text and writes it back as
+	// the cell's raw, leaving the source showing over bytes it no longer matches.
 	it('folds before a format toggle rather than committing the revealed text as raw', async () => {
 		registerMathInline();
 		mounted = mountCell(CELL);

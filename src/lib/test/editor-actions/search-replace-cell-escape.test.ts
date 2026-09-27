@@ -4,9 +4,9 @@ import { serialize } from '$lib/core/serializer';
 import type { CstNode, Document } from '$lib/core/nodes';
 import { makeSearchReplace, scanCompiled } from '$lib/test/harness/search-replace';
 
-// `docs/design/editor.md` §10: a replacement into a table cell escapes the delimiters the
-// cell's raw reserves so it cannot split the row. Escaping the replacement string alone
-// mishandles a backslash on either side of the join, and the row reparses one cell wider.
+// A replacement into a table cell escapes the delimiters the cell's raw reserves so it cannot
+// split the row. Escaping the replacement string alone mishandles a backslash on either side of
+// the join, and the row reparses one cell wider.
 
 /** Literal matches inside table cells, as `{path, start, end}` scan results. */
 function scanCells(doc: Document, needle: string) {

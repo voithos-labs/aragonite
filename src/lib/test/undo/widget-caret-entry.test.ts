@@ -1,6 +1,5 @@
 // @vitest-environment jsdom
-// Miss-analysis: the gap caret had its own arm and test here, but no test recorded an entry while
-// an image was selected, the other state in which no block reports a caret.
+// Miss-analysis: only the gap caret had a test; none recorded an entry with an image selected.
 import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';

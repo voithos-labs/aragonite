@@ -1,5 +1,4 @@
 // @vitest-environment jsdom
-//
 // Every way out of a shown source goes through the one resetReveal, so all of them leave the same
 // idle state and it can be used again afterwards. Anything an exit leaves behind, a `settling`
 // flag stuck true or a stale record, shows up as a broken second cycle.

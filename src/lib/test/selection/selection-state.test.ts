@@ -186,8 +186,8 @@ describe('SelectionState.cellLandingFor', () => {
 		expect(s.cellLandingFor(point)).toEqual(point);
 	});
 
-	// Out of the grid `cellEndpointDeepPath` returns null (and warns), and a landing must not
-	// invent a row.
+	// Out of the grid `cellEndpointDeepPath` returns null (and warns), and a cell placement must
+	// not invent a row.
 	it('lands an out-of-grid cell index as itself', () => {
 		const doc = parse(tableSource);
 		const s = createSelectionState({ getDoc: () => doc });

@@ -9,11 +9,8 @@ import { createBlockEditActions } from '$lib/editor-actions/block-edit';
 import { makeEditorActionsDeps, pasteContext } from '$lib/test/harness/editor-actions';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
-// The clipboard arrives as LF, so a paste into a CRLF document wrote its own lines in LF and left
-// the document holding both endings (GH #448). The per-route mirror rows are in
-// `invariants/crlf-edit-mirror.test.ts`; these pin the choice where one document holds both.
-// Miss-analysis: the mirror check compared only the separators a paste created, leaving the
-// pasted bytes out on purpose, since the clipboard was LF on both of its runs.
+// The clipboard arrives as LF, so a paste writes its lines in the document's own ending.
+// Miss-analysis: GH #448, the CRLF mirror check left the pasted bytes out of its comparison.
 
 beforeEach(() => __resetSchemaRegistriesForTests());
 

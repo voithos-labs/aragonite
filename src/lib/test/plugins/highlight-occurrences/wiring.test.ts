@@ -161,9 +161,8 @@ describe('highlightOccurrencesPlugin through the install platform', () => {
 	beforeEach(() => resetPluginPlatformForTests());
 	afterEach(() => resetPluginPlatformForTests());
 
-	// A plugin installs once per process, so an author's suite reinstalls between cases: a
-	// registration that ignored the test reset throws here, and a duplicated onEditor call
-	// fails the count.
+	// An author's suite reinstalls between cases, so a registration ignoring the test reset
+	// throws here and a duplicated onEditor call fails the count.
 	it('reinstalls across the reset boundary, registering exactly one callback each time', () => {
 		installPlugins([highlightOccurrencesPlugin()]);
 		expect(onEditorCallbacks('highlight-occurrences')).toHaveLength(1);

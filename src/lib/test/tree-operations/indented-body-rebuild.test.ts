@@ -12,8 +12,7 @@ import { documentLineEnding } from '$lib/core/lines';
 
 // A rebuild writes a body's blank lines the way the parser reads them: the separator after a
 // block bare, an empty paragraph's own line indented, so one keystroke moves no other byte.
-// Miss-analysis: the tail-blank cases only blanked a block and checked the reload, and no case
-// typed into a loaded body whose separator was bare and asked for the untouched bytes.
+// Miss-analysis: no case typed into a loaded body with a bare separator, checking the other bytes.
 
 beforeAll(() => {
 	installPlugins([footnotesPlugin()]);

@@ -1,5 +1,5 @@
 // A paste into a fenced code block holding `display`, taken as far as the bytes the write would
-// store: the code block's paste surface splices, and the write's rule makes the result legal.
+// store: `codePasteSurface` splices, and the write's fence rule makes the result legal.
 
 import { parse } from '$lib/core/parser';
 import { trimTrailingLineEnding } from '$lib/core/lines';

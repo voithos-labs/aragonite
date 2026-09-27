@@ -1,8 +1,8 @@
 /**
- * G4.10: every directory under `src/lib/plugins/` must surface in package.json
- * `exports`, which verify-pack derives the tarball's manifest from; a dir absent from it
- * is silently unshippable. Subset, not equality: a plugin may publish extra subpaths. The
- * sideEffects sub-check flags one detectable hazard, an unlisted top-level CSS import.
+ * Every directory under `src/lib/plugins/` surfaces in package.json `exports`, which verify-pack
+ * derives the tarball's manifest from, or it silently never ships (G4.10). Subset, not equality:
+ * a plugin may publish extra subpaths. The sideEffects sub-check flags one detectable hazard, an
+ * unlisted top-level CSS import.
  */
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';

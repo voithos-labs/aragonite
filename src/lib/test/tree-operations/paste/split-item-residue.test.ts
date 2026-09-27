@@ -15,11 +15,8 @@ import type { Document } from '$lib/core/nodes';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { defaultGrammarView } from '$lib/schema/block-openers';
 
-// A paste that splits a list item gives the text after the caret an item of its own, whose first
-// block sits on the new marker line. Indented code there reads as a wider marker, so the reload
-// read another item than the editor held (GH #446).
-// Miss-analysis: every split-item fixture put a paragraph after the caret, the one kind that
-// always reads the same on a marker line; no fixture continued the item with an indented line.
+// Indented code after a split item's new marker would read as a wider marker, so it opens below.
+// Miss-analysis: GH #446, every split-item fixture put a paragraph after the caret.
 
 beforeEach(() => __resetSchemaRegistriesForTests());
 

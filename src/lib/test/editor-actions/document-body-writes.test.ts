@@ -9,8 +9,8 @@ import { makeTopHarness, type TopHarness } from '$lib/test/harness/editor-action
 import { expectParseConverged } from '$lib/test/harness/parse-converged';
 
 // Every top-level write hands the tree operations the document as a body, trailing blank line
-// included, so each route leaves the blocks a reload reads. Miss-analysis: the document scope of
-// a multi-scope commit was never driven by a write that blanks the last block.
+// included, so each route leaves the blocks a reload reads.
+// Miss-analysis: no write that blanks the last block drove a multi-scope commit's document scope.
 
 /** Documents whose parse keeps a trailing blank line aside, under different last blocks. */
 const SOURCES = [

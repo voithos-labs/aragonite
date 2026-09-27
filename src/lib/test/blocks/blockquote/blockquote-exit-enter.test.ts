@@ -1,16 +1,14 @@
 // @vitest-environment jsdom
-//
-// The blockquote's one change of behaviour: Enter on an empty trailing paragraph leaves the
-// quote. `createContainerBlock` wires `createContainerExitOverrides` into the nested actions and
-// the component names nothing to choose it, so nothing in the source shows it is there, which is
-// why both keystrokes are driven here rather than set up directly.
+// Enter on an empty trailing paragraph leaves the blockquote. `createContainerBlock` wires
+// `createContainerExitOverrides` in without the component naming it, so both keystrokes are
+// driven here rather than set up directly.
 import { describe, it, expect, afterEach, beforeAll } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { installLayoutStubs, mountEditor, pressKeyAt } from '$lib/test/harness/mount-editor.svelte';
 
 beforeAll(installLayoutStubs);
 
-/** G2.13 at the mount: the blocks on screen are the blocks these bytes reparse into. */
+/** The blocks on screen are the blocks these bytes reparse into (G2.13). */
 function expectReloadsAsMounted(source: string): void {
 	const onScreen = mounted.target.querySelectorAll(
 		'[data-block-path]:not([data-block-path*=","])'
@@ -39,11 +37,7 @@ describe('blockquote Enter override', () => {
 		expect(mounted.source()).toBe('> alpha\n\n\n');
 	});
 
-	// Miss-analysis: the only tests for the exit put a quote at the end of the document, where
-	// the append past the end happened to add the blank line the exit itself never did, so the
-	// whole "a block follows" class, and with it Enter as a downward move, went unobserved. The
-	// case added later asserted bytes alone, which reparsed into one block more than the exit
-	// left on screen, so a G2.13 divergence read as the expected value.
+	// Miss-analysis: every exit test put the quote last and checked bytes, never a reload.
 	it('exits before a following block by creating the gap, not entering the block', async () => {
 		mounted = mountEditor({ source: '> alpha\n\nbeta\n' });
 
@@ -85,7 +79,7 @@ describe('blockquote Enter override', () => {
 		expect(mounted.source()).toBe('> Outer\n> > Inner\n\n\n');
 	});
 
-	// Non-vacuity: the exit case alone passes even if every Enter were consumed.
+	// Without this case the exit tests would still pass if every Enter were consumed.
 	it('leaves an Enter on a non-trailing child to the default split', async () => {
 		mounted = mountEditor({ source: '> alpha\n>\n> beta\n' });
 

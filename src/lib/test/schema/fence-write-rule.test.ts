@@ -1,7 +1,6 @@
 // The fence write rule in the shape every kind declares: bytes and caret through one pass, and a
 // mode that tells the user typing the fence apart from content arriving whole.
-// Miss-analysis: the rule's caret half lived beside the code block's typing path only, so a write
-// from anywhere else threw the caret away, and nothing tested the rule with a caret at all.
+// Miss-analysis: only the code block's typing path applied the caret half, and no test had a caret.
 import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { fencedCodeWrite } from '$lib/schema/fenced-code-raw';
@@ -14,8 +13,8 @@ const ctxFor = (source: string, mode: WriteContext['mode']): WriteContext => ({
 });
 
 describe('the fence rule: authored against literal', () => {
-	// Typing the closer of an open fence closes it. Routing typing through a rule that read every
-	// write as content grew the opener instead, so the fence could never be closed by typing.
+	// Typing the closer of an open fence closes it; a rule reading every write as content would grow
+	// the opener instead, and typing could never close the fence.
 	const open = '```js\ncode\n';
 	const typedCloser = '```js\ncode\n```\n';
 

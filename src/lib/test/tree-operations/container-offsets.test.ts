@@ -6,8 +6,7 @@ import { leafAtRawOffset, rawOffsetOfLeaf } from '$lib/tree-operations/container
 
 // A fix-up that merges blocks tracks the caret as an offset into the merged block's raw, and a
 // container's raw re-prefixes its children's lines, so the offset has to be mapped to a leaf.
-// Miss-analysis: no primitive existed, so every caret put into a container fell back to its end
-// and the suites pinned that fallback as the behaviour (GH #193).
+// Miss-analysis: GH #193, every caret put into a container fell to its end, and tests pinned it.
 
 const top = (source: string): CstNode => parse(source).children[0];
 

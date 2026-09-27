@@ -100,8 +100,7 @@ describe('handleWholeBlockKeys', () => {
 		expect(e.preventDefault).not.toHaveBeenCalled();
 	});
 
-	// Miss-analysis: this file's own printable case asserted the drop it should have questioned;
-	// every branch was tested except the key class with no branch at all.
+	// Miss-analysis: the printable case asserted the drop instead of questioning the missing branch.
 	it.each(['a', 'A', ' ', 'é'])('the printable %o mints a paragraph below carrying it', (key) => {
 		const { deps, insertParagraph, splitBlock, moveFocus } = makeDeps();
 		const e = press(key, { shiftKey: key === 'A' });
@@ -148,9 +147,8 @@ describe('handleWholeBlockKeys', () => {
 	});
 });
 
-// With no caret to measure, the block routes the key through `noteKey` with no measureX.
-// Without it a column outlives a horizontal move and, since `capture` is idempotent, the
-// next ArrowDown in the block it lands in reuses the stale pixel x.
+// With no caret to measure, the block routes the key through `noteKey` with no measureX, or the
+// column outlives a horizontal move and the next ArrowDown reuses the stale pixel x.
 describe('handleWholeBlockKeys: sticky column', () => {
 	afterEach(() => vi.unstubAllGlobals());
 
@@ -190,8 +188,7 @@ describe('handleWholeBlockKeys: sticky column', () => {
 		expect(caretMemory.column()).toBeNull();
 	});
 
-	// Both callers consume the reorder chord before the shared key handling, but it declines
-	// the chord anyway.
+	// Both callers consume the reorder chord first, but the shared key handling still declines it.
 	it('Alt+ArrowUp (the reorder chord) neither clears nor recaptures', () => {
 		const { deps, caretMemory } = makeDeps();
 		seedColumn(caretMemory, 200);
@@ -200,9 +197,8 @@ describe('handleWholeBlockKeys: sticky column', () => {
 	});
 });
 
-// The whole-block path asks the keymap what a chord does, so a consumer who moves the reorder
-// off Alt+ArrowUp gets an ordinary arrow there and the reorder on the new chord. Miss-analysis:
-// both classifiers matched the Alt+ArrowUp literal, and no test rebound the chord.
+// The whole-block path asks the keymap what a chord does, so a rebound reorder moves with it.
+// Miss-analysis: both classifiers matched the Alt+ArrowUp literal, and no test rebound the chord.
 describe('handleWholeBlockKeys: the reorder chord follows a rebinding', () => {
 	const REBOUND: KeybindingOverride[] = [
 		{ chord: 'Alt+ArrowUp', command: null, kind: 'thematicBreak' },

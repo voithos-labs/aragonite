@@ -53,12 +53,8 @@ describe('setext heading split', () => {
 	});
 });
 
-// GH #99: a cut on a content line's trailing whitespace left the second half opening with a
-// whitespace-only line, which a reload reads as blank and turns into a separator. The cut
-// consumes that whitespace into the first half (the branch that keeps
-// `serialize(parse(x)) === x`), exactly as `cutPastLineEnding` consumes a bare ending.
-// Miss-analysis: every setext pin cut on a letter or a line boundary; none put the caret
-// inside a content line's trailing whitespace run.
+// A cut inside a content line's trailing whitespace keeps that whitespace in the first half.
+// Miss-analysis: GH #99, every setext case cut on a letter or at a line boundary.
 describe('setext split cutting on trailing whitespace', () => {
 	it('consumes the whitespace into the first half instead of creating a blank line', () => {
 		const doc = parse('Title \nMore\n=====\n');

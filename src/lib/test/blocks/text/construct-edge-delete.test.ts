@@ -8,9 +8,8 @@ import {
 import { screenVisibility } from '$lib/core/inline/visibility';
 import { fixtureReading } from '$lib/test/harness/fixture-grammar';
 
-// The bytes a destructive key at a hidden delimiter run produces. Live mode draws no marker, so
-// the source decides and every result is reparsed: a keypress must never leave a delimiter on
-// screen, and a pair the cut empties must never survive as invisible `****`.
+// The bytes a destructive key at a hidden delimiter run produces in live mode: a key must never
+// leave a delimiter on screen, and a pair the cut empties must not survive as invisible `****`.
 
 function del(
 	display: string,
@@ -81,9 +80,8 @@ describe('a press past a hidden run takes the content character, never a delimit
 		expect(del('abc', 1, 'forward')).toBeNull();
 	});
 
-	// The browser takes the run beside the byte it deletes, not the one beside the caret it
-	// started from, so the last content character at either end is destructive one key before the
-	// edge. Six measured shapes: a pair, a code span and a link, from both sides.
+	// The browser takes the run beside the byte it deletes, not beside the caret, so the last
+	// content character at either end is already destructive; each shape was measured in Chromium.
 	it.each([
 		['strong, first content byte', 'Some **bold** text', 8, 'backward', 'Some **old** text', 7],
 		['strong, last content byte', 'Some **bold** text', 10, 'forward', 'Some **bol** text', 10],
@@ -117,10 +115,8 @@ describe('a press past a hidden run takes the content character, never a delimit
 	});
 });
 
-// A block whose markers stand over nothing shows them (live-mode.md § 4.1), so there is no hidden
-// run here and every byte the key could take is one the user saw.
-// Miss-analysis: every case ran against blocks holding content, where the delimiters really are
-// hidden, so the branch reading a construct as one unseen unit was never asked if it was visible.
+// A block whose markers stand over nothing shows them (live-mode.md § 4.1), so no run is hidden.
+// Miss-analysis: every case ran on blocks with content, so none asked if a construct was visible.
 describe('painted chrome leaves the press to the browser', () => {
 	it('declines at both ends of a link with no text', () => {
 		expect(del('[](u)', 5, 'backward', true)).toBeNull();
@@ -177,10 +173,8 @@ describe('emptying a construct drops its delimiters in the same cut', () => {
 		});
 	});
 
-	// An image is not a pair around content: an empty alt is still an image, so the cut takes the
-	// character and stops, though the marker skip still applies. This checks the policy entry,
-	// not a gesture a user can make: live mode renders an image as a widget, and the widget
-	// branch takes a caret at this offset first.
+	// An empty alt is still an image, so the cut takes the character and stops. No user gesture
+	// reaches this: live mode draws an image as a widget, whose branch takes this caret first.
 	it('leaves a construct that stays itself when emptied', () => {
 		expect(del('![a](u)', 7)).toEqual({ raw: '![](u)', caret: 2, unwrappedMarks: [] });
 	});
@@ -203,20 +197,15 @@ describe('an atomic hidden run deletes as one unit', () => {
 	});
 });
 
-// A candidate that reads right can parse wrong. `**a *b***` emptied of `b` is `**a **`, whose
-// closing run follows a space and so is not right-flanking, and CommonMark renders the stars
-// literally. Markdown cannot express bold with a trailing space, so there is no safe rewrite, and
-// handing the key back to the browser is not neutral: measured, it turns `**a *b*** z` into
-// `**a  z`, destroying both constructs and showing the stars. The key belongs here, and taking
-// nothing is the only answer that keeps the markers off screen.
+// `**a *b***` emptied of `b` is `**a **`, whose stars render literally, and the browser's own
+// delete wrecks both constructs, so taking nothing is the only answer that hides the markers.
 describe('a rewrite the parser would not read back takes nothing', () => {
 	it('swallows where dropping the pair would surface its delimiters', () => {
 		expect(del('**a *b*** z', 6)).toEqual({ swallow: true });
 	});
 
-	// Deleting the space between two bold words leaves `**a****b**`, which renders `a****b`, but
-	// the key has a second reading a user would call obvious: the two constructs become one.
-	// Widening the cut through the runs it now sits between is that reading, and it parses back.
+	// Deleting the space between two bold words leaves `**a****b**`, which renders `a****b`, so
+	// the cut widens through the flanking runs and joins the two words into one bold span.
 	it('widens the cut through the flanking runs where that reads back', () => {
 		expect(del('**a** **b**', 3, 'forward')).toEqual({
 			raw: '**ab**',
@@ -238,10 +227,8 @@ describe('a rewrite the parser would not read back takes nothing', () => {
 	});
 });
 
-// The join case works today only because this parser reads `**a****b**` as one strong span. A
-// strictly CommonMark reading would let the plain cut pass, writing a four-star run into the
-// source that nothing on screen explains. The candidate order happens to prevent that; this test
-// states the rule itself, so it fails the day that ordering stops.
+// Only the candidate order keeps the join case from writing a four-star run nothing on screen
+// explains, so this suite states the rule itself and fails if that order changes.
 describe('no accepted rewrite grows a delimiter run', () => {
 	const CORPUS = [
 		'Some **bold** text',
@@ -282,12 +269,8 @@ describe('no accepted rewrite grows a delimiter run', () => {
 	});
 });
 
-// Which constructs are taken whole is a fact about the node, not about the kind: `[](u)` is a
-// link, a kind whose delimiters normally enclose content, with no content range at all, while
-// `![a](u)` is an atomic widget that has one. A per-kind column would answer a different question
-// and swap these two answers.
-// Miss-analysis: no case separated the per-node test from a per-kind one, so a declared
-// `contentModel` entry read as a safe substitute for it.
+// `[](u)` is a link with no content, `![a](u)` a widget with some: a per-kind rule swaps them.
+// Miss-analysis: no case told a per-node read from a per-kind one, so `contentModel` passed for it.
 describe('the whole-construct branch reads the node, not the kind', () => {
 	it('takes a content-empty link whole, though its kind normally encloses content', () => {
 		expect(del('A [](u) B', 7)).toEqual({ raw: 'A  B', caret: 2, unwrappedMarks: [] });
@@ -300,11 +283,8 @@ describe('the whole-construct branch reads the node, not the kind', () => {
 	});
 });
 
-// A candidate is bytes the caller is about to store as one prose block, so it is checked by
-// reading it back as a block. The two sibling live rewrites (`live-split-rebalance`,
-// `live-join-seam`) read theirs back the same way.
-// Miss-analysis: every case here read the result back as inline text, so none could see a
-// candidate whose bytes reparse as a different block, which is what an abutted run makes.
+// A candidate is stored as one prose block, so it is read back as a block before it is written.
+// Miss-analysis: cases read results back as inline text, so none saw one reparse as another block.
 describe('a candidate that re-reads as another block is not written', () => {
 	// `~~[](u)~~a`: the `~~` runs are literal text, so taking the childless link whole pushes them
 	// together into `~~~~a`, a tilde fence, which then swallows every block below it.
@@ -320,9 +300,8 @@ describe('a candidate that re-reads as another block is not written', () => {
 		});
 	});
 
-	// How a candidate is read back follows how it will be stored: a cell's text is stored as cell
-	// bytes, and reading it back as a block would refuse every cell that happens to start like a
-	// container marker, leaving the key to the browser, which shows what § 4.4 keeps off screen.
+	// A cell's text is stored as cell bytes, so it is read back as a cell; reading it as a block
+	// would refuse every cell that starts like a container marker and leave the key to the browser.
 	it.each(['- **a** b', '> **a** b', '1. **a** b', '    **a** b'])(
 		'rewrites in a cell whose text opens like %j',
 		(cell) => {

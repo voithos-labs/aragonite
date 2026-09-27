@@ -13,12 +13,9 @@ import { describeConvergence } from '$lib/test/harness/parse-converged';
 import type { CstNode } from '$lib/core/nodes';
 import { defaultGrammarView } from '$lib/schema/block-openers';
 
-// GH #21: a mutation can break a join that was already correct (a demoted heading stops
-// interrupting the paragraph under it, a reorder pulls an interrupter out from between two), and
-// the siblings left behind reload as one block. The neighbour merge brings each to the reading
-// the reload gives it, byte-identical.
-// Miss-analysis: the join question was pinned at the delete alone, never asked as a sibling-path
-// parity question of the other mutations that disturb a join.
+// A mutation can break a join that was already correct (a demoted heading, a reorder that pulls an
+// interrupter out), so the neighbour merge brings the siblings to the reading their reload gives.
+// Miss-analysis: GH #21, the join was tested at the delete alone, never at the other mutations.
 
 const sharing = () => createSharingState();
 
@@ -111,7 +108,7 @@ describe('a reorder settles the joins the move disturbed (GH #21)', () => {
 		expect(describeConvergence(doc)).toBeNull();
 		expect(doc.children.map((c) => c.raw)).toEqual(['a\nb\n', '# h\n']);
 		// The heading the merge did not eat keeps its position's identity: only the merged
-		// window's blocks get new ids (GH #178).
+		// window's blocks get new ids.
 		expect(result.change).toEqual({
 			op: 'replace',
 			at: 0,
@@ -179,9 +176,8 @@ describe('a reorder settles the joins the move disturbed (GH #21)', () => {
 	});
 });
 
-// No single reorder reaches two disjoint merges (a merge continuing downward collapses adjacent
-// ones into one, and positional separators keep a moved block's new position separated), so the
-// union arithmetic is pinned at the helper's own contract instead.
+// No single reorder reaches two disjoint merges, so the union of their windows is tested at the
+// helper's own contract.
 describe('absorbWindowSeams reports disjoint folds as one window', () => {
 	it('unions them and carries the tracked index through both', () => {
 		const block = (source: string): CstNode => parse(source, { scope: 'fragment' }).children[0];
@@ -201,11 +197,8 @@ describe('absorbWindowSeams reports disjoint folds as one window', () => {
 	});
 });
 
-// A mutation inside a container changes whether the container interrupts, and the join it
-// breaks is in the grandparent's children, which the container's own commit never splices
-// (GH #176). The ancestor rebuild asks the join at the container's position on its way out.
-// Miss-analysis: the fuzzer's lanes each mutate a block and ask about its siblings; none mutates
-// inside a container and asks the container's own slot above.
+// An inner edit can stop a container interrupting, so the rebuild asks the join at its position.
+// Miss-analysis: GH #176, no fuzzer case mutated inside a container and asked about its position.
 describe('a nested delete can stop an ordered list interrupting (GH #176)', () => {
 	it('folds the list into the paragraph it stopped interrupting', async () => {
 		const h = makeNestedHarness('a\n1. x\n2. y\n', { index: 1, listOverrides: true });
@@ -233,10 +226,8 @@ describe('a nested delete can stop an ordered list interrupting (GH #176)', () =
 		expect(h.deps.blockIds).toHaveLength(2);
 	});
 
-	// The lower half of the join check at the container's position, which the #176 pins left to
-	// the opener side. The edit opens the container's own last block: a tight follower the quote
-	// could not continue into becomes a lazy continuation, so the pair reloads as one. Only the
-	// closer line moves, so this is the branch that reads the container's own bytes on every keystroke.
+	// A body write can let a tight follower lazily continue the quote, so the pair reloads as one
+	// and the join below the container's position is asked too.
 	it('folds the follower a body write let the container continue into', () => {
 		const doc = parse('> a\n> # h\ntext\n');
 		expect(doc.children.map((c) => c.kind)).toEqual(['blockquote', 'paragraph']);

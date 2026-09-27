@@ -1,7 +1,5 @@
 // @vitest-environment jsdom
-//
-// Miss-analysis: the past-the-end append was only tested in source mode, and no test pressed a
-// move past the last block in reading mode, where the commit refuses the paragraph it offers.
+// Miss-analysis: the past-the-end append was tested only in source mode, never in reading mode.
 import { describe, it, expect, vi } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';

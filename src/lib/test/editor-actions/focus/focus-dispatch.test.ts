@@ -192,8 +192,7 @@ describe('dispatchFocusAtColumn', () => {
 		expect(text.focusAtColumn).toHaveBeenCalledWith(42, 'above');
 	});
 
-	// Miss-analysis (#326): the container entry and the per-block arrival each decided this on
-	// their own, and no test compared them, so the two vertical paths drifted apart.
+	// Miss-analysis (GH #326): no test compared the container entry with the per-block arrival.
 	it.each([
 		['above', 'start'],
 		['below', 'end']

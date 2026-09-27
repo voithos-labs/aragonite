@@ -1,9 +1,7 @@
 // @vitest-environment jsdom
-//
 // A typed backtick at the mounted code block's own beforeinput listener: an unclosed backtick
 // fence leaves it to the browser, since a partner would extend the opener; a closed fence pairs it.
-// Miss-analysis: the pure pair decision was pinned with the fence flag handed in, so how the block
-// derives that flag from its metadata had only e2e rows.
+// Miss-analysis: the pair rule got the fence flag handed in; only e2e derived it from metadata.
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { asDomTextOffset } from '$lib/cursor/coordinate-spaces';
 import { createRangeAtDomTextOffsets } from '$lib/cursor/widget-offset';

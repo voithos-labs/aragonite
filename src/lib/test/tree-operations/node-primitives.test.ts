@@ -34,9 +34,8 @@ describe('emptyParagraph', () => {
 	});
 });
 
-// Every caller reads `nodeAt` as total, so an unresolvable path must return null.
-// Bounding only the high side let a negative index read `children[-1]`, which path
-// composers reach by arithmetic (`index - 1` at a boundary, a decoded coordinate).
+// Every caller reads `nodeAt` as total, and path arithmetic can reach a negative index, so an
+// unresolvable path on either side returns null.
 describe('nodeAt: an out-of-range index resolves to nothing, either side', () => {
 	const doc = parse('- alpha\n- beta\n');
 
@@ -104,9 +103,8 @@ describe('ensureEditableContainers', () => {
 	});
 });
 
-// A whole-block-focus kind is childless by design, so the backfill's "cursor always has
-// a target" rationale does not apply. A phantom paragraph makes the opaque node
-// permanently fail checkOpaqueStaleRaw: raw can never account for a child it omits.
+// A whole-block-focus kind is childless by design, and a backfilled paragraph would fail
+// `checkOpaqueStaleRaw` for good, since the raw can't account for it.
 describe('ensureEditableContainers: whole-block-focus kinds stay childless', () => {
 	beforeEach(__resetSchemaRegistriesForTests);
 

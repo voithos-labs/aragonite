@@ -90,9 +90,7 @@ describe('container-bubble dispatch over the block-command registry', () => {
 		expect(takeDevWarns()).toEqual([]);
 	});
 
-	// Miss-analysis: the bubble's override level had a test per scope but none per class of id it
-	// can resolve, so a global id resolving here fell into `runCommand`'s default branch and looked
-	// like an ordinary decline.
+	// Miss-analysis: the bubble's override tests varied scope, never id class, so no global id ran.
 	it('declines a global id an override resolved here, loudly: the bubble has no global level', () => {
 		const overrides = normalizeKeybindingOverrides([{ chord: 'Mod+J', command: 'history.undo' }]);
 		const runCommand = vi.fn(() => false);

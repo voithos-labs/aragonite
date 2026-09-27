@@ -1,5 +1,4 @@
-// Miss-analysis: every emptiness route was tested with blank text written as spaces or nothing,
-// so none saw `String.trim()` count a non-breaking space as blank, the rule the parser dropped.
+// Miss-analysis: emptiness routes were tested with spaces or nothing, never a non-breaking space.
 import { describe, expect, it, vi, type Mocked } from 'vitest';
 import type { ListContext } from '$lib/action-contracts';
 import type { CstNode } from '$lib/core/nodes';

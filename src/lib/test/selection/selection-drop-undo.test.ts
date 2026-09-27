@@ -1,9 +1,7 @@
 // @vitest-environment jsdom
-//
 // A selection moved between blocks is one undo entry holding the document and the dragged range's
-// start as they stood before the drop, and a move that writes nothing leaves none (#30).
-// Miss-analysis: the drop's units covered its coordinate math only; the two writes and the entry
-// around them had no test below the e2e drag, which cannot make a write decline.
+// start as they stood before the drop, and a move that writes nothing leaves none.
+// Miss-analysis: GH #30; the drop's units covered coordinate math only, never the writes or entry.
 import { describe, it, expect } from 'vitest';
 import { serialize } from '$lib/core/serializer';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';

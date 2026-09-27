@@ -1,9 +1,7 @@
 // @vitest-environment jsdom
-//
-// The fence rule on the block's own commit path. A keystroke edits the contenteditable and the
-// CST hears about it through `input`, so what this layer shows, and neither the pure rule nor an
-// e2e can, is that both commit paths (a keystroke and an IME composition end) hand the write
-// what the browser left as typed bytes, which the write's fence rule reconciles.
+// The fence rule on the code block's own commit path: both commit paths, a keystroke and an IME
+// composition end, hand the write what the browser left as typed bytes, and the write's fence
+// rule reconciles them.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { placeCaretAtRaw } from '$lib/cursor/widget-offset';
 import { parse } from '$lib/core/parser';

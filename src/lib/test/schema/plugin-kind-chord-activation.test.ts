@@ -1,5 +1,4 @@
-// Miss-analysis: every reserved-chord suite asked with the process-wide activation, so no test
-// ever read the set from an editor whose `plugins` prop left a kind-keymap plugin out (GH #288).
+// Miss-analysis: GH #288; no reserved-chord test read the set from an editor leaving a plugin out.
 import { describe, it, expect, afterEach } from 'vitest';
 import { registerBlockCommand } from '$lib/schema/block-commands';
 import { registerBlockKind } from '$lib/schema/block-kind-descriptor';
@@ -12,7 +11,7 @@ import { testClosure } from '$lib/test/support/closure';
 
 const CHORD = 'Mod+Shift+8';
 
-/** A one-kind plugin whose kind keymap claims `CHORD`, the shape `mermaid-kind.ts` ships. */
+/** A one-kind plugin whose kind keymap binds `CHORD`, the shape `mermaid-kind.ts` ships. */
 function installKeymapPlugin(name: string): void {
 	installPlugins([
 		definePlugin({

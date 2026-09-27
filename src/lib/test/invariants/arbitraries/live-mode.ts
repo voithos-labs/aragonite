@@ -3,8 +3,8 @@ import { withDrawnLineEnding } from './line-endings';
 
 /**
  * The characters live mode's hidden edges are made of. `inline.ts` leans toward the emphasis
- * matcher; this leans toward the shapes § 4's rules are about: markers that paint, delimiter runs
- * shared between a nested pair, and constructs a cut cannot reopen.
+ * matcher; this leans toward the shapes `docs/design/live-mode.md` § 4 is about: markers that
+ * paint, delimiter runs shared between a nested pair, and constructs a cut cannot reopen.
  */
 
 // ── Inline fragments ─────────────────────────────────────────────────────────
@@ -66,12 +66,8 @@ const bracketed = fc.constantFrom(
 	'[shortcut]'
 );
 
-/**
- * A childless construct standing between two literal delimiter runs. Taking it whole pushes the
- * runs together into one, and a long enough run opens another block: a tilde or backtick fence,
- * which on reload swallows every block below it. Code that only checks its candidate as inline
- * text cannot see this, and no draw without these shapes reaches it.
- */
+/** A childless construct between two literal delimiter runs: deleting it merges the runs, and a
+ *  long enough run opens a fence that swallows every block below it on reload. */
 const abuttingRuns = fc.constantFrom(
 	'~~[](u)~~a',
 	'~~[](u)~~ x',

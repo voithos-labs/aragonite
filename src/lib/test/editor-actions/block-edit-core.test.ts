@@ -40,8 +40,7 @@ describe('block-edit core: shared structural decisions', () => {
 		expect(content.calls).toEqual([CURSOR_EXACT_START]);
 	});
 
-	// Miss-analysis (GH #98): the split tests asserted block layout, never where the caret
-	// landed; the one focus assertion used a single-block first half, where i + 1 is right.
+	// Miss-analysis (GH #98): the one split caret test had a first half that parsed to one block.
 	it('a split whose first half reparses plural puts the caret on the second half', async () => {
 		// Enter at the end of a blank line inside indented code: the first half parses to
 		// [code, blank], so the second half sits at i + 2.
@@ -140,9 +139,8 @@ describe('block-edit core: shared structural decisions', () => {
 	});
 });
 
-// The whole-block-focus branch sits before the `!isBlockEditable` check, so it overrides
-// the delete-non-editable fallback whatever the editability. Both merge directions are
-// tested because the bug class here is one direction diverging from the other.
+// The whole-block-focus branch runs before the `!isBlockEditable` check, so it wins over the
+// delete fallback at any editability; both merge directions run so neither can drift alone.
 describe('block-edit core: whole-block-focus fallback', () => {
 	beforeEach(__resetSchemaRegistriesForTests);
 
@@ -222,8 +220,8 @@ describe('block-edit core: non-editable neighbour fallback', () => {
 	});
 });
 
-// The shipped built-in on the same model, deliberately not a synthetic kind: the point
-// is that thematicBreak's own descriptor carries the declaration its closure cells claim.
+// The shipped built-in rather than a synthetic kind, so the declaration under test is the one
+// thematicBreak's own descriptor carries.
 describe('block-edit core: thematicBreak focus-then-delete', () => {
 	const rule = () => leaf('---\n');
 
@@ -250,8 +248,7 @@ describe('block-edit core: thematicBreak focus-then-delete', () => {
 	});
 });
 
-// Miss-analysis: the wrap fix-up tests called the tree op with the container node directly;
-// the core hands the tree ops the commit view's shape, whose owner no test ever asserted.
+// Miss-analysis: the wrap fix-up tests passed the container node, never the commit view's shape.
 describe('block-edit core: wrap-owner threading', () => {
 	beforeEach(() => {
 		__resetSchemaRegistriesForTests();
@@ -280,7 +277,7 @@ describe('block-edit core: chrome.descendToBody', () => {
 		await createBlockEditCore(scope).descendToBody(0);
 		expect(commits).toHaveLength(0);
 		expect(children).toHaveLength(2);
-		// An arrival on a block it did not create, so the block's focus, not this caller, picks the byte.
+		// The body already exists, so its own focus, not the descend, picks the byte.
 		expect(body.calls).toEqual([CURSOR_START]);
 	});
 

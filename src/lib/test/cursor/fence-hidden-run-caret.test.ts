@@ -1,10 +1,7 @@
 // @vitest-environment jsdom
-//
 // A code block's fence lines under a mode that hides them are nowhere the caret can sit, so a
 // range from raw offsets never starts or ends in one, and a caret write never lands in one.
-// Miss-analysis: the plain-text walk's suite built bare containers with no `data-presentation`
-// root, so the hidden-run rule had no fixture to fail in, and a live-mode code block put its caret
-// inside the hidden opener fence unobserved.
+// Miss-analysis: the walk's suite had no `data-presentation` root, so hidden runs had no fixture.
 import { describe, it, expect, afterEach } from 'vitest';
 import {
 	isHiddenMarkerText,

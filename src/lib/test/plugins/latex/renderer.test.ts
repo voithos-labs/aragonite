@@ -18,9 +18,8 @@ describe('katexRenderer', () => {
 		expect(dom.querySelector('.katex-mathml')).not.toBeNull();
 	});
 
-	// Invalid math shows as an error the user can see and act on, never KaTeX's bare
-	// `.katex-error` run: the source itself, painted as an error, with the parser's message on
-	// hover. latex-acceptance.spec.ts ties this to the live widget build in a browser.
+	// Invalid math shows as its source painted as an error, with the parser's message on hover,
+	// never KaTeX's bare `.katex-error` run; latex-acceptance.spec.ts covers the live widget.
 	it('renders invalid math as its source marked as an error, with the message on hover (A5)', () => {
 		const source = '\\frac{';
 		const { dom, error } = katexRenderer(source, { display: false });

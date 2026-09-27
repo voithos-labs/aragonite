@@ -160,14 +160,10 @@ function applyEdit(node: CstNode, edit: Edit): boolean {
 	return spansBefore !== undefined && node.childSpans === spansBefore;
 }
 
-// The real entry point, where the hand-made hint above cannot reach: `updateBlockContent` makes
-// its own hint and its fix-up rewrites bytes no hint names. Deep paths (two hinted levels in a
-// row) are covered by `test/schema/child-spans-settle.test.ts`, which this does not repeat.
-/**
- * Containers whose second write can cross a blank line, which is where the fix-up drops a hint.
- * Every one holds a prose child the harness bundle can address; a nested container's own children
- * belong to the other suite, since this bundle reaches one level.
- */
+// The real entry point: `updateBlockContent` makes its own hint, and its fix-up rewrites bytes no
+// hint names. Deep paths are covered by `test/schema/child-spans-settle.test.ts`.
+/** Containers whose second write can cross a blank line, which is where the fix-up drops a hint.
+ *  Each holds a prose child one level down, as deep as the harness bundle reaches. */
 const SETTLING_SOURCES = [
 	'> a\n>\n>\n> c\n',
 	'> a\n>\n> b\n>\n> c\n',

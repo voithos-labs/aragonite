@@ -1,8 +1,7 @@
 /**
- * G4.54: a published entry barrel is a dead end: no module in its own import closure may
- * import it back. Rollup splits such a re-export cycle across chunks and warns that
- * execution order will break, a hazard only a consumer's bundler sees, because in-repo
- * `$lib` resolves to source and assigns no chunks at all.
+ * No module in a published entry barrel's own import closure may import the barrel back (G4.54):
+ * Rollup splits such a cycle across chunks and breaks execution order, which only a consumer's
+ * bundler sees, since in-repo `$lib` resolves to source.
  */
 import { describe, it, expect } from 'vitest';
 import { existsSync, readFileSync } from 'node:fs';

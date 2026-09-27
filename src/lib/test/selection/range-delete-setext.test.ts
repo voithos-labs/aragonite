@@ -1,9 +1,7 @@
 // A range delete across a setext heading: the start block survives and keeps its own underline
 // under the joined text, and an end block's underline goes with the end block, as the Delete join
 // has it (`tree-operations/setext-join.test.ts`).
-// Miss-analysis: the cross-block delete was only driven from blocks whose structure sits in front
-// of their text, and only into blocks with no structure past their text, so the end block's
-// underline was never asked about.
+// Miss-analysis: no cross-block delete ever ended in a block with structure past its text.
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
@@ -39,8 +37,7 @@ describe('a range delete starting in a setext title', () => {
 		expect(caret).toEqual({ path: [0], offset: 3 });
 	});
 
-	// Miss-analysis: every range here started after some of the title's text, so none left the
-	// title's last line empty.
+	// Miss-analysis: every range here started after some title text, so none emptied its last line.
 	it.each([
 		['a --- title', 'Plan\n---\n\nnext\n', 0, '\n'],
 		['a === title', 'Plan\n===\n\nnext\n', 0, '\n'],
@@ -116,8 +113,7 @@ describe.each(['source', 'live'] as const)(
 	}
 );
 
-// GH #560. Miss-analysis: the table and titled-container branches keep their start block's head
-// through their own truncation, and every case above ended in a plain block.
+// Miss-analysis: GH #560; every case above ended in a plain block, never a table or a title line.
 describe('a range delete from a setext title into a table or a container title', () => {
 	beforeEach(registerChromePluginsForTests);
 

@@ -14,8 +14,7 @@ import { defaultGrammarView } from '$lib/schema/block-openers';
 
 // A table takes any line straight below its rows that opens no other block, so a block an edit
 // turns into text right under a table gets a blank line between, and stays the block it is.
-// Miss-analysis: every table pin put a blank line or a block marker under the table, so no test
-// turned the block right under one into text.
+// Miss-analysis: every table test put a blank line or a block marker under the table.
 
 const T = '| a | b |\n| --- | --- |\n| 1 | 2 |\n';
 
@@ -86,9 +85,8 @@ describe('a block turned into text right under a table keeps a blank line', () =
 	});
 });
 
-// The follower is read in the editor's grammar and over its own lines, the reading the parse gives
-// the same bytes on reload. Miss-analysis: the check read one line under the default grammar, and
-// every pin above used a one-line built-in opener.
+// The follower is read in the editor's grammar and over its own lines, as the reload reads it.
+// Miss-analysis: every case above used a one-line built-in opener in the default grammar.
 describe('the blank line a follower takes depends on the editor’s grammar', () => {
 	beforeAll(() => {
 		resetPluginPlatformForTests();
