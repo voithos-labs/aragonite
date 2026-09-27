@@ -1,8 +1,7 @@
 /**
- * The cross-block half of the inline format toggles: plan the per-block spans (`./format-range`),
- * write them all under one undo entry in a multi-scope commit, then put the range back over the
- * result through `restoreSelection`. The key dispatcher reaches this through an injected router,
- * so `schema/` keeps no import of selection code.
+ * The cross-block half of the inline format toggles: plan the per-block spans, write them under
+ * one undo entry, and put the range back over the result. The key dispatcher reaches this module
+ * through an injected router, so `schema/` keeps no import of selection code.
  */
 
 import type { BlockComponent } from '../../block-component';
@@ -38,7 +37,7 @@ export interface CrossBlockCommandDeps {
 	 *  verifies its rewrite against its mode. */
 	reading: Reading;
 	/** The active-marks memo's key alongside the range: the document is mutated in place, so its
-	 *  identity says nothing about whether it changed (`docs/design/editor.md` § 7). */
+	 *  identity says nothing about whether it changed. */
 	getContentVersion: () => number;
 	/** Forgotten by the restore that puts the range back after the rewrite. */
 	caretMemory: Pick<CaretMemory, 'forget'>;
@@ -47,9 +46,8 @@ export interface CrossBlockCommandDeps {
 export function createCrossBlockCommands(deps: CrossBlockCommandDeps): CrossBlockCommandRouter {
 	const activeFormats = createActiveFormatMemo(deps);
 	return {
-		// Whether the command has a cross-block handler, not whether any block joins: that is only
-		// known once the range is split into spans, and a keystroke that reaches no block writes
-		// nothing.
+		// Whether the command has a cross-block handler, not whether any block joins, which is known
+		// only once the range splits into spans; a keystroke that reaches no block writes nothing.
 		canRun: (id) => inlineMarkForCommand(id) !== null,
 		run: (id) => {
 			const mark = inlineMarkForCommand(id);
@@ -68,9 +66,8 @@ export function createCrossBlockCommands(deps: CrossBlockCommandDeps): CrossBloc
 
 const NO_MARKS: ReadonlySet<InlineMarkKind> = new Set();
 
-/** One entry rather than a cache: a toolbar asks once per button against one range, and the
- *  previous key is dead the moment the selection moves. Kept outside reactive state, like
- *  `inline-cache.ts`, since a derived read that wrote `$state` would be a write during a read. */
+/** One entry, not a cache: the previous key is dead once the selection moves. Outside reactive
+ *  state, since a derived read that wrote `$state` would be a write during a read. */
 function createActiveFormatMemo(deps: CrossBlockCommandDeps): () => ReadonlySet<InlineMarkKind> {
 	let slot: { key: string; marks: ReadonlySet<InlineMarkKind> } | null = null;
 	return () => {
@@ -158,7 +155,7 @@ const withOffset = (point: SelectionPoint, offset: number): SelectionPoint => ({
 });
 
 /** The event detail's post-write length, read off the plan, since `op` is evaluated before
- *  `mutate` runs. A block the plan does not write reports its current length (`schema/operations.ts`). */
+ *  `mutate` runs. A block the plan doesn't write reports its current length. */
 function startBlockLength(
 	doc: ReturnType<DocumentGetter>,
 	start: SelectionPoint,

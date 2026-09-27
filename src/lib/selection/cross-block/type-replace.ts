@@ -79,8 +79,6 @@ async function deleteThenType(
 		return;
 	}
 
-	// `updateContent`, not `input`: consumers read `input` as the kind having held, and this
-	// reparse may change it.
 	const scope = resolveTypedCharScope(ctx, caret.path);
 	if (!scope) {
 		focusCollapsedCaret(ctx.getBlockElByPath, caret);
@@ -107,9 +105,8 @@ async function deleteThenType(
 				);
 				const chain = ensureUnsharedPath(doc, caret.path, sharing);
 				const owned = chain[chain.length - 1] ?? ensureUnsharedNode(targetNode, sharing);
-				// Degraded, but still a body write: this branch splices raw with no reparse, so the
-				// container's write rule and the leaf's own are all that stand between a typed `>`
-				// or backtick and a terminator line.
+				// Still a body write with no reparse: the container's and the leaf's write rules are
+				// all that stop a typed `>` or backtick from forming a terminator line.
 				const lineEnding = documentLineEnding(doc);
 				writeOwnRaw(
 					owned,
@@ -125,9 +122,8 @@ async function deleteThenType(
 				return [{ op: 'noop' }];
 			}
 
-			// Reparse the spliced leaf inside the commit so a marker at offset 0 re-derives the
-			// kind (`updateNodeContent` creates a fresh node on a kind change). A single character
-			// never introduces a blank line, so the multi-block replacement branch is unreachable.
+			// Reparse the spliced leaf inside the commit so a marker at offset 0 re-derives the kind;
+			// a single character never adds a blank line, so the multi-block branch can't be reached.
 			const owned = ensureUnsharedChild(scopeView.node, leafIndex, sharing);
 			const newText = owned.raw.slice(0, charOffset) + typed + owned.raw.slice(charOffset);
 			settled = updateNodeContent(scopeView.body, leafIndex, newText, ctx.reading.grammar, sharing);
@@ -135,6 +131,8 @@ async function deleteThenType(
 			return [settled.change];
 		},
 		op: {
+			// `updateContent`, not `input`: consumers read `input` as the kind having held, and this
+			// reparse may change it.
 			kind: 'updateContent',
 			// `op` is evaluated ahead of `mutate` and the splice only inserts, so the post-commit
 			// length is already fixed. Read for the event detail alone.
@@ -143,7 +141,7 @@ async function deleteThenType(
 		},
 		afterTick: async () => {
 			// A fix-up that merged the leaf into the block above left that block holding the typed
-			// bytes, so the position the delete resolved is no longer where the caret belongs.
+			// bytes, so the caret belongs there rather than where the delete resolved.
 			const siblings = scopeChildrenOf(ctx, scope.path);
 			const at = settledCaretPosition(settled, leafIndex, caret.offset + typed.length, siblings);
 			const path = [...caret.path.slice(0, -1), at.index];
@@ -159,12 +157,8 @@ async function deleteThenType(
 	});
 }
 
-/**
- * Replaces the covered block with the parse of the typed character, at the block's parent
- * position: the same call the covered-block paste makes, so both gestures splice in one child
- * list and land one undo entry. Parsed rather than spliced, so a marker typed over the block
- * derives its kind exactly as the single-block typing path does.
- */
+/** Parses the typed character in place of the covered block, through the same call the
+ *  covered-block paste makes, so a marker typed over the block derives its kind as typing does. */
 async function replaceCoveredBlockWithText(
 	ctx: CrossBlockDispatchContext,
 	mutCtx: CrossBlockMutationContext,
@@ -200,11 +194,8 @@ function scopeChildrenOf(ctx: CrossBlockDispatchContext, scopePath: number[]): r
 	return blockNodeAt(doc, scopePath)?.children ?? [];
 }
 
-/**
- * The smallest commit scope covering the typed-char target: doc scope for a top-level leaf,
- * nearest container ancestor with a registered BlockListState otherwise. Null when none is
- * mounted, and the caller falls back to a direct caret restore.
- */
+/** The smallest commit scope over the leaf: the document for a top-level leaf, else the nearest
+ *  ancestor with a registered `BlockListState`. Null when none is mounted. */
 function resolveTypedCharScope(
 	ctx: CrossBlockDispatchContext,
 	leafPath: number[]

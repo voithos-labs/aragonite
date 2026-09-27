@@ -1,9 +1,8 @@
 /**
- * The per-block spans a cross-block format toggle rewrites, and the write over them. Pure over
- * the tree, like `../range-delete`; the commit lives in `./format-toggle`. The direction is
- * decided over the whole range (every span already marked removes the mark, anything else adds
- * it), so adding leaves an already-marked block alone. Each span goes through the single-block
- * toggle, so the rules are the same ones. A grid joins by its cells, covered whole.
+ * The per-block spans a cross-block format toggle rewrites, and the write over them; pure over
+ * the tree, with the commit in `./format-toggle`. The direction is decided over the whole range:
+ * every span already marked removes the mark, anything else adds it. Each span goes through the
+ * single-block toggle, and a grid joins by its covered cells.
  */
 
 import {
@@ -42,7 +41,7 @@ const TAG = 'cross-block-format';
 
 export interface CrossBlockFormatWrite {
 	path: number[];
-	/** The block's display bytes after the toggle — its raw minus the trailing line ending. */
+	/** The block's display bytes after the toggle: its raw minus the trailing line ending. */
 	newDisplay: string;
 	newSelStart: number;
 	newSelEnd: number;
@@ -50,9 +49,8 @@ export interface CrossBlockFormatWrite {
 
 export interface CrossBlockFormatPlan {
 	writes: CrossBlockFormatWrite[];
-	/** The range's endpoints after the rewrite, in document order, each in its own space: a
-	 *  character offset in a text block or in the grid cell a path names, a cell index where the
-	 *  endpoint counts cells. */
+	/** The range's endpoints after the rewrite, each in its own space: a character offset in a
+	 *  text block or a path-named grid cell, a cell index where the endpoint counts cells. */
 	startOffset: number;
 	endOffset: number;
 }
@@ -95,9 +93,8 @@ export function planCrossBlockFormat(
 	return plan.writes.length === 0 ? null : plan;
 }
 
-/** The active marks a toolbar shows for a range, all at once: a mark is active where every
- *  participating span carries it. All marks together, because a toolbar asks once per button
- *  against the same range and splitting the range into spans is the cost. */
+/** A mark is active where every participating span carries it. All marks at once, since
+ *  splitting the range into spans is the cost and a toolbar asks once per button. */
 export function crossBlockActiveFormats(
 	doc: DocumentView,
 	start: SelectionPoint,
@@ -147,12 +144,8 @@ interface RangeSpan {
 	isEnd: boolean;
 }
 
-/**
- * The start block's tail, every middle block's content, the end block's head, in document
- * order. A kind joins by what its descriptor declares, never by name: an editable leaf that
- * supports inline marks and has a non-blank span joins, and a grid hands over its covered
- * cells, which are leaves of that same shape.
- */
+/** The start block's tail, every middle block's content and the end block's head, in document
+ *  order. A kind joins by what its descriptor declares, never by its name. */
 function spansInRange(
 	doc: DocumentView,
 	start: SelectionPoint,
@@ -205,11 +198,8 @@ function spanFor(
 	return body && { ...body, isStart, isEnd };
 }
 
-/**
- * A grid's covered cells, each contributing its whole content. An endpoint inside a grid resolves
- * to one of its cells, so no cell is ever cut in half: an endpoint counting cells stays on the one
- * it named, while one naming its cell by path follows that cell's own write.
- */
+/** A grid's covered cells, each whole: an endpoint inside a grid resolves to one of its cells,
+ *  so no cell is ever cut in half. */
 function gridSpans(
 	grid: NodeView,
 	path: number[],
@@ -234,19 +224,14 @@ function gridSpans(
 	return spans;
 }
 
-/** Whether the endpoint names this cell by path, which is the same question as whether its
- *  offset is a character offset: only the `[grid, row, col]` endpoint G1.29 permits can match a
- *  cell path, so a table's cell index keeps its own space while a plugin grid's edge follows its
- *  cell's rewrite, as a text edge follows its block's. */
+/** Whether the endpoint names this cell by path, and so holds a character offset that follows
+ *  the cell's rewrite; a table endpoint counting cells never names a cell path (G1.29). */
 function addressesCell(point: SelectionPoint, cellPath: number[]): boolean {
 	return comparePaths(point.path, cellPath) === 0;
 }
 
-/**
- * What one leaf contributes between two character offsets, null on a side meaning the block's
- * own content edge. Null where the kind declares itself out of inline marking, or where
- * trimming boundary whitespace leaves nothing to mark.
- */
+/** What one leaf contributes between two character offsets, a null side meaning its content
+ *  edge. Null for a kind outside inline marking, or when trimming whitespace leaves nothing. */
 function contentSpan(
 	node: NodeView,
 	path: number[],
@@ -270,11 +255,8 @@ function contentSpan(
 const clampToContent = (offset: number, content: ContentRange): number =>
 	Math.min(Math.max(offset, content.start), content.end);
 
-/**
- * Whether the span actually changed sides. The single-block toggle decides add or remove from
- * the span alone, so a block whose write disagreed with the range's direction is dropped rather
- * than committed against what the user asked for.
- */
+/** Whether the span's toggle went the range's way. The single-block toggle decides from the span
+ *  alone, so a block that went the other way is dropped rather than written. */
 function landedOnIntendedSide(
 	edit: InlineFormatEdit,
 	toggled: ToggleInlineFormatResult,
