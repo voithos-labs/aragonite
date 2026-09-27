@@ -1,5 +1,5 @@
 /**
- * A stored endpoint's offset is read in its own block's coordinates. On a block that counts
+ * G1.29: a stored endpoint's offset is read in its own block's coordinates. On a block that counts
  * cells (a table) it is a flagged cell index inside the grid, a rectangle's corners included.
  * Elsewhere it's a character offset inside `[0, displayLength(raw)]`, and inside a kind with no
  * character positions one of those two ends, because anything between them cuts an opaque block.

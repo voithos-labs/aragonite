@@ -77,7 +77,7 @@ export interface KeymapCoherenceEntry {
 	keymap?: readonly { chord: string; command: string }[];
 }
 
-/** Every binding names a known command, and a kind binds each chord once. Checked at the flush,
+/** G1.11: every binding names a known command, and a kind binds each chord once. Checked at the flush,
  *  not at registration, since a plugin can register its kind before the command. */
 export function checkKeymapCoherence(
 	entries: readonly KeymapCoherenceEntry[],
