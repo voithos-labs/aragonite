@@ -67,9 +67,10 @@ describe('$ flanking recognition', () => {
 		});
 	}
 
-	it('reads a non-breaking space beside either delimiter as text, not whitespace', () => {
-		expect(mathNodesIn('$\u00a0x$')).toHaveLength(1);
-		expect(mathNodesIn('$x\u00a0$')).toHaveLength(1);
+	// The flanking rule reads Unicode whitespace, as emphasis does, so French prices stay prose.
+	it('reads a non-breaking space beside either delimiter as whitespace', () => {
+		expect(mathNodesIn('$\u00a0x$')).toHaveLength(0);
+		expect(mathNodesIn('$x\u00a0$')).toHaveLength(0);
 	});
 
 	it('spans the full $…$ with start at the open $', () => {
@@ -99,7 +100,11 @@ describe('a claim ends at the first later $, or not at all', () => {
 		// reach across the prose to `$y$`'s closer.
 		['$x$5 and $y$', [[9, 12]]],
 		// A space before a `$` ends the attempt where it stands: `$a` stays literal.
-		['$a $b$', [[3, 6]]]
+		['$a $b$', [[3, 6]]],
+		// Miss-analysis: every price here was written the English way, so no case put the
+		// non-breaking space a French keyboard types before `$`, and narrowing the flank to
+		// Markdown whitespace turned the prices into a formula unseen.
+		['Prix : 5\u00a0$, puis 10\u00a0$.', []]
 	];
 	for (const [raw, spans] of claims) {
 		it(`${raw} → ${JSON.stringify(spans)}`, () => {

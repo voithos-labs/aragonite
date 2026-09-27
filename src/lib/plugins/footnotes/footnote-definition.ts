@@ -13,6 +13,7 @@ import {
 	defineBlockComponent,
 	getPluginMetadata,
 	isBlankLine,
+	isBlankText,
 	isWhitespaceChar,
 	lineStartsOuterBlock,
 	parseContainerBody,
@@ -41,7 +42,9 @@ const CONTINUATION_MARKER = '    ';
 /** The `[^label]:` a line opens with, where the label holds no Markdown whitespace. */
 function matchOpener(text: string): RegExpExecArray | null {
 	const match = OPENER.exec(text);
-	return match && ![...match[1]].some(isWhitespaceChar) ? match : null;
+	if (!match) return null;
+	for (const ch of match[1]) if (isWhitespaceChar(ch)) return null;
+	return match;
 }
 
 /** Per-line approximation of the body's open-paragraph state, as in the core blockquote/list
@@ -129,8 +132,8 @@ export function rebuildFootnoteDefRaw(node: CstNode): void {
 	const children = node.children ?? [];
 	const suffix = node.innerSuffix ?? '';
 	let blankTail = children.length;
-	if (isWhitespaceOnly(suffix)) {
-		while (blankTail > 0 && isWhitespaceOnly(children[blankTail - 1].raw)) blankTail--;
+	if (isBlankText(suffix)) {
+		while (blankTail > 0 && isBlankText(children[blankTail - 1].raw)) blankTail--;
 	}
 	// Each piece is whole lines, paired with whether its blank lines are indented.
 	const pieces: [string, boolean][] = [[node.innerPrefix ?? '', false]];
@@ -149,8 +152,6 @@ export function rebuildFootnoteDefRaw(node: CstNode): void {
 	}
 	node.raw = raw;
 }
-
-const isWhitespaceOnly = (text: string): boolean => !/[^ \t\r\n]/.test(text);
 
 export function registerFootnoteDefinition(): void {
 	const kind = declarePluginKind(FOOTNOTE_DEF_KIND);

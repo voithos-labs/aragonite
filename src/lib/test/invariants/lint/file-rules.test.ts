@@ -636,10 +636,11 @@ const RULES: FileRule[] = [
 			PLUGIN_GRAMMAR_DIRS.some((dir) => under(dir)(file)),
 		matches: /\\[sS]|\.trim(?:Start|End)?\(/,
 		allowed: {
+			'src/lib/plugins/latex/flanking.ts':
+				'the `$` flanking rule reads Unicode whitespace, as emphasis does',
 			'src/lib/plugins/latex/renderer.ts': 'the text of a KaTeX error message',
 			'src/lib/plugins/latex/BlockMath.svelte': SHOWS_INK,
 			'src/lib/plugins/mermaid/MermaidBlock.svelte': SHOWS_INK,
-			'src/lib/plugins/toc/heading-outline.ts': 'a heading’s label as the outline lists it',
 			'src/lib/plugins/slash-commands/slash-source.ts':
 				'where a typed `/` opens the command menu: a word boundary in typing, not Markdown',
 			'src/lib/plugins/slash-commands/filter.ts': 'the words of a menu query the user typed'

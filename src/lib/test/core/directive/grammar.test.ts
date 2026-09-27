@@ -59,6 +59,13 @@ describe('matchDirectiveOpener', () => {
 		});
 		expect(matchDirectiveOpener(':::1x')).toBeNull();
 	});
+	// Miss-analysis: every info string was ASCII, so JS `.` stopping at a line separator, which
+	// the line splitter leaves inside a line, never met a test.
+	it('reads the info string to the end of the line, whatever it holds', () => {
+		expect(matchDirectiveOpener(':::tip\u2028Title')?.info).toBe('\u2028Title');
+		expect(matchDirectiveOpener(':::tip a\u2029b')?.info).toBe(' a\u2029b');
+		expect(matchDirectiveOpener(':::tip Title\r')?.info).toBe(' Title\r');
+	});
 });
 
 describe('isDirectiveCloser', () => {
@@ -164,8 +171,10 @@ describe('parseDirectiveAttributes', () => {
 describe('parseDirectiveAttributes reads Markdown whitespace, where a non-breaking space is text', () => {
 	const NBSP = '\u00a0';
 
-	it('finds a label behind spaces and a tab, and none behind a non-breaking space', () => {
+	it('finds a label behind Markdown whitespace, and none behind a non-breaking space', () => {
 		expect(parseDirectiveAttributes(' \t[x]').label).toBe('x');
+		expect(parseDirectiveAttributes('\f[x]').label).toBe('x');
+		expect(parseDirectiveAttributes('\v[x]').label).toBe('x');
 		expect(parseDirectiveAttributes(`${NBSP}[x]`).label).toBeUndefined();
 	});
 

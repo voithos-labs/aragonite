@@ -26,7 +26,6 @@ import {
 	joinDisplayLines,
 	ownTrailingLineEnding,
 	trailingLineEnding,
-	isWhitespaceChar,
 	trimWhitespace,
 	type CaretTarget,
 	type PluginInlineKind,
@@ -36,6 +35,7 @@ import {
 	type WriteRule
 } from '$lib/plugin';
 import MathInline from './MathInline.svelte';
+import { isFlankingSpace } from './flanking';
 import { registerMathBlockCompleter } from './math-completion';
 
 export const MATH_INLINE = 'math';
@@ -76,7 +76,7 @@ function recognizeMath(
 	const afterOpen = pos + 1;
 	if (afterOpen >= end) return null;
 	const opener = raw[afterOpen];
-	if (isWhitespaceChar(opener)) return null;
+	if (isFlankingSpace(opener)) return null;
 	// `$$` is the display fence, or the empty pair a keystroke just closed: never an inline
 	// opener, or the match would end on the second `$` of its own opener.
 	if (opener === '$') return null;
@@ -85,7 +85,7 @@ function recognizeMath(
 	// range leaves the `$` literal.
 	const close = nextDollarFrom(raw, pos + 2);
 	if (close === -1 || close >= end) return null;
-	if (isWhitespaceChar(raw[close - 1]) || isDigit(raw[close + 1] ?? '')) return null;
+	if (isFlankingSpace(raw[close - 1]) || isDigit(raw[close + 1] ?? '')) return null;
 	if (isPriceSpan(raw.slice(afterOpen, close))) return null;
 	return { kind, start: pos, end: close + 1 };
 }
