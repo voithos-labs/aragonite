@@ -1550,10 +1550,10 @@ emphasis does, so a French price like `5 $` stays prose. `lint/file-rules.test.t
 
 **G4.73 · Leaf source-commit parity.** Every component mounting an editable leaf
 (`createEditableLeaf`) publishes `afterSourceCommit` as an instance export. A render-primary leaf
-holds an open source's edit in the DOM until blur, and a move from outside the block (a host's
-`editor.runCommand('block.moveDown')`, a move chord the kind binds) waits on that hook to write it
-first. `BlockComponent` declares it optional, so leaf N+1 would compile clean and lose the edit on
-every such move. A third-party plugin is outside the scan and gets the same one-line re-export in
+holds an open source's edit in the DOM until blur. A move chord gets the hook from the leaf itself,
+but a host's `editor.runCommand('block.moveDown')` reaches the component, so it waits on the export
+to write the source first. `BlockComponent` declares it optional, so leaf N+1 would compile clean
+and lose the edit on every such move. A third-party plugin is outside the scan and gets the same one-line re-export in
 the plugin guide. `lint/file-rules.test.ts`.
 
 ## Accessibility

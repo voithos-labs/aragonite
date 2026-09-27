@@ -539,7 +539,7 @@ const RULES: FileRule[] = [
 		population: (file) => svelteOnly(file) && LEAF_SURFACE_RE.test(file.code),
 		matches: (file) => !PUBLISHES_SOURCE_COMMIT_RE.test(file.code),
 		reason:
-			'without an instance export of afterSourceCommit, a move run from outside the block (editor.runCommand, a bound chord) leaves the open source unwritten and its edit is lost',
+			'without an instance export of afterSourceCommit, editor.runCommand moves the block with its open source unwritten and the edit is lost; a bound chord gets the hook from the leaf itself',
 		reaches: ['src/lib/plugins/latex/BlockMath.svelte'],
 		atLeast: 4,
 		hits: [
