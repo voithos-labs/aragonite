@@ -187,7 +187,7 @@
 	}
 
 	// Tab, Shift+Tab and Mod+Enter bubble up from the inner paragraph. Only kind commands run here:
-	// the paragraph has already run the global ones, so undo would otherwise fire twice.
+	// the paragraph has already dispatched the global ones, so undo would otherwise fire twice.
 	function handleKeydown(e: KeyboardEvent): void {
 		// A key a nested item declined is still that item's: the task toggle must not reach the
 		// task it sits in.
