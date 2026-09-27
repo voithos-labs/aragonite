@@ -242,7 +242,7 @@ Three families of seam run these checks:
 | G1.26 | A fold implies an active reveal, and an open reveal blocks command mutation         | A·N     |
 | G1.27 | `compositionend` lands only inside a composition the surface saw start              | A·N     |
 | G1.28 | A code block's render and a painted leaf source carry the block's bytes exactly     | A·N     |
-| G1.29 | A cross-block endpoint's offset means what its own block's coordinate space says    | A·N     |
+| G1.29 | A selection endpoint's offset means what its own block's coordinate space says      | A·N     |
 | G1.30 | Every registered kind declares a `mergeRole` from the known set                     | A·N     |
 | G1.31 | The inline-construct policy table is coherent and unambiguous                       | A·N     |
 | G1.32 | A kind declaring `contentStartBackspace` also declares `getContentRange`            | A·N     |
@@ -486,12 +486,12 @@ Predicate `checkRenderedTextFidelity` (`render-fidelity.ts`) · seams
 `components/blocks/editable-leaf.ts :: paintSource` · `render-fidelity.test.ts`,
 `test/blocks/editable-leaf-painted-fidelity.test.ts`.
 
-**G1.29 · Cross-block endpoint coordinates.** An endpoint's offset means what its own block's
+**G1.29 · Selection endpoint coordinates.** An endpoint's offset means what its own block's
 coordinate space says. On a table that's a cell index, and the point has to say so with
 `cellCoordinate: true`: every point on a table path, the two corners of a rectangle inside one
 table included. Readers trust the flag, so a bare offset on a table reads as characters, and
-rangeDelete's generic branch then corrupts the grid. The index has to land inside the grid too:
-one past the last cell makes copy invent empty rows and delete throw, so the normalizer and the
+copy slices the table's markdown as text. The index has to land inside the grid too:
+an index past the last cell makes copy invent empty rows and delete throw, so the normalizer and the
 restore both clamp to `src/lib/schema/block-kind-descriptor.ts :: clampCellIndex`.
 Both directions fire, because a cell index stored against a block with no cells is the same
 corruption from the opposite producer. Every other char endpoint must land inside its block's

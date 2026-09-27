@@ -36,7 +36,7 @@ describe('G1.29 cross-block endpoint coordinates', () => {
 	});
 
 	// Miss-analysis: this row once asserted the exemption itself, so the rectangle's bare focus
-	// passed the guard, and a reader that trusted the flag read a cell index as characters (#602).
+	// passed the guard, and a reader that trusted the flag read a cell index as characters.
 	it('flags the bare focus of a rectangle inside one table', () => {
 		const violation = checkCrossBlockEndpointCoordinates(
 			doc(),

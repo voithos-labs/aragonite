@@ -344,11 +344,15 @@ class SelectionStateImpl implements SelectionState {
 
 	collapse(): void {
 		if (!this.#hasCaretClaim()) return;
-		this.dropForDocumentSwap();
+		this.#drop();
 		this.#notify();
 	}
 
 	dropForDocumentSwap(): void {
+		this.#drop();
+	}
+
+	#drop(): void {
 		this.#anchor = null;
 		this.#focus = null;
 		this.#gapCaret = null;
