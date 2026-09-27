@@ -211,10 +211,16 @@ const ALLOWLIST: Record<string, Exemption> = {
 			'published reads it, so option threading needs a mounted editor'
 	},
 	'src/lib/test/plugins/slash-commands/slash-harness.ts': {
-		specifiers: ['$lib/editor-events', '$lib/inline-menu/inline-menu-state.svelte'],
+		specifiers: [
+			'$lib/editor-events',
+			'$lib/inline-menu/inline-menu-state.svelte',
+			'$lib/schema/plugin-editor-context',
+			'$lib/schema/plugin-install'
+		],
 		reason:
 			'no headless inline-menu session on the testing barrel: a source can be called directly, ' +
-			'but typing a trigger and the write a pick makes need the menu state of the editor itself'
+			'but typing a trigger and the write a pick makes need the menu state of the editor itself; ' +
+			"nor a headless editor context, the only place an entry's options merge over the defaults"
 	},
 	'src/lib/test/plugins/slash-commands/open-command.test.ts': {
 		specifiers: [

@@ -16,6 +16,12 @@ import type { InsertEntry } from './insert-catalogue';
 export interface EditorPlugin<Options = unknown> {
 	readonly name: string;
 	readonly version?: string;
+	/** Where every editor's `options` start; an editor's `{ plugin, options }` entry replaces them
+	 *  field by field, an array included. */
+	readonly defaults?: Options;
+	/** Checks one editor's raw options and returns the fields to apply (leave a bad one out to keep
+	 *  its default); a throw is reported on the `error` event and the editor runs on the defaults. */
+	parseOptions?(raw: unknown): Partial<Options>;
 	setup(ctx: PluginSetupContext<Options>): void;
 }
 
@@ -40,6 +46,7 @@ export interface EditorContext<Options = unknown> {
 	 *  the document, 0 at mount. Subscribe to the `sourceSwap` event to hear a change. */
 	readonly documentGeneration: number;
 	readonly events: EditorEventSubscriptions;
+	/** The plugin's `defaults` with this editor's `{ plugin, options }` entry merged over them. */
 	readonly options: Options;
 	readonly decorations: DecorationRegistry;
 	readonly rects: EditorRects;
@@ -78,7 +85,7 @@ let generation = 0;
 
 // ── Public API ───────────────────────────────────────────────────────────────
 
-export function definePlugin<Options = unknown>(
+export function definePlugin<Options extends object = Record<string, never>>(
 	plugin: EditorPlugin<Options>
 ): EditorPlugin<Options> {
 	if (typeof plugin.setup !== 'function') {
@@ -142,6 +149,20 @@ export function normalizePluginEntries(entries: readonly EditorPluginEntry[]): {
 		if ('plugin' in entry && 'options' in entry) optionsByName.set(plugin.name, entry.options);
 	}
 	return { plugins, optionsByName };
+}
+
+/** One editor's options for a plugin: its defaults, then each defined field of the entry that
+ *  `parseOptions` kept. A `parseOptions` throw propagates, so the caller decides who hears it. */
+export function resolvePluginOptions<Options extends object>(
+	plugin: Pick<EditorPlugin<Options>, 'defaults' | 'parseOptions'>,
+	raw: unknown
+): Options {
+	const entry = raw === undefined ? {} : plugin.parseOptions ? plugin.parseOptions(raw) : raw;
+	return { ...plugin.defaults, ...definedFields(entry) } as Options;
+}
+
+export function installedPlugin(name: string): EditorPlugin | undefined {
+	return installed.get(name);
 }
 
 export function isPluginInstalled(name: string): boolean {
@@ -225,6 +246,12 @@ function makeSetupContext(pluginName: string): { ctx: PluginSetupContext; close:
 		}
 	};
 	return { ctx, close: () => (open = false) };
+}
+
+// An entry's field set to `undefined` keeps its default, the same as leaving it out.
+function definedFields(value: unknown): Record<string, unknown> {
+	if (typeof value !== 'object' || value === null || Array.isArray(value)) return {};
+	return Object.fromEntries(Object.entries(value).filter(([, field]) => field !== undefined));
 }
 
 // `name@version` when the plugin carries a version, so a clash between two versions is

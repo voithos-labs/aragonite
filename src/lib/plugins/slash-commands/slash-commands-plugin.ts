@@ -15,14 +15,18 @@ import {
 /** `runCommand(SLASH_COMMANDS_OPEN, 'table')` opens the list already narrowed to its argument. */
 export const SLASH_COMMANDS_OPEN = 'slashCommands.open';
 
-/**
- * `options` are the default for every editor; an editor's `{ plugin, options }` entry in the
- * `plugins` prop replaces them for that editor.
- */
+/** `options` are every editor's defaults; an editor's `{ plugin, options }` entry replaces them
+ *  field by field, so passing `exclude` alone keeps these `entries`. */
 export function slashCommandsPlugin(options: SlashCommandsOptions = {}): EditorPlugin {
 	checkEntries(options.entries);
-	return definePlugin<SlashCommandsOptions | undefined>({
+	return definePlugin<SlashCommandsOptions>({
 		name: 'slash-commands',
+		defaults: options,
+		parseOptions(raw) {
+			const { entries, exclude } = (raw ?? {}) as SlashCommandsOptions;
+			checkEntries(entries);
+			return { entries, exclude };
+		},
 		setup(ctx) {
 			registerGlobalCommand(
 				SLASH_COMMANDS_OPEN,
@@ -33,9 +37,8 @@ export function slashCommandsPlugin(options: SlashCommandsOptions = {}): EditorP
 				{ chord: 'Mod+/' }
 			);
 			ctx.onEditor((editor) => {
-				checkEntries(editor.options?.entries);
 				const handle = editor.inlineMenus.addSource(
-					createSlashSource(editor, () => editor.options ?? options)
+					createSlashSource(editor, () => editor.options)
 				);
 				return () => handle.dispose();
 			});

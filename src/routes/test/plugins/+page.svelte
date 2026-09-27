@@ -28,7 +28,7 @@
 	import '../../demo-tags/tag-marks.css';
 	import type { EditorPlugin } from '$lib/plugin';
 
-	// docStatsPlugin is a bare entry (no options), covering the options-default branch.
+	// docStatsPlugin is a bare entry (no options), so it runs on its defaults.
 	const basePlugins = [
 		calloutPlugin(),
 		DEMO_DETAILS,

@@ -1,18 +1,33 @@
 /**
  * The `/` source on a real inline-menu state over one parsed document, typed into a byte at a
  * time. The editor's own entry points are recorded instead of run, so a test reads what a pick
- * asked for: which Markdown, where, and which command.
+ * asked for: which Markdown, where, and which command. `slashPluginHarness` lists through the
+ * installed plugin and its editor context instead, so the options are the ones an editor merges.
  */
 import { tick } from 'svelte';
-import { parse, type DocumentView, type InsertEntry } from '$lib';
-import type { EditorContext, InsertMarkdownOptions } from '$lib/plugin';
+import {
+	installPlugins,
+	parse,
+	type DocumentView,
+	type EditorEvents,
+	type InsertEntry
+} from '$lib';
+import type {
+	EditorContext,
+	EditorPluginEntry,
+	InlineMenuRegistry,
+	InsertMarkdownOptions
+} from '$lib/plugin';
 import { createEditorEvents, type EditEvent } from '$lib/editor-events';
 import { createInlineMenuState } from '$lib/inline-menu/inline-menu-state.svelte';
 import {
 	createSlashSource,
 	type SlashCommandsOptions
 } from '$lib/plugins/slash-commands/slash-source';
+import { createEditorPluginContexts } from '$lib/schema/plugin-editor-context';
+import { normalizePluginEntries } from '$lib/schema/plugin-install';
 import { fixtureReading } from '../../harness/fixture-grammar';
+import { pluginContextDeps } from '../../support/plugin-context-deps';
 
 const entry = (id: string, label: string, keywords: string[], markdown: string): InsertEntry => ({
 	id,
@@ -35,7 +50,55 @@ export const CATALOGUE: readonly InsertEntry[] = [
 const typedEdit = (path: number[]): EditEvent =>
 	({ op: 'input', path, detail: { byteLength: 1 }, timestamp: 0 }) as EditEvent;
 
+/** What a harness hands the code that attaches the `/` source. */
+interface HarnessHost {
+	getDoc: () => DocumentView;
+	events: EditorEvents;
+	inlineMenus: InlineMenuRegistry;
+	insertMarkdown: (markdown: string, opts?: InsertMarkdownOptions) => Promise<boolean>;
+	runCommand: (id: string, arg?: unknown) => boolean;
+}
+
 export function slashHarness(initial: string, options: SlashCommandsOptions = {}) {
+	return harness(initial, (host) => {
+		const editor = {
+			editorId: 'editor-slash',
+			get document() {
+				return host.getDoc();
+			},
+			insertCatalogue: CATALOGUE,
+			inlineMenus: host.inlineMenus,
+			options,
+			insertMarkdown: host.insertMarkdown,
+			runCommand: host.runCommand
+		} as unknown as EditorContext;
+		host.inlineMenus.addSource(createSlashSource(editor, () => options));
+		return editor;
+	});
+}
+
+/** Installs the entry's plugin; reset the plugin platform around each case. */
+export function slashPluginHarness(
+	initial: string,
+	entry: EditorPluginEntry,
+	onError: (error: unknown) => void = (error) => {
+		throw error;
+	}
+) {
+	return harness(initial, (host) => {
+		const { plugins, optionsByName } = normalizePluginEntries([entry]);
+		installPlugins(plugins);
+		const contexts = createEditorPluginContexts({
+			...pluginContextDeps(),
+			...host,
+			optionsFor: (name) => optionsByName.get(name)
+		});
+		contexts.attachAll(({ error }) => onError(error));
+		return contexts.get(plugins[0].name)!;
+	});
+}
+
+function harness(initial: string, attach: (host: HarnessHost) => EditorContext) {
 	let doc: DocumentView;
 	let caret = initial.length;
 	const events = createEditorEvents();
@@ -76,21 +139,16 @@ export function slashHarness(initial: string, options: SlashCommandsOptions = {}
 		undoStep: async (_path, _offset, run) => void (await run())
 	});
 
-	const editor = {
-		editorId: 'editor-slash',
-		get document() {
-			return doc;
-		},
-		insertCatalogue: CATALOGUE,
+	const editor = attach({
+		getDoc: () => doc,
+		events,
 		inlineMenus: menu.registry,
-		options,
-		insertMarkdown: (markdown: string, opts?: InsertMarkdownOptions) => {
+		insertMarkdown: (markdown, opts) => {
 			inserted.push({ markdown, placement: opts?.placement ?? 'caret' });
 			return Promise.resolve(true);
 		},
-		runCommand: (id: string, arg?: unknown) => (ran.push({ id, arg }), true)
-	} as unknown as EditorContext;
-	menu.registry.addSource(createSlashSource(editor, () => options));
+		runCommand: (id, arg) => (ran.push({ id, arg }), true)
+	});
 
 	let arrived = false;
 	return {
