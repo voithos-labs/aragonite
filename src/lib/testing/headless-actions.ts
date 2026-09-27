@@ -46,18 +46,21 @@ export function stubCaretMemory(): CaretMemory {
 	};
 }
 
+/** A block list that writes nothing: every edit resolves false, and a content write is admitted
+ *  with its caret where the caller asked. */
 export function stubBlockEdit(): BlockEditActions {
+	const wroteNothing = async () => false;
 	return {
-		splitBlock: () => {},
-		descendToBody: () => {},
-		insertParagraph: () => {},
-		mergeWithPrevious: () => {},
-		mergeWithNext: () => {},
-		deleteBlock: () => {},
+		splitBlock: wroteNothing,
+		descendToBody: wroteNothing,
+		insertParagraph: wroteNothing,
+		mergeWithPrevious: wroteNothing,
+		mergeWithNext: wroteNothing,
+		deleteBlock: wroteNothing,
 		updateBlockContent: (_index, _text, _mode, preEditOffset, postEditFocusOffset) =>
-			withStoredCaret(Promise.resolve(), postEditFocusOffset ?? preEditOffset ?? 0),
-		updateBlockMetadata: () => {},
-		replaceBlock: () => {}
+			withStoredCaret(Promise.resolve(false), postEditFocusOffset ?? preEditOffset ?? 0),
+		updateBlockMetadata: wroteNothing,
+		replaceBlock: wroteNothing
 	};
 }
 

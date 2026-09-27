@@ -74,8 +74,8 @@ describe('Enter in an editable leaf', () => {
 	it('lands the fold’s write before the split reads the block’s bytes', async () => {
 		mounted = mountLeaf(true);
 		let releaseWrite!: () => void;
-		const writeGate = new Promise<void>((resolve) => {
-			releaseWrite = resolve;
+		const writeGate = new Promise<boolean>((resolve) => {
+			releaseWrite = () => resolve(true);
 		});
 		vi.mocked(mounted.blockEdit.updateBlockContent).mockImplementation(() =>
 			withStoredCaret(writeGate, 0)

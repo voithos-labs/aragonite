@@ -2,7 +2,7 @@
 // inserted or dropped, once, inside the content write that stores the bytes.
 // Miss-analysis: each kind mapped its caret beside its own component, so no test asked the write.
 import { describe, it, expect } from 'vitest';
-import { mountBodyRow, makeTopHarness } from '$lib/test/harness/editor-actions';
+import { admittedCaret, mountBodyRow, makeTopHarness } from '$lib/test/harness/editor-actions';
 
 const TABLE = '| a | b |\n| - | - |\n| x | y |\n';
 
@@ -13,7 +13,7 @@ describe('a table cell write', () => {
 		await write;
 
 		expect(row.deps.doc.children[0].children![1].children![0].raw).toBe('x\\|');
-		expect(write.caret).toBe(3);
+		expect(admittedCaret(write)).toBe(3);
 	});
 });
 
@@ -24,7 +24,7 @@ describe('a fenced code write', () => {
 		await write;
 
 		expect(h.deps.doc.children[0].raw).toBe('```js\nbo\n```\n');
-		expect(write.caret).toBe(8);
+		expect(admittedCaret(write)).toBe(8);
 	});
 
 	it('moves the caret by the bytes a grown opener run gained', async () => {
@@ -34,7 +34,7 @@ describe('a fenced code write', () => {
 		await write;
 
 		expect(h.deps.doc.children[0].raw).toBe('````js\n```\n````\n');
-		expect(write.caret).toBe(10);
+		expect(admittedCaret(write)).toBe(10);
 	});
 
 	// Read as content, the first closer typed into an open fence would grow its opener instead.
@@ -44,7 +44,7 @@ describe('a fenced code write', () => {
 			const write = h.actions.updateBlockContent(0, `${typed}\n`, 'authored', typed.length);
 			await write;
 			expect(h.deps.doc.children[0].raw).toBe(`${typed}\n`);
-			expect(write.caret).toBe(typed.length);
+			expect(admittedCaret(write)).toBe(typed.length);
 		}
 	});
 });

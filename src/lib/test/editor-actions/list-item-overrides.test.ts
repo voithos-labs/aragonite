@@ -9,12 +9,12 @@ import { parse } from '$lib/core/parser';
 
 function listContextSpy(): Mocked<ListContext> {
 	return {
-		insertItemAfter: vi.fn(async () => {}),
-		exitListAtItem: vi.fn(async () => {}),
-		indentItem: vi.fn(async () => {}),
-		unindentItem: vi.fn(async () => {}),
-		splitItemAtOffset: vi.fn(async () => {}),
-		promoteNestedItem: vi.fn(async () => {}),
+		insertItemAfter: vi.fn(async () => true),
+		exitListAtItem: vi.fn(async () => true),
+		indentItem: vi.fn(async () => true),
+		unindentItem: vi.fn(async () => true),
+		splitItemAtOffset: vi.fn(async () => true),
+		promoteNestedItem: vi.fn(async () => true),
 		getContainingItemIndex: vi.fn(() => 0)
 	};
 }

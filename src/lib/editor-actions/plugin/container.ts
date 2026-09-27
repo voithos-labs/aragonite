@@ -204,11 +204,11 @@ export function composeExpandDoor(deps: {
 /** While collapsed the body is unmounted, so `descendToBody` would create an invisible one. */
 export function gateDescendOnCollapse(
 	isCollapsed: (() => boolean) | undefined,
-	descend: (innerIndex: number) => void | Promise<void>
-): (innerIndex: number) => Promise<void> {
+	descend: (innerIndex: number) => Promise<boolean>
+): (innerIndex: number) => Promise<boolean> {
 	return async (innerIndex) => {
-		if (isCollapsed?.()) return;
-		await descend(innerIndex);
+		if (isCollapsed?.()) return false;
+		return descend(innerIndex);
 	};
 }
 
@@ -403,8 +403,9 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 	};
 
 	// Reading mode declines at the commit, which names the write in a dev build.
-	const updateOwnMetadata: ContainerBlock['updateOwnMetadata'] = (patch, afterTick) =>
-		parentBlockEdit.updateBlockMetadata(deps.getIndex(), patch, { afterTick });
+	const updateOwnMetadata: ContainerBlock['updateOwnMetadata'] = async (patch, afterTick) => {
+		await parentBlockEdit.updateBlockMetadata(deps.getIndex(), patch, { afterTick });
+	};
 
 	const kindTarget = buildContainerKindTarget(deps, updateOwnMetadata, pluginEditor);
 	// Focused as a whole, the block is the one a reorder chord moves; a key bubbling from an

@@ -26,22 +26,21 @@ export function createBlockEditActions(
 
 		async mergeWithPrevious(blockIndex) {
 			deps.caretMemory.forget();
-			if (blockIndex <= 0) return;
-			await core.mergeWithPreviousInterior(blockIndex);
+			if (blockIndex <= 0) return false;
+			return core.mergeWithPreviousInterior(blockIndex);
 		},
 
 		async mergeWithNext(blockIndex) {
 			deps.caretMemory.forget();
-			if (blockIndex >= deps.doc.children.length - 1) return;
-			await core.mergeWithNextInterior(blockIndex);
+			if (blockIndex >= deps.doc.children.length - 1) return false;
+			return core.mergeWithNextInterior(blockIndex);
 		},
 
 		deleteBlock: (blockIndex) => core.deleteInterior(blockIndex),
 		updateBlockMetadata: (blockIndex, metadata, options) =>
 			core.updateBlockMetadata(blockIndex, metadata, options),
-		replaceBlock: async (blockIndex, replacement, focus, options) => {
-			await core.replaceBlock(blockIndex, replacement, focus, options);
-		},
+		replaceBlock: async (blockIndex, replacement, focus, options) =>
+			(await core.replaceBlock(blockIndex, replacement, focus, options)) !== null,
 
 		updateBlockContent: contentUpdate(scope)
 	};

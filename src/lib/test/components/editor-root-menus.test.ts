@@ -45,7 +45,7 @@ function harness(opts: { mode?: PresentationMode } = {}) {
 
 	let menu: BlockMenuModel | null = null;
 	const blockEdit = {
-		deleteBlock: vi.fn(async () => {})
+		deleteBlock: vi.fn(async () => true)
 	};
 	const placeCaretAtPoint = vi.fn(() => true);
 	const insertMarkdown = vi.fn(async () => true);

@@ -40,6 +40,7 @@ function harness(component: Partial<BlockComponent> = {}, opts: { writes?: boole
 	const insertParagraph = vi.fn(async (boundary: number) => {
 		calls.push(`paragraph at ${boundary}`);
 		created.surface.focus();
+		return true;
 	});
 	const focused = createFocusedSurface({
 		get editorEl() {

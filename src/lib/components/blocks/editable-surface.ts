@@ -174,9 +174,9 @@ export interface EditableSurfaceDeps {
 		after: string,
 		composedAt: number
 	) => { raw: string; caret: number } | null;
-	/** Commits the read text; returns the caret to restore when the committed bytes differ from
-	 *  the DOM (a cell escaping a typed `|` to `\|`), void to keep the DOM caret. */
-	commitInput: (text: string, preEditOffset: number, savedOffset: number) => number | void;
+	/** Commits the read text; returns the caret to restore (a cell escapes a typed `|` to `\|`),
+	 *  void to keep the DOM caret, or null for a refused write, which puts no caret back. */
+	commitInput: (text: string, preEditOffset: number, savedOffset: number) => number | null | void;
 	/** Runs before the shared input commit (the text block resets its snap target here). */
 	inputPrelude?: () => void;
 	/** The block's own beforeinput handling, run after the surface records the pre-edit caret. */
@@ -375,7 +375,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		// preEdit anchors the undo snapshot; caret drives focus when a kind change remounts the
 		// block. A commit that rewrites bytes reports the post-rewrite caret.
 		const committedCaret = deps.commitInput(seated?.raw ?? text, preEditOffset, caret);
-		deps.setPendingCursor(committedCaret ?? caret);
+		if (committedCaret !== null) deps.setPendingCursor(committedCaret ?? caret);
 	}
 
 	function onCompositionStart(): void {

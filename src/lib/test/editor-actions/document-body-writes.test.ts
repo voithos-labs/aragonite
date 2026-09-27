@@ -22,7 +22,7 @@ const SOURCES = [
 ];
 
 /** The structural edits a user can make at the last block, which no trial reparse checks. */
-const TAIL_EDITS: [string, (h: TopHarness, last: number) => Promise<void> | void][] = [
+const TAIL_EDITS: [string, (h: TopHarness, last: number) => Promise<boolean>][] = [
 	['delete', (h, last) => h.actions.deleteBlock(last)],
 	[
 		'split at the end',

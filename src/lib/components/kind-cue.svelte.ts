@@ -15,7 +15,7 @@ import { blockNodeAt } from '../tree-operations/node-primitives';
 export interface KindCue {
 	/** Once `write` settles, cue the block at `path` if its shown kind differs from `before`. */
 	afterTypedWrite(
-		write: void | Promise<void>,
+		write: Promise<unknown>,
 		path: readonly number[],
 		before: AnyBlockKind
 	): Promise<void>;

@@ -19,25 +19,21 @@ export function createContainerExitOverrides(deps: ContainerExitOverridesDeps) {
 		blockEdit: {
 			// Enter on an empty last paragraph exits onto a new blank paragraph after the container,
 			// never into an existing block, so nested containers are escaped one level per Enter.
-			splitBlock: async (innerIndex: number, offset: number): Promise<void> => {
+			splitBlock: async (innerIndex: number, offset: number): Promise<boolean> => {
 				const { parentBlockEdit } = deps;
 				const { node, index } = deps.scope;
-				if (!node.children) return;
+				if (!node.children) return false;
 				const child = node.children[innerIndex];
 				const isLastChild = innerIndex === node.children.length - 1;
 				const isEmpty = child.kind === 'paragraph' && isBlankText(child.raw);
-				if (isLastChild && isEmpty) {
-					if (node.children.length <= 1) {
-						await parentBlockEdit.splitBlock(index, displayLength(node.raw));
-					} else {
-						await parentBlockEdit.replaceBlock(index, buildQuoteExitReplacement(node), {
-							replacementIndex: 1,
-							offset: 0
-						});
-					}
-					return;
+				if (!isLastChild || !isEmpty) return defaults.blockEdit.splitBlock(innerIndex, offset);
+				if (node.children.length <= 1) {
+					return parentBlockEdit.splitBlock(index, displayLength(node.raw));
 				}
-				return defaults.blockEdit.splitBlock(innerIndex, offset);
+				return parentBlockEdit.replaceBlock(index, buildQuoteExitReplacement(node), {
+					replacementIndex: 1,
+					offset: 0
+				});
 			}
 		}
 	});

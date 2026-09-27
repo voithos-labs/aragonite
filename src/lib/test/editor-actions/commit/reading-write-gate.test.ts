@@ -16,7 +16,7 @@ import { takeDevWarns } from '../../support/warn-gate';
 interface Writer {
 	deps: EditorActionsDeps;
 	edits: EditEvent[];
-	write(): void | Promise<void>;
+	write(): unknown;
 }
 
 interface WriterRow {

@@ -148,16 +148,17 @@
 		return trimTrailingLineEnding(node.raw);
 	}
 
-	/** Commits edited display text and returns the caret as stored: the fence rule can grow the
-	 *  fence or drop a character, either of which moves the caret. */
-	function commitDisplay(display: string, undoAnchor: number, caret: number): number {
-		return blockEdit.updateBlockContent(
+	/** Commits edited display text and returns the caret as stored, since the fence rule can grow
+	 *  the fence or drop a character; null when the write was refused. */
+	function commitDisplay(display: string, undoAnchor: number, caret: number): number | null {
+		const write = blockEdit.updateBlockContent(
 			index,
 			display + blockEnding(),
 			'authored',
 			undoAnchor,
 			caret
-		).caret;
+		);
+		return write.admitted ? write.caret : null;
 	}
 
 	$effect(() => {
@@ -396,6 +397,7 @@
 				editableSurface.getPreEditOffset(),
 				result.selection.start
 			);
+			if (start === null) return;
 			const shift = start - result.selection.start;
 			pendingSelection = { start, end: result.selection.end + shift };
 		} else {
@@ -703,6 +705,7 @@
 
 	function applyIndentResult(result: IndentResult): void {
 		const start = commitDisplay(result.text, result.selection.start, result.selection.start);
+		if (start === null) return;
 		if (result.selection.start === result.selection.end) {
 			pendingCursorOffset = start;
 			return;

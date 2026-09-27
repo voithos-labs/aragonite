@@ -31,8 +31,8 @@ async function deleteEmptyItem(
 	{ deps, state }: UnwrapStrategyDeps,
 	itemIndex: number,
 	land: () => void
-): Promise<void> {
-	await deps.parent.containerEdit.commitContainer({
+): Promise<boolean> {
+	return deps.parent.containerEdit.commitContainer({
 		containerNode: deps.node,
 		path: deps.path,
 		state,
@@ -50,21 +50,23 @@ async function deleteEmptyItem(
 // ── First-child strategies ──────────────────────────────────────────────────
 
 /** Lift the first child out of a quote-shaped container, whose opener goes with it (U2). */
-async function liftFirstChildDroppingOpener({ deps }: UnwrapStrategyDeps): Promise<void> {
-	await spliceLift(deps, unwrapFirstChildFromQuote(deps.node));
+async function liftFirstChildDroppingOpener({ deps }: UnwrapStrategyDeps): Promise<boolean> {
+	return spliceLift(deps, unwrapFirstChildFromQuote(deps.node));
 }
 
 /** Lift the first child out of a container whose syntax survives, so the rest keeps its kind (U2). */
-async function liftFirstChildAndKeepContainer({ deps }: UnwrapStrategyDeps): Promise<void> {
-	await spliceLift(deps, liftFirstChildKeepingContainer(deps.node));
+async function liftFirstChildAndKeepContainer({ deps }: UnwrapStrategyDeps): Promise<boolean> {
+	return spliceLift(deps, liftFirstChildKeepingContainer(deps.node));
 }
 
 /** Leaves the tree alone: child 0 is the container's title row, and a lift would carry it out. */
-async function keepReservedChrome(): Promise<void> {}
+async function keepReservedChrome(): Promise<boolean> {
+	return false;
+}
 
-async function spliceLift(deps: NestedActionsDeps, replacement: CstNode[]): Promise<void> {
-	if (replacement.length === 0) return;
-	await deps.parent.blockEdit.replaceBlock(deps.index, replacement, {
+async function spliceLift(deps: NestedActionsDeps, replacement: CstNode[]): Promise<boolean> {
+	if (replacement.length === 0) return false;
+	return deps.parent.blockEdit.replaceBlock(deps.index, replacement, {
 		replacementIndex: 0,
 		offset: 0
 	});
@@ -72,39 +74,39 @@ async function spliceLift(deps: NestedActionsDeps, replacement: CstNode[]): Prom
 
 /** The first list item: promote if nested, delete if empty, delete the list if it is the only
  *  item, else unwrap its first paragraph before the list (U1). */
-async function listItemCascadeFirst(strategy: UnwrapStrategyDeps): Promise<void> {
+async function listItemCascadeFirst(strategy: UnwrapStrategyDeps): Promise<boolean> {
 	const { deps, state } = strategy;
 	const node = deps.node;
 	const index = deps.index;
-	if (!node.children) return;
+	if (!node.children) return false;
 
 	if (deps.parentListContext) {
-		await deps.parentListContext.promoteNestedItem(
+		return deps.parentListContext.promoteNestedItem(
 			deps.parentListContext.getContainingItemIndex(),
 			node,
 			0
 		);
-		return;
 	}
 
 	const item = node.children[0];
 	const firstChildEmpty = isItemUserEmpty(item);
 
 	if (firstChildEmpty && node.children.length > 1) {
-		await deleteEmptyItem(strategy, 0, () => {
+		return deleteEmptyItem(strategy, 0, () => {
 			state.innerBlockRefs[0]?.focus(CURSOR_START);
 		});
-	} else if (firstChildEmpty && node.children.length === 1) {
-		await deps.parent.blockEdit.deleteBlock(index);
-		await deps.parent.focus.moveFocus(index - 1, 'end');
-	} else {
-		const replacement = unwrapFirstItemFromList(node);
-		if (replacement.length === 0) return;
-		await deps.parent.blockEdit.replaceBlock(index, replacement, {
-			replacementIndex: 0,
-			offset: 0
-		});
 	}
+	if (firstChildEmpty) {
+		const deleted = await deps.parent.blockEdit.deleteBlock(index);
+		await deps.parent.focus.moveFocus(index - 1, 'end');
+		return deleted;
+	}
+	const replacement = unwrapFirstItemFromList(node);
+	if (replacement.length === 0) return false;
+	return deps.parent.blockEdit.replaceBlock(index, replacement, {
+		replacementIndex: 0,
+		offset: 0
+	});
 }
 
 // ── Middle-child strategies ─────────────────────────────────────────────────
@@ -113,22 +115,21 @@ async function listItemCascadeFirst(strategy: UnwrapStrategyDeps): Promise<void>
 async function listItemCascadeMiddle(
 	strategy: UnwrapStrategyDeps,
 	itemIndex: number
-): Promise<void> {
+): Promise<boolean> {
 	const { deps, state } = strategy;
 	const node = deps.node;
-	if (!node.children) return;
+	if (!node.children) return false;
 
 	const item = node.children[itemIndex];
 	if (isItemUserEmpty(item)) {
-		await deleteEmptyItem(strategy, itemIndex, () => {
+		return deleteEmptyItem(strategy, itemIndex, () => {
 			state.innerBlockRefs[itemIndex - 1]?.focus(CURSOR_END);
 		});
-		return;
 	}
 
 	// A previous leaf with no editable text gives the merge no target, so only the caret moves.
 	let mergePoint: { targetPath: number[]; offset: number } | null = null;
-	await deps.parent.containerEdit.commitContainer({
+	return deps.parent.containerEdit.commitContainer({
 		containerNode: node,
 		path: deps.path,
 		state,
@@ -165,7 +166,7 @@ async function listItemCascadeMiddle(
 
 export const firstChildUnwrapStrategies: Record<
 	UnwrapRole['firstChildBackspace'],
-	(deps: UnwrapStrategyDeps) => Promise<void>
+	(deps: UnwrapStrategyDeps) => Promise<boolean>
 > = {
 	'lift-first-child-drop-opener': liftFirstChildDroppingOpener,
 	'lift-first-child-keep-container': liftFirstChildAndKeepContainer,
@@ -175,7 +176,7 @@ export const firstChildUnwrapStrategies: Record<
 
 export const middleChildUnwrapStrategies: Record<
 	'list-item-cascade',
-	(deps: UnwrapStrategyDeps, innerIndex: number) => Promise<void>
+	(deps: UnwrapStrategyDeps, innerIndex: number) => Promise<boolean>
 > = {
 	'list-item-cascade': listItemCascadeMiddle
 };

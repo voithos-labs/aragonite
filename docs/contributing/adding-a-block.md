@@ -338,21 +338,19 @@ const { scope, state: listState, parent, reading } = createContainerActions({
 
 `childList` is your children as the editor walks down to one: how many there are, their component refs, and the render window that mounts them. You build it once windowing exists (next section), and it's what lets a caret move onto a child the window left out mount it first.
 
-A container needing custom behavior passes `overrides`, a function from the container's scope and its parent's actions to an override factory. The factory gets the fully built default bundle and returns partial overrides, one per sub-interface (`blockEdit`, `focus`, `containerEdit`). Those chain back by calling `defaults.blockEdit.splitBlock(...)` directly, so the override set is visible at the call site and type-checked against each sub-interface. The list declining a split and delegating only its last item's forward merge:
+A container needing custom behavior passes `overrides`, a function from the container's scope and its parent's actions to an override factory. The factory gets the fully built default bundle and returns partial overrides, one per sub-interface (`blockEdit`, `focus`, `containerEdit`). Those chain back by calling `defaults.blockEdit.splitBlock(...)` directly, so the override set is visible at the call site and type-checked against each sub-interface. Every `blockEdit` member resolves to whether bytes landed, so an override that writes nothing resolves `false`, and one that hands the edit on returns whatever it handed it to answered. The list declining a split and delegating only its last item's forward merge:
 
 ```ts
 // editor-actions/list-overrides.ts
 export function createListOverrides(deps: ListOverridesDeps): NestedActionsOverrideFactory {
 	return () => ({
 		blockEdit: {
-			splitBlock: async (): Promise<void> => {},
-			updateBlockContent: (): void => {},
-			mergeWithNext: async (itemIndex: number): Promise<void> => {
+			splitBlock: async (): Promise<boolean> => false,
+			updateBlockContent: () => refusedWrite(),
+			mergeWithNext: async (itemIndex: number): Promise<boolean> => {
 				const node = deps.scope.node;
-				if (!node.children) return;
-				if (itemIndex >= node.children.length - 1) {
-					await deps.parentBlockEdit.mergeWithNext(deps.scope.index);
-				}
+				if (!node.children || itemIndex < node.children.length - 1) return false;
+				return deps.parentBlockEdit.mergeWithNext(deps.scope.index);
 			}
 		}
 	});

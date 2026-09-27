@@ -21,7 +21,7 @@ export interface FocusedSurfaceDeps {
 	getBlockComponent(path: number[]): BlockComponent | null;
 	isReading(): boolean;
 	/** Makes an empty top-level paragraph at `boundary` and focuses it. */
-	insertParagraph(boundary: number, text: string): void | Promise<void>;
+	insertParagraph(boundary: number, text: string): Promise<boolean>;
 	/** One undo entry for the paragraph `below` makes and the paste into it. */
 	undoStep(path: number[], offset: number, run: () => Promise<unknown>): Promise<void>;
 	/** The counter every byte write bumps (`reactivity/content-version.svelte.ts`). */

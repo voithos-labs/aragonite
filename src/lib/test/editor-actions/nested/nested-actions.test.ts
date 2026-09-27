@@ -37,8 +37,8 @@ function fakeParentBundles() {
 
 function makeDeferred() {
 	let resolve!: () => void;
-	const promise = new Promise<void>((r) => {
-		resolve = r;
+	const promise = new Promise<boolean>((r) => {
+		resolve = () => r(true);
 	});
 	return { promise, resolve };
 }
@@ -46,7 +46,7 @@ function makeDeferred() {
 function makeParentDeferring(method: 'mergeWithPrevious' | 'mergeWithNext' | 'deleteBlock') {
 	const deferred = makeDeferred();
 	const parent = fakeParentBundles();
-	parent.blockEdit[method] = vi.fn<(index: number) => Promise<void>>(() => deferred.promise);
+	parent.blockEdit[method] = vi.fn<(index: number) => Promise<boolean>>(() => deferred.promise);
 	return { deferred, parent };
 }
 
