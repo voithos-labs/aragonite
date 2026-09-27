@@ -37,8 +37,8 @@ import { installPlugins } from '$lib';
 const MEMO_KIND = () => declaredPluginKind(MEMO_BLOCK);
 const CALLOUT_KIND = () => declaredPluginKind(CALLOUT);
 
-const statusOf = (report: Awaited<ReturnType<typeof runKindConformance>>, column: string) =>
-	report.cells.find((c) => c.column === column)?.status;
+const statusOf = (report: Awaited<ReturnType<typeof runKindConformance>>, cell: string) =>
+	report.cells.find((c) => c.cell === cell)?.status;
 
 describe('kind conformance: plugin kinds enroll', () => {
 	beforeEach(() => {
@@ -51,9 +51,9 @@ describe('kind conformance: plugin kinds enroll', () => {
 	// closure battery is not built-in only.
 	it('executes the byte-slice clipboard cell for an editable leaf', async () => {
 		const report = await runKindConformance(MEMO_KIND());
-		expect(statusOf(report, 'roundTrip')).toBe('executed');
-		expect(statusOf(report, 'mergeBackspace')).toBe('executed');
-		expect(statusOf(report, 'clipboard')).toBe('executed');
+		expect(statusOf(report, 'roundTrip')).toBe('asserted');
+		expect(statusOf(report, 'mergeBackspace')).toBe('asserted');
+		expect(statusOf(report, 'clipboard')).toBe('asserted');
 		expect(statusOf(report, 'focus')).toBe('boundary');
 	});
 
@@ -61,8 +61,8 @@ describe('kind conformance: plugin kinds enroll', () => {
 	// its kind-specific clipboard mechanism is boundary until the browser sweep.
 	it('executes round-trip and merge cells for a container kind', async () => {
 		const report = await runKindConformance(CALLOUT_KIND());
-		expect(statusOf(report, 'roundTrip')).toBe('executed');
-		expect(statusOf(report, 'mergeBackspace')).toBe('executed');
+		expect(statusOf(report, 'roundTrip')).toBe('asserted');
+		expect(statusOf(report, 'mergeBackspace')).toBe('asserted');
 		expect(statusOf(report, 'clipboard')).toBe('boundary');
 	});
 
@@ -73,8 +73,8 @@ describe('kind conformance: plugin kinds enroll', () => {
 		expect(registered).toContain(declaredPluginKind(CALLOUT_TITLE));
 		for (const k of registered) {
 			const report = await runKindConformance(k);
-			expect(new Set(report.cells.map((c) => c.column))).toEqual(
-				new Set(Object.keys(getBlockKindDescriptor(k).closure))
+			expect(new Set(report.cells.map((c) => c.cell))).toEqual(
+				new Set([...Object.keys(getBlockKindDescriptor(k).closure), 'rawWrite'])
 			);
 		}
 	});
@@ -110,14 +110,14 @@ describe('kind conformance: bundled plugin kinds enroll', () => {
 			expect(registered).toContain(declaredPluginKind(kind));
 			for (const k of registered) {
 				const report = await runKindConformance(k);
-				// One recorded cell per declared closure column, so nothing is silently dropped.
-				expect(new Set(report.cells.map((c) => c.column))).toEqual(
-					new Set(Object.keys(getBlockKindDescriptor(k).closure))
+				// One recorded cell per declared closure column plus the raw-write cell, so none is dropped.
+				expect(new Set(report.cells.map((c) => c.cell))).toEqual(
+					new Set([...Object.keys(getBlockKindDescriptor(k).closure), 'rawWrite'])
 				);
 			}
 			const report = await runKindConformance(declaredPluginKind(kind));
-			expect(statusOf(report, 'roundTrip')).toBe('executed');
-			expect(statusOf(report, 'mergeBackspace')).toBe('executed');
+			expect(statusOf(report, 'roundTrip')).toBe('asserted');
+			expect(statusOf(report, 'mergeBackspace')).toBe('asserted');
 		}
 	);
 
@@ -208,7 +208,7 @@ describe('kind conformance: a broken plugin registration fails', () => {
 	});
 
 	// Undo and the byte-slice copy both act on the fixture's first block, so a kind under a
-	// later block lets the undo cell delete something else and still report `executed`.
+	// later block lets the undo cell delete something else and still report `asserted`.
 	it('rejects a conformanceFixture whose kind is not under the first block', async () => {
 		registerAdmonitions();
 		const alert = declaredPluginKind(GITHUB_ALERT);

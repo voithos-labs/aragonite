@@ -1,6 +1,6 @@
 /**
- * The assertion helpers and tree traversals the conformance kits share. A failure is a plain
- * thrown `Error`, so using one never forces a suite to load a test runner.
+ * The cell runner, assertion helpers and tree traversals the conformance kits share. A failure is
+ * a plain thrown `Error`, so using one never forces a suite to load a test runner.
  */
 
 import type { AnyBlockKind, CstNode, Document } from '../core/nodes';
@@ -16,6 +16,73 @@ import type { BlockKindDescriptor } from '../schema/block-kind-descriptor';
  */
 export type ConformanceCoverage =
 	{ mode: 'assert' } | { mode: 'exempt'; reason: string } | { mode: 'boundary'; reason: string };
+
+// ── Cell runner ──────────────────────────────────────────────────────────────
+
+export type CellStatus = 'asserted' | 'exempt' | 'boundary';
+
+export interface CellReport<Cell extends string = string> {
+	cell: Cell;
+	status: CellStatus;
+	/** Why a cell was excused, or which mechanism an asserted cell drove. */
+	detail?: string;
+}
+
+/** What a check returns: nothing or a detail line when it ran, or an explicit status when it
+ *  could not do its work, which is never reported `asserted`. */
+export type CellOutcome = void | string | { status: CellStatus; detail: string };
+
+export interface KitCell<Cell extends string, Ctx> {
+	cell: Cell;
+	/** The profile's declaration for the cell; a cell without one always runs. */
+	coverage?: (ctx: Ctx) => ConformanceCoverage;
+	run: (ctx: Ctx) => CellOutcome | Promise<CellOutcome>;
+	/** Throws when the declared excuse can be disproved. */
+	falsify?: (ctx: Ctx) => void;
+}
+
+/** Runs one cell, or throws its failure; `subject` names the kind or handler in messages. */
+export async function runCell<Cell extends string, Ctx>(
+	kitCell: KitCell<Cell, Ctx>,
+	ctx: Ctx,
+	subject: string
+): Promise<CellReport<Cell>> {
+	const { cell } = kitCell;
+	const coverage = kitCell.coverage?.(ctx) ?? { mode: 'assert' };
+	if (coverage.mode !== 'assert') {
+		assertExemptionDocumented(coverage, `${subject} ${cell}`);
+		kitCell.falsify?.(ctx);
+		return { cell, status: coverage.mode, detail: coverage.reason };
+	}
+	const outcome = await kitCell.run(ctx);
+	if (outcome === undefined) return { cell, status: 'asserted' };
+	if (typeof outcome === 'string') return { cell, status: 'asserted', detail: outcome };
+	if (outcome.status !== 'asserted') {
+		assertReasonDocumented(outcome.detail, `${subject} ${cell} ${outcome.status} reason`);
+	}
+	return { cell, ...outcome };
+}
+
+/** Runs every cell and throws one `Error` under `heading` naming each failure, `earlier` ones
+ *  (found before any cell ran) first. */
+export async function runCells<Cell extends string, Ctx>(
+	cells: readonly KitCell<Cell, Ctx>[],
+	ctx: Ctx,
+	names: { subject: string; heading: string },
+	earlier: readonly string[] = []
+): Promise<CellReport<Cell>[]> {
+	const reports: CellReport<Cell>[] = [];
+	const failures = [...earlier];
+	for (const kitCell of cells) {
+		try {
+			reports.push(await runCell(kitCell, ctx, names.subject));
+		} catch (error) {
+			failures.push(`${kitCell.cell}: ${(error as Error).message}`);
+		}
+	}
+	if (failures.length > 0) fail(`${names.heading}:\n  - ${failures.join('\n  - ')}`);
+	return reports;
+}
 
 // ── Assertion kit ────────────────────────────────────────────────────────────
 

@@ -1,8 +1,8 @@
 /**
  * The generic per-kind conformance battery: registering a block kind enrolls it, one cell per
- * `ClosureColumn`, read from the kind's `closure` block and `conformanceFixture`. A cell runs only
- * where headless code can observe what it checks; the rest is reported `boundary` or `exempt`,
- * never stubbed green.
+ * `ClosureColumn` plus the raw-write cell, read from its descriptor and `conformanceFixture`. A
+ * cell runs only where headless code can observe what it checks; the rest is reported `boundary`
+ * or `exempt`, never stubbed green.
  */
 
 import type { AnyBlockKind, CstNode, Document } from '../core/nodes';
@@ -14,7 +14,7 @@ import {
 } from '../core/lines';
 import { parse } from '../core/parser';
 import { serialize } from '../core/serializer';
-import type { ClosureCell, ClosureColumn } from '../schema/closure';
+import { CLOSURE_COLUMNS, type ClosureCell, type ClosureColumn } from '../schema/closure';
 import {
 	getBlockKindDescriptor,
 	type BlockKindDescriptor,
@@ -34,40 +34,37 @@ import { createUndoController } from '../editor-actions/commit/undo-controller';
 import {
 	assert,
 	assertIs,
-	assertReasonDocumented,
 	assertRebuildIsParseCanonical,
 	fail,
 	findFirstPathOfKind,
 	nodeAtPath,
-	show
+	runCells,
+	show,
+	type CellOutcome,
+	type CellReport,
+	type KitCell
 } from './conformance-core';
 import { createHeadlessActions } from './headless-actions';
 import { assertParseConverged } from './parse-convergence';
 
 // ── Report + profile ─────────────────────────────────────────────────────────
 
-export type KindCellStatus = 'executed' | 'boundary' | 'exempt';
+/** A closure column, plus `rawWrite`, which reads the descriptor rather than the closure block. */
+export type KindCell = ClosureColumn | 'rawWrite';
 
-export interface KindCellReport {
-	column: ClosureColumn;
-	mode: ClosureCell['mode'];
-	status: KindCellStatus;
-	/** Why a cell is boundary/exempt, or which mechanism an executed cell drove. */
-	detail: string;
+export interface KindCellReport extends CellReport<KindCell> {
+	/** The closure mode the kind declared for the cell; absent on `rawWrite`. */
+	mode?: ClosureCell['mode'];
 }
 
 export interface KindConformanceReport {
 	kind: AnyBlockKind;
 	cells: KindCellReport[];
-	/** The leaf raw-write cell, run for every kind with a top-level fixture: a kind with no
-	 *  `rawWrite` must survive its closing line cut, a declarer its five writes. */
-	rawWrite: { status: KindCellStatus; detail: string };
 }
 
 /** The parsed fixture context a cell executor reads; absent without a `conformanceFixture`. */
 export interface KindCellContext {
 	kind: AnyBlockKind;
-	descriptor: BlockKindDescriptor;
 	fixture: string;
 	doc: Document;
 	node: CstNode;
@@ -88,17 +85,11 @@ export interface KindConformanceProfile {
 
 // ── Runner ───────────────────────────────────────────────────────────────────
 
-const CLOSURE_ORDER: ClosureColumn[] = [
-	'roundTrip',
-	'focus',
-	'mergeBackspace',
-	'selectionPaint',
-	'searchPaint',
-	'reorder',
-	'undo',
-	'clipboard',
-	'simOracle'
-];
+interface KindRun {
+	kind: AnyBlockKind;
+	descriptor: BlockKindDescriptor;
+	parsed: KindCellContext | null;
+}
 
 /**
  * Runs every headless closure cell for `kind`, or throws an `Error` naming each failed cell. A
@@ -109,38 +100,32 @@ export async function runKindConformance(
 	profile: KindConformanceProfile = {}
 ): Promise<KindConformanceReport> {
 	const descriptor = getBlockKindDescriptor(kind);
-	const ctx = buildContext(kind, descriptor);
-
-	const cells: KindCellReport[] = [];
-	const failures: string[] = [];
-
-	for (const column of CLOSURE_ORDER) {
-		const cell = descriptor.closure[column];
-		try {
+	const run: KindRun = { kind, descriptor, parsed: buildContext(kind, descriptor) };
+	const columns = Object.keys(CLOSURE_COLUMNS) as ClosureColumn[];
+	const cells: KitCell<KindCell, KindRun>[] = [
+		...columns.map((column) => {
 			const custom = profile.cells?.[column]?.check;
-			const result = custom
-				? await runCustomCheck(kind, column, cell, custom, ctx)
-				: await executeCell(column, cell, kind, descriptor, ctx);
-			if (result.status === 'exempt') {
-				assertReasonDocumented(result.detail, `${kind} ${column} exempt reason`);
-			}
-			cells.push({ column, mode: cell.mode, ...result });
-		} catch (error) {
-			failures.push(`${column}: ${(error as Error).message}`);
-		}
-	}
-
-	let rawWrite: CellResult = { status: 'boundary', detail: 'not run' };
-	try {
-		rawWrite = execRawWrite(kind, descriptor, ctx);
-	} catch (error) {
-		failures.push(`rawWrite: ${(error as Error).message}`);
-	}
-
-	if (failures.length > 0) {
-		fail(`kind conformance failed for "${kind}":\n  - ${failures.join('\n  - ')}`);
-	}
-	return { kind, cells, rawWrite };
+			return {
+				cell: column,
+				run: custom
+					? () => runCustomCheck(column, custom, run)
+					: () => executeCell(column, descriptor.closure[column], run)
+			};
+		}),
+		{ cell: 'rawWrite', run: execRawWrite }
+	];
+	const reports = await runCells(cells, run, {
+		subject: kind,
+		heading: `kind conformance failed for "${kind}"`
+	});
+	return {
+		kind,
+		cells: reports.map((report) =>
+			report.cell === 'rawWrite'
+				? report
+				: { ...report, mode: descriptor.closure[report.cell].mode }
+		)
+	};
 }
 
 function buildContext(kind: AnyBlockKind, descriptor: BlockKindDescriptor): KindCellContext | null {
@@ -160,33 +145,30 @@ function buildContext(kind: AnyBlockKind, descriptor: BlockKindDescriptor): Kind
 				`block and rides its own sentinel beside it`
 		);
 	}
-	return { kind, descriptor, fixture, doc, node: nodeAtPath(doc, nodePath), nodePath };
+	return { kind, fixture, doc, node: nodeAtPath(doc, nodePath), nodePath };
 }
 
-type CellResult = { status: KindCellStatus; detail: string };
-
 async function runCustomCheck(
-	kind: AnyBlockKind,
 	column: ClosureColumn,
-	cell: ClosureCell,
 	check: KindCellCheck['check'],
-	ctx: KindCellContext | null
-): Promise<CellResult> {
+	{ kind, descriptor, parsed }: KindRun
+): Promise<CellOutcome> {
+	const mode = descriptor.closure[column].mode;
 	// In any mode but `implemented` a custom check contradicts the declaration and would silence
 	// the check that mode would run, so changing a profiled cell's mode back fails.
-	if (cell.mode !== 'implemented') {
+	if (mode !== 'implemented') {
 		fail(
 			`profile supplies a "${column}" check for "${kind}", but its declared mode is ` +
-				`"${cell.mode}" — a custom check is only valid on an 'implemented' cell`
+				`"${mode}" — a custom check is only valid on an 'implemented' cell`
 		);
 	}
-	if (!ctx) {
+	if (!parsed) {
 		fail(
 			`profile supplies a "${column}" check but "${kind}" has no conformanceFixture to run it over`
 		);
 	}
-	await check(ctx);
-	return { status: 'executed', detail: 'profile custom check' };
+	await check(parsed);
+	return 'profile custom check';
 }
 
 // ── Cell executors ─────────────────────────────────────────────────────────
@@ -196,10 +178,8 @@ const BROWSER_SWEEP = 'browser cell — executed in the browser sweep';
 async function executeCell(
 	column: ClosureColumn,
 	cell: ClosureCell,
-	kind: AnyBlockKind,
-	descriptor: BlockKindDescriptor,
-	ctx: KindCellContext | null
-): Promise<CellResult> {
+	{ kind, descriptor, parsed: ctx }: KindRun
+): Promise<CellOutcome> {
 	switch (column) {
 		case 'roundTrip':
 			return execRoundTrip(kind, descriptor, ctx);
@@ -231,7 +211,7 @@ function execRoundTrip(
 	kind: AnyBlockKind,
 	descriptor: BlockKindDescriptor,
 	ctx: KindCellContext | null
-): CellResult {
+): CellOutcome {
 	if (!ctx) {
 		return {
 			status: 'boundary',
@@ -252,15 +232,11 @@ function execRoundTrip(
 			nodeAtPath(parse(ctx.fixture), ctx.nodePath),
 			`"${kind}"`
 		);
-		return {
-			status: 'executed',
-			detail:
-				descriptor.containerContract === 'grid'
-					? 'byte round-trip + rebuildRaw determinism'
-					: 'byte round-trip + rebuildRaw parse-identity + determinism'
-		};
+		return descriptor.containerContract === 'grid'
+			? 'byte round-trip + rebuildRaw determinism'
+			: 'byte round-trip + rebuildRaw parse-identity + determinism';
 	}
-	return { status: 'executed', detail: 'byte round-trip' };
+	return 'byte round-trip';
 }
 
 /** An independent restatement of the merge-role table (`docs/design/editor.md` § Merge
@@ -276,7 +252,7 @@ const MERGE_ROLE_EXPECTATION: Record<
 	'not-mergeable': { currentIntoProse: false, prevForProse: false, self: false }
 };
 
-function execMergeBackspace(kind: AnyBlockKind, role: MergeRole): CellResult {
+function execMergeBackspace(kind: AnyBlockKind, role: MergeRole): CellOutcome {
 	const expected = MERGE_ROLE_EXPECTATION[role];
 	assertIs(
 		isMergeEligible('paragraph', kind),
@@ -293,10 +269,10 @@ function execMergeBackspace(kind: AnyBlockKind, role: MergeRole): CellResult {
 		expected.self,
 		`"${kind}" (${role}) self-merge eligibility`
 	);
-	return { status: 'executed', detail: `mergeRole=${role} eligibility` };
+	return `mergeRole=${role} eligibility`;
 }
 
-function execSearchPaint(cell: ClosureCell, ctx: KindCellContext | null): CellResult {
+function execSearchPaint(cell: ClosureCell, ctx: KindCellContext | null): CellOutcome {
 	if (cell.mode !== 'not-supported') {
 		return { status: 'boundary', detail: `search-match mark overlay: ${BROWSER_SWEEP}` };
 	}
@@ -315,10 +291,10 @@ function execSearchPaint(cell: ClosureCell, ctx: KindCellContext | null): CellRe
 		pathsEqual(m.path, ctx.nodePath)
 	);
 	assertIs(hits.length, 0, `the document scan finds no match in the non-searchable "${ctx.kind}"`);
-	return { status: 'executed', detail: 'document scan finds no match (degradation)' };
+	return 'document scan finds no match (degradation)';
 }
 
-function execReorder(cell: ClosureCell): CellResult {
+function execReorder(cell: ClosureCell): CellOutcome {
 	if (cell.mode === 'not-supported') return { status: 'exempt', detail: cell.reason };
 	return {
 		status: 'boundary',
@@ -326,7 +302,7 @@ function execReorder(cell: ClosureCell): CellResult {
 	};
 }
 
-async function execUndo(cell: ClosureCell, ctx: KindCellContext | null): Promise<CellResult> {
+async function execUndo(cell: ClosureCell, ctx: KindCellContext | null): Promise<CellOutcome> {
 	if (cell.mode === 'not-supported') return { status: 'exempt', detail: cell.reason };
 	if (cell.mode === 'implemented') {
 		return {
@@ -357,10 +333,10 @@ async function execUndo(cell: ClosureCell, ctx: KindCellContext | null): Promise
 		1,
 		`one structural op pushes exactly one undo entry over the "${ctx.kind}" fixture`
 	);
-	return { status: 'executed', detail: 'one structural op → one undo entry' };
+	return 'one structural op → one undo entry';
 }
 
-function execClipboard(cell: ClosureCell, ctx: KindCellContext | null): CellResult {
+function execClipboard(cell: ClosureCell, ctx: KindCellContext | null): CellOutcome {
 	if (cell.mode === 'not-supported') return { status: 'exempt', detail: cell.reason };
 	if (cell.mode === 'implemented') {
 		return {
@@ -381,14 +357,10 @@ function execClipboard(cell: ClosureCell, ctx: KindCellContext | null): CellResu
 		};
 	}
 	checkCopyIsRawByteSlice(ctx.kind, ctx.fixture);
-	return { status: 'executed', detail: 'copy is a raw byte slice (no synthesis)' };
+	return 'copy is a raw byte slice (no synthesis)';
 }
 
-function execRawWrite(
-	kind: AnyBlockKind,
-	descriptor: BlockKindDescriptor,
-	ctx: KindCellContext | null
-): CellResult {
+function execRawWrite({ kind, descriptor, parsed: ctx }: KindRun): CellOutcome {
 	const hasTopLevelFixture = ctx !== null && ctx.nodePath.length === 1;
 	if (!descriptor.rawWrite) {
 		if (!hasTopLevelFixture) {
@@ -398,10 +370,7 @@ function execRawWrite(
 			};
 		}
 		checkClosingCutNeedsNoRule(kind, ctx.fixture);
-		return {
-			status: 'executed',
-			detail: 'declares no rawWrite, and the closing line cut leaves the next block its own'
-		};
+		return 'declares no rawWrite, and the closing line cut leaves the next block its own';
 	}
 	if (!hasTopLevelFixture) {
 		return {
@@ -410,10 +379,7 @@ function execRawWrite(
 		};
 	}
 	checkLeafRawWrite(kind, ctx.fixture);
-	return {
-		status: 'executed',
-		detail: 'five writes, each idempotent, leaving the next block its own, caret map agreeing'
-	};
+	return 'five writes, each idempotent, leaving the next block its own, caret map agreeing';
 }
 
 // ── Exported executors (direct-drive for regression tests) ───────────────────

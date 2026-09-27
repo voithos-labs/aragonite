@@ -36,7 +36,7 @@ const wikiProfile = (over: Partial<InlineConformanceProfile> = {}): InlineConfor
 	...over
 });
 
-const run = (profile: InlineConformanceProfile) => () => runInlineKindConformance(profile);
+const run = (profile: InlineConformanceProfile) => runInlineKindConformance(profile);
 
 // ── overlapDecline: the flagship ─────────────────────────────────────────────
 
@@ -55,67 +55,67 @@ describe('overlapDecline reds an inline syntax handler that swallows the grammar
 		};
 	};
 
-	it('fails the overlap cell, naming the claim it should have refused', () => {
+	it('fails the overlap cell, naming the claim it should have refused', async () => {
 		registerInlineSyntax('!', swallowEverything, {
 			prefix: '![[',
 			priority: INLINE_PRIORITIES.prefixOverride,
 			rewriteImage: rewriteWikiImage
 		});
-		expect(run(wikiProfile())).toThrow(/overlapDecline: .*swallowed the overlap/s);
+		await expect(run(wikiProfile())).rejects.toThrow(/overlapDecline: .*swallowed the overlap/s);
 	});
 
-	it('passes for the same inline syntax handler once it declines the overlap itself', () => {
+	it('passes for the same inline syntax handler once it declines the overlap itself', async () => {
 		registerWikiRung(rewriteWikiImage);
-		const report = runInlineKindConformance(wikiProfile());
+		const report = await runInlineKindConformance(wikiProfile());
 		expect(report.cells.find((c) => c.cell === 'overlapDecline')?.status).toBe('asserted');
 	});
 
 	// A handler on a reserved trigger always outranks the built-in case, so there is
 	// always an overlap and nothing to excuse.
-	it('refuses an exemption on a reserved trigger outright', () => {
+	it('refuses an exemption on a reserved trigger outright', async () => {
 		registerWikiRung(rewriteWikiImage);
-		expect(run(wikiProfile({ overlapDecline: { mode: 'exempt', reason: A_REASON } }))).toThrow(
-			/overlapDecline cannot be exempt on a reserved trigger/
-		);
+		await expect(
+			run(wikiProfile({ overlapDecline: { mode: 'exempt', reason: A_REASON } }))
+		).rejects.toThrow(/overlapDecline cannot be exempt on a reserved trigger/);
 	});
 });
 
 // ── imageClaim ───────────────────────────────────────────────────────────────
 
 describe('imageClaim reds a borrowed built-in the inline syntax handler cannot re-serialize', () => {
-	it('fails when the inline syntax handler creates an image with no rewriteImage hook', () => {
+	it('fails when the inline syntax handler creates an image with no rewriteImage hook', async () => {
 		registerWikiRung();
-		expect(run(wikiProfile())).toThrow(/imageClaim: .*registers no rewriteImage/s);
+		await expect(run(wikiProfile())).rejects.toThrow(/imageClaim: .*registers no rewriteImage/s);
 	});
 
-	it('fails an exemption the fixtures contradict', () => {
+	it('fails an exemption the fixtures contradict', async () => {
 		registerWikiRung(rewriteWikiImage);
-		expect(run(wikiProfile({ imageClaim: { mode: 'exempt', reason: A_REASON } }))).toThrow(
-			/imageClaim: .*cannot be excused/s
-		);
+		await expect(
+			run(wikiProfile({ imageClaim: { mode: 'exempt', reason: A_REASON } }))
+		).rejects.toThrow(/imageClaim: .*cannot be excused/s);
 	});
 
 	// A rewrite equal to the source is dropped by the commit's equality check, so a hook that
 	// cannot re-emit its own input makes an edit that visibly does nothing and says nothing.
-	it('fails a hook that cannot reproduce its own input', () => {
+	it('fails a hook that cannot reproduce its own input', async () => {
 		registerWikiRung(() => '![[somethingelse.png]]');
-		expect(run(wikiProfile())).toThrow(/imageClaim: .*rewriteImage re-emits/s);
+		await expect(run(wikiProfile())).rejects.toThrow(/imageClaim: .*rewriteImage re-emits/s);
 	});
 });
 
 // ── claims: the anti-vacuity pin ─────────────────────────────────────────────
 
 describe('claims reds a fixture the inline syntax handler never touches', () => {
-	it('fails enrollment rather than passing every cell over nothing', () => {
+	it('fails enrollment rather than passing every cell over nothing', async () => {
 		registerWikiRung(rewriteWikiImage);
-		expect(run(wikiProfile({ fixtures: ['![[cat.png]]', 'plain prose'] }))).toThrow(
+		await expect(run(wikiProfile({ fixtures: ['![[cat.png]]', 'plain prose'] }))).rejects.toThrow(
 			/claims: .*is not claimed by the "!\[\[" rung/s
 		);
 	});
 
-	it('refuses a profile with no fixtures at all', () => {
+	it('refuses a profile with no fixtures at all', async () => {
 		registerWikiRung(rewriteWikiImage);
-		expect(run(wikiProfile({ fixtures: [] }))).toThrow(/at least one fixture/);
+		await expect(run(wikiProfile({ fixtures: [] }))).rejects.toThrow(/at least one fixture/);
 	});
 });
 
@@ -124,8 +124,10 @@ describe('claims reds a fixture the inline syntax handler never touches', () => 
 describe('registration reds an inline syntax handler that is not where the profile says', () => {
 	// The kind and widget registered but the recognizer skipped, because another plugin
 	// already held the trigger.
-	it('fails when nothing is registered at the declared prefix', () => {
-		expect(run(wikiProfile())).toThrow(/no rung is registered on "!" at prefix "!\[\["/);
+	it('fails when nothing is registered at the declared prefix', async () => {
+		await expect(run(wikiProfile())).rejects.toThrow(
+			/no rung is registered on "!" at prefix "!\[\["/
+		);
 	});
 });
 
@@ -160,40 +162,40 @@ const markerProfile = (kind: PluginInlineKind): InlineConformanceProfile => ({
 describe('editingPolicy reds a declaration that decides nothing', () => {
 	// The caret-edge dispatch reads an all-absent object exactly as an unregistered one, so
 	// without this a kind clears the cell with a policy that moves no byte.
-	it('fails an editing policy whose every field is absent', () => {
+	it('fails an editing policy whose every field is absent', async () => {
 		const kind = registerMarkerRung((node) => mintWidgetShell(MARKER, node), {});
-		expect(run(markerProfile(kind))).toThrow(/editingPolicy: .*every field absent/s);
+		await expect(run(markerProfile(kind))).rejects.toThrow(/editingPolicy: .*every field absent/s);
 	});
 });
 
 describe('widget reds a widget the offset walk cannot measure', () => {
-	it('passes for a widget created through the shared shell', () => {
+	it('passes for a widget created through the shared shell', async () => {
 		const kind = registerMarkerRung((node) => mintWidgetShell('marker', node));
-		const report = runInlineKindConformance(markerProfile(kind));
+		const report = await runInlineKindConformance(markerProfile(kind));
 		expect(report.cells.find((c) => c.cell === 'widget')?.status).toBe('asserted');
 	});
 
 	// Every caret offset in the block comes from the DOM-to-offset traversal, and no byte
 	// moves when the span is wrong: the block simply stops agreeing with its own bytes.
-	it('fails a widget whose source span is short by one', () => {
+	it('fails a widget whose source span is short by one', async () => {
 		const kind = registerMarkerRung((node) => {
 			const shell = mintWidgetShell('marker', node);
 			shell.dataset.sourceEnd = String(node.end - 1);
 			return shell;
 		});
-		expect(run(markerProfile(kind))).toThrow(/widget: .*data-source-end/s);
+		await expect(run(markerProfile(kind))).rejects.toThrow(/widget: .*data-source-end/s);
 	});
 
-	it('fails a widget that is not marked atomic at all', () => {
+	it('fails a widget that is not marked atomic at all', async () => {
 		const kind = registerMarkerRung(() => document.createElement('span'));
-		expect(run(markerProfile(kind))).toThrow(/widget: .*data-inline-widget/s);
+		await expect(run(markerProfile(kind))).rejects.toThrow(/widget: .*data-inline-widget/s);
 	});
 });
 
 describe('widget reds a claim that cannot stand on its own bytes', () => {
 	// The match reaches for a byte outside itself, so neither the slice `data-source-*` hands the
 	// clipboard nor the shown source re-forms the same widget.
-	it('fails an inline syntax handler whose slice only forms in the context it was cut from', () => {
+	it('fails an inline syntax handler whose slice only forms in the context it was cut from', async () => {
 		const kind = declarePluginInlineKind(MARKER);
 		registerInlineSyntax('@', (raw, pos, end) => {
 			if (raw.indexOf('!', pos + 2) < 0 || pos + 2 > end) return null;
@@ -204,7 +206,7 @@ describe('widget reds a claim that cannot stand on its own bytes', () => {
 			buildWidget: (node) => mintWidgetShell('marker', node),
 			editing: { deleteGranularity: 'atomic' }
 		});
-		expect(run({ ...markerProfile(kind), fixtures: ['@x!'] })).toThrow(
+		await expect(run({ ...markerProfile(kind), fixtures: ['@x!'] })).rejects.toThrow(
 			/widget: .*re-forms as a whole/s
 		);
 	});
@@ -234,33 +236,33 @@ describe('roundTrip reds a claim that reads past the range the block offered', (
 
 	// The grab-to-end shape: it stops at no terminator, so bytes carrying none of the
 	// author's grammar are enough to reach it.
-	it('fails a claim that runs to the end of the string', () => {
+	it('fails a claim that runs to the end of the string', async () => {
 		const kind = registerOverrunningRung((raw) => raw.length);
-		expect(run({ ...markerProfile(kind), fixtures: ['@tag@'] })).toThrow(
+		await expect(run({ ...markerProfile(kind), fixtures: ['@tag@'] })).rejects.toThrow(
 			/roundTrip: .*past the scan range end/s
 		);
 	});
 
 	// A terminator search stops at a real closer, so only a tail carrying the author's own
 	// grammar puts one past `end`; the kit also cuts the range just past an opener for that.
-	it('fails a terminator search with no `end` bound', () => {
+	it('fails a terminator search with no `end` bound', async () => {
 		const kind = registerOverrunningRung((raw, pos) => {
 			const close = raw.indexOf('@', pos + 1);
 			return close < 0 || close === pos + 1 ? null : close + 1;
 		});
-		expect(run({ ...markerProfile(kind), fixtures: ['@tag@'] })).toThrow(
+		await expect(run({ ...markerProfile(kind), fixtures: ['@tag@'] })).rejects.toThrow(
 			/roundTrip: .*past the scan range end/s
 		);
 	});
 
 	// With leading prose the cut has to find the opener rather than assume offset 0, or
 	// the range ends inside the prose and no handler is asked at the boundary.
-	it('fails a terminator search behind a fixture with leading prose', () => {
+	it('fails a terminator search behind a fixture with leading prose', async () => {
 		const kind = registerOverrunningRung((raw, pos) => {
 			const close = raw.indexOf('@', pos + 1);
 			return close < 0 || close === pos + 1 ? null : close + 1;
 		});
-		expect(run({ ...markerProfile(kind), fixtures: ['ab @tag@ cd'] })).toThrow(
+		await expect(run({ ...markerProfile(kind), fixtures: ['ab @tag@ cd'] })).rejects.toThrow(
 			/roundTrip: .*past the scan range end/s
 		);
 	});
@@ -269,18 +271,20 @@ describe('roundTrip reds a claim that reads past the range the block offered', (
 // ── editingPolicy ────────────────────────────────────────────────────────────
 
 describe('editingPolicy reds a declaration the caret-edge dispatch cannot read', () => {
-	it('fails a deleteGranularity outside the dispatch vocabulary', () => {
+	it('fails a deleteGranularity outside the dispatch vocabulary', async () => {
 		const kind = registerMarkerRung((node) => mintWidgetShell('marker', node), {
 			// Read as absent by the dispatch, so the kind silently takes the image default.
 			deleteGranularity: 'whole' as 'atomic'
 		});
-		expect(run(markerProfile(kind))).toThrow(/editingPolicy: .*deleteGranularity is one of/s);
+		await expect(run(markerProfile(kind))).rejects.toThrow(
+			/editingPolicy: .*deleteGranularity is one of/s
+		);
 	});
 
-	it('fails an exemption a live policy contradicts', () => {
+	it('fails an exemption a live policy contradicts', async () => {
 		const kind = registerMarkerRung((node) => mintWidgetShell('marker', node));
-		expect(
+		await expect(
 			run({ ...markerProfile(kind), editingPolicy: { mode: 'exempt', reason: A_REASON } })
-		).toThrow(/editingPolicy: .*cannot be excused/s);
+		).rejects.toThrow(/editingPolicy: .*cannot be excused/s);
 	});
 });

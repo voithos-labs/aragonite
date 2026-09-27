@@ -34,10 +34,13 @@ import {
 import { containerDomTextLength } from '../cursor/widget-offset';
 import {
 	assert,
-	assertExemptionDocumented,
 	assertIs,
 	fail,
-	type ConformanceCoverage
+	runCells,
+	type CellOutcome,
+	type CellReport,
+	type ConformanceCoverage,
+	type KitCell
 } from './conformance-core';
 import { defaultGrammarView } from '../schema/block-openers';
 
@@ -79,75 +82,68 @@ export type InlineConformanceCell =
 	| 'imageClaim'
 	| 'registration';
 
-export interface InlineCellReport {
-	cell: InlineConformanceCell;
-	status: 'asserted' | 'exempt' | 'boundary';
-	/** Why a cell was excused, or which mechanism an asserted cell drove. */
-	detail?: string;
-}
-
 export interface InlineConformanceReport {
 	trigger: string;
 	prefix: string;
-	cells: InlineCellReport[];
+	cells: CellReport<InlineConformanceCell>[];
 }
 
 // ── Runner ───────────────────────────────────────────────────────────────────
 
-/** A detail line for a cell that ran, or an explicit status: a check that skipped its work
- *  reports `boundary`, never `asserted`. */
-type CellOutcome = string | { status: 'asserted' | 'boundary'; detail: string };
+interface InlineRun {
+	profile: InlineConformanceProfile;
+	prefix: string;
+	rung: InlineRung;
+}
+
+const INLINE_CELLS: readonly KitCell<InlineConformanceCell, InlineRun>[] = [
+	{ cell: 'claims', run: ({ profile, rung }) => checkClaimsItsFixtures(profile, rung) },
+	{ cell: 'roundTrip', run: ({ profile, rung }) => checkRoundTrip(profile, rung) },
+	{
+		cell: 'overlapDecline',
+		coverage: ({ profile }) => profile.overlapDecline,
+		run: ({ profile, rung }) => checkOverlapDecline(profile, rung),
+		falsify: ({ profile }) => refuseExcusedOverlap(profile)
+	},
+	{
+		cell: 'widget',
+		coverage: ({ profile }) => profile.widget,
+		run: ({ profile, rung }) => checkWidgetAtomicity(profile, rung),
+		falsify: ({ profile, rung }) => refuseExcusedWidget(profile, rung)
+	},
+	{
+		cell: 'editingPolicy',
+		coverage: ({ profile }) => profile.editingPolicy,
+		run: ({ profile, rung }) => checkEditingPolicy(profile, rung),
+		falsify: ({ profile }) => refuseExcusedEditingPolicy(profile)
+	},
+	{
+		cell: 'imageClaim',
+		coverage: ({ profile }) => profile.imageClaim,
+		run: ({ profile, rung }) => checkImageClaimStamp(profile, rung),
+		falsify: ({ profile, rung }) => refuseExcusedImageClaim(profile, rung)
+	},
+	{
+		cell: 'registration',
+		run: ({ profile, prefix, rung }) => checkRegistrationHygiene(profile, prefix, rung)
+	}
+];
 
 /**
- * Runs every conformance cell for the registered handler the profile names. Returns the coverage
- * report, or throws an `Error` naming every failed cell.
+ * Runs every conformance cell for the registered handler the profile names. Resolves with the
+ * coverage report, or throws an `Error` naming every failed cell.
  */
-export function runInlineKindConformance(
+export async function runInlineKindConformance(
 	profile: InlineConformanceProfile
-): InlineConformanceReport {
+): Promise<InlineConformanceReport> {
 	const prefix = profile.prefix ?? profile.trigger;
 	validateProfile(profile, prefix);
-
 	const rung = locateRung(profile, prefix);
-	const cells: InlineCellReport[] = [];
-	const failures: string[] = [];
-
-	const runCell = (
-		cell: InlineConformanceCell,
-		coverage: ConformanceCoverage,
-		assertion: () => CellOutcome
-	) => {
-		try {
-			if (coverage.mode === 'assert') {
-				const outcome = assertion();
-				cells.push(
-					typeof outcome === 'string'
-						? { cell, status: 'asserted', detail: outcome }
-						: { cell, ...outcome }
-				);
-			} else {
-				assertExemptionDocumented(coverage, `${prefix} ${cell}`);
-				falsifyExcuse(cell, profile, rung);
-				cells.push({ cell, status: coverage.mode, detail: coverage.reason });
-			}
-		} catch (error) {
-			failures.push(`${cell}: ${(error as Error).message}`);
-		}
-	};
-
-	runCell('claims', { mode: 'assert' }, () => checkClaimsItsFixtures(profile, rung));
-	runCell('roundTrip', { mode: 'assert' }, () => checkRoundTrip(profile, rung));
-	runCell('overlapDecline', profile.overlapDecline, () => checkOverlapDecline(profile, rung));
-	runCell('widget', profile.widget, () => checkWidgetAtomicity(profile, rung));
-	runCell('editingPolicy', profile.editingPolicy, () => checkEditingPolicy(profile, rung));
-	runCell('imageClaim', profile.imageClaim, () => checkImageClaimStamp(profile, rung));
-	runCell('registration', { mode: 'assert' }, () =>
-		checkRegistrationHygiene(profile, prefix, rung)
+	const cells = await runCells(
+		INLINE_CELLS,
+		{ profile, prefix, rung },
+		{ subject: prefix, heading: `inline conformance failed for rung "${prefix}"` }
 	);
-
-	if (failures.length > 0) {
-		fail(`inline conformance failed for rung "${prefix}":\n  - ${failures.join('\n  - ')}`);
-	}
 	return { trigger: profile.trigger, prefix, cells };
 }
 
@@ -660,50 +656,47 @@ function checkRegistrationHygiene(
 }
 
 // ── Falsifiable excuses ──────────────────────────────────────────────────────
+// Where the kit can check an excuse, it does: a reason is a claim about the handler, not a waiver.
 
-/**
- * Where the kit can check an excuse, it does: a reason is a claim about the handler, not a
- * waiver, so a profile that excuses a cell with something to test fails.
- */
-function falsifyExcuse(
-	cell: InlineConformanceCell,
-	profile: InlineConformanceProfile,
-	rung: InlineRung
-): void {
-	if (cell === 'overlapDecline' && (profile.overlapFixtures?.length ?? 0) > 0) {
+function refuseExcusedOverlap(profile: InlineConformanceProfile): void {
+	if ((profile.overlapFixtures?.length ?? 0) === 0) return;
+	fail(
+		'the profile supplies overlapFixtures but declares overlapDecline excused — the fixtures ' +
+			'say the overlap exists, so assert the cell'
+	);
+}
+
+function refuseExcusedWidget(profile: InlineConformanceProfile, rung: InlineRung): void {
+	if (profile.kind === undefined) return;
+	const claimed = profile.fixtures
+		.flatMap((f) => mintedNodes(f, profile, rung).map((n) => ({ f, n })))
+		.find(({ f, n }) => n.kind === profile.kind && isInlineWidget(n, f, defaultGrammarView));
+	if (claimed) {
 		fail(
-			'the profile supplies overlapFixtures but declares overlapDecline excused — the fixtures ' +
-				'say the overlap exists, so assert the cell'
+			`"${profile.kind}" is a registered live widget (from ${JSON.stringify(claimed.f)}), so ` +
+				`the widget cell has something to bite on and cannot be excused`
 		);
 	}
-	if (cell === 'widget' && profile.kind !== undefined) {
-		const claimed = profile.fixtures
-			.flatMap((f) => mintedNodes(f, profile, rung).map((n) => ({ f, n })))
-			.find(({ f, n }) => n.kind === profile.kind && isInlineWidget(n, f, defaultGrammarView));
-		if (claimed) {
-			fail(
-				`"${profile.kind}" IS a registered live widget (from ${JSON.stringify(claimed.f)}), so ` +
-					`the widget cell has something to bite on and cannot be excused`
-			);
-		}
+}
+
+function refuseExcusedEditingPolicy(profile: InlineConformanceProfile): void {
+	if (profile.kind === undefined) return;
+	const policy = getInlineWidgetEditing(profile.kind, defaultGrammarView);
+	if (policy && Object.keys(policy).length > 0) {
+		fail(
+			`"${profile.kind}" declares an editing policy, so the editingPolicy cell cannot be excused`
+		);
 	}
-	if (cell === 'editingPolicy' && profile.kind !== undefined) {
-		const policy = getInlineWidgetEditing(profile.kind, defaultGrammarView);
-		if (policy && Object.keys(policy).length > 0) {
-			fail(
-				`"${profile.kind}" declares an editing policy, so the editingPolicy cell cannot be excused`
-			);
-		}
-	}
-	if (cell === 'imageClaim') {
-		const stamped = profile.fixtures
-			.flatMap((f) => mintedNodes(f, profile, rung))
-			.find((n) => n.syntaxClaim?.prefix === rung.prefix);
-		if (stamped) {
-			fail(
-				`a fixture mints a stamped built-in "${stamped.kind}", so the imageClaim cell has ` +
-					`something to bite on and cannot be excused`
-			);
-		}
+}
+
+function refuseExcusedImageClaim(profile: InlineConformanceProfile, rung: InlineRung): void {
+	const stamped = profile.fixtures
+		.flatMap((f) => mintedNodes(f, profile, rung))
+		.find((n) => n.syntaxClaim?.prefix === rung.prefix);
+	if (stamped) {
+		fail(
+			`a fixture mints a stamped built-in "${stamped.kind}", so the imageClaim cell has ` +
+				`something to bite on and cannot be excused`
+		);
 	}
 }

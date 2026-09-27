@@ -18,6 +18,20 @@ export type ClosureColumn =
 	| 'clipboard'
 	| 'simOracle';
 
+/** Every column once, so a loop over the matrix misses none: a new column fails to compile here
+ *  until it's listed. */
+export const CLOSURE_COLUMNS: Record<ClosureColumn, true> = {
+	roundTrip: true,
+	focus: true,
+	mergeBackspace: true,
+	selectionPaint: true,
+	searchPaint: true,
+	reorder: true,
+	undo: true,
+	clipboard: true,
+	simOracle: true
+};
+
 export type ClosureCell =
 	| { mode: 'implemented'; via: string }
 	| { mode: 'inherit-default' }

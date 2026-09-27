@@ -79,7 +79,7 @@ describe('G4.3 conformance kit: plugin containers', () => {
 			'terminatorCollision:asserted',
 			'declarations:asserted'
 		]);
-		expect(report.cells.find((c) => c.cell === 'multiScope')?.reason).toBe(NO_MULTI_SCOPE_OP);
+		expect(report.cells.find((c) => c.cell === 'multiScope')?.detail).toBe(NO_MULTI_SCOPE_OP);
 	});
 
 	// A second, differently-shaped container (HTML opener, not a `:::` directive)
@@ -155,7 +155,7 @@ describe('G4.3 conformance kit: a broken plugin container fails', () => {
 
 	// `bodyWrite` exists only to repair a terminator collision, so a profile excusing that
 	// cell ships the repair unchecked behind a reason that reads as if it were reviewed.
-	it('fails declaration sanity when bodyWrite ships with an excused terminatorCollision cell', async () => {
+	it('fails terminatorCollision when bodyWrite ships with the cell excused', async () => {
 		await expect(
 			runContainerConformance(DETAILS_KIND(), {
 				...detailsProfile,
@@ -164,7 +164,7 @@ describe('G4.3 conformance kit: a broken plugin container fails', () => {
 					reason: 'red-test bait: excusing the one cell that drives the bodyWrite repair'
 				}
 			})
-		).rejects.toThrow(/declarations: details declares container\.bodyWrite/);
+		).rejects.toThrow(/terminatorCollision: details declares container\.bodyWrite/);
 	});
 
 	// The bodyWrap check reads the descriptor's own fixture, so a container with none

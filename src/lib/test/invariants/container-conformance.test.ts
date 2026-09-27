@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { isBuiltinBlockKind } from '$lib/core/nodes';
 import { getAllRegisteredKinds, getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
-import { assertExemptionDocumented } from '$lib/testing/conformance-core';
+import { runCell } from '$lib/testing/conformance-core';
 import {
 	assertProfileCoverageFloor,
 	CONTAINER_CONFORMANCE_CELLS,
@@ -74,13 +74,8 @@ describe.each(registeredContainerKinds)('G4.3 conformance kit — %s', (kind) =>
 
 	it.each(CONTAINER_CONFORMANCE_CELLS.map((c) => [c.cell, c] as const))(
 		'%s',
-		async (_name, { coverage, run }) => {
-			const declared = coverage(profile);
-			if (declared.mode !== 'assert') {
-				assertExemptionDocumented(declared, `${kind} ${_name}`);
-				return;
-			}
-			await run(kind, profile);
+		async (_name, cell) => {
+			await runCell(cell, { kind, profile }, kind);
 		}
 	);
 

@@ -12,12 +12,19 @@ import {
 import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
 import { fencedCodeWrite } from '$lib/schema/fenced-code-raw';
 import type { WriteRule } from '$lib/schema/block-kind-descriptor';
-import { resetPluginPlatformForTests, runKindConformance } from '$lib/testing';
+import {
+	resetPluginPlatformForTests,
+	runKindConformance,
+	type KindConformanceReport
+} from '$lib/testing';
 import { checkLeafRawWrite } from '$lib/testing/kind-conformance';
 import { registerMathBlock, MATH_BLOCK, MATH_FENCE } from '$lib/plugins/latex/latex-kind';
 import { registerMermaidKind, MERMAID } from '$lib/plugins/mermaid/mermaid-kind';
 import type { AnyBlockKind } from '$lib/core/nodes';
 import { testLeaf } from '$lib/test/harness/test-kinds';
+
+const rawWriteStatus = (report: KindConformanceReport) =>
+	report.cells.find((c) => c.cell === 'rawWrite')?.status;
 
 beforeEach(() => {
 	resetPluginPlatformForTests();
@@ -31,20 +38,20 @@ describe('kind conformance: the raw-write cell', () => {
 		() => declaredPluginKind(MATH_BLOCK),
 		() => declaredPluginKind(MATH_FENCE),
 		() => declaredPluginKind(MERMAID)
-	])('executes for a declaring kind (%#)', async (kindOf) => {
+	])('asserts for a declaring kind (%#)', async (kindOf) => {
 		const report = await runKindConformance(kindOf());
-		expect(report.rawWrite.status).toBe('executed');
+		expect(rawWriteStatus(report)).toBe('asserted');
 	});
 
-	it('executes the closer cut for a kind that declares no rule', async () => {
+	it('asserts the closer cut for a kind that declares no rule', async () => {
 		const report = await runKindConformance('paragraph');
-		expect(report.rawWrite.status).toBe('executed');
+		expect(rawWriteStatus(report)).toBe('asserted');
 	});
 
 	// A declarer the kit has no fixture to write over is recorded, never reported green.
 	it('is boundary for a declaring kind with no top-level fixture', async () => {
 		const report = await runKindConformance('tableCell');
-		expect(report.rawWrite.status).toBe('boundary');
+		expect(rawWriteStatus(report)).toBe('boundary');
 	});
 });
 

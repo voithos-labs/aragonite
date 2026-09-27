@@ -106,8 +106,8 @@ describe('every bundled inline syntax handler passes the conformance kit', () =>
 		['emoji', emojiRung],
 		['directive text', directiveTextRung],
 		['inline math', mathRung]
-	])('%s', (_name, profile) => {
-		const report = runInlineKindConformance(profile);
+	])('%s', async (_name, profile) => {
+		const report = await runInlineKindConformance(profile);
 		expect(report.cells.map((c) => c.cell)).toEqual([
 			'claims',
 			'roundTrip',
@@ -129,28 +129,28 @@ describe('the enrolled inline syntax handlers execute the cells their shape owns
 		activateDirectiveGrammar();
 	});
 
-	const cellOf = (profile: InlineConformanceProfile, cell: string) =>
-		runInlineKindConformance(profile).cells.find((c) => c.cell === cell)!;
+	const cellOf = async (profile: InlineConformanceProfile, cell: string) =>
+		(await runInlineKindConformance(profile)).cells.find((c) => c.cell === cell)!;
 
-	it('drives the offset walk for an inline syntax handler that builds its own widget', () => {
-		const cell = cellOf(emojiRung, 'widget');
+	it('drives the offset walk for an inline syntax handler that builds its own widget', async () => {
+		const cell = await cellOf(emojiRung, 'widget');
 		expect(cell.status).toBe('asserted');
 		expect(cell.detail).toContain('offset-walk length');
 	});
 
 	// The wrapper span for a `component` kind belongs to the editor, so that half does not
 	// run and the cell has to say so: reporting `asserted` over skipped work hides it.
-	it('reports the widget half of a `component` widget as a boundary', () => {
-		const cell = cellOf(footnoteRung, 'widget');
+	it('reports the widget half of a `component` widget as a boundary', async () => {
+		const cell = await cellOf(footnoteRung, 'widget');
 		expect(cell.status).toBe('boundary');
 		expect(cell.detail).toContain('render layer');
 	});
 
-	it('checks the whole-delete bytes for an atomic-delete inline syntax handler', () => {
-		expect(cellOf(emojiRung, 'editingPolicy').detail).toContain('whole-delete');
+	it('checks the whole-delete bytes for an atomic-delete inline syntax handler', async () => {
+		expect((await cellOf(emojiRung, 'editingPolicy')).detail).toContain('whole-delete');
 	});
 
-	it('excuses imageClaim only where no fixture creates a built-in', () => {
-		expect(cellOf(mathRung, 'imageClaim').status).toBe('exempt');
+	it('excuses imageClaim only where no fixture creates a built-in', async () => {
+		expect((await cellOf(mathRung, 'imageClaim')).status).toBe('exempt');
 	});
 });

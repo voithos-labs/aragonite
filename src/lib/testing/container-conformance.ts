@@ -38,7 +38,6 @@ import {
 } from './headless-actions';
 import {
 	assert,
-	assertExemptionDocumented,
 	assertIndices,
 	assertIs,
 	assertRebuildIsParseCanonical,
@@ -47,7 +46,10 @@ import {
 	findFirstOfKind,
 	nodeAtPath,
 	pathPassesThroughKind,
-	type ConformanceCoverage
+	runCells,
+	type CellReport,
+	type ConformanceCoverage,
+	type KitCell
 } from './conformance-core';
 
 // ── Profile ──────────────────────────────────────────────────────────────────
@@ -107,68 +109,70 @@ export interface BuiltinContainerProfile extends ContainerConformanceProfile {
 export type ConformanceCell =
 	'localIndex' | 'ancestry' | 'multiScope' | 'focusBubble' | 'terminatorCollision' | 'declarations';
 
-export interface ConformanceCellReport {
-	cell: ConformanceCell;
-	status: 'asserted' | 'exempt' | 'boundary';
-	reason?: string;
-}
-
 export interface ContainerConformanceReport {
 	kind: AnyBlockKind;
-	cells: ConformanceCellReport[];
+	cells: CellReport<ConformanceCell>[];
 }
 
 // ── Cell manifest ────────────────────────────────────────────────────────────
 
-export interface ContainerConformanceCell {
-	cell: ConformanceCell;
-	/** The profile's declaration for this cell; `declarations` answers unconditionally. */
-	coverage: (profile: ContainerConformanceProfile) => ConformanceCoverage;
-	run: (kind: AnyBlockKind, profile: BuiltinContainerProfile) => void | Promise<void>;
+export interface ContainerCellContext {
+	kind: AnyBlockKind;
+	profile: BuiltinContainerProfile;
 }
 
 /** The kit's cells as data, so {@link runContainerConformance} and the built-in sweep run the
- *  same set and a new cell reaches both. */
-export const CONTAINER_CONFORMANCE_CELLS: readonly ContainerConformanceCell[] = [
+ *  same set and a new cell reaches both. `declarations` declares no coverage: it always runs. */
+export const CONTAINER_CONFORMANCE_CELLS: readonly KitCell<
+	ConformanceCell,
+	ContainerCellContext
+>[] = [
 	{
 		cell: 'localIndex',
-		coverage: (profile) => profile.localIndex,
-		run: (kind, profile) =>
+		coverage: ({ profile }) => profile.localIndex,
+		run: ({ kind, profile }) =>
 			getBlockKindDescriptor(kind).containerContract === 'grid'
 				? driverOf(kind, profile, 'gridLocalIndex', 'a grid op')()
 				: checkStripLocalIndexAddressing(profile)
 	},
-	{ cell: 'ancestry', coverage: (profile) => profile.ancestry, run: checkInnermostFirstAncestry },
+	{
+		cell: 'ancestry',
+		coverage: ({ profile }) => profile.ancestry,
+		run: ({ kind, profile }) => checkInnermostFirstAncestry(kind, profile)
+	},
 	{
 		cell: 'multiScope',
-		coverage: (profile) => profile.multiScope,
-		run: (kind, profile) => driverOf(kind, profile, 'multiScope', 'an op spanning two scopes')()
+		coverage: ({ profile }) => profile.multiScope,
+		run: ({ kind, profile }) => driverOf(kind, profile, 'multiScope', 'an op spanning two scopes')()
 	},
 	{
 		cell: 'focusBubble',
-		coverage: (profile) => profile.focusBubble,
-		run: checkFocusBubbleTermination
+		coverage: ({ profile }) => profile.focusBubble,
+		run: ({ kind, profile }) => checkFocusBubbleTermination(kind, profile)
 	},
 	{
 		cell: 'terminatorCollision',
-		coverage: (profile) => profile.terminatorCollision,
-		run: checkTerminatorCollision
+		coverage: ({ profile }) => profile.terminatorCollision,
+		run: ({ kind, profile }) => checkTerminatorCollision(kind, profile),
+		falsify: ({ kind }) => refuseExcusedCollision(kind)
 	},
-	{ cell: 'declarations', coverage: () => ({ mode: 'assert' }), run: checkDeclarationSanity }
+	{
+		cell: 'declarations',
+		run: ({ kind, profile }) => checkDeclarationSanity(kind, profile)
+	}
 ];
 
-/** The cells whose coverage a profile declares. `declarations` is the kit's, not the author's. */
-const BEHAVIORAL_CELLS = CONTAINER_CONFORMANCE_CELLS.filter((c) => c.cell !== 'declarations');
-
 /**
- * A profile must assert at least one behavioral cell. `declarations` is excluded on purpose: it
- * asserts for every kind, so counting it would let a profile that excuses everything pass.
+ * A profile must assert at least one cell it declares. `declarations` doesn't count: it asserts
+ * for every kind, so counting it would let a profile that excuses everything pass.
  */
 export function assertProfileCoverageFloor(
 	kind: AnyBlockKind,
 	profile: ContainerConformanceProfile
 ): void {
-	const asserts = BEHAVIORAL_CELLS.filter((c) => c.coverage(profile).mode === 'assert');
+	const asserts = CONTAINER_CONFORMANCE_CELLS.filter(
+		(c) => c.coverage?.({ kind, profile }).mode === 'assert'
+	);
 	if (asserts.length > 0) {
 		assert(
 			profile.wholeProfileExemption === undefined,
@@ -194,33 +198,18 @@ export async function runContainerConformance(
 	kind: AnyBlockKind,
 	profile: ContainerConformanceProfile
 ): Promise<ContainerConformanceReport> {
-	const cells: ConformanceCellReport[] = [];
-	const failures: string[] = [];
-
+	const earlier: string[] = [];
 	try {
 		assertProfileCoverageFloor(kind, profile);
 	} catch (error) {
-		failures.push(`coverageFloor: ${(error as Error).message}`);
+		earlier.push(`coverageFloor: ${(error as Error).message}`);
 	}
-
-	for (const { cell, coverage: read, run } of CONTAINER_CONFORMANCE_CELLS) {
-		const coverage = read(profile);
-		try {
-			if (coverage.mode === 'assert') {
-				await run(kind, profile);
-				cells.push({ cell, status: 'asserted' });
-			} else {
-				assertExemptionDocumented(coverage, `${kind} ${cell}`);
-				cells.push({ cell, status: coverage.mode, reason: coverage.reason });
-			}
-		} catch (error) {
-			failures.push(`${cell}: ${(error as Error).message}`);
-		}
-	}
-
-	if (failures.length > 0) {
-		throw new Error(`container conformance failed for "${kind}":\n  - ${failures.join('\n  - ')}`);
-	}
+	const cells = await runCells(
+		CONTAINER_CONFORMANCE_CELLS,
+		{ kind, profile },
+		{ subject: kind, heading: `container conformance failed for "${kind}"` },
+		earlier
+	);
 	return { kind, cells };
 }
 
@@ -447,27 +436,27 @@ export function checkTerminatorCollision(
 	assertParseConverged(doc, `${kind} survives a body line reproducing its terminator`);
 }
 
+/** An opaque container wraps its body between its own marker lines, so a body line can reproduce
+ *  its closer whatever it declares; a declared `bodyWrite` is tested on any contract. */
+function refuseExcusedCollision(kind: AnyBlockKind): void {
+	const descriptor = getBlockKindDescriptor(kind);
+	if (descriptor.containerContract !== 'opaque' && !descriptor.bodyWrite) return;
+	fail(
+		`${kind} ${descriptor.bodyWrite ? 'declares container.bodyWrite' : 'is an opaque container'}, ` +
+			`and a body line reproducing its terminator truncates it, so assert terminatorCollision ` +
+			`with a fixture whose body does`
+	);
+}
+
 // ── (e) declaration sanity ───────────────────────────────────────────────────
 
 /** Holds the kind to its declarations: an `unwrapRole` names implemented strategies, which the
- *  nested dispatcher indexes unguarded, and an opaque or `bodyWrite` kind asserts collision. */
+ *  nested dispatcher indexes unguarded. */
 export function checkDeclarationSanity(
 	kind: AnyBlockKind,
 	profile: ContainerConformanceProfile
 ): void {
 	const descriptor = getBlockKindDescriptor(kind);
-
-	// An opaque container wraps its body between its own marker lines, so a body line can
-	// reproduce its closer whatever it declares; a declared `bodyWrite` is tested on any contract.
-	const owesCollisionAnswer = descriptor.containerContract === 'opaque' || !!descriptor.bodyWrite;
-	if (owesCollisionAnswer && profile.terminatorCollision.mode !== 'assert') {
-		fail(
-			`${kind} ${descriptor.bodyWrite ? 'declares container.bodyWrite' : 'is an opaque container'} ` +
-				`but its profile marks terminatorCollision "${profile.terminatorCollision.mode}" — a body ` +
-				`line reproducing the terminator truncates the container, so assert the cell with a ` +
-				`fixture whose body does`
-		);
-	}
 
 	const role = descriptor.unwrapRole;
 	if (role) {
