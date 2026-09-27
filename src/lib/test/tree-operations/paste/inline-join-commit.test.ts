@@ -15,9 +15,8 @@ import type { BlockListState } from '$lib/reactivity/block-list-state.svelte';
 import type { EditEvent } from '$lib/editor-events';
 import { takeDevWarns } from '$lib/test/support/warn-gate';
 
-// A splice outside the commit updates neither the parent's `childIds` (which never
-// self-heals: `createBlockListState` backfills only an absent id array, never a short one)
-// nor the `edit` stream, so persistence sees the delete and not the insertion.
+// A splice outside the commit updates neither the parent's `childIds`, which nothing repairs
+// later, nor the `edit` stream, so persistence would see the delete and not the insertion.
 
 function blockquoteHarness() {
 	const { deps, events } = makeEditorActionsDeps(parse('> # Head\n').children);

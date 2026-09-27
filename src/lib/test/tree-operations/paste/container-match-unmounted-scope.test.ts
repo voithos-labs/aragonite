@@ -5,16 +5,13 @@ import { serialize } from '$lib/core/serializer';
 import { makePasteCommit, makeStubBlockEdit, pasteContext } from '$lib/test/harness/editor-actions';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
 
-// B-F3: container-match was the one paste route reading the throwing state lookup, so an
-// unmounted outer container made it the only route that drops the clipboard silently, on the
-// branch where a cross-block delete has already committed.
-// Miss-analysis: every container-match case registers a state for the outer node first, so the
-// unmounted branch the other four routes are pinned on had no case here.
+// A cross-block delete has already committed, so an unmounted container must not drop the paste.
+// Miss-analysis: every container-match case registered a state for the outer node first.
 
 describe('container-matching paste at an unmounted outer scope', () => {
 	it('splices the clipboard through the tolerant entry point rather than dropping it', async () => {
 		const { doc, controller } = makePasteCommit('- a\n- keep\n');
-		// A post-cross-block-delete stub, with no BlockListState registered for the list.
+		// The stub a cross-block delete leaves, with no `BlockListState` registered for the list.
 		doc.children[0].children![0].children![0].raw = '';
 
 		await pasteDispatch(

@@ -10,9 +10,7 @@ import { expectParseConverged } from '$lib/test/harness/parse-converged';
 import { fixtureReading } from '../harness/fixture-grammar';
 import { documentLineEnding } from '$lib/core/lines';
 
-// GH #166. Miss-analysis: G2.13's gesture lane drove split, delete and content commits but no
-// merge, so no check ever read a merged tree back; the forward merge's own dev warn was the only
-// witness of the dropped line, and the deep-leaf merge had none at all.
+// Miss-analysis: GH #166, the shape property's gestures included no merge, so none was reloaded.
 
 /** A heading whose join with the paragraph below reads as two blocks: `# htext` then `more`. */
 const HEADING_OVER_TWO_LINES = '# h\ntext\nmore\n';
@@ -53,9 +51,8 @@ describe('a join whose bytes read as several blocks is refused, not truncated', 
 		expectParseConverged(doc);
 	});
 
-	// Bytes prove nothing here: a body merge writes the quote's children and never rebuilds the
-	// container's own raw, so `serialize` reads back the source whatever the merge did. What can
-	// fail is the change descriptor and the reload, which is what a truncation would break.
+	// A body merge never rebuilds the quote's raw, so `serialize` proves nothing; the change and
+	// the reload are what a truncation would break.
 	it('declines both directions inside a blockquote body', () => {
 		const forward = quotedBody();
 		expect(mergeWithNext(forward.body, 0, fixtureReading(), undefined).change).toEqual({
@@ -71,7 +68,7 @@ describe('a join whose bytes read as several blocks is refused, not truncated', 
 	});
 });
 
-// Non-vacuity: the refusal must not have swallowed the ordinary join the same merges serve.
+// The refusal must not block the ordinary join the same merges serve.
 describe('a join whose bytes stay one block still merges', () => {
 	it('joins two paragraphs forward and backward', () => {
 		const forward = parse('alpha\n\nbeta\n');

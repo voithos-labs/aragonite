@@ -9,11 +9,9 @@ import { settled } from '$lib/test/harness/settle-funnel';
 import { fixtureReading } from '../harness/fixture-grammar';
 import { defaultGrammarView } from '$lib/schema/block-openers';
 
-// GH #129: the parser keeps a document's one trailing blank line in `doc.suffix` only while
-// the tail block is non-blank; when a gesture blanks the tail, the reload reads that line as
-// its own empty paragraph, so the fix-up must turn it into a block.
-// Miss-analysis: the shape lane's corpus always ends on a block, so no draw ever placed the
-// parser's suffix beside a tail a gesture then blanked.
+// The parser keeps a document's one trailing blank line in `doc.suffix` only while the tail block
+// is non-blank, so when a gesture blanks the tail, the fix-up turns that line into a block.
+// Miss-analysis: GH #129, the shape property's corpus always ended on a block.
 
 describe('the folded trailing blank materializes when the tail turns blank (GH #129)', () => {
 	it('emptying the only block appends the suffix line and reports the insert', () => {
@@ -43,8 +41,8 @@ describe('the folded trailing blank materializes when the tail turns blank (GH #
 		expect(describeConvergence(doc)).toBeNull();
 	});
 
-	// The structural writes are handed a body parent with no suffix, so only the fix-up creates
-	// the block (GH #168): both cases below report the widened window the commit writes out.
+	// The structural writes get a body parent with no suffix, so only the fix-up creates the block,
+	// and both cases below report the widened window the commit writes out.
 	it('a split whose blank second half lands at the tail widens its window', () => {
 		const doc = parse('foo*42*_lorem_  \r\n\n');
 		expect(doc.children).toHaveLength(1);
@@ -86,9 +84,8 @@ describe('the folded trailing blank materializes when the tail turns blank (GH #
 		expect(change).toEqual({ op: 'replace', at: 0, count: 1, newCount: 1 });
 	});
 
-	// The full-table delete fills the emptied document itself (`range-delete-table-coverage`), so
-	// the fix-up meets a blank tail the caller already reported: the block it creates has to
-	// widen that window rather than land outside it.
+	// The full-table delete fills the emptied document itself, so the block the fix-up creates
+	// widens the window that caller reported rather than landing outside it.
 	it('widens a caller-created filler window when the folded line materializes beside it', () => {
 		const doc = parse('| H |\n| - |\n\n');
 

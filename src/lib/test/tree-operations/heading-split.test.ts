@@ -5,7 +5,7 @@ import { fixtureReading } from '../harness/fixture-grammar';
 
 // Enter at the head of an ATX heading's text moves the whole heading down: the marker belongs
 // with its text, where the plain cut would leave an empty heading above demoted prose below.
-// At the split primitive, so every path to a split (a keymap Enter, a container's exit) agrees.
+// The rule lives in the split primitive, so every path to a split agrees.
 describe('splitNode: an ATX heading cut at or before its content start', () => {
 	it.each([0, 1, 3])('at offset %i lands the whole heading below an empty paragraph', (offset) => {
 		const doc = parse('## Title\n');

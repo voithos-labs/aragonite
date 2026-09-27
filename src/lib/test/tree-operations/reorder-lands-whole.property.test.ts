@@ -1,9 +1,7 @@
-// A reorder must not change what the document contains, and the tree it leaves must be the one
-// a reload reads: every kind a user picks up, against prose and against each other, over every
-// separator shape and every (from, to), in both line endings, with or without a final break.
-// Miss-analysis: one blank-line separated LF fixture never asked whether the tree reloads to
-// itself, what ending a separator carries, or what the vacated pair becomes; and (GH #587) the
-// generator ended every document in a line break, so no move took an unterminated last line.
+// A reorder must not change what the document contains, and must leave the tree a reload reads,
+// for every kind a user moves, every separator shape and (from, to), both line endings, and with
+// or without a final line break.
+// Miss-analysis: GH #587, one LF fixture never checked the reload, and every draw ended in a break.
 import { describe, it, expect, beforeAll } from 'vitest';
 import fc from 'fast-check';
 import { parse, isBlankParagraph } from '$lib/core/parser';
@@ -24,9 +22,8 @@ beforeAll(() => {
 	registerMathBlock();
 });
 
-// The blocks a user moves, and the prose they land beside. Each is one block on its own; what
-// it becomes flush against a neighbour is the grammar's call (a rule under prose is a setext
-// underline, a picture under prose is an inline image, a table under prose is its continuation).
+// The blocks a user moves, and the prose they land beside; what each becomes flush against a
+// neighbour is the grammar's call (a rule under prose is a setext underline).
 const BLOCKS = {
 	prose: 'Intro prose that runs on.',
 	heading: '# Heading',
@@ -98,9 +95,8 @@ function minus(a: readonly string[], b: readonly string[]): string[] | null {
 }
 
 /**
- * Every content block survives, the moved one included, with one exemption: two blocks flush
- * against both sides of the moved block may rejoin once it leaves, as deleting it would leave
- * them. A pair a blank line separated from it, and every other pair, stays apart.
+ * Every content block survives, except that two blocks flush against both sides of the moved one
+ * may rejoin once it leaves, as deleting it would leave them.
  */
 function contentPreserved(before: readonly CstNode[], from: number, after: readonly CstNode[]) {
 	const expected = contentOf(before);
@@ -144,7 +140,7 @@ describe('a reorder lands its block whole beside any neighbour', () => {
 						const out = serialize(doc);
 						const bare = shape.eol === '\r\n' ? /(^|[^\r])\n/.test(out) : /\r/.test(out);
 						expect(bare, `${label}: a separator carries the wrong line ending`).toBe(false);
-						// A blank line is its own line break, so a document now ending in one ends in a break.
+						// A blank line is its own line break, so a document ending in one ends in a break.
 						const blankTail = isBlankParagraph(doc.children[doc.children.length - 1]);
 						expect(out.endsWith('\n'), `${label}: the final line break changed`).toBe(
 							shape.closed || blankTail

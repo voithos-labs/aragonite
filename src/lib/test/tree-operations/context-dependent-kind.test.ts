@@ -46,15 +46,12 @@ describe('updateNodeContent: contextDependentKind stickiness', () => {
 	});
 });
 
-// Every cell gesture's text reaches the row's verbatim bytes through the write branch
-// above, so the legality pass belongs there. Three gestures carried it individually and
-// each lost it; these pin the write itself so a fourth cannot.
+// Every cell gesture's text reaches the row's bytes through this write, so the kind's `rawWrite`
+// runs here once rather than in each gesture.
 describe('updateNodeContent: the kind’s rawWrite runs at the write', () => {
 	beforeEach(() => __resetSchemaRegistriesForTests());
 
-	/**
-	 * Read back the way the user gets it: the row's rebuilt bytes reparsed in their own table.
-	 */
+	/** Read back the way the user gets it: the row's rebuilt bytes reparsed in their own table. */
 	function writeCellAndReparse(cellRaws: string[], at: number, text: string): string[] {
 		const row: CstNode = {
 			kind: 'tableRow',

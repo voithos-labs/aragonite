@@ -5,10 +5,9 @@ import { updateNodeContent } from '$lib/tree-operations/content-write';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
 import { defaultGrammarView } from '$lib/schema/block-openers';
 
-// A write that keeps its block's kind skips the neighbour merge, but a new first-line indent is
-// what moves a paragraph under a loose list item into it, so that write asks anyway (GH #457).
-// Miss-analysis: the join suites changed kinds or filled blank lines, and no case indented a
-// paragraph by less than the four spaces that turn it into code.
+// A write that keeps its block's kind skips the neighbour merge, but a new first-line indent moves
+// a paragraph under a loose list item into it, so that write asks anyway.
+// Miss-analysis: GH #457, no join case indented a paragraph by less than four spaces.
 
 describe('a write that indents its first line settles the join above', () => {
 	it.each([
@@ -32,8 +31,8 @@ describe('a write that indents its first line settles the join above', () => {
 	});
 });
 
-// The typing cost the skip exists for: a keystroke that leaves the indent alone asks nothing, so
-// it leaves even a join the reload would make untouched. The tree here is diverged on purpose.
+// The skip saves typing cost, so a keystroke that leaves the indent alone asks nothing, even where
+// the reload would join; the tree here diverges on purpose.
 describe('a write that leaves the indent alone skips the join', () => {
 	it('does not ask the list above about a paragraph it would absorb', () => {
 		const doc = parse('- a\n\nzz\n');

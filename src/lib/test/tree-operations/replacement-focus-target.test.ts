@@ -68,10 +68,8 @@ describe('settledCaretPosition', () => {
 	});
 });
 
-// A write that turns its block into a container puts the caret in a leaf inside it, since a raw
-// offset into a container names no caret position.
-// Miss-analysis: every case here landed in a leaf, so nothing asked where a raw offset into a
-// quote or a list goes, and the component walked it to the container's last child.
+// A raw offset into a container names no caret position, so the caret goes to a leaf inside it.
+// Miss-analysis: every case here landed in a leaf, never in a quote or list the write made.
 describe('the settled position in a container the write made', () => {
 	const kindChange = {
 		change: { op: 'replace' as const, at: 0, count: 1, newCount: 1, idMap: { 0: 0 } },

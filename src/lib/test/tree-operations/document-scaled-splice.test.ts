@@ -1,6 +1,5 @@
 // @vitest-environment jsdom
-// Miss-analysis: every splice test spliced a handful of blocks, so no test ever handed a mutation
-// more items than V8 takes as arguments: the count the splices scale with was untested.
+// Miss-analysis: every splice test spliced a handful of blocks, never past V8's argument limit.
 
 import { describe, it, expect, beforeAll } from 'vitest';
 import { parse } from '$lib/core/parser';

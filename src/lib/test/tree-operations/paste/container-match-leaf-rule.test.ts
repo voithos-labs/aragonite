@@ -11,10 +11,8 @@ import {
 } from '../../harness/editor-actions';
 import { expectParseConverged } from '../../harness/parse-converged';
 
-// The container-matching merge splices clipboard text into the target leaf's raw, and it runs
-// before the check that would force a fenced-code target inline, so the leaf's own write
-// rule has to answer here. Miss-analysis: the container-match suite drove paragraph targets
-// only, and nothing pinned that this branch reaches an arbitrary kind's bytes. Issue #45's family.
+// The merge writes into the leaf before the fenced-code check, so the leaf's write rule applies.
+// Miss-analysis: the container-match suite drove paragraph targets only, never another kind.
 
 // A list item holding a code block whose last body line is one backtick short of a closer.
 const ITEM_WITH_CODE = '- a\n\n  ```js\n  ``\n  code\n  ```\n';

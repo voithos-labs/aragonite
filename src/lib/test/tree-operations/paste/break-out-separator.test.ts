@@ -11,12 +11,8 @@ import { makeEditorActionsDeps, pasteContext } from '$lib/test/harness/editor-ac
 import { expectParseConverged, triviaRawOf } from '$lib/test/harness/parse-converged';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
-// A break-out replaces the enclosing list with a first-half list, the pasted blocks and a
-// residue half, and the list's own separating line has to survive that swap like every other
-// splice's does (syntax-tree.md § Blank lines).
-// Miss-analysis: `list-break-out.test.ts` covers the pure replacement builder only, over lists
-// drawn with no separator above them, so no case ever put a blank line at the spliced position:
-// the one input whose loss the builder's blanket `leadingTrivia: ''` produces.
+// A break-out keeps the list's separating line (`docs/design/syntax-tree.md` § Blank lines).
+// Miss-analysis: `list-break-out.test.ts` never drew a list with a blank line above it.
 
 /** Paste `clipboard` at `offset` inside the leaf at `targetPath` of a live document. */
 async function pasteInto(doc: Document, targetPath: number[], offset: number, clipboard: string) {

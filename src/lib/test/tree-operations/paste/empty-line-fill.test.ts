@@ -13,8 +13,7 @@ import {
 import { describeConvergence } from '$lib/test/harness/parse-converged';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
-// Miss-analysis: no paste test filled one empty paragraph of a run of two, so a clipboard block
-// with no line ending that took the other one's line as its own went unseen.
+// Miss-analysis: no paste test filled one of two empty paragraphs with an unterminated block.
 
 beforeEach(() => __resetSchemaRegistriesForTests());
 

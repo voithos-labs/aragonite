@@ -1,5 +1,4 @@
-// Miss-analysis: the join check after a write parsed with the global grammar, and every write test
-// ran in it, so no test asked whether a switched-off syntax could come back through a merge.
+// Miss-analysis: every write test ran in the global grammar, never with a syntax switched off.
 import { describe, it, expect } from 'vitest';
 import type { Document } from '$lib/core/nodes';
 import { parse } from '$lib/core/parser';
@@ -43,8 +42,7 @@ describe('a write beside a switched-off syntax', () => {
 	});
 });
 
-// Miss-analysis: every split, join and range-delete test ran in the shipped grammar, so no
-// test saw the fix-up after each of them read the joined bytes without the editor's grammar.
+// Miss-analysis: every split, join and range-delete test ran in the shipped grammar.
 describe('a split, join or delete beside a switched-off syntax', () => {
 	interface Route {
 		name: string;

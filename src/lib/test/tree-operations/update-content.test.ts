@@ -17,9 +17,8 @@ describe('updateNodeContent', () => {
 		expect(change).toEqual({ op: 'noop' });
 	});
 
-	// The component instance, IME state, and inline-cache WeakMap are all keyed on the node
-	// object. A refactor that always creates a new node leaves the covering tests green, so this
-	// pins it directly.
+	// The component instance, IME state and inline cache are keyed on the node object, so a
+	// same-kind edit must keep it.
 	it('same-kind edit preserves the node object identity', () => {
 		const doc = parse('Hello\n');
 		const before = doc.children[0];

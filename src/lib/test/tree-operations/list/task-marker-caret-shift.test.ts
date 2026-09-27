@@ -3,10 +3,9 @@ import { parse } from '$lib/core/parser';
 import type { CstNode } from '$lib/core/nodes';
 import { taskMarkerCaretShift } from '$lib/tree-operations/list/reconcile-task';
 
-// A task marker typed at the front of an item's paragraph moves into the item, and the caret moves
-// back with the text by the marker's length.
-// Miss-analysis: the caret restore after a container rewrite knew only the body-write rule, and
-// every task test checked the item's bytes, never where the next key landed.
+// A task marker typed at the front of an item's paragraph moves into the item, and the caret
+// moves back with the text by the marker's length.
+// Miss-analysis: every task test checked the item's bytes, never where the next key landed.
 
 const itemOf = (source: string): CstNode => parse(source).children[0].children![0];
 

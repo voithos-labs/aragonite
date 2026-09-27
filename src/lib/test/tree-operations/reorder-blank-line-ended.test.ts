@@ -7,12 +7,9 @@ import { createSharingState } from '$lib/tree-operations/sharing';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
 import { defaultGrammarView } from '$lib/schema/block-openers';
 
-// GH #461: an HTML block ends only at a blank line, so a move that takes away the block holding
-// that line leaves it flush above its new follower, and the reload reads every block down to the
-// next blank line as HTML text. The move writes the blank line instead.
-// Miss-analysis: the vacated join's rejoin was pinned on two paragraphs only, and the property
-// suite draws a fresh shape set per seed, so no fixed case put a block that swallows every line
-// under it above that join.
+// An HTML block ends only at a blank line, so a move that takes away the block holding that line
+// writes the blank line rather than leave the HTML flush above its new follower.
+// Miss-analysis: GH #461, the vacated join's rejoin was tested on two paragraphs only.
 
 function move(markdown: string, from: number, to: number) {
 	const doc = parse(markdown);

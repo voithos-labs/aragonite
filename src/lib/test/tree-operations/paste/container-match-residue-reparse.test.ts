@@ -10,11 +10,8 @@ import {
 } from '../../harness/editor-actions';
 import { expectParseConverged } from '../../harness/parse-converged';
 
-// GH #56: the container-matching merge reattached the target's post-caret residue to the
-// last clipboard item's leaf as a bare raw write, so bytes that cross a kind boundary (a
-// fence closer landing in a paragraph) left the landed node's kind and children stale.
-// Miss-analysis: the residue branch was driven with paragraph targets only, so the reattached
-// slice never held another kind's bytes and no pin read the landed item's children.
+// The residue joins the last pasted item through a reparse, so a fence closer can change its kind.
+// Miss-analysis: GH #56, the residue branch was driven with paragraph targets only.
 
 describe('container-matching merge reattaches residue through the reparse shared path (GH #56)', () => {
 	it('a fence closer landing in the last pasted item re-reads as its own block', async () => {

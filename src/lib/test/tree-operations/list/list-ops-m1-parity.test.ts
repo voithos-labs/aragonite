@@ -13,8 +13,8 @@ import type { CstNode } from '$lib/core/nodes';
 import { fixtureReading } from '../../harness/fixture-grammar';
 
 /**
- * Mirrors the commitContainer path: M1 takes a children-copy and returns the outer-scope
- * delete implicitly, so the childIds are applied here the way the commit primitive does.
+ * The merge deletes the item from its children copy only, so the helper applies the same
+ * delete to `childIds` the way the container commit does.
  */
 function runM1AsCommit(list: CstNode, currentIndex: number): void {
 	const children = list.children!.slice();

@@ -9,12 +9,9 @@ import { describeConvergence } from '$lib/test/harness/parse-converged';
 import { defaultGrammarView } from '$lib/schema/block-openers';
 import { documentLineEnding } from '$lib/core/lines';
 
-// GH #180: a write leaving an unterminated construct that runs to end of file made the neighbour
-// merge bring the live tree to the reload's reading, which is the whole rest of the document as
-// the construct's body. The write closes the construct instead, so the neighbours stand.
-// Miss-analysis: the kind-change merge's pins drew prose demotions only; every one wrote a kind
-// whose bytes terminate on their own line, so no pin ever asked what a construct that eats forward
-// does to the blocks below it.
+// A write that leaves a construct open to the end of the file closes it, so the blocks below stand
+// instead of becoming its body.
+// Miss-analysis: GH #180, the kind-change merge's cases wrote only kinds that end on their own.
 
 describe('a write closes the construct its own bytes leave open (GH #180)', () => {
 	it('a typed fence closes over an empty body and the neighbours stand', () => {
@@ -161,10 +158,8 @@ describe('the new block declines where nothing is at stake (GH #180)', () => {
 	});
 });
 
-// The other side of the decision: only a write adds a closer, so a gesture that only exposes an
-// open construct still merges. A reorder writes no bytes, and an open fence moved above prose
-// reads as its body on reload: the merge converges to that, and closing the fence here would
-// rewrite bytes no keystroke produced.
+// Only a write adds a closer, so a reorder that exposes an open fence above prose still merges to
+// the reload's reading rather than writing bytes no keystroke produced.
 describe('a gesture that writes no bytes still absorbs (GH #180)', () => {
 	it('a reorder lifting an open fence above prose folds the way the reload reads it', () => {
 		const doc = parse('a\n\n```\nx\n');

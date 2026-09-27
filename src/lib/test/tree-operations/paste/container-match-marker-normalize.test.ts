@@ -9,15 +9,12 @@ import {
 } from '../../harness/editor-actions';
 import { metadataOf } from '../../../core/nodes';
 
-// Splicing pasted list items into a matching ancestor without templating their bullet glyph
-// leaves a `*` inside a `- ` list, which reference parsers split into two lists; ordered items
-// spliced with their pasted numbers intact leave the source misnumbered, which reference
-// renderers mask by re-sequencing. Mirrors the list-absorb normalization and renumber.
+// Pasted list items spliced into a matching list take its bullet glyph and numbering, as the
+// list-absorb route does, since a `*` inside a `- ` list parses as a second list.
 
 describe('container-matching paste: marker normalization, both routes', () => {
-	// An emptied first item stands in for a post-cross-block-delete stub (the empty-target
-	// route); a non-empty target takes the merge-first branch, splicing the trailing pasted
-	// item as a sibling.
+	// An emptied first item stands in for the stub a cross-block delete leaves (the empty-target
+	// route); a non-empty target takes the merge route, which splices the last item as a sibling.
 	it.each([
 		{
 			name: 'unordered, empty-target route templates "*" to the enclosing "-"',

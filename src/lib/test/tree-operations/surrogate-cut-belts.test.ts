@@ -1,10 +1,7 @@
 // @vitest-environment jsdom
-// The writes that cut at a caret offset, enumerated: whatever slices `raw` at an offset a caret
-// supplied must snap to a scalar boundary first, or a gesture lands half a surrogate pair in one
-// block and half in another. Miss-analysis: every offset these writes are driven with in the
-// suite comes from a hand-written ASCII fixture, so an offset splitting a pair reaches them only
-// from a real caret nobody simulates (#167, #105's split branch, and the three later writes the
-// first census missed by counting them in prose instead of by set equality).
+// Every write that slices `raw` at a caret offset snaps to a scalar boundary first, or a gesture
+// puts half a surrogate pair in each of two blocks.
+// Miss-analysis: every offset these writes were driven with came from an ASCII fixture.
 import { afterEach, beforeEach, describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
@@ -46,7 +43,7 @@ function isWellFormed(text: string): boolean {
 
 /**
  * Every module naming the snap, and the cut it must apply it to. Set equality, so a new cutting
- * write is a decision at birth: the prose count this census replaced was three writes short.
+ * write fails here until it joins the list.
  */
 const BELT_MEMBERS: Record<string, string> = {
 	'src/lib/core/lines.ts': 'the snap itself',

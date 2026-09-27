@@ -1,5 +1,4 @@
-// Miss-analysis: the task-marker tests wrote LF paragraphs, and the shape property skipped list-item
-// bodies, so no test emptied a CRLF to-do, where the marker's whitespace match took the `\r`.
+// Miss-analysis: no task-marker test emptied a CRLF to-do, where the marker match took the `\r`.
 import { describe, it, expect } from 'vitest';
 import type { Document } from '$lib/core/nodes';
 import { parse } from '$lib/core/parser';

@@ -13,9 +13,8 @@ import {
 import { expectParseConverged } from '$lib/test/harness/parse-converged';
 import { fixtureReading } from '../harness/fixture-grammar';
 
-// `splitNode`'s mode branch: live consults the one registered rebalancer, every other mode keeps
-// the byte-literal cut. The registration is the production one: a stub here would pin the wiring
-// and nothing else. The mode is the only difference between the two halves of each pair below.
+// Live mode sends `splitNode` through the registered rebalancer, and every other mode cuts the
+// bytes as typed; the registration is the production one, so the wiring is tested too.
 
 beforeEach(() => {
 	registerLiveSplitRebalancer(rebalanceLiveSplit);
@@ -50,7 +49,7 @@ describe('live mode rebalances the halves; the other modes do not', () => {
 		expect(rawsAfterSplit('[text](url)\n', 3, 'live')).toEqual(['[te](url)\n', '[xt](url)\n']);
 	});
 
-	// GH #95's cut rule runs first: the ending terminates the first half, and the rebalance
+	// The line-ending cut runs first: the ending terminates the first half, and the rebalance
 	// closes the construct against it rather than against a line the user never typed.
 	it('composes with the line-ending cut', () => {
 		expect(rawsAfterSplit('**bo\nld**\n', 4, 'live')).toEqual(['**bo**\n', '**ld**\n']);
@@ -74,9 +73,8 @@ describe('live mode rebalances the halves; the other modes do not', () => {
 	});
 });
 
-// `splitNode` only dev-warns when the first half parses to more than one block, and a devWarn is
-// invisible to every gate. The rewrite closes that off by construction (it refuses any candidate
-// whose halves are not one prose block each), so the block count is asserted here instead.
+// `splitNode` only dev-warns when the first half parses to several blocks, which no gate sees, so
+// the block count is asserted here.
 describe('a rebalanced split always produces exactly two blocks', () => {
 	const adversarial: [string, number][] = [
 		['# **head**\n', 5],
@@ -105,9 +103,8 @@ describe('a rebalanced split always produces exactly two blocks', () => {
 	});
 });
 
-// The split's inverse: the closing and reopening runs meet at the join enclosing nothing, and the
-// join drops them (live-mode.md § 4.5). Without the cleanup these write `Some **bo****ld** text`,
-// gaining a pair on every repeat, and return a split link as two anchors sharing one destination.
+// The closing and reopening runs meet at the join with nothing between them, so the join drops
+// them (`docs/design/live-mode.md` § 4.5 Joins clean up where they meet).
 describe('Backspace merging the halves back', () => {
 	it('restores the original bytes with no residue between the runs', () => {
 		const doc = parse('Some **bold** text\n');
@@ -123,9 +120,7 @@ describe('Backspace merging the halves back', () => {
 		expect(doc.children[0].raw).toBe('Visit [example](https://example.com) here\n');
 	});
 
-	// The byte-literal split merges back identically in every mode, which is what made the residue
-	// a regression of the rewrite rather than a pre-existing hole, and the join, not the split,
-	// is where the cleaning belongs.
+	// The byte-literal split merges back the same in every mode, so the cleanup belongs to the join.
 	it('is not a defect of the byte-literal split, which round-trips', () => {
 		const doc = parse('Some **bold** text\n');
 		splitNode(doc, 0, 9, undefined, fixtureReading());
@@ -151,10 +146,8 @@ describe('no rebalancer registered', () => {
 	});
 });
 
-// The rebalancer verifies its halves standalone, where a missing final line ending is legal,
-// but side by side the halves then share a line and the reload merges them (GH #61).
-// Miss-analysis: every rebalance pin asserted half bytes, so none could catch an ending the
-// join needed; only the fresh-seed differential lane tripped it.
+// Halves checked standalone may lack a final line ending, and side by side they then share a line.
+// Miss-analysis: GH #61, every rebalance test asserted each half's bytes, never the pair's reload.
 describe('rebalanced halves keep their line endings', () => {
 	it('a half the rewrite left unterminated takes the block ending back', () => {
 		const doc = parse('\\\n[**bold**](u`)`)  \n&notreal;\\\n[text](u`x`)foo\n\n\\*\n');

@@ -1,5 +1,4 @@
-// Miss-analysis: every split case parsed and reparsed in the global grammar, so none saw Enter
-// rebuild a kind the editor had switched off, and the shape property never runs a filtered one.
+// Miss-analysis: every split case reparsed in the global grammar, never an editor's filtered one.
 
 import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';

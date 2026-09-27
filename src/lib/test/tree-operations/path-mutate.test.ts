@@ -41,9 +41,8 @@ describe('deleteAtPath', () => {
 		expect(doc.children[0].raw).toBe('b\n');
 	});
 
-	// The fix-up hands the vacated separating line down to whichever block takes the position, a
-	// write to a surviving node, the one the snapshot beside it still points at. `sharing` is
-	// required here for exactly this write, so the heir is copied before it is changed.
+	// The fix-up hands the vacated separator to the block that takes the position, a node the
+	// snapshot still points at, so `sharing` is required and the heir is copied before the write.
 	it('copies the heir before handing it the vacated separator, never writing the shared node', () => {
 		const doc = parse('a\n\n# h\npara\n');
 		const heirBefore = doc.children[2];

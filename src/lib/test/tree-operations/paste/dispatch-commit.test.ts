@@ -126,7 +126,7 @@ describe('pasteDispatch: cross-block inline join reparse', () => {
 		expect(deps.doc.children[0].kind).toBe('list');
 	});
 
-	// The join reparse is content-commit-class, so it threads the instance grammar.
+	// The join reparse is a content commit, so it parses with the editor instance's grammar.
 	it('threads the instance grammar so a disabled list opener leaves a paragraph', async () => {
 		const { deps } = makeEditorActionsDeps(parse('. item\n').children);
 

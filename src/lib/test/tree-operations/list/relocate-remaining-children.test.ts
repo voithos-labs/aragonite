@@ -6,9 +6,8 @@ import { expectParseConverged } from '$lib/test/harness/parse-converged';
 import type { Document } from '$lib/core/nodes';
 import { fixtureReading } from '../../harness/fixture-grammar';
 
-// merge-list-item.test.ts pins tree shape and mergePoint; this file pins the serialized
-// markdown plus its convergence with a reparse: the byte round-trip alone is a
-// tautology that passes on a stale list raw.
+// The bytes an item merge writes, also checked against a reparse, since a round-trip of the
+// bytes alone passes on a stale list raw.
 
 function mergeAndConverge(src: string, currentIndex: number): { doc: Document; source: string } {
 	const doc = parse(src);
@@ -26,9 +25,8 @@ function mergeAndConverge(src: string, currentIndex: number): { doc: Document; s
 	return { doc, source: serialize(doc) };
 }
 
-// An absorbed trailing paragraph keeps its blank-line separator (the separator-ownership
-// rule split and list-exit carry) or the two lazy-continue into one on reload. Promoted
-// nested-list items need none: a marker line always starts a fresh item.
+// An absorbed trailing paragraph keeps its blank-line separator, or it lazily continues into the
+// joined text on reload; a promoted sublist item needs none, since a marker line starts an item.
 
 describe('relocateRemainingChildren (via mergeListItemIntoPrevious)', () => {
 	it('depth-0 target: trailing paragraph absorbed into the target item stays a separate paragraph', () => {

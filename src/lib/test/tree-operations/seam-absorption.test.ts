@@ -8,11 +8,9 @@ import type { SettledContent } from '$lib/tree-operations/content-write';
 import { defaultGrammarView } from '$lib/schema/block-openers';
 import { fixtureReading } from '../harness/fixture-grammar';
 
-// GH #61: a splice can leave neighbours whose adjacent bytes re-read as one block on reload
-// (a list newly standing above indented code absorbs it, since no separator line can hold
-// indentation apart). The neighbour merge joins the pair the way the reload will.
-// Miss-analysis: the property branch excluded every document holding indented code, so the one
-// adjacency no separator can fix was unreachable by construction.
+// A splice can leave neighbours whose adjacent bytes reread as one block (a list newly above
+// indented code absorbs it), so the neighbour merge joins the pair the way the reload will.
+// Miss-analysis: GH #61, the shape property excluded every document holding indented code.
 
 describe('a splice absorbs a join the reload would fold (GH #61)', () => {
 	it('a split creating a list above indented code absorbs it', () => {
@@ -70,10 +68,8 @@ describe('a splice absorbs a join the reload would fold (GH #61)', () => {
 		expect(change).toEqual({ op: 'replace', at: 0, count: 5, newCount: 1, idMap: { 0: 0 } });
 	});
 
-	// A structured container's children do not reparse to themselves on their own: two items'
-	// joined bytes read as a nested list, which is the parent's kind, not a sibling's.
-	// Miss-analysis: the join pins only drove document-level children, so no window ever held
-	// a structured container's children whose joined bytes parse to the parent's own kind.
+	// Two items' joined bytes read as a nested list, the parent's kind, not a sibling's.
+	// Miss-analysis: the join tests drove only document-level children, never a container's.
 	it('a list-scope delete never absorbs items into a nested list', () => {
 		const doc = parse('1. First\n2. Second\n3. Third\n');
 		const list = doc.children[0];
@@ -86,10 +82,8 @@ describe('a splice absorbs a join the reload would fold (GH #61)', () => {
 		expect(change).toEqual({ op: 'delete', at: 1, count: 1 });
 	});
 
-	// GH #21's cross-linked family member, replayed off its fresh-seed shape: a setext heading
-	// deleted from between a list and indented code lets the four-space indent continue the item,
-	// which no separator normalization can hold apart. The merge stops at the blockquote below, so
-	// the tail code block keeps its own position.
+	// A setext heading deleted from between a list and indented code lets the item take the code;
+	// the merge stops at the blockquote below, so the tail code block keeps its own position.
 	it('a delete letting a list swallow indented code stops the fold at the next block', () => {
 		const doc = parse('# word\n- > # word\n\n[t](u)\n=\n\n    code\n\n> q\n\n    tail\n');
 		expect(doc.children.map((c) => c.kind)).toEqual([
@@ -114,10 +108,8 @@ describe('a splice absorbs a join the reload would fold (GH #61)', () => {
 		expect(change).toEqual({ op: 'replace', at: 1, count: 3, newCount: 1, idMap: { 0: 0 } });
 	});
 
-	// GH #285: the swallowed block carries a run of blank lines, which the join must place where
-	// the reload does; here they reach the item's content column, so the list takes them too.
-	// Miss-analysis: every pin here drove a join whose bytes read as strictly fewer blocks, so no
-	// window ever held a blank run that kept the count while the division moved.
+	// The swallowed block's blank lines reach the item's content column, so the list takes them too.
+	// Miss-analysis: GH #285, every join here read as fewer blocks; none moved a blank run's split.
 	it('a mergeNext leaving a list above indented code takes its trailing blank run too', () => {
 		const doc = parse('- a\n\nb\n\n    code\n \t \n\t\n\n```\n```\n');
 		expect(doc.children.map((c) => c.kind)).toEqual([
@@ -159,11 +151,8 @@ describe('a splice absorbs a join the reload would fold (GH #61)', () => {
 		expect(describeConvergence(doc)).toBeNull();
 	});
 
-	// GH #285 with a paragraph for the head: the code's blank lines come back as a blank run while
-	// the code moves up into the paragraph, and the blank line above the next block joins that run
-	// as a block of its own rather than going with the delete.
-	// Miss-analysis (#450, #451): the one pin on this join encoded the lost line as known, and no
-	// case gave the code more whitespace lines than the join had blocks to hold them.
+	// The code joins the paragraph and its blank lines come back as a run, which the next line joins.
+	// Miss-analysis: GH #450, no case gave the code more blank lines than the join had blocks for.
 	it.each([
 		[
 			'two whitespace lines (#450)',
@@ -209,11 +198,8 @@ describe('a splice absorbs a join the reload would fold (GH #61)', () => {
 		expect(describeConvergence(doc)).toBeNull();
 	});
 
-	// A list takes an indented separator line into its body, so the join keeps the block count
-	// while the line moves into the item as a child.
-	// Miss-analysis: the equal-count check measured the head's growth against the separator's
-	// length, which is exactly what a container growing by that line shows; the shape property
-	// drew such a line only once tabs counted as indentation.
+	// A list takes an indented separator line into its body, so the line moves into the item.
+	// Miss-analysis: the equal-count check read a container growing by that line as unchanged.
 	it('a delete bringing an indented separator under a list moves it into the item', () => {
 		const doc = parse('- a\n  \n---\n  \n> q\n');
 
@@ -224,11 +210,8 @@ describe('a splice absorbs a join the reload would fold (GH #61)', () => {
 	});
 });
 
-// GH #255: the second half a split creates can be the first line of a two-line construct whose
-// second line is the follower (a setext underline, a table delimiter row). The pair's own bytes
-// parse to one block, so the reload merges it and the tree must too.
-// Miss-analysis: every join pin merged a window whose head kept its kind, so the check admitting
-// only a kind-preserving merge refused these promotions unasserted.
+// A split's second half can open a two-line construct with the follower, which the tree merges.
+// Miss-analysis: GH #255, every join test kept the head's kind, so promotions went untested.
 
 describe('a splice absorbs a join whose fold promotes the head (GH #255)', () => {
 	it('a split above a setext underline leaves the pair as one heading', () => {

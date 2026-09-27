@@ -19,13 +19,8 @@ import {
 } from '$lib/test/harness/editor-actions';
 import type { CstNode, Document } from '$lib/core/nodes';
 
-// Enter+Tab is not the only way into `- x\n  - `: emptying the one nested item's paragraph lands
-// the same bytes from the other direction, and the write is two levels below the list that must
-// carry the separating line. The chain rebuild every commit runs is where both meet.
-//
-// Miss-analysis: the ancestor rebuild's join check only ever merges, so a position whose reload
-// reads as a different kind than the block above it fell through with no decision, and nothing
-// asserted that a container's rebuilt opener still means what the tree says it means.
+// Emptying the one nested item reaches Enter+Tab's bytes, so the chain rebuild adds the separator.
+// Miss-analysis: the rebuild's join check only merged, so no case asked it for a separator.
 
 function nodeAt(doc: Document, path: number[]): CstNode {
 	let node = doc.children[path[0]];

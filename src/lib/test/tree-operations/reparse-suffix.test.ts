@@ -6,11 +6,9 @@ import { takeDevWarns } from '$lib/test/support/warn-gate';
 import { fixtureReading } from '../harness/fixture-grammar';
 import { defaultGrammarView } from '$lib/schema/block-openers';
 
-// GH #97: a fragment parse splits a half's trailing blank line off into `doc.suffix`, and the
-// reparse path dropped it. The line stands between the halves, so it is the second half's
-// separator (`leadingTrivia`) per the blank-line rule, not part of either half's raw.
-// Miss-analysis: every split pin used raws without interior blank lines, so no half could
-// end in one; only indented code puts a blank line inside a leaf's raw.
+// A fragment parse splits a half's trailing blank line off into `doc.suffix`, and that line stands
+// between the halves, so it becomes the second half's `leadingTrivia`, not part of either raw.
+// Miss-analysis: GH #97, no split case's raw held an interior blank line.
 
 describe('a split half ending in a blank line keeps it (GH #97)', () => {
 	it('re-attaches the stripped line as the second half’s separator', () => {
@@ -49,8 +47,7 @@ describe('a split half ending in a blank line keeps it (GH #97)', () => {
 	});
 });
 
-// Miss-analysis: the multi-block update pins all ended flush at a block's last byte, so the
-// fragment parse never split a suffix off a committed text.
+// Miss-analysis: GH #97, every multi-block update ended flush at a block's last byte.
 describe('a multi-block content write ending in a blank line keeps it (GH #97)', () => {
 	it('keeps the stripped line in the last created block', () => {
 		const doc = parse('x\n');

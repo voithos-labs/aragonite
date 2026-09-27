@@ -117,9 +117,7 @@ describe('split separator: the halves that close get none', () => {
 });
 
 describe('split separator: the promoted first half', () => {
-	// Miss: the fresh property lane carves widened-delimiter-row docs out (#61's exclusion) and
-	// this suite only cut halves that keep their kind, so nothing pinned a promote absorbing
-	// the real head line where the prose stand-in survives.
+	// Miss-analysis: GH #100, this suite only cut halves that keep their kind.
 	it('a half promoted to a table separates off the head its rows would absorb (#100)', () => {
 		const doc = parse('| H0 | H1 |\n| --- | --- | --- |\n\n---\n');
 		splitNode(doc, 0, 21, undefined, fixtureReading());
@@ -129,9 +127,8 @@ describe('split separator: the promoted first half', () => {
 	});
 });
 
-// The stand-in line represents whatever the user types next, so it must be the line no opener
-// takes. Openers are arbitrary code, so a consumer's globally registered plugin is the
-// reachable way to break that, and unit files reset the platform.
+// The stand-in line stands for whatever the user types next, so no opener may take it; a plugin's
+// globally registered opener is the reachable way to break that.
 describe('split separator: the probe line', () => {
 	beforeEach(__resetSchemaRegistriesForTests);
 	afterEach(__resetSchemaRegistriesForTests);

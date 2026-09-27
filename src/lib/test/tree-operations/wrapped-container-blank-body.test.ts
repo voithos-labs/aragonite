@@ -12,11 +12,9 @@ import { expectParseConverged } from '../harness/parse-converged';
 import type { CstNode } from '$lib/core/nodes';
 import { defaultGrammarView } from '$lib/schema/block-openers';
 
-// GH #130: emptying every body block of a fenced container leaves a blank run that is the whole
-// body, and the reload strips a line into both `innerPrefix` and `innerSuffix` before it makes
-// a block, so the run must carry two lines, where each fence-line branch alone grants at most one.
-// Miss-analysis: every fence-line case was pinned with prose on one side of the run, which is
-// what each branch's own check tests for, so the shape where neither branch engages had no pin.
+// Emptying every body block of a fenced container leaves a blank run that is the whole body, and
+// the reload strips a line into both `innerPrefix` and `innerSuffix`, so the run carries two lines.
+// Miss-analysis: GH #130, every fence-line case had prose on one side of the run.
 
 /** The emptied-block gesture through the container write: commitInput sends the ending alone. */
 function emptyBodyChild(container: CstNode, at: number): void {
@@ -53,7 +51,7 @@ describe('a blank run that is the whole wrapped body', () => {
 	});
 
 	// The reload's own layout: both fence lines taken, and every surviving block carries its line
-	// in its own raw rather than in `leadingTrivia` (syntax-tree.md § Blank lines).
+	// in its own raw rather than in `leadingTrivia` (`docs/design/syntax-tree.md` § Blank lines).
 	it('lands the strips in the wrap slots and leaves nothing standing', () => {
 		const doc = parse(':::callout Title\nBody1\n\nBody2\n:::\n');
 		const callout = doc.children[0];
@@ -94,8 +92,8 @@ describe('a blank run that is the whole wrapped body', () => {
 	});
 });
 
-// Non-vacuity for the two-line check: a blockquote's body opens at the container's own first
-// line, so nothing is stripped and a whole-blank body needs no fence line at all.
+// A blockquote's body opens at the container's own first line, so nothing is stripped and a
+// whole-blank body needs no fence line at all.
 describe('a blank run that is the whole unwrapped body', () => {
 	beforeEach(activateDirectiveGrammar);
 

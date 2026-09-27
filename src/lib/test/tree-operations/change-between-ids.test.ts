@@ -68,8 +68,6 @@ describe('changeBetweenIds', () => {
 		expect(changeBetweenIds([], ['a'])).toEqual({ op: 'insert', at: 0, count: 1 });
 	});
 
-	// A repeated id would make the window ambiguous; ids are unique per position by construction,
-	// and the reader must not silently map a duplicate to the wrong origin.
 	it('leaves ids and children in lockstep for the shape a settle fold produces', () => {
 		const change = changeBetweenIds(['a', 'b', 'c', 'd'], ['a']);
 		const ids = ['id-0', 'id-1', 'id-2', 'id-3'];

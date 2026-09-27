@@ -7,11 +7,9 @@ import { rebuildOwnedContainer } from '$lib/tree-operations/unshare';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
 import { defaultGrammarView } from '$lib/schema/block-openers';
 
-// The splice outside a commit: the fix-up asks the joins now (GH #183), so a merge can splice a
-// container at any depth where no commit descriptor reaches, and this function's own header
-// names that as exactly where a drifted `childIds` becomes permanent.
-// Miss-analysis: the path-mutate cases assert bytes and children, never the parallel id array,
-// because before the fix-up asked its joins this splice could not touch anything but its own window.
+// A splice outside a commit can merge at any depth no commit descriptor reaches, so it keeps
+// `childIds` in step itself.
+// Miss-analysis: GH #183, the path-mutate cases asserted bytes and children, never the id array.
 
 describe('a path splice whose settle folds', () => {
 	it('carries the fold into the container’s childIds', () => {

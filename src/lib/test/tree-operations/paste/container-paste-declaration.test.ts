@@ -54,7 +54,7 @@ describe('the declaration, not kind literals, drives the decision', () => {
 		augmentBuiltin('blockquote', {
 			container: { containerPaste: { matchesAncestor: () => false, siblingAbsorb: false } }
 		});
-		// The same fixture as the passing blockquote case above, now declined.
+		// The fixture of the passing blockquote case above, which this declaration declines.
 		const doc = parse('> x\n');
 		doc.children[0].children![0].raw = '\n';
 		expect(findContainerMatchingUnwrap(doc, [0, 0], 0, parse('> pasted\n'), false)).toBeNull();
