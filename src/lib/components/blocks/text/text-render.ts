@@ -15,12 +15,18 @@ import {
 	contentLengthOf,
 	getContentRange,
 	isProseKind,
-	structuralSuffix
+	structuralSuffix,
+	sameLineSuffix
 } from '../../../core/inline';
 import type { Reading } from '../../../schema/reading';
-import { renderInlineNodes, type ImageLoadPolicy } from '../../../core/inline-render';
+import {
+	PENDING_BREAK_ANCHOR,
+	renderInlineNodes,
+	type ImageLoadPolicy
+} from '../../../core/inline-render';
 import type { RawOffset } from '../../../cursor/coordinate-spaces';
 import {
+	BLOCK_PREFIX_ATTR,
 	BLOCK_SUFFIX_ATTR,
 	CONTENT_EMPTY_ATTR,
 	createCaretAnchor,
@@ -156,7 +162,11 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 			frag.appendChild(buildAmbientSpan(deps.ambientPrefix));
 		}
 		const blockOwnPrefix = getBlockMarkerPrefix();
-		if (blockOwnPrefix) frag.appendChild(markerSpan(blockOwnPrefix));
+		if (blockOwnPrefix) {
+			const span = markerSpan(blockOwnPrefix);
+			span.setAttribute(BLOCK_PREFIX_ATTR, '');
+			frag.appendChild(span);
+		}
 		const descriptor = getBlockKindDescriptor(node.kind);
 		frag.appendChild(
 			renderInlineNodes(content, node.raw, {
@@ -174,13 +184,15 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 				pendingBreakAt: hidesMarkers(deps.reading.mode()) ? contentLengthOf(node) : undefined
 			})
 		);
-		// The bytes past the content (a setext underline) are the block's own marker too, so the
-		// page holds the whole display and hides them where it hides the prefix.
+		// The bytes past the content (a setext underline, a heading's closing `#` run) are the
+		// block's own marker too, so the page holds the whole display and hides them with the prefix.
 		const suffix = structuralSuffix(node);
 		if (suffix) {
 			const span = markerSpan(suffix);
-			span.setAttribute(BLOCK_SUFFIX_ATTR, '');
-			frag.appendChild(span);
+			span.setAttribute(BLOCK_SUFFIX_ATTR, blockOwnPrefix ? 'after-prefix' : '');
+			// A closing run on the text's own line stays there when a pending break draws a new one.
+			const onTextLine = sameLineSuffix(node) === suffix;
+			frag.insertBefore(span, onTextLine ? frag.querySelector(PENDING_BREAK_ANCHOR) : null);
 		}
 		return frag;
 	}

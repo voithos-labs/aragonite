@@ -26,6 +26,7 @@ import {
 	joinDisplayLines,
 	ownTrailingLineEnding,
 	trailingLineEnding,
+	trimWhitespace,
 	type CaretTarget,
 	type PluginInlineKind,
 	type InlineNode,
@@ -34,6 +35,7 @@ import {
 	type WriteRule
 } from '$lib/plugin';
 import MathInline from './MathInline.svelte';
+import { isFlankingSpace } from './flanking';
 import { registerMathBlockCompleter } from './math-completion';
 
 export const MATH_INLINE = 'math';
@@ -42,7 +44,6 @@ export const MATH_FENCE = 'mathFence';
 
 // ── Recognition ──────────────────────────────────────────────────────────────
 
-const isWhitespace = (ch: string) => /\s/.test(ch);
 const isDigit = (ch: string) => ch >= '0' && ch <= '9';
 
 function indexDollars(raw: string): Int32Array {
@@ -75,7 +76,7 @@ function recognizeMath(
 	const afterOpen = pos + 1;
 	if (afterOpen >= end) return null;
 	const opener = raw[afterOpen];
-	if (isWhitespace(opener)) return null;
+	if (isFlankingSpace(opener)) return null;
 	// `$$` is the display fence, or the empty pair a keystroke just closed: never an inline
 	// opener, or the match would end on the second `$` of its own opener.
 	if (opener === '$') return null;
@@ -84,7 +85,7 @@ function recognizeMath(
 	// range leaves the `$` literal.
 	const close = nextDollarFrom(raw, pos + 2);
 	if (close === -1 || close >= end) return null;
-	if (isWhitespace(raw[close - 1]) || isDigit(raw[close + 1] ?? '')) return null;
+	if (isFlankingSpace(raw[close - 1]) || isDigit(raw[close + 1] ?? '')) return null;
 	if (isPriceSpan(raw.slice(afterOpen, close))) return null;
 	return { kind, start: pos, end: close + 1 };
 }
@@ -163,11 +164,11 @@ function mathCaretAtPoint(
  */
 export function mathDisplaySource(source: string): string {
 	const fence = fenceAnatomy(source);
-	if (fence) return source.slice(fence.bodyStart, fence.closerStart).trim();
+	if (fence) return trimWhitespace(source.slice(fence.bodyStart, fence.closerStart));
 	let inner = source;
 	if (inner.startsWith('$$')) inner = inner.slice(2);
 	if (inner.endsWith('$$')) inner = inner.slice(0, -2);
-	return inner.trim();
+	return trimWhitespace(inner);
 }
 
 // ── Writing a block's own bytes ────────────────────────────────────────────────

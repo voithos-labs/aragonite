@@ -17,6 +17,13 @@ describe('collectHeadings: level, path, order', () => {
 		expect(entries.map((e) => e.path)).toEqual([[0], [1], [2]]);
 	});
 
+	// Miss-analysis: every heading was ASCII, so the label's `trim()` taking a non-breaking
+	// space typed into the heading never met a test.
+	it('trims Markdown whitespace off a label and keeps a non-breaking space', () => {
+		const doc = parse('# \u00a0One\t\n');
+		expect(collectHeadings(doc, 6).map((e) => e.label)).toEqual(['\u00a0One']);
+	});
+
 	it('filters out headings deeper than maxDepth', () => {
 		const doc = parse('# H1\n\n## H2\n\n### H3\n\n#### H4\n');
 		expect(collectHeadings(doc, 2).map((e) => e.level)).toEqual([1, 2]);

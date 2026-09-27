@@ -55,7 +55,8 @@ describe('a multi-block paste keeps every line after the caret', () => {
 		],
 		['two lines', 'abc\nAfter\nmore\n', [0], 3, 'x\n\ny', 'abc\n\nx\n\ny\nAfter\nmore\n'],
 		['a hard break', 'abc  \nAfter\n', [0], 3, 'x\n\ny', 'abc\n\nx\n\ny  \nAfter\n'],
-		['a setext underline', 'abc\n---\n', [0], 3, 'x\n\ny', 'abc\n\nx\n\ny\n---\n'],
+		// The underline is the title's structure, so it stays on the title, as a split keeps it.
+		['a setext underline', 'abc\n---\n', [0], 3, 'x\n\ny', 'abc\n---\n\nx\n\ny\n'],
 		['trailing spaces', 'abc  \n', [0], 3, 'x\n\ny', 'abc\n\nx\n\ny\n  \n'],
 		['a quote', '> abc\n> After\n', [0, 0], 3, 'x\n\ny', '> abc\n>\n> x\n>\n> y\n> After\n'],
 		['a list item', '- abc\n  After\n', [0, 0, 0], 3, 'x\n\ny', '- abc\n\n  x\n\n  y\n  After\n']

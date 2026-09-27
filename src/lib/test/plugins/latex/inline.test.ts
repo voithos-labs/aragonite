@@ -35,7 +35,8 @@ describe('inline math is dormant until registered', () => {
 // before it is not whitespace and the char after it is not a digit; and a span that is purely a
 // number is a price, not a formula. Miss-analysis: the table paired a letter opener with a digit
 // closer (`$x^2$`) and a digit opener with no closer (`$5`, `$5 and $10`), never a digit opener
-// with a valid closer, which is the one case the first-byte check got wrong.
+// with a valid closer, which is the one case the first-byte check got wrong; and it spaced with
+// ASCII only, so JS `\s` treating a non-breaking space as whitespace went unseen.
 describe('$ flanking recognition', () => {
 	beforeEach(() => registerMathInline());
 
@@ -55,13 +56,22 @@ describe('$ flanking recognition', () => {
 		['$5.00$', false],
 		['$10-$20', false],
 		['$x$5', false],
-		['a$b', false]
+		['a$b', false],
+		// A tab or a line break is Markdown whitespace, the same as a space.
+		['$\tx$', false],
+		['$x\n$', false]
 	];
 	for (const [raw, recognized] of cases) {
 		it(`${raw} → ${recognized ? 'math' : 'no math'}`, () => {
 			expect(mathNodesIn(raw).length > 0).toBe(recognized);
 		});
 	}
+
+	// The flanking rule reads Unicode whitespace, as emphasis does, so French prices stay prose.
+	it('reads a non-breaking space beside either delimiter as whitespace', () => {
+		expect(mathNodesIn('$\u00a0x$')).toHaveLength(0);
+		expect(mathNodesIn('$x\u00a0$')).toHaveLength(0);
+	});
 
 	it('spans the full $…$ with start at the open $', () => {
 		const [node] = mathNodesIn('a $x^2$ b');
@@ -90,7 +100,11 @@ describe('a claim ends at the first later $, or not at all', () => {
 		// reach across the prose to `$y$`'s closer.
 		['$x$5 and $y$', [[9, 12]]],
 		// A space before a `$` ends the attempt where it stands: `$a` stays literal.
-		['$a $b$', [[3, 6]]]
+		['$a $b$', [[3, 6]]],
+		// Miss-analysis: every price here was written the English way, so no case put the
+		// non-breaking space a French keyboard types before `$`, and narrowing the flank to
+		// Markdown whitespace turned the prices into a formula unseen.
+		['Prix : 5\u00a0$, puis 10\u00a0$.', []]
 	];
 	for (const [raw, spans] of claims) {
 		it(`${raw} → ${JSON.stringify(spans)}`, () => {

@@ -2,14 +2,15 @@
  * Registry for plugin inline syntax: one trigger character plus an optional prefix beginning with
  * it, tried lowest priority first (the same numbering as `OPENER_PRIORITIES`), so a plugin can
  * outrank a built-in trigger with a longer prefix (footnotes' `[^` beating `[`). An `InlineRung`
- * is one registered handler. Handlers on a reserved trigger are consulted before the scanner's
- * switch, all others from its `default` branch (scan/index.ts).
+ * is one registered handler. A reserved trigger is one the scanner handles itself (./triggers.ts):
+ * its handlers run before the built-in one, all others only where no built-in handler applies.
  */
 
 import type { ImageSyntaxRewriter, InlineNode, InlineSyntaxClaim } from '../../nodes';
 import type { GrammarView } from '../../../schema/block-openers';
 import { resolvesIn } from '../../../schema/plugin-activation';
 import { createPluginRegistry } from '../../../schema/plugin-registry';
+import { BUILTIN_TRIGGERS } from './triggers';
 
 /**
  * Inspect `raw` at `pos` (the trigger) within `[pos, end)`. Return a node with `start === pos`
@@ -23,7 +24,7 @@ export type InlineSyntaxRecognizer = (raw: string, pos: number, end: number) => 
 export const INLINE_PRIORITIES = {
 	/** Handlers consulted before a reserved trigger's built-in handling. */
 	prefixOverride: 40,
-	/** The switch's own anchor; not registerable. */
+	/** The built-in handler's own place in the order; not registerable. */
 	builtin: 50,
 	/** Default for bare-trigger registrations. */
 	plugin: 100
@@ -68,27 +69,6 @@ export interface InlineRung extends InlineSyntaxClaim {
 	owner: string | null;
 }
 
-/**
- * The characters `scanInline`'s switch handles itself. A bare registration on one would never
- * fire; it needs a prefix and a priority below `builtin`. A lint test keeps this set in step with
- * `./index.ts` (G4.18).
- */
-const BUILTIN_TRIGGERS = new Set(['\\', '`', '&', '\n', '*', '_', '~', '[', ']', '!', '<']);
-
-/**
- * Reserved triggers the fast bail (`needsScan`, scan/index.ts) checks only while a handler is
- * registered on them. `!` is here rather than in `SPECIAL_CHARS` because making it always
- * special would drag every prose `"Hello!"` through the full scan loop.
- */
-const SCAN_PROBED_RESERVED = new Set(['!']);
-
-/**
- * Reserved triggers the scan never reaches, so a prefix registration on one would be accepted yet
- * never consulted: the silent no-op this registry exists to refuse. A construct needing `]` gives
- * it a route first. A lint test pins this against a `SPECIAL_CHARS` edit (G4.18).
- */
-const REJECTED_RESERVED = new Set([']']);
-
 const NO_RUNGS: readonly InlineRung[] = [];
 
 interface RegisteredHandler {
@@ -107,9 +87,8 @@ const handlers = createPluginRegistry<string, RegisteredHandler>({
 	onChange: rebuildDispatch
 });
 
-// Reserved-trigger handlers (consulted before the switch) live apart from all other handlers
-// (consulted from its `default` branch) so each dispatch path reads one map and its empty check
-// is one `size` read.
+// Reserved and unreserved handlers are consulted at different points of the scan, so each
+// point reads one map and its empty check is one `size` read.
 const reservedRegistry = new Map<string, InlineRung[]>();
 const unreservedRegistry = new Map<string, InlineRung[]>();
 
@@ -118,7 +97,7 @@ const unreservedRegistry = new Map<string, InlineRung[]>();
 const autoPairTriggers = new Map<string, Set<string | null>>();
 
 // Triggers the fast bail (`needsScan`, scan/index.ts) must check while a handler is registered
-// on them, so a handler on a trigger `SPECIAL_CHARS` already checks costs nothing.
+// on them, so a handler on a reserved trigger the fast bail always checks costs nothing.
 const scanProbeTriggers = new Set<string>();
 
 // ── Registration ───────────────────────────────────────────────────────────────
@@ -139,8 +118,8 @@ export function registerInlineSyntax(
 		);
 	}
 
-	const reserved = BUILTIN_TRIGGERS.has(trigger);
-	if (reserved) {
+	const builtin = BUILTIN_TRIGGERS.get(trigger);
+	if (builtin) {
 		// A test pins this message verbatim. A reserved trigger is reachable only through a
 		// prefix with a priority below `builtin`.
 		if (prefix === undefined) {
@@ -149,12 +128,12 @@ export function registerInlineSyntax(
 					`which dispatches it before the plugin registry; the recognizer would never fire`
 			);
 		}
-		if (REJECTED_RESERVED.has(trigger)) {
+		if (builtin.scanned === 'never') {
 			throw new Error(
 				`registerInlineSyntax: reserved trigger ${JSON.stringify(trigger)} is skipped by the ` +
-					`scanner's fast bail (absent from SPECIAL_CHARS in scan/index.ts; it matters only ` +
-					`inside "["-bearing ranges), so a prefix inline syntax handler on it would never fire in plain text; ` +
-					`make the trigger scan-visible or scan-probed before registering`
+					`scanner's fast bail (it matters only inside "["-bearing ranges), so a prefix ` +
+					`inline syntax handler on it would never fire in plain text; make the trigger ` +
+					`scan-visible or scan-probed in scan/triggers.ts before registering`
 			);
 		}
 		if (priority >= INLINE_PRIORITIES.builtin) {
@@ -196,12 +175,12 @@ function rebuildDispatch(): void {
 	scanProbeTriggers.clear();
 	for (const { value, owner } of handlers.records()) {
 		const { trigger, autoPair, ...rung } = value;
-		const reserved = BUILTIN_TRIGGERS.has(trigger);
-		const registry = reserved ? reservedRegistry : unreservedRegistry;
+		const builtin = BUILTIN_TRIGGERS.get(trigger);
+		const registry = builtin ? reservedRegistry : unreservedRegistry;
 		registry.set(trigger, [...(registry.get(trigger) ?? []), { ...rung, owner }]);
 		// A handler on a trigger the fast bail would skip must make the scan check it, or the
 		// recognizer is the silent no-op this registry refuses to accept.
-		if (!reserved || SCAN_PROBED_RESERVED.has(trigger)) scanProbeTriggers.add(trigger);
+		if (!builtin || builtin.scanned === 'when-registered') scanProbeTriggers.add(trigger);
 		if (autoPair)
 			autoPairTriggers.set(trigger, (autoPairTriggers.get(trigger) ?? new Set()).add(owner));
 	}
@@ -220,8 +199,8 @@ function compareRungs(a: InlineRung, b: InlineRung): number {
 // ── Dispatch accessors ───────────────────────────────────────────────────────────
 
 /**
- * Whether the built-in scanner handles `trigger` in its switch. A plugin handler on one is
- * consulted before the switch, so it must decline the overlap itself; the conformance kit grants
+ * Whether the built-in scanner handles `trigger` itself. A plugin handler on one is consulted
+ * before the built-in handler, so it must decline the overlap itself; the conformance kit grants
  * no exemption.
  */
 export function isReservedInlineTrigger(trigger: string): boolean {

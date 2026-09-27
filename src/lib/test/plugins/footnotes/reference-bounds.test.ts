@@ -40,10 +40,21 @@ describe('footnote reference decline bounds', () => {
 	});
 
 	// A soft line break inside a paragraph puts `\r` in the label's path, and the
-	// terminator index covers the whole `\s` class the scan did, so a CRLF block
+	// terminator index covers every Markdown whitespace character, so a CRLF block
 	// backs out exactly where an LF one does.
 	it('declines a label broken by a CRLF line ending', () => {
 		expect(refsIn('[^a\r\n]')).toEqual([]);
 		expect(refsIn('[^a]\r\n')).toEqual([{ kind: FOOTNOTE_REF_KIND, start: 0, end: 4, label: 'a' }]);
+	});
+});
+
+// Miss-analysis: every label case was ASCII, so JS `\s` ending a label at a non-breaking space,
+// which Markdown counts as text, never met a test.
+describe('footnote reference label whitespace', () => {
+	it('ends a label at a tab, and reads a non-breaking space as part of it', () => {
+		expect(refsIn('[^a\tb]')).toEqual([]);
+		expect(refsIn('[^a\u00a0b]')).toEqual([
+			{ kind: FOOTNOTE_REF_KIND, start: 0, end: 6, label: 'a\u00a0b' }
+		]);
 	});
 });

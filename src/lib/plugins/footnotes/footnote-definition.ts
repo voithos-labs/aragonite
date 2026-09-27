@@ -13,6 +13,8 @@ import {
 	defineBlockComponent,
 	getPluginMetadata,
 	isBlankLine,
+	isBlankText,
+	isWhitespaceChar,
 	lineStartsOuterBlock,
 	parseContainerBody,
 	registerBlockComponent,
@@ -31,17 +33,25 @@ export interface FootnoteDefMetadata {
 	label: string;
 }
 
-const OPENER = /^ {0,3}\[\^([^\]\s]+)\]:/;
-const MARKER_STRIP = /^ {0,3}\[\^[^\]\s]+\]: ?/;
+const OPENER = /^ {0,3}\[\^([^\]]+)\]:/;
+const MARKER_STRIP = /^ {0,3}\[\^[^\]]+\]: ?/;
 // Four columns, a tab counting to the next multiple of four, so no tab reaches past the body.
 const CONTINUATION_INDENT = /^(?: {0,3}\t| {4})/;
 const CONTINUATION_MARKER = '    ';
+
+/** The `[^label]:` a line opens with, where the label holds no Markdown whitespace. */
+function matchOpener(text: string): RegExpExecArray | null {
+	const match = OPENER.exec(text);
+	if (!match) return null;
+	for (const ch of match[1]) if (isWhitespaceChar(ch)) return null;
+	return match;
+}
 
 /** Per-line approximation of the body's open-paragraph state, as in the core blockquote/list
  *  lazy models: laziness reaches only the body's own top-level paragraph. */
 function keepsParagraphOpen(strippedText: string, grammar: OpenContext['grammar']): boolean {
 	if (isBlankLine(strippedText)) return false;
-	if (OPENER.test(strippedText)) return false;
+	if (matchOpener(strippedText)) return false;
 	for (const opener of grammar.orderedOpeners()) {
 		const interrupts = opener.interruptsParagraph;
 		if (interrupts !== false && interrupts(strippedText)) return false;
@@ -86,7 +96,7 @@ function scanDefinitionEnd(ctx: OpenContext): number {
 }
 
 function tryOpen(ctx: OpenContext): BlockOpenerResult | null {
-	const match = OPENER.exec(ctx.line.text);
+	const match = matchOpener(ctx.line.text);
 	if (!match) return null;
 
 	const next = scanDefinitionEnd(ctx);
@@ -122,8 +132,8 @@ export function rebuildFootnoteDefRaw(node: CstNode): void {
 	const children = node.children ?? [];
 	const suffix = node.innerSuffix ?? '';
 	let blankTail = children.length;
-	if (isWhitespaceOnly(suffix)) {
-		while (blankTail > 0 && isWhitespaceOnly(children[blankTail - 1].raw)) blankTail--;
+	if (isBlankText(suffix)) {
+		while (blankTail > 0 && isBlankText(children[blankTail - 1].raw)) blankTail--;
 	}
 	// Each piece is whole lines, paired with whether its blank lines are indented.
 	const pieces: [string, boolean][] = [[node.innerPrefix ?? '', false]];
@@ -142,8 +152,6 @@ export function rebuildFootnoteDefRaw(node: CstNode): void {
 	}
 	node.raw = raw;
 }
-
-const isWhitespaceOnly = (text: string): boolean => !/[^ \t\r\n]/.test(text);
 
 export function registerFootnoteDefinition(): void {
 	const kind = declarePluginKind(FOOTNOTE_DEF_KIND);

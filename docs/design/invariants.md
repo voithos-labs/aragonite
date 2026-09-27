@@ -837,7 +837,7 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.15 | Coordinate brands are minted only at their home modules                          | L       |
 | G4.16 | Bundled plugins import only the public authoring barrel                          | L       |
 | G4.17 | No spec is collected by two Playwright projects                                  | L       |
-| G4.18 | The inline trigger set, the scan switch, and the reserved routes agree           | L       |
+| G4.18 | The scan switch matches the trigger table; prefix handlers run from one site     | L       |
 | G4.19 | _Retired upward_: reading mode is refused at the commit, not per dispatch site   | L       |
 | G4.20 | A written line takes the document's ending; per-line work reads no `\r`          | L·N     |
 | G4.21 | Image bytes are written only through the one seam module                         | L       |
@@ -1018,13 +1018,19 @@ the tree in a second browser engine and doesn't count as a second project. A spe
 collects runs nowhere; G4.23 catches that one, since every spec must list a test.
 `e2e/lint/project-partition.test.ts`.
 
-**G4.18 · Inline-trigger parity.** `BUILTIN_TRIGGERS` (`core/inline/scan/plugin-syntax.ts`) equals
-the `scanInline` switch's `case` labels (`core/inline/scan/index.ts`); a trigger the switch claims
-but the set omits would be accepted by `registerInlineSyntax` and then silently shadowed. The scan
-also partitions every reserved trigger across the three routes that reach the scan (scan-visible
-`SPECIAL_CHARS`, scan-probed `SCAN_PROBED_RESERVED`, rejected `REJECTED_RESERVED`), so a trigger
-with no route, two routes, or a route it doesn't qualify for fails here; and it pins the pre-switch
-prefix consultation to one site ahead of the switch. `lint/inline-trigger-parity.test.ts`.
+**G4.18 · Inline-trigger parity.** The characters the inline scanner handles itself live in one
+table, `core/inline/scan/triggers.ts :: BUILTIN_TRIGGERS`: each row is a handler plus when the fast
+bail (the check that lets plain prose skip the scan loop) looks for it: always, only while a
+plugin handler is registered on it, or never. The fast bail and the plugin registry's reserved
+triggers read that table, so a new built-in trigger is one row there plus one case in the switch,
+and each row carries exactly one of those three settings.
+
+The scan loop dispatches through a `switch` with direct calls, because a table lookup measured
+slower. A unit test runs every ASCII character, plus every key of the table, through the scan and
+checks the switch runs exactly the row's handler
+(`test/core/inline/scan/builtin-trigger-dispatch.test.ts`). A source scan pins the check that runs
+plugin prefix handlers before the switch to one site, so no single case grows its own copy.
+`lint/inline-prefix-consultation.test.ts`.
 
 **G4.19 · Retired upward.** The rule was: every command dispatch site passes the reading-mode
 getter or carries its own check, because that per-site check was the only thing keeping reading
@@ -1534,8 +1540,12 @@ whitespace (an autolink's boundary, a tag's attributes, label matching, the info
 it means the ASCII set of § 2.1, which `src/lib/core/lines.ts :: isWhitespaceChar` reads. JS `\s`
 and `trim()` admit a non-breaking space either way, so the scan fails on either in `core/parsers/`
 and the other grammar files. Emphasis and the code that edits it stay outside the scan, since
-the flanking rule is written over Unicode whitespace. Plugin grammars (`core/directive/`) follow
-#509. `lint/file-rules.test.ts`.
+the flanking rule is written over Unicode whitespace. The directive grammar (`core/directive/`)
+and the bundled plugins are in the scan too. The plugins read the same helpers through
+`src/lib/plugin.ts`. Its allowlist is the few plugin files whose `\s` or `trim()` reads text that
+isn't Markdown (the slash menu's typed query, a render's ink check, a KaTeX error message), each
+with why. The math plugin's `$` flanking test is on it too: it reads Unicode whitespace the way
+emphasis does, so a French price like `5 $` stays prose. `lint/file-rules.test.ts`.
 
 ## Accessibility
 

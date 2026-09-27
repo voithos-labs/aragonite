@@ -77,8 +77,8 @@ import ParrotBlock from './ParrotBlock.svelte';
 
 export const PARROT = 'parrot';
 
-/** Where a click in the block puts the caret. The caption renders the bytes after `%%parrot `,
- *  so an offset in it sits that far along the source; the shown source is the source itself. */
+/** Where a click in the block puts the caret. The caption says where it starts in the source,
+ *  so an offset in it sits that far along; the shown source is the source itself. */
 function parrotCaretAtPoint(
 	blockEl: HTMLElement,
 	clientX: number,
@@ -88,7 +88,7 @@ function parrotCaretAtPoint(
 	const view = source ?? blockEl.querySelector<HTMLElement>('.parrot-caption');
 	if (!view) return null;
 	const offset = caretOffsetAtPoint(view, clientX, clientY) ?? 0;
-	return { path: [], offset: source ? offset : offset + '%%parrot '.length };
+	return { path: [], offset: source ? offset : offset + Number(view.dataset.captionStart) };
 }
 
 function registerParrotBlock(): void {
@@ -138,7 +138,7 @@ The object you handed `registerBlockKind` is the kind's **descriptor**. Most of 
 - `pageRole` is optional, and it's how your block reads on the page. Say `'prose'` if it reads as part of the text around it, the way a quote or a note does. A prose block gets no drag handle, and right-clicking its text gives the clipboard rows. Leave it out and your block is an object someone picks up whole, with its own handle and menu, which is what the parrot is. (If your block's text would make a silly label on the drag ghost, a formula's source say, give it a `dragLabel` too.)
 - `caretTargetAtPoint` is optional too: where a click inside your block puts the caret. Leave it out and a click on the folded view reveals the source at its first byte, which is a letdown when you clicked halfway into the caption.
 
-The parrot's answer is two steps. The caption and the source line are different strings, and `caretOffsetAtPoint` does the pixel half: hand it one of your own elements and the click, and it gives back the character offset nearest that point, clamped into the element's box, so a click on the bird above the caption still lands on a character. The arithmetic between the two strings is yours, and for the parrot it's the length of its own marker: an offset in the caption sits `'%%parrot '.length` further along the source.
+The parrot's answer is two steps. The caption and the source line are different strings, and `caretOffsetAtPoint` does the pixel half: hand it one of your own elements and the click, and it gives back the character offset nearest that point, clamped into the element's box, so a click on the bird above the caption still lands on a character. The arithmetic between the two strings is yours. The parrot's caption is its line minus the marker and the whitespace around the text, so the component works out where the caption starts in the source, puts that on the caption element as `data-caption-start`, and the hook adds it to the offset. (Hardcoding `'%%parrot '.length` works right up until someone types two spaces.)
 
 On the opener, `priority` decides where you sit in the built-in openers' dispatch order ([Opener priority](#opener-priority)) and `consumed` is the number of lines you claimed ([What an opener returns](#what-an-opener-returns)).
 
@@ -147,7 +147,7 @@ On the opener, `priority` decides where you sit in the built-in openers' dispatc
 ```svelte
 <!-- ParrotBlock.svelte -->
 <script lang="ts">
-	import { createEditableLeaf, type NodeView } from '@voithos-labs/aragonite/plugin';
+	import { createEditableLeaf, trimWhitespace, type NodeView } from '@voithos-labs/aragonite/plugin';
 
 	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
 	let sourceEl: HTMLDivElement | undefined = $state();
@@ -214,7 +214,15 @@ cNo.....................................oc
 	// The clip window's height, which is why every frame has to be the same number of rows.
 	const FRAME_ROWS = FRAMES[0].split('\n').length;
 
-	const caption = $derived(node.raw.slice('%%parrot'.length).trim());
+	// The caption is the rest of the marker line, trimmed, and `start` is where it sits in the
+	// source: `parrotCaretAtPoint` reads it off the element to map a press back to a byte.
+	function parrotCaption(raw: string): { text: string; start: number } {
+		const rest = raw.slice('%%parrot'.length);
+		const text = trimWhitespace(rest);
+		return { text, start: '%%parrot'.length + rest.indexOf(text) };
+	}
+
+	const caption = $derived(parrotCaption(node.raw));
 
 	export const editable = true;
 	export const focusable = true;
@@ -245,11 +253,12 @@ cNo.....................................oc
 	{:else}
 		<div
 			class="parrot-caption"
+			data-caption-start={caption.start}
 			role="button"
 			tabindex="-1"
 			aria-label="Party parrot caption (click to edit)"
 		>
-			{caption}
+			{caption.text}
 		</div>
 	{/if}
 </div>
@@ -622,6 +631,7 @@ import {
 	registerChromeLeaf,
 	registerDirective,
 	setPluginMetadata,
+	trimWhitespace,
 	type CstNode,
 	type EditorPlugin,
 	type ParsedDirective
@@ -643,7 +653,7 @@ export interface ConspiracyMetadata {
 // from the opener line); children 1+ are the parsed evidence. The fence bytes go to
 // metadata so the raw can be rebuilt after an edit.
 function conspiracyFromDirective(parsed: ParsedDirective): CstNode {
-	const theory = parsed.fence.info.trim();
+	const theory = trimWhitespace(parsed.fence.info);
 	const node: CstNode = {
 		kind: declaredPluginKind(CONSPIRACY),
 		leadingTrivia: parsed.leadingTrivia,
@@ -1109,7 +1119,7 @@ An opener recognizes syntax that's already there. A grammar whose lines must be 
 ```ts
 registerBlockCompleter(myKind, {
 	tryComplete: (line) =>
-		line.trim() === '$$'
+		trimWhitespace(line) === '$$'
 			? { lines: ['$$', '', '$$'], caret: { path: [], line: 1, column: 0 } }
 			: null
 });

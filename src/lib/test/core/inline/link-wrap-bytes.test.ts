@@ -2,10 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { buildLinkReferenceMap } from '$lib/core/inline/link-reference-resolver';
-import {
-	buildLinkWrapBytes,
-	canWrapRangeAsLink
-} from '$lib/components/blocks/text/link-source-bytes';
+import { buildLinkWrapBytes, canWrapRangeAsLink } from '$lib/core/inline/link-source-bytes';
 import { fixtureReading } from '../../harness/fixture-grammar';
 
 // The create half of the byte writer: what `[selected text](url)` may be written over, and how
@@ -13,10 +10,10 @@ import { fixtureReading } from '../../harness/fixture-grammar';
 // as wraps.
 
 describe('link wrap bytes, creating a construct over plain text', () => {
-	it('wraps the range and percent-encodes the destination stop characters', () => {
+	it('wraps the range and encodes the destination bytes that would end it', () => {
 		expect(
 			buildLinkWrapBytes('Alpha bravo charlie', 6, 11, 'https://x.test/a b(c)', fixtureReading())
-		).toBe('[bravo](https://x.test/a%20b%28c%29)');
+		).toBe('[bravo](https://x.test/a%20b(c))');
 	});
 
 	it('escapes a bare bracket the selected text carries', () => {

@@ -5,7 +5,7 @@ import { tick } from 'svelte';
 import { resetPluginPlatformForTests } from '$lib/testing';
 import { defaultGrammarView } from '$lib/schema/block-openers';
 import { createImageEditCommitter } from '../../components/image/image-edit-commit';
-import { imageFieldsFromInline } from '../../components/image/image-source-bytes';
+import { imageFieldsFromInline } from '../../core/inline/image-source-bytes';
 import { createWidgetSelectionState } from '../../components/image/widget-selection-state.svelte';
 import { getInlineContent } from '../../core/inline/inline-cache';
 import { parse } from '../../core/parser';

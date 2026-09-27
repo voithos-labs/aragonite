@@ -7,6 +7,7 @@
 import {
 	computeInlineContent,
 	headingLevel,
+	trimWhitespace,
 	type DocumentView,
 	type EditorContext,
 	type InlineNode,
@@ -71,7 +72,7 @@ export function collectHeadings(
 						id: path.join('.'),
 						path,
 						level,
-						label: projectInlineText(read(node), node.raw).trim()
+						label: trimWhitespace(projectInlineText(read(node), node.raw))
 					});
 				}
 			} else if (node.children && node.children.length > 0) {

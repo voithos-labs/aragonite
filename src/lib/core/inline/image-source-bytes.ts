@@ -2,8 +2,9 @@
 // GFM form. The two live together because the image serializer must be named in exactly one
 // module (G4.21).
 
-import { encodeDestination, escapeTitle } from '../../core/inline/destination-bytes';
-import type { ImageCrop, ImageFields, InlineNode } from '../../core/nodes';
+import { encodeDestination, escapeTitle } from './destination-bytes';
+import type { ImageFields, InlineNode } from '../nodes';
+import { buildDimSuffix } from './image-dimensions';
 import { devWarn } from '../../dev-warn';
 
 // ── Where the bytes are written ─────────────────────────────────────────────
@@ -77,23 +78,6 @@ export function buildImageSourceBytes(fields: ImageFields): string {
 	}
 	const titleSegment = fields.title !== undefined ? ` "${escapeTitle(fields.title)}"` : '';
 	return `![${altSegment}](${encodeDestination(fields.url)}${titleSegment})`;
-}
-
-function buildDimSuffix(
-	width: number | undefined,
-	height: number | undefined,
-	crop: ImageCrop | undefined
-): string {
-	if (width === undefined) return '';
-	if (height === undefined) return `|${width}`;
-	return `|${width}x${height}${crop ? buildCropTail(crop) : ''}`;
-}
-
-/** Whole percents; the zoom only when it is one worth writing, trimmed to what it needs. */
-function buildCropTail(crop: ImageCrop): string {
-	const z = Math.round(crop.z * 100) / 100;
-	const zoom = z === 1 ? '' : `,${String(z)}`;
-	return `@${Math.round(crop.x)},${Math.round(crop.y)}${zoom}`;
 }
 
 // Alt text sits inside `[...]`, where an unescaped bracket ends the scan early. Unlike `title`

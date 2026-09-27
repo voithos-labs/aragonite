@@ -174,6 +174,11 @@ const GRAMMAR_FILES = [
 
 const PARSER_PROBE = 'src/lib/core/parsers/probe.ts';
 
+/** Plugin grammars share the parser's whitespace: the directive grammar and the bundled plugins. */
+const PLUGIN_GRAMMAR_DIRS = ['src/lib/core/directive/', 'src/lib/plugins/'];
+
+const SHOWS_INK = 'whether the render shows ink, not whether the Markdown is blank';
+
 // ── The decorations directory ────────────────────────────────────────────────
 
 const DECORATIONS_DIR = 'src/lib/decorations/';
@@ -595,7 +600,7 @@ const RULES: FileRule[] = [
 				'the paste menu row skips a clipboard that holds nothing to paste',
 			'src/lib/components/link-card/LinkCard.svelte': 'a URL typed into the link card',
 			'src/lib/components/link-card/LinkCardHost.svelte': 'a URL typed into the link card',
-			'src/lib/components/blocks/text/link-source-bytes.ts': 'the URL the link command was given',
+			'src/lib/core/inline/link-source-bytes.ts': 'the URL the link command was given',
 			'src/lib/plugins/latex/BlockMath.svelte':
 				'whether the render shows ink, not whether the Markdown is blank',
 			'src/lib/plugins/mermaid/MermaidBlock.svelte':
@@ -619,9 +624,21 @@ const RULES: FileRule[] = [
 	{
 		id: 'G4.72 the Markdown grammar reads GFM whitespace, not JS \\s or trim()',
 		population: (file) =>
-			under('src/lib/core/parsers/')(file) || GRAMMAR_FILES.includes(file.relPath),
+			under('src/lib/core/parsers/')(file) ||
+			GRAMMAR_FILES.includes(file.relPath) ||
+			PLUGIN_GRAMMAR_DIRS.some((dir) => under(dir)(file)),
 		matches: /\\[sS]|\.trim(?:Start|End)?\(/,
-		reaches: GRAMMAR_FILES,
+		allowed: {
+			'src/lib/plugins/latex/flanking.ts':
+				'the `$` flanking rule reads Unicode whitespace, as emphasis does',
+			'src/lib/plugins/latex/renderer.ts': 'the text of a KaTeX error message',
+			'src/lib/plugins/latex/BlockMath.svelte': SHOWS_INK,
+			'src/lib/plugins/mermaid/MermaidBlock.svelte': SHOWS_INK,
+			'src/lib/plugins/slash-commands/slash-source.ts':
+				'where a typed `/` opens the command menu: a word boundary in typing, not Markdown',
+			'src/lib/plugins/slash-commands/filter.ts': 'the words of a menu query the user typed'
+		},
+		reaches: [...GRAMMAR_FILES, 'src/lib/core/directive/grammar.ts'],
 		reason:
 			'JS `\\s` and `trim()` admit a non-breaking space, and GFM (§2.1) never does: a rule wanting spaces or tabs says `[ \\t]`, one wanting whitespace reads `WHITESPACE_CLASS`, `isWhitespaceChar` or `trimWhitespace` (core/lines.ts)',
 		hits: [
@@ -630,13 +647,16 @@ const RULES: FileRule[] = [
 			at(PARSER_PROBE, 'const trimmed = text.trim();'),
 			at(PARSER_PROBE, 'const head = text.trimStart();'),
 			at(PARSER_PROBE, 'const tail = text.trimEnd();'),
-			at('src/lib/core/inline/scan/autolinks.ts', 'const m = s.match(/^(\\S+)/);')
+			at('src/lib/core/inline/scan/autolinks.ts', 'const m = s.match(/^(\\S+)/);'),
+			at('src/lib/plugins/latex/latex-kind.ts', 'const isSpace = (ch: string) => /\\s/.test(ch);'),
+			at('src/lib/core/directive/grammar.ts', 'const title = info.trim();')
 		],
 		misses: [
 			at(PARSER_PROBE, 'const m = text.match(/^#(?:[ \\t]|$)/);'),
 			at(PARSER_PROBE, 'isWhitespaceChar(ch); // JS \\s is too wide'),
 			at(PARSER_PROBE, 'const info = trimWhitespace(raw);'),
-			at('src/lib/core/inline/scan/emphasis.ts', 'return /\\s/.test(ch);')
+			at('src/lib/core/inline/scan/emphasis.ts', 'return /\\s/.test(ch);'),
+			at('src/lib/plugins/mermaid/mermaid-kind.ts', 'const match = /^([`~]+)(.*)$/s.exec(raw);')
 		]
 	}
 ];

@@ -531,10 +531,11 @@ The editor runs nothing. `onRunCode` is the hook that says your app can: install
 ```svelte
 <Editor
 	{source}
-	onRunCode={({ code, info, path }) => {
-		// code: the fence body alone, never the fence lines; info: the whole info string
-		// ("py {1-3}"); path: child indices from the document root to the block.
-		runInMyKernel(code, info.split(/\s+/)[0]).then((out) => showOutputBeside(path, out));
+	onRunCode={({ code, language, path }) => {
+		// code: the fence body alone, never the fence lines; language: the info string's first
+		// word ("py" for "py {1-3}"), the same one the rail shows, or "" for none; the whole info
+		// string rides along as `info`. path: child indices from the document root to the block.
+		runInMyKernel(code, language).then((out) => showOutputBeside(path, out));
 	}}
 	codeMenuItems={(request) => [
 		{ id: 'clear', label: 'Clear output', run: () => clearOutput(request.path) },

@@ -110,7 +110,8 @@ describe('math fence with the plugin uninstalled', () => {
 });
 
 // The render component reads the inner LaTeX from the stored source, whichever wrapper that
-// source uses; the same helper serves the `$$` block and the fence.
+// source uses; the same helper serves the `$$` block and the fence. Miss-analysis: every case
+// padded with ASCII, so `trim()` eating a non-breaking space KaTeX would paint went unseen.
 describe('mathDisplaySource strips the wrapper to the inner formula', () => {
 	const cases: Array<[label: string, source: string, inner: string]> = [
 		['bare $$ multi-line', '$$\nx^2\n$$', 'x^2'],
@@ -120,7 +121,9 @@ describe('mathDisplaySource strips the wrapper to the inner formula', () => {
 		['fence with info suffix', '```math linenums\nx^2\n```\n', 'x^2'],
 		['fence keeps an interior blank line', '```math\nx\n\ny\n```\n', 'x\n\ny'],
 		['~~~math fence', '~~~math\n\\alpha\n~~~\n', '\\alpha'],
-		['CRLF fence', '```math\r\nx^2\r\n```\r\n', 'x^2']
+		['CRLF fence', '```math\r\nx^2\r\n```\r\n', 'x^2'],
+		// KaTeX paints a non-breaking space, so the padding trim leaves it in.
+		['$$ with a non-breaking space', '$$\u00a0x^2 $$', '\u00a0x^2']
 	];
 	for (const [label, source, inner] of cases) {
 		it(label, () => {

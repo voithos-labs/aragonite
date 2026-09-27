@@ -1,7 +1,7 @@
 /**
- * The three conformance corpus strata the differ draws from: exhaustive short
- * enumeration, seeded random sampling, and the inline-only slice of the
- * CommonMark spec examples. All three feed markdown into `referenceInlineNodes`.
+ * The conformance corpus: three strata the inline differ draws from (exhaustive short
+ * enumeration, seeded random sampling, the inline-only slice of the CommonMark spec
+ * examples), plus the spec's link reference definition examples, compared whole-document.
  */
 import specExamplesJson from './spec-examples.json';
 
@@ -97,10 +97,17 @@ export interface SpecExample {
 interface SpecExampleFixture {
 	referenceVersion: string;
 	examples: SpecExample[];
+	definitionExamples: SpecExample[];
 }
 
 /** The committed inline-only slice of the CommonMark spec examples. */
 export function loadSpecExamples(): SpecExample[] {
 	const fixture: SpecExampleFixture = specExamplesJson;
 	return fixture.examples;
+}
+
+/** Every link reference definition example (§4.7), whatever blocks it holds. */
+export function loadDefinitionExamples(): SpecExample[] {
+	const fixture: SpecExampleFixture = specExamplesJson;
+	return fixture.definitionExamples;
 }

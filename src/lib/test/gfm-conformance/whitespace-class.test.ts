@@ -50,8 +50,8 @@ describe('a non-breaking space is content to every block rule commonmark.js foll
 		}
 	);
 
-	it('keeps the non-breaking space inside the link destination', () => {
-		expect(first(`[a]: /u${NBSP}x\n`).metadata).toMatchObject({ url: `/u${NBSP}x` });
+	it('keeps the non-breaking space inside the link destination, percent-encoded', () => {
+		expect(first(`[a]: /u${NBSP}x\n`).metadata).toMatchObject({ url: '/u%C2%A0x' });
 	});
 });
 

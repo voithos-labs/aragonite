@@ -9,7 +9,7 @@ import { emojiPlugin } from '$lib/plugins/emoji';
 import { latexPlugin } from '$lib/plugins/latex';
 import { parseInline } from '$lib/core/inline';
 import { screenVisibility } from '$lib/core/inline/visibility';
-import { canWrapRangeAsLink } from '$lib/components/blocks/text/link-source-bytes';
+import { canWrapRangeAsLink } from '$lib/core/inline/link-source-bytes';
 import { resolveMarkedInsertion } from '$lib/components/blocks/text/pending-mark-insert';
 import { resolveEdgeSeat } from '$lib/components/blocks/text/edge-seat';
 import {

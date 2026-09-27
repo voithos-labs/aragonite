@@ -6,17 +6,12 @@
 
 import type { CstNode } from '../../core/nodes';
 import type { NodeView } from '../../core/node-views';
-import {
-	ownTrailingLineEnding,
-	snapToScalarBoundary,
-	trailingLineEnding,
-	trimTrailingLineEnding,
-	type LineEnding
-} from '../../core/lines';
+import { ownTrailingLineEnding, trailingLineEnding, type LineEnding } from '../../core/lines';
 import { isBlankParagraph } from '../../core/parser';
 import { ensureEditableContainers } from '../node-primitives';
 import { parseCutResidue, parseFirstBlock } from '../parse-block';
 import { terminateLastLine } from '../list/terminator';
+import { cutKeepingSuffix } from './cut-keeping-suffix';
 import type { GrammarView } from '../../schema/block-openers';
 
 export interface PastedReplacement {
@@ -36,12 +31,8 @@ export function buildPastedReplacement(
 
 	const leafRaw = leaf.raw;
 	const lineEnding = trailingLineEnding(leafRaw, ending);
-	const display = trimTrailingLineEnding(leafRaw);
-	// Moved off the middle of a surrogate pair before the cut: the halves land in different
-	// blocks, so a pair split here is unrecoverable bytes rather than a recoverable edit.
-	const cut = snapToScalarBoundary(display, offset);
-	const rawBefore = display.slice(0, cut);
-	const residue = parseCutResidue(display.slice(cut), lineEnding, grammar);
+	const { head: rawBefore, rest } = cutKeepingSuffix(leaf, offset);
+	const residue = parseCutResidue(rest, lineEnding, grammar);
 	const originalTrivia = leaf.leadingTrivia ?? '';
 
 	const newNodes: CstNode[] = [];

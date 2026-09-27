@@ -11,7 +11,7 @@ import type { NodeView } from '../../../core/node-views';
 import type { InlineNode } from '../../../core/nodes';
 import type { InlineWidgetEditingPolicy } from '../../../core/inline/inline-widgets';
 import { resolvedInlineContent } from '../../../core/inline/inline-cache';
-import { getContentRange } from '../../../core/inline';
+import { getContentRange, sameLineSuffix } from '../../../core/inline';
 import { getInlineWidgetEditing } from '../../../core/inline/inline-widgets';
 import {
 	ownTrailingLineEnding,
@@ -23,6 +23,7 @@ import { type RawOffset } from '../../../cursor/coordinate-spaces';
 import type { EdgeAffinity } from '../../../cursor/edge-affinity';
 import type { PendingMarks } from '../../../cursor/pending-marks';
 import {
+	hiddenSuffixLength,
 	landableRawBounds,
 	markerPrefixOf,
 	revealsNoMarkers,
@@ -45,6 +46,7 @@ import { noteOwnPair, resolveDelimiterAutoPair } from './delimiter-autopair';
 import type { BlockAutoPairs } from './auto-pair-record';
 import { soleProseReparse } from './screen-diff';
 import type { Reading } from '../../../schema/reading';
+import { hidesMarkers } from '../../../presentation-mode';
 
 /** Whether `line` still parses back as `node`'s kind as the editor reads it, which the auto-pair
  *  resolver checks. */
@@ -612,17 +614,27 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 	// ── Pending marks from a toggle ────────────────────────────────────────────
 
 	/** The byte after a hard break made at the end of a block's content, whose line ending is the
-	 *  one after the content (the block's own, or the one above a setext underline), so no caret
-	 *  can sit past it. The key lands after the break rather than between the backslash and its
-	 *  newline, where it would undo the break. */
+	 *  one ending the content's line (the block's own, or the one above a setext underline), so no
+	 *  caret can sit past it. The key lands after the break rather than between the backslash and
+	 *  its newline, where it would undo the break. */
 	function handleTransitionalHardBreak(e: KeyboardEvent, caretOffset: RawOffset | null): boolean {
 		if (deps.isReading()) return false;
 		if (!isPlainTypingKey(e) || caretOffset === null || heldRange()) return false;
 		const d = display();
 		const contentEnd = getContentRange(deps.node).end;
+		// A heading's closing run stays on the heading's line, so the new line starts past it.
+		const lineEnd = contentEnd + sameLineSuffix(deps.node).length;
+		const el = deps.getEl();
+		// The caret past the backslash, or where the new line is drawn (`paintPendingBreak`, past
+		// the run); a hidden run draws its whole span at that one spot.
+		const onBreak =
+			el !== null && hiddenSuffixLength(el) > 0
+				? caretOffset >= contentEnd && caretOffset <= lineEnd
+				: caretOffset === contentEnd ||
+					(hidesMarkers(deps.reading.mode()) && caretOffset === lineEnd);
 		const text = d.slice(0, contentEnd);
-		// Only at the content end, and only when the content's last byte is the break's backslash.
-		if (caretOffset !== contentEnd || !text.endsWith('\\')) return false;
+		// Only there, and only when the content's last byte is the break's backslash.
+		if (!onBreak || !text.endsWith('\\')) return false;
 		// An escaped backslash (`\\\\`) is content, not a break.
 		if (text.endsWith('\\\\')) return false;
 		// Backslash before ASCII punctuation is an escape (`\|`, `\*`), never a break's backslash.
@@ -632,8 +644,8 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		deps.setSnapTarget(null);
 		const line = ending + e.key;
 		writeDisplay(
-			text + line + d.slice(contentEnd),
-			contentEnd + line.length,
+			d.slice(0, lineEnd) + line + d.slice(lineEnd),
+			lineEnd + line.length,
 			'transitional-hard-break',
 			caretOffset
 		);

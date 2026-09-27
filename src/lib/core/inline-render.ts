@@ -8,6 +8,7 @@
 
 import type { InlineNode } from './nodes';
 import { buildCoreInlineWidget } from './inline/inline-widgets';
+import { codeSpanFence } from './inline/scan/code-spans';
 import type { GrammarView } from '../schema/block-openers';
 import { isAllowedHrefScheme } from './url-policy';
 import { firstDisplayLine } from './lines';
@@ -113,12 +114,9 @@ function renderInlineCode(
 	opts: RenderInlineOptions
 ): DocumentFragment {
 	const frag = document.createDocumentFragment();
-	// Slices of raw, the opening fence capped at half the node, so a plugin-created node over
-	// unfenced bytes still emits each byte exactly once.
-	const fenceLimit = node.start + Math.floor((node.end - node.start) / 2);
-	let contentStart = node.start;
-	while (contentStart < fenceLimit && raw[contentStart] === '`') contentStart++;
-	const contentEnd = node.end - (contentStart - node.start);
+	const fence = codeSpanFence(node);
+	const contentStart = node.start + fence;
+	const contentEnd = node.end - fence;
 
 	frag.appendChild(tagConstruct(markerSpan(raw.slice(node.start, contentStart)), node, opts));
 
@@ -442,6 +440,9 @@ export function renderInlineNodes(
 	}
 	return root.content;
 }
+
+/** The first of a pending hard break's two anchors, where the new line starts. */
+export const PENDING_BREAK_ANCHOR = 'br[data-caret-anchor="break"]';
 
 /**
  * A `\` ending the block is a hard break still waiting for its next line, which the scanner reads

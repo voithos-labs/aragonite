@@ -6,7 +6,7 @@
 
 import type { InlineWidgetEditingContext } from '../../core/inline/inline-widgets';
 import type { ImageFields } from '../../core/nodes';
-import { buildImageEditBytes } from './image-source-bytes';
+import { buildImageEditBytes } from '../../core/inline/image-source-bytes';
 import { keyboardResizeWidth } from './image-resize';
 
 const KEYBOARD_STEP = 20;

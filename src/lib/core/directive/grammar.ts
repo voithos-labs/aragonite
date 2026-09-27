@@ -4,6 +4,7 @@
  * the verbatim `info` (leading separator included), the body wrap, and a matched closer exactly.
  */
 
+import { WHITESPACE_CHARS, WHITESPACE_CLASS } from '../lines';
 import { escalateTerminatorRun } from '../terminator-escalation';
 
 // ── Opener / closer ───────────────────────────────────────────────────────────
@@ -20,7 +21,9 @@ export interface DirectiveFence {
 	info: string;
 }
 
-const OPENER = /^(:{2,})([A-Za-z][A-Za-z0-9-]*)(.*)$/;
+// The `s` flag lets the info string run to the line's end over a line separator (U+2028),
+// which the line splitter keeps inside a line.
+const OPENER = /^(:{2,})([A-Za-z][A-Za-z0-9-]*)(.*)$/s;
 
 export function matchDirectiveOpener(lineText: string): DirectiveFence | null {
 	const match = OPENER.exec(lineText);
@@ -94,10 +97,10 @@ export interface DirectiveAttributes {
 	properties: Record<string, string>;
 }
 
-const LABEL = /^\s*\[([^\]]*)\]/;
+const LABEL = new RegExp(`^${WHITESPACE_CLASS}*\\[([^\\]]*)\\]`);
 const BRACES = /\{([^}]*)\}/;
 // Quoted segments fold in, so `title="a b"` stays one token instead of splitting on its space.
-const ATTR_TOKEN = /(?:[^\s"]+|"[^"]*")+/g;
+const ATTR_TOKEN = new RegExp(`(?:[^${WHITESPACE_CHARS}"]+|"[^"]*")+`, 'g');
 
 /**
  * Opt-in `info -> structure` reader for a leading `[label]` and a `{#id .class key=val}` block.

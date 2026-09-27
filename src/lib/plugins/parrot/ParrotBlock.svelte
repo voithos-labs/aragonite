@@ -1,6 +1,6 @@
 <!-- ParrotBlock.svelte -->
 <script lang="ts">
-	import { createEditableLeaf, type NodeView } from '$lib/plugin';
+	import { createEditableLeaf, trimWhitespace, type NodeView } from '$lib/plugin';
 
 	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
 	let sourceEl: HTMLDivElement | undefined = $state();
@@ -226,7 +226,15 @@ cNd.........................................;lOc
 	// The clip window's height, which is why every frame has to be the same number of rows.
 	const FRAME_ROWS = FRAMES[0].split('\n').length;
 
-	const caption = $derived(node.raw.slice('%%parrot'.length).trim());
+	// The caption is the rest of the marker line, trimmed, and `start` is where it sits in the
+	// source: `parrotCaretAtPoint` reads it off the element to map a press back to a byte.
+	function parrotCaption(raw: string): { text: string; start: number } {
+		const rest = raw.slice('%%parrot'.length);
+		const text = trimWhitespace(rest);
+		return { text, start: '%%parrot'.length + rest.indexOf(text) };
+	}
+
+	const caption = $derived(parrotCaption(node.raw));
 
 	export const editable = true;
 	export const focusable = true;
@@ -257,11 +265,12 @@ cNd.........................................;lOc
 	{:else}
 		<div
 			class="parrot-caption"
+			data-caption-start={caption.start}
 			role="button"
 			tabindex="-1"
 			aria-label="Party parrot caption (click to edit)"
 		>
-			{caption}
+			{caption.text}
 		</div>
 	{/if}
 </div>

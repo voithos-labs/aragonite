@@ -10,7 +10,7 @@ import {
 	buildLinkEditBytes,
 	buildLinkUnwrapBytes,
 	linkFieldsFromInline
-} from '$lib/components/blocks/text/link-source-bytes';
+} from '$lib/core/inline/link-source-bytes';
 import { fixtureReading } from '../../harness/fixture-grammar';
 
 // Every case states the displayed bytes the writer is offered, because it checks its candidate
@@ -81,11 +81,11 @@ describe('link edit bytes: adversarial destinations', () => {
 		expect(rebuilt.end).toBe(bytes!.length);
 	});
 
-	it('every destination stop character percent-encodes', () => {
-		expect(editUrl('[t](old)', 'a(b)c')).toBe('[t](a%28b%29c)');
+	it('every byte that would end the destination is encoded or escaped', () => {
+		expect(editUrl('[t](old)', 'a(b)c')).toBe('[t](a(b)c)');
 		expect(editUrl('[t](old)', 'u v')).toBe('[t](u%20v)');
 		expect(editUrl('[t](old)', 'u"q')).toBe('[t](u%22q)');
-		expect(editUrl('[t](old)', 'u\\)')).toBe('[t](u%5C%29)');
+		expect(editUrl('[t](old)', 'u\\)')).toBe('[t](u%5C\\))');
 	});
 
 	// Miss-analysis: the hostile alphabet carried no line breaks, so a multi-line paste built

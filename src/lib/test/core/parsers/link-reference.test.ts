@@ -179,3 +179,115 @@ describe('reference resolution with escaped brackets in label', () => {
 		expect(links[0].url).toBe('/url');
 	});
 });
+
+// Miss-analysis: the definition parser kept its own destination and title reader, and every
+// definition fixture used plain URLs and titles, so no escape, angle-bracket `<` or percent
+// encoding ever met it where the inline link reader already handled them.
+describe('a definition reads its destination and title the way an inline link does (#567)', () => {
+	const inlineTarget = (source: string) => {
+		const [link] = parseInline(source, 0, source.length);
+		return { url: link.url, title: link.title };
+	};
+
+	it('takes an escaped quote inside the title', () => {
+		const result = parseOne('[foo]: /url "ti\\"tle"\n');
+		expect(result).not.toBeNull();
+		expect(metadataOf(result!.node, 'linkReferenceDefinition').title).toBe('ti"tle');
+	});
+
+	it('resolves an escaped destination to what the inline form resolves to', () => {
+		const doc = parse('[foo]: /url\\*\n');
+		expect(buildLinkReferenceMap(doc.children).resolve('foo')).toEqual(
+			inlineTarget('[foo](/url\\*)')
+		);
+		expect(inlineTarget('[foo](/url\\*)').url).toBe('/url*');
+	});
+
+	it('refuses a `<` inside an angle-bracket destination', () => {
+		expect(parseOne('[foo]: <a<b>\n')).toBeNull();
+		expect(parse('[foo]: <a<b>\n').children.map((n) => n.kind)).toEqual(['paragraph']);
+	});
+});
+
+// Miss-analysis: the definition parser read a title on one line only, and every title fixture
+// fit on one, so §4.7's title that continues across lines never ran.
+describe('a definition title may span lines, never a blank one', () => {
+	const definitionOf = (source: string) => {
+		const doc = parse(source);
+		expect(serialize(doc)).toBe(source);
+		return doc.children[0];
+	};
+
+	it('takes a title that continues across lines', () => {
+		const node = definitionOf("[foo]: /url 'one\ntwo\n  three'\nafter\n");
+		expect(node.kind).toBe('linkReferenceDefinition');
+		expect(node.raw).toBe("[foo]: /url 'one\ntwo\n  three'\n");
+		expect(metadataOf(node, 'linkReferenceDefinition').title).toBe('one\ntwo\nthree');
+	});
+
+	it('takes a multi-line title that starts on its own line', () => {
+		const node = definitionOf('[foo]: /url\n"one\ntwo"\r\n');
+		expect(node.raw).toBe('[foo]: /url\n"one\ntwo"\r\n');
+		expect(metadataOf(node, 'linkReferenceDefinition').title).toBe('one\ntwo');
+	});
+
+	it('refuses a title a blank line cuts, the way the paragraph ends there', () => {
+		const doc = parse("[foo]: /url 'title\n\nwith blank line'\n");
+		expect(doc.children.map((n) => n.kind)).toEqual(['paragraph', 'paragraph']);
+	});
+
+	it('refuses a title a block opener cuts', () => {
+		const doc = parse("[foo]: /url 'title\n# heading'\n");
+		expect(doc.children.map((n) => n.kind)).toEqual(['paragraph', 'heading']);
+	});
+
+	it('keeps the definition without its title when an own-line title never closes', () => {
+		const doc = parse('[foo]: /url\n"one\ntwo\n');
+		expect(doc.children.map((n) => n.kind)).toEqual(['linkReferenceDefinition', 'paragraph']);
+		expect(metadataOf(doc.children[0], 'linkReferenceDefinition').title).toBeUndefined();
+	});
+});
+
+describe("the whitespace between a definition's parts", () => {
+	// §4.7 allows spaces or tabs; commonmark.js takes only spaces, so this pin is by hand.
+	it('takes tabs as well as spaces', () => {
+		const meta = metadataOf(parseOne('[foo]:\t/url\t"t"\n')!.node, 'linkReferenceDefinition');
+		expect(meta).toEqual({ label: 'foo', url: '/url', title: 't' });
+	});
+
+	// Miss-analysis: the definition fixtures all ended in `\n`, so the document's last line
+	// ending in a lone `\r`, which stays in the line's text, never reached the definition parser.
+	it('ends a last line that carries a lone carriage return', () => {
+		const source = '[foo]: /url\r';
+		expect(parse(source).children.map((n) => n.kind)).toEqual(['linkReferenceDefinition']);
+		expect(serialize(parse(source))).toBe(source);
+	});
+});
+
+// Miss-analysis: the definition parser kept its own label reader, and every label fixture was
+// short, one line and free of a bare `[`, so the §6.3 label rule inline references use never ran.
+describe('a definition reads its label the way a reference link does', () => {
+	it('refuses an unescaped `[` inside the label', () => {
+		expect(parseOne('[a[b]: /u\n')).toBeNull();
+		expect(parse('[a[b]: /u\n').children.map((n) => n.kind)).toEqual(['paragraph']);
+	});
+
+	it('takes 999 label characters and refuses 1000', () => {
+		expect(parseOne(`[${'a'.repeat(999)}]: /u\n`)).not.toBeNull();
+		expect(parseOne(`[${'a'.repeat(1000)}]: /u\n`)).toBeNull();
+	});
+
+	it('takes a label that spans lines, keyed the way a reference to it normalizes', () => {
+		const source = '[\nfoo\n]: /url\nbar\n';
+		const doc = parse(source);
+		expect(doc.children.map((n) => n.kind)).toEqual(['linkReferenceDefinition', 'paragraph']);
+		expect(doc.children[0].raw).toBe('[\nfoo\n]: /url\n');
+		expect(serialize(doc)).toBe(source);
+		expect(buildLinkReferenceMap(doc.children).resolve('foo')).toEqual({ url: '/url' });
+	});
+
+	it('matches a label split across indented lines to its one-line reference', () => {
+		const doc = parse('[Foo\n   BAR]: /url\n');
+		expect(buildLinkReferenceMap(doc.children).resolve('foo bar')).toEqual({ url: '/url' });
+	});
+});

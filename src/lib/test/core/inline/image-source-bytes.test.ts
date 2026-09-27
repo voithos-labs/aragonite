@@ -1,9 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import {
-	buildImageSourceBytes,
-	imageFieldsFromInline
-} from '../../components/image/image-source-bytes';
-import { parseInline } from '../../core/inline';
+import { buildImageSourceBytes, imageFieldsFromInline } from '$lib/core/inline/image-source-bytes';
+import { parseInline } from '$lib/core/inline';
 
 describe('buildImageSourceBytes', () => {
 	it('basic image with alt + url', () => {
@@ -202,9 +199,9 @@ describe('buildImageSourceBytes: output re-parses as an image', () => {
 		expect(buildImageSourceBytes({ alt: 'a]b[c', url: 'u' })).toBe('![a\\]b\\[c](u)');
 	});
 
-	it('encodes both parens so the destination never carries an unbalanced pair', () => {
-		// Encoding only `)` leaves a bare `(`; CommonMark allows parentheses in a destination only
-		// escaped or balanced, so the spec parser rejects the rebuilt image.
-		expect(buildImageSourceBytes({ alt: 'a', url: 'http://x/(y)' })).toBe('![a](http://x/%28y%29)');
+	// CommonMark allows parentheses in a destination only escaped or balanced.
+	it('keeps balanced parens and escapes an unbalanced one', () => {
+		expect(buildImageSourceBytes({ alt: 'a', url: 'http://x/(y)' })).toBe('![a](http://x/(y))');
+		expect(buildImageSourceBytes({ alt: 'a', url: 'http://x/y)' })).toBe('![a](http://x/y\\))');
 	});
 });

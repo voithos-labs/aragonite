@@ -135,7 +135,7 @@ concatChildren(quote.children); // 'a\n\n- one\n- two\n', the raw with its `> ` 
 
 Only `'strip'` carries that equation as a checked invariant. `'grid'` and `'opaque'` are exempt from it, for different reasons and with different consequences:
 
-- **Grid.** A cell has no standalone line recognizer, so `parse(cell.raw)` would come back a paragraph. That's why table cells are `contextDependentKind`, and why the container's `rebuildRaw` owns the surrounding pipes.
+- **Grid.** A cell has no standalone line recognizer, so `parse(cell.raw)` would come back a paragraph. That's why table cells are `contextDependentKind`, and why the container's `rebuildRaw` owns the surrounding pipes. One function splits a row into cells (`core/parsers/table.ts :: splitRowCells`) and one writes a row back (`schema/container-rebuilders.ts :: writeTableRow`), so a copied piece of a table is written by the second and pasted GFM rows are split by the first.
 
   GFM (§ 4.10) ignores body cells beyond the header width, so a wider row's children stop at the column count, and the cells past it live on the row as surplus, bytes the file holds that nothing renders.
 
@@ -250,7 +250,7 @@ A body's indentation counts in columns, and a tab reaches the next multiple of f
 
 ## 4. Inline nodes
 
-Inline content is a tree of `InlineNode` objects over a prose block's content range, the part of `raw` after the block-level markers (after `## ` for a heading). Every node carries `start`/`end` byte offsets into the parent block's **own** `raw`, covering its full range _including_ its markers, so the editor can map DOM cursor positions to raw offsets and back.
+Inline content is a tree of `InlineNode` objects over a prose block's content range, the part of `raw` between the block-level markers (after a heading's `## `, and before its closing `#` run if it has one). Every node carries `start`/`end` byte offsets into the parent block's **own** `raw`, covering its full range _including_ its markers, so the editor can map DOM cursor positions to raw offsets and back.
 
 Inline nodes nest. `**bold *and italic***` is a strong containing a text and an emphasis, which itself contains a text:
 
@@ -290,24 +290,24 @@ The built-in kinds:
 
 Every GFM block type is implemented with its own kind:
 
-| Block type                 | Kind                      | Notes                                                                                                      |
-| -------------------------- | ------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| ATX headings               | `heading`                 | `# ` through `###### `                                                                                     |
-| Setext headings            | `setextHeading`           | Underline-style `===` / `---`; an editor can switch it off (`syntax` prop)                                 |
-| Paragraphs                 | `paragraph`               | The fallback for unstructured text                                                                         |
-| Fenced code                | `fencedCode`              | ` ``` ` and `~~~`; the info string is the text after the opening fence                                     |
-| Indented code              | `indentedCode`            | 4-space indent; an editor can switch it off (`syntax` prop)                                                |
-| Blockquotes                | `blockquote`              | Strip container, recursive                                                                                 |
-| Lists / list items         | `list` / `listItem`       | Ordered, unordered, task checkboxes (the rest of a task marker's line is paragraph text). Strip containers |
-| Thematic breaks            | `thematicBreak`           | `---`, `***`, `___`                                                                                        |
-| HTML blocks                | `htmlBlock`               | Raw `<div>`, `<table>`, ...                                                                                |
-| Link reference definitions | `linkReferenceDefinition` | `[ref]: url "title"`                                                                                       |
-| Tables                     | `table`                   | GFM pipe syntax. A header/delimiter cell-count mismatch is not a table                                     |
-| Unrecognized               | `unrecognized`            | Reserved; not parser-emitted (see § 2)                                                                     |
+| Block type                 | Kind                      | Notes                                                                                                                                                                                             |
+| -------------------------- | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ATX headings               | `heading`                 | `# ` through `###### ` (a tab after the `#`s works too). A closing run (`# Hi #`) isn't content, so it's drawn dimmed like the opening `#`s and hides with them in live mode                      |
+| Setext headings            | `setextHeading`           | Underline-style `===` / `---`; an editor can switch it off (`syntax` prop)                                                                                                                        |
+| Paragraphs                 | `paragraph`               | The fallback for unstructured text                                                                                                                                                                |
+| Fenced code                | `fencedCode`              | ` ``` ` and `~~~`; the info string is the text after the opening fence                                                                                                                            |
+| Indented code              | `indentedCode`            | 4-space indent; an editor can switch it off (`syntax` prop)                                                                                                                                       |
+| Blockquotes                | `blockquote`              | Strip container, recursive                                                                                                                                                                        |
+| Lists / list items         | `list` / `listItem`       | Ordered, unordered, task checkboxes (the rest of a task marker's line is paragraph text). Strip containers                                                                                        |
+| Thematic breaks            | `thematicBreak`           | `---`, `***`, `___`                                                                                                                                                                               |
+| HTML blocks                | `htmlBlock`               | Raw `<div>`, `<table>`, ...                                                                                                                                                                       |
+| Link reference definitions | `linkReferenceDefinition` | `[ref]: url "title"`. The label and title may span lines, and all three parts read with the inline link grammar (`inline-parsing.md` § One grammar per construct), processed values in `metadata` |
+| Tables                     | `table`                   | GFM pipe syntax. A header/delimiter cell-count mismatch is not a table                                                                                                                            |
+| Unrecognized               | `unrecognized`            | Reserved; not parser-emitted (see § 2)                                                                                                                                                            |
 
 Inline: emphasis and strong (`*`, `_`, `**`, `__`), strikethrough, inline code, links, images, autolinks (bare URLs and emails), hard line breaks, and reference-style links and images.
 
-Every rule reads whitespace the way GFM does (§ 2.1): spaces and tabs where a rule asks for them, and the ASCII whitespace set where it says whitespace. A non-breaking space is never one of them, so `#<NBSP>foo` is a paragraph, not a heading, and a bare link runs straight through one. The outsiders are emphasis and the code that edits it, since the flanking rule is written over Unicode whitespace. Plugin grammars (directives, math) still read JS's whitespace until #509. `src/lib/test/gfm-conformance/whitespace-class.test.ts` pins each shape.
+Every rule reads whitespace the way GFM does (§ 2.1): spaces and tabs where a rule asks for them, and the ASCII whitespace set where it says whitespace. A non-breaking space is never one of them, so `#<NBSP>foo` is a paragraph, not a heading, and a bare link runs straight through one. The outsiders are emphasis and the code that edits it, since the flanking rule is written over Unicode whitespace, and inline math's `$`, which flanks the same way. Directive and bundled plugin grammars read GFM's whitespace too, through the same helpers (`src/lib/core/lines.ts :: isWhitespaceChar`, `trimWhitespace`). `src/lib/test/gfm-conformance/whitespace-class.test.ts` pins each shape.
 
 The table row's mismatch note, since it bites:
 

@@ -80,7 +80,7 @@ The only _runtime_ coordinate translation is between the DOM and raw, and it liv
 
 ### Scope
 
-The inline parser operates on the **content range** within a block's `raw`, the part after the block-level markers (after `## ` for a heading). The range comes from the descriptor's `getContentRange` hook, so kind registration is the single source; a kind that declares none parses all of `raw`. Returned nodes carry offsets relative to the block's own `raw`, not to the content range:
+The inline parser operates on the **content range** within a block's `raw`, the part between the block-level markers (after a heading's `## `, and before its closing `#` run if it has one). The range comes from the descriptor's `getContentRange` hook, so kind registration is the single source; a kind that declares none parses all of `raw`. Returned nodes carry offsets relative to the block's own `raw`, not to the content range:
 
 ```ts
 const h = parse('## Title **x**\n').children[0];
@@ -100,12 +100,20 @@ A single left-to-right scan, the commonmark.js reference architecture, fronted b
 parseInline('plain text', 0, 10); // [{ kind: 'text', start: 0, end: 10, text: 'plain text' }]
 ```
 
-- **Character dispatch.** Each construct-starting character runs its handler; handlers append completed nodes (code spans, escapes, entities, spec autolinks (the `<url>` form), raw HTML, hard breaks) and advance the scan. Unclaimed bytes accumulate as pending text.
+- **Character dispatch.** Each construct-starting character runs its handler; handlers append completed nodes (code spans, escapes, entities, spec autolinks (the `<url>` form), raw HTML, hard breaks) and advance the scan. Unclaimed bytes accumulate as pending text. The characters and their handlers are one table, `core/inline/scan/triggers.ts :: BUILTIN_TRIGGERS`, which the fast bail and the plugin tier below both read. The scan itself still dispatches through a `switch` (a table lookup measured slower on the hot path), and a test holds the switch to the table's rows.
 - **Delimiter stack.** `*` / `_` / `~~` runs are classified as opener or closer by the CommonMark flanking rules (the spec's test for whether a run can open or close emphasis) and pushed. Pairing is deferred.
-- **Bracket stack.** `[` and `![` push a candidate; `]` attempts an inline or reference link/image and, on success, pairs emphasis over the construct's interior. Links never contain links. A reference-form label with no matching definition commits to an `unresolvedReference` node rather than falling apart.
-- **Deferred passes.** GFM bare autolinks claim maximal text runs outside a link's text, as cmark-gfm does (a delimiter absorbed into a URL can never pair), then emphasis pairing consumes the remaining delimiter stack, then adjacent text nodes merge.
+- **Bracket stack.** `[` and `![` push a candidate; `]` attempts an inline or reference link/image and, on success, pairs emphasis over the construct's interior. Links never contain links. A reference-form label with no matching definition commits to an `unresolvedReference` node rather than falling apart. The label, destination and title are read by the grammar the block parser's link reference definitions use too (see [One grammar per construct](#one-grammar-per-construct), below).
+- **Deferred passes.** GFM bare autolinks claim maximal text runs outside a link's text, as cmark-gfm does (a delimiter absorbed into a URL can never pair), then emphasis pairing consumes the remaining delimiter stack, then adjacent text nodes merge. A bare autolink starts only after a GFM boundary, read off the source byte before it (so `<http://a.com>www.b.com` links just the first one), and a `<` ends it.
 
 **Precedence is positional.** The construct that completes earliest claims its bytes, and the scan never re-enters a claimed range, so code spans, autolinks, and raw HTML are mutually inert with no occupied-range bookkeeping. Sibling overlap is structurally unrepresentable rather than defended against, which is the nicest kind of bug to not have.
+
+### One grammar per construct
+
+A construct's syntax is read in one place, and the code that writes it back sits right beside that reader. Two copies of a grammar drift apart, and then the editor writes bytes its own parser reads differently.
+
+- **Link labels, destinations and titles**: `core/inline/link-destination.ts`. Inline links, reference links and link reference definitions all read through it, so `[a](/u\*)` and `[a]: /u\*` both resolve to `/u*`. Each reader returns where its span ends plus the processed value (escapes and entities resolved, a destination percent-encoded). Its inverse is `core/inline/destination-bytes.ts`, which writes a destination or title that reads back as the same value.
+- **Code spans**: `core/inline/scan/code-spans.ts :: codeSpanFence` gives the width of a span's backtick runs, for the renderer and for anything asking for the span's content range (the format toggle, say).
+- **Link and image edits**: the bytes the link card and the image controls (resize, crop, the popover) write come from `core/inline/link-source-bytes.ts` and `core/inline/image-source-bytes.ts`, next to the readers those bytes have to satisfy. An image's size hint is written by `core/inline/image-dimensions.ts`, the same file that reads it.
 
 ### The plugin tier
 
@@ -127,12 +135,12 @@ parseInline('a %x% b', 0, 7);
 // ]
 ```
 
-Whether a trigger can outrank a built-in depends on which side of the scanner's switch it falls:
+Whether a trigger can outrank a built-in depends on whether it has a row in the trigger table (`BUILTIN_TRIGGERS`, above):
 
-- A character the switch claims no `case` for dispatches from the **default case**, after every built-in construct. That's the `%` above, and inline math, emoji shortcodes, and the inline `:name:` directive all ship this way.
-- A **reserved** trigger, one the switch owns (``\ ` & * _ ~ [ ] ! <`` and the newline), is reachable only through a multi-character **prefix handler** registered at a priority below the built-in boundary, which the scanner consults _ahead_ of its switch and only when the prefix matches at the cursor. Footnotes' `[^` beats `[` this way while a plain `[` still opens a link.
+- A character with no row dispatches from the switch's **default case**, after every built-in construct. That's the `%` above, and inline math, emoji shortcodes, and the inline `:name:` directive all ship this way.
+- A **reserved** trigger, one with a row (``\ ` & * _ ~ [ ] ! <`` and the newline), is reachable only through a multi-character **prefix handler** registered at a priority below the built-in boundary, which the scanner consults _ahead_ of its switch and only when the prefix matches at the cursor. Footnotes' `[^` beats `[` this way while a plain `[` still opens a link.
 - A bare registration on a reserved trigger throws, rather than accepting a recognizer that could never fire. So does a prefix handler at a priority at or above the boundary.
-- A prefix handler on a trigger the fast bail never visits in plain text throws too (`]` is the one: it only matters inside a `[` range), unless the trigger is one the bail **probes on demand**, which `!` is. A registration there turns the probe on for that character, so `![[…]]` can outrank the image case without making every prose `!` unconditionally special.
+- Each row also says when the fast bail looks for its character. It never looks for `]` (which only matters inside a `[` range), so a prefix handler there throws too. It **probes `!` on demand**, only while a handler is registered on it, which is what lets `![[…]]` outrank the image case without making every prose `!` special.
 
 What those throws look like, so you recognize them when you meet one:
 

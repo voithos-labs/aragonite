@@ -80,7 +80,7 @@ export function rebuildMermaidRaw(node: CstNode): void {
  * of input either way.
  */
 function grownCloser(closerRaw: string, marker: '`' | '~', length: number): string {
-	const match = /^( {0,3})([`~]+)([\s\S]*)$/.exec(closerRaw);
+	const match = /^( {0,3})([`~]+)(.*)$/s.exec(closerRaw);
 	if (!match) return closerRaw;
 	return match[1] + marker.repeat(Math.max(match[2].length, length)) + match[3];
 }

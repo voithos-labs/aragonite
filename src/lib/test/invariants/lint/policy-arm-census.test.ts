@@ -27,6 +27,9 @@ const GESTURE_ROOTS = [
 	'ambient'
 ];
 
+/** Gesture code under `core/`: the link card's byte writer sits beside the link grammar it inverts. */
+const GESTURE_FILES = ['src/lib/core/inline/link-source-bytes.ts'];
+
 const POLICY_TABLE = 'src/lib/schema/inline-construct-policy.ts';
 const WIDGET_REGISTRY = 'src/lib/core/inline/inline-widgets.ts';
 
@@ -151,7 +154,7 @@ const HAND_WRITTEN_ARMS: readonly HandWrittenArm[] = [
 			'a declared `arms` list, and never rows: this is a total order over gesture families, where a row answers a per-construct question, and the reading-mode cut is an entry in that order for the same reason'
 	},
 	{
-		path: 'src/lib/components/blocks/text/link-source-bytes.ts',
+		path: 'src/lib/core/inline/link-source-bytes.ts',
 		detection: 'kind-literal',
 		fate: 'deferred',
 		reason:
@@ -193,10 +196,11 @@ const kindLiteralArms = HAND_WRITTEN_ARMS.filter((arm) => arm.detection === 'kin
 // ── The census ───────────────────────────────────────────────────────────────
 
 describe('inline-construct policy branch census', () => {
-	const gestureSources = GESTURE_ROOTS.flatMap((root) =>
-		collectEditorSources(path.join(EDITOR_SRC, root))
-	);
 	const allSources = collectEditorSources();
+	const gestureSources = [
+		...GESTURE_ROOTS.flatMap((root) => collectEditorSources(path.join(EDITOR_SRC, root))),
+		...allSources.filter((file) => GESTURE_FILES.includes(file.relPath))
+	];
 	const paths = (files: SourceFile[]) => files.map((file) => file.relPath).sort();
 	const unique = (values: string[]) => [...new Set(values)].sort();
 

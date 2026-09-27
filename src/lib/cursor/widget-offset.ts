@@ -33,8 +33,12 @@ import { domDescendants } from './dom-walk';
 
 // ── Raw offsets and the caret ────────────────────────────────────────────────
 
-/** Marks the span holding a block's bytes past its content (a setext underline). */
+/** Marks the span holding a block's bytes past its content: a setext underline, or an ATX
+ *  heading's closing run. Its value is `after-prefix` when the block also drew a prefix span. */
 export const BLOCK_SUFFIX_ATTR = 'data-block-suffix';
+
+/** Marks the span holding a block's own marker before its content, a heading's `# `. */
+export const BLOCK_PREFIX_ATTR = 'data-block-prefix';
 
 /** How a caret write treats its offset: `reachable` moves it onto a position the mode lets a caret
  *  sit at (never behind a hidden marker run); `exact` writes it as given. */
@@ -79,14 +83,37 @@ export function rawOfWalkOffset(container: ParentNode, walk: DomTextOffset): Raw
 	return toClampedRawOffset(walk, markerPrefixLength(container));
 }
 
-/** The raw bytes `el` shows, its marker prefix left out: what a prose block reads back as its text. */
-export function rawTextOfContent(el: HTMLElement, raw: string): string {
+/** The raw bytes `el` shows, its marker prefix left out: what a prose block reads back as its text.
+ *  `suffix` is the block's structural suffix as rendered; empty when only that is left. */
+export function rawTextOfContent(el: HTMLElement, raw: string, suffix: string): string {
 	const prefix = markerPrefixOf(el);
 	let out = '';
+	let holdsMoreThanSuffix = false;
 	for (const child of Array.from(el.childNodes)) {
-		if (child !== prefix) out += rawTextOfNode(child, raw);
+		if (child === prefix) continue;
+		const text = rawTextOfNode(child, raw);
+		if (child instanceof Element && child.hasAttribute(BLOCK_SUFFIX_ATTR)) {
+			// A key typed over the whole text lands at the start of the structure span.
+			const typed = text.endsWith(suffix) ? text.slice(0, text.length - suffix.length) : '';
+			out += typed;
+			if (typed) holdsMoreThanSuffix = true;
+			if (suffixOutlivesEdit(el, child)) out += text.slice(typed.length);
+			continue;
+		}
+		out += text;
+		if (text) holdsMoreThanSuffix = true;
 	}
-	return out;
+	// A heading's closing run or a setext underline belongs to the text above it, so a read
+	// holding nothing else is an emptied block.
+	return holdsMoreThanSuffix ? out : '';
+}
+
+// A heading's closing run goes with a hidden `#` marker the browser dropped, since the user saw
+// neither; a shown run stays unless it was selected too.
+function suffixOutlivesEdit(el: HTMLElement, suffix: Element): boolean {
+	if (suffix.getAttribute(BLOCK_SUFFIX_ATTR) !== 'after-prefix') return true;
+	const prefix = el.querySelector(`:scope > [${BLOCK_PREFIX_ATTR}]`);
+	return (prefix?.textContent ?? '') !== '' || !isHiddenMarkerRoot(suffix, el);
 }
 
 /** Raw offset of the live selection's focus inside `el`, or null when there is no selection or
@@ -467,8 +494,8 @@ export function createRangeAtDomTextOffsets(
 /** The text length of a block's trailing structure span (`BLOCK_SUFFIX_ATTR`) where the mode
  *  hides it, else 0: bytes a range the user drew cannot have meant to take. */
 export function hiddenSuffixLength(el: HTMLElement): number {
-	const last = el.lastElementChild;
-	const text = last?.hasAttribute(BLOCK_SUFFIX_ATTR) ? last.firstChild : null;
+	// Not always the last child: a pending hard break's anchors follow a closing run.
+	const text = el.querySelector(`:scope > [${BLOCK_SUFFIX_ATTR}]`)?.firstChild ?? null;
 	return text && isHiddenMarkerText(text, el) ? (text.textContent?.length ?? 0) : 0;
 }
 
@@ -549,6 +576,12 @@ export function landableDomTextBounds(container: ParentNode): {
 		const stop = seg.start + seg.len;
 		// An atomic widget and a decoration widget are opaque, not unreachable: the caret may not
 		// enter either, but each of their boundaries is a position of its own.
+		if (seg.kind === 'opaque' && seg.hidden && seg.first.hasAttribute(BLOCK_SUFFIX_ATTR)) {
+			// Nothing past a block's trailing structure is text, and an emptied block's caret
+			// sits before that structure.
+			if (!landed) end = start;
+			break;
+		}
 		if (seg.kind === 'opaque' ? seg.hidden : inMarkerPrefix(seg.node, container)) {
 			if (!landed) start = stop;
 			continue;
@@ -782,6 +815,11 @@ function positionBeside(el: Element, side: 'before' | 'after'): DomPosition | nu
 	return { node: parent, offset: side === 'before' ? idx : idx + 1 };
 }
 
+/** Whether two neighbouring hidden runs are a block's marker span and its trailing structure. */
+function prefixMeetsSuffix(from: Element, to: Element): boolean {
+	return from.hasAttribute(BLOCK_PREFIX_ATTR) && to.hasAttribute(BLOCK_SUFFIX_ATTR);
+}
+
 /** Whether a pending hard break's anchor stands between two sibling spans. */
 function breakAnchorBetween(from: Element, to: Element): boolean {
 	for (let node = from.nextSibling; node && node !== to; node = node.nextSibling) {
@@ -875,6 +913,12 @@ function* landingSegments(
 			// A pending hard break's anchors start a line between two hidden runs (the break's
 			// backslash, a setext underline), and the caret sits at that line's start.
 			if (run && breakAnchorBetween(run.last, seg.hiddenRoot)) {
+				yield run;
+				run = null;
+			}
+			// An emptied heading's text sits between its marker and its closing run, where the
+			// caret goes, so the two hidden runs stay apart.
+			if (run && prefixMeetsSuffix(run.last, seg.hiddenRoot)) {
 				yield run;
 				run = null;
 			}

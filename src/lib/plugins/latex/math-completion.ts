@@ -4,14 +4,19 @@
  * `$$` plus Enter still splits exactly as bare GFM does.
  */
 
-import { registerBlockCompleter, type AnyBlockKind, type CompletionResult } from '$lib/plugin';
+import {
+	registerBlockCompleter,
+	trimWhitespace,
+	type AnyBlockKind,
+	type CompletionResult
+} from '$lib/plugin';
 
 const BLOCK_FENCE = '$$';
 
 /** Exactly the fence and nothing else: `$$x$$` is already a whole block and `$$ x` opens no
  *  multi-line form, so neither is an attempt at the pair this completes. */
 export function tryCompleteMathBlock(line: string): CompletionResult | null {
-	if (line.trim() !== BLOCK_FENCE) return null;
+	if (trimWhitespace(line) !== BLOCK_FENCE) return null;
 	return { lines: [BLOCK_FENCE, '', BLOCK_FENCE], caret: { path: [], line: 1, column: 0 } };
 }
 

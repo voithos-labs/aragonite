@@ -200,11 +200,12 @@ export function actionDepsWithoutGrammar(
 
 const REWRITE_PROBE = 'src/lib/components/blocks/text/probe.ts';
 
-/** The writes that reparse a block the editor drew: the prose block's rewrites and auto-pair, and
- *  the bold and italic toggle. */
+/** The writes that reparse a block the editor drew: the prose block's rewrites and auto-pair, the
+ *  bold and italic toggle, and the link card's byte writer. */
 const DRAWN_TREE_REWRITES = (file: SourceFile): boolean =>
 	file.relPath.startsWith('src/lib/components/blocks/text/') ||
-	file.relPath === 'src/lib/core/inline/format-toggle.ts';
+	file.relPath === 'src/lib/core/inline/format-toggle.ts' ||
+	file.relPath === 'src/lib/core/inline/link-source-bytes.ts';
 
 const RULES: CallSiteRule[] = [
 	{

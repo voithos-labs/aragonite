@@ -79,8 +79,11 @@ export interface ThematicBreakMetadata {
 }
 
 export interface LinkReferenceDefinitionMetadata {
+	/** The label's text, unnormalized; a label spanning lines keeps its breaks as `\n`. */
 	label: string;
+	/** Escapes resolved and percent-encoded, the value an inline link's `url` holds. */
 	url?: string;
+	/** Escapes resolved, the value an inline link's `title` holds. */
 	title?: string;
 }
 
