@@ -92,10 +92,9 @@ describe('registerBlockKind normalizes the container group', () => {
 	it('a widened flat descriptor cannot smuggle container-only fields through augment', () => {
 		const kind = declarePluginKind('aug-widened');
 		registerBlockKind(kind, leaf);
-		augmentBlockKind(
-			kind,
-			getBlockKindDescriptor('blockquote') as unknown as BlockKindAugmentation
-		);
+		// A fixed field would throw before the strip, so the widened value drops blockquote's one.
+		const { supportsInline: _fixed, ...widened } = getBlockKindDescriptor('blockquote');
+		augmentBlockKind(kind, widened as unknown as BlockKindAugmentation);
 
 		const d = tryGetBlockKindDescriptor(kind)!;
 		expect(d.isContainer).toBe(false);

@@ -366,8 +366,24 @@ function stripGroupedKeys<T extends object>(fields: T): Omit<T, GroupedKey> {
 	return stripped as Omit<T, GroupedKey>;
 }
 
+/**
+ * The fields another field constrains, so only a registration sets them. One list drives the
+ * registration and augment types and the augment's runtime refusal; `container.` names a group field.
+ */
+export const FIXED_AT_REGISTRATION = [
+	'blockFocus',
+	'supportsInline',
+	'contentStart',
+	'container.reservedChrome',
+	'container.unwrapRole'
+] as const;
+type FixedField = (typeof FIXED_AT_REGISTRATION)[number];
+type FixedTopKey = Exclude<FixedField, `container.${string}`>;
+type ContainerFieldOf<F> = F extends `container.${infer Key}` ? Key : never;
+type FixedContainerKey = ContainerFieldOf<FixedField>;
+
 /** The fields no other field constrains, shared by both registration shapes. */
-type RegistrationBase = Omit<BlockKindDescriptor, GroupedKey | 'blockFocus' | 'supportsInline'>;
+type RegistrationBase = Omit<BlockKindDescriptor, GroupedKey | FixedTopKey>;
 
 /**
  * A block focused as one unit: arrow traversal stops on it, and Backspace/Delete focuses it before
@@ -397,13 +413,12 @@ export type BlockKindRegistration = WholeBlockRegistration | CaretBlockRegistrat
 /**
  * The augment shape: top-level fields replace; a partial `container` group merges into the
  * existing group, and is refused outright for a kind registered as a leaf. Fields another field
- * depends on are fixed at registration.
+ * depends on are fixed at registration, and naming one throws.
  */
 export type BlockKindAugmentation = Partial<RegistrationBase> & {
-	blockFocus?: never;
-	supportsInline?: never;
-	contentStart?: never;
-	container?: Partial<ContainerBase> & { reservedChrome?: never; unwrapRole?: never };
+	[Key in FixedTopKey]?: never;
+} & {
+	container?: Partial<ContainerBase> & { [Key in FixedContainerKey]?: never };
 };
 
 // ── Registry ────────────────────────────────────────────────────────────────
@@ -481,6 +496,20 @@ function normalizeRegistration(registration: BlockKindRegistration): BlockKindDe
 	return descriptor;
 }
 
+// A JavaScript caller or a cast gets past the augment types. Presence alone refuses, since an
+// explicit undefined would spread over the registered value.
+function rejectFixedFields(entry: string, kind: AnyBlockKind, fields: BlockKindAugmentation): void {
+	for (const field of FIXED_AT_REGISTRATION) {
+		const [group, key] = field.startsWith('container.')
+			? [fields.container, field.slice('container.'.length)]
+			: [fields, field];
+		if (!group || !(key in group)) continue;
+		throw new Error(
+			`${entry}: cannot augment "${kind}" with ${field}; it is fixed at registration`
+		);
+	}
+}
+
 // Throws if the kind was never registered, so partial data cannot create one.
 function mergeBlockKindFields(
 	entry: string,
@@ -493,6 +522,7 @@ function mergeBlockKindFields(
 			`${entry}: cannot augment "${kind}"; no base descriptor. Call registerBlockKind first.`
 		);
 	}
+	rejectFixedFields(entry, kind, fields);
 	rejectBlankLabel(entry, kind, 'label', fields.label);
 	rejectBlankLabel(entry, kind, 'dragLabel', fields.dragLabel);
 	const { container, ...rest } = fields;

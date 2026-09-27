@@ -804,7 +804,9 @@ focused as one unit (`blockFocus: 'whole-block'`, so `supportsInline: false`, no
 and no title row), or a block the caret enters. A content range and its Backspace behavior register
 together as `contentStart`, and a container with a title row declares only its middle-child unwrap
 strategy, since keeping the title row on Backspace is implied. `augmentBlockKind` takes none of
-these fields, so an augment can't assemble a pair behind the registration's back.
+these fields, so an augment can't assemble a pair behind the registration's back. One list,
+`FIXED_AT_REGISTRATION`, drives that type and a throw for a caller the types don't reach (a cast,
+plain JavaScript), pinned by `test/schema/augment-guard.test.ts`.
 `test/schema/descriptor-groups.types.test.ts` holds one `@ts-expect-error` per pair. Retired:
 G1.32 and four of G1.37's five pairs; G1.18's not-a-container branch, unreachable since G3.6, went
 with them.
