@@ -23,8 +23,10 @@ export function parseLinkReferenceDefinition(
 	endIndex: number,
 	leadingTrivia: string
 ): BlockOpenerResult | null {
+	const labelStart = labelOpenerOffset(lines[startIndex].text);
+	if (labelStart < 0) return null;
 	const window = new DefinitionWindow(lines, startIndex, endIndex);
-	const opener = readLabel(window);
+	const opener = readLabel(window, labelStart);
 	if (!opener) return null;
 	const { label, afterColon } = opener;
 	if (label.startsWith('^')) return null;
@@ -142,10 +144,18 @@ function skipSpaces(text: string, pos: number): number {
 
 // ── Label ───────────────────────────────────────────────────────────────────
 
-/** The label opening the definition, up to three spaces in, and the offset past its `]:`. */
-function readLabel(window: DefinitionWindow): { label: string; afterColon: number } | null {
+/** Where the definition's `[` sits, up to three spaces in, or -1. */
+function labelOpenerOffset(line: string): number {
 	let pos = 0;
-	while (pos < 3 && window.text[pos] === ' ') pos++;
+	while (pos < 3 && line[pos] === ' ') pos++;
+	return line[pos] === '[' ? pos : -1;
+}
+
+/** The label opening at `pos` and the offset past its `]:`. */
+function readLabel(
+	window: DefinitionWindow,
+	pos: number
+): { label: string; afterColon: number } | null {
 	const labelEnd = readSpan(window, pos, scanLinkLabel);
 	if (labelEnd < 0 || window.text[labelEnd] !== ':') return null;
 	const label = window.text.slice(pos + 1, labelEnd - 1);
