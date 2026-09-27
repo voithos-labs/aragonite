@@ -1,12 +1,8 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// A mode that hides a block's own markers makes raw 0 unreachable, so the block-exit branches
-// must fire at the bounds a caret can actually reach. The extenders and `moveFocus` are spied on
-// to observe the decision without DOM geometry.
-// Miss-analysis: the bounds came from the kind's declared content range, which a paragraph and a
-// fenced code block both declare as the whole raw, so a fixture that never rendered could answer
-// for them, and the two kinds whose runs carry no data attribute went untested.
+// Hiding a block's markers makes raw 0 unreachable, so block exits must fire at reachable bounds.
+// Miss-analysis: bounds came from declared content ranges, so kinds declaring none went untested.
 vi.mock('../../selection/keyboard-extend', () => ({
 	extendFocusToNextBlock: vi.fn(),
 	extendFocusToPreviousBlock: vi.fn(),
@@ -51,8 +47,8 @@ function makeEnv(source: string, offset: number | null, mode?: string): Env {
 	const moveFocus = vi.fn();
 	return {
 		moveFocus,
-		// Cast the members this fixture does not stand up, never the whole context: a blanket cast
-		// is what let a new required reader ship unanswered here.
+		// Cast only the members this fixture does not stand up, never the whole context, so a new
+		// required reader fails to type-check here.
 		ctx: {
 			// No plugins stood up here, so every installed one is active.
 			commands: commandContext(),

@@ -1,5 +1,4 @@
 // @vitest-environment jsdom
-//
 // The destructive branch: Backspace or Delete over a cross-block range. It consumes the key
 // unconditionally (the range must never reach a per-block handler that deletes one character
 // against stale indices) but mutates only when the mode allows edits, so reading mode pulls in

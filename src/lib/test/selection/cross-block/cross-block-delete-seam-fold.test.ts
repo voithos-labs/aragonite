@@ -12,12 +12,8 @@ import { registerBlockListState } from '$lib/reactivity/state-registry';
 import { makeBlockListState, makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
 import { fixtureReading } from '../../harness/fixture-grammar';
 
-// A range delete leaves its survivor beside a neighbour above the selection that absorbs it, so
-// the fix-up merges two blocks outside the selected endpoints, a merge the id bookkeeping the
-// commit builds its structural change from must observe too.
-// Miss-analysis: every cross-block delete pin asserted the container's own children and bytes,
-// and the structural-change pins called `computeScopeDescriptor` with hand-written lengths, so no
-// case ever compared the id array in state against the children such a delete actually left.
+// A survivor absorbed by the neighbour above merges blocks outside the range; the ids must follow.
+// Miss-analysis: no cross-block delete case compared the state's id array with the children left.
 
 /** A list above indented text: their adjacent bytes re-read as one list, and the merge cascades. */
 const ABSORBING_NEIGHBOUR = '- a\n\nAB\n\n  cd\n\n  ef\n';

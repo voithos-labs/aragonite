@@ -1,10 +1,7 @@
 // @vitest-environment jsdom
-//
 // A UTF-16 offset can land inside a surrogate pair, and the public `setSelection` takes plain
-// numbers, so the endpoint normalization is the only place that can refuse one. Miss-analysis:
-// every generator feeding the endpoint normalizers draws pure ASCII, and the one suite that could
-// have drawn this shape clamps the offset away before asserting, so no test had ever handed a
-// normalizer an offset that splits a pair (#167).
+// numbers, so the endpoint normalization is the only place that can refuse one.
+// Miss-analysis: GH #167; every generator feeding the endpoint normalizers drew pure ASCII.
 import { describe, it, expect } from 'vitest';
 import { createSelectionState } from '../../selection/selection-state.svelte';
 import { rangeDelete } from '../../selection/range-delete';

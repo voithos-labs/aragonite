@@ -19,9 +19,8 @@ afterEach(() =>
 	])
 );
 
-// The table branch shares the title-line branch's deletion steps: a covered container strictly
-// between the endpoints goes as one splice with its children intact, never a child-by-child
-// emptying, so the undo entry holds a whole detached node.
+// As in the title-line branch, a covered container between the endpoints goes as one splice with
+// its children intact, so the undo entry holds a whole detached node.
 
 const TWO_COL_TWO_ROW = '| a | b |\n| --- | --- |\n| 1 | 2 |\n';
 

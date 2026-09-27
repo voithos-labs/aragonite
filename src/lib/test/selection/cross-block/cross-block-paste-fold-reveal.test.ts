@@ -3,11 +3,8 @@ import { describe, it, expect } from 'vitest';
 import { serialize } from '$lib/core/serializer';
 import { makeEnv, makeHandlers, makePasteEvent, selectAcross } from './typed-char-env';
 
-// GH #21's fourth caret path: a cross-block paste whose bytes demote the survivor merges the
-// paragraph above into it, so the landing names a position the gesture never mounted, and the
-// paste has to mount that position before looking for its element.
-// Miss-analysis: the fixed-up landing was pinned at the primitive that derives it, never at the
-// caller that uses it, so both the landing and its mount could regress with the suite green.
+// A paste that demotes the survivor merges the block above in, so the paste must mount that spot.
+// Miss-analysis: GH #21; the fixed-up caret was tested at the primitive only, never at the paste.
 
 /** The render window as the paste sees it: a position answers an element only once mounted. */
 function makeWindowedEnv() {
@@ -20,7 +17,7 @@ function makeWindowedEnv() {
 	document.body.appendChild(blockEl);
 
 	// Wrapped before the handlers capture it: the gesture's own mounts count, and only the
-	// merge's landing is windowed out here.
+	// merged block's position is windowed out here.
 	const reveal = env.deps.revealPath;
 	env.deps.revealPath = async (path: number[]) => {
 		revealed.add(path.join(','));

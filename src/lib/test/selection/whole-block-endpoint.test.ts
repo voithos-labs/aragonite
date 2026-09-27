@@ -1,5 +1,4 @@
 // @vitest-environment jsdom
-//
 // A cross-block endpoint inside a kind with no character positions must carry 0 or
 // displayLength(raw): anything between makes every byte consumer slice a whole block in half.
 import { describe, it, expect, afterEach } from 'vitest';
@@ -99,8 +98,8 @@ describe('cross-block endpoints inside a whole-block kind', () => {
 		expect(s.end).toEqual({ path: [1], offset: DIAGRAM_END });
 	});
 
-	// Immune today only because it renders no text node for a hit-test to walk; the contract
-	// is the kind class, not the accident.
+	// A thematic break is immune only because it renders no text node for a hit-test to walk;
+	// the contract is the kind class, not that accident.
 	it('holds for a thematic break, the built-in of the same class', () => {
 		const doc = parse(BREAK_DOC);
 		const s = stateOver(doc);

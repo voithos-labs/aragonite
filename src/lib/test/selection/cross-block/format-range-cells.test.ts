@@ -1,11 +1,8 @@
 // @vitest-environment jsdom
-//
 // Table cells inside a cross-block format toggle. A cell endpoint counts cells, so which cells
 // a range covers is the grid's own question: a run to the endpoint cell with one side outside,
 // a rectangle with both inside. Every cell span is whole-cell.
-//
-// Miss-analysis: the grid exclusion was a written-down decision, so nothing broke silently, but
-// no test in either suite ever handed the plan a table endpoint, in either coordinate space.
+// Miss-analysis: no test in either suite handed the plan a table endpoint, in either space.
 import { defaultGrammarView } from '$lib/schema/block-openers';
 import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';

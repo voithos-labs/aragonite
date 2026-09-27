@@ -1,11 +1,8 @@
 // @vitest-environment jsdom
-//
 // What the plan hands back for a range whose edge is a deep `[grid, row, col]` path: a character
 // offset into a cell the write grows, an endpoint space a table does not have. A text edge
-// follows its own rewrite; this is the sibling that did not.
-//
-// Miss-analysis: every endpoint assertion in these suites used a table endpoint, whose cell-index
-// space no write can move, so none asked what a char-offset endpoint reads after its cell grew.
+// follows its own rewrite, and a deep grid edge must too.
+// Miss-analysis: every endpoint assertion used a table endpoint, whose cell space no write moves.
 import { afterEach, describe, expect, it } from 'vitest';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import type { SelectionPoint } from '$lib/selection/primitives';

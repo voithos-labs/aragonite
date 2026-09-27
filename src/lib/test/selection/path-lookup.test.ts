@@ -141,8 +141,7 @@ describe('findBlockPathForElement', () => {
 		expect(findBlockPathForElement(el)).toBeNull();
 	});
 
-	// Miss-analysis: the shape check lived in a second copy of this reader, so nothing asked the
-	// shared one what it does with JSON that parses but is no path.
+	// Miss-analysis: the shape check lived in a second copy of the reader, never the shared one.
 	it.each(['"[1]"', '{"0":1}', '[1,"x"]', 'null'])(
 		'returns null for %s, which parses but is no path',
 		(attr) => {
@@ -157,10 +156,8 @@ describe('findBlockPathForElement', () => {
 	});
 });
 
-// The one lookup for anything resolving an endpoint path from the DOM: only block hosts carry
-// `data-block-path`, so a plain ancestor walk stops at the table and hands back cell-index offsets
-// where the caret's are characters. Every null branch matters: "not a cell" read as "cell 0"
-// corrupts too.
+// Only block hosts carry `data-block-path`, so a plain ancestor walk stops at the table and returns
+// cell indices where caret offsets are characters; reading "not a cell" as "cell 0" corrupts too.
 describe('findCellPathForElement', () => {
 	function grid(rowCount: number, colCount: number) {
 		return mountTableGrid({ path: [3], rows: rowCount, cols: colCount }).host;

@@ -1,11 +1,8 @@
 // @vitest-environment jsdom
-//
 // The `updateContent` a cross-block toggle emits, at the two shapes a grid start endpoint takes.
 // `detail.length` is a public field a host reads and the op is evaluated before the write, so
 // which block `path` names decides whether the length is the pre- or the post-write one.
-//
-// Miss-analysis: the grid branch changed this field with no test on the emitted op at all; every
-// toggle case read the plan, one layer below the event a host subscribes to.
+// Miss-analysis: every toggle case read the plan, one layer below the op a host subscribes to.
 import { afterEach, describe, expect, it } from 'vitest';
 import { parse } from '$lib/core/parser';
 import type { CstNode, Document } from '$lib/core/nodes';

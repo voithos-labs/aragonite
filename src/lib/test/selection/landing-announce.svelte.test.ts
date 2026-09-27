@@ -1,7 +1,5 @@
 // @vitest-environment jsdom
-// Miss-analysis: every test of the selection channel drove a gesture that moves a SelectionState
-// field (a restore, a `source` swap, a cross-block range). A plain caret landing moves none of
-// them, and the browser event that reported it does not exist in jsdom, so no test could see it.
+// Miss-analysis: every selection-channel test moved a state field; a plain caret move moves none.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { installLayoutStubs, mountEditor, pressKeyAt } from '$lib/test/harness/mount-editor.svelte';
 import type { MountedEditor } from '$lib/test/harness/mount-editor.svelte';
@@ -30,9 +28,8 @@ function recording(source: string) {
 }
 
 describe('the editor announces the caret it lands', () => {
-	// The payload is the position the caret is at, not the one it is leaving: subscribers read
-	// the editor back, so an announcement made before the DOM caret moved would hand them the
-	// block the split started in.
+	// The payload is where the caret is, not where it was: subscribers read the editor back, so
+	// announcing before the DOM caret moved would name the block the split started in.
 	it('reports the new paragraph when Enter splits one, without waiting for the browser', async () => {
 		const { seen, editor } = recording('alpha one\n\nbeta two\n');
 

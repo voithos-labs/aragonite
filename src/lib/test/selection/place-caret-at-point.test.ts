@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
-//
 // The placement behind the public `placeCaretAtPoint`: no click was recorded and no target
-// inspected, so what is decidable here is the clamp, the landing, and the range-ending reset.
+// inspected, so this suite covers the clamp, where the caret goes, and the range-ending reset.
 // The click checks in front of it are `dead-space-caret-routing.test.ts`.
 import { describe, it, expect, beforeEach, afterEach, vi, type Mock } from 'vitest';
 import type { BlockComponent } from '$lib/block-component';
@@ -33,7 +32,7 @@ describe('placeCaretAtPoint landing walk', () => {
 		const { host, grid } = mountTableGrid({ path: [0], rows: 1, cols: 2, box: TABLE_BOX });
 		document.body.appendChild(root);
 		root.appendChild(host);
-		// The probe point is clamped into the box, where the topmost element is the grid.
+		// The point is clamped into the box, where the topmost element is the grid.
 		document.elementFromPoint = (() => grid) as typeof document.elementFromPoint;
 
 		focusByPath = vi.fn(() => {});
@@ -80,9 +79,8 @@ describe('placeCaretAtPoint landing walk', () => {
 		expect(resetSelectionForClick).toHaveBeenCalledOnce();
 	});
 
-	// A point outside the block's box reaches an editable element only because it is clamped
-	// into the box first, and the element is handed the clamped point, the one a click inside
-	// the box would have produced. Both axes, since the margin band runs beside and above the text.
+	// A margin point reaches an editable element only once clamped into the block's box, and the
+	// element gets that clamped point. Both axes, since the margin band runs beside and above.
 	it('clamps a point in the margin band into the block’s own box', () => {
 		expect(placeAt(20, TABLE_BOX.top + 20)).toBe(true);
 		expect(leafSnap).toHaveBeenLastCalledWith(TABLE_BOX.left + 1, TABLE_BOX.top + 20);
@@ -101,9 +99,7 @@ describe('placeCaretAtPoint landing walk', () => {
 		expect(focusByPath).toHaveBeenCalledWith([0, 1], CURSOR_END);
 	});
 
-	// Miss-analysis: the below-document case above only ever ran with the whole document
-	// mounted, so "last mounted band" and "last block" were the same index and no test could
-	// tell which one the walk read.
+	// Miss-analysis: the below-document case only ran fully mounted, where last band = last block.
 	it('resolves a point below a windowed-out tail against the document, not the slice', async () => {
 		const tail = { editable: true, focusable: true, focus: vi.fn() } as unknown as BlockComponent;
 		const revealBlock = vi.fn(async () => tail);
@@ -113,7 +109,7 @@ describe('placeCaretAtPoint landing walk', () => {
 
 		await vi.waitFor(() => expect(tail.focus).toHaveBeenCalledWith(CURSOR_END));
 		expect(revealBlock).toHaveBeenCalledWith(9);
-		// The rendered slice's own last block is never touched — that landing is the defect.
+		// The rendered slice's own last block is never touched; a caret there is the defect.
 		expect(focusByPath).not.toHaveBeenCalled();
 	});
 

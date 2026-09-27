@@ -118,9 +118,8 @@ describe('cross-block copy starting in reserved chrome', () => {
 			expect(bodies(outer.children![2])).toEqual([]);
 		});
 
-		// Start in the inner title line, running past the outer's end: only the container the
-		// start opened may close, or a closer for the never-opened outer leaves a bare "::::"
-		// line after the copy.
+		// Start in the inner title line, past the outer's end: only the container the start
+		// opened may close, or a closer for the unopened outer leaves a bare "::::" line.
 		it('closes only the container the start opened', () => {
 			const doc = parse(nested);
 			const text = collectCrossBlockText(doc, point([0, 2, 0], 2), point([1], 3));
@@ -136,7 +135,7 @@ describe('cross-block copy starting in reserved chrome', () => {
 			]);
 		});
 
-		// Known gap (issue #42): an end inside a nested container's body skips that container in
+		// Known gap (GH #42): an end inside a nested container's body skips that container in
 		// the walk, so its bytes flatten to text. The outer wrapper still survives.
 		it('keeps the outer kind when the end lands in a nested body', () => {
 			const doc = parse(nested);
@@ -149,9 +148,8 @@ describe('cross-block copy starting in reserved chrome', () => {
 		});
 	});
 
-	// The reason the body is collected before the wrapper is built: `colonCount` stays 4 in
-	// metadata while the live fence widened to 5, so reading the fence from metadata alone would
-	// close the container early.
+	// The body is collected before the wrapper is built because `colonCount` stays 4 in metadata
+	// while the live fence widened to 5; a fence read from metadata alone would close early.
 	it('widens opener and closer together when the body forces fence escalation', () => {
 		const doc = parse('::::callout Title\n\n:::\n\n::::\n\nBelow\n');
 		doc.children[0].children![1].raw = '::::\n';
@@ -184,9 +182,8 @@ describe('cross-block copy starting in reserved chrome', () => {
 		expect(note.children![1].raw).toBe('| A | B |\n| --- | --- |\n| 1 | 2 |\n');
 	});
 
-	// A container declaring `reservedChrome` on a `strip` contract has no closer to build (its
-	// syntax is a per-line prefix), so both title-line paths must decline rather than emit a
-	// wrapper.
+	// A `strip` container declaring `reservedChrome` has no closer to build (its syntax is a
+	// per-line prefix), so both title-line paths must decline to emit a wrapper.
 	it('declines wrapper synthesis on both endpoints for a strip-contract container', () => {
 		const doc = parse('Above\n\n:::callout Title\n\nBody\n\n:::\n\nBelow\n');
 		augmentBlockKind(CALLOUT as AnyBlockKind, {

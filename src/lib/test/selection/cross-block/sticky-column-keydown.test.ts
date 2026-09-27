@@ -4,9 +4,8 @@ import { asEditorX } from '$lib/cursor/coordinate-spaces';
 import { makeKeydownEnv, press } from './keydown-env';
 import type { KeybindingOverride } from '$lib/schema/keybinding-overrides';
 
-// Every key the cross-block dispatcher consumes returns before handleSharedKeydown reaches its
-// sticky decision, and the collapse branches run no commit, so nothing downstream resets either.
-// Driven at the dispatcher because that is the entry path that swallows the key.
+// Every key the cross-block dispatcher consumes returns before handleSharedKeydown's sticky
+// decision, and the collapse branches run no commit, so nothing downstream resets the column.
 
 function envWithColumn() {
 	const env = makeKeydownEnv('alpha beta gamma\n\ndelta\n');
@@ -50,9 +49,8 @@ describe('cross-block keydown: sticky column', () => {
 	});
 });
 
-// The dispatcher asks the paragraph's keymap what a chord does before it classifies the key, so
-// a rebound reorder is read as the move and the freed chord as an arrow. Miss-analysis: both
-// classifiers matched the Alt+ArrowUp literal, and no test rebound the chord.
+// The dispatcher asks the paragraph's keymap what a chord does before classifying the key.
+// Miss-analysis: both classifiers matched the Alt+ArrowUp literal, and no test rebound the chord.
 describe('cross-block keydown: the reorder chord follows a rebinding', () => {
 	const keybindings: KeybindingOverride[] = [
 		{ chord: 'Alt+ArrowUp', command: null, kind: 'paragraph' },

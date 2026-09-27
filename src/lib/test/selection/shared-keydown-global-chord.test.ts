@@ -10,10 +10,8 @@ import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { fixtureReading } from '$lib/test/harness/fixture-grammar';
 import { commandContext } from '$lib/test/support/command-context';
 
-// The shared keydown that runs before every editable block's own dispatch. A plugin-global chord
-// must have its default prevented and still be deferred (return false) so the block's own
-// `dispatchKeyCommand` runs it; a `return true` here would swallow every plugin-global chord with
-// no other test failing.
+// The shared keydown must prevent a plugin-global chord's default yet return false, so the block's
+// own `dispatchKeyCommand` still runs it; true would swallow every plugin-global chord.
 
 const noCross: CrossBlockHandlers = {
 	handleKeyDown: async () => false,
@@ -74,12 +72,8 @@ describe('handleSharedKeydown: plugin-global chord deferral', () => {
 		expect(e.defaultPrevented).toBe(false);
 	});
 
-	// The swallow the consumer guide promises: a disabled history chord runs nothing and is still
-	// consumed, because the native default it would fall through to rewrites the document behind
-	// the CST's back. This branch reads the default chord table, so it swallows before any
-	// override is consulted, whatever the override left the chord bound to.
-	// Miss-analysis: the file drove plugin-global chords only, so the branch's own reason for
-	// existing, the three built-in history chords, was never pressed at this level.
+	// A disabled history chord is still swallowed, since its native default edits behind the CST.
+	// Miss-analysis: the file pressed plugin-global chords only, never the built-in history ones.
 	it.each(['Mod+Z', 'Mod+Y', 'Mod+Shift+Z'])(
 		'%s is preventDefaulted and deferred to the block dispatch',
 		async (chord) => {

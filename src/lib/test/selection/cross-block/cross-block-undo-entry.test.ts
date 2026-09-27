@@ -1,8 +1,7 @@
 // @vitest-environment jsdom
-//
-// A cross-block gesture is one undo entry holding the document and the range as they stood before
-// it. Miss-analysis: each gesture's suite counted its own commits, and none read what the entry
-// recorded, so a push after the range collapsed would have stored a caret instead of the range.
+// A cross-block gesture is one undo entry holding the document and the range as they stood
+// before it.
+// Miss-analysis: each gesture's suite counted commits, and none read what the undo entry recorded.
 import { describe, it, expect } from 'vitest';
 import { serialize } from '$lib/core/serializer';
 import type { UndoEntry } from '$lib/undo/types';
@@ -53,7 +52,6 @@ describe('a cross-block gesture is one undo entry holding the state before it', 
 		});
 	}
 
-	// #559: the delete and the command at the survivor each pushed their own entry.
 	it('Enter over a range: the delete and the split are one entry', async () => {
 		const env = makeKeydownEnv(SOURCE);
 		const blockEdit = createBlockEditActions(env.deps, env.controller);

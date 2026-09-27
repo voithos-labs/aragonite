@@ -94,9 +94,7 @@ describe('installDragListener: lifetime cleanup', () => {
 	});
 });
 
-// Miss-analysis: the drag suite only ever counted listeners. The dispatch caret is the drag's one
-// consumer of endpoint coordinates and the only one of four siblings that never translated a cell
-// endpoint, because nothing asserted where it lands, only that the drag tore down cleanly.
+// Miss-analysis: the drag suite only counted listeners, never where the dispatch caret lands.
 describe('installDragListener: where the drag puts the caret its dispatch caret', () => {
 	const TABLE_LAST = 'para\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n';
 	let editorRoot: HTMLElement;

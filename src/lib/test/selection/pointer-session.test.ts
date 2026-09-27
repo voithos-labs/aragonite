@@ -2,9 +2,8 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { createPointerDragSession } from '../../selection/pointer-session';
 
-// The coalescing contract every drag lifecycle inherits: a release flushes the last pending move
-// exactly once (a fast flick's final position is not dropped) and never replays a move the frame
-// already processed, which would double-commit.
+// The coalescing contract every drag inherits: a release flushes the last pending move exactly
+// once, so a fast flick keeps its final position and no processed move commits twice.
 
 function pointer(
 	type: string,

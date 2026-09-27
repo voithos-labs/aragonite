@@ -1,9 +1,8 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// The shared keydown's boundary detection: Shift+Arrow reads the focus offset, not the anchor, so
-// a forward selection whose anchor sits mid-block still crosses once the focus reaches the edge.
-// The cross-block extenders are spied on to observe the decision without DOM geometry.
+// Shift+Arrow boundary detection reads the focus offset, not the anchor, so a forward selection
+// anchored mid-block still crosses once the focus reaches the edge.
 vi.mock('../../selection/keyboard-extend', () => ({
 	extendFocusToNextBlock: vi.fn(),
 	extendFocusToPreviousBlock: vi.fn(),
@@ -29,8 +28,8 @@ function makeCtx(over: {
 	textLen: number;
 }): SharedKeydownContext {
 	const doc = parse('a\n\nb\n');
-	// Cast the members this fixture genuinely does not stand up, never the whole context: a
-	// blanket cast is what let a new required reader ship unanswered here.
+	// Cast only the members this fixture does not stand up, never the whole context, so a new
+	// required reader fails to type-check here.
 	return {
 		// No plugins stood up here, so every installed one is active.
 		commands: commandContext(),

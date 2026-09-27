@@ -1,7 +1,5 @@
 // @vitest-environment jsdom
-// Miss-analysis: the swap's selection reset was pinned only through the decoration generation
-// counter, which fires on its own; nothing asked whether the selection notification fires, and
-// the swap reaches it holding a plain caret, which leaves every `SelectionState` field already null.
+// Miss-analysis: the swap's reset was pinned only through the decoration counter, not the notify.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import {
 	installLayoutStubs,

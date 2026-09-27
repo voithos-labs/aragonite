@@ -12,10 +12,8 @@ import {
 import type { PresentationMode } from '$lib/presentation-mode';
 import { fixtureReading } from '../harness/fixture-grammar';
 
-// `rangeDelete`'s live-mode join cleanup, which every cross-block delete, cut, type-over and
-// paste's delete half goes through. The registered cleaner is the production one; a stub would
-// pin the wiring and nothing else. The mode is the only difference between the two halves of
-// each pair below.
+// `rangeDelete`'s live-mode join cleanup, which every cross-block delete, cut, type-over and paste
+// goes through, run with the production cleaner; each pair below differs only in mode.
 
 beforeEach(() => registerLiveJoinSeamCleaner(cleanLiveJoinSeam));
 afterEach(() => __resetLiveJoinSeamCleanerForTests());

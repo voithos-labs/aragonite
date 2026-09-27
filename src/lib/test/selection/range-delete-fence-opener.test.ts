@@ -12,11 +12,8 @@ import { fixtureReading } from '../harness/fixture-grammar';
 // `SelectionState` would have snapped to a cell coordinate.
 afterEach(() => allowDevWarns(['deleteFromTableIntoProse:start']));
 
-// Issue #58, the mirror of #55: a range whose end endpoint sits in a code body consumes the
-// opener, and the surviving closer reparses as a new unclosed fence that eats the siblings below.
-// Miss-analysis: the #55 pins drove ranges starting in a code body, the only shape that loses the
-// closer; the plain merge normalized the joined raw against the start's rule alone, so no pin
-// could reach the end block's rule with an end-side slice.
+// A range ending in a code body takes the opener, and the surviving closer would reopen a fence.
+// Miss-analysis: GH #58; the fence pins only drove ranges that start in a code body.
 
 const sharing = () => createSharingState();
 
@@ -122,10 +119,8 @@ describe('range delete that consumes a fenced code opener', () => {
 		expectParseConverged(doc);
 	});
 
-	// The same-block branch writes raw in place with no reparse behind it, so the node keeps the
-	// kind its bytes no longer describe. That staleness is the branch's own and applies to every
-	// kind (a heading losing its `#` does the same); what the fence rule must give here is bytes
-	// that stop absorbing the sibling.
+	// The same-block branch writes raw in place with no reparse, so the node keeps a stale kind as
+	// any kind would; the fence rule has to give bytes that stop absorbing the sibling.
 	it('drops it on a range confined to the code block, freeing the sibling', () => {
 		const doc = parse('```js\nbody\n```\n\ntail\n');
 

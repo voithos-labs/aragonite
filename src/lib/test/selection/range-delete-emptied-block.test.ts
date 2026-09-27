@@ -10,12 +10,10 @@ import type { Document } from '$lib/core/nodes';
 import { fixtureReading } from '../harness/fixture-grammar';
 import { defaultGrammarView } from '$lib/schema/block-openers';
 
-// GH #96 through the delete paths: a selection covering a block's whole text leaves it blank, and
-// a blank block is the separating line of the one below it, so both lines stand and the reload
-// reads the second as an empty paragraph. The same-block branch writes raw in place with no
-// blank-line fix-up; the cross-block install fixed up the pair, missing a run whose second line
-// sits further down. Miss-analysis: every emptied-block case drove the typing path
-// (`updateNodeContent`), and the delete cases deleted whole blocks, so no case reached either branch.
+// A selection covering a block's whole text leaves it blank, and a blank block is the separating
+// line of the one below it, so both delete branches must fix up the blank-line run or the reload
+// reads the second line as an empty paragraph.
+// Miss-analysis: GH #96; emptied-block cases only typed, and delete cases removed whole blocks.
 
 /** Select a block's whole text and delete it — the Backspace-over-a-selection gesture. */
 function emptyBlock(doc: Document, index: number): void {

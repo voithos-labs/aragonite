@@ -121,9 +121,8 @@ describe('chrome wall: rangeDelete post-states', () => {
 		expect(note.children?.length).toBe(3);
 	});
 
-	// Deliberate, not a bug: an end fully covering a surviving body child truncates it in place to
-	// an empty paragraph, because the wall's in-place rule protects the edge between the title
-	// line and the body.
+	// Intended: an end fully covering a body child truncates it in place to an empty paragraph,
+	// since the wall's in-place rule protects the edge between the title line and the body.
 	it('end fully covering a body child leaves it as an empty paragraph in place', () => {
 		const { doc, source } = run(FIXTURE, point([0], 2), point([1, 1], 5));
 		expect(source).toBe('Ab\n\n:::callout\n\n\nBody2\n:::\n\nBelow\n');
@@ -133,16 +132,14 @@ describe('chrome wall: rangeDelete post-states', () => {
 			'paragraph'
 		]);
 		expect(doc.children[1].children?.map((c) => c.raw)).toEqual(['\n', '\n', 'Body2\n']);
-		// The placeholder survives the reload only because a second blank line stands below it:
-		// stripping the `:::` fence eats the first one, and the next block's separator is that
-		// second line.
+		// The placeholder survives the reload only through a second blank line below it: stripping
+		// the `:::` fence eats the first, and the next block's separator is the second.
 		expect(doc.children[1].children?.map((c) => c.leadingTrivia)).toEqual(['', '', '\n']);
 		expectParseConverged(doc);
 	});
 
-	// The copy-before-write check (G1.9) for the clear: a covered title line must clear through a
-	// copy, or `chrome.raw = '\n'` corrupts the raw an undo entry still references. The child
-	// node is asserted.
+	// A covered title line must clear through a copy, or `chrome.raw = '\n'` corrupts the raw an
+	// undo entry still references (G1.9).
 	it('clears covered chrome without corrupting the snapshot-shared title node', () => {
 		const doc = parse(FIXTURE);
 		const snapshotTitle = doc.children[1].children![0];
