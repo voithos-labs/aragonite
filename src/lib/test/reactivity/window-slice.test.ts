@@ -25,9 +25,8 @@ describe('sliceWindow', () => {
 		expect(sliceWindow(3, active(10, 20))).toEqual({ start: 3, end: 3 });
 	});
 
-	// VR-14: a window with `end < start`, from a stale computation, has to collapse to an empty
-	// range, never a negative one. The cases above that clamp to `childCount` all have
-	// `start <= end`, so only this one exercises the `Math.max(start, end)` check.
+	// A stale window with `end < start` collapses to an empty range, never a negative one (VR-14);
+	// only this case reaches the `Math.max(start, end)` check.
 	it('collapses an inverted window to an empty slice at start', () => {
 		expect(sliceWindow(100, active(30, 10))).toEqual({ start: 30, end: 30 });
 	});

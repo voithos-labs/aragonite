@@ -1,8 +1,5 @@
 // @vitest-environment jsdom
-// Miss-analysis: the cases below asked whether the child was in the mounted range, so the
-// false positive they encoded (a mounted child cleared because the range lagged by one flush,
-// and never written again) read as deliberate; none asked whether the ref's element was still
-// in the DOM.
+// Miss-analysis: the cases asked if the child was in range, never if its element was in the DOM.
 import { describe, it, expect, vi } from 'vitest';
 import {
 	revealChildOrWait,
@@ -11,9 +8,8 @@ import {
 } from '../../reactivity/publish-ref.svelte';
 import { settlesWithin } from '../harness/microtask-settle';
 
-// A windowed block list whose `revealChild` writes a fresh ref one microtask later, the way a
-// row or item mounts after a scroll. A fresh list per test is what isolates them, since the
-// mount registry keys on the entries object, not on the index.
+// A windowed block list whose `revealChild` writes a fresh ref one microtask later, as a mount
+// after a scroll does. Fresh per test, since the mount registry keys on the entries object.
 function makeScope() {
 	const refs: (object | undefined)[] = [];
 	const slots: RefSlots<object> = {
@@ -105,8 +101,8 @@ describe('revealChildOrWait', () => {
 		expect(refs[0]).toBeUndefined();
 	});
 
-	// VR-5: the loop is woken only by a mount in the same list at the same index, so a scroll
-	// that misses would hang forever. These check that it ends, not where it lands.
+	// Only a mount in the same list at the same index wakes the loop, so a missed scroll would
+	// hang (VR-5). These check that it ends, not where it lands.
 	describe('terminates instead of hanging when the reveal misses (VR-5)', () => {
 		it('resolves without mounting when the recomputed window excludes the target', async () => {
 			// A stale height table when it is called: the entry stays empty and the target is

@@ -1,7 +1,5 @@
 // @vitest-environment jsdom
-// Miss-analysis: the resize check's only test was its pure predicate, and the harness's
-// estimator answers `measured()` with undefined for every id, so no mounted list ever saw a
-// block resize after `dropMeasured()`, which is what a mode switch does to every mounted block.
+// Miss-analysis: only the resize predicate was tested, so no mounted list resized after a drop.
 import { describe, it, expect } from 'vitest';
 import { tick } from 'svelte';
 import { createHeightOracle } from '../../cursor/height-oracle';

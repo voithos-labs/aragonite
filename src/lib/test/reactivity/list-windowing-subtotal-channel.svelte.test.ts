@@ -1,7 +1,5 @@
 // @vitest-environment jsdom
-// Miss-analysis: both cases sit on the subtotal a child reports upward, which no unit suite
-// drove: the self-height report was only ever watched through an e2e, where a redundant report
-// is invisible, and where the id comes from corrects itself on the very next rebuild.
+// Miss-analysis: only an e2e drove the subtotal a child reports up, where extra reports hide.
 import { describe, it, expect, vi } from 'vitest';
 import { flushSync, tick } from 'svelte';
 import type { HeightOracle } from '../../cursor/height-oracle';
@@ -47,9 +45,8 @@ describe('list-windowing subtotal channel', () => {
 			reportSelfHeight
 		});
 
-		// Three real child height writes and one unchanged box: a reporter with no check writes to
-		// the parent's height table on every one, and reading and writing inside the observer's own
-		// frame is what raises the ResizeObserver loop warning.
+		// An unchecked reporter would write the parent's table on every change, and writing inside
+		// the observer's own frame raises the ResizeObserver loop warning.
 		for (const height of [50, 60, 70]) {
 			windowing.recordMeasuredChild(0, 'b0', height);
 			flushSync();

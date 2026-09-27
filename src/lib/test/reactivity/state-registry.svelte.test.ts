@@ -1,8 +1,5 @@
 // @vitest-environment jsdom
-//
-// Regression #48. Miss: the suite for two components registering the same node faked teardown
-// by nulling its own array, so the cleanup's identity check never ran against the storage a
-// real block list writes into.
+// Miss-analysis (GH #48): teardown was faked on the suite's own array, never a real block list's.
 import { describe, it, expect } from 'vitest';
 import { DEV } from 'esm-env';
 import { flushSync, tick } from 'svelte';

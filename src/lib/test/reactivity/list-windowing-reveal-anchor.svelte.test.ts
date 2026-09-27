@@ -65,9 +65,7 @@ describe('list-windowing reveal anchor', () => {
 		cleanup();
 	});
 
-	// Miss-analysis: every case here drove a correction (a rebuild or a measure batch); none
-	// drove the subtotal a child reports upward, which applies no correction and so had no case to
-	// fail when growth inside the target's own container moved it (#32).
+	// Miss-analysis (GH #32): no case drove the subtotal a child reports upward, only corrections.
 	describe('growth reported upward by a nested scope', () => {
 		function mountWithTarget() {
 			let revealTarget: RevealAnchorPlacement | null = null;
@@ -140,11 +138,8 @@ describe('list-windowing reveal anchor', () => {
 	}
 });
 
-// `revealHoldsScroll` asks whether `placeRevealTarget()` would do nothing right now, not
-// whether a claim exists: the second answers true over a target nothing is holding, and another
-// writer that trusted it would move the user instead of compensating them. Two rows below are
-// unreachable from the e2e harness (the observer never wins the race in a real trace, and the
-// clamped case needs a document shorter than its target).
+// `revealHoldsScroll` asks whether `placeRevealTarget()` would do nothing now, not whether a
+// claim exists, which is true over a target nothing holds and would move the user.
 describe('revealHoldsScroll: the orderings a second writer can land in', () => {
 	const HEADER_BEFORE = 80;
 	const HEADER_AFTER = 240;

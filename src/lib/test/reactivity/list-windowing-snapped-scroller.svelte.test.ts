@@ -1,7 +1,5 @@
 // @vitest-environment jsdom
-// Miss-analysis: every suite here drove a stub scroll container that stored a fractional
-// `scrollTop` as given, so the one thing a real scroller does to a correction, round the write
-// and report the rounded value back as the base for the next one, was untested at any level.
+// Miss-analysis: every stub scroller stored a fractional `scrollTop` as given, never rounding it.
 import { describe, it, expect } from 'vitest';
 import { tick } from 'svelte';
 import { fixedOracle, makePara, mountListWindowing } from '../harness/list-windowing.svelte';

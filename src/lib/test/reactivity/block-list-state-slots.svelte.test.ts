@@ -1,8 +1,5 @@
 // @vitest-environment jsdom
-//
-// Regression #48 and #62. Miss: the fixtures for a ref's lifetime built their own `$state`
-// block list and wrote and cleared it in separate flushes, so neither the real storage nor a
-// commit's rewrite overlapping a teardown, which is the order that strands a ref, ever ran.
+// Miss-analysis (GH #48, #62): fixtures used their own list, so no rewrite raced a teardown.
 import { describe, it, expect } from 'vitest';
 import { flushSync } from 'svelte';
 import {
@@ -84,10 +81,8 @@ describe('container scope slots', () => {
 		const { state, unmount, stop } = mountScopeWithChild();
 		expect(state.innerBlockRefs[0]).toBeDefined();
 
-		// What a commit does (`publishScopeView`): a copy taken before the flush is written back
-		// to the list, and the same flush tears the child mount down. Svelte holds a teardown's
-		// reads to pre-flush values, so a replaced array would take the teardown's clear with it
-		// and leave the live array holding a dead ref.
+		// A commit writes back a pre-flush copy while the same flush tears the child down; a
+		// replaced array would lose the teardown's clear and keep a dead ref.
 		replaceRefs(state.innerBlockRefs, [...state.innerBlockRefs]);
 		unmount();
 		flushSync();

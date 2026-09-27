@@ -1,7 +1,5 @@
 // @vitest-environment jsdom
-// Miss-analysis: every windowing suite mounts its list below the mode read, and every mode
-// suite loads a document too short to window, so a check keyed on the presentation mode had no
-// test to fail; only the perf gate's live rows saw the O(document) keystroke it caused.
+// Miss-analysis: every mode suite loads a document too short to window, so no mode check failed.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import {
 	installLayoutStubs,

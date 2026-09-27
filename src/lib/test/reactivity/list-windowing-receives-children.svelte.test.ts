@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 // The window is read in the render pass that receives new children, before any effect runs, so
-// it must already be built from them. Missed: every case flushed before reading the window.
+// it must already be built from them.
+// Miss-analysis: every case flushed before reading the window.
 import { describe, it, expect } from 'vitest';
 import { flushSync } from 'svelte';
 import { fixedOracle, makePara, mountListWindowing } from '../harness/list-windowing.svelte';

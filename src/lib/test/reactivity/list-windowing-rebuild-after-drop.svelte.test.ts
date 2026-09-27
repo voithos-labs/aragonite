@@ -1,8 +1,5 @@
 // @vitest-environment jsdom
-// Miss-analysis: the drop on a mode switch was tested from the estimator's side (the cache
-// empties) and from the resize side (a block that moves re-measures), but nothing ever rebuilt
-// a height table afterwards, which is the only moment the cache is read again, so tables
-// quietly outliving what backs them had no test at any level.
+// Miss-analysis: no test rebuilt a height table after the mode switch emptied the cache.
 import { describe, it, expect } from 'vitest';
 import { flushSync, tick } from 'svelte';
 import { createHeightOracle } from '../../cursor/height-oracle';

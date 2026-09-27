@@ -6,9 +6,8 @@ import {
 } from '../../reactivity/scope-geometry';
 
 describe('estimateWidth', () => {
-	// VR-3: a nested list has to estimate at its own content width, not the scroll container's:
-	// the estimator wraps more lines the narrower it gets, so the wider container systematically
-	// undercounts wrapped heights at depth.
+	// A nested list estimates at its own width, since the wider scroll container would undercount
+	// wrapped heights at depth (VR-3).
 	it('prefers the scope content element width over the scrollport', () => {
 		expect(estimateWidth({ clientWidth: 400 }, 800)).toBe(400);
 	});
@@ -34,9 +33,8 @@ describe('listTopWithinContent', () => {
 		expect(listTopWithinContent(-900, 0, 900)).toBe(0);
 	});
 
-	// The case that matters: a page that scrolls puts content above the editor and the scroll
-	// container's own box starts elsewhere. Subtracting only the scroll, or only the viewport top,
-	// leaves the other term in the answer and slices the window a whole band off.
+	// In a scrolling page, subtracting only the scroll or only the viewport top leaves the other
+	// term in the answer and slices the window a whole band off.
 	it('cancels the port offset and the scroll independently', () => {
 		// Editor 400px down a page scrolled 900px: the list's client rect reads
 		// 400 - 900 = -500, and its content-space top is still 400.
@@ -57,8 +55,8 @@ describe('listTopWithinContent', () => {
 });
 
 describe('effectiveViewportHeight', () => {
-	// VR-11: a list occupies only its intersection with the editor's viewport. Windowing every
-	// list against the full editor height mounts O(viewport × number of lists) blocks.
+	// A list windows against its intersection with the viewport, or nested lists mount
+	// O(viewport × lists) blocks (VR-11).
 	it('returns the full viewport for a scope spanning the whole viewport', () => {
 		// Viewport [0, 600); a list from -100 to +900 covers it entirely.
 		expect(effectiveViewportHeight(0, 600, -100, 1000)).toBe(600);
@@ -82,8 +80,8 @@ describe('effectiveViewportHeight', () => {
 		expect(effectiveViewportHeight(800, 600, 0, 400)).toBe(0);
 	});
 
-	// The overall VR-11 guarantee: N lists tiling the viewport add up to about one viewport, not
-	// N of them. Going back to the full editor height (600 each) would give 1800.
+	// N lists tiling the viewport add up to about one viewport, not N (VR-11); the full editor
+	// height (600 each) would give 1800.
 	it('keeps total effective viewport bounded across stacked scopes', () => {
 		const viewportTop = 0;
 		const viewportHeight = 600;

@@ -1,10 +1,6 @@
-// The content version is the memo key every whole-document computation hangs on, so anything
-// that changes the document's bytes without announcing it silently serves stale answers. One
-// case per writer (G4.52): the commit, the two typing writers outside a commit, and undo.
-//
-// Miss-analysis: the suite this replaces drove five direct `$state` writes and never a real
-// writer, so it proved which state the computation reads and nothing about who reaches it.
-// Every write the editor actually makes arrives through one of the paths below.
+// The content version is the memo key every whole-document computation hangs on, so a writer
+// that changes the bytes without announcing it serves stale answers. One case per writer (G4.52).
+// Miss-analysis: the earlier suite wrote `$state` directly and never drove a real writer.
 import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';

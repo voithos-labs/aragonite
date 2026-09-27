@@ -1,7 +1,5 @@
 // @vitest-environment jsdom
-// Miss-analysis: these cases were all driven through hand-built `RevealAnchorPlacement`
-// values, so the code that builds them from the live DOM had no test of its own, and its case
-// for a target that is not mounted was never asked what it answers.
+// Miss-analysis: every case used a hand-built `RevealAnchorPlacement`, never one from the DOM.
 import { describe, it, expect } from 'vitest';
 import { placementOf } from '../../reactivity/use-container-windowing.svelte';
 import type { BlockElLookup } from '../../editor-keys';
@@ -49,9 +47,8 @@ describe('reveal-anchor placement', () => {
 		});
 	});
 
-	// The failing case: a mounted container whose target row scrolled out of that container's own
-	// mounted range. Answering the ancestor's top there re-asserts a different block, jumping the
-	// user back to the top of the container every time its subtotal reaches the correction.
+	// Answering the ancestor's top for a row the container windowed out would re-assert a
+	// different block, jumping the user back to the container's top.
 	it('declines when a mounted container has windowed its target out', () => {
 		expect(placementOf(nested, lookup({ '4': stubEl(100, 300) }))).toBeNull();
 	});
