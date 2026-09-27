@@ -10,10 +10,10 @@ import { fixtureReading } from '../../harness/fixture-grammar';
 // as wraps.
 
 describe('link wrap bytes, creating a construct over plain text', () => {
-	it('wraps the range and percent-encodes the destination stop characters', () => {
+	it('wraps the range and encodes the destination bytes that would end it', () => {
 		expect(
 			buildLinkWrapBytes('Alpha bravo charlie', 6, 11, 'https://x.test/a b(c)', fixtureReading())
-		).toBe('[bravo](https://x.test/a%20b%28c%29)');
+		).toBe('[bravo](https://x.test/a%20b(c))');
 	});
 
 	it('escapes a bare bracket the selected text carries', () => {
