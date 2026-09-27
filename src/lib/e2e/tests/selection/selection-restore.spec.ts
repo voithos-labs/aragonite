@@ -28,9 +28,8 @@ const DOCUMENT_START = {
 const scrollTopOf = (page: Page) =>
 	page.evaluate(() => (document.querySelector('.editor') as HTMLElement).scrollTop);
 
-// A trailing image with no dimension hint: it reserves the placeholder floor until it
-// decodes, then grows. Short enough overall to keep windowing inactive (every block
-// mounted, so the trailing image's ResizeObserver fires at all) while still scrolling.
+// A trailing image with no size hint grows once it decodes; short enough to keep windowing off,
+// so its ResizeObserver fires at all, while still scrolling.
 const LATE_IMAGE_URL = 'https://e2e-deferred.test/late-growth.svg';
 const LATE_IMAGE_SVG =
 	'<svg xmlns="http://www.w3.org/2000/svg" width="600" height="400">' +
@@ -66,9 +65,8 @@ const imageHostHeight = (page: Page) =>
 	});
 
 /**
- * Setting `scrollTop` to the maximum is not the same thing: the windowed scroll height is an
- * estimate that only settles once the tail mounts, so one scroll to the maximum leaves the
- * last block below the fold and the click lands on `<body>`.
+ * Setting `scrollTop` to the maximum is not enough: the windowed height is an estimate until the
+ * tail mounts, so the last block stays below the viewport and the click lands on `<body>`.
  */
 async function revealAndClick(
 	editor: EditorPage,
@@ -134,9 +132,8 @@ test.describe('selection: setSelection restores a getSelection snapshot', () => 
 		const snapshot = await editor.bridge.getSelection();
 		expect(snapshot?.focus.path).toEqual([80]);
 
-		// Past the fold but inside the band windowing mounts ahead, where the mount call returns
-		// early with no scroll: the state every other in-view scenario skips by leaving the
-		// target unmounted altogether.
+		// Past the viewport but inside the band windowing mounts ahead, where the mount returns early
+		// with no scroll, a state the other in-view scenarios skip.
 		const scrolled = await page.evaluate(() => {
 			const el = document.querySelector('.editor') as HTMLElement;
 			el.scrollTop += 400;
@@ -153,9 +150,8 @@ test.describe('selection: setSelection restores a getSelection snapshot', () => 
 		).not.toBe(scrolled);
 	});
 
-	// A host that saves on every change writes the first payload of the burst, not the final
-	// one, so a path that notifies while the caret still sits where it is leaving corrupts
-	// what the host stores.
+	// A host saving on every change writes the burst's first payload, so notifying while the caret
+	// still sits where it is leaving corrupts what the host stores.
 	const RESTORE_ROUTES: Array<[string, EditorSelection]> = [
 		['collapsed caret', { anchor: { path: [0], offset: 3 }, focus: { path: [0], offset: 3 } }],
 		['within-block range', { anchor: { path: [0], offset: 1 }, focus: { path: [0], offset: 6 } }]
@@ -193,9 +189,8 @@ test.describe('selection: setSelection restores a getSelection snapshot', () => 
 		});
 	});
 
-	// The other kind of selection beside the caret, and the one restore path the collapsed
-	// and cross-block scenarios never touch: a pair on the same path with different offsets
-	// goes native, not through the overlay.
+	// The one restore path the collapsed and cross-block scenarios never touch: a pair on the same
+	// path with different offsets goes native, not through the overlay.
 	test('restores a within-block range across the same offsets', async () => {
 		await editor.loadContent(PROSE);
 		await editor.clickBlockAtPath([1], 2);
@@ -271,9 +266,8 @@ test.describe('selection: setSelection restores a getSelection snapshot', () => 
 		await editor.waitForRenderFlush();
 
 		expect(await editor.bridge.setSelection(snapshot!)).toBe(true);
-		// Reading mode turns contenteditable off, so no block can hold the caret as
-		// `activeElement`, and the native range is the only sign that reading mode keeps
-		// the selection alive.
+		// Reading mode turns contenteditable off, so no block holds the caret as `activeElement`, and
+		// the native range is the only sign the selection survives.
 		const rangeInTarget = await page.evaluate(
 			(attr) => {
 				const sel = window.getSelection();
@@ -318,9 +312,8 @@ test.describe('selection: setSelection restores a getSelection snapshot', () => 
 		expect(pageErrors).toEqual([]);
 	});
 
-	// A host restoring both a caret and a scroll position does the scroll last. A lasting hold
-	// on the restored block's top would be re-applied by any later measure pass and would throw
-	// that scroll away.
+	// A host restoring both a caret and a scroll position scrolls last, so a lasting hold on the
+	// restored block's top would throw that scroll away on the next measure pass.
 	test('hands the scroll position back once it resolves', async ({ page }) => {
 		const pageErrors = capturePageErrors(page);
 		// After the harness is up (beforeEach) but before any content asks for the image.
@@ -330,21 +323,19 @@ test.describe('selection: setSelection restores a getSelection snapshot', () => 
 		await editor.waitForRenderFlush();
 		await editor.waitForResizeObserverFlush();
 
-		// The host's own restore order: place the remembered caret, then the remembered
-		// scroll. Block 0 is the caret target, so the pin the bug held is the document top.
+		// The host's own restore order: caret, then scroll. Block 0 is the caret target, so a lasting
+		// hold would pull back to the document top.
 		expect(await editor.bridge.setSelection(DOCUMENT_START)).toBe(true);
 		await editor.scrollEditorTo(400);
 
-		// The baseline is read back rather than asserted: measuring blocks on the way down
-		// honestly nudges the top-of-viewport correction. Being far from the document top is
-		// the precondition, since a held position puts this read back at block 0.
+		// Read back rather than asserted, since measuring blocks on the way down nudges the correction;
+		// being far from the top is the precondition.
 		const hostTop = await scrollTopOf(page);
 		expect(hostTop).toBeGreaterThan(200);
 		const collapsedHeight = await imageHostHeight(page);
 
-		// The image grows below the fold, so the honest top-of-viewport correction does
-		// nothing: nothing above the held block moved, its offset is unchanged, and the
-		// difference is exactly zero. Any movement at all is the hold re-applying.
+		// The image grows below the viewport, so the ordinary correction does nothing and any movement
+		// at all is the hold re-applying.
 		releaseImage();
 		await expect.poll(() => imageHostHeight(page)).toBeGreaterThan(collapsedHeight + 50);
 		await editor.waitForResizeObserverFlush();

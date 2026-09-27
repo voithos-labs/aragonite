@@ -31,8 +31,8 @@ test.describe('multi-click: the block inline syntax handler and drags', () => {
 		await expect.poll(() => nativeSelectionText(page)).toBe('second para here');
 	});
 
-	// The browser puts a caret down on the release of a press that landed on no glyph, over
-	// whatever range the press painted; the click handling cancels that release.
+	// The browser puts a caret down on the release of a click that landed on no glyph, over whatever
+	// range it painted; the click handling cancels that release.
 	test('a triple-click past the end of a line still selects the paragraph', async ({ page }) => {
 		const at = await pastLineEnd(page, 'gamma');
 		await page.mouse.click(at.x, at.y, { clickCount: 3 });

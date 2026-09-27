@@ -21,8 +21,8 @@ test.describe('the gap caret paints a line at the boundary', () => {
 		await expect(editor.page.locator(LINE)).toHaveCount(0);
 	});
 
-	// Not opacity: the line blinks, so an opacity read is a coin flip. Height, box and
-	// colour are what a user would call "there and visible".
+	// Not opacity: the line blinks, so an opacity read is a coin toss. Height, box and colour are
+	// what a user would call "there and visible".
 	test('a live gap paints a visible line spanning the content column', async () => {
 		await arriveAtBoundary(editor);
 
@@ -46,10 +46,8 @@ test.describe('the gap caret paints a line at the boundary', () => {
 		expect(painted.spansColumn).toBe(true);
 	});
 
-	// The gap is deliberately outside the public `SelectionPoint` union, so a subscriber has to
-	// be told the caret left the block it was in. The state write alone cannot say so: it fires
-	// while DOM focus is still in the source block, so the emission that follows is the proxy's
-	// own range moving, and filtering that out would leave the stale position in place.
+	// The gap is outside the public `SelectionPoint` union, so a subscriber must hear the caret left
+	// its block; the state write fires with focus still there, so the proxy's range move says so.
 	test('a subscriber is left reading no selection once the gap settles', async () => {
 		await editor.page.locator('.table-cell').nth(LAST_CELL).click();
 		await editor.page.evaluate(() => (window as any).__test.startSelectionChangeCapture());
@@ -81,7 +79,7 @@ test.describe('the gap caret paints a line at the boundary', () => {
 });
 
 test.describe('a presentation-mode flip ends the gap', () => {
-	// #88: the gap must not outlive a mode change, or a caret is left in a mode with no editing.
+	// The gap must not outlive a mode change, or a caret is left in a mode with no editing.
 	test('flipping to reading clears it, and flipping back does not bring it back', async ({
 		page
 	}) => {
@@ -95,8 +93,8 @@ test.describe('a presentation-mode flip ends the gap', () => {
 		await page.evaluate(() => (window as any).__test.setPresentationMode('reading'));
 
 		await editor.bridge.waitForGapCaret(null);
-		// The shared check is what closes #88; this second read is a backup and proves nothing
-		// on its own, since a cleared gap renders no proxy either way.
+		// The shared check is what clears the gap; this read is a backup, since a cleared gap renders
+		// no proxy either way.
 		await expect(page.locator('[data-gap-caret] [contenteditable="true"]')).toHaveCount(0);
 
 		await page.evaluate(() => (window as any).__test.setPresentationMode('source'));
@@ -114,8 +112,8 @@ test.describe('leaving the gap without creating', () => {
 		await editor.loadContent(TABLE_THEN_FENCE);
 	});
 
-	// v1: extending a selection out of a gap would need a "whole block selected" state that
-	// is not representable, so Shift+Arrow is exactly the plain arrow.
+	// Extending out of a gap would need a "whole block selected" state that cannot be represented, so
+	// Shift+Arrow is exactly the plain arrow.
 	for (const arrow of [
 		{ key: 'ArrowDown', typed: 'Xcode' },
 		{ key: 'ArrowUp', typed: '| c | dX |' }

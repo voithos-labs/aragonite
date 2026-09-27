@@ -22,8 +22,8 @@ test.describe('cross-block clipboard: cut', () => {
 		expect(source).toContain('aaa');
 	});
 
-	// Issue #60: a cut whose selection opens at a block's first character must keep the blank
-	// line above the survivor, or the reload glues it to the block above.
+	// A cut whose selection opens at a block's first character must keep the blank line above the
+	// survivor, or the reload glues it to the block above.
 	test('Ctrl+X from a block start keeps the blank line above the survivor', async () => {
 		await editor.loadContent('alpha\n\nbravo\n\ncharlie\n');
 		await editor.dragFromTo([1], 0, [2], 4);

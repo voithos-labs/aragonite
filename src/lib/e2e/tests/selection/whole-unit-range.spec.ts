@@ -4,11 +4,9 @@ import { PluginsPage } from '../plugins/helpers';
 
 /**
  * A drag inside a block with no character position selects it whole, and every destructive
- * gesture over that range goes through the range command
- * (`requirements/selection/whole-unit-range.md`). Focus stays on the editor root, so the
- * root's own handlers are the only ones a keystroke or a clipboard event can reach.
- * Miss-analysis: the existing coverage pinned Backspace and the copy bytes; nothing typed a
- * character over such a range, and nothing asked where a pasted block landed.
+ * gesture over that range goes through the range command. Focus stays on the editor root, so
+ * the root's own handlers are the only ones a keystroke or a clipboard event can reach.
+ * Miss-analysis: nothing typed a character over such a range or checked where a paste landed.
  */
 
 const DOC = 'above\n\n---\n\nbelow\n';

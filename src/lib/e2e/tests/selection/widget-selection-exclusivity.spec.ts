@@ -2,10 +2,9 @@ import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
 // A widget's keydown handler declines modifier chords, so Mod+A reaches the ordinary select-all
-// and the second press goes document-wide while the widget is still selected
-// (`requirements/selection/widget-selection-exclusivity.md`). The document ends with the
-// widget's paragraph, so the range's focus endpoint has nowhere to put a caret and the chord
-// dispatches at `<body>`, where both of the editor root's handlers see the same event.
+// and the second keypress goes document-wide while the widget is still selected. The document ends
+// with the widget's paragraph, so the chord dispatches at `<body>`, where both of the editor
+// root's handlers see the same event.
 
 const IMG_MD = '![cat](/test-fixtures/sample.png)';
 const DOC = `lead\n\n${IMG_MD}\n`;

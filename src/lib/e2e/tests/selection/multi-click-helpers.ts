@@ -21,7 +21,7 @@ export function editorSelection(page: Page): Promise<unknown> {
 	return page.evaluate(() => (window as any).__test.getSelection());
 }
 
-/** Press `clicks` times at `from` and drag the last press to `to`. */
+/** Clicks `clicks` times at `from` and drags the last one to `to`. */
 export async function multiClickDrag(
 	page: Page,
 	from: { x: number; y: number },
@@ -79,8 +79,8 @@ export function inlineWidgetCenter(page: Page, aim?: string, index = 0): Promise
 	return widgetCenter(page.locator('[data-inline-widget]').nth(index), aim);
 }
 
-/** Press `clicks` times at one point, each press its own down and up: the run a real
- *  double- or triple-click makes, which `clickCount` alone does not. */
+/** Clicks `clicks` times at one point, each its own down and up: the run a real double- or
+ *  triple-click makes, which `clickCount` alone does not. */
 export async function multiClick(
 	page: Page,
 	at: { x: number; y: number },

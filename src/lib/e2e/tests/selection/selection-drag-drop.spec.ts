@@ -11,7 +11,7 @@ const COPIED = 'alpha beta gamma\n\nbetasecond para here\n';
 
 type Point = { x: number; y: number };
 
-/** Press on already-selected text and drag it to `to`: the browser's own selection drag. */
+/** Presses on already-selected text and drags it to `to`: the browser's own selection drag. */
 async function dragSelection(page: import('@playwright/test').Page, from: Point, to: Point) {
 	await page.mouse.move(from.x, from.y);
 	await page.mouse.down();
@@ -109,7 +109,7 @@ test.describe('dragging a selection', () => {
 	});
 
 	// Chromium reads the drop's modifier keys off the held keyboard state, so the key goes down
-	// before the press and comes up after the release.
+	// before the mouse and comes up after the release.
 	for (const modifier of ['Control', 'Alt'] as const) {
 		test(`a word released with ${modifier} held is copied, the source kept`, async ({ page }) => {
 			const beta = await doubleClickOn('beta');

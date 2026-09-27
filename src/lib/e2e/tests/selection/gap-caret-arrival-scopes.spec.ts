@@ -6,9 +6,8 @@ import { CLOSER_BOUNDARY, LAST_CELL, WINDOWED } from './gap-caret-fixtures';
 // the join a render window cuts (`requirements/selection/gap-caret-arrival-scopes.md`).
 // Root arrival and the exit keys are in `gap-caret-arrival.spec.ts`.
 
-// A nested boundary is addressed in its container's index space. A stop worked out against the
-// root would name a boundary one level too high, and what tells them apart is where the next
-// move lands: root [3] if the level is right, root [1] if it fell back to the root's.
+// A nested boundary is addressed in its container's index space; one worked out against the root
+// would land the next move at root [1] instead of root [3].
 test.describe('gap caret arrival inside a container', () => {
 	// alpha, bravo, blockquote[fence], charlie: the end of the quote's child list is boundary 1.
 	const NESTED = `alpha\n\nbravo\n\n> \`\`\`\n> code\n> \`\`\`\n\ncharlie\n`;

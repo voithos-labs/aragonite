@@ -9,8 +9,8 @@ test.describe('a pasted blank line is the block a typed or loaded one is', () =>
 		await editor.goto();
 	});
 
-	// Enter separates, so the first press already puts a blank line between the halves and
-	// the second is what makes the empty block; its own line is the third newline.
+	// Enter separates, so the first keypress already puts a blank line between the halves and the
+	// second makes the empty block, whose own line is the third newline.
 	test('typed: an explicitly created empty block is a third block', async () => {
 		await editor.loadContent('');
 		await editor.focusBlockAtPath([0], 0);
@@ -22,7 +22,7 @@ test.describe('a pasted blank line is the block a typed or loaded one is', () =>
 
 		const typedCount = await editor.getDomBlockCount();
 		expect(typedCount).toBe(3);
-		// The blocks the bytes reload as: the shape survives the round trip (issue #20).
+		// The blocks the bytes reload as: the shape survives the round trip.
 		await editor.loadContent(await editor.bridge.getSource());
 		expect(await editor.getDomBlockCount()).toBe(typedCount);
 	});

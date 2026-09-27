@@ -1,9 +1,9 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
-// A list whose ordered flag matches no ancestor must split the enclosing list at the caret
-// and splice between the halves: nesting it inside the target item leaves the trailing slice
-// at the item-continuation indent.
+// A list whose ordered flag matches no ancestor must split the enclosing list at the caret and
+// splice between the halves: nested inside the target item, the trailing half would keep the
+// item-continuation indent.
 test.describe('paste: mismatched-type list into list item breaks out', () => {
 	let editor: EditorPage;
 
@@ -64,9 +64,8 @@ test.describe('paste: mismatched-type list into list item breaks out', () => {
 		expect(src.indexOf('1. a')).toBeLessThan(src.indexOf('- Unordered'));
 	});
 
-	// A clipboard without a trailing newline must not leave the last pasted item unterminated:
-	// it would join the next block on serialization ("3. Ordered" + "- third" becomes
-	// "3. Ordered- third").
+	// A clipboard without a trailing newline must not leave the last pasted item unterminated, or it
+	// joins the next block ("3. Ordered- third").
 	test('ordered list without trailing newline pastes cleanly into unordered item', async () => {
 		await editor.loadContent('- Unordered first\n- Unordered second\n- Unordered third\n');
 		await editor.seedClipboard('1. first\n2. Ordered second\n3. Ordered');
@@ -85,9 +84,8 @@ test.describe('paste: mismatched-type list into list item breaks out', () => {
 		await editor.loadContent('- Unordered three\n');
 		await editor.seedClipboard('1. Ordered first\n2. Ordered second\n3. Ordered third\n');
 
-		// Break out in the middle of the item, so the residue "three" becomes the trailing
-		// second-half list. The caret must land at the end of the last pasted item, never
-		// on the residue.
+		// Break out mid-item, so the residue "three" becomes the trailing second-half list; the caret
+		// must land at the end of the last pasted item, never on the residue.
 		await editor.focusBlockAtPath([0, 0, 0], 9);
 		await editor.paste();
 		await editor.bridge.waitForSourceMatches(/^- three$/m);

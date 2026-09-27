@@ -80,9 +80,8 @@ test.describe('selection: keyboard: vertical-skip parity (G1)', () => {
 		await editor.waitForCrossBlock(true);
 		const sel = await editor.bridge.getSelectionPaths();
 		expect(sel).not.toBeNull();
-		// The list (children[1]) contains two image-only items; container
-		// recursion makes the whole list transparent. Focus should bypass it
-		// and land on the "below" paragraph at [2].
+		// The list (children[1]) holds two image-only items, which makes the whole list transparent, so
+		// focus skips it and lands on the "below" paragraph at [2].
 		expect(sel!.anchor.path).toEqual([0]);
 		expect(sel!.focus.path[0]).toBe(2);
 	});
@@ -131,9 +130,8 @@ test.describe('selection: keyboard: vertical-skip parity (G1)', () => {
 	});
 
 	test('Shift+ArrowRight does not skip a transparent next paragraph (horizontal vs vertical)', async () => {
-		// Horizontal extension must not apply the vertical skip: Shift+ArrowRight across a
-		// boundary into an image-only paragraph lands focus on that paragraph rather than
-		// stepping over it.
+		// Horizontal extension must not apply the vertical skip: Shift+ArrowRight into an image-only
+		// paragraph lands on it.
 		await editor.loadContent(TRANSPARENT_MIDDLE);
 		await editor.focusBlockEnd(0);
 		await editor.page.keyboard.press('Shift+ArrowRight');

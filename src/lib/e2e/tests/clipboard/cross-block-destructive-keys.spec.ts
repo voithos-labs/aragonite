@@ -1,8 +1,7 @@
 // A key over a cross-block selection must delete the range first, then run its block-level
-// behavior at the collapsed caret. Falling through to the originating block's `onKeyDown`
-// applies the edit to one raw while the selection is still on screen. The format toggles are
-// the exception: they mark each block's span in place rather than replacing the range, and
-// the selection survives (#107).
+// behavior at the collapsed caret, not fall through to the originating block's `onKeyDown`.
+// The format toggles are the exception: they mark each block's span in place and the selection
+// survives.
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
@@ -46,9 +45,8 @@ test.describe('cross-block destructive-key dispatch (A1)', () => {
 		expect(source).toContain('al\\');
 	});
 
-	// A format toggle is not one of these keys: it marks each block's own span instead of
-	// deleting the range (#107: deleting first turned the document into `****`). The selection
-	// survives, which is also what keeps it off shifted indices.
+	// A format toggle marks each block's own span instead of deleting the range, since deleting first
+	// would leave `****`; the selection survives, which also keeps it off shifted indices.
 	test('Ctrl+B marks each endpoint span and the range survives', async () => {
 		await editor.loadContent('alpha\n\nbeta\n');
 
@@ -112,8 +110,7 @@ test.describe('cross-block destructive-key dispatch (A1)', () => {
 	});
 
 	// A selection starting in a table must reach the cell's `runCommand`, not the `TableBlock`
-	// wrapper: the dispatcher resolves the target from the caret the delete leaves (a deep cell
-	// path), and resolving from `selection.start.path` drops the command after that delete.
+	// wrapper: the target is resolved from the caret the delete leaves, a deep cell path.
 	test('Enter with a table-start cross-block selection reaches the cell, not the wrapper', async ({
 		page
 	}) => {
