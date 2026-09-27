@@ -295,7 +295,7 @@ _(pre-freeze / unstable)_ The blocks the insert menus offer: the built-in lists,
 | Export                | Role                                                                                                                                                                               |
 | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `registerInsertEntry` | Add your block to every insert menu, called from `setup`. It is listed only in the editors that activate your plugin. Throws on a duplicate id and on an icon the menu cannot draw |
-| `InsertEntry`         | One entry: an `id`, a `label`, an `icon`, `keywords` a filter should also match, and the `markdown` it inserts                                                                     |
+| `InsertEntry`         | One entry: an `id`, a `label`, an `icon`, `keywords` a filter should also match, the `markdown` it inserts, and an optional `withArgument` building it from a word (`/table 3x4`)  |
 | `MenuIconName`        | The glyph names a menu row can draw                                                                                                                                                |
 
 ### Events
