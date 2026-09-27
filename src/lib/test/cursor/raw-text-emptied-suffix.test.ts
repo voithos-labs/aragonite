@@ -2,7 +2,12 @@
 // Miss-analysis: every read-back test kept some text, so none asked what an emptied block
 // holding only its trailing structure reads as; the structure came back as the block's text.
 import { describe, it, expect } from 'vitest';
-import { BLOCK_SUFFIX_ATTR, rawTextOfContent } from '$lib/cursor/widget-offset';
+import {
+	BLOCK_PREFIX_ATTR,
+	BLOCK_SUFFIX_ATTR,
+	landableRawBounds,
+	rawTextOfContent
+} from '$lib/cursor/widget-offset';
 
 /** A prose block's element from HTML, the way the browser leaves it after an edit. */
 function block(html: string): HTMLElement {
@@ -12,6 +17,7 @@ function block(html: string): HTMLElement {
 }
 
 const SUFFIX = `<span class="md-marker" ${BLOCK_SUFFIX_ATTR}=""> #</span>`;
+const SETEXT = `<span class="md-marker" ${BLOCK_SUFFIX_ATTR}="">\n===</span>`;
 
 describe('reading back a block whose text was emptied', () => {
 	it('reads nothing when only the trailing structure is left', () => {
@@ -24,5 +30,41 @@ describe('reading back a block whose text was emptied', () => {
 			'#  #'
 		);
 		expect(rawTextOfContent(block(`H${SUFFIX}x`), '# H #\n')).toBe('H #x');
+	});
+});
+
+// Miss-analysis: the emptied-read rows left nothing but the run, so none replaced the whole text
+// with a key, where the browser drops the `# ` span and leaves the new text beside the run.
+describe('reading back a heading whose `#` marker the browser dropped', () => {
+	const RUN = `<span class="md-marker" ${BLOCK_SUFFIX_ATTR}="after-prefix"> #</span>`;
+	const HASH = `<span class="md-marker" ${BLOCK_PREFIX_ATTR}=""># </span>`;
+
+	it('drops the closing run with it', () => {
+		expect(rawTextOfContent(block(` ${RUN}`), '# Hi #\n')).toBe(' ');
+		expect(rawTextOfContent(block(`x${RUN}`), '# Hi #\n')).toBe('x');
+	});
+
+	it('keeps the run while the marker is there', () => {
+		expect(rawTextOfContent(block(`${HASH}x${RUN}`), '# Hi #\n')).toBe('# x #');
+		expect(rawTextOfContent(block(`${HASH}${RUN}`), '# Hi #\n')).toBe('#  #');
+	});
+
+	it('keeps a setext underline, which follows no marker span', () => {
+		expect(rawTextOfContent(block(`x${SETEXT}`), 'Hi\n===\n')).toBe('x\n===');
+	});
+});
+
+// Miss-analysis: no bounds test drew a block with no text between two hidden runs, which merged
+// into one run and put the caret's only position past the closing run.
+describe('where a caret can sit in an emptied heading with a closing run', () => {
+	it('is between the marker and the run', () => {
+		const root = document.createElement('div');
+		root.setAttribute('data-presentation', 'live');
+		const el = block(
+			`<span class="md-marker" ${BLOCK_PREFIX_ATTR}=""># </span>` +
+				`<span class="md-marker" ${BLOCK_SUFFIX_ATTR}="after-prefix"> #</span>`
+		);
+		root.appendChild(el);
+		expect(landableRawBounds(el)).toEqual({ start: 2, end: 2 });
 	});
 });

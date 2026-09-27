@@ -33,8 +33,12 @@ import { domDescendants } from './dom-walk';
 
 // ── Raw offsets and the caret ────────────────────────────────────────────────
 
-/** Marks the span holding a block's bytes past its content (a setext underline). */
+/** Marks the span holding a block's bytes past its content: a setext underline, or an ATX
+ *  heading's closing run. Its value is `after-prefix` when the block also drew a prefix span. */
 export const BLOCK_SUFFIX_ATTR = 'data-block-suffix';
+
+/** Marks the span holding a block's own marker before its content, a heading's `# `. */
+export const BLOCK_PREFIX_ATTR = 'data-block-prefix';
 
 /** How a caret write treats its offset: `reachable` moves it onto a position the mode lets a caret
  *  sit at (never behind a hidden marker run); `exact` writes it as given. */
@@ -84,18 +88,30 @@ export function rawOfWalkOffset(container: ParentNode, walk: DomTextOffset): Raw
 export function rawTextOfContent(el: HTMLElement, raw: string): string {
 	const prefix = markerPrefixOf(el);
 	let out = '';
+	let suffixText = '';
 	let holdsMoreThanSuffix = false;
 	for (const child of Array.from(el.childNodes)) {
 		if (child === prefix) continue;
 		const text = rawTextOfNode(child, raw);
-		out += text;
-		if (text && !(child instanceof Element && child.hasAttribute(BLOCK_SUFFIX_ATTR))) {
-			holdsMoreThanSuffix = true;
+		if (child instanceof Element && child.hasAttribute(BLOCK_SUFFIX_ATTR)) {
+			if (suffixOutlivesEdit(el, child)) suffixText = text;
+			out += suffixText;
+			continue;
 		}
+		out += text;
+		if (text) holdsMoreThanSuffix = true;
 	}
 	// A heading's closing run or a setext underline belongs to the text above it, so a read
 	// holding nothing else is an emptied block.
 	return holdsMoreThanSuffix ? out : '';
+}
+
+// A heading's closing run goes with its `#` marker: the browser dropping the marker span in an
+// edit that replaced the whole text means the run goes too.
+function suffixOutlivesEdit(el: HTMLElement, suffix: Element): boolean {
+	if (suffix.getAttribute(BLOCK_SUFFIX_ATTR) !== 'after-prefix') return true;
+	const prefix = el.querySelector(`:scope > [${BLOCK_PREFIX_ATTR}]`);
+	return (prefix?.textContent ?? '') !== '';
 }
 
 /** Raw offset of the live selection's focus inside `el`, or null when there is no selection or
@@ -558,6 +574,12 @@ export function landableDomTextBounds(container: ParentNode): {
 		const stop = seg.start + seg.len;
 		// An atomic widget and a decoration widget are opaque, not unreachable: the caret may not
 		// enter either, but each of their boundaries is a position of its own.
+		if (seg.kind === 'opaque' && seg.hidden && seg.first.hasAttribute(BLOCK_SUFFIX_ATTR)) {
+			// Nothing past a block's trailing structure is text, and an emptied block's caret
+			// sits before that structure.
+			if (!landed) end = start;
+			break;
+		}
 		if (seg.kind === 'opaque' ? seg.hidden : inMarkerPrefix(seg.node, container)) {
 			if (!landed) start = stop;
 			continue;
@@ -791,6 +813,10 @@ function positionBeside(el: Element, side: 'before' | 'after'): DomPosition | nu
 	return { node: parent, offset: side === 'before' ? idx : idx + 1 };
 }
 
+function emptyTextBetween(from: Element, to: Element): boolean {
+	return from.hasAttribute(BLOCK_PREFIX_ATTR) && to.hasAttribute(BLOCK_SUFFIX_ATTR);
+}
+
 /** Whether a pending hard break's anchor stands between two sibling spans. */
 function breakAnchorBetween(from: Element, to: Element): boolean {
 	for (let node = from.nextSibling; node && node !== to; node = node.nextSibling) {
@@ -884,6 +910,12 @@ function* landingSegments(
 			// A pending hard break's anchors start a line between two hidden runs (the break's
 			// backslash, a setext underline), and the caret sits at that line's start.
 			if (run && breakAnchorBetween(run.last, seg.hiddenRoot)) {
+				yield run;
+				run = null;
+			}
+			// An emptied heading's text sits between its marker and its closing run, where the
+			// caret goes, so the two hidden runs stay apart.
+			if (run && emptyTextBetween(run.last, seg.hiddenRoot)) {
 				yield run;
 				run = null;
 			}

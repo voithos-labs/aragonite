@@ -26,6 +26,7 @@ import {
 } from '../../../core/inline-render';
 import type { RawOffset } from '../../../cursor/coordinate-spaces';
 import {
+	BLOCK_PREFIX_ATTR,
 	BLOCK_SUFFIX_ATTR,
 	CONTENT_EMPTY_ATTR,
 	createCaretAnchor,
@@ -161,7 +162,11 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 			frag.appendChild(buildAmbientSpan(deps.ambientPrefix));
 		}
 		const blockOwnPrefix = getBlockMarkerPrefix();
-		if (blockOwnPrefix) frag.appendChild(markerSpan(blockOwnPrefix));
+		if (blockOwnPrefix) {
+			const span = markerSpan(blockOwnPrefix);
+			span.setAttribute(BLOCK_PREFIX_ATTR, '');
+			frag.appendChild(span);
+		}
 		const descriptor = getBlockKindDescriptor(node.kind);
 		frag.appendChild(
 			renderInlineNodes(content, node.raw, {
@@ -184,7 +189,7 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 		const suffix = structuralSuffix(node);
 		if (suffix) {
 			const span = markerSpan(suffix);
-			span.setAttribute(BLOCK_SUFFIX_ATTR, '');
+			span.setAttribute(BLOCK_SUFFIX_ATTR, blockOwnPrefix ? 'after-prefix' : '');
 			// A closing run on the text's own line stays there when a pending break draws a new one.
 			const onTextLine = sameLineSuffix(node) === suffix;
 			frag.insertBefore(span, onTextLine ? frag.querySelector(PENDING_BREAK_ANCHOR) : null);

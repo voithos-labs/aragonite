@@ -37,7 +37,8 @@ describe('the declared branch order', () => {
 			'ambient-marker',
 			'construct-edge-delete',
 			'marker-completion',
-			'construct-seat'
+			'construct-seat',
+			'empty-content'
 		]);
 	});
 

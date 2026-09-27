@@ -76,6 +76,40 @@ test.describe('live mode: keys at the end of the text', () => {
 
 // The same gesture on the three heading shapes: the structure past the text goes with the text.
 test.describe('live mode: emptying the text', () => {
+	test('inside a list item, Backspace over the last character, then a key, writes the key as the heading text', async ({
+		page
+	}) => {
+		const ep = await enterPresentationMode(page, 'live', '- # H #\n- b\n');
+		await ep.focusBlockAtPath([0, 0, 0], 1);
+		await page.keyboard.press('End');
+		await page.keyboard.press('Backspace');
+		await ep.bridge.waitForSourceEquals('- #  #\n- b\n');
+		await ep.typeSlowly('k');
+		await ep.bridge.waitForSourceEquals('- # k #\n- b\n');
+	});
+
+	test('a key typed into an empty heading with a closing run lands between the markers', async ({
+		page
+	}) => {
+		const ep = await enterPresentationMode(page, 'live', '#  #\n\nnext\n');
+		await ep.focusBlockAtPath([0], 0);
+		await page.keyboard.press('End');
+		await ep.typeSlowly('k');
+		await ep.bridge.waitForSourceEquals('# k #\n\nnext\n');
+	});
+
+	test('selecting the text and typing a space leaves a paragraph holding the space', async ({
+		page
+	}) => {
+		const ep = await enterPresentationMode(page, 'live', DOC);
+		await ep.focusBlockAtPath([0], 3);
+		await page.keyboard.press('End');
+		await page.keyboard.press('Shift+Home');
+		await ep.typeSlowly(' ');
+		await ep.typeSlowly('x');
+		await ep.bridge.waitForSourceEquals(' x\n\nnext\n');
+	});
+
 	for (const source of ['# H\n\nnext\n', '# H #\n\nnext\n', 'H\n===\n\nnext\n']) {
 		test(`Backspace over the last character of ${JSON.stringify(source)} leaves an empty paragraph`, async ({
 			page
