@@ -50,3 +50,20 @@ describe('Backspace at the start of an item under a heading item', () => {
 		expect(takeDevWarns()).toEqual([]);
 	});
 });
+
+// Miss-analysis: the middle-item Backspace was only tested where it joins, so a refusal thrown
+// out of the commit instead of falling back had no test at the action.
+describe('Backspace at the start of an item with nothing to join', () => {
+	it.each([
+		['a join that reads as two blocks', '- # h\n- text\n  more\n'],
+		['an item that does not open with a paragraph', '- a\n- # h\n']
+	])('%s changes nothing and records no undo step', async (_name, before) => {
+		const h = makeNestedHarness(before, { index: 0, presentationMode: 'live' });
+
+		await h.bundle.blockEdit.mergeWithPrevious(1);
+
+		expect(serialize(h.deps.doc)).toBe(before);
+		expect(h.deps.undoManager.getStacks().undo).toHaveLength(0);
+		expect(takeDevWarns()).toEqual([]);
+	});
+});

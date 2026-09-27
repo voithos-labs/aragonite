@@ -185,12 +185,12 @@ export function mergeListItemIntoPrevious(
 	if (absorbed?.kind !== 'paragraph') return null;
 
 	// The target has the current item below it, so it closes its line with the document's ending.
-	const lineEnding = trailingLineEnding(leafAt(list, targetPath).raw, '\n');
+	const lineEnding = trailingLineEnding(nodeAt(list, targetPath).raw, '\n');
 	const body = { children: list.children, owner: list, lineEnding };
 	const joined = joinIntoLeaf(body, targetPath, absorbed, reading, sharing);
 	if (!joined) return null;
 
-	const targetItem = leafAt(list, targetPath.slice(0, -1));
+	const targetItem = nodeAt(list, targetPath.slice(0, -1));
 	relocateRemainingChildren(list, targetPath, targetItem, currentItem, lineEnding, sharing);
 
 	children.splice(currentIndex, 1);
@@ -212,7 +212,7 @@ export function mergeListItemIntoPrevious(
 }
 
 /** The node at `path` below `root`, re-read through the tree. */
-function leafAt(root: CstNode, path: readonly number[]): CstNode {
+function nodeAt(root: CstNode, path: readonly number[]): CstNode {
 	let node = root;
 	for (const index of path) node = node.children![index];
 	return node;

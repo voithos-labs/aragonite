@@ -109,7 +109,7 @@ describe('G4.60 spread-into-call census', () => {
 	const sites = collectEditorSources().flatMap(spreadSites);
 
 	it('inspected the shipped tree', () => {
-		expect(sites.length).toBeGreaterThan(5);
+		expect(sites.length).toBeGreaterThanOrEqual(10);
 	});
 
 	it('every spread into an argument list is declared with its reason', () => {
