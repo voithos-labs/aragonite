@@ -2,19 +2,20 @@
 // (the paste route commits through a controller that reads the mounted block-list state.)
 
 /**
- * The wiring, not the rule: a task marker stands in front of a paragraph, and three writes can
- * put another block in that position. `reconcile-task.test.ts` covers what the rule decides; each
- * test here fails when its own call site loses the call.
+ * The wiring, not the rule: a task marker stands in front of a paragraph, and each write that can
+ * put another block in that position drops it. `reconcile-task.test.ts` covers what the rule
+ * decides; each test here fails when its own route loses the call.
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { parse, type CstNode, type ListItemMetadata } from '$lib';
+import { parse, serialize, type CstNode, type ListItemMetadata } from '$lib';
 import { updateNodeContent } from '$lib/tree-operations/content-write';
 import { replaceBlockAtParent } from '$lib/tree-operations/paste/replace-block-at-parent';
 import { createBlockEditCore } from '$lib/editor-actions/block-edit-core';
 import { resetPluginPlatformForTests } from '$lib/testing';
 import {
 	makeCommitScopeStub,
+	makeContainerHarness,
 	makePasteCommit,
 	registerStubBlockListState
 } from '$lib/test/harness/editor-actions';
@@ -61,6 +62,16 @@ describe('every write that can replace a to-do’s first block drops the marker 
 
 		expect(metaOf(item).taskItem).toBe(true);
 		expect(metaOf(item).taskMarker).toBe('[ ] ');
+	});
+
+	it('the keystroke inside the to-do, where typing a delimiter row makes a table', async () => {
+		const h = makeContainerHarness('- [ ] | a |\n', [0, 0]);
+
+		await h.bundle.blockEdit.updateBlockContent(0, '| a |\n| - |\n', 'authored', 5, 11);
+
+		expect(serialize(h.deps.doc)).toBe('- | a |\n  | - |\n');
+		expect(h.getNode().children![0].kind).toBe('table');
+		expect(metaOf(h.getNode()).taskItem).toBe(false);
 	});
 
 	it('the block replace, where the Enter completer puts a table in the position', async () => {

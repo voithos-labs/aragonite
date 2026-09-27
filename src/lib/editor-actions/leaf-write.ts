@@ -64,8 +64,9 @@ export function createLeafTyping(deps: EditorActionsDeps, controller: UndoContro
 
 			const depth = leafPath.length;
 			const owner = depth > 1 ? chain[depth - 2] : undefined;
-			const body: BodyParent = owner?.children
-				? { children: owner.children, owner, lineEnding: documentLineEnding(deps.doc) }
+			// The chain reached the leaf through the owner's children, so below the root they exist.
+			const body: BodyParent = owner
+				? { children: owner.children!, owner, lineEnding: documentLineEnding(deps.doc) }
 				: documentBody(deps.doc);
 			// Read before the write: the ancestors' rebuild locates the leaf's region by these bytes.
 			const leafPreviousRaw = chain[depth - 1].raw;

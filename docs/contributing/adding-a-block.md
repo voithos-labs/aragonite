@@ -398,7 +398,7 @@ await parentContainerEdit.commitContainer({
 
 `snapshot` is where the caret was, for the undo entry. `mutate` returns the structural change it made so the commit can publish it, `op` names the operation for the edit event and the operations log, and `afterTick` runs after the DOM has caught up, which is where a caret gets placed. The same rule covers `commitMultiScope`'s per-scope views.
 
-`ContainerEditActions` also carries the keystroke's two routes, `typeInLeaf` and `writeLeafInPlace` (both built in `src/lib/editor-actions/leaf-write.ts`). Your container gets them for free through the shared `updateBlockContent`, so there's nothing to wire: a typed character joins its burst's undo entry, then either commits or writes in place. For any other change to a container's children, reach for `commitContainer`, or `commitMultiScope` when the change spans containers.
+`ContainerEditActions` also carries the two things a keystroke needs the root for: `typeInLeaf` (groups it with its typing burst) and `writeLeafInPlace` (the write that keeps the leaf in place), both built in `src/lib/editor-actions/leaf-write.ts`. Your container gets them for free through the shared `updateBlockContent`, so there's nothing to wire. A typed character joins its burst's undo entry, then either commits or writes in place. For any other change to a container's children, reach for `commitContainer`, or `commitMultiScope` when the change spans containers.
 
 ### Virtual rendering
 

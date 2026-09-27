@@ -421,6 +421,8 @@ export interface NestedHarnessOptions {
 	listOverrides?: boolean;
 	grammar?: GrammarView;
 	presentationMode?: PresentationMode;
+	/** One caret memory for the root and the container, as the editor hands both the same one. */
+	caretMemory?: CaretMemory;
 }
 
 // Full nested-container setup over `source` (parsed) or an explicit node list, on the
@@ -441,6 +443,7 @@ export function makeNestedHarness(
 		source,
 		reading ? { reading } : {}
 	);
+	if (opts.caretMemory) deps.caretMemory = opts.caretMemory;
 	const controller = createUndoController(deps);
 	const containerEdit = createContainerEditActions(deps, controller);
 	const getNode = () => deps.doc.children[index];
@@ -479,6 +482,7 @@ export function makeNestedHarness(
 			getNode,
 			path: [index],
 			reading: deps.reading,
+			caretMemory: opts.caretMemory,
 			parent: { blockEdit: makeStubBlockEdit(), focus: descendingFocus(), containerEdit }
 		}),
 		overrides

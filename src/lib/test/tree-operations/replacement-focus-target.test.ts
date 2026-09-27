@@ -4,6 +4,7 @@ import { focusTargetInReplacement } from '../../tree-operations';
 import { settledCaretPosition } from '../../tree-operations/content-write';
 import { caretTargetFor } from '../../selection/caret-target';
 import { docPathFrom } from '../../cursor/coordinate-spaces';
+import { CURSOR_END } from '../../block-component';
 
 describe('focusTargetInReplacement', () => {
 	it('maps an offset inside the first block to that block', () => {
@@ -90,5 +91,13 @@ describe('the settled position in a container the write made', () => {
 		{ shape: 'an ordered item', source: '1. abcdef\n', offset: 3, path: [0, 0, 0] }
 	])('lands at the text start inside $shape', ({ source, offset, path }) => {
 		expect(landing(source, offset)).toEqual({ leafPath: path, offset: 0 });
+	});
+
+	// A table's bytes map to no cell, so a byte offset anywhere in it takes the last cell's end.
+	it("lands at the end of a table's last cell, even from a byte in its first", () => {
+		expect(landing('| a | b |\n| - | - |\n| c | d |\n', 3)).toEqual({
+			leafPath: [0, 1, 1],
+			offset: CURSOR_END
+		});
 	});
 });

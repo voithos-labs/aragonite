@@ -1,8 +1,9 @@
 /**
  * What the shared block-edit core needs of one block list, the document root or a container:
- * its children, the commit, the keystroke's two routes and the caret landing. The factories here
- * are the only place the commit's document-absolute paths (`DocPath`) are made; the core hands
- * over local indices only. G1.16 is the runtime check for JS callers the types do not bind.
+ * its children, the commit, the keystroke's typing burst and in-place write, and the caret
+ * landing. The factories here are the only place the commit's document-absolute paths (`DocPath`)
+ * are made; the core hands over local indices only. G1.16 is the runtime check for JS callers the
+ * types do not bind.
  */
 
 import type { OpDescriptor } from '../schema/operations';
