@@ -1,8 +1,5 @@
 // @vitest-environment jsdom
-//
-// Miss-analysis: the paste suites all drove a dispatch with no grammar, where the process-wide
-// and per-editor views answer alike, so no test ever pasted a plugin kind's syntax into an
-// editor that did not list the plugin (GH #267).
+// Miss-analysis: no test pasted a plugin kind's syntax into an editor that left it out (GH #267).
 import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
 import { installPlugins } from '$lib';
 import { resetPluginPlatformForTests } from '$lib/testing';

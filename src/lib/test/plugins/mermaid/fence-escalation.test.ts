@@ -1,8 +1,4 @@
-// Miss-analysis: the round-trip property only checks bodies the opener produced, so it can only
-// draw bodies that already fit inside their fence; the edit path, where a body the block never
-// parsed is written back into it, had no property at all. The container kit's terminator cell
-// covers this class elsewhere but cannot reach this shape: it drives the last child through
-// `bodyWrite`, and this container has neither.
+// Miss-analysis: the round-trip property never drew a body written back by an edit.
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse, serialize, type CstNode, type Document } from '$lib';
 import { getPluginMetadata, setPluginMetadata } from '$lib/plugin';

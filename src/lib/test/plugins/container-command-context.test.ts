@@ -18,9 +18,8 @@ const noteAlt = declarePluginKind('demoNoteAlt');
 
 const noteNode = (kind = note): CstNode => ({ kind, leadingTrivia: '', raw: '' });
 
-// The public `keybindings` prop types `kind` as a built-in BlockKind, so a plugin-kind
-// binding goes in as its compiled map form, which is what a plugin's own keymap resolves
-// to. This suite exercises only what the container hands the dispatcher.
+// The public `keybindings` prop types `kind` as a built-in BlockKind, so a plugin-kind binding
+// goes in as the compiled map a plugin's own keymap resolves to.
 function bindKindChord(
 	kind: AnyBlockKind,
 	chord: string,

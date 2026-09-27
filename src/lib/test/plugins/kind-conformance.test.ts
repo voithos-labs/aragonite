@@ -31,9 +31,8 @@ import { registerTocBlock, TOC_BLOCK } from '$lib/plugins/toc/toc-plugin';
 import { parrotPlugin, PARROT } from '$lib/plugins/parrot';
 import { installPlugins } from '$lib';
 
-// The generic battery pointed at real plugin kinds. They only exist once their setup installs
-// them, so each case resets and re-installs; the platform registers each thing once
-// (docs/contributing/casebook.md).
+// The generic battery pointed at real plugin kinds, which exist only once their setup installs
+// them, so each case resets and re-installs.
 
 const MEMO_KIND = () => declaredPluginKind(MEMO_BLOCK);
 const CALLOUT_KIND = () => declaredPluginKind(CALLOUT);
@@ -82,9 +81,8 @@ describe('kind conformance: plugin kinds enroll', () => {
 });
 
 // ── Bundled plugins: the shipped kinds enroll too ────────────────────────────
-// Registering a bundled kind must enroll its headless cells exactly as a built-in's. The
-// `$lib/plugins` directory listing is the canonical bundled set (as for the plugin-pack-parity
-// lint), so a directory added or dropped outside this table fails the check below at once.
+// The `$lib/plugins` directory listing is the bundled set, so a plugin directory added or
+// dropped outside this table fails the check below at once.
 const BUNDLED_INSTALLS: { dir: string; kind: string; install: () => void }[] = [
 	{ dir: 'details', kind: DETAILS, install: registerDetailsKind },
 	{ dir: 'footnotes', kind: FOOTNOTE_DEF_KIND, install: registerFootnoteDefinition },
@@ -123,9 +121,8 @@ describe('kind conformance: bundled plugin kinds enroll', () => {
 		}
 	);
 
-	// The kind whose clipboard cell says a cross-block range carries it whole: that is backed
-	// by the kit's byte check, not by prose, since the runner sends an `implemented` cell to
-	// the browser sweep and would never run it.
+	// Mermaid's claim that a cross-block copy carries it whole needs the kit's byte check, since
+	// the runner sends an `implemented` cell to the browser sweep and would never run it.
 	it('mermaid backs its cross-block clipboard claim with the byte-slice check', () => {
 		registerMermaidKind();
 		const kind = declaredPluginKind(MERMAID);
@@ -145,9 +142,8 @@ describe('kind conformance: bundled plugin kinds enroll', () => {
 		expect(stale, 'enrolled/exception entries with no plugin directory').toEqual([]);
 	});
 
-	// The same check at the kind level. The directive-fallback kinds come in with
-	// `registerAdmonitions` but are core, not bundled, and covered by `closure-fixtures.test.ts`
-	// and G1.24. These two are second fixtured kinds registered under one directory.
+	// The same check per kind, for a directory's second fixtured kind. The directive-fallback
+	// kinds `registerAdmonitions` adds are core, covered by `closure-fixtures.test.ts`.
 	const CO_REGISTERED_FIXTURED = [GITHUB_ALERT, MATH_FENCE];
 	it('sweeps exactly the bundled fixtured kinds', () => {
 		for (const { install } of BUNDLED_INSTALLS) install();
@@ -161,9 +157,8 @@ describe('kind conformance: bundled plugin kinds enroll', () => {
 		);
 	});
 
-	// A shared opener priority is invisible to every isolated suite: it shows only once the
-	// colliding plugins are installed together and a parse runs, which is why a tie once
-	// reached an e2e. Installing the whole bundle fails it here instead.
+	// A shared opener priority shows only once the colliding plugins install together and a
+	// parse runs, so every isolated suite misses it; installing the whole bundle catches it.
 	it('the co-installed bundle declares distinct opener priorities', () => {
 		for (const { install } of BUNDLED_INSTALLS) install();
 		const kindsByPriority = new Map<number, string[]>();
@@ -196,9 +191,8 @@ describe('kind conformance: a broken plugin registration fails', () => {
 		);
 	});
 
-	// A false `not-supported` fails because the degradation check asserts the scan finds
-	// nothing while this block's text is scannable. The clipboard equivalent needs a kind
-	// that builds its own bytes, so it lives in `test/invariants/kind-conformance.test.ts`.
+	// A false `not-supported` fails because the degradation check asserts the scan finds nothing
+	// in scannable text; the clipboard case is in `test/invariants/kind-conformance.test.ts`.
 	it('rejects a false searchPaint:not-supported on searchable text', async () => {
 		const closure = getBlockKindDescriptor(MEMO_KIND()).closure;
 		augmentBlockKind(MEMO_KIND(), {
@@ -213,9 +207,8 @@ describe('kind conformance: a broken plugin registration fails', () => {
 		await expect(runKindConformance(MEMO_KIND())).rejects.toThrow(/finds no match/);
 	});
 
-	// The kit uses the fixture's first block as the subject (undo deletes it, the byte-slice
-	// copy starts from it), so a kind sitting under a later block leaves the undo cell
-	// deleting something else and reporting `executed`.
+	// Undo and the byte-slice copy both act on the fixture's first block, so a kind under a
+	// later block lets the undo cell delete something else and still report `executed`.
 	it('rejects a conformanceFixture whose kind is not under the first block', async () => {
 		registerAdmonitions();
 		const alert = declaredPluginKind(GITHUB_ALERT);
@@ -228,9 +221,8 @@ describe('kind conformance: a broken plugin registration fails', () => {
 		);
 	});
 
-	// The undo cell's trailing marker must parse as a block of its own: a fixture running to
-	// the end of the input swallows it, and deleting the document's only block still pushes
-	// one entry.
+	// The undo cell's trailing marker must parse as its own block: a fixture that swallows it
+	// leaves one block, and deleting a document's only block still pushes an undo entry.
 	it('rejects a conformanceFixture that swallows the undo cell sentinel', async () => {
 		registerMermaidKind();
 		const kind = declaredPluginKind(MERMAID);

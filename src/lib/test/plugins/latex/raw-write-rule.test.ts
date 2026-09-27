@@ -8,8 +8,7 @@ import { registerMathBlock } from '$lib/plugins/latex/latex-kind';
 // Both math kinds declare a raw-write rule that puts back a closer a truncating write dropped, so
 // bytes written past the block's editable element (a range delete, a paste, a search-replace)
 // cannot leave the block open and degrade it.
-// Miss-analysis: every math test wrote through the block's own editable element, where the user
-// can see the fence bytes; nothing ever handed the kind a slice cut by a tree operation.
+// Miss-analysis: no math test handed the kind a slice cut by a tree operation.
 
 /** The rule as a write path reaches it: dispatched off the node's own kind. */
 function write(source: string, raw: string): string {
@@ -73,8 +72,7 @@ describe('a truncating write of a ```math fence gets its closing line back', () 
 		expect(write('```math\nx^2\n```\n', '```math\ny\n```\n')).toBe('```math\ny\n```\n');
 	});
 
-	// Miss-analysis (#566): the kind's own copy of the rule restored a closer and nothing else,
-	// and no test wrote the two shapes the built-in code block already repairs.
+	// Miss-analysis: no test wrote the two shapes the built-in code block repairs (GH #566).
 	it('drops the closer a write stranded by taking the opener line', () => {
 		expect(write('```math\nx^2\n```\n', 'x^2\n```\n')).toBe('x^2\n');
 	});
@@ -86,8 +84,7 @@ describe('a truncating write of a ```math fence gets its closing line back', () 
 	});
 });
 
-// Miss-analysis: every closer-restore fixture was LF, so a closer written in LF into a CRLF block
-// read as correct; the last line of a document carries no ending to copy.
+// Miss-analysis: every closer-restore fixture was LF, so none hit a CRLF last line with no ending.
 describe('a closer restored into the unterminated last block of a CRLF document is CRLF', () => {
 	it.each([
 		['a $$ block', '$$\r\nx^2\r\n$$', '$$\r\nx^', '$$\r\nx^\r\n$$'],

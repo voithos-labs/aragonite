@@ -19,8 +19,8 @@ import type {
 } from '$lib/plugin';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
-// The inline authoring API is not frozen yet. This pins the symbols a plugin imports from
-// `@voithos-labs/aragonite/plugin` to their core implementations, so a dropped or mis-wired
+// The inline authoring API is not frozen yet, so the suite pins the symbols a plugin imports
+// from `@voithos-labs/aragonite/plugin` to their core implementations: a dropped or mis-wired
 // re-export fails here rather than in a downstream plugin.
 describe('@voithos-labs/aragonite/plugin inline authoring surface', () => {
 	it('re-exports the inline registration functions from their core modules', () => {

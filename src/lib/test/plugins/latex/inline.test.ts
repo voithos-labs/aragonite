@@ -76,10 +76,8 @@ describe('$ flanking recognition', () => {
 });
 
 /**
- * The table above reads a count, which cannot tell `$x$` from a match that swallowed the prose
- * in front of it. These read the span itself, over the shapes where a price stands ahead of a
- * formula. Miss-analysis: no case ever put two `$` runs in one line with prose between them, so
- * where a match ends, the one reading that mattered, was never asserted at all.
+ * These read the span, which the count above cannot: a match may swallow the prose before it.
+ * Miss-analysis: no case put two `$` runs in one line with prose between them.
  */
 describe('a claim ends at the first later $, or not at all', () => {
 	beforeEach(() => registerMathInline());
@@ -122,8 +120,7 @@ describe('inline math round-trip', () => {
 	});
 });
 
-// The report behind #319 looked like a container defect. It is not: a directive's prose reaches
-// the same recognizer a top-level paragraph does, so both give the same answer.
+// A directive's prose reaches the same recognizer a top-level paragraph does, so both agree.
 describe('a directive container reaches the same recognizer', () => {
 	beforeEach(() => {
 		installPlugins([admonitionsPlugin()]);
@@ -142,9 +139,8 @@ describe('a directive container reaches the same recognizer', () => {
 	});
 });
 
-// Math renders through a `component`, so the descriptor has no synchronous builder and the
-// render layer builds the wrapper span (asserted in the e2e). What a unit test can still
-// prove is the reveal-source policy and how the dispatch behaves.
+// Math renders through a `component`, so the render layer builds the wrapper span (asserted in
+// the e2e); a unit test can still pin the reveal-source policy and the dispatch.
 describe('math widget dispatch', () => {
 	beforeEach(() => registerMathInline());
 
@@ -190,9 +186,8 @@ describe('math widget dispatch', () => {
 	});
 });
 
-// The renderer is what a consumer supplies (`latexPlugin({ renderer })` calls
-// `setMathRenderer`). It has to reach the inline render MathInline reads, rather than a
-// hardcoded one, which a regression to a fixed renderer would drop.
+// A consumer's renderer (`latexPlugin({ renderer })` calls `setMathRenderer`) has to reach the
+// inline render MathInline reads, not a fixed one.
 describe('injected renderer threading', () => {
 	const displayModes: boolean[] = [];
 	const tagRenderer: MathRenderer = (source, { display }) => {

@@ -1,6 +1,4 @@
-// Miss-analysis: numbering had no cost test at all: every case asserted the map, and a
-// whole-document pass produces the same map as a per-subtree one, so only counting the
-// inline parses tells them apart.
+// Miss-analysis: every case asserted the map, which a whole-document pass also produces.
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { installPlugins, parse, type DocumentView } from '$lib';
 import { resetPluginPlatformForTests } from '$lib/testing';
@@ -54,9 +52,8 @@ describe('footnote numbering rebuilds one subtree per edit', () => {
 		expect(parses).toBe(1);
 	});
 
-	// sharing.ts copies only a node marked shared, and text-batch.ts snapshots once per typing
-	// burst, so every keystroke after a burst's first rewrites the same object. Keying the
-	// cache on node identity alone would freeze the numbering for the rest of the burst.
+	// Copy-on-write copies only a shared node and typing snapshots once per burst, so later
+	// keystrokes rewrite the same object; a cache keyed on node identity would freeze numbering.
 	it('renumbers a subtree rewritten in place, node identity unchanged', () => {
 		const doc = parse('Body [^a].\n\nTail [^b].\n');
 		const block = doc.children[0];
@@ -78,7 +75,7 @@ describe('footnote numbering rebuilds one subtree per edit', () => {
 	});
 
 	// Both subtrees keep their own bytes, so both cache entries hit; only the order changes.
-	// A map cached on "no subtree changed" would hand back the old numbering.
+	// A map cached on "no subtree changed" would hand back the pre-reorder numbering.
 	it('renumbers when a reorder moves a reference into an earlier slot', () => {
 		const doc = parse('First [^a].\n\nSecond [^b].\n');
 		expect(footnoteNumbersFor(doc, 1).get('a')).toBe(1);
@@ -104,9 +101,7 @@ describe('footnote numbering rebuilds one subtree per edit', () => {
 		expect([...footnoteNumbersFor(restored, 3).keys()]).toEqual(['a', 'b']);
 	});
 
-	// Miss-analysis: every earlier case edits a top-level block, so the container rule the
-	// cache leans on (a subtree's raw is its whole byte image) had no test of its own: a nested
-	// edit is invisible to the key until the ancestor rebuild moves the container's raw.
+	// Miss-analysis: every earlier case edited a top-level block, never one nested in a container.
 	it('renumbers a nested edit once the ancestry rebuild moves the container raw', () => {
 		const doc = parse('Head.\n\n> Quote [^q] here.\n');
 		expect([...footnoteNumbersFor(doc, 1).keys()]).toEqual(['q']);
@@ -117,9 +112,7 @@ describe('footnote numbering rebuilds one subtree per edit', () => {
 		expect([...footnoteNumbersFor(doc, 2).keys()]).toEqual(['q', 'nested']);
 	});
 
-	// Miss-analysis: every case above hands the version in as a literal, so the cache was never
-	// checked against the number the editor actually produces: a write path that stopped
-	// announcing itself would leave this whole suite green while every mounted widget froze.
+	// Miss-analysis: every case above passed the version as a literal, never the editor's own.
 	it('recomputes after a real keystroke, against the editor’s own version', async () => {
 		const harness = makeEditorActionsDeps(parse('Body [^a].\n\nTail [^b].\n'));
 		const blockEdit = createBlockEditActions(harness.deps, createUndoController(harness.deps));

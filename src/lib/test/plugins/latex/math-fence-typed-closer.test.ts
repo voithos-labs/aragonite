@@ -1,7 +1,6 @@
 // A body line typed into a ```math source that reads as its closer grows the fence, as it does in
-// a code block, rather than splitting the block in two (GH #593).
-// Miss-analysis: the fence rule's tests wrote from outside the block (find/replace, a range
-// delete), and the leaf's typing commit never reached the rule at all.
+// a code block, rather than splitting the block in two.
+// Miss-analysis: the fence rule's tests wrote from outside the block, never by typing (GH #593).
 import { describe, it, expect, beforeEach } from 'vitest';
 import { serialize } from '$lib';
 import { resetPluginPlatformForTests } from '$lib/testing';

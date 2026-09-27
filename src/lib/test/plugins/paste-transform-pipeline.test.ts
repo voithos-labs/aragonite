@@ -1,10 +1,7 @@
-// A registered paste transform's effect must be visible from the published API. Everything
+// A registered paste transform's effect must be visible from the published API: everything
 // below imports only `@voithos-labs/aragonite/plugin` and `@voithos-labs/aragonite/testing`,
 // so it is exactly the suite a third-party author can write.
-//
-// Miss-analysis: `registerPasteTransform` was pinned by e2e paste specs alone, so nothing at
-// the unit gate proved the registration reaches the pipeline; an author could only test the
-// pure function, which proves nothing about the wiring.
+// Miss-analysis: only e2e specs pinned `registerPasteTransform`, so no unit test saw its wiring.
 import { describe, it, expect, beforeEach } from 'vitest';
 import { definePlugin, registerPasteTransform, isPasteTransformRegistered } from '$lib/plugin';
 import { installPlugins } from '$lib';

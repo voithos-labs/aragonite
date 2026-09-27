@@ -7,9 +7,7 @@ import {
 } from '$lib/plugins/latex/math-source';
 
 // The painted source's slicer, over both block shapes: the `$$` pair and GitHub's ```math fence.
-// Miss-analysis: math-source.ts carried no unit test, so the slicer was exercised only through
-// the `$$` block's e2e, and the fence shape it never recognized looked right as long as no
-// scenario asked what it painted or what a completion rebuilt.
+// Miss-analysis: only the `$$` block's e2e reached the slicer, never the fence shape.
 
 describe('completeBareMathSource rebuilds from the block’s own delimiters', () => {
 	const completes: Array<[label: string, source: string, text: string, caret: number]> = [

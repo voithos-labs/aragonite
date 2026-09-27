@@ -1,7 +1,5 @@
 // @vitest-environment jsdom
-//
-// Miss-analysis: the link-wrap, pending-mark, typing-position and edge-delete suites ran with every
-// installed plugin active, so a check reparsing with the wrong grammar agreed with the render.
+// Miss-analysis: the reparsing checks only ran with every plugin active, where any grammar agrees.
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { resetPluginPlatformForTests } from '$lib/testing';
 import { installPlugins } from '$lib/schema/plugin-install';

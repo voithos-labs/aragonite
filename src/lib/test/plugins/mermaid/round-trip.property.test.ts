@@ -66,9 +66,8 @@ const arbDoc = fc
 
 const PARAMS = { numRuns: 300, seed: freshOrFixedSeed(20260710) } as const;
 
-// fc.sample here feeds the reachability self-tests, which must stay deterministic
-// (a fresh seed could miss a rare fence shape and flake), so its seed is left
-// fixed rather than threaded through the fresh lane.
+// fc.sample feeds the reachability self-tests, so its seed stays fixed: a fresh seed could miss
+// a rare fence shape and flake.
 let samples: string[] = [];
 beforeAll(() => {
 	samples = fc.sample(arbDoc, { numRuns: 800, seed: 20260710 });
@@ -87,9 +86,8 @@ describe('mermaid round-trip property: plugin installed', () => {
 		);
 	});
 
-	// Evidence that the awkward fence shapes are reachable, read off the parsed nodes'
-	// captured metadata (which also proves the capture handles each shape). The same
-	// generator the properties run on has to produce them.
+	// Evidence that the properties' own generator reaches the awkward fence shapes, read off the
+	// parsed nodes' captured metadata, which also proves the capture handles each shape.
 	function sampledMermaidMetadata(): MermaidMetadata[] {
 		const out: MermaidMetadata[] = [];
 		for (const src of samples) {

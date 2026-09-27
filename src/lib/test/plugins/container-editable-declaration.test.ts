@@ -1,9 +1,7 @@
 // @vitest-environment jsdom
 // A container's `editable` declaration, end to end: a kind declares it, the factory passes it
 // through, the mounted block reports it.
-//
-// Miss-analysis: the shim hardcoded `editable: true`, so no fixture could declare otherwise and
-// every existing container test read that hardcoded value back, with no kind to pin the rest.
+// Miss-analysis: no fixture declared `editable: false`, so no test told it from a hardcoded value.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { flushSync } from 'svelte';
 import { declaredPluginKind } from '$lib/plugin';

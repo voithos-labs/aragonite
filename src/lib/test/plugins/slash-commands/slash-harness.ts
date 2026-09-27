@@ -119,7 +119,7 @@ export function slashHarness(initial: string, options: SlashCommandsOptions = {}
 		/** Enter on the open list; false where the list holds no key and Enter would split. */
 		async pick(): Promise<boolean> {
 			const taken = menu.registry.isOpen && menu.commit();
-			// The pick's write and its caret landing each settle over a tick before `onCommit` runs.
+			// The pick's write and its caret landing each take a tick before `onCommit` runs.
 			for (let i = 0; i < 4; i++) await tick();
 			return taken;
 		}

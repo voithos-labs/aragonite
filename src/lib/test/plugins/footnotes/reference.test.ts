@@ -14,9 +14,8 @@ const isRef = (n: InlineNode) => n.kind === FOOTNOTE_REF_KIND;
 const refsIn = (raw: string) => parseInline(raw, 0, raw.length).filter(isRef);
 const scan = (raw: string) => parseInline(raw, 0, raw.length);
 
-// Recognition is gated on registration: with nothing registered the `[` scanner
-// runs its built-in bracket handling, so a document authored with footnotes opens
-// byte-identically in an editor that lacks the plugin.
+// With nothing registered the `[` scanner runs its built-in bracket handling, so a document
+// authored with footnotes opens byte-identically in an editor that lacks the plugin.
 describe('footnote reference is dormant until registered', () => {
 	it('leaves [^1] to the built-in bracket reading with nothing registered', () => {
 		const clean = scan('see [^1] here');
@@ -56,9 +55,8 @@ describe('[^label] recognizer grammar', () => {
 		});
 	}
 
-	// Label chars exclude `]` but not `[`, so the first `]` closes: the inner `[^x`
-	// is label content, and the match ends at the first bracket. The trailing `]`
-	// rescans as its own literal.
+	// Label chars exclude `]` but not `[`, so the inner `[^x` is label content, the first `]`
+	// closes, and the trailing `]` rescans as its own literal.
 	it('reads [^nested[^x]] as label "nested[^x", closing at the first bracket', () => {
 		const nodes = scan('[^nested[^x]]');
 		expect(nodes[0]).toMatchObject({

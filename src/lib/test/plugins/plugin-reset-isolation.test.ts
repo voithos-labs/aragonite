@@ -1,11 +1,7 @@
 // @vitest-environment jsdom
-//
 // A plugin author's suite, written against the published testing API: reset in `beforeEach`,
 // re-install in each case, and every case sees exactly one install's registrations.
-// Miss-analysis: the reset's own test probed a hand-kept list of registries, so the two it
-// skipped (context actions, languages) leaked between cases with nothing to notice; and the
-// language case read the registry, never the highlighting, so the copy highlight.js keeps of
-// each grammar leaked past a reset that had cleared the registry.
+// Miss-analysis: the reset's test read a hand-kept list of registries, never the highlighter.
 import { describe, it, expect, beforeEach } from 'vitest';
 import javascript from 'highlight.js/lib/languages/javascript';
 import python from 'highlight.js/lib/languages/python';
@@ -71,8 +67,7 @@ describe('resetPluginPlatformForTests between cases', () => {
 	});
 });
 
-// Miss-analysis: every built-in registered at startup, outside any install, so none recorded a
-// plugin that a later reset would read as the owner and drop.
+// Miss-analysis: every built-in registered at startup, never from inside a plugin install.
 describe('a built-in registered from inside a plugin install', () => {
 	it('stays a built-in: the reset keeps it', () => {
 		installPlugins([

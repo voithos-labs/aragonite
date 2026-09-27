@@ -1,13 +1,8 @@
 // @vitest-environment jsdom
-/**
- * The kit's cells are only worth their runtime if they can fail. Each case here registers an
- * inline handler with one deliberate defect and asserts the cell that owns it fails, naming
- * it; the enrollment suite beside it proves the other direction.
- *
- * The defects are invisible to a byte round trip, which is the whole reason the cells exist:
- * every document below round-trips perfectly while meaning something other than what its
- * author wrote.
- */
+// The kit's cells are only worth their runtime if they can fail, so each case registers an
+// inline handler with one deliberate defect and asserts the cell that owns it fails, naming it.
+// Every defect is invisible to a byte round trip: each document below round-trips perfectly
+// while meaning something other than what its author wrote.
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
@@ -46,9 +41,8 @@ const run = (profile: InlineConformanceProfile) => () => runInlineKindConformanc
 // ── overlapDecline: the flagship ─────────────────────────────────────────────
 
 describe('overlapDecline reds an inline syntax handler that swallows the grammar overlap', () => {
-	// `![[a]](u)` is a built-in image, and a handler registered on the `!` prefix is asked
-	// first, so a recognizer taking every `![[…]]` takes those bytes and the document still
-	// round-trips, as a wiki embed the author never wrote.
+	// `![[a]](u)` is a built-in image, and a handler on the `!` prefix is asked first, so one
+	// taking every `![[…]]` still round-trips, as a wiki embed the author never wrote.
 	const swallowEverything = (raw: string, pos: number, end: number): InlineNode | null => {
 		const close = raw.indexOf(']]', pos + 3);
 		if (!raw.startsWith('![[', pos) || close < 0 || close + 2 > end) return null;
@@ -101,9 +95,8 @@ describe('imageClaim reds a borrowed built-in the inline syntax handler cannot r
 		);
 	});
 
-	// A hook that cannot re-emit the node it was handed cannot be trusted with an edited
-	// one, and a rewrite equal to the source is dropped by the commit's equality check,
-	// so the edit would visibly do nothing and say nothing.
+	// A rewrite equal to the source is dropped by the commit's equality check, so a hook that
+	// cannot re-emit its own input makes an edit that visibly does nothing and says nothing.
 	it('fails a hook that cannot reproduce its own input', () => {
 		registerWikiRung(() => '![[somethingelse.png]]');
 		expect(run(wikiProfile())).toThrow(/imageClaim: .*rewriteImage re-emits/s);
@@ -129,8 +122,8 @@ describe('claims reds a fixture the inline syntax handler never touches', () => 
 // ── registration ─────────────────────────────────────────────────────────────
 
 describe('registration reds an inline syntax handler that is not where the profile says', () => {
-	// The failure the directive handler shipped with: the kind and widget registered,
-	// the recognizer skipped because another plugin already held the trigger.
+	// The kind and widget registered but the recognizer skipped, because another plugin
+	// already held the trigger.
 	it('fails when nothing is registered at the declared prefix', () => {
 		expect(run(wikiProfile())).toThrow(/no rung is registered on "!" at prefix "!\[\["/);
 	});
@@ -198,8 +191,8 @@ describe('widget reds a widget the offset walk cannot measure', () => {
 });
 
 describe('widget reds a claim that cannot stand on its own bytes', () => {
-	// The match reaches for a byte outside itself, so the slice `data-source-*` hands the
-	// clipboard, and showing the source does not re-form the same widget.
+	// The match reaches for a byte outside itself, so neither the slice `data-source-*` hands the
+	// clipboard nor the shown source re-forms the same widget.
 	it('fails an inline syntax handler whose slice only forms in the context it was cut from', () => {
 		const kind = declarePluginInlineKind(MARKER);
 		registerInlineSyntax('@', (raw, pos, end) => {
@@ -219,11 +212,8 @@ describe('widget reds a claim that cannot stand on its own bytes', () => {
 
 // ── roundTrip ────────────────────────────────────────────────────────────────
 
-// A block's scan range is not always its whole raw, so a handler reading the string instead
-// of the range swallows marker bytes into its widget's span and shifts every later caret. The
-// dispatch already throws on such a match; what the kit decides is when the author hears about
-// it, so these pin that it drives a restricted range at all. Otherwise the handler is only
-// caught in the consumer's app, at the first heading.
+// A block's scan range is not always its whole raw, and a handler reading past it shifts every
+// later caret; the kit drives a restricted range so the author hears before a consumer does.
 describe('roundTrip reds a claim that reads past the range the block offered', () => {
 	/** Registers `@…@` with a recognizer of the caller's shape that ignores `end`. */
 	function registerOverrunningRung(
@@ -251,9 +241,8 @@ describe('roundTrip reds a claim that reads past the range the block offered', (
 		);
 	});
 
-	// The terminator-search shape stops at a real closer, so only a tail carrying the
-	// author's own grammar puts one beyond `end`, which is why the kit also cuts the
-	// range just past an opener.
+	// A terminator search stops at a real closer, so only a tail carrying the author's own
+	// grammar puts one past `end`; the kit also cuts the range just past an opener for that.
 	it('fails a terminator search with no `end` bound', () => {
 		const kind = registerOverrunningRung((raw, pos) => {
 			const close = raw.indexOf('@', pos + 1);

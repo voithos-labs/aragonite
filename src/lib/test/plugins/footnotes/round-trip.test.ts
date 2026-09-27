@@ -72,9 +72,8 @@ describe('footnote round-trip without the plugin (the uninstall story)', () => {
 	});
 
 	it('falls back to a paragraph when uninstalled: and still round-trips', () => {
-		// The built-in reserves leading-caret labels away from link reference
-		// definitions, so an uninstalled `[^label]:` line is a plain paragraph, for both
-		// prose and URL bodies. Either way the bytes survive verbatim.
+		// The built-in keeps leading-caret labels away from link reference definitions, so an
+		// uninstalled `[^label]:` line is a plain paragraph whose bytes survive verbatim.
 		for (const src of ['[^1]: The detail.\n', '[^1]: https://example.com\n']) {
 			roundTrips(src);
 			expect(parse(src).children[0].kind).toBe('paragraph');

@@ -101,10 +101,8 @@ describe('createOccurrenceSource', () => {
 	});
 });
 
-// The marks step aside while you type. A keystroke bumps `editEpoch` with no `edit` or
-// `sourceSwap` event before it; every other document change announces itself, so the marks stay
-// on. Miss-analysis: no unit test reached the source through an `edit` op at all, so nothing
-// told a keystroke apart from an undo or a whole-document swap.
+// Marks step aside for a keystroke, the one change that bumps `editEpoch` unannounced.
+// Miss-analysis: no unit test reached the source through an `edit` op.
 describe('createOccurrenceSource typing gate', () => {
 	const doc = parse('cat sat on cat\n\ndog ran\n');
 

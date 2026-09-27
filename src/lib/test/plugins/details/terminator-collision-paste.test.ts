@@ -17,9 +17,7 @@ import {
 } from '$lib/test/harness/editor-actions';
 import { defaultGrammarView } from '$lib/schema/block-openers';
 
-// Miss-analysis: every terminator-collision suite drove the per-block byte writes (typing,
-// split, cross-block delete); paste builds its nodes before any of them, and no test drove
-// pasteDispatch or the paste splice into a bodyWrite container (GH #40).
+// Miss-analysis: no test pasted into a bodyWrite container, only typed, split or deleted (GH #40).
 
 const OPEN_DETAILS = '<details>\n<summary>T</summary>\n\nbody\n\n</details>\n';
 
@@ -90,9 +88,8 @@ describe('details terminator escape at the paste door', () => {
 		expect(parse(serialize(h.doc)).children.map((c) => c.kind)).toEqual(['details']);
 	});
 
-	// The recognizer never sees an indented close, so the container survives in aragonite
-	// either way, but a browser closes the element on it, and paste is the only way such
-	// spellings can arrive (GH #40).
+	// The recognizer never sees an indented close, so the container survives here, but a browser
+	// closes the element on it, and paste is the only way such spellings arrive.
 	it('escapes a passthrough-only spelling arriving by paste', async () => {
 		const h = mountDoc(OPEN_DETAILS);
 

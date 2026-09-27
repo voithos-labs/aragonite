@@ -12,9 +12,8 @@ import type { MathRenderer } from '$lib/plugins/latex/math-renderer';
 // satisfies the required option without pulling in a math library.
 const stubRenderer: MathRenderer = () => ({ dom: document.createElement('span') });
 
-// The block opener and the inline `$` trigger register through independent registries, and
-// the platform reset clears both; a schema-only reset would leave the inline half registered
-// and the test below would pass for the wrong reason.
+// The block opener and the inline `$` trigger live in independent registries and the platform
+// reset clears both; a schema-only reset would let the test below pass on the inline half.
 beforeEach(resetPluginPlatformForTests);
 afterEach(resetPluginPlatformForTests);
 
@@ -28,10 +27,8 @@ describe('block math is dormant until registered', () => {
 	});
 });
 
-// Grammar: the opener sits at column 0. A closed single line (`$$…$$`, length
-// ≥ 4) is a one-line block; a bare `$$` opens a multi-line block that a later
-// bare `$$` closes. Anything else starting with `$$` (e.g. `$$ x` unclosed)
-// declines to a paragraph, as does an unterminated bare fence.
+// A closed single line (`$$…$$`) at column 0 is a one-line block, and a bare `$$` opens one a
+// later bare `$$` closes; any other `$$` line, or an unterminated fence, stays a paragraph.
 describe('block math recognition', () => {
 	beforeEach(registerMathBlock);
 
@@ -94,9 +91,8 @@ describe('latexPlugin wires the block opener', () => {
 	});
 });
 
-// The renderer is required (there is no built-in default, unlike mermaid's optional one), and
-// that holds at the type level, so the `@ts-expect-error` directives below are the assertions:
-// making the renderer optional again fails `npm run check`.
+// The renderer is required at the type level, unlike mermaid's optional one, so the
+// `@ts-expect-error` directives below are the assertions: an optional one fails `npm run check`.
 describe('latexPlugin requires an injected renderer', () => {
 	it('rejects a missing or empty renderer option at compile time', () => {
 		// @ts-expect-error - renderer is required; a bare call omits it
@@ -108,9 +104,8 @@ describe('latexPlugin requires an injected renderer', () => {
 	});
 });
 
-// A schema reset clears the block registry but leaves the inline registries live, so a
-// reinstall must re-register the block kind but not the inline one. The inline check keys on
-// the kind that survives the reset; key it on anything else and the second registration throws.
+// A schema reset leaves the inline registries live, so a reinstall re-registers only the block
+// kind; an inline check keyed on anything but the surviving kind would throw on reinstall.
 describe('latexPlugin reinstall after a platform reset', () => {
 	it('re-registers the block kind and leaves the inline path intact', () => {
 		installPlugins([latexPlugin({ renderer: stubRenderer })]);

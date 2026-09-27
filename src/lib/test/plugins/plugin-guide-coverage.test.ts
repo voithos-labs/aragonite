@@ -8,9 +8,8 @@ import path from 'node:path';
 // rename it in both.
 const CATALOG_DOC = 'docs/guide/plugin-api.md';
 const CATALOG_HEADING = '\n## API reference';
-// `@voithos-labs/aragonite/testing` has no catalog table of its own: its section is the
-// catalog, only its callables are enrolled, and the kits' report types are read off the calls
-// that return them.
+// `@voithos-labs/aragonite/testing` has no catalog table: its section is the catalog, only its
+// callables are enrolled, and the kits' report types are read off the calls that return them.
 const TESTING_DOC = 'docs/guide/plugin-testing.md';
 const TESTING_HEADING = '\n## Verifying your plugin';
 
@@ -47,11 +46,8 @@ function guideSection(doc: string, heading: string): string {
 	return text.split(heading)[1]?.split('\n## ')[0] ?? '';
 }
 
-/**
- * A catalog cell names an export bare (`` `foo` ``); the prose-shaped testing section also
- * accepts a call (`` `foo(text)` ``). The catalog side keeps the strict form, which is what
- * stops incidental prose from standing in for a table row.
- */
+/** A catalog cell names an export bare (`` `foo` ``), which keeps incidental prose from standing
+ *  in for a row; the prose-shaped testing section also accepts a call (`` `foo(text)` ``). */
 const undocumented = (names: string[], text: string, allowCallForm = false) =>
 	names.filter((n) => !text.includes(`\`${n}\``) && !(allowCallForm && text.includes(`\`${n}(`)));
 

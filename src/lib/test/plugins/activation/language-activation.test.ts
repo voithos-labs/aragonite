@@ -1,5 +1,4 @@
-// Miss-analysis: every language test registered outside a plugin install, so a language resolved
-// in each editor whatever its `plugins` prop listed, and a failed plugin's language was never read.
+// Miss-analysis: every language test registered outside a plugin install, so none read activation.
 import { afterEach, describe, expect, it } from 'vitest';
 import python from 'highlight.js/lib/languages/python';
 import { definePlugin, installPlugins } from '$lib/schema/plugin-install';

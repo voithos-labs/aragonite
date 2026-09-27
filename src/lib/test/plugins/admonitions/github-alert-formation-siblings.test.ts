@@ -27,9 +27,8 @@ describe('github alert: formation through sibling paths', () => {
 		expect(parseConverges(h.deps.doc)).toBe(true);
 	});
 
-	// The marker comes from metadata, so only a metadata write can demote an alert. Top level
-	// on purpose: that commit takes the document branch, which rebuilds no ancestors, so the
-	// re-derivation has to reach the metadata update directly.
+	// Only a metadata write can demote an alert, and a top-level commit rebuilds no ancestors,
+	// so the kind re-derivation has to reach the metadata update directly.
 	it('demotes a top-level alert whose type metadata stops naming an alert', async () => {
 		const harness = makeEditorActionsDeps(parse('> [!TIP]\n> body\n').children);
 		const actions = createBlockEditActions(harness.deps, createUndoController(harness.deps));

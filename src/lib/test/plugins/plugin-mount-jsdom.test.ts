@@ -1,11 +1,7 @@
 // @vitest-environment jsdom
-
-// Mounting a plugin component through the published API only. The in-repo mount harness is not
+// Mounting a plugin component through the published API only: the in-repo mount harness is not
 // packaged, so an author's recipe has to stand alone, and this file is that recipe.
-//
-// Miss-analysis: every mounted-block suite reached the internal harness, so nothing held the
-// published API to mounting one; the jsdom stubs and the scroll mode were maintainer knowledge
-// with no test standing on them.
+// Miss-analysis: every mounted-block suite used the internal harness, never the published API.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mount, unmount, flushSync } from 'svelte';
 import { Editor, type EditorInstance } from '$lib';
@@ -128,10 +124,7 @@ describe('mounting a plugin block through the published surface', () => {
 	});
 });
 
-// Miss-analysis: every caller ran in a bare jsdom, so the install-only-where-absent guard never
-// met an API already in place, and the internal mount harness kept a force-assigning copy instead.
-// Miss-analysis: the plain-mode leaf carried its own reading check, never driven by a test, so
-// nothing showed an input reaching a plain source in reading mode would write nothing without it.
+// Miss-analysis: no test drove an input into a plain-mode leaf in reading mode.
 describe('a plain-mode plugin leaf in reading mode', () => {
 	it('is not editable, and an input that reaches it anyway writes nothing', async () => {
 		const root = mountEditor([markerLeafPlugin()], 'reading');
@@ -147,6 +140,7 @@ describe('a plain-mode plugin leaf in reading mode', () => {
 	});
 });
 
+// Miss-analysis: every caller ran in a bare jsdom, so no stub met an API already in place.
 describe('installEditorDomStubsForTests', () => {
 	it('keeps a ResizeObserver the environment already provides', () => {
 		class RealResizeObserver {

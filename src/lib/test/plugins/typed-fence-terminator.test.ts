@@ -8,12 +8,10 @@ import { registerMermaidKind, MERMAID } from '$lib/plugins/mermaid/mermaid-kind'
 import { describeConvergence } from '$lib/test/harness/parse-converged';
 import { defaultGrammarView } from '$lib/schema/block-openers';
 
-// GH #180 at the plugin API: this belongs to the grammar, not to a list of kinds, so a fence a
-// plugin opener takes needs the same terminator the built-in one does. Both bundled fence kinds
-// are here because they read an unterminated fence oppositely (mermaid takes it, mathFence
-// leaves it to `fencedCode`), and the swallowed document is the same either way.
-// Miss-analysis: the kind-change tests drew prose demotions only, and the plugins e2e project
-// sits outside tree-ops' commit gate, so nothing typed a fence opener over content.
+// A fence a plugin opener takes needs the same terminator the built-in one does. Both bundled
+// fence kinds are here because they read an unterminated fence oppositely (mermaid takes it,
+// mathFence leaves it to `fencedCode`), and the swallowed document is the same either way.
+// Miss-analysis: the kind-change tests drew prose demotions only, never a fence opener (GH #180).
 
 describe('a typed plugin fence closes over an empty body (GH #180)', () => {
 	beforeEach(() => {

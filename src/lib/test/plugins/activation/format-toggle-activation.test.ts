@@ -1,7 +1,5 @@
 // @vitest-environment jsdom
-//
-// Miss-analysis: every format-toggle test ran with each installed plugin active, so no case
-// toggled over latex or emoji syntax in an editor that draws it as text.
+// Miss-analysis: no toggle test ran over latex or emoji syntax in an editor drawing it as text.
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { resetPluginPlatformForTests } from '$lib/testing';
 import { installPlugins } from '$lib/schema/plugin-install';

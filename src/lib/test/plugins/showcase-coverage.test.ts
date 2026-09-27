@@ -46,9 +46,8 @@ const NOT_YET_DEMONSTRATED: Record<string, string> = {
 	directiveLeaf: 'BY DESIGN: the leaf half of the same unclaimed-directive fallback'
 };
 
-/** Bundled plugin directory → a kind whose presence proves its syntax is on the tour.
- *  Lockstepped against the directory listing below, so a plugin dropped from the demo
- *  set fails here even though its kinds leave the registry with it. */
+/** Bundled plugin directory → a kind whose presence proves its syntax is on the tour, checked
+ *  against the directory listing so a plugin dropped from the demo set fails here. */
 const PLUGIN_DEMONSTRATED_BY: Record<string, string[]> = {
 	admonitions: [ADMONITION, GITHUB_ALERT],
 	details: [DETAILS],

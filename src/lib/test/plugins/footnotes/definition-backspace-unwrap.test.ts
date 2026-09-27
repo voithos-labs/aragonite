@@ -1,12 +1,8 @@
 // @vitest-environment jsdom
-//
 // Backspace at the start of a definition's body unwraps the note, the way every other
 // marker-bearing container does. The marker lives in metadata, so what is left after a lift
 // is still a definition rather than the blockquote a quote lift leaves.
-//
-// Miss-analysis: the descriptor declared no `unwrapRole`, so the keystroke delegated upward
-// and became a focus move: a no-op no test asserted, because the suite only ever checked that
-// the bytes were unchanged after edits that were supposed to change nothing.
+// Miss-analysis: no test asserted what Backspace did, only that the bytes stayed unchanged.
 import { describe, it, expect, afterEach, beforeEach, beforeAll } from 'vitest';
 import { resetPluginPlatformForTests } from '$lib/testing';
 import { footnotesPlugin } from '$lib/plugins/footnotes';
@@ -56,7 +52,7 @@ describe('footnote definition Backspace unwrap', () => {
 		expect(mounted.source()).toBe('[^a]: First.Second.\n');
 	});
 
-	// The edit itself is the browser's; what this asserts is that no unwrap branch took it.
+	// The edit itself is the browser's; the case asserts only that no unwrap branch took it.
 	it('leaves a mid-content Backspace to the block itself', async () => {
 		editor('[^a]: First note.\n');
 
@@ -65,9 +61,8 @@ describe('footnote definition Backspace unwrap', () => {
 		expect(mounted.source()).toBe('[^a]: First note.\n');
 	});
 
-	// The bytes are half the assertion: where the caret ends up is what tells a deliberate
-	// decline from a keystroke that did nothing. A note behaves as one block from outside,
-	// so body text never becomes note text.
+	// Where the caret lands tells a deliberate decline from a keystroke that did nothing; a note
+	// acts as one block from outside, so the paragraph below never becomes note text.
 	it('declines the paragraph below it and lands the caret at the note body end', async () => {
 		editor('[^a]: First note.\n\nAfter.\n');
 

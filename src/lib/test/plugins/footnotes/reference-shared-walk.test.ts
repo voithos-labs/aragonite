@@ -1,5 +1,4 @@
 // @vitest-environment jsdom
-//
 // Every step from the document view to the widget's props is optionally typed, and the
 // fallback for a missing version is correct, just O(widgets × blocks). So a broken step
 // leaves every numbering test green, and only counting passes tells the two apart.
@@ -71,9 +70,8 @@ describe('footnote reference widgets read the editor content version', () => {
 		mounted = mountReferences(() => 4242);
 		expect(mounted.refs.map((el) => el.textContent)).toEqual(['1', '2']);
 
-		// The number of passes, not the raw compute total: the block's own render adds a
-		// small constant, so rounding puts the threshold midway between one pass and two
-		// rather than one incidental compute away from being unable to fail.
+		// Rounding passes rather than reading the raw compute count absorbs the block's own
+		// small render cost, putting the threshold midway between one pass and two.
 		const walks = Math.round(perfSnapshot().inlineComputeCount / LEAVES);
 		expect(walks).toBe(1);
 	});

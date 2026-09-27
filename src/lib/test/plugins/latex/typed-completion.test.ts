@@ -8,9 +8,8 @@ import { completeTypedLine } from '$lib/schema/block-completions';
 import { registerMathBlock, MATH_BLOCK } from '$lib/plugins/latex/latex-kind';
 import { tryCompleteMathBlock } from '$lib/plugins/latex/math-completion';
 
-// The `$$` completer's line test, the bytes it answers with, and what the editor does with
-// them. The registry's own behavior lives in test/schema, the checks around it in
-// test/editor-actions.
+// The `$$` completer's line test, the bytes it answers with, and what the editor does with them;
+// the registry is tested in test/schema, the checks around it in test/editor-actions.
 
 beforeEach(resetPluginPlatformForTests);
 afterEach(resetPluginPlatformForTests);

@@ -1,7 +1,5 @@
 // @vitest-environment jsdom
-//
-// Miss-analysis: the auto-pair owner pin registered one plugin per trigger, so a trigger that
-// two plugins both pair was never checked under a grammar listing only one of them.
+// Miss-analysis: no case paired one trigger from two plugins under a grammar listing only one.
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { resetPluginPlatformForTests } from '$lib/testing';
 import { definePlugin, installPlugins } from '$lib/schema/plugin-install';

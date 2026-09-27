@@ -1,5 +1,4 @@
 // @vitest-environment jsdom
-//
 // The code-block language API as a plugin author sees it: only the published barrel, so a
 // re-export that drifts from the registry behind it fails here rather than in a host's build.
 import { describe, it, expect, beforeEach } from 'vitest';

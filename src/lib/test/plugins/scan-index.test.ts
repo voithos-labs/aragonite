@@ -42,9 +42,8 @@ describe('createScanIndex memoization', () => {
 		expect(collect).toHaveBeenCalledTimes(1);
 	});
 
-	// Cap 2 is the number that matters: recognition alternating between two blocks must not
-	// thrash the index, while old blocks must not accumulate. The eviction rules are pinned
-	// once on the shared helper in bounded-memo.test.ts; this pins the wiring.
+	// Cap 2 lets recognition alternate between two blocks without thrashing the index while old
+	// blocks still evict; bounded-memo.test.ts pins the eviction rules, this case the wiring.
 	it('holds two raws at once; a third evicts one', () => {
 		const collect = vi.fn(digitPositions);
 		const lookup = createScanIndex(collect);

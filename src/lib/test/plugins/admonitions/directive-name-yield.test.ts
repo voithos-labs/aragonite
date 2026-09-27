@@ -10,12 +10,7 @@ import {
 } from '$lib/plugin';
 import { testContainer } from '$lib/test/harness/test-kinds';
 
-/**
- * Admonitions registers five directive names and leaves alone any already registered.
- * Tested here rather than by installing two competing plugins on a dev route: the winner would
- * then depend on install order, which a multi-route server and a fresh browser page resolve
- * differently.
- */
+/** Admonitions registers its directive names only where no other plugin already holds one. */
 
 const PROBE = 'directiveYieldProbe';
 

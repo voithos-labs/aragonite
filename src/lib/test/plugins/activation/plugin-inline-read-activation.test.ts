@@ -1,7 +1,5 @@
 // @vitest-environment jsdom
-//
-// Miss-analysis: no plugin test ran under an editor whose plugins prop left something out, so a
-// plugin's inline read agreed with the render in every case the suite drew.
+// Miss-analysis: no plugin test ran in an editor whose `plugins` prop left something out.
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { parse, type DocumentView } from '$lib';
 import { resetPluginPlatformForTests } from '$lib/testing';

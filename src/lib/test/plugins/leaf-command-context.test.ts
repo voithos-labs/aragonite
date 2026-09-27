@@ -93,9 +93,8 @@ describe('editable-leaf command context', () => {
 		expect(pluginEditor).toHaveBeenCalledWith('admonitions');
 	});
 
-	// A block reaches a registered handler through the same dispatch a container does: a key
-	// combination on the focused block resolves the registered command and hands it that
-	// block's command context, hooks included.
+	// A key combination on a focused leaf resolves the registered command through the same
+	// dispatch a container uses, and hands it the block's command context, hooks included.
 	it('dispatches a created command on the leaf path with hooks reaching the handler', () => {
 		const hooks = { openFocusView: vi.fn() };
 		const handler = vi.fn((ctx: { hooks?: unknown }) => {

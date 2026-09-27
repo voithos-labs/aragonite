@@ -15,9 +15,8 @@ afterEach(resetPluginPlatformForTests);
 const scan = (raw: string) => parseInline(raw, 0, raw.length);
 const refsIn = (raw: string) => scan(raw).filter((n) => n.kind === FOOTNOTE_REF_KIND);
 
-// An unterminated `[^` would search to the end of the block before backing out, so a
-// paragraph holding many of them would pay one full block scan each. The label terminators
-// (`]` and whitespace) are indexed once per block instead.
+// An unterminated `[^` would search to the block's end before backing out, so the label
+// terminators (`]` and whitespace) are indexed once per block rather than scanned per `[^`.
 describe('footnote reference decline bounds', () => {
 	it('an unterminated-[^ flood scans within a bounded growth ratio', () => {
 		const growth = measureScanGrowth(scan, '[^x', [32, 128]);

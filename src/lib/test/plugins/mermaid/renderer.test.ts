@@ -9,9 +9,8 @@ import {
 // The renderer is module-wide; leave it unset for the other files in this suite.
 afterEach(() => setMermaidRenderer(null));
 
-// One theme for the cases the theme is not about (caching, failure caching). Named rather
-// than given a default: forgetting the theme on the one function whose point is that the
-// theme is a render input must not compile.
+// One theme for the cases the theme is not about; named rather than defaulted, so forgetting the
+// theme on a function whose point is the theme as a render input does not compile.
 const THEME = 'dark';
 
 describe('renderMermaid memoization', () => {
@@ -29,9 +28,8 @@ describe('renderMermaid memoization', () => {
 		expect(renderer).toHaveBeenCalledTimes(2);
 	});
 
-	// Mermaid paints its own colors into the SVG, so a diagram drawn for one theme cannot
-	// be reused under another: the theme has to be part of the cache key, or a theme change
-	// returns the cached wrong-palette SVG forever.
+	// Mermaid paints its own colors into the SVG, so the theme is part of the cache key, or a
+	// theme change would return the wrong-palette SVG forever.
 	it('keys on the theme as well as the code, and hands the renderer the theme', async () => {
 		const renderer = vi.fn(async (code: string, _id: string, ctx?: { theme: string }) => {
 			return `<svg data-theme="${ctx?.theme}">${code}</svg>`;
@@ -52,9 +50,8 @@ describe('renderMermaid memoization', () => {
 		expect(renderer).toHaveBeenCalledTimes(2);
 	});
 
-	// The key is built from two strings, so two (theme, code) pairs must not collide when
-	// joined: with no separator, theme 'a' plus code 'b' would be the same entry as theme
-	// 'ab' plus code ''.
+	// The key joins two strings, so it needs a separator: otherwise theme 'a' with code 'b' is
+	// the same entry as theme 'ab' with code ''.
 	it('cannot collide two theme/code pairs into one entry', async () => {
 		const renderer = vi.fn(async (code: string) => `<svg>${code}</svg>`);
 		setMermaidRenderer(renderer);
@@ -85,9 +82,8 @@ describe('renderMermaid memoization', () => {
 		expect((await renderMermaid('graph TD', THEME)).svg).toBe('<svg>two</svg>');
 	});
 
-	// The eviction rules are pinned generically in bounded-memo.test.ts; this proves
-	// renderMermaid uses the real MERMAID_MEMO_CAP limit, so a long session evicts rather
-	// than growing forever.
+	// bounded-memo.test.ts pins the eviction rules; this case proves renderMermaid uses the real
+	// MERMAID_MEMO_CAP, so a long session evicts rather than growing forever.
 	it('evicts the least-recently-used entry past the cap', async () => {
 		const renderer = vi.fn(async (code: string) => `<svg>${code}</svg>`);
 		setMermaidRenderer(renderer);
@@ -107,9 +103,8 @@ describe('renderMermaid memoization', () => {
 });
 
 describe('absent-renderer fallback', () => {
-	// Pinned at this module because the component's static branch has no honest test level:
-	// mounting MermaidBlock needs six contexts keyed by unexported symbols, and the harness
-	// page installs the plugin with a renderer for the whole process.
+	// The no-renderer branch is tested here because mounting MermaidBlock needs six contexts
+	// keyed by unexported symbols, and the harness page always installs a renderer.
 	it('reports no renderer when unset and resolves to the configured-note error', async () => {
 		expect(hasMermaidRenderer()).toBe(false);
 		expect((await renderMermaid('graph TD', THEME)).error).toBe('renderer not configured');

@@ -16,9 +16,8 @@ function convertedAlertRegion(source: string): string {
 	return convertAlertBlockquoteRaw(alert.raw, documentLineEnding(parse(source)))!;
 }
 
-// Both converters take their extent from `blockquoteExtent`, so CommonMark §5.1 lazy
-// continuation must be handled identically by both. The last two rows are the shapes only an
-// extent scan that tracks state gets right; a line-by-line regex disagrees on them.
+// Both converters take their extent from `blockquoteExtent`, so they must agree on lazy
+// continuation; the last two rows are the shapes a line-by-line regex gets wrong.
 const AGREEING_SOURCES: [string, string][] = [
 	['plain quoted body', '> [!NOTE]\n> a\n> b\n'],
 	['tab-indented continuation line', '> [!NOTE]\n\t> body\n'],

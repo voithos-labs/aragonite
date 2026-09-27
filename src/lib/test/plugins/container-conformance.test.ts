@@ -9,9 +9,9 @@ import {
 import { registerCalloutKind, CALLOUT } from '../../../routes/test/plugins/callout/callout-kind';
 import { registerDetailsKind, DETAILS } from '$lib/plugins/details/details-kind';
 
-// The G4.3 kit pointed at real plugin containers, the audience it is for. Unlike the
-// built-in sweep (`test/invariants/container-conformance.test.ts`), which takes its kinds
-// from the registry, an author opts in explicitly with a profile.
+// The container conformance kit pointed at real plugin containers, the audience it is for.
+// Unlike the built-in sweep (`test/invariants/container-conformance.test.ts`), which takes its
+// kinds from the registry, an author opts in explicitly with a profile.
 
 const CALLOUT_KIND = () => declaredPluginKind(CALLOUT);
 const DETAILS_KIND = () => declaredPluginKind(DETAILS);
@@ -177,9 +177,8 @@ describe('G4.3 conformance kit: a broken plugin container fails', () => {
 		);
 	});
 
-	// Miss-analysis (#78): the broken-container suite exercised every fail() branch of the
-	// bodyWrap check but never its early return, so the silent skip of a nested fixture had no
-	// failing case. Callout is the hardest pick: its recognizer is the shared ::: opener.
+	// Miss-analysis: no case hit the bodyWrap check's early return on a nested fixture (GH #78).
+	// Callout is the hardest pick: its recognizer is the shared `:::` opener.
 	it('fails declaration sanity when the conformanceFixture nests the kind', async () => {
 		augmentBlockKind(CALLOUT_KIND(), { conformanceFixture: '> :::callout T\n> body\n> :::\n' });
 
