@@ -9,7 +9,6 @@ import type { UndoController } from '$lib/editor-actions/deps';
 import type { UndoEntry } from '$lib/undo/types';
 import { nodeAt } from '$lib/tree-operations/node-primitives';
 import { makeContainerHarness, makeTopHarness } from '$lib/test/harness/editor-actions';
-import { allowDevWarns } from '$lib/test/support/warn-gate';
 
 interface Typed {
 	actions: BlockEditActions;
@@ -105,10 +104,6 @@ describe('a typing burst that ends in a kind change is one undo entry', () => {
 				}
 
 				expect(nodeAt(typed.doc, leafPath)?.kind).toBe(kind);
-				// The emptied underline stays as a blank line inside the item's paragraph, which a
-				// reload reads differently: a separate defect, declared here so this row tests undo.
-				if (level === 'in a list item' && kind === 'paragraph')
-					allowDevWarns(['invariant:stale-raw']);
 				const entries = typed.undoEntries();
 				expect(entries).toHaveLength(1);
 				expect(serialize(entries[0].snapshot)).toBe(source);

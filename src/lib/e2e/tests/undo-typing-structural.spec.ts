@@ -53,6 +53,7 @@ async function eraseUnderlineThenUndo(
 	await editor.focusBlockAtPath(leafPath, 8);
 	for (let i = 0; i < 3; i++) await editor.page.keyboard.press('Backspace');
 	await expect.poll(() => editor.bridge.getSource()).toBe(erased);
+	expect(await editor.parseConverged()).toBe(true);
 
 	await editor.undo();
 
@@ -70,7 +71,13 @@ test.describe('undo, a typing burst that ends in a kind change', () => {
 
 	for (const { where, seed, erased, leafPath } of [
 		{ where: 'at the top level', seed: 'Plan\n===\n', erased: 'Plan\n\n', leafPath: [0] },
-		{ where: 'in a quote', seed: '> Plan\n> ===\n', erased: '> Plan\n>\n', leafPath: [0, 0] }
+		{ where: 'in a quote', seed: '> Plan\n> ===\n', erased: '> Plan\n>\n', leafPath: [0, 0] },
+		{
+			where: 'in a list item',
+			seed: '- Plan\n  ---\n- b\n',
+			erased: '- Plan\n  \n- b\n',
+			leafPath: [0, 0, 0]
+		}
 	]) {
 		test(`erasing a setext underline ${where} undoes in one step`, async () => {
 			await eraseUnderlineThenUndo(editor, seed, erased, leafPath);
@@ -90,17 +97,5 @@ test.describe('undo, a typing burst that ends in a kind change', () => {
 			path: [0, 0, 1],
 			offset: 0
 		});
-	});
-});
-
-test.describe('undo, a typing burst that ends in a kind change inside a list item', () => {
-	// Erasing the underline leaves its emptied line inside the item's paragraph, which the dev
-	// stale-raw check reports: a separate defect, declared so this spec tests the undo step.
-	test.use({ expectInvariants: ['stale-raw'] });
-
-	test('erasing a setext underline in a list item undoes in one step', async ({ page }) => {
-		const editor = new EditorPage(page);
-		await editor.goto();
-		await eraseUnderlineThenUndo(editor, '- Plan\n  ---\n', '- Plan\n\n', [0, 0, 0]);
 	});
 });
