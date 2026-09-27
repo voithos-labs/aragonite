@@ -47,14 +47,13 @@ export function applyPasteTransforms(text: string, plugins?: readonly string[]):
 }
 
 // ── Where dev warnings go ────────────────────────────────────────────────────
-// The channel every editor dev warning reaches, so a suite can build its own fail-on-warning
-// check: register a callback, empty it per case, and fail on anything left unaccounted for.
-// It works with any runner, and registering one silences the console line.
+// The channel every editor dev warning reaches, for a suite's own fail-on-warning check: register
+// a callback, empty it per case, fail on leftovers. Registering one silences the console line.
 
 export { setDevWarnSink } from './dev-warn';
 export type { DevWarnEntry, DevWarnSink } from './dev-warn';
 
-// ── Container conformance kit (G4.3) ─────────────────────────────────────────
+// ── Container conformance kit ────────────────────────────────────────────────
 
 export {
 	runContainerConformance,

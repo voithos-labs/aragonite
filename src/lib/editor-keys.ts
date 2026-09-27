@@ -1,9 +1,8 @@
 /**
- * Svelte context-key symbols shared across the editor tree: three named facets
- * (services, policies, document) plus the keys that must stay separate: the action
- * triple a container re-provides, the history key (only the editor root provides it,
- * G1.4), and the channels a block list provides to its children. Internal wiring, not a
- * plugin extension point; a facet object is not itself reactive, but the getters on it are.
+ * Svelte context-key symbols shared across the editor tree: three named facets (services,
+ * policies, document) plus the keys that stay separate: the action triple a container re-provides,
+ * the history key only the root provides (G1.4), and the channels a block list gives its children.
+ * Internal wiring, not a plugin extension point; a facet object is not reactive, its getters are.
  */
 
 import type { MenuPresence } from './components/menu/menu-presence.svelte';
@@ -116,13 +115,8 @@ export const HISTORY_KEY = Symbol('history-actions');
 export const LIST_CONTEXT_KEY = Symbol('list-context');
 export const TABLE_CONTEXT_KEY = Symbol('table-context');
 
-/**
- * @internal A block signs up for its block list's batched measure pass. `register` does
- * nothing when the path is not a direct child at that list's depth (a nested list has its
- * own channel); `readHeight` runs inside the list's read-everything-then-write batch, never
- * on its own. `measureOnResize` passes the observer's border-box height, so the list can
- * check in O(1) and skip the resize a mount fires for nothing.
- */
+/** @internal A block joins its block list's batched measure pass, where `readHeight` runs inside
+ *  the read-then-write batch. `register` ignores a path that is not a direct child of that list. */
 export const RECORD_BLOCK_HEIGHT_KEY = Symbol('record-block-height');
 export type BlockMeasureChannel = {
 	register: (path: number[], index: number, id: string, readHeight: () => number) => () => void;
@@ -130,11 +124,8 @@ export type BlockMeasureChannel = {
 	measureOnResize: (id: string, observedHeight: number) => void;
 };
 
-/**
- * @internal A child reports up to the block list above it: a nested container pushes its box
- * subtotal by index, while a `display:contents` row, which has no box of its own, signs up
- * for the batched measure pass instead, so a windowed table measures like every other list.
- */
+/** @internal A child reports to the block list above it: a nested container pushes its box
+ *  subtotal, and a `display:contents` row, having no box, joins the measure pass instead. */
 export const PARENT_SCOPE_SINK_KEY = Symbol('parent-scope-sink');
 export type ParentScopeSink = {
 	setChildSubtotal: (index: number, total: number) => void;
@@ -215,9 +206,8 @@ export interface EditorPolicies {
 	onRunCode: RunCodeHook | undefined;
 	/** Set-once host menu hook; its presence is what renders the overflow button. */
 	codeMenuItems: CodeMenuItemsHook | undefined;
-	/** Resolved image URLs that failed to load this session. One Set per instance, so a
-	 *  failed load never suppresses another editor's broken-state recompute
-	 *  (`components/image/widget-dom.ts`). */
+	/** Resolved image URLs that failed to load this session, one Set per instance so a failure never
+	 *  suppresses another editor's broken-state recompute. */
 	brokenImageUrls: Set<string>;
 }
 
@@ -237,10 +227,8 @@ export interface EditorDoc {
 	 *  observe it to tear down if the editor unmounts mid-operation. */
 	lifetime: AbortSignal;
 	editorRoot: () => HTMLElement | null;
-	/** What a drag autoscrolls to reach more of this editor: the editor root in self mode,
-	 *  the nearest ancestor the user can scroll in host mode, null when the page's own
-	 *  viewport scrolls. Which element bounds the visible region is a separate answer, held
-	 *  by `EditorRects`; see `cursor/scroll-ancestors`. */
+	/** What a drag autoscrolls: the editor root in self mode, the nearest scrollable ancestor in host
+	 *  mode, null when the page scrolls. `EditorRects` answers what bounds the visible region. */
 	scrollHost: () => UserScrollport | null;
 	/** The same scroller as `scrollHost`, in the shape windowing measures and writes it
 	 *  through. Null only before the root mounts. */
@@ -251,15 +239,13 @@ export interface EditorDoc {
 	focusedPath: FocusedPathGetter;
 	/** Per-kind height estimator, built by the root and read by nested block lists. */
 	heightOracle: HeightOracle;
-	/** True while the editor holds the user's place through a height change rather than
-	 *  leaving it to the browser's own scroll anchoring. The `overflow-anchor` opt-out reads
-	 *  the same fact, so the two can never both write one scroll position. */
+	/** True while the editor holds the user's place through a height change instead of the browser's
+	 *  scroll anchoring; the `overflow-anchor` opt-out reads the same fact. */
 	correctsScroll: () => boolean;
 	/** Counter the root bumps on an editor width resize, so every block list rebuilds its
 	 *  height table and re-measures at the new width. */
 	widthVersion: VersionGetter;
-	/** Counter the root bumps when the scroll container's height changes. Its own
-	 *  signal, never `widthVersion`: a height resize re-wraps no prose, so bumping the
-	 *  width counter would drop every measured height for nothing. */
+	/** Bumped when the scroll container's height changes, apart from `widthVersion`: a height change
+	 *  re-wraps no prose, so it must not drop every measured height. */
 	viewportHeightVersion: VersionGetter;
 }

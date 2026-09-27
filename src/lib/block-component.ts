@@ -1,9 +1,8 @@
 /**
- * The contract every rendered block satisfies, plus the special caret values and the
- * marker-prefix shape blocks produce. The editor reaches a block only through this flat
- * interface, so something a block cannot do is a missing optional member rather than a kind
- * check upstream; `ContainerBlockComponent` is the one stricter version. Authoritative for
- * outside authors: each member's docstring states its own contract.
+ * The contract every rendered block satisfies, plus the special caret values and the marker-prefix
+ * shape blocks produce. The editor reaches a block only through this flat interface, so something
+ * a block cannot do is a missing optional member, not a kind check upstream;
+ * `ContainerBlockComponent` is the stricter version. Each member's docstring states its contract.
  */
 
 import type { DocumentView, NodeView } from './core/node-views';
@@ -144,7 +143,7 @@ export type AmbientPrefix =
  * omits, but a leaf that drops `ambientPrefix` visually deletes its markers.
  */
 export interface BlockComponentProps {
-	/** Bytes-readonly view (G1.9): components render the CST; mutation routes through actions. */
+	/** Bytes-readonly view: components render the CST, and mutation goes through actions (G1.9). */
 	node: NodeView;
 	index: number;
 	myPath: number[];
@@ -168,9 +167,8 @@ export interface BlockComponent {
 	 */
 	focus(offset: number): void;
 	/**
-	 * `focus` without the range-ending: place the caret and touch nothing else. For paths
-	 * that extend a selection only (G2.12 checks the callers), where a `focus` would cancel
-	 * the range still being grown; any other caller wants `focus`.
+	 * `focus` without the range-ending: place the caret and touch nothing else. For paths that only
+	 * extend a selection, where a `focus` would cancel the range still being grown (G2.12).
 	 */
 	parkCaret?(offset: number): void;
 	/**
