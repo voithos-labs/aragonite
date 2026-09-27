@@ -53,12 +53,7 @@ describeScanCases('email autolinks', [
 		'<a@b>',
 		[autolinkNode(0, 5, 'mailto:a@b')]
 	],
-	[
-		// Only the domain's last character is barred from a dash in the bare form (§6.9).
-		'an inner label ending in a dash fails the angle form but links bare',
-		'<a@b-.c>',
-		[textNode(0, 1, '<'), autolinkNode(1, 7, 'mailto:a@b-.c'), textNode(7, 8, '>')]
-	]
+	['domain segment ending in dash is rejected', '<a@b-.c>', [textNode(0, 8, '<a@b-.c>')]]
 ]);
 
 describeScanCases('angle forms that fail both grammars stay literal', [

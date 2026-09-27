@@ -86,9 +86,9 @@ function hasValidDomain(raw: string, domainStart: number, limit: number): boolea
 }
 
 /**
- * GFM §6.9: a www or url autolink starts only at the scan range start or after whitespace (§2.1's
- * ASCII set, as cmark-gfm's `cmark_isspace`), `*`, `_`, `~`, or `(`, whichever node holds that
- * source byte. The email form takes no boundary: the spec finds it in any text node.
+ * GFM §6.9: valid only at the scan range start or after whitespace (§2.1's ASCII set, as
+ * cmark-gfm's `cmark_isspace`), `*`, `_`, `~`, or `(`, whichever node holds that source byte.
+ * Applied to every bare form here, per the spec text; cmark-gfm applies it to `www.` alone.
  */
 export function isValidLeadingBoundary(raw: string, pos: number, scanStart: number): boolean {
 	if (pos <= scanStart) return true;
@@ -271,7 +271,7 @@ function scanRunForBareAutolinks(
 		let matched: InlineNode | null = null;
 		if (ch === '[') brackets.open++;
 		else if (ch === ']') brackets.open = Math.max(0, brackets.open - 1);
-		else if (ch === '@') matched = matchBareEmailAutolink(raw, pos, end, claimedEnd);
+		else if (ch === '@') matched = matchBareEmailAutolink(raw, pos, scanStart, end, claimedEnd);
 		else if (brackets.open === 0) {
 			if (ch === 'h' || ch === 'H') matched = matchBareHttpAutolink(raw, pos, scanStart, end);
 			else if (ch === 'w' || ch === 'W') matched = matchBareWwwAutolink(raw, pos, scanStart, end);
@@ -378,20 +378,18 @@ function scanEmailDomain(
  *  lowercase only, as cmark-gfm matches it. */
 const EMAIL_PREFIXES = ['mailto:', 'xmpp:'] as const;
 
-const ASCII_ALNUM = /[A-Za-z0-9]/;
-
-// A scheme glued to a word (`xmailto:`) stays text, and the address after it links bare.
 function emailPrefixBefore(raw: string, localStart: number, floor: number) {
-	return EMAIL_PREFIXES.find((prefix) => {
-		const at = localStart - prefix.length;
-		return at >= floor && raw.startsWith(prefix, at) && !(at > 0 && ASCII_ALNUM.test(raw[at - 1]));
-	});
+	return EMAIL_PREFIXES.find(
+		(prefix) =>
+			localStart - prefix.length >= floor && raw.startsWith(prefix, localStart - prefix.length)
+	);
 }
 
 /** `claimedEnd` is where the last link in this run ended: no byte before it can join this one. */
 function matchBareEmailAutolink(
 	raw: string,
 	atPos: number,
+	scanStart: number,
 	regionEnd: number,
 	claimedEnd: number
 ): InlineNode | null {
@@ -400,6 +398,8 @@ function matchBareEmailAutolink(
 	if (localStart === atPos) return null; // empty local-part
 	const prefix = emailPrefixBefore(raw, localStart, claimedEnd);
 	const linkStart = localStart - (prefix?.length ?? 0);
+	// The boundary applies at the URL's start: the prefix when there is one, else the local part.
+	if (!isValidLeadingBoundary(raw, linkStart, scanStart)) return null;
 
 	const domainEnd = scanEmailDomain(raw, atPos + 1, regionEnd, prefix === 'xmpp:');
 	if (domainEnd < 0) return null;
