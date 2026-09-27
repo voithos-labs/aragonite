@@ -29,28 +29,29 @@ import {
 	isScanProbeTrigger,
 	type InlineRung
 } from './plugin-syntax';
+import { BUILTIN_TRIGGERS } from './triggers';
 
-// Every character that can start a construct or anchor a lookback: the dispatch cases below
-// plus `@` (GFM email lookback). `!` and `]` are deliberately absent, mattering only in ranges
-// that also contain `[`; a plugin registration makes `!` visible (plugin-syntax.ts).
-const SPECIAL_CHARS = '\\`&\n<[*_~@';
+// Every character that always sends a range through the scan loop: the built-in triggers the
+// table marks `always`, plus `@`, which anchors the GFM email lookback without a handler.
+const SPECIAL = new Uint8Array(128);
+for (const [char, { scanned }] of BUILTIN_TRIGGERS) {
+	if (scanned === 'always') SPECIAL[char.charCodeAt(0)] = 1;
+}
+SPECIAL[0x40] = 1; // @
 
 // GFM bare http/www autolinks contain no character from the set above, so their starts get
 // conditional probes: `:` counts only when `//` follows, `w`/`W` only on a `www.` prefix. The
 // lookahead may read past `end` and over-trigger, which costs one wasted scan, never a node.
 const PROBE_SCHEME = 2;
 const PROBE_WWW = 3;
-
-const SPECIAL = new Uint8Array(128);
-for (let i = 0; i < SPECIAL_CHARS.length; i++) SPECIAL[SPECIAL_CHARS.charCodeAt(i)] = 1;
 SPECIAL[0x3a] = PROBE_SCHEME; // :
 SPECIAL[0x57] = PROBE_WWW; // W
 SPECIAL[0x77] = PROBE_WWW; // w
 
 /** Fast bail for the per-keystroke hot path: plain prose skips the scan loop. */
 function needsScan(raw: string, start: number, end: number): boolean {
-	// Registered plugin triggers are held out of SPECIAL_CHARS, so probe them only when
-	// something is registered; an unregistered scan pays one always-false test per character.
+	// Registered plugin triggers are held out of SPECIAL, so probe them only when something
+	// is registered; an unregistered scan pays one always-false test per character.
 	const probePlugins = hasScanProbeRungs();
 	for (let i = start; i < end; i++) {
 		const code = raw.charCodeAt(i);
@@ -137,10 +138,9 @@ export function scanInline(
 	}
 
 	const ctx = createScanContext(raw, start, end, resolver);
-	// Reserved-trigger prefix handlers are consulted before the switch so they can outrank a
-	// built-in one: a built-in handler consumes its trigger and advances (`handleBang` eats `![`
-	// whole), so the scan never returns to a position the switch has read. The check is hoisted
-	// so an empty registry costs nothing.
+	// Prefix handlers on a built-in trigger run before the switch so they can outrank its
+	// handler, which consumes the trigger and advances (`handleBang` eats `![` whole).
+	// The check is hoisted so an empty registry costs nothing.
 	const consultPrefixRungs = hasPrefixRungs();
 	while (ctx.pos < ctx.end) {
 		if (consultPrefixRungs) {
@@ -150,6 +150,8 @@ export function scanInline(
 				continue;
 			}
 		}
+		// A switch with direct calls, not a lookup in the trigger table: an indirect call per
+		// trigger measured slower. A test holds the cases equal to the table's rows.
 		switch (raw[ctx.pos]) {
 			case '\\':
 				handleBackslash(ctx);

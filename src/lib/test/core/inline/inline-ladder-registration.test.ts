@@ -64,8 +64,8 @@ describe('inline priority order: registration rules', () => {
 		expect(() => registerInlineSyntax('[', decline, { prefix: '[^', priority: 40 })).not.toThrow();
 	});
 
-	// `!` is scan-probed rather than scan-visible: absent from SPECIAL_CHARS, made visible
-	// to the fast bail by the registration itself, yet it registers like any reserved one.
+	// The fast bail checks `!` only once a handler is registered on it, yet `!` registers like
+	// any other reserved trigger.
 	it('rule 2: a prefix inline syntax handler on the scan-probed reserved trigger "!" is accepted', () => {
 		expect(() => registerInlineSyntax('!', decline, { prefix: '![[', priority: 40 })).not.toThrow();
 		expect(getInlineRungs('!')).toHaveLength(1);
