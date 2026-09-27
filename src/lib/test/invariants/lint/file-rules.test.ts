@@ -237,6 +237,26 @@ const RULES: FileRule[] = [
 		misses: ["import { isDevChecks } from '../env';"]
 	},
 	{
+		id: 'the document is handed to a write as a body in one place',
+		matches: /\bget\s+suffix\s*\(\s*\)/,
+		allowed: {
+			'src/lib/tree-operations/node-primitives.ts':
+				'documentBody: the trailing blank line read and written through to the live document'
+		},
+		reason:
+			'a hand-built document body drifts from documentBody (its owner, its line ending, the ids it leaves out): call documentBody',
+		reaches: ['src/lib/tree-operations/node-primitives.ts'],
+		hits: [
+			'const p = { children, get suffix() { return doc.suffix; } };',
+			'const q = { get  suffix ( ) { return s; } };'
+		],
+		misses: [
+			'const body = documentBody(doc, children);\nconst s = body.suffix;',
+			'const o = { get suffixes() { return []; } };',
+			'// a `get suffix()` literal belongs in documentBody\nconst a = 1;'
+		]
+	},
+	{
 		id: 'G4.5 no synthetic KeyboardEvent in editor runtime',
 		matches: /new\s+KeyboardEvent\s*\(/,
 		reason:
