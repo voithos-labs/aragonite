@@ -48,7 +48,7 @@ export interface CrossBlockDispatchContext {
 	/** How the editor reads its bytes: the delete's join cleanup and the paste reparse read it, and
 	 *  the destructive branches refuse its reading mode. */
 	reading: Reading;
-	/** The editor's command dispatch, which a chord claimed over a range is handed to. */
+	/** The editor's command dispatch, which runs a chord pressed over a range. */
 	commands: CommandDispatchContext;
 	pasteCoordinator: PasteCommitCoordinator;
 	/** The plugins this instance activated, forwarded to the paste hooks. */

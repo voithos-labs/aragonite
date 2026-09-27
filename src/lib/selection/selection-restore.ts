@@ -79,12 +79,8 @@ export async function restoreGapCaret(
 	return revealed ? 'applied' : 'unplaced';
 }
 
-/**
- * Clamps an endpoint into its block's range, or null when its path no longer resolves to a
- * block (the document root included). Every offset on a table path comes back flagged as a cell
- * index, including a snapshot's or a host's plain one. The character bound is `raw`, which on a
- * kind with markers runs past the content end; the DOM-to-offset walk puts such an offset there.
- */
+/** Clamps an endpoint into its block's whole `raw`, markers included, or null when its path names
+ *  no block. An offset on a table path comes back flagged as a cell index, even a plain one. */
 export function resolveSelectionPoint(
 	doc: DocumentView,
 	point: SelectionPoint

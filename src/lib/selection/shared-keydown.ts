@@ -40,8 +40,8 @@ export interface SharedKeydownContext extends LandableBoundsContext {
 	history: HistoryActions;
 	focus: FocusActions;
 	getBlockElByPath: BlockElLookup;
-	/** The editor's command dispatch: the caret memory reads a chord as what it now does, and the
-	 *  history suppression below takes only this editor's plugin chords. */
+	/** The editor's command dispatch: the caret memory reads a chord by its current binding, and
+	 *  the history suppression below takes only this editor's plugin chords. */
 	commands: CommandDispatchContext;
 	/** How the editor reads its bytes, whose grammar the vertical extension skips leaves by. */
 	reading: Reading;

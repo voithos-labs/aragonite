@@ -116,11 +116,8 @@ export interface BlockMover {
 	nudgeReorderUnit(path: number[], dir: -1 | 1): Promise<void>;
 }
 
-/**
- * Everything a chord or `EditorInstance.runCommand` dispatches against. The editor builds one and
- * every dispatch site reads it, so no site can answer with its own history, overrides or error
- * channel.
- */
+/** Everything a chord or `EditorInstance.runCommand` dispatches against, built once per editor so
+ *  every dispatch site shares one history, one set of overrides and one error channel. */
 export interface CommandDispatchContext extends CommandGates {
 	history: GlobalCommandContext['history'];
 	pluginEditor: GlobalCommandContext['pluginEditor'];
@@ -145,8 +142,8 @@ export interface KindCommandTarget {
 	/** The focused block's path, which `block.moveUp` and `block.moveDown` move. A container a key
 	 *  bubbles up to supplies none: the block below it already ran the move. */
 	getPath?(): number[];
-	/** Runs `run` once a source the block shows is hidden and written, so a move carries the
-	 *  written bytes. Absent runs it at once. */
+	/** Runs `run` once a source the block shows is hidden and written, so a move takes the written
+	 *  bytes along. Absent runs it at once. */
 	afterSourceCommit?(run: () => void): void;
 }
 
@@ -164,12 +161,8 @@ export interface CommandErrorReport {
 }
 export type CommandErrorSink = (report: CommandErrorReport) => void;
 
-/**
- * Which level answers an id at a target. `'dead'` is a bound id no handler on the block answers;
- * `'no-surface'` is a block-level id with nothing focused, or a built-in one on a block with no
- * `runCommand`; `'unlisted'` is a plugin's command this editor did not activate, inert here rather
- * than dead. Only `'dead'` spends the one-time dead-key warning.
- */
+/** Which level answers an id: `'dead'` is bound but unanswered (and warns), `'no-surface'` has no
+ *  block or `runCommand` to reach, `'unlisted'` is a plugin command this editor left inactive. */
 type BlockLocalResolution =
 	| {
 			tier: 'minted';
@@ -224,11 +217,8 @@ function resolveCommand(
 	return resolveBlockLocalCommand(id, target, activation);
 }
 
-/**
- * Run a resolved block-level command. A plugin throw is caught here, not at the call sites, and
- * reported. A dead id declines with a warning rather than reaching a `runCommand` that has no
- * handler for it.
- */
+/** Run a resolved block-level command, catching and reporting a plugin throw; an id no handler
+ *  answers declines with a warning. */
 function runBlockLocalCommand(
 	resolved: BlockLocalResolution,
 	id: AnyCommandId,
@@ -283,13 +273,8 @@ function rangeRouteFor(id: AnyCommandId, gates: CommandGates): RangeRoute {
 	return router.canRun(id) ? { kind: 'cross-block', router } : { kind: 'decline' };
 }
 
-/**
- * The one dispatch keyed by id: chord dispatch enters with a resolved binding,
- * `EditorInstance.runCommand` with the id itself, so both meet the same checks and handlers.
- * Precedence: global (undo/redo), then a plugin block command, then a built-in kind command. A
- * null target means no focused block; global commands still run and block-level ones decline.
- * Reading mode runs no command at all; navigation never routes through commands.
- */
+/** The one dispatch keyed by id, which a chord and `EditorInstance.runCommand` both reach. With no
+ *  focused block (a null target) only global commands run; reading mode runs none. */
 function runResolvedCommand(
 	id: AnyCommandId,
 	arg: unknown,
@@ -361,12 +346,8 @@ export function dispatchKeyCommand(
 	return runResolvedCommand(binding.command, binding.arg, target, ctx, 'chord');
 }
 
-/**
- * Dispatch for a chord at a container. Kind commands only: undo/redo belong to the focused leaf,
- * and a container re-firing them would double-fire. The range commands are the leaf's too, so a
- * container never takes the cross-block route. An override that resolves a global id here
- * declines as dead, with a warning.
- */
+/** Dispatch for a chord at a container: kind commands only, since undo/redo and the range
+ *  commands belong to the focused leaf and would otherwise fire twice. */
 export function dispatchKindCommand(
 	chord: string,
 	target: KindCommandTarget,

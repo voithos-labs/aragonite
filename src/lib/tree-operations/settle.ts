@@ -260,12 +260,8 @@ function tailSuffixSlotOf(
 
 // ── Settling a spliced window ──
 
-/**
- * Recompute the separators around a splice, then ask whether the window's neighbours now re-read
- * as one block. `removed` is the pre-splice span, the only record of which blocks were blank;
- * `vacated` is the separator the window's first position lost; `tracked` follows the merges for
- * a caller landing a caret in the spliced bytes.
- */
+/** Recompute the separators around a splice, then merge neighbours that now read as one block.
+ *  `removed` is the only record of which blocks were blank; `tracked` follows the merges. */
 function settleSplicedWindow(
 	parent: SeparatorParent,
 	at: number,

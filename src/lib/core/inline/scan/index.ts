@@ -50,7 +50,7 @@ SPECIAL[0x77] = PROBE_WWW; // w
 
 /** Fast bail for the per-keystroke hot path: plain prose skips the scan loop. */
 function needsScan(raw: string, start: number, end: number): boolean {
-	// Registered plugin triggers are held out of SPECIAL, so probe them only when something
+	// Registered plugin triggers are held out of SPECIAL, so check them only when something
 	// is registered; an unregistered scan pays one always-false test per character.
 	const probePlugins = hasScanProbeRungs();
 	for (let i = start; i < end; i++) {
@@ -138,9 +138,8 @@ export function scanInline(
 	}
 
 	const ctx = createScanContext(raw, start, end, resolver);
-	// Prefix handlers on a built-in trigger run before the switch so they can outrank its
-	// handler, which consumes the trigger and advances (`handleBang` eats `![` whole).
-	// The check is hoisted so an empty registry costs nothing.
+	// Plugin handlers on a built-in trigger run before the switch, whose handler consumes the
+	// trigger (`handleBang` eats `![` whole); hoisted so an empty registry costs nothing.
 	const consultPrefixRungs = hasPrefixRungs();
 	while (ctx.pos < ctx.end) {
 		if (consultPrefixRungs) {

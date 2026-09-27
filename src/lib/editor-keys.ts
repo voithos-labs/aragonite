@@ -61,7 +61,7 @@ export interface CodeRunRequest {
 	code: string;
 	/** The opener's full info string, untrimmed of trailing attributes (`py {1-3}`). */
 	info: string;
-	/** The info string's first word, the language the rail shows (`py`); empty for none. */
+	/** The info string's first word (`py`), shown as the code block's language; empty for none. */
 	language: string;
 	/** Child indices from the document root to this block. */
 	path: number[];

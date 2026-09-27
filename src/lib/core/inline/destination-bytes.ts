@@ -8,11 +8,8 @@ import { matchCharacterReference } from './character-refs';
 
 // ── Destinations ────────────────────────────────────────────────────────────
 
-/**
- * A bare destination (CommonMark §6.3) for `url`. Bytes the reader would percent-encode anyway
- * are written encoded, so nothing ends the destination early; a parenthesis stays as written
- * when all of them balance and is escaped otherwise.
- */
+/** A bare destination (CommonMark §6.3) for `url`, its parentheses escaped only when they don't
+ *  all balance. */
 export function encodeDestination(url: string): string {
 	const escapeParens = !parensBalance(url);
 	let out = '';
@@ -25,8 +22,8 @@ export function encodeDestination(url: string): string {
 	return out;
 }
 
-// The reader percent-encodes each of these anyway, so encoding them changes no value; left raw,
-// whitespace would end the destination, `<` open the angle form, a backslash escape a byte.
+// The destination parser percent-encodes these anyway, so encoding them changes no value; left
+// raw, each would end the destination, open the angle form, or escape the next byte.
 const DESTINATION_ENCODED = new Set(' \t\r\n\u000b\u000c"<>\\');
 
 function percentEncoded(ch: string): string {

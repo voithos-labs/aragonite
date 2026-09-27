@@ -152,14 +152,8 @@ function relocateRemainingChildren(
 	}
 }
 
-/**
- * Merge the list item at `currentIndex` into the deepest text-bearing leaf of the
- * preceding item, mutating `list` in place and returning the merge point for the caret.
- * `targetPath`'s trailing index is the last prose leaf in the target item, not always 0.
- * Null when there is nothing to join (an opaque deepest leaf, an item not opening with a
- * paragraph, a join reading as several blocks), which the caller falls back from; a bad
- * `currentIndex` throws.
- */
+/** Merge the item at `currentIndex` into the preceding item's last prose leaf, mutating `list`;
+ *  null when there is nothing to join, and the caller falls back. A bad `currentIndex` throws. */
 export function mergeListItemIntoPrevious(
 	list: CstNode,
 	children: CstNode[],

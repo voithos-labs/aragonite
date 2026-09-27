@@ -21,8 +21,8 @@ export function isVerticallyTransparentNode(
 	const pending: NodeView[] = [node];
 	while (pending.length > 0) {
 		const current = pending.pop()!;
-		// Every cell of a grid is a place the caret stops, and a cell's images render as alt text,
-		// so without these gates the walk would skip an image-only cell.
+		// Every grid cell is a caret stop and draws its images as alt text, so vertical caret
+		// movement must stop in an image-only cell rather than pass over it.
 		if (isGridKind(current.kind)) return false;
 		if (tryGetBlockKindDescriptor(current.kind)?.renderImagesAsWidgets === false) return false;
 		if (current.children) {

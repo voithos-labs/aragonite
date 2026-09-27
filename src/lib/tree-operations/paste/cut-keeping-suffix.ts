@@ -4,14 +4,11 @@ import type { NodeView } from '../../core/node-views';
 import { structuralSuffix } from '../../core/inline';
 import { snapToScalarBoundary, trimTrailingLineEnding } from '../../core/lines';
 
-/**
- * `node`'s display cut at `offset` into the text before and after. Structure past the text (a
- * heading's closing run, a setext underline) stays on the head, as a split keeps it, so it never
- * lands under a pasted block. A cut at the start or past the text keeps the suffix with the rest.
- */
+/** `node`'s display cut at `offset`. Structure past the text (an ATX closing run, a setext
+ *  underline) stays on the head, as a split keeps it, unless the cut is at the start or past the text. */
 export function cutKeepingSuffix(node: NodeView, offset: number): { head: string; rest: string } {
 	const display = trimTrailingLineEnding(node.raw);
-	// Off a surrogate pair's middle first: the halves land in different blocks.
+	// The cut leaves a surrogate pair whole, since its halves would land in different blocks.
 	const cut = snapToScalarBoundary(display, offset);
 	const suffix = structuralSuffix(node);
 	const textEnd = display.length - suffix.length;

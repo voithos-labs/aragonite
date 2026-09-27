@@ -1,9 +1,8 @@
 /**
  * The mounted block nearest a viewport point, and the endpoint that point addresses. A gesture
- * that must answer every point (a dead-space click, a drag into the margin) resolves an
- * off-block point here instead of declining it: clamped into the nearest box, then handed down
- * a container to the child level with it. Only mounted blocks are measured; a caller answering
- * for a windowed-out tail handles that itself.
+ * that must answer every point (a dead-space click, a drag into the margin) resolves an off-block
+ * point here: clamped into the nearest box, then handed down a container to the child level with
+ * it. Only mounted blocks are measured; a caller handling an unmounted tail does so itself.
  */
 
 import { clampPointIntoBox } from '../cursor/point-offset';
@@ -111,12 +110,8 @@ export interface ProbedHit {
 	y: number;
 }
 
-/**
- * Hands a point on a container's own box (a quote's gutter, a list's indent) to the child block
- * level with it, and on down through nested containers, so the point lands on the line it is
- * level with at any depth. A container with an editable row of its own, which a plugin kind
- * may draw, keeps a point no child is level with. `belowAll` keeps the end-of-document corner on the way down.
- */
+/** Hands a point on a container's own box (a quote's gutter, a list's indent) down to the child
+ *  level with it, at any depth; a container with its own editable row keeps an unmatched point. */
 export function descendToLevelChild(
 	root: HTMLElement,
 	probed: ProbedHit,
@@ -145,7 +140,7 @@ function addressedAt({ hit, x, y }: ProbedHit): NearestBlock {
 	return { path: hit.path, endpointHere: () => endpointAtPoint(hit, x, y) };
 }
 
-/** The one selector for the mounted hosts, so the walks above cannot drift apart. */
+/** The one selector for the mounted hosts, so the lookups above can't drift apart. */
 function blockHosts(root: HTMLElement): HTMLElement[] {
 	return [...root.querySelectorAll<HTMLElement>('[data-block-path]')];
 }

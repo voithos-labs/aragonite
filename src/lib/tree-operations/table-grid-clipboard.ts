@@ -24,8 +24,8 @@ export function parseClipboardGrid(text: string): string[][] | null {
 	return rows.map((row) => [...row, ...Array<string>(width - row.length).fill('')]);
 }
 
-// Every line a pipe row, split and its delimiter line recognized by the table parser itself;
-// a cell's pipes are unescaped, as a copied rectangle's are.
+// Accepts only pipe rows, read by the table parser's own row and delimiter matchers; a cell's
+// pipes are unescaped, as a copied rectangle's are.
 function parseGfmRows(lines: string[]): string[][] | null {
 	if (!lines.every((line) => /^\|.*\|$/.test(trimWhitespace(line)))) return null;
 	const rows = lines.map((line) => splitRowCells(line).map(unescapeCellPipes));

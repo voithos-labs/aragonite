@@ -236,11 +236,8 @@ export function reservedUiChords(): readonly string[] {
 	return [...RESERVED_UI_CHORDS];
 }
 
-/**
- * Returns the chord's normal form, or throws when it can't be bound. `candidateCommand` is the id
- * the incoming registration will bind (the name is the id); a dev-server re-evaluation re-binding
- * its own command to its own chord is a harmless replace, not a collision.
- */
+/** The chord's normal form, or a throw when it can't be bound. A dev-server re-evaluation binding
+ *  `candidateCommand` to its own chord again replaces the binding rather than colliding. */
 export function assertPluginGlobalChordAvailable(
 	rawChord: string,
 	candidateCommand?: string
@@ -299,9 +296,8 @@ function findByChord(bindings: readonly KeyBinding[], chord: string): KeyBinding
 	return bindings.find((b) => b.chord === chord) ?? null;
 }
 
-// A block focused as a whole has no text keymap to carry the reorder chords every other block
-// takes, so it gets them here unless its kind binds the chord itself. Added on read, not at
-// registration, so an augment that changes `blockFocus` never leaves stale defaults behind.
+// A block focused as a whole has no text keymap to hold the reorder chords, so it gets them here
+// unless its kind binds the chord; added on read, so a changed `blockFocus` leaves none stale.
 const WHOLE_BLOCK_KEYMAP: readonly KeyBinding[] = [
 	{ chord: 'Alt+ArrowUp', command: 'block.moveUp' },
 	{ chord: 'Alt+ArrowDown', command: 'block.moveDown' }
@@ -438,11 +434,8 @@ export function runGlobalChordOnKind(
 	return runClaimedGlobalChord(binding, chord, context, true);
 }
 
-/**
- * A chord the built-in tables bind is consumed whatever an override left it resolving to: the
- * fall-through is the browser's own history, which bypasses the CST undo stack. Reading mode
- * consumes a bound chord the same way and runs nothing.
- */
+/** A chord the built-in tables bind is consumed whatever an override resolves it to, since the
+ *  browser's own undo would bypass the CST undo stack; reading mode consumes it, runs nothing. */
 function runClaimedGlobalChord(
 	binding: KeyBinding | null,
 	chord: string,

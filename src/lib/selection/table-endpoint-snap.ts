@@ -15,13 +15,8 @@ import { asCellIndex, rowMajorCellIndex, cellRowCol } from '../cursor/coordinate
 import { comparePaths, pathHasPrefix } from './path-math';
 import { devWarn } from '../dev-warn';
 
-/**
- * The one conversion into cell space: an endpoint on a table's path, or on one of its cells, is
- * stored as the table path plus a row-major cell index and the `cellCoordinate` flag. A
- * character offset read against a grid sends the delete down the plain branch and corrupts it.
- * `SelectionState` applies this to every incoming point, so entry paths never call it
- * themselves. Non-table paths pass through.
- */
+/** The one conversion into cell space, which `SelectionState` applies to every incoming point: an
+ *  endpoint on or inside a table becomes the table path plus a flagged row-major cell index. */
 export function normalizeTableEndpoint(
 	doc: DocumentView,
 	path: number[],
@@ -120,12 +115,8 @@ export function coveredGridCells(
 	return cells;
 }
 
-/**
- * The inverse of {@link normalizeTableEndpoint}: expands a cell endpoint to its
- * `[tableIdx, row, col]` leaf path, so mounting and caret placement reach a windowed-out cell.
- * Null for a character endpoint or an index outside the grid. Callers go through
- * `SelectionState.cellLandingFor`.
- */
+/** The inverse of {@link normalizeTableEndpoint}: a cell endpoint's `[tableIdx, row, col]` leaf
+ *  path, or null. Reach it through `SelectionState.cellLandingFor`. */
 export function cellEndpointDeepPath(doc: DocumentView, point: SelectionPoint): number[] | null {
 	if (!point.cellCoordinate) return null;
 	const node = nodeAt(doc, point.path);

@@ -99,7 +99,7 @@ export function buildDimSuffix(
 	return `|${width}x${height}${crop ? buildCropTail(crop) : ''}`;
 }
 
-/** Whole percents; the zoom only when it is one worth writing, trimmed to what it needs. */
+/** The pan in whole percents, then the zoom to two decimals, left out at 1. */
 function buildCropTail(crop: ImageCrop): string {
 	const z = Math.round(crop.z * 100) / 100;
 	const zoom = z === 1 ? '' : `,${String(z)}`;

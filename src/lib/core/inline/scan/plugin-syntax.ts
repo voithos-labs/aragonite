@@ -1,9 +1,8 @@
 /**
- * Registry for plugin inline syntax: one trigger character plus an optional prefix beginning with
- * it, tried lowest priority first (the same numbering as `OPENER_PRIORITIES`), so a plugin can
- * outrank a built-in trigger with a longer prefix (footnotes' `[^` beating `[`). An `InlineRung`
- * is one registered handler. A reserved trigger is one the scanner handles itself (./triggers.ts):
- * its handlers run before the built-in one, all others only where no built-in handler applies.
+ * Registry for plugin inline syntax: a trigger character plus an optional prefix beginning with
+ * it, tried lowest priority first (numbered as `OPENER_PRIORITIES`), so a longer prefix can outrank
+ * a built-in trigger (footnotes' `[^` beating `[`). An `InlineRung` is one handler. A reserved
+ * trigger is one the scanner handles itself (./triggers.ts); its plugin handlers run first.
  */
 
 import type { ImageSyntaxRewriter, InlineNode, InlineSyntaxClaim } from '../../nodes';
@@ -96,8 +95,8 @@ const unreservedRegistry = new Map<string, InlineRung[]>();
 // (null for a registration outside a plugin); the built-in backtick is not here.
 const autoPairTriggers = new Map<string, Set<string | null>>();
 
-// Triggers the fast bail (`needsScan`, scan/index.ts) must check while a handler is registered
-// on them, so a handler on a reserved trigger the fast bail always checks costs nothing.
+// Triggers the fast bail (`needsScan`, scan/index.ts) checks only while a plugin handler is
+// registered on them; a trigger it always checks is never added.
 const scanProbeTriggers = new Set<string>();
 
 // ── Registration ───────────────────────────────────────────────────────────────
@@ -198,11 +197,8 @@ function compareRungs(a: InlineRung, b: InlineRung): number {
 
 // ── Dispatch accessors ───────────────────────────────────────────────────────────
 
-/**
- * Whether the built-in scanner handles `trigger` itself. A plugin handler on one is consulted
- * before the built-in handler, so it must decline the overlap itself; the conformance kit grants
- * no exemption.
- */
+/** Whether the built-in scanner handles `trigger` itself. A plugin handler on one runs before the
+ *  built-in handler, so it must decline the overlap itself. */
 export function isReservedInlineTrigger(trigger: string): boolean {
 	return BUILTIN_TRIGGERS.has(trigger);
 }
