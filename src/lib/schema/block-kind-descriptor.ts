@@ -163,6 +163,11 @@ export interface BlockKindDescriptor {
 	 */
 	contextDependentKind?: boolean;
 	/**
+	 * The kind can take the lines right below it as its own (a link definition's title on the next
+	 * line), so a write that keeps the kind here or just below still asks whether the two now join.
+	 */
+	readsFollowingLines?: true;
+	/**
 	 * Make `raw` legal as this kind's own bytes: escape what the grammar would restructure, and
 	 * repair the block's own syntax around a write that broke it (`schema/fenced-code-raw.ts` is
 	 * the worked example). `ctx.node` is the block as it stood before the write.
@@ -295,6 +300,7 @@ export const DESCRIPTOR_FIELDS = [
 	'containerContract',
 	'bodyWrap',
 	'contextDependentKind',
+	'readsFollowingLines',
 	'rawWrite',
 	'bodyWrite',
 	'reservedChrome',
