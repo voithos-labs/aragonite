@@ -243,6 +243,26 @@ function claimsIn(
 	return minted;
 }
 
+/** The claims of `kind` across every fixture, failing when there is none, so a cell about the kind
+ *  never reports `asserted` over only the built-in nodes the handler claimed. */
+function claimsOfKind(
+	profile: InlineConformanceProfile,
+	rung: InlineRung,
+	kind: AnyInlineKind
+): { fixture: string; node: InlineNode }[] {
+	const claims = profile.fixtures.flatMap((fixture) =>
+		claimsIn(fixture, profile, rung)
+			.filter((node) => node.kind === kind)
+			.map((node) => ({ fixture, node }))
+	);
+	assert(
+		claims.length > 0,
+		`no fixture mints a "${kind}" node — the "${rung.prefix}" rung's claims are all built-ins ` +
+			`it stamps, which the imageClaim cell covers`
+	);
+	return claims;
+}
+
 // ── claims ───────────────────────────────────────────────────────────────────
 
 function checkClaimsItsFixtures(profile: InlineConformanceProfile, rung: InlineRung): string {
@@ -396,14 +416,13 @@ function checkWidgetAtomicity(profile: InlineConformanceProfile, rung: InlineRun
 			'kinds renders through the built-in widget and declares this cell exempt'
 	);
 
-	for (const fixture of profile.fixtures) {
-		for (const node of claimsIn(fixture, profile, rung)) {
-			assert(
-				isInlineWidget(node, fixture, defaultGrammarView),
-				`the "${kind}" node from ${JSON.stringify(fixture)} is a registered live widget`
-			);
-			assertSelfDelimiting(fixture, node, kind);
-		}
+	const claims = claimsOfKind(profile, rung, kind);
+	for (const { fixture, node } of claims) {
+		assert(
+			isInlineWidget(node, fixture, defaultGrammarView),
+			`the "${kind}" node from ${JSON.stringify(fixture)} is a registered live widget`
+		);
+		assertSelfDelimiting(fixture, node, kind);
 	}
 
 	// Both early exits report boundary, not asserted: the inline-widget contract did not run.
@@ -419,12 +438,8 @@ function checkWidgetAtomicity(profile: InlineConformanceProfile, rung: InlineRun
 		return { status: 'boundary', detail: `${RECOGNITION_HALF} executed: ${NO_DOM}` };
 	}
 
-	for (const fixture of profile.fixtures) {
-		for (const node of claimsIn(fixture, profile, rung)) {
-			assertIslandContract(fixture, node, kind);
-		}
-		assertWalkLengthIsRawLength(fixture);
-	}
+	for (const { fixture, node } of claims) assertIslandContract(fixture, node, kind);
+	for (const fixture of profile.fixtures) assertWalkLengthIsRawLength(fixture);
 	return 'recognition, self-delimiting claim, island contract, and offset-walk length';
 }
 
@@ -506,17 +521,15 @@ function checkEditingPolicy(profile: InlineConformanceProfile, rung: InlineRung)
 	assertPolicyVocabulary(policy, kind);
 
 	if (policy.deleteGranularity === 'atomic') {
-		for (const fixture of profile.fixtures) {
-			// One keypress deletes one widget, so each claim is removed on its own.
-			for (const node of claimsIn(fixture, profile, rung)) {
-				const excised = `${fixture.slice(0, node.start)}${fixture.slice(node.end)}\n`;
-				assertIs(
-					serialize(parse(excised)),
-					excised,
-					`the one-press whole-delete of the claim at ${node.start} in ` +
-						`${JSON.stringify(fixture)} leaves bytes that round-trip`
-				);
-			}
+		// One keypress deletes one widget, so each claim is removed on its own.
+		for (const { fixture, node } of claimsOfKind(profile, rung, kind)) {
+			const excised = `${fixture.slice(0, node.start)}${fixture.slice(node.end)}\n`;
+			assertIs(
+				serialize(parse(excised)),
+				excised,
+				`the one-press whole-delete of the claim at ${node.start} in ` +
+					`${JSON.stringify(fixture)} leaves bytes that round-trip`
+			);
 		}
 		return 'policy vocabulary + atomic whole-delete leaves round-tripping bytes';
 	}

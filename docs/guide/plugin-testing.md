@@ -256,7 +256,7 @@ The clipboard executor is also exported on its own as `checkCopyIsRawByteSlice(k
 
 **`runContainerConformance(kind, profile)`**
 
-The harness the built-in containers are held to, pointed at your own container kind. The profile carries your fixtures plus a coverage declaration per cell; the kit parses its way to your kind, so register the plugin before running it. The cells:
+The harness the built-in containers are held to, pointed at your own container kind. The profile carries your fixtures plus a coverage declaration per cell; the kit parses its way to your kind, so register the plugin before running it. Each cell checks the node of your kind its fixture points at: the end of `containerChain` for `localIndex`, the first block of `terminatorCollisionFixture`, the first one anywhere in `focusSource` and `deepNesting`. If something else sits there, the cell fails, so a chain that drifted onto a blockquote can't pass on the blockquote's behalf. The cells:
 
 | Cell                  | What it holds you to                                                                                                                                                                                                                                                                                                                                           |
 | --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -454,7 +454,7 @@ Twenty sources on the round-trip cell, from two fixtures: the kit interleaves ea
 Error: overlapDecline asserts but the profile supplies no overlapFixtures
 ```
 
-`fixtures` is required and non-empty, and a fixture your recognizer doesn't claim **fails** rather than being skipped: every cell reads the nodes a fixture produces, so an unclaimed one would enroll your syntax without testing it.
+`fixtures` is required and non-empty, and a fixture your recognizer doesn't claim **fails** rather than being skipped: every cell reads the nodes a fixture produces, so an unclaimed one would enroll your syntax without testing it. `widget` and `editingPolicy` only look at the nodes of your `kind` (built-in nodes your recognizer builds are `imageClaim`'s job), so if none of your fixtures produce your kind, whichever of the two you assert fails instead of passing over some images.
 
 **`overlapDecline` is the cell most inline authors haven't considered, and on a reserved trigger it's required.** Registering on a trigger the built-in scanner owns (`[`, `!`, `*`, `` ` ``, and friends) puts your recognizer ahead of the built-in case, so wherever your prefix matches you're claiming those bytes whether or not they spell something the built-in owns. `![[a]](https://x.dev)` is a plain image whose alt text is `[a]`; a recognizer that claims every `![[…]]` takes it, and the document still round-trips, as a wiki embed nobody ever wrote. Supply the sources where your grammar and a built-in one collide; the kit consults your recognizer at every position the scanner would and requires a decline at each, which is exactly what leaves the built-in reading unchanged bytes. A rung on a reserved trigger may not excuse this cell at all, since the overlap exists by construction.
 

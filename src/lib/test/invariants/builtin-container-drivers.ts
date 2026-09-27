@@ -10,7 +10,13 @@ import { createUndoController } from '$lib/editor-actions/commit/undo-controller
 import { createListContext } from '$lib/editor-actions/list-context';
 import { createTableMutationsContext } from '$lib/editor-actions/table-context';
 import type { EditEvent } from '$lib/editor-events';
-import { assert, assertIndices, assertIs, firstChildOfKind } from '$lib/testing/conformance-core';
+import {
+	assert,
+	assertIndices,
+	assertIs,
+	firstChildOfKind,
+	subjectNode
+} from '$lib/testing/conformance-core';
 import {
 	createHeadlessActions,
 	recordingFocus,
@@ -23,8 +29,8 @@ import { assertParseConverged } from '$lib/testing/parse-convergence';
  *  leading paragraph keeps the table off index 0, so a global index would differ. */
 export async function checkTableLocalIndexAddressing(): Promise<void> {
 	const parsed = parse('lead para\n\n| h1 | h2 |\n| --- | --- |\n| a | b |\n');
-	assertIs(parsed.children[1].kind, 'table', 'table at non-zero doc index');
-	const { ctx, deps, doc, events } = mountTableMutations(parsed.children, 1);
+	subjectNode(parsed, 'table', [1], 'the leading-paragraph sample');
+	const { ctx, doc, events } = mountTableMutations(parsed.children, 1);
 
 	const seen: EditEvent[] = [];
 	events.on('edit', (e) => seen.push(e));
@@ -33,7 +39,7 @@ export async function checkTableLocalIndexAddressing(): Promise<void> {
 	// rather than appended at the end.
 	await ctx.insertColumnRight(0);
 
-	const liveTable = deps.doc.children[1];
+	const liveTable = subjectNode(doc, 'table', [1], 'the document after the insert');
 	for (const row of liveTable.children!) {
 		const cells = row.children!.map((c) => c.raw);
 		assertIs(cells.length, 3, 'every row gained one cell');

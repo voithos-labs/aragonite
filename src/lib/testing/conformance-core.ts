@@ -149,11 +149,42 @@ export function assertRebuildIsParseCanonical(
 	}
 }
 
+// ── Cell subjects ────────────────────────────────────────────────────────────
+
+/** Where a cell's node sits: a document-rooted path, or the first node of the kind in pre-order. */
+export type SubjectAt = readonly number[] | 'first';
+
+/** The path to the node a cell checks, failing unless a node of `kind` sits there, so no cell
+ *  reports `asserted` over another kind; `label` names the fixture in the failure. */
+export function subjectPath(
+	doc: Document,
+	kind: AnyBlockKind,
+	at: SubjectAt,
+	label: string
+): number[] {
+	const path = at === 'first' ? findFirstPathOfKind(doc, kind) : [...at];
+	if (!path) fail(`${label} parses to no "${kind}" node`);
+	const found = blockNodeAt(doc, path)?.kind;
+	if (found !== kind) {
+		const held = found === undefined ? 'no node' : `a "${found}"`;
+		fail(`${label} holds ${held} at [${path}], not the "${kind}" under test`);
+	}
+	return path;
+}
+
+export function subjectNode(
+	doc: Document,
+	kind: AnyBlockKind,
+	at: SubjectAt,
+	label: string
+): CstNode {
+	return nodeAtPath(doc, subjectPath(doc, kind, at, label));
+}
+
 // ── Tree walks ───────────────────────────────────────────────────────────────
 
 export function firstChildOfKind(source: string, kind: AnyBlockKind): CstNode {
-	const node = parse(source).children[0];
-	assertIs(node.kind, kind, `sample's first child is "${kind}"`);
+	const node = subjectNode(parse(source), kind, [0], 'the sample');
 	assert(node.children, 'sample container has children');
 	return node;
 }

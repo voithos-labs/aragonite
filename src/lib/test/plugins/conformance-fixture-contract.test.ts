@@ -17,7 +17,7 @@ describe('checkCopyIsRawByteSlice fixture contract', () => {
 
 	it('names the offending kinds, so the fixture is diagnosable from the message alone', () => {
 		expect(() => checkCopyIsRawByteSlice('thematicBreak', 'lead paragraph\n\n---\n')).toThrow(
-			/expected "thematicBreak", got "paragraph"/
+			/holds a "paragraph" at \[0\], not the "thematicBreak" under test/
 		);
 	});
 });

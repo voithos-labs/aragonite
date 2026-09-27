@@ -48,6 +48,8 @@ import {
 	nodeAtPath,
 	pathPassesThroughKind,
 	runCells,
+	subjectNode,
+	subjectPath,
 	type CellReport,
 	type ConformanceCoverage,
 	type KitCell
@@ -134,7 +136,7 @@ export const CONTAINER_CONFORMANCE_CELLS: readonly KitCell<
 		run: ({ kind, profile }) =>
 			getBlockKindDescriptor(kind).containerContract === 'grid'
 				? driverOf(kind, profile, 'gridLocalIndex', 'a grid op')()
-				: checkStripLocalIndexAddressing(profile)
+				: checkStripLocalIndexAddressing(kind, profile)
 	},
 	{
 		cell: 'ancestry',
@@ -235,6 +237,7 @@ function driverOf(
 /** Asserts the addressed child is the one removed and the emitted path is the chain of local
  *  indices; the fixture avoids chain [0,0] child 0, where local and global indices coincide. */
 export async function checkStripLocalIndexAddressing(
+	kind: AnyBlockKind,
 	profile: ContainerConformanceProfile
 ): Promise<void> {
 	const fixture = profile.localIndexFixture;
@@ -248,6 +251,7 @@ export async function checkStripLocalIndexAddressing(
 
 	const outer = parse(fixture.source).children[0];
 	const { deps, doc, events } = createHeadlessActions([outer]);
+	const kindNode = subjectNode(doc, kind, containerChain, 'localIndexFixture');
 	const controller = createUndoController(deps);
 	const rootContainerEdit = createContainerEditActions(deps, controller);
 
@@ -278,7 +282,6 @@ export async function checkStripLocalIndexAddressing(
 		if (depth < containerChain.length - 1) node = node.children![containerChain[depth + 1]];
 	}
 
-	const kindNode = node;
 	assert(kindNode.children!.length > 1, 'kind node has ≥2 children to target a non-first one');
 	const targetMarker = kindNode.children![targetChild].raw;
 
@@ -288,7 +291,7 @@ export async function checkStripLocalIndexAddressing(
 	await parentBundle!.blockEdit.deleteBlock(targetChild);
 
 	// The commit replaced the ancestor nodes, so resolve again through the live document.
-	const liveKind = nodeAtPath(doc, containerChain);
+	const liveKind = subjectNode(doc, kind, containerChain, 'the document after the delete');
 	const remaining = (liveKind.children ?? []).map((c) => c.raw);
 	assert(!remaining.includes(targetMarker), `local index ${targetChild} was the child removed`);
 	const editEvent = seen.find((e) => e.op === 'delete');
@@ -355,8 +358,7 @@ export async function checkFocusBubbleTermination(
 	const source = profile.focusSource;
 	if (!source) fail('focusBubble asserts but the profile carries no focusSource');
 
-	const innerNode = findFirstOfKind(parse(source), kind);
-	assert(innerNode, `focusSource contains a "${kind}" node`);
+	const innerNode = subjectNode(parse(source), kind, 'first', 'focusSource');
 	assert((innerNode.children?.length ?? 0) > 0, `"${kind}" node has children`);
 
 	const rootFocus = recordingFocus();
@@ -405,8 +407,7 @@ export function checkTerminatorCollision(
 		fail('terminatorCollision asserts but the profile carries no terminatorCollisionFixture');
 
 	const doc = parse(fixture.source);
-	const node = doc.children[0];
-	assertIs(node?.kind, kind, 'terminatorCollisionFixture source opens with a node of the kind');
+	const node = subjectNode(doc, kind, [0], 'terminatorCollisionFixture');
 
 	const bodyWrite = getBlockKindDescriptor(kind).bodyWrite;
 	const ctx = { node, mode: 'literal', lineEnding: documentLineEnding(doc) } as const;
@@ -484,8 +485,7 @@ export function checkDeclarationSanity(
 	}
 
 	assertIs(typeof descriptor.rebuildRaw, 'function', `${kind} declares rebuildRaw`);
-	const node = findFirstOfKind(parse(profile.deepNesting.source), kind);
-	assert(node, `deepNesting fixture contains a "${kind}" node`);
+	const node = subjectNode(parse(profile.deepNesting.source), kind, 'first', 'deepNesting');
 	assertRebuildIsParseCanonical(descriptor, node, kind);
 	assertHintedRebuildMatchesFull(kind, descriptor, node);
 	assertBodyWrapMatchesParse(kind, descriptor);
@@ -533,8 +533,8 @@ function assertContentStartSpaceIsRebuilt(
 		fail(`${kind} declares container.contentStartSpace but carries no conformanceFixture to probe`);
 	}
 	const doc = parse(fixture);
-	const node = doc.children.find((child) => child.kind === kind);
-	assert(node?.children?.length, `${kind} conformanceFixture opens a "${kind}" with a body child`);
+	const node = subjectNode(doc, kind, 'first', `${kind} conformanceFixture`);
+	assert(node.children?.length, `${kind} conformanceFixture opens a "${kind}" with a body child`);
 
 	// The last child, so a reserved title child (a heading, a summary) stays put: its own line
 	// already carries the opener's space, and rebuilding over it would test the wrong line.
@@ -571,16 +571,13 @@ function assertBodyWrapMatchesParse(kind: AnyBlockKind, descriptor: BlockKindDes
 	// directive kind's recognizer is the shared `:::`, which the opener registry does not list.
 	const doc = parse(fixture);
 	const opensAtTop = isBlockOpenerRegistered(kind) || isDirectiveKind(kind);
-	const node = opensAtTop
-		? doc.children.find((child) => child.kind === kind)
-		: findFirstOfKind(doc, kind);
+	const path = subjectPath(doc, kind, 'first', `${kind} conformanceFixture`);
 	assert(
-		node,
-		`${kind} conformanceFixture must ${opensAtTop ? 'open' : 'carry'} a "${kind}"` +
-			`${opensAtTop ? ' at the top level' : ''} — the bodyWrap probe rebuilds and reparses that ` +
-			`node, and a fixture without one would skip it silently while the declarations cell reads ` +
-			`asserted`
+		!opensAtTop || path.length === 1,
+		`${kind} conformanceFixture must open a "${kind}" at the top level — the bodyWrap probe ` +
+			`rebuilds that node and reparses its bytes as a document of their own`
 	);
+	const node = nodeAtPath(doc, path);
 	// A container whose body lives in metadata parses childless, so it has no wrap to test and
 	// must declare none: the blank-line fix-up would trust a wrap the parse never performs.
 	if (!node.children?.length) {

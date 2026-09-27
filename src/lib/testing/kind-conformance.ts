@@ -36,10 +36,11 @@ import {
 	assertIs,
 	assertRebuildIsParseCanonical,
 	fail,
-	findFirstPathOfKind,
 	nodeAtPath,
 	runCells,
 	show,
+	subjectNode,
+	subjectPath,
 	type CellOutcome,
 	type CellReport,
 	type KitCell
@@ -132,10 +133,12 @@ function buildContext(kind: AnyBlockKind, descriptor: BlockKindDescriptor): Kind
 	const fixture = descriptor.conformanceFixture;
 	if (fixture === undefined) return null;
 	const doc = parse(fixture);
-	const nodePath = findFirstPathOfKind(doc, kind);
-	if (!nodePath) {
-		fail(`kind conformance failed for "${kind}": conformanceFixture parses to no "${kind}" node`);
-	}
+	const nodePath = subjectPath(
+		doc,
+		kind,
+		'first',
+		`kind conformance failed for "${kind}": conformanceFixture`
+	);
 	// Every check receives the fixture here, so the rule they rely on (the node at
 	// `doc.children[0]`) is enforced once: undo deletes it and the byte-slice copy starts from it.
 	if (nodePath[0] !== 0) {
@@ -224,14 +227,10 @@ function execRoundTrip(
 		`serialize(parse(fixture)) round-trips for "${kind}"`
 	);
 	if (descriptor.rebuildRaw) {
-		const first = rebuildRawOf(kind, ctx.fixture, descriptor);
-		const second = rebuildRawOf(kind, ctx.fixture, descriptor);
+		const first = rebuildRawOf(ctx, descriptor);
+		const second = rebuildRawOf(ctx, descriptor);
 		assertIs(first, second, `"${kind}" rebuildRaw is deterministic`);
-		assertRebuildIsParseCanonical(
-			descriptor,
-			nodeAtPath(parse(ctx.fixture), ctx.nodePath),
-			`"${kind}"`
-		);
+		assertRebuildIsParseCanonical(descriptor, freshSubject(ctx), `"${kind}"`);
 		return descriptor.containerContract === 'grid'
 			? 'byte round-trip + rebuildRaw determinism'
 			: 'byte round-trip + rebuildRaw parse-identity + determinism';
@@ -322,6 +321,8 @@ async function execUndo(cell: ClosureCell, ctx: KindCellContext | null): Promise
 		`the kit's trailing sentinel parses beside the "${ctx.kind}" fixture rather than being ` +
 			`swallowed by it, so there is a second block to delete`
 	);
+	// Block 0 is the one deleted, so the kind has to still sit under it with the sentinel added.
+	subjectPath(doc, ctx.kind, ctx.nodePath, 'conformanceFixture with the undo sentinel');
 	const { deps } = createHeadlessActions(doc);
 	const controller = createUndoController(deps);
 	const blockEdit = createBlockEditActions(deps, controller);
@@ -390,11 +391,12 @@ const LEADING_SENTINEL = 'clipboard lead\n\n';
 /** Asserts the default cross-block copy over `kind`'s fixture is a raw byte slice at both endpoint
  *  roles, which is what `clipboard: inherit-default` means; the fixture opens with `kind`. */
 export function checkCopyIsRawByteSlice(kind: AnyBlockKind, fixture: string): void {
-	assertIs(
-		parse(fixture).children[0]?.kind,
+	subjectNode(
+		parse(fixture),
 		kind,
-		`"${kind}" is the top-level copy subject: a conformanceFixture must parse to its kind ` +
-			`at children[0], and the kit adds its own sentinel block on the sweeping side`
+		[0],
+		`the copy fixture (a conformanceFixture must parse to its kind at children[0], and the kit ` +
+			`adds its own sentinel block on the sweeping side)`
 	);
 	checkCopyFromKind(kind, fixture);
 	checkCopyIntoKind(kind, fixture);
@@ -405,7 +407,7 @@ function checkCopyFromKind(kind: AnyBlockKind, fixture: string): void {
 	const doc = parse(fixture + TRAILING_SENTINEL);
 	const lastIndex = doc.children.length - 1;
 	assert(lastIndex >= 1, 'fixture + sentinel yields a second block to copy across');
-	const kindNode = doc.children[0];
+	const kindNode = subjectNode(doc, kind, [0], 'the copy fixture');
 	const sentinel = doc.children[lastIndex];
 	const startOffset = interiorOffset(kindNode);
 	const endOffset = displayLength(sentinel.raw);
@@ -428,10 +430,11 @@ function checkCopyFromKind(kind: AnyBlockKind, fixture: string): void {
 /** The kind as the end of the range, the role a start-only check never exercises. */
 function checkCopyIntoKind(kind: AnyBlockKind, fixture: string): void {
 	const doc = parse(LEADING_SENTINEL + fixture);
-	const kindIndex = doc.children.length - 1;
+	// Counted from the end, since a fixture may carry blocks after its kind.
+	const kindIndex = doc.children.length - parse(fixture).children.length;
 	assert(kindIndex >= 1, 'sentinel + fixture yields a block to copy across from');
 	const sentinel = doc.children[0];
-	const kindNode = doc.children[kindIndex];
+	const kindNode = subjectNode(doc, kind, [kindIndex], 'the copy fixture after the sentinel');
 	const startOffset = interiorOffset(sentinel);
 	const copied = copyThroughFunnel(
 		doc,
@@ -476,13 +479,13 @@ function interiorOffset(node: CstNode): number {
 
 // ── Internal helpers ─────────────────────────────────────────────────────────
 
-function rebuildRawOf(
-	kind: AnyBlockKind,
-	fixture: string,
-	descriptor: BlockKindDescriptor
-): string {
-	const doc = parse(fixture);
-	const node = nodeAtPath(doc, findFirstPathOfKind(doc, kind)!);
+/** The kind's node in a fresh parse of the fixture, for a check that writes to it. */
+function freshSubject(ctx: KindCellContext): CstNode {
+	return subjectNode(parse(ctx.fixture), ctx.kind, ctx.nodePath, 'conformanceFixture');
+}
+
+function rebuildRawOf(ctx: KindCellContext, descriptor: BlockKindDescriptor): string {
+	const node = freshSubject(ctx);
 	descriptor.rebuildRaw!(node);
 	return node.raw;
 }
@@ -541,8 +544,7 @@ export function checkLeafRawWrite(
 	}
 	for (const [label, written, keepsKind] of writes) {
 		const doc = parse(fixture + ending + RAW_WRITE_SENTINEL);
-		const node = doc.children[0];
-		assertIs(node?.kind, kind, `"${kind}" fixture opens with the kind`);
+		const node = subjectNode(doc, kind, [0], 'the rawWrite fixture');
 		const ctx = { node, mode: 'literal', lineEnding: documentLineEnding(doc) } as const;
 		const legal = rule.normalize(written, ctx);
 		assertIs(rule.normalize(legal, ctx), legal, `"${kind}" rule is idempotent on ${label}`);
