@@ -98,9 +98,8 @@ test.describe('preview-inline: markers by caret proximity', () => {
 	});
 
 	test('caret walk across `a **b** c` never skips or doubles an offset', async ({ page }) => {
-		// The sharp edge this mode lives on: the markers appear at the construct's own edge, so
-		// the next arrow step enters visible marker text, and the caret must visit every raw
-		// offset exactly once.
+		// The markers appear at the construct's own edge, so the next arrow step enters visible marker
+		// text, and the caret must visit every raw offset exactly once.
 		const markers = ep.getBlock(2).locator('[data-construct-start]');
 		await ep.clickBlock(2);
 		await page.keyboard.press('Home');
@@ -158,9 +157,8 @@ test.describe('preview-inline: markers by caret proximity', () => {
 	test('ambient-prefixed blocks (list item, blockquote) reveal at content offsets', async ({
 		page
 	}) => {
-		// The leading `- ` or `> ` marker span shifts DOM offsets off raw offsets, and the check
-		// subtracts that span's length, so a click on the wrapped word shows the markers and a
-		// click outside hides them. Without the subtraction it misses by the prefix width.
+		// The leading `- ` or `> ` marker span shifts DOM offsets off raw offsets; the check subtracts
+		// its length, or a click misses by the prefix width.
 		await ep.loadContent(['- ab *cd* ef', '', '> gh **ij** kl'].join('\n'));
 		const listEm = ep.getBlock(0).locator('[data-construct-start="3"]').first();
 		const quoteStrong = ep.getBlock(1).locator('[data-construct-start="3"]').first();

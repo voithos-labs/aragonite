@@ -43,9 +43,8 @@ test.describe('plugin inline emoji shortcodes', () => {
 	});
 
 	test('a plain arrow steps the caret over the whole widget like a character', async ({ page }) => {
-		// From the block start, five ArrowRights reach the widget's leading edge, past "Mood ",
-		// and the sixth crosses the whole widget in one keypress, so a character typed next lands
-		// right after the closing colon, proving the caret stepped over all seven bytes.
+		// Five ArrowRights reach the widget's leading edge past "Mood ", and the sixth crosses all
+		// seven bytes, so a character typed next lands right after the closing colon.
 		await editor.focusBlockStart(0);
 		for (let i = 0; i < 6; i++) await page.keyboard.press('ArrowRight');
 		await editor.typeText('X');

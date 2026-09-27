@@ -1,9 +1,8 @@
 /**
- * G4.23: every spec pairs with a requirement file and every requirement file with a spec, so
- * the file tree is the list of what e2e covers (`docs/contributing/testing.md`). Three rules,
- * from strictest: pairing both ways, shape (a placeholder written only to pair fails), and a
- * scenario count far ahead of the tests Playwright lists for the spec, which an allowlist may
- * excuse. A green run proves pairing alone, never that a bullet maps to a test.
+ * Every spec pairs with a requirement file and every requirement file with a spec, so the file
+ * tree is the list of what e2e covers (G4.23). Beyond pairing, a placeholder requirement fails,
+ * and so does a scenario count far ahead of the spec's listed tests unless the allowlist excuses
+ * it. A green run proves pairing alone, never that a bullet maps to a test.
  */
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -27,8 +26,8 @@ interface InflationException {
 	reason: string;
 }
 
-/** The list only shrinks: an entry whose spec no longer diverges is reported, so it cannot
- *  outlive the divergence that justified it. */
+/** The list only shrinks: an entry whose spec stops diverging is reported, so it cannot outlive
+ *  its reason. */
 const INFLATION_ALLOWLIST: readonly InflationException[] = [
 	{
 		spec: 'simulation/',
@@ -229,13 +228,8 @@ export interface AllowlistAudit {
 	stale: string[];
 }
 
-/**
- * Each entry is audited on its own: with a first-match lookup, a file entry sitting under a
- * directory entry never wins the lookup and reads as "no longer diverges" while it diverges.
- * An entry counts as shadowed only by an earlier one, since two entries covering each other
- * would name neither as the one to delete, and reporting the later one leaves the earlier
- * covering every spec it named.
- */
+/** Audits each entry alone, since a first-match lookup never reaches a file entry under a directory
+ *  entry; only an earlier entry shadows a later one, so the report names one to delete. */
 export function auditAllowlist(
 	entries: readonly InflationException[],
 	specs: readonly string[],
@@ -443,8 +437,7 @@ describe('G4.23 requirement↔spec lockstep: classifier self-tests', () => {
 		// The common shape: one test walks two or three bullets.
 		expect(isInflated(9, 5)).toBe(false);
 		expect(isInflated(18, 1)).toBe(true);
-		// The ratio alone stays quiet: a one-test spec may list four scenarios before
-		// it reads as drift.
+		// A one-test spec may list four scenarios before it reads as drift.
 		expect(isInflated(4, 1)).toBe(false);
 		expect(isInflated(5, 1)).toBe(true);
 	});

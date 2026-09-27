@@ -67,7 +67,7 @@ test.describe('table cell: inline math reveal-to-edit', () => {
 		await page.keyboard.press('Home');
 		await page.keyboard.press('ArrowRight');
 		await page.keyboard.type('y');
-		// Focus the trailing paragraph → the reveal commits on blur.
+		// Focusing the trailing paragraph commits the shown source on blur.
 		await editor.getBlock(1).click();
 		await editor.bridge.waitForSourceContains('$yx^2$');
 		await expect(editor.mathWidget).toHaveCount(1);
@@ -92,8 +92,8 @@ test.describe('table cell: inline math reveal-to-edit', () => {
 	test('Backspace at the cell trailing edge reveals the math, never deletes it', async ({
 		page
 	}) => {
-		// Focus the formula cell without clicking its widget (a click would reveal):
-		// enter from the Note cell and Shift+Tab back to the formula cell's end.
+		// Focuses the formula cell without clicking its widget, which would show its source: from
+		// the Note cell, Shift+Tab back to the formula cell's end.
 		await editor.noteCell.click();
 		await page.keyboard.press('Shift+Tab');
 		await expect(editor.formulaCell).toBeFocused();

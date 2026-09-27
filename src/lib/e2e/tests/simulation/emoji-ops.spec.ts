@@ -7,10 +7,9 @@ import { assertCheckpoint } from '../../simulation/invariants';
 import { makeSimContext } from './helpers';
 
 // The emoji shortcode, run in the default gate. The `:shortcode:` handler renders one widget
-// showing the emoji while its bytes stay in the raw text, so whether those bytes survive, and
-// what the widget mounting and unmounting does, is exactly the quiet corruption these checks
-// exist to catch. The shortcode is typed mid-sentence with text on both sides, so stepping over
-// it and deleting it in one press run against real neighbours.
+// showing the emoji while its bytes stay in the raw text, so these checks watch those bytes as the
+// widget mounts and unmounts. The shortcode is typed mid-sentence, so stepping over it and
+// deleting it in one keypress run against real neighbours.
 
 const EMOJI_DOC = 'Alpha lead paragraph here.\n\n' + 'Beta tail paragraph here.\n';
 
@@ -47,9 +46,8 @@ test.describe('emoji-ops simulation', () => {
 		await g.stepOverEmoji(0);
 		await assertCheckpoint(ctx, 'emoji-stepped');
 
-		// Close the typing's undo entry so the delete gets its own: the batcher groups edits
-		// to one block within its window, and the undo below needs the delete and the insert
-		// to be two separate entries.
+		// Closes the typing's undo entry, since the batcher groups edits to one block and the undo
+		// below needs the delete and the insert as separate entries.
 		await g.pause();
 
 		// ── One Backspace removes all seven bytes, back to the loaded document ──────

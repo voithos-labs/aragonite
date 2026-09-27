@@ -12,8 +12,8 @@ import {
 import { capturePageErrors } from '../../page-probes';
 
 // The page-scrolled host embedding: `scrollMode="host"` with nothing scrollable between the
-// editor and the document, so the window's own viewport is the scrollport. `/test/flow`
-// covers the other host shape (an ancestor scroller) and pins its page at 100vh.
+// editor and the document, so the window's own viewport is the scroll container. `/test/flow`
+// covers the other host shape (an ancestor scroller) and fixes its page at 100vh.
 
 test('the document owns the scroll and nothing between it and the editor does', async ({
 	page
@@ -57,8 +57,7 @@ test('windowing activates past the budget and bounds the mounted set', async ({ 
 	const pageErrors = capturePageErrors(page);
 	await gotoPageScroll(page);
 
-	// What changed: an editor in a scrolling page windows once it is over the threshold, where
-	// it used to mount whole because this mode turned windowing off.
+	// An editor in a scrolling page windows once it is over the threshold.
 	const count = await cstBlockCount(page);
 	expect(count).toBeGreaterThan(100);
 	expect(await mountedTopLevelCount(page)).toBeLessThan(count);
@@ -125,9 +124,8 @@ test('scrollTo on a far block scrolls the page and lands it in the viewport', as
 	expect(pageErrors).toEqual([]);
 });
 
-// #72: where the editor puts a caret below the document and where an app's own handler puts
-// one, working from the parsed document, agreed only while this mode never windowed. They must
-// still name the same block.
+// The editor's caret below the document and an app handler's caret, worked out from the parsed
+// document, must name the same block while this mode windows.
 test('a point below the whole document lands at the document end, not the mounted tail', async ({
 	page
 }) => {

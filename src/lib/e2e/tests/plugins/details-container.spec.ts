@@ -131,9 +131,8 @@ test.describe('plugin container: <details> collapsible', () => {
 		await editor.loadContent(CLOSED_WITH_BELOW);
 		await editor.focusBlockAtPath([1], 0); // start of "Below"
 
-		// ArrowLeft at a block start goes through `focus(CURSOR_END)`, which targets the last
-		// child, and that child is unmounted. It must fall back to the summary rather than do
-		// nothing against the missing reference.
+		// ArrowLeft at a block start targets the last child through `focus(CURSOR_END)`, and that child
+		// is unmounted, so the move must fall back to the summary.
 		await page.keyboard.press('ArrowLeft');
 		await expect.poll(() => activeBlockPath(page)).toEqual([0, 0]);
 		expect(await capturedErrors(page)).toEqual([]);
@@ -168,9 +167,8 @@ test.describe('plugin container: <details> collapsible', () => {
 		await editor.loadContent(CLOSED_WITH_BELOW);
 		await editor.focusBlockAtPath([1], 0); // start of "Below"
 
-		// A merge that crosses the container's edge must not write into the unmounted body: no
-		// edit, and the caret to the summary's end. That is the same rule as the one against
-		// merging into a title from inside, applied across the container's edge.
+		// A merge across the container's edge must not write into the unmounted body: no edit, and the
+		// caret to the summary's end, as with merging into a title from inside.
 		await editor.pressDeclined('Backspace');
 		expect(await editor.bridge.getSource()).toBe(CLOSED_WITH_BELOW);
 		await expect.poll(() => activeBlockPath(page)).toEqual([0, 0]);
@@ -235,13 +233,8 @@ test.describe('plugin container: <details> collapsible', () => {
 		expect(d.childKinds).toEqual(['details-summary', 'paragraph', 'paragraph']);
 		expect(await page.locator('.details-block .block-host').last().innerText()).toBe('</details>');
 
-		// The caret sits after the typed `>`, past the entity the escape grew ahead of it, so the
-		// next keystroke continues the line instead of landing mid-word.
-		//
-		// Keep the offset: this assertion is the only check on how the commit paths map the caret,
-		// which goes through `refAt(i)?.focus`, and a unit test would need jsdom plus mounted
-		// references. Weakened to a path check it guards nothing, since a caret three units into
-		// the word passes it.
+		// The caret sits after the typed `>`, past the entity the escape grew. This offset is the only
+		// check on how the commit paths map the caret; a path-only check would pass a wrong offset.
 		const sel = await page.evaluate(() => (window as any).__test.getSelectionPaths());
 		expect(sel.focus).toEqual({ path: [0, 2], offset: 13 });
 		expect(await capturedErrors(page)).toEqual([]);

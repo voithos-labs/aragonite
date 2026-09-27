@@ -6,13 +6,10 @@ import { makeRng } from '../../simulation/rng';
 import { assertCheckpoint } from '../../simulation/invariants';
 import { makeSimContext } from './helpers';
 
-// Footnotes, run in the default gate, covering two parts no long session had reached before:
-// the `[^label]: ` definition block, whose Enter-in-the-body split works the way a blockquote's
-// does, and the `[^label]` inline reference widget.
-//
-// The number a reference shows is worked out for display and never modelled here;
-// `footnotes-reference.spec.ts` checks the renumbering. This session checks only that the
-// structure survives the inserts, edits, splits and undos.
+// Footnotes, run in the default gate: the `[^label]: ` definition block, whose body splits like a
+// blockquote's, and the `[^label]` inline reference widget. The number a reference shows is never
+// modelled here (`footnotes-reference.spec.ts` checks it); this checks that the structure survives
+// the inserts, edits, splits and undos.
 
 const FOOTNOTE_DOC =
 	'Intro paragraph here.\n\n' + // [0]: a new reference is typed here
@@ -48,7 +45,7 @@ test.describe('footnote-ops simulation', () => {
 		await editor.focusBlockEnd(0);
 		await page.keyboard.type(' ');
 		await g.typeFootnoteReference('z');
-		// Document order is now [^z] (block 0), [^a] (block 1).
+		// Document order is [^z] (block 0), [^a] (block 1).
 		await expect(page.locator('.footnote-ref')).toHaveCount(2);
 		await assertCheckpoint(ctx, 'reference-typed');
 

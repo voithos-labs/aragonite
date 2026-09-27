@@ -16,11 +16,11 @@ const SHOWCASE_ENDS: [string, string] = ['Let a system of plane waves', 'possess
 /** KaTeX paints its glyphs here; the widget's own box also holds a copy clipped to a pixel. */
 const KATEX_GLYPHS = '.katex-html';
 
-// An entity is a widget with no source to show, so the reveal never runs and the third click
-// is the only thing that can select anything.
+// An entity is a widget with no source to show, so the third click is the only thing that can
+// select anything.
 const ENTITY_PARAGRAPH = 'before &copy; after some more words on this line\n';
 
-/** The selected text's two ends, so one read pins both boundaries of the range. */
+/** The selected text's two ends, so one read checks both boundaries of the range. */
 function selectionEnds(page: import('@playwright/test').Page): Promise<[string, string]> {
 	return page.evaluate(() => {
 		const text = window.getSelection()?.toString() ?? '';

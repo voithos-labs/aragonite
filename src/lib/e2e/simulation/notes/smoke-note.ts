@@ -2,9 +2,8 @@ import type { Gestures } from '../gestures';
 import type { NoteFixture } from './types';
 
 /**
- * The short note the default suite's smoke test drives. It reaches every check, including
- * leaving a list, which is where this harness first caught state going out of step, and still
- * finishes well inside the smoke test's time budget.
+ * The short note the default suite's smoke test drives. It reaches every check, including leaving
+ * a list, and still finishes well inside the smoke test's time budget.
  */
 export const SMOKE_NOTE: NoteFixture = {
 	name: 'smoke-note',

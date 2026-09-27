@@ -13,10 +13,8 @@ const ROW = (prefix: string) =>
 	'| ' + Array.from({ length: COLS }, (_, i) => `${prefix}${i + 1}`).join(' | ') + ' |\n';
 const WIDE_TABLE = HEAD + SEP + ROW('a') + ROW('b');
 
-// Cell index map (header stripped of the alignment row by the parser):
-//   header cells: 0..11   (Col1..Col12)
-//   body row 0:   12..23  (a1..a12)
-//   body row 1:   24..35  (b1..b12)
+// Cell indices (the parser drops the alignment row): header 0..11 (Col1..Col12), body row 0 12..23
+// (a1..a12), body row 1 24..35 (b1..b12).
 
 test.describe('table block: wide-table horizontal scroll', () => {
 	let editor: EditorPage;

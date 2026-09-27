@@ -1,10 +1,9 @@
 import type { SimContext } from '../invariants';
 
 /**
- * Selection, clipboard and inline-format gestures. The ones that change bytes wait for the
- * source to differ from what it was before the shortcut, never for a marker to appear: the
- * fixtures already contain `*` and `**`, so waiting for one would return before the format
- * committed and resync a stale source.
+ * Selection, clipboard and inline-format gestures. The ones that change bytes wait for the source
+ * to differ from before the shortcut, never for a marker to appear: the fixtures already contain
+ * `*` and `**`, so such a wait would return before the format committed.
  */
 
 // ── Selection ───────────────────────────────────────────────────────────────
@@ -23,7 +22,7 @@ export async function selectChars(ctx: SimContext, count: number): Promise<void>
 
 // ── Edit ────────────────────────────────────────────────────────────────────
 
-/** Select `count` characters, Delete them, resync (the editor decides what the delete does). */
+/** The editor decides what the delete does, so this resyncs. */
 export async function selectAndDelete(ctx: SimContext, count: number): Promise<void> {
 	await selectChars(ctx, count);
 	await mutateThenResync(ctx, () => ctx.page.keyboard.press('Delete'));
@@ -37,19 +36,16 @@ export async function copySelection(ctx: SimContext): Promise<void> {
 	await ctx.editor.waitForClipboardWrite();
 }
 
-/** Paste at the caret, wait for the source to change, resync. */
 export async function pasteHere(ctx: SimContext): Promise<void> {
 	await mutateThenResync(ctx, () => ctx.page.keyboard.press('ControlOrMeta+v'));
 }
 
 // ── Inline format ───────────────────────────────────────────────────────────
 
-/** Wrap (or unwrap) the current selection in `**`, wait for the source to change, resync. */
 export async function applyBold(ctx: SimContext): Promise<void> {
 	await mutateThenResync(ctx, () => ctx.page.keyboard.press('ControlOrMeta+b'));
 }
 
-/** Wrap (or unwrap) the current selection in `*`, wait for the source to change, resync. */
 export async function applyItalic(ctx: SimContext): Promise<void> {
 	await mutateThenResync(ctx, () => ctx.page.keyboard.press('ControlOrMeta+i'));
 }
@@ -57,8 +53,8 @@ export async function applyItalic(ctx: SimContext): Promise<void> {
 // ── Internal ────────────────────────────────────────────────────────────────
 
 /**
- * The predicate is handed `before` through `waitForSourceWith`, because a value captured in
- * the closure would arrive in the browser as `undefined` and the wait would return at once.
+ * `before` goes through `waitForSourceWith` because a closure value would reach the browser as
+ * `undefined` and the wait would return at once.
  */
 async function mutateThenResync(ctx: SimContext, chord: () => Promise<void>): Promise<void> {
 	const before = await ctx.editor.bridge.getSource();

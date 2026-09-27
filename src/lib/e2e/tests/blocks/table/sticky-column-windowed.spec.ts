@@ -9,9 +9,8 @@ test.describe('table block: sticky-column entry into a row-windowed table', () =
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
-		// Fixed viewport so the windowed mount set is deterministic, matching the VR table suite. A
-		// 2MB table clears the 4000px watermark at any height, but pinning the geometry keeps the
-		// precondition unambiguous.
+		// A fixed viewport keeps the windowed mount set deterministic, as in the VR table suite,
+		// even though a 2MB table windows at any height.
 		await page.setViewportSize({ width: 1280, height: 900 });
 		editor = new EditorPage(page);
 		await editor.goto();
@@ -20,8 +19,8 @@ test.describe('table block: sticky-column entry into a row-windowed table', () =
 	test('ArrowUp from below lands the nearest-X column, not column 0, when row 0 is windowed out', async ({
 		page
 	}) => {
-		// Row-windowing settles are layout-bound on a 2MB load; give the same headroom the VR table
-		// suite uses.
+		// Row windowing on a 2MB load is bound by layout, so this gets the VR table suite's
+		// headroom.
 		test.setTimeout(120_000);
 
 		const pageErrors = capturePageErrors(page);

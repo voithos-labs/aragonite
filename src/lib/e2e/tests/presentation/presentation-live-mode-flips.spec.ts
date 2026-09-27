@@ -3,8 +3,8 @@ import type { EditorPage } from '../../editor-page';
 import type { Page } from '@playwright/test';
 import { clickBlockSettled, enterPresentationMode } from './helpers';
 
-// Byte stability across every mode, live included: a mode change is CSS over the one render
-// path, so switching mode may never move a byte.
+// Byte stability across every mode, live included: a mode switch is CSS over the one render path,
+// so it may never move a byte.
 // Requirements: e2e/requirements/presentation/presentation-live-mode-flips.md.
 
 const DOC = [

@@ -58,14 +58,13 @@ test.describe('image paste: cross-block replacement', () => {
 		await pasteFiles(page, [PNG]);
 		await editor.bridge.waitForSourceContains('shot.png');
 
-		// Establish that the replacement really happened before undoing it: without this, a
-		// build that inserted without deleting would satisfy every assertion below and the
-		// undo claim would prove nothing.
+		// The replacement must be established before undoing it, or a build that inserted without
+		// deleting would satisfy every assertion below.
 		expect((await editor.bridge.getSource()).trim()).toBe('AB![[shot.png]]third');
 		await editor.bridge.waitForBlockCount(1);
 
-		// One press has to undo the delete and the insertion together, or the user is left
-		// with a document whose selection is gone and whose image never arrived.
+		// One undo takes back the delete and the insertion together, or the user is left with the
+		// selection gone and no image.
 		await page.keyboard.press('ControlOrMeta+z');
 		await editor.bridge.waitForSourceNotContains('shot.png');
 		const restored = await editor.bridge.getSource();
@@ -96,9 +95,8 @@ test.describe('image paste: cross-block replacement', () => {
 		expect(await editor.parseConverged()).toBe(true);
 	});
 
-	// A focus endpoint with nowhere to put a caret (an image-only paragraph) makes the caret
-	// write do nothing, so Chromium dispatches at `<body>` and the editor-root fallback runs:
-	// the path that discards a pure-image paste if it goes straight to the cross-block branch.
+	// An image-only focus endpoint leaves the caret write nowhere to go, so Chromium dispatches at
+	// `<body>` and the editor-root fallback runs, which must not drop a pure-image paste.
 	test('an image pasted over a selection ending in an image block is imported', async ({
 		page
 	}) => {
@@ -119,9 +117,8 @@ test.describe('image paste: cross-block replacement', () => {
 		expect(await editor.parseConverged()).toBe(true);
 	});
 
-	// The cross-block delete has a table-specific branch, so a cell-anchored selection is its
-	// own shape. Asserted against the same string pasted as text: the image branch must take
-	// the cross-block route rather than place anything itself.
+	// The cross-block delete has a table branch, so a cell-anchored selection is its own shape,
+	// checked against the same string pasted as text: the image must take the cross-block route.
 	test('a selection anchored in a table cell is replaced, exactly as a text paste would', async ({
 		page
 	}) => {
@@ -146,9 +143,8 @@ test.describe('image paste: cross-block replacement', () => {
 		expect(await editor.bridge.isCrossBlockActive()).toBe(false);
 		expect(await editor.parseConverged()).toBe(true);
 
-		// A fresh navigation, not a second `loadContent`: the harness drives `source` as a prop,
-		// so re-assigning the string it already holds does nothing and would leave the mutated
-		// document in place.
+		// A fresh navigation, not a second `loadContent`: the harness drives `source` as a prop, so the
+		// string it already holds would change nothing.
 		await editor.goto('?imagePaste=on');
 		await editor.loadContent(TABLE);
 		await selectOutOfCell();

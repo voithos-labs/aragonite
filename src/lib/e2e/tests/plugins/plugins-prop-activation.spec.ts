@@ -6,7 +6,7 @@ type Pane = 'listing' | 'notListing';
 /** The harness route's read-only bridge over what each editor did with a chord. */
 interface ActivationDoor {
 	reserved(pane: Pane): string[];
-	/** One entry per real keystroke: what each instance answered for that press. */
+	/** One entry per real keystroke: what each instance answered for that key. */
 	claims(): { listing: boolean; notListing: boolean }[];
 	/** Whether the pane's tree reloads as itself in that editor's own grammar. */
 	converged(pane: Pane): boolean;
@@ -34,9 +34,7 @@ async function gotoHydrated(page: Page): Promise<void> {
 }
 
 // Two editors over one seed: the first lists the parrot kind and the block-badge decoration
-// source, the second lists neither. The definitions are shared by the whole process, so the only
-// difference is which editor turned them on, and the `plugins` prop is that list
-// (requirements/plugins/plugins-prop-activation.md).
+// source, the second neither; the definitions are process-wide, so the `plugins` prop decides.
 test.describe('the plugins prop is the enablement set', () => {
 	test.beforeEach(async ({ page }) => {
 		await gotoHydrated(page);
@@ -76,7 +74,7 @@ test.describe('the plugins prop is the enablement set', () => {
 		expect(await convergedIn(page, 'notListing')).toBe(true);
 	});
 
-	// GH #266: inline syntax, widgets and directive names reached every editor in the process.
+	// Inline syntax, widgets and directive names reach only the editor that lists the plugin.
 	test('an unlisted inline plugin leaves its shortcode as text', async ({ page }) => {
 		const listed = page.getByTestId('editor-listing').locator('[data-block-kind="heading"]');
 		const unlisted = page.getByTestId('editor-not-listing').locator('[data-block-kind="heading"]');
@@ -132,16 +130,14 @@ test.describe('the plugins prop is the enablement set', () => {
 	});
 });
 
-// The chord and paste halves of the same list. Each pane is the one that did not list what the
-// other did: `editor-not-listing` lists `doc-stats`, whose global chord the parrot pane never
-// asked for, and the parrot pane is the one that owns `%%parrot`.
+// Each pane omits what the other lists: `editor-not-listing` lists `doc-stats`, whose global chord
+// the parrot pane never asked for, and the parrot pane owns `%%parrot`.
 test.describe('activation scopes the chord and the paste grammar', () => {
 	test.beforeEach(async ({ page }) => {
 		await gotoHydrated(page);
 	});
 
-	// GH #265: the chord was consumed for the whole process, so it died in the editor that never
-	// listed the plugin instead of reaching the app around it.
+	// The chord must reach the app around an editor that never listed the plugin, not die there.
 	test('only the editor that listed the plugin claims its global chord', async ({ page }) => {
 		const reserved = await page.evaluate(() => {
 			const door = (window as unknown as { __activation: ActivationDoor }).__activation;
@@ -165,8 +161,8 @@ test.describe('activation scopes the chord and the paste grammar', () => {
 		expect(answers.at(-1)).toEqual({ listing: false, notListing: true });
 	});
 
-	// GH #267: the clipboard parsed against the whole process, so `%%parrot` became a parrot block
-	// in an editor that has no component for one.
+	// The clipboard parses in the pasting editor's grammar, so `%%parrot` stays prose where no parrot
+	// component exists.
 	test('pasted plugin syntax lands as prose in the editor that omits the plugin', async ({
 		page
 	}) => {

@@ -2,12 +2,10 @@ import { test, expect } from '../../fixtures';
 import { PluginsPage, roundTripStable, capturedErrors } from './helpers';
 
 /**
- * The `[^label]` reference as a first-class inline widget: a superscript showing the footnote
- * number, which swaps to its raw source for editing. The test that matters is renumbering as you
- * type: an earlier reference typed into another block shifts a widget's number although its own
- * block is never edited and its source, the key it is stored under, never changes, which a number
- * captured at mount could not do. Seed `footnotes-ref`: block 1 holds `[^a]` and `[^b]`, then the
- * two definitions.
+ * The `[^label]` reference as an inline widget: a superscript footnote number that swaps to its
+ * source for editing. Typing an earlier reference into another block must renumber a widget whose
+ * block and source never change, which a number captured at mount could not do. Seed
+ * `footnotes-ref`: block 1 holds `[^a]` and `[^b]`, then the two definitions.
  */
 
 const refsInBlock = (editor: PluginsPage, block: number) =>
@@ -36,9 +34,8 @@ test.describe('plugin inline footnote references', () => {
 	}) => {
 		await expect(refsInBlock(editor, 1).nth(0)).toHaveText('1');
 
-		// Type an earlier reference into block 0. Block 1 is never touched, and each block-1
-		// widget's source (`[^a]`, `[^b]`) is unchanged, so the same widget instances are kept
-		// and only the derived number can move them.
+		// Block 1 is never touched and its widgets' sources are unchanged, so the same widget instances
+		// are kept and only the derived number can move.
 		await editor.focusBlockStart(0);
 		await editor.typeText('[^z] ');
 		await editor.bridge.waitForSourceContains('[^z] Intro');
@@ -115,9 +112,8 @@ test.describe('plugin inline footnote references', () => {
 		await page.keyboard.press('Delete');
 		await editor.waitForRenderFlush();
 
-		// This widget swaps to its editable source instead of being deleted, so the four `[^a]`
-		// bytes are intact and only the 'a' widget is gone. An atomic widget would have deleted
-		// all four bytes with this one keypress.
+		// The widget swaps to its editable source instead of being deleted, so the four `[^a]` bytes
+		// stay; an atomic widget would have lost all four to this keypress.
 		expect(await editor.bridge.getSource()).toContain('Body has [^a] and [^b] here.');
 		await expect(refsInBlock(editor, 1)).toHaveCount(1);
 

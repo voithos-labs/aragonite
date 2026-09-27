@@ -25,8 +25,8 @@ test.describe('cross-block clipboard: copy', () => {
 		await editor.loadContent('first\n\nsecond\n\nthird\n');
 		await editor.focusBlock(0, 3);
 		await editor.page.keyboard.press('Shift+ArrowDown');
-		// Shift+ArrowDown mid-block stays native (no cross-block bridge state);
-		// poll DOM selection until extension lands.
+		// Shift+ArrowDown mid-block stays native (no cross-block state), so poll the DOM selection
+		// until the extension lands.
 		await editor.page.waitForFunction(
 			() => (window.getSelection()?.toString().length ?? 0) > 0,
 			null,

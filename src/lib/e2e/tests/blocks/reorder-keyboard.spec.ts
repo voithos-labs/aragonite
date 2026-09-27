@@ -78,9 +78,8 @@ test.describe('keyboard reorder', () => {
 		await editor.bridge.waitForSourceMatches(/---[\s\S]*lead/);
 	});
 
-	// The same empty position by chord, on the pair whose join rewrites the prose too: a rule flush
-	// under a paragraph is a setext underline, which turns the paragraph into a heading and takes
-	// the divider with it.
+	// The same empty position by chord, where the join rewrites prose too: a rule flush under a
+	// paragraph is a setext underline, which would take the divider into a heading.
 	test('Alt+ArrowUp lands a divider whole under a paragraph', async () => {
 		await editor.loadContent('Intro\n# Heading\n\n---\n');
 		await editor.getBlock(2).click(); // focus the divider
@@ -168,9 +167,8 @@ test.describe('keyboard reorder', () => {
 		}
 	}
 
-	// A move with no sibling in that direction must change nothing and add no undo entry, or the
-	// press at the boundary silently eats a Ctrl+Z. The unit test for the clamp skips the keymap
-	// dispatch this goes through.
+	// A move with no sibling in that direction must change nothing and add no undo entry, or it
+	// silently eats a Ctrl+Z; the clamp's unit test skips the keymap dispatch.
 	test('Alt+Arrow at a boundary is a no-op and creates no undo entry', async () => {
 		await editor.loadContent('A\n\nB\n');
 		await editor.page.locator('[contenteditable="true"]', { hasText: 'A' }).click();

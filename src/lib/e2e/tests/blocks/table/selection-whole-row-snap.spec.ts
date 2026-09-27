@@ -27,9 +27,8 @@ test.describe('table block: cross-block whole-row selection snap', () => {
 	test('overlay covers the whole partially-selected row, including cells past the drag endpoint', async ({
 		page
 	}) => {
-		// Drag into a2 (row 1, col 1): the snap pulls the highlight to the whole row, so a3, past
-		// where the drag ended, must be painted. Without the snap the overlay stops before the
-		// dragged cell.
+		// Dragging into a2 (row 1, col 1) snaps the highlight to the whole row, so a3, past where
+		// the drag ended, must be painted.
 		const [head, a2] = await boxesOf(page.getByText('head'), page.locator('.table-cell').nth(4));
 		await dragBetweenBoxes(page, head, a2);
 		await editor.waitForCrossBlock(true);

@@ -90,8 +90,8 @@ test.describe('cross-block clipboard: paste into list selections', () => {
 		await editor.page.keyboard.press('ControlOrMeta+c');
 		await editor.waitForClipboardWrite();
 
-		// Dismiss the copy-time cross-block selection so the next shift-click
-		// starts a fresh range instead of extending the old one.
+		// Dismiss the copy-time cross-block selection so the next shift-click starts a fresh range
+		// instead of extending that one.
 		await editor.page.keyboard.press('Escape');
 		await editor.waitForCrossBlock(false);
 		await editor.focusBlockAtPath([0, 1, 0], 0);
@@ -108,8 +108,7 @@ test.describe('cross-block clipboard: paste into list selections', () => {
 	});
 
 	// A drag selection leaves the native selection empty, so Chromium would dispatch paste at
-	// `<body>` instead of a block; entering cross-block puts a collapsed caret in the focus
-	// block to stop that.
+	// `<body>`; entering cross-block puts a collapsed caret in the focus block to prevent that.
 	test('drag selection across list items: paste single-block text lands', async () => {
 		await editor.loadContent('1. one\n2. two\n');
 		await editor.seedClipboard('text');

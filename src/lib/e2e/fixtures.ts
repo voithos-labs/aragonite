@@ -2,11 +2,10 @@ import { test as base, expect, type ConsoleMessage } from '@playwright/test';
 import { getContainerParityMismatches } from './container-parity';
 import { warnTagOfLine } from '../dev-warn';
 
-// The shared e2e `test`, with two checks at teardown. The console watch: dev warnings tagged
-// `[aragonite:…]`, Svelte warnings tagged `[svelte] <code>`, uncaught page errors (`pageerror`),
-// and errors only `window.onerror` sees (`onerror:<message>`). A spec that trips one declares it
-// below; each declared one must fire while nothing else may. The container-parity walk covers
-// what the console cannot: BlockHost's error boundary swallows `each_key_duplicate` silently.
+// The shared e2e `test`, with two checks at teardown. Every tagged console warning or uncaught
+// page error must be one the spec declares below, and each declared one must fire. The
+// container-parity check covers what the console cannot: BlockHost's error boundary swallows
+// `each_key_duplicate` silently.
 
 interface WarnFixtures {
 	/** Invariant tags this spec deliberately triggers, e.g. `['late-opener-registration']`. */

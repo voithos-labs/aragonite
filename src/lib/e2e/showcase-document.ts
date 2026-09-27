@@ -68,12 +68,8 @@ export function scanShowcase(md: string = SHOWCASE_MD): ShowcaseScan {
 
 const WORD_RUN = new RegExp(`${WORD_CHAR.source}+`, 'gu');
 
-/**
- * The word a caret should light up: the most repeated alphabetic word of four letters or more
- * inside one plain paragraph, or null when the document holds none. Split into words the way
- * `highlight-occurrences` splits them, so the spec and the plugin agree on what a word is, and
- * kept inside one paragraph so both marks live in a single mounted block.
- */
+/** The word a caret should light up, split the way `highlight-occurrences` splits words so spec
+ *  and plugin agree; one paragraph keeps both marks in a single mounted block. */
 export function repeatedWordInParagraph(scan: ShowcaseScan = scanShowcase()): RepeatedWord | null {
 	let best: RepeatedWord | null = null;
 	for (const paragraph of plainParagraphs(scan.prose)) {

@@ -5,11 +5,10 @@ import { capturePageErrors } from '../../page-probes';
 
 /**
  * Block commands a plugin registers on an editable leaf
- * (requirements/plugins/editable-leaf-command.md): the `%%` memo harness kind binds two commands in
- * its keymap, `memo.tag` (Mod+Shift+K, commits metadata) and `memo.boom` (Mod+Shift+J, throws).
- * These tests prove a registered `(kind, id)` command resolves on the leaf path through the real
- * `createEditableLeaf` factory, and that a throwing handler is caught and reported as an
- * `origin: 'command'` error rather than escaping.
+ * (requirements/plugins/editable-leaf-command.md): the `%%` memo kind binds `memo.tag`
+ * (Mod+Shift+K, commits metadata) and `memo.boom` (Mod+Shift+J, throws). A registered command
+ * resolves through `createEditableLeaf`, and a throwing handler is reported as an `origin:
+ * 'command'` error.
  */
 
 test.describe('plugin block commands on the editable-leaf level: the %% memo kind', () => {

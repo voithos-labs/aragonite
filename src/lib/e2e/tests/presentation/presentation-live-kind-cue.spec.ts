@@ -4,7 +4,7 @@ import type { EditorPage } from '../../editor-page';
 import { clickBlockSettled, enterPresentationMode } from './helpers';
 
 // A keystroke that turns its block into another kind shows the new kind's name at the block's
-// corner for a moment, and the screen reader hears it once, in the modes that hide markers.
+// corner for a moment, and a screen reader hears it once, in the modes that hide markers.
 // Requirements: e2e/requirements/presentation/presentation-live-kind-cue.md.
 
 const DOC = 'notes\n';

@@ -2,8 +2,8 @@ import { test, expect } from '../../fixtures';
 import { PluginsPage } from '../plugins/helpers';
 import { clickWordSettled, landAt } from './helpers';
 
-// A delete that crosses a container's frame truncates its prose endpoints in place, with no
-// join, so without the cleanup for unpaired runs the cut leaves a delimiter run on screen.
+// A delete that crosses a container's frame truncates its prose endpoints in place, with no join,
+// so without the cleanup for unpaired runs the cut leaves a delimiter run on screen.
 // Requirements: e2e/requirements/presentation/presentation-live-chrome-crossing-delete.md.
 
 const DOC = ':::callout Title\nSome **bold** text\n:::\n\nBelow\n';

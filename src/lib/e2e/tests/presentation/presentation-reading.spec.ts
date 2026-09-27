@@ -202,8 +202,8 @@ test.describe('reading mode: what stays live', () => {
 		await ep.clickBlock(0);
 		await page.keyboard.type('zzz');
 		await page.keyboard.press('Enter');
-		// Switching back to source makes the blocks editable again, so the inert check no longer
-		// applies: the last gesture here is a toggle click.
+		// Back in source mode the blocks are editable, so the inert check stops applying: the last
+		// gesture here is a toggle click.
 		await toggleReadingMode(page);
 		await ep.waitForNoSourceMutation();
 		expect(await ep.bridge.getSource()).toBe(before);

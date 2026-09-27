@@ -11,11 +11,8 @@ const paintedBoxes = (page: Page): Promise<Array<{ width: string; height: string
 		})
 	);
 
-// A transformed box is rasterized at its fractional edges, so centering the drawn box with
-// `translate(-50%, -50%)` half-paints one edge on a scaled display (Windows at 150%) and the
-// square reads shorter than wide. At scale 1 it looks fine, so this project runs at the scale
-// that shows it. What is pinned is the mechanism: no transform, and a whole-pixel size that
-// snaps the same way on both axes.
+// A box centred with `translate(-50%, -50%)` half-paints an edge on a scaled display, so this runs
+// at 150% and checks for no transform and a whole-pixel size.
 test.describe('task checkbox: painted box geometry', () => {
 	test.use({ deviceScaleFactor: 1.5 });
 

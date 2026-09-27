@@ -3,8 +3,8 @@ import { EditorPage } from '../../../editor-page';
 import { openImageField, waitForAllImagesLoaded } from './helpers';
 
 // An unsaved alt draft belongs to the image the popover opened on; when the document moves that
-// image away, the draft is dropped rather than written over whatever now sits in its place
-// (requirements/blocks/image/popover-draft-discard.md). The shared fixture fails on page errors.
+// image away, the draft is dropped rather than written over whatever sits in its place
+// (requirements/blocks/image/popover-draft-discard.md).
 
 const IMAGE = '/test-fixtures/sample.png';
 

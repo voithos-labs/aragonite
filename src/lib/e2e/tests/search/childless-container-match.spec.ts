@@ -5,10 +5,10 @@ import { count, findInput, openFind, openReplace, replaceInput, typeQuery } from
 
 /**
  * Search inside a childless opaque container
- * (`requirements/search/childless-container-match.md`). Its text lives in its own raw with no
- * leaf children, so the scanner matches that raw like a leaf and the container's
- * `measurePartialRects` paints it. Replace rewrites those matches through the reparse path,
- * declining only the substitution that would come back as a different kind (#41).
+ * (`requirements/search/childless-container-match.md`). Its text lives in its own raw, so the
+ * scanner matches that raw like a leaf and the container's `measurePartialRects` paints it.
+ * Replace rewrites those matches through the reparse path, declining only a substitution that
+ * would come back as a different kind.
  */
 
 const mermaidHost = (page: Page) => page.locator("[data-block-kind='mermaid']");
@@ -32,7 +32,7 @@ test.describe('search: childless opaque container', () => {
 	test('a match inside a mermaid block is found, painted, and revealed by navigation', async ({
 		page
 	}) => {
-		// Filler pushes the mermaid below the fold, so the scroll into view can be observed.
+		// Filler pushes the mermaid below the viewport, so the scroll into view can be observed.
 		const filler = Array.from({ length: 40 }, (_, i) => `filler paragraph ${i}`).join('\n\n');
 		await editor.loadContent(`${filler}\n\n${MERMAID_FENCE}`);
 		await expect(mermaidHost(page)).toHaveCount(1);
@@ -54,7 +54,7 @@ test.describe('search: childless opaque container', () => {
 		await expect(mermaidHost(page).locator('.match-overlay-active')).toHaveCount(1);
 	});
 
-	/** Type `query` into a freshly opened replace bar and wait for the match tally to settle. */
+	/** Types `query` into a freshly opened replace bar and waits for the tally to hold still. */
 	async function openReplaceOn(page: Page, query: string, tally: RegExp): Promise<void> {
 		await openReplace(editor);
 		await findInput(page).click();
@@ -85,9 +85,8 @@ test.describe('search: childless opaque container', () => {
 	test('a replacement that would re-kind the fence is declined, and the prose one still lands', async ({
 		page
 	}) => {
-		// `mermaid` matches the prose and the fence's info string; rewriting the info string
-		// would reparse the block as a plain fenced code block, the one case replace declines
-		// (#41).
+		// `mermaid` matches the prose and the fence's info string; rewriting the info string would
+		// reparse the block as plain fenced code, the one case replace declines.
 		await editor.loadContent(`prose mermaid here\n\n${MERMAID_FENCE}`);
 		await expect(mermaidHost(page)).toHaveCount(1);
 

@@ -10,10 +10,8 @@ import { pointAtRaw } from './text-runs';
 // instead of inlining `:not(.selection-overlay)`.
 export { BLOCK_CONTENT_SELECTOR } from '../components/block-content-selector';
 
-/** A ceiling on the harness installing `window.__test`, not an expectation of it: a full battery
- *  on one dev server pushes hydration well past the seconds a quiet machine takes. It has to stay
- *  under Playwright's test timeout so the wait reports what the page did instead of being killed
- *  mid-wait, which `lint/harness-timeout-headroom.test.ts` pins. */
+/** A ceiling, since a full battery on one dev server slows hydration; it stays under Playwright's
+ *  test timeout so a miss reports what the page did (`lint/harness-timeout-headroom.test.ts`). */
 export const BRIDGE_INSTALL_TIMEOUT = 45_000;
 
 export class EditorPage {
@@ -108,11 +106,8 @@ export class EditorPage {
 		await expect(this.editorContainer).toHaveAttribute('data-presentation', mode);
 	}
 
-	/**
-	 * `loadContent` waits on a full serialize of the document, which times out at megabyte scale,
-	 * so this waits on a cheap in-page length check instead. `suffix` appends markdown so a
-	 * sibling block exists for cross-block navigation.
-	 */
+	/** `loadContent`'s full serialize times out at megabyte scale, so this waits on an in-page
+	 *  length check. `suffix` appends markdown, say a sibling block for cross-block navigation. */
 	async loadLargeFixture(shape: FixtureShape, bytes: number, suffix = ''): Promise<number> {
 		const fixture = generateFixture(shape, bytes) + suffix;
 		await this.page.evaluate((c) => (window as any).__test.setSource(c), fixture);
@@ -144,9 +139,8 @@ export class EditorPage {
 
 	// ── DOM Queries ─────────────────────────────────────────────────────
 
-	// Top-level blocks only: a comma in `data-block-path` marks a nested host, and the content
-	// selector drops the hover drag handle, so the count stays one per block. A nested block
-	// goes through `focusBlockAtPath`.
+	// Top-level blocks only (a comma in `data-block-path` marks a nested host); the content selector
+	// drops the hover drag handle, so each block matches once.
 	getBlock(index: number): Locator {
 		return this.page
 			.locator(`[data-block-path='${JSON.stringify([index])}']`)
@@ -173,8 +167,7 @@ export class EditorPage {
 		return this.page.evaluate(() => (window as any).__test.parseConverged() as boolean);
 	}
 
-	// Every harness wait defaults to 5s, the same as expect(): a wait is a ceiling, not a
-	// measurement, and 2s was too little for runs with every worker busy.
+	// Every harness wait defaults to 5s, like expect(): a wait is a ceiling, not a measurement.
 	async waitForCrossBlock(active: boolean): Promise<void> {
 		if (active) {
 			await this.page.waitForSelector('[data-cross-block]', { state: 'attached', timeout: 5000 });
@@ -197,12 +190,8 @@ export class EditorPage {
 		await this.placeCaretAtPath([index], 'start');
 	}
 
-	/**
-	 * Places the caret through the editor's own `setSelection`, so it is the text-node caret
-	 * every real placement ends in. Setup only: a spec whose subject is the click or the key
-	 * drives `clickBlockAtPath` or the keyboard instead. A number is a raw offset; a container
-	 * or table takes its first leaf, or its last one for `'end'`.
-	 */
+	/** Setup only, through the editor's own `setSelection`: a spec whose subject is the click or the
+	 *  key drives `clickBlockAtPath` or the keyboard. A container or table takes its first leaf. */
 	private async placeCaretAtPath(
 		path: number[],
 		position: 'start' | 'end' | number
@@ -227,10 +216,7 @@ export class EditorPage {
 		await this.getBlock(index).click();
 	}
 
-	/**
-	 * Resolves any `data-block-path`, comma paths included, to a pixel point: the nested blocks
-	 * `clickBlock` cannot reach.
-	 */
+	/** Reaches the nested blocks `clickBlock` cannot, by resolving the path to a pixel point. */
 	async clickBlockAtPath(path: number[], offset: number): Promise<void> {
 		const point = await pointAtRaw(this.page, path, offset);
 		await this.page.mouse.click(point.x, point.y);
@@ -241,8 +227,7 @@ export class EditorPage {
 		await this.page.keyboard.insertText(text);
 	}
 
-	/** Each character fires its own keydown/input/keyup cycle, for tests where per-keystroke
-	 *  behavior matters (formatting, kind changes). */
+	/** Each character fires its own keydown/input/keyup cycle, unlike `typeText`. */
 	async typeSlowly(text: string) {
 		await this.page.keyboard.type(text);
 	}
@@ -291,8 +276,7 @@ export class EditorPage {
 		await this.waitForRenderFlush();
 	}
 
-	/** One held drag through `mid` to `end`: two `dragFromTo` calls would release and press the
-	 *  button again in between. */
+	/** One held drag through `mid` to `end`; two `dragFromTo` calls would let go in between. */
 	async dragFromToThenTo(
 		startPath: number[],
 		startOffset: number,
@@ -343,13 +327,10 @@ export class EditorPage {
 		});
 	}
 
-	// ── Settle Helpers ──────────────────────────────────────────────────
+	// ── Waits on rendering and timing ───────────────────────────────────
 
-	/**
-	 * Without this, a read of DOM state after a mutation (mounted overlays, `data-cross-block`,
-	 * geometry) catches it mid-change. Two animation frames cover an `$effect` plus a child
-	 * component mounting, or a layout pass after a keystroke that moved the caret.
-	 */
+	/** Two animation frames cover an `$effect` plus a child component mounting, so a DOM read after
+	 *  a mutation does not catch it mid-change. */
 	async waitForRenderFlush(): Promise<void> {
 		await this.page.evaluate(
 			() =>
@@ -359,11 +340,8 @@ export class EditorPage {
 		);
 	}
 
-	/**
-	 * Enter at the end of a list item inserts an empty trailing item whose marker is trimmed out
-	 * of the serialized source, so a `getSource()` predicate sees no change. The DOM count is the
-	 * cheapest sign that the tree after Enter has rendered.
-	 */
+	/** Enter at a list item's end adds an empty item the serialized source trims out, so a
+	 *  `getSource()` predicate sees no change; the DOM count does. */
 	async waitForListItemCount(expected: number, timeout = 5000): Promise<void> {
 		await this.page.waitForFunction(
 			(n) => document.querySelectorAll('.list-item-block').length === n,
@@ -372,11 +350,8 @@ export class EditorPage {
 		);
 	}
 
-	/**
-	 * Enter inserts a short-lived empty paragraph whose marker is trimmed out of the serialized
-	 * source, so `getBlockCount()`, which re-parses it, cannot see it. Every block is wrapped in
-	 * a `.block-host`, so that total moves by one per insertion.
-	 */
+	/** Enter adds a short-lived empty paragraph the serialized source trims out, so the reparsing
+	 *  `getBlockCount()` misses it; every block has one `.block-host`. */
 	async waitForBlockHostCount(expected: number, timeout = 5000): Promise<void> {
 		await this.page.waitForFunction(
 			(n) => document.querySelectorAll('.block-host').length === n,
@@ -385,39 +360,26 @@ export class EditorPage {
 		);
 	}
 
-	/**
-	 * A fixed wait, not a predicate: the source already holds the typed text, so there is nothing
-	 * to poll for. A test that wants two separate undo entries needs its next interaction to
-	 * happen after the previous batch's debounce window.
-	 */
+	/** A fixed wait: the source already holds the typed text, so nothing marks the typing pause
+	 *  ending, and a test wanting two undo entries needs its next input after it. */
 	async waitForUndoBatchFlush(): Promise<void> {
 		await this.page.waitForTimeout(PAST_TYPING_PAUSE_MS);
 	}
 
-	/**
-	 * The last resort for proving nothing changed, for a gesture the editor records no decision
-	 * for: a click, a drag, a paste, a menu item, a direct call. Nothing can be polled for an
-	 * event that never happens, so this waits past the window a wrongly committed mutation would
-	 * show up in. A keyboard gesture is recorded: use `pressDeclined` or `typeDeclined` instead.
-	 */
+	/** Last resort for proving nothing changed after a gesture the editor records no decision for;
+	 *  a keyboard gesture is recorded, so it uses `pressDeclined` or `typeDeclined` instead. */
 	async waitForNoSourceMutation(): Promise<void> {
 		await this.page.waitForTimeout(150);
 	}
 
-	/**
-	 * ResizeObserver's first callback fires the frame after it is attached; without waiting that
-	 * out, a layout shift in the same batch of callbacks is absorbed silently and the test
-	 * watching for that shift sees nothing.
-	 */
+	/** ResizeObserver's first callback fires the frame after it is attached, and a layout shift in
+	 *  that same batch would go unseen. */
 	async waitForResizeObserverFlush(): Promise<void> {
 		await this.page.waitForTimeout(120);
 	}
 
-	/**
-	 * The copy handler writes through a synthetic `copy` event whose timing the browser owns, and
-	 * no editor state changes, so no predicate can watch for it. The copy-only exception is in
-	 * docs/contributing/testing.md § Patterns and gotchas.
-	 */
+	/** A copy changes no editor state, so no predicate can watch for it
+	 *  (`docs/contributing/testing.md` § Patterns and gotchas). */
 	async waitForClipboardWrite(): Promise<void> {
 		await this.page.waitForTimeout(150);
 	}
@@ -428,11 +390,8 @@ export class EditorPage {
 
 	// ── Proving nothing happened ────────────────────────────────────────
 
-	/**
-	 * Press a key that must change nothing, returning once the editor has recorded whether it
-	 * handled the key: the block's handler has finished, so the caller's source read comes after
-	 * the gesture rather than after a timer.
-	 */
+	/** A key that must change nothing, returning once the editor has recorded whether it handled
+	 *  the key, so the caller's source read comes after the handler rather than after a timer. */
 	async pressDeclined(key: string): Promise<void> {
 		await this.awaitKeydownVerdicts(key, 1, () => this.page.keyboard.press(key));
 	}
@@ -442,11 +401,8 @@ export class EditorPage {
 		await this.awaitKeydownVerdicts(text, text.length, () => this.page.keyboard.type(text));
 	}
 
-	/**
-	 * Reading mode takes no keystrokes, so there is no recorded decision to wait on. The signal
-	 * is the structure instead: the editor root holds no editable element, plus one drained tick
-	 * for whatever an effect would still write.
-	 */
+	/** Reading mode records no key decisions, so the signal is that no editable element remains,
+	 *  plus one drained tick for whatever an effect would still write. */
 	async expectSurfaceInert(): Promise<void> {
 		try {
 			await this.page.waitForFunction(

@@ -16,9 +16,8 @@ async function cursorOffset(page: Page, path: number[]): Promise<number | null> 
 	return page.evaluate((p) => (window as any).__test.getBlockCursorSurface(p).cursorOffset, path);
 }
 
-/** Collapse the caret immediately after the ghost widget: the element-level boundary position
- *  with no adjacent text node, since the widget sits at the block's end. Setup only; the
- *  keystrokes under test are real. */
+/** Collapses the caret right after the ghost widget at the block's end, an element-level position
+ *  with no adjacent text node. Setup only; the keystrokes under test are real. */
 async function placeCaretAfterIsland(page: Page): Promise<void> {
 	await page.evaluate(() => {
 		const island = document.querySelector('[data-decoration-island]');
@@ -148,9 +147,8 @@ test.describe('ghost-text dogfood', () => {
 
 		await editor.typeSlowly('x');
 		await editor.bridge.waitForSourceContains('x');
-		// The blank lines around the split are the plain editor's own Enter result, checked with
-		// no ghost: this pins that the ghost widget changes none of those bytes and the empty
-		// block still takes input.
+		// The blank lines around the split are the plain editor's own Enter result, so the ghost widget
+		// changes none of those bytes and the empty block still takes input.
 		expect(await editor.bridge.getSource()).toBe('Hello world\n\nx\n\nSecond paragraph\n');
 	});
 });

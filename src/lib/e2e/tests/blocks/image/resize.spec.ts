@@ -28,9 +28,8 @@ test.describe('image resize', () => {
 		expect(Number(match![1])).toBeLessThan(400);
 	});
 
-	// The handles resolve the widget when they need it: passing `widgetEl` as a captured prop
-	// leaves them on a detached node once the first commit rebuilds the inline DOM, so `startWidth`
-	// measures 0 and the second drag does nothing.
+	// The handles look the widget up when needed: a captured `widgetEl` goes stale once a commit
+	// rebuilds the inline DOM, so the second drag would measure 0 and do nothing.
 	test('back-to-back drags both commit (handle resolves widget on demand)', async ({ page }) => {
 		await editor.loadContent('![cat|300](/test-fixtures/sample.png)\n');
 		await page.locator('[data-image-widget]').first().click();
@@ -75,7 +74,7 @@ test.describe('image resize', () => {
 		await editor.loadContent(`![cat|${startWidth}](/test-fixtures/sample.png)\n`);
 		const widget = page.locator('[data-image-widget]').first();
 		await widget.click();
-		// Each press steps +20px; three presses overshoot the 30px headroom.
+		// Each keypress steps +20px; three overshoot the 30px headroom.
 		for (let i = 0; i < 3; i++) await page.keyboard.press('Shift+ArrowRight');
 		await editor.bridge.waitForSourceContains(`|${contentWidth}`);
 		const src = await editor.bridge.getSource();

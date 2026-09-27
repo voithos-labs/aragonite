@@ -29,7 +29,7 @@ test.describe('a cell mutation folds the open reveal before it runs', () => {
 	});
 
 	// The same loss through an implicit commit: the toggle reads the shown DOM text and writes it
-	// back as the cell's raw, leaving the source open over bytes it no longer matches.
+	// back as the cell's raw, leaving the source open over bytes it does not match.
 	test('a format toggle folds first rather than committing the revealed source verbatim', async ({
 		page
 	}) => {

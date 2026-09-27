@@ -59,7 +59,7 @@ test.describe('edit events per paste op', () => {
 			await editor.bridge.waitForSourceWith((s, b) => s !== b && s.includes('y'), before);
 		});
 
-		// cross-block delete + merge-paste each emit one event
+		// The cross-block delete and the merge-paste each emit one event.
 		expect(count).toBe(2);
 	});
 });

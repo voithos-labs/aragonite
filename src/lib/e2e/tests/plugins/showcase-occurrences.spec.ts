@@ -3,12 +3,10 @@ import { test, expect } from '../../fixtures';
 import { waitForEditorHydrated } from '../../page-probes';
 import { repeatedWordInParagraph } from '../../showcase-document';
 
-// The `/` showcase as a page that embeds the editor
-// (requirements/plugins/showcase-occurrences.md): the library gives `.decoration-overlay` its
-// geometry and leaves the colour to the host, so the marks mount whether or not the host styles
-// them. Every other occurrence spec runs on the plugins harness, which does style the class, so
-// only a spec on `/` can see the paint go missing. The word is taken from the document's own
-// bytes, because the owner rewrites its prose by hand.
+// The `/` showcase as a page embedding the editor (requirements/plugins/showcase-occurrences.md):
+// the library gives `.decoration-overlay` geometry and leaves colour to the host, and only `/`
+// leaves the class unstyled, so only a spec here can see the paint go missing. The word comes from
+// the document's bytes, since its prose is rewritten by hand.
 
 const OCCURRENCE = '.decoration-overlay.hl-occurrence';
 const target = repeatedWordInParagraph();
@@ -24,8 +22,7 @@ function backgroundAlpha(overlay: Locator): Promise<number> {
 }
 
 /**
- * Put the caret inside the word's first occurrence by clicking its own client rect. A
- * character offset counted from the block start would retarget itself the next time the
+ * Clicks the word's own client rect, since a character offset would retarget itself whenever the
  * showcase prose is edited.
  */
 async function clickWord(page: Page, word: string): Promise<void> {

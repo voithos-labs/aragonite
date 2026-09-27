@@ -6,9 +6,8 @@ import { wholeBlockInput } from '../../whole-block-input';
 /**
  * The mermaid reference plugin: a render-first block whose editing the plugin owns
  * (requirements/plugins/mermaid.md). Seed `?seed=mermaid`: a heading, two valid diagrams, one
- * invalid diagram, a ```js fence and a trailing paragraph. The first waits for an SVG allow plenty
- * of time, because the renderer loads through a dynamic import the dev server transforms on first
- * use.
+ * invalid diagram, a ```js fence and a trailing paragraph. The first SVG wait is generous, since
+ * the renderer loads through a dynamic import the dev server transforms on first use.
  */
 
 const SEED = [
@@ -124,8 +123,7 @@ test.describe('mermaid reference plugin', () => {
 		await editor.page.keyboard.press('ControlOrMeta+Enter');
 		await editor.bridge.waitForSourceContains(EDITED_CODE);
 
-		// Committing by keyboard hands focus back to the diagram, which is where a user presses
-		// undo next, with no click away first.
+		// Committing by keyboard hands focus back to the diagram, where a user reaches for undo next.
 		await expect(editor.firstInputHost).toBeFocused();
 		await editor.undo();
 		await editor.bridge.waitForSourceNotContains(EDITED_CODE);

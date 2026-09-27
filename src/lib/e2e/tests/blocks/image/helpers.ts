@@ -10,7 +10,7 @@ export async function waitForFirstImageLoaded(page: Page): Promise<void> {
 	);
 }
 
-// Every widget decoded: a spec staging one image's reflow against another needs both settled first.
+// Every widget decoded: a spec staging one image's reflow against another needs both loaded first.
 export async function waitForAllImagesLoaded(page: Page): Promise<void> {
 	await page.waitForFunction(() =>
 		Array.from(document.querySelectorAll('[data-image-widget] img')).every(
@@ -49,9 +49,8 @@ export async function clickPastImageRightEdge(page: Page): Promise<void> {
 	await page.mouse.click(point.x, point.y);
 }
 
-/** A point in the strip between the first picture's edge and the edge of the paragraph box
- *  around it: inside the block, off the picture's own line. `xFraction` picks the column across
- *  the picture, so a caller can aim either side of its middle. */
+/** A point in the strip between the first picture's edge and its paragraph box: inside the block,
+ *  off the picture's line. `xFraction` picks the column across the picture. */
 export async function pointOffImageLine(
 	page: Page,
 	side: 'above' | 'below',
@@ -85,7 +84,7 @@ export async function dropNativeCaret(page: Page): Promise<void> {
 	);
 }
 
-/** The toolbar's one field, the alt: press its button, then the input is the one there. */
+/** The toolbar's one field, the alt: click its button, then the input is the one there. */
 export async function openImageField(page: Page, name: 'Alt text' = 'Alt text'): Promise<Locator> {
 	await page.locator('.md-image-properties').getByRole('button', { name, exact: true }).click();
 	const input = page.locator('.md-image-properties input');

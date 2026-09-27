@@ -99,9 +99,8 @@ test.describe('live mode: the caret never reports from inside a hidden run', () 
 	});
 });
 
-// Where a block's own start is raw 0 the bound is the ordinary one and Backspace merges as
-// usual. The kinds whose content starts later, which demote instead, are covered in
-// `presentation-live-demote.spec.ts`.
+// Where a block's own start is raw 0 Backspace merges as usual; kinds whose content starts later
+// demote instead, in `presentation-live-demote.spec.ts`.
 test.describe('live mode: a destructive key reads the block’s content bounds', () => {
 	let ep: EditorPage;
 
@@ -152,9 +151,8 @@ test.describe('live mode: hidden runs a caret must not be able to type into', ()
 		await ep.bridge.waitForSourceMatches(/```js\n[^`]*Y[^`]*\n```/);
 	});
 
-	// `[text][ref]` in a cell: `[`, `]` and the whole `[ref]` label are unpainted, so the only
-	// reachable offsets are inside `text`. A link never extends, so the byte lands past the label
-	// rather than inside the link text; where typed bytes go is covered in its own spec.
+	// `[text][ref]` in a cell: only offsets inside `text` are reachable, and a link never extends, so
+	// the byte lands past the label; where typed bytes go has its own spec.
 	test('a table cell’s reference label is unreachable and untypeable', async ({ page }) => {
 		const cell = page
 			.locator("[role='table'] [contenteditable='true']")

@@ -114,8 +114,8 @@ test.describe('mermaid edit box: boundary arrow exits', () => {
 		expect(await editor.bridge.getSource()).toBe(ONE_DIAGRAM);
 	});
 
-	// Pinned as it stands: an empty diagram has no other view to cancel back to, so Escape keeps
-	// the box and the caret, and an arrow is what leaves.
+	// An empty diagram has no other view to cancel back to, so Escape keeps the box and the caret,
+	// and an arrow is what leaves.
 	test('Escape in an empty diagram’s box keeps the box and the caret', async ({ page }) => {
 		await editor.loadContent('Above\n\n```mermaid\n```\n\ntail\n');
 		await editor.textarea.click();

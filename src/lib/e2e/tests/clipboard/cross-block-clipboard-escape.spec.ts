@@ -78,9 +78,8 @@ test.describe('cross-block clipboard with a caret-less focus endpoint', () => {
 		expect(source).not.toContain('sample.png');
 	});
 
-	// The listeners are on `document`, so every copy enters them. These are the two places the
-	// check has to be narrow for, mounted for real rather than stood in for by a bare
-	// `<input>`: a host header whose contenteditable sits inside the root, and the find bar.
+	// The listeners are on `document`, so every copy enters them; these are the two places the check
+	// must stay narrow for, mounted for real: a host header's contenteditable and the find bar.
 	test.describe('surfaces inside the editor root keep their own clipboard', () => {
 		test.beforeEach(async () => {
 			await editor.goto('?header=on');

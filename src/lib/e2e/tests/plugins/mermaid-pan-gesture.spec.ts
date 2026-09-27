@@ -7,8 +7,8 @@ import { pointAtRaw } from '../../text-runs';
 /**
  * A drag the diagram takes for its own panning starts no block selection, and a drag it has not
  * taken still belongs to the editor (requirements/plugins/mermaid-pan-gesture.md). The editor's
- * margin-drag handling reads the press before the plugin's own handler runs, so only an element
- * the plugin declares can decline it, and the diagram declares one only while panning is ready.
+ * margin-drag handling reads pointer-down before the plugin's handler runs, so only an element the
+ * plugin declares can decline it, and the diagram declares one only while panning is ready.
  */
 
 const BROKEN_DOC = 'Above text\n\n```mermaid\nnotadiagram broken\n```\n\ntail text\n';
@@ -79,8 +79,8 @@ test.describe('a diagram pan claims its own drag', () => {
 		expect(await editor.bridge.isCrossBlockActive()).toBe(false);
 	});
 
-	// Only while panning is ready: an unfocused diagram has no pan to protect, so a press on it is
-	// still the editor's to answer and a drag out of it selects across blocks like any other.
+	// An unfocused diagram has no pan to protect, so pointer-down on it is still the editor's and a
+	// drag out of it selects across blocks.
 	test('a drag out of an unfocused diagram still seeds a cross-block range', async ({ page }) => {
 		const box = await editor.viewport.boundingBox();
 		if (!box) throw new Error('the rendered diagram has no bounding box');

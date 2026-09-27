@@ -63,7 +63,7 @@ test.describe('image backspace/delete + type-replace', () => {
 	test('undo after Delete from widget.start restores caret at widget.start', async ({ page }) => {
 		await editor.loadContent('![cat](/test-fixtures/sample.png)trail\n');
 		await editor.focusBlockStart(0);
-		// ArrowRight from offset 0 enters widget selection via the atRight=false branch.
+		// ArrowRight from offset 0 selects the widget from its left side.
 		await page.keyboard.press('ArrowRight');
 		await expect(page.locator('[data-image-overlay]')).toBeVisible();
 		await page.keyboard.press('Delete');

@@ -58,8 +58,8 @@ test.describe('footnotes: reading mode keyboard navigation', () => {
 });
 
 test.describe('footnotes: no tab stop in the editing modes', () => {
-	// Shift+Tab leaves a prose block natively (Tab inserts a tab), so each press lands on the
-	// previous tab stop in the page: a marker if it had one, else the block's own editing surface.
+	// Shift+Tab leaves a prose block natively (Tab inserts a tab), so each one lands on the previous
+	// tab stop: a marker if it had one, else the block's own editable element.
 	test('live mode: neither marker is a tab stop, and Shift+Tab skips both', async ({ page }) => {
 		const editor = new FootnotePage(page);
 		await editor.load(SHORT_DOC, 'live');

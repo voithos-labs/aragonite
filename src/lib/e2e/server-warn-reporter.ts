@@ -12,7 +12,7 @@ import { warnTagOfLine } from '../dev-warn';
 // Browser-side warnings vite copies into the server output; the page watcher already covers them.
 const CLIENT_RELAY = '[vite] (client)';
 
-// Expected from the shared demo server process: registration order, not a defect (GH #196).
+// Expected from the shared demo server process: registration order, not a defect.
 const EXEMPT_TAGS = ['invariant:late-opener-registration', 'plugin-install'];
 
 class ServerWarnReporter implements Reporter {

@@ -3,8 +3,8 @@ import { type Page } from '@playwright/test';
 import { EditorPage } from '../editor-page';
 
 // The decoded-entity widget (requirements/entity-widget.md). `&copy;` renders as a
-// `[data-inline-widget]` showing ©, with the raw bytes on its data-source attributes. The
-// delete case is the first running test of deleteGranularity:'atomic'.
+// `[data-inline-widget]` showing ©, with the raw bytes on its data-source attributes; the delete
+// case runs `deleteGranularity: 'atomic'`.
 
 // The caret offset counted in raw bytes: the length of each text node plus each widget's
 // data-source span, since the character it shows counts for nothing.

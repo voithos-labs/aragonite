@@ -3,10 +3,9 @@ import { type Page } from '@playwright/test';
 import { gotoPageScroll, scrollPageTo } from './vr-helpers';
 import { capturePageErrors } from '../../page-probes';
 
-// Drag autoscroll where the window's own viewport does the scrolling. The edge distances are
-// worked out from boxes, and no element's box is that viewport, since
-// `document.scrollingElement`'s box is the whole document, so a pointer at the bottom of the
-// screen is nowhere near its edge.
+// Drag autoscroll where the window's own viewport does the scrolling. The edge distances come
+// from boxes, and `document.scrollingElement`'s box is the whole document, so a pointer at the
+// bottom of the screen is nowhere near that box's edge.
 
 const READING_OFFSET = 1100;
 // Well inside the viewport at READING_OFFSET, so grabbing its handle does not make Playwright
@@ -15,8 +14,8 @@ const DRAG_SOURCE = '[data-block-path="[30]"]';
 
 const scrollY = (page: Page): Promise<number> => page.evaluate(() => window.scrollY);
 
-/** Press the block's hover handle and hold the pointer at `clientY`. Returns once
- *  the drag is live; every caller cancels with Escape. */
+/** Holds the block's hover handle at `clientY` and returns once the drag is live; every caller
+ *  cancels with Escape. */
 async function dragHandleTo(page: Page, clientY: number): Promise<void> {
 	const source = page.locator(DRAG_SOURCE);
 	await source.hover();

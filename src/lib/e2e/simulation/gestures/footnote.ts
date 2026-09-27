@@ -2,11 +2,10 @@ import type { Page } from '@playwright/test';
 import { type SimContext } from '../invariants';
 import { waitForNodeCount } from './node-count';
 
-// Footnote gestures (plugins route, `?seed=footnotes`), covering two parts: the `[^label]: `
-// definition block and the `[^label]` inline reference widget. Each waits for the block to
-// change kind or for the widget to swap in, then resyncs after the reparse. The number a
-// reference shows is worked out for display and never modelled here, so nothing in this file
-// predicts or checks it; the reference's own e2e test does that.
+// Footnote gestures (plugins route, `?seed=footnotes`) for the `[^label]: ` definition block and
+// the `[^label]` reference widget. Each waits for the block to change kind or for the widget to
+// swap in, then resyncs. The number a reference shows is computed for display and never checked
+// here; the reference's own e2e test does that.
 
 const DEF = '.footnote-def';
 const REF = '.footnote-ref';
@@ -14,9 +13,8 @@ const REF = '.footnote-ref';
 // ── Definition tier ───────────────────────────────────────────────────────────
 
 /**
- * The marker built by typing. Typed one key at a time, which takes the line through a
- * short-lived inline reference widget before the reparse settles it into a definition marker:
- * the in-between state a real writer produces and a one-shot insert never reaches.
+ * Typed key by key, so the line passes through a short-lived reference widget before the reparse
+ * makes it a definition marker, a state a one-shot insert never reaches.
  */
 export async function typeFootnoteDefinition(
 	ctx: SimContext,
@@ -40,9 +38,8 @@ export async function typeFootnoteDefinition(
 }
 
 /**
- * The definition splits the way a blockquote does, so the split has to add a child to the
- * container and never to the document root. Both counts are checked, so a split that escaped
- * the container throws.
+ * The definition splits like a blockquote, adding a child to the container, never to the root;
+ * both counts are checked, so a split that escaped the container throws.
  */
 export async function splitFootnoteDefinitionBody(
 	ctx: SimContext,
@@ -78,10 +75,8 @@ export async function splitFootnoteDefinitionBody(
 }
 
 /**
- * Backspace at the start of the first child lifts it out of the definition
- * (`lift-first-child-keep-container`): it becomes the paragraph before the marker and the rest
- * of the body stays under it, while a definition with one child turns into that paragraph.
- * Waits for the source to change, then reads the tree back to check the shape.
+ * Backspace at the first child's start lifts it out of the definition
+ * (`lift-first-child-keep-container`); the tree is read back to check the shape.
  */
 export async function footnoteDefinitionExitBackspace(
 	ctx: SimContext,
@@ -176,9 +171,8 @@ export async function revealFootnoteReference(
 }
 
 /**
- * The show-edit-commit behaviour this widget shares with inline math. The edit is kept out of
- * the tree until the commit, so waiting for the source to change before the blur would race
- * the DOM.
+ * The show-edit-commit behaviour shared with inline math: the edit stays out of the tree until
+ * the commit, so a source wait before the blur would race the DOM.
  */
 export async function editFootnoteLabel(
 	ctx: SimContext,
@@ -202,9 +196,8 @@ export async function editFootnoteLabel(
 }
 
 /**
- * A Delete next to a closed reference opens it rather than removing it whole, so the first
- * press only opens it and the second takes the opening `[`, leaving the rest as ordinary text.
- * The caller closes with an undo, so the bytes come back.
+ * Delete next to a closed reference opens it rather than removing it whole, so the second
+ * keypress takes the opening `[`; the caller closes with an undo.
  */
 export async function deleteFootnoteReference(
 	ctx: SimContext,
@@ -228,9 +221,8 @@ export async function deleteFootnoteReference(
 // ── Internal ────────────────────────────────────────────────────────────────
 
 /**
- * Blur is the commit that works wherever the widget sits: Enter splits the block
- * (`latex-inline-reveal-commands`), and a reference at a block's edge has no position beside it
- * for the caret to step out to. Committing by stepping out is covered by the math gestures.
+ * Blur commits wherever the widget sits: Enter splits the block, and a reference at a block's
+ * edge has nowhere beside it for the caret to step out to.
  */
 async function blurToCommit(
 	ctx: SimContext,

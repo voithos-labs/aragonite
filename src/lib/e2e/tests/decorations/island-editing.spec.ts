@@ -12,9 +12,8 @@ import { EditorPage } from '../../editor-page';
 
 const ISLAND = '[data-decoration-island]';
 
-// Both sources place their widget at a fixed offset, which is what pins the offset convention
-// across marker shapes, and both decline once the block no longer holds the bytes, because a
-// source is a pure function of the document it is handed.
+// Both sources place their widget at a fixed offset, checking the offset convention across marker
+// shapes, and decline once the block lacks the bytes, since a source is a pure function.
 async function addReplaceIsland(page: Page, path: number[], start: number, end: number) {
 	await page.evaluate(
 		({ path, start, end }) => {
@@ -57,9 +56,8 @@ async function addWidgetIsland(page: Page, path: number[], offset: number) {
 	);
 }
 
-/** Collapse the caret immediately before or after a widget element: the DOM position a real
- *  step-over or edge Backspace lands on, which a raw-offset traversal cannot address once a
- *  replace decoration has taken its bytes out of textContent. Setup only; the keys are real. */
+/** The DOM position a real step-over or edge Backspace lands on, which a raw offset cannot address
+ *  once a replace decoration takes its bytes out of textContent. Setup only; the keys are real. */
 async function placeCaretAtIsland(page: Page, sourceStart: number, side: 'before' | 'after') {
 	await page.evaluate(
 		({ sourceStart, side }) => {
@@ -203,9 +201,8 @@ test.describe('decoration widget editing', () => {
 	test('a widget decoration at a block start lets Backspace fall through to block merge', async ({
 		page
 	}) => {
-		// The widget stands in for no bytes at offset 0, so there is no real byte beside it:
-		// Backspace at the block boundary must fall through to the ordinary merge with the
-		// previous block, not do nothing against the widget's DOM.
+		// The widget stands in for no bytes at offset 0, so Backspace at the block boundary must fall
+		// through to the ordinary merge with the previous block.
 		await editor.loadContent('alpha\n\nbeta\n');
 		await addWidgetIsland(page, [1], 0);
 		await expect(page.locator(ISLAND)).toHaveCount(1);

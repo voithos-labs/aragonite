@@ -25,10 +25,8 @@ const stopCapture = (editor: EditorPage): Promise<Emission[]> =>
 	editor.page.evaluate(() => (window as any).__test.stopSelectionChangeCapture() as Emission[]);
 
 /**
- * What the subscriber heard first about the caret arriving at `path`. A phrase rather than a
- * boolean, so a failure names which of the two ways it went wrong. `rawBefore` is the whole of
- * the block's source before the byte goes in: searching the payload for the byte instead would
- * read as late on any fixture that already holds one.
+ * A phrase rather than a boolean, so a failure names which way it went wrong. `rawBefore` is the
+ * block's whole source before the byte, since searching the payload for the byte misreads a repeat.
  */
 function arrivalVerdict(emissions: Emission[], path: number[], rawBefore: string): string {
 	const key = JSON.stringify(path);
@@ -112,9 +110,8 @@ test.describe('a caret the editor lands is announced before the next input', () 
 		);
 	});
 
-	// The browser places a click's caret and reports it a task later, which the byte a script or
-	// a fast typist sends next can beat. No render flush between the click and the byte: a flush
-	// hands that report its turn, and then the race never happens.
+	// The browser reports a click's caret a task later, which the next byte can beat; no render flush
+	// between the click and the byte, or the race never happens.
 	test('the list item a click lands in is announced before the byte typed there', async () => {
 		await editor.loadContent(LIST);
 		await editor.focusBlockAtPath([0, 0, 0], 1);
@@ -130,9 +127,8 @@ test.describe('a caret the editor lands is announced before the next input', () 
 	});
 });
 
-// A plugin leaf shows its source before a caret can go in it, so the placement has nothing to
-// report yet and the arrival comes from the browser instead. It still has to reach a subscriber
-// before the byte typed there, which is what the announcer's skip-a-repeat rule could break.
+// A plugin leaf shows its source before a caret can enter, so the arrival comes from the browser,
+// and it must still reach a subscriber before the byte typed there.
 test.describe('a caret landing in a plugin leaf with its source hidden', () => {
 	let editor: PluginsPage;
 
@@ -157,9 +153,7 @@ test.describe('a caret landing in a plugin leaf with its source hidden', () => {
 });
 
 // A whole-block plugin container holds no character position, so a vertical arrow focuses the
-// block itself instead of descending into a column. That landing reaches neither the caret entry
-// point nor the editable surface, and it is the one a subscriber keyed on the block at the caret
-// reads wrong while the browser catches up.
+// block itself, a landing that reaches neither the caret entry point nor the editable element.
 test.describe('a caret landing on a whole-block plugin container', () => {
 	let editor: PluginsPage;
 

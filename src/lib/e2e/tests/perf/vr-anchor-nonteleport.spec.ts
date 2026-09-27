@@ -3,11 +3,9 @@ import { EditorPage } from '../../editor-page';
 import { FIXTURE_BYTES, editorScrollHeight, topVisibleHostTop } from './vr-helpers';
 import { capturePageErrors } from '../../page-probes';
 
-// The block at the top of the viewport must still be there once a mid-document scroll settles,
-// in each of the three places windowing runs: the root list, a nested container, and a table's
-// rows. A block's position reads flat here by construction, since the spacer, the newly mounted
-// blocks and the scroll correction share one pass before paint, so these cases bound how far
-// things drift rather than measure the correction, which the deep-jump cases cover.
+// The block at the top of the viewport must still be there after a mid-document scroll, in the
+// root list, a nested container and a table's rows. The spacer, new blocks and correction share one
+// pass before paint, so these cases bound drift; the deep-jump cases measure the correction.
 
 async function hostTopAt(editor: EditorPage, ref: string | null): Promise<number | null> {
 	return editor.page.evaluate((path) => {
@@ -71,9 +69,8 @@ test('scrolling mid into a giant table does not teleport the top visible row', a
 
 	await scrollToMiddle(editor);
 
-	// Followed by a cell's top, since a `display: contents` row has no box of its own. It is
-	// also the check that rows measure correctly: measuring them all too short breaks the
-	// bound on drift.
+	// Followed by a cell's top, since a `display: contents` row has no box; measuring every row too
+	// short would also break the drift bound.
 	const topRow = await topVisibleHostTop(page, {
 		selector: '[data-table-row-idx]',
 		attr: 'data-table-row-idx',

@@ -4,11 +4,10 @@ import { STANDARD_DIAGRAM_DOC } from './mermaid-helpers';
 
 /**
  * The cross-block selection overlay over containers with no children
- * (requirements/plugins/mermaid-selection-overlay.md). A mermaid block caught in a cross-block
- * range has no child hosts at all, so the block itself must take the whole-block overlay, both
- * rendered and in its error state, the same box a container with children takes when the range
- * covers it whole. It lives in the plugins project because only plugin kinds produce containers
- * with no children; the built-in overlay is pinned in tests/selection/overlay.spec.ts.
+ * (requirements/plugins/mermaid-selection-overlay.md): a mermaid block in a range has no child
+ * hosts, so the block takes the whole-block overlay, rendered or in its error state. Only plugin
+ * kinds have no children, hence the plugins project; the built-in case is
+ * selection/overlay.spec.ts.
  */
 
 const BROKEN_DOC = 'Above text\n\n```mermaid\nnotadiagram broken\n```\n\ntail text\n';

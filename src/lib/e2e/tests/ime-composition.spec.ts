@@ -2,11 +2,10 @@ import { test, expect } from '../fixtures';
 import { EditorPage } from '../editor-page';
 import { attachIme } from '../simulation/ime';
 
-// Real IME composition over CDP, producing genuine compositionstart/update/end events
-// (requirements/ime-composition.md). Chromium's order is pinned by the first test: every
-// insertCompositionText fires with isComposing true before compositionend, and the commit to
-// the tree afterwards comes from the block's own code, not from another DOM input event. These
-// sequences are the first deliberate real-browser exercise of G1.27.
+// Real IME composition over CDP, with genuine compositionstart/update/end events
+// (requirements/ime-composition.md). The first test checks Chromium's order: every
+// insertCompositionText fires with isComposing true before compositionend, and the commit to the
+// tree comes from the block's own code, not another DOM input event (G1.27).
 
 function countOf(haystack: string, needle: string): number {
 	return haystack.split(needle).length - 1;

@@ -45,9 +45,8 @@ test.describe('plugin container: :::callout editability', () => {
 		expect(afterSplitTyping.rootCount).toBe(1);
 		expect(afterSplitTyping.childCount).toBe(3);
 		expect(afterSplitTyping.childTexts).toEqual(['Title', 'First one', 'two']);
-		// The callout's own raw was rebuilt from every child; a stale raw would still read the
-		// seed opener line alone. The blank line between the body paragraphs is the split's
-		// separator, written again by that same rebuild.
+		// The callout's raw is rebuilt from every child, so a stale raw would read the opener line
+		// alone; the same rebuild writes the blank line between the body paragraphs.
 		expect(afterSplitTyping.raw).toBe(':::callout Title\nFirst one\n\ntwo\n:::\n');
 		expect(await editor.bridge.getSource()).toBe(':::callout Title\nFirst one\n\ntwo\n:::\n');
 		expect(await roundTripStable(page)).toBe(true);

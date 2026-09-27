@@ -22,8 +22,7 @@ export interface SessionOpts {
 	note: NoteFixture;
 	capture?: boolean;
 	/**
-	 * Off by default: it drives one undo and redo per stack entry, so only the smoke note and a
-	 * single multi-seed run turn it on.
+	 * Off by default, since it drives one undo and redo per stack entry.
 	 */
 	undoUnwind?: boolean;
 }
@@ -31,11 +30,8 @@ export interface SessionOpts {
 const EMPTY_BASELINE = '\n';
 
 /**
- * Drives one full note-taking session through real gestures, running the checks all the way
- * through. The target for the end state is worked out first by loading the note's markdown
- * (typing has to match loading), then the editor is cleared to type into. Never call
- * `loadContent(x)` when the editor already holds `x`: `setSource` does nothing on an unchanged
- * value, so each step of the start sequence has to be a real change.
+ * Loads the note's markdown first to get the end-state target (typing must match loading), then
+ * clears the editor. `setSource` ignores an unchanged value, so each start step must be a change.
  */
 export async function runSession(page: Page, editor: EditorPage, opts: SessionOpts): Promise<void> {
 	const errors = attachErrorCollector(page);
@@ -69,17 +65,14 @@ export async function runSession(page: Page, editor: EditorPage, opts: SessionOp
 	ctx.label = 'build';
 	await opts.note.build(g);
 
-	// The capture manifest is written in a `finally`, so that if a check throws mid-session the
-	// screenshots and state dumps gathered so far are still there for the visual review; the
-	// failure then throws on, never hidden.
+	// Written in a `finally`, so a check that throws mid-session still leaves its screenshots and
+	// dumps for the visual review, then throws on.
 	try {
 		await assertCheckpoint(ctx, 'checkpoint');
 		await assertContainsInOrder(ctx, opts.note.landmarks);
 		await recorder?.checkpoint('note-built', 'build');
 
-		// Here rather than at the end of the note, because it needs an empty redo stack: each
-		// detour below ends in an undo, and what it leaves on the redo stack would make
-		// "rewind to the top" mean nothing definite.
+		// Runs before the detours, which each end in an undo, because it needs an empty redo stack.
 		if (opts.undoUnwind) {
 			ctx.label = 'undo-unwind';
 			await runFullSessionUndoUnwind(ctx, baseline);
@@ -120,9 +113,8 @@ async function runRevertingDifferential(ctx: SimContext): Promise<void> {
 }
 
 /**
- * Detours that make the session look human and each leave the bytes exactly as they were, so the
- * end state still matches for every note and seed. The seed decides which run, and the pauses
- * between them spread the shapes of undo batches across runs.
+ * Detours that make the session look human, each leaving the bytes as they were. The seed picks
+ * which run, and the pauses between them vary how undo entries batch.
  */
 async function runCancellingDetours(ctx: SimContext, g: Gestures, rng: Rng): Promise<void> {
 	if (rng.chance(0.5)) await g.pause();
@@ -145,16 +137,15 @@ async function runCancellingDetours(ctx: SimContext, g: Gestures, rng: Rng): Pro
 
 	if (rng.chance(0.5)) await g.pause();
 
-	// The bytes must survive a presentation-mode switch. The seed picks which mode, so the
-	// multi-seed runner covers them all: no mode switch may disturb the built source.
+	// The seed picks the mode, so the multi-seed runner covers them all.
 	if (rng.chance(0.7)) {
 		await g.flipPresentationMode(
 			rng.pick(['reading', 'preview-block', 'preview-inline', 'live'] as const)
 		);
 	}
 
-	// The two riskiest gestures, added at the end so each seed still picks the same detours as
-	// before. Both leave the bytes as they were, thanks to a closing undo.
+	// Drawn after the earlier detours, so a seed's earlier picks do not depend on them. Both end
+	// with an undo.
 	if (rng.chance(0.5)) await g.pause();
 
 	if (rng.chance(0.6)) {
@@ -167,17 +158,14 @@ async function runCancellingDetours(ctx: SimContext, g: Gestures, rng: Rng): Pro
 		await mergeUndoDetour(ctx, g);
 	}
 
-	// Added last for the same reason as the pair above: every draw before it keeps the detour
-	// its seed picked before.
+	// Drawn last for the same reason as the pair above.
 	if (rng.chance(0.7)) {
 		await rangeInterruptDetour(ctx, g, rng);
 	}
 }
 
 /**
- * A live cross-block range interrupted by another gesture, the situation behind two whole
- * documents being lost. The seed picks from the gestures this document can reach, so the seeds
- * spread across them.
+ * The seed picks from the interrupting gestures this document can reach.
  */
 async function rangeInterruptDetour(ctx: SimContext, g: Gestures, rng: Rng): Promise<void> {
 	const available = await availableRangeInterrupts(ctx);
@@ -186,10 +174,8 @@ async function rangeInterruptDetour(ctx: SimContext, g: Gestures, rng: Rng): Pro
 }
 
 /**
- * Moves a block between edits and undo, the order of events that brings out the shared-node
- * corruption a reorder can cause and that only the simulation catches
- * (`docs/contributing/rules.md` § Testing shape). Block 0 is a heading or paragraph with a
- * sibling below it in every note, so the move always does something.
+ * Moving a block between edits and undo brings out the shared-node corruption a reorder can
+ * cause (`docs/contributing/rules.md` § Testing shape). Every note's block 0 has a sibling below.
  */
 async function reorderUndoDetour(ctx: SimContext, g: Gestures): Promise<void> {
 	await revertingDetour(ctx, () => g.reorder(0, 1));
@@ -223,9 +209,8 @@ async function copyPasteUndoDetour(ctx: SimContext, g: Gestures): Promise<void> 
 }
 
 /**
- * Deleting across blocks is where the worst corruption bugs came from, so driving it here puts
- * a range collapse and merge under the full set of checks on every seed. The seed picks both how
- * the range is built and how it is destroyed, so the pairs spread across runs.
+ * Puts a range collapse and merge under the full checks on every seed; the seed picks how the
+ * range is built and how it is destroyed.
  */
 async function crossBlockDestroyUndoDetour(ctx: SimContext, g: Gestures, rng: Rng): Promise<void> {
 	const destroy = rng.pick(['backspace', 'delete', 'cut', 'type-over', 'paste-over'] as const);
@@ -300,10 +285,8 @@ async function mergeUndoDetour(ctx: SimContext, g: Gestures): Promise<void> {
 }
 
 /**
- * Undoes the whole session to the bottom of the stack and redoes it, where
- * `undoRedoDifferential` covers a single gesture. Driven by the stack depth read from the
- * editor, not by waiting on the clock. The redo stack has to be empty on entry, so the caller
- * runs this right after the build, before the detours disturb it.
+ * Undoes the whole session and redoes it, where `undoRedoDifferential` covers one gesture. The
+ * redo stack must be empty on entry, so the caller runs this right after the build.
  */
 async function runFullSessionUndoUnwind(ctx: SimContext, initialSource: string): Promise<void> {
 	const preUnwind = await ctx.editor.bridge.getSource();

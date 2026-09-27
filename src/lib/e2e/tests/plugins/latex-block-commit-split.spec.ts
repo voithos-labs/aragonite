@@ -3,12 +3,10 @@ import { roundTripStable, waitForDoc, activeBlockPath } from './helpers';
 import { BlockMathPage } from './latex-reveal-helpers';
 
 /**
- * Committing block math (requirements/plugins/latex-block-commit-split.md): an open source
- * committed with text that parses to several blocks must split the document again, which is what
- * a stuck fence comes from. Real keyboard and mouse only; Enter inside the source inserts a
- * literal newline and never splits as you type, so the split happens when blur commits. Deleting
- * the fences here converts the block because the user addressed those bytes; a truncation written
- * past this element puts the closer back (latex-block-live-editing.spec.ts).
+ * Committing block math (requirements/plugins/latex-block-commit-split.md): a source committed with
+ * text that parses to several blocks must split the document, or the fence sticks. Enter in the
+ * source inserts a newline, so the split happens on the blur commit. Deleting the fences converts
+ * the block; a truncation past the element puts the closer back (latex-block-live-editing.spec.ts).
  */
 
 test.describe('block math commit core: multi-block source re-splits', () => {
@@ -47,9 +45,8 @@ test.describe('block math commit core: multi-block source re-splits', () => {
 		await page.keyboard.press('Enter');
 		await page.keyboard.press('Enter');
 		await page.keyboard.type('hello');
-		// Re-laying out while the block closes consumes the click's own focus, which Chromium
-		// drops to <body>, so the commit puts the caret back at the edit position in the
-		// split-off paragraph rather than leaving no caret at all.
+		// Relayout while the block closes drops the click's focus to <body> in Chromium, so the commit
+		// puts the caret back at the edit position in the split-off paragraph.
 		await editor.getBlock(0).click();
 
 		await waitForDoc(page, (s) => s.rootCount === 4);

@@ -2,10 +2,9 @@ import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
 // The public caret-placing methods, exercised while a cross-block range is live
-// (`requirements/selection/public-caret-doors.md`). No gesture-level spec reaches them: every
-// built-in placement goes through a path that ends the range on its way in. `focus` and
-// `setSelection` both end the old range; `parkCaret` is the one exception, used by the
-// cross-block dispatcher while an extend is still growing a range.
+// (`requirements/selection/public-caret-doors.md`). Every built-in placement ends the range on its
+// way in, so no gesture spec reaches them. `focus` and `setSelection` end a live range;
+// `parkCaret` is the exception, used while an extend is still growing one.
 
 test.describe('public caret entry points with a cross-block range live', () => {
 	let editor: EditorPage;
@@ -56,9 +55,8 @@ test.describe('public caret entry points with a cross-block range live', () => {
 		expect(source).toContain('third para');
 	});
 
-	// `parkCaret` is what `revealActiveEndpoint` calls while an extend is still growing the
-	// range, so it must not end one. Also covered by `extend-offwindow-endpoint`,
-	// `keyboard/vertical-skip`, and `cross-block-delete-container-survivor-caret`.
+	// `revealActiveEndpoint` calls `parkCaret` while an extend is still growing the range, so it must
+	// not end one.
 	test('BlockComponent.parkCaret leaves the range live', async () => {
 		const parked = await editor.page.evaluate(() =>
 			(

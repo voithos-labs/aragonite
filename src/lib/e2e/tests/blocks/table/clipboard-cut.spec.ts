@@ -84,8 +84,8 @@ test.describe('table block: clipboard cut', () => {
 		expect(clip).toContain('1');
 		expect(clip).toContain('follow paragraph');
 
-		// Per cross-block-delete Case 2: cells [startCellIdx..lastCell] cleared in row 1,
-		// row 2 removed entirely, paragraph head dropped, anchor row's cells blank.
+		// Cells from the start cell on are cleared in row 1, row 2 goes, the paragraph's head is
+		// dropped, and the anchor row's cells are blank.
 		await editor.bridge.waitForSourceNotContains('| 1 | 2 |');
 		await editor.bridge.waitForSourceNotContains('| 3 | 4 |');
 		await editor.bridge.waitForSourceContains('| A | B |');
@@ -95,10 +95,8 @@ test.describe('table block: clipboard cut', () => {
 	test('partial-column cross-block Cut keeps clipboard and surviving cells complementary', async ({
 		page
 	}) => {
-		// Drag from the paragraph above into a mid-row, mid-column cell (a2). Whole-row snap
-		// captures rows 0..1 in full and the paired delete clears the same rows, so every body cell
-		// is either copied and gone or surviving and not copied. A copy that rounds to whole rows
-		// while the delete clears only columns makes a2 and a3 both.
+		// Dragging into mid-row cell a2 snaps to whole rows 0..1 for both copy and delete, so every
+		// body cell is either copied and gone or kept and not copied.
 		await editor.loadContent(
 			'head\n\n| Ha | Hb | Hc |\n| --- | --- | --- |\n| a1 | a2 | a3 |\n| b1 | b2 | b3 |\n'
 		);
@@ -124,9 +122,8 @@ test.describe('table block: clipboard cut', () => {
 	test('partial-column cross-block Cut anchored in a mid-cell keeps clipboard and surviving cells complementary', async ({
 		page
 	}) => {
-		// The reverse of the test above: the drag starts in the mid-cell (a2) and exits upward, so
-		// the drag's start is the table endpoint. Without `cellCoordinate: true` there, the
-		// whole-row snap never fires and a2 and a3 both land on the clipboard and survive.
+		// The reverse drag starts at a2, so the table endpoint is the drag's start; without
+		// `cellCoordinate: true` there, a2 and a3 are copied and survive.
 		await editor.loadContent(
 			'head\n\n| Ha | Hb | Hc |\n| --- | --- | --- |\n| a1 | a2 | a3 |\n| b1 | b2 | b3 |\n'
 		);

@@ -3,11 +3,9 @@ import { type Page } from '@playwright/test';
 import { gotoPageScroll, settleFrames, spacerCount } from './vr-helpers';
 import { capturePageErrors } from '../../page-probes';
 
-// A held scroll position is released by the user's next gesture. Under `scrollMode="host"`
-// the page is what scrolls, so the gesture that takes the viewport back is one the editor never
-// sees: with the release bound to the editor root, every measure pass re-asserts the position
-// and the page stays stuck at the target until the user happens to click inside the editor.
-// The listeners follow whatever actually scrolls, not the root.
+// A held scroll position is released by the user's next gesture. Under `scrollMode="host"` the
+// page scrolls, so that gesture is one the editor root never sees; the release listeners follow
+// whatever actually scrolls, or the page stays stuck at the target.
 
 const TARGET_BLOCK = 120;
 
@@ -35,7 +33,7 @@ test('a wheel outside the editor releases the reveal pin and the page scrolls', 
 	const pageErrors = capturePageErrors(page);
 	await gotoPageScroll(page);
 
-	// Windowing must be active, or nothing re-asserts the pin and the test proves nothing.
+	// Windowing must be active, or nothing re-asserts the held position and the test proves nothing.
 	expect(await spacerCount(page)).toBeGreaterThan(0);
 
 	// The defaults: 'nearest' keeps holding the position, which is the state under test.

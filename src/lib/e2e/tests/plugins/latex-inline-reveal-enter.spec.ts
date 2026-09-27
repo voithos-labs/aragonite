@@ -27,7 +27,7 @@ test.describe('Enter splits a block whose inline source is revealed', () => {
 		await editor.bridge.waitForBlockCount(2);
 		expect(await editor.bridge.getSource()).toBe('\n$x^2$ tail\n');
 
-		// The reported symptom was the caret landing past the widget instead.
+		// The caret lands before the widget in the new block, not past it.
 		await page.keyboard.type('Z');
 		await editor.bridge.waitForSourceContains('Z$x^2$ tail');
 		expect(await editor.bridge.getSource()).not.toContain('$x^2$Z');
@@ -52,9 +52,8 @@ test.describe('Enter splits a block whose inline source is revealed', () => {
 		await page.keyboard.type('q');
 		await expect(editor.getBlock(0)).toHaveText('$x^q2$ tail');
 
-		// The split lands where the caret is, and the uncommitted edit reaches the CST rather than
-		// being dropped by the structural edit. Two paragraphs separated by a blank line is the
-		// editor's ordinary mid-paragraph split, not something this path invents.
+		// The split lands at the caret and the uncommitted edit reaches the CST; the blank line between
+		// the two paragraphs is the editor's ordinary mid-paragraph split.
 		await page.keyboard.press('Enter');
 		await editor.bridge.waitForBlockCount(2);
 		expect(await editor.bridge.getSource()).toBe('$x^q\n\n2$ tail\n');

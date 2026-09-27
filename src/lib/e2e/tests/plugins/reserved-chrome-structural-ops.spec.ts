@@ -80,9 +80,8 @@ test.describe('reserved child-0 chrome: structural ops + paste', () => {
 		await editor.focusBlockAtPath([1, 0], 5); // end of "Title"
 		await page.keyboard.press('Enter');
 
-		// A title row is one line by the way it serializes, so Enter goes to `chrome.descendToBody`,
-		// the `registerChromeLeaf` default: focus moves into the first body child, with no split
-		// and no commit.
+		// A title row serializes as one line, so Enter goes to `chrome.descendToBody`, the
+		// `registerChromeLeaf` default: focus moves into the first body child, with no split or commit.
 		await expect.poll(() => activeBlockPath(page)).toEqual([1, 1]);
 
 		const callout = await readCallout(page, 1);
@@ -136,9 +135,8 @@ test.describe('reserved child-0 chrome: structural ops + paste', () => {
 		await page.keyboard.press('Enter');
 		await expect.poll(() => activeBlockPath(page)).toEqual([1, 1]);
 
-		// Moving into an existing body only moves focus: if it pushed an empty undo entry, this
-		// one undo would spend it and "BodyQ" would survive. Poll the children in the CST, not the
-		// source bytes, so the assertion waits for the tree to rebuild the reverted text.
+		// Moving into an existing body only moves focus; an empty undo entry would make this undo spend
+		// it and leave "BodyQ". Polls the CST children, which wait for the rebuild.
 		await editor.undo();
 		await expect
 			.poll(() => readCallout(page, 1).then((n) => n.childTexts))
@@ -154,10 +152,8 @@ test.describe('reserved child-0 chrome: structural ops + paste', () => {
 		await editor.typeText('X');
 		await editor.bridge.waitForSourceContains(':::callout TitleX');
 
-		// callout-title is registered through registerChromeLeaf, so it has contextDependentKind,
-		// and updateNodeContent honours that: a commit writes the raw and keeps the kind instead
-		// of deriving it again from the bare title line, which nothing recognizes and which would
-		// come back as a paragraph.
+		// `registerChromeLeaf` gives callout-title `contextDependentKind`, so a commit keeps the kind
+		// rather than reparsing the bare title line as a paragraph.
 		const callout = await readCallout(page, 1);
 		expect(callout.childKinds[0]).toBe('callout-title');
 		expect(callout.childTexts[0]).toBe('TitleX');

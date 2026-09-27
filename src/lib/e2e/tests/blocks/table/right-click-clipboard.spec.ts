@@ -16,8 +16,7 @@ test.describe('table block: cell right-click clipboard', () => {
 	});
 
 	// The clipboard trio is the cell menu's own top-level group; the axis flyouts carry only
-	// their inserts and moves. (That a single-axis target gets no clipboard items at all is the
-	// model's contract, covered in test/blocks/table/table-menu-model.test.ts.)
+	// inserts and moves (`test/blocks/table/table-menu-model.test.ts`).
 	test('the cell menu shows Cut/Copy/Paste at the top level, not inside the axis flyouts', async ({
 		page
 	}) => {

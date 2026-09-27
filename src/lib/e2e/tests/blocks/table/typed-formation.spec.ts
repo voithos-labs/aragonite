@@ -90,7 +90,7 @@ test.describe('table block: typed formation', () => {
 		await editor.bridge.waitForSourceEquals('| a | b |Z\n');
 	});
 
-	// Intended, and documented: the restored line is still a claimable header row.
+	// The restored line is still a header row the completion takes.
 	test('Enter again after the undo completes again', async ({ page }) => {
 		await typeRowAndEnter(editor, page, '| a | b |');
 		await editor.bridge.waitForSourceEquals(COMPLETED);
@@ -142,8 +142,8 @@ test.describe('table block: typed formation', () => {
 		await editor.bridge.waitForSourceEquals('> | a | b |\n> | --- | --- |\n> | Z |  |\n');
 	});
 
-	// The item's own Enter would append a sibling item; the consult sits above that override, so a
-	// claimed line completes and only an unclaimed one reaches the list gesture.
+	// The completion runs before the list item's own Enter, so a header-row line completes and only
+	// another line appends a sibling item.
 	test('a row typed inside a list item completes rather than appending a sibling', async ({
 		page
 	}) => {
@@ -171,8 +171,8 @@ test.describe('table block: typed formation', () => {
 });
 
 test.describe('table block: typed formation across presentation modes', () => {
-	// The grid paints in every mode, so the caret target the completion picks is a real cell.
-	// G1.33 runs off the shared fixture's console watch, and a typed byte is what triggers it.
+	// The grid paints in every mode, so the completion's caret target is a real cell; the typed
+	// byte is what the shared fixture's console watch checks (G1.33).
 	test('live mode creates the same table and lands the typed byte in a body cell', async ({
 		page
 	}) => {

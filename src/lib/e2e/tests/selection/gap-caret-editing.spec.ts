@@ -64,8 +64,8 @@ test.describe('minting a paragraph at the gap', () => {
 		expect(await editor.bridge.getSource()).toBe(`${QUOTED_FENCE}>\n> x\n`);
 	});
 
-	// v1 refuses every input type but text: a paste has block structure the boundary has no
-	// rule for yet, so it is declined rather than guessed at.
+	// The gap refuses every input type but text: a paste has block structure the boundary has no rule
+	// for, so it is declined rather than guessed at.
 	test('a paste at the gap changes nothing and keeps the gap', async () => {
 		await loadThenArrive(editor);
 		await editor.seedClipboard('pasted\n');

@@ -3,12 +3,10 @@ import { roundTripStable } from './helpers';
 import { BlockMathPage } from './latex-reveal-helpers';
 
 /**
- * GitHub's third math form: a ```math fence parsed as its own `mathFence` kind, not `mathBlock`
- * and not a plain `fencedCode`. It uses the same BlockMath component as `$$…$$`, so these tests
- * cover only what is specific to the fence: the kind itself, a KaTeX render through that shared
- * component, and one open, edit and commit round trip that leaves the fence a `mathFence`. The
- * shared editing mechanics are proven by latex-block.spec.ts. Seed `mathfence`: the fence block
- * sits at index 1.
+ * GitHub's third math form: a ```math fence parsed as its own `mathFence` kind. It shares the
+ * BlockMath component with `$$…$$` (latex-block.spec.ts), so this covers only the kind, a KaTeX
+ * render, and an open, edit and commit round trip that keeps the kind. Seed `mathfence`: the fence
+ * is block 1.
  */
 
 test.describe('plugin math fence: distinct kind, shared render', () => {

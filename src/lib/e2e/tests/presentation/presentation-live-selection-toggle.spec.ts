@@ -32,8 +32,8 @@ const CHORD = {
 	inlineCode: 'ControlOrMeta+e'
 } as const;
 
-/** Put the caret at `from` and extend `length` characters rightward with real keypresses. Home
- *  lands at the block's first reachable offset, which a leading hidden run moves off raw 0. */
+/** Puts the caret at `from` and extends `length` characters rightward with real keypresses; Home
+ *  lands at the block's first reachable offset, past any leading hidden run. */
 async function selectFrom(
 	ep: EditorPage,
 	page: Page,

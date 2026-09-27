@@ -1,11 +1,8 @@
 import { type SimContext, actThenResync } from '../invariants';
 
-// Table gestures. They resync rather than predict: building a table pads every cell to a
-// standard width, and an edit to a cell lands between pipes in the middle of the source, so
-// neither is the append at the end that the expected answer predicts.
-//
-// A table renders as an interactive `.table-block` only once a document is loaded: typed pipe
-// syntax stays a paragraph and never grows a `.table-cell`, so a session must start from one.
+// Table gestures resync rather than predict: building a table pads every cell, and a cell edit
+// lands mid-source, neither being the append the expected answer predicts. Typed pipe syntax stays
+// a paragraph, so a session must start from a loaded document with a table.
 
 const CELL = '.table-cell';
 
@@ -15,8 +12,7 @@ async function clickCell(ctx: SimContext, cellIndex: number): Promise<void> {
 }
 
 /**
- * The edit lands between pipes, so it cannot be predicted as text added at the end of the
- * document. Presses End first, so the text goes after the cell's content instead of splitting it.
+ * End first, so the text goes after the cell's content instead of splitting it.
  */
 export async function editCell(ctx: SimContext, cellIndex: number, text: string): Promise<void> {
 	await clickCell(ctx, cellIndex);

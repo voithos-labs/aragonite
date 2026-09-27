@@ -63,9 +63,8 @@ test.describe('note-taking simulation: live-mode editing ops', () => {
 		expect(await editor.bridge.getSource()).toBe(canonical);
 	});
 
-	// Typing an opener is the one live rule that creates a block's markers rather than editing
-	// behind them, so the expected answer is what checks it here: every byte after the new block
-	// is predicted keystroke by keystroke, and creating it is the only resync allowed.
+	// Typing an opener creates a block's markers rather than editing behind them, so every byte after
+	// the new block is predicted keystroke by keystroke, and creating it is the only resync allowed.
 	test('a typed block opener creates its chrome and predicts the content behind it', async ({
 		page
 	}) => {

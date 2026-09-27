@@ -29,8 +29,8 @@ test.describe('code block: unclosed-fence auto-close on escape', () => {
 		expect(await editor.parseConverged()).toBe(true);
 	});
 
-	// The other place a fence can be left open: the keystroke that creates it. Without a closer,
-	// the live tree settles to the reload's reading, which swallows everything below (GH #180).
+	// The keystroke that creates a fence is the other place one can be left open; without a closer,
+	// the live tree takes the reload's reading, which swallows everything below.
 	test('a fence opener typed above other blocks closes as it is created', async ({ page }) => {
 		await editor.loadContent('Above\n\ntail\n');
 		await editor.getBlock(0).click();

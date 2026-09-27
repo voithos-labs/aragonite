@@ -6,24 +6,21 @@ import { makeRng } from '../../simulation/rng';
 import { assertCheckpoint } from '../../simulation/invariants';
 import { makeSimContext } from './helpers';
 
-// Math, run in the default gate. It is the first inline widget with real text inside it, since
-// KaTeX renders characters, and the first block that shows a render rather than its source, so
-// whether its bytes survive, and what mounting and unmounting does, is exactly the quiet
-// corruption these checks exist to catch. The ```math fence is a third session: another kind on
-// the same component, whose bytes no session had ever moved or deleted across.
+// Math, run in the default gate: an inline widget with real text inside it (KaTeX renders
+// characters) and a block that shows a render rather than its source, so these checks watch their
+// bytes as they mount and unmount. The ```math fence is a third session, another kind on the same
+// component, moved and deleted across.
 
 const MATH_DOC =
 	'Alpha lead paragraph.\n\n' + 'Beta middle paragraph.\n\n' + 'Gamma tail paragraph.\n';
 
-// A mermaid diagram with prose on both sides, so the gestures that focus the whole block have
-// an editable neighbour either way. The diagram renders through a dynamic import, so the wait
-// for its SVG is generous.
+// A mermaid diagram with prose on both sides, so the whole-block focus gestures have an editable
+// neighbour either way; its SVG comes through a dynamic import, so the wait is generous.
 const MERMAID_DOC =
 	'Above text\n\n```mermaid\ngraph TD\n\tA[Start] --> B[Finish]\n```\n\ntail text\n';
 
-// A ```math fence with prose on both sides, like the mermaid one: the structural gestures work
-// from a neighbour, so both a move and a range delete reach the fence's bytes without ever
-// focusing it.
+// A ```math fence with prose on both sides: the structural gestures work from a neighbour, so a
+// move and a range delete reach the fence's bytes without focusing it.
 const MATH_FENCE_DOC = 'Above the fence\n\n```math\nx^2\n```\n\nBelow the fence\n';
 
 test.describe('math-ops simulation', () => {
@@ -57,9 +54,8 @@ test.describe('math-ops simulation', () => {
 		await g.editInlineMath('y');
 		await assertCheckpoint(ctx, 'inline-edited');
 
-		// Enter the widget with the caret: arrow through it and back out, which must change no
-		// bytes, then Backspace into it, type inside the formula and commit by moving the caret
-		// out past its end.
+		// Arrow through the widget and back out, changing no bytes, then Backspace into it, type inside
+		// the formula and commit by moving the caret out past its end.
 		await g.walkThroughInlineMath(0);
 		await expect(page.locator('.math-inline-widget')).toHaveCount(1);
 		await assertCheckpoint(ctx, 'inline-walk-through');
@@ -140,9 +136,8 @@ test.describe('math-ops simulation', () => {
 
 		await assertCheckpoint(ctx, 'loaded');
 
-		// Move the prose above the fence down past it and back. The fence never takes focus;
-		// only its position changes, and its raw text and kind must come back untouched, which
-		// the gesture checks halfway through.
+		// Moves the prose above the fence down past it and back; the fence never takes focus, and its
+		// raw text and kind must come back untouched, which the gesture checks halfway through.
 		await g.reorderPastMathFence(0, 1);
 		expect(await editor.bridge.getBlockKind(1)).toBe('mathFence');
 		await assertCheckpoint(ctx, 'reordered-past');

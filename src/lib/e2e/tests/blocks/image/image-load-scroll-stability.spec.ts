@@ -7,10 +7,8 @@ import { capturePageErrors } from '../../../page-probes';
 // sets none.
 test.use({ viewport: { width: 1000, height: 600 } });
 
-// A remote image with no width/height reserves no box until it decodes, then grows asynchronously.
-// The editor disables native overflow-anchor, so growth above the viewport slides the visible
-// content unless the editor re-measures and anchor-corrects on load
-// (`requirements/blocks/image/image-load-scroll-stability.md`).
+// An image with no width or height reserves no box until it decodes, and the editor disables native
+// overflow-anchor, so it must correct the scroll on load itself.
 
 // Held until releaseImage() so load timing is deterministic. No |WxH hint in the alt,
 // so the <img> gets no dimension attributes and reserves no height before it loads.
@@ -82,8 +80,8 @@ async function expectNoShiftOnImageLoad(
 	const editor = new EditorPage(page);
 	await editor.goto();
 
-	// Hold the image response so it stays in its pre-decode (zero-height) state until we
-	// release it. Installed after goto so the harness-ready wait isn't affected.
+	// Holds the image response so it stays zero-height until released; installed after goto so the
+	// harness-ready wait is unaffected.
 	let releaseImage!: () => void;
 	const imageGate = new Promise<void>((resolve) => {
 		releaseImage = resolve;

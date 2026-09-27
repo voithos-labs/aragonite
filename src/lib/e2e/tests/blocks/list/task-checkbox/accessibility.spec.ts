@@ -41,8 +41,8 @@ test.describe('task checkbox: accessibility', () => {
 		await expect(checkbox).toHaveAttribute('aria-checked', 'false');
 	});
 
-	// Shift+Tab leaves a paragraph natively, so it lands on the previous tab stop in the page:
-	// the box if it had one, else the item's own editing surface.
+	// Shift+Tab leaves a paragraph natively, so it lands on the previous tab stop in the page: the
+	// box if it had one, else the item's own editable element.
 	test('Shift+Tab from the next block skips the box', async ({ page }) => {
 		await editor.loadContent('- [ ] task\n\nafter\n');
 		await expect(page.locator('.task-checkbox').first()).not.toHaveAttribute('tabindex');

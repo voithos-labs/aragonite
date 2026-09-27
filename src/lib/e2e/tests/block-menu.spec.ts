@@ -57,7 +57,7 @@ test.describe('trailing insert row and the block menu', () => {
 		await editor.waitForRenderFlush();
 
 		expect(await page.evaluate(() => window.getSelection()?.toString() ?? '')).toContain('para');
-		// The strip's click appends only for a press that stayed put.
+		// The strip's click appends only when the mouse did not move between down and up.
 		expect(await editor.bridge.getSource()).toBe('first para\n\nsecond para\n');
 	});
 

@@ -61,8 +61,8 @@ test.describe('image widget selection and Shift+click', () => {
 		await editor.bridge.waitForSourceEquals('Z after text here\n');
 	});
 
-	// A list item's marker sits before raw 0, where the range has to start and still grow from
-	// the press.
+	// A list item's marker sits before raw 0, where the range has to start and still grow from the
+	// click.
 	test('Shift+click before a selected image in a list item keeps the press as the focus', async ({
 		page
 	}) => {

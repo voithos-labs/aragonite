@@ -29,9 +29,8 @@ export class BlockMathPage extends PluginsPage {
 	}
 
 	/**
-	 * Click the render to open its source. Block math swaps in a separate `.math-block-source`
-	 * element rather than removing the widget, so this waits for that element to appear instead of
-	 * for the shared `revealWidget` count to reach zero.
+	 * Block math swaps in a separate `.math-block-source` rather than removing the widget, so this
+	 * waits for that element instead of the `revealWidget` count reaching zero.
 	 */
 	async revealByClick(): Promise<void> {
 		await this.render.click();

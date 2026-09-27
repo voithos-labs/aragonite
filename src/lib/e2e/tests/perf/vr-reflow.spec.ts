@@ -4,15 +4,12 @@ import { EditorPage } from '../../editor-page';
 import { FIXTURE_BYTES, spacerCount } from './vr-helpers';
 import { capturePageErrors } from '../../page-probes';
 
-// VR-4, batching the measurements. On a fast scroll many blocks mount in one frame, and
-// measuring then writing per block must not force one layout per block. Read through CDP's
-// LayoutCount, which needs a real browser: jsdom reports no layout at all, so no unit test can
-// see this.
+// Batching the measurements (VR-4): when many blocks mount in one frame, measuring then writing
+// per block must not force one layout per block. Read through CDP's LayoutCount, which needs a
+// real browser, since jsdom reports no layout.
 
-// The single in-page animation-frame loop matters: calling `scrollEditorTo` per step waits two
-// frames between writes and mounts only a handful per frame, which inflates the layouts per
-// mount and flakes. A viewport per frame mounts a whole window at once, so mounts far outnumber
-// frames.
+// One in-page animation-frame loop, a viewport per frame, mounts a whole window at once;
+// `scrollEditorTo` per step waits two frames between writes, inflating layouts per mount.
 async function flingAndCountMounts(page: Page, frames: number, selector: string): Promise<number> {
 	return page.evaluate(
 		({ frames, selector }) => {
@@ -48,10 +45,8 @@ async function flingAndCountMounts(page: Page, frames: number, selector: string)
 	);
 }
 
-// One LayoutCount reading around one fast scroll, for each list that mounts blocks. The limit
-// of 0.3 sits ten times below one layout per mount, which is what the bad case looks like, and
-// well above the batched values of about 0.03 for blocks and 0.05 for rows, so it catches the
-// regression without flaking.
+// The 0.3 limit sits ten times below one layout per mount and well above the batched values of
+// about 0.03 for blocks and 0.05 for rows.
 const PER_MOUNT_BOUND = 0.3;
 
 interface ReflowRow {
@@ -66,9 +61,8 @@ interface ReflowRow {
 
 const ROWS: ReflowRow[] = [
 	{
-		// BlockHost's edit effect must skip the run it makes on mount, or reading a block's box
-		// comes between the previous block's write and its own and forces one layout per mounted
-		// block instead of one per batch.
+		// BlockHost's edit effect must skip its run on mount, or reading a block's box between the
+		// previous block's write and its own forces one layout per mounted block.
 		unit: 'block',
 		tag: 'VR-4',
 		arrange: async (page, editor) => {
@@ -79,8 +73,7 @@ const ROWS: ReflowRow[] = [
 		log: 'VR-4 reflow guard'
 	},
 	{
-		// Rows are not block hosts, so removing TableRowBlock's skip on mount alone leaves the
-		// case above passing, which is the blind spot that let VR-4 ship.
+		// Rows are not block hosts, so TableRowBlock's skip on mount needs its own case.
 		unit: 'table row',
 		tag: 'VR-4 table path',
 		arrange: async (page, editor) => {

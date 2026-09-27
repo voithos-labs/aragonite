@@ -22,11 +22,9 @@ export class EditorBridge {
 		return this.page.evaluate(() => (window as any).__test.undoDepth());
 	}
 
-	// ── Settling Predicates ─────────────────────────────────────────────
-	// Use these instead of waitForTimeout: each polls the editor's source or block count and
-	// returns the moment the assertion would pass. Every read is guarded, because Playwright
-	// rejects a wait whose predicate throws, so a page that has not installed its probes yet
-	// has to read as "not settled" rather than reach into undefined.
+	// ── Waits on editor state ───────────────────────────────────────────
+	// Every read is guarded because Playwright rejects a wait whose predicate throws, so a page
+	// that has not installed `window.__test` yet reads as not ready.
 
 	async waitForSourceContains(expected: string, timeout = 5000): Promise<void> {
 		await this.waitForSourceWith((source, arg) => source.includes(arg), expected, timeout);
@@ -90,9 +88,8 @@ export class EditorBridge {
 		);
 	}
 
-	// Answers from SelectionState, not the DOM: the `[data-cross-block]` attribute follows that
-	// state a render later, so a DOM read can say `false` while the selection is already
-	// cross-block, which is the direction most specs assert.
+	// Reads SelectionState, not the DOM: `[data-cross-block]` follows that state a render later,
+	// so a DOM read can say `false` while the selection is already cross-block.
 	async isCrossBlockActive(): Promise<boolean> {
 		return this.page.evaluate(() => (window as any).__test.isCrossBlockActive());
 	}
@@ -103,8 +100,7 @@ export class EditorBridge {
 		return this.page.evaluate(() => (window as any).__test.isCrossBlockSelection());
 	}
 
-	// The third selection mode, under the same state-not-DOM rule: the gap's own caret element
-	// mounts a render after the state is written.
+	// Reads state, not the DOM: the gap's caret element mounts a render after the state is written.
 	async getGapCaret(): Promise<GapCaretPosition | null> {
 		return this.page.evaluate(() => (window as any).__test.getGapCaret());
 	}
@@ -140,8 +136,8 @@ export class EditorBridge {
 		});
 	}
 
-	// The snapshot/restore pair, and the complete one: getSelectionPaths above drops each
-	// endpoint's `cellCoordinate`, which a restore has to put back.
+	// The snapshot/restore pair: getSelectionPaths above drops each endpoint's `cellCoordinate`,
+	// which a restore has to put back.
 
 	async getSelection(): Promise<EditorSelection | null> {
 		return this.page.evaluate(() => (window as any).__test.getSelection());

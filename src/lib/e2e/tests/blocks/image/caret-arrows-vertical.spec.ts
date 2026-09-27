@@ -3,7 +3,7 @@ import { EditorPage } from '../../../editor-page';
 import { activeBlockPath } from '../../plugins/helpers';
 import { waitForAllImagesLoaded } from './helpers';
 
-// An image-only paragraph is a vertical stop because it can be entered as an object: one press
+// An image-only paragraph is a vertical stop because it can be entered as an object: one keypress
 // selects the image, the next moves on.
 // Requirements: `e2e/requirements/blocks/image/caret-arrows-vertical.md`.
 
@@ -16,8 +16,8 @@ const LIST_IMAGE_DOC =
 const LIST_IMAGE_LAST_DOC =
 	'- first item text\n- ![pic](/test-fixtures/sample.png)\n\nbelow list paragraph.\n';
 
-/** One arrow onto the image (which selects it), then one past it. The typed X proves where the
- *  second press landed; the overlay proves the first one stopped rather than passing through. */
+/** One arrow onto the image (which selects it), then one past it: the typed X proves where the
+ *  second landed, the overlay that the first stopped rather than passing through. */
 async function stepOverImage(editor: EditorPage, key: 'ArrowUp' | 'ArrowDown'): Promise<string> {
 	await editor.page.keyboard.press(key);
 	await expect(editor.page.locator('[data-image-overlay]')).toHaveCount(1);

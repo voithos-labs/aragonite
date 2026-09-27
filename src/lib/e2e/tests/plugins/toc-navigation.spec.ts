@@ -89,8 +89,8 @@ test.describe('toc outline: click-to-navigate', () => {
 		await editor.entry('Deep Target Heading').click();
 		await editor.waitForRenderFlush();
 
-		// Scrolling to the target mounts it in view, and the outline block at the top unmounts on
-		// the way, which is why the short-document case below pins that nothing opens.
+		// Scrolling to the target unmounts the outline block at the top, which is why the
+		// short-document case below checks that nothing opens.
 		await expect.poll(() => blockView(page, [target])).toEqual({ mounted: true, inView: true });
 		expect(errors).toEqual([]);
 	});
@@ -105,10 +105,8 @@ test.describe('toc outline: click-to-navigate', () => {
 		await editor.waitForRenderFlush();
 
 		await expect.poll(() => blockView(page, [target])).toEqual({ mounted: true, inView: true });
-		// Reading mode turns contenteditable off, so no block can hold the caret as activeElement,
-		// and the browser's own range is how the test sees the selection land, which makes the
-		// navigation's write the same in both modes. Offset 4 is the first reachable offset past
-		// the hidden `### `, since every placement is clamped (G4.36), reading mode included.
+		// Reading mode has no active editable element, so the browser's range shows where the selection
+		// lands; offset 4 is past the hidden `### `, since every placement clamps (G4.36).
 		expect(await editor.bridge.getSelection()).toEqual({
 			anchor: { path: [target], offset: 4 },
 			focus: { path: [target], offset: 4 }
@@ -152,9 +150,8 @@ test.describe('toc outline: click-to-navigate', () => {
 		expect(errors).toEqual([]);
 	});
 
-	// Navigating places the caret, so the editor's own chords reach the document straight
-	// afterwards instead of dying on the entry `<button>` that still had focus. Typing is the
-	// same fact as the user sees it.
+	// Navigating places the caret, so the editor's chords reach the document afterwards instead of
+	// dying on the focused entry `<button>`; typing checks it as the user sees it.
 	test('the caret lands in the target heading, so the next keystroke edits it', async ({
 		page
 	}) => {

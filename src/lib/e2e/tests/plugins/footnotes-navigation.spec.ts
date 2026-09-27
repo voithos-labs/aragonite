@@ -4,12 +4,10 @@ import { FootnotePage, NAV_REFS, navDoc } from './footnotes-helpers';
 import { textRunCenter, widgetCenter } from '../../text-runs';
 
 /**
- * Jumping between a `[^label]` reference and its definition, both directions
- * (requirements/plugins/footnotes-navigation.md). Both markers take the link gesture: plain
- * click in reading mode, Ctrl/Cmd+click in the editing modes, where a plain click keeps its own
- * meaning: showing the source on a reference, and putting the caret on a definition's marker. The
- * definitions sit outside the mounted window, so a jump that failed to mount its target leaves it
- * absent rather than merely off screen.
+ * Jumping between a `[^label]` reference and its definition, both ways
+ * (requirements/plugins/footnotes-navigation.md): a plain click in reading mode, Ctrl/Cmd+click in
+ * the editing modes, where a plain click shows a reference's source or puts the caret on a
+ * definition's marker. The definitions start unmounted, so a failed jump leaves the target absent.
  */
 
 // A capped viewport makes the editor a real scroll container, so the definitions stay unmounted
@@ -245,7 +243,7 @@ test.describe('footnote jump: definition back to reference', () => {
 		await editor.defMarker(1).click();
 		await editor.waitForRenderFlush();
 
-		// The marker is a prefix the caret is kept out of, exactly as before this gesture existed.
+		// The marker is a prefix the caret is kept out of.
 		await expect.poll(() => activeBlockPath(page)).toEqual([1, 0]);
 		await expect
 			.poll(() => editor.bridge.getSelection())

@@ -1,8 +1,8 @@
 import { type SimContext } from '../invariants';
 
-// Where the caret sits, in raw offsets, and the arrow presses that walk it there. The widget
-// gestures check exact positions, so the caret has to arrive by presses a user would make.
-// `live-editing.ts` keeps its own version, which counts offsets along the selection path.
+// Where the caret sits, in raw offsets, and the arrow keys that move it there: the widget gestures
+// check exact positions, so the caret arrives by keys a user would press. `live-editing.ts` keeps
+// its own version, which counts offsets along the selection path.
 
 export async function cursorOffset(ctx: SimContext, blockIndex: number): Promise<number | null> {
 	return ctx.page.evaluate(

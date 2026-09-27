@@ -3,12 +3,10 @@ import { PluginsPage, clickWidgetCenter, clickWidgetEnd } from './helpers';
 import { textRunStart } from '../../text-runs';
 
 /**
- * When an open inline-math source closes again, on the seed with two equations in one paragraph,
- * the showcase shape this came from. Closing follows where the selection is, not blur: any caret
- * move out inside the block closes the source, and clicking the second widget while the first is
- * open is one gesture that closes one and opens the other. That switch is what catches the race,
- * and it only fails under the real rebuild, which is why widget-reveal-collapse.test.ts cannot
- * stand in for it.
+ * When an open inline-math source closes, on a paragraph holding two equations. Closing follows
+ * the selection, not blur: a caret move out closes the source, and clicking the second widget
+ * closes one and opens the other in one gesture. That switch races only under the real rebuild,
+ * so widget-reveal-collapse.test.ts cannot stand in for it.
  */
 
 const EQ1 = '$E=mc^2$';
@@ -25,9 +23,8 @@ class TwoMathPage extends PluginsPage {
 	}
 
 	/**
-	 * Open the first equation and assert it stays open: a single count check passes straight
-	 * through the race where it opens and closes again within about 50ms, on the selectionchange
-	 * the click itself queued.
+	 * Asserts the first equation stays open, since a single count check would pass the race where
+	 * the click's own queued selectionchange closes it again within about 50ms.
 	 */
 	async revealFirstByClick(): Promise<void> {
 		await clickWidgetCenter(this.widgets.first());

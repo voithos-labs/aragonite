@@ -3,11 +3,9 @@ import { EditorPage } from '../../editor-page';
 import type { Page } from '@playwright/test';
 import { clickBlockSettled, enterPresentationMode, extendTo, landAt } from './helpers';
 
-// A block whose only bytes are its own markers has no content to stand behind them, so they
-// paint: a caret can land on them and a typed byte goes after them. A destructive key at the
-// block's own structure follows the mode; one at an inline construct follows what is painted.
-// The checks are the source bytes, telling which side a typed byte landed on, and the marker's
-// computed display.
+// A block whose only bytes are its own markers has no content to stand behind them, so they paint:
+// a caret can land on them and a typed byte goes after them. A destructive key at the block's own
+// structure follows the mode; one at an inline construct follows what is painted.
 // Requirements: e2e/requirements/presentation/presentation-live-opener-typing.md.
 
 const OPENER = 0;
@@ -67,9 +65,8 @@ test.describe('live mode: a typed block opener paints until it has content', () 
 
 		expect(await ep.bridge.getBlockKind(TYPED)).toBe('heading');
 		await expect(markerOf(ep, TYPED)).toHaveCSS('display', 'inline');
-		// A heading to the parser, a paragraph to the eye: the h1 type waits for the space, since
-		// the same `#` is the first byte of `#tag` and a line that jumps to h1 size for one
-		// keystroke reads as the editor fighting the tag.
+		// The h1 type waits for the space, since `#` also starts `#tag`, and a line jumping to h1 size
+		// for one keystroke reads as the editor fighting the tag.
 		await expect(ep.getBlock(TYPED)).toHaveClass(/paragraph-block/);
 	});
 
@@ -113,9 +110,8 @@ test.describe('live mode: a typed block opener paints until it has content', () 
 		await ep.waitForRenderFlush();
 		expect(await ep.bridge.getBlockKind(TYPED)).toBe('fencedCode');
 
-		// The completed fence offers its language picker; Enter writes the info string and
-		// returns the caret to the body. A fence with a body line to sit on keeps its
-		// backticks hidden, so the typed byte is the proof of where the caret went.
+		// The completed fence offers its language picker; Enter writes the info string and returns the
+		// caret to the body, whose hidden backticks leave the typed byte as the proof.
 		const picker = page.locator('.code-lang-picker input');
 		await expect(picker).toBeVisible();
 		await page.keyboard.type('js');
@@ -142,9 +138,8 @@ test.describe('live mode: a typed block opener paints until it has content', () 
 		await expect(markerOf(ep, TYPED)).toHaveCSS('display', 'inline');
 	});
 
-	// The other end of the same key: raw 0 is reachable once the markers paint, and there one
-	// press drops the construct rather than merging upward. Live mode only, since at raw 0 in
-	// source mode the key does nothing.
+	// Raw 0 is reachable once the markers paint, and one Backspace there drops the construct rather
+	// than merging upward; live only, since source mode does nothing at raw 0.
 	test('Backspace at the start of a painted `# ` drops the construct in one press', async ({
 		page
 	}) => {
@@ -188,9 +183,8 @@ test.describe('live mode: a key typed on a painted empty heading lands at the ca
 });
 
 test.describe('loaded openers: the paint half needs no typing', () => {
-	// A content-empty opener is silent until the caret arrives: an unfocused bare `#` or empty
-	// fence shows nothing. Focusing the heading paints its marker; focusing the empty fence
-	// completes it with a body line and offers the language picker instead of painting.
+	// An unfocused bare `#` or empty fence shows nothing. Focusing the heading paints its marker;
+	// focusing the empty fence completes it with a body line and offers the language picker.
 	test('live paints a bare heading and an empty fence once the caret arrives', async ({ page }) => {
 		const ep = await enterPresentationMode(page, 'live', LOADED);
 
@@ -234,9 +228,8 @@ test.describe('loaded openers: the paint half needs no typing', () => {
 	});
 });
 
-// The two modes run the same three gestures: where every byte is on screen, live has to match
-// source, and the assertion is the whole source rather than a substring, since `[](u` sits
-// inside `[](u)` and only equality tells one byte gone from none.
+// Where every byte is on screen live must match source, compared on the whole source: `[](u`
+// sits inside `[](u)`, and only equality tells one byte gone from none.
 for (const mode of ['live', 'source'] as const) {
 	test.describe(`painted inline chrome: ${mode} takes what the reader aimed at`, () => {
 		let ep: EditorPage;
@@ -279,9 +272,8 @@ for (const mode of ['live', 'source'] as const) {
 	});
 }
 
-// The other four live rewrites reach the same block. Each is correct only because the answer it
-// computes cancels against its own check, so these pin the outcomes rather than the reasoning:
-// a rewrite that starts reading painted bytes as unseen moves one of them.
+// The other four live rewrites reach the same block, each correct only because its answer cancels
+// its own check, so these check the outcomes: reading painted bytes as unseen moves one.
 const CARD = '[data-link-card]';
 
 test.describe('painted inline chrome: the live rewrites leave what the reader sees alone', () => {

@@ -55,9 +55,8 @@ test.describe('mode flips: the caret comes back', () => {
 		await ep.bridge.waitForSourceContains('boXld');
 	});
 
-	// A cell keys its rendered DOM on the mode, so a mode change rebuilds every mounted cell and
-	// runs the same capture and restore prose runs, for a block with no `data-block-path` of its
-	// own whose caret sits three levels deep.
+	// A cell keys its DOM on the mode, so a mode change rebuilds every mounted cell and runs the
+	// prose capture and restore for a caret three levels deep with no `data-block-path` of its own.
 	test('a caret inside a table cell survives the flip and takes the next byte there', async ({
 		page
 	}) => {

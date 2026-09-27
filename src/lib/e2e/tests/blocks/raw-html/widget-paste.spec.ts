@@ -53,9 +53,8 @@ test.describe('live raw-HTML widget paste-while-selected', () => {
 		await page.keyboard.press('ControlOrMeta+z');
 		await editor.bridge.waitForSourceContains('<br>');
 
-		// Typing must land at offset 6 (`preSelectOffset`), not at the widget's far edge;
-		// `keyboard.press` fires the keydown the editor intercepts, which routes the character
-		// through the branch for a caret beside a widget.
+		// Typing must land at `preSelectOffset` 6, not the widget's far edge; `keyboard.press`
+		// fires the keydown the editor intercepts for a caret beside a widget.
 		await page.keyboard.press('X');
 		await editor.bridge.waitForSourceContains('beforeX');
 		const src = await editor.bridge.getSource();

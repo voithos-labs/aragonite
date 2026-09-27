@@ -119,8 +119,7 @@ test.describe('undo steps: one gesture, one round trip', () => {
 		});
 	});
 
-	// Miss-analysis: the typing suites counted entries around a split, which a commit of its own
-	// also satisfies, so none noticed a reparsing keystroke leaving the burst it was part of.
+	// Miss-analysis: the typing suites counted entries only around a split, never mid-burst.
 	test('a keystroke that reparses its block, mid-typing', async ({ page }) => {
 		await editor.loadContent('alpha\n\nTitle\n');
 		await editor.focusBlockAtPath([1], 0);

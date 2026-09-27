@@ -28,9 +28,8 @@ test.describe('cross-block delete: container survivor caret', () => {
 		await page.keyboard.press('Backspace');
 		await editor.bridge.waitForSourceNotContains('| --- | --- |');
 
-		// The typed character must land at the end of the blockquote's last leaf, proving the
-		// caret walked into the leaf rather than stopping on the container path, where it
-		// would clamp to the block start or the wrong leaf.
+		// The typed character must land at the end of the blockquote's last leaf; a caret left on the
+		// container path would clamp to the block start or the wrong leaf.
 		await page.keyboard.type('X');
 		await editor.bridge.waitForSourceContains('bravoX');
 

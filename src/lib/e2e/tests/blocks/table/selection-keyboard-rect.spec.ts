@@ -30,7 +30,7 @@ test.describe('table block: rectangular selection by keyboard', () => {
 		sel = await editor.bridge.getSelectionPaths();
 		expect(sel!.focus).toEqual({ path: [1], offset: 10 });
 
-		// At the last row, the next press exits the table downward (cross-block).
+		// At the last row, the next keypress exits the table downward.
 		await page.keyboard.press('Shift+ArrowDown');
 		await editor.waitForRenderFlush();
 		sel = await editor.bridge.getSelectionPaths();
@@ -53,7 +53,7 @@ test.describe('table block: rectangular selection by keyboard', () => {
 		sel = await editor.bridge.getSelectionPaths();
 		expect(sel!.focus).toEqual({ path: [1], offset: 4 });
 
-		// Climb into the header row, then the next press exits above the table.
+		// Climb into the header row, then the next keypress exits above the table.
 		await page.keyboard.press('Shift+ArrowUp');
 		await editor.waitForRenderFlush();
 		sel = await editor.bridge.getSelectionPaths();

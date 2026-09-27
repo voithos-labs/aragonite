@@ -11,16 +11,16 @@ export interface SimContext {
 	tracker: ExpectationTracker;
 	errors: ErrorCollector;
 	label: string;
-	/** Present only for sessions that drive IME composition: one driver made per session and
-	 *  passed along, never a global. The composition gestures throw loudly when it is absent. */
+	/** Present only for sessions that drive IME composition: one driver per session, passed along,
+	 *  never a global. */
 	ime?: ImeDriver;
 }
 
 // ── Content checks ──────────────────────────────────────────────────────────
 
 /**
- * The main per-keystroke check on the text. Fails with expected against actual plus the debug
- * dumps, never a bare timeout: a dropped or reordered character has to show up straight away.
+ * Fails with expected against actual plus the debug dumps, never a bare timeout, so a dropped or
+ * reordered character shows at once.
  */
 export async function settleTypedSource(ctx: SimContext, expected: string): Promise<void> {
 	try {
@@ -77,10 +77,8 @@ export async function assertNoErrors(ctx: SimContext): Promise<void> {
 }
 
 /**
- * Catches a mutation that extends `children` without `childIds`, which leaves trailing
- * keyed-each entries with undefined keys. Run at each checkpoint, so it shows up before a render
- * throws. The walk throws when no editor registered a document, so an empty walk fails loudly
- * instead of passing for nothing.
+ * Catches `children` growing without `childIds`, which leaves keyed `{#each}` entries with
+ * undefined keys, before a render throws; it throws when no editor registered a document.
  */
 export async function assertContainerParity(ctx: SimContext): Promise<void> {
 	const mismatches = await getContainerParityMismatches(ctx.page);
@@ -113,9 +111,8 @@ export async function assertRoundTripStable(ctx: SimContext): Promise<void> {
 }
 
 /**
- * Catches a gesture that left the live tree disagreeing with its own raw text. The round-trip
- * check above only proves the source string is a fixed point; this compares the live tree with
- * a reparse of what it serializes to. Run at checkpoints, not per keystroke.
+ * Compares the live tree with a reparse of what it serializes to, which the source round-trip
+ * check cannot see. Run at checkpoints, not per keystroke.
  */
 export async function assertParseConvergence(ctx: SimContext): Promise<void> {
 	const converges = await ctx.editor.parseConverged();
@@ -147,10 +144,8 @@ export async function assertFocusBlock(
 }
 
 /**
- * Catches a selection endpoint pointing nowhere: a node that no longer exists, or an offset past
- * a block that got shorter, which the next keystroke turns into corruption. Walks the live tree,
- * not a reparse, so it sees what the source-string checks cannot. A null selection is fine, and
- * only leaves bound the offset, since a container's offset counts children.
+ * Catches a selection endpoint on a node that is gone, or past a block that got shorter, by
+ * walking the live tree. Only leaves bound the offset, since a container's offset counts children.
  */
 export async function assertSelectionValidity(ctx: SimContext): Promise<void> {
 	const invalid = await ctx.page.evaluate(() => {
@@ -194,9 +189,8 @@ export async function assertSelectionValidity(ctx: SimContext): Promise<void> {
 }
 
 /**
- * The structural checks, run right after a range collapse or a merge, when the tree is likeliest
- * to be corrupt and before the next gesture builds on it. Parse convergence stays with the
- * caller, since its waiver belongs to the note.
+ * Run right after a range collapse or merge, when the tree is likeliest to be corrupt. Parse
+ * convergence stays with the caller, since its waiver belongs to the note.
  */
 export async function assertStructuralIntegrity(ctx: SimContext): Promise<void> {
 	await assertNoErrors(ctx);
@@ -223,9 +217,8 @@ export async function assertCheckpoint(
 // ── Undo and redo check ─────────────────────────────────────────────────────
 
 /**
- * The input batcher groups keystrokes within about 250ms, so the gesture is flushed on both
- * sides; without that, one Ctrl+Z reaches back into the previous batch and the check reports a
- * failure that is not real.
+ * Waits out the typing pause on both sides of the gesture, or one Ctrl+Z reaches into the
+ * previous batch and the check reports a false failure.
  */
 export async function undoRedoDifferential(
 	ctx: SimContext,
@@ -259,9 +252,8 @@ export async function undoRedoDifferential(
 }
 
 /**
- * Run `gesture` as an undo entry of its own, undo it, and wait for the bytes to come back, so
- * the tracker resumes exactly where it was. A detour that draws from the seed draws before
- * calling this, which keeps each seed's sequence of draws unchanged.
+ * Runs `gesture` as its own undo entry and undoes it, so the tracker resumes where it was. A
+ * detour that draws from the seed draws before calling this, keeping each seed's draws stable.
  */
 export async function revertingDetour(
 	ctx: SimContext,

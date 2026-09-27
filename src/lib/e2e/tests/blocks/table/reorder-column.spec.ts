@@ -40,9 +40,8 @@ test.describe('table block: keyboard column reorder', () => {
 		await editor.bridge.waitForSourceMatches(/\| 2 \| (?:X1|1X) \| 3 \|/);
 	});
 
-	// At the boundary: a move with no column in that direction must change nothing and add no undo
-	// entry, or the press silently eats a Ctrl+Z. Type, press at the boundary, then Ctrl+Z must
-	// undo the typing.
+	// A move with no column in that direction must change nothing and add no undo entry, or it
+	// silently eats a Ctrl+Z: the Ctrl+Z after it must undo the typing.
 	test('Alt+ArrowLeft on the first column is a no-op and creates no undo entry', async ({
 		page
 	}) => {
@@ -86,9 +85,8 @@ test.describe('table block: keyboard column reorder', () => {
 		expect(pageErrors).toEqual([]);
 	});
 
-	// Undo in a real browser on a table whose bytes are not canonical: the column edit canonicalizes
-	// the live view, so undo must restore the exact original tight bytes. The row spec has the
-	// matching case.
+	// The column edit canonicalizes a table whose bytes are not canonical, so undo must restore the
+	// exact original tight bytes; the row spec has the matching case.
 	test('column move → undo restores a non-canonical table byte-exactly', async ({ page }) => {
 		const NONCANON = '|A|B|C|\n|---|---|---|\n|1|2|3|\n';
 		await editor.loadContent(NONCANON);

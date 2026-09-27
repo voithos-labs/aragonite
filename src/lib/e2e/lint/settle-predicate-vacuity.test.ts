@@ -1,10 +1,9 @@
 /**
- * G4.22: inside one `test()` body, a settle predicate must describe the state after the
- * operation, something no `loadContent` document earlier in that body already satisfies. A
- * predicate already true returns on its first poll and waits for nothing, so a gesture that
- * silently does nothing passes it. A green run proves less than it looks: only a literal
- * `loadContent` argument counts, checking stops at the first predicate that could tell the
- * two states apart, and function predicates are out of scope.
+ * Inside one `test()` body, a settle predicate (a wait on the source) must describe the state
+ * after the gesture, not one a `loadContent` document earlier in that body already satisfies: a
+ * predicate already true waits for nothing, so a gesture that does nothing passes (G4.22). Only a
+ * literal `loadContent` argument counts, checking stops at the first predicate that could tell
+ * the two states apart, and function predicates are out of scope.
  */
 import { describe, it, expect } from 'vitest';
 import {
@@ -25,11 +24,8 @@ interface SettleSite {
 	argument: string;
 }
 
-/**
- * A fixture built by concatenation is skipped rather than cut down to its first piece: a
- * partial value would clear predicates a later piece satisfies, under-reporting the very
- * thing this scan exists to find.
- */
+/** Skips a fixture built by concatenation: its first piece alone would clear predicates a later
+ *  piece satisfies, hiding the waits this scan looks for. */
 function collectStringConstants(code: string): Map<string, string> {
 	const constants = new Map<string, string>();
 	const declaration = /(?:^|\n)\s*(?:export\s+)?const\s+([A-Za-z_$][\w$]*)\s*=\s*/g;
@@ -104,8 +100,8 @@ const SETTLE_CALLS = [
 	'waitForSourceEquals'
 ] as const;
 
-// Waits this scan cannot evaluate but which still mark a change: after one, the loaded
-// document no longer describes the live state.
+// Waits this scan cannot evaluate but which still mark a change, after which the loaded document
+// stops describing the live state.
 const OPAQUE_SETTLES = [
 	'waitForSourceWith',
 	'waitForSource',
@@ -115,10 +111,8 @@ const OPAQUE_SETTLES = [
 	'waitForCrossBlock'
 ] as const;
 
-/**
- * `NotContains` reads the other way round: it waits for nothing when no loaded document ever
- * held the forbidden text, so its disappearance could never be seen.
- */
+/** `NotContains` reads the other way round: it waits for nothing when no loaded document ever
+ *  held the forbidden text. */
 export function isVacuous(
 	call: string,
 	argument: { string?: string; regex?: RegExp },
@@ -178,16 +172,13 @@ function scanSettleSites(): { vacuous: SettleSite[]; total: number } {
 
 			let stateIsKnown = true;
 			for (const event of events) {
-				// A wait this scan cannot evaluate (a function predicate, a DOM-count or
-				// cross-block wait) still saw a change, so the loaded document stops
-				// describing the live state from there on.
 				if (event.kind === 'opaque') {
 					stateIsKnown = false;
 					continue;
 				}
 				const argument = readArgument(body, event.index, constants);
 				if (event.kind === 'load') {
-					// A load replaces the document; keeping the old one too would let a stale
+					// A load replaces the document; keeping the replaced one would let a stale
 					// fixture clear a predicate that the live document would not.
 					loaded = argument?.string === undefined ? null : [argument.string];
 					stateIsKnown = true;

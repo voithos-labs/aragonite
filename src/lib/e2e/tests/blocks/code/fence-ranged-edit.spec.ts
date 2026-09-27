@@ -72,9 +72,8 @@ test.describe('code block: ranged edits reaching a hidden fence line', () => {
 	});
 });
 
-// A range opening on the body's first highlighted word is where Chromium's own replace also
-// removes the hidden opener, so each way of replacing a range is its own row.
-// Display: opener [0,5) · body "const x = 1;\nfoo();\nbar();" [6,32) · closer [33,36).
+// Chromium's replace of a range from the body's first highlighted word also drops the hidden
+// opener, so each replace gesture is a row. Opener [0,5) · body [6,32) · closer [33,36).
 const LONG = '```js\nconst x = 1;\nfoo();\nbar();\n```\n';
 const ACROSS: [number, number] = [6, 21]; // from `const` into `foo`, across a line break
 const REST = 'o();\nbar();';

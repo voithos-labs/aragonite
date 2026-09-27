@@ -14,9 +14,8 @@ import { count, findInput, openFind, overlays, typeQuery } from './helpers';
 const PATHOLOGICAL_QUERY = '(a+)+$';
 const FIXTURE = `ready\n\n${'a'.repeat(32)}!\n`;
 
-// Ceiling for typing the query and landing a keystroke in the document. Well over
-// what the off-thread path needs (about a second) and well under what one runaway
-// exec costs, so the gap this asserts is an order of magnitude, not a margin.
+// Ceiling for typing the query and landing a keystroke: well over the off-thread path's second or
+// so and well under one runaway exec, a gap of an order of magnitude.
 const MAIN_THREAD_BUDGET_MS = 8000;
 
 test.describe('search: a pathological regex query', () => {
@@ -32,9 +31,8 @@ test.describe('search: a pathological regex query', () => {
 	});
 
 	test('the editor keeps accepting input while the scan runs', async ({ page }) => {
-		// Elapsed time is the check here, not an assertion on state: a frozen main thread still
-		// lands every keystroke eventually, so only the clock separates a scan that left the
-		// main thread from one that did not.
+		// Elapsed time is the check: a frozen main thread still lands every keystroke eventually, so
+		// only the clock tells a scan that left the main thread from one that did not.
 		const startedAt = Date.now();
 
 		await typeQuery(editor, PATHOLOGICAL_QUERY);

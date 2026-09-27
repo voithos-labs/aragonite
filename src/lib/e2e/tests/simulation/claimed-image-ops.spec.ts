@@ -7,11 +7,9 @@ import { assertCheckpoint } from '../../simulation/invariants';
 import { makeSimContext } from './helpers';
 
 // The image gestures run against bytes an inline handler has taken over: `?seed=wiki-embed`
-// installs a `![[` handler that creates built-in `image` nodes, so every image gesture works on
-// bytes the editor must not re-serialize. A plugin borrowing a built-in kind this way had no
-// coverage here at all (`docs/contributing/rules.md` § Testing shape). What this adds over the
-// wiki-embed specs is a reparse check after every move, so a resize that writes plausible bytes
-// which no longer parse fails here rather than at the next edit.
+// installs a `![[` handler that creates built-in `image` nodes, whose bytes the editor must not
+// re-serialize. Beyond the wiki-embed specs, a reparse check after every move fails a resize that
+// writes plausible bytes which do not parse.
 
 const EMBED = '![[/test-fixtures/sample.png|400]]';
 const EMBED_DOC = `Alpha lead paragraph.\n\n${EMBED}\n\nBeta tail paragraph.\n`;

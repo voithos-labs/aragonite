@@ -30,9 +30,8 @@ test.describe('a plugin whole-block kind is one editing tab stop', () => {
 		await expect(editor.viewport).toHaveAttribute('tabindex', '-1');
 	});
 
-	// The confirmed defect: five keypresses went from the outer element to the diagram and then
-	// through three toolbar buttons, never leaving the block, and typing at the diagram did
-	// nothing.
+	// Backward Tab from the outer element must leave the block after the toolbar, never landing on
+	// the diagram, where typing does nothing.
 	test('continuing backward walks only the toolbar and then leaves the block', async ({ page }) => {
 		await editor.focusBlockStart(2);
 		await page.keyboard.press('Shift+Tab');

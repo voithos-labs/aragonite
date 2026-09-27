@@ -2,9 +2,8 @@ import type { Gestures } from '../gestures';
 import type { NoteFixture } from './types';
 
 /**
- * The meeting-minutes note. Typing it reproduces the loaded document exactly, so the end state
- * still has to match. The nested action item is built with the empty-item sequence, which puts
- * a task and its sub-action one level apart in the document the end state is checked against.
+ * The meeting-minutes note, typed so it matches the loaded document. The nested action item uses
+ * the empty-item sequence, putting a task and its sub-action one level apart.
  */
 export const MEETING_MINUTES_NOTE: NoteFixture = {
 	name: 'meeting-minutes-note',

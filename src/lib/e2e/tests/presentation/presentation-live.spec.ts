@@ -100,9 +100,8 @@ test.describe('live mode: markers never reveal', () => {
 		await expect(page.locator(`[data-list-marker='task'] .task-checkbox`).first()).toBeVisible();
 
 		const bulletAmbient = page.locator(`[data-list-marker='bullet'] ${AMBIENT_MARKER}`).first();
-		// toBeHidden here on purpose: the bullet's own span is not display:none, it is emptied and
-		// repainted by a `::before`, which the next line reads. The rule at the top of this file
-		// is about spans a missing element would let pass; this one's presence is asserted below.
+		// toBeHidden here on purpose: the bullet's span is not display:none but emptied and repainted
+		// by a `::before`, and its presence is asserted below.
 		await expect(bulletAmbient).toBeHidden();
 		const painted = await bulletAmbient.evaluate((el) => getComputedStyle(el, '::before').content);
 		expect(painted).toContain('•');

@@ -9,9 +9,8 @@ import { MermaidPage } from './mermaid-helpers';
  * final height is where a scroll container already at its bottom clamps too far.
  */
 
-// The showcase's own trailing diagram: tall rendered, short in source. The height it loses is what
-// pulls the scroll container up, and the box's momentary two-row layout is what it falls short of
-// on the way to its final height.
+// The showcase's trailing diagram, tall rendered and short in source: the lost height pulls the
+// scroll container up, and the box's momentary two-row layout is where it clamps too far.
 const TALL_DIAGRAM = [
 	'```mermaid',
 	'xychart-beta',

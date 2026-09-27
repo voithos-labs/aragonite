@@ -3,8 +3,7 @@ import { EditorPage } from '../../editor-page';
 import { attachIme } from '../../simulation/ime';
 
 // WebKit's composition branch (requirements/webkit/ime-composition.md): the commit path under a
-// sequence of events fired by hand. The order of those events is the CDP spec's claim, not this
-// one's.
+// sequence of events fired by hand. The order of those events is for the CDP spec to check.
 
 function countOf(haystack: string, needle: string): number {
 	return haystack.split(needle).length - 1;

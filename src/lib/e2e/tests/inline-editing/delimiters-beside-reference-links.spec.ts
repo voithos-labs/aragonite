@@ -6,9 +6,8 @@ import { EditorPage } from '../../editor-page';
 
 const DEFINITION = '\n\n[ref]: https://x.com\n';
 
-// Each row selects by Shift+ArrowRight from `offset`, presses Mod+B, then types a marker at the
-// line end: the marker lands only after the chord was handled, so an unchanged line is a
-// refusal and not a chord still in flight.
+// Each row selects from `offset` with Shift+ArrowRight, applies Mod+B, then types a marker at the
+// line end, so an unchanged line is a refusal and not a chord still in flight.
 const TOGGLES = [
 	{ form: 'a reference link', line: 'see [text][ref] here', offset: 7, extend: 13 },
 	{ form: 'a reference link', line: 'see [text][ref] here', offset: 1, extend: 6 },

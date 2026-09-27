@@ -46,10 +46,8 @@ test.describe('table block: paste in', () => {
 	});
 
 	// ── Structural ──────────────────────────────────────────────────────
-	//
-	// Asserting the exact source is what makes these bite: a document-level splice routed through
-	// cell's row-level `blockEdit` leaves the substrings a `waitForSourceContains` checks intact
-	// while the structure around them rots.
+	// The exact source is asserted because a splice routed through a cell's row-level `blockEdit`
+	// leaves the substrings intact while the structure rots.
 
 	// A grid is data for the cells, not a block to splice between them: a GFM table, or the tabs a
 	// spreadsheet writes, fills from the caret's cell and grows the table to fit, in one commit.
@@ -86,9 +84,8 @@ test.describe('table block: paste in', () => {
 		await editor.bridge.waitForSourceEquals(TABLE_2BODY, 3000);
 	});
 
-	// The bytes can come back while the rendered cells do not: an expanding paste writes cell raws
-	// two levels down, so copying only the rows before writing leaves each row's cells shared with
-	// the undo snapshot, the write goes through it, and undo restores the pasted text.
+	// An expanding paste writes cell raws two levels down; copying only the rows first leaves the
+	// cells shared with the undo snapshot, so undo restores the pasted text.
 	test('undo of an expanding paste restores the rendered cells, not just the bytes', async ({
 		page
 	}) => {
@@ -225,8 +222,8 @@ test.describe('table block: paste in', () => {
 		await editor.seedClipboard('hello');
 		await editor.paste();
 
-		// "hello" in the anchor cell is the only shape the pre-paste document does not
-		// already have, so it is the one predicate that can settle on the paste.
+		// "hello" in the anchor cell is the only shape the document lacks before the paste, so it
+		// is the one predicate that can resolve on it.
 		await editor.bridge.waitForSourceContains('| hello |  |');
 		expect((await editor.bridge.getSource()).replace(/\s+$/, '')).toBe(
 			['| A | B |', '| --- | --- |', '| hello |  |', '|  |  |'].join('\n')

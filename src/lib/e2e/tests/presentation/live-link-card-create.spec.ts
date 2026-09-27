@@ -67,9 +67,8 @@ test.describe('live-mode link card: the create half of Mod+K', () => {
 		await ep.bridge.waitForSourceEquals(before, 3000);
 	});
 
-	// Focusing the card's field before the host has placed the card would scroll the viewport to
-	// the top of the document, leaving the card, placed a frame later beside the selection, off
-	// screen.
+	// Focusing the card's field before the host places the card would scroll to the top of the
+	// document, leaving the card, placed a frame later beside the selection, off screen.
 	test('the chord deep in a scrolled document keeps the scroll and shows the card', async ({
 		page
 	}) => {
@@ -126,9 +125,8 @@ test.describe('live-mode link card: the create half of Mod+K', () => {
 		expect(await ep.bridge.getSource()).toBe(before);
 	});
 
-	// Three checks deep on purpose, and this is the outcome all three have to produce: the
-	// cross-block keydown swallows Mod+K, dispatch declines `link.openCard` over a range, and the
-	// card's own create path refuses. The unit tests say which one answered.
+	// Three checks refuse this (the cross-block keydown, dispatch over a range, and the card's own
+	// create path), and this is the outcome all three produce; the unit tests say which answered.
 	test('a selection spanning two blocks declines create: no card, not a byte', async ({ page }) => {
 		await clickWordSettled(ep, page, 'Alpha');
 		await landAt(ep, page, 6);

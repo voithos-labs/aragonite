@@ -3,10 +3,9 @@ import { EditorPage } from '../../../editor-page';
 import { textOutsideMarkers } from '../../../text-runs';
 import type { Page } from '@playwright/test';
 
-// A paste over a single-block selection is a delete then an insert, and its delete half is a
-// join like any other: in live mode the marker runs the cut strands are bytes the user never
-// saw, so pasting them into view is the leak this pins. Every other merge site already goes
-// through the shared join, and the paste paths must too rather than splicing their own bytes.
+// A paste over a single-block selection is a delete then an insert, and its delete half is a join:
+// in live mode the marker runs the cut strands are bytes the user never saw, so the paste paths
+// go through the shared join rather than splicing their own bytes.
 // Requirements: `e2e/requirements/clipboard/single-block/live-join-seam.md`.
 
 const DOC = 'Some **bold** text\n\nX\n';
