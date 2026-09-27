@@ -27,6 +27,12 @@ export function escapeUnescapedPipes(s: string): string {
 	return out;
 }
 
+/** A cell's text with the escape taken off each pipe, the text a spreadsheet reads; the cell
+ *  writer puts it back. */
+export function unescapeCellPipes(raw: string): string {
+	return raw.replace(/\\\|/g, '|');
+}
+
 /** Text made legal as a cell's `raw`: no line break, no unescaped delimiter. */
 export function normalizeCellRaw(raw: string): string {
 	return escapeUnescapedPipes(raw.replace(/\r?\n/g, ' '));

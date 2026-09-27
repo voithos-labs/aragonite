@@ -1,6 +1,16 @@
 import { describe, it, expect } from 'vitest';
+import fc from 'fast-check';
 import { parse } from '$lib/core/parser';
-import { escapeUnescapedPipes, normalizeCellRaw, tableCellWrite } from '$lib/schema/table-cell-raw';
+import { trimWhitespace } from '$lib/core/lines';
+import type { CstNode } from '$lib/core/nodes';
+import { rebuildTableRaw } from '$lib/schema/container-rebuilders';
+import {
+	escapeUnescapedPipes,
+	normalizeCellRaw,
+	tableCellWrite,
+	unescapeCellPipes
+} from '$lib/schema/table-cell-raw';
+import { freshOrFixedSeed } from '../invariants/arbitraries';
 
 describe('escapeUnescapedPipes', () => {
 	it('escapes a bare pipe', () => {
@@ -74,5 +84,83 @@ describe('the cell write rule', () => {
 	it('maps a caret past the dropped ending onto the end of the stored bytes', () => {
 		expect(tableCellWrite.mapOffset('a|b\n', 2, ctx)).toBe(3);
 		expect(tableCellWrite.mapOffset('a|b\n', 4, ctx)).toBe(4);
+	});
+});
+
+// ── The writer against the row splitter ─────────────────────────────────────
+
+// Cell text heavy on what the row splitter reads: pipes, backslash runs, code spans, whitespace.
+const arbCellText = fc
+	.array(fc.constantFrom('|', '\\', '\\|', '`', '``', 'a', ' ', '\t', '\u00a0', '-'), {
+		maxLength: 8
+	})
+	.map((parts) => parts.join(''));
+
+const cell = (raw: string): CstNode => ({ kind: 'tableCell', leadingTrivia: '', raw });
+
+function tableOf(rows: string[][]): CstNode {
+	const table: CstNode = {
+		kind: 'table',
+		leadingTrivia: '',
+		raw: '\n',
+		metadata: { columnCount: rows[0].length, alignments: rows[0].map(() => 'none' as const) },
+		children: rows.map((cells, i) => ({
+			kind: 'tableRow',
+			leadingTrivia: '',
+			raw: '',
+			metadata: { isHeader: i === 0 },
+			children: cells.map(cell)
+		}))
+	};
+	rebuildTableRaw(table);
+	return table;
+}
+
+describe('a table written from cell raws parses back to the same cells', () => {
+	it('holds for pipes, backslashes before pipes and code spans holding pipes', () => {
+		const arbRows = fc.integer({ min: 1, max: 3 }).chain((width) =>
+			fc.array(fc.array(arbCellText, { minLength: width, maxLength: width }), {
+				minLength: 1,
+				maxLength: 3
+			})
+		);
+		fc.assert(
+			fc.property(arbRows, (texts) => {
+				const raws = texts.map((row) => row.map(normalizeCellRaw));
+				const read = parse(tableOf(raws).raw).children[0];
+				expect(read.kind).toBe('table');
+				expect(read.children!.map((row) => row.children!.map((c) => c.raw))).toEqual(
+					raws.map((row) => row.map(trimWhitespace))
+				);
+			}),
+			{ numRuns: 500, seed: freshOrFixedSeed(41011) }
+		);
+	});
+
+	it('a code span holding a pipe stays one cell (GFM example 200)', () => {
+		const raws = [
+			['a', 'b'],
+			[normalizeCellRaw('`x|y`'), 'z']
+		];
+		expect(raws[1][0]).toBe('`x\\|y`');
+		const read = parse(tableOf(raws).raw).children[0];
+		expect(read.children![1].children!.map((c) => c.raw)).toEqual(['`x\\|y`', 'z']);
+	});
+});
+
+describe('unescapeCellPipes', () => {
+	it('takes one backslash off each escaped pipe', () => {
+		expect(unescapeCellPipes('a\\|b')).toBe('a|b');
+		expect(unescapeCellPipes('a\\\\\\|b')).toBe('a\\\\|b');
+		expect(unescapeCellPipes('a\\b')).toBe('a\\b');
+	});
+
+	it('is undone by the cell writer, so a copied cell pastes back to the same bytes', () => {
+		fc.assert(
+			fc.property(arbCellText.map(normalizeCellRaw), (raw) => {
+				expect(normalizeCellRaw(unescapeCellPipes(raw))).toBe(raw);
+			}),
+			{ numRuns: 500, seed: freshOrFixedSeed(41012) }
+		);
 	});
 });
