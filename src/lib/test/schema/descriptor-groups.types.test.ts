@@ -142,14 +142,17 @@ describe('registerBlockKind flattens the descriptor groups', () => {
 		});
 	});
 
-	it('leaves a title-row container that declares no unwrap role without one', () => {
+	it('gives a title-row container with no unwrap role the strategy that keeps child 0', () => {
 		const kind = declarePluginKind('groups-chrome-bare');
 		registerBlockKind(kind, {
 			...leaf,
 			container: { ...group, reservedChrome: { kind: declarePluginKind('groups-bare-title') } }
 		});
 
-		expect(getBlockKindDescriptor(kind).unwrapRole).toBeUndefined();
+		expect(getBlockKindDescriptor(kind).unwrapRole).toEqual({
+			firstChildBackspace: 'keep-reserved-chrome',
+			middleChildBackspace: 'default-merge'
+		});
 	});
 
 	// A widened flat descriptor escapes the types, so the runtime strip is what keeps the group

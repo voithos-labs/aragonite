@@ -16,8 +16,10 @@ import {
 	makeStubFocus
 } from '$lib/test/harness/editor-actions';
 import { fixtureReading } from '../../harness/fixture-grammar';
+import { testChromeContainer } from '$lib/test/harness/test-kinds';
 
 registerDetailsKind();
+const titled = testChromeContainer('nested-edit-titled');
 
 const CONTAINER_INDEX = 3;
 
@@ -92,6 +94,23 @@ describe('nested block edit: upward boundaries', () => {
 		const pair = env(container('listItem', 2));
 		await pair.blockEdit.deleteBlock(0);
 		expect(pair.parent.blockEdit.deleteBlock).not.toHaveBeenCalled();
+	});
+});
+
+describe('nested block edit: a title row', () => {
+	// Miss-analysis: every title-row container in the suites declared an unwrapRole, so one with
+	// none, whose title-row Backspace went to the parent, was never pressed.
+	it('keeps Backspace at the title row inside a container that declares no unwrapRole', async () => {
+		const node = container(titled.container, 1);
+		node.children!.unshift({ kind: titled.chrome, leadingTrivia: '', raw: 'Title\n' } as CstNode);
+		const { blockEdit, parent } = env(node);
+		const before = structuredClone(node);
+
+		await blockEdit.mergeWithPrevious(0);
+
+		expect(parent.blockEdit.mergeWithPrevious).not.toHaveBeenCalled();
+		expect(parent.containerEdit.commitContainer).not.toHaveBeenCalled();
+		expect(node).toEqual(before);
 	});
 });
 

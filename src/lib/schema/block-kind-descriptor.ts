@@ -31,8 +31,8 @@ export const isKnownMergeRole = (role: string): boolean =>
 
 /**
  * How Backspace at the start of a container's child releases it, as a registration declares it;
- * strategies live in `editor-actions/unwrap-strategies.ts`. Absent: child 0 hands the Backspace to
- * the parent, and later children follow merge-rules.
+ * strategies live in `editor-actions/unwrap-strategies.ts`. Absent, on a container with no title
+ * row: child 0 hands the Backspace to the parent, and later children follow merge-rules.
  */
 export interface ContainerUnwrapRole {
 	firstChildBackspace:
@@ -469,11 +469,12 @@ function normalizeRegistration(registration: BlockKindRegistration): BlockKindDe
 		containerContract: contract
 	};
 	// A title row implies its first-child strategy; the read shape spells it out for the dispatch.
-	if (unwrapRole) {
-		descriptor.unwrapRole = container.reservedChrome
-			? { ...unwrapRole, firstChildBackspace: 'keep-reserved-chrome' }
-			: container.unwrapRole;
-	}
+	if (container.reservedChrome) {
+		descriptor.unwrapRole = {
+			firstChildBackspace: 'keep-reserved-chrome',
+			middleChildBackspace: unwrapRole?.middleChildBackspace ?? 'default-merge'
+		};
+	} else if (container.unwrapRole) descriptor.unwrapRole = container.unwrapRole;
 	return descriptor;
 }
 
