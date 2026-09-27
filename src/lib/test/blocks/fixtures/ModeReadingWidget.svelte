@@ -5,10 +5,10 @@
 
 	let { getPresentationMode, getTheme }: InlineWidgetComponentProps = $props();
 
-	// 'absent' rather than the production defaults: an unthreaded getter must read as a
+	// 'absent' rather than the production default: an unthreaded getter must read as a
 	// missing channel, not as a plausible value.
 	const mode = $derived(getPresentationMode?.() ?? 'absent');
-	const theme = $derived(getTheme?.() ?? 'absent');
+	const theme = $derived(getTheme());
 </script>
 
 <span class="mode-reading-widget">{mode}/{theme}</span>

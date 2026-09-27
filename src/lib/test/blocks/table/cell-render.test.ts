@@ -55,7 +55,11 @@ function mount(raw: string, reading?: Reading, resolveLinkUrl: ResolveLinkUrl = 
 		},
 		reading: reading ?? fixtureReading(),
 		resolveLinkUrl,
+		getTheme: () => 'dark',
 		getDocument: () => undefined,
+		getContentVersion: () => 0,
+		navigateTo: async () => false,
+		reportRenderError: () => {},
 		get islands() {
 			return islands;
 		}

@@ -165,7 +165,7 @@ export interface ContainerBlock {
 export function composeCollapseProbe(
 	explicit: (() => boolean) | undefined,
 	getNode: () => NodeView,
-	getPresentationMode?: () => PresentationMode
+	getPresentationMode: () => PresentationMode
 ): () => boolean {
 	if (!explicit) return () => isCollapsedContainer(getNode());
 	return () => {

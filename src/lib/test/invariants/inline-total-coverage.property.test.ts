@@ -94,12 +94,7 @@ describe('G2.11 scanner total coverage + construct tiling + kind vocabulary', ()
 		// Registries register once, so the handlers install once for the whole property, and
 		// the scan reads no state the cases mutate.
 		resetPluginPlatformForTests();
-		// The scan never renders, so a no-op renderer satisfies latex's required option.
-		installPlugins([
-			footnotesPlugin(),
-			emojiPlugin(),
-			latexPlugin({ renderer: () => ({ dom: document.createElement('span') }) })
-		]);
+		installPlugins([footnotesPlugin(), emojiPlugin(), latexPlugin()]);
 		// Without this a failed setup leaves the bare grammar running and the case passes
 		// for the wrong reason.
 		for (const kind of [FOOTNOTE_REF_KIND, EMOJI_KIND, MATH_INLINE]) {

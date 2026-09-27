@@ -425,9 +425,11 @@ One dev-time softening. Under a dev server, re-evaluating a registration module 
 
 A **plugin unit** is the installable package: a name plus a `setup` that runs your `register*` calls.
 
-**`definePlugin({ name, setup })`**
+**`definePlugin({ name, setup, defaults?, parseOptions? })`**
 
-Validates the unit at definition time (the name is a lowercase first letter followed by letters, digits, and hyphens, and `setup` has to be a function) and returns an `EditorPlugin`. By convention you export a **factory**, meaning `export function myPlugin(deps?)` returns the unit, and the factory's argument carries any **process-global dependency** the plugin needs (a render engine, say, which is the same for every editor). Configuration that could differ per editor takes a different path ([One process, many editors](#one-process-many-editors)); the factory argument is only for what never varies between editors.
+Validates the unit at definition time (the name is a lowercase first letter followed by letters, digits, and hyphens, and `setup` has to be a function) and returns an `EditorPlugin`. The two optional fields are for options that can differ per editor: `defaults` is where every editor's options start, and `parseOptions` checks what an editor passes ([the options recipe](#recipe-per-instance-options-and-the-factory-closure-trap) has both).
+
+By convention you export a **factory**, meaning `export function myPlugin(deps?)` returns the unit. The factory's argument is where a **process-global dependency** comes in (a render engine, say, which is the same for every editor), and it can fill your `defaults` too. What it can't do is give two editors different values; that takes a different path ([One process, many editors](#one-process-many-editors)).
 
 ```ts
 export function myPlugin(options?: { renderer?: Renderer }): EditorPlugin {
@@ -541,7 +543,7 @@ setup(ctx) {
 | `document`                     | A live getter for the root document, as a read-only `DocumentView` ([Views](#views-what-you-read-what-you-own))                                                                                  |
 | `documentGeneration`           | How many times a `source` write has replaced the document, live but not reactive: subscribe to the `sourceSwap` event to hear a change                                                           |
 | `events`                       | The subscribe-only event view; `events.on('edit', …)` returns a disposer                                                                                                                         |
-| `options`                      | The options this editor passed, typed once you write `definePlugin<Options>` (recipe below)                                                                                                      |
+| `options`                      | Your `defaults` with this editor's options merged over them (just the defaults if it passed none), typed by your `defaults` or by `definePlugin<Options>` (recipe below)                         |
 | `decorations`                  | This editor's decoration registry, where you register a source ([Decorations](#decorations))                                                                                                     |
 | `rects`                        | This editor's viewport-space geometry: block box, range rects, caret, reveal, navigation                                                                                                         |
 | `inlineMenus`                  | This editor's registry for lists opened by a typed trigger ([Recipe: a typed-trigger menu](consumer-guide.md#recipe-a-typed-trigger-menu))                                                       |
@@ -578,10 +580,10 @@ function recount(editor: EditorContext<WordCountOptions>): void {
 
 export const wordCountPlugin = definePlugin<WordCountOptions>({
 	name: 'word-count',
+	defaults: { live: true }, // what a bare-unit install reads
 	setup(ctx) {
 		ctx.onEditor((editor) => {
-			// A bare-unit install passes no options, so default them.
-			const { live } = editor.options ?? { live: true };
+			const { live } = editor.options;
 			recount(editor); // seed on mount
 			const off = live ? editor.events.on('edit', () => recount(editor)) : () => {};
 			return () => {
@@ -602,9 +604,35 @@ Two editors share one process-global registration but may still want different o
 <Editor source={right} plugins={[{ plugin: wordCountPlugin, options: { live: false } }]} />
 ```
 
-`definePlugin<WordCountOptions>` carries the type through, so `editor.options` reads typed inside `onEditor` with no cast.
+Whatever an editor passes lands on your `defaults` one field at a time. A field it passes replaces yours whole (an array too, nothing gets concatenated), and a field it leaves out keeps its default. The bundled slash commands plugin shows it best, since its factory argument is its `defaults`:
 
-**The trap.** Don't hold per-instance config in the plugin factory's closure. `wordCountPlugin({ live: false })` looks like it configures the instance, but a plugin installs once per process, so only the first editor's factory value ever takes effect and the second is silently ignored. The question that decides it: _would two editors ever want different values?_ If yes, it's per-instance: pass it through the prop entry and read `editor.options`. If no (a render engine, a shared parser), the factory argument is the right home.
+```ts
+const stamp = { id: 'stamp', label: 'Stamp', insert: 'approved' }; // one host row
+slashCommandsPlugin({ entries: [stamp] }); // defaults: { entries: [stamp] }
+
+// this editor's options      editor.options
+// (none, a bare unit)        { entries: [stamp] }
+// { exclude: ['table'] }     { entries: [stamp], exclude: ['table'] }
+// { entries: [] }            { entries: [] }
+```
+
+`definePlugin<WordCountOptions>` carries the type through, so `editor.options` reads typed inside `onEditor` with no cast. The type is your word, though, not a check. What checks is **`parseOptions(raw)`**: it gets an editor's options exactly as the host wrote them (once per editor, and only if the host wrote some) and returns the fields to apply. Leave a field out and it keeps its default. Throw, and the editor reports it on its `error` event (origin `subscriber`, naming your plugin) and runs your plugin on its defaults, so somebody's typo never takes their document down.
+
+```ts
+export const wordCountPlugin = definePlugin<WordCountOptions>({
+	name: 'word-count',
+	defaults: { live: true },
+	parseOptions(raw) {
+		const live = (raw as Partial<WordCountOptions> | null)?.live;
+		return typeof live === 'boolean' ? { live } : {}; // { live: 'yes' } keeps live: true
+	},
+	setup(ctx) {
+		/* the recipe above */
+	}
+});
+```
+
+**The trap.** Don't hold per-instance config in the plugin factory's closure. `wordCountPlugin({ live: false })` looks like it configures the instance, but a plugin installs once per process, so only the first editor's factory value ever takes effect and the second is silently ignored. The question that decides it: _would two editors ever want different values?_ If yes, it's per-instance: pass it through the prop entry and read `editor.options`. If no (a render engine, a shared parser), the factory argument is the right home. A factory argument that fills `defaults` is fine too: it's every editor's starting value, and each editor's entry can still override it.
 
 ## Walkthrough: a `:::conspiracy` container end to end
 
@@ -902,7 +930,7 @@ The factory returns more than the walkthrough destructures:
 | `moveFocusOut`          | A plugin-owned editing surface whose caret ran off its own edge; hands the caret to the neighbour a plain arrow points at, through the editor's focus traversal, so the landing skips non-focusable blocks, enters containers, and reveals an unmounted target like any other arrow                                                                                            |
 | `getPresentationMode`   | Your rendering or a gesture needs the live presentation mode ([Presentation modes](#presentation-modes))                                                                                                                                                                                                                                                                       |
 | `getTheme`              | Your content's colors are painted by an engine rather than styled by CSS; token-styled chrome needs neither this nor `getPresentationMode`, it rethemes through the cascade                                                                                                                                                                                                    |
-| `getOptions`            | This editor's options for the plugin that owns your kind, typed `unknown` (it's shorthand for `getEditor()?.options`). It's the per-instance channel a factory argument can't reach ([the options recipe](#recipe-per-instance-options-and-the-factory-closure-trap))                                                                                                          |
+| `getOptions`            | This editor's options for the plugin that owns your kind, your `defaults` included, typed `unknown` (it's shorthand for `getEditor()?.options`). It's how a value differs per editor, which a factory argument can't do ([the options recipe](#recipe-per-instance-options-and-the-factory-closure-trap))                                                                      |
 | `getEditor`             | This editor's `EditorContext` for the plugin that owns your kind, undefined only in a bare test harness. Its `computeInlineContent` reads the syntax this editor draws. If your helper's reader defaults to the free `computeInlineContent`, pass it `getEditor()?.computeInlineContent` and it still parses in a bare harness (the bundled toc and footnotes do exactly this) |
 | `captureScrollPosition` | Your component is about to swap its view for one of a different height (a tall diagram for its short source card) and the reader is scrolled right at it. Call it before the swap, await what it hands back after, and the page stays where the reader left it instead of clamping to the shorter layout in between                                                            |
 
@@ -912,7 +940,7 @@ const { updateOwnMetadata, getPresentationMode, getTheme, getOptions, captureScr
 updateOwnMetadata({ name: 'debunked' }); // one undo entry; rebuildRaw re-emits the opener line as :::debunked
 getPresentationMode(); // 'source'
 getTheme(); // 'dark'
-getOptions(); // whatever this editor's { plugin, options } entry carried; undefined for a bare unit
+getOptions(); // your defaults with this editor's { plugin, options } entry merged over them
 const restore = captureScrollPosition(); // before the swap...
 editing = true;
 await restore(); // ...and after; a no-op when nothing moved
@@ -1180,7 +1208,7 @@ const leaf = createEditableLeaf({
 });
 leaf.sourceText; // the block's raw minus its trailing line ending
 leaf.getPresentationMode(); // 'source'
-leaf.getOptions(); // this editor's options for your plugin, typed unknown
+leaf.getOptions(); // this editor's options for your plugin, defaults included, typed unknown
 leaf.getEditor(); // this editor's EditorContext for your plugin, undefined in a bare harness
 ```
 
@@ -1213,7 +1241,7 @@ commit(edited text) ── parse ──▶ same kind?        update in place, ca
 
 Editing past your own fence therefore re-splits the document instead of wedging foreign text into your node, and the round-trip holds through every commit.
 
-**Per-instance configuration.** `leaf.getOptions()` returns this editor instance's options for the plugin owning your kind, typed `unknown` for you to narrow. It's the same route as the container factory's `getOptions()`, one tier down, and the same rule applies ([the options recipe](#recipe-per-instance-options-and-the-factory-closure-trap)). The bundled toc block resolves `maxDepth` this way and falls back to the factory argument, which then serves as the default for an instance declaring none.
+**Per-instance configuration.** `leaf.getOptions()` returns this editor's options for the plugin owning your kind, already merged over your `defaults`. It's typed `unknown`, so cast it to your options type, and it's `undefined` only with no editor around (a component mounted bare in a unit test). It's the same route as the container factory's `getOptions()`, one tier down, and the same rule applies ([the options recipe](#recipe-per-instance-options-and-the-factory-closure-trap)). The bundled toc block reads its `maxDepth` this way, with `tocPlugin({ maxDepth })` filling the default.
 
 Block math (`$$…$$` in the bundled `@voithos-labs/aragonite/plugins/latex` plugin) is the worked example, and it's smaller than you'd expect: its component script is the factory call, one render effect (KaTeX), a `{...leaf.surfaceProps}` spread on the source, and one-line re-exports of the returned surface. Registration is the ordinary leaf recipe: `registerBlockKind` (no container group), `registerBlockOpener`, `registerBlockComponent`. Its `caretTargetAtPoint` is the other half of the parrot's: where the parrot's caption is the source bytes minus a prefix, KaTeX paints glyphs no offset maps back to, so the render effect stamps the body's span on the rendered element and the hook walks that span in proportion to how far along the press fell.
 
@@ -1274,7 +1302,7 @@ Reactivity is **per tier, not universal**, and that's worth being upfront about.
 
 **The block-component DOM read is point-in-time.** `closest()` learns the mode when your code runs, but a live flip does **not** re-render a mounted block through it. If your block's _rendering_ must change with the mode, react explicitly: subscribe to `presentationModeChange` on your `EditorContext`'s `events` (from `onEditor`) and update from the handler, or re-read the mode at each gesture. The built-in mermaid diagram gates its edit affordance the gesture-read way, calling the container factory's `getPresentationMode()` at click time; the built-in details block reads the mode per render instead, because its reading-mode disclosure changes what RENDERS (two paragraphs down), not just what a click does. Reactive block-tier rendering is planned but not built; today the block tier is point-in-time by design.
 
-**The theme rides exactly where the mode rides.** `EditorContext.theme` (paired with the `themeChange` event), the container and leaf factories' `getTheme()`, and the inline-widget `getTheme` prop are the same four routes with the same liveness. Reach for them only when your content's colors are PAINTED by an engine and so can't be reached by CSS; token-styled chrome rethemes itself through the cascade and should read none of this.
+**The theme rides exactly where the mode rides.** `EditorContext.theme` (paired with the `themeChange` event), the container and leaf factories' `getTheme()`, and the inline-widget `getTheme` prop are the same four routes with the same liveness. They're always there, and the editor picks the default (`'dark'`) when a host sets none, so call `getTheme()` as is, with no `?? 'dark'` of your own. Reach for them only when your content's colors are PAINTED by an engine and so can't be reached by CSS; token-styled chrome rethemes itself through the cascade and should read none of this.
 
 **Reading mode writes no bytes, which isn't the same as "nothing happens".** An affordance whose flip is view-only may stay live there, and the built-in `<details>` disclosure does exactly that, so a reader can open a collapsed section. The pattern is worth copying exactly: keep the transient state in a module with **no commit route in its dependencies** and choose the handler by mode, so the reading path can't commit rather than politely declining to; feed the EFFECTIVE state to the container factory's `isCollapsed` dep, so the windowing mounts what the view claims is open; and reset the transient state when the mode leaves reading, or a view state outlives the mode whose bytes agreed with it. An affordance whose flip would rewrite the document (a task checkbox) stays inert. That's the line, not "interactive vs not".
 
@@ -1294,12 +1322,12 @@ fence claim ──▶ opaque container, NO children ──▶ component renders 
 - **Declare the fence's write rule.** A find/replace or a range delete writes your block's bytes without your component, and a fence is one byte away from swallowing the document: a body line that reads as the closer ends the block early, and an opener removed while the closer stays opens a fence over everything below. `rawWrite: fenceRawWrite(fenceShapeOfRaw)` is the code block's own rule: it grows both runs past a body line that reads as the closer, puts the closer back when a write deleted it, and drops a closer whose opener a write deleted.
 - **Code in metadata, an empty container around it.** Register the kind with `container: { contract: 'opaque', rebuildRaw }` and give nodes `children: []`. The source text and every fence byte the rebuild needs (indent, marker, info string, closer shape) go into typed plugin metadata, primitive values only, and `rebuildRaw` re-emits the exact bytes from them. Build the parsed node's `raw` by calling your own rebuild, so opener and rebuild agree by construction.
 - **Edit mode commits through `updateOwnMetadata`.** The component swaps its body to a plugin-owned `<textarea>` seeded from metadata; commit (Ctrl+Enter, blur) writes the new code with the container factory's `updateOwnMetadata`, which is one undoable entry, with your `rebuildRaw` re-emitting the fence so `getSource()` reflects the edit byte-exactly. Escape cancels without touching the tree.
-- **Inject the renderer, memoize it, own its CSS.** The engine is the consumer's dependency: take it as a plugin option (`mermaidPlugin({ renderer })`) and pass it by module to the component. Wrap it in `createBoundedMemo` so re-renders of unchanged code do zero engine work. An async renderer stores the render promise as the cached value (in-flight work is shared, and a failure is cached like a success), and a renderer whose result holds a live DOM node passes a `cloneOnRead` so each caller gets its own copy. Resolve failures to a legible inline error, never a throw, and render a static code fallback with a note when no renderer is configured. The engine's stylesheet travels with the renderer module, so import it there, where no route can forget it: a KaTeX-based renderer needs `katex/dist/katex.min.css`, or its MathML accessibility tree lays out unclipped and every equation paints twice.
-- **If the engine paints its own colors, the theme is a render input.** An engine that emits markup carrying color literals (a diagram SVG) can't be rethemed by a stylesheet after the fact; the diagram has to be redrawn. So the theme belongs in three places at once, and any one of them alone leaves a broken half: **the renderer's parameters** (so it can draw for the theme), **the memo key** (so a flip misses and a flip back is still a hit, never a cache reset, which throws away work you'll want again), and **the component's render read** (`getTheme()` off the container or leaf factory), because THAT read is what subscribes the block to the flip. Mermaid keys `theme\0code`; its engine adapter maps the editor theme name to a mermaid theme and re-initializes when it changes, serializing renders because that config is process-global. An engine styled by CSS variables needs none of this.
+- **Inject the renderer into a slot, and own its CSS.** The engine (the library that actually draws, KaTeX or mermaid) is the consumer's dependency, so take it as a plugin option (`mermaidPlugin({ renderer })`) and put it in a **renderer slot**: a module-level `createAsyncRendererSlot` (or `createRendererSlot`, for an engine that answers right away) that your setup fills and your component renders through. The slot caches each render, and it never throws at you: with no renderer set you get your `missing` output, and a throw or a rejection gets your `failed` output, cached like a success. For anything drawn from source text, `renderSourceFallback(source, message)` makes a decent `missing` or `failed`. There's a slot in the snippet below. The engine's stylesheet travels with the renderer module, so import it there, where no route can forget it: a KaTeX-based renderer needs `katex/dist/katex.min.css`, or its MathML accessibility tree lays out unclipped and every equation paints twice.
+- **If the engine paints its own colors, the theme is a render input.** An engine that emits markup carrying color literals (a diagram SVG) can't be rethemed by a stylesheet after the fact, so the diagram has to be redrawn. The slot does most of that for you: `render` won't take a call without the theme, hands it to your renderer, and keys the cache on it, so a switch misses and a switch back is still a hit. The part left is yours. Read the theme with `getTheme()` (off the container or leaf factory, or an inline widget's props) inside the effect that renders, because that read is what re-runs the effect on a switch. Mermaid's engine adapter maps the editor theme name to a mermaid theme and re-initializes when it changes, serializing renders because that config is process-global. An engine styled by CSS variables can ignore the theme it's handed.
 - **Interior interactivity stays inside your DOM.** Pan/zoom, buttons, overlays: put `POINTER_GESTURE_ATTR` on the element whose drags are yours (only while the gesture is armed, if it isn't always), or the editor reads the press as the start of a selection and paints a range over your pan. `stopPropagation()` on pointerdown can't do this, since Svelte delivers pointer events from the app root and the editor's listener has already run. A focus view is just a fixed-position overlay in the component's own tree, so mount it in place, focus it on open, close on Escape.
 - **View-state commands reach the component through `ctx.hooks`.** See [Block commands](#block-commands).
 
-The fence helpers from that list, with what they hand back:
+The helpers from that list, with what they hand back:
 
 ````ts
 const matchMermaid = matchFenceInfo('mermaid');
@@ -1309,8 +1337,15 @@ matchMermaid('```js'); // null: the code block keeps it
 scanFence(ctx, fence); // { closer: 3, consumed: 4, raw: '```mermaid\n...```\n', body: '...' }
 fenceRawWrite(fenceShapeOfRaw).normalize('graph TD\n```\n', ctx); // 'graph TD\n': the stranded closer goes
 
-const render = createBoundedMemo<string, Promise<SVGElement>>({ cap: 32 });
-render(`${theme}\0${code}`, () => engine.render(code, theme)); // computes once per key; past 32 entries the least recently used one goes
+const diagrams = createAsyncRendererSlot<string, { svg?: string; error?: string }>({
+	key: (code) => code,
+	missing: () => ({ error: 'no renderer' }),
+	failed: (_code, error) => ({ error: String(error) })
+});
+diagrams.set((code, { theme }) => engine.render(code, theme).then((svg) => ({ svg }))); // in setup; null removes it
+await diagrams.render('graph TD', { theme: 'dark' }); // { svg: '<svg …>' }
+await diagrams.render('graph TD', { theme: 'dark' }); // the same result, and the engine isn't called again
+await diagrams.render('graph TD', { theme: 'light' }); // a miss: drawn again for the light theme
 ````
 
 **What you give up with the textarea.** The code text isn't editor-native: no cross-block selection through it, the textarea's caret and IME are the browser's rather than the editor's, and so is its undo. A chord raised inside your surface reaches the browser, not the editor's history, so the draft has its own undo stack and the editor's chords resume once focus leaves.
@@ -1432,9 +1467,11 @@ A widget renders through one of two paths, and the descriptor rejects declaring 
 - `getDocument`: the read-only root document.
 - `getContentVersion`: a number that changes whenever the document's bytes change, and is stable otherwise.
 
-A fourth prop, `navigateTo`, is the editor's jump route: hand it a block path and the editor reveals that block, scrolls it into view, and lands the caret in it. Aim at a leaf: a container seats no caret, so a container path scrolls the block into view and leaves the caret where it was. Use it when your widget points at somewhere else in the document, the way a footnote reference points at its definition. It's absent in a bare harness mount, so call it optionally.
+A fourth prop, `navigateTo`, is the editor's jump route: hand it a block path and the editor reveals that block, scrolls it into view, and lands the caret in it. Aim at a leaf: a container seats no caret, so a container path scrolls the block into view and leaves the caret where it was. Use it when your widget points at somewhere else in the document, the way a footnote reference points at its definition. It resolves false when there's nowhere to land.
 
-A fifth, `computeInlineContent`, is the same parse `EditorContext.computeInlineContent` gives a plugin. Walk inline nodes through it and syntax the editor left out comes back as plain text. It's absent in a bare harness mount too, so fall back to the free `computeInlineContent` there.
+A fifth, `computeInlineContent`, is the same parse `EditorContext.computeInlineContent` gives a plugin. Walk inline nodes through it and syntax the editor left out comes back as plain text.
+
+The editor passes every one of these props, `getTheme` included, so call them as given. A test that mounts your widget by hand passes its own (a fixed mode, a stub `navigateTo`), and the types won't let it forget one.
 
 If your `revealSource` widget takes a click of its own, declare `claimsActivationClick` in its editing policy and read `isWidgetActivationClick` to decide when to act: the surface stands its reveal down for exactly the gesture that predicate names, so the widget isn't swapped for its source bytes under a click meant to navigate. Without `revealSource` there's no reveal to stand down, and the field is inert.
 
@@ -1503,7 +1540,7 @@ Three edges the snippet above is shaped by, and each one bites if you drop it:
 - **Guard every optional field you interpolate.** `fields.width` is absent on an embed that never carried one, and an unguarded template writes the literal `|undefined` into the document.
 - **Bound the hook to bytes you shaped.** The claim reaches _descendants_ of the node your recognizer returned, so a rung that returns its own kind wrapping a built-in `image` gets called with the **inner** node's slice, not the whole construct. Checking `source` before rewriting is what keeps that from nesting your syntax inside itself.
 
-**Errors in a component widget are half yours.** A **synchronous mount-time throw** is caught, so the widget falls back to its raw source and an `error` event fires, but the component mounts as its own effect root and nothing catches its post-mount runtime errors. Render a legible error for bad input instead of throwing (the KaTeX widget shows an inline message). A render engine's stylesheet is likewise yours: import it in the module that owns the renderer, so no route can forget it.
+**Errors in a component widget are half yours.** A **synchronous mount-time throw** is caught, so the widget falls back to its raw source and an `error` event fires, but the component mounts as its own effect root and nothing catches its post-mount runtime errors. Render a legible error for bad input instead of throwing (the KaTeX widget shows the formula's source in red, with the parser's message on hover). A renderer slot catches a throw and hands it to your `failed`, and `renderSourceFallback(source, message)` gets you most of that view: the source in the code font and the message on hover, with the red left to you. A render engine's stylesheet is likewise yours: import it in the module that owns the renderer, so no route can forget it.
 
 **The inline tier isn't the block surface in miniature.** An inline kind gets recognition, rendering, atomic caret addressing at its edges, and an editing policy on its widget registration. The policy's fields, all optional:
 
@@ -1642,9 +1679,9 @@ setup(ctx) {
 	registerGlobalCommand(
 		'wordCount.log',
 		(editor) => {
-			// The mint is not generic-bound: the handler gets EditorContext<unknown>,
-			// so narrow options here (onEditor's callback is where they read typed).
-			const opts = editor.options as WordCountOptions | undefined;
+			// The handler isn't bound to your options type: it gets EditorContext<unknown>,
+			// so cast options here (onEditor's callback is where they read typed).
+			const opts = editor.options as WordCountOptions;
 			console.log(`[${editor.editorId}]`, countByEditor.get(editor.editorId), opts);
 			return true; // handled
 		},

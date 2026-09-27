@@ -6,11 +6,6 @@ import { getInlineRungs } from '$lib/core/inline/scan/plugin-syntax';
 import { roundTripCases } from '$lib/test/support/round-trip';
 import { registerMathBlock, MATH_BLOCK } from '$lib/plugins/latex/latex-kind';
 import { latexPlugin } from '$lib/plugins/latex';
-import type { MathRenderer } from '$lib/plugins/latex/math-renderer';
-
-// latexPlugin requires a renderer; block parsing never renders, so a do-nothing stub
-// satisfies the required option without pulling in a math library.
-const stubRenderer: MathRenderer = () => ({ dom: document.createElement('span') });
 
 // The block opener and the inline `$` trigger live in independent registries and the platform
 // reset clears both; a schema-only reset would let the test below pass on the inline half.
@@ -86,21 +81,8 @@ describe('block math round-trip', () => {
 
 describe('latexPlugin wires the block opener', () => {
 	it('makes a $$…$$ fence parse as a mathBlock through the installed plugin', () => {
-		installPlugins([latexPlugin({ renderer: stubRenderer })]);
+		installPlugins([latexPlugin()]);
 		expect(parse('$$\nx^2\n$$\n').children[0].kind).toBe(MATH_BLOCK);
-	});
-});
-
-// The renderer is required at the type level, unlike mermaid's optional one, so the
-// `@ts-expect-error` directives below are the assertions: an optional one fails `npm run check`.
-describe('latexPlugin requires an injected renderer', () => {
-	it('rejects a missing or empty renderer option at compile time', () => {
-		// @ts-expect-error - renderer is required; a bare call omits it
-		const noArg = () => latexPlugin();
-		// @ts-expect-error - renderer is required; empty options omit it
-		const noRenderer = () => latexPlugin({});
-		expect(noArg).toBeTypeOf('function');
-		expect(noRenderer).toBeTypeOf('function');
 	});
 });
 
@@ -108,12 +90,12 @@ describe('latexPlugin requires an injected renderer', () => {
 // kind; an inline check keyed on anything but the surviving kind would throw on reinstall.
 describe('latexPlugin reinstall after a platform reset', () => {
 	it('re-registers the block kind and leaves the inline path intact', () => {
-		installPlugins([latexPlugin({ renderer: stubRenderer })]);
+		installPlugins([latexPlugin()]);
 		expect(parse('$$\nx^2\n$$\n').children[0].kind).toBe(MATH_BLOCK);
 		expect(getInlineRungs('$').length).toBeGreaterThan(0);
 
 		resetPluginPlatformForTests();
-		installPlugins([latexPlugin({ renderer: stubRenderer })]);
+		installPlugins([latexPlugin()]);
 
 		expect(parse('$$\nx^2\n$$\n').children[0].kind).toBe(MATH_BLOCK);
 		expect(getInlineRungs('$').length).toBeGreaterThan(0);

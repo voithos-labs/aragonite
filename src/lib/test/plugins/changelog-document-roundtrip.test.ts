@@ -23,7 +23,6 @@ import { CHANGELOG_FAMILIES } from '../../../routes/changelog/changelog-content'
 
 beforeAll(() => {
 	resetPluginPlatformForTests();
-	// The parser never renders, so no-op renderers satisfy the required options.
 	installPlugins([
 		admonitionsPlugin(),
 		detailsPlugin(),
@@ -31,8 +30,8 @@ beforeAll(() => {
 		footnotesPlugin(),
 		emojiPlugin(),
 		highlightOccurrencesPlugin(),
-		latexPlugin({ renderer: () => ({ dom: document.createElement('span') }) }),
-		mermaidPlugin({ renderer: async () => '<svg />' }),
+		latexPlugin(),
+		mermaidPlugin(),
 		parrotPlugin()
 	]);
 });

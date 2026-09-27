@@ -1,7 +1,6 @@
 /**
- * `renderer` is required because there is no built-in default; `katexRenderer` is the
- * one-import way to supply it. The plugin installs this setup once per process, so it runs
- * unguarded.
+ * `katexRenderer` is the one-import way to supply `renderer`; without one, each formula shows its
+ * source. The plugin installs this setup once per process, so it runs unguarded.
  */
 
 import {
@@ -13,27 +12,42 @@ import {
 	type EditorPlugin
 } from '$lib/plugin';
 import { registerMathInline, registerMathBlock, MATH_BLOCK, MATH_FENCE } from './latex-kind';
-import { setMathRenderer, type MathRenderer } from './math-renderer';
+import { mathSlot, type MathRenderer } from './math-renderer';
 import { isMathBlockLayout, type MathBlockLayout } from './math-layout';
 import BlockMath from './BlockMath.svelte';
 
 export interface LatexPluginOptions {
-	renderer: MathRenderer;
-	/** How a `$$` block opens for editing on a plain install (`math-layout.ts`); an editor's
+	renderer?: MathRenderer;
+	/** How a `$$` block opens for editing (`math-layout.ts`); an editor's
 	 *  `{ plugin, options: { blockLayout } }` entry overrides it. */
 	blockLayout?: MathBlockLayout;
 }
 
-export function latexPlugin(options: LatexPluginOptions): EditorPlugin {
-	const blockLayout = isMathBlockLayout(options.blockLayout) ? options.blockLayout : 'split';
-	return definePlugin({
+/** What one editor reads: the renderer is process-wide, so only the layout varies per editor. */
+export interface LatexEditorOptions {
+	blockLayout: MathBlockLayout;
+}
+
+export function latexPlugin(options: LatexPluginOptions = {}): EditorPlugin {
+	const { renderer } = options;
+	return definePlugin<LatexEditorOptions>({
 		name: 'latex',
+		defaults: {
+			blockLayout: isMathBlockLayout(options.blockLayout) ? options.blockLayout : 'split'
+		},
+		// An unknown layout keeps the default rather than breaking the block.
+		parseOptions(raw) {
+			const blockLayout = (raw as LatexPluginOptions | null)?.blockLayout;
+			return isMathBlockLayout(blockLayout) ? { blockLayout } : {};
+		},
 		setup() {
-			setMathRenderer(options.renderer);
+			mathSlot.set(
+				renderer ? ({ source, display }, { theme }) => renderer(source, { display, theme }) : null
+			);
 			registerMathInline();
 			// registerMathBlock also registers the ```math fence kind; both render through BlockMath.
 			registerMathBlock();
-			const blockMath = defineBlockComponent(BlockMath, () => ({ blockLayout }));
+			const blockMath = defineBlockComponent(BlockMath);
 			registerBlockComponent(declaredPluginKind(MATH_BLOCK), blockMath);
 			registerBlockComponent(declaredPluginKind(MATH_FENCE), blockMath);
 			registerInsertEntry({

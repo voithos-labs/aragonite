@@ -15,11 +15,6 @@ import { emojiPlugin, EMOJI_KIND } from '$lib/plugins/emoji';
 import { footnotesPlugin, FOOTNOTE_REF_KIND } from '$lib/plugins/footnotes';
 import { latexPlugin } from '$lib/plugins/latex';
 import { MATH_INLINE } from '$lib/plugins/latex/latex-kind';
-import type { MathRenderer } from '$lib/plugins/latex/math-renderer';
-
-// The renderer is a required option and the kit never renders math, so a do-nothing stub
-// satisfies it without pulling a math library into the suite.
-const stubRenderer: MathRenderer = () => ({ dom: document.createElement('span') });
 
 const MINTS_ONLY_ITS_OWN_KIND =
 	'the rung mints only its own inline kind, which the scan leaves unstamped by design — ' +
@@ -97,7 +92,7 @@ describe('every bundled inline syntax handler passes the conformance kit', () =>
 		resetPluginPlatformForTests();
 		// Emoji before the directive activation on purpose: that order is what leaves the
 		// directive recognizer unregistered, making its `registration` cell a live check.
-		installPlugins([emojiPlugin(), footnotesPlugin(), latexPlugin({ renderer: stubRenderer })]);
+		installPlugins([emojiPlugin(), footnotesPlugin(), latexPlugin()]);
 		activateDirectiveGrammar();
 	});
 
@@ -125,7 +120,7 @@ describe('every bundled inline syntax handler passes the conformance kit', () =>
 describe('the enrolled inline syntax handlers execute the cells their shape owns', () => {
 	beforeEach(() => {
 		resetPluginPlatformForTests();
-		installPlugins([emojiPlugin(), footnotesPlugin(), latexPlugin({ renderer: stubRenderer })]);
+		installPlugins([emojiPlugin(), footnotesPlugin(), latexPlugin()]);
 		activateDirectiveGrammar();
 	});
 

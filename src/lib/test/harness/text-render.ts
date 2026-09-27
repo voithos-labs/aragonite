@@ -23,6 +23,8 @@ export function blockNode(source: string): CstNode {
 export interface RenderHarnessOverrides {
 	mode?: PresentationMode;
 	imageLoadPolicy?: ImageLoadPolicy;
+	/** The theme its widgets draw with; the harness has no editor to take one from. */
+	theme?: string;
 	/** The link definitions the block draws with; the mode stays the harness's own. */
 	reading?: Partial<Reading>;
 }
@@ -47,6 +49,7 @@ export function makeRenderHarness(
 	let islands: Island[] = [];
 	let mode: PresentationMode = overrides.mode ?? 'source';
 	let policy: ImageLoadPolicy = overrides.imageLoadPolicy ?? 'auto';
+	let version = 0;
 	const deps: TextRenderDeps = {
 		get el() {
 			return el;
@@ -67,10 +70,15 @@ export function makeRenderHarness(
 			return policy;
 		},
 		reading: fixtureReading({ ...overrides.reading, mode: () => mode }),
+		getTheme: () => overrides.theme ?? 'dark',
 		get islands() {
 			return islands;
 		},
 		getDocument: () => undefined,
+		// New on every read, so a widget memo keyed on it never serves a stale document.
+		getContentVersion: () => ++version,
+		navigateTo: async () => false,
+		reportRenderError: () => {},
 		brokenUrlCache: new Set<string>()
 	};
 	return {

@@ -33,6 +33,7 @@ const ctx = (over?: Partial<GlobalCommandContext>): GlobalCommandContext => ({
 	history: { requestUndo() {}, requestRedo() {} },
 	activation: everyInstalledPlugin,
 	pluginEditor: () => editor,
+	getPresentationMode: () => 'source',
 	onCommandError: () => {},
 	...over
 });

@@ -51,6 +51,9 @@ function mountCell(raw: string) {
 		resolveLinkUrl: (u) => u,
 		getTheme: () => theme,
 		getDocument: () => undefined,
+		getContentVersion: () => 0,
+		navigateTo: async () => false,
+		reportRenderError: () => {},
 		get islands() {
 			return [];
 		}

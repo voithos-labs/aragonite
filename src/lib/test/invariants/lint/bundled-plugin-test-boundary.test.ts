@@ -203,23 +203,20 @@ const ALLOWLIST: Record<string, Exemption> = {
 		specifiers: ['$lib/schema/block-kind-descriptor'],
 		reason: "no registry read-back: the kind's caretTargetAtPoint cannot be read back to call"
 	},
-	'src/lib/test/plugins/toc/options.test.ts': {
-		specifiers: ['$lib/schema/block-component-registry', '$lib/schema/plugin-activation'],
-		reason:
-			'no registry read-back: a component entry registers its extraProps closure but nothing ' +
-			'published reads it, so option threading needs a mounted editor'
-	},
 	'src/lib/test/plugins/slash-commands/slash-harness.ts': {
 		specifiers: [
 			'$lib/editor-events',
 			'$lib/inline-menu/inline-menu-state.svelte',
 			'$lib/schema/insert-catalogue',
-			'$lib/schema/plugin-activation'
+			'$lib/schema/plugin-activation',
+			'$lib/schema/plugin-editor-context',
+			'$lib/schema/plugin-install'
 		],
 		reason:
 			'no headless inline-menu session on the testing barrel: a source can be called directly, ' +
 			'but typing a trigger and the write a pick makes need the menu state of the editor itself; ' +
-			'and only a mounted editor or a plugin context lists the insert catalogue'
+			'only a mounted editor or a plugin context lists the insert catalogue, and only a headless ' +
+			"editor context merges an entry's options over the defaults"
 	},
 	'src/lib/test/plugins/slash-commands/open-command.test.ts': {
 		specifiers: [

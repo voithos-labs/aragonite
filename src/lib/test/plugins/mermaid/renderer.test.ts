@@ -1,112 +1,64 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
-import {
-	setMermaidRenderer,
-	hasMermaidRenderer,
-	renderMermaid,
-	MERMAID_MEMO_CAP
-} from '$lib/plugins/mermaid/mermaid-renderer';
+// The mermaid renderer slot as `mermaidPlugin` wires it: the theme and a fresh element id reaching
+// the injected renderer, the SVG wrapped as a result, and a rejection or no renderer as an error.
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { installPlugins } from '$lib';
+import { resetPluginPlatformForTests } from '$lib/testing';
+import { mermaidPlugin } from '$lib/plugins/mermaid';
+import { mermaidSlot, type MermaidRenderer } from '$lib/plugins/mermaid/mermaid-renderer';
 
-// The renderer is module-wide; leave it unset for the other files in this suite.
-afterEach(() => setMermaidRenderer(null));
+beforeEach(resetPluginPlatformForTests);
+afterEach(resetPluginPlatformForTests);
 
-// One theme for the cases the theme is not about; named rather than defaulted, so forgetting the
-// theme on a function whose point is the theme as a render input does not compile.
-const THEME = 'dark';
+function install(renderer?: MermaidRenderer): void {
+	installPlugins([mermaidPlugin({ renderer })]);
+}
 
-describe('renderMermaid memoization', () => {
-	it('runs the renderer once per code text; a repeat is a cache hit', async () => {
-		const renderer = vi.fn(async (code: string) => `<svg>${code}</svg>`);
-		setMermaidRenderer(renderer);
+describe('the mermaid renderer slot', () => {
+	it('draws for the theme, once per theme, with a fresh element id per render', async () => {
+		const renderer = vi.fn<MermaidRenderer>(
+			async (code, _id, { theme }) => `<svg data-theme="${theme}">${code}</svg>`
+		);
+		install(renderer);
 
-		const first = await renderMermaid('graph TD', THEME);
-		const second = await renderMermaid('graph TD', THEME);
-		expect(renderer).toHaveBeenCalledTimes(1);
-		expect(first.svg).toBe('<svg>graph TD</svg>');
-		expect(second.svg).toBe(first.svg);
-
-		await renderMermaid('graph LR', THEME);
-		expect(renderer).toHaveBeenCalledTimes(2);
-	});
-
-	// Mermaid paints its own colors into the SVG, so the theme is part of the cache key, or a
-	// theme change would return the wrong-palette SVG forever.
-	it('keys on the theme as well as the code, and hands the renderer the theme', async () => {
-		const renderer = vi.fn(async (code: string, _id: string, ctx?: { theme: string }) => {
-			return `<svg data-theme="${ctx?.theme}">${code}</svg>`;
+		const dark = await mermaidSlot.render('graph TD', { theme: 'dark' });
+		expect(dark).toEqual({ svg: '<svg data-theme="dark">graph TD</svg>' });
+		expect(await mermaidSlot.render('graph TD', { theme: 'dark' })).toBe(dark);
+		expect(await mermaidSlot.render('graph TD', { theme: 'light' })).toEqual({
+			svg: '<svg data-theme="light">graph TD</svg>'
 		});
-		setMermaidRenderer(renderer);
-
-		const dark = await renderMermaid('graph TD', 'dark');
-		expect(dark.svg).toBe('<svg data-theme="dark">graph TD</svg>');
-		expect(await renderMermaid('graph TD', 'dark')).toBe(dark);
-		expect(renderer).toHaveBeenCalledTimes(1);
-
-		const light = await renderMermaid('graph TD', 'light');
-		expect(light.svg).toBe('<svg data-theme="light">graph TD</svg>');
 		expect(renderer).toHaveBeenCalledTimes(2);
 
-		// Back to the first theme: the earlier render is still cached under its key.
-		await renderMermaid('graph TD', 'dark');
-		expect(renderer).toHaveBeenCalledTimes(2);
+		// A second diagram under the same theme is its own render, never the first one's SVG.
+		expect(await mermaidSlot.render('graph LR', { theme: 'dark' })).toEqual({
+			svg: '<svg data-theme="dark">graph LR</svg>'
+		});
+		expect(renderer).toHaveBeenCalledTimes(3);
+
+		// Mermaid renders into a DOM element by id, so two renders sharing one would collide.
+		const [first, second] = renderer.mock.calls.map(([, id]) => id);
+		expect(first).not.toBe(second);
 	});
 
-	// The key joins two strings, so it needs a separator: otherwise theme 'a' with code 'b' is
-	// the same entry as theme 'ab' with code ''.
-	it('cannot collide two theme/code pairs into one entry', async () => {
-		const renderer = vi.fn(async (code: string) => `<svg>${code}</svg>`);
-		setMermaidRenderer(renderer);
-
-		await renderMermaid('b', 'a');
-		await renderMermaid('', 'ab');
-		expect(renderer).toHaveBeenCalledTimes(2);
-	});
-
-	it('resolves a renderer failure to a legible error and caches it like a success', async () => {
-		const renderer = vi.fn(async () => {
+	it('resolves a rejection to its message, cached like a success', async () => {
+		const renderer = vi.fn<MermaidRenderer>(async () => {
 			throw new Error('No diagram type detected');
 		});
-		setMermaidRenderer(renderer);
+		install(renderer);
 
-		const first = await renderMermaid('nope', THEME);
-		const second = await renderMermaid('nope', THEME);
-		expect(first.error).toBe('No diagram type detected');
-		expect(second.error).toBe('No diagram type detected');
+		const first = await mermaidSlot.render('nope', { theme: 'dark' });
+		const second = await mermaidSlot.render('nope', { theme: 'dark' });
+		expect([first, second]).toEqual([
+			{ error: 'No diagram type detected' },
+			{ error: 'No diagram type detected' }
+		]);
 		expect(renderer).toHaveBeenCalledTimes(1);
 	});
 
-	it('swapping the renderer clears the cache', async () => {
-		setMermaidRenderer(async () => '<svg>one</svg>');
-		expect((await renderMermaid('graph TD', THEME)).svg).toBe('<svg>one</svg>');
-
-		setMermaidRenderer(async () => '<svg>two</svg>');
-		expect((await renderMermaid('graph TD', THEME)).svg).toBe('<svg>two</svg>');
-	});
-
-	// bounded-memo.test.ts pins the eviction rules; this case proves renderMermaid uses the real
-	// MERMAID_MEMO_CAP, so a long session evicts rather than growing forever.
-	it('evicts the least-recently-used entry past the cap', async () => {
-		const renderer = vi.fn(async (code: string) => `<svg>${code}</svg>`);
-		setMermaidRenderer(renderer);
-
-		await renderMermaid('first', THEME);
-		for (let i = 0; i < MERMAID_MEMO_CAP - 1; i++) await renderMermaid(`fill-${i}`, THEME);
-		await renderMermaid('first', THEME); // hit — refreshed, still cached at exactly cap
-		expect(renderer).toHaveBeenCalledTimes(MERMAID_MEMO_CAP);
-
-		await renderMermaid('overflow', THEME); // past cap — evicts the LRU fill entry
-		await renderMermaid('first', THEME); // survived on recency
-		expect(renderer).toHaveBeenCalledTimes(MERMAID_MEMO_CAP + 1);
-
-		await renderMermaid('fill-0', THEME); // evicted — renders again
-		expect(renderer).toHaveBeenCalledTimes(MERMAID_MEMO_CAP + 2);
-	});
-});
-
-describe('absent-renderer fallback', () => {
-	// The no-renderer branch is tested here because mounting MermaidBlock needs six contexts
-	// keyed by unexported symbols, and the harness page always installs a renderer.
-	it('reports no renderer when unset and resolves to the configured-note error', async () => {
-		expect(hasMermaidRenderer()).toBe(false);
-		expect((await renderMermaid('graph TD', THEME)).error).toBe('renderer not configured');
+	it('reports no renderer on a bare install, and resolves to the not-configured error', async () => {
+		install();
+		expect(mermaidSlot.configured).toBe(false);
+		expect(await mermaidSlot.render('graph TD', { theme: 'dark' })).toEqual({
+			error: 'renderer not configured'
+		});
 	});
 });

@@ -67,7 +67,7 @@ function declaresEdge(node: NodeView, edge: 'before' | 'after'): boolean {
 export interface GapStopScope {
 	getDoc: () => DocumentView;
 	selection: SelectionState;
-	getPresentationMode?: () => PresentationMode;
+	getPresentationMode: () => PresentationMode;
 }
 
 /** Whether a gesture may put the caret in this gap; reading mode has no caret, so never. A caller

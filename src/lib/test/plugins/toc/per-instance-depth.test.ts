@@ -7,7 +7,7 @@ import { installEditorDomStubsForTests, resetPluginPlatformForTests } from '$lib
 import { tocPlugin } from '$lib/plugins/toc/toc-plugin';
 import { destroyMountedEditors, mountEditor } from '$lib/test/harness/mount-editor.svelte';
 
-const SOURCE = '# One\n\n## Two\n\n### Three\n\n[[toc]]\n';
+const SOURCE = '# One\n\n## Two\n\n### Three\n\n#### Four\n\n[[toc]]\n';
 
 // A short fixture, so it stays under the windowing watermark and the toc block mounts.
 const mountToc = (plugins: EditorPluginEntry[]): HTMLElement =>
@@ -36,6 +36,10 @@ describe('tocPlugin depth through the per-instance options channel', () => {
 
 		expect(entryLabels(shallow)).toEqual(['One']);
 		expect(entryLabels(deep)).toEqual(['One', 'Two', 'Three']);
+	});
+
+	it('a bare install with no factory argument lists every level', () => {
+		expect(entryLabels(mountToc([tocPlugin()]))).toEqual(['One', 'Two', 'Three', 'Four']);
 	});
 
 	it('a bare install still takes the factory argument', () => {

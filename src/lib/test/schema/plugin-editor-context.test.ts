@@ -13,44 +13,11 @@ import { createDecorationEngine } from '$lib/decorations/decoration-state.svelte
 import type { DecorationRegistry } from '$lib/decorations/types';
 import type { EditorRects } from '$lib/editor-rects';
 import type { InlineMenuRegistry } from '$lib/inline-menu/types';
-import type { InsertMarkdownOptions } from '$lib/editor-props';
+import { noopInlineMenus, noopRects, pluginContextDeps } from '../support/plugin-context-deps';
 
-const fakeEvents = { on: () => () => {} } as never;
-const noopDecorations: DecorationRegistry = {
-	addSource: () => ({ invalidate() {}, dispose() {} })
-};
-const noopRects: EditorRects = {
-	blockRect: () => null,
-	rangeRects: () => [],
-	caretRect: () => null,
-	reveal: async () => false,
-	scrollTo: async () => false,
-	navigateTo: async () => false
-};
-const noopInlineMenus: InlineMenuRegistry = {
-	addSource: () => ({ dispose() {} }),
-	open: () => false,
-	close() {},
-	isOpen: false
-};
 const deps = (doc: { children: unknown[] }) => ({
-	editorId: 'ed-1',
-	getDoc: () => doc as never,
-	events: fakeEvents,
-	optionsFor: (name: string) => (name === 'opts' ? { max: 3 } : undefined),
-	decorations: noopDecorations,
-	rects: noopRects,
-	inlineMenus: noopInlineMenus,
-	getDocumentGeneration: () => 0,
-	getPresentationMode: () => 'source' as const,
-	getTheme: () => 'dark',
-	activation: everyInstalledPlugin as PluginActivation,
-	insertMarkdown: (async () => false) as (
-		md: string,
-		options?: InsertMarkdownOptions
-	) => Promise<boolean>,
-	runCommand: (() => false) as (commandId: string, arg?: unknown) => boolean,
-	computeInlineContent: () => []
+	...pluginContextDeps(doc),
+	optionsFor: (name: string) => (name === 'opts' ? { max: 3 } : undefined)
 });
 
 /** Two installed plugins, each recording the editors its hook attached to. */
@@ -82,7 +49,7 @@ describe('createEditorPluginContexts', () => {
 		const a = ctxs.get('opts')!;
 		expect(a).toBe(ctxs.get('opts'));
 		expect(a.options).toEqual({ max: 3 });
-		expect(ctxs.get('other')!.options).toBeUndefined();
+		expect(ctxs.get('other')!.options).toEqual({});
 		expect(a.editorId).toBe('ed-1');
 	});
 

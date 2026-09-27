@@ -47,7 +47,7 @@ export function hidesDelimitersAtCaret(mode: PresentationMode): boolean {
 }
 
 /** The read-only check every dispatch path keys off. A plain getter type keeps `schema/` and
- *  `selection/` off `editor-keys`; an `undefined` getter means not reading mode. */
-export function isReadingMode(getMode: (() => PresentationMode) | undefined): boolean {
-	return getMode?.() === 'reading';
+ *  `selection/` off `editor-keys`; the getter is required, since only the editor picks the default. */
+export function isReadingMode(getMode: () => PresentationMode): boolean {
+	return getMode() === 'reading';
 }

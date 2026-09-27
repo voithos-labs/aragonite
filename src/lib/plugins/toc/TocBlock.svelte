@@ -8,23 +8,22 @@
 		type EditorRects,
 		type NodeView
 	} from '$lib/plugin';
-	import { collectHeadings, resolveMaxDepth } from './heading-outline';
+	import { collectHeadings, MAX_HEADING_DEPTH } from './heading-outline';
 	import { createNavigationQueue } from './navigation-queue';
+	import type { TocOptions } from './toc-plugin';
 
 	let {
 		node,
 		index,
 		myPath = [],
 		document,
-		rects,
-		maxDepth = 6
+		rects
 	}: {
 		node: NodeView;
 		index: number;
 		myPath?: number[];
 		document?: DocumentView;
 		rects?: EditorRects;
-		maxDepth?: number;
 	} = $props();
 
 	let sourceEl: HTMLDivElement | undefined = $state();
@@ -42,9 +41,9 @@
 		}
 	});
 
-	// Per-editor options win; the `maxDepth` prop is the factory argument, which configures a
-	// plain install and nothing else.
-	const depth = $derived(resolveMaxDepth(leaf.getOptions(), maxDepth));
+	// Undefined only for a block mounted with no editor, as the unit tests mount it.
+	const options = leaf.getOptions() as Required<TocOptions> | undefined;
+	const depth = options?.maxDepth ?? MAX_HEADING_DEPTH;
 
 	// This reads heading bytes through the prop, subscribing to the CST's $state proxy, so an
 	// edit above re-runs it; left uncached so the derived stays reactive.

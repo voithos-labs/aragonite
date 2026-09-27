@@ -316,10 +316,18 @@ export { createDirectiveRebuild } from './editor-actions/plugin/directive-contai
 export { DIRECTIVE_BODY_WRAP } from './core/directive/kinds';
 
 // ── Renderer utilities (pre-freeze) ──────────────────────────────────────────
-// A bounded LRU memo for a renderer's per-source work, sync or async (store the
-// promise). See the plugin guide's renderer recipe.
+// Where an injected renderer is set and cached per theme, with the plugin's own fallback when it's
+// missing or throws; and the bounded LRU memo under it. See the plugin guide's renderer recipe.
 export { createBoundedMemo } from './bounded-memo';
 export type { BoundedMemoOptions } from './bounded-memo';
+export { createRendererSlot, createAsyncRendererSlot, renderSourceFallback } from './renderer-slot';
+export type {
+	RenderContext,
+	RendererSlot,
+	AsyncRendererSlot,
+	RendererSlotSpec,
+	SyncRendererSlotSpec
+} from './renderer-slot';
 
 // ── Recognizer scan index (pre-freeze) ───────────────────────────────────────
 // For a grammar with no early-stop byte: collect candidate positions once per block, then answer
