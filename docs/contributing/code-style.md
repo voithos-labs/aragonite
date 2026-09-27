@@ -121,19 +121,24 @@ Delete on sight:
 
 ### The gate
 
-The budget has teeth. G4.26 in `docs/design/invariants.md` is two source scans in the unit suite. The first fails any comment block over six text lines, or a file header over seven; the slack above the stated budget is for contract prose that needs it. Here's the red line, from a seven-line comment I planted for the occasion:
+The budget has teeth. G4.26 in `docs/design/invariants.md` is two source scans in the unit suite. The first counts every comment block over the budget above, and it knows a header when it sees one: a file's first block, a docblock right above an `export interface` or `export type`, and a docblock on anything a published entry point (`index.ts`, `plugin.ts`, `testing.ts`, `editor-props.ts`, `block-component.ts`) exports, members included, since that's what a consumer hovers in the `.d.ts`. Section dividers don't count as lines.
+
+The code isn't all under budget yet, so each directory's count is pinned to a baseline in `src/lib/test/invariants/lint/comment-budget.test.ts`. A new long comment tips its directory over, and the failure lists every over-budget `path:line` in that directory (yours is in there somewhere, sorry). Fix one and the test fails the other way until you lower that baseline, a one-number edit. Whatever the baseline says, no block goes past six lines, or seven for a header. Here's the red line, from a three-line comment I planted for the occasion:
 
 ```
 $ npx vitest run src/lib/test/invariants/lint/comment-budget.test.ts
- FAIL  src/lib/test/invariants/lint/comment-budget.test.ts > G4.26 comment blocks stay inside the budget > no comment block under src/lib or src/routes runs past its limit
-AssertionError: expected [ { …(4) } ] to deeply equal []
+ FAIL  src/lib/test/invariants/lint/comment-budget.test.ts > G4.26 comment blocks stay inside the budget > no directory holds more over-budget blocks than its baseline
+AssertionError: expected [ { row: 'src/lib', count: …, …(2) } ] to deeply equal []
 + Received
 + [
 +   {
-+     "limit": 6,
-+     "line": 3,
-+     "relPath": "src/lib/zz-probe-comment.ts",
-+     "textLines": 7,
++     "baseline": …,
++     "count": …,
++     "hits": [
++       …
++       "src/lib/zz-probe-comment.ts:4",
++     ],
++     "row": "src/lib",
 +   },
 + ]
 ```

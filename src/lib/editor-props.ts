@@ -117,8 +117,13 @@ export interface EditorInstance {
 	 * a caret at the image's edge its selection came from (its end after a click).
 	 */
 	getSelection(): EditorSelection | null;
-	/** Restore a `getSelection()` snapshot; true once its target scrolled into view. Never throws:
-	 *  an offset clamps in its block's space (cells on a table path); a bad path resolves false. */
+	/**
+	 * Restore a `getSelection()` snapshot. Async because the target is scrolled into view
+	 * first, and true means it got there, not merely that it mounted. Never throws: an
+	 * out-of-range offset clamps in that endpoint's own coordinate space (a table
+	 * endpoint's row-major cell index clamps to the last cell, not a character position),
+	 * and an unresolvable path, or a scroll that never arrives, resolves false.
+	 */
 	setSelection(selection: EditorSelection): Promise<boolean>;
 	/**
 	 * Put the caret at a viewport point exactly as a click there would: the point clamps into the
@@ -146,8 +151,13 @@ export interface EditorInstance {
 	 * would (`heading.cycle` takes the level, 0 for plain text); a handler that takes none ignores it.
 	 */
 	runCommand(commandId: string, arg?: unknown): boolean;
-	/** Whether `runCommand(id)` would reach its handler right now, so a host can grey a button out.
-	 *  True means reachable, not successful (`docs/guide/consumer-guide.md` § Toolbar commands). */
+	/**
+	 * Whether `runCommand(id)` would reach that command's handler right now, so a host can grey a
+	 * toolbar button out instead of hiding it. False wherever dispatch declines before it starts:
+	 * an unknown id, reading mode, a block-local id with nothing focused (a gap caret included,
+	 * where only the global ids stay live), and the link editor while a cross-block range is
+	 * painted. True means reachable, not successful: the handler still decides whether it writes.
+	 */
 	canRunCommand(commandId: string): boolean;
 	/**
 	 * Whether the command's toggle reads on where a keypress would land: the read a toolbar paints

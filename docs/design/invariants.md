@@ -845,7 +845,7 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.23 | Every e2e spec pairs with a requirement file, and vice versa                     | L       |
 | G4.24 | A block's write rule runs in the content write, which maps the caret             | T       |
 | G4.25 | No `import.meta` env read anywhere under `src/lib`                               | L       |
-| G4.26 | Comment budget: block length, no house words in comments or requirements         | L       |
+| G4.26 | Comment budget: block length ratcheted per directory, no house words             | L       |
 | G4.27 | Every `parse` call outside the parser declares its scope                         | L       |
 | G4.28 | A leaf raw write outside the content write names the kind's rule                 | L       |
 | G4.29 | Every file claiming a hardcoded chord is manifested with its chords and keys     | L       |
@@ -1098,10 +1098,15 @@ copies and warns on the token wherever it sits, and it only warns, so a test-tre
 packaging claim unwatched. Library-scoped rather than repo-wide: the reference plugins and the
 consumer example are Vite APPS, where the read is legitimate. `lint/suite-file-rules.test.ts`.
 
-**G4.26 · Comment budget.** Two scans. Length: a file's first comment block (the header) holds at
-most about seven text lines, any other block at most six; the stated budget is 1-2 lines and a
-header of about five, and the slack leaves the finer cut to review. Vocabulary: the repo's private
-words (seam, door, funnel, rung, ceremony, mint, peel, landable, oracle, seat, island, ladder, road,
+**G4.26 · Comment budget.** Two scans. Length: a comment block gets two text lines and a header
+gets five. A header is a file's first block, a docblock right above an `export interface` or
+`export type`, or, in a published entry point (`index.ts`, `plugin.ts`, `testing.ts`,
+`editor-props.ts`, `block-component.ts`), a docblock on an export or one of its members, since
+that's what a consumer hovers in the `.d.ts`. Section dividers don't count as lines. The code
+isn't all there yet, so each directory's count of over-budget blocks is pinned to a baseline that a
+sweep lowers and nothing raises, and a new one fails with every `path:line` in its directory. No
+block anywhere runs past six lines (seven for a header). `lint/comment-lines.ts` reads the blocks
+for both scans and holds the header rule. Vocabulary: the repo's private words (seam, door, funnel, rung, ceremony, mint, peel, landable, oracle, seat, island, ladder, road,
 dialect, sanctioned, owe, husk) appear in no comment (backticked symbol names don't count), and
 the requirement files under `src/lib/e2e/requirements/` hold none in their body text (headings,
 code spans and fenced samples don't count either). Every design and contributing doc is counted
