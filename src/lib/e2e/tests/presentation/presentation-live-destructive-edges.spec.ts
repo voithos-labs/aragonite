@@ -65,9 +65,8 @@ test.describe('live mode: a destructive key at a hidden run takes what the reade
 		await expect(block.locator('strong')).toHaveText('bol', { useInnerText: true });
 	});
 
-	// A chorded delete reports its range on the event, at a caret that is still collapsed, so it
-	// reaches those bytes without going through the caret-edge handler. The browser alone leaves
-	// `Some **big ** text`: a run closing against a space is no run, so both halves paint.
+	// A chorded delete reports its range on the event at a still-collapsed caret, bypassing the
+	// caret-edge handler; the browser alone leaves `Some **big ** text`, where both halves paint.
 	test('a word delete inside a construct takes the run it broke', async ({ page }) => {
 		await clickWordSettled(ep, page, 'brave');
 		await stepTo(ep, page, 'ArrowRight', 16);
@@ -80,9 +79,8 @@ test.describe('live mode: a destructive key at a hidden run takes what the reade
 		await expect(block.locator('strong')).toHaveCount(0);
 	});
 
-	// The browser deletes from where the byte is, not from where the caret started, so the first
-	// content character is destructive one key before the construct's edge: left to the browser
-	// this key gives `Some **old text`, the closing run gone with the character.
+	// The browser deletes from where the byte is, so the first content character is destructive one
+	// key early: left to the browser this key gives `Some **old text`.
 	test('Backspace on the first content character keeps the construct', async ({ page }) => {
 		await clickWordSettled(ep, page, 'bold');
 		await stepTo(ep, page, 'ArrowLeft', 8);
@@ -92,8 +90,8 @@ test.describe('live mode: a destructive key at a hidden run takes what the reade
 		await expect(ep.getBlock(BOLD).locator('strong')).toHaveText('old', { useInnerText: true });
 	});
 
-	// Why the editor handles this key itself: the pair the cut empties is invisible, so leaving it
-	// behind would put bytes in the document the user can neither see nor explain.
+	// The pair the cut empties is invisible, so the editor handles this key rather than leave bytes
+	// the user can neither see nor explain.
 	test('emptying a bold construct drops its delimiters in the same undo entry', async ({
 		page
 	}) => {
@@ -110,7 +108,7 @@ test.describe('live mode: a destructive key at a hidden run takes what the reade
 		await ep.bridge.waitForSourceContains('**b** tail');
 	});
 
-	// `\*` is one character to the reader and two bytes that mean nothing apart.
+	// `\*` is one character on screen and two bytes that mean nothing apart.
 	test('Backspace beside an escape takes both of its bytes', async ({ page }) => {
 		await clickBlockSettled(ep, ESCAPE);
 		await page.keyboard.press('End');
@@ -122,7 +120,7 @@ test.describe('live mode: a destructive key at a hidden run takes what the reade
 	});
 
 	// The first reachable offset is visual column 0, so Backspace there merges the block, and the
-	// escape's first visible glyph must survive it (GH #108 turned it into a forward delete).
+	// escape's first visible glyph must survive it.
 	test('Backspace at the first reachable offset inside a leading escape merges the blocks', async ({
 		page
 	}) => {
@@ -150,9 +148,8 @@ test.describe('live mode: a destructive key at a hidden run takes what the reade
 	});
 });
 
-// Two readings of the same key, and the editor takes whichever one parses back. Deleting the
-// character between two bold words joins them; deleting the one before a nested construct has no
-// reading at all, and leaving that key to the browser destroys both constructs.
+// The editor takes whichever reading of the key parses back: between two bold words it joins them;
+// before a nested construct no reading parses, and the browser's delete would break both.
 test.describe('live mode: the widened cut, and the press with no reading at all', () => {
 	test('deleting the space between two bold words joins them', async ({ page }) => {
 		const ep = await enterMode(page, 'live');

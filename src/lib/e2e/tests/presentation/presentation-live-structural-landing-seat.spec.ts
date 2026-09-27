@@ -46,8 +46,8 @@ test.describe('live mode: a structural landing puts the caret outside the constr
 		ep = await enterLive(page);
 	});
 
-	// The caret ends at the paragraph's end, whose last bytes are a hidden `**`. It was placed
-	// there, not stepped there, so its side is construct-relative (live-mode.md § 4.2).
+	// The caret was placed at the paragraph's end, behind a hidden `**`, not stepped there, so its
+	// side is construct-relative (`docs/design/live-mode.md` § 4.2).
 	test('a byte typed after exiting a fence upward lands past the closing marker', async ({
 		page
 	}) => {

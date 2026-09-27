@@ -133,9 +133,8 @@ test.describe('live mode, extending across a construct-ending block', () => {
 	});
 });
 
-// A table endpoint collapses through the cell, the one arrival in this file that prose caret
-// placement does not reach. Its trap is the block-entry trap one level down: the cell's own
-// opening run.
+// A table endpoint collapses through the cell, which prose caret placement does not reach; its
+// trap is the cell's own opening run.
 const CELL_DOC = [
 	'| h1 | h2 |',
 	'| --- | --- |',
@@ -144,9 +143,8 @@ const CELL_DOC = [
 	'After table'
 ].join('\n');
 
-// Two axes decide this, not one gesture: 'near' and 'far' are positions in step order, so the
-// same key means opposite sides at an opener and at a closer. The whole matrix is pinned rather
-// than one row, because a single row can be right by coincidence.
+// 'near' and 'far' are positions in step order, so the same key means opposite sides at an opener
+// and a closer; the whole matrix is checked, since one row can be right by coincidence.
 const MATRIX_DOC = [
 	'Lead **bold**',
 	'',

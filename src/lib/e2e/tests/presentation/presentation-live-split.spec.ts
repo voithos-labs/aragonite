@@ -147,9 +147,8 @@ test.describe('live mode: a cut at a construct edge hands it over whole', () => 
 	});
 });
 
-// Whitespace at the end of a block paints nothing (a hard break with no line after it), so a cut
-// that would strand it drops it: keeping it makes the pair reload as a different shape, and a
-// byte-literal cut prints the delimiters the user never saw.
+// Whitespace at a block's end paints nothing, so a cut that would strand it drops it: kept, the
+// pair would reload as a different shape.
 test.describe('live mode: a cut that would strand terminal whitespace', () => {
 	const TRAILING = ['~~foo~~  ', '', 'tail'].join('\n');
 
@@ -175,9 +174,8 @@ test.describe('live mode: a cut that would strand terminal whitespace', () => {
 	});
 });
 
-// A construct with no children has no interior a cut can land in (live-mode.md § 4.4): two
-// halves of a URL are not two URLs, so the cut moves to the construct's nearer edge and one
-// half takes it whole, every byte intact.
+// A construct with no children has no interior a cut can land in (`docs/design/live-mode.md` §
+// 4.4), so the cut moves to its nearer edge and one half takes it whole.
 test.describe('live mode: a cut through a childless construct', () => {
 	test('takes the whole autolink into the half the caret was nearer', async ({ page }) => {
 		const ep = await enterPresentationMode(page, 'live', '<https://example.com> tail\n');
@@ -192,9 +190,8 @@ test.describe('live mode: a cut through a childless construct', () => {
 	});
 });
 
-// The split's inverse. Without cleanup at the join the closing and reopening runs end up back to
-// back, `Some **bo****ld** text`, gaining a pair on every repeat, and a split link comes back as
-// two anchors on one destination.
+// The split's inverse: without cleanup at the join the closing and reopening runs meet as
+// `Some **bo****ld** text`, and a split link comes back as two anchors.
 test.describe('live mode: Enter then Backspace round-trips', () => {
 	test('merging the halves back restores the original bytes', async ({ page }) => {
 		const ep = await enterMode(page, 'live');

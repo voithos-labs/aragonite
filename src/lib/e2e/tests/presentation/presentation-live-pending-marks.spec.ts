@@ -28,9 +28,8 @@ const BOLD = 1;
 const PHRASE = 2;
 const AUTOLINK = 3;
 const STRUCK = 4;
-/** Two spaces, so a caret between them has whitespace on either side: the one collapsed position
- *  where a nested pair's outer run can both open and close (`**` before a backtick after a
- *  letter can do neither). */
+/** Two spaces, so a caret between them has whitespace on either side, the one collapsed position
+ *  where a nested pair's outer run can both open and close. */
 const GAP = 5;
 
 const enterLive = (page: Page) => enterPresentationMode(page, 'live', DOC);
@@ -81,8 +80,8 @@ test.describe('live mode: a pended mark rides the next insertion', () => {
 		await ep.bridge.waitForSourceContains('Some **bo**X**ld** text');
 	});
 
-	// The whole reason the byte-pair strategy cannot ship in live: an abandoned toggle would
-	// leave `****` the user can see the effect of but never explain.
+	// An abandoned toggle must leave no bytes: `****` would change the text with nothing on screen to
+	// explain it.
 	test('Mod+B then a click away leaves the bytes untouched', async ({ page }) => {
 		await clickBlockSettled(ep, PLAIN);
 		await page.keyboard.press('End');
@@ -114,10 +113,8 @@ test.describe('live mode: a pended mark rides the next insertion', () => {
 	});
 });
 
-// The two chords no other scenario uses: strikethrough's two-byte run and inline code's
-// backtick, whose delimiters the resolver has to write itself. The nesting rows pin that the
-// order comes from the mark table and not from the chords: the wrong order gives a code span
-// wrapping literal stars, which the resolver would decline and type plain instead.
+// The two chords no other scenario uses. The nesting rows check that the order comes from the mark
+// table: the wrong order wraps literal stars in a code span, which the resolver would decline.
 test.describe('live mode: the marks beyond bold and italic', () => {
 	let ep: EditorPage;
 
@@ -190,10 +187,8 @@ test.describe('live mode: the marks beyond bold and italic', () => {
 	});
 });
 
-// The shape that tempts this resolver into literal stars: a bold phrase, split at the space.
-// `**hello**X** world**` looks right and renders `helloX** world**`, because a closing run
-// before a space is not left-flanking. The resolver re-parses its own candidate and steps
-// outside the construct instead.
+// A bold phrase split at the space: `**hello**X** world**` renders `helloX** world**`, since a
+// closing run before a space is not left-flanking, so the resolver steps outside the construct.
 test.describe('live mode: a removal that would show delimiters steps outside instead', () => {
 	let ep: EditorPage;
 
@@ -219,9 +214,8 @@ test.describe('live mode: a removal that would show delimiters steps outside ins
 	});
 });
 
-// An autolink is one span with no children: there is no point inside it a delimiter can go, and
-// its angle brackets are marker spans the user has never seen. Wrapping inside the URL destroys
-// the link and paints them, so the mark declines and the byte types plain.
+// An autolink is one span with no children, so a mark inside the URL would destroy the link and
+// paint its brackets; the mark declines and the byte types plain.
 test.describe('live mode: a mark inside a URL declines rather than destroy the link', () => {
 	let ep: EditorPage;
 
@@ -303,9 +297,8 @@ test.describe('live mode: a mark is spent once and cleared by any caret move', (
 	});
 });
 
-// Emptying the construct a mark just made unwraps it, so the caret ends up inside nothing. The
-// preview modes keep the empty pair there, and the press hands the mark back so live agrees: the
-// next byte is still italic, and the next chord still turns it off.
+// Emptying the construct a mark just made unwraps it; the preview modes keep the empty pair, and
+// the keypress hands the mark back so live agrees and the next byte is still italic.
 test.describe('live mode: a press that empties a construct hands its mark back', () => {
 	let ep: EditorPage;
 
@@ -387,10 +380,8 @@ test.describe('live mode: an IME commit spends a mark like a keystroke', () => {
 	});
 });
 
-// The dispatcher runs `handlePendingMarks` before `handleCstWidget`, so a plain key beside an
-// atomic widget is taken by the marks handler and the widget handler never sees it. These rows
-// pin what that gives: the rewrite is checked against the render path, so a splice that would
-// change painted text is declined and the widget survives whole on either side of it.
+// The dispatcher runs `handlePendingMarks` before `handleCstWidget`, so these rows check that a
+// splice that would change painted text is declined and the widget survives whole.
 test.describe('live mode: a pending mark beside an inline widget', () => {
 	const WIDGET_DOC = 'see &amp; now\n';
 

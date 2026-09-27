@@ -54,9 +54,8 @@ test.describe('code fences, reading mode collapses the fence lines', () => {
 	});
 });
 
-// An all-blank body has no line the closer can take a separator from, because every line is
-// content. Its reading-mode box must be as tall as a content body with the same line count:
-// N blank lines render as N blank lines, not N-1.
+// An all-blank body has no content line the closer can take a separator from, so its reading-mode
+// box must be as tall as a content body with the same line count.
 test.describe('code fences: an all-blank body keeps its blank lines in reading mode', () => {
 	// Block 0: two content lines. Block 1: two blank body lines. Same fence count.
 	const DOC_BLANK = ['```', 'x', 'y', '```', '', '```', '', '', '```', '', 'end'].join('\n');

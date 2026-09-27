@@ -118,9 +118,8 @@ test.describe('preview-block: caret + traversal', () => {
 
 		const sel = await ep.bridge.getSelectionPaths();
 		expect(sel?.focus.path).toEqual([1]);
-		// "beta" is raw 8..12; the hidden `**` (raw 6..8) is counted, so the caret sits inside the
-		// content rather than on or before the marker, which would read ~8 as an offset over
-		// visible text alone. The focused block shows its markers.
+		// "beta" is raw 8..12 and the hidden `**` (raw 6..8) is counted, so the caret sits inside the
+		// content, not at ~8 as an offset over visible text alone would read.
 		expect(sel?.focus.offset).toBeGreaterThanOrEqual(8);
 		expect(sel?.focus.offset).toBeLessThanOrEqual(12);
 		await expect(ep.getBlock(1).locator('.md-marker').first()).toBeVisible();

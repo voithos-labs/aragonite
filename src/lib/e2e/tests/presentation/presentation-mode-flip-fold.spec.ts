@@ -4,8 +4,7 @@ import { capturedErrors } from '../plugins/helpers';
 import { MathRevealPage } from '../plugins/latex-reveal-helpers';
 
 // A mode change counts as a blur, so a block showing its source collapses through the same one
-// place on every switch, early enough that the mode's render key has not yet rebuilt the block
-// out from under the edit that block was holding (E-F4).
+// place on every switch, before the mode's render key rebuilds the block out from under its edit.
 // Requirements: e2e/requirements/presentation/presentation-mode-flip-fold.md.
 
 const DOC = 'above\n\n$x^2$\n';

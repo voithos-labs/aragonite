@@ -2,7 +2,7 @@ import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import { pointAtRaw } from '../../text-runs';
 
-// A press in a preview mode anchors on the character it was aimed at, and the focused block's
+// A mouse press in a preview mode anchors on the character it was aimed at, and the focused block's
 // markers show once the button comes up.
 // Requirements: e2e/requirements/presentation/preview-press-reveal.md.
 
@@ -13,8 +13,8 @@ const PARA_WORDS = 14;
 const FENCE = '.md-fence-line';
 const BOLD = '.md-marker';
 
-/** Press at raw `offset` of the block at `path`, drag right along the line, release, and read
- *  the selection. The aim point is measured before the press, in the layout the user saw. */
+/** Presses at raw `offset` of the block at `path`, drags right, releases, and reads the selection;
+ *  the aim point is measured before the press, in the layout the user saw. */
 async function dragFrom(editor: EditorPage, path: number[], offset: number) {
 	const page = editor.page;
 	const start = await pointAtRaw(page, path, offset);

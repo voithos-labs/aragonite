@@ -18,10 +18,8 @@ const DOC = [
 ].join('\n');
 
 /**
- * `defaultPrevented` read on a document listener in the bubble phase, after every editor handler
- * has run. `false` means the keypress reached the browser's own Mod+K behaviour (Chrome's
- * omnibox, and on macOS the contenteditable kill-to-end-of-line that `Mod` maps to) on a chord
- * `reservedChords()` reports as consumed.
+ * `defaultPrevented` read on a document listener after every editor handler has run: `false`
+ * means the browser's own Mod+K ran on a chord `reservedChords()` reports as consumed.
  */
 async function modKConsumed(ep: EditorPage, page: Page): Promise<boolean | null> {
 	await page.evaluate(() => {
@@ -35,8 +33,8 @@ async function modKConsumed(ep: EditorPage, page: Page): Promise<boolean | null>
 		}
 		probe.__modK.consumed = null;
 	});
-	// One of the four places this check presses from is the card's own URL field, outside every
-	// editable element, so there is no keydown result to wait on.
+	// One of the four starting points is the card's own URL field, outside every editable element,
+	// so there is no keydown result to wait on.
 	await page.keyboard.press('ControlOrMeta+k');
 	await ep.waitForRenderFlush();
 	return page.evaluate(
