@@ -10,7 +10,7 @@ import { isBlockNode, nodeAt } from '../../../tree-operations/node-primitives';
 import { pathsEqual } from '../../../selection/path-math';
 import { cellIndexOf } from '../../../selection/primitives';
 import { countsCells } from '../../../selection/table-endpoint-snap';
-import { cellRowCol } from '../../../cursor/coordinate-spaces';
+import { cellRectBounds } from '../../../cursor/coordinate-spaces';
 import { copyRectangleAsSubTable } from '../../../tree-operations/sub-table-copy';
 import { rectangleGrid } from '../../../tree-operations/table-grid-clipboard';
 
@@ -42,23 +42,20 @@ export function intraTableRect(selection: SelectionState): IntraTableRect | null
 
 /** The GFM sub-table for the current selection, or null when it isn't a rectangle. */
 export function intraTableRectPayload(deps: CellClipboardDeps): string | null {
-	const rect = intraTableRect(deps.selection);
-	if (!rect) return null;
-
-	const tableNode = nodeAt(deps.getDoc(), rect.tablePath);
-	if (!tableNode || !countsCells(tableNode)) return null;
-
-	const colCount = metadataOf(tableNode, 'table').columnCount;
-	const a = cellRowCol(rect.anchorCellIdx, colCount);
-	const b = cellRowCol(rect.focusCellIdx, colCount);
+	const bounds = intraTableRectBounds(deps);
+	if (!bounds) return null;
+	const tableNode = nodeAt(deps.getDoc(), bounds.tablePath);
+	if (!tableNode || !isBlockNode(tableNode)) return null;
+	const { top, left, rows, cols } = bounds;
 	return copyRectangleAsSubTable(
 		tableNode,
-		{ rowIdx: a.row, colIdx: a.col },
-		{ rowIdx: b.row, colIdx: b.col }
+		{ rowIdx: top, colIdx: left },
+		{ rowIdx: top + rows - 1, colIdx: left + cols - 1 }
 	);
 }
 
-/** The rectangle's bounds in row/column terms, or null when the selection isn't one. */
+/** The rectangle's bounds in row/column terms, or null when the selection isn't one. The one
+ *  place a live rectangle becomes rows and columns; the payload and the grid read it here. */
 export function intraTableRectBounds(
 	deps: CellClipboardDeps
 ): { tablePath: number[]; top: number; left: number; rows: number; cols: number } | null {
@@ -67,16 +64,9 @@ export function intraTableRectBounds(
 	const tableNode = nodeAt(deps.getDoc(), rect.tablePath);
 	if (!tableNode || !countsCells(tableNode)) return null;
 	const colCount = metadataOf(tableNode, 'table').columnCount;
-	const a = cellRowCol(rect.anchorCellIdx, colCount);
-	const b = cellRowCol(rect.focusCellIdx, colCount);
-	const top = Math.min(a.row, b.row);
-	const left = Math.min(a.col, b.col);
 	return {
 		tablePath: rect.tablePath,
-		top,
-		left,
-		rows: Math.max(a.row, b.row) - top + 1,
-		cols: Math.max(a.col, b.col) - left + 1
+		...cellRectBounds(rect.anchorCellIdx, rect.focusCellIdx, colCount)
 	};
 }
 

@@ -25,6 +25,7 @@ import {
 } from '../keyboard-extend';
 import { pathsEqual } from '../path-math';
 import { intraTableRectExtension } from '../table-rect-extend';
+import { cellPoint } from '../primitives';
 import { applySurfaceContentRange } from '../native-bridge';
 
 // ── Public API ─────────────────────────────────────────────────────────────
@@ -165,11 +166,7 @@ async function handleCrossBlockActive(
 		if (ext) {
 			e.preventDefault();
 			if (ext.kind === 'cell') {
-				selection.extendFocus({
-					path: selection.focus!.path.slice(),
-					offset: ext.offset,
-					cellCoordinate: true
-				});
+				selection.extendFocus(cellPoint(selection.focus!.path, ext.offset));
 			} else if (ext.direction === 'forward') {
 				extendFocusToNextBlock(
 					selection,

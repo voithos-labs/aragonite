@@ -89,6 +89,29 @@ export function cellRowCol(cellIdx: number, colCount: number): { row: number; co
 	return { row, col: cellIdx - row * colCount };
 }
 
+/** Grid coordinates to the row-major cell index {@link cellRowCol} decodes. */
+export function cellIndexAt(row: number, col: number, colCount: number): CellIndex {
+	return asCellIndex(row * colCount + col);
+}
+
+/** The rectangle two cells span as its corners, in either order: top-left plus its size. */
+export function cellRectBounds(
+	cornerA: number,
+	cornerB: number,
+	colCount: number
+): { top: number; left: number; rows: number; cols: number } {
+	const a = cellRowCol(cornerA, colCount);
+	const b = cellRowCol(cornerB, colCount);
+	const top = Math.min(a.row, b.row);
+	const left = Math.min(a.col, b.col);
+	return {
+		top,
+		left,
+		rows: Math.max(a.row, b.row) - top + 1,
+		cols: Math.max(a.col, b.col) - left + 1
+	};
+}
+
 // ── DocPath composition (document-absolute path helpers, in a dependency-free module) ──
 //
 // Here so `tree-operations/` can compose paths without importing `selection/`; the casts are

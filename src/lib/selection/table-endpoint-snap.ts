@@ -9,8 +9,8 @@ import type { DocumentView, NodeView } from '../core/node-views';
 import { metadataOf } from '../core/nodes';
 import { isBlockNode, nodeAt } from '../tree-operations/node-primitives';
 import type { CellSelectionPoint, SelectionPoint } from './primitives';
-import { cellIndexOf } from './primitives';
-import { asCellIndex, cellRowCol } from '../cursor/coordinate-spaces';
+import { cellIndexOf, cellPoint } from './primitives';
+import { asCellIndex, cellIndexAt, cellRowCol } from '../cursor/coordinate-spaces';
 import { comparePaths, pathHasPrefix } from './path-math';
 import { devWarn } from '../dev-warn';
 
@@ -41,15 +41,9 @@ export function normalizeTableEndpoint(
 		const node = nodeAt(doc, tablePath);
 		if (!node || !countsCells(node)) continue;
 		// On the table's own path the offset is already the cell index.
-		const cellIdx =
-			d === path.length - 1
-				? offset
-				: path[d + 1] * metadataOf(node, 'table').columnCount + (path[d + 2] ?? 0);
-		return {
-			path: tablePath,
-			offset: asCellIndex(cellIdx),
-			cellCoordinate: true
-		} satisfies CellSelectionPoint;
+		if (d === path.length - 1) return cellPoint(tablePath, offset);
+		const colCount = metadataOf(node, 'table').columnCount;
+		return cellPoint(tablePath, cellIndexAt(path[d + 1], path[d + 2] ?? 0, colCount));
 	}
 	return { path: path.slice(), offset };
 }
@@ -63,7 +57,7 @@ export function wholeTableEndpoint(
 	const node = nodeAt(doc, path);
 	if (!node || !countsCells(node)) return null;
 	const offset = side === 'end' ? Math.max(tableCellCount(node) - 1, 0) : 0;
-	return { path: path.slice(), offset, cellCoordinate: true };
+	return cellPoint(path, offset);
 }
 
 /**
@@ -102,7 +96,7 @@ export function gridEndpointCellIndex(
 	// On the grid's own path an unflagged offset counts characters, which address no cell.
 	if (point.path.length === gridPath.length) return point.cellCoordinate ? point.offset : null;
 	const [row, col = 0] = point.path.slice(gridPath.length);
-	return row * gridColumnCount(grid) + col;
+	return cellIndexAt(row, col, gridColumnCount(grid));
 }
 
 /**
@@ -189,7 +183,7 @@ function snapEndpoint(
 	const colCount = metadataOf(node, 'table').columnCount;
 	const cellIdx = cellIndexOf(point, 'snapCrossBlockTableEndpoints');
 	const { row } = cellRowCol(cellIdx, colCount);
-	const snappedOffset = side === 'start' ? row * colCount : row * colCount + colCount - 1;
+	const snappedOffset = cellIndexAt(row, side === 'start' ? 0 : colCount - 1, colCount);
 	if (snappedOffset === cellIdx) return point;
-	return { ...point, offset: snappedOffset } satisfies CellSelectionPoint;
+	return cellPoint(point.path, snappedOffset);
 }

@@ -8,7 +8,7 @@ import type { DocumentView, NodeView } from '../core/node-views';
 import { cloneMetadata } from '../tree-operations/clone';
 import { isBlockNode, nodeAt } from '../tree-operations/node-primitives';
 import { walkBetween, normalize, charOffsetOf, cellIndexOf } from './primitives';
-import { snapCrossBlockTableEndpoints } from './table-endpoint-snap';
+import { snapCrossBlockTableEndpoints, tableCellCount } from './table-endpoint-snap';
 import { isStrictAncestorOf, pathHasPrefix, pathsEqual, sharedPrefixLength } from './path-math';
 import { cellRowCol } from '../cursor/coordinate-spaces';
 import {
@@ -65,8 +65,7 @@ export function collectCrossBlockText(
 	let startTail = '';
 	if (start.cellCoordinate && isBlockNode(startNode)) {
 		const tableNode = startNode;
-		const colCount = metadataOf(tableNode, 'table').columnCount;
-		const allCellsCount = tableNode.children!.length * colCount;
+		const allCellsCount = tableCellCount(tableNode);
 		startTail = emitTablePortion(
 			tableNode,
 			cellIndexOf(start, 'collectCrossBlockText:startTable'),
@@ -186,8 +185,7 @@ function emitTablePortion(
 ): string {
 	if (startCellIdx >= endCellIdxExclusive) return '';
 	const colCount = metadataOf(table, 'table').columnCount;
-	const allCellsCount = table.children!.length * colCount;
-	if (startCellIdx === 0 && endCellIdxExclusive === allCellsCount) {
+	if (startCellIdx === 0 && endCellIdxExclusive === tableCellCount(table)) {
 		return table.raw;
 	}
 	const startRow = cellRowCol(startCellIdx, colCount).row;

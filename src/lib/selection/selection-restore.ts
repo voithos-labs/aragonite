@@ -9,7 +9,7 @@
 import type { DocumentView } from '../core/node-views';
 import { isBlockNode, nodeAt } from '../tree-operations/node-primitives';
 import type { BlockElLookup } from '../editor-keys';
-import type { EditorSelection, SelectionPoint } from './primitives';
+import { cellPoint, type EditorSelection, type SelectionPoint } from './primitives';
 import { applySelectionToDom } from './native-bridge';
 import { placeGapCaret } from './caret-doors';
 import { gapScopeChildren, type GapCaretPosition } from './gap-caret';
@@ -100,6 +100,6 @@ export function resolveSelectionPoint(
 
 	// Path copied so a restored endpoint never aliases the caller's snapshot.
 	return cells || point.cellCoordinate
-		? { path: point.path.slice(), offset, cellCoordinate: true }
+		? cellPoint(point.path, offset)
 		: { path: point.path.slice(), offset };
 }

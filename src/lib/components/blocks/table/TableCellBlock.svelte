@@ -48,7 +48,7 @@
 		screenVisibilityOf,
 		rawSelectionFocus
 	} from '../../../cursor/widget-offset';
-	import { asRawOffset, type RawOffset } from '../../../cursor/coordinate-spaces';
+	import { asRawOffset, cellIndexAt, type RawOffset } from '../../../cursor/coordinate-spaces';
 	import { createSurfaceBackend } from '../../../cursor/surface-backend';
 	import { getCurrentCursorEditorRelativeX } from '../../../cursor/sticky-measure';
 	import { handleSharedKeydown, handleSharedBeforeInput } from '../../../selection/shared-keydown';
@@ -75,7 +75,7 @@
 		intraTableRectBounds,
 		intraTableRectGrid
 	} from './cell-clipboard';
-	import type { CellSelectionPoint } from '../../../selection/primitives';
+	import { cellPoint } from '../../../selection/primitives';
 	import type { ClipboardAction } from './table-menu-model';
 	import {
 		installCellDragListener,
@@ -695,22 +695,17 @@
 		if (!atEdge) return false;
 
 		const tablePath = myPath.slice(0, -2);
-		const currentIdx = rowIdx * columnCount + colIdx;
-		const anchor = {
-			path: tablePath,
-			offset: currentIdx,
-			cellCoordinate: true
-		} satisfies CellSelectionPoint;
+		const anchor = cellPoint(tablePath, cellIndexAt(rowIdx, colIdx, columnCount));
 		const ext = intraTableRectExtension(getDoc(), anchor, anchor, key);
 		if (!ext) return false;
 
 		if (ext.kind === 'cell') {
-			selection.enterCrossBlock(anchor, { ...anchor, path: tablePath.slice(), offset: ext.offset });
+			selection.enterCrossBlock(anchor, cellPoint(tablePath, ext.offset));
 			return true;
 		}
 		// Recorded before the block-level extend answers, so a refusal (no block past the table)
 		// takes it back: left behind, the next Backspace would delete a whole cell through it.
-		selection.enterCrossBlock(anchor, { ...anchor, path: tablePath.slice() });
+		selection.enterCrossBlock(anchor, cellPoint(tablePath, anchor.offset));
 		const extended =
 			ext.direction === 'forward'
 				? extendFocusToNextBlock(selection, getDoc(), grammar, el, ext.fromCellPath, 'vertical')

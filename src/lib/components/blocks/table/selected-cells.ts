@@ -5,7 +5,7 @@
  */
 
 import { SELECTION_END } from '../../../block-component';
-import { cellRowCol } from '../../../cursor/coordinate-spaces';
+import { cellRectBounds, cellRowCol } from '../../../cursor/coordinate-spaces';
 import { pathsEqual } from '../../../selection/path-math';
 import type { IntraTableRect } from './cell-clipboard';
 import type { CellCoord } from './table-navigation';
@@ -36,13 +36,14 @@ export function selectedCells(input: SelectedCellsInput): CellCoord[] {
 }
 
 function rectangleCells(rect: IntraTableRect, columnCount: number): CellCoord[] {
-	const a = coordOf(rect.anchorCellIdx, columnCount);
-	const b = coordOf(rect.focusCellIdx, columnCount);
+	const { top, left, rows, cols } = cellRectBounds(
+		rect.anchorCellIdx,
+		rect.focusCellIdx,
+		columnCount
+	);
 	const cells: CellCoord[] = [];
-	for (let r = Math.min(a.rowIdx, b.rowIdx); r <= Math.max(a.rowIdx, b.rowIdx); r++) {
-		for (let c = Math.min(a.colIdx, b.colIdx); c <= Math.max(a.colIdx, b.colIdx); c++) {
-			cells.push({ rowIdx: r, colIdx: c });
-		}
+	for (let r = top; r < top + rows; r++) {
+		for (let c = left; c < left + cols; c++) cells.push({ rowIdx: r, colIdx: c });
 	}
 	return cells;
 }

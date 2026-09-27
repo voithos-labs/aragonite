@@ -4,7 +4,7 @@
  * conversion goes through `cursor/widget-offset.ts`.
  */
 
-import type { SelectionPoint, EditorSelection } from './primitives';
+import { cellPoint, type SelectionPoint, type EditorSelection } from './primitives';
 import type { SelectionState } from './selection-state.svelte';
 import type { BlockComponent } from '../block-component';
 import {
@@ -161,7 +161,7 @@ function nativeRangeInFocusedBlock(path: number[]): EditorSelection | null {
 // collapse into the cell; the two branches keep the union variant intact through undo.
 function copySelectionPoint(point: SelectionPoint): SelectionPoint {
 	if (point.cellCoordinate) {
-		return { path: point.path.slice(), offset: point.offset, cellCoordinate: true };
+		return cellPoint(point.path, point.offset);
 	}
 	return { path: point.path.slice(), offset: point.offset };
 }

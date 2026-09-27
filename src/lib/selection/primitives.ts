@@ -80,6 +80,11 @@ export interface CaretPosition {
 	readonly offset: number;
 }
 
+/** A cell endpoint: the grid's path, a row-major cell index, and the flag saying so. */
+export function cellPoint(path: readonly number[], cellIdx: number): CellSelectionPoint {
+	return { path: path.slice(), offset: cellIdx, cellCoordinate: true };
+}
+
 export function isWholeBlockEndpoint(endpoint: SelectionEndpoint): endpoint is WholeBlockEndpoint {
 	return 'wholeBlock' in endpoint;
 }

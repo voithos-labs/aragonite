@@ -14,7 +14,7 @@ import type { SelectionPoint } from './primitives';
 import type { RangeDeleteResult } from './range-delete';
 import type { SharingState } from '../tree-operations/sharing';
 import { displayLength, documentLineEnding } from '../core/lines';
-import { cellRowCol } from '../cursor/coordinate-spaces';
+import { cellRectBounds, cellRowCol } from '../cursor/coordinate-spaces';
 import { cellIndexOf } from './primitives';
 import {
 	resolveEndWall,
@@ -123,18 +123,11 @@ function deleteWithinTable(
 }
 
 function clearRectangularCells(table: CstNode, anchorCellIdx: number, focusCellIdx: number): void {
-	const meta = metadataOf(table, 'table');
-	const cellsPerRow = meta.columnCount;
-	const { row: aRow, col: aCol } = cellRowCol(anchorCellIdx, cellsPerRow);
-	const { row: fRow, col: fCol } = cellRowCol(focusCellIdx, cellsPerRow);
-	const minRow = Math.min(aRow, fRow);
-	const maxRow = Math.max(aRow, fRow);
-	const minCol = Math.min(aCol, fCol);
-	const maxCol = Math.max(aCol, fCol);
-	const rows = table.children!;
-	for (let r = minRow; r <= maxRow; r++) {
-		const row = rows[r];
-		for (let c = minCol; c <= maxCol; c++) {
+	const colCount = metadataOf(table, 'table').columnCount;
+	const { top, left, rows, cols } = cellRectBounds(anchorCellIdx, focusCellIdx, colCount);
+	for (let r = top; r < top + rows; r++) {
+		const row = table.children![r];
+		for (let c = left; c < left + cols; c++) {
 			row.children![c].raw = '';
 		}
 		rebuildTableRowRaw(row);

@@ -9,7 +9,7 @@ import type { DocumentView } from '../core/node-views';
 import { metadataOf } from '../core/nodes';
 import { nodeAt } from '../tree-operations/node-primitives';
 import { countsCells } from './table-endpoint-snap';
-import { cellRowCol } from '../cursor/coordinate-spaces';
+import { cellIndexAt, cellRowCol } from '../cursor/coordinate-spaces';
 import { cellIndexOf, type SelectionPoint } from './primitives';
 import { pathsEqual } from './path-math';
 
@@ -41,11 +41,15 @@ export function intraTableRectExtension(
 
 	const path = focus.path;
 	const { row, col } = cellRowCol(cellIndexOf(focus, 'intraTableRectExtension'), colCount);
+	const at = (r: number, c: number): TableRectExtension => ({
+		kind: 'cell',
+		offset: cellIndexAt(r, c, colCount)
+	});
 
 	switch (key) {
 		case 'ArrowDown':
 			return row < rowCount - 1
-				? { kind: 'cell', offset: (row + 1) * colCount + col }
+				? at(row + 1, col)
 				: {
 						kind: 'exit',
 						direction: 'forward',
@@ -53,11 +57,11 @@ export function intraTableRectExtension(
 					};
 		case 'ArrowUp':
 			return row > 0
-				? { kind: 'cell', offset: (row - 1) * colCount + col }
+				? at(row - 1, col)
 				: { kind: 'exit', direction: 'backward', fromCellPath: [...path, 0, 0] };
 		case 'ArrowRight':
-			return { kind: 'cell', offset: row * colCount + Math.min(col + 1, colCount - 1) };
+			return at(row, Math.min(col + 1, colCount - 1));
 		case 'ArrowLeft':
-			return { kind: 'cell', offset: row * colCount + Math.max(col - 1, 0) };
+			return at(row, Math.max(col - 1, 0));
 	}
 }

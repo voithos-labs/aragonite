@@ -4,6 +4,8 @@
 import { describe, it, expect } from 'vitest';
 import {
 	asCellIndex,
+	cellIndexAt,
+	cellRectBounds,
 	cellRowCol,
 	asDomTextOffset,
 	asEditorX,
@@ -126,5 +128,31 @@ describe('cellRowCol', () => {
 
 	it('handles a single-column grid (every index is a new row)', () => {
 		expect(cellRowCol(4, 1)).toEqual({ row: 4, col: 0 });
+	});
+});
+
+describe('cellIndexAt', () => {
+	it('encodes grid coordinates as the row-major index cellRowCol decodes', () => {
+		expect(cellIndexAt(0, 0, 3)).toBe(0);
+		expect(cellIndexAt(1, 0, 3)).toBe(3);
+		expect(cellIndexAt(2, 1, 3)).toBe(7);
+		for (let idx = 0; idx < 12; idx++) {
+			const { row, col } = cellRowCol(idx, 4);
+			expect(cellIndexAt(row, col, 4)).toBe(idx);
+		}
+	});
+});
+
+describe('cellRectBounds', () => {
+	// Corner order is the drag's direction, which must not change the rectangle.
+	it('spans the same rows and columns whichever corner comes first', () => {
+		const expected = { top: 1, left: 0, rows: 2, cols: 2 };
+		expect(cellRectBounds(3, 7, 3)).toEqual(expected);
+		expect(cellRectBounds(7, 3, 3)).toEqual(expected);
+		expect(cellRectBounds(4, 6, 3)).toEqual(expected);
+	});
+
+	it('is one cell for equal corners', () => {
+		expect(cellRectBounds(5, 5, 3)).toEqual({ top: 1, left: 2, rows: 1, cols: 1 });
 	});
 });
