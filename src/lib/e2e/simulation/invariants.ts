@@ -77,8 +77,8 @@ export async function assertNoErrors(ctx: SimContext): Promise<void> {
 }
 
 /**
- * Catches `children` growing without `childIds`, which leaves keyed `{#each}` entries with undefined
- * keys, before a render throws; it throws when no editor registered a document.
+ * Catches `children` growing without `childIds`, which leaves keyed `{#each}` entries with
+ * undefined keys, before a render throws; it throws when no editor registered a document.
  */
 export async function assertContainerParity(ctx: SimContext): Promise<void> {
 	const mismatches = await getContainerParityMismatches(ctx.page);

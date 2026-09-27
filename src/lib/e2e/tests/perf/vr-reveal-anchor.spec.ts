@@ -4,11 +4,9 @@ import { PluginsPage } from '../plugins/helpers';
 import { capturePageErrors } from '../../page-probes';
 
 /**
- * Who holds the scroll position after scrolling to a block
- * (requirements/perf/vr-reveal-anchor.md). Two rules, neither reachable from a spec with a
- * single caller: the held position names the full path to the target, so a nested target is not
- * its container, and an older request cannot release a newer one's hold. What happens after the
- * scroll settles is this file's subject; how the scroll itself is put together is covered by
+ * Who holds the scroll position after scrolling to a block, once the scroll is done. The held
+ * position names the full path to the target, so a nested target is not its container, and an
+ * older request cannot release a newer one's hold. How the scroll itself runs is covered by
  * `plugins/toc-navigation`.
  */
 
@@ -21,8 +19,8 @@ const LATE_IMAGE_SVG =
 	'<svg xmlns="http://www.w3.org/2000/svg" width="600" height="1400">' +
 	'<rect width="100%" height="100%" fill="#4488cc"/></svg>';
 
-/** Hold the image's response until the returned function is called, so it grows in a measure
- *  pass after the scroll has settled rather than during it. */
+/** Holds the image's response until the returned function is called, so it grows in a measure
+ *  pass after the scroll is done rather than during it. */
 async function deferImage(page: Page): Promise<() => void> {
 	let release!: () => void;
 	const gate = new Promise<void>((resolve) => {
@@ -36,9 +34,8 @@ async function deferImage(page: Page): Promise<() => void> {
 }
 
 /**
- * The image sits below the container on purpose: nothing above the viewport moves when it
- * decodes, so the ordinary correction does nothing and any movement at all is the held
- * position re-asserting itself.
+ * The image sits below the container, so nothing above the viewport moves when it decodes and any
+ * movement at all is the held position re-asserting itself.
  */
 function tallContainerDoc(): { md: string; targetPath: number[] } {
 	const quoted = Array.from(
@@ -62,9 +59,8 @@ function tallContainerDoc(): { md: string; targetPath: number[] } {
 }
 
 /**
- * The image sits above the target on purpose: `'nearest'` leaves the target near the bottom of
- * the viewport, so when the image decodes the ordinary correction holds a paragraph above it
- * and pushes the target off the bottom. Only a held position brings it back.
+ * The image sits above the target, which `'nearest'` leaves near the viewport's bottom: the
+ * ordinary correction pushes it off as the image decodes, and only a held position restores it.
  */
 function growthAboveDoc(): { md: string; targetPath: number[] } {
 	const parts = [
@@ -151,9 +147,8 @@ test.describe('reveal anchor: a stale claimant cannot release a fresher pin', ()
 		await editor.loadContent(md);
 		await editor.waitForRenderFlush();
 
-		// Two requests inside one settling window, made in a single task because that window is
-		// shorter than a Playwright click takes; the version driven by real gestures is
-		// `plugins/toc-navigation`. The `'center'` one is the older request.
+		// Two requests within one scroll, in a single task because that window is shorter than a
+		// Playwright click; `plugins/toc-navigation` drives it with real gestures. `'center'` is older.
 		await page.evaluate(() => {
 			const probe = window as unknown as {
 				__test: { rects: { scrollTo(p: number[], o: object): Promise<boolean> } };
@@ -167,12 +162,12 @@ test.describe('reveal anchor: a stale claimant cannot release a fresher pin', ()
 		await expect.poll(() => blockInView(page, targetPath)).toBe(true);
 		await editor.waitForResizeObserverFlush();
 
-		// What the race breaks: the undecoded image keeps the document settling past the point
-		// the navigation returns, so a released hold loses the target by here.
+		// The undecoded image keeps the document shifting past the point the navigation returns, so a
+		// released hold loses the target by here.
 		expect(await blockInView(page, targetPath)).toBe(true);
 
-		// A second rule, not what the race turns on: the hold outlives the settling, so an
-		// image decoding afterwards re-asserts the target rather than shifting it.
+		// The hold outlives the scroll, so an image decoding afterwards re-asserts the target rather
+		// than shifting it.
 		const collapsedHeight = await imageHostHeight(page);
 		releaseImage();
 		await expect.poll(() => imageHostHeight(page)).toBeGreaterThan(collapsedHeight + 400);

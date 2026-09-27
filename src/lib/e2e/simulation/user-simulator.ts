@@ -72,7 +72,7 @@ export async function runSession(page: Page, editor: EditorPage, opts: SessionOp
 		await assertContainsInOrder(ctx, opts.note.landmarks);
 		await recorder?.checkpoint('note-built', 'build');
 
-		// Runs before the detours because it needs an empty redo stack, and each detour ends in an undo.
+		// Runs before the detours, which each end in an undo, because it needs an empty redo stack.
 		if (opts.undoUnwind) {
 			ctx.label = 'undo-unwind';
 			await runFullSessionUndoUnwind(ctx, baseline);

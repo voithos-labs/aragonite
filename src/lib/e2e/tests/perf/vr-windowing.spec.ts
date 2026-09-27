@@ -29,9 +29,8 @@ async function expectMountedBandSpansViewport(page: Page, selector: string): Pro
 	expect(span.bottomGapPx).toBeLessThan(span.viewportHeight * MAX_UNMOUNTED_EDGE_FRACTION);
 }
 
-// Every mounted block host, nested ones included. getDomBlockCount counts only top-level
-// hosts, so for one huge container it would read about 1 whether the container windows or not,
-// which proves nothing.
+// Every mounted block host, nested ones included: getDomBlockCount counts only top-level hosts,
+// which for one huge container reads about 1 either way.
 function allHostCount(page: Page): Promise<number> {
 	return page.evaluate(() => document.querySelectorAll('[data-block-path]').length);
 }
@@ -80,9 +79,8 @@ test('windowing bounds the mounted set on a multi-thousand-block doc', async ({ 
 	expect(pageErrors).toEqual([]);
 });
 
-// The first part of the VR-8 fix. The blank gap itself cannot be produced from a test, since a
-// scroll driven on the main thread mounts the new blocks before paint, so this covers the fix
-// instead: the spacer's placeholder tint, from the editor.css rule and the --vr-spacer-bg token.
+// The spacer's placeholder tint (VR-8), from the editor.css rule and the --vr-spacer-bg token: the
+// blank gap it covers cannot be produced here, since a main-thread scroll mounts before paint.
 test('windowed spacers carry a placeholder background (VR-8 skeleton)', async ({ page }) => {
 	const editor = new EditorPage(page);
 	await editor.goto();
@@ -164,9 +162,8 @@ test('giant single blockquote windows its children (phase 3 spike)', async ({ pa
 	// every spacer comes from inside.
 	expect(await spacerCount(page, '.blockquote-block')).toBeGreaterThan(0);
 
-	// Mounted blocks, top-level and nested, limited by the viewport plus what is kept around it
-	// rather than by the paragraph count. getDomBlockCount leaves out nested blocks, so this
-	// counts every path.
+	// Mounted blocks, top-level and nested, limited by the viewport and its margin rather than by the
+	// paragraph count; getDomBlockCount leaves out nested blocks.
 	expect(await allHostCount(page)).toBeLessThan(150);
 	await expectMountedBandSpansViewport(page, '[data-block-path]');
 

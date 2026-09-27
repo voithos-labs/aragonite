@@ -79,8 +79,8 @@ export const BIOLOGY_NOTE: NoteFixture = {
 		await g.toggleTask([7, 0, 0]);
 		await g.toggleTaskByKeyboard([7, 1, 0]);
 
-		// Live mode's own rules, over the opening paragraph, which holds every construct they need; each
-		// undoes itself, so the note ends as it was.
+		// Live mode's own rules, over the opening paragraph, which holds every construct they need;
+		// each undoes itself, so the note ends as it was.
 		await g.liveToggleFormat(1, 'notes', 'strikethrough');
 		await g.liveEdgeBackspace(1, 'cell division');
 		await g.liveLinkCardEdit('syllabus', 'https://bio.example/next');

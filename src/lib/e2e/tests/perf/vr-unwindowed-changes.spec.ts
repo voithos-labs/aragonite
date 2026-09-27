@@ -22,7 +22,7 @@ const FIVE_ITEMS = '- a\n- b\n- c\n- d\n- e\n';
 const PASTED_PARAGRAPHS = 40;
 const PASTE = Array.from({ length: PASTED_PARAGRAPHS }, (_, i) => `Pasted ${i}`).join('\n\n');
 
-/** Holds on to an element found now, so a later check can tell whether it is the same node. */
+/** Holds on to an element found here, so a later check can tell whether it is the same node. */
 function holdElement(page: Page, name: string, selector: string): Promise<void> {
 	return page.evaluate(
 		({ name, selector }) => {
@@ -85,7 +85,7 @@ test.describe('an edit in an unwindowed document keeps the blocks after it mount
 		expect(await stillMounted(page, '__lastItem', '.list-item-block')).toBe(true);
 	});
 
-	// Forty paragraphs is more than any fixed allowance for growth a slice could grant.
+	// Forty paragraphs is more than any fixed allowance for growth a window could grant.
 	test('a paste of forty paragraphs above the image keeps it', async ({ page }) => {
 		await editor.loadContent(PROSE_THEN_IMAGE);
 		await settleFrames(page);

@@ -167,7 +167,7 @@ export class EditorPage {
 		return this.page.evaluate(() => (window as any).__test.parseConverged() as boolean);
 	}
 
-	// Every harness wait defaults to 5s, the same as expect(): a wait is a ceiling, not a measurement.
+	// Every harness wait defaults to 5s, like expect(): a wait is a ceiling, not a measurement.
 	async waitForCrossBlock(active: boolean): Promise<void> {
 		if (active) {
 			await this.page.waitForSelector('[data-cross-block]', { state: 'attached', timeout: 5000 });
@@ -276,7 +276,7 @@ export class EditorPage {
 		await this.waitForRenderFlush();
 	}
 
-	/** One held drag through `mid` to `end`; two `dragFromTo` calls would release the button between. */
+	/** One held drag through `mid` to `end`; two `dragFromTo` calls would let go in between. */
 	async dragFromToThenTo(
 		startPath: number[],
 		startOffset: number,

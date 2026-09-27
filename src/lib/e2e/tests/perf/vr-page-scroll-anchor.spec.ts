@@ -11,17 +11,16 @@ import {
 import { capturePageErrors } from '../../page-probes';
 
 // Who keeps the user's place when content above them grows late, in a page that does the
-// scrolling. The two answers cannot both apply to one editor, so whether windowing is running
-// decides: while it runs the editor corrects the scroll itself and takes its blocks out of the
-// browser's own anchoring; below the threshold it corrects nothing and stays eligible. Either
-// way the check is the top block in the viewport, before and after an image above it decodes.
+// scrolling. While windowing runs the editor corrects the scroll itself and opts its blocks out of
+// the browser's scroll anchoring; below the threshold it corrects nothing and stays eligible. The
+// check is the top block in the viewport, before and after an image above it decodes.
 
 const IMAGE_BLOCK = 6;
 const DOCUMENT_IMAGE = '.editor .md-image-widget img';
 const OUTER_IMAGE = '[data-testid="outer-image"]';
 
-/** Moves everything that is not the editor out of the viewport: otherwise the page could
- *  anchor on filler and hold the position for a reason the editor had no part in. */
+/** Moves everything but the editor out of the viewport, so the page cannot hold the position by
+ *  anchoring on filler. */
 async function assertOnlyEntryContentInView(page: Page): Promise<void> {
 	const intruders = await page.evaluate(() => {
 		const ids = ['filler-top', 'filler-bottom', 'outer-image'];
@@ -43,8 +42,8 @@ async function scrollPastImageBlock(page: Page): Promise<void> {
 	await scrollPageTo(page, Math.round(imageTop) + 150);
 }
 
-/** Wait for the image at `selector` to get its own size, let the reflow settle, and report
- *  the height it ended up with. */
+/** Waits for the image at `selector` to get its own size and the reflow after it, and reports the
+ *  height it ended up with. */
 async function decodedHeight(page: Page, selector: string): Promise<number> {
 	await page.waitForFunction(
 		(sel) => ((document.querySelector(sel) as HTMLImageElement | null)?.naturalHeight ?? 0) > 0,
@@ -74,9 +73,8 @@ async function assertReaderHeld(page: Page, grow: () => Promise<void>): Promise<
 	expect(Math.abs(after!.top - before!.top)).toBeLessThanOrEqual(1);
 }
 
-// The trade-off in code rather than prose: one declaration, switched on whether windowing is
-// running, is what stops the browser's anchoring and the editor's correction both writing the
-// same scroll position.
+// One declaration, switched on whether windowing runs, stops the browser's anchoring and the
+// editor's correction both writing the same scroll position.
 test('the editor withdraws from host anchor candidacy only while windowing runs', async ({
 	page
 }) => {
@@ -127,9 +125,8 @@ test('a document image decoding in above the fold does not shift an unwindowed r
 	expect(pageErrors).toEqual([]);
 });
 
-// A held scroll-to request re-asserts its target's exact position on every measure pass. Below
-// the threshold the browser is already holding that same position, so the re-assertion is a
-// second writer, the same problem as the correction itself on the one path that outranks it.
+// A held scroll-to request re-asserts its target on every measure pass; below the threshold the
+// browser already holds that position, so the re-assertion would be a second writer.
 test('a held reveal claim does not double-correct against native anchoring', async ({ page }) => {
 	const pageErrors = capturePageErrors(page);
 	await gotoPageScroll(page, UNWINDOWED_ENTRY_BLOCKS);
@@ -153,9 +150,8 @@ test('an image decoding in outside an unwindowed entry does not shift the reader
 	await gotoPageScroll(page, UNWINDOWED_ENTRY_BLOCKS);
 	await scrollPastImageBlock(page);
 
-	// The control: the same growth one box further out, where the page's own wrapper anchors. A
-	// failure here means the page has no scroll anchoring at all, which would fail the case
-	// above for the wrong reason.
+	// The same growth one box further out, where the page's own wrapper anchors: a failure here means
+	// the page has no scroll anchoring at all, failing the case above for the wrong reason.
 	await assertReaderHeld(page, async () => {
 		await page.evaluate(() => (window as any).__pageScroll.loadOuterImage());
 		expect(await decodedHeight(page, OUTER_IMAGE)).toBeCloseTo(300, 0);

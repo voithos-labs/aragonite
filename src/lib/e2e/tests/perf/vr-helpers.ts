@@ -1,17 +1,15 @@
 import { type Page } from '@playwright/test';
 import { EditorPage } from '../../editor-page';
 
-// Shared probes for the windowing specs. The fixtures here are tall enough to pass the editor's
-// height threshold, so scrolling to an unmounted block really happens; `UNWINDOWED_PROSE` is the
-// deliberate exception. Check what should be true: a scroll that fails to land the caret is a
-// bug to report, not a check to loosen.
+// Shared checks for the windowing specs. The fixtures are tall enough to pass the editor's height
+// threshold, so scrolling to an unmounted block really happens; `UNWINDOWED_PROSE` is the
+// exception. A scroll that fails to land the caret is a bug to report, not a check to loosen.
 
 export const FIXTURE_BYTES = 2_000_000;
 
 /**
- * Scrolls but does not window: below the height at which windowing starts, so no measure pass
- * runs after the first. That is what separates the two things writing one scrollTop: with
- * windowing on, the scroll re-asserts every pass and placing again looks like correcting.
+ * Below the windowing threshold, so no measure pass runs after the first: with windowing on, the
+ * scroll re-asserts every pass and re-placing looks like correcting.
  */
 export const UNWINDOWED_PROSE = Array.from(
 	{ length: 60 },
@@ -24,9 +22,8 @@ export function cstBlockCount(page: Page): Promise<number> {
 	return page.evaluate(() => (window as any).__test.getDocument().children.length);
 }
 
-/** The spacers windowing produced, across the document or inside one list. `scope` is the start
- *  of a selector, so `'.table-block >'` counts a grid's own and `'.blockquote-block'` its
- *  descendants' as well: it is how a test says windowing is running in that list. */
+/** `scope` starts a selector, so `'.table-block >'` counts a grid's own spacers and
+ *  `'.blockquote-block'` its descendants' too: how a test says windowing runs in that list. */
 export function spacerCount(page: Page, scope = ''): Promise<number> {
 	return page.evaluate((s) => document.querySelectorAll(`${s} .vr-spacer`.trim()).length, scope);
 }
@@ -45,10 +42,8 @@ export function editorScrollHeight(page: Page): Promise<number> {
 }
 
 /**
- * The nested version of an uneven flat document: one blockquote whose children are full of
- * `<br>`, which the character-count estimate makes about 30 times too short. A blockquote rather
- * than a list, because its paragraphs are block hosts and take part in the corrected measure
- * pass, where list items report through the totals, which are corrected on purpose.
+ * A blockquote of `<br>`-heavy paragraphs the estimate makes about 30 times too short. Its
+ * paragraphs are block hosts in the corrected measure pass; list items report through totals.
  */
 const NESTED_NON_UNIFORM_CHILDREN = 1000;
 export function buildNonUniformBlockquoteDoc(): string {
@@ -72,10 +67,8 @@ export interface ViewportSpan {
 }
 
 /**
- * How far the mounted blocks reach toward each edge of the editor's viewport. Every ceiling on
- * how many are mounted pairs with this: a ceiling alone is met by mounting nothing, so only the
- * reach shows the mounted blocks are a window rather than a gap. How far, not how much area is
- * covered: the margins between blocks are real gaps and would sink a measure of area.
+ * Pairs with every ceiling on mounted blocks, since a ceiling alone is met by mounting nothing.
+ * Reach rather than area, because the margins between blocks are real gaps.
  */
 export function mountedViewportSpan(page: Page, selector: string): Promise<ViewportSpan> {
 	return page.evaluate((sel) => {
@@ -159,8 +152,8 @@ export async function scrollPageTo(page: Page, top: number): Promise<void> {
 	await settleFrames(page);
 }
 
-/** Measured against the window's viewport, unlike `topVisibleHostTop`: when the app scrolls,
- *  the editor's own box starts far above it, so that probe always answers block 0. */
+/** Measured against the window's viewport, unlike `topVisibleHostTop`: when the app scrolls, the
+ *  editor's own box starts far above it, so that one always answers block 0. */
 export function topVisibleBlockInViewport(page: Page): Promise<VisibleHost | null> {
 	return page.evaluate(() => {
 		const hosts = Array.from(
@@ -175,9 +168,8 @@ export function topVisibleBlockInViewport(page: Page): Promise<VisibleHost | nul
 }
 
 /**
- * Steps down to `target` so every block passed over mounts and is measured: a single jump
- * leaves them at their estimates, where losing a measurement cannot be seen. Callers add their
- * own flush at the end.
+ * Steps down so every block passed over mounts and is measured, since a jump leaves them at their
+ * estimates. Callers add their own flush at the end.
  */
 export async function progressiveScrollTo(editor: EditorPage, target: number): Promise<void> {
 	const viewport = await editor.page.evaluate(
@@ -196,9 +188,8 @@ export interface HostChanges {
 	removed: number;
 }
 
-/** Counts every block host added to or removed from the editor from now on, nested ones inside
- *  an added or removed subtree included, and one mounted and torn down within one flush, which
- *  the settled DOM hides. Call the returned function to stop counting and read the totals. */
+/** Counts block hosts added or removed from here on, nested ones and ones torn down within a flush
+ *  included. The returned function stops counting and reads the totals. */
 export async function startCountingHostChanges(page: Page): Promise<() => Promise<HostChanges>> {
 	await page.evaluate(() => {
 		const w = window as any;

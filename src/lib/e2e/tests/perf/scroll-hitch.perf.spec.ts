@@ -138,9 +138,8 @@ test.describe('scroll hitch: a wheel tick in live mode over heavy blocks', () =>
 		await measure(page, editor, 'math-code-diagrams', DOWN_UP);
 	});
 
-	// The showcase as it ships: its own document, every demo plugin and the live-mode toolbars.
-	// Twice: with a caret in the first block, which keeps everything between it and the viewport
-	// mounted, and without one, where the window moves freely.
+	// The showcase as it ships, twice: with a caret in the first block, which keeps everything
+	// between it and the viewport mounted, and without one, where the window moves freely.
 	for (const focused of [true, false]) {
 		test(`the showcase document on the demo route, ${focused ? 'caret parked' : 'no caret'}`, async ({
 			page

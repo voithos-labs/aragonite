@@ -47,9 +47,8 @@ async function settle(page: Page, min: number): Promise<void> {
 
 const p50 = (xs: number[]): number => percentileMs(xs, 50);
 
-/** Block 0's serialized length, which the wait polls: a keystroke inside it reaches this
- *  through the rebuild up to the root, and summing every child would cost more than is
- *  being measured. */
+/** Block 0's serialized length, which the wait polls: a keystroke anywhere reaches it through the
+ *  rebuild up to the root, and summing every child would cost more than is being measured. */
 async function block0Len(page: Page): Promise<number> {
 	return page.evaluate(() => {
 		const c = (window as any).__test.getDocument().children[0];
@@ -112,10 +111,8 @@ async function timedKeystrokes(
 	return harness;
 }
 
-// Block 0 is the only block windowing always keeps mounted. Focusing the last block of a
-// large fixture quietly does nothing, since its host is unmounted, so the keystroke lands on
-// <body> and the wait runs to timeout. A fixture whose first block is a container has to put a
-// prose paragraph in front, so block 0 is editable, as latency-harness.ts does.
+// Block 0 is the only block windowing always keeps mounted, so a container-first fixture puts
+// prose in front; a keystroke aimed at an unmounted host lands on `<body>`.
 async function loadAndFocusBlock0(page: Page, editor: EditorPage, src: string): Promise<void> {
 	await editor.goto();
 	await page.evaluate((c) => (window as any).__test.setSource(c), src);
@@ -400,9 +397,8 @@ test('axisS: steady-state latency vs flat block count', async ({ page }) => {
 });
 
 // ── Axis Load: where the time goes on a slow load ───────────────────────────
-// Tells the two possible causes of a slow flat load apart, mounting every block on the first
-// render or building a tree that costs per block, by comparing mounted blocks against total
-// children and splitting the CDP time into scripting and layout.
+// Tells mounting every block on the first render apart from a tree that costs per block, by
+// comparing mounted blocks with total children and splitting CDP time into scripting and layout.
 test('axisLoad: flat load mounted-count + script/layout split', async ({ page }) => {
 	const editor = new EditorPage(page);
 	const rows: object[] = [];
@@ -460,14 +456,14 @@ test('axisT: first-edit full instrument profile (nested 1MB)', async ({ page }) 
 		snapshotCount: s.snapshotCount,
 		rebuildDepths: s.rebuildDepths
 	});
-	// Re-rendering the whole document reads in the tens of thousands here, so even this
-	// generous limit catches a regression back to that.
+	// Re-rendering the whole document reads in the tens of thousands here, so even this generous
+	// limit catches it.
 	expect(s.blockRenderCount).toBeLessThanOrEqual(50);
 });
 
 // ── Axis I: typing inside a container ───────────────────────────────────────
-// What no other row here can see: every one of them puts a prose block in front and types
-// before the container, so none has ever measured a keystroke from inside one.
+// Every other row here puts a prose block in front and types before the container, so only this
+// one measures a keystroke from inside it.
 
 const INTERIOR_LEAF_PATHS = [
 	[0, 0, 0],

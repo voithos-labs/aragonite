@@ -9,15 +9,13 @@ import {
 } from './vr-helpers';
 import { capturePageErrors } from '../../page-probes';
 
-// VR-2, the scroll correction, once for each list that does it. What tells the two apart is the
-// scrollTop once it has settled, not a block moving mid-flush: the height table, the spacer and
-// the newly mounted blocks all land in one pass before paint, so a block's position reads flat
-// by the time the DOM can be read. Removing `correctAnchor`'s `scrollTop += delta` leaves
-// scrollTop at exactly the jump target.
+// The scroll correction after a deep jump, once for each list that does it (VR-2). The height
+// table, spacer and new blocks land in one pass before paint, so a block's position reads flat and
+// the final scrollTop is the signal: without `correctAnchor`'s `scrollTop += delta` it stays
+// exactly at the jump target.
 
-// Tall paragraphs full of `<br>`, which the character-count estimate makes about 30 times too
-// short, mixed with short ones, so a deep scroll lands in a stretch nothing has measured, which
-// is what VR-2 is about.
+// Tall `<br>` paragraphs, which the character-count estimate makes about 30 times too short, mixed
+// with short ones, so a deep scroll lands in a stretch nothing has measured.
 const NON_UNIFORM_BLOCKS = 1200;
 function buildNonUniformDoc(): string {
 	return (
@@ -82,9 +80,8 @@ test('a deep jump into an unmeasured band holds the viewport via scroll-anchor c
 	expect(pageErrors).toEqual([]);
 });
 
-// The same change as the root case, on a different list. What makes the correction
-// attributable to the nested one: the document has exactly one top-level block, so the root
-// list's anchor is always index 0 and its own correction can never move anything.
+// The same change on a nested list. The document has one top-level block, so the root list's held
+// block is always index 0 and its own correction can never move anything.
 test('a deep jump into a giant blockquote holds the viewport via the nested scope anchor correction (VR-2)', async ({
 	page
 }) => {

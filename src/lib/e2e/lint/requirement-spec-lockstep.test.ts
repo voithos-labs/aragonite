@@ -228,8 +228,8 @@ export interface AllowlistAudit {
 	stale: string[];
 }
 
-/** Audits each entry on its own, since a first-match lookup never reaches a file entry under a
- *  directory entry; only an earlier entry shadows a later one, so the report names one to delete. */
+/** Audits each entry alone, since a first-match lookup never reaches a file entry under a directory
+ *  entry; only an earlier entry shadows a later one, so the report names one to delete. */
 export function auditAllowlist(
 	entries: readonly InflationException[],
 	specs: readonly string[],
