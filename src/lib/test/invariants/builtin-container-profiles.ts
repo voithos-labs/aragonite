@@ -1,14 +1,19 @@
 /**
- * Conformance profiles for the built-in container kinds, fed to the kit in
- * `$lib/testing/container-conformance` and kept out of the package because a plugin author
- * supplies their own (G4.3). `container-conformance.test.ts` holds this map in lockstep with the
- * registry. A cell a grid container's contract makes moot is declared with a reason, never skipped.
+ * Conformance profiles for the built-in container kinds, with drivers for the ops only their own
+ * contexts perform. Test-side because a plugin author supplies their own profile;
+ * `container-conformance.test.ts` holds this map in lockstep with the registry. A cell a grid's
+ * contract makes moot is declared with a reason, never skipped.
  */
 
 import type { BlockKind } from '$lib/core/nodes';
-import type { ContainerConformanceProfile } from '$lib/testing';
+import type { BuiltinContainerProfile } from '$lib/testing/container-conformance';
+import {
+	checkListIndentOneUndo,
+	checkTableColumnOneUndo,
+	checkTableLocalIndexAddressing
+} from './builtin-container-drivers';
 
-type TerminatorCell = NonNullable<ContainerConformanceProfile['terminatorCollision']>;
+type TerminatorCell = BuiltinContainerProfile['terminatorCollision'];
 
 const STRIP_TERMINATOR_EXEMPT: TerminatorCell = {
 	mode: 'exempt',
@@ -22,7 +27,7 @@ const GRID_TERMINATOR_BOUNDARY: TerminatorCell = {
 		'grid containerContract: cells are re-emitted through the pipe/escape writer rather than wrapped between an opener and a terminator, so there is no terminator line to reproduce; cell-level delimiter escaping is covered by the table escaping suite'
 };
 
-export const CONTAINER_PROFILES: Partial<Record<BlockKind, ContainerConformanceProfile>> = {
+export const CONTAINER_PROFILES: Partial<Record<BlockKind, BuiltinContainerProfile>> = {
 	blockquote: {
 		// outer bq > inner bq (local index 1) > [paragraph, paragraph].
 		deepNesting: { source: '> top\n>\n> > inner-a\n> >\n> > inner-b\n', leafPath: [0, 1, 0] },
@@ -56,8 +61,8 @@ export const CONTAINER_PROFILES: Partial<Record<BlockKind, ContainerConformanceP
 		focusSource: '- a\n- b\n',
 		localIndex: { mode: 'assert' },
 		ancestry: { mode: 'assert' },
-		// indentItem / splitItemAtOffset / promoteNestedItem span ≥2 scopes via commitMultiScope.
 		multiScope: { mode: 'assert' },
+		drivers: { multiScope: checkListIndentOneUndo },
 		focusBubble: { mode: 'assert' },
 		terminatorCollision: STRIP_TERMINATOR_EXEMPT
 	},
@@ -91,7 +96,6 @@ export const CONTAINER_PROFILES: Partial<Record<BlockKind, ContainerConformanceP
 			source: '| h1 | h2 |\n| --- | --- |\n| a | b |\n| c | d |\n',
 			leafPath: [0, 2, 1]
 		},
-		// Grid local addressing (rows by index) is asserted via table-context.
 		localIndex: { mode: 'assert' },
 		ancestry: {
 			mode: 'boundary',
@@ -100,8 +104,11 @@ export const CONTAINER_PROFILES: Partial<Record<BlockKind, ContainerConformanceP
 				'in one rebuild, so the innermost-first ordering of a chained ancestry rebuild is moot; ' +
 				'a single rebuild of the table already reflects any descendant cell edit.'
 		},
-		// commitColumnEdit spans the table scope + every row scope.
 		multiScope: { mode: 'assert' },
+		drivers: {
+			gridLocalIndex: checkTableLocalIndexAddressing,
+			multiScope: checkTableColumnOneUndo
+		},
 		focusBubble: {
 			mode: 'boundary',
 			reason:

@@ -8,6 +8,11 @@ import {
 	reversedAncestryLeavesRootStale
 } from '$lib/testing/container-conformance';
 import { CONTAINER_PROFILES } from './builtin-container-profiles';
+import {
+	checkListIndentOneUndo,
+	checkTableColumnOneUndo,
+	checkTableLocalIndexAddressing
+} from './builtin-container-drivers';
 
 // Built-ins only: a plugin container is absent from this process's registry unless its own
 // suite installed it, and opts into the same kit through `runContainerConformance` (see
@@ -35,6 +40,23 @@ describe('G4.3 container conformance: registry coverage', () => {
 
 	it('derives a non-empty container set from the registry', () => {
 		expect(registeredContainerKinds.length).toBeGreaterThan(0);
+	});
+
+	// The kit reaches these ops only through the drivers, so an excuse here would drop their only
+	// coverage without a red.
+	it('the table and list assert their driven cells through their drivers', () => {
+		expect(CONTAINER_PROFILES.table).toMatchObject({
+			localIndex: { mode: 'assert' },
+			multiScope: { mode: 'assert' },
+			drivers: {
+				gridLocalIndex: checkTableLocalIndexAddressing,
+				multiScope: checkTableColumnOneUndo
+			}
+		});
+		expect(CONTAINER_PROFILES.list).toMatchObject({
+			multiScope: { mode: 'assert' },
+			drivers: { multiScope: checkListIndentOneUndo }
+		});
 	});
 
 	// The floor under the matrix: five excused cells is five reviewed reasons and zero coverage.

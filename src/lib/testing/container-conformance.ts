@@ -11,13 +11,11 @@ import { documentLineEnding, splitLines, trailingLineEnding } from '../core/line
 import { parse } from '../core/parser';
 import { createContainerEditActions } from '../editor-actions/container-edit';
 import { createUndoController } from '../editor-actions/commit/undo-controller';
-import { createListContext } from '../editor-actions/list-context';
 import {
 	createStandardNestedActions,
 	type NestedActionsBundle
 } from '../editor-actions/nested/nested-actions';
 import { createNestedFocus } from '../editor-actions/nested/nested-focus';
-import { createTableMutationsContext } from '../editor-actions/table-context';
 import {
 	firstChildUnwrapStrategies,
 	middleChildUnwrapStrategies
@@ -47,7 +45,6 @@ import {
 	assertReasonDocumented,
 	fail,
 	findFirstOfKind,
-	firstChildOfKind,
 	nodeAtPath,
 	pathPassesThroughKind,
 	type ConformanceCoverage
@@ -82,7 +79,7 @@ export interface TerminatorCollisionFixture {
 export interface ContainerConformanceProfile {
 	/** A nesting where this kind is an intermediate ancestor of the doc-rooted `leafPath`. */
 	deepNesting: { source: string; leafPath: number[] };
-	/** Required when `localIndex` asserts (strip/opaque kinds; grid has its own path). */
+	/** Required when `localIndex` asserts on a strip or opaque kind. */
 	localIndexFixture?: LocalIndexFixture;
 	/** Required when `focusBubble` asserts: a source whose tree holds a node of the kind with ≥1 child. */
 	focusSource?: string;
@@ -97,6 +94,12 @@ export interface ContainerConformanceProfile {
 	multiScope: ConformanceCoverage;
 	focusBubble: ConformanceCoverage;
 	terminatorCollision: ConformanceCoverage;
+}
+
+/** The built-in profiles' hooks for the ops only a built-in kind's own context can drive (a table
+ *  column insert, a list indent). Internal: no published API can perform either op. */
+export interface BuiltinContainerProfile extends ContainerConformanceProfile {
+	drivers?: { gridLocalIndex?: () => Promise<void>; multiScope?: () => Promise<void> };
 }
 
 // ── Report ───────────────────────────────────────────────────────────────────
@@ -121,7 +124,7 @@ export interface ContainerConformanceCell {
 	cell: ConformanceCell;
 	/** The profile's declaration for this cell; `declarations` answers unconditionally. */
 	coverage: (profile: ContainerConformanceProfile) => ConformanceCoverage;
-	run: (kind: AnyBlockKind, profile: ContainerConformanceProfile) => void | Promise<void>;
+	run: (kind: AnyBlockKind, profile: BuiltinContainerProfile) => void | Promise<void>;
 }
 
 /** The kit's cells as data, so {@link runContainerConformance} and the built-in sweep run the
@@ -132,14 +135,14 @@ export const CONTAINER_CONFORMANCE_CELLS: readonly ContainerConformanceCell[] = 
 		coverage: (profile) => profile.localIndex,
 		run: (kind, profile) =>
 			getBlockKindDescriptor(kind).containerContract === 'grid'
-				? checkGridLocalIndexAddressing()
+				? driverOf(kind, profile, 'gridLocalIndex', 'a grid op')()
 				: checkStripLocalIndexAddressing(profile)
 	},
 	{ cell: 'ancestry', coverage: (profile) => profile.ancestry, run: checkInnermostFirstAncestry },
 	{
 		cell: 'multiScope',
 		coverage: (profile) => profile.multiScope,
-		run: checkOneUndoPerMultiScope
+		run: (kind, profile) => driverOf(kind, profile, 'multiScope', 'an op spanning two scopes')()
 	},
 	{
 		cell: 'focusBubble',
@@ -223,6 +226,21 @@ export async function runContainerConformance(
 
 // ── (a) local-index addressing ───────────────────────────────────────────────
 
+function driverOf(
+	kind: AnyBlockKind,
+	profile: BuiltinContainerProfile,
+	driver: 'gridLocalIndex' | 'multiScope',
+	op: string
+): () => Promise<void> {
+	const run = profile.drivers?.[driver];
+	if (run) return run;
+	const cell = driver === 'gridLocalIndex' ? 'localIndex' : 'multiScope';
+	fail(
+		`"${kind}" asserts ${cell}, but the kit drives ${op} only for the built-in kinds that own ` +
+			`one, so declare it boundary (or exempt, when the kind owns no such op)`
+	);
+}
+
 /** Asserts the addressed child is the one removed and the emitted path is the chain of local
  *  indices; the fixture avoids chain [0,0] child 0, where local and global indices coincide. */
 export async function checkStripLocalIndexAddressing(
@@ -296,70 +314,6 @@ export async function checkStripLocalIndexAddressing(
 	assertParseConverged(doc, 'doc converges after a local-index op');
 }
 
-/** A table column op addresses cells by (rowIdx, colIdx) and emits the table's own path; the
- *  leading paragraph keeps the table off index 0, so a global index would differ. */
-export async function checkGridLocalIndexAddressing(): Promise<void> {
-	const parsed = parse('lead para\n\n| h1 | h2 |\n| --- | --- |\n| a | b |\n');
-	assertIs(parsed.children[1].kind, 'table', 'table at non-zero doc index');
-	const { ctx, deps, doc, events } = mountTableMutations(parsed.children, 1);
-
-	const seen: EditEvent[] = [];
-	events.on('edit', (e) => seen.push(e));
-
-	// Pinning the new cell's position by content is what proves cells are addressed by
-	// local column index rather than appended at the end.
-	await ctx.insertColumnRight(0);
-
-	const liveTable = deps.doc.children[1];
-	for (const row of liveTable.children!) {
-		const cells = row.children!.map((c) => c.raw);
-		assertIs(cells.length, 3, 'every row gained one cell');
-		assert(cells[0] !== '', 'column 0 unchanged');
-		assertIs(cells[1], '', 'new empty cell landed at the addressed colIdx 1');
-		assert(cells[2] !== '', 'original second cell shifted to colIdx 2');
-	}
-	const editEvent = seen.find((e) => e.op === 'tableInsertColumn');
-	assert(editEvent, 'tableInsertColumn edit event fired');
-	assertIndices(editEvent.path, [1], 'column op emits the table’s own local path');
-
-	// A column op that left the table's raw stale, or a row the delimiter row does not match,
-	// fails here.
-	assertParseConverged(doc, 'doc converges after a grid column op');
-}
-
-/** The table-mutations mount both grid cells share: headless deps, controller, row states, ctx. */
-function mountTableMutations(children: CstNode[], tableIndex: number) {
-	const table = children[tableIndex];
-	const { deps, doc, events } = createHeadlessActions(children);
-	const controller = createUndoController(deps);
-	const rootContainerEdit = createContainerEditActions(deps, controller);
-
-	const rowsState = mountBlockListState(() => table);
-	// commitColumnEdit resolves each row through expectStateForNode, so register them.
-	for (const row of table.children!) mountBlockListState(() => row);
-
-	const ctx = createTableMutationsContext({
-		get node() {
-			return table;
-		},
-		get myPath() {
-			return [tableIndex];
-		},
-		get rowsState() {
-			return rowsState;
-		},
-		get focusedCell() {
-			return { rowIdx: 0, colIdx: 0 };
-		},
-		parentContainerEdit: rootContainerEdit,
-		controller,
-		reading: deps.reading,
-		focusCell: () => {},
-		announceReorder: () => {}
-	});
-	return { ctx, deps, doc, events };
-}
-
 // ── (b) innermost-first ancestry rebuild ─────────────────────────────────────
 
 export function checkInnermostFirstAncestry(
@@ -403,73 +357,6 @@ export function reversedAncestryLeavesRootStale(profile: ContainerConformancePro
 	for (const a of ancestors) rebuildContainerRawIfContainer(a);
 
 	return !root.raw.includes(marker);
-}
-
-// ── (c) one undo entry per multi-scope op ────────────────────────────────────
-
-/**
- * A multi-scope op is kind-specific: it drives through the kind's own context, not a
- * generic bundle, so only the built-ins that own one are dispatched here.
- */
-export async function checkOneUndoPerMultiScope(kind: AnyBlockKind): Promise<void> {
-	if (kind === 'list') return checkListIndentOneUndo();
-	if (kind === 'table') return checkTableColumnOneUndo();
-	fail(
-		`"${kind}" asserts multiScope but the kit drives no multi-scope op for it — ` +
-			`declare the cell exempt if the kind owns no ≥2-scope op`
-	);
-}
-
-async function checkListIndentOneUndo(): Promise<void> {
-	// Indenting item 1 under item 0 spans outer-list + the new nested-list scope.
-	const list = firstChildOfKind('- alpha\n- beta\n', 'list');
-	const { deps } = createHeadlessActions([list]);
-	const controller = createUndoController(deps);
-
-	const listState = mountBlockListState(() => list);
-	// indentItem reaches into prevItem (item 0) through expectStateForNode, so register each item.
-	for (const item of list.children!) mountBlockListState(() => item);
-
-	const ctx = createListContext({
-		scope: {
-			get index() {
-				return 0;
-			},
-			get node() {
-				return list;
-			},
-			get path() {
-				return [0];
-			}
-		},
-		getLineEnding: () => documentLineEnding(deps.doc),
-		state: listState,
-		parentBlockEdit: stubBlockEdit(),
-		parentFocus: recordingFocus(),
-		parentListContext: undefined,
-		controller,
-		reading: deps.reading
-	});
-
-	const before = deps.undoManager.getStacks().undo.length;
-	await ctx.indentItem(1);
-	const after = deps.undoManager.getStacks().undo.length;
-
-	assertIs(after - before, 1, 'list indentItem (multi-scope) pushes exactly ONE undo entry');
-	assertIs(deps.doc.children[0].children!.length, 1, 'item 1 was indented out of the outer list');
-	assertParseConverged(deps.doc, 'doc converges after a multi-scope strip op');
-}
-
-async function checkTableColumnOneUndo(): Promise<void> {
-	const table = firstChildOfKind('| h1 | h2 |\n| --- | --- |\n| a | b |\n| c | d |\n', 'table');
-	const { ctx, deps } = mountTableMutations([table], 0);
-
-	const before = deps.undoManager.getStacks().undo.length;
-	await ctx.insertColumnRight(0);
-	const after = deps.undoManager.getStacks().undo.length;
-
-	assertIs(after - before, 1, 'table insertColumn (multi-scope) pushes exactly ONE undo entry');
-	assertParseConverged(deps.doc, 'doc converges after a multi-scope grid op');
 }
 
 // ── (d) focus-bubble termination at root ─────────────────────────────────────
