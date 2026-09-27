@@ -17,7 +17,7 @@ interface BadgeOptions {
 
 const DEFAULTS: BadgeOptions = { label: 'default', depth: 6, tags: ['a', 'b'] };
 
-// Keeps `label` when it is a string and `depth` when it is 1..6; anything else is left out.
+// Keeps `label` when a string, `depth` when 1..6 and `tags` when an array; anything else is left out.
 function parseBadgeOptions(raw: unknown): Partial<BadgeOptions> {
 	const { label, depth, tags } = (raw ?? {}) as Record<string, unknown>;
 	const parsed: Partial<BadgeOptions> = {};
@@ -73,6 +73,24 @@ describe("a plugin's options in one editor", () => {
 	it('are an empty object for a plugin that declares no defaults', () => {
 		installPlugins([definePlugin({ name: 'badge', setup() {} })]);
 		expect(contextsWith(undefined).get('badge')!.options).toEqual({});
+	});
+
+	// Type-level: `npm run check` fails if the read below compiles. The unit stands alone so its
+	// options type comes from `definePlugin`, not from the array it is passed in.
+	it('type an undeclared field as missing, not as any type, when the plugin declares none', () => {
+		const reads: unknown[] = [];
+		const bare = definePlugin({
+			name: 'badge',
+			setup: (ctx) =>
+				ctx.onEditor((editor) => {
+					// @ts-expect-error: a plugin with no defaults declares no option fields
+					const label: string = editor.options.label;
+					reads.push(label);
+				})
+		});
+		installPlugins([bare]);
+		contextsWith(undefined).attachAll(() => {});
+		expect(reads).toEqual([undefined]);
 	});
 
 	it('fall back to the defaults when parseOptions throws, reported once the error handler attaches', () => {

@@ -85,7 +85,7 @@ let generation = 0;
 
 // ── Public API ───────────────────────────────────────────────────────────────
 
-export function definePlugin<Options extends object = Record<string, never>>(
+export function definePlugin<Options extends object = Record<never, never>>(
 	plugin: EditorPlugin<Options>
 ): EditorPlugin<Options> {
 	if (typeof plugin.setup !== 'function') {

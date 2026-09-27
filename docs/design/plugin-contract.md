@@ -195,7 +195,13 @@ The decided shape is an **imperative `setup(ctx)`** unit; a declarative manifest
 
 **Per-instance options** ride the `plugins` prop's `EditorPluginEntry` element type (`plugin | { plugin, options }`), so two editors sharing one process-global registration can still run different options, the split-pane case. A plugin factory's own argument is right for a process-global dependency (a render engine) and for filling `defaults`, but it can't differ between two instances; anything that does belongs in the prop entry.
 
-The merge happens once per editor and plugin, in one place: `createEditorPluginContexts` builds the plugin's context through `src/lib/schema/plugin-install.ts :: resolvePluginOptions`, which spreads the entry's defined fields over `defaults`. Each field replaces its default whole (arrays are never concatenated, so a host that wants none of a default list passes `[]`), and a bare install reads the defaults, never `undefined`. When the unit declares `parseOptions`, it sees the raw entry first and returns the fields to keep; a field it leaves out keeps its default. A throw from it goes to the editor's `error` event the way a throwing `onEditor` callback does, and that plugin runs on its defaults in that editor, so a bad entry can't take the document down. Contexts are built lazily and a block reads its options while it renders, before the editor attaches its error handler, so a throw that early waits in a queue and is reported when the handler arrives.
+The merge happens once per editor and plugin, when `createEditorPluginContexts` builds that plugin's context, through `src/lib/schema/plugin-install.ts :: resolvePluginOptions`. The rules:
+
+- The entry's defined fields go over `defaults`, each replacing its default whole. Arrays aren't concatenated, so a host that wants none of a default list passes `[]`.
+- A bare install reads the defaults, never `undefined`.
+- `parseOptions`, when the unit has one, sees the raw entry first and returns the fields to keep. A field it leaves out keeps its default.
+- A throw from `parseOptions` goes to the editor's `error` event the way a throwing `onEditor` callback's does, and that plugin runs on its defaults in that editor.
+- A block can read its options while it renders, which is before the editor attaches its error handler. A throw that early waits in a queue until the handler arrives.
 
 Options are read off the owning plugin's `EditorContext`: `options` from `onEditor`, and at the two block tiers the container and leaf factories' `getOptions()`, shorthand for `getEditor()?.options` and typed `unknown`, which is what a mounted component reads without a side map keyed on `editorId`. The bundled toc block is the validating consumer: per-instance `maxDepth`, with the factory argument filling its `defaults`.
 

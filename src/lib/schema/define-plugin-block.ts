@@ -13,7 +13,7 @@ import type { BlockComponentExports, BlockComponentProps } from '../block-compon
 
 export function definePluginBlock<
 	P extends Partial<BlockComponentProps> & Record<string, unknown>,
-	Options extends object = Record<string, never>
+	Options extends object = Record<never, never>
 >(config: {
 	name: string;
 	kind: string;

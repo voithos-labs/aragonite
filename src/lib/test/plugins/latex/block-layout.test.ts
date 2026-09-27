@@ -35,6 +35,10 @@ describe('the layout a math block opens in', () => {
 		expect(await openedLayout([latexPlugin()])).toBe('split');
 	});
 
+	it('is side by side when the factory names a layout that is not one', async () => {
+		expect(await openedLayout([latexPlugin({ blockLayout: 'sideways' as never })])).toBe('split');
+	});
+
 	it("is the factory's on a bare install", async () => {
 		expect(await openedLayout([latexPlugin({ blockLayout: 'source' })])).toBe('source');
 	});
