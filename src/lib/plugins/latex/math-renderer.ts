@@ -30,9 +30,11 @@ export const mathSlot = createRendererSlot<{ source: string; display: boolean },
 	}
 });
 
-/** A formula the renderer rejected: its typed source, with the parser's message on hover. */
+/** A formula the renderer rejected: its typed source in the error color, with the parser's
+ *  message on hover. */
 export function mathErrorNode(source: string, message: string): HTMLElement {
 	const dom = renderSourceFallback(source, message);
 	dom.className = 'math-error';
+	dom.style.color = 'var(--color-error, #d03025)';
 	return dom;
 }

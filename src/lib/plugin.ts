@@ -312,8 +312,8 @@ export { createDirectiveRebuild } from './editor-actions/plugin/directive-contai
 export { DIRECTIVE_BODY_WRAP } from './core/directive/kinds';
 
 // ── Renderer utilities (pre-freeze) ──────────────────────────────────────────
-// Where an injected renderer is set and cached per theme, with the source shown when it's missing
-// or throws; and the bounded LRU memo under it. See the plugin guide's renderer recipe.
+// Where an injected renderer is set and cached per theme, with the plugin's own fallback when it's
+// missing or throws; and the bounded LRU memo under it. See the plugin guide's renderer recipe.
 export { createBoundedMemo } from './bounded-memo';
 export type { BoundedMemoOptions } from './bounded-memo';
 export { createRendererSlot, createAsyncRendererSlot, renderSourceFallback } from './renderer-slot';
@@ -321,7 +321,8 @@ export type {
 	RenderContext,
 	RendererSlot,
 	AsyncRendererSlot,
-	RendererSlotSpec
+	RendererSlotSpec,
+	SyncRendererSlotSpec
 } from './renderer-slot';
 
 // ── Recognizer scan index (pre-freeze) ───────────────────────────────────────

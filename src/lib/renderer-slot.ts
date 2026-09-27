@@ -1,7 +1,7 @@
 /**
  * The one place a plugin's injected renderer (KaTeX, mermaid) is set and cached. The editor's
- * theme is part of every cache key, so a theme switch always redraws, and a missing or throwing
- * renderer comes back as the plugin's own fallback output, never an exception.
+ * theme is part of every cache key, so a render is never reused under another theme, and a
+ * missing or throwing renderer comes back as the plugin's own fallback output, never an exception.
  * `docs/guide/plugin-guide.md` § Recipe: a render-primary block.
  */
 
@@ -14,7 +14,8 @@ export interface RenderContext {
 	readonly theme: string;
 }
 
-/** How a slot keys and replaces a render; the theme is joined to `key(input)` by the slot. */
+/** How a slot keys a render and what it returns instead of one; the slot joins the theme to
+ *  `key(input)` itself. */
 export interface RendererSlotSpec<Input, Output> {
 	key(input: Input): string;
 	/** Shown while no renderer is set; never cached. */
@@ -23,6 +24,13 @@ export interface RendererSlotSpec<Input, Output> {
 	failed(input: Input, error: unknown): Output;
 	/** Maximum cached renders, least recently used evicted first. Defaults to 256. */
 	cap?: number;
+}
+
+/** The synchronous slot's spec; the async slot caches a promise, so it has nothing to copy. */
+export interface SyncRendererSlotSpec<Input, Output> extends RendererSlotSpec<Input, Output> {
+	/** Hands each caller its own copy of a cached value, for output holding a live DOM node,
+	 *  which can only sit in one place. */
+	cloneOnRead?(value: Output): Output;
 }
 
 /** A synchronous renderer's slot: set once from a plugin's setup, read from every render. */
@@ -46,10 +54,8 @@ const DEFAULT_CAP = 256;
 
 // ── Public API ──────────────────────────────────────────────────────────────
 
-/** `cloneOnRead` hands each caller its own copy of a cached value, for output holding a live
- *  DOM node, which can only sit in one place. */
 export function createRendererSlot<Input, Output>(
-	spec: RendererSlotSpec<Input, Output> & { cloneOnRead?(value: Output): Output }
+	spec: SyncRendererSlotSpec<Input, Output>
 ): RendererSlot<Input, Output> {
 	const cache = createSlotCache<(input: Input, ctx: RenderContext) => Output, Output>(
 		spec.cap,
@@ -102,13 +108,12 @@ export function createAsyncRendererSlot<Input, Output>(
 	};
 }
 
-/** The typed source in the code font, red, with `message` on hover: what a view drawn by a
- *  renderer shows in its place. Styled inline, since it can land where no plugin sheet loads. */
+/** The typed source in the code font, with `message` on hover: what a view drawn by a renderer
+ *  shows in its place. Styled inline, since it can land where no plugin sheet loads. */
 export function renderSourceFallback(source: string, message: string): HTMLElement {
 	const span = document.createElement('span');
 	span.textContent = source;
 	span.title = message;
-	span.style.color = 'var(--color-error, #d03025)';
 	span.style.fontFamily = 'var(--font-code, ui-monospace, monospace)';
 	span.style.fontSize = '0.9em';
 	span.style.cursor = 'help';

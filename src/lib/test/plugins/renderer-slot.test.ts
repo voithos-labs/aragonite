@@ -101,6 +101,28 @@ describe('createRendererSlot', () => {
 		expect(renderer).toHaveBeenCalledTimes(4);
 	});
 
+	// Pinned both sides of 256, so an unbounded cache or a smaller one fails.
+	it('keeps 256 renders by default, evicting the least recently used past that', () => {
+		const renderDistinct = (slot: ReturnType<typeof textSlot>, count: number) => {
+			for (let i = 0; i < count; i++) slot.render(`key-${i}`, DARK);
+		};
+		const kept = textSlot();
+		const keptRenderer = vi.fn((source: string) => source);
+		kept.set(keptRenderer);
+		kept.render('first', DARK);
+		renderDistinct(kept, 255);
+		kept.render('first', DARK);
+		expect(keptRenderer).toHaveBeenCalledTimes(256);
+
+		const evicted = textSlot();
+		const evictedRenderer = vi.fn((source: string) => source);
+		evicted.set(evictedRenderer);
+		evicted.render('first', DARK);
+		renderDistinct(evicted, 256);
+		evicted.render('first', DARK);
+		expect(evictedRenderer).toHaveBeenCalledTimes(258);
+	});
+
 	// A cached DOM node can sit in only one place, so each read of it has to be its own copy.
 	it('hands every caller its own copy through cloneOnRead', () => {
 		const slot = createRendererSlot<string, HTMLElement>({
@@ -183,5 +205,13 @@ describe('renderSourceFallback', () => {
 		const el = renderSourceFallback('\\frac{', 'Expected group after \\frac');
 		expect(el.textContent).toBe('\\frac{');
 		expect(el.title).toBe('Expected group after \\frac');
+	});
+
+	// A missing renderer is a legal install, so its fallback reads as code, not as an error.
+	it('draws the source in the code font and no error color', () => {
+		const el = renderSourceFallback('x^2', 'No renderer');
+		expect(el.style.fontFamily).toContain('--font-code');
+		expect(el.style.cursor).toBe('help');
+		expect(el.style.color).toBe('');
 	});
 });

@@ -660,7 +660,7 @@ latexPlugin({ renderer: katexRenderer });
 mermaidPlugin({ renderer: mermaidRenderer });
 ```
 
-Both renderers are optional. Without one, math shows each formula's source in red, and says there's no renderer when you hover it, while a mermaid block shows its fenced source, styled, with a note. Supply the renderer when you want the real thing. The latex adapter imports `katex/dist/katex.min.css` on your behalf (it's the one bundled-plugin module with a side effect); no other setup is needed.
+Both renderers are optional. Without one, math shows each formula's source in the code font, and says there's no renderer when you hover it, while a mermaid block shows its fenced source, styled, with a note. Supply the renderer when you want the real thing. The latex adapter imports `katex/dist/katex.min.css` on your behalf (it's the one bundled-plugin module with a side effect); no other setup is needed.
 
 ## Theming
 

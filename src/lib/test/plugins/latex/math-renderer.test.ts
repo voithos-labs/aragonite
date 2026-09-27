@@ -31,8 +31,7 @@ beforeEach(() => {
 });
 
 describe('the math renderer slot', () => {
-	// A block passing `display: false` would serve inline math for every block, and nothing else
-	// would notice.
+	// The display flag is part of the cache key, so one formula at both sizes is two renders.
 	it('hands the renderer its display flag and the theme', () => {
 		install(echo);
 
@@ -82,7 +81,18 @@ describe('the math renderer slot', () => {
 		const { dom, error } = mathSlot.render({ source: '\\nope', display: false }, DARK);
 		expect(error).toBe('Undefined control sequence');
 		expect(dom.className).toBe('math-error');
+		expect(dom.style.color).toContain('--color-error');
 		expect(dom.textContent).toBe('\\nope');
 		expect(dom.title).toBe('Undefined control sequence');
+	});
+
+	it('shows the source with no error color while no renderer is set', () => {
+		installPlugins([latexPlugin()]);
+
+		const { dom, error } = mathSlot.render({ source: 'x^2', display: false }, DARK);
+		expect(error).toBeUndefined();
+		expect(dom.className).toBe('');
+		expect(dom.style.color).toBe('');
+		expect(dom.textContent).toBe('x^2');
 	});
 });

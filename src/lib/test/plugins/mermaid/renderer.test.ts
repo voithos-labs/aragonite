@@ -28,6 +28,12 @@ describe('the mermaid renderer slot', () => {
 		});
 		expect(renderer).toHaveBeenCalledTimes(2);
 
+		// A second diagram under the same theme is its own render, never the first one's SVG.
+		expect(await mermaidSlot.render('graph LR', { theme: 'dark' })).toEqual({
+			svg: '<svg data-theme="dark">graph LR</svg>'
+		});
+		expect(renderer).toHaveBeenCalledTimes(3);
+
 		// Mermaid renders into a DOM element by id, so two renders sharing one would collide.
 		const [first, second] = renderer.mock.calls.map(([, id]) => id);
 		expect(first).not.toBe(second);

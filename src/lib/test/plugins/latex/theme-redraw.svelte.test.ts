@@ -10,14 +10,13 @@ import { destroyMountedEditors, mountEditor } from '$lib/test/harness/mount-edit
 interface RenderCall {
 	source: string;
 	display: boolean;
-	theme: string | undefined;
+	theme: string;
 }
 
 let calls: RenderCall[] = [];
 
 // Paints the theme into the formula, the way a renderer with its own colors would.
-const themedRenderer: MathRenderer = (source, opts) => {
-	const { display, theme } = opts as { display: boolean; theme?: string };
+const themedRenderer: MathRenderer = (source, { display, theme }) => {
 	calls.push({ source, display, theme });
 	const dom = document.createElement('span');
 	dom.textContent = `${theme}:${source}`;
