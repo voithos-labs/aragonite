@@ -16,8 +16,8 @@ export interface InsertEntry {
 	readonly keywords: readonly string[];
 	/** Handed to the paste path as is, the way `insertMarkdown` takes it. */
 	readonly markdown: string;
-	/** The Markdown for the word typed after the entry (`/table 3x4`, never empty), and the dim
-	 *  text saying how it was read. Absent: the entry takes no argument. */
+	/** The Markdown for the word typed after the entry (`/table 3x4`; the word is never empty),
+	 *  and the dim text saying how it was read. Absent: the entry takes no argument. */
 	readonly withArgument?: (argument: string) => { markdown: string; detail?: string };
 }
 

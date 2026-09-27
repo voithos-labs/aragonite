@@ -6,11 +6,7 @@ const DEFAULT_TABLE = '| Column | Column |\n| --- | --- |\n|  |  |\n';
 
 const builtIn = (id: string) => insertCatalogue(everyInstalledPlugin).find((e) => e.id === id)!;
 
-/** What the slash list inserts for `/<id> <argument>`: the entry's own Markdown when it takes none. */
-function withArgument(id: string, argument: string) {
-	const entry = builtIn(id);
-	return entry.withArgument?.(argument) ?? { markdown: entry.markdown };
-}
+const withArgument = (id: string, argument: string) => builtIn(id).withArgument!(argument);
 
 describe('the table entry', () => {
 	it.each(['3x4', '3X4', '3×4'])('%j is three columns: a header and three empty rows', (size) => {
