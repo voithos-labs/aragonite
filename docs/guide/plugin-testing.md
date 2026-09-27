@@ -198,7 +198,7 @@ Conformance here means: your kind behaves the way the built-in kinds are require
 
 - Each kit runs **cells**, one check per behavior, and each cell is covered one of three ways. `assert` runs the real check. `exempt` means the invariant has nothing to bite on for your kind (there's no such operation to test). `boundary` means checking it needs something headless code can't reach (a browser, a mounted component).
 - You declare an excused cell rather than skipping it, and both excuse modes want a reason that's a real sentence (a bare token like `'n/a'` fails the run). An excuse the kit can falsify, it falsifies.
-- Every kit resolves with a report of what was asserted and what was excused, and otherwise throws a plain `Error` naming every failed cell, so a run drops straight into a test case under any runner.
+- Every kit resolves with a report, and all three write a cell the same way: its `cell` name, its `status` (`asserted`, `exempt` or `boundary`), and usually a `detail` saying what ran or why nothing did (`CellReport`, if you want the type). A failing run throws a plain `Error` naming every failed cell instead, so a run drops straight into a test case under any runner.
 
 ### The kind checkup: `runKindConformance`
 
@@ -211,7 +211,7 @@ Takes your kind (the value `declaredPluginKind` returns) and executes the headle
 - A `clipboard: inherit-default` cell proves a copy is a plain byte slice, with your kind at each end of the copied range in turn.
 - An `undo: inherit-default` cell proves one structural operation pushes exactly one undo entry.
 - A `searchPaint: not-supported` cell proves the document scan genuinely finds nothing in your kind.
-- The raw-write cell cuts the fixture's closing line and checks the block after it stays its own. A kind with no `rawWrite` fails here if the cut swallows that block (an unclosed fence reads everything below as its body), and the failure asks you to declare the rule. A kind that declares it has the rule driven through five writes: the closing line cut, everything past the first line cut, an empty write, the first line cut (the opener gone, the closer left behind), and the closing line copied into the body. Each result has to come back unchanged from a second pass of the rule and leave the block after it alone, and when the fixture has three or more lines the first write also has to keep your kind. Your `mapOffset` is checked against `normalize` at every offset of each write: an offset before every byte the rule changed stays put, one after them moves by what the rule added or dropped, and none goes backwards. This cell reads your descriptor rather than your closure block, so it reports on its own as `report.rawWrite`: `boundary` for a kind with the rule whose fixture sits inside a container, `exempt` for a kind with neither the rule nor a top-level fixture.
+- The raw-write cell cuts the fixture's closing line and checks the block after it stays its own. A kind with no `rawWrite` fails here if the cut swallows that block (an unclosed fence reads everything below as its body), and the failure asks you to declare the rule. A kind that declares it has the rule driven through five writes: the closing line cut, everything past the first line cut, an empty write, the first line cut (the opener gone, the closer left behind), and the closing line copied into the body. Each result has to come back unchanged from a second pass of the rule and leave the block after it alone, and when the fixture has three or more lines the first write also has to keep your kind. Your `mapOffset` is checked against `normalize` at every offset of each write: an offset before every byte the rule changed stays put, one after them moves by what the rule added or dropped, and none goes backwards. This cell reads your descriptor rather than your closure block, so it comes last in the report and carries no `mode`. It's `boundary` for a kind with the rule whose fixture sits inside a container, and `exempt` for a kind with neither the rule nor a top-level fixture.
 
 Cells whose mechanism only exists in a browser (focus, selection and search painting, reorder, and the note-taking simulation the platform runs over the kinds it enrolls) are recorded `boundary`; the kit won't fake them green. Covering those is a browser test's job (the editor's own e2e sweep does it for every registered kind that declares a `conformanceFixture`). For the parrot, the whole checkup is the test the [guide's quickstart](plugin-guide.md#the-first-fifteen-minutes) ends on:
 
@@ -221,25 +221,26 @@ it('parrot conforms', async () => {
 });
 ```
 
-It resolves with a report, one cell per closure column. For the parrot exactly as the guide declares it:
+It resolves with a report, one cell per closure column and then the raw-write cell. For the parrot exactly as the guide declares it:
 
 ```ts
 const report = await runKindConformance(declaredPluginKind(PARROT));
-report.cells.map((c) => `${c.column}: ${c.status}`);
+report.cells.map((c) => `${c.cell}: ${c.status}`);
 // [
-//   'roundTrip: executed',      // the fixture round-trips
+//   'roundTrip: asserted',      // the fixture round-trips
 //   'focus: boundary',          // browser only
-//   'mergeBackspace: executed', // eligibility matches mergeRole
+//   'mergeBackspace: asserted', // eligibility matches mergeRole
 //   'selectionPaint: boundary', // browser only
 //   'searchPaint: boundary',    // you declared it implemented, so it's yours to prove
 //   'reorder: boundary',        // browser only
 //   'undo: boundary',           // implemented too, so the kit can't drive it generically
-//   'clipboard: executed',      // copy is a raw byte slice
-//   'simOracle: boundary'       // the platform sweep's, never this runner's
+//   'clipboard: asserted',      // copy is a raw byte slice
+//   'simOracle: boundary',      // the platform sweep's, never this runner's
+//   'rawWrite: asserted'        // no rule, and cutting the closing line swallows nothing
 // ]
 ```
 
-Each cell also carries the `mode` you declared and a `detail` string saying what ran, or why nothing did. When something's wrong the run throws instead of resolving; a fixture that stopped producing your kind reads like this:
+Each closure cell also carries the `mode` you declared. When something's wrong the run throws instead of resolving; a fixture that stopped producing your kind reads like this:
 
 ```
 Error: kind conformance failed for "parrot": conformanceFixture parses to no "parrot" node
@@ -255,13 +256,13 @@ The clipboard executor is also exported on its own as `checkCopyIsRawByteSlice(k
 
 **`runContainerConformance(kind, profile)`**
 
-The harness the built-in containers are held to, pointed at your own container kind. The profile carries your fixtures plus a coverage declaration per cell; the kit parses its way to your kind, so register the plugin before running it. The cells:
+The harness the built-in containers are held to, pointed at your own container kind. The profile carries your fixtures plus a coverage declaration per cell; the kit parses its way to your kind, so register the plugin before running it. Each cell checks the node of your kind its fixture points at: the end of `containerChain` for `localIndex`, the first block of `terminatorCollisionFixture`, the first one anywhere in `focusSource` and `deepNesting`. If something else sits there, the cell fails, so a chain that drifted onto a blockquote can't pass on the blockquote's behalf. The cells:
 
 | Cell                  | What it holds you to                                                                                                                                                                                                                                                                                                                                           |
 | --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `localIndex`          | Children are addressed by their index inside your container at each nesting level, not by a document-wide count                                                                                                                                                                                                                                                |
+| `localIndex`          | Children are addressed by their index inside your container at each nesting level, not by a document-wide count. A grid container declares it `boundary`, since the kit only knows how to drive a grid operation for the built-in table                                                                                                                        |
 | `ancestry`            | An edit deep inside rebuilds bytes innermost-first, so the outermost block's raw reflects the leaf change                                                                                                                                                                                                                                                      |
-| `multiScope`          | One operation spanning two nesting levels pushes exactly one undo entry. The kit only owns such an operation for the built-in list and table, so a plugin kind declares this cell `exempt`                                                                                                                                                                     |
+| `multiScope`          | One operation spanning two nesting levels pushes exactly one undo entry. The kit only drives such an operation for the built-in list and table, so a plugin kind declares this cell `exempt` (or `boundary`, if it does own one)                                                                                                                               |
 | `focusBubble`         | A focus move leaving your top edge reaches the document root exactly once, with no loop and no double-escape                                                                                                                                                                                                                                                   |
 | `terminatorCollision` | A body line reproducing your container's own closing line stays inside the container                                                                                                                                                                                                                                                                           |
 | `declarations`        | The kit's own cell, always on. Your `unwrapRole` names strategies that exist, `containerPaste` is shaped right, `rebuildRaw` re-emits the parsed bytes and answers its changed-child shortcut with the same bytes as a full rebuild, `bodyWrap` matches what your parse does, and a declared `contentStartSpace` gives the user's space back on a content line |
@@ -311,7 +312,7 @@ report.cells.map((c) => `${c.cell}: ${c.status}`);
 // [
 //   'localIndex: asserted',
 //   'ancestry: asserted',
-//   'multiScope: exempt',   // report.cells[2].reason is your sentence
+//   'multiScope: exempt',   // report.cells[2].detail is your sentence
 //   'focusBubble: asserted',
 //   'terminatorCollision: asserted',
 //   'declarations: asserted'
@@ -332,7 +333,7 @@ Two notes on those fixtures. `localIndexFixture` has to edit a non-first child *
 Whether you may excuse it, and how to fix a real collision, depends on your terminator's shape:
 
 - **Fence-shaped** terminators escalate: the `:::` containers lengthen their fence past the body's runs, and the editor does that for you, so the conspiracy above asserts the cell and passes without writing a line.
-- A **strip** container (one that prefixes every line it emits, the blockquote shape) is immune, and is the one shape allowed to declare the cell `exempt`. An opaque container may not: the `declarations` cell fails a profile that tries.
+- A **strip** container (one that prefixes every line it emits, the blockquote shape) is immune, and is the one shape allowed to declare the cell `exempt`. An opaque container may not: the kit fails the cell if you excuse it.
 - A **fixed-token** terminator, an HTML close tag say, can neither escalate nor prefix; it repairs the collision with [`bodyWrite`](#making-body-bytes-legal-bodywrite), rewriting the offending bytes on the way **in**, so the child's own raw carries the rewrite and nothing diverges.
 - A **childless** container whose body lives in metadata supplies the optional `writeBody` on the fixture, so the collision probe reaches a body no child carries.
 
@@ -414,8 +415,8 @@ The cells:
 ```ts
 import { runInlineKindConformance } from '@voithos-labs/aragonite/testing';
 
-it('the embed recognizer conforms', () => {
-	runInlineKindConformance({
+it('the embed recognizer conforms', async () => {
+	await runInlineKindConformance({
 		trigger: '!',
 		prefix: '![[',
 		kind: declaredPluginInlineKind(EMBED),
@@ -431,10 +432,10 @@ it('the embed recognizer conforms', () => {
 
 (The guide's other embed variant builds real built-in images; that one asserts `imageClaim` instead, and excuses `widget` and `editingPolicy`, since a built-in kind renders through the built-in widget.)
 
-This kit answers synchronously, and its `detail` strings say how much each cell actually chewed through. For that profile, with the embed rendered by a Svelte `component`, under jsdom:
+Its `detail` strings say how much each cell actually chewed through. For that profile, with the embed rendered by a Svelte `component`, under jsdom:
 
 ```ts
-const report = runInlineKindConformance(profile);
+const report = await runInlineKindConformance(profile);
 report.cells.map((c) => `${c.cell}: ${c.status} (${c.detail})`);
 // [
 //   'claims: asserted (2 claim(s) across 2 fixture(s))',
@@ -453,7 +454,7 @@ Twenty sources on the round-trip cell, from two fixtures: the kit interleaves ea
 Error: overlapDecline asserts but the profile supplies no overlapFixtures
 ```
 
-`fixtures` is required and non-empty, and a fixture your recognizer doesn't claim **fails** rather than being skipped: every cell reads the nodes a fixture produces, so an unclaimed one would enroll your syntax without testing it.
+`fixtures` is required and non-empty, and a fixture your recognizer doesn't claim **fails** rather than being skipped: every cell reads the nodes a fixture produces, so an unclaimed one would enroll your syntax without testing it. `widget` and `editingPolicy` only look at the nodes of your `kind` (built-in nodes your recognizer builds are `imageClaim`'s job), so if none of your fixtures produce your kind, whichever of the two you assert fails instead of passing over some images.
 
 **`overlapDecline` is the cell most inline authors haven't considered, and on a reserved trigger it's required.** Registering on a trigger the built-in scanner owns (`[`, `!`, `*`, `` ` ``, and friends) puts your recognizer ahead of the built-in case, so wherever your prefix matches you're claiming those bytes whether or not they spell something the built-in owns. `![[a]](https://x.dev)` is a plain image whose alt text is `[a]`; a recognizer that claims every `![[…]]` takes it, and the document still round-trips, as a wiki embed nobody ever wrote. Supply the sources where your grammar and a built-in one collide; the kit consults your recognizer at every position the scanner would and requires a decline at each, which is exactly what leaves the built-in reading unchanged bytes. A rung on a reserved trigger may not excuse this cell at all, since the overlap exists by construction.
 

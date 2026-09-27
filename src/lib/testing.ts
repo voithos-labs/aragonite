@@ -53,16 +53,20 @@ export function applyPasteTransforms(text: string, plugins?: readonly string[]):
 export { setDevWarnSink } from './dev-warn';
 export type { DevWarnEntry, DevWarnSink } from './dev-warn';
 
+// ── Conformance kits: the shared vocabulary ──────────────────────────────────
+// Every kit reports a cell as a `CellReport`; the container and inline profiles declare each
+// cell's coverage as a `ConformanceCoverage`.
+
+export type { CellReport, CellStatus, ConformanceCoverage } from './testing/conformance-core';
+
 // ── Container conformance kit ────────────────────────────────────────────────
 
 export {
 	runContainerConformance,
 	reversedAncestryLeavesRootStale
 } from './testing/container-conformance';
-export type { ConformanceCoverage } from './testing/conformance-core';
 export type {
 	ConformanceCell,
-	ConformanceCellReport,
 	ContainerConformanceProfile,
 	ContainerConformanceReport,
 	LocalIndexFixture
@@ -74,10 +78,9 @@ export type {
 
 export { runKindConformance, checkCopyIsRawByteSlice } from './testing/kind-conformance';
 export type {
+	KindCell,
 	KindCellCheck,
 	KindCellContext,
-	KindCellReport,
-	KindCellStatus,
 	KindConformanceProfile,
 	KindConformanceReport
 } from './testing/kind-conformance';
@@ -88,7 +91,6 @@ export type {
 
 export { runInlineKindConformance } from './testing/inline-conformance';
 export type {
-	InlineCellReport,
 	InlineConformanceCell,
 	InlineConformanceProfile,
 	InlineConformanceReport

@@ -108,8 +108,22 @@ export function writeFenceInfo(display: string, info: string, fence: FenceShape)
 	const opener = splitOpener(first.text, fence);
 	if (!opener) return null;
 	return (
-		display.slice(0, opener.runEnd) + legalInfo(info, fence) + display.slice(first.text.length)
+		display.slice(0, opener.runEnd) +
+		legalFenceInfo(info, fence.marker) +
+		display.slice(first.text.length)
 	);
+}
+
+/**
+ * `info` less what an info string may not hold: a line break, a backtick under a backtick fence,
+ * and a leading run of the fence's own marker, which would lengthen the fence (`~~~` plus `~x`).
+ */
+export function legalFenceInfo(info: string, marker: FenceShape['marker']): string {
+	const oneLine = info.replace(/[\r\n]/g, '');
+	const kept = marker === '`' ? oneLine.replaceAll('`', '') : oneLine;
+	let start = 0;
+	while (kept[start] === marker) start++;
+	return kept.slice(start);
 }
 
 // ── Internal ────────────────────────────────────────────────────────────────
@@ -131,18 +145,6 @@ function reconcileFenceRaw(
 	const written = reconcileFenceWrite({ display, caret, fence, mode: ctx.mode, ending });
 	const intoTail = Math.min(Math.max(offset - display.length, 0), tail.length);
 	return { raw: written.display + tail, offset: written.caret + intoTail };
-}
-
-/**
- * Drops what an info string may not hold: a line break, a backtick under a backtick fence, and a
- * leading run of the fence's own marker, which would lengthen the fence (`~~~` plus `~x`).
- */
-function legalInfo(info: string, fence: FenceShape): string {
-	const oneLine = info.replace(/[\r\n]/g, '');
-	const kept = fence.marker === '`' ? oneLine.replaceAll('`', '') : oneLine;
-	let start = 0;
-	while (kept[start] === fence.marker) start++;
-	return kept.slice(start);
 }
 
 /**

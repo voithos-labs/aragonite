@@ -6,18 +6,17 @@
  */
 
 import type { ContainerEditActions, FocusActions } from '../action-contracts';
-import type { AnyBlockKind, CstNode, Document } from '../core/nodes';
+import type { AnyBlockKind, CstNode } from '../core/nodes';
 import { documentLineEnding, splitLines, trailingLineEnding } from '../core/lines';
 import { parse } from '../core/parser';
+import { ancestorsOf } from '../core/paths';
 import { createContainerEditActions } from '../editor-actions/container-edit';
 import { createUndoController } from '../editor-actions/commit/undo-controller';
-import { createListContext } from '../editor-actions/list-context';
 import {
 	createStandardNestedActions,
 	type NestedActionsBundle
 } from '../editor-actions/nested/nested-actions';
 import { createNestedFocus } from '../editor-actions/nested/nested-focus';
-import { createTableMutationsContext } from '../editor-actions/table-context';
 import {
 	firstChildUnwrapStrategies,
 	middleChildUnwrapStrategies
@@ -40,17 +39,20 @@ import {
 } from './headless-actions';
 import {
 	assert,
-	assertExemptionDocumented,
 	assertIndices,
 	assertIs,
 	assertRebuildIsParseCanonical,
 	assertReasonDocumented,
 	fail,
 	findFirstOfKind,
-	firstChildOfKind,
 	nodeAtPath,
 	pathPassesThroughKind,
-	type ConformanceCoverage
+	runCells,
+	subjectNode,
+	subjectPath,
+	type CellReport,
+	type ConformanceCoverage,
+	type KitCell
 } from './conformance-core';
 
 // ── Profile ──────────────────────────────────────────────────────────────────
@@ -82,7 +84,7 @@ export interface TerminatorCollisionFixture {
 export interface ContainerConformanceProfile {
 	/** A nesting where this kind is an intermediate ancestor of the doc-rooted `leafPath`. */
 	deepNesting: { source: string; leafPath: number[] };
-	/** Required when `localIndex` asserts (strip/opaque kinds; grid has its own path). */
+	/** Required when `localIndex` asserts on a strip or opaque kind. */
 	localIndexFixture?: LocalIndexFixture;
 	/** Required when `focusBubble` asserts: a source whose tree holds a node of the kind with ≥1 child. */
 	focusSource?: string;
@@ -99,73 +101,81 @@ export interface ContainerConformanceProfile {
 	terminatorCollision: ConformanceCoverage;
 }
 
+/** The built-in profiles' hooks for the ops only a built-in kind's own context can drive (a table
+ *  column insert, a list indent). Internal: no published API can perform either op. */
+export interface BuiltinContainerProfile extends ContainerConformanceProfile {
+	drivers?: { gridLocalIndex?: () => Promise<void>; multiScope?: () => Promise<void> };
+}
+
 // ── Report ───────────────────────────────────────────────────────────────────
 
 export type ConformanceCell =
 	'localIndex' | 'ancestry' | 'multiScope' | 'focusBubble' | 'terminatorCollision' | 'declarations';
 
-export interface ConformanceCellReport {
-	cell: ConformanceCell;
-	status: 'asserted' | 'exempt' | 'boundary';
-	reason?: string;
-}
-
 export interface ContainerConformanceReport {
 	kind: AnyBlockKind;
-	cells: ConformanceCellReport[];
+	cells: CellReport<ConformanceCell>[];
 }
 
 // ── Cell manifest ────────────────────────────────────────────────────────────
 
-export interface ContainerConformanceCell {
-	cell: ConformanceCell;
-	/** The profile's declaration for this cell; `declarations` answers unconditionally. */
-	coverage: (profile: ContainerConformanceProfile) => ConformanceCoverage;
-	run: (kind: AnyBlockKind, profile: ContainerConformanceProfile) => void | Promise<void>;
+export interface ContainerCellContext {
+	kind: AnyBlockKind;
+	profile: BuiltinContainerProfile;
 }
 
 /** The kit's cells as data, so {@link runContainerConformance} and the built-in sweep run the
- *  same set and a new cell reaches both. */
-export const CONTAINER_CONFORMANCE_CELLS: readonly ContainerConformanceCell[] = [
+ *  same set and a new cell reaches both. `declarations` declares no coverage: it always runs. */
+export const CONTAINER_CONFORMANCE_CELLS: readonly KitCell<
+	ConformanceCell,
+	ContainerCellContext
+>[] = [
 	{
 		cell: 'localIndex',
-		coverage: (profile) => profile.localIndex,
-		run: (kind, profile) =>
+		coverage: ({ profile }) => profile.localIndex,
+		run: ({ kind, profile }) =>
 			getBlockKindDescriptor(kind).containerContract === 'grid'
-				? checkGridLocalIndexAddressing()
-				: checkStripLocalIndexAddressing(profile)
+				? driverOf(kind, profile, 'gridLocalIndex', 'a grid op')()
+				: checkStripLocalIndexAddressing(kind, profile)
 	},
-	{ cell: 'ancestry', coverage: (profile) => profile.ancestry, run: checkInnermostFirstAncestry },
+	{
+		cell: 'ancestry',
+		coverage: ({ profile }) => profile.ancestry,
+		run: ({ kind, profile }) => checkInnermostFirstAncestry(kind, profile)
+	},
 	{
 		cell: 'multiScope',
-		coverage: (profile) => profile.multiScope,
-		run: checkOneUndoPerMultiScope
+		coverage: ({ profile }) => profile.multiScope,
+		run: ({ kind, profile }) => driverOf(kind, profile, 'multiScope', 'an op spanning two scopes')()
 	},
 	{
 		cell: 'focusBubble',
-		coverage: (profile) => profile.focusBubble,
-		run: checkFocusBubbleTermination
+		coverage: ({ profile }) => profile.focusBubble,
+		run: ({ kind, profile }) => checkFocusBubbleTermination(kind, profile)
 	},
 	{
 		cell: 'terminatorCollision',
-		coverage: (profile) => profile.terminatorCollision,
-		run: checkTerminatorCollision
+		coverage: ({ profile }) => profile.terminatorCollision,
+		run: ({ kind, profile }) => checkTerminatorCollision(kind, profile),
+		falsify: ({ kind }) => refuseExcusedCollision(kind)
 	},
-	{ cell: 'declarations', coverage: () => ({ mode: 'assert' }), run: checkDeclarationSanity }
+	{
+		cell: 'declarations',
+		run: ({ kind, profile }) => checkDeclarationSanity(kind, profile)
+	}
 ];
 
-/** The cells whose coverage a profile declares. `declarations` is the kit's, not the author's. */
-const BEHAVIORAL_CELLS = CONTAINER_CONFORMANCE_CELLS.filter((c) => c.cell !== 'declarations');
-
 /**
- * A profile must assert at least one behavioral cell. `declarations` is excluded on purpose: it
- * asserts for every kind, so counting it would let a profile that excuses everything pass.
+ * A profile must assert at least one cell it declares. `declarations` doesn't count: it asserts
+ * for every kind, so counting it would let a profile that excuses everything pass.
  */
 export function assertProfileCoverageFloor(
 	kind: AnyBlockKind,
 	profile: ContainerConformanceProfile
 ): void {
-	const asserts = BEHAVIORAL_CELLS.filter((c) => c.coverage(profile).mode === 'assert');
+	const asserts = CONTAINER_CONFORMANCE_CELLS.filter(
+		(c) => c.coverage?.({ kind, profile }).mode === 'assert'
+	);
 	if (asserts.length > 0) {
 		assert(
 			profile.wholeProfileExemption === undefined,
@@ -191,41 +201,43 @@ export async function runContainerConformance(
 	kind: AnyBlockKind,
 	profile: ContainerConformanceProfile
 ): Promise<ContainerConformanceReport> {
-	const cells: ConformanceCellReport[] = [];
-	const failures: string[] = [];
-
+	const earlier: string[] = [];
 	try {
 		assertProfileCoverageFloor(kind, profile);
 	} catch (error) {
-		failures.push(`coverageFloor: ${(error as Error).message}`);
+		earlier.push(`coverageFloor: ${(error as Error).message}`);
 	}
-
-	for (const { cell, coverage: read, run } of CONTAINER_CONFORMANCE_CELLS) {
-		const coverage = read(profile);
-		try {
-			if (coverage.mode === 'assert') {
-				await run(kind, profile);
-				cells.push({ cell, status: 'asserted' });
-			} else {
-				assertExemptionDocumented(coverage, `${kind} ${cell}`);
-				cells.push({ cell, status: coverage.mode, reason: coverage.reason });
-			}
-		} catch (error) {
-			failures.push(`${cell}: ${(error as Error).message}`);
-		}
-	}
-
-	if (failures.length > 0) {
-		throw new Error(`container conformance failed for "${kind}":\n  - ${failures.join('\n  - ')}`);
-	}
+	const cells = await runCells(
+		CONTAINER_CONFORMANCE_CELLS,
+		// A published profile never supplies drivers: no published API can perform their ops.
+		{ kind, profile: { ...profile, drivers: undefined } },
+		{ subject: kind, heading: `container conformance failed for "${kind}"` },
+		earlier
+	);
 	return { kind, cells };
 }
 
 // ── (a) local-index addressing ───────────────────────────────────────────────
 
+function driverOf(
+	kind: AnyBlockKind,
+	profile: BuiltinContainerProfile,
+	driver: 'gridLocalIndex' | 'multiScope',
+	op: string
+): () => Promise<void> {
+	const run = profile.drivers?.[driver];
+	if (run) return run;
+	const cell = driver === 'gridLocalIndex' ? 'localIndex' : 'multiScope';
+	fail(
+		`"${kind}" asserts ${cell}, but the kit drives ${op} only for the built-in kinds that own ` +
+			`one, so declare it boundary (or exempt, when the kind owns no such op)`
+	);
+}
+
 /** Asserts the addressed child is the one removed and the emitted path is the chain of local
  *  indices; the fixture avoids chain [0,0] child 0, where local and global indices coincide. */
 export async function checkStripLocalIndexAddressing(
+	kind: AnyBlockKind,
 	profile: ContainerConformanceProfile
 ): Promise<void> {
 	const fixture = profile.localIndexFixture;
@@ -239,6 +251,7 @@ export async function checkStripLocalIndexAddressing(
 
 	const outer = parse(fixture.source).children[0];
 	const { deps, doc, events } = createHeadlessActions([outer]);
+	const kindNode = subjectNode(doc, kind, containerChain, 'localIndexFixture');
 	const controller = createUndoController(deps);
 	const rootContainerEdit = createContainerEditActions(deps, controller);
 
@@ -269,7 +282,6 @@ export async function checkStripLocalIndexAddressing(
 		if (depth < containerChain.length - 1) node = node.children![containerChain[depth + 1]];
 	}
 
-	const kindNode = node;
 	assert(kindNode.children!.length > 1, 'kind node has ≥2 children to target a non-first one');
 	const targetMarker = kindNode.children![targetChild].raw;
 
@@ -279,7 +291,7 @@ export async function checkStripLocalIndexAddressing(
 	await parentBundle!.blockEdit.deleteBlock(targetChild);
 
 	// The commit replaced the ancestor nodes, so resolve again through the live document.
-	const liveKind = nodeAtPath(doc, containerChain);
+	const liveKind = subjectNode(doc, kind, containerChain, 'the document after the delete');
 	const remaining = (liveKind.children ?? []).map((c) => c.raw);
 	assert(!remaining.includes(targetMarker), `local index ${targetChild} was the child removed`);
 	const editEvent = seen.find((e) => e.op === 'delete');
@@ -294,69 +306,6 @@ export async function checkStripLocalIndexAddressing(
 	// Compared against a fresh parse, not byte round-trip, which is trivially true here: this
 	// catches an op that left the container's raw stale or its shape different.
 	assertParseConverged(doc, 'doc converges after a local-index op');
-}
-
-/** A table column op addresses cells by (rowIdx, colIdx) and emits the table's own path; the
- *  leading paragraph keeps the table off index 0, so a global index would differ. */
-export async function checkGridLocalIndexAddressing(): Promise<void> {
-	const parsed = parse('lead para\n\n| h1 | h2 |\n| --- | --- |\n| a | b |\n');
-	assertIs(parsed.children[1].kind, 'table', 'table at non-zero doc index');
-	const { ctx, deps, doc, events } = mountTableMutations(parsed.children, 1);
-
-	const seen: EditEvent[] = [];
-	events.on('edit', (e) => seen.push(e));
-
-	// Pinning the new cell's position by content is what proves cells are addressed by
-	// local column index rather than appended at the end.
-	await ctx.insertColumnRight(0);
-
-	const liveTable = deps.doc.children[1];
-	for (const row of liveTable.children!) {
-		const cells = row.children!.map((c) => c.raw);
-		assertIs(cells.length, 3, 'every row gained one cell');
-		assert(cells[0] !== '', 'column 0 unchanged');
-		assertIs(cells[1], '', 'new empty cell landed at the addressed colIdx 1');
-		assert(cells[2] !== '', 'original second cell shifted to colIdx 2');
-	}
-	const editEvent = seen.find((e) => e.op === 'tableInsertColumn');
-	assert(editEvent, 'tableInsertColumn edit event fired');
-	assertIndices(editEvent.path, [1], 'column op emits the table’s own local path');
-
-	// A column op that left the table's raw stale, or a row the delimiter row does not match,
-	// fails here.
-	assertParseConverged(doc, 'doc converges after a grid column op');
-}
-
-/** The table-mutations mount both grid cells share: headless deps, controller, row states, ctx. */
-function mountTableMutations(children: CstNode[], tableIndex: number) {
-	const table = children[tableIndex];
-	const { deps, doc, events } = createHeadlessActions(children);
-	const controller = createUndoController(deps);
-	const rootContainerEdit = createContainerEditActions(deps, controller);
-
-	const rowsState = mountBlockListState(() => table);
-	// commitColumnEdit resolves each row through expectStateForNode, so register them.
-	for (const row of table.children!) mountBlockListState(() => row);
-
-	const ctx = createTableMutationsContext({
-		get node() {
-			return table;
-		},
-		get myPath() {
-			return [tableIndex];
-		},
-		get rowsState() {
-			return rowsState;
-		},
-		get focusedCell() {
-			return { rowIdx: 0, colIdx: 0 };
-		},
-		parentContainerEdit: rootContainerEdit,
-		controller,
-		reading: deps.reading,
-		focusCell: () => {}
-	});
-	return { ctx, deps, doc, events };
 }
 
 // ── (b) innermost-first ancestry rebuild ─────────────────────────────────────
@@ -392,83 +341,10 @@ export function reversedAncestryLeavesRootStale(profile: ContainerConformancePro
 	const marker = 'reversed-mark';
 	leaf.raw = marker + '\n';
 
-	const ancestors: CstNode[] = [];
-	let cur: Document | CstNode = doc;
-	for (let depth = 0; depth < leafPath.length - 1; depth++) {
-		cur = cur.children![leafPath[depth]];
-		ancestors.push(cur);
-	}
 	// Outermost-first: each ancestor rebuilt before its descendants are fresh.
-	for (const a of ancestors) rebuildContainerRawIfContainer(a);
+	for (const ancestor of ancestorsOf(doc, leafPath)) rebuildContainerRawIfContainer(ancestor);
 
 	return !root.raw.includes(marker);
-}
-
-// ── (c) one undo entry per multi-scope op ────────────────────────────────────
-
-/**
- * A multi-scope op is kind-specific: it drives through the kind's own context, not a
- * generic bundle, so only the built-ins that own one are dispatched here.
- */
-export async function checkOneUndoPerMultiScope(kind: AnyBlockKind): Promise<void> {
-	if (kind === 'list') return checkListIndentOneUndo();
-	if (kind === 'table') return checkTableColumnOneUndo();
-	fail(
-		`"${kind}" asserts multiScope but the kit drives no multi-scope op for it — ` +
-			`declare the cell exempt if the kind owns no ≥2-scope op`
-	);
-}
-
-async function checkListIndentOneUndo(): Promise<void> {
-	// Indenting item 1 under item 0 spans outer-list + the new nested-list scope.
-	const list = firstChildOfKind('- alpha\n- beta\n', 'list');
-	const { deps } = createHeadlessActions([list]);
-	const controller = createUndoController(deps);
-
-	const listState = mountBlockListState(() => list);
-	// indentItem reaches into prevItem (item 0) through expectStateForNode, so register each item.
-	for (const item of list.children!) mountBlockListState(() => item);
-
-	const ctx = createListContext({
-		scope: {
-			get index() {
-				return 0;
-			},
-			get node() {
-				return list;
-			},
-			get path() {
-				return [0];
-			}
-		},
-		getLineEnding: () => documentLineEnding(deps.doc),
-		state: listState,
-		parentBlockEdit: stubBlockEdit(),
-		parentFocus: recordingFocus(),
-		parentListContext: undefined,
-		controller,
-		reading: deps.reading
-	});
-
-	const before = deps.undoManager.getStacks().undo.length;
-	await ctx.indentItem(1);
-	const after = deps.undoManager.getStacks().undo.length;
-
-	assertIs(after - before, 1, 'list indentItem (multi-scope) pushes exactly ONE undo entry');
-	assertIs(deps.doc.children[0].children!.length, 1, 'item 1 was indented out of the outer list');
-	assertParseConverged(deps.doc, 'doc converges after a multi-scope strip op');
-}
-
-async function checkTableColumnOneUndo(): Promise<void> {
-	const table = firstChildOfKind('| h1 | h2 |\n| --- | --- |\n| a | b |\n| c | d |\n', 'table');
-	const { ctx, deps } = mountTableMutations([table], 0);
-
-	const before = deps.undoManager.getStacks().undo.length;
-	await ctx.insertColumnRight(0);
-	const after = deps.undoManager.getStacks().undo.length;
-
-	assertIs(after - before, 1, 'table insertColumn (multi-scope) pushes exactly ONE undo entry');
-	assertParseConverged(deps.doc, 'doc converges after a multi-scope grid op');
 }
 
 // ── (d) focus-bubble termination at root ─────────────────────────────────────
@@ -482,8 +358,7 @@ export async function checkFocusBubbleTermination(
 	const source = profile.focusSource;
 	if (!source) fail('focusBubble asserts but the profile carries no focusSource');
 
-	const innerNode = findFirstOfKind(parse(source), kind);
-	assert(innerNode, `focusSource contains a "${kind}" node`);
+	const innerNode = subjectNode(parse(source), kind, 'first', 'focusSource');
 	assert((innerNode.children?.length ?? 0) > 0, `"${kind}" node has children`);
 
 	const rootFocus = recordingFocus();
@@ -532,8 +407,7 @@ export function checkTerminatorCollision(
 		fail('terminatorCollision asserts but the profile carries no terminatorCollisionFixture');
 
 	const doc = parse(fixture.source);
-	const node = doc.children[0];
-	assertIs(node?.kind, kind, 'terminatorCollisionFixture source opens with a node of the kind');
+	const node = subjectNode(doc, kind, [0], 'terminatorCollisionFixture');
 
 	const bodyWrite = getBlockKindDescriptor(kind).bodyWrite;
 	const ctx = { node, mode: 'literal', lineEnding: documentLineEnding(doc) } as const;
@@ -559,27 +433,27 @@ export function checkTerminatorCollision(
 	assertParseConverged(doc, `${kind} survives a body line reproducing its terminator`);
 }
 
+/** An opaque container wraps its body between its own marker lines, so a body line can reproduce
+ *  its closer whatever it declares; a declared `bodyWrite` is tested on any contract. */
+function refuseExcusedCollision(kind: AnyBlockKind): void {
+	const descriptor = getBlockKindDescriptor(kind);
+	if (descriptor.containerContract !== 'opaque' && !descriptor.bodyWrite) return;
+	fail(
+		`${kind} ${descriptor.bodyWrite ? 'declares container.bodyWrite' : 'is an opaque container'}, ` +
+			`and a body line reproducing its terminator truncates it, so assert terminatorCollision ` +
+			`with a fixture whose body does`
+	);
+}
+
 // ── (e) declaration sanity ───────────────────────────────────────────────────
 
 /** Holds the kind to its declarations: an `unwrapRole` names implemented strategies, which the
- *  nested dispatcher indexes unguarded, and an opaque or `bodyWrite` kind asserts collision. */
+ *  nested dispatcher indexes unguarded. */
 export function checkDeclarationSanity(
 	kind: AnyBlockKind,
 	profile: ContainerConformanceProfile
 ): void {
 	const descriptor = getBlockKindDescriptor(kind);
-
-	// An opaque container wraps its body between its own marker lines, so a body line can
-	// reproduce its closer whatever it declares; a declared `bodyWrite` is tested on any contract.
-	const owesCollisionAnswer = descriptor.containerContract === 'opaque' || !!descriptor.bodyWrite;
-	if (owesCollisionAnswer && profile.terminatorCollision.mode !== 'assert') {
-		fail(
-			`${kind} ${descriptor.bodyWrite ? 'declares container.bodyWrite' : 'is an opaque container'} ` +
-				`but its profile marks terminatorCollision "${profile.terminatorCollision.mode}" — a body ` +
-				`line reproducing the terminator truncates the container, so assert the cell with a ` +
-				`fixture whose body does`
-		);
-	}
 
 	const role = descriptor.unwrapRole;
 	if (role) {
@@ -611,8 +485,7 @@ export function checkDeclarationSanity(
 	}
 
 	assertIs(typeof descriptor.rebuildRaw, 'function', `${kind} declares rebuildRaw`);
-	const node = findFirstOfKind(parse(profile.deepNesting.source), kind);
-	assert(node, `deepNesting fixture contains a "${kind}" node`);
+	const node = subjectNode(parse(profile.deepNesting.source), kind, 'first', 'deepNesting');
 	assertRebuildIsParseCanonical(descriptor, node, kind);
 	assertHintedRebuildMatchesFull(kind, descriptor, node);
 	assertBodyWrapMatchesParse(kind, descriptor);
@@ -660,8 +533,8 @@ function assertContentStartSpaceIsRebuilt(
 		fail(`${kind} declares container.contentStartSpace but carries no conformanceFixture to probe`);
 	}
 	const doc = parse(fixture);
-	const node = doc.children.find((child) => child.kind === kind);
-	assert(node?.children?.length, `${kind} conformanceFixture opens a "${kind}" with a body child`);
+	const node = subjectNode(doc, kind, 'first', `${kind} conformanceFixture`);
+	assert(node.children?.length, `${kind} conformanceFixture opens a "${kind}" with a body child`);
 
 	// The last child, so a reserved title child (a heading, a summary) stays put: its own line
 	// already carries the opener's space, and rebuilding over it would test the wrong line.
@@ -698,16 +571,13 @@ function assertBodyWrapMatchesParse(kind: AnyBlockKind, descriptor: BlockKindDes
 	// directive kind's recognizer is the shared `:::`, which the opener registry does not list.
 	const doc = parse(fixture);
 	const opensAtTop = isBlockOpenerRegistered(kind) || isDirectiveKind(kind);
-	const node = opensAtTop
-		? doc.children.find((child) => child.kind === kind)
-		: findFirstOfKind(doc, kind);
+	const path = subjectPath(doc, kind, 'first', `${kind} conformanceFixture`);
 	assert(
-		node,
-		`${kind} conformanceFixture must ${opensAtTop ? 'open' : 'carry'} a "${kind}"` +
-			`${opensAtTop ? ' at the top level' : ''} — the bodyWrap probe rebuilds and reparses that ` +
-			`node, and a fixture without one would skip it silently while the declarations cell reads ` +
-			`asserted`
+		!opensAtTop || path.length === 1,
+		`${kind} conformanceFixture must open a "${kind}" at the top level — the bodyWrap probe ` +
+			`rebuilds that node and reparses its bytes as a document of their own`
 	);
+	const node = nodeAtPath(doc, path);
 	// A container whose body lives in metadata parses childless, so it has no wrap to test and
 	// must declare none: the blank-line fix-up would trust a wrap the parse never performs.
 	if (!node.children?.length) {

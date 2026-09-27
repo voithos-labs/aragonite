@@ -5,14 +5,13 @@
  */
 
 import {
+	blockNodeAt,
 	isBlankText,
-	type DocumentView,
 	type EditorContext,
 	type InlineMenuSource,
 	type InsertEntry,
 	type MenuIconName
 } from '$lib/plugin';
-import { codeArgument, tableArgument, type ParsedArgument } from './arguments';
 import { acceptsQuery, filterEntries, splitQuery, type FilterableEntry } from './filter';
 
 export const SLASH_COMMANDS_MENU = 'slash-commands';
@@ -46,8 +45,11 @@ export interface SlashCommandsOptions {
 	exclude?: readonly string[];
 }
 
+/** The Markdown a pick inserts, and the row's dim text. */
+type BuiltInsert = ReturnType<NonNullable<InsertEntry['withArgument']>>;
+
 type SlashAction =
-	| { kind: 'insert'; build: (argument: string | null) => ParsedArgument }
+	| { kind: 'insert'; build: (argument: string | null) => BuiltInsert }
 	| { kind: 'heading'; level: number }
 	| { kind: 'run'; run: (editor: EditorContext, argument?: string) => void };
 
@@ -101,7 +103,8 @@ export function createSlashSource(
 				action.run(editor, argument ?? undefined);
 			} else {
 				// An empty line becomes the block; a line with text keeps it and gets the block below.
-				const empty = isBlankText(leafRaw(editor.document, range.path));
+				// Copied because `blockNodeAt` takes a mutable path and the range's is readonly.
+				const empty = isBlankText(blockNodeAt(editor.document, [...range.path])?.raw ?? '');
 				// Awaited, so the block lands inside the pick's undo entry.
 				await editor.insertMarkdown(action.build(argument).markdown, {
 					placement: empty ? 'caret' : 'below'
@@ -113,20 +116,20 @@ export function createSlashSource(
 
 // ── Rows ─────────────────────────────────────────────────────────────────────
 
-const ARGUMENT_BUILDERS: Record<string, (argument: string | null) => ParsedArgument> = {
-	code: codeArgument,
-	table: tableArgument
-};
-
 function catalogueRow(entry: InsertEntry): SlashRow {
-	const build = ARGUMENT_BUILDERS[entry.id];
+	const { withArgument } = entry;
 	return {
 		id: entry.id,
 		label: entry.label,
 		icon: entry.icon,
 		keywords: entry.keywords,
-		takesArgument: build !== undefined,
-		action: { kind: 'insert', build: build ?? (() => ({ markdown: entry.markdown })) }
+		takesArgument: withArgument !== undefined,
+		action: {
+			kind: 'insert',
+			// A space with no word after it yet is no argument, so `withArgument` only sees a word.
+			build: (argument) =>
+				argument && withArgument ? withArgument(argument) : { markdown: entry.markdown }
+		}
 	};
 }
 
@@ -162,11 +165,4 @@ function hostRow(entry: SlashCommandEntry): SlashRow {
 function argumentDetail(row: SlashRow, argument: string): string | undefined {
 	if (row.action.kind === 'insert') return row.action.build(argument).detail;
 	return argument === '' ? undefined : argument;
-}
-
-/** The raw of the block at `path`, read through the live document on every call. */
-function leafRaw(doc: DocumentView, path: readonly number[]): string {
-	let node: { readonly children?: readonly unknown[]; readonly raw?: string } | undefined = doc;
-	for (const index of path) node = node?.children?.[index] as typeof node;
-	return node?.raw ?? '';
 }

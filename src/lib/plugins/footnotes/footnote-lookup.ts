@@ -4,30 +4,9 @@
  * which is the one GFM renders.
  */
 
-import { getPluginMetadata, type DocumentView, type NodeView } from '$lib/plugin';
+import { getPluginMetadata, walkBlocks, type DocumentView } from '$lib/plugin';
 import { FOOTNOTE_DEF_KIND } from './constants';
 import type { FootnoteDefMetadata } from './footnote-definition';
-
-interface DefinitionMatch {
-	node: NodeView;
-	path: number[];
-}
-
-function findInSubtree(node: NodeView, path: number[], label: string): DefinitionMatch | null {
-	if (
-		node.kind === FOOTNOTE_DEF_KIND &&
-		getPluginMetadata<FootnoteDefMetadata>(node)?.label === label
-	) {
-		return { node, path };
-	}
-	const children = node.children;
-	if (!children) return null;
-	for (let index = 0; index < children.length; index++) {
-		const hit = findInSubtree(children[index], [...path, index], label);
-		if (hit) return hit;
-	}
-	return null;
-}
 
 /** The definition's first body block, since the caret cannot sit on the container itself. The
  *  container's own path is used when the body holds no block; null when no definition matches. */
@@ -35,10 +14,12 @@ export function findFootnoteDefinitionLanding(
 	document: DocumentView,
 	label: string
 ): number[] | null {
-	const children = document.children;
-	for (let index = 0; index < children.length; index++) {
-		const match = findInSubtree(children[index], [index], label);
-		if (match) return match.node.children?.length ? [...match.path, 0] : match.path;
-	}
-	return null;
+	let landing: number[] | null = null;
+	walkBlocks(document, (node, path) => {
+		if (node.kind !== FOOTNOTE_DEF_KIND) return;
+		if (getPluginMetadata<FootnoteDefMetadata>(node)?.label !== label) return;
+		landing = node.children?.length ? [...path, 0] : path;
+		return 'stop';
+	});
+	return landing;
 }
