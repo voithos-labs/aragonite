@@ -88,14 +88,15 @@ test.describe('live mode: emptying the text', () => {
 		await ep.bridge.waitForSourceEquals('- # k #\n- b\n');
 	});
 
-	test('a key typed into an empty heading with a closing run lands between the markers', async ({
+	// Focused and empty, the heading paints both markers, so End goes past the run as in source.
+	test('End in an empty heading with a closing run, then a key, writes past the run', async ({
 		page
 	}) => {
 		const ep = await enterPresentationMode(page, 'live', '#  #\n\nnext\n');
 		await ep.focusBlockAtPath([0], 0);
 		await page.keyboard.press('End');
 		await ep.typeSlowly('k');
-		await ep.bridge.waitForSourceEquals('# k #\n\nnext\n');
+		await ep.bridge.waitForSourceEquals('#  #k\n\nnext\n');
 	});
 
 	test('selecting the text and typing a space leaves a paragraph holding the space', async ({

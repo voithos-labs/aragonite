@@ -50,8 +50,8 @@ typed with the caret inside a run the page shows.
 
 - live mode, inside a list item: Backspace over the text's last character keeps both markers
   (`- #  #`), and the next key writes the heading's text between them (`- # k #`)
-- live mode: a key typed into an empty heading with a closing run (`#  #`) lands between the
-  markers (`# k #`), after End too
+- live mode: End in an empty heading with a closing run (`#  #`), then a key: the focused heading
+  paints both markers, so the key goes past the run (`#  #k`), as in source mode
 - live mode: selecting the whole text and typing a space leaves a paragraph holding the space,
   the way a heading with no run does; the run goes with the `#` (` x` after the next key)
 

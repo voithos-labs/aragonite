@@ -813,7 +813,8 @@ function positionBeside(el: Element, side: 'before' | 'after'): DomPosition | nu
 	return { node: parent, offset: side === 'before' ? idx : idx + 1 };
 }
 
-function emptyTextBetween(from: Element, to: Element): boolean {
+/** Whether two neighbouring hidden runs are a block's marker span and its trailing structure. */
+function prefixMeetsSuffix(from: Element, to: Element): boolean {
 	return from.hasAttribute(BLOCK_PREFIX_ATTR) && to.hasAttribute(BLOCK_SUFFIX_ATTR);
 }
 
@@ -915,7 +916,7 @@ function* landingSegments(
 			}
 			// An emptied heading's text sits between its marker and its closing run, where the
 			// caret goes, so the two hidden runs stay apart.
-			if (run && emptyTextBetween(run.last, seg.hiddenRoot)) {
+			if (run && prefixMeetsSuffix(run.last, seg.hiddenRoot)) {
 				yield run;
 				run = null;
 			}

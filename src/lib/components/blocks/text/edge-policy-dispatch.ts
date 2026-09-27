@@ -211,12 +211,6 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 			id: 'construct-seat',
 			reason: 'the DOM caret cannot express which side of a zero-width run a typed byte belongs on',
 			claims: handleConstructSeat
-		},
-		{
-			id: 'empty-content',
-			reason:
-				'an emptied block between hidden markers paints no text for the caret, so the browser leaves it past or before them',
-			claims: handleEmptyContent
 		}
 	];
 
@@ -744,22 +738,6 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 			return true;
 		}
 		editDisplay(seat.offset, seat.offset, e.key, `seat:${seat.kind}`, caretOffset);
-		return true;
-	}
-
-	// ── Empty content between hidden markers (typing) ──────────────────────────
-
-	/** A printable key in a block whose text is empty, while the caret sits outside that empty
-	 *  range: the byte starts the text, between the block's own markers. */
-	function handleEmptyContent(e: KeyboardEvent, caretOffset: RawOffset | null): boolean {
-		if (!isPlainTypingKey(e) || caretOffset === null || heldRange()) return false;
-		const content = getContentRange(deps.node);
-		if (content.start !== content.end || caretOffset === content.start) return false;
-		const el = deps.getEl();
-		if (!el || !revealsNoMarkers(el)) return false;
-		e.preventDefault();
-		deps.setSnapTarget(null);
-		editDisplay(content.start, content.start, e.key, 'empty-content', caretOffset);
 		return true;
 	}
 

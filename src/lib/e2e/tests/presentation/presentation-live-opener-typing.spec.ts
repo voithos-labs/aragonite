@@ -164,6 +164,29 @@ test.describe('live mode: a typed block opener paints until it has content', () 
 	});
 });
 
+// A focused empty heading paints its markers, so a key typed on them lands where the caret is,
+// the way source mode writes it.
+test.describe('live mode: a key typed on a painted empty heading lands at the caret', () => {
+	for (const [source, path, keys, key, written] of [
+		['# \n\nnext\n', [0], ['Home'], '#', '## \n\nnext\n'],
+		['> ## \n\nnext\n', [0, 0], ['Home'], '#', '> ### \n\nnext\n'],
+		['#  #\n\nnext\n', [0], ['Home'], '#', '##  #\n\nnext\n'],
+		['#\n\nnext\n', [0], ['Home'], 'a', 'a#\n\nnext\n'],
+		['# \n\nnext\n', [0], ['End', 'ArrowLeft'], 'x', '#x \n\nnext\n']
+	] as const) {
+		test(`${JSON.stringify(source)}, ${keys.join(' ')}, then ${JSON.stringify(key)}`, async ({
+			page
+		}) => {
+			const ep = await enterPresentationMode(page, 'live', source);
+			await ep.focusBlockAtPath([...path], 0);
+			for (const k of keys) await page.keyboard.press(k);
+			await ep.waitForRenderFlush();
+			await page.keyboard.type(key);
+			await ep.bridge.waitForSourceEquals(written);
+		});
+	}
+});
+
 test.describe('loaded openers: the paint half needs no typing', () => {
 	// A content-empty opener is silent until the caret arrives: an unfocused bare `#` or empty
 	// fence shows nothing. Focusing the heading paints its marker; focusing the empty fence
