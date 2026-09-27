@@ -83,7 +83,7 @@ export function traversalStep(position: FocusPosition): -1 | 0 | 1 {
 }
 
 /** Scrolls nothing into view, so an unmounted target does nothing; a caller that cannot keep
- *  the target mounted goes through the async `revealByPath`. */
+ *  the target mounted goes through `reactivity/child-list.ts :: descendTo`. */
 export function dispatchFocusByPath(
 	refs: (BlockComponent | undefined)[],
 	path: number[],
@@ -101,19 +101,6 @@ export function dispatchFocusByPath(
 	} else {
 		child.focusByPath?.(rest, offset);
 	}
-}
-
-/** Null when the path doesn't resolve to a mounted ref. */
-export function dispatchGetBlockComponentByPath(
-	refs: (BlockComponent | undefined)[],
-	path: number[]
-): BlockComponent | null {
-	if (path.length === 0) return null;
-	const [first, ...rest] = path;
-	const child = refs[first];
-	if (!child) return null;
-	if (rest.length === 0) return child;
-	return child.getBlockComponentByPath?.(rest) ?? null;
 }
 
 export function dispatchFocusAtColumn(

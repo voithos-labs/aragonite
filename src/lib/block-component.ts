@@ -213,17 +213,6 @@ export interface BlockComponent {
 	 */
 	startDragAtPoint?(clientX: number, clientY: number, event: PointerEvent): boolean;
 	/**
-	 * Descend child indices to the BlockComponent at the leaf, or null if the path
-	 * doesn't resolve. Empty `path` returns this component. Containers implement it.
-	 */
-	getBlockComponentByPath?(path: number[]): BlockComponent | null;
-	/**
-	 * The async counterpart of `getBlockComponentByPath`: at each nested level, scroll the
-	 * child into the mounted range and await its mount before recursing, so a target outside
-	 * that range resolves instead of returning null.
-	 */
-	revealByPath?(path: number[]): Promise<BlockComponent | null>;
-	/**
 	 * This block's children as the editor walks down to one: their refs, the render window that
 	 * mounts them, and the collapse a navigation may open. Containers, tables and rows have one.
 	 */
@@ -333,8 +322,6 @@ export type ContainerBlockComponent = BlockComponent &
 			BlockComponent,
 			| 'getCursorPosition'
 			| 'focusByPath'
-			| 'getBlockComponentByPath'
-			| 'revealByPath'
 			| 'childList'
 			| 'focusAtColumn'
 			| 'isVerticallyTransparent'

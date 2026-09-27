@@ -8,6 +8,7 @@ import { SELECTION_END } from '$lib/block-component';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import type { CellSelectionPoint } from '$lib/selection/primitives';
 import { installTableLayoutStubs, mountTable, type MountedTable } from './mount-table';
+import { componentAt } from '$lib/reactivity/child-list';
 
 let restoreLayout: () => void;
 beforeAll(() => {
@@ -84,8 +85,8 @@ describe('the table addresses its own cells for focus and geometry', () => {
 		expect(document.activeElement).toBe(mounted.cell(1, 1));
 	});
 
-	// `focus` goes through the row's `focusByPath` and `parkCaret` through
-	// `getBlockComponentByPath`, so the two routes can drift apart.
+	// `focus` goes through the row's `focusByPath` and `parkCaret` through the cell lookup, so
+	// the two routes can drift apart.
 	it('both caret verbs land in the same corner cell', () => {
 		mounted = mountTable(GRID);
 
@@ -113,8 +114,8 @@ describe('the table addresses its own cells for focus and geometry', () => {
 	it('resolves a cell component by path and declines an out-of-grid one', () => {
 		mounted = mountTable(GRID);
 
-		expect(mounted.block.getBlockComponentByPath!([1, 1])?.editable).toBe(true);
-		expect(mounted.block.getBlockComponentByPath!([9, 0])).toBeNull();
+		expect(componentAt(mounted.block.childList!(), [1, 1])?.editable).toBe(true);
+		expect(componentAt(mounted.block.childList!(), [9, 0])).toBeNull();
 	});
 
 	it('measures a cell rect in range and declines one outside the grid', () => {

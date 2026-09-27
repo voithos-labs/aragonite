@@ -25,7 +25,7 @@ import { asDocPath } from '$lib/selection/path-math';
 import { docPathFrom } from '$lib/cursor/coordinate-spaces';
 import type { ContainerBlockComponentDeps } from '$lib/editor-actions/container-block-component';
 import { refSlotsOver } from '$lib/reactivity/publish-ref.svelte';
-import type { ChildList } from '$lib/reactivity/child-list';
+import { componentAt, type ChildList } from '$lib/reactivity/child-list';
 import type { PasteCommitCoordinator } from '$lib/tree-operations/paste/paste-deps';
 import type { PasteDispatchContext } from '$lib/tree-operations/paste/dispatch';
 import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
@@ -146,8 +146,7 @@ export function makeCommitScopeStub(
 		idAt: (i) => `block-${i}`,
 		refAt: (i) => refs[i],
 		// No render window here: every ref counts as mounted.
-		reveal: async (i, path) =>
-			(path.length === 0 ? refs[i] : refs[i]?.getBlockComponentByPath?.([...path])) ?? null,
+		reveal: async (i, path) => componentAt(makeShimChildList(refs), [i, ...path]),
 		collapseEmptyReplaceToDelete: opts.collapse ?? true,
 		async commit(args) {
 			commits.push(args);
@@ -464,10 +463,7 @@ export function makeNestedHarness(
 		...makeStubFocus(),
 		revealPath: async (path) => {
 			if (path[0] !== index || path.length < 2) return deps.revealPath(path);
-			const ref = state.innerBlockRefs[path[1]];
-			return path.length === 2
-				? (ref ?? null)
-				: (ref?.getBlockComponentByPath?.(path.slice(2)) ?? null);
+			return componentAt(makeShimChildList(state.innerBlockRefs), path.slice(1));
 		}
 	});
 	const overrides = opts.listOverrides

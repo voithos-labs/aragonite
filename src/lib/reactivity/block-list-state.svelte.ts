@@ -16,7 +16,7 @@ export interface BlockListState {
 	 *  The refs array keeps its identity for life; `replaceRefs` rewrites its contents. */
 	innerBlockIds: string[];
 	readonly innerBlockRefs: (BlockComponent | undefined)[];
-	/** Created once per list, since a mount waiter is keyed on this object's identity. */
+	/** The accessors over `innerBlockRefs` that a child's mount writes through. */
 	readonly refSlots: RefSlots<BlockComponent>;
 }
 

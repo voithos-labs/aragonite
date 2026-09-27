@@ -9,6 +9,7 @@ import { parse } from '$lib/core/parser';
 import { editorMountContext } from '../../harness/mount-context';
 import { installLayoutStubs } from '$lib/test/harness/mount-editor.svelte';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
+import { componentAt } from '$lib/reactivity/child-list';
 
 // The harness mounts BlockHost without the component layer, so unregistered kinds render raw.
 afterEach(() => allowDevWarns(['block-host']));
@@ -50,12 +51,12 @@ describe('blockquote delegates to its inner BlockList', () => {
 	it('resolves the addressed child, not merely the first one', () => {
 		mounted = mountQuote('> alpha\n>\n> beta\n');
 
-		const first = mounted.instance.containerApi.getBlockComponentByPath([0]);
-		const second = mounted.instance.containerApi.getBlockComponentByPath([1]);
+		const first = componentAt(mounted.instance.containerApi.childList(), [0]);
+		const second = componentAt(mounted.instance.containerApi.childList(), [1]);
 
 		expect(first?.editable).toBe(true);
 		expect(second).not.toBe(first);
-		expect(mounted.instance.containerApi.getBlockComponentByPath([2])).toBeNull();
+		expect(componentAt(mounted.instance.containerApi.childList(), [2])).toBeNull();
 	});
 
 	it('lands focus in the first child when the container is focused', () => {

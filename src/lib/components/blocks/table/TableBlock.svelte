@@ -27,7 +27,7 @@
 	import { selectedCells } from './selected-cells';
 	import { useContainerWindowing } from '../../../reactivity/use-container-windowing.svelte';
 	import { sliceWindow } from '../../../reactivity/window-slice';
-	import { componentAt, descendTo, type ChildList } from '../../../reactivity/child-list';
+	import { componentAt, type ChildList } from '../../../reactivity/child-list';
 	import { createContainerActions } from '../../../editor-actions/nested/container-actions';
 	import { createTableMutationsContext } from '../../../editor-actions/table-context';
 	import TableRowBlock from './TableRowBlock.svelte';
@@ -115,6 +115,12 @@
 
 	let win = $derived(windowing.window);
 	let bounds = $derived(sliceWindow((node.children ?? []).length, win));
+
+	const rowList: ChildList = {
+		count: () => rowCount,
+		refs: rowsState.refSlots,
+		windowing
+	};
 
 	// Each column holds the widest cell any mounted row has shown, so a column does not narrow
 	// as row windowing unmounts its widest cell. The floor only grows.
@@ -317,7 +323,7 @@
 	}
 
 	function cellRefAt(rowIdx: number, colIdx: number): BlockComponent | null {
-		return getBlockComponentByPath([rowIdx, colIdx]);
+		return componentAt(rowList, [rowIdx, colIdx]);
 	}
 
 	// Capture the cell's selection now, before a menu-item click moves focus off it, so
@@ -446,22 +452,8 @@
 		rowRefAt(rowIdx)?.focusByPath?.([colIdx, ...rest], offset);
 	}
 
-	const rowList: ChildList = {
-		count: () => rowCount,
-		refs: rowsState.refSlots,
-		windowing
-	};
-
 	export function childList(): ChildList {
 		return rowList;
-	}
-
-	export function getBlockComponentByPath(path: number[]): BlockComponent | null {
-		return componentAt(rowList, path);
-	}
-
-	export function revealByPath(path: number[]): Promise<BlockComponent | null> {
-		return descendTo(rowList, path, { openCollapsed: true });
 	}
 
 	// See `focus()`: two-dimensional, so there is no single offset; `getCursorPosition` has it.
@@ -538,8 +530,6 @@
 		parkCaret,
 		focusAtColumn,
 		focusByPath,
-		getBlockComponentByPath,
-		revealByPath,
 		childList,
 		getCursorOffset,
 		getCursorPosition,

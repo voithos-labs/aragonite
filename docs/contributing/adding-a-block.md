@@ -429,18 +429,20 @@ const windowing = useContainerWindowing({
 | `provideLeafChannel`          | `true` when direct children are BlockHosts; `false` for direct-`{#each}` scopes      |
 | `isCollapsed`                 | Optional: `true` while only the chrome row should be mounted (a collapsed container) |
 
-The hook reads the rest of the windowing machinery (the height estimates, the focused path, the width counter, the parent's measurement sink) from context itself; you never touch any of it. It returns a handle: render `windowing.window`'s slice into your `{#each}`, and feed `revealChild` / `isInWindow` into `createContainerBlockComponent` so an off-window focus or reveal resolves a mounted child:
+The hook reads the rest of the windowing machinery (the height estimates, the focused path, the width counter, the parent's measurement sink) from context itself; you never touch any of it. It returns a handle: render `windowing.window`'s slice into your `{#each}`, and hand it to `createContainerBlockComponent` as the window of your `childList`, the list a walk down to an off-window child scrolls and waits on:
 
 ```ts
 // components/blocks/list/ListBlock.svelte
 export const containerApi = createContainerBlockComponent({
 	selection,
+	reading,
 	get innerBlockRefs() { return listState.innerBlockRefs; },
-	refSlots: listState.refSlots,
-	get nodeChildrenLength() { return node.children?.length ?? 0; },
-	get node() { return node; },
-	revealChild: windowing.revealChild,
-	isInWindow: windowing.isInWindow
+	childList: {
+		count: () => node.children?.length ?? 0,
+		refs: listState.refSlots,
+		windowing
+	},
+	get node() { return node; }
 });
 ```
 

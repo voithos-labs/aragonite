@@ -14,7 +14,7 @@
 	import { useMountGauge } from '../../../perf/use-mount-gauge.svelte';
 	import { createContainerActions } from '../../../editor-actions/nested/container-actions';
 	import { publishRefSlot, type RefSlots } from '../../../reactivity/publish-ref.svelte';
-	import { componentAt, type ChildList } from '../../../reactivity/child-list';
+	import type { ChildList } from '../../../reactivity/child-list';
 	import { useBlockDecorations } from '../../../decorations/use-block-decorations.svelte';
 	import TableCellBlock from './TableCellBlock.svelte';
 
@@ -136,10 +136,6 @@
 		return cellList;
 	}
 
-	export function getBlockComponentByPath(path: number[]): BlockComponent | null {
-		return componentAt(cellList, path);
-	}
-
 	export function getCursorPosition(): { path: number[]; offset: number } | null {
 		for (let colIdx = 0; colIdx < cellsState.innerBlockRefs.length; colIdx++) {
 			const cellRef = cellsState.innerBlockRefs[colIdx];
@@ -161,7 +157,6 @@
 			getCursorOffset,
 			getCursorPosition,
 			focusByPath,
-			getBlockComponentByPath,
 			childList
 		} satisfies BlockComponent;
 		return publishRefSlot(slots, index, self, rowEl);

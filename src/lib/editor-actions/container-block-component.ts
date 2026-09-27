@@ -7,7 +7,7 @@ import {
 	type StickyColumnDirection
 } from '../block-component';
 import { dispatchFocusByPath, dispatchFocusAtColumn } from './focus/focus-dispatch';
-import { componentAt, descendTo, type ChildList } from '../reactivity/child-list';
+import type { ChildList } from '../reactivity/child-list';
 import type { AnyBlockKind } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import type { BlockEditActions, FocusActions } from '../action-contracts';
@@ -227,12 +227,6 @@ export function createContainerBlockComponent(
 		},
 		focusByPath(path: number[], offset: number) {
 			dispatchFocusByPath(deps.innerBlockRefs, path, offset);
-		},
-		getBlockComponentByPath(path: number[]): BlockComponent | null {
-			return componentAt(deps.childList, path);
-		},
-		revealByPath(path: number[]): Promise<BlockComponent | null> {
-			return descendTo(deps.childList, path, { openCollapsed: true });
 		},
 		childList: () => deps.childList,
 		focusAtColumn(x: number, from: StickyColumnDirection) {

@@ -22,6 +22,8 @@ describe('createDeadSpaceCaret routing', () => {
 	let resetSelectionForClick: Mock<() => void>;
 	let leafSnap: Mock<(x: number, y: number) => void>;
 	let ownSnap: Mock<(x: number, y: number) => void>;
+	// The cell a path inside the table names; null when nothing is mounted there.
+	let leaf: BlockComponent | null;
 	let mounted: ReturnType<typeof mountTableGrid>;
 	const origFromPoint = document.elementFromPoint;
 
@@ -38,14 +40,14 @@ describe('createDeadSpaceCaret routing', () => {
 		focusByPath = vi.fn(() => {});
 		leafSnap = vi.fn(() => {});
 		ownSnap = vi.fn(() => {});
+		leaf = { snapCaretToPoint: leafSnap } as unknown as BlockComponent;
 		component = {
 			editable: true,
 			focusable: true,
 			focus: vi.fn(),
 			getCursorOffset: () => null,
 			focusByPath,
-			snapCaretToPoint: ownSnap,
-			getBlockComponentByPath: () => ({ snapCaretToPoint: leafSnap }) as unknown as BlockComponent
+			snapCaretToPoint: ownSnap
 		} as unknown as BlockComponent & { focus: ReturnType<typeof vi.fn> };
 		resetSelectionForClick = vi.fn(() => {});
 	});
@@ -57,7 +59,7 @@ describe('createDeadSpaceCaret routing', () => {
 
 	function clickAt(clientX: number, clientY: number): boolean {
 		const caret = createDeadSpaceCaret({
-			getBlockComponent: () => component,
+			getBlockComponent: (path) => (path.length > 1 ? leaf : component),
 			resetSelectionForClick,
 			gapScope: makeEmptyGapScope(),
 			lastBlockIndex: () => 0,
@@ -131,7 +133,7 @@ describe('createDeadSpaceCaret routing', () => {
 		});
 
 		it('declines a block that publishes no snap entry point', () => {
-			component = { ...component, getBlockComponentByPath: () => null } as typeof component;
+			leaf = null;
 			expect(clickAt(20, TABLE_BOX.top + 20)).toBe(true);
 			expect(leafSnap).not.toHaveBeenCalled();
 		});

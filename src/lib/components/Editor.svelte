@@ -533,8 +533,9 @@
 
 	// ── Action Bundles ──────────────────────────────────────────────────
 
+	// An edit's landing or a restore never opens a collapsed body; only a navigation does.
 	function revealPath(path: number[]): Promise<BlockComponent | null> {
-		return descendTo(rootList, path, { openCollapsed: true });
+		return descendTo(rootList, path);
 	}
 
 	const editorActionsDeps: EditorActionsDeps = {
@@ -581,8 +582,8 @@
 
 	const rects = createEditorRects({
 		getBlockElByPath,
-		getBlockComponentByPath: getBlockComponent,
-		revealPath,
+		getBlockComponent,
+		revealPath: (path) => descendTo(rootList, path, { openCollapsed: true }),
 		getEditorRoot: () => editorEl ?? null,
 		isHostScroll: () => hostScroll,
 		getClipBounds,
