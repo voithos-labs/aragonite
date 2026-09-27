@@ -1532,10 +1532,11 @@ it means the ASCII set of § 2.1, which `src/lib/core/lines.ts :: isWhitespaceCh
 and `trim()` admit a non-breaking space either way, so the scan fails on either in `core/parsers/`
 and the other grammar files. Emphasis and the code that edits it stay outside the scan, since
 the flanking rule is written over Unicode whitespace. The directive grammar (`core/directive/`)
-and the bundled plugins are in the scan too, reading the same helpers through
+and the bundled plugins are in the scan too. The plugins read the same helpers through
 `src/lib/plugin.ts`. Its allowlist is the few plugin files whose `\s` or `trim()` reads text that
-isn't Markdown (the slash menu's typed query, a render's ink check, a heading's outline label),
-each with why. `lint/file-rules.test.ts`.
+isn't Markdown (the slash menu's typed query, a render's ink check, a KaTeX error message), each
+with why. The math plugin's `$` flanking test is on it too: it reads Unicode whitespace the way
+emphasis does, so a French price like `5 $` stays prose. `lint/file-rules.test.ts`.
 
 ## Accessibility
 

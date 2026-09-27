@@ -148,7 +148,7 @@ p.s. Please, for chrissake, don't hand-write `rebuildRaw` for a container, lest 
 
 ## The info string and attributes
 
-Everything after the name on the opener line is the **info string**. For `:::note Heads up` that's `' Heads up'`, leading space included, so trim it with `trimWhitespace` before you show it (plain `trim()` would also eat a non-breaking space someone typed on purpose).
+Everything after the name on the opener line is the **info string**. For `:::note Heads up` that's `' Heads up'`, leading space included, so trim it with `trimWhitespace` (from `@voithos-labs/aragonite/plugin`) before you show it (plain `trim()` would also eat a non-breaking space someone typed on purpose).
 
 If you want the remark-style `[label]{#id .class key=value}` convention, `parseDirectiveAttributes(info)` reads it into `{ label, id, classes, properties }`. It is opt-in and pure: a directive whose "info" is just a title (`:::note My Title`) never calls it.
 
