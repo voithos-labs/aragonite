@@ -18,9 +18,8 @@ describe('demoteToParagraph', () => {
 		});
 	});
 
-	// The check is the kind's content range, which skips up to three leading spaces; a prefix
-	// rewrite that reads the `#`s with its own regex writes the block back unchanged there, so
-	// the key does nothing at all: no demote, and the merge never sees it either.
+	// The kind's content range skips up to three leading spaces, where a `#`-anchored rewrite
+	// would write the block back unchanged and the key would do nothing at all.
 	it('drops an indented ATX prefix, which no `#`-anchored regex reaches', () => {
 		expect(demoteToParagraph('  ## Indented\n', { start: 5, end: 13 }, 5)).toEqual({
 			newRaw: 'Indented\n',
@@ -83,9 +82,8 @@ describe('demoteToParagraph: a setext underline', () => {
 	});
 });
 
-// The blur rule: an ATX heading with no text becomes the empty paragraph it looks like, and
-// nothing else does. A heading with text keeps its marker, and a setext heading has no prefix
-// standing over nothing.
+// On blur, only an ATX heading with no text becomes the empty paragraph it looks like; a setext
+// heading has no prefix standing over nothing.
 describe('demoteEmptyAtxHeading', () => {
 	it('drops the marker of a heading left with no text', () => {
 		expect(demoteEmptyAtxHeading('## \n', { start: 3, end: 3 })).toEqual({

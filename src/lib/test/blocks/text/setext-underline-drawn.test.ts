@@ -1,9 +1,7 @@
 // @vitest-environment jsdom
-//
 // A setext heading draws its underline as a marker, hidden where markers hide, and every key at
-// the title's end keeps the underline under the title (GH #463, #468).
-// Miss-analysis: the page never drew the underline, so each write route put it back on its own,
-// and the key routes that splice the displayed text (Shift+Enter, Tab) had no setext case.
+// the title's end keeps the underline under the title.
+// Miss-analysis: GH #463, #468, no setext case covered Shift+Enter or Tab at the title's end.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import {
 	destroyMountedEditors,

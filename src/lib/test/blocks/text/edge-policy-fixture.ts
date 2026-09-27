@@ -45,7 +45,7 @@ export function makeEdgeDispatch(
 		get containerParent() {
 			return null;
 		},
-		// The mode the surface's root stamps, as the editor stamps its own from the same reading.
+		// The mode on the element's `data-presentation` root, as the editor writes it from the reading.
 		get reading() {
 			return fixtureReading(
 				{},

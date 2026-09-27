@@ -1,11 +1,8 @@
 // @vitest-environment jsdom
-//
-// Three branches that write bytes and outrank the rules they must respect: the step-over delete
-// for a decoration widget and the printable insert beside a CST widget both run above
-// construct-edge-delete and the typing rules, and the marker-prefix delete consumes its keydown
-// before any `beforeinput` reaches the join rules. Miss-analysis: those branches' own suites feed
-// them plain prose, so no fixture put a hidden run beside the byte they splice, and a branch that
-// consumes a keydown is invisible to a suite shaped around input types.
+// Three byte-writing branches that outrank rules they must respect: the decoration step-over
+// delete and the insert beside a CST widget run above the construct delete and typing rules, and
+// the marker-prefix delete consumes its keydown before any `beforeinput` reaches the join rules.
+// Miss-analysis: those branches' suites used plain prose, never a hidden run beside the byte.
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { cleanLiveJoinSeam } from '$lib/components/blocks/text/live-join-seam';
 import {

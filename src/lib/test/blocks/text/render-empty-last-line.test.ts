@@ -4,10 +4,8 @@ import { createTextRender } from '$lib/components/blocks/text/text-render';
 import type { CstNode } from '$lib/core/nodes';
 import { makeRenderHarness } from '$lib/test/harness/text-render';
 
-// A prose block whose text ends in a line break has an empty last line, and the caret needs
-// something after the break to sit on it (GH #467).
-// Miss-analysis: the plain-text and code blocks anchor that line, and no prose render test ever
-// drew a block whose own text ended in a line break.
+// A prose block whose text ends in a line break needs something after the break for the caret.
+// Miss-analysis: GH #467, no prose render test drew a block whose own text ended in a line break.
 
 const paragraph = (raw: string) => ({ kind: 'paragraph', leadingTrivia: '', raw }) as CstNode;
 const anchors = (el: HTMLElement) => el.querySelectorAll('br[data-caret-anchor]').length;

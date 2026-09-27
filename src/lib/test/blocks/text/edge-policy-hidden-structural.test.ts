@@ -1,11 +1,8 @@
 // @vitest-environment jsdom
-//
-// The caret-edge dispatch at a block whose structure sits past its content (a setext underline).
-// Neither end is the dispatch's to take: Delete at the content end goes to the block command, whose
-// join lands the next block's text above the underline, and Backspace at the content start goes to
-// the demote (`merge-prev-demote.test.ts`).
-// Miss-analysis: these suites mount bare containers with no presentation root, so the
-// marker-hiding modes had no fixture to fail in.
+// The caret-edge dispatch at a block whose structure sits past its content (a setext underline)
+// takes neither end: Delete at the content end goes to the block join, and Backspace at the
+// content start to the demote (`merge-prev-demote.test.ts`).
+// Miss-analysis: the suites mounted no presentation root, so marker-hiding modes had no fixture.
 import { describe, expect, it } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { trimTrailingLineEnding } from '$lib/core/lines';

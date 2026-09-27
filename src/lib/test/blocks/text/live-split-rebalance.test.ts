@@ -7,9 +7,8 @@ import { getContentRange, parseInline } from '$lib/core/inline';
 import { CONTENT_VISIBILITY, renderedText } from '$lib/core/inline/visibility';
 import { fixtureReading, renderOptions } from '../../harness/fixture-grammar';
 
-// The bytes a live-mode Enter writes into each half. Every case states the plain literal cut the
-// rewrite is offered, which is what a refusal leaves behind, so a null return is covered as
-// closely as a rewrite. The `\n` padding is what `splitNode` has already added when this runs.
+// The bytes a live-mode Enter writes into each half. Each case states the literal cut a refusal
+// leaves; the `\n` padding is what `splitNode` has already added.
 
 function split(source: string, offset: number) {
 	const node = parse(source, { scope: 'fragment' }).children[0];
@@ -145,12 +144,8 @@ describe('a cut at a construct edge hands the construct over whole', () => {
 	});
 });
 
-// Moving the space puts it where a reparse reads it as a hard break's leftovers, so the pair
-// comes back a different shape (`~~foo~~\n\n  \n\n` is three children), and falling back to the
-// literal cut converges but prints delimiters the user never saw. Whitespace at the end of a
-// block is a hard break with no following line and draws nothing, so the cut drops it (GH #106).
-// Miss-analysis: the shape-fixed-point differential test owns this divergence, but its fixed
-// seed never drew the shape; only a fresh-seed property run did.
+// Trailing whitespace draws nothing, and moved outside the pair it reparses wrong, so it drops.
+// Miss-analysis: GH #106, the shape differential test's fixed seed never drew this shape.
 describe('a cut that would strand terminal whitespace drops it instead', () => {
 	it('hands the construct over whole and leaves the spaces behind', () => {
 		expect(split('~~foo~~  \n', 5)).toEqual({ firstRaw: '~~foo~~\n', secondRaw: '\n' });
@@ -280,9 +275,8 @@ describe('the first half never parses to more than one block', () => {
 	});
 });
 
-// The resolver is passed on the call, never registered: it is per editor while the registry is
-// process-wide. Without it a reference form reads as brackets and the cut refuses, which is safe
-// but still leaves a marker on screen, which is why the parameter exists.
+// The resolver is passed per call because it is per editor while the registry is process-wide;
+// without it a reference form reads as brackets and the cut leaves a marker on screen.
 describe('a reference form rebalances only when the resolver reaches the join', () => {
 	const DOC = 'Visit [example][site] here\n\n[site]: https://example.com\n';
 
@@ -314,11 +308,8 @@ describe('a reference form rebalances only when the resolver reaches the join', 
 	});
 });
 
-// A never-extend construct with no children has no interior a cut can land in: two halves of a
-// URL are not two URLs, and half an escape is a literal backslash, so the cut moves to its nearer
-// edge and one half takes it whole (GH #118). Miss-analysis: the class was recorded as a known
-// gap in the split e2e and as `toBeNull()` here, and both assert the literal cut rather than
-// dispute it.
+// Two halves of a URL are not two URLs, so the cut moves to a childless construct's nearer edge.
+// Miss-analysis: GH #118, the split e2e and this suite both asserted the literal cut as correct.
 describe('a childless never-extend construct is taken whole', () => {
 	it('an autolink lands entirely in the half its caret was nearer', () => {
 		expect(split('<https://example.com> tail\n', 13)).toEqual({
@@ -355,17 +346,14 @@ describe('a childless never-extend construct is taken whole', () => {
 		});
 	});
 
-	// Every byte survives the move, which is the contract that ruled the bracket-drop out.
 	it('keeps every byte of the construct across the two halves', () => {
 		const halves = split('<https://example.com> tail\n', 13)!;
 		expect(halves.firstRaw + halves.secondRaw).toContain('<https://example.com>');
 	});
 });
 
-// A construct standing over an empty one shows all its bytes (live-mode.md § 4.1), so moving its
-// opener across the cut moves bytes the user is looking at. Miss-analysis: the visible-marker
-// cases used the flat `[](u)`, which refuses here because it has no children, the wrong reason,
-// so no case reached this rewrite with a visible construct to cut open.
+// A construct over an empty one shows its bytes (live-mode.md § 4.1), so its opener stays put.
+// Miss-analysis: the visible cases used flat `[](u)`, which refuses here for having no children.
 describe('a construct that is painting chrome is not cut open', () => {
 	it('declines inside a bold pair standing over a link with no text', () => {
 		expect(split('**[](u)**\n', 2)).toBeNull();

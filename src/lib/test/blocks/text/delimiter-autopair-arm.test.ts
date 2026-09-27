@@ -1,10 +1,7 @@
 // @vitest-environment jsdom
-//
-// The `beforeinput` handler around the auto-pair resolver: what the block is asked to do with an
-// edit, and the check the block lends it, whether the written line still parses as this block.
-// The resolver's own table is `delimiter-autopair.test.ts`.
-// Miss-analysis: every resolver case sat inside prose, so none typed the second `*` of an
-// otherwise empty block and watched `****` reparse as a thematic break.
+// The `beforeinput` handler around the auto-pair resolver, with the block's check that the written
+// line still parses as this block. The resolver's own table is `delimiter-autopair.test.ts`.
+// Miss-analysis: resolver cases sat inside prose, so none saw `****` reparse as a thematic break.
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
 	applyDelimiterAutoPair,

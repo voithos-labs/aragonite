@@ -1,10 +1,8 @@
 // @vitest-environment jsdom
-//
 // The caret-edge dispatch's marker-completion branch: a bare space at the content start of an
 // empty child, or of a child right after a bare marker, belongs to the marker the parser already
 // made, so it is consumed and no byte moves.
-// Miss-analysis: the parser makes `>` on one keystroke and the suite only ever loaded quotes, so
-// the second keystroke of the two-key marker had no test at any level.
+// Miss-analysis: the suite loaded only finished quotes, so the second key of `> ` had no test.
 import { describe, expect, it } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { trimTrailingLineEnding } from '$lib/core/lines';
@@ -69,9 +67,8 @@ describe('a container declaring contentStartSpace completes its marker', () => {
 		expect(h.edits).toHaveLength(0);
 	});
 
-	// The consumed key writes nothing, so the child is byte-identical when the second space
-	// arrives and only this branch's own memory tells them apart. The second space is also the
-	// only way to type a leading space at all, and the indented-code opener needs four (GH #143).
+	// The consumed key writes nothing, so only this branch's memory tells the second space from the
+	// first; the second is the only way to type a leading space, and indented code needs four.
 	it('declines the second space at the same caret position, leaving it to land as content', () => {
 		const h = mount('>\n', [0, 0]);
 		expect(h.handleKeydown(key(' '), at(0))).toBe(true);
@@ -81,7 +78,7 @@ describe('a container declaring contentStartSpace completes its marker', () => {
 		expect(h.edits).toHaveLength(0);
 	});
 
-	// It is taken once per child, not once per component: a component recycled for another
+	// The completion is taken once per child, not per component: a component recycled for another
 	// empty child gives that child its own completion.
 	it('re-branches when the surface is re-used for a different empty child', () => {
 		const h = mount('>\n>\n', [0, 0]);
@@ -96,10 +93,8 @@ describe('a container declaring contentStartSpace completes its marker', () => {
 		expect(h.handleKeydown(key(' '), at(0))).toBe(false);
 	});
 
-	// Typing `>` before existing text makes the quote at once, and the caret lands before the text
-	// (GH #456), so the space typed next is the marker's, not a leading space in the text.
-	// Miss-analysis: the caret never reached a non-empty child's start after a bare marker before
-	// that fix, so only the empty child was ever asked.
+	// Typing `>` before text leaves the caret before the text, so the next space is the marker's.
+	// Miss-analysis: GH #456, no caret could reach that offset, so only the empty child was asked.
 	it('consumes the space at the content start of a child right after a bare marker', () => {
 		const h = mount('>abc\n', [0, 0]);
 		expect(h.handleKeydown(key(' '), at(0))).toBe(true);

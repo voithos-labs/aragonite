@@ -1,8 +1,7 @@
 // @vitest-environment jsdom
 // Text replacing a selected widget puts the caret right after itself, since the widget it replaced
-// was the only thing selected and the browser keeps no caret of its own (GH #440, #441).
-// Miss-analysis: the widget-splice pins recorded the one commit's bytes and never the caret, so
-// a second key or an awaited insert landing nowhere was invisible to them.
+// was the only thing selected and the browser keeps no caret of its own.
+// Miss-analysis: GH #440, #441, the widget-splice tests pinned the commit's bytes, never the caret.
 import { describe, it, expect, vi } from 'vitest';
 import { parse } from '$lib/core/parser';
 import {
@@ -74,7 +73,7 @@ describe('replacing a selected widget', () => {
 		expect(log.at(-1)).toBe('landed');
 	});
 
-	// GH #539: the cell's rule escapes the typed pipe, so the caret goes after both bytes.
+	// The cell's rule escapes the typed pipe, so the caret goes after both bytes.
 	it('parks the caret the write stored, past an escape the kind added', async () => {
 		const row = mountBodyRow('| a | b |\n| - | - |\n| x<br>y | z |\n');
 		const cell = () => row.deps.doc.children[0].children![1].children![0];

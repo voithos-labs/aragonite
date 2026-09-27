@@ -1,5 +1,4 @@
 // @vitest-environment jsdom
-//
 // A paragraph written with CRLF must keep its trailing `\r\n` through the keystroke commit:
 // appending a hard `\n` there would make the first keystroke rewrite the block's line ending.
 // Driven through the mounted component's real input listener, since the commit lives there.
@@ -60,8 +59,7 @@ describe('TextEditableBlock keystroke commit preserves the trailing line ending'
 	});
 });
 
-// Miss-analysis: every fixture above ends in a line ending, so no case reached the last line of a
-// document without one, where the block has no ending of its own to reattach (#458).
+// Miss-analysis: GH #458, every fixture above ended in a line ending, never an unterminated one.
 describe('a keystroke on the unterminated last line of a CRLF document', () => {
 	beforeAll(installLayoutStubs);
 	afterEach(destroyMountedEditors);

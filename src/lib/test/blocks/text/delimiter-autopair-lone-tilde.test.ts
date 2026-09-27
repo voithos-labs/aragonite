@@ -8,9 +8,8 @@ import { defaultGrammarView } from '$lib/schema/block-openers';
 import { fixtureReading } from '$lib/test/harness/fixture-grammar';
 
 // The auto-pair drops the partner of an empty pair it wrote, but a tilde pairs only as a double
-// run, so `~|~` is two bytes the user wrote and a key between them keeps both (GH #462).
-// Miss-analysis: the empty-pair rows used the pairs each delimiter writes, and none put a caret
-// between two single tildes, where the byte shape matches a pair the auto-pair never makes.
+// run, so `~|~` is two bytes the user wrote and a key between them keeps both.
+// Miss-analysis: GH #462, the empty-pair rows used only pairs the auto-pair writes, never `~|~`.
 
 const whole = (text: string) => ({ start: 0, end: text.length });
 const type = (text: string, caret: number, typed: string, own: ContentRange | null = null) =>

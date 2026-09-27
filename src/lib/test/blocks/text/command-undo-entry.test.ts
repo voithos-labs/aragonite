@@ -1,8 +1,6 @@
 // @vitest-environment jsdom
-//
-// A command is not typing: run mid-burst it is its own undo entry (#525).
-// Miss-analysis: the isolation suite drove the controller with the toggle's own wrapper, so the
-// commands whose branch never took the wrapper had no case.
+// A command run in the middle of a typing burst is its own undo entry.
+// Miss-analysis: GH #525, the undo suite ran only the toggle's wrapper, no other command.
 import { it, expect, beforeAll, afterEach } from 'vitest';
 import type { UndoEntry } from '$lib/undo/types';
 import {

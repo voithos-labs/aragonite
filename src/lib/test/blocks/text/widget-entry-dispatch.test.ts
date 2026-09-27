@@ -1,10 +1,8 @@
 // @vitest-environment jsdom
-//
-// Entering a widget at a caret edge is decided by the kind's `revealSource` policy in two places:
-// the caret-edge dispatch inside the block (`edge-policy-dispatch`, all four entry keys) and the
-// cross-block `enterEdgeWidget`. A kind that can show its source opens it at the edge the key
-// came from; one that cannot is selected and then stepped over. Covered in both places, so a
-// change that fixes only one of them fails here rather than only in e2e.
+// Entering a widget at a caret edge follows the kind's `revealSource` policy in two places, the
+// block's caret-edge dispatch and the cross-block `enterEdgeWidget`: a kind that can show its
+// source opens it at the edge the key came from, and one that cannot is selected, then stepped
+// over. Covering both catches a change that fixes only one.
 import { recordingWrite } from '$lib/test/harness/editor-actions';
 import type { Commit } from './widget-selected-fixture';
 import { beforeEach, describe, it, expect } from 'vitest';
@@ -124,9 +122,8 @@ describe('edge dispatch: image kind keeps select-then-step', () => {
 // ── Atomic deleteGranularity: deleted whole in one key, with no select step ──
 
 describe('edge dispatch: an atomic kind deletes whole on one press', () => {
-	// Reconfiguring the math kind as an atomic widget shows `deleteGranularity` is honoured for
-	// any kind, not just the built-in entity; `installMathInline`'s reset registers math again.
-	// MATH_INLINE is the raw kind string; the augment API takes the branded kind.
+	// Reconfiguring math as an atomic widget shows `deleteGranularity` holds for any kind, not just
+	// the built-in entity; `installMathInline`'s reset registers math again.
 	beforeEach(() => {
 		augmentInlineWidgetKind(MATH_INLINE as AnyInlineKind, {
 			revealSource: false,

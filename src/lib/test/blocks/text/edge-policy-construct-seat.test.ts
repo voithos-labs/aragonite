@@ -1,11 +1,8 @@
 // @vitest-environment jsdom
-//
-// Where the caret-edge dispatch puts a typed byte. A printable key at an inline construct's
-// hidden delimiter run writes its byte through the CST at the offset the policy and the arrival
-// side name, because Chromium moves a collapsed caret back across a run it does not render, so
-// moving the DOM caret past that run is undone before the insertion.
-// Miss-analysis: the policy entry and the arrival side both shipped with no consumer, so nothing
-// could disagree with them; this is the level where the two meet.
+// Where the caret-edge dispatch puts a byte typed at a hidden delimiter run: through the CST, at
+// the offset the policy and the arrival side name, since Chromium moves a collapsed caret back
+// across a run it does not render.
+// Miss-analysis: the policy entry and the arrival side shipped with no consumer to disagree with.
 import { describe, expect, it } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { trimTrailingLineEnding } from '$lib/core/lines';
@@ -60,17 +57,15 @@ describe('a symmetric pair extends or not by the arrival on record', () => {
 		expect(h.edits).toEqual([[0, 'Some **Xbold** text\n', 5, 8]]);
 	});
 
-	// A click resets the arrival side, so the default is what a click means (live-mode.md § 4.2).
-	// These rules decide where the byte lands; what a delimiter keystroke writes there is still
-	// the auto-pair's answer, or a byte placed past the closer would arrive without its partner.
-	// Miss-analysis: every case here typed a letter, so the `beforeinput` auto-pair, which keydown
-	// pre-empts by writing first, was never asked about a delimiter placed this way.
+	// A delimiter still gets the auto-pair's bytes, or one placed past the closer lacks its partner.
+	// Miss-analysis: every case typed a letter, so no delimiter met the auto-pair keydown pre-empts.
 	it('writes a delimiter’s paired closer at the caret position, not a lone byte', () => {
 		const h = mount(BOLD, 'live', 'far');
 		expect(h.handleKeydown(key('`'), at(11))).toBe(true);
 		expect(h.edits).toEqual([[0, 'Some **bold**`` text\n', 11, 14]]);
 	});
 
+	// A click resets the arrival side, so the default is what a click means (live-mode.md § 4.2).
 	it('declines with no arrival on record: a click keeps the construct’s near side', () => {
 		const h = mount(BOLD, 'live', null);
 		expect(h.handleKeydown(key('X'), at(11))).toBe(false);
@@ -118,8 +113,7 @@ describe('the caret position claims only a live caret typing at an edge', () => 
 		}
 	});
 
-	// Backspace and Delete are absent on purpose: the same edge places a typed byte and cuts for
-	// a destructive key, and the destructive branch owns those two
+	// Backspace and Delete are absent on purpose: the destructive branch owns them
 	// (`edge-policy-construct-delete.test.ts`).
 	it('declines a non-printable key', () => {
 		const h = mount(BOLD, 'live', 'far');

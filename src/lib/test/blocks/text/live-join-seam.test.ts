@@ -5,9 +5,8 @@ import { displayLength } from '$lib/core/lines';
 import { cleanLiveJoinSeam } from '$lib/components/blocks/text/live-join-seam';
 import { fixtureReading } from '../../harness/fixture-grammar';
 
-// The bytes a live-mode join writes. Every case states the plain concatenation the cleanup is
-// offered, which is what a refusal leaves behind, so a null return is covered as closely as a
-// rewrite.
+// The bytes a live-mode join writes. Each case states the plain concatenation a refusal leaves,
+// so a null return is covered as closely as a rewrite.
 
 const blockOf = (source: string) => parse(source, { scope: 'fragment' }).children[0];
 
@@ -97,8 +96,8 @@ describe('the split inverse: a closer and an opener meeting at the join', () => 
 });
 
 describe('a truncation that strands a delimiter run', () => {
-	// The § 5 case: the user saw bold, then italic; what survives is the joined text, and the runs
-	// whose partners the cut took are dropped rather than printed.
+	// The user saw bold, then italic; what survives is the joined text, and the runs whose
+	// partners the cut took are dropped rather than printed.
 	it('bold to italic drops both stranded runs', () => {
 		expect(sameBlock('**bold** and *italic*\n', 4, 16)).toBe('boalic\n');
 	});
@@ -130,9 +129,7 @@ describe('a truncation that strands a delimiter run', () => {
 });
 
 describe('a join whose survivors are only terminal hard-break blank lines', () => {
-	// Miss-analysis (GH #113): the split half's trailing-whitespace rule (GH #106) had matching
-	// deterministic tests; the join half was covered only by the random property suite, so the
-	// case failed about one run in six instead of failing a named test.
+	// Miss-analysis: GH #113, only the random property suite covered the join, failing 1 run in 6.
 	it('drops the blank lines with the stranded run, not the run alone', () => {
 		// `  \n` alone would reparse as a blank line, not the block that was written.
 		expect(sameBlock('~~foo~~  \n', 0, 5)).toBe('\n');
@@ -161,9 +158,7 @@ describe('a join whose survivors are only terminal hard-break blank lines', () =
 	});
 });
 
-// Miss-analysis: every join case cut a construct so that one side kept content, so the shape
-// where both sides together empty it was never drawn; and the empty-pair check spelled leftovers
-// as an asterisk-family regex, which `[](url)` does not match, so the property suite missed it.
+// Miss-analysis: join cases left content on one side, and the empty-pair regex missed `[](url)`.
 describe('a join that would leave a construct enclosing nothing unwraps it', () => {
 	it('unwraps a link the cut emptied rather than leaving [](url) unpainted', () => {
 		expect(sameBlock('[text](url) more\n', 1, 5)).toBe(' more\n');
@@ -246,10 +241,8 @@ describe('what the cleanup refuses to be asked', () => {
 	});
 });
 
-// A construct standing over an empty one shows all its bytes (live-mode.md § 4.1), so a side that
-// survives as visible markers survives as bytes the user saw. Miss-analysis: the visible-marker
-// cases used the flat `[](u)`, which both rewrites refuse because it has no children, the wrong
-// reason, so none reached the cleanup with a visible side it could call a stranded run.
+// A construct over an empty one shows its bytes (live-mode.md § 4.1), so the user saw that side.
+// Miss-analysis: visible cases used flat `[](u)`, which both rewrites refuse for another reason.
 describe('a side that is painting chrome is not a stranded run', () => {
 	const PAINTED = '**[](u)**\n';
 
@@ -269,10 +262,8 @@ describe('a side that is painting chrome is not a stranded run', () => {
 	});
 });
 
-// Which constructs count as atomic is a fact about the node here too: an empty link has no content
-// range, so a cut inside it leaves halves no reading can repair, while the same cut inside a link
-// with text leaves an ordinary open run. Miss-analysis: the two shapes were never contrasted, so a
-// per-kind column looked like it could replace the test that produces both answers.
+// An empty link has no content range, so a cut inside it leaves halves no reading can repair.
+// Miss-analysis: an empty link and one with text were never contrasted, so a per-kind rule passed.
 describe('a cut inside a construct with no content declines', () => {
 	// 3 is the empty content point itself, where no delimiter run is cut and the node's own arity
 	// is all that is left to decline on; 4 is inside the closer, which the run test also catches.

@@ -1,10 +1,7 @@
 // @vitest-environment jsdom
-//
-// `widgetExtensionTarget`'s filter: a Shift+Arrow extension must target any atomic inline widget,
-// not only images. A raw-HTML `<br>` renders as a live widget, so a caret at its edge plus
-// Shift+ArrowRight must extend across it. Chromium extends across a contenteditable=false element
-// on its own, so e2e cannot tell the difference; jsdom does not, so this catches a filter that
-// narrows to `kind !== 'image'`.
+// `widgetExtensionTarget` must let Shift+Arrow extend across any atomic inline widget, such as a
+// raw-HTML `<br>`, not only images. Chromium extends across a contenteditable=false element on its
+// own, so e2e cannot tell; jsdom does not, so this catches a filter narrowed to images.
 import { defaultGrammarView } from '$lib/schema/block-openers';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { parse } from '$lib/core/parser';

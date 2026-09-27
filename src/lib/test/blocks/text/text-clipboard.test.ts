@@ -1,10 +1,7 @@
 // @vitest-environment jsdom
-//
-// The copy and cut branches for a selected widget in createTextClipboard: a selected inline
-// widget (an image, a `<br>`) copies its own raw slice through `e.clipboardData.setData`, and
-// cut also splices that slice out as one undoable commit. A real parse resolved through
-// `getInlineContent`, a captured ClipboardEvent stand-in, and the real widget-selection state,
-// with no branch on `kind === 'image'`.
+// The copy and cut branches of `createTextClipboard` for a selected inline widget (an image, a
+// `<br>`): copy writes the widget's own raw slice, and cut also splices it out as one undoable
+// commit. Driven with a real parse and the real widget-selection state, never a branch on kind.
 import { recordingWrite } from '$lib/test/harness/editor-actions';
 import { describe, it, expect } from 'vitest';
 import { tick } from 'svelte';
@@ -141,9 +138,8 @@ describe('createTextClipboard: selected-widget cut', () => {
 	});
 });
 
-// What the editor root hands back: the browser dispatches at `<body>` when the paragraph holds
-// no text position. Forwarding to the same handlers a caret-side event reaches is what brings
-// the reading-mode check and the sticky-column reset along with it.
+// The browser dispatches at `<body>` when the paragraph holds no text position, so the editor
+// root forwards to the same handlers, reading-mode check and sticky-column reset included.
 describe('createTextClipboard: claimRootClipboard', () => {
 	it('routes each clipboard type to the branch the caret route reaches', async () => {
 		const copy = harness('lead![cat](x)\n', 4);
@@ -197,9 +193,8 @@ describe('createTextClipboard: claimRootClipboard', () => {
 	});
 });
 
-// Hiding a source whose commit changes the block's kind takes the structural path, whose
-// completion is a promise; cut and paste must both wait, or they splice bytes still being
-// replaced.
+// Hiding a source whose commit changes the block's kind completes on a promise, so cut and paste
+// must wait for it or splice bytes still being replaced.
 function foldSettleHarness() {
 	const node: CstNode = parse('lead![cat](x)\n').children[0];
 	const order: string[] = [];

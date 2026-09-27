@@ -1,5 +1,4 @@
 // @vitest-environment jsdom
-//
 // The caret-edge dispatch's container-marker branch (edge-policy-dispatch). A selection whose DOM
 // range reaches into the contenteditable="false" marker prefix blocks the browser's Backspace and
 // Delete silently, with no beforeinput, so the dispatch deletes through the CST instead. Tested
@@ -77,9 +76,8 @@ describe('ambient-marker selection delete', () => {
 		expect(h.edits).toEqual([[0, 'cd\n', 0, 0]]);
 	});
 
-	// The neighbouring branches decline modifier chords so the platform's word-delete runs; this
-	// one must not, since the browser fires no beforeinput over the marker and declining does
-	// nothing at all.
+	// The neighbouring branches decline modifier chords so word-delete runs natively, but over the
+	// marker the browser fires no beforeinput, so declining would do nothing at all.
 	it.each([{ ctrlKey: true }, { altKey: true }, { metaKey: true }])(
 		'%o+Backspace over a marker-touching selection still deletes the range',
 		(mods) => {

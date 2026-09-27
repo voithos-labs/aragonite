@@ -1,5 +1,4 @@
 // @vitest-environment jsdom
-//
 // Keydown with a widget selected routes custom keys, such as Shift+Arrow to resize an image,
 // through the widget kind's editing policy, with no branch on `kind === 'image'`. These run the
 // whole dispatch: a real parse, `flattenInlineWidgets`, the policy lookup and the handler,

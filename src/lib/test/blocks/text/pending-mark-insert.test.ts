@@ -8,11 +8,8 @@ import type { InlineNode } from '$lib/core/nodes';
 import { renderOptions } from '../../harness/fixture-grammar';
 import { fixtureReading } from '$lib/test/harness/fixture-grammar';
 
-// The bytes a pending toggle turns the next keystroke into. Live mode draws no delimiter, so the
-// source decides, and every case reparses the result.
-// Miss-analysis, twice: the first pass used single-word fixtures, so `**hello world**` split at
-// the space shipped literal stars; the second checked visibility with its own scan that counted
-// an autolink's `<` and `>` as content, so a splice that destroyed the link read as clean.
+// The bytes a pending toggle turns the next keystroke into; every case reparses the result.
+// Miss-analysis: fixtures held one word, and a hand-written scan read an autolink's `<>` as text.
 
 function insert(
 	display: string,
@@ -110,9 +107,8 @@ describe('removing a mark the chain carries', () => {
 		});
 	});
 
-	// Nested `***ab***` is emphasis around strong. Escaping the outer construct escapes the
-	// inner one with it, since bytes cannot leave a parent while staying in its child, so the
-	// kind the user kept is written again around the payload instead.
+	// `***ab***` is emphasis around strong; bytes cannot leave the outer construct while staying
+	// in the inner one, so the kind the user kept is written again around the payload.
 	it('escapes the inner construct with the outer one and re-declares what was kept', () => {
 		const result = insert('***ab***', 4, 'X', ['emphasis']);
 		expect(result?.raw).toBe('***a*****X*****b***');
@@ -141,11 +137,8 @@ describe('removing a mark the chain carries', () => {
 	});
 });
 
-// The split that reads right (close the pair, insert, reopen) is only legal where CommonMark's
-// flanking rules and rule of three read it back that way, and whitespace or a nested pair at the
-// cut is enough to break it, which is why the resolver checks its own output. The check is the
-// same three questions each time: the bytes, the construct chain the parser puts around the
-// insertion, and whether a delimiter turned into a visible star.
+// Close, insert, reopen is legal only where CommonMark reads it back, so the resolver checks the
+// bytes, the construct chain around the insertion, and whether a delimiter became visible.
 describe('a candidate that would not parse back is not written', () => {
 	const spaceCases: [string, number, string][] = [
 		['before the space', 7, 'X**hello world**'],
@@ -196,9 +189,8 @@ describe('a candidate that would not parse back is not written', () => {
 		expect(visibleText(result!.raw)).toBe('a c bX');
 	});
 
-	// Markdown cannot write two same-kind runs side by side: `*a*` plus `*X*` is `*a**X*`, whose
-	// middle run parses as literal text. Declining types the byte plainly, the only outcome that
-	// keeps § 1's "markers are never visible".
+	// `*a*` plus `*X*` is `*a**X*`, whose middle run parses as literal text, so typing the byte
+	// plainly is the only outcome that keeps the markers hidden.
 	it('declines a wrap whose delimiters would merge with the run beside it', () => {
 		expect(insert('*a*', 3, 'X', ['emphasis'])).toBeNull();
 		expect(insert('**a**', 5, 'X', ['strong'])).toBeNull();
@@ -219,9 +211,8 @@ describe('a candidate that would not parse back is not written', () => {
 	});
 });
 
-// A construct with no children has no content range, so the chain scan has to hold it by its node
-// bounds or a candidate destroys it unnoticed. An autolink is the reachable case: the URL is one
-// childless span whose angle brackets are marker spans.
+// A childless construct has no content range, so the chain scan holds it by its node bounds; an
+// autolink is the reachable case, one span whose angle brackets are marker spans.
 describe('a childless construct is in the chain, so nothing may cut it open', () => {
 	const ANGLE = 'see <https://example.com> now';
 
@@ -254,11 +245,8 @@ describe('a childless construct is in the chain, so nothing may cut it open', ()
 	});
 });
 
-// A delimiter run shared between two pairings can rebind under any splice made there, so
-// `__foo__`'s strong vanishes although the visible text and the intended chain both check out
-// (GH #194). Whether every construct survives is the third question that has to be asked.
-// Miss-analysis: the property suite's "no construct kind vanishes" draws this shape only on a
-// fresh seed (568150862), so its fixed seed never met it; the counterexample is written out here.
+// A shared delimiter run can rebind under a splice, dropping a construct the other checks pass.
+// Miss-analysis: GH #194, the property suite's fixed seed never drew this shape (568150862 does).
 describe('a candidate that spends a construct is declined', () => {
 	it('declines rather than rebind the strong pairing of a shared underscore run', () => {
 		expect(insert(' __foo__', 2, 'X', ['emphasis'])).toBeNull();

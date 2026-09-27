@@ -10,9 +10,8 @@ import {
 import type { PresentationMode } from '$lib/presentation-mode';
 import { fixtureReading } from '../../harness/fixture-grammar';
 
-// The one destructive path with no offsets of its own: a browser selection edit inside one block,
-// re-expressed as a join. The decisions here: when it refuses, where the typed bytes land, and
-// that what it returns is the block's whole raw, trailing line ending included.
+// A browser selection edit inside one block, re-expressed as a join: when it refuses, where typed
+// bytes land, and that it returns the block's whole raw, trailing line ending included.
 
 beforeEach(() => registerLiveJoinSeamCleaner(cleanLiveJoinSeam));
 afterEach(() => __resetLiveJoinSeamCleanerForTests());

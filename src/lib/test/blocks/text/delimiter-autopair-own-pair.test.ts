@@ -1,9 +1,7 @@
 // @vitest-environment jsdom
-//
-// GH #469: the auto-pair steps over, collapses or deletes only the empty pair it wrote itself, so
-// two delimiters the user typed keep both bytes when a key lands between them.
-// Miss-analysis: every empty-pair row started from a pair the auto-pair had just written, and the
-// resolver read ownership off the bytes, so no case typed `**b`, moved into the stars and keyed.
+// The auto-pair steps over, collapses or deletes only the empty pair it wrote itself, so two
+// delimiters the user typed keep both bytes when a key lands between them.
+// Miss-analysis: GH #469, every row began with a pair the auto-pair wrote, none with a typed one.
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
 	applyDelimiterAutoPair,

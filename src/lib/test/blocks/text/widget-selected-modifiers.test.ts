@@ -1,11 +1,8 @@
 // @vitest-environment jsdom
-//
-// What the selected-widget keydown handler may consume, on the two points it is easy to get
-// wrong: reporting "consumed" for a key it does not handle while leaving the event cancellable
-// lets the browser's default edit the contenteditable behind the CST, and reading only `e.key`
-// in the destructive branch lets the platform word-delete take the whole widget
-// (edge-policy-modifiers.test.ts is the same shape). The keymap dispatch runs after this
-// handler, so "consumed" has to stay narrow.
+// What the selected-widget keydown handler may consume: "consumed" for a key it leaves cancellable
+// lets the browser edit behind the CST, and reading only `e.key` in the destructive branch lets
+// word-delete take the whole widget. The keymap runs after this handler, so "consumed" stays
+// narrow.
 import { describe, it, expect, beforeAll } from 'vitest';
 import { augmentInlineWidgetKind } from '$lib/core/inline/inline-widgets';
 import { imageWidgetOnSelectedKey } from '$lib/components/image/image-widget-editing';
@@ -71,8 +68,7 @@ describe('a platform chord is not a widget gesture', () => {
 	});
 });
 
-// Non-vacuity: the keys without a modifier still do their destructive work, so the
-// check narrows these branches rather than disabling them.
+// Without these cases, the chord checks could pass by disabling the destructive branches.
 describe('the same keys without a chord still act', () => {
 	it.each(['Backspace', 'Delete'])('%s deletes the selected widget', async (name) => {
 		const b = harness(SOURCE, WIDGET_START);
@@ -89,8 +85,7 @@ describe('the same keys without a chord still act', () => {
 		expect(await b.interaction.handleSelectedWidgetKeydown(key('x'))).toBe(true);
 		expect(b.commits).toHaveLength(1);
 		expect(b.commits[0].raw).toBe('hello x world\n');
-		// Miss-analysis (GH #441): the bytes were pinned and the caret was not, so a second key
-		// landing at the paragraph start went unseen.
+		// Miss-analysis: GH #441, the bytes were pinned but not the caret, so a second key went unseen.
 		expect(b.carets).toEqual([WIDGET_START + 1]);
 	});
 });

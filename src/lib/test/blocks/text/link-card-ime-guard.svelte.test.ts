@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
-// Miss-analysis: every card key test used plain keys and none carried `isComposing`, so the IME
-// confirm and cancel keystrokes, which arrive as Enter, Tab or Escape during a composition,
-// reached the card's handlers as if the user had pressed them.
+// The link card ignores Enter, Tab and Escape while an IME composition is open.
+// Miss-analysis: no card key test carried `isComposing`, so IME confirm and cancel keys acted.
 import { createMenuPresence } from '$lib/components/menu/menu-presence.svelte';
 import { describe, it, expect, vi } from 'vitest';
 import { mount, unmount, flushSync, tick } from 'svelte';

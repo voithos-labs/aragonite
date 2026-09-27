@@ -1,10 +1,7 @@
 // @vitest-environment jsdom
-//
-// `link.openCard` shows as pressed based on the construct the card would edit, not on the mark
-// table every other toolbar id reads, and a range has to lie inside that construct, since the
-// card edits one link. Miss-analysis: the pressed read was a mark-table lookup that returned
-// before reading anything, and no test in either block ever asked a command with no mark entry
-// what it showed, so that whole class of ids was unasserted.
+// `link.openCard` shows as pressed from the construct the card would edit, not the mark table
+// other toolbar ids read, and a range must lie inside that construct.
+// Miss-analysis: no test asked what a command with no mark-table entry shows as pressed.
 import { describe, it, expect, afterEach } from 'vitest';
 import { unmount } from 'svelte';
 import TextEditableBlock from '$lib/components/blocks/text/TextEditableBlock.svelte';

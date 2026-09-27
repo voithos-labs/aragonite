@@ -1,7 +1,6 @@
-// Miss-analysis: every case fed `cycleHeading` a hand-written raw whose marker a `^#` regex could
-// reach, so no fixture drew the two shapes where the kind's own content range disagrees with that
-// regex, a space-indented ATX heading and a setext one, and nothing asked what happens on the
-// raw-editable kinds that bind the same keymap.
+// `cycleHeading` re-marks a block by its kind's content range, and declines the raw-editable kinds
+// that bind the same keymap.
+// Miss-analysis: every fixture's marker was one a `^#` regex reaches, never indented or setext.
 import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { getContentRange, isProseKind } from '$lib/core/inline';
