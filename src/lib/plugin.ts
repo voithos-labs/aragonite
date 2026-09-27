@@ -185,9 +185,10 @@ export {
 	joinDisplayLines
 } from './core/lines';
 export type { LineEnding } from './core/lines';
-// GFM §2.1's blank line (spaces and tabs only). `String.trim()` would admit the whole
-// Unicode whitespace set and split a block on a pasted non-breaking space.
+// GFM §2.1's blank line (spaces and tabs only), for one line or a block's text. `String.trim()`
+// would also drop a non-breaking space, which is content.
 export { isBlankLine } from './core/parser';
+export { isBlankText } from './core/lines';
 // A container whose body sits between marker lines of its own (`:::note` … `:::`,
 // `<summary>` … `</details>`) parses that body here, not with `parse`: the blank line
 // against a marker line is a separator, and only this function knows to keep it out of

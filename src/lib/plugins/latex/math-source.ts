@@ -8,6 +8,7 @@ import {
 	displayLines,
 	fenceBodyAsDrawn,
 	highlightCode,
+	isBlankText,
 	renderFencedSource,
 	sliceFencedSource,
 	type FencedSource
@@ -54,7 +55,7 @@ export function mathBodySpan(text: string): { start: number; end: number } {
 export function completeBareMathSource(text: string): { text: string; caret: number } | null {
 	const { opener, body, closer } = sliceMathSource(text);
 	if (!opener || !closer) return null;
-	if (body.includes('\n') || body.trim() !== '') return null;
+	if (body.includes('\n') || !isBlankText(body)) return null;
 	// A one-line `$$$$` has no ending of its own to repeat.
 	const [openerLine] = displayLines(opener);
 	const ending = openerLine.ending || '\n';

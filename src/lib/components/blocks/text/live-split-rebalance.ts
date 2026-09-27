@@ -20,6 +20,7 @@ import {
 import type { Reading } from '../../../schema/reading';
 import type { AnyInlineKind, InlineNode } from '../../../core/nodes';
 import type { NodeView } from '../../../core/node-views';
+import { isBlankText } from '../../../core/lines';
 import {
 	getInlineConstructPolicy,
 	type LiveSplitRebalancer
@@ -271,7 +272,7 @@ function assembleDroppingTerminalTrivia(
 	bytes: SplitBytes,
 	seam: SeamParts
 ): RebalancedHalves | null {
-	if (seam.openers !== '' || seam.tail === '' || seam.tail.trim() !== '') return null;
+	if (seam.openers !== '' || seam.tail === '' || !isBlankText(seam.tail)) return null;
 	return {
 		firstRaw: seam.head + seam.closers + bytes.firstResidue,
 		secondRaw: bytes.secondResidue,
@@ -301,12 +302,12 @@ export function parsesBack(
 	if (first === null || second === null) return false;
 	// Each half must be a block a reparse keeps. Empty is one; whitespace-only is not, since the
 	// document reads those bytes as a blank line and the pair comes back a different shape.
-	if (isWhitespaceOnly(first.visible) || isWhitespaceOnly(second.visible)) return false;
+	if (readsAsBlankLine(first.visible) || readsAsBlankLine(second.visible)) return false;
 	if (!seam.closed.every((kind) => first.kinds.has(kind))) return false;
 	if (!seam.reopened.every((kind) => second.kinds.has(kind))) return false;
 	// The render check below counts characters while CSS collapses a trailing run to nothing, so
 	// the "the screen never showed it" rule is tested here rather than taken on trust.
-	if (candidate.droppedTail !== undefined && candidate.droppedTail.trim() !== '') return false;
+	if (candidate.droppedTail !== undefined && !isBlankText(candidate.droppedTail)) return false;
 	const whole = renderedText(
 		readInline(bytes.raw, bytes.contentStart, bytes.contentEnd, reading.resolver, reading.grammar),
 		bytes.raw,
@@ -322,7 +323,7 @@ export function parsesBack(
 	return rest === tail || rest === '\n' + tail || rest === '\r\n' + tail;
 }
 
-const isWhitespaceOnly = (visible: string): boolean => visible !== '' && visible.trim() === '';
+const readsAsBlankLine = (visible: string): boolean => visible !== '' && isBlankText(visible);
 
 function soleProseBlock(raw: string, reading: Reading): HalfRead | null {
 	const sole = soleProseReparse(raw, reading);

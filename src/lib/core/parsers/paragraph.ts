@@ -3,7 +3,7 @@
  * paragraph continuation (next-line lookahead), not from their own top-level matchers.
  */
 
-import type { ParsedLine } from '../lines';
+import { OPTIONAL_LINE_ENDING, type ParsedLine } from '../lines';
 import { joinRaw, isBlankLine } from '../parser';
 import {
 	lineInterruptsParagraph,
@@ -54,8 +54,11 @@ export function parseParagraph(
 	};
 }
 
+const SETEXT_1 = new RegExp(`^ {0,3}=+[ \\t]*${OPTIONAL_LINE_ENDING}$`);
+const SETEXT_2 = new RegExp(`^ {0,3}-+[ \\t]*${OPTIONAL_LINE_ENDING}$`);
+
 export function matchSetextUnderline(text: string): { level: 1 | 2 } | null {
-	if (/^ {0,3}=+\s*$/.test(text)) return { level: 1 };
-	if (/^ {0,3}-+\s*$/.test(text)) return { level: 2 };
+	if (SETEXT_1.test(text)) return { level: 1 };
+	if (SETEXT_2.test(text)) return { level: 2 };
 	return null;
 }

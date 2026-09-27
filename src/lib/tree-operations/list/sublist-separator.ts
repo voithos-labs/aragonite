@@ -5,21 +5,16 @@
  */
 
 import type { CstNode } from '../../core/nodes';
-import { firstDisplayLine, ownTrailingLineEnding } from '../../core/lines';
-
-/**
- * A marker line carrying nothing after it: what Enter+Tab creates, and an emptied nested item. The
- * trailing run is required, matching `matchListItem`: a bare `-` never opened a list at all.
- */
-const EMPTY_MARKER_LINE = /^ {0,3}(?:[-*+]|\d{1,9}[.)])[ \t]+$/;
+import { firstDisplayLine, isBlankText, ownTrailingLineEnding } from '../../core/lines';
+import { isContentlessItemLine } from '../../core/parsers/list';
 
 /** Whether the child at `index` is a list no reload could read back where it stands. */
 export function lacksSublistSeparator(children: readonly CstNode[], index: number): boolean {
 	const list = children[index];
 	const above = children[index - 1];
 	if (!list || list.kind !== 'list' || list.leadingTrivia !== '') return false;
-	if (!above || above.kind !== 'paragraph' || above.raw.trim() === '') return false;
-	return EMPTY_MARKER_LINE.test(firstDisplayLine(list.raw).text);
+	if (!above || above.kind !== 'paragraph' || isBlankText(above.raw)) return false;
+	return isContentlessItemLine(firstDisplayLine(list.raw).text);
 }
 
 /**

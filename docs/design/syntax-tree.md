@@ -199,7 +199,7 @@ The fence grammar lives in one file, `core/parsers/fence-syntax.ts`, and everyth
 
 ### Blank lines
 
-The most-cited corner of the doc, so take it slow. The rule: one blank line between two blocks is the separator, and it folds into the next block's `leadingTrivia`. **Every further blank line in the run is an empty paragraph block of its own**, holding that line's exact bytes, whitespace-only lines included.
+The most-cited corner of the doc, so take it slow. The rule: one blank line between two blocks is the separator, and it folds into the next block's `leadingTrivia`. **Every further blank line in the run is an empty paragraph block of its own**, holding that line's exact bytes, whitespace-only lines included. Whitespace here means spaces and tabs (GFM § 2.1), so a line holding a non-breaking space is text, not a blank line.
 
 ```ts
 parse('a\n\n\n\nb\n').children;
@@ -306,6 +306,8 @@ Every GFM block type is implemented with its own kind:
 | Unrecognized               | `unrecognized`            | Reserved; not parser-emitted (see § 2)                                                                     |
 
 Inline: emphasis and strong (`*`, `_`, `**`, `__`), strikethrough, inline code, links, images, autolinks (bare URLs and emails), hard line breaks, and reference-style links and images.
+
+Every rule reads whitespace the way GFM does (§ 2.1): spaces and tabs where a rule asks for them, and the ASCII whitespace set where it says whitespace. A non-breaking space is never one of them, so `#<NBSP>foo` is a paragraph, not a heading, and a bare link runs straight through one. The outsiders are emphasis and the code that edits it, since the flanking rule is written over Unicode whitespace. Plugin grammars (directives, math) still read JS's whitespace until #509. `src/lib/test/gfm-conformance/whitespace-class.test.ts` pins each shape.
 
 The table row's mismatch note, since it bites:
 

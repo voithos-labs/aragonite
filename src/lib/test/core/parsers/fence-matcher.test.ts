@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
 	matchFenceOpen,
 	matchFenceClose,
-	escalatedFenceLength
+	escalatedFenceLength,
+	fenceLanguage,
+	matchFenceInfo
 } from '$lib/core/parsers/fence-syntax';
 
 // Re-exported on `@voithos-labs/aragonite/plugin`, so the shape is pinned directly: a byte-exact rebuild
@@ -52,11 +54,19 @@ describe('matchFenceClose', () => {
 		expect(matchFenceClose('~~~~', '~', 4)).toBe(true);
 	});
 
+	it('accepts a line a plugin passes with its ending still on', () => {
+		for (const ending of ['\r\n', '\n', '\r']) {
+			expect(matchFenceClose('``` \t' + ending, '`', 3), JSON.stringify(ending)).toBe(true);
+		}
+	});
+
 	const declined: Array<[label: string, line: string, marker: '`' | '~', min: number]> = [
 		['a shorter run', '```', '`', 4],
 		['the other marker', '~~~', '`', 3],
 		['a closer with an info string', '``` js', '`', 3],
-		['a four-space-indented closer', '    ```', '`', 3]
+		['a four-space-indented closer', '    ```', '`', 3],
+		['a closer followed by a non-breaking space', '```\u00a0', '`', 3],
+		['a closer followed by text on the next line', '```\nx', '`', 3]
 	];
 	for (const [label, line, marker, min] of declined) {
 		it(`declines ${label}`, () => {
@@ -96,5 +106,20 @@ describe('escalatedFenceLength', () => {
 
 	it('declines a four-space-indented run, as the parser does', () => {
 		expect(escalatedFenceLength('    ```', '`', 3)).toBe(3);
+	});
+});
+
+// Every reader of a fence's language (plugin claims, the highlighter, the language chip, the
+// accessible name) takes the first word, split on GFM whitespace only.
+describe('fenceLanguage and matchFenceInfo', () => {
+	it('reads the first word of the info string', () => {
+		expect(fenceLanguage(' js {1-3} ')).toBe('js');
+		expect(fenceLanguage('')).toBe('');
+	});
+
+	it('keeps a non-breaking space inside the word', () => {
+		expect(fenceLanguage('mermaid\u00a0x')).toBe('mermaid\u00a0x');
+		expect(matchFenceInfo('mermaid')('```mermaid\u00a0x')).toBeNull();
+		expect(matchFenceInfo('mermaid')('```mermaid x')).not.toBeNull();
 	});
 });

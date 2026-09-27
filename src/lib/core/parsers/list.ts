@@ -14,16 +14,36 @@ import {
 	type GrammarView
 } from '../../schema/block-openers';
 
+// ── List markers ─────────────────────────────────────────────────────────────
+
+// GFM §5.2: a marker, then spaces or tabs. A non-breaking space after the marker is content, so
+// that line opens no item.
+const BULLET = '[-*+]';
+const withDelimiter = (digits: string): string => `${digits}[.)]`;
+const MARKER = `(?:${BULLET}|${withDelimiter('\\d{1,9}')})`;
+const GAP = '[ \\t]+';
+const ITEM_START = new RegExp(`^( {0,3})(${MARKER}${GAP})`);
+const CONTENTLESS_ITEM = new RegExp(`^ {0,3}${MARKER}${GAP}$`);
+// Content after the gap: neither a space or tab nor a line ending the splitter left on the line.
+const INTERRUPTING_ITEM = new RegExp(
+	`^ {0,3}(?:${BULLET}|${withDelimiter('1')})${GAP}[^ \\t\\r\\n]`
+);
+
 export function matchListItem(
 	text: string
 ): { marker: string; ordered: boolean; indent: number } | null {
-	const m = text.match(/^( {0,3})((?:[-*+]|\d{1,9}[.)])\s+)/);
+	const m = text.match(ITEM_START);
 	if (!m) return null;
 	return {
 		marker: m[2],
 		ordered: /^\d/.test(m[2]),
 		indent: m[0].length
 	};
+}
+
+/** A marker line with nothing after the marker. The gap is required: a bare `-` opens no list. */
+export function isContentlessItemLine(text: string): boolean {
+	return CONTENTLESS_ITEM.test(text);
 }
 
 /**
@@ -41,7 +61,7 @@ export function matchTaskCheckbox(text: string): { checked: boolean; rawMarker: 
  * Standalone list parsing (`matchListItem`) accepts both.
  */
 export function canInterruptParagraph(text: string): boolean {
-	return /^ {0,3}(?:[-*+]|1[.)])[ \t]+\S/.test(text);
+	return INTERRUPTING_ITEM.test(text);
 }
 
 export function parseList(

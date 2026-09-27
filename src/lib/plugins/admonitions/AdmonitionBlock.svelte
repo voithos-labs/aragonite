@@ -3,7 +3,13 @@
   and the GitHub alert (no title, a static badge instead).
 -->
 <script lang="ts">
-	import { BlockList, createContainerBlock, getPluginMetadata, type NodeView } from '$lib/plugin';
+	import {
+		BlockList,
+		createContainerBlock,
+		getPluginMetadata,
+		isBlankText,
+		type NodeView
+	} from '$lib/plugin';
 	import {
 		capitalize,
 		coerceAdmonitionName,
@@ -28,7 +34,7 @@
 			? coerceAdmonitionName(getPluginMetadata<GithubAlertMetadata>(node)?.alertType?.toLowerCase())
 			: coerceAdmonitionName(getPluginMetadata<AdmonitionMetadata>(node)?.name)
 	);
-	const titleEmpty = $derived(isAlert || (node.children?.[0]?.raw ?? '').trim() === '');
+	const titleEmpty = $derived(isAlert || isBlankText(node.children?.[0]?.raw ?? ''));
 
 	export { containerApi };
 </script>

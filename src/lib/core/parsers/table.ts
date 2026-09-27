@@ -1,5 +1,5 @@
 import type { CstNode, TableAlignment } from '../nodes';
-import type { ParsedLine } from '../lines';
+import { trimWhitespace, type ParsedLine } from '../lines';
 import { joinRaw, isBlankLine } from '../parser';
 import {
 	lineStartsOuterBlock,
@@ -9,10 +9,10 @@ import {
 
 // ── Cell splitter ──────────────────────────────────────────────────────────
 
-// Cell padding is cosmetic. Pre-edit bytes survive in `table.raw`; post-edit,
-// rebuildTableRowRaw emits canonical single-space padding for every row.
+// Cell padding is cosmetic: a rebuilt row writes single spaces. GFM §4.10 trims spaces, so a
+// non-breaking space at a cell's edge is content and survives the rebuild.
 export function splitRowCells(rowText: string): string[] {
-	const trimmed = rowText.trim();
+	const trimmed = trimWhitespace(rowText);
 	const head = trimmed.startsWith('|') ? trimmed.slice(1) : trimmed;
 	const inner = head.endsWith('|') ? head.slice(0, -1) : head;
 	const cells: string[] = [];
@@ -21,14 +21,14 @@ export function splitRowCells(rowText: string): string[] {
 	for (let i = 0; i < inner.length; i++) {
 		const ch = inner[i];
 		if (ch === '|' && !escaped) {
-			cells.push(current.trim());
+			cells.push(trimWhitespace(current));
 			current = '';
 			continue;
 		}
 		current += ch;
 		escaped = ch === '\\' && !escaped;
 	}
-	cells.push(current.trim());
+	cells.push(trimWhitespace(current));
 	return cells;
 }
 
@@ -48,7 +48,7 @@ export function tableHeaderCells(text: string): string[] | null {
 export function matchTableDelimiterRow(
 	text: string
 ): { columnCount: number; alignments: TableAlignment[] } | null {
-	const trimmed = text.trim();
+	const trimmed = trimWhitespace(text);
 	if (!trimmed.includes('|')) return null;
 
 	const inner = trimmed.replace(/^\||\|$/g, '');
@@ -56,7 +56,7 @@ export function matchTableDelimiterRow(
 	const alignments: TableAlignment[] = [];
 
 	for (const cell of cells) {
-		const c = cell.trim();
+		const c = trimWhitespace(cell);
 		if (!/^:?-+:?$/.test(c)) return null;
 		const left = c.startsWith(':');
 		const right = c.endsWith(':');

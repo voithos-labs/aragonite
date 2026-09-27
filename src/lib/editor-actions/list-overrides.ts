@@ -7,7 +7,7 @@
 
 import type { BlockEditActions, ListContext } from '../action-contracts';
 import { withStoredCaret } from './stored-caret';
-import { displayLength } from '../core/lines';
+import { displayLength, isBlankText } from '../core/lines';
 import type { NestedActionsOverrideFactory, NodeScope } from './nested/nested-actions';
 
 export interface ListOverridesDeps {
@@ -58,7 +58,7 @@ export function createListItemOverrides(deps: ListItemOverridesDeps): NestedActi
 				// Looser than `isItemUserEmpty`: trailing structural children stay until
 				// `exitListAtItem` moves them.
 				const firstChild = node.children[0];
-				if (firstChild?.kind === 'paragraph' && firstChild.raw.trim() === '') {
+				if (firstChild?.kind === 'paragraph' && isBlankText(firstChild.raw)) {
 					await deps.listContext.exitListAtItem(index);
 					return;
 				}

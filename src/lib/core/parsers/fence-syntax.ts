@@ -5,7 +5,7 @@
  */
 
 import { escalateTerminatorRun } from '../terminator-escalation';
-import { splitLines } from '../lines';
+import { OPTIONAL_LINE_ENDING, splitLines, trimWhitespace, WHITESPACE_RUN } from '../lines';
 
 /**
  * The fence-open shape, re-exported on `@voithos-labs/aragonite/plugin` for fence-claiming openers:
@@ -30,14 +30,18 @@ export function matchFenceOpen(text: string): FenceOpen | null {
 	return {
 		marker: fence[0] as '`' | '~',
 		length: fence.length,
-		info: infoRaw.trim(),
+		info: trimWhitespace(infoRaw),
 		indent,
 		infoRaw
 	};
 }
 
+// GFM §4.5: only spaces or tabs follow a closer. The line ending is for a caller that passes one.
+const BACKTICK_CLOSE = new RegExp(`^ {0,3}(\`{3,})[ \\t]*${OPTIONAL_LINE_ENDING}$`);
+const TILDE_CLOSE = new RegExp(`^ {0,3}(~{3,})[ \\t]*${OPTIONAL_LINE_ENDING}$`);
+
 export function matchFenceClose(text: string, marker: '`' | '~', minLength: number): boolean {
-	const pattern = marker === '`' ? /^ {0,3}(`{3,})\s*$/ : /^ {0,3}(~{3,})\s*$/;
+	const pattern = marker === '`' ? BACKTICK_CLOSE : TILDE_CLOSE;
 	const m = text.match(pattern);
 	return Boolean(m && m[1].length >= minLength);
 }
@@ -134,6 +138,11 @@ export function fenceAnatomy(raw: string, fence?: FenceRun): FenceAnatomy | null
 export function matchFenceInfo(token: string): (text: string) => FenceOpen | null {
 	return (text) => {
 		const fence = matchFenceOpen(text);
-		return fence && fence.info.split(/\s+/)[0] === token ? fence : null;
+		return fence && fenceLanguage(fence.info) === token ? fence : null;
 	};
+}
+
+/** An info string's first word, which names the fence's language; empty when there is none. */
+export function fenceLanguage(info: string): string {
+	return trimWhitespace(info).split(WHITESPACE_RUN)[0];
 }

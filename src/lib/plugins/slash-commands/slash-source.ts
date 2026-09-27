@@ -4,12 +4,13 @@
  * empty), then `onCommit` does the row's work through the editor's own entry points.
  */
 
-import type {
-	DocumentView,
-	EditorContext,
-	InlineMenuSource,
-	InsertEntry,
-	MenuIconName
+import {
+	isBlankText,
+	type DocumentView,
+	type EditorContext,
+	type InlineMenuSource,
+	type InsertEntry,
+	type MenuIconName
 } from '$lib/plugin';
 import { codeArgument, tableArgument, type ParsedArgument } from './arguments';
 import { acceptsQuery, filterEntries, splitQuery, type FilterableEntry } from './filter';
@@ -100,7 +101,7 @@ export function createSlashSource(
 				action.run(editor, argument ?? undefined);
 			} else {
 				// An empty line becomes the block; a line with text keeps it and gets the block below.
-				const empty = leafRaw(editor.document, range.path).trim() === '';
+				const empty = isBlankText(leafRaw(editor.document, range.path));
 				// Awaited, so the block lands inside the pick's undo entry.
 				await editor.insertMarkdown(action.build(argument).markdown, {
 					placement: empty ? 'caret' : 'below'

@@ -7,7 +7,12 @@
 import { CURSOR_END } from '../../block-component';
 import { devWarn } from '../../dev-warn';
 import type { CstNode, Document } from '../../core/nodes';
-import { documentLineEnding, trailingLineEnding, trimTrailingLineEnding } from '../../core/lines';
+import {
+	documentLineEnding,
+	isBlankText,
+	trailingLineEnding,
+	trimTrailingLineEnding
+} from '../../core/lines';
 import { nodeAt, writeOwnRaw } from '../node-primitives';
 import { settledCaretTarget, updateNodeContent, type SettledContent } from '../content-write';
 import { containerPasteFor } from './container-paste';
@@ -102,11 +107,11 @@ function isEmptyContainerChild(
 	postDelete: { node: CstNode | null; raw: string }
 ): boolean {
 	const rawOf = (n: CstNode) => (n === postDelete.node ? postDelete.raw : n.raw);
-	if (!node.children || node.children.length === 0) return rawOf(node).trim() === '';
+	if (!node.children || node.children.length === 0) return isBlankText(rawOf(node));
 	if (node.children.length !== 1) return false;
 	const c = node.children[0];
 	if (c.kind !== 'paragraph') return false;
-	return rawOf(c).trim() === '';
+	return isBlankText(rawOf(c));
 }
 
 /**

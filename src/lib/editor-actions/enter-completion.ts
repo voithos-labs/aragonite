@@ -5,7 +5,13 @@
  */
 
 import { readBlocks } from '../core/parser';
-import { displayLength, splitLines, trailingLineEnding, type LineEnding } from '../core/lines';
+import {
+	displayLength,
+	isBlankText,
+	splitLines,
+	trailingLineEnding,
+	type LineEnding
+} from '../core/lines';
 import type { BlockEditActions } from '../action-contracts';
 import { withStoredCaret } from './stored-caret';
 import type { CstNode } from '../core/nodes';
@@ -126,7 +132,7 @@ function planCompletion(
 	// A completion that shows nothing would replace the typed line with a delete, or with blank
 	// lines a reload reads as neither. Blank lines parse back as empty paragraphs, so the check
 	// is per node rather than by child count.
-	if (replacement.every((node) => node.raw.trim() === '')) return null;
+	if (replacement.every((node) => isBlankText(node.raw))) return null;
 	return { replacement, caret: resolveCaret(replacement[0], claim.caret) };
 }
 

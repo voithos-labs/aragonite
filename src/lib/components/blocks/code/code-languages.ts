@@ -9,6 +9,7 @@ import type { LanguageFn } from 'highlight.js';
 import type { PluginActivation } from '../../../schema/plugin-activation';
 import { registerAsCore } from '../../../schema/plugin-install';
 import { createPluginRegistry } from '../../../schema/plugin-registry';
+import { fenceLanguage } from '../../../core/parsers/fence-syntax';
 
 export interface LanguageGrammar {
 	readonly name: string;
@@ -76,10 +77,9 @@ export function getLanguageGrammar(
 	infoString: string,
 	activation: PluginActivation
 ): LanguageGrammar | null {
-	const trimmed = infoString.trim();
-	if (trimmed.length === 0) return null;
-
-	return grammars.get(canonicalName(trimmed.split(/\s+/)[0], activation), activation) ?? null;
+	const language = fenceLanguage(infoString);
+	if (language === '') return null;
+	return grammars.get(canonicalName(language, activation), activation) ?? null;
 }
 
 /** Every registered language once, under its canonical name, sorted: the picker's rows. */

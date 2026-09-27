@@ -6,6 +6,7 @@
 
 import type { InlineNode } from '../nodes';
 import type { NodeView } from '../node-views';
+import { isBlankText } from '../lines';
 import { resolvedInlineContent, type InlineReading } from './inline-cache';
 import { inlineDescendants } from './walk';
 
@@ -37,5 +38,5 @@ function isPictureOrBlank(node: InlineNode): boolean {
 
 function isBlank(node: InlineNode): boolean {
 	if (node.kind === 'hardLineBreak') return true;
-	return node.kind === 'text' && (node.text ?? '').trim() === '';
+	return node.kind === 'text' && isBlankText(node.text ?? '');
 }

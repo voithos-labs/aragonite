@@ -65,7 +65,7 @@ export function keepsEveryByte(before: string, after: string): boolean {
 	for (const byte of before.replace(/\r?\n/g, '').split('')) {
 		const left = budget.get(byte) ?? 0;
 		if (left === 0) {
-			if (byte.trim() === '' && droppable > 0) {
+			if ((byte === ' ' || byte === '\t') && droppable > 0) {
 				droppable--;
 				continue;
 			}

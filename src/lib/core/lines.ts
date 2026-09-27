@@ -1,18 +1,49 @@
 /**
  * Line splitting that keeps each line's ending and offsets, and the line-ending rule: a line the
  * editor writes takes the document's ending ({@link documentLineEnding}), and per-line work reads
- * each line's text without its ending ({@link displayLines}).
+ * each line's text without its ending ({@link displayLines}). Also GFM's whitespace, the one
+ * reading of blank and trimmed text for the parser and the editing code alike.
  */
 
 import type { DocumentView } from './node-views';
 
 export type LineEnding = '\n' | '\r\n';
 
+// ── Markdown whitespace ──────────────────────────────────────────────────────
+
 /** GFM §2.1: a blank line holds only spaces and tabs; a non-breaking space is content. */
 const NON_BLANK_CHAR = /[^ \t]/;
 
 export function isBlankLine(text: string): boolean {
 	return !NON_BLANK_CHAR.test(text);
+}
+
+const BLANK_TEXT = /^(?:[ \t]|\r?\n)*$/;
+
+/** Whether `text` is blank lines only: spaces, tabs and line endings. The emptiness test for any
+ *  block's text, never `String.trim()`, which also drops a non-breaking space. */
+export function isBlankText(text: string): boolean {
+	return BLANK_TEXT.test(text);
+}
+
+/** A line ending a pattern admits at the end of a line's text: the document's last line can end
+ *  in a lone `\r`, which the line splitter leaves in the text, and a plugin may pass an ending. */
+export const OPTIONAL_LINE_ENDING = '(?:\\r\\n?|\\n)?';
+
+/** GFM §2.1's whitespace character: space, tab, LF, VT, FF, CR. Narrower than JS `\s`. */
+export const WHITESPACE_CHARS = ' \\t\\n\\v\\f\\r';
+export const WHITESPACE_CLASS = `[${WHITESPACE_CHARS}]`;
+export const WHITESPACE_RUN = new RegExp(`${WHITESPACE_CLASS}+`);
+const WHITESPACE_CHAR = new RegExp(`^${WHITESPACE_CLASS}$`);
+const EDGE_WHITESPACE = new RegExp(`^${WHITESPACE_CLASS}+|${WHITESPACE_CLASS}+$`, 'g');
+
+export function isWhitespaceChar(ch: string | undefined): boolean {
+	return ch !== undefined && WHITESPACE_CHAR.test(ch);
+}
+
+/** `text` without GFM whitespace at either end: what the spec means by "trimmed". */
+export function trimWhitespace(text: string): string {
+	return text.replace(EDGE_WHITESPACE, '');
 }
 
 /** Length of `raw` excluding any trailing line ending (LF or CRLF). */

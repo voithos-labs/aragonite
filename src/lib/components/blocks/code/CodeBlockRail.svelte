@@ -13,6 +13,7 @@
 	import type { MenuPresence } from '../../menu/menu-presence.svelte';
 	import type { PluginActivation } from '../../../schema/plugin-activation';
 	import { getLanguageAliases, getLanguageGrammar, listLanguages } from './code-languages';
+	import { fenceLanguage } from '../../../core/parsers/fence-syntax';
 
 	// What the modes that draw no fence show instead: the language control plus whatever
 	// actions the host has enabled by installing a hook. A draft lives here and only a
@@ -52,7 +53,7 @@
 		menuPresence: MenuPresence;
 	} = $props();
 
-	const language = $derived(info.split(/\s+/)[0] || 'text');
+	const language = $derived(fenceLanguage(info) || 'text');
 
 	let editing = $state(false);
 	let draft = $state('');

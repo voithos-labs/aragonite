@@ -5,7 +5,7 @@
  */
 
 import type { BlockEditActions } from '../action-contracts';
-import { displayLength } from '../core/lines';
+import { displayLength, isBlankText } from '../core/lines';
 import { buildQuoteExitReplacement } from '../tree-operations/blockquote';
 import type { NestedActionsBundle, NodeScope } from './nested/nested-actions';
 
@@ -26,7 +26,7 @@ export function createContainerExitOverrides(deps: ContainerExitOverridesDeps) {
 				if (!node.children) return;
 				const child = node.children[innerIndex];
 				const isLastChild = innerIndex === node.children.length - 1;
-				const isEmpty = child.kind === 'paragraph' && child.raw.trim() === '';
+				const isEmpty = child.kind === 'paragraph' && isBlankText(child.raw);
 				if (isLastChild && isEmpty) {
 					if (node.children.length <= 1) {
 						await parentBlockEdit.splitBlock(index, displayLength(node.raw));

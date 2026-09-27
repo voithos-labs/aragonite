@@ -158,6 +158,23 @@ function pairing(
 	};
 }
 
+// ── G4.71 / G4.72 Markdown whitespace ────────────────────────────────────────
+
+/** `x.trim() === ''`, `x.trim().length === 0` and `!x.trim()`: an emptiness test by `trim()`. */
+const EMPTY_BY_TRIM =
+	/\.trim\(\)\s*(?:[!=]==\s*''|\.length\s*(?:[!=]==|[<>]=?)\s*[01]\b)|!\s*[\w$.?[\]()]+\.trim\(\)\s*(?:[)&|;?]|$)/m;
+
+/** The grammar files outside `core/parsers/` whose whitespace is GFM's: the one class home, the
+ *  bare autolink boundary, the tag grammar and label matching. */
+const GRAMMAR_FILES = [
+	'src/lib/core/lines.ts',
+	'src/lib/core/inline/scan/autolinks.ts',
+	'src/lib/core/inline/html-tag-grammar.ts',
+	'src/lib/core/inline/link-reference-resolver.ts'
+];
+
+const PARSER_PROBE = 'src/lib/core/parsers/probe.ts';
+
 // ── The decorations directory ────────────────────────────────────────────────
 
 const DECORATIONS_DIR = 'src/lib/decorations/';
@@ -573,6 +590,60 @@ const RULES: FileRule[] = [
 		misses: [
 			'!!boxEl?.contains(document.activeElement)',
 			'if (document.activeElement === surfaceEl) return null; holdsWholeBlockFocus(el);'
+		]
+	},
+	{
+		id: 'G4.71 an emptiness test on text reads GFM blank, not String.trim()',
+		matches: EMPTY_BY_TRIM,
+		allowed: {
+			'src/lib/schema/block-kind-descriptor.ts':
+				'a kind’s accessible label, which no document holds',
+			'src/lib/components/menu/default-context-actions.ts':
+				'the paste menu row skips a clipboard that holds nothing to paste',
+			'src/lib/components/link-card/LinkCard.svelte': 'a URL typed into the link card',
+			'src/lib/components/link-card/LinkCardHost.svelte': 'a URL typed into the link card',
+			'src/lib/components/blocks/text/link-source-bytes.ts': 'the URL the link command was given',
+			'src/lib/plugins/latex/BlockMath.svelte':
+				'whether the render shows ink, not whether the Markdown is blank',
+			'src/lib/plugins/mermaid/MermaidBlock.svelte':
+				'whether the render shows ink, not whether the Markdown is blank'
+		},
+		reason:
+			'`trim()` also drops a non-breaking space, which GFM (§2.1) counts as content: test document text with `isBlankText` (core/lines.ts), or allow a string that is no document text here, with why',
+		hits: [
+			"if (child.raw.trim() === '') return;",
+			"const empty = x.trim() !== '';",
+			'if (body.trim().length === 0) return;',
+			'if (!node.raw.trim()) return;'
+		],
+		misses: [
+			'if (isBlankText(child.raw)) return;',
+			"onCommit(value.trim() === 'text' ? '' : value);",
+			'const info = raw.trim();',
+			"if (!line.trim().startsWith('|')) return;"
+		]
+	},
+	{
+		id: 'G4.72 the Markdown grammar reads GFM whitespace, not JS \\s or trim()',
+		population: (file) =>
+			under('src/lib/core/parsers/')(file) || GRAMMAR_FILES.includes(file.relPath),
+		matches: /\\[sS]|\.trim(?:Start|End)?\(/,
+		reaches: GRAMMAR_FILES,
+		reason:
+			'JS `\\s` and `trim()` admit a non-breaking space, and GFM (§2.1) never does: a rule wanting spaces or tabs says `[ \\t]`, one wanting whitespace reads `WHITESPACE_CLASS`, `isWhitespaceChar` or `trimWhitespace` (core/lines.ts)',
+		hits: [
+			at(PARSER_PROBE, 'const m = text.match(/^#(?:\\s|$)/);'),
+			at(PARSER_PROBE, 'new RegExp(`^x\\\\s*$`);'),
+			at(PARSER_PROBE, 'const trimmed = text.trim();'),
+			at(PARSER_PROBE, 'const head = text.trimStart();'),
+			at(PARSER_PROBE, 'const tail = text.trimEnd();'),
+			at('src/lib/core/inline/scan/autolinks.ts', 'const m = s.match(/^(\\S+)/);')
+		],
+		misses: [
+			at(PARSER_PROBE, 'const m = text.match(/^#(?:[ \\t]|$)/);'),
+			at(PARSER_PROBE, 'isWhitespaceChar(ch); // JS \\s is too wide'),
+			at(PARSER_PROBE, 'const info = trimWhitespace(raw);'),
+			at('src/lib/core/inline/scan/emphasis.ts', 'return /\\s/.test(ch);')
 		]
 	}
 ];

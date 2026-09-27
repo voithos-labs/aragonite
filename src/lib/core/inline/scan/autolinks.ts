@@ -7,6 +7,7 @@
  */
 
 import type { InlineNode } from '../../nodes';
+import { isWhitespaceChar } from '../../lines';
 import { matchHtmlFormAt } from '../html-tag-grammar';
 import { appendNode, type ScanContext } from './scan-state';
 import { percentEncodeUri } from './url';
@@ -78,13 +79,14 @@ function hasValidDomain(raw: string, domainStart: number, limit: number): boolea
 }
 
 /**
- * GFM §6.9: valid only at start-of-region or after whitespace, `*`, `_`, `~`, or `(`. Applied to
+ * GFM §6.9: valid only at start-of-region or after whitespace (§2.1's ASCII set, as cmark-gfm's
+ * `cmark_isspace`), `*`, `_`, `~`, or `(`. Applied to
  * every bare form here, per the spec text; cmark-gfm applies it to the `www.` form alone.
  */
 export function isValidLeadingBoundary(raw: string, pos: number, regionStart: number): boolean {
 	if (pos <= regionStart) return true;
 	const ch = raw[pos - 1];
-	return /\s/.test(ch) || ch === '*' || ch === '_' || ch === '~' || ch === '(';
+	return isWhitespaceChar(ch) || ch === '*' || ch === '_' || ch === '~' || ch === '(';
 }
 
 // ── `<` handler: spec autolink, then raw HTML tag ───────────────────────────
@@ -297,7 +299,7 @@ function matchBareHttpAutolink(
 	const schemeLen = matchesCI(raw, pos, 'https://') ? 8 : matchesCI(raw, pos, 'http://') ? 7 : 0;
 	if (schemeLen === 0) return null;
 	let urlEnd = pos + schemeLen;
-	while (urlEnd < end && !/\s/.test(raw[urlEnd])) urlEnd++;
+	while (urlEnd < end && !isWhitespaceChar(raw[urlEnd])) urlEnd++;
 	if (urlEnd <= pos + schemeLen) return null;
 	urlEnd = trimTrailingPunctuation(raw, pos, urlEnd);
 	if (urlEnd <= pos + schemeLen) return null;
@@ -314,7 +316,7 @@ function matchBareWwwAutolink(
 	if (!isValidLeadingBoundary(raw, pos, regionStart)) return null;
 	if (!matchesCI(raw, pos, 'www.')) return null;
 	let urlEnd = pos + 4;
-	while (urlEnd < end && !/\s/.test(raw[urlEnd])) urlEnd++;
+	while (urlEnd < end && !isWhitespaceChar(raw[urlEnd])) urlEnd++;
 	if (urlEnd <= pos + 4) return null;
 	urlEnd = trimTrailingPunctuation(raw, pos, urlEnd);
 	// `.` is trailing punctuation, so the trim can cross the `www.` prefix and leave a bare
