@@ -54,8 +54,7 @@ export function intraTableRectPayload(deps: CellClipboardDeps): string | null {
 	);
 }
 
-/** The rectangle's bounds in row/column terms, or null when the selection isn't one. The one
- *  place a live rectangle becomes rows and columns; the payload and the grid read it here. */
+/** The rectangle's row and column bounds, or null when the selection isn't a cell rectangle. */
 export function intraTableRectBounds(
 	deps: CellClipboardDeps
 ): { tablePath: number[]; top: number; left: number; rows: number; cols: number } | null {

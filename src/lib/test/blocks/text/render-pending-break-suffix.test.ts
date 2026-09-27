@@ -1,6 +1,5 @@
 // @vitest-environment jsdom
-// Miss-analysis: the pending break was only ever drawn in blocks with nothing past their text,
-// so no render test saw a heading's closing run land after the break's new line.
+// Miss-analysis: no render test drew a pending break in a block with bytes past its text.
 import { describe, it, expect } from 'vitest';
 import { createTextRender } from '$lib/components/blocks/text/text-render';
 import { hiddenSuffixLength } from '$lib/cursor/widget-offset';

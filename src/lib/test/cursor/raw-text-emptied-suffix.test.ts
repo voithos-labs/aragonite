@@ -1,6 +1,5 @@
 // @vitest-environment jsdom
-// Miss-analysis: every read-back test kept some text, so none asked what an emptied block
-// holding only its trailing structure reads as; the structure came back as the block's text.
+// Miss-analysis: every read-back test kept some text, never only the trailing structure.
 import { describe, it, expect } from 'vitest';
 import {
 	BLOCK_PREFIX_ATTR,
@@ -42,8 +41,7 @@ describe('reading back a block whose text was emptied', () => {
 	});
 });
 
-// Miss-analysis: the emptied-read rows left nothing but the run, so none replaced the whole text
-// with a key, where the browser drops the `# ` span and leaves the new text beside the run.
+// Miss-analysis: no row replaced the whole text with a key, which drops the `# ` span.
 describe('reading back a heading whose `#` marker the browser dropped', () => {
 	const RUN = `<span class="md-marker" ${BLOCK_SUFFIX_ATTR}="after-prefix"> #</span>`;
 	const HASH = `<span class="md-marker" ${BLOCK_PREFIX_ATTR}=""># </span>`;
@@ -53,8 +51,7 @@ describe('reading back a heading whose `#` marker the browser dropped', () => {
 		expect(rawTextOfContent(live(`x${RUN}`), '# Hi #\n', ' #')).toBe('x');
 	});
 
-	// Miss-analysis: the dropped-marker rows ran with markers hidden only, so none asked about a
-	// shown `# ` deleted on its own, where the run the user left unselected went with it.
+	// Miss-analysis: the dropped-marker rows hid markers, so none deleted a shown `# ` alone.
 	it('keeps a shown run when only the shown marker went', () => {
 		expect(rawTextOfContent(block(`Hi${RUN}`), '# Hi #\n', ' #')).toBe('Hi #');
 	});
@@ -69,8 +66,7 @@ describe('reading back a heading whose `#` marker the browser dropped', () => {
 	});
 });
 
-// Miss-analysis: the emptied-read rows drew the typed text as its own node, never inside the
-// structure span, where the browser writes a key that replaced the text before it.
+// Miss-analysis: no row drew the typed text inside the structure span, where the browser puts it.
 describe('reading back a key the browser wrote into the structure span', () => {
 	const typedRun = `<span class="md-marker" ${BLOCK_SUFFIX_ATTR}="after-prefix">x #</span>`;
 
@@ -82,8 +78,7 @@ describe('reading back a key the browser wrote into the structure span', () => {
 	});
 });
 
-// Miss-analysis: no bounds test drew a block with no text between two hidden runs, which merged
-// into one run and put the caret's only position past the closing run.
+// Miss-analysis: no bounds test drew a block with no text between two hidden runs.
 describe('where a caret can sit in an emptied heading with a closing run', () => {
 	it('is between the marker and the run', () => {
 		const root = document.createElement('div');

@@ -1,9 +1,7 @@
 /**
- * What the shared block-edit core needs of one block list, the document root or a container:
- * its children, the commit, the keystroke's typing burst and in-place write, and the caret
- * landing. The factories here are the only place the commit's document-absolute paths (`DocPath`)
- * are made; the core hands over local indices only. G1.16 is the runtime check for JS callers the
- * types do not bind.
+ * What the shared block-edit core needs of one block list, the document root or a container.
+ * The factories here are the only place the commit's document-absolute paths (`DocPath`) are
+ * made; the core hands over local indices only, and a dev-mode check covers JS callers.
  */
 
 import type { OpDescriptor } from '../schema/operations';
@@ -54,11 +52,8 @@ export interface ScopeCommitArgs {
 	op: OpDescriptor;
 	mutate: (view: MutationView) => StructuralChange;
 	afterTick?: CommitAfterTick;
-	/**
-	 * The nodes the dev-mode stale-raw check reads when `mutate` returns `noop`, filled by `mutate`
-	 * since the copy exists only then. A container's commit checks its whole copied container, so
-	 * only the document root reads these.
-	 */
+	/** Filled by `mutate` for the dev-mode stale-raw check when it returns `noop`; only the root
+	 *  reads them, since a container's commit checks its whole copied container. */
 	touchedNodes?: CstNode[];
 	/**
 	 * A structural edit that can legitimately change nothing, so the commit discards the
@@ -200,11 +195,8 @@ export function createContainerScope(state: BlockListState, deps: NestedActionsD
 	});
 }
 
-/**
- * The scope of the list at `parentPath`, for a caller that holds a path rather than a mounted
- * container: the root's scope at the empty path, null where no container stands. Build it after
- * any earlier commit of the same gesture, which may have replaced the container.
- */
+/** The scope of the list at `parentPath`: the root's at the empty path, null where no container
+ *  stands. Build it after any earlier commit of the gesture, which may replace the container. */
 export function createPathScope(
 	root: { deps: EditorActionsDeps; controller: UndoController },
 	parentPath: DocPath

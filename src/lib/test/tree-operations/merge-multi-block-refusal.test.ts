@@ -84,8 +84,7 @@ describe('a join whose bytes stay one block still merges', () => {
 	});
 });
 
-// Miss-analysis: every refusal test ran without a sharing state, so a join that copied its
-// ancestors before deciding to refuse left the undo snapshot's nodes swapped out unnoticed.
+// Miss-analysis: every refusal test ran without a sharing state, so no copy was ever checked.
 describe('a refused join copies nothing', () => {
 	const snapshotSharing = () => {
 		const sharing = createSharingState();

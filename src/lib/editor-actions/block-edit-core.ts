@@ -76,9 +76,8 @@ async function handleIneligibleNeighbor(scope: CommitScope, i: number, dir: -1 |
 // ── The keystroke ────────────────────────────────────────────────────────────
 
 /**
- * The `updateBlockContent` every level exposes: one keystroke's write, grouped with its typing
- * burst, through a commit when the trial reparse sees the block change and in place otherwise.
- * Nothing awaits between the burst's push and the commit call, or the commit opens an entry of its own.
+ * Every level's `updateBlockContent`: a commit when the trial reparse sees the block change, an
+ * in-place write otherwise. Awaiting between the typing burst's undo entry and the commit splits it.
  */
 export function contentUpdate(scope: CommitScope): BlockEditActions['updateBlockContent'] {
 	return (index, text, mode, preEditOffset, postEditFocusOffset) => {
@@ -112,9 +111,8 @@ export function contentUpdate(scope: CommitScope): BlockEditActions['updateBlock
 
 export type LeafWriteResult = { readonly wrote: false } | LeafWriteLanded;
 
-/** `caret` is where the caret belongs after the write and the fix-up in its own list, and `window`
- *  the written block's replacement run after that fix-up. An ancestor that collapsed lands where
- *  the commit puts it, after this. */
+/** `caret` is where the caret goes after the write and its list's fix-up, and `window` the
+ *  written block's replacement run; a collapsed ancestor places the caret itself afterwards. */
 export interface LeafWriteLanded extends Relanding {
 	readonly wrote: true;
 	/** Whether the write put new blocks in the position rather than rewriting the leaf. */
@@ -122,9 +120,8 @@ export interface LeafWriteLanded extends Relanding {
 }
 
 /**
- * One commit writing new text into child `index`: the copy, the content write against the list's
- * body, and the caret after the write's own fix-up. `snapshotOffset` is where undo puts the caret
- * back when nothing is focused and `caret` the caret to carry through, both in the stored bytes.
+ * Commit new text into child `index`. Offsets are in stored bytes: `snapshotOffset` is where undo
+ * puts the caret back when nothing is focused, `caret` where it goes after the write.
  */
 export async function commitLeafText(
 	scope: CommitScope,
@@ -133,7 +130,7 @@ export async function commitLeafText(
 	opts: {
 		snapshotOffset: number;
 		caret: number;
-		/** Runs after the tick, before an ancestor's collapse lands the caret itself. */
+		/** Runs after the tick, before a collapsed ancestor places the caret itself. */
 		afterTick?: (landed: LeafWriteLanded) => void | Promise<void>;
 	}
 ): Promise<LeafWriteResult> {

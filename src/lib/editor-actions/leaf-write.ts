@@ -1,7 +1,6 @@
 /**
- * The two parts of a keystroke only the editor root can do, shared by every level's
- * `updateBlockContent`: grouping the keystroke with its typing burst in the undo history, and the
- * write that keeps the leaf in place outside a commit. A container reaches both through its
+ * The two parts of a keystroke only the editor root can do: grouping it with its typing burst in
+ * the undo history, and writing the leaf in place outside a commit. Containers reach both through
  * `ContainerEditActions`.
  */
 
@@ -32,8 +31,7 @@ import type { EditorActionsDeps, UndoController } from './deps';
 
 export type { InPlaceResult, Relanding };
 
-/** `typeInLeaf` also starts the pause timer when `work` settles, throw included; `writeLeafInPlace`
- *  copies the path, writes, publishes ids and the content version, and rebuilds the ancestors. */
+/** `typeInLeaf` starts the undo pause timer when `work` finishes, even if it throws. */
 export type LeafTyping = Pick<ContainerEditActions, 'typeInLeaf' | 'writeLeafInPlace'>;
 
 export function createLeafTyping(deps: EditorActionsDeps, controller: UndoController): LeafTyping {
@@ -51,7 +49,7 @@ export function createLeafTyping(deps: EditorActionsDeps, controller: UndoContro
 			if (!admitsWrite(deps.reading, 'updateContent', kindOf)) return { wrote: false };
 			const chain = ensureUnsharedPath(deps.doc, leafPath, deps.sharing);
 			// A shorter chain would leave the leaf's container shared with an undo entry, and
-			// writing it would rewrite that entry (G1.20).
+			// writing it would rewrite that entry.
 			assertInvariant('unshared-spine-depth', () =>
 				chain.length === leafPath.length
 					? null
@@ -95,7 +93,7 @@ export function createLeafTyping(deps: EditorActionsDeps, controller: UndoContro
 				// Raw written outside a commit reaches the view once Svelte re-reads doc.children.
 				deps.doc.children = [...deps.doc.children];
 			}
-			// State first, then the announcement, as a commit does.
+			// The content version bumps after the tree write, in the order a commit uses.
 			deps.bumpContentVersion();
 			const moved = settled.change.op !== 'noop' || folds.length > 0 || reclassified.length > 0;
 			return {
@@ -120,11 +118,8 @@ interface InPlaceWritten {
 	reclassified: ContainerReclassification[];
 }
 
-/**
- * The caret after a write that moved it off the leaf's element, resolved to a leaf on the tree the
- * write left: an ancestor that collapsed first, then one whose kind changed, then the write's own
- * merge. An ancestor's landing reads the caret's byte in that ancestor's bytes.
- */
+/** Where the caret goes when the write moved it off the leaf's element, first match wins: a
+ *  collapsed ancestor, then one whose kind changed, then the write's own merge. */
 function relandingAfter(deps: EditorActionsDeps, written: InPlaceWritten): Relanding {
 	const { leafPath, settled, caret } = written;
 	const parentPath = leafPath.slice(0, -1);

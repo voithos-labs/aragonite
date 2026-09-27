@@ -1,10 +1,7 @@
 // @vitest-environment jsdom
-// A move from a block showing a widget's source writes the source first, on the key path and on
-// the host's `runCommand` alike, so the moved block carries the edit and one undo takes back the
-// move. Both the text block and the table cell hold a shown source in the DOM only.
-//
-// Miss-analysis: the only move-after-source test drove the dispatch with a hand-built target, so
-// nothing failed when a component's chord target or the host's target dropped the write hook.
+// A move from a text block or table cell showing a widget's source writes the source first, from
+// the key and from `runCommand` alike, so the moved block keeps the edit and one undo reverts it.
+// Miss-analysis: the one move-after-source test used a hand-built target, not the components'.
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
 	destroyMountedEditors,
@@ -24,7 +21,7 @@ const stubRenderer: MathRenderer = () => ({ dom: document.createElement('span') 
 beforeEach(() => {
 	resetPluginPlatformForTests();
 	installLayoutStubs();
-	// The reveal measures its caret through Range rects, which jsdom lacks.
+	// Showing a source measures the caret through Range rects, which jsdom lacks.
 	Range.prototype.getClientRects ??= () => [] as unknown as DOMRectList;
 	Range.prototype.getBoundingClientRect ??= () => new DOMRect();
 });

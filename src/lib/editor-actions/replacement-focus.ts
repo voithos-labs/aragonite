@@ -16,9 +16,8 @@ import type { Relanding } from '../action-contracts';
 // ── Trial reparse ────────────────────────────────────────────────────────────
 
 /**
- * Run the content write on a throwaway copy of child `index` of `target` to pick between a commit
- * and the in-place write; the live tree is untouched. The document's trailing blank line goes
- * along for its last block: blanking that block turns the line into a block, which needs a commit.
+ * Run the content write on a throwaway copy of child `index` to pick a commit or the in-place
+ * write. The last block brings the trailing blank line, since blanking it makes that line a block.
  */
 export function previewContentReparse(
 	target: WriteTarget,
@@ -36,9 +35,7 @@ export function previewContentReparse(
 		leadingTrivia: node.leadingTrivia,
 		raw: node.raw
 	});
-	// The owner goes along as a copy, or the trial answers about different bytes than the write
-	// stores. A task item's marker rides on the copy, so the trial reads the text after it as the
-	// write will.
+	// The owner and its task marker go along as a copy, so the trial reads the bytes the write will.
 	const taskItem = followsTaskMarker(owner, index) ? owner : undefined;
 	const ownerCopy =
 		owner &&
@@ -69,11 +66,8 @@ export async function landUnlessFocusMoved(
 	await scope.land(relanding.caret);
 }
 
-/**
- * A typing write needs the caret put back; a blur commit (a revealed source collapsing as focus
- * lands elsewhere) must not pull it back. The test is where focus is when the caret would land:
- * a `data-block-path` outside the written blocks means it moved on.
- */
+/** Whether focus has left the written blocks, as after a blur commit, where putting the caret
+ *  back would pull it away from where the user went. */
 export function focusMovedOutsideReplacement(
 	scopePath: readonly number[],
 	at: number,

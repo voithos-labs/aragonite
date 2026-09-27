@@ -1,9 +1,7 @@
 // @vitest-environment jsdom
 // A plugin container runs a global chord (undo) only while it holds focus as a whole. A chord
 // bubbling up from a block inside it already ran there, so running it again would undo twice.
-//
-// Miss-analysis: every undo test pressed the chord where the container held focus, so no test
-// bubbled one up from a block inside it.
+// Miss-analysis: every undo test pressed the chord with focus on the container itself.
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { flushSync } from 'svelte';
 import { installEditorDomStubsForTests, resetPluginPlatformForTests } from '$lib/testing';

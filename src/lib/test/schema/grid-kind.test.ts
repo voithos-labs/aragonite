@@ -1,5 +1,4 @@
-// Miss-analysis: every grid reader asked the descriptor inline or named `table`, so no test
-// held the grid fact itself, and a plugin grid reached only the readers that asked.
+// Miss-analysis: every grid reader named `table`, so no test held the grid fact itself.
 import { afterEach, describe, expect, it } from 'vitest';
 import { isGridKind } from '$lib/schema/block-kind-descriptor';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';

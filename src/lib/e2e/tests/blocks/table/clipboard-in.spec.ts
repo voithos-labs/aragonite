@@ -282,8 +282,8 @@ test.describe('table block: paste in', () => {
 		expect((await editor.bridge.getSource()).replace(/\s+$/, '')).toBe(source.replace(/\s+$/, ''));
 	});
 
-	// The undo restores the cell rectangle; the redo then swaps the paragraph back in under it,
-	// where a reader could meet the rectangle's cell index on a paragraph.
+	// The undo restores the cell rectangle and the redo swaps the paragraph back under it, where a
+	// stale rectangle would put a cell index on a paragraph.
 	test('undo and redo of a whole-table paste restore each side without a stale rectangle', async ({
 		page
 	}) => {

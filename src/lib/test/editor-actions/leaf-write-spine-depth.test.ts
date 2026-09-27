@@ -1,6 +1,5 @@
-// The copied chain must be as deep as the leaf path (G1.20). A shorter chain makes
-// `chain[leafPath.length - 2]` address a node the write has not copied, so the write lands on a
-// node the undo snapshot shares and corrupts history at a later undo.
+// The copied chain must be as deep as the leaf path, or the write lands on a node the undo
+// snapshot shares and corrupts history at a later undo.
 import { describe, it, expect, vi } from 'vitest';
 import * as unshare from '$lib/tree-operations/unshare';
 import { serialize } from '$lib/core/serializer';

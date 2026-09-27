@@ -136,8 +136,7 @@ describe('editor-root focus attribution: data-focused', () => {
 		expect(e.marked()).toEqual([e.second.el]);
 	});
 
-	// Miss-analysis: every held-press row sent a mouse's event order, so none showed a tap, whose
-	// focus arrives on mouse events the browser sends after the finger has already lifted.
+	// Miss-analysis: every held-pointer row sent a mouse's event order, never a tap's.
 	it('a tap keeps the mark where it was through its trailing mouse press', () => {
 		const e = editor('preview-block');
 		e.focusIn(e.first.leaf);
@@ -154,8 +153,8 @@ describe('editor-root focus attribution: data-focused', () => {
 		expect(e.marked()).toEqual([e.second.el]);
 	});
 
-	// A tap that sends no mouse events (a long press, a page that cancels the touch) must not
-	// leave the paint held, which a hold released only by `click` would.
+	// A tap that sends no mouse events (a long press, a cancelled touch) must not leave the
+	// focus mark held until a `click` that never comes.
 	it('a tap with no trailing mouse events holds nothing past the lift', () => {
 		const e = editor('preview-block');
 		e.focusIn(e.first.leaf);

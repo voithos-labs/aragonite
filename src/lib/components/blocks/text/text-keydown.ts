@@ -19,9 +19,8 @@ export interface TextEditResult {
 }
 
 /**
- * Give up the block's own structural bytes at both ends: an ATX heading's `# ` and closing run, a
- * setext underline. Reads the kind's content range and nothing else, so the rewrite cannot
- * disagree with the check that let the key through. Null where the content is the whole display.
+ * Drop the block's structure outside its content range, the same range the check that let the
+ * key through reads. Null where the content is the whole display.
  */
 export function demoteToParagraph(
 	raw: string,
@@ -76,11 +75,8 @@ export function cycleHeading(
 }
 
 /**
- * Insert a GFM hard-break (a backslash at end of line) at `offset` within the display. At the
- * content end the break has no following line yet: the line break after the content (the block's
- * own ending, or the one above a setext underline) stands in for the break's until the next
- * keystroke supplies the line. Inside the text, structure on the text's own line (a heading's
- * closing run) stays on that line, before the break.
+ * Insert a GFM hard break (a backslash at end of line) at `offset`. At the content's end, the
+ * line ending after the content stands in for the break's own until the next key adds the line.
  */
 export function insertHardBreak(
 	raw: string,

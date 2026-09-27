@@ -36,11 +36,8 @@ import {
 } from './whole-block-focus-surface';
 import { devWarn } from '../dev-warn';
 
-/**
- * Undo, redo and plugin-global chords for a block focused as a whole: no inner leaf runs them for
- * it, and the editor root declines while focus sits on the block. Consumed in reading mode too,
- * or a read-only document would get the browser's own undo.
- */
+/** Undo, redo and plugin-global chords for a block focused as a whole, which neither an inner leaf
+ *  nor the editor root runs. Consumed in reading mode too, or the browser runs its own undo. */
 export function dispatchWholeBlockGlobalChord(
 	e: KeyboardEvent,
 	kind: AnyBlockKind,

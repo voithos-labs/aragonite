@@ -39,8 +39,7 @@ describe('the code rail’s host hooks', () => {
 		expect(railButton(CODE_MENU_LABEL)).toBeNull();
 	});
 
-	// Miss-analysis: the request carried only the info string, so every host re-derived the
-	// language with its own split, and no test compared that word with the one the rail shows.
+	// Miss-analysis: each host split the info string for the language, and no test checked it.
 	it('hands onRunCode the fence body, the info string, its language and the block path', () => {
 		const onRunCode = vi.fn<(request: CodeRunRequest) => void>();
 		mounted = mountCode(FENCE, { policies: { presentationMode: () => 'live', onRunCode } });

@@ -1,7 +1,6 @@
 // The keystroke's in-place write reads the document with its trailing blank line, as the trial
 // that chose the route does, so the two agree about the last blocks and the suffix stays put.
-// Miss-analysis: the trailing-line suites commit their writes, and no test typed in place at the
-// document's tail, where the trial and the write read the suffix through two different bodies.
+// Miss-analysis: no test typed in place at the document's tail.
 import { describe, it, expect, vi } from 'vitest';
 import { serialize } from '$lib/core/serializer';
 import { makeTopHarness } from '$lib/test/harness/editor-actions';

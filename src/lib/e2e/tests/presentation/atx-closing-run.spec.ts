@@ -2,9 +2,8 @@ import type { Page } from '@playwright/test';
 import { test, expect } from '../../fixtures';
 import { enterPresentationMode } from './helpers';
 
-// An ATX heading's closing `#` run is drawn as a marker after the text: dimmed in source mode,
-// hidden in live mode, where the keys at the text's end keep it after the text.
-// Requirements: e2e/requirements/presentation/atx-closing-run.md.
+// An ATX heading's closing `#` run is a marker after the text, and keys at the text's end keep it
+// there. Requirements: e2e/requirements/presentation/atx-closing-run.md.
 
 const DOC = '# Hi #\n\nnext\n';
 

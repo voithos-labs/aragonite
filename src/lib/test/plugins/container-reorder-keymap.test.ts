@@ -1,9 +1,7 @@
 // @vitest-environment jsdom
 // A plugin container focused as a whole moves on whatever chords the keymap binds to
 // `block.moveUp` and `block.moveDown`, a consumer's `keybindings` included.
-//
-// Miss-analysis: every reorder test pressed the default Alt+Arrow, which a physical key match
-// in the container answered, so no test rebound or disabled the chord on a plugin container.
+// Miss-analysis: every reorder test pressed the default Alt+Arrow, never a rebound chord.
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { flushSync } from 'svelte';
 import { installEditorDomStubsForTests, resetPluginPlatformForTests } from '$lib/testing';

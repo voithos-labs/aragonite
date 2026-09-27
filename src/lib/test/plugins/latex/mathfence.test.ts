@@ -109,9 +109,8 @@ describe('math fence with the plugin uninstalled', () => {
 	});
 });
 
-// The render component reads the inner LaTeX from the stored source, whichever wrapper that
-// source uses; the same helper serves the `$$` block and the fence. Miss-analysis: every case
-// padded with ASCII, so `trim()` eating a non-breaking space KaTeX would paint went unseen.
+// The inner LaTeX comes from the stored source, whichever wrapper (`$$` or a fence) it uses.
+// Miss-analysis: every case padded with ASCII, never a non-breaking space KaTeX would paint.
 describe('mathDisplaySource strips the wrapper to the inner formula', () => {
 	const cases: Array<[label: string, source: string, inner: string]> = [
 		['bare $$ multi-line', '$$\nx^2\n$$', 'x^2'],

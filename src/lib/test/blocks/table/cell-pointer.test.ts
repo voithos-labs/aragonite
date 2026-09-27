@@ -49,9 +49,7 @@ describe('handleCellShiftClick', () => {
 		expect(sel.focus).toEqual({ path: [2], offset: 6, cellCoordinate: true });
 	});
 
-	// Miss-analysis: every shift-click row started from nothing or from a painted rectangle, so no
-	// row told "a range stands" apart from "a rectangle is painted", and a helper keyed on the
-	// first stayed green.
+	// Miss-analysis: no shift-click row started from a standing range with no rectangle painted.
 	it('re-anchors at the pressed-from cell when only a one-cell pair stands', () => {
 		const sel = createSelectionState();
 		const corner = (offset: number) => ({ path: [2], offset, cellCoordinate: true as const });

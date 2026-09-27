@@ -11,10 +11,8 @@ import { loadDefinitionExamples } from './corpus';
 import { editorOutline, referenceOutline } from './block-outline';
 import baseline from './baseline.json';
 
-// The spec's link reference definition examples, compared against commonmark.js as whole
-// documents: which definitions exist, what each resolves to, and the blocks left around them.
-// Miss-analysis: the corpus drew only the inline slice of the spec, and the inline differ skips
-// any input that defines a reference, so no definition example ever ran.
+// The spec's link reference definition examples, compared against commonmark.js as documents.
+// Miss-analysis: the corpus drew only the spec's inline examples, which skip any definition.
 
 interface Reading {
 	definitions: string[];

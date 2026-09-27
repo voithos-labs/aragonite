@@ -28,10 +28,8 @@ describe('github alert: per-keystroke marker formation', () => {
 		expect(serialize(h.deps.doc)).toBe('> [!TIP]\n>\n');
 	});
 
-	// The quote the caret was typed in is gone once it reclassifies, so the landing is read off
-	// the caret's byte in the new alert, which sits at the body's start.
-	// Miss-analysis: this row asserted the old re-entry at the container's start, never the
-	// position, and no row typed the marker in a quote below the root's direct child.
+	// Once the quote becomes an alert, the caret follows its byte to the start of the alert's body.
+	// Miss-analysis: no row checked the caret's position or typed the marker in a nested quote.
 	it.each([
 		{ where: 'at the root', source: '> [!TI\n> body\n', quote: [0] },
 		{ where: 'inside a list item', source: '- > [!TI\n  > body\n', quote: [0, 0, 0] }

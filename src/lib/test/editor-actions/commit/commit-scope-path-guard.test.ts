@@ -1,7 +1,7 @@
 // A scope `path` that does not address its `node` must bail, not fall back to the caller's
 // never-copied node: the splice would land on the node the snapshot shares and silently
-// corrupt the newest undo entry (G1.19 and G1.22 are dev-only warnings). The keystroke's
-// in-place write (`leaf-write.ts`, G1.20) writes nothing on a short walk the same way.
+// corrupt the newest undo entry, which the dev warnings don't catch in production. The
+// keystroke's in-place write (`leaf-write.ts`) likewise writes nothing on a too-short path.
 import { describe, it, expect } from 'vitest';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { parse } from '$lib/core/parser';

@@ -586,8 +586,8 @@
 	async function onKeyDown(e: KeyboardEvent): Promise<void> {
 		if (composing || !el) return;
 
-		// Ahead of the plan: the shared handling's reset runs only on the 'native' branch, so a
-		// key the plan takes would leave the select-all run active.
+		// Reset before `cellKeydownPlan`: the shared reset runs only for keys the plan leaves to the
+		// browser, so a key the plan takes would leave the select-all run active.
 		if (endsSelectAllRun(e)) selection.resetSelectAllCount();
 
 		// Must run before `cellKeydownPlan`, which takes arrows and calls `preventDefault`
@@ -610,10 +610,8 @@
 
 		const caretBeforeKey = cursor.getRaw() ?? 0;
 
-		// Before the plan, whose boundary branches ignore modifiers and would eat a column move at
-		// the cell's left edge; also the one point a consumer's `keybindings` override reaches.
-		// A move from the cell moves the whole table: the reorder resolves at the nearest ancestor
-		// that reorders its children, which a table's grid rows do not.
+		// Before the plan, whose edge branches ignore modifiers and would eat a column move. A move
+		// from a cell moves the whole table, since a table's grid rows are not reorderable children.
 		const target = {
 			kind: node.kind,
 			runCommand,

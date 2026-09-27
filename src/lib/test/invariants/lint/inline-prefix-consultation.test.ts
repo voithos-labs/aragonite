@@ -1,6 +1,6 @@
 /**
- * G4.18: the scan loop consults prefix inline syntax handlers from one site, ahead of the switch
- * over built-in triggers, so no single trigger's case can carry its own copy. The switch's cases
+ * The scan loop consults prefix inline syntax handlers from one site, ahead of the switch over
+ * built-in triggers, so no single trigger's case can carry its own copy. The switch's cases
  * are held to the trigger table by `test/core/inline/scan/builtin-trigger-dispatch.test.ts`.
  */
 import { describe, it, expect } from 'vitest';
@@ -34,8 +34,8 @@ describe('G4.18 pre-switch prefix consultation: one home, ahead of the switch', 
 		expect(gate[0]).toBeLessThan(switchAt);
 	});
 
-	// A per-case copy of the consultation (the bug shape this pins against) would
-	// add a second `getPrefixRungs(` after the switch offset.
+	// A copy of the consultation inside one case would add a second `getPrefixRungs(` after the
+	// switch offset.
 	it('consults reserved prefix inline syntax handlers from exactly one site, before the switch', () => {
 		expect(consult).toHaveLength(1);
 		expect(consult[0]).toBeLessThan(switchAt);

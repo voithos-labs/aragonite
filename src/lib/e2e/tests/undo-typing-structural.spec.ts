@@ -40,7 +40,7 @@ test.describe('needsUndoCheckpoint, typing / structural / typing', () => {
 });
 
 // A burst of typing whose last key changes the block's kind is one undo step at every depth: the
-// kind-changing key joins the entry the burst opened (#471).
+// kind-changing key joins the entry the burst opened.
 
 async function eraseUnderlineThenUndo(
 	editor: EditorPage,

@@ -1,8 +1,7 @@
 /**
- * Editor-root focus attribution: which block host holds the caret. The path tells each
- * windowing list which block to keep mounted, so a scroll that pushes the caret off-screen
- * never tears down native focus or the IME; both preview modes' CSS keys the focused block's
- * markers off the `data-focused` attribute, which moves only while no press is in progress.
+ * Tracks which block host holds the caret. Each windowing list keeps that block mounted, so a
+ * scroll that pushes the caret off-screen never drops native focus or the IME. The preview modes
+ * style the focused block's markers off `data-focused`, which moves only while no pointer is down.
  */
 
 import { assertInvariant } from '../assert';
@@ -92,7 +91,7 @@ export function createFocusAttribution(deps: FocusAttributionDeps): FocusAttribu
 			onRoot(root, 'focusout', onFocusOut),
 			onRoot(root, 'pointerdown', onPress, { capture: true }),
 			onRoot(doc, 'pointerup', endPress, { capture: true }),
-			// A tap focuses on the mouse press the browser sends after the finger lifts.
+			// A tap focuses on the mousedown the browser sends after the finger lifts.
 			onRoot(root, 'mousedown', onPress, { capture: true }),
 			onRoot(doc, 'mouseup', endPress, { capture: true }),
 			// A drag of the selection itself ends in pointercancel, never pointerup.

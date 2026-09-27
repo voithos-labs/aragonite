@@ -61,8 +61,8 @@ describe('inline-syntax registry', () => {
 	});
 });
 
-// The probe set is about cost, not correctness: a handler on a reserved trigger the fast bail
-// always checks must stay out of it, or every character pays for a check already made.
+// The fast bail's extra checks are about cost: a handler on a trigger it always checks stays
+// out of them, or every character pays for a check already made.
 describe('inline-syntax registry: what the fast bail must probe', () => {
 	it('reports nothing to probe until a trigger is registered', () => {
 		expect(hasScanProbeRungs()).toBe(false);

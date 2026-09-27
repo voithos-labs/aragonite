@@ -63,9 +63,8 @@ describe('a commit whose ancestry settle ate its own scope', () => {
 		expect(h.errors).toEqual([]);
 	});
 
-	// The other side, on the path that pays for it on every keystroke: routine typing in a
-	// body's first block moves the container's opener line, and one that still interrupts keeps
-	// its index. The kind is unchanged, so this is the in-place write.
+	// Routine typing in a body's first block moves the container's opener line; one that still
+	// interrupts keeps its index, through the in-place write since the kind is unchanged.
 	it('leaves the slot standing when the rebuilt opener still interrupts', async () => {
 		const h = makeNestedHarness('a\n> b\n', { index: 1 });
 
@@ -129,10 +128,8 @@ describe('a commit whose ancestry settle ate its own scope', () => {
 	});
 });
 
-// Blanking the item writes in place, and the quote above it then takes in the paragraph that
-// followed it, so the element the caret was in is rebuilt: the caret goes back where it was typed.
-// Miss-analysis: the in-place write's fold tests asserted ids and bytes, and that write placed no
-// caret at all after an ancestor collapsed, so nothing asked where the caret went.
+// Blanking the item makes the quote above take in the next paragraph; the caret stays put.
+// Miss-analysis: the in-place write's collapse tests asserted ids and bytes, never the caret.
 describe('a keystroke whose container collapses into its follower', () => {
 	it('lands the caret where it was typed', async () => {
 		const h = makeContainerHarness('> a\n> - b\ntext\n', [0, 1, 0]);

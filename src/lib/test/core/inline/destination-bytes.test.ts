@@ -1,5 +1,4 @@
-// Miss-analysis: the writer was tested only by exact output strings, and no test read its bytes
-// back through the link grammar, so a value holding `&name;` text came back as the entity.
+// Miss-analysis: the writer's tests compared exact strings and never read the bytes back.
 import { describe, it, expect } from 'vitest';
 import fc from 'fast-check';
 import { encodeDestination, escapeTitle } from '$lib/core/inline/destination-bytes';
@@ -70,7 +69,7 @@ describe('the destination and title writers read back through the link grammar',
 		);
 	});
 
-	// A url typed into the link card is not yet a read value; it reads back as the reader encodes it.
+	// A url typed into the link card reads back percent-encoded, as `readDestination` returns it.
 	it('any destination text reads back as the reader would encode it', () => {
 		fc.assert(
 			fc.property(arbSource, (text) => readDestination(text) === percentEncodeUri(text)),

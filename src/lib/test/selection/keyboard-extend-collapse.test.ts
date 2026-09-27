@@ -26,9 +26,8 @@ function caretOffset(): number {
 	return window.getSelection()?.anchorOffset ?? -1;
 }
 
-// Either corner of a rectangle inside a table is a cell index, so collapsing to it must resolve
-// that cell, not a character offset into the table's rendered text. The focus is handed in bare,
-// so the row also covers the state flagging it on the way in.
+// Either corner of a table rectangle is a cell index, so collapsing to it resolves that cell, not
+// a character offset; the focus goes in bare, so the state must flag it on the way in.
 describe('collapseCrossBlock over an intra-table rectangle', () => {
 	it('resolves the deep cell path when the collapse target is the focus', async () => {
 		const { selection, cellRef, revealPath, getBlockElByPath } = harness();

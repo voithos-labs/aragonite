@@ -1,9 +1,7 @@
 // @vitest-environment jsdom
 // Every chord in a mounted editor dispatches against the editor's one command context: a throwing
-// plugin command reaches the `error` event, and `keybindings` set after mount apply on the next press.
-//
-// Miss-analysis: the error channel was pinned only by an e2e spec, and no unit test changed
-// `keybindings` after mount, so a context built with a stale read or a dropped sink passed.
+// plugin command reaches the `error` event, and `keybindings` set after mount apply at once.
+// Miss-analysis: no unit test changed `keybindings` after mount or checked the error event.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
 	destroyMountedEditors,

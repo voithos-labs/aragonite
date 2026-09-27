@@ -103,7 +103,7 @@ describeScanCases('urls stop where claimed constructs start', [
 		'https://x.com`c`',
 		[autolinkNode(0, 13, 'https://x.com'), codeNode(13, 16, 'c')]
 	],
-	// The scan claims the tag or spec autolink before the url pass, which never reaches it.
+	// The scan takes the tag or spec autolink before the url pass ever reaches it.
 	[
 		'raw html tag ends the url',
 		'https://x.y<br/>',
@@ -123,8 +123,7 @@ describeScanCases('urls stop where claimed constructs start', [
 	]
 ]);
 
-// Miss-analysis: every `<` case here was a claimed tag or spec autolink, which ends the text run
-// on its own, so no case had a `<` that stays text inside the run.
+// Miss-analysis: every `<` case here was a tag or spec autolink, never a `<` that stays text.
 describeScanCases('a `<` ends the url even where it stays text (§6.9)', [
 	[
 		'spec example: the www url stops at the `<`',

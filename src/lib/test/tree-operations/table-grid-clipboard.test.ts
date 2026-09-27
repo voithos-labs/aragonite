@@ -54,8 +54,7 @@ describe('parseClipboardGrid', () => {
 		]);
 	});
 
-	// Miss-analysis: the clipboard kept a pipe-row splitter of its own, and its tests never put a
-	// backslash before a pipe, where it and the table parser disagree.
+	// Miss-analysis: the clipboard's tests never put a backslash before a pipe.
 	it('splits a GFM row where the table parser does', () => {
 		const text = '| a\\\\| b |\n| --- | --- |\n| `x\\|y` | z |\n';
 		expect(parseClipboardGrid(text)).toEqual([

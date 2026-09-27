@@ -48,8 +48,7 @@ describe('insertHardBreak', () => {
 	});
 });
 
-// Miss-analysis: every case broke a paragraph or a setext title, so no case had structure on the
-// text's own line, which the break moved into the next block.
+// Miss-analysis: no case broke a block with structure on the text's own line.
 describe('insertHardBreak: a heading’s closing run stays on the heading’s line', () => {
 	it('in the middle of the text, the rest goes to the new line without the run', () => {
 		expect(insertHardBreak('# Hi #\n', 3, '\n', { start: 2, end: 4 })).toEqual({
@@ -58,8 +57,7 @@ describe('insertHardBreak: a heading’s closing run stays on the heading’s li
 		});
 	});
 
-	// Miss-analysis: every closing-run row broke inside the text, so a break before it, where
-	// the run belongs to the line below, was never tried.
+	// Miss-analysis: every closing-run row broke inside the text, never before it.
 	it.each([0, 1])('before the text (offset %i), the run stays with the heading below', (offset) => {
 		expect(insertHardBreak('# Hi #\n', offset, '\n', { start: 2, end: 4 }).newRaw).toBe(
 			'# Hi #'.slice(0, offset) + '\\\n' + '# Hi #'.slice(offset) + '\n'

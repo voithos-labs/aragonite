@@ -1,8 +1,6 @@
 // `block.moveUp` and `block.moveDown` resolve at the dispatch for every block, against the path the
 // focused block reports, so a consumer's rebinding moves any block the same way the default does.
-//
-// Miss-analysis: each block carried its own copy of the reorder case, so no test pinned the move
-// at the dispatch, and the one block without a copy (a plugin container) ignored a rebound chord.
+// Miss-analysis: no test pinned the move at the dispatch rather than in each block.
 import { describe, it, expect, vi } from 'vitest';
 import {
 	canRunCommandById,

@@ -49,8 +49,7 @@ describe('history swap: a snapshot whose selection no longer resolves', () => {
 	});
 });
 
-// Miss-analysis: every history test restored into the tree the selection was made in, so none
-// saw a reader pair the incoming tree with the outgoing selection before the restore ran.
+// Miss-analysis: every history test restored into the tree the selection was made in.
 describe('history swap: the outgoing selection never meets the incoming tree', () => {
 	it('drops the standing range before the document swaps', async () => {
 		const { deps, history } = makeSetup();

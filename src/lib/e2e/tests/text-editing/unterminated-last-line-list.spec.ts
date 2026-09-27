@@ -22,7 +22,7 @@ const SEEDS = [
 
 const MODES = ['source', 'live'] as const;
 
-// Typing on an unterminated last line adds a line ending today (#616), so the checks trim it.
+// Typing on an unterminated last line adds a line ending, so the checks trim it.
 const trimEnding = (source: string) => source.replace(/\r?\n$/, '');
 
 test.describe('text editing, a bullet typed into an unterminated last line', () => {

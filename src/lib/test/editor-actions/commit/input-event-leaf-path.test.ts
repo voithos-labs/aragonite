@@ -49,8 +49,7 @@ describe('batched input event carries the leaf path', () => {
 	});
 });
 
-// Miss-analysis: every flush here came from a same-kind burst, and a keystroke whose kind change
-// commits skipped the batch below the root, so no row counted it.
+// Miss-analysis: every flush here came from a same-kind burst, never a kind change in a container.
 describe('a burst ending in a kind change counts that keystroke', () => {
 	it.each([
 		{ level: 'the top level', source: 'x\n', path: [0] },

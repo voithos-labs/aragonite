@@ -1,9 +1,6 @@
 // @vitest-environment jsdom
-//
-// The two-press Ctrl+A inside a cell, from the cell's text to the whole document, counts
-// keypresses on the shared `SelectionState`. That counter's reset on keydown
-// must stay reachable from every branch the cell takes, not from the 'native' branch alone, or a
-// key the cell handles leaves a stage pending and the next Ctrl+A skips one.
+// The two-press Ctrl+A inside a cell counts keypresses on the shared `SelectionState`, so every
+// key the cell handles must reset the count, or the next Ctrl+A skips a stage.
 import { describe, it, expect, afterEach, beforeAll } from 'vitest';
 import { mountCell } from './mount-cell';
 import { installTableLayoutStubs } from './mount-table';

@@ -243,8 +243,8 @@ test.describe('selection: setSelection restores a getSelection snapshot', () => 
 		expect(await page.locator('.selection-overlay').count()).toBeGreaterThan(0);
 	});
 
-	// A host that builds a rectangle from plain numbers never learned the flag; the table path is
-	// what says the offsets count cells.
+	// A host's rectangle built from plain numbers carries no cell flag; the table path alone says
+	// the offsets count cells.
 	test('plain offsets on a table path paint a cell rectangle', async ({ page }) => {
 		await editor.loadContent(TABLE_3x3);
 		expect(

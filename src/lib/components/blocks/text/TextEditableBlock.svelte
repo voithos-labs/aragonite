@@ -611,9 +611,8 @@
 		return true;
 	}
 
-	// A shown source holds this block's bytes in the DOM only, so a command, a move included,
-	// would act on the old source: hide it, wait for the write, then run. Hiding is handed the
-	// user's offset, which is valid because the committed text is the DOM text it was measured on.
+	// A shown source holds this block's edit in the DOM only, so a command waits for it to be
+	// written; the user's offset stays valid, since the written text is the DOM text.
 	export function afterSourceCommit(run: () => void, offset = cursor.getRaw() ?? 0): void {
 		if (!widgetInteraction.isRevealing()) return run();
 		const fold = widgetInteraction.foldRevealBeforeMutation(offset);

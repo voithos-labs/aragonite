@@ -1,9 +1,8 @@
 /**
- * A leaf's bytes built by concatenating text from more than one source is a join, and every
- * destructive one crosses `cleanJoinedRaw`: live paints no delimiter, so a literal concatenation
- * surfaces the marker runs the join orphaned (live-mode.md § 4.5). The census runs both ways: the
+ * A leaf's bytes built from text of more than one source is a join, and every destructive one
+ * goes through `cleanJoinedRaw` (`docs/design/live-mode.md` § 4.5). The census runs both ways:
  * files that call the cleaner are declared, and so is every other file building such a
- * concatenation, each with the reason it is not a destructive join.
+ * concatenation, with the reason it is not a destructive join.
  */
 
 import { describe, it, expect } from 'vitest';

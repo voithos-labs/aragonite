@@ -40,8 +40,7 @@ function mergeSecondItem(source: string) {
 	return { doc, list, result, source: serialize(doc) };
 }
 
-// Miss-analysis: every M1 fixture's previous item ended in a paragraph, so no test reached the
-// heading leaf the target walk also stops at.
+// Miss-analysis: every M1 fixture's previous item ended in a paragraph, never a heading.
 describe('mergeListItemIntoPrevious: a heading target joins', () => {
 	it.each([
 		['an ATX heading', '- # Plan\n- next\n', '- # Plannext\n'],
@@ -59,8 +58,7 @@ describe('mergeListItemIntoPrevious: a heading target joins', () => {
 	});
 });
 
-// Miss-analysis: M1 wrote the joined bytes onto the paragraph without a reparse, and no fixture
-// joined two halves that together read as another kind.
+// Miss-analysis: no M1 fixture joined two halves that together read as another kind.
 describe('mergeListItemIntoPrevious: a join that completes another kind re-kinds the leaf', () => {
 	it('two backticks joined to a backtick and text become a code fence', () => {
 		const { doc, list, source } = mergeSecondItem('- ``\n- `x\n');
@@ -71,8 +69,7 @@ describe('mergeListItemIntoPrevious: a join that completes another kind re-kinds
 	});
 });
 
-// Miss-analysis: no M1 fixture held a task marker on either side of the join, so dropping the
-// task reconcile from the join left every test green.
+// Miss-analysis: no M1 fixture held a task marker on either side of the join.
 describe('mergeListItemIntoPrevious: the task marker follows the joined first block', () => {
 	it('a join that spells a task marker makes the item a task', () => {
 		const { doc, list, source } = mergeSecondItem('- [ \n- ] x\n');
@@ -95,8 +92,7 @@ describe('mergeListItemIntoPrevious: the task marker follows the joined first bl
 	});
 });
 
-// Miss-analysis: the M1 tests only ever joined, so turning a refusal back into the throw that
-// #470 shipped as an unhandled rejection left every test green.
+// Miss-analysis: the M1 tests only ever joined, so a refusal thrown instead of returned passed.
 describe('mergeListItemIntoPrevious: nothing to join returns null and writes nothing', () => {
 	it.each([
 		['a join that reads as two blocks', '- # h\n- text\n  more\n'],

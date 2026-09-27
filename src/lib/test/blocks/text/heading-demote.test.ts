@@ -7,9 +7,8 @@ import {
 import { getContentRange } from '$lib/core/inline';
 import { parse } from '$lib/core/parser';
 
-// Backspace at a live heading's content start drops the block's own structural bytes before it
-// merges anything. Which bytes those are comes from the kind's content range: everything outside
-// it, an ATX heading's `# ` and closing run, a setext underline.
+// Backspace at a live heading's content start drops every byte outside the kind's content range
+// before it merges anything.
 
 describe('demoteToParagraph', () => {
 	it('drops an ATX prefix and lands the caret where the content now starts', () => {
@@ -43,8 +42,7 @@ describe('demoteToParagraph', () => {
 	});
 });
 
-// Miss-analysis: every case handed in a range with nothing past an ATX heading's content, so a
-// closing `#` run (GFM §4.2), which the range now leaves out, was never demoted.
+// Miss-analysis: no case had bytes past an ATX heading's content, so a closing run never demoted.
 describe('demoteToParagraph: an ATX closing run', () => {
 	function demoteHeading(raw: string, offset: number) {
 		return demoteToParagraph(raw, getContentRange(parse(raw).children[0]), offset);
@@ -58,8 +56,7 @@ describe('demoteToParagraph: an ATX closing run', () => {
 		expect(demoteHeading('# Hi #\n', 6)).toEqual({ newRaw: 'Hi\n', caretOffset: 2 });
 	});
 
-	// Miss-analysis: the line ending was read with the LF/CRLF helper, and no case ended a
-	// document's last line in a lone `\r`, which the closing run then carried away.
+	// Miss-analysis: no case ended the document's last line in a lone `\r`.
 	it('keeps a lone `\r` ending the document’s last line, demoted or re-marked', () => {
 		const raw = '# Hi #\r';
 		const content = getContentRange(parse(raw).children[0]);
@@ -97,8 +94,7 @@ describe('demoteEmptyAtxHeading', () => {
 		});
 	});
 
-	// An empty heading spelled with a closing run: dropping the prefix alone leaves `#`, a heading
-	// again, standing over nothing.
+	// Dropping only the prefix of an empty heading with a closing run leaves `#`, a heading again.
 	it('drops the closing run of an empty heading too', () => {
 		const raw = '# #\n';
 		expect(demoteEmptyAtxHeading(raw, getContentRange(parse(raw).children[0]))).toEqual({

@@ -271,11 +271,8 @@ export function composeCollapseGates(
 
 // ── Kind-command target ──────────────────────────────────────────────────────
 
-/**
- * The kind-command target a plugin container hands to `dispatchKindCommand`. It has no
- * `runCommand`: a plugin container owns no built-in kind commands, so a chord resolves only
- * through a registered one.
- */
+/** The kind-command target a plugin container hands to `dispatchKindCommand`. It has no
+ *  `runCommand`, since a plugin container owns no built-in kind commands. */
 export function buildContainerKindTarget(
 	deps: Pick<ContainerBlockDeps, 'getNode' | 'commandHooks'>,
 	updateOwnMetadata: ContainerBlock['updateOwnMetadata'],

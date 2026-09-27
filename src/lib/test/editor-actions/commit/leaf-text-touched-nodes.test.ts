@@ -1,7 +1,6 @@
 // A same-kind text write through `commitLeafText` reports no structural change, so it names the
 // leaf it wrote for the commit's stale-raw check, or a stale leaf would go unchecked.
-// Miss-analysis: the keystroke only commits when the trial reparse sees the block change, so no
-// row drove a same-kind write through the commit and read what it handed over.
+// Miss-analysis: no row drove a same-kind write through the commit.
 import { describe, it, expect, vi } from 'vitest';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createTopLevelScope } from '$lib/editor-actions/block-edit-scope';

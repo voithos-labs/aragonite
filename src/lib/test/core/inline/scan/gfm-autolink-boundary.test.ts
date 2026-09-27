@@ -1,5 +1,4 @@
-// Miss-analysis: every boundary case sat at the start of the text or after a plain character,
-// so no case put a url right after a claimed construct, where a text run starts mid-line.
+// Miss-analysis: no boundary case put a url right after an inline construct.
 import { describe, expect, it } from 'vitest';
 import { defaultGrammarView } from '$lib/schema/block-openers';
 import { scanInline } from '$lib/core/inline/scan';

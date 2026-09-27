@@ -1,6 +1,5 @@
 // @vitest-environment jsdom
-// Miss-analysis: every rectangle test built its pair the way the gestures did, a flagged anchor
-// and a bare focus, so no test asked what a bare point on a table path means.
+// Miss-analysis: every rectangle test built a flagged anchor and a bare focus, never bare points.
 import { describe, it, expect } from 'vitest';
 import { createSelectionState } from '../../selection/selection-state.svelte';
 import { resolveSelectionPoint, restoreSelection } from '../../selection/selection-restore';
@@ -39,8 +38,8 @@ describe('an endpoint on a table path is stored as a cell index', () => {
 		expect(state.focus).toEqual(cell(4));
 	});
 
-	// No gesture found takes a table whole (a margin drag starts a cell rectangle instead), but
-	// the state API accepts the shape, and before the flag its copy and delete misread it.
+	// No gesture takes a table whole (a margin drag starts a cell rectangle instead), but the
+	// state API accepts the shape, so copy and delete must read it as cells.
 	it('enterCrossBlock takes a table whole as its first and last cell', () => {
 		const { state } = tableState();
 		state.enterCrossBlock({ path: [0], wholeBlock: true }, { path: [0], wholeBlock: true });
@@ -57,8 +56,7 @@ describe('an endpoint on a table path is stored as a cell index', () => {
 		expect(state.anchor).toEqual(cell(0));
 	});
 
-	// Miss-analysis: every bare-offset row used an index inside the grid, so nothing asked what an
-	// offset past the last cell becomes once no one warns about it.
+	// Miss-analysis: every bare-offset row used an index inside the grid.
 	it('clamps a bare offset past the last cell to the last cell', () => {
 		const doc = parse('para\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n');
 		const state = createSelectionState({ getDoc: () => doc });

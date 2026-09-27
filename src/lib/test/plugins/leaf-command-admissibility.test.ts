@@ -1,9 +1,7 @@
 // @vitest-environment jsdom
 // `editor.canRunCommand` on a focused editable-leaf plugin block (block math here) answers what the
 // block can run: its moves, and none of the text commands it has no body for.
-//
-// Miss-analysis: the leaf published a `runCommand` that declined everything, and the read took any
-// published `runCommand` as a yes, while no test asked the read about a leaf plugin block.
+// Miss-analysis: no test asked `canRunCommand` about a leaf plugin block.
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { TOOLBAR_COMMANDS } from '$lib';
 import {

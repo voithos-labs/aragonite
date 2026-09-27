@@ -2,7 +2,6 @@ import { test, expect } from '../../../../fixtures';
 import { EditorPage } from '../../../../editor-page';
 
 // Backspace at the start of an item whose previous item is a heading joins the two in live mode.
-// The shared fixture fails the test on any invariant warning or uncaught rejection.
 // Requirements: `e2e/requirements/blocks/list/backspace/heading-item-join.md`.
 
 const JOINS = [

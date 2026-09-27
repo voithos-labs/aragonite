@@ -81,7 +81,7 @@ function harness(): Harness {
 			return crossBlock;
 		},
 		search: search.state as unknown as SearchState,
-		// No plugins stood up here, so every installed one is active.
+		// No plugins are activated here, so every installed one is active.
 		commands: commandContext({
 			history: { requestUndo: () => void undoCount++, requestRedo: () => void redoCount++ },
 			getPresentationMode: () => mode,

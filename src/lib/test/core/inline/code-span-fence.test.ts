@@ -1,6 +1,5 @@
 // @vitest-environment jsdom
-// Miss-analysis: the renderer counted backticks while the caret and toggle code split the bytes
-// around `text`, and every fixture came from the scanner, where the two readings always agree.
+// Miss-analysis: every fixture came from the scanner, where the renderer and edit code agree.
 import { describe, it, expect } from 'vitest';
 import { constructContentRange, parseInline } from '$lib/core/inline';
 import { renderInlineNodes } from '$lib/core/inline-render';

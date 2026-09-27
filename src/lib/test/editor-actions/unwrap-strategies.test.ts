@@ -34,8 +34,7 @@ describe('unwrapRole declarations resolve to registered strategies', () => {
 	});
 });
 
-// Miss-analysis: the list's middle-item Backspace was tested only below paragraph items, so the
-// throw out of M1 for a heading item never reached a test of the action that commits it.
+// Miss-analysis: the middle-item Backspace was tested only below paragraph items.
 describe('Backspace at the start of an item under a heading item', () => {
 	it.each([
 		['an ATX heading item', '- # Plan\n- next\n', '- # Plannext\n'],
@@ -51,8 +50,7 @@ describe('Backspace at the start of an item under a heading item', () => {
 	});
 });
 
-// Miss-analysis: the middle-item Backspace was only tested where it joins, so a refusal thrown
-// out of the commit instead of falling back had no test at the action.
+// Miss-analysis: the middle-item Backspace was only tested where it joins, never where it refuses.
 describe('Backspace at the start of an item with nothing to join', () => {
 	it.each([
 		['a join that reads as two blocks', '- # h\n- text\n  more\n'],
