@@ -154,8 +154,8 @@ describe('editor-root focus attribution: data-focused', () => {
 		expect(e.marked()).toEqual([e.second.el]);
 	});
 
-	// Miss-analysis: the tap row always ended in mouse events, so none showed a tap that sends
-	// none (a long press, a page that cancels the touch) leaving the paint held.
+	// A tap that sends no mouse events (a long press, a page that cancels the touch) must not
+	// leave the paint held, which a hold released only by `click` would.
 	it('a tap with no trailing mouse events holds nothing past the lift', () => {
 		const e = editor('preview-block');
 		e.focusIn(e.first.leaf);
