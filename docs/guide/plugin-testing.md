@@ -198,7 +198,7 @@ Conformance here means: your kind behaves the way the built-in kinds are require
 
 - Each kit runs **cells**, one check per behavior, and each cell is covered one of three ways. `assert` runs the real check. `exempt` means the invariant has nothing to bite on for your kind (there's no such operation to test). `boundary` means checking it needs something headless code can't reach (a browser, a mounted component).
 - You declare an excused cell rather than skipping it, and both excuse modes want a reason that's a real sentence (a bare token like `'n/a'` fails the run). An excuse the kit can falsify, it falsifies.
-- Every kit resolves with a report, and all three write a cell the same way: its `cell` name, its `status` (`asserted`, `exempt` or `boundary`), and a `detail` saying what ran or why nothing did (`CellReport`, if you want the type). A failing run throws a plain `Error` naming every failed cell instead, so a run drops straight into a test case under any runner.
+- Every kit resolves with a report, and all three write a cell the same way: its `cell` name, its `status` (`asserted`, `exempt` or `boundary`), and usually a `detail` saying what ran or why nothing did (`CellReport`, if you want the type). A failing run throws a plain `Error` naming every failed cell instead, so a run drops straight into a test case under any runner.
 
 ### The kind checkup: `runKindConformance`
 

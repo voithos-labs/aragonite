@@ -207,7 +207,8 @@ export async function runContainerConformance(
 	}
 	const cells = await runCells(
 		CONTAINER_CONFORMANCE_CELLS,
-		{ kind, profile },
+		// A published profile never supplies drivers: no published API can perform their ops.
+		{ kind, profile: { ...profile, drivers: undefined } },
 		{ subject: kind, heading: `container conformance failed for "${kind}"` },
 		earlier
 	);

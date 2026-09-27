@@ -167,6 +167,20 @@ describe('G4.3 conformance kit: a broken plugin container fails', () => {
 		).rejects.toThrow(/terminatorCollision: details declares container\.bodyWrite/);
 	});
 
+	// Miss-analysis: only the bodyWrite branch of the excused-collision check had a case, so an
+	// opaque container excusing the cell passed once that branch was dropped.
+	it('fails terminatorCollision when an opaque container excuses it', async () => {
+		await expect(
+			runContainerConformance(CALLOUT_KIND(), {
+				...calloutProfile,
+				terminatorCollision: {
+					mode: 'exempt',
+					reason: 'red-test bait: an opaque container claiming its terminator cannot collide'
+				}
+			})
+		).rejects.toThrow(/terminatorCollision: callout is an opaque container/);
+	});
+
 	// The bodyWrap check reads the descriptor's own fixture, so a container with none
 	// leaves the declaration unchecked while the cell still reports asserted.
 	it('fails declaration sanity when the container carries no conformanceFixture', async () => {

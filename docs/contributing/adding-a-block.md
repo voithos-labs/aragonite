@@ -530,7 +530,7 @@ Complex blocks (lists, tables) get a requirement file in `src/lib/e2e/requiremen
 
 **A `conformanceFixture` enrols your kind in the conformance kit.** The field is optional and the enrolment gates on it: declare a source snippet that parses to your kind (`'---\n'` for the thematic break), or the kit never sees your kind and nothing warns you. That's the trap. With it declared, the live registry is the enrolment list, and the cells derive from your closure block's columns: the headless cells run at the unit gate, the mounted-DOM cells in the browser sweep. A cell you declared `implemented` but didn't is caught here, because the kit runs the closure block's promises instead of taking them on faith. Omit the field only for a kind no document scan yields in isolation (a table cell), and say so in review. [`docs/guide/plugin-testing.md`](../guide/plugin-testing.md) documents the kit itself; built-ins run through the same one.
 
-**A built-in container needs a conformance profile too.** `src/lib/test/invariants/builtin-container-profiles.ts` holds one entry per built-in container kind, and `src/lib/test/invariants/container-conformance.test.ts` keeps that map in lockstep with the registry. G4.3 fails in both directions, so a registered container with no profile and a profile for no container each red the suite. Where a contract makes a cell moot, declare it `boundary` or `exempt` with a reason. Never just leave it out. Two cells need a hand from you: the kit can't drive a grid's `localIndex` or a `multiScope` operation (one edit spanning two nesting levels) on its own, so a built-in that asserts either hands the kit a function that does it, under the profile's `drivers` (the table's and the list's live in `src/lib/test/invariants/builtin-container-drivers.ts`). The blockquote's:
+**A built-in container needs a conformance profile too.** `src/lib/test/invariants/builtin-container-profiles.ts` holds one entry per built-in container kind, and `src/lib/test/invariants/container-conformance.test.ts` keeps that map in lockstep with the registry. G4.3 fails in both directions, so a registered container with no profile and a profile for no container each red the suite. Where a contract makes a cell moot, declare it `boundary` or `exempt` with a reason. Never just leave it out. The blockquote's:
 
 ```ts
 // src/lib/test/invariants/builtin-container-profiles.ts
@@ -552,3 +552,5 @@ blockquote: {
 	terminatorCollision: STRIP_TERMINATOR_EXEMPT
 },
 ```
+
+Two cells can't run on the kit alone: a grid's `localIndex`, and `multiScope` (one edit that spans two nesting levels). The kit has no generic way to drive either, so a built-in that asserts one hands it a function that does, under the profile's `drivers`. The table's and the list's are in `src/lib/test/invariants/builtin-container-drivers.ts`. Assert one without a driver and the cell fails, telling you to declare it `boundary`.

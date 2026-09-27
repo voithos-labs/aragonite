@@ -1,6 +1,6 @@
 // Miss-analysis (#576): every container-kit test used built-in kinds, so no test asked what the kit
 // reports for a plugin grid kind.
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { registerBlockOpener, type CstNode, type PluginBlockKind } from '$lib/plugin';
 import {
 	resetPluginPlatformForTests,
@@ -69,5 +69,21 @@ describe('container kit: a plugin grid kind', () => {
 		await expect(
 			runContainerConformance(grid, { ...excusedProfile, multiScope: { mode: 'assert' } })
 		).rejects.toThrow(/multiScope: .*declare it boundary/);
+	});
+
+	// Miss-analysis: the built-in drivers rode an internal profile field, and no test passed one
+	// through the published runner, so a plugin profile could assert a cell over its own function.
+	it('ignores drivers a published profile carries', async () => {
+		const driver = vi.fn(async () => {});
+		const withDriver = {
+			...excusedProfile,
+			multiScope: { mode: 'assert' } as const,
+			drivers: { multiScope: driver }
+		};
+		const published: ContainerConformanceProfile = withDriver;
+		await expect(runContainerConformance(grid, published)).rejects.toThrow(
+			/multiScope: .*declare it boundary/
+		);
+		expect(driver).not.toHaveBeenCalled();
 	});
 });

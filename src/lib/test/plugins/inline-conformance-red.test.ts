@@ -159,6 +159,24 @@ const markerProfile = (kind: PluginInlineKind): InlineConformanceProfile => ({
 	imageClaim: { mode: 'exempt', reason: A_REASON }
 });
 
+// Miss-analysis: the excuse checks were only ever reached by profiles that asserted the cell, so
+// a check that stopped refusing an excuse stayed green.
+describe('an excuse the kit can disprove fails', () => {
+	it('fails an excused overlapDecline whose profile supplies overlapFixtures', async () => {
+		const kind = registerMarkerRung((node) => mintWidgetShell(MARKER, node));
+		await expect(run({ ...markerProfile(kind), overlapFixtures: ['a @ b'] })).rejects.toThrow(
+			/overlapDecline: .*supplies overlapFixtures/s
+		);
+	});
+
+	it('fails an excused widget over a registered live widget', async () => {
+		const kind = registerMarkerRung((node) => mintWidgetShell(MARKER, node));
+		await expect(
+			run({ ...markerProfile(kind), widget: { mode: 'exempt', reason: A_REASON } })
+		).rejects.toThrow(/widget: .*is a registered live widget/s);
+	});
+});
+
 describe('editingPolicy reds a declaration that decides nothing', () => {
 	// The caret-edge dispatch reads an all-absent object exactly as an unregistered one, so
 	// without this a kind clears the cell with a policy that moves no byte.
