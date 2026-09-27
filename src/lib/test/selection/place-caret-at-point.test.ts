@@ -24,6 +24,8 @@ describe('placeCaretAtPoint landing walk', () => {
 	let component: BlockComponent;
 	let focusByPath: Mock<(path: number[], offset: number) => void>;
 	let leafSnap: Mock<(x: number, y: number) => void>;
+	// The cell a path inside the table names.
+	let leaf: BlockComponent;
 	let resetSelectionForClick: Mock<() => void>;
 	const origFromPoint = document.elementFromPoint;
 
@@ -42,9 +44,9 @@ describe('placeCaretAtPoint landing walk', () => {
 			focusable: true,
 			focus: vi.fn(),
 			getCursorOffset: () => null,
-			focusByPath,
-			getBlockComponentByPath: () => ({ snapCaretToPoint: leafSnap }) as unknown as BlockComponent
+			focusByPath
 		} as unknown as BlockComponent;
+		leaf = { snapCaretToPoint: leafSnap } as unknown as BlockComponent;
 		resetSelectionForClick = vi.fn(() => {});
 	});
 
@@ -60,7 +62,7 @@ describe('placeCaretAtPoint landing walk', () => {
 		reset: () => void = resetSelectionForClick
 	) {
 		return createDeadSpaceCaret({
-			getBlockComponent: () => component,
+			getBlockComponent: (path) => (path.length > 1 ? leaf : component),
 			resetSelectionForClick: reset,
 			gapScope: makeEmptyGapScope(),
 			lastBlockIndex: () => 0,

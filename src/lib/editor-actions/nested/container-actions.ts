@@ -27,6 +27,7 @@ import {
 	type BlockListState
 } from '../../reactivity/block-list-state.svelte';
 import type { Reading } from '../../schema/reading';
+import type { ChildList } from '../../reactivity/child-list';
 import {
 	createStandardNestedActions,
 	setNestedActionsContexts,
@@ -47,6 +48,9 @@ export interface ContainerActionsDeps {
 	}) => NestedActionsOverrideFactory;
 	/** The enclosing list's context, for a list nested in one. */
 	parentListContext?: ListContext;
+	/** The container's own child list; read at use, so it may name a const declared after the
+	 *  call, which it has to since the list's window is built from `state`. */
+	childList: () => ChildList;
 }
 
 export interface ContainerActions {
@@ -83,7 +87,14 @@ export function createContainerActions(deps: ContainerActionsDeps): ContainerAct
 
 	const bundle = createStandardNestedActions(
 		state,
-		{ scope, caretMemory, reading, parentListContext: deps.parentListContext, parent },
+		{
+			scope,
+			caretMemory,
+			reading,
+			parentListContext: deps.parentListContext,
+			childList: deps.childList,
+			parent
+		},
 		deps.overrides?.({ scope, parent })
 	);
 	setNestedActionsContexts(bundle);

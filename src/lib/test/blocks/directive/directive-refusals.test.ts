@@ -9,6 +9,7 @@ import { makeStubFocus } from '../../harness/editor-actions';
 import { installDirectiveStubs, mountDirective, type MountedDirective } from './mount-directive';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
 import { dispatchKey } from '$lib/test/harness/settle';
+import { descendTo } from '$lib/reactivity/child-list';
 
 // The harness mounts BlockHost without the component layer, so unregistered kinds render raw.
 afterEach(() => allowDevWarns(['block-host']));
@@ -35,12 +36,12 @@ afterEach(async () => {
 });
 
 describe('an unconfigured container does nothing where the dispatch declines', () => {
-	// A kind that declares no `reservedChrome` is never collapsed, so `expandCollapsed` refuses.
+	// A kind that declares no `reservedChrome` is never collapsed, so the open refuses.
 	// Opening anyway would add an undo entry to a container that has no collapsed state.
 	it('reveals a body child without committing a byte to open it', async () => {
 		mounted = mountDirective(BODY);
 
-		const child = await mounted.containerApi.revealByPath([1]);
+		const child = await descendTo(mounted.containerApi.childList(), [1], { openCollapsed: true });
 
 		expect(child?.editable).toBe(true);
 		expect(mounted.blockEdit.updateBlockMetadata).not.toHaveBeenCalled();

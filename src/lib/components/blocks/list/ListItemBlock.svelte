@@ -23,6 +23,7 @@
 	import { buildTaskItemAmbient } from './task-checkbox';
 	import BlockList from '../../BlockList.svelte';
 	import { publishRefSlot, type RefSlots } from '../../../reactivity/publish-ref.svelte';
+	import type { ChildList } from '../../../reactivity/child-list';
 	import type { AnyCommandId } from '../../../schema/command-id';
 	import BlockDragHandle from '../../BlockDragHandle.svelte';
 	import SelectionOverlay from '../../SelectionOverlay.svelte';
@@ -58,7 +59,8 @@
 		getIndex: () => index,
 		getPath: () => myPath,
 		// The enclosing list's context, not the wrapped one this item provides.
-		overrides: ({ scope }) => createListItemOverrides({ scope, listContext })
+		overrides: ({ scope }) => createListItemOverrides({ scope, listContext }),
+		childList: () => childList
 	});
 
 	// $derived, not a mount-time snapshot: a runtime prop toggle must reach blocks
@@ -142,6 +144,12 @@
 		provideLeafChannel: true
 	});
 
+	const childList: ChildList = {
+		count: () => node.children?.length ?? 0,
+		refs: listState.refSlots,
+		windowing
+	};
+
 	// ── BlockComponent interface ────────────────────────────────────────
 
 	export const containerApi = createContainerBlockComponent({
@@ -150,15 +158,10 @@
 		get innerBlockRefs() {
 			return listState.innerBlockRefs;
 		},
-		refSlots: listState.refSlots,
-		get nodeChildrenLength() {
-			return node.children?.length ?? 0;
-		},
+		childList,
 		get node() {
 			return node;
-		},
-		revealChild: windowing.revealChild,
-		isInWindow: windowing.isInWindow
+		}
 	});
 
 	$effect(() => {

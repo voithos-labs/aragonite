@@ -122,7 +122,11 @@ export function createDeadSpaceCaret(deps: DeadSpaceCaretDeps): DeadSpaceCaret {
 		else component.focusByPath!(landing.path, landing.offset);
 		// The block's own snap answers the clamped point as a click there, so a caret beside a
 		// non-editable widget is painted rather than showing nothing.
-		leafOf(component, landing.path)?.snapCaretToPoint?.(probeX, probeY);
+		const leaf =
+			landing.path.length === 0
+				? component
+				: deps.getBlockComponent([...hit.path, ...landing.path]);
+		leaf?.snapCaretToPoint?.(probeX, probeY);
 		return true;
 	}
 
@@ -224,13 +228,6 @@ function hitInBand(
 	const probe = probePointIn(blocks[band.index].rect, x, y, band.belowAll);
 	const hit = blockAtPoint(root, probe.x, probe.y);
 	return hit && descendToLevelChild(root, { hit, ...probe }, band.belowAll);
-}
-
-/** The component the caret target addresses: this one for a text block, else the cell a grid
- *  kind's inner path names. */
-function leafOf(component: BlockComponent, path: number[]): BlockComponent | null {
-	if (path.length === 0) return component;
-	return component.getBlockComponentByPath?.(path) ?? null;
 }
 
 /** The root and any block list inside it: a host that pads `.block-list` moves the side gutter

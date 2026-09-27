@@ -25,6 +25,8 @@ import { asDocPath } from '$lib/selection/path-math';
 import { docPathFrom } from '$lib/cursor/coordinate-spaces';
 import type { ContainerBlockComponentDeps } from '$lib/editor-actions/container-block-component';
 import { refSlotsOver } from '$lib/reactivity/publish-ref.svelte';
+import { componentAt, type ChildList } from '$lib/reactivity/child-list';
+import { delegateMoveFocus, type MoveFocusScope } from '$lib/editor-actions/focus/focus-dispatch';
 import type { PasteCommitCoordinator } from '$lib/tree-operations/paste/paste-deps';
 import type { PasteDispatchContext } from '$lib/tree-operations/paste/dispatch';
 import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
@@ -145,8 +147,7 @@ export function makeCommitScopeStub(
 		idAt: (i) => `block-${i}`,
 		refAt: (i) => refs[i],
 		// No render window here: every ref counts as mounted.
-		reveal: async (i, path) =>
-			(path.length === 0 ? refs[i] : refs[i]?.getBlockComponentByPath?.([...path])) ?? null,
+		reveal: async (i, path) => componentAt(makeShimChildList(refs), [i, ...path]),
 		collapseEmptyReplaceToDelete: opts.collapse ?? true,
 		async commit(args) {
 			commits.push(args);
@@ -169,7 +170,7 @@ export function makeCommitScopeStub(
 
 // ── Container-shim deps ──────────────────────────────────────────────────────
 
-function paragraphListNode(childCount: number): CstNode {
+export function paragraphListNode(childCount: number): CstNode {
 	return {
 		kind: 'list',
 		leadingTrivia: '',
@@ -183,7 +184,20 @@ function paragraphListNode(childCount: number): CstNode {
 	};
 }
 
-/** The five members every container shim repeats; `over` adds a test's own. Copied by property
+/** A child list over `refs` with no render window: every ref counts as mounted. */
+export function makeShimChildList(
+	refs: (BlockComponent | undefined)[],
+	over: Partial<ChildList> = {}
+): ChildList {
+	return {
+		count: () => refs.length,
+		refs: refSlotsOver(refs),
+		windowing: { revealChild: async () => {}, isInWindow: () => true },
+		...over
+	};
+}
+
+/** The members every container shim repeats; `over` adds a test's own. Copied by property
  *  descriptor, so a getter in `over` stays live instead of freezing at call time. */
 export function makeShimDeps(
 	refs: (BlockComponent | undefined)[],
@@ -195,10 +209,7 @@ export function makeShimDeps(
 		get innerBlockRefs() {
 			return refs;
 		},
-		refSlots: refSlotsOver(refs),
-		get nodeChildrenLength() {
-			return refs.length;
-		},
+		childList: makeShimChildList(refs),
 		get node() {
 			return paragraphListNode(refs.length);
 		}
@@ -210,6 +221,25 @@ export function makeShimDeps(
 
 export function makeStubBlockEdit(): Mocked<BlockEditActions> {
 	return spyEvery(stubBlockEdit());
+}
+
+/** A container's side of a focus move over `refs`, every ref mounted, handing a move off
+ *  either end to `parentFocus` the way a nested container does. */
+export function makeListFocusScope(
+	refs: (BlockComponent | undefined)[],
+	parentFocus: FocusActions,
+	parentIndex: number,
+	over: Partial<MoveFocusScope> = {}
+): MoveFocusScope {
+	return {
+		count: () => refs.length,
+		mount: async (index) => refs[index] ?? null,
+		leave: async (step, position, options) => {
+			await delegateMoveFocus(parentFocus, parentIndex + step, position, options);
+		},
+		gapStop: () => false,
+		...over
+	};
 }
 
 // revealPath resolves null: these consumers assert on moveFocus, not on the
@@ -381,7 +411,7 @@ export interface NestedActionsDepsInput {
 	getNode: () => CstNode;
 	path: number[];
 	parent: NestedActionsDeps['parent'];
-	caretMemory?: Pick<CaretMemory, 'column' | 'forget'>;
+	caretMemory?: NestedActionsDeps['caretMemory'];
 	reading?: NestedActionsDeps['reading'];
 }
 
@@ -453,10 +483,7 @@ export function makeNestedHarness(
 		...makeStubFocus(),
 		revealPath: async (path) => {
 			if (path[0] !== index || path.length < 2) return deps.revealPath(path);
-			const ref = state.innerBlockRefs[path[1]];
-			return path.length === 2
-				? (ref ?? null)
-				: (ref?.getBlockComponentByPath?.(path.slice(2)) ?? null);
+			return componentAt(makeShimChildList(state.innerBlockRefs), path.slice(1));
 		}
 	});
 	const overrides = opts.listOverrides

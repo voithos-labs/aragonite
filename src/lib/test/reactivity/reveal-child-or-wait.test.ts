@@ -9,7 +9,7 @@ import {
 import { settlesWithin } from '../harness/microtask-settle';
 
 // A windowed block list whose `revealChild` writes a fresh ref one microtask later, as a mount
-// after a scroll does. Fresh per test, since the mount registry keys on the entries object.
+// after a scroll does.
 function makeScope() {
 	const refs: (object | undefined)[] = [];
 	const slots: RefSlots<object> = {
@@ -34,7 +34,7 @@ describe('revealChildOrWait', () => {
 	it('reveals and waits when the slot is empty (in-window mount pending)', async () => {
 		const { refs, slots, revealChild } = makeScope();
 
-		await revealChildOrWait(0, { slots, childCount: 1, revealChild });
+		await revealChildOrWait(0, { slots, childCount: 1, revealChild, isInWindow: () => true });
 
 		expect(revealChild).toHaveBeenCalledWith(0);
 		expect(refs[0]).toBeTruthy();
@@ -44,7 +44,7 @@ describe('revealChildOrWait', () => {
 		const { refs, slots, revealChild } = makeScope();
 		refs[0] = {};
 
-		await revealChildOrWait(0, { slots, childCount: 1, revealChild });
+		await revealChildOrWait(0, { slots, childCount: 1, revealChild, isInWindow: () => true });
 
 		expect(revealChild).not.toHaveBeenCalled();
 	});
@@ -57,7 +57,7 @@ describe('revealChildOrWait', () => {
 		publishRefSlot(slots, 0, detached, document.createElement('div'));
 		refs[0] = detached;
 
-		await revealChildOrWait(0, { slots, childCount: 1, revealChild });
+		await revealChildOrWait(0, { slots, childCount: 1, revealChild, isInWindow: () => true });
 
 		expect(revealChild).toHaveBeenCalledWith(0);
 		expect(refs[0]).toBeTruthy();
@@ -85,7 +85,7 @@ describe('revealChildOrWait', () => {
 		const unrecorded = {};
 		refs[0] = unrecorded;
 
-		await revealChildOrWait(0, { slots, childCount: 1, revealChild });
+		await revealChildOrWait(0, { slots, childCount: 1, revealChild, isInWindow: () => true });
 
 		expect(revealChild).not.toHaveBeenCalled();
 		expect(refs[0]).toBe(unrecorded);
@@ -95,14 +95,14 @@ describe('revealChildOrWait', () => {
 		const { refs, slots, revealChild } = makeScope();
 
 		// index === count is past the end of the document
-		await revealChildOrWait(0, { slots, childCount: 0, revealChild });
+		await revealChildOrWait(0, { slots, childCount: 0, revealChild, isInWindow: () => true });
 
 		expect(revealChild).not.toHaveBeenCalled();
 		expect(refs[0]).toBeUndefined();
 	});
 
-	// Only a mount in the same list at the same index wakes the loop, so a missed scroll would
-	// hang (VR-5). These check that it ends, not where it lands.
+	// A scroll that misses must end the wait rather than hang on a mount that never comes (VR-5).
+	// These check that it ends, not where it lands.
 	describe('terminates instead of hanging when the reveal misses (VR-5)', () => {
 		it('resolves without mounting when the recomputed window excludes the target', async () => {
 			// A stale height table when it is called: the entry stays empty and the target is
@@ -118,8 +118,6 @@ describe('revealChildOrWait', () => {
 				isInWindow: () => false
 			});
 
-			// Nothing ever wakes the registry for this list, so finishing at all proves the range
-			// check returned before the loop that waits for a mount.
 			expect(await settlesWithin(call)).toBe(true);
 			expect(revealChild).toHaveBeenCalledWith(0);
 		});
@@ -140,38 +138,6 @@ describe('revealChildOrWait', () => {
 
 			expect(await settlesWithin(call)).toBe(true);
 			expect(revealChild).toHaveBeenCalledWith(0);
-		});
-
-		it('degrades when a non-windowing target never mounts and no wake ever fires', async () => {
-			// Neither the range check nor a wake can end this one, so only the loop bounded by ticks
-			// does. The raised budget covers its full retry cap.
-			const revealChild = vi.fn(async () => {
-				await Promise.resolve();
-			});
-
-			const call = revealChildOrWait(0, {
-				slots: neverMountsScope(),
-				childCount: 1,
-				revealChild
-			});
-
-			expect(await settlesWithin(call, 300)).toBe(true);
-			expect(revealChild).toHaveBeenCalledWith(0);
-		});
-
-		it('still terminates when this scope mounts and unpublishes in the same flush', async () => {
-			// The one spurious wake left once the registry keys per list: a real mount at this index
-			// that clears again before the waiter reads it. Only the cap on retries stops it.
-			const { slots, refs, revealChild } = makeScope();
-			const call = revealChildOrWait(0, { slots, childCount: 1, revealChild });
-
-			for (let pump = 0; pump < 500; pump++) {
-				await Promise.resolve();
-				publishRefSlot(slots, 0, {});
-				refs[0] = undefined;
-			}
-
-			expect(await settlesWithin(call)).toBe(true);
 		});
 	});
 });

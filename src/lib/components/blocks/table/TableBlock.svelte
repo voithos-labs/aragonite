@@ -27,7 +27,7 @@
 	import { selectedCells } from './selected-cells';
 	import { useContainerWindowing } from '../../../reactivity/use-container-windowing.svelte';
 	import { sliceWindow } from '../../../reactivity/window-slice';
-	import { revealChildOrWait } from '../../../reactivity/publish-ref.svelte';
+	import { componentAt, type ChildList } from '../../../reactivity/child-list';
 	import { createContainerActions } from '../../../editor-actions/nested/container-actions';
 	import { createTableMutationsContext } from '../../../editor-actions/table-context';
 	import TableRowBlock from './TableRowBlock.svelte';
@@ -52,7 +52,8 @@
 	} = createContainerActions({
 		getNode: () => node,
 		getIndex: () => index,
-		getPath: () => myPath
+		getPath: () => myPath,
+		childList: () => rowList
 	});
 	const {
 		controller,
@@ -115,6 +116,12 @@
 
 	let win = $derived(windowing.window);
 	let bounds = $derived(sliceWindow((node.children ?? []).length, win));
+
+	const rowList: ChildList = {
+		count: () => rowCount,
+		refs: rowsState.refSlots,
+		windowing
+	};
 
 	// Each column holds the widest cell any mounted row has shown, so a column does not narrow
 	// as row windowing unmounts its widest cell. The floor only grows.
@@ -209,6 +216,7 @@
 
 	const ctx: TableContext = {
 		focusCell,
+		revealColumn,
 		getStickyColumn() {
 			return internalStickyColumn;
 		},
@@ -316,7 +324,7 @@
 	}
 
 	function cellRefAt(rowIdx: number, colIdx: number): BlockComponent | null {
-		return getBlockComponentByPath([rowIdx, colIdx]);
+		return componentAt(rowList, [rowIdx, colIdx]);
 	}
 
 	// Capture the cell's selection now, before a menu-item click moves focus off it, so
@@ -445,30 +453,8 @@
 		rowRefAt(rowIdx)?.focusByPath?.([colIdx, ...rest], offset);
 	}
 
-	export function getBlockComponentByPath(path: number[]): BlockComponent | null {
-		if (path.length === 0) return null;
-		const [rowIdx, ...rest] = path;
-		const rowRef = rowsState.innerBlockRefs[rowIdx];
-		if (!rowRef) return null;
-		if (rest.length === 0) return rowRef;
-		return rowRef.getBlockComponentByPath?.(rest) ?? null;
-	}
-
-	export async function revealByPath(path: number[]): Promise<BlockComponent | null> {
-		if (path.length === 0) return null;
-		const [rowIdx, ...rest] = path;
-		await revealChildOrWait(rowIdx, {
-			slots: rowsState.refSlots,
-			childCount: rowCount,
-			revealChild: windowing.revealChild,
-			isInWindow: windowing.isInWindow
-		});
-		const rowRef = rowsState.innerBlockRefs[rowIdx];
-		if (!rowRef) return null;
-		if (rest.length === 0) return rowRef;
-		return rowRef.revealByPath
-			? await rowRef.revealByPath(rest)
-			: (rowRef.getBlockComponentByPath?.(rest) ?? null);
+	export function childList(): ChildList {
+		return rowList;
 	}
 
 	// See `focus()`: two-dimensional, so there is no single offset; `getCursorPosition` has it.
@@ -545,8 +531,7 @@
 		parkCaret,
 		focusAtColumn,
 		focusByPath,
-		getBlockComponentByPath,
-		revealByPath,
+		childList,
 		getCursorOffset,
 		getCursorPosition,
 		measurePartialRects,

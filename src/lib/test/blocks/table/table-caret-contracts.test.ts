@@ -11,6 +11,7 @@ import {
 } from '$lib/block-component';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import { installTableLayoutStubs, mountTable, type MountedTable } from './mount-table';
+import { componentAt } from '$lib/reactivity/child-list';
 
 let restoreLayout: () => void;
 beforeAll(() => {
@@ -77,7 +78,7 @@ describe('the table lands a caret through the entry point and at the offset it w
 	// Miss-analysis: every case entered via the table or a path, never a row directly (GH #111).
 	it('a row-level entry point forwards the received sentinel, not literal 0', () => {
 		mounted = mountTable(GRID);
-		const row = mounted.block.getBlockComponentByPath!([2])!;
+		const row = componentAt(mounted.block.childList!(), [2])!;
 
 		row.focus(CURSOR_END);
 		expect(mounted.block.getCursorPosition!()).toEqual({ path: [2, 1], offset: 1 });
@@ -106,7 +107,7 @@ describe('the table and a row read an entry offset as every container does', () 
 
 			it(`${verb}(${name}) on the last row lands in its cell ${col} at offset ${at}`, () => {
 				mounted = mountTable(GRID);
-				mounted.block.getBlockComponentByPath!([2])![verb]!(offset);
+				componentAt(mounted.block.childList!(), [2])![verb]!(offset);
 				expect(mounted.block.getCursorPosition!()).toEqual({ path: [2, col], offset: at });
 			});
 		}

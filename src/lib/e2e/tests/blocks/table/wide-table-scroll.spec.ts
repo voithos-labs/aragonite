@@ -129,4 +129,31 @@ test.describe('table block: wide-table horizontal scroll', () => {
 		expect(after).not.toMatch(/\| ZHeader-Col-\d+ \|/);
 		expect(after).not.toMatch(/\| Za\d+ \|/);
 	});
+
+	// The undo restore walks down to the cell, and the row's step is what scrolls the grid.
+	test('undo into a far column scrolls the grid back so the caret is visible', async ({ page }) => {
+		await editor.loadContent(WIDE_TABLE);
+		const tableEl = page.locator('[role="table"]').first();
+		const a12 = page.locator('.table-cell').nth(23);
+
+		await editor.focusBlockAtPath([0, 1, 11], 3);
+		await editor.typeSlowly('xy');
+		await editor.bridge.waitForSourceContains('| a12xy |');
+		await editor.waitForUndoBatchFlush();
+		for (let i = 0; i < COLS - 1; i++) await page.keyboard.press('Shift+Tab');
+		await expect.poll(() => tableEl.evaluate((el) => el.scrollLeft)).toBeLessThan(5);
+
+		await editor.undo();
+		await editor.bridge.waitForSourceContains('| a12 |');
+		// The caret's cell sits inside the grid's own visible box, not scrolled off its right edge.
+		await expect
+			.poll(async () => {
+				const grid = await tableEl.boundingBox();
+				const cell = await a12.boundingBox();
+				return !!grid && !!cell && cell.x + cell.width <= grid.x + grid.width + 1;
+			})
+			.toBe(true);
+		await page.keyboard.type('Z');
+		await editor.bridge.waitForSourceContains('| a12Z |');
+	});
 });

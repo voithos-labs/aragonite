@@ -2,11 +2,8 @@
  *  reading its ref. */
 import { tick, untrack } from 'svelte';
 
-/**
- * One block list's child-component refs, reached only through these accessors. The object's
- * identity names the list, so a mount in one list never wakes a waiter in another. Neither
- * accessor is reactive; wait for a mount with `whenRefMounted`.
- */
+/** One block list's child-component refs, reached only through these accessors. Neither is
+ *  reactive; `revealChildOrWait` is how a caller waits for a child to mount. */
 export interface RefSlots<T> {
 	set(index: number, ref: T | undefined): void;
 	get(index: number): T | undefined;
@@ -46,7 +43,6 @@ export function publishRefSlot<T>(
 	// Sibling cleanups run in no set order, so a cleanup clears the entry only if it still holds
 	// this mount's ref; read untracked, since writers run inside effects.
 	const publishedRef = untrack(() => slots.get(index));
-	if (publishedRef !== undefined) resolveMountWaiters(slots, index);
 	return () => {
 		if (slots.get(index) === publishedRef) {
 			slots.set(index, undefined);
@@ -72,7 +68,7 @@ function isSlotDetached<T>(slots: RefSlots<T>, index: number): boolean {
 // ── Scroll a child in and wait for it ────────────────────────────────────────
 
 export interface RevealChildOptions<T> {
-	/** This list's ref entries: what the wait reads and clears, and what it keys the wait on. */
+	/** This list's ref entries: what the wait reads, and clears when a ref left the DOM. */
 	readonly slots: RefSlots<T>;
 	/** This list's child count; an index at or past it can never mount. */
 	readonly childCount: number;
@@ -80,12 +76,8 @@ export interface RevealChildOptions<T> {
 	readonly revealChild: (index: number) => Promise<void>;
 	/** True when `index` is in the list's mounted range after `revealChild`, which lets the wait
 	 *  give up instead of hanging (VR-5). */
-	readonly isInWindow?: (index: number) => boolean;
+	readonly isInWindow: (index: number) => boolean;
 }
-
-/** Each wait races a tick, so a list that cannot say whether the child is in range would
- *  spin forever on a child that never mounts. This bounds those turns. */
-const MAX_MOUNT_REWAITS = 64;
 
 /** Brings child `index` into the mounted range before a caller reads its ref: drops a ref that
  *  left the DOM, scrolls the child in, and waits for its mount, giving up when it cannot come. */
@@ -97,47 +89,9 @@ export async function revealChildOrWait<T>(
 	if (index >= opts.childCount || (!detached && opts.slots.get(index))) return;
 	if (detached) opts.slots.set(index, undefined);
 	await opts.revealChild(index);
-	if (opts.slots.get(index)) return;
-	if (opts.isInWindow) {
-		// Outside the recomputed range, so the mount cannot fire; give up now.
-		if (!opts.isInWindow(index)) return;
-		// Inside the range, the mount flush is at most one tick away; an entry still empty after
-		// it means a failed render left `bind:this` unset, which wakes no waiter.
-		await tick();
-		return;
-	}
-	// The range is unknown here: wait for the mount a bounded number of times, each raced
-	// against a tick, so a child that never mounts gives up at the cap instead of waiting forever.
-	let rewaits = 0;
-	while (!opts.slots.get(index) && rewaits++ < MAX_MOUNT_REWAITS) {
-		await Promise.race([whenRefMounted(opts.slots, index), tick()]);
-	}
-}
-
-// ── Mount-await registry ─────────────────────────────────────────────────────
-
-const mountWaiters = new WeakMap<object, Map<number, Array<() => void>>>();
-
-/** Resolves when entry `index` of `slots` is, or becomes, filled; woken by `publishRefSlot`,
- *  never a timer. A mount that clears its entry in the same flush wakes it spuriously. */
-export function whenRefMounted<T>(slots: RefSlots<T>, index: number): Promise<void> {
-	if (slots.get(index) !== undefined) return Promise.resolve();
-	return new Promise((resolve) => {
-		let byIndex = mountWaiters.get(slots);
-		if (!byIndex) {
-			byIndex = new Map();
-			mountWaiters.set(slots, byIndex);
-		}
-		const list = byIndex.get(index);
-		if (list) list.push(resolve);
-		else byIndex.set(index, [resolve]);
-	});
-}
-
-function resolveMountWaiters(slots: object, index: number): void {
-	const byIndex = mountWaiters.get(slots);
-	const list = byIndex?.get(index);
-	if (!byIndex || !list) return;
-	byIndex.delete(index);
-	for (const resolve of list) resolve();
+	// Outside the recomputed range the mount cannot fire, so give up now.
+	if (opts.slots.get(index) || !opts.isInWindow(index)) return;
+	// Inside it the mount flush is at most one tick away; an entry still empty after it means a
+	// failed render left `bind:this` unset.
+	await tick();
 }

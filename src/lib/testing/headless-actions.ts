@@ -15,6 +15,7 @@ import { kitReading } from './kit-reading';
 import type { Reading } from '../schema/reading';
 import { createEditorEvents, type EditorEvents } from '../editor-events';
 import { refSlotsOver, replaceRefs } from '../reactivity/publish-ref.svelte';
+import { descendTo, type ChildList } from '../reactivity/child-list';
 import { createSelectionState } from '../selection/selection-state.svelte';
 import { createSharingState } from '../tree-operations/sharing';
 import { createUndoManager } from '../undo/manager';
@@ -153,18 +154,16 @@ export function createHeadlessActions(
 			...(options.onSelectionChange ? { onChange: options.onSelectionChange } : {})
 		}),
 		getBlockElByPath: () => null,
-		// No render window: every block counts as mounted, so a reveal takes the editor's
-		// already-mounted route, reading the live refs and descending if nested.
-		revealPath: async (path: number[]) => {
-			if (path.length === 0) return null;
-			const ref = blockRefs[path[0]];
-			if (!ref) return null;
-			if (path.length === 1) return ref;
-			return ref.getBlockComponentByPath?.(path.slice(1)) ?? null;
-		},
+		revealPath: (path: number[]) => descendTo(rootList, path),
 		events,
 		// An author's suite runs with no editor, so every installed plugin is in the grammar.
 		reading: options.reading ?? kitReading()
+	};
+	// No render window: nothing mounts later, so an empty entry counts as out of range.
+	const rootList: ChildList = {
+		count: () => doc.children.length,
+		refs: deps.blockRefSlots,
+		windowing: { revealChild: async () => {}, isInWindow: (i) => blockRefs[i] !== undefined }
 	};
 	return { deps, doc, events, getBlockIds: () => blockIds, getBlockRefs: () => blockRefs };
 }

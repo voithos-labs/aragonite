@@ -13,8 +13,18 @@
 - Small (3-column) tables continue to look natural, with no trailing empty space and no scrollbar
 - Selection overlay cleanup: scrolling the table after collapsing the selection does not leave stale overlays
 - Drag-autoscroll stops when the pointer leaves the threshold band
+- Undo into a far column scrolls the grid to it: type in the last column of a row, Shift+Tab back to
+  the first column (the grid scrolls to its left edge), then Ctrl+Z. The caret goes back to the
+  last cell, and the grid scrolls sideways so that cell is inside its visible box and a typed `Z`
+  lands there
 
 ## Regression notes
 
 - The same code serves any block that scrolls inside itself (code blocks already use `overflow-x: auto`)
 - Sticky-X coordinate spaces: `collectColumnRects` now returns editor-relative rects, matching the captured X
+
+## Miss-analysis
+
+- The undo into a far column: every sideways-scroll case moved the caret by keyboard or pointer
+  inside the grid, which scrolls through its own cell focus, and none put a caret back from
+  outside the table, where only the walk down to the cell can scroll the grid.

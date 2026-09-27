@@ -29,7 +29,7 @@ function makeRects(el: HTMLElement | null, unmountedPath?: number[]) {
 	const rects = createEditorRects({
 		getBlockElByPath: (path) =>
 			unmountedPath && JSON.stringify(path) === JSON.stringify(unmountedPath) ? null : el,
-		getBlockComponentByPath: () => null,
+		getBlockComponent: () => null,
 		revealPath: async () => {
 			order.push('reveal');
 		},
@@ -88,7 +88,7 @@ function makeSettlingRects(scripts: Record<string, number[]>) {
 
 	harness.rects = createEditorRects({
 		getBlockElByPath: elFor,
-		getBlockComponentByPath: () => null,
+		getBlockComponent: () => null,
 		revealPath: async () => {},
 		getEditorRoot: () => root,
 		isHostScroll: () => false,

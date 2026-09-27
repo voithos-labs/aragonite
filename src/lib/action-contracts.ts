@@ -299,6 +299,8 @@ export type CellPosition = 'start' | 'end' | number;
 
 export interface TableContext {
 	focusCell(rowIdx: number, colIdx: number, position: CellPosition): void;
+	/** Scroll the grid sideways so the cell's column is inside the table's own box. */
+	revealColumn(rowIdx: number, colIdx: number): void;
 
 	getStickyColumn(): number | null;
 	setStickyColumn(colIdx: number): void;

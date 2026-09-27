@@ -5,6 +5,7 @@ import { dispatchMoveFocus } from '$lib/editor-actions/focus/focus-dispatch';
 import {
 	stubBlockComponent,
 	makeCaretMemory,
+	makeListFocusScope,
 	makeStubFocus
 } from '$lib/test/harness/editor-actions';
 import type { FocusPosition } from '$lib/block-component';
@@ -20,12 +21,11 @@ function dispatch(
 	const child = stubBlockComponent({ focus: vi.fn() });
 	const gapStop = vi.fn(() => stops);
 	const done = dispatchMoveFocus(
-		[child, child],
+		makeListFocusScope([child, child], parentFocus, 3, { gapStop }),
 		innerIndex,
 		position,
 		makeCaretMemory(),
-		{ focus: parentFocus, index: 3 },
-		{ childCount: 2, options, gapStop }
+		options
 	);
 	return { done, parentFocus, child, gapStop };
 }
@@ -46,8 +46,8 @@ describe('dispatchMoveFocus: scope-edge gap stops', () => {
 		expect(d.parentFocus.moveFocus).toHaveBeenCalledWith(2, 'end');
 	});
 
-	// childCount, not refs.length: the two diverge for one render cycle after a
-	// structural op, and the scope-end boundary is the child count.
+	// The list's count, not its refs: the two diverge for one render cycle after a structural
+	// op, and the scope-end boundary is the child count.
 	it('stops at the scope end instead of delegating upward', async () => {
 		const d = dispatch(2, 'start', true);
 		await d.done;

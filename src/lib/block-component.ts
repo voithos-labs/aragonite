@@ -7,6 +7,7 @@
 
 import type { DocumentView, NodeView } from './core/node-views';
 import type { EditorRects } from './editor-rects';
+import type { ChildList } from './reactivity/child-list';
 
 // ── Sentinels ──────────────────────────────────────────────────────────────
 
@@ -212,16 +213,10 @@ export interface BlockComponent {
 	 */
 	startDragAtPoint?(clientX: number, clientY: number, event: PointerEvent): boolean;
 	/**
-	 * Descend child indices to the BlockComponent at the leaf, or null if the path
-	 * doesn't resolve. Empty `path` returns this component. Containers implement it.
+	 * This block's children as the editor walks down to one: their refs, the render window that
+	 * mounts them, and the collapse a navigation may open. Containers, tables and rows have one.
 	 */
-	getBlockComponentByPath?(path: number[]): BlockComponent | null;
-	/**
-	 * The async counterpart of `getBlockComponentByPath`: at each nested level, scroll the
-	 * child into the mounted range and await its mount before recursing, so a target outside
-	 * that range resolves instead of returning null.
-	 */
-	revealByPath?(path: number[]): Promise<BlockComponent | null>;
+	childList?(): ChildList;
 	/**
 	 * Deep cursor position for blocks with nested blocks inside (table cells): the path from
 	 * this block to the leaf holding the cursor, plus the offset in it. Preferred over
@@ -327,8 +322,7 @@ export type ContainerBlockComponent = BlockComponent &
 			BlockComponent,
 			| 'getCursorPosition'
 			| 'focusByPath'
-			| 'getBlockComponentByPath'
-			| 'revealByPath'
+			| 'childList'
 			| 'focusAtColumn'
 			| 'isVerticallyTransparent'
 			| 'enterEdgeWidget'

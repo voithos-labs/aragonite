@@ -8,21 +8,18 @@ import { CURSOR_END, CURSOR_START } from '$lib/block-component';
 import {
 	stubBlockComponent,
 	makeCaretMemory,
-	makeStubFocus
+	makeStubFocus,
+	makeListFocusScope
 } from '$lib/test/harness/editor-actions';
 
 describe('dispatchMoveFocus', () => {
 	it('delegates upward when innerIndex < 0', async () => {
 		const parentFocus = makeStubFocus();
 		await dispatchMoveFocus(
-			[stubBlockComponent({ focus: vi.fn() })],
+			makeListFocusScope([stubBlockComponent({ focus: vi.fn() })], parentFocus, 5),
 			-1,
 			'end',
-			makeCaretMemory(),
-			{
-				focus: parentFocus,
-				index: 5
-			}
+			makeCaretMemory()
 		);
 		expect(parentFocus.moveFocus).toHaveBeenCalledWith(4, 'end');
 	});
@@ -30,14 +27,10 @@ describe('dispatchMoveFocus', () => {
 	it('delegates upward when innerIndex >= refs.length', async () => {
 		const parentFocus = makeStubFocus();
 		await dispatchMoveFocus(
-			[stubBlockComponent({ focus: vi.fn() })],
+			makeListFocusScope([stubBlockComponent({ focus: vi.fn() })], parentFocus, 5),
 			1,
 			'start',
-			makeCaretMemory(),
-			{
-				focus: parentFocus,
-				index: 5
-			}
+			makeCaretMemory()
 		);
 		expect(parentFocus.moveFocus).toHaveBeenCalledWith(6, 'start');
 	});
@@ -45,60 +38,69 @@ describe('dispatchMoveFocus', () => {
 	it('forwards moveFocus options to the parent on upward delegation', async () => {
 		const parentFocus = makeStubFocus();
 		await dispatchMoveFocus(
-			[stubBlockComponent({ focus: vi.fn() })],
+			makeListFocusScope([stubBlockComponent({ focus: vi.fn() })], parentFocus, 5),
 			1,
 			'start',
 			makeCaretMemory(),
-			{ focus: parentFocus, index: 5 },
-			{ options: { append: false } }
+			{ append: false }
 		);
 		expect(parentFocus.moveFocus).toHaveBeenCalledWith(6, 'start', { append: false });
 	});
 
 	it('routes numeric position to child.focus(offset)', async () => {
 		const child = stubBlockComponent({ focus: vi.fn() });
-		await dispatchMoveFocus([child], 0, 3, makeCaretMemory(), {
-			focus: makeStubFocus(),
-			index: 0
-		});
+		await dispatchMoveFocus(
+			makeListFocusScope([child], makeStubFocus(), 0),
+			0,
+			3,
+			makeCaretMemory()
+		);
 		expect(child.focus).toHaveBeenCalledWith(3);
 	});
 
 	it("routes 'end' position to child.focus(CURSOR_END)", async () => {
 		const child = stubBlockComponent({ focus: vi.fn() });
-		await dispatchMoveFocus([child], 0, 'end', makeCaretMemory(), {
-			focus: makeStubFocus(),
-			index: 0
-		});
+		await dispatchMoveFocus(
+			makeListFocusScope([child], makeStubFocus(), 0),
+			0,
+			'end',
+			makeCaretMemory()
+		);
 		expect(child.focus).toHaveBeenCalledWith(CURSOR_END);
 	});
 
 	it('sticky-column variant uses focusAtColumn when sticky X is set', async () => {
 		const child = stubBlockComponent({ focus: vi.fn(), focusAtColumn: vi.fn() });
-		await dispatchMoveFocus([child], 0, { stickyColumnFrom: 'above' }, makeCaretMemory(42), {
-			focus: makeStubFocus(),
-			index: 0
-		});
+		await dispatchMoveFocus(
+			makeListFocusScope([child], makeStubFocus(), 0),
+			0,
+			{ stickyColumnFrom: 'above' },
+			makeCaretMemory(42)
+		);
 		expect(child.focusAtColumn).toHaveBeenCalledWith(42, 'above');
 		expect(child.focus).not.toHaveBeenCalled();
 	});
 
 	it('sticky-column variant falls back to focus(CURSOR_START) when from=above and no sticky X', async () => {
 		const child = stubBlockComponent({ focus: vi.fn(), focusAtColumn: vi.fn() });
-		await dispatchMoveFocus([child], 0, { stickyColumnFrom: 'above' }, makeCaretMemory(null), {
-			focus: makeStubFocus(),
-			index: 0
-		});
+		await dispatchMoveFocus(
+			makeListFocusScope([child], makeStubFocus(), 0),
+			0,
+			{ stickyColumnFrom: 'above' },
+			makeCaretMemory(null)
+		);
 		expect(child.focusAtColumn).not.toHaveBeenCalled();
 		expect(child.focus).toHaveBeenCalledWith(CURSOR_START);
 	});
 
 	it('sticky-column variant falls back to CURSOR_END when from=below and child lacks focusAtColumn', async () => {
 		const child = stubBlockComponent({ focus: vi.fn() });
-		await dispatchMoveFocus([child], 0, { stickyColumnFrom: 'below' }, makeCaretMemory(42), {
-			focus: makeStubFocus(),
-			index: 0
-		});
+		await dispatchMoveFocus(
+			makeListFocusScope([child], makeStubFocus(), 0),
+			0,
+			{ stickyColumnFrom: 'below' },
+			makeCaretMemory(42)
+		);
 		expect(child.focus).toHaveBeenCalledWith(CURSOR_END);
 	});
 
@@ -107,10 +109,12 @@ describe('dispatchMoveFocus', () => {
 	it('non-focusable at the boundary: delegates upward in the move direction', async () => {
 		const child = stubBlockComponent({ focus: vi.fn(), focusable: false });
 		const parentFocus = makeStubFocus();
-		await dispatchMoveFocus([child], 0, 'start', makeCaretMemory(), {
-			focus: parentFocus,
-			index: 0
-		});
+		await dispatchMoveFocus(
+			makeListFocusScope([child], parentFocus, 0),
+			0,
+			'start',
+			makeCaretMemory()
+		);
 		expect(child.focus).not.toHaveBeenCalled();
 		expect(parentFocus.moveFocus).toHaveBeenCalledWith(1, 'start');
 	});
@@ -120,10 +124,12 @@ describe('dispatchMoveFocus', () => {
 		const nonFocusable = stubBlockComponent({ focus: vi.fn(), focusable: false });
 		const focusable = stubBlockComponent({ focus: vi.fn(), focusable: true });
 		const parentFocus = makeStubFocus();
-		await dispatchMoveFocus([nonFocusable, focusable], 0, 'start', makeCaretMemory(), {
-			focus: parentFocus,
-			index: 0
-		});
+		await dispatchMoveFocus(
+			makeListFocusScope([nonFocusable, focusable], parentFocus, 0),
+			0,
+			'start',
+			makeCaretMemory()
+		);
 		expect(nonFocusable.focus).not.toHaveBeenCalled();
 		expect(focusable.focus).toHaveBeenCalledWith(CURSOR_START);
 		expect(parentFocus.moveFocus).not.toHaveBeenCalled();

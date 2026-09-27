@@ -31,6 +31,7 @@ export type StubTableContext = Record<keyof TableContext, ReturnType<typeof vi.f
 function makeStubTableContext(): StubTableContext {
 	return {
 		focusCell: vi.fn(),
+		revealColumn: vi.fn(),
 		getStickyColumn: vi.fn(() => null),
 		setStickyColumn: vi.fn(),
 		resetStickyColumn: vi.fn(),

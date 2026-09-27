@@ -39,7 +39,8 @@ const REVEAL_SETTLE_TICKS = 12;
 
 export function createEditorRects(deps: {
 	getBlockElByPath: (path: number[]) => HTMLElement | null;
-	getBlockComponentByPath: (path: number[]) => BlockComponent | null;
+	getBlockComponent: (path: number[]) => BlockComponent | null;
+	/** Mounts `path`, opening a collapsed body on the way: every caller here is a navigation. */
 	revealPath: (path: number[]) => Promise<unknown>;
 	getEditorRoot: () => HTMLElement | null;
 	/** True when an ancestor owns the scroll (`scrollMode="host"`): the root then spans the whole
@@ -106,7 +107,7 @@ export function createEditorRects(deps: {
 			return deps.getBlockElByPath(path)?.getBoundingClientRect() ?? null;
 		},
 		rangeRects(path, start, end) {
-			return deps.getBlockComponentByPath(path)?.measurePartialRects?.(start, end) ?? [];
+			return deps.getBlockComponent(path)?.measurePartialRects?.(start, end) ?? [];
 		},
 		caretRect() {
 			// Read `SelectionState`, not the `data-cross-block` attribute: a deferred `$effect`
