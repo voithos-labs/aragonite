@@ -75,7 +75,7 @@ test.describe('block render scoping', () => {
 
 		const snapshot = await page.evaluate(() => (window as any).__test.perf.snapshot());
 		// The three references resolve again and the edited definition re-renders; the 30 prose
-		// blocks with no brackets must not. A regression re-renders all of them.
+		// blocks with no brackets must not.
 		expect(snapshot.blockRenderCount).toBeGreaterThanOrEqual(1);
 		expect(snapshot.blockRenderCount).toBeLessThanOrEqual(8);
 

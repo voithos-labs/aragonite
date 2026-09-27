@@ -121,7 +121,7 @@ test.describe('opaque containers decline nested reorder', () => {
 		expect(await editor.bridge.getSource()).not.toContain('Body oneX');
 	});
 
-	// ── Regression: the container itself still reorders at document level ─────
+	// ── The container itself still reorders at document level ─────────────────
 
 	// `<details>` rather than the admonition: a note has no handle, and this is the half that
 	// needs one, since the container is still something its own handle drags.

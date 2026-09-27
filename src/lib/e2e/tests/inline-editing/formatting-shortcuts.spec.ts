@@ -104,7 +104,6 @@ test.describe('inline editing, formatting shortcuts', () => {
 		});
 	}
 
-	// Regression: Ctrl+B on the inner word of `**word**` must strip, not reach `****word****`.
 	test('Ctrl+B on word flanked by markers strips them rather than double-wrapping', async () => {
 		await selectAndPress('Hello **world** today\n', 8, 5, 'ControlOrMeta+b');
 
