@@ -21,9 +21,8 @@ export type AutoPairEdit =
 	| { kind: 'write'; text: string; caret: number; pair?: ContentRange }
 	/** The typed byte completed a construct's closer; what follows belongs outside it. */
 	| { kind: 'close'; text: string; caret: number }
-	/** Nothing written: the caret passes its partner. Over a construct's closer that run may be
-	 *  hidden, and then only the side changes, which the block records as an arrival side.
-	 *  `pair` is the auto-pair's own empty pair the caret stepped past. */
+	/** Nothing written: the caret passes its partner. Over a hidden closer only the caret's arrival
+	 *  side changes. `pair` is the auto-pair's own empty pair the caret stepped past. */
 	| { kind: 'step-over'; caret: number; overConstruct: boolean; pair?: ContentRange };
 
 /** What the resolver reads about the line besides its bytes. */
@@ -63,11 +62,8 @@ function policyOf(ch: string, grammar: GrammarView): PairPolicy | null {
 
 // ── The resolver ─────────────────────────────────────────────────────────────
 
-/**
- * What a single typed byte does at a collapsed caret, or null to leave the insertion to the
- * browser. `content` bounds the inline scan (a heading's `# ` is not prose); the caret must lie
- * inside it. `reading` carries the link definitions and grammar the block was drawn with.
- */
+/** What a single typed byte does at a collapsed caret, or null to leave it to the browser.
+ *  `content` bounds the inline scan (a heading's `# ` is not prose); the caret must lie inside it. */
 export function resolveDelimiterAutoPair(
 	text: string,
 	content: ContentRange,
@@ -179,9 +175,8 @@ export interface AutoPairSurface {
 	completesLine?(caret: number): boolean;
 	/** The resolver's block-kind check, for a block whose line can become a different block. */
 	keepsBlockKind?(text: string): boolean;
-	/** How the block was drawn: a plugin's delimiter pairs only where the plugin is listed, a
-	 *  reference link reads as the link it draws, and a hidden closer a step-over passes moves only
-	 *  the arrival side. */
+	/** How the block was drawn: a plugin's delimiter pairs only where the plugin is listed, and a
+	 *  step-over past a hidden closer moves only the arrival side. */
 	reading: Reading;
 	/** This block's view of the editor's record of the pair the auto-pair last wrote. */
 	ownPairs: BlockAutoPairs;

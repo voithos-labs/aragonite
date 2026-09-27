@@ -47,8 +47,8 @@ export const cleanLiveJoinSeam: LiveJoinSeamCleaner = (join) => {
 	const typed = join.typed ?? '';
 	const shown = shownAfterJoin(left, right, typed);
 	const pairs = abuttingPairSpans(join, left, right);
-	// Least destructive first: keep the runs the two sides can still pair across the join, and
-	// fall back to dropping every stranded one. Two identical readings are tried once.
+	// Two readings, least destructive first: keep the runs the two sides can still pair across the
+	// join, else drop every stranded one.
 	const readings = [unpairedSpans(join, left, right), everyDanglingSpan(join, left, right)];
 	const spanSets = readings.map((dangling) => [...dangling, ...pairs]);
 	const candidates = (sameSpans(spanSets[0], spanSets[1]) ? [spanSets[0]] : spanSets).map(
@@ -63,9 +63,8 @@ export const cleanLiveJoinSeam: LiveJoinSeamCleaner = (join) => {
 			};
 		}
 	);
-	// The other half of § 4.1: a run the least destructive reading keeps can be one the cut left
-	// enclosing nothing, and a pair over nothing passes the screen check, so among the readings
-	// that pass, the one leaving the fewest of those wins.
+	// A pair left over nothing also passes the screen check, so among the readings that pass, the
+	// one leaving the fewest such pairs wins (`docs/design/live-mode.md` § 4.1).
 	const floor = Math.min(...candidates.map(({ read }) => read?.residue ?? Infinity));
 	for (const { raw: candidate, seam, read } of candidates) {
 		if (read === null || read.visible !== shown || read.residue > floor) continue;
@@ -123,11 +122,8 @@ interface Side {
 	touching: SideConstruct[];
 }
 
-/**
- * Read one endpoint's surviving bytes and the constructs its cut leaves at the join. Null where
- * the cleanup has no business running: a non-prose kind, an offset outside the content, or a cut
- * through a family that declares no close-and-reopen, whose bytes mean nothing apart.
- */
+/** One endpoint's surviving bytes and the constructs its cut leaves at the join. Null for a
+ *  non-prose kind, an offset outside the content, or a cut through a family that cannot reopen. */
 function readSide(endpoint: JoinEndpoint, keep: 'before' | 'after', reading: Reading): Side | null {
 	const { node, offset } = endpoint;
 	if (!isProseKind(node.kind)) return null;
@@ -196,16 +192,13 @@ function classifyConstructs(inlines: readonly InlineNode[]): {
 const splitsARun = (c: SideConstruct, at: number): boolean =>
 	(at > c.node.start && at < c.content.start) || (at > c.content.end && at < c.node.end);
 
-/** Whether the family declares its delimiters cuttable and rejoinable at all (live-mode.md § 4.4). */
+/** Whether the family can be cut and rejoined (`docs/design/live-mode.md` § 4.4). */
 function isRejoinable(kind: AnyInlineKind): boolean {
 	return getInlineConstructPolicy(kind)?.splitBehavior === 'close-and-reopen';
 }
 
-/**
- * The nested chain of closers ending at `cut` (or openers starting there), stripped outermost
- * first: `**a *b***` cut at its end gives the strong emphasis, then the emphasis its closer
- * wraps. This is the shape `live-split-rebalance` writes, read back.
- */
+/** The nested chain of closers ending at `cut` (or openers starting there), outermost first:
+ *  `**a *b***` cut at its end gives the strong emphasis, then the emphasis. */
 function touchingChain(
 	constructs: readonly SideConstruct[],
 	cut: number,
@@ -254,11 +247,8 @@ const sameDelimiters = (left: Side, lc: SideConstruct, right: Side, rc: SideCons
 		right.raw.slice(rc.node.start, rc.content.start) &&
 	left.raw.slice(lc.content.end, lc.node.end) === right.raw.slice(rc.content.end, rc.node.end);
 
-/**
- * The runs a truncation stranded that the join does not put back together: the left's opener
- * chain and the right's closer chain, minus the leading pairs whose kinds line up, since those
- * two halves make one construct across the join, which is what the user had.
- */
+/** The runs a truncation stranded that the join does not rejoin: the left's openers and the right's
+ *  closers, minus the leading pairs whose kinds line up and so make one construct again. */
 function unpairedSpans(join: { seam: number }, left: Side, right: Side): Span[] {
 	let paired = 0;
 	while (
@@ -282,11 +272,8 @@ function everyDanglingSpan(join: { seam: number }, left: Side, right: Side): Spa
 	];
 }
 
-/**
- * The closer/opener pair a split's inverse brings back to back: same kinds nested the same way,
- * written with the same bytes, enclosing nothing between them. The whole chain or nothing:
- * dropping an outer pair while an inner one stays would leave both halves' runs unbalanced.
- */
+/** The closer/opener chain a split's inverse brings back to back around nothing, same kinds and
+ *  bytes. Dropped whole or not at all, since a partial drop leaves the runs unbalanced. */
 function abuttingPairSpans(join: { seam: number }, left: Side, right: Side): Span[] {
 	const closing = left.touching;
 	const opening = right.touching;
@@ -317,11 +304,8 @@ function withoutSpans(raw: string, spans: readonly Span[]): string {
 
 // ── Verification ─────────────────────────────────────────────────────────────
 
-/**
- * What the user must still see: what each side already showed of the bytes that survive. Read off
- * the parse from before the join, never off the joined halves, since either of those would bake
- * the fault this checks for into the expectation.
- */
+/** What the user must still see, read off each side's parse from before the join: reading the
+ *  joined halves would bake the fault this checks for into the expectation. */
 const shownAfterJoin = (left: Side, right: Side, typed: string): string =>
 	visibleSide(left, 'before') + typed + visibleSide(right, 'after');
 
@@ -333,11 +317,8 @@ function visibleSide(side: Side, keep: 'before' | 'after'): string {
 	});
 }
 
-/**
- * The `keep` side of `level`, rebuilt: a construct the cut crosses hands its place to its own
- * clipped children. Exported for the depth test, which has to reach the rebuild with a tree no
- * real side could be rendered at.
- */
+/** The `keep` side of `level`, rebuilt: a construct the cut crosses is replaced by its clipped
+ *  children. Exported for the depth test. */
 export function clipNodes(
 	level: readonly InlineNode[],
 	cut: number,
@@ -371,12 +352,8 @@ export function clipNodes(
 	return out;
 }
 
-/**
- * The candidate read back the way the caller will store it: what it shows, and how many constructs
- * whose policy unwraps them are left standing over nothing. Null where a join produces something
- * the caller cannot store: two blocks, a kind with no inline content, or a body the container
- * would read differently.
- */
+/** The candidate read back as the caller will store it: what it shows, and how many unwrapping
+ *  constructs stand over nothing. Null where the caller could not store it as one prose block. */
 function readCandidate(
 	raw: string,
 	reading: Reading,
@@ -394,11 +371,8 @@ function readCandidate(
 	};
 }
 
-/**
- * Whether the container still reads its own marker off the candidate. A list item's marker is not
- * in these bytes but takes width from them, so a body the cut left starting with a space reparses
- * under a wider marker than the live tree holds, and a load-then-save cycle would change the tree.
- */
+/** Whether the container still reads its own marker off the candidate: a body starting with a
+ *  space reparses under a wider list marker, so a reload would change the tree. */
 function keepsContainerMarker(prefix: string, raw: string, grammar: GrammarView): boolean {
 	if (prefix === '') return true;
 	const blocks = readBlocks(prefix + raw, { grammar, scope: 'fragment' }).children;

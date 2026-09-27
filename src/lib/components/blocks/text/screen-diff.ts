@@ -32,9 +32,8 @@ export function removesExactly(before: string, after: string, removed: string): 
 	);
 }
 
-/** The check a candidate must pass: its bytes reparse, in the editor's grammar, as exactly one
- *  prose block, whose inline tree the caller then runs its own test over. Null refuses, because a
- *  reparse that splits the block or changes its kind is not what the caller is about to install. */
+/** A candidate's bytes reparsed as exactly one prose block, for the caller's own test; null when
+ *  the reparse splits the block or changes its kind. */
 export function soleProseReparse(
 	raw: string,
 	reading: Reading

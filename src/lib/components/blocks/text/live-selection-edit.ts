@@ -1,9 +1,8 @@
 /**
- * What a browser range edit writes in live mode. The range it targets can span delimiter runs the
- * user never saw, and contenteditable takes those literally, so the edit is re-expressed as a join
- * of what survives on either side, cleaned by the shared join rules (live-mode.md § 4.5). Every
- * editable prose block routes its `beforeinput` through {@link resolveLiveRangeEdit}, so no
- * gesture can reach the bytes by being missing from a list.
+ * What a browser range edit writes in live mode. The range can span delimiter runs the user never
+ * saw, which contenteditable would take literally, so the edit becomes a join of what survives on
+ * either side, cleaned by the shared join rules (`docs/design/live-mode.md` § 4.5). Every prose
+ * block routes its `beforeinput` through {@link resolveLiveRangeEdit}.
  */
 
 import type { NodeView } from '../../../core/node-views';
@@ -40,11 +39,8 @@ export interface LiveRangeRewrite {
 	caret: number;
 }
 
-/**
- * What a prose block does with a `beforeinput` in live mode. Null wherever the key does not belong
- * here, or there is nothing to clean: the browser's own edit is already right, and leaving it to
- * the browser keeps its grapheme and IME behavior.
- */
+/** What a prose block does with a `beforeinput` in live mode. Null where there is nothing to clean,
+ *  so the browser keeps its own edit and its grapheme and IME behavior. */
 export function resolveLiveRangeEdit(
 	e: InputEvent,
 	node: NodeView,
@@ -72,11 +68,8 @@ export function resolveLiveRangeEdit(
 		: { kind: 'rewrite', range, raw: edit.raw, caret: edit.caret };
 }
 
-/**
- * A collapsed insertion Chromium aimed back across a hidden run from where the DOM caret sits
- * (just after a typed `)`): the byte goes where the caret is. A target at or past the caret is
- * the browser's own placement, which a split's reopened run relies on, so it stands.
- */
+/** A collapsed insertion Chromium aimed back across a hidden run (just after a typed `)`) goes where
+ *  the caret is. A target at or past the caret stands, since a split's reopened run relies on it. */
 function parkedCaretInsertion(
 	node: NodeView,
 	cursor: LiveEditCursor,
@@ -102,11 +95,8 @@ function parkedCaretInsertion(
 	};
 }
 
-/**
- * The whole wrapper around {@link resolveLiveRangeEdit}: do nothing while a construct's shown
- * source has outrun the CST, resolve, `preventDefault` what belongs here, then write nothing or
- * hand the rewrite to the block's own `commit`. Shared so a new precondition reaches every block.
- */
+/** The wrapper every block runs around {@link resolveLiveRangeEdit}, shared so a new precondition
+ *  reaches every block. Does nothing while a shown source has outrun the CST. */
 export function applyLiveRangeEdit(
 	e: InputEvent,
 	node: NodeView,
@@ -125,11 +115,8 @@ export function applyLiveRangeEdit(
 	return true;
 }
 
-/**
- * The bytes replacing `[start, end)` with `typed`, or null when there was nothing to clean.
- * Exported for the callers that already hold a range of their own (the composition commit, the
- * gesture fuzzer) rather than an event to read one off.
- */
+/** The bytes replacing `[start, end)` with `typed`, or null when there was nothing to clean, for a
+ *  caller holding a range rather than an event (the composition commit, the gesture fuzzer). */
 export function resolveSelectionEdit(
 	node: NodeView,
 	selection: { start: number; end: number },
@@ -163,10 +150,8 @@ export function resolveSelectionEdit(
 	};
 }
 
-/** The rewrite of `[start, end)` to `typed` that a gesture the block consumed stores, where a
- *  delete passes the empty string. The cleaned bytes where the join rules have them, otherwise a
- *  plain splice of the displayed text with the caret past the insert. That fallback lives only
- *  here, so no caller can drift from it. */
+/** The rewrite of `[start, end)` to `typed` (empty for a delete): the cleaned bytes where the join
+ *  rules have them, otherwise a plain splice with the caret past the insert. */
 export function replaceRangeRaw(
 	node: NodeView,
 	range: { start: number; end: number },
@@ -205,11 +190,8 @@ function paintedRange(
 
 // ── Reading the event ────────────────────────────────────────────────────────
 
-/**
- * The range the pending edit will rewrite. `getTargetRanges()` is the authority, since a word or
- * line delete at a collapsed caret reports the run rather than the caret; it is feature-detected
- * because jsdom implements no such method.
- */
+/** The range the pending edit will rewrite, from `getTargetRanges()`, since a word delete reports
+ *  the run rather than the caret. Feature-detected because jsdom has no such method. */
 function pendingEditRange(
 	e: InputEvent,
 	cursor: LiveEditCursor
@@ -218,13 +200,8 @@ function pendingEditRange(
 	return targets.length > 0 ? cursor.rawRangeOf(targets[0]) : cursor.getRawSelection();
 }
 
-/**
- * The inputs that rewrite the range they target: every kind of delete (word, line, drag, cut,
- * forward, backward) plus the two that replace it with text. Paste and composition have their own
- * handling; composing is excluded by the input type's name and by the flag rather than by listing
- * the delete types today's browsers spell, since `composition-seat.ts` owns a composition from
- * start to finish and resolving it here too would write the block twice.
- */
+/** The inputs that rewrite the range they target. Composition is excluded by name and flag, since
+ *  `composition-seat.ts` handles it start to finish and a second write here would double it. */
 function rewritesTargetRange(e: InputEvent): boolean {
 	if (e.isComposing || /composition/i.test(e.inputType)) return false;
 	return (
@@ -234,9 +211,8 @@ function rewritesTargetRange(e: InputEvent): boolean {
 	);
 }
 
-/** What an input writes over its range, or null for a payload that cannot be read here: text
- *  carried on a `dataTransfer` would reach the commit's reparse without the paste transforms
- *  (G4.11), and consuming the key is safer than turning a replacement into a delete. */
+/** What an input writes over its range, or null for `dataTransfer` text, which would skip the paste
+ *  transforms (G4.11); consuming the key beats turning a replacement into a delete. */
 function replacementText(e: InputEvent): string | null {
 	return e.inputType.startsWith('delete') ? '' : e.data;
 }

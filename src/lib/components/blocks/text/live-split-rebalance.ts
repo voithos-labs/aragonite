@@ -125,12 +125,8 @@ export interface ChainLink {
 	contentEnd: number;
 }
 
-/**
- * The edge a cut moves to rather than landing inside a childless never-extend construct: two
- * halves of a URL are not two URLs, and half an escape is a literal backslash, so the whole
- * construct goes to the half the caret was nearer (live-mode.md § 4.4). Null where the cut lands
- * in no such construct. Innermost wins, as everywhere else.
- */
+/** Where a cut inside a childless never-extend construct (a URL, an escape) moves to: the edge the
+ *  caret was nearer, so the construct goes whole to one half (`docs/design/live-mode.md` § 4.4). */
 function wholeConstructEdge(inlines: readonly InlineNode[], offset: number): number | null {
 	let found: number | null = null;
 	for (const node of inlineDescendants(inlines)) {
@@ -144,12 +140,8 @@ function wholeConstructEdge(inlines: readonly InlineNode[], offset: number): num
 	return found;
 }
 
-/**
- * Every construct holding `offset`, outermost first, or null when one of them refuses. A kind
- * with no policy, one whose split behavior is plain, and one whose content bounds are unknown
- * cannot be cut open, and cutting the constructs inside one would strand its pair. Exported for
- * the depth test, which has to reach it with a tree no real split could be rendered at.
- */
+/** Every construct holding `offset`, outermost first, or null when one cannot be cut open, since
+ *  cutting the constructs inside it would strand its pair. Exported for the depth test. */
 export function splittableChainAt(
 	inlines: readonly InlineNode[],
 	offset: number
@@ -172,11 +164,8 @@ export function splittableChainAt(
 	return chain;
 }
 
-/**
- * Whether a cut at `offset` lands in this construct. One with children includes its content
- * bounds, so its edges reach the chain; one without children counts only its strict interior,
- * since its edges are ordinary cut points. Text is content, and nothing under it is a construct.
- */
+/** Whether a cut at `offset` lands in this construct: one with children includes its content
+ *  bounds; one without counts only its strict interior, since its edges are ordinary cut points. */
 function holdsOffset(node: InlineNode, offset: number): boolean {
 	if (node.kind === 'text') return false;
 	const content = constructContentRange(node);
@@ -205,11 +194,8 @@ interface RebalancedHalves {
 	droppedTail?: string;
 }
 
-/**
- * Innermost first, so a closer written before its enclosing one nests the halves as the original
- * did. A side with no content takes the whole construct: a pair enclosing nothing is invisible
- * leftovers live mode may never write.
- */
+/** Innermost first, so the halves nest as the original did. A side with no content takes the whole
+ *  construct, since live mode never writes a pair enclosing nothing. */
 function seamParts(bytes: SplitBytes, chain: readonly ChainLink[], offset: number): SeamParts {
 	let leftEnd = offset;
 	let rightStart = bytes.cut;
@@ -244,11 +230,8 @@ const assemble = (bytes: SplitBytes, seam: SeamParts): RebalancedHalves => ({
 	secondRaw: seam.openers + seam.tail + bytes.secondResidue
 });
 
-/**
- * The same cut with a boundary space handed to the plain text beside it. Markdown opens and
- * closes a run against a word, never whitespace, so a space left inside kills the construct; a
- * space's formatting is invisible, so moving it both parses and looks unchanged.
- */
+/** The same cut with a boundary space handed to the plain text beside it: a run cannot open or close
+ *  against whitespace, and a space's formatting is invisible anyway. */
 function assembleSpaceOutside(bytes: SplitBytes, seam: SeamParts): RebalancedHalves | null {
 	const trailing = seam.closers !== '' && seam.head.endsWith(' ');
 	const leading = seam.openers !== '' && seam.tail.startsWith(' ');
@@ -263,11 +246,8 @@ function assembleSpaceOutside(bytes: SplitBytes, seam: SeamParts): RebalancedHal
 	};
 }
 
-/**
- * The cut with a whitespace-only tail dropped rather than handed to either half. Whitespace at
- * the end of a block is a hard break with no following line, so it draws nothing, and
- * live-mode.md § 4.5 lets live mode drop what it never showed.
- */
+/** The cut with a whitespace-only tail dropped: trailing whitespace draws nothing, and live mode
+ *  may drop what it never showed (`docs/design/live-mode.md` § 4.5). */
 function assembleDroppingTerminalTrivia(
 	bytes: SplitBytes,
 	seam: SeamParts
@@ -315,9 +295,8 @@ export function parsesBack(
 		{ grammar: reading.grammar }
 	);
 	if (!whole.startsWith(first.visible)) return false;
-	// The line ending the cut landed on is the one character a split legitimately consumes; a
-	// dropped tail is the only other, and the candidate names those bytes rather than the check
-	// inferring them.
+	// A split may consume only the line ending the cut landed on and a dropped tail, which the
+	// candidate names rather than the check inferring it.
 	const rest = whole.slice(first.visible.length);
 	const tail = second.visible + (candidate.droppedTail ?? '');
 	return rest === tail || rest === '\n' + tail || rest === '\r\n' + tail;

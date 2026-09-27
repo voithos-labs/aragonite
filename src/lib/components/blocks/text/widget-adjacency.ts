@@ -22,9 +22,8 @@ export interface WidgetAtCursor extends WidgetRange {
 
 export type CaretDirection = 'forward' | 'backward';
 
-/** The live widget the caret sits against, or null. At a boundary two widgets share
- *  (A.end === B.start), `direction` breaks the tie: forward enters B's leading edge,
- *  backward A's trailing edge. Elsewhere only one match exists and it is inert. */
+/** The live widget the caret sits against, or null. At a boundary two widgets share,
+ *  `direction` breaks the tie: forward takes the second widget, backward the first. */
 export function widgetAtCursor(
 	offset: number | null,
 	inlineContent: ReadonlyArray<InlineNode> | undefined,
