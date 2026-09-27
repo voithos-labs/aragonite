@@ -115,6 +115,7 @@ describe('blockAtPoint hook plumbing', () => {
 describe('endpointAtPoint: what a pointer may address', () => {
 	const hit = (over: Partial<BlockHit> = {}): BlockHit => ({
 		path: [2],
+		host: document.createElement('div'),
 		charSurface: null,
 		...over
 	});

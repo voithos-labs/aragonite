@@ -136,6 +136,38 @@ describe('editor-root focus attribution: data-focused', () => {
 		expect(e.marked()).toEqual([e.second.el]);
 	});
 
+	// Miss-analysis: every held-press row sent a mouse's event order, so none showed a tap, whose
+	// focus arrives on mouse events the browser sends after the finger has already lifted.
+	it('a tap keeps the mark where it was through its trailing mouse press', () => {
+		const e = editor('preview-block');
+		e.focusIn(e.first.leaf);
+		const send = (type: string) =>
+			e.second.leaf.dispatchEvent(new MouseEvent(type, { bubbles: true, button: 0 }));
+		send('pointerdown');
+		send('pointerup');
+		send('mousedown');
+		e.focusIn(e.second.leaf);
+		expect(e.marked()).toEqual([e.first.el]);
+		send('mouseup');
+		expect(e.marked()).toEqual([e.second.el]);
+		send('click');
+		expect(e.marked()).toEqual([e.second.el]);
+	});
+
+	// A tap that sends no mouse events (a long press, a page that cancels the touch) must not
+	// leave the paint held, which a hold released only by `click` would.
+	it('a tap with no trailing mouse events holds nothing past the lift', () => {
+		const e = editor('preview-block');
+		e.focusIn(e.first.leaf);
+		const send = (type: string) =>
+			e.second.leaf.dispatchEvent(new MouseEvent(type, { bubbles: true, button: 0 }));
+		send('pointerdown');
+		send('contextmenu');
+		send('pointerup');
+		e.focusIn(e.second.leaf);
+		expect(e.marked()).toEqual([e.second.el]);
+	});
+
 	it('the window losing focus mid-press repaints the focused block', () => {
 		const e = editor('preview-block');
 		e.focusIn(e.first.leaf);

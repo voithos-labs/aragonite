@@ -10,9 +10,12 @@ import { tryGetBlockKindDescriptor, type CaretTarget } from '../schema/block-kin
 import type { CellSelectionPoint, SelectionEndpoint } from './primitives';
 import { offsetFromViewportPoint } from '../cursor/point-offset';
 import { readBlockPath } from './path-lookup';
+import { pathsEqual } from './path-math';
 
 export interface BlockHit {
 	path: number[];
+	/** The element carrying the block's path; a container's children are block hosts inside it. */
+	host: HTMLElement;
 	/**
 	 * The editable element a character offset is hit-tested against, or null when the kind has
 	 * none (a table grid, or a whole-block kind whose body is all markers and buttons).
@@ -49,6 +52,7 @@ export function blockAtPoint(
 			const caretTarget = descriptor?.caretTargetAtPoint;
 			return {
 				path,
+				host: wrapper,
 				// A grid kind's first contenteditable is a cell, not the block, so a kind with the
 				// drag hook reports no text element. The whole-block input and the selection
 				// overlay are skipped for the same reason: neither holds the block's characters.
@@ -64,6 +68,15 @@ export function blockAtPoint(
 		el = el.parentElement;
 	}
 	return null;
+}
+
+/** Whether the hit's editable text belongs to the block itself, not to a child inside it (a
+ *  quote's first line is its first child's). False where editing is off, as in reading mode. */
+export function holdsOwnText(hit: BlockHit): boolean {
+	const surface = hit.charSurface;
+	if (!surface?.matches('[contenteditable="true"]')) return false;
+	const owner = readBlockPath(surface.closest('[data-block-path]'));
+	return owner !== null && pathsEqual(owner, hit.path);
 }
 
 /**

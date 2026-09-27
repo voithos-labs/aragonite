@@ -548,9 +548,7 @@ const RULES: FileRule[] = [
 			'src/lib/selection/caret-restore.ts':
 				'a caret saved at whole-block focus restores TO the host, the wanted target',
 			'src/lib/selection/cross-block/pointer.ts':
-				'a shift-click anchored on a whole-block kind resolves to the host, so the dispatch takes the unit whole',
-			'src/lib/selection/dead-space-caret.ts':
-				'reads hit.charSurface, which the hit-test already withdrew the host from'
+				'a shift-click anchored on a whole-block kind resolves to the host, so the dispatch takes the unit whole'
 		},
 		reason:
 			'route through isEditableEventTarget/isWholeBlockInputProxy, or declare what this reader answers for the whole-block host',
