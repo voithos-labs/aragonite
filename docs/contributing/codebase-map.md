@@ -187,8 +187,8 @@ flowchart TD
     SCROLL --> MOUNT
     MOUNT --> LEVEL["descend one path level"]
     LEVEL --> HIDDEN{"into a collapsed body?"}
-    HIDDEN -->|"yes, a navigation"| OPEN["open it: one undo entry"]
-    HIDDEN -->|"yes, anything else"| GIVEUP
+    HIDDEN -->|"yes, and it may open one"| OPEN["open it: one undo entry"]
+    HIDDEN -->|"yes, and it may not"| GIVEUP
     OPEN --> SLOT
     HIDDEN -->|no| SLOT{"child's ref slot populated?"}
     SLOT -->|yes| NEXT["next level"]
@@ -205,8 +205,8 @@ flowchart TD
 `revealPath` is the **mount** primitive: it makes the target exist and promises nothing about the
 viewport. `src/lib/editor-rects.ts` :: `createEditorRects` wraps a mount as `scrollTo`, which claims,
 mounts, scrolls, and settles. A history swap injects the bare mount, so undo doesn't yank the
-viewport; a navigation injects the scrolling one. Only the navigation's mount may open a collapsed
-body on the way: an edit's caret or an undo that aims into one stops at the container.
+viewport; a navigation injects the scrolling one. Both open a collapsed body on the way, as one
+undo entry, since that's what gets a caret aimed into the hidden body placed.
 
 **A caller asks for a reveal instead of reaching for an element.**
 `src/lib/selection/selection-restore.ts` :: `restoreSelection` decides which path actually needs

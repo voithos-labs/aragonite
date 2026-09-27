@@ -961,7 +961,7 @@ The flip is one undoable edit, so undo un-debunks it, which is how conspiracies 
 
 The wrapper and the two `light`s are there because the editor paints no background of its own. A fresh app's page is white, so the built-in chrome (the wrapper's attribute) and the editor's own surfaces (the prop) both have to say so; on a dark page, both say `dark`, or nothing. [consumer-guide.md](consumer-guide.md)'s theming section explains the two tiers.
 
-Want a collapse toggle? Give `reservedChrome` an `isCollapsed` probe over the node, and every focus walk, merge, and windowing decision (a collapsed body stays unmounted) reads that one declaration. Add `expandPatch` beside it, returning the metadata patch that opens the node, and a reveal into the collapsed body (a table-of-contents entry, a search match) opens the container first and commits it as one undoable edit. Without it, such a reveal has nowhere to land and reports that it didn't. Only navigation opens it, though: an edit's caret or an undo aimed into the hidden body never commits an open.
+Want a collapse toggle? Give `reservedChrome` an `isCollapsed` probe over the node, and every focus walk, merge, and windowing decision (a collapsed body stays unmounted) reads that one declaration. Add `expandPatch` beside it, returning the metadata patch that opens the node, and a reveal into the collapsed body (a table-of-contents entry, a search match) opens the container first and commits it as one undoable edit. Without it, such a reveal has nowhere to land and reports that it didn't.
 
 ![A conspiracy, debunked on camera](./plugin-guide/conspiracy.gif)
 

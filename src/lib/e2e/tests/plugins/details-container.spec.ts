@@ -86,6 +86,28 @@ test.describe('plugin container: <details> collapsible', () => {
 		expect(await capturedErrors(page)).toEqual([]);
 	});
 
+	// A caret put back into the hidden body opens it, for now: the landing that would retarget it
+	// to the title row comes with the landing service, and until then opening keeps it placed.
+	test('a caret put back into a closed body opens the details and lands there', async ({
+		page
+	}) => {
+		await editor.loadContent(
+			'Above\n\n<details>\n<summary>Sum</summary>\n\nHidden\n\n</details>\n'
+		);
+		await editor.focusBlockAtPath([0], 0);
+		// Select-all twice covers the hidden body, so collapsing to the end aims into it.
+		await page.keyboard.press('ControlOrMeta+a');
+		await page.keyboard.press('ControlOrMeta+a');
+		await editor.waitForCrossBlock(true);
+		await page.keyboard.press('ArrowRight');
+		await editor.waitForCrossBlock(false);
+		await page.keyboard.type('x');
+
+		const opened = 'Above\n\n<details open>\n<summary>Sum</summary>\n\nHiddenx\n\n</details>\n';
+		await editor.bridge.waitForSource((source) => source === opened);
+		expect(await capturedErrors(page)).toEqual([]);
+	});
+
 	test('M3: Enter in a collapsed summary-only details creates nothing and pushes no undo entry', async ({
 		page
 	}) => {

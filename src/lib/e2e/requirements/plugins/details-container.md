@@ -19,6 +19,11 @@ body child really does unmount. These checks read behavior: the tree read by pat
 
 - one undo restores both bytes and mount state: after a collapse toggle, a single Ctrl+Z flips the bytes back to `<details open>` and remounts the body
 - caret in the body when it collapses: collapsing while the caret sits in a body child puts the caret on the summary, since the clamp unmounts the child the caret was in and the toggle commit's `afterTick` moves it
+- a caret put back into a closed body: with the details last and closed, select-all twice covers
+  its hidden body, and ArrowRight collapses the range to its end, inside that body. The details
+  opens (`<details open>` in the bytes) and the caret lands at the end of the body text, so a typed
+  `x` follows it. Opening is what places the caret here: a walk that stopped at the hidden body
+  would place none, and the `x` would land wherever the caret was before
 - M3, nothing is created invisibly: Enter in a collapsed, summary-only details does nothing. The caret stays, no node is created, and no undo entry is pushed, so an earlier text edit still undoes in one step
 - arrow walk across a collapsed details: ArrowUp entering from the paragraph below puts the caret on the summary rather than doing nothing on the clamped-out last child
 - sideways walk into a collapsed details: ArrowLeft at the start of the paragraph below goes through `focus(CURSOR_END)` toward the unmounted last child and has to clamp to the summary rather than do nothing on the missing reference
@@ -37,3 +42,9 @@ body child really does unmount. These checks read behavior: the tree read by pat
 ## Error cases
 
 - the `[invariant:…]` console watcher stays silent and `getCapturedErrors()` is empty across every gesture, so the checks on opaque containers and on state consistency hold while the clamp is active
+
+## Miss-analysis
+
+- The caret-into-a-closed-body case: every existing check reached a hidden body through a
+  navigation (the outline, search), whose walk kept opening it, so a change that stopped the
+  other walks from opening one went unnoticed until a reviewer asked.

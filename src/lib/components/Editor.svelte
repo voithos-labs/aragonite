@@ -533,9 +533,10 @@
 
 	// ── Action Bundles ──────────────────────────────────────────────────
 
-	// An edit's landing or a restore never opens a collapsed body; only a navigation does.
+	// Opens a collapsed body on the way: nothing retargets a caret aimed into one to its title
+	// row, so opening the body is what gets the caret placed.
 	function revealPath(path: number[]): Promise<BlockComponent | null> {
-		return descendTo(rootList, path);
+		return descendTo(rootList, path, { openCollapsed: true });
 	}
 
 	const editorActionsDeps: EditorActionsDeps = {
@@ -583,7 +584,7 @@
 	const rects = createEditorRects({
 		getBlockElByPath,
 		getBlockComponent,
-		revealPath: (path) => descendTo(rootList, path, { openCollapsed: true }),
+		revealPath,
 		getEditorRoot: () => editorEl ?? null,
 		isHostScroll: () => hostScroll,
 		getClipBounds,
