@@ -104,4 +104,22 @@ describe('editor-root focus attribution: data-focused', () => {
 		e.focusOut(e.second.leaf, e.outside);
 		expect(e.marked()).toEqual([]);
 	});
+
+	// Miss-analysis: every mark test moved focus with no button down, so nothing showed the mark
+	// painting mid-press, where it moves the text the browser is about to place the caret in.
+	it.each(['pointerup', 'pointercancel'])(
+		'a held press keeps the mark where it was until %s',
+		(release) => {
+			const e = editor('preview-block');
+			e.focusIn(e.first.leaf);
+			const press = (type: string, target: Element) =>
+				target.dispatchEvent(new MouseEvent(type, { bubbles: true, button: 0 }));
+			press('pointerdown', e.second.leaf);
+			e.focusIn(e.second.leaf);
+			expect(e.marked()).toEqual([e.first.el]);
+			expect(e.attribution.getFocusedPath()).toEqual([1]);
+			press(release, e.second.leaf);
+			expect(e.marked()).toEqual([e.second.el]);
+		}
+	);
 });

@@ -75,6 +75,8 @@ const NON_CARET_PRESS_FILES: Record<string, string> = {
 		'swallows the press on its buttons so the selection they act on survives it; the release is only heard to place the bar',
 	'src/lib/components/editor-root-listeners.ts':
 		'the reveal-anchor release: a press on the scroll port drops the pin and touches no caret',
+	'src/lib/components/editor-root-focus.ts':
+		'notes that a button is down so the preview modes paint markers on release; touches no caret',
 	'src/lib/selection/multi-click.ts':
 		'the second and third presses of a click run select the word or the surface under them: a selection gesture whose first press already went through the door',
 	'src/lib/components/blocks/table/TableActionMenu.svelte':

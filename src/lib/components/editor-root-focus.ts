@@ -2,7 +2,7 @@
  * Editor-root focus attribution: which block host holds the caret. The path tells each
  * windowing list which block to keep mounted, so a scroll that pushes the caret off-screen
  * never tears down native focus or the IME; both preview modes' CSS keys the focused block's
- * markers off the `data-focused` attribute. The installing `$effect`s stay in `Editor.svelte`.
+ * markers off the `data-focused` attribute, which moves only while no mouse button is down.
  */
 
 import { assertInvariant } from '../assert';
@@ -29,19 +29,22 @@ export function createFocusAttribution(deps: FocusAttributionDeps): FocusAttribu
 	// where a reactive write would trip state_unsafe_mutation.
 	let focusedPath: number[] | null = null;
 	let focusedHostEl: HTMLElement | null = null;
+	let paintedHostEl: HTMLElement | null = null;
+	let pressHeld = false;
 
-	// Only in preview modes, so source and reading DOM stay byte-identical.
+	// Only in preview modes, so source and reading DOM stay byte-identical. A press focuses its
+	// block before the browser places the caret, so markers shown then would move the text under
+	// the pointer; the paint catches up on release.
 	function applyFocusedAttr(): void {
-		if (focusedHostEl && isPreviewMode(deps.mode)) {
-			focusedHostEl.setAttribute('data-focused', '');
-		} else {
-			focusedHostEl?.removeAttribute('data-focused');
-		}
+		if (pressHeld) return;
+		const next = isPreviewMode(deps.mode) ? focusedHostEl : null;
+		if (paintedHostEl !== next) paintedHostEl?.removeAttribute('data-focused');
+		next?.setAttribute('data-focused', '');
+		paintedHostEl = next;
 	}
 
 	function setFocusedHost(host: HTMLElement | null): void {
 		if (focusedHostEl === host) return;
-		focusedHostEl?.removeAttribute('data-focused');
 		focusedHostEl = host;
 		applyFocusedAttr();
 	}
@@ -73,7 +76,23 @@ export function createFocusAttribution(deps: FocusAttributionDeps): FocusAttribu
 			if (next && root.contains(next)) return; // moving between blocks: keep the focused path
 			clear();
 		};
-		return removeAll(onRoot(root, 'focusin', onFocusIn), onRoot(root, 'focusout', onFocusOut));
+		const onPress = (e: PointerEvent) => {
+			if (e.button === 0) pressHeld = true;
+		};
+		// Cancel too: a drag of the selection itself ends in pointercancel, never pointerup.
+		const onRelease = () => {
+			if (!pressHeld) return;
+			pressHeld = false;
+			applyFocusedAttr();
+		};
+		const doc = root.ownerDocument;
+		return removeAll(
+			onRoot(root, 'focusin', onFocusIn),
+			onRoot(root, 'focusout', onFocusOut),
+			onRoot(root, 'pointerdown', onPress, { capture: true }),
+			onRoot(doc, 'pointerup', onRelease, { capture: true }),
+			onRoot(doc, 'pointercancel', onRelease, { capture: true })
+		);
 	}
 
 	return {
