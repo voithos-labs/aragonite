@@ -216,6 +216,16 @@ describe('inline-render: href + autolink anchor', () => {
 		expect(a?.textContent).toBe('www.example.com');
 	});
 
+	it('a www autolink cut at a `<` renders the `<` and the rest as plain text', () => {
+		const raw = 'www.commonmark.org/he<lp';
+		const frag = renderInlineNodes(parseInline(raw, 0, raw.length), raw, renderOptions());
+		const anchors = frag.querySelectorAll('a');
+		expect(anchors).toHaveLength(1);
+		expect(anchors[0].getAttribute('href')).toBe('http://www.commonmark.org/he');
+		expect(anchors[0].textContent).toBe('www.commonmark.org/he');
+		expect(frag.textContent).toBe(raw);
+	});
+
 	it('blocked-scheme link renders an inert span, not an anchor', () => {
 		const raw = '[x](javascript:alert(1))';
 		const inline = parseInline(raw, 0, raw.length);

@@ -103,8 +103,7 @@ describeScanCases('urls stop where claimed constructs start', [
 		'https://x.com`c`',
 		[autolinkNode(0, 13, 'https://x.com'), codeNode(13, 16, 'c')]
 	],
-	// GFM's stop-at-`<` rule: the single left-to-right pass claims the tag first,
-	// so it can never be absorbed into the url. Same for a following spec autolink.
+	// The scan claims the tag or spec autolink before the url pass, which never reaches it.
 	[
 		'raw html tag ends the url',
 		'https://x.y<br/>',
@@ -121,6 +120,51 @@ describeScanCases('urls stop where claimed constructs start', [
 		'backslash hard break ends the url',
 		'www.x.com\\\nfoo',
 		[autolinkNode(0, 9, 'http://www.x.com'), hardBreak(9, 11), textNode(11, 14, 'foo')]
+	]
+]);
+
+// Miss-analysis: every `<` case here was a claimed tag or spec autolink, which ends the text run
+// on its own, so no case had a `<` that stays text inside the run.
+describeScanCases('a `<` ends the url even where it stays text (§6.9)', [
+	[
+		'spec example: the www url stops at the `<`',
+		'www.commonmark.org/he<lp',
+		[autolinkNode(0, 21, 'http://www.commonmark.org/he'), textNode(21, 24, '<lp')]
+	],
+	[
+		'the scheme url stops at the `<`',
+		'http://a.com/x<y z',
+		[autolinkNode(0, 14, 'http://a.com/x'), textNode(14, 18, '<y z')]
+	],
+	[
+		'trailing punctuation before the `<` is still trimmed',
+		'www.x.com/a.<b',
+		[autolinkNode(0, 11, 'http://www.x.com/a'), textNode(11, 14, '.<b')]
+	],
+	[
+		'an unbalanced paren before the `<` is still trimmed',
+		'www.x.com/a)<b',
+		[autolinkNode(0, 11, 'http://www.x.com/a'), textNode(11, 14, ')<b')]
+	],
+	[
+		'a paren after the `<` does not balance one before it',
+		'www.x.com/a)<(',
+		[autolinkNode(0, 11, 'http://www.x.com/a'), textNode(11, 14, ')<(')]
+	],
+	[
+		'a url that is only a scheme before the `<` stays text',
+		'http://<a',
+		[textNode(0, 9, 'http://<a')]
+	],
+	[
+		'the email domain stops at the `<`',
+		'a@b.co<x',
+		[autolinkNode(0, 6, 'mailto:a@b.co'), textNode(6, 8, '<x')]
+	],
+	[
+		'an xmpp resource stops at the `<`',
+		'xmpp:a@b.co/r<x',
+		[autolinkNode(0, 13, 'xmpp:a@b.co/r'), textNode(13, 15, '<x')]
 	]
 ]);
 

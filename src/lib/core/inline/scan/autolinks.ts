@@ -58,6 +58,13 @@ export function trimTrailingPunctuation(raw: string, urlStart: number, urlEnd: n
 	return end;
 }
 
+/** GFM §6.9: a bare url runs to whitespace or a `<`, before the trims above apply. */
+function urlRunEnd(raw: string, from: number, end: number): number {
+	let urlEnd = from;
+	while (urlEnd < end && raw[urlEnd] !== '<' && !isWhitespaceChar(raw[urlEnd])) urlEnd++;
+	return urlEnd;
+}
+
 const HOST_CHAR = /[\p{L}\p{N}_.-]/u;
 
 /**
@@ -298,8 +305,7 @@ function matchBareHttpAutolink(
 	if (!isValidLeadingBoundary(raw, pos, regionStart)) return null;
 	const schemeLen = matchesCI(raw, pos, 'https://') ? 8 : matchesCI(raw, pos, 'http://') ? 7 : 0;
 	if (schemeLen === 0) return null;
-	let urlEnd = pos + schemeLen;
-	while (urlEnd < end && !isWhitespaceChar(raw[urlEnd])) urlEnd++;
+	let urlEnd = urlRunEnd(raw, pos + schemeLen, end);
 	if (urlEnd <= pos + schemeLen) return null;
 	urlEnd = trimTrailingPunctuation(raw, pos, urlEnd);
 	if (urlEnd <= pos + schemeLen) return null;
@@ -315,8 +321,7 @@ function matchBareWwwAutolink(
 ): InlineNode | null {
 	if (!isValidLeadingBoundary(raw, pos, regionStart)) return null;
 	if (!matchesCI(raw, pos, 'www.')) return null;
-	let urlEnd = pos + 4;
-	while (urlEnd < end && !isWhitespaceChar(raw[urlEnd])) urlEnd++;
+	let urlEnd = urlRunEnd(raw, pos + 4, end);
 	if (urlEnd <= pos + 4) return null;
 	urlEnd = trimTrailingPunctuation(raw, pos, urlEnd);
 	// `.` is trailing punctuation, so the trim can cross the `www.` prefix and leave a bare
