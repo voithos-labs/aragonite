@@ -476,8 +476,8 @@ export function createRangeAtDomTextOffsets(
 /** The text length of a block's trailing structure span (`BLOCK_SUFFIX_ATTR`) where the mode
  *  hides it, else 0: bytes a range the user drew cannot have meant to take. */
 export function hiddenSuffixLength(el: HTMLElement): number {
-	const last = el.lastElementChild;
-	const text = last?.hasAttribute(BLOCK_SUFFIX_ATTR) ? last.firstChild : null;
+	// Not always the last child: a pending hard break's anchors follow a closing run.
+	const text = el.querySelector(`:scope > [${BLOCK_SUFFIX_ATTR}]`)?.firstChild ?? null;
 	return text && isHiddenMarkerText(text, el) ? (text.textContent?.length ?? 0) : 0;
 }
 

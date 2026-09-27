@@ -46,6 +46,14 @@ export function structuralSuffix(node: NodeView): string {
 	return node.raw.slice(getContentRange(node).end, displayLength(node.raw));
 }
 
+/** The structural suffix's part on the text's own line, an ATX closing run: a line break made
+ *  at the text's end goes after it. A setext underline starts on a line of its own. */
+export function sameLineSuffix(node: NodeView): string {
+	const suffix = structuralSuffix(node);
+	const lineBreak = suffix.search(/[\r\n]/);
+	return lineBreak === -1 ? suffix : suffix.slice(0, lineBreak);
+}
+
 /** The one place a {@link ContentLength} is created. */
 export function contentLengthOf(node: NodeView): ContentLength {
 	return getContentRange(node).end as ContentLength;

@@ -15,10 +15,15 @@ import {
 	contentLengthOf,
 	getContentRange,
 	isProseKind,
-	structuralSuffix
+	structuralSuffix,
+	sameLineSuffix
 } from '../../../core/inline';
 import type { Reading } from '../../../schema/reading';
-import { renderInlineNodes, type ImageLoadPolicy } from '../../../core/inline-render';
+import {
+	PENDING_BREAK_ANCHOR,
+	renderInlineNodes,
+	type ImageLoadPolicy
+} from '../../../core/inline-render';
 import type { RawOffset } from '../../../cursor/coordinate-spaces';
 import {
 	BLOCK_SUFFIX_ATTR,
@@ -180,7 +185,9 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 		if (suffix) {
 			const span = markerSpan(suffix);
 			span.setAttribute(BLOCK_SUFFIX_ATTR, '');
-			frag.appendChild(span);
+			// A closing run on the text's own line stays there when a pending break draws a new one.
+			const onTextLine = sameLineSuffix(node) === suffix;
+			frag.insertBefore(span, onTextLine ? frag.querySelector(PENDING_BREAK_ANCHOR) : null);
 		}
 		return frag;
 	}

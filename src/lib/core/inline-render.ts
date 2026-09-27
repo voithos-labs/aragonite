@@ -441,6 +441,9 @@ export function renderInlineNodes(
 	return root.content;
 }
 
+/** The first of a pending hard break's two anchors, where the new line starts. */
+export const PENDING_BREAK_ANCHOR = 'br[data-caret-anchor="break"]';
+
 /**
  * A `\` ending the block is a hard break still waiting for its next line, which the scanner reads
  * as literal text until then; drawn as a hidden marker plus two `br` anchors, the user sees the new

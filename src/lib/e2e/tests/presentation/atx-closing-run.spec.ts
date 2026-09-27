@@ -1,3 +1,4 @@
+import type { Page } from '@playwright/test';
 import { test, expect } from '../../fixtures';
 import { enterPresentationMode } from './helpers';
 
@@ -6,6 +7,22 @@ import { enterPresentationMode } from './helpers';
 // Requirements: e2e/requirements/presentation/atx-closing-run.md.
 
 const DOC = '# Hi #\n\nnext\n';
+
+// The caret starts the new line when it sits just past the pending break's first anchor.
+async function caretStartsNewLine(page: Page): Promise<boolean> {
+	return page.evaluate(() => {
+		const sel = window.getSelection();
+		const node = sel?.focusNode;
+		if (!sel || !node) return false;
+		const before =
+			node.nodeType === Node.ELEMENT_NODE
+				? node.childNodes[sel.focusOffset - 1]
+				: sel.focusOffset === 0
+					? node.previousSibling
+					: null;
+		return before instanceof HTMLBRElement && before.dataset.caretAnchor === 'break';
+	});
+}
 
 test.describe('the closing run on screen', () => {
 	test('source mode shows it after the text', async ({ page }) => {
@@ -100,6 +117,35 @@ test.describe('live mode: the closing run stays on the heading', () => {
 			await ep.bridge.waitForSourceEquals(written);
 		});
 	}
+
+	for (const [source, written] of [
+		['# Hi\n\nnext\n', '# Hi\\\nw\n\nnext\n'],
+		['# Hi #\n\nnext\n', '# Hi\\ #\nw\n\nnext\n'],
+		['Hi\n===\n\nnext\n', 'Hi\\\nw\n===\n\nnext\n'],
+		['Hi\n\nnext\n', 'Hi\\\nw\n\nnext\n']
+	]) {
+		test(`Shift+Enter at the end of the text of ${JSON.stringify(source)}, then a key`, async ({
+			page
+		}) => {
+			const ep = await enterPresentationMode(page, 'live', source);
+			await ep.focusBlockAtPath([0], 1);
+			await page.keyboard.press('End');
+			await page.keyboard.press('Shift+Enter');
+			await expect.poll(() => caretStartsNewLine(page)).toBe(true);
+			await ep.typeSlowly('w');
+			await ep.bridge.waitForSourceEquals(written);
+		});
+	}
+
+	test('preview-block: Shift+Enter at the end of the text shows the run on the heading line', async ({
+		page
+	}) => {
+		const ep = await enterPresentationMode(page, 'preview-block', DOC);
+		await ep.focusBlockAtPath([0], 4);
+		await page.keyboard.press('Shift+Enter');
+		await ep.bridge.waitForSourceEquals('# Hi\\ #\n\nnext\n');
+		expect((await ep.getBlock(0).innerText()).split('\n')[0]).toBe('# Hi\\ #');
+	});
 
 	for (const [source, written] of [
 		['# Hi\n\nnext\n', '# Hi\n\nabc\n\ndef\n\nnext\n'],

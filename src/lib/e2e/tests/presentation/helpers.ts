@@ -9,7 +9,7 @@ import { textRunCenter } from '../../text-runs';
 // live. Source writes no attribute of its own, the same fact from the other side.
 export async function enterPresentationMode(
 	page: Page,
-	mode: 'live' | 'preview-inline' | 'reading' | 'source',
+	mode: 'live' | 'preview-inline' | 'preview-block' | 'reading' | 'source',
 	doc: string
 ): Promise<EditorPage> {
 	const ep = new EditorPage(page);
