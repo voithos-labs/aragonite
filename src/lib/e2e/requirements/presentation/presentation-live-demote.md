@@ -1,9 +1,9 @@
 # Feature: live-mode demote-first (Backspace at a heading's content start)
 
 A heading's `## ` is unpainted in live mode, so the first Backspace a user can aim at it lands on
-structure they cannot see. The contract: a kind declaring `contentStartBackspace: 'demote-first'`
-gives up its own structural bytes on that keypress, whichever end it keeps them at, and the merge
-cascade takes the second keypress unchanged. Driven on `/test/editor` via `?presentationMode=live`
+structure they cannot see. The contract: a kind registering
+`contentStart: { range, backspace: 'demote-first' }` gives up its own structural bytes on that
+keypress, whichever end it keeps them at, and the merge cascade takes the second keypress unchanged. Driven on `/test/editor` via `?presentationMode=live`
 with real keystrokes and real clicks; the source and the block's kind are what each scenario
 checks against.
 

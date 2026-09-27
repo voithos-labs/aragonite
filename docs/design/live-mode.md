@@ -251,7 +251,7 @@ press('Some **bold** text', 9, 'backward'); // null: no hidden run beside the cu
 - A construct the press unwraps hands its mark back. The delimiters are gone but the caret has not moved, so the kind goes pending (§ 4.3) and the next byte is written inside the construct again. That is what makes the next toggle chord turn the format off here, the job the visible empty pair does in the preview modes. Only a kind a chord can write comes back; a link the cut emptied leaves nothing pending.
 - A press this branch owns but can't rewrite soundly takes nothing, since the browser's version would paint the markers.
 - Chrome that paints (§ 4.1) isn't a hidden run, so the branch declines the block outright rather than reading its own bytes as unseen.
-- A block's own hidden structure gets the same first claim: `contentStartBackspace: 'demote-first'` makes Backspace at a heading's content start give up its markers (the `## ` and any closing `#` run, or the underline) before any merge. That's the first press a user can aim at markers they can't see.
+- A block's own hidden structure gets the same first claim: `contentStart: { range, backspace: 'demote-first' }` in a kind's registration makes Backspace at a heading's content start give up its markers (the `## ` and any closing `#` run, or the underline) before any merge. That's the first press a user can aim at markers they can't see.
 
 The fallback these rules share is § 2's. Where no candidate survives the painter, the byte-literal edit is written and the delimiters it surfaces paint, so the reader sees what happened and can undo it. Two shapes reach it: a `plain` construct's split, and a typed byte whose whole screen position rebinds the parse (§ 4.2).
 

@@ -63,8 +63,8 @@ test.describe('reserved child-0 chrome: structural ops + paste', () => {
 		await editor.focusBlockAtPath([1, 0], 0); // start of "Title"
 		await editor.pressDeclined('Backspace');
 
-		// The callout declares `firstChildBackspace: 'keep-reserved-chrome'`, which says child 0 is
-		// its title row, so nothing is lifted out and the title is neither moved nor destroyed.
+		// The callout declares its title row as `reservedChrome`, which keeps child 0 in place on
+		// Backspace, so nothing is lifted out and the title is neither moved nor destroyed.
 		const callout = await readCallout(page, 1);
 		expect(callout.rootCount).toBe(2);
 		expect(callout.childCount).toBe(2);

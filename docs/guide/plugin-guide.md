@@ -492,7 +492,7 @@ Every surface that hands your plugin a node to **read** types it as a view: `Nod
 Two lists cover the whole read side:
 
 - **What the readonly covers:** `raw`, `kind`, `metadata` (the typed per-node data a plugin stores beside the bytes), trivia (the preserved blank-line bytes around a block, the `leadingTrivia` your parrot opener copied), and the children structure.
-- **Where views arrive:** `BlockComponentProps.node` / `document`, `EditorContext.document` (defined in the next section), a decoration source's `provide(document, …)`, the descriptor read hooks (`getContentRange`, `estimateHeight`, `reservedChrome.isCollapsed`, `reservedChrome.expandPatch`), and the command contexts.
+- **Where views arrive:** `BlockComponentProps.node` / `document`, `EditorContext.document` (defined in the next section), a decoration source's `provide(document, …)`, the descriptor read hooks (`contentStart.range`, `estimateHeight`, `reservedChrome.isCollapsed`, `reservedChrome.expandPatch`), and the command contexts.
 
 `CstNode` and `Document` stay the shapes a plugin **constructs and owns**: an opener or directive factory builds a `CstNode`, and `rebuildRaw` receives one to write, because that call hands it an owned node, which is exactly when a byte write is legal. A document you parsed yourself is mutable, and feeds every view-typed parameter with no conversion.
 
@@ -728,13 +728,11 @@ function registerConspiracy(): void {
 			// trips a dev assertion the moment someone edits a conspiracy with a blank first line.
 			bodyWrap: DIRECTIVE_BODY_WRAP,
 			reservedChrome: { kind: conspiracyTitle },
-			// Child 0 is the title, so Backspace at its start must not lift it out of the
-			// conspiracy. A container whose child 0 is body lifts instead:
-			// `'lift-first-child-keep-container'`, or `'-drop-opener'` for a quote shape.
-			unwrapRole: {
-				firstChildBackspace: 'keep-reserved-chrome',
-				middleChildBackspace: 'default-merge'
-			}
+			// Child 0 is the title, and Backspace at its start never lifts it out, so you only
+			// say what Backspace does between body children. A container whose child 0 is body
+			// also picks a first-child strategy: `'lift-first-child-keep-container'`, or
+			// `'lift-first-child-drop-opener'` for a quote shape.
+			unwrapRole: { middleChildBackspace: 'default-merge' }
 			// Declare `reorderChildren` here if your container's direct children should
 			// reorder among themselves (drag, or Alt+ArrowUp/ArrowDown). Absent, a child's
 			// reorder resolves at an ancestor instead, which moves the whole container
