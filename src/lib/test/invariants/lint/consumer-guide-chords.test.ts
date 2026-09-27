@@ -440,9 +440,9 @@ const UNLISTED_BY_DESIGN: Record<ClaimKey, string> = {
 		'components/blocks/table/TableBlock.svelte',
 		'the Tables preamble documents it in prose as the keyboard route to the cell menu'
 	),
-	...unlisted(['Mod+A'], 'components/blocks/table/cell-keydown-plan.ts', SELECTION_PREAMBLE),
+	...unlisted(['Mod+A'], 'schema/keybindings.ts', SELECTION_PREAMBLE),
 	...unlisted(
-		['Mod+A', 'Mod+Shift+Home', 'Mod+Shift+End', ...SHIFT_ARROWS],
+		['Mod+Shift+Home', 'Mod+Shift+End', ...SHIFT_ARROWS],
 		'selection/cross-block/keydown.ts',
 		SELECTION_PREAMBLE
 	),

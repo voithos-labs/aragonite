@@ -11,7 +11,7 @@ import type { AnyBlockKind, CstNode, Document } from '../../core/nodes';
 import { performCrossBlockDelete, performCrossBlockDeleteSync, rangeUndoStep } from './ops';
 import { blockNodeAt, isBlockNode } from '../../tree-operations/node-primitives';
 import { isReadingMode } from '../../presentation-mode';
-import { eventToChord } from '../../schema/keybindings';
+import { eventToChord, isSelectAllChord } from '../../schema/keybindings';
 import { dispatchKeyCommand } from '../../schema/block-commands';
 import { commandForKey } from '../../schema/commands';
 import type { AnyCommandId } from '../../schema/command-id';
@@ -234,7 +234,7 @@ async function handleCrossBlockActive(
 		return true;
 	}
 
-	if ((e.ctrlKey || e.metaKey) && e.key === 'a' && !e.shiftKey) {
+	if (isSelectAllChord(e)) {
 		e.preventDefault();
 		selectWholeDocument(selection, doc, getBlockElByPath);
 		return true;
@@ -252,7 +252,7 @@ async function handleCrossBlockEntry(
 	if (!el) return false;
 	const { selection, getDoc } = ctx;
 
-	if ((e.ctrlKey || e.metaKey) && e.key === 'a' && !e.shiftKey) {
+	if (isSelectAllChord(e)) {
 		e.preventDefault();
 		selection.incrementSelectAllCount();
 		if (selection.selectAllCount === 1) {

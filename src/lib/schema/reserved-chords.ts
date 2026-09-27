@@ -36,8 +36,8 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 	{
 		file: 'components/editor-root-keydown.ts',
 		chords: [],
-		keys: ['Escape'],
-		note: 'Escape closes the find bar (a reserved UI chord, enumerated). The modifier read is a refusal: an unchorded character over a live range is written as text, a chorded one goes to the handlers below it.'
+		keys: ['Escape', 'H'],
+		note: 'Escape closes the find bar, and Mod+H picks the replace row as the bar opens (reserved UI chords, enumerated). The modifier read is a refusal: an unchorded character over a live range is written as text, a chorded one goes to the handlers below it.'
 	},
 	{
 		file: 'components/editor-root-listeners.ts',
@@ -116,19 +116,8 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 	},
 	{
 		file: 'components/blocks/table/cell-keydown-plan.ts',
-		chords: ['Mod+A', 'Shift+Tab'],
-		keys: [
-			'A',
-			'ArrowDown',
-			'ArrowLeft',
-			'ArrowRight',
-			'ArrowUp',
-			'Backspace',
-			'Delete',
-			'Enter',
-			'Tab',
-			'a'
-		]
+		chords: ['Shift+Tab'],
+		keys: ['ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'Backspace', 'Delete', 'Enter', 'Tab']
 	},
 	{
 		file: 'components/blocks/text/TextEditableBlock.svelte',
@@ -245,14 +234,13 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 	},
 	{
 		file: 'schema/keybindings.ts',
-		chords: [],
-		keys: [],
-		note: 'The normalizer every other site reads.'
+		chords: ['Mod+A'],
+		keys: ['A'],
+		note: 'The normalizer every other site reads, and the select-all predicate every block asks.'
 	},
 	{
 		file: 'selection/cross-block/keydown.ts',
 		chords: [
-			'Mod+A',
 			'Mod+Shift+Home',
 			'Mod+Shift+End',
 			'Shift+ArrowUp',
@@ -277,7 +265,6 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 			'K',
 			'Tab',
 			'X',
-			'a',
 			'b',
 			'e',
 			'i',
@@ -301,19 +288,7 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 	{
 		file: 'selection/shared-keydown.ts',
 		chords: ['Shift+ArrowUp', 'Shift+ArrowDown', 'Shift+ArrowLeft', 'Shift+ArrowRight'],
-		keys: [
-			'Alt',
-			'AltGraph',
-			'ArrowDown',
-			'ArrowLeft',
-			'ArrowRight',
-			'ArrowUp',
-			'CapsLock',
-			'Control',
-			'Meta',
-			'Shift',
-			'a'
-		],
+		keys: ['ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowUp'],
 		note: 'Extends across a block boundary once the native extend runs out of room.'
 	}
 ];

@@ -42,13 +42,27 @@ function normalizeKey(key: string): string {
 	return key.length === 1 ? key.toUpperCase() : key;
 }
 
-export function eventToChord(e: KeyboardEvent): string | null {
+/** The fields of a keydown a chord is read from; a `KeyboardEvent` is one. */
+export type ChordKeys = Pick<KeyboardEvent, 'key' | 'ctrlKey' | 'metaKey' | 'altKey' | 'shiftKey'>;
+
+export function eventToChord(e: ChordKeys): string | null {
 	if (BARE_MODIFIERS.has(e.key)) return null;
 	const mods: string[] = [];
 	if (e.ctrlKey || e.metaKey) mods.push('Mod');
 	if (e.altKey) mods.push('Alt');
 	if (e.shiftKey) mods.push('Shift');
 	return [...mods, normalizeKey(e.key)].join('+');
+}
+
+/** Mod+A, CapsLock or not (CapsLock uppercases the key without a Shift). Select-all is a browser
+ *  chord rather than a keymap command, so every block asks this one predicate. */
+export function isSelectAllChord(e: ChordKeys): boolean {
+	return eventToChord(e) === 'Mod+A';
+}
+
+/** Whether a key ends a run of select-all presses: any chord but Mod+A. A held modifier doesn't. */
+export function endsSelectAllRun(e: ChordKeys): boolean {
+	return eventToChord(e) !== null && !isSelectAllChord(e);
 }
 
 export function normalizeChord(chord: string): string {

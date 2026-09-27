@@ -3,7 +3,7 @@
 	import type { ContentWrite, TableContext } from '../../../action-contracts';
 	import { type BlockComponent } from '../../../block-component';
 	import { type CommandId } from '../../../schema/commands';
-	import { eventToChord } from '../../../schema/keybindings';
+	import { endsSelectAllRun } from '../../../schema/keybindings';
 	import {
 		createInlineFormatActiveMemo,
 		toggleInlineFormat
@@ -96,9 +96,6 @@
 	import { enterLinkCardAtCaret, linkCardTargetAt } from '../../link-card/link-card-entry';
 
 	type ExitDirection = 'up' | 'down';
-
-	// The chord that continues a select-all run rather than ending it.
-	const SELECT_ALL_CHORD = 'Mod+A';
 
 	let {
 		node,
@@ -439,7 +436,8 @@
 		const plan = cellKeydownPlan(
 			{
 				key: id === 'cell.enter' ? 'Enter' : 'Tab',
-				ctrlOrMeta: false,
+				ctrlKey: false,
+				metaKey: false,
 				shiftKey: id === 'cell.shiftTab',
 				altKey: false
 			},
@@ -584,9 +582,8 @@
 		if (composing || !el) return;
 
 		// Ahead of the plan: the shared handling's reset runs only on the 'native' branch, so a
-		// key the plan takes would leave the select-all run active. A bare modifier gives null.
-		const chord = eventToChord(e);
-		if (chord !== null && chord !== SELECT_ALL_CHORD) selection.resetSelectAllCount();
+		// key the plan takes would leave the select-all run active.
+		if (endsSelectAllRun(e)) selection.resetSelectAllCount();
 
 		// Must run before `cellKeydownPlan`, which takes arrows and calls `preventDefault`
 		// without reaching here, leaving a live selection the next keystroke would replace.
@@ -620,10 +617,7 @@
 		};
 		if (wiring.dispatchChord(e, target)) return;
 
-		const plan = cellKeydownPlan(
-			{ key: e.key, ctrlOrMeta: e.ctrlKey || e.metaKey, shiftKey: e.shiftKey, altKey: e.altKey },
-			cellPlanState(caretBeforeKey)
-		);
+		const plan = cellKeydownPlan(e, cellPlanState(caretBeforeKey));
 
 		switch (plan.kind) {
 			case 'native': {

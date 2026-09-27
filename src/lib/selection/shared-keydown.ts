@@ -20,7 +20,7 @@ import {
 import { getCurrentCursorEditorRelativeX } from '../cursor/sticky-measure';
 import { landableRawBounds } from '../cursor/widget-offset';
 import { isAtFirstVisualLine, isAtLastVisualLine } from '../cursor/visual-lines';
-import { eventToChord } from '../schema/keybindings';
+import { endsSelectAllRun, eventToChord } from '../schema/keybindings';
 import { isDefaultGlobalChord } from '../schema/commands';
 
 // ── Public API ─────────────────────────────────────────────────────────────
@@ -52,19 +52,7 @@ export async function handleSharedKeydown(
 	e: KeyboardEvent,
 	ctx: SharedKeydownContext
 ): Promise<boolean> {
-	// Bare modifier keys don't reset the Ctrl+A doubling counter: pressing Control before 'a' is
-	// part of the chord, not a separate action.
-	const isCtrlA = (e.ctrlKey || e.metaKey) && e.key === 'a' && !e.shiftKey;
-	const isBareModifier =
-		e.key === 'Control' ||
-		e.key === 'Shift' ||
-		e.key === 'Alt' ||
-		e.key === 'Meta' ||
-		e.key === 'AltGraph' ||
-		e.key === 'CapsLock';
-	if (!isCtrlA && !isBareModifier) {
-		ctx.selection.resetSelectAllCount();
-	}
+	if (endsSelectAllRun(e)) ctx.selection.resetSelectAllCount();
 
 	if (await ctx.crossBlock.handleKeyDown(e)) return true;
 
