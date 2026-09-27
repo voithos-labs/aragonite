@@ -2,7 +2,7 @@
 
 Both preview modes show a block's markers once it has focus: prose shows its `**` and `#`,
 a code block shows its fence lines. The browser focuses a block on the press itself, and
-then works out where the caret goes, so a reveal that paints on focus moves the text under
+then works out where the caret goes, so showing the markers on focus moves the text under
 the pointer before the browser looks. So which block shows its markers doesn't change while
 the button is down: the caret or the selection's anchor lands on the character you pressed
 on, and the markers show once the button comes up.

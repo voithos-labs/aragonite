@@ -32,9 +32,8 @@ export function createFocusAttribution(deps: FocusAttributionDeps): FocusAttribu
 	let paintedHostEl: HTMLElement | null = null;
 	let pressHeld = false;
 
-	// Only in preview modes, so source and reading DOM stay byte-identical. A press focuses its
-	// block before the browser places the caret, so markers shown then would move the text under
-	// the pointer; the paint catches up on release.
+	// Preview modes only, so source and reading DOM stay byte-identical; a held press keeps the old
+	// paint so markers can't move the text the caret is about to land in.
 	function applyFocusedAttr(): void {
 		if (pressHeld) return;
 		const next = isPreviewMode(deps.mode) ? focusedHostEl : null;
@@ -52,6 +51,13 @@ export function createFocusAttribution(deps: FocusAttributionDeps): FocusAttribu
 	function clear(): void {
 		focusedPath = null;
 		setFocusedHost(null);
+	}
+
+	// A release the page never hears (focus or the window left mid-press) must not strand the paint.
+	function endPress(): void {
+		if (!pressHeld) return;
+		pressHeld = false;
+		applyFocusedAttr();
 	}
 
 	function install(root: HTMLElement): () => void {
@@ -74,24 +80,21 @@ export function createFocusAttribution(deps: FocusAttributionDeps): FocusAttribu
 		const onFocusOut = (e: FocusEvent) => {
 			const next = e.relatedTarget as Node | null;
 			if (next && root.contains(next)) return; // moving between blocks: keep the focused path
+			pressHeld = false;
 			clear();
 		};
 		const onPress = (e: PointerEvent) => {
 			if (e.button === 0) pressHeld = true;
-		};
-		// Cancel too: a drag of the selection itself ends in pointercancel, never pointerup.
-		const onRelease = () => {
-			if (!pressHeld) return;
-			pressHeld = false;
-			applyFocusedAttr();
 		};
 		const doc = root.ownerDocument;
 		return removeAll(
 			onRoot(root, 'focusin', onFocusIn),
 			onRoot(root, 'focusout', onFocusOut),
 			onRoot(root, 'pointerdown', onPress, { capture: true }),
-			onRoot(doc, 'pointerup', onRelease, { capture: true }),
-			onRoot(doc, 'pointercancel', onRelease, { capture: true })
+			onRoot(doc, 'pointerup', endPress, { capture: true }),
+			// A drag of the selection itself ends in pointercancel, never pointerup.
+			onRoot(doc, 'pointercancel', endPress, { capture: true }),
+			onRoot(doc.defaultView ?? window, 'blur', endPress)
 		);
 	}
 

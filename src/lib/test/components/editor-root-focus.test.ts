@@ -122,4 +122,26 @@ describe('editor-root focus attribution: data-focused', () => {
 			expect(e.marked()).toEqual([e.second.el]);
 		}
 	);
+
+	// Miss-analysis: the held-press rows all ended in a release, so none showed a press whose
+	// release never reaches the page leaving the old block painted.
+	it('focus leaves mid-press with no release: the mark goes with it', () => {
+		const e = editor('preview-block');
+		e.focusIn(e.first.leaf);
+		e.second.leaf.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, button: 0 }));
+		e.focusIn(e.second.leaf);
+		e.focusOut(e.second.leaf, null);
+		expect(e.marked()).toEqual([]);
+		e.focusIn(e.second.leaf);
+		expect(e.marked()).toEqual([e.second.el]);
+	});
+
+	it('the window losing focus mid-press repaints the focused block', () => {
+		const e = editor('preview-block');
+		e.focusIn(e.first.leaf);
+		e.second.leaf.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, button: 0 }));
+		e.focusIn(e.second.leaf);
+		window.dispatchEvent(new FocusEvent('blur'));
+		expect(e.marked()).toEqual([e.second.el]);
+	});
 });
