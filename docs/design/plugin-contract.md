@@ -340,7 +340,7 @@ The table lists the flat shape the editor reads back, which isn't quite what you
 
 **Combinations the types cannot refuse.** Most bad pairings get caught before a user ever meets them, just not all in the same place:
 
-- **They don't compile.** A leaf declaring a container field (G3.6). A content-start Backspace with no range, a whole-block kind that also parses inline syntax or reserves a title row, and a title-row container naming its own first-child Backspace strategy, where a lifting one would carry the title row out as a sibling block (G3.10).
+- **They don't compile.** A leaf declaring a container field (G3.6). A content-start Backspace with no range, a whole-block kind that also parses inline syntax or reserves a title row, and a title-row container naming its own first-child Backspace strategy, where a lifting one would carry the title row out as a sibling block (G3.10). A registration that skips the types (a cast, a plain JavaScript plugin) throws on those same pairs instead.
 - **They fail at registration.** The closure cells against the rest of the descriptor, an unknown merge role, and `contextDependentKind` beside a registered opener. That last pair is split across two registries, so no one type sees both halves.
 - **They fail the container conformance kit.** A declared unwrap strategy nobody implements.
 

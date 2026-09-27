@@ -804,12 +804,17 @@ focused as one unit (`blockFocus: 'whole-block'`, so `supportsInline: false`, no
 and no title row), or a block the caret enters. A content range and its Backspace behavior register
 together as `contentStart`, and a container with a title row declares only its middle-child unwrap
 strategy, since keeping the title row on Backspace is implied. `augmentBlockKind` takes none of
-these fields, so an augment can't assemble a pair behind the registration's back. One list,
-`FIXED_AT_REGISTRATION`, drives that type and a throw for a caller the types don't reach (a cast,
-plain JavaScript), pinned by `test/schema/augment-guard.test.ts`.
-`test/schema/descriptor-groups.types.test.ts` holds one `@ts-expect-error` per pair. Retired:
-G1.32 and four of G1.37's five pairs; G1.18's not-a-container branch, unreachable since G3.6, went
-with them.
+these fields, so an augment can't assemble a pair behind the registration's back.
+
+A cast or a plain JavaScript plugin never meets the types, so both calls throw at runtime too.
+`registerBlockKind` checks each pair against one table,
+`src/lib/schema/registration-pairs.ts :: INCOHERENT_REGISTRATION_PAIRS`, and `augmentBlockKind`
+refuses every field on one list,
+`src/lib/schema/block-kind-descriptor.ts :: FIXED_AT_REGISTRATION`, which also derives the augment
+type. `src/lib/test/schema/descriptor-groups.types.test.ts` holds one `@ts-expect-error` per pair,
+tagged with its table row's id, and `src/lib/test/schema/registration-pairs.test.ts` fails when a
+row and its pin don't match up. Retired: G1.32 and four of G1.37's five pairs as dev-time checks;
+G1.18's not-a-container branch, unreachable since G3.6, went with them.
 
 ## Group 4: source scans
 

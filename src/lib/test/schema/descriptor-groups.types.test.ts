@@ -22,23 +22,24 @@ const range = () => ({ start: 0, end: 0 });
 
 // ── Compile-time pins (G3.10) ───────────────────────────────────────────────
 // Never called: `npm run check` is the gate. An "unused '@ts-expect-error'" error means a
-// registration pairing two fields that can't mean anything together compiles again.
+// registration pairing two fields that can't mean anything together compiles again. A bracketed
+// id names the pair's runtime row in `schema/registration-pairs.ts`.
 const typePins = (): void => {
 	const kind = declarePluginKind('groups-pin');
 	const title = declarePluginKind('groups-pin-title');
 
-	// @ts-expect-error a content-start Backspace with no content range never fires
+	// @ts-expect-error [content-start-without-range] a content-start Backspace with no range never fires
 	registerBlockKind(kind, { ...leaf, contentStart: { backspace: 'demote-first' } });
 	// @ts-expect-error the flat content-start Backspace field is gone from the registration
 	registerBlockKind(kind, { ...leaf, contentStartBackspace: 'demote-first' });
 
-	// @ts-expect-error a whole-block unit has no caret positions for inline content to live at
+	// @ts-expect-error [whole-block-inline] a whole-block unit has no caret positions for inline content
 	registerBlockKind(kind, { ...leaf, blockFocus: 'whole-block', supportsInline: true });
 
-	// @ts-expect-error a whole-block unit has no caret, so there's no content start to Backspace at
+	// @ts-expect-error [whole-block-content-start] a whole-block unit has no caret, so no content start
 	registerBlockKind(kind, { ...leaf, blockFocus: 'whole-block', contentStart: { range } });
 
-	// @ts-expect-error a title row means the block is never childless, so whole-block focus never engages
+	// @ts-expect-error [whole-block-title-row] a title row means the block is never childless
 	registerBlockKind(kind, {
 		...leaf,
 		blockFocus: 'whole-block',
@@ -51,7 +52,7 @@ const typePins = (): void => {
 			...group,
 			reservedChrome: { kind: title },
 			unwrapRole: {
-				// @ts-expect-error lifting child 0 would carry the title row out as a sibling block
+				// @ts-expect-error [title-row-first-child-strategy] lifting child 0 carries the title row out
 				firstChildBackspace: 'lift-first-child-keep-container',
 				middleChildBackspace: 'default-merge'
 			}
@@ -63,7 +64,7 @@ const typePins = (): void => {
 		container: {
 			...group,
 			unwrapRole: {
-				// @ts-expect-error keeping a title row that isn't there makes Backspace a dead key
+				// @ts-expect-error [keep-title-row-without-one] keeping a missing title row is a dead key
 				firstChildBackspace: 'keep-reserved-chrome',
 				middleChildBackspace: 'default-merge'
 			}
@@ -76,7 +77,7 @@ const typePins = (): void => {
 			...group,
 			reservedChrome: { kind: title },
 			unwrapRole: {
-				// @ts-expect-error a title row implies its first-child strategy, so none is declared
+				// @ts-expect-error [title-row-first-child-strategy] a title row implies its own strategy
 				firstChildBackspace: 'keep-reserved-chrome',
 				middleChildBackspace: 'default-merge'
 			}

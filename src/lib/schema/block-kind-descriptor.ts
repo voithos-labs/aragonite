@@ -10,6 +10,7 @@ import type { ChildRawChange } from './child-spans';
 import type { ClosureBlock } from './closure';
 import { registeredChord, type KeyBinding } from './keybindings';
 import type { HeightEstimateEnv } from './height-estimates';
+import { rejectIncoherentPairs } from './registration-pairs';
 
 /**
  * The Backspace-merge roles (`docs/design/editor.md` § Merge eligibility: roles, not pairs).
@@ -434,6 +435,7 @@ const registry = createPluginRegistry<AnyBlockKind, BlockKindDescriptor>({
 export function registerBlockKind(kind: AnyBlockKind, registration: BlockKindRegistration): void {
 	rejectBlankLabel('registerBlockKind', kind, 'label', registration.label);
 	rejectBlankLabel('registerBlockKind', kind, 'dragLabel', registration.dragLabel);
+	rejectIncoherentPairs(kind, registration);
 	const descriptor = normalizeRegistration(registration);
 	if (descriptor.keymap)
 		descriptor.keymap = registeredKeymap('registerBlockKind', kind, descriptor.keymap);
