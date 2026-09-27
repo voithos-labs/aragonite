@@ -138,6 +138,11 @@ export function fenceAnatomy(raw: string, fence?: FenceRun): FenceAnatomy | null
 export function matchFenceInfo(token: string): (text: string) => FenceOpen | null {
 	return (text) => {
 		const fence = matchFenceOpen(text);
-		return fence && fence.info.split(WHITESPACE_RUN)[0] === token ? fence : null;
+		return fence && fenceLanguage(fence.info) === token ? fence : null;
 	};
+}
+
+/** An info string's first word, which names the fence's language; empty when there is none. */
+export function fenceLanguage(info: string): string {
+	return trimWhitespace(info).split(WHITESPACE_RUN)[0];
 }

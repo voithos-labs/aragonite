@@ -74,6 +74,12 @@ registerBlockCompleter(declarePluginKind('spec-empty'), {
 			: null
 });
 
+// A non-breaking space draws a character, so its completion is kept.
+registerBlockCompleter(declarePluginKind('spec-nbsp'), {
+	tryComplete: (line) =>
+		line === 'nbsp me' ? { lines: [' '], caret: { path: [], line: 0, column: 0 } } : null
+});
+
 describe('Enter completion: which presses reach a completer', () => {
 	it('claims a lone header row with the caret at its end', () => {
 		expect(planEnterCompletion(leaf('| a | b |\n'), 9, defaultGrammarView, '\n')).not.toBeNull();
@@ -186,6 +192,11 @@ describe('Enter completion: what the composed split commits', () => {
 		await seamOver(scope).splitBlock(0, line.length);
 		expect(commits[0].op.kind).toBe('split');
 		expect(children.map((c) => c.raw)).toEqual([raw, '\n']);
+	});
+
+	it('takes a completion whose only line is a non-breaking space, which is content', () => {
+		const raw = 'nbsp me\n';
+		expect(planEnterCompletion(leaf(raw), 7, defaultGrammarView, '\n')).not.toBeNull();
 	});
 
 	it('falls through on a single-cell row the table scan would reject', async () => {

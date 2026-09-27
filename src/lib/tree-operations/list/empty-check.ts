@@ -1,4 +1,5 @@
 import type { NodeView } from '../../core/node-views';
+import { isBlankText } from '../../core/lines';
 
 /**
  * A list item is "user-empty" when every leaf descendant's raw is blank. Deliberately
@@ -10,7 +11,7 @@ export function isItemUserEmpty(item: NodeView): boolean {
 	for (const child of item.children) {
 		if (child.children && child.children.length > 0) {
 			if (!isItemUserEmpty(child)) return false;
-		} else if ((child.raw ?? '').trim() !== '') {
+		} else if (!isBlankText(child.raw ?? '')) {
 			return false;
 		}
 	}

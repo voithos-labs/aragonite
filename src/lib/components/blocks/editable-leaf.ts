@@ -47,7 +47,12 @@ import { resetForPointerDown } from '../../selection/cross-block/pointer';
 import { placeCaret } from '../../selection/caret-doors';
 import { createSourceReveal } from '../../cursor/reveal-source';
 import { traceRevealOpen, traceRevealFold } from '../../debug/interaction-trace';
-import { documentLineEnding, trimTrailingLineEnding, trailingLineEnding } from '../../core/lines';
+import {
+	documentLineEnding,
+	isBlankText,
+	trimTrailingLineEnding,
+	trailingLineEnding
+} from '../../core/lines';
 import type { PresentationMode } from '../../presentation-mode';
 import { tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
 import { type CommandId } from '../../schema/commands';
@@ -620,7 +625,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 				offset !== null &&
 				(offset === 0 || /\s/.test(text[offset - 1] ?? '')) &&
 				!hasSelectionIn(el) &&
-				chromeFreeText(el).trim() === ''
+				isBlankText(chromeFreeText(el))
 			) {
 				e.preventDefault();
 				revealedBase = null;

@@ -6,6 +6,7 @@
  */
 
 import type { NodeView } from '../node-views';
+import { isBlankText } from '../lines';
 import { getInlineContent } from './inline-cache';
 import { isInlineWidget, isCharacterLikeWidget } from './inline-widgets';
 import type { GrammarView } from '../../schema/block-openers';
@@ -45,7 +46,7 @@ function isTransparentLeaf(node: NodeView, grammar: GrammarView): boolean {
 			if (isCharacterLikeWidget(inline.kind, grammar)) return false;
 			continue;
 		}
-		if (inline.kind === 'text' && (inline.text ?? '').trim() === '') continue;
+		if (inline.kind === 'text' && isBlankText(inline.text ?? '')) continue;
 		return false;
 	}
 	return true;

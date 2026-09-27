@@ -5,6 +5,7 @@
  */
 
 import type { AnyInlineKind, InlineNode } from '../../../core/nodes';
+import { isBlankText } from '../../../core/lines';
 import { isInlineWidget, flattenInlineWidgets } from '../../../core/inline/inline-widgets';
 import type { GrammarView } from '../../../schema/block-openers';
 
@@ -68,7 +69,7 @@ export function findFirstEdgeWidget(
 ): InlineNode | null {
 	for (const inline of inlines) {
 		if (isInlineWidget(inline, raw, grammar)) return inline;
-		if (inline.kind === 'text' && (inline.text ?? '').trim() === '') continue;
+		if (inline.kind === 'text' && isBlankText(inline.text ?? '')) continue;
 		return null;
 	}
 	return null;
@@ -83,18 +84,18 @@ export function findLastEdgeWidget(
 	for (let i = inlines.length - 1; i >= 0; i--) {
 		const inline = inlines[i];
 		if (isInlineWidget(inline, raw, grammar)) return inline;
-		if (inline.kind === 'text' && (inline.text ?? '').trim() === '') continue;
+		if (inline.kind === 'text' && isBlankText(inline.text ?? '')) continue;
 		return null;
 	}
 	return null;
 }
 
 export function rawHasNoTextBefore(raw: string, offset: number): boolean {
-	return raw.slice(0, offset).trim() === '';
+	return isBlankText(raw.slice(0, offset));
 }
 
 export function rawHasNoTextAfter(raw: string, offset: number): boolean {
-	return raw.slice(offset).trim() === '';
+	return isBlankText(raw.slice(offset));
 }
 
 /** The inline-widget element whose source starts at `start`, or null. The only place this

@@ -17,7 +17,7 @@ import {
 	paintsOnlyChrome,
 	renderedText
 } from '../../../core/inline/visibility';
-import { trimTrailingLineEnding } from '../../../core/lines';
+import { isBlankText, trimTrailingLineEnding } from '../../../core/lines';
 import type { Reading } from '../../../schema/reading';
 import type { GrammarView } from '../../../schema/block-openers';
 import type { RenderInlineOptions } from '../../../core/inline-render';
@@ -75,7 +75,7 @@ export const cleanLiveJoinSeam: LiveJoinSeamCleaner = (join) => {
 		// The split half's trailing-whitespace rule, applied to the join: a survivor that is only
 		// whitespace draws nothing and reparses as a blank line, not the block that was written.
 		const display = trimTrailingLineEnding(candidate);
-		if (display !== '' && display.trim() === '') {
+		if (display !== '' && isBlankText(display)) {
 			return { raw: candidate.slice(display.length), seam: 0 };
 		}
 		return { raw: candidate, seam };

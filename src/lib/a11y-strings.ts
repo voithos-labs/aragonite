@@ -14,6 +14,7 @@ import {
 } from './core/nodes';
 import { tryGetBlockKindDescriptor } from './schema/block-kind-descriptor';
 import { shownKind } from './core/parsers/heading';
+import { fenceLanguage } from './core/parsers/fence-syntax';
 
 // ── Editor controls ──────────────────────────────────────────────────────────
 
@@ -85,7 +86,7 @@ export function blockAccessibleName(node: NodeView): string {
 	const level = headingLevel(node);
 	if (level !== null) return `${label} level ${level}`;
 	if (node.kind === 'fencedCode') {
-		const language = metadataOf(node, 'fencedCode').info.trim().split(/\s+/)[0];
+		const language = fenceLanguage(metadataOf(node, 'fencedCode').info);
 		if (language) return `${label}, ${language}`;
 	}
 	return label;

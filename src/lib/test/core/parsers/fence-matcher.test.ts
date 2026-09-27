@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
 	matchFenceOpen,
 	matchFenceClose,
-	escalatedFenceLength
+	escalatedFenceLength,
+	fenceLanguage,
+	matchFenceInfo
 } from '$lib/core/parsers/fence-syntax';
 
 // Re-exported on `@voithos-labs/aragonite/plugin`, so the shape is pinned directly: a byte-exact rebuild
@@ -104,5 +106,20 @@ describe('escalatedFenceLength', () => {
 
 	it('declines a four-space-indented run, as the parser does', () => {
 		expect(escalatedFenceLength('    ```', '`', 3)).toBe(3);
+	});
+});
+
+// Every reader of a fence's language (plugin claims, the highlighter, the language chip, the
+// accessible name) takes the first word, split on GFM whitespace only.
+describe('fenceLanguage and matchFenceInfo', () => {
+	it('reads the first word of the info string', () => {
+		expect(fenceLanguage(' js {1-3} ')).toBe('js');
+		expect(fenceLanguage('')).toBe('');
+	});
+
+	it('keeps a non-breaking space inside the word', () => {
+		expect(fenceLanguage('mermaid x')).toBe('mermaid x');
+		expect(matchFenceInfo('mermaid')('```mermaid x')).toBeNull();
+		expect(matchFenceInfo('mermaid')('```mermaid x')).not.toBeNull();
 	});
 });

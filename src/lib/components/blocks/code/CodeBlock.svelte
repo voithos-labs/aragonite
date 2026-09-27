@@ -57,6 +57,7 @@
 	import { metadataOf, type CstNode } from '../../../core/nodes';
 	import {
 		documentLineEnding,
+		isBlankText,
 		trimTrailingLineEnding,
 		trailingLineEnding
 	} from '../../../core/lines';
@@ -227,7 +228,7 @@
 		// A caret that stepped into an existing fence is passing through, and a picker would trap
 		// it; a click or an insert command records no arrival key, and that is the user authoring.
 		const steppedIn = metadataOf(node, 'fencedCode').closed && caretMemory.side() !== null;
-		const offerLanguage = infoString === '' && bodyText().trim() === '' && !steppedIn;
+		const offerLanguage = infoString === '' && isBlankText(bodyText()) && !steppedIn;
 		// Deferred past the commit's own caret placement, which focuses this block a second time
 		// and would blur a picker opened on the first. A bare fence is completed before it opens.
 		void tick().then(() => {
@@ -257,7 +258,7 @@
 		const ending = blockEnding();
 		const offset = backend.getRaw() ?? 0;
 		if (!meta.closed) {
-			if (slice.body.trim() !== '') return false;
+			if (!isBlankText(slice.body)) return false;
 			const closer = meta.fenceMarker.repeat(meta.fenceLength);
 			const completed = text + ending + ending + closer;
 			pendingCursorOffset = commitDisplay(completed, offset, text.length + ending.length);
@@ -581,7 +582,7 @@
 		) {
 			// At the top of an empty fence the key can only mean the block, so it goes; a fence
 			// with a body keeps the step-out, since one keypress must never take code with it.
-			if (bodyText().trim() === '') {
+			if (isBlankText(bodyText())) {
 				void blockEdit.deleteBlock(index);
 				focusActions.moveFocus(index - 1, 'end');
 				return true;
