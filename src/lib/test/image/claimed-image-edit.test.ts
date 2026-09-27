@@ -1,8 +1,7 @@
 // @vitest-environment jsdom
 /**
- * Editing an image whose bytes a plugin's inline syntax handler owns: its hook writes them, or
- * nothing does. Both entry points are driven, since each called the GFM serializer on its own
- * before they shared one path. Contract: docs/design/plugin-contract.md § Inline authoring.
+ * Editing an image whose bytes a plugin's inline syntax handler owns: its hook writes them from
+ * either entry point, or nothing does. See docs/design/plugin-contract.md § Inline authoring.
  */
 
 import { defaultGrammarView } from '$lib/schema/block-openers';

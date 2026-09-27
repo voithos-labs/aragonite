@@ -44,8 +44,7 @@ describe('assertInvariant: dev-runtime channel', () => {
 		expect(check).not.toHaveBeenCalled();
 	});
 
-	// Miss-analysis: every suite runs with DEV already true, so the published override was never
-	// tried on a build where DEV is false, which is what a runner resolving no conditions gets.
+	// Miss-analysis: every suite runs with DEV true, so no test tried the override with DEV false.
 	it('runs the predicate when configureEditorEnv turns dev on over a build where DEV is false', async () => {
 		vi.resetModules();
 		vi.doMock('esm-env', () => ({ DEV: false }));

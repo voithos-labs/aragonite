@@ -1,9 +1,7 @@
 // The growth harness's own calibration: a floor under the small sample, an estimator that reads a
 // linear scan as linear even while interference scales with sample duration, and the power to still
 // call a quadratic scan quadratic.
-//
-// Miss-analysis: the harness had no test of its own: its noise floor was implicit and no case ever
-// sampled it under load, so the duration bias in a best-of only surfaced on a slow CI runner.
+// Miss-analysis: the harness had no test of its own, so its best-of bias surfaced only on slow CI.
 import { describe, it, expect } from 'vitest';
 import {
 	BOUNDED_GROWTH_CEILING,
@@ -129,9 +127,8 @@ describe('measureScanGrowth calibration', () => {
 		expect(quadraticGrowth.attempts).toBe(MAX_ATTEMPTS);
 	});
 
-	// The runner failure this guards against: a linear scan priced on a loaded machine.
-	// Interference scales with a sample's length, so the estimator alone has to read 4, with no
-	// retry to lean on.
+	// A linear scan priced on a loaded machine, where interference scales with a sample's length:
+	// the estimator alone has to read 4, with no retry to lean on.
 	it('reads a linear scan as linear while interference scales with sample duration', () => {
 		const loaded = virtualScan(linear(CLEARS_FLOOR_AT_32KB), stallStream(2654435761));
 		const growth = measureScanGrowth(loaded.run, 'x', [32, 128], loaded.now);

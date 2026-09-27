@@ -27,9 +27,8 @@ export function recognizeWikiImage(raw: string, pos: number, end: number): Inlin
 	};
 }
 
-/** `![[…]]` holds a target and an optional width and nothing else, so a title, a reference
- *  label, or an alt edited away from that target cannot be written in this grammar and the
- *  hook refuses. */
+/** `![[…]]` holds only a target and a width, so the hook refuses a title, a reference label,
+ *  or an alt edited away from the target. */
 export function rewriteWikiImage(source: string, fields: ImageFields): string | null {
 	if (!source.startsWith('![[')) return null;
 	if (fields.title !== undefined || fields.label !== undefined) return null;

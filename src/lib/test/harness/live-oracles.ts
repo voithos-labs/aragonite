@@ -8,11 +8,8 @@ import { constructContentRange, parseInline } from '$lib/core/inline';
 import type { InlineNode } from '$lib/core/nodes';
 import { getInlineConstructPolicy } from '$lib/schema/inline-construct-policy';
 
-/**
- * The leftovers § 4.1 forbids, inside one block's content: a construct whose row declares
- * `autoUnwrapOnEmpty` standing over nothing. Read off the parse and the table rather than off a
- * delimiter spelling, so every row answers for itself and two legitimate runs meeting do not count.
- */
+/** The leftovers § 4.1 forbids: an emptied construct whose row declares `autoUnwrapOnEmpty`. Read
+ *  off the parse, not a delimiter spelling, so two legitimate runs meeting do not count. */
 export function emptyConstructSpans(
 	raw: string,
 	content: { start: number; end: number }
@@ -38,11 +35,8 @@ export function emptyConstructSpans(
 	return spans;
 }
 
-/**
- * Whether `inner` can be read off `outer` by deleting characters, which is the shape of a rewrite
- * that only ever drops runs from the bytes it was handed. Code units, not code points: an offset
- * is a code-unit index everywhere in the editor, so a lone surrogate is a byte like any other.
- */
+/** Whether `inner` can be read off `outer` by deleting characters: a rewrite that only drops runs.
+ *  Compares code units, since every editor offset is a code-unit index. */
 export function isSubsequence(inner: string, outer: string): boolean {
 	let at = 0;
 	for (let i = 0; i < outer.length; i++) {
@@ -54,9 +48,8 @@ export function isSubsequence(inner: string, outer: string): boolean {
 /** Every non-line-ending byte of `before` still present in `after`, as a multiset over code units.
  *  Relaxed from equality because closing and reopening a construct duplicates its delimiter run. */
 export function keepsEveryByte(before: string, after: string): boolean {
-	// Restated rather than borrowed: the rebalancer strips `droppedTail` before returning its
-	// halves, so what is forgiven is bounded by the line-ending whitespace `before` holds. Checking
-	// the exact position would make this an echo of the code under test, not a check on it.
+	// Only the line-ending whitespace `before` holds may go; matching the rebalancer's exact
+	// position would echo the code under test instead of checking it.
 	let droppable = (before.match(/[ \t]+(?=\r?\n|$)/g) ?? []).join('').length;
 	const budget = new Map<string, number>();
 	for (const byte of after.replace(/\r?\n/g, '').split('')) {

@@ -11,8 +11,8 @@ export interface StubScrollportOpts {
 	 *  the scroller: a page-scrolled shell puts its own header in front of the editor. */
 	viewportTop?: number;
 	contentWidth?: number;
-	/** The browser's own clamp, which a plain property cannot model: a scroll past the
-	 *  content end is refused, so an anchor can never hold a target beyond it. */
+	/** The browser's own clamp, which a plain property cannot model: a scroll past the content
+	 *  end is refused, so the block held in place can never sit beyond it. */
 	maxScrollTop?: number;
 	/** Round each write to a whole pixel and report the rounded value back, as a real scroller
 	 *  does at device-pixel ratio 1: the other half of what a plain property cannot model. */

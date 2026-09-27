@@ -123,9 +123,7 @@ describe('applyIslandDecorations', () => {
 		expect(frag.textContent).toBe('## ');
 	});
 
-	// Miss-analysis: this pass never saw the document its decorations came from, and no test
-	// gave it a mismatched pair, so the one case it cannot judge, a decoration the document has
-	// since outgrown, was the one it reported as an authoring error.
+	// Miss-analysis: no test gave the pass a decoration its document had outgrown.
 	it('a widget the content no longer holds is dropped silently: staleness is not the author’s', () => {
 		const raw = 'short';
 		const frag = build(raw);
@@ -139,7 +137,7 @@ describe('applyIslandDecorations', () => {
 		expect(frag.textContent).toBe(raw);
 	});
 
-	// A `replace` widget holds bytes the DOM text no longer has, so a bound measured from this
+	// A `replace` widget holds bytes missing from the DOM text, so a bound measured from this
 	// pass's own output would shrink underneath it. The check reads the CST's answer instead.
 	it('re-applies over a range a mounted widget already covers', () => {
 		const raw = 'hide **me** now';
@@ -177,9 +175,8 @@ function buildWithAtomicWidget(
 	return frag;
 }
 
-// A range of text positions cannot split a widget, so a boundary strictly inside one snaps
-// outward. The only test for that branch: the property suite's corpus emits no widgets, so its
-// descending pass never reaches it.
+// A range of text positions cannot split a widget, so a boundary inside one snaps outward. The
+// property suite's corpus emits no widgets, so only this test reaches that branch.
 describe('replace boundary inside an atomic widget snaps outward', () => {
 	const raw = 'abIMAGEcd'; // 'ab' + widget over raw[2,7)='IMAGE' + 'cd'
 	const cases = [

@@ -66,9 +66,8 @@ describe('search as decoration source', () => {
 		expect(engine.marksForPath([0])).toHaveLength(2);
 	});
 
-	// Replace mutates the document while the memo key (counter, query, options) stays the same
-	// until the deferred edit notification, so a refresh that only invalidates serves the matches
-	// from before the replace. The rescan has to come before the invalidate.
+	// Replace mutates the document before the deferred edit notification changes the memo key, so
+	// the rescan must come before the invalidate or the bar serves the matches from before it.
 	it('replaceCurrent refreshes matches synchronously on the bar-open path', async () => {
 		const { doc, state } = makeHarness('cat cat\n', {
 			replaceOne: async (_m, text) => {

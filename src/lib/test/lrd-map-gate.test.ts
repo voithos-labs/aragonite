@@ -35,8 +35,8 @@ describe('lrdMapCouldChange', () => {
 	});
 
 	it('rebuilds on a kind change that deletes a definition (post-edit node is now prose)', () => {
-		// It has to rebuild even though the node is no longer a link reference definition after the
-		// edit, or the resolver keeps serving the deleted definition.
+		// The edited node is prose, yet the map must rebuild, or the resolver keeps serving the
+		// deleted definition.
 		const doc = parse('plain prose now\n');
 		expect(doc.children[0].kind).not.toBe('linkReferenceDefinition');
 		expect(lrdMapCouldChange(doc, event('updateContent', [0], { length: 15 }))).toBe(true);
@@ -52,8 +52,8 @@ describe('advanceSignatureEpoch', () => {
 	const sigOf = (src: string) => buildLinkReferenceMap(parse(src).children).signature;
 
 	it('holds the epoch when a rebuild yields an identical signature', () => {
-		// The G4.7 rule for the memo: a counter that bumped on every rebuild would invalidate every
-		// block containing a bracket on every commit.
+		// A counter that bumped on every rebuild would invalidate every block containing a bracket
+		// on every commit (G4.7).
 		const sig = sigOf('[d]: https://example.com\n');
 		const held = advanceSignatureEpoch(sig, 5, sigOf('[d]: https://example.com\n'));
 		expect(held.epoch).toBe(5);

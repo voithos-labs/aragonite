@@ -1,10 +1,7 @@
 // @vitest-environment jsdom
 /**
- * Placing the container's marker (`.md-marker[contenteditable=false]`, absolutely positioned at
- * the image's bottom-left) and the image-only `min-height: 0` are pure CSS, so only the real
- * cascade can check them. What this covers is every wrapper shape behaving the same:
- * `renderInlineNodes` wraps children for emphasis, strong, strikethrough and both link forms,
- * putting the widget one level deeper than a plain `![img](x)`.
+ * The container marker's placement beside an image is pure CSS, so this checks it holds for every
+ * inline wrapper that puts the widget one level deeper than a plain `![img](x)`.
  */
 import { describe, it, expect, beforeAll } from 'vitest';
 import { readFileSync } from 'node:fs';

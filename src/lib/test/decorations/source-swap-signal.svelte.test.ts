@@ -1,5 +1,4 @@
 // @vitest-environment jsdom
-//
 // Whether replacing the whole `source` reaches the decoration code can only be asked of the
 // mounted component: from there a swap and an edit are the same `getDoc()` read.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
@@ -75,9 +74,8 @@ describe('a `source` prop swap signals the decorations subsystem', () => {
 	});
 });
 
-// The swap is the one writer of bytes that lives in the component rather than in the action
-// bundles (G4.52); every other one is tested without a DOM in
-// `reactivity/content-version-doors`.
+// The swap is the one byte writer in the component rather than the action bundles (G4.52); the
+// others are tested without a DOM in `reactivity/content-version-doors`.
 describe('a `source` prop swap moves the content version', () => {
 	it('announces the replaced document, and nothing when the prop is rewritten unchanged', async () => {
 		const { instance: editor, props } = mountSource('one\n\ntwo\n');

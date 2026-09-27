@@ -91,9 +91,8 @@ export function blockHostAt(mounted: MountedEditor, path: number[]): HTMLElement
 	return el;
 }
 
-/** The editable element of the block at `path`. Matches any `contenteditable` value, since
- *  mode renders the same surface with `contenteditable="false"`, and its gate is only
- *  testable by delivering the key to it. */
+/** The editable element of the block at `path`, whatever its `contenteditable` value: reading
+ *  mode renders it `false`, and its key check is testable only by delivering the key to it. */
 export function surfaceAt(mounted: MountedEditor, path: number[]): HTMLElement {
 	const host = blockHostAt(mounted, path);
 	const el = host.querySelector<HTMLElement>('[contenteditable]');
