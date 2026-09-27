@@ -706,7 +706,7 @@ interface FormatSpan {
 }
 
 /** Both delimiters of a construct are the same run, so the bytes outside its content split evenly;
- *  that is how a code span's content-sized fence is read back off the parse. */
+ *  a code span's reads `codeSpanFence` through {@link constructContentRange}. */
 function markerLengthOf(span: FormatSpan): number {
 	return span.contentStart - span.start;
 }

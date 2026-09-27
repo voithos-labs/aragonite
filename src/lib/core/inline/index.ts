@@ -10,6 +10,7 @@ import { registerBuiltInDescriptors } from '../../schema/built-in-descriptors';
 import type { LinkReferenceResolver } from './link-reference-resolver';
 import { defaultGrammarView, type GrammarView } from '../../schema/block-openers';
 import { scanInline } from './scan';
+import { codeSpanFence } from './scan/code-spans';
 import { inlineDescendants } from './walk';
 import { recordInlineCompute } from '../../perf/instruments';
 
@@ -65,15 +66,9 @@ export function constructContentRange(node: InlineNode): ContentRange | null {
 	if (children && children.length > 0) {
 		return { start: children[0].start, end: children[children.length - 1].end };
 	}
-	// A code span carries its content as `text` rather than children, and a matched span's two
-	// backtick runs are equal, so what the content does not cover splits evenly between them.
-	if (node.kind === 'inlineCode' && node.text !== undefined) {
-		const fence = (node.end - node.start - node.text.length) / 2;
-		if (Number.isInteger(fence) && fence > 0) {
-			return { start: node.start + fence, end: node.end - fence };
-		}
-	}
-	return null;
+	// A code span carries its content as `text` rather than children.
+	const fence = node.kind === 'inlineCode' ? codeSpanFence(node) : 0;
+	return fence > 0 ? { start: node.start + fence, end: node.end - fence } : null;
 }
 
 /**
