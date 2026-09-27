@@ -70,11 +70,8 @@ export function parseLinkReferenceDefinition(
 
 // ── The lines a definition can span ─────────────────────────────────────────
 
-/**
- * The definition's first line plus each later line a paragraph would continue onto, joined by
- * `\n` and without their leading whitespace, the way §4.7 reads a paragraph's content. Lines
- * join only when a read runs off the end, so a run of one-line definitions never joins at all.
- */
+/** The definition's first line plus each later line a paragraph would continue onto, joined by
+ *  `\n` without leading whitespace (§4.7); a line joins only when a read runs off the end. */
 class DefinitionWindow {
 	text: string;
 	/** Offset in `text` where each joined line ends. */

@@ -1,9 +1,8 @@
 /**
- * Places the caret from a viewport point: a click in the editor's dead space (the padding
- * beside a block, the area below the last one) and the public `placeCaretAtPoint`, which share
- * one walk. A point between two blocks may become a gap caret; otherwise it clamps into the
- * nearest mounted block, goes down a container to the child level with it, and resolves there.
- * Only mounted blocks are measured, so "below the last block" is checked against the CST.
+ * Places the caret from a viewport point, for a click in the editor's dead space (the padding
+ * beside a block, the area below the last one) and the public `placeCaretAtPoint` alike. A point
+ * between two blocks may become a gap caret; otherwise it clamps into the nearest mounted block
+ * and descends to the child level with it. Only mounted blocks are measured.
  */
 
 import { CURSOR_END, type BlockComponent } from '../block-component';

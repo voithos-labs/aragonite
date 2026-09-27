@@ -264,19 +264,13 @@ export interface CommitController {
 	endUndoStep(): void;
 }
 
-/**
- * What a container reaches the editor root for, forwarded unchanged through nested containers.
- * A keystroke goes through `typeInLeaf` and then one of two routes: a commit, or
- * `writeLeafInPlace` for a write that keeps the leaf's kind (`editor-actions/leaf-write.ts`).
- */
+/** What a container reaches the editor root for, forwarded unchanged through nested containers.
+ *  A keystroke runs `typeInLeaf`, then a commit or `writeLeafInPlace` (`leaf-write.ts`). */
 export interface ContainerEditActions {
 	/** The document's line ending, which every line a write below the root creates takes. */
 	lineEnding(): LineEnding;
-	/**
-	 * Change a container's structure: copy the ancestor chain, snapshot, write to state, emit
-	 * the edit event, run the post-tick callback. `mutate` receives the copied container with
-	 * its working children attached; write through it, never a capture.
-	 */
+	/** Change a container's structure as one undo entry. `mutate` receives the copied container
+	 *  with its working children attached; write through it, never through a captured node. */
 	commitContainer(args: CommitContainerStructuralArgs): Promise<boolean>;
 	/** Push the typing burst's undo entry for the leaf at `leafPath`, then run `work` joined to
 	 *  it; `batchKey` is the leaf's id, so a move to a sibling leaf starts a new burst. */
@@ -294,9 +288,8 @@ export type InPlaceResult =
 	| { readonly wrote: false }
 	| {
 			readonly wrote: true;
-			/** Where the caret belongs when the write took it out of the leaf's element: a merge the
-			 *  write caused, an ancestor whose kind changed or that collapsed. Null when the leaf's
-			 *  own element keeps the caret. */
+			/** Where the caret goes when the write took it out of the leaf's element (a merge, an
+			 *  ancestor that changed kind or collapsed); null when the leaf's element keeps it. */
 			readonly relanding: Relanding | null;
 	  };
 

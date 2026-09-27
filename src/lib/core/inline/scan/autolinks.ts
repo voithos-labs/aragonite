@@ -85,11 +85,8 @@ function hasValidDomain(raw: string, domainStart: number, limit: number): boolea
 	return true;
 }
 
-/**
- * GFM §6.9: valid only at the scan range start or after whitespace (§2.1's ASCII set, as
- * cmark-gfm's `cmark_isspace`), `*`, `_`, `~`, or `(`, whichever node holds that source byte.
- * Applied to every bare form here, per the spec text; cmark-gfm applies it to `www.` alone.
- */
+/** GFM §6.9: valid at the scan range start or after ASCII whitespace, `*`, `_`, `~` or `(`. Every
+ *  bare form checks it, as the spec text says; cmark-gfm checks it for `www.` alone. */
 export function isValidLeadingBoundary(raw: string, pos: number, scanStart: number): boolean {
 	if (pos <= scanStart) return true;
 	const ch = raw[pos - 1];

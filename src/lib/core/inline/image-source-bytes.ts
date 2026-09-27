@@ -1,6 +1,5 @@
-// Where an image edit becomes bytes: the dispatcher every write path calls, and below it the
-// GFM form. The two live together because the image serializer must be named in exactly one
-// module (G4.21).
+// Where an image edit becomes bytes: the one function every image write goes through, and
+// below it the GFM serializer, which nothing else may call.
 
 import { encodeDestination, escapeTitle } from './destination-bytes';
 import type { ImageFields, InlineNode } from '../nodes';
@@ -9,12 +8,8 @@ import { devWarn } from '../../dev-warn';
 
 // ── Where the bytes are written ─────────────────────────────────────────────
 
-/**
- * Bytes to splice over `image`'s range, or `null` when the edit must be refused. Every image
- * write path goes through here (G4.21): if an inline syntax handler owns the node, it writes
- * the bytes back through its own `rewriteImage` hook, since GFM syntax written over another
- * syntax's bytes destroys them. Plugin side: docs/design/plugin-contract.md § Inline authoring.
- */
+/** Bytes to splice over `image`'s range, or null when the edit is refused. A node a plugin's
+ *  syntax owns is written by its `rewriteImage` hook (`docs/design/plugin-contract.md`). */
 export function buildImageEditBytes(
 	image: InlineNode,
 	blockRaw: string,
@@ -35,9 +30,8 @@ export function buildImageEditBytes(
 	return bytes;
 }
 
-/** Omits optional keys the node does not hold, so a rebuild writes back only what the source
- *  had. It does not promise the same bytes back (the GFM serializer normalizes); it does
- *  promise the alt text stops changing, so repeated resizes never grow the escapes. */
+/** Only the optional keys the node holds, so a rebuild adds no field the source lacked and
+ *  repeated resizes leave the alt text unchanged. */
 export function imageFieldsFromInline(image: InlineNode): ImageFields {
 	return {
 		alt: image.alt ?? '',
@@ -66,13 +60,12 @@ export function sameImageFields(a: ImageFields, b: ImageFields): boolean {
 
 // ── The GFM serializer ──────────────────────────────────────────────────────
 
-/** The inverse of the built-in grammar. Reach it through `buildImageEditBytes`, the only
- *  caller allowed to decide these bytes are GFM's to write. */
+/** The inverse of the built-in grammar; call `buildImageEditBytes`, which decides whether the
+ *  bytes are GFM's to write. */
 export function buildImageSourceBytes(fields: ImageFields): string {
 	const dimSuffix = buildDimSuffix(fields.width, fields.height, fields.crop);
 	const altSegment = escapeAlt(fields.alt) + dimSuffix;
-	// Reference form: the size goes in the alt text, and the url and title are not
-	// written here because they belong to the link reference definition.
+	// A reference image's url and title belong to its link reference definition.
 	if (fields.label !== undefined) {
 		return `![${altSegment}][${fields.label}]`;
 	}
@@ -80,9 +73,8 @@ export function buildImageSourceBytes(fields: ImageFields): string {
 	return `![${altSegment}](${encodeDestination(fields.url)}${titleSegment})`;
 }
 
-// Alt text sits inside `[...]`, where an unescaped bracket ends the scan early. Unlike `title`
-// and `url` it holds the label's bytes as written, so escaping everything would double every
-// backslash on each commit; passing an existing backslash pair through untouched stops that.
+// Alt text keeps the label's bytes as written: a bare bracket is escaped so it can't end the
+// label, and an existing backslash pair passes through so repeated commits never double it.
 function escapeAlt(alt: string): string {
 	let out = '';
 	for (let i = 0; i < alt.length; i++) {

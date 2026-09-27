@@ -1,8 +1,7 @@
 /**
- * Where a link edit becomes bytes: the one function every link write goes through (G4.34), and
- * under it the GFM spelling. A candidate is written only once the render says the user sees
- * exactly what they saw before: a destination that breaks its own construct shows up as literal
- * source, which a private scan of the parse tree cannot see.
+ * Where a link edit becomes bytes: the functions every link write goes through, and under them
+ * the GFM serializer. A candidate is written only when the rendered text stays the same, since a
+ * destination that breaks its own construct shows up as literal source.
  */
 
 import { inlineDescendants, readInline } from './index';
@@ -25,11 +24,8 @@ export interface LinkFields {
 	reference?: string;
 }
 
-/**
- * Bytes to splice over `link`'s range, or `null` when the edit must be refused. Every link write
- * goes through here (G4.34): a node a plugin's inline handler owns carries no `rewriteLink` hook,
- * so writing built-in grammar over its bytes would destroy the author's syntax.
- */
+/** Bytes to splice over `link`'s range, or null when the edit is refused, as on a node a plugin's
+ *  inline syntax owns: built-in grammar written over it would destroy that syntax. */
 export function buildLinkEditBytes(
 	link: InlineNode,
 	display: string,
@@ -40,8 +36,8 @@ export function buildLinkEditBytes(
 	return verified(buildLinkSourceBytes(fields), link.start, link.end, display, reading);
 }
 
-/** Bytes that unwrap `link` down to the text the user already sees, which is remove-link. An
- *  autolink has no brackets to drop, so removing it is the escape rewrite a re-linking text needs. */
+/** Bytes that unwrap `link` to the text the user already sees (remove link). An autolink has no
+ *  brackets, so its unwrap escapes the byte that would link it again. */
 export function buildLinkUnwrapBytes(
 	link: InlineNode,
 	display: string,
@@ -59,9 +55,8 @@ export function buildLinkUnwrapBytes(
 	);
 }
 
-/** Bytes that write `[text](url)` over `[start, end)`, the card's create half. Refuses an empty
- *  destination, a range crossing another construct's bytes, and any candidate the render check
- *  rejects (a neighbouring `!` would turn the wrap into an image). */
+/** Bytes that write `[text](url)` over `[start, end)`, or null for an empty url, a range crossing
+ *  another construct, or a wrap that changes the render (a `!` before it makes an image). */
 export function buildLinkWrapBytes(
 	display: string,
 	start: number,
@@ -79,8 +74,7 @@ export function buildLinkWrapBytes(
 
 const WRAP_SAFE_KINDS: ReadonlySet<string> = new Set(['text', 'escape', 'entityReference']);
 
-/** True when `[start, end)` holds only bytes safe to become link text. Wrapping inside or across
- *  another construct is a policy question create does not answer, so it refuses. */
+/** True when `[start, end)` holds only plain text, so a wrap crosses no other construct. */
 export function canWrapRangeAsLink(
 	display: string,
 	start: number,
@@ -93,8 +87,8 @@ export function canWrapRangeAsLink(
 	).every((n) => WRAP_SAFE_KINDS.has(n.kind) || n.end <= start || n.start >= end);
 }
 
-/** The fields the card edits, read off the source bytes: `url`/`title` are decoded on the node,
- *  but the text and the reference tail must survive as the author wrote them. */
+/** The fields the link editor edits: `url` and `title` decoded off the node, the text and the
+ *  reference tail as the author wrote them. */
 export function linkFieldsFromInline(link: InlineNode, display: string): LinkFields {
 	const [textStart, textEnd] = textRange(link, display);
 	return {
@@ -127,10 +121,8 @@ function declineClaimed(link: InlineNode, what: string): boolean {
 	return true;
 }
 
-/** What the user sees for `raw`, asked of the code that draws it. The content reading, not the
- *  block's own: the card edits a destination whose markers may be on screen, and comparing against
- *  the screen would refuse every such edit as a visible change. The write swaps bytes for bytes
- *  and drops none, so no reading of it can license losing one. */
+/** What the user sees for `raw` in the content reading: the link editor may edit a destination
+ *  whose markers are on screen, which the block's own reading would count as a visible change. */
 function visibleText(raw: string, reading: Reading): string {
 	return renderedText(
 		readInline(raw, 0, raw.length, reading.resolver, reading.grammar),
@@ -182,11 +174,8 @@ const TRIGGER_ESCAPE: readonly [RegExp, string][] = [
 	[/^[^@]*@/, '@']
 ];
 
-/**
- * Unwrapping `[www.x.com](u)` hands the bare-autolink pass a match it did not have before, and the
- * link the user removed comes straight back. Escaping the byte that triggers the match kills it
- * without changing one character the user sees.
- */
+/** Escapes the byte that makes unwrapped text a bare autolink again (`[www.x.com](u)`), so a
+ *  removed link stays removed and no visible character changes. */
 function escapeRelinkingText(
 	text: string,
 	link: InlineNode,

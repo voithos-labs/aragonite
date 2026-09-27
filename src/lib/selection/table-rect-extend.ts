@@ -19,11 +19,8 @@ export type TableRectExtension =
 	| { kind: 'cell'; offset: number }
 	| { kind: 'exit'; direction: 'forward' | 'backward'; fromCellPath: number[] };
 
-/**
- * The extension a Shift+Arrow produces for an intra-table rectangle, or null when the selection
- * is not a same-table pair of cell endpoints. `anchor === focus` is a valid one-cell rectangle,
- * so the first Shift+Arrow starts here too.
- */
+/** The extension a Shift+Arrow produces for an intra-table rectangle, or null unless the selection
+ *  is a same-table pair of cell endpoints (`anchor === focus` is a one-cell rectangle). */
 export function intraTableRectExtension(
 	doc: DocumentView,
 	anchor: SelectionPoint | null,

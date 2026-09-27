@@ -12,11 +12,8 @@ import { isWholeBlockUnit } from '../schema/whole-block-unit';
 import { comparePaths } from './path-math';
 import { isWholeBlockEndpoint, type SelectionEndpoint, type SelectionPoint } from './primitives';
 
-/**
- * `endpoint` clamped into its block's character range. Equal paths have no document order and
- * no cross-block range, so they resolve to the block start. A table endpoint never arrives: the
- * cell snap has already turned it into a cell index.
- */
+/** `endpoint` clamped into its block's character range; equal paths resolve to the block start.
+ *  A table endpoint never arrives here, since the cell snap turned it into a cell index. */
 export function normalizeCharEndpoint(
 	doc: DocumentView,
 	endpoint: SelectionEndpoint,

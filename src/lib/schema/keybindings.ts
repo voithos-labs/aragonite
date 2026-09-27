@@ -75,7 +75,7 @@ export function normalizeChord(chord: string): string {
 
 const VALID_MODIFIERS = new Set<string>(MOD_ORDER);
 
-/** Why a chord is malformed, or null when it's well-formed; the strict paths name it. */
+/** Why a chord is malformed, or null when it's well-formed; a registration's error names it. */
 function chordDefect(chord: string): string | null {
 	const parts = chord.split('+');
 	const key = parts.pop() ?? '';

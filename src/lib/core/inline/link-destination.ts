@@ -1,6 +1,6 @@
 /**
  * The link label, destination and title grammar (CommonMark §6.3), read by inline and reference
- * links and by link reference definitions (§4.7) alike. Each reader returns where its span ends
+ * links and by link reference definitions (§4.7) alike. Each function returns where its span ends
  * and, for a destination or title, the value the spec derives from it; the whitespace between the
  * parts is each caller's rule. The inverse writer is `destination-bytes.ts`.
  */
@@ -32,11 +32,8 @@ export function parseLinkLabel(raw: string, pos: number, end: number): number | 
 	return labelEnd < 0 ? null : labelEnd;
 }
 
-/**
- * Where the label opening at `pos` ends: the offset past its `]`, `SPAN_OPEN`, or a negative
- * miss. A label holds at most 999 characters and no unescaped `[`. `from` resumes an open scan
- * at the `end` it stopped on, once the caller has more text.
- */
+/** Where the label opening at `pos` ends: past its `]`, `SPAN_OPEN`, or negative for no label (over
+ *  999 characters, or an unescaped `[`). `from` resumes an open scan at the `end` it stopped on. */
 export function scanLinkLabel(raw: string, pos: number, end: number, from: number): number {
 	if (raw[pos] !== '[') return NOT_A_SPAN;
 	let i = from;
@@ -118,10 +115,8 @@ export function parseLinkTitle(raw: string, pos: number, end: number): LinkTitle
 	return titleEnd < 0 ? null : { title: linkTitleValue(raw, pos, titleEnd), end: titleEnd };
 }
 
-/**
- * Where the title opening at `pos` ends: the offset past its closer, `SPAN_OPEN`, or a negative
- * miss. `from` resumes an open scan at the `end` it stopped on, once the caller has more text.
- */
+/** Where the title opening at `pos` ends: past its closer, `SPAN_OPEN`, or negative for no title.
+ *  `from` resumes an open scan at the `end` it stopped on. */
 export function scanLinkTitle(raw: string, pos: number, end: number, from: number): number {
 	const marker = raw[pos];
 	if (marker !== '"' && marker !== "'" && marker !== '(') return NOT_A_SPAN;

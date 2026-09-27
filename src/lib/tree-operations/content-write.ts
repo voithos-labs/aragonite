@@ -428,11 +428,8 @@ export function reclassifyContainer(
 	return parent.children[index];
 }
 
-/**
- * Where a caret at `offset` in the written text ends up once {@link updateNodeContent}'s merges
- * are done: the block holding it and the offset in that block's bytes. A merge into the block
- * above leaves that block holding the text, so the offset counts what it put in front.
- */
+/** Where a caret at `offset` in the written text ends up after {@link updateNodeContent}'s merges:
+ *  the block holding it and its offset there, counting what a merge above put in front. */
 export function settledCaretPosition(
 	settled: SettledContent,
 	at: number,

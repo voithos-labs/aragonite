@@ -422,12 +422,8 @@ export interface MergeIntoPrevResult {
 	change: StructuralChange;
 }
 
-/**
- * Join `absorbed`'s text onto the end of the leaf at `path` below `parent`: the join cleanup, the
- * kind's and the container's write rules, a reparse that may change the leaf's kind, the task
- * marker, and the ancestors' bytes. Null, with nothing written, when the joined bytes read as
- * several blocks. `absorbed` stays where it is; removing it is the caller's.
- */
+/** Join `absorbed`'s text onto the end of the leaf at `path`, leaving `absorbed` for the caller to
+ *  remove; null, writing nothing, when the joined bytes read as several blocks. */
 export function joinIntoLeaf(
 	parent: BodyParentArg,
 	path: readonly number[],
@@ -452,7 +448,7 @@ export function joinIntoLeaf(
 		fragmentReaderAt(holder.owner, slot, reading.grammar)
 	);
 	if (!merged) return null;
-	// Read before the write, which is what can put a block there the task marker cannot stand before.
+	// Read before the write, which can change the leaf into a block no task marker may precede.
 	const stood = taskMarkerMayStandBefore(target);
 
 	// The join writes the leaf's raw plus every ancestor's rebuilt raw, so copy the whole
@@ -465,7 +461,7 @@ export function joinIntoLeaf(
 		sharing,
 		holder.lineEnding
 	);
-	// Before the ancestors' rebuild, which writes the list item's task marker.
+	// The task state is reconciled before the ancestors' rebuild writes the list item's marker.
 	const owner = ownerAt(parent, path);
 	if (owner) reconcileTaskMetadata(owner, slot, stood, sharing);
 	if (path.length > 1) rebuildAncestryRaw(parent.children[path[0]], path.slice(1));
@@ -533,16 +529,15 @@ function holderChildrenAt(children: CstNode[], path: readonly number[]): CstNode
 	return holder;
 }
 
-/** What the leaf write installs: the legal bytes, plus their reparse where the kind has one. The
- *  parsed blocks are passed whole rather than as their first, so the install can check it
- *  received one (G1.35). */
+/** What the leaf write installs: the legal bytes plus their reparse, passed whole so the install
+ *  can check it received one block. */
 interface MergedLeaf {
 	written: string;
 	blocks: readonly CstNode[];
 }
 
-/** The join's decision: the legal bytes' fragment reparse, null when they read as several blocks,
- *  since the leaf holds one (G1.35). */
+/** The join's decision: the legal bytes' fragment reparse, or null when they read as several
+ *  blocks, since the leaf holds one. */
 function mergedLeafFor(target: CstNode, written: string, read: FragmentReader): MergedLeaf | null {
 	// A context-dependent kind has no standalone recognizer, so its bytes are never read back
 	// as blocks and the write keeps the kind.

@@ -72,10 +72,8 @@ export interface SelectionState {
 	extendFocus(point: SelectionEndpoint): void;
 	collapse(): void;
 	clear(): void;
-	/**
-	 * Drops the range and gap caret without notifying, for a document swap: the old endpoints
-	 * address the outgoing tree, and the restore that follows announces the new selection.
-	 */
+	/** Drops the range and gap caret without notifying, for a document swap: the stored endpoints
+	 *  address the outgoing tree, and the restore that follows announces the new selection. */
 	dropForDocumentSwap(): void;
 	setGapCaret(pos: GapCaretPosition): void;
 	clearGapCaret(): void;
@@ -104,22 +102,14 @@ export interface SelectionState {
 	 */
 	batch(mutate: () => void): void;
 
-	/**
-	 * Classifies an anchor/focus pair for a DOM restore without touching state, so no spurious
-	 * cross-block `onChange` fires. A same-path text range is 'single-block' (native highlight);
-	 * a cross-block range or a rectangle inside a table is 'custom' (overlay). Takes the pair
-	 * `resolveSelectionPoint` returns, which flags every offset on a table path.
-	 */
+	/** Classifies a pair `resolveSelectionPoint` returned, for a DOM restore, touching no state: a
+	 *  same-path text range is 'single-block', a cross-block range or cell rectangle 'custom'. */
 	restoreRoute(
 		anchor: SelectionPoint,
 		focus: SelectionPoint
 	): 'collapsed' | 'single-block' | 'custom';
-	/**
-	 * Where a caret lands for `point`: a cell endpoint addresses the table block by cell index,
-	 * so it lands in the cell's own `[table, row, col]` leaf at offset 0. Any other point lands
-	 * as itself. Every mount and every caret placement goes through here, so no caller can put a
-	 * cell index on the table wrapper as a character offset.
-	 */
+	/** Where a caret lands for `point`: a cell endpoint in its cell's `[table, row, col]` leaf at
+	 *  offset 0, any other point as itself. Every mount and caret placement goes through here. */
 	cellLandingFor(point: SelectionPoint): SelectionPoint;
 }
 
@@ -233,9 +223,8 @@ class SelectionStateImpl implements SelectionState {
 
 	enterCrossBlock(anchor: SelectionEndpoint, focus: SelectionEndpoint): void {
 		this.#gapCaret = null;
-		// Both ends on the same block with no text: the block itself is the range, stored as its
-		// full byte span (a table's first and last cell) and marked as a whole unit, since a
-		// same-path pair is refused as text below.
+		// Both ends on one block with no text: the block is the range, stored as its full span
+		// (a table's first and last cell) and flagged whole, as a same-path pair is refused below.
 		if (
 			isWholeBlockEndpoint(anchor) &&
 			isWholeBlockEndpoint(focus) &&
@@ -258,10 +247,8 @@ class SelectionStateImpl implements SelectionState {
 		this.#wholeUnit = null;
 		const a = this.#normalizePoint(anchor, focus.path);
 		const f = this.#normalizePoint(focus, anchor.path);
-		// A same-path text pair is a single-block range the browser owns; storing it would create
-		// an invisible cross-block state, so it is refused here, where every entry path passes. A
-		// rectangle inside a table shares the table path but both corners count cells, and the
-		// keyboard's equal-offset starting pair is kept so its immediate `extendFocus` has an anchor.
+		// A same-path text pair is a single-block range the browser owns, refused here where every
+		// entry path passes; a cell rectangle and the keyboard's equal-offset first pair are kept.
 		if (this.#isSamePathProseRange(a, f)) {
 			this.#anchor = null;
 			this.#focus = null;
@@ -305,8 +292,7 @@ class SelectionStateImpl implements SelectionState {
 		return node && 'raw' in node ? displayLength(node.raw) : 0;
 	}
 
-	// The coordinate check (G1.29) runs wherever a pair is stored, as a backstop behind
-	// `#normalizePoint`, so every write to the anchor and focus fields passes through it.
+	// The endpoint coordinate check backs up `#normalizePoint` at every write of anchor and focus.
 	#assertEndpointCoordinates(anchor: SelectionPoint, focus: SelectionPoint): void {
 		const getDoc = this.#getDoc;
 		if (!getDoc) return;
@@ -321,10 +307,8 @@ class SelectionStateImpl implements SelectionState {
 		return pathsEqual(a.path, f.path) && !isCellPair(a, f) && a.offset !== f.offset;
 	}
 
-	// The one place every entry path (keyboard, shift-click, drag, select-all, undo restore)
-	// normalizes: every endpoint on or inside a table is stored as a flagged cell index, and a
-	// character offset is never stored outside its block's range. Never normalize at a call site
-	// instead. Idempotent; without a document nothing can be measured, so points pass through.
+	// The one place every entry path normalizes: a table endpoint becomes a flagged cell index and
+	// a character offset is clamped into its block. Without a document, points pass through.
 	#normalizePoint(point: SelectionEndpoint, otherPath: readonly number[]): SelectionPoint {
 		const getDoc = this.#getDoc;
 		if (!getDoc) {

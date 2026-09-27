@@ -31,11 +31,8 @@ export function matchHeading(text: string): AtxHeadingMatch | null {
 	return { level: m[1].length, contentStart, contentEnd };
 }
 
-/**
- * Where the optional closing sequence starts, or null without one: a run of `#`s preceded by a
- * space or tab and followed only by spaces and tabs, or content that is all `#`s. Whitespace with
- * no run after it stays content, so a space typed at the end is not swallowed.
- */
+/** Where the optional closing `#` run starts, with the space or tab before it, or null. Trailing
+ *  whitespace with no run after it stays content, so a space typed at the end is kept. */
 function closingRunStart(line: string, contentStart: number): number | null {
 	let end = line.length;
 	while (end > contentStart && isSpaceOrTab(line[end - 1])) end--;

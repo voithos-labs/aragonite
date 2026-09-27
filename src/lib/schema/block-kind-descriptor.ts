@@ -537,11 +537,8 @@ export function isGridKind(kind: AnyBlockKind): boolean {
 	return tryGetBlockKindDescriptor(kind)?.containerContract === 'grid';
 }
 
-/**
- * Whether an endpoint on this block's own path counts cells rather than characters, the fact
- * the selection model and G1.29 both read. Tables only: a plugin grid keeps deep cell paths with
- * character offsets until its kind can describe its cells (#242).
- */
+/** Whether an endpoint on this block's own path counts cells rather than characters. Tables only:
+ *  a plugin grid's endpoints stay character offsets on deep cell paths. */
 export function countsCells(
 	node: NodeView | DocumentView
 ): node is Extract<NodeView, { kind: 'table' }> {
@@ -556,7 +553,7 @@ export function tableCellCount(node: NodeView): number {
 	return (node.children?.length ?? 0) * metadataOf(node, 'table').columnCount;
 }
 
-/** A cell index clamped into a table's grid: the one ceiling every reader of cell space uses. */
+/** A cell index clamped into a table's grid: the one upper bound every cell-space caller uses. */
 export function clampCellIndex(node: NodeView, cellIdx: number): number {
 	return Math.min(Math.max(cellIdx, 0), Math.max(tableCellCount(node) - 1, 0));
 }
