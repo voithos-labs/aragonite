@@ -48,7 +48,8 @@
 		reorderable?: boolean;
 	} = $props();
 
-	// Every context read here and in both overlays is optional: unit tests mount BlockHost bare.
+	// The services and document contexts are optional here and in both overlays, for a partial
+	// test mount; the policies carry the editor's own getters, so a mount always has them.
 	const services = getContext<EditorServices | undefined>(EDITOR_SERVICES_KEY);
 	const editorEvents = services?.events;
 	const engine = services?.decorations;
@@ -58,12 +59,11 @@
 	const getDoc = editorDoc?.doc;
 	// Stable object, so a plain read rather than a getter.
 	const rects = services?.rects;
-	const policies = getContext<EditorPolicies | undefined>(EDITOR_POLICIES_KEY);
-	const getDragHandles = policies?.blockDragHandles;
+	const policies = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
 	// $derived, so a runtime toggle reaches blocks that mount after it.
-	const dragHandles = $derived(getDragHandles?.() ?? false);
+	const dragHandles = $derived(policies.blockDragHandles());
 	// Checked here too, because an image's handle does not go through the drag-handle prop.
-	const isReading = $derived(policies?.presentationMode?.() === 'reading');
+	const isReading = $derived(policies.presentationMode() === 'reading');
 	// A bare mount has no editor reading: every installed plugin's syntax, no link definitions.
 	const inlineReading = editorDoc?.reading ?? {
 		grammar: registryView.grammar,

@@ -121,8 +121,8 @@ export interface GlobalCommandContext {
 	 *  process-wide) fires only where its plugin is active; `everyInstalledPlugin` with no editor. */
 	activation: PluginActivation;
 	/** The effective presentation mode, read live; the reading-mode check reads this, not the
-	 *  plugin lookup. Absent (a history-only context) means source mode. */
-	getPresentationMode?: () => PresentationMode;
+	 *  plugin lookup. */
+	getPresentationMode: () => PresentationMode;
 	/** Receives a caught handler throw. */
 	onCommandError: CommandErrorSink;
 	/** The argument `runCommand(id, arg)` or the chord's binding carried, injected per dispatch. */

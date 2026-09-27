@@ -63,7 +63,7 @@
 
 	// $derived, not a mount-time snapshot: a runtime prop toggle must reach blocks
 	// that window in and out after the change, not just those mounted at mount.
-	const dragHandles = $derived(getDragHandles?.() ?? false);
+	const dragHandles = $derived(getDragHandles());
 	// A reorder needs a sibling, so a lone item shows no handle; it stays a reorder host, which
 	// costs nothing, since a dragged sibling never arrives.
 	const showsHandle = $derived(showsListItemDragHandle(itemCount, dragHandles));

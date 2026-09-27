@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { isWidgetActivationClick, type InlineWidgetComponentProps } from '$lib/plugin';
-	import { assignFootnoteNumbers, footnoteNumbersFor } from './footnote-numbering';
+	import { footnoteNumbersFor } from './footnote-numbering';
 	import { findFootnoteDefinitionLanding } from './footnote-lookup';
 	import { footnoteReferenceLabel } from './constants';
 
@@ -20,31 +20,26 @@
 	// Reactive, since a widget keyed on its source survives a renumber from a reference added
 	// elsewhere; reading the version inside keeps the shared numbering pass subscribed.
 	const display = $derived.by(() => {
-		const doc = getDocument?.();
+		const doc = getDocument();
 		if (!doc) return label;
-		const version = getContentVersion?.();
-		const numbers =
-			version === undefined
-				? assignFootnoteNumbers(doc, computeInlineContent)
-				: footnoteNumbersFor(doc, version, computeInlineContent);
+		const numbers = footnoteNumbersFor(doc, getContentVersion(), computeInlineContent);
 		return String(numbers.get(label) ?? label);
 	});
 
 	// A tab stop only in reading mode: inside an editable block it would interrupt the caret.
-	const isReading = $derived((getPresentationMode?.() ?? 'source') === 'reading');
+	const isReading = $derived(getPresentationMode() === 'reading');
 
 	// Looked up on each jump, never derived: a reference nobody follows costs nothing beyond the
 	// numbering pass it already pays for.
 	function jumpToDefinition(): void {
-		const doc = getDocument?.();
+		const doc = getDocument();
 		if (!doc) return;
 		const path = findFootnoteDefinitionLanding(doc, label);
-		if (path) void navigateTo?.(path);
+		if (path) void navigateTo(path);
 	}
 
 	function onClick(e: MouseEvent): void {
-		const mode = getPresentationMode?.() ?? 'source';
-		if (isWidgetActivationClick(e.ctrlKey || e.metaKey, mode)) jumpToDefinition();
+		if (isWidgetActivationClick(e.ctrlKey || e.metaKey, getPresentationMode())) jumpToDefinition();
 	}
 
 	function onKeydown(e: KeyboardEvent): void {

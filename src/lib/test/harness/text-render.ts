@@ -49,6 +49,7 @@ export function makeRenderHarness(
 	let islands: Island[] = [];
 	let mode: PresentationMode = overrides.mode ?? 'source';
 	let policy: ImageLoadPolicy = overrides.imageLoadPolicy ?? 'auto';
+	let version = 0;
 	const deps: TextRenderDeps = {
 		get el() {
 			return el;
@@ -74,6 +75,10 @@ export function makeRenderHarness(
 			return islands;
 		},
 		getDocument: () => undefined,
+		// New on every read, so a widget memo keyed on it never serves a stale document.
+		getContentVersion: () => ++version,
+		navigateTo: async () => false,
+		reportRenderError: () => {},
 		brokenUrlCache: new Set<string>()
 	};
 	return {

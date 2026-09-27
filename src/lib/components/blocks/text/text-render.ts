@@ -70,18 +70,17 @@ export interface TextRenderDeps {
 	/** Live root document for widgets that derive from it. A getter, so a pooled widget
 	 *  re-reads the current document across edits rather than a mount-time snapshot. */
 	getDocument: () => DocumentView | undefined;
-	/** The editor's content version, so a widget can memoize a document-wide derivation
-	 *  on it. Absent in a bare harness. */
-	getContentVersion?: () => number;
+	/** The editor's content version, so a widget can memoize a document-wide derivation on it. */
+	getContentVersion: () => number;
 	/** The editor's navigation call, passed on to widgets whose gesture jumps elsewhere. */
-	navigateTo?: (path: number[]) => Promise<boolean>;
+	navigateTo: (path: number[]) => Promise<boolean>;
 	/** Decoration widgets, sorted by position. A getter read inside the render pass on
 	 *  purpose: that read is the dependency that re-renders the block when one changes. */
 	get islands(): IndexedDecoration<WidgetDecoration | ReplaceDecoration>[];
 	brokenUrlCache: Set<string>;
-	/** A widget that throws while mounting reports to the editor's `error` event. Without
-	 *  this it goes unreported, and the widget still falls back to its raw source. */
-	reportRenderError?: (error: unknown) => void;
+	/** A widget that throws while mounting reports to the editor's `error` event, and still falls
+	 *  back to its raw source. */
+	reportRenderError: (error: unknown) => void;
 }
 
 export interface TextRender {

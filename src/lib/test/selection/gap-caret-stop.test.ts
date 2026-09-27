@@ -41,12 +41,6 @@ describe('tryGapStop', () => {
 		expect(tryGapStop(scope, [], 2)).toBe(false);
 		expect(scope.selection.gapCaret).toBeNull();
 	});
-
-	it('stops on an unwired presentation mode', () => {
-		const selection = createSelectionState({ getDoc: () => DOC });
-
-		expect(tryGapStop({ selection, getDoc: () => DOC }, [], 2)).toBe(true);
-	});
 });
 
 describe('placeGapCaret: the gap entry point', () => {

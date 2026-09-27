@@ -9,8 +9,7 @@
 	let { source, getPresentationMode }: InlineWidgetComponentProps = $props();
 
 	function onClick(e: MouseEvent): void {
-		const mode = getPresentationMode?.() ?? 'source';
-		if (!isWidgetActivationClick(e.ctrlKey || e.metaKey, mode)) return;
+		if (!isWidgetActivationClick(e.ctrlKey || e.metaKey, getPresentationMode())) return;
 		e.preventDefault();
 		const probe = window as Window & { __tagActivations?: string[] };
 		(probe.__tagActivations ??= []).push(source.slice(1));

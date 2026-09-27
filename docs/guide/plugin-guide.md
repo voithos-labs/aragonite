@@ -1442,9 +1442,11 @@ A widget renders through one of two paths, and the descriptor rejects declaring 
 - `getDocument`: the read-only root document.
 - `getContentVersion`: a number that changes whenever the document's bytes change, and is stable otherwise.
 
-A fourth prop, `navigateTo`, is the editor's jump route: hand it a block path and the editor reveals that block, scrolls it into view, and lands the caret in it. Aim at a leaf: a container seats no caret, so a container path scrolls the block into view and leaves the caret where it was. Use it when your widget points at somewhere else in the document, the way a footnote reference points at its definition. It's absent in a bare harness mount, so call it optionally.
+A fourth prop, `navigateTo`, is the editor's jump route: hand it a block path and the editor reveals that block, scrolls it into view, and lands the caret in it. Aim at a leaf: a container seats no caret, so a container path scrolls the block into view and leaves the caret where it was. Use it when your widget points at somewhere else in the document, the way a footnote reference points at its definition. It resolves false when there's nowhere to land.
 
-A fifth, `computeInlineContent`, is the same parse `EditorContext.computeInlineContent` gives a plugin. Walk inline nodes through it and syntax the editor left out comes back as plain text. It's absent in a bare harness mount too, so fall back to the free `computeInlineContent` there.
+A fifth, `computeInlineContent`, is the same parse `EditorContext.computeInlineContent` gives a plugin. Walk inline nodes through it and syntax the editor left out comes back as plain text.
+
+The editor passes every one of these props, `getTheme` included, so call them as given. A test that mounts your widget by hand passes its own (a fixed mode, a stub `navigateTo`), and the types won't let it forget one.
 
 If your `revealSource` widget takes a click of its own, declare `claimsActivationClick` in its editing policy and read `isWidgetActivationClick` to decide when to act: the surface stands its reveal down for exactly the gesture that predicate names, so the widget isn't swapped for its source bytes under a click meant to navigate. Without `revealSource` there's no reveal to stand down, and the field is inert.
 

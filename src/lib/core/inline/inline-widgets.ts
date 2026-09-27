@@ -48,23 +48,22 @@ export function widgetSourceRange(el: Element): { start: number; end: number } |
 export interface InlineWidgetComponentProps {
 	inline: InlineNode;
 	source: string;
-	/** Absent reads as 'source'. */
-	getPresentationMode?: () => PresentationMode;
+	getPresentationMode: () => PresentationMode;
 	/** A widget whose body a renderer such as KaTeX draws emits colors no stylesheet reaches, so
 	 *  it keys its render on this. One styled with CSS tokens needs nothing. */
 	getTheme: () => string;
 	/** The pool keys on `${kind} ${source}`, so a widget whose value derives from the document
 	 *  (footnote numbering) needs this to survive edits elsewhere that change no source. */
-	getDocument?: () => DocumentView | undefined;
+	getDocument: () => DocumentView | undefined;
 	/** Memo key for a whole-document derivation, since the `$state` document mutates in place and
 	 *  keeps its identity. Read it inside the widget's `$derived` to re-run on edits anywhere. */
-	getContentVersion?: () => number;
+	getContentVersion: () => number;
 	/** `EditorRects.navigateTo`: mount, scroll to and put the caret at a raw offset in a block
-	 *  path. Absent in a bare harness, so a widget that navigates declines rather than throws. */
-	navigateTo?: (path: number[], offset?: number) => Promise<boolean>;
+	 *  path. Resolves false where it can't land, so a widget never needs a fallback. */
+	navigateTo: (path: number[], offset?: number) => Promise<boolean>;
 	/** `EditorContext.computeInlineContent` for the widget's editor: a parse that reads only the
-	 *  inline syntax that editor draws. Absent in a bare harness. */
-	computeInlineContent?: (node: NodeView) => InlineNode[];
+	 *  inline syntax that editor draws. */
+	computeInlineContent: (node: NodeView) => InlineNode[];
 }
 
 /** Shared by the editable element deciding whether to show the source and the widget deciding

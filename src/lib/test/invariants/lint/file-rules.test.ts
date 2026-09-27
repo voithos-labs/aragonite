@@ -193,6 +193,22 @@ const DOM_MEASURES = [
 	/\brawTextOfNode\s*\([^)]*\)\s*\.length\b/
 ];
 
+// ── Editor-owned values ──────────────────────────────────────────────────────
+
+/** The getters the editor hands down for values it owns, by the names readers destructure them as. */
+const EDITOR_GETTERS = [
+	'getTheme',
+	'theme',
+	'getPresentationMode',
+	'presentationMode',
+	'blockDragHandles',
+	'getDragHandles',
+	'getDocument',
+	'getContentVersion',
+	'navigateTo',
+	'computeInlineContent'
+];
+
 // ── The rules ────────────────────────────────────────────────────────────────
 
 const RULES: FileRule[] = [
@@ -678,24 +694,49 @@ const RULES: FileRule[] = [
 		]
 	},
 	{
-		id: 'the theme a host leaves unset is defaulted once, by the editor',
+		id: 'the theme and mode a host leaves unset are defaulted once, by the editor',
 		// Single quotes in the default: a markup attribute (`theme="light"`) is a host passing one.
-		matches: /(?:\?\?|\|\|)\s*['"](?:dark|light)['"]|\btheme\s*=\s*'/,
+		matches: /(?:\?\?|\|\|)\s*['"](?:dark|light)['"]|\b(?:theme|presentationMode)\s*=\s*'/,
 		allowed: {
-			'src/lib/components/Editor.svelte': 'the `theme` prop default every reader is handed'
+			'src/lib/components/Editor.svelte': 'the prop defaults every reader is handed'
 		},
 		reason:
 			'a reader defaulting the theme itself can draw in a theme the editor is not in: read the required getter the editor passes down (`EditorPolicies.theme`, a widget’s `getTheme`)',
 		hits: [
 			"const theme = getTheme?.() ?? 'dark';",
 			"toMermaidTheme(context?.theme || 'light');",
-			"let { theme = 'dark' } = $props();"
+			"let { theme = 'dark' } = $props();",
+			"let { presentationMode = 'source' } = $props();"
 		],
 		misses: [
 			'const theme = getTheme();',
 			"if (theme === 'dark') return;",
 			'<Editor {source} theme="light" />',
 			"const MERMAID_THEMES = new Set(['default', 'dark']);"
+		]
+	},
+	{
+		id: 'a value the editor owns is read through its getter, never optional-chained into a default',
+		matches: new RegExp(
+			`\\b(?:${EDITOR_GETTERS.join('|')})\\?\\.\\(|(?:\\?\\?|\\|\\|)\\s*'(?:source|reading)'`
+		),
+		allowed: {
+			'src/lib/cursor/widget-offset.ts':
+				'the mode a mounted block wears in the DOM, where no hiding attribute means source'
+		},
+		reason:
+			'the editor passes every one of these getters and decides each default once, so a reader’s own fallback can only disagree with it: call the getter as given',
+		hits: [
+			"const isReading = (getPresentationMode?.() ?? 'source') === 'reading';",
+			'const on = $derived(getDragHandles?.() ?? false);',
+			'const doc = getDocument?.();',
+			'if (path) void navigateTo?.(path);',
+			"const mode = policies.presentationMode() || 'source';"
+		],
+		misses: [
+			"const isReading = getPresentationMode() === 'reading';",
+			'navigateTo: (path) => rects?.navigateTo(path) ?? Promise.resolve(false),',
+			"if (mode === 'reading') return;"
 		]
 	}
 ];

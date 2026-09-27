@@ -7,13 +7,12 @@ import { commandContext, commandContextWith } from '../support/command-context';
 const modeGetter = (mode: PresentationMode) => () => mode;
 
 describe('isReadingMode', () => {
-	it('reads the mode through the getter; absent getter means not reading', () => {
+	it('reads the mode through the getter', () => {
 		expect(isReadingMode(modeGetter('reading'))).toBe(true);
 		expect(isReadingMode(modeGetter('source'))).toBe(false);
 		expect(isReadingMode(modeGetter('preview-inline'))).toBe(false);
 		// Live hides every marker but stays editable, so it must not trip the read-only check.
 		expect(isReadingMode(modeGetter('live'))).toBe(false);
-		expect(isReadingMode(undefined)).toBe(false);
 	});
 });
 

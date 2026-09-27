@@ -125,20 +125,17 @@ interface PortalHandle {
 	instance: Record<string, unknown>;
 }
 
-/** The live channels a mounted widget reads beside its frozen `{ inline, source }` snapshot. The
- *  reading and the theme are required; the rest is optional so a bare harness can mount without a shell. */
+/** The live channels a mounted widget reads beside its frozen `{ inline, source }` snapshot. All
+ *  required, so no widget falls back to a value the editor does not hold. */
 export interface SvelteWidgetPoolDeps {
-	/** A widget component's synchronous mount throw goes here (the editor's `error`
-	 *  channel). Absent leaves the caller falling back to the raw span silently. */
-	reportError?: (error: unknown) => void;
-	/** The editor's theme name, for a widget that draws its own colors where CSS cannot reach.
-	 *  Required, so no widget falls back to a theme the editor is not in. */
+	/** A widget component's synchronous mount throw goes here (the editor's `error` channel). */
+	reportError: (error: unknown) => void;
+	/** The editor's theme name, for a widget that draws its own colors where CSS cannot reach. */
 	getTheme: () => string;
-	getDocument?: () => DocumentView | undefined;
-	getContentVersion?: () => number;
-	/** The editor's navigation call, for a widget whose gesture jumps elsewhere in the
-	 *  document. Absent in a bare harness. */
-	navigateTo?: (path: number[], offset?: number) => Promise<boolean>;
+	getDocument: () => DocumentView | undefined;
+	getContentVersion: () => number;
+	/** The editor's navigation call, for a widget whose gesture jumps elsewhere in the document. */
+	navigateTo: (path: number[], offset?: number) => Promise<boolean>;
 	/** How the editor reads its bytes: a widget kind whose plugin it left out mounts nothing, and a
 	 *  mounted widget reads the mode and parses inline content through it. */
 	reading: Reading;
@@ -175,7 +172,7 @@ export function createSvelteWidgetPool(deps: SvelteWidgetPoolDeps): WidgetPool {
 				});
 				return { wrapper, instance };
 			} catch (error) {
-				reportError?.(error);
+				reportError(error);
 				return null;
 			}
 		},

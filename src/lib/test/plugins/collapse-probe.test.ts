@@ -5,6 +5,7 @@ import { declarePluginKind } from '$lib/schema/plugin-kind';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { takeDevWarns } from '$lib/test/support/warn-gate';
 import { testContainer } from '$lib/test/harness/test-kinds';
+import type { PresentationMode } from '$lib/presentation-mode';
 
 // The details declaration without its rendering: a `reservedChrome.isCollapsed` reading
 // an `open` metadata flag.
@@ -21,6 +22,8 @@ function registerCollapsible(): ReturnType<typeof declarePluginKind> {
 	return kind;
 }
 
+const SOURCE = (): PresentationMode => 'source';
+
 function containerNode(kind: ReturnType<typeof declarePluginKind>, open: boolean): CstNode {
 	const node: CstNode = { kind, leadingTrivia: '', raw: '' };
 	setPluginMetadata(node, { open });
@@ -32,8 +35,12 @@ describe('composeCollapseProbe', () => {
 
 	it('derives from the descriptor probe when no explicit dep is supplied', () => {
 		const kind = registerCollapsible();
-		const probeCollapsed = composeCollapseProbe(undefined, () => containerNode(kind, false));
-		const probeOpen = composeCollapseProbe(undefined, () => containerNode(kind, true));
+		const probeCollapsed = composeCollapseProbe(
+			undefined,
+			() => containerNode(kind, false),
+			SOURCE
+		);
+		const probeOpen = composeCollapseProbe(undefined, () => containerNode(kind, true), SOURCE);
 
 		expect(probeCollapsed()).toBe(true); // open:false -> collapsed
 		expect(probeOpen()).toBe(false);
@@ -45,7 +52,8 @@ describe('composeCollapseProbe', () => {
 
 		const probe = composeCollapseProbe(
 			() => true,
-			() => node
+			() => node,
+			SOURCE
 		); // explicit agrees
 
 		expect(probe()).toBe(true);

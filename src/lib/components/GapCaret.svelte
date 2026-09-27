@@ -34,13 +34,13 @@
 	// two action bundles above depend on where this list sits.
 	const services = getContext<EditorServices | undefined>(EDITOR_SERVICES_KEY);
 	const selection = services?.selection;
-	const policies = getContext<EditorPolicies | undefined>(EDITOR_POLICIES_KEY);
+	const policies = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
 	const editorDoc = getContext<EditorDoc | undefined>(EDITOR_DOC_KEY);
 
 	let proxyEl: HTMLElement | undefined = $state();
 	let composing = false;
 
-	const isReading = $derived(isReadingMode(policies?.presentationMode));
+	const isReading = $derived(isReadingMode(policies.presentationMode));
 
 	// Mounted only while the gap is live; focusing the contenteditable gives it a caret, so no
 	// range is set by hand.

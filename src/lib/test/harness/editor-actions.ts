@@ -93,7 +93,11 @@ export { stubBlockComponent };
 /** A gap scope over `source`: the kinds it parses to are what declare the eligible edges. */
 export function makeGapScope(source: string): GapStopScope {
 	const doc = parse(source);
-	return { getDoc: () => doc, selection: createSelectionState() };
+	return {
+		getDoc: () => doc,
+		selection: createSelectionState(),
+		getPresentationMode: () => 'source'
+	};
 }
 
 /** An inert gap scope, for the traversals that assert the caret lands outside a gap. */
