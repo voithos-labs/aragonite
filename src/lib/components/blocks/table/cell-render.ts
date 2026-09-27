@@ -53,11 +53,8 @@ export interface CellRenderDeps {
 }
 
 export interface CellRender {
-	/**
-	 * Rebuild the cell's children from the node's current state. Skips work on an unchanged
-	 * key unless `forceRebuild`, which a pending cursor restore passes so the DOM is rebuilt
-	 * even though the key held.
-	 */
+	/** Rebuilds the cell's children, skipping an unchanged key unless `forceRebuild`, which a
+	 *  pending cursor restore passes. */
 	render(opts?: { forceRebuild?: boolean; carryCaret?: boolean }): void;
 	/** Destroy every pooled widget and mounted decoration, called when the cell unmounts. */
 	dispose(): void;

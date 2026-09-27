@@ -34,11 +34,8 @@ export interface CellDragContext {
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
-/**
- * Pointer-drag from inside `anchor`'s cell: drives the multi-cell encoding while the
- * pointer stays in the table, and extends focus to the foreign block underneath once
- * it leaves. Anchor cell coords are frozen; only the focus tracks the pointer.
- */
+/** A drag from inside `anchor`'s cell selects a cell rectangle while the pointer stays in the
+ *  table and extends to the block underneath once it leaves; the anchor cell stays fixed. */
 export function installCellDragListener(
 	ctx: CellDragContext,
 	anchor: CellAnchor,

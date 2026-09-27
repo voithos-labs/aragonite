@@ -160,9 +160,8 @@ export function tokenizeBody(
 	return frag;
 }
 
-// An in-order text-node walk rewrites the k-th `\n` back to the k-th original ending.
-// Counts match by construction: every `\r` was stripped before highlighting, so neither
-// hljs nor the HTML parser adds or drops a newline.
+// An in-order text-node walk rewrites the k-th `\n` back to the k-th original ending; every
+// `\r` was stripped before highlighting, so the counts match.
 function restoreLineEndings(root: Node, originalBody: string): void {
 	const endings = originalBody.match(/\r\n|\r|\n/g);
 	if (!endings) return;
@@ -192,11 +191,8 @@ function restoreLineEndings(root: Node, originalBody: string): void {
 
 // ── Fenced source rendering ───────────────────────────────────────────────
 
-/**
- * The body as drawn: the line break before the closer belongs to the closer's fence line, so the
- * modes that hide fence lines take the bottom blank line with it. A blank body keeps it, since
- * that break is the only line the caret can sit on.
- */
+/** The line break before the closer belongs to the closer's fence line, so modes that hide it
+ *  take that break too; a blank body keeps it, as the only line the caret can sit on. */
 export function fenceBodyAsDrawn(source: FencedSource): string {
 	const ending = ownTrailingLineEnding(source.body);
 	const rehomed = source.closer !== '' && ending !== '' && /\S/.test(source.body);

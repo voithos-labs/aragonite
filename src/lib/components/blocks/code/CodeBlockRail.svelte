@@ -36,8 +36,8 @@
 		activation: PluginActivation;
 		/** False in reading mode, which writes no bytes, so the chip is then a label. */
 		editable: boolean;
-		/** Open the language field as soon as the rail mounts: a fence the user just created
-		 *  has no language yet, and asking is the whole reason the chip exists. */
+		/** Open the language field as soon as the gutter mounts, for a fence the user just
+		 *  created and has not given a language yet. */
 		autoOpen?: boolean;
 		/** Only Enter or a list pick calls this, and it owns the caret's landing afterwards. */
 		onCommit: (info: string) => void;
@@ -75,9 +75,8 @@
 	let menuEl: HTMLElement | undefined = $state();
 	let menuButtonEl: HTMLElement | undefined = $state();
 
-	// The picker offers what the renderer can actually highlight, filtered as the draft is
-	// typed. `text` is always offered: it is how a user clears a language, and no grammar
-	// registers under that name.
+	// The picker offers what the renderer can highlight. `text` is always offered: it is how a
+	// user clears a language, and no grammar registers under that name.
 	const suggestions = $derived.by(() => {
 		const all = ['text', ...listLanguages(activation).filter((name) => name !== 'text')];
 		const needle = filtering ? draft.trim().toLowerCase() : '';
@@ -213,8 +212,8 @@
 		copied = await onCopy();
 	}
 
-	// The copied confirmation lasts as long as the gutter shows: the pointer or focus leaving it
-	// clears it, so the next showing offers to copy again. No timer (G4.4).
+	// The copied confirmation clears when the pointer or focus leaves the gutter, so the next
+	// showing offers to copy again without a timer (G4.4).
 	function clearCopied(): void {
 		copied = false;
 	}
@@ -235,9 +234,8 @@
 		item.run();
 	}
 
-	// Escape is handled on the buttons, not on their container: the gutter is a labelled
-	// `group`, and a non-interactive role may not carry key handlers. Focus sits on the ⋮
-	// button while the menu is open, and on an item once the user tabs in, so both are covered.
+	// Escape is handled on the ⋮ button and the items, where focus sits while the menu is open:
+	// the gutter is a labelled `group`, and a non-interactive role may not carry key handlers.
 	function onMenuKeyDown(e: KeyboardEvent): void {
 		if (e.key !== 'Escape' || !menuOpen) return;
 		e.stopPropagation();
@@ -246,9 +244,8 @@
 		menuButtonEl?.focus();
 	}
 
-	// The menu outlives the click that opened it, so it closes on the next click anywhere
-	// else. Decided by what contains the click, not by the exact target: a click on a
-	// disabled item is still inside.
+	// The menu closes when focus leaves the gutter and its menu, judged by containment, so a
+	// click on a disabled item still counts as inside.
 	function onRailFocusOut(e: FocusEvent): void {
 		const next = e.relatedTarget;
 		if (next instanceof Node && (railEl?.contains(next) || menuEl?.contains(next))) return;
@@ -257,10 +254,8 @@
 	}
 
 	// ── Popout placement ──────────────────────────────────────────────────────
-	// Both popouts are `position: fixed`, like the table's action menu: an absolutely
-	// positioned one inside the block host would extend the editor's own scrollable area
-	// when it overhangs the last block, which is the page growing under the user.
-	// Fixed takes them out of flow entirely, so opening one can resize nothing.
+	// Both popouts are `position: fixed`: an absolute one overhanging the last block would grow
+	// the editor's scrollable area under the user.
 
 	interface Placement {
 		x: number;
@@ -274,15 +269,11 @@
 
 	const EDGE_MARGIN = 8;
 	const ANCHOR_GAP = 6;
-	/** A menu is a menu, not a column of the viewport: past this height it scrolls. The space
-	 *  actually available still wins when it is smaller. */
+	/** Past this height a popout scrolls; the space actually available wins when it is smaller. */
 	const MAX_POPOUT_HEIGHT = 320;
 
-	/**
-	 * Place a popout under its trigger, right-aligned to it and held inside the viewport
-	 * horizontally, never covering the trigger. Short of room below, it caps its height and
-	 * scrolls rather than moving above, so one gesture always opens the same way.
-	 */
+	/** Short of room below its trigger, a popout caps its height and scrolls rather than moving
+	 *  above, so one gesture always opens the same way. */
 	function placeAgainst(anchor: HTMLElement | undefined, popout: HTMLElement): Placement {
 		const a = (anchor ?? popout).getBoundingClientRect();
 		const size = popout.getBoundingClientRect();
@@ -336,9 +327,8 @@
 	const showMenu = $derived(menuItems !== undefined);
 </script>
 
-<!-- Lucide (ISC) path data, written out here rather than depended on: the editor ships two
-	dependencies and an icon package would be a third. Sized 14 / stroke 1.75 to match the
-	host app's menus. See THIRD-PARTY-NOTICES.md. -->
+<!-- Lucide (ISC) path data, inlined rather than adding an icon package; sized to match
+	the host app's menus. See THIRD-PARTY-NOTICES.md. -->
 {#snippet icon(paths: string)}
 	<svg
 		viewBox="0 0 24 24"
@@ -511,10 +501,8 @@
 {/if}
 
 <style>
-	/* Bare controls over the code box's top right, with no container of their own, so the code
-	   they sit above reads through between them. Positioned against the block host, whose
-	   box the code box fills below the host's 6px stand-off (editor.css, fencedCode), and out
-	   of the code box's own scroller so a horizontal scroll leaves them where they are. */
+	/* Positioned against the block host rather than inside the code box's scroller, so a
+	   horizontal scroll leaves the controls where they are. */
 	.code-rail {
 		position: absolute;
 		top: 12px;
@@ -530,9 +518,8 @@
 		transition: opacity 120ms ease-out;
 	}
 
-	/* Block hover or block focus, and nothing else, plus the two states that outlive both,
-	   since a popout must not vanish from under the pointer that opened it. Child and sibling
-	   combinators, so an outer container's hover never reveals a nested block's rail. */
+	/* Shown on block hover or focus, or while a popout is open; child and sibling combinators
+	   keep an outer container's hover from showing a nested block's controls. */
 	:global(.block-host:hover) > .code-rail,
 	:global(.code-block:focus) ~ .code-rail,
 	.code-rail:focus-within,
@@ -591,9 +578,8 @@
 		outline-offset: -1px;
 	}
 
-	/* The host app's own menu styling, so a code block's menus read as the app's. */
 	/* Panel, hairline, shadow, face and colour come from the shared `.md-menu` (editor.css);
-	   this adds only the picker's own layout. */
+	   this adds only the popouts' own layout. */
 	.code-rail-popout {
 		display: flex;
 		flex-direction: column;

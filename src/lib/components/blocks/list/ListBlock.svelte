@@ -90,9 +90,8 @@
 	{#if win.active}
 		<div class="vr-spacer" style="height: {win.topSpacerPx}px"></div>
 	{/if}
-	<!-- `index`, `myPath` and the key are all the absolute item index
-	     (bounds.start + localIndex), never the local loop index — paths and
-	     structural ops key off it. -->
+	<!-- `index`, `myPath` and the key all use the absolute item index, never the loop index:
+	     paths and structural ops key off it. -->
 	{#each (node.children ?? []).slice(bounds.start, bounds.end) as item, localIndex (listState.innerBlockIds[bounds.start + localIndex])}
 		{@const absoluteIndex = bounds.start + localIndex}
 		<ListItemBlock

@@ -136,8 +136,8 @@
 		return null;
 	}
 
-	// The one place this shape is written, matching the cell's: a row reaches every caller
-	// through its published reference, so a second copy to type-check against would mislead.
+	// The one place this shape is written, as in the cell: a row reaches every caller through
+	// its registered reference, so a second copy to type-check against would mislead.
 	$effect(() => {
 		if (!slots) return;
 		const self = {
