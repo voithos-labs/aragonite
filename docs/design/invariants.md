@@ -1126,11 +1126,11 @@ writes the documented whole-document default), as are the published kits (fixtur
 documents). `lint/call-site-rules.test.ts`.
 
 **G4.28 · Leaf raw writes outside the content write.** The content write applies a kind's
-`rawWrite` on its own, but a few routes still write `<node>.raw` around it (find and replace's
-private clone, the range-delete merges, the degraded typed-char splice, the container-matching
-paste). Each of those names `writeOwnRaw` (writes in place) or `normalizeOwnRaw` (runs the rule
-ahead of the route's own reparse), or it's on a counted allowlist with the reason it can't reach a
-kind that declares a rule. That's the shape issue #45 shipped through: find and replace wrote a
+`rawWrite` on its own, but a few routes still write `<node>.raw` around it (the range-delete
+merges, and find and replace's private clone, which asks `legalizeWrite` for the bytes itself).
+Each of those names `writeOwnRaw` (writes in place), `normalizeOwnRaw` (runs the rule ahead of the
+route's own reparse) or `legalizeWrite`, or it's on a counted allowlist with the reason it can't
+reach a kind that declares a rule. That's the shape issue #45 shipped through: find and replace wrote a
 fence terminator into a code body because nothing asked the fence rule. The fence rule itself has
 one implementation, in `schema/` so a headless route reaches it. `lint/leaf-raw-write-rule.test.ts`.
 

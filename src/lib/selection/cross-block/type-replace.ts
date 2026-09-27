@@ -5,8 +5,6 @@
  * replaces that block instead.
  */
 
-import type { MultiScopeTarget } from '../../action-contracts';
-import type { CstNode } from '../../core/nodes';
 import { documentLineEnding } from '../../core/lines';
 import type { CrossBlockDispatchContext } from './dispatch';
 import type { CrossBlockMutationContext } from './ops';
@@ -16,28 +14,9 @@ import { blockCoveredWhole } from '../covered-block';
 import { CURSOR_END } from '../../block-component';
 import { replaceBlockAtParent } from '../../tree-operations/paste/replace-block-at-parent';
 import { parseReplacement } from '../../tree-operations/paste/replacement-parse';
-import {
-	blockNodeAt,
-	normalizeBodyWrite,
-	writeOwnRaw
-} from '../../tree-operations/node-primitives';
-import {
-	updateNodeContent,
-	settledCaretPosition,
-	type SettledContent
-} from '../../tree-operations/content-write';
+import { blockNodeAt } from '../../tree-operations/node-primitives';
 import { focusCollapsedCaret } from '../native-bridge';
 import { caretTargetFor } from '../caret-target';
-import {
-	ensureUnsharedChild,
-	ensureUnsharedNode,
-	ensureUnsharedPath
-} from '../../tree-operations/unshare';
-import { rebuildUnsharedChain } from '../../tree-operations/chain-rebuild';
-import { stampStructuralChange } from '../../tree-operations/structural-change';
-import { getStateForNode } from '../../reactivity/state-registry';
-import { docPathFrom } from '../../cursor/coordinate-spaces';
-import { devWarn } from '../../dev-warn';
 
 export async function handleCrossBlockTypeReplace(
 	ctx: CrossBlockDispatchContext,
@@ -67,94 +46,35 @@ async function deleteThenType(
 	// All caret placements below target caret.path's top-level block; mount it once here so each
 	// (the post-tick landing included) finds a live element.
 	await ctx.revealPath(caret.path);
-	if (!typed) {
-		focusCollapsedCaret(ctx.getBlockElByPath, caret);
-		return;
-	}
-
-	const doc = ctx.getDoc();
-	const targetNode = blockNodeAt(doc, caret.path);
+	const targetNode = typed ? blockNodeAt(ctx.getDoc(), caret.path) : null;
 	if (!targetNode) {
 		focusCollapsedCaret(ctx.getBlockElByPath, caret);
 		return;
 	}
 
-	const scope = resolveTypedCharScope(ctx, caret.path);
-	if (!scope) {
-		focusCollapsedCaret(ctx.getBlockElByPath, caret);
-		return;
-	}
-
-	// Every mounted container registers a `BlockListState`, so the scope is the leaf's parent; an
-	// unregistered ancestor would make it a grandparent, and that case splices raw only.
+	// The typed character goes through the write every keystroke takes, so a marker typed at offset
+	// 0 re-derives the kind and the container's rule escapes what it must.
 	const leafIndex = caret.path[caret.path.length - 1];
-	const scopeIsImmediateParent = scope.path.length === caret.path.length - 1;
-
-	let settled: SettledContent = { change: { op: 'noop' }, textStart: 0 };
-	await ctx.controller.commitMultiScope({
-		scopes: [scope],
-		snapshot: { path: docPathFrom(caret.path), offset: caret.offset },
-		mutate: ([scopeView]) => {
-			const sharing = scopeView.sharing;
-			const charOffset = charOffsetOf(caret, 'cross-block-type-replace:slice');
-
-			if (!scopeIsImmediateParent) {
-				devWarn(
-					'cross-block-type-replace',
-					`scope [${scope.path.join(',')}] is not the immediate parent of leaf [${caret.path.join(',')}]; splicing raw without kind re-derivation`
-				);
-				const chain = ensureUnsharedPath(doc, caret.path, sharing);
-				const owned = chain[chain.length - 1] ?? ensureUnsharedNode(targetNode, sharing);
-				// Still a body write with no reparse: the container's and the leaf's write rules are
-				// all that stop a typed `>` or backtick from forming a terminator line.
-				const lineEnding = documentLineEnding(doc);
-				writeOwnRaw(
-					owned,
-					normalizeBodyWrite(
-						chain[chain.length - 2],
-						owned.raw.slice(0, charOffset) + typed + owned.raw.slice(charOffset),
-						lineEnding
-					),
-					lineEnding,
-					ctx.reading.grammar
-				);
-				rebuildUnsharedChain(doc, chain, sharing, null, ctx.reading.grammar);
-				return [{ op: 'noop' }];
-			}
-
-			// Reparse the spliced leaf inside the commit so a marker at offset 0 re-derives the kind;
-			// a single character never adds a blank line, so the multi-block branch can't be reached.
-			const owned = ensureUnsharedChild(scopeView.node, leafIndex, sharing);
-			const newText = owned.raw.slice(0, charOffset) + typed + owned.raw.slice(charOffset);
-			settled = updateNodeContent(scopeView.body, leafIndex, newText, ctx.reading.grammar, sharing);
-			stampStructuralChange(scopeView.children, settled.change, sharing);
-			return [settled.change];
-		},
-		op: {
-			// `updateContent`, not `input`: consumers read `input` as the kind having held, and this
-			// reparse may change it.
-			kind: 'updateContent',
-			// `op` is evaluated ahead of `mutate` and the splice only inserts, so the post-commit
-			// length is already fixed. Read for the event detail alone.
-			detail: { length: targetNode.raw.length + typed.length },
-			eventPath: docPathFrom(caret.path)
-		},
-		afterTick: async () => {
+	const charOffset = charOffsetOf(caret, 'cross-block-type-replace:slice');
+	const text = targetNode.raw.slice(0, charOffset) + typed + targetNode.raw.slice(charOffset);
+	const written = await ctx.pasteCoordinator.commitLeafText(caret.path, text, {
+		caret: charOffset + typed.length,
+		snapshotOffset: caret.offset,
+		afterTick: async (landed) => {
+			const at = [...landed.caret.path];
 			// A fix-up that merged the leaf into the block above left that block holding the typed
-			// bytes, so the caret belongs there rather than where the delete resolved.
-			const siblings = scopeChildrenOf(ctx, scope.path);
-			const at = settledCaretPosition(settled, leafIndex, caret.offset + typed.length, siblings);
-			const path = [...caret.path.slice(0, -1), at.index];
-			// The mount above covered the position the delete resolved; a merge can put the caret
-			// on one the render window never held.
-			if (at.index !== leafIndex) await ctx.revealPath(path);
-			const leaf = caretTargetFor(ctx.getDoc(), { path: docPathFrom(path), offset: at.offset });
+			// bytes, somewhere the mount above may never have drawn.
+			if (at[at.length - 1] !== leafIndex) await ctx.revealPath(at);
+			const leaf = caretTargetFor(ctx.getDoc(), landed.caret);
 			focusCollapsedCaret(
 				ctx.getBlockElByPath,
-				leaf ? { path: [...leaf.leafPath], offset: leaf.offset } : { path, offset: at.offset }
+				leaf
+					? { path: [...leaf.leafPath], offset: leaf.offset }
+					: { path: at, offset: landed.caret.offset }
 			);
 		}
 	});
+	if (!written.wrote) focusCollapsedCaret(ctx.getBlockElByPath, caret);
 }
 
 /** Parses the typed character in place of the covered block, through the same call the
@@ -185,31 +105,4 @@ async function replaceCoveredBlockWithText(
 			grammar: ctx.reading.grammar
 		});
 	});
-}
-
-/** The container's children, re-read after the commit, which replaces the node it wrote to state. */
-function scopeChildrenOf(ctx: CrossBlockDispatchContext, scopePath: number[]): readonly CstNode[] {
-	const doc = ctx.getDoc();
-	if (scopePath.length === 0) return doc.children;
-	return blockNodeAt(doc, scopePath)?.children ?? [];
-}
-
-/** The smallest commit scope over the leaf: the document for a top-level leaf, else the nearest
- *  ancestor with a registered `BlockListState`. Null when none is mounted. */
-function resolveTypedCharScope(
-	ctx: CrossBlockDispatchContext,
-	leafPath: number[]
-): MultiScopeTarget | null {
-	if (leafPath.length === 1) {
-		return ctx.controller.getDocScope();
-	}
-	const doc = ctx.getDoc();
-	for (let depth = leafPath.length - 1; depth >= 1; depth--) {
-		const ancestorPath = leafPath.slice(0, depth);
-		const ancestor = blockNodeAt(doc, ancestorPath);
-		if (!ancestor) continue;
-		const state = getStateForNode(ancestor);
-		if (state) return { node: ancestor, state, path: ancestorPath };
-	}
-	return null;
 }

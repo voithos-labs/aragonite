@@ -282,7 +282,7 @@ export interface LeafWriteLanded extends Relanding {
 }
 
 /** A leaf write by document path: `caret` is an offset into the text as written, `snapshotOffset`
- *  one into the old bytes, where undo puts the caret back when nothing is focused. */
+ *  one into the leaf's current bytes, where undo puts the caret back when nothing is focused. */
 export interface LeafTextOptions {
 	caret: number;
 	snapshotOffset: number;

@@ -47,11 +47,6 @@ const SITES: Record<string, SiteStance> = {
 		sinks: 0,
 		why: 'a byte write inside the content range: no opener or closer line moves, so no fold a parent scope would have to reconcile can be produced'
 	},
-	'src/lib/selection/cross-block/type-replace.ts': {
-		declines: 1,
-		sinks: 0,
-		why: 'the degraded splice branch, which already warns; its chain is built from a leaf path strictly below the commit scope, so the commit sequence’s own re-walk does not reach those levels'
-	},
 	'src/lib/selection/range-delete.ts': {
 		declines: 4,
 		sinks: 0,
