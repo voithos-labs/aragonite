@@ -1,9 +1,8 @@
 // @vitest-environment jsdom
-//
 // The composition commit wired to the real block-edit actions and undo controller: a composed
-// commit lands its bytes once and anchors its undo snapshot at the offset captured at
-// `compositionstart`, which is what one Ctrl+Z restores; the browser-order counterpart is in
-// e2e/tests/ime-composition); a cancelled composition leaves the document byte-identical.
+// commit lands its bytes once, one Ctrl+Z restores the caret captured at `compositionstart`,
+// and a cancelled composition leaves the document byte-identical. The browser-order run is
+// the `ime-composition` e2e spec.
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';

@@ -1,7 +1,5 @@
 // @vitest-environment jsdom
-//
-// Miss-analysis: the input commit's call was covered only by the lint that paired it with the
-// column reset; with the lint gone nothing asserted what a typed byte leaves in the memory.
+// Miss-analysis: only a source lint covered the input commit's reset, never a typed byte.
 import { describe, it, expect, afterEach } from 'vitest';
 import { makeSurface } from '../harness/editable-surface';
 import { createCaretMemory } from '$lib/cursor/caret-memory';
@@ -12,7 +10,7 @@ afterEach(() => {
 });
 
 // Every input route (a keystroke, dictation, a soft keyboard) ends in the input commit, so the
-// committed byte is what settles the caret memory, not the key that may or may not precede it.
+// committed byte is what resets the caret memory, not the key that may or may not precede it.
 describe('editable surface: an input commit settles the caret memory', () => {
 	it('drops the column and the marks and records the near side', () => {
 		const caretMemory = createCaretMemory();

@@ -1,10 +1,8 @@
 // @vitest-environment jsdom
-//
-// The task checkbox is a click target inside the item's marker span, a contenteditable="false"
-// element rather than a real input. Its handler is built by `buildTaskItemAmbient` but supplied
-// by ListItemBlock as `toggleTask`, carrying three rules the builder knows nothing about: the
+// The task checkbox is a `contenteditable="false"` click target in the item's marker span, built
+// by `buildTaskItemAmbient` but handled by ListItemBlock's `toggleTask`, which adds the
 // reading-mode check, clearing a cross-block selection, and the paired metadata write. Only a
-// mounted item connects the rendered span to those rules.
+// mounted item connects the span to those rules.
 import { describe, it, expect, afterEach, beforeAll } from 'vitest';
 import {
 	installLayoutStubs,
@@ -71,8 +69,7 @@ describe('list item task checkbox', () => {
 		expect(mounted.source()).toBe('- [ ] todo\n');
 	});
 
-	// Both directions: a handler that always targeted index 0 would pass the first
-	// case alone.
+	// A handler that always targeted index 0 would pass the first case alone.
 	it('toggles only the item whose box was clicked', async () => {
 		mounted = mountEditor({ source: '- [ ] one\n- [ ] two\n' });
 

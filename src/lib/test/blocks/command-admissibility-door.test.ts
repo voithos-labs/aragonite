@@ -1,8 +1,7 @@
 // @vitest-environment jsdom
-//
 // `editor.canRunCommand` through a real mount, over the ids and the handle a host reads from the
-// barrel. The cross-block half of the answer is covered where both paths meet
-// (`test/schema/command-admissibility.test.ts`), where a painted range needs no live selection.
+// barrel. The cross-block answer is covered in `test/schema/command-admissibility.test.ts`,
+// where a painted range needs no live selection.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { TOOLBAR_COMMANDS, type EditorInstance } from '$lib';
 import { registerBlockCommand } from '$lib/schema/block-commands';
@@ -56,17 +55,16 @@ describe('the admissibility read on the instance surface', () => {
 		expect(editor.canRunCommand('history.undo')).toBe(false);
 	});
 
-	// A host may ask on every selection change, so the probe must not spend the one-time dead-key
-	// diagnostic a real invocation must produce.
+	// A host may ask on every selection change, so the read must not spend the one-time
+	// "nothing handles this id" warning a real invocation produces.
 	it('declines an unknown id without dev-warning', () => {
 		const editor = editorWithSelection();
 		expect(editor.canRunCommand('format.toggleRainbow')).toBe(false);
 		expect(takeDevWarns()).toEqual([]);
 	});
 
-	// The chord-only boundary, held by the real focused target rather than by prose: it resolves
-	// a block with no command context, so a plugin id reaches neither level. Both halves
-	// spend one walk now, so this is what keeps the contract from moving under the read.
+	// A block command is reachable by its chord only: the API resolves a block with no command
+	// context, so a created plugin id is refused by both the read and the run.
 	it('reaches no created plugin command, neither read nor run', () => {
 		const minted = registerBlockCommand('paragraph', 'demo.doorOnly', () => true);
 		const editor = editorWithSelection();

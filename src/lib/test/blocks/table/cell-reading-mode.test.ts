@@ -1,10 +1,7 @@
 // @vitest-environment jsdom
-//
-// Reading mode makes a cell inert without making it dead: navigation still works and every edit
-// is refused. Two places refuse: the structural chords are keymap bindings, so the command
-// dispatch's own reading-mode check makes them do nothing, while the
-// row-appending end of Tab and Enter is a navigation plan reading mode must keep, so the keydown
-// switch carries a check the dispatch cannot supply. One test per side of that split.
+// Reading mode refuses every cell edit and keeps navigation. The structural chords are refused by
+// the command dispatch's own reading-mode check; the row-appending end of Tab and Enter is a
+// navigation plan, so the keydown switch carries its own check.
 import { describe, it, expect, beforeAll, afterEach, vi } from 'vitest';
 import {
 	installLayoutStubs,
@@ -85,8 +82,6 @@ describe('a reading-mode cell refuses every mutation', () => {
 
 describe('a reading-mode cell still navigates', () => {
 	it('lets Tab move to the next cell', async () => {
-		// The other side of the same branch: reading mode keeps 'focus-cell' and
-		// 'exit', so the grid can still be navigated.
 		mountReading();
 
 		await pressInCell(mounted!, 1, 0, { key: 'Tab' });
@@ -104,9 +99,8 @@ describe('a reading-mode cell still navigates', () => {
 });
 
 describe('the right-click menu clipboard refuses to mutate in reading mode', () => {
-	/** A cell on its own, not one inside `mountTable`: a table hands its cells its own nested
-	 *  actions as their `blockEdit`, so a stub passed to that mount records nothing and every
-	 *  refusal below would pass even with the check deleted. */
+	/** A cell on its own: inside `mountTable` a cell's `blockEdit` is the table's own actions, so
+	 *  a stub would record nothing and every refusal below would pass without the check. */
 	function readingCell(): MountedCell {
 		bareCell = mountCell('one', { presentationMode: () => 'reading' });
 		return bareCell;
@@ -136,8 +130,8 @@ describe('the right-click menu clipboard refuses to mutate in reading mode', () 
 	});
 
 	it('still allows copy, which mutates nothing', async () => {
-		// The other way round: the check is per action, not a blanket refusal, since a
-		// user must be able to copy out of the table.
+		// The check is per action, not a blanket refusal, since a user must be able to copy out
+		// of the table.
 		const execCommand = vi.fn(() => true);
 		document.execCommand = execCommand;
 

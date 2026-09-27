@@ -1,11 +1,8 @@
 // @vitest-environment jsdom
-//
-// The right-click menu's clipboard handling, which is the cell's second way into a paste: it is
-// reached with no ClipboardEvent and no focus, so nothing the event path gets for free applies.
-// The menu click already moved focus off the cell, and the clipboard has to be asked rather than
-// read off an event. e2e drives the happy paths through a real menu
-// (`right-click-clipboard.spec.ts`); what only a unit mount can reach is a clipboard that says
-// no, and what happens before anything is written.
+// The right-click menu's clipboard handling, the cell's second way into a paste: the menu click
+// has moved focus off the cell and there is no ClipboardEvent, so the clipboard has to be asked.
+// The e2e spec covers the happy paths; a unit mount reaches a clipboard that refuses, and what
+// happens before anything is written.
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { tick } from 'svelte';
 import { registerBuiltInBlocks } from '$lib/components/built-in-blocks';
@@ -35,9 +32,8 @@ function committedRaw(): string | null {
 
 describe('a menu paste asks the clipboard and lands through the cell’s paste surface', () => {
 	it('inserts what it read, collapsing the newlines the row cannot hold', async () => {
-		// The control for the refusal below and the routing assertion in one: a plain splice of
-		// the clipboard text would leave the newline in, and a `\n` in `cell.raw` reparses the
-		// row one column short.
+		// Also the control for the refusal below: a plain splice would leave the newline in, and
+		// a `\n` in `cell.raw` reparses the row one column short.
 		installClipboard(async () => 'x\ny');
 		mounted = mountCell('one');
 

@@ -1,11 +1,7 @@
 // @vitest-environment jsdom
-//
-// A cell's raw is joined verbatim into its row, so an unescaped `|` reaching `cell.raw` reparses
-// the row wider than the delimiter row's column count and the parser truncates the last column,
-// silently. Three gestures compute their own bytes and commit them: Mod+B, Shift+Enter and the
-// menu Cut. Each committed text is read after the kind's escaping has run, since measuring at the
-// component's own call would only show the gesture escaped its own bytes. The toggle refuses to
-// splice inside an escape at all, so Mod+B is covered on both sides of that.
+// Mod+B, Shift+Enter and the menu Cut compute their own cell bytes, and an unescaped `|` in
+// `cell.raw` reparses the row too wide, silently dropping the last column. Each committed text
+// is read after the kind's escaping has run, not at the component's own call.
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import type { CstNode } from '$lib/core/nodes';
 import { splitRowCells } from '$lib/core/parsers/table';
@@ -34,13 +30,13 @@ function committedRaw(blockEdit: ReturnType<typeof makeStubBlockEdit>): string {
 	return calls[calls.length - 1][1];
 }
 
-// The before-input handler awaits the shared prelude before committing, so the
+// The beforeinput handler awaits `handleSharedBeforeInput` before committing, so the
 // commit lands several microtasks after dispatch.
 async function settleCommit(blockEdit: ReturnType<typeof makeStubBlockEdit>): Promise<void> {
 	await settleEditor(() => vi.mocked(blockEdit.updateBlockContent).mock.calls.length > 0);
 }
 
-/** Cells the row reparses into once the sink has written the gesture's text. */
+/** Cells the row reparses into once the write has stored the gesture's text. */
 function reparsedCells(committed: string): string[] {
 	const row: CstNode = {
 		kind: 'tableRow',

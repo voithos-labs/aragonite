@@ -32,7 +32,7 @@ function makeCell(raw: string): CstNode {
 }
 
 /** A paste into cell 0 of a two-cell row, carried the way the editor carries it: the hook returns
- *  spliced text, the sink applies the kind's rule, and the row is read back through a parse. */
+ *  spliced text, the write applies the kind's rule, and the row is read back through a parse. */
 function pasteIntoRow(
 	cellRaw: string,
 	offset: number,
@@ -132,8 +132,8 @@ describe('tableCellInlinePaste', () => {
 		expect(pasteIntoRow('a\\|b', 2, 'X', { start: 0, end: 2 }).cells).toEqual(['X\\|b', 'keep']);
 	});
 
-	// The delete half is a join, and a cell's stranded runs are as unpainted as a paragraph's.
-	// The join runs before the escaping stage, which is why the escaping sees the final bytes.
+	// The paste's delete is a join, and a cell's stranded marker runs are hidden as a paragraph's
+	// are; the join runs before escaping, so the escaping sees the final bytes.
 	describe('the delete half crosses the live join', () => {
 		beforeAll(() => registerLiveJoinSeamCleaner(cleanLiveJoinSeam));
 		afterAll(() => __resetLiveJoinSeamCleanerForTests());

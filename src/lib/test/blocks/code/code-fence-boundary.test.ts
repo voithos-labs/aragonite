@@ -101,8 +101,8 @@ describe('classifyFenceBoundary', () => {
 		}
 	});
 
-	// `bodyEnd = closerStart - 1` assumed a one-character line ending, so on CRLF the guard
-	// fired between `\r` and `\n` and the native delete fused the last body line with the closer.
+	// A check that fires between `\r` and `\n` lets the native delete fuse the last body line
+	// with the closer.
 	it('CRLF body: the closer boundary sits before the whole `\\r\\n`, not inside it', () => {
 		// raw "```\r\ncode\r\n```\r\n": opener=[0,5) body=[5,11) closer=[11,14).
 		const crlf = fencedCode('```\r\ncode\r\n```\r\n');
@@ -152,7 +152,7 @@ describe('clampEnterOffsetToBody', () => {
 		expect(clampEnterOffsetToBody(closed, 10)).toBe(10);
 	});
 
-	// The closer-side mirror: splicing at 19 broke the closer apart, leaving an unclosed fence.
+	// A splice inside the closer text breaks the closer apart and leaves an unclosed fence.
 	it('clamps a caret inside the closer text back to the body end', () => {
 		expect(clampEnterOffsetToBody(closed, 19)).toBe(17);
 		expect(clampEnterOffsetToBody(closed, 20)).toBe(17);
@@ -231,8 +231,8 @@ describe('clampRangeToBody', () => {
 		expect(clampRangeToBody(fresh, { start: 0, end: 3 })).toEqual({ start: 3, end: 3 });
 	});
 
-	// Tab over the last body line once indented the closer past the 3-space limit, so the
-	// fence stopped closing and absorbed every following block into the code body.
+	// A closer indented past the 3-space limit stops closing the fence, which then absorbs
+	// every following block into the code body.
 	it('Tab over a body line leaves the closer at column 0', () => {
 		const display = trimTrailingLineEnding(closed.raw);
 		const indented = indentLines(display, clampRangeToBody(closed, { start: 6, end: 18 }));
@@ -375,8 +375,8 @@ describe('fenceEditSpan', () => {
 	});
 });
 
-// The refusal every editing gesture shares, reached by the check and by cut through
-// computeFenceRangedEdit, paste directly, because the tree-op owns its splice.
+// Every editing gesture refuses a range holding only fence structure: the check and cut reach
+// it through `computeFenceRangedEdit`, and paste calls it directly since it owns its splice.
 describe('isStructureOnlyRange', () => {
 	const closed = fencedCode('```js\nconst x = 1\n```\n', 'js');
 

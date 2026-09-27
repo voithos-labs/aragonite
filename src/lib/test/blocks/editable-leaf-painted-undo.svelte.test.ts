@@ -1,9 +1,5 @@
 // @vitest-environment jsdom
-//
-// Miss-analysis: the reveal's own undo matched Ctrl+Z by hand, so no test could ask the keymap
-// what the chord meant, and every case ended before the document moved under an open reveal.
-// How it groups edits went the same way: every case made one edit, so nothing could see that a
-// second keystroke pushed a second entry where the document would have batched both.
+// Miss-analysis: no case rebound the chord, moved the document under a reveal, or typed twice.
 import { describe, it, expect, beforeEach, afterEach, onTestFinished, vi } from 'vitest';
 import { unmount, flushSync } from 'svelte';
 import { resetPluginPlatformForTests } from '$lib/testing';
@@ -144,7 +140,7 @@ describe('a burst of typing inside an open painted reveal', () => {
 	});
 
 	it('opens a fresh entry once the typing pause has passed', async () => {
-		// The pause is the batch's own wall-clock timer, so the clock moves instead of the test waiting.
+		// The typing pause is a wall-clock timer, so the test moves the clock instead of waiting.
 		vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
 		onTestFinished(() => void vi.useRealTimers());
 		mounted = mountLeaf();

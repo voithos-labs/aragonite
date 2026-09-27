@@ -1,12 +1,9 @@
 // @vitest-environment jsdom
-//
-// Miss-analysis: every undo-caret test typed through keydown, which each block used to read the
-// pre-edit caret on, so no test produced an input with no keydown before it.
+// An input commit's undo entry restores the caret read at `beforeinput`, the one event every
+// input route fires: a keystroke, an IME commit, dictation, a soft keyboard.
+// Miss-analysis: every undo-caret test typed through keydown, never an input with no keydown.
 import { describe, it, expect, afterEach } from 'vitest';
 import { makeSurface } from '../harness/editable-surface';
-
-// The caret an input commit's undo entry restores, read at `beforeinput`: the one event every
-// input route fires, a keystroke, an IME commit, dictation and a soft keyboard alike.
 
 const insertText = (data: string) =>
 	new InputEvent('beforeinput', { inputType: 'insertText', data });

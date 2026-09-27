@@ -117,9 +117,7 @@ describe('computeFenceExit: unclosed fence creates a closer', () => {
 	});
 });
 
-// Miss-analysis: leaving a code block was only ever asked of Enter, so the other thing a user
-// does at the end of a block, typing the closer, reached the fence rule instead, where a body
-// line that reads as a closer can only mean "grow the fence".
+// Miss-analysis: leaving a code block was only tested through Enter, never by typing the closer.
 describe('computeTypedFenceExit: a closer typed on the empty last line', () => {
 	const typedExit = (text: string, offset: number, typed: string, meta: Partial<FenceMeta> = {}) =>
 		computeTypedFenceExit({

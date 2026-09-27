@@ -1,9 +1,7 @@
 // @vitest-environment jsdom
-//
-// What the chip commits, at the only layer holding both the field and the write,
+// What the language chip commits, at the only layer holding both the field and the write, since
 // `writeFenceInfo` takes an info string and cannot see that the field never changed one.
-// Miss-analysis: every commit test typed a new language, so no test ever pressed Enter on
-// an untouched field, and the byte comparison passed for the unpadded fence they all used.
+// Miss-analysis: every commit test typed a new language on an unpadded fence, never a bare Enter.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { flushSync } from 'svelte';
 import { mountCode, type MountedCode } from './mount-code';
@@ -14,8 +12,8 @@ const PADDED = '```js  \nconst x = 1\n```\n';
 
 let mounted: MountedCode;
 
-/** Click the chip, returning the picker's search field. The chip itself no longer swaps for
- *  a field: it stays a fixed button and the field lives in the menu, so opening moves nothing. */
+/** Click the chip, returning the picker's search field; the chip stays a fixed button and the
+ *  field lives in the menu. */
 function openField(): HTMLInputElement {
 	const button = mounted.target.querySelector('.code-lang-button') as HTMLButtonElement;
 	button.click();
@@ -43,9 +41,8 @@ afterEach(async () => {
 });
 
 describe('CodeBlock: the language chip’s commit gate', () => {
-	// The field opens empty and the highlight starts on the block's own language, so a bare
-	// Enter re-commits `js`, which reads as unchanged and writes nothing, padding
-	// and all.
+	// The field opens empty with the highlight on the block's own language, so a bare Enter
+	// re-commits `js`, which reads as unchanged and writes nothing, padding and all.
 	it('writes nothing when Enter submits the language the block already has', () => {
 		const field = openField();
 		expect(field.value).toBe('');

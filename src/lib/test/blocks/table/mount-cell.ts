@@ -1,8 +1,6 @@
-// One table cell mounted on its own, over a stub table context. The difference from
-// `mount-table.ts` is which side of the cell-to-table boundary is under test: that harness mounts
-// a real TableBlock so a gesture reaches the real coordination, while this one stubs
-// `TableContext` so a test reads what the cell asked its table for. Read-only questions and single
-// gestures only: a commit replaces the node and nothing above re-renders with the replacement.
+// One table cell mounted on its own over a stub `TableContext`, so a test reads what the cell
+// asked its table for (`mount-table.ts` mounts the real table instead). Read-only questions and
+// single gestures only: a commit replaces the node and nothing above re-renders with it.
 
 import { vi } from 'vitest';
 import TableCellBlock from '$lib/components/blocks/table/TableCellBlock.svelte';
@@ -80,7 +78,7 @@ function documentAround(node: CstNode): Document {
 	return doc;
 }
 
-/** The last row of a 2x2 table, so a vertical move exits rather than staying inside. */
+/** The cell sits in the last row of a 2x2 table, so a vertical move exits the table. */
 export function mountCell(raw: string, policies: Partial<EditorPolicies> = {}): MountedCell {
 	const node: CstNode = { kind: 'tableCell', leadingTrivia: '', raw };
 	const selection = createSelectionState();

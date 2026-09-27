@@ -1,10 +1,7 @@
 // @vitest-environment jsdom
-//
-// Miss-analysis: the cell's destructive edits had unit tests for the escaping half only and the
-// e2e cell cases drove paste alone, so every cut that was not a paste stayed literal in live mode
-// unnoticed. The rule: a live cut through hidden delimiter runs drops what it strands
-// (live-mode.md § 4.5), on every destructive path, which is the event cut, the menu cut, and
-// typing or deleting over a selection.
+// A live cut through hidden delimiter runs drops what it strands (live-mode.md § 4.5) on every
+// destructive cell path: the event cut, the menu cut, and typing or deleting over a selection.
+// Miss-analysis: cell unit tests covered only escaping, and the cell e2e cases drove only paste.
 import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from 'vitest';
 import { cleanLiveJoinSeam } from '$lib/components/blocks/text/live-join-seam';
 import {
@@ -33,8 +30,8 @@ function committedCalls(cell: MountedCell): unknown[][] {
 	return vi.mocked(cell.blockEdit.updateBlockContent).mock.calls;
 }
 
-// The cut/beforeinput handlers await the shared prelude before committing, so the
-// commit lands several microtasks after dispatch.
+// The cut from `createClipboardHandlers` and `handleSharedBeforeInput` both await before
+// committing, so the commit lands several microtasks after dispatch.
 async function settleCommit(cell: MountedCell): Promise<void> {
 	await settleEditor(() => committedCalls(cell).length > 0);
 }

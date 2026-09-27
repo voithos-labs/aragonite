@@ -1,10 +1,7 @@
 // @vitest-environment jsdom
-//
-// A cell takes no keys while a composition is running. During an IME composition the browser
-// still delivers keydown for the keys that drive the candidate window: Enter confirms, Tab and
-// the arrows move through it. Those are the keys a table cell binds to structural moves, so the
-// handler refuses before the chord dispatcher and the navigation plan. A break here is silent
-// until an IME user confirms a candidate and the table grows a row.
+// A cell takes no keys while an IME composition runs: the browser still delivers the keys that
+// drive the candidate window (Enter, Tab, arrows), which a cell binds to structural moves, so the
+// handler refuses before the chord dispatcher and the navigation plan.
 import { describe, it, expect, afterEach } from 'vitest';
 import { mountCell, type MountedCell } from './mount-cell';
 import { settleEditor, pressKey } from '$lib/test/harness/settle';

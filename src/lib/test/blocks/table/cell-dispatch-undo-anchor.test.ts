@@ -1,10 +1,7 @@
 // @vitest-environment jsdom
-//
-// Where a cell write anchors undo (GH #104): `caretBefore` counts into the bytes before the
-// write, which are already escaped, and cell caret offsets are raw offsets, so it is passed
-// through unmapped; mapping it against the new text would shift every anchor that sits behind an
-// escape the write inserts. Covered end to end: a write, then undo, restores the caret exactly
-// with a `\|` escape standing before it.
+// A cell write anchors undo at `caretBefore` unmapped: it counts into the already-escaped bytes
+// before the write, so mapping it against the new text would shift every anchor behind an escape
+// the write inserts. A write then undo restores the caret with a `\|` escape before it.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { tick } from 'svelte';
 import {
@@ -52,7 +49,7 @@ describe('a cell dispatch write anchors undo at the exact pre-edit caret', () =>
 			new KeyboardEvent('keydown', { key: 'Backspace', bubbles: true, cancelable: true })
 		);
 		await mounted.settle();
-		// The construct-edge rule fired: the content character went, the pair survived.
+		// Backspace at the hidden closer takes the content character and keeps the `**` pair.
 		expect(mounted.source()).toBe('| a\\|b **bol** | B |\n| --- | --- |\n| 1 | 2 |\n');
 		// The stored anchor is exactly the caret from before the edit. Asserted on the undo entry
 		// itself, since the restored reading below is the clamped caret, not the anchor.

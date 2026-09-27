@@ -96,7 +96,8 @@ describe('buildTaskItemAmbient', () => {
 		expect(result.interactive?.[0].ariaChecked).toBe(expected);
 	});
 
-	// Desync-proofing: ariaChecked follows the keyed marker, never the parallel taskChecked field.
+	// `ariaChecked` follows the marker bytes, never the parallel `taskChecked` field, so the two
+	// cannot drift apart on screen.
 	it('ignores a stale taskChecked when the marker says checked', () => {
 		const result = buildTaskItemAmbient(
 			taskMeta({ taskMarker: '[x] ', taskChecked: false }),

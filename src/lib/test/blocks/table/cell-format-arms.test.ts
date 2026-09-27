@@ -1,5 +1,4 @@
 // @vitest-environment jsdom
-//
 // The cell binds every format chord the prose keymap does, so it must handle every one: a
 // missing handler returns false and leaves the chord to the browser's own contenteditable bold,
 // an edit this block never wrote.
@@ -33,9 +32,8 @@ describe('format command branches on a table cell', () => {
 	});
 });
 
-// The cross-block plan reads a cell's bytes off the tree where this block reads them off its own
-// DOM; a cell has no marker prefix, so the two readings give the same bytes, and only this pairing
-// holds them together. Bytes only: the range handling also has a direction of its own.
+// The cross-block plan reads a cell's bytes off the tree and the cell reads them off its own DOM;
+// with no marker prefix in a cell the two must give the same bytes, and only this pairing checks.
 describe('the cross-block plan reads the cell bytes the surface branch reads', () => {
 	const wholeCell = (index: number): SelectionPoint => ({
 		path: [0],

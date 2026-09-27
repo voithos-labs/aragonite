@@ -1,10 +1,8 @@
 // @vitest-environment jsdom
-//
-// A destructive key at a `<br>` edge mid-cell. The `<br>` is the one widget a cell draws that
-// cannot show a source, so routing it to the cell's step-over moves the caret across on the first
-// key and deletes a byte that is not next to the caret on the second. A cell draws no selection
-// outline around a widget, so what it can offer is the one-key atomic delete, and each case has
-// its navigation counterpart, because arrows must keep the step-over.
+// A destructive key at a `<br>` edge mid-cell deletes the whole tag in one key: the `<br>` is
+// the one cell widget that cannot show a source, so the step-over arrows use would move the caret
+// first and then delete a byte away from it. Each case has its arrow counterpart, which keeps
+// the step-over.
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { mountCell } from './mount-cell';
 import { settleEditor, dispatchKey } from '$lib/test/harness/settle';
@@ -59,8 +57,8 @@ describe('a destructive key at a mid-cell `<br>` edge deletes it whole, in one p
 		});
 	}
 
-	// The other half: a destructive key pointing away from the widget takes the ordinary
-	// neighbouring character. It rests on how `widgetAtCursor` breaks a direction tie.
+	// A destructive key pointing away from the widget takes the ordinary neighbouring character,
+	// which rests on how `widgetAtCursor` breaks a direction tie.
 	const nonEntry: Array<[string, string, number, string]> = [
 		['Backspace at the LEADING edge', 'Backspace', BR_START, 'Lef<br>Right'],
 		['Delete at the TRAILING edge', 'Delete', BR_END, 'Left<br>ight']
@@ -76,8 +74,8 @@ describe('a destructive key at a mid-cell `<br>` edge deletes it whole, in one p
 			dispatchKey(el, { key: key });
 			await settleEditor();
 
-			// jsdom leaves this key to contenteditable, so no commit means nothing took it;
-			// the browser outcome belongs to e2e/tests/blocks/table/cell-inline-rendering.spec.ts.
+			// jsdom leaves this key to contenteditable, so no commit means nothing took it; the
+			// browser outcome is in the `cell-inline-rendering` e2e spec.
 			const calls = vi.mocked(blockEdit.updateBlockContent).mock.calls;
 			if (calls.length > 0) expect(calls[0][1]).toBe(after);
 			// Either way the tag survives: nothing wrote a text without it.
@@ -85,8 +83,8 @@ describe('a destructive key at a mid-cell `<br>` edge deletes it whole, in one p
 		});
 	}
 
-	// The scoping case: a cell renders an image as its literal source, not a widget, so the
-	// atomic policy must not reach it, though the CST calls an image a widget on kind alone.
+	// A cell renders an image as its literal source, not a widget, so the one-key delete must
+	// not reach it, though the CST calls an image a widget by kind alone.
 	it('leaves an image alone: a cell renders its source, not a widget', async () => {
 		const withImage = 'Left![a](b)Right';
 		mounted = mountCell(withImage);

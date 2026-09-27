@@ -13,9 +13,8 @@ import {
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { ensurePasteSurface } from '$lib/test/support/paste-surface';
 
-// A cell holds text, never blocks, so whatever a copy wrapped around its text, such as a blank
-// line at either end, must not decide the route: those blocks are just whitespace, and reading
-// them as content sends an ordinary text paste down the path that breaks the table.
+// A cell holds text, never blocks, so blank lines a copy wrapped around the text must not decide
+// the route: read as content, they send a plain text paste down the path that breaks the table.
 
 const TABLE = '| A | B |\n| --- | --- |\n| 1 | 2 |\n';
 

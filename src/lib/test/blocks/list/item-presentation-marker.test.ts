@@ -1,10 +1,7 @@
 // @vitest-environment jsdom
-//
-// `data-list-marker` exists so the marker-hiding CSS can tell a bullet from a number from a
-// checkbox. It is for presentation only, and it is not set at all in source mode, so the
-// source-mode DOM is unchanged. That refusal is the part that matters and the one nothing shows:
-// setting it unconditionally looks correct in every presentation test while reading-mode rules
-// then match during ordinary editing.
+// `data-list-marker` lets the marker-hiding CSS tell a bullet from a number from a checkbox. It
+// is never set in source mode: set unconditionally, it passes every presentation test while the
+// reading-mode rules match during ordinary editing.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import type { PresentationMode } from '$lib/presentation-mode';
 import { installLayoutStubs } from '$lib/test/harness/mount-editor.svelte';

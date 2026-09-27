@@ -1,9 +1,6 @@
-// A list item mounted on its own, with a recording `ListContext` underneath it. The gesture
-// suites beside it mount the Editor, which is what asserting source bytes needs; this is for the
-// other half, because the item's keydown handler only decides, and the honest reading of "let it
-// travel" is `defaultPrevented` plus a `ListContext` nothing touched. Through an Editor both are
-// hidden: the editor root handles what the item declines, and a real context turns a decision
-// into a commit.
+// A list item mounted on its own with a recording `ListContext`, for asserting what the item's
+// keydown handler decides: `defaultPrevented` plus the context calls. Through an Editor both are
+// hidden, since the editor root handles what the item declines and a real context commits.
 
 import { vi } from 'vitest';
 import ListItemBlock from '$lib/components/blocks/list/ListItemBlock.svelte';
@@ -34,7 +31,6 @@ export interface MountedItem {
 	dispose(): Promise<void>;
 }
 
-/** Mounts item `itemIndex` of the list parsed from `source`. */
 export function mountItem(
 	source: string,
 	itemIndex = 0,

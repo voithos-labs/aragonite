@@ -1,11 +1,8 @@
 // @vitest-environment jsdom
-//
-// The order the shared clipboard handling keeps (docs/contributing/rules.md § the bug shape to
-// fear). The four editable blocks share `createClipboardHandlers`, which owns the steps that
-// must stay in step: the reading check, the cross-block copy and cut write, hiding a shown
-// source, and the one that matters most, calling `preventDefault` on a paste before any
-// await. The per-block remainders
-// (widget slice, rect payload, cell escaping) are exercised by the surface suites.
+// The step order `createClipboardHandlers` keeps for the four editable blocks: the reading
+// check, the cross-block copy and cut, hiding a shown source, and `preventDefault` on a paste
+// before any await. Per-block parts (widget slice, rect payload, cell escaping) are covered by
+// each block's own suite.
 import { describe, it, expect } from 'vitest';
 import {
 	createClipboardHandlers,
@@ -39,9 +36,8 @@ function recorder(pasteText = ''): Recorder {
 	return rec;
 }
 
-/** A fully instrumented set of dependencies; each test overrides only what it exercises. A
- *  collapsed
- *  selection routes past writeCrossBlock{Copy,Cut}, so the intra-block tails run doc-free. */
+/** Every dependency logs its call; each test overrides only what it exercises. A collapsed
+ *  selection skips the cross-block copy and cut, so the in-block steps need no document. */
 function deps(log: string[], over: Partial<ClipboardSurfaceDeps> = {}): ClipboardSurfaceDeps {
 	return {
 		caretMemory: { forget: () => log.push('forget') } as never,
@@ -218,8 +214,8 @@ describe('clipboard skeleton: paste order', () => {
 	});
 });
 
-// The API call is the gesture's sibling entry path, so what it must carry is the gesture's
-// own order of steps, not a second sequence written beside it. Its promise resolves after the tail.
+// `insertMarkdown` is a second way into a paste, so it must run the gesture's steps in the same
+// order; its promise resolves after the block's own paste step.
 describe('clipboard skeleton: programmatic insertMarkdown', () => {
 	it('runs the same fold → cross-block → reset → tail order a paste does', async () => {
 		const log: string[] = [];

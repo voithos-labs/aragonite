@@ -1,10 +1,7 @@
 // The info-string write behind the language chip: everything outside that one span must
 // come back byte-identical, and the span itself may not hold bytes that stop the line
 // reading as this block's opener.
-//
-// Miss-analysis: nothing could have caught it, since the write arrived with the chip. The class
-// it belongs to (a byte edit aimed at fence structure) was covered only where a keystroke
-// could reach, and the chip reaches the one span no caret can land in.
+// Miss-analysis: fence byte edits were tested only where a caret reaches, never the info string.
 import { describe, it, expect } from 'vitest';
 import { writeFenceInfo, type FenceShape } from '$lib/schema/fenced-code-raw';
 

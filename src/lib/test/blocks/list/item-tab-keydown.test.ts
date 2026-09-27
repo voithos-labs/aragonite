@@ -1,10 +1,8 @@
 // @vitest-environment jsdom
-//
-// Tab inside a list is dispatched in two steps: the focused paragraph's `block.insertTab`
-// declines, without calling `preventDefault`, when a list context is present, the event bubbles
-// to `.list-item-content`, and ListItemBlock resolves it against the listItem keymap. Either step
-// breaking stops indenting with no other sign. The reading-mode case pins that the item hands
-// the dispatcher its mode getter, which is what refuses the key there.
+// Tab inside a list takes two steps: the paragraph's `block.insertTab` declines without
+// `preventDefault` under a list context, and the event bubbles to `.list-item-content`, where
+// ListItemBlock resolves it against the listItem keymap. Either step breaking stops indenting
+// with no other sign.
 import { describe, it, expect, afterEach, beforeAll } from 'vitest';
 import { installLayoutStubs, mountEditor, pressKeyAt } from '$lib/test/harness/mount-editor.svelte';
 

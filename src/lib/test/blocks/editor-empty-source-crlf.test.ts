@@ -1,5 +1,4 @@
 // @vitest-environment jsdom
-//
 // A CRLF document must never gain a lone LF before the user has typed anything (G4.20).
 // A blank line is a block of its own, so a blank source arrives carrying its own endings
 // and only the truly empty source reaches the caret placeholder.

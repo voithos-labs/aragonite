@@ -26,7 +26,6 @@ export function registerRevealLeafKind(
 	});
 }
 
-/** A one-block document holding the leaf's bytes. */
 export function leafDocument(kind: PluginBlockKind, raw: string): Document {
 	const node = { kind, leadingTrivia: '', raw } as CstNode;
 	return { kind: 'document', prefix: '', children: [node], suffix: '' };

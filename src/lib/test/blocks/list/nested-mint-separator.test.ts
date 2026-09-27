@@ -1,11 +1,7 @@
 // @vitest-environment jsdom
-//
-// Enter then Tab makes an empty item and nests it, and `- x\n  - ` is the one shape strict GFM
-// cannot read back: the marker line is a setext underline wherever the bytes go, so a blank
-// separating line is written too, at the cost of a loose item.
-//
-// Miss-analysis: the Tab suite moved only items with content and the Enter suite never pressed
-// Tab afterwards, so the pair that reaches this shape was asserted by neither.
+// Enter then Tab nests an empty item, and GFM reads `- x\n  - ` back as a setext underline, so a
+// blank separating line is written too, at the cost of a loose item.
+// Miss-analysis: the Tab suite nested only items with content, and no Enter test pressed Tab.
 import { describe, it, expect, afterEach, beforeAll } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { assertParseConverged } from '$lib/testing/parse-convergence';
@@ -84,8 +80,8 @@ describe('Enter then Tab creates a readable sublist', () => {
 		expect(mounted.source()).toBe('1. alpha\n\n   1. \n');
 	});
 
-	// The rhythm the simulation's deep-nesting notes build with, one level in: the line the
-	// separator needs belongs to the item it lands in, not to the document's top level.
+	// One level in, the separating line belongs to the item it lands in, not to the document's
+	// top level.
 	it('creates the line at depth too', async () => {
 		mounted = mountEditor({ source: '- alpha\n  - beta\n' });
 

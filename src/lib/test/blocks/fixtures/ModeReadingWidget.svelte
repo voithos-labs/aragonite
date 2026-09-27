@@ -1,6 +1,6 @@
 <script lang="ts">
-	// Stands in for an inline widget that draws itself: it renders nothing but the two live
-	// terms, read inside a `$derived` so the pool's getters (not a mount-time snapshot) drive it.
+	// An inline widget that renders only the presentation mode and theme, read inside a `$derived`
+	// so the pool's getters drive it rather than a mount-time snapshot.
 	import type { InlineWidgetComponentProps } from '$lib/core/inline/inline-widgets';
 
 	let { getPresentationMode, getTheme }: InlineWidgetComponentProps = $props();

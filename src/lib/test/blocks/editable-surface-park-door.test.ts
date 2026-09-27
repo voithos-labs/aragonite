@@ -1,11 +1,8 @@
 // @vitest-environment jsdom
-//
-// Where every caret placement clamps: every offset, a number or a marker value, lands inside the
-// reachable range, so no caller can put a caret behind a hidden marker run (G2.12). Source mode
-// is the same by construction, since the reachable range is the whole range and the clamp does
-// nothing; `CURSOR_EXACT_START` is the one declared exception.
-// Miss-analysis: the marker-value form was covered per gesture in e2e, so no test could see a
-// numeric offset passing through unclamped; the clamp itself had no test of its own.
+// `parkCaret` clamps every offset, a number or a marker value, into the reachable range, so no
+// caller can put a caret behind a hidden marker run; `CURSOR_EXACT_START` is the one exception.
+// Source mode hides no marker, so there the clamp does nothing.
+// Miss-analysis: e2e covered the marker values per gesture, and no test tried a numeric offset.
 import { describe, it, expect, beforeEach } from 'vitest';
 import { CURSOR_END, CURSOR_EXACT_START, CURSOR_START } from '../../block-component';
 import { makeSurface, type SurfaceHarness } from '../harness/editable-surface';

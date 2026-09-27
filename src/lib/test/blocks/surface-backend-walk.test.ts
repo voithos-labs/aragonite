@@ -1,10 +1,7 @@
 // @vitest-environment jsdom
-//
-// Every editable surface reads and writes the caret through the same offset walk as a live
-// caret in prose: a widget counts its source bytes, and adjacent hidden spans are one run.
-// Miss-analysis: the plain-text backend had its own walk, tested only on containers with no
-// widget and one hidden span at a time, so its two disagreements with the shared walk had no
-// fixture to fail in (#498, #572).
+// Every editable element reads and writes the caret through the same DOM-to-offset traversal as
+// prose: a widget counts its source bytes, and adjacent hidden spans are one run.
+// Miss-analysis: the plain-text walk was tested without widgets or adjacent spans (#498, #572).
 import { describe, it, expect, afterEach } from 'vitest';
 import { asRawOffset } from '../../cursor/coordinate-spaces';
 import { createSurfaceBackend } from '../../cursor/surface-backend';
@@ -14,7 +11,7 @@ afterEach(() => {
 	window.getSelection()?.removeAllRanges();
 });
 
-/** A focused editable surface under an editor root in `mode` (source when omitted). */
+/** A focused editable element under an editor root in `mode` (source when omitted). */
 function surface(mode?: string): HTMLElement {
 	const root = document.createElement('div');
 	if (mode) root.setAttribute('data-presentation', mode);

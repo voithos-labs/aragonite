@@ -1,10 +1,8 @@
 // @vitest-environment jsdom
-//
-// The fence check at its own entry point: the mounted block's real beforeinput,
-// cut and compositionstart listeners, driven with a live DOM selection. The pure
-// clamp is covered by code-fence-boundary.test.ts; what only this layer can show is
-// that, where the mode hides the fence lines, the block takes the browser's gesture with
-// `preventDefault` and commits the clamped text; where the mode paints them, it does not.
+// The fence check through the mounted block's real beforeinput, cut and compositionstart
+// listeners with a live DOM selection: where the mode hides the fence lines, the block prevents
+// the browser's gesture and commits the clamped text; where it paints them, it does not. The
+// pure clamp is in `code-fence-boundary.test.ts`.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { asDomTextOffset } from '$lib/cursor/coordinate-spaces';
 import { createRangeAtDomTextOffsets } from '$lib/cursor/widget-offset';
@@ -233,7 +231,7 @@ describe('CodeBlock: fence-crossing ranged edits', () => {
 		expect(committedText()).toBe('```js\nconst \n\n```');
 	});
 
-	// A landing must leave a caret that can type: the cross-container merge fallback moves
+	// Focus must leave a caret that can type: the cross-container merge fallback moves
 	// focus to this block's end, which is the closer run, where every keystroke is refused.
 	it.each([
 		['past the display end', 999, 17],
@@ -253,7 +251,7 @@ describe('CodeBlock: fence-crossing ranged edits', () => {
 		expect(e.defaultPrevented).toBe(false);
 	});
 
-	// beforeinput's insertCompositionText is not cancelable, so the guard cannot reach an IME;
+	// beforeinput's insertCompositionText is not cancelable, so the check cannot stop an IME;
 	// the block deletes the body part of the selection before the composition takes over.
 	it.each([
 		['a fence-crossing selection', 12, 20, '```js\nconst \n```'],
@@ -275,8 +273,7 @@ describe('CodeBlock: fence-crossing ranged edits', () => {
 	});
 });
 
-// Miss-analysis: every fence-edit test ran in source mode, where the fence lines paint, so the
-// clamp read as the rule for every mode and no test put an edit on a painted fence line.
+// Miss-analysis: no fence-edit test put an edit on a fence line the mode paints.
 describe('CodeBlock: a fence line the mode paints takes the edit', () => {
 	it.each(['source', 'preview-block'] as const)(
 		'leaves a delete into the closer to the browser (%s)',

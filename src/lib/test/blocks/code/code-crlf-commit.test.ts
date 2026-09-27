@@ -1,10 +1,8 @@
 // @vitest-environment jsdom
-//
-// A CRLF-authored fenced code block keeps its trailing `\r\n` across every keystroke-commit
-// gesture: each strips the ending to edit the body, then reconstructs it via
-// trailingLineEnding(node.raw) (G4.20). A bare `\n` literal downgrades the block to LF.
-// Driven through the mounted component's real handlers, since the commits live there,
-// where the G4.20 source-scan lint cannot observe runtime output.
+// A CRLF fenced code block keeps its trailing `\r\n` across every keystroke commit, each of which
+// strips the ending to edit the body and restores it from `trailingLineEnding(node.raw)` (G4.20).
+// Driven through the mounted component's real handlers, since the commits live there and a
+// source-scan lint cannot see their output.
 import { describe, it, expect, afterEach } from 'vitest';
 import { vi } from 'vitest';
 import { mountCode, type MountedCode } from './mount-code';

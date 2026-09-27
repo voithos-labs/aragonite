@@ -129,10 +129,8 @@ describe('createCellRender', () => {
 		expect(el.textContent).toBe('![[cat.png]]');
 	});
 
-	// A link with no text renders as two marker spans and nothing else, which a marker-hiding
-	// mode would paint as an empty cell with no caret position.
-	// Miss-analysis: the cell is the third place marker spans are created, and the two prose
-	// blocks carried the content-empty rule while this one was never asked the question.
+	// A link with no text is only marker spans, which a marker-hiding mode paints as nothing.
+	// Miss-analysis: the content-empty mark was tested on the two prose blocks, never on a cell.
 	it('marks a cell whose whole content is chrome, and drops the mark when text arrives', () => {
 		const ctx = mount('[](u)');
 		ctx.render.render();
@@ -148,7 +146,6 @@ describe('createCellRender', () => {
 		render.render();
 		const firstChild = el.firstChild;
 		render.render();
-		// Same node identity → no replaceChildren ran.
 		expect(el.firstChild).toBe(firstChild);
 	});
 
@@ -207,8 +204,8 @@ describe('createCellRender', () => {
 		render.render();
 		expect(el.querySelector('a.md-link-content')?.getAttribute('href')).toBe('https://old.com');
 
-		// The key assertion: with a token supplied the signature string is not in the key, so a
-		// change to the string alone, which cannot happen in practice, does not re-render.
+		// With a token supplied the signature string is not in the render key, so a change to the
+		// string alone, which cannot happen in practice, does not re-render.
 		url = 'https://new.com';
 		signature = 'sig-2';
 		render.render();
@@ -234,7 +231,7 @@ describe('createCellRender', () => {
 		const child = el.firstChild;
 		signature = 'sig-new';
 		render.render();
-		// No bracket → signature not read into the key → memo holds, no rebuild.
+		// With no bracket the signature is not in the render key, so the cell does not rebuild.
 		expect(el.firstChild).toBe(child);
 	});
 
