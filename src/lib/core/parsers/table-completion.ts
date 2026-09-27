@@ -5,7 +5,7 @@
  */
 
 import type { CstNode } from '../nodes';
-import { trimTrailingLineEnding } from '../lines';
+import { trimTrailingLineEnding, trimWhitespace } from '../lines';
 import { registerBlockCompleter, type CompletionResult } from '../../schema/block-completions';
 import { writeTableRow } from '../../schema/container-rebuilders';
 import { tableHeaderCells } from './table';
@@ -20,7 +20,7 @@ const FIRST_BODY_CELL = [1, 0];
  * row it rejects never completes.
  */
 export function tryCompleteTableRow(line: string): CompletionResult | null {
-	if (!line.trim().startsWith('|')) return null;
+	if (!trimWhitespace(line).startsWith('|')) return null;
 	const cells = tableHeaderCells(line);
 	if (!cells || cells.length < 2) return null;
 	return {

@@ -4,11 +4,11 @@
 import { indentColumns } from '../lines';
 
 export function matchThematicBreak(text: string): string | null {
-	// CommonMark §4.1: 0-3 columns of indent; 4+ is indented code.
+	// CommonMark §4.1: 0-3 columns of indent; 4+ is indented code. Only spaces and tabs may
+	// sit around the markers, so a non-breaking space makes the line a paragraph.
 	if (indentColumns(text) >= 4) return null;
-	const trimmed = text.trim();
-	if (/^(\*[ \t]*){3,}$/.test(trimmed)) return '*';
-	if (/^(-[ \t]*){3,}$/.test(trimmed)) return '-';
-	if (/^(_[ \t]*){3,}$/.test(trimmed)) return '_';
+	if (/^[ \t]*(\*[ \t]*){3,}$/.test(text)) return '*';
+	if (/^[ \t]*(-[ \t]*){3,}$/.test(text)) return '-';
+	if (/^[ \t]*(_[ \t]*){3,}$/.test(text)) return '_';
 	return null;
 }

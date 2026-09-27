@@ -3,7 +3,7 @@
  * allowed on continuation lines). Footnote labels (`[^...]:`) are excluded; they stay paragraphs.
  */
 
-import type { ParsedLine } from '../lines';
+import { isWhitespaceChar, type ParsedLine } from '../lines';
 import { ESCAPABLE_PUNCTUATION } from '../escapable';
 import { joinRaw } from '../parser';
 import { lineInterruptsParagraph, type BlockOpenerResult } from '../../schema/block-openers';
@@ -100,8 +100,8 @@ function matchLabelOpener(line: string): { label: string; afterColon: string } |
 	if (j >= line.length || line[j] !== ']') return null;
 	if (j + 1 >= line.length || line[j + 1] !== ':') return null;
 	const label = line.slice(labelStart, j);
-	// §4.7: a label holds at least one non-whitespace character.
-	if (label.trim() === '') return null;
+	// §6.6: a label holds at least one non-whitespace character, in §2.1's ASCII sense.
+	if ([...label].every(isWhitespaceChar)) return null;
 	return { label, afterColon: line.slice(j + 2) };
 }
 
@@ -112,9 +112,16 @@ function parseUrl(s: string): { url: string; consumed: number } | null {
 		if (close === -1) return null;
 		return { url: s.slice(1, close), consumed: close + 1 };
 	}
-	const m = s.match(/^(\S+)/);
-	if (!m) return null;
-	return { url: m[1], consumed: m[1].length };
+	let end = 0;
+	while (end < s.length && !isSpaceOrControl(s.charCodeAt(end))) end++;
+	if (end === 0) return null;
+	return { url: s.slice(0, end), consumed: end };
+}
+
+// §6.6: a bare destination holds no ASCII space or control character; a non-breaking space is
+// content.
+function isSpaceOrControl(code: number): boolean {
+	return code <= 0x20 || code === 0x7f;
 }
 
 const TITLE_CLOSER: Record<string, string> = { '"': '"', "'": "'", '(': ')' };

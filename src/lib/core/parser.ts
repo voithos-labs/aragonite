@@ -5,7 +5,7 @@
 
 import { isDevChecks } from '../env';
 import type { CstNode, Document } from './nodes';
-import { isBlankLine, splitLines, type ParsedLine } from './lines';
+import { isBlankLine, isBlankText, splitLines, type ParsedLine } from './lines';
 import { perfEnabled, recordParse } from '../perf/instruments';
 import {
 	defaultGrammarView,
@@ -241,12 +241,9 @@ function assertOpenerRawMatches(ctx: OpenContext, result: BlockOpenerResult): vo
 
 export { isBlankLine };
 
-/**
- * Nothing but blank lines: what the blank-line rule makes an empty paragraph from. Blankness is
- * the parser's rule (GFM §2.1), never `String.trim()`: a non-breaking space is content.
- */
+/** Nothing but blank lines: what the blank-line rule makes an empty paragraph from. */
 export function isBlankSource(source: string): boolean {
-	return splitLines(source).every((line) => isBlankLine(line.text));
+	return isBlankText(source);
 }
 
 export function isBlankParagraph(node: { kind: string; raw: string }): boolean {

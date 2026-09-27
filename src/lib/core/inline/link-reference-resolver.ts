@@ -1,11 +1,14 @@
-/** CommonMark §4.7 label normalization plus the resolver built from LRD nodes. */
+/** Link label matching (GFM §6.6) and the resolver built from a document's link reference
+ *  definitions. */
 
 import type { CstNode } from '../nodes';
 import { metadataOf } from '../nodes';
+import { trimWhitespace, WHITESPACE_RUN } from '../lines';
 
-/** CommonMark §4.7 normalization, lowercasing rather than full Unicode case folding. */
+/** GFM §6.6 label normalization, lowercasing rather than full Unicode case folding. Whitespace
+ *  is §2.1's ASCII set, so `[a<NBSP>b]` and `[a b]` are different labels. */
 export function normalizeLinkLabel(raw: string): string {
-	return raw.trim().replace(/\s+/g, ' ').toLowerCase();
+	return trimWhitespace(raw).split(WHITESPACE_RUN).join(' ').toLowerCase();
 }
 
 export type ResolvedReference = Readonly<{ url: string; title?: string }>;

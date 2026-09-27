@@ -5,11 +5,17 @@
  * keeping a copy that could drift.
  */
 
+import { WHITESPACE_CLASS } from '../lines';
+
 export type HtmlFormKind = 'openTag' | 'closeTag' | 'comment' | 'pi' | 'declaration' | 'cdata';
 
-const OPEN_TAG =
-	/<[A-Za-z][A-Za-z0-9-]*(?:\s+[a-zA-Z_:][a-zA-Z0-9_.:-]*(?:\s*=\s*(?:[^\s"'=<>`]+|"[^"]*"|'[^']*'))?)*\s*\/?>/;
-const CLOSE_TAG = /<\/[A-Za-z][A-Za-z0-9-]*\s*>/;
+// `W` is GFM whitespace (§2.1), so a non-breaking space inside a tag makes it no tag.
+const W = WHITESPACE_CLASS;
+const UNQUOTED_VALUE = `[^ \\t\\n\\v\\f\\r"'=<>\`]+`;
+const OPEN_TAG = new RegExp(
+	`<[A-Za-z][A-Za-z0-9-]*(?:${W}+[a-zA-Z_:][a-zA-Z0-9_.:-]*(?:${W}*=${W}*(?:${UNQUOTED_VALUE}|"[^"]*"|'[^']*'))?)*${W}*\\/?>`
+);
+const CLOSE_TAG = new RegExp(`<\\/[A-Za-z][A-Za-z0-9-]*${W}*>`);
 
 /** Open tag `<name (attrs)* /?>` (CommonMark §6.6), unanchored source. */
 export const OPEN_TAG_SOURCE = OPEN_TAG.source;

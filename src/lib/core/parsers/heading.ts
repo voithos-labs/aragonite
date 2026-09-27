@@ -4,7 +4,7 @@
 import type { AnyBlockKind } from '../nodes';
 
 export function matchHeading(text: string): { level: number } | null {
-	const m = text.match(/^ {0,3}(#{1,6})(?:\s|$)/);
+	const m = text.match(/^ {0,3}(#{1,6})(?:[ \t]|$)/);
 	return m ? { level: m[1].length } : null;
 }
 

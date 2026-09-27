@@ -55,7 +55,7 @@ export function parseParagraph(
 }
 
 export function matchSetextUnderline(text: string): { level: 1 | 2 } | null {
-	if (/^ {0,3}=+\s*$/.test(text)) return { level: 1 };
-	if (/^ {0,3}-+\s*$/.test(text)) return { level: 2 };
+	if (/^ {0,3}=+[ \t]*$/.test(text)) return { level: 1 };
+	if (/^ {0,3}-+[ \t]*$/.test(text)) return { level: 2 };
 	return null;
 }

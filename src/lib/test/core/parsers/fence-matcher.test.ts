@@ -52,11 +52,19 @@ describe('matchFenceClose', () => {
 		expect(matchFenceClose('~~~~', '~', 4)).toBe(true);
 	});
 
+	it('accepts a line a plugin passes with its ending still on', () => {
+		for (const ending of ['\r\n', '\n', '\r']) {
+			expect(matchFenceClose('``` \t' + ending, '`', 3), JSON.stringify(ending)).toBe(true);
+		}
+	});
+
 	const declined: Array<[label: string, line: string, marker: '`' | '~', min: number]> = [
 		['a shorter run', '```', '`', 4],
 		['the other marker', '~~~', '`', 3],
 		['a closer with an info string', '``` js', '`', 3],
-		['a four-space-indented closer', '    ```', '`', 3]
+		['a four-space-indented closer', '    ```', '`', 3],
+		['a closer followed by a non-breaking space', '``` ', '`', 3],
+		['a closer followed by text on the next line', '```\nx', '`', 3]
 	];
 	for (const [label, line, marker, min] of declined) {
 		it(`declines ${label}`, () => {
