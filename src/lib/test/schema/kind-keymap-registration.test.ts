@@ -1,0 +1,35 @@
+// A kind's keymap chords are checked when the kind registers, in every build, so a mistyped
+// `Ctrl+B` never collapses to a bare `B` that fires on each plain keypress.
+//
+// Miss-analysis: the keymap check ran only in a dev build's bootstrap pass, and no test
+// registered a malformed chord and asked what the stored keymap then binds.
+import { describe, it, expect, beforeEach } from 'vitest';
+import { augmentBlockKind } from '$lib/plugin';
+import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
+import { testLeaf } from '../harness/test-kinds';
+
+beforeEach(__resetSchemaRegistriesForTests);
+
+const MALFORMED = ['Ctrl+B', 'Mod+', 'Cmd+Shift+K'];
+
+describe('a malformed kind keymap chord', () => {
+	it.each(MALFORMED)('%s throws at registerBlockKind', (chord) => {
+		expect(() =>
+			testLeaf('spec-malformed-chord', { keymap: [{ chord, command: 'format.toggleStrong' }] })
+		).toThrow(/malformed/);
+	});
+
+	it.each(MALFORMED)('%s throws at augmentBlockKind', (chord) => {
+		const kind = testLeaf('spec-augmented-chord');
+
+		expect(() =>
+			augmentBlockKind(kind, { keymap: [{ chord, command: 'format.toggleStrong' }] })
+		).toThrow(/malformed/);
+	});
+
+	it('a well-formed keymap registers', () => {
+		expect(() =>
+			testLeaf('spec-good-chord', { keymap: [{ chord: 'Mod+B', command: 'format.toggleStrong' }] })
+		).not.toThrow();
+	});
+});
