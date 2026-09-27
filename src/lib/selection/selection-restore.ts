@@ -9,11 +9,11 @@
 import type { DocumentView } from '../core/node-views';
 import { isBlockNode, nodeAt } from '../tree-operations/node-primitives';
 import type { BlockElLookup } from '../editor-keys';
-import type { EditorSelection, SelectionPoint } from './primitives';
+import { cellPoint, type EditorSelection, type SelectionPoint } from './primitives';
 import { applySelectionToDom } from './native-bridge';
 import { placeGapCaret } from './caret-doors';
 import { gapScopeChildren, type GapCaretPosition } from './gap-caret';
-import { tableCellCount } from './table-endpoint-snap';
+import { clampCellIndex, countsCells } from '../schema/block-kind-descriptor';
 import type { SelectionState } from './selection-state.svelte';
 import type { CaretMemory } from '../cursor/caret-memory';
 
@@ -81,10 +81,9 @@ export async function restoreGapCaret(
 
 /**
  * Clamps an endpoint into its block's range, or null when its path no longer resolves to a
- * block (the document root included). The node kind picks the coordinate space, not the
- * `cellCoordinate` flag: an endpoint inside a table is unflagged (see {@link SelectionPoint})
- * yet still carries a cell index. The character bound is `raw`, which on a kind with markers
- * runs past the content end; the DOM-to-offset walk puts such an offset at the end.
+ * block (the document root included). Every offset on a table path comes back flagged as a cell
+ * index, including a snapshot's or a host's plain one. The character bound is `raw`, which on a
+ * kind with markers runs past the content end; the DOM-to-offset walk puts such an offset there.
  */
 export function resolveSelectionPoint(
 	doc: DocumentView,
@@ -93,13 +92,13 @@ export function resolveSelectionPoint(
 	const node = nodeAt(doc, point.path);
 	if (node === null || !isBlockNode(node)) return null;
 
-	// Through `tableCellCount`, not a local product: this ceiling and `cellEndpointDeepPath`'s
-	// bounds check must be the same number, or a clamped index fails that check.
-	const limit = node.kind === 'table' ? tableCellCount(node) - 1 : node.raw.length;
-	const offset = Math.min(Math.max(point.offset, 0), Math.max(limit, 0));
+	const cells = countsCells(node);
+	const offset = cells
+		? clampCellIndex(node, point.offset)
+		: Math.min(Math.max(point.offset, 0), node.raw.length);
 
 	// Path copied so a restored endpoint never aliases the caller's snapshot.
-	return point.cellCoordinate
-		? { path: point.path.slice(), offset, cellCoordinate: true }
+	return cells || point.cellCoordinate
+		? cellPoint(point.path, offset)
 		: { path: point.path.slice(), offset };
 }

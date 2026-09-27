@@ -8,7 +8,7 @@ import type { CrossBlockDispatchContext } from './dispatch';
 import type { CrossBlockMutationContext } from './ops';
 import type { Document } from '../../core/nodes';
 import type { SelectionState } from '../selection-state.svelte';
-import { tableCellCount } from '../table-endpoint-snap';
+import { countsCells, tableCellCount } from '../../schema/block-kind-descriptor';
 import { CURSOR_END } from '../../block-component';
 import { documentLineEnding, normalizeLineEndings } from '../../core/lines';
 import { performCrossBlockDelete, rangeUndoStep } from './ops';
@@ -17,7 +17,7 @@ import { focusCollapsedCaret } from '../native-bridge';
 import { blockCoveredWhole } from '../covered-block';
 import { pasteDispatch } from '../../tree-operations/paste/dispatch';
 import { applyPasteTransforms } from '../../tree-operations/paste/paste-transforms';
-import { blockNodeAt, isBlockNode, nodeAt } from '../../tree-operations/node-primitives';
+import { blockNodeAt, nodeAt } from '../../tree-operations/node-primitives';
 import { pathsEqual } from '../path-math';
 import { replaceBlockAtParent } from '../../tree-operations/paste/replace-block-at-parent';
 import { parseReplacement } from '../../tree-operations/paste/replacement-parse';
@@ -122,17 +122,16 @@ async function landCaretAfterPaste(
 
 // ── Covered-block paste ────────────────────────────────────────────────────
 
-/** The table a cell rectangle covers whole (a second Ctrl+A inside a cell), or null. */
+/** The table a cell rectangle covers whole, or null. */
 function wholeTablePath(selection: SelectionState, doc: Document): number[] | null {
 	const anchor = selection.anchor;
 	const focus = selection.focus;
-	if (!anchor || !focus) return null;
+	if (!anchor?.cellCoordinate || !focus?.cellCoordinate) return null;
 	if (!pathsEqual(anchor.path, focus.path)) return null;
 	const node = nodeAt(doc, anchor.path);
-	if (!node || !isBlockNode(node) || node.kind !== 'table') return null;
+	if (!node || !countsCells(node)) return null;
 	const cellCount = tableCellCount(node);
 	if (cellCount === 0) return null;
-	// A selection inside one table: the offsets are cell indices, read directly.
 	const lo = Math.min(anchor.offset, focus.offset);
 	const hi = Math.max(anchor.offset, focus.offset);
 	return lo === 0 && hi === cellCount - 1 ? anchor.path.slice() : null;

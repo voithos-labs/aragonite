@@ -552,7 +552,7 @@ Dragging a selection and dropping it somewhere else is the editor's too. The bro
 
 ### Cross-block selection
 
-Two endpoints, anchor and focus, each a path plus an offset in that block. `selection/primitives.ts` :: `SelectionPoint` is the type, a two-arm union on `cellCoordinate` (a character offset into `raw`, or a row-major cell index inside a table), with one trap its docstring and G1.29 both carry: a selection wholly inside one table keeps cell indices on both endpoints and flags only the anchor, so the block's kind, never the flag, picks the coordinate space.
+Two endpoints, anchor and focus, each a path plus an offset in that block. `selection/primitives.ts` :: `SelectionPoint` is the type, a union of two shapes told apart by `cellCoordinate`: a character offset into `raw`, or a row-major cell index inside a table. Code that reads an offset checks the flag, not the block's kind. `SelectionState` flags every endpoint on a table's path as it stores it, both corners of a rectangle inside one table included. A restore does the same to a snapshot's or a host's plain offset there, so it's flagged by the time anything reads it.
 
 Same path on both means single-block, and the browser handles it; different paths mean the editor manages all selection rendering. The native caret and native `::selection` are suppressed (via `[data-cross-block]` on the editor root) exactly when the overlay paints instead, one predicate for both: a stored pair the overlay declines to paint, such as a rectangle shrunk back onto its own cell, keeps its native caret rather than showing nothing at all. The state is lazy, its fields null in single-block mode, with a normalized `start`/`end` pair in document order derived from anchor/focus.
 

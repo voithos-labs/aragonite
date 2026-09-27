@@ -14,7 +14,7 @@ import type { SelectionPoint } from './primitives';
 import type { RangeDeleteResult } from './range-delete';
 import type { SharingState } from '../tree-operations/sharing';
 import { displayLength, documentLineEnding } from '../core/lines';
-import { cellRowCol } from '../cursor/coordinate-spaces';
+import { cellRectBounds, cellRowCol } from '../cursor/coordinate-spaces';
 import { cellIndexOf } from './primitives';
 import {
 	resolveEndWall,
@@ -37,11 +37,12 @@ import { rebuildTableRowRaw } from '../schema/container-rebuilders';
 import { promoteFirstRowToHeader } from '../tree-operations/table-mutations';
 import { caretChildCount } from '../schema/reserved-chrome';
 import { nearestChromeContainer, isChromeChild } from './range-delete-chrome';
+import { countsCells } from '../schema/block-kind-descriptor';
 
 // ── Public API ──────────────────────────────────────────────────────────────
 
 export function involvesTable(startBlock: CstNode, endBlock: CstNode): boolean {
-	return startBlock.kind === 'table' || endBlock.kind === 'table';
+	return countsCells(startBlock) || countsCells(endBlock);
 }
 
 export function tableAwareRangeDelete(
@@ -61,16 +62,18 @@ export function tableAwareRangeDelete(
 	const endBlock = sameBlock
 		? startBlock
 		: (ensureUnsharedPath(doc, end.path, sharing).pop() ?? ownedEndpoint(doc, end.path, sharing));
-	if (startBlock.kind === 'table') ensureUnsharedSubtree(startBlock, sharing);
-	if (!sameBlock && endBlock.kind === 'table') ensureUnsharedSubtree(endBlock, sharing);
+	const startCells = countsCells(startBlock);
+	const endCells = countsCells(endBlock);
+	if (startCells) ensureUnsharedSubtree(startBlock, sharing);
+	if (!sameBlock && endCells) ensureUnsharedSubtree(endBlock, sharing);
 
 	if (sameBlock) {
 		return deleteWithinTable(doc, start, end, startBlock, sharing, grammar);
 	}
-	if (startBlock.kind === 'table' && endBlock.kind === 'table') {
+	if (startCells && endCells) {
 		return deleteAcrossTwoTables(doc, start, end, startBlock, endBlock, sharing, grammar);
 	}
-	if (startBlock.kind === 'table') {
+	if (startCells) {
 		return deleteFromTableIntoProse(
 			doc,
 			start,
@@ -107,14 +110,13 @@ function deleteWithinTable(
 	sharing: SharingState,
 	grammar: GrammarView
 ): RangeDeleteResult {
-	// Endpoints inside one table share its path and are not flagged, so `.offset` reads directly;
-	// `cellIndexOf` would warn for nothing here.
-	clearRectangularCells(table, start.offset, end.offset);
+	const startCell = cellIndexOf(start, 'deleteWithinTable:start');
+	clearRectangularCells(table, startCell, cellIndexOf(end, 'deleteWithinTable:end'));
 	rebuildUnsharedAncestry(doc, start.path, sharing, null, grammar);
 
 	const meta = metadataOf(table, 'table');
 	const cellsPerRow = meta.columnCount;
-	const { row: anchorRow, col: anchorCol } = cellRowCol(start.offset, cellsPerRow);
+	const { row: anchorRow, col: anchorCol } = cellRowCol(startCell, cellsPerRow);
 
 	return {
 		newDoc: doc,
@@ -124,18 +126,11 @@ function deleteWithinTable(
 }
 
 function clearRectangularCells(table: CstNode, anchorCellIdx: number, focusCellIdx: number): void {
-	const meta = metadataOf(table, 'table');
-	const cellsPerRow = meta.columnCount;
-	const { row: aRow, col: aCol } = cellRowCol(anchorCellIdx, cellsPerRow);
-	const { row: fRow, col: fCol } = cellRowCol(focusCellIdx, cellsPerRow);
-	const minRow = Math.min(aRow, fRow);
-	const maxRow = Math.max(aRow, fRow);
-	const minCol = Math.min(aCol, fCol);
-	const maxCol = Math.max(aCol, fCol);
-	const rows = table.children!;
-	for (let r = minRow; r <= maxRow; r++) {
-		const row = rows[r];
-		for (let c = minCol; c <= maxCol; c++) {
+	const colCount = metadataOf(table, 'table').columnCount;
+	const { top, left, rows, cols } = cellRectBounds(anchorCellIdx, focusCellIdx, colCount);
+	for (let r = top; r < top + rows; r++) {
+		const row = table.children![r];
+		for (let c = left; c < left + cols; c++) {
 			row.children![c].raw = '';
 		}
 		rebuildTableRowRaw(row);

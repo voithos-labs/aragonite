@@ -7,7 +7,7 @@
 import type { AnyBlockKind } from '../core/nodes';
 import { WHOLE_BLOCK_INPUT_ATTR } from '../editor-actions/whole-block-focus-surface';
 import { tryGetBlockKindDescriptor, type CaretTarget } from '../schema/block-kind-descriptor';
-import type { CellSelectionPoint, SelectionEndpoint } from './primitives';
+import { cellPoint, type SelectionEndpoint } from './primitives';
 import { offsetFromViewportPoint } from '../cursor/point-offset';
 import { readBlockPath } from './path-lookup';
 import { pathsEqual } from './path-math';
@@ -94,9 +94,7 @@ export function endpointAtPoint(
 		const cellIdx = hit.foreignDragHitTest(clientX, clientY);
 		// `cellCoordinate` routes a collapse and a scroll-into-view to the cell itself, as the
 		// keyboard path does.
-		return cellIdx === null
-			? null
-			: ({ path: hit.path, offset: cellIdx, cellCoordinate: true } satisfies CellSelectionPoint);
+		return cellIdx === null ? null : cellPoint(hit.path, cellIdx);
 	}
 	if (!hit.charSurface) return { path: hit.path, wholeBlock: true };
 	const offset = offsetFromViewportPoint(hit.charSurface, clientX, clientY);

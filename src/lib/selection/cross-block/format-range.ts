@@ -23,7 +23,7 @@ import type { DocumentView, NodeView } from '../../core/node-views';
 import type { InlineMarkKind } from '../../schema/inline-construct-policy';
 import type { Reading } from '../../schema/reading';
 import type { GrammarView } from '../../schema/block-openers';
-import { tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
+import { isGridKind, tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
 import {
 	normalizeBodyWrite,
 	writeOwnRaw,
@@ -168,7 +168,7 @@ function spansInRange(
 			if (comparePaths(here, end.path) > 0) return;
 			const child = children[index];
 			if (child.children) {
-				if (tryGetBlockKindDescriptor(child.kind)?.containerContract === 'grid') {
+				if (isGridKind(child.kind)) {
 					// Pushed one by one, never spread: a large grid's covered cells can exceed the
 					// argument-list limit (G4.60).
 					for (const span of gridSpans(child, here, start, end, reading)) spans.push(span);

@@ -27,6 +27,9 @@ export function createHistoryActions(
 		// whichever side of the document write its scroll-into-view finishes on.
 		controller.noteHistorySwap();
 		deps.sharing.markSnapshotTaken();
+		// The standing range addresses the outgoing tree; a reader in the render below would
+		// otherwise read it against the incoming one, where its path can name another block.
+		deps.selectionState.dropForDocumentSwap();
 		deps.setDoc({ ...entry.snapshot, children: [...entry.snapshot.children] });
 		deps.bumpContentVersion();
 		// A copy: live state splices this array in place, and the entry stays on the stack.
@@ -49,7 +52,13 @@ export function createHistoryActions(
 		// An entry can name an index its own snapshot never had (append-past-end records the
 		// one-past-the-end path as its fallback). The restore declines without side effects, so
 		// clearing the selection is decided here, the one place that knows the document changed.
-		if (outcome === 'unresolvable') deps.selectionState.clear();
+		// Announced, not left to the clear: the range was already dropped without a notification.
+		if (outcome === 'unresolvable') {
+			deps.selectionState.batch(() => {
+				deps.selectionState.clear();
+				deps.selectionState.announceSelection();
+			});
+		}
 		deps.events.emit('edit', { op, path: [], timestamp: Date.now() });
 	}
 

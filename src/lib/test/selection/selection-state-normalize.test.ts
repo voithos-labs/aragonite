@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { createSelectionState } from '../../selection/selection-state.svelte';
 import { selectWholeDocument } from '../../selection/keyboard-extend';
 import { rangeDelete } from '../../selection/range-delete';
@@ -8,12 +8,7 @@ import { serialize } from '../../core/serializer';
 import { createSharingState } from '../../tree-operations/sharing';
 import { expectParseConverged } from '../harness/parse-converged';
 import type { CstNode, Document } from '../../core/nodes';
-import { allowDevWarns } from '$lib/test/support/warn-gate';
 import { fixtureReading } from '../harness/fixture-grammar';
-
-// The raw deep-cell points fed in are pre-normalization by construction; normalizing them is the
-// subject.
-afterEach(() => allowDevWarns(['invariant:cross-block-endpoint-coordinates']));
 
 const TABLE_FIRST = '| A | B |\n| --- | --- |\n| 1 | 2 |\n\npara\n';
 const TABLE_LAST = 'para\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n';

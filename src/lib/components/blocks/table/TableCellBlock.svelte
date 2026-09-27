@@ -37,7 +37,7 @@
 		parseClipboardGrid,
 		tileGridTo
 	} from '../../../tree-operations/table-grid-clipboard';
-	import { tableCellCount } from '../../../selection/table-endpoint-snap';
+	import { tableCellCount } from '../../../schema/block-kind-descriptor';
 	import { pathsEqual } from '../../../selection/path-math';
 	import { applyDelimiterAutoPair } from '../text/delimiter-autopair';
 	import { FALLBACK_CONTENT_WIDTH } from '../../../cursor/typography-estimates';
@@ -48,7 +48,11 @@
 		screenVisibilityOf,
 		rawSelectionFocus
 	} from '../../../cursor/widget-offset';
-	import { asRawOffset, type RawOffset } from '../../../cursor/coordinate-spaces';
+	import {
+		asRawOffset,
+		rowMajorCellIndex,
+		type RawOffset
+	} from '../../../cursor/coordinate-spaces';
 	import { createSurfaceBackend } from '../../../cursor/surface-backend';
 	import { getCurrentCursorEditorRelativeX } from '../../../cursor/sticky-measure';
 	import { handleSharedKeydown, handleSharedBeforeInput } from '../../../selection/shared-keydown';
@@ -75,7 +79,7 @@
 		intraTableRectBounds,
 		intraTableRectGrid
 	} from './cell-clipboard';
-	import type { CellSelectionPoint, SelectionPoint } from '../../../selection/primitives';
+	import { cellPoint } from '../../../selection/primitives';
 	import type { ClipboardAction } from './table-menu-model';
 	import {
 		installCellDragListener,
@@ -692,23 +696,17 @@
 		if (!atEdge) return false;
 
 		const tablePath = myPath.slice(0, -2);
-		const currentIdx = rowIdx * columnCount + colIdx;
-		const currentPoint: SelectionPoint = { path: tablePath, offset: currentIdx };
-		const ext = intraTableRectExtension(getDoc(), currentPoint, currentPoint, key);
+		const anchor = cellPoint(tablePath, rowMajorCellIndex(rowIdx, colIdx, columnCount));
+		const ext = intraTableRectExtension(getDoc(), anchor, anchor, key);
 		if (!ext) return false;
 
-		const anchor = {
-			path: tablePath,
-			offset: currentIdx,
-			cellCoordinate: true
-		} satisfies CellSelectionPoint;
 		if (ext.kind === 'cell') {
-			selection.enterCrossBlock(anchor, { path: tablePath.slice(), offset: ext.offset });
+			selection.enterCrossBlock(anchor, cellPoint(tablePath, ext.offset));
 			return true;
 		}
 		// Recorded before the block-level extend answers, so a refusal (no block past the table)
 		// takes it back: left behind, the next Backspace would delete a whole cell through it.
-		selection.enterCrossBlock(anchor, { path: tablePath.slice(), offset: currentIdx });
+		selection.enterCrossBlock(anchor, cellPoint(tablePath, anchor.offset));
 		const extended =
 			ext.direction === 'forward'
 				? extendFocusToNextBlock(selection, getDoc(), grammar, el, ext.fromCellPath, 'vertical')

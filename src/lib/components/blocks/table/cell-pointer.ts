@@ -1,11 +1,16 @@
 /**
  * Pointer drag and Shift+click across a table's cells, and the cell hit tests they use. A
  * rectangle inside one table is a selection whose two endpoints both name the table's path,
- * with row-major cell indices as offsets.
+ * with flagged row-major cell indices as offsets.
  */
 
 import type { SelectionState } from '../../../selection/selection-state.svelte';
-import type { CellSelectionPoint, SelectionPoint } from '../../../selection/primitives';
+import {
+	cellPoint,
+	type CellSelectionPoint,
+	type SelectionEndpoint
+} from '../../../selection/primitives';
+import { rowMajorCellIndex } from '../../../cursor/coordinate-spaces';
 import { createPointerDragSession } from '../../../selection/pointer-session';
 import { blockNearPoint } from '../../../selection/nearest-block';
 import { firstScrollableDescendant } from '../../../cursor/scroll-ancestors';
@@ -39,14 +44,9 @@ export function installCellDragListener(
 	anchor: CellAnchor,
 	down: PointerEvent
 ): { dispose(): void } {
-	const anchorCellIdx = anchor.rowIdx * anchor.columnCount + anchor.colIdx;
 	// Flagged as a cell index, so a drag that leaves the table snaps to whole rows
 	// (table-endpoint-snap.ts) and copy and delete agree on which rows it covers.
-	const anchorPoint: CellSelectionPoint = {
-		path: anchor.tablePath.slice(),
-		offset: anchorCellIdx,
-		cellCoordinate: true
-	};
+	const anchorPoint = anchorCellPoint(anchor);
 
 	// `anchor.tableEl` is `[role="table"]`; the scrollable element is its first
 	// scrollable descendant (the `.table-block` grid).
@@ -76,16 +76,11 @@ export function installCellDragListener(
 	}
 
 	function extendToCell(rowIdx: number, colIdx: number): void {
-		const cellIdx = rowIdx * anchor.columnCount + colIdx;
-		const focusPoint: SelectionPoint = {
-			path: anchor.tablePath.slice(),
-			offset: cellIdx
-		};
-		if (!ctx.selection.isCustomRendered) {
-			ctx.selection.enterCrossBlock(anchorPoint, focusPoint);
-		} else {
-			ctx.selection.extendFocus(focusPoint);
-		}
+		const focus = cellPoint(
+			anchor.tablePath,
+			rowMajorCellIndex(rowIdx, colIdx, anchor.columnCount)
+		);
+		enterOrExtend(ctx.selection, anchorPoint, focus);
 	}
 
 	function extendToForeignBlock(clientX: number, clientY: number): void {
@@ -97,11 +92,7 @@ export function installCellDragListener(
 		// whole-row snap just as the anchor does, and a kind with no editable element is skipped.
 		const focusPoint = near.endpointHere();
 		if (!focusPoint) return;
-		if (!ctx.selection.isCustomRendered) {
-			ctx.selection.enterCrossBlock(anchorPoint, focusPoint);
-		} else {
-			ctx.selection.extendFocus(focusPoint);
-		}
+		enterOrExtend(ctx.selection, anchorPoint, focusPoint);
 	}
 
 	return createPointerDragSession(down, {
@@ -117,24 +108,30 @@ export function handleCellShiftClick(
 	anchor: CellAnchor,
 	target: { rowIdx: number; colIdx: number }
 ): void {
-	const anchorCellIdx = anchor.rowIdx * anchor.columnCount + anchor.colIdx;
-	const focusCellIdx = target.rowIdx * anchor.columnCount + target.colIdx;
-	const tablePath = anchor.tablePath.slice();
-
-	if (selection.isCustomRendered) {
-		selection.extendFocus({ path: tablePath, offset: focusCellIdx });
-		return;
-	}
-	// Flagged row-major to match the drag anchor, so a later exit-the-table extend snaps
-	// whole rows. The focus stays unflagged: same-table extends short-circuit the snap.
-	selection.enterCrossBlock(
-		{
-			path: tablePath.slice(),
-			offset: anchorCellIdx,
-			cellCoordinate: true
-		} satisfies CellSelectionPoint,
-		{ path: tablePath.slice(), offset: focusCellIdx }
+	const focus = cellPoint(
+		anchor.tablePath,
+		rowMajorCellIndex(target.rowIdx, target.colIdx, anchor.columnCount)
 	);
+	enterOrExtend(selection, anchorCellPoint(anchor), focus);
+}
+
+// ── Shared ─────────────────────────────────────────────────────────────────
+
+function anchorCellPoint(anchor: CellAnchor): CellSelectionPoint {
+	return cellPoint(
+		anchor.tablePath,
+		rowMajorCellIndex(anchor.rowIdx, anchor.colIdx, anchor.columnCount)
+	);
+}
+
+/** The first move past the anchor starts the range; later ones only move its focus. */
+function enterOrExtend(
+	selection: SelectionState,
+	anchor: CellSelectionPoint,
+	focus: SelectionEndpoint
+): void {
+	if (selection.isCustomRendered) selection.extendFocus(focus);
+	else selection.enterCrossBlock(anchor, focus);
 }
 
 // ── DOM geometry ─────────────────────────────────────────────────────────────

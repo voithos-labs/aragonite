@@ -242,7 +242,7 @@ Three families of seam run these checks:
 | G1.26 | A fold implies an active reveal, and an open reveal blocks command mutation         | A·N     |
 | G1.27 | `compositionend` lands only inside a composition the surface saw start              | A·N     |
 | G1.28 | A code block's render and a painted leaf source carry the block's bytes exactly     | A·N     |
-| G1.29 | A cross-block endpoint's offset means what its own block's coordinate space says    | A·N     |
+| G1.29 | A selection endpoint's offset means what its own block's coordinate space says      | A·N     |
 | G1.30 | Every registered kind declares a `mergeRole` from the known set                     | A·N     |
 | G1.31 | The inline-construct policy table is coherent and unambiguous                       | A·N     |
 | G1.32 | A kind declaring `contentStartBackspace` also declares `getContentRange`            | A·N     |
@@ -488,20 +488,26 @@ Predicate `checkRenderedTextFidelity` (`render-fidelity.ts`) · seams
 `components/blocks/editable-leaf.ts :: paintSource` · `render-fidelity.test.ts`,
 `test/blocks/editable-leaf-painted-fidelity.test.ts`.
 
-**G1.29 · Cross-block endpoint coordinates.** An endpoint's offset means what its own block's
-coordinate space says. A table endpoint carries `cellCoordinate: true`, so it reads as a cell index
-and never as a character count: a table path IS cell space, and a char offset stored there routes
-rangeDelete down the generic branch and corrupts the grid. Both directions fire, since a cell index
-stored against a block with no cells is the same corruption from the opposite producer. Every other
-char endpoint must land inside its block's raw, and inside a kind with no character positions
-(childless `blockFocus: 'whole-block'`) on one of the two ends, because an interior offset there
-slices an opaque unit in half, so copy truncates the syntax and delete destroys it. Same-path pairs
-are exempt (an intra-table rectangle's focus is unflagged by convention). Each rule has a normalizer
-meant to make it unfireable, and each has been missed once (a length-1 table path; a character
-hit-test over a rendered diagram). The producers are fixed, and this is the backstop for producer
-N+1. Predicate `checkCrossBlockEndpointCoordinates` (`selection-endpoints.ts`) · seam
-`selection/selection-state.svelte.ts :: enterCrossBlock` and `extendFocus` ·
-`selection-endpoint-coordinates.test.ts`.
+**G1.29 · Selection endpoint coordinates.** An endpoint's offset means what its own block's
+coordinate space says. On a table that's a cell index, and the point has to say so with
+`cellCoordinate: true`: every point on a table path, the two corners of a rectangle inside one
+table included. Readers trust the flag, so a bare offset on a table reads as characters, and
+copy slices the table's markdown as text. The index has to land inside the grid too:
+an index past the last cell makes copy invent empty rows and delete throw, so the normalizer and the
+restore both clamp to `src/lib/schema/block-kind-descriptor.ts :: clampCellIndex`.
+Both directions fire, because a cell index stored against a block with no cells is the same
+corruption from the opposite producer. Every other char endpoint must land inside its block's
+raw, and inside a kind with no character positions (childless `blockFocus: 'whole-block'`) on one
+of the two ends, because an interior offset there slices an opaque unit in half, so copy truncates
+the syntax and delete destroys it. Which blocks count cells is one fact,
+`src/lib/schema/block-kind-descriptor.ts :: countsCells`, read by the normalizer and this check
+alike. It's tables only for now: a plugin grid keeps its deep `[grid, row, col]` endpoints with
+char offsets until its kind can describe its cells (#242). Each rule has a normalizer meant to make
+it unfireable, and each has been missed once (a length-1 table path; a character hit-test over a
+rendered diagram). The producers are fixed, and this is the backstop for producer N+1. Predicate
+`checkCrossBlockEndpointCoordinates` (`selection-endpoints.ts`) · seam
+`selection/selection-state.svelte.ts :: enterCrossBlock` and `extendFocus`, the only two ways a
+pair gets stored · `selection-endpoint-coordinates.test.ts`.
 
 **G1.30 · Merge-role vocabulary.** Every registered kind declares a `mergeRole` from the known set;
 an unknown role makes the merge dispatcher fall through silently on every gesture that reaches the

@@ -66,11 +66,9 @@ describe('SelectionState lifecycle', () => {
 describe('SelectionState.isCustomRendered', () => {
 	const tableSource = '| A | B |\n| --- | --- |\n| 1 | 2 |\n';
 
-	it('is true for a same-path table rect (flagged anchor, cell-index selection)', () => {
+	it('is true for a same-path table rect of two cells', () => {
 		const doc = parse(tableSource);
 		const s = createSelectionState({ getDoc: () => doc });
-		// Real rects flag the anchor as a cell coordinate (cell-pointer.ts); an
-		// unflagged char pair would collapse to single-block instead.
 		s.enterCrossBlock({ path: [0], offset: 0, cellCoordinate: true }, { path: [0], offset: 1 });
 		expect(s.isCustomRendered).toBe(true);
 	});
@@ -147,11 +145,12 @@ describe('SelectionState.restoreRoute (classify a pair without mutating state)',
 	it('routes a same-path table range as custom (cell rect)', () => {
 		const doc = parse(tableSource);
 		const s = createSelectionState({ getDoc: () => doc });
-		// A flagged anchor and an unflagged focus on the table path both classify as custom.
 		expect(
-			s.restoreRoute({ path: [0], offset: 0, cellCoordinate: true }, { path: [0], offset: 1 })
+			s.restoreRoute(
+				{ path: [0], offset: 0, cellCoordinate: true },
+				{ path: [0], offset: 1, cellCoordinate: true }
+			)
 		).toBe('custom');
-		expect(s.restoreRoute({ path: [0], offset: 0 }, { path: [0], offset: 1 })).toBe('custom');
 	});
 
 	it('treats a same-path range as single-block when no doc accessor is wired', () => {
@@ -171,12 +170,6 @@ describe('SelectionState.cellLandingFor', () => {
 			path: [0, 1, 1],
 			offset: 0
 		});
-	});
-
-	it('lands a context-established (unflagged) intra-table endpoint too', () => {
-		const doc = parse(tableSource);
-		const s = createSelectionState({ getDoc: () => doc });
-		expect(s.cellLandingFor({ path: [0], offset: 2 })).toEqual({ path: [0, 1, 0], offset: 0 });
 	});
 
 	// The fallback is what lets every caller drop its own `?? point` branch.

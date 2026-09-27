@@ -1,15 +1,10 @@
 // @vitest-environment jsdom
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { restoreGapCaret } from '$lib/selection/selection-restore';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import type { SelectionRestoreDeps } from '$lib/selection/selection-restore';
-import { allowDevWarns } from '$lib/test/support/warn-gate';
 import { createCaretMemory } from '$lib/cursor/caret-memory';
-
-// The fixtures set table endpoints directly instead of through SelectionState, so the coordinate
-// check sees the un-normalized point.
-afterEach(() => allowDevWarns(['invariant:cross-block-endpoint-coordinates']));
 
 // Restoring an undo entry that holds a gap caret: the boundary is clamped into the tree it
 // lands in, and the block it sits against is mounted before the caret is placed.

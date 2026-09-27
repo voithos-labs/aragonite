@@ -1,23 +1,24 @@
 /**
  * The cell-index space a selection endpoint inside a grid lives in. Offsets are inclusive cell
- * indices, the space `SelectionPoint` already uses. The whole-row snap and the two metadata reads
- * are for tables only; the coverage functions serve any `containerContract: 'grid'` kind. A pair
- * inside one table is deliberately left unsnapped, so a rectangle of cells can be selected.
+ * indices, and every endpoint on a table path carries `cellCoordinate`. The whole-row snap and
+ * the metadata reads are for tables only; the coverage functions serve any `containerContract:
+ * 'grid'` kind. A pair inside one table is left unsnapped, so a rectangle of cells can be selected.
  */
 
 import type { DocumentView, NodeView } from '../core/node-views';
 import { metadataOf } from '../core/nodes';
-import { isBlockNode, nodeAt } from '../tree-operations/node-primitives';
+import { nodeAt } from '../tree-operations/node-primitives';
+import { clampCellIndex, countsCells, tableCellCount } from '../schema/block-kind-descriptor';
 import type { CellSelectionPoint, SelectionPoint } from './primitives';
-import { cellIndexOf } from './primitives';
-import { asCellIndex, cellRowCol } from '../cursor/coordinate-spaces';
+import { cellIndexOf, cellPoint } from './primitives';
+import { asCellIndex, rowMajorCellIndex, cellRowCol } from '../cursor/coordinate-spaces';
 import { comparePaths, pathHasPrefix } from './path-math';
 import { devWarn } from '../dev-warn';
 
 /**
- * The one conversion from a cell path to a cell index: a cross-block endpoint inside a table
- * must address the table block by row-major cell index, or a `[tableIdx, row, col]` path with a
- * character offset sends the delete down the plain branch and corrupts the grid.
+ * The one conversion into cell space: an endpoint on a table's path, or on one of its cells, is
+ * stored as the table path plus a row-major cell index and the `cellCoordinate` flag. A
+ * character offset read against a grid sends the delete down the plain branch and corrupts it.
  * `SelectionState` applies this to every incoming point, so entry paths never call it
  * themselves. Non-table paths pass through.
  */
@@ -26,29 +27,28 @@ export function normalizeTableEndpoint(
 	path: number[],
 	offset: number
 ): SelectionPoint {
-	for (let d = 0; d < path.length - 1; d++) {
-		const node = nodeAt(doc, path.slice(0, d + 1));
-		if (node && isBlockNode(node) && node.kind === 'table') {
-			const colCount = metadataOf(node, 'table').columnCount;
-			const rowIdx = path[d + 1];
-			const colIdx = path[d + 2] ?? 0;
-			return {
-				path: path.slice(0, d + 1),
-				offset: asCellIndex(rowIdx * colCount + colIdx),
-				cellCoordinate: true
-			} satisfies CellSelectionPoint;
-		}
+	for (let d = 0; d < path.length; d++) {
+		const tablePath = path.slice(0, d + 1);
+		const node = nodeAt(doc, tablePath);
+		if (!node || !countsCells(node)) continue;
+		// On the table's own path the offset is already the cell index.
+		if (d === path.length - 1) return cellPoint(tablePath, clampCellIndex(node, offset));
+		const colCount = metadataOf(node, 'table').columnCount;
+		return cellPoint(tablePath, rowMajorCellIndex(path[d + 1], path[d + 2] ?? 0, colCount));
 	}
 	return { path: path.slice(), offset };
 }
 
-/**
- * How many cells a table's index space holds, the exclusive upper bound on any row-major cell
- * index. `node` must be a table block; the metadata read is unchecked, so other kinds give NaN.
- * Lives beside the bounds check below so a caller's clamp and the check cannot drift apart.
- */
-export function tableCellCount(node: NodeView): number {
-	return (node.children?.length ?? 0) * metadataOf(node, 'table').columnCount;
+/** A table taken whole, as the cell on one side of it; null when `path` names no table. */
+export function wholeTableEndpoint(
+	doc: DocumentView,
+	path: number[],
+	side: 'start' | 'end'
+): CellSelectionPoint | null {
+	const node = nodeAt(doc, path);
+	if (!node || !countsCells(node)) return null;
+	const offset = side === 'end' ? clampCellIndex(node, Infinity) : 0;
+	return cellPoint(path, offset);
 }
 
 /** One cell of a grid, with the doc-absolute path that addresses it. */
@@ -75,13 +75,10 @@ export function gridEndpointCellIndex(
 	point: SelectionPoint
 ): number | null {
 	if (!pathHasPrefix(point.path, gridPath)) return null;
-	// On the grid's own path the node kind decides, not the flag ({@link cellEndpointDeepPath}):
-	// a table path is cell space, so the unflagged corner of a rectangle inside a table counts
-	// cells, while any other grid holds a character offset addressing no cell.
-	if (point.path.length === gridPath.length)
-		return point.cellCoordinate || grid.kind === 'table' ? point.offset : null;
+	// On the grid's own path an unflagged offset counts characters, which address no cell.
+	if (point.path.length === gridPath.length) return point.cellCoordinate ? point.offset : null;
 	const [row, col = 0] = point.path.slice(gridPath.length);
-	return row * gridColumnCount(grid) + col;
+	return rowMajorCellIndex(row, col, gridColumnCount(grid));
 }
 
 /**
@@ -124,15 +121,15 @@ export function coveredGridCells(
 }
 
 /**
- * The inverse of {@link normalizeTableEndpoint}: expands an endpoint addressing a table block to
- * its `[tableIdx, row, col]` leaf path, so mounting and caret placement reach a windowed-out
- * cell. Null when the path is already a leaf or the index lies outside the grid. The node kind
- * decides, not the `cellCoordinate` flag: a focus inside a table is unflagged (see
- * {@link SelectionPoint}) yet still a cell index. Callers go through `SelectionState.cellLandingFor`.
+ * The inverse of {@link normalizeTableEndpoint}: expands a cell endpoint to its
+ * `[tableIdx, row, col]` leaf path, so mounting and caret placement reach a windowed-out cell.
+ * Null for a character endpoint or an index outside the grid. Callers go through
+ * `SelectionState.cellLandingFor`.
  */
 export function cellEndpointDeepPath(doc: DocumentView, point: SelectionPoint): number[] | null {
+	if (!point.cellCoordinate) return null;
 	const node = nodeAt(doc, point.path);
-	if (!node || !isBlockNode(node) || node.kind !== 'table') return null;
+	if (!node || !countsCells(node)) return null;
 	const colCount = metadataOf(node, 'table').columnCount;
 	const cellIdx = asCellIndex(point.offset);
 	const cellCount = tableCellCount(node);
@@ -163,12 +160,12 @@ function snapEndpoint(
 ): SelectionPoint {
 	if (!point.cellCoordinate) return point;
 	const node = nodeAt(doc, point.path);
-	if (!node || !isBlockNode(node) || node.kind !== 'table') return point;
+	if (!node || !countsCells(node)) return point;
 
 	const colCount = metadataOf(node, 'table').columnCount;
 	const cellIdx = cellIndexOf(point, 'snapCrossBlockTableEndpoints');
 	const { row } = cellRowCol(cellIdx, colCount);
-	const snappedOffset = side === 'start' ? row * colCount : row * colCount + colCount - 1;
+	const snappedOffset = rowMajorCellIndex(row, side === 'start' ? 0 : colCount - 1, colCount);
 	if (snappedOffset === cellIdx) return point;
-	return { ...point, offset: snappedOffset } satisfies CellSelectionPoint;
+	return cellPoint(point.path, snappedOffset);
 }

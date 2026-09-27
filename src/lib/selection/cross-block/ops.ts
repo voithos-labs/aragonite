@@ -17,6 +17,7 @@ import { rangeDelete } from '../range-delete';
 import { trackChildIds, type StructuralChange } from '../../tree-operations/structural-change';
 import { documentBody, isBlockNode, nodeAt } from '../../tree-operations/node-primitives';
 import { pathsEqual } from '../path-math';
+import { countsCells } from '../../schema/block-kind-descriptor';
 import { docPathFrom } from '../../cursor/coordinate-spaces';
 import { getStateForNode } from '../../reactivity/state-registry';
 import type { BlockListState } from '../../reactivity/block-list-state.svelte';
@@ -115,7 +116,7 @@ async function runCrossBlockDelete(
 
 	if (options?.tableCoverageDelete && isPureTopLevel && samePath) {
 		const block = nodeAt(doc, start.path);
-		if (block && isBlockNode(block) && block.kind === 'table') {
+		if (block && isBlockNode(block) && countsCells(block)) {
 			const handled = await maybeCommitTableCoverageDelete(ctx, block, start, end, caretRestore);
 			if (handled) return handled.caret;
 		}
@@ -140,7 +141,7 @@ export function performCrossBlockDeleteSync(ctx: CrossBlockMutationContext): voi
 
 function isTableAt(doc: Document, path: number[]): boolean {
 	const node = nodeAt(doc, path);
-	return node !== null && isBlockNode(node) && node.kind === 'table';
+	return node !== null && countsCells(node);
 }
 
 /**

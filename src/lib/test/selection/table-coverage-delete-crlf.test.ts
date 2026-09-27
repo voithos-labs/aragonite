@@ -36,8 +36,8 @@ const TABLE = (ending: string) => ['| a | b |', '| --- | --- |', '| c | d |', ''
 
 async function deleteWholeTable(source: string): Promise<string> {
 	const { deps, table, ctx } = soleTableEnv(source);
-	const start: SelectionPoint = { path: [0], offset: 0 };
-	const end: SelectionPoint = { path: [0], offset: 3 };
+	const start: SelectionPoint = { path: [0], offset: 0, cellCoordinate: true };
+	const end: SelectionPoint = { path: [0], offset: 3, cellCoordinate: true };
 	deps.selectionState.enterCrossBlock(start, end);
 
 	const result = await maybeCommitTableCoverageDelete(ctx, table, start, end, undefined);

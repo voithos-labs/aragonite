@@ -182,6 +182,9 @@ describe('rangeDelete: Case 3 (prose → table → prose, full-table span)', () 
 	});
 });
 
+/** A corner of a rectangle inside the table at [0]: its row-major cell index, flagged. */
+const cellAt = (offset: number): SelectionPoint => ({ path: [0], offset, cellCoordinate: true });
+
 describe('rangeDelete: intra-table rectangular (same-path)', () => {
 	it('Ctrl+A 2nd press: clears every cell, preserves structure and alignments', () => {
 		const input = parse('| L | C | R |\n| :--- | :---: | ---: |\n| a | b | c |\n| d | e | f |\n');
@@ -189,7 +192,7 @@ describe('rangeDelete: intra-table rectangular (same-path)', () => {
 		const lastCellIdx =
 			tableBefore.children!.length * (tableBefore.metadata as TableMetadata).columnCount - 1;
 
-		const { doc, caret } = run(input, { path: [0], offset: 0 }, { path: [0], offset: lastCellIdx });
+		const { doc, caret } = run(input, cellAt(0), cellAt(lastCellIdx));
 
 		const table = doc.children[0];
 		expect(table.kind).toBe('table');
@@ -208,11 +211,7 @@ describe('rangeDelete: intra-table rectangular (same-path)', () => {
 	it('partial rectangular clear leaves out-of-rect cells untouched', () => {
 		// 2-col, 4-row table. Anchor cell 2 (row 1, col 0), focus cell 5 (row 2, col 1).
 		// Rectangle spans rows 1..2 cols 0..1 — clears all 4 cells in that rect.
-		const { doc, caret } = run(
-			TWO_COL_FOUR_ROW,
-			{ path: [0], offset: 2 },
-			{ path: [0], offset: 5 }
-		);
+		const { doc, caret } = run(TWO_COL_FOUR_ROW, cellAt(2), cellAt(5));
 
 		const table = doc.children[0];
 		expect(table.children).toHaveLength(4);
@@ -231,11 +230,7 @@ describe('rangeDelete: intra-table rectangular (same-path)', () => {
 	it('column-only rectangle clears just the targeted column', () => {
 		// 2-col, 4-row. Anchor cell 1 (row 0 col 1), focus cell 7 (row 3 col 1).
 		// Rectangle = column 1 across all rows — clears the right column only.
-		const { doc, caret } = run(
-			TWO_COL_FOUR_ROW,
-			{ path: [0], offset: 1 },
-			{ path: [0], offset: 7 }
-		);
+		const { doc, caret } = run(TWO_COL_FOUR_ROW, cellAt(1), cellAt(7));
 
 		const table = doc.children[0];
 		expect(table.children).toHaveLength(4);

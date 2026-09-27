@@ -22,16 +22,12 @@ import { documentLineEnding } from '$lib/core/lines';
 
 const at = (path: number[], offset: number): SelectionPoint => ({ path, offset });
 
-/** A cross-block endpoint inside a table: the table's path, a row-major cell index, flagged. */
+/** An endpoint inside a table: the table's path, a row-major cell index, flagged. */
 const cell = (path: number[], index: number): SelectionPoint => ({
 	path,
 	offset: index,
 	cellCoordinate: true
 });
-
-/** A corner inside one table: the same shape unflagged; the pair's shared table path establishes
- *  the space (`SelectionPoint`), which is how a rectangle drag stores its two ends. */
-const corner = (path: number[], index: number): SelectionPoint => ({ path, offset: index });
 
 const TWO_COL = '| Ha | Hb |\n| --- | --- |\n| a1 | a2 |\n| b1 | b2 |\n';
 const THREE_COL = '| Ha | Hb | Hc |\n| --- | --- | --- |\n| a1 | a2 | a3 |\n| b1 | b2 | b3 |\n';
@@ -100,13 +96,13 @@ describe('both endpoints inside one table', () => {
 	// The rectangle, not the row-major run between the two indices: the overlay paints a rect and
 	// `range-delete-table` clears one, so the toggle must mark the cells the user sees lit.
 	it('marks the rectangle the two corners span, not the cells between their indices', () => {
-		expect(toggle(THREE_COL, corner([0], 4), corner([0], 7))).toBe(
+		expect(toggle(THREE_COL, cell([0], 4), cell([0], 7))).toBe(
 			'| Ha | Hb | Hc |\n| --- | --- | --- |\n| a1 | **a2** | a3 |\n| b1 | **b2** | b3 |\n'
 		);
 	});
 
 	it('spans the columns between the corners on every row it covers', () => {
-		expect(toggle(THREE_COL, corner([0], 3), corner([0], 7))).toBe(
+		expect(toggle(THREE_COL, cell([0], 3), cell([0], 7))).toBe(
 			'| Ha | Hb | Hc |\n| --- | --- | --- |\n| **a1** | **a2** | a3 |\n| **b1** | **b2** | b3 |\n'
 		);
 	});
@@ -192,13 +188,7 @@ describe('the endpoints the plan hands back', () => {
 
 	it('keeps both corners of a rectangle in cell space', () => {
 		const doc = parse(THREE_COL);
-		const plan = planCrossBlockFormat(
-			doc,
-			corner([0], 4),
-			corner([0], 7),
-			'strong',
-			fixtureReading()
-		)!;
+		const plan = planCrossBlockFormat(doc, cell([0], 4), cell([0], 7), 'strong', fixtureReading())!;
 		expect(plan.startOffset).toBe(4);
 		expect(plan.endOffset).toBe(7);
 	});

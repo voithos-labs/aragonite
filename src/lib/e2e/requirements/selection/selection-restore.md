@@ -19,7 +19,9 @@ override the scroll the host wrote last.
   scrolled back into view, so `true` means in view, not merely mounted
 - Within-block range (same path, distinct offsets): the native range is re-established across the same offsets, resolves `true`
 - Cross-block range: the selection re-enters cross-block state and the overlay paints, resolves `true`
-- Intra-table cell rectangle (cell-valued offsets on unflagged endpoints): the same cell selection is restored, resolves `true`
+- Intra-table cell rectangle: the same cell selection is restored, both corners counting cells, resolves `true`
+- Plain offsets on a table path, with no `cellCoordinate` flag: the offsets count cells, so the
+  rectangle paints and reads back with both corners flagged, resolves `true`
 - Collapsed-caret restore with a `selectionChange` subscriber attached: one emission, reporting
   the restored selection, never the one being left
 - Within-block range restore with the same subscriber: same, on the native-range route

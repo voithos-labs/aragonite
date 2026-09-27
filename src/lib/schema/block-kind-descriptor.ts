@@ -1,5 +1,5 @@
-import { isBuiltinBlockKind, type AnyBlockKind, type CstNode } from '../core/nodes';
-import type { NodeView } from '../core/node-views';
+import { isBuiltinBlockKind, metadataOf, type AnyBlockKind, type CstNode } from '../core/nodes';
+import type { DocumentView, NodeView } from '../core/node-views';
 import type { LineEnding } from '../core/lines';
 import type { ContainerBodyWrap } from '../core/parser';
 import { enqueueRegistrationCheck } from './registration-pending';
@@ -529,6 +529,36 @@ export function getBlockKindDescriptor(kind: AnyBlockKind): BlockKindDescriptor 
 
 export function tryGetBlockKindDescriptor(kind: AnyBlockKind): BlockKindDescriptor | undefined {
 	return registry.getIgnoringActivation(kind);
+}
+
+/** Whether a kind declares the grid contract: a table and its rows, or a plugin's equivalent. A
+ *  cell is in a grid when its parent row is one. */
+export function isGridKind(kind: AnyBlockKind): boolean {
+	return tryGetBlockKindDescriptor(kind)?.containerContract === 'grid';
+}
+
+/**
+ * Whether an endpoint on this block's own path counts cells rather than characters, the fact
+ * the selection model and G1.29 both read. Tables only: a plugin grid keeps deep cell paths with
+ * character offsets until its kind can describe its cells (#242).
+ */
+export function countsCells(
+	node: NodeView | DocumentView
+): node is Extract<NodeView, { kind: 'table' }> {
+	return 'raw' in node && node.kind === 'table';
+}
+
+/**
+ * How many cells a table's index space holds, the exclusive upper bound on any row-major cell
+ * index. `node` must be a table block; the metadata read is unchecked, so other kinds give NaN.
+ */
+export function tableCellCount(node: NodeView): number {
+	return (node.children?.length ?? 0) * metadataOf(node, 'table').columnCount;
+}
+
+/** A cell index clamped into a table's grid: the one ceiling every reader of cell space uses. */
+export function clampCellIndex(node: NodeView, cellIdx: number): number {
+	return Math.min(Math.max(cellIdx, 0), Math.max(tableCellCount(node) - 1, 0));
 }
 
 /**
