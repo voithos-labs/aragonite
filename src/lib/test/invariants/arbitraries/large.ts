@@ -7,18 +7,14 @@ import { withDrawnLineEnding } from './line-endings';
  * run count, because the point is reaching that scale, not sampling it densely.
  */
 
-/** One line carrying every multi-unit class at once, the combining cluster included. An offset
- *  defect at 100KB is still an offset defect, and it stays inside a mostly-ASCII line so the scale
- *  generator keeps its bulk. */
+/** Every multi-unit class on one mostly-ASCII line, since an offset defect at 100KB is still an
+ *  offset defect. */
 const NON_ASCII_LINE = '汉字 \u00e9m e\u0301m 😀 x';
 
-/** Roughly the byte budget each drawn document aims for. */
 const TARGET_BYTES = 100_000;
 
-/**
- * One flood of a single character. A delimiter run is the shape that reaches the
- * deep-recursion and quadratic-scan paths, because unlike a bracket flood it nests.
- */
+/** A flood of one character; a delimiter run nests, which is what reaches the deep-recursion and
+ *  quadratic-scan paths. */
 const flood = fc
 	.tuple(
 		fc.constantFrom('>', '*', '_', '~', '`', '[', ']', '#', '-', '=', '\\', '|'),

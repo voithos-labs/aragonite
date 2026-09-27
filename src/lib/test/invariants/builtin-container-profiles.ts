@@ -1,9 +1,8 @@
 /**
- * G4.3 conformance profiles for the built-in container kinds, fixture data for the kit
- * in `$lib/testing/container-conformance`, kept out of the shipped package because a
- * plugin author supplies their own. `container-conformance.test.ts` holds this map in
- * lockstep with the registry. Where a grid container's contract makes an invariant moot,
- * the cell is declared boundary/exempt with a reason, never a silent skip.
+ * Conformance profiles for the built-in container kinds, fed to the kit in
+ * `$lib/testing/container-conformance` and kept out of the package because a plugin author
+ * supplies their own (G4.3). `container-conformance.test.ts` holds this map in lockstep with the
+ * registry. A cell a grid container's contract makes moot is declared with a reason, never skipped.
  */
 
 import type { BlockKind } from '$lib/core/nodes';

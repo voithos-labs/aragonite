@@ -18,9 +18,8 @@ import { renderOptions } from '../harness/fixture-grammar';
 // test.
 afterEach(() => allowDevWarns(['decorations']));
 
-// G2.4: the rendered DOM's textContent reproduces the source bytes, so caret <-> offset
-// round-trips. The widget-free corpus excludes images and `<br>`, whose zero contribution
-// the widget-delta case below accounts for explicitly.
+// The rendered DOM's textContent reproduces the source bytes, so caret <-> offset round-trips
+// (G2.4). The corpus draws no images or `<br>`; the widget-delta case below accounts for them.
 
 const PARAMS = { numRuns: 1000, seed: freshOrFixedSeed(424242) } as const;
 
@@ -137,9 +136,8 @@ describe('G2.4 textContent chain (atomic-widget delta)', () => {
 	});
 });
 
-// A kind that declines image widgets renders the image into the text, so its bytes are the rule
-// rather than a subtraction. Built by hand, not parsed: a plugin's inline handler may derive an
-// alt from anywhere, so no parsed corpus can state the rule the render path needs.
+// A kind that declines image widgets renders the image into the text, built by hand because a
+// plugin's inline handler may derive an alt from anywhere, which no parsed corpus reaches.
 describe('G2.4 textContent chain (alt-only images)', () => {
 	it('a created image renders its own bytes, whatever its alt says', () => {
 		fc.assert(
@@ -160,13 +158,8 @@ describe('G2.4 textContent chain (alt-only images)', () => {
 	});
 });
 
-// The rule holds for any number of inline widgets: whatever their placement, the raw summed over
-// the traversal still reproduces the source. Overlapping replaces are what push the descending
-// pass past two widgets into snapping at the end.
-//
-// Snapping at the start (a boundary inside an atomic widget that spans bytes) is unreachable here,
-// because the corpus emits no images or `<br>`. `decorations/island-dom.test.ts` is its only
-// check; do not merge it into this property.
+// Any number of inline widgets, wherever placed, still reproduce the source, and overlapping
+// replaces reach the end-snapping path; `decorations/island-dom.test.ts` covers the start one.
 describe('G2.4 textContent chain (decoration widgets)', () => {
 	const opts = { mountWidget: mountDecorationWidget };
 

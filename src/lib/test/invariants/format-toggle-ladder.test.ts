@@ -1,11 +1,8 @@
 // @vitest-environment jsdom
-//
-// G2.14: over a range, the pressed-state read and the toggle's direction decide by the same
-// checks, so an active range unapplies. One case sits outside, in one mode: where the delimiters
-// paint, a bare wrap writes its literal bytes without verifying them (live-mode.md § 4.3). A
-// decline is excused, so a new corpus line fails nothing on its own; a shape that should write
-// needs a unit test. Miss-analysis: the equivalence lived only in prose, so a fourth branch on one
-// side and not the other would send writes to the wrong place in silence.
+// Over a range, the pressed-state read and the toggle's direction decide by the same checks, so an
+// active range unapplies (G2.14); where delimiters paint, a bare wrap is written unverified
+// (live-mode.md § 4.3). A decline is excused, so a shape that should write needs a unit test.
+// Miss-analysis: the equivalence lived only in prose, so a branch added to one side went unseen.
 import { describe, it, expect } from 'vitest';
 import {
 	isInlineFormatActive,
@@ -18,10 +15,8 @@ import { paintsFocusedMarkers, type PresentationMode } from '$lib/presentation-m
 import { listInlineMarks } from '$lib/schema/inline-construct-policy';
 import { fixtureReading } from '$lib/test/harness/fixture-grammar';
 
-/** Shapes the naive reading breaks on: nesting same-kind, cross-kind and interleaved, non-canonical
- *  runs, a literal delimiter, an empty pair, a code span's opaque bytes, escapes at both construct
- *  edges, an entity, a multi-unit scalar and a combining cluster against a delimiter, an autolink
- *  the run encloses, a line that is one run, in both spellings, and whitespace at both edges. */
+/** Shapes the naive reading breaks on: nesting, non-canonical runs, opaque code bytes, escapes and
+ *  entities at a construct's edge, multi-unit scalars against a delimiter, edge whitespace. */
 const CORPUS = [
 	'alpha beta',
 	'*ab*',

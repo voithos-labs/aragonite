@@ -13,12 +13,10 @@ import { detailsPlugin, DETAILS } from '$lib/plugins/details';
 import { arbPluginGfmDoc, arbPluginInlineSource, freshOrFixedSeed } from './arbitraries';
 
 /**
- * G2.1 over the plugin grammar. A registered opener changes which bytes the parser claims and an
- * inline handler changes which bytes the scanner claims, so this is not the main property with
- * more input: it is a different parser under test.
- *
- * Registries register once, so the plugins install once for the file, and the reset afterwards
- * stops a handler leaking into this worker's bare-grammar cases.
+ * Round-trip (G2.1) over the plugin grammar: a registered opener or inline handler changes which
+ * bytes the parser takes, so this is a different parser under test, not more input. Registries
+ * register once, so the plugins install once for the file, and the reset afterwards stops a
+ * handler leaking into this worker's bare-grammar cases.
  */
 
 const PARAMS = { numRuns: 1000, seed: freshOrFixedSeed(424242) } as const;

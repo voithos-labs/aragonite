@@ -22,12 +22,8 @@ import type { PresentationMode } from '$lib/presentation-mode';
 import { fixtureReading, renderOptions } from '../harness/fixture-grammar';
 
 /**
- * The join described in live-mode.md § 4.5, under random range deletes. A comparison, like the
- * split property: the join sits on a range delete that has differences of its own. It checks
- * reload shape, round-trip, the leftovers § 4.1 forbids, and that the rewrite only ever removes
- * bytes from the join it was handed. It cannot check whether a delimiter appears on screen,
- * because the literal join can re-form a construct across the join and hide glyphs the two sides
- * showed apart. That claim belongs to the cleanup's own render-path check, the unit suite and e2e.
+ * The join of live-mode.md § 4.5 under random range deletes, compared with the literal join for
+ * reload shape, round-trip and § 4.1's leftovers; what shows on screen is the unit suite's job.
  */
 
 const PARAMS = { numRuns: 400, seed: freshOrFixedSeed(515151) } as const;
@@ -50,9 +46,8 @@ const arbInlineDoc = fc
 	.array(arbInlineSource, { minLength: 1, maxLength: 3 })
 	.map((paragraphs) => paragraphs.join('\n\n') + '\n');
 
-/** The drawn cut wrapped into the document, ordered, and clamped to each block's content: the
- *  endpoints a selection can actually produce, so the draws land inside constructs rather than
- *  past them. Null when the document has nothing to cut. */
+/** The drawn cut, ordered and clamped to each block's content, so the endpoints are ones a
+ *  selection can produce and land inside constructs; null when there is nothing to cut. */
 function endpointsIn(doc: Document, cut: Cut): { start: number[]; end: number[] } | null {
 	const count = doc.children.length;
 	if (count === 0) return null;
@@ -147,9 +142,8 @@ describe('live-mode joins over random range deletes', () => {
 							`subsequence of ${JSON.stringify(literal.bytes)}`
 					);
 				}
-				// Neither baseline alone: the literal cut can re-form a construct by accident and
-				// swallow leftovers the document already carried, and it can equally produce
-				// leftovers of its own. What live mode answers for is what exceeds both.
+				// Neither baseline alone: the literal cut can swallow leftovers the document already
+				// carried or add its own, so live mode answers only for what exceeds both.
 				if (live.residue > Math.max(unpaintedResidue(parse(source)), literal.residue)) {
 					throw new Error(
 						`${JSON.stringify(source)}: live mode left residue in ${JSON.stringify(live.bytes)} ` +

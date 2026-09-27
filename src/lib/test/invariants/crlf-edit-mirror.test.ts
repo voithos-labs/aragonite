@@ -1,11 +1,8 @@
 /**
- * G4.20: an edit's output bytes depend on the document's line ending only through that ending.
- * Each gesture runs twice over one fixture, once written with LF and once mirrored to CRLF, and
- * the CRLF result has to be the LF result mirrored. Any other byte difference is the bug.
- *
- * It checks the outcome rather than scanning the source, because most breaches have no literal
- * shape to scan for (a blank-line comparison, a default parameter three calls down) and because
- * this catches the next gesture without being taught about it.
+ * An edit's output bytes depend on the document's line ending only through that ending (G4.20).
+ * Each gesture runs over one fixture written with LF and mirrored to CRLF, and the CRLF result has
+ * to be the LF result mirrored. The outcome is checked rather than the source scanned, since most
+ * breaches have no literal shape to scan for, and a new gesture is caught without being listed.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -55,9 +52,8 @@ interface EditGesture {
 const serializeNodes = (nodes: CstNode[]) =>
 	nodes.map((n) => (n.leadingTrivia ?? '') + n.raw).join('');
 
-/** Paste `clipboard` into `doc` through the real per-level bundle. The clipboard is LF on both
- *  runs, as every paste entry point normalizes it, so the pasted lines mirror only when the
- *  paste writes them in the document's ending. */
+/** Paste through the real per-level bundle. The clipboard stays LF on both runs, as every paste
+ *  entry point normalizes it, so the lines mirror only if written in the document's ending. */
 async function pasteInto(
 	doc: Document,
 	targetPath: number[],
@@ -277,8 +273,7 @@ async function dissolveBlock(doc: Document, index: number): Promise<string> {
 	return written.join('');
 }
 
-// Miss-analysis: every fixture above ends in a line ending, so no gesture ever had to choose one
-// for a block without its own, the last line of a document that has none (#458).
+// Miss-analysis: every fixture ended in a line ending, so none met an unterminated tail (GH #458).
 function unterminatedTail(): EditGesture[] {
 	return [
 		{

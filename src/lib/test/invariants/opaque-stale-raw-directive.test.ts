@@ -4,10 +4,9 @@ import { checkOpaqueStaleRaw } from '../../invariants/node-shape';
 import { admonitionsPlugin } from '$lib/plugins/admonitions';
 import { defaultGrammarView } from '$lib/schema/block-openers';
 
-// G1.12's mismatch branch gives up for a kind with no standalone recognizer. A directive
-// container has one, because the shared `:::` opener recognizes it on the kind's behalf, but it
-// registers no opener under its own kind, so a check that looked only at the opener registry
-// exempted every directive kind, which is exactly what the plugin guide recommends authors use.
+// The stale-raw mismatch branch (G1.12) gives up for a kind with no standalone recognizer. A
+// directive container has one, since the shared `:::` opener recognizes it on the kind's behalf,
+// though it registers no opener of its own, so the opener registry alone cannot exempt it.
 beforeAll(() => {
 	installPlugins([admonitionsPlugin()]);
 });

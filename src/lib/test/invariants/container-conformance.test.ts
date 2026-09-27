@@ -44,9 +44,8 @@ describe('G4.3 container conformance: registry coverage', () => {
 });
 
 // ── Parametrized per-kind kit ───────────────────────────────────────────────────
-// Cells come from the kit's own manifest rather than a list here, so a cell added there runs
-// over every built-in the day it lands. Coverage (assert / exempt / boundary) lives in
-// CONTAINER_PROFILES, and one case per cell keeps a failure naming the invariant that broke.
+// Cells come from the kit's own manifest, so a cell added there runs over every built-in the day
+// it lands, and one case per cell keeps a failure naming the invariant that broke.
 
 describe.each(registeredContainerKinds)('G4.3 conformance kit — %s', (kind) => {
 	const profile = CONTAINER_PROFILES[kind]!;

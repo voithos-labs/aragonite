@@ -68,9 +68,8 @@ describe('kind conformance: a fixtured kind produces green generic cells', () =>
 });
 
 // ── Regression: the table false-cell shape ───────────────────────────────────
-// Miss-analysis: no executable cell exercised clipboard semantics, so a false
-// "copy is a plain byte slice" claim round-tripped past every gate. The prose case
-// proves the executor discriminates rather than always throwing.
+// Miss-analysis: no executable cell tested clipboard semantics, so a false byte-slice claim passed.
+// The prose case proves the executor discriminates rather than always throwing.
 
 describe('kind conformance: byte-slice clipboard executor is the false-cell guard', () => {
 	it('throws for a table declared inherit-default (the shipped bug shape)', () => {
@@ -85,9 +84,7 @@ describe('kind conformance: byte-slice clipboard executor is the false-cell guar
 });
 
 // ── Regression: a profile check may only cover an `implemented` cell ──────────
-// Miss-analysis: a profiled path that bypasses the declared mode runs `executed` whatever
-// the cell claims, leaving a mode revert unverified and the suite green. Pinned for the
-// whole class: any profiled cell reverted off `implemented`, not just table.clipboard.
+// Miss-analysis: a profiled path bypassing the declared mode ran `executed` whatever the cell said.
 
 describe('kind conformance: a profile check is refused on a non-implemented cell', () => {
 	it('rejects a custom check declared over an inherit-default cell', async () => {

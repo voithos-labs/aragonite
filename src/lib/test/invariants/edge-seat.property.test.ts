@@ -13,45 +13,29 @@ import '../../schema/built-in-descriptors';
 import { renderOptions } from '../harness/fixture-grammar';
 import { fixtureReading } from '$lib/test/harness/fixture-grammar';
 
-// Where a typed byte goes decides which side of an unpainted delimiter run it lands on. The check
-// is the renderer, as it is in the split and join properties: a plain letter may never put a
-// delimiter byte on screen, whatever position is chosen. A childless construct (an escape, an
-// angle autolink) has no content range, so the choice declines and the byte lands between the
-// delimiters, as in `\Z*Lead`.
+// A letter typed at an unpainted delimiter run may never put a delimiter byte on screen, as the
+// renderer draws it; a childless construct declines, so its byte lands between the delimiters.
 
-// Miss analysis, twice over. Carets were every code-point stop at first, which put offsets inside
-// painted literal delimiters, where any byte reshuffles the parse: a markdown consequence no caret
-// choice can avoid, reported as a failure of that choice. The offsets now come from the renderer,
-// covering only an unpainted run and its ends, which is where the choice has a job. The check
-// stays one-sided (delimiters may not increase) because at an unpainted caret the byte appears
-// nowhere at all.
+// Carets sit only in an unpainted run or at its ends, where the choice has a job. The check is
+// one-sided (delimiters may not increase), since at an unpainted caret the byte appears nowhere.
 
-// A delimiter that appears is then classified rather than excluded by the input's shape: `seam`
-// where some offset the caret could have taken keeps the screen, `ambiguous` where none does and
-// the parse rebinds under every answer, which is the byte-literal fallback § 4.4 declares. The
-// labels are the live-gesture fuzzer's, so the two suites bucket the same finding the same way.
+// A delimiter that appears is classified: `seam` where a reachable offset keeps the screen, and
+// `ambiguous` where none does, the byte-literal fallback of live-mode.md § 4.4.
 
 const PARAMS = { numRuns: 500, seed: freshOrFixedSeed(818818) } as const;
 
 /** Every arrival the caret placement can be asked about, including the one that says nothing. */
 const AFFINITIES: (EdgeAffinity | null)[] = ['near', 'far', 'outside', null];
 
-/**
- * Delimiter bytes any construct can paint, plus the escape's own backslash. `_` is deliberately
- * left out: underscore emphasis is restricted inside a word, so a byte typed against `__x__` from
- * either outside edge kills the pair wherever the caret goes. That is markdown's own rule, not a
- * wrong choice of side. Every asterisk-spelled pair stays in, and they carry the same class.
- */
+/** Delimiter bytes any construct can paint, plus the escape's backslash. `_` is left out: a byte
+ *  typed at either outside edge of `__x__` kills the pair wherever it goes, by markdown's rule. */
 const DELIMITERS = '*~`<>\\';
 
 /** Every fixture is a block holding content, so its markers hide: the live-mode reading. */
 const LIVE = screenVisibility('live', { chromePaints: false });
 
-/**
- * Which raw bytes the renderer does not show, read off the rendered DOM rather than the parse: a
- * chunk inside a `.md-marker` is unpainted, and so is a byte no chunk claims at all. An angle
- * autolink drops its brackets rather than wrapping them, which is the construct at issue here.
- */
+/** Raw bytes the rendered DOM does not show: a `.md-marker` chunk, and any byte no chunk holds,
+ *  which is how an angle autolink drops its brackets. */
 function unpaintedBytes(raw: string): boolean[] {
 	const fragment = renderInlineNodes(parseInline(raw, 0, raw.length), raw, renderOptions());
 	const host = document.createElement('div');
@@ -90,9 +74,8 @@ function excludedIntervals(display: string): [number, number][] {
 	return intervals;
 }
 
-/** Whether `after` is `before` with one `Z` spliced in and nothing else moved: this property's own
- *  version of the claim, asked of the renderer rather than of the `renderedText` reading the code
- *  under test verifies with, since sharing that check would echo it instead of testing it. */
+/** Whether `after` is `before` with one `Z` spliced in, asked of the renderer: reusing the
+ *  `renderedText` check the code under test uses would echo it instead of testing it. */
 function splicesTyped(before: string, after: string): boolean {
 	if (after.length !== before.length + 1) return false;
 	let at = 0;
@@ -100,9 +83,8 @@ function splicesTyped(before: string, after: string): boolean {
 	return after[at] === 'Z' && after.slice(at + 1) === before.slice(at);
 }
 
-/** An offset the caret placement could have taken that keeps the screen, or undefined where the
- *  caret's whole screen position rebinds: `seam` against `ambiguous`. The range searched is the
- *  one the code can reach, so a failure never names an offset it could not have chosen. */
+/** An offset the caret placement can reach that keeps the screen (`seam`), or undefined where
+ *  every reachable one rebinds it (`ambiguous`). */
 function rescueOffset(display: string, caret: number): number | undefined {
 	const painted = paintedText(display);
 	return seatOffsetsAt(
@@ -180,24 +162,18 @@ describe('the typing caret position over generated inline fixtures', () => {
 		expect(declined).toBeGreaterThan(0);
 	});
 
-	// Zero on the fixed seed, and a ceiling rather than a floor: the shape turns up about once in
-	// fifteen thousand draws, so one here means the search range shrank, and a candidate it can no
-	// longer reach reads as markdown's fault. On a fresh seed a hit is a find worth looking at.
+	// Zero on the fixed seed, as a ceiling: the shape turns up about once in fifteen thousand draws,
+	// so a hit here means the search range shrank. On a fresh seed a hit is a find worth a look.
 	it('no draw rebinds under every offset the caret can reach', () => {
 		expect(ambiguous).toBe(0);
 	});
 });
 
-// Shared asterisk runs, classified rather than excluded by the input's shape. Every such spelling
-// has an answer now that the search covers the whole screen position rather than one run; where
-// every offset in that position rebinds, the byte-literal write stands (§ 4.4) and the property
-// reports which of the two it found instead of skipping the shape.
-// Miss-analysis: the property excluded the class with a regex on the input, so no test here could
-// see it until the exclusion became a classification.
+// Shared asterisk runs are classified as `seam` or `ambiguous`, never skipped.
+// Miss-analysis: a regex on the input excluded the class, so no test here could see it.
 describe('a surfaced delimiter is classified, never excluded', () => {
-	// What is left is not a shared run: this emphasis encloses a bare autolink, and the trailing
-	// `**a**` offers the parse a second pairing, so the opener's outside offset re-flanks into it
-	// while its inside offset kills the URL.
+	// Not a shared run: the trailing `**a**` offers a second pairing, so the opener's outside offset
+	// re-flanks into it while its inside offset kills the bare autolink's URL.
 	it('reports a screen position that rebinds under every offset as markdown’s own', () => {
 		expect(rescueOffset('*www.example.com***a**', 0)).toBeUndefined();
 		// The downstream run is what discriminates: the same opener alone still has an answer.

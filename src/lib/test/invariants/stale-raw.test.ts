@@ -108,9 +108,7 @@ describe('checkStaleRaw (G1.1)', () => {
 		expect(checkStaleRaw(item, defaultGrammarView)?.code).toBe('stale-container-raw');
 	});
 
-	// Miss-analysis (M-1): every drift fixture pushed the divergence into the first child, so
-	// the check's single-correspondent read was never asked about bytes attributed to a later
-	// sibling: the reparse growing extra blocks looked identical to a faithful one.
+	// Miss-analysis: every drift fixture diverged in the first child, never in a later sibling.
 
 	it('fires when the raw carries bytes belonging to a following sibling block', () => {
 		const bq = firstBlock('> a\n');

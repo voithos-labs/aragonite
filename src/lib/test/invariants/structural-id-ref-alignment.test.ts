@@ -21,11 +21,10 @@ import type { CstNode } from '$lib/core/nodes';
 import { defaultGrammarView } from '$lib/schema/block-openers';
 
 /**
- * G2.8: after every structural op, `children`, the keyed-id array and the ref array stay the same
- * length and line up index for index. If they do not, Svelte destroys and recreates the wrong
- * component, dropping IME state or stranding focus. The ops drive the real action bundles, so
- * `applyStructuralChangeToIdsRefs` is what is under test. Reorder is the shape most likely to
- * break the alignment, because every moved position reuses an existing id instead of creating one.
+ * After every structural op, `children`, the keyed-id array and the ref array stay the same length
+ * and line up index for index (G2.8), or Svelte recreates the wrong component and drops IME state
+ * or focus. The ops drive the real action bundles, so `applyStructuralChangeToIdsRefs` is under
+ * test; reorder is the likeliest break, since every moved position reuses an existing id.
  */
 
 // ── Top-level alignment ──────────────────────────────────────────────────────
@@ -40,12 +39,8 @@ interface TopHarness {
 
 const makeTop = (raws: string[]): TopHarness => makeTopFrom(raws.join('\n'));
 
-/**
- * Blank-separated like a parsed document, because two paragraphs with no blank line between them
- * are a lazy continuation that the fix-up merges the way a reload would (GH #61), plus the
- * trailing blank line the parse puts into `suffix`. A children-only fixture cannot hold one, which
- * left every branch that spends it unreachable from here (GH #168).
- */
+/** Blank-separated like a parsed document, since adjacent paragraphs are a lazy continuation the
+ *  fix-up merges, plus the trailing blank line the parse puts into `suffix`. */
 function makeTopFrom(source: string): TopHarness {
 	const { deps, doc, getBlockIds, getBlockRefs } = makeEditorActionsDeps(parse(source + '\n'));
 	const controller = createUndoController(deps);
@@ -131,8 +126,8 @@ describe('G2.8 top-level id↔ref↔children alignment', () => {
 		expect(h.ids()).toEqual([id1, id0, id2]);
 	});
 
-	// GH #168: the fix-up turns the document's trailing line into a block when a delete leaves the
-	// tail blank, and a change that does not report that growth costs one id on the next commit.
+	// Miss-analysis: children-only fixtures had no trailing blank line to become a block (GH #168).
+	// A change that hides that growth costs one id on the next commit.
 	it('a delete whose settle creates the folded tail line keeps arrays aligned', async () => {
 		const h = makeTopFrom('alpha\n\n\nbeta\n');
 
@@ -291,15 +286,10 @@ describe('G2.8 container id↔ref↔children alignment', () => {
 	});
 });
 
-// ── Deep childIds backfill on reparse-into-container (G2.8 / #4 class) ─────────
+// ── Deep childIds backfill on reparse-into-container (G2.8) ────────────────────
 
-/**
- * A freshly parsed subtree spliced under a component id that is kept carries no `childIds`, so
- * undefined keys reach Svelte if the reused container renders before the re-init effect, which
- * crashes on duplicate keys once a nested container holds two or more children. The fill-in lives
- * in `stampStructuralChange`, the one function every new-node op routes through, so the check
- * covers every path; the fixture nests two such containers to meet the crash condition.
- */
+/** A reparsed subtree under a kept component id arrives with no `childIds`, and Svelte crashes on
+ *  duplicate keys in a nested container unless `stampStructuralChange` fills them in first. */
 const NESTED_LIST = '1. First.\n\n   Continuation.\n2. Second:\n   - x\n   - y\n';
 
 function assertDeepChildIdsAligned(children: CstNode[]) {
