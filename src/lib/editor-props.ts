@@ -51,12 +51,10 @@ export interface EditorProps {
 	 *  block (a title, properties panel, tag row). It scrolls away with the document rather than
 	 *  staying fixed, which is what lets the editor keep its own scroll container and windowing. */
 	header?: Snippet;
-	/** The block drag handle (default on; reading mode never shows it). Hovering shows it;
-	 *  touch, which cannot hover, shows it outright. Only the blocks a user picks up whole have
-	 *  one (code, tables, equations, diagrams, pictures, list items, dividers, cards), never
-	 *  prose (paragraph, heading, quote, note). `false` removes them, except on a picture, whose
-	 *  handle is the only way to move it with a pointer. Keyboard reorder (Alt+Arrow) is always
-	 *  available, as is the table's right-click cell menu. */
+	/** The block drag handle (default on; never in reading mode), shown on hover, or outright on
+	 *  touch. Only blocks a user picks up whole have one (code, tables, equations, diagrams,
+	 *  pictures, list items, dividers, cards), never prose. `false` removes them, except on a
+	 *  picture, whose handle is its only pointer move. Alt+Arrow reorder always works. */
 	blockDragHandles?: boolean;
 	searchBar?: boolean;
 	/** The editor's own formatting popover beside a prose selection (default on; reading mode
@@ -127,20 +125,16 @@ export interface EditorInstance {
 	setSelection(selection: EditorSelection): Promise<boolean>;
 	/**
 	 * Put the caret at a viewport point exactly as a click there would: the point clamps into the
-	 * nearest block's box, the block under it decides where the caret goes, and a live cross-block
-	 * range ends first. A shell with its own controls beside the document decides whether a click
-	 * on its territory comes here; the editor decides where the caret goes. False when no
-	 * focusable position resolves. A point below the document resolves against the CST, not the
-	 * rendered slice: past an unmounted tail it takes the point and lands there once that mounts.
+	 * nearest block's box, the block under it picks the spot, and a live cross-block range ends
+	 * first. A host decides which of its clicks come here. False when no focusable position
+	 * resolves; a point past an unmounted tail lands there once that mounts.
 	 */
 	placeCaretAtPoint(x: number, y: number): boolean;
 	/**
-	 * Insert markdown exactly as pasting it would, minus the clipboard: paste transforms, every
-	 * container-aware strategy, delete-selection-first, one undo entry, focus at the end. The
-	 * caret is read at the call; the promise resolves true once the insert has landed and the
-	 * caret is placed. False, and nothing mutates, with no caret, in reading mode, or at a gap
-	 * caret. `placement: 'below'` first makes an empty paragraph after the caret's top-level
-	 * block, in the same undo entry.
+	 * Insert markdown exactly as pasting it would, minus the clipboard: paste transforms,
+	 * delete-selection-first, one undo entry, focus at the end. Resolves true once the insert has
+	 * landed; false, with nothing changed, with no caret, in reading mode, or at a gap caret.
+	 * `placement: 'below'` first adds an empty paragraph after the caret's top-level block.
 	 */
 	insertMarkdown(md: string, options?: InsertMarkdownOptions): Promise<boolean>;
 	/**
@@ -160,12 +154,10 @@ export interface EditorInstance {
 	 */
 	canRunCommand(commandId: string): boolean;
 	/**
-	 * Whether the command's toggle reads on where a keypress would land: the read a toolbar paints
-	 * its pressed state from, answered by the same bytes the toggle would rewrite. State, not
-	 * whether the command is allowed, so a disabled button may still paint pressed. Over a
-	 * cross-block range the answer is the range's own coverage: true only where every block it
-	 * touches has the mark; the link editor reads on inside the construct its card would edit, in
-	 * live mode alone. False for an id with no state of its own, and with nothing focused.
+	 * Whether the command's toggle reads on where a keypress would land: a toolbar's pressed
+	 * state, from the same bytes the toggle would rewrite. State, not permission, so a disabled
+	 * button may still paint pressed. Over a cross-block range, true only where every touched block
+	 * has the mark. False for an id with no state, and with nothing focused.
 	 */
 	isCommandActive(commandId: string): boolean;
 	getEvents(): EditorEvents;
@@ -183,12 +175,10 @@ export interface EditorInstance {
 	getRects(): EditorRects;
 	getDiagnostics(): EditorDiagnostics;
 	/**
-	 * Every modifier chord this instance consumes, normalized (`Mod` covers Ctrl and Cmd).
-	 * Composed live from the kind keymaps, the command tables, the plugins this editor activated,
-	 * the `keybindings` overrides and the search option, so a host's accelerator table is derived,
-	 * not hand-copied. Bare keys are outside the contract: a focused document owns them. So is a
-	 * chord turned off with `command: null`, free for the host to use app-wide yet still swallowed
-	 * inside the editor, where letting the browser handle it would bypass the CST undo stack.
+	 * Every modifier chord this instance consumes, normalized (`Mod` covers Ctrl and Cmd), composed
+	 * live from the kind keymaps, command tables, active plugins, `keybindings` overrides and search,
+	 * so a host's accelerator table is derived. Bare keys aren't listed, nor is a chord turned off
+	 * with `command: null`, which the editor still swallows so it can't bypass the undo stack.
 	 */
 	reservedChords(): ReadonlySet<string>;
 	/** Whether this instance consumes that keystroke, answered with the editor's own chord

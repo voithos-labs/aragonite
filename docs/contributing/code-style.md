@@ -123,24 +123,12 @@ Delete on sight:
 
 The budget has teeth. G4.26 in `docs/design/invariants.md` is two source scans in the unit suite. The first counts every comment block over the budget above, and it knows a header when it sees one: a file's first block, a docblock right above an `export interface` or `export type`, and a docblock on anything a published entry point (`index.ts`, `plugin.ts`, `testing.ts`, `editor-props.ts`, `block-component.ts`) exports, members included, since that's what a consumer hovers in the `.d.ts`. Section dividers don't count as lines.
 
-The code isn't all under budget yet, so each directory's count is pinned to a baseline in `src/lib/test/invariants/lint/comment-budget.test.ts`. A new long comment tips its directory over, and the failure lists every over-budget `path:line` in that directory (yours is in there somewhere, sorry). Fix one and the test fails the other way until you lower that baseline, a one-number edit. Whatever the baseline says, no block goes past six lines, or seven for a header. Here's the red line, from a three-line comment I planted for the occasion:
+Every comment in the repo fits the budget now, so the scan is a hard line: one comment over it fails the suite and names its `path:line`. Tool directives (`// eslint-disable-next-line`, `<!-- svelte-ignore -->`) under a comment don't count as its lines. Here's the red, from a three-line comment I planted mid-file:
 
 ```
 $ npx vitest run src/lib/test/invariants/lint/comment-budget.test.ts
- FAIL  src/lib/test/invariants/lint/comment-budget.test.ts > G4.26 comment blocks stay inside the budget > no directory holds more over-budget blocks than its baseline
-AssertionError: expected [ { row: 'src/lib', count: …, …(2) } ] to deeply equal []
-+ Received
-+ [
-+   {
-+     "baseline": …,
-+     "count": …,
-+     "hits": [
-+       …
-+       "src/lib/zz-probe-comment.ts:4",
-+     ],
-+     "row": "src/lib",
-+   },
-+ ]
+ FAIL  src/lib/test/invariants/lint/comment-budget.test.ts > G4.26 comment blocks stay inside the budget > no comment block under src/lib or src/routes runs past its budget
+AssertionError: expected [ 'src/lib/zz-probe.ts:3' ] to deeply equal []
 ```
 
 The second bans the private words (the list sits in `src/lib/test/invariants/lint/comment-house-words.test.ts`) from every comment under `src/lib` and `src/routes`, and names the file that holds one. Here's what one planted `seam` gets you:

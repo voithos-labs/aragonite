@@ -1,7 +1,7 @@
 /**
  * Lazy `inlineContent` accessor for code outside the render path, over a node-keyed WeakMap.
- * Never call it from the render path, which uses `computeInlineContent`: a reactive read plus a
- * cache write there corrupts a keyed `{#each}` (G4.2). Resolver-less and resolving callers get
+ * Never call it from the render path, which computes from `node.raw` with `computeInlineContent` so a
+ * render effect reads nothing else (G4.2). Resolver-less and resolving callers get
  * separate slots so they never evict each other, and a slot answers only its own grammar.
  */
 import type { InlineNode } from '../nodes';

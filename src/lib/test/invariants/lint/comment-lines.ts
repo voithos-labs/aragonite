@@ -42,9 +42,12 @@ export function stripCommentSyntax(line: string): string {
 		.trim();
 }
 
-/** Text lines the budget counts: a `// ── Name ──` section divider is not one. */
+/** Text lines the budget counts: a section divider or a tool directive is not prose. */
+const TOOL_DIRECTIVE = /^(svelte-ignore|eslint-|@ts-|prettier-ignore|istanbul |c8 )/;
+
 export function budgetLines(block: CommentBlock): number {
-	return block.text.filter((line) => !SECTION_DIVIDER.test(line)).length;
+	return block.text.filter((line) => !SECTION_DIVIDER.test(line) && !TOOL_DIRECTIVE.test(line))
+		.length;
 }
 
 export function isOverBudget(block: CommentBlock): boolean {
