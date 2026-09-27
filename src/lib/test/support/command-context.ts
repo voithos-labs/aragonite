@@ -21,7 +21,7 @@ export function commandContext(over: Partial<CommandDispatchContext> = {}): Comm
 		crossBlockCommands: INERT_RANGE_ROUTER,
 		keybindingOverrides: () => undefined,
 		onCommandError: () => {},
-		reorder: { nudgeReorderUnit: async () => {} },
+		reorder: { nudgeReorderUnit: async () => false },
 		...over
 	};
 }

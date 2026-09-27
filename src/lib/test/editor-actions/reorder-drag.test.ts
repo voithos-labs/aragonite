@@ -38,7 +38,7 @@ describe('installReorderDrag: root listener lifecycle', () => {
 		return {
 			editorRoot,
 			getScrollHost: () => editorRoot,
-			moveReorderUnit: async () => {},
+			moveReorderUnit: async () => true,
 			overlay: { setGhost: () => {}, setLine: () => {} },
 			getDoc: () => parse(''),
 			reading: fixtureReading(),
@@ -113,7 +113,7 @@ describe('the drag ghost names what it carries', () => {
 		const drag = installReorderDrag({
 			editorRoot: root,
 			getScrollHost: () => null,
-			moveReorderUnit: async () => {},
+			moveReorderUnit: async () => true,
 			overlay: { setGhost: (g) => void (label = g?.label ?? label), setLine: () => {} },
 			getDoc: () => doc,
 			reading: fixtureReading()
