@@ -117,7 +117,7 @@ describe('noteKey reads the chord as the command it resolves to', () => {
 		});
 	}
 
-	// `block.moveUp` rebound off Alt+ArrowUp: the old chord is now an ordinary arrow, and the new
+	// `block.moveUp` rebound off Alt+ArrowUp: the default chord is an ordinary arrow, and the new
 	// chord, whatever its key, is the move.
 	it('an unbound Alt+ArrowUp is an arrow like any other', () => {
 		const m = arrived();
