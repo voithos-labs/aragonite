@@ -56,7 +56,7 @@ describe('live mode rebalances the halves; the other modes do not', () => {
 		expect(rawsAfterSplit('**bo\nld**\n', 4, 'live')).toEqual(['**bo**\n', '**ld**\n']);
 	});
 
-	// The setext underline stays on the first half (structuralSuffixSplit), and the bold that
+	// The setext underline stays on the first half (cutKeepingStructure), and the bold that
 	// spanned the cut closes on both sides of it.
 	it('composes with the structural-suffix split', () => {
 		expect(rawsAfterSplit('**bold**\n===\n', 4, 'live')).toEqual(['**bo**\n===\n', '**ld**\n']);

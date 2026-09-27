@@ -5,7 +5,7 @@
  */
 
 import { isDevChecks } from '../env';
-import { headingLevel, type CstNode } from '../core/nodes';
+import type { CstNode } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import { isBlankParagraph, readBlocks } from '../core/parser';
 import type { GrammarView } from '../schema/block-openers';
@@ -20,14 +20,11 @@ import {
 	displayLength,
 	isBlankText,
 	lineEndingAt,
-	ownTrailingLineEnding,
 	snapToScalarBoundary,
 	terminateLine,
 	trailingLineEnding,
-	trimTrailingLineEnding,
 	type LineEnding
 } from '../core/lines';
-import { structuralSuffix } from '../core/inline';
 import { devWarn } from '../dev-warn';
 import { assignChildIdsDeep } from '../block-id';
 import { findMergeTarget } from '../schema/merge-rules';
@@ -51,6 +48,7 @@ import {
 	type BodyParentArg
 } from './node-primitives';
 import { absorbSeamReading, deleteNode, type TrackedPosition } from './settle';
+import { cutKeepingStructure, joinKeepingSuffix } from './structural-suffix';
 import { leafAtRawOffset, rawOffsetOfLeaf } from './container-offsets';
 import { CURSOR_END } from '../block-component';
 import { adoptReparsedFields, legalizeWrite, probeLineOpensAsProse } from './content-write';
@@ -111,15 +109,12 @@ export function splitNode(
 	// recognizer, so the reparse would destroy both halves.
 	if (descriptor.contextDependentKind) return noop;
 
-	const rawText = node.raw;
-	const lineEnding = trailingLineEnding(rawText, parentLineEnding(parent));
-	const cut = headingHeadCut(descriptor, node, cutPastLineEnding(descriptor, node, offset));
-
-	const suffixSplit = structuralSuffixSplit(descriptor, node, cut);
+	const lineEnding = trailingLineEnding(node.raw, parentLineEnding(parent));
+	const { head, rest } = cutKeepingStructure(node, cutPastLineEnding(descriptor, node, offset));
 	// Both halves are escaped: either can collide with the container's syntax alone (a stranded
 	// `</details>`, or a first half that is a bare closer once its trailing text is cut away).
-	let firstRaw = forBody(parent, suffixSplit ? suffixSplit.firstRaw : rawText.slice(0, cut));
-	let secondRaw = forBody(parent, suffixSplit ? suffixSplit.secondRaw : rawText.slice(cut));
+	let firstRaw = forBody(parent, head);
+	let secondRaw = forBody(parent, rest);
 
 	firstRaw = terminateLine(firstRaw, lineEnding);
 	secondRaw = terminateLine(secondRaw, lineEnding);
@@ -191,16 +186,6 @@ function cutPastLineEnding(descriptor: BlockKindDescriptor, node: CstNode, offse
 	if (ending === '') return at;
 	const contentEnd = descriptor.getContentRange?.(node).end;
 	return contentEnd === undefined ? at + ending.length : Math.min(at + ending.length, contentEnd);
-}
-
-/**
- * Enter at the head of an ATX heading's text moves the whole heading down under a new empty
- * line: the marker belongs with its text, and an empty heading is nothing anyone asked for.
- */
-function headingHeadCut(descriptor: BlockKindDescriptor, node: CstNode, cut: number): number {
-	const content = headingLevel(node) === null ? undefined : descriptor.getContentRange?.(node);
-	if (!content || content.start === 0 || content.end === content.start) return cut;
-	return cut <= content.start ? 0 : cut;
 }
 
 /**
@@ -283,34 +268,6 @@ function contentBlockCount(source: string, grammar: GrammarView): number {
 	).length;
 }
 
-/**
- * A split that keeps a kind's structural suffix (raw beyond its content range, the setext
- * underline) on the first half. Null when the kind has no suffix, or the offset is at block
- * start or inside the suffix itself.
- */
-function structuralSuffixSplit(
-	descriptor: BlockKindDescriptor,
-	node: CstNode,
-	offset: number
-): { firstRaw: string; secondRaw: string } | null {
-	const getRange = descriptor.getContentRange;
-	if (!getRange) return null;
-	const raw = node.raw;
-	const contentEnd = getRange(node).end;
-	if (contentEnd >= displayLength(raw) || offset <= 0 || offset > contentEnd) return null;
-	// A remainder opening with a whitespace-only line reloads as blank: the cut
-	// consumes that whitespace into the first half, as it does a bare line ending.
-	const wsLine = /^[ \t]+\r?\n/.exec(raw.slice(offset, contentEnd))?.[0] ?? '';
-	return {
-		// The retained suffix opens with the ending of the line it follows, so a cut sitting
-		// just past one would double it into a blank line and strand the suffix below.
-		firstRaw:
-			trimTrailingLineEnding(raw.slice(0, offset) + trimTrailingLineEnding(wsLine)) +
-			raw.slice(contentEnd),
-		secondRaw: raw.slice(offset + wsLine.length, contentEnd)
-	};
-}
-
 // ── Merge ──
 
 /**
@@ -350,47 +307,6 @@ export function cutRangeFromDisplay(
 		reading
 	});
 	return { display: cleaned.raw, offset: cleaned.seam };
-}
-
-/** A cut into `node` moved out of its structural suffix: a join or a truncation that keeps the
- *  block's head keeps the suffix whole after it. */
-export function cutBeforeSuffix(node: NodeView, cut: number): number {
-	const suffix = structuralSuffix(node);
-	return suffix ? Math.min(cut, displayLength(node.raw) - suffix.length) : cut;
-}
-
-/**
- * The bytes of a join: `survivor` cut at `cut`, then `absorbed`'s text from `from`, then the
- * survivor's structural suffix (a setext underline), which stays under the joined text. The
- * absorbed block's own suffix goes with that block. `writeTail` is the absorbed kind's write
- * rule; `start` and `end` are the offsets the join cut each block at.
- */
-export function joinKeepingSuffix(
-	survivor: NodeView,
-	cut: number,
-	absorbed: NodeView,
-	from: number,
-	writeTail: (tail: string) => string = (tail) => tail
-): { raw: string; start: number; end: number } {
-	const kept = structuralSuffix(survivor);
-	const dropped = structuralSuffix(absorbed);
-	const start = cutBeforeSuffix(survivor, cut);
-	const textEnd = displayLength(absorbed.raw) - dropped.length;
-	const end = dropped ? Math.min(from, textEnd) : from;
-	const tail = writeTail(
-		dropped
-			? absorbed.raw.slice(end, textEnd) + ownTrailingLineEnding(absorbed.raw)
-			: absorbed.raw.slice(end)
-	);
-	return {
-		raw:
-			survivor.raw.slice(0, start) +
-			trimTrailingLineEnding(tail) +
-			kept +
-			ownTrailingLineEnding(tail),
-		start,
-		end
-	};
 }
 
 /** The bytes two adjacent blocks make when `prev` absorbs `curr`, join cleanup included. */
