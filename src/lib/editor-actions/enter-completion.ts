@@ -63,20 +63,24 @@ export function withEnterCompletion(
 			);
 			if (!write.admitted) return write;
 			const asked = postEditFocusOffset ?? preEditOffset;
+			const plan = () =>
+				asked === undefined
+					? null
+					: planTypedCompletion(childAt(index), write.caret, grammar, getLineEnding());
+			// A write that keeps the caret landed in place already, so its completion is known now.
+			const keepsCaret = write.keepsCaret && plan() === null;
 			const completed = write.then(async (wrote) => {
-				if (asked === undefined) return wrote;
-				const offset = write.caret;
-				const completion = planTypedCompletion(childAt(index), offset, grammar, getLineEnding());
+				const completion = plan();
 				if (!completion) return wrote;
 				const replaced = await blockEdit.replaceBlock(
 					index,
 					completion.replacement,
 					{ replacementIndex: 0, ...completion.caret },
-					{ snapshotOffset: offset }
+					{ snapshotOffset: write.caret }
 				);
 				return wrote || replaced;
 			});
-			return withStoredCaret(completed, write.caret, write.storedOffset, write.keepsCaret);
+			return withStoredCaret(completed, write.caret, write.storedOffset, keepsCaret);
 		}
 	};
 }
