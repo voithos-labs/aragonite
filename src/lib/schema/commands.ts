@@ -237,14 +237,14 @@ export function reservedUiChords(): readonly string[] {
 }
 
 /**
- * `candidateCommand` is the id the incoming registration will bind (the name is the id). A
- * dev-server re-evaluation re-binding its own command to its own chord is a harmless replace, not
- * a collision; reserved chords and cross-command collisions still throw.
+ * Returns the chord's normal form, or throws when it can't be bound. `candidateCommand` is the id
+ * the incoming registration will bind (the name is the id); a dev-server re-evaluation re-binding
+ * its own command to its own chord is a harmless replace, not a collision.
  */
 export function assertPluginGlobalChordAvailable(
 	rawChord: string,
 	candidateCommand?: string
-): void {
+): string {
 	// Thrown before the id is created (`global-commands.ts`), so a rejected registration leaves
 	// no orphaned command.
 	const chord = registeredChord(rawChord, 'registerGlobalCommand');
@@ -258,16 +258,16 @@ export function assertPluginGlobalChordAvailable(
 	const collision =
 		findByChord(GLOBAL_KEYMAP, chord) ?? pluginGlobalKeymap.getIgnoringActivation(chord);
 	if (collision) {
-		if (devReplacesRegistration() && collision.command === candidateCommand) return;
+		if (devReplacesRegistration() && collision.command === candidateCommand) return chord;
 		throw new Error(
 			`plugin global chord "${rawChord}" is already bound to "${collision.command}": global chords are register-once`
 		);
 	}
+	return chord;
 }
 
 export function registerPluginGlobalBinding(binding: KeyBinding): void {
-	assertPluginGlobalChordAvailable(binding.chord, binding.command);
-	const chord = registeredChord(binding.chord, 'registerGlobalCommand');
+	const chord = assertPluginGlobalChordAvailable(binding.chord, binding.command);
 	// The check above already let a dev re-evaluation of the same command through, so the
 	// registry's own duplicate rule only ever replaces here.
 	pluginGlobalKeymap.register(chord, { ...binding, chord });

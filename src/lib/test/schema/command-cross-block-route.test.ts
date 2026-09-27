@@ -4,12 +4,14 @@
 import { describe, it, expect, vi } from 'vitest';
 import {
 	canRunCommandById,
+	dispatchKindCommand,
 	isCommandActiveById,
 	runCommandById,
 	type CrossBlockCommandRouter,
 	type KindCommandTarget
 } from '$lib/schema/block-commands';
 import { TOOLBAR_COMMANDS } from '$lib/schema/commands';
+import { normalizeKeybindingOverrides } from '$lib/schema/keybinding-overrides';
 import { commandContext, INERT_RANGE_ROUTER } from '../support/command-context';
 
 const TOGGLES = [
@@ -86,5 +88,25 @@ describe('the pressed-state read follows the same route', () => {
 	it('a range no branch reads has no pressed state, whatever the resting caret sits inside', () => {
 		expect(isCommandActiveById(TOGGLES[0], surface(), context())).toBe(false);
 		expect(isCommandActiveById(TOOLBAR_COMMANDS.editLink, surface(), context())).toBe(false);
+	});
+});
+
+// Miss-analysis: each container once passed no router of its own, and when the one context took
+// that away no test dispatched a range-routed chord at a container with a live router.
+describe('a chord that bubbles to a container over a range', () => {
+	it('declines, and neither the cross-block handler nor the container runs it', () => {
+		const run = vi.fn(() => true);
+		const runCommand = vi.fn(() => true);
+		const overrides = normalizeKeybindingOverrides([
+			{ kind: 'blockquote', chord: 'Mod+B', command: TOOLBAR_COMMANDS.toggleStrong }
+		]);
+		const ctx = context({
+			crossBlockCommands: router({ run }),
+			keybindingOverrides: () => overrides
+		});
+
+		expect(dispatchKindCommand('Mod+B', { kind: 'blockquote', runCommand }, ctx)).toBe(false);
+		expect(run).not.toHaveBeenCalled();
+		expect(runCommand).not.toHaveBeenCalled();
 	});
 });

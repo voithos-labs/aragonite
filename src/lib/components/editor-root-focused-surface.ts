@@ -74,12 +74,13 @@ export function createFocusedSurface(deps: FocusedSurfaceDeps): FocusedSurface {
 			const component = deps.getBlockComponent(at);
 			const node = blockNodeAt(deps.getDoc(), at);
 			if (!component || !node) return null;
-			const { runCommand, isCommandActive } = component;
+			const { runCommand, isCommandActive, afterSourceCommit } = component;
 			return {
 				kind: node.kind,
 				runCommand: runCommand && ((id, arg) => runCommand.call(component, id, arg)),
 				isCommandActive: isCommandActive && ((id) => isCommandActive.call(component, id)),
-				getPath: () => at
+				getPath: () => at,
+				afterSourceCommit: afterSourceCommit && ((run) => afterSourceCommit.call(component, run))
 			};
 		},
 		insertMarkdown(md, options) {

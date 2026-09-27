@@ -38,4 +38,18 @@ describe('two-stage Mod+A', () => {
 			});
 		}
 	}
+
+	// With the document already selected, a third press lands on the live range's own branch.
+	it('a third press of key "A" keeps the whole document selected', async () => {
+		const mounted = mountEditor({ source: 'alpha\n\nomega\n' });
+		const el = surfaceAt(mounted, [0]);
+		el.focus();
+		for (let press = 0; press < 2; press++) await pressKey(el, { key: 'A', ctrlKey: true });
+
+		const third = await pressKey(el, { key: 'A', ctrlKey: true });
+
+		expect(third.defaultPrevented).toBe(true);
+		const selection = mounted.instance.getSelection();
+		expect([selection?.anchor.path, selection?.focus.path]).toEqual([[0], [1]]);
+	});
 });

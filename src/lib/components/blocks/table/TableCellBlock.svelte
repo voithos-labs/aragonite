@@ -406,7 +406,7 @@
 
 	// A shown source holds bytes the tree has not seen, so a command runs only after the source
 	// is hidden and its edit written.
-	function afterRevealFold(run: () => void): void {
+	export function afterSourceCommit(run: () => void): void {
 		if (!widgetInteraction.isRevealing()) {
 			run();
 			return;
@@ -453,7 +453,7 @@
 		if (!el) return false;
 		const perform = cellCommand(id, el);
 		if (!perform) return false;
-		afterRevealFold(perform);
+		afterSourceCommit(perform);
 		return true;
 	}
 
@@ -472,6 +472,7 @@
 			setSelection,
 			measurePartialRects,
 			runCommand,
+			afterSourceCommit,
 			getSelectionOffsets,
 			applyMenuClipboard,
 			snapCaretToPoint,
@@ -613,7 +614,7 @@
 			kind: node.kind,
 			runCommand,
 			getPath: () => myPath,
-			afterSourceCommit: afterRevealFold
+			afterSourceCommit
 		};
 		if (wiring.dispatchChord(e, target)) return;
 

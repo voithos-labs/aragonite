@@ -145,7 +145,7 @@ readonly editable: boolean     // a report: mirrors the descriptor's editable de
 readonly focusable: boolean    // the flag focus dispatch reads before landing anything
 ```
 
-Everything else is optional, and a block implements what its surface can honestly answer: selection reads (`getSelectedText`, `setSelection`), pixel-column landing (`focusAtColumn`), selection-rect measurement (`measurePartialRects`, § 10), path descent for nested surfaces (`focusByPath`), command dispatch (`runCommand`).
+Everything else is optional, and a block implements what its surface can honestly answer: selection reads (`getSelectedText`, `setSelection`), pixel-column landing (`focusAtColumn`), selection-rect measurement (`measurePartialRects`, § 10), path descent for nested surfaces (`focusByPath`), command dispatch (`runCommand`), and `afterSourceCommit` for a block that can show a widget's source, so a command from outside it waits until that source is written.
 
 **Caret placement is two verbs.** `focus` places a caret and ends any live cross-block range. That's the safe default, since a caret landing inside a range left live is content the next keystroke type-replaces. The optional `parkCaret` is the same landing _without_ the range-ending, and it's for the selection-extend paths only, where the dispatcher parks a caret in an endpoint it has just revealed (to reveal a block: mount it while it's off screen, so its DOM exists before something touches it) while the extend is still growing the range. G2.12 guards which callers may reach the second verb.
 
@@ -225,7 +225,7 @@ A focused leaf resolves a chord through the consumer's overrides first, then thr
 3. the editor-global keymap,
 4. the plugin-global tier, where a plugin's `registerGlobalCommand` binds its chord.
 
-Override source beats specificity, so a consumer disabling a chord globally suppresses one a kind defines; and a plugin's global chord never beats a built-in one, on any kind. The resolved id is then spent on three tiers in order: the global table; a registered `(kind, id)` block command (created by the one authorized registration, where a duplicate throws), which runs its own registered handler; and the built-in vocabulary on the focused component's `runCommand`. The two reorder ids skip that last step: `block.moveUp` and `block.moveDown` move whichever block reports its path, through the editor's reorder action, so every block (a plugin container too) moves on whatever chord the keymap binds to them. Container bubble handlers resolve kind-only, so they never double-fire a leaf's global command, and `runCommand` reads the caret live rather than an offset captured at keydown.
+Override source beats specificity, so a consumer disabling a chord globally suppresses one a kind defines; and a plugin's global chord never beats a built-in one, on any kind. The resolved id is then spent on three tiers in order: the global table; a registered `(kind, id)` block command (created by the one authorized registration, where a duplicate throws), which runs its own registered handler; and the built-in vocabulary on the focused component's `runCommand`. The two reorder ids skip that last step: `block.moveUp` and `block.moveDown` move whichever block reports its path, through the editor's reorder action (once the block has written any source it's showing), so every block (a plugin container too) moves on whatever chord the keymap binds to the two ids. Container bubble handlers resolve kind-only, so they never double-fire a leaf's global command, and `runCommand` reads the caret live rather than an offset captured at keydown.
 
 ### The dispatch point
 
@@ -235,7 +235,7 @@ Chord resolution and the public `EditorInstance.runCommand` entry meet at one id
 - a format toggle routes to the **cross-block executor**, injected into the dispatch point's checks because a schema leaf may not import selection machinery;
 - everything else is range-safe and **runs on the focused surface**.
 
-The editor builds one command context (`schema/block-commands.ts` :: `CommandDispatchContext`: its history, plugin lookup, mode, overrides, range executor and error channel), and every entry path reads that same object, so a dispatch site added later can't turn up with its own copy missing a piece. A container a key bubbles up to never takes the cross-block route, since the toggles belong to the leaf below it.
+The editor builds one command context (`schema/block-commands.ts` :: `CommandDispatchContext`: its history, plugin lookup, which plugins are on, mode, overrides, range executor, error channel and the reorder action), and every entry path reads that same object, so a dispatch site added later can't turn up with its own copy missing a piece. A container a key bubbles up to never takes the cross-block route, since the toggles belong to the leaf below it.
 
 <details>
 <summary>How the cross-block toggle actually works</summary>

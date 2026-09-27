@@ -319,7 +319,15 @@ Two more things before you wire buttons:
 
 `canRunCommand(commandId: string): boolean`
 
-Tells you whether `runCommand(id)` would reach the command right now, which is what greys a toolbar button out instead of hiding it. It answers `false` exactly where `runCommand` declines before dispatch: an unknown id, reading mode, a block-scoped id with nothing focused, a built-in text command on a block that has no body for it (a divider, or a plugin block like a diagram or a formula), and the link editor or a heading level while the selection spans blocks. `true` means reachable, not that it'll write (across blocks it may find no block that can hold the mark), so keep reading `runCommand`'s boolean too.
+Tells you whether `runCommand(id)` would reach the command right now, which is what greys a toolbar button out instead of hiding it. It answers `false` exactly where `runCommand` declines before dispatch:
+
+- an unknown id
+- reading mode
+- a block-scoped id with nothing focused
+- a text command on a block that can't run one (a divider, a diagram, a formula)
+- the link editor or a heading level while the selection spans blocks
+
+`true` means reachable, not that it'll write (across blocks it may find no block that can hold the mark), so keep reading `runCommand`'s boolean too.
 
 ```ts
 // with a selection spanning two paragraphs
