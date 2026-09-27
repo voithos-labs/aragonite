@@ -39,14 +39,21 @@ describe('the code rail’s host hooks', () => {
 		expect(railButton(CODE_MENU_LABEL)).toBeNull();
 	});
 
-	it('hands onRunCode the fence body, the whole info string and the block path', () => {
+	// Miss-analysis: the request carried only the info string, so every host re-derived the
+	// language with its own split, and no test compared that word with the one the rail shows.
+	it('hands onRunCode the fence body, the info string, its language and the block path', () => {
 		const onRunCode = vi.fn<(request: CodeRunRequest) => void>();
 		mounted = mountCode(FENCE, { policies: { presentationMode: () => 'live', onRunCode } });
 
 		railButton(CODE_RUN_LABEL)!.click();
 		flushSync();
 
-		expect(onRunCode).toHaveBeenCalledWith({ code: 'const x = 1\n', info: 'js {1}', path: [0] });
+		expect(onRunCode).toHaveBeenCalledWith({
+			code: 'const x = 1\n',
+			info: 'js {1}',
+			language: 'js',
+			path: [0]
+		});
 	});
 
 	it('consults codeMenuItems on every open, so its items read live state', () => {

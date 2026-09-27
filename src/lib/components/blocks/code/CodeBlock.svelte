@@ -38,6 +38,7 @@
 	import { computeCodeEnter } from './code-enter';
 	import { computeAutoPair } from './code-beforeinput';
 	import { fenceShapeOf, writeFenceInfo } from '../../../schema/fenced-code-raw';
+	import { fenceLanguage } from '../../../core/parsers/fence-syntax';
 	import { hidesMarkers, paintsFocusedMarkers } from '../../../presentation-mode';
 	import CodeBlockRail from './CodeBlockRail.svelte';
 	import { computeFenceExit, computeTypedFenceExit } from './code-fence-exit';
@@ -212,7 +213,12 @@
 	}
 
 	function runRequest(): CodeRunRequest {
-		return { code: bodyText(), info: infoString, path: myPath };
+		return {
+			code: bodyText(),
+			info: infoString,
+			language: fenceLanguage(infoString),
+			path: myPath
+		};
 	}
 
 	/**
