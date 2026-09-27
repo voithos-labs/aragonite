@@ -73,7 +73,7 @@ describe('an edit route reparses in the editor grammar', () => {
 			pasteContext({
 				doc: deps.doc,
 				blockEdit: makeStubBlockEdit(),
-				controller: createPasteCoordinator(createUndoController(deps), deps.revealPath),
+				controller: createPasteCoordinator(deps, createUndoController(deps)),
 				reading: fixtureReading({ grammar: noIndentedCode })
 			})
 		);

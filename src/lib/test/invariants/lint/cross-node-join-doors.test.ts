@@ -41,7 +41,11 @@ const NON_JOIN_CONCATENATIONS: Record<string, string> = {
 	'src/lib/schema/child-spans.ts':
 		"a container splicing ONE child's region back into its own raw: both surrounding operands are bytes that container already emitted",
 	'src/lib/tree-operations/paste/container-match.ts':
-		'a paste INSERTS between the target’s own halves; its delete half, the one place a cut can strand a run, is `preDelete` and crosses `cutRangeFromDisplay`'
+		'a paste INSERTS between the target’s own halves; its delete half, the one place a cut can strand a run, is `preDelete` and crosses `cutRangeFromDisplay`',
+	'src/lib/editor-actions/inline-range-commit.ts':
+		'a popover or menu splice INSERTS between one leaf’s own halves over the range it replaces; nothing is cut out from under a delimiter it does not also rewrite',
+	'src/lib/selection/cross-block/type-replace.ts':
+		'a typed character INSERTS at the caret the range delete left; that delete, the destructive half, already crossed the cleaner in the range-delete join'
 };
 
 /** Operand names that terminate a line rather than contribute a source's bytes. */
@@ -56,14 +60,37 @@ function isSourceOperand(operand: string): boolean {
 const joinsSources = (expr: string): boolean =>
 	splitTopLevel(expr, '+').filter(isSourceOperand).length > 1;
 
+/** The calls whose arguments carry bytes bound for a leaf: the two that apply a kind's rule, the
+ *  content write's rule, the leaf write by path, and the container-matching paste's merged leaf. */
+const BYTE_WRITERS = [
+	'writeOwnRaw',
+	'normalizeOwnRaw',
+	'legalizeWrite',
+	'commitLeafText',
+	'writeMergedLeaf'
+];
+
 /** Every byte expression a file writes into a leaf: the right-hand side of a `.raw =` statement,
- *  and the bytes argument of the two functions that apply a kind's rule. */
+ *  and the arguments of each call in {@link BYTE_WRITERS}, a bare name read through its binding. */
 function byteExpressions(file: SourceFile): string[] {
 	const assignments = rawAssignments([file]).map((w) => w.statement.replace(/^\.raw\s*\+?=/, ''));
-	const calls = ['writeOwnRaw', 'normalizeOwnRaw'].flatMap((reader) =>
-		callsTo(file.code, reader).map((args) => args)
+	// A method call counts too: the paste coordinator's leaf write is one.
+	const code = file.code.replace(
+		new RegExp(`\\.(?=(?:${BYTE_WRITERS.join('|')})\\s*\\()`, 'g'),
+		' '
 	);
-	return [...assignments, ...calls];
+	const calls = BYTE_WRITERS.flatMap((reader) => callsTo(code, reader));
+	const bound = calls.flatMap((args) =>
+		splitTopLevel(args, ',').flatMap((arg) => bindingOf(file.code, arg.trim()))
+	);
+	return [...assignments, ...calls, ...bound];
+}
+
+/** What a `const` or `let` in `code` binds `name` to, when `name` is a bare identifier. */
+function bindingOf(code: string, name: string): string[] {
+	if (!/^[A-Za-z_$][\w$]*$/.test(name)) return [];
+	const binding = new RegExp(`\\b(?:const|let)\\s+${name}\\s*=\\s*([^;]+);`, 'g');
+	return [...code.matchAll(binding)].map((m) => m[1]);
 }
 
 describe('cross-node join entry-point census', () => {
@@ -133,5 +160,15 @@ describe('cross-node join entry-point census', () => {
 			code: 'node.raw = prevText + currText + lineEnding;'
 		};
 		expect(byteExpressions(rogue).some(joinsSources)).toBe(true);
+	});
+
+	// Miss-analysis: the scan read only call arguments written in place, so a join bound to a
+	// name first, or handed to a method, slipped past it.
+	it('a join bound to a name and handed to a method write is seen', () => {
+		const code =
+			'const text = before + typed + after;\n' +
+			'await ctx.pasteCoordinator.commitLeafText(path, text, opts);';
+		const bound: SourceFile = { relPath: 'src/lib/x.ts', text: code, code };
+		expect(byteExpressions(bound).some(joinsSources)).toBe(true);
 	});
 });

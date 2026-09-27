@@ -20,14 +20,12 @@ const TO = { path: [1], offset: 0 };
 function makeDrop(declined = 0) {
 	const harness = makeEditorActionsDeps(SOURCE);
 	const controller = createUndoController(harness.deps);
-	const real = createPasteCoordinator(controller, harness.deps.revealPath);
+	const real = createPasteCoordinator(harness.deps, controller);
 	let calls = 0;
 	const coordinator: PasteCommitCoordinator = {
 		...real,
-		commitMultiScope: ((args) =>
-			calls++ < declined
-				? Promise.resolve(false)
-				: real.commitMultiScope(args)) as PasteCommitCoordinator['commitMultiScope']
+		replaceBlock: (...args) =>
+			calls++ < declined ? Promise.resolve(null) : real.replaceBlock(...args)
 	};
 	const deps: SelectionDropDeps = {
 		editorRoot: document.createElement('div'),

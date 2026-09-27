@@ -9,11 +9,8 @@ import { readBlocks } from '../core/parser';
 import { cloneNode } from '../tree-operations/clone';
 import { spliceMany } from '../tree-operations/splice-many';
 import { getBlockKindDescriptor } from '../schema/block-kind-descriptor';
-import {
-	normalizeBodyWrite,
-	normalizeReplacementTrivia,
-	writeOwnRaw
-} from '../tree-operations/node-primitives';
+import { installOwnRaw, normalizeReplacementTrivia } from '../tree-operations/node-primitives';
+import { legalizeWrite, type WriteTarget } from '../tree-operations/content-write';
 import { rebuildContainerRaw } from '../schema/container-raw';
 import { rebuildUnsharedChain } from '../tree-operations/chain-rebuild';
 import { createSharingState } from '../tree-operations/sharing';
@@ -57,16 +54,19 @@ export function createSearchReplace(deps: EditorActionsDeps, controller: UndoCon
 			const rel = ranges[0].path.slice(1);
 			const leaf = descend(child, rel);
 			if (!leaf) continue;
-			// Reparsing a private clone bypasses `updateNodeContent`, so its two byte rules (the
-			// kind's own raw rule and the owner's bodyWrite escape) are applied here.
+			// Reparsing a private clone bypasses `updateNodeContent`, so the write rule it runs (the
+			// kind's own, then the container's) is applied here.
 			const owner = rel.length > 0 ? descend(child, rel.slice(0, -1)) : null;
-			const lineEnding = documentLineEnding(deps.doc);
-			const substituted = normalizeBodyWrite(
-				owner ?? undefined,
-				applyRangesToText(leaf.raw, ranges, template),
-				lineEnding
+			const target: WriteTarget = owner?.children
+				? { children: owner.children, owner, lineEnding: documentLineEnding(deps.doc) }
+				: deps.doc;
+			const index = owner ? rel[rel.length - 1] : topIndex;
+			const substituted = applyRangesToText(leaf.raw, ranges, template);
+			installOwnRaw(
+				leaf,
+				legalizeWrite(target, index, substituted, 'literal').text,
+				deps.reading.grammar
 			);
-			writeOwnRaw(leaf, substituted, lineEnding, deps.reading.grammar);
 		}
 		// Before the reparse from `child.raw`, a nested leaf's edit is written up into the clone's
 		// container raws by the same rebuild typing uses; a top-level leaf needs none.

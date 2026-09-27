@@ -1,9 +1,8 @@
 // @vitest-environment jsdom
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { pasteDispatch } from '../../../tree-operations/paste/dispatch';
 import { registerPasteTransform } from '../../../tree-operations/paste/paste-transforms';
 import { parse } from '../../../core/parser';
-import { createSharingState } from '../../../tree-operations/sharing';
 import { makeStubBlockEdit, makeStubController, pasteContext } from '../../harness/editor-actions';
 import type { BlockKind, CstNode, Document } from '../../../core/nodes';
 import { takeDevWarns } from '../../support/warn-gate';
@@ -69,21 +68,13 @@ describe('pasteDispatch: paste transforms', () => {
 		const doc = parse('target\n');
 		const blockEdit = makeStubBlockEdit();
 		const controller = makeStubController();
-		const docScope = {
-			node: doc,
-			state: { innerBlockIds: ['iid-0'], innerBlockRefs: [undefined] }
-		};
-		(controller.getDocScope as ReturnType<typeof vi.fn>).mockReturnValue(docScope);
-		(controller.commitMultiScope as ReturnType<typeof vi.fn>).mockImplementation(({ mutate }) => {
-			mutate([{ children: [...doc.children], node: doc, sharing: createSharingState() }]);
-		});
 
 		await pasteDispatch(
 			{ pastedText: 'plain prose', targetPath: [0], offset: 6 },
 			pasteContext({ doc, blockEdit, controller })
 		);
 
-		expect(controller.commitMultiScope).toHaveBeenCalledOnce();
+		expect(controller.replaceBlock).toHaveBeenCalledOnce();
 		expect(blockEdit.updateBlockContent).not.toHaveBeenCalled();
 	});
 

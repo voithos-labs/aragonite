@@ -94,8 +94,7 @@ const ALLOWLIST: Record<string, Exemption> = {
 			'$lib/invariants/node-shape',
 			'$lib/reactivity/state-registry',
 			'$lib/schema/block-openers',
-			'$lib/tree-operations/paste/dispatch',
-			'$lib/tree-operations/paste/replace-block-at-parent'
+			'$lib/tree-operations/paste/dispatch'
 		],
 		reason:
 			'the paste pipeline publishes applyPasteTransforms alone: no dispatch, and no headless ' +

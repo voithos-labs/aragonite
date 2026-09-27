@@ -20,7 +20,7 @@ import type { BlockListState } from '$lib/reactivity/block-list-state.svelte';
 describe('inline paste landing after a fold above the target', () => {
 	it('answers the merged predecessor and the shifted offset at top level', async () => {
 		const { deps } = makeEditorActionsDeps(parse('a\n# h\nb\n').children);
-		const coordinator = createPasteCoordinator(createUndoController(deps), deps.revealPath);
+		const coordinator = createPasteCoordinator(deps, createUndoController(deps));
 
 		const result = await pasteDispatch(
 			{ pastedText: 'x', targetPath: [1], offset: 0 },
@@ -43,7 +43,7 @@ describe('inline paste landing after a fold above the target', () => {
 		const liveQuote = () => deps.doc.children[0];
 		const state = makeBlockListState(liveQuote, ['c0', 'c1', 'c2']);
 		registerBlockListState(liveQuote(), state as unknown as BlockListState);
-		const coordinator = createPasteCoordinator(createUndoController(deps), deps.revealPath);
+		const coordinator = createPasteCoordinator(deps, createUndoController(deps));
 
 		const result = await pasteDispatch(
 			{ pastedText: 'x', targetPath: [0, 1], offset: 0 },

@@ -1,7 +1,6 @@
 import { isBuiltinBlockKind, type AnyBlockKind, type CstNode, type Document } from '../core/nodes';
 import type { LineEnding } from '../core/lines';
 import type { Reading } from '../schema/reading';
-import type { GrammarView } from '../schema/block-openers';
 import type { PasteCommitCoordinator } from './paste/paste-deps';
 import type { PluginActivation } from '../schema/plugin-activation';
 import { createPluginRegistry } from '../schema/plugin-registry';
@@ -32,8 +31,6 @@ export interface ScopedStructuralPasteInput {
 	/** Pasted blocks, blank-line-materialized. */
 	blocks: CstNode[];
 	controller: PasteCommitCoordinator;
-	/** The instance grammar the splice's `bodyWrite` escape reparses in. */
-	grammar: GrammarView;
 }
 
 export interface PasteSurface {

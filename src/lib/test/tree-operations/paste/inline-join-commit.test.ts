@@ -27,7 +27,7 @@ function blockquoteHarness() {
 		deps,
 		events,
 		liveQuote,
-		coordinator: createPasteCoordinator(createUndoController(deps), deps.revealPath)
+		coordinator: createPasteCoordinator(deps, createUndoController(deps))
 	};
 }
 
@@ -88,10 +88,10 @@ describe("cross-block inline paste ('join'): commit sequence participation", () 
 	});
 
 	// The range delete has already committed by the time the paste dispatches, so a throw here
-	// loses the selection with nothing pasted; only ref alignment is unavailable when unmounted.
+	// loses the selection with nothing pasted. The write lands by path, so it needs no refs.
 	it('an unmounted container still commits instead of throwing', async () => {
 		const { deps } = makeEditorActionsDeps(parse('> # Head\n').children);
-		const coordinator = createPasteCoordinator(createUndoController(deps), deps.revealPath);
+		const coordinator = createPasteCoordinator(deps, createUndoController(deps));
 
 		await pasteDispatch(
 			{ pastedText: 'foo\nbar', targetPath: [0, 0], offset: 'Head'.length + 2 },
@@ -106,12 +106,12 @@ describe("cross-block inline paste ('join'): commit sequence participation", () 
 		const quote = deps.doc.children[0];
 		expect(quote.children).toHaveLength(2);
 		expect(quote.childIds).toHaveLength(2);
-		expect(takeDevWarns().map((w) => w.tag)).toEqual(['paste']);
+		expect(takeDevWarns()).toEqual([]);
 	});
 
 	it('top-level target syncs the document-scope block ids', async () => {
 		const { deps } = makeEditorActionsDeps(parse('# Head\n').children);
-		const coordinator = createPasteCoordinator(createUndoController(deps), deps.revealPath);
+		const coordinator = createPasteCoordinator(deps, createUndoController(deps));
 
 		await pasteDispatch(
 			{ pastedText: 'foo\nbar', targetPath: [0], offset: 'Head'.length + 2 },

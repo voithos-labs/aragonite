@@ -1,20 +1,9 @@
 /** Applies the results a paste surface hook produced to the document. */
 
-import {
-	legalizeWrite,
-	settledCaretPosition,
-	updateNodeContent,
-	type SettledContent
-} from '../content-write';
 import { leafAtRawOffset } from '../container-offsets';
-import { ensureUnsharedChild } from '../unshare';
-import { docPathFrom } from '../../cursor/coordinate-spaces';
-import { stampStructuralChange } from '../structural-change';
-import type { CstNode } from '../../core/nodes';
+import { blockNodeAt } from '../node-primitives';
 import type { InlinePasteResult, StructuralPasteResult } from '../paste-surfaces';
 import type { PasteDispatchContext, InlineCaretLanding } from './dispatch';
-import { resolveParentScope } from './parent-scope';
-import { replaceBlockAtParent } from './replace-block-at-parent';
 
 /**
  * Apply an inline paste, reporting where the caret lands in the stored bytes. A cross-block paste
@@ -50,42 +39,18 @@ async function commitInlineCrossBlock(
 	result: InlinePasteResult,
 	ctx: PasteDispatchContext
 ): Promise<InlineCaretLanding | undefined> {
-	const scope = resolveParentScope(ctx.doc, targetPath, ctx.controller);
-	if (!scope) return undefined;
-	const leafIndex = targetPath[targetPath.length - 1];
-	let settled: SettledContent = { change: { op: 'noop' }, textStart: 0 };
-	let siblings: readonly CstNode[] = [];
-	let caret = result.caretOffset;
-
-	await ctx.controller.commitMultiScope({
-		scopes: [scope],
-		snapshot: { path: docPathFrom(targetPath), offset: 0 },
-		mutate: ([view]) => {
-			// The node may still be snapshot-shared, and the same-kind branch of the reparse
-			// writes its raw in place (G1.9).
-			ensureUnsharedChild(view, leafIndex, view.sharing);
-			const write = legalizeWrite(view.body, leafIndex, result.newRaw, 'literal');
-			caret = write.storedOffset(result.caretOffset);
-			settled = updateNodeContent(view.body, leafIndex, write, ctx.reading.grammar, view.sharing);
-			siblings = view.children;
-			stampStructuralChange(view.children, settled.change, view.sharing);
-			return [settled.change];
-		},
-		op: {
-			kind: 'updateContent',
-			detail: { length: result.newRaw.length },
-			eventPath: docPathFrom(targetPath)
-		}
+	const landed = await ctx.controller.commitLeafText(targetPath, result.newRaw, {
+		caret: result.caretOffset,
+		snapshotOffset: 0
 	});
-
-	// The paste can demote the block's kind, and a merge into the block above left that block
-	// holding the pasted bytes, so the caller's own caret target is stale.
-	const at = settledCaretPosition(settled, leafIndex, caret, siblings);
-	const block = siblings[at.index];
-	const leaf = (block?.children?.length && leafAtRawOffset(block, at.offset)) || null;
+	if (!landed.wrote) return undefined;
+	// The paste can make the block a container, whose caret belongs in the leaf holding the offset.
+	const blockPath = [...landed.caret.path];
+	const block = blockNodeAt(ctx.doc, blockPath);
+	const leaf = block?.children?.length ? leafAtRawOffset(block, landed.caret.offset) : null;
 	return {
-		path: [...targetPath.slice(0, -1), at.index, ...(leaf?.path ?? [])],
-		offset: leaf?.offset ?? at.offset
+		path: [...blockPath, ...(leaf?.path ?? [])],
+		offset: leaf?.offset ?? landed.caret.offset
 	};
 }
 
@@ -95,15 +60,10 @@ export async function applyStructuralResult(
 	ctx: PasteDispatchContext,
 	trailingSeparator = ''
 ): Promise<void> {
-	await replaceBlockAtParent({
-		doc: ctx.doc,
-		blockPath: targetPath,
-		replacement: result.replacement,
-		controller: ctx.controller,
-		focusReplacementIndex: result.focusReplacementIndex,
-		focusOffset: result.focusOffset,
-		source: 'paste-dispatch',
-		trailingSeparator,
-		grammar: ctx.reading.grammar
-	});
+	await ctx.controller.replaceBlock(
+		targetPath,
+		result.replacement,
+		{ replacementIndex: result.focusReplacementIndex, offset: result.focusOffset },
+		{ source: 'paste-dispatch', trailingBlank: trailingSeparator !== '' }
+	);
 }

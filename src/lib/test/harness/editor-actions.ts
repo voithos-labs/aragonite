@@ -55,6 +55,10 @@ import { getStateForNode, expectStateForNode } from '$lib/reactivity/state-regis
 import { createSharingState } from '$lib/tree-operations/sharing';
 import { nodeAt } from '$lib/tree-operations/node-primitives';
 import { createPasteCoordinator } from '$lib/editor-actions/paste-coordinator';
+import {
+	createInlineRangeCommit,
+	type InlineRangeCommit
+} from '$lib/editor-actions/inline-range-commit';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import type { GapStopScope } from '$lib/selection/gap-caret';
 import {
@@ -272,10 +276,28 @@ export function makeStubController(): UndoController & PasteCommitCoordinator {
 		commitMultiScope: vi.fn(),
 		getDocScope: vi.fn(),
 		captureCurrentState: vi.fn(),
+		commitLeafText: vi.fn(async () => ({ wrote: false })),
+		replaceBlock: vi.fn(async () => null),
 		resolveState: getStateForNode,
 		expectState: expectStateForNode,
 		focusByPath: vi.fn()
 	} as unknown as UndoController & PasteCommitCoordinator;
+}
+
+/** The inline range write over a document the test swaps at will and a controller it may stub:
+ *  the write reads only the document and the reading off the root. */
+export function makeInlineRange(
+	getDoc: () => Document,
+	controller: UndoController,
+	reading = fixtureReading()
+): InlineRangeCommit {
+	const deps = {
+		get doc() {
+			return getDoc();
+		},
+		reading
+	} as unknown as EditorActionsDeps;
+	return createInlineRangeCommit({ deps, controller });
 }
 
 // ── Paste-dispatch stubs ─────────────────────────────────────────────────────
@@ -294,7 +316,7 @@ export function makePasteCommit(source: string | Document): {
 	const { deps } = makeEditorActionsDeps(source);
 	return {
 		doc: deps.doc,
-		controller: createPasteCoordinator(createUndoController(deps), deps.revealPath)
+		controller: createPasteCoordinator(deps, createUndoController(deps))
 	};
 }
 

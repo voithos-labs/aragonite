@@ -3,6 +3,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { buildLinkReferenceMap } from '$lib/core/inline/link-reference-resolver';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
+import { createInlineRangeCommit } from '$lib/editor-actions/inline-range-commit';
 import { createLinkCardCommitter } from '$lib/components/link-card/link-card-commit';
 import type { LinkTarget } from '$lib/components/blocks/text/link-at-point';
 import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
@@ -22,7 +23,7 @@ function makeCard(source: string) {
 		getEditorEl: () => null,
 		getTarget: () => null,
 		getCreateTarget: () => null,
-		controller,
+		inlineRange: createInlineRangeCommit({ deps: harness.deps, controller }),
 		events: harness.events,
 		measureRange: () => [],
 		landCaret,

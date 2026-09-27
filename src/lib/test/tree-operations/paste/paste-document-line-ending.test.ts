@@ -22,7 +22,7 @@ async function paste(source: string, targetPath: number[], offset: number, clipb
 		pasteContext({
 			doc: deps.doc,
 			blockEdit: createBlockEditActions(deps, controller),
-			controller: createPasteCoordinator(controller, deps.revealPath)
+			controller: createPasteCoordinator(deps, controller)
 		})
 	);
 	return { source: serialize(deps.doc), caret: result.inlineCaretOffset };

@@ -4,8 +4,16 @@
  * `tree-operations -> reactivity` back-edges out of the graph.
  */
 
-import type { CommitMultiScopeArgs, MultiScopeTarget } from '../../action-contracts';
+import type {
+	CommitMultiScopeArgs,
+	LeafTextOptions,
+	LeafWriteResult,
+	MultiScopeTarget,
+	ReplaceFocus,
+	ReplaceSource
+} from '../../action-contracts';
 import type { CstNode } from '../../core/nodes';
+import type { NodeView } from '../../core/node-views';
 
 export type { CommitMultiScopeArgs, MultiScopeTarget };
 
@@ -15,8 +23,19 @@ export interface PasteCommitCoordinator {
 	): Promise<boolean>;
 	getDocScope(): MultiScopeTarget;
 	/** Resolve a container node to its mounted reactive state. */
-	resolveState(node: CstNode): MultiScopeTarget['state'] | undefined;
+	resolveState(node: NodeView): MultiScopeTarget['state'] | undefined;
 	/** Land the caret at a document-absolute path, scrolling an unmounted target into view first,
 	 *  since a structural paste's target can sit past the mounted range (VR-12). */
 	landCaret(path: number[], offset: number): Promise<void>;
+	/** Write `text` into the leaf at `leafPath` as one commit at its parent list, through the write
+	 *  every keystroke takes. */
+	commitLeafText(leafPath: number[], text: string, opts: LeafTextOptions): Promise<LeafWriteResult>;
+	/** Replace the block at `blockPath` as one commit at its parent list, through the replace every
+	 *  level takes. Resolves to how many blocks landed, or null when nothing was written. */
+	replaceBlock(
+		blockPath: number[],
+		replacement: CstNode[],
+		focus: ReplaceFocus,
+		opts: { source: ReplaceSource; trailingBlank?: boolean }
+	): Promise<number | null>;
 }

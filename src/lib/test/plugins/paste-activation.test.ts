@@ -45,7 +45,7 @@ async function pasteInto(grammar: ReturnType<typeof grammarListing>) {
 		pasteContext({
 			doc: deps.doc,
 			blockEdit,
-			controller: createPasteCoordinator(createUndoController(deps), deps.revealPath),
+			controller: createPasteCoordinator(deps, createUndoController(deps)),
 			reading: fixtureReading({ grammar })
 		})
 	);

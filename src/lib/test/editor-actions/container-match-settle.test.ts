@@ -24,7 +24,7 @@ describe('the container-matching merge spends its residue settle', () => {
 			makeBlockListState(() => deps.doc.children[0])
 		);
 		const controller = createUndoController(deps);
-		const coordinator = createPasteCoordinator(controller, deps.revealPath);
+		const coordinator = createPasteCoordinator(deps, controller);
 		const landCaret = vi.spyOn(coordinator, 'landCaret');
 
 		// Caret after `code`, so the text after it is the fence's own closing line: the reattach

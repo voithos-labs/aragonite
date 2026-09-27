@@ -25,6 +25,11 @@ step aside.
     menu is tested
 - a right-click on a code block opens `Block actions`; its Remove row deletes the block and the
   neighbours close up
+- type in a code block, then pick Replace with clipboard before the typing pauses: one Ctrl+Z
+  takes back the replace alone and leaves the typed character
+  - Miss-analysis: the menu tests picked rows on an untouched document, and the unit tests built
+    the menu's wiring themselves, so the editor's own wiring of the row into the typing burst had
+    no test
 - ArrowUp from the first row wraps to the last selectable row; ArrowDown wraps back
 
 ## User interactions

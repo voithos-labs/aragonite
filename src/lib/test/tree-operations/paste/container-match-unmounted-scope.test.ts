@@ -3,7 +3,6 @@ import { describe, it, expect } from 'vitest';
 import { pasteDispatch } from '$lib/tree-operations/paste/dispatch';
 import { serialize } from '$lib/core/serializer';
 import { makePasteCommit, makeStubBlockEdit, pasteContext } from '$lib/test/harness/editor-actions';
-import { allowDevWarns } from '$lib/test/support/warn-gate';
 
 // A cross-block delete has already committed, so an unmounted container must not drop the paste.
 // Miss-analysis: every container-match case registered a state for the outer node first.
@@ -25,6 +24,5 @@ describe('container-matching paste at an unmounted outer scope', () => {
 		);
 
 		expect(serialize(doc)).toBe('- x\n- y\n- keep\n');
-		allowDevWarns(['paste']);
 	});
 });

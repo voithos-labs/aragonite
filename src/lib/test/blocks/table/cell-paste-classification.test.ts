@@ -28,7 +28,7 @@ async function pasteIntoCell(clipboard: string) {
 		pasteContext({
 			doc: deps.doc,
 			blockEdit,
-			controller: createPasteCoordinator(createUndoController(deps), deps.revealPath)
+			controller: createPasteCoordinator(deps, createUndoController(deps))
 		})
 	);
 	return {

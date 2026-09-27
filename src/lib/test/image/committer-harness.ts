@@ -9,7 +9,7 @@ import { createImageEditCommitter } from '../../components/image/image-edit-comm
 import { imageFieldsFromInline } from '../../core/inline/image-source-bytes';
 import { getInlineContent } from '../../core/inline/inline-cache';
 import { parse } from '../../core/parser';
-import { makeStubController } from '../harness/editor-actions';
+import { makeInlineRange, makeStubController } from '../harness/editor-actions';
 import type { CstNode, Document, ImageFields } from '../../core/nodes';
 import type { UndoController } from '../../editor-actions/deps';
 import type { EditorEvents } from '../../editor-events';
@@ -33,7 +33,7 @@ export function committerFor(raw: string): CommitterHarness {
 		getDoc: () => doc,
 		getEditorEl: () => null,
 		widgetSelection: { getSelected: () => null } as unknown as WidgetSelectionState,
-		controller,
+		inlineRange: makeInlineRange(() => doc, controller),
 		events: { emit: vi.fn(), on: vi.fn() } as unknown as EditorEvents,
 		reading: fixtureReading()
 	});

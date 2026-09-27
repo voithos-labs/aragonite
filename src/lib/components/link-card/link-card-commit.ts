@@ -8,8 +8,7 @@ import type { Document } from '../../core/nodes';
 import type { InlineNode } from '../../core/nodes';
 import type { DocumentView, NodeView } from '../../core/node-views';
 import { wireOverlayRemeasure } from '../../cursor/overlay-remeasure';
-import type { UndoController } from '../../editor-actions/deps';
-import { createInlineRangeCommit } from '../../editor-actions/inline-range-commit';
+import type { InlineRangeCommit } from '../../editor-actions/inline-range-commit';
 import type { EditorEvents } from '../../editor-events';
 import { isBlockNode, nodeAt } from '../../tree-operations/node-primitives';
 import { linkConstructAt, type LinkTarget } from '../blocks/text/link-at-point';
@@ -32,7 +31,8 @@ export interface LinkCardCommitterDeps {
 	getTarget: () => LinkTarget | null;
 	/** The create gesture's range, what the card sits under when no construct exists yet. */
 	getCreateTarget: () => CreateLinkTarget | null;
-	controller: UndoController;
+	/** The editor's inline range write, which every card edit goes through. */
+	inlineRange: InlineRangeCommit;
 	events: EditorEvents;
 	/** Measures the rectangles of a raw range in a mounted block, which is what positions it. */
 	measureRange: (path: number[], start: number, end: number) => DOMRect[];
@@ -63,11 +63,7 @@ export interface LinkCardCommitter {
 }
 
 export function createLinkCardCommitter(deps: LinkCardCommitterDeps): LinkCardCommitter {
-	const inlineRange = createInlineRangeCommit({
-		getDoc: deps.getDoc,
-		controller: deps.controller,
-		reading: deps.reading
-	});
+	const { inlineRange } = deps;
 
 	function resolve(target: LinkTarget): ResolvedLinkTarget | null {
 		const block = nodeAt(deps.getDoc() as DocumentView, target.path);

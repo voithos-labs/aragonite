@@ -23,7 +23,6 @@ import { cloneNode } from '../tree-operations/clone';
 import { cutRangeFromDisplay } from '../tree-operations/node-ops';
 import { rebuildAncestryRaw } from '../schema/container-raw';
 import { applyPasteTransforms } from '../tree-operations/paste/paste-transforms';
-import { replaceBlockAtParent } from '../tree-operations/paste/replace-block-at-parent';
 import { parseReplacement } from '../tree-operations/paste/replacement-parse';
 import { blockNearPoint } from './nearest-block';
 import { findSurfaceForElement } from './path-lookup';
@@ -379,16 +378,12 @@ async function writeBlockRaw(
 		emptyParagraph(node.leadingTrivia ?? '', trailingLineEnding(node.raw, lineEnding))
 	]);
 	if (!parsed) return null;
-	const landed = await replaceBlockAtParent({
-		doc,
-		blockPath: path,
-		replacement: parsed.replacement,
-		controller: deps.coordinator,
-		focusReplacementIndex: parsed.replacement.length - 1,
-		focusOffset: caret,
-		source: 'selection-drop',
-		grammar: deps.reading.grammar
-	});
+	const landed = await deps.coordinator.replaceBlock(
+		path,
+		parsed.replacement,
+		{ replacementIndex: parsed.replacement.length - 1, offset: caret },
+		{ source: 'selection-drop' }
+	);
 	// The count that landed, not the parse's: a container's body rule can rewrite the list.
 	return landed === null ? null : landed - 1;
 }

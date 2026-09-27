@@ -25,7 +25,7 @@ const quoteLine = (text: string): string => (text === '' ? '>' : '> ' + text);
 
 /**
  * Rebuild a list item's `raw`: marker on the first line, indentation on continuations. Separator
- * lines stay bare, but an empty block's line at the body's end is indented to stay in the item.
+ * lines stay bare, but a blank line at the body's end is indented to stay in the item.
  */
 export function rebuildListItemRaw(node: CstNode, changed?: ChildRawChange): void {
 	if (!node.children || !node.metadata) return;

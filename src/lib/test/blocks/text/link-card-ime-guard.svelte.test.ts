@@ -9,7 +9,7 @@ import { createEditorEvents } from '$lib/editor-events';
 import LinkCard from '$lib/components/link-card/LinkCard.svelte';
 import LinkCardHost from '$lib/components/link-card/LinkCardHost.svelte';
 import { createLinkCardState } from '$lib/components/link-card/link-card-state.svelte';
-import type { UndoController } from '$lib/editor-actions/deps';
+import type { InlineRangeCommit } from '$lib/editor-actions/inline-range-commit';
 import type { CaretRestore } from '$lib/selection/caret-restore';
 import { fixtureReading } from '../../harness/fixture-grammar';
 import { defaultGrammarView } from '$lib/schema/block-openers';
@@ -80,7 +80,7 @@ async function mountHost() {
 		target,
 		props: {
 			card,
-			controller: {} as UndoController,
+			inlineRange: {} as InlineRangeCommit,
 			events: createEditorEvents(),
 			getDoc: () => parse('Visit [example](https://example.com) now\n'),
 			getEditorEl: () => target,

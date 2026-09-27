@@ -5,17 +5,17 @@
 import { describe, it, expect } from 'vitest';
 import { createGrammarView } from '$lib/schema/block-openers';
 import { makeEnv, makeHandlers, makePasteEvent, selectAcross } from './typed-char-env';
+import { fixtureReading } from '../../harness/fixture-grammar';
 
 // A cross-block paste whose collapsed caret lands at offset 0 of a `. item` block: pasting `1`
 // completes the marker to `1. item`, and the join reparse must resolve through the grammar.
 describe('handleCrossBlockPaste forwards the instance grammar to the join reparse', () => {
 	it('a grammar that disables the list opener leaves the completion a paragraph', async () => {
-		const env = makeEnv('x\n\n. item\n');
+		const grammar = createGrammarView((kind) => kind !== 'list');
+		const env = makeEnv('x\n\n. item\n', fixtureReading({ grammar }));
 		selectAcross(env.selectionState, [0], [1]);
 
-		const handlers = makeHandlers(env, [0], {
-			grammar: createGrammarView((kind) => kind !== 'list')
-		});
+		const handlers = makeHandlers(env, [0], { grammar });
 		await handlers.handlePaste(makePasteEvent('1'));
 
 		expect(env.doc.children).toHaveLength(1);

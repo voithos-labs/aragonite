@@ -11,7 +11,7 @@ import type { TrackedPosition } from './tree-operations/settle';
 import type { SharingState } from './tree-operations/sharing';
 import type { BodyParent } from './tree-operations/node-primitives';
 import type { BlockComponent, FocusPosition } from './block-component';
-import type { ScopedOpDescriptor } from './schema/operations';
+import type { OperationDetailMap, ScopedOpDescriptor } from './schema/operations';
 import type { WriteMode } from './schema/block-kind-descriptor';
 import type { DocPath } from './selection/path-math';
 import type { CaretPosition } from './selection/primitives';
@@ -177,6 +177,8 @@ export interface CommitStructuralArgs {
 	/** Leaves for the dev invariant check when `mutate` returns `noop` (an in-place kind change). */
 	touchedNodes?: CstNode[];
 	discardIfNoop?: DiscardIfNoop;
+	/** A caret position the document's fix-up updates in place; `afterTick` reads it back. */
+	trackCaret?: TrackedPosition;
 }
 
 export interface CommitContainerStructuralArgs {
@@ -195,6 +197,8 @@ export interface CommitContainerStructuralArgs {
 	op?: ScopedOpDescriptor;
 	afterTick?: CommitAfterTick;
 	discardIfNoop?: DiscardIfNoop;
+	/** A caret position the container's fix-up updates in place; `afterTick` reads it back. */
+	trackCaret?: TrackedPosition;
 }
 
 /**
@@ -269,6 +273,50 @@ export interface Relanding {
 	readonly caret: CaretPosition;
 	readonly window: { readonly list: DocPath; readonly at: number; readonly count: number };
 }
+
+/** What a commit writing new text into one leaf resolves to. */
+export type LeafWriteResult = { readonly wrote: false } | LeafWriteLanded;
+
+/** `caret` is where the caret goes after the write and its list's fix-up, and `window` the
+ *  written block's replacement run; a collapsed ancestor places the caret itself afterwards. */
+export interface LeafWriteLanded extends Relanding {
+	readonly wrote: true;
+	/** Whether the write put new blocks in the position rather than rewriting the leaf. */
+	readonly replaced: boolean;
+}
+
+/** A leaf write by document path: `caret` is an offset into the text as written, `snapshotOffset`
+ *  one into the leaf's current bytes, where undo puts the caret back when nothing is focused. */
+export interface LeafTextOptions {
+	caret: number;
+	snapshotOffset: number;
+	/** Runs after the tick, before a collapsed ancestor places the caret itself. */
+	afterTick?: (landed: LeafWriteLanded) => void | Promise<void>;
+}
+
+// ── Replace ─────────────────────────────────────────────────────────────────
+
+/** Which replacement block the caret lands in, at `offset` (`CURSOR_END` for its end) or at
+ *  `path` below it. */
+export interface ReplaceFocus {
+	replacementIndex: number;
+	offset: number;
+	path?: number[];
+}
+
+export interface ReplaceOptions {
+	/** Where undo puts the caret back, when it differs from where the replacement lands it. */
+	snapshotOffset?: number;
+	/** A clipboard's own trailing blank line, landed as the document's when nothing follows. */
+	trailingBlank?: boolean;
+	/** The route a paste or a drop names in the edit event, in place of the block count. */
+	source?: ReplaceSource;
+}
+
+export type ReplaceSource = Extract<
+	OperationDetailMap['replaceBlock'],
+	{ source: unknown }
+>['source'];
 
 // ── List context ───────────────────────────────────────────────────────────
 

@@ -39,8 +39,9 @@ export function createBlockEditActions(
 		deleteBlock: (blockIndex) => core.deleteInterior(blockIndex),
 		updateBlockMetadata: (blockIndex, metadata, options) =>
 			core.updateBlockMetadata(blockIndex, metadata, options),
-		replaceBlock: (blockIndex, replacement, focus, options) =>
-			core.replaceBlock(blockIndex, replacement, focus, options),
+		replaceBlock: async (blockIndex, replacement, focus, options) => {
+			await core.replaceBlock(blockIndex, replacement, focus, options);
+		},
 
 		updateBlockContent: contentUpdate(scope)
 	};

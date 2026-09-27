@@ -13,7 +13,7 @@
 
 - `Plan\n===\n`, caret at the end of the underline, Backspace three times (the third makes it a paragraph), one Ctrl+Z: the source is back to `Plan\n===\n`, caret where the burst started
 - The same inside a quote, `> Plan\n> ===\n`: one Ctrl+Z restores it (regression #471: the kind-changing key was its own undo step inside a container; miss-analysis: the batch tests typed same-kind bursts and the kind-change tests typed one key at the top level, so no test ended a burst with a kind change below the root)
-- The same inside a list item, `- Plan\n  ---\n`: one Ctrl+Z restores it (the erased underline also trips the dev stale-raw check, a separate defect the spec declares)
+- The same inside a list item with a second item below, `- Plan\n  ---\n- b\n`: the emptied underline line stays in the first item (`- Plan\n  \n- b\n`), a reload reads the same one list of two items, and one Ctrl+Z restores it (regression #618: the item's rebuild wrote that line with no indent, which ended the item and split the list in two; miss-analysis: the rebuild tests only fed it trees straight from the parser, and the parser never hands back a paragraph whose own bytes end in a blank line)
 - `- a\n\n  abcdef`, `>` typed at the start of `abcdef`: one Ctrl+Z restores the text with the caret back at its start, `[0,0,1]` offset 0 (regression #22: the undo put the caret after the typed `>`; miss-analysis: the kind change's own commit recorded the caret as it stood after the key, and no test read the caret an undo restores below the root)
 
 ## Regression notes

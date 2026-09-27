@@ -16,7 +16,7 @@ import {
 
 async function pasteAt(source: string, pastedText: string, targetPath: number[], offset: number) {
 	const { deps } = makeEditorActionsDeps(parse(source));
-	const coordinator = createPasteCoordinator(createUndoController(deps), deps.revealPath);
+	const coordinator = createPasteCoordinator(deps, createUndoController(deps));
 	const landCaret = vi.spyOn(coordinator, 'landCaret');
 
 	await pasteDispatch(

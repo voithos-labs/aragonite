@@ -36,7 +36,6 @@ import { makeEditorActionsDeps, makeTopHarness, pasteContext } from '../harness/
 import { blockContextActionsFor } from '../../schema/context-actions';
 import { everyInstalledPlugin } from '../../schema/plugin-activation';
 import { registerCodeContextActions } from '../../components/blocks/code/code-context-actions';
-import { allowDevWarns } from '../support/warn-gate';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { ensurePasteSurface } from '$lib/test/support/paste-surface';
 
@@ -70,7 +69,7 @@ async function pasteInto(
 		pasteContext({
 			doc: deps.doc,
 			blockEdit: createBlockEditActions(deps, controller),
-			controller: createPasteCoordinator(controller, deps.revealPath)
+			controller: createPasteCoordinator(deps, controller)
 		})
 	);
 	return deps.doc;
@@ -316,15 +315,6 @@ function pasteRoutes(): EditGesture[] {
 			const at = typeof offset === 'number' ? offset : offset(doc);
 			return serialize(await pasteInto(doc, path, at, clipboard));
 		};
-	// The harness mounts no container, so a route committing at one warns that its scope is
-	// unmounted, which is not what these rows are about.
-	const inContainer =
-		(apply: EditGesture['apply']) =>
-		async (doc: Document): Promise<string> => {
-			const bytes = await apply(doc);
-			allowDevWarns(['paste']);
-			return bytes;
-		};
 	// A code block's offsets count its opening fence line, whose ending the mirror lengthens.
 	const afterCode = (doc: Document) => doc.children[0].raw.indexOf('code') + 'code'.length;
 	return [
@@ -338,7 +328,7 @@ function pasteRoutes(): EditGesture[] {
 		{
 			name: 'items into a list',
 			source: '- a\n- b\n',
-			apply: inContainer(paste([0, 0, 0], 1, '- one\n- two'))
+			apply: paste([0, 0, 0], 1, '- one\n- two')
 		},
 		{
 			name: 'a list breaking out of a list',
@@ -348,7 +338,7 @@ function pasteRoutes(): EditGesture[] {
 		{
 			name: 'a quote into a quote',
 			source: '> a\n',
-			apply: inContainer(paste([0, 0], 1, '> q\n> r'))
+			apply: paste([0, 0], 1, '> q\n> r')
 		},
 		{
 			name: 'lines into a code block',

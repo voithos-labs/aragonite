@@ -21,7 +21,7 @@ import { beginCommit, endCommit } from '../../invariants/commit-scope';
 import { assignIds } from '../../block-id';
 import { replaceRefs } from '../../reactivity/publish-ref.svelte';
 import { blockNodeAt, documentBody, nodeAt } from '../../tree-operations/node-primitives';
-import { settleSeparator } from '../../tree-operations/settle';
+import { settleSeparator, type TrackedPosition } from '../../tree-operations/settle';
 import { ensureUnsharedPath } from '../../tree-operations/unshare';
 import {
 	attachedChainPrefix,
@@ -286,6 +286,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 				/** Nodes for the dev check when the change names none (an in-place `op: 'noop'`). */
 				touchedNodes?: CstNode[];
 				discardIfNoop?: boolean;
+				trackCaret?: TrackedPosition;
 		  }
 		| {
 				kind: 'container';
@@ -379,7 +380,8 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 					deps.doc.children,
 					args.mutate(childrenCopy),
 					deps.reading.grammar,
-					deps.sharing
+					deps.sharing,
+					args.trackCaret
 				);
 				if (args.discardIfNoop && change.op === 'noop') {
 					// The document branch installed nothing; only the stacks are restored here.
@@ -473,7 +475,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 	// ── Structural-mutation commit ───────────────────────────────────────────
 
 	function commitStructural(args: CommitStructuralArgs): Promise<boolean> {
-		const { snapshot, mutate, op, afterTick, touchedNodes, discardIfNoop } = args;
+		const { snapshot, mutate, op, afterTick, touchedNodes, discardIfNoop, trackCaret } = args;
 		return __commit({
 			kind: 'document',
 			snapshot,
@@ -486,7 +488,8 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 			op,
 			afterTick,
 			touchedNodes,
-			discardIfNoop
+			discardIfNoop,
+			trackCaret
 		});
 	}
 
@@ -498,7 +501,8 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 			mutate: ([scope]) => [mutate(scope)],
 			op,
 			afterTick,
-			discardIfNoop
+			discardIfNoop,
+			trackCaret: [args.trackCaret]
 		});
 	}
 

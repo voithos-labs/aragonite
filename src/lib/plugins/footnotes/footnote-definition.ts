@@ -119,33 +119,32 @@ function tryOpen(ctx: OpenContext): BlockOpenerResult | null {
 }
 
 /**
- * A separator line stays unindented, as the parser reads it. An empty block's line at the body's
- * end, and the body's trailing blank line, take the indent that keeps them in the definition.
+ * A separator line stays unindented, as the parser reads it. The blank lines that end the body,
+ * a leaf's own or the body's trailing line, take the indent that keeps them in the definition.
  */
 export function rebuildFootnoteDefRaw(node: CstNode): void {
 	const meta = getPluginMetadata<FootnoteDefMetadata>(node);
 	const marker = `[^${meta?.label ?? ''}]: `;
-	const children = node.children ?? [];
-	const suffix = node.innerSuffix ?? '';
-	let blankTail = children.length;
-	if (isBlankText(suffix)) {
-		while (blankTail > 0 && isBlankText(children[blankTail - 1].raw)) blankTail--;
+	const lines: { text: string; lineEnding: string; separator: boolean }[] = [];
+	const add = (bytes: string, separator: boolean) => {
+		for (const line of splitLines(bytes)) lines.push({ ...line, separator });
+	};
+	add(node.innerPrefix ?? '', true);
+	for (const child of node.children ?? []) {
+		add(child.leadingTrivia, true);
+		// A nested container's rebuild already indented the blank lines it keeps.
+		add(child.raw, child.children !== undefined);
 	}
-	// Each piece is whole lines, paired with whether its blank lines are indented.
-	const pieces: [string, boolean][] = [[node.innerPrefix ?? '', false]];
-	children.forEach((child, i) => {
-		pieces.push([child.leadingTrivia, false], [child.raw, i >= blankTail]);
-	});
-	pieces.push([suffix, true]);
+	add(node.innerSuffix ?? '', false);
+	let lastContent = lines.length - 1;
+	while (lastContent >= 0 && isBlankText(lines[lastContent].text)) lastContent--;
 
 	let raw = '';
-	for (const [bytes, indentsBlank] of pieces) {
-		for (const { text, lineEnding } of splitLines(bytes)) {
-			if (raw === '') raw += marker + text + lineEnding;
-			else if (text === '' && !indentsBlank) raw += lineEnding;
-			else raw += CONTINUATION_MARKER + text + lineEnding;
-		}
-	}
+	lines.forEach(({ text, lineEnding, separator }, i) => {
+		if (raw === '') raw += marker + text + lineEnding;
+		else if (text === '' && (separator || i < lastContent)) raw += lineEnding;
+		else raw += CONTINUATION_MARKER + text + lineEnding;
+	});
 	node.raw = raw;
 }
 

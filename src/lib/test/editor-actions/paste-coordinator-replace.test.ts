@@ -1,12 +1,10 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { replaceBlockAtParent } from '$lib/tree-operations/paste/replace-block-at-parent';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createPasteCoordinator } from '$lib/editor-actions/paste-coordinator';
 import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
 import { parse } from '$lib/core/parser';
 import type { CstNode } from '$lib/core/nodes';
-import { defaultGrammarView } from '$lib/schema/block-openers';
 
 function makePara(raw: string, leadingTrivia = ''): CstNode {
 	return { kind: 'paragraph', leadingTrivia, raw };
@@ -16,25 +14,18 @@ function makeHeading(raw: string): CstNode {
 	return { kind: 'heading', leadingTrivia: '', raw, metadata: { level: 1 } };
 }
 
-describe('replaceBlockAtParent: id preservation', () => {
+describe('the paste coordinator replace: id preservation', () => {
 	it('same-kind first replacement inherits the original block id', async () => {
 		const harness = makeEditorActionsDeps([makePara('original\n')]);
-		const controller = createPasteCoordinator(
-			createUndoController(harness.deps),
-			harness.deps.revealPath
-		);
+		const controller = createPasteCoordinator(harness.deps, createUndoController(harness.deps));
 		const originalId = harness.getBlockIds()[0];
 
-		await replaceBlockAtParent({
-			grammar: defaultGrammarView,
-			doc: harness.doc,
-			blockPath: [0],
-			replacement: [makePara('replaced\n'), makeHeading('# new\n')],
-			controller,
-			focusReplacementIndex: 0,
-			focusOffset: 0,
-			source: 'paste-dispatch'
-		});
+		await controller.replaceBlock(
+			[0],
+			[makePara('replaced\n'), makeHeading('# new\n')],
+			{ replacementIndex: 0, offset: 0 },
+			{ source: 'paste-dispatch' }
+		);
 
 		const ids = harness.getBlockIds();
 		expect(ids).toHaveLength(2);
@@ -44,22 +35,15 @@ describe('replaceBlockAtParent: id preservation', () => {
 
 	it('different-kind first replacement gets a fresh id', async () => {
 		const harness = makeEditorActionsDeps([makePara('original\n')]);
-		const controller = createPasteCoordinator(
-			createUndoController(harness.deps),
-			harness.deps.revealPath
-		);
+		const controller = createPasteCoordinator(harness.deps, createUndoController(harness.deps));
 		const originalId = harness.getBlockIds()[0];
 
-		await replaceBlockAtParent({
-			grammar: defaultGrammarView,
-			doc: harness.doc,
-			blockPath: [0],
-			replacement: [makeHeading('# new\n'), makePara('after\n')],
-			controller,
-			focusReplacementIndex: 0,
-			focusOffset: 0,
-			source: 'paste-dispatch'
-		});
+		await controller.replaceBlock(
+			[0],
+			[makeHeading('# new\n'), makePara('after\n')],
+			{ replacementIndex: 0, offset: 0 },
+			{ source: 'paste-dispatch' }
+		);
 
 		const ids = harness.getBlockIds();
 		expect(ids).toHaveLength(2);
@@ -75,22 +59,15 @@ describe('replaceBlockAtParent: id preservation', () => {
 			makePara('b\n', '\n'),
 			makePara('c\n', '\n')
 		]);
-		const controller = createPasteCoordinator(
-			createUndoController(harness.deps),
-			harness.deps.revealPath
-		);
+		const controller = createPasteCoordinator(harness.deps, createUndoController(harness.deps));
 		const idsBefore = [...harness.getBlockIds()];
 
-		await replaceBlockAtParent({
-			grammar: defaultGrammarView,
-			doc: harness.doc,
-			blockPath: [1],
-			replacement: [],
-			controller,
-			focusReplacementIndex: 0,
-			focusOffset: 0,
-			source: 'paste-dispatch'
-		});
+		await controller.replaceBlock(
+			[1],
+			[],
+			{ replacementIndex: 0, offset: 0 },
+			{ source: 'paste-dispatch' }
+		);
 
 		expect(harness.doc.children).toHaveLength(2);
 		const ids = harness.getBlockIds();
@@ -102,22 +79,15 @@ describe('replaceBlockAtParent: id preservation', () => {
 	it('uses the live old kind read before mutation runs', async () => {
 		// A heading already at the path must not make a paragraph replacement read as same-kind.
 		const harness = makeEditorActionsDeps([parse('# heading\n').children[0]]);
-		const controller = createPasteCoordinator(
-			createUndoController(harness.deps),
-			harness.deps.revealPath
-		);
+		const controller = createPasteCoordinator(harness.deps, createUndoController(harness.deps));
 		const originalId = harness.getBlockIds()[0];
 
-		await replaceBlockAtParent({
-			grammar: defaultGrammarView,
-			doc: harness.doc,
-			blockPath: [0],
-			replacement: [makePara('plain\n')],
-			controller,
-			focusReplacementIndex: 0,
-			focusOffset: 0,
-			source: 'paste-dispatch'
-		});
+		await controller.replaceBlock(
+			[0],
+			[makePara('plain\n')],
+			{ replacementIndex: 0, offset: 0 },
+			{ source: 'paste-dispatch' }
+		);
 
 		expect(harness.getBlockIds()[0]).not.toBe(originalId);
 	});

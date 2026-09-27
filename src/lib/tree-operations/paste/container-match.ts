@@ -13,12 +13,17 @@ import {
 	trailingLineEnding,
 	trimTrailingLineEnding
 } from '../../core/lines';
-import { nodeAt, writeOwnRaw } from '../node-primitives';
-import { settledCaretPosition, updateNodeContent, type SettledContent } from '../content-write';
+import { nodeAt } from '../node-primitives';
+import {
+	legalizeWrite,
+	settledCaretPosition,
+	updateNodeContent,
+	type SettledContent
+} from '../content-write';
 import { leafAtRawOffset } from '../container-offsets';
 import { containerPasteFor } from './container-paste';
 import { rebuildContainerRawIfContainer } from '../../schema/container-raw';
-import { ensureUnsharedNode, ensureUnsharedPath } from '../unshare';
+import { ensureUnsharedPath } from '../unshare';
 import { rebuildUnsharedChain } from '../chain-rebuild';
 import { containerScopeState } from './parent-scope';
 import {
@@ -179,6 +184,13 @@ export async function applyContainerMatchingPaste(
 	});
 }
 
+/** The merged leaf's write: the chain down to its holder, and where the write put its bytes. */
+interface MergedLeaf {
+	chain: CstNode[];
+	settled: SettledContent;
+	storedOffset: (offset: number) => number;
+}
+
 /** A single-item clipboard keeps everything in the target leaf. */
 async function applyContainerMatchingMerge(
 	unwrap: ContainerUnwrap,
@@ -216,11 +228,27 @@ async function applyContainerMatchingMerge(
 	templatePastedItemMarkers(remainingItems, outer, unwrap.spliceIndex + 1);
 
 	const snapshot = { path: docPathFrom(unwrap.outerPath), offset: 0 };
-	/** The merged leaf sits below the scope node, so copy its whole ancestor chain. */
-	const ownMergedLeafSpine = (sharing: SharingState) => {
-		const chain = ensureUnsharedPath(ctx.doc, merge.targetLeafPath, sharing);
-		return { chain, ownedLeaf: chain[chain.length - 1] ?? ensureUnsharedNode(targetLeaf, sharing) };
+	const leafIndex = merge.targetLeafPath[merge.targetLeafPath.length - 1];
+	/**
+	 * The merged leaf's new text through the content write against its holder, whose ids follow
+	 * any kind change; the holder sits below the scope node, so its whole chain is copied first.
+	 */
+	const writeMergedLeaf = (text: string, sharing: SharingState): MergedLeaf => {
+		const chain = ensureUnsharedPath(ctx.doc, merge.targetLeafPath, sharing).slice(0, -1);
+		const holder = chain[chain.length - 1];
+		const body = { children: holder.children!, owner: holder, lineEnding };
+		const write = legalizeWrite(body, leafIndex, text, 'literal');
+		const settled = updateNodeContent(body, leafIndex, write, ctx.reading.grammar, sharing);
+		if (holder.childIds) {
+			applyStructuralChangeToIdsRefs(
+				settled.change,
+				holder.childIds,
+				new Array(holder.childIds.length)
+			);
+		}
+		return { chain, settled, storedOffset: write.storedOffset };
 	};
+	let merged: MergedLeaf | null = null;
 
 	if (remainingItems.length === 0) {
 		await ctx.controller.commitMultiScope({
@@ -228,14 +256,11 @@ async function applyContainerMatchingMerge(
 			snapshot,
 			mutate: ([scopeView]) => {
 				const sharing = scopeView.sharing;
-				const { chain, ownedLeaf } = ownMergedLeafSpine(sharing);
-				writeOwnRaw(
-					ownedLeaf,
+				merged = writeMergedLeaf(
 					displayBefore + firstItemText + displayAfter + targetLineEnding,
-					lineEnding,
-					ctx.reading.grammar
+					sharing
 				);
-				rebuildUnsharedChain(ctx.doc, chain, sharing, null, ctx.reading.grammar);
+				rebuildUnsharedChain(ctx.doc, merged.chain, sharing, null, ctx.reading.grammar);
 				return [{ op: 'noop' }];
 			},
 			op: {
@@ -243,10 +268,22 @@ async function applyContainerMatchingMerge(
 				detail: { source: 'container-matching-merge-singleton', outerPath: unwrap.outerPath },
 				eventPath: docPathFrom(unwrap.outerPath)
 			},
-			afterTick: () =>
+			afterTick: () => {
 				// A char offset inside the merged leaf, not a block index, so land on the leaf
 				// itself: a container's focus(number) would clamp to its last child's end.
-				ctx.controller.landCaret(merge.targetLeafPath, displayBefore.length + firstItemText.length)
+				const joined = displayBefore.length + firstItemText.length;
+				if (!merged) return ctx.controller.landCaret(merge.targetLeafPath, joined);
+				const holderPath = merge.targetLeafPath.slice(0, -1);
+				const holder = nodeAt(ctx.doc, holderPath) as CstNode | null;
+				const children = holder?.children ?? [];
+				const at = settledCaretPosition(
+					merged.settled,
+					leafIndex,
+					merged.storedOffset(joined),
+					children
+				);
+				return ctx.controller.landCaret([...holderPath, at.index], at.offset);
+			}
 		});
 		return;
 	}
@@ -261,13 +298,7 @@ async function applyContainerMatchingMerge(
 		snapshot,
 		mutate: ([scopeView]) => {
 			const sharing = scopeView.sharing;
-			const { chain, ownedLeaf } = ownMergedLeafSpine(sharing);
-			writeOwnRaw(
-				ownedLeaf,
-				displayBefore + firstItemText + targetLineEnding,
-				lineEnding,
-				ctx.reading.grammar
-			);
+			const { chain } = writeMergedLeaf(displayBefore + firstItemText + targetLineEnding, sharing);
 			// The residue can cross a kind boundary (a fence closer landing in a paragraph),
 			// so it reattaches through the reparse path, never a bare write.
 			residue = updateNodeContent(
