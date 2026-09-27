@@ -94,11 +94,8 @@ export interface InlineMenuOpenView {
 	activeIndex: number;
 }
 
-/**
- * An item id as one token, since an attribute naming a DOM id can hold no whitespace and a
- * source is free to hand out `Meeting notes`. Every escape is reversible, so two ids a source
- * kept distinct never become one id in the page.
- */
+/** An item id as one DOM-id token, since a source may hand out `Meeting notes`. Every escape is
+ *  reversible, so two ids a source kept distinct never collide in the page. */
 function asIdToken(id: string): string {
 	return id.replace(/[^A-Za-z0-9-]/gu, (char) => `_${char.codePointAt(0)!.toString(16)}_`);
 }
@@ -260,9 +257,8 @@ export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuStat
 		if (writing || !caret || !previous || previous.path !== caret.path.join()) return;
 		const from = typedRunStart(previous.raw, caret.leaf.raw, caret.offset);
 		if (from === null) {
-			// The bytes and the caret do not always move as one, so a read can land between them.
-			// Holding the older snapshot for one more read lets the caret that follows explain the
-			// change; a change it still cannot explain is adopted, so `seen` never goes stale.
+			// The bytes and the caret can move separately, so the older snapshot is held one more read;
+			// a change the next caret still cannot explain is adopted, so `seen` never goes stale.
 			const unexplained = previous.raw !== caret.leaf.raw;
 			if (unexplained && !heldBack) seen = previous;
 			heldBack = unexplained && !heldBack;
@@ -317,9 +313,8 @@ export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuStat
 		read(source, live);
 	}
 
-	// Evaluated a tick after the event, so an edit and the selectionchange beside it are one read.
-	// The baseline is taken now rather than then, because those two can carry a caret's arrival in
-	// a leaf no read has seen and the first bytes typed there together.
+	// Evaluated a tick later, so an edit and its selectionchange are one read. The baseline is
+	// taken now, since one event can carry a caret's arrival in a new leaf and its first bytes.
 	function schedule(): void {
 		if (disposed || (sources.size === 0 && session === null)) return;
 		primeBaseline();

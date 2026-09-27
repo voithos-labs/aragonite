@@ -9,10 +9,8 @@ import { partitionItemChildren } from './item-partition';
 import { orderedBaseOf } from './ordered-markers';
 
 /**
- * The parent-level replacement when a list item exits its list, laid out as
- * `[firstHalfList?, exitParagraph, ...liftedBlocks, secondHalfList?]`: matching-type nested items
- * rejoin the surviving halves and everything else lifts out. `paragraphIndex` is the exit
- * paragraph's index, the caller's focus target. Input is not mutated.
+ * The replacement when an item exits its list: the list's halves around a fresh exit paragraph at
+ * `paragraphIndex`, the item's same-type nested items rejoining the halves and the rest lifted.
  */
 export function buildExitReplacement(
 	list: NodeView,

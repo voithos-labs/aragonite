@@ -1,9 +1,7 @@
 /**
- * Built-in block-kind descriptors and inline-construct policies, applied by an explicit
- * `registerBuiltInDescriptors()` call from `core/inline/index.ts` and
- * `components/built-in-blocks.ts`: the `sideEffects` list names built paths, never the source
- * paths used inside this library, so only a binding something calls survives tree-shaking. Kept
- * apart from `block-kind-descriptor.ts` so that module registers nothing itself.
+ * Built-in block-kind descriptors and inline-construct policies. Nothing registers on import:
+ * `core/inline/index.ts` and `components/built-in-blocks.ts` call `registerBuiltInDescriptors()`,
+ * since the `sideEffects` list names built paths and tree-shaking keeps only a called binding.
  */
 
 import { metadataOf } from '../core/nodes';
@@ -57,9 +55,8 @@ const TEXT_EDITABLE_KEYMAP: KeyBinding[] = [
 	{ chord: 'Mod+I', command: 'format.toggleEmphasis' },
 	{ chord: 'Mod+Shift+X', command: 'format.toggleStrikethrough' },
 	{ chord: 'Mod+E', command: 'format.toggleCode' },
-	// The live-mode link card. The chord is taken even when no card opens (a caret outside every
-	// link does nothing): `reservedChords()` reports it as taken, and letting it through would
-	// trigger the browser's own Mod+K.
+	// The live-mode link card. The chord is taken even where no card opens, since letting it
+	// through would trigger the browser's own Mod+K.
 	{ chord: 'Mod+K', command: 'link.openCard' },
 	{ chord: 'Mod+0', command: 'heading.cycle', arg: 0 },
 	{ chord: 'Mod+1', command: 'heading.cycle', arg: 1 },
@@ -70,10 +67,8 @@ const TEXT_EDITABLE_KEYMAP: KeyBinding[] = [
 	{ chord: 'Mod+6', command: 'heading.cycle', arg: 6 }
 ];
 
-// The cell is what holds the caret inside a table, so all of the table's keys bind on this kind:
-// an override scoped to `table` would apply to a block the caret never sits in. Plain arrows stay
-// unbound because they depend on where the caret is, which a chord cannot express; they live in
-// `cell-keydown-plan.ts`.
+// The cell holds the caret inside a table, so the table's keys bind here; a `table` override would
+// miss. Plain arrows depend on the caret's position, so `cell-keydown-plan.ts` handles them.
 const TABLE_CELL_KEYMAP: KeyBinding[] = [
 	{ chord: 'Enter', command: 'cell.enter' },
 	{ chord: 'Tab', command: 'cell.tab' },
@@ -94,8 +89,8 @@ const TABLE_CELL_KEYMAP: KeyBinding[] = [
 	{ chord: 'Alt+ArrowLeft', command: 'table.moveColumnLeft' },
 	{ chord: 'Alt+ArrowRight', command: 'table.moveColumnRight' },
 	{ chord: 'Mod+Shift+A', command: 'table.cycleAlignment' },
-	// Moves the whole table among its siblings. Alt+Arrow, the reorder chord every other kind
-	// uses, is already taken by the row reorder a caret in a cell means first.
+	// Moves the whole table among its siblings, since Alt+Arrow, the reorder chord every other
+	// kind uses, moves the row the caret is in.
 	{ chord: 'Mod+Alt+ArrowUp', command: 'block.moveUp' },
 	{ chord: 'Mod+Alt+ArrowDown', command: 'block.moveDown' }
 ];
@@ -189,10 +184,8 @@ function registerBuiltInInlinePolicies(): void {
 		// Its alt text is an attribute of the picture, not prose on the page.
 		prose: 'none'
 	});
-	// An autolink's `<` and `>` are a link's delimiters in another spelling: the destination is the
-	// text, so a character landing between the brackets changes where the link goes. Never-extend
-	// for the same reason the bracket form is (live-mode.md § 4.2), and split plainly: two halves
-	// of a URL are not two URLs.
+	// An autolink's text is its destination, so neither edge extends and a split stays plain
+	// (`docs/design/live-mode.md` § 4.2 Typing at a hidden edge).
 	registerInlineConstructPolicy('autolink', {
 		edgeAffinity: 'never-extend',
 		autoUnwrapOnEmpty: false,

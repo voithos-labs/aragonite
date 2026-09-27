@@ -13,19 +13,16 @@ import { pluginKindOwner } from './plugin-kind';
 
 export interface BlockComponentEntry {
 	/**
-	 * Declaring `BlockComponentExports` as the exports lets BlockHost's `bind:this` type-check
-	 * against a component picked at runtime, and fixes the two shapes a block may expose: a leaf's
-	 * own editable element, or a container's single `containerApi`.
+	 * Typed with `BlockComponentExports` so BlockHost's `bind:this` type-checks a component picked
+	 * at runtime, which must expose a leaf's editable element or a container's `containerApi`.
 	 */
 	component: Component<Record<string, unknown>, BlockComponentExports>;
 	extraProps?: (node: NodeView) => Record<string, unknown>;
 }
 
 /**
- * Typed constructor for a registry entry: the component must expose one of the two allowed
- * shapes, and its props must be a subset of what BlockHost passes. A container that forgot its
- * `containerApi` fails here rather than mounting as a block nothing can focus. The cast widens
- * the component's props to the registry's `Record<string, unknown>`.
+ * Typed constructor for a registry entry, so a container that forgot its `containerApi`, or props
+ * BlockHost never passes, fail to compile rather than mount as a block nothing can focus.
  */
 export function defineBlockComponent<
 	P extends Partial<BlockComponentProps> & Record<string, unknown>
@@ -58,10 +55,8 @@ export function getBlockComponent(
 	return registry.get(kind, activation);
 }
 
-/**
- * Is a component registered? `registerBlockComponent` throws on a duplicate, so a plugin that
- * may register twice (hot reload, re-import) checks this first. Takes a plain name.
- */
+/** `registerBlockComponent` throws on a duplicate, so a plugin that may register twice (hot
+ *  reload, re-import) checks this first. */
 export function isBlockComponentRegistered(kind: string): boolean {
 	return registry.has(kind as AnyBlockKind);
 }

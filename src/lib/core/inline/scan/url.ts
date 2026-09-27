@@ -36,8 +36,8 @@ export function unescapeSpecString(s: string): string {
 	return out;
 }
 
-// The mdurl encode() kept set: commonmark.js normalizes destinations through it, so the
-// differ needs byte-equal output.
+// mdurl encode()'s kept set, which commonmark.js normalizes destinations through, so a url
+// here matches the reference byte for byte.
 const URI_SAFE = buildUriSafeTable(";/?:@&=+$,-_.!~*'()#");
 
 function buildUriSafeTable(kept: string): boolean[] {

@@ -1,9 +1,8 @@
 /**
- * The rule for writing a fenced block's bytes, declared on the kind as `rawWrite`. It puts back a
- * closer a truncating write dropped, removes one such a write stranded, grows both marker runs past
- * a body line that would read as the closer or with a marker typed onto the opener's run, and
- * drops backticks from a backtick fence's info string (CommonMark §4.5), moving the caret with
- * every byte it adds or drops. A fence the user is still typing (open, `authored`) is left alone.
+ * The rule for writing a fenced block's bytes, declared on the kind as `rawWrite`: it restores or
+ * drops fence lines a write broke, grows the marker runs past a body line that would close them,
+ * and keeps backticks out of a backtick fence's info string, moving the caret with every byte. A
+ * fence the user is still typing (open, `authored`) is left alone.
  */
 
 import { metadataOf } from '../core/nodes';
@@ -101,9 +100,8 @@ export function reconcileFenceWrite(input: FenceWriteInput): FenceWriteResult {
 }
 
 /**
- * The bytes with `info` written onto the opening fence line. Only that span moves, so the
- * indent, both marker runs, the body and the closer come through byte-identical. Null when
- * line 0 does not read as this block's opener at all.
+ * The bytes with `info` written onto the opener line, everything else byte-identical. Null when
+ * line 0 does not read as this block's opener.
  */
 export function writeFenceInfo(display: string, info: string, fence: FenceShape): string | null {
 	const first = firstDisplayLine(display);
@@ -136,10 +134,8 @@ function reconcileFenceRaw(
 }
 
 /**
- * What the info string may hold: one line, no backtick under a backtick fence (CommonMark §4.5),
- * and no leading run of the fence's own marker, which would lengthen the fence instead: `~~~` plus
- * `~x` reparses as a four-tilde run its own closer no longer closes. The characters are dropped
- * rather than the write refused, the same rule typing and pasting already use.
+ * Drops what an info string may not hold: a line break, a backtick under a backtick fence, and a
+ * leading run of the fence's own marker, which would lengthen the fence (`~~~` plus `~x`).
  */
 function legalInfo(info: string, fence: FenceShape): string {
 	const oneLine = info.replace(/[\r\n]/g, '');
@@ -150,9 +146,8 @@ function legalInfo(info: string, fence: FenceShape): string {
 }
 
 /**
- * The fence the written bytes carry. Content arriving whole is read as the grammar reads it, so an
- * opener run a replace grew or shrank sizes the fence; typing keeps the block's own run. A run
- * grown over a closer that still matches it was sized by {@link widenedCloser} first.
+ * The fence the written bytes carry: a literal write is read as the grammar reads it, so a replace
+ * that resized the opener run resizes the fence; typing keeps the block's own run.
  */
 function writtenFence(display: string, fence: FenceShape, mode: FenceWriteMode): FenceShape {
 	if (mode === 'authored') return fence;
@@ -200,10 +195,8 @@ function splitOpener(line: string, fence: FenceShape): OpenerParts | null {
 }
 
 /**
- * The block's fence lines against a write that removed one of them: a fence left open swallows
- * every block below it at the next parse, whichever half went missing. With the block's own opener
- * still on line 0 the missing closer comes back; without it, a surviving closer is syntax the
- * write stranded and goes. {@link ownOpener} decides which, so only one of the two can run.
+ * A fence left open swallows every block below it, so a write that removed one fence line gets its
+ * closer back (its own opener still on line 0) or loses the closer it stranded.
  */
 function reconcileFenceLines(
 	written: FenceWriteResult,
@@ -246,9 +239,8 @@ function restoredCloser(
 }
 
 /**
- * Drops the closer a write stranded by removing the block's own opener, since as text it would
- * open a fence over the blocks below. Null when there is none, or when a line above could close on
- * that run (same marker, run no longer than the closer's).
+ * Drops the closer a write stranded by removing the opener, since as text it would open a fence
+ * below. Null when there is none, or a line above opens a same-marker run it would close.
  */
 function droppedStrandedCloser(
 	lines: DisplayLine[],

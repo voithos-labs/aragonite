@@ -1,7 +1,6 @@
 /**
  * Pure primitives for cross-block selection: types, document-order walking, overlay
- * classification, the delete-commit snapshot rule. No DOM, no state. Path-level predicates
- * live in `./path-math`.
+ * classification, the delete-commit snapshot rule. Path-level predicates live in `./path-math`.
  */
 
 import type { CommitSnapshotArg } from '../action-contracts';
@@ -130,12 +129,8 @@ export function cellIndexOf(point: SelectionPoint, tag: string): CellIndex {
 
 // ── Normalization ──────────────────────────────────────────────────────────
 
-/**
- * `{start, end}` in document order: by path, then by offset when the paths match. Exported to
- * consumers as `normalizeSelection`. The offset tiebreak works in either space: two endpoints
- * sharing a table's path carry row-major cell indices, whose order is document order inside
- * that table.
- */
+/** `{start, end}` in document order: by path, then by offset, which orders cell indices on a
+ *  shared table path too, since row-major order is document order inside the table. */
 export function normalize(selection: EditorSelection): {
 	start: SelectionPoint;
 	end: SelectionPoint;
@@ -203,12 +198,8 @@ export function classifyBlockForSelection(
 	return 'outside';
 }
 
-/**
- * Whether this block paints the range over its whole box: the range holds its entire subtree and
- * no ancestor's box already covers it, or it is the one block a whole-block range holds. A
- * container's own decoration (a GitHub alert's badge) has no child host to paint it, so the
- * covering block takes the box in one piece and its children paint nothing.
- */
+/** Whether the block paints the range over its whole box, so a container's own decoration (an
+ *  alert's badge), which no child host covers, is painted too; its children then paint nothing. */
 export function blockPaintsWholeBox(
 	path: readonly number[],
 	selection: EditorSelection,
@@ -222,7 +213,7 @@ export function blockPaintsWholeBox(
 	);
 }
 
-/** The range holds this block's whole subtree: inside it in document order, and not an ancestor
+/** The range holds the block's whole subtree: inside it in document order, and not an ancestor
  *  of the end endpoint, whose own descendants the range cuts through. */
 function holdsSubtree(path: readonly number[], start: number[], end: number[]): boolean {
 	return isPathBetween(path, start, end) && !isStrictAncestorOf(path, end);

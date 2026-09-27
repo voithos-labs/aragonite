@@ -19,8 +19,7 @@ export function activateDirectiveGrammar(): void {
 	// names a plugin registers belong to it.
 	registerAsCore(() => {
 		// The inline handler has no registration of its own to check, so it borrows the
-		// `directiveText` flag, read here before `registerDirectiveTextKind` sets it. It cannot ask
-		// whether `:` is taken: that trigger is shared (emoji uses it too).
+		// `directiveText` flag, read before it is set; the `:` trigger is shared with emoji.
 		const alreadyActive = isInlineKindDeclared(DIRECTIVE_TEXT);
 
 		registerDirectiveKinds();

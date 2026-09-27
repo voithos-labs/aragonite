@@ -1,8 +1,6 @@
 /**
- * Cross-block event dispatch, wired by `components/blocks/editable-surface.ts` and by
- * `Editor.svelte` for the editor root. The factory returns handlers each caller runs at the top
- * of its own event handlers; single-block handling stays with the caller. Keydown lives in
- * `keydown.ts` and pointer in `pointer.ts`; paste and type-replace pass through here.
+ * Cross-block event dispatch: handlers an editable block, or the editor root, runs at the top of
+ * its own event handlers, before its single-block handling.
  */
 
 import type { BlockEditActions } from '../../action-contracts';
@@ -78,9 +76,8 @@ export interface CrossBlockHandlers {
 	/** Returns true if the event was fully handled (caller should return). */
 	handleKeyDown(e: KeyboardEvent): Promise<boolean>;
 	handlePointerDown(e: PointerEvent, press?: PointerPressOptions): boolean;
-	/** `replacement` stands in for the clipboard's own text, for a caller that already turned the
-	 *  payload into markdown and must not re-read the event past its awaits. A null event is a
-	 *  programmatic insertion: no gesture to consume, so `replacement` carries the payload. */
+	/** `replacement` stands in for the clipboard text, for a caller that already converted the
+	 *  payload and can't re-read the event after its awaits. A null event is a scripted insert. */
 	handlePaste(e: ClipboardEvent | null, replacement?: string): Promise<boolean>;
 	handleBeforeInput(e: InputEvent): Promise<boolean>;
 	/** Type-replace from a caller with no `InputEvent`: the editor root, where a range over a block
@@ -104,9 +101,8 @@ export function createCrossBlockHandlers(ctx: CrossBlockDispatchContext): CrossB
 	const keydown = createCrossBlockKeydown(ctx, mutationCtx);
 	const pointer = createCrossBlockPointer(ctx);
 
-	// The reading-mode checks for the mutating handlers live here, so every construction site
-	// (each editable block, the editor root) inherits them. Keydown checks its own destructive
-	// branches, since it also carries navigation, which stays live.
+	// The reading-mode checks for the mutating handlers live here so every caller inherits them;
+	// keydown checks its own destructive branches, since its navigation stays live.
 	const refusesWrites = () => isReadingMode(ctx.reading.mode);
 
 	const insertText = async (text: string): Promise<boolean> => {

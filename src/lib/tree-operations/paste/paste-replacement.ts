@@ -56,9 +56,8 @@ export function buildPastedReplacement(
 	for (const node of landed) newNodes.push(node);
 	const lastPastedIndex = newNodes.length - 1;
 
-	// Separate blocks rather than merged into the last pasted block, which would let a
-	// non-paragraph tail absorb them as continuation lines. A cut at a line's end hands the
-	// residue that line's own break.
+	// The residue stays separate, or a non-paragraph tail would absorb it as continuation lines;
+	// a cut at a line's end hands it that line's own break.
 	if (hasResidue) {
 		const [first, ...rest] = residue.blocks;
 		newNodes.push({ ...first, leadingTrivia: residue.endedLine || lineEnding });
@@ -72,9 +71,8 @@ export function buildPastedReplacement(
 }
 
 /**
- * The clipboard's blocks as they land after `prev`: each apart from the block before it, each
- * container given an editable child, and the last one ending its line when `closesLine` says
- * none of the target's text continues it. Left open, it would take the next block's blank line.
+ * The clipboard's blocks as they land after `prev`. With `closesLine` the last one ends its line,
+ * since left open it would take the next block's blank line.
  */
 export function landClipboardBlocks(
 	prev: CstNode | undefined,
@@ -95,9 +93,8 @@ export function landClipboardBlocks(
 }
 
 /**
- * A copy of `block` as it lands after `prev`, with a blank line of its own where the clipboard
- * gave it none: without one it would continue `prev` on reload. A blank `prev` already holds
- * the run open, so the block keeps what it has.
+ * A copy of `block` landing after `prev`, given a blank line where the clipboard gave none, or it
+ * would continue `prev` on reload; a blank `prev` already separates it.
  */
 export function landedAfter(prev: CstNode, block: CstNode, lineEnding: '\n' | '\r\n'): CstNode {
 	const separated = block.leadingTrivia !== '' || isBlankParagraph(prev);

@@ -1,8 +1,7 @@
 /**
- * Window math for virtual rendering. `computeWindow` is pure: from a height table and the
- * scroll viewport it returns the range of blocks to mount (extended so the caret's block stays
- * inside it), the spacer heights that preserve the browser's scroll geometry, and whether
- * windowing is on. `createBlockWindow` wires live getters and a scroll listener to it.
+ * Window math for virtual rendering: which blocks to mount, and the spacer heights that keep the
+ * browser's scroll geometry. `computeWindow` is pure; `createBlockWindow` wires live getters and
+ * a scroll listener to it.
  */
 import { untrack } from 'svelte';
 import type { HeightModel } from '../cursor/height-model';
@@ -46,9 +45,8 @@ export function computeWindow(model: HeightModel, input: WindowInputs): WindowRe
 	let start = Math.max(0, firstVisible - input.overscan);
 	let end = Math.min(n, lastVisible + 1 + input.overscan);
 
-	// Extend the range, which stays contiguous, so Svelte keeps the caret block's DOM node and
-	// the browser's focus and IME survive a scroll. Bounded, so a caret left far away before a
-	// large scroll doesn't mount thousands of blocks; past the cap it loses focus.
+	// Growing the range to the caret block keeps its DOM node, so focus and IME survive a scroll;
+	// capped so a caret left far away doesn't mount thousands of blocks (it loses focus instead).
 	const pin = input.pinnedIndex;
 	if (pin !== null && pin >= 0 && pin < n) {
 		if (pin < start && start - pin <= input.pinExtensionCap) start = pin;
@@ -80,9 +78,8 @@ export interface BlockWindowDeps {
 
 export interface BlockWindow {
 	readonly result: WindowResult;
-	/** Push the scroll element's current `scrollTop` into the window state now. A scripted
-	 *  `scrollTop` write fires no `scroll` event, so the passive listener would not update the
-	 *  `$derived` in time for a scroll into view to be deterministic. */
+	/** A scripted `scrollTop` write fires no `scroll` event, so a scroll into view calls this to
+	 *  update the window before reading it. */
 	syncScrollTop(): void;
 	dispose(): void;
 }
@@ -120,9 +117,8 @@ export function createBlockWindow(deps: BlockWindowDeps): BlockWindow {
 		});
 	});
 
-	// Hysteresis state. `result` reads `active` and this effect writes it, so the write is
-	// untracked and only happens on a change; otherwise the effect would depend on its own
-	// write. It settles: once `active` equals `result.active` nothing is written.
+	// Hysteresis: `result` reads `active` and this effect writes it, so the write is untracked
+	// and skipped when unchanged, or the effect would depend on its own write.
 	$effect(() => {
 		const next = result.active;
 		untrack(() => {

@@ -34,11 +34,8 @@ export const MAX_NESTING_DEPTH = 512;
 /** Whether `source` is a whole document or one block's bytes read standalone. */
 export type ParseScope = 'document' | 'fragment';
 
-/**
- * Parse GFM to a lossless CST. The published entry: `opts.grammar` defaults to every installed
- * plugin's openers and `opts.scope` to `'document'`, so whole-source callers need nothing. Code
- * inside the editor calls {@link readBlocks}, which takes both.
- */
+/** Parse GFM to a lossless CST, with every installed plugin's openers and `'document'` scope by
+ *  default. Code inside the editor calls {@link readBlocks}, which takes both. */
 export function parse(
 	source: string,
 	opts?: { grammar?: GrammarView; scope?: ParseScope }
@@ -80,12 +77,8 @@ export function parseTaskItemBody(source: string, grammar: GrammarView): Documen
 	return { kind: 'document', prefix: '', children: result.children, suffix: result.suffix };
 }
 
-/**
- * Parse `lines[start, end)` into blocks; a block-aligned window parses as a full parse of its
- * text would. The first blank line of a run becomes the next block's `leadingTrivia`, every later
- * one an empty paragraph (`docs/design/syntax-tree.md`). `firstLineIsParagraph` reads the first
- * line as paragraph text whatever it would open.
- */
+/** Parse `lines[start, end)` into blocks; a block-aligned window parses as its text would whole
+ *  (`docs/design/syntax-tree.md` § Blank lines). `firstLineIsParagraph` forces paragraph text. */
 export function parseBlocks(
 	lines: ParsedLine[],
 	start: number,
@@ -151,13 +144,8 @@ export interface ContainerBodyWrap {
 	beforeCloserLine?: boolean;
 }
 
-/**
- * Parse a container body between the container's own fence lines; a body starting at the
- * container's first line (blockquote, list item) has no wrap and uses `parse`. A blank line
- * against a fence line separates as it does between blocks, landing in `prefix`/`suffix` while
- * the rest of its run becomes body content; one with no body on its far side separated nothing
- * and stays content. `opts.scope` is required: a new entry cannot recover it (G4.27).
- */
+/** Parse a body between the container's own fence lines (`docs/design/syntax-tree.md` § Blank
+ *  lines); a body on the container's first line uses `parse`. `opts.scope` is required (G4.27). */
 export function parseContainerBody(
 	bodyText: string,
 	wrap: ContainerBodyWrap,
@@ -203,11 +191,8 @@ function parseNextBlock(ctx: OpenContext): BlockOpenerResult {
 	return parseParagraph(ctx.lines, ctx.index, ctx.end, ctx.leadingTrivia, ctx.grammar);
 }
 
-/**
- * The dev warning behind the call site's decline. An opener that consumed nothing is declined in
- * every build, not just DEV: returning it would leave `index` where it was and spin the parse
- * loop forever, and declining is always safe because the paragraph fallback covers the line.
- */
+/** The dev warning behind the call site's decline. An opener that consumed nothing is declined in
+ *  every build, or it would spin the parse loop; the paragraph fallback covers the line. */
 function reportNonAdvancingOpener(ctx: OpenContext, result: BlockOpenerResult): void {
 	assertInvariant('opener-advance', () => ({
 		code: 'opener-did-not-advance',
@@ -218,11 +203,8 @@ function reportNonAdvancingOpener(ctx: OpenContext, result: BlockOpenerResult): 
 	}));
 }
 
-/**
- * DEV-only trust check on a plugin opener's `raw`, at the one site the parser consumes it:
- * bytes that do not match the consumed lines silently break the round-trip, since serialize
- * reads `raw` alone. Tree-shaken in production.
- */
+/** Dev-only check that a plugin opener's `raw` matches the lines it consumed: serialize reads `raw`
+ *  alone, so a mismatch silently breaks the round-trip. */
 function assertOpenerRawMatches(ctx: OpenContext, result: BlockOpenerResult): void {
 	assertInvariant('opener-raw', () =>
 		result.node.raw === joinRaw(ctx.lines, ctx.index, ctx.index + result.consumed)

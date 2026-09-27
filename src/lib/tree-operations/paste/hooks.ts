@@ -25,10 +25,8 @@ import type { Reading } from '../../schema/reading';
 const BESPOKE_SURFACE_KINDS = new Set<BlockKind>(['tableCell']);
 
 /**
- * The leaf's bytes and caret after the paste's delete half, through the one join cleanup, so a
- * cut that stranded a delimiter run the user never saw drops it here rather than pasting it
- * into view (live-mode.md § 4.5). The range is forwarded whole: the endpoints are the cleanup's
- * to read.
+ * The leaf's bytes and caret after the paste's delete half, through the join cleanup, so a
+ * stranded delimiter run the user never saw is dropped (`docs/design/live-mode.md` § 4.5).
  */
 function applyPreDelete(
 	node: CstNode,
@@ -73,9 +71,8 @@ export function defaultInlineHook(
 const atLineEnd = (after: string): boolean => after === '' || /^\r?\n/.test(after);
 
 /**
- * `text` without the one line ending that closes its last line: pasted against the end of a line
- * it breaks nothing, and kept it would leave a blank line inside the paragraph. A whole blank line
- * at the end stays, since the clipboard carried it as a block of its own.
+ * `text` without the ending of its last line, which against a line end would leave a blank line
+ * in the paragraph; a whole blank last line stays, since the clipboard carried it as a block.
  */
 function dropClosingLineEnding(text: string): string {
 	const closing = /\r?\n$/.exec(text);

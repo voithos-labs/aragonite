@@ -1,9 +1,8 @@
 /**
- * Bounds regex find. A pathological pattern spends minutes inside one `RegExp.exec`, which
- * no main-thread budget can interrupt, so the only bound is a killable thread. The worker
- * ships as source text through a Blob URL, not a bundler worker import, leaving dist
- * packaging and consumer bundlers untouched. Where that is unavailable (SSR, a CSP-restricted
- * embedder, the test runner) it degrades to a sync scan bounded only between texts.
+ * Bounds regex find. A pathological pattern can spend minutes inside one `RegExp.exec`, so the
+ * only bound is a worker thread that can be killed. The worker ships as source text through a
+ * Blob URL, leaving dist packaging and consumer bundlers untouched. Where workers are unavailable
+ * (SSR, a strict CSP, the test runner) find falls back to a sync scan bounded between texts.
  */
 
 import { execAll, type RawRange } from './matcher';
@@ -152,9 +151,8 @@ export function createRegexExecutor(options: RegexExecutorOptions = {}): RegexEx
 						: { ok: false, epoch: reply.epoch, reason: 'error' }
 				);
 			};
-			// An uncompilable pattern is caught inside the worker and posted back, so reaching
-			// here means the worker itself is broken (a CSP blocking the blob at load, not at
-			// construction). Latch, or regex search stays dead instead of degrading to sync.
+			// The worker posts an uncompilable pattern back, so an error here means the worker itself
+			// failed to load. Latch, or regex search stays dead instead of falling back to sync.
 			const fail = () => {
 				const epoch = pending?.epoch ?? request.epoch;
 				workerUnavailable = true;

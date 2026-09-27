@@ -1,9 +1,8 @@
 /**
- * Path-addressed child splices for the range delete. Both go through `spliceChildrenSettled`
- * (`settle.ts`): they address containers at any depth, exactly where a drifted `childIds` or a
- * stale separator becomes permanent. `sharing` is required, not optional: the fix-up writes the
- * surviving neighbours' own bytes, and without it those writes hit snapshot-shared nodes (G1.9).
- * Callers copy the parent chain themselves; `sharing` copies the children the fix-up touches.
+ * Path-addressed child splices for the range delete, through `spliceChildrenSettled` so a
+ * container at any depth keeps its `childIds` and separators right. `sharing` is required, since
+ * the fix-up writes neighbours' bytes that an undo snapshot may share (G1.9). Callers copy the
+ * parent chain themselves; `sharing` copies the children the fix-up touches.
  */
 import type { CstNode, Document } from '../core/nodes';
 import type { GrammarView } from '../schema/block-openers';

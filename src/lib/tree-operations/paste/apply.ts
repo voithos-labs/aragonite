@@ -17,11 +17,8 @@ import { resolveParentScope } from './parent-scope';
 import { replaceBlockAtParent } from './replace-block-at-parent';
 
 /**
- * Apply an inline paste, reporting where the caret lands in the stored bytes. Single-block goes
- * through `updateBlockContent`; cross-block runs the same reparse path directly against the
- * parent list, because the originating action bundle may not match the target's level. The
- * single-block route stays synchronous through its mutation so the caller can set cursor state
- * before the first reactivity flush.
+ * Apply an inline paste, reporting where the caret lands in the stored bytes. A cross-block paste
+ * commits at the parent list, since the originating action bundle may not match the target's level.
  */
 export async function applyInlineResult(
 	targetPath: number[],
@@ -32,8 +29,8 @@ export async function applyInlineResult(
 		return commitInlineCrossBlock(targetPath, result, ctx);
 	}
 
-	// Unawaited: the caller sets pendingCursorOffset in the same synchronous block, so both
-	// land in one reactive flush.
+	// Unawaited, so the caller places the caret before the first reactive flush and both land in
+	// that one flush.
 	const blockIndex = targetPath[targetPath.length - 1];
 	const write = ctx.blockEdit.updateBlockContent(
 		blockIndex,

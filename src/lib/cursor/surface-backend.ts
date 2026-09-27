@@ -17,11 +17,8 @@ import {
 
 export interface SurfaceBackendDeps {
 	getEl: () => HTMLElement | null;
-	/**
-	 * Where the user meant the caret, in raw units, when the browser holds no usable range:
-	 * Chromium drops an element-level caret beside an atomic widget across an event-loop yield.
-	 * Null when no such intent is recorded.
-	 */
+	/** Where the user meant the caret, in raw units, when the browser holds no usable range: Chromium
+	 *  drops an element-level caret beside an atomic widget across an event-loop yield. */
 	getSnapTarget?: () => number | null;
 }
 

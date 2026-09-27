@@ -1,7 +1,6 @@
 /**
- * Cross-block paste: delete the active range and dispatch the paste onto the collapsed caret as
- * one undo entry, then restore the caret via DOM, since the originating block may be
- * gone and pendingCursor with it.
+ * Cross-block paste: delete the range and paste at the collapsed caret as one undo entry, then
+ * restore the caret through the DOM, since the block the paste started in may be gone.
  */
 
 import type { CrossBlockDispatchContext } from './dispatch';
@@ -61,9 +60,8 @@ export async function handleCrossBlockPaste(
 	// One entry for the delete and the paste, so Ctrl+Z never stops between them.
 	await rangeUndoStep(mutCtx, async () => {
 		const caret = await performCrossBlockDelete(mutCtx, { skipCaretRestore: true });
-		// The gesture was consumed (preventDefault above) and there is nowhere to put the payload:
-		// another cross-block mutation collapsed the selection while this paste waited it out. Text
-		// survives on the clipboard, but a host-imported image does not, so report it.
+		// The paste was consumed but has nowhere to go, since another cross-block edit collapsed the
+		// selection first; an imported image, unlike text, isn't on the clipboard, so report it.
 		if (!caret) {
 			emitClipboardError(ctx.events, {
 				error: new Error('cross-block paste resolved no caret; nothing inserted'),
@@ -72,9 +70,8 @@ export async function handleCrossBlockPaste(
 			return;
 		}
 
-		// No `preDelete`: the range is already gone. `performCrossBlockDelete` above took it through
-		// `rangeDelete`, which runs the join cleanup itself, so this dispatch inserts at a caret the
-		// cleanup already placed; handing it a range would delete a second time.
+		// No `preDelete`: the delete above already removed the range and ran the join cleanup, so
+		// handing the dispatch a range would delete a second time.
 		const result = await pasteDispatch(
 			{
 				pastedText: pasted,
@@ -99,11 +96,8 @@ export async function handleCrossBlockPaste(
 	return true;
 }
 
-/**
- * Land the caret after a cross-block paste commit. Inline pastes place it via DOM, since
- * pendingCursor may address a block the range delete unmounted; structural pastes rely on
- * pasteDispatch's internal focus and only step in when focus escaped the editor.
- */
+/** An inline paste places the caret through the DOM, since the pending caret may name a block the
+ *  delete unmounted; a structural paste focuses itself, so this only catches focus leaving. */
 async function landCaretAfterPaste(
 	ctx: CrossBlockDispatchContext,
 	caretPath: number[],
@@ -137,11 +131,8 @@ function wholeTablePath(selection: SelectionState, doc: Document): number[] | nu
 	return lo === 0 && hi === cellCount - 1 ? anchor.path.slice() : null;
 }
 
-/**
- * Replace the covered block with the pasted content at its parent position. Routes through
- * replaceBlockAtParent so the splice lands at the doc/enclosing-container scope rather than the
- * row-level blockEdit TableRowBlock propagates.
- */
+/** Through `replaceBlockAtParent`, so the splice lands at the enclosing container's scope rather
+ *  than the row-level `blockEdit` a table row passes down. */
 async function replaceCoveredBlockWithPaste(
 	ctx: CrossBlockDispatchContext,
 	mutCtx: CrossBlockMutationContext,
@@ -152,8 +143,8 @@ async function replaceCoveredBlockWithPaste(
 	const covered = blockNodeAt(doc, blockPath);
 	if (!covered) return;
 
-	// This route never reaches pasteDispatch, so the paste transforms and the instance grammar
-	// ride here too; both rules live in the helper, applied at both sites.
+	// This route skips `pasteDispatch`, so it applies the paste transforms and the instance
+	// grammar itself.
 	const parsed = parseReplacement(
 		covered,
 		applyPasteTransforms(pasted, ctx.activePlugins),
@@ -174,9 +165,8 @@ async function replaceCoveredBlockWithPaste(
 			focusOffset: CURSOR_END,
 			source: 'cross-block-covered-block',
 			grammar: ctx.reading.grammar,
-			// Nothing is reattached after the pasted text here, since the block's whole position is
-			// the target, so the trailing blank line comes in unfiltered (`paste/dispatch.ts` states
-			// the rule).
+			// The block's whole position is the target, with nothing reattached after the pasted
+			// text, so the trailing blank line comes in unfiltered.
 			trailingSeparator: parsed.suffix
 		});
 	});

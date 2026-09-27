@@ -1,9 +1,7 @@
 /**
- * Cross-block mutation: delete a range as one commit, collapse, restore the caret. Commit
- * routing: pure top-level (both endpoints at doc.children, no cross-path table) commits
- * structurally; anything nested or with a cross-path table endpoint needs one scope per
- * spliced container, since the whole-row snap splices `table.children`. Intra-table
- * full-table/row/column coverage routes to `range-delete-table-coverage`.
+ * Cross-block delete: one commit that deletes the range, collapses it and restores the caret.
+ * A range between top-level blocks commits structurally; anything nested, or with an endpoint in
+ * a table the other endpoint isn't in, needs one scope per spliced container.
  */
 
 import type { SelectionState } from '../selection-state.svelte';
@@ -32,7 +30,7 @@ export interface CrossBlockMutationContext {
 	revealPath: (path: number[]) => Promise<BlockComponent | null>;
 	controller: CommitController;
 	/** How the editor reads its bytes: the ancestor rebuild reads its grammar, and the join cleanup
-	 *  its link definitions and mode (live-mode.md § 4.5). */
+	 *  its link definitions and mode (`docs/design/live-mode.md` § 4.5). */
 	reading: Reading;
 }
 
@@ -57,17 +55,13 @@ export function rangeUndoStep(
 	return ctx.controller.undoStep(deleteSnapshot(start?.path ?? [0], start?.offset ?? 0), run);
 }
 
-/**
- * rangeDelete the current cross-block selection, commit, collapse, restore the caret.
- * Returns the collapsed caret, or null when the selection wasn't cross-block.
- */
+/** Returns the collapsed caret, or null when the selection wasn't cross-block. */
 export async function performCrossBlockDelete(
 	ctx: CrossBlockMutationContext,
 	options?: CrossBlockDeleteOptions
 ): Promise<SelectionPoint | null> {
-	// A re-entrant delete (key auto-repeat, paste, composition) waiting on the mount would resolve
-	// the same endpoints and delete against the mutated tree. Deletes are serialized per
-	// selection; with none in progress this adds no await, so the sync variant still yields nowhere.
+	// A re-entrant delete (key repeat, paste, composition) would resolve the same endpoints against
+	// the mutated tree, so deletes queue per selection; with none queued this adds no await.
 	let inFlight: Promise<SelectionPoint | null> | undefined;
 	while ((inFlight = inFlightDeletes.get(ctx.selection))) {
 		await inFlight.catch(() => {});
@@ -92,9 +86,8 @@ async function runCrossBlockDelete(
 	if (!start || !end) return null;
 
 	const doc = ctx.getDoc();
-	// A table endpoint on a different path from the other leaves the top-level path: the
-	// whole-row snap splices `table.children`, which only the multi-scope commit syncs. A range
-	// inside one table clears only raws.
+	// A table endpoint splices `table.children` (the whole-row snap), which only the multi-scope
+	// commit syncs; a range inside one table clears only raws and stays top-level.
 	const samePath = pathsEqual(start.path, end.path);
 	const isPureTopLevel =
 		start.path.length === 1 &&
@@ -107,9 +100,8 @@ async function runCrossBlockDelete(
 			}
 		: undefined;
 
-	// The start wins the collapse: the merged block lands at `start.path[0]` and stays put. Mount
-	// it now, while `caretRestore` (a sync placement after the tick) still needs a live element.
-	// Skipped without `caretRestore` so the IME path never yields before its synchronous commit.
+	// The start wins the collapse, so mount it now while `caretRestore` still needs a live element;
+	// skipped without `caretRestore` so the IME path never yields before its synchronous commit.
 	if (caretRestore) {
 		await ctx.revealPath(start.path);
 	}
@@ -128,11 +120,8 @@ async function runCrossBlockDelete(
 	return await commitCrossContainerDelete(ctx, doc, start, end, caretRestore);
 }
 
-/**
- * The compositionstart variant: the IME swallows the composition if the handler yields, so this
- * must not await. The commit is synchronous up to its `await tick()` after the state write, so
- * firing without awaiting keeps the whole delete before any yield.
- */
+/** For compositionstart, where the IME drops the composition if the handler yields: the commit
+ *  is synchronous up to its `await tick()`, so firing without awaiting deletes before any yield. */
 export function performCrossBlockDeleteSync(ctx: CrossBlockMutationContext): void {
 	void performCrossBlockDelete(ctx, { skipCaretRestore: true });
 }
@@ -144,10 +133,8 @@ function isTableAt(doc: Document, path: number[]): boolean {
 	return node !== null && countsCells(node);
 }
 
-/**
- * Pure top-level commit path. Both paths have length 1, so rangeDelete never reaches into a
- * nested container and the proxy-doc (children copy) is a safe mutation target.
- */
+/** Both paths have length 1, so `rangeDelete` never reaches into a nested container and the
+ *  top-level children copy is a safe mutation target. */
 async function commitPureTopLevelDelete(
 	ctx: CrossBlockMutationContext,
 	start: SelectionPoint,
@@ -176,10 +163,7 @@ async function commitPureTopLevelDelete(
 	return collapsedCaret;
 }
 
-/**
- * Cross-container commit path: one rangeDelete on the live doc inside a commitMultiScope
- * whose scope list covers every container whose children array was spliced.
- */
+/** One `rangeDelete` on the live doc, with a commit scope for every container it splices. */
 async function commitCrossContainerDelete(
 	ctx: CrossBlockMutationContext,
 	doc: Document,
@@ -236,11 +220,8 @@ async function commitCrossContainerDelete(
 	return collapsedCaret;
 }
 
-/**
- * Every mounted container on either endpoint path whose children array gets spliced: strict
- * ancestors, plus a table endpoint itself (the whole-row snap splices its children). Document
- * root excluded; callers add it via `getDocScope()`. Outermost-first, de-duplicated.
- */
+/** Every mounted container on either endpoint path whose children get spliced: strict ancestors,
+ *  plus a table endpoint itself. The caller adds the document root with `getDocScope()`. */
 function collectTouchedContainers(
 	doc: Document,
 	startPath: number[],

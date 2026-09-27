@@ -1,7 +1,7 @@
 /**
- * The split and merge primitives, the two ops that re-divide a body's blocks around a caret,
- * plus the cleanup every destructive join goes through (live-mode.md § 4.5). They mutate and
- * report; the commit sequence recomputes the separators around them (`settle.ts`).
+ * Split and merge, the two operations that re-divide a body's blocks around a caret, plus the
+ * cleanup every destructive join goes through (`docs/design/live-mode.md` § 4.5 Joins clean up
+ * where they meet). They mutate and report; the commit recomputes the separators around them.
  */
 
 import { isDevChecks } from '../env';
@@ -67,26 +67,24 @@ export interface SplitResult {
 }
 
 /**
- * The caret index a caller is about to use must be the one the split reported (G1.34): a caller
- * that re-derives `blockIndex + 1` itself warns here instead of going wrong quietly.
+ * A caller must land the caret on the index the split reported; one that re-derives
+ * `blockIndex + 1` itself warns here instead of going wrong quietly (G1.34).
  */
 export function assertSplitLanding(split: SplitResult, landing: number): void {
 	assertInvariant('split-landing', () => checkSplitLanding(split.secondHalfIndex, landing));
 }
 
 /**
- * A write target that holds one block must receive exactly one (G1.35). Checked at the write
- * with the nodes being written, so a new write target inherits the check.
+ * A write target that holds one block must receive exactly one; checking at the write means a
+ * new write target inherits the check (G1.35).
  */
 export function assertSingleNodeSink(sink: string, installed: readonly CstNode[]): void {
 	assertInvariant('single-node-sink', () => checkSingleNodeSink(sink, installed.length));
 }
 
 /**
- * Split the node at `blockIndex` at raw `offset` (display-relative). The first half inherits the
- * original ID and the whole structural suffix (a setext underline); the second half opens with a
- * blank separator wherever one does structural work ({@link separatorSplitsOffNextLine}).
- * A caller that moves the second half elsewhere passes how its new position reads it.
+ * Split the node at `blockIndex` at `offset`; the first half keeps the ID and any setext underline.
+ * A caller moving the second half elsewhere passes `readSecondHalf` for that position.
  */
 export function splitNode(
 	parent: BodyParentArg,
@@ -178,9 +176,8 @@ export function splitNode(
 }
 
 /**
- * The cut a split makes: a line ending the offset lands on ends the first half rather than
- * opening the second, which would create a blank line nobody typed. A CRLF is one boundary, and
- * the cut clamps to a content range's end.
+ * A line ending at the cut ends the first half rather than opening the second, which would
+ * create a blank line nobody typed; a CRLF counts as one boundary.
  */
 function cutPastLineEnding(descriptor: BlockKindDescriptor, node: CstNode, offset: number): number {
 	const raw = node.raw;
@@ -252,9 +249,8 @@ function blankHalfBecomesBlock(
 }
 
 /**
- * Would a blank line between `raw` and the line after it split off a second block? Asked of the
- * bytes, never a kind list, so the separator never lands inside a body that swallows both forms.
- * Blank blocks are not counted on either side, or the answer would be yes for every raw.
+ * Whether a blank line after `raw` would split off a second block, asked of the bytes rather than
+ * a kind list so the separator never lands inside a body that swallows blank lines.
  */
 function separatorSplitsOffNextLine(
 	raw: string,
@@ -277,6 +273,7 @@ function separatorSplitsOffNextLine(
 	);
 }
 
+/** Blank blocks don't count, or a blank line would split a block off every raw. */
 function contentBlockCount(source: string, grammar: GrammarView): number {
 	return readBlocks(source, { grammar, scope: 'fragment' }).children.filter(
 		(node) => !isBlankParagraph(node)
@@ -284,9 +281,8 @@ function contentBlockCount(source: string, grammar: GrammarView): number {
 }
 
 /**
- * A split that keeps a kind's structural suffix (raw beyond its content range, the setext
- * underline) on the first half. Null when the kind has no suffix, or the offset is at block
- * start or inside the suffix itself.
+ * A split that keeps a kind's structural suffix (a setext underline) on the first half; null
+ * when there is none, or the offset sits at block start or inside the suffix.
  */
 function structuralSuffixSplit(
 	descriptor: BlockKindDescriptor,
@@ -314,10 +310,8 @@ function structuralSuffixSplit(
 // ── Merge ──
 
 /**
- * `join.mergedRaw` with the delimiter runs the join left unpaired at the join point dropped, only
- * where the caret's block hides its delimiters (live-mode.md § 4.5). The one registered cleaner
- * verifies its own bytes and otherwise declines, leaving the literal join every other mode gets.
- * Every destructive join goes through here.
+ * `join.mergedRaw` minus the delimiter runs the join left unpaired, where the caret's block hides
+ * its delimiters. Every destructive join goes through here.
  */
 export function cleanJoinedRaw(join: JoinSeam): CleanedJoin {
 	const literal = { raw: join.mergedRaw, seam: join.seam };
@@ -326,9 +320,8 @@ export function cleanJoinedRaw(join: JoinSeam): CleanedJoin {
 }
 
 /**
- * The bytes a single-block edit leaves when it deletes `range` out of `display`. A delete-then-
- * insert is a join like any other, so it goes through the same cleanup, and the returned offset
- * is where the two sides now meet.
+ * The bytes a single-block edit leaves when it deletes `range` from `display`, cleaned like any
+ * join; the returned offset is where the two sides meet.
  */
 export function cutRangeFromDisplay(
 	node: NodeView,
@@ -336,9 +329,8 @@ export function cutRangeFromDisplay(
 	range: { start: number; end: number },
 	reading: Reading
 ): { display: string; offset: number } {
-	// Both ends are moved off the middle of a surrogate pair before the slice: half a pair here
-	// is unrecoverable bytes, not a recoverable edit. Snapping both the same direction cannot
-	// invert the range.
+	// Both ends snap off the middle of a surrogate pair, since half a pair can't be recovered;
+	// snapping both in the same direction cannot invert the range.
 	const start = snapToScalarBoundary(display, range.start);
 	const end = snapToScalarBoundary(display, range.end);
 	if (start >= end) return { display, offset: start };
@@ -360,10 +352,8 @@ export function cutBeforeSuffix(node: NodeView, cut: number): number {
 }
 
 /**
- * The bytes of a join: `survivor` cut at `cut`, then `absorbed`'s text from `from`, then the
- * survivor's structural suffix (a setext underline), which stays under the joined text. The
- * absorbed block's own suffix goes with that block. `writeTail` is the absorbed kind's write
- * rule; `start` and `end` are the offsets the join cut each block at.
+ * The bytes of a join, with the survivor's structural suffix (a setext underline) kept under the
+ * joined text and the absorbed block's dropped. `writeTail` is the absorbed kind's write rule.
  */
 export function joinKeepingSuffix(
 	survivor: NodeView,
@@ -469,9 +459,8 @@ export function joinIntoLeaf(
 }
 
 /**
- * Merge `curr` into the deepest prose leaf of `prev`, writing into that leaf rather than
- * reparsing concatenated raw, which preserves prev's component identity and IME state. Null when
- * no mergeable leaf exists, so the caller can fall back to move-focus.
+ * Merge `curr` into `prev`'s deepest prose leaf, writing into the leaf so it keeps its component
+ * and IME state. Null when no leaf can take it, so the caller moves focus instead.
  */
 export function mergeIntoPrevDeepLeaf(
 	parent: BodyParentArg,

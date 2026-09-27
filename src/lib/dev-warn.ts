@@ -41,11 +41,8 @@ const EDITOR_TAG = /\[aragonite:([^\]]+)\]/;
 /** Svelte's runtime warnings lead with their code, after any `%c` styling. */
 const SVELTE_CODE = /\[svelte\]\s+([a-z0-9_]+)/;
 
-/**
- * The tag a console line carries: the editor's own, or `svelte:<code>` for a Svelte runtime
- * warning, so one waiver list covers both; null for any other line. Every warning watcher reads
- * lines through here.
- */
+/** The tag a console line carries: the editor's own, or `svelte:<code>` for a Svelte runtime
+ *  warning, so one waiver list covers both; null for any other line. */
 export function warnTagOfLine(text: string): string | null {
 	const tag = EDITOR_TAG.exec(text)?.[1];
 	if (tag) return tag;

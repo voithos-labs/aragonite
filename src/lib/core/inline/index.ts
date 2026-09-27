@@ -4,8 +4,8 @@ import type { AnyInlineKind, CstNode, InlineNode } from '../nodes';
 import type { NodeView } from '../node-views';
 import { displayLength, firstDisplayLine } from '../lines';
 import { getBlockKindDescriptor } from '../../schema/block-kind-descriptor';
-// Registered before any descriptor read, headless of the editor mount. Explicit call: a bare
-// side-effect import is tree-shaken from the production build.
+// The built-in descriptors register before any read, with or without a mounted editor; the call
+// is explicit because a bare side-effect import is tree-shaken from the production build.
 import { registerBuiltInDescriptors } from '../../schema/built-in-descriptors';
 import type { LinkReferenceResolver } from './link-reference-resolver';
 import { defaultGrammarView, type GrammarView } from '../../schema/block-openers';
@@ -35,11 +35,8 @@ export function getContentRange(node: NodeView): ContentRange {
 	return { start: 0, end: displayLength(node.raw) };
 }
 
-/**
- * The bytes a block keeps past its content, before its trailing line ending: structure, like a
- * setext underline. Drawn as a marker after the text, and kept by every edit that keeps the
- * block's head.
- */
+/** The structure between a block's content and its line ending, like a setext underline: drawn
+ *  as a marker after the text, and kept by every edit that keeps the block's head. */
 export function structuralSuffix(node: NodeView): string {
 	// A kind that is not prose shows its whole display as content.
 	if (!isProseKind(node.kind)) return '';
@@ -67,12 +64,8 @@ export function isProseKind(kind: CstNode['kind']): boolean {
 	return getBlockKindDescriptor(kind).supportsInline;
 }
 
-/**
- * The bytes an inline construct's delimiters do not cover, or null for a kind that has none: a
- * bare text run, an escape, a pair emptied of content. The inline counterpart of
- * {@link getContentRange}, here rather than beside one caller because the caret bounds, the
- * typing position, deletion and the toggles all need the same answer.
- */
+/** The inline counterpart of {@link getContentRange}: the bytes a construct's delimiters do not
+ *  cover, or null for one with no content (a text run, an escape, an emptied pair). */
 export function constructContentRange(node: InlineNode): ContentRange | null {
 	const children = node.children;
 	if (children && children.length > 0) {
@@ -83,11 +76,8 @@ export function constructContentRange(node: InlineNode): ContentRange | null {
 	return fence > 0 ? { start: node.start + fence, end: node.end - fence } : null;
 }
 
-/**
- * A prose node's inline tree, pure: no caching, no reactive reads. The render path calls this
- * directly; the caching accessor (inline-cache.ts) calls it on a miss. An editor passes its own
- * grammar, so a plugin it left out claims no bytes.
- */
+/** Uncached and free of reactive reads, so the render path can call it directly. An editor
+ *  passes its own grammar, so a plugin it left out takes no bytes. */
 export function computeInlineContent(
 	node: NodeView,
 	resolver: LinkReferenceResolver | undefined,
@@ -113,11 +103,8 @@ export function inlineReaderFor(grammar: GrammarView): (node: NodeView) => Inlin
 
 // ── Inline Parser ──────────────────────────────────────────────────────────
 
-/**
- * Parse inline content over raw[start, end). Node offsets are absolute into raw, and every byte
- * lands in exactly one node's range. The published entry: with no grammar it reads every installed
- * plugin's syntax. Code inside the editor calls {@link readInline}, which takes the grammar.
- */
+/** Node offsets are absolute into raw, and each byte of raw[start, end) lands in exactly one node.
+ *  With no grammar it reads every installed plugin's syntax; the editor uses {@link readInline}. */
 export function parseInline(
 	raw: string,
 	start: number,
@@ -128,11 +115,8 @@ export function parseInline(
 	return readInline(raw, start, end, resolver, grammar ?? defaultGrammarView);
 }
 
-/**
- * `parseInline` for code inside the editor. Both bounds are checked, not just typed: a caller the
- * compiler cannot reach that passes only the source would otherwise get one whole-string text
- * node, which is wrong output that looks like a result.
- */
+/** Both bounds are checked at runtime: a caller outside the type checker that passes only the
+ *  source would get one whole-string text node, wrong output that looks like a result. */
 export function readInline(
 	raw: string,
 	start: number,

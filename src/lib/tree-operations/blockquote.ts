@@ -8,10 +8,8 @@ import { emptyParagraph } from './node-primitives';
 import { firstLineEnding } from '../core/lines';
 
 /**
- * Lift a quote-shaped container's first child out (Rule U2), returning fresh clones without
- * mutating the input; the `lift-first-child-drop-opener` strategy restricts the callers. The
- * remainder is always a plain blockquote: a marker like `[!TYPE]` lives only on the opener line,
- * so the lift drops it.
+ * Lift a quote-shaped container's first child out as fresh clones, input untouched. The remainder
+ * is always a plain blockquote, since a marker like `[!TYPE]` lives only on the dropped opener.
  */
 export function unwrapFirstChildFromQuote(container: NodeView): CstNode[] {
 	if (!container.children || container.children.length === 0) {
@@ -50,11 +48,8 @@ export function unwrapFirstChildFromQuote(container: NodeView): CstNode[] {
 }
 
 /**
- * The parent-level replacement when Enter exits a quote-shaped container's empty trailing
- * paragraph: `[trimmedContainer, exitParagraph]`, the caller's focus target at index 1.
- * Kind-agnostic through the descriptor's `rebuildRaw`; input unmutated. The exit paragraph
- * carries a separator like the list exit's, or a line typed there lazy-continues the
- * container on reload.
+ * The replacement when Enter exits a quote's empty trailing paragraph: the trimmed quote, then the
+ * exit paragraph to focus, separated so a line typed there doesn't continue the quote on reload.
  */
 export function buildQuoteExitReplacement(container: NodeView): CstNode[] {
 	if (!container.children || container.children.length <= 1) return [];

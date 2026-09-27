@@ -56,9 +56,8 @@ export function applyPasteTransforms(text: string, activation: PluginActivation)
 }
 
 /**
- * The one place plugin `transform()` code is called from. A throw becomes a decline, since on the
- * cross-block route the range delete has already committed and an escaping throw would leave the
- * selection deleted and nothing pasted. The warning names its phase, the dev re-run or the paste.
+ * The one place plugin `transform()` code runs. A throw becomes a decline, since on the
+ * cross-block route the range delete has already committed and would leave nothing pasted.
  */
 function runContained(
 	transform: PasteTransform,

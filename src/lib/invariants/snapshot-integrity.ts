@@ -1,9 +1,8 @@
 /**
  * G1.9: no mutation may change the serialized bytes reachable through a node an undo entry still
- * shares. It is about the bytes, not identity, so a shared node may still be moved: each snapshot
- * owns its own children array. The digest covers the top-level children only, because a
- * container's raw covers its whole subtree, so a write through any shared descendant that changes
- * the serialization shows up without recursing.
+ * shares. It is about bytes, not identity, so a shared node may move: each snapshot owns its
+ * children array. The digest covers top-level children only, since a container's raw covers its
+ * whole subtree.
  */
 import type { Document } from '../core/nodes';
 import type { InvariantViolation } from '../assert';

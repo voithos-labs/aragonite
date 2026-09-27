@@ -1,9 +1,8 @@
 /**
- * Checks that the stylesheet and `cursor/widget-offset.ts` still agree about which marker runs
- * are hidden. The TypeScript side mirrors the stylesheet's class scoping by hand, because
- * reading `getComputedStyle` on every keystroke is too slow, so the two can drift. It compares
- * three answers once per mode change, per marker family: the stylesheet's, the DOM-to-offset
- * traversal's, and the node-space rule both are stated over. Where no stylesheet hides anything
+ * Checks that the stylesheet and `cursor/widget-offset.ts` agree on which marker runs are hidden:
+ * the TypeScript side mirrors the stylesheet by hand, since `getComputedStyle` per keystroke is
+ * too slow. Once per mode change it compares, per marker family, the stylesheet, the DOM-to-offset
+ * traversal and the node-space rule both are stated over. Where no stylesheet hides anything
  * (jsdom, source mode) it does nothing, and the presentation e2e battery asserts instead.
  */
 

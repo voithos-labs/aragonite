@@ -93,9 +93,8 @@ export const forBody = (parent: BodyParentArg, raw: string): string =>
 	normalizeBodyWrite('owner' in parent ? parent.owner : undefined, raw, parentLineEnding(parent));
 
 /**
- * `raw` made legal as `node`'s own bytes, for a write that replaces the node with a reparse: the
- * reparse re-derives metadata, so structure the rule restores from the old metadata is applied
- * first.
+ * `raw` made legal as `node`'s own bytes before a reparse replaces the node; the rule runs first
+ * because it reads the node's metadata as it stands, which the reparse re-derives.
  */
 export function normalizeOwnRaw(node: NodeView, raw: string, lineEnding: LineEnding): string {
 	const rule = tryGetBlockKindDescriptor(node.kind)?.rawWrite;
@@ -104,7 +103,7 @@ export function normalizeOwnRaw(node: NodeView, raw: string, lineEnding: LineEnd
 
 /**
  * Write `raw` as `node`'s own bytes through its kind's rule, in place. Every write of a leaf's
- * bytes that bypasses the kind's editable element must use this or {@link normalizeOwnRaw}.
+ * bytes that bypasses the kind's editable element must go through here or {@link normalizeOwnRaw}.
  */
 export function writeOwnRaw(
 	node: CstNode,
@@ -129,9 +128,8 @@ export function installOwnRaw(node: CstNode, legal: string, grammar: GrammarView
 // ── Node constructors ──
 
 /**
- * Every argument is required: a paragraph's raw ends in a line ending, so the caller says which
- * document's ending it takes. A fresh object every call, or one instance would sit at
- * several tree positions (G1.9).
+ * A fresh object every call, since one instance at two tree positions would share its bytes
+ * (G1.9). `lineEnding` is required because a paragraph's raw ends in the document's ending.
  */
 export function paragraphNode(leadingTrivia: string, text: string, lineEnding: string): CstNode {
 	return { kind: 'paragraph', leadingTrivia, raw: text + lineEnding };
@@ -176,9 +174,8 @@ export function isBlockNode(node: NodeView | DocumentView): boolean {
 // ── Grammar stand-in and replacement shape ──
 
 /**
- * The stand-in for whatever the user types next: the line most likely to continue any block, so
- * a trial parse answers for the worst case. Openers are arbitrary code, so
- * `probeLineOpensAsProse` is the runtime check that it still reads as prose.
+ * The stand-in for whatever the user types next, the line most likely to continue any block;
+ * `probeLineOpensAsProse` checks at runtime that no registered opener claims it.
  */
 export const NEXT_PROSE_LINE = 'x';
 

@@ -101,8 +101,8 @@ export function linkFieldsFromInline(link: InlineNode, display: string): LinkFie
 
 // ── The GFM serializer ──────────────────────────────────────────────────────
 
-/** The built-in grammar's inverse. Reach it through the functions above, the only callers
- *  entitled to decide these bytes are GFM's to write. */
+/** The built-in grammar's inverse, called only by the functions above, which decide whether the
+ *  bytes are GFM's to write. */
 function buildLinkSourceBytes(fields: LinkFields): string {
 	if (fields.reference !== undefined) return `[${fields.text}]${fields.reference}`;
 	const title = fields.title !== undefined ? ` "${escapeTitle(fields.title)}"` : '';

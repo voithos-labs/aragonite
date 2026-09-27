@@ -5,7 +5,7 @@ import { structuralSuffix } from '../../core/inline';
 import { snapToScalarBoundary, trimTrailingLineEnding } from '../../core/lines';
 
 /** `node`'s display cut at `offset`. Structure past the text (an ATX closing run, a setext
- *  underline) stays on the head, as a split keeps it, unless the cut is at the start or past the text. */
+ *  underline) stays on the head, unless the cut is at the start or past the text. */
 export function cutKeepingSuffix(node: NodeView, offset: number): { head: string; rest: string } {
 	const display = trimTrailingLineEnding(node.raw);
 	// The cut leaves a surrogate pair whole, since its halves would land in different blocks.

@@ -25,10 +25,8 @@ export interface BlockCompleter {
 	/** Attempt to complete `line`; null declines, and so does a result whose lines render nothing. */
 	tryComplete(line: string): CompletionResult | null;
 	/**
-	 * Also consulted as the line is typed, not only at Enter, for a line that can only mean one
-	 * thing the moment it is complete (a lone `$$`), so the block forms the way a ` ``` ` fence
-	 * does. Off by default: a table's header row is the start of a longer row the user may still
-	 * be typing.
+	 * Also tried as the line is typed, for a line that means one thing once complete (a lone `$$`).
+	 * Off by default, since a table's header row may be a longer row the user is still typing.
 	 */
 	onType?: boolean;
 }
@@ -50,8 +48,7 @@ export function registerBlockCompleter(kind: AnyBlockKind, completer: BlockCompl
 	);
 }
 
-// Kind-name order, so which completer runs first depends on the declarations and never on
-// registration order. The openers' rule, without a priority number no conflict has needed yet.
+// Kind-name order, so which completer runs first never depends on registration order.
 function ordered(): readonly RegistryRecord<AnyBlockKind, BlockCompleter>[] {
 	if (!orderedCache) {
 		orderedCache = completers

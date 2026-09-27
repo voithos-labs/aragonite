@@ -1,7 +1,7 @@
 /**
- * The content write: every byte that enters a node goes through `updateNodeContent`, the one
- * reparse path (editor.md § 6, § 8), after `legalizeWrite` has made it legal for its position;
- * and its container counterpart that re-derives a container's kind from its rebuilt raw.
+ * The content write: every byte that enters a node goes through `updateNodeContent` after
+ * `legalizeWrite` makes it legal for its position. Also re-derives a container's kind from its
+ * rebuilt raw (`docs/design/editor.md` § Structural operations).
  */
 
 import type { AnyBlockKind, CstNode, Document } from '../core/nodes';
@@ -119,10 +119,8 @@ export interface SettledContent {
 }
 
 /**
- * Update raw and reparse. A kind change puts the reparsed block in the position rather than
- * reassigning `kind` in place, and multi-block text creates every parsed block; only a same-kind
- * single-block edit writes in place, so routine typing keeps the node's object identity. Plain
- * `text` is content arriving whole, made legal here; a {@link LegalWrite} already was.
+ * Write and reparse the block; only a same-kind single-block edit writes in place, so typing keeps
+ * the node's identity. A plain string is made legal here; a {@link LegalWrite} already is.
  */
 export function updateNodeContent(
 	parent: BodyParentArg,
@@ -137,7 +135,7 @@ export function updateNodeContent(
 	const stood = taskMarkerMayStandBefore(parent.children[blockIndex]);
 	const settled = writeAndSettleContent(parent, blockIndex, legal, grammar, sharing);
 	// A list item's task marker belongs to its first block, so the write that changed that block
-	// decides whether it keeps it. Before the container's raw rebuild, which writes the marker.
+	// decides whether it keeps it, before the container's raw rebuild writes the marker.
 	const owner = 'owner' in parent ? parent.owner : undefined;
 	if (owner) reconcileTaskMetadata(owner, blockIndex, stood, sharing);
 	return settled;
@@ -171,7 +169,7 @@ function writeAndSettleContent(
 		return settleWriteSeams(parent, blockIndex, lastWritten, widened, sharing, grammar);
 	}
 	// Same-kind typing skips the neighbour reparse unless the first line's indent moved or a blank
-	// line stays blank: the indent decides whether a list item above takes it in (editor.md § 8).
+	// line stays blank: the indent decides whether a list item above takes it in.
 	if (change.op === 'noop' && !wasBlank && !indentMoved) return { change, textStart: 0 };
 	return settleWriteSeams(parent, blockIndex, lastWritten, change, sharing, grammar);
 }
@@ -179,9 +177,8 @@ function writeAndSettleContent(
 const leadingIndent = (text: string): string => /^[ \t]*/.exec(text)![0];
 
 /**
- * Ask every join the write disturbed whether it merges, and report where the written text ended
- * up: a merge into the block above leaves that block standing, so its bytes now sit in front of
- * the text.
+ * Merge across every join the write disturbed, and report where the written text ended up, since
+ * a merge into the block above puts that block's bytes in front of it.
  */
 function settleWriteSeams(
 	parent: BodyParentArg,
@@ -238,9 +235,8 @@ function lastMintedIndex(change: StructuralChange, blockIndex: number): number {
 }
 
 /**
- * The written bytes parsed, with any construct they leave open closed off first: an unterminated
- * construct reads every block below it as its body at the next parse, and the neighbour merge
- * would bring the live tree to exactly that reading.
+ * The written bytes parsed, with a construct they leave open closed first, or the next parse and
+ * the neighbour merge would read every block below it as its body.
  */
 function closeWrittenConstruct(
 	parent: BodyParentArg,
@@ -259,9 +255,8 @@ function closeWrittenConstruct(
 }
 
 /**
- * The closing line the written bytes need when their last construct runs to end of file, asked
- * of the grammar rather than a kind list. Null when the bytes close themselves, or when no fence
- * opener explains the run (the one family whose closer its opener determines).
+ * The closing line the bytes need when their last construct runs to end of file; null when they
+ * close themselves, or no fence opener explains the run.
  */
 function openConstructTerminator(
 	text: string,
@@ -390,9 +385,8 @@ export function probeLineOpensAsProse(grammar: GrammarView): boolean {
 }
 
 /**
- * Re-derive the container at `index` from its own (already rebuilt) raw, replacing it in the
- * slot when that raw now opens as a different kind (editor.md § 8). Eligibility is the opener
- * registry: registering an opener is exactly the claim that `readBlocks(raw)` reproduces the kind.
+ * Replace the container at `index` when its rebuilt raw opens as a different kind; only a kind
+ * with an opener qualifies, since registering one claims `readBlocks(raw)` reproduces the kind.
  */
 export function reclassifyContainer(
 	parent: NodeParent,

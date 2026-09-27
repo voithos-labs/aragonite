@@ -34,7 +34,7 @@ export function collectScanTargets(doc: DocumentView): ScanTarget[] {
 				walk(node.children ?? [], path);
 				return; // container raw duplicates child content; only leaves carry text
 			}
-			if (!desc.editable) return; // thematicBreak and other non-editable kinds have no searchable text
+			if (!desc.editable) return; // non-editable kinds have no searchable text
 			out.push({ path, raw: node.raw });
 		});
 	};

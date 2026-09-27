@@ -58,21 +58,14 @@ export interface BlockEditActions {
 	 * the last child. If the next block is not mounted the caret stays put, key consumed.
 	 */
 	descendToBody(blockIndex: number): void | Promise<void>;
-	/**
-	 * @internal Create a paragraph holding `text` at a boundary of this list, caret after
-	 * the text. `boundaryIndex === children.length` appends. How the between-blocks caret
-	 * inserts (`selection/gap-caret.ts`).
-	 */
+	/** @internal Create a paragraph holding `text` at a boundary of this list, caret after the
+	 *  text; `boundaryIndex === children.length` appends. */
 	insertParagraph(boundaryIndex: number, text: string): void | Promise<void>;
 	mergeWithPrevious(blockIndex: number): void | Promise<void>;
 	mergeWithNext(blockIndex: number): void | Promise<void>;
 	deleteBlock(blockIndex: number): void | Promise<void>;
-	/**
-	 * Write `text` as the block's bytes through its kind's write rule and this list's body rule
-	 * (`mode` says whether the user typed them). `preEditOffset` is the caret the undo snapshot
-	 * records, in the stored bytes; `postEditFocusOffset`, counted in `text` and defaulting to
-	 * `preEditOffset`, is where the caret lands, and comes back mapped as the result's `caret`.
-	 */
+	/** Write `text` as the block's bytes through its kind's and this list's write rules. Undo
+	 *  records `preEditOffset`; `postEditFocusOffset` (in `text`) comes back mapped as `caret`. */
 	updateBlockContent(
 		blockIndex: number,
 		text: string,
@@ -80,22 +73,15 @@ export interface BlockEditActions {
 		preEditOffset?: number,
 		postEditFocusOffset?: number
 	): ContentWrite;
-	/**
-	 * Change block metadata without touching raw: for state held as metadata (task
-	 * checkboxes), not for metadata derived from raw like a heading's level (use
-	 * `updateBlockContent`). The patch is shallow-merged; an empty patch does nothing.
-	 */
+	/** Change metadata raw does not derive (task checkboxes), shallow-merged. Metadata derived from
+	 *  raw, like a heading's level, goes through `updateBlockContent`. */
 	updateBlockMetadata(
 		blockIndex: number,
 		metadata: Record<string, unknown>,
 		options?: { afterTick?: CommitAfterTick }
 	): void | Promise<void>;
-	/**
-	 * Replace the block at `blockIndex` with zero or more new blocks.
-	 * `replacement.length === 0` is the same as `deleteBlock`. `focus.path` addresses a caret
-	 * position inside the replacement's own structure; `snapshotOffset` is where the caret was,
-	 * for the undo entry, and defaults to where it ends up.
-	 */
+	/** Replace the block with zero or more blocks (none is `deleteBlock`). `focus.path` addresses a
+	 *  caret inside the replacement; `snapshotOffset` is the undo entry's caret. */
 	replaceBlock(
 		blockIndex: number,
 		replacement: CstNode[],
@@ -105,11 +91,8 @@ export interface BlockEditActions {
 }
 
 export interface MoveFocusOptions {
-	/**
-	 * When false, a move past the true document end no-ops instead of appending a trailing
-	 * paragraph; only the root append is suppressed, sibling moves and upward delegation
-	 * are unaffected. Defaults to true (Enter/split rely on the append).
-	 */
+	/** False stops a move past the document end from appending a trailing paragraph; sibling moves
+	 *  and upward delegation are unaffected. Defaults to true, which Enter's split relies on. */
 	append?: boolean;
 	/** @internal Set by a move that leaves a between-blocks caret, so the boundary it just
 	 *  left cannot capture it again. */
@@ -125,11 +108,8 @@ export interface FocusActions {
 	/** Mount a top-level block that is not rendered yet before placing a caret in it; see
 	 *  `EditorActionsDeps.revealPath`. */
 	revealPath(path: number[]): Promise<BlockComponent | null>;
-	/**
-	 * @internal Put the caret at a between-blocks boundary that allows one, reporting whether
-	 * it did. Required, not optional: a container that fails to forward the call makes every
-	 * such caret below it silently vanish.
-	 */
+	/** @internal Put the caret at a between-blocks boundary that allows one. Required: a container
+	 *  that fails to forward it makes every such caret below it vanish. */
 	tryGapStop(parentPath: number[], boundaryIndex: number): boolean;
 }
 
@@ -184,11 +164,8 @@ export interface CommitMultiScopeArgs<
 	op?: ScopedOpDescriptor;
 	afterTick?: CommitAfterTick;
 	discardIfNoop?: DiscardIfNoop;
-	/**
-	 * Caret positions each list's fix-up keeps up to date, parallel to `scopes`: a container
-	 * that collapses moves the bytes under a position chosen before the fix-up ran. Written
-	 * in place, so `afterTick` reads the updated position off the object it passed in.
-	 */
+	/** Caret positions each list's fix-up updates in place, parallel to `scopes`, since a collapsing
+	 *  container moves the bytes under them; `afterTick` reads them back off the same objects. */
 	trackCaret?: readonly (TrackedPosition | undefined)[];
 }
 
@@ -197,7 +174,7 @@ export interface CommitStructuralArgs {
 	mutate: (children: CstNode[]) => StructuralChange;
 	op?: ScopedOpDescriptor;
 	afterTick?: CommitAfterTick;
-	/** Leaf(ves) for the dev invariant check when `mutate` returns `noop` (in-place kind change). */
+	/** Leaves for the dev invariant check when `mutate` returns `noop` (an in-place kind change). */
 	touchedNodes?: CstNode[];
 	discardIfNoop?: DiscardIfNoop;
 }
@@ -240,11 +217,8 @@ export interface CommitController {
 	commitMultiScope<const S extends readonly MultiScopeTarget[]>(
 		args: CommitMultiScopeArgs<S>
 	): Promise<boolean>;
-	/**
-	 * Expose the document root as a `MultiScopeTarget`, so a `commitMultiScope` caller can
-	 * include changes at the document level alongside containers (a cross-block delete whose
-	 * common ancestor is the root).
-	 */
+	/** The document root as a `MultiScopeTarget`, so a multi-scope commit can include root-level
+	 *  changes (a cross-block delete whose common ancestor is the root). */
 	getDocScope(): MultiScopeTarget;
 	/** Flush the pending keystroke batch (emit its `input` event and clear the debounce
 	 *  timer) before an undo or redo, so the batch's bytes aren't lost. */
@@ -252,12 +226,8 @@ export interface CommitController {
 	/** Run a command's byte write as its own undo entry. A command is not typing, so the
 	 *  keystroke batch breaks on both sides: one Ctrl+Z takes back the command alone. */
 	isolateUndoEntry(write: () => void): void;
-	/**
-	 * Make every write made while `run`'s promise is pending one undo entry: the document before the
-	 * first write, with the selection as it stood when the step opened (`seed` when nothing is
-	 * focused). The step ends when the promise settles or at the author's next input, whichever
-	 * comes first, and a step that writes nothing leaves no entry.
-	 */
+	/** Make every write made while `run` is pending one undo entry, restoring the selection the step
+	 *  opened with (`seed` when unfocused). Ends when `run` settles or at the author's next input. */
 	undoStep(seed: CommitSnapshotArg, run: () => Promise<unknown>): Promise<void>;
 	/** Called on the author's own input: every later write opens its own entry, even while a
 	 *  step's run is still pending. */
@@ -312,9 +282,8 @@ export interface ListContext {
 	 * new sibling item. Emits exactly one undo snapshot and one edit event.
 	 */
 	splitItemAtOffset(itemIndex: number, innerIndex: number, offset: number): Promise<void>;
-	/** Promote a nested list item to the parent list's level. Called on the parent list's
-	 *  context. `nestedListNode` says which list, as a live-tree reference; writes go through
-	 *  the commit. */
+	/** Promote a nested list item to this parent list's level; `nestedListNode` is a live-tree
+	 *  reference, and writes go through the commit. */
 	promoteNestedItem(
 		parentItemIndex: number,
 		nestedListNode: NodeView,

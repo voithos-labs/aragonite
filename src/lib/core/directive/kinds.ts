@@ -105,11 +105,8 @@ export function registerDirectiveKinds(): void {
 
 // ── Text tier: inline `:name[label]{attrs}` ────────────────────────────────────
 
-/**
- * The `:` recognizer (text-recognizer.ts) gives this kind to the span it delimits. The widget
- * opts into `revealSource`, so focus swaps the widget for its editable source and blur/Enter
- * commits (the shared code in widget-interaction.ts). Idempotent for HMR.
- */
+/** The `:` recognizer gives this kind to the span it delimits. The widget opts into `revealSource`,
+ *  so focus swaps it for its editable source. Idempotent for HMR. */
 export function registerDirectiveTextKind(): void {
 	if (isInlineKindDeclared(DIRECTIVE_TEXT)) return;
 	const kind = declarePluginInlineKind(DIRECTIVE_TEXT);
@@ -127,9 +124,8 @@ function buildDirectiveTextWidget(node: InlineNode, raw: string): HTMLElement {
 	return shell;
 }
 
-// Enter opens a paragraph sibling: a leaf never holds a line break, so the split reparses its
-// empty tail. Backspace/Delete at an edge move focus to the neighbour without joining, as for
-// any non-mergeable block.
+// Enter opens a paragraph sibling, since a leaf never holds a line break; Backspace and Delete at
+// an edge move focus without joining, as for any block that doesn't merge.
 const DIRECTIVE_LEAF_KEYMAP: KeyBinding[] = [
 	{ chord: 'Enter', command: 'block.split' },
 	{ chord: 'Tab', command: 'block.insertTab' },
@@ -139,9 +135,8 @@ const DIRECTIVE_LEAF_KEYMAP: KeyBinding[] = [
 	{ chord: 'Alt+ArrowDown', command: 'block.moveDown' }
 ];
 
-// The `::name` fence is a dimmed marker prefix, on the heading marker-range mechanism. A raw
-// that no longer opens a fence reparses to a paragraph first, so the null branch is only a
-// safety fallback.
+// The `::name` fence is a dimmed marker prefix, like a heading's. A raw that stops opening a fence
+// reparses to a paragraph first, so the null branch is only a fallback.
 function directiveLeafContentRange(node: NodeView): { start: number; end: number } {
 	const fence = matchDirectiveOpener(trimTrailingLineEnding(node.raw));
 	const start = fence ? fence.colonCount + fence.name.length : 0;

@@ -22,12 +22,8 @@ interface BalancedRuns {
 	attrs: Map<number, number>;
 }
 
-/**
- * Balanced-run matches for one block's raw. Without the memo, a paragraph carrying many `:name[`
- * starts pays a full block scan each. Matching is prefix-determined, so one stack pass answers
- * every consultation and the caller's `end` filters the result. Bounded rather than weak-keyed
- * because a string cannot key a WeakMap; two entries cover a block's own scan.
- */
+/** Balanced-run matches per block raw, so a paragraph with many `:name[` starts pays one scan:
+ *  matching is prefix-determined, and the caller's `end` filters the result. */
 const balancedRuns = createBoundedMemo<string, BalancedRuns>({ cap: 2 });
 
 function matchBalancedRuns(raw: string): BalancedRuns {

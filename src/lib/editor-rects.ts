@@ -1,9 +1,8 @@
 /**
- * Viewport-space geometry over the rendered document, the public face of the measurement
- * calls block components expose. Offsets mean whatever `measurePartialRects` means for that
- * block (raw offsets on prose leaves, cell-index coordinates in a grid). Rects are real only
- * in a browser, since jsdom reports boxes of about zero size, so e2e covers this file rather
- * than unit tests.
+ * Viewport-space geometry over the rendered document, the public face of the measurement calls
+ * block components expose. Offsets mean what `measurePartialRects` means for that block (raw
+ * offsets on prose, cell coordinates in a grid). jsdom reports boxes of about zero size, so e2e
+ * covers this file rather than unit tests.
  */
 import { tick } from 'svelte';
 import type { BlockComponent } from './block-component';
@@ -12,11 +11,8 @@ import type { RevealAnchorState, RevealClaim } from './cursor/reveal-anchor';
 export interface EditorRects {
 	/** The block's outermost box, or null when it isn't mounted. */
 	blockRect(path: number[]): DOMRect | null;
-	/**
-	 * Rects covering `[start, end)` in the block's measurable content: one per visual line
-	 * on a wrapped prose leaf, one per cell in a grid. `SELECTION_END` is accepted as `end`.
-	 * Empty when the block isn't mounted or can't measure.
-	 */
+	/** Rects covering `[start, end)` of the block's measurable content: one per visual line of prose,
+	 *  one per grid cell. `end` accepts `SELECTION_END`; empty when the block isn't mounted. */
 	rangeRects(path: number[], start: number, end: number): DOMRect[];
 	/**
 	 * The browser's caret when it sits in one block, or null. Null in cross-block mode too,
@@ -26,22 +22,14 @@ export interface EditorRects {
 	/** Scroll a block that is not rendered yet into the mounted range and await its mount.
 	 *  Resolves true once the block's element is present. */
 	reveal(path: number[]): Promise<boolean>;
-	/**
-	 * Mount the block at `path`, then scroll the viewport to it. `block` defaults to
-	 * `'nearest'`; `hold` (default true) keeps holding that block in place afterwards, so a
-	 * later layout shift cannot push it back out. Resolves true only once the position stops
-	 * moving; if a later scroll takes over, this one stops refining and reports what is visible.
-	 */
+	/** Mount the block at `path` and scroll to it (`block` defaults to `'nearest'`); `hold`, default
+	 *  true, keeps it in place against later layout shifts. True once it stops moving. */
 	scrollTo(
 		path: readonly number[],
 		opts?: { block?: 'nearest' | 'center'; hold?: boolean }
 	): Promise<boolean>;
-	/**
-	 * Go to `path`: mount it, scroll to it, and put the caret at `offset` (default 0), so the
-	 * next keystroke, Ctrl+Z included, addresses the document rather than the control that was
-	 * clicked. Runs the same restore path undo and `setSelection` use. True means the caret
-	 * landed and the target came to rest in view.
-	 */
+	/** Mount `path`, scroll to it and put the caret at `offset` (default 0) through undo's restore
+	 *  path, so the next keystroke addresses the document. True once the caret lands in view. */
 	navigateTo(path: readonly number[], offset?: number): Promise<boolean>;
 }
 
@@ -54,13 +42,11 @@ export function createEditorRects(deps: {
 	getBlockComponentByPath: (path: number[]) => BlockComponent | null;
 	revealPath: (path: number[]) => Promise<unknown>;
 	getEditorRoot: () => HTMLElement | null;
-	/** True when an ancestor owns the scroll (`scrollMode="host"`): the root is then not the
-	 *  scroll container but spans the whole document, so intersecting a block with it answers
-	 *  "is this in the document" rather than "is this visible". */
+	/** True when an ancestor owns the scroll (`scrollMode="host"`): the root then spans the whole
+	 *  document, so intersecting a block with it says nothing about visibility. */
 	isHostScroll: () => boolean;
-	/** In host mode, the ancestors that bound what can be seen. Intersected with the window
-	 *  viewport, never used instead of it: a bound that clips nothing would report every
-	 *  block as visible. */
+	/** In host mode, the ancestors that bound what can be seen: intersected with the window viewport,
+	 *  never used instead of it, or a bound that clips nothing reports every block visible. */
 	getClipBounds: () => HTMLElement[];
 	isCrossBlock: () => boolean;
 	/** True for nodes in the host's `header` snippet: inside the root, but not this
@@ -87,11 +73,8 @@ export function createEditorRects(deps: {
 		return true;
 	}
 
-	// `correctAnchor` works from the height table and runs before the flush, so it can be off
-	// by a boundary block's height; each tick refines the placement after the flush, when DOM
-	// reads are exact, and stops once the target stops moving. A claim another scroll has
-	// taken over gives up at once (the viewport is that newer scroll's), but one that only
-	// lost its hold to a user gesture keeps refining, since it is still on its way.
+	// `correctAnchor` estimates from the height table before the flush, so each tick refines after
+	// it until the target stops moving; a claim another scroll took over gives up at once.
 	async function settleInView(
 		path: number[],
 		block: 'nearest' | 'center',
@@ -108,7 +91,7 @@ export function createEditorRects(deps: {
 				placedTop = null; // briefly unmounted while the window re-slices; keep going
 				continue;
 			}
-			// Done: the scroll correction no longer moves the placement from the previous tick.
+			// Done: the placement held still since the previous tick.
 			const afterAnchor = el.getBoundingClientRect().top;
 			if (afterAnchor === placedTop) break;
 			el.scrollIntoView({ block });
@@ -126,9 +109,8 @@ export function createEditorRects(deps: {
 			return deps.getBlockComponentByPath(path)?.measurePartialRects?.(start, end) ?? [];
 		},
 		caretRect() {
-			// Read `SelectionState`, not the `data-cross-block` attribute: that attribute is
-			// written by a deferred `$effect` and lags the synchronous `selectionChange` emit,
-			// so a subscriber reading during the emit would get the held range as a caret.
+			// Read `SelectionState`, not the `data-cross-block` attribute: a deferred `$effect`
+			// writes the attribute, so it lags the synchronous `selectionChange` emit.
 			if (deps.isCrossBlock()) return null;
 			const root = deps.getEditorRoot();
 			if (!root) return null;
@@ -156,10 +138,8 @@ export function createEditorRects(deps: {
 			// otherwise yank the viewport once, before the first tick could stop it.
 			if (!claim.isSuperseded()) deps.getBlockElByPath(p)?.scrollIntoView({ block });
 			const landed = await settleInView(p, block, claim);
-			// Release on 'center': the hold is only approximate, and its later corrections would
-			// drift a target this loop already placed exactly. 'nearest' holds by default,
-			// because holding the top approximately is what it promises. A failed scroll holds
-			// nothing.
+			// Release on 'center' or a failed scroll: the approximate hold would drift a target
+			// placed exactly. 'nearest' keeps holding: holding the top approximately is its promise.
 			if (block === 'center' || !landed || opts?.hold === false) claim.release();
 			return landed;
 		},

@@ -46,12 +46,8 @@ export function matchFenceClose(text: string, marker: '`' | '~', minLength: numb
 	return Boolean(m && m[1].length >= minLength);
 }
 
-/**
- * The fence length needed to wrap `body`: one past every body line the parser would read
- * as this block's closer, never below `minimum`. Without it a body line reproducing the
- * terminator closes the block early and ejects everything below it on reparse. A floor,
- * not a target: it never shortens an existing fence.
- */
+/** The fence length needed to wrap `body`: one past every body line that would close this block,
+ *  never below `minimum`, so no body line ejects the rest on reparse. */
 export function escalatedFenceLength(body: string, marker: '`' | '~', minimum: number): number {
 	return escalateTerminatorRun(body, minimum, (text, required) =>
 		matchFenceClose(text, marker, required) ? fenceRunLength(text, marker) : null
@@ -103,11 +99,8 @@ export interface FenceAnatomy extends FenceRun {
 	closed: boolean;
 }
 
-/**
- * Reads `raw` as a fenced block. Line 0 must open with a run of `fence`'s marker at least
- * `fence.length` long (any fence marker when `fence` is omitted). The fence is closed when the
- * last line, below line 0, closes that run. Null when line 0 opens no such run.
- */
+/** Reads `raw` as a fenced block whose line 0 opens a run of `fence`'s marker at least as long (any
+ *  fence when omitted), closed when its last line closes that run. Null when line 0 opens none. */
 export function fenceAnatomy(raw: string, fence?: FenceRun): FenceAnatomy | null {
 	const lines = splitLines(raw);
 	if (lines.length === 0) return null;

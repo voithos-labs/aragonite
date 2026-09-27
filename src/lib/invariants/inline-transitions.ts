@@ -7,11 +7,8 @@ import type { InvariantViolation } from '../assert';
 
 export type PoolBracketAction = 'acquire' | 'beginPass' | 'sweep';
 
-/**
- * G1.25: every pool change happens between `beginPass` and `sweep`. Outside that bracket the
- * adoption flags and pass counts mean nothing, and a lookup by key alone cannot tell two
- * byte-identical widgets apart.
- */
+/** G1.25: every pool change happens between `beginPass` and `sweep`; outside that bracket a
+ *  lookup by key alone cannot tell two byte-identical widgets apart. */
 export function checkPoolBracket(
 	passOpen: boolean,
 	action: PoolBracketAction
@@ -38,11 +35,8 @@ export function checkPoolBracket(
 			};
 }
 
-/**
- * G1.26, the shared editable core's half: a revealed construct's source bytes span exactly its
- * `[sourceStart, sourceEnd)` range. A mismatch shifts every raw offset after the source, so the
- * DOM-to-offset traversal stops agreeing with the bytes.
- */
+/** G1.26, the shared editable core's half: a revealed construct's source bytes span exactly
+ *  `[sourceStart, sourceEnd)`, or every raw offset after the source shifts. */
 export function checkRevealSourceLength(
 	sourceLength: number,
 	sourceStart: number,
@@ -56,11 +50,8 @@ export function checkRevealSourceLength(
 	};
 }
 
-/**
- * G1.27: a `compositionend` only arrives inside a composition the editable element saw start.
- * Browsers pair the events per element, so an unpaired end means a consumer wired
- * `compositionend` without `compositionstart`, and every IME keystroke reached the tree.
- */
+/** G1.27: a `compositionend` arrives only inside a composition the element saw start, so an
+ *  unpaired end means `compositionstart` was never wired and IME keystrokes reached the tree. */
 export function checkCompositionEndPaired(composing: boolean): InvariantViolation | null {
 	if (composing) return null;
 	return {

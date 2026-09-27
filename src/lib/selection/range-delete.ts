@@ -1,7 +1,7 @@
 /**
- * Core range mutation primitive, in place: truncate both endpoints, delete between, re-parse
- * the merged raw, cascade-clean empty ancestors, rebuild container raws. Caller pre-normalizes
- * the range. The "start wins" rule: `docs/design/editor.md` § Cross-block selection.
+ * Deletes a selection range from the tree in place, merging what survives at the start. The
+ * caller normalizes the range first; the "start wins" rule is in `docs/design/editor.md` §
+ * Cross-block selection.
  */
 
 import type { GrammarView } from '../schema/block-openers';
@@ -46,10 +46,8 @@ export interface TableRowSplice {
 export interface RangeDeleteResult {
 	newDoc: Document;
 	collapsedCaret: SelectionPoint;
-	/**
-	 * Row splices made on the endpoint tables, so the cross-block commit can update each table's
-	 * row `BlockListState` without redoing the snap math. Table branch only.
-	 */
+	/** Row splices made on the endpoint tables (table branch only), so the commit can update each
+	 *  table's row `BlockListState` without redoing the snap math. */
 	tableRowSplices?: TableRowSplice[];
 }
 
@@ -72,12 +70,8 @@ function deleteWholeUnit(
 	return { newDoc: doc, collapsedCaret: { path: [...parentPath, landing], offset: 0 } };
 }
 
-/**
- * Deletes [start, end] in place: merges at the start's position inside its container, cleans
- * up emptied ancestors, rebuilds container raws. Every chain that is spliced or written is
- * copied before node identities are captured, so the identity check compares the copies. The
- * caller normalizes the range and keeps the endpoints on focusable blocks.
- */
+/** Deletes [start, end] in place, merging at the start's position inside its container. The
+ *  caller normalizes the range and keeps the endpoints on focusable blocks. */
 export function rangeDelete(
 	doc: Document,
 	start: SelectionPoint,
@@ -106,10 +100,8 @@ export function rangeDelete(
 	const startCut = charOffsetOf(start, 'rangeDelete:prose-merge-start');
 	const endOffset = charOffsetOf(end, 'rangeDelete:prose-merge-end');
 
-	// The range holds one block whole, so none of its bytes survive: the byte path below would
-	// keep an empty leftover holding only a line ending, which no reload reads as that kind. A
-	// paragraph is the one kind that survives empty, because a blank one is the separating line
-	// below it.
+	// A range holding one block whole deletes it: the byte path would leave only a line ending,
+	// which no reload reads as that kind. A paragraph stays, as the blank separating line.
 	if (
 		sameBlock &&
 		startCut === 0 &&
@@ -118,9 +110,8 @@ export function rangeDelete(
 	) {
 		return deleteWholeUnit(doc, start.path, sharing, grammar);
 	}
-	// A cross-block join runs the end slice through the end block's own write rule, since the
-	// start's rule below covers only the start's bytes and a cut from the end block's head would
-	// otherwise leave its closer stranded. A same-block merge takes that rule once, below.
+	// A cross-block join runs the end slice through the end block's own write rule, or a cut from
+	// its head would leave its closer stranded; a same-block merge takes the rule once, below.
 	const join = sameBlock
 		? {
 				raw: startRaw.slice(0, startCut) + startRaw.slice(endOffset),
@@ -131,17 +122,15 @@ export function rangeDelete(
 				normalizeOwnRaw(endBlock, tail, documentLineEnding(doc))
 			);
 	const startOffset = join.start;
-	// A join can create a line neither side held: two lines each with a mid-line `</details>`
-	// become one that opens with it. The survivor lands in the start's container, so that
-	// container's body rule is applied here, before the kinds are derived from the bytes.
+	// A join can create a line neither side held (two mid-line `</details>` joined into one that
+	// opens with it), so the start container's body rule runs before kinds are derived.
 	const mergedRaw = normalizeBodyWrite(
 		blockNodeAt(doc, start.path.slice(0, -1)) ?? undefined,
 		join.raw,
 		documentLineEnding(doc)
 	);
-	// After both write rules and before either consumer: in live mode the runs the truncation
-	// left unpaired, and the pair a join brings back to back, are bytes the user never saw
-	// (live-mode.md § 4.5).
+	// Runs after both write rules and before either consumer, dropping live-mode bytes the user
+	// never saw: `docs/design/live-mode.md` § 4.5 Joins clean up where they meet.
 	const joined = cleanJoinedRaw({
 		mergedRaw,
 		seam: startOffset,
@@ -215,10 +204,8 @@ export function rangeDelete(
 	return { newDoc: doc, collapsedCaret };
 }
 
-/** The marker prefix the survivor renders under, so the join cleanup can read its result back
- *  through it (live-mode.md § 4.5). The marker is drawn in front of the container's first child
- *  only, the way `BlockList` forwards it, and a list item is the one built-in container that
- *  draws one. */
+/** The list marker the survivor renders under (only a list item's first child has one), so the
+ *  join cleanup can read its result back through it. */
 export function containerAmbientPrefix(doc: Document, path: readonly number[]): string {
 	if (path.length < 2 || path[path.length - 1] !== 0) return '';
 	const parent = blockNodeAt(doc, path.slice(0, -1));

@@ -11,20 +11,16 @@ export function generateBlockId(): string {
 	return `b${RUN}-${sequence}`;
 }
 
-// View-typed: one id per child, whose content is never read, and `childIds` is the exception
-// to the readonly view, safe to write even on a node an undo snapshot shares. Sized from
-// `length` rather than mapped, so a `$state` array costs one proxy read, not one per child.
+// `childIds` is the one field safe to write even on a node an undo snapshot shares. Sized from
+// `length`, so a `$state` array costs one proxy read, not one per child.
 export function assignIds(children: readonly NodeView[]): string[] {
 	const ids = new Array<string>(children.length);
 	for (let i = 0; i < ids.length; i++) ids[i] = generateBlockId();
 	return ids;
 }
 
-/**
- * Initialize `childIds` before a freshly-parsed subtree is spliced into the live tree: a
- * reused container reads it in its keyed-each synchronously, so a missing array shows up
- * as `undefined` keys.
- */
+/** Call before a freshly parsed subtree is spliced in: a reused container reads `childIds` in its
+ *  keyed each synchronously, so a missing array shows up as `undefined` keys. */
 export function assignChildIdsDeep(node: NodeView): void {
 	if (node.children && node.children.length > 0 && !node.childIds) {
 		node.childIds = assignIds(node.children);

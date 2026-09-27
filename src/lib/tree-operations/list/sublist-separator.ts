@@ -18,9 +18,8 @@ export function lacksSublistSeparator(children: readonly CstNode[], index: numbe
 }
 
 /**
- * Give the child at `index` its separating line when it is a list no reload could read back.
- * Idempotent, and a no-op for every child that already stands apart, so a nesting splice or a
- * raw rebuild may call it unconditionally. The child must be owned by the live tree.
+ * Give the child at `index` its separating line when it is a list no reload could read back, so
+ * any splice or rebuild may call it unconditionally. The child must be owned by the live tree.
  */
 export function settleSublistSeparator(children: CstNode[], index: number): void {
 	if (!lacksSublistSeparator(children, index)) return;

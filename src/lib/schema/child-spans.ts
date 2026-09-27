@@ -69,9 +69,8 @@ export function rebuildConcatRaw(node: CstNode, changed?: ChildRawChange): void 
 }
 
 /**
- * A container whose raw re-prefixes every line of its body (blockquote, list item). `innerPrefix`
- * is not read here: these kinds open their body on their own first line, so no parse fills it
- * (G1.5).
+ * A container whose raw re-prefixes every line of its body (blockquote, list item). Its body opens
+ * on its own first line, so no parse fills `innerPrefix` and it is not read here (G1.5).
  */
 export function rebuildStripRaw(node: CstNode, prefix: LinePrefix, changed?: ChildRawChange): void {
 	const children = node.children!;
@@ -161,9 +160,8 @@ function renderPrefixed(
 }
 
 /**
- * Rebuilds the whole raw on a scratch node and rejects a rewrite that disagrees with it, so a
- * sibling's bytes moving under the spans cannot reach the document (G1.38). Dev only, and off
- * while the perf instruments run, whose numbers would otherwise be measuring this.
+ * A dev-only comparison with a full rebuild on a scratch node, so a sibling's bytes moving under the
+ * spans cannot reach the document (G1.38). Skipped under the perf instruments, which would time it.
  */
 function spliceIsFaithful(node: CstNode, rebuildFull: (scratch: CstNode) => void): boolean {
 	if (!isDevChecks() || perfEnabled()) return true;
@@ -189,9 +187,8 @@ function spliceIsFaithful(node: CstNode, rebuildFull: (scratch: CstNode) => void
 // ── The splice ───────────────────────────────────────────────────────────────
 
 /**
- * Rewrite one child's region in place, or decline so the caller rebuilds from scratch. The
- * declines cover every way the spans can have stopped describing `raw`: checking the region is
- * what turns a missed invalidation into a slower rebuild instead of corrupted bytes.
+ * Rewrite one child's region in place, or decline so the caller rebuilds from scratch: a span that
+ * stopped describing `raw` costs a slower rebuild, never corrupted bytes.
  */
 function spliceChildRegion(
 	node: CstNode,

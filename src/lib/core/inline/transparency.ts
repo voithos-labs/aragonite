@@ -37,8 +37,8 @@ export function isVerticallyTransparentNode(
 }
 
 function isTransparentLeaf(node: NodeView, grammar: GrammarView): boolean {
-	// No resolver, so the path-walkers that call this carry none either. The cost is that a
-	// reference-style-image-only paragraph reads as opaque; direct `![](url)` is unaffected.
+	// No resolver, since the path-walking callers hold none: a paragraph of only reference-style
+	// images reads as opaque, while a direct `![](url)` is unaffected.
 	const inlines = getInlineContent(node, undefined, '', grammar);
 	if (inlines.length === 0) return false;
 	for (const inline of inlines) {

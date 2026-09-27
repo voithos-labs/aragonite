@@ -18,22 +18,16 @@ export interface GapCaretPosition {
 	index: number;
 }
 
-/**
- * A boundary is eligible when every block facing it declares that edge — an unregistered or
- * undeclared kind refuses on its side. The root's trailing boundary is excluded: the
- * move-past-end append (`editor-actions/focus/focus.ts`) already owns it.
- */
+/** A boundary is eligible when every block facing it declares that edge. The root's trailing
+ *  boundary is excluded, since the move-past-end append already handles it. */
 export function gapEligibleAt(doc: DocumentView, parentPath: number[], index: number): boolean {
 	const children = gapScopeChildren(doc, parentPath);
 	if (!children) return false;
 	return gapEligibleAmong(children, index, parentPath.length > 0);
 }
 
-/**
- * The same rule for a caller that already has the children in hand (the block list renderer)
- * and no path to resolve. `ownsTrailingBoundary` is false for the root, whose trailing
- * boundary belongs to the move-past-end append.
- */
+/** The same rule for a caller that already has the children and no path to resolve;
+ *  `ownsTrailingBoundary` is false for the root. */
 export function gapEligibleAmong(
 	children: readonly NodeView[],
 	index: number,
@@ -48,11 +42,8 @@ export function gapEligibleAmong(
 	return declaresEdge(children[index - 1], 'after') && declaresEdge(children[index], 'before');
 }
 
-/**
- * The children a gap could sit between at `parentPath`, or null when that path names no child
- * list a BlockList renders. Undo's restore uses it too, so a stale path cannot put a caret
- * where nothing would paint it.
- */
+/** The children a gap could sit between at `parentPath`, or null when that path names no child
+ *  list a BlockList renders, so a stale path cannot put a caret where nothing paints it. */
 export function gapScopeChildren(
 	doc: DocumentView,
 	parentPath: number[]
@@ -71,19 +62,16 @@ function declaresEdge(node: NodeView, edge: 'before' | 'after'): boolean {
 
 // ── Arrival ─────────────────────────────────────────────────────────────────
 
-/** What placing a gap caret needs beyond the boundary itself. Getters, so a stop bound early
- *  reads live values. */
+/** What placing a gap caret needs beyond the boundary itself. Its reads are getters, so a stop
+ *  bound early sees live values. */
 export interface GapStopScope {
 	getDoc: () => DocumentView;
 	selection: SelectionState;
 	getPresentationMode?: () => PresentationMode;
 }
 
-/**
- * Whether a gesture may put the caret in this gap. Reading mode never may: it has no caret at
- * all, so the gesture keeps its old landing. A caller that must act between the decision and
- * the placement asks this, then calls `placeGapCaret` itself.
- */
+/** Whether a gesture may put the caret in this gap; reading mode has no caret, so never. A caller
+ *  that must act between the decision and the placement asks this, then calls `placeGapCaret`. */
 export function canGapStop(
 	scope: GapStopScope,
 	parentPath: number[],

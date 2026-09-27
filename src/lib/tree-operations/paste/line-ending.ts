@@ -7,9 +7,8 @@ import type { LineEnding } from '../../core/lines';
 import type { InlinePasteResult } from '../paste-surfaces';
 
 /**
- * An inline hook's result with the line breaks it spliced in written as `ending`. Only the
- * bytes between the unchanged head and tail are the paste's, so a block holding an ending of
- * its own elsewhere keeps it; the caret moves with every break lengthened before it.
+ * An inline hook's result with the breaks it spliced in written as `ending`; only the bytes
+ * between the unchanged head and tail are the paste's, so the block's own endings stay.
  */
 export function inlineResultInEnding(
 	before: string,

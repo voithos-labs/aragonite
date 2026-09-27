@@ -1,7 +1,7 @@
 /**
- * Intra-table coverage-driven delete: a full-table/row/column selection lands inside one table
- * block, so it routes to a structural delete of that table/row/column rather than the
- * cross-block range delete. Subset (cell) coverage returns null for the caller's cell-clear.
+ * Deletes a whole table, row or column when a selection inside one table covers it, instead of
+ * running the cross-block range delete. Partial (cell) coverage returns null so the caller
+ * clears cells.
  */
 
 import { cellIndexOf, deleteSnapshot, type SelectionPoint } from './primitives';
@@ -189,9 +189,8 @@ async function commitColumnDelete(
 	const tableIdx = start.path[0];
 	const rowsState = expectStateForNode(table);
 	const rows = table.children ?? [];
-	// A row's `BlockListState` registers on mount, so a windowed-out row has none. Only mounted
-	// rows get a reactive scope; `ensureUnsharedChildren` below copies every row, so the per-row
-	// cell splice never writes a shared node whatever its mount state (G1.9).
+	// Only mounted rows have reactive state; `ensureUnsharedChildren` copies every row, so the
+	// cell splice never writes a shared node whatever a row's mount state (G1.9).
 	const mountedRowScopes: MultiScopeTarget[] = [];
 	for (let i = 0; i < rows.length; i++) {
 		const state = getStateForNode(rows[i]);
@@ -209,8 +208,8 @@ async function commitColumnDelete(
 		snapshot,
 		mutate: (scopeViews) => {
 			const ownedTable = scopeViews[0].node;
-			// Unshare every row before the splice: mounted rows are already owned via their
-			// scope, and this reaches the windowed-out rows the scopes skip.
+			// Unshare every row before the splice: mounted rows are already copied through their
+			// state, and the call reaches the windowed-out rows that have none.
 			ensureUnsharedChildren(ownedTable, scopeViews[0].sharing);
 			mutDeleteColumn(ownedTable, colIdx);
 
@@ -219,7 +218,7 @@ async function commitColumnDelete(
 			collapsedCaret = { path: [tableIdx, 0, targetCol], offset: 0 };
 			ctx.selection.collapse();
 
-			// Every mounted row loses the same cell; the table scope is a no-op.
+			// Every mounted row loses the same cell; the table's own change is a no-op.
 			const rowDelete: StructuralChange = { op: 'delete', at: colIdx, count: 1 };
 			return [{ op: 'noop' }, ...mountedRowScopes.map(() => rowDelete)];
 		},

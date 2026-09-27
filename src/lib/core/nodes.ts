@@ -142,11 +142,8 @@ export interface BlockMetadataByKind {
 	listItem: ListItemMetadata;
 }
 
-/**
- * The one allowed metadata cast, for code a narrowed `BuiltinCstNode` member cannot reach: a
- * generic `K`, or a full `CstNode`, whose plugin member blocks `kind` narrowing. Prefer reading
- * `node.metadata` off a narrowed node. Pass the kind you have already established.
- */
+/** The one allowed metadata cast, for a generic `K` or a full `CstNode` that cannot narrow; prefer
+ *  a narrowed node's `node.metadata`. Pass the kind you have already established. */
 export function metadataOf<K extends keyof BlockMetadataByKind>(
 	node: CstNode,
 	kind: K
@@ -163,11 +160,8 @@ export function metadataOf<K extends keyof BlockMetadataByKind>(
 	return node.metadata as BlockMetadataByKind[K];
 }
 
-/**
- * `BlockMetadata` is closed over the built-ins, so bridging a plugin's shape needs a cast and
- * this pair is the one place it lives. Keep the stored shape primitive-valued: the one-level
- * undo clone (G1.6) shallow-copies metadata.
- */
+/** The one cast bridging a plugin's shape into the built-in `BlockMetadata`. Keep the shape
+ *  primitive-valued: undo's one-level clone shallow-copies metadata (G1.6). */
 export function setPluginMetadata<T>(node: CstNode, data: T): void {
 	node.metadata = data as unknown as BlockMetadata;
 }
@@ -207,11 +201,8 @@ interface LeafBlockNodeBase extends BlockNodeBase {
 	childSpans?: undefined;
 }
 
-/**
- * A container may be briefly childless mid-edit (the leaf rule runs one way, G1.5), so every
- * structural field stays optional. `childIds` mirrors `children` for keyed rendering;
- * `childSpans` records where each child's bytes sit in `raw` (`schema/child-spans.ts`).
- */
+/** A container may be briefly childless mid-edit (G1.5), so every structural field stays optional;
+ *  `childSpans` records where each child's bytes sit in `raw`. */
 interface ContainerBlockNodeBase extends BlockNodeBase {
 	children?: CstNode[];
 	innerPrefix?: string;
@@ -332,13 +323,8 @@ export function isBuiltinBlockNode(node: CstNode | NodeView): boolean {
 	return isBuiltinBlockKind(node.kind);
 }
 
-/**
- * The one place the cast from a runtime kind string to `CstNode` lives. The spread returns a
- * fresh object, so passing a view creates a copy rather than stripping its read-only-ness, which
- * is why the view-cast lint allows this file (G4.13). Fields are not checked against the kind, so
- * a node of a metadata-carrying kind can be created without metadata (a temporary re-parse does
- * this) and its `metadata` must not be read before the re-parse.
- */
+/** The one cast from a runtime kind string to `CstNode`; the spread copies, so a view stays read-only
+ *  (G4.13). Metadata isn't checked: a node made without it must not be read before its re-parse. */
 export function makeBlockNode(fields: {
 	kind: AnyBlockKind;
 	leadingTrivia: string;

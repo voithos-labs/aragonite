@@ -1,7 +1,4 @@
-/**
- * Keydown + compositionstart half of the cross-block dispatcher. See dispatch.ts for the
- * composer that wires this together with the pointer half.
- */
+/** The keydown and compositionstart half of cross-block dispatch. */
 
 import { CURSOR_START } from '../../block-component';
 import type { CrossBlockMutationContext } from './ops';
@@ -63,9 +60,8 @@ async function handleKeyDown(
 ): Promise<boolean> {
 	const { selection } = ctx;
 
-	// Before the dispatch: every branch below can consume the key, and the collapse and extend
-	// branches commit nothing, so nothing later would update the caret memory. No measurement:
-	// the dispatcher holds a range, not a caret.
+	// Before the dispatch, since every branch below can consume the key and the collapse and
+	// extend branches commit nothing that would update the caret memory.
 	ctx.caretMemory.noteKey(e, commandAtBlock(e, ctx));
 
 	// Mode-independent: the doc-edge extend behaves identically from a caret and an active range,
@@ -105,10 +101,8 @@ async function handleCrossBlockActive(
 		return true;
 	}
 
-	// Before the command candidates, because a format toggle is not a type-replace: deleting the
-	// range and dispatching at the collapsed caret would leave empty marker pairs where the text
-	// stood. The command dispatcher decides which of these ids has a cross-block handler and
-	// which are declined.
+	// Before the command candidates: deleting the range and toggling a format at the collapsed
+	// caret would leave empty marker pairs where the text stood.
 	if (isClaimedRewriteChord(e)) {
 		e.preventDefault();
 		if (isReadingMode(ctx.reading.mode)) return true;
@@ -119,9 +113,8 @@ async function handleCrossBlockActive(
 	if (isCommandCandidateKey(e)) {
 		e.preventDefault();
 		if (isReadingMode(ctx.reading.mode)) return true;
-		// Mount the delete's own caret, not the pre-delete start path: `rangeDelete` returns the
-		// post-delete position, and for a table endpoint that is the [table, row, col] cell whose
-		// `runCommand` exists (the wrapper path has none).
+		// Mount the caret `rangeDelete` returns, not the pre-delete start: for a table endpoint that
+		// is the [table, row, col] cell, which has a `runCommand` where the table's path has none.
 		const fallbackPath = (selection.start ?? selection.focus)?.path ?? myPath;
 		// One entry for the delete and the command, so one Ctrl+Z brings the range back.
 		await rangeUndoStep(mutCtx, async () => {
@@ -269,11 +262,8 @@ async function handleCrossBlockEntry(
 
 // ── Keydown Helpers ───────────────────────────────────────────────────────
 
-/**
- * A swallowed format chord, handed to the command dispatcher with the range still painted. It
- * resolves against the kind of the block that took the keystroke, exactly as a single-block
- * keystroke would, so a consumer's rebinding reaches the same handler the default chord does.
- */
+/** Resolves a swallowed format chord against the kind of the block that took the key, as a
+ *  single-block keystroke would, so a consumer's rebinding reaches the same handler. */
 async function dispatchOverRange(
 	ctx: CrossBlockDispatchContext,
 	e: KeyboardEvent,
@@ -295,11 +285,8 @@ async function dispatchOverRange(
 	);
 }
 
-/**
- * Keys owned by the block-level handler at the caret, which must run at a collapsed caret
- * rather than over stale block indices. After the range delete they dispatch through the
- * merged block's command registry.
- */
+/** Keys the block-level handler owns, which must run at a collapsed caret rather than over stale
+ *  block indices, so they dispatch after the range delete. */
 function isCommandCandidateKey(e: KeyboardEvent): boolean {
 	if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey && !e.altKey) return true;
 	if (e.key === 'Tab' && !e.ctrlKey && !e.metaKey && !e.altKey) return true;
@@ -307,16 +294,12 @@ function isCommandCandidateKey(e: KeyboardEvent): boolean {
 	return false;
 }
 
-/**
- * The chords the cross-block range handles itself, swallowed before the browser's own bold (or
- * Ctrl+K kill-line) runs; the command dispatcher then runs or declines each
- * (`CROSS_BLOCK_RANGE_COMMAND_IDS`, `RANGE_DECLINED_COMMAND_IDS`). Mod+Shift+X is listed on its
- * own because unshifted Mod+X is the block cut.
- */
+/** Chords the range handles itself, swallowed before the browser's bold or Ctrl+K kill-line runs.
+ *  Mod+Shift+X is here on its own, since unshifted Mod+X is the block cut. */
 function isClaimedRewriteChord(e: KeyboardEvent): boolean {
 	if (!(e.ctrlKey || e.metaKey) || e.altKey) return false;
-	// Literal comparisons, not a character class: the chord scan (G4.29) reads the keys a file
-	// compares, and a regex would hide this file's use of Mod+B/I/E/K from it.
+	// Literal comparisons, not a character class: the chord scan reads the keys a file compares,
+	// and a regex would hide this file's use of Mod+B/I/E/K from it (G4.29).
 	if (e.shiftKey) return e.key === 'x' || e.key === 'X';
 	return (
 		e.key === 'b' ||
@@ -330,12 +313,8 @@ function isClaimedRewriteChord(e: KeyboardEvent): boolean {
 	);
 }
 
-/**
- * Collapses, and corrects the side the arrow key already recorded: the key has a direction but
- * the caret took no step, it jumped to the range's own edge, where the side depends on the
- * construct there (live-mode.md § 4.2). Without this the caret keeps the arrow's side and the
- * first typed byte joins the construct the collapse landed in front of.
- */
+/** Corrects the side the arrow key recorded: the caret jumped to the range's edge, where the side
+ *  depends on the construct there (`docs/design/live-mode.md` § 4.2 Typing at a hidden edge). */
 async function collapseTo(
 	ctx: CrossBlockDispatchContext,
 	to: 'start' | 'end',
@@ -358,11 +337,8 @@ function kindOfPath(path: number[], doc: Document): AnyBlockKind {
 	return isBlockNode(node) ? node.kind : (node.kind as AnyBlockKind);
 }
 
-/**
- * Mounts the focus endpoint after an extend and puts the caret there so the next key reaches it.
- * A cell focus puts it at the cell's start: at its end, ArrowRight would read as leaving the
- * table. `parkCaret`, never `focus`, which would end the growing range (G2.12).
- */
+/** Puts the caret at the focus endpoint with `parkCaret`, never `focus`, which would end the range
+ *  (G2.12). A cell takes its start, since ArrowRight at its end reads as leaving the table. */
 async function revealActiveEndpoint(ctx: CrossBlockDispatchContext): Promise<void> {
 	const focus = ctx.selection.focus;
 	const landing = focus && ctx.selection.cellLandingFor(focus);

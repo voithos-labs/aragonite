@@ -1,8 +1,8 @@
 /**
- * The settle (recomputing the blank-line separators an edit left stale, syntax-tree.md § Blank
- * lines), the merge of neighbours that re-read as one block on reload (editor.md § 8), and the
- * delete primitive built on both. Every in-place write goes through `sharing` (G1.9);
- * `lint/separator-write-doors.test.ts` lists every function here that writes a separator.
+ * Recomputes the blank-line separators an edit left stale, merges neighbours that would re-read
+ * as one block on reload, and deletes a block on top of both (`docs/design/syntax-tree.md` § Blank
+ * lines). Every in-place write goes through `sharing`, so no undo snapshot sees it (G1.9), and
+ * `lint/separator-write-doors.test.ts` must list every function here that writes a separator.
  */
 
 import type { AnyBlockKind, CstNode, Document } from '../core/nodes';
@@ -61,7 +61,7 @@ export function clearRedundantSeparator(
 
 /**
  * A blank block is itself a blank line, so it and its follower share one separator (G2.13). The
- * follower's line is the one kept, so filling this block later still finds the follower separated.
+ * follower's is kept, so filling the blank block later still finds the follower separated.
  */
 export function dropDoubledSeparator(
 	parent: SeparatorParent,
@@ -92,8 +92,8 @@ export function restoreSeparatorOnFill(
 }
 
 /**
- * The separator the block below a consumed blank line takes back: the fill case without the
- * blank-self check, skipped where its own follower already holds one (G2.13).
+ * The separator the block below a consumed blank line takes back, skipped for a blank block whose
+ * follower already holds one, since the two share it (G2.13).
  */
 export function restoreSeparatorAfterBlank(
 	parent: SeparatorParent,
@@ -109,9 +109,8 @@ export function restoreSeparatorAfterBlank(
 }
 
 /**
- * When a block turns into a blank line, the run of blank blocks it joins must carry exactly one
- * separating line across every block in it and its follower. A line already standing is kept;
- * a new one goes at the run's head, the only position one may take.
+ * A block turned blank joins a run that, with its follower, must carry exactly one separating line;
+ * a standing line is kept, and a new one goes at the run's head, the only place one may sit.
  */
 export function settleSeparatorOnBlank(
 	parent: SeparatorParent,
@@ -150,8 +149,8 @@ export function settleSeparatorOnBlank(
 		// A blank block's bytes are its line ending.
 		slots.innerSuffix = ownTrailingLineEnding(children[end].raw);
 	}
-	// The reverse: a deletion can leave a lone blank as the whole body, where the closer no
-	// longer strips a line of its own beside the opener's, so the run gives the extra line back.
+	// The reverse: beside a lone blank block that is the whole body, the closer strips no line of
+	// its own apart from the opener's, so the run gives the extra line back.
 	const loneBlankBody = start === bodyStart && end === bodyEnd && start === end;
 	if (slots && loneBlankBody && slots.innerSuffix && (slots.innerPrefix || standing.length > 0)) {
 		slots.innerSuffix = '';
@@ -182,9 +181,8 @@ export function settleSeparatorOnBlank(
 }
 
 /**
- * The parser moves a blank line beside a fence line into `innerPrefix`/`innerSuffix` only when
- * body content sits past it, so a body a splice emptied keeps neither; a kept one reloads as a
- * blank paragraph the live tree doesn't have.
+ * The parser keeps a blank line beside a fence line in `innerPrefix`/`innerSuffix` only when body
+ * content sits past it, so an emptied body keeps neither, or it reloads with an extra blank block.
  */
 function dropWrapOfEmptiedBody(parent: SeparatorParent): void {
 	const slots = wrapSlotsOf(parent);
@@ -196,9 +194,8 @@ function dropWrapOfEmptiedBody(parent: SeparatorParent): void {
 }
 
 /**
- * The counterpart of the closer's line in {@link settleSeparatorOnBlank}: a tail block that
- * stops being blank gives the borrowed `innerSuffix` line back, or the container emits a line
- * nobody typed.
+ * A tail block that stops being blank gives back the `innerSuffix` line {@link
+ * settleSeparatorOnBlank} lent it, or the container emits a line nobody typed.
  */
 export function releaseWrapPeel(parent: SeparatorParent, index: number): void {
 	retireChildSpans(parent);
@@ -212,10 +209,8 @@ export function releaseWrapPeel(parent: SeparatorParent, index: number): void {
 }
 
 /**
- * The parser keeps a body's one trailing blank line aside (the document's `suffix`, a strip
- * container's `innerSuffix`) only while the tail block is non-blank; once the tail turns blank the
- * reload reads that line as its own empty paragraph, so it becomes a block here. Returns the
- * number of blocks appended.
+ * A body's trailing blank line stays in `suffix`/`innerSuffix` only while the tail block is
+ * non-blank; under a blank tail the reload reads it as a paragraph, so it becomes a block here.
  */
 function materializeTailSuffix(parent: SeparatorParent, sharing?: SharingState): number {
 	retireChildSpans(parent);
@@ -349,9 +344,8 @@ function handDownVacatedSeparator(
 }
 
 /**
- * The commit sequence's entry point: derive the spliced window from `change` and recompute its
- * separators against `before`, the children before the mutation. Nodes surviving inside the
- * window are not removals, so a coarse change descriptor over an in-place write is treated as one.
+ * The commit's entry point: recompute the separators around `change`'s window against `before`,
+ * the children before the mutation. A node that survives inside the window counts as kept.
  */
 export function settleSeparator(
 	parent: SeparatorParent,
@@ -404,9 +398,8 @@ function splicedWindow(
 }
 
 /**
- * {@link settleSeparator}'s counterpart outside a commit scope, for a container found by walking
- * the live tree: it splices through `spliceChildren`, which keeps `childIds` in step, and records
- * the pre-splice span itself.
+ * {@link settleSeparator} for a splice outside a commit scope, into a container found by walking
+ * the live tree; `spliceChildren` keeps its `childIds` in step.
  */
 export function spliceChildrenSettled(
 	parent: CstNode | Document,
@@ -436,11 +429,8 @@ export function spliceChildrenSettled(
 	if (ids) applyStructuralChangeToIdsRefs(settled, ids, new Array(ids.length));
 }
 
-/**
- * What a merge of neighbours absorbed: the window's position and size after the splice, and the
- * net blocks eaten. `span + eaten` is the block count before the merge, which is what a change
- * descriptor reports.
- */
+/** What a merge of neighbours absorbed; `span + eaten` is the block count before the merge, the
+ *  figure a change descriptor reports. */
 interface SeamAbsorption {
 	at: number;
 	span: number;
@@ -456,10 +446,8 @@ export interface TrackedPosition {
 }
 
 /**
- * A splice can leave neighbours whose adjacent bytes re-read differently on reload. Merge while
- * the window's own bytes parse to fewer blocks, or its head takes content from below, which is the
- * reload's reading; blank lines do not stop a container's continuation, so the window starts at
- * the nearest non-blank block above the join, never below `floor`, and repeats downward.
+ * Merge neighbours while their joined bytes reload as fewer blocks or move content into the head;
+ * blank lines don't end a container, so the window starts at the nearest non-blank block above.
  */
 export function absorbSeamReading(
 	parent: NodeParent,
@@ -525,9 +513,8 @@ export function absorbSeamReading(
 }
 
 /**
- * Give a block an edit left right under a table a blank line, where the table would read its
- * first line as one more row (a quote unwrapped there, a heading turned into text). The edit made
- * the block, so it stays that block rather than merging into the table as the reload would.
+ * Give a block an edit left right under a table a blank line, or the reload reads its first line
+ * as one more row; the edit made the block, so it stays that block.
  */
 function separateTableFollower(
 	parent: NodeParent,
@@ -556,20 +543,16 @@ function headTookContent(head: CstNode, window: readonly CstNode[]): boolean {
 	return grew > window[1].leadingTrivia.length || (head.children !== undefined && grew > 0);
 }
 
-/**
- * Whether a block's own bytes read back as that block. A structured container's children fail
- * this by construction (one list item's bytes read as a list), which is how a child list a
- * document parse does not reproduce stays out of the merge.
- */
+/** Whether a block's own bytes read back as that block. A container's children never do (an
+ *  item's bytes read as a list), which keeps them out of the merge. */
 function readsAsItselfAlone(node: CstNode, read: (bytes: string) => Document): boolean {
 	const alone = read(node.raw).children;
 	return alone.length === 1 && alone[0].kind === node.kind;
 }
 
 /**
- * A cheap refusal check for a window whose last member is the block that changed: join the
- * others with only that block's first line. Block parsing is a left-to-right line scan, so a
- * block that opens here opens in the full join too; a pass falls through to the real parse.
+ * A cheap refusal for a window ending in the changed block, parsing only that block's first line:
+ * block parsing scans lines left to right, so a block that opens here opens in the full join too.
  */
 function declinesOnHeadLine(
 	window: readonly CstNode[],
@@ -586,8 +569,6 @@ function declinesOnHeadLine(
 	return read(joined).children.length >= window.length;
 }
 
-/** The bytes a merge parses: the head's raw, then each of the next `count - 1` members' leading
- *  blank lines and raw. */
 function joinedWindowBytes(window: readonly CstNode[], count: number): string {
 	let joined = window[0].raw;
 	for (let i = 1; i < count; i++) joined += window[i].leadingTrivia + window[i].raw;
@@ -621,11 +602,8 @@ function retrackThroughFold(
 	tracked.offset = landed.offset;
 }
 
-/**
- * Map a post-edit caret offset (in the committed text) to the parsed block it falls in, as an
- * offset local to that block. An offset inside the blank lines between blocks lands at the next
- * block's start; past the end clamps to the last.
- */
+/** The block a caret offset into the committed bytes falls in, and its offset there. An offset in
+ *  the blank lines between blocks lands at the next block's start. */
 export function focusTargetInReplacement(
 	nodes: readonly NodeView[],
 	offset: number
@@ -650,12 +628,8 @@ export interface SettledSplice {
 	landing: number;
 }
 
-/**
- * Ask every join the splice at `at` disturbed (both window edges and the joins inside it, since
- * a move can break a join that was correct) whether its two sides now re-read as one block; each
- * merge continues downward. `headProbe` names the one block whose bytes changed, so a join can be
- * refused on its first line alone, and is dropped once anything merges.
- */
+/** Merge across every join the splice at `at` disturbed, the joins inside the window included,
+ *  since a move can break a join that was correct. `headProbe` names the one changed block. */
 export function absorbWindowSeams(
 	parent: NodeParent,
 	at: number,
@@ -714,11 +688,8 @@ function indexAfterAbsorb(index: number, seam: SeamAbsorption): number {
 	return index >= absorbedTo ? index - seam.eaten : Math.min(index, seam.at + seam.span - 1);
 }
 
-/**
- * The absorbed window combined with the write's own, as the one contiguous window the caller
- * reports: `count` counts positions before the write, so the union's span converts back across
- * whatever the write itself added or removed.
- */
+/** The merged window and the write's own as one contiguous change; `count` counts positions
+ *  before the write, so the span converts back across what the write added or removed. */
 function foldAbsorbIntoChange(change: StructuralChange, seam: SeamAbsorption): StructuralChange {
 	const absorbedTo = seam.at + seam.span + seam.eaten;
 	if (change.op === 'noop') {
@@ -755,11 +726,8 @@ interface FoldWindow {
 	removed: number;
 }
 
-/**
- * Identity through the merge: a position the merge did not re-create still holds the block the
- * change put there, so its id maps through both steps instead of resetting. Position 0 keeps the
- * head mapping wherever the walk has none, since a merge extends its head, kind promotion included.
- */
+/** A position the merge did not re-create keeps its block's id through both steps. Position 0
+ *  always maps to the head, since a merge extends its head, even when it changes its kind. */
 function composeFoldIdMap(
 	change: StructuralChange,
 	seam: SeamAbsorption,
@@ -794,12 +762,8 @@ function preChangeIndex(
 	return inherited === undefined ? null : change.at + inherited;
 }
 
-/**
- * Where the trailing blank run the fragment parse split off goes. At the parent's tail it stays
- * in the last block's raw, as in every write that lands one block; mid-document it joins the
- * follower's run, where one line separates and every later one is a block of its own
- * (syntax-tree.md § Blank lines).
- */
+/** The fragment parse's trailing blank run stays in the last block's raw at the parent's tail and
+ *  joins the follower's run elsewhere (`docs/design/syntax-tree.md` § Blank lines). */
 function absorbFragmentPeel(
 	parent: NodeParent,
 	followerIndex: number,
@@ -855,8 +819,8 @@ export function widenForTailMint(
 	return change;
 }
 
-/** Give the block at `index` a blank line where one separates anything at all. The block above
- *  has this one below it, so it closes its line in the document's ending, which the blank takes. */
+/** Give the block at `index` a blank line where one separates anything; the line reuses the
+ *  ending of the block above, which is the document's. */
 function mintSeparator(parent: SeparatorParent, index: number, sharing?: SharingState): void {
 	const children = parent.children;
 	if (!children || index <= bodyStartIndex(parent)) return;
@@ -909,11 +873,8 @@ function bodyStartFor(kind: string | undefined): number {
 	return tryGetBlockKindDescriptor(kind as AnyBlockKind)?.reservedChrome ? 1 : 0;
 }
 
-/**
- * The parser strips the blank line after a fenced container's opener into `innerPrefix`, so a
- * separator freed above the body head is that line: hand it over, or the reload takes the head's
- * own line instead.
- */
+/** The parser keeps the blank line after a fenced container's opener in `innerPrefix`, so a
+ *  separator freed at the body head moves there, or the reload takes the head's own line. */
 function absorbWrapPrefix(
 	parent: SeparatorParent,
 	bodyStart: number,
@@ -931,12 +892,8 @@ function absorbWrapPrefix(
 
 // ── Delete ──
 
-/**
- * Remove the node at `blockIndex`, leaving the next sibling separated from its new predecessor
- * and no more. Takes {@link BodyParentArg} because the fix-up can hand a freed line to the
- * owner's `innerPrefix`; the successor's `leadingTrivia` is the op's only in-place write.
- * `tracked` follows the merges the delete sets off, for a caller landing a caret in the bytes.
- */
+/** Remove the node at `blockIndex`, leaving its successor separated once and no more. Takes
+ *  {@link BodyParentArg} since the fix-up can move a freed line into the owner's `innerPrefix`. */
 export function deleteNode(
 	parent: BodyParentArg,
 	blockIndex: number,

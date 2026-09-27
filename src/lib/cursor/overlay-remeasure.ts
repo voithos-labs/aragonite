@@ -15,9 +15,8 @@ export function wireOverlayRemeasure(opts: {
 	editorRoot: HTMLElement | null;
 	blockRef: BlockComponent | undefined;
 	measure: () => void;
-	/** Run the setup measure untracked, for a caller whose `measure` reads the document: tracking
-	 *  it would tear down and re-wire these listeners on every keystroke. Scoped to that one call,
-	 *  never the whole wiring, since the row-window read below must stay tracked either way. */
+	/** Run the setup measure untracked, so a `measure` that reads the document doesn't re-wire these
+	 *  listeners on every keystroke. Only that call: the row-window read below must stay tracked. */
 	untrackSetupMeasure?: boolean;
 }): () => void {
 	const { el, editorRoot, blockRef, measure } = opts;

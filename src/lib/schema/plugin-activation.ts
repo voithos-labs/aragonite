@@ -2,7 +2,7 @@
  * Which plugins one editor activates, and the one check every plugin registration is read
  * through. Definitions are process-wide; an editor activates exactly the plugins its `plugins`
  * prop lists, and one mounted without that prop activates everything installed in the process
- * (docs/design/plugin-contract.md § Per-instance enablement).
+ * (`docs/design/plugin-contract.md` § Per-instance enablement).
  */
 import { isPluginInstalled } from './plugin-install';
 
@@ -19,9 +19,8 @@ export function activationFor(pluginNames: readonly string[]): PluginActivation 
 }
 
 /**
- * Whether an entry registered by `owner` resolves under `activation`. An entry no plugin owns
- * always does; a plugin's entry only once its setup finished without throwing and the editor
- * activated it, so a half-installed plugin resolves nowhere.
+ * An entry no plugin owns always resolves; a plugin's only once its setup finished without
+ * throwing and the editor activated it, so a half-installed plugin resolves nowhere.
  */
 export function resolvesIn(activation: PluginActivation, owner: string | null): boolean {
 	return owner === null || (isPluginInstalled(owner) && activation.isActive(owner));

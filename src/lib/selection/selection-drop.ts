@@ -73,9 +73,8 @@ interface ScopeCut {
 	shrunkBy: number;
 }
 
-/** A drag that is this gesture but in a shape this module does not move (a range leaving its
- *  element, an empty one, bytes holding a line break). The drop cancels it rather than handing
- *  it back to the browser. */
+/** A drag of the editor's selection in a shape the drop can't move (leaving its element, empty,
+ *  holding a line break); the drop cancels it rather than handing it back to the browser. */
 const DECLINED = 'declined';
 type DragStash = DragSource | typeof DECLINED;
 
@@ -83,8 +82,8 @@ type DragStash = DragSource | typeof DECLINED;
 
 export function installSelectionDrop(deps: SelectionDropDeps): () => void {
 	let source: DragStash | null = null;
-	// The landing the painted caret stands at. A drag fires `dragover` over and over at one
-	// position, and only a move to a different landing has a new caret to draw.
+	// Where the painted caret stands. A drag fires `dragover` over and over at one position,
+	// and only a move to a different drop point has a new caret to draw.
 	let caretAt: { path: number[]; offset: number } | null = null;
 
 	function hideCaret(): void {
@@ -94,7 +93,7 @@ export function installSelectionDrop(deps: SelectionDropDeps): () => void {
 	}
 
 	/** The caret saying where a release would land: cancelling the browser's drop takes its own
-	 *  caret away, so this one stands at the landing the drop resolves and declines where it does. */
+	 *  caret away, so the editor's stands where the drop would land and declines where it does. */
 	function drawCaretAt(clientX: number, clientY: number, copy: boolean): void {
 		const from = source;
 		if (!from || from === DECLINED || deps.isReadOnly()) return hideCaret();
@@ -203,12 +202,8 @@ export function dropOffsetAfterCut(
 
 // ── Reading the gesture ────────────────────────────────────────────────────
 
-/**
- * The native range the drag carries, in its element's raw offsets. `null` means not this
- * gesture, and leaves the drag to the browser; {@link DECLINED} is this gesture in a shape this
- * module does not move, which the drop cancels. A cross-block selection reaches neither: the
- * overlay paints it and leaves no native range for the browser to drag.
- */
+/** The native range the drag carries, in raw offsets: null leaves the drag to the browser, and
+ *  {@link DECLINED} is the editor's selection in a shape the drop cancels. */
 function readSelectionSource(
 	deps: SelectionDropDeps,
 	dragged: EventTarget | null
@@ -306,8 +301,8 @@ async function moveOrCopy(
 		await writeBlockRaw(deps, cut.path, () => merged, offset + text.length);
 		return;
 	}
-	// A table's `focus` takes a cell, never a character offset (G1.29), so the temporary caret
-	// the second write moves away from is its first cell.
+	// A table's `focus` takes a cell, never a character offset, so the temporary caret the second
+	// write moves away from is its first cell (G1.29).
 	const sourceCaret = from.inCell ? 0 : from.start;
 	const spliced = await writeBlockRaw(deps, cut.path, () => cut.raw, sourceCaret);
 	// An insert after a cut that never landed would turn the move into a copy.
@@ -364,11 +359,8 @@ function cutFromCell(deps: SelectionDropDeps, from: DragSource, cell: CstNode): 
 	return { path: tablePath, raw, shrunkBy: trimTrailingLineEnding(table.raw).length - raw.length };
 }
 
-/**
- * Replaces the block at `path` with the reparse of the bytes `rewrite` returns, in its parent's
- * child list. Returns how many blocks the position grew or shrank by, which keeps a second
- * write's path correct, or null when nothing was written.
- */
+/** Replaces the block at `path` with the reparse of `rewrite`'s bytes. Returns the change in block
+ *  count at that position, so a second write's path stays right, or null when nothing landed. */
 async function writeBlockRaw(
 	deps: SelectionDropDeps,
 	path: number[],

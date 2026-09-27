@@ -27,10 +27,8 @@ export function resolveParentScope(
 }
 
 /**
- * A container's mounted `BlockListState`, or a detached stand-in. Never `expectState`:
- * these routes can be a cross-block paste whose range delete already committed, so a throw
- * would leave the selection deleted and nothing pasted. The commit writes ids to the owned
- * node's `childIds`, so only ref alignment is lost on the stand-in.
+ * A container's mounted `BlockListState`, or a detached stand-in rather than a throw, since a
+ * cross-block paste's range delete may already have committed; the stand-in loses only refs.
  */
 export function containerScopeState(
 	controller: Pick<PasteCommitCoordinator, 'resolveState'>,

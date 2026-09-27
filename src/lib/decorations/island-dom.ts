@@ -135,12 +135,8 @@ export function islandPosition(dec: WidgetDecoration | ReplaceDecoration): numbe
 
 // ── Internal ────────────────────────────────────────────────────────────────
 
-/**
- * Descending position order, so a `replace` extraction never spans a widget inserted earlier
- * in the pass. On a tie `replace` goes first, since a widget at the same start would be
- * swallowed by the extraction; `side: 'after'` widgets follow, leaving the final DOM order at
- * one offset as [before, after].
- */
+/** Descending position order, so a `replace` extraction never spans a widget inserted earlier.
+ *  On a tie `replace` goes first, since a widget at the same start would be swallowed by it. */
 function orderForApplication(
 	islands: IndexedDecoration<WidgetDecoration | ReplaceDecoration>[]
 ): IndexedDecoration<WidgetDecoration | ReplaceDecoration>[] {

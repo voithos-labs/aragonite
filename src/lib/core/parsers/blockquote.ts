@@ -29,12 +29,8 @@ function wouldKeepParagraphOpen(strippedText: string): boolean {
 	return true;
 }
 
-/**
- * Byte-exact `raw` of a blockquote's extent (CommonMark §5.1 lazy continuation) plus the
- * index past it, no child decomposition: what a blockquote-shaped opener needs when it
- * decomposes its own body (`> [!NOTE]` alerts strip the marker line before parsing children).
- * Published for text converters with no editor, so the grammar defaults to every installed plugin.
- */
+/** Byte-exact `raw` of a blockquote's extent plus the index past it, with no child decomposition,
+ *  for an opener that decomposes its own body (`> [!NOTE]`). The grammar defaults to every plugin. */
 export function blockquoteExtent(
 	lines: ParsedLine[],
 	startIndex: number,

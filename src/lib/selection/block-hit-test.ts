@@ -16,16 +16,10 @@ export interface BlockHit {
 	path: number[];
 	/** The element carrying the block's path; a container's children are block hosts inside it. */
 	host: HTMLElement;
-	/**
-	 * The editable element a character offset is hit-tested against, or null when the kind has
-	 * none (a table grid, or a whole-block kind whose body is all markers and buttons).
-	 * Hit-testing the wrapper instead would return a plausible but wrong offset, not a refusal.
-	 */
+	/** The editable element a character offset is hit-tested against, or null when the kind has
+	 *  none: hit-testing the wrapper instead returns a plausible but wrong offset. */
 	charSurface: HTMLElement | null;
-	/**
-	 * Maps a point to a row-major cell index for a grid kind such as a table. Bound to this
-	 * block's wrapper, taken from the kind descriptor.
-	 */
+	/** Maps a point to a row-major cell index for a grid kind such as a table. */
 	foreignDragHitTest?: (clientX: number, clientY: number) => number | null;
 	/**
 	 * Where a click inside a grid kind puts the caret, as a child path plus offset; read when
@@ -53,9 +47,8 @@ export function blockAtPoint(
 			return {
 				path,
 				host: wrapper,
-				// A grid kind's first contenteditable is a cell, not the block, so a kind with the
-				// drag hook reports no text element. The whole-block input and the selection
-				// overlay are skipped for the same reason: neither holds the block's characters.
+				// A grid kind's first contenteditable is a cell, not the block; the whole-block
+				// input and the selection overlay hold none of the block's characters either.
 				charSurface: dragHitTest
 					? null
 					: (wrapper.querySelector(
@@ -79,12 +72,8 @@ export function holdsOwnText(hit: BlockHit): boolean {
 	return owner !== null && pathsEqual(owner, hit.path);
 }
 
-/**
- * The selection endpoint a pointer over `hit` addresses: a cell index for a grid kind, a
- * character offset where the block has text, and otherwise the whole block, whose end is
- * chosen later against the other endpoint. Both drag paths use this, so neither can hit-test
- * characters against a block that has none.
- */
+/** The selection endpoint a pointer over `hit` addresses. A block with no text yields the whole
+ *  block, so no drag hit-tests characters against it; its end is chosen against the other end. */
 export function endpointAtPoint(
 	hit: BlockHit,
 	clientX: number,
@@ -92,8 +81,8 @@ export function endpointAtPoint(
 ): SelectionEndpoint | null {
 	if (hit.foreignDragHitTest) {
 		const cellIdx = hit.foreignDragHitTest(clientX, clientY);
-		// `cellCoordinate` routes a collapse and a scroll-into-view to the cell itself, as the
-		// keyboard path does.
+		// A cell point's `cellCoordinate` routes a collapse and a scroll-into-view to the cell
+		// itself, as the keyboard path does.
 		return cellIdx === null ? null : cellPoint(hit.path, cellIdx);
 	}
 	if (!hit.charSurface) return { path: hit.path, wholeBlock: true };

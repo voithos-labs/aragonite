@@ -22,9 +22,8 @@ const mintedCommandIds = createPluginRegistry<string, true>({
 });
 
 /**
- * Create (or look up) a plugin command id. Names are global but dispatch is per kind, so the
- * plugin that created a name gets the existing id when it asks again; a different plugin (or a
- * call outside any install) throws, naming the prior owner.
+ * Names are global, so the plugin that created a name gets the same id when it asks again, while
+ * a different plugin or a call outside any install throws, naming the prior owner.
  */
 export function mintCommandId(name: string): PluginCommandId {
 	if (!NAME_PATTERN.test(name)) {

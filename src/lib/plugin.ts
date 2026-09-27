@@ -104,17 +104,14 @@ export type { OuterBlockScan } from './schema/block-openers';
 export { OPENER_PRIORITIES } from './schema/opener-priorities';
 
 // ── Enter-completion registry (pre-freeze) ───────────────────────────────────
-// The opener's counterpart for a grammar whose lines must be adjacent, which Enter alone can
-// never type into existence: a completer reads one typed line and answers the lines that
-// complete it, plus where the caret goes in the new block.
+// A completer reads one typed line and answers the lines that complete it, plus the caret: for a
+// grammar whose lines must be adjacent, which Enter alone never types.
 export { registerBlockCompleter } from './schema/block-completions';
 export type { BlockCompleter, CompletionResult } from './schema/block-completions';
 
 // ── Code-block languages (pre-freeze) ────────────────────────────────────────
-// The registry behind fenced-code highlighting. The editor loads a curated set, so a host that
-// needs more registers them before mounting an editor; an unregistered language still
-// round-trips, just untokenized. A code block reads only the languages its editor's plugins
-// registered; the three reads below have no editor, so they see every installed plugin's.
+// The registry behind fenced-code highlighting: register extra languages before mounting (an
+// unregistered one round-trips untokenized). The reads below see every installed plugin's.
 export { registerLanguage } from './components/blocks/code/code-languages';
 export type { LanguageGrammar } from './components/blocks/code/code-languages';
 /** Every language once, under its canonical name, sorted. */
@@ -189,18 +186,14 @@ export type { LineEnding } from './core/lines';
 // `String.trim()` and JS `\s` would also take a non-breaking space, which is content.
 export { isBlankLine } from './core/parser';
 export { isBlankText, isWhitespaceChar, trimWhitespace } from './core/lines';
-// A container whose body sits between marker lines of its own (`:::note` … `:::`,
-// `<summary>` … `</details>`) parses that body here, not with `parse`: the blank line
-// against a marker line is a separator, and only this function knows to keep it out of
-// the children. See `design/syntax-tree.md` § blank lines.
+// A body between marker lines of its own (`:::note` … `:::`) parses here, not with `parse`: the
+// blank line against a marker line is a separator (`docs/design/syntax-tree.md` § Blank lines).
 export { parseContainerBody } from './core/parser';
 export type { ContainerBodyWrap } from './core/parser';
 
 // ── Fence grammar (pre-freeze) ───────────────────────────────────────────────
-// The built-in CommonMark fence grammar, so a plugin that takes over a fence (```mermaid) never
-// reimplements it: claim a fence with `matchFenceInfo`, read its extent with `scanFence` and its
-// parts with `fenceAnatomy`, and declare `fenceRawWrite` as the kind's `rawWrite`. A kind that
-// rebuilds its own raw around a body it did not parse sizes the fence with `escalatedFenceLength`.
+// The CommonMark fence grammar, so a plugin taking over a fence (```mermaid) never reimplements
+// it: `fenceRawWrite` serves as its `rawWrite`, and `escalatedFenceLength` sizes a rebuilt fence.
 export {
 	matchFenceOpen,
 	matchFenceClose,
@@ -216,9 +209,8 @@ export { fenceRawWrite, fenceShapeOfRaw } from './schema/fenced-code-raw';
 export type { FenceShape } from './schema/fenced-code-raw';
 
 // ── HTML tag-line grammar (pre-freeze) ───────────────────────────────────────
-// CommonMark's type-6 tag-line shape for one tag name. What actually closes such a
-// container is everything the spec passes through raw (indented, upper-cased, trailing
-// space), which is looser than any canonical form a rebuild emits.
+// CommonMark's type-6 tag-line shape for one tag name. What closes such a container is anything
+// the spec passes through raw, looser than the canonical form a rebuild emits.
 export { htmlBlockTagLineMatcher } from './core/parsers/html-block';
 
 // ── Blockquote grammar (pre-freeze) ──────────────────────────────────────────
@@ -287,9 +279,8 @@ export { chromeChild } from './editor-actions/plugin/chrome-leaf';
 export { isCollapsedContainer } from './schema/reserved-chrome';
 
 // ── Editable-leaf authoring API (pre-freeze) ─────────────────────────────────
-// A text-editing leaf with the browser's own caret, IME, undo and selection behaviour, either
-// plain (one commit per keystroke) or render-first (the source shows while the caret is inside,
-// one commit on blur). The `createContainerBlock` counterpart for leaves.
+// A text-editing leaf with the browser's own caret, IME, undo and selection: plain (a commit per
+// keystroke) or render-first (source while the caret is inside, one commit on blur).
 export { createEditableLeaf } from './components/blocks/editable-leaf';
 export type {
 	EditableLeaf,
@@ -306,9 +297,8 @@ export type { StickyColumnDirection } from './block-component';
 export { activateDirectives } from './components/blocks/directive/activate-directives';
 export { registerDirective, isDirectiveRegistered } from './core/directive/registry';
 export type { DirectiveDefinition, ParsedDirective } from './core/directive/registry';
-// `escalatedColonCount` is the rule `serializeDirective` already applies; exported for
-// emitters that build `:::name` text by concatenation instead of through the CST, where
-// a body line reproducing the fence would otherwise close the container early.
+// `escalatedColonCount` is the rule `serializeDirective` applies, for emitters building `:::name`
+// text by concatenation, where a body line reproducing the fence would close it early.
 export {
 	escalatedColonCount,
 	parseDirectiveAttributes,
@@ -328,9 +318,8 @@ export { createBoundedMemo } from './bounded-memo';
 export type { BoundedMemoOptions } from './bounded-memo';
 
 // ── Recognizer scan index (pre-freeze) ───────────────────────────────────────
-// How to decline cheaply when a grammar has no early-stop byte (the guide's inline-kinds
-// section): a per-block position collector becomes a memoized lookup answering the first
-// candidate at or after `from` (-1 when none), one scan per block behind a two-entry memo.
+// For a grammar with no early-stop byte: collect candidate positions once per block, then answer
+// the first at or after `from` (-1 when none) behind a two-entry memo.
 export { createScanIndex } from './scan-index';
 
 // ── Paste transforms (pre-freeze) ────────────────────────────────────────────
@@ -356,9 +345,8 @@ export type {
 } from './decorations/types';
 
 // ── Events (pre-freeze) ──────────────────────────────────────────────────────
-// The payloads `EditorContext.events` delivers. `EditEvent` is the matched pair a structural
-// change reports, so an `edit` handler narrows `op` against the real set of operation names
-// instead of a bare string.
+// The payloads `EditorContext.events` delivers. `EditEvent` pairs each operation name with its
+// detail, so an `edit` handler narrows `op` against the real set of names.
 export type {
 	EditEvent,
 	EditorEventMap,
@@ -392,9 +380,8 @@ export type { MenuIconName } from './menu-icons';
 export type { EditorRects } from './editor-rects';
 
 // ── Caret geometry (pre-freeze) ──────────────────────────────────────────────
-// What a kind answers `caretTargetAtPoint` with: the shape saying where the caret goes, the
-// helper that turns a point inside one of your elements into an offset (it picks the nearest,
-// so a click on your own markers still names one), and the value for "wherever this leaf ends".
+// What a kind answers `caretTargetAtPoint` with, the helper that turns a point in your element
+// into the nearest offset, and the value for wherever the leaf ends.
 export { caretOffsetAtPoint } from './cursor/point-offset';
 export type { CaretTarget } from './schema/block-kind-descriptor';
 export { CURSOR_END } from './block-component';

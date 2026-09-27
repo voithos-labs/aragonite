@@ -39,10 +39,8 @@ export interface ReplaceBlockAtParentArgs {
 }
 
 /**
- * Land the clipboard's trailing blank line where a reload keeps one: the document's own suffix,
- * and only at a tail with nothing after it, since one separation is one separation. A container
- * tail declines: `innerSuffix` belongs to the fence-line fix-up on this same commit. The
- * clipboard says whether a line lands, never which one: the document's ending does.
+ * Land the clipboard's trailing blank line as the document's `suffix`, only at a tail with nothing
+ * after it; a container tail declines, since its fence-line fix-up owns `innerSuffix`.
  */
 function landTrailingSeparator(
 	args: ReplaceBlockAtParentArgs,
@@ -97,8 +95,8 @@ export async function replaceBlockAtParent(args: ReplaceBlockAtParentArgs): Prom
 				? replacePreservingFirst(blockIdx, 1, replacement.length)
 				: { op: 'replace', at: blockIdx, count: 1, newCount: replacement.length };
 			stampStructuralChange(scopeView.children, change, scopeView.sharing);
-			// The third write that can put a new block in a list item's first position, and so take
-			// the task marker with the paragraph that carried it.
+			// A new block in a list item's first position takes the task marker with the paragraph
+			// that carried it.
 			reconcileTaskMetadata(scopeView.node, blockIdx, stood, scopeView.sharing);
 			landTrailingSeparator(args, scopeView.children, blockIdx + replacement.length, tailEnding);
 			return [change];

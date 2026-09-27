@@ -40,17 +40,11 @@ export interface RenderInlineOptions {
 	buildPortalWidget?: (node: InlineNode, raw: string) => HTMLElement | null;
 	/** The editor's grammar: a widget kind whose plugin it leaves out renders as its source. */
 	grammar: GrammarView;
-	/**
-	 * The block's content end, where a lone backslash is the hard break it is about to become:
-	 * drawn as a (hidden) marker plus two `br` anchors so the caret has a second line to sit on.
-	 * Only for a mode that hides markers; the DOM stays byte-identical elsewhere.
-	 */
+	/** The block's content end, where a lone backslash is a pending hard break, drawn as a hidden
+	 *  marker plus two `br` anchors. Only for a mode that hides markers. */
 	pendingBreakAt?: number;
-	/**
-	 * Write the construct's raw range onto its marker spans as data attributes, so preview-inline
-	 * can find the spans to reveal. Attributes only, leaving textContent and the offset traversal
-	 * untouched. Off by default so the DOM stays byte-identical outside preview-inline.
-	 */
+	/** Write each construct's raw range onto its marker spans as data attributes, for the
+	 *  preview-inline reveal. Off by default, so the DOM stays byte-identical elsewhere. */
 	tagConstructMarkers?: boolean;
 }
 
@@ -92,9 +86,8 @@ function sourceSpan(raw: string, node: InlineNode, className: string): HTMLSpanE
 	return span;
 }
 
-/** The one href path every DOM sink goes through: a consumer's rewrite, then the scheme allowlist;
- *  undefined means render inert. Exported because the link card's Open button hands over a
- *  user-typed URL. */
+/** The one href path every DOM sink goes through: a consumer's rewrite, then the scheme allowlist.
+ *  Undefined means render inert. */
 export function resolveHref(
 	opts: Pick<RenderInlineOptions, 'resolveLinkUrl'>,
 	url: string | undefined
@@ -131,11 +124,8 @@ function renderInlineCode(
 
 // ── Nesting frames ───────────────────────────────────────────────────────────
 
-/**
- * One construct's pending child render, assembled by `close` when the frame is done. Children
- * accumulate in a detached fragment, which keeps each insertion's ancestor bookkeeping O(1)
- * rather than O(depth). Emitted order is source order: the frame owns the top of the stack.
- */
+/** One construct's pending child render, assembled by `close`. Children gather in a detached
+ *  fragment, which keeps each insertion O(1) rather than O(depth). */
 interface RenderFrame {
 	nodes: InlineNode[];
 	index: number;
@@ -185,9 +175,8 @@ function openWrapped(
 
 // ── Links ────────────────────────────────────────────────────────────────────
 
-// Markers come from raw.slice: the parsed url/title can differ from the source bytes. Every
-// split point is clamped to node.end: a plugin-created node need not carry the bytes GFM's own
-// link does, and a search running past the node would render the next node's source (G2.4).
+// Markers come from raw.slice, since the parsed url/title can differ from the source bytes. Split
+// points clamp to node.end: a plugin-made node need not carry GFM's own link bytes (G2.4).
 function openLink(
 	node: InlineNode,
 	raw: string,
@@ -257,11 +246,8 @@ function openLink(
 
 // ── Autolinks ────────────────────────────────────────────────────────────────
 
-/**
- * The angle form's `<`/`>` are construct syntax, so they render as markers the mode CSS can hide;
- * the bare URL/www/email forms are url text throughout. Read off the raw bytes, never `node.url`:
- * the bare forms may synthesize a url (`http://`, `mailto:`) that is not a slice of the source.
- */
+/** The angle form's `<`/`>` render as markers the mode CSS can hide. Read off the raw bytes, never
+ *  `node.url`, which a bare form may synthesize (`http://`, `mailto:`). */
 function appendAutolink(
 	node: InlineNode,
 	raw: string,
@@ -298,9 +284,8 @@ function appendImageSource(
 	const altText = node.alt ?? '';
 	const altStart = node.start + 2;
 	const altEnd = altStart + altText.length;
-	// `alt` locates the split and never supplies text (openLink's rule), and only where it is
-	// literally those bytes: a plugin-made image's markers need not be a GFM image's. Unlocatable
-	// falls back to unmarked source, since a construct nobody can decompose would collapse whole.
+	// `alt` only locates the split, and only where it is literally those bytes, since a plugin-made
+	// image need not be GFM's; an unlocatable one falls back to unmarked source.
 	if (altEnd > node.end || !raw.startsWith(altText, altStart)) {
 		container.appendChild(document.createTextNode(raw.slice(node.start, node.end)));
 		return;
@@ -392,9 +377,8 @@ function renderNode(
 		case 'entityReference':
 		case 'rawHtml':
 		default:
-			// An invisible entity is not a widget, so the builder returns null and it keeps its
-			// literal-source span; anything the registry does not claim falls back the same way,
-			// mirroring the unknown-block fallback so every byte round-trips.
+			// An invisible entity renders no widget and keeps its literal-source span, as does any
+			// kind the registry does not own, so every byte round-trips.
 			container.appendChild(
 				buildCoreInlineWidget(node, raw, opts.buildPortalWidget, opts.grammar) ??
 					sourceSpan(
@@ -444,11 +428,8 @@ export function renderInlineNodes(
 /** The first of a pending hard break's two anchors, where the new line starts. */
 export const PENDING_BREAK_ANCHOR = 'br[data-caret-anchor="break"]';
 
-/**
- * A `\` ending the block is a hard break still waiting for its next line, which the scanner reads
- * as literal text until then; drawn as a hidden marker plus two `br` anchors, the user sees the new
- * line. A `br` adds no textContent, so raw offsets are unaffected.
- */
+/** A `\` ending the block is a hard break the scanner reads as text until its next line exists;
+ *  a hidden marker plus two `br` anchors show that line without adding text. */
 function paintPendingBreak(
 	nodes: InlineNode[],
 	raw: string,
@@ -480,11 +461,8 @@ export interface OffsetResult {
 	localOffset: number;
 }
 
-/**
- * The leaf containing `offset`, preferring the right node at a boundary; `offset === end` only
- * matches the last node. Model-layer, touching no DOM: the DOM counterpart is
- * `findDomTextOffsetTarget` in cursor/widget-offset.ts.
- */
+/** The leaf containing `offset`, preferring the right node at a boundary; `offset === end` matches
+ *  only the last node. The DOM side is `findDomTextOffsetTarget` in `cursor/widget-offset.ts`. */
 export function findNodeAtOffset(nodes: InlineNode[], offset: number): OffsetResult | null {
 	// Descent never backtracks, the first containing sibling winning its level, so the answer is
 	// the deepest containing node.

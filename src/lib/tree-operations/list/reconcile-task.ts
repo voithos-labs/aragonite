@@ -1,7 +1,7 @@
 /**
- * Reconcile listItem task metadata against its first paragraph's raw. The parser stores
- * the task marker on the item's metadata, but live typing only mutates `paragraph.raw`, so
- * without this, typing `[ ] ` serializes as a task the live CST still calls plain.
+ * Reconciles a list item's task metadata with its first paragraph's raw. The parser keeps the task
+ * marker in the item's metadata but typing writes only `paragraph.raw`, so without a reconcile,
+ * typed `[ ] ` would serialize as a task the live tree still calls plain.
  */
 
 import type { CstNode } from '../../core/nodes';
@@ -18,11 +18,8 @@ export function taskMarkerMayStandBefore(block: CstNode): boolean {
 }
 
 /**
- * Align the item's task fields with what a fresh parse of its first line would produce, after a
- * write to the child at `writtenIndex`. On demote the stripped marker bytes are restored into the
- * paragraph raw, so the user's content survives. `markerStoodBefore` is that same question asked of
- * the block that was in the position before the write: only a write that takes such a block away
- * takes the marker with it, since a document can load with a setext heading or table there.
+ * Align the item's task fields with a fresh parse of its first line, putting a demoted marker's
+ * bytes back in the paragraph; the marker is dropped only if it stood before the replaced block.
  */
 export function reconcileTaskMetadata(
 	listItem: CstNode,
@@ -76,9 +73,8 @@ export function reconcileTaskMetadata(
 }
 
 /**
- * How far a caret in the item's first paragraph moves once `text` is written there and
- * {@link reconcileTaskMetadata} has run: back by a task marker the item takes off the front. Read
- * before the write, while the item still holds its old marker.
+ * How far back a caret in the first paragraph moves when writing `text` there takes a task marker
+ * off its front; read before the write, while the item still holds its current marker.
  */
 export function taskMarkerCaretShift(listItem: NodeView, text: string): number {
 	if (listItem.kind !== 'listItem') return 0;

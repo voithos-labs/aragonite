@@ -6,11 +6,8 @@
 
 import { BARE_MODIFIER_KEYS } from '../schema/keybindings';
 
-/**
- * Keys that neither capture nor reset; every key not here and not a vertical arrow resets.
- * Bare modifiers come from the key-combination parser rather than a local list, which could
- * miss AltGraph or CapsLock and drop the column on a modifier tap mid-arrow-run.
- */
+/** Keys that neither capture nor reset; any other key but a vertical arrow resets. Bare modifiers
+ *  come from the key-combination parser, which knows AltGraph and CapsLock. */
 export const PRESERVE_KEYS_NON_ARROW: readonly string[] = [
 	'PageUp',
 	'PageDown',

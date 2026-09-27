@@ -66,9 +66,8 @@ export function createSearchState(deps: SearchDeps): SearchState {
 	// after a commit would otherwise wipe it instantly.
 	let replacedCount = $state<number | null>(null);
 
-	// A regex scan lands asynchronously, so `matches` can trail the query that asked for
-	// it. `scanEpoch` is the drop token: every rescan and close bumps it, and an outcome
-	// tagged with a spent epoch is discarded.
+	// A regex scan lands asynchronously, so `matches` can trail its query: every rescan and close
+	// bumps `scanEpoch`, and an outcome tagged with an older epoch is dropped.
 	let scanning = $state(false);
 	let scanEpoch = 0;
 	let pendingScan: Promise<void> | null = null;
@@ -88,8 +87,7 @@ export function createSearchState(deps: SearchDeps): SearchState {
 		const { caseSensitive, wholeWord, regex } = options;
 		const key = `${ctx.editEpoch}\0${+caseSensitive}${+wholeWord}${+regex}\0${query}`;
 		if (key !== lastScanKey) {
-			// Scan the document the registry is providing for, not whatever the deps getter
-			// resolves to; the plugin guide points decoration authors at this file.
+			// Scan the document the registry is providing for, not whatever the deps getter resolves to.
 			rescan(doc);
 			lastScanKey = key;
 		}
@@ -103,9 +101,8 @@ export function createSearchState(deps: SearchDeps): SearchState {
 	}
 
 	function rescan(doc: DocumentView = deps.getDoc()): void {
-		// A whole-document replacement restarts navigation at the first match: the old
-		// position indexes a document the user never navigated. Edits, undo and option
-		// toggles leave the user where they were, so they fall through to applyMatches' clamp.
+		// A whole-document replacement restarts navigation at the first match. Edits, undo and option
+		// toggles keep the user's position through applyMatches' clamp.
 		const generation = deps.getDocumentGeneration();
 		const documentReplaced = generation !== lastGeneration;
 		lastGeneration = generation;
@@ -162,9 +159,8 @@ export function createSearchState(deps: SearchDeps): SearchState {
 			});
 	}
 
-	// Every state change goes through the decoration registry so the published marks follow.
-	// invalidate is synchronous by contract, so setQuery's callers still observe fresh matches
-	// on return; the no-handle fallback keeps the headless setQuery-before-open path scanning.
+	// Every change goes through the decoration registry so the marks follow; invalidate is
+	// synchronous, so setQuery's callers see fresh matches on return, even before open.
 	function refresh(): void {
 		if (handle) handle.invalidate();
 		else rescan();

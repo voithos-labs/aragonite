@@ -1,7 +1,4 @@
-/**
- * Pointer half of the cross-block dispatcher: shift-click extension and pointer-drag entry. See
- * dispatch.ts for the composer that wires this together with the keydown half.
- */
+/** The pointer half of cross-block dispatch: shift-click extension and starting a drag-select. */
 
 import type { CrossBlockDispatchContext, PointerPressOptions } from './dispatch';
 import type { SelectionState } from '../selection-state.svelte';
@@ -25,12 +22,8 @@ export function createCrossBlockPointer(ctx: CrossBlockDispatchContext): CrossBl
 	};
 }
 
-/**
- * The shared pointerdown reset for any block that handles cross-block input. Forgets how the
- * caret arrived, resets the select-all counter, and on a plain click clears any active
- * cross-block selection so a fresh drag does not extend the prior range. The pointer counterpart
- * of `caret-doors.ts`, so it ends the gap caret too.
- */
+/** The pointerdown reset every cross-block-aware block shares, the pointer counterpart of
+ *  `caret-doors.ts`: a plain click ends any range, so a fresh drag starts its own. */
 export function resetForPointerDown(
 	selection: SelectionState,
 	caretMemory: Pick<CaretMemory, 'forget'>,

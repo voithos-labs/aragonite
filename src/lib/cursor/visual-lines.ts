@@ -34,11 +34,8 @@ export interface CaretRect {
 	bottom: number;
 }
 
-/**
- * The box a caret with no rect of its own borrows: the widget it precedes, else the one it
- * follows. Null where the caret is not at an element-level position, or the neighbour measures
- * to nothing.
- */
+/** The box a caret with no rect of its own borrows: the widget it precedes, else the one it follows.
+ *  Null off an element-level position, or when the neighbour measures to nothing. */
 export function neighbourCaretRect(range: Range): CaretRect | null {
 	const container = range.startContainer;
 	if (container.nodeType !== Node.ELEMENT_NODE) return null;
@@ -90,12 +87,8 @@ export interface CaretBounds {
 	end: number;
 }
 
-/**
- * True if the selection inside `el` sits on the first visual line; a block with no caret range
- * returns true. `fallbackOffset` (the snapped caret offset from the surface backend's `getRaw`)
- * answers when there is no live range, since Chromium drops the caret range next to atomic
- * contenteditable=false widgets across event-loop yields.
- */
+/** True if the selection in `el` sits on the first visual line, or holds no range. `fallbackOffset`
+ *  answers without a live range, which Chromium drops beside widgets across event-loop yields. */
 export function isAtFirstVisualLine(
 	el: HTMLElement,
 	fallbackOffset: number,
@@ -130,8 +123,7 @@ export function isAtLastVisualLine(
 
 // ── Internal ────────────────────────────────────────────────────────────────
 
-/** The shared skeleton of the two edge predicates: `fallback` answers where geometry cannot (a
- *  dropped range, a caret no box can be found for, an unmeasurable boundary line) and
+/** The shared skeleton of the two edge predicates: `fallback` answers where geometry cannot, and
  *  `boundaryTop` measures the edge line each side's own way. */
 function isAtEdgeVisualLine(
 	el: HTMLElement,

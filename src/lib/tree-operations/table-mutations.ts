@@ -55,9 +55,8 @@ export function deleteRow(table: CstNode, rowIdx: number): void {
 }
 
 /**
- * Make the table's first row its header. A header wider than the delimiter row is no table at
- * all, so the row's surplus cells become columns: the table widens, and every row takes its own
- * surplus into the new columns first, as a reload of the widened table reads it.
+ * Make the table's first row its header. A header wider than the delimiter row reads as no table,
+ * so its surplus cells become new columns, each row filling them from its own surplus first.
  */
 export function promoteFirstRowToHeader(table: CstNode): void {
 	const rows = table.children ?? [];
@@ -141,9 +140,8 @@ export function cycleAlignment(table: CstNode, colIdx: number): void {
 // editor-actions/ so selection/ never has to reach across for them.
 
 /**
- * Whether a row delete is allowed. `rowCount` is the full count including the header. A
- * header delete promotes the next row so it needs only a second row; a body delete needs
- * a second body row, else it would leave a header-only table.
+ * `rowCount` includes the header. A header delete promotes the next row, so it needs only a
+ * second row; a body delete needs a second body row, or it leaves a header-only table.
  */
 export function canDeleteRow(rowIdx: number, rowCount: number): boolean {
 	if (rowCount <= 1) return false;

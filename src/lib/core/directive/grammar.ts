@@ -47,11 +47,8 @@ export function isDirectiveCloser(lineText: string, openColonCount: number): boo
 	return count >= openColonCount && count === lineText.length;
 }
 
-/**
- * The colon count needed to wrap `body`: one past its longest whole-line colon run, never below
- * `minimum`. Without it a body line reproducing the terminator reads as the container's own
- * closer and ejects everything below it on reparse.
- */
+/** The colon count needed to wrap `body`: one past its longest whole-line colon run, never below
+ *  `minimum`, so no body line reads as the container's closer on reparse. */
 export function escalatedColonCount(body: string, minimum: number): number {
 	// A closer line is colons end to end, so its own length IS the run.
 	return escalateTerminatorRun(body, minimum, (text, required) =>
@@ -79,8 +76,8 @@ export function serializeDirective(parts: {
 }): string {
 	const lineEnding = parts.lineEnding ?? '\n';
 	const inner = `${parts.innerPrefix}${parts.body}${parts.innerSuffix}`;
-	// Re-derived on every emit rather than latched into metadata, so two emits over the same
-	// state always agree (G1.13). `colonCount` is a floor, not a target.
+	// Re-derived on every emit rather than kept in metadata, so two emits over the same state agree
+	// (G1.13). `colonCount` is a floor, not a target.
 	const colonCount = escalatedColonCount(inner, parts.colonCount);
 	const opener = ':'.repeat(colonCount);
 	const closer = ':'.repeat(Math.max(colonCount, parts.closerColonCount ?? colonCount));

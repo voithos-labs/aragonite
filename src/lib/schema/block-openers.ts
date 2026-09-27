@@ -24,11 +24,14 @@ export interface OpenContext {
 	end: number;
 	/** The line at `index`, precomputed once per dispatch. */
 	line: ParsedLine;
-	/** The blank-line bytes above this block: non-empty means a blank line precedes it, which the interrupt rules read (GFM §4.4). */
+	/** The blank lines above this block, which the paragraph-interrupt rules read (GFM §4.4);
+	 *  non-empty means a blank line precedes it. */
 	leadingTrivia: string;
-	/** True when this parse was given a whole document (`parse` scope `'document'`), false when one block's bytes are parsed on their own. It stays the same through nested container parsing, so a check that depends on document position combines it with `index`/`depth`/`leadingTrivia`. */
+	/** True when the parse was given a whole document, false for one block's bytes alone. It holds
+	 *  through nested parses, so a position check also reads `index` and `depth`. */
 	isDocumentParse: boolean;
-	/** Container-nesting depth of this parse level (0 at the document root). A container opener that reparses its body recurses at `depth + 1`; past the cap (`MAX_NESTING_DEPTH`) deeper input becomes paragraph content. */
+	/** Container nesting depth, 0 at the root. A container opener parses its body at `depth + 1`;
+	 *  past `MAX_NESTING_DEPTH` deeper input becomes paragraph content. */
 	depth: number;
 	/** The editor's grammar. A container opener hands it to its body parse, so a kind this
 	 *  editor switched off stays off inside a list item or a quote too. */
@@ -105,19 +108,16 @@ function orderedRecords(): readonly OpenerRecord[] {
 	return orderedRecordsCache;
 }
 
-/**
- * Every registered opener in dispatch order, whoever registered it (G1.10 warns when two kinds
- * share a priority). An editor's own order is its `GrammarView.orderedOpeners`.
- */
+/** Every registered opener in dispatch order, whoever registered it. An editor's own order is its
+ *  `GrammarView.orderedOpeners`. */
 export function getOrderedOpeners(): readonly BlockOpener[] {
 	const records = consumedRecords();
 	if (!orderedCache) orderedCache = records.map((r) => r.value);
 	return orderedCache;
 }
 
-// Every ordered read goes through here: pending registrations are checked before the read, and
-// marking the grammar used only afterwards keeps a registration that races the first read out of
-// the late-opener warning (G1.17).
+// Pending registrations are checked before the read and the grammar marked used only after it, so
+// a registration racing the first read is not warned about as a late opener (G1.17).
 function consumedRecords(): readonly OpenerRecord[] {
 	if (hasPendingRegistrationChecks()) flushPendingRegistrationChecks();
 	markGrammarConsumed();
@@ -125,10 +125,8 @@ function consumedRecords(): readonly OpenerRecord[] {
 }
 
 /**
- * Paragraph-interrupt check built from the registry, handling pending registrations the way
- * `getOrderedOpeners` does. Not filtered per editor, so an unlisted plugin's line still ends a
- * paragraph, though a plugin whose setup threw interrupts nothing. Indented code never
- * interrupts, and the paragraph parser stops at `---` itself.
+ * Global, not per editor, so an unlisted plugin's line still ends a paragraph; a plugin whose
+ * setup threw interrupts nothing. The paragraph parser stops at `---` itself.
  */
 export function lineInterruptsParagraph(lineText: string): boolean {
 	const records = consumedRecords();
@@ -207,10 +205,8 @@ export interface OuterBlockScan {
 }
 
 /**
- * Does `line` start a block at the outer level? cmark-gfm ends both a lazy continuation and a
- * table's row scan there, and the paragraph-interrupt exceptions do not apply. Two kinds do not
- * count as a start: a link reference definition is cut out of a paragraph when the paragraph
- * ends, and indented code cannot open while a paragraph is open to absorb the line.
+ * Whether `line` starts a block at the outer level, where cmark-gfm ends a lazy continuation or a
+ * table. A link reference definition never counts, nor indented code under an open paragraph.
  */
 export function lineStartsOuterBlock(line: ParsedLine, scan: OuterBlockScan): boolean {
 	const { grammar } = scan;
@@ -236,7 +232,7 @@ function claimOpensBlock(kind: AnyBlockKind, paragraphOpen: boolean): boolean {
 	return !(paragraphOpen && kind === 'indentedCode');
 }
 
-/** Lets the dev-mode check for duplicate priorities (G1.10) read the registry. */
+/** Read by the dev-mode check that warns when two kinds share a priority (G1.10). */
 export function listRegisteredOpeners(): { kind: AnyBlockKind; priority: number }[] {
 	return openers.records().map((r) => ({ kind: r.key, priority: r.value.priority }));
 }

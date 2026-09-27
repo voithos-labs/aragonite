@@ -36,9 +36,8 @@ const fromPlugins = createPluginRegistry<string, InsertEntry>({
 });
 
 /**
- * Add a block to every insert menu, listed after the built-ins in registration order. Call it
- * from a plugin's `setup`: the entry is listed only in an editor that activated that plugin.
- * Throws on an id already taken and on an icon name the menu cannot draw.
+ * Call from a plugin's `setup`: the entry is listed after the built-ins, and only in editors that
+ * activated that plugin. Throws on a taken id or an icon name the menu cannot draw.
  */
 export function registerInsertEntry(entry: InsertEntry): void {
 	if (!isMenuIconName(entry.icon)) {

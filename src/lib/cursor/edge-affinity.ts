@@ -22,18 +22,15 @@ export function classifyArrivalKey(key: string, metaKey = false): EdgeAffinityAc
 	// macOS Cmd+Arrow jumps to the line's end, a placement rather than a step, so it takes
 	// Home/End's answer. Windows and Linux never deliver meta+arrow to the page.
 	if (metaKey && (key === 'ArrowLeft' || key === 'ArrowRight')) return 'outside';
-	// A step stops on the side of the run it came from, so one keypress never changes which
-	// construct the caret is in (live-mode.md § 4.2); leaving a construct is a typed closer's job
-	// (delimiter-autopair.ts) or a toggle's, not the arrow's.
+	// A step stops on the side of the run it came from, so one keypress never changes which construct
+	// the caret is in (`docs/design/live-mode.md` § 4.2 Typing at a hidden edge).
 	if (key === 'ArrowRight' || key === 'ArrowDown' || key === 'PageDown') return 'near';
 	if (key === 'ArrowLeft' || key === 'ArrowUp' || key === 'PageUp') return 'far';
-	// Home and End are relative to the construct, not directional: `Home` before a construct
-	// that starts the line means before its opener, the run's earlier side, which is the
-	// opposite answer from `End` after a construct that ends the line.
+	// Home and End are relative to the construct: `Home` before a construct starting the line means
+	// before its opener, the run's earlier side, the opposite of `End` after one ending the line.
 	if (key === 'Home' || key === 'End') return 'outside';
-	// Bare modifiers come from the key-combination parser rather than a local list, which could
-	// miss AltGraph and drop the side on a modifier tap mid-arrow-run. A printable key preserves
-	// because the typing path reads the side later in this same keydown.
+	// Bare modifiers come from the key-combination parser, which knows AltGraph. A printable key
+	// preserves because the typing path reads the side later in this same keydown.
 	if (BARE_MODIFIER_KEYS.includes(key) || isCharacterKey(key)) return 'preserve';
 	// Anything left moves the caret by a mutation or a command, not by a key; the commit path
 	// sets the side again through `noteTyping`.
