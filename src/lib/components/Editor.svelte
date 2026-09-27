@@ -175,8 +175,7 @@
 		__registryEnablement
 	}: EditorProps & { __registryEnablement?: KindEnablement } = $props();
 
-	// Read once, not live: `scrollMode` is set once by contract, and reading it live inside
-	// windowing's derived would make it a dependency of the hottest path.
+	// Read once: `scrollMode` is fixed at mount, and a live read would join windowing's hottest path.
 	// svelte-ignore state_referenced_locally
 	const hostScroll = scrollMode === 'host';
 
@@ -187,25 +186,23 @@
 		hostScroll
 	});
 
-	// Install before initDocument parses `source`, so plugin openers and directives are live
-	// for the first parse. Set once by contract: a later prop change is ignored.
+	// Installed before the first parse of `source`; a later change to `plugins` is ignored.
 	// svelte-ignore state_referenced_locally
 	const pluginEntries = plugins?.length ? normalizePluginEntries(plugins) : undefined;
 	if (pluginEntries) installPlugins(pluginEntries.plugins);
 
-	// The prop is the enablement set: this editor activates exactly what it listed. No prop
-	// means no restriction, so everything installed in the process stays active here.
+	// The editor activates exactly the plugins it lists; with no `plugins` prop, every installed
+	// plugin stays active.
 	const activePlugins = pluginEntries
 		? activationFor(pluginEntries.plugins.map((p) => p.name))
 		: everyInstalledPlugin;
 
 	const overridesMap = $derived(normalizeKeybindingOverrides(keybindings));
 
-	// The single mode reported everywhere (root attribute, context getter, plugin contexts,
-	// events), and the one place a difference between effective and requested would show up.
+	// The one mode every reader reports, and the one place effective and requested could differ.
 	const effectiveMode = $derived(presentationMode);
-	// The mode being left, answered only while the switch commits the edits that mode was holding,
-	// so those writes land in the mode they were typed in. State, so a read made then is redone.
+	// Set only while a mode switch commits the outgoing mode's pending edits, so they land in the
+	// mode they were typed in.
 	let outgoingMode = $state<PresentationMode | null>(null);
 	// Replace is an edit, so reading mode never offers it (the commit refuses the write anyway).
 	const canReplace = $derived(effectiveMode !== 'reading');
@@ -219,8 +216,7 @@
 
 	// ── State ───────────────────────────────────────────────────────────
 
-	// This editor's view of the global definitions, read by the first parse, every edit's reparse
-	// and the inline scan. The test hook narrows the plugins prop.
+	// This editor's view of the global registries; `__registryEnablement` narrows it in tests.
 	// svelte-ignore state_referenced_locally
 	const registryView = createRegistryView({
 		plugins: pluginEntries ? activePlugins : undefined,
@@ -228,8 +224,7 @@
 		syntax
 	});
 
-	// doc/blockIds are mutable state structural ops write through directly, so they
-	// cannot be $derived: snapshot at mount, re-sync via the $effect below.
+	// Plain state, not $derived: structural edits write `doc` and `blockIds` directly.
 	// svelte-ignore state_referenced_locally
 	const initial = initDocument(source, registryView.grammar);
 	let doc: Document = $state(initial.doc);
@@ -258,13 +253,12 @@
 		mode: () => outgoingMode ?? effectiveMode,
 		hidesDelimitersAtCaret: () => hidesDelimitersAtCaret(outgoingMode ?? effectiveMode)
 	};
-	// Plain, not `$state`: where the root list's child refs are stored (see `refSlotsOver`).
+	// The root list's child component refs, plain rather than `$state` (see `refSlotsOver`).
 	const blockRefs: (BlockComponent | undefined)[] = [];
 	const blockRefSlots = refSlotsOver(blockRefs);
 	let editorEl: HTMLDivElement | undefined = $state();
-	// Inside a themed host the editor sits under no opt-in class, and the portaled search
-	// bar must not carry one either: the class's defaults would shadow the host tokens the
-	// anchor already inherits.
+	// A portaled search bar inside a themed host skips the theme class, whose defaults would
+	// shadow the host's tokens.
 	const inThemedScope = $derived(!!editorEl?.closest('.aragonite-editor-theme'));
 	let headerEl: HTMLDivElement | undefined = $state();
 	let typeScaleProbeEl: HTMLDivElement | undefined = $state();
@@ -292,9 +286,8 @@
 	const widgetSelection = createWidgetSelectionState({
 		onSelect: () => {
 			window.getSelection()?.removeAllRanges();
-			// Announced like the `source` swap: dropping the native range ends the document
-			// caret without moving any field the clear checks, and the native `selectionchange`
-			// it fires stops on the empty range before it reaches subscribers.
+			// Announced explicitly: the native `selectionchange` from dropping the range never
+			// reaches subscribers, and the clear sees no field move.
 			selectionState.batch(() => {
 				selectionState.clear();
 				selectionState.announceSelection();
@@ -314,8 +307,7 @@
 		clear: () => widgetSelection.clear()
 	};
 
-	// The caret a selected image stands for: the edge its selection came from, read off the live
-	// image, since a resize moves its end while it stays selected.
+	// The caret a selected image stands for, read off the live image since a resize moves its end.
 	function selectedWidgetCaret(): EditorSelection | null {
 		const selected = widgetSelection.getSelected();
 		if (!selected) return null;
@@ -332,12 +324,10 @@
 			: ''
 	);
 
-	// Its own polite region: overwriting selectionDescription would drop the move from
-	// the accessibility tree.
+	// Its own live region: sharing `selectionDescription`'s would drop the move announcement.
 	let reorderAnnouncement = $state('');
 
-	// Single elements, not per-block, so the hover/drag path adds no cost per mounted
-	// component.
+	// One element each for the whole editor, so dragging costs nothing per mounted block.
 	let reorderGhost = $state<{ clientX: number; clientY: number; label: string } | null>(null);
 	let reorderLine = $state<{ left: number; top: number; width: number } | null>(null);
 	let dropCaret = $state<DropCaretRect | null>(null);
@@ -364,10 +354,8 @@
 		return () => dispose();
 	});
 
-	// The one place `editEpoch` is bumped. It follows the content version rather than the `edit`
-	// event, whose `input` is batched across a typing burst and would leave every decoration
-	// source a pause behind the bytes; the tick keeps a source off a half-applied tree, and
-	// skipping when there are no sources keeps an undecorated editor at zero work (perf:check).
+	// The one place `editEpoch` is bumped, off the content version because the `edit` event
+	// batches a typing burst; the tick keeps decoration sources off a half-applied tree.
 	let notifiedVersion = contentVersion.read();
 	$effect(() => {
 		const version = contentVersion.read();
@@ -407,8 +395,7 @@
 		events
 	});
 
-	// The `source !== lastSource` check is required:
-	// see `docs/design/editor.md` § Reactive state plumbing.
+	// The equality check is required: `docs/design/editor.md` § Reactive state plumbing.
 	// svelte-ignore state_referenced_locally
 	let lastSource = source;
 	$effect(() => {
@@ -417,25 +404,19 @@
 		documentSwap.swapTo(source);
 	});
 
-	/**
-	 * The host's own header, mounted inside this root. Every rule that means "this is the
-	 * editor's own content" asks here rather than keeping its own `contains` copy, which is
-	 * how one gets missed. The focusout checks still use `contains`: for "did focus leave the
-	 * whole widget", the header is part of the editor.
-	 */
+	/** Whether `node` is in the host's header; every "is this editor content" check asks here.
+	 *  Focusout checks use `contains` instead, since the header counts as part of the editor. */
 	function isHostChrome(node: Node | null): boolean {
 		return !!node && !!headerEl && headerEl.contains(node);
 	}
 
 	// ── Block menu ──────────────────────────────────────────────────────
 
-	// Opened by a right-click on prose with nothing selected; a right-click over a selection leaves
-	// the formatting popover (the host's) in charge and only suppresses the native menu. Tables run
-	// their own cell menu and have prevented the default first.
+	// Opened by a right-click on prose with nothing selected; over a selection the host's
+	// formatting popover stays in charge, and tables run their own cell menu.
 	let blockMenu = $state<BlockMenuModel | null>(null);
 
-	// Every menu counts itself in on mount; transitions only, so a subscriber's first news is a
-	// real menu.
+	// Emits on open/close transitions only, so a subscriber's first event is a real menu.
 	const menuPresence = createMenuPresence();
 	let menuWasOpen = false;
 	$effect(() => {
@@ -447,10 +428,8 @@
 
 	// ── Link card ───────────────────────────────────────────────────────
 
-	// The caret snapshot and the entry checks live on the state, not on the callers, so the next
-	// entry path cannot forget them. All three refuse a cross-block range outright; within one
-	// block they differ by gesture: an unasked-for click must not interrupt a selection, the
-	// create gesture wraps it, and the chord has already resolved it against what it opens.
+	// The caret snapshot and entry checks live on the link card state so no entry path skips
+	// them. Each refuses a cross-block range; a click also refuses a selection, which create needs.
 	const linkCard = createLinkCardState({
 		onOpen: () => linkCardCaret.saveCurrent(),
 		canOpen: () => !selectionState.isCrossBlock && window.getSelection()?.isCollapsed !== false,
@@ -473,8 +452,7 @@
 
 	// ── Hidden-run class check ──────────────────────────────────────────
 
-	// Once per mode change, this check pays the getComputedStyle the per-keystroke hidden-run
-	// test cannot afford, so the two lists of class names cannot drift apart unnoticed.
+	// Once per mode change, so the getComputedStyle cost stays off the keystroke path.
 	$effect(() => {
 		void effectiveMode;
 		if (!editorEl) return;
@@ -484,8 +462,8 @@
 
 	// ── Root listeners ──────────────────────────────────────────────────
 
-	// On the resolved scroll container, not the root: the block held in place fights whoever
-	// scrolls that container, and in host mode that gesture happens outside the editor.
+	// On the resolved scroll container, not the root: in host mode the user scrolls outside the
+	// editor, and that scroll must release the block held in place.
 	$effect(() => {
 		if (!editorEl) return;
 		const target = getScrollHost();
@@ -504,8 +482,7 @@
 		});
 	});
 
-	// Its own effect: this reads no root binding, so pairing it with the focusout one
-	// would make it wait for the bind and re-install on every root change.
+	// Its own effect, since it needs no root and would otherwise re-install on every root change.
 	$effect(() =>
 		onRoot(document, 'visibilitychange', () => {
 			if (document.visibilityState === 'hidden') {
@@ -519,9 +496,7 @@
 		return installUndoStepEnd(editorEl, () => controller.endUndoStep());
 	});
 
-	// Register as a body-chord handler so the document-level keydown routes a body-level
-	// chord to exactly one instance: a lone editor takes it unconditionally; among several,
-	// the last-interacted one wins.
+	// A chord that reaches <body> goes to one editor: the only one, or the last one interacted with.
 	$effect(() => {
 		if (!editorEl) return;
 		const root = editorEl;
@@ -539,8 +514,7 @@
 	const getBlockElByPath: BlockElLookup = (path) =>
 		editorEl ? blockContentElAt(editorEl, path) : null;
 
-	// The non-scrolling sibling of revealPath, and the one descent both the rect API
-	// and the test hooks use: a second closure would drift from it.
+	// The non-scrolling counterpart of `revealPath`, shared by the rect API and the test hooks.
 	function getBlockComponent(path: number[]): BlockComponent | null {
 		if (path.length === 0) return null;
 		const [first, ...rest] = path;
@@ -552,14 +526,12 @@
 
 	// ── Action Bundles ──────────────────────────────────────────────────
 
-	// Hoisted so the deps literal below can reference it before the windowing state it
-	// reads is declared; the body runs only at call time, after init.
+	// A hoisted function, so the deps below can name it before `topWindowing` is declared.
 	async function revealPath(path: number[]): Promise<BlockComponent | null> {
 		if (path.length === 0) return null;
 		const top = path[0];
-		// The shared mount-and-wait check skips an already-mounted block, re-checks after a
-		// spurious cross-level recompute, and gives up rather than hanging when a stale
-		// height table left `top` outside the recomputed window (VR-5).
+		// Gives up rather than hanging when stale heights leave `top` outside the recomputed
+		// window (VR-5).
 		await revealChildOrWait(top, {
 			slots: blockRefSlots,
 			childCount: doc.children.length,
@@ -606,12 +578,9 @@
 	const { blockEdit, focus, history, containerEdit, controller } =
 		createEditorActions(editorActionsDeps);
 
-	// A getter, so block components read the live doc at keystroke time rather than
-	// the snapshot they mounted with.
+	// A getter, so block components read the live doc rather than the one they mounted with.
 	const getDoc: DocumentGetter = () => doc;
 
-	// Ahead of the plugin contexts because `decorations` is handed into
-	// createEditorPluginContexts below.
 	const decorationEngine = createDecorationEngine({
 		getDoc,
 		onSourceError: (source, error) =>
@@ -619,8 +588,6 @@
 	});
 	const decorations: DecorationRegistry = { addSource: decorationEngine.addSource };
 
-	// Reuses revealPath/getBlockElByPath/getBlockComponent so nothing measures through
-	// a second closure.
 	const rects = createEditorRects({
 		getBlockElByPath,
 		getBlockComponentByPath: getBlockComponent,
@@ -631,16 +598,14 @@
 		isCrossBlock: () => selectionState.isCrossBlock,
 		isHostChrome,
 		revealAnchor,
-		// A navigation keeps the block it scrolled to in place, unlike the consumer restore
-		// path: nothing after it wants the viewport back, and the held position should outlive
-		// a late image decode.
+		// A navigation keeps its block held in place, so a late image decode cannot scroll it away.
 		landCaretAt: landCaretAtOffset
 	});
 
 	const editorId = mintEditorId();
 
-	// The typed-trigger menus (`#tag`, `[[link`). The write is the same one-entry range splice the
-	// link card and the image popover use, so a pick undoes in one press.
+	// The typed-trigger menus (`#tag`, `[[link`); a pick commits as one undo step, like the
+	// link card's edits.
 	const inlineMenuCommit = createInlineRangeCommit({ getDoc, controller, reading });
 	const inlineMenu = createInlineMenuState({
 		getDoc,
@@ -656,8 +621,6 @@
 	const inlineMenus: InlineMenuRegistry = inlineMenu.registry;
 	$effect(() => () => inlineMenu.dispose());
 
-	// After getDoc so it reuses that one live-doc closure: a second getDoc would be a
-	// TDZ reference here, and the rule is one getter, never a captured value.
 	const pluginContexts = createEditorPluginContexts({
 		editorId,
 		getDoc,
@@ -667,8 +630,7 @@
 		rects,
 		inlineMenus,
 		getDocumentGeneration: documentSwap.generation,
-		// The one place the mode enters the dispatch levels; they read it back through
-		// the pluginEditor lookup they already pass around.
+		// The one place the mode enters command dispatch, read back through `pluginEditor`.
 		getPresentationMode: reading.mode,
 		getTheme: () => theme,
 		activation: activePlugins,
@@ -678,14 +640,12 @@
 		computeInlineContent: inlineReaderFor(registryView.grammar)
 	});
 
-	// One definition, passed by every dispatch level that can reach a plugin-global
-	// handler, so block, cross-block and editor-root route identically.
+	// One lookup for every dispatch level, so block, cross-block and root route plugins alike.
 	const pluginEditorLookup: PluginEditorLookup = (name) => pluginContexts.get(name);
 	const commandErrorSink: CommandErrorSink = (report) => emitCommandError(events, report);
 
-	// onMount, never a plain $effect: attachAll synchronously runs plugin callbacks that
-	// read reactive state, so an effect would take doc.children as a dependency and the
-	// first structural edit would dispose every subscription.
+	// onMount, not $effect: plugin callbacks read reactive state, and an effect would tear
+	// every subscription down on the first structural edit.
 	onMount(() => {
 		pluginContexts.attachAll(({ plugin, error }) =>
 			events.emit('error', { origin: 'subscriber', error, context: { plugin } })
@@ -696,8 +656,7 @@
 	// Aborted on unmount; document-level listeners observe it to cancel mid-operation work.
 	const lifetimeController = new AbortController();
 	$effect(() => () => {
-		// Same reason as the source swap: a timer outliving the component emits into
-		// subscribers the host still holds, for a document that is gone.
+		// A pending checkpoint timer would otherwise emit for a document that is gone.
 		controller.flushDebouncedCheckpoint();
 		lifetimeController.abort();
 	});
@@ -708,10 +667,8 @@
 
 	const pasteCoordinator = createPasteCoordinator(controller, revealPath);
 
-	// The document caret while the search bar or the link card holds focus
-	// (selection/caret-restore.ts). One instance each: a card opened over an open search bar
-	// would otherwise overwrite the pre-search caret, and closing the bar would leave the
-	// user at the link.
+	// The document caret while the search bar or link card holds focus; one each, so a card
+	// opened over the search bar cannot overwrite the caret the bar restores.
 	const searchCaret = createCaretRestore(() => editorEl ?? null);
 	const linkCardCaret = createCaretRestore(() => editorEl ?? null);
 
@@ -722,14 +679,11 @@
 		getDocumentGeneration: documentSwap.generation,
 		decorations,
 		replace: searchReplace,
-		// Goes through the one public scroll call, which also decides which block is held
-		// in place (the top one by default, which is what search wants), so a late image
-		// decode cannot scroll the match away.
+		// The public scroll call holds the match in place, so a late image decode cannot move it.
 		reveal: (p) => rects.scrollTo(p),
 		onClose: searchCaret.restore
 	});
-	// Lives here, not in SearchBar, so the root Ctrl+H and the bar's chevron share one
-	// source of truth.
+	// Lives here, not in SearchBar, so the root Ctrl+H and the bar's chevron share it.
 	let replaceExpanded = $state(false);
 
 	const announceReorder = async (message: string) => {
@@ -743,8 +697,7 @@
 		announceReorder(movedBlockToPosition(to + 1, total));
 	});
 
-	// Cleared first for the same reason as the reorder announcement: two headings typed in a row
-	// would otherwise announce once.
+	// Cleared first like the reorder announcement, so two headings in a row announce twice.
 	let kindAnnouncement = $state('');
 	const kindCue = createKindCue({
 		getDoc,
@@ -783,8 +736,8 @@
 		reorder
 	};
 
-	// The action bundles stay one per context key so a container re-provides exactly what
-	// it overrides; the history bundle must have a single provider (G1.4).
+	// One context key per bundle so a container re-provides only what it overrides; history
+	// has a single provider (G1.4).
 	setContext(BLOCK_EDIT_KEY, blockEdit);
 	setContext(FOCUS_KEY, focus);
 	setContext(HISTORY_KEY, history);
@@ -827,7 +780,7 @@
 		get onPasteImage() {
 			return onPasteImage;
 		},
-		// Accessors for the same reason as onPasteImage above.
+		// Accessors, as above.
 		get onRunCode() {
 			return onRunCode;
 		},
@@ -839,8 +792,8 @@
 
 	// ── Root DOM effects ────────────────────────────────────────────────
 
-	// The pre half runs while the outgoing mode still owns the DOM, the post half after the
-	// mode's render key has rebuilt every block; the factory carries the caret across the gap.
+	// `beforeFlip` runs while the outgoing mode still owns the DOM, `afterFlip` once every block
+	// has re-rendered; the caret is carried across.
 	const modeFlip = createModeFlip({
 		get editorEl() {
 			return editorEl;
@@ -889,8 +842,6 @@
 		reading,
 		widgetSelection
 	});
-	// The drop handler installs on the same root; its deps are the paste pipeline's, not a
-	// gesture's.
 	$effect(() => {
 		if (!editorEl) return;
 		const root = editorEl;
@@ -928,8 +879,7 @@
 		setMenu: (menu) => (blockMenu = menu)
 	});
 
-	// A theme change invalidates no live edit, so it only has to be announced, for plugins
-	// that paint their own colors and cannot see the change through CSS.
+	// Announced for plugins that paint their own colors and cannot see a theme change in CSS.
 	// svelte-ignore state_referenced_locally
 	let lastTheme = theme;
 	$effect(() => {
@@ -939,9 +889,8 @@
 		events.emit('themeChange', next);
 	});
 
-	// CSS keys on `data-cross-block` to hide the native caret and selection highlight
-	// while the overlay paints the cross-block range. Keyed on the overlay's own test: a
-	// state it does not paint must not also lose the caret, or the screen shows neither.
+	// Hides the native caret and highlight while the overlay paints; keyed on the overlay's own
+	// test, so a range it does not paint keeps the native one.
 	$effect(() => {
 		if (!editorEl) return;
 		if (selectionState.isCustomRendered) {
@@ -993,10 +942,7 @@
 	});
 
 	// ── Editor-root keydown routing ──────────────────────────────────────
-	//
-	// When the caret's block windows out, focus drops to <body> and the per-block keydown handlers
-	// go silent, so this editor-level handler reuses the same cross-block composer with the root
-	// and the focus path standing in for `getEl` and `getMyPath`.
+	// Handles keys for a caret whose block unmounted, when focus has dropped to <body>.
 	const editorCrossBlock = createCrossBlockHandlers({
 		getEl: () => editorEl ?? null,
 		getMyPath: () => selectionState.focus?.path ?? [],
@@ -1019,9 +965,8 @@
 		afterReactivity: () => tick()
 	});
 
-	// Document-level chords for a caret whose block is not mounted, plus the search shortcuts.
-	// Every handler is limited to this instance: the listener sees every editor's keystrokes
-	// on the page, so an unguarded one would let a single Ctrl+Z revert two editors.
+	// Every handler checks for this instance: the document listener sees every editor's keys,
+	// and one Ctrl+Z must not revert two editors.
 	const rootKeydown = createEditorRootKeydown({
 		get searchBarEnabled() {
 			return searchBar;
@@ -1049,15 +994,12 @@
 	});
 
 	// ── Editor-root clipboard routing ────────────────────────────────────
-	//
-	// The keydown sibling's counterpart: a Ctrl+C/X/V that Chromium retargeted to <body> because
-	// the selection found no text position to put a caret in. Limited the same way: the handlers
-	// take only events on this root, or on the body with this instance holding the chord.
+	// Copy, cut and paste that Chromium retargets to <body> when the selection has no text position.
 	const rootClipboard = createEditorRootClipboard({
 		selection: selectionState,
 		getDoc,
 		crossBlock: editorCrossBlock,
-		// A live policy value, like the accessor the blocks' policies context hands out.
+		// An accessor, so the handler reads the live prop.
 		get onPasteImage() {
 			return onPasteImage;
 		},
@@ -1081,14 +1023,11 @@
 
 	// ── Height estimates ────────────────────────────────────────────────
 
-	// How far the host scaled the type from the size HEIGHT_ESTIMATES were calibrated
-	// at. Plain `let`, not `$state`: `estimate()` reads it on windowing's hottest path,
-	// and `widthVersion` is already the rebuild signal.
+	// The host's font scale against HEIGHT_ESTIMATES; plain `let` because windowing's hottest path
+	// reads it and `widthVersion` already signals the rebuild.
 	let typeScale = 1;
 
-	// Only the font-relative terms scale: a block's padding is absolute and an image's
-	// height is its own. Getters, so a scale change takes effect without rebuilding
-	// `heightOracle` or dropping its measured heights.
+	// Only font-relative terms scale; getters, so a scale change needs no new height estimator.
 	const heightOracle = createHeightOracle({
 		get lineHeight() {
 			return HEIGHT_ESTIMATES.proseLineHeight * typeScale;
@@ -1116,10 +1055,8 @@
 		});
 	});
 
-	// Watched on the resolved scroll container: how many blocks the window holds comes from
-	// that container's height, so a height-only resize would otherwise leave the newly exposed
-	// strip as an empty div until the next scroll. Its own counter, never `widthVersion`: that
-	// one drops every measured height, which a resize re-wrapping no prose has not earned.
+	// The scroll container's height sets how many blocks mount; a separate counter from
+	// `widthVersion`, since a height-only resize keeps every measured height.
 	let viewportHeightVersion = $state(0);
 	$effect(() => {
 		if (!editorEl) return;
@@ -1130,8 +1067,7 @@
 
 	// ── Type scale ──────────────────────────────────────────────────────
 
-	// A font-size change puts the estimates off several-fold, and no other box in the root
-	// reports it; the measured scale follows the width counter, since a rebuild is what it needs.
+	// A font-size change throws every height estimate off, and no other box reports it.
 	$effect(() => {
 		if (!typeScaleProbeEl) return;
 		return installTypeScaleProbe(typeScaleProbeEl, {
@@ -1177,8 +1113,7 @@
 
 	// ── Top-level windowing ─────────────────────────────────────────────
 
-	// Assembled here, after the windowing signals it holds exist; the block
-	// components and the windowing hook below both read it back through getContext.
+	// Set after the windowing signals it holds exist; the windowing hook below reads it back.
 	setContext(EDITOR_DOC_KEY, {
 		doc: getDoc,
 		contentVersion: contentVersion.read,
@@ -1196,9 +1131,8 @@
 		viewportHeightVersion: () => viewportHeightVersion
 	} satisfies EditorDoc);
 
-	// getListEl is the inner .block-list wrapper, never editorEl (== scrollEl): it
-	// scrolls with content, so its top maps root scrollTop into local coordinates,
-	// where editorEl would collapse to 0.
+	// The inner `.block-list`, not `editorEl`: it scrolls with content, so its top maps scrollTop
+	// into list coordinates.
 	const topWindowing = useContainerWindowing({
 		getIndex: () => 0, // ignored: the root has no parent to report to
 		getParentPath: () => [],
@@ -1208,17 +1142,15 @@
 		provideLeafChannel: true
 	});
 
-	// Plain `let`, not $state or $derived: the scroll correction asks for this mid-measure,
-	// where evaluating the window derived would force a layout read (VR-4). It lags the
-	// derived by one flush when windowing switches on or off.
+	// Plain `let`: the scroll correction reads it mid-measure, where the derived would force a
+	// layout read (VR-4). It lags one flush when windowing toggles.
 	let rootWindowingActive = false;
 	$effect(() => {
 		rootWindowingActive = topWindowing.window.active;
 	});
 
-	// Who keeps the user's place when a height changes. Self mode always; host mode only while
-	// windowing runs, since below that threshold the browser's own scroll anchoring does it and
-	// both correcting would double-count. The `overflow-anchor` opt-out keys off the same fact.
+	// Whether the editor corrects scroll on a height change; in host mode without windowing the
+	// browser's scroll anchoring does it instead.
 	function ownsScrollCorrection(): boolean {
 		return !hostScroll || rootWindowingActive;
 	}
@@ -1229,27 +1161,18 @@
 		return serialize(doc);
 	}
 
-	// The kind alone, never the node: a host reads the tree's shape without holding a handle into
-	// it. See `editor-props.ts` for the contract.
+	// The kind alone, never the node, so a host holds no handle into the tree.
 	export function getBlockKindAt(path: number[]): AnyBlockKind | null {
 		return blockNodeAt(doc, path)?.kind ?? null;
 	}
 
-	/**
-	 * A frozen snapshot of the current selection, or null when nothing is focused.
-	 * Path arrays are copies, so mutating the result does not affect internal state.
-	 */
+	/** A snapshot of the current selection with copied paths, or null when nothing is focused. */
 	export function getSelection(): EditorSelection | null {
 		return readCurrentSelection(selectionState, blockRefs, selectedWidgetCaret);
 	}
 
-	/**
-	 * The one restore path: resolve and clamp, scroll into view, place the caret. `reveal` picks
-	 * how. The two scrolling ones differ in whether the block stays held in place after the call:
-	 * a navigation holds it, a consumer restore hands the viewport back so a held block cannot
-	 * override the host's next scroll. `mount` is the history swap's bare mount, which only
-	 * mounts the block and in exchange writes no scroll position.
-	 */
+	/** The one caret restore path. `hold` keeps the block held in place after scrolling, `release`
+	 *  hands the viewport back to the host, `mount` only mounts it and writes no scroll position. */
 	function restoreThroughRevealRoad(
 		selection: EditorSelection,
 		reveal: 'hold' | 'release' | 'mount'
@@ -1270,30 +1193,23 @@
 		return { anchor: { path, offset }, focus: { path, offset } };
 	}
 
-	/** Put the caret at a raw offset through the shared restore path: how the link card hands
-	 *  focus back after a commit, so the next keystroke (Ctrl+Z included) goes to the document. */
+	/** Puts the caret back in the document after a card or menu, so the next key goes there. */
 	async function landCaretAtOffset(path: number[], offset: number): Promise<boolean> {
 		return (await restoreThroughRevealRoad(caretAt(path, offset), 'hold')) === 'applied';
 	}
 
-	/**
-	 * Restore a snapshot from {@link getSelection}, sharing the whole restore path with the
-	 * undo swap and plugin navigation so the three cannot diverge. True only if the selection
-	 * was placed and its focus block is in view; a later programmatic scroll while this is
-	 * still settling owns the viewport and makes this false, while a user gesture does not.
-	 */
+	/** True only if the selection was placed and its focus block is in view; a programmatic
+	 *  scroll before it finishes makes it false, a user scroll does not. */
 	export async function setSelection(selection: EditorSelection): Promise<boolean> {
 		return (await restoreThroughRevealRoad(selection, 'release')) === 'applied';
 	}
 
-	// The same search a click on empty space runs, minus the event and target checks a host
-	// caller has already done for itself. See `editor-props.ts` for the contract.
+	// The caret search a click on empty space runs, minus the event checks a host has done.
 	export function placeCaretAtPoint(x: number, y: number): boolean {
 		return editorEl ? rootGestures.placeCaretAtPoint(editorEl, x, y) : false;
 	}
 
-	// The entry points below only resolve the focused editable; their rules live in that
-	// editable itself. See `editor-props.ts` for each contract.
+	// The entry points below only find the focused editable; the rules live in the editable.
 	const focusedSurface = createFocusedSurface({
 		get editorEl() {
 			return editorEl;
@@ -1315,14 +1231,12 @@
 		return runCommandById(commandId as AnyCommandId, arg, focusedSurface.commandTarget(), commands);
 	}
 
-	// Asks through the same path `runCommand` dispatches through, so what a host greys out and
-	// what a click refuses cannot drift. See `editor-props.ts` for the contract.
+	// Asks through `runCommand`'s own dispatch, so a host greys out exactly what a click refuses.
 	export function canRunCommand(commandId: string): boolean {
 		return canRunCommandById(commandId as AnyCommandId, focusedSurface.commandTarget(), commands);
 	}
 
-	// State, not whether it is allowed: the focused editable reports its own toggle state, so a
-	// toolbar's pressed look reads the same bytes the toggle would rewrite. See `editor-props.ts`.
+	// The focused editable reports its toggle state from the bytes the toggle would rewrite.
 	export function isCommandActive(commandId: string): boolean {
 		return isCommandActiveById(commandId as AnyCommandId, focusedSurface.commandTarget(), commands);
 	}
@@ -1351,8 +1265,7 @@
 		return rects;
 	}
 
-	// Recomposed per call rather than derived: the kind and plugin registries are
-	// process-global and mutate outside this component's reactive graph.
+	// Recomposed per call: the registries are process-global and not reactive.
 	export function reservedChords(): ReadonlySet<string> {
 		return collectReservedChords({
 			searchBar,
@@ -1411,11 +1324,8 @@
 	};
 </script>
 
-<!-- tabindex="-1": focusable so an unmounted block hands focus here rather than to
-	<body>, but not tab-reachable. Non-editable, so focusing it creates no native
-	selection for the selectionchange bridge to collapse. -->
-<!-- data-presentation is left off in source mode on purpose: the default path's DOM
-	stays byte-identical, and reading-mode CSS keys on the attribute being present. -->
+<!-- tabindex="-1": an unmounted block hands focus here rather than to <body>, and the root
+	stays out of the tab order. -->
 <div
 	class="editor"
 	data-editor-theme={theme}
@@ -1429,9 +1339,8 @@
 	oncontextmenu={rootMenus.onRootContextMenu}
 >
 	{#if searchBar}
-		<!-- Zero-height sticky anchor, so the bar does not scroll away with content. Portaled
-		     out, it drops that positioning (the consumer's element is the box) and takes the
-		     editor's own theme class, since custom properties resolve by DOM ancestry. -->
+		<!-- A zero-height sticky anchor; portaled out, it takes the theme class instead, since
+		     custom properties resolve by DOM ancestry. -->
 		<div
 			class:search-anchor={!searchBarAnchor}
 			class:aragonite-editor-theme={!!searchBarAnchor && inThemedScope}
@@ -1444,12 +1353,10 @@
 			/>
 		</div>
 	{/if}
-	<!-- One `em` tall and out of flow: its box is the root's computed font size, which
-	     no other box reports, and windowing's activation decision needs that scale. -->
+	<!-- One `em` tall and out of flow, so its box reports the root's font size. -->
 	<div class="type-scale-probe" bind:this={typeScaleProbeEl} aria-hidden="true"></div>
 	{#if header}
-		<!-- A sibling of the block list, never a wrapper: windowing finds its list as a
-		     direct child of this root. -->
+		<!-- A sibling of the block list: windowing needs the list as a direct child of the root. -->
 		<div class="editor-header" bind:this={headerEl}>{@render header()}</div>
 	{/if}
 	<BlockList
@@ -1460,7 +1367,7 @@
 		window={topWindowing.window}
 		reorderable={true}
 	/>
-	<!-- A sibling of the list like the header: windowing wants the list bare. -->
+	<!-- A sibling of the block list, like the header. -->
 	<TailInsert {blockEdit} childCount={doc.children.length} readOnly={effectiveMode === 'reading'} />
 	{#if blockMenu}
 		<BlockMenu
@@ -1547,33 +1454,26 @@
 	.editor {
 		width: 100%;
 		flex: 1;
-		/* Wider on the left: the drag handle lives in that gutter, 1.25rem out from the content,
-		   and the rest of this padding is what keeps it off the scroll container's border. */
+		/* Wider on the left to hold the drag handle's gutter. */
 		padding: 1rem 1rem 1rem 1.5rem;
 		font-family: var(--font-editor, ui-monospace, monospace);
-		/* The type-scale root: every construct sizes in `em` off this, so one
-		   declaration scales the whole editor. */
+		/* Every construct sizes in `em` off this. */
 		font-size: var(--editor-font-size, 1rem);
 		line-height: 1.6;
 		/* Inherit rather than assume a dark host: an unthemed page keeps its own text color. */
 		color: var(--color-text-primary, currentColor);
 		min-height: 200px;
 		overflow-y: auto;
-		/* The editor corrects the scroll position by hand (list-windowing's correctAnchor);
-		   the browser's own anchoring rewrites scrollTop as well, and the two double-correct.
-		   Do not restore `overflow-anchor` (VR-2). */
+		/* The editor corrects scroll by hand; browser anchoring would correct twice (VR-2). */
 		overflow-anchor: none;
 		scrollbar-width: thin;
 		scrollbar-color: var(--color-border, #3e3e3b) transparent;
-		/* No border or outline: a document is the page's content, not a widget on it. */
 		/* Containing block for the image overlay portal. */
 		position: relative;
 	}
 
-	/* Embedded flow mode: an ancestor owns the scroll, so the root gives up its own scroll
-	   container and the standalone-widget frame that would box every entry of a journal. Below
-	   the windowing threshold nothing corrects by hand, so the browser's anchoring is restored:
-	   `none` would strip the subtree from the host's anchor candidates and hold nothing. */
+	/* Host scroll: an ancestor scrolls, and without windowing the browser's anchoring holds the
+	   position, so it is restored. */
 	.editor[data-scroll-mode='host'] {
 		overflow-y: visible;
 		overflow-anchor: auto;
@@ -1583,15 +1483,13 @@
 		padding: 0;
 	}
 
-	/* The trade windowing makes under host scroll: the browser's anchoring and the manual
-	   correction cannot coexist, so an active editor withdraws its own subtree from the host's
-	   anchor candidates and holds the position itself (VR-2). The host's scroller is untouched. */
+	/* With windowing on, the editor corrects scroll itself, so its subtree leaves the host's
+	   anchor candidates (VR-2). */
 	.editor[data-scroll-mode='host'][data-windowing='active'] {
 		overflow-anchor: none;
 	}
 
-	/* Absolute and zero-width so it takes no part in layout; never `display: none`,
-	   which stops a ResizeObserver reporting. */
+	/* Out of layout, but never `display: none`, which stops a ResizeObserver reporting. */
 	.type-scale-probe {
 		position: absolute;
 		top: 0;
@@ -1602,8 +1500,6 @@
 		pointer-events: none;
 	}
 
-	/* Sticks to the top of the scroll container reserving no space; the bar positions
-	   absolutely against it and stays put as the editor scrolls. */
 	.search-anchor {
 		position: sticky;
 		top: 0;
@@ -1611,8 +1507,7 @@
 		z-index: 5;
 	}
 
-	/* Sticky resolves against the nearest scroll container, which in flow mode is the host's,
-	   floating the bar over unrelated page content; absolute puts it back on the root. */
+	/* Sticky would resolve against the host's scroller and float over unrelated page content. */
 	.editor[data-scroll-mode='host'] .search-anchor {
 		position: absolute;
 		top: 0;
@@ -1651,17 +1546,15 @@
 		border: 0;
 	}
 
-	/* A nested drag reorders only within its container, so the container takes a faint
-	   temporary wash, deliberately not an outline (a document should feel like a
-	   document, not a pile of blocks). Applied by editor-actions/reorder-drag.ts. */
+	/* A nested drag stays inside its container, so the container takes a faint wash, not an
+	   outline. */
 	:global(.reorder-scope) {
 		background: var(--reorder-scope-bg, rgba(100, 150, 255, 0.14));
 		border-radius: 4px;
 		transition: background-color 0.12s ease;
 	}
 
-	/* Viewport-fixed, since the rects come from client coords; pointer-events:none so
-	   they never intercept the drag's own pointer stream. */
+	/* Fixed, since the rects are client coordinates. */
 	.reorder-line {
 		position: fixed;
 		height: 2px;
@@ -1671,8 +1564,7 @@
 		z-index: 20;
 	}
 
-	/* Where a held drag will land: the browser's own drop caret goes with the drop the editor
-	   cancels, so this one takes its place. */
+	/* Replaces the browser's drop caret, which goes with the drop the editor cancels. */
 	.drop-caret {
 		position: fixed;
 		width: 1.5px;

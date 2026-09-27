@@ -18,9 +18,8 @@ export interface LinkCardTargetQuery extends LinkPointQuery {
 	/** The raw selection within this block, or null at a collapsed caret. Required, never given a
 	 *  default: a caller that must create no link says so by passing null wherever it could. */
 	selection: { start: number; end: number } | null;
-	/** True while a range crosses block boundaries. Required for the same reason, and because
-	 *  `selection` cannot report it: measured against this block's own DOM, an endpoint in another
-	 *  block comes back as the end of this one, a range to the block's end that nobody made. */
+	/** True while a range crosses blocks: `selection`, measured against this block's DOM, reports
+	 *  an endpoint in another block as this block's end. */
 	crossBlockRange: boolean;
 }
 
@@ -28,11 +27,8 @@ export interface LinkCardEntryQuery extends LinkCardTargetQuery {
 	card: LinkCardState;
 }
 
-/**
- * The construct the chord would edit: the card-editable one under the caret, which a range must
- * lie wholly inside since the card edits one link. Null where the chord creates instead or opens
- * nothing, so the pressed state and the click it promises resolve the same construct.
- */
+/** The construct the chord would edit, under the caret or wholly containing the range; null
+ *  where the chord creates or opens nothing, so the pressed state matches the click. */
 export function linkCardTargetAt(query: LinkCardTargetQuery): LinkTarget | null {
 	if (query.reading.mode() !== 'live' || query.crossBlockRange) return null;
 	const hit = resolveLinkAtPoint(query);
@@ -42,17 +38,12 @@ export function linkCardTargetAt(query: LinkCardTargetQuery): LinkTarget | null 
 	return hit.target;
 }
 
-/**
- * Enter the card for the chord: edit the construct the caret, or a range lying wholly inside it,
- * sits in; failing that, create one over the range, refused when the range crosses another
- * construct's bytes, since wrapping inside or across one has no agreed answer. The chord is
- * taken either way, by the keymap branch that calls this.
- */
+/** Edits the construct holding the caret or range, else creates one over the range unless it
+ *  crosses another construct's bytes. The keymap takes the chord either way. */
 export function enterLinkCardAtCaret(query: LinkCardEntryQuery): void {
 	if (query.reading.mode() !== 'live') return;
-	// The command dispatch already refuses `link.openCard` over a cross-block range
-	// (`RANGE_DECLINED_COMMAND_IDS`); checked again here because the offsets this would
-	// otherwise trust are made up in exactly that state rather than missing.
+	// Command dispatch already refuses a cross-block range; checked again because the offsets
+	// here would be made up in that state.
 	if (query.crossBlockRange) return;
 	// Edit before create, since create refuses a range already inside a construct: going the
 	// create way there leaves the click doing nothing under a button painted as pressed.

@@ -33,8 +33,8 @@
 	// Optional for the same reason `services` is: a mount without the editor shell has none.
 	const getEditorRoot = getContext<EditorDoc | undefined>(EDITOR_DOC_KEY)?.editorRoot;
 
-	/** A mark's `interactive.onClick` is plugin code run on a user gesture, so it reports
-	 *  errors the same way every other decoration entry point does (editor.md §12). */
+	/** A mark's `interactive.onClick` is plugin code, so its errors go to the `error` event like
+	 *  every other decoration entry point's. */
 	function runInteraction(run: () => void): void {
 		try {
 			run();
@@ -62,9 +62,8 @@
 		const eng = engine,
 			ref = blockRef,
 			el = blockEl;
-		// Read the bucket up front so this effect registers the reactive decoration set
-		// as a dependency: `sourceCount` is a plain counter, so a source added after
-		// mount would otherwise never re-run it.
+		// Read up front so the effect depends on the decoration set: `sourceCount` is a plain
+		// counter, and a source added after mount would never re-run it.
 		const marks = eng
 			? containerPaintsCells
 				? eng.marksForDescendants(path)

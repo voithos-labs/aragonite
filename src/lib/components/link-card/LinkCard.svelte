@@ -8,9 +8,8 @@
 	} from '../../a11y-strings';
 	import MenuIcon from '../menu/MenuIcon.svelte';
 
-	// The URL panel over one link. Enter commits; Escape is the host's, since it also closes a
-	// card the document still holds the caret for. Not `aria-modal`: a clicked card sits beside a
-	// live caret, and the focus trap starts only once focus enters the card.
+	// The URL panel over one link. Enter commits; Escape is the host's. Not `aria-modal`: a
+	// clicked card sits beside a live caret, and its focus trap starts only once focus enters.
 	let {
 		url,
 		canWrite,
@@ -60,9 +59,8 @@
 		});
 	});
 
-	// The card follows the document while it is open: an undo, or any write from outside this
-	// gesture, moves the destination past the draft, and Enter would put the old bytes back.
-	// The unfinished draft is discarded rather than a committed change reverted.
+	// A write from outside the card (an undo) discards the draft, or Enter would put the earlier
+	// bytes back.
 	$effect(() => {
 		if (url === seed) return;
 		seed = url;

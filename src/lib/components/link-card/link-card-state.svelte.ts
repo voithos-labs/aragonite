@@ -39,9 +39,8 @@ export interface LinkCardOptions {
 	/** For the chord, looser than the click's by exactly one case: the entry resolves the
 	 *  construct from the selection itself, so a range it allows is the card's own bytes. */
 	canEnter: () => boolean;
-	/** For create: requires the very selection `canOpen` forbids, since the range is the
-	 *  gesture's target. Separate and required so each entry states which gesture it is;
-	 *  a cross-block range is refused by all three. */
+	/** For create: requires the selection `canOpen` forbids, since the range is the target. All
+	 *  three checks refuse a cross-block range. */
 	canOpenCreate: () => boolean;
 }
 

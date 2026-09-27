@@ -89,9 +89,8 @@
 			startWidth,
 			startHeight,
 			naturalWidth: img.naturalWidth,
-			// A crop's frame keeps its shape through a resize (`commitImageResize` derives the
-			// height from it), so Shift has nothing to unlock here; the corner brackets shown
-			// while cropping are where a frame's shape changes.
+			// A crop's frame keeps its shape through a resize, so Shift unlocks nothing; the crop
+			// corners are where a frame's shape changes.
 			aspectLocked: isCropped() || !e.shiftKey,
 			currentWidth: startWidth
 		};
@@ -99,9 +98,8 @@
 
 	function moveDrag(e: PointerEvent) {
 		if (!dragState) return;
-		// Reflow mid-drag (a sibling image settling, a scrollbar appearing) can
-		// transiently zero the content width; hold the last good width instead of
-		// snapping the image to nothing.
+		// Reflow mid-drag can briefly zero the content width; the last good width holds rather
+		// than snapping the image to nothing.
 		if (editorContentWidth < MIN_WIDTH) return;
 		const dx = e.clientX - dragState.startX;
 		const proposed = dragState.startWidth + dx;
@@ -111,9 +109,8 @@
 		const preview = previewEl();
 		if (!preview) return;
 		preview.style.width = `${snapped}px`;
-		// Shift unlocks the aspect: the height stays where the user found it and the image
-		// distorts. Locked, the frame's own `aspect-ratio` (cropped) or the stylesheet's
-		// `height: auto` (plain) derives it from the new width.
+		// Unlocked, the height stays put and the image distorts; locked, the frame's `aspect-ratio`
+		// or the stylesheet's `height: auto` derives it from the width.
 		preview.style.height = dragState.aspectLocked ? '' : `${dragState.startHeight}px`;
 	}
 

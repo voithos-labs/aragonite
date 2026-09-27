@@ -18,10 +18,8 @@
 	import BlockHost from './BlockHost.svelte';
 	import GapCaret from './GapCaret.svelte';
 
-	// `slots` is supplied by the owner: a `bind:` $bindable array falls out of step with the
-	// owner's state when two effects write it. `reorderable` is true only when these children
-	// are themselves the things that reorder: the document root, or a container whose kind
-	// declares `reorderChildren`.
+	// `slots` comes from the owner, since a `bind:` array falls out of step when two effects
+	// write it. `reorderable` means these children are what a drag reorders.
 	let {
 		children,
 		blockIds,
@@ -46,25 +44,19 @@
 	let end = $derived(bounds.end);
 	let slice = $derived(children.slice(start, end));
 
-	// Read like BlockHost's, `| undefined` included: a list mounted alone in a test provides
-	// none. The two action bundles are read here because they depend on where this list sits,
-	// unlike the root-wide ones GapCaret reads for itself.
+	// Optional, like BlockHost's reads: a list mounted alone in a test has no editor context.
 	const selection = getContext<EditorServices | undefined>(EDITOR_SERVICES_KEY)?.selection;
 	const focusActions = getContext<FocusActions | undefined>(FOCUS_KEY);
 	const blockEdit = getContext<BlockEditActions | undefined>(BLOCK_EDIT_KEY);
 
-	// Only a block that paints inline content paints the container's marker prefix, so it is
-	// withheld from a first child that would ignore it: a code block, a nested list, a
-	// container. Withheld rather than handed over and dropped, because a prefix a child counts
-	// but does not paint is an offset with no bytes behind it. Painting it there is open (#43).
+	// Only a prose first child gets the container's marker prefix: one that counted it without
+	// painting it would hold an offset with no bytes behind it.
 	function ambientFor(node: NodeView): AmbientPrefix {
 		return isProseKind(node.kind) ? ambientPrefixForFirst : '';
 	}
 
-	// The boundary this list's live gap caret sits at, when the rendered range reaches it.
-	// Whether a gap is allowed is re-read against the children as they stand: the stored state
-	// cannot see an edit that changed the kinds either side, and a caret must never paint
-	// where no gesture could have put one.
+	// The gap caret's index in this list, re-checked against the current children, since an
+	// edit can change the kinds either side of a stored gap.
 	let gapIndex = $derived.by(() => {
 		const gap = selection?.gapCaret;
 		if (!gap || !pathsEqual(gap.parentPath, parentPath)) return null;
@@ -73,16 +65,14 @@
 	});
 </script>
 
-<!-- A nested list whose children reorder marks itself, so a drag inside it can show where
-     it is confined to; the document root needs no such cue. -->
+<!-- A nested reorderable list marks itself, so a drag inside it can show its bounds. -->
 <div class="block-list" data-reorder-scope={reorderable && parentPath.length > 0 ? '' : undefined}>
 	{#if active}
 		<div class="vr-spacer" style="height: {win!.topSpacerPx}px"></div>
 	{/if}
 	{#each slice as node, localIndex (blockIds[start + localIndex])}
 		{@const absoluteIndex = start + localIndex}
-		<!-- index, id and key are `start + localIndex`, never the local loop index:
-		     paths and structural edits all key off the absolute index. -->
+		<!-- Paths and structural edits key off the absolute index, never the loop index. -->
 		{#if gapIndex === absoluteIndex}
 			<GapCaret index={absoluteIndex} {focusActions} {blockEdit} />
 		{/if}
@@ -96,8 +86,7 @@
 			{reorderable}
 		/>
 	{/each}
-	<!-- The end of the rendered range: the end of this list when the range reaches it,
-	     and otherwise the join with the next block that is not mounted. -->
+	<!-- A gap caret at the end of the rendered range, which may be before an unmounted block. -->
 	{#if gapIndex === end}
 		<GapCaret index={end} {focusActions} {blockEdit} />
 	{/if}

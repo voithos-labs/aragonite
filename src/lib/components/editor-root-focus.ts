@@ -31,7 +31,7 @@ export function createFocusAttribution(deps: FocusAttributionDeps): FocusAttribu
 	let paintedHostEl: HTMLElement | null = null;
 	let pressHeld = false;
 
-	// Preview modes only, so source and reading DOM stay byte-identical; a held press keeps the old
+	// Preview modes only, so source and reading DOM stay byte-identical; a held press keeps the prior
 	// paint so markers can't move the text the caret is about to land in.
 	function applyFocusedAttr(): void {
 		if (pressHeld) return;

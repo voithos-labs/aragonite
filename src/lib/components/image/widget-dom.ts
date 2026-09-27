@@ -12,9 +12,8 @@ import { applyCropToWidget } from './image-crop';
 export interface BuildImageWidgetOpts {
 	resolveImageUrl: (rawUrl: string) => string;
 	imageLoadPolicy?: ImageLoadPolicy;
-	/** Resolved URLs that failed to load this session, one set per editor instance. An
-	 *  inline rebuild creates a fresh <img> per keystroke, which without this renders
-	 *  unbroken until the async `error` fires again: a flicker on every keystroke. */
+	/** URLs that failed to load this session, so a rebuilt <img> renders broken at once instead
+	 *  of flickering until its `error` fires again. */
 	brokenUrlCache: Set<string>;
 }
 
@@ -71,9 +70,8 @@ export function buildImageWidget(
 	if (node.title) img.title = node.title;
 	if (node.width !== undefined) img.setAttribute('width', String(node.width));
 	if (node.height !== undefined) img.setAttribute('height', String(node.height));
-	// A `|WxH` box written in the source belongs to the author, so it both reserves space before
-	// the bytes arrive and survives the decode: the two attributes alone lose to the natural
-	// ratio once `height: auto` has one to read. With a crop, that box is a frame to pan in.
+	// A `|WxH` box reserves space before the bytes arrive and survives the decode, where the
+	// attributes alone lose to the natural ratio; with a crop it is the frame.
 	if (node.width !== undefined && node.height !== undefined) {
 		img.style.aspectRatio = `${node.width} / ${node.height}`;
 		if (node.crop) {
@@ -93,9 +91,8 @@ export function buildImageWidget(
 		markBroken();
 	}
 	img.addEventListener('error', markBroken);
-	// A load event is not proof of success: a 200 the decoder cannot size (a truncated
-	// body, an SVG with no dimensions of its own) fires `load` with naturalWidth 0, and
-	// leaving that to the next rebuild leaves the placeholder a render behind.
+	// `load` can fire with no size (a truncated body, an SVG without dimensions), so it is
+	// checked here rather than a render later.
 	img.addEventListener('load', () => {
 		if (hasNoIntrinsicSize()) {
 			markBroken();

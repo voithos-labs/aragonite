@@ -56,7 +56,7 @@
 	let seedBytes = $state(untrack(() => buildBytes(target, fields)));
 
 	// A write from outside the popover (an undo) discards the draft, or the commit on dismiss
-	// would put the old bytes back.
+	// would put the earlier bytes back.
 	$effect(() => {
 		const live = buildBytes(target, fields);
 		if (live === seedBytes) return;
@@ -201,7 +201,7 @@
 			height: Math.round(frame.height),
 			crop: draft
 		};
-		// The commit rebuilds the widget from the bytes; the preview styles go with the old DOM.
+		// The commit rebuilds the widget from the bytes; the preview styles go with the replaced DOM.
 		snapshot = null;
 		cropping = false;
 		seedBytes = buildBytes(target, next);
@@ -299,9 +299,8 @@
 
 	// ── Placement ──────────────────────────────────────────────────────────────
 
-	/** Beside the image, level with its top, when the viewport has room there; otherwise a row
-	 *  inside the image's top-right corner, clamped to the viewport when the image itself runs
-	 *  past it. Re-measured whenever the overlay moves. */
+	/** Beside the image, level with its top, when there is room; otherwise a row inside its
+	 *  top-right corner, clamped to the viewport. Re-measured whenever the overlay moves. */
 	function keepBesideImage(node: HTMLElement): (() => void) | void {
 		const place = () => {
 			node.classList.remove('inside');
@@ -438,8 +437,8 @@
 </div>
 
 <style>
-	/* limestone's cover actions: a stack of small raised buttons beside the image, level with
-	   its top. `inside` (no room beside) lays them as a row in the image's top-right corner. */
+	/* Small raised buttons beside the image, level with its top; `inside` (no room beside)
+	   lays them as a row in the image's top-right corner. */
 	.md-image-properties {
 		position: absolute;
 		top: 0;

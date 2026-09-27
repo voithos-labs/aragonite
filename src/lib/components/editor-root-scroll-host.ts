@@ -1,9 +1,7 @@
 /**
- * Editor-root scroll resolution: what a drag autoscrolls, what bounds the visible region, and
- * the scroll container windowing measures and writes, all over the one scroller the mode picks,
- * so nothing downstream branches on the mode. Host mode asks two questions one traversal cannot
- * answer (`cursor/scroll-ancestors` header); both are cached on first read, so a host that swaps
- * its scroller must remount.
+ * Resolves the one scroller the scroll mode picks, so nothing downstream branches on the mode:
+ * what a drag autoscrolls, what bounds the visible region, what windowing measures. Host-mode
+ * answers are cached on first read, so a host that swaps its scroller must remount.
  */
 
 import {

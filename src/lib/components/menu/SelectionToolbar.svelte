@@ -1,10 +1,8 @@
 <script lang="ts">
 	/**
-	 * The editor's own formatting popover over a selection, in Notion's shape: a row of the
-	 * marks, then labelled rows for what acts on the selection as a whole. Built on the same
-	 * public API a host's own toolbar would use (`selectionChange`, the rect API, `runCommand`),
-	 * so the consumer-guide recipe and this component cannot disagree about what a selection
-	 * toolbar may read.
+	 * The editor's own formatting popover over a selection: a row of marks, then labelled rows
+	 * for what acts on the whole selection. Built only on the public API a host's toolbar would
+	 * use (`selectionChange`, the rect API, `runCommand`), so the consumer-guide recipe matches it.
 	 */
 	import type { EditorInstance } from '../../editor-props';
 	import type { EditorSelection } from '../../selection/primitives';
@@ -115,9 +113,8 @@
 
 	$effect(() => editor.getEvents().on('selectionChange', update));
 
-	// Only once the drag is over: a bar that appears and moves under a moving pointer is in the
-	// way of the very selection being made. The pointer is watched at the document, since the
-	// drag can end anywhere; the release places the bar from the selection at that moment.
+	// Shown only once the drag is over, since a bar moving under the pointer is in the way;
+	// watched at the document, where the drag can end anywhere.
 	let pointerHeld = false;
 	$effect(() => {
 		// A pointer-down on the bar itself is a button, not a drag: watching for its release
@@ -216,9 +213,8 @@
 		return rects.length ? belowRight(rects) : null;
 	}
 
-	/** The bar opens like a menu: below the selection's last line and to the right of where it
-	 *  ends, never over the text. The clamp above pushes it left at the viewport edge and moves
-	 *  it above the first line when there is no room below. */
+	/** Below the selection's last line and right of where it ends, never over the text; the
+	 *  clamp above moves it left or above when there is no room. */
 	function belowRight(rects: DOMRect[]): Placement | null {
 		const first = rects[0];
 		const last = rects[rects.length - 1];
@@ -228,7 +224,7 @@
 	}
 
 	// The command id, not a made-up keystroke: a host rebind moves the shortcut and leaves the
-	// button. A refused run means what the bar assumed is no longer true, so the bar hides.
+	// button. A refused run means what the bar assumed has changed, so the bar hides.
 	function fire(command: string, arg?: unknown): void {
 		turnIntoOpen = false;
 		if (!editor.runCommand(command, arg)) placement = null;

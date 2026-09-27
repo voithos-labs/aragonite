@@ -22,11 +22,8 @@ export function clampCrop(crop: ImageCrop): ImageCrop {
 	};
 }
 
-/**
- * The styles an `<img>` inside an `overflow: hidden` frame takes. The image box is `z` times
- * the frame with `object-fit: cover`, offset so the pinned point stays put: at `z` 1 the offset
- * is zero and `object-position` alone pans the cover overflow.
- */
+/** The image box is `z` times the frame with `object-fit: cover`, offset so the pinned point
+ *  stays put; at `z` 1 the offset is zero and `object-position` alone pans. */
 export function cropImageStyle(crop: ImageCrop): {
 	width: string;
 	height: string;

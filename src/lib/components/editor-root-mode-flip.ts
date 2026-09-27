@@ -1,9 +1,7 @@
 /**
- * Editor-root presentation-mode switch: keep the caret across a mode change. The pre phase is
- * the last moment the outgoing mode owns the DOM (past it, the mode's render key has rebuilt
- * every block from its own CST bytes), so the caret is captured and the block blurred there;
- * the post phase drops the geometry the old markers set and puts the caret back through the
- * shared restore path. The two `$effect`s stay in `Editor.svelte`, a mode read plus one call.
+ * Keeps the caret across a presentation-mode switch. `beforeFlip` captures the caret and blurs
+ * the block while the outgoing mode still owns the DOM; `afterFlip` drops the outgoing markers'
+ * geometry and restores the caret through the shared restore path.
  */
 
 import { tick } from 'svelte';
@@ -76,18 +74,16 @@ export function createModeFlip(deps: ModeFlipDeps): ModeFlip {
 		return { path, offset };
 	}
 
-	// A post-tick focus like every structural op's; the restore path clamps the saved offset to
-	// one the caret can sit at in the new mode. Standing aside for a focused text field keeps
-	// the restore from stealing a host field mid-typing.
+	// The restore path clamps the offset to one the new mode allows; a focused text field is
+	// left alone, so the restore cannot steal a host field mid-typing.
 	async function restoreAfterFlush(caret: FlipCaret, to: PresentationMode): Promise<void> {
 		await tick();
 		if (deps.mode !== to || isTextEntrySurface(document.activeElement)) return;
 		await deps.restoreCaret(caret.path, caret.offset);
 	}
 
-	// A mode change counts as a blur: showing markers or an in-progress composition closes through
-	// the blur handling that already exists. The host's own header is exempt, or a mode toggle
-	// would blur a title field mid-edit.
+	// A mode change blurs the block, so revealed markers and a composition close as on any blur;
+	// the host's header is exempt.
 	function blurForFlip(): void {
 		const active = document.activeElement;
 		if (!(active instanceof HTMLElement) || !deps.editorEl?.contains(active)) return;
@@ -115,9 +111,8 @@ export function createModeFlip(deps: ModeFlipDeps): ModeFlip {
 		afterFlip(to) {
 			if (to === lastEffectiveMode) return;
 			lastEffectiveMode = to;
-			// Which markers paint just changed: how the caret arrived was recorded against the old
-			// geometry, and every measured height is the other mode's. No width bump with it: focus
-			// is gone, and a rebuild would lose the block held in place.
+			// The caret memory and measured heights belong to the outgoing mode's markers. No width
+			// bump: a rebuild would lose the block held in place.
 			deps.caretMemory.forget();
 			deps.heightOracle.dropMeasured();
 			if (to === 'reading') {

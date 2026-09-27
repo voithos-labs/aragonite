@@ -73,9 +73,8 @@
 		height: number;
 	}
 
-	/** Merge rects on the same visual line into a single rect to prevent double-highlight. Same
-	 *  line means vertically overlapping, not equal tops: an inline widget (a KaTeX box) stands
-	 *  taller than the text beside it, and two rects painted over one span read twice as dark. */
+	/** Merges vertically overlapping rects, not just equal tops, so a tall inline widget beside
+	 *  text is not highlighted twice. */
 	function mergeRectsPerLine(rects: LocalRect[]): LocalRect[] {
 		if (rects.length <= 1) return rects;
 		const sorted = [...rects].sort((a, b) => a.top - b.top);
@@ -130,9 +129,8 @@
 					: start.cellCoordinate
 						? cellIndexOf(start, 'SelectionOverlay:start')
 						: charOffsetOf(start, 'SelectionOverlay:start');
-			// measurePartialRects paints [start, end) exclusive, so the +1 turning a
-			// snapped table end (inclusive last cell) into an exclusive whole-row bound
-			// belongs to the cell branch only.
+			// `measurePartialRects` is end-exclusive; only the cell branch adds 1, turning a
+			// snapped table end (the inclusive last cell) into an exclusive bound.
 			const endOffset =
 				classification === 'start'
 					? SELECTION_END
