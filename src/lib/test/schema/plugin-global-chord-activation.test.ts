@@ -1,6 +1,4 @@
-// Miss-analysis: the plugin-global chord suites drove one activation-blind dispatch each, so
-// nothing asked what a SECOND editor makes of a chord the first editor's plugin registered
-// process-wide (GH #265).
+// Miss-analysis: GH #265; each plugin-global chord suite used one editor, never asking a second.
 import { describe, it, expect, beforeEach } from 'vitest';
 import { registerGlobalCommand } from '$lib/schema/global-commands';
 import {
@@ -60,8 +58,8 @@ describe('a plugin-global chord is claimed only where the plugin is activated', 
 		expect(ran).toBe(1);
 	});
 
-	// The key that does nothing: without the activation the keypress is swallowed and nothing
-	// runs, so the chord reaches neither the plugin nor the host.
+	// Resolving the chord here would swallow the keypress and run nothing, so it would reach
+	// neither the plugin nor the host.
 	it('the editor that never listed it resolves nothing and lets the press through', () => {
 		expect(resolveGlobalBinding(CHORD, undefined, notListing)).toBeNull();
 		expect(resolveBinding(CHORD, 'paragraph', undefined, notListing)).toBeNull();

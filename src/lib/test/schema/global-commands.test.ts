@@ -135,8 +135,7 @@ describe('registerGlobalCommand', () => {
 	});
 });
 
-// Miss-analysis: every handler test ignored the argument, so neither dispatch site was ever asked
-// to carry one through to a plugin-global handler.
+// Miss-analysis: every handler test ignored the argument, so no dispatch site had to pass one on.
 describe('a global command handler receives the dispatch argument', () => {
 	const dispatchContext = commandContext({ pluginEditor: () => editor });
 

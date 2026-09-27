@@ -95,9 +95,7 @@ describe('runCommandById gates', () => {
 		expect(ran).toEqual([]);
 	});
 
-	// Miss-analysis: the set had one class of member and the scan guarding it matched the `format.`
-	// prefix, so the fifth single-block rewrite (bound in the same keymaps, listed on
-	// `TOOLBAR_COMMANDS`) was invisible to both the scan and this case.
+	// Miss-analysis: the scan guarding the set matched only the `format.` prefix, missing other ids.
 	it('a painted cross-block range declines every single-block rewrite and nothing else', () => {
 		const ran: string[] = [];
 		const ctx = context({ isCrossBlockRange: () => true });
@@ -117,8 +115,8 @@ describe('runCommandById gates', () => {
 		expect(ran).toEqual(['block.split']);
 	});
 
-	// The JavaScript caller the required field cannot reach: a missing field must be loud, never a
-	// quiet decline. TypeScript callers are covered by the type; this pins what happens at runtime.
+	// A JavaScript caller can omit the required range getter, so a missing one must throw rather
+	// than quietly decline.
 	it('a gates object with no range getter throws rather than admitting the rewrite', () => {
 		const gateless = { history: context().history } as unknown as CommandDispatchContext;
 		expect(() => runCommandById('format.toggleStrong', undefined, target([]), gateless)).toThrow();
@@ -126,7 +124,7 @@ describe('runCommandById gates', () => {
 
 	it('the range decline is id-keyed, so a rebound chord meets it too', () => {
 		const ran: string[] = [];
-		// The chord #107 never sees: a consumer moved the toggle off Mod+B.
+		// A consumer moved both toggles off their default chords.
 		const overrides = normalizeKeybindingOverrides([
 			{ chord: 'Mod+Alt+G', command: 'format.toggleStrong', kind: 'paragraph' },
 			{ chord: 'Mod+Alt+L', command: 'link.openCard', kind: 'paragraph' }

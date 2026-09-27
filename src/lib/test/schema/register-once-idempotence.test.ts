@@ -46,7 +46,7 @@ afterEach(() => {
 });
 
 // The registries that soften on a dev server must still throw under test. registry-conflict.test.ts
-// covers the three block registries; this extends the guarantee to inline syntax and declaring.
+// covers the three block registries; this suite covers inline syntax and kind declaring.
 describe('register-once still throws on duplicate under test', () => {
 	it('registerInlineSyntax throws on a duplicate trigger', () => {
 		registerInlineSyntax('¬', recognizer());

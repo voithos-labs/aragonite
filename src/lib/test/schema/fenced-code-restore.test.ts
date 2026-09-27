@@ -11,11 +11,8 @@ const CRLF_WRITE = { lineEnding: '\r\n' } as const;
 const literalWrite = (raw: string, node: CstNode, write: typeof LF_WRITE | typeof CRLF_WRITE) =>
 	fencedCodeWrite.normalize(raw, { node, mode: 'literal', lineEnding: write.lineEnding });
 
-// The whole-raw entry point (the rule as a literal write), where the closer is put back: code
-// writing bytes reaches a node's raw with the old metadata still attached, so a closer a truncation ate
-// can be recovered there and nowhere later. `fenced-code-raw.test.ts` covers the display path
-// (`reconcileFenceWrite`), which the editable element keeps a closer away from;
-// `fenced-code-stranded-closer.test.ts` covers the other branch, for a write that took the opener.
+// The literal write puts back a closer a truncation ate, since it still sees the node's metadata
+// from before the write and nothing later does.
 
 const codeNode = (source: string): CstNode => parse(source).children[0];
 
@@ -83,9 +80,8 @@ describe('the fence rule as a literal write: the dropped closer', () => {
 		});
 	});
 
-	// Which is why putting the closer back and growing the runs cannot both fire on a truncation:
-	// growing triggers on a body line that reads as this fence's closer, and the restore reads it
-	// as the closer.
+	// Restoring the closer and growing the runs never both fire: growing needs a body line that
+	// reads as this fence's closer, and the restore takes that line as the closer.
 	it('treats a body line that reads as the closer as the closer', () => {
 		expect(literalWrite('```js\n```\nbo\n', closed, LF_WRITE)).toBe('```js\n```\nbo\n');
 	});

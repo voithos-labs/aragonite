@@ -42,8 +42,8 @@ describe('the toolbar scenario', () => {
 		for (const id of TOOLBAR_IDS) expect(canRunCommandById(id, surface(), context())).toBe(true);
 	});
 
-	// No router passed in, which is what an older construction of the checks hands the dispatch:
-	// the rewrites decline rather than falling through to the focused block's own offsets.
+	// With no cross-block router passed in, the rewrites decline rather than falling through to the
+	// focused block's own offsets.
 	it('a painted range with no cross-block branch declines the rewrites and nothing else', () => {
 		const ctx = context({ isCrossBlockRange: () => true });
 		for (const id of TOOLBAR_IDS) expect(canRunCommandById(id, surface(), ctx)).toBe(false);
@@ -70,9 +70,7 @@ describe('the toolbar scenario', () => {
 });
 
 describe('the read agrees with the dispatch it describes', () => {
-	// Miss-analysis: every scenario drove a target with no `getCommandContext`, the one shape where
-	// working the levels out again gives exactly the dispatch's answer, so the check's missing
-	// plugin-command level agreed everywhere the matrix looked.
+	// Miss-analysis: no scenario's target had `getCommandContext`, so the missing plugin level hid.
 	it('every (id, scenario) verdict is what the entry point then answers', () => {
 		const minted = registerBlockCommand('paragraph', 'demo.agree', () => true);
 		const scenarios = [

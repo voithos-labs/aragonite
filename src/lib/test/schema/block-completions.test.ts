@@ -19,8 +19,8 @@ function claims(marker: string, lines: string[]): BlockCompleter {
 }
 
 describe('block-completion registry', () => {
-	// Module-global, like the opener registry it mirrors. The built-in table completer stays,
-	// and each case's own kinds sort ahead of it by name.
+	// The completer registry is module-global, so each case resets it; the built-in table completer
+	// survives the reset, and each case's own kinds sort ahead of it by name.
 	beforeEach(() => __resetSchemaRegistriesForTests());
 	afterEach(() => __resetSchemaRegistriesForTests());
 

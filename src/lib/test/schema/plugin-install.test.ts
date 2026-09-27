@@ -108,7 +108,6 @@ describe('installPlugins', () => {
 		// The setup-wrap throw carries the version so a two-version collision is legible.
 		expect((firstThrow as Error).message).toMatch(/^plugin 'broken-v@1\.2\.0':/);
 
-		// The blocked-re-install throw carries it too.
 		expect(() => installPlugins([plugin])).toThrow(
 			/plugin 'broken-v@1\.2\.0' failed during a previous install/
 		);

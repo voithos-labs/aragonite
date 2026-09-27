@@ -11,7 +11,7 @@ describe('isReadingMode', () => {
 		expect(isReadingMode(modeGetter('reading'))).toBe(true);
 		expect(isReadingMode(modeGetter('source'))).toBe(false);
 		expect(isReadingMode(modeGetter('preview-inline'))).toBe(false);
-		// Live hides every marker but stays editable, so it must not trip the read-only gate.
+		// Live hides every marker but stays editable, so it must not trip the read-only check.
 		expect(isReadingMode(modeGetter('live'))).toBe(false);
 		expect(isReadingMode(undefined)).toBe(false);
 	});

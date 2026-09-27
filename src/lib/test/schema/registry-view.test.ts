@@ -39,8 +39,8 @@ function registerCallout(): PluginBlockKind {
 
 afterEach(() => __resetSchemaRegistriesForTests());
 
-// The default view is the global read, the guarantee that behavior is unchanged which the rest
-// of the unit suite (mounting BlockHost on its own) relies on.
+// The default view is the global read, which the rest of the unit suite (mounting BlockHost on
+// its own) relies on.
 describe('defaultRegistryView resolves the global definitions verbatim', () => {
 	it('component + descriptor + grammar match the global registry', () => {
 		const kind = registerCallout();

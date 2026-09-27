@@ -121,8 +121,8 @@ describe('the rebuild refuses a splice it cannot place', () => {
 	});
 });
 
-// G1.38's own case. The region check reads only the child it was told about, so a sibling's bytes
-// moving underneath it is the one shape that reaches it: nothing dropped the spans, no count moved.
+// Only the dev-mode check catches a sibling's bytes moving under the spans (G1.38): the region
+// check reads just the rewritten child, and nothing dropped the spans or changed the count.
 describe('the dev belt behind a splice', () => {
 	it('fires and re-derives when a sibling moved under the spans', () => {
 		const node = container('blockquote', [paragraph('a\n'), paragraph('b\n')]);

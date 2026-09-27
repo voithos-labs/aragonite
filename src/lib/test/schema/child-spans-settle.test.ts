@@ -1,11 +1,7 @@
-// Fixing up a container after an edit rewrites bytes the spans describe without moving the
-// children: a sibling's separating line, a wrapper's position. Those paths drop the spans, so the
-// next rebuild with a hint recomputes them.
-//
-// Miss-analysis: the spans suite built its hint by hand instead of driving the code that makes
-// one, so no test ran a write whose fix-up touches a sibling; no simulation typed twice into a
-// container holding a blank child; and G1.1, the assumed backstop, only sees the node after a
-// commit rebuild healed it, the class G1.38 now catches.
+// Fixing up a container after an edit rewrites bytes its child spans describe without moving the
+// children (a sibling's separating line, a wrapper's position), so those paths drop the spans and
+// the next rebuild with a hint recomputes them.
+// Miss-analysis: the spans suite hand-built its hint, so no test ran a fix-up touching a sibling.
 import { describe, expect, it } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
@@ -19,8 +15,8 @@ import { updateNodeContent } from '$lib/tree-operations/content-write';
 import { makeNestedHarness } from '$lib/test/harness/editor-actions';
 import { defaultGrammarView } from '$lib/schema/block-openers';
 
-// The first keystroke fills in the spans and the second one uses them, which is why a single
-// keypress never showed this.
+// The first keystroke fills in the spans and the second one uses them, so a single keypress
+// cannot show stale spans.
 describe('a settle between two keystrokes', () => {
 	it('creates the separator a blank-fill must supply the follower', async () => {
 		const h = makeNestedHarness('> a\n>\n>\n> c\n', { index: 0 });

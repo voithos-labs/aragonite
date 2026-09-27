@@ -106,8 +106,7 @@ describe('createEditorPluginContexts', () => {
 		expect(ctx.documentGeneration).toBe(2);
 	});
 
-	// Miss-analysis: the context carried no way to insert or run anything, so a plugin that wanted
-	// a block had to be registered by the page; nothing asked the context to reach the instance.
+	// Miss-analysis: no test asked the plugin context to reach the editor instance.
 	it('insertMarkdown and runCommand reach the instance, with its answer, false included', async () => {
 		const inserted: unknown[][] = [];
 		const ran: unknown[][] = [];

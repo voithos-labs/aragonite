@@ -1,7 +1,6 @@
 // A setext heading's bytes past its title: the structure every edit keeps after the title, and the
 // kind's write rule, which drops it under a blank line.
-// Miss-analysis: every kind with bytes past its content range was prose, so no test asked about a
-// kind whose component draws its whole display.
+// Miss-analysis: every tested kind with bytes past its content was prose, never component-drawn.
 import { describe, it, expect, afterEach } from 'vitest';
 import { structuralSuffix } from '../../core/inline';
 import type { CstNode } from '../../core/nodes';
