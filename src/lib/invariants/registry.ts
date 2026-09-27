@@ -117,26 +117,18 @@ export function checkLateOpenerRegistration(
 
 export interface ReservedChromeCoherenceEntry {
 	kind: AnyBlockKind;
-	isContainer: boolean;
 	reservedChromeKind?: AnyBlockKind;
 }
 
-/** G1.18: a kind declaring `reservedChrome` is a container, and the kind it names has a descriptor
- *  and a component. G1.14 checks the child itself on every commit. */
+/** G1.18: the title-row kind a container's `reservedChrome` names has a descriptor and a
+ *  component. G1.14 checks the child itself on every commit. */
 export function checkReservedChromeCoherence(
 	entries: readonly ReservedChromeCoherenceEntry[],
 	hasDescriptor: (kind: AnyBlockKind) => boolean,
 	hasComponent: (kind: AnyBlockKind) => boolean
 ): InvariantViolation | null {
-	for (const { kind, isContainer, reservedChromeKind } of entries) {
+	for (const { kind, reservedChromeKind } of entries) {
 		if (reservedChromeKind === undefined) continue;
-		if (!isContainer) {
-			return {
-				code: 'reserved-chrome-coherence',
-				message: `kind "${kind}" declares reservedChrome but is not a container`,
-				detail: { kind, chromeKind: reservedChromeKind, issue: 'not-container' }
-			};
-		}
 		if (!hasDescriptor(reservedChromeKind)) {
 			return {
 				code: 'reserved-chrome-coherence',
@@ -311,17 +303,12 @@ function markClashOf(
 
 export interface DescriptorFieldEntry {
 	kind: AnyBlockKind;
-	declaresWholeBlockFocus: boolean;
-	supportsInline: boolean;
-	declaresReservedChrome: boolean;
 	contextDependentKind: boolean;
 	hasOpener: boolean;
-	unwrapLiftsFirstChild: boolean;
-	unwrapKeepsReservedChrome: boolean;
 }
 
-/** G1.37: pairs of descriptor fields the type allows but a kind cannot mean together. Each fails
- *  silently until a gesture reaches the kind. */
+/** G1.37: a context-dependent kind registers no opener. The two live in separate registries, so
+ *  the registration type can't see the pair; it fails silently until a gesture reaches the kind. */
 export function checkDescriptorFieldCoherence(
 	entries: readonly DescriptorFieldEntry[]
 ): InvariantViolation | null {
@@ -333,56 +320,6 @@ export function checkDescriptorFieldCoherence(
 				detail: { kind: entry.kind, fields: ['contextDependentKind', 'opener'] }
 			};
 		}
-		if (entry.declaresWholeBlockFocus && entry.supportsInline) {
-			return {
-				code: 'descriptor-field-coherence',
-				message: `kind "${entry.kind}" declares blockFocus: 'whole-block' and supportsInline; a whole-block unit's only addressable offsets are 0 and its display length, so inline constructs parsed from its raw have no caret positions to live at`,
-				detail: { kind: entry.kind, fields: ['blockFocus', 'supportsInline'] }
-			};
-		}
-		if (entry.declaresWholeBlockFocus && entry.declaresReservedChrome) {
-			return {
-				code: 'descriptor-field-coherence',
-				message: `kind "${entry.kind}" declares blockFocus: 'whole-block' and reservedChrome; the chrome slot is always present, so the kind is never childless and the focus-then-delete model it declares can never engage`,
-				detail: { kind: entry.kind, fields: ['blockFocus', 'reservedChrome'] }
-			};
-		}
-		if (entry.declaresReservedChrome && entry.unwrapLiftsFirstChild) {
-			return {
-				code: 'descriptor-field-coherence',
-				message: `kind "${entry.kind}" declares reservedChrome and a lifting firstChildBackspace: child 0 is the chrome row, so Backspace at its start would carry the container's own title out as a sibling block; declare 'keep-reserved-chrome'`,
-				detail: { kind: entry.kind, fields: ['reservedChrome', 'firstChildBackspace'] }
-			};
-		}
-		if (entry.unwrapKeepsReservedChrome && !entry.declaresReservedChrome) {
-			return {
-				code: 'descriptor-field-coherence',
-				message: `kind "${entry.kind}" declares firstChildBackspace: 'keep-reserved-chrome' without reservedChrome; child 0 is body, so the declared decline makes Backspace at the body start a dead key; declare a lifting strategy`,
-				detail: { kind: entry.kind, fields: ['reservedChrome', 'firstChildBackspace'] }
-			};
-		}
-	}
-	return null;
-}
-
-export interface ContentStartBackspaceEntry {
-	kind: AnyBlockKind;
-	demotesFirst: boolean;
-	declaresContentRange: boolean;
-}
-
-/** G1.32: a kind that demotes on Backspace at its content start declares `getContentRange`, or the
- *  content is the whole display and the demote never fires. */
-export function checkContentStartBackspace(
-	entries: readonly ContentStartBackspaceEntry[]
-): InvariantViolation | null {
-	for (const { kind, demotesFirst, declaresContentRange } of entries) {
-		if (!demotesFirst || declaresContentRange) continue;
-		return {
-			code: 'content-start-backspace',
-			message: `kind "${kind}" declares contentStartBackspace but no getContentRange: its content starts at raw 0, where the demote branch never fires and the declaration is silently inert`,
-			detail: { kind }
-		};
 	}
 	return null;
 }

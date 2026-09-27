@@ -21,12 +21,10 @@ import {
 	checkClosureCoherence,
 	checkLateOpenerRegistration,
 	checkMergeRoleVocabulary,
-	checkContentStartBackspace,
 	checkDescriptorFieldCoherence,
 	checkInlineConstructPolicy,
 	checkBuiltinPresentationFacts,
 	type ClosureCoherenceEntry,
-	type ContentStartBackspaceEntry,
 	type DescriptorFieldEntry,
 	type MergeRoleEntry,
 	type PresentationFactEntry
@@ -37,7 +35,6 @@ import {
 	tryGetBlockKindDescriptor,
 	getAllRegisteredKinds,
 	isKnownMergeRole,
-	liftsFirstChild,
 	type BlockKindDescriptor
 } from './block-kind-descriptor';
 import { isBlockComponentRegistered } from './block-component-registry';
@@ -70,14 +67,10 @@ const keymapEntries = (kinds: readonly AnyBlockKind[]) =>
 	kinds.map((kind) => ({ kind, keymap: tryGetBlockKindDescriptor(kind)?.keymap }));
 
 const reservedChromeEntries = (kinds: readonly AnyBlockKind[]) =>
-	kinds.map((kind) => {
-		const d = tryGetBlockKindDescriptor(kind);
-		return {
-			kind,
-			isContainer: d?.isContainer ?? false,
-			reservedChromeKind: d?.reservedChrome?.kind
-		};
-	});
+	kinds.map((kind) => ({
+		kind,
+		reservedChromeKind: tryGetBlockKindDescriptor(kind)?.reservedChrome?.kind
+	}));
 
 const viaOf = (cell: ClosureCell): string | undefined =>
 	cell.mode === 'implemented' ? cell.via : undefined;
@@ -116,18 +109,6 @@ const mergeRoleEntries = (kinds: readonly AnyBlockKind[]): MergeRoleEntry[] =>
 		return mergeRole === undefined ? [] : [{ kind, mergeRole }];
 	});
 
-const contentStartBackspaceEntries = (
-	kinds: readonly AnyBlockKind[]
-): ContentStartBackspaceEntry[] =>
-	kinds.map((kind) => {
-		const d = tryGetBlockKindDescriptor(kind);
-		return {
-			kind,
-			demotesFirst: d?.contentStartBackspace === 'demote-first',
-			declaresContentRange: d?.getContentRange !== undefined
-		};
-	});
-
 const descriptorFieldEntries = (
 	kinds: readonly AnyBlockKind[],
 	openerKinds: ReadonlySet<AnyBlockKind>
@@ -135,18 +116,11 @@ const descriptorFieldEntries = (
 	kinds.flatMap((kind) => {
 		const d = tryGetBlockKindDescriptor(kind);
 		if (!d) return [];
-		const firstChildBackspace = d.unwrapRole?.firstChildBackspace;
 		return [
 			{
 				kind,
-				declaresWholeBlockFocus: d.blockFocus === 'whole-block',
-				supportsInline: d.supportsInline,
-				declaresReservedChrome: d.reservedChrome !== undefined,
 				contextDependentKind: d.contextDependentKind === true,
-				hasOpener: openerKinds.has(kind),
-				unwrapLiftsFirstChild:
-					firstChildBackspace !== undefined && liftsFirstChild(firstChildBackspace),
-				unwrapKeepsReservedChrome: firstChildBackspace === 'keep-reserved-chrome'
+				hasOpener: openerKinds.has(kind)
 			}
 		];
 	});
@@ -193,9 +167,6 @@ export function flushPendingRegistrationChecks(
 	);
 	report('merge-role-vocabulary', () =>
 		checkMergeRoleVocabulary(mergeRoleEntries(kinds), isKnownMergeRole)
-	);
-	report('content-start-backspace', () =>
-		checkContentStartBackspace(contentStartBackspaceEntries(kinds))
 	);
 	report('builtin-presentation-facts', () =>
 		checkBuiltinPresentationFacts(presentationFactEntries(kinds))

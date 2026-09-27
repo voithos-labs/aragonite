@@ -20,7 +20,7 @@ const leaf = {
 const group = { contract: 'opaque', rebuildRaw: () => {} } as const;
 const range = () => ({ start: 0, end: 0 });
 
-// ── Compile-time pins ───────────────────────────────────────────────────────
+// ── Compile-time pins (G3.10) ───────────────────────────────────────────────
 // Never called: `npm run check` is the gate. An "unused '@ts-expect-error'" error means a
 // registration pairing two fields that can't mean anything together compiles again.
 const typePins = (): void => {

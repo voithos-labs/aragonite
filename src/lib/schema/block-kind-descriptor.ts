@@ -47,20 +47,6 @@ export interface UnwrapRole {
 }
 
 /**
- * Whether each first-child Backspace strategy lifts child 0 out; the reserved title row check
- * reads the answer, so a new strategy cannot arrive without one (G1.37).
- */
-const FIRST_CHILD_BACKSPACE_LIFTS = {
-	'lift-first-child-drop-opener': true,
-	'lift-first-child-keep-container': true,
-	'keep-reserved-chrome': false,
-	'list-item-cascade': false
-} as const satisfies Record<UnwrapRole['firstChildBackspace'], boolean>;
-
-export const liftsFirstChild = (strategy: UnwrapRole['firstChildBackspace']): boolean =>
-	FIRST_CHILD_BACKSPACE_LIFTS[strategy];
-
-/**
  * A container whose direct children reorder among themselves (Alt+Arrow, the drag handle). The
  * reorder resolves its unit at the nearest ancestor declaring this; absent means the children
  * are not independently reorderable, and the container declines the reorder at its boundary.

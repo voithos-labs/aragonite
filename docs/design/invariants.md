@@ -231,7 +231,7 @@ Three families of seam run these checks:
 | G1.15 | A plugin opener claims at least one line, and its raw matches the lines it consumed | A·N     |
 | G1.16 | Every coordinate a commit declares is document-absolute                             | A·N     |
 | G1.17 | An opener registered after the grammar was read warns                               | A·N     |
-| G1.18 | A `reservedChrome` declarer is a container with a fully registered chrome kind      | A·N     |
+| G1.18 | A container's `reservedChrome` names a fully registered chrome kind                 | A·N     |
 | G1.19 | A commit scope's declared path still resolves to its captured node                  | A       |
 | G1.20 | An unshared chain is as deep as the path it was asked for                           | A       |
 | G1.21 | A column edit's row scopes are the owned table's own children                       | A       |
@@ -245,12 +245,12 @@ Three families of seam run these checks:
 | G1.29 | A selection endpoint's offset means what its own block's coordinate space says      | A·N     |
 | G1.30 | Every registered kind declares a `mergeRole` from the known set                     | A·N     |
 | G1.31 | The inline-construct policy table is coherent and unambiguous                       | A·N     |
-| G1.32 | A kind declaring `contentStartBackspace` also declares `getContentRange`            | A·N     |
+| G1.32 | _Retired upward_: a content-start Backspace with no range no longer compiles        | T       |
 | G1.33 | A block the caret is seated into paints at least one landable position              | A·N     |
 | G1.34 | A split's caret lands on the index `splitNode` returned                             | A·N     |
 | G1.35 | A slot that holds exactly one node never takes bytes that reparse to several        | A·N     |
 | G1.36 | A structural change fits the arrays it syncs; ids stay in lockstep with children    | A·N     |
-| G1.37 | No descriptor declares field pairs that cannot mean anything together               | A·N     |
+| G1.37 | A kind whose syntax its container owns registers no opener                          | A·N     |
 | G1.38 | A spliced container raw equals what a full rebuild would write                      | A·N     |
 | G1.39 | At most one block paints the editor's own caret at a time                           | A       |
 | G1.40 | Every built-in kind declares its page role and its height estimate                  | A·N     |
@@ -400,10 +400,11 @@ parsed documents never re-parse, so the kind would silently miss every open docu
 `checkLateOpenerRegistration` (`registry.ts`) · bootstrap ·
 `test/schema/registration-checks.test.ts`.
 
-**G1.18 · Reserved-chrome coherence.** A `reservedChrome` declarer is a container, and its chrome
-kind resolves to a descriptor and a component (both registered by `registerChromeLeaf`). The
-bootstrap counterpart to G1.14's per-commit slot check. Predicate `checkReservedChromeCoherence`
-(`registry.ts`) · bootstrap · `reserved-chrome-coherence.test.ts`,
+**G1.18 · Reserved-chrome coherence.** The chrome kind a container's `reservedChrome` names (its
+title row) resolves to a descriptor and a component, both registered by `registerChromeLeaf`. The
+bootstrap counterpart to G1.14's per-commit slot check. A leaf can't declare `reservedChrome` at
+all, since the field only exists inside the `container` group (G3.6). Predicate
+`checkReservedChromeCoherence` (`registry.ts`) · bootstrap · `reserved-chrome-coherence.test.ts`,
 `test/schema/registration-checks.test.ts`.
 
 **G1.19 · Multi-scope commit path.** A scope's declared path still resolves to its captured node,
@@ -535,11 +536,10 @@ registration; this check is the backstop behind that refusal. Predicate `checkIn
 (`registry.ts`) · mount (`invariants/install.ts :: runStartupInvariantChecks`) ·
 `inline-construct-policy-coherence.test.ts`, `test/schema/inline-construct-policy.test.ts`.
 
-**G1.32 · Content-start Backspace coherence.** A kind declaring `contentStartBackspace` also
-declares `getContentRange`. Without the hook its content starts at raw 0, where the demote branch
-never fires, so the declaration is silently inert, observable only as a keystroke that merged when
-it should have demoted. Predicate `checkContentStartBackspace` (`registry.ts`) · bootstrap ·
-`content-start-backspace.test.ts`.
+**G1.32 · Retired upward.** The rule was: a kind declaring `contentStartBackspace` also declares
+`getContentRange`, since without the range its content starts at raw 0 and the demote never fires.
+A registration now declares the two as one group, `contentStart: { range, backspace? }`, with the
+range required, so the runtime guard and its test are deleted. Superseded by G3.10.
 
 **G1.33 · Landable caret.** A block a caret is seated into, under an editable marker-hiding mode
 (live, preview-inline), paints at least one landable position. A surface whose every byte is a
@@ -597,18 +597,14 @@ and the test bridge run over the whole document. Predicates `checkStructuralDesc
 `test/schema/child-spans.test.ts`,
 `test/selection/cross-block/cross-block-delete-seam-fold.test.ts`, `test/invariants/child-id-parity.test.ts`.
 
-**G1.37 · Descriptor-field coherence.** Field pairs the registration shape can represent and no kind
-can mean together, checked against the declarations alone. `contextDependentKind` beside a
-registered opener suppresses the reparse for a kind the parser CAN recognize, so its bytes stop
-re-deriving. `blockFocus: 'whole-block'` beside `supportsInline` parses inline constructs into a
-surface whose only addressable offsets are 0 and its display length. `blockFocus` beside
-`reservedChrome` declares the focus-then-delete model on a kind the chrome slot keeps from ever
-being childless. The last pair reads `unwrapRole.firstChildBackspace` against `reservedChrome` in
-both directions: a lifting strategy would carry the chrome row out of its own container, and the
-`'keep-reserved-chrome'` decline on a container whose child 0 is body makes Backspace there a dead
-key. Each is silently inert rather than loud, so nothing fails until a gesture reaches
-the kind. G1.24 is the sibling over the closure cells; this one never reads them. Predicate
-`checkDescriptorFieldCoherence` (`registry.ts`) · bootstrap · `descriptor-field-coherence.test.ts`.
+**G1.37 · Descriptor-field coherence.** `contextDependentKind` (a kind with no opener of its own,
+whose container writes its syntax) beside a registered opener suppresses the reparse for a kind the
+parser CAN recognize, so its bytes stop re-deriving. The field sits on the descriptor and the opener
+in its own registry, so no registration type sees both, and the pair stays a runtime check; the
+descriptor's other incoherent pairs don't compile (G3.10). It's silently inert rather than loud, so
+nothing fails until a gesture reaches the kind. G1.24 is the sibling over the closure cells; this
+one never reads them. Predicate `checkDescriptorFieldCoherence` (`registry.ts`) · bootstrap ·
+`descriptor-field-coherence.test.ts`, `test/schema/registration-checks.test.ts`.
 
 **G1.38 · Faithful container splices.** After every one-region splice, dev re-derives the whole
 container raw on a scratch node and refuses the splice on any difference: the node takes the full
@@ -742,17 +738,18 @@ paint. A collapsed caret is a different ladder entirely. `format-toggle-ladder.t
 The top rung: the violation doesn't compile. Enforced by `npm run check`; there's no runtime seam.
 Each entry says what the type retired, since that list is the receipts.
 
-| ID   | What no longer compiles                                                           | Codes |
-| ---- | --------------------------------------------------------------------------------- | ----- |
-| G3.1 | An untyped metadata access (`as` cast) on a block node                            | T     |
-| G3.2 | A component publishing anything but the two sanctioned export shapes              | T     |
-| G3.3 | A cell selection point where a character point belongs, or the reverse            | T     |
-| G3.4 | A magic number standing in for "end of block"                                     | T     |
-| G3.5 | A container without a declared contract                                           | T     |
-| G3.6 | A container registration missing its rebuild, or a leaf claiming container fields | T     |
-| G3.7 | Arithmetic across two different coordinate spaces                                 | T     |
-| G3.8 | A reader writing a node's serialized bytes                                        | T     |
-| G3.9 | Forgetting one part of how the caret arrived without the others                   | T     |
+| ID    | What no longer compiles                                                           | Codes |
+| ----- | --------------------------------------------------------------------------------- | ----- |
+| G3.1  | An untyped metadata access (`as` cast) on a block node                            | T     |
+| G3.2  | A component publishing anything but the two sanctioned export shapes              | T     |
+| G3.3  | A cell selection point where a character point belongs, or the reverse            | T     |
+| G3.4  | A magic number standing in for "end of block"                                     | T     |
+| G3.5  | A container without a declared contract                                           | T     |
+| G3.6  | A container registration missing its rebuild, or a leaf claiming container fields | T     |
+| G3.7  | Arithmetic across two different coordinate spaces                                 | T     |
+| G3.8  | A reader writing a node's serialized bytes                                        | T     |
+| G3.9  | Forgetting one part of how the caret arrived without the others                   | T     |
+| G3.10 | A registration pairing fields that can't mean anything together                   | T     |
 
 ### The entries
 
@@ -801,6 +798,15 @@ caret the host or a menu places through the selection restore) calls `forget`, w
 three. The memory has no method that forgets one part alone, so code that clears the column and
 leaves the side behind doesn't compile. It replaces G4.31's reset parity scan and G2.10's
 capture-without-reset pairing.
+
+**G3.10 · Coherent registration pairs.** `BlockKindRegistration` is one of two shapes: a block
+focused as one unit (`blockFocus: 'whole-block'`, so `supportsInline: false`, no `contentStart`
+and no title row), or a block the caret enters. A content range and its Backspace behavior register
+together as `contentStart`, and a container with a title row declares only its middle-child unwrap
+strategy, since keeping the title row on Backspace is implied. `augmentBlockKind` takes none of
+these fields, so an augment can't assemble a pair behind the registration's back.
+`test/schema/descriptor-groups.types.test.ts` holds one `@ts-expect-error` per pair. Retired:
+G1.32, four of G1.37's five pairs, and G1.18's not-a-container branch.
 
 ## Group 4: source scans
 
