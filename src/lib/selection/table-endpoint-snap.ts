@@ -16,7 +16,8 @@ import { devWarn } from '../dev-warn';
 
 /**
  * Whether an endpoint on this block's own path counts cells rather than characters. Every
- * reader of that fact asks here, so the kind test lives in one place.
+ * reader of that fact asks here, so the kind test lives in one place. Tables only: a plugin grid
+ * keeps deep cell paths with character offsets until its kind can describe its cells (#242).
  */
 export function countsCells(
 	node: NodeView | DocumentView

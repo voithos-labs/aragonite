@@ -10,6 +10,7 @@ import { isBlankText } from '../lines';
 import { getInlineContent } from './inline-cache';
 import { isInlineWidget, isCharacterLikeWidget } from './inline-widgets';
 import type { GrammarView } from '../../schema/block-openers';
+import { isGridKind, tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
 
 export function isVerticallyTransparentNode(
 	node: NodeView | null | undefined,
@@ -20,10 +21,10 @@ export function isVerticallyTransparentNode(
 	const pending: NodeView[] = [node];
 	while (pending.length > 0) {
 		const current = pending.pop()!;
-		// A cell is a grid-column landing and renders images as alt text, so without this gate the
-		// walk would skip an image-only cell (VR-6).
-		const kind = current.kind;
-		if (kind === 'table' || kind === 'tableRow' || kind === 'tableCell') return false;
+		// A grid's cells are column landings, and a cell reached alone renders images as alt text,
+		// so without this gate the walk would skip an image-only cell (VR-6).
+		if (isGridKind(current.kind)) return false;
+		if (tryGetBlockKindDescriptor(current.kind)?.renderImagesAsWidgets === false) return false;
 		if (current.children) {
 			// An empty container carries a caret position.
 			if (current.children.length === 0) return false;

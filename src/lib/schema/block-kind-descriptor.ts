@@ -518,6 +518,12 @@ export function tryGetBlockKindDescriptor(kind: AnyBlockKind): BlockKindDescript
 	return registry.getIgnoringActivation(kind);
 }
 
+/** Whether a kind declares the grid contract: a table and its rows, or a plugin's equivalent. A
+ *  cell is in a grid when its parent row is one. */
+export function isGridKind(kind: AnyBlockKind): boolean {
+	return tryGetBlockKindDescriptor(kind)?.containerContract === 'grid';
+}
+
 /**
  * Is a kind descriptor registered? `registerBlockKind` throws on a duplicate, so a plugin that
  * may register twice (hot reload, re-import) checks this first. Takes a plain, unbranded name.

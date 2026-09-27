@@ -37,11 +37,12 @@ import { rebuildTableRowRaw } from '../schema/container-rebuilders';
 import { promoteFirstRowToHeader } from '../tree-operations/table-mutations';
 import { caretChildCount } from '../schema/reserved-chrome';
 import { nearestChromeContainer, isChromeChild } from './range-delete-chrome';
+import { countsCells } from './table-endpoint-snap';
 
 // ── Public API ──────────────────────────────────────────────────────────────
 
 export function involvesTable(startBlock: CstNode, endBlock: CstNode): boolean {
-	return startBlock.kind === 'table' || endBlock.kind === 'table';
+	return countsCells(startBlock) || countsCells(endBlock);
 }
 
 export function tableAwareRangeDelete(
@@ -61,16 +62,18 @@ export function tableAwareRangeDelete(
 	const endBlock = sameBlock
 		? startBlock
 		: (ensureUnsharedPath(doc, end.path, sharing).pop() ?? ownedEndpoint(doc, end.path, sharing));
-	if (startBlock.kind === 'table') ensureUnsharedSubtree(startBlock, sharing);
-	if (!sameBlock && endBlock.kind === 'table') ensureUnsharedSubtree(endBlock, sharing);
+	const startCells = countsCells(startBlock);
+	const endCells = countsCells(endBlock);
+	if (startCells) ensureUnsharedSubtree(startBlock, sharing);
+	if (!sameBlock && endCells) ensureUnsharedSubtree(endBlock, sharing);
 
 	if (sameBlock) {
 		return deleteWithinTable(doc, start, end, startBlock, sharing, grammar);
 	}
-	if (startBlock.kind === 'table' && endBlock.kind === 'table') {
+	if (startCells && endCells) {
 		return deleteAcrossTwoTables(doc, start, end, startBlock, endBlock, sharing, grammar);
 	}
-	if (startBlock.kind === 'table') {
+	if (startCells) {
 		return deleteFromTableIntoProse(
 			doc,
 			start,
