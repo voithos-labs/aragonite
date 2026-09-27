@@ -90,11 +90,8 @@ export async function textRunEnd(
 	return { x: r.right - 1, y: r.top + r.height / 2 };
 }
 
-/**
- * What a click on a widget aims at: the `aim` element inside it when there is one, else the
- * widget. Aim inside when the widget's own box holds something no click lands in (KaTeX's
- * clipped MathML half pulls the box center off the painted glyphs).
- */
+/** Aim at `aim` inside the widget when the widget's own box holds something no click lands in
+ *  (KaTeX's clipped MathML half pulls the box center off the painted glyphs). */
 export async function widgetAimTarget(widget: Locator, aim?: string): Promise<Locator> {
 	const inner = aim ? widget.locator(aim) : null;
 	return inner && (await inner.count()) > 0 ? inner.first() : widget;

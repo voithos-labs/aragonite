@@ -1,8 +1,8 @@
 /**
- * G4.17: no spec file runs in two Playwright projects, read from what Playwright lists rather
- * than from a copy of the config's globs. A spec no project collects is the lockstep lint's
- * catch (every spec lists a test). The WebKit lane re-runs a slice of the tree in a second
- * engine, so it never counts as a second project.
+ * No spec file runs in two Playwright projects, read from what Playwright lists rather than from
+ * a copy of the config's globs (G4.17). A spec no project collects is the lockstep lint's catch.
+ * The WebKit lane re-runs part of the tree in a second browser, so it never counts as a second
+ * project.
  */
 import { describe, it, expect } from 'vitest';
 import { listPlaywrightTests, type ListedTest } from './playwright-list';

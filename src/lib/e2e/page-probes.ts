@@ -1,11 +1,10 @@
 import { type ConsoleMessage, type Page, type Request, type Response } from '@playwright/test';
 import { UNDO_DEBOUNCE_MS } from '../editor-actions/commit/text-batch';
 
-// Page-level probes shared across the e2e suites. Collecting page errors stays each spec's
-// decision: this module hands back the collected list and never asserts on it.
+// Page-level checks shared across the e2e suites. Whether a spec asserts on page errors is its own
+// decision: this module hands back what it collected and never asserts.
 
-// Starts collecting uncaught page errors and returns the growing array. Pair it with an
-// explicit `expect(pageErrors).toEqual([])` where the spec asserts there were none.
+// Pair with an explicit `expect(pageErrors).toEqual([])` where the spec asserts there were none.
 export function capturePageErrors(page: Page): string[] {
 	const errors: string[] = [];
 	page.on('pageerror', (e) => errors.push(e.message));
@@ -65,8 +64,8 @@ export function waitForEditorHydrated(page: Page): Promise<unknown> {
 	);
 }
 
-// A fixed instant rather than the wall clock (G4.48), advanced one second so a timer set during
-// setup fires before the page stops ticking.
+// A fixed instant rather than the wall clock, advanced one second so a timer set during setup
+// fires before the page stops ticking (G4.48).
 const FROZEN_AT = new Date('2026-01-01T00:00:00Z');
 const FROZEN_UNTIL = new Date('2026-01-01T00:00:01Z');
 
@@ -88,8 +87,8 @@ export function topLevelHostPresent(page: Page, index: number): Promise<boolean>
 	);
 }
 
-// Where keyboard focus sits: the block holding it, and whether it is that block's editing
-// surface rather than a stop inside the block.
+// Where keyboard focus sits: the block holding it, and whether it is that block's editable element
+// rather than another focus stop inside the block.
 export function focusedBlockSurface(
 	page: Page
 ): Promise<{ path: number[] | null; isSurface: boolean }> {

@@ -1,9 +1,8 @@
 /**
- * G4.49: a spec composes through the shared driver (`simulation/ime.ts`) instead of building
- * composition events itself. A hand-built `CompositionEvent` skips the browser's own composition
- * window, so the spec checks a sequence no IME produces and can pass while real typing breaks.
- * WebKit exposes no CDP, so the driver holds the one hand-built branch. Runs beside the other
- * e2e lints, outside `test:editor:invariants`.
+ * A spec composes through the shared driver (`simulation/ime.ts`), never with hand-built
+ * composition events, which skip the browser's composition window and can pass while real typing
+ * breaks (G4.49). WebKit has no CDP, so the driver holds the one hand-built branch. Runs with the
+ * other e2e lints, outside `test:editor:invariants`.
  */
 import { describe, it, expect } from 'vitest';
 import { collectFiles, readSource, type SourceFile } from '../../test/invariants/lint/scan-source';
