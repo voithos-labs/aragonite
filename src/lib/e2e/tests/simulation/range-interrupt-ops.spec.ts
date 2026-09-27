@@ -9,14 +9,13 @@ import { assertCheckpoint } from '../../simulation/invariants';
 import type { RangeInterruptGesture } from '../../simulation/gestures/range-interrupt';
 import { makeSimContext } from './helpers';
 
-// Every select-all, gesture, keystroke sequence, run once over a document shaped to reach it,
-// so coverage never depends on which seed drew what. `PROBES` is keyed by the list of gestures
-// itself, so a new gesture without a probe fails `npm run check` rather than leaving a silent
-// hole. What each gesture is expected to do:
+// Every select-all, gesture, keystroke sequence, run once over a document shaped to reach it, so
+// coverage never depends on which seed drew what. `PROBES` is keyed by the list of gestures, so a
+// new gesture without an entry fails `npm run check`. What each gesture is expected to do:
 // requirements/simulation/range-interrupt-ops.md.
 
 const PROSE_DOC = 'first para\n\nsecond para\n\nthird para\n';
-// Prose carries no drag handle, so the thematic break is the block whose handle can be pressed.
+// Prose carries no drag handle, so the thematic break is the block whose handle is grabbed.
 const GRIP_DOC = PROSE_DOC + '\n---\n';
 const IMAGE_DOC = 'first para\n\nsecond para\n\n![diagram|440](/test-fixtures/sample.png)\n';
 const MATH_DOC = 'Alpha lead paragraph.\n\nBeta $x^2$ middle.\n\nGamma tail paragraph.\n';
@@ -81,8 +80,7 @@ const PROBES: Record<RangeInterruptGesture, Probe> = {
 		doc: MATH_DOC,
 		ready: '.math-inline-widget'
 	},
-	// Clicking a rendered block to open its source is the gesture whose missing reset cost a
-	// whole document: it is the one path with no source text for the cross-block handler to
+	// Clicking a rendered block to open its source has no source text for the cross-block handler to
 	// click into, so the rendered view has to end the range itself.
 	'block-reveal-click': {
 		route: 'plugins',
@@ -90,8 +88,8 @@ const PROBES: Record<RangeInterruptGesture, Probe> = {
 		doc: BLOCK_MATH_DOC,
 		ready: '.math-block-render'
 	},
-	// A table-of-contents entry places its caret through `rects.navigateTo` rather than through
-	// any pointer path, so it lies outside what G2.12 can see.
+	// A table-of-contents entry places its caret through `rects.navigateTo`, not a pointer path, so
+	// the caret-placement scan (G2.12) cannot see it.
 	'toc-entry-click': {
 		route: 'plugins',
 		title: 'a TOC entry click types at the heading it navigated to',

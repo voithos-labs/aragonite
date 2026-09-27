@@ -29,9 +29,8 @@ test('search Previous to a far match past undecoded images keeps the active high
 }) => {
 	const pageErrors = capturePageErrors(page);
 
-	// Hold the showcase's images undecoded for the whole test: the picsum requests hang, so the
-	// `<img>`s never decode and keep measuring ~0, which is the document shrink that clamps the
-	// scroll. Set before goto so the mount's own requests catch it.
+	// The picsum requests hang for the whole test, so the `<img>`s keep measuring ~0 and the document
+	// shrink clamps the scroll. Set before goto so the mount's own requests catch it.
 	await page.route('https://picsum.photos/**', () => {});
 
 	const editor = new EditorPage(page);

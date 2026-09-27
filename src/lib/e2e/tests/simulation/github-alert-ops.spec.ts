@@ -7,12 +7,9 @@ import { assertCheckpoint } from '../../simulation/invariants';
 import { makeSimContext } from './helpers';
 
 // GitHub alerts, run in the default gate. A `> [!TYPE]` blockquote is its own `githubAlert`
-// container, with its bytes untouched and the marker only in the container's raw text, so
-// building one, editing inside it, merging a middle child and unwrapping it are exactly the
-// container corruption these checks exist to catch.
-//
-// The alert's marker breaks the paragraph above it, so building one from scratch never leaves
-// two blocks a single newline apart, and the reparse check runs throughout.
+// container with its bytes untouched, so these checks cover building one, editing inside it,
+// merging a middle child and unwrapping it. The alert's marker breaks the paragraph above, so a
+// built alert never sits a single newline from a block, and the reparse check runs throughout.
 
 const ALERT_DOC =
 	'Intro paragraph.\n\n' + // [0]: a new alert is typed after this
@@ -42,9 +39,9 @@ test.describe('github-alert-ops simulation', () => {
 		await assertCheckpoint(ctx, 'loaded');
 		expect(await editor.bridge.getBlockKind(1)).toBe('githubAlert');
 
-		// ── Build an alert after the last block; the one already there stays at [1] ─
-		// Types `> [!TIP]` and a body key by key, so the block becomes a container and the
-		// body lands inside it. The typed alert ends up at [3].
+		// ── Build an alert after the last block; the one already there stays at [1] ──
+		// Types `> [!TIP]` and a body key by key, so the block becomes a container with the body
+		// inside; the typed alert ends up at [3].
 		await g.typeGithubAlert(2, 'TIP', 'Fresh alert body');
 		expect(await editor.bridge.getBlockKind(3)).toBe('githubAlert');
 		expect(await editor.bridge.getSource()).toContain('> [!TIP]\n> Fresh alert body');
@@ -57,8 +54,8 @@ test.describe('github-alert-ops simulation', () => {
 		await assertCheckpoint(ctx, 'body-edited');
 
 		// ── Move the existing alert's body children within the container ────────────
-		// Alt+ArrowDown swaps body child 0 in place; the alert keeps its kind, its marker and
-		// its position in the document, rather than jumping out as it once did.
+		// Alt+ArrowDown swaps body child 0 in place; the alert keeps its kind, its marker and its
+		// position in the document.
 		await g.reorderGithubAlertBodyChild(1, 0, 1);
 		expect(await editor.bridge.getBlockKind(1)).toBe('githubAlert');
 		expect(await editor.bridge.getSource()).toContain('[!WARNING]');

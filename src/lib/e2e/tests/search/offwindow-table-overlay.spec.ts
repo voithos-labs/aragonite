@@ -5,9 +5,9 @@ import { capturePageErrors } from '../../page-probes';
 import { count, openFind, typeQuery } from './helpers';
 
 // The needle is spread across rows so the active match scrolls into view at the top while deep
-// matching rows start unmounted: search scrolls to the active match only, and the rest must
-// repaint when they come into view (#3). The last row carries one too, so the bottom of the
-// viewport holds a needle whatever the row height.
+// matching rows start unmounted: search scrolls to the active match only, and the rest must repaint
+// when they come into view. The last row carries one too, so the viewport's bottom holds a needle
+// whatever the row height.
 const ROWS = 200;
 function bigTable(): string {
 	const head = '| Col A | Col B |\n| :--- | :--- |\n';
@@ -35,9 +35,8 @@ function row180Mounted(page: Page): Promise<boolean> {
 	);
 }
 
-// After scrolling, find a cell fully inside the editor viewport (the insets trim the accepted
-// band, a needle filters to matching cells) and report whether an overlay of the given
-// selector covers it: the read that tells a repaint from no repaint.
+// Finds a cell fully inside the editor viewport (insets trim the band, a needle filters to matching
+// cells) and reports whether an overlay of `selector` covers it.
 function coveredCell(
 	page: Page,
 	args: { overlaySelector: string; needle?: string; insetTop: number; insetBottom: number }

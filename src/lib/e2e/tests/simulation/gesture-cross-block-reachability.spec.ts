@@ -21,9 +21,8 @@ function makeCtx(page: Page, editor: EditorPage): Promise<SimContext> {
 	return makeSimContext(page, editor, 'reach');
 }
 
-// Build a range running from 'pha' to 'be': offset 2 in each of the two paragraphs, so a real
-// delete removes that text, where a range touching only the block edges would merely merge
-// them. Returns the context the delete gesture runs on.
+// A range from 'pha' to 'be', offset 2 in each paragraph, so a real delete removes that text where
+// an edge-only range would merely merge. Returns the context the delete gesture runs on.
 async function selectAcrossContent(page: Page, editor: EditorPage): Promise<SimContext> {
 	await editor.focusBlockAtPath([0], 2);
 	const ctx = await makeCtx(page, editor);

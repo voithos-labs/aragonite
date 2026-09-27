@@ -46,8 +46,8 @@ test.describe('search bar: consumer anchor', () => {
 
 	test('theme tokens resolve inside the anchor and follow a live theme flip', async ({ page }) => {
 		await openFind(editor);
-		// The anchor sits outside every `.aragonite-editor-theme` ancestor, so this value can
-		// only come from the scope the portaled node brought with it.
+		// The bar's anchor element sits outside every `.aragonite-editor-theme` ancestor, so this value
+		// can only come from the scope the portaled node brought with it.
 		expect(await inputBorderColor(page)).toBe(TOKEN_DARK);
 		expect(await inputBorderColor(page)).not.toBe(INLINE_FALLBACK);
 

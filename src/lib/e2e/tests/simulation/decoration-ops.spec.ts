@@ -6,11 +6,9 @@ import { makeRng } from '../../simulation/rng';
 import { assertCheckpoint } from '../../simulation/invariants';
 import { makeSimContext } from './helpers';
 
-// Decorations, run in the default gate. plugin-ops already runs the decoration machinery
-// under these checks; this drives the interaction with them instead: the caret, deletes and
-// typing around a decoration, and a block's badge, none of which had a gesture before. Every
-// gesture leaves the bytes as they were, so the end state still matches. The decoded-entity
-// widget runs in the same session, beside a decoration that shows a character of its own.
+// Decorations, run in the default gate: the caret, deletes and typing around a decoration, and a
+// block's badge, beside the decoded-entity widget. Every gesture leaves the bytes as they were, so
+// the end state still matches.
 
 const DECORATION_DOC =
 	'Alpha lead with a [>hidden gem<] fold inline.\n\n' +
@@ -23,9 +21,8 @@ test.describe('decoration-ops simulation', () => {
 
 	test.beforeEach(async ({ page }) => {
 		editor = new PluginsPage(page);
-		// `?seed=sim` installs both decoration sources; `loadContent` replaces the seed's
-		// empty document with DECORATION_DOC, whose markers (`[>…<]`, `WIDGET`, `BADGE`) are
-		// what those sources match.
+		// `?seed=sim` installs both decoration sources; `loadContent` replaces the seed's empty
+		// document with DECORATION_DOC, whose markers (`[>…<]`, `WIDGET`, `BADGE`) those sources match.
 		await editor.gotoPlugins('sim');
 	});
 
@@ -48,7 +45,7 @@ test.describe('decoration-ops simulation', () => {
 		await editor.bridge.waitForSourceEquals(loaded);
 		await editor.waitForRenderFlush();
 
-		// The decorations are now drawn at the positions their text implies, before any gesture.
+		// The decorations are drawn at the positions their text implies, before any gesture.
 		await expect(page.locator("[data-block-path='[0]'] [data-decoration-island]")).toHaveCount(1);
 		await expect(page.locator("[data-block-path='[1]'] [data-decoration-island]")).toHaveCount(1);
 		await expect(page.locator("[data-block-path='[2]'].sim-badged-block")).toHaveCount(1);

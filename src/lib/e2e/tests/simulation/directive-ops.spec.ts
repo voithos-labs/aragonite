@@ -7,11 +7,9 @@ import { makeRng } from '../../simulation/rng';
 import { assertCheckpoint } from '../../simulation/invariants';
 import { makeSimContext, topLevelIndexOf } from './helpers';
 
-// The `:::name` syntax, run in the default gate. It covers three shapes (an opaque container,
-// a block that cannot merge, and an inline widget) and two paths through the parser: a
-// registered name, which resolves to the plugin's own node, and an unregistered one, which
-// falls back to the generic kinds. None of it had been run through a long session before.
-// `:::callout` and `:::mystery` drive both paths.
+// The `:::name` syntax, run in the default gate: an opaque container, a block that cannot merge
+// and an inline widget, through both parser paths. A registered name (`:::callout`) resolves to the
+// plugin's own node; an unregistered one (`:::mystery`) falls back to the generic kinds.
 
 const DIRECTIVE_DOC =
 	'Lead paragraph.\n\n' +
@@ -31,9 +29,8 @@ test.describe('directive-ops simulation', () => {
 
 	test.beforeEach(async ({ page }) => {
 		editor = new PluginsPage(page);
-		// `?seed=sim` adds the decoration source (sim-mark-plugin) to the base plugins, so the
-		// checks watch decorations run on every edit. `loadContent` replaces the seed's empty
-		// document with DIRECTIVE_DOC.
+		// `?seed=sim` adds the decoration source (sim-mark-plugin), so the checks watch decorations on
+		// every edit; `loadContent` replaces the seed's document with DIRECTIVE_DOC.
 		await editor.gotoPlugins('sim');
 	});
 
@@ -62,9 +59,8 @@ test.describe('directive-ops simulation', () => {
 		await expect(page.locator('.directive-text-widget')).toHaveCount(1);
 		await assertCheckpoint(ctx, 'text-inserted');
 
-		// Proves the decoration source is alive: one that quietly stopped would leave this suite
-		// green with no decoration coverage at all. It comes after the first edit, not at load,
-		// since `loadContent` fires no edit event and nothing is drawn before that commit.
+		// A decoration source that stopped would leave this suite green with no decoration coverage.
+		// Checked after the first edit, since `loadContent` fires no edit event.
 		await expect
 			.poll(() => page.locator('.decoration-overlay.sim-standing-mark').count())
 			.toBeGreaterThan(0);

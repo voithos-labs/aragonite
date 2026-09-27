@@ -52,9 +52,8 @@ test.describe('sim gesture reachability: gap create', () => {
 		await assertStructuralIntegrity(ctx);
 	});
 
-	// The gesture's own check, not the editor's: at a boundary it cannot use, the Backspace
-	// merges as it always did, and a gesture that recorded that as a new block would be
-	// coverage for nothing.
+	// The gesture's own check: at a boundary it cannot use, Backspace merges as usual, and a gesture
+	// that recorded that as a new block would cover nothing.
 	test('a boundary neither neighbour declares fails loudly', async ({ page }) => {
 		await editor.loadContent(PARA_THEN_FENCE);
 
@@ -64,8 +63,8 @@ test.describe('sim gesture reachability: gap create', () => {
 	});
 });
 
-// Opaque containers (#93): the caret has to arrive by arrow-up, because Backspace on the first
-// child of a container with a title row does nothing on purpose.
+// Opaque containers: the caret arrives by arrow-up, because Backspace on the first child of a
+// container with a title row does nothing on purpose.
 test.describe('sim gesture reachability: gap create between opaque containers', () => {
 	const CALLOUT_A = ':::note Alpha\nalpha\n:::\n';
 	const CALLOUT_B = ':::tip Beta\nbeta\n:::\n';

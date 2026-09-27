@@ -7,13 +7,10 @@ import { makeRng } from '../../simulation/rng';
 import { assertCheckpoint } from '../../simulation/invariants';
 import { makeSimContext } from './helpers';
 
-// Tables, run in the default gate. A table is the hardest kind for reactive state: a container
-// of keyed children whose rows are themselves containers of keyed children, and nothing else in
-// the gate moves rows and columns of a live one.
-//
-// Drives a loaded table, since typed pipe syntax never renders an interactive one (see
-// gestures/table.ts). It starts with a column operation, which writes to every row at once, and
-// includes an undo of one, which clones each row's children: the two hardest cases.
+// Tables, run in the default gate: keyed children whose rows are themselves containers of keyed
+// children, the hardest kind for reactive state. Drives a loaded table, since typed pipe syntax
+// never renders an interactive one, starting with a column operation that writes every row and
+// including its undo, which clones each row's children.
 
 // The first paragraph is where the gesture that extends a selection into the table starts.
 // Every cell below is addressed within the grid, so the extra block shifts nothing.
@@ -78,8 +75,8 @@ test.describe('note-taking simulation: table row/column moves', () => {
 		await assertCheckpoint(ctx, 'after-undo');
 		expect(await columnCount(page)).toBe(3);
 
-		// Extending a selection into the table (G2.12) opens the cell it reaches and puts the
-		// caret there, and the whole detour moves no bytes.
+		// Extending a selection into the table opens the cell it reaches and puts the caret there
+		// (G2.12), and the whole detour moves no bytes.
 		await g.liveExtendIntoTablePark();
 		await assertCheckpoint(ctx, 'after-live-extend-park');
 	});

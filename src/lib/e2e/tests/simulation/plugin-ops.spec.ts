@@ -7,11 +7,10 @@ import { type SimContext, assertCheckpoint } from '../../simulation/invariants';
 import { makeSimContext, topLevelIndexOf } from './helpers';
 import { PluginsPage, activeBlockPath } from '../plugins/helpers';
 
-// Plugin containers, run in the default gate. The three rules that apply only to opaque
-// containers (its raw text must never go stale, a rebuild must be repeatable, and the title row
-// keeps its place) could be seen only through short scripted scenarios; this runs them inside a
-// long session for the first time. Built like table-ops, on a loaded document, and repeatable
-// under a fixed generator; run it with `--repeat-each` to shake out timing flakiness.
+// Plugin containers in a long session, run in the default gate: an opaque container's raw text
+// never goes stale, a rebuild is repeatable, and the title row keeps its place. Built like
+// table-ops, on a loaded document under a fixed generator; run it with `--repeat-each` to shake out
+// timing flakiness.
 
 const PLUGIN_DOC =
 	'Intro paragraph.\n\n' +
@@ -36,9 +35,8 @@ async function containerRaw(page: Page, kind: string): Promise<string> {
 }
 
 // ── Edits that resync ─────────────────────────────────────────────────────────
-// Every plugin edit lands inside a container, in the middle of the document, never as text
-// added at the end, which is all the ExpectationTracker predicts, so these wait for the source
-// and resync, the same split table-ops uses for cell edits.
+// Every plugin edit lands inside a container, mid-document, where the ExpectationTracker cannot
+// predict it, so these wait for the source and resync, as table-ops does for cell edits.
 
 async function typeAtPath(ctx: SimContext, path: number[], text: string): Promise<void> {
 	const before = await ctx.editor.bridge.getSource();
@@ -67,9 +65,8 @@ async function enterDescendSummary(ctx: SimContext, detailsIdx: number): Promise
 	ctx.tracker.resync(await ctx.editor.bridge.getSource());
 }
 
-// Backspace at the start of the block below the details. With the details open, the last body
-// child takes it and the source changes; with it collapsed, the walk must refuse the hidden
-// body and stop the caret at the summary, changing nothing.
+// Backspace at the start of the block below the details: open, the last body child takes it;
+// collapsed, the caret stops at the summary and nothing changes.
 async function mergeFromBelow(
 	ctx: SimContext,
 	tailIdx: number,
@@ -94,9 +91,8 @@ test.describe('plugin-container ops simulation', () => {
 
 	test.beforeEach(async ({ page }) => {
 		editor = new PluginsPage(page);
-		// `?seed=sim` adds the decoration source (sim-mark-plugin) to the base plugins, so the
-		// checks watch decorations run on every edit. `loadContent` replaces the seed's empty
-		// document with PLUGIN_DOC.
+		// `?seed=sim` adds the decoration source (sim-mark-plugin) to the base plugins, so the checks
+		// watch decorations on every edit; `loadContent` replaces the seed's document with PLUGIN_DOC.
 		await editor.gotoPlugins('sim');
 	});
 
@@ -117,9 +113,8 @@ test.describe('plugin-container ops simulation', () => {
 		await assertCheckpoint(ctx, 'loaded');
 
 		// ── A move inside an opaque container is refused and changes no bytes ──────
-		// The note sits mid-document, so a move that looked outside the container would jump it
-		// to a different position; the gesture checks the source is identical, which puts that
-		// refusal under these checks.
+		// The note sits mid-document, so a move that escaped the container would change the source,
+		// which the gesture checks.
 		const declineNoteIdx = await topLevelIndexOf(page, 'callout');
 		await g.reorderInContainer([declineNoteIdx, 1]);
 		await assertCheckpoint(ctx, 'note-body-reorder-declined');
@@ -132,9 +127,8 @@ test.describe('plugin-container ops simulation', () => {
 		expect(await containerRaw(page, 'callout')).toContain(':::callout Title!');
 		await assertCheckpoint(ctx, 'callout-title-edit');
 
-		// Proves the decoration source is alive: one that quietly stopped would leave this suite
-		// green with no decoration coverage at all. It comes after the first edit, not at load,
-		// since `loadContent` fires no edit event and nothing is drawn before that commit.
+		// A decoration source that stopped would leave this suite green with no decoration coverage.
+		// Checked after the first edit, since `loadContent` fires no edit event.
 		await expect
 			.poll(() => page.locator('.decoration-overlay.sim-standing-mark').count())
 			.toBeGreaterThan(0);
@@ -150,9 +144,8 @@ test.describe('plugin-container ops simulation', () => {
 		await assertCheckpoint(ctx, 'note-set-kind');
 
 		// ── A global command that only reads changes nothing ──────────────────────
-		// A global shortcut a plugin registered commits nothing, so the source and the undo
-		// stack must be identical across it: command dispatch is covered without disturbing
-		// the document the end state is compared against.
+		// The source and the undo stack must be identical across a global plugin shortcut that commits
+		// nothing.
 		await g.pause();
 		const beforeDocStats = await editor.bridge.getSource();
 		const undoBefore = await page.evaluate(() => (window as any).__test.dumpUndoStack());
@@ -218,9 +211,8 @@ test.describe('plugin-container ops simulation', () => {
 		await assertCheckpoint(ctx, 'merge-undo');
 
 		// ── Select across containers, copy, paste, undo ──────────────────────────
-		// Drag a selection from the callout body, across the list and out of both containers,
-		// to the details summary: a clipboard commit spanning two opaque containers is where
-		// shared nodes cause trouble.
+		// Drags from the callout body across the list to the details summary: a clipboard commit
+		// spanning two opaque containers is where shared nodes cause trouble.
 		noteIdx = await topLevelIndexOf(page, 'callout');
 		detailsIdx = await topLevelIndexOf(page, 'details');
 		await editor.dragFromTo([noteIdx, 1], 0, [detailsIdx, 0], 3);
@@ -237,9 +229,8 @@ test.describe('plugin-container ops simulation', () => {
 		await assertCheckpoint(ctx, 'cross-container-undo');
 
 		// ── Paste a GitHub alert, which parses as a githubAlert ──────────────────
-		// Converting is opt-in, so the pasted `> [!TIP]` blockquote keeps its bytes and parses
-		// as a githubAlert container, bringing that paste under the round-trip, nested-state
-		// and no-errors checks.
+		// Converting is opt-in, so the pasted `> [!TIP]` keeps its bytes and parses as a githubAlert
+		// container under the round-trip, nested-state and no-errors checks.
 		tailIdx = (await rootCount(page)) - 1;
 		await g.clickToReposition([tailIdx]);
 		await page.keyboard.press('End');

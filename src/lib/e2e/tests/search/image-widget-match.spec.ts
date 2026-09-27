@@ -18,9 +18,8 @@ test.describe('search: image-widget matches', () => {
 		await page.keyboard.type('needle');
 
 		await expect(count(page)).toHaveText(/1\s*\/\s*1/);
-		// The explicit width gives the widget a fixed layout width whether or not the image
-		// loads. Height would stay 0 for an unloaded image, so width is the sign that does not
-		// depend on the network for saying the highlight covers it.
+		// The explicit width holds whether or not the image loads, while an unloaded image's height
+		// stays 0, so width is the network-independent sign the highlight covers it.
 		await expect(overlays(page)).toHaveCount(1);
 		const width = await overlays(page)
 			.first()

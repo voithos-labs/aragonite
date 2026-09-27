@@ -8,10 +8,9 @@ import type { CompositionCase } from '../../simulation/gestures/ime';
 import { assertCheckpoint } from '../../simulation/invariants';
 import { makeSimContext } from './helpers';
 
-// IME composition, run in the default gate: the multibyte insert path no long session had
-// reached, where the other harnesses check composition on its own. The CDP driver comes in on
-// the SimContext, never as a global. The run is repeatable because one seeded generator picks
-// the composition from a fixed table.
+// IME composition in a long session, run in the default gate, covering the multibyte insert path;
+// the other harnesses check composition on its own. The CDP driver comes in on the SimContext,
+// never as a global, and one seeded generator picks the composition from a fixed table.
 
 const IME_DOC =
 	'First prose paragraph here.\n\n' +
