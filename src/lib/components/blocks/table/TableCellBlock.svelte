@@ -980,8 +980,6 @@
 		sel: { start: number; end: number }
 	): Promise<void> {
 		if (!el) return;
-		// Backs up TableBlock's menu, which already stays shut in reading mode: paste and cut mutate.
-		if (readOnly && action !== 'copy') return;
 		// Right-click deliberately skips the pointerdown reset, so a source may still be showing
 		// and `sel` was captured against that DOM, which is why it is hidden before anything else.
 		const fold = widgetInteraction.foldRevealBeforeMutation();

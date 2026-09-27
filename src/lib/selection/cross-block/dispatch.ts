@@ -124,10 +124,6 @@ export function createCrossBlockHandlers(ctx: CrossBlockDispatchContext): CrossB
 			return handleCrossBlockPaste(ctx, mutationCtx, e, replacement);
 		},
 		handleBeforeInput: async (e) => {
-			if (refusesWrites()) {
-				e.preventDefault();
-				return true;
-			}
 			if (!ctx.selection.isCrossBlock || e.inputType !== 'insertText') return false;
 			e.preventDefault();
 			return insertText(e.data ?? '');

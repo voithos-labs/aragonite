@@ -8,8 +8,12 @@ import {
 	mountEditor,
 	type MountedEditor
 } from '$lib/test/harness/mount-editor.svelte';
+import type { BlockComponent } from '$lib/block-component';
+import type { EditorTestSurface } from '$lib/components/editor-root-test-surface';
+import { READING_WRITE_TAG } from '$lib/editor-actions/commit/reading-write-gate';
+import { pressKey } from '$lib/test/harness/settle';
+import { takeDevWarns } from '$lib/test/support/warn-gate';
 import { cellAt, installTableLayoutStubs, pressInCell } from './mount-table';
-import { mountCell, type MountedCell } from './mount-cell';
 
 let restoreLayout: () => void;
 beforeAll(() => {
@@ -19,12 +23,9 @@ beforeAll(() => {
 });
 
 let mounted: MountedEditor | null = null;
-let bareCell: MountedCell | null = null;
 afterEach(async () => {
 	if (mounted) await mounted.destroy();
-	if (bareCell) await bareCell.dispose();
 	mounted = null;
-	bareCell = null;
 	document.body.innerHTML = '';
 });
 
@@ -98,35 +99,56 @@ describe('a reading-mode cell still navigates', () => {
 	});
 });
 
-describe('the right-click menu clipboard refuses to mutate in reading mode', () => {
-	/** A cell on its own: inside `mountTable` a cell's `blockEdit` is the table's own actions, so
-	 *  a stub would record nothing and every refusal below would pass without the check. */
-	function readingCell(): MountedCell {
-		bareCell = mountCell('one', { presentationMode: () => 'reading' });
-		return bareCell;
+// The menu never opens in reading mode; forced, its cut and paste reach the write, which refuses.
+// Miss-analysis: the handler's own reading-mode check was the only thing tested, never the write's.
+describe('the right-click menu clipboard in reading mode', () => {
+	function readingCellRef(): BlockComponent {
+		mountReading();
+		return (mounted!.instance.__test as EditorTestSurface).getBlockComponent([0, 1, 0])!;
 	}
 
-	it('declines cut, which would write through the cell’s entry point', async () => {
-		document.execCommand = vi.fn(() => true);
-		const door = readingCell();
+	function readingWrites(): string[] {
+		return takeDevWarns()
+			.filter((w) => w.tag === READING_WRITE_TAG)
+			.map((w) => w.tag);
+	}
 
-		await door.ref().applyMenuClipboard!('cut', { start: 0, end: 3 });
+	it.each([
+		['source', true],
+		['reading', false]
+	] as const)('in %s mode, the menu key opens the menu: %s', async (presentationMode, opens) => {
+		mounted = mountEditor({ source: GRID, presentationMode });
+		const cell = cellAt(mounted, 1, 0);
+		cell.focus();
 
-		expect(door.blockEdit.updateBlockContent).not.toHaveBeenCalled();
+		const pressed = await pressKey(cell, { key: 'F10', shiftKey: true });
+
+		expect(pressed.defaultPrevented).toBe(opens);
+		expect(document.querySelector('[role="menu"]') !== null).toBe(opens);
 	});
 
-	it('declines paste', async () => {
-		// A clipboard that would answer: with none installed the read throws and the handler
-		// returns early whether or not the check is there.
+	it('forced to cut, writes nothing and warns', async () => {
+		document.execCommand = vi.fn(() => true);
+
+		await readingCellRef().applyMenuClipboard!('cut', { start: 0, end: 3 });
+		await mounted!.settle();
+
+		expect(mounted!.source()).toBe(GRID);
+		expect(readingWrites()).toEqual([READING_WRITE_TAG]);
+	});
+
+	it('forced to paste, writes nothing and warns', async () => {
+		// A clipboard that answers: with none installed the read throws and nothing is written anyway.
 		Object.defineProperty(navigator, 'clipboard', {
 			value: { readText: async () => 'pasted' },
 			configurable: true
 		});
-		const door = readingCell();
 
-		await door.ref().applyMenuClipboard!('paste', { start: 0, end: 0 });
+		await readingCellRef().applyMenuClipboard!('paste', { start: 0, end: 0 });
+		await mounted!.settle();
 
-		expect(door.blockEdit.updateBlockContent).not.toHaveBeenCalled();
+		expect(mounted!.source()).toBe(GRID);
+		expect(readingWrites()).toEqual([READING_WRITE_TAG]);
 	});
 
 	it('still allows copy, which mutates nothing', async () => {
@@ -135,7 +157,7 @@ describe('the right-click menu clipboard refuses to mutate in reading mode', () 
 		const execCommand = vi.fn(() => true);
 		document.execCommand = execCommand;
 
-		await readingCell().ref().applyMenuClipboard!('copy', { start: 0, end: 3 });
+		await readingCellRef().applyMenuClipboard!('copy', { start: 0, end: 3 });
 
 		expect(execCommand).toHaveBeenCalledWith('copy');
 	});

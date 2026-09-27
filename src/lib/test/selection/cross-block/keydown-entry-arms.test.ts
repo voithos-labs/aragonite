@@ -5,6 +5,8 @@
 // must be deleted synchronously or composed text lands on a stale one.
 import { describe, it, expect } from 'vitest';
 import { asEditorX } from '$lib/cursor/coordinate-spaces';
+import { READING_WRITE_TAG } from '$lib/editor-actions/commit/reading-write-gate';
+import { takeDevWarns } from '../../support/warn-gate';
 import { makeKeydownEnv, press } from './keydown-env';
 
 const SOURCE = 'alpha\n\nbeta\n\ngamma\n';
@@ -70,14 +72,15 @@ describe('cross-block keydown: compositionstart', () => {
 		expect(env.source()).toBe(SOURCE);
 	});
 
-	it('declines in reading mode, deleting nothing', () => {
+	// Miss-analysis: only the arm's own reading-mode check was tested, never the delete's refusal.
+	it('forced in reading mode, where nothing can compose, deletes nothing and warns', () => {
 		const env = makeKeydownEnv(SOURCE, { presentationMode: 'reading' });
 		env.selection.enterCrossBlock({ path: [0], offset: 1 }, { path: [1], offset: 2 });
 
-		expect(env.keydown.handleCompositionStart()).toBe(false);
+		env.keydown.handleCompositionStart();
 
 		expect(env.source()).toBe(SOURCE);
-		expect(env.selection.isCrossBlock).toBe(true);
+		expect(takeDevWarns().map((w) => w.tag)).toEqual([READING_WRITE_TAG]);
 	});
 
 	// Both transient caret states reset before the range check: a composition is an edit, so no

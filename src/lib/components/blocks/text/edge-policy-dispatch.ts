@@ -636,7 +636,6 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 	/** A printable key while a toggle at a collapsed caret has marks pending. The marks are the newer
 	 *  instruction, so they outrank the arrival side (`docs/design/live-mode.md` § 4.3). */
 	function handlePendingMarks(e: KeyboardEvent, caretOffset: RawOffset | null): boolean {
-		if (deps.isReading()) return false;
 		if (!isPlainTypingKey(e) || caretOffset === null || heldRange()) return false;
 		// Only a block that draws no delimiters holds pending marks; switching mode clears them, so
 		// nothing is stranded.

@@ -9,7 +9,11 @@ import { trimTrailingLineEnding } from '$lib/core/lines';
 import type { EdgeAffinity } from '$lib/cursor/edge-affinity';
 import type { PendingMarks } from '$lib/cursor/pending-marks';
 import type { InlineMarkKind } from '$lib/schema/inline-construct-policy';
-import { makePendingMarks } from '$lib/test/harness/editor-actions';
+import { makePendingMarks, makeTopHarness } from '$lib/test/harness/editor-actions';
+import { serialize } from '$lib/core/serializer';
+import { READING_WRITE_TAG } from '$lib/editor-actions/commit/reading-write-gate';
+import { fixtureReading } from '../../harness/fixture-grammar';
+import { takeDevWarns } from '../../support/warn-gate';
 import {
 	at,
 	installEdgeDispatchCleanup,
@@ -26,17 +30,13 @@ interface Harness extends EdgeDispatchHarness {
 function mount(
 	source: string,
 	pending: InlineMarkKind[],
-	{
-		affinity = null,
-		isReading = false
-	}: { affinity?: EdgeAffinity | null; isReading?: boolean } = {}
+	{ affinity = null }: { affinity?: EdgeAffinity | null } = {}
 ): Harness {
 	const node = parse(source).children[0];
 	const el = mountSurface(trimTrailingLineEnding(node.raw), 'live');
 	const marks = makePendingMarks(...pending);
 	return {
 		...makeEdgeDispatch(node, el, {
-			isReading: () => isReading,
 			getEdgeAffinity: () => affinity,
 			pendingMarks: marks
 		}),
@@ -128,10 +128,22 @@ describe('the toggle caret position claims only a plain byte at a collapsed care
 		expect(h.handleKeydown(key('X'), null)).toBe(false);
 	});
 
-	it('declines in reading mode, which commits nothing', () => {
-		const h = mount('hi\n', ['strong'], { isReading: true });
-		expect(h.handleKeydown(key('X'), at(2))).toBe(false);
-		expect(h.edits).toHaveLength(0);
+	// Miss-analysis: only the arm's own reading-mode check was tested, never the write's refusal.
+	it('forced in reading mode, where no mark can be pending, writes nothing and warns', async () => {
+		const top = makeTopHarness('hi\n', { reading: fixtureReading({}, 'reading') });
+		const node = top.deps.doc.children[0];
+		const el = mountSurface('hi', 'live');
+		const { handleKeydown } = makeEdgeDispatch(node, el, {
+			isReading: () => true,
+			pendingMarks: makePendingMarks('strong'),
+			blockEdit: top.actions
+		});
+
+		expect(handleKeydown(key('X'), at(2))).toBe(true);
+		await Promise.resolve();
+
+		expect(serialize(top.deps.doc)).toBe('hi\n');
+		expect(takeDevWarns().map((w) => w.tag)).toEqual([READING_WRITE_TAG]);
 	});
 });
 

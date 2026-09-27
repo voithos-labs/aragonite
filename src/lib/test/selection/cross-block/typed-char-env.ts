@@ -61,7 +61,8 @@ export function makeHandlers(
 		caretMemory: env.caretMemory,
 		blockEdit: env.blockEdit,
 		controller: env.controller,
-		reading: fixtureReading(opts.grammar ? { grammar: opts.grammar } : {}),
+		// The env's own mode, so a reading-mode env's dispatch and commits agree.
+		reading: fixtureReading(opts.grammar ? { grammar: opts.grammar } : {}, env.deps.reading.mode()),
 		commands: commandContext({ isCrossBlockRange: () => env.selectionState.isCrossBlock }),
 		pasteCoordinator: createPasteCoordinator(env.deps, env.controller),
 		activePlugins: everyInstalledPlugin,
