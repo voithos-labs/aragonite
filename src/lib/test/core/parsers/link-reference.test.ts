@@ -263,3 +263,31 @@ describe("the whitespace between a definition's parts", () => {
 		expect(serialize(parse(source))).toBe(source);
 	});
 });
+
+// Miss-analysis: the definition parser kept its own label reader, and every label fixture was
+// short, one line and free of a bare `[`, so the §6.3 label rule inline references use never ran.
+describe('a definition reads its label the way a reference link does', () => {
+	it('refuses an unescaped `[` inside the label', () => {
+		expect(parseOne('[a[b]: /u\n')).toBeNull();
+		expect(parse('[a[b]: /u\n').children.map((n) => n.kind)).toEqual(['paragraph']);
+	});
+
+	it('takes 999 label characters and refuses 1000', () => {
+		expect(parseOne(`[${'a'.repeat(999)}]: /u\n`)).not.toBeNull();
+		expect(parseOne(`[${'a'.repeat(1000)}]: /u\n`)).toBeNull();
+	});
+
+	it('takes a label that spans lines, keyed the way a reference to it normalizes', () => {
+		const source = '[\nfoo\n]: /url\nbar\n';
+		const doc = parse(source);
+		expect(doc.children.map((n) => n.kind)).toEqual(['linkReferenceDefinition', 'paragraph']);
+		expect(doc.children[0].raw).toBe('[\nfoo\n]: /url\n');
+		expect(serialize(doc)).toBe(source);
+		expect(buildLinkReferenceMap(doc.children).resolve('foo')).toEqual({ url: '/url' });
+	});
+
+	it('matches a label split across indented lines to its one-line reference', () => {
+		const doc = parse('[Foo\n   BAR]: /url\n');
+		expect(buildLinkReferenceMap(doc.children).resolve('foo bar')).toEqual({ url: '/url' });
+	});
+});

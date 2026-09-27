@@ -58,9 +58,9 @@ function referenceReading(markdown: string): Reading {
 	return { definitions: definitions.sort(), outline: referenceOutline(markdown) };
 }
 
-const deviations = new Map(
-	baseline.definitionDeviations.map((entry) => [entry.example, entry.note])
-);
+// Typed by hand: an empty deviation list infers `never[]` from the JSON.
+const deviationEntries: { example: number; note: string }[] = baseline.definitionDeviations;
+const deviations = new Map(deviationEntries.map((entry) => [entry.example, entry.note]));
 
 describe('link reference definition examples (§4.7) against commonmark.js', () => {
 	for (const { example, markdown } of loadDefinitionExamples()) {

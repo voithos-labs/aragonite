@@ -8,7 +8,7 @@
 
 import type { InlineNode } from '../../nodes';
 import { parseImageDimensions } from '../image-dimensions';
-import { parseLinkDestination, parseLinkTitle } from '../link-destination';
+import { parseLinkDestination, parseLinkLabel, parseLinkTitle } from '../link-destination';
 import { normalizeLinkLabel, type ResolvedReference } from '../link-reference-resolver';
 import { processEmphasis } from './emphasis';
 import {
@@ -187,19 +187,6 @@ function parseReferenceTail(
 	const resolved = resolver(rawLabel);
 	if (resolved === undefined) return null; // shortcut never commits on a miss
 	return { label: normalizeLinkLabel(rawLabel), end: afterText, resolved };
-}
-
-/** CommonMark §6.3 label: at most 999 content chars, no unescaped brackets. */
-function parseLinkLabel(raw: string, pos: number, end: number): number | null {
-	if (pos >= end || raw[pos] !== '[') return null;
-	let i = pos + 1;
-	while (i < end && i - pos <= 1000) {
-		const ch = raw[i];
-		if (ch === ']') return i + 1;
-		if (ch === '[') return null;
-		i += ch === '\\' ? 2 : 1;
-	}
-	return null;
 }
 
 function emitUnresolvedReference(ctx: ScanContext, bracket: Bracket, ref: ReferenceTail): void {

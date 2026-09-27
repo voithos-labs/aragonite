@@ -1,8 +1,8 @@
 /**
- * The link destination and title grammar (CommonMark §6.3), read by inline links and by link
- * reference definitions (§4.7) alike. Each reader returns where its span ends and the value the
- * spec derives from it; the whitespace between the parts is each caller's rule. The inverse
- * writer is `destination-bytes.ts`.
+ * The link label, destination and title grammar (CommonMark §6.3), read by inline and reference
+ * links and by link reference definitions (§4.7) alike. Each reader returns where its span ends
+ * and, for a destination or title, the value the spec derives from it; the whitespace between the
+ * parts is each caller's rule. The inverse writer is `destination-bytes.ts`.
  */
 
 import { ESCAPABLE_PUNCTUATION } from '../escapable';
@@ -20,9 +20,35 @@ export interface LinkTitle {
 	end: number;
 }
 
-/** A scan that reached `end` inside an open title; more text may still close it. */
-export const TITLE_OPEN = -2;
-const NOT_A_TITLE = -1;
+/** A scan that reached `end` inside an open label or title; more text may still close it. */
+export const SPAN_OPEN = -2;
+const NOT_A_SPAN = -1;
+
+// ── Labels ──────────────────────────────────────────────────────────────────
+
+/** The offset just past the label's `]`, or null. */
+export function parseLinkLabel(raw: string, pos: number, end: number): number | null {
+	const labelEnd = scanLinkLabel(raw, pos, end, pos + 1);
+	return labelEnd < 0 ? null : labelEnd;
+}
+
+/**
+ * Where the label opening at `pos` ends: the offset past its `]`, `SPAN_OPEN`, or a negative
+ * miss. A label holds at most 999 characters and no unescaped `[`. `from` resumes an open scan
+ * at the `end` it stopped on, once the caller has more text.
+ */
+export function scanLinkLabel(raw: string, pos: number, end: number, from: number): number {
+	if (raw[pos] !== '[') return NOT_A_SPAN;
+	let i = from;
+	while (i < end) {
+		if (i - pos > 1000) return NOT_A_SPAN;
+		const ch = raw[i];
+		if (ch === ']') return i + 1;
+		if (ch === '[') return NOT_A_SPAN;
+		i += ch === '\\' ? 2 : 1;
+	}
+	return i - pos > 1000 ? NOT_A_SPAN : SPAN_OPEN;
+}
 
 // ── Destinations ────────────────────────────────────────────────────────────
 
@@ -43,8 +69,9 @@ function parseAngleDestination(raw: string, pos: number, end: number): LinkDesti
 		if (ch === '>') return { url: processDestination(raw.slice(pos + 1, i)), end: i + 1 };
 		if (ch === '<' || ch === '\n' || ch === '\u0000') return null;
 		if (ch === '\\') {
+			// A backslash escapes no line terminator, JavaScript's four included.
 			const next = i + 1 < end ? raw[i + 1] : '';
-			if (next === '' || next === '\n' || next === '\r' || next === ' ' || next === ' ') {
+			if (next === '' || next === '\n' || next === '\r' || next === '\u2028' || next === '\u2029') {
 				return null;
 			}
 			i += 2;
@@ -92,23 +119,23 @@ export function parseLinkTitle(raw: string, pos: number, end: number): LinkTitle
 }
 
 /**
- * Where the title opening at `pos` ends: the offset past its closer, `TITLE_OPEN`, or a negative
+ * Where the title opening at `pos` ends: the offset past its closer, `SPAN_OPEN`, or a negative
  * miss. `from` resumes an open scan at the `end` it stopped on, once the caller has more text.
  */
 export function scanLinkTitle(raw: string, pos: number, end: number, from: number): number {
 	const marker = raw[pos];
-	if (marker !== '"' && marker !== "'" && marker !== '(') return NOT_A_TITLE;
+	if (marker !== '"' && marker !== "'" && marker !== '(') return NOT_A_SPAN;
 	const close = marker === '(' ? ')' : marker;
 	let i = from;
 	while (i < end) {
 		const ch = raw[i];
 		if (ch === close) return i + 1;
 		// A paren title cannot nest.
-		if (ch === '\u0000' || (marker === '(' && ch === '(')) return NOT_A_TITLE;
+		if (ch === '\u0000' || (marker === '(' && ch === '(')) return NOT_A_SPAN;
 		if (ch === '\\' && i + 1 < end) i += 2;
 		else i++;
 	}
-	return TITLE_OPEN;
+	return SPAN_OPEN;
 }
 
 /** The value of the title spanning `pos` to `titleEnd`, a span `scanLinkTitle` accepted. */

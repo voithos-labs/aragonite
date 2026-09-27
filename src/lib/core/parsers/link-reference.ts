@@ -1,18 +1,18 @@
 /**
- * Link reference definition parser, CommonMark §4.7 (`[label]: url "title"`). The destination and
- * title are read by the inline link grammar in `inline/link-destination.ts`, and may continue on
- * the lines after the label that a paragraph would absorb. Footnote labels (`[^...]:`) stay
- * paragraphs.
+ * Link reference definition parser, CommonMark §4.7 (`[label]: url "title"`). The label,
+ * destination and title are read by the link grammar in `inline/link-destination.ts`, and may
+ * continue on the lines after the first that a paragraph would absorb. Footnote labels
+ * (`[^...]:`) stay paragraphs.
  */
 
 import { isBlankLine, isWhitespaceChar, type ParsedLine } from '../lines';
-import { ESCAPABLE_PUNCTUATION } from '../escapable';
 import { joinRaw } from '../parser';
 import {
 	linkTitleValue,
 	parseLinkDestination,
 	scanLinkTitle,
-	TITLE_OPEN
+	scanLinkLabel,
+	SPAN_OPEN
 } from '../inline/link-destination';
 import { lineInterruptsParagraph, type BlockOpenerResult } from '../../schema/block-openers';
 import { matchSetextUnderline } from './paragraph';
@@ -23,12 +23,12 @@ export function parseLinkReferenceDefinition(
 	endIndex: number,
 	leadingTrivia: string
 ): BlockOpenerResult | null {
-	const opener = matchLabelOpener(lines[startIndex].text);
+	const window = new DefinitionWindow(lines, startIndex, endIndex);
+	const opener = readLabel(window);
 	if (!opener) return null;
 	const { label, afterColon } = opener;
 	if (label.startsWith('^')) return null;
 
-	const window = new DefinitionWindow(lines, startIndex, endIndex);
 	const destStart = skipSeparator(window, afterColon);
 	const destination = parseLinkDestination(window.text, destStart, window.text.length);
 	if (!destination) return null;
@@ -39,7 +39,7 @@ export function parseLinkReferenceDefinition(
 	let title: string | undefined;
 	const titleStart = skipSeparator(window, destination.end);
 	if (titleStart > destination.end) {
-		const titleEnd = readTitle(window, titleStart);
+		const titleEnd = readSpan(window, titleStart, scanLinkTitle);
 		if (titleEnd >= 0 && atLineEnd(window.text, titleEnd)) {
 			lastOffset = titleEnd;
 			title = linkTitleValue(window.text, titleStart, titleEnd);
@@ -69,9 +69,9 @@ export function parseLinkReferenceDefinition(
 // ── The lines a definition can span ─────────────────────────────────────────
 
 /**
- * The label line plus each later line a paragraph would continue onto, joined by `\n` and
- * without their leading whitespace, the way §4.7 reads a paragraph's content. Lines join only
- * when a read runs off the end, so a run of one-line definitions never joins at all.
+ * The definition's first line plus each later line a paragraph would continue onto, joined by
+ * `\n` and without their leading whitespace, the way §4.7 reads a paragraph's content. Lines
+ * join only when a read runs off the end, so a run of one-line definitions never joins at all.
  */
 class DefinitionWindow {
 	text: string;
@@ -117,12 +117,12 @@ function skipSeparator(window: DefinitionWindow, pos: number): number {
 	return window.text[pos] === '\n' ? skipSpaces(window.text, pos + 1) : pos;
 }
 
-/** The end of the title opening at `pos`, joining lines until it closes, or a negative miss. */
-function readTitle(window: DefinitionWindow, pos: number): number {
+/** The end of the label or title opening at `pos`, joining lines until it closes, or a miss. */
+function readSpan(window: DefinitionWindow, pos: number, scan: typeof scanLinkTitle): number {
 	let from = pos + 1;
 	for (;;) {
-		const titleEnd = scanLinkTitle(window.text, pos, window.text.length, from);
-		if (titleEnd !== TITLE_OPEN) return titleEnd;
+		const spanEnd = scan(window.text, pos, window.text.length, from);
+		if (spanEnd !== SPAN_OPEN) return spanEnd;
 		from = window.text.length;
 		if (!window.grow()) return -1;
 	}
@@ -142,27 +142,14 @@ function skipSpaces(text: string, pos: number): number {
 
 // ── Label ───────────────────────────────────────────────────────────────────
 
-// CommonMark §4.7: brackets inside a label may be backslash-escaped. A label that spans lines,
-// and the refusal of an unescaped `[`, are not read.
-function matchLabelOpener(line: string): { label: string; afterColon: number } | null {
-	let i = 0;
-	while (i < line.length && i < 3 && line[i] === ' ') i++;
-	if (line[i] !== '[') return null;
-	const labelStart = i + 1;
-	let j = labelStart;
-	while (j < line.length) {
-		const ch = line[j];
-		if (ch === '\\' && j + 1 < line.length && ESCAPABLE_PUNCTUATION.has(line[j + 1])) {
-			j += 2;
-			continue;
-		}
-		if (ch === ']') break;
-		j++;
-	}
-	if (j >= line.length || line[j] !== ']') return null;
-	if (j + 1 >= line.length || line[j + 1] !== ':') return null;
-	const label = line.slice(labelStart, j);
+/** The label opening the definition, up to three spaces in, and the offset past its `]:`. */
+function readLabel(window: DefinitionWindow): { label: string; afterColon: number } | null {
+	let pos = 0;
+	while (pos < 3 && window.text[pos] === ' ') pos++;
+	const labelEnd = readSpan(window, pos, scanLinkLabel);
+	if (labelEnd < 0 || window.text[labelEnd] !== ':') return null;
+	const label = window.text.slice(pos + 1, labelEnd - 1);
 	// §6.6: a label holds at least one non-whitespace character, in §2.1's ASCII sense.
 	if ([...label].every(isWhitespaceChar)) return null;
-	return { label, afterColon: j + 2 };
+	return { label, afterColon: labelEnd + 1 };
 }
