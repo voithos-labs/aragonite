@@ -5,7 +5,7 @@ import { expectParseConverged } from '$lib/test/harness/parse-converged';
 import { defaultGrammarView } from '$lib/schema/block-openers';
 
 // A same-kind write beside a link definition asks the join between them, since the definition can
-// take the next lines as its title (GH #622).
+// take the next lines as its title.
 // Miss-analysis: the same-kind skip was pinned against a list above, whose reach depends on the
 // first line's indent; no case put a block that reads the lines below it over the written one.
 
