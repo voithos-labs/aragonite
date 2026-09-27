@@ -47,11 +47,8 @@ function isSpaceOrTab(ch: string): boolean {
 	return ch === ' ' || ch === '\t';
 }
 
-/**
- * A heading whose bytes are its hashes alone: CommonMark's empty heading, and the state a line
- * passes through on the way to `#tag`. The parse keeps it a heading; what it shows as is
- * {@link shownKind}'s answer.
- */
+/** A heading whose bytes are its hashes alone, the state a line passes through on the way to `#tag`.
+ *  The parse keeps it a heading; {@link shownKind} decides what it shows as. */
 export function isBareHeadingOpener(raw: string): boolean {
 	const heading = matchHeading(raw);
 	if (!heading) return false;
@@ -59,11 +56,8 @@ export function isBareHeadingOpener(raw: string): boolean {
 	return heading.contentStart === line.length && line.endsWith('#');
 }
 
-/**
- * The kind a block shows as: its own, except that a bare `#` keeps the paragraph's type until the
- * space after the hashes lands, so a line on its way to `#tag` never flashes to heading size.
- * Its paint, its accessible name and the kind cue all read this.
- */
+/** The kind a block shows as: a bare `#` keeps the paragraph's type until the space lands, so a line
+ *  on its way to `#tag` never flashes to heading size. */
 export function shownKind(node: { kind: AnyBlockKind; raw: string }): AnyBlockKind {
 	return node.kind === 'heading' && isBareHeadingOpener(node.raw) ? 'paragraph' : node.kind;
 }

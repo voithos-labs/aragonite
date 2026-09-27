@@ -32,12 +32,8 @@ export function splitRowCells(rowText: string): string[] {
 	return cells;
 }
 
-/**
- * The cells a line offers as a table header row, or null when it offers none. The one place the
- * shape is defined, so a row the continuation scan accepts and the Enter completer refuses
- * cannot exist.
- * Arity against the delimiter is the caller's check.
- */
+/** The cells a line offers as a header row, or null: the one definition, so the continuation scan
+ *  and the Enter completer cannot disagree. Arity against the delimiter is the caller's check. */
 export function tableHeaderCells(text: string): string[] | null {
 	if (!text.includes('|')) return null;
 	return splitRowCells(text);
@@ -71,12 +67,8 @@ export function matchTableDelimiterRow(
 
 // ── Block parser ───────────────────────────────────────────────────────────
 
-/**
- * Whether a table takes `lines[index]`, straight below its rows, as one more row, pipe or none:
- * GFM ends a table only at a blank line or a line that starts another block (spec example 201),
- * and a link definition never starts one. The editor's grammar decides what starts a block, over
- * the lines below too, since some openers need a closing line.
- */
+/** Whether a table takes `lines[index]` as one more row, pipe or none: GFM ends a table only at a
+ *  blank line or a block start (spec example 201), judged in the editor's grammar. */
 export function tableTakesLine(
 	lines: ParsedLine[],
 	index: number,
@@ -120,9 +112,8 @@ export function parseTable(
 	};
 }
 
-// GFM pads short body rows and renders a long one's first cells only; the rest stay on the row
-// as surplus bytes. The header always matches: a mismatch rejects the whole table at recognition
-// (GFM §4.10, paragraph.ts).
+// GFM pads short body rows and renders a long one's first cells, keeping the rest as surplus bytes;
+// a header mismatch rejects the whole table at recognition (paragraph.ts).
 function buildRow(line: ParsedLine, columnCount: number, isHeader: boolean): CstNode {
 	const cellTexts = splitRowCells(line.text);
 	while (cellTexts.length < columnCount) cellTexts.push('');

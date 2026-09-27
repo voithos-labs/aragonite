@@ -55,11 +55,8 @@ export function matchTaskCheckbox(text: string): { checked: boolean; rawMarker: 
 	return m ? { checked: m[1].toLowerCase() === 'x', rawMarker: m[0] } : null;
 }
 
-/**
- * CommonMark §5.2: a marker interrupts a paragraph only if bullet or starting at `1` and its
- * first item is non-empty, so neither "... is 2. bananas" nor a content-less marker is a list.
- * Standalone list parsing (`matchListItem`) accepts both.
- */
+/** CommonMark §5.2: a marker interrupts a paragraph only as a bullet or at `1`, with a non-empty
+ *  first item, so "... is 2. bananas" is no list. `matchListItem` accepts both. */
 export function canInterruptParagraph(text: string): boolean {
 	return INTERRUPTING_ITEM.test(text);
 }
@@ -172,11 +169,8 @@ export function parseList(
 	};
 }
 
-/**
- * Lazy continuation extends only an open paragraph. Any list marker is block-level, resolved
- * by the outer item loop, so an ordered marker not starting at 1 is excluded here even though
- * §5.2 says it cannot interrupt a paragraph.
- */
+/** Lazy continuation extends only an open paragraph. Every list marker is left to the item loop, so
+ *  an ordered marker not at 1 is excluded here too. */
 function wouldKeepParagraphOpen(strippedText: string): boolean {
 	if (isBlankLine(strippedText)) return false;
 	if (matchListItem(strippedText)) return false;

@@ -14,11 +14,8 @@ import { tableHeaderCells } from './table';
 // first body row is child 1.
 const FIRST_BODY_CELL = [1, 0];
 
-/**
- * A leading pipe on top of the parser's row predicate: prose carries pipes too (`ls | grep foo`),
- * which the scan alone would take as a two-cell header. The predicate stays the outer bound: a
- * row it rejects never completes.
- */
+/** Requires a leading pipe on top of the row predicate, since prose carries pipes too
+ *  (`ls | grep foo`); a row the predicate rejects never completes. */
 export function tryCompleteTableRow(line: string): CompletionResult | null {
 	if (!trimWhitespace(line).startsWith('|')) return null;
 	const cells = tableHeaderCells(line);

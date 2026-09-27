@@ -100,11 +100,8 @@ export function firstLineEnding(text: string): LineEnding | null {
 	return text[at - 1] === '\r' ? '\r\n' : '\n';
 }
 
-/**
- * The ending `raw` closes with, else `fallback`: what a line rebuilt from a block's bytes ends in.
- * A block with no ending of its own is the document's last line, so the fallback is usually the
- * document's ending ({@link documentLineEnding}).
- */
+/** The ending `raw` closes with, else `fallback`, usually the document's ending: a block with no
+ *  ending of its own is the document's last line. */
 export function trailingLineEnding(raw: string, fallback: LineEnding): LineEnding {
 	return ownTrailingLineEnding(raw) || fallback;
 }
@@ -192,11 +189,8 @@ export interface DisplayLine {
 	ending: '' | LineEnding;
 }
 
-/**
- * A block's display (its bytes without the trailing ending) as lines, each line's text apart from
- * its ending. A display always has a last line, empty after a final break, and
- * {@link joinDisplayLines} puts the bytes back exactly.
- */
+/** A block's display as lines, each apart from its ending. A display always has a last line, empty
+ *  after a final break, and {@link joinDisplayLines} puts the bytes back exactly. */
 export function displayLines(display: string): DisplayLine[] {
 	const lines: DisplayLine[] = splitLines(display).map((line) => ({
 		text: line.text,
@@ -229,11 +223,8 @@ export function indentColumns(text: string): number {
 	return col;
 }
 
-/**
- * `text` with up to `columns` columns of indentation removed. A tab the cut splits, or one left
- * off a multiple of four, is written as the spaces it spans: the stripped line is a child's raw,
- * which every later reparse reads from column zero.
- */
+/** `text` with up to `columns` columns of indentation removed. A tab the cut splits is written as
+ *  the spaces it spans, since every later reparse reads the child's raw from column zero. */
 export function stripIndentColumns(text: string, columns: number): string {
 	const leadLength = text.length - text.replace(/^[ \t]+/, '').length;
 	let col = 0;
