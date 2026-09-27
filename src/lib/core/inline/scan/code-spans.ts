@@ -9,9 +9,9 @@ import { findBacktickCloser, indexBacktickRuns } from '../backticks';
 import { appendNode, type ScanContext } from './scan-state';
 
 /**
- * The width of each of a code span's two delimiter runs, the one reading the page, the caret and
- * the toggles share. A matched span's runs are equal (§6.1), so they split what `text` leaves
- * evenly; 0 when there is no such split, and the whole node is then content.
+ * The width of each of a code span's two delimiter runs, read one way so every reader places a
+ * code span's content the same. A matched span's runs are equal (§6.1), so they split what `text`
+ * leaves evenly; 0 when there is no such split, and the whole node is then content.
  */
 export function codeSpanFence(node: InlineNode): number {
 	if (node.text === undefined) return 0;

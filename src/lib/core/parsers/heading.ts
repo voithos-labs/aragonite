@@ -14,11 +14,14 @@ export interface AtxHeadingMatch {
 
 // GFM §4.2: the hashes end at a space, a tab or the line's end.
 const OPENING = /^ {0,3}(#{1,6})(?:[ \t]|$)/;
+const MAY_OPEN = /^ {0,3}#/;
 const LINE_ENDING = new RegExp(`${OPTIONAL_LINE_ENDING}$`);
 
 /** The ATX heading `text` opens, read once for every caller: the parser, the content range and
  *  the keys that rewrite a heading's marker. `text` may carry its line ending. */
 export function matchHeading(text: string): AtxHeadingMatch | null {
+	// Every parsed line comes through here, so a line that opens no heading costs no copy.
+	if (!MAY_OPEN.test(text)) return null;
 	// A document's last line may end in a lone `\r`, which a heading's own raw keeps as text.
 	const line = text.replace(LINE_ENDING, '');
 	const m = OPENING.exec(line);
