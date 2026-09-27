@@ -44,7 +44,13 @@ const LINKS: [string, string, string, string?][] = [
 		'(mailto:foo@bar.com)',
 		'mailto:foo@bar.com',
 		'mailto:foo@bar.com'
-	]
+	],
+	// No leading boundary: the local-part walk-back stops at the first byte it can't take.
+	['a local part after a slash', 'a/xfoo@bar.com', 'xfoo@bar.com'],
+	['the second of two @ characters', 'foo@bar@example.com', 'bar@example.com'],
+	// cmark-gfm matches the prefix byte for byte, so an uppercase one is plain text before the address.
+	['an address after an uppercase MAILTO:', 'MAILTO:foo@bar.com', 'foo@bar.com'],
+	['an address after a prefix glued to a word', 'amailto:foo@bar.com', 'foo@bar.com']
 ];
 
 const STAYS_LITERAL: [string, string][] = [
@@ -54,14 +60,6 @@ const STAYS_LITERAL: [string, string][] = [
 	['last label ending in a hyphen', 'foo@bar.baz-'],
 	['single-label domain', 'foo@bar'],
 	['empty local part', '@bar.com'],
-	// Boundary rows: the local-part scan walks back to `x` / `bar`, then the
-	// preceding `/` and `@` fail the §6.9 leading boundary.
-	['local part preceded by a non-boundary character', 'a/xfoo@bar.com'],
-	['two @ characters', 'foo@bar@example.com'],
-	// cmark-gfm matches the prefix byte for byte, so an uppercase one is a plain `:` in front of
-	// the address, which the leading boundary refuses the same way it refuses `a:foo@bar.com`.
-	['an uppercase MAILTO: prefix', 'MAILTO:foo@bar.com'],
-	['a prefix glued to a word', 'amailto:foo@bar.com'],
 	['an xmpp resource ending in a slash', 'xmpp:foo@bar.com/']
 ];
 

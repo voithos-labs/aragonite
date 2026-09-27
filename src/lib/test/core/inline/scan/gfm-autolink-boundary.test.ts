@@ -13,7 +13,7 @@ import {
 	textNode
 } from './scan-test-helpers';
 
-// GFM §6.9: an extended autolink comes at the start of the line, after whitespace, or after
+// GFM §6.9: a www or url autolink comes at the start of the line, after whitespace, or after
 // `*`, `_`, `~` or `(`. The source character before the url decides, whatever node holds it.
 describeScanCases('a claimed construct right before a url is no boundary', [
 	[
@@ -22,12 +22,25 @@ describeScanCases('a claimed construct right before a url is no boundary', [
 		[autolinkNode(0, 14, 'http://a.com'), textNode(14, 23, 'www.b.com')]
 	],
 	['after a code span', '`c`http://a.b', [codeNode(0, 3, 'c'), textNode(3, 13, 'http://a.b')]],
-	['after an entity', '&amp;www.a.com', [entityNode(0, 5, '&'), textNode(5, 14, 'www.a.com')]],
+	['after an entity', '&amp;www.a.com', [entityNode(0, 5, '&'), textNode(5, 14, 'www.a.com')]]
+]);
+
+// The email form takes no leading boundary (§6.9: recognised within any text node).
+// Miss-analysis: the email rows pinned the boundary the www form carries, and none was read
+// against the spec's any-text-node wording or cmark-gfm's walk-back-only rule.
+describeScanCases('an email needs no leading boundary', [
 	[
-		'an email after an angle autolink',
+		'after an angle autolink',
 		'<http://a.com>x@y.co',
-		[autolinkNode(0, 14, 'http://a.com'), textNode(14, 20, 'x@y.co')]
-	]
+		[autolinkNode(0, 14, 'http://a.com'), autolinkNode(14, 20, 'mailto:x@y.co')]
+	],
+	[
+		// cmark-gfm takes a scheme only where no letter or digit precedes it.
+		'a prefix glued to a word is left out of the link',
+		'xmailto:a@b.co',
+		[textNode(0, 8, 'xmailto:'), autolinkNode(8, 14, 'mailto:a@b.co')]
+	],
+	['after a slash', '/x@y.co', [textNode(0, 1, '/'), autolinkNode(1, 7, 'mailto:x@y.co')]]
 ]);
 
 describeScanCases('the boundaries GFM allows still link', [
