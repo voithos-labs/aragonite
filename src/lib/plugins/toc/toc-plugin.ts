@@ -77,25 +77,31 @@ export function registerTocBlock(): void {
 
 export type MaxHeadingLevel = 1 | 2 | 3 | 4 | 5 | 6;
 
-/** The shape of this editor's `{ plugin, options }` entry and of the factory argument,
- *  deliberately the same: the per-editor entry overrides the factory default. */
+/** The factory argument, which sets every editor's default, and an editor's `{ plugin, options }`
+ *  entry, which overrides it. */
 export interface TocOptions {
 	/** Deepest heading level listed (default 6 = every level). */
 	maxDepth?: MaxHeadingLevel;
 }
 
 export function tocPlugin(options?: TocOptions): EditorPlugin {
-	// Read when the plugin is defined, so it is only the default for a plain install: the block
-	// prefers this editor's `{ plugin, options }` depth, which is what lets two editors differ.
-	const maxDepth = options?.maxDepth ?? MAX_HEADING_DEPTH;
-	return definePlugin({
+	return definePlugin<Required<TocOptions>>({
 		name: 'toc',
+		defaults: { maxDepth: options?.maxDepth ?? MAX_HEADING_DEPTH },
+		// Anything but a whole number in 1..6 keeps the default rather than listing nothing.
+		parseOptions(raw) {
+			const maxDepth = (raw as TocOptions | null)?.maxDepth;
+			return isMaxHeadingLevel(maxDepth) ? { maxDepth } : {};
+		},
 		setup() {
 			registerTocBlock();
-			registerBlockComponent(
-				declaredPluginKind(TOC_BLOCK),
-				defineBlockComponent(TocBlock, () => ({ maxDepth }))
-			);
+			registerBlockComponent(declaredPluginKind(TOC_BLOCK), defineBlockComponent(TocBlock));
 		}
 	});
+}
+
+function isMaxHeadingLevel(value: unknown): value is MaxHeadingLevel {
+	return (
+		Number.isInteger(value) && (value as number) >= 1 && (value as number) <= MAX_HEADING_DEPTH
+	);
 }

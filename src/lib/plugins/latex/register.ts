@@ -18,16 +18,28 @@ import BlockMath from './BlockMath.svelte';
 
 export interface LatexPluginOptions {
 	renderer?: MathRenderer;
-	/** How a `$$` block opens for editing on a plain install (`math-layout.ts`); an editor's
+	/** How a `$$` block opens for editing (`math-layout.ts`); an editor's
 	 *  `{ plugin, options: { blockLayout } }` entry overrides it. */
 	blockLayout?: MathBlockLayout;
 }
 
+/** What one editor reads: the renderer is process-wide, so only the layout varies per editor. */
+export interface LatexEditorOptions {
+	blockLayout: MathBlockLayout;
+}
+
 export function latexPlugin(options: LatexPluginOptions = {}): EditorPlugin {
 	const { renderer } = options;
-	const blockLayout = isMathBlockLayout(options.blockLayout) ? options.blockLayout : 'split';
-	return definePlugin({
+	return definePlugin<LatexEditorOptions>({
 		name: 'latex',
+		defaults: {
+			blockLayout: isMathBlockLayout(options.blockLayout) ? options.blockLayout : 'split'
+		},
+		// An unknown layout keeps the default rather than breaking the block.
+		parseOptions(raw) {
+			const blockLayout = (raw as LatexPluginOptions | null)?.blockLayout;
+			return isMathBlockLayout(blockLayout) ? { blockLayout } : {};
+		},
 		setup() {
 			mathSlot.set(
 				renderer ? ({ source, display }, { theme }) => renderer(source, { display, theme }) : null
@@ -35,7 +47,7 @@ export function latexPlugin(options: LatexPluginOptions = {}): EditorPlugin {
 			registerMathInline();
 			// registerMathBlock also registers the ```math fence kind; both render through BlockMath.
 			registerMathBlock();
-			const blockMath = defineBlockComponent(BlockMath, () => ({ blockLayout }));
+			const blockMath = defineBlockComponent(BlockMath);
 			registerBlockComponent(declaredPluginKind(MATH_BLOCK), blockMath);
 			registerBlockComponent(declaredPluginKind(MATH_FENCE), blockMath);
 			registerInsertEntry({

@@ -204,12 +204,6 @@ const ALLOWLIST: Record<string, Exemption> = {
 		specifiers: ['$lib/schema/block-kind-descriptor'],
 		reason: "no registry read-back: the kind's caretTargetAtPoint cannot be read back to call"
 	},
-	'src/lib/test/plugins/toc/options.test.ts': {
-		specifiers: ['$lib/schema/block-component-registry', '$lib/schema/plugin-activation'],
-		reason:
-			'no registry read-back: a component entry registers its extraProps closure but nothing ' +
-			'published reads it, so option threading needs a mounted editor'
-	},
 	'src/lib/test/plugins/slash-commands/slash-harness.ts': {
 		specifiers: [
 			'$lib/editor-events',

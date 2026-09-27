@@ -23,14 +23,10 @@
 	import { mathSlot } from './math-renderer';
 	import { mathDisplaySource } from './latex-kind';
 	import { completeBareMathSource, mathBodySpan, renderMathSource } from './math-source';
-	import { resolveDefaultLayout, type MathBlockLayout } from './math-layout';
+	import type { MathBlockLayout } from './math-layout';
+	import type { LatexEditorOptions } from './register';
 
-	let {
-		node,
-		index,
-		myPath = [],
-		blockLayout = 'split'
-	}: { node: NodeView; index: number; myPath?: number[]; blockLayout?: MathBlockLayout } = $props();
+	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
 
 	// eslint-disable-next-line no-useless-assignment -- <script module> counter read by the next instance mount
 	const mountId = nextMountId++;
@@ -67,9 +63,10 @@
 		if (revealed) e.preventDefault();
 	}
 
-	// Per block and per session, starting from this editor's plugin options or the factory default.
-	// svelte-ignore state_referenced_locally
-	let layout = $state<MathLayout>(resolveDefaultLayout(leaf.getOptions(), blockLayout));
+	// Per block and per session, from this editor's options: undefined only for a block mounted with
+	// no editor, as the unit tests mount it.
+	const options = leaf.getOptions() as LatexEditorOptions | undefined;
+	let layout = $state<MathLayout>(options?.blockLayout ?? 'split');
 	const previewOpen = $derived(layout !== 'source');
 
 	// The browser's own edits (an IME composition committing) skip `onSourceEdit`, so the
