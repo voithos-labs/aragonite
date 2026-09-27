@@ -57,10 +57,8 @@ export interface DecorationSource {
 	provide: (doc: DocumentView, ctx: ProvideContext) => Decoration[];
 }
 export interface DecorationSourceHandle {
-	/** Synchronous by contract: the decorations and their buckets show the new result before
-	 *  this returns. Search's `setQuery` relies on that, so never defer it. The one exception is
-	 *  a call from inside a commit (an `edit` handler): those are collected into one run once
-	 *  the commit writes to state, since a source must never read a half-applied tree. */
+	/** Synchronous: the decorations show the new result before it returns, which search's
+	 *  `setQuery` relies on. A call from inside a commit runs once after the commit instead. */
 	invalidate(): void;
 	dispose(): void;
 }

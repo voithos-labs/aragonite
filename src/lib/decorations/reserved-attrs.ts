@@ -41,9 +41,8 @@ const ELEMENT_OWNED_ATTRS: ReadonlySet<string> = new Set([
  *  effect, taking down the whole mount rather than one attribute. */
 const ATTR_NAME = /^[A-Za-z_:][A-Za-z0-9_.:-]*$/;
 
-/** A block decoration's attributes minus the names it may not use, which are dropped with a
- *  dev warning. The check is in lowercase: `setAttribute` lowercases, so a capital is only
- *  another spelling. */
+/** Drops the names a block decoration may not use, with a dev warning. Compared lowercase,
+ *  since `setAttribute` lowercases and a capital is only another spelling. */
 export function acceptedBlockAttrs(
 	attrs: Record<string, string> | undefined,
 	path: number[]

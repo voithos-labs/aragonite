@@ -38,9 +38,8 @@ export interface DecorationEngineDeps {
 export type DecorationEngine = {
 	addSource(source: DecorationSource): DecorationSourceHandle; // dup name throws
 	readonly sourceCount: number;
-	/** Bump the edit counter, then re-run every source's `provide`. `handle.invalidate()`
-	 *  re-runs one source without the bump, which is what lets a memoized source tell "the
-	 *  document changed" from "my own state changed". */
+	/** Re-runs every source after bumping the edit counter. `handle.invalidate()` skips the bump,
+	 *  so a memoized source can tell a document change from a change in its own state. */
 	notifyEdit(): void;
 	marksForPath(path: number[]): IndexedDecoration<MarkDecoration>[];
 	marksForDescendants(path: number[]): IndexedDecoration<MarkDecoration>[];
@@ -49,9 +48,8 @@ export type DecorationEngine = {
 };
 
 export function createDecorationEngine(deps: DecorationEngineDeps): DecorationEngine {
-	// Non-reactive registry state, lined up with `results` by index. A handle closes over the
-	// source object, not its index, so disposing one never leaves another pointing at the wrong
-	// entry.
+	// Lined up with `results` by index. A handle closes over the source object, not its index,
+	// so disposing one never leaves another pointing at the wrong entry.
 	const sources: DecorationSource[] = [];
 	const names = new Set<string>();
 	const warnedUnrenderableIslands = new Set<string>();
