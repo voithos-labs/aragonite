@@ -150,7 +150,7 @@ describe('containerContract: strip / grid / opaque container-shape union', () =>
 	});
 });
 
-// blockFocus is not container-only, so stripContainerOnlyKeys must keep it whether the kind
+// blockFocus is not a grouped field, so the registration strip must keep it whether the kind
 // registers as a leaf or with a container group, which is the mermaid case.
 describe('blockFocus: whole-block-focus opt-in', () => {
 	beforeEach(__resetSchemaRegistriesForTests);

@@ -58,16 +58,15 @@ export type {
 } from './core/inline/inline-widgets';
 
 // ── Block-kind descriptor registry ───────────────────────────────────────────
-// `BlockKindRegistration` is the shape you register; `BlockKindDescriptor` is the flat shape
-// the editor reads back, exported because `ContainerDescriptorGroup`'s fields refer to it.
+// `BlockKindRegistration` is the shape you register; fields that only mean something together
+// are declared together, so an incoherent pair fails to compile.
 export { registerBlockKind, augmentBlockKind } from './schema/block-kind-descriptor';
 export type {
-	BlockKindDescriptor,
 	BlockKindRegistration,
 	BlockKindAugmentation,
 	ContainerDescriptorGroup,
 	MergeRole,
-	UnwrapRole,
+	ContainerUnwrapRole,
 	WriteContext,
 	WriteRule
 } from './schema/block-kind-descriptor';

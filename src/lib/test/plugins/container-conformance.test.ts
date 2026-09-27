@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { augmentBlockKind, declaredPluginKind, type UnwrapRole } from '$lib/plugin';
+import { augmentBlockKind, declaredPluginKind, type BlockKindAugmentation } from '$lib/plugin';
 import {
 	resetPluginPlatformForTests,
 	reversedAncestryLeavesRootStale,
@@ -131,11 +131,11 @@ describe('G4.3 conformance kit: a broken plugin container fails', () => {
 		augmentBlockKind(CALLOUT_KIND(), {
 			container: {
 				unwrapRole: {
-					firstChildBackspace: 'no-such-strategy' as UnwrapRole['firstChildBackspace'],
+					firstChildBackspace: 'no-such-strategy',
 					middleChildBackspace: 'default-merge'
 				}
 			}
-		});
+		} as BlockKindAugmentation);
 
 		await expect(runContainerConformance(CALLOUT_KIND(), calloutProfile)).rejects.toThrow(
 			/declarations: callout first-child unwrap strategy "no-such-strategy" is implemented/
