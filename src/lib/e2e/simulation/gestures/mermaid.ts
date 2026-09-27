@@ -1,10 +1,9 @@
 import type { Page } from '@playwright/test';
 import { type SimContext } from '../invariants';
 
-// Mermaid gestures, for a block focused as a whole (plugins route only). The diagram is opaque
-// and has no children, and asks for `blockFocus: 'whole-block'`, so arrows stop on it, a
-// Backspace beside it focuses it before a second press deletes it, and Enter while it is
-// focused inserts a paragraph below. Each waits for a focus or structural change and resyncs.
+// Mermaid gestures (plugins route only) for an opaque, childless diagram with
+// `blockFocus: 'whole-block'`: arrows stop on it, a Backspace beside it focuses it before a second
+// deletes it, and Enter while focused inserts a paragraph below. Each waits and resyncs.
 
 const VIEWPORT = '.mermaid-viewport';
 
@@ -42,9 +41,8 @@ async function assertUnchanged(ctx: SimContext, before: string, what: string): P
 }
 
 /**
- * A diagram that swallowed the arrow, or let it pass straight through, would break navigation
- * without touching the source, so where the focus ends up is what this checks; the bytes being
- * unchanged is only a second check.
+ * A diagram that swallowed the arrow, or let it pass through, would break navigation without
+ * touching the source, so where focus ends up is the main check.
  */
 export async function arrowFocusMermaid(ctx: SimContext, belowIndex: number): Promise<void> {
 	const { page, editor, tracker } = ctx;
@@ -65,9 +63,8 @@ export async function arrowFocusMermaid(ctx: SimContext, belowIndex: number): Pr
 }
 
 /**
- * Waits on the `.block-host` count, not on the source changing: an empty paragraph may
- * serialize to nothing at all. Enter below is the one structural change available to a block
- * that is focused as a whole and has no children.
+ * Waits on the `.block-host` count, since an empty paragraph may serialize to nothing; Enter below
+ * is the one structural change a whole-block, childless block offers.
  */
 export async function enterBelowUndoMermaid(ctx: SimContext): Promise<void> {
 	const { page, editor, tracker } = ctx;
@@ -88,9 +85,8 @@ export async function enterBelowUndoMermaid(ctx: SimContext): Promise<void> {
 }
 
 /**
- * Deleting such a block takes two presses: the first only focuses it, which is what stops a
- * stray Backspace from below quietly swallowing it; the second deletes it in one commit, and
- * the closing undo shows that delete is a single reversible entry.
+ * The first Backspace only focuses the block, so a stray one from below never swallows it; the
+ * second deletes it in one commit, and the closing undo shows it is one reversible entry.
  */
 export async function backspaceTwoStepDeleteUndoMermaid(
 	ctx: SimContext,

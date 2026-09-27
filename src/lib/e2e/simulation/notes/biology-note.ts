@@ -2,11 +2,10 @@ import type { Gestures } from '../gestures';
 import type { NoteFixture } from './types';
 
 /**
- * The main note, built only from constructs that typing reproduces exactly, so the end state
- * still has to match what loading the same markdown gives. `#` headings only: Enter splits a
- * block, so the underlined form cannot be typed. Two of the Enters need `softEnter` instead of
- * `pressEnter`: a newline in the code body, which stays in one block, and leaving the list,
- * which removes one.
+ * The main note, built only from constructs that typing reproduces exactly, so the end state must
+ * match loading the same markdown. `#` headings only, since Enter splits a block and the underlined
+ * form cannot be typed. A newline in the code body and leaving the list take `softEnter`, since
+ * neither adds a block.
  */
 export const BIOLOGY_NOTE: NoteFixture = {
 	name: 'biology-note',
@@ -80,14 +79,13 @@ export const BIOLOGY_NOTE: NoteFixture = {
 		await g.toggleTask([7, 0, 0]);
 		await g.toggleTaskByKeyboard([7, 1, 0]);
 
-		// Live mode's own rules, run over the opening paragraph, which holds every construct
-		// they need. Each gesture switches into live mode, drives one rule and undoes it in one
-		// press, so the note ends up exactly as it was before them.
+		// Live mode's own rules, over the opening paragraph, which holds every construct they need; each
+		// undoes itself, so the note ends as it was.
 		await g.liveToggleFormat(1, 'notes', 'strikethrough');
 		await g.liveEdgeBackspace(1, 'cell division');
 		await g.liveLinkCardEdit('syllabus', 'https://bio.example/next');
-		// The two places the editor now places the caret itself (G2.12): after a merge, and on
-		// Home in a list item.
+		// The two places the editor puts the caret itself (G2.12): after a merge, and on Home in a list
+		// item.
 		await g.liveMergeLanding(1, 'Photosynthesis', 'These');
 		await g.liveListHomeSeat('Prophase condenses the chromosomes');
 		await g.checkpoint('live-rules', 'live-editing');

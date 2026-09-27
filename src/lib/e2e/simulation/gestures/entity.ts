@@ -19,10 +19,8 @@ async function entitySpan(ctx: SimContext, blockIndex: number): Promise<{ end: n
 	return span;
 }
 
-/**
- * The caret is placed through the Selection API for setup only; the reference itself is typed
- * one key at a time, so the widget appears on the closing `;`.
- */
+/** The caret is placed programmatically for setup only; the reference is typed key by key, so
+ *  the widget appears on the closing `;`. */
 export async function typeEntityWidget(
 	ctx: SimContext,
 	blockIndex: number,
@@ -42,10 +40,8 @@ export async function typeEntityWidget(
 	tracker.resync(await editor.bridge.getSource());
 }
 
-/**
- * `deleteGranularity: 'atomic'` removes the whole reference in one press and one undo entry.
- * The caret reaches its trailing edge by real arrow presses, so the delete takes that path.
- */
+/** `deleteGranularity: 'atomic'` removes the whole reference in one keypress and one undo entry;
+ *  the caret reaches its trailing edge by arrow keys, the path a user takes. */
 export async function atomicDeleteEntityWidget(ctx: SimContext, blockIndex: number): Promise<void> {
 	const { page, editor, tracker } = ctx;
 	const { end } = await entitySpan(ctx, blockIndex);

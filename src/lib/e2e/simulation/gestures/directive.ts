@@ -1,21 +1,15 @@
 import { type SimContext } from '../invariants';
 import { waitForNodeCount } from './node-count';
 
-// Directive gestures for the `:::name` syntax (plugins route only). Each waits for the block
-// to change kind or for the widget to swap in, then resyncs after the reparse; predicting
-// across either would put the character count out.
-//
-// Inserting a container is not here: typing one block at a time never builds a multi-line
-// fence, since the parser reads an unfinished fence as a paragraph.
+// Directive gestures for the `:::name` syntax (plugins route only). Each waits for the block to
+// change kind or for the widget to swap in, then resyncs, since predicting across either would
+// miscount. No gesture types a container: the parser reads an unfinished fence as a paragraph.
 
 const TEXT_WIDGET = '.directive-text-widget';
 const LEAF = '.directive-leaf[contenteditable="true"]';
 
-/**
- * The widget shows its source as typed, only dimmed, so the text is there from the moment it is
- * typed: what marks the widget arriving is the widget count rising, not new text. It is
- * recognised when rendering, so the widget appears once the closing `]` is typed.
- */
+/** The widget shows its source dimmed, so the text is there as it is typed and the widget count
+ *  rising on the closing `]` is what marks the widget arriving. */
 export async function insertTextDirective(
 	ctx: SimContext,
 	name: string,
@@ -32,11 +26,8 @@ export async function insertTextDirective(
 	tracker.resync(await editor.bridge.getSource());
 }
 
-/**
- * The shared show-edit-commit behaviour (widget-interaction.ts). The source is present in both
- * states, only dimmed, so the widget count is the one sign it opened. The edit is kept out of
- * the tree until blur, so waiting for the source to change before the commit would race the DOM.
- */
+/** The source shows in both states, so the widget count is the one sign it opened; the edit stays
+ *  out of the tree until blur, so a source wait before the commit would race the DOM. */
 export async function revealEditTextDirective(
 	ctx: SimContext,
 	stepIn: number,
@@ -59,11 +50,8 @@ export async function revealEditTextDirective(
 	tracker.resync(await editor.bridge.getSource());
 }
 
-/**
- * The block changes kind while typing, the moment `::n` matches the opener, and remounts, so
- * predicting across that would put the character count out. Waits for the new block to appear
- * and resyncs.
- */
+/** The block changes kind and remounts the moment `::n` matches the opener, so this waits for
+ *  the new block and resyncs rather than predicting. */
 export async function insertLeafDirective(
 	ctx: SimContext,
 	name: string,
@@ -79,10 +67,7 @@ export async function insertLeafDirective(
 	tracker.resync(await editor.bridge.getSource());
 }
 
-/**
- * The whole line is one editable stretch of text, so this lengthens the block's raw text
- * without changing its kind. Waits for the source to change and resyncs.
- */
+/** The whole line is one editable run, so this lengthens the raw text without changing kind. */
 export async function editLeafInfo(
 	ctx: SimContext,
 	leafIndex: number,
@@ -99,11 +84,8 @@ export async function editLeafInfo(
 	tracker.resync(await editor.bridge.getSource());
 }
 
-/**
- * A directive block is `not-mergeable`, so Backspace moves the focus instead of joining it to
- * the block above. The bytes are checked by reading the source again once the editor has
- * recorded its decision about the key: nothing changing cannot be waited for.
- */
+/** A directive block is `not-mergeable`, so Backspace moves focus instead of joining; the source
+ *  is read again once the editor has recorded its decision about the key. */
 export async function leafBackspaceAtStart(ctx: SimContext, leafIndex: number): Promise<void> {
 	const { page, editor, tracker } = ctx;
 	const before = await editor.bridge.getSource();
@@ -122,11 +104,8 @@ export async function leafBackspaceAtStart(ctx: SimContext, leafIndex: number): 
 	tracker.resync(after);
 }
 
-/**
- * The opaque container rebuilds its own raw text from the edited children, so the edit lands
- * mid-document rather than at the end, which is all the expected answer can predict. Waits for
- * the change and resyncs.
- */
+/** The opaque container rebuilds its raw text from its children, so the edit lands mid-document,
+ *  where the expected answer cannot predict it. */
 export async function editContainerBody(
 	ctx: SimContext,
 	bodyPath: number[],

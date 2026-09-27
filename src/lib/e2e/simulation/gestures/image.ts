@@ -28,10 +28,8 @@ export async function insertImage(ctx: SimContext, alt: string, url: string): Pr
 }
 
 /**
- * Waits for the new `|N` after every press: the keydown handler works the width out from the
- * freshly serialized node, so a press that arrives before the previous commit reads a stale
- * width. One selection is enough, since it is keyed on the source offset, which a width change
- * does not move.
+ * Waits for the new `|N` after every keypress, since the handler reads the width from the last
+ * commit; the selection is keyed on the source offset, which a width change does not move.
  */
 export async function resizeImage(
 	ctx: SimContext,
@@ -51,8 +49,8 @@ export async function resizeImage(
 		// Match the whole `|N]`, since a bare `|420` is the start of `|4200`.
 		await editor.bridge.waitForSourceContains(`|${expected}]`);
 	}
-	// The width on screen, not just the `|N` in the source: the image re-renders from an effect
-	// that can lag the commit, so a checkpoint screenshot could catch the old size.
+	// The width on screen, not just `|N`: the image re-renders from an effect that can lag the
+	// commit, so a checkpoint screenshot could catch the previous size.
 	await page.waitForFunction(
 		(w) => {
 			const img = document.querySelector('[data-image-widget] img') as HTMLImageElement | null;

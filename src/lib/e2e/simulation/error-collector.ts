@@ -4,17 +4,14 @@ import { warnTagOfLine } from '../../dev-warn';
 export interface ErrorCollector {
 	/** Call once at session start, before any gesture. */
 	start(): Promise<void>;
-	/** Throws if anything recorded a failure since `start`. `waive` names the tags this
-	 *  checkpoint triggers on purpose (`['tree-ops']`, `['svelte:derived_inert']`); anything
-	 *  else fails. */
+	/** `waive` names the tags this checkpoint triggers on purpose (`['tree-ops']`,
+	 *  `['svelte:derived_inert']`); anything else recorded since `start` throws. */
 	assertNone(waive?: string[]): Promise<void>;
 }
 
 /**
- * Three things a long session must stay clean on: console errors and page errors, dev warnings
- * that fail the run, and the editor's structured `error` event (a failure the editor catches
- * rather than throws). `fixtures.ts` also fails on a dev warning, but only at teardown, while
- * `assertNone` runs at every checkpoint, so one shows up mid-session.
+ * Watches console and page errors, failing dev warnings, and the editor's `error` event.
+ * `assertNone` runs at every checkpoint, so a warning shows mid-session, not only at teardown.
  */
 export function attachErrorCollector(page: Page): ErrorCollector {
 	const errors: string[] = [];

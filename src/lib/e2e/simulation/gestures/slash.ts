@@ -7,9 +7,8 @@ import { type SimContext } from '../invariants';
 const SLASH_MENU = '[data-inline-menu="slash-commands"]';
 
 /**
- * Types `/query` a key at a time on the empty line the caret is on, picks the list's first row
- * with Enter, then types `text` into the new block. `inserted` is the block's opening bytes, which
- * the source must hold, followed by `text`, in place of the query.
+ * Types `/query` on the empty line, picks the first row with Enter, then types `text`. `inserted`
+ * is the new block's opening bytes, which must replace the query ahead of `text`.
  */
 export async function slashInsert(
 	ctx: SimContext,

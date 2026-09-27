@@ -1,11 +1,9 @@
 import { type SimContext, assertStructuralIntegrity } from '../invariants';
 
 /**
- * The merge rules, which nothing else in the simulation drives. Whether the block merges or
- * leaves its container depends on the kinds involved, so this gesture takes no view and only
- * checks that the structure really changed. The first block of the document has nothing above
- * it, so aiming at it throws rather than recording a stale tree. `targetPath` resolves to the
- * first editable element under it, which is where the Backspace belongs.
+ * The merge rules, which nothing else in the simulation drives. Whether the block merges or leaves
+ * its container depends on the kinds, so this only checks that the structure changed. Aiming at
+ * the document's first block throws, since nothing sits above it.
  */
 export async function mergeBackspaceAtStart(ctx: SimContext, targetPath: number[]): Promise<void> {
 	const { editor, tracker } = ctx;

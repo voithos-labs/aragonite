@@ -1,10 +1,8 @@
 import type { SimContext } from '../invariants';
 
 /**
- * The check that the mode prop changes no bytes: the source has to come back unchanged from a
- * switch out and back, whatever state the editor was in, which the closing `waitForSourceEquals`
- * proves. Reading mode drops the text caret, so the way back clicks a block again to give the
- * following gestures something editable.
+ * The check that the mode prop changes no bytes: the source must come back unchanged from a switch
+ * out and back, whatever state the editor was in.
  */
 type FlipMode = 'reading' | 'preview-block' | 'preview-inline' | 'live';
 

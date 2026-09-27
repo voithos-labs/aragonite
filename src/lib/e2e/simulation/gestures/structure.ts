@@ -1,26 +1,22 @@
 import { type SimContext, actThenResync, assertFocusBlock, settleTypedSource } from '../invariants';
 
 /**
- * Structural gestures set off behaviour of the editor's own, so none can be predicted character
- * by character: each acts, waits for the source to differ from what it was, then resyncs. That
- * wait works whatever the change was and needs no worked-out target. Whether the gesture makes
- * sense here is the fixture's business: in the wrong place it does nothing, so the wait times
- * out and the gesture throws rather than recording a stale state.
+ * Structural gestures trigger the editor's own behaviour, so none can be predicted character by
+ * character: each acts, waits for the source to change, then resyncs. In the wrong place a gesture
+ * does nothing, so the wait times out and throws rather than recording a stale state.
  */
 
 /**
- * Enter where the key changes the source without splitting off a new top-level block.
- * `pressEnter` waits for the block count to rise, which neither case does: a code body shares
- * one block, and leaving a list removes one. So this waits for the source to change instead.
+ * Enter that changes the source without adding a top-level block (a code body, leaving a list),
+ * so `pressEnter`'s block-count wait would hang; this waits for the source instead.
  */
 export async function softEnter(ctx: SimContext): Promise<void> {
 	await actThenResync(ctx, () => ctx.page.keyboard.press('Enter'));
 }
 
 /**
- * A fence typed at the end of the document completes itself: the closing line, an empty body
- * line, and the language picker, which Enter dismisses. The closing line is held past the
- * caret, so the body the note types next is predicted in front of it.
+ * A fence typed at the document end completes itself and opens the language picker, which Enter
+ * dismisses; the closing line is held past the caret, so the body is predicted in front of it.
  */
 export async function typeFenceOpener(ctx: SimContext): Promise<void> {
 	const { page, editor, tracker } = ctx;
@@ -49,10 +45,8 @@ export async function exitFence(ctx: SimContext): Promise<void> {
 }
 
 /**
- * The only gesture that writes a hard line break inside a paragraph. It has to reach back into
- * text already typed: Shift+Enter at the end of a block leaves a bare trailing backslash, so
- * typing forwards never produces the shape. Leaves the caret mid-block, which the expected
- * answer cannot type against, so use it as a note's last build gesture.
+ * The only gesture that writes a hard line break inside a paragraph, since Shift+Enter at a block's
+ * end leaves a bare trailing backslash. It leaves the caret mid-block, so it is a note's last.
  */
 export async function hardBreakAt(
 	ctx: SimContext,
@@ -78,8 +72,8 @@ export async function outdent(ctx: SimContext): Promise<void> {
 }
 
 /**
- * A move swaps two blocks without changing how many there are, so it waits for the source to
- * change. A move that does nothing, because the block is already at one end, throws.
+ * A move keeps the block count, so it waits for the source to change; a move at either end, which
+ * does nothing, throws.
  */
 export async function reorder(ctx: SimContext, blockIndex: number, dir: -1 | 1): Promise<void> {
 	await ctx.editor.clickBlock(blockIndex);
@@ -90,10 +84,8 @@ export async function reorder(ctx: SimContext, blockIndex: number, dir: -1 | 1):
 }
 
 /**
- * The move is refused at the edge of an opaque container, so both directions change no bytes.
- * Running it puts that refusal under the simulation's checks: if the block ever jumped out
- * again, the top-level order would change and the no-change check would throw. `bodyPath` must
- * be a block in the body, never the container's title row, which binds no Alt+Arrow.
+ * The edge of an opaque container refuses the move, so a block that jumped out would change the
+ * source and throw. `bodyPath` is a body block, never the title row, which binds no Alt+Arrow.
  */
 export async function reorderInContainer(ctx: SimContext, bodyPath: number[]): Promise<void> {
 	const before = await ctx.editor.bridge.getSource();
@@ -110,11 +102,8 @@ export async function reorderInContainer(ctx: SimContext, bodyPath: number[]): P
 }
 
 /**
- * Indenting the empty item Enter just made is what gets past the two levels an item with text
- * stops at; the sequence is `pressEnter`, this, `typeFreshItem`. An empty item's marker is
- * trimmed at every depth, so the source does not change. Hence the wait on the focused item's
- * path growing longer, since looking for the deepest item anywhere would match a deeper list
- * earlier in the document, and no resync until `typeFreshItem` brings the marker back.
+ * An empty item's marker is trimmed at every depth, so the source does not change: this waits on
+ * the focused item's path growing, and `typeFreshItem` resyncs when the marker comes back.
  */
 export async function indentEmptyItem(ctx: SimContext): Promise<void> {
 	const before = await ctx.editor.bridge.getSelectionPaths();
@@ -133,9 +122,8 @@ export async function indentEmptyItem(ctx: SimContext): Promise<void> {
 }
 
 /**
- * The opposite of `indentEmptyItem`, waiting the same way and for the same reason: `outdent`,
- * which waits for the source to change, would hang here, since an empty item's trimmed marker
- * means nothing changes unless the outdent leaves the list altogether.
+ * Waits like `indentEmptyItem`: `outdent`'s source wait would hang, since an empty item's trimmed
+ * marker changes nothing unless the outdent leaves the list.
  */
 export async function outdentEmptyItem(ctx: SimContext): Promise<void> {
 	const before = await ctx.editor.bridge.getSelectionPaths();
@@ -155,9 +143,8 @@ export async function outdentEmptyItem(ctx: SimContext): Promise<void> {
 }
 
 /**
- * The first character of the body brings back the trimmed marker, so the source grows by more
- * than the character typed: that one waits for the change and resyncs, and the rest is
- * predicted as usual. Works at any depth. No typos are injected here.
+ * The first body character brings back the trimmed marker, so it waits and resyncs; the rest is
+ * predicted as usual, at any depth, with no typos injected.
  */
 export async function typeFreshItem(ctx: SimContext, text: string): Promise<void> {
 	const { editor, tracker } = ctx;
@@ -173,9 +160,8 @@ export async function typeFreshItem(ctx: SimContext, text: string): Promise<void
 }
 
 /**
- * The editor adds a space once the first character of the body arrives, so typed `>text` lands
- * as `> text`. That cannot be predicted, so this waits for the body and resyncs. Fixtures pass
- * `text` without a leading space.
+ * The editor adds a space once the body starts, so `>text` lands as `> text`; this waits for the
+ * body and resyncs. Fixtures pass `text` without a leading space.
  */
 export async function startQuote(ctx: SimContext, text: string): Promise<void> {
 	const { editor, tracker } = ctx;
@@ -189,9 +175,8 @@ export async function startQuote(ctx: SimContext, text: string): Promise<void> {
 }
 
 /**
- * Enter inside a quote adds a line to it rather than a top-level block, so `pressEnter` would
- * wait on a block count that never rises. The editor adds the `> ` marker itself, so this waits
- * for the whole line and resyncs. Fixtures pass `text` without a leading `>` or space.
+ * Enter inside a quote adds a line, not a top-level block, and the editor writes the `> ` itself,
+ * so this waits for the whole line. Fixtures pass `text` without a leading `>` or space.
  */
 export async function continueQuote(ctx: SimContext, text: string): Promise<void> {
 	const { editor, tracker } = ctx;
@@ -203,9 +188,8 @@ export async function continueQuote(ctx: SimContext, text: string): Promise<void
 }
 
 /**
- * The editor adds both spaces as the body arrives, so this types `>` and then the body with no
- * spaces of its own and waits for the whole line, like `startQuote`. It puts a `> >` nested
- * quote in the end-state check, which is what leaving a quote lacked a test for.
+ * The editor adds both spaces as the body arrives, so this types `>` and the bare body and waits
+ * for the whole line, like `startQuote`.
  */
 export async function nestQuote(ctx: SimContext, text: string): Promise<void> {
 	const { editor, tracker } = ctx;
@@ -241,11 +225,8 @@ export async function toggleTaskByKeyboard(
 }
 
 /**
- * A key at the edge of `boundaryIndex` puts the caret in the gap between blocks, and the next key
- * creates a paragraph there (empty `text` means Enter); both halves are checked, so an ordinary
- * edit cannot pass as gap coverage. It leaves the caret mid-document, so it is a note's last
- * gesture. `'arrow-up'` serves containers with a title row, where Backspace on the first child
- * does nothing.
+ * A key at the edge of `boundaryIndex` puts the caret in the gap and the next creates a paragraph
+ * there (empty `text` means Enter); both are checked. `'arrow-up'` serves title-row containers.
  */
 export async function mintAtGap(
 	ctx: SimContext,

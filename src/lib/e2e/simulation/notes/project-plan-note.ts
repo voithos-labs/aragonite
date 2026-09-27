@@ -2,12 +2,10 @@ import type { Gestures } from '../gestures';
 import type { NoteFixture } from './types';
 
 /**
- * The structurally deep note: nested containers and the variety the inline-rich note skips.
- * Typing it reproduces the loaded document, so the end state still has to match. Nesting is
- * built by indenting around content, which reaches two levels and no further; three needs the
- * empty-item sequence and lives in the outline note. An item indented under an ordered one
- * stays ordered, and a typed `- ` marker stays plain text. Enter inside a quote starts a new
- * paragraph, so a paragraph of several lines needs `hardBreakAt`.
+ * The structurally deep note: nested containers and the variety the inline-rich note skips, typed
+ * so it matches the loaded document. Indenting around content reaches two levels; three live in the
+ * outline note. An item indented under an ordered one stays ordered, a typed `- ` stays plain
+ * text, and a multi-line quote paragraph needs `hardBreakAt`.
  */
 export const PROJECT_PLAN_NOTE: NoteFixture = {
 	name: 'project-plan-note',
