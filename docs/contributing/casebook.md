@@ -69,8 +69,8 @@ assertInvariant('snapshot-integrity', () => checkSnapshotIntegrity(entry));
 **Incident.** A value read does two things at once: it snapshots the value at effect-run time,
 and it registers the state as a dependency of that effect (an effect: Svelte's re-run-on-change
 block). The original re-init effect did both, so every mutation anywhere re-ran it and wiped
-unrelated work. The same trap lives inside `afterTick` callbacks: read `deps.node` live when the
-callback runs, because a capture taken before the commit is stale by construction. A
+unrelated work. The same trap lives inside a commit's `landing` (and its `afterTick`): read
+`deps.node` live when it runs, because a capture taken before the commit is stale by construction. A
 delete-last-item caret loss shipped exactly that way and survived until the audit.
 
 **Guard:** G4.1 scans every `createBlockListState` call site (the factory every block list's

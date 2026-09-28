@@ -382,7 +382,7 @@ Three invariants govern how tree state crosses into Svelte's reactivity. Each pr
 
 **Upward.** Blocks call typed context functions for structural operations (the bundle in § 3, plus focus moves, undo and redo), each taking a block index relative to the **local** children array. No signal dispatcher, no string matching, no performer registry. The block-editor interface rides three named facets in `src/lib/editor-keys.ts` (`EditorServices`: the event channel, the view-state stores, and the cross-scope commit and reorder primitives; `EditorPolicies`: what the host configured; `EditorDoc`: document identity and the per-instance lookups that hang off it) plus the per-key action bundles, whose individual granularity is the point. A container overrides only the bundles whose behavior it changes (block editing, focus, container editing), one at a time, while history stays its own key that only the editor root provides, so undo/redo resolve to one stack (G1.4). Everything else resolves by walking up the context tree to the nearest ancestor that provides it, so pass-through delegation boilerplate doesn't exist.
 
-**Downward.** The editor reaches down through component refs, mostly for focus; the other reaches are narrow and deliberate (`insertMarkdown`, `runCommand`, and the selection reads the undo snapshot needs). After a structural mutation and `await tick()`, it calls `focus(offset)` on the target block, the range-ending verb, so a landing after a cross-block operation can't leave the old range painted.
+**Downward.** The editor reaches down through component refs, mostly for focus; the other reaches are narrow and deliberate (`insertMarkdown`, `runCommand`, and the selection reads the undo snapshot needs). After a structural mutation and `await tick()`, the caret landing (§ 11) calls `focus(offset)` on the target block, the range-ending verb, so a landing after a cross-block operation can't leave the old range painted.
 
 ### Structural operations
 
@@ -699,7 +699,7 @@ await scope.commit({
 	mutate: (view) => {
 		/* cut view.children[i] at offset; return the structural change */
 	},
-	afterTick: () => scope.refAt(secondHalfIndex)?.focus(CURSOR_EXACT_START),
+	landing: () => scope.at(secondHalfIndex, [], CURSOR_EXACT_START), // where the caret goes
 	discardIfNoop: true // a split that moved nothing pushes no undo entry
 });
 ```
@@ -715,10 +715,17 @@ The commit's structural steps, in order (`src/lib/editor-actions/commit/undo-con
 7. rebuild every enclosing container's `raw`, deepest first, asking each container's own slot on the way out (§ 9),
 8. if the file had no final line break before the commit, take the break off its new last line again, unless that line is blank (`src/lib/tree-operations/open-tail.ts` :: `keepOpenTail`; `docs/design/syntax-tree.md` § Blank lines says why a blank one keeps it),
 9. emit an `edit` event,
-10. `await tick()`, then run the caller-supplied post-tick callback (focus landing, cursor placement), itself awaited,
+10. `await tick()`, then read the caller's `landing` and put the caret there, awaited,
 11. speak the caller's `announce` line in the edit live region, when the commit wrote.
 
-Because step 10 awaits, a landing that must first reveal an off-window target is expressible there rather than fire-and-forget, and a landing that deliberately doesn't make its commit wait says so by returning nothing. Callers pick a scope; they never assemble the steps, and **this is the canonical entry for any new structural mutation** (the op-log isn't a commit step; it subscribes to `edit` downstream). The top-level and container action factories share one core through a `CommitScope` adapter, so the structural-edit sequence is single-sourced and the factories differ only in scope wiring and container-only concerns.
+The landing is a value, not a callback that places anything: a position (a document path and an offset, where the path may name a container) or a stored selection. The commit reads it after the tick, so it sees the tree the commit left, and hands it to the editor's one caret landing (`src/lib/selection/caret-landing.ts` :: `createCaretLanding`). That resolves the position to a leaf a caret can sit in, mounts each level on the way down, gives up if an undo, redo or document swap happened since the commit started, focuses the block through its own `focus`, and scrolls it into view when it's off screen. A few details, for the curious:
+
+- A commit that reading mode refused lands nothing. One that `discardIfNoop` threw away still lands, since a refused merge still moves the caret across the boundary you pressed at.
+- When an enclosing container collapsed during the commit, the collapse's position replaces the caller's, because the collapse rebuilt the blocks the caller's position names.
+- In a dev build, reading the landing must leave focus and the selection alone (G1.42), so a landing that sneaks in a caret of its own gets caught the first time a test runs it.
+- The tables, the paste routes and the range deletes still place their caret themselves in an `afterTick` callback, which runs just before the landing.
+
+Callers pick a scope; they never assemble the steps, and **this is the canonical entry for any new structural mutation** (the op-log isn't a commit step; it subscribes to `edit` downstream). The top-level and container action factories share one core through a `CommitScope` adapter, so the structural-edit sequence is single-sourced and the factories differ only in scope wiring and container-only concerns.
 
 **Reading mode is refused where the bytes are written.** Every entry point that writes the document asks `src/lib/editor-actions/commit/reading-write-gate.ts` :: `admitsWrite` first: the three commit scopes, the keystroke's in-place write (`src/lib/editor-actions/leaf-write.ts` :: `createLeafTyping`), and undo/redo. In reading mode each one declines, pushing no snapshot and emitting no event. A keystroke asks once, before it picks between a commit and the in-place write, so a refused key warns once, and it comes back with `admitted: false` and no caret for its caller to park. A dev build also warns `[aragonite:reading-write]` with the operation, the block's kind and the caller, since whatever got there offered a write it shouldn't have. The reading-mode checks still left on gestures hide an affordance, or keep a promise the refusal can't keep by itself (a `runCommand` that answers `false`, a key the editor still consumes). A mode switch commits whatever an open block is holding before the new mode takes effect, so that edit lands in the mode it was typed in.
 

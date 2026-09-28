@@ -37,8 +37,8 @@ export interface EditorRects {
 // sequencing tool in this repo, so the wait is a fixed number of them.
 const REVEAL_SETTLE_TICKS = 12;
 
-/** The settle half of a scroll into view, shared by `scrollTo` and the caret landing: the one
- *  place either writes a scroll position. The block must already be mounted. */
+/** The scrolling half of a scroll into view, after the mount: the one place `scrollTo` and the
+ *  caret landing write a scroll position. The block must already be mounted. */
 export interface ScrollSettle {
 	/** Whether the mounted block at `path` is visible in the editor's viewport. */
 	isInView(path: readonly number[]): boolean;
