@@ -1,3 +1,7 @@
+// A container parse costs its whole raw, so a keystroke pays one only when an outer line moved
+// and something can follow from it: the opener line's answer changed (a new kind), or an opaque
+// container's metadata may have (any outer line but a title row's). That keeps a keystroke off
+// the container-size axis: typing into a list's first item or a directive's title parses nothing.
 import { describe, it, expect, beforeAll, beforeEach, afterEach } from 'vitest';
 import { installPlugins } from '$lib';
 import { admonitionsPlugin } from '$lib/plugins/admonitions';
@@ -18,11 +22,70 @@ import { createUndoController } from '$lib/editor-actions/commit/undo-controller
 import { createLeafTyping } from '$lib/editor-actions/leaf-write';
 import { legalizeWrite } from '$lib/tree-operations/content-write';
 import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
+import type { CstNode, Document } from '$lib/core/nodes';
+import {
+	chromeChild,
+	declarePluginKind,
+	OPENER_PRIORITIES,
+	parseContainerBody,
+	registerBlockOpener,
+	registerChromeLeaf,
+	serializeChildren as concatChildren,
+	setPluginMetadata,
+	trimTrailingLineEnding
+} from '$lib/plugin';
+import { describeConvergence } from '$lib/testing/parse-convergence';
+import { testContainer } from '$lib/test/harness/test-kinds';
 
-// A container parse costs its whole raw, so a keystroke pays one only when an outer line moved
-// and something can follow from it: the opener line's answer changed (a new kind), or an opaque
-// container's metadata may have (any outer line but a title row's). That keeps a keystroke off
-// the container-size axis: typing into a list's first item or a directive's title parses nothing.
+// ── A fence that prints its body's size on the opener line ──────────────────
+// `==[5] Title` … `==[end Title]`: a body keystroke moves only the opener, and the size in
+// metadata comes from that line, so these kinds pin each half of the title-row skip.
+
+interface TallyMetadata {
+	size: number;
+}
+
+function registerTally(name: string, titled: boolean): void {
+	const rebuild = (node: CstNode): void => {
+		const children = node.children ?? [];
+		const title = titled ? ` ${trimTrailingLineEnding(children[0].raw)}` : '';
+		const body = concatChildren(titled ? children.slice(1) : children);
+		node.raw = `==[${body.length}]${title}\n${body}==[end${title}]\n`;
+	};
+	const chrome = titled ? declarePluginKind(`${name}-title`) : undefined;
+	if (chrome) registerChromeLeaf(chrome);
+	const kind = chrome
+		? testContainer(name, { rebuildRaw: rebuild, reservedChrome: { kind: chrome } })
+		: testContainer(name, { rebuildRaw: rebuild });
+	registerBlockOpener(kind, {
+		priority: OPENER_PRIORITIES.fencedCode - (titled ? 8 : 9),
+		interruptsParagraph: false,
+		tryOpen(ctx) {
+			const open = /^==\[(\d+)\](?: (.*))?$/.exec(ctx.line.text);
+			if (!open || (open[2] !== undefined) !== titled) return null;
+			let close = ctx.index + 1;
+			while (close < ctx.end && !ctx.lines[close].text.startsWith('==[end')) close++;
+			// The titled kind opens on a lone line too, so its kind check never parses and only the
+			// metadata re-read can.
+			const closed = close < ctx.end;
+			if (!closed && !titled) return null;
+			const lines = ctx.lines.slice(ctx.index, closed ? close + 1 : ctx.end);
+			const bodyText = lines
+				.slice(1, closed ? -1 : undefined)
+				.map((l) => l.raw)
+				.join('');
+			const body = parseContainerBody(bodyText, {}, { scope: 'fragment', grammar: ctx.grammar });
+			const node: CstNode = {
+				kind,
+				leadingTrivia: ctx.leadingTrivia,
+				raw: lines.map((l) => l.raw).join(''),
+				children: chrome ? [chromeChild(chrome, open[2]), ...body.children] : body.children
+			};
+			setPluginMetadata<TallyMetadata>(node, { size: Number(open[1]) });
+			return { node, consumed: lines.length };
+		}
+	});
+}
 
 const KEYSTROKES = 20;
 
@@ -41,7 +104,7 @@ function typeInto(source: string, leafPath: number[], count: number): void {
 
 /** Write each of `raws` into child `index` of the top-level container through the keystroke's
  *  in-place route, which names the changed child to the rebuild. */
-function typeInPlace(source: string, index: number, raws: string[]): void {
+function typeInPlace(source: string, index: number, raws: string[]): Document {
 	const { deps } = makeEditorActionsDeps(source);
 	const typing = createLeafTyping(deps, createUndoController(deps));
 	for (const raw of raws) {
@@ -50,6 +113,7 @@ function typeInPlace(source: string, index: number, raws: string[]): void {
 		const write = legalizeWrite(body, index, raw, 'authored');
 		expect(typing.writeLeafInPlace(docPathFrom([0, index]), write, 0).wrote).toBe(true);
 	}
+	return deps.doc;
 }
 
 /** `count` growing lines, `base` plus one more `x` each time. */
@@ -60,6 +124,8 @@ const reparses = () => perfSnapshot().containerKindReparses;
 
 beforeAll(() => {
 	installPlugins([admonitionsPlugin()]);
+	registerTally('tally', false);
+	registerTally('titled-tally', true);
 });
 
 beforeEach(() => {
@@ -113,6 +179,24 @@ describe('container kind re-derivation gate', () => {
 		typeInPlace(':::note Title\nbody\n:::\n', 1, ['body\n:::\n']);
 
 		expect(reparses()).toBe(1);
+	});
+
+	// Each keystroke below moves an outer line the metadata does come from, so dropping any one
+	// half of the title-row skip leaves a stale size or a missing parse.
+	it.each([
+		['a title keystroke that also moves the closer', '==[5] T\nbody\n==[end T]\n', 0, 'Tx\n'],
+		['a body keystroke in a titled container', '==[5] T\nbody\n==[end T]\n', 1, 'bodyx\n'],
+		[
+			'a keystroke in child 0 of a container with no title row',
+			'==[5]\nbody\n==[end]\n',
+			0,
+			'bodyx\n'
+		]
+	])('reparses once for %s', (_label, source, index, raw) => {
+		const doc = typeInPlace(source, index, [raw]);
+
+		expect(reparses()).toBe(1);
+		expect(describeConvergence(doc)).toBeNull();
 	});
 
 	// Only the keystroke that closes the marker changes the answer. The trailing `x` keeps one

@@ -292,7 +292,7 @@ A container may contribute an ambient prefix (the read-only marker a container l
 
 One `registerChromeLeaf` call binds a container's title or summary leaf with a default keymap (Enter descends to the body; chord-keyed overrides). The container _declares_ its chrome slot on its descriptor, and the machinery enforces the **reserved-chrome contract**: the slot is always present, single-line (unsplittable; paste flattens inline), cleared rather than node-deleted by destructive ranges, and kind-stable through every edit. `chromeChild` builds that reserved child-0 node (the title text plus its trailing newline) for an opener constructing the container.
 
-One more promise comes with the slot: none of the container's metadata comes from the title row's bytes. A keystroke in the title leans on it to skip re-reading the metadata, which would otherwise mean parsing the whole container on every keystroke. Break it and the metadata goes stale while you type, and in dev G1.12 calls it out at the next commit that checks the container.
+One more promise comes with the slot: none of the container's metadata comes from the title row's bytes. A keystroke in the title leans on it to skip re-reading the metadata, which would otherwise mean parsing the whole container on every keystroke. Break it and the metadata goes stale while you type. The container kit's `titleRow` cell types into the title row and fails a kind that does, and in dev G1.12 calls it out at the next commit that checks the container.
 
 ### Collapsible containers
 

@@ -1,9 +1,9 @@
 /**
- * Whether a node's metadata is what a parse of its own bytes derives, key by key. The
- * parse-convergence check and the opaque stale-raw check both compare through here.
+ * Whether a node's metadata is what a parse of its own bytes derives, key by key: the one compare
+ * behind every check and re-read that holds metadata to its bytes.
  */
 
-import type { NodeView } from '../core/node-views';
+import type { NodeView } from './node-views';
 
 /** The first metadata key whose live value differs from the reparse's, described, or null. */
 export function describeMetadataDivergence(live: NodeView, reparsed: NodeView): string | null {
