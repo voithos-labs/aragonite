@@ -26,9 +26,9 @@ quote, the first parse of a file, or the join check after a keystroke.
 - typing at the end of the loaded `Plan` in the first pane leaves `Plans` a paragraph with the
   divider under it: the join check after the keystroke reads the editor's grammar, so it never
   folds the two into a heading.
-- `Plan` over `---` pasted on a new line is a paragraph and a divider in the first pane, which
-  land as two blocks with a blank line between them, and a setext heading in the second; both
-  trees reload as themselves.
+- `Plan` over `---` pasted on a new line is a paragraph and a divider in the first pane, landing
+  flush the way the clipboard had them (the same bytes the loaded pair has), and a setext heading
+  in the second; both trees reload as themselves.
 - Enter before the tab of the loaded `code` line in the first pane leaves an empty paragraph
   above a paragraph, no indented code, and a tree that reloads as itself. Miss-analysis: the split
   reread both halves in the global grammar, and no spec pressed Enter in the switched-off pane.

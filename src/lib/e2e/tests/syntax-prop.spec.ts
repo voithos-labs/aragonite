@@ -112,7 +112,7 @@ test.describe('the syntax prop switches a syntax off in one editor', () => {
 			await page.keyboard.press('ControlOrMeta+v');
 		}
 
-		expect(await sourceOf(page, 'off')).toBe('Loaded\n\nPlan\n\n---\n\n\tcode\n\nPlan\n---\n');
+		expect(await sourceOf(page, 'off')).toBe('Loaded\n\nPlan\n---\n\n\tcode\n\nPlan\n---\n');
 		expect(await sourceOf(page, 'on')).toBe('Loaded\n\nPlan\n---\n\n\tcode\n\nPlan\n---\n');
 		expect((await kindsIn(page, 'off')).slice(1, 3)).toEqual(['paragraph', 'thematicBreak']);
 		expect((await kindsIn(page, 'on'))[1]).toBe('setextHeading');
