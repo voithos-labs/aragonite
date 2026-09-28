@@ -24,11 +24,14 @@ before it asks.
 ## User interactions
 
 - A plain click in a code block's, a paragraph's or a table cell's top padding lands the
-  caret at the column under it. The browser places that press itself, so these rows wait
-  on the next slice (`test.fixme` in the spec).
+  caret at the column under it. So does a click in a plugin's editable, the revealed `$$`
+  source: type `z` there and it lands between `x` and `^`.
 
 ## Miss-analysis
 
 - Only the nearest-offset lookup moved a padding point onto a line; a drag's end, the press
   that starts a drag and a Shift+click ask through the exact lookup, which no test aimed at
   padding, and the suite only ran on Windows, where the browser keeps the column anyway.
+- The plain click still landed at the line's start on Mac and Linux after the lookups were
+  fixed: the browser places a press inside an editable itself, and the click rows were
+  parked until the editor took that press over, so nothing ran them on Linux.

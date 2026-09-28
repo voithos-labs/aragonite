@@ -1,6 +1,7 @@
 import type { Page } from '@playwright/test';
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
+import { BlockMathPage } from '../plugins/latex-reveal-helpers';
 import { pointAtRaw, pointInTopPadding, type Point } from '../../text-runs';
 
 // A pointer gesture ending in the padding above an editable's first line lands at the column under
@@ -79,8 +80,6 @@ for (const target of TARGETS) {
 		test(`${gesture} in the top padding of ${target.name} lands at the column below`, async ({
 			page
 		}) => {
-			// The browser places a plain press inside an editable itself, which the next slice takes over.
-			test.fixme(gesture === 'click', 'slice 2: the native press in an editable’s own padding');
 			const editor = new EditorPage(page);
 			await editor.goto('?presentationMode=live');
 			await editor.loadContent(DOC);
@@ -93,3 +92,20 @@ for (const target of TARGETS) {
 		});
 	}
 }
+
+// A plugin's editable goes through the same press: the revealed `$$` source keeps its own padding.
+test('click in the top padding of a revealed math source lands at the column below', async ({
+	page
+}) => {
+	const editor = new BlockMathPage(page);
+	await editor.gotoMathSeed('mathblock');
+	await editor.revealFromBefore();
+
+	// `$$x|^2$$`: the column between the formula's `x` and `^`.
+	const column = await pointAtRaw(page, [1], 3);
+	const padding = await pointInTopPadding(editor.source, column.x);
+	await page.mouse.click(padding.x, padding.y);
+	await page.keyboard.type('z');
+
+	await expect.poll(() => editor.sourceText()).toBe('$$xz^2$$');
+});
