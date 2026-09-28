@@ -8,8 +8,8 @@ import { isBuiltinBlockKind, type AnyBlockKind } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import type { BlockComponentExports, BlockComponentProps } from '../block-component';
 import type { PluginActivation } from './plugin-activation';
-import { createPluginRegistry } from './plugin-registry';
-import { pluginKindOwner } from './plugin-kind';
+import { pluginEditorFor, type EditorContext } from './plugin-install';
+import { createBlockKindRegistry } from './plugin-registry';
 
 export interface BlockComponentEntry {
 	/**
@@ -33,10 +33,9 @@ export function defineBlockComponent<
 	return { component: component as BlockComponentEntry['component'], extraProps };
 }
 
-const registry = createPluginRegistry<AnyBlockKind, BlockComponentEntry>({
+const registry = createBlockKindRegistry<BlockComponentEntry>({
 	label: 'registerBlockComponent',
-	isBuiltin: isBuiltinBlockKind,
-	ownerOf: pluginKindOwner
+	isBuiltin: isBuiltinBlockKind
 });
 
 export function registerBlockComponent(kind: AnyBlockKind, entry: BlockComponentEntry): void {
@@ -53,6 +52,15 @@ export function getBlockComponent(
 	activation: PluginActivation
 ): BlockComponentEntry | undefined {
 	return registry.get(kind, activation);
+}
+
+/** An editor's `EditorContext` for the plugin the kind's component answers to, which is the
+ *  context the component's `getEditor` reads. */
+export function componentPluginEditor(
+	pluginEditor: ((pluginName: string) => EditorContext | undefined) | undefined,
+	kind: AnyBlockKind
+): EditorContext | undefined {
+	return pluginEditorFor(pluginEditor, registry.ownerOf(kind));
 }
 
 /** `registerBlockComponent` throws on a duplicate, so a plugin that may register twice (hot

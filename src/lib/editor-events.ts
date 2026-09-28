@@ -10,7 +10,6 @@ import { editorEnv } from './env';
 import type { PresentationMode } from './presentation-mode';
 import type { EditorSelection } from './selection/primitives';
 import type { OpDescriptor, OperationDetailMap, OperationKind } from './schema/operations';
-import { pluginKindOwner } from './schema/plugin-kind';
 
 // ── Edit event union ─────────────────────────────────────────────────────
 
@@ -133,8 +132,7 @@ export function createEditorEvents(): EditorEvents {
 // One builder per origin that has more than one emission site, kept here so the code that
 // owns the channel owns the payload shape too.
 
-/** Report a thrown command to the `error` channel with its owning plugin. A `plugin` passed in
- *  wins over the kind lookup, so a global command's own owner is kept. */
+/** Report a thrown command to the `error` channel with the plugin that registered it. */
 export function emitCommandError(
 	events: EditorEvents | undefined,
 	report: { kind?: AnyBlockKind; command: string; plugin?: string; error: unknown }
@@ -145,8 +143,7 @@ export function emitCommandError(
 		context: {
 			kind: report.kind,
 			command: report.command,
-			plugin:
-				report.plugin ?? (report.kind ? (pluginKindOwner(report.kind) ?? undefined) : undefined)
+			plugin: report.plugin
 		}
 	});
 }

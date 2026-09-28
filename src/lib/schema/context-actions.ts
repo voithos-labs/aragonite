@@ -9,7 +9,6 @@ import type { NodeView } from '../core/node-views';
 import type { LineEnding } from '../core/lines';
 import type { PluginActivation } from './plugin-activation';
 import { createPluginRegistry } from './plugin-registry';
-import { registerAsCore } from './plugin-install';
 
 export interface BlockActionContext {
 	node: NodeView;
@@ -42,13 +41,15 @@ export type BlockContextActionProvider = (
 	noun: string
 ) => BlockContextAction[];
 
-// Filled by `registerBuiltinBlockContextActions`, whose providers survive the test reset.
-const builtinKeys = new Set<string>();
+interface ProviderEntry {
+	kind: string;
+	provider: BlockContextActionProvider;
+}
 
-const providers = createPluginRegistry<
-	string,
-	{ kind: string; provider: BlockContextActionProvider }
->({ label: 'registerBlockContextActions', isBuiltin: (key) => builtinKeys.has(key) });
+const providers = createPluginRegistry<string, ProviderEntry>({
+	label: 'registerBlockContextActions',
+	isBuiltin: () => false
+});
 
 /**
  * Add a provider for `kind`, or every kind with `EVERY_KIND`, under a `name` unique to that kind
@@ -59,11 +60,7 @@ export function registerBlockContextActions(
 	name: string,
 	provider: BlockContextActionProvider
 ): void {
-	providers.register(
-		`${kind} ${name}`,
-		{ kind, provider },
-		`registerBlockContextActions: "${name}" is already registered for "${kind}". Providers are register-once.`
-	);
+	providers.register(providerKey(kind, name), { kind, provider }, providerConflict(kind, name));
 }
 
 /** The editor's own rows: a provider the test reset keeps, owned by no plugin even when a
@@ -73,8 +70,7 @@ export function registerBuiltinBlockContextActions(
 	name: string,
 	provider: BlockContextActionProvider
 ): void {
-	builtinKeys.add(`${kind} ${name}`);
-	registerAsCore(() => registerBlockContextActions(kind, name, provider));
+	providers.registerCore(providerKey(kind, name), { kind, provider }, providerConflict(kind, name));
 }
 
 export function blockContextActionsFor(
@@ -88,4 +84,14 @@ export function blockContextActionsFor(
 		...active.filter((entry) => entry.kind === node.kind),
 		...active.filter((entry) => entry.kind === EVERY_KIND)
 	].flatMap(({ provider }) => provider(node, path, noun));
+}
+
+// ── Internal ─────────────────────────────────────────────────────────────────
+
+function providerKey(kind: string, name: string): string {
+	return `${kind} ${name}`;
+}
+
+function providerConflict(kind: string, name: string): string {
+	return `registerBlockContextActions: "${name}" is already registered for "${kind}". Providers are register-once.`;
 }

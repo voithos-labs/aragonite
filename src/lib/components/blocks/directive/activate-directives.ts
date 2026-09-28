@@ -18,11 +18,11 @@ import DirectiveContainerBlock from './DirectiveContainerBlock.svelte';
 import TextEditableBlock from '../text/TextEditableBlock.svelte';
 
 export function activateDirectives(): void {
-	activateDirectiveGrammar();
-
-	// Core like the grammar, so an editor that left out the plugin turning directives on still
-	// draws the generic boxes.
+	// The shared directive kinds and their components belong to no plugin, whichever plugin's setup
+	// turns directives on, so an editor that left that plugin out still reads `:::name` as generic.
 	registerAsCore(() => {
+		activateDirectiveGrammar();
+
 		if (!isBlockComponentRegistered(DIRECTIVE_CONTAINER)) {
 			registerBlockComponent(
 				declaredPluginKind(DIRECTIVE_CONTAINER),

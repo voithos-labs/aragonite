@@ -764,6 +764,54 @@ const RULES: FileRule[] = [
 			'navigateTo: (path) => rects?.navigateTo(path) ?? Promise.resolve(false),',
 			"if (mode === 'reading') return;"
 		]
+	},
+	{
+		id: 'G4.77 only the editor bootstrap, registerCore and directives register on behalf of no plugin',
+		// The bare name, so an aliased import is flagged at its import line.
+		matches: /\bregisterAsCore\b/,
+		allowed: {
+			'src/lib/schema/plugin-install.ts':
+				'the function itself, which runs its callback with no plugin installing',
+			'src/lib/components/editor-built-ins.ts':
+				'the editor’s own bootstraps (blocks, code languages, context-menu rows), which the reset keeps',
+			'src/lib/schema/plugin-registry.ts':
+				'`registerCore`, which also flags a key the registry can’t tell is built-in so the reset keeps it',
+			'src/lib/components/blocks/directive/activate-directives.ts':
+				'the directive grammar and its components, which a consumer may turn on from a plugin’s setup and the reset drops'
+		},
+		reason:
+			'an entry belongs to no plugin only through one of these routes: an editor built-in goes in `registerEditorBuiltIns`, a built-in key the reset can’t recognize goes through `registerCore`, and a kind a plugin declared already answers to that plugin',
+		hits: [
+			'registerAsCore(() => registerLanguage(name, grammar));',
+			"import { registerAsCore as runUnowned } from './plugin-install';"
+		],
+		misses: ['grammars.registerCore(key, language);', 'registerAsCoreLater();']
+	},
+	{
+		id: 'G4.78 the editor’s built-in bootstraps run only through registerEditorBuiltIns',
+		matches:
+			/\b(?:registerBuiltInBlocks|bootstrapCodeLanguages|registerDefaultContextActions)\s*\(/,
+		allowed: {
+			'src/lib/components/editor-built-ins.ts':
+				'`registerEditorBuiltIns`, which runs the three bootstraps as no plugin',
+			'src/lib/components/built-in-blocks.ts': 'the definition of `registerBuiltInBlocks`',
+			'src/lib/components/blocks/code/code-bootstrap.ts':
+				'the definition of `bootstrapCodeLanguages`',
+			'src/lib/components/menu/default-context-actions.ts':
+				'the definition of `registerDefaultContextActions`'
+		},
+		reason:
+			'a bootstrap called anywhere else registers the editor’s built-ins as whichever plugin’s setup reached it first, so they resolve only where that plugin is listed and the test reset drops them: call `registerEditorBuiltIns()` instead',
+		hits: [
+			'bootstrapCodeLanguages();',
+			'registerBuiltInBlocks ();',
+			'registerDefaultContextActions();'
+		],
+		misses: [
+			'registerEditorBuiltIns();',
+			'registerBuiltInDescriptors();',
+			'import { bootstrapCodeLanguages } from "./code-bootstrap";'
+		]
 	}
 ];
 

@@ -9,10 +9,11 @@ import {
 	registerCommand,
 	registerPluginGlobalBinding,
 	assertPluginGlobalChordAvailable,
+	globalCommandOwner,
+	runPluginCommand,
 	warnDeadKeyCommand
 } from './commands';
-import { currentInstallingPlugin } from './plugin-install';
-import type { EditorContext } from './plugin-install';
+import { pluginEditorFor, type EditorContext } from './plugin-install';
 
 export function registerGlobalCommand(
 	name: string,
@@ -22,23 +23,20 @@ export function registerGlobalCommand(
 	// Validate the chord before creating the id: a collision must not leave a created name and a
 	// registered handler behind a failed registration.
 	if (opts?.chord) assertPluginGlobalChordAvailable(opts.chord, name);
-	const owner = currentInstallingPlugin();
 	const id = mintCommandId(name);
 	registerCommand(id, (ctx) => {
 		if (!ctx.pluginEditor) {
 			warnDeadKeyCommand(id, 'plugin-global');
 			return false;
 		}
-		// Dispatch reaches this only where the plugin is listed; a caller's own lookup may still
-		// decline, and that is inert rather than dead.
-		const editor = ctx.pluginEditor(owner ?? '');
+		const owner = globalCommandOwner(id);
+		// A global handler takes a context it can't run without, so a missing one declines, and
+		// that is inert rather than dead; a block handler runs with `ctx.editor` undefined instead.
+		const editor = pluginEditorFor(ctx.pluginEditor, owner);
 		if (!editor) return false;
-		try {
-			return handler(editor, ctx.arg);
-		} catch (error) {
-			ctx.onCommandError({ command: id, plugin: owner ?? undefined, error });
-			return true;
-		}
+		return runPluginCommand(owner, { command: id }, ctx.onCommandError, () =>
+			handler(editor, ctx.arg)
+		);
 	});
 	if (opts?.chord) registerPluginGlobalBinding({ chord: opts.chord, command: id });
 	return id;

@@ -173,6 +173,15 @@ export function currentInstallingPlugin(): string | null {
 	return installing;
 }
 
+/** An editor's `EditorContext` for the plugin an entry answers to; an entry no plugin owns gets
+ *  the editor's base context (`''`). Undefined when no editor is wired. */
+export function pluginEditorFor(
+	lookup: ((pluginName: string) => EditorContext | undefined) | undefined,
+	owner: string | null
+): EditorContext | undefined {
+	return lookup?.(owner ?? '');
+}
+
 /** Runs shared registrations a plugin's setup triggers as core ones, owned by no plugin, so every
  *  editor resolves them whichever plugin reached them first. */
 export function registerAsCore(register: () => void): void {

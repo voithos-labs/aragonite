@@ -164,6 +164,27 @@ export function isCommandRegistered(id: AnyCommandId): boolean {
 	return globalCommands.has(id);
 }
 
+/** The plugin whose setup registered a global command, read at dispatch like a block command's. */
+export function globalCommandOwner(id: AnyCommandId): string | null {
+	return globalCommands.ownerOf(id);
+}
+
+/** Runs a plugin's command handler, global or block, and reports a throw as the plugin's that
+ *  registered it; a contained throw still counts as handled, so the key goes no further. */
+export function runPluginCommand(
+	owner: string | null,
+	failure: { command: AnyCommandId; kind?: AnyBlockKind },
+	onCommandError: CommandErrorSink,
+	run: () => boolean
+): boolean {
+	try {
+		return run();
+	} catch (error) {
+		onCommandError({ ...failure, plugin: owner ?? undefined, error });
+		return true;
+	}
+}
+
 /** Which dispatch path found the command dead. Half the memo key below: a no-op on one path must
  *  not use up the one-time warning another path still has to give. */
 export type CommandDispatchPath = 'chord' | 'door' | 'plugin-global' | 'global-chord';

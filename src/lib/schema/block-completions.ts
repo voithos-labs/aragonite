@@ -7,8 +7,7 @@
 import { isBuiltinBlockKind, type AnyBlockKind } from '../core/nodes';
 import type { GrammarView } from './block-openers';
 import { resolvesIn } from './plugin-activation';
-import { createPluginRegistry, type RegistryRecord } from './plugin-registry';
-import { pluginKindOwner } from './plugin-kind';
+import { createBlockKindRegistry, type RegistryRecord } from './plugin-registry';
 
 /**
  * The replacement, as lines with no line endings: the Enter handler attaches the block's own, else
@@ -33,10 +32,9 @@ export interface BlockCompleter {
 
 let orderedCache: RegistryRecord<AnyBlockKind, BlockCompleter>[] | null = null;
 
-const completers = createPluginRegistry<AnyBlockKind, BlockCompleter>({
+const completers = createBlockKindRegistry<BlockCompleter>({
 	label: 'registerBlockCompleter',
 	isBuiltin: isBuiltinBlockKind,
-	ownerOf: pluginKindOwner,
 	onChange: () => (orderedCache = null)
 });
 

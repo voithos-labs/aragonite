@@ -77,15 +77,27 @@ describe('registerGlobalCommand', () => {
 		expect(takeDevWarns()).toEqual([]);
 	});
 
-	it('contains a handler throw and reports it through the injected sink', () => {
+	// Miss-analysis: the throw test registered outside any plugin, so its expected plugin was
+	// always undefined.
+	it('contains a handler throw and reports it as the plugin that registered it', () => {
+		__resetInstalledPluginsForTests();
+		const boom = new Error('boom');
 		const reports: unknown[] = [];
-		const id = registerGlobalCommand('demo.boom', () => {
-			throw new Error('boom');
-		});
+		let id!: ReturnType<typeof registerGlobalCommand>;
+		installPlugins([
+			definePlugin({
+				name: 'reporter',
+				setup() {
+					id = registerGlobalCommand('reporter.boom', () => {
+						throw boom;
+					});
+				}
+			})
+		]);
 		expect(
 			getCommand(id, everyInstalledPlugin)!(ctx({ onCommandError: (r) => reports.push(r) }))
 		).toBe(true);
-		expect(reports).toHaveLength(1);
+		expect(reports).toEqual([{ command: id, plugin: 'reporter', error: boom }]);
 	});
 
 	it('chord registers into the plugin-global level; built-in chords are unstealable', () => {

@@ -933,6 +933,8 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.74 | Only the commit's open-tail steps write the document's last line ending          | L       |
 | G4.75 | A leaf's new text goes through one commit or one in-place write, at every depth  | L       |
 | G4.76 | Every join into a leaf, and every other text built from two sources, is declared | L       |
+| G4.77 | Only three routes register on behalf of no plugin                                | L       |
+| G4.78 | The editor's built-in bootstraps run only through `registerEditorBuiltIns`       | L       |
 
 ### The entries
 
@@ -1643,6 +1645,29 @@ also reads the text each file hands a leaf: a `.raw =`, or the argument of a lea
 one source is a join, so its file names the cleanup or sits on a list of the ones that aren't, each
 with its reason (a paste or a typed character inserts between one leaf's own halves).
 `lint/cross-node-join-doors.test.ts`.
+
+**G4.77 · One way to belong to no plugin.** `src/lib/schema/plugin-install.ts` :: `registerAsCore` runs
+registrations as if no plugin were installing, so what they make belongs to no plugin even when a
+plugin's setup reached them first. It has three callers:
+
+- `src/lib/components/editor-built-ins.ts` :: `registerEditorBuiltIns`, the editor's own bootstrap
+  (built-in blocks, code languages, context-menu rows), which the reset keeps
+- a registry's `registerCore`, for a built-in key the registry can't recognize on its own (a code
+  language, a context-menu row), which it also flags for the reset to keep
+- `activateDirectives`, around the directive grammar and its components, which the reset drops, as
+  if the process had just started
+
+The scan matches the bare name, so an aliased import is caught at its import line. A kind a plugin
+declared needs none of this, since its entries already belong to that plugin.
+`lint/file-rules.test.ts`.
+
+**G4.78 · The editor's built-ins come in one way.** `registerBuiltInBlocks`,
+`bootstrapCodeLanguages` and `registerDefaultContextActions` are only ever called from
+`src/lib/components/editor-built-ins.ts` :: `registerEditorBuiltIns`, which runs them as no plugin
+(G4.77). Call one anywhere else and whichever plugin's setup gets there first ends up owning the
+paragraph component or the code languages, so they'd show only where that plugin is listed, and the
+test reset would drop them. The scan covers shipped source; unit tests still call the bootstraps
+directly, outside any plugin, which is fine. `lint/file-rules.test.ts`.
 
 ## Accessibility
 

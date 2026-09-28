@@ -12,10 +12,9 @@ import {
 	markGrammarConsumed
 } from './registration-pending';
 import { flushPendingRegistrationChecks } from './registration-checks';
-import { createPluginRegistry, type RegistryRecord } from './plugin-registry';
+import { createBlockKindRegistry, type RegistryRecord } from './plugin-registry';
 import { everyInstalledPlugin, resolvesIn, type PluginActivation } from './plugin-activation';
 import { pluginInstallGeneration } from './plugin-install';
-import { pluginKindOwner } from './plugin-kind';
 
 /** Created fresh for each block and read synchronously; never keep it past the call. */
 export interface OpenContext {
@@ -63,10 +62,9 @@ let orderedCache: BlockOpener[] | null = null;
 let interruptCache: { generation: number; predicates: ((lineText: string) => boolean)[] } | null =
 	null;
 
-const openers = createPluginRegistry<AnyBlockKind, BlockOpener>({
+const openers = createBlockKindRegistry<BlockOpener>({
 	label: 'registerBlockOpener',
 	isBuiltin: isBuiltinBlockKind,
-	ownerOf: pluginKindOwner,
 	onChange: () => {
 		orderedRecordsCache = null;
 		orderedCache = null;

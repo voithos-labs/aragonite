@@ -45,12 +45,10 @@
 	import TailInsert from './TailInsert.svelte';
 	import BlockMenu from './menu/BlockMenu.svelte';
 	import { createMenuPresence } from './menu/menu-presence.svelte';
-	import { registerDefaultContextActions } from './menu/default-context-actions';
 	import type { EditorSelection } from '../selection/primitives';
 	import { createWidgetSelectionState } from './image/widget-selection-state.svelte';
 	import { imageAtTarget } from './image/image-edit-commit';
 	import type { SelectedWidgetHandle } from '../selection/primitives';
-	import { bootstrapCodeLanguages } from './blocks/code/code-bootstrap';
 	import { assignIds } from '../block-id';
 	import { createDocumentSwap, initDocument } from './editor-root-document-swap';
 	import { blockNodeAt } from '../tree-operations/node-primitives';
@@ -143,12 +141,10 @@
 	import { runStartupInvariantChecks } from '../invariants/install';
 	import { assertInvariant } from '../assert';
 	import { checkMarkerCssParity } from '../invariants/marker-css-parity';
-	import { registerBuiltInBlocks } from './built-in-blocks';
+	import { registerEditorBuiltIns } from './editor-built-ins';
 	import { blockContentElAt } from './block-el-lookup';
 
-	registerBuiltInBlocks();
-	bootstrapCodeLanguages();
-	registerDefaultContextActions();
+	registerEditorBuiltIns();
 	runStartupInvariantChecks();
 
 	// `__registryEnablement` is for tests only; the intersection type keeps it off the

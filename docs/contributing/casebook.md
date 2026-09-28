@@ -211,24 +211,24 @@ registration replaces with a console note instead of throwing (a `registry` diag
 [`warnings.md`](warnings.md)'s terms); production and test keep the throw, so the contract is
 unchanged everywhere it's observed.
 
-The same no-unregister rule reaches the public API. A plugin author's suite can't re-install
-between cases without a supported entry point, so `@voithos-labs/aragonite/testing` exports
-`resetPluginPlatformForTests()`. That reset once walked a hand-kept list, and two public
-registries (block context actions, code languages) were never on it: a suite resetting in
-`beforeEach` saw one more copy of its context-menu row per case, and kept the first case's
-grammar for the rest. Now every registry is built by `createPluginRegistry`, which signs the
-store up for the reset as it builds it, so there's no list to forget. The same store records which
-plugin made each entry and answers reads only through an editor's activation, so an entry can't
-leak into an editor that didn't list its plugin either. What the store can't reach is a copy kept
-outside it: highlight.js holds its own table of grammars, and the first cut of this fix left the
-first case's grammar there after the reset had cleared the registry. So that copy now checks
-itself against the store on every read (`code-renderer.ts :: tokenizeBody`).
+The same no-unregister rule reaches the public API. A plugin author's suite can't re-install between
+cases without a supported entry point, so `@voithos-labs/aragonite/testing` exports
+`resetPluginPlatformForTests()`. That reset once walked a hand-kept list, and two public registries
+(block context actions, code languages) were never on it: a suite resetting in `beforeEach` saw one
+more copy of its context-menu row per case, and kept the first case's grammar for the rest. Now
+every registry is built in `src/lib/schema/plugin-registry.ts`, which signs the store up for the
+reset as it builds it, so there's no list to forget. The same store knows which plugin each entry
+belongs to: whoever registered it, unless it's keyed by a kind some plugin declared, in which case
+that plugin. It only lets an entry through to an editor that lists that plugin. What the store can't
+reach is a copy kept outside it: highlight.js holds its own table of grammars, and the first cut of
+this fix left the first case's grammar there after the reset had cleared the registry. So that copy
+now checks itself against the store on every read (`code-renderer.ts :: tokenizeBody`).
 
-**Guard:** the reset is built into `src/lib/schema/plugin-registry.ts` :: `createPluginRegistry`,
-and `src/lib/test/plugins/testing-barrel.test.ts` reads the plugin barrel's own exports, so a new
-public `register*` or `declare*` without a probe fails the suite. The registry coherence family
-(G1.2, G1.10, G1.17, G1.18) sweeps the live registry in the registration-check flush at editor
-mount, one guard call per check (trimmed):
+**Guard:** the reset is built into `src/lib/schema/plugin-registry.ts` :: `buildRegistry`, the one
+function behind every registry constructor, and `src/lib/test/plugins/testing-barrel.test.ts` reads
+the plugin barrel's own exports, so a new public `register*` or `declare*` without a probe fails the
+suite. The registry coherence family (G1.2, G1.10, G1.17, G1.18) sweeps the live registry in the
+registration-check flush at editor mount, one guard call per check (trimmed):
 
 ```ts
 // src/lib/schema/registration-checks.ts :: flushPendingRegistrationChecks

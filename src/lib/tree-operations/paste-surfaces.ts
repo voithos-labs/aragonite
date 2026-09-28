@@ -3,8 +3,7 @@ import type { LineEnding } from '../core/lines';
 import type { Reading } from '../schema/reading';
 import type { PasteCommitCoordinator } from './paste/paste-deps';
 import type { PluginActivation } from '../schema/plugin-activation';
-import { createPluginRegistry } from '../schema/plugin-registry';
-import { pluginKindOwner } from '../schema/plugin-kind';
+import { createBlockKindRegistry } from '../schema/plugin-registry';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -66,10 +65,9 @@ export interface PasteSurface {
 
 // ── Registry ───────────────────────────────────────────────────────────────
 
-const surfaces = createPluginRegistry<AnyBlockKind, PasteSurface>({
+const surfaces = createBlockKindRegistry<PasteSurface>({
 	label: 'registerPasteSurface',
-	isBuiltin: isBuiltinBlockKind,
-	ownerOf: pluginKindOwner
+	isBuiltin: isBuiltinBlockKind
 });
 
 export function registerPasteSurface(surface: PasteSurface): void {
@@ -80,8 +78,8 @@ export function registerPasteSurface(surface: PasteSurface): void {
 	);
 }
 
-/** The kind's surface in an editor with this activation; a plugin's surface is absent where the
- *  editor left that plugin out, so the paste takes the default hooks. */
+/** The kind's surface in an editor with this activation; a plugin kind's surface is absent where
+ *  the editor left out the kind's plugin, so the paste takes the default hooks. */
 export function getPasteSurface(
 	kind: AnyBlockKind,
 	activation: PluginActivation
