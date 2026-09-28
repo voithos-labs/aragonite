@@ -1,6 +1,6 @@
 import { type Locator, type Page } from '@playwright/test';
 import { test, expect } from '../../fixtures';
-import { waitForEditorHydrated } from '../../page-probes';
+import { gotoReady } from '../../goto-ready';
 import { repeatedWordInParagraph } from '../../showcase-document';
 
 // The `/` showcase as a page embedding the editor (requirements/plugins/showcase-occurrences.md):
@@ -97,9 +97,7 @@ async function expectMarksPainted(page: Page): Promise<void> {
 test.describe('/ showcase occurrence highlight', () => {
 	test.beforeEach(async ({ page }) => {
 		test.skip(target === null, 'no paragraph in the demo document repeats a four-letter word');
-		await page.goto('/');
-		// The route is server-rendered, and a click before hydration reaches no handler.
-		await waitForEditorHydrated(page);
+		await gotoReady(page, '/', '__parityDocuments');
 	});
 
 	test(`the header toggle is what lights the other "${WORD}"s`, async ({ page }) => {

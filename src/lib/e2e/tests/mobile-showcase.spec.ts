@@ -1,5 +1,5 @@
 import { test, expect } from '../fixtures';
-import { waitForEditorHydrated } from '../page-probes';
+import { gotoReady } from '../goto-ready';
 import { repeatedWordInParagraph } from '../showcase-document';
 
 // The `/` showcase at phone width, the only place these defects appear: at the fixed 1280
@@ -13,8 +13,7 @@ test.use({ viewport: PHONE, hasTouch: true });
 
 test.describe('/ showcase on a phone', () => {
 	test.beforeEach(async ({ page }) => {
-		await page.goto('/');
-		await waitForEditorHydrated(page);
+		await gotoReady(page, '/', '__parityDocuments');
 	});
 
 	test('neither the page nor the document pans sideways', async ({ page }) => {

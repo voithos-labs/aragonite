@@ -1,5 +1,6 @@
 import { test, expect } from '../fixtures';
 import { type Page } from '@playwright/test';
+import { gotoReady } from '../goto-ready';
 
 // Two editors over one seed, one with `syntax={{ indentedCode: false, setextHeading: false }}`.
 // Requirements: `e2e/requirements/syntax-prop.md`.
@@ -32,8 +33,7 @@ async function expectBothConverge(page: Page): Promise<void> {
 
 test.describe('the syntax prop switches a syntax off in one editor', () => {
 	test.beforeEach(async ({ page }) => {
-		await page.goto('/test/syntax');
-		await page.waitForFunction(() => '__syntax' in window);
+		await gotoReady(page, '/test/syntax', '__syntax');
 		await paneOf(page, 'off').locator('[data-block-kind]').first().waitFor();
 		await paneOf(page, 'on').locator('[data-block-kind]').first().waitFor();
 	});

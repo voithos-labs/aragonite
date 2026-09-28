@@ -1,5 +1,5 @@
 import { test, expect } from '../fixtures';
-import { waitForEditorHydrated } from '../page-probes';
+import { gotoReady, reloadReady } from '../goto-ready';
 import { SHOWCASE_MD, scanShowcase } from '../showcase-document';
 
 // The `/` showcase header: theme, drag handles, the debug panel, and the table of contents as
@@ -10,12 +10,11 @@ import { SHOWCASE_MD, scanShowcase } from '../showcase-document';
 
 test.describe('/ showcase chrome', () => {
 	test.beforeEach(async ({ page }) => {
-		await page.goto('/');
+		await gotoReady(page, '/', '__parityDocuments');
 		// One storage key holds the panel's state on both routes that mount it, so "closed by
 		// default" below only holds by luck until the key is cleared.
 		await page.evaluate(() => localStorage.removeItem('aragonite.debug-panel.state.v1'));
-		await page.reload();
-		await waitForEditorHydrated(page);
+		await reloadReady(page, '__parityDocuments');
 	});
 
 	test('seeds the demo document with a live outline', async ({ page }) => {

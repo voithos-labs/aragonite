@@ -1,6 +1,7 @@
 import { test, expect } from '../../fixtures';
 import { type Page } from '@playwright/test';
 import { activeBlockPath } from './helpers';
+import { gotoReady } from '../../goto-ready';
 
 type Pane = 'listing' | 'notListing';
 
@@ -16,13 +17,11 @@ const sourceOf = (page: Page, pane: Pane) =>
 // The `?reads` variant of the two-editor page, in live mode: the first editor lists emoji and
 // latex, the second lists neither, and both list the toc and footnotes
 // (requirements/plugins/plugins-prop-scoped-reads.md).
-test.describe('checks and plugin reads follow the plugins prop', () => {
-	test.beforeEach(async ({ page }) => {
-		await page.goto('/test/plugins/activation?reads');
-		await page.getByTestId('editor-not-listing').locator('[data-block-kind]').first().waitFor();
-		await page.waitForFunction(() => '__activation' in window);
-	});
+test.beforeEach(async ({ page }) => {
+	await gotoReady(page, '/test/plugins/activation?reads', '__activation');
+});
 
+test.describe('checks and plugin reads follow the plugins prop', () => {
 	test('Mod+K over a shortcode the editor draws as text opens the link card', async ({ page }) => {
 		const pane = page.getByTestId('editor-not-listing');
 		await pane.locator('[data-block-kind="paragraph"]').filter({ hasText: 'smile' }).click();
@@ -49,9 +48,7 @@ test.describe('checks and plugin reads follow the plugins prop', () => {
 
 test.describe('a plugin reads inline syntax the way its editor draws it', () => {
 	test.beforeEach(async ({ page }) => {
-		await page.goto('/test/plugins/activation?reads');
 		await page.getByTestId('editor-not-listing').locator('.toc-block-item').first().waitFor();
-		await page.waitForFunction(() => '__activation' in window);
 	});
 
 	test('the toc label reads the dollars as text only in the editor without latex', async ({
@@ -66,9 +63,7 @@ test.describe('a plugin reads inline syntax the way its editor draws it', () => 
 // `n $[^x]$ m [^y]` sits at block 4 and the definition of x at block 5.
 test.describe('footnotes number the references their editor draws', () => {
 	test.beforeEach(async ({ page }) => {
-		await page.goto('/test/plugins/activation?reads');
 		await page.getByTestId('editor-not-listing').locator('.footnote-ref').first().waitFor();
-		await page.waitForFunction(() => '__activation' in window);
 	});
 
 	test('a reference inside dollars the editor draws as text takes the first number', async ({

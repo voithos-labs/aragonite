@@ -1,15 +1,9 @@
 import { test, expect } from '../fixtures';
 import { EditorPage } from '../editor-page';
+import { reloadReady } from '../goto-ready';
 import { DEFAULT_CONTENT } from '../test-content';
 
 const TOGGLE_CHORD = 'ControlOrMeta+Shift+D';
-
-async function reloadHarness(editor: EditorPage): Promise<void> {
-	await editor.page.reload();
-	await editor.page.waitForFunction(() => (window as any).__test !== undefined, null, {
-		timeout: 10_000
-	});
-}
 
 test.describe('debug panel', () => {
 	let editor: EditorPage;
@@ -18,7 +12,7 @@ test.describe('debug panel', () => {
 		editor = new EditorPage(page);
 		await editor.goto();
 		await editor.page.evaluate(() => localStorage.removeItem('aragonite.debug-panel.state.v1'));
-		await reloadHarness(editor);
+		await reloadReady(editor.page, '__test');
 		await editor.loadContent(DEFAULT_CONTENT);
 	});
 
@@ -36,7 +30,7 @@ test.describe('debug panel', () => {
 		await editor.page.keyboard.press(TOGGLE_CHORD);
 		await expect(editor.page.locator('.debug-panel')).toBeVisible();
 
-		await reloadHarness(editor);
+		await reloadReady(editor.page, '__test');
 
 		await expect(editor.page.locator('.debug-panel')).toBeVisible();
 	});

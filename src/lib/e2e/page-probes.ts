@@ -56,14 +56,6 @@ export function watchPageFailures(page: Page): PageFailures {
 	};
 }
 
-// Demo routes render their editor on the server, so a click before hydration reaches no handler.
-// `trackParityDocument` registers from a client-only effect, which makes its arrival the signal.
-export function waitForEditorHydrated(page: Page): Promise<unknown> {
-	return page.waitForFunction(
-		() => ((window as { __parityDocuments?: unknown[] }).__parityDocuments ?? []).length > 0
-	);
-}
-
 // A fixed instant rather than the wall clock, advanced one second so a timer set during setup
 // fires before the page stops ticking (G4.48).
 const FROZEN_AT = new Date('2026-01-01T00:00:00Z');
