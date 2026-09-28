@@ -907,6 +907,8 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.71 | An emptiness test on text reads GFM's blank, not `String.trim()`                 | L       |
 | G4.72 | The Markdown grammar reads GFM's whitespace, not JS `\s` or `trim()`             | L       |
 | G4.73 | Every editable-leaf component publishes `afterSourceCommit`                      | L       |
+| G4.75 | A leaf's new text goes through one commit or one in-place write, at every depth  | L       |
+| G4.76 | Every join into a leaf, and every other text built from two sources, is declared | L       |
 
 ### The entries
 
@@ -1141,14 +1143,15 @@ documents). `lint/call-site-rules.test.ts`.
 
 **G4.28 · Leaf raw writes outside the content write.** The content write applies a kind's `rawWrite`
 on its own, but a few routes still write `<node>.raw` around it (the range-delete merges, and find
-and replace's private clone, which asks `legalizeWrite` for the bytes itself). The lint holds one
-thing: every `<node>.raw =` statement outside `tree-operations/node-primitives.ts` (home of
+and replace's private clone, which asks `legalizeWrite` for the bytes itself). The lint counts
+those writes: every `<node>.raw =` statement outside `tree-operations/node-primitives.ts` (home of
 `writeOwnRaw` and `installOwnRaw`) is on a counted allowlist, each with the reason it can't reach a
-kind that declares a rule. Whether a route hands its bytes to `normalizeOwnRaw` or `legalizeWrite`
-before writing them is left to review; the lint doesn't read that. That's the shape issue #45
-shipped through: find and replace wrote a fence terminator into a code body because nothing asked
-the fence rule. The fence rule itself has one implementation, in `schema/` so a headless route
-reaches it. `lint/leaf-raw-write-rule.test.ts`.
+kind that declares a rule. An `installOwnRaw` call counts too, anywhere but that file and the
+content write, since it writes whatever bytes it's handed. Whether a route hands its bytes to
+`normalizeOwnRaw` or `legalizeWrite` before writing them is left to review; the lint doesn't read
+that. That's the shape issue #45 shipped through: find and replace wrote a fence terminator into
+a code body because nothing asked the fence rule. The fence rule itself has one implementation, in
+`schema/` so a headless route reaches it. `lint/leaf-raw-write-rule.test.ts`.
 
 **G4.29 · Hardcoded-chord manifest.** Every library file that reads a `KeyboardEvent` modifier flag
 is named in `schema/reserved-chords.ts`, with the chords it claims outside the keymaps and the key
@@ -1575,6 +1578,39 @@ but a host's `editor.runCommand('block.moveDown')` reaches the component, so it 
 to write the source first. `BlockComponent` declares it optional, so leaf N+1 would compile clean
 and lose the edit on every such move. A third-party plugin is outside the scan and gets the same one-line re-export in
 the plugin guide. `lint/file-rules.test.ts`.
+
+**G4.75 · One leaf write.** New text for a leaf is written one way at every depth: a commit through
+`src/lib/editor-actions/block-edit-core.ts` :: `commitLeafText`, or the keystroke's in-place write,
+`src/lib/editor-actions/leaf-write.ts` :: `writeLeafInPlace`. The write is a few steps, and each
+step gets its own short list of files allowed to name it (so an aliased import counts too):
+
+- the content write itself (`updateNodeContent`), which only those two, the keystroke's trial
+  reparse and the container-matching paste (a list or a quote pasted into its own kind) call
+- a write in place that skips the reparse (`writeOwnRaw`, `installOwnRaw`), left to table cells,
+  the range writes and find and replace's private copy
+- the document as a body with no owner and its trailing blank line, which only `documentBody`
+  builds, so no route can hand the document in as a container. The one other hand-built body is
+  the keystroke's trial reparse, which wraps a throwaway copy that never reaches the document
+- the task-marker reconcile, once each in the content write, the join and `replaceBlock`
+- a replacement's escape for its container, in `replaceBlock` alone
+- the typing batch (push, join, pause), in `typeInLeaf` alone, so every depth groups its undo the
+  same way
+- the chain-depth check (G1.20), in the in-place write alone
+
+A new route that copies any of these instead of calling the shared writer fails with that step's
+reason, and each allowed file carries its own. The content version and the join have scans of
+their own (G4.52, G4.76). `lint/leaf-write-doors.test.ts`.
+
+**G4.76 · Joins into a leaf.** Two texts joined into one leaf go through
+`src/lib/tree-operations/node-ops.ts` :: `joinIntoLeaf`: the join cleanup, the kind's rule, the
+container's rule, and a reparse that may change the kind. The scan declares every file calling
+`joinIntoLeaf` and every file naming the cleanup (`cleanJoinedRaw`), each with what it joins. It
+also reads the text each file hands a leaf: a `.raw =`, or the argument of a leaf write
+(`writeOwnRaw`, `normalizeOwnRaw`, `legalizeWrite`, `commitLeafText`, the matching paste's
+`writeMergedLeaf`), with a bound name followed to its value. Text built from more than
+one source is a join, so its file names the cleanup or sits on a list of the ones that aren't, each
+with its reason (a paste or a typed character inserts between one leaf's own halves).
+`lint/cross-node-join-doors.test.ts`.
 
 ## Accessibility
 
