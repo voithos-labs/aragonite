@@ -28,7 +28,7 @@ function run(
 		fixtureReading({}, mode),
 		'keyless'
 	);
-	return { doc, caret: result.collapsedCaret };
+	return { doc, caret: result.caret(result.newDoc) };
 }
 
 describe('a range delete starting in a setext title', () => {

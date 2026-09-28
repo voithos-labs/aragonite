@@ -14,7 +14,7 @@ import { createHistoryActions } from '$lib/editor-actions/commit/history';
 import { createStandardNestedActions } from '$lib/editor-actions/nested/nested-actions';
 import type { SelectionEndpoint } from '$lib/selection/primitives';
 import { recordingFocus } from '$lib/testing/headless-actions';
-import { blockNodeAt, nodeAt } from '$lib/tree-operations/node-primitives';
+import { blockNodeAt } from '$lib/tree-operations/node-primitives';
 import {
 	makeBlockListState,
 	makeNestedActionsDeps,
@@ -36,13 +36,14 @@ interface Env {
 
 function editor(source: string): Env {
 	const h = makeTopHarness(source);
-	// Every container is mounted, as the editor's window holds them, so each has a list state.
+	// Every container is mounted, as the editor's window holds them, so each has a list state; a
+	// state keeps its node once the commit takes it, as an unmounting component does.
 	const mount = (path: number[]): void => {
-		const node = nodeAt(h.deps.doc, path);
+		const node = blockNodeAt(h.deps.doc, path);
 		node?.children?.forEach((_, i) => mount([...path, i]));
-		if (path.length > 0 && node?.children) makeBlockListState(() => blockNodeAt(h.deps.doc, path)!);
+		if (node?.children) makeBlockListState(() => blockNodeAt(h.deps.doc, path) ?? node);
 	};
-	mount([]);
+	h.deps.doc.children.forEach((_, i) => mount([i]));
 	return { h, placed: [] };
 }
 

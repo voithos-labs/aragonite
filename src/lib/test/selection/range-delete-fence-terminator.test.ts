@@ -102,7 +102,7 @@ describe('range delete that consumes a fenced code closer', () => {
 	it('restores it when a cross-block range pulls the next block into the body', () => {
 		const doc = parse('```js\nbody\n```\n\npara\n\ntail\n');
 
-		const { collapsedCaret } = rangeDelete(
+		const { caret } = rangeDelete(
 			doc,
 			coverRange(doc, { path: [0], offset: 8 }, { path: [1], offset: 2 }),
 			sharing(),
@@ -113,7 +113,7 @@ describe('range delete that consumes a fenced code closer', () => {
 		expect(serialize(doc)).toBe('```js\nbora\n```\n\ntail\n');
 		expect(doc.children.map((c) => c.kind)).toEqual(['fencedCode', 'paragraph']);
 		// The restored closer lands past the join, so the caret keeps the truncation's offset.
-		expect(collapsedCaret).toEqual({ path: [0], offset: 8 });
+		expect(caret(doc)).toEqual({ path: [0], offset: 8 });
 		expectParseConverged(doc);
 	});
 

@@ -10,9 +10,8 @@ import type { CstNode } from '../core/nodes';
 import { metadataOf } from '../core/nodes';
 import type { MultiScopeTarget } from '../action-contracts';
 import type { StructuralChange } from '../tree-operations/structural-change';
-import { documentBody, emptyParagraph } from '../tree-operations/node-primitives';
+import { documentBody } from '../tree-operations/node-primitives';
 import { deleteNode } from '../tree-operations/settle';
-import { documentLineEnding } from '../core/lines';
 import { expectStateForNode, getStateForNode } from '../reactivity/state-registry';
 import {
 	deleteRow as mutDeleteRow,
@@ -114,11 +113,9 @@ async function commitFullTableDelete(
 ): Promise<SelectionPoint | null> {
 	const tableIdx = start.path[0];
 	const snapshot = deleteSnapshot([tableIdx]);
-	// Read on the tree the delete left, which may hold only the filler paragraph.
+	// Read on the committed tree, which holds the block the commit gives an emptied document.
 	const survivor = () => survivorAfterRemoval(ctx.getDoc(), [tableIdx], gesture);
 
-	// Read before the delete, which can leave no block to read a line ending from.
-	const lineEnding = documentLineEnding(ctx.getDoc());
 	const wrote = await ctx.controller.commitStructural({
 		snapshot,
 		mutate: (children) => {
@@ -129,14 +126,6 @@ async function commitFullTableDelete(
 				ctx.controller.sharing
 			);
 			ctx.selection.collapse();
-			// A sole-table doc empties to zero blocks, stranding the caret on <body>. Materialize
-			// a filler in the same commit so undo restores the table in one step.
-			if (children.length === 0) {
-				const filler = emptyParagraph('', lineEnding);
-				ctx.controller.sharing.stamp(filler);
-				children.push(filler);
-				return { op: 'replace', at: 0, count: 1, newCount: 1 };
-			}
 			return change;
 		},
 		op: {

@@ -29,7 +29,7 @@ function run(source: string, start: SelectionPoint, end: SelectionPoint) {
 		fixtureReading(),
 		'keyless'
 	);
-	return { doc: result.newDoc, caret: result.collapsedCaret };
+	return { doc: result.newDoc, caret: result.caret(result.newDoc)! };
 }
 
 function isLeafAt(doc: Document, path: number[]): boolean {

@@ -21,7 +21,11 @@ function run(
 		fixtureReading(),
 		'keyless'
 	);
-	return { doc: result.newDoc, source: serialize(result.newDoc), caret: result.collapsedCaret };
+	return {
+		doc: result.newDoc,
+		source: serialize(result.newDoc),
+		caret: result.caret(result.newDoc)!
+	};
 }
 
 function isLeafAt(doc: Document, path: number[]): boolean {

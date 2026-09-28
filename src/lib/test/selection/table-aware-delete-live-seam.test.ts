@@ -39,7 +39,7 @@ function run(source: string, start: SelectionPoint, end: SelectionPoint, mode?: 
 		fixtureReading({}, mode),
 		'keyless'
 	);
-	return { source: serialize(result.newDoc), caret: result.collapsedCaret };
+	return { source: serialize(result.newDoc), caret: result.caret(result.newDoc) };
 }
 
 describe('a live table-crossing delete drops the runs its truncation stranded', () => {

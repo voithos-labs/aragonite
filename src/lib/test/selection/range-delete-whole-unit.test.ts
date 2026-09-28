@@ -31,7 +31,7 @@ function del(
 		fixtureReading(),
 		gesture
 	);
-	return { doc, caret: result.collapsedCaret };
+	return { doc, caret: result.caret(result.newDoc) };
 }
 
 describe('a range covering a whole-block-focus leaf deletes the node', () => {

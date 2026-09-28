@@ -6,6 +6,7 @@
 import type { GrammarView } from '../schema/block-openers';
 import type { Reading } from '../schema/reading';
 import type { CstNode, Document } from '../core/nodes';
+import type { DocumentView } from '../core/node-views';
 import type { SelectionPoint } from './primitives';
 import type { CoveredRange } from './range-coverage';
 import type { SharingState } from '../tree-operations/sharing';
@@ -53,7 +54,9 @@ export interface TableRowSplice {
 
 export interface RangeDeleteResult {
 	newDoc: Document;
-	collapsedCaret: SelectionPoint;
+	/** Where the caret goes, read on the committed tree: the commit may still give an emptied
+	 *  document its block. Null when no block holds a caret there. */
+	caret: (committed: DocumentView) => SelectionPoint | null;
 	/** Row splices made on the endpoint tables (table branch only), so the commit can update each
 	 *  table's row `BlockListState` without redoing the snap math. */
 	tableRowSplices?: TableRowSplice[];
@@ -68,15 +71,11 @@ function deleteWholeUnit(
 	grammar: GrammarView,
 	gesture: RemovalGesture
 ): RangeDeleteResult {
-	const lineEnding = documentLineEnding(doc);
 	// Deleted by path, so the commit's id bookkeeping sees the position go.
 	const chain = ensureUnsharedPath(doc, path.slice(0, -1), sharing);
 	deleteAtPath(doc, path, sharing, grammar);
 	if (chain.length > 0) rebuildUnsharedChain(doc, chain, sharing, null, grammar);
-	return {
-		newDoc: doc,
-		collapsedCaret: caretWhereRemoved(doc, path, sharing, lineEnding, gesture)
-	};
+	return { newDoc: doc, caret: (committed) => caretWhereRemoved(committed, path, gesture) };
 }
 
 /** Deletes what `range` covers in place, merging at the start's position inside its container.
@@ -164,10 +163,8 @@ export function rangeDelete(
 		const parent = nodeAt(doc, start.path.slice(0, -1));
 		if (parent) settleSeparatorOnBlank(parent, start.path[start.path.length - 1], sharing);
 		rebuildUnsharedAncestry(doc, start.path, sharing, null, grammar);
-		return {
-			newDoc: doc,
-			collapsedCaret: { path: start.path.slice(), offset: Math.max(0, joined.seam + shift) }
-		};
+		const joinAt = { path: start.path.slice(), offset: Math.max(0, joined.seam + shift) };
+		return { newDoc: doc, caret: () => joinAt };
 	}
 
 	// walkBetween includes ancestors of `end` whose subtrees extend past it, so filter to
@@ -200,8 +197,8 @@ export function rangeDelete(
 		path: start.path.slice(),
 		offset: Math.max(0, joined.seam + shift)
 	};
-	const collapsedCaret =
+	const landing =
 		caretPointFor(doc, { path: docPathFrom(joinAt.path), offset: joinAt.offset }) ?? joinAt;
 
-	return { newDoc: doc, collapsedCaret };
+	return { newDoc: doc, caret: () => landing };
 }

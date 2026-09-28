@@ -19,7 +19,7 @@ function run(
 		fixtureReading(),
 		'keyless'
 	);
-	return { source: serialize(result.newDoc), caret: result.collapsedCaret };
+	return { source: serialize(result.newDoc), caret: result.caret(result.newDoc) };
 }
 
 describe('rangeDelete: same-container cases', () => {

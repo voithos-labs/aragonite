@@ -1,5 +1,6 @@
 import type { CstNode, Document } from '../core/nodes';
 import type { GrammarView } from '../schema/block-openers';
+import { mustHoldChild } from '../schema/block-kind-descriptor';
 import type { SharingState } from './sharing';
 import { spliceChildrenSettled } from './settle';
 import { ensureUnsharedPath } from './unshare';
@@ -23,7 +24,7 @@ export function cascadeCleanupEmptyAncestors(
 		if (!parent.children) break;
 		const idx = currentPath[currentPath.length - 1];
 		const node = parent.children[idx];
-		if (!node || !node.children || node.children.length > 0) break;
+		if (!node || !mustHoldChild(node.kind) || (node.children?.length ?? 0) > 0) break;
 		spliceChildrenSettled(parent, idx, 1, [], grammar, sharing);
 		currentPath = parentPath;
 	}

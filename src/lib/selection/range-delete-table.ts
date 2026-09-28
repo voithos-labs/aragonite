@@ -13,7 +13,7 @@ import type { SelectionPoint } from './primitives';
 import type { RangeDeleteResult } from './range-delete';
 import type { CoveredRange } from './range-coverage';
 import type { SharingState } from '../tree-operations/sharing';
-import { displayLength, documentLineEnding } from '../core/lines';
+import { displayLength } from '../core/lines';
 import { cellRectBounds, cellRowCol } from '../cursor/coordinate-spaces';
 import { cellIndexOf } from './primitives';
 import {
@@ -113,11 +113,8 @@ function deleteWithinTable(
 	const cellsPerRow = meta.columnCount;
 	const { row: anchorRow, col: anchorCol } = cellRowCol(startCell, cellsPerRow);
 
-	return {
-		newDoc: doc,
-		collapsedCaret: { path: [...start.path, anchorRow, anchorCol], offset: 0 },
-		tableRowSplices: []
-	};
+	const anchor = { path: [...start.path, anchorRow, anchorCol], offset: 0 };
+	return { newDoc: doc, caret: () => anchor, tableRowSplices: [] };
 }
 
 function clearRectangularCells(table: CstNode, anchorCellIdx: number, focusCellIdx: number): void {
@@ -144,7 +141,6 @@ function deleteFromProseIntoTable(
 	reading: Reading
 ): RangeDeleteResult {
 	const { start, end } = range;
-	const lineEnding = documentLineEnding(doc);
 	const startC = nearestChromeContainer(doc, start.path);
 	const startIsChrome = startC !== null && isChromeChild(startC, start.path);
 	const startTaken = range.unitHolding(start.path);
@@ -186,11 +182,10 @@ function deleteFromProseIntoTable(
 	rebuildSharedAncestries(doc, plan, sharing, grammar);
 	if (tableSurvives) rebuildUnsharedAncestry(doc, survivorPath(doc, table), sharing, null, grammar);
 
+	const joinAt = { path: start.path.slice(), offset: seam };
 	return {
 		newDoc: doc,
-		collapsedCaret: startTaken
-			? caretWhereRangeResumes(doc, startTaken, sharing, lineEnding)
-			: { path: start.path.slice(), offset: seam },
+		caret: startTaken ? (committed) => caretWhereRangeResumes(committed, startTaken) : () => joinAt,
 		tableRowSplices: splice ? [{ table, ...splice }] : []
 	};
 }
@@ -208,7 +203,6 @@ function deleteFromTableIntoProse(
 ): RangeDeleteResult {
 	const { grammar } = reading;
 	const { start, end } = range;
-	const lineEnding = documentLineEnding(doc);
 	const startCell = cellIndexOf(start, 'deleteFromTableIntoProse:start');
 	const { result: tableResult, splice } = deleteCellsAndCollapse(
 		table,
@@ -254,16 +248,13 @@ function deleteFromTableIntoProse(
 
 	// A fully consumed table lands the caret at the start of the surviving tail; otherwise in the
 	// table's surviving anchor cell, or the nearest survivor when the tail went too.
-	const collapsedCaret: SelectionPoint =
-		tableResult === 'tableEmpty'
-			? tailPath
-				? { path: tailPath, offset: 0 }
-				: caretWhereRemoved(doc, start.path, sharing, lineEnding, gesture)
-			: survivingAnchorCellCaret(table, start.path, startCell);
-
+	const kept: SelectionPoint | null =
+		tableResult !== 'tableEmpty'
+			? survivingAnchorCellCaret(table, start.path, startCell)
+			: tailPath && { path: tailPath, offset: 0 };
 	return {
 		newDoc: doc,
-		collapsedCaret,
+		caret: kept ? () => kept : (committed) => caretWhereRemoved(committed, start.path, gesture),
 		tableRowSplices: splice ? [{ table, ...splice }] : []
 	};
 }
@@ -305,7 +296,6 @@ function deleteAcrossTwoTables(
 	gesture: RemovalGesture
 ): RangeDeleteResult {
 	const { start, end } = range;
-	const lineEnding = documentLineEnding(doc);
 	const startCell = cellIndexOf(start, 'deleteAcrossTwoTables:start');
 	const { result: startResult, splice: startSplice } = deleteCellsAndCollapse(
 		startTable,
@@ -339,22 +329,24 @@ function deleteAcrossTwoTables(
 	}
 	rebuildSharedAncestries(doc, plan, sharing, grammar);
 
-	let collapsedCaret: SelectionPoint;
+	let kept: SelectionPoint | null = null;
 	if (startResult === 'tableSurvives') {
 		// The start table keeps its position (deletions are all at or after `start.path`).
-		collapsedCaret = survivingAnchorCellCaret(startTable, start.path, startCell);
+		kept = survivingAnchorCellCaret(startTable, start.path, startCell);
 	} else if (endTablePath) {
 		// Start emptied, so its block went and the end table shifted; land in its first cell.
-		collapsedCaret = { path: [...endTablePath, 0, 0], offset: 0 };
-	} else {
-		collapsedCaret = caretWhereRemoved(doc, start.path, sharing, lineEnding, gesture);
+		kept = { path: [...endTablePath, 0, 0], offset: 0 };
 	}
 
 	const tableRowSplices = [
 		...(startSplice ? [{ table: startTable, ...startSplice }] : []),
 		...(endSplice ? [{ table: endTable, ...endSplice }] : [])
 	];
-	return { newDoc: doc, collapsedCaret, tableRowSplices };
+	return {
+		newDoc: doc,
+		caret: kept ? () => kept : (committed) => caretWhereRemoved(committed, start.path, gesture),
+		tableRowSplices
+	};
 }
 
 // ── Post-delete path resolution (identity scan; cost class in the file header) ─

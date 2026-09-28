@@ -33,7 +33,11 @@ function run(doc: Document, start: SelectionPoint, end: SelectionPoint) {
 		fixtureReading(),
 		'keyless'
 	);
-	return { doc: result.newDoc, source: serialize(result.newDoc), caret: result.collapsedCaret };
+	return {
+		doc: result.newDoc,
+		source: serialize(result.newDoc),
+		caret: result.caret(result.newDoc)
+	};
 }
 
 describe('rangeDelete table branch: covered containers die whole', () => {

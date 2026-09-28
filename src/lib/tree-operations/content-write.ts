@@ -26,6 +26,7 @@ import {
 import { assignChildIdsDeep, idsAcrossReread } from '../block-id';
 import {
 	getBlockKindDescriptor,
+	mustHoldChild,
 	tryGetBlockKindDescriptor,
 	type WriteContext,
 	type WriteMode
@@ -371,8 +372,7 @@ export function adoptReparsedFields(target: CstNode, parsed: CstNode | undefined
 
 /** A container `ensureEditableContainers` will backfill; read before the backfill runs. */
 function isEmptyEditableContainer(node: CstNode): boolean {
-	const d = getBlockKindDescriptor(node.kind);
-	return d.isContainer && d.blockFocus !== 'whole-block' && (node.children?.length ?? 0) === 0;
+	return mustHoldChild(node.kind) && (node.children?.length ?? 0) === 0;
 }
 
 // ── Container kind re-derivation ──
