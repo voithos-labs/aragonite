@@ -6,14 +6,10 @@
 
 import type { AnyBlockKind, CstNode, Document } from '../core/nodes';
 import type { DocumentView, NodeView } from '../core/node-views';
-import { isBlankParagraph, readBlocks } from '../core/parser';
+import { isBlankParagraph } from '../core/parser';
 import { escalatedFenceLength, matchFenceOpen } from '../core/parsers/fence-syntax';
 import { isBlockOpenerRegistered, type GrammarView } from '../schema/block-openers';
-import {
-	adoptParsedMetadata,
-	parseContainerRaw,
-	rebuildContainerRaw
-} from '../schema/container-raw';
+import { lineOpensAs, parseContainerRaw, rebuildContainerRaw } from '../schema/container-raw';
 import {
 	displayLines,
 	documentLineEnding,
@@ -376,14 +372,6 @@ function isEmptyEditableContainer(node: CstNode): boolean {
 
 // ── Container kind re-derivation ──
 
-/**
- * What the grammar opens `line` as, read in isolation: asked of the opener registry and never
- * a kind list, so a kind registered later is covered the day it registers.
- */
-export function lineOpensAs(line: string, grammar: GrammarView): AnyBlockKind {
-	return readBlocks(`${line}\n`, { grammar, scope: 'fragment' }).children[0]?.kind ?? 'paragraph';
-}
-
 /** Whether the grammar in effect still leaves `NEXT_PROSE_LINE` an ordinary paragraph. */
 export function probeLineOpensAsProse(grammar: GrammarView): boolean {
 	return lineOpensAs(NEXT_PROSE_LINE, grammar) === 'paragraph';
@@ -404,17 +392,16 @@ export function reclassifyContainer(
 	return replaceWithParse(parent, index, parseContainerRaw(node.raw, grammar), grammar);
 }
 
-/** {@link reclassifyContainer} for an opaque container, which takes the metadata of a parse that
- *  keeps its kind, from the same one parse. */
-export function rederiveOpaqueContainer(
+/** The container at `index` replaced by `parsed`, its bytes' reading, when that is one block of
+ *  another kind; only a kind with an opener qualifies, as in {@link reclassifyContainer}. */
+export function reclassifyFromParse(
 	parent: NodeParent,
 	index: number,
+	parsed: CstNode[],
 	grammar: GrammarView
 ): CstNode | null {
 	const node = parent.children[index];
-	if (!node) return null;
-	const parsed = parseContainerRaw(node.raw, grammar);
-	if (adoptParsedMetadata(node, parsed) || !isBlockOpenerRegistered(node.kind)) return null;
+	if (!node || !isBlockOpenerRegistered(node.kind)) return null;
 	return replaceWithParse(parent, index, parsed, grammar);
 }
 

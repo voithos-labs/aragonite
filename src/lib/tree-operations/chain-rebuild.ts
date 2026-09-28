@@ -10,13 +10,12 @@ import type { NodeParent } from './node-primitives';
 import type { StructuralChange } from './structural-change';
 import { dropChildSpans, type ChildRawChange } from '../schema/child-spans';
 import type { GrammarView } from '../schema/block-openers';
-import { getBlockKindDescriptor } from '../schema/block-kind-descriptor';
-import { firstLine, lastLine } from '../schema/container-raw';
+import { firstLine, followBytes, lastLine } from '../schema/container-raw';
 import { reservedChromeKindOf } from '../schema/reserved-chrome';
 import { perfEnabled, recordRebuildDepth } from '../perf/instruments';
 import { rebuildOwnedContainer, walkUnsharing } from './unshare';
 import { absorbWindowSeams, type TrackedPosition } from './settle';
-import { lineOpensAs, reclassifyContainer, rederiveOpaqueContainer } from './content-write';
+import { reclassifyFromParse } from './content-write';
 import { settleSublistSeparator } from './list/sublist-separator';
 
 /**
@@ -104,21 +103,16 @@ export function rebuildUnsharedChain(
 		const index = siblings ? childIndexOf(siblings, node, hint?.path[i]) : -1;
 		if (!siblings || index < 0) continue;
 
-		// An opaque container's metadata follows its bytes, so a moved outer line re-reads it.
-		const metadataMayMove =
-			getBlockKindDescriptor(node.kind).containerContract === 'opaque' &&
-			!(changed && !closerMoved && isChromeSlot(node, changed.index));
-		const kindMayChange =
-			!metadataMayMove && openerMoved && lineOpensAs(firstLine(node.raw), grammar) !== node.kind;
-		if (metadataMayMove || kindMayChange) {
-			const parent = { children: siblings };
-			const replacement = metadataMayMove
-				? rederiveOpaqueContainer(parent, index, grammar)
-				: reclassifyContainer(parent, index, grammar);
-			if (replacement) {
-				sharing.stamp(replacement);
-				reclassified.push({ siblings, index, previous: node, replacement });
-			}
+		const reading = followBytes(node, rawBefore, grammar, {
+			titleRowOnly: changed !== undefined && isChromeSlot(node, changed.index)
+		});
+		const replacement =
+			reading.outcome === 'diverged'
+				? reclassifyFromParse({ children: siblings }, index, reading.blocks, grammar)
+				: null;
+		if (replacement) {
+			sharing.stamp(replacement);
+			reclassified.push({ siblings, index, previous: node, replacement });
 		}
 		// Before the join check, which then reads the fixed-up bytes: a list rebuilt down to an
 		// empty marker must give the paragraph above it a separating line.
@@ -157,8 +151,7 @@ function childRawChange(
 	return index < 0 ? undefined : { index, previousRaw };
 }
 
-/** An opaque container's metadata never derives from its title row, so an edit to that row alone
- *  needs no re-read (`ReservedChrome`). */
+/** Whether child `index` is the container's title row, which no metadata comes from. */
 function isChromeSlot(node: CstNode, index: number): boolean {
 	const chromeKind = reservedChromeKindOf(node.kind);
 	return index === 0 && chromeKind !== undefined && node.children?.[0]?.kind === chromeKind;

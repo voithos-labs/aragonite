@@ -1,16 +1,16 @@
 /**
  * Rebuilds container `raw` up a node's ancestors, looking up `descriptor.rebuildRaw`, so a
- * plugin container joins in by declaring one. An opaque container's metadata follows its rebuilt
- * bytes (`docs/design/editor.md` § The container `raw` contract).
+ * plugin container joins in by declaring one. A container's metadata follows its rebuilt bytes
+ * (`docs/design/editor.md` § The container `raw` contract).
  */
 
-import type { CstNode } from '../core/nodes';
+import type { AnyBlockKind, CstNode } from '../core/nodes';
 import { describeMetadataDivergence } from '../core/metadata-parity';
 import { readBlocks } from '../core/parser';
-import { trimTrailingLineEnding } from '../core/lines';
+import { ownTrailingLineEnding, trimTrailingLineEnding } from '../core/lines';
 import { perfEnabled, recordContainerKindReparse } from '../perf/instruments';
 import { tryGetBlockKindDescriptor } from './block-kind-descriptor';
-import type { GrammarView } from './block-openers';
+import { isBlockOpenerRegistered, type GrammarView } from './block-openers';
 import type { ChildRawChange } from './child-spans';
 
 /**
@@ -37,8 +37,8 @@ export function rebuildAncestryRaw(root: CstNode, path: number[], grammar: Gramm
 }
 
 /**
- * Calls the `rebuildRaw` on the kind's descriptor, then re-reads an opaque container's metadata
- * if its first or last line moved; throws on a leaf.
+ * Calls the `rebuildRaw` on the kind's descriptor, then re-reads the metadata a moved outer line
+ * may carry; throws on a leaf.
  */
 export function rebuildContainerRaw(node: CstNode, grammar: GrammarView): void {
 	const rebuild = tryGetBlockKindDescriptor(node.kind)?.rebuildRaw;
@@ -49,9 +49,7 @@ export function rebuildContainerRaw(node: CstNode, grammar: GrammarView): void {
 	}
 	const rawBefore = node.raw;
 	rebuild(node);
-	if (tryGetBlockKindDescriptor(node.kind)?.containerContract !== 'opaque') return;
-	if (!outerLinesMoved(rawBefore, node.raw)) return;
-	adoptParsedMetadata(node, parseContainerRaw(node.raw, grammar));
+	followBytes(node, rawBefore, grammar);
 }
 
 /**
@@ -63,6 +61,57 @@ export function rebuildContainerRawIfContainer(node: CstNode, changed?: ChildRaw
 }
 
 // ── Metadata that follows the bytes ──────────────────────────────────────────
+
+/** What a container's position holds once its rewritten bytes are read as a reload reads them. */
+export type BytesReading =
+	| { outcome: 'kept' }
+	/** The bytes no longer read as one node of the kind: `blocks` is what they read as. */
+	| { outcome: 'diverged'; blocks: CstNode[] };
+
+export interface FollowOptions {
+	/** Only the title row changed, which no metadata comes from (`ReservedChrome`). */
+	titleRowOnly?: boolean;
+}
+
+const KEPT: BytesReading = { outcome: 'kept' };
+
+/**
+ * Reads `node`'s bytes as a reload would after a rewrite from `rawBefore`, taking in place the
+ * metadata they give it: the one place that knows which lines a kind's metadata comes from.
+ */
+export function followBytes(
+	node: CstNode,
+	rawBefore: string,
+	grammar: GrammarView,
+	options: FollowOptions = {}
+): BytesReading {
+	const opaque = tryGetBlockKindDescriptor(node.kind)?.containerContract === 'opaque';
+	const openerMoved = firstLine(rawBefore) !== firstLine(node.raw);
+	// A closing line's ending counts: an opaque container can keep it in metadata.
+	const closerMoved = closingLine(rawBefore) !== closingLine(node.raw);
+	if (opaque && (closerMoved || (openerMoved && !options.titleRowOnly))) {
+		return rereadWhole(node, grammar);
+	}
+	// Otherwise only an opener line that now opens another kind changes the reading.
+	if (!openerMoved || !isBlockOpenerRegistered(node.kind)) return KEPT;
+	if (lineOpensAs(firstLine(node.raw), grammar) === node.kind) return KEPT;
+	return rereadWhole(node, grammar);
+}
+
+/**
+ * What the grammar opens `line` as, read in isolation: asked of the opener registry and never
+ * a kind list, so a kind registered later is covered the day it registers.
+ */
+export function lineOpensAs(line: string, grammar: GrammarView): AnyBlockKind {
+	return readBlocks(`${line}\n`, { grammar, scope: 'fragment' }).children[0]?.kind ?? 'paragraph';
+}
+
+const closingLine = (raw: string): string => lastLine(raw) + ownTrailingLineEnding(raw);
+
+function rereadWhole(node: CstNode, grammar: GrammarView): BytesReading {
+	const blocks = parseContainerRaw(node.raw, grammar);
+	return adoptParsedMetadata(node, blocks) ? KEPT : { outcome: 'diverged', blocks };
+}
 
 /**
  * Takes the metadata a parse of `node`'s own bytes derived, so the next rebuild reads what a
@@ -81,10 +130,6 @@ export function adoptParsedMetadata(node: CstNode, parsed: readonly CstNode[]): 
 export function parseContainerRaw(raw: string, grammar: GrammarView): CstNode[] {
 	if (perfEnabled()) recordContainerKindReparse();
 	return readBlocks(raw, { grammar, scope: 'fragment' }).children;
-}
-
-export function outerLinesMoved(rawBefore: string, rawAfter: string): boolean {
-	return firstLine(rawBefore) !== firstLine(rawAfter) || lastLine(rawBefore) !== lastLine(rawAfter);
 }
 
 export function firstLine(raw: string): string {
