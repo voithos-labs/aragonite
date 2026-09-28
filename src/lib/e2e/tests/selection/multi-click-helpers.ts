@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test';
 import { BLOCK_CONTENT_SELECTOR } from '../../editor-page';
-import { textRunRect, widgetCenter, type Point } from '../../text-runs';
+import { pointInGap, textRunRect, widgetCenter, type Point } from '../../text-runs';
 
 /** The center of a top-level block's box: the aim point for a block that renders no text. */
 export function blockCenter(page: Page, index: number): Promise<{ x: number; y: number }> {
@@ -45,19 +45,13 @@ export async function pastLineEnd(page: Page, needle: string): Promise<Point> {
 	return { x: run.right + 40, y: run.top + run.height / 2 };
 }
 
-/** A point in the gutter left of the editable holding `needle`: a container's own box. */
+/** The middle of the gutter between a container's own box and the editable holding `needle`. */
 export async function gutterLeftOf(page: Page, needle: string): Promise<Point> {
 	const run = await textRunRect(page, needle);
-	const left = await page.evaluate(
-		({ path, content }) =>
-			document
-				.querySelector(`[data-block-path='${JSON.stringify(path)}']`)
-				?.querySelector(content)
-				?.getBoundingClientRect().left ?? null,
-		{ path: run.path, content: BLOCK_CONTENT_SELECTOR }
-	);
-	if (left === null) throw new Error(`no editable holds ${JSON.stringify(needle)}`);
-	return { x: left - 12, y: run.top + run.height / 2 };
+	if (!run.path || run.path.length < 2) throw new Error(`no container holds ${needle}`);
+	const host = (path: number[]) => page.locator(`[data-block-path='${JSON.stringify(path)}']`);
+	const editable = host(run.path).locator(BLOCK_CONTENT_SELECTOR).first();
+	return pointInGap(host(run.path.slice(0, -1)), editable, 'left', run.top + run.height / 2);
 }
 
 /** The center of the `- ` marker the container draws inside the editable holding `needle`: a

@@ -1,5 +1,6 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
+import { pointInGap } from '../../text-runs';
 
 // The public caret-placing method, driven through the bridge the way a host shell answering a
 // click on its own toolbar calls it (`requirements/selection/place-caret-at-point.md`). No
@@ -54,10 +55,15 @@ test.describe('placeCaretAtPoint is the host shell’s caret entry point', () =>
 	test('a point beside a line lands the caret at the end of that line', async () => {
 		// Long enough to wrap, so "end of that line" and "end of the block" differ.
 		await editor.loadContent(`${'alpha '.repeat(60).trim()}\n`);
-		const root = await rootBox();
 		const para = await blockBox(0);
+		const margin = await pointInGap(
+			editor.editorContainer,
+			editor.getBlock(0),
+			'right',
+			para.top + 6
+		);
 
-		expect(await placeAt(root.right - 5, para.top + 6)).toBe(true);
+		expect(await placeAt(margin.x, margin.y)).toBe(true);
 		await editor.typeText('!');
 		await editor.bridge.waitForSourceContains('!');
 

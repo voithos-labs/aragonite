@@ -1,5 +1,6 @@
 import { test, expect } from '../../fixtures';
 import { BlockMathPage } from './latex-reveal-helpers';
+import { pointInGap } from '../../text-runs';
 
 /**
  * Where a click on a `$$` block puts the caret (requirements/plugins/latex-block-click-caret.md):
@@ -44,13 +45,16 @@ test.describe('block math: a click puts the caret where it landed', () => {
 	});
 
 	test('a click in the card beside the ink takes the nearest glyph', async () => {
-		const card = await editor.render.boundingBox();
 		const glyphs = await glyphBox();
-		if (!card) throw new Error('no render card box');
 		// Left of the glyphs but inside the box: the margin-click spec checks this opens the source,
 		// and the point clamps into the glyph box, so the nearest glyph is the first.
-		expect(glyphs.x).toBeGreaterThan(card.x + 2);
-		await editor.page.mouse.click(card.x + 1, card.y + card.height / 2);
+		const beside = await pointInGap(
+			editor.render,
+			editor.page.locator('.katex-html').first(),
+			'left',
+			glyphs.y + glyphs.height / 2
+		);
+		await editor.page.mouse.click(beside.x, beside.y);
 		await expect(editor.source).toHaveCount(1);
 
 		await editor.page.keyboard.type('z');

@@ -1,5 +1,6 @@
 import type { Gestures } from '../gestures';
 import { clickInlineWidget, escapeRevealToCommit } from './math';
+import { pointInGap } from '../../text-runs';
 import {
 	type SimContext,
 	assertParseConvergence,
@@ -311,14 +312,12 @@ async function lastBlockBottom(ctx: SimContext): Promise<number> {
  * and so lands at the top level, which is where every prediction here counts offsets.
  */
 async function clickInRightMargin(ctx: SimContext): Promise<undefined> {
-	const root = await editorBox(ctx);
 	const index = (await topLevelLeaves(ctx))[0];
-	const top = await ctx.page.evaluate((i) => {
-		const block = document.querySelector(`[data-block-path='${JSON.stringify([i])}']`);
-		if (!block) throw new Error(`no block host at index ${i}`);
-		return block.getBoundingClientRect().top;
-	}, index);
-	await ctx.page.mouse.click(root.right - 5, top + 6);
+	const block = ctx.page.locator(`[data-block-path='${JSON.stringify([index])}']`);
+	const box = await block.boundingBox();
+	if (!box) throw new Error(`no block host at index ${index}`);
+	const margin = await pointInGap(ctx.page.locator('.editor'), block, 'right', box.y + 6);
+	await ctx.page.mouse.click(margin.x, margin.y);
 	return undefined;
 }
 
