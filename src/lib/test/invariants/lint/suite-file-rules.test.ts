@@ -17,6 +17,8 @@ const spyCall = (mark: string, channel: string) =>
 const clockRead = (host: string) => `const t = ${host}.now();`;
 const depsField = (name: string) => `const deps = { ${name}: refSlotsOver(refs) };`;
 const timerWait = (timer: string) => `await new Promise((r) => ${timer}(r));`;
+const lexCall = (verb: 'lexical' | 'strip', args: string) =>
+	`${verb}${verb === 'lexical' ? 'Classes' : 'Comments'}(${args})`;
 
 const SUITE_DIRS = ['src/lib/test/', 'src/lib/e2e/'];
 const PERF_DIRS = ['src/lib/test/perf/', 'src/lib/e2e/tests/perf/'];
@@ -84,15 +86,13 @@ const RULES: FileRule[] = [
 		]
 	},
 	{
-		id: 'a lint reads source through the shared lexer and collector',
-		population: under(...LINT_DIRS),
-		matches: (file) => handRolledLexing(file.code).length > 0,
+		id: 'a suite file reads source through the shared lexer and collector',
+		population: under(...SUITE_DIRS),
+		matches: (file) => handRolledLexing(file).length > 0,
 		allowed: {
 			'src/lib/test/invariants/lint/scan-source.ts': 'the shared lexer and collector',
-			'src/lib/test/invariants/lint/comment-lines.ts':
-				'the comment-block reader the budget and house-word scans share, which counts lines rather than blanking them',
 			'src/lib/test/invariants/lint/spread-call-census.test.ts':
-				'walks the classes lexicalClasses returns, so every character it tests is code',
+				'walks the classes fileClasses returns, so every character it tests is code',
 			'src/lib/test/invariants/lint/consumer-guide-reserved-set.test.ts':
 				'reads a printed `// Set {…}` line out of the guide’s example output, not a comment'
 		},
@@ -108,7 +108,8 @@ const RULES: FileRule[] = [
 				`for (const ch of code) if (ch === ${quoted("'", '(')}) depth++;`
 			),
 			at(`${LINT_DIRS[1]}b.test.ts`, `const names = ${'readdir'}Sync(dir);`),
-			at(`${LINT_DIRS[0]}c.test.ts`, `line.startsWith(${quoted("'", '/' + '/')});`)
+			at(`${LINT_DIRS[0]}c.test.ts`, `line.startsWith(${quoted("'", '/' + '/')});`),
+			at('src/lib/test/plugins/d.test.ts', `text.replace(/\\/\\*[\\s\\S]*?\\*\\//g, '');`)
 		],
 		misses: [
 			at(
@@ -116,7 +117,25 @@ const RULES: FileRule[] = [
 				`walkCode(code, 0, (ch) => {\n\tif (ch === ${quoted("'", '(')}) depth++;\n});`
 			),
 			at(`${LINT_DIRS[0]}d.test.ts`, `if (text[open] !== ${quoted("'", '(')}) return;`),
-			at('src/lib/test/core/x.test.ts', `for (const ch of s) if (ch === ${quoted("'", '(')}) n++;`)
+			at('src/lib/core/x.ts', `for (const ch of s) if (ch === ${quoted("'", '(')}) n++;`),
+			at('src/lib/test/x/fixtures/F.svelte', `<p>see ${quoted('"', '/' + '/')} here</p>`)
+		]
+	},
+	{
+		id: 'a suite file lexes a source file in the language its path names',
+		population: under(...SUITE_DIRS),
+		matches:
+			/\b(?:lexicalClasses|stripComments|commentSpans)\(\s*[\w$.]+\.(?:code|text)\s*,\s*['"`]/,
+		reason:
+			'a language written out for a file’s text reads a .svelte or .css file wrong the day one joins the population: use fileClasses(file), or languageOf(file.relPath)',
+		hits: [
+			at('src/lib/test/a.test.ts', `const c = ${lexCall('lexical', "file.code, 'script'")};`),
+			at('src/lib/e2e/b.test.ts', `${lexCall('strip', "f.text, 'component'")};`)
+		],
+		misses: [
+			at('src/lib/test/c.test.ts', 'const c = fileClasses(file);'),
+			at('src/lib/test/d.test.ts', `${lexCall('lexical', 'f.text, languageOf(f.relPath)')};`),
+			at('src/lib/test/e.test.ts', `const c = ${lexCall('lexical', "snippet, 'script'")};`)
 		]
 	},
 	{

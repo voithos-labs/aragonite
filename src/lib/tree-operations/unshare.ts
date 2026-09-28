@@ -12,7 +12,7 @@ import { assertInvariant } from '../assert';
 import { checkCloneSafeMetadata } from '../invariants/node-shape';
 import { rebuildContainerRawIfContainer } from '../schema/container-raw';
 import type { ChildRawChange } from '../schema/child-spans';
-import { getBlockKindDescriptor } from '../schema/block-kind-descriptor';
+import { getBlockKindDescriptor, isGridDescriptor } from '../schema/block-kind-descriptor';
 import { cloneMetadata } from './clone';
 
 function copyNode(node: NodeView, sharing: SharingState): CstNode {
@@ -116,16 +116,14 @@ export function ensureUnsharedSubtree(node: CstNode, sharing: SharingState): voi
 
 // ── Sharing-aware raw rebuild ───────────────────────────────────────────────
 
-/**
- * Rebuild one owned container's raw. A grid rebuild rewrites its children's raw, so a grid's
- * children are unshared first, keyed off `containerContract` rather than a `table` kind test.
- */
+/** Rebuild one owned container's raw. A grid rebuild rewrites its children's raw, so a grid's
+ *  children are unshared first. */
 export function rebuildOwnedContainer(
 	node: CstNode,
 	sharing: SharingState,
 	changed?: ChildRawChange
 ): void {
-	if (getBlockKindDescriptor(node.kind).containerContract === 'grid') {
+	if (isGridDescriptor(getBlockKindDescriptor(node.kind))) {
 		ensureUnsharedChildren(node, sharing);
 	}
 	rebuildContainerRawIfContainer(node, changed);

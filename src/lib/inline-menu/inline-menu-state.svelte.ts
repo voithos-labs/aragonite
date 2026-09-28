@@ -11,7 +11,7 @@ import type { DocumentView, NodeView } from '../core/node-views';
 import type { EditorError, EditorEvents } from '../editor-events';
 import type { PresentationMode } from '../presentation-mode';
 import type { EditorSelection } from '../selection/primitives';
-import { tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
+import { isGridKind } from '../schema/block-kind-descriptor';
 import { isBlockNode, nodeAt } from '../tree-operations/node-primitives';
 import {
 	findOpening,
@@ -104,11 +104,7 @@ function asIdToken(id: string): string {
 function isGridCell(doc: DocumentView, path: readonly number[]): boolean {
 	if (path.length < 2) return false;
 	const parent = nodeAt(doc, path.slice(0, -1));
-	return (
-		parent !== null &&
-		isBlockNode(parent) &&
-		tryGetBlockKindDescriptor(parent.kind)?.containerContract === 'grid'
-	);
+	return parent !== null && isBlockNode(parent) && isGridKind(parent.kind);
 }
 
 export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuState {

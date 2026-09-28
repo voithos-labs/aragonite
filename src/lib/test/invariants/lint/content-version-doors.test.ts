@@ -10,6 +10,8 @@ import {
 	callSites,
 	collectEditorSources,
 	enclosingFunction,
+	fileClasses,
+	sourceFile,
 	stripComments,
 	type SourceFile
 } from './scan-source';
@@ -47,10 +49,13 @@ const READING_CHECKED: Record<string, Partial<Record<ReadingCheck, string[]>>> =
 	'src/lib/editor-actions/commit/history.ts': { admitsWrite: ['requestUndo', 'requestRedo'] }
 };
 
-/** `check:function` for each named function in `code` that never calls its check. */
-function missingReadingChecks(code: string, spec: Partial<Record<ReadingCheck, string[]>>) {
+/** `check:function` for each named function in `file` that never calls its check. */
+function missingReadingChecks(file: SourceFile, spec: Partial<Record<ReadingCheck, string[]>>) {
+	const { code } = file;
+	const classes = fileClasses(file);
 	return Object.entries(spec).flatMap(([check, functions]) => {
-		const asking = new Set(callSites(code, check).map((s) => enclosingFunction(code, s.index)));
+		const sites = callSites(code, check);
+		const asking = new Set(sites.map((s) => enclosingFunction(code, s.index, classes)));
 		return (functions ?? []).filter((fn) => !asking.has(fn)).map((fn) => `${check}:${fn}`);
 	});
 }
@@ -97,9 +102,11 @@ describe('content-version entry-point census', () => {
 	});
 
 	it('each of those functions asks the reading-mode check itself', () => {
-		const codeOf = new Map(sources.map((f) => [f.relPath, f.code]));
+		const fileAt = new Map(sources.map((f) => [f.relPath, f]));
 		const missing = Object.entries(READING_CHECKED).flatMap(([relPath, spec]) =>
-			missingReadingChecks(codeOf.get(relPath) ?? '', spec).map((m) => `${relPath} ${m}`)
+			missingReadingChecks(fileAt.get(relPath) ?? sourceFile(relPath, ''), spec).map(
+				(m) => `${relPath} ${m}`
+			)
 		);
 		expect(
 			missing,
@@ -108,10 +115,11 @@ describe('content-version entry-point census', () => {
 	});
 
 	it('the per-function check sees a sibling that asks while the named one does not', () => {
-		const code = stripComments(
+		const file = sourceFile(
+			'x.ts',
 			'function requestUndo() { swap(); }\nfunction requestRedo() { if (!admitsWrite(r, "redo")) return; }'
 		);
-		expect(missingReadingChecks(code, { admitsWrite: ['requestUndo', 'requestRedo'] })).toEqual([
+		expect(missingReadingChecks(file, { admitsWrite: ['requestUndo', 'requestRedo'] })).toEqual([
 			'admitsWrite:requestUndo'
 		]);
 	});
@@ -119,14 +127,14 @@ describe('content-version entry-point census', () => {
 	// ── Matcher self-tests (non-vacuity) ─────────────────────────────────────
 
 	it('the announcement matcher sees both spellings and skips prose', () => {
-		const probe = (text: string) => ANNOUNCES.test(stripComments(text));
+		const probe = (text: string) => ANNOUNCES.test(stripComments(text, 'script'));
 		expect(probe('deps.bumpContentVersion();')).toBe(true);
 		expect(probe('contentVersion.bump();')).toBe(true);
 		expect(probe('// bumpContentVersion would announce it')).toBe(false);
 	});
 
 	it('the root-unshare matcher skips a scope-view unshare and a comment', () => {
-		const probe = (text: string) => UNSHARES_ROOT.test(stripComments(text));
+		const probe = (text: string) => UNSHARES_ROOT.test(stripComments(text, 'script'));
 		expect(probe('ensureUnsharedPath(deps.doc, [i], deps.sharing);')).toBe(true);
 		expect(probe('ensureUnsharedPath({ children }, [i], view.sharing);')).toBe(false);
 		expect(probe('// ensureUnsharedPath(deps.doc, path, sharing) is the door')).toBe(false);

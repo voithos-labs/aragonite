@@ -2,7 +2,7 @@
  * The source-scan lexer, held against TypeScript's (G4.57). Every census reads code through
  * `spanAt`, so a literal it misreads shrinks a dozen populations at once with nothing failing.
  * Both classify each character of every scanned `.ts` file and `.svelte` script block and must
- * agree; TypeScript cannot lex markup, so the markup half is pinned against a corpus instead.
+ * agree; TypeScript cannot lex markup or stylesheets, so those are pinned to a corpus instead.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -10,10 +10,12 @@ import ts from 'typescript';
 import { parse, type AST } from 'svelte/compiler';
 import {
 	collectEditorSources,
+	languageOf,
 	lexicalClasses,
 	LEXICAL_CLASSES,
 	ROUTES_SRC,
-	type SourceFile
+	type SourceFile,
+	type SourceLanguage
 } from './scan-source';
 
 const classOf = (name: (typeof LEXICAL_CLASSES)[number]): number => LEXICAL_CLASSES.indexOf(name);
@@ -140,20 +142,40 @@ function divergenceIn(file: SourceFile, hand: Uint8Array): string | null {
 /** One letter per class, so a pinned reading sits under its own source. */
 const CLASS_LETTERS = '.cstr';
 
-function classLine(source: string): string {
-	return Array.from(lexicalClasses(source), (cls) => CLASS_LETTERS[cls]).join('');
+function classLine(source: string, language: SourceLanguage = 'script'): string {
+	return Array.from(lexicalClasses(source, language), (cls) => CLASS_LETTERS[cls]).join('');
 }
 
-/** Markup shapes TypeScript cannot lex. The last two pin a simplification, each confined to its
- *  line: an interpolation in a quoted attribute reads as string, a prose apostrophe opens one. */
+/** Component shapes TypeScript cannot lex: markup is text but for comments, attribute values
+ *  and braces, and a style body is a stylesheet. */
 const MARKUP_CORPUS: Array<[source: string, classes: string]> = [
 	['{a}/{b /* c */}', '.......ccccccc.'],
 	['<Foo {...rest} /><Bar {...rest} />', '.'.repeat(34)],
 	['<a href="https://x">', '........sssssssssss.'],
 	['{#if /^a$/.test(v)}', '.....rrrrr.........'],
-	['<b class="a-{f(x)}">', '.........ssssssssss.'],
-	["<p>Sam's list</p>", '......sssssssssss'],
-	['<!-- x -->', 'cccccccccc']
+	['<b class="a-{f(x)}">', '.........ssss....ss.'],
+	["<p>Sam's list</p>", '.'.repeat(17)],
+	['<p>see https://x /* y</p>', '.'.repeat(25)],
+	['<!-- x -->', 'cccccccccc'],
+	['<style>a{b:url(//x)}</style>', '.'.repeat(28)],
+	["<script>'//'</script>", '........ssss.........'],
+	// Miss-analysis: Prettier puts every block closer on its own line, so no scanned file showed
+	// a closer with a slash after it reading as a regex.
+	['{#if a}x{/if}</p><p>//x</p>', '.'.repeat(27)],
+	['{#each xs as x}x{ /each }</ul><p>//x</p>', '.'.repeat(40)],
+	['{#await p}x{:then v}y{:catch e}z{/await}//x', '.'.repeat(43)],
+	['{/* c */ x}', '.ccccccc...'],
+	// Miss-analysis: every closer row sat between tags, so nothing showed a tag's own `{/re/…}`
+	// value read as a closer.
+	['<a class={/x/.test(y) /* c */}>', '..........rrr.........ccccccc..'],
+	["<a class={/x/.test(y) ? 'grid' : ''}>", '..........rrr...........ssssss...ss..'],
+	['{#if a}x{/if\n<!-- c -->', `${'.'.repeat(13)}${'c'.repeat(10)}`]
+];
+
+/** A stylesheet has quoted strings and block comments, and no line comments. */
+const STYLESHEET_CORPUS: Array<[source: string, classes: string]> = [
+	['a{b:url(//x)}', '.'.repeat(13)],
+	["/* c */a{b:'//'}", 'ccccccc....ssss.']
 ];
 
 /** A slash after each operator opens a regex, the one after a postfix `++` or `--` divides. The
@@ -173,7 +195,7 @@ const SLASH_AFTER_OPERATOR: Array<[op: string, source: string, opensRegex: boole
 describe('G4.57 the scan lexer reads what TypeScript reads', () => {
 	const classified = collectEditorSources().map((file) => ({
 		file,
-		hand: lexicalClasses(file.text)
+		hand: lexicalClasses(file.text, languageOf(file.relPath))
 	}));
 
 	it('reached the scanned trees, with every class represented', () => {
@@ -207,7 +229,7 @@ describe('G4.57 the scan lexer reads what TypeScript reads', () => {
 		}
 		expect(wider.size).toBeGreaterThan(classified.length);
 		const found = [...wider.values()]
-			.map((file) => divergenceIn(file, lexicalClasses(file.text)))
+			.map((file) => divergenceIn(file, lexicalClasses(file.text, languageOf(file.relPath))))
 			.filter((report) => report !== null);
 		expect(
 			found,
@@ -215,24 +237,13 @@ describe('G4.57 the scan lexer reads what TypeScript reads', () => {
 		).toEqual([]);
 	}, 30_000);
 
-	// Without this the differential guards a shadow lexer: the censuses read `stripComments`,
-	// never `lexicalClasses`, and only this ties the two to one reading.
-	it('stripComments blanks exactly the comment class', () => {
-		const comment = classOf('comment');
-		const mismatches: string[] = [];
-		for (const { file, hand } of classified) {
-			for (let i = 0; i < file.text.length; i++) {
-				const isBlanked = hand[i] === comment && file.text[i] !== '\n';
-				if (file.code[i] === (isBlanked ? ' ' : file.text[i])) continue;
-				mismatches.push(`${file.relPath}:${lineColumn(file.text, i)}`);
-				break;
-			}
+	it('markup and stylesheet shapes TypeScript cannot lex keep their class', () => {
+		for (const [source, classes] of MARKUP_CORPUS) {
+			expect(classLine(source, 'component'), source).toBe(classes);
 		}
-		expect(mismatches).toEqual([]);
-	});
-
-	it('markup shapes TypeScript cannot lex keep their class', () => {
-		for (const [source, classes] of MARKUP_CORPUS) expect(classLine(source), source).toBe(classes);
+		for (const [source, classes] of STYLESHEET_CORPUS) {
+			expect(classLine(source, 'stylesheet'), source).toBe(classes);
+		}
 	});
 
 	// Miss-analysis: no scanned file puts a regex after an arithmetic, bitwise or `??` operator.
@@ -263,7 +274,7 @@ describe('G4.57 the scan lexer reads what TypeScript reads', () => {
 
 	it('the report names the first divergent character', () => {
 		const file: SourceFile = { relPath: 'p.ts', text: 'a\nconst x = 1;', code: '' };
-		const hand = lexicalClasses(file.text);
+		const hand = lexicalClasses(file.text, languageOf(file.relPath));
 		const oracle = hand.slice();
 		oracle[7] = classOf('string');
 		expect(firstDivergence(file, hand, oracle, [[0, file.text.length]])).toContain(

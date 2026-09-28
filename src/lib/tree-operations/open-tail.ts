@@ -21,6 +21,7 @@ import { ensureUnsharedChild } from './unshare';
 import { dropChildSpans } from '../schema/child-spans';
 import {
 	getBlockKindDescriptor,
+	isGridDescriptor,
 	isGridKind,
 	tryGetBlockKindDescriptor
 } from '../schema/block-kind-descriptor';
@@ -71,10 +72,10 @@ export function keepOpenTail(doc: Document, wasOpen: boolean, sharing: SharingSt
  */
 export function holdsBlankLastLine(node: NodeView): boolean {
 	const last = node.children?.at(-1);
-	const contract = tryGetBlockKindDescriptor(node.kind)?.containerContract;
+	const descriptor = tryGetBlockKindDescriptor(node.kind);
 	const descends =
-		(contract === 'strip' && !node.innerSuffix) ||
-		(contract === 'grid' && last !== undefined && isGridKind(last.kind));
+		(descriptor?.containerContract === 'strip' && !node.innerSuffix) ||
+		(isGridDescriptor(descriptor) && last !== undefined && isGridKind(last.kind));
 	return last && descends ? holdsBlankLastLine(last) : endsInBlankLine(node.raw);
 }
 
@@ -108,8 +109,8 @@ function rewriteLastLine(
 	node.raw = raw;
 	const last = (node.children?.length ?? 0) - 1;
 	if (last < 0) return;
-	const contract = getBlockKindDescriptor(node.kind).containerContract;
-	if (contract === 'strip') {
+	const descriptor = getBlockKindDescriptor(node.kind);
+	if (descriptor.containerContract === 'strip') {
 		dropChildSpans(node);
 		// A blank line closing the body is the last line; the parser keeps it out of the suffix
 		// while it is unended, so a last child already ended the other way marks it too.
@@ -117,7 +118,7 @@ function rewriteLastLine(
 			node.innerSuffix = write(node.innerSuffix ?? '');
 			return;
 		}
-	} else if (contract !== 'grid' || !isGridKind(node.children![last].kind)) {
+	} else if (!isGridDescriptor(descriptor) || !isGridKind(node.children![last].kind)) {
 		// A grid's rows are whole lines; a row's cells and an opaque body sit inside a line.
 		return;
 	}

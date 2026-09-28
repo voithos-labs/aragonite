@@ -935,6 +935,7 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.76 | Every join into a leaf, and every other text built from two sources, is declared | L       |
 | G4.77 | Only three routes register on behalf of no plugin                                | L       |
 | G4.78 | The editor's built-in bootstraps run only through `registerEditorBuiltIns`       | L       |
+| G4.79 | Whether a kind is a grid is asked through `isGridKind`, nowhere else             | L       |
 
 ### The entries
 
@@ -1142,13 +1143,15 @@ packaging claim unwatched. Library-scoped rather than repo-wide: the reference p
 consumer example are Vite APPS, where the read is legitimate. `lint/suite-file-rules.test.ts`.
 
 **G4.26 · Comment budget.** Two scans. Length: a comment block gets two text lines and a header
-gets five. A header is a file's first block, a docblock right above an `export interface` or
-`export type`, or, in a published entry point (`index.ts`, `plugin.ts`, `testing.ts`,
-`editor-props.ts`, `block-component.ts`), a docblock on an export or one of its members, since
-that's what a consumer hovers in the `.d.ts`. Section dividers and tool directives
+gets five. A header is a file's first comment that isn't trailing code, a docblock right above an
+`export interface` or `export type`, or, in a published entry point (`index.ts`, `plugin.ts`,
+`testing.ts`, `editor-props.ts`, `block-component.ts`), a docblock on an export or one of its
+members, since that's what a consumer hovers in the `.d.ts`. Section dividers and tool directives
 (`eslint-disable-next-line`, `svelte-ignore`) don't count as lines. Any block over its budget fails
-with its `path:line`. `lint/comment-lines.ts` reads the blocks
-for both scans and holds the header rule. Vocabulary: the repo's private words (seam, door, funnel, rung, ceremony, mint, peel, landable, oracle, seat, island, ladder, road,
+with its `path:line`. `lint/comment-lines.ts` reads the blocks for both scans and holds the
+header rule. It gets its comments from the shared lexer (G4.57), so a comment trailing code is a
+block of its own and a `//` inside a string isn't a comment. Vocabulary: the repo's private words
+(seam, door, funnel, rung, ceremony, mint, peel, landable, oracle, seat, island, ladder, road,
 dialect, sanctioned, owe, husk) appear in no comment (backticked symbol names don't count), and
 the requirement files under `src/lib/e2e/requirements/` hold none in their body text (headings,
 code spans and fenced samples don't count either). Every design and contributing doc is counted
@@ -1441,10 +1444,11 @@ comment/string/template/regex/code by `spanAt` and by a `createSourceFile` plus 
 reference, and the two must agree. Two corpora: the repo-wide roots, and the wider one the test-tree
 scans lex. Sixty-odd scans read code through that lexer, so a literal it misreads shrinks their
 populations at once with nothing red, which is how a regex-blind walk and a `}`-opens-a-regex rule
-both shipped. The differential also pins `stripComments` to the same reading, so the guard can't
-drift onto a lexer no scan uses. TypeScript can't lex markup, so the `.svelte` markup half is pinned
-against a corpus instead, and the two shapes there that record a simplification rather than the
-truth say why no scan can move on one. `lint/scan-source.differential.test.ts`.
+both shipped. `stripComments` and the comment lints read their comments off the same classes, so
+the guard can't drift onto a lexer no scan uses. Each file lexes in its own language. A `.svelte`
+file's markup is text apart from `<!-- -->` comments, quoted attribute values and `{…}` script. A
+`.css` file has no `//` comments, so a `url(//…)` stays code. TypeScript can't lex either, so both
+are pinned against a corpus instead. `lint/scan-source.differential.test.ts`.
 
 **G4.58 · Commit-message shape.** One rule, two enforcement points:
 `scripts/lint-commit-message.mjs` holds the only definition of the enforced subject shape, and both
@@ -1668,6 +1672,16 @@ declared needs none of this, since its entries already belong to that plugin.
 paragraph component or the code languages, so they'd show only where that plugin is listed, and the
 test reset would drop them. The scan covers shipped source; unit tests still call the bootstraps
 directly, outside any plugin, which is fine. `lint/file-rules.test.ts`.
+
+**G4.79 · One way to ask whether it's a grid.** A kind is a grid (a table, its rows, or a
+plugin's equivalent) when its descriptor declares the grid contract. Only
+`src/lib/schema/block-kind-descriptor.ts` :: `isGridKind` asks, or `isGridDescriptor` if you've
+already got the descriptor in hand. Any other file with a `'grid'` string in its code fails the
+scan, even one that only checks it against a list (`['strip', 'grid'].includes(contract)`).
+Declaring it (`contract: 'grid'`), or naming it in the `'strip' | 'grid' | 'opaque'` type, isn't
+asking, so the scan leaves those alone. Same for a component's markup attribute, like
+`role="grid"`. One other file may hold the string: the insert menu's catalogue, where `grid` is a
+search keyword that finds the table. `lint/file-rules.test.ts`.
 
 ## Accessibility
 

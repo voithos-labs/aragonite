@@ -5,7 +5,7 @@
  * Miss-analysis (#290 #396 #397 #427 #428): the gate listed some text colors, never all of them.
  */
 import { describe, it, expect } from 'vitest';
-import { readEditorFile, stripComments } from './scan-source';
+import { readEditorFile } from './scan-source';
 import { declaredValue, themeBlocks } from './theme-css';
 
 const AA_CONTRAST = 4.5;
@@ -281,7 +281,7 @@ describe('WCAG AA: code tokens against the surfaces the editor paints them on', 
 	});
 
 	it('every `--code-tok-*` declaration is a color this test can measure', () => {
-		const css = stripComments(readEditorFile('styles/editor-theme.css').text);
+		const css = readEditorFile('styles/editor-theme.css').code;
 		const unmeasurable = [...css.matchAll(CODE_TOKEN_DECL)]
 			.filter(([, , value]) => parseHex(value) === null && value.trim() !== 'inherit')
 			.map(([, token, value]) => `${token}: ${value.trim()}`);

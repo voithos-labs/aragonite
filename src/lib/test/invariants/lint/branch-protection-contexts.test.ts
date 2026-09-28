@@ -83,7 +83,7 @@ export function checkNames(yaml: string): string[] {
 
 /** Single-quoted strings in a slice of the script, comments skipped. */
 function quotedStrings(source: string): string[] {
-	const code = stripComments(source);
+	const code = stripComments(source, 'script');
 	return literalSpans(code)
 		.filter((span) => code[span.start] === "'")
 		.map((span) => code.slice(span.start + 1, span.end - 1));
@@ -103,7 +103,7 @@ export function externalContexts(script: string): Map<string, string[]> {
 		throw new Error('apply-branch-protection.mjs declares no EXTERNAL_CONTEXTS map');
 	}
 	const declared = new Map<string, string[]>();
-	for (const line of stripComments(block[1]).split('\n')) {
+	for (const line of stripComments(block[1], 'script').split('\n')) {
 		const entry = /^\s*'([^']+)':\s*\[([^\]]*)\]/.exec(line);
 		if (entry !== null) declared.set(entry[1], quotedStrings(entry[2]));
 	}

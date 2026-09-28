@@ -1,6 +1,4 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { readFileSync, readdirSync } from 'node:fs';
-import path from 'node:path';
 import python from 'highlight.js/lib/languages/python';
 import {
 	applyPasteTransforms,
@@ -56,7 +54,7 @@ import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 import { defaultGrammarView } from '$lib/schema/block-openers';
 import { isInlineWidget } from '$lib/core/inline/inline-widgets';
 import { getInlineRungs } from '$lib/core/inline/scan/plugin-syntax';
-import { stripComments } from '../invariants/lint/scan-source';
+import { collectFiles, importSpecifiers, readSource } from '../invariants/lint/scan-source';
 import { testClosure } from '$lib/test/support/closure';
 
 // ── One probe per public registration ────────────────────────────────────────
@@ -178,7 +176,7 @@ const PROBES: { entry: string; register(): void; registered(): boolean }[] = [
 
 /** Every `register*` and `declare*` value the plugin barrel exports. */
 function publicRegistrations(): string[] {
-	const code = stripComments(readFileSync(path.resolve('src/lib/plugin.ts'), 'utf8'));
+	const { code } = readSource('src/lib/plugin.ts');
 	const names = [
 		...[...code.matchAll(/export\s*\{([^}]*)\}\s*from/g)].flatMap((m) =>
 			m[1].split(',').map((spec) =>
@@ -273,16 +271,11 @@ describe('@voithos-labs/aragonite/testing conformance surface', () => {
 /** `testing.ts` plus every module behind it: the code that ships as
  *  `@voithos-labs/aragonite/testing`. */
 function testingSurfaceSources(): { relPath: string; specifiers: string[] }[] {
-	const dir = path.resolve('src/lib/testing');
-	const files = readdirSync(dir)
-		.filter((f) => f.endsWith('.ts'))
-		.map((f) => `src/lib/testing/${f}`);
-	return ['src/lib/testing.ts', ...files].map((relPath) => {
-		// Comments here name the very specifiers the scans forbid; strip them first.
-		const code = stripComments(readFileSync(path.resolve(relPath), 'utf8'));
-		const specifiers = [...code.matchAll(/(?:\bfrom|\bimport)\s+'([^']+)'/g)].map((m) => m[1]);
-		return { relPath, specifiers };
-	});
+	const files = collectFiles('src/lib/testing', { extensions: ['.ts'] });
+	return ['src/lib/testing.ts', ...files].map((relPath) => ({
+		relPath,
+		specifiers: importSpecifiers(readSource(relPath).code).map((found) => found.specifier)
+	}));
 }
 
 const offendersMatching = (

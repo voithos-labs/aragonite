@@ -598,7 +598,12 @@ export function tryGetBlockKindDescriptor(kind: AnyBlockKind): BlockKindDescript
 /** Whether a kind declares the grid contract: a table and its rows, or a plugin's equivalent. A
  *  cell is in a grid when its parent row is one. */
 export function isGridKind(kind: AnyBlockKind): boolean {
-	return tryGetBlockKindDescriptor(kind)?.containerContract === 'grid';
+	return isGridDescriptor(tryGetBlockKindDescriptor(kind));
+}
+
+/** {@link isGridKind} for a caller already holding the descriptor. */
+export function isGridDescriptor(descriptor: BlockKindDescriptor | undefined): boolean {
+	return descriptor?.containerContract === 'grid';
 }
 
 /** Whether an endpoint on this block's own path counts cells rather than characters. Tables only:

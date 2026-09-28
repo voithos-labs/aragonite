@@ -62,7 +62,7 @@ describe('non-prose widget dev-warn', () => {
 		const engine = makeMixedEngine();
 		const handle = engine.addSource({
 			name: 'w',
-			provide: () => [widget([1], 0), replace([1], 0, 1)] // two islands, same non-prose kind
+			provide: () => [widget([1], 0), replace([1], 0, 1)] // two inline widgets, same non-prose kind
 		});
 		expect(takeDevWarns()).toHaveLength(1);
 		handle.invalidate();

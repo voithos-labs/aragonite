@@ -14,7 +14,7 @@ import { isImageOnlyParagraph } from '../core/inline/picture';
 import type { InlineReading } from '../core/inline/inline-cache';
 import type { NodeView } from '../core/node-views';
 import { blockNodeAt } from '../tree-operations/node-primitives';
-import { tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
+import { isGridDescriptor, tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
 
 export interface ReorderDragOverlay {
 	setGhost(g: { clientX: number; clientY: number; label: string } | null): void;
@@ -180,7 +180,7 @@ function indexOf(host: HTMLElement): number | null {
  */
 function ghostLabel(host: HTMLElement, node: NodeView, reading: InlineReading): string {
 	const descriptor = tryGetBlockKindDescriptor(node.kind);
-	if (descriptor?.containerContract === 'grid') return tableLabel(host);
+	if (isGridDescriptor(descriptor)) return tableLabel(host);
 	if (descriptor?.dragLabel) return descriptor.dragLabel;
 	// Before the text: a linked picture shows its link's bytes as text in source mode.
 	if (isImageOnlyParagraph(node, reading)) return 'Image';

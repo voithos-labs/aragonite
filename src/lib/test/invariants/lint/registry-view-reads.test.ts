@@ -23,6 +23,7 @@ import {
 	callArguments,
 	collectEditorSources,
 	enclosingFunction,
+	languageOf,
 	lexicalClasses,
 	stripComments,
 	type SourceFile
@@ -52,7 +53,7 @@ const mayImportDefaulted = (relPath: string): boolean =>
 function defaultedReaderImports(code: string): string[] {
 	const found: string[] = [];
 	const statement = /\b(?:import|export)\s*(?:type\s*)?\{([^}]*)\}\s*from\s*['"]([^'"]+)['"]/g;
-	for (const match of stripComments(code).matchAll(statement)) {
+	for (const match of code.matchAll(statement)) {
 		const specifier = match[2];
 		if (!specifier.startsWith('$lib') && !specifier.startsWith('.')) continue;
 		for (const entry of match[1].split(',')) {
@@ -107,10 +108,13 @@ describe('G4.69 only the barrels, the kits and no-editor code import the default
 	it('spares the internal readers, other names and other packages', () => {
 		expect(
 			defaultedReaderImports(
-				"import { readBlocks, parseBlocks } from '../core/parser';\n" +
-					"import { readInline, computeInlineContent } from './index';\n" +
-					"import { parse } from 'yaml';\n" +
-					"// import { parse } from '../core/parser';"
+				stripComments(
+					"import { readBlocks, parseBlocks } from '../core/parser';\n" +
+						"import { readInline, computeInlineContent } from './index';\n" +
+						"import { parse } from 'yaml';\n" +
+						"// import { parse } from '../core/parser';",
+					'script'
+				)
 			)
 		).toEqual([]);
 	});
@@ -141,7 +145,7 @@ function fallbackSites(files: SourceFile[]): string[] {
 	const found = new Set<string>();
 	for (const file of files) {
 		const code = file.code.replace(/^import[^;]*;/gm, (statement) => statement.replace(/\S/g, ' '));
-		const classes = lexicalClasses(code);
+		const classes = lexicalClasses(code, languageOf(file.relPath));
 		for (const match of code.matchAll(/\bdefaultGrammarView\b/g)) {
 			found.add(`${file.relPath} :: ${enclosingFunction(code, match.index, classes)}`);
 		}

@@ -6,7 +6,7 @@
 
 import type { NodeView } from '../core/node-views';
 import { parseImageDimensions } from '../core/inline/image-dimensions';
-import { tryGetBlockKindDescriptor } from './block-kind-descriptor';
+import { isGridKind } from './block-kind-descriptor';
 
 /** What an estimate reads besides the block: the editor's width and its type metrics, in px. */
 export interface HeightEstimateEnv {
@@ -79,7 +79,7 @@ export function sourceLinesEstimate(node: NodeView, env: HeightEstimateEnv): num
  */
 export function containerEstimate(node: NodeView, env: HeightEstimateEnv): number {
 	const wrapped = wrappedLines(node.raw.length, env) * env.lineHeight;
-	if (tryGetBlockKindDescriptor(node.kind)?.containerContract === 'grid') {
+	if (isGridKind(node.kind)) {
 		return Math.max(sourceLines(node.raw) * env.lineHeight, wrapped);
 	}
 	const children = Math.max(1, node.children?.length ?? 1);
