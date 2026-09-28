@@ -1,7 +1,6 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { installPlugins } from '$lib';
 import { definePlugin, registerInsertEntry, type InsertEntry } from '$lib/plugin';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import type { SlashCommandEntry } from '$lib/plugins/slash-commands';
 import { slashHarness } from './slash-harness';
 
@@ -62,8 +61,6 @@ describe('the slash list', () => {
 });
 
 describe('a plugin insert entry with an argument', () => {
-	afterEach(() => resetPluginPlatformForTests());
-
 	const stickyNote: InsertEntry = {
 		id: 'sticky',
 		label: 'Sticky note',

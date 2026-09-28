@@ -1,7 +1,7 @@
 // The one dispatch keyed by command id that `EditorInstance.runCommand` and chord dispatch share.
 // Pins the order the levels are tried in and the two checks that must hold whatever started the
 // command, so calling it directly and pressing a chord cannot behave differently.
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import {
 	runCommandById,
 	dispatchKeyCommand,
@@ -14,12 +14,7 @@ import { normalizeKeybindingOverrides } from '$lib/schema/keybinding-overrides';
 import type { AnyCommandId } from '$lib/schema/command-id';
 import type { PresentationMode } from '$lib/presentation-mode';
 import { takeDevWarns } from '../support/warn-gate';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { commandContext, commandContextWith } from '../support/command-context';
-
-afterEach(() => {
-	__resetSchemaRegistriesForTests();
-});
 
 let undos = 0;
 const context = (over: Parameters<typeof commandContext>[0] = {}) =>

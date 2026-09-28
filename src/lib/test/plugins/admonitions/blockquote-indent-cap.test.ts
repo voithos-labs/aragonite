@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { installPlugins, parse, serialize } from '$lib';
 import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
 import { admonitionsPlugin, convertGithubAlerts } from '$lib/plugins/admonitions';
@@ -7,7 +7,7 @@ import { stripQuoteMarker } from '$lib/plugins/admonitions/gh-alert';
 // The plugin's quote grammar is capped at CommonMark's 0 to 3 space block indent,
 // like the built-in blockquote's. Over-accepting strips a `>` the built-in keeps
 // literal, so an edit rewrites prose into a quote marker.
-beforeAll(() => {
+beforeEach(() => {
 	installPlugins([admonitionsPlugin()]);
 });
 

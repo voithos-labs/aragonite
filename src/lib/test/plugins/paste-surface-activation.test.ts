@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 // Miss-analysis: no test pasted into a plugin kind's block with that plugin left out (GH #394).
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { resetPluginPlatformForTests } from '$lib/testing';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { definePlugin, installPlugins } from '$lib/schema/plugin-install';
 import { declarePluginKind } from '$lib/schema/plugin-kind';
 import { activationFor, type PluginActivation } from '$lib/schema/plugin-activation';
@@ -45,11 +44,9 @@ const stampPlugin = definePlugin({
 });
 
 beforeEach(() => {
-	resetPluginPlatformForTests();
 	installPlugins([stampPlugin]);
 	ran = [];
 });
-afterEach(resetPluginPlatformForTests);
 
 async function pasteUnder(activePlugins: PluginActivation): Promise<string[]> {
 	const node = { kind: KIND, leadingTrivia: '', raw: 'target\n' } as CstNode;

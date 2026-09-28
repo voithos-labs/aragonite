@@ -50,8 +50,8 @@
 			setKeybindings: (overrides) => (keybindings = overrides),
 			setPresentationMode: (mode) => (presentationMode = mode)
 		});
-		// Driven from the spec rather than from page controls: a clickable button would itself be
-		// a box in the viewport that is not the editor's, and this check assumes none is in view.
+		// Assigned after `installTestProbes`, so waiting for `__pageScroll` also waits for `__test`.
+		// Spec driven, since a page button would be a box in view that isn't the editor's.
 		(window as unknown as { __pageScroll?: unknown }).__pageScroll = {
 			loadDocumentImage: () => {
 				imageLoadPolicy = 'auto';

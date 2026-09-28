@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import {
 	registerPasteSurface,
 	getPasteSurface,
@@ -19,10 +19,6 @@ function makeSurface(kind: PasteSurface['kind']): PasteSurface {
 }
 
 describe('paste-surfaces registry', () => {
-	beforeEach(() => {
-		__resetSchemaRegistriesForTests();
-	});
-
 	it('resolves a registered surface by kind', () => {
 		const surface = makeSurface(NOTE);
 		registerPasteSurface(surface);

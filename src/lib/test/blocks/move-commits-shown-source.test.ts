@@ -13,16 +13,14 @@ import {
 	type MountedEditor
 } from '$lib/test/harness/mount-editor.svelte';
 import { pressKey, dispatchKey } from '$lib/test/harness/settle';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import { latexPlugin, MATH_BLOCK } from '$lib/plugins/latex';
 import type { KeybindingOverride } from '$lib/schema/keybinding-overrides';
-import { declarePluginKind } from '$lib/schema/plugin-kind';
+import type { AnyBlockKind } from '$lib/core/nodes';
 import type { MathRenderer } from '$lib/plugins/latex/math-renderer';
 
 const stubRenderer: MathRenderer = () => ({ dom: document.createElement('span') });
 
 beforeEach(() => {
-	resetPluginPlatformForTests();
 	installLayoutStubs();
 	// Showing a source measures the caret through Range rects, which jsdom lacks.
 	Range.prototype.getClientRects ??= () => [] as unknown as DOMRectList;
@@ -30,7 +28,6 @@ beforeEach(() => {
 });
 afterEach(async () => {
 	await destroyMountedEditors();
-	resetPluginPlatformForTests();
 });
 
 type Seam = {
@@ -109,7 +106,8 @@ describe('a move from a math block showing its source', () => {
 	const MOVE_KEY: KeybindingOverride = {
 		chord: 'Alt+ArrowDown',
 		command: 'block.moveDown',
-		kind: declarePluginKind(MATH_BLOCK)
+		// The latex plugin declares the kind when the editor mounts, so the override names its string.
+		kind: MATH_BLOCK as AnyBlockKind
 	};
 
 	/** Show the `$$` block's source and edit `old` to `new` in the DOM, where the edit lives until blur. */

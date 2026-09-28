@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { declarePluginKind } from '$lib/schema/plugin-kind';
 import {
 	augmentBlockKind,
@@ -8,7 +8,6 @@ import {
 	type BlockKindAugmentation,
 	type BlockKindRegistration
 } from '$lib/schema/block-kind-descriptor';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { testClosure } from '$lib/test/support/closure';
 
 const leaf = {
@@ -23,8 +22,6 @@ const UNWRAP = {
 	firstChildBackspace: 'lift-first-child-keep-container',
 	middleChildBackspace: 'default-merge'
 } as const;
-
-afterEach(() => __resetSchemaRegistriesForTests());
 
 // ── Compile-time pins ───────────────────────────────────────────────────────
 // Never called: `npm run check` is the gate. An "unused '@ts-expect-error'"

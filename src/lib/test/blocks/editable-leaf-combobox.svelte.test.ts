@@ -2,7 +2,6 @@
 // Miss-analysis: the open inline menu's ARIA was asserted only on the paragraph, never on a leaf.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { unmount, flushSync } from 'svelte';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import type { InlineMenuCombobox } from '$lib/inline-menu/inline-menu-state.svelte';
 import { installLayoutStubs } from '$lib/test/harness/mount-editor.svelte';
 import { leafDocument, mountRevealLeaf, registerRevealLeafKind } from './fixtures/reveal-leaf';
@@ -30,7 +29,6 @@ function mountLeaf() {
 let mounted: ReturnType<typeof mountLeaf> | null = null;
 
 beforeEach(() => {
-	resetPluginPlatformForTests();
 	installLayoutStubs();
 });
 

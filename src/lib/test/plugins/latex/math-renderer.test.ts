@@ -5,14 +5,10 @@
  * injected renderer, per-formula caching, and a throw painted as the formula's source. The KaTeX
  * adapter itself is proven in `renderer.test.ts`.
  */
-import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
+import { beforeEach, describe, it, expect, vi } from 'vitest';
 import { installPlugins } from '$lib';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import { latexPlugin } from '$lib/plugins/latex';
 import { mathSlot, type MathRenderer } from '$lib/plugins/latex/math-renderer';
-
-beforeEach(resetPluginPlatformForTests);
-afterEach(resetPluginPlatformForTests);
 
 const DARK = { theme: 'dark' };
 

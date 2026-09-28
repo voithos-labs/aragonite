@@ -12,11 +12,7 @@ import {
 import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
 import { fencedCodeWrite } from '$lib/schema/fenced-code-raw';
 import type { WriteRule } from '$lib/schema/block-kind-descriptor';
-import {
-	resetPluginPlatformForTests,
-	runKindConformance,
-	type KindConformanceReport
-} from '$lib/testing';
+import { runKindConformance, type KindConformanceReport } from '$lib/testing';
 import { checkLeafRawWrite } from '$lib/testing/kind-conformance';
 import { registerMathBlock, MATH_BLOCK, MATH_FENCE } from '$lib/plugins/latex/latex-kind';
 import { registerMermaidKind, MERMAID } from '$lib/plugins/mermaid/mermaid-kind';
@@ -27,7 +23,6 @@ const rawWriteStatus = (report: KindConformanceReport) =>
 	report.cells.find((c) => c.cell === 'rawWrite')?.status;
 
 beforeEach(() => {
-	resetPluginPlatformForTests();
 	registerMathBlock();
 	registerMermaidKind();
 });

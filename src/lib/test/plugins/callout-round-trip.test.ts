@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import {
 	registerCalloutKind,
 	rebuildCalloutRaw
@@ -13,7 +12,6 @@ const UNTITLED = ':::callout\nBody\n:::\n';
 
 describe('callout kind round-trip', () => {
 	beforeEach(() => {
-		resetPluginPlatformForTests();
 		registerCalloutKind();
 	});
 
@@ -68,7 +66,6 @@ describe('callout kind round-trip', () => {
 // opener line; the round trips above only read the opener's verbatim `raw`.
 describe('callout rebuildRaw is the opener inverse', () => {
 	beforeEach(() => {
-		resetPluginPlatformForTests();
 		registerCalloutKind();
 	});
 

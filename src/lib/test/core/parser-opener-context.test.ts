@@ -1,16 +1,13 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
 import { registerBlockOpener, type OpenContext } from '../../schema/block-openers';
 import { declarePluginKind } from '../../schema/plugin-kind';
-import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
 
 // A re-stamped shared OpenContext mutates under an opener that retained the handle, so
 // the contract is a fresh context per block. The probe declines every block, which lets
 // real parsing proceed while it stashes each context it was offered.
 
 describe('parser creates a fresh OpenContext per block', () => {
-	beforeEach(() => __resetSchemaRegistriesForTests());
-
 	it('offers each block its own context, never a re-marked shared handle', () => {
 		const stashed: OpenContext[] = [];
 		const offeredFor: { index: number; text: string }[] = [];

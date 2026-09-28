@@ -3,7 +3,7 @@
 // nested lists, tables and open or closed details nested in each other, empty leaves and
 // summary-only details, non-ASCII text and both line endings; with every details open, the caret
 // order equals the coverage order.
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import fc from 'fast-check';
 import { parse } from '../../core/parser';
 import type { CstNode, Document } from '../../core/nodes';
@@ -36,7 +36,7 @@ import { freshOrFixedSeed } from '../invariants/arbitraries/property-seed';
 
 const PARAMS = { numRuns: 150, seed: freshOrFixedSeed(483001) } as const;
 
-beforeAll(registerChromePluginsForTests);
+beforeEach(registerChromePluginsForTests);
 
 // ── Generator ───────────────────────────────────────────────────────────────
 

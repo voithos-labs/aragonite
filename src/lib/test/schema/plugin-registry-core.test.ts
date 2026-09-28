@@ -1,6 +1,6 @@
 // Miss-analysis: each built-in registry kept its own set of reset-surviving keys, and only those two
 // sets had tests, so a third registry needing a core entry had no shared route to test.
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { resetPluginPlatformForTests } from '$lib/testing';
 import { definePlugin, installPlugins } from '$lib/schema/plugin-install';
 import { activationFor } from '$lib/schema/plugin-activation';
@@ -19,8 +19,6 @@ const typePins = (): void => {
 	kinds.registerCore('paragraph', true);
 };
 void typePins;
-
-afterEach(resetPluginPlatformForTests);
 
 describe('a core registration', () => {
 	it('is owned by no plugin, even from inside a plugin’s setup', () => {

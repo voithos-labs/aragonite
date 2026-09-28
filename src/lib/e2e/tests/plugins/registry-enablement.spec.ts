@@ -1,13 +1,12 @@
 import { test, expect } from '../../fixtures';
+import { gotoReady } from '../../goto-ready';
 
 // Two editors share one memo registration for the whole process, and the left one turns the memo
 // kind off through its own view of the registry. Each parses the seed in its own grammar, so only
 // the editor that has it on holds a memo block; the other reads the same bytes as a paragraph.
 test.describe('per-instance registry enablement', () => {
 	test.beforeEach(async ({ page }) => {
-		await page.goto('/test/plugins/enablement');
-		await page.getByTestId('editor-disabled').locator('[data-block-kind]').first().waitFor();
-		await page.getByTestId('editor-enabled').locator('[data-block-kind]').first().waitFor();
+		await gotoReady(page, '/test/plugins/enablement');
 	});
 
 	test('the disabled instance reads the memo syntax as a paragraph', async ({ page }) => {

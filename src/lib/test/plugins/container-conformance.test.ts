@@ -7,7 +7,6 @@ import {
 	type BlockKindRegistration
 } from '$lib/plugin';
 import {
-	resetPluginPlatformForTests,
 	reversedAncestryLeavesRootStale,
 	runContainerConformance,
 	type ContainerConformanceProfile
@@ -70,7 +69,6 @@ const detailsProfile: ContainerConformanceProfile = {
 
 describe('G4.3 conformance kit: plugin containers', () => {
 	beforeEach(() => {
-		resetPluginPlatformForTests();
 		registerCalloutKind();
 		registerDetailsKind();
 	});
@@ -116,7 +114,6 @@ describe('G4.3 conformance kit: plugin containers', () => {
 // nothing, so these break a plugin container on purpose and require the red.
 describe('G4.3 conformance kit: a broken plugin container fails', () => {
 	beforeEach(() => {
-		resetPluginPlatformForTests();
 		registerCalloutKind();
 		registerDetailsKind();
 	});

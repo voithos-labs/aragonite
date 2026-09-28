@@ -2,12 +2,10 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { tokenizeBody } from '../../../components/blocks/code/code-renderer';
 import { bootstrapCodeLanguages } from '../../../components/blocks/code/code-bootstrap';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 
 describe('tokenizeBody', () => {
 	beforeEach(() => {
-		__resetSchemaRegistriesForTests();
 		bootstrapCodeLanguages();
 	});
 

@@ -1,12 +1,11 @@
 // Miss-analysis: every options test read back the entry it passed, so none asked what a plugin
 // reads with no entry, with half an entry, or with one its own check rejects.
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { createEditorPluginContexts } from '$lib/schema/plugin-editor-context';
 import type { Component } from 'svelte';
 import { definePluginBlock } from '$lib/schema/define-plugin-block';
 import { definePlugin, installPlugins, resolvePluginOptions } from '$lib/schema/plugin-install';
 import type { BlockComponentExports } from '$lib/block-component';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { pluginContextDeps } from '../support/plugin-context-deps';
 
 interface BadgeOptions {
@@ -36,8 +35,6 @@ const contextsWith = (raw: unknown) =>
 		...pluginContextDeps(),
 		optionsFor: (name) => (name === 'badge' ? raw : undefined)
 	});
-
-beforeEach(() => __resetSchemaRegistriesForTests());
 
 describe("a plugin's options in one editor", () => {
 	it('are the defaults on a bare install', () => {

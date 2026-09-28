@@ -2,7 +2,7 @@
 // The auto-pair steps over, collapses or deletes only the empty pair it wrote itself, so two
 // delimiters the user typed keep both bytes when a key lands between them.
 // Miss-analysis: GH #469, every row began with a pair the auto-pair wrote, none with a typed one.
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import {
 	applyDelimiterAutoPair,
 	type AutoPairSurface
@@ -11,7 +11,6 @@ import {
 	createAutoPairRecord,
 	type AutoPairRecord
 } from '$lib/components/blocks/text/auto-pair-record';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import { registerMathInline } from '$lib/plugins/latex/latex-kind';
 import { fixtureReading } from '$lib/test/harness/fixture-grammar';
 
@@ -74,10 +73,8 @@ const line = (text: string, caret = text.length, record = createAutoPairRecord()
 
 describe('a pair the user typed is not the auto-pair’s', () => {
 	beforeEach(() => {
-		resetPluginPlatformForTests();
 		registerMathInline();
 	});
-	afterEach(resetPluginPlatformForTests);
 
 	it.each([
 		['stars', '**b', 'a **b**', 'a * *b**'],
@@ -116,10 +113,8 @@ describe('a pair the user typed is not the auto-pair’s', () => {
 
 describe('the pair the auto-pair wrote stays its own', () => {
 	beforeEach(() => {
-		resetPluginPlatformForTests();
 		registerMathInline();
 	});
-	afterEach(resetPluginPlatformForTests);
 
 	it('drops its partner for a first byte that makes no construct', () => {
 		expect(line('a ').type('* ').text).toBe('a * ');

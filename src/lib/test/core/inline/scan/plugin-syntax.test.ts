@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import type { InlineNode } from '../../../../core/nodes';
 import { parseInline } from '../../../../core/inline';
 import {
@@ -9,9 +9,6 @@ import {
 	type InlineSyntaxRecognizer
 } from '../../../../core/inline/scan/plugin-syntax';
 import { assertTotalCoverage, textNode } from './scan-test-helpers';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
-
-afterEach(() => __resetSchemaRegistriesForTests());
 
 function mathNode(start: number, end: number): InlineNode {
 	return { kind: 'math' as InlineNode['kind'], start, end };

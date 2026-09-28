@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { installPlugins } from '$lib';
 import { footnotesPlugin } from '$lib/plugins/footnotes';
 import { parse } from '$lib/core/parser';
@@ -9,7 +9,7 @@ import { layoutOf, triviaRawOf } from '$lib/test/harness/parse-converged';
 // line still ends it. The second test file for the class is
 // `tree-operations/indented-body-tail-blank.test.ts`, which blanks a body's last block.
 
-beforeAll(() => {
+beforeEach(() => {
 	installPlugins([footnotesPlugin()]);
 });
 

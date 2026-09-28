@@ -1,7 +1,7 @@
 // A plugin-declared grid: the grid kind, the row kind it holds, and the inline-bearing leaf a row
 // holds (the shape the built-in table has, registered the way a plugin would register it, with no
 // table metadata anywhere), plus the document and the stored-endpoint plan its suites test
-// against. Callers own the registry reset (`__resetSchemaRegistriesForTests`).
+// against.
 
 import { parse } from '$lib/core/parser';
 import type { CstNode, Document } from '$lib/core/nodes';

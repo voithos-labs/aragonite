@@ -5,8 +5,7 @@ import {
 	createInlineKindRegistry,
 	createPluginRegistry
 } from '$lib/schema/plugin-registry';
-import { afterEach, describe, expect, it } from 'vitest';
-import { resetPluginPlatformForTests } from '$lib/testing';
+import { describe, expect, it } from 'vitest';
 import { definePlugin, installPlugins } from '$lib/schema/plugin-install';
 import { activationFor } from '$lib/schema/plugin-activation';
 import { declarePluginInlineKind, declarePluginKind } from '$lib/schema/plugin-kind';
@@ -29,8 +28,6 @@ const blockRegistry = createBlockKindRegistry<string>({ label: 'probe', isBuilti
 const inlineRegistry = createInlineKindRegistry<string>({ label: 'probe', isBuiltin: () => false });
 
 const NAME = 'shared-name';
-
-afterEach(resetPluginPlatformForTests);
 
 describe('a kind registry answers to the plugin that declared the kind', () => {
 	it.each([

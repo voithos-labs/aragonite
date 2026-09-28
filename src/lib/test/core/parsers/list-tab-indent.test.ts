@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { installPlugins } from '$lib';
 import { footnotesPlugin } from '$lib/plugins/footnotes';
 import { parse } from '$lib/core/parser';
@@ -10,7 +10,7 @@ import type { CstNode } from '$lib/core/nodes';
 // holds the columns left over as spaces, so it reads alone as it reads in the body.
 // Miss-analysis (GH #437): no case put a tab where counting it as one space gives another answer.
 
-beforeAll(() => {
+beforeEach(() => {
 	installPlugins([footnotesPlugin()]);
 });
 

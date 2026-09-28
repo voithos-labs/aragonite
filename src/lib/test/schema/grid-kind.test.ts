@@ -1,12 +1,9 @@
 // Miss-analysis: every grid reader named `table`, so no test held the grid fact itself.
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { isGridKind } from '$lib/schema/block-kind-descriptor';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { isVerticallyTransparentNode } from '$lib/core/inline/transparency';
 import { defaultGrammarView } from '$lib/schema/block-openers';
 import { gridOf, registerPluginGrid } from '../selection/cross-block/plugin-grid-kind';
-
-afterEach(() => __resetSchemaRegistriesForTests());
 
 describe('isGridKind', () => {
 	it('reads the declared grid contract, built-in or plugin', () => {

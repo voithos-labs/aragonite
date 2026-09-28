@@ -1,8 +1,7 @@
 // @vitest-environment jsdom
 // Miss-analysis: every block-command test registered the command in the plugin that declared the
 // kind, so the handler's editor and the error report reading the kind's plugin never showed.
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { resetPluginPlatformForTests } from '$lib/testing';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { definePlugin, installPlugins, type EditorContext } from '$lib/schema/plugin-install';
 import { declarePluginKind, declaredPluginKind } from '$lib/schema/plugin-kind';
 import {
@@ -23,7 +22,6 @@ let commandId: AnyCommandId;
 let seen: BlockCommandContext | undefined;
 
 beforeEach(() => {
-	resetPluginPlatformForTests();
 	seen = undefined;
 	installPlugins([
 		definePlugin({ name: 'declarer', setup: () => void declarePluginKind(KIND) }),
@@ -38,7 +36,6 @@ beforeEach(() => {
 		})
 	]);
 });
-afterEach(resetPluginPlatformForTests);
 
 const node = (): CstNode => ({ kind: declaredPluginKind(KIND), leadingTrivia: '', raw: '' });
 

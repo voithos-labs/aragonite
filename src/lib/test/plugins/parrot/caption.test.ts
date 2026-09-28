@@ -2,7 +2,7 @@
 // The parrot's caption: the bytes after the marker, without the Markdown whitespace around them.
 // Miss-analysis: every caption case was ASCII with one space after the marker.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { installEditorDomStubsForTests, resetPluginPlatformForTests } from '$lib/testing';
+import { installEditorDomStubsForTests } from '$lib/testing';
 import { parrotPlugin, PARROT } from '$lib/plugins/parrot';
 import { declaredPluginKind } from '$lib/plugin';
 import { tryGetBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
@@ -27,13 +27,11 @@ function offsetAtCaptionStart(source: string): number | undefined {
 }
 
 beforeEach(() => {
-	resetPluginPlatformForTests();
 	installEditorDomStubsForTests();
 });
 
 afterEach(async () => {
 	await destroyMountedEditors();
-	resetPluginPlatformForTests();
 });
 
 describe('parrot caption', () => {

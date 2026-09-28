@@ -1,9 +1,8 @@
 // @vitest-environment jsdom
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { pasteDispatch } from '../../../tree-operations/paste/dispatch';
 import { findListAbsorb } from '../../../tree-operations/paste/list-absorb';
 import { parse } from '../../../core/parser';
-import { __resetSchemaRegistriesForTests } from '../../../schema/registry-reset';
 import {
 	makeStubBlockEdit,
 	makeStubController,
@@ -33,10 +32,6 @@ function makeTitledContainerDoc(container: AnyBlockKind, chrome: AnyBlockKind): 
 }
 
 describe('paste into a reserved-chrome leaf', () => {
-	beforeEach(() => {
-		__resetSchemaRegistriesForTests();
-	});
-
 	// A `\r\n\r\n` break is one run: flattening per-`\n` double-spaces it.
 	it.each([
 		['LF', 'one\n\ntwo\n'],

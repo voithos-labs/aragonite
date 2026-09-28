@@ -2,7 +2,6 @@
 // Miss-analysis: no test at the leaf rebound or disabled the undo chord a reveal answers.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { unmount } from 'svelte';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import { normalizeKeybindingOverrides } from '$lib/schema/keybinding-overrides';
 import type { KeybindingOverride } from '$lib/schema/keybinding-overrides';
 import { installLayoutStubs } from '$lib/test/harness/mount-editor.svelte';
@@ -37,7 +36,6 @@ async function editOnce(el: HTMLElement): Promise<void> {
 let mounted: ReturnType<typeof mountLeaf> | null = null;
 
 beforeEach(() => {
-	resetPluginPlatformForTests();
 	installLayoutStubs();
 });
 

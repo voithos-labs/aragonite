@@ -17,7 +17,6 @@ import type {
 	ImageFields,
 	ImageSyntaxRewriter
 } from '$lib/plugin';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
 // The inline authoring API is not frozen yet, so the suite pins the symbols a plugin imports
 // from `@voithos-labs/aragonite/plugin` to their core implementations: a dropped or mis-wired
@@ -35,11 +34,9 @@ describe('@voithos-labs/aragonite/plugin inline authoring surface', () => {
 	});
 
 	it('isInlineKindDeclared probes the declared-set without throwing', () => {
-		__resetSchemaRegistriesForTests();
 		expect(pluginBarrel.isInlineKindDeclared('probe-kind')).toBe(false);
 		declarePluginInlineKind('probe-kind');
 		expect(pluginBarrel.isInlineKindDeclared('probe-kind')).toBe(true);
-		__resetSchemaRegistriesForTests();
 	});
 
 	it('keeps the internal inline modules off the barrel', () => {
@@ -54,7 +51,6 @@ describe('@voithos-labs/aragonite/plugin inline authoring surface', () => {
 			'getInlineRungs',
 			'getUnreservedRungs',
 			'getPrefixRungs',
-			'__resetSchemaRegistriesForTests',
 			'__resetSchemaRegistriesForTests'
 		]) {
 			expect(pluginBarrel).not.toHaveProperty(seam);

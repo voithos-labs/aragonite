@@ -11,7 +11,7 @@ import {
 	OPENER_PRIORITIES,
 	type EditorPlugin
 } from '$lib/plugin';
-import { installEditorDomStubsForTests, resetPluginPlatformForTests } from '$lib/testing';
+import { installEditorDomStubsForTests } from '$lib/testing';
 import { mountEditor, type MountedEditor } from '$lib/test/harness/mount-editor.svelte';
 import { takeDevWarns } from '../support/warn-gate';
 import RogueCaretDoorBlock from './fixtures/RogueCaretDoorBlock.svelte';
@@ -102,7 +102,6 @@ async function mountWith(
 }
 
 beforeEach(() => {
-	resetPluginPlatformForTests();
 	installEditorDomStubsForTests();
 });
 

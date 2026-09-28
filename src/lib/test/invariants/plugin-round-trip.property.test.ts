@@ -1,9 +1,8 @@
-import { afterAll, beforeAll, describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import fc from 'fast-check';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import { installPlugins } from '$lib';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import { isBlockKindRegistered } from '../../schema/block-kind-descriptor';
 import { footnotesPlugin, FOOTNOTE_DEF_KIND } from '$lib/plugins/footnotes';
 import { emojiPlugin } from '$lib/plugins/emoji';
@@ -25,8 +24,7 @@ function roundTrips(source: string): boolean {
 	return serialize(parse(source)) === source;
 }
 
-beforeAll(() => {
-	resetPluginPlatformForTests();
+beforeEach(() => {
 	installPlugins([
 		footnotesPlugin(),
 		emojiPlugin(),
@@ -35,8 +33,6 @@ beforeAll(() => {
 		detailsPlugin()
 	]);
 });
-
-afterAll(() => resetPluginPlatformForTests());
 
 describe('G2.1 round-trip with the bundled plugins installed', () => {
 	it('installed the openers this lane exists to cover', () => {

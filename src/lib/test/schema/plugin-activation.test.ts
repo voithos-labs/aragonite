@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { activationFor } from '$lib/schema/plugin-activation';
 import { createRegistryView, kindEnablementFor } from '$lib/schema/registry-view';
@@ -11,7 +11,6 @@ import {
 	type BlockComponentEntry
 } from '$lib/schema/block-component-registry';
 import { registerBlockOpener, type BlockOpener } from '$lib/schema/block-openers';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { testClosure } from '$lib/test/support/closure';
 import { blockContextActionsFor, registerBlockContextActions } from '$lib/schema/context-actions';
 import type { NodeView } from '$lib/core/node-views';
@@ -44,8 +43,6 @@ function installKindPlugin(name: string, marker: string): PluginBlockKind {
 	]);
 	return kind!;
 }
-
-afterEach(() => __resetSchemaRegistriesForTests());
 
 describe('kind enablement derived from an instance activation set', () => {
 	it('resolves the listed plugin kind and degrades the unlisted one', () => {

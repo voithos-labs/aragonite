@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { defaultGrammarView } from '$lib/schema/block-openers';
-import { afterEach, describe, it, expect } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import type { Component } from 'svelte';
 import type { InlineNode } from '../../core/nodes';
 import {
@@ -20,8 +20,6 @@ const imageNode: InlineNode = { kind: 'image', start: 0, end: 6, alt: '', url: '
 const FakeComponent = (() => {}) as unknown as Component<InlineWidgetComponentProps>;
 
 describe('registerInlineWidgetKind: register-once', () => {
-	afterEach(__resetSchemaRegistriesForTests);
-
 	it('rejects re-registering the built-in image kind, leaving it intact', () => {
 		expect(() => registerInlineWidgetKind('image', { isWidget: () => false })).toThrow(
 			/register-once|already registered/i
@@ -40,8 +38,6 @@ describe('registerInlineWidgetKind: register-once', () => {
 });
 
 describe('registerInlineWidgetKind: component and buildWidget are mutually exclusive', () => {
-	afterEach(__resetSchemaRegistriesForTests);
-
 	it('throws, naming the kind, when a descriptor declares both', () => {
 		expect(() =>
 			registerInlineWidgetKind(PLUGIN_KIND, {
@@ -69,8 +65,6 @@ describe('registerInlineWidgetKind: component and buildWidget are mutually exclu
 });
 
 describe('__resetSchemaRegistriesForTests', () => {
-	afterEach(__resetSchemaRegistriesForTests);
-
 	it('clears plugin kinds but keeps the built-ins', () => {
 		registerInlineWidgetKind(PLUGIN_KIND, { isWidget: () => true });
 		expect(isInlineWidget(pluginNode, 'xxx', defaultGrammarView)).toBe(true);

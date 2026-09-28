@@ -1,7 +1,6 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { resolveReorderUnit } from '$lib/tree-operations/reorder-unit';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import type { CstNode, Document } from '$lib/core/nodes';
 import { testChromeContainer } from '$lib/test/harness/test-kinds';
 
@@ -86,10 +85,6 @@ describe('resolveReorderUnit', () => {
 // An opaque container is not a reorderable parent, so the resolver stops at its boundary, but a
 // native reorderable parent nested in its body still wins first.
 describe('resolveReorderUnit: plugin (opaque) container', () => {
-	beforeEach(() => {
-		__resetSchemaRegistriesForTests();
-	});
-
 	// An opaque container at document index 1 whose child 0 is its reserved title child.
 	function opaqueContainer(body: CstNode[]): Document {
 		const { container: containerKind, chrome: chromeKind } = testChromeContainer(

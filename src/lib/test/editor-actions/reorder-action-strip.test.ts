@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { installPlugins } from '$lib';
 import { serialize } from '$lib/core/serializer';
 import { makeReorderContainer } from './reorder-harness';
@@ -10,7 +10,7 @@ import { footnotesPlugin } from '$lib/plugins/footnotes';
 // state by the commit rebuilding the scope through its own descriptor, so these test the
 // observable contract instead: reorder within, marker survives, tree converges.
 
-beforeAll(() => {
+beforeEach(() => {
 	installPlugins([admonitionsPlugin(), footnotesPlugin()]);
 });
 

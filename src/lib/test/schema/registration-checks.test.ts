@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeEach, afterEach } from 'vitest';
+import { describe, expect, it, afterEach } from 'vitest';
 import type { AnyBlockKind } from '$lib/core/nodes';
 import { checkLateOpenerRegistration } from '$lib/invariants/registry';
 import {
@@ -48,10 +48,6 @@ const opener = (priority: number): BlockOpener => ({
 	priority,
 	tryOpen: () => null,
 	interruptsParagraph: false
-});
-
-beforeEach(() => {
-	__resetSchemaRegistriesForTests();
 });
 
 // The unit setup registers built-in descriptors but never components, so every check this file

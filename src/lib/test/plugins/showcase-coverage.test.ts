@@ -1,8 +1,7 @@
-import { afterAll, beforeAll, describe, it, expect } from 'vitest';
+import { beforeEach, describe, it, expect } from 'vitest';
 import { bundledPluginDirs } from '../invariants/lint/scan-source';
 import { parse } from '$lib/core/parser';
 import { installPlugins } from '$lib';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import { getAllRegisteredKinds } from '$lib/schema/block-kind-descriptor';
 import {
 	ALL_BLOCK_KINDS,
@@ -90,8 +89,7 @@ function kindsIn(document: Document): Set<string> {
 let demonstrated: Set<string>;
 let expected: Set<string>;
 
-beforeAll(() => {
-	resetPluginPlatformForTests();
+beforeEach(() => {
 	installPlugins(DEMO_PLUGINS);
 	demonstrated = kindsIn(parse(SHOWCASE_DOCUMENT));
 	expected = new Set([
@@ -100,8 +98,6 @@ beforeAll(() => {
 		...PLUGIN_INLINE_KINDS
 	]);
 });
-
-afterAll(() => resetPluginPlatformForTests());
 
 describe('the showcase document demonstrates the surface it ships with', () => {
 	it('installs the plugin grammar it is written against', () => {

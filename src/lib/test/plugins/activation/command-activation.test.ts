@@ -1,15 +1,12 @@
 // Miss-analysis: no case asked `runCommand` for a plugin's id in an editor that left it out.
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { runCommandById, registerBlockCommand } from '$lib/schema/block-commands';
 import type { CommandDispatchContext, KindCommandTarget } from '$lib/schema/block-commands';
 import { registerGlobalCommand } from '$lib/schema/global-commands';
 import { definePlugin, installPlugins, type EditorContext } from '$lib/schema/plugin-install';
 import { activationFor, type PluginActivation } from '$lib/schema/plugin-activation';
 import type { AnyCommandId } from '$lib/schema/command-id';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { commandContext } from '$lib/test/support/command-context';
-
-afterEach(() => __resetSchemaRegistriesForTests());
 
 // A plugin context for any name, so only the command registry's own activation check can refuse.
 function context(activation: PluginActivation): CommandDispatchContext {

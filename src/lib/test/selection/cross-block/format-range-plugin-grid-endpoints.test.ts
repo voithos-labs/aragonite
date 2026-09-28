@@ -3,12 +3,9 @@
 // offset into a cell the write grows, an endpoint space a table does not have. A text edge
 // follows its own rewrite, and a deep grid edge must too.
 // Miss-analysis: every endpoint assertion used a table endpoint, whose cell space no write moves.
-import { afterEach, describe, expect, it } from 'vitest';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
+import { describe, expect, it } from 'vitest';
 import type { SelectionPoint } from '$lib/selection/primitives';
 import { docAround, gridOf, planStored, registerPluginGrid } from './plugin-grid-kind';
-
-afterEach(() => __resetSchemaRegistriesForTests());
 
 const at = (path: number[], offset: number): SelectionPoint => ({ path, offset });
 

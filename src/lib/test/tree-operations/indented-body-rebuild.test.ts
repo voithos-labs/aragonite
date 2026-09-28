@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { installPlugins } from '$lib';
 import { footnotesPlugin } from '$lib/plugins/footnotes';
 import type { CstNode, Document } from '$lib/core/nodes';
@@ -14,7 +14,7 @@ import { documentLineEnding } from '$lib/core/lines';
 // block bare, an empty paragraph's own line indented, so one keystroke moves no other byte.
 // Miss-analysis: no case typed into a loaded body with a bare separator, checking the other bytes.
 
-beforeAll(() => {
+beforeEach(() => {
 	installPlugins([footnotesPlugin()]);
 });
 

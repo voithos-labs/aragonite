@@ -2,7 +2,6 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { updateNodeContent } from '$lib/tree-operations/content-write';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { registerMathFence, MATH_FENCE } from '$lib/plugins/latex/latex-kind';
 import { registerMermaidKind, MERMAID } from '$lib/plugins/mermaid/mermaid-kind';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
@@ -15,7 +14,6 @@ import { defaultGrammarView } from '$lib/schema/block-openers';
 
 describe('a typed plugin fence closes over an empty body (GH #180)', () => {
 	beforeEach(() => {
-		__resetSchemaRegistriesForTests();
 		registerMermaidKind();
 		registerMathFence();
 	});

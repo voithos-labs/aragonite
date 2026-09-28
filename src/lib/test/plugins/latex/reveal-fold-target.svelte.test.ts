@@ -3,7 +3,7 @@
 import { afterEach, beforeEach, describe, it, expect } from 'vitest';
 import { mount, unmount, flushSync, tick } from 'svelte';
 import { Editor, type EditorInstance } from '$lib';
-import { installEditorDomStubsForTests, resetPluginPlatformForTests } from '$lib/testing';
+import { installEditorDomStubsForTests } from '$lib/testing';
 import { latexPlugin } from '$lib/plugins/latex';
 import type { MathRenderer } from '$lib/plugins/latex/math-renderer';
 import { installLayoutStubs } from '$lib/test/harness/mount-editor.svelte';
@@ -16,7 +16,6 @@ let target: HTMLElement | null = null;
 let instance: EditorInstance | null = null;
 
 beforeEach(() => {
-	resetPluginPlatformForTests();
 	installEditorDomStubsForTests();
 	installLayoutStubs();
 });
@@ -26,7 +25,6 @@ afterEach(async () => {
 	target?.remove();
 	instance = null;
 	target = null;
-	resetPluginPlatformForTests();
 });
 
 /** An editor whose `source` prop is live, so a case can swap the document under an open

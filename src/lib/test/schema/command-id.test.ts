@@ -1,9 +1,6 @@
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { mintCommandId, isPluginCommandId } from '$lib/schema/command-id';
 import { definePlugin, installPlugins } from '$lib/schema/plugin-install';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
-
-afterEach(() => __resetSchemaRegistriesForTests());
 
 /** Run `mint` inside the setup of a plugin called `name`, so the plugin owns what it creates. */
 function asPlugin(name: string, mint: () => void): void {

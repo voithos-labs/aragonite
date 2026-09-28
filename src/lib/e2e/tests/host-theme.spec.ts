@@ -1,6 +1,6 @@
 import { type Page } from '@playwright/test';
 import { test, expect } from '../fixtures';
-import { waitForEditorHydrated } from '../page-probes';
+import { gotoReady } from '../goto-ready';
 
 // `/test/host-theme` feeds the editor from a page wrapper with no `.aragonite-editor-theme`, so
 // the app's own colour tokens must reach the editor's text on their own (G4.6d). Only a real
@@ -57,8 +57,7 @@ const overlayBackground = (page: Page) =>
 
 test.describe('/test/host-theme', () => {
 	test.beforeEach(async ({ page }) => {
-		await page.goto('/test/host-theme');
-		await waitForEditorHydrated(page);
+		await gotoReady(page, '/test/host-theme');
 	});
 
 	test('the route carries no opt-in theme class anywhere', async ({ page }) => {

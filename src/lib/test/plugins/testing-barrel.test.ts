@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import python from 'highlight.js/lib/languages/python';
 import {
 	applyPasteTransforms,
@@ -197,8 +197,6 @@ function installProbePlugin(): void {
 }
 
 describe('resetPluginPlatformForTests aggregate', () => {
-	beforeEach(() => resetPluginPlatformForTests());
-
 	it('probes every registration the plugin barrel exports', () => {
 		expect(PROBES.map((p) => p.entry).sort()).toEqual(publicRegistrations());
 	});

@@ -1,8 +1,7 @@
 // @vitest-environment jsdom
 // Miss-analysis: every kind-entry activation test registered the entry in the declaring plugin's
 // own setup, so the inline registries answering to the registrant never showed.
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { resetPluginPlatformForTests } from '$lib/testing';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { definePlugin, installPlugins } from '$lib/schema/plugin-install';
 import {
 	declarePluginInlineKind,
@@ -24,9 +23,6 @@ const declarer = definePlugin({
 		declarePluginInlineKind(MARK);
 	}
 });
-
-beforeEach(resetPluginPlatformForTests);
-afterEach(resetPluginPlatformForTests);
 
 describe('an inline widget registered by another plugin answers to the kind’s declarer', () => {
 	beforeEach(() => {

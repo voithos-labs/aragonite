@@ -1,18 +1,12 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse, serialize } from '$lib';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import { registerDetailsKind } from '$lib/plugins/details/details-kind';
 
 // The close-scan must track fenced code in the body: inside a fence, `</details>` is
 // content and `<details>` must not inflate the depth. Bytes round-trip either way, so
 // a fence-blind scan fails structurally (early close, spurious decline), not visibly.
-function resetAndRegister(): void {
-	resetPluginPlatformForTests();
-	registerDetailsKind();
-}
-
 describe('details fence-aware close scan', () => {
-	beforeEach(resetAndRegister);
+	beforeEach(registerDetailsKind);
 
 	it('does not close early on a fenced </details> in the body', () => {
 		const src = '<details>\n<summary>T</summary>\n\n```\n</details>\n```\n\n</details>\n';

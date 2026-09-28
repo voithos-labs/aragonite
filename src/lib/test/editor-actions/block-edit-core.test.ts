@@ -1,9 +1,8 @@
-import { describe, expect, it, beforeEach, afterEach } from 'vitest';
+import { describe, expect, it, beforeEach } from 'vitest';
 import { createBlockEditCore } from '$lib/editor-actions/block-edit-core';
 import type { CstNode } from '$lib/core/nodes';
 import { CURSOR_EXACT_START, CURSOR_START, type BlockComponent } from '$lib/block-component';
 import { parse } from '$lib/core/parser';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { registerCalloutKind } from '../../../routes/test/plugins/callout/callout-kind';
 import { takeDevWarns } from '$lib/test/support/warn-gate';
 import { makeCommitScopeStub, parseLeaf as leaf } from '$lib/test/harness/editor-actions';
@@ -142,8 +141,6 @@ describe('block-edit core: shared structural decisions', () => {
 // The whole-block-focus branch runs before the `!isBlockEditable` check, so it wins over the
 // delete fallback at any editability; both merge directions run so neither can drift alone.
 describe('block-edit core: whole-block-focus fallback', () => {
-	beforeEach(__resetSchemaRegistriesForTests);
-
 	function wholeBlockNode(editable: boolean): CstNode {
 		const kind = testLeaf('spec-whole-block', {
 			editable,
@@ -192,8 +189,6 @@ describe('block-edit core: whole-block-focus fallback', () => {
 // The delete-the-neighbour fallback needs a synthetic kind: every non-editable
 // built-in is a whole-block-focus target, so only a plugin kind still reaches it.
 describe('block-edit core: non-editable neighbour fallback', () => {
-	beforeEach(__resetSchemaRegistriesForTests);
-
 	function inertNode(): CstNode {
 		const kind = testLeaf('spec-inert-leaf', {
 			editable: false
@@ -251,10 +246,8 @@ describe('block-edit core: thematicBreak focus-then-delete', () => {
 // Miss-analysis: the wrap fix-up tests passed the container node, never the commit view's shape.
 describe('block-edit core: wrap-owner threading', () => {
 	beforeEach(() => {
-		__resetSchemaRegistriesForTests();
 		registerCalloutKind();
 	});
-	afterEach(__resetSchemaRegistriesForTests);
 
 	it('deleteInterior hands the owner to the settle, so the wrap absorbs the freed line', async () => {
 		const doc = parse(':::callout\nA\n\nB\n:::\n');

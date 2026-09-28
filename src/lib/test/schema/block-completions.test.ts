@@ -1,5 +1,5 @@
 import { defaultGrammarView } from '$lib/schema/block-openers';
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import {
 	registerBlockCompleter,
 	completeTypedLine,
@@ -19,10 +19,8 @@ function claims(marker: string, lines: string[]): BlockCompleter {
 }
 
 describe('block-completion registry', () => {
-	// The completer registry is module-global, so each case resets it; the built-in table completer
-	// survives the reset, and each case's own kinds sort ahead of it by name.
-	beforeEach(() => __resetSchemaRegistriesForTests());
-	afterEach(() => __resetSchemaRegistriesForTests());
+	// The built-in table completer survives the reset before each case, and each case's own kinds
+	// sort ahead of it by name.
 
 	it('returns the first claim and leaves an unclaimed line alone', () => {
 		registerBlockCompleter(declarePluginKind('spec-pipe'), claims('|', ['a', 'b']));

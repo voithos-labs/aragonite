@@ -7,7 +7,6 @@ import { flushSync } from 'svelte';
 import { parse } from '$lib/core/parser';
 import { createEditorEvents, type EditorEvents } from '$lib/editor-events';
 import { registerBlockComponent, defineBlockComponent } from '$lib/schema/block-component-registry';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import type { CstNode } from '$lib/core/nodes';
 import ThrowingBlock from './fixtures/ThrowingBlock.svelte';
 import { mountBlockHost } from './mount-host';
@@ -21,7 +20,6 @@ let mounted: MountedHost | null = null;
 afterEach(async () => {
 	if (mounted) await mounted.dispose();
 	mounted = null;
-	__resetSchemaRegistriesForTests();
 });
 
 interface ErrorReport {

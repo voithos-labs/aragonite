@@ -1,13 +1,9 @@
 // @vitest-environment jsdom
 // The code-block language API as a plugin author sees it: only the published barrel, so a
 // re-export that drifts from the registry behind it fails here rather than in a host's build.
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import latex from 'highlight.js/lib/languages/latex';
 import { getLanguageAliases, highlightCode, listLanguages, registerLanguage } from '$lib/plugin';
-import { resetPluginPlatformForTests } from '$lib/testing';
-
-// A name the code bootstrap does not register, so each case registers it afresh.
-beforeEach(() => resetPluginPlatformForTests());
 
 describe('the plugin barrel’s code-language surface', () => {
 	it('round-trips a registered grammar into the picker’s list, its alias folded in', () => {

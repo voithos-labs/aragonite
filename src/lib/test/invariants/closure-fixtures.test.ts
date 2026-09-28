@@ -1,11 +1,10 @@
-import { describe, expect, it, beforeEach } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { ALL_BLOCK_KINDS, type AnyBlockKind, type CstNode } from '$lib/core/nodes';
 import {
 	getBlockKindDescriptor,
 	tryGetBlockKindDescriptor
 } from '$lib/schema/block-kind-descriptor';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import { activateDirectives } from '$lib/components/blocks/directive/activate-directives';
 import { DIRECTIVE_CONTAINER, DIRECTIVE_LEAF } from '$lib/core/directive/kinds';
 import { registerMathBlock, MATH_BLOCK, MATH_FENCE } from '$lib/plugins/latex/latex-kind';
@@ -59,8 +58,6 @@ describe('built-in conformance fixtures parse to their kind', () => {
 });
 
 describe('directive + bundled-plugin conformance fixtures parse to their kind', () => {
-	beforeEach(() => resetPluginPlatformForTests());
-
 	it('generic directive fallback (container + leaf)', () => {
 		activateDirectives();
 		checkFixture(DIRECTIVE_CONTAINER);

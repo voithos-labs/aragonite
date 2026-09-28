@@ -1,6 +1,7 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { installPlugins } from '$lib';
 import { admonitionsPlugin } from '$lib/plugins/admonitions';
+import { GITHUB_ALERT } from '$lib/plugins/admonitions/kinds';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
@@ -17,7 +18,7 @@ import { testContainer } from '$lib/test/harness/test-kinds';
 
 let THROWING: AnyBlockKind;
 
-beforeAll(() => {
+beforeEach(() => {
 	installPlugins([admonitionsPlugin()]);
 	THROWING = testContainer('spec-throwing-rebuild', {
 		rebuildRaw: () => {
@@ -78,6 +79,11 @@ async function throwingCommit(h: ReturnType<typeof makeDoc>): Promise<unknown> {
 }
 
 describe('a commit that unwinds after a container was re-kinded', () => {
+	// Without the alert grammar the completed marker re-kinds nothing, and both cases below pass.
+	it('reads the completed marker as an alert', () => {
+		expect(parse('> > [!TIP]\n').children[0].children![0].kind).toBe(GITHUB_ALERT);
+	});
+
 	it('puts the original node back in its slot', async () => {
 		const h = makeDoc();
 		await seedUndoUnit(h);

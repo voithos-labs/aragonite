@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { installPlugins, parse, serialize } from '$lib';
 import { admonitionsPlugin } from '$lib/plugins/admonitions';
 import { createBlockEditActions } from '$lib/editor-actions/block-edit';
@@ -13,7 +13,7 @@ import { containerAt, typeSlowly } from './formation-harness';
 // that the blockquote's rebuilt raw now opens as a `githubAlert`: inserting the whole marker
 // at once does classify it, and this path would quietly not.
 
-beforeAll(() => {
+beforeEach(() => {
 	installPlugins([admonitionsPlugin()]);
 });
 

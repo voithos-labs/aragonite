@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { pasteDispatch } from '$lib/tree-operations/paste/dispatch';
@@ -12,12 +12,9 @@ import {
 	registerStubBlockListState
 } from '$lib/test/harness/editor-actions';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
 // The text after the caret is every block it parses to, with the break a line-end caret leaves.
 // Miss-analysis: GH #436, every residue test cut a one-line leaf, and the shortened tree converged.
-
-beforeEach(() => __resetSchemaRegistriesForTests());
 
 async function paste(source: string, targetPath: number[], offset: number, clipboard: string) {
 	const { deps } = makeEditorActionsDeps(parse(source));

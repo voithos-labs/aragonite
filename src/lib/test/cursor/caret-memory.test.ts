@@ -1,6 +1,5 @@
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { registerBlockCommand } from '../../schema/block-commands';
-import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
 import { createCaretMemory, type CaretMemory } from '../../cursor/caret-memory';
 import { asEditorX } from '../../cursor/coordinate-spaces';
 import type { AnyCommandId } from '../../schema/command-id';
@@ -145,8 +144,6 @@ describe('noteKey reads the chord as the command it resolves to', () => {
 });
 
 describe('noteKey reads a plugin command by its key', () => {
-	afterEach(() => __resetSchemaRegistriesForTests());
-
 	it('a plugin command is classified by its key', () => {
 		const other = registerBlockCommand('paragraph', 'caretTest.other', () => true);
 		const m = arrived();

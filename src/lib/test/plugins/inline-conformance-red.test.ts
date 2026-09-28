@@ -4,7 +4,7 @@
 // Every defect is invisible to a byte round trip: each document below round-trips perfectly
 // while meaning something other than what its author wrote.
 
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
 	INLINE_PRIORITIES,
 	declarePluginInlineKind,
@@ -15,12 +15,9 @@ import {
 	type InlineWidgetEditingPolicy,
 	type PluginInlineKind
 } from '$lib/plugin';
-import { resetPluginPlatformForTests, runInlineKindConformance } from '$lib/testing';
+import { runInlineKindConformance } from '$lib/testing';
 import type { InlineConformanceProfile } from '$lib/testing';
 import { registerWikiRung, rewriteWikiImage } from '../image/wiki-image-rung';
-
-beforeEach(() => resetPluginPlatformForTests());
-afterEach(() => resetPluginPlatformForTests());
 
 const A_REASON = 'a substantive reason long enough to clear the documented-excuse floor';
 

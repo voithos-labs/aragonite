@@ -1,13 +1,10 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { checkOpaqueRebuildDeterminism } from '../../invariants/node-shape';
-import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
 import { testContainer } from '$lib/test/harness/test-kinds';
 import { concatChildren } from '../../core/serializer';
 import { setPluginMetadata, getPluginMetadata, type CstNode } from '../../core/nodes';
 
 describe('checkOpaqueRebuildDeterminism (opaque containers)', () => {
-	beforeEach(() => __resetSchemaRegistriesForTests());
-
 	function opaqueNode(kind: CstNode['kind']): CstNode {
 		return {
 			kind,

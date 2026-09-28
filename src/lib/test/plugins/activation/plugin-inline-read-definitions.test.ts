@@ -2,7 +2,7 @@
 // A plugin's inline read in a mounted editor resolves the document's link reference definitions.
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { definePlugin, type EditorContext } from '$lib/plugin';
-import { installEditorDomStubsForTests, resetPluginPlatformForTests } from '$lib/testing';
+import { installEditorDomStubsForTests } from '$lib/testing';
 import { tocPlugin } from '$lib/plugins/toc';
 import { collectHeadings } from '$lib/plugins/toc/heading-outline';
 import { footnotesPlugin } from '$lib/plugins/footnotes';
@@ -46,14 +46,12 @@ async function replaceText(mounted: MountedEditor, from: string, to: string): Pr
 }
 
 beforeEach(() => {
-	resetPluginPlatformForTests();
 	installEditorDomStubsForTests();
 	editorContext = undefined;
 });
 
 afterEach(async () => {
 	await destroyMountedEditors();
-	resetPluginPlatformForTests();
 });
 
 // Miss-analysis: every plugin inline-read test built its reader from a grammar alone, so none

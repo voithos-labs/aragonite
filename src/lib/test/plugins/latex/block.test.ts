@@ -1,16 +1,11 @@
 // @vitest-environment jsdom
-import { afterEach, beforeEach, describe, it, expect } from 'vitest';
+import { beforeEach, describe, it, expect } from 'vitest';
 import { installPlugins, parse, serialize } from '$lib';
 import { resetPluginPlatformForTests } from '$lib/testing';
 import { getInlineRungs } from '$lib/core/inline/scan/plugin-syntax';
 import { roundTripCases } from '$lib/test/support/round-trip';
 import { registerMathBlock, MATH_BLOCK } from '$lib/plugins/latex/latex-kind';
 import { latexPlugin } from '$lib/plugins/latex';
-
-// The block opener and the inline `$` trigger live in independent registries and the platform
-// reset clears both; a schema-only reset would let the test below pass on the inline half.
-beforeEach(resetPluginPlatformForTests);
-afterEach(resetPluginPlatformForTests);
 
 // Recognition starts only once the opener registers: with the plugin absent a `$$` fence is
 // ordinary GFM text (a paragraph), byte-identical to plain GFM.

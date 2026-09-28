@@ -1,5 +1,4 @@
 import { describe, it, expect, afterEach, beforeEach } from 'vitest';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import { registerDetailsKind } from '$lib/plugins/details/details-kind';
 import { blockNodeAt } from '$lib/tree-operations/node-primitives';
 import { createInlineRangeCommit } from '$lib/editor-actions/inline-range-commit';
@@ -142,7 +141,6 @@ describe('inline-range commit: a blank paragraph filled or emptied', () => {
 // Miss-analysis: every length check ran at the top level, where no container rewrites the bytes.
 describe('inline-range commit: the length it reports is the length it stores', () => {
 	beforeEach(() => {
-		resetPluginPlatformForTests();
 		registerDetailsKind();
 	});
 

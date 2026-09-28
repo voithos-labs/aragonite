@@ -4,11 +4,10 @@
  * handles has its own row. The reverse sweep matches a chord with the kind, keymap, plugin or
  * file that owns it, so a chord with two meanings needs a row for each.
  */
-import { describe, it, expect } from 'vitest';
+import { beforeEach, describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import type { AnyBlockKind } from '$lib/core/nodes';
-import { registerBuiltInDescriptors } from '$lib/schema/built-in-descriptors';
 import {
 	GLOBAL_KEYMAP,
 	pluginGlobalBindings,
@@ -56,8 +55,9 @@ const BUNDLED_PLUGINS = [
 	slashCommandsPlugin(),
 	tocPlugin()
 ];
-registerBuiltInDescriptors();
+// Installed as the file loads too, so the row tables below can name the bundled kinds.
 installPlugins(BUNDLED_PLUGINS);
+beforeEach(() => installPlugins(BUNDLED_PLUGINS));
 
 // ── Doc parsing ─────────────────────────────────────────────────────────────
 // Map the display key names the doc uses to the event key names the code sees.

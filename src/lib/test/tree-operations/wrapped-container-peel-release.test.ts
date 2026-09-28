@@ -1,10 +1,9 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { updateNodeContent } from '$lib/tree-operations/content-write';
 import { firstLineEnding, trailingLineEnding } from '$lib/core/lines';
 import { rebuildAncestryRaw } from '$lib/schema/container-raw';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { installPlugins } from '$lib';
 import { detailsPlugin } from '$lib/plugins/details';
 import { makeNestedHarness } from '$lib/test/harness/editor-actions';
@@ -36,10 +35,8 @@ const emptyBodyChild = (container: CstNode, at: number) =>
 
 describe('the closer strip a blank tail borrowed', () => {
 	beforeEach(() => {
-		__resetSchemaRegistriesForTests();
 		registerCalloutKind();
 	});
-	afterEach(__resetSchemaRegistriesForTests);
 
 	it('comes back when the emptied last body block is filled again', () => {
 		const doc = parse(':::callout Title\nBody1\n\nBody2\n:::\n');
@@ -82,11 +79,9 @@ describe('the closer strip a blank tail borrowed', () => {
 // inside the commit, so only a bundle-driven case reaches it.
 describe('a tail split then typed, through the container bundle', () => {
 	beforeEach(() => {
-		__resetSchemaRegistriesForTests();
 		registerCalloutKind();
 		installPlugins([detailsPlugin()]);
 	});
-	afterEach(__resetSchemaRegistriesForTests);
 
 	it('leaves no stray line before the closing fence', async () => {
 		const h = makeNestedHarness(parse(':::callout Title\nFirst one\n:::\n'), { index: 0 });

@@ -1,9 +1,8 @@
 // The three conformance kits report a cell in one shape, so one reader handles all their reports.
-import { beforeEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { installPlugins } from '$lib';
 import { declaredPluginInlineKind, INLINE_PRIORITIES } from '$lib/plugin';
 import {
-	resetPluginPlatformForTests,
 	runContainerConformance,
 	runInlineKindConformance,
 	runKindConformance,
@@ -25,8 +24,6 @@ function expectVocabulary(cells: readonly CellReport[], extra: readonly string[]
 }
 
 describe('conformance kit reports share one vocabulary', () => {
-	beforeEach(() => resetPluginPlatformForTests());
-
 	it('the container kit reports an excuse as its detail', async () => {
 		const { cells } = await runContainerConformance('blockquote', {
 			deepNesting: { source: '> a\n>\n> > b\n', leafPath: [0, 1, 0] },

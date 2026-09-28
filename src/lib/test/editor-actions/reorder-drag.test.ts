@@ -1,6 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
-import { resetPluginPlatformForTests } from '$lib/testing';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { registerMathBlock } from '$lib/plugins/latex/latex-kind';
 import { registerMermaidKind } from '$lib/plugins/mermaid/mermaid-kind';
 import { registerDetailsKind } from '$lib/plugins/details/details-kind';
@@ -80,13 +79,11 @@ describe('installReorderDrag: root listener lifecycle', () => {
 // A block with a designed ghost label reads that name, and anything else reads its first words.
 // Miss-analysis: only the table's label had a test, so renaming the rest never went red.
 describe('the drag ghost names what it carries', () => {
-	beforeAll(() => {
-		resetPluginPlatformForTests();
+	beforeEach(() => {
 		registerMathBlock();
 		registerMermaidKind();
 		registerDetailsKind();
 	});
-	afterAll(() => resetPluginPlatformForTests());
 
 	function ghostFor(source: string, text: string, rows = 0): string | undefined {
 		const doc = parse(source);

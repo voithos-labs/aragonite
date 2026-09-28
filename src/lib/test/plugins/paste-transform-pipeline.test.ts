@@ -2,7 +2,7 @@
 // below imports only `@voithos-labs/aragonite/plugin` and `@voithos-labs/aragonite/testing`,
 // so it is exactly the suite a third-party author can write.
 // Miss-analysis: only e2e specs pinned `registerPasteTransform`, so no unit test saw its wiring.
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { definePlugin, registerPasteTransform, isPasteTransformRegistered } from '$lib/plugin';
 import { installPlugins } from '$lib';
 import { applyPasteTransforms, resetPluginPlatformForTests } from '$lib/testing';
@@ -17,8 +17,6 @@ const bangToBullet = {
 	name: 'bang-to-bullet',
 	transform: (text: string) => (text.startsWith('!') ? `- ${text.slice(1)}` : null)
 };
-
-beforeEach(() => resetPluginPlatformForTests());
 
 describe('the registered paste pipeline, driven through aragonite/testing', () => {
 	it('runs a registered transform over the pasted text', () => {

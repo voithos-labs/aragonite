@@ -4,7 +4,6 @@
 // Miss-analysis (GH #566): every fence replace test drove the built-in code block alone.
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse, serialize } from '$lib';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import { registerMathBlock } from '$lib/plugins/latex/latex-kind';
 import type { Document } from '$lib/core/nodes';
 import { expectParseConverged } from '$lib/test/harness/parse-converged';
@@ -16,7 +15,6 @@ const scan = (doc: Document, query: string) => scanCompiled(doc, query, { caseSe
 const reloadKinds = (doc: Document) => parse(serialize(doc)).children.map((c) => c.kind);
 
 beforeEach(() => {
-	resetPluginPlatformForTests();
 	registerMathBlock();
 });
 

@@ -1,8 +1,7 @@
 // @vitest-environment jsdom
 // Miss-analysis: every activation test filled a slot on a plugin's own kind, so a plugin's entry
 // on a built-in kind, which no plugin declares, resolving in every editor never showed.
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { resetPluginPlatformForTests } from '$lib/testing';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { definePlugin, installPlugins } from '$lib/schema/plugin-install';
 import { registerBlockCompleter, completeTypedLine } from '$lib/schema/block-completions';
 import { isInlineWidgetKind, registerInlineWidgetKind } from '$lib/core/inline/inline-widgets';
@@ -11,7 +10,6 @@ import { grammarListing } from './grammar-listing';
 const LINE = 'fill-me';
 
 beforeEach(() => {
-	resetPluginPlatformForTests();
 	installPlugins([
 		definePlugin({
 			name: 'slot-filler',
@@ -28,7 +26,6 @@ beforeEach(() => {
 		})
 	]);
 });
-afterEach(resetPluginPlatformForTests);
 
 describe('a plugin’s entry on a built-in kind answers to that plugin', () => {
 	it.each([

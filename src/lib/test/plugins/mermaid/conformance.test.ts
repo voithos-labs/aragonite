@@ -6,11 +6,7 @@ import {
 	setPluginMetadata,
 	getPluginMetadata
 } from '$lib/plugin';
-import {
-	resetPluginPlatformForTests,
-	runContainerConformance,
-	type ContainerConformanceProfile
-} from '$lib/testing';
+import { runContainerConformance, type ContainerConformanceProfile } from '$lib/testing';
 import {
 	registerMermaidKind,
 	MERMAID,
@@ -44,7 +40,6 @@ const mermaidProfile: ContainerConformanceProfile = {
 
 describe('G4.3 conformance kit: the childless opaque container', () => {
 	beforeEach(() => {
-		resetPluginPlatformForTests();
 		registerMermaidKind();
 	});
 

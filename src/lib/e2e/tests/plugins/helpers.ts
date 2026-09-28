@@ -1,5 +1,6 @@
 import { expect, type Locator, type Page } from '@playwright/test';
 import { EditorPage } from '../../editor-page';
+import { gotoReady } from '../../goto-ready';
 import { widgetAimTarget } from '../../text-runs';
 
 // Shared reads for every spec driving the `/test/plugins` harness. They go through `window.__test`
@@ -7,7 +8,7 @@ import { widgetAimTarget } from '../../text-runs';
 
 export class PluginsPage extends EditorPage {
 	async gotoPlugins(seed?: string): Promise<void> {
-		await this.openHarness(seed ? `/test/plugins?seed=${seed}` : '/test/plugins');
+		await gotoReady(this.page, seed ? `/test/plugins?seed=${seed}` : '/test/plugins');
 		// Started for every spec, not per spec: capturing is passive, and a `capturedErrors() ===
 		// []` assertion against a capture nobody started would pass for the wrong reason.
 		await this.page.evaluate(() => (window as any).__test.startErrorCapture());

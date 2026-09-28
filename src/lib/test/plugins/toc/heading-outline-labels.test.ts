@@ -1,7 +1,6 @@
-import { afterEach, beforeEach, describe, it, expect } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { installPlugins, parse } from '$lib';
 import { computeInlineContent } from '$lib/plugin';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import { emojiPlugin } from '$lib/plugins/emoji';
 import { projectInlineText } from '$lib/plugins/toc/heading-outline';
 
@@ -31,9 +30,6 @@ describe('projectInlineText: clean heading labels', () => {
 // An emoji shortcode in a heading renders as its glyph, not its `:shortcode:` bytes:
 // the widget branch of the projection rule.
 describe('projectInlineText: emoji glyph projection', () => {
-	beforeEach(resetPluginPlatformForTests);
-	afterEach(resetPluginPlatformForTests);
-
 	it('renders an emoji shortcode as its glyph when the emoji plugin is registered', () => {
 		installPlugins([emojiPlugin()]);
 		expect(label('# Mood :smile: today\n')).toBe('Mood 😄 today');

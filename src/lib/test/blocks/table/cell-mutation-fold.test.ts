@@ -2,7 +2,6 @@
 // Miss-analysis: hiding a shown source before a cell edit was tested on two of its paths only.
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { registerMathInline } from '$lib/plugins/latex/latex-kind';
-import { resetInlineState } from '../text/math-widget-fixture';
 import { mountCell } from './mount-cell';
 import { trimTrailingLineEnding } from '$lib/core/lines';
 import { settleEditor, dispatchKey } from '$lib/test/harness/settle';
@@ -25,7 +24,6 @@ let mounted: ReturnType<typeof mountCell>;
 afterEach(async () => {
 	if (mounted) await mounted.dispose();
 	document.body.innerHTML = '';
-	resetInlineState();
 });
 
 describe('a cell mutation folds the open reveal before it runs', () => {

@@ -9,14 +9,12 @@ import { createUndoController } from '$lib/editor-actions/commit/undo-controller
 import { createBlockEditActions } from '$lib/editor-actions/block-edit';
 import { makeEditorActionsDeps, pasteContext } from '$lib/test/harness/editor-actions';
 import { expectParseConverged, triviaRawOf } from '$lib/test/harness/parse-converged';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
 // A break-out keeps the list's separating line (`docs/design/syntax-tree.md` § Blank lines).
 // Miss-analysis: `list-break-out.test.ts` never drew a list with a blank line above it.
 
 /** Paste `clipboard` at `offset` inside the leaf at `targetPath` of a live document. */
 async function pasteInto(doc: Document, targetPath: number[], offset: number, clipboard: string) {
-	__resetSchemaRegistriesForTests();
 	const { deps } = makeEditorActionsDeps(doc.children);
 	const controller = createUndoController(deps);
 

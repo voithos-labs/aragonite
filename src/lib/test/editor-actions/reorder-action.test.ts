@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { rangeSelectionOf } from '$lib/test/support/undo-entry';
@@ -7,7 +7,6 @@ import { createHistoryActions } from '$lib/editor-actions/commit/history';
 import { createReorderAction } from '$lib/editor-actions/reorder-action';
 import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
 import { makeReorderContainer } from './reorder-harness';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { expectParseConverged } from '$lib/test/harness/parse-converged';
 import type { CstNode } from '$lib/core/nodes';
 import { testChromeContainer } from '$lib/test/harness/test-kinds';
@@ -137,10 +136,6 @@ describe('reorder action: blockquote', () => {
 });
 
 describe('reorder action: plugin (opaque) container declines', () => {
-	beforeEach(() => {
-		__resetSchemaRegistriesForTests();
-	});
-
 	// A resolver that does not decline hands back the container's document index, so a body-leaf
 	// gesture would permute the top-level array instead.
 	function makeDeclineHarness() {

@@ -12,7 +12,6 @@ import {
 	pasteContext
 } from '$lib/test/harness/editor-actions';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { ensurePasteSurface } from '$lib/test/support/paste-surface';
 
 // Pasted or inserted blocks keep their own line ending and blank lines, even from a table cell.
@@ -21,7 +20,6 @@ import { ensurePasteSurface } from '$lib/test/support/paste-surface';
 const TABLE = '| a | b |\n| --- | --- |\n| c |  |\n';
 
 beforeEach(() => {
-	__resetSchemaRegistriesForTests();
 	ensurePasteSurface(tableCellPasteSurface);
 });
 

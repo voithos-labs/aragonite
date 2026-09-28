@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 // Miss-analysis: nothing scanned an inline trigger in an editor that left its plugin out (GH #266).
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { resetPluginPlatformForTests } from '$lib/testing';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { definePlugin, installPlugins } from '$lib/schema/plugin-install';
 import { declarePluginInlineKind } from '$lib/schema/plugin-kind';
 import { registerInlineSyntax } from '$lib/core/inline/scan/plugin-syntax';
@@ -30,10 +29,8 @@ const unlisted = definePlugin({
 const listed = definePlugin({ name: 'listed', setup() {} });
 
 beforeEach(() => {
-	resetPluginPlatformForTests();
 	installPlugins([listed, unlisted]);
 });
-afterEach(resetPluginPlatformForTests);
 
 const SOURCE = 'a ^x b';
 const kindsIn = (grammar: GrammarView) =>

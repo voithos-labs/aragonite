@@ -123,7 +123,7 @@ describe('edge dispatch: image kind keeps select-then-step', () => {
 
 describe('edge dispatch: an atomic kind deletes whole on one press', () => {
 	// Reconfiguring math as an atomic widget shows `deleteGranularity` holds for any kind, not just
-	// the built-in entity; `installMathInline`'s reset registers math again.
+	// the built-in entity; the next test registers math afresh.
 	beforeEach(() => {
 		augmentInlineWidgetKind(MATH_INLINE as AnyInlineKind, {
 			revealSource: false,

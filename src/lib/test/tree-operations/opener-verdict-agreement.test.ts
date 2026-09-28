@@ -1,6 +1,5 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '$lib';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import { registerAdmonitions } from '$lib/plugins/admonitions/admonition-kind';
 import { registerDetailsKind } from '$lib/plugins/details/details-kind';
 import { registerFootnoteDefinition } from '$lib/plugins/footnotes/footnote-definition';
@@ -23,8 +22,7 @@ import type { AnyBlockKind, CstNode } from '$lib/core/nodes';
  */
 const CONSERVATIVE = new Set(['directiveContainer', 'admonition', 'details', 'callout']);
 
-beforeAll(() => {
-	resetPluginPlatformForTests();
+beforeEach(() => {
 	registerAdmonitions();
 	registerDetailsKind();
 	registerFootnoteDefinition();

@@ -1,9 +1,8 @@
-import { afterEach, beforeEach, describe, it, expect } from 'vitest';
+import { beforeEach, describe, it, expect } from 'vitest';
 import { checkContentRange } from '../../invariants/descriptor';
 import { parse } from '../../core/parser';
 import type { CstNode } from '../../core/nodes';
 import { declaredPluginKind } from '../../schema/plugin-kind';
-import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
 import { DIRECTIVE_LEAF, registerDirectiveKinds } from '../../core/directive/kinds';
 
 function leaf(source: string): CstNode {
@@ -50,10 +49,8 @@ describe('checkContentRange (G1.8)', () => {
 // The directive leaf has a content range without inline support, and the split clamp reads it.
 describe('checkContentRange (G1.8) covers a non-prose kind that declares a content range', () => {
 	beforeEach(() => {
-		__resetSchemaRegistriesForTests();
 		registerDirectiveKinds();
 	});
-	afterEach(() => __resetSchemaRegistriesForTests());
 
 	const directiveLeaf = (): CstNode => ({
 		kind: declaredPluginKind(DIRECTIVE_LEAF),

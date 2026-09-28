@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // Miss-analysis: the depth pins stopped at the renderer and the offset walk, never the walks after.
 import { defaultGrammarView } from '$lib/schema/block-openers';
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import type { CstNode, InlineNode } from '../../core/nodes';
 import { parse, MAX_NESTING_DEPTH } from '../../core/parser';
 import { inlineDescendants, parseInline } from '../../core/inline';
@@ -10,9 +10,6 @@ import { buildLinkReferenceMap } from '../../core/inline/link-reference-resolver
 import { CONTENT_VISIBILITY, visibleRuns, renderedText } from '../../core/inline/visibility';
 import { registerInlineSyntax } from '../../core/inline/scan/plugin-syntax';
 import { renderOptions } from '../harness/fixture-grammar';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
-
-afterEach(() => __resetSchemaRegistriesForTests());
 
 // Both constants assume the default V8 stack; raising `--stack-size` turns these pins green
 // against a recursive walk.

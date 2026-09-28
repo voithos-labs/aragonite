@@ -1,6 +1,6 @@
 // Which characters a plugin may register as its inline trigger, over every ASCII character plus
 // a few beyond it, and which registrations make the scanner's fast bail check the trigger.
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
 	hasScanProbeRungs,
 	isReservedInlineTrigger,
@@ -8,8 +8,6 @@ import {
 	type InlineSyntaxRecognizer
 } from '$lib/core/inline/scan/plugin-syntax';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
-
-afterEach(() => __resetSchemaRegistriesForTests());
 
 const decline: InlineSyntaxRecognizer = () => null;
 

@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { configureEditorEnv } from '$lib/env';
 import { takeDevWarns } from '../support/warn-gate';
 import { declarePluginKind } from '$lib/schema/plugin-kind';
@@ -20,7 +20,6 @@ import {
 	getInlineRungs,
 	type InlineSyntaxRecognizer
 } from '$lib/core/inline/scan/plugin-syntax';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { testClosure } from '$lib/test/support/closure';
 import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 
@@ -40,10 +39,6 @@ const stubOpener = (priority: number): BlockOpener => ({
 	interruptsParagraph: false
 });
 const recognizer = (): InlineSyntaxRecognizer => () => null;
-
-afterEach(() => {
-	__resetSchemaRegistriesForTests();
-});
 
 // The registries that soften on a dev server must still throw under test. registry-conflict.test.ts
 // covers the three block registries; this suite covers inline syntax and kind declaring.

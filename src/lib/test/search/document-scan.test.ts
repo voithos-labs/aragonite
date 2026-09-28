@@ -3,7 +3,6 @@ import { parse } from '$lib/core/parser';
 import type { CstNode, Document } from '$lib/core/nodes';
 import { compileMatcher } from '$lib/search/matcher';
 import { scanDocument } from '$lib/search/document-scan';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { testLeaf } from '$lib/test/harness/test-kinds';
 
 const matcherFor = (q: string) => {
@@ -58,7 +57,6 @@ describe('scanDocument: childless opaque containers', () => {
 	let diagram: CstNode['kind'];
 	let artifact: CstNode['kind'];
 	beforeEach(() => {
-		__resetSchemaRegistriesForTests();
 		const container = { contract: 'opaque' as const, rebuildRaw: () => {} };
 		diagram = testLeaf('scan-diagram', { container });
 		artifact = testLeaf('scan-artifact', { editable: false, container });

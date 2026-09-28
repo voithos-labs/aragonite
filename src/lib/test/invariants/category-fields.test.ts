@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { installPlugins } from '$lib';
 import { admonitionsPlugin } from '$lib/plugins/admonitions';
 import { checkCategoryFields } from '../../invariants/node-shape';
@@ -13,7 +13,7 @@ function leaf(source: string): CstNode {
 
 // The only kinds that legally carry a non-empty `innerPrefix` are wrapped containers, and every
 // one of them ships as a plugin.
-beforeAll(() => {
+beforeEach(() => {
 	installPlugins([admonitionsPlugin()]);
 });
 

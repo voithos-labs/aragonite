@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
 	definePlugin,
 	installPlugins,
@@ -34,8 +34,6 @@ const minimalRegistration = {
 	supportsInline: false,
 	closure: testClosure
 } as const;
-
-beforeEach(() => __resetSchemaRegistriesForTests());
 
 describe('installPlugins', () => {
 	it('runs setup once and treats a re-install of the same object as a no-op', () => {

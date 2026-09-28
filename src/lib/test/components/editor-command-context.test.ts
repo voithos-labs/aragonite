@@ -11,17 +11,14 @@ import {
 	surfaceAt
 } from '$lib/test/harness/mount-editor.svelte';
 import { pressKey } from '$lib/test/harness/settle';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import { definePlugin, registerGlobalCommand } from '$lib/plugin';
 import type { EditorError } from '$lib/editor-events';
 
 beforeEach(() => {
-	resetPluginPlatformForTests();
 	installLayoutStubs();
 });
 afterEach(async () => {
 	await destroyMountedEditors();
-	resetPluginPlatformForTests();
 });
 
 describe("a mounted editor's command context", () => {

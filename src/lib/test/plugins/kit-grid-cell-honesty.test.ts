@@ -2,11 +2,7 @@
 // reports for a plugin grid kind.
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { registerBlockOpener, type CstNode, type PluginBlockKind } from '$lib/plugin';
-import {
-	resetPluginPlatformForTests,
-	runContainerConformance,
-	type ContainerConformanceProfile
-} from '$lib/testing';
+import { runContainerConformance, type ContainerConformanceProfile } from '$lib/testing';
 import { testContainer, testLeaf } from '$lib/test/harness/test-kinds';
 
 const EXCUSED = 'the plugin grid in this suite exists only to probe the cells it asserts';
@@ -55,7 +51,6 @@ const excusedProfile: ContainerConformanceProfile = {
 describe('container kit: a plugin grid kind', () => {
 	let grid: PluginBlockKind;
 	beforeEach(() => {
-		resetPluginPlatformForTests();
 		grid = registerCorruptGrid();
 	});
 

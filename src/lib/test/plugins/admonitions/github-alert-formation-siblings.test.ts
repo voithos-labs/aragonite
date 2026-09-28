@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { installPlugins, parse, serialize } from '$lib';
 import { admonitionsPlugin } from '$lib/plugins/admonitions';
 import { createBlockEditActions } from '$lib/editor-actions/block-edit';
@@ -11,7 +11,7 @@ import { containerAt, typeSlowly } from './formation-harness';
 // whose re-derivation runs inside the commit rather than the ordinary write up the ancestors,
 // and an undo/redo round trip across the formation.
 
-beforeAll(() => {
+beforeEach(() => {
 	installPlugins([admonitionsPlugin()]);
 });
 
