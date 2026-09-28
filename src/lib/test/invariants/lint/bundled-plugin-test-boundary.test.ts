@@ -77,8 +77,9 @@ const ALLOWLIST: Record<string, Exemption> = {
 			'reads a node by path out of a parsed document'
 	},
 	'src/lib/test/plugins/admonitions/github-alert-unwrap.test.ts': {
-		specifiers: ['$lib/tree-operations'],
-		reason: 'nothing published unwraps a child from its quote off a parsed document'
+		specifiers: ['$lib/tree-operations', '$lib/schema/block-openers'],
+		reason:
+			'nothing published unwraps a child from its quote off a parsed document, or names the grammar the unwrap reads its remainder with'
 	},
 	'src/lib/test/plugins/details/terminator-collision.test.ts': {
 		specifiers: [
