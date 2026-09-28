@@ -22,6 +22,7 @@ describe('the unit setup resets the plugin platform before every test', () => {
 		expect(isBlockKindDeclared(BEFORE_ALL_KIND)).toBe(false);
 	});
 
+	// The last two cases run in order: the first registers what the second must not see.
 	it('lets a test register and install', () => {
 		declarePluginKind(TEST_KIND);
 		installPlugins([definePlugin({ name: 'reset-probe', setup() {} })]);

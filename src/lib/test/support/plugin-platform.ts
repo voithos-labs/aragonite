@@ -1,6 +1,6 @@
 // Vitest setup: every unit test starts from the bootstrapped plugin platform, the built-ins and
-// nothing else. The built-ins are registered here because unit tests import modules below both
-// production callers of `registerBuiltInDescriptors`; the reset keeps them.
+// nothing else. Registered here because a unit test imports schema modules directly, never the
+// editor or the inline parser entry that register them in production; the reset keeps them.
 import { beforeEach } from 'vitest';
 import { registerBuiltInDescriptors } from '$lib/schema/built-in-descriptors';
 // The reset `resetPluginPlatformForTests` runs, imported bare: the testing barrel would load the
