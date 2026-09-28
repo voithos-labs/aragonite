@@ -43,7 +43,8 @@ function run(source: string, start: SelectionPoint, end: SelectionPoint) {
 		doc,
 		coverRange(doc, start, end),
 		createSharingState(),
-		fixtureReading()
+		fixtureReading(),
+		'keyless'
 	);
 	return { doc: result.newDoc, source: serialize(result.newDoc), caret: result.collapsedCaret };
 }
@@ -93,7 +94,13 @@ describe('chrome wall × table branch: table endpoint inside the container', () 
 		const snapshotTitle = doc.children[1].children![0];
 		const sharing = createSharingState();
 		sharing.markSnapshotTaken();
-		rangeDelete(doc, coverRange(doc, point([0], 2), point([1, 1], 1)), sharing, fixtureReading());
+		rangeDelete(
+			doc,
+			coverRange(doc, point([0], 2), point([1, 1], 1)),
+			sharing,
+			fixtureReading(),
+			'keyless'
+		);
 		expect(snapshotTitle.raw).toBe('Title\n');
 	});
 });
@@ -124,7 +131,8 @@ describe('chrome wall × table branch: table endpoint outside the container', ()
 			doc,
 			coverRange(doc, point([0], 2), point([1, 0], 3)),
 			sharing,
-			fixtureReading()
+			fixtureReading(),
+			'keyless'
 		);
 
 		expect(newDoc.children[1].children![0].raw).toBe('le\n');
@@ -160,7 +168,8 @@ describe('chrome wall × table branch: consumed container unit-deletes', () => {
 			doc,
 			coverRange(doc, point([0], 2), point([1, 1], 4)),
 			createSharingState(),
-			fixtureReading()
+			fixtureReading(),
+			'keyless'
 		);
 		expect(serialize(result.newDoc)).toBe('| a | b |\n| --- | --- |\n\nBelow\n');
 		// One splice, not an emptying followed by cleanup: the detached node keeps its children,
@@ -177,7 +186,8 @@ describe('chrome wall × table branch: consumed container unit-deletes', () => {
 			doc,
 			coverRange(doc, point([0], 2), point([1, 1], 3)),
 			createSharingState(),
-			fixtureReading()
+			fixtureReading(),
+			'keyless'
 		);
 		expect(serialize(result.newDoc)).toBe('| a | b |\n| --- | --- |\n\nBelow\n');
 		expect(note.children?.length).toBe(2);

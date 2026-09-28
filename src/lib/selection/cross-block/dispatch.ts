@@ -136,7 +136,7 @@ export function createCrossBlockHandlers(ctx: CrossBlockDispatchContext): CrossB
 		performCrossBlockCut: async () => {
 			// Declining the delete degrades a reading-mode cut to a copy.
 			if (refusesWrites()) return;
-			await performCrossBlockDelete(mutationCtx, { side: 'after' });
+			await performCrossBlockDelete(mutationCtx, 'cut');
 		}
 	};
 }

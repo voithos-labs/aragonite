@@ -29,7 +29,7 @@ function shape(nodes: readonly CstNode[]): unknown[] {
 
 function del(source: string, start: SelectionPoint, end: SelectionPoint): Document {
 	const doc = parse(source);
-	rangeDelete(doc, coverRange(doc, start, end), createSharingState(), fixtureReading());
+	rangeDelete(doc, coverRange(doc, start, end), createSharingState(), fixtureReading(), 'keyless');
 	expect(shape(doc.children), serialize(doc)).toEqual(shape(parse(serialize(doc)).children));
 	return doc;
 }

@@ -50,7 +50,8 @@ function deleteSelected(doc: Document, s: ReturnType<typeof makeState>) {
 		doc,
 		coverRange(doc, s.start!, s.end!),
 		createSharingState(),
-		fixtureReading()
+		fixtureReading(),
+		'keyless'
 	);
 }
 

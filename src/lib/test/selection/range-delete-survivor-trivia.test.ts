@@ -17,7 +17,7 @@ const sharing = () => createSharingState();
 
 function del(source: string, start: SelectionPoint, end: SelectionPoint) {
 	const doc = parse(source);
-	rangeDelete(doc, coverRange(doc, start, end), sharing(), fixtureReading());
+	rangeDelete(doc, coverRange(doc, start, end), sharing(), fixtureReading(), 'keyless');
 	return doc;
 }
 

@@ -31,7 +31,7 @@ function deletedBytes(source: string, start: SelectionPoint, end: SelectionPoint
 			coverRange(doc, start, end),
 			createSharingState(),
 			fixtureReading(),
-			'before'
+			'keyless'
 		).newDoc
 	);
 }

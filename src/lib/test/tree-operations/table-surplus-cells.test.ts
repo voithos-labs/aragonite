@@ -145,7 +145,13 @@ describe('the table’s structural edits keep them', () => {
 			{ path: [1], offset: 0 }
 		];
 
-		rangeDelete(doc, coverRange(doc, start, end), createSharingState(), fixtureReading());
+		rangeDelete(
+			doc,
+			coverRange(doc, start, end),
+			createSharingState(),
+			fixtureReading(),
+			'keyless'
+		);
 		// The end is given in cells, the unit the selection snaps a table endpoint to.
 		allowDevWarns(['deleteFromProseIntoTable:end']);
 

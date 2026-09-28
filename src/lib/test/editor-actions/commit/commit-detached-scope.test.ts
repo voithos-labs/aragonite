@@ -75,7 +75,13 @@ describe('multi-scope commits with a scope detached by the mutation', () => {
 			snapshot: { path: asDocPath([0, 0, 0]), offset: 0 },
 			mutate: (views) => {
 				const ledgers = views.map((v) => trackChildIds(v.node));
-				rangeDelete(deps.doc, coverRange(deps.doc, start, end), views[0].sharing, fixtureReading());
+				rangeDelete(
+					deps.doc,
+					coverRange(deps.doc, start, end),
+					views[0].sharing,
+					fixtureReading(),
+					'keyless'
+				);
 				return ledgers.map((ledger) => {
 					const change = ledger.read();
 					ledger.release();
@@ -107,7 +113,13 @@ describe('multi-scope commits with a scope detached by the mutation', () => {
 			snapshot: { path: asDocPath([0]), offset: 0 },
 			mutate: (views) => {
 				const ledgers = views.map((v) => trackChildIds(v.node));
-				rangeDelete(deps.doc, coverRange(deps.doc, start, end), views[0].sharing, fixtureReading());
+				rangeDelete(
+					deps.doc,
+					coverRange(deps.doc, start, end),
+					views[0].sharing,
+					fixtureReading(),
+					'keyless'
+				);
 				return ledgers.map((ledger) => {
 					const change = ledger.read();
 					ledger.release();

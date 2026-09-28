@@ -22,6 +22,7 @@ export function createContainerEditActions(
 		typeInLeaf,
 		writeLeafInPlace,
 		land: (pos) => deps.caretLanding.land(pos),
-		survivorAfterRemoval: (removedPath, side) => survivorAfterRemoval(deps.doc, removedPath, side)
+		survivorAfterRemoval: (removedPath, gesture) =>
+			survivorAfterRemoval(deps.doc, removedPath, gesture)
 	};
 }

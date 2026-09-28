@@ -35,8 +35,13 @@ import {
 import { rebuildUnsharedAncestry } from '../tree-operations/chain-rebuild';
 import { rebuildTableRowRaw } from '../schema/container-rebuilders';
 import { promoteFirstRowToHeader } from '../tree-operations/table-mutations';
-import { nearestChromeContainer, isChromeChild, caretWhereRemoved } from './range-delete-chrome';
-import type { RemovalSide } from './caret-target';
+import {
+	nearestChromeContainer,
+	isChromeChild,
+	caretWhereRemoved,
+	caretWhereRangeResumes
+} from './range-delete-chrome';
+import type { RemovalGesture } from './caret-target';
 import { countsCells } from '../schema/block-kind-descriptor';
 
 // ── Public API ──────────────────────────────────────────────────────────────
@@ -50,7 +55,7 @@ export function tableAwareRangeDelete(
 	range: CoveredRange,
 	sharing: SharingState,
 	reading: Reading,
-	side: RemovalSide
+	gesture: RemovalGesture
 ): RangeDeleteResult {
 	const { grammar } = reading;
 	const { start, end } = range;
@@ -72,10 +77,10 @@ export function tableAwareRangeDelete(
 		return deleteWithinTable(doc, start, end, startBlock, sharing, grammar);
 	}
 	if (startCells && endCells) {
-		return deleteAcrossTwoTables(doc, range, startBlock, endBlock, sharing, grammar, side);
+		return deleteAcrossTwoTables(doc, range, startBlock, endBlock, sharing, grammar, gesture);
 	}
 	if (startCells) {
-		return deleteFromTableIntoProse(doc, range, startBlock, endBlock, sharing, reading, side);
+		return deleteFromTableIntoProse(doc, range, startBlock, endBlock, sharing, reading, gesture);
 	}
 	return deleteFromProseIntoTable(doc, range, startBlock, endBlock, sharing, grammar, reading);
 }
@@ -183,9 +188,8 @@ function deleteFromProseIntoTable(
 
 	return {
 		newDoc: doc,
-		// As in the chrome branch: the caret waits where what's left of the range's end begins.
 		collapsedCaret: startTaken
-			? caretWhereRemoved(doc, startTaken, sharing, lineEnding, 'after')
+			? caretWhereRangeResumes(doc, startTaken, sharing, lineEnding)
 			: { path: start.path.slice(), offset: seam },
 		tableRowSplices: splice ? [{ table, ...splice }] : []
 	};
@@ -200,7 +204,7 @@ function deleteFromTableIntoProse(
 	endBlock: CstNode,
 	sharing: SharingState,
 	reading: Reading,
-	side: RemovalSide
+	gesture: RemovalGesture
 ): RangeDeleteResult {
 	const { grammar } = reading;
 	const { start, end } = range;
@@ -254,7 +258,7 @@ function deleteFromTableIntoProse(
 		tableResult === 'tableEmpty'
 			? tailPath
 				? { path: tailPath, offset: 0 }
-				: caretWhereRemoved(doc, start.path, sharing, lineEnding, side)
+				: caretWhereRemoved(doc, start.path, sharing, lineEnding, gesture)
 			: survivingAnchorCellCaret(table, start.path, startCell);
 
 	return {
@@ -298,7 +302,7 @@ function deleteAcrossTwoTables(
 	endTable: CstNode,
 	sharing: SharingState,
 	grammar: GrammarView,
-	side: RemovalSide
+	gesture: RemovalGesture
 ): RangeDeleteResult {
 	const { start, end } = range;
 	const lineEnding = documentLineEnding(doc);
@@ -343,7 +347,7 @@ function deleteAcrossTwoTables(
 		// Start emptied, so its block went and the end table shifted; land in its first cell.
 		collapsedCaret = { path: [...endTablePath, 0, 0], offset: 0 };
 	} else {
-		collapsedCaret = caretWhereRemoved(doc, start.path, sharing, lineEnding, side);
+		collapsedCaret = caretWhereRemoved(doc, start.path, sharing, lineEnding, gesture);
 	}
 
 	const tableRowSplices = [

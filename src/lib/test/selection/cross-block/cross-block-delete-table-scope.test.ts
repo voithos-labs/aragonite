@@ -67,7 +67,7 @@ describe('performCrossBlockDelete: endpoint table as a commit scope', () => {
 			{ path: [1, 1, 0], offset: 1 }
 		);
 
-		await performCrossBlockDelete(env.mutCtx);
+		await performCrossBlockDelete(env.mutCtx, 'keyless');
 
 		const table = env.deps.doc.children[1];
 		expect(table.kind).toBe('table');
@@ -86,7 +86,7 @@ describe('performCrossBlockDelete: endpoint table as a commit scope', () => {
 			{ path: [1], offset: 5 }
 		);
 
-		await performCrossBlockDelete(env.mutCtx);
+		await performCrossBlockDelete(env.mutCtx, 'keyless');
 
 		const table = env.deps.doc.children[0];
 		expect(table.kind).toBe('table');
@@ -107,7 +107,7 @@ describe('performCrossBlockDelete: endpoint table as a commit scope', () => {
 			{ path: [1, 1, 0], offset: 1 }
 		);
 
-		await performCrossBlockDelete(env.mutCtx);
+		await performCrossBlockDelete(env.mutCtx, 'keyless');
 
 		expect(editEvents.map((e) => e.op)).toEqual(['delete']);
 		expect(env.deps.undoManager.getStacks().undo).toHaveLength(1);
@@ -123,7 +123,7 @@ describe('performCrossBlockDelete: endpoint table as a commit scope', () => {
 			{ path: [0, 2, 1], offset: 1 }
 		);
 
-		await performCrossBlockDelete(env.mutCtx);
+		await performCrossBlockDelete(env.mutCtx, 'keyless');
 
 		const table = env.deps.doc.children[0];
 		expect(table.children).toHaveLength(3);
@@ -144,7 +144,7 @@ describe('performCrossBlockDelete: endpoint table as a commit scope', () => {
 			{ path: [1, 1, 0], offset: 1 }
 		);
 
-		await performCrossBlockDelete(env.mutCtx);
+		await performCrossBlockDelete(env.mutCtx, 'keyless');
 		await tick();
 		await env.history.requestUndo();
 
@@ -162,7 +162,7 @@ describe('performCrossBlockDelete: endpoint table as a commit scope', () => {
 			{ path: [1, 1, 0], offset: 1 }
 		);
 
-		await performCrossBlockDelete(env.mutCtx);
+		await performCrossBlockDelete(env.mutCtx, 'keyless');
 
 		expect(env.deps.doc.children).toHaveLength(1);
 		expect(env.deps.doc.children[0].kind).toBe('paragraph');
@@ -200,7 +200,7 @@ describe('commitColumnDelete: a windowed-out row has no registered state', () =>
 		// Row 1 stays windowed out — no registerRowState, so no registered state.
 		selectFirstColumn(env);
 
-		await performCrossBlockDelete(env.mutCtx, { tableCoverageDelete: true });
+		await performCrossBlockDelete(env.mutCtx, 'keyless', { tableCoverageDelete: true });
 
 		const table = env.deps.doc.children[0];
 		expect(metadataOf(table, 'table').columnCount).toBe(2);

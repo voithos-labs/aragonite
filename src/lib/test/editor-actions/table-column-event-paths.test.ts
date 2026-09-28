@@ -88,7 +88,7 @@ describe('coverage-driven column delete emits the table path with colIdx in the 
 
 		const result = await maybeCommitTableCoverageDelete(ctx, table, start!, end!, {
 			lands: false,
-			side: 'before'
+			gesture: 'keyless'
 		});
 
 		expect(result).not.toBeNull();

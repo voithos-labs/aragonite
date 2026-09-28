@@ -7,7 +7,7 @@
 
 import type { Reading } from '../schema/reading';
 import type { CstNode, Document } from '../core/nodes';
-import type { SelectionPoint } from './primitives';
+import type { CaretPosition, SelectionPoint } from './primitives';
 import type { RangeDeleteResult } from './range-delete';
 import type { CoveredRange } from './range-coverage';
 import type { SharingState } from '../tree-operations/sharing';
@@ -25,7 +25,12 @@ import { rebuildUnsharedChain } from '../tree-operations/chain-rebuild';
 import { deleteAtPath } from '../tree-operations/path-mutate';
 import { emptyParagraph } from '../tree-operations/node-primitives';
 import { reservedChromeKindOf, isReservedChromeChild } from '../schema/reserved-chrome';
-import { caretPointFor, survivorAfterRemoval, type RemovalSide } from './caret-target';
+import {
+	caretPointFor,
+	survivorAfterRemoval,
+	survivorWhereRangeResumes,
+	type RemovalGesture
+} from './caret-target';
 
 // ── Public API ──────────────────────────────────────────────────────────────
 
@@ -108,10 +113,8 @@ export function chromeAwareRangeDelete(
 	rebuildUnsharedChain(doc, liveStartChain, sharing, null, grammar);
 	rebuildUnsharedChain(doc, endChain, sharing, null, grammar);
 
-	// The range goes on past a container it took whole, so the caret waits where what's left of the
-	// range's end begins.
 	const collapsedCaret = startTaken
-		? caretWhereRemoved(doc, startTaken, sharing, lineEnding, 'after')
+		? caretWhereRangeResumes(doc, startTaken, sharing, lineEnding)
 		: { path: start.path.slice(), offset: seam ?? 0 };
 	return { newDoc: doc, collapsedCaret };
 }
@@ -124,7 +127,7 @@ export function removeWhole(
 	path: number[],
 	sharing: SharingState,
 	reading: Reading,
-	side: RemovalSide
+	gesture: RemovalGesture
 ): RangeDeleteResult {
 	const lineEnding = documentLineEnding(doc);
 	const chain = ensureUnsharedPath(doc, path.slice(0, -1), sharing);
@@ -132,20 +135,40 @@ export function removeWhole(
 	if (chain.length > 0) rebuildUnsharedChain(doc, chain, sharing, null, reading.grammar);
 	return {
 		newDoc: doc,
-		collapsedCaret: caretWhereRemoved(doc, path, sharing, lineEnding, side)
+		collapsedCaret: caretWhereRemoved(doc, path, sharing, lineEnding, gesture)
 	};
 }
 
-/** The caret once the block at `path` went, on `side` of the gap; an emptied document gets the
- *  blank paragraph every document keeps, in the `lineEnding` read before the delete. */
+/** The caret once the block at `path` went, on the side `gesture` points. */
 export function caretWhereRemoved(
 	doc: Document,
 	path: number[],
 	sharing: SharingState,
 	lineEnding: string,
-	side: RemovalSide
+	gesture: RemovalGesture
 ): SelectionPoint {
-	const survivor = survivorAfterRemoval(doc, path, side);
+	return caretOrFiller(doc, survivorAfterRemoval(doc, path, gesture), sharing, lineEnding);
+}
+
+/** The caret once a range took the container at `path` whole and ran on: where what's left of
+ *  the range's end begins. */
+export function caretWhereRangeResumes(
+	doc: Document,
+	path: number[],
+	sharing: SharingState,
+	lineEnding: string
+): SelectionPoint {
+	return caretOrFiller(doc, survivorWhereRangeResumes(doc, path), sharing, lineEnding);
+}
+
+// An emptied document gets the blank paragraph every document keeps, in the `lineEnding` read
+// before the delete.
+function caretOrFiller(
+	doc: Document,
+	survivor: CaretPosition | null,
+	sharing: SharingState,
+	lineEnding: string
+): SelectionPoint {
 	const point = survivor && caretPointFor(doc, survivor);
 	if (point) return point;
 	const filler = emptyParagraph('', lineEnding);

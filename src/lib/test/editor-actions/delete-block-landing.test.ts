@@ -79,7 +79,7 @@ describe('a whole-block delete places one caret, on the side its key points', ()
 	afterEach(() => vi.unstubAllGlobals());
 
 	it.each([
-		['a delete with no key (the block menu)', (t) => t.h.actions.deleteBlock(1, 'before'), ABOVE],
+		['a delete with no key (the block menu)', (t) => t.h.actions.deleteBlock(1, 'keyless'), ABOVE],
 		['whole-block Backspace', (t) => wholeBlockKey(t, 'Backspace'), ABOVE],
 		['whole-block Delete', (t) => wholeBlockKey(t, 'Delete'), BELOW],
 		['whole-block cut', (t) => wholeBlockKey(t, 'x', { ctrlKey: true }), BELOW]
@@ -96,7 +96,7 @@ describe('a whole-block delete places one caret, on the side its key points', ()
 
 	it('a container’s last child hands the delete, and its side, to the parent', async () => {
 		const t = harness('a\n\n> ---\n\nb\n');
-		await containerAt(t, 1).blockEdit.deleteBlock(0, 'before');
+		await containerAt(t, 1).blockEdit.deleteBlock(0, 'keyless');
 		expect(t.read()).toEqual([ABOVE]);
 	});
 

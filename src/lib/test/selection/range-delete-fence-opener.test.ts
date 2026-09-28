@@ -28,7 +28,8 @@ describe('range delete that consumes a fenced code opener', () => {
 			doc,
 			coverRange(doc, { path: [0], offset: 2 }, { path: [1], offset: 8 }),
 			sharing(),
-			fixtureReading()
+			fixtureReading(),
+			'keyless'
 		);
 
 		expect(serialize(doc)).toBe('pady\n\ntail\n');
@@ -47,7 +48,8 @@ describe('range delete that consumes a fenced code opener', () => {
 			doc,
 			coverRange(doc, { path: [0], offset: 2 }, { path: [1], offset: 6 }),
 			sharing(),
-			fixtureReading()
+			fixtureReading(),
+			'keyless'
 		);
 
 		expect(serialize(doc)).toBe('pa~~~\nbody\n\ntail\n');
@@ -63,7 +65,8 @@ describe('range delete that consumes a fenced code opener', () => {
 			doc,
 			coverRange(doc, { path: [0], offset: 2 }, { path: [1], offset: 8 }),
 			sharing(),
-			fixtureReading()
+			fixtureReading(),
+			'keyless'
 		);
 
 		expect(serialize(doc)).toBe('pady\n\ntail\n');
@@ -77,7 +80,8 @@ describe('range delete that consumes a fenced code opener', () => {
 			doc,
 			coverRange(doc, { path: [0], offset: 2 }, { path: [1], offset: 9 }),
 			sharing(),
-			fixtureReading()
+			fixtureReading(),
+			'keyless'
 		);
 
 		expect(serialize(doc)).toBe('pady\r\n\r\ntail\r\n');
@@ -91,7 +95,8 @@ describe('range delete that consumes a fenced code opener', () => {
 			doc,
 			coverRange(doc, { path: [0], offset: 2 }, { path: [1, 0], offset: 8 }),
 			sharing(),
-			fixtureReading()
+			fixtureReading(),
+			'keyless'
 		);
 
 		expect(serialize(doc)).toBe('pady\n\ntail\n');
@@ -107,7 +112,8 @@ describe('range delete that consumes a fenced code opener', () => {
 			doc,
 			coverRange(doc, { path: [0], offset: 2 }, { path: [1], offset: 14 }),
 			sharing(),
-			fixtureReading()
+			fixtureReading(),
+			'keyless'
 		);
 
 		expect(serialize(doc)).toBe('pa\n\ntail\n');
@@ -123,7 +129,8 @@ describe('range delete that consumes a fenced code opener', () => {
 			doc,
 			coverRange(doc, { path: [0], offset: 0 }, { path: [0], offset: 8 }),
 			sharing(),
-			fixtureReading()
+			fixtureReading(),
+			'keyless'
 		);
 
 		expect(serialize(doc)).toBe('dy\n\ntail\n');
@@ -137,7 +144,8 @@ describe('range delete that consumes a fenced code opener', () => {
 			doc,
 			coverRange(doc, { path: [0], offset: 0 }, { path: [1], offset: 8 }),
 			sharing(),
-			fixtureReading()
+			fixtureReading(),
+			'keyless'
 		);
 
 		expect(kindsOf(doc)).toEqual(['paragraph', 'paragraph']);
@@ -154,7 +162,8 @@ describe('range delete that consumes a fenced code opener', () => {
 				doc,
 				coverRange(doc, { path: [0, 0], offset: 2 }, { path: [1], offset: 8 }),
 				sharing(),
-				fixtureReading()
+				fixtureReading(),
+				'keyless'
 			);
 
 			expect(kindsOf(doc)).toEqual(['callout', 'paragraph', 'paragraph']);
@@ -171,7 +180,8 @@ describe('range delete that consumes a fenced code opener', () => {
 				doc,
 				coverRange(doc, { path: [0, 0], offset: 2 }, { path: [1], offset: 11 }),
 				sharing(),
-				fixtureReading()
+				fixtureReading(),
+				'keyless'
 			);
 
 			expect(kindsOf(doc)).toEqual(['callout', 'paragraph', 'paragraph']);

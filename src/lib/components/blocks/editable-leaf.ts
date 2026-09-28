@@ -583,7 +583,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 				e.preventDefault();
 				revealedBase = null;
 				deps.setRevealed?.(false);
-				await blockEdit.deleteBlock(deps.getIndex(), 'before');
+				await blockEdit.deleteBlock(deps.getIndex(), 'Backspace');
 				return;
 			}
 		}

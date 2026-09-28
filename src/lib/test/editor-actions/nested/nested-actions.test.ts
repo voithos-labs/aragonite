@@ -69,8 +69,8 @@ const delegationCases = [
 	{
 		method: 'deleteBlock' as const,
 		children: () => [makePara('a\n')],
-		run: (b: BlockEditActions) => b.deleteBlock(0, 'after'),
-		side: ['after']
+		run: (b: BlockEditActions) => b.deleteBlock(0, 'Delete'),
+		side: ['Delete']
 	}
 ];
 

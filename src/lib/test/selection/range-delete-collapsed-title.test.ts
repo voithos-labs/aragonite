@@ -26,7 +26,8 @@ function run(source: string, start: SelectionPoint, end: SelectionPoint) {
 		doc,
 		coverRange(doc, start, end),
 		createSharingState(),
-		fixtureReading()
+		fixtureReading(),
+		'keyless'
 	);
 	expectParseConverged(result.newDoc);
 	return { source: serialize(result.newDoc), caret: result.collapsedCaret };

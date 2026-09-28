@@ -112,7 +112,7 @@ describe('editor-root menus: the right-click', () => {
 		h.menu()!.pick('block.remove');
 		expect(h.menu()).toBeNull();
 		// No key, so the caret goes to the end of the block above.
-		await vi.waitFor(() => expect(h.blockEdit.deleteBlock).toHaveBeenCalledWith(0, 'before'));
+		await vi.waitFor(() => expect(h.blockEdit.deleteBlock).toHaveBeenCalledWith(0, 'keyless'));
 	});
 
 	it('prose places the caret at the press and gets the clipboard rows plus the insert flyout', async () => {

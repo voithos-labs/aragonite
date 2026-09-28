@@ -42,7 +42,7 @@ async function deleteWholeTable(source: string): Promise<string> {
 
 	const result = await maybeCommitTableCoverageDelete(ctx, table, start, end, {
 		lands: false,
-		side: 'before'
+		gesture: 'keyless'
 	});
 	expect(result).not.toBeNull();
 	return serialize(deps.doc);

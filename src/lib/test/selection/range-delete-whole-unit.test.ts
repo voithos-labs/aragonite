@@ -8,7 +8,7 @@ import { expectParseConverged } from '../harness/parse-converged';
 import type { Document } from '$lib/core/nodes';
 import type { SelectionPoint } from '$lib/selection/primitives';
 import { fixtureReading } from '../harness/fixture-grammar';
-import type { RemovalSide } from '$lib/selection/caret-target';
+import type { RemovalGesture } from '$lib/selection/caret-target';
 import { registerChromePluginsForTests } from './chrome-plugins';
 import { TWO_COL_THREE_ROW } from './table-fixtures';
 
@@ -17,14 +17,19 @@ import { TWO_COL_THREE_ROW } from './table-fixtures';
 // holding a bare line ending, which no reload reads as a rule.
 // Miss-analysis: every same-block fixture was text, whose emptied survivor is a legal block.
 
-function del(source: string, start: SelectionPoint, end: SelectionPoint, side?: RemovalSide) {
+function del(
+	source: string,
+	start: SelectionPoint,
+	end: SelectionPoint,
+	gesture: RemovalGesture = 'keyless'
+) {
 	const doc: Document = parse(source);
 	const result = rangeDelete(
 		doc,
 		coverRange(doc, start, end),
 		createSharingState(),
 		fixtureReading(),
-		side
+		gesture
 	);
 	return { doc, caret: result.collapsedCaret };
 }
@@ -116,15 +121,17 @@ describe('a whole removal lands on the side its key points', () => {
 			end: cell([2], 5)
 		}
 	];
-	const LANDS: Array<[RemovalSide, SelectionPoint]> = [
-		['before', { path: [0], offset: 'lead'.length }],
-		['after', { path: [1], offset: 0 }]
+	const LANDS: Array<[RemovalGesture, SelectionPoint]> = [
+		['Backspace', { path: [0], offset: 'lead'.length }],
+		['keyless', { path: [0], offset: 'lead'.length }],
+		['Delete', { path: [1], offset: 0 }],
+		['cut', { path: [1], offset: 0 }]
 	];
 
 	for (const { name, middle, start, end } of ROUTES) {
-		for (const [side, caret] of LANDS) {
-			it(`${name}, side '${side}'`, () => {
-				const result = del(`lead\n\n${middle}\ntail\n`, start, end, side);
+		for (const [gesture, caret] of LANDS) {
+			it(`${name}, ${gesture}`, () => {
+				const result = del(`lead\n\n${middle}\ntail\n`, start, end, gesture);
 				expect(serialize(result.doc)).toBe('lead\n\ntail\n');
 				expect(result.caret).toEqual(caret);
 			});

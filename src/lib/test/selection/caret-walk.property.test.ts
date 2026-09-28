@@ -304,8 +304,9 @@ describe('caret-reachable order', () => {
 						before: atEnd ?? atStart ?? null,
 						after: atStart ?? atEnd ?? null
 					};
+					const gestures = { before: 'Backspace', after: 'Delete' } as const;
 					for (const side of ['before', 'after'] as const) {
-						const s = survivorAfterRemoval(doc, path, side);
+						const s = survivorAfterRemoval(doc, path, gestures[side]);
 						expect(s && { path: [...s.path], offset: s.offset }, `${path} ${side}`).toEqual(
 							want[side]
 						);

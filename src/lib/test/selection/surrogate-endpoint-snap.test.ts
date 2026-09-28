@@ -39,7 +39,8 @@ function deleteAcross(doc: Document, startOffset: number, endOffset: number): st
 		doc,
 		coverRange(doc, state.start!, state.end!),
 		createSharingState(),
-		fixtureReading()
+		fixtureReading(),
+		'keyless'
 	);
 	return serialize(newDoc);
 }

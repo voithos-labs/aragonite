@@ -17,7 +17,7 @@ import type { DocPath } from './selection/path-math';
 import type { CaretPosition, Landing } from './selection/primitives';
 import type { LegalWrite } from './tree-operations/content-write';
 import type { LandingOutcome, RevealPolicy } from './selection/caret-landing';
-import type { RemovalSide } from './selection/caret-target';
+import type { RemovalGesture } from './selection/caret-target';
 
 /**
  * Where the caret goes back to on undo when nothing is focused: `path` is a document-absolute
@@ -99,9 +99,9 @@ export interface BlockEditActions {
 	insertParagraph(boundaryIndex: number, text: string): Promise<boolean>;
 	mergeWithPrevious(blockIndex: number): Promise<boolean>;
 	mergeWithNext(blockIndex: number): Promise<boolean>;
-	/** Remove the block; the caret lands once, on the side the key points
+	/** Remove the block; the caret lands once, on the side `gesture` points
 	 *  (`selection/caret-target.ts :: survivorAfterRemoval`), and the caller places none. */
-	deleteBlock(blockIndex: number, side: RemovalSide): Promise<boolean>;
+	deleteBlock(blockIndex: number, gesture: RemovalGesture): Promise<boolean>;
 	/** Write `text` as the block's bytes through its kind's and this list's write rules. Undo
 	 *  records `preEditOffset`; `postEditFocusOffset` (in `text`) comes back mapped as `caret`. */
 	updateBlockContent(
@@ -306,7 +306,7 @@ export interface ContainerEditActions {
 	 *  moves the caret without a commit. */
 	land(pos: CaretPosition): Promise<LandingOutcome>;
 	/** Where the caret goes once the block at `removedPath` is gone, read on the document now. */
-	survivorAfterRemoval(removedPath: DocPath, side: RemovalSide): CaretPosition | null;
+	survivorAfterRemoval(removedPath: DocPath, gesture: RemovalGesture): CaretPosition | null;
 }
 
 export type InPlaceResult =

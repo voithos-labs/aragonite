@@ -16,7 +16,7 @@ import {
 	isPathSubtreeBetween,
 	pathHasPrefix
 } from './path-math';
-import { caretPointFor, type RemovalSide } from './caret-target';
+import { caretPointFor, type RemovalGesture } from './caret-target';
 import { docPathFrom } from '../cursor/coordinate-spaces';
 import {
 	blockNodeAt,
@@ -58,14 +58,14 @@ export interface RangeDeleteResult {
 	tableRowSplices?: TableRowSplice[];
 }
 
-/** A block with no character position taken whole: it goes, and the caret lands on `side` of the
- *  gap, as for any removed block. */
+/** A block with no character position taken whole: it goes, and the caret lands on the side
+ *  `gesture` points, as for any removed block. */
 function deleteWholeUnit(
 	doc: Document,
 	path: number[],
 	sharing: SharingState,
 	grammar: GrammarView,
-	side: RemovalSide
+	gesture: RemovalGesture
 ): RangeDeleteResult {
 	const lineEnding = documentLineEnding(doc);
 	// Deleted by path, so the commit's id bookkeeping sees the position go.
@@ -74,18 +74,18 @@ function deleteWholeUnit(
 	if (chain.length > 0) rebuildUnsharedChain(doc, chain, sharing, null, grammar);
 	return {
 		newDoc: doc,
-		collapsedCaret: caretWhereRemoved(doc, path, sharing, lineEnding, side)
+		collapsedCaret: caretWhereRemoved(doc, path, sharing, lineEnding, gesture)
 	};
 }
 
 /** Deletes what `range` covers in place, merging at the start's position inside its container.
- *  The caller keeps endpoints on focusable blocks; `side` lands the caret if a block goes whole. */
+ *  The caller keeps endpoints on focusable blocks; `gesture` lands the caret if a block goes. */
 export function rangeDelete(
 	doc: Document,
 	range: CoveredRange,
 	sharing: SharingState,
 	reading: Reading,
-	side: RemovalSide = 'before'
+	gesture: RemovalGesture
 ): RangeDeleteResult {
 	const { grammar } = reading;
 	const { start, end } = range;
@@ -98,11 +98,12 @@ export function rangeDelete(
 	// Both endpoints inside one container the range takes whole: that container goes, whatever
 	// kind either endpoint sits in.
 	const unit = range.unitHolding(start.path);
-	if (unit && pathHasPrefix(end.path, unit)) return removeWhole(doc, unit, sharing, reading, side);
+	if (unit && pathHasPrefix(end.path, unit))
+		return removeWhole(doc, unit, sharing, reading, gesture);
 	// A table or a container title line is never merged across: those branches truncate each
 	// endpoint in place instead of joining them.
 	if (involvesTable(startBlock, endBlock)) {
-		return tableAwareRangeDelete(doc, range, sharing, reading, side);
+		return tableAwareRangeDelete(doc, range, sharing, reading, gesture);
 	}
 	if (involvesReservedChrome(doc, start, end)) {
 		return chromeAwareRangeDelete(doc, range, sharing, reading);
@@ -121,7 +122,7 @@ export function rangeDelete(
 		endOffset >= displayLength(startRaw) &&
 		!isBlankParagraph({ kind: startBlock.kind, raw: '' })
 	) {
-		return deleteWholeUnit(doc, start.path, sharing, grammar, side);
+		return deleteWholeUnit(doc, start.path, sharing, grammar, gesture);
 	}
 	// A cross-block join runs the end slice through the end block's own write rule, or a cut from
 	// its head would leave its closer stranded; a same-block merge takes the rule once, below.

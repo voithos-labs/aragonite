@@ -87,7 +87,8 @@ async function pasteInto(
  *  this test reads the line ending, and none of the three moves one. */
 const deleteBetween = (doc: Document, start: SelectionPoint, end: SelectionPoint) =>
 	serialize(
-		rangeDelete(doc, coverRange(doc, start, end), createSharingState(), fixtureReading()).newDoc
+		rangeDelete(doc, coverRange(doc, start, end), createSharingState(), fixtureReading(), 'keyless')
+			.newDoc
 	);
 
 const GESTURES: EditGesture[] = [

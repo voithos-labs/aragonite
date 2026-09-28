@@ -934,6 +934,20 @@ const RULES: FileRule[] = [
 			'the delete, the copy and the overlay read the snapped pair from `coverRange`; a second snap is a second answer to what the range covers',
 		hits: ['const { start, end } = snapCrossBlockTableEndpoints(doc, a, b);'],
 		misses: ["import { snapCrossBlockTableEndpoints } from './table-endpoint-snap';"]
+	},
+	{
+		id: 'a removed block lands the caret by its gesture; only a range running on past it skips that',
+		matches: /(?<![\w.])(?:survivorWhereRangeResumes|caretWhereRangeResumes)\s*\(/,
+		allowed: {
+			'src/lib/selection/caret-target.ts': 'defines the survivor read',
+			'src/lib/selection/range-delete-chrome.ts':
+				'defines the caret read, and a range that took its start container whole and runs on',
+			'src/lib/selection/range-delete-table.ts': 'the same range, ending in a table'
+		},
+		reason:
+			'`survivorAfterRemoval` is the one place a gesture picks the side; a removal that asks for the next block itself lands Backspace below',
+		hits: ['collapsedCaret = caretWhereRangeResumes(doc, path, sharing, lineEnding);'],
+		misses: ["import { caretWhereRangeResumes } from './range-delete-chrome';"]
 	}
 ];
 

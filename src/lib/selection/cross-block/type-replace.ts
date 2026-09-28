@@ -41,7 +41,7 @@ async function deleteThenType(
 	mutCtx: CrossBlockMutationContext,
 	typed: string
 ): Promise<void> {
-	const caret = await performCrossBlockDelete(mutCtx, { skipCaretRestore: true });
+	const caret = await performCrossBlockDelete(mutCtx, 'keyless', { skipCaretRestore: true });
 	if (!caret) return;
 	// All caret placements below target caret.path's top-level block; mount it once here so each
 	// (the post-tick landing included) finds a live element.

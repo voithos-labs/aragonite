@@ -36,7 +36,7 @@ export function createBlockEditActions(
 			return core.mergeWithNextInterior(blockIndex);
 		},
 
-		deleteBlock: (blockIndex, side) => core.deleteInterior(blockIndex, side),
+		deleteBlock: (blockIndex, gesture) => core.deleteInterior(blockIndex, gesture),
 		updateBlockMetadata: (blockIndex, metadata, options) =>
 			core.updateBlockMetadata(blockIndex, metadata, options),
 		replaceBlock: async (blockIndex, replacement, focus, options) =>

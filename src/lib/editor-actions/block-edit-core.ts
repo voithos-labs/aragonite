@@ -65,7 +65,7 @@ import { mergedElseNext, mergedElsePrevious } from './merge-fallback';
 import { previewContentReparse, unlessFocusMoved } from './replacement-focus';
 import type { Landing } from '../selection/primitives';
 import type { RevealPolicy } from '../selection/caret-landing';
-import type { RemovalSide } from '../selection/caret-target';
+import type { RemovalGesture } from '../selection/caret-target';
 import { admitsWrite } from './commit/reading-write-gate';
 import { refusedWrite, withStoredCaret } from './stored-caret';
 
@@ -256,7 +256,7 @@ export interface BlockEditCore {
 	insertParagraph(i: number, text: string): Promise<boolean>;
 	mergeWithPreviousInterior(i: number): Promise<boolean>;
 	mergeWithNextInterior(i: number): Promise<boolean>;
-	deleteInterior(i: number, side: RemovalSide): Promise<boolean>;
+	deleteInterior(i: number, gesture: RemovalGesture): Promise<boolean>;
 	updateBlockMetadata(
 		i: number,
 		metadata: Record<string, unknown>,
@@ -420,13 +420,13 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 			});
 		},
 
-		async deleteInterior(i, side) {
+		async deleteInterior(i, gesture) {
 			return scope.commit({
 				snapshot: { index: i, offset: 0 },
 				eventTarget: i,
 				op: { kind: 'delete' },
 				mutate: (view) => performDelete(view.body, i, view.reading.grammar, view.sharing),
-				landing: () => scope.survivor(i, side),
+				landing: () => scope.survivor(i, gesture),
 				discardIfNoop: true
 			});
 		},

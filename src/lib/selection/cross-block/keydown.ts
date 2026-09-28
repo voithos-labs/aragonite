@@ -21,7 +21,6 @@ import {
 	scrollFocusBlockIntoView
 } from '../keyboard-extend';
 import { pathsEqual } from '../path-math';
-import { removalSideOfKey } from '../caret-target';
 import { intraTableRectExtension } from '../table-rect-extend';
 import { cellPoint } from '../primitives';
 import { applySurfaceContentRange } from '../native-bridge';
@@ -98,10 +97,7 @@ async function handleCrossBlockActive(
 	if (e.key === 'Backspace' || e.key === 'Delete') {
 		e.preventDefault();
 		if (isReadingMode(ctx.reading.mode)) return true;
-		await performCrossBlockDelete(mutCtx, {
-			tableCoverageDelete: true,
-			side: removalSideOfKey(e.key)
-		});
+		await performCrossBlockDelete(mutCtx, e.key, { tableCoverageDelete: true });
 		return true;
 	}
 
@@ -122,7 +118,7 @@ async function handleCrossBlockActive(
 		const fallbackPath = (selection.start ?? selection.focus)?.path ?? myPath;
 		// One entry for the delete and the command, so one Ctrl+Z brings the range back.
 		await rangeUndoStep(mutCtx, async () => {
-			const collapsedCaret = await performCrossBlockDelete(mutCtx);
+			const collapsedCaret = await performCrossBlockDelete(mutCtx, 'keyless');
 			await ctx.afterReactivity();
 			const postDeleteDoc = getDoc();
 			const revealTarget = collapsedCaret?.path ?? fallbackPath;

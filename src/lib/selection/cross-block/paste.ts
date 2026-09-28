@@ -59,7 +59,7 @@ export async function handleCrossBlockPaste(
 
 	// One entry for the delete and the paste, so Ctrl+Z never stops between them.
 	await rangeUndoStep(mutCtx, async () => {
-		const caret = await performCrossBlockDelete(mutCtx, { skipCaretRestore: true });
+		const caret = await performCrossBlockDelete(mutCtx, 'keyless', { skipCaretRestore: true });
 		// The paste was consumed but has nowhere to go, since another cross-block edit collapsed the
 		// selection first; an imported image, unlike text, isn't on the clipboard, so report it.
 		if (!caret) {

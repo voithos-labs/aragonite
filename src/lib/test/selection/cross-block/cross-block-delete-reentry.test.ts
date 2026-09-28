@@ -33,7 +33,7 @@ describe('performCrossBlockDelete: re-entrancy across the reveal await', () => {
 		// Reference: the same selection deleted exactly once.
 		const single = makeEnv();
 		single.deps.selectionState.enterCrossBlock({ path: [0], offset: 1 }, { path: [2], offset: 2 });
-		await performCrossBlockDelete(single.mutCtx);
+		await performCrossBlockDelete(single.mutCtx, 'keyless');
 		const expected = serialize(single.deps.doc);
 
 		// Overlap: the second call arrives while the first is waiting on `revealPath` (key
@@ -47,8 +47,8 @@ describe('performCrossBlockDelete: re-entrancy across the reveal await', () => {
 		env.events.on('edit', (e: EditEvent) => editOps.push(e.op));
 		env.deps.selectionState.enterCrossBlock({ path: [0], offset: 1 }, { path: [2], offset: 2 });
 
-		const first = performCrossBlockDelete(env.mutCtx);
-		const second = performCrossBlockDelete(env.mutCtx);
+		const first = performCrossBlockDelete(env.mutCtx, 'keyless');
+		const second = performCrossBlockDelete(env.mutCtx, 'keyless');
 		release();
 		await Promise.all([first, second]);
 		await tick();

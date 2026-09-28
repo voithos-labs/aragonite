@@ -33,8 +33,13 @@ function copySelected(doc: Document, s: ReturnType<typeof stateOver>): string {
 
 function deleteSelected(doc: Document, s: ReturnType<typeof stateOver>): string {
 	return serialize(
-		rangeDelete(doc, coverRange(doc, s.start!, s.end!), createSharingState(), fixtureReading())
-			.newDoc
+		rangeDelete(
+			doc,
+			coverRange(doc, s.start!, s.end!),
+			createSharingState(),
+			fixtureReading(),
+			'keyless'
+		).newDoc
 	);
 }
 

@@ -153,8 +153,8 @@ export function makeCommitScopeStub(
 		children: () => children,
 		target: () => ({ children, owner: opts.owner, lineEnding: lineEnding() }),
 		idAt: (i) => `block-${i}`,
-		survivor: (i, side) =>
-			survivorAfterRemoval({ kind: 'document', prefix: '', children, suffix: '' }, [i], side),
+		survivor: (i, gesture) =>
+			survivorAfterRemoval({ kind: 'document', prefix: '', children, suffix: '' }, [i], gesture),
 		collapseEmptyReplaceToDelete: opts.collapse ?? true,
 		async commit(args) {
 			commits.push(args);

@@ -50,7 +50,7 @@ describe('a commit whose ancestry settle ate its own scope', () => {
 	it('lands the caret where the container’s bytes begin in the survivor', async () => {
 		const h = harness();
 
-		await h.bundle.blockEdit.deleteBlock(0, 'before');
+		await h.bundle.blockEdit.deleteBlock(0, 'keyless');
 
 		expect(serialize(h.deps.doc)).toBe('a\n2. y\n');
 		// `'a\n'` is what the paragraph put in front of the list's own first byte.
@@ -115,7 +115,7 @@ describe('a commit whose ancestry settle ate its own scope', () => {
 	it('keeps the undo entry, and undo restores the pre-fold tree', async () => {
 		const h = harness();
 
-		await h.bundle.blockEdit.deleteBlock(0, 'before');
+		await h.bundle.blockEdit.deleteBlock(0, 'keyless');
 
 		const stacks = h.deps.undoManager.getStacks();
 		expect(stacks.undo).toHaveLength(1);
@@ -187,7 +187,7 @@ describe('a fold whose parent scope is a container, not the document', () => {
 		const h = quotedListHarness();
 		expect(h.quote().children!.map((c) => c.kind)).toEqual(['paragraph', 'list']);
 
-		await h.bundle.blockEdit.deleteBlock(0, 'before');
+		await h.bundle.blockEdit.deleteBlock(0, 'keyless');
 
 		expect(serialize(h.deps.doc)).toBe('> a\n> 2. y\n');
 		expect(h.quote().children!.map((c) => c.kind)).toEqual(['paragraph']);

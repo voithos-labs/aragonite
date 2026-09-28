@@ -61,7 +61,8 @@ describe('an edit route reparses in the editor grammar', () => {
 			doc,
 			coverRange(doc, { path: [0], offset: 0 }, { path: [1], offset: 1 }),
 			createSharingState(),
-			fixtureReading({ grammar: noIndentedCode })
+			fixtureReading({ grammar: noIndentedCode }),
+			'keyless'
 		);
 		expect(kindsOf(doc.children)).toEqual(['paragraph']);
 		expect(describeConvergence(doc, noIndentedCode)).toBeNull();

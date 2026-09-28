@@ -41,7 +41,7 @@ describe('Backspace in an empty painted leaf', () => {
 
 		await pressKey(el, { key: 'Backspace' });
 
-		expect(mounted.blockEdit.deleteBlock.mock.calls).toEqual([[0, 'before']]);
+		expect(mounted.blockEdit.deleteBlock.mock.calls).toEqual([[0, 'Backspace']]);
 		expect(focus.moveFocusCalls).toEqual([]);
 	});
 });

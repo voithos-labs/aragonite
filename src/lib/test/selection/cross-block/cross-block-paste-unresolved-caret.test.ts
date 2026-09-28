@@ -60,7 +60,7 @@ describe('a cross-block paste whose delete resolves no caret', () => {
 
 		// The delete waits on its mount; the paste arrives while the selection is still
 		// cross-block, so it passes every check on the way in.
-		const deleting = performCrossBlockDelete(mutCtx);
+		const deleting = performCrossBlockDelete(mutCtx, 'keyless');
 		const pasting = handlers.handlePaste(makePasteEvent('DROPPED'));
 		releaseReveal();
 
@@ -80,7 +80,7 @@ describe('a cross-block paste whose delete resolves no caret', () => {
 		const { env, handlers, mutCtx, releaseReveal } = makeGatedEnv();
 		env.selectionState.enterCrossBlock({ path: [0], offset: 2 }, { path: [2], offset: 3 });
 
-		const deleting = performCrossBlockDelete(mutCtx);
+		const deleting = performCrossBlockDelete(mutCtx, 'keyless');
 		const pasting = handlers.handlePaste(makePasteEvent('DROPPED'));
 		releaseReveal();
 		await pasting;

@@ -21,7 +21,7 @@ import { docPathFrom } from '../../cursor/coordinate-spaces';
 import { getStateForNode } from '../../reactivity/state-registry';
 import type { BlockListState } from '../../reactivity/block-list-state.svelte';
 import { maybeCommitTableCoverageDelete } from '../range-delete-table-coverage';
-import type { RemovalSide } from '../caret-target';
+import type { RemovalGesture } from '../caret-target';
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
@@ -43,9 +43,6 @@ export interface CrossBlockDeleteOptions {
 	/** Delete a range covering a whole table, row or column structurally; without it the cells
 	 *  are cleared and the table keeps its shape. */
 	tableCoverageDelete?: boolean;
-	/** Where the caret goes when the range takes a block whole and leaves nothing of it; absent
-	 *  for a delete with no key, which lands as Backspace does. */
-	side?: RemovalSide;
 }
 
 /**
@@ -60,9 +57,11 @@ export function rangeUndoStep(
 	return ctx.controller.undoStep(deleteSnapshot(start?.path ?? [0], start?.offset ?? 0), run);
 }
 
-/** Returns the collapsed caret, or null when the selection wasn't cross-block. */
+/** Returns the collapsed caret, or null when the selection wasn't cross-block. `gesture` picks the
+ *  caret's side when the range takes a block whole. */
 export async function performCrossBlockDelete(
 	ctx: CrossBlockMutationContext,
+	gesture: RemovalGesture,
 	options?: CrossBlockDeleteOptions
 ): Promise<SelectionPoint | null> {
 	// A re-entrant delete (key repeat, paste, composition) would resolve the same endpoints against
@@ -71,7 +70,7 @@ export async function performCrossBlockDelete(
 	while ((inFlight = inFlightDeletes.get(ctx.selection))) {
 		await inFlight.catch(() => {});
 	}
-	const run = runCrossBlockDelete(ctx, options);
+	const run = runCrossBlockDelete(ctx, gesture, options);
 	inFlightDeletes.set(ctx.selection, run);
 	try {
 		return await run;
@@ -84,6 +83,7 @@ const inFlightDeletes = new WeakMap<SelectionState, Promise<SelectionPoint | nul
 
 async function runCrossBlockDelete(
 	ctx: CrossBlockMutationContext,
+	gesture: RemovalGesture,
 	options?: CrossBlockDeleteOptions
 ): Promise<SelectionPoint | null> {
 	if (!ctx.selection.isCrossBlock) return null;
@@ -99,7 +99,6 @@ async function runCrossBlockDelete(
 		end.path.length === 1 &&
 		(samePath || (!isTableAt(doc, start.path) && !isTableAt(doc, end.path)));
 
-	const side = options?.side ?? 'before';
 	const caretRestore = !options?.skipCaretRestore
 		? (caret: SelectionPoint | null) => {
 				if (caret) focusCollapsedCaret(ctx.getBlockElByPath, caret);
@@ -117,7 +116,7 @@ async function runCrossBlockDelete(
 		if (block && isBlockNode(block) && countsCells(block)) {
 			const handled = await maybeCommitTableCoverageDelete(ctx, block, start, end, {
 				lands: !!caretRestore,
-				side
+				gesture
 			});
 			if (handled) return handled.caret;
 		}
@@ -125,15 +124,15 @@ async function runCrossBlockDelete(
 
 	const range = coverRange(doc, start, end);
 	if (isPureTopLevel) {
-		return await commitPureTopLevelDelete(ctx, range, side, caretRestore);
+		return await commitPureTopLevelDelete(ctx, range, gesture, caretRestore);
 	}
-	return await commitCrossContainerDelete(ctx, doc, range, side, caretRestore);
+	return await commitCrossContainerDelete(ctx, doc, range, gesture, caretRestore);
 }
 
 /** For compositionstart, where the IME drops the composition if the handler yields: the commit
  *  is synchronous up to its `await tick()`, so firing without awaiting deletes before any yield. */
 export function performCrossBlockDeleteSync(ctx: CrossBlockMutationContext): void {
-	void performCrossBlockDelete(ctx, { skipCaretRestore: true });
+	void performCrossBlockDelete(ctx, 'keyless', { skipCaretRestore: true });
 }
 
 // ── Internal ───────────────────────────────────────────────────────────────
@@ -148,7 +147,7 @@ function isTableAt(doc: Document, path: number[]): boolean {
 async function commitPureTopLevelDelete(
 	ctx: CrossBlockMutationContext,
 	range: CoveredRange,
-	side: RemovalSide,
+	gesture: RemovalGesture,
 	caretRestore: ((caret: SelectionPoint | null) => void) | undefined
 ): Promise<SelectionPoint | null> {
 	let collapsedCaret: SelectionPoint | null = null;
@@ -162,7 +161,7 @@ async function commitPureTopLevelDelete(
 		mutate: (topLevelChildren) => {
 			const body = documentBody(doc, topLevelChildren);
 			const ledger = trackChildIds(body);
-			const result = rangeDelete(body, range, ctx.controller.sharing, ctx.reading, side);
+			const result = rangeDelete(body, range, ctx.controller.sharing, ctx.reading, gesture);
 			collapsedCaret = result.collapsedCaret;
 			ctx.selection.collapse();
 			return ledger.read();
@@ -179,7 +178,7 @@ async function commitCrossContainerDelete(
 	ctx: CrossBlockMutationContext,
 	doc: Document,
 	range: CoveredRange,
-	side: RemovalSide,
+	gesture: RemovalGesture,
 	caretRestore: ((caret: SelectionPoint | null) => void) | undefined
 ): Promise<SelectionPoint | null> {
 	const { start, end } = range;
@@ -209,7 +208,7 @@ async function commitCrossContainerDelete(
 			// scope nodes stay valid because splices happen in place.
 			const ledgers = scopeViews.map((v) => trackChildIds(v.node));
 
-			const result = rangeDelete(doc, range, sharing, ctx.reading, side);
+			const result = rangeDelete(doc, range, sharing, ctx.reading, gesture);
 			collapsedCaret = result.collapsedCaret;
 			ctx.selection.collapse();
 

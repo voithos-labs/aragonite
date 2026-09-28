@@ -18,7 +18,8 @@ function run(
 		doc,
 		coverRange(doc, start, end),
 		createSharingState(),
-		fixtureReading()
+		fixtureReading(),
+		'keyless'
 	);
 	return { doc: result.newDoc, source: serialize(result.newDoc), caret: result.collapsedCaret };
 }

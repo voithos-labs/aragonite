@@ -331,7 +331,7 @@ async function execUndo(cell: ClosureCell, ctx: KindCellContext | null): Promise
 	const controller = createUndoController(deps);
 	const blockEdit = createBlockEditActions(deps, controller);
 	const before = deps.undoManager.getStacks().undo.length;
-	await blockEdit.deleteBlock(0, 'before');
+	await blockEdit.deleteBlock(0, 'keyless');
 	const after = deps.undoManager.getStacks().undo.length;
 	assertIs(
 		after - before,

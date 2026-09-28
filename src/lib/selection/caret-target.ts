@@ -68,20 +68,36 @@ export function caretPointFor(doc: DocumentView, pos: CaretPosition): SelectionP
 	return { path: [...target.leafPath], offset };
 }
 
-/** Which way a delete points: Backspace and a delete with no key `'before'`, Delete and cut
- *  `'after'`. */
-export type RemovalSide = 'before' | 'after';
+/** What removed a block: the key pressed (by its `KeyboardEvent.key`), a cut, or a delete no key
+ *  asked for (the block menu, or typing and pasting over a range). */
+export type RemovalGesture = 'Backspace' | 'Delete' | 'cut' | 'keyless';
 
-export function removalSideOfKey(key: 'Backspace' | 'Delete'): RemovalSide {
-	return key === 'Delete' ? 'after' : 'before';
-}
-
-/** Where the caret goes once the block at `removedPath` is gone, read on the tree after the
- *  removal: `'before'` prefers the previous block's end, `'after'` the next block's start. */
+/** Where the caret goes once the block at `removedPath` is gone, read after the removal: Backspace
+ *  and a keyless delete prefer the previous block's end, Delete and cut the next block's start. */
 export function survivorAfterRemoval(
 	doc: DocumentView,
 	removedPath: readonly number[],
-	side: RemovalSide
+	gesture: RemovalGesture
+): CaretPosition | null {
+	const pointsForward = gesture === 'Delete' || gesture === 'cut';
+	return survivorBeside(doc, removedPath, pointsForward);
+}
+
+/** Where a range picks up once it took the block at `removedPath` whole and ran on past it: the
+ *  start of what's left of its end, whatever removed it. */
+export function survivorWhereRangeResumes(
+	doc: DocumentView,
+	removedPath: readonly number[]
+): CaretPosition | null {
+	return survivorBeside(doc, removedPath, true);
+}
+
+// ── Internal ────────────────────────────────────────────────────────────────
+
+function survivorBeside(
+	doc: DocumentView,
+	removedPath: readonly number[],
+	forward: boolean
 ): CaretPosition | null {
 	const slot = liveSlot(doc, removedPath);
 	if (!slot) return null;
@@ -89,10 +105,8 @@ export function survivorAfterRemoval(
 	const next = firstCaretLeafFrom(doc, slot);
 	const atEnd = previous && { path: docPathFrom(previous), offset: CURSOR_END };
 	const atStart = next && { path: docPathFrom(next), offset: CURSOR_START };
-	return side === 'before' ? (atEnd ?? atStart) : (atStart ?? atEnd);
+	return forward ? (atStart ?? atEnd) : (atEnd ?? atStart);
 }
-
-// ── Internal ────────────────────────────────────────────────────────────────
 
 /** `removedPath`, or its nearest ancestor's position when the removal emptied the parent and the
  *  commit's fix-up took it too (its path then resolves to nothing, or to a childless neighbour). */

@@ -25,7 +25,6 @@ import type { CaretMemory } from '../cursor/caret-memory';
 import type { AnyCommandId } from '../schema/command-id';
 import type { SelectionState } from '../selection/selection-state.svelte';
 import { placeCaret } from '../selection/caret-doors';
-import { removalSideOfKey } from '../selection/caret-target';
 import {
 	focusWholeBlockEl,
 	holdsWholeBlockFocus,
@@ -105,8 +104,7 @@ export function handleWholeBlockKeys(e: KeyboardEvent, deps: WholeBlockKeyDeps):
 	}
 	if (e.key === 'Backspace' || e.key === 'Delete') {
 		e.preventDefault();
-		if (!deps.isReading())
-			void deps.blockEdit.deleteBlock(deps.getIndex(), removalSideOfKey(e.key));
+		if (!deps.isReading()) void deps.blockEdit.deleteBlock(deps.getIndex(), e.key);
 		return;
 	}
 
@@ -139,7 +137,7 @@ async function copyFocusedWholeBlock(deps: WholeBlockKeyDeps, cut: boolean): Pro
 		devWarn('container-block', 'whole-block clipboard write rejected', err);
 		return;
 	}
-	if (cut && !deps.isReading()) void deps.blockEdit.deleteBlock(deps.getIndex(), 'after');
+	if (cut && !deps.isReading()) void deps.blockEdit.deleteBlock(deps.getIndex(), 'cut');
 }
 
 export interface ContainerBlockComponentDeps {

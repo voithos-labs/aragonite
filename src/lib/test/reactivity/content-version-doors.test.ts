@@ -47,7 +47,7 @@ describe('content version: every byte-writing entry point announces its write', 
 
 	it('the history restore announces the tree it swapped in, both directions', async () => {
 		const editor = topLevelEditor('one\n\ntwo\n');
-		await editor.blockEdit.deleteBlock(1, 'before');
+		await editor.blockEdit.deleteBlock(1, 'keyless');
 		const afterEdit = editor.contentVersion();
 		await editor.history.requestUndo();
 		expect(editor.doc.children.length).toBe(2);
