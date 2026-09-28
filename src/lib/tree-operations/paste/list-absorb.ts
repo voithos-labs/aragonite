@@ -129,11 +129,11 @@ export async function applyListAbsorb(
 			detail: { source: 'list-absorb', listPath: plan.listPath },
 			eventPath: docPathFrom(plan.listPath)
 		},
-		afterTick: () => {
+		landing: () => {
 			// The shared structural-paste caret rule: last pasted item, before the residue.
 			const lastPastedIdx =
 				plan.itemIndex + focusIndexBeforeResidue(replacement.length, trailingItem !== null);
-			return ctx.controller.landCaret([...plan.listPath, lastPastedIdx], CURSOR_END);
+			return { path: docPathFrom([...plan.listPath, lastPastedIdx]), offset: CURSOR_END };
 		}
 	});
 }

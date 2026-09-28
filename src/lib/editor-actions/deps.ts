@@ -34,7 +34,7 @@ export interface EditorActionsDeps {
 	getSelectedWidgetCaret?: () => EditorSelection | null;
 	getBlockElByPath: BlockElLookup;
 	/** Scroll the block at `path` into view level by level, wait for it to mount, and return its
-	 *  component (null if unreachable). Only the history restore and the paste caret still use it. */
+	 *  component (null if unreachable). Only the history restore still uses it. */
 	revealPath(path: number[]): Promise<BlockComponent | null>;
 	/** Where every commit's caret is put down, and the counter an undo, redo or swap bumps. */
 	caretLanding: CaretLanding;

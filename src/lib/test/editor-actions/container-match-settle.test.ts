@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { pasteDispatch } from '$lib/tree-operations/paste/dispatch';
@@ -18,14 +18,13 @@ import {
 
 describe('the container-matching merge spends its residue settle', () => {
 	it('keeps the pasted item’s ids in step and lands the caret through the settle', async () => {
-		const { deps } = makeEditorActionsDeps(parse('- ```js\n  code\n  ```\n'));
+		const { deps, landings } = makeEditorActionsDeps(parse('- ```js\n  code\n  ```\n'));
 		registerBlockListState(
 			deps.doc.children[0],
 			makeBlockListState(() => deps.doc.children[0])
 		);
 		const controller = createUndoController(deps);
 		const coordinator = createPasteCoordinator(deps, controller);
-		const landCaret = vi.spyOn(coordinator, 'landCaret');
 
 		// Caret after `code`, so the text after it is the fence's own closing line: the reattach
 		// reparses into two blocks inside the last pasted item.
@@ -45,6 +44,6 @@ describe('the container-matching merge spends its residue settle', () => {
 		expect(serialize(deps.doc)).toBe('- ```js\n  codeone\n  ```\n- two\n  ```\n');
 		// The pasted text ends inside the first block of the reattached pair, which is where the
 		// fix-up reports it, not an index the paste assumed before the reparse.
-		expect(landCaret).toHaveBeenCalledWith([0, 1, 0], 'two'.length);
+		expect(landings).toMatchObject([{ leafPath: [0, 1, 0], offset: 'two'.length }]);
 	});
 });

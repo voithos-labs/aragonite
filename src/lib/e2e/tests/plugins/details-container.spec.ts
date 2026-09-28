@@ -79,11 +79,31 @@ test.describe('plugin container: <details> collapsible', () => {
 		expect(await activeBlockPath(page)).toEqual([0, 1]);
 
 		// The mouse toggle keeps the body caret, since mousedown's default is suppressed, and the
-		// clamp then unmounts that block, so the commit's afterTick moves the stray caret up.
+		// clamp then unmounts that block, so the toggle's commit puts the caret on the summary.
 		await editor.page.locator('.details-toggle').click();
 		await editor.bridge.waitForSourceContains('<details>\n');
 		await expect.poll(() => activeBlockPath(page)).toEqual([0, 0]);
 		expect(await capturedErrors(page)).toEqual([]);
+	});
+
+	test('the collapse puts the caret on the summary once, and typing lands there', async ({
+		page
+	}) => {
+		await editor.loadContent(OPEN);
+		await editor.focusBlockAtPath([0, 1], 4); // end of "Body"
+		await page.evaluate(() => {
+			const w = window as unknown as { focusIns: number };
+			w.focusIns = 0;
+			document.addEventListener('focusin', () => w.focusIns++);
+		});
+
+		await editor.page.locator('.details-toggle').click();
+		await editor.bridge.waitForSourceContains('<details>\n');
+		await expect.poll(() => activeBlockPath(page)).toEqual([0, 0]);
+		await editor.waitForRenderFlush();
+		expect(await page.evaluate(() => (window as unknown as { focusIns: number }).focusIns)).toBe(1);
+		await page.keyboard.type('x');
+		await editor.bridge.waitForSourceContains('<summary>xSummary</summary>');
 	});
 
 	// Nothing retargets a caret aimed into a hidden body, so the descent opens the body to place it.

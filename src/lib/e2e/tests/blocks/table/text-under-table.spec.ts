@@ -50,7 +50,8 @@ const ROUTES = [
 			await editor.page.keyboard.press('Backspace');
 			await editor.page.keyboard.press('Backspace');
 		},
-		typed: `${T}\nWnext\n`
+		// Backspace points back, so the caret ends the table's last cell and `next` keeps its bytes.
+		typed: `${T.replace('| 2 |', '| 2W |')}\nnext\n`
 	}
 ];
 

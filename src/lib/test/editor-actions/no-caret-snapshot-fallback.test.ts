@@ -88,7 +88,7 @@ describe('no-caret container commits snapshot a resolving deep restore path', ()
 		// The list item delete falls through to the shared core, which still records the deep path.
 		const h = makeNestedHarness([listOf(['one\n', 'two\n'])], { listOverrides: true, index: 0 });
 
-		await h.bundle.blockEdit.deleteBlock(1);
+		await h.bundle.blockEdit.deleteBlock(1, 'before');
 
 		const entry = lastUndoEntry(h.deps);
 		expect(rangeSelectionOf(entry).focus.path).toEqual([0, 1]);

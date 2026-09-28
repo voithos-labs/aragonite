@@ -203,7 +203,7 @@ describe('a nested delete can stop an ordered list interrupting (GH #176)', () =
 	it('folds the list into the paragraph it stopped interrupting', async () => {
 		const h = makeNestedHarness('a\n1. x\n2. y\n', { index: 1, listOverrides: true });
 
-		await h.bundle.blockEdit.deleteBlock(0);
+		await h.bundle.blockEdit.deleteBlock(0, 'before');
 
 		expect(serialize(h.deps.doc)).toBe('a\n2. y\n');
 		expect(h.deps.doc.children.map((c) => c.kind)).toEqual(['paragraph']);
@@ -218,7 +218,7 @@ describe('a nested delete can stop an ordered list interrupting (GH #176)', () =
 	it('leaves a list that still starts at 1 standing', async () => {
 		const h = makeNestedHarness('a\n1. x\n2. y\n', { index: 1, listOverrides: true });
 
-		await h.bundle.blockEdit.deleteBlock(1);
+		await h.bundle.blockEdit.deleteBlock(1, 'before');
 
 		expect(serialize(h.deps.doc)).toBe('a\n1. x\n');
 		expect(h.deps.doc.children.map((c) => c.kind)).toEqual(['paragraph', 'list']);

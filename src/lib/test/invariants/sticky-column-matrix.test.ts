@@ -84,7 +84,7 @@ describe('G2.10 structural reset policy', () => {
 	});
 
 	it('delete forgets the caret memory', async () => {
-		const reset = await exercise((a) => a.deleteBlock(0));
+		const reset = await exercise((a) => a.deleteBlock(0, 'before'));
 		expect(reset).toHaveBeenCalled();
 	});
 });

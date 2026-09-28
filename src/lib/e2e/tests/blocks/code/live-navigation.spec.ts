@@ -195,4 +195,29 @@ test.describe('code block in live mode: an empty fence', () => {
 		await page.keyboard.type('X');
 		await editor.bridge.waitForSourceContains('BeforeX\n');
 	});
+
+	test('Backspace on the empty body line deletes the fence and lands at the end of the block above', async ({
+		page
+	}) => {
+		await editor.focusBlockEnd(0);
+		await page.keyboard.press('ArrowRight');
+		await editor.bridge.waitForSourceEquals('Before\n\n```\n\n```\n\nAfter\n');
+		// Which blocks took focus after the key: a delete that places its caret twice shows here even
+		// when the second placement happens to win.
+		await page.evaluate(() => {
+			const w = window as unknown as { focused: string[] };
+			w.focused = [];
+			document.addEventListener('focusin', (e) =>
+				w.focused.push((e.target as Element).textContent ?? '')
+			);
+		});
+		await page.keyboard.press('Backspace');
+		await editor.bridge.waitForSourceEquals('Before\n\nAfter\n');
+		await editor.waitForRenderFlush();
+		expect(await page.evaluate(() => (window as unknown as { focused: string[] }).focused)).toEqual(
+			['Before']
+		);
+		await page.keyboard.type('X');
+		await editor.bridge.waitForSourceEquals('BeforeX\n\nAfter\n');
+	});
 });

@@ -95,7 +95,7 @@ describe('block-edit core: shared structural decisions', () => {
 
 	it('deleteInterior removes the block and emits a delete op targeting it', async () => {
 		const { scope, commits, children } = makeCommitScopeStub([leaf('a\n'), leaf('b\n')]);
-		await createBlockEditCore(scope).deleteInterior(1);
+		await createBlockEditCore(scope).deleteInterior(1, 'before');
 		expect(children).toHaveLength(1);
 		expect(children[0].raw).toContain('a');
 		expect(commits[0].op.kind).toBe('delete');
@@ -254,7 +254,7 @@ describe('block-edit core: wrap-owner threading', () => {
 		const callout = doc.children[0];
 		const { scope, children } = makeCommitScopeStub(callout.children!, { owner: callout });
 
-		await createBlockEditCore(scope).deleteInterior(1);
+		await createBlockEditCore(scope).deleteInterior(1, 'before');
 
 		expect(children.map((c) => c.leadingTrivia + c.raw).join('')).not.toContain('A');
 		expect(callout.innerPrefix).toBe('\n');

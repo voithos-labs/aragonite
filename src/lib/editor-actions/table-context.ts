@@ -1,14 +1,17 @@
 /**
  * The TableContext edits. The component keeps the sticky column, the focused cell, DOM
- * helpers and BlockComponent; only structural edits live here.
+ * helpers and BlockComponent; only structural edits live here, each handing its commit the cell
+ * the caret goes to.
  */
 
 import type {
-	CellPosition,
 	CommitAnnouncement,
+	CommitLanding,
 	ContainerEditActions,
 	TableContext
 } from '../action-contracts';
+import { CURSOR_END, CURSOR_START } from '../block-component';
+import type { CaretPosition } from '../selection/primitives';
 import type { OpDescriptor } from '../schema/operations';
 import type { CstNode } from '../core/nodes';
 import type { Reading } from '../schema/reading';
@@ -83,7 +86,6 @@ export interface TableMutationsContextDeps {
 	get focusedCell(): { rowIdx: number; colIdx: number } | null;
 	parentContainerEdit: ContainerEditActions;
 	controller: UndoController;
-	focusCell: (rowIdx: number, colIdx: number, position: CellPosition) => void;
 	/** The editor's reading, whose grammar the cell writes use. */
 	reading: Reading;
 }
@@ -110,8 +112,18 @@ export type TableMutationsContext = Pick<
 export function createTableMutationsContext(
 	deps: TableMutationsContextDeps
 ): TableMutationsContext {
+	/** The cell at `rowIdx`, `colIdx`, addressed by path so the landing can mount a windowed row. */
+	const cellAt = (
+		rowIdx: number,
+		colIdx: number,
+		offset: number = CURSOR_START
+	): CaretPosition => ({
+		path: docPathFrom([...deps.myPath, rowIdx, colIdx]),
+		offset
+	});
+
 	async function insertRow(rowIdx: number, side: 'above' | 'below'): Promise<void> {
-		const { node, myPath, rowsState, parentContainerEdit, focusCell } = deps;
+		const { node, myPath, rowsState, parentContainerEdit } = deps;
 		const insertAt = side === 'above' ? rowIdx : rowIdx + 1;
 		await parentContainerEdit.commitContainer({
 			containerNode: node,
@@ -129,7 +141,7 @@ export function createTableMutationsContext(
 				detail: { rowIdx, side },
 				eventPath: extendDocPath(myPath, insertAt)
 			},
-			afterTick: () => focusCell(insertAt, 0, 'start'),
+			landing: () => cellAt(insertAt, 0),
 			announce: () => INSERTED_ROW
 		});
 	}
@@ -155,7 +167,7 @@ export function createTableMutationsContext(
 			OpDescriptor,
 			{ kind: 'tableInsertColumn' | 'tableDeleteColumn' | 'tableReorderColumn' }
 		>;
-		afterTick: () => void;
+		landing: CommitLanding;
 		announce: CommitAnnouncement;
 	}): Promise<void> {
 		const { myPath, controller } = deps;
@@ -183,7 +195,7 @@ export function createTableMutationsContext(
 				return [{ op: 'noop' }, ...rowIndices.map((i) => perRow[i])];
 			},
 			op: { ...opts.op, eventPath: docPathFrom(myPath) },
-			afterTick: opts.afterTick,
+			landing: opts.landing,
 			announce: opts.announce
 		});
 	}
@@ -194,7 +206,7 @@ export function createTableMutationsContext(
 		origin: { rowIdx: number; colIdx: number },
 		grid: string[][]
 	): Promise<void> {
-		const { myPath, controller, focusCell } = deps;
+		const { myPath, controller } = deps;
 		const rows = grid.length;
 		let cols = 0;
 		for (const line of grid) cols = Math.max(cols, line.length);
@@ -242,30 +254,30 @@ export function createTableMutationsContext(
 				detail: { rowIdx: origin.rowIdx, colIdx: origin.colIdx, rows, cols },
 				eventPath: docPathFrom(myPath)
 			},
-			afterTick: () => focusCell(origin.rowIdx + rows - 1, origin.colIdx + cols - 1, 'end')
+			landing: () => cellAt(origin.rowIdx + rows - 1, origin.colIdx + cols - 1, CURSOR_END)
 		});
 	}
 
 	async function insertColumn(colIdx: number, side: 'left' | 'right'): Promise<void> {
-		const { focusCell, focusedCell } = deps;
+		const { focusedCell } = deps;
 		const insertAt = side === 'left' ? colIdx : colIdx + 1;
 		await commitColumnEdit({
 			mutateColumns: (table) => insertEmptyColumn(table, colIdx, side),
 			op: { kind: 'tableInsertColumn', detail: { colIdx, side } },
-			afterTick: () => focusCell(focusedCell?.rowIdx ?? 0, insertAt, 'start'),
+			landing: () => cellAt(focusedCell?.rowIdx ?? 0, insertAt),
 			announce: () => INSERTED_COLUMN
 		});
 	}
 
 	async function reorderRowTo(from: number, to: number): Promise<void> {
 		if (from === to) return;
-		const { node, myPath, rowsState, parentContainerEdit, focusCell, focusedCell } = deps;
+		const { node, myPath, rowsState, parentContainerEdit, focusedCell } = deps;
 		const rowCount = node.children?.length ?? 0;
 		// Check the source against the live count: a keyboard, menu or drag commit can carry a
 		// `from` made stale by a concurrent structural edit. `to` is already clamped.
 		if (from < 0 || from >= rowCount) return;
 		// focusout nulls focusedCell on the re-render after the commit, so read the column
-		// now; afterTick would otherwise land at column 0.
+		// now; the landing would otherwise go to column 0.
 		const col = focusedCell?.colIdx ?? 0;
 		await parentContainerEdit.commitContainer({
 			containerNode: node,
@@ -281,7 +293,7 @@ export function createTableMutationsContext(
 				return change;
 			},
 			op: { kind: 'tableReorderRow', detail: { from, to }, eventPath: extendDocPath(myPath, to) },
-			afterTick: () => focusCell(to, col, 'start'),
+			landing: () => cellAt(to, col),
 			announce: () => movedRowToPosition(to, rowCount - 1)
 		});
 	}
@@ -295,17 +307,17 @@ export function createTableMutationsContext(
 
 	async function reorderColumnTo(from: number, to: number): Promise<void> {
 		if (from === to) return;
-		const { node, focusCell, focusedCell } = deps;
+		const { node, focusedCell } = deps;
 		const columnCount = metadataOf(node, 'table').columnCount;
 		// Check the source against the live count, as reorderRowTo does.
 		if (from < 0 || from >= columnCount) return;
 		// focusout nulls focusedCell on the re-render after the commit, so read the row now;
-		// afterTick would otherwise land at row 0.
+		// the landing would otherwise go to row 0.
 		const row = focusedCell?.rowIdx ?? 0;
 		await commitColumnEdit({
 			mutateColumns: (table) => mutMoveColumn(table, from, to),
 			op: { kind: 'tableReorderColumn', detail: { from, to } },
-			afterTick: () => focusCell(row, to, 'start'),
+			landing: () => cellAt(row, to),
 			announce: () => movedColumnToPosition(to + 1, columnCount)
 		});
 	}
@@ -331,7 +343,7 @@ export function createTableMutationsContext(
 		moveColumnRight: (colIdx) => moveColumn(colIdx, 1),
 
 		async deleteRow(rowIdx) {
-			const { node, myPath, rowsState, parentContainerEdit, focusCell, focusedCell } = deps;
+			const { node, myPath, rowsState, parentContainerEdit, focusedCell } = deps;
 			if (!canDeleteRow(rowIdx, node.children?.length ?? 0)) return;
 			await parentContainerEdit.commitContainer({
 				containerNode: node,
@@ -350,34 +362,32 @@ export function createTableMutationsContext(
 					eventPath: extendDocPath(myPath, rowIdx)
 				},
 				announce: () => DELETED_ROW,
-				afterTick: () => {
+				landing: () => {
 					// Read through `deps.node`: the `node` read above is the pre-commit object the
 					// undo snapshot still shares, so its child count is stale after the delete.
 					const newRowCount = deps.node.children?.length ?? 0;
-					if (newRowCount === 0) return;
+					if (newRowCount === 0) return null;
 					const columnCount = metadataOf(deps.node, 'table').columnCount;
 					const targetRow = Math.min(rowIdx, newRowCount - 1);
 					const targetCol = focusedCell ? Math.min(focusedCell.colIdx, columnCount - 1) : 0;
-					focusCell(targetRow, targetCol, 'start');
+					return cellAt(targetRow, targetCol);
 				}
 			});
 		},
 
 		async deleteColumn(colIdx) {
-			const { node, focusCell, focusedCell } = deps;
+			const { node, focusedCell } = deps;
 			const meta = metadataOf(node, 'table');
 			if (!canDeleteColumn(meta.columnCount)) return;
 			await commitColumnEdit({
 				mutateColumns: (table) => mutDeleteColumn(table, colIdx),
 				op: { kind: 'tableDeleteColumn', detail: { colIdx } },
 				announce: () => DELETED_COLUMN,
-				afterTick: () => {
+				landing: () => {
 					// deps.node, not the stale pre-commit object, as in deleteRow.
 					const newColumnCount = metadataOf(deps.node, 'table').columnCount;
-					if (newColumnCount === 0) return;
-					const targetCol = Math.min(colIdx, newColumnCount - 1);
-					const targetRow = focusedCell?.rowIdx ?? 0;
-					focusCell(targetRow, targetCol, 'start');
+					if (newColumnCount === 0) return null;
+					return cellAt(focusedCell?.rowIdx ?? 0, Math.min(colIdx, newColumnCount - 1));
 				}
 			});
 		},
@@ -400,9 +410,9 @@ export function createTableMutationsContext(
 		},
 
 		async setColumnAlignment(colIdx, alignment) {
-			const { node, myPath, rowsState, parentContainerEdit, focusCell, focusedCell } = deps;
+			const { node, myPath, rowsState, parentContainerEdit, focusedCell } = deps;
 			// Read before the menu's focusout nulls it: the alignment button unmounts on
-			// commit, so without a refocus the caret falls to <body>.
+			// commit, so without a landing the caret falls to <body>.
 			const cell = focusedCell;
 			// Commits unconditionally: the first table edit also normalizes cell padding, so
 			// setting the same value is not a byte no-op.
@@ -416,7 +426,7 @@ export function createTableMutationsContext(
 					return { op: 'noop' };
 				},
 				op: { kind: 'tableSetAlignment', detail: { colIdx }, eventPath: docPathFrom(myPath) },
-				afterTick: () => focusCell(cell?.rowIdx ?? 0, colIdx, 'start'),
+				landing: () => cellAt(cell?.rowIdx ?? 0, colIdx),
 				announce: () => (alignment === 'none' ? COLUMN_ALIGNMENT_CLEARED : columnAligned(alignment))
 			});
 		}

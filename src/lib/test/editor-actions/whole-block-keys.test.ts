@@ -59,10 +59,13 @@ describe('handleWholeBlockKeys', () => {
 		expect(e.preventDefault).toHaveBeenCalled();
 	});
 
-	it.each(['Backspace', 'Delete'])('%s removes the block', (key) => {
+	it.each([
+		['Backspace', 'before'],
+		['Delete', 'after']
+	])('%s removes the block, its caret going %s it', (key, side) => {
 		const { deps, deleteBlock } = makeDeps();
 		handleWholeBlockKeys(press(key), deps);
-		expect(deleteBlock).toHaveBeenCalledWith(2);
+		expect(deleteBlock).toHaveBeenCalledWith(2, side);
 	});
 
 	it('the edit branches gate on reading mode but still consume the key', () => {
@@ -253,7 +256,7 @@ describe('handleWholeBlockKeys: Mod+C / Mod+X clipboard', () => {
 		handleWholeBlockKeys(e, deps);
 		expect(e.preventDefault).toHaveBeenCalled();
 		expect(writeText).toHaveBeenCalledWith('---');
-		await vi.waitFor(() => expect(deleteBlock).toHaveBeenCalledWith(2));
+		await vi.waitFor(() => expect(deleteBlock).toHaveBeenCalledWith(2, 'after'));
 	});
 
 	it('Mod+X in reading mode still copies but deletes nothing', async () => {

@@ -17,6 +17,7 @@ import type { DocPath } from './selection/path-math';
 import type { CaretPosition, Landing } from './selection/primitives';
 import type { LegalWrite } from './tree-operations/content-write';
 import type { LandingOutcome } from './selection/caret-landing';
+import type { RemovalSide } from './selection/caret-target';
 
 /**
  * Where the caret goes back to on undo when nothing is focused: `path` is a document-absolute
@@ -75,6 +76,13 @@ export interface AdmittedContentWrite {
 	readonly keepsCaret: boolean;
 }
 
+/** Where the caret goes after an edit to one block, relative to it: `path` walks its children
+ *  (`[]` is the block itself) and `offset` is a byte there or an edge value (`CURSOR_END`). */
+export interface BlockCaret {
+	path: number[];
+	offset: number;
+}
+
 // ── Action sub-interfaces ──────────────────────────────────────────────────
 
 /** Every edit a block asks of its list. Each resolves to whether bytes landed; a focus move
@@ -91,7 +99,9 @@ export interface BlockEditActions {
 	insertParagraph(boundaryIndex: number, text: string): Promise<boolean>;
 	mergeWithPrevious(blockIndex: number): Promise<boolean>;
 	mergeWithNext(blockIndex: number): Promise<boolean>;
-	deleteBlock(blockIndex: number): Promise<boolean>;
+	/** Remove the block; the caret lands once, on the side the key points
+	 *  (`selection/caret-target.ts :: survivorAfterRemoval`), and the caller places none. */
+	deleteBlock(blockIndex: number, side: RemovalSide): Promise<boolean>;
 	/** Write `text` as the block's bytes through its kind's and this list's write rules. Undo
 	 *  records `preEditOffset`; `postEditFocusOffset` (in `text`) comes back mapped as `caret`. */
 	updateBlockContent(
@@ -106,7 +116,7 @@ export interface BlockEditActions {
 	updateBlockMetadata(
 		blockIndex: number,
 		metadata: Record<string, unknown>,
-		options?: { afterTick?: CommitAfterTick }
+		options?: { caret?: BlockCaret }
 	): Promise<boolean>;
 	/** Replace the block with zero or more blocks (none is `deleteBlock`). `focus.path` addresses a
 	 *  caret inside the replacement; `snapshotOffset` is the undo entry's caret. */
@@ -291,6 +301,8 @@ export interface ContainerEditActions {
 	/** Put the caret at a document position through the editor's caret landing, for an edit that
 	 *  moves the caret without a commit. */
 	land(pos: CaretPosition): Promise<LandingOutcome>;
+	/** Where the caret goes once the block at `removedPath` is gone, read on the document now. */
+	survivorAfterRemoval(removedPath: DocPath, side: RemovalSide): CaretPosition | null;
 }
 
 export type InPlaceResult =

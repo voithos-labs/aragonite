@@ -11,12 +11,7 @@ import type { ComponentProps } from 'svelte';
 // Type only, erased at build: no runtime import of `components/` here. It is for the
 // two-way conformance check below.
 import type BlockList from '../../components/BlockList.svelte';
-import type {
-	BlockEditActions,
-	CommitAfterTick,
-	FocusActions,
-	MoveFocusOptions
-} from '../../action-contracts';
+import type { BlockEditActions, FocusActions, MoveFocusOptions } from '../../action-contracts';
 import type { NodeView } from '../../core/node-views';
 import type { AmbientPrefix, BlockComponent, ContainerBlockComponent } from '../../block-component';
 import { getBlockKindDescriptor } from '../../schema/block-kind-descriptor';
@@ -136,13 +131,11 @@ export interface ContainerBlock {
 	getEditor(): EditorContext | undefined;
 	/** The `BlockComponent` the host re-exports for BlockHost. */
 	containerApi: ContainerBlockComponent;
-	/**
-	 * Commit a shallow metadata patch on this container as one undo entry, through the
-	 * kind's `rebuildRaw`. `afterTick` runs once the commit's DOM has rendered.
-	 */
+	/** Commit a shallow metadata patch as one undo entry, through the kind's `rebuildRaw`; the commit
+	 *  puts the caret at `caret`, relative to this container (`[]` is the block), once it renders. */
 	updateOwnMetadata(
 		patch: Record<string, unknown>,
-		afterTick?: CommitAfterTick
+		options?: { caret?: { path: number[]; offset: number } }
 	): void | Promise<void>;
 	/**
 	 * Attach to the block's box: a chord bubbling from an inner leaf resolves against this
@@ -401,8 +394,8 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 	};
 
 	// Reading mode declines at the commit, which names the write in a dev build.
-	const updateOwnMetadata: ContainerBlock['updateOwnMetadata'] = async (patch, afterTick) => {
-		await parentBlockEdit.updateBlockMetadata(deps.getIndex(), patch, { afterTick });
+	const updateOwnMetadata: ContainerBlock['updateOwnMetadata'] = async (patch, options) => {
+		await parentBlockEdit.updateBlockMetadata(deps.getIndex(), patch, options);
 	};
 
 	const kindTarget = buildContainerKindTarget(deps, updateOwnMetadata);

@@ -392,13 +392,12 @@ await parentContainerEdit.commitContainer({
 		return { op: 'insert', at: insertAt, count: 1 };
 	},
 	op: { kind: 'tableInsertRow', detail: { rowIdx, side }, eventPath: extendDocPath(myPath, insertAt) },
-	afterTick: () => {
-		focusCell(insertAt, 0, 'start');
-	}
+	// The new row's first cell, addressed by its path through the table.
+	landing: () => ({ path: docPathFrom([...myPath, insertAt, 0]), offset: CURSOR_START })
 });
 ```
 
-`snapshot` is where the caret was, for the undo entry. `mutate` returns the structural change it made so the commit can publish it, and `op` names the operation for the edit event and the operations log. The table still places its caret itself in `afterTick`, which runs after the DOM has caught up. A new commit passes `landing` instead: a function returning where the caret goes, a document path (a container's is fine) and an offset, and the commit puts it down for you, mounting and scrolling included. The same rules cover `commitMultiScope`'s per-scope views.
+`snapshot` is where the caret was, for the undo entry. `mutate` returns the structural change it made so the commit can publish it, and `op` names the operation for the edit event and the operations log. `landing` is a function returning where the caret goes, a document path (a container's is fine) and an offset. The commit reads it once the DOM has caught up and puts the caret down for you, mounting a windowed-out row and scrolling included, so never focus anything yourself after a commit. The same rules cover `commitMultiScope`'s per-scope views.
 
 `ContainerEditActions` also carries the two things a keystroke needs the root for: `typeInLeaf` (groups it with its typing burst) and `writeLeafInPlace` (the write that keeps the leaf in place), both built in `src/lib/editor-actions/leaf-write.ts`. Your container gets them for free through the shared `updateBlockContent`, so there's nothing to wire. A typed character joins its burst's undo entry, then either commits or writes in place. For any other change to a container's children, reach for `commitContainer`, or `commitMultiScope` when the change spans containers.
 

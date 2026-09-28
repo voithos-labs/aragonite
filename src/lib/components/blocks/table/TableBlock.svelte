@@ -3,6 +3,7 @@
 	import type { CellPosition, TableAxisAction, TableContext } from '../../../action-contracts';
 	import {
 		CURSOR_END,
+		CURSOR_START,
 		entryEdge,
 		type BlockComponent,
 		type StickyColumnDirection
@@ -16,7 +17,7 @@
 		type EditorServices
 	} from '../../../editor-keys';
 	import { metadataOf } from '../../../core/nodes';
-	import { asEditorX } from '../../../cursor/coordinate-spaces';
+	import { asEditorX, docPathFrom } from '../../../cursor/coordinate-spaces';
 	import { observeResize } from '../../../cursor/observe-resize';
 	import { pathsEqual } from '../../../selection/path-math';
 	import { placeCaret } from '../../../selection/caret-doors';
@@ -61,7 +62,8 @@
 		// the cell's, through the shared editable surface.
 		caretMemory: { captureColumn: captureExitColumn },
 		selection,
-		menuPresence
+		menuPresence,
+		caretLanding
 	} = getContext<EditorServices>(EDITOR_SERVICES_KEY);
 	const {
 		editorRoot: getEditorRoot,
@@ -208,8 +210,7 @@
 			return focusedCell;
 		},
 		parentContainerEdit,
-		controller,
-		focusCell
+		controller
 	});
 
 	const ctx: TableContext = {
@@ -355,15 +356,16 @@
 		openMenuAtCell(rowIdx, colIdx, rect ? rect.left : 0, rect ? rect.bottom : 0);
 	}
 
-	// The restore goes through `focusCell`: a bare `el.focus()` on a contenteditable leaves no
-	// caret to type at.
+	// Through the caret landing, which mounts the row: it can scroll out of the row window while
+	// the menu is open.
 	async function closeMenuRestoringFocus(): Promise<void> {
 		const target = menu?.target;
-		const offset = menu?.clipboardSel?.start ?? 'start';
+		const offset = menu?.clipboardSel?.start ?? CURSOR_START;
 		menu = null;
 		if (!target) return;
 		await tick();
-		focusCell(target.rowIdx, target.colIdx, offset);
+		const path = docPathFrom([...myPath, target.rowIdx, target.colIdx]);
+		await caretLanding.land({ path, offset }, { reveal: 'mount' });
 	}
 
 	// A right-click places no caret, so without this an action's follow-the-focus reads no

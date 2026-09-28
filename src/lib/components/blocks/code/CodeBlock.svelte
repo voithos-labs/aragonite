@@ -562,8 +562,7 @@
 			// At the top of an empty fence the key can only mean the block, so it goes; a fence
 			// with a body keeps the step-out, since one keypress must never take code with it.
 			if (isBlankText(bodyText())) {
-				void blockEdit.deleteBlock(index);
-				focusActions.moveFocus(index - 1, 'end');
+				void blockEdit.deleteBlock(index, 'before');
 				return true;
 			}
 			focusActions.moveFocus(index - 1, 'end');

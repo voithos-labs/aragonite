@@ -96,7 +96,7 @@ describe('G2.8 top-level id↔ref↔children alignment', () => {
 		const h = makeTop(['aaa\n', 'bbb\n', 'ccc\n']);
 		const [id0, , id2] = h.ids();
 
-		await h.actions.deleteBlock(1);
+		await h.actions.deleteBlock(1, 'before');
 
 		assertAligned(h);
 		expect(h.ids()).toEqual([id0, id2]);
@@ -132,11 +132,11 @@ describe('G2.8 top-level id↔ref↔children alignment', () => {
 	it('a delete whose settle creates the folded tail line keeps arrays aligned', async () => {
 		const h = makeTopFrom('alpha\n\n\nbeta\n');
 
-		await h.actions.deleteBlock(2);
+		await h.actions.deleteBlock(2, 'before');
 		assertAligned(h);
 		expect(h.doc.children).toHaveLength(3);
 
-		await h.actions.deleteBlock(0);
+		await h.actions.deleteBlock(0, 'before');
 		assertAligned(h);
 	});
 
@@ -153,7 +153,7 @@ describe('G2.8 top-level id↔ref↔children alignment', () => {
 		await h.actions.mergeWithNext(0);
 		stable();
 		assertAligned(h);
-		await h.actions.deleteBlock(0);
+		await h.actions.deleteBlock(0, 'before');
 		stable();
 		assertAligned(h);
 	});
@@ -232,7 +232,7 @@ describe('G2.8 container id↔ref↔children alignment', () => {
 		const [id0, , id2] = h.state.innerBlockIds;
 		const ref0 = h.state.innerBlockRefs[0];
 
-		await h.bundle.blockEdit.deleteBlock(1);
+		await h.bundle.blockEdit.deleteBlock(1, 'before');
 
 		assertContainerAligned(h);
 		expect(h.state.innerBlockIds).toEqual([id0, id2]);
@@ -275,7 +275,7 @@ describe('G2.8 container id↔ref↔children alignment', () => {
 
 		// Without rebuildRaw the container's stale raw still carries "aaaa", so the
 		// round-trip + content pair below is non-vacuous.
-		await h.bundle.blockEdit.deleteBlock(0);
+		await h.bundle.blockEdit.deleteBlock(0, 'before');
 		stable();
 		assertContainerAligned(h);
 		expect(serialize(h.doc)).not.toContain('aaaa');

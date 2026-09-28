@@ -55,12 +55,16 @@ export function caretTargetFor(
 	}
 }
 
+/** Which way a delete points: Backspace and a delete with no key `'before'`, Delete and cut
+ *  `'after'`. */
+export type RemovalSide = 'before' | 'after';
+
 /** Where the caret goes once the block at `removedPath` is gone, read on the tree after the
  *  removal: `'before'` prefers the previous block's end, `'after'` the next block's start. */
 export function survivorAfterRemoval(
 	doc: DocumentView,
 	removedPath: readonly number[],
-	side: 'before' | 'after'
+	side: RemovalSide
 ): CaretPosition | null {
 	const slot = liveSlot(doc, removedPath);
 	if (!slot) return null;

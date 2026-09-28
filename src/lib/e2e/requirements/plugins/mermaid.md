@@ -38,6 +38,8 @@ toolbar (Edit, Focus, Reset view) stays hidden until the block is hovered or foc
 
 ## Edge cases
 
+- Ctrl+Enter hands focus back to the diagram exactly once, after the new code is in: the commit
+  puts it there, so nothing else races it onto the element the redraw is about to replace
 - Escape in the textarea cancels the edit: the code and `getSource()` are unchanged
 - Committing by blurring, which means clicking another block, keeps the edit the same way
   Ctrl+Enter does
@@ -54,3 +56,6 @@ from the kind's own focused block, where a keyboard commit leaves it, was never 
 conformance kit's undo column checks how many entries an edit makes, never whether a chord is
 reachable from a focused block, and no requirement covered a change to the tree from outside
 landing while a plugin's editing area is open at all.
+
+The keyboard commit moved focus twice (onto the block's input, then onto the diagram's view from
+the plugin's own `tick().then(focus)`), and every check read only where focus ended up.

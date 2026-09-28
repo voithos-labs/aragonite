@@ -86,7 +86,7 @@ const WRITERS: WriterRow[] = [
 				reading: fixtureReading({ mode: () => current })
 			});
 			const history = createHistoryActions(h.deps, h.controller);
-			await h.actions.deleteBlock(1);
+			await h.actions.deleteBlock(1, 'before');
 			h.edits.length = 0;
 			current = mode;
 			return { deps: h.deps, edits: h.edits, write: () => history.requestUndo() };
@@ -101,7 +101,7 @@ const WRITERS: WriterRow[] = [
 				reading: fixtureReading({ mode: () => current })
 			});
 			const history = createHistoryActions(h.deps, h.controller);
-			await h.actions.deleteBlock(1);
+			await h.actions.deleteBlock(1, 'before');
 			await history.requestUndo();
 			h.edits.length = 0;
 			current = mode;

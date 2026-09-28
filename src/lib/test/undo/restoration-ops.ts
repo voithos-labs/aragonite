@@ -376,8 +376,7 @@ async function runTableOp(
 		},
 		parentContainerEdit: h.rootContainerEdit,
 		controller: h.controller,
-		reading: fixtureReading(),
-		focusCell: () => {}
+		reading: fixtureReading()
 	});
 
 	if (op.t === 'tableInsertRow') await ctx.insertRowBelow(op.i % rowCount);

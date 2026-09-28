@@ -96,11 +96,7 @@ async function listItemCascadeFirst(strategy: UnwrapStrategyDeps): Promise<boole
 	if (firstChildEmpty && node.children.length > 1) {
 		return deleteEmptyItem(strategy, 0, { item: 0, offset: CURSOR_START });
 	}
-	if (firstChildEmpty) {
-		const deleted = await deps.parent.blockEdit.deleteBlock(index);
-		await deps.parent.focus.moveFocus(index - 1, 'end');
-		return deleted;
-	}
+	if (firstChildEmpty) return deps.parent.blockEdit.deleteBlock(index, 'before');
 	const replacement = unwrapFirstItemFromList(node);
 	if (replacement.length === 0) return false;
 	return deps.parent.blockEdit.replaceBlock(index, replacement, {

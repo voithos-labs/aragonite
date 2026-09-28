@@ -125,10 +125,13 @@ export async function applyListBreakOut(
 			eventPath: docPathFrom(plan.listPath)
 		},
 		trackCaret: [caret],
-		afterTick: () => {
+		landing: () => {
 			const landed = nodeAt(ctx.doc, parentScope.path)?.children?.[caret.index];
 			const at = landedPastePosition(landed, caret, CURSOR_END);
-			return ctx.controller.landCaret([...parentScope.path, caret.index, ...at.path], at.offset);
+			return {
+				path: docPathFrom([...parentScope.path, caret.index, ...at.path]),
+				offset: at.offset
+			};
 		}
 	});
 }

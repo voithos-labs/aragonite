@@ -18,7 +18,8 @@ body child really does unmount. These checks read behavior: the tree read by pat
 ## Edge cases
 
 - one undo restores both bytes and mount state: after a collapse toggle, a single Ctrl+Z flips the bytes back to `<details open>` and remounts the body
-- caret in the body when it collapses: collapsing while the caret sits in a body child puts the caret on the summary, since the clamp unmounts the child the caret was in and the toggle commit's `afterTick` moves it
+- caret in the body when it collapses: collapsing while the caret sits in a body child puts the caret on the summary, since the clamp unmounts the child the caret was in and the toggle's commit lands it there
+- that landing happens once: focus moves exactly one time after the click, and a typed `x` opens the summary text
 - a caret put back into a closed body: with the details last and closed, select-all twice covers
   its hidden body, and ArrowRight collapses the range to its end, inside that body. The details
   opens (`<details open>` in the bytes) and the caret lands at the end of the body text, so a typed

@@ -20,13 +20,13 @@ import type { SharingState } from '../tree-operations/sharing';
 import type { TrackedPosition } from '../tree-operations/settle';
 import type { LegalWrite, WriteTarget } from '../tree-operations/content-write';
 import type { Reading } from '../schema/reading';
-import type { BlockComponent } from '../block-component';
 import type { CaretMemory } from '../cursor/caret-memory';
 import { ensureUnsharedPath, ensureUnsharedChild } from '../tree-operations';
 import { containerScopeState } from '../tree-operations/paste/parent-scope';
 import { asDocPath, type DocPath } from '../selection/path-math';
 import type { CaretPosition } from '../selection/primitives';
 import type { LandingOutcome } from '../selection/caret-landing';
+import { survivorAfterRemoval, type RemovalSide } from '../selection/caret-target';
 import { docPathFrom, extendDocPath } from '../cursor/coordinate-spaces';
 import { getStateForNode } from '../reactivity/state-registry';
 import type { EditorActionsDeps, EditorRoot, UndoController } from './deps';
@@ -80,7 +80,8 @@ export interface CommitScope {
 	target(): WriteTarget;
 	/** The id the typing batch keys on for child `i`. */
 	idAt(i: number): string;
-	refAt(i: number): BlockComponent | undefined;
+	/** Where the caret goes once child `i` is gone, read after the commit that removed it. */
+	survivor(i: number, side: RemovalSide): CaretPosition | null;
 	/** An empty replaceBlock emits `delete` (container) or `replaceBlock{count:0}` (top-level). */
 	collapseEmptyReplaceToDelete: boolean;
 	/** Resolves to whether bytes landed. */
@@ -112,7 +113,7 @@ export function createTopLevelScope(
 		children: () => deps.doc.children,
 		target: () => deps.doc,
 		idAt: (i) => deps.blockIds[i],
-		refAt: (i) => deps.blockRefs[i],
+		survivor: (i, side) => survivorAfterRemoval(deps.doc, [i], side),
 		collapseEmptyReplaceToDelete: false,
 		commit({
 			snapshot,
@@ -209,7 +210,8 @@ function containerScope(parts: ContainerParts): CommitScope {
 			lineEnding: parts.containerEdit.lineEnding()
 		}),
 		idAt: (i) => parts.state.innerBlockIds[i],
-		refAt: (i) => parts.state.innerBlockRefs[i],
+		survivor: (i, side) =>
+			parts.containerEdit.survivorAfterRemoval(extendDocPath(parts.path(), i), side),
 		collapseEmptyReplaceToDelete: true,
 		commit({
 			snapshot,
