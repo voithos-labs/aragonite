@@ -23,6 +23,7 @@ import {
 } from '../../schema/container-rebuilders';
 import { insertEmptyRow } from '../../tree-operations/table-mutations';
 import { rangeDelete } from '../../selection/range-delete';
+import { coverRange } from '../../selection/range-coverage';
 import type { SelectionPoint } from '../../selection/primitives';
 import { createSharingState } from '../../tree-operations/sharing';
 import { ensureEditableContainers } from '../../tree-operations/node-primitives';
@@ -86,7 +87,9 @@ async function pasteInto(
 /** A range delete's emitted bytes. The grammar, mode and resolver arguments stay `undefined`:
  *  this test reads the line ending, and none of the three moves one. */
 const deleteBetween = (doc: Document, start: SelectionPoint, end: SelectionPoint) =>
-	serialize(rangeDelete(doc, start, end, createSharingState(), fixtureReading()).newDoc);
+	serialize(
+		rangeDelete(doc, coverRange(doc, start, end), createSharingState(), fixtureReading()).newDoc
+	);
 
 const GESTURES: EditGesture[] = [
 	{

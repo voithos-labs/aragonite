@@ -24,6 +24,7 @@ import type { ReorderAction } from './editor-actions/reorder-action';
 import type { PasteCommitCoordinator } from './tree-operations/paste/paste-deps';
 import type { SelectionState } from './selection/selection-state.svelte';
 import type { SelectedWidgetHandle } from './selection/primitives';
+import type { CoveredRange } from './selection/range-coverage';
 import type { SearchState } from './search/search-state.svelte';
 import type { DecorationEngine } from './decorations/decoration-state.svelte';
 import type { CaretMemory } from './cursor/caret-memory';
@@ -145,6 +146,9 @@ export interface EditorServices {
 	events: EditorEvents;
 	decorations: DecorationEngine;
 	selection: SelectionState;
+	/** What the live range covers, read once per selection change so every overlay paints the
+	 *  answer the delete and the copy read; null with no range. */
+	coveredRange: () => CoveredRange | null;
 	search: SearchState;
 	/** How the caret arrived: the sticky column, the side of a hidden marker run and the
 	 *  pending marks, kept and dropped as one. */

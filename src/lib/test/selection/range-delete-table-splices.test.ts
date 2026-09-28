@@ -1,5 +1,6 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { rangeDelete } from '../../selection/range-delete';
+import { coverRange } from '../../selection/range-coverage';
 import { parse } from '../../core/parser';
 import { createSharingState } from '../../tree-operations/sharing';
 import type { SelectionPoint } from '../../selection/primitives';
@@ -19,7 +20,13 @@ afterEach(() =>
 );
 
 function run(source: string, start: SelectionPoint, end: SelectionPoint) {
-	const result = rangeDelete(parse(source), start, end, createSharingState(), fixtureReading());
+	const doc = parse(source);
+	const result = rangeDelete(
+		doc,
+		coverRange(doc, start, end),
+		createSharingState(),
+		fixtureReading()
+	);
 	return { doc: result.newDoc, splices: result.tableRowSplices };
 }
 

@@ -5,8 +5,8 @@ import { makeBlockNode, metadataOf, type CstNode } from '../core/nodes';
 import type { DocumentView, NodeView } from '../core/node-views';
 import { cloneMetadata } from '../tree-operations/clone';
 import { isBlockNode, nodeAt } from '../tree-operations/node-primitives';
-import { walkBetween, normalize, charOffsetOf, cellIndexOf } from './primitives';
-import { snapCrossBlockTableEndpoints } from './table-endpoint-snap';
+import { walkBetween, charOffsetOf, cellIndexOf } from './primitives';
+import { unitHolding, type CoveredRange } from './range-coverage';
 import { tableCellCount } from '../schema/block-kind-descriptor';
 import { isStrictAncestorOf, pathHasPrefix, pathsEqual, sharedPrefixLength } from './path-math';
 import { cellRowCol } from '../cursor/coordinate-spaces';
@@ -23,15 +23,10 @@ import { getBlockKindDescriptor, tryGetBlockKindDescriptor } from '../schema/blo
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
-/** The plain text of a cross-block selection. A leaf endpoint at a block boundary is promoted
- *  to its outermost container inside the selection, so list and quote markers survive. */
-export function collectCrossBlockText(
-	doc: DocumentView,
-	anchor: SelectionPoint,
-	focus: SelectionPoint
-): string {
-	const normalized = normalize({ anchor, focus });
-	const { start, end } = snapCrossBlockTableEndpoints(doc, normalized.start, normalized.end);
+/** The plain text of a covered range: a container it takes whole is copied whole, and a leaf
+ *  endpoint at a block boundary is promoted to its outermost container, so markers survive. */
+export function collectCrossBlockText(doc: DocumentView, range: CoveredRange): string {
+	const { start, end } = range;
 	const startNode = nodeAt(doc, start.path);
 	const endNode = nodeAt(doc, end.path);
 	if (!startNode || !endNode) return '';
@@ -55,10 +50,18 @@ export function collectCrossBlockText(
 		return startRaw.slice(start.offset, end.offset);
 	}
 
-	let effectiveStartPath = start.path;
+	const startUnit = unitHolding(range, start.path);
+	const endUnit = unitHolding(range, end.path);
+	if (startUnit && endUnit && pathsEqual(startUnit, endUnit)) {
+		return wholeUnit(doc, startUnit, end.path, 'start').raw;
+	}
+
+	let effectiveStartPath: number[] = start.path;
 	let chromeStart: ChromeStartContainer | null = null;
 	let startTail = '';
-	if (start.cellCoordinate && isBlockNode(startNode)) {
+	if (startUnit) {
+		({ path: effectiveStartPath, raw: startTail } = wholeUnit(doc, startUnit, end.path, 'start'));
+	} else if (start.cellCoordinate && isBlockNode(startNode)) {
 		const tableNode = startNode;
 		const allCellsCount = tableCellCount(tableNode);
 		startTail = emitTablePortion(
@@ -89,9 +92,11 @@ export function collectCrossBlockText(
 		}
 	}
 
-	let effectiveEndPath = end.path;
+	let effectiveEndPath: number[] = end.path;
 	let endHead: string;
-	if (end.cellCoordinate && isBlockNode(endNode)) {
+	if (endUnit) {
+		({ path: effectiveEndPath, raw: endHead } = wholeUnit(doc, endUnit, start.path, 'end'));
+	} else if (end.cellCoordinate && isBlockNode(endNode)) {
 		// The snapped end cell is inclusive and `emitTablePortion` takes an exclusive end, so the
 		// `+ 1` makes the copied rows match what a delete would remove.
 		endHead = emitTablePortion(endNode, 0, cellIndexOf(end, 'collectCrossBlockText:endTable') + 1);
@@ -317,6 +322,19 @@ function wrapChromeStartContainer(
 	});
 	start.rebuildRaw(synthetic);
 	return synthetic.raw;
+}
+
+/** A unit the range takes whole, promoted as a block-boundary endpoint would be. */
+function wholeUnit(
+	doc: DocumentView,
+	unit: number[],
+	otherPath: number[],
+	side: 'start' | 'end'
+): { path: number[]; raw: string } {
+	const promoted = promoteToContainer(doc, unit, otherPath, side);
+	if (promoted) return promoted;
+	const node = nodeAt(doc, unit);
+	return { path: unit, raw: node && isBlockNode(node) ? node.raw : '' };
 }
 
 /** The outermost container above a leaf endpoint that lies entirely inside the selection: each

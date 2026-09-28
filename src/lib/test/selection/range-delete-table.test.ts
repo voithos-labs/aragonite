@@ -1,5 +1,6 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { rangeDelete } from '../../selection/range-delete';
+import { coverRange } from '../../selection/range-coverage';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import { createSharingState } from '../../tree-operations/sharing';
@@ -15,7 +16,12 @@ afterEach(() => allowDevWarns(['deleteFromProseIntoTable:end', 'deleteFromTableI
 
 function run(input: string | Document, start: SelectionPoint, end: SelectionPoint) {
 	const doc = typeof input === 'string' ? parse(input) : input;
-	const result = rangeDelete(doc, start, end, createSharingState(), fixtureReading());
+	const result = rangeDelete(
+		doc,
+		coverRange(doc, start, end),
+		createSharingState(),
+		fixtureReading()
+	);
 	return { doc: result.newDoc, source: serialize(result.newDoc), caret: result.collapsedCaret };
 }
 

@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { rangeDelete } from '$lib/selection/range-delete';
+import { coverRange } from '$lib/selection/range-coverage';
 import { createSharingState } from '$lib/tree-operations/sharing';
 import { registerCalloutForTests } from './chrome-plugins';
 import { expectParseConverged } from '../harness/parse-converged';
@@ -24,8 +25,7 @@ describe('range delete inside a fenced code block', () => {
 		// Delete the line break between "``" and "`", which forms "```" on one line.
 		rangeDelete(
 			doc,
-			{ path: [0], offset: 8 },
-			{ path: [0], offset: 9 },
+			coverRange(doc, { path: [0], offset: 8 }, { path: [0], offset: 9 }),
 			sharing(),
 			fixtureReading()
 		);
@@ -39,8 +39,7 @@ describe('range delete inside a fenced code block', () => {
 
 		rangeDelete(
 			doc,
-			{ path: [0], offset: 8 },
-			{ path: [0], offset: 9 },
+			coverRange(doc, { path: [0], offset: 8 }, { path: [0], offset: 9 }),
 			sharing(),
 			fixtureReading()
 		);
@@ -53,8 +52,7 @@ describe('range delete inside a fenced code block', () => {
 
 		rangeDelete(
 			doc,
-			{ path: [0], offset: 8 },
-			{ path: [0], offset: 9 },
+			coverRange(doc, { path: [0], offset: 8 }, { path: [0], offset: 9 }),
 			sharing(),
 			fixtureReading()
 		);
@@ -70,8 +68,7 @@ describe('range delete inside a fenced code block', () => {
 
 		rangeDelete(
 			doc,
-			{ path: [0], offset: 2 },
-			{ path: [0], offset: 3 },
+			coverRange(doc, { path: [0], offset: 2 }, { path: [0], offset: 3 }),
 			sharing(),
 			fixtureReading()
 		);
@@ -88,8 +85,7 @@ describe('range delete that consumes a fenced code closer', () => {
 
 		rangeDelete(
 			doc,
-			{ path: [0], offset: 8 },
-			{ path: [0], offset: 14 },
+			coverRange(doc, { path: [0], offset: 8 }, { path: [0], offset: 14 }),
 			sharing(),
 			fixtureReading()
 		);
@@ -103,8 +99,7 @@ describe('range delete that consumes a fenced code closer', () => {
 
 		const { collapsedCaret } = rangeDelete(
 			doc,
-			{ path: [0], offset: 8 },
-			{ path: [1], offset: 2 },
+			coverRange(doc, { path: [0], offset: 8 }, { path: [1], offset: 2 }),
 			sharing(),
 			fixtureReading()
 		);
@@ -121,8 +116,7 @@ describe('range delete that consumes a fenced code closer', () => {
 
 		rangeDelete(
 			doc,
-			{ path: [0], offset: 8 },
-			{ path: [1], offset: 1 },
+			coverRange(doc, { path: [0], offset: 8 }, { path: [1], offset: 1 }),
 			sharing(),
 			fixtureReading()
 		);
@@ -136,8 +130,7 @@ describe('range delete that consumes a fenced code closer', () => {
 
 		rangeDelete(
 			doc,
-			{ path: [0], offset: 13 },
-			{ path: [0], offset: 20 },
+			coverRange(doc, { path: [0], offset: 13 }, { path: [0], offset: 20 }),
 			sharing(),
 			fixtureReading()
 		);
@@ -151,8 +144,7 @@ describe('range delete that consumes a fenced code closer', () => {
 
 		rangeDelete(
 			doc,
-			{ path: [0], offset: 9 },
-			{ path: [0], offset: 16 },
+			coverRange(doc, { path: [0], offset: 9 }, { path: [0], offset: 16 }),
 			sharing(),
 			fixtureReading()
 		);
@@ -168,8 +160,7 @@ describe('range delete that consumes a fenced code closer', () => {
 
 		rangeDelete(
 			doc,
-			{ path: [0], offset: 9 },
-			{ path: [1], offset: 4 },
+			coverRange(doc, { path: [0], offset: 9 }, { path: [1], offset: 4 }),
 			sharing(),
 			fixtureReading()
 		);
@@ -186,8 +177,7 @@ describe('range delete that consumes a fenced code closer', () => {
 
 			rangeDelete(
 				doc,
-				{ path: [0], offset: 8 },
-				{ path: [1, 0], offset: 3 },
+				coverRange(doc, { path: [0], offset: 8 }, { path: [1, 0], offset: 3 }),
 				sharing(),
 				fixtureReading()
 			);

@@ -1,10 +1,12 @@
 /**
  * Pure primitives for cross-block selection: types, document-order walking, overlay
- * classification, the delete-commit snapshot rule. Path-level predicates live in `./path-math`.
+ * classification of a covered range, the delete-commit snapshot rule. Path-level predicates live
+ * in `./path-math`.
  */
 
 import type { CommitSnapshotArg } from '../action-contracts';
 import type { DocumentView, NodeView } from '../core/node-views';
+import type { CoveredRange } from './range-coverage';
 import {
 	comparePaths,
 	isPathBetween,
@@ -180,18 +182,18 @@ export function walkBetween(doc: DocumentView, start: number[], end: number[]): 
 
 export type BlockSelectionClass = 'outside' | 'start' | 'middle' | 'end' | 'single-block';
 
-/**
- * Position of a block relative to a selection, for overlay rendering. 'single-block'
- * tells the caller to delegate to the browser instead of painting.
- */
+/** Where a block stands in a covered range, for the overlay: 'single-block' delegates to the
+ *  browser, and a container the range takes whole is 'middle' with nothing inside it painting. */
 export function classifyBlockForSelection(
-	path: number[],
-	selection: EditorSelection
+	path: readonly number[],
+	range: CoveredRange
 ): BlockSelectionClass {
-	const { start, end } = normalize(selection);
+	const { start, end } = range;
 	if (comparePaths(start.path, end.path) === 0) {
 		return comparePaths(path, start.path) === 0 ? 'single-block' : 'outside';
 	}
+	const unit = range.wholeUnits.find((u) => pathHasPrefix(path, u));
+	if (unit) return pathsEqual(unit, path) ? 'middle' : 'outside';
 	if (comparePaths(path, start.path) === 0) return 'start';
 	if (comparePaths(path, end.path) === 0) return 'end';
 	if (isPathBetween(path, start.path, end.path)) return 'middle';
@@ -202,11 +204,13 @@ export function classifyBlockForSelection(
  *  alert's badge), which no child host covers, is painted too; its children then paint nothing. */
 export function blockPaintsWholeBox(
 	path: readonly number[],
-	selection: EditorSelection,
+	range: CoveredRange,
 	wholeUnitPath: readonly number[] | null
 ): boolean {
 	if (wholeUnitPath) return pathsEqual(path, wholeUnitPath);
-	const { start, end } = normalize(selection);
+	const unit = range.wholeUnits.find((u) => pathHasPrefix(path, u));
+	if (unit) return pathsEqual(unit, path);
+	const { start, end } = range;
 	return (
 		holdsSubtree(path, start.path, end.path) &&
 		!holdsSubtree(path.slice(0, -1), start.path, end.path)

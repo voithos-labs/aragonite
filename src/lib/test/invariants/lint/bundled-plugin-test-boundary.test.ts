@@ -104,6 +104,7 @@ const ALLOWLIST: Record<string, Exemption> = {
 		specifiers: [
 			'$lib/invariants/node-shape',
 			'$lib/selection/range-delete',
+			'$lib/selection/range-coverage',
 			'$lib/tree-operations/node-ops',
 			'$lib/tree-operations/sharing'
 		],
@@ -195,6 +196,7 @@ const ALLOWLIST: Record<string, Exemption> = {
 		specifiers: [
 			'$lib/tree-operations/node-primitives',
 			'$lib/selection/range-delete',
+			'$lib/selection/range-coverage',
 			'$lib/tree-operations/sharing'
 		],
 		reason: 'nothing published applies a kind’s rawWrite or range-deletes a parsed document'

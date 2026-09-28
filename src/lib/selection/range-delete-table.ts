@@ -11,6 +11,7 @@ import type { CstNode, Document } from '../core/nodes';
 import { metadataOf } from '../core/nodes';
 import type { SelectionPoint } from './primitives';
 import type { RangeDeleteResult } from './range-delete';
+import { unitHolding, type CoveredRange } from './range-coverage';
 import type { SharingState } from '../tree-operations/sharing';
 import { displayLength, documentLineEnding } from '../core/lines';
 import { cellRectBounds, cellRowCol } from '../cursor/coordinate-spaces';
@@ -35,7 +36,7 @@ import { rebuildUnsharedAncestry } from '../tree-operations/chain-rebuild';
 import { rebuildTableRowRaw } from '../schema/container-rebuilders';
 import { promoteFirstRowToHeader } from '../tree-operations/table-mutations';
 import { caretChildCount } from '../schema/reserved-chrome';
-import { nearestChromeContainer, isChromeChild } from './range-delete-chrome';
+import { nearestChromeContainer, isChromeChild, caretWhereRemoved } from './range-delete-chrome';
 import { countsCells } from '../schema/block-kind-descriptor';
 
 // ── Public API ──────────────────────────────────────────────────────────────
@@ -46,12 +47,12 @@ export function involvesTable(startBlock: CstNode, endBlock: CstNode): boolean {
 
 export function tableAwareRangeDelete(
 	doc: Document,
-	start: SelectionPoint,
-	end: SelectionPoint,
+	range: CoveredRange,
 	sharing: SharingState,
 	reading: Reading
 ): RangeDeleteResult {
 	const { grammar } = reading;
+	const { start, end } = range;
 	const sameBlock = comparePaths(start.path, end.path) === 0;
 
 	// Copy both endpoint chains (and the table subtrees: cell raws, row splices, and header
@@ -70,21 +71,12 @@ export function tableAwareRangeDelete(
 		return deleteWithinTable(doc, start, end, startBlock, sharing, grammar);
 	}
 	if (startCells && endCells) {
-		return deleteAcrossTwoTables(doc, start, end, startBlock, endBlock, sharing, grammar);
+		return deleteAcrossTwoTables(doc, range, startBlock, endBlock, sharing, grammar);
 	}
 	if (startCells) {
-		return deleteFromTableIntoProse(
-			doc,
-			start,
-			end,
-			startBlock,
-			endBlock,
-			sharing,
-			grammar,
-			reading
-		);
+		return deleteFromTableIntoProse(doc, range, startBlock, endBlock, sharing, grammar, reading);
 	}
-	return deleteFromProseIntoTable(doc, start, end, startBlock, endBlock, sharing, grammar, reading);
+	return deleteFromProseIntoTable(doc, range, startBlock, endBlock, sharing, grammar, reading);
 }
 
 /** The copied node for an endpoint whose chain came back short, never a bare reference into the
@@ -138,16 +130,17 @@ function clearRectangularCells(table: CstNode, anchorCellIdx: number, focusCellI
 
 function deleteFromProseIntoTable(
 	doc: Document,
-	start: SelectionPoint,
-	end: SelectionPoint,
+	range: CoveredRange,
 	startBlock: CstNode,
 	table: CstNode,
 	sharing: SharingState,
 	grammar: GrammarView,
 	reading: Reading
 ): RangeDeleteResult {
+	const { start, end } = range;
 	const startC = nearestChromeContainer(doc, start.path);
 	const startIsChrome = startC !== null && isChromeChild(startC, start.path);
+	const startTaken = unitHolding(range, start.path);
 
 	// The snapped end cell is the whole-row inclusive last cell; deleteCellsAndCollapse takes an
 	// exclusive end, so +1 clears the same rows the clipboard copied.
@@ -157,37 +150,41 @@ function deleteFromProseIntoTable(
 		cellIndexOf(end, 'deleteFromProseIntoTable:end') + 1
 	);
 
-	const wall = resolveEndWall(doc, start, end, result === 'tableEmpty');
+	const wall = resolveEndWall(doc, range, result === 'tableEmpty');
 	const { plan, lcaPath } = planCrossBlockDeletion(
 		doc,
-		start,
-		end,
+		range,
 		result === 'tableEmpty' ? [end.path] : [],
 		wall,
 		sharing
 	);
 
 	applyPlannedDeletion(doc, plan, lcaPath, grammar);
-	const seam = truncateStartInPlace(
-		doc,
-		start,
-		startBlock,
-		startIsChrome,
-		reading,
-		sharing,
-		grammar,
-		'deleteFromProseIntoTable:start'
-	);
+	// A start whose container went whole has nothing left to truncate.
+	const seam = startTaken
+		? 0
+		: truncateStartInPlace(
+				doc,
+				start,
+				startBlock,
+				startIsChrome,
+				reading,
+				sharing,
+				grammar,
+				'deleteFromProseIntoTable:start'
+			);
 
 	const tableSurvives = result === 'tableSurvives';
 	if (tableSurvives) rebuildOwnedContainer(table, sharing);
-	rebuildUnsharedAncestry(doc, start.path, sharing, null, grammar);
+	if (!startTaken) rebuildUnsharedAncestry(doc, start.path, sharing, null, grammar);
 	rebuildSharedAncestries(doc, plan, sharing, grammar);
 	if (tableSurvives) rebuildUnsharedAncestry(doc, survivorPath(doc, table), sharing, null, grammar);
 
 	return {
 		newDoc: doc,
-		collapsedCaret: { path: start.path.slice(), offset: seam },
+		collapsedCaret: startTaken
+			? caretWhereRemoved(doc, startTaken, sharing)
+			: { path: start.path.slice(), offset: seam },
 		tableRowSplices: splice ? [{ table, ...splice }] : []
 	};
 }
@@ -196,14 +193,14 @@ function deleteFromProseIntoTable(
 
 function deleteFromTableIntoProse(
 	doc: Document,
-	start: SelectionPoint,
-	end: SelectionPoint,
+	range: CoveredRange,
 	table: CstNode,
 	endBlock: CstNode,
 	sharing: SharingState,
 	grammar: GrammarView,
 	reading: Reading
 ): RangeDeleteResult {
+	const { start, end } = range;
 	const lineEnding = documentLineEnding(doc);
 	const startCell = cellIndexOf(start, 'deleteFromTableIntoProse:start');
 	const { result: tableResult, splice } = deleteCellsAndCollapse(
@@ -212,14 +209,13 @@ function deleteFromTableIntoProse(
 		totalCellCount(table)
 	);
 
-	const wall = resolveEndWall(doc, start, end, null);
+	const wall = resolveEndWall(doc, range, null);
 	const consumed = wall?.consumed ?? false;
 	const endIsChrome = wall !== null && !consumed && isChromeChild(wall.container, end.path);
 
 	const { plan, lcaPath } = planCrossBlockDeletion(
 		doc,
-		start,
-		end,
+		range,
 		tableResult === 'tableEmpty' ? [start.path] : [],
 		wall,
 		sharing
@@ -295,13 +291,13 @@ function survivingAnchorCellCaret(
 
 function deleteAcrossTwoTables(
 	doc: Document,
-	start: SelectionPoint,
-	end: SelectionPoint,
+	range: CoveredRange,
 	startTable: CstNode,
 	endTable: CstNode,
 	sharing: SharingState,
 	grammar: GrammarView
 ): RangeDeleteResult {
+	const { start, end } = range;
 	const lineEnding = documentLineEnding(doc);
 	const startCell = cellIndexOf(start, 'deleteAcrossTwoTables:start');
 	const { result: startResult, splice: startSplice } = deleteCellsAndCollapse(
@@ -316,18 +312,11 @@ function deleteAcrossTwoTables(
 		cellIndexOf(end, 'deleteAcrossTwoTables:end') + 1
 	);
 
-	const wall = resolveEndWall(doc, start, end, endResult === 'tableEmpty');
+	const wall = resolveEndWall(doc, range, endResult === 'tableEmpty');
 	const emptiedEndpoints: number[][] = [];
 	if (startResult === 'tableEmpty') emptiedEndpoints.push(start.path);
 	if (endResult === 'tableEmpty') emptiedEndpoints.push(end.path);
-	const { plan, lcaPath } = planCrossBlockDeletion(
-		doc,
-		start,
-		end,
-		emptiedEndpoints,
-		wall,
-		sharing
-	);
+	const { plan, lcaPath } = planCrossBlockDeletion(doc, range, emptiedEndpoints, wall, sharing);
 
 	applyPlannedDeletion(doc, plan, lcaPath, grammar);
 

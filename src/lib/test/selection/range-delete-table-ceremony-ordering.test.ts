@@ -1,5 +1,6 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { rangeDelete } from '../../selection/range-delete';
+import { coverRange } from '../../selection/range-coverage';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import { createSharingState } from '../../tree-operations/sharing';
@@ -23,7 +24,13 @@ afterEach(() =>
 // steps, and finds its survivor by node identity, since a delete inside the range shifts it.
 
 function run(source: string, start: SelectionPoint, end: SelectionPoint) {
-	const result = rangeDelete(parse(source), start, end, createSharingState(), fixtureReading());
+	const doc = parse(source);
+	const result = rangeDelete(
+		doc,
+		coverRange(doc, start, end),
+		createSharingState(),
+		fixtureReading()
+	);
 	return { doc: result.newDoc, source: serialize(result.newDoc), caret: result.collapsedCaret };
 }
 

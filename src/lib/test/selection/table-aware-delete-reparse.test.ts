@@ -7,6 +7,7 @@ import { describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import { tableAwareRangeDelete } from '../../selection/range-delete-table';
+import { coverRange } from '../../selection/range-coverage';
 import { createSharingState } from '../../tree-operations/sharing';
 import type { CellSelectionPoint, SelectionPoint } from '../../selection/primitives';
 import { fixtureReading } from '../harness/fixture-grammar';
@@ -25,7 +26,8 @@ const cell = (path: number[], index: number): CellSelectionPoint => ({
 function deletedBytes(source: string, start: SelectionPoint, end: SelectionPoint): string {
 	const doc = parse(source);
 	return serialize(
-		tableAwareRangeDelete(doc, start, end, createSharingState(), fixtureReading()).newDoc
+		tableAwareRangeDelete(doc, coverRange(doc, start, end), createSharingState(), fixtureReading())
+			.newDoc
 	);
 }
 

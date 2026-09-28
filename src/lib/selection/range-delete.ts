@@ -1,16 +1,21 @@
 /**
- * Deletes a selection range from the tree in place, merging what survives at the start. The
- * caller normalizes the range first; the "start wins" rule is in `docs/design/editor.md` §
- * Cross-block selection.
+ * Deletes a covered range from the tree in place, merging what survives at the start. The
+ * "start wins" rule is in `docs/design/editor.md` § Cross-block selection.
  */
 
 import type { GrammarView } from '../schema/block-openers';
 import type { Reading } from '../schema/reading';
 import { metadataOf, type CstNode, type Document } from '../core/nodes';
 import type { SelectionPoint } from './primitives';
+import { unitHolding, type CoveredRange } from './range-coverage';
 import type { SharingState } from '../tree-operations/sharing';
 import { walkBetween, charOffsetOf } from './primitives';
-import { comparePaths, lowestCommonAncestor, isPathSubtreeBetween } from './path-math';
+import {
+	comparePaths,
+	lowestCommonAncestor,
+	isPathSubtreeBetween,
+	pathHasPrefix
+} from './path-math';
 import { firstLeafAtOrAfter } from './path-lookup';
 import {
 	blockNodeAt,
@@ -33,7 +38,7 @@ import {
 import { ensureUnsharedNode, ensureUnsharedPath } from '../tree-operations/unshare';
 import { rebuildUnsharedAncestry, rebuildUnsharedChain } from '../tree-operations/chain-rebuild';
 import { involvesTable, tableAwareRangeDelete } from './range-delete-table';
-import { involvesReservedChrome, chromeAwareRangeDelete } from './range-delete-chrome';
+import { involvesReservedChrome, chromeAwareRangeDelete, removeWhole } from './range-delete-chrome';
 
 // ── Public API ──────────────────────────────────────────────────────────────
 
@@ -71,29 +76,33 @@ function deleteWholeUnit(
 	return { newDoc: doc, collapsedCaret: { path: [...parentPath, landing], offset: 0 } };
 }
 
-/** Deletes [start, end] in place, merging at the start's position inside its container. The
- *  caller normalizes the range and keeps the endpoints on focusable blocks. */
+/** Deletes what `range` covers in place, merging at the start's position inside its container.
+ *  The caller keeps the endpoints on focusable blocks. */
 export function rangeDelete(
 	doc: Document,
-	start: SelectionPoint,
-	end: SelectionPoint,
+	range: CoveredRange,
 	sharing: SharingState,
 	reading: Reading
 ): RangeDeleteResult {
 	const { grammar } = reading;
+	const { start, end } = range;
 	const startBlock = blockNodeAt(doc, start.path);
 	const endBlock = blockNodeAt(doc, end.path);
 	if (!startBlock || !endBlock) {
 		throw new Error('rangeDelete: start or end path does not resolve to a block node');
 	}
 
+	// Both endpoints inside one container the range takes whole: that container goes, whatever
+	// kind either endpoint sits in.
+	const unit = unitHolding(range, start.path);
+	if (unit && pathHasPrefix(end.path, unit)) return removeWhole(doc, unit, sharing, reading);
 	// A table or a container title line is never merged across: those branches truncate each
 	// endpoint in place instead of joining them.
 	if (involvesTable(startBlock, endBlock)) {
-		return tableAwareRangeDelete(doc, start, end, sharing, reading);
+		return tableAwareRangeDelete(doc, range, sharing, reading);
 	}
 	if (involvesReservedChrome(doc, start, end)) {
-		return chromeAwareRangeDelete(doc, start, end, sharing, reading);
+		return chromeAwareRangeDelete(doc, range, sharing, reading);
 	}
 
 	const sameBlock = comparePaths(start.path, end.path) === 0;

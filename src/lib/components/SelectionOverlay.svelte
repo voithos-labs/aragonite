@@ -8,14 +8,11 @@
 		type EditorServices
 	} from '../editor-keys';
 	import {
-		normalize,
 		blockPaintsWholeBox,
 		classifyBlockForSelection,
 		charOffsetOf,
-		cellIndexOf,
-		type EditorSelection
+		cellIndexOf
 	} from '../selection/primitives';
-	import { snapCrossBlockTableEndpoints } from '../selection/table-endpoint-snap';
 	import { wireOverlayRemeasure } from '../cursor/overlay-remeasure';
 
 	let {
@@ -39,15 +36,11 @@
 
 	// Optional, like every context BlockHost reads: a mount without the editor shell
 	// provides none, and every use below is written for absence.
-	const selection = getContext<EditorServices | undefined>(EDITOR_SERVICES_KEY)?.selection;
-	const editorDoc = getContext<EditorDoc | undefined>(EDITOR_DOC_KEY);
-	const getEditorRoot = editorDoc?.editorRoot;
-	const getDoc = editorDoc?.doc;
+	const services = getContext<EditorServices | undefined>(EDITOR_SERVICES_KEY);
+	const selection = services?.selection;
+	const getEditorRoot = getContext<EditorDoc | undefined>(EDITOR_DOC_KEY)?.editorRoot;
 
-	const range = $derived.by<EditorSelection | null>(() => {
-		if (!selection?.isCustomRendered || !selection.anchor || !selection.focus) return null;
-		return { anchor: selection.anchor, focus: selection.focus };
-	});
+	const range = $derived(services?.coveredRange() ?? null);
 
 	const classification = $derived(range ? classifyBlockForSelection(path, range) : 'outside');
 
@@ -107,22 +100,19 @@
 			endpointRects = [];
 			return;
 		}
-		if (!blockRef?.measurePartialRects || !blockEl || !selection?.anchor || !selection?.focus) {
+		if (!blockRef?.measurePartialRects || !blockEl || !services || !range) {
 			endpointRects = [];
 			return;
 		}
 
 		const ref = blockRef;
 		const el = blockEl;
-		const sel = selection;
+		const covered = services.coveredRange;
 
 		function measure(): void {
-			if (!sel.anchor || !sel.focus || !ref.measurePartialRects) return;
-			const normalized = normalize({ anchor: sel.anchor, focus: sel.focus });
-			const doc = getDoc?.();
-			const { start, end } = doc
-				? snapCrossBlockTableEndpoints(doc, normalized.start, normalized.end)
-				: normalized;
+			const live = covered();
+			if (!live || !ref.measurePartialRects) return;
+			const { start, end } = live;
 			const startOffset =
 				classification === 'end'
 					? 0

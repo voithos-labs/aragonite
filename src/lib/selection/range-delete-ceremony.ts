@@ -9,6 +9,7 @@ import type { GrammarView } from '../schema/block-openers';
 import type { Reading } from '../schema/reading';
 import type { CstNode, Document } from '../core/nodes';
 import type { SelectionPoint } from './primitives';
+import type { CoveredRange } from './range-coverage';
 import type { SharingState } from '../tree-operations/sharing';
 import { readBlocks } from '../core/parser';
 import {
@@ -49,9 +50,12 @@ import {
 	type ChromeContainer
 } from './range-delete-chrome';
 
-/** Subtree roots only: one splice per covered subtree, never a child-by-child emptying. */
+/** Subtree roots only, each once: one splice per covered subtree, never a child-by-child
+ *  emptying. */
 function filterToSubtreeRoots(paths: number[][]): number[][] {
-	return paths.filter((p) => !paths.some((q) => isStrictAncestorOf(q, p)));
+	return paths.filter(
+		(p, i) => !paths.some((q, j) => isStrictAncestorOf(q, p) || (j < i && pathsEqual(q, p)))
+	);
 }
 
 /** Deletes in reverse order, each path only while it holds its captured node (cleanup can move a
@@ -209,19 +213,20 @@ export interface EndWall {
 }
 
 /** The title-line container holding the end point when the range enters it from outside;
- *  `consumed` means the range covers its whole subtree, so it is deleted as one unit. */
+ *  `consumed` means the range covers its whole subtree or takes it whole, so it goes as one unit. */
 export function resolveEndWall(
 	doc: Document,
-	start: SelectionPoint,
-	end: SelectionPoint,
+	range: CoveredRange,
 	endTableEmptied: boolean | null
 ): EndWall | null {
+	const { start, end } = range;
 	const container = nearestChromeContainer(doc, end.path);
 	if (!container || pathHasPrefix(start.path, container.path)) return null;
 	const consumed =
-		endTableEmptied === null
+		range.wholeUnits.some((unit) => pathsEqual(unit, container.path)) ||
+		(endTableEmptied === null
 			? rangeConsumesContainer(container, end)
-			: endTableEmptied && lastChildDescendant(container, end.path) !== null;
+			: endTableEmptied && lastChildDescendant(container, end.path) !== null);
 	return { container, consumed };
 }
 
@@ -233,22 +238,22 @@ export interface DeletionPlan {
 	sharing: SharingState;
 }
 
-/** The covered subtree roots plus the caller's endpoint paths. A surviving end container's
- *  covered title line is cleared rather than deleted; a consumed one is deleted whole. */
+/** The covered subtree roots, the range's whole units and the caller's endpoint paths. A
+ *  surviving end container's covered title line is cleared rather than deleted. */
 function collectDeletionPlan(
 	doc: Document,
-	start: SelectionPoint,
-	end: SelectionPoint,
+	range: CoveredRange,
 	endpointPaths: number[][],
 	wall: EndWall | null,
 	sharing: SharingState
 ): DeletionPlan {
+	const { start, end } = range;
 	const between = walkBetween(doc, start.path, end.path).filter((p) =>
 		isPathSubtreeBetween(p, start.path, end.path)
 	);
 	const chromeClearPath = wall && !wall.consumed ? [...wall.container.path, 0] : null;
 	let chromeClearChain: CstNode[] | null = null;
-	let candidates: number[][] = [];
+	const candidates: number[][] = [];
 	for (const p of between) {
 		if (chromeClearPath && pathsEqual(p, chromeClearPath)) {
 			const chain = ensureUnsharedPath(doc, p, sharing);
@@ -257,25 +262,22 @@ function collectDeletionPlan(
 			candidates.push(p);
 		}
 	}
-	candidates.push(...endpointPaths);
-	if (wall?.consumed) {
-		candidates = candidates.filter((p) => !pathHasPrefix(p, wall.container.path));
-		candidates.push(wall.container.path.slice());
-	}
+	candidates.push(...endpointPaths, ...range.wholeUnits.map((unit) => unit.slice()));
+	if (wall?.consumed) candidates.push(wall.container.path.slice());
 	return { deletionPaths: filterToSubtreeRoots(candidates), chromeClearChain, sharing };
 }
 
 /** Plans the deletion, copying each parent chain first so no splice writes through a node undo
- *  shares (G1.9). The caller resolves `wall`, whose `consumed` flag also decides truncation. */
+ *  shares (G1.9). An endpoint inside a whole unit or a consumed wall is not truncated. */
 export function planCrossBlockDeletion(
 	doc: Document,
-	start: SelectionPoint,
-	end: SelectionPoint,
+	range: CoveredRange,
 	endpointPaths: number[][],
 	wall: EndWall | null,
 	sharing: SharingState
 ): { plan: DeletionPlan; lcaPath: number[] } {
-	const plan = collectDeletionPlan(doc, start, end, endpointPaths, wall, sharing);
+	const { start, end } = range;
+	const plan = collectDeletionPlan(doc, range, endpointPaths, wall, sharing);
 	for (const path of plan.deletionPaths) {
 		ensureUnsharedPath(doc, path.slice(0, -1), sharing);
 	}

@@ -8,6 +8,7 @@ import { displayLength } from '$lib/core/lines';
 import { getContentRange, parseInline } from '$lib/core/inline';
 import { CONTENT_VISIBILITY, renderedText } from '$lib/core/inline/visibility';
 import { rangeDelete } from '$lib/selection/range-delete';
+import { coverRange } from '$lib/selection/range-coverage';
 import { createSharingState } from '$lib/tree-operations/sharing';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
 import { isSubsequence } from '$lib/test/harness/live-oracles';
@@ -80,8 +81,11 @@ function deleteRange(
 	if (!points) return null;
 	rangeDelete(
 		doc,
-		{ path: points.start.slice(0, 1), offset: points.start[1] },
-		{ path: points.end.slice(0, 1), offset: points.end[1] },
+		coverRange(
+			doc,
+			{ path: points.start.slice(0, 1), offset: points.start[1] },
+			{ path: points.end.slice(0, 1), offset: points.end[1] }
+		),
 		createSharingState(),
 		fixtureReading({}, mode)
 	);

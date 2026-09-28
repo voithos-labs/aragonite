@@ -6,6 +6,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import { rangeDelete } from '../../selection/range-delete';
+import { coverRange } from '../../selection/range-coverage';
 import { createSharingState } from '../../tree-operations/sharing';
 import type { PresentationMode } from '../../presentation-mode';
 import type { SelectionPoint } from '../../selection/primitives';
@@ -20,7 +21,12 @@ function run(
 	mode: PresentationMode = 'live'
 ) {
 	const doc = parse(source);
-	const result = rangeDelete(doc, start, end, createSharingState(), fixtureReading({}, mode));
+	const result = rangeDelete(
+		doc,
+		coverRange(doc, start, end),
+		createSharingState(),
+		fixtureReading({}, mode)
+	);
 	return { doc, caret: result.collapsedCaret };
 }
 

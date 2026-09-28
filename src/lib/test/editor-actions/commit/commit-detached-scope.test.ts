@@ -9,6 +9,7 @@ import { createUndoController } from '$lib/editor-actions/commit/undo-controller
 import { asDocPath } from '$lib/selection/path-math';
 import { registerBlockListState } from '$lib/reactivity/state-registry';
 import { rangeDelete } from '$lib/selection/range-delete';
+import { coverRange } from '$lib/selection/range-coverage';
 import { trackChildIds } from '$lib/tree-operations/structural-change';
 import type { MultiScopeTarget } from '$lib/action-contracts';
 import type { CstNode } from '$lib/core/nodes';
@@ -74,7 +75,7 @@ describe('multi-scope commits with a scope detached by the mutation', () => {
 			snapshot: { path: asDocPath([0, 0, 0]), offset: 0 },
 			mutate: (views) => {
 				const ledgers = views.map((v) => trackChildIds(v.node));
-				rangeDelete(deps.doc, start, end, views[0].sharing, fixtureReading());
+				rangeDelete(deps.doc, coverRange(deps.doc, start, end), views[0].sharing, fixtureReading());
 				return ledgers.map((ledger) => {
 					const change = ledger.read();
 					ledger.release();
@@ -106,7 +107,7 @@ describe('multi-scope commits with a scope detached by the mutation', () => {
 			snapshot: { path: asDocPath([0]), offset: 0 },
 			mutate: (views) => {
 				const ledgers = views.map((v) => trackChildIds(v.node));
-				rangeDelete(deps.doc, start, end, views[0].sharing, fixtureReading());
+				rangeDelete(deps.doc, coverRange(deps.doc, start, end), views[0].sharing, fixtureReading());
 				return ledgers.map((ledger) => {
 					const change = ledger.read();
 					ledger.release();

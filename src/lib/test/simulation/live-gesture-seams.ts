@@ -39,6 +39,7 @@ import {
 	resolveSelectionEdit
 } from '$lib/components/blocks/text/live-selection-edit';
 import { rangeDelete } from '$lib/selection/range-delete';
+import { coverRange } from '$lib/selection/range-coverage';
 import {
 	applyCrossBlockFormat,
 	planCrossBlockFormat
@@ -528,7 +529,12 @@ function acrossLeaves(
 	const range = drawnLeafRange(h.doc, gesture);
 	if (!range) return null;
 	if (gesture.kind === 'range-delete') {
-		rangeDelete(h.doc, range.start, range.end, h.sharing, fixtureReading({}, mode));
+		rangeDelete(
+			h.doc,
+			coverRange(h.doc, range.start, range.end),
+			h.sharing,
+			fixtureReading({}, mode)
+		);
 		return false;
 	}
 	const plan = planCrossBlockFormat(

@@ -1,5 +1,6 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { rangeDelete } from '../../selection/range-delete';
+import { coverRange } from '../../selection/range-coverage';
 import { parse } from '../../core/parser';
 import { blockNodeAt, nodeAt } from '../../tree-operations/node-primitives';
 import { createSharingState } from '../../tree-operations/sharing';
@@ -20,7 +21,13 @@ const NESTED =
 	'para A\n\n> para B\n>\n> | A | B |\n> | --- | --- |\n> | 1 | 2 |\n>\n> | C | D |\n> | --- | --- |\n> | 3 | 4 |\n';
 
 function run(source: string, start: SelectionPoint, end: SelectionPoint) {
-	const result = rangeDelete(parse(source), start, end, createSharingState(), fixtureReading());
+	const doc = parse(source);
+	const result = rangeDelete(
+		doc,
+		coverRange(doc, start, end),
+		createSharingState(),
+		fixtureReading()
+	);
 	return { doc: result.newDoc, caret: result.collapsedCaret };
 }
 
