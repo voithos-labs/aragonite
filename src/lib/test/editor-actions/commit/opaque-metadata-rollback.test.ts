@@ -1,5 +1,5 @@
-// Miss-analysis: the multi-scope rollback tests checked bytes and shape, and no rebuild wrote
-// metadata until the chain rebuild re-read an opaque container's from its bytes (#640).
+// Miss-analysis: the multi-scope rollback tests wrote bytes a rebuild reads no metadata from, so
+// none checked that a rollback puts back metadata re-read from the bytes.
 import { describe, it, expect, beforeAll } from 'vitest';
 import { installPlugins } from '$lib';
 import { admonitionsPlugin } from '$lib/plugins/admonitions';
@@ -48,7 +48,7 @@ async function seedUndoUnit(h: ReturnType<typeof makeDoc>): Promise<void> {
 	});
 }
 
-describe('a commit that unwinds after a fence was lengthened', () => {
+describe('a commit that unwinds after a fence was lengthened (#640)', () => {
 	it('puts back the metadata the rebuild re-read, with the bytes', async () => {
 		const h = makeDoc();
 		await seedUndoUnit(h);
