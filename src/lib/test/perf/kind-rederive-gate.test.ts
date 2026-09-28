@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { installPlugins } from '$lib';
 import { admonitionsPlugin } from '$lib/plugins/admonitions';
 import { parse } from '$lib/core/parser';
@@ -35,7 +35,7 @@ function typeInto(source: string, leafPath: number[], count: number): void {
 
 const reparses = () => perfSnapshot().containerKindReparses;
 
-beforeAll(() => {
+beforeEach(() => {
 	installPlugins([admonitionsPlugin()]);
 });
 

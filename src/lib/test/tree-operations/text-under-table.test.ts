@@ -1,7 +1,6 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { createRegistryView } from '$lib/schema/registry-view';
 import { registerMathBlock } from '$lib/plugins/latex/latex-kind';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { deleteNode, spliceChildrenSettled } from '$lib/tree-operations/settle';
@@ -89,11 +88,9 @@ describe('a block turned into text right under a table keeps a blank line', () =
 // The follower is read in the editor's grammar and over its own lines, as the reload reads it.
 // Miss-analysis: every case above used a one-line built-in opener in the default grammar.
 describe('the blank line a follower takes depends on the editor’s grammar', () => {
-	beforeAll(() => {
-		resetPluginPlatformForTests();
+	beforeEach(() => {
 		registerMathBlock();
 	});
-	afterAll(() => resetPluginPlatformForTests());
 
 	it('a `$$` block that closes below ends the table, so it takes none', () => {
 		const doc = parse(`${T}---\n$$\nx\n$$\n`);

@@ -1,7 +1,7 @@
 // Miss-analysis (GH #635, #616): each route kept the open last line by hand or not at all, and
 // every route's own suite ended its fixtures in a line break, so no route was ever run as a class.
 
-import { beforeAll, describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { installPlugins } from '$lib';
 import { admonitionsPlugin } from '$lib/plugins/admonitions';
 import type { CstNode, Document } from '$lib/core/nodes';
@@ -283,7 +283,7 @@ describe('a directive container that ends the document', () => {
 // Miss-analysis: the quote exit row asserted only after its second commit, so no row stopped on
 // the empty line an Enter leaves inside a last quote, where the blank check read `>` instead.
 describe('Enter at the end of a last alert line', () => {
-	beforeAll(() => installPlugins([admonitionsPlugin()]));
+	beforeEach(() => installPlugins([admonitionsPlugin()]));
 
 	it.each([
 		['LF', (text: string) => text],

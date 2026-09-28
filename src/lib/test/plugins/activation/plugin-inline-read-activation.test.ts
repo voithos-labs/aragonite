@@ -1,8 +1,7 @@
 // @vitest-environment jsdom
 // Miss-analysis: no plugin test ran in an editor whose `plugins` prop left something out.
-import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, beforeEach } from 'vitest';
 import { parse, type DocumentView } from '$lib';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import { installPlugins } from '$lib/schema/plugin-install';
 import { activationFor } from '$lib/schema/plugin-activation';
 import { createEditorPluginContexts } from '$lib/schema/plugin-editor-context';
@@ -30,15 +29,13 @@ import {
 } from '$lib/perf/instruments';
 import { grammarListing } from './grammar-listing';
 
-beforeAll(() => {
-	resetPluginPlatformForTests();
+beforeEach(() => {
 	installPlugins([
 		latexPlugin({ renderer: () => ({ dom: document.createElement('span') }) }),
 		footnotesPlugin(),
 		tocPlugin()
 	]);
 });
-afterAll(resetPluginPlatformForTests);
 afterEach(disablePerfInstruments);
 
 /** A reading in `grammar` with no link reference definitions. */

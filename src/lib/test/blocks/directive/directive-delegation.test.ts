@@ -3,7 +3,7 @@
 // `createContainerBlock`'s optional dependencies, so each assertion tests the helper, not
 // directives. It draws its marker beside the child list, the only mounted container that
 // exercises the `:scope > .block-list` lookup.
-import { describe, it, expect, beforeAll, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, beforeEach } from 'vitest';
 import { installDirectiveStubs, mountDirective, type MountedDirective } from './mount-directive';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
 import { componentAt } from '$lib/reactivity/child-list';
@@ -11,7 +11,7 @@ import { componentAt } from '$lib/reactivity/child-list';
 // The harness mounts BlockHost without the component layer, so unregistered kinds render raw.
 afterEach(() => allowDevWarns(['block-host']));
 
-beforeAll(installDirectiveStubs);
+beforeEach(installDirectiveStubs);
 
 const BODY = ':::foo\nalpha\n\nbeta\n:::\n';
 

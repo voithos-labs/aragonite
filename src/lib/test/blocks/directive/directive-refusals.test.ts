@@ -3,7 +3,7 @@
 // mounted component: each helper's refusal is unit-tested alone, and the generic directive
 // container is the only shipped one that takes every such branch. A failure here is a container
 // handling keys or writing bytes where it should do nothing.
-import { describe, it, expect, beforeAll, afterEach, vi } from 'vitest';
+import { describe, it, expect, afterEach, vi, beforeEach } from 'vitest';
 import type { EditorServices } from '$lib/editor-keys';
 import { makeStubFocus } from '../../harness/editor-actions';
 import { installDirectiveStubs, mountDirective, type MountedDirective } from './mount-directive';
@@ -14,7 +14,7 @@ import { descendTo } from '$lib/reactivity/child-list';
 // The harness mounts BlockHost without the component layer, so unregistered kinds render raw.
 afterEach(() => allowDevWarns(['block-host']));
 
-beforeAll(installDirectiveStubs);
+beforeEach(installDirectiveStubs);
 
 const BODY = ':::foo\nalpha\n\nbeta\n:::\n';
 

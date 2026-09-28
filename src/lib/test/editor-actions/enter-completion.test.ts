@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { beforeEach, describe, it, expect } from 'vitest';
 import { planEnterCompletion, withEnterCompletion } from '$lib/editor-actions/enter-completion';
 import { createBlockEditCore } from '$lib/editor-actions/block-edit-core';
 import type { CommitScope } from '$lib/editor-actions/block-edit-scope';
@@ -50,33 +50,36 @@ function seamOver(scope: CommitScope): BlockEditActions {
 	);
 }
 
-// A completer whose caret lands on a line the completion creates, which a table cell cannot
-// test; it runs before `table` by kind name, so its trigger is prose no other case types.
-registerBlockCompleter(declarePluginKind('spec-fence'), {
-	tryComplete: (line) =>
-		line === 'fence me'
-			? { lines: ['```', '', '```'], caret: { path: [], line: 1, column: 0 } }
-			: null
-});
-
-// A completer whose every answer produces bytes the user would see nothing of: no lines at
-// all, and blank lines, which are bytes and parse back as empty paragraphs.
 const PAINTS_NOTHING: Record<string, string[]> = {
 	'empty me': [],
 	'blank me': [''],
 	'blank me twice': ['', '']
 };
-registerBlockCompleter(declarePluginKind('spec-empty'), {
-	tryComplete: (line) =>
-		line in PAINTS_NOTHING
-			? { lines: PAINTS_NOTHING[line], caret: { path: [], line: 0, column: 0 } }
-			: null
-});
 
-// A non-breaking space draws a character, so its completion is kept.
-registerBlockCompleter(declarePluginKind('spec-nbsp'), {
-	tryComplete: (line) =>
-		line === 'nbsp me' ? { lines: ['\u00a0'], caret: { path: [], line: 0, column: 0 } } : null
+beforeEach(() => {
+	// A completer whose caret lands on a line the completion creates, which a table cell cannot
+	// test; it runs before `table` by kind name, so its trigger is prose no other case types.
+	registerBlockCompleter(declarePluginKind('spec-fence'), {
+		tryComplete: (line) =>
+			line === 'fence me'
+				? { lines: ['```', '', '```'], caret: { path: [], line: 1, column: 0 } }
+				: null
+	});
+
+	// A completer whose every answer produces bytes the user would see nothing of: no lines at
+	// all, and blank lines, which are bytes and parse back as empty paragraphs.
+	registerBlockCompleter(declarePluginKind('spec-empty'), {
+		tryComplete: (line) =>
+			line in PAINTS_NOTHING
+				? { lines: PAINTS_NOTHING[line], caret: { path: [], line: 0, column: 0 } }
+				: null
+	});
+
+	// A non-breaking space draws a character, so its completion is kept.
+	registerBlockCompleter(declarePluginKind('spec-nbsp'), {
+		tryComplete: (line) =>
+			line === 'nbsp me' ? { lines: ['\u00a0'], caret: { path: [], line: 0, column: 0 } } : null
+	});
 });
 
 describe('Enter completion: which presses reach a completer', () => {

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { installPlugins } from '$lib';
 import { footnotesPlugin } from '$lib/plugins/footnotes';
 import type { CstNode, Document } from '$lib/core/nodes';
@@ -15,7 +15,7 @@ import { defaultGrammarView } from '$lib/schema/block-openers';
 // own line is written with the body's indent and reloads as the empty paragraph it is.
 // Miss-analysis: GH #406, no case blanked the last block of an indent-delimited body.
 
-beforeAll(() => {
+beforeEach(() => {
 	installPlugins([footnotesPlugin()]);
 });
 

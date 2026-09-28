@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { installPlugins, parse } from '$lib';
 import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
 import { checkOpaqueRebuildDeterminism, checkOpaqueStaleRaw } from '$lib/invariants/node-shape';
@@ -6,7 +6,7 @@ import { admonitionsPlugin, convertGithubAlerts } from '$lib/plugins/admonitions
 import { convertGithubAlertsInDocument } from '$lib/plugins/admonitions/convert-document';
 import { fixtureGrammar } from '$lib/test/harness/fixture-grammar';
 
-beforeAll(() => {
+beforeEach(() => {
 	installPlugins([admonitionsPlugin()]);
 });
 

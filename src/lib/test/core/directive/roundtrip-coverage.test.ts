@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import fc from 'fast-check';
 import { getPluginMetadata, type CstNode } from '$lib/core/nodes';
 import { parse } from '$lib/core/parser';
@@ -15,9 +15,8 @@ import {
 import { registerDirective, type ParsedDirective } from '$lib/core/directive/registry';
 import { arbGfmDoc, freshOrFixedSeed } from '../../invariants/arbitraries';
 import { activateDirectiveGrammar } from '$lib/core/directive/activate';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
-activateDirectiveGrammar(); // before any parse
+beforeEach(activateDirectiveGrammar);
 
 // Round-trips a generator spanning every directive shape. Curated non-ASCII pools keep CJK,
 // astral and combining boundaries reachable, and the self-tests below prove they are reached.
@@ -248,6 +247,9 @@ describe('directive total-coverage round-trip', () => {
 	let samples: string[] = [];
 
 	beforeAll(() => {
+		samples = fc.sample(arbDirectiveDoc, SAMPLE_PARAMS);
+	});
+	beforeEach(() => {
 		const wrapRaw = (kind: typeof NOTE) => ({
 			kind,
 			fromDirective: (parsed: ParsedDirective): CstNode => ({
@@ -258,12 +260,6 @@ describe('directive total-coverage round-trip', () => {
 		});
 		registerDirective('container', 'note', wrapRaw(NOTE));
 		registerDirective('container', 'warning', wrapRaw(WARNING));
-		samples = fc.sample(arbDirectiveDoc, SAMPLE_PARAMS);
-	});
-	// The reset takes the directive grammar with the names, so the next suite turns it back on.
-	afterAll(() => {
-		__resetSchemaRegistriesForTests();
-		activateDirectiveGrammar();
 	});
 
 	it('serialize(parse(s)) === s over generated directive constructs', () => {

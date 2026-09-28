@@ -1,11 +1,11 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { installPlugins, parse, serialize } from '$lib';
 import { getPluginMetadata } from '$lib/plugin';
 import { admonitionsPlugin, convertGithubAlerts } from '$lib/plugins/admonitions';
 import type { AdmonitionMetadata } from '$lib/plugins/admonitions/kinds';
 import { roundTripCases } from '$lib/test/support/round-trip';
 
-beforeAll(() => {
+beforeEach(() => {
 	installPlugins([admonitionsPlugin()]);
 });
 

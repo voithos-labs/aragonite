@@ -3,7 +3,7 @@
 // Miss-analysis (GH #557): the quote's lift and the kept-container lift were two copies of one
 // rule, and each had its own tests, so no test ran both over the same shape.
 
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { serialize } from '$lib/core/serializer';
 import { installPlugins } from '$lib';
 import { admonitionsPlugin } from '$lib/plugins/admonitions';
@@ -13,7 +13,7 @@ import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
 import { makeBlockListState, makeTopHarness } from '$lib/test/harness/editor-actions';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
 
-beforeAll(() => {
+beforeEach(() => {
 	installPlugins([admonitionsPlugin(), footnotesPlugin()]);
 });
 

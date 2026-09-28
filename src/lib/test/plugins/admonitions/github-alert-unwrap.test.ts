@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { installPlugins, parse } from '$lib';
 import { liftFirstChild, plainQuote } from '$lib/tree-operations';
 import { admonitionsPlugin } from '$lib/plugins/admonitions';
@@ -7,7 +7,7 @@ import { admonitionsPlugin } from '$lib/plugins/admonitions';
 // is opener-only, so lifting a body child drops it and the remainder reparses as a
 // plain blockquote. Blockquote coverage lives in tree-operations/unwrap-blockquote.
 
-beforeAll(() => {
+beforeEach(() => {
 	installPlugins([admonitionsPlugin()]);
 });
 

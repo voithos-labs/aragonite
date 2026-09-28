@@ -1,7 +1,7 @@
 // Every edit route that reparses reads the editor's grammar, so none makes a kind it switched off.
 // Miss-analysis: GH #429, only the split was ever tested against the editor's grammar.
 
-import { describe, it, expect } from 'vitest';
+import { beforeEach, describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { createRegistryView } from '$lib/schema/registry-view';
 import { declarePluginKind } from '$lib/schema/plugin-kind';
@@ -24,9 +24,11 @@ const noIndentedCode = createRegistryView({ syntax: { indentedCode: false } }).g
 const read = (source: string) => parse(source, { grammar: noIndentedCode });
 const kindsOf = (nodes: readonly CstNode[]) => nodes.map((n) => n.kind);
 
-registerBlockCompleter(declarePluginKind('indent-box'), {
-	tryComplete: (line) =>
-		line === '%box' ? { lines: ['    boxed'], caret: { path: [], line: 0, column: 4 } } : null
+beforeEach(() => {
+	registerBlockCompleter(declarePluginKind('indent-box'), {
+		tryComplete: (line) =>
+			line === '%box' ? { lines: ['    boxed'], caret: { path: [], line: 0, column: 4 } } : null
+	});
 });
 
 describe('an edit route reparses in the editor grammar', () => {

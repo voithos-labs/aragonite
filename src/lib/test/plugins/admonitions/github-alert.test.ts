@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { installPlugins, parse } from '$lib';
 import { getPluginMetadata } from '$lib/plugin';
 import { admonitionsPlugin } from '$lib/plugins/admonitions';
@@ -9,7 +9,7 @@ import { roundTripCases } from '$lib/test/support/round-trip';
 // `githubAlert` kind, with the marker line in the container raw and metadata only. Every
 // other blockquote must still parse plain.
 
-beforeAll(() => {
+beforeEach(() => {
 	installPlugins([admonitionsPlugin()]);
 });
 
