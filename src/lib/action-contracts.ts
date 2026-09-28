@@ -146,6 +146,9 @@ export interface FocusActions {
 	/** @internal Put the caret at a between-blocks boundary that allows one. Required: a container
 	 *  that fails to forward it makes every such caret below it vanish. */
 	tryGapStop(parentPath: number[], boundaryIndex: number): boolean;
+	/** @internal An arrow move ended on the block at `path`: one focused whole comes into view.
+	 *  Forwarded to the root like `tryGapStop`. */
+	followArrival(path: number[]): void;
 }
 
 export interface HistoryActions {

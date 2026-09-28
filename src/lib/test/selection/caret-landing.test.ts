@@ -13,6 +13,8 @@ import type { ChildList } from '../../reactivity/child-list';
 import { createCaretLanding, type CaretLandingDeps } from '../../selection/caret-landing';
 import { createSelectionState } from '../../selection/selection-state.svelte';
 import { stubBlockComponent } from '../../testing/headless-actions';
+import { stubScrollport } from '../harness/stub-scrollport';
+import { takeDevWarns } from '../support/warn-gate';
 
 interface Placement {
 	path: number[];
@@ -51,7 +53,8 @@ function mountingList(
 
 function recordingScroll(visible: boolean) {
 	const calls: string[] = [];
-	const scroll: Pick<ScrollOwner, 'isInView' | 'place'> = {
+	const scroll: Pick<ScrollOwner, 'isInView' | 'place' | 'port'> = {
+		port: () => null,
 		isInView: () => visible,
 		place: (_path, { hold }) => {
 			calls.push(hold ? 'place, held' : 'place');
@@ -163,6 +166,30 @@ describe('bringing a landing into view', () => {
 		const { landing } = landingOver('a\n', { scroll });
 		await landing.land(at([0], 0), { reveal: 'into-view-held' });
 		expect(calls).toEqual(['place, held', 'scroll']);
+	});
+
+	// Miss-analysis: the landing's focus call scrolled natively, and no test watched the scroll
+	// position across it, so a second writer sat beside the reveal policy unseen.
+	it('a focus call that scrolls fails the landing-focus check', async () => {
+		const port = stubScrollport({ viewportHeight: 500 });
+		const { scroll } = recordingScroll(true);
+		const doc = parse('a\n');
+		const scrolling = stubBlockComponent({ focus: () => port.setScrollTop(120) });
+		const landing = createCaretLanding({
+			getDoc: () => doc,
+			root: {
+				count: () => 1,
+				refs: refSlotsOver([scrolling]),
+				windowing: { revealChild: async () => {}, isInWindow: () => true }
+			},
+			selectionState: createSelectionState({ getDoc: () => doc }),
+			caretMemory: createCaretMemory(),
+			getBlockElByPath: () => ({}) as HTMLElement,
+			getEditorRoot: () => null,
+			scroll: { ...scroll, port: () => port }
+		});
+		await landing.land(at([0], 0));
+		expect(takeDevWarns().map((w) => w.tag)).toEqual(['invariant:landing-focus-scrolls-nothing']);
 	});
 });
 

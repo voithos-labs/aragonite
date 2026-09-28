@@ -25,6 +25,8 @@ export interface MoveFocusScope {
 	leave(step: -1 | 1, position: FocusPosition, options?: MoveFocusOptions): Promise<void>;
 	/** Bound to this list's own boundaries (`selection/gap-caret.ts`). */
 	gapStop(boundaryIndex: number): boolean;
+	/** The move ended on child `index`: its focus call scrolled nothing, so this may. */
+	arrived(index: number): void;
 }
 
 /** The one focus traversal, run by the root and by every container over its own list. */
@@ -53,6 +55,7 @@ export async function dispatchMoveFocus(
 		return;
 	}
 	await consumeStickyLanding(block, index, position, caretMemory, retry);
+	scope.arrived(index);
 }
 
 /** A move handed to `focus`, with the options argument left off when there are none, so the

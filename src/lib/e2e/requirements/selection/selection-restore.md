@@ -17,6 +17,10 @@ override the scroll the host wrote last.
 - Caret into a block that scrolled out of the window: the block mounts, scrolls into view, the caret lands, resolves `true`
 - Caret into a block still mounted but scrolled past the fold (the overscan strip): the block is
   scrolled back into view, so `true` means in view, not merely mounted
+- The same, with the block just below the viewport: it lands with its bottom at the viewport's
+  bottom edge (within 2px), not in the middle. Miss-analysis: the overscan scenario only ever put
+  the block above the viewport, so nothing pinned which edge a block below lands on once the
+  editor, not the focus call, does the scroll
 - Within-block range (same path, distinct offsets): the native range is re-established across the same offsets, resolves `true`
 - Cross-block range: the selection re-enters cross-block state and the overlay paints, resolves `true`
 - Intra-table cell rectangle: the same cell selection is restored, both corners counting cells, resolves `true`

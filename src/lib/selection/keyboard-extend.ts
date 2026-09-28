@@ -50,7 +50,7 @@ function enterCrossBlockFromKeyboard(
 }
 
 /** Collapses a cross-block range to its start or end and puts the caret back there as a stored
- *  byte, mounting a windowed-out target and never opening a closed body. */
+ *  byte, brought into view, mounting a windowed-out target and never opening a closed body. */
 export async function collapseCrossBlock(
 	selection: SelectionState,
 	to: 'start' | 'end',
@@ -69,7 +69,7 @@ export async function collapseCrossBlock(
 		to === 'end' && !pathsEqual(landing.path, target.path)
 			? { path: landing.path, offset: leafOffsetEnd(doc, landing.path) }
 			: landing;
-	await restore({ anchor: point, focus: point }, { reveal: 'mount' });
+	await restore({ anchor: point, focus: point }, { reveal: 'into-view' });
 }
 
 /** Scrolls the focus block into view if mounted, without mounting it: a document-edge extend

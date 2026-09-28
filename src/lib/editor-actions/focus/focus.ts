@@ -60,11 +60,13 @@ export function createFocusActions(
 		leave,
 		// A directional move crosses the boundary at the greater adjacent index. `gapEligibleAt`
 		// declines out-of-range boundaries and the root's trailing one.
-		gapStop: (boundaryIndex) => gapStopAt([], boundaryIndex)
+		gapStop: (boundaryIndex) => gapStopAt([], boundaryIndex),
+		arrived: (index) => deps.caretLanding.followArrival([index])
 	};
 
 	return {
 		tryGapStop: gapStopAt,
+		followArrival: deps.caretLanding.followArrival,
 		moveFocus: (blockIndex: number, position: FocusPosition, options?: MoveFocusOptions) =>
 			dispatchMoveFocus(scope, blockIndex, position, deps.caretMemory, options)
 	};

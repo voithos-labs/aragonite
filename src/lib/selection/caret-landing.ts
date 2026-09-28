@@ -4,12 +4,16 @@
  * the block into view. One per editor, built in `Editor.svelte`; nothing else scrolls for a landing.
  */
 
+import { assertInvariant } from '../assert';
 import { CURSOR_END, CURSOR_START, type BlockComponent } from '../block-component';
 import type { DocumentView } from '../core/node-views';
 import type { CaretMemory } from '../cursor/caret-memory';
 import { docPathFrom } from '../cursor/coordinate-spaces';
 import type { ScrollOwner } from '../cursor/scroll-owner';
 import type { BlockElLookup } from '../editor-keys';
+import { isDevChecks } from '../env';
+import { checkLandingFocusScrollsNothing } from '../invariants/landing-focus-scroll';
+import { holdsTextCaret } from '../editor-actions/whole-block-focus-surface';
 import { descendTo, type ChildList } from '../reactivity/child-list';
 import { caretTargetFor } from './caret-target';
 import { applySelectionToDom } from './native-bridge';
@@ -46,6 +50,9 @@ export interface CaretLanding {
 		path: readonly number[],
 		opts?: { openCollapsed?: boolean }
 	): Promise<BlockComponent | null>;
+	/** An arrow move ended on the block at `path`: one focused whole comes to the nearest edge,
+	 *  holding nothing. A text caret leaves the view as it is. */
+	followArrival(path: readonly number[]): void;
 	/** Bumped by every undo, redo and document swap: a landing that waited across one is stale. */
 	generation(): number;
 	/** Called by the history restore and the document swap only, before the tree changes. */
@@ -62,11 +69,23 @@ export interface CaretLandingDeps {
 	/** The editor's own element, which holds focus while a block with no text is selected whole. */
 	getEditorRoot(): HTMLElement | null;
 	/** Null where nothing renders (a headless harness), so a landing only mounts. */
-	scroll: Pick<ScrollOwner, 'isInView' | 'place'> | null;
+	scroll: Pick<ScrollOwner, 'isInView' | 'place' | 'port'> | null;
 }
 
 export function createCaretLanding(deps: CaretLandingDeps): CaretLanding {
 	let generation = 0;
+
+	/** Runs the landing's focus and DOM placement, which scroll nothing (G1.45). */
+	function placeWithoutScrolling<T>(place: () => T): T {
+		if (!isDevChecks()) return place();
+		const port = deps.scroll?.port();
+		const before = port?.scrollTop() ?? null;
+		const placed = place();
+		assertInvariant('landing-focus-scrolls-nothing', () =>
+			checkLandingFocusScrollsNothing(before, port?.scrollTop() ?? null)
+		);
+		return placed;
+	}
 
 	/** The only place a landing writes a scroll position. */
 	async function bringIntoView(leafPath: readonly number[], reveal: RevealPolicy): Promise<void> {
@@ -87,7 +106,7 @@ export function createCaretLanding(deps: CaretLandingDeps): CaretLanding {
 			if (generation !== stamp) return 'stale';
 			if (!component) return 'unresolvable';
 			deps.caretMemory.forget();
-			component.focus(target.offset);
+			placeWithoutScrolling(() => component.focus(target.offset));
 			// Placed at an edge rather than stepped there, so the caret means the outside of a
 			// hidden closer (`docs/design/live-mode.md` § 4.2).
 			if (target.offset === CURSOR_END || target.offset === CURSOR_START) {
@@ -121,14 +140,16 @@ export function createCaretLanding(deps: CaretLandingDeps): CaretLanding {
 			const mounted = await descendTo(deps.root, mountPath, open);
 			if (generation !== stamp) return 'unplaced';
 			deps.caretMemory.forget();
-			const placed = applySelectionToDom(
-				{ anchor, focus },
-				{
-					selectionState: deps.selectionState,
-					getBlockElByPath: deps.getBlockElByPath,
-					caretAt,
-					getEditorRoot: deps.getEditorRoot
-				}
+			const placed = placeWithoutScrolling(() =>
+				applySelectionToDom(
+					{ anchor, focus },
+					{
+						selectionState: deps.selectionState,
+						getBlockElByPath: deps.getBlockElByPath,
+						caretAt,
+						getEditorRoot: deps.getEditorRoot
+					}
+				)
 			);
 			await bringIntoView(mountPath, opts.reveal ?? 'into-view');
 			return mounted && placed ? 'applied' : 'unplaced';
@@ -145,6 +166,12 @@ export function createCaretLanding(deps: CaretLandingDeps): CaretLanding {
 		},
 
 		mount: (path, opts) => descendTo(deps.root, path, opts),
+		followArrival(path) {
+			const el = deps.scroll && deps.getBlockElByPath([...path]);
+			const active = el ? document.activeElement : null;
+			if (!deps.scroll || !el?.contains(active) || holdsTextCaret(active)) return;
+			void deps.scroll.place(path, { block: 'nearest', hold: false }).scroll();
+		},
 		generation: () => generation,
 		noteTreeSwap: () => {
 			generation++;

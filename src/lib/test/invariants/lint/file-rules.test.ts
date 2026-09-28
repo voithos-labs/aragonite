@@ -1080,6 +1080,61 @@ const SCROLL_WRITERS: ManifestRule[] = [
 	}
 ];
 
+// ── G4.91 a focus call scrolls nothing unless declared ──────────────────────
+
+/** A DOM focus call that may scroll: no arguments, or options without `preventScroll`. A block
+ *  component's `focus(offset)` takes a number and isn't one. */
+const BARE_FOCUS_RE = /\.focus\s*(?:\?\.)?\s*\(\s*(?:\)|\{(?![^}]*preventScroll))/;
+
+const BARE_FOCUSES: ManifestRule[] = [
+	{
+		id: 'G4.91 a focus call that may scroll is declared',
+		matches: BARE_FOCUS_RE,
+		declared: {
+			'src/lib/components/blocks/text/widget-interaction.ts':
+				'a click that reveals a widget’s source focuses the surface under the pointer, already on screen',
+			'src/lib/cursor/reveal-source.ts':
+				'the revealed source takes focus where the click that revealed it landed',
+			'src/lib/components/GapCaret.svelte':
+				'an arrow move arriving on a gap caret keeps the browser’s own scroll to it',
+			'src/lib/selection/keyboard-extend.ts':
+				'a native range re-made in a block the keyboard is already on',
+			'src/lib/selection/native-bridge.ts':
+				'`focusCollapsedCaret`, which the cross-block delete, typing and paste still lean on until they land through the caret landing',
+			'src/lib/selection/cross-block/paste.ts':
+				'a cross-block paste that still puts its own caret down, until it lands through the caret landing',
+			'src/lib/selection/caret-restore.ts':
+				'closing the find bar or the link card returns to the saved caret',
+			'src/lib/plugins/mermaid/MermaidBlock.svelte':
+				'the diagram’s own surface takes focus back after a redraw or an edit, and the focus view its overlay',
+			'src/lib/components/blocks/code/CodeBlockRail.svelte':
+				'the rail’s menu button takes focus back as its popout closes',
+			'src/lib/components/blocks/table/TableActionMenu.svelte':
+				'the menu’s own rows and stops, inside its popout',
+			'src/lib/components/image/ImageProperties.svelte': 'the popover’s own field',
+			'src/lib/components/link-card/LinkCard.svelte':
+				'the card’s own field and buttons, inside its popout',
+			'src/lib/components/SearchBar.svelte': 'the find field, in the bar’s own box'
+		},
+		reason:
+			'a focus call without `preventScroll` scrolls the editor behind the scroll owner’s back: pass `{ preventScroll: true }` and let the route that moved the caret ask the owner, or declare here why this one may scroll',
+		reaches: ['src/lib/selection/native-bridge.ts'],
+		hits: [
+			'el.focus();',
+			'blockEl?.focus();',
+			'el.focus?.();',
+			'el.focus({ focusVisible: true });'
+		],
+		misses: [
+			'el.focus({ preventScroll: true });',
+			'el.focus({ focusVisible: true, preventScroll: true });',
+			'component.focus(offset);\nref.focus(CURSOR_START);',
+			'// `el.focus()` scrolls by default.\nconst a = 1;'
+		]
+	}
+];
+
 const SOURCES = collectEditorSources();
 describeFileRules(RULES, SOURCES);
 describeManifests(SCROLL_WRITERS, SOURCES);
+describeManifests(BARE_FOCUSES, SOURCES);

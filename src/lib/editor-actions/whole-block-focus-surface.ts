@@ -65,10 +65,15 @@ export function composeWholeBlockFocusSurface(
 }
 
 // The fallback box is a plain div, focusable only with a tabindex; an element already focusable
-// keeps what it has, so this only ever adds reachability.
+// keeps what it has, so this only ever adds reachability. The caller that moved the caret scrolls.
 export function focusWholeBlockEl(el: HTMLElement): void {
 	if (el.tabIndex < 0 && !el.hasAttribute('tabindex')) el.tabIndex = -1;
-	el.focus();
+	el.focus({ preventScroll: true });
+}
+
+/** A text caret the editor placed: editable content other than the hidden whole-block host. */
+export function holdsTextCaret(el: Element | null): boolean {
+	return el instanceof HTMLElement && el.isContentEditable && !isWholeBlockInputProxy(el);
 }
 
 /** Whole-block focus sits on the declared element or on the hidden host beside it. */
@@ -147,7 +152,7 @@ export function createWholeBlockInputProxy(deps: WholeBlockInputProxyDeps): Whol
 	function focusProxy(): void {
 		if (!proxy) return;
 		syncProxyState();
-		proxy.focus();
+		proxy.focus({ preventScroll: true });
 	}
 
 	// Read per focus, not per mount: reading mode makes the host inert, and a kind's name can

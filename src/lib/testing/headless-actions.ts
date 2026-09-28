@@ -83,8 +83,10 @@ export function recordingFocus(): RecordingFocus {
 		moveFocus: (...args: unknown[]) => {
 			moveFocusCalls.push(args);
 		},
-		// Headless: nothing is rendered, so there is no boundary to put a gap caret at.
-		tryGapStop: () => false
+		// Headless: nothing is rendered, so there is no boundary to put a gap caret at and nothing
+		// to scroll.
+		tryGapStop: () => false,
+		followArrival: () => {}
 	};
 }
 
