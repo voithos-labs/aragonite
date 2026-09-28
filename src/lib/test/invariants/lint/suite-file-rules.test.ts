@@ -141,6 +141,24 @@ function codeRunAtLoad(body: string): string {
 	);
 }
 
+/** Each describe call's last argument list, so `describe.each(rows)(name, fn)` and
+ *  `describe.skip(name, fn)` yield their callback as `describe(name, fn)` does. */
+function describeArguments(code: string): string[] {
+	return [...code.matchAll(/(?<![\w$.])describe\b/g)].flatMap((m) => {
+		const step = /\s*(?:\.\s*[\w$]+|(\())/y;
+		let last: string | null = null;
+		step.lastIndex = m.index + m[0].length;
+		for (let hit = step.exec(code); hit !== null; hit = step.exec(code)) {
+			if (hit[1] === undefined) continue;
+			const region = balancedRegion(code, step.lastIndex - 1);
+			if (region === null) break;
+			last = region.slice(1, -1);
+			step.lastIndex += region.length - 1;
+		}
+		return last === null ? [] : [last];
+	});
+}
+
 /** What a file runs as it loads: its top level, and each describe callback's own statements. */
 function loadTimeCode(code: string): string[] {
 	const bare = literalSpans(code).reduce(
@@ -148,7 +166,7 @@ function loadTimeCode(code: string): string[] {
 			text.slice(0, span.start) + ' '.repeat(span.end - span.start) + text.slice(span.end),
 		code
 	);
-	const bodies = callsTo(bare, 'describe').flatMap((args) => {
+	const bodies = describeArguments(bare).flatMap((args) => {
 		const open = /=>\s*\{/.exec(args);
 		const body = open && balancedBlock(args, open.index + open[0].length);
 		return body ? [body] : [];
@@ -427,6 +445,10 @@ const RULES: FileRule[] = [
 			at(
 				'src/lib/test/e.test.ts',
 				"describe('x', () => {\n\tconst K = declarePluginKind('k');\n\tit('y', () => {});\n});"
+			),
+			at(
+				'src/lib/test/k.test.ts',
+				"describe.each([1, 2])('x %i', (n) => {\n\tconst K = declarePluginKind(`k${n}`);\n\tit('y', () => {});\n});"
 			)
 		],
 		misses: [
@@ -454,7 +476,11 @@ describe('the reset names the platform scans read off the source', () => {
 	it('finds every reset a library module enrolls by name', () => {
 		const probe = probeFile(at('src/lib/x.ts', `${'enrollTestReset'}(__resetProbeForTests);`));
 		expect(enrolledResets([probe])).toEqual(['__resetProbeForTests']);
-		expect(enrolledResets(SOURCES).length).toBeGreaterThan(0);
+		expect(enrolledResets(SOURCES).sort()).toEqual([
+			['__reset', 'CommandWarningsForTests'].join(''),
+			['__reset', 'InstalledPluginsForTests'].join(''),
+			['__reset', 'RegistrationChecksForTests'].join('')
+		]);
 	});
 });
 
