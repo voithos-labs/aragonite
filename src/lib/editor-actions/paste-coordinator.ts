@@ -14,24 +14,12 @@ export function createPasteCoordinator(
 ): PasteCommitCoordinator {
 	const root = { deps, controller };
 
-	// The paste routes still place their own caret, so this checks for an undo itself; a commit's
-	// `landing` gets both from the caret landing.
-	async function landCaret(path: number[], offset: number): Promise<void> {
-		const stamp = deps.caretLanding.generation();
-		const block = await deps.revealPath(path);
-		// An undo or redo that finished while the target was scrolling into view swapped
-		// the tree, so this path may name a different block than the paste aimed at.
-		if (deps.caretLanding.generation() !== stamp) return;
-		block?.focus(offset);
-	}
-
 	const coordinator: PasteCommitCoordinator = {
 		commitMultiScope: controller.commitMultiScope,
 		getDocScope: controller.getDocScope,
-		// editor-actions may import reactivity and the reveal; handing them over here keeps
-		// `tree-operations/paste/` from importing either itself.
+		// editor-actions may import reactivity; handing it over here keeps `tree-operations/paste/`
+		// from importing it itself.
 		resolveState: getStateForNode,
-		landCaret,
 		commitLeafText: (leafPath, text, opts) => commitLeafTextAt(root, leafPath, text, opts),
 		async replaceBlock(blockPath, replacement, focus, opts) {
 			const scope = createPathScope(root, docPathFrom(blockPath.slice(0, -1)));

@@ -171,9 +171,9 @@ export async function applyContainerMatchingPaste(
 			detail: { source: 'container-matching', outerPath: unwrap.outerPath },
 			eventPath: docPathFrom(unwrap.outerPath)
 		},
-		afterTick: () => {
+		landing: () => {
 			const lastInsertedIdx = unwrap.spliceIndex + unwrap.items.length - 1;
-			return ctx.controller.landCaret([...unwrap.outerPath, lastInsertedIdx], CURSOR_END);
+			return { path: docPathFrom([...unwrap.outerPath, lastInsertedIdx]), offset: CURSOR_END };
 		}
 	});
 }
@@ -262,11 +262,11 @@ async function applyContainerMatchingMerge(
 				detail: { source: 'container-matching-merge-singleton', outerPath: unwrap.outerPath },
 				eventPath: docPathFrom(unwrap.outerPath)
 			},
-			afterTick: () => {
+			landing: () => {
 				// A char offset inside the merged leaf, not a block index, so land on the leaf
-				// itself: a container's focus(number) would clamp to its last child's end.
+				// itself: a container's entry offset would take its last child's end.
 				const joined = displayBefore.length + firstItemText.length;
-				if (!merged) return ctx.controller.landCaret(merge.targetLeafPath, joined);
+				if (!merged) return { path: docPathFrom(merge.targetLeafPath), offset: joined };
 				const holderPath = merge.targetLeafPath.slice(0, -1);
 				const holder = nodeAt(ctx.doc, holderPath) as CstNode | null;
 				const children = holder?.children ?? [];
@@ -276,7 +276,7 @@ async function applyContainerMatchingMerge(
 					merged.storedOffset(joined),
 					children
 				);
-				return ctx.controller.landCaret([...holderPath, at.index], at.offset);
+				return { path: docPathFrom([...holderPath, at.index]), offset: at.offset };
 			}
 		});
 		return;
@@ -335,7 +335,7 @@ async function applyContainerMatchingMerge(
 			detail: { source: 'container-matching-merge', outerPath: unwrap.outerPath },
 			eventPath: docPathFrom(unwrap.outerPath)
 		},
-		afterTick: () => {
+		landing: () => {
 			// A char offset in the last spliced item's paragraph, so land on the paragraph rather
 			// than CURSOR_END on the item, at the position the residue's own fix-up left it in.
 			const lastInsertedIdx = unwrap.spliceIndex + remainingItems.length;
@@ -343,10 +343,10 @@ async function applyContainerMatchingMerge(
 			const at = settledCaretPosition(residue, 0, lastDisplay.length, children);
 			const block = children[at.index];
 			const leaf = (block?.children?.length && leafAtRawOffset(block, at.offset)) || null;
-			return ctx.controller.landCaret(
-				[...unwrap.outerPath, lastInsertedIdx, at.index, ...(leaf?.path ?? [])],
-				leaf?.offset ?? at.offset
-			);
+			return {
+				path: docPathFrom([...unwrap.outerPath, lastInsertedIdx, at.index, ...(leaf?.path ?? [])]),
+				offset: leaf?.offset ?? at.offset
+			};
 		}
 	});
 }

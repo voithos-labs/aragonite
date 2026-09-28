@@ -24,9 +24,6 @@ export interface PasteCommitCoordinator {
 	getDocScope(): MultiScopeTarget;
 	/** Resolve a container node to its mounted reactive state. */
 	resolveState(node: NodeView): MultiScopeTarget['state'] | undefined;
-	/** Land the caret at a document-absolute path, scrolling an unmounted target into view first,
-	 *  since a structural paste's target can sit past the mounted range (VR-12). */
-	landCaret(path: number[], offset: number): Promise<void>;
 	/** Write `text` into the leaf at `leafPath` as one commit at its parent list, through the write
 	 *  every keystroke takes. */
 	commitLeafText(leafPath: number[], text: string, opts: LeafTextOptions): Promise<LeafWriteResult>;

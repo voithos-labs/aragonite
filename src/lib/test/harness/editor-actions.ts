@@ -333,11 +333,13 @@ export function registerStubBlockListState(node: CstNode): void {
 export function makePasteCommit(source: string | Document): {
 	doc: Document;
 	controller: PasteCommitCoordinator;
+	landings: readonly RecordedLanding[];
 } {
-	const { deps } = makeEditorActionsDeps(source);
+	const { deps, landings } = makeEditorActionsDeps(source);
 	return {
 		doc: deps.doc,
-		controller: createPasteCoordinator(deps, createUndoController(deps))
+		controller: createPasteCoordinator(deps, createUndoController(deps)),
+		landings
 	};
 }
 
