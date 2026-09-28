@@ -79,6 +79,9 @@ export interface CaretPosition {
 	readonly offset: number;
 }
 
+/** What an edit hands back for the caret: a position, or a stored selection to put back. */
+export type Landing = CaretPosition | EditorSelection;
+
 /** A cell endpoint: the grid's path, a row-major cell index, and the flag saying so. */
 export function cellPoint(path: readonly number[], cellIdx: number): CellSelectionPoint {
 	return { path: path.slice(), offset: cellIdx, cellCoordinate: true };

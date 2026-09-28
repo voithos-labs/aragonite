@@ -76,10 +76,6 @@ describe('a commit whose ancestry settle ate its own scope', () => {
 	// Miss-analysis: a collapse caused by a body write was tested only at the tree operation.
 	it('folds the follower a body write let the container continue into', async () => {
 		const h = makeNestedHarness('> a\n> # h\ntext\n', { index: 0 });
-		const survivor: number[] = [];
-		h.deps.blockRefs[0] = stubBlockComponent({
-			focus: vi.fn((offset?: number) => survivor.push(offset ?? -1))
-		}) as BlockComponent;
 		const errors: unknown[] = [];
 		h.events.on('error', (e) => errors.push(e));
 
@@ -89,7 +85,8 @@ describe('a commit whose ancestry settle ate its own scope', () => {
 		expect(serialize(h.deps.doc)).toBe('> a\n> h\ntext\n');
 		expect(describeConvergence(h.deps.doc)).toBeNull();
 		expect(h.deps.blockIds).toEqual(['block-0']);
-		expect(survivor).toEqual([0]);
+		// The fold's position replaces the write's own: the caret goes to the survivor's first leaf.
+		expect(h.landings).toEqual([{ leafPath: [0, 0], offset: 0 }]);
 		expect(errors).toEqual([]);
 		expect(takeDevWarns()).toEqual([]);
 

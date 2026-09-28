@@ -27,6 +27,7 @@ import { docPathFrom } from '$lib/cursor/coordinate-spaces';
 import type { ContainerBlockComponentDeps } from '$lib/editor-actions/container-block-component';
 import { refSlotsOver } from '$lib/reactivity/publish-ref.svelte';
 import { componentAt, type ChildList } from '$lib/reactivity/child-list';
+import type { CaretTarget } from '$lib/selection/caret-target';
 import { delegateMoveFocus, type MoveFocusScope } from '$lib/editor-actions/focus/focus-dispatch';
 import type { PasteCommitCoordinator } from '$lib/tree-operations/paste/paste-deps';
 import type { PasteDispatchContext } from '$lib/tree-operations/paste/dispatch';
@@ -468,6 +469,8 @@ export interface NestedHarness {
 	bundle: NestedActionsBundle;
 	getNode: () => CstNode;
 	contentVersion: () => number;
+	/** Every leaf the editor's caret landing resolved to, in order. */
+	landings: readonly CaretTarget[];
 }
 
 export interface NestedHarnessOptions {
@@ -496,7 +499,7 @@ export function makeNestedHarness(
 		opts.grammar || opts.presentationMode
 			? fixtureReading(opts.grammar ? { grammar: opts.grammar } : {}, opts.presentationMode)
 			: undefined;
-	const { deps, events, contentVersion } = makeEditorActionsDeps(
+	const { deps, events, contentVersion, landings } = makeEditorActionsDeps(
 		source,
 		reading ? { reading } : {}
 	);
@@ -541,7 +544,17 @@ export function makeNestedHarness(
 		}),
 		overrides
 	);
-	return { deps, events, controller, containerEdit, state, bundle, getNode, contentVersion };
+	return {
+		deps,
+		events,
+		controller,
+		containerEdit,
+		state,
+		bundle,
+		getNode,
+		contentVersion,
+		landings
+	};
 }
 
 /** A root focus whose `revealPath` hands back a component that records where it was focused,
