@@ -15,7 +15,8 @@ a paragraph (live mode).
 
 ## Edge cases
 
-- Right-click there: the block menu opens, and the editor leaves the press to the browser.
+- Right-click there (a code block, a paragraph, a table cell): its menu opens, and after
+  Escape a typed character lands at the column, as it would after a click.
 
 ## User interactions
 
@@ -27,3 +28,6 @@ a paragraph (live mode).
 
 - A new rule for the plain press could have broken any of these. None of them had a test
   that started in padding, because the padding press had always been the browser's.
+- The right-click row only checked that the menu opened, and a right-click moves the caret
+  before its menu opens: on Mac and Linux it went to the line's start in a code block or a
+  cell, and no row typed after closing the menu.

@@ -2,7 +2,7 @@ import type { Page } from '@playwright/test';
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import { BlockMathPage } from '../plugins/latex-reveal-helpers';
-import { pointAtRaw, pointInTopPadding, type Point } from '../../text-runs';
+import { pointAtRaw, pointInGap, pointInTopPadding, type Point } from '../../text-runs';
 
 // A pointer gesture ending in the padding above an editable's first line lands at the column under
 // it on that line, on every OS. Requirements: `e2e/requirements/selection/padding-row-point.md`.
@@ -108,4 +108,29 @@ test('click in the top padding of a revealed math source lands at the column bel
 	await page.keyboard.type('z');
 
 	await expect.poll(() => editor.sourceText()).toBe('$$xz^2$$');
+});
+
+// A drag held over the strip a code block's host keeps outside its grey box ends where a click
+// there lands: on the first line at the column, never at the line's start.
+test("a drag from a code block's padding held over its host strip ends at the column", async ({
+	page
+}) => {
+	const editor = new EditorPage(page);
+	await editor.goto('?presentationMode=live');
+	await editor.loadContent(DOC);
+	const host = page.locator("[data-block-path='[1]']");
+	const grey = host.locator('.code-block');
+	// From above `const x|` to the host strip above `con|st`.
+	const from = await pointInTopPadding(grey, (await pointAtRaw(page, [1], 12)).x);
+	const to = await pointInGap(host, grey, 'top', (await pointAtRaw(page, [1], 9)).x);
+
+	await drag(page, from, to);
+
+	// The editor paints a drag inside one block low to high, whichever way it went.
+	await expect
+		.poll(() => editor.bridge.getSelectionPaths())
+		.toEqual({
+			anchor: { path: [1], offset: 9 },
+			focus: { path: [1], offset: 12 }
+		});
 });

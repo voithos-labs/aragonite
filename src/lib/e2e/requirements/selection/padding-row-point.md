@@ -18,6 +18,9 @@ before it asks.
 
 ## Edge cases
 
+- Press in a code block's top padding above `const x|` and drag up onto the strip its host
+  keeps outside the grey box, above `con|st`: the range is `con|st x|`, the same as a click on
+  that strip would land.
 - A range that reaches a table from outside it names whole cells, so a drag or Shift+click
   into a cell's padding has no column to keep; only a plain click in a cell does.
 
@@ -35,3 +38,6 @@ before it asks.
 - The plain click still landed at the line's start on Mac and Linux after the lookups were
   fixed: the browser places a press inside an editable itself, and the click rows were
   parked until the editor took that press over, so nothing ran them on Linux.
+- A drag held over a host's strip outside its editable asked the exact lookup about a point
+  beside the element, and the browser answers such a point with an offset inside it (the
+  line's start on Mac and Linux). The lookup's unit test stubbed the browser to decline.
