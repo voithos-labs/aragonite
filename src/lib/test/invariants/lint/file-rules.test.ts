@@ -764,6 +764,21 @@ const RULES: FileRule[] = [
 			'navigateTo: (path) => rects?.navigateTo(path) ?? Promise.resolve(false),',
 			"if (mode === 'reading') return;"
 		]
+	},
+	{
+		id: 'G4.77 a registration owned by no plugin goes through one of two routes',
+		matches: /\bregisterAsCore\s*\(/,
+		allowed: {
+			'src/lib/schema/plugin-install.ts': 'the scope itself, which runs with no plugin installing',
+			'src/lib/schema/plugin-registry.ts':
+				'`registerCore`, the route for an editor built-in the test reset keeps',
+			'src/lib/core/directive/activate.ts':
+				'the directive grammar, which a consumer may turn on from a plugin’s setup and the reset drops'
+		},
+		reason:
+			'an editor built-in registers through the registry’s `registerCore`, which keeps it across the test reset, and a kind’s entries already answer to the kind’s declarer; a third caller of the scope is a second copy of that rule',
+		hits: ['registerAsCore(() => registerLanguage(name, grammar));'],
+		misses: ['grammars.registerCore(key, language);', 'registerAsCoreLater();']
 	}
 ];
 

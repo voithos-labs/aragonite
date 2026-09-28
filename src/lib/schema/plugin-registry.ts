@@ -2,10 +2,10 @@
  * The store every registration a plugin can reach is built on. A registry is register-once (a
  * dev server replaces), answers reads only through an editor's `PluginActivation`, and is cleared
  * by the test reset except for built-ins. An entry answers to the plugin whose setup registered
- * it, or in a kind registry to the plugin that declared the kind, whoever registered the entry.
+ * it; in a kind registry, to the plugin that declared the kind.
  */
 import type { AnyBlockKind, AnyInlineKind } from '../core/nodes';
-import { currentInstallingPlugin } from './plugin-install';
+import { currentInstallingPlugin, registerAsCore } from './plugin-install';
 import { resolvesIn, type PluginActivation } from './plugin-activation';
 import { registerOnce } from './register-once';
 import { enrollTestReset } from './registry-reset';
@@ -22,6 +22,9 @@ export interface RegistryRecord<K, V> {
 export interface PluginRegistry<K, V> {
 	/** Throws on a taken key, `conflict` being the message; a dev server replaces instead. */
 	register(key: K, value: V, conflict?: string): void;
+	/** `register` for an editor built-in: owned by no plugin even from inside a plugin's setup,
+	 *  and kept by the test reset. */
+	registerCore(key: K, value: V, conflict?: string): void;
 	/** Replace a registered key's value in place, keeping its owner and its position. */
 	update(key: K, value: V): void;
 	/** Registration-time question, blind to activation: is the key taken? */
@@ -39,8 +42,9 @@ export interface PluginRegistry<K, V> {
 	records(): RegistryRecord<K, V>[];
 }
 
-/** A registry keyed by a block or inline kind: every entry answers to the kind's declarer. */
-export type KindRegistry<K, V> = PluginRegistry<K, V>;
+/** A registry keyed by a block or inline kind: every entry answers to the kind's declarer, so
+ *  there is no `registerCore` to hand an entry to no plugin. */
+export type KindRegistry<K, V> = Omit<PluginRegistry<K, V>, 'registerCore'>;
 
 export interface PluginRegistryOptions<K> {
 	/** The registering function's name, which starts the default duplicate message. */
@@ -54,7 +58,7 @@ export interface PluginRegistryOptions<K> {
 // A kind-typed key leaves this property unsatisfiable, so a kind's entries cannot be built into a
 // registry that answers to the registering plugin instead of the kind's declarer.
 type RefuseKindKey<K> = [K] extends [AnyBlockKind | AnyInlineKind]
-	? { kindKeysGoInACreateKindRegistry: never }
+	? { kindKeyNeedsAKindRegistry: never }
 	: unknown;
 
 export function createPluginRegistry<K, V>(
@@ -82,6 +86,7 @@ type AnswersTo<K> = (key: K, registrant: string | null) => string | null;
 interface Entry<V> {
 	value: V;
 	registrant: string | null;
+	core: boolean;
 }
 
 // Creating a registry enrolls its reset, so no registry can be left out of the reset.
@@ -95,24 +100,31 @@ function buildRegistry<K, V>(
 
 	enrollTestReset(() => {
 		for (const [key, entry] of entries) {
-			if (owner(key, entry) !== null || !options.isBuiltin(key)) entries.delete(key);
+			// Who registered the entry decides, not whose activation it answers to: a plugin's entry
+			// for a built-in kind answers to no plugin, yet the reset must still drop it.
+			const builtin = entry.registrant === null && options.isBuiltin(key);
+			if (!entry.core && !builtin) entries.delete(key);
 		}
 		changed();
 	});
 
+	const store = (key: K, value: V, conflict: string | undefined, core: boolean) => {
+		const registrant = currentInstallingPlugin();
+		registerOnce(
+			entries.has(key),
+			() => {
+				entries.set(key, { value, registrant, core });
+				changed();
+			},
+			conflict ??
+				`${options.label}: "${String(key)}" is already registered. Registrations are register-once.`
+		);
+	};
+
 	return {
-		register(key, value, conflict) {
-			const registrant = currentInstallingPlugin();
-			registerOnce(
-				entries.has(key),
-				() => {
-					entries.set(key, { value, registrant });
-					changed();
-				},
-				conflict ??
-					`${options.label}: "${String(key)}" is already registered. Registrations are register-once.`
-			);
-		},
+		register: (key, value, conflict) => store(key, value, conflict, false),
+		// The directive grammar registers in the same no-plugin scope, so one function decides it.
+		registerCore: (key, value, conflict) => registerAsCore(() => store(key, value, conflict, true)),
 		update(key, value) {
 			const entry = entries.get(key);
 			if (!entry)
