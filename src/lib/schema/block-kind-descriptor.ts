@@ -4,8 +4,7 @@ import type { LineEnding } from '../core/lines';
 import type { ContainerBodyWrap } from '../core/parser';
 import { enqueueRegistrationCheck } from './registration-pending';
 import { currentInstallingPlugin } from './plugin-install';
-import { pluginKindOwner } from './plugin-kind';
-import { createPluginRegistry } from './plugin-registry';
+import { createBlockKindRegistry } from './plugin-registry';
 import type { ChildRawChange } from './child-spans';
 import type { ClosureBlock } from './closure';
 import { registeredChord, type KeyBinding } from './keybindings';
@@ -426,7 +425,7 @@ export type BlockKindAugmentation = Partial<RegistrationBase> & {
 // ── Registry ────────────────────────────────────────────────────────────────
 
 // Never filtered by activation: a kind an editor left out still needs its descriptor to degrade.
-const registry = createPluginRegistry<AnyBlockKind, BlockKindDescriptor>({
+const registry = createBlockKindRegistry<BlockKindDescriptor>({
 	label: 'registerBlockKind',
 	isBuiltin: isBuiltinBlockKind
 });
@@ -440,7 +439,7 @@ export function registerBlockKind(kind: AnyBlockKind, registration: BlockKindReg
 	const descriptor = normalizeRegistration(registration);
 	if (descriptor.keymap)
 		descriptor.keymap = registeredKeymap('registerBlockKind', kind, descriptor.keymap);
-	const owner = registry.has(kind) ? pluginKindOwner(kind) : null;
+	const owner = registry.ownerOf(kind);
 	registry.register(
 		kind,
 		descriptor,
@@ -552,7 +551,7 @@ function mergeBlockKindFields(
 
 /**
  * Merge fields into a plugin's own kind. Throws for a built-in or another plugin's kind, so an
- * overwrite is never silent; a kind declared outside any plugin install stays open.
+ * overwrite is never silent; a kind whose descriptor no plugin owns stays open.
  */
 export function augmentBlockKind(kind: AnyBlockKind, fields: BlockKindAugmentation): void {
 	if (isBuiltinBlockKind(kind)) {
@@ -561,7 +560,7 @@ export function augmentBlockKind(kind: AnyBlockKind, fields: BlockKindAugmentati
 				`plugin-declared kinds.`
 		);
 	}
-	const owner = pluginKindOwner(kind);
+	const owner = registry.ownerOf(kind);
 	const installer = currentInstallingPlugin();
 	if (owner !== null && owner !== installer) {
 		throw new Error(
@@ -600,7 +599,12 @@ export function tryGetBlockKindDescriptor(kind: AnyBlockKind): BlockKindDescript
 /** Whether a kind declares the grid contract: a table and its rows, or a plugin's equivalent. A
  *  cell is in a grid when its parent row is one. */
 export function isGridKind(kind: AnyBlockKind): boolean {
-	return tryGetBlockKindDescriptor(kind)?.containerContract === 'grid';
+	return isGridDescriptor(tryGetBlockKindDescriptor(kind));
+}
+
+/** {@link isGridKind} for a caller already holding the descriptor. */
+export function isGridDescriptor(descriptor: BlockKindDescriptor | undefined): boolean {
+	return descriptor?.containerContract === 'grid';
 }
 
 /** Whether an endpoint on this block's own path counts cells rather than characters. Tables only:

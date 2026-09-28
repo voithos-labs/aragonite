@@ -7,7 +7,6 @@ import { parse } from '$lib/core/parser';
 import { registerBuiltInBlocks } from '$lib/components/built-in-blocks';
 import { registerBlockComponent, defineBlockComponent } from '$lib/schema/block-component-registry';
 import { createRegistryView } from '$lib/schema/registry-view';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import RecordingBlock from './fixtures/RecordingBlock.svelte';
 import { mountBlockHost } from './mount-host';
 import type { MountedHost } from './mount-host';
@@ -27,7 +26,6 @@ let mounted: MountedHost | null = null;
 afterEach(async () => {
 	if (mounted) await mounted.dispose();
 	mounted = null;
-	__resetSchemaRegistriesForTests();
 });
 
 // One source per kind class the dispatcher distinguishes, with the selector its

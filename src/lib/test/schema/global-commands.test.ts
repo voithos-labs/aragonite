@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import { configureEditorEnv } from '$lib/env';
 import { allowDevWarns, takeDevWarns } from '../support/warn-gate';
 import { registerGlobalCommand } from '$lib/schema/global-commands';
@@ -14,13 +14,7 @@ import {
 } from '$lib/schema/commands';
 import { normalizeKeybindingOverrides } from '$lib/schema/keybinding-overrides';
 import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
-import {
-	definePlugin,
-	installPlugins,
-	__resetInstalledPluginsForTests,
-	type EditorContext
-} from '$lib/schema/plugin-install';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
+import { definePlugin, installPlugins, type EditorContext } from '$lib/schema/plugin-install';
 import { commandContext } from '../support/command-context';
 
 const editor = {
@@ -36,10 +30,6 @@ const ctx = (over?: Partial<GlobalCommandContext>): GlobalCommandContext => ({
 	getPresentationMode: () => 'source',
 	onCommandError: () => {},
 	...over
-});
-
-beforeEach(() => {
-	__resetSchemaRegistriesForTests();
 });
 
 describe('registerGlobalCommand', () => {
@@ -59,7 +49,6 @@ describe('registerGlobalCommand', () => {
 	// A plugin installed process-wide but absent from this editor's `plugins` prop resolves no
 	// context here. That is inactive by design, so it must not use up the key-does-nothing warning.
 	it('declines quietly when the dispatching editor did not list the owning plugin', () => {
-		__resetInstalledPluginsForTests();
 		let ran = false;
 		let id!: ReturnType<typeof registerGlobalCommand>;
 		installPlugins([
@@ -77,15 +66,26 @@ describe('registerGlobalCommand', () => {
 		expect(takeDevWarns()).toEqual([]);
 	});
 
-	it('contains a handler throw and reports it through the injected sink', () => {
+	// Miss-analysis: the throw test registered outside any plugin, so its expected plugin was
+	// always undefined.
+	it('contains a handler throw and reports it as the plugin that registered it', () => {
+		const boom = new Error('boom');
 		const reports: unknown[] = [];
-		const id = registerGlobalCommand('demo.boom', () => {
-			throw new Error('boom');
-		});
+		let id!: ReturnType<typeof registerGlobalCommand>;
+		installPlugins([
+			definePlugin({
+				name: 'reporter',
+				setup() {
+					id = registerGlobalCommand('reporter.boom', () => {
+						throw boom;
+					});
+				}
+			})
+		]);
 		expect(
 			getCommand(id, everyInstalledPlugin)!(ctx({ onCommandError: (r) => reports.push(r) }))
 		).toBe(true);
-		expect(reports).toHaveLength(1);
+		expect(reports).toEqual([{ command: id, plugin: 'reporter', error: boom }]);
 	});
 
 	it('chord registers into the plugin-global level; built-in chords are unstealable', () => {
@@ -214,10 +214,6 @@ describe('chorded global command survives dev re-eval', () => {
 // Recording the owner is what separates a plugin reusing its own name from a collision between
 // plugins, and the owner is what the collision message names.
 describe('registerGlobalCommand owner attribution', () => {
-	afterEach(() => {
-		__resetInstalledPluginsForTests();
-	});
-
 	it('names the owning plugin when a second plugin re-creates the same command', () => {
 		installPlugins([
 			definePlugin({

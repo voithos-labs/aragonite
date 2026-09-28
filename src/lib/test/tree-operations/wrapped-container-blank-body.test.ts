@@ -1,10 +1,9 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { updateNodeContent } from '$lib/tree-operations/content-write';
 import { firstLineEnding, trailingLineEnding } from '$lib/core/lines';
 import { rebuildAncestryRaw } from '$lib/schema/container-raw';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { activateDirectiveGrammar } from '$lib/core/directive/activate';
 import { makeNestedHarness } from '$lib/test/harness/editor-actions';
 import { registerCalloutKind } from '../../../routes/test/plugins/callout/callout-kind';
@@ -34,10 +33,8 @@ function emptyBodyChild(container: CstNode, at: number): void {
 
 describe('a blank run that is the whole wrapped body', () => {
 	beforeEach(() => {
-		__resetSchemaRegistriesForTests();
 		registerCalloutKind();
 	});
-	afterEach(__resetSchemaRegistriesForTests);
 
 	// Through the real write: emptying a paragraph is kind-stable, so both writes take the
 	// routine typing path and the container's raw is rebuilt from the emptied body.

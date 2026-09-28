@@ -17,6 +17,7 @@ import {
 	isCommandRegistered,
 	warnDeadKeyCommand,
 	isBuiltinCommandId,
+	runPluginCommand,
 	CROSS_BLOCK_RANGE_COMMAND_IDS,
 	RANGE_DECLINED_COMMAND_IDS,
 	type CommandDispatchPath,
@@ -24,7 +25,7 @@ import {
 	type GlobalCommandRun
 } from './commands';
 import type { KeybindingOverrideMap } from './keybinding-overrides';
-import type { EditorContext } from './plugin-install';
+import { pluginEditorFor, type EditorContext } from './plugin-install';
 import { isReadingMode, type PresentationMode } from '../presentation-mode';
 
 export interface BlockCommandContext {
@@ -37,12 +38,15 @@ export interface BlockCommandContext {
 	 * when no component is mounted, and a handler must then decline cleanly.
 	 */
 	hooks?: unknown;
-	/** The dispatching editor's per-plugin `EditorContext` (document, events, options).
-	 *  Undefined when the target block is not wired to an editor instance. */
+	/** The dispatching editor's `EditorContext` for the plugin that registered the command.
+	 *  Undefined when the dispatch is not wired to an editor instance. */
 	editor?: EditorContext;
 }
 
 export type BlockCommandHandler = (ctx: BlockCommandContext) => boolean;
+
+/** What the focused block supplies; the dispatch adds the argument and the editor context. */
+export type BlockTargetContext = Omit<BlockCommandContext, 'arg' | 'editor'>;
 
 const blockCommands = createPluginRegistry<string, BlockCommandHandler>({
 	label: 'registerBlockCommand',
@@ -133,7 +137,7 @@ export interface KindCommandTarget {
 	runCommand?(id: AnyCommandId, arg?: unknown): boolean;
 	// What a plugin block command runs against, supplied by the focused block; without it no
 	// plugin command resolves, and both dispatch and the "can this run" read fall to `runCommand`.
-	getCommandContext?(): Omit<BlockCommandContext, 'arg'>;
+	getCommandContext?(): BlockTargetContext;
 	/** Whether the id is toggled on at this block's caret or selection, which a toolbar shows as
 	 *  pressed. Absent means the block has no toggle state to report, which reads as inactive. */
 	isCommandActive?(id: AnyCommandId): boolean;
@@ -146,8 +150,8 @@ export interface KindCommandTarget {
 }
 
 /**
- * A caught plugin command failure. A block command reports its `kind`; a global command reports
- * its `plugin` and no kind. Dispatch hands it to the caller's callback, which routes it to the
+ * A caught plugin command failure, naming the plugin that registered the command; a block command
+ * also reports its `kind`. Dispatch hands it to the caller's callback, which routes it to the
  * editor's error event (`origin: 'command'`, `editor-events.ts`), injected so this schema module
  * imports nothing from the editor shell.
  */
@@ -166,7 +170,9 @@ type BlockLocalResolution =
 			tier: 'minted';
 			target: KindCommandTarget;
 			handler: BlockCommandHandler;
-			context: Omit<BlockCommandContext, 'arg'>;
+			context: BlockTargetContext;
+			/** The plugin whose setup registered the handler, whose editor context it runs with. */
+			owner: string | null;
 	  }
 	| { tier: 'builtin'; target: KindCommandTarget }
 	| { tier: 'move'; target: KindCommandTarget; path: () => number[]; dir: -1 | 1 }
@@ -191,7 +197,10 @@ function resolveBlockLocalCommand(
 	// A context is built only where a handler matched, so a built-in id costs nothing extra on the
 	// read a host may run per selection change.
 	const context = handler ? target.getCommandContext?.() : undefined;
-	if (handler && context) return { tier: 'minted', target, handler, context };
+	if (handler && context) {
+		const owner = blockCommands.ownerOf(compositeKey(target.kind, id));
+		return { tier: 'minted', target, handler, context, owner };
+	}
 	const dir = MOVE_STEP[id];
 	if (dir && target.getPath) return { tier: 'move', target, path: target.getPath, dir };
 	if (isBuiltinCommandId(id)) {
@@ -224,13 +233,13 @@ function runBlockLocalCommand(
 	ctx: CommandDispatchContext
 ): boolean {
 	switch (resolved.tier) {
-		case 'minted':
-			try {
-				return resolved.handler({ ...resolved.context, arg });
-			} catch (error) {
-				ctx.onCommandError({ kind: resolved.target.kind, command: id, error });
-				return true;
-			}
+		case 'minted': {
+			const { owner, handler, context, target } = resolved;
+			const editor = pluginEditorFor(ctx.pluginEditor, owner);
+			return runPluginCommand(owner, { kind: target.kind, command: id }, ctx.onCommandError, () =>
+				handler({ ...context, editor, arg })
+			);
+		}
 		case 'builtin':
 			return resolved.target.runCommand?.(id, arg) ?? false;
 		case 'move': {

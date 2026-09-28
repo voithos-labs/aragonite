@@ -61,8 +61,8 @@ function proseOf(commentLine: string): string {
 	return commentLine.replace(/`[^`]*`/g, ' ').replace(/\{@link[^}]*\}/g, ' ');
 }
 
-export function countHouseWords(text: string): number {
-	return findCommentBlocks(text)
+export function countHouseWords(text: string, relPath: string): number {
+	return findCommentBlocks(text, relPath)
 		.flatMap((b) => b.text)
 		.reduce((n, line) => n + (proseOf(line).match(HOUSE_WORD)?.length ?? 0), 0);
 }
@@ -80,7 +80,7 @@ describe('G4.26 no house word in a comment', () => {
 
 	it('no comment under src/lib or src/routes holds a house word', () => {
 		const offenders = sources
-			.map((f) => ({ file: f.relPath, hits: countHouseWords(f.text) }))
+			.map((f) => ({ file: f.relPath, hits: countHouseWords(f.text, f.relPath) }))
 			.filter((row) => row.hits > 0);
 		expect(offenders).toEqual([]);
 	});
@@ -88,16 +88,22 @@ describe('G4.26 no house word in a comment', () => {
 	// ── Matcher self-tests (non-vacuity) ─────────────────────────────────────
 
 	it('counts a house word in every comment syntax, inflected or capitalised', () => {
-		expect(countHouseWords('// the seam between two blocks')).toBe(1);
-		expect(countHouseWords('/** Seams are minted here. */')).toBe(2);
-		expect(countHouseWords('<!-- the caret seats past the island -->')).toBe(2);
-		expect(countHouseWords('// ── The splice settle funnel ──')).toBe(1);
+		expect(countHouseWords('// the seam between two blocks', 'x.ts')).toBe(1);
+		expect(countHouseWords('/** Seams are minted here. */', 'x.ts')).toBe(2);
+		expect(countHouseWords('<!-- the caret seats past the island -->', 'x.svelte')).toBe(2);
+		expect(countHouseWords('// ── The splice settle funnel ──', 'x.ts')).toBe(1);
+		expect(countHouseWords('const a = 1; // the seam', 'x.ts')).toBe(1);
 	});
 
 	it('spares English neighbours, code, and symbol references', () => {
-		expect(countHouseWords('// seamless, indoors, a mintage, roadmap, seatbelt')).toBe(0);
-		expect(countHouseWords('const seam = door(oracle);')).toBe(0);
-		expect(countHouseWords('// `PasteSeam` reads {@link heightOracle} at the seam')).toBe(1);
+		expect(countHouseWords('// seamless, indoors, a mintage, roadmap, seatbelt', 'x.ts')).toBe(0);
+		expect(countHouseWords('const seam = door(oracle);', 'x.ts')).toBe(0);
+		expect(countHouseWords('// `PasteSeam` reads {@link heightOracle} at the seam', 'x.ts')).toBe(
+			1
+		);
+		expect(countHouseWords("const s = '// the seam';", 'x.ts')).toBe(0);
+		expect(countHouseWords('<p>see https://x.dev/seam</p>', 'x.svelte')).toBe(0);
+		expect(countHouseWords('{#if a}x{/if}</p>\n<p>see https://x.dev/seam</p>', 'x.svelte')).toBe(0);
 	});
 });
 
@@ -158,7 +164,7 @@ describe('G4.26 requirement files keep house words out of their body text', () =
  *  Lower a number when a rewrite lands; never raise one. */
 const DOC_BASELINE: Record<string, number> = {
 	'docs/design/caret-placement.md': 1,
-	'docs/design/invariants.md': 128,
+	'docs/design/invariants.md': 123,
 	'docs/design/performance.md': 1,
 	'docs/design/plugin-contract.md': 77,
 	'docs/contributing/adding-a-block.md': 1,

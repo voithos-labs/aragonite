@@ -1,7 +1,6 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { updateNodeContent } from '../../tree-operations/content-write';
 import { splitNode } from '../../tree-operations/node-ops';
-import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
 import { writeTableRow } from '../../schema/container-rebuilders';
 import { parse } from '../../core/parser';
 import type { CstNode } from '../../core/nodes';
@@ -24,8 +23,6 @@ function registerChromeKind() {
 }
 
 describe('updateNodeContent: contextDependentKind stickiness', () => {
-	beforeEach(() => __resetSchemaRegistriesForTests());
-
 	it('keeps a context-dependent kind through a content edit (no downgrade)', () => {
 		const chrome = registerChromeKind();
 		const parent = { children: [{ kind: chrome, leadingTrivia: '', raw: 'Title\n' }] as CstNode[] };
@@ -49,8 +46,6 @@ describe('updateNodeContent: contextDependentKind stickiness', () => {
 // Every cell gesture's text reaches the row's bytes through this write, so the kind's `rawWrite`
 // runs here once rather than in each gesture.
 describe('updateNodeContent: the kind’s rawWrite runs at the write', () => {
-	beforeEach(() => __resetSchemaRegistriesForTests());
-
 	/** Read back the way the user gets it: the row's rebuilt bytes reparsed in their own table. */
 	function writeCellAndReparse(cellRaws: string[], at: number, text: string): string[] {
 		const row: CstNode = {
@@ -100,8 +95,6 @@ describe('updateNodeContent: the kind’s rawWrite runs at the write', () => {
 });
 
 describe('splitNode: contextDependentKind is unsplittable', () => {
-	beforeEach(() => __resetSchemaRegistriesForTests());
-
 	it('no-ops on a context-dependent kind without mutating children', () => {
 		const chrome = registerChromeKind();
 		const parent = { children: [{ kind: chrome, leadingTrivia: '', raw: 'Title\n' }] as CstNode[] };

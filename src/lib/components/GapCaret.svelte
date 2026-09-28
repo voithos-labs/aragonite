@@ -60,7 +60,7 @@
 		void focusActions?.moveFocus(index - 1, 'end', EXIT);
 	}
 
-	/** `insertParagraph`'s own `afterTick` focuses the new block, and that focus ends the gap. */
+	/** `insertParagraph`'s own landing focuses the new block, and that focus ends the gap. */
 	function mint(text: string): void {
 		void blockEdit?.insertParagraph(index, text);
 	}

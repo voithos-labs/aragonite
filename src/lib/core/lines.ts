@@ -112,6 +112,12 @@ export function terminateLine(text: string, ending: LineEnding): string {
 	return text.endsWith('\n') ? text : text + ending;
 }
 
+/** Whether the last line of `text` holds only spaces and tabs, its ending aside. */
+export function endsInBlankLine(text: string): boolean {
+	const body = trimTrailingLineEnding(text);
+	return isBlankLine(body.slice(body.lastIndexOf('\n') + 1));
+}
+
 // ── Scalars ──────────────────────────────────────────────────────────────────
 
 /** The first half of a UTF-16 surrogate pair, as a code unit (`charCodeAt`). */

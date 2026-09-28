@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse, serialize } from '$lib';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import { normalizeOwnRaw } from '$lib/tree-operations/node-primitives';
 import { documentLineEnding } from '$lib/plugin';
 import { rangeDelete } from '$lib/selection/range-delete';
@@ -19,7 +18,6 @@ function write(source: string, raw: string): string {
 }
 
 beforeEach(() => {
-	resetPluginPlatformForTests();
 	registerMermaidKind();
 });
 

@@ -3,7 +3,7 @@
 // Miss-analysis: no test mounted a second toc instance, so a process-wide depth went unseen.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import type { EditorPluginEntry } from '$lib/plugin';
-import { installEditorDomStubsForTests, resetPluginPlatformForTests } from '$lib/testing';
+import { installEditorDomStubsForTests } from '$lib/testing';
 import { tocPlugin } from '$lib/plugins/toc/toc-plugin';
 import { destroyMountedEditors, mountEditor } from '$lib/test/harness/mount-editor.svelte';
 
@@ -17,13 +17,11 @@ const entryLabels = (root: HTMLElement): string[] =>
 	[...root.querySelectorAll('.toc-block-item')].map((el) => el.textContent?.trim() ?? '');
 
 beforeEach(() => {
-	resetPluginPlatformForTests();
 	installEditorDomStubsForTests();
 });
 
 afterEach(async () => {
 	await destroyMountedEditors();
-	resetPluginPlatformForTests();
 });
 
 describe('tocPlugin depth through the per-instance options channel', () => {

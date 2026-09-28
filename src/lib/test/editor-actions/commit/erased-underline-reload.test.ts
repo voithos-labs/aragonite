@@ -4,7 +4,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { serialize } from '$lib/core/serializer';
 import { nodeAt } from '$lib/tree-operations/node-primitives';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { registerFootnoteDefinition } from '$lib/plugins/footnotes/footnote-definition';
 import { makeContainerHarness } from '$lib/test/harness/editor-actions';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
@@ -25,13 +24,11 @@ const CONTAINERS = [
 
 beforeEach(() => {
 	vi.useFakeTimers();
-	__resetSchemaRegistriesForTests();
 	registerFootnoteDefinition();
 });
 
 afterEach(() => {
 	vi.useRealTimers();
-	__resetSchemaRegistriesForTests();
 });
 
 describe('erasing a setext underline inside a container', () => {

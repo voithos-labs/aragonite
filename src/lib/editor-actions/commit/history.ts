@@ -25,7 +25,7 @@ export function createHistoryActions(
 		});
 		// Before the swap itself, so a caret placement waiting across it sees the new counter
 		// whichever side of the document write its scroll-into-view finishes on.
-		controller.noteHistorySwap();
+		deps.caretLanding.noteTreeSwap();
 		deps.sharing.markSnapshotTaken();
 		// The standing range addresses the outgoing tree; read during the render below, its path
 		// could name another block in the incoming one.

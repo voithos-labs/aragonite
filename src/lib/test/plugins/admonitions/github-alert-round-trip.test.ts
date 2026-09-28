@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { installPlugins, parse } from '$lib';
 import { admonitionsPlugin } from '$lib/plugins/admonitions';
 import { rebuildGithubAlertRaw } from '$lib/plugins/admonitions/github-alert-kind';
@@ -8,7 +8,7 @@ import { roundTripCases } from '$lib/test/support/round-trip';
 // (casing preserved from metadata) + `> `-prefixed body, CRLF threaded, and reparses
 // to the same kind: the strip-container contract with a first-line marker.
 
-beforeAll(() => {
+beforeEach(() => {
 	installPlugins([admonitionsPlugin()]);
 });
 

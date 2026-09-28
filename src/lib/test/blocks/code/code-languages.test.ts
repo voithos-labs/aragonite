@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import {
 	registerLanguage,
 	getLanguageGrammar,
@@ -6,16 +6,11 @@ import {
 	listLanguages
 } from '../../../components/blocks/code/code-languages';
 import type { LanguageFn } from 'highlight.js';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 
 const fakeGrammar = (() => ({ name: 'fake' })) as unknown as LanguageFn;
 
 describe('code-languages registry', () => {
-	beforeEach(() => {
-		__resetSchemaRegistriesForTests();
-	});
-
 	it('registers and resolves a language by name', () => {
 		registerLanguage('javascript', fakeGrammar);
 		const grammar = getLanguageGrammar('javascript', everyInstalledPlugin);

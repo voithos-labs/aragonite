@@ -66,3 +66,18 @@ describe('relocateRemainingChildren (via mergeListItemIntoPrevious)', () => {
 		expectParseConverged(doc);
 	});
 });
+
+// Miss-analysis (GH #555): every relocated leaf here was a paragraph, the one kind the old rule
+// gave a separator, so a block that needed its own blank line kept was never moved.
+describe('a relocated child keeps its own blank line', () => {
+	it.each([
+		['indented code after a blank line', '- a\n- b\n\n      code\n', '- ab\n\n      code\n'],
+		['a quote right under the text', '- a\n- b\n  > q\n', '- ab\n  > q\n'],
+		['a paragraph after a blank line', '- a\n- b\n\n  extra\n', '- ab\n\n  extra\n']
+	])('%s', (_name, src, expected) => {
+		const { doc, source } = mergeAndConverge(src, 1);
+
+		expect(source).toBe(expected);
+		expectParseConverged(doc);
+	});
+});

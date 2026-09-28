@@ -1,23 +1,13 @@
 import { test, expect } from '../fixtures';
 import type { Locator, Page } from '@playwright/test';
 import { EditorPage } from '../editor-page';
+import { gotoReady } from '../goto-ready';
 
 // Each editor adds its own keydown listener to the shared document, so these cases check that
 // a shortcut reaches only one editor, and that a single editor on a page still takes its own
 // shortcuts, which the check for that must not strand.
 
-async function gotoMulti(page: Page): Promise<{ left: Locator; right: Locator }> {
-	await page.goto('/test/multi-editor');
-	// Waits for hydration, so both editors' mount effects have run, keydown listeners
-	// included, and no shortcut races an editor that is not ready.
-	await page.waitForFunction(
-		() => (window as unknown as { __editorsReady?: boolean }).__editorsReady === true,
-		null,
-		{ timeout: 10_000 }
-	);
-	const editors = page.locator('.editor');
-	return { left: editors.nth(0), right: editors.nth(1) };
-}
+const editorAt = (page: Page, index: number) => page.locator('.editor').nth(index);
 
 const activeEditorIndex = (page: Page) =>
 	page.evaluate(() =>
@@ -35,8 +25,11 @@ async function editEditor(page: Page, editor: Locator, mark: string): Promise<vo
 }
 
 test.describe('multi-editor document-chord containment', () => {
+	test.beforeEach(async ({ page }) => {
+		await gotoReady(page, '/test/multi-editor');
+	});
+
 	test('Ctrl+F with focus outside every editor opens no search bar', async ({ page }) => {
-		await gotoMulti(page);
 		await page.locator('[data-testid="outside-input"]').focus();
 		await page.keyboard.press('ControlOrMeta+f');
 		await page.waitForTimeout(150); // checking nothing happens; there is nothing to wait on
@@ -44,7 +37,7 @@ test.describe('multi-editor document-chord containment', () => {
 	});
 
 	test("an in-focus Ctrl+F opens only the focused editor's search bar", async ({ page }) => {
-		const { left } = await gotoMulti(page);
+		const left = editorAt(page, 0);
 		await left.locator('[contenteditable]').first().click();
 		await expect.poll(() => activeEditorIndex(page)).toBe(0);
 		await page.keyboard.press('ControlOrMeta+f');
@@ -56,7 +49,7 @@ test.describe('multi-editor document-chord containment', () => {
 	});
 
 	test('a body-level Ctrl+Z reverts only the last-interacted editor', async ({ page }) => {
-		const { left, right } = await gotoMulti(page);
+		const [left, right] = [editorAt(page, 0), editorAt(page, 1)];
 		await editEditor(page, right, 'RIGHTMARK'); // right interacted first
 		await editEditor(page, left, 'LEFTMARK'); // left last, so it takes a key sent to <body>
 

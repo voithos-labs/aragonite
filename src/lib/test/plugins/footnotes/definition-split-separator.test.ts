@@ -3,7 +3,6 @@
 // reparse back into one paragraph.
 import { beforeEach, describe, expect, it } from 'vitest';
 import { installPlugins, parse, serialize } from '$lib';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import { footnotesPlugin } from '$lib/plugins/footnotes';
 import { rebuildFootnoteDefRaw } from '$lib/plugins/footnotes/footnote-definition';
 import { splitNode } from '$lib/tree-operations';
@@ -12,7 +11,6 @@ import { fixtureReading } from '../../harness/fixture-grammar';
 
 describe('footnote definition Enter at the end of the body', () => {
 	beforeEach(() => {
-		resetPluginPlatformForTests();
 		installPlugins([footnotesPlugin()]);
 	});
 

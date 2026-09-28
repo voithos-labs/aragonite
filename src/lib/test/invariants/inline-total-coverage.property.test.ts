@@ -1,11 +1,10 @@
 import { defaultGrammarView } from '$lib/schema/block-openers';
-import { afterEach, describe, it, expect } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import fc from 'fast-check';
 import type { InlineNode, InlineNodeKind } from '../../core/nodes';
 import { scanInline } from '../../core/inline/scan';
 import { isInlineKindDeclared } from '../../schema/plugin-kind';
 import { installPlugins } from '$lib';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import { footnotesPlugin, FOOTNOTE_REF_KIND } from '$lib/plugins/footnotes';
 import { emojiPlugin, EMOJI_KIND } from '$lib/plugins/emoji';
 import { latexPlugin, MATH_INLINE } from '$lib/plugins/latex';
@@ -66,10 +65,6 @@ function assertScanContract(raw: string, start: number, end: number): void {
 
 const PARAMS = { numRuns: 1000, seed: freshOrFixedSeed(424242) } as const;
 
-// The case with handlers installed registers into process-global registries, so the bare-grammar
-// cases in this worker need the reset to stay bare.
-afterEach(() => resetPluginPlatformForTests());
-
 describe('G2.11 scanner total coverage + construct tiling + kind vocabulary', () => {
 	it('holds over adversarial inline sources', () => {
 		fc.assert(
@@ -93,7 +88,6 @@ describe('G2.11 scanner total coverage + construct tiling + kind vocabulary', ()
 	it('holds with the bundled inline syntax handlers installed', () => {
 		// Registries register once, so the handlers install once for the whole property, and
 		// the scan reads no state the cases mutate.
-		resetPluginPlatformForTests();
 		installPlugins([footnotesPlugin(), emojiPlugin(), latexPlugin()]);
 		// Without this a failed setup leaves the bare grammar running and the case passes
 		// for the wrong reason.

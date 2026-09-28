@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
 import {
 	ensureEditableContainers,
@@ -6,7 +6,6 @@ import {
 	nodeAt
 } from '../../tree-operations/node-primitives';
 import { rebuildListItemRaw, rebuildBlockquoteRaw } from '../../schema/container-rebuilders';
-import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
 import { checkOpaqueStaleRaw } from '../../invariants/node-shape';
 import type { CstNode } from '../../core/nodes';
 import { testLeaf } from '$lib/test/harness/test-kinds';
@@ -106,8 +105,6 @@ describe('ensureEditableContainers', () => {
 // A whole-block-focus kind is childless by design, and a backfilled paragraph would fail
 // `checkOpaqueStaleRaw` for good, since the raw can't account for it.
 describe('ensureEditableContainers: whole-block-focus kinds stay childless', () => {
-	beforeEach(__resetSchemaRegistriesForTests);
-
 	function wholeBlockNode(): CstNode {
 		const kind = testLeaf('node-ops-whole-block', {
 			blockFocus: 'whole-block',

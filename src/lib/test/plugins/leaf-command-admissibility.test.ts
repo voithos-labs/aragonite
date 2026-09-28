@@ -9,20 +9,17 @@ import {
 	installLayoutStubs,
 	mountEditor
 } from '$lib/test/harness/mount-editor.svelte';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import { latexPlugin } from '$lib/plugins/latex';
 import type { MathRenderer } from '$lib/plugins/latex/math-renderer';
 
 const stubRenderer: MathRenderer = () => ({ dom: document.createElement('span') });
 
 beforeEach(() => {
-	resetPluginPlatformForTests();
 	installLayoutStubs();
 });
 
 afterEach(async () => {
 	await destroyMountedEditors();
-	resetPluginPlatformForTests();
 });
 
 describe('the admissibility read on a focused editable leaf', () => {

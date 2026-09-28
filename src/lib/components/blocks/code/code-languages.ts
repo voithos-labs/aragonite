@@ -7,7 +7,6 @@
 
 import type { LanguageFn } from 'highlight.js';
 import type { PluginActivation } from '../../../schema/plugin-activation';
-import { registerAsCore } from '../../../schema/plugin-install';
 import { createPluginRegistry } from '../../../schema/plugin-registry';
 import { fenceLanguage } from '../../../core/parsers/fence-syntax';
 
@@ -20,12 +19,9 @@ interface RegisteredLanguage extends LanguageGrammar {
 	readonly aliases: readonly string[];
 }
 
-// Filled by the code bootstrap, whose languages survive the test reset.
-const builtinNames = new Set<string>();
-
 const grammars = createPluginRegistry<string, RegisteredLanguage>({
 	label: 'registerLanguage',
-	isBuiltin: (name) => builtinNames.has(name)
+	isBuiltin: () => false
 });
 
 /** Register-once: a name already taken throws (a dev server replaces). */
@@ -34,16 +30,8 @@ export function registerLanguage(
 	definition: LanguageFn,
 	aliasList: readonly string[] = []
 ): void {
-	const key = name.toLowerCase();
-	grammars.register(
-		key,
-		{
-			name: key,
-			definition,
-			aliases: [...new Set(aliasList.map((alias) => alias.toLowerCase()))]
-		},
-		`registerLanguage: "${key}" is already registered. Languages are register-once.`
-	);
+	const { key, language, conflict } = languageEntry(name, definition, aliasList);
+	grammars.register(key, language, conflict);
 }
 
 /** The code bootstrap's entry: a language the test reset keeps, owned by no plugin. */
@@ -52,8 +40,22 @@ export function registerBuiltinLanguage(
 	definition: LanguageFn,
 	aliasList: readonly string[] = []
 ): void {
-	builtinNames.add(name.toLowerCase());
-	registerAsCore(() => registerLanguage(name, definition, aliasList));
+	const { key, language, conflict } = languageEntry(name, definition, aliasList);
+	grammars.registerCore(key, language, conflict);
+}
+
+function languageEntry(
+	name: string,
+	definition: LanguageFn,
+	aliasList: readonly string[]
+): { key: string; language: RegisteredLanguage; conflict: string } {
+	const key = name.toLowerCase();
+	const aliases = [...new Set(aliasList.map((alias) => alias.toLowerCase()))];
+	return {
+		key,
+		language: { name: key, definition, aliases },
+		conflict: `registerLanguage: "${key}" is already registered. Languages are register-once.`
+	};
 }
 
 /** Whether the name is taken, whatever the activation: the check before a guarded register. */

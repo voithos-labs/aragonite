@@ -1,12 +1,11 @@
 // @vitest-environment jsdom
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { pasteDispatch } from '../../../tree-operations/paste/dispatch';
 import { registerPasteTransform } from '../../../tree-operations/paste/paste-transforms';
 import { parse } from '../../../core/parser';
 import { makeStubBlockEdit, makeStubController, pasteContext } from '../../harness/editor-actions';
 import type { BlockKind, CstNode, Document } from '../../../core/nodes';
 import { takeDevWarns } from '../../support/warn-gate';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
 // ── Dev-mode opaque-fallback warning ─────────────────────────────────────
 
@@ -26,10 +25,6 @@ function makeDocWithOneBlock(kind: BlockKind, raw: string): Document {
 }
 
 describe('paste-dispatch opaque-fallback warning', () => {
-	beforeEach(() => {
-		__resetSchemaRegistriesForTests();
-	});
-
 	it('warns in dev mode when target kind has no registered surface', async () => {
 		const doc = makeDocWithOneBlock('indentedCode', 'plain\n');
 		await pasteDispatch(
@@ -58,10 +53,6 @@ describe('paste-dispatch opaque-fallback warning', () => {
 // ── Paste transforms rewrite the clipboard text before strategy selection ────
 
 describe('pasteDispatch: paste transforms', () => {
-	beforeEach(() => {
-		__resetSchemaRegistriesForTests();
-	});
-
 	it('a transform that rewrites prose into a heading flips the paste inline → structural', async () => {
 		registerPasteTransform({ name: 'headingize', transform: () => '# heading\n' });
 

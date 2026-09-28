@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { installPlugins, parse } from '$lib';
 import { collectCrossBlockText } from '$lib/selection/clipboard-text';
 import { admonitionsPlugin } from '$lib/plugins/admonitions';
@@ -8,7 +8,7 @@ import { footnotesPlugin } from '$lib/plugins/footnotes';
 // the container's marker prefix, or it reparses as bare text. Eligibility is the descriptor's
 // `strip` contract, not a hard-coded kind list.
 
-beforeAll(() => {
+beforeEach(() => {
 	installPlugins([admonitionsPlugin(), footnotesPlugin()]);
 });
 

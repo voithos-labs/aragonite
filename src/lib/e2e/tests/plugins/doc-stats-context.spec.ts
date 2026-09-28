@@ -1,6 +1,7 @@
 import { test, expect } from '../../fixtures';
 import type { Page } from '@playwright/test';
 import { PluginsPage } from './helpers';
+import { gotoReady } from '../../goto-ready';
 
 // The doc-stats plugin writes one record per live editor to `window.__docStats`, which every test
 // here reads (requirements/plugins/doc-stats-context.md). Single-editor cases run on
@@ -122,7 +123,7 @@ test.describe('doc-stats context chain: attach survives a structural edit', () =
 
 test.describe('doc-stats context chain: two editors', () => {
 	test.beforeEach(async ({ page }) => {
-		await page.goto('/test/plugins/multi');
+		await gotoReady(page, '/test/plugins/multi');
 		await waitForStats(page, (s) => Object.keys(s).length === 2);
 	});
 

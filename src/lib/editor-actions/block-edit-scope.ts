@@ -7,6 +7,7 @@
 import type { OpDescriptor } from '../schema/operations';
 import type {
 	CommitAfterTick,
+	CommitLanding,
 	ContainerEditActions,
 	InPlaceResult,
 	MultiScopeTarget
@@ -25,7 +26,7 @@ import { ensureUnsharedPath, ensureUnsharedChild } from '../tree-operations';
 import { containerScopeState } from '../tree-operations/paste/parent-scope';
 import { asDocPath, type DocPath } from '../selection/path-math';
 import type { CaretPosition } from '../selection/primitives';
-import { caretTargetFor, type CaretTarget } from '../selection/caret-target';
+import type { LandingOutcome } from '../selection/caret-landing';
 import { docPathFrom, extendDocPath } from '../cursor/coordinate-spaces';
 import { getStateForNode } from '../reactivity/state-registry';
 import type { EditorActionsDeps, EditorRoot, UndoController } from './deps';
@@ -53,13 +54,15 @@ export interface ScopeCommitArgs {
 	op: OpDescriptor;
 	mutate: (view: MutationView) => StructuralChange;
 	afterTick?: CommitAfterTick;
+	/** Where the caret goes, read after the commit; built with the scope's `at`. */
+	landing?: CommitLanding;
 	/** Filled by `mutate` for the dev-mode stale-raw check when it returns `noop`; only the root
 	 *  reads them, since a container's commit checks its whole copied container. */
 	touchedNodes?: CstNode[];
 	/** A structural edit that can change nothing, so the commit discards its snapshot. Never on
 	 *  content or metadata commits, whose `noop` still carries a byte change (`DiscardIfNoop`). */
 	discardIfNoop?: boolean;
-	/** A local position the list's fix-up updates in place, read back in `afterTick`. */
+	/** A local position the list's fix-up updates in place, read back by the landing. */
 	trackCaret?: TrackedPosition;
 }
 
@@ -78,9 +81,6 @@ export interface CommitScope {
 	/** The id the typing batch keys on for child `i`. */
 	idAt(i: number): string;
 	refAt(i: number): BlockComponent | undefined;
-	/** Mount the block at `path` below child `index`, scrolling it into the render window and
-	 *  waiting at each level; null when it cannot be mounted. */
-	reveal(index: number, path: readonly number[]): Promise<BlockComponent | null>;
 	/** An empty replaceBlock emits `delete` (container) or `replaceBlock{count:0}` (top-level). */
 	collapseEmptyReplaceToDelete: boolean;
 	/** Resolves to whether bytes landed. */
@@ -92,37 +92,18 @@ export interface CommitScope {
 	writeInPlace(i: number, write: LegalWrite, caret: number): InPlaceResult;
 	/** A position below child `i`. */
 	at(i: number, subPath: readonly number[], offset: number): CaretPosition;
-	/** Put the caret at `pos`, a block of this list or a leaf anywhere: resolve it to a leaf,
-	 *  mount it, focus it. */
-	land(pos: CaretPosition): Promise<void>;
-}
-
-/**
- * Put the caret at `path` below child `index`, mounting that block first: a write can move the
- * caret into a block the render window has not drawn yet.
- */
-export async function landCaretInScope(
-	scope: CommitScope,
-	index: number,
-	path: readonly number[],
-	offset: number
-): Promise<void> {
-	await scope.reveal(index, path);
-	const ref = scope.refAt(index);
-	if (path.length === 0) ref?.focus(offset);
-	else ref?.focusByPath?.([...path], offset);
+	/** Put the caret at `pos` through the editor's caret landing, for an edit with no commit. */
+	land(pos: CaretPosition): Promise<LandingOutcome>;
 }
 
 // ── Top-level adapter ────────────────────────────────────────────────────────
 
-/** `land`, when given, is how the scope puts the caret instead of its own descent. */
 export function createTopLevelScope(
 	deps: EditorActionsDeps,
-	controller: UndoController,
-	land?: CommitScope['land']
+	controller: UndoController
 ): CommitScope {
 	const typing = createLeafTyping(deps, controller);
-	const scope: CommitScope = {
+	return {
 		path: asDocPath([]),
 		get reading() {
 			return deps.reading;
@@ -132,7 +113,6 @@ export function createTopLevelScope(
 		target: () => deps.doc,
 		idAt: (i) => deps.blockIds[i],
 		refAt: (i) => deps.blockRefs[i],
-		reveal: (index, path) => deps.revealPath([index, ...path]),
 		collapseEmptyReplaceToDelete: false,
 		commit({
 			snapshot,
@@ -140,6 +120,7 @@ export function createTopLevelScope(
 			op,
 			mutate,
 			afterTick,
+			landing,
 			touchedNodes,
 			discardIfNoop,
 			trackCaret
@@ -155,6 +136,7 @@ export function createTopLevelScope(
 					}),
 				op: { ...op, eventPath: asDocPath([eventTarget]) },
 				afterTick,
+				landing,
 				touchedNodes,
 				discardIfNoop,
 				trackCaret
@@ -164,14 +146,8 @@ export function createTopLevelScope(
 			typing.typeInLeaf(docPathFrom([i]), preEditOffset, deps.blockIds[i], work),
 		writeInPlace: (i, write, caret) => typing.writeLeafInPlace(docPathFrom([i]), write, caret),
 		at: (i, subPath, offset) => ({ path: docPathFrom([i, ...subPath]), offset }),
-		land:
-			land ??
-			(async (pos) => {
-				const leaf = caretTargetFor(deps.doc, pos) ?? asTarget(pos);
-				await landCaretInScope(scope, leaf.leafPath[0], leaf.leafPath.slice(1), leaf.offset);
-			})
+		land: (pos) => deps.caretLanding.land(pos)
 	};
-	return scope;
 }
 
 // ── Container adapter ────────────────────────────────────────────────────────
@@ -185,10 +161,6 @@ interface ContainerParts {
 	reading(): Reading;
 	caretMemory: Pick<CaretMemory, 'forget'>;
 	containerEdit: ContainerEditActions;
-	/** The editor's own descent to a block by its document path. */
-	revealPath(path: number[]): Promise<BlockComponent | null>;
-	/** How the scope puts the caret, when the caller has a landing of its own. */
-	land?: CommitScope['land'];
 }
 
 export function createContainerScope(state: BlockListState, deps: NestedActionsDeps): CommitScope {
@@ -198,20 +170,15 @@ export function createContainerScope(state: BlockListState, deps: NestedActionsD
 		state,
 		reading: () => deps.reading,
 		caretMemory: deps.caretMemory,
-		containerEdit: deps.parent.containerEdit,
-		revealPath: (path) => deps.parent.focus.revealPath(path)
+		containerEdit: deps.parent.containerEdit
 	});
 }
 
 /** The list at `parentPath` (the root's at `[]`), null where no container stands; build it after a
- *  gesture's earlier commit. `land` replaces its landing; a container's goes by path, not refs. */
-export function createPathScope(
-	root: EditorRoot,
-	parentPath: DocPath,
-	land?: CommitScope['land']
-): CommitScope | null {
+ *  gesture's earlier commit. */
+export function createPathScope(root: EditorRoot, parentPath: DocPath): CommitScope | null {
 	const { deps, controller } = root;
-	if (parentPath.length === 0) return createTopLevelScope(deps, controller, land);
+	if (parentPath.length === 0) return createTopLevelScope(deps, controller);
 	const node = blockNodeAt(deps.doc, parentPath);
 	if (!node?.children) return null;
 	return containerScope({
@@ -220,14 +187,12 @@ export function createPathScope(
 		state: containerScopeState({ resolveState: getStateForNode }, node),
 		reading: () => deps.reading,
 		caretMemory: deps.caretMemory,
-		containerEdit: createContainerEditActions(deps, controller),
-		revealPath: deps.revealPath,
-		land
+		containerEdit: createContainerEditActions(deps, controller)
 	});
 }
 
 function containerScope(parts: ContainerParts): CommitScope {
-	const scope: CommitScope = {
+	return {
 		get path() {
 			return docPathFrom(parts.path());
 		},
@@ -245,7 +210,6 @@ function containerScope(parts: ContainerParts): CommitScope {
 		}),
 		idAt: (i) => parts.state.innerBlockIds[i],
 		refAt: (i) => parts.state.innerBlockRefs[i],
-		reveal: (index, path) => parts.revealPath([...parts.path(), index, ...path]),
 		collapseEmptyReplaceToDelete: true,
 		commit({
 			snapshot,
@@ -253,6 +217,7 @@ function containerScope(parts: ContainerParts): CommitScope {
 			op,
 			mutate,
 			afterTick,
+			landing,
 			discardIfNoop,
 			trackCaret
 		}): Promise<boolean> {
@@ -270,6 +235,7 @@ function containerScope(parts: ContainerParts): CommitScope {
 					}),
 				op: { ...op, eventPath: extendDocPath(parts.path(), eventTarget) },
 				afterTick,
+				landing,
 				discardIfNoop,
 				trackCaret
 			});
@@ -284,31 +250,8 @@ function containerScope(parts: ContainerParts): CommitScope {
 		writeInPlace: (i, write, caret) =>
 			parts.containerEdit.writeLeafInPlace(extendDocPath(parts.path(), i), write, caret),
 		at: (i, subPath, offset) => ({ path: docPathFrom([...parts.path(), i, ...subPath]), offset }),
-		land:
-			parts.land ??
-			(async (pos) => {
-				const leaf = leafBelow(parts, pos) ?? asTarget(pos);
-				// Through the editor's own descent rather than this list's refs: a write that changed
-				// this container's kind replaced its component, and its refs with it.
-				(await parts.revealPath([...leaf.leafPath]))?.focus(leaf.offset);
-			})
+		// Through the editor root rather than this list's refs: a write that changed this
+		// container's kind replaced its component, and its refs with it.
+		land: (pos) => parts.containerEdit.land(pos)
 	};
-	return scope;
 }
-
-/** `pos` resolved over this container's children when it names one of them; null otherwise, and
- *  a position outside this list then already names a leaf the root resolved. */
-function leafBelow(parts: ContainerParts, pos: CaretPosition): CaretTarget | null {
-	const base = parts.path();
-	if (pos.path.length <= base.length || base.some((index, k) => pos.path[k] !== index)) return null;
-	const children = parts.node()?.children;
-	if (!children) return null;
-	const list = { kind: 'document' as const, prefix: '', children, suffix: '' };
-	const local = caretTargetFor(list, {
-		path: docPathFrom(pos.path.slice(base.length)),
-		offset: pos.offset
-	});
-	return local && { leafPath: docPathFrom([...base, ...local.leafPath]), offset: local.offset };
-}
-
-const asTarget = (pos: CaretPosition): CaretTarget => ({ leafPath: pos.path, offset: pos.offset });

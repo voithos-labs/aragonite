@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { beforeEach, describe, it, expect, vi } from 'vitest';
 import { planEnterCompletion, withEnterCompletion } from '$lib/editor-actions/enter-completion';
 import { createBlockEditCore } from '$lib/editor-actions/block-edit-core';
 import type { CommitScope } from '$lib/editor-actions/block-edit-scope';
@@ -21,15 +21,6 @@ import { defaultGrammarView } from '$lib/schema/block-openers';
 // commit it routes to writes. The registry's own semantics live in test/schema, the table
 // completer's line predicate in test/blocks/table.
 
-function pathFocusSpy() {
-	const calls: { path: number[]; offset: number }[] = [];
-	const ref = {
-		focus: (offset: number) => calls.push({ path: [], offset }),
-		focusByPath: (path: number[], offset: number) => calls.push({ path, offset })
-	} as unknown as BlockComponent;
-	return { calls, ref };
-}
-
 const stubScope = (children: CstNode[], refs: (BlockComponent | undefined)[] = []) =>
 	makeCommitScopeStub(children, { refs, collapse: false });
 
@@ -50,33 +41,36 @@ function seamOver(scope: CommitScope): BlockEditActions {
 	);
 }
 
-// A completer whose caret lands on a line the completion creates, which a table cell cannot
-// test; it runs before `table` by kind name, so its trigger is prose no other case types.
-registerBlockCompleter(declarePluginKind('spec-fence'), {
-	tryComplete: (line) =>
-		line === 'fence me'
-			? { lines: ['```', '', '```'], caret: { path: [], line: 1, column: 0 } }
-			: null
-});
-
-// A completer whose every answer produces bytes the user would see nothing of: no lines at
-// all, and blank lines, which are bytes and parse back as empty paragraphs.
 const PAINTS_NOTHING: Record<string, string[]> = {
 	'empty me': [],
 	'blank me': [''],
 	'blank me twice': ['', '']
 };
-registerBlockCompleter(declarePluginKind('spec-empty'), {
-	tryComplete: (line) =>
-		line in PAINTS_NOTHING
-			? { lines: PAINTS_NOTHING[line], caret: { path: [], line: 0, column: 0 } }
-			: null
-});
 
-// A non-breaking space draws a character, so its completion is kept.
-registerBlockCompleter(declarePluginKind('spec-nbsp'), {
-	tryComplete: (line) =>
-		line === 'nbsp me' ? { lines: ['\u00a0'], caret: { path: [], line: 0, column: 0 } } : null
+beforeEach(() => {
+	// A completer whose caret lands on a line the completion creates, which a table cell cannot
+	// test; it runs before `table` by kind name, so its trigger is prose no other case types.
+	registerBlockCompleter(declarePluginKind('spec-fence'), {
+		tryComplete: (line) =>
+			line === 'fence me'
+				? { lines: ['```', '', '```'], caret: { path: [], line: 1, column: 0 } }
+				: null
+	});
+
+	// A completer whose every answer produces bytes the user would see nothing of: no lines at
+	// all, and blank lines, which are bytes and parse back as empty paragraphs.
+	registerBlockCompleter(declarePluginKind('spec-empty'), {
+		tryComplete: (line) =>
+			line in PAINTS_NOTHING
+				? { lines: PAINTS_NOTHING[line], caret: { path: [], line: 0, column: 0 } }
+				: null
+	});
+
+	// A non-breaking space draws a character, so its completion is kept.
+	registerBlockCompleter(declarePluginKind('spec-nbsp'), {
+		tryComplete: (line) =>
+			line === 'nbsp me' ? { lines: ['\u00a0'], caret: { path: [], line: 0, column: 0 } } : null
+	});
 });
 
 describe('Enter completion: which presses reach a completer', () => {
@@ -154,8 +148,8 @@ describe('Enter completion: the caret the join resolves', () => {
 
 describe('Enter completion: what the composed split commits', () => {
 	it('replaces the paragraph with one table and puts the caret in the first body cell', async () => {
-		const cell = pathFocusSpy();
-		const { scope, commits, children } = stubScope([leaf('| a | b |\n')], [cell.ref]);
+		const { scope, commits, children } = stubScope([leaf('| a | b |\n')]);
+		const land = vi.spyOn(scope, 'land');
 		await seamOver(scope).splitBlock(0, 9);
 
 		expect(children).toHaveLength(1);
@@ -163,7 +157,7 @@ describe('Enter completion: what the composed split commits', () => {
 		expect(children[0].raw).toBe('| a | b |\n| --- | --- |\n|  |  |\n');
 		expect(commits).toHaveLength(1);
 		expect(commits[0].op.kind).toBe('replaceBlock');
-		expect(cell.calls).toEqual([{ path: [1, 0], offset: 0 }]);
+		expect(land).toHaveBeenCalledWith({ path: [0, 1, 0], offset: 0 });
 	});
 
 	// The undo snapshot records where the caret was, not where the completion sends it: restoring

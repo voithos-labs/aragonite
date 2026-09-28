@@ -14,8 +14,9 @@ import type { BlockComponent, FocusPosition } from './block-component';
 import type { OperationDetailMap, ScopedOpDescriptor } from './schema/operations';
 import type { WriteMode } from './schema/block-kind-descriptor';
 import type { DocPath } from './selection/path-math';
-import type { CaretPosition } from './selection/primitives';
+import type { CaretPosition, Landing } from './selection/primitives';
 import type { LegalWrite } from './tree-operations/content-write';
+import type { LandingOutcome } from './selection/caret-landing';
 
 /**
  * Where the caret goes back to on undo when nothing is focused: `path` is a document-absolute
@@ -27,21 +28,28 @@ export type CommitSnapshotArg = { path: DocPath; offset: number };
 /**
  * Opt-in for structural commits that may legitimately do nothing. The commit then throws
  * away the snapshot it took first: no undo entry, no edit event, nothing written to state
- * (`afterTick` still runs, since placing the caret is a view concern). Not for content or
- * metadata commits, whose `noop` `StructuralChange` means "structure held, bytes changed".
+ * (its landing still runs, since a refused merge still crosses the boundary the key pressed at).
+ * Not for content or metadata commits, whose `noop` `StructuralChange` means "structure held,
+ * bytes changed".
  */
 export type DiscardIfNoop = boolean;
 
 /**
- * The callback that runs after the tick, where a commit puts its caret. Awaited, so a caret
- * that must first scroll an unmounted target into view (VR-12) can be written here; that
- * scroll is bounded (VR-5), so awaiting cannot hang. Returning nothing opts out of the wait.
+ * Where the caret goes after a commit, read after the tick so it sees the tree the commit left.
+ * It returns a value and places nothing; the commit puts the caret there through the editor's
+ * caret landing (`selection/caret-landing.ts`), and null leaves the caret where it is.
+ */
+export type CommitLanding = () => Landing | null;
+
+/**
+ * A callback that places the caret itself after the tick, for the commits not yet on
+ * {@link CommitLanding}. Awaited, and it runs before the landing.
  */
 export type CommitAfterTick = () => void | Promise<void>;
 
 /**
  * What a screen reader hears about a commit (a move, a table edit) in the editor's edit live
- * region, read after `afterTick` and only when bytes landed. That region hears nothing else, so a
+ * region, read after the caret lands and only when bytes landed. That region hears nothing else, so a
  * refused, failed or discarded commit says nothing there.
  */
 export type CommitAnnouncement = () => string;
@@ -125,9 +133,6 @@ export interface FocusActions {
 		position: FocusPosition,
 		options?: MoveFocusOptions
 	): void | Promise<void>;
-	/** Mount a top-level block that is not rendered yet before placing a caret in it; see
-	 *  `EditorActionsDeps.revealPath`. */
-	revealPath(path: number[]): Promise<BlockComponent | null>;
 	/** @internal Put the caret at a between-blocks boundary that allows one. Required: a container
 	 *  that fails to forward it makes every such caret below it vanish. */
 	tryGapStop(parentPath: number[], boundaryIndex: number): boolean;
@@ -183,10 +188,12 @@ export interface CommitMultiScopeArgs<
 	};
 	op?: ScopedOpDescriptor;
 	afterTick?: CommitAfterTick;
+	/** Overridden when an ancestor collapsed: the collapse recreated the blocks it names. */
+	landing?: CommitLanding;
 	announce?: CommitAnnouncement;
 	discardIfNoop?: DiscardIfNoop;
 	/** Caret positions each list's fix-up updates in place, parallel to `scopes`, since a collapsing
-	 *  container moves the bytes under them; `afterTick` reads them back off the same objects. */
+	 *  container moves the bytes under them; the landing reads them back off the same objects. */
 	trackCaret?: readonly (TrackedPosition | undefined)[];
 }
 
@@ -195,11 +202,12 @@ export interface CommitStructuralArgs {
 	mutate: (children: CstNode[]) => StructuralChange;
 	op?: ScopedOpDescriptor;
 	afterTick?: CommitAfterTick;
+	landing?: CommitLanding;
 	announce?: CommitAnnouncement;
 	/** Leaves for the dev invariant check when `mutate` returns `noop` (an in-place kind change). */
 	touchedNodes?: CstNode[];
 	discardIfNoop?: DiscardIfNoop;
-	/** A caret position the document's fix-up updates in place; `afterTick` reads it back. */
+	/** A caret position the document's fix-up updates in place; the landing reads it back. */
 	trackCaret?: TrackedPosition;
 }
 
@@ -218,9 +226,10 @@ export interface CommitContainerStructuralArgs {
 	mutate: (scope: ContainerScope) => StructuralChange;
 	op?: ScopedOpDescriptor;
 	afterTick?: CommitAfterTick;
+	landing?: CommitLanding;
 	announce?: CommitAnnouncement;
 	discardIfNoop?: DiscardIfNoop;
-	/** A caret position the container's fix-up updates in place; `afterTick` reads it back. */
+	/** A caret position the container's fix-up updates in place; the landing reads it back. */
 	trackCaret?: TrackedPosition;
 }
 
@@ -279,6 +288,9 @@ export interface ContainerEditActions {
 	): Promise<T>;
 	/** The keystroke's write outside a commit, for a write that keeps the leaf's kind. */
 	writeLeafInPlace(leafPath: DocPath, write: LegalWrite, caret: number): InPlaceResult;
+	/** Put the caret at a document position through the editor's caret landing, for an edit that
+	 *  moves the caret without a commit. */
+	land(pos: CaretPosition): Promise<LandingOutcome>;
 }
 
 export type InPlaceResult =

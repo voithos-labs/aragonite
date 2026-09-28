@@ -1,14 +1,13 @@
 // @vitest-environment jsdom
 // A cross-block endpoint inside a kind with no character positions must carry 0 or
 // displayLength(raw): anything between makes every byte consumer slice a whole block in half.
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import { collectCrossBlockText } from '$lib/selection/clipboard-text';
 import { rangeDelete } from '$lib/selection/range-delete';
 import { createSharingState } from '$lib/tree-operations/sharing';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import { registerMermaidKind } from '$lib/plugins/mermaid/mermaid-kind';
 import type { Document } from '$lib/core/nodes';
 import { fixtureReading } from '../harness/fixture-grammar';
@@ -36,8 +35,6 @@ function deleteSelected(doc: Document, s: ReturnType<typeof stateOver>): string 
 		rangeDelete(doc, s.start!, s.end!, createSharingState(), fixtureReading()).newDoc
 	);
 }
-
-afterEach(() => resetPluginPlatformForTests());
 
 describe('cross-block endpoints inside a whole-block kind', () => {
 	it('snaps a range end to the unit end, so the copy carries the diagram whole', () => {

@@ -1,14 +1,22 @@
 /**
  * A write to a leaf's raw outside the content write names the kind's rule (G4.28). The content
- * write applies the rule itself (`legalizeWrite`); a route that writes `<node>.raw` around it
- * goes through `writeOwnRaw` or `normalizeOwnRaw`, or is counted below with the reason it cannot
- * reach a kind that declares a rule. The fence rule keeps one implementation.
+ * write applies the rule itself (`legalizeWrite`); a route that writes `<node>.raw`, or hands
+ * `installOwnRaw` its bytes, goes through `writeOwnRaw` or `normalizeOwnRaw`, or is counted below
+ * with the reason it cannot reach a kind that declares a rule. The fence rule keeps one implementation.
  */
 
 import { describe, it, expect } from 'vitest';
-import { collectEditorSources, rawAssignments, stripComments } from './scan-source';
+import {
+	callSites,
+	collectEditorSources,
+	rawAssignments,
+	sourceFile,
+	stripComments,
+	type SourceFile
+} from './scan-source';
 
 const READERS_HOME = 'src/lib/tree-operations/node-primitives.ts';
+const CONTENT_WRITE = 'src/lib/tree-operations/content-write.ts';
 
 /** The fence rule has one implementation, which only the kinds' write rules reach. */
 const FENCE_HOME = 'src/lib/schema/fenced-code-raw.ts';
@@ -35,11 +43,23 @@ function namesInCode(sources: { relPath: string; code: string }[], re: RegExp): 
 
 // ── The bare write: a byte write that names neither function ─────────────────
 
+/** `installOwnRaw` takes bytes it trusts to be legal already, so a call outside the writers'
+ *  module and the content write counts as a bare write too. */
+function installCalls(sources: SourceFile[]): Array<{ relPath: string }> {
+	return sources
+		.filter((f) => f.relPath !== READERS_HOME && f.relPath !== CONTENT_WRITE)
+		.flatMap((f) => callSites(f.code, 'installOwnRaw').map(() => ({ relPath: f.relPath })));
+}
+
+function bareWrites(sources: SourceFile[]): Array<{ relPath: string }> {
+	return [...rawAssignments(sources), ...installCalls(sources)];
+}
+
 /** Files holding a `<node>.raw =` write that consults no kind rule, counted so a new write fails.
  *  Each is a kind re-emitting its own bytes, or a write that cannot reach a kind with a rule. */
 const BARE_RAW_WRITE_ALLOWLIST: Record<string, { count: number; why: string }> = {
 	[READERS_HOME]: { count: 1, why: 'the one allowed writer itself' },
-	'src/lib/tree-operations/content-write.ts': {
+	[CONTENT_WRITE]: {
 		count: 5,
 		why: 'the reparse path every write takes: each one is re-read from a parse, restores bytes the slot already held, or re-attaches the blank line that parse stripped (GH #97)'
 	},
@@ -84,6 +104,10 @@ const BARE_RAW_WRITE_ALLOWLIST: Record<string, { count: number; why: string }> =
 		count: 1,
 		why: "the reference plugin's own rebuildRaw"
 	},
+	'src/lib/editor-actions/search-replace.ts': {
+		count: 1,
+		why: 'find and replace installs the bytes `legalizeWrite` returned into a private copy, which it then reparses whole'
+	},
 	'src/lib/editor-actions/commit/undo-controller.ts': {
 		count: 1,
 		why: 'the rollback restores raws the tree already held; nothing new is created'
@@ -100,7 +124,7 @@ const BARE_RAW_WRITE_ALLOWLIST: Record<string, { count: number; why: string }> =
 		count: 2,
 		why: "moves the task marker between the item's metadata and its first paragraph, kind-guarded to paragraph"
 	},
-	'src/lib/tree-operations/list/terminator.ts': {
+	'src/lib/tree-operations/open-tail.ts': {
 		count: 1,
 		why: "adds or drops the ending of a block's last line in each node down to the one that owns it: the descent stops above a grid cell or an opaque body, whose bytes sit inside a line their container emits; an ending terminates a line rather than restructuring one"
 	},
@@ -111,13 +135,13 @@ const BARE_RAW_WRITE_ALLOWLIST: Record<string, { count: number; why: string }> =
 };
 
 const BARE_WRITE_RULE =
-	'a `<node>.raw =` write reaches a leaf’s bytes with no kind rule in front of it — the shape ' +
-	'issue #45 shipped through. Route it through `writeOwnRaw` (in place) or `normalizeOwnRaw` ' +
+	'a `<node>.raw =` write or an `installOwnRaw` call reaches a leaf’s bytes with no kind rule ' +
+	'in front of it — the shape issue #45 shipped through. Route it through `writeOwnRaw` (in place) or `normalizeOwnRaw` ' +
 	'(ahead of your own reparse), or add the file to BARE_RAW_WRITE_ALLOWLIST with its count and ' +
 	'the reason its writes cannot reach a kind that declares one';
 
 describe('every bare raw write is allowed', () => {
-	const writes = rawAssignments(collectEditorSources());
+	const writes = bareWrites(collectEditorSources());
 
 	it('no file outside the allowed set writes a leaf’s raw directly', () => {
 		const unsanctioned = writes
@@ -134,6 +158,15 @@ describe('every bare raw write is allowed', () => {
 				`${relPath} holds ${found} bare raw writes, allowed for ${entry.count}: ${entry.why}`
 			).toBe(entry.count);
 		}
+	});
+
+	it('counts an install call outside the writers, and not their own call or its declaration', () => {
+		const call = 'installOwnRaw(leaf, legal, grammar);';
+		const declared = 'export function installOwnRaw(node: CstNode) {}\n// installOwnRaw(x)';
+		expect(bareWrites([sourceFile('src/lib/x.ts', call)])).toEqual([{ relPath: 'src/lib/x.ts' }]);
+		expect(
+			bareWrites([sourceFile('src/lib/y.ts', declared), sourceFile(CONTENT_WRITE, call)])
+		).toEqual([]);
 	});
 });
 
@@ -161,7 +194,9 @@ describe('the fence rule has one implementation', () => {
 	// ── Matcher self-tests (non-vacuity) ─────────────────────────────────────
 
 	it('a mention inside a comment cannot satisfy the scan', () => {
-		expect(/\bwriteOwnRaw\b/.test(stripComments('// calls writeOwnRaw one day\n'))).toBe(false);
-		expect(/\bwriteOwnRaw\b/.test(stripComments('x = writeOwnRaw(n, r);\n'))).toBe(true);
+		expect(/\bwriteOwnRaw\b/.test(stripComments('// calls writeOwnRaw one day\n', 'script'))).toBe(
+			false
+		);
+		expect(/\bwriteOwnRaw\b/.test(stripComments('x = writeOwnRaw(n, r);\n', 'script'))).toBe(true);
 	});
 });

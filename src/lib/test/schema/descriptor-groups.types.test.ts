@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { declarePluginKind } from '$lib/schema/plugin-kind';
 import {
 	augmentBlockKind,
@@ -6,7 +6,6 @@ import {
 	registerBlockKind,
 	type BlockKindRegistration
 } from '$lib/schema/block-kind-descriptor';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { testClosure } from '$lib/test/support/closure';
 
 const leaf = {
@@ -121,8 +120,6 @@ void typePins;
 // ── Normalization into the flat read shape ─────────────────────────────────
 
 describe('registerBlockKind flattens the descriptor groups', () => {
-	afterEach(() => __resetSchemaRegistriesForTests());
-
 	it('writes a content start into the range and Backspace fields the editor reads', () => {
 		const kind = declarePluginKind('groups-content-start');
 		registerBlockKind(kind, {

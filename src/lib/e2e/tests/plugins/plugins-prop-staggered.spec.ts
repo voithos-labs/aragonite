@@ -1,5 +1,6 @@
 import { test, expect } from '../../fixtures';
 import { type ConsoleMessage, type Page } from '@playwright/test';
+import { gotoReady } from '../../goto-ready';
 
 // `/test/plugins/staggered` mounts editor 1 with `[calloutPlugin()]` at load and, on a click,
 // editor 2 adding `detailsPlugin()`, read through `__test` and `__test2`. The late `details` opener
@@ -38,14 +39,7 @@ test.describe('plugins prop: staggered second-editor mount', () => {
 				invariantFires.push(m.text());
 		});
 
-		await page.goto('/test/plugins/staggered');
-		await page.waitForFunction(
-			() => (window as unknown as { __test?: unknown }).__test !== undefined,
-			null,
-			{
-				timeout: 10_000
-			}
-		);
+		await gotoReady(page, '/test/plugins/staggered');
 		editorOne = await readKinds(page, '__test'); // editor 1 has already parsed
 
 		await page.getByTestId('mount-second').click();

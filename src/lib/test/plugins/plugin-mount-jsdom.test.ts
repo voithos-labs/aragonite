@@ -15,7 +15,7 @@ import {
 	type EditorPlugin,
 	type ParsedLine
 } from '$lib/plugin';
-import { installEditorDomStubsForTests, resetPluginPlatformForTests } from '$lib/testing';
+import { installEditorDomStubsForTests } from '$lib/testing';
 import { READING_WRITE_TAG } from '$lib/editor-actions/commit/reading-write-gate';
 import type { PresentationMode } from '$lib/presentation-mode';
 import { settleEditor } from '$lib/test/harness/settle';
@@ -87,7 +87,6 @@ function mountEditor(plugins: EditorPlugin[], presentationMode?: PresentationMod
 }
 
 beforeEach(() => {
-	resetPluginPlatformForTests();
 	installEditorDomStubsForTests();
 });
 

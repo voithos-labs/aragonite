@@ -9,11 +9,7 @@ import {
 	getBlockKindDescriptor
 } from '$lib/schema/block-kind-descriptor';
 import { listRegisteredOpeners } from '$lib/schema/block-openers';
-import {
-	checkCopyIsRawByteSlice,
-	resetPluginPlatformForTests,
-	runKindConformance
-} from '$lib/testing';
+import { checkCopyIsRawByteSlice, runKindConformance } from '$lib/testing';
 import { registerMemoBlock, MEMO_BLOCK } from '../../../routes/test/plugins/memo/memo-kind';
 import {
 	registerCalloutKind,
@@ -42,7 +38,6 @@ const statusOf = (report: Awaited<ReturnType<typeof runKindConformance>>, cell: 
 
 describe('kind conformance: plugin kinds enroll', () => {
 	beforeEach(() => {
-		resetPluginPlatformForTests();
 		registerMemoBlock();
 		registerCalloutKind();
 	});
@@ -98,8 +93,6 @@ const BUNDLED_INSTALLS: { dir: string; kind: string; install: () => void }[] = [
 const NO_BLOCK_KIND_DIRS = new Set(['highlight-occurrences', 'emoji', 'slash-commands']);
 
 describe('kind conformance: bundled plugin kinds enroll', () => {
-	beforeEach(() => resetPluginPlatformForTests());
-
 	// Every kind the registrar registers, not only the headline one: title kinds with no
 	// fixture and directive-fallback kinds run their fixture-free cells too.
 	it.each(BUNDLED_INSTALLS)(
@@ -178,7 +171,6 @@ describe('kind conformance: bundled plugin kinds enroll', () => {
 // plugin registration on purpose and require the red.
 describe('kind conformance: a broken plugin registration fails', () => {
 	beforeEach(() => {
-		resetPluginPlatformForTests();
 		registerMemoBlock();
 	});
 

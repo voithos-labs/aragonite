@@ -81,3 +81,19 @@ test.describe('a pasted blank line is the block a typed or loaded one is', () =>
 		expect(src).not.toContain('worldZ');
 	});
 });
+
+test.describe('a paste keeps the joins between the clipboard’s own blocks', () => {
+	test('a heading over a paragraph lands flush, as the clipboard held it', async ({ page }) => {
+		const editor = new EditorPage(page);
+		await editor.goto();
+		await editor.loadContent('hello world\n');
+		await editor.seedClipboard('# T\nbody');
+		await editor.focusBlockAtPath([0], 5);
+		await editor.paste();
+		await editor.bridge.waitForSourceContains('body');
+
+		const asLf = (await editor.bridge.getSource()).replace(/\r\n/g, '\n');
+		expect(asLf).toBe('hello\n\n# T\nbody\n world\n');
+		expect(await editor.parseConverged()).toBe(true);
+	});
+});

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { pasteDispatch } from '$lib/tree-operations/paste/dispatch';
@@ -11,11 +11,8 @@ import {
 	pasteContext
 } from '$lib/test/harness/editor-actions';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
 // Miss-analysis: no paste test filled one of two empty paragraphs with an unterminated block.
-
-beforeEach(() => __resetSchemaRegistriesForTests());
 
 async function pasteOnFirstEmptyLine(source: string, markdown: string) {
 	const { deps } = makeEditorActionsDeps(parse(source).children);

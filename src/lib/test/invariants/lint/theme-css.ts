@@ -3,7 +3,7 @@
  * host-supplied and editor-owned rules, so each rule is classified by its own selector rather
  * than by one index split.
  */
-import { readEditorFile, stripComments } from './scan-source';
+import { readEditorFile } from './scan-source';
 
 export const LIGHT_SELECTOR = "[data-editor-theme='light']";
 
@@ -15,7 +15,7 @@ export interface ThemeBlocks {
 }
 
 export function themeBlocks(): ThemeBlocks {
-	const css = stripComments(readEditorFile('styles/editor-theme.css').text);
+	const css = readEditorFile('styles/editor-theme.css').code;
 	let base = '';
 	let light = '';
 	for (const [, selector, body] of css.matchAll(/([^{}]*)\{([^{}]*)\}/g)) {

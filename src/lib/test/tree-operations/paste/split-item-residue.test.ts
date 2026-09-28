@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { pasteDispatch } from '$lib/tree-operations/paste/dispatch';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
@@ -12,13 +12,10 @@ import {
 import { describeConvergence } from '$lib/test/harness/parse-converged';
 import { buildListBreakOutReplacement } from '$lib/tree-operations/paste/list-break-out';
 import type { Document } from '$lib/core/nodes';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { defaultGrammarView } from '$lib/schema/block-openers';
 
 // Indented code after a split item's new marker would read as a wider marker, so it opens below.
 // Miss-analysis: GH #446, every split-item fixture put a paragraph after the caret.
-
-beforeEach(() => __resetSchemaRegistriesForTests());
 
 async function pasteAfterAbc(source: string, clipboard: string) {
 	const { doc, controller } = makePasteCommit(source);

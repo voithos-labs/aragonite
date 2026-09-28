@@ -1,11 +1,10 @@
 // Miss-analysis: GH #288; no reserved-chord test read the set from an editor leaving a plugin out.
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { registerBlockCommand } from '$lib/schema/block-commands';
 import { registerBlockKind } from '$lib/schema/block-kind-descriptor';
 import { activationFor, everyInstalledPlugin } from '$lib/schema/plugin-activation';
 import { declarePluginKind } from '$lib/schema/plugin-kind';
 import { definePlugin, installPlugins } from '$lib/schema/plugin-install';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { collectReservedChords } from '$lib/schema/reserved-chords';
 import { testClosure } from '$lib/test/support/closure';
 
@@ -35,10 +34,6 @@ function installKeymapPlugin(name: string): void {
 
 const reserved = (activation: Parameters<typeof collectReservedChords>[0]['activation']) =>
 	collectReservedChords({ searchBar: false, activation });
-
-afterEach(() => {
-	__resetSchemaRegistriesForTests();
-});
 
 describe("a kind keymap's chord is reserved only where its plugin is activated", () => {
 	it('reports the chord to the listing editor and withholds it from the other', () => {

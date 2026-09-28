@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { serialize } from '$lib/core/serializer';
 import type { Document } from '$lib/core/nodes';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { registerDetailsKind } from '$lib/plugins/details/details-kind';
 import { expectParseConverged } from '$lib/test/harness/parse-converged';
 import { makeSearchReplace, scanCompiled } from '$lib/test/harness/search-replace';
@@ -9,7 +8,6 @@ import { makeSearchReplace, scanCompiled } from '$lib/test/harness/search-replac
 // Miss-analysis (GH #40): the replace escape suites covered fences and cells, never a bodyWrite.
 
 beforeEach(() => {
-	__resetSchemaRegistriesForTests();
 	registerDetailsKind();
 });
 

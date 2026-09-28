@@ -9,7 +9,12 @@ import type { CstNode, Document } from '../core/nodes';
 import type { DocumentView, NodeView } from '../core/node-views';
 import { readBlocks } from '../core/parser';
 import type { GrammarView } from '../schema/block-openers';
-import { documentLineEnding, trailingLineEnding, type LineEnding } from '../core/lines';
+import {
+	documentLineEnding,
+	ownTrailingLineEnding,
+	trailingLineEnding,
+	type LineEnding
+} from '../core/lines';
 import { getBlockKindDescriptor, tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
 import { reservedChromeKindOf } from '../schema/reserved-chrome';
 import { adoptParsedMetadata } from '../schema/container-raw';
@@ -191,8 +196,8 @@ export function normalizeReplacementTrivia(original: CstNode, replacement: CstNo
 
 // ── Editable container backfill ──
 
-/** Ensure every container has at least one child block, so the cursor always has a target. The
- *  backfilled lines take `ending` (the document's) when the container has none of its own. */
+/** Ensure every container has at least one child block, so the cursor always has a target. A
+ *  container with no bytes yet backfills its lines in `ending`, the document's. */
 export function ensureEditableContainers(node: CstNode, ending: LineEnding): void {
 	// A whole-block-focus kind is childless by design: the block itself is the caret target,
 	// and a backfilled paragraph its raw cannot account for fails the stale-raw check.
@@ -208,7 +213,9 @@ export function ensureEditableContainers(node: CstNode, ending: LineEnding): voi
 				// The title child's kind is only known at runtime, so the literal takes the generic cast.
 				node.children.push({ kind: chromeKind, leadingTrivia: '', raw: lineEnding } as CstNode);
 			}
-			node.children.push(emptyParagraph('', lineEnding));
+			// The paragraph holds the container's last line, so an open last line stays open in it.
+			const lastLineEnding = node.raw === '' ? lineEnding : ownTrailingLineEnding(node.raw);
+			node.children.push(emptyParagraph('', lastLineEnding));
 			// The synthesized paragraph's ending already represents the blank `parseBlocks`
 			// routed into innerPrefix; keeping both double-counts the line on rebuild.
 			node.innerPrefix = '';

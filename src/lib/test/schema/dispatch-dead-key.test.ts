@@ -8,11 +8,9 @@ import {
 import { runGlobalChord, runGlobalChordOnKind } from '$lib/schema/commands';
 import { takeDevWarns } from '../support/warn-gate';
 import { commandContext, commandContextWith } from '../support/command-context';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
 describe('leaf-path dispatch of an unresolved plugin command', () => {
 	afterEach(() => {
-		__resetSchemaRegistriesForTests();
 		vi.restoreAllMocks();
 	});
 

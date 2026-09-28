@@ -12,16 +12,16 @@ const gates = { descendToBody: vi.fn(), moveFocus: vi.fn() };
 describe('collapse gates layer onto the base override map', () => {
 	it('keeps base members on every surface the gates also touch', () => {
 		const baseSplit = vi.fn();
-		const baseReveal = vi.fn();
+		const baseGapStop = vi.fn();
 		const base: NestedActionsOverrides = {
 			blockEdit: { splitBlock: baseSplit },
-			focus: { revealPath: baseReveal }
+			focus: { tryGapStop: baseGapStop }
 		};
 
 		const composed = composeCollapseGates(base, gates);
 
 		expect(composed.blockEdit?.splitBlock).toBe(baseSplit);
-		expect(composed.focus?.revealPath).toBe(baseReveal);
+		expect(composed.focus?.tryGapStop).toBe(baseGapStop);
 		expect(composed.blockEdit?.descendToBody).toBe(gates.descendToBody);
 		expect(composed.focus?.moveFocus).toBe(gates.moveFocus);
 	});

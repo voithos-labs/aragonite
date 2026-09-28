@@ -25,7 +25,11 @@ import type { EditEvent } from '../editor-events';
 import { isDirectiveKind } from '../core/directive/registry';
 import { defaultGrammarView, isBlockOpenerRegistered } from '../schema/block-openers';
 import { kitReading } from './kit-reading';
-import { getBlockKindDescriptor, type BlockKindDescriptor } from '../schema/block-kind-descriptor';
+import {
+	getBlockKindDescriptor,
+	isGridDescriptor,
+	type BlockKindDescriptor
+} from '../schema/block-kind-descriptor';
 import { rebuildContainerRawIfContainer } from '../schema/container-raw';
 import { createSharingState } from '../tree-operations/sharing';
 import { rebuildUnsharedAncestry, rebuildUnsharedChain } from '../tree-operations/chain-rebuild';
@@ -142,7 +146,7 @@ export const CONTAINER_CONFORMANCE_CELLS: readonly KitCell<
 		cell: 'localIndex',
 		coverage: ({ profile }) => profile.localIndex,
 		run: ({ kind, profile }) =>
-			getBlockKindDescriptor(kind).containerContract === 'grid'
+			isGridDescriptor(getBlockKindDescriptor(kind))
 				? driverOf(kind, profile, 'gridLocalIndex', 'a grid op')()
 				: checkStripLocalIndexAddressing(kind, profile)
 	},
@@ -611,7 +615,7 @@ function assertContentStartSpaceIsRebuilt(
 /** `container.bodyWrap` is tested, not trusted: `clearRedundantSeparator` reads it to place a freed
  *  blank line, and a kind whose parse disagrees loses the start of its body on reload. */
 function assertBodyWrapMatchesParse(kind: AnyBlockKind, descriptor: BlockKindDescriptor): void {
-	if (descriptor.containerContract === 'grid') return;
+	if (isGridDescriptor(descriptor)) return;
 	const fixture = descriptor.conformanceFixture;
 	if (fixture === undefined) {
 		fail(

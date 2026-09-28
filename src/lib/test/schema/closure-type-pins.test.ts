@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import type { AnyBlockKind } from '$lib/core/nodes';
 import { declarePluginKind } from '$lib/schema/plugin-kind';
 import { getBlockKindDescriptor, registerBlockKind } from '$lib/schema/block-kind-descriptor';
@@ -7,12 +7,9 @@ import { containerClosure, simpleLeafClosure } from '$lib/schema/closure';
 import { checkClosureCoherence, type ClosureCoherenceEntry } from '$lib/invariants/registry';
 import { closureCoherenceEntry } from '$lib/schema/registration-checks';
 import { testClosure } from '$lib/test/support/closure';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { testContainer } from '$lib/test/harness/test-kinds';
 
 const leaf = { mergeRole: 'not-mergeable', editable: true, supportsInline: false } as const;
-
-afterEach(() => __resetSchemaRegistriesForTests());
 
 const coherenceEntry = (kind: AnyBlockKind): ClosureCoherenceEntry =>
 	closureCoherenceEntry(kind, getBlockKindDescriptor(kind));

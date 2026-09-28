@@ -10,7 +10,6 @@ import { replaceBlockRaw } from '$lib/editor-actions/block-edit-core';
 import { READING_WRITE_TAG } from '$lib/editor-actions/commit/reading-write-gate';
 import type { PresentationMode } from '$lib/presentation-mode';
 import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { fixtureReading } from '../harness/fixture-grammar';
 import { makeTopHarness } from '../harness/editor-actions';
 import { settleEditor } from '../harness/settle';
@@ -20,7 +19,6 @@ const SOURCE = '```\ncode\n```\n\nprose here\n';
 
 beforeEach(() => {
 	document.body.replaceChildren();
-	__resetSchemaRegistriesForTests();
 	registerDefaultContextActions();
 });
 

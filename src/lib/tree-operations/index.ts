@@ -14,13 +14,7 @@ export {
 } from './settle';
 export { updateNodeContent, reclassifyContainer } from './content-write';
 export type { MergeIntoPrevResult, MergeResult, SplitResult } from './node-ops';
-export {
-	splitNode,
-	assertSplitLanding,
-	assertSingleNodeSink,
-	mergeWithNext,
-	mergeIntoPrevDeepLeaf
-} from './node-ops';
+export { splitNode, assertSingleNodeSink, mergeWithNext, mergeIntoPrevDeepLeaf } from './node-ops';
 
 export { unwrapFirstItemFromList, mergeListItemIntoPrevious } from './list/unwrap-merge';
 export { renumberOrderedList, normalizeItemMarkerToList } from './list/ordered-markers';
@@ -28,8 +22,8 @@ export { isItemUserEmpty } from './list/empty-check';
 export { buildExitReplacement } from './list/exit-replacement';
 export { reconcileTaskMetadata, taskMarkerMayStandBefore } from './list/reconcile-task';
 
-export { unwrapFirstChildFromQuote } from './blockquote';
-export { liftFirstChildKeepingContainer } from './container-lift';
+export { plainQuote } from './blockquote';
+export { liftFirstChild, sameContainer } from './container-lift';
 
 export {
 	insertEmptyRow,

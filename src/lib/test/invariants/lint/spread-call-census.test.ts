@@ -10,9 +10,9 @@ import { describe, it, expect } from 'vitest';
 import {
 	collectEditorSources,
 	enclosingFunction,
+	fileClasses,
 	isParameterList,
 	LEXICAL_CLASSES,
-	lexicalClasses,
 	openerBefore,
 	type SourceFile
 } from './scan-source';
@@ -69,20 +69,20 @@ interface SpreadSite {
 }
 
 function spreadSites(file: SourceFile): SpreadSite[] {
-	const { text } = file;
-	const cls = lexicalClasses(text);
+	const { code } = file;
+	const cls = fileClasses(file);
 	const out: SpreadSite[] = [];
-	for (let i = 0; i + 2 < text.length; i++) {
-		if (!text.startsWith('...', i)) continue;
+	for (let i = 0; i + 2 < code.length; i++) {
+		if (!code.startsWith('...', i)) continue;
 		if (cls[i] !== CODE || cls[i + 1] !== CODE || cls[i + 2] !== CODE) continue;
 		const spread = i;
 		i += 2;
-		const open = openerBefore(text, spread, cls);
-		if (open === null || text[open] !== '(') continue;
-		if (isParameterList(text, open, cls)) continue;
+		const open = openerBefore(code, spread, cls);
+		if (open === null || code[open] !== '(') continue;
+		if (isParameterList(code, open, cls)) continue;
 		out.push({
-			key: `${file.relPath} :: ${enclosingFunction(text, open, cls)}`,
-			line: text.slice(0, spread).split('\n').length
+			key: `${file.relPath} :: ${enclosingFunction(code, open, cls)}`,
+			line: code.slice(0, spread).split('\n').length
 		});
 	}
 	return out;

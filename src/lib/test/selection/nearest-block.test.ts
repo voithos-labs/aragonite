@@ -2,7 +2,6 @@
 import { describe, it, expect, afterEach, beforeEach } from 'vitest';
 import { blockNearPoint, descendToLevelChild, nearestBand } from '$lib/selection/nearest-block';
 import { blockAtPoint } from '$lib/selection/block-hit-test';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { testLeaf } from '$lib/test/harness/test-kinds';
 
 // Which block a point off every block belongs to, and where inside it the gesture is answered.
@@ -94,7 +93,6 @@ describe('blockNearPoint', () => {
 	afterEach(() => {
 		document.elementFromPoint = origFromPoint;
 		root.remove();
-		__resetSchemaRegistriesForTests();
 	});
 
 	function cellIn(path: number[]) {

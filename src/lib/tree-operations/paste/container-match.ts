@@ -32,7 +32,7 @@ import {
 	type StructuralChange
 } from '../structural-change';
 import { renumberOrderedList, templatePastedItemMarkers } from '../list/ordered-markers';
-import { spliceTerminatedItems } from '../list/terminator';
+import { spliceMany } from '../splice-many';
 import type { PasteDispatchContext } from './dispatch';
 import type { MultiScopeTarget } from './paste-deps';
 import type { SharingState } from '../sharing';
@@ -150,13 +150,7 @@ export async function applyContainerMatchingPaste(
 		scopes: [{ node: outer, state: outerState, path: unwrap.outerPath }],
 		snapshot,
 		mutate: ([scopeView]) => {
-			spliceTerminatedItems(
-				scopeView.children,
-				unwrap.spliceIndex,
-				1,
-				unwrap.items,
-				scopeView.lineEnding
-			);
+			spliceMany(scopeView.children, unwrap.spliceIndex, 1, unwrap.items);
 			const change: StructuralChange = {
 				op: 'replace',
 				at: unwrap.spliceIndex,
@@ -329,7 +323,7 @@ async function applyContainerMatchingMerge(
 				at: insertAt,
 				count: remainingItems.length
 			};
-			spliceTerminatedItems(scopeView.children, insertAt, 0, remainingItems, lineEnding);
+			spliceMany(scopeView.children, insertAt, 0, remainingItems);
 			stampStructuralChange(scopeView.children, change, sharing);
 			// The already-proxied tail below the spliced siblings; the merged target keeps
 			// its number.

@@ -1,13 +1,8 @@
-import { it, expect, beforeEach } from 'vitest';
+import { it, expect } from 'vitest';
 import { dispatchKeyCommand } from '$lib/schema/block-commands';
 import { registerGlobalCommand } from '$lib/schema/global-commands';
 import type { EditorContext } from '$lib/schema/plugin-install';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { commandContext } from '../support/command-context';
-
-beforeEach(() => {
-	__resetSchemaRegistriesForTests();
-});
 
 it('a plugin-global chord dispatches from an ordinary leaf and the sink receives a contained throw', () => {
 	const editor = { editorId: 'e' } as never as EditorContext;

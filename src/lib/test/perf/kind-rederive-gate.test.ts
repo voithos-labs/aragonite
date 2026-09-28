@@ -2,7 +2,7 @@
 // and something can follow from it: the opener line's answer changed (a new kind), or an opaque
 // container's metadata may have (any outer line but a title row's). That keeps a keystroke off
 // the container-size axis: typing into a list's first item or a directive's title parses nothing.
-import { describe, it, expect, beforeAll, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { installPlugins } from '$lib';
 import { admonitionsPlugin } from '$lib/plugins/admonitions';
 import { parse } from '$lib/core/parser';
@@ -122,7 +122,7 @@ const growing = (base: string, count: number): string[] =>
 
 const reparses = () => perfSnapshot().containerKindReparses;
 
-beforeAll(() => {
+beforeEach(() => {
 	installPlugins([admonitionsPlugin()]);
 	registerTally('tally', false);
 	registerTally('titled-tally', true);

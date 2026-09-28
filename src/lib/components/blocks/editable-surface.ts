@@ -7,6 +7,7 @@
 
 import { tick } from 'svelte';
 import type { BlockEditActions, FocusActions, HistoryActions } from '../../action-contracts';
+import type { CaretLanding } from '../../selection/caret-landing';
 import {
 	CURSOR_EXACT_START,
 	CURSOR_START,
@@ -138,6 +139,8 @@ export interface EditableSurfaceDeps {
 	getDoc: DocumentGetter;
 	getBlockElByPath: BlockElLookup;
 	focusActions: FocusActions;
+	/** Mounts the block a cross-block key lands in. */
+	caretLanding: Pick<CaretLanding, 'mount'>;
 	getEditorRoot: () => HTMLElement | null;
 	/** What scrolls this editor (the root in self mode; the host's scroller or the window in
 	 *  host mode), for the cross-block drag-select autoscroll. */
@@ -233,7 +236,8 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		selection: deps.selection,
 		getDoc: deps.getDoc,
 		getBlockElByPath: deps.getBlockElByPath,
-		revealPath: deps.focusActions.revealPath,
+		// Opens a collapsed body on the way, as the editor root's own cross-block handlers do.
+		revealPath: (path) => deps.caretLanding.mount(path, { openCollapsed: true }),
 		getEditorRoot: deps.getEditorRoot,
 		getScrollHost: deps.getScrollHost,
 		getEditorLifetime: deps.getEditorLifetime,

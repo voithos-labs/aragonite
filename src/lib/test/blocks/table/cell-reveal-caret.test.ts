@@ -4,7 +4,6 @@
 // stubbed, so the "Enter stays put" half is covered by the `cell-inline-reveal` e2e spec.
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { registerMathInline } from '$lib/plugins/latex/latex-kind';
-import { resetInlineState } from '../text/math-widget-fixture';
 import { mountCell } from './mount-cell';
 import { settleEditor, dispatchKey } from '$lib/test/harness/settle';
 
@@ -25,7 +24,6 @@ let mounted: ReturnType<typeof mountCell>;
 afterEach(async () => {
 	if (mounted) await mounted.dispose();
 	document.body.innerHTML = '';
-	resetInlineState();
 });
 
 describe('a reveal commit in a cell puts the caret its caret in escaped space', () => {

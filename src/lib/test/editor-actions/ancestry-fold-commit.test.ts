@@ -76,10 +76,6 @@ describe('a commit whose ancestry settle ate its own scope', () => {
 	// Miss-analysis: a collapse caused by a body write was tested only at the tree operation.
 	it('folds the follower a body write let the container continue into', async () => {
 		const h = makeNestedHarness('> a\n> # h\ntext\n', { index: 0 });
-		const survivor: number[] = [];
-		h.deps.blockRefs[0] = stubBlockComponent({
-			focus: vi.fn((offset?: number) => survivor.push(offset ?? -1))
-		}) as BlockComponent;
 		const errors: unknown[] = [];
 		h.events.on('error', (e) => errors.push(e));
 
@@ -89,7 +85,8 @@ describe('a commit whose ancestry settle ate its own scope', () => {
 		expect(serialize(h.deps.doc)).toBe('> a\n> h\ntext\n');
 		expect(describeConvergence(h.deps.doc)).toBeNull();
 		expect(h.deps.blockIds).toEqual(['block-0']);
-		expect(survivor).toEqual([0]);
+		// The collapsed container's position replaces the write's own: the survivor's first leaf.
+		expect(h.landings).toMatchObject([{ leafPath: [0, 0], offset: 0 }]);
 		expect(errors).toEqual([]);
 		expect(takeDevWarns()).toEqual([]);
 
@@ -100,6 +97,17 @@ describe('a commit whose ancestry settle ate its own scope', () => {
 
 		expect(serialize(h.deps.doc)).toBe('> a\n> # h\ntext\n');
 		expect(h.deps.blockIds).toHaveLength(2);
+	});
+
+	// Miss-analysis: the collapse test above read the caret and the bytes, never the write's result.
+	it('a content commit a collapse took over still reports it wrote', async () => {
+		const h = makeNestedHarness('> a\n> # h\ntext\n', { index: 0 });
+
+		const wrote = await h.bundle.blockEdit.updateBlockContent(1, 'h\n', 'authored');
+
+		expect(serialize(h.deps.doc)).toBe('> a\n> h\ntext\n');
+		expect(wrote).toBe(true);
+		expect(h.deps.undoManager.getStacks().undo).toHaveLength(1);
 	});
 
 	// The collapse is the only change on this commit (every scope's change is `noop`), and the
@@ -134,7 +142,7 @@ describe('a keystroke whose container collapses into its follower', () => {
 		expect(serialize(h.deps.doc)).toBe('> a\n>\n> - \ntext\n');
 		expect(h.deps.doc.children.map((c) => c.kind)).toEqual(['blockquote']);
 		expect(describeConvergence(h.deps.doc)).toBeNull();
-		expect(h.focus.landings).toEqual([{ path: [0, 1, 0, 0], offset: 0 }]);
+		expect(h.landings).toMatchObject([{ leafPath: [0, 1, 0, 0], offset: 0 }]);
 	});
 });
 

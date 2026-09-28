@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { chromeChild, declaredPluginKind } from '$lib/plugin';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import {
 	registerCalloutKind,
 	rebuildCalloutRaw,
@@ -14,7 +13,6 @@ import {
 
 describe('createDirectiveRebuild threads the authored line ending', () => {
 	beforeEach(() => {
-		resetPluginPlatformForTests();
 		registerCalloutKind();
 	});
 
@@ -49,7 +47,6 @@ describe('createDirectiveRebuild threads the authored line ending', () => {
 
 describe('chromeChild builds the reserved child-0 node', () => {
 	beforeEach(() => {
-		resetPluginPlatformForTests();
 		registerCalloutKind();
 	});
 

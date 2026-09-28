@@ -1,12 +1,11 @@
 // @vitest-environment jsdom
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { handleSharedKeydown, type SharedKeydownContext } from '$lib/selection/shared-keydown';
 import type { CrossBlockHandlers } from '$lib/selection/cross-block/dispatch';
 import type { FocusActions } from '$lib/action-contracts';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import { makeCaretMemory } from '$lib/test/harness/editor-actions';
 import { registerGlobalCommand } from '$lib/schema/global-commands';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { fixtureReading } from '$lib/test/harness/fixture-grammar';
 import { commandContext } from '$lib/test/support/command-context';
 
@@ -47,10 +46,6 @@ function makeCtx(): SharedKeydownContext {
 
 const keydown = (over: KeyboardEventInit): KeyboardEvent =>
 	new KeyboardEvent('keydown', { cancelable: true, ...over });
-
-beforeEach(() => {
-	__resetSchemaRegistriesForTests();
-});
 
 describe('handleSharedKeydown: plugin-global chord deferral', () => {
 	it('preventDefaults a plugin-global chord and returns false so the surface dispatch runs', async () => {

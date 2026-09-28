@@ -1,10 +1,8 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { createEditorEvents, emitCommandError, type EditorError } from '$lib/editor-events';
 import { takeDevWarns } from './support/warn-gate';
 import { configureEditorEnv } from '$lib/env';
 import { asDocPath } from '$lib/selection/path-math';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
-import { declareOwnedKind } from './support/owned-kind';
 import { makeNestedHarness } from './harness/editor-actions';
 import type { AnyBlockKind } from '$lib/core/nodes';
 
@@ -157,10 +155,8 @@ describe('editor-events: error channel', () => {
 });
 
 describe('emitCommandError', () => {
-	afterEach(() => __resetSchemaRegistriesForTests());
-
-	it("emits origin:'command' attributing the kind, command, and recorded plugin owner", () => {
-		declareOwnedKind('admonitions', 'demoNote');
+	// The dispatch names the plugin that registered the command; the report passes it through.
+	it("emits origin:'command' attributing the kind, command, and reported plugin", () => {
 		const events = createEditorEvents();
 		const captured: EditorError[] = [];
 		events.on('error', (e) => captured.push(e));
@@ -169,6 +165,7 @@ describe('emitCommandError', () => {
 		emitCommandError(events, {
 			kind: 'demoNote' as AnyBlockKind,
 			command: 'note.setVariant',
+			plugin: 'admonitions',
 			error: boom
 		});
 
@@ -182,7 +179,7 @@ describe('emitCommandError', () => {
 		});
 	});
 
-	it('omits the plugin when the kind has no recorded owner', () => {
+	it('omits the plugin when no plugin registered the command', () => {
 		const events = createEditorEvents();
 		const captured: EditorError[] = [];
 		events.on('error', (e) => captured.push(e));
@@ -192,8 +189,6 @@ describe('emitCommandError', () => {
 		expect(captured[0].context).toEqual({ kind: 'paragraph', command: 'x.y', plugin: undefined });
 	});
 
-	// A global command reports its owner directly and has no kind, so the `plugin` passed in has
-	// to win and must never be overwritten by a lookup that has no kind to work from.
 	it('attributes a global command by its direct plugin, with no kind', () => {
 		const events = createEditorEvents();
 		const captured: EditorError[] = [];

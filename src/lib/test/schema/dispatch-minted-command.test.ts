@@ -5,10 +5,8 @@ import {
 	registerBlockCommand,
 	type CommandErrorReport
 } from '$lib/schema/block-commands';
-import { __resetCommandWarningsForTests } from '$lib/schema/commands';
 import { normalizeKeybindingOverrides } from '$lib/schema/keybinding-overrides';
 import type { CstNode } from '$lib/core/nodes';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { commandContext, commandContextWith } from '../support/command-context';
 
 const nodeOf = (kind: string): CstNode =>
@@ -19,8 +17,6 @@ const nodeOf = (kind: string): CstNode =>
 	}) as CstNode;
 
 afterEach(() => {
-	__resetCommandWarningsForTests();
-	__resetSchemaRegistriesForTests();
 	vi.restoreAllMocks();
 });
 

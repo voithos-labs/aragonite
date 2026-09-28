@@ -1,4 +1,10 @@
-import { type SimContext, actThenResync, assertFocusBlock, settleTypedSource } from '../invariants';
+import {
+	type SimContext,
+	actThenResync,
+	assertFocusBlock,
+	assertStructuralIntegrity,
+	settleTypedSource
+} from '../invariants';
 
 /**
  * Structural gestures trigger the editor's own behaviour, so none can be predicted character by
@@ -222,6 +228,52 @@ export async function toggleTaskByKeyboard(
 	await ctx.editor.clickBlockAtPath(itemParagraphPath, 1);
 	await assertFocusBlock(ctx, itemParagraphPath);
 	await actThenResync(ctx, () => ctx.page.keyboard.press('ControlOrMeta+Enter'));
+}
+
+/**
+ * `# ` typed at the start of a list item's paragraph makes it a heading, so the space changes the
+ * block's kind; one undo must bring back the bytes from before the `#`.
+ */
+export async function kindChangeUndoInListItem(
+	ctx: SimContext,
+	itemParagraphPath: number[]
+): Promise<void> {
+	const { page, editor, tracker } = ctx;
+	const before = await editor.bridge.getSource();
+	// A fresh typing batch, so the one undo covers exactly the two keys below.
+	await editor.waitForUndoBatchFlush();
+	await editor.clickBlockAtPath(itemParagraphPath, 0);
+	await assertFocusBlock(ctx, itemParagraphPath);
+	await page.keyboard.press('Home');
+	// One call, so no round trip between the keys can outlast the typing pause and split the batch.
+	await editor.typeSlowly('# ');
+	await page
+		.waitForFunction(
+			(path) => {
+				let node = (window as any).__test.getDocument();
+				for (const i of path) node = node?.children?.[i];
+				return node?.kind === 'heading';
+			},
+			itemParagraphPath,
+			{ timeout: 5000, polling: 16 }
+		)
+		.catch(async () => {
+			throw new Error(
+				`[${ctx.label}] kindChangeUndoInListItem: \`# \` at the start of ` +
+					`${JSON.stringify(itemParagraphPath)} made no heading.\n` +
+					`SOURCE: ${JSON.stringify(await editor.bridge.getSource())}`
+			);
+		});
+	await assertStructuralIntegrity(ctx);
+	await editor.undo();
+	await editor.bridge.waitForSourceEquals(before, 3000).catch(async () => {
+		throw new Error(
+			`[${ctx.label}] one undo after a kind change inside a list item did not restore the ` +
+				`bytes from before the burst.\nBEFORE: ${JSON.stringify(before)}\n` +
+				`GOT:    ${JSON.stringify(await editor.bridge.getSource())}`
+		);
+	});
+	tracker.resync(before);
 }
 
 /**

@@ -1,18 +1,15 @@
 // A setext heading's bytes past its title: the structure every edit keeps after the title, and the
 // kind's write rule, which drops it under a blank line.
 // Miss-analysis: every tested kind with bytes past its content was prose, never component-drawn.
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { structuralSuffix } from '../../core/inline';
 import type { CstNode } from '../../core/nodes';
 import { setextHeadingWrite } from '../../schema/setext-raw';
 import type { WriteMode } from '../../schema/block-kind-descriptor';
 import { simpleLeafClosure } from '$lib/plugin';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import { testLeaf } from '$lib/test/harness/test-kinds';
 
 const node = (kind: string, raw: string) => ({ kind, leadingTrivia: '', raw }) as CstNode;
-
-afterEach(resetPluginPlatformForTests);
 
 describe('structuralSuffix', () => {
 	it.each([

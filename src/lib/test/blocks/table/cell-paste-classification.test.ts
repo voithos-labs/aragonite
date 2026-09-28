@@ -10,7 +10,6 @@ import {
 	makeStubBlockEdit,
 	pasteContext
 } from '$lib/test/harness/editor-actions';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { ensurePasteSurface } from '$lib/test/support/paste-surface';
 
 // A cell holds text, never blocks, so blank lines a copy wrapped around the text must not decide
@@ -39,7 +38,6 @@ async function pasteIntoCell(clipboard: string) {
 
 describe('a clipboard pasted into a table cell', () => {
 	beforeEach(() => {
-		__resetSchemaRegistriesForTests();
 		ensurePasteSurface(tableCellPasteSurface);
 	});
 

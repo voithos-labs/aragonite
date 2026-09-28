@@ -7,7 +7,6 @@ import {
 } from '$lib/schema/plugin-activation';
 import { registerInsertEntry } from '$lib/schema/insert-catalogue';
 import { definePlugin, installPlugins } from '$lib/schema/plugin-install';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { createEditorEvents, type EditorError } from '$lib/editor-events';
 import { createDecorationEngine } from '$lib/decorations/decoration-state.svelte';
 import type { DecorationRegistry } from '$lib/decorations/types';
@@ -38,8 +37,6 @@ function installPair(attached: string[]) {
 function installNamed(...names: string[]): void {
 	installPlugins(names.map((name) => definePlugin({ name, setup: () => {} })));
 }
-
-beforeEach(() => __resetSchemaRegistriesForTests());
 
 describe('createEditorPluginContexts', () => {
 	beforeEach(() => installNamed('opts', 'other', 'p'));

@@ -1,7 +1,8 @@
 /**
  * The root ContainerEditActions: what a container reaches the editor root for, which is the
- * document's line ending, the container commit, and the two things a keystroke needs the root for
- * (grouping it with its typing burst, and the write that keeps the leaf in place).
+ * document's line ending, the container commit, the two things a keystroke needs the root for
+ * (grouping it with its typing burst, and the write that keeps the leaf in place), and the caret
+ * landing.
  */
 
 import type { ContainerEditActions } from '../action-contracts';
@@ -18,6 +19,7 @@ export function createContainerEditActions(
 		lineEnding: () => documentLineEnding(deps.doc),
 		commitContainer: (args) => controller.commitContainerStructural(args),
 		typeInLeaf,
-		writeLeafInPlace
+		writeLeafInPlace,
+		land: (pos) => deps.caretLanding.land(pos)
 	};
 }

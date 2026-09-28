@@ -1,5 +1,5 @@
 import { defaultGrammarView } from '$lib/schema/block-openers';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import {
 	resolveDelimiterAutoPair,
 	resolveEmptyPairBackspace
@@ -26,10 +26,8 @@ const stepped = (caret: number, overConstruct: boolean, pair?: ContentRange) =>
 
 describe('delimiter auto-pair', () => {
 	beforeEach(() => {
-		resetPluginPlatformForTests();
 		registerMathInline();
 	});
-	afterEach(resetPluginPlatformForTests);
 
 	it('a typed backtick lands its paired closer after the caret', () => {
 		expect(type('text here', 5, '`')).toEqual(written('text ``here', 6, pairAt(5, 7)));

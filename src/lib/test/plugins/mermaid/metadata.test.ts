@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse, type CstNode } from '$lib';
 import { getPluginMetadata, setPluginMetadata } from '$lib/plugin';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import {
 	registerMermaidKind,
 	rebuildMermaidRaw,
@@ -26,7 +25,6 @@ function patchCode(node: CstNode, code: string): void {
 
 describe('mermaid metadata → rebuildRaw fidelity', () => {
 	beforeEach(() => {
-		resetPluginPlatformForTests();
 		registerMermaidKind();
 	});
 

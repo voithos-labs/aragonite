@@ -2,7 +2,6 @@
 // Shapes checked live against api.github.com/markdown.
 import { beforeEach, describe, expect, it } from 'vitest';
 import { installPlugins, parse, serialize } from '$lib';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import { footnotesPlugin, FOOTNOTE_DEF_KIND } from '$lib/plugins/footnotes';
 
 const NBSP = String.fromCharCode(0xa0);
@@ -15,7 +14,6 @@ function parseKinds(src: string): string[] {
 
 describe('footnote definition lazy continuation (absorbed lines)', () => {
 	beforeEach(() => {
-		resetPluginPlatformForTests();
 		installPlugins([footnotesPlugin()]);
 	});
 
@@ -67,7 +65,6 @@ describe('footnote definition lazy continuation (absorbed lines)', () => {
 
 describe('footnote definition lazy continuation (lines that end it)', () => {
 	beforeEach(() => {
-		resetPluginPlatformForTests();
 		installPlugins([footnotesPlugin()]);
 	});
 

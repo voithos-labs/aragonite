@@ -15,8 +15,6 @@ export function overBudgetLines(relPath: string, code: string): string[] {
 }
 
 describe('G4.26 comment blocks stay inside the budget', () => {
-	// Stylesheets and the demo harness are in scope: the only drift past the budget landed
-	// in the two file classes nothing else scans.
 	const sources = [
 		...collectEditorSources(EDITOR_SRC, { includeTests: true, includeStyles: true }),
 		...collectEditorSources(ROUTES_SRC, { includeTests: true, includeStyles: true })
@@ -26,7 +24,7 @@ describe('G4.26 comment blocks stay inside the budget', () => {
 		expect(sources.flatMap((f) => overBudgetLines(f.relPath, f.text))).toEqual([]);
 	});
 
-	it('the walk still reaches both of the blind spots', () => {
+	it('the walk still reaches the stylesheets and src/routes', () => {
 		expect(sources.some((f) => f.relPath.endsWith('.css'))).toBe(true);
 		expect(sources.some((f) => f.relPath.startsWith('src/routes/'))).toBe(true);
 	});
@@ -75,10 +73,63 @@ const b = 2;`;
 		expect(overBudgetLines('s.ts', directive)).toEqual([]);
 	});
 
+	// Miss-analysis: every row wrote its comments on lines of their own, so nothing showed the
+	// line reader skipping a comment that trails code.
+	it('a comment trailing code is a block of its own', () => {
+		const trailing = `${preamble}const b = 2; /* a\n * b\n * c */\nconst c = 3;`;
+		expect(overBudgetLines('s.ts', trailing)).toEqual(['s.ts:3']);
+		const sideBySide = `${preamble}const b = 2; // a\nconst c = 3; // b\nconst d = 4; // c`;
+		expect(overBudgetLines('s.ts', sideBySide)).toEqual([]);
+		const above = `${preamble}const b = 2; // a\n// b\n// c\nconst c = 3;`;
+		expect(overBudgetLines('s.ts', above)).toEqual([]);
+		expect(overBudgetLines('s.ts', above.replace('// c', '// c\n// d'))).toEqual(['s.ts:4']);
+	});
+
+	// Miss-analysis: no row put comment syntax inside a string, so nothing showed the line
+	// reader budgeting template text.
+	it('a comment marker inside a template or string is text', () => {
+		expect(overBudgetLines('s.ts', `${preamble}const t = \`\n// x\n// y\n// z\n\`;`)).toEqual([]);
+		expect(overBudgetLines('s.ts', `${preamble}const s = '/* x';\n// a\n// b\n// c`)).toEqual([
+			's.ts:4'
+		]);
+	});
+
+	it('a block comment that opens and closes mid-line holds only its own text', () => {
+		const blocks = findCommentBlocks(`${preamble}const b = /* a */ 2; /* b */ f();`, 's.ts');
+		expect(blocks.slice(1).map((b) => [b.line, b.text])).toEqual([
+			[3, ['a']],
+			[3, ['b']]
+		]);
+	});
+
+	it('a stylesheet has no line comments, so a url(//…) is not one', () => {
+		const sheet = `/* header */\na {\n\tbackground: url(\n\t\t//x.dev/a.png\n\t);\n}\n`;
+		expect(findCommentBlocks(sheet, 's.css').map((b) => b.line)).toEqual([1]);
+		const style = `<style>\n\ta { background: url(//x.dev/a.png); }\n</style>`;
+		expect(findCommentBlocks(style, 's.svelte')).toEqual([]);
+	});
+
+	it('markup holds comments only as <!-- -->, and script only in braces and blocks', () => {
+		const markup = [
+			'<script lang="ts">\n\t// a\n</script>',
+			"<p>\n\tsee https://x.dev\n\t//x.dev and Sam's /* list\n</p>",
+			'<a href="https://x.dev" title="t {b /* c */}">x</a>',
+			'<!-- d -->\n{f(/* e */)}'
+		].join('\n');
+		expect(findCommentBlocks(markup, 's.svelte').map((b) => b.text)).toEqual([
+			['a'],
+			['c'],
+			['d'],
+			['e']
+		]);
+	});
+
 	it('a first block after imports is the header; a mid-file block is not', () => {
 		const spec = `import { x } from 'y';\n${docblock(5)}x();`;
 		expect(overBudgetLines('s.spec.ts', spec)).toEqual([]);
 		const late = `${'const a = 1;\n'.repeat(31)}${docblock(3)}const b = 2;`;
 		expect(overBudgetLines('s.ts', late)).toHaveLength(1);
+		const trailed = `import { x } from 'y'; // a\n${docblock(5)}x();`;
+		expect(overBudgetLines('s.spec.ts', trailed)).toEqual([]);
 	});
 });

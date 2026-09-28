@@ -247,13 +247,15 @@ Three families of seam run these checks:
 | G1.31 | The inline-construct policy table is coherent and unambiguous                       | A·N     |
 | G1.32 | _Retired upward_: a content-start Backspace with no range no longer compiles        | T       |
 | G1.33 | A block the caret is seated into paints at least one landable position              | A·N     |
-| G1.34 | A split's caret lands on the index `splitNode` returned                             | A·N     |
+| G1.34 | _Retired_: a split's landing reads the index `splitNode` returned (G4.43)           | L       |
 | G1.35 | A slot that holds exactly one node never takes bytes that reparse to several        | A·N     |
 | G1.36 | A structural change fits the arrays it syncs; ids stay in lockstep with children    | A·N     |
 | G1.37 | A kind whose syntax its container owns registers no opener                          | A·N     |
 | G1.38 | A spliced container raw equals what a full rebuild would write                      | A·N     |
 | G1.39 | At most one block paints the editor's own caret at a time                           | A       |
 | G1.40 | Every built-in kind declares its page role and its height estimate                  | A·N     |
+| G1.41 | A structural edit keeps the final break as it was (a blank last line keeps its own) | A·P·N   |
+| G1.43 | Reading a commit's landing moves no caret                                           | A·N     |
 
 ### The entries
 
@@ -557,15 +559,11 @@ Reading mode is out of scope, since it takes no keystrokes. Predicate `checkLand
 (`landable-caret.ts`) · `components/editor-root-focus.ts`, the editor root's `focusin` handler ·
 `landable-caret.test.ts`, `landable-caret-doors.test.ts`.
 
-**G1.34 · Split landing.** The index a split's caret lands on is the one `splitNode` returned, never
-a re-derived `blockIndex + 1`. The top-level path seats the caret at it and the list-item path
-splices at it, so both cross the seam on their way to using it. The constant is the second half only
-while the first half stays ONE block: bytes that reparse plural (a blank line inside indented code)
-push the second half down, and the constant seated the caret on the first half's tail (GH #98). The
-`tree-ops` warn beside this guard reports that the plural shape occurred, which is legal; this guard
-reports that a landing disagreed, which isn't. Predicate `checkSplitLanding` (`split-landing.ts`) ·
-seam `tree-operations/node-ops.ts :: assertSplitLanding`, crossed by
-`editor-actions/block-edit-core.ts` and `editor-actions/list-context.ts` · `split-landing.test.ts`.
+**G1.34 · Retired.** The rule was: the index a split's caret lands on is the one `splitNode`
+returned, never a re-derived `blockIndex + 1` (a first half whose bytes reparse plural pushes the
+second half down, GH #98). The guard compared the split's own answer with itself at both of its call
+sites, so it could never fire. A split now builds its commit's landing from
+`SplitResult.secondHalfIndex`, and G4.43 keeps every split call reading it.
 
 **G1.35 · Single-node sink.** A sink (a slot that installs exactly one node) never installs bytes
 that reparse to several. Every join reaches one: Backspace, Delete and the list-item merge all write
@@ -638,6 +636,36 @@ just written, which no test can hand a predicate. Seam: the snap-caret paint eff
 guess). A built-in can't: a new built-in that skipped them would quietly get those defaults without
 anyone deciding it should. Predicate `checkBuiltinPresentationFacts` (`registry.ts`) ·
 bootstrap · `test/invariants/builtin-presentation-facts.test.ts`.
+
+**G1.41 · The open last line** (`last-line-kept`). Only the document's last line may lack a line
+ending, and a structural edit leaves it the way it found it: a file with no final break still has
+none afterwards, unless its new last line is blank (then the line is nothing but its break, and
+dropping the break would drop the line). Blank means the line held by the block at the bottom of the
+last block, found by walking down its last children the way the release does, so the empty line
+Enter leaves inside a last quote counts and the quote's own trailing `>` doesn't; that walk is one
+predicate, `tree-operations/open-tail.ts :: holdsBlankLastLine`, shared by the release and this
+check. The commit owns the rule in two steps: `tree-operations/open-tail.ts :: endWindowLines`
+before the separator fix-up, and `tree-operations/open-tail.ts :: keepOpenTail` once the containers
+rebuild. No edit writes the tail by hand (G4.74 holds the walk to that file). A move still calls the
+first step itself for now, because it checks its own joins before the commit's fix-up runs; that
+call goes once the commit settles the move's joins.
+
+The check runs after every structural commit publishes and fails three shapes: an open file that
+gained a break on a line with text, a closed file that lost its break, and a line with no ending
+sitting right above the last line, at any level of the containers holding it. That last one is what
+an edit leaves when it puts a block after an open last line where the commit can't see it, and the
+two lines read as one on reload. Predicate `invariants/open-tail.ts :: checkLastLineKept` · run by
+both commit branches in `editor-actions/commit/undo-controller.ts` ·
+`test/invariants/last-line-kept.test.ts`, `test/editor-actions/open-last-line.test.ts`,
+`open-last-line.property.test.ts`.
+
+**G1.43 · A landing is a value** (`landing-is-a-value`). A commit's `landing` says where the caret
+goes and places nothing: the commit reads it after its tick and puts the caret down through the
+editor's one caret landing (`selection/caret-landing.ts`). In a dev build the commit notes
+`document.activeElement` and the selection's anchor around that read, and a landing that moved
+either (a focus call, a selection write) fails here the first time a test runs it. Predicate
+`invariants/landing-value.ts :: checkLandingIsAValue` · run by
+`editor-actions/commit/undo-controller.ts` · `test/invariants/landing-value.test.ts`.
 
 ## Group 2: property and regression tested
 
@@ -879,7 +907,7 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.40 | The three rewrite-claim lists are one set                                        | N       |
 | G4.41 | No test file mocks `dev-warn` or spies `console.warn`                            | L       |
 | G4.42 | No module writes a sibling's `leadingTrivia` by hand                             | L       |
-| G4.43 | Every `splitNode` caller asserts its landing                                     | L       |
+| G4.43 | Every `splitNode` call reads the index the split returned                        | L       |
 | G4.44 | Every prose surface resolves native ranged edits through the one resolver        | L       |
 | G4.45 | Every bare tree-op caller is declared with the commit that settles its writes    | L       |
 | G4.46 | Every ancestry-rebuild caller states its fold-sink stance                        | L       |
@@ -910,6 +938,12 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.71 | An emptiness test on text reads GFM's blank, not `String.trim()`                 | L       |
 | G4.72 | The Markdown grammar reads GFM's whitespace, not JS `\s` or `trim()`             | L       |
 | G4.73 | Every editable-leaf component publishes `afterSourceCommit`                      | L       |
+| G4.74 | Only the commit's open-tail steps write the document's last line ending          | L       |
+| G4.75 | A leaf's new text goes through one commit or one in-place write, at every depth  | L       |
+| G4.76 | Every join into a leaf, and every other text built from two sources, is declared | L       |
+| G4.77 | Only three routes register on behalf of no plugin                                | L       |
+| G4.78 | The editor's built-in bootstraps run only through `registerEditorBuiltIns`       | L       |
+| G4.79 | Whether a kind is a grid is asked through `isGridKind`, nowhere else             | L       |
 
 ### The entries
 
@@ -1117,13 +1151,15 @@ packaging claim unwatched. Library-scoped rather than repo-wide: the reference p
 consumer example are Vite APPS, where the read is legitimate. `lint/suite-file-rules.test.ts`.
 
 **G4.26 · Comment budget.** Two scans. Length: a comment block gets two text lines and a header
-gets five. A header is a file's first block, a docblock right above an `export interface` or
-`export type`, or, in a published entry point (`index.ts`, `plugin.ts`, `testing.ts`,
-`editor-props.ts`, `block-component.ts`), a docblock on an export or one of its members, since
-that's what a consumer hovers in the `.d.ts`. Section dividers and tool directives
+gets five. A header is a file's first comment that isn't trailing code, a docblock right above an
+`export interface` or `export type`, or, in a published entry point (`index.ts`, `plugin.ts`,
+`testing.ts`, `editor-props.ts`, `block-component.ts`), a docblock on an export or one of its
+members, since that's what a consumer hovers in the `.d.ts`. Section dividers and tool directives
 (`eslint-disable-next-line`, `svelte-ignore`) don't count as lines. Any block over its budget fails
-with its `path:line`. `lint/comment-lines.ts` reads the blocks
-for both scans and holds the header rule. Vocabulary: the repo's private words (seam, door, funnel, rung, ceremony, mint, peel, landable, oracle, seat, island, ladder, road,
+with its `path:line`. `lint/comment-lines.ts` reads the blocks for both scans and holds the
+header rule. It gets its comments from the shared lexer (G4.57), so a comment trailing code is a
+block of its own and a `//` inside a string isn't a comment. Vocabulary: the repo's private words
+(seam, door, funnel, rung, ceremony, mint, peel, landable, oracle, seat, island, ladder, road,
 dialect, sanctioned, owe, husk) appear in no comment (backticked symbol names don't count), and
 the requirement files under `src/lib/e2e/requirements/` hold none in their body text (headings,
 code spans and fenced samples don't count either). Every design and contributing doc is counted
@@ -1144,14 +1180,15 @@ documents). `lint/call-site-rules.test.ts`.
 
 **G4.28 · Leaf raw writes outside the content write.** The content write applies a kind's `rawWrite`
 on its own, but a few routes still write `<node>.raw` around it (the range-delete merges, and find
-and replace's private clone, which asks `legalizeWrite` for the bytes itself). The lint holds one
-thing: every `<node>.raw =` statement outside `tree-operations/node-primitives.ts` (home of
+and replace's private clone, which asks `legalizeWrite` for the bytes itself). The lint counts
+those writes: every `<node>.raw =` statement outside `tree-operations/node-primitives.ts` (home of
 `writeOwnRaw` and `installOwnRaw`) is on a counted allowlist, each with the reason it can't reach a
-kind that declares a rule. Whether a route hands its bytes to `normalizeOwnRaw` or `legalizeWrite`
-before writing them is left to review; the lint doesn't read that. That's the shape issue #45
-shipped through: find and replace wrote a fence terminator into a code body because nothing asked
-the fence rule. The fence rule itself has one implementation, in `schema/` so a headless route
-reaches it. `lint/leaf-raw-write-rule.test.ts`.
+kind that declares a rule. An `installOwnRaw` call counts too, anywhere but that file and the
+content write, since it writes whatever bytes it's handed. Whether a route hands its bytes to
+`normalizeOwnRaw` or `legalizeWrite` before writing them is left to review; the lint doesn't read
+that. That's the shape issue #45 shipped through: find and replace wrote a fence terminator into
+a code body because nothing asked the fence rule. The fence rule itself has one implementation, in
+`schema/` so a headless route reaches it. `lint/leaf-raw-write-rule.test.ts`.
 
 **G4.29 · Hardcoded-chord manifest.** Every library file that reads a `KeyboardEvent` modifier flag
 is named in `schema/reserved-chords.ts`, with the chords it claims outside the keymaps and the key
@@ -1303,10 +1340,8 @@ gap-caret insert (a gap caret: the caret parked between two blocks where neither
 one), the same-block range-delete write, the empty-marker sublist separator), each named with its
 reason. `lint/separator-write-doors.test.ts`.
 
-**G4.43 · Split-landing parity.** Every file naming `splitNode` reads `secondHalfIndex` and asserts
-the landing through `assertSplitLanding`, and carries at least one assertion per split CALL, so a
-caller growing a second split whose landing it re-derives fails too. G1.34's guard only fires where
-a caller calls it, and a site seating its caret at `i + 1` never crosses it.
+**G4.43 · Split-landing parity.** Every file naming `splitNode` reads `secondHalfIndex` at least
+once per split CALL, so a caller growing a second split whose caret it puts at `i + 1` fails too.
 `lint/split-landing-parity.test.ts`.
 
 **G4.44 · Live ranged-edit parity.** Every editable PROSE surface (an editable-surface factory, its
@@ -1415,10 +1450,11 @@ comment/string/template/regex/code by `spanAt` and by a `createSourceFile` plus 
 reference, and the two must agree. Two corpora: the repo-wide roots, and the wider one the test-tree
 scans lex. Sixty-odd scans read code through that lexer, so a literal it misreads shrinks their
 populations at once with nothing red, which is how a regex-blind walk and a `}`-opens-a-regex rule
-both shipped. The differential also pins `stripComments` to the same reading, so the guard can't
-drift onto a lexer no scan uses. TypeScript can't lex markup, so the `.svelte` markup half is pinned
-against a corpus instead, and the two shapes there that record a simplification rather than the
-truth say why no scan can move on one. `lint/scan-source.differential.test.ts`.
+both shipped. `stripComments` and the comment lints read their comments off the same classes, so
+the guard can't drift onto a lexer no scan uses. Each file lexes in its own language. A `.svelte`
+file's markup is text apart from `<!-- -->` comments, quoted attribute values and `{…}` script. A
+`.css` file has no `//` comments, so a `url(//…)` stays code. TypeScript can't lex either, so both
+are pinned against a corpus instead. `lint/scan-source.differential.test.ts`.
 
 **G4.58 · Commit-message shape.** One rule, two enforcement points:
 `scripts/lint-commit-message.mjs` holds the only definition of the enforced subject shape, and both
@@ -1528,7 +1564,8 @@ deps and the render options carry it the same way. A
 fallback to every installed plugin is spelled only in the listed places. A write that reparses a
 block the editor drew (the prose block's live rewrites and auto-pair, and the bold and italic
 toggle) reads with the link resolver the block was drawn with, or a reference link reads as
-brackets beside it (#443, #455).
+brackets beside it (#443, #455). The inline read a plugin gets is built from the whole reading
+too, so a plugin walks reference links the way the editor draws them (#641).
 `lint/registry-view-reads.test.ts`.
 
 **G4.69 · The defaulted readers stay at the edge.** The published `parse` and `parseInline`, and
@@ -1578,6 +1615,79 @@ but a host's `editor.runCommand('block.moveDown')` reaches the component, so it 
 to write the source first. `BlockComponent` declares it optional, so leaf N+1 would compile clean
 and lose the edit on every such move. A third-party plugin is outside the scan and gets the same one-line re-export in
 the plugin guide. `lint/file-rules.test.ts`.
+
+**G4.74 · The open last line has one writer.** The walk that adds or drops the ending on a
+block's last line, down through every container holding that line, is private to
+`tree-operations/open-tail.ts`, and only the commit's two steps call it (G1.41). A route that ended
+or released the tail itself would be the rule's second copy, and the next route to place a block
+would skip it, which is how list-end Enter and ArrowDown past the end shipped gluing their new
+block onto the last line. `lint/file-rules.test.ts`.
+
+**G4.75 · One leaf write.** New text for a leaf is written one way at every depth: a commit through
+`src/lib/editor-actions/block-edit-core.ts` :: `commitLeafText`, or the keystroke's in-place write,
+`src/lib/editor-actions/leaf-write.ts` :: `writeLeafInPlace`. The write is a few steps, and each
+step gets its own short list of files allowed to name it (so an aliased import counts too):
+
+- the content write itself (`updateNodeContent`), which only those two, the keystroke's trial
+  reparse and the container-matching paste (a list or a quote pasted into its own kind) call
+- a write in place that skips the reparse (`writeOwnRaw`, `installOwnRaw`), left to table cells,
+  the range writes and find and replace's private copy
+- the document as a body with no owner and its trailing blank line, which only `documentBody`
+  builds, so no route can hand the document in as a container. The one other hand-built body is
+  the keystroke's trial reparse, which wraps a throwaway copy that never reaches the document
+- the task-marker reconcile, once each in the content write, the join and `replaceBlock`
+- a replacement's escape for its container, in `replaceBlock` alone
+- the typing batch (push, join, pause), in `typeInLeaf` alone, so every depth groups its undo the
+  same way
+- the chain-depth check (G1.20), in the in-place write alone
+
+A new route that copies any of these instead of calling the shared writer fails with that step's
+reason, and each allowed file carries its own. The content version and the join have scans of
+their own (G4.52, G4.76). `lint/leaf-write-doors.test.ts`.
+
+**G4.76 · Joins into a leaf.** Two texts joined into one leaf go through
+`src/lib/tree-operations/node-ops.ts` :: `joinIntoLeaf`: the join cleanup, the kind's rule, the
+container's rule, and a reparse that may change the kind. The scan declares every file calling
+`joinIntoLeaf` and every file naming the cleanup (`cleanJoinedRaw`), each with what it joins. It
+also reads the text each file hands a leaf: a `.raw =`, or the argument of a leaf write
+(`writeOwnRaw`, `normalizeOwnRaw`, `legalizeWrite`, `commitLeafText`, the matching paste's
+`writeMergedLeaf`), with a bound name followed to its value. Text built from more than
+one source is a join, so its file names the cleanup or sits on a list of the ones that aren't, each
+with its reason (a paste or a typed character inserts between one leaf's own halves).
+`lint/cross-node-join-doors.test.ts`.
+
+**G4.77 · One way to belong to no plugin.** `src/lib/schema/plugin-install.ts` :: `registerAsCore` runs
+registrations as if no plugin were installing, so what they make belongs to no plugin even when a
+plugin's setup reached them first. It has three callers:
+
+- `src/lib/components/editor-built-ins.ts` :: `registerEditorBuiltIns`, the editor's own bootstrap
+  (built-in blocks, code languages, context-menu rows), which the reset keeps
+- a registry's `registerCore`, for a built-in key the registry can't recognize on its own (a code
+  language, a context-menu row), which it also flags for the reset to keep
+- `activateDirectives`, around the directive grammar and its components, which the reset drops, as
+  if the process had just started
+
+The scan matches the bare name, so an aliased import is caught at its import line. A kind a plugin
+declared needs none of this, since its entries already belong to that plugin.
+`lint/file-rules.test.ts`.
+
+**G4.78 · The editor's built-ins come in one way.** `registerBuiltInBlocks`,
+`bootstrapCodeLanguages` and `registerDefaultContextActions` are only ever called from
+`src/lib/components/editor-built-ins.ts` :: `registerEditorBuiltIns`, which runs them as no plugin
+(G4.77). Call one anywhere else and whichever plugin's setup gets there first ends up owning the
+paragraph component or the code languages, so they'd show only where that plugin is listed, and the
+test reset would drop them. The scan covers shipped source; unit tests still call the bootstraps
+directly, outside any plugin, which is fine. `lint/file-rules.test.ts`.
+
+**G4.79 · One way to ask whether it's a grid.** A kind is a grid (a table, its rows, or a
+plugin's equivalent) when its descriptor declares the grid contract. Only
+`src/lib/schema/block-kind-descriptor.ts` :: `isGridKind` asks, or `isGridDescriptor` if you've
+already got the descriptor in hand. Any other file with a `'grid'` string in its code fails the
+scan, even one that only checks it against a list (`['strip', 'grid'].includes(contract)`).
+Declaring it (`contract: 'grid'`), or naming it in the `'strip' | 'grid' | 'opaque'` type, isn't
+asking, so the scan leaves those alone. Same for a component's markup attribute, like
+`role="grid"`. One other file may hold the string: the insert menu's catalogue, where `grid` is a
+search keyword that finds the table. `lint/file-rules.test.ts`.
 
 ## Accessibility
 

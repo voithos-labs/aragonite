@@ -61,8 +61,8 @@ export interface EditorContext<Options = unknown> {
 	/** `EditorInstance.runCommand` for this editor: false, and nothing written, on an unknown id,
 	 *  in reading mode, or with nothing focused for a block command. */
 	readonly runCommand: (commandId: string, arg?: unknown) => boolean;
-	/** Inline-parse a prose leaf in this editor's syntax, so an inactive plugin's syntax reads as
-	 *  text, as the editor draws it. Uncached; reference links come back unresolved. */
+	/** Inline-parse a prose leaf as this editor draws it, reference links included. Uncached, and a
+	 *  new function whenever the document's definitions change, so a cache keyed on it refreshes. */
 	readonly computeInlineContent: (node: NodeView) => InlineNode[];
 	/** A getter, so always live: the mode in effect. The `presentationModeChange` event signals a change. */
 	readonly presentationMode: PresentationMode;
@@ -173,6 +173,15 @@ export function currentInstallingPlugin(): string | null {
 	return installing;
 }
 
+/** An editor's `EditorContext` for the plugin an entry answers to; an entry no plugin owns gets
+ *  the editor's base context (`''`). Undefined when no editor is wired. */
+export function pluginEditorFor(
+	lookup: ((pluginName: string) => EditorContext | undefined) | undefined,
+	owner: string | null
+): EditorContext | undefined {
+	return lookup?.(owner ?? '');
+}
+
 /** Runs shared registrations a plugin's setup triggers as core ones, owned by no plugin, so every
  *  editor resolves them whichever plugin reached them first. */
 export function registerAsCore(register: () => void): void {
@@ -199,7 +208,7 @@ export function installedPluginNames(): string[] {
 	return [...installed.keys()];
 }
 
-export function __resetInstalledPluginsForTests(): void {
+function __resetInstalledPluginsForTests(): void {
 	installed.clear();
 	failed.clear();
 	onEditorSubs.clear();

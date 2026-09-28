@@ -17,6 +17,12 @@ import { createEditorEvents, type EditorEvents } from '../editor-events';
 import { refSlotsOver, replaceRefs } from '../reactivity/publish-ref.svelte';
 import { descendTo, type ChildList } from '../reactivity/child-list';
 import { createSelectionState } from '../selection/selection-state.svelte';
+import {
+	createCaretLanding,
+	type CaretLanding,
+	type LandingOutcome
+} from '../selection/caret-landing';
+import { caretTargetFor, type CaretTarget } from '../selection/caret-target';
 import { createSharingState } from '../tree-operations/sharing';
 import { createUndoManager } from '../undo/manager';
 
@@ -77,8 +83,6 @@ export function recordingFocus(): RecordingFocus {
 		moveFocus: (...args: unknown[]) => {
 			moveFocusCalls.push(args);
 		},
-		// The focus-bubble consumers assert on moveFocus, never on a resolved component.
-		revealPath: async () => null,
 		// Headless: nothing is rendered, so there is no boundary to put a gap caret at.
 		tryGapStop: () => false
 	};
@@ -98,10 +102,17 @@ export interface HeadlessActionsOptions {
 	bumpContentVersion?: () => void;
 }
 
+/** A leaf a caret landing resolved to, and whether a mounted block took the caret. */
+export interface RecordedLanding extends CaretTarget {
+	readonly outcome: LandingOutcome;
+}
+
 export interface HeadlessActions {
 	deps: EditorActionsDeps;
 	doc: Document;
 	events: EditorEvents;
+	/** Every caret landing that resolved to a leaf, in order, with what the landing did there. */
+	landings: readonly RecordedLanding[];
 	getBlockIds(): string[];
 	getBlockRefs(): (BlockComponent | undefined)[];
 }
@@ -125,6 +136,7 @@ export function createHeadlessActions(
 		spy(stubBlockComponent())
 	);
 	const events = createEditorEvents();
+	const landings: RecordedLanding[] = [];
 	const deps: EditorActionsDeps = {
 		get doc() {
 			return doc;
@@ -158,6 +170,9 @@ export function createHeadlessActions(
 		}),
 		getBlockElByPath: () => null,
 		revealPath: (path: number[]) => descendTo(rootList, path),
+		get caretLanding() {
+			return caretLanding;
+		},
 		events,
 		// An author's suite runs with no editor, so every installed plugin is in the grammar.
 		reading: options.reading ?? kitReading()
@@ -168,7 +183,47 @@ export function createHeadlessActions(
 		refs: deps.blockRefSlots,
 		windowing: { revealChild: async () => {}, isInWindow: (i) => blockRefs[i] !== undefined }
 	};
-	return { deps, doc, events, getBlockIds: () => blockIds, getBlockRefs: () => blockRefs };
+	const caretLanding = recordingLanding(
+		createCaretLanding({
+			getDoc: () => doc,
+			root: rootList,
+			selectionState: deps.selectionState,
+			// Read live: a suite may swap in its own caret memory after building the deps.
+			caretMemory: {
+				forget: () => deps.caretMemory.forget(),
+				noteExtreme: () => deps.caretMemory.noteExtreme()
+			},
+			getBlockElByPath: deps.getBlockElByPath,
+			scroll: null
+		}),
+		() => doc,
+		landings
+	);
+	return {
+		deps,
+		doc,
+		events,
+		landings,
+		getBlockIds: () => blockIds,
+		getBlockRefs: () => blockRefs
+	};
+}
+
+/** `landing` with each resolved leaf pushed onto `landings` once it has landed. */
+function recordingLanding(
+	landing: CaretLanding,
+	getDoc: () => Document,
+	landings: RecordedLanding[]
+): CaretLanding {
+	return {
+		...landing,
+		async land(pos, opts) {
+			const target = caretTargetFor(getDoc(), pos, { openCollapsed: opts?.openCollapsed });
+			const outcome = await landing.land(pos, opts);
+			if (target) landings.push({ ...target, outcome });
+			return outcome;
+		}
+	};
 }
 
 function documentOf(source: string | Document | CstNode[]): Document {

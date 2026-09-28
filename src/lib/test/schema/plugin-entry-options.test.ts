@@ -1,12 +1,6 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import {
-	definePlugin,
-	normalizePluginEntries,
-	__resetInstalledPluginsForTests
-} from '$lib/schema/plugin-install';
+import { describe, it, expect } from 'vitest';
+import { definePlugin, normalizePluginEntries } from '$lib/schema/plugin-install';
 import { takeDevWarns } from '../support/warn-gate';
-
-beforeEach(() => __resetInstalledPluginsForTests());
 
 describe('normalizePluginEntries', () => {
 	const p = () => definePlugin({ name: 'p', setup() {} });

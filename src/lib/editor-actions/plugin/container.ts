@@ -32,12 +32,11 @@ import {
 	EDITOR_SERVICES_KEY,
 	type EditorDoc,
 	type EditorPolicies,
-	type EditorServices,
-	type PluginEditorLookup
+	type EditorServices
 } from '../../editor-keys';
 import { captureScrollPosition } from '../../cursor/scroll-hold';
 import type { EditorContext } from '../../schema/plugin-install';
-import { owningPluginEditor } from '../../schema/plugin-kind';
+import { componentPluginEditor } from '../../schema/block-component-registry';
 import type { WindowResult } from '../../reactivity/block-window.svelte';
 import type { RefSlots } from '../../reactivity/publish-ref.svelte';
 import type { ChildList } from '../../reactivity/child-list';
@@ -252,8 +251,7 @@ export function composeCollapseGates(
  *  `runCommand`, since a plugin container owns no built-in kind commands. */
 export function buildContainerKindTarget(
 	deps: Pick<ContainerBlockDeps, 'getNode' | 'commandHooks'>,
-	updateOwnMetadata: ContainerBlock['updateOwnMetadata'],
-	pluginEditor?: PluginEditorLookup
+	updateOwnMetadata: ContainerBlock['updateOwnMetadata']
 ): KindCommandTarget {
 	return {
 		get kind() {
@@ -264,8 +262,7 @@ export function buildContainerKindTarget(
 			updateMetadata: (patch) => {
 				void updateOwnMetadata(patch);
 			},
-			hooks: deps.commandHooks?.(),
-			editor: owningPluginEditor(pluginEditor, deps.getNode().kind)
+			hooks: deps.commandHooks?.()
 		})
 	};
 }
@@ -279,9 +276,8 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 	const { pluginEditor, reading } = getContext<EditorDoc>(EDITOR_DOC_KEY);
 	const getPresentationMode = reading.mode;
 
-	// Resolved by the kind's recorded owner, like the kind-command context's `editor`.
 	const getEditor = (): EditorContext | undefined =>
-		owningPluginEditor(pluginEditor, deps.getNode().kind);
+		componentPluginEditor(pluginEditor, deps.getNode().kind);
 	const getOptions = (): unknown => getEditor()?.options;
 
 	const collapsed = composeCollapseProbe(deps.isCollapsed, deps.getNode, getPresentationMode);
@@ -409,7 +405,7 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		await parentBlockEdit.updateBlockMetadata(deps.getIndex(), patch, { afterTick });
 	};
 
-	const kindTarget = buildContainerKindTarget(deps, updateOwnMetadata, pluginEditor);
+	const kindTarget = buildContainerKindTarget(deps, updateOwnMetadata);
 	// Focused as a whole, the block is the one a reorder chord moves; a key bubbling from an
 	// inner leaf was that leaf's to move.
 	const wholeBlockTarget: KindCommandTarget = {

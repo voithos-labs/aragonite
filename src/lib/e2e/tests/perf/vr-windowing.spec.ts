@@ -39,9 +39,6 @@ test('windowing bounds the mounted set on a multi-thousand-block doc', async ({ 
 	const pageErrors = capturePageErrors(page);
 	const editor = new EditorPage(page);
 	await editor.goto();
-	// This test's first action after navigating is a load with a 2s timeout, not the 90s wait
-	// its neighbours use, and on a busy machine it can fire mid-navigation and abort.
-	await page.waitForURL(/\/test\/editor/);
 
 	// Reset to a one-block document before turning the counters on: otherwise the running total
 	// includes the showcase mounted while they were off, and reads too low by that much.

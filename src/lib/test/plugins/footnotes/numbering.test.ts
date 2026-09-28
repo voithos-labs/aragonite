@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { installPlugins, parse } from '$lib';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import {
 	footnotesPlugin,
 	assignFootnoteNumbers,
@@ -14,7 +13,6 @@ describe('footnote numbering (derived, first-reference order)', () => {
 	beforeEach(() => {
 		// Install so `[^label]` parses as a footnote-ref inline node; without the
 		// plugin it finds no references at all.
-		resetPluginPlatformForTests();
 		installPlugins([footnotesPlugin()]);
 	});
 
@@ -88,7 +86,6 @@ describe('footnote numbering (derived, first-reference order)', () => {
 // place and a key on the document alone would freeze the numbering at the first widget's view.
 describe('footnote numbering: the shared per-version walk', () => {
 	beforeEach(() => {
-		resetPluginPlatformForTests();
 		installPlugins([footnotesPlugin()]);
 	});
 

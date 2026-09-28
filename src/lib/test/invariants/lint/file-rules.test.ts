@@ -5,7 +5,14 @@
  * source collection taken below.
  */
 
-import { collectEditorSources, isProseSurface, type SourceFile } from './scan-source';
+import {
+	collectEditorSources,
+	fileClasses,
+	isProseSurface,
+	languageOf,
+	LEXICAL_CLASSES,
+	type SourceFile
+} from './scan-source';
 import {
 	describeFileRules,
 	except,
@@ -208,6 +215,34 @@ const EDITOR_GETTERS = [
 	'navigateTo',
 	'computeInlineContent'
 ];
+
+// ── G4.79 the grid contract ──────────────────────────────────────────────────
+
+const CODE = LEXICAL_CLASSES.indexOf('code');
+const QUOTED_GRID = /(['"`])grid\1/g;
+const DECLARED_BEFORE = /\b(?:contract|containerContract)\??\s*:\s*$/;
+const UNION_BEFORE = /(?<!\|)\|\s*$/;
+const UNION_AFTER = /^\s*\|(?!\|)/;
+const ATTRIBUTE_BEFORE = /\s[\w:-]+=$/;
+
+/** Whether a whole `'grid'` literal in code reads the contract: every one does but a declaration
+ *  (`contract: 'grid'`), a member of the contract's union type, and a markup attribute's value. */
+function readsGridLiteral(file: SourceFile): boolean {
+	const classes = fileClasses(file);
+	const markup = languageOf(file.relPath) === 'component';
+	for (const { index, 0: literal } of file.code.matchAll(QUOTED_GRID)) {
+		const end = index + literal.length;
+		const whole = classes[index] !== CODE && (index === 0 || classes[index - 1] === CODE);
+		if (!whole || (end < file.code.length && classes[end] !== CODE)) continue;
+		const before = file.code.slice(Math.max(0, index - 64), index);
+		const after = file.code.slice(end, end + 64);
+		if (DECLARED_BEFORE.test(before)) continue;
+		if (UNION_BEFORE.test(before) || UNION_AFTER.test(after)) continue;
+		if (markup && ATTRIBUTE_BEFORE.test(before)) continue;
+		return true;
+	}
+	return false;
+}
 
 // ── The rules ────────────────────────────────────────────────────────────────
 
@@ -730,6 +765,18 @@ const RULES: FileRule[] = [
 		]
 	},
 	{
+		id: 'G4.74 only the commit writes the open last line',
+		matches: /\b(?:terminateLastLine|releaseLastLine)\b/,
+		allowed: {
+			'src/lib/tree-operations/open-tail.ts':
+				'the walk down the last line, private to the two steps every structural commit runs'
+		},
+		reason:
+			'the commit ends every placed line and gives the ending back to the last block; an edit that writes the tail itself is a second copy of that rule, and the next route will not carry it',
+		hits: ['terminateLastLine(node, ending, sharing);', 'releaseLastLine(tail, sharing);'],
+		misses: ['endWindowLines(body, change, sharing);', 'text = terminateLine(text, ending);']
+	},
+	{
 		id: 'a value the editor owns is read through its getter, never optional-chained into a default',
 		matches: new RegExp(
 			`\\b(?:${EDITOR_GETTERS.join('|')})\\?\\.\\(|(?:\\?\\?|\\|\\|)\\s*'(?:source|reading)'`
@@ -751,6 +798,95 @@ const RULES: FileRule[] = [
 			"const isReading = getPresentationMode() === 'reading';",
 			'navigateTo: (path) => rects?.navigateTo(path) ?? Promise.resolve(false),',
 			"if (mode === 'reading') return;"
+		]
+	},
+	{
+		id: 'G4.77 only the editor bootstrap, registerCore and directives register on behalf of no plugin',
+		// The bare name, so an aliased import is flagged at its import line.
+		matches: /\bregisterAsCore\b/,
+		allowed: {
+			'src/lib/schema/plugin-install.ts':
+				'the function itself, which runs its callback with no plugin installing',
+			'src/lib/components/editor-built-ins.ts':
+				'the editor’s own bootstraps (blocks, code languages, context-menu rows), which the reset keeps',
+			'src/lib/schema/plugin-registry.ts':
+				'`registerCore`, which also flags a key the registry can’t tell is built-in so the reset keeps it',
+			'src/lib/components/blocks/directive/activate-directives.ts':
+				'the directive grammar and its components, which a consumer may turn on from a plugin’s setup and the reset drops'
+		},
+		reason:
+			'an entry belongs to no plugin only through one of these routes: an editor built-in goes in `registerEditorBuiltIns`, a built-in key the reset can’t recognize goes through `registerCore`, and a kind a plugin declared already answers to that plugin',
+		hits: [
+			'registerAsCore(() => registerLanguage(name, grammar));',
+			"import { registerAsCore as runUnowned } from './plugin-install';"
+		],
+		misses: ['grammars.registerCore(key, language);', 'registerAsCoreLater();']
+	},
+	{
+		id: 'G4.78 the editor’s built-in bootstraps run only through registerEditorBuiltIns',
+		matches:
+			/\b(?:registerBuiltInBlocks|bootstrapCodeLanguages|registerDefaultContextActions)\s*\(/,
+		allowed: {
+			'src/lib/components/editor-built-ins.ts':
+				'`registerEditorBuiltIns`, which runs the three bootstraps as no plugin',
+			'src/lib/components/built-in-blocks.ts': 'the definition of `registerBuiltInBlocks`',
+			'src/lib/components/blocks/code/code-bootstrap.ts':
+				'the definition of `bootstrapCodeLanguages`',
+			'src/lib/components/menu/default-context-actions.ts':
+				'the definition of `registerDefaultContextActions`'
+		},
+		reason:
+			'a bootstrap called anywhere else registers the editor’s built-ins as whichever plugin’s setup reached it first, so they resolve only where that plugin is listed and the test reset drops them: call `registerEditorBuiltIns()` instead',
+		hits: [
+			'bootstrapCodeLanguages();',
+			'registerBuiltInBlocks ();',
+			'registerDefaultContextActions();'
+		],
+		misses: [
+			'registerEditorBuiltIns();',
+			'registerBuiltInDescriptors();',
+			'import { bootstrapCodeLanguages } from "./code-bootstrap";'
+		]
+	},
+	// Miss-analysis: `isGridKind` had no scan behind it, so a site holding a descriptor kept
+	// comparing its `containerContract` to `'grid'` itself.
+	{
+		id: 'G4.79 the grid contract is read through isGridKind',
+		matches: readsGridLiteral,
+		allowed: {
+			'src/lib/schema/block-kind-descriptor.ts':
+				'isGridKind and isGridDescriptor, the one place the comparison is written',
+			'src/lib/schema/insert-catalogue.ts':
+				'the table entry’s search keyword, a word the insert menu filters on'
+		},
+		reason:
+			'a kind is a grid when its descriptor declares the grid contract, and a second spelling of that test drifts from the first: call `isGridKind(kind)`, or `isGridDescriptor(descriptor)` where the descriptor is in hand',
+		hits: [
+			"if (descriptor.containerContract === 'grid') return;",
+			"} else if (contract !== 'grid' || last < 0) {",
+			"const grid = 'grid' === d?.containerContract;",
+			"switch (contract) {\n\tcase 'grid':\n\t\treturn 1;\n}",
+			"if (['strip', 'grid'].includes(contract)) return;",
+			"const grids = new Set(['grid']);",
+			'const a = contract === `grid`;',
+			"const b = contract ===\n\t\t\t\t\t\t\t'grid';",
+			"const c = contract || 'grid';",
+			at(
+				'src/lib/components/X.svelte',
+				'{#if descriptor.containerContract === "grid"}<p>row</p>{/if}'
+			),
+			at('src/lib/components/X.svelte', "<div class={contract === 'grid' ? 'a' : 'b'}>x</div>"),
+			"el.style.display = 'grid';",
+			"let c='grid';"
+		],
+		misses: [
+			"container: { contract: 'grid', rebuildRaw: rebuildTableRaw },",
+			"containerContract?: 'strip' | 'grid' | 'opaque';",
+			"type Contract = 'grid' | 'strip';",
+			"// descriptor.containerContract === 'grid' marks a table\nconst a = 1;",
+			'const note = "a table is containerContract === \'grid\'";',
+			at('src/lib/components/X.svelte', "<p>when contract === 'grid' the rows lay out</p>"),
+			at('src/lib/components/X.svelte', '<div role="grid" style:display="grid">x</div>')
 		]
 	}
 ];

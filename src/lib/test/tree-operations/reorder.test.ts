@@ -3,10 +3,17 @@ import { reorderChildren, reorderChildrenWithTrivia } from '$lib/tree-operations
 import { createSharingState } from '$lib/tree-operations/sharing';
 import { takeDevWarns } from '../support/warn-gate';
 import { defaultGrammarView } from '$lib/schema/block-openers';
+import type { CstNode } from '$lib/core/nodes';
+import type { BodyParent } from '$lib/tree-operations/node-primitives';
 
 const node = (raw: string) => ({ kind: 'paragraph', raw }) as any;
 const triviaNode = (leadingTrivia: string, raw: string) =>
 	({ kind: 'paragraph', leadingTrivia, raw }) as any;
+const bodyOf = (children: CstNode[]): BodyParent => ({
+	children,
+	owner: undefined,
+	lineEnding: '\n'
+});
 
 describe('reorderChildren', () => {
 	it('moves down by one and returns a permutation replace', () => {
@@ -57,7 +64,7 @@ describe('reorderChildrenWithTrivia', () => {
 
 	it('keeps separators on the slot when a node moves to the front', () => {
 		const children = [triviaNode('', 'a\n'), triviaNode('\n', 'b\n'), triviaNode('\n', 'c\n')];
-		reorderChildrenWithTrivia(children, 2, 0, sharing(), defaultGrammarView, '\n');
+		reorderChildrenWithTrivia(bodyOf(children), 2, 0, sharing(), defaultGrammarView);
 
 		expect(children.map((c) => c.raw)).toEqual(['c\n', 'a\n', 'b\n']);
 		expect(children.map((c) => c.leadingTrivia)).toEqual(['', '\n', '\n']);
@@ -65,7 +72,13 @@ describe('reorderChildrenWithTrivia', () => {
 
 	it('returns the same permutation idMap as reorderChildren', () => {
 		const children = [triviaNode('', 'a\n'), triviaNode('\n', 'b\n'), triviaNode('\n', 'c\n')];
-		const settled = reorderChildrenWithTrivia(children, 0, 2, sharing(), defaultGrammarView, '\n');
+		const settled = reorderChildrenWithTrivia(
+			bodyOf(children),
+			0,
+			2,
+			sharing(),
+			defaultGrammarView
+		);
 		expect(settled).toEqual({
 			change: { op: 'replace', at: 0, count: 3, newCount: 3, idMap: { 0: 1, 1: 2, 2: 0 } },
 			landing: 2
@@ -78,7 +91,7 @@ describe('reorderChildrenWithTrivia', () => {
 		const s = sharing();
 		s.markSnapshotTaken();
 
-		reorderChildrenWithTrivia(children, 0, 1, s, defaultGrammarView, '\n');
+		reorderChildrenWithTrivia(bodyOf(children), 0, 1, s, defaultGrammarView);
 
 		expect(originals.map((c) => c.leadingTrivia)).toEqual(['', '\n']);
 		expect(children.every((c) => !originals.includes(c))).toBe(true);
@@ -94,7 +107,7 @@ describe('reorderChildrenWithTrivia', () => {
 		s.markSnapshotTaken();
 
 		// The block never moved, so the caret ends up where it still stands.
-		expect(reorderChildrenWithTrivia(children, 5, 0, s, defaultGrammarView, '\n')).toEqual({
+		expect(reorderChildrenWithTrivia(bodyOf(children), 5, 0, s, defaultGrammarView)).toEqual({
 			change: { op: 'noop' },
 			landing: 5
 		});
@@ -105,7 +118,9 @@ describe('reorderChildrenWithTrivia', () => {
 
 	it('is a guarded noop when `to` is out of bounds', () => {
 		const children = [triviaNode('', 'a\n'), triviaNode('\n', 'b\n')];
-		expect(reorderChildrenWithTrivia(children, 0, 9, sharing(), defaultGrammarView, '\n')).toEqual({
+		expect(
+			reorderChildrenWithTrivia(bodyOf(children), 0, 9, sharing(), defaultGrammarView)
+		).toEqual({
 			change: { op: 'noop' },
 			landing: 0
 		});

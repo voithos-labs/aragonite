@@ -11,7 +11,7 @@ import type { DocumentView, NodeView } from '../node-views';
 import type { PresentationMode } from '../../presentation-mode';
 import { isLiveHtmlTag, buildLiveHtmlWidget } from './raw-html-widget';
 import { entityRendersGlyph, buildEntityWidget } from './entity-widget';
-import { createPluginRegistry } from '../../schema/plugin-registry';
+import { createInlineKindRegistry } from '../../schema/plugin-registry';
 import type { GrammarView } from '../../schema/block-openers';
 import { inlineDescendants } from './walk';
 
@@ -61,8 +61,8 @@ export interface InlineWidgetComponentProps {
 	/** `EditorRects.navigateTo`: mount, scroll to and put the caret at a raw offset in a block
 	 *  path. Resolves false where it can't land, so a widget never needs a fallback. */
 	navigateTo: (path: number[], offset?: number) => Promise<boolean>;
-	/** `EditorContext.computeInlineContent` for the widget's editor: a parse that reads only the
-	 *  inline syntax that editor draws. */
+	/** `EditorContext.computeInlineContent` for the widget's editor: it parses as that editor draws,
+	 *  and it's a new function whenever the document's definitions change. */
 	computeInlineContent: (node: NodeView) => InlineNode[];
 }
 
@@ -129,13 +129,13 @@ export interface InlineWidgetDescriptor {
 	editing?: InlineWidgetEditingPolicy;
 }
 
-const registry = createPluginRegistry<AnyInlineKind, InlineWidgetDescriptor>({
+const registry = createInlineKindRegistry<InlineWidgetDescriptor>({
 	label: 'registerInlineWidgetKind',
 	isBuiltin: isBuiltinInlineKind
 });
 
 /** The kind's descriptor under an editor's grammar: absent where the editor left out the plugin
- *  that registered it, so a node of that kind renders as its source. */
+ *  the entry answers to, so a node of that kind renders as its source. */
 function widgetOf(kind: AnyInlineKind, grammar: GrammarView): InlineWidgetDescriptor | undefined {
 	return registry.get(kind, grammar.activation);
 }

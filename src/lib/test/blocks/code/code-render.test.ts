@@ -5,13 +5,11 @@ import { bootstrapCodeLanguages } from '$lib/components/blocks/code/code-bootstr
 import { trimTrailingLineEnding } from '$lib/core/lines';
 import type { CstNode } from '$lib/core/nodes';
 import { fencedCode } from './fenced-code-fixture';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 
 // The language registry is register-once, so each test resets it, or one describe's grammar
 // would leak into the next.
 beforeEach(() => {
-	__resetSchemaRegistriesForTests();
 	bootstrapCodeLanguages();
 });
 

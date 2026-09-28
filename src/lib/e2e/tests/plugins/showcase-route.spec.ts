@@ -1,6 +1,7 @@
 import { type Page } from '@playwright/test';
 import { test, expect } from '../../fixtures';
-import { capturePageErrors, waitForEditorHydrated } from '../../page-probes';
+import { capturePageErrors } from '../../page-probes';
+import { gotoReady } from '../../goto-ready';
 import { SHOWCASE_MD, scanShowcase } from '../../showcase-document';
 
 // The `/` showcase mounts <Editor> with every bundled plugin the way a consumer would, with no
@@ -109,8 +110,7 @@ test.describe('/ showcase route', () => {
 		// Set up before the navigation: a plugin that throws on install throws during hydration,
 		// which a listener attached afterwards never sees.
 		pageErrors = capturePageErrors(page);
-		await page.goto('/');
-		await waitForEditorHydrated(page);
+		await gotoReady(page, '/');
 	});
 
 	test.afterEach(() => {

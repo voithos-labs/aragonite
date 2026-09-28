@@ -1,13 +1,14 @@
 // Every edit route that reparses reads the editor's grammar, so none makes a kind it switched off.
 // Miss-analysis: GH #429, only the split was ever tested against the editor's grammar.
 
-import { describe, it, expect } from 'vitest';
+import { beforeEach, describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { createRegistryView } from '$lib/schema/registry-view';
 import { declarePluginKind } from '$lib/schema/plugin-kind';
 import { registerBlockCompleter } from '$lib/schema/block-completions';
 import { mergeWithNext } from '$lib/tree-operations';
 import { reorderChildrenWithTrivia } from '$lib/tree-operations/reorder';
+import { documentBody } from '$lib/tree-operations/node-primitives';
 import { createSharingState } from '$lib/tree-operations/sharing';
 import { rangeDelete } from '$lib/selection/range-delete';
 import { planEnterCompletion } from '$lib/editor-actions/enter-completion';
@@ -23,9 +24,11 @@ const noIndentedCode = createRegistryView({ syntax: { indentedCode: false } }).g
 const read = (source: string) => parse(source, { grammar: noIndentedCode });
 const kindsOf = (nodes: readonly CstNode[]) => nodes.map((n) => n.kind);
 
-registerBlockCompleter(declarePluginKind('indent-box'), {
-	tryComplete: (line) =>
-		line === '%box' ? { lines: ['    boxed'], caret: { path: [], line: 0, column: 4 } } : null
+beforeEach(() => {
+	registerBlockCompleter(declarePluginKind('indent-box'), {
+		tryComplete: (line) =>
+			line === '%box' ? { lines: ['    boxed'], caret: { path: [], line: 0, column: 4 } } : null
+	});
 });
 
 describe('an edit route reparses in the editor grammar', () => {
@@ -40,7 +43,7 @@ describe('an edit route reparses in the editor grammar', () => {
 	// global grammar reads that pair as prose then code and refuses the separator.
 	it('a reorder that lands an indented paragraph under prose separates the two', () => {
 		const doc = read('prose\n# h\n\n    moved\n');
-		reorderChildrenWithTrivia(doc.children, 2, 1, createSharingState(), noIndentedCode, '\n');
+		reorderChildrenWithTrivia(documentBody(doc), 2, 1, createSharingState(), noIndentedCode);
 		expect(kindsOf(doc.children)).toEqual(['paragraph', 'paragraph', 'heading']);
 		expect(describeConvergence(doc, noIndentedCode)).toBeNull();
 	});

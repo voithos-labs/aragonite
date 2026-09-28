@@ -1,5 +1,6 @@
 import { type Page } from '@playwright/test';
 import { EditorPage } from '../../editor-page';
+import { gotoReady, type RouteUrl } from '../../goto-ready';
 
 // Shared checks for the windowing specs. The fixtures are tall enough to pass the editor's height
 // threshold, so scrolling to an unmounted block really happens; `UNWINDOWED_PROSE` is the
@@ -117,20 +118,14 @@ export function topVisibleHostTop(
 /** The layout where the search for a scrolling ancestor finds none and the window's own
  *  viewport does the scrolling. `blocks` sizes the editor either side of the threshold. */
 export async function gotoPageScroll(page: Page, blocks?: number): Promise<void> {
-	await page.goto(
-		blocks === undefined ? '/test/page-scroll' : `/test/page-scroll?blocks=${blocks}`
-	);
-	await page.waitForFunction(
-		() => (window as any).__test !== undefined && (window as any).__pageScroll !== undefined,
-		null,
-		{ timeout: 10_000 }
-	);
+	const url: RouteUrl =
+		blocks === undefined ? '/test/page-scroll' : `/test/page-scroll?blocks=${blocks}`;
+	await gotoReady(page, url);
 }
 
 /** The layout where several editors share one scrolling ancestor. */
 export async function gotoFlow(page: Page): Promise<void> {
-	await page.goto('/test/flow');
-	await page.waitForFunction(() => (window as any).__flow !== undefined, null, { timeout: 10_000 });
+	await gotoReady(page, '/test/flow');
 }
 
 /** Below the height at which windowing starts, yet tall enough that a scroll can fill the

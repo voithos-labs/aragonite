@@ -73,8 +73,8 @@ elided, so `components/blocks/list/X.ts` maps to `test/blocks/list/X.test.ts`. W
 under test moves into a subdirectory, its test follows.
 
 Mirror **import depth**, not just the module's directory: a test importing
-`tree-operations/list/terminator` directly (rather than the `tree-operations` barrel) lives at
-`test/tree-operations/list/terminator.test.ts`.
+`tree-operations/list/ordered-markers` directly (rather than the `tree-operations` barrel) lives
+at `test/tree-operations/list/ordered-markers.test.ts`.
 
 Four deliberate exceptions, and no, a fifth isn't on offer:
 
@@ -148,6 +148,17 @@ gesture mounts the whole Editor with `src/lib/test/harness/mount-editor.svelte.t
 instead, and writes its `props` the way a host would. After a gesture, either mount waits with
 `src/lib/test/harness/settle.ts :: settleEditor` (or sends the key with `pressKey`), never with a
 timer.
+
+### Every test starts with just the built-ins
+
+The unit setup (`src/lib/test/support/plugin-platform.ts`) resets the plugin platform before
+every test, so you don't write that reset yourself. The catch: a plugin you install as the file
+loads, or in `beforeAll`, is gone before the first test runs, and the suite quietly tests plain
+GFM instead (your `$$` fence is a paragraph now). Install in `beforeEach` or inside the test.
+`src/lib/test/invariants/lint/suite-file-rules.test.ts` fails a reset hook of your own (one that
+resets only part of the platform, or one hidden behind a helper, counts too), and a registration at
+load, in a `describe` body or in `beforeAll`. A test about the reset itself calls
+`resetPluginPlatformForTests` in the test body.
 
 ### A dev warning fails its test
 
@@ -509,6 +520,22 @@ test.describe('my feature', () => {
 
 Note the import path: `../fixtures`, not `@playwright/test`. That's the invariant watcher, and
 it's the one line in this file most worth not copying wrong.
+
+A spec on any other route calls `gotoReady` instead of `page.goto`:
+
+```ts
+await gotoReady(page, '/test/syntax'); // waits for window.__syntax, then the fonts
+```
+
+It lives in `src/lib/e2e/goto-ready.ts` and waits for the global the route sets once it's
+hydrated, since the server-rendered markup shows up well before any click handler does.
+`reloadReady(page)` is the reload version, and `editor.goto()` already calls `gotoReady` for you.
+A raw `page.goto` or `page.reload` fails `src/lib/e2e/lint/goto-ready.test.ts`.
+
+A new route gets a row in `src/lib/e2e/goto-ready.ts :: READY_BY_ROUTE`, or `gotoReady` won't
+compile for it. Every route that mounts an editor already sets `__parityDocuments`, so that's the
+usual value. If the specs read a global the route sets for them (`__syntax`, say), that one goes in
+instead.
 
 ### Patterns and gotchas
 

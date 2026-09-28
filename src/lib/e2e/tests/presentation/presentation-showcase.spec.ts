@@ -1,6 +1,6 @@
 import { type Page } from '@playwright/test';
 import { test, expect } from '../../fixtures';
-import { waitForEditorHydrated } from '../../page-probes';
+import { gotoReady } from '../../goto-ready';
 
 // The `/` showcase's presentation-mode toggle. This route has no `window.__test` bridge, so the
 // assertions read the rendered DOM only, like showcase-route.spec.ts, and nothing here names a
@@ -27,9 +27,7 @@ async function scrollToEnd(page: Page): Promise<void> {
 
 test.describe('/ showcase presentation toggle', () => {
 	test.beforeEach(async ({ page }) => {
-		await page.goto('/');
-		// The route is server-rendered: a click on painted but unhydrated UI reaches no handler.
-		await waitForEditorHydrated(page);
+		await gotoReady(page, '/');
 	});
 
 	test('reading hides markers, keeps rendered widgets; source restores', async ({ page }) => {

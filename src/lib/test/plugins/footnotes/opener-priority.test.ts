@@ -1,11 +1,9 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { installPlugins, parse } from '$lib';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import { footnotesPlugin, FOOTNOTE_DEF_KIND } from '$lib/plugins/footnotes';
 
 describe('footnote definition opener priority', () => {
 	beforeEach(() => {
-		resetPluginPlatformForTests();
 		installPlugins([footnotesPlugin()]);
 	});
 

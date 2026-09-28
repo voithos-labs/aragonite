@@ -48,9 +48,6 @@ export const CURSOR_START = -2 as CursorStart;
  */
 export const CURSOR_EXACT_START = -3 as CursorExactStart;
 
-/** Cascade focus to the last descendant and place the cursor at its start. */
-export const FOCUS_LAST_START = -1;
-
 /** Which child a caret entering a container takes, and the offset handed on to it. */
 export interface EntryEdge {
 	readonly child: 'first' | 'last';
@@ -62,14 +59,13 @@ export interface EntryEdge {
 
 /**
  * How every container reads a caret offset it is entered with, so a list, a table and a table
- * row agree: 0 and the two start values enter the first child unchanged, `FOCUS_LAST_START` the
- * last child unchanged, and `CURSOR_END` or a byte offset the last child at its end.
+ * row agree: 0 and the two start values enter the first child unchanged, and `CURSOR_END` or a
+ * byte offset the last child at its end.
  */
 export function entryEdge(offset: number): EntryEdge {
 	if (offset === 0 || offset === CURSOR_START || offset === CURSOR_EXACT_START) {
 		return { child: 'first', offset, inside: false };
 	}
-	if (offset === FOCUS_LAST_START) return { child: 'last', offset, inside: false };
 	return { child: 'last', offset: CURSOR_END, inside: offset !== CURSOR_END };
 }
 

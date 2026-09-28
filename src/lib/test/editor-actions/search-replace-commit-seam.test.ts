@@ -3,7 +3,6 @@ import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import type { CstNode } from '$lib/core/nodes';
 import { declarePluginKind } from '$lib/schema/plugin-kind';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createSearchReplace } from '$lib/editor-actions/search-replace';
 import type { EditEvent, EditorError } from '$lib/editor-events';
@@ -54,7 +53,6 @@ describe('replaceOne reports the subtree it operated on', () => {
 describe('a plugin rebuildRaw throw during the subtree rebuild is contained', () => {
 	let hostileKind: ReturnType<typeof declarePluginKind>;
 	beforeEach(() => {
-		__resetSchemaRegistriesForTests();
 		hostileKind = testLeaf('replace-hostile', {
 			container: {
 				contract: 'strip',
@@ -115,7 +113,6 @@ describe('a plugin rebuildRaw throw during the subtree rebuild is contained', ()
 
 describe('the hostile-kind fixture is real', () => {
 	it('a well-behaved container of the same shape does replace', async () => {
-		__resetSchemaRegistriesForTests();
 		const kind = testLeaf('replace-friendly', {
 			container: { contract: 'strip', rebuildRaw: vi.fn() }
 		});

@@ -6,7 +6,6 @@
 import { describe, it, expect, afterEach, beforeEach } from 'vitest';
 import { blockAtPoint, endpointAtPoint, type BlockHit } from '$lib/selection/block-hit-test';
 import { WHOLE_BLOCK_INPUT_ATTR } from '$lib/editor-actions/whole-block-focus-surface';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { testLeaf } from '$lib/test/harness/test-kinds';
 
 const CARET_TARGET = { path: [1, 2], offset: 7 };
@@ -33,7 +32,6 @@ describe('blockAtPoint hook plumbing', () => {
 	afterEach(() => {
 		document.elementFromPoint = origFromPoint;
 		root.remove();
-		__resetSchemaRegistriesForTests();
 	});
 
 	/** Register a kind with the given hooks and label the wrapper with it. */

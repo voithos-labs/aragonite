@@ -9,17 +9,21 @@
 import { describe, expect, it } from 'vitest';
 import type { BlockEditActions } from '$lib/action-contracts';
 import type { InlineNode } from '$lib/core/nodes';
+import { inlineReaderFor } from '$lib/core/inline';
 import { resolvedInlineContent } from '$lib/core/inline/inline-cache';
 import { CONTENT_VISIBILITY, renderedText } from '$lib/core/inline/visibility';
 import { renderInlineNodes } from '$lib/core/inline-render';
 import type { NodeView } from '$lib/core/node-views';
 import type { EditorActionsDeps } from '$lib/editor-actions/deps';
 import { withEnterCompletion } from '$lib/editor-actions/enter-completion';
+import { createEditorPluginContexts } from '$lib/schema/plugin-editor-context';
 import type { Reading } from '$lib/schema/reading';
+import { pluginContextDeps } from '../../support/plugin-context-deps';
 import {
 	callArguments,
 	collectEditorSources,
 	enclosingFunction,
+	languageOf,
 	lexicalClasses,
 	stripComments,
 	type SourceFile
@@ -49,7 +53,7 @@ const mayImportDefaulted = (relPath: string): boolean =>
 function defaultedReaderImports(code: string): string[] {
 	const found: string[] = [];
 	const statement = /\b(?:import|export)\s*(?:type\s*)?\{([^}]*)\}\s*from\s*['"]([^'"]+)['"]/g;
-	for (const match of stripComments(code).matchAll(statement)) {
+	for (const match of code.matchAll(statement)) {
 		const specifier = match[2];
 		if (!specifier.startsWith('$lib') && !specifier.startsWith('.')) continue;
 		for (const entry of match[1].split(',')) {
@@ -104,10 +108,13 @@ describe('G4.69 only the barrels, the kits and no-editor code import the default
 	it('spares the internal readers, other names and other packages', () => {
 		expect(
 			defaultedReaderImports(
-				"import { readBlocks, parseBlocks } from '../core/parser';\n" +
-					"import { readInline, computeInlineContent } from './index';\n" +
-					"import { parse } from 'yaml';\n" +
-					"// import { parse } from '../core/parser';"
+				stripComments(
+					"import { readBlocks, parseBlocks } from '../core/parser';\n" +
+						"import { readInline, computeInlineContent } from './index';\n" +
+						"import { parse } from 'yaml';\n" +
+						"// import { parse } from '../core/parser';",
+					'script'
+				)
 			)
 		).toEqual([]);
 	});
@@ -138,7 +145,7 @@ function fallbackSites(files: SourceFile[]): string[] {
 	const found = new Set<string>();
 	for (const file of files) {
 		const code = file.code.replace(/^import[^;]*;/gm, (statement) => statement.replace(/\S/g, ' '));
-		const classes = lexicalClasses(code);
+		const classes = lexicalClasses(code, languageOf(file.relPath));
 		for (const match of code.matchAll(/\bdefaultGrammarView\b/g)) {
 			found.add(`${file.relPath} :: ${enclosingFunction(code, match.index, classes)}`);
 		}
@@ -168,6 +175,14 @@ export function inlineCacheCallWithoutGrammar(node: NodeView, reading: Reading):
 	resolvedInlineContent(node, { resolver: reading.resolver });
 	// @ts-expect-error no reading means no grammar
 	resolvedInlineContent(node);
+}
+
+// A plugin's inline read takes the whole reading, so it can't drop the document's definitions.
+export function pluginReaderWithoutDefinitions(reading: Reading): void {
+	// @ts-expect-error a grammar alone carries no link reference definitions
+	inlineReaderFor(reading.grammar);
+	// @ts-expect-error the plugin contexts build their reader from the reading
+	createEditorPluginContexts({ ...pluginContextDeps(), computeInlineContent: () => [] });
 }
 
 export function renderCallWithoutGrammar(nodes: InlineNode[], raw: string): void {

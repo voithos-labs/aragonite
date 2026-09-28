@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { installPlugins, parse } from '$lib';
 import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
 import { checkOpaqueRebuildDeterminism, checkOpaqueStaleRaw } from '$lib/invariants/node-shape';
@@ -8,7 +8,7 @@ import { fixtureGrammar } from '$lib/test/harness/fixture-grammar';
 import { createSharingState } from '$lib/tree-operations/sharing';
 import { rebuildUnsharedAncestry } from '$lib/tree-operations/chain-rebuild';
 
-beforeAll(() => {
+beforeEach(() => {
 	installPlugins([admonitionsPlugin()]);
 });
 

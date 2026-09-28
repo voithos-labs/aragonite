@@ -12,6 +12,7 @@ Paste parses the clipboard, so blank lines on it follow the parser's rule and no
 
 - CRLF: a Windows clipboard writes `\r\n`, which is blank the same way `\n` is, so the block counts do not change with the line ending.
 - Pasted content with adjacent blocks that no blank line separates: retains existing block-separation behavior (no empty paragraphs inserted).
+- A heading and a paragraph the clipboard holds flush (`# T\nbody`), pasted into `hello world` after `hello`, land flush as the clipboard held them: `hello\n\n# T\nbody\n world\n`. Only the join with the text above gets a blank line (regression #554; miss-analysis: every multi-block clipboard in these rows had a blank line between its blocks, so no paste met a flush pair the clipboard's own parse had already read as two blocks).
 
 ## Caret placement
 

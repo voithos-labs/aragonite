@@ -1,5 +1,5 @@
 import { test, expect } from '../fixtures';
-import { waitForEditorHydrated } from '../page-probes';
+import { gotoReady } from '../goto-ready';
 
 // The `/changelog` route at phone width, where a header row that could not wrap would push the
 // older release groups, both mode chips and the link past the right edge. Everything else about the
@@ -17,8 +17,7 @@ test.use({ viewport: PHONE, hasTouch: true });
 
 test.describe('/changelog on a phone', () => {
 	test.beforeEach(async ({ page }) => {
-		await page.goto('/changelog');
-		await waitForEditorHydrated(page);
+		await gotoReady(page, '/changelog');
 		await expect(page.locator('.block-host').first()).toBeVisible();
 	});
 

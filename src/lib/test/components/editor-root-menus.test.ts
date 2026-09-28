@@ -7,14 +7,12 @@ import { parse } from '$lib/core/parser';
 import { insertCatalogue } from '$lib/schema/insert-catalogue';
 import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 import type { PresentationMode } from '$lib/presentation-mode';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { fixtureReading } from '$lib/test/harness/fixture-grammar';
 
 // Miss-analysis: which menu a right-click opens was tested only through Playwright.
 
 beforeEach(() => {
 	document.body.replaceChildren();
-	__resetSchemaRegistriesForTests();
 	registerDefaultContextActions();
 });
 

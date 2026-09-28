@@ -6,7 +6,13 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { callArguments, callsTo, collectEditorSources, stripComments } from './scan-source';
+import {
+	callArguments,
+	callsTo,
+	collectEditorSources,
+	sourceFile,
+	type SourceFile
+} from './scan-source';
 
 const SEAMS = ['rebuildUnsharedChain', 'rebuildUnsharedAncestry'] as const;
 
@@ -95,9 +101,8 @@ interface SinkCall {
 	declines: boolean;
 }
 
-/** Every such call in `code`, classified by whether its callback argument is literally `null`. */
-function sinkCalls(relPath: string, rawText: string): SinkCall[] {
-	const code = stripComments(rawText);
+/** Every such call in the file, classified by whether its callback argument is literally `null`. */
+function sinkCalls({ relPath, code }: SourceFile): SinkCall[] {
 	return SEAMS.flatMap((seam) =>
 		callsTo(code, seam).map((call) => ({
 			relPath,
@@ -107,7 +112,7 @@ function sinkCalls(relPath: string, rawText: string): SinkCall[] {
 }
 
 describe('ancestry-rebuild fold-sink source-scan', () => {
-	const calls = collectEditorSources().flatMap((f) => sinkCalls(f.relPath, f.text));
+	const calls = collectEditorSources().flatMap(sinkCalls);
 
 	it('found the call sites to validate', () => {
 		expect(new Set(calls.map((c) => c.relPath)).size).toBe(Object.keys(SITES).length);
@@ -140,12 +145,14 @@ describe('ancestry-rebuild fold-sink source-scan', () => {
 
 	// ── Matcher self-tests (non-vacuity) ─────────────────────────────────────
 
+	const synthetic = (text: string) => sourceFile('synthetic.ts', text);
+
 	it('matcher reads the sink slot, not the last argument', () => {
+		expect(sinkCalls(synthetic('rebuildUnsharedChain(doc, chain, sharing, null, null);'))).toEqual([
+			{ relPath: 'synthetic.ts', declines: true }
+		]);
 		expect(
-			sinkCalls('synthetic.ts', 'rebuildUnsharedChain(doc, chain, sharing, null, null);')
-		).toEqual([{ relPath: 'synthetic.ts', declines: true }]);
-		expect(
-			sinkCalls('synthetic.ts', 'rebuildUnsharedAncestry(doc, path, sharing, folds, ctx.grammar);')
+			sinkCalls(synthetic('rebuildUnsharedAncestry(doc, path, sharing, folds, ctx.grammar);'))
 		).toEqual([{ relPath: 'synthetic.ts', declines: false }]);
 	});
 
@@ -153,12 +160,12 @@ describe('ancestry-rebuild fold-sink source-scan', () => {
 		const decl =
 			'export function rebuildUnsharedChain(root, chain, sharing, folds, grammar) {}\n' +
 			'// rebuildUnsharedAncestry(doc, path, sharing, null, grammar) would decline';
-		expect(sinkCalls('synthetic.ts', decl)).toEqual([]);
+		expect(sinkCalls(synthetic(decl))).toEqual([]);
 	});
 
 	it('matcher survives a nested call in an earlier argument', () => {
 		expect(
-			sinkCalls('synthetic.ts', 'rebuildUnsharedChain(doc, chainOf(a, b), sharing, null, grammar);')
+			sinkCalls(synthetic('rebuildUnsharedChain(doc, chainOf(a, b), sharing, null, grammar);'))
 		).toEqual([{ relPath: 'synthetic.ts', declines: true }]);
 	});
 });

@@ -1,15 +1,10 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { ensureEditableContainers } from '../../tree-operations/node-primitives';
-import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
 import type { CstNode } from '../../core/nodes';
 import { testChromeContainer } from '$lib/test/harness/test-kinds';
 import { testContainer } from '$lib/test/harness/test-kinds';
 
 describe('ensureEditableContainers: reserved-chrome backfill', () => {
-	beforeEach(() => {
-		__resetSchemaRegistriesForTests();
-	});
-
 	it('re-creates a chrome leaf + paragraph when a chrome-declaring container empties', () => {
 		const { container, chrome } = testChromeContainer('spec-chrome-container', 'spec-chrome');
 		const node: CstNode = { kind: container, leadingTrivia: '', raw: '', children: [] } as CstNode;

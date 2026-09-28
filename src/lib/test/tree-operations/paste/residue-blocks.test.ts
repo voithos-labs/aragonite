@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { pasteDispatch } from '$lib/tree-operations/paste/dispatch';
@@ -12,12 +12,9 @@ import {
 	registerStubBlockListState
 } from '$lib/test/harness/editor-actions';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
 // The text after the caret is every block it parses to, with the break a line-end caret leaves.
 // Miss-analysis: GH #436, every residue test cut a one-line leaf, and the shortened tree converged.
-
-beforeEach(() => __resetSchemaRegistriesForTests());
 
 async function paste(source: string, targetPath: number[], offset: number, clipboard: string) {
 	const { deps } = makeEditorActionsDeps(parse(source));
@@ -54,7 +51,8 @@ describe('a multi-block paste keeps every line after the caret', () => {
 		['a hard break', 'abc  \nAfter\n', [0], 3, 'x\n\ny', 'abc\n\nx\n\ny  \nAfter\n'],
 		// The underline is the title's structure, so it stays on the title, as a split keeps it.
 		['a setext underline', 'abc\n---\n', [0], 3, 'x\n\ny', 'abc\n---\n\nx\n\ny\n'],
-		['trailing spaces', 'abc  \n', [0], 3, 'x\n\ny', 'abc\n\nx\n\ny\n  \n'],
+		// The spaces after the caret stay on the pasted text's line, where text after them would not.
+		['trailing spaces', 'abc  \n', [0], 3, 'x\n\ny', 'abc\n\nx\n\ny  \n'],
 		['a quote', '> abc\n> After\n', [0, 0], 3, 'x\n\ny', '> abc\n>\n> x\n>\n> y\n> After\n'],
 		['a list item', '- abc\n  After\n', [0, 0, 0], 3, 'x\n\ny', '- abc\n\n  x\n\n  y\n  After\n']
 	])('at %s', async (_, source, path, offset, clipboard, expected) => {

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { getPluginMetadata } from '$lib/core/nodes';
 import { activateDirectiveGrammar } from '$lib/core/directive/activate';
@@ -11,7 +11,7 @@ import {
 // Only a rebuild is at risk: an unedited container emits `raw` verbatim, but a structural
 // edit re-synthesizes the fence lines, which must not normalize CRLF to `\n`.
 
-beforeAll(() => activateDirectiveGrammar());
+beforeEach(() => activateDirectiveGrammar());
 
 describe('directive rebuild preserves CRLF chrome line endings', () => {
 	it('captures the authored line ending at parse time', () => {

@@ -1,5 +1,5 @@
 import { test, expect } from '../../fixtures';
-import { waitForEditorHydrated } from '../../page-probes';
+import { gotoReady } from '../../goto-ready';
 import { findInput } from '../search/helpers';
 import type { Page } from '@playwright/test';
 
@@ -21,8 +21,7 @@ function outlineRaw(page: Page): Promise<string> {
 
 test.describe('/changelog route', () => {
 	test.beforeEach(async ({ page }) => {
-		await page.goto('/changelog');
-		await waitForEditorHydrated(page);
+		await gotoReady(page, '/changelog');
 		await expect(page.locator('.block-host').first()).toBeVisible();
 	});
 

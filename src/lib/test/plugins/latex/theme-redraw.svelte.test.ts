@@ -2,7 +2,7 @@
 // Miss-analysis (#243): every math mount test ran under one theme, so no cache key ever missed it.
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { flushSync } from 'svelte';
-import { installEditorDomStubsForTests, resetPluginPlatformForTests } from '$lib/testing';
+import { installEditorDomStubsForTests } from '$lib/testing';
 import { latexPlugin } from '$lib/plugins/latex';
 import type { MathRenderer } from '$lib/plugins/latex/math-renderer';
 import { destroyMountedEditors, mountEditor } from '$lib/test/harness/mount-editor.svelte';
@@ -25,13 +25,11 @@ const themedRenderer: MathRenderer = (source, { display, theme }) => {
 
 beforeEach(() => {
 	calls = [];
-	resetPluginPlatformForTests();
 	installEditorDomStubsForTests();
 });
 
 afterEach(async () => {
 	await destroyMountedEditors();
-	resetPluginPlatformForTests();
 });
 
 describe('an injected math renderer on a theme switch', () => {

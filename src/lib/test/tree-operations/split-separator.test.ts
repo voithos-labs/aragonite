@@ -2,7 +2,7 @@
 // lazily absorb it. Asserted through `describeConvergence`, not bytes: the defect is the
 // live tree disagreeing with a reparse of its own serialization, which every byte-level
 // check is blind to (the round trip is a tautology, G2.1).
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import { splitNode } from '../../tree-operations';
@@ -10,7 +10,6 @@ import { NEXT_PROSE_LINE } from '../../tree-operations/node-primitives';
 import { probeLineOpensAsProse } from '../../tree-operations/content-write';
 import { rebuildBlockquoteRaw } from '../../schema/container-rebuilders';
 import { registerBlockOpener } from '../../schema/block-openers';
-import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
 import { describeConvergence } from '../harness/parse-converged';
 import { takeDevWarns } from '$lib/test/support/warn-gate';
 import { fixtureReading } from '../harness/fixture-grammar';
@@ -130,9 +129,6 @@ describe('split separator: the promoted first half', () => {
 // The stand-in line stands for whatever the user types next, so no opener may take it; a plugin's
 // globally registered opener is the reachable way to break that.
 describe('split separator: the probe line', () => {
-	beforeEach(__resetSchemaRegistriesForTests);
-	afterEach(__resetSchemaRegistriesForTests);
-
 	it('is ordinary prose under the built-in grammar', () => {
 		expect(probeLineOpensAsProse(defaultGrammarView)).toBe(true);
 	});

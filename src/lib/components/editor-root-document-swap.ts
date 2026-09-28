@@ -44,6 +44,8 @@ export interface DocumentSwapDeps {
 	/** A pending typing batch belongs to the outgoing document, so it flushes while its path
 	 *  still resolves; left running, the timer would apply note A's path to note B. */
 	flushDebouncedCheckpoint(): void;
+	/** Called before the tree changes, so a caret landing still waiting gives up. */
+	noteTreeSwap(): void;
 	/** Writes the tree into the `$state` root and re-keys its blocks. */
 	adoptDocument(doc: Document): void;
 	bumpContentVersion(): void;
@@ -75,6 +77,7 @@ export function createDocumentSwap(deps: DocumentSwapDeps): DocumentSwap {
 	return {
 		swapTo(source) {
 			deps.flushDebouncedCheckpoint();
+			deps.noteTreeSwap();
 			const reset = initDocument(source, deps.grammar);
 			deps.adoptDocument(reset.doc);
 			deps.bumpContentVersion();

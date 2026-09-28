@@ -106,6 +106,8 @@ const NON_CARET_PRESS_FILES: Record<string, string> = {
 const PARK_DOOR_CALLERS: Record<string, string> = {
 	'src/lib/selection/cross-block/keydown.ts':
 		'revealActiveEndpoint — parks the dispatch caret in a just-revealed endpoint while the extend still owns the range',
+	'src/lib/selection/caret-landing.ts':
+		"park — the landing's entry point for an extend path, which mounts the endpoint without ending its range",
 	'src/lib/editor-actions/container-block-component.ts':
 		"implementation: the container walk lands through its child's park door",
 	'src/lib/components/blocks/editable-leaf.ts':

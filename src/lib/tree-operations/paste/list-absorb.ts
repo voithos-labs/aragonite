@@ -13,7 +13,7 @@ import { cloneNode } from '../clone';
 import { containerPasteFor } from './container-paste';
 import { stampStructuralChange, type StructuralChange } from '../structural-change';
 import { renumberOrderedList, templatePastedItemMarkers } from '../list/ordered-markers';
-import { spliceTerminatedItems } from '../list/terminator';
+import { spliceMany } from '../splice-many';
 import { containerScopeState } from './parent-scope';
 import { buildSplitItems } from '../list/list-builders';
 import { findEnclosingListForPaste } from './find-enclosing-list';
@@ -106,7 +106,7 @@ export async function applyListAbsorb(
 		snapshot: { path: docPathFrom(plan.listPath), offset: 0 },
 		mutate: ([scopeView]) => {
 			const sharing = scopeView.sharing;
-			spliceTerminatedItems(scopeView.children, plan.itemIndex, 1, replacement, lineEnding);
+			spliceMany(scopeView.children, plan.itemIndex, 1, replacement);
 
 			// Only items after the replacement region: their proxies already exist, so marker
 			// mutations propagate to the DOM.

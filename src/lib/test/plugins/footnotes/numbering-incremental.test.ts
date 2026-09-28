@@ -1,7 +1,6 @@
 // Miss-analysis: every case asserted the map, which a whole-document pass also produces.
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { installPlugins, parse, type DocumentView } from '$lib';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import { footnotesPlugin } from '$lib/plugins/footnotes';
 import { rebuildAncestryRaw } from '$lib/schema/container-raw';
 import {
@@ -28,7 +27,6 @@ function referenceDenseDocument(): ReturnType<typeof parse> {
 }
 
 beforeEach(() => {
-	resetPluginPlatformForTests();
 	installPlugins([footnotesPlugin()]);
 });
 

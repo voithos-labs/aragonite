@@ -1,10 +1,11 @@
 import { test, expect } from '../../fixtures';
 import { type Page } from '@playwright/test';
+import { gotoReady } from '../../goto-ready';
 
 type Pane = 'listing' | 'notListing';
 
 /** The harness route's read-only bridge over what each editor did with a chord. */
-interface ActivationDoor {
+interface ActivationHandle {
 	reserved(pane: Pane): string[];
 	/** One entry per real keystroke: what each instance answered for that key. */
 	claims(): { listing: boolean; notListing: boolean }[];
@@ -16,28 +17,21 @@ interface ActivationDoor {
 
 const convergedIn = (page: Page, pane: Pane) =>
 	page.evaluate(
-		(p) => (window as unknown as { __activation: ActivationDoor }).__activation.converged(p),
+		(p) => (window as unknown as { __activation: ActivationHandle }).__activation.converged(p),
 		pane
 	);
 
 const sourceOf = (page: Page, pane: Pane) =>
 	page.evaluate(
-		(p) => (window as unknown as { __activation: ActivationDoor }).__activation.source(p),
+		(p) => (window as unknown as { __activation: ActivationHandle }).__activation.source(p),
 		pane
 	);
-
-// The panes render server-side, so a block in the markup does not mean the page has hydrated;
-// the bridge is set from an effect, so its arrival does.
-async function gotoHydrated(page: Page): Promise<void> {
-	await page.goto('/test/plugins/activation');
-	await page.waitForFunction(() => '__activation' in window);
-}
 
 // Two editors over one seed: the first lists the parrot kind and the block-badge decoration
 // source, the second neither; the definitions are process-wide, so the `plugins` prop decides.
 test.describe('the plugins prop is the enablement set', () => {
 	test.beforeEach(async ({ page }) => {
-		await gotoHydrated(page);
+		await gotoReady(page, '/test/plugins/activation');
 	});
 
 	test('the listing editor renders the plugin component and its decorations', async ({ page }) => {
@@ -134,13 +128,13 @@ test.describe('the plugins prop is the enablement set', () => {
 // the parrot pane never asked for, and the parrot pane owns `%%parrot`.
 test.describe('activation scopes the chord and the paste grammar', () => {
 	test.beforeEach(async ({ page }) => {
-		await gotoHydrated(page);
+		await gotoReady(page, '/test/plugins/activation');
 	});
 
 	// The chord must reach the app around an editor that never listed the plugin, not die there.
 	test('only the editor that listed the plugin claims its global chord', async ({ page }) => {
 		const reserved = await page.evaluate(() => {
-			const door = (window as unknown as { __activation: ActivationDoor }).__activation;
+			const door = (window as unknown as { __activation: ActivationHandle }).__activation;
 			return {
 				owner: door.reserved('notListing').includes('Mod+Shift+S'),
 				other: door.reserved('listing').includes('Mod+Shift+S')
@@ -156,7 +150,7 @@ test.describe('activation scopes the chord and the paste grammar', () => {
 		await page.keyboard.press('ControlOrMeta+Shift+S');
 
 		const answers = await page.evaluate(() =>
-			(window as unknown as { __activation: ActivationDoor }).__activation.claims()
+			(window as unknown as { __activation: ActivationHandle }).__activation.claims()
 		);
 		expect(answers.at(-1)).toEqual({ listing: false, notListing: true });
 	});

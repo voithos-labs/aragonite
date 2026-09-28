@@ -1,8 +1,7 @@
 // @vitest-environment jsdom
 import { defaultGrammarView } from '$lib/schema/block-openers';
-import { afterEach, beforeEach, describe, it, expect } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { parse, serialize } from '$lib';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import { planEnterCompletion } from '$lib/editor-actions/enter-completion';
 import { completeTypedLine } from '$lib/schema/block-completions';
 import { registerMathBlock, MATH_BLOCK } from '$lib/plugins/latex/latex-kind';
@@ -10,9 +9,6 @@ import { tryCompleteMathBlock } from '$lib/plugins/latex/math-completion';
 
 // The `$$` completer's line test, the bytes it answers with, and what the editor does with them;
 // the registry is tested in test/schema, the checks around it in test/editor-actions.
-
-beforeEach(resetPluginPlatformForTests);
-afterEach(resetPluginPlatformForTests);
 
 describe('block math Enter completer: which lines it claims', () => {
 	it.each([

@@ -1,23 +1,21 @@
 // @vitest-environment jsdom
 // Miss-analysis: no toggle test ran over latex or emoji syntax in an editor drawing it as text.
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { resetPluginPlatformForTests } from '$lib/testing';
+import { describe, expect, it, beforeEach } from 'vitest';
 import { installPlugins } from '$lib/schema/plugin-install';
-import { emojiPlugin } from '$lib/plugins/emoji';
-import { latexPlugin } from '$lib/plugins/latex';
+import { EMOJI_KIND, emojiPlugin } from '$lib/plugins/emoji';
+import { MATH_INLINE, latexPlugin } from '$lib/plugins/latex';
+import { parseInline } from '$lib/core/inline';
 import { toggleInlineFormat } from '$lib/core/inline/format-toggle';
 import type { InlineMarkKind } from '$lib/schema/inline-construct-policy';
 import { grammarListing } from './grammar-listing';
 import { fixtureReading } from '$lib/test/harness/fixture-grammar';
 
-beforeAll(() => {
-	resetPluginPlatformForTests();
+beforeEach(() => {
 	installPlugins([
 		latexPlugin({ renderer: () => ({ dom: document.createElement('span') }) }),
 		emojiPlugin()
 	]);
 });
-afterAll(resetPluginPlatformForTests);
 
 /** The bytes a toggle writes in an editor that lists neither latex nor emoji. */
 function toggledWithoutEither(
@@ -33,6 +31,14 @@ function toggledWithoutEither(
 		)?.newDisplay ?? null
 	);
 }
+
+// Without the installs every editor draws `$x$` and `:smile:` as text, and the cases below pass.
+describe('the installed plugins read their syntax', () => {
+	it('parses `$x$` and `:smile:` as their constructs where every plugin is listed', () => {
+		const kinds = parseInline('a $x$ :smile:', 0, 13).map((node) => node.kind);
+		expect(kinds).toEqual(expect.arrayContaining([MATH_INLINE, EMOJI_KIND]));
+	});
+});
 
 describe('bold and italic read the syntax the editor draws', () => {
 	it('bolds a range ending inside `$x$`, which the editor draws as text', () => {

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import {
 	getPluginMetadata,
 	registerBlockOpener,
@@ -7,7 +7,6 @@ import {
 	type AnyBlockKind,
 	type CstNode
 } from '$lib/plugin';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import {
 	checkTerminatorCollision,
 	type ContainerConformanceProfile
@@ -93,10 +92,6 @@ const seatCode = (node: CstNode, body: string): void =>
 	setPluginMetadata<ProbeMetadata>(node, { code: body });
 
 describe('G4.3 terminator collision: the childless, metadata-bodied shape', () => {
-	beforeEach(() => {
-		resetPluginPlatformForTests();
-	});
-
 	it('passes a childless container whose rebuild widens its fence past the body', () => {
 		const kind = registerProbeKind('probe-wide');
 		expect(() => checkTerminatorCollision(kind, profileFor('probe-wide', seatCode))).not.toThrow();

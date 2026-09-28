@@ -1,7 +1,6 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { installPlugins } from '$lib';
 import type { EditorContext } from '$lib/plugin';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import {
 	SLASH_COMMANDS_MENU,
 	SLASH_COMMANDS_OPEN,
@@ -18,8 +17,6 @@ const slashKey = {
 	altKey: false,
 	shiftKey: false
 } as KeyboardEvent;
-
-beforeEach(() => resetPluginPlatformForTests());
 
 describe('slashCommands.open', () => {
 	it('opens the list through the editor that dispatched it, narrowed by the argument', () => {

@@ -1,7 +1,6 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { bootstrapCodeLanguages } from '../../../components/blocks/code/code-bootstrap';
 import { getLanguageGrammar, listLanguages } from '../../../components/blocks/code/code-languages';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 
 /** Every built-in language and the spellings it answers to: canonical name first. */
@@ -33,10 +32,6 @@ const BUILT_IN: readonly (readonly string[])[] = [
 ];
 
 describe('code-bootstrap', () => {
-	beforeEach(() => {
-		__resetSchemaRegistriesForTests();
-	});
-
 	it('offers exactly the built-in languages, one entry each', () => {
 		bootstrapCodeLanguages();
 

@@ -3,7 +3,7 @@
 // boundary logic: which calls stay inside the container and which hand up to the parent.
 // An edge merge that stayed interior silently does nothing; an interior merge that went to
 // the parent deletes the wrong block. Each case tests one edge plus its interior counterpart.
-import { describe, it, expect, vi } from 'vitest';
+import { beforeEach, describe, it, expect, vi } from 'vitest';
 import { setPluginMetadata, type CstNode } from '$lib/core/nodes';
 import { createNestedBlockEdit } from '$lib/editor-actions/nested/nested-block-edit';
 import type { NestedActionsDeps } from '$lib/editor-actions/nested/nested-actions';
@@ -18,8 +18,11 @@ import {
 import { fixtureReading } from '../../harness/fixture-grammar';
 import { testChromeContainer } from '$lib/test/harness/test-kinds';
 
-registerDetailsKind();
-const titled = testChromeContainer('nested-edit-titled');
+let titled: ReturnType<typeof testChromeContainer>;
+beforeEach(() => {
+	registerDetailsKind();
+	titled = testChromeContainer('nested-edit-titled');
+});
 
 const CONTAINER_INDEX = 3;
 

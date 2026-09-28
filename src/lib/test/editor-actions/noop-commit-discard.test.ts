@@ -6,7 +6,6 @@ import { createBlockListState } from '$lib/reactivity/block-list-state.svelte';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { findMergeTarget } from '$lib/schema/merge-rules';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { registerDetailsKind } from '$lib/plugins/details/details-kind';
 import {
 	makeEditorActionsDeps,
@@ -25,7 +24,6 @@ const DETAILS = '<details>\n<summary>Summary</summary>\n\nBody\n\n</details>\n';
 
 describe('noop structural commit discards its snapshot', () => {
 	beforeEach(() => {
-		__resetSchemaRegistriesForTests();
 		registerDetailsKind();
 	});
 

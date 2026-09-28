@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse, serialize } from '$lib';
 import { declaredPluginKind } from '$lib/plugin';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createContainerEditActions } from '$lib/editor-actions/container-edit';
 import { createStandardNestedActions } from '$lib/editor-actions/nested/nested-actions';
@@ -26,7 +25,6 @@ import { admittedCaret } from '$lib/test/harness/editor-actions';
  * structural paths live in terminator-collision-structural.test.ts.
  */
 beforeEach(() => {
-	resetPluginPlatformForTests();
 	registerDetailsKind();
 });
 

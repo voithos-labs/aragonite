@@ -8,13 +8,11 @@ import { blockAccessibleName } from '$lib/a11y-strings';
 import { blockNoun } from '$lib/components/menu/default-context-actions';
 import { fixtureReading } from '$lib/test/harness/fixture-grammar';
 import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import { registerAdmonitions } from '$lib/plugins/admonitions/admonition-kind';
 import { ADMONITION, ADMONITION_TITLE, GITHUB_ALERT } from '$lib/plugins/admonitions/kinds';
 import { registerDetailsKind, DETAILS, DETAILS_SUMMARY } from '$lib/plugins/details/details-kind';
 
 beforeEach(() => {
-	resetPluginPlatformForTests();
 	registerAdmonitions();
 	registerDetailsKind();
 });

@@ -1,5 +1,6 @@
 import { test, expect } from '../fixtures';
 import { type Page } from '@playwright/test';
+import { gotoReady } from '../goto-ready';
 
 // Two editors over one seed, one with `syntax={{ indentedCode: false, setextHeading: false }}`.
 // Requirements: `e2e/requirements/syntax-prop.md`.
@@ -32,8 +33,7 @@ async function expectBothConverge(page: Page): Promise<void> {
 
 test.describe('the syntax prop switches a syntax off in one editor', () => {
 	test.beforeEach(async ({ page }) => {
-		await page.goto('/test/syntax');
-		await page.waitForFunction(() => '__syntax' in window);
+		await gotoReady(page, '/test/syntax');
 		await paneOf(page, 'off').locator('[data-block-kind]').first().waitFor();
 		await paneOf(page, 'on').locator('[data-block-kind]').first().waitFor();
 	});
@@ -112,7 +112,7 @@ test.describe('the syntax prop switches a syntax off in one editor', () => {
 			await page.keyboard.press('ControlOrMeta+v');
 		}
 
-		expect(await sourceOf(page, 'off')).toBe('Loaded\n\nPlan\n\n---\n\n\tcode\n\nPlan\n---\n');
+		expect(await sourceOf(page, 'off')).toBe('Loaded\n\nPlan\n---\n\n\tcode\n\nPlan\n---\n');
 		expect(await sourceOf(page, 'on')).toBe('Loaded\n\nPlan\n---\n\n\tcode\n\nPlan\n---\n');
 		expect((await kindsIn(page, 'off')).slice(1, 3)).toEqual(['paragraph', 'thematicBreak']);
 		expect((await kindsIn(page, 'on'))[1]).toBe('setextHeading');

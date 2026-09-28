@@ -23,6 +23,7 @@ import type { UndoController } from './editor-actions/deps';
 import type { ReorderAction } from './editor-actions/reorder-action';
 import type { PasteCommitCoordinator } from './tree-operations/paste/paste-deps';
 import type { SelectionState } from './selection/selection-state.svelte';
+import type { CaretLanding } from './selection/caret-landing';
 import type { SelectedWidgetHandle } from './selection/primitives';
 import type { SearchState } from './search/search-state.svelte';
 import type { DecorationEngine } from './decorations/decoration-state.svelte';
@@ -162,6 +163,8 @@ export interface EditorServices {
 	 *  null. The block renders the attributes itself, rather than the list reaching in. */
 	inlineMenuCombobox: (path: readonly number[]) => InlineMenuCombobox | null;
 	controller: UndoController;
+	/** Where the caret is put down after an edit, and the mount a cross-block key lands through. */
+	caretLanding: CaretLanding;
 	pasteCoordinator: PasteCommitCoordinator;
 	reorder: ReorderAction;
 	/** This instance's view of the global block definitions, so a per-instance list of

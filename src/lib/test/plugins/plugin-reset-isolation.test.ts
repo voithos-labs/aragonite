@@ -9,7 +9,9 @@ import { resetPluginPlatformForTests } from '$lib/testing';
 import {
 	definePlugin,
 	highlightCode,
+	registerBlockCompleter,
 	registerBlockContextActions,
+	registerInlineWidgetKind,
 	registerLanguage
 } from '$lib/plugin';
 import { installPlugins } from '$lib/schema/plugin-install';
@@ -22,6 +24,9 @@ import {
 	isLanguageRegistered,
 	registerBuiltinLanguage
 } from '$lib/components/blocks/code/code-languages';
+import { isBlockCompleterRegistered } from '$lib/schema/block-completions';
+import { isInlineWidgetKind } from '$lib/core/inline/inline-widgets';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 import type { LanguageFn } from 'highlight.js';
 import type { NodeView } from '$lib/core/node-views';
 
@@ -85,4 +90,38 @@ describe('a built-in registered from inside a plugin install', () => {
 		expect(rowIds()).toEqual(['lazy.row']);
 		expect(isLanguageRegistered('lazylang')).toBe(true);
 	});
+});
+
+// Miss-analysis: the reset tests registered plugin entries only for plugin kinds, so a reset that
+// asked whose activation an entry answers to, not who registered it, kept a built-in kind's entry.
+describe('a plugin’s entry for a built-in kind', () => {
+	const routes = [
+		{
+			name: 'a block completer for paragraph',
+			register: () => registerBlockCompleter('paragraph', { tryComplete: () => null }),
+			isRegistered: () => isBlockCompleterRegistered('paragraph')
+		},
+		{
+			name: 'an inline widget for emphasis',
+			register: () =>
+				registerInlineWidgetKind('emphasis', {
+					isWidget: () => true,
+					buildWidget: () => document.createElement('span')
+				}),
+			isRegistered: () => isInlineWidgetKind('emphasis', defaultGrammarView)
+		}
+	];
+
+	it.each(routes)(
+		'$name is dropped by the reset, so the next case can install it again',
+		(route) => {
+			const install = () =>
+				installPlugins([definePlugin({ name: 'fills-a-slot', setup: route.register })]);
+			install();
+			resetPluginPlatformForTests();
+			expect(route.isRegistered()).toBe(false);
+			expect(install).not.toThrow();
+			resetPluginPlatformForTests();
+		}
+	);
 });

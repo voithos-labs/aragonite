@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import {
 	flushPendingRegistrationChecks,
 	hasPendingRegistrationChecks
@@ -10,7 +10,6 @@ import {
 	lineInterruptsParagraph,
 	type BlockOpener
 } from '$lib/schema/block-openers';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { testClosure } from '$lib/test/support/closure';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
 import { collector } from '$lib/test/harness/violation-collector';
@@ -31,8 +30,6 @@ const opener = (priority: number): BlockOpener => ({
 	tryOpen: () => null,
 	interruptsParagraph: false
 });
-
-beforeEach(() => __resetSchemaRegistriesForTests());
 
 // The unit setup registers built-in descriptors but never components, so every check this file
 // forces reports the missing components; what matters here is what else it finds.

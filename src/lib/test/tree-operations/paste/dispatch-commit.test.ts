@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { pasteDispatch } from '../../../tree-operations/paste/dispatch';
 import { parse } from '../../../core/parser';
 import { createGrammarView } from '../../../schema/block-openers';
@@ -15,7 +15,6 @@ import {
 } from '../../harness/editor-actions';
 import type { CstNode } from '../../../core/nodes';
 import type { PasteCommitCoordinator } from '../../../tree-operations/paste/paste-deps';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { fixtureReading } from '$lib/test/harness/fixture-grammar';
 
 // ── Container-matching merge runs its raw mutation inside commitMultiScope ────
@@ -102,10 +101,6 @@ describe('paste-dispatch: applyContainerMatchingMerge mutate-inside-commit invar
 // ── Cross-block inline join reparse ──────────────────────────────────────────
 
 describe('pasteDispatch: cross-block inline join reparse', () => {
-	beforeEach(() => {
-		__resetSchemaRegistriesForTests();
-	});
-
 	// A join paste completing marker syntax at offset 0 must put a node of the reparsed kind in
 	// the position, mirroring the non-join sibling's reparse path, or parse(serialize(live)) diverges.
 	it('completing an ordered-list marker re-creates the block as a list', async () => {
@@ -150,12 +145,6 @@ describe('pasteDispatch: cross-block inline join reparse', () => {
 // ── pasteDispatch end-to-end routing ────────────────────────────────────────
 
 describe('pasteDispatch: strategy routing end-to-end', () => {
-	// Registries are register-once, so the reset makes routing see the app's paste handlers
-	// independent of prior describes.
-	beforeEach(() => {
-		__resetSchemaRegistriesForTests();
-	});
-
 	it('inline strategy: single-paragraph clipboard routes through blockEdit.updateBlockContent', async () => {
 		const doc = parse('hello world\n');
 		const blockEdit = makeStubBlockEdit();

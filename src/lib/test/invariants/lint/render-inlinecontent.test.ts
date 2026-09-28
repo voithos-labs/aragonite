@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { balancedRegion, readEditorFile, stripComments } from './scan-source';
+import { balancedRegion, readEditorFile, sourceFile, type SourceFile } from './scan-source';
 
 const RENDER_DOM_FILE = 'components/blocks/text/text-render.ts';
 const TEXT_BLOCK_FILE = 'components/blocks/text/TextEditableBlock.svelte';
@@ -19,8 +19,10 @@ function callsCachingAccessor(code: string): boolean {
 
 /** A render `$effect` block, found by its render dispatch, or null when the anchor is absent;
  *  callers must fail on null, or a rename silently disables the scan. */
-export function extractRenderEffect(rawText: string, anchor = 'textRender.render'): string | null {
-	const code = stripComments(rawText);
+export function extractRenderEffect(
+	{ code }: SourceFile,
+	anchor = 'textRender.render'
+): string | null {
 	const anchorAt = code.indexOf(anchor);
 	if (anchorAt === -1) return null;
 
@@ -41,7 +43,7 @@ describe('G4.2 render path computes inline, never the caching accessor', () => {
 
 	it('TextEditableBlock render $effect does not call getInlineContent', () => {
 		const file = readEditorFile(TEXT_BLOCK_FILE);
-		const effect = extractRenderEffect(file.text);
+		const effect = extractRenderEffect(file);
 		// Fail loud if the anchor vanished: a silent pass leaves the render path unguarded.
 		expect(effect, 'render $effect anchor "textRender.render" not found').not.toBeNull();
 		expect(callsCachingAccessor(effect!)).toBe(false);
@@ -55,7 +57,7 @@ describe('G4.2 render path computes inline, never the caching accessor', () => {
 
 	it('TableCellBlock render $effect does not call getInlineContent', () => {
 		const file = readEditorFile(CELL_BLOCK_FILE);
-		const effect = extractRenderEffect(file.text, 'cellRender.render');
+		const effect = extractRenderEffect(file, 'cellRender.render');
 		expect(effect, 'cell render $effect anchor "cellRender.render" not found').not.toBeNull();
 		expect(callsCachingAccessor(effect!)).toBe(false);
 	});
@@ -67,11 +69,13 @@ describe('G4.2 render path computes inline, never the caching accessor', () => {
 		expect(callsCachingAccessor('const c = computeInlineContent(node, resolver);')).toBe(false);
 	});
 
+	const probe = (text: string) => sourceFile('probe.ts', text);
+
 	it('extractRenderEffect isolates the effect and would catch a call inside it', () => {
 		const bad =
 			'const x = getInlineContent(node);\n' + // outside the effect — must be ignored
 			'$effect(() => {\n  textRender.render();\n  const c = getInlineContent(node);\n});\n';
-		const effect = extractRenderEffect(bad);
+		const effect = extractRenderEffect(probe(bad));
 		expect(effect).not.toBeNull();
 		expect(callsCachingAccessor(effect!)).toBe(true);
 		// The leading call outside the effect is excluded from the extracted block.
@@ -80,16 +84,18 @@ describe('G4.2 render path computes inline, never the caching accessor', () => {
 
 	it('extractRenderEffect reads past a brace inside a string or a comment', () => {
 		const effect = extractRenderEffect(
-			"$effect(() => {\n  const close = '}'; // }\n  textRender.render();\n  getInlineContent(node);\n});\n"
+			probe(
+				"$effect(() => {\n  const close = '}'; // }\n  textRender.render();\n  getInlineContent(node);\n});\n"
+			)
 		);
 		expect(callsCachingAccessor(effect!)).toBe(true);
 	});
 
 	it('extractRenderEffect returns null when the anchor is missing', () => {
-		expect(extractRenderEffect('$effect(() => { doSomethingElse(); });')).toBeNull();
+		expect(extractRenderEffect(probe('$effect(() => { doSomethingElse(); });'))).toBeNull();
 	});
 
 	it('extractRenderEffect ignores an anchor that only appears in a comment', () => {
-		expect(extractRenderEffect('// textRender.render is dispatched elsewhere\n')).toBeNull();
+		expect(extractRenderEffect(probe('// textRender.render is dispatched elsewhere\n'))).toBeNull();
 	});
 });

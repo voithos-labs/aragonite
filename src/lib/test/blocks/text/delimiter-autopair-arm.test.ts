@@ -2,12 +2,11 @@
 // The `beforeinput` handler around the auto-pair resolver, with the block's check that the written
 // line still parses as this block. The resolver's own table is `delimiter-autopair.test.ts`.
 // Miss-analysis: resolver cases sat inside prose, so none saw `****` reparse as a thematic break.
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
 	applyDelimiterAutoPair,
 	type AutoPairSurface
 } from '$lib/components/blocks/text/delimiter-autopair';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import { createAutoPairRecord } from '$lib/components/blocks/text/auto-pair-record';
 import type { ContentRange } from '$lib/core/inline';
 import { fixtureReading } from '$lib/test/harness/fixture-grammar';
@@ -58,9 +57,6 @@ const typed = (data: string) =>
 	new InputEvent('beforeinput', { inputType: 'insertText', data, cancelable: true });
 
 describe('the branch keeps the line this block', () => {
-	beforeEach(resetPluginPlatformForTests);
-	afterEach(resetPluginPlatformForTests);
-
 	// `*|*` plus `*` grows to `****`, a thematic break on a line of its own: the key steps past
 	// its partner instead, and a closer typed by hand later completes `**bold**`.
 	it('a grow that would re-kind the line steps past the paired closer', () => {

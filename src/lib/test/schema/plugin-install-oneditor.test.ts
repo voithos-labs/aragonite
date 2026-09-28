@@ -1,14 +1,12 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import {
 	definePlugin,
 	installPlugins,
 	onEditorCallbacks,
 	installedPluginNames,
-	__resetInstalledPluginsForTests,
 	type PluginSetupContext
 } from '$lib/schema/plugin-install';
-
-beforeEach(() => __resetInstalledPluginsForTests());
+import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
 describe('onEditor subscription join', () => {
 	it('records callbacks per plugin, in registration order', () => {
@@ -59,7 +57,7 @@ describe('onEditor subscription join', () => {
 				}
 			})
 		]);
-		__resetInstalledPluginsForTests();
+		__resetSchemaRegistriesForTests();
 		expect(onEditorCallbacks('gone')).toHaveLength(0);
 	});
 

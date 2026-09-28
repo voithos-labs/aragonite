@@ -21,7 +21,8 @@ describe('blockquote Backspace unwrap (U2)', () => {
 
 		await pressKeyAt(mounted, [0, 0], 0, BACKSPACE);
 
-		expect(mounted.source()).toBe('alpha\n> beta\n');
+		// The blank quote line between the two children stays as the blank line between them.
+		expect(mounted.source()).toBe('alpha\n\n> beta\n');
 	});
 
 	it('unwraps a sole child into a bare paragraph', async () => {

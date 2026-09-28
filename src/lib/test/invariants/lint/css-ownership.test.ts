@@ -5,17 +5,7 @@
  * families (an off-family typo like `--text-muted` can never be declared).
  */
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
-import path from 'node:path';
-import { collectEditorSources, readEditorFile, stripComments } from './scan-source';
-
-function readRepo(rel: string): string {
-	return readFileSync(path.resolve(rel), 'utf8');
-}
-
-function readEditorCss(rel: string): string {
-	return stripComments(readEditorFile(rel).text);
-}
+import { collectEditorSources, readEditorFile, readSource } from './scan-source';
 
 // ── Token families ────────────────────────────────────────────────────────────
 // Editor-owned tokens vs consumer-provided host-chrome tokens. Every var() read in the
@@ -32,8 +22,8 @@ const isPluginSource = (relPath: string): boolean => relPath.startsWith('src/lib
 function editorCssSurfaces(): Array<{ rel: string; text: string }> {
 	return [
 		...collectEditorSources().map((f) => ({ rel: f.relPath, text: f.code })),
-		{ rel: 'styles/editor.css', text: readEditorCss('styles/editor.css') },
-		{ rel: 'styles/editor-theme.css', text: readEditorCss('styles/editor-theme.css') }
+		{ rel: 'styles/editor.css', text: readEditorFile('styles/editor.css').code },
+		{ rel: 'styles/editor-theme.css', text: readEditorFile('styles/editor-theme.css').code }
 	];
 }
 
@@ -72,7 +62,7 @@ const EDITOR_MARKERS: RegExp[] = [
 ];
 
 describe('G4.6 CSS ownership: app.css holds no editor-owned rules', () => {
-	const appCss = stripComments(readRepo('src/app.css'));
+	const appCss = readSource('src/app.css').code;
 	for (const re of EDITOR_MARKERS) {
 		it(`app.css contains no ${re}`, () => {
 			expect(appCss).not.toMatch(re);
@@ -142,7 +132,7 @@ const HOST_CHROME_TOKENS = [
 ];
 
 function themeRules(): Array<{ selector: string; body: string }> {
-	const css = stripComments(readEditorFile('styles/editor-theme.css').text);
+	const css = readEditorFile('styles/editor-theme.css').code;
 	return [...css.matchAll(/([^{}]*)\{([^{}]*)\}/g)].map(([, selector, body]) => ({
 		selector: selector.trim(),
 		body

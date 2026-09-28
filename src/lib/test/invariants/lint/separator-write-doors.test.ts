@@ -27,12 +27,10 @@ const TRIVIA_WRITERS: Record<string, string> = {
 	'src/lib/tree-operations/node-primitives.ts': 'the same carry, for a replacement built elsewhere',
 	'src/lib/tree-operations/reorder.ts':
 		'trivia is positional, so a rotation carries each slot’s line rather than its node’s',
-	'src/lib/tree-operations/blockquote.ts':
-		'head normalization inside a built subtree: a body head separates from nothing',
 	'src/lib/tree-operations/container-lift.ts':
-		'same head normalization, plus the line that stood between the two lifted halves inside the container moving out with them',
+		'head normalization inside a built subtree (a body head separates from nothing), plus the line that stood between the two lifted halves inside the container moving out with them',
 	'src/lib/tree-operations/list/list-builders.ts':
-		'same head normalization, per assembled half and per split-built trailing half',
+		'head normalization inside a built subtree, per assembled half and per split-built trailing half',
 	'src/lib/tree-operations/list/sublist-separator.ts':
 		'the settle door for an empty-marker sublist, whose line no splice window can infer: the write lands on the list, the edit two levels below it',
 	'src/lib/tree-operations/list/item-partition.ts':

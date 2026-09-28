@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { installPlugins, parse } from '$lib';
 import { checkOpaqueStaleRaw } from '../../invariants/node-shape';
 import { admonitionsPlugin } from '$lib/plugins/admonitions';
@@ -7,7 +7,7 @@ import { defaultGrammarView } from '$lib/schema/block-openers';
 // The stale-raw mismatch branch (G1.12) gives up for a kind with no standalone recognizer. A
 // directive container has one, since the shared `:::` opener recognizes it on the kind's behalf,
 // though it registers no opener of its own, so the opener registry alone cannot exempt it.
-beforeAll(() => {
+beforeEach(() => {
 	installPlugins([admonitionsPlugin()]);
 });
 

@@ -2,7 +2,7 @@
 // check admitted it, whether bytes landed, and whether the block keeps its own caret.
 // Miss-analysis: the write returned its caret before asking the check, and every caller parked it;
 // only each route's own reading-mode check kept a refused write from parking a caret.
-import { beforeAll, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { installPlugins } from '$lib';
 import { admonitionsPlugin } from '$lib/plugins/admonitions';
 import { GITHUB_ALERT } from '$lib/plugins/admonitions/kinds';
@@ -13,7 +13,7 @@ import { fixtureReading } from '../harness/fixture-grammar';
 import { makeNestedHarness, makeTopHarness } from '../harness/editor-actions';
 import { takeDevWarns } from '../support/warn-gate';
 
-beforeAll(() => {
+beforeEach(() => {
 	installPlugins([admonitionsPlugin()]);
 });
 

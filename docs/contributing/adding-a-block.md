@@ -262,7 +262,7 @@ const { controller, selection } = getContext<EditorServices>(EDITOR_SERVICES_KEY
 | Context                     | Gives you                                                                         |
 | --------------------------- | --------------------------------------------------------------------------------- |
 | `BLOCK_EDIT_KEY`            | `BlockEditActions`: split, merge, delete, content/metadata edits, replace         |
-| `FOCUS_KEY`                 | `FocusActions`: `moveFocus`, `revealPath`                                         |
+| `FOCUS_KEY`                 | `FocusActions`: `moveFocus`                                                       |
 | `HISTORY_KEY`               | `HistoryActions`: `requestUndo` / `requestRedo`                                   |
 | `CONTAINER_EDIT_KEY`        | `ContainerEditActions`: the container commit surface (below)                      |
 | `EDITOR_SERVICES_KEY` facet | `.controller` is the multi-scope commit primitive, for cross-container operations |
@@ -270,7 +270,7 @@ const { controller, selection } = getContext<EditorServices>(EDITOR_SERVICES_KEY
 `src/lib/action-contracts.ts` is the authority on every member, so read it rather than trusting a list in a doc. This one included. The keys themselves live beside it in `src/lib/editor-keys.ts`, which is where you go when you grep the contracts file for `BLOCK_EDIT_KEY` and come up empty. Two members are easy to miss:
 
 - **`descendToBody`** (on `BlockEditActions`) is the Enter gesture out of a title row: it moves the caret from a chrome leaf into the container's first body child. Any container with a title row wants it.
-- **`revealPath`** (on `FocusActions`) mounts an off-window block before you place a caret in it. The editor only mounts the blocks near the viewport, so the block you want to focus may not exist in the DOM yet.
+- **`land`** (on `ContainerEditActions`) puts the caret at a document position for a move that commits nothing. It mounts the block first (the editor only mounts the blocks near the viewport, so the one you want may not exist in the DOM yet) and scrolls it into view if it's off screen. A commit's own caret goes in its `landing`, below.
 
 Sticky-column entry isn't a separate method. It rides on the `FocusPosition` you pass to `moveFocus`:
 
@@ -398,7 +398,7 @@ await parentContainerEdit.commitContainer({
 });
 ```
 
-`snapshot` is where the caret was, for the undo entry. `mutate` returns the structural change it made so the commit can publish it, `op` names the operation for the edit event and the operations log, and `afterTick` runs after the DOM has caught up, which is where a caret gets placed. The same rule covers `commitMultiScope`'s per-scope views.
+`snapshot` is where the caret was, for the undo entry. `mutate` returns the structural change it made so the commit can publish it, and `op` names the operation for the edit event and the operations log. The table still places its caret itself in `afterTick`, which runs after the DOM has caught up. A new commit passes `landing` instead: a function returning where the caret goes, a document path (a container's is fine) and an offset, and the commit puts it down for you, mounting and scrolling included. The same rules cover `commitMultiScope`'s per-scope views.
 
 `ContainerEditActions` also carries the two things a keystroke needs the root for: `typeInLeaf` (groups it with its typing burst) and `writeLeafInPlace` (the write that keeps the leaf in place), both built in `src/lib/editor-actions/leaf-write.ts`. Your container gets them for free through the shared `updateBlockContent`, so there's nothing to wire. A typed character joins its burst's undo entry, then either commits or writes in place. For any other change to a container's children, reach for `commitContainer`, or `commitMultiScope` when the change spans containers.
 

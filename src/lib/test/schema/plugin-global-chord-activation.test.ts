@@ -11,13 +11,7 @@ import {
 import type { CommandDispatchContext } from '$lib/schema/block-commands';
 import { chordIsClaimed, collectReservedChords } from '$lib/schema/reserved-chords';
 import { activationFor, everyInstalledPlugin } from '$lib/schema/plugin-activation';
-import {
-	definePlugin,
-	installPlugins,
-	__resetInstalledPluginsForTests,
-	type EditorContext
-} from '$lib/schema/plugin-install';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
+import { definePlugin, installPlugins, type EditorContext } from '$lib/schema/plugin-install';
 import { commandContext } from '../support/command-context';
 
 const CHORD = 'Mod+Shift+9';
@@ -36,8 +30,6 @@ function chordContext(activation: typeof listing): CommandDispatchContext {
 }
 
 beforeEach(() => {
-	__resetSchemaRegistriesForTests();
-	__resetInstalledPluginsForTests();
 	ran = 0;
 	installPlugins([
 		definePlugin({

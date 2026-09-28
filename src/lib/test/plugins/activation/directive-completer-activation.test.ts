@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 // Miss-analysis: no test parsed a fence or pressed Enter with the owning plugin left out (GH #266).
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { resetPluginPlatformForTests } from '$lib/testing';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { definePlugin, installPlugins } from '$lib/schema/plugin-install';
 import {
 	declarePluginInlineKind,
@@ -33,10 +32,8 @@ const unlisted = definePlugin({
 });
 
 beforeEach(() => {
-	resetPluginPlatformForTests();
 	installPlugins([admonitionsPlugin(), unlisted]);
 });
-afterEach(resetPluginPlatformForTests);
 
 const NOTE = ':::note\n\nbody\n\n:::\n';
 const noteKind = (grammar: GrammarView) => parse(NOTE, { grammar }).children[0].kind;

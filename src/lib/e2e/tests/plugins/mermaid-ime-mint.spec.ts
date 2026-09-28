@@ -113,6 +113,6 @@ test.describe('mermaid whole-block focus: AltGr and IME input', () => {
 
 		await expect(textarea).toBeFocused();
 		await expect(textarea).toHaveValue(/X/);
-		expect(await editor.bridge.getSource()).toBe(before); // uncommitted draft, no mint
+		expect(await editor.bridge.getSource()).toBe(before); // an uncommitted draft writes nothing
 	});
 });

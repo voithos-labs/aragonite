@@ -36,11 +36,9 @@ const atomic: InlineConstructPolicy = {
 const rebalancer = (): LiveSplitRebalancer => () => null;
 
 afterEach(() => {
-	__resetSchemaRegistriesForTests();
 	// A separate reset: clearing the rows deliberately leaves this function registered, so only
 	// this suite, which tests that function, clears it between cases.
 	__resetLiveSplitRebalancerForTests();
-	__resetSchemaRegistriesForTests();
 });
 
 describe('built-in rows', () => {

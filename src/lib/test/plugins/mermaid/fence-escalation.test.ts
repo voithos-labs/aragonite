@@ -1,7 +1,6 @@
 // Miss-analysis: the round-trip property never drew a body written back by an edit.
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse, serialize, type CstNode, type Document } from '$lib';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import { describeConvergence } from '$lib/testing/parse-convergence';
 import { registerMermaidKind } from '$lib/plugins/mermaid/mermaid-kind';
 import { makeTopHarness } from '$lib/test/harness/editor-actions';
@@ -16,7 +15,6 @@ async function commitCode(source: string, code: string): Promise<{ node: CstNode
 
 describe('a mermaid body carrying a fence run', () => {
 	beforeEach(() => {
-		resetPluginPlatformForTests();
 		registerMermaidKind();
 	});
 

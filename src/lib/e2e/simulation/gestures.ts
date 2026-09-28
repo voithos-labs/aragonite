@@ -13,6 +13,7 @@ import {
 	hardBreakAt,
 	indent,
 	indentEmptyItem,
+	kindChangeUndoInListItem,
 	mintAtGap,
 	nestQuote,
 	outdent,
@@ -306,6 +307,12 @@ export class Gestures {
 
 	toggleTask(listItemPath: number[]): Promise<void> {
 		return toggleTask(this.ctx, listItemPath);
+	}
+
+	/** Types `# ` at the start of a list item's paragraph and undoes once; the undo must restore
+	 *  the bytes from before the first key. */
+	kindChangeUndoInListItem(itemParagraphPath: number[]): Promise<void> {
+		return kindChangeUndoInListItem(this.ctx, itemParagraphPath);
 	}
 
 	/** Mod+Enter with the caret in the item, the path a keyboard user takes to the box. */

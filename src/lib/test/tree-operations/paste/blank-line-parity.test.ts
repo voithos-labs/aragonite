@@ -16,14 +16,12 @@ import {
 } from '$lib/test/harness/editor-actions';
 import { triviaRawOf } from '$lib/test/harness/parse-converged';
 import { fixtureReading } from '../../harness/fixture-grammar';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
 // A pasted blank line must reach the same shape the same bytes reach by loading or typing.
 // Paste parses the clipboard, so the parser's separator rule is the whole answer.
 
 /** Paste `clipboard` at the end of a one-paragraph document. */
 async function pasteAfterX(clipboard: string): Promise<Document> {
-	__resetSchemaRegistriesForTests();
 	const { deps } = makeEditorActionsDeps(parse('x\n').children);
 
 	await pasteDispatch(
@@ -52,7 +50,6 @@ async function pasteLive(
 	offset: number,
 	clipboard: string
 ): Promise<{ doc: Document; history: ReturnType<typeof createHistoryActions> }> {
-	__resetSchemaRegistriesForTests();
 	// The whole document, not its children: the trailing blank line is the subject here.
 	const { deps } = makeEditorActionsDeps(doc);
 	const controller = createUndoController(deps);

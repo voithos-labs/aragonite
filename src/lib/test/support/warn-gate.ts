@@ -10,7 +10,6 @@ import { afterAll, afterEach, expect } from 'vitest';
 import { tick } from 'svelte';
 import { setDevWarnSink, warnTagOfLine, type DevWarnEntry, type DevWarnSink } from '$lib/dev-warn';
 import { resetEditorEnv } from '$lib/env';
-import { __resetCommandWarningsForTests } from '$lib/schema/commands';
 import allowlist from './warn-allowlist.json';
 
 export interface AllowedWarn {
@@ -159,10 +158,9 @@ export async function enforceWarnGate(): Promise<void> {
 	// without this the warning lands on the next test, or on no test at all.
 	await tick();
 	const unclaimed = findUnallowlistedWarns(takeDevWarns());
-	// The environment singleton and the once-per-id warning set are process-global, so a leaked
-	// override or a deduplicated warning would make the next test depend on run order.
+	// The environment singleton is process-global, so a leaked override would make the next test
+	// depend on run order.
 	resetEditorEnv();
-	__resetCommandWarningsForTests();
 	const stolen = setDevWarnSink(gateSink) !== gateSink;
 	if (unclaimed.length > 0) throw new Error(formatWarnFailure(unclaimed));
 	if (stolen) throw new Error(STOLEN_SINK);

@@ -14,6 +14,7 @@
 	import { showsDragHandle } from './drag-handle';
 	import TextEditableBlock from './blocks/text/TextEditableBlock.svelte';
 	import { defaultRegistryView } from '../schema/registry-view';
+	import { isGridDescriptor } from '../schema/block-kind-descriptor';
 	import { FAILED_BLOCK_LABEL } from '../a11y-strings';
 	import {
 		EDITOR_DOC_KEY,
@@ -82,7 +83,7 @@
 	// Decided once for both overlays: a container with children (not a grid) leaves painting its
 	// rectangles to the children's own hosts.
 	let delegatesPainting = $derived(
-		isContainer && (node.children?.length ?? 0) > 0 && descriptor.containerContract !== 'grid'
+		isContainer && (node.children?.length ?? 0) > 0 && !isGridDescriptor(descriptor)
 	);
 
 	let hostEl: HTMLElement | null = $state(null);

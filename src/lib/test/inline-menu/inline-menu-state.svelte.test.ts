@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { tick } from 'svelte';
 import { parse } from '$lib/core/parser';
 import type { DocumentView } from '$lib/core/node-views';
@@ -23,7 +23,7 @@ const masker = definePlugin({
 		});
 	}
 });
-installPlugins([definePlugin({ name: 'listed', setup() {} }), masker]);
+beforeEach(() => installPlugins([definePlugin({ name: 'listed', setup() {} }), masker]));
 const MASKED = '%%a `b` c%%';
 const scopedLinkRef = fixtureReading({ grammar: grammarListing(['listed']) });
 const toR = (label: string) => (label === 'r#' ? { url: 'x' } : undefined);

@@ -12,7 +12,7 @@ import type { AnyCommandId } from './command-id';
 import { isBuiltinCommandId } from './commands';
 import { registerOnce } from './register-once';
 import { everyInstalledPlugin } from './plugin-activation';
-import { createPluginRegistry } from './plugin-registry';
+import { createInlineKindRegistry } from './plugin-registry';
 
 // ── Policy rows ─────────────────────────────────────────────────────────────
 
@@ -59,7 +59,7 @@ export type InlineProseExtent = 'none' | 'content' | 'all';
 
 // Read with no editor at hand: a row matters only for a node of its kind, and only an editor
 // that activated the kind's plugin parses one, so the rows answer for every installed plugin.
-const policies = createPluginRegistry<AnyInlineKind, InlineConstructPolicy>({
+const policies = createInlineKindRegistry<InlineConstructPolicy>({
 	label: 'registerInlineConstructPolicy',
 	isBuiltin: isBuiltinInlineKind
 });

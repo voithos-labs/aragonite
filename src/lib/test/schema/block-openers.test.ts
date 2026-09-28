@@ -8,7 +8,6 @@ import {
 	type BlockOpener
 } from '../../schema/block-openers';
 import type { AnyBlockKind } from '../../core/nodes';
-import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
 
 // Plugin kinds on top of the built-in openers, which the reset keeps; each case reads back only
 // the openers it registered.
@@ -28,7 +27,6 @@ const priorities = (openers: readonly BlockOpener[]) =>
 
 describe('block-opener registry', () => {
 	beforeEach(() => {
-		__resetSchemaRegistriesForTests();
 		mine.clear();
 	});
 

@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '$lib';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import { normalizeOwnRaw } from '$lib/tree-operations/node-primitives';
 import { documentLineEnding } from '$lib/plugin';
 import { registerMathBlock } from '$lib/plugins/latex/latex-kind';
@@ -18,7 +17,6 @@ function write(source: string, raw: string): string {
 
 // One call registers both forms, as one install of the plugin does.
 beforeEach(() => {
-	resetPluginPlatformForTests();
 	registerMathBlock();
 });
 

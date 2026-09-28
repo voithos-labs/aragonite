@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { installPlugins, parse } from '$lib';
 import { resolveReorderUnit } from '$lib/tree-operations/reorder-unit';
 import { admonitionsPlugin } from '$lib/plugins/admonitions';
@@ -8,7 +8,7 @@ import { footnotesPlugin } from '$lib/plugins/footnotes';
 // the container rather than walking past it to the document position. Membership is the
 // descriptor's `reorderChildren` capability, not a kind name.
 
-beforeAll(() => {
+beforeEach(() => {
 	installPlugins([admonitionsPlugin(), footnotesPlugin()]);
 });
 

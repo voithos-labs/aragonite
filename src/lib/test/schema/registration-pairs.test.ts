@@ -1,7 +1,7 @@
 // Miss-analysis: the pairs were refused by the registration types alone, and no test registered one
 // through a cast, the way a JavaScript plugin reaches the runtime.
 import { readFileSync } from 'node:fs';
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { declarePluginKind } from '$lib/schema/plugin-kind';
 import {
 	registerBlockKind,
@@ -12,7 +12,6 @@ import {
 	INCOHERENT_REGISTRATION_PAIRS,
 	type IncoherentPairId
 } from '$lib/schema/registration-pairs';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { testClosure } from '$lib/test/support/closure';
 
 const leaf = {
@@ -61,8 +60,6 @@ const pairs: Record<IncoherentPairId, () => object> = {
 		}
 	})
 };
-
-afterEach(() => __resetSchemaRegistriesForTests());
 
 describe('registerBlockKind refuses an incoherent pair the types refuse', () => {
 	for (const row of INCOHERENT_REGISTRATION_PAIRS) {

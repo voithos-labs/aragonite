@@ -1,15 +1,11 @@
-import { afterEach, beforeEach, describe, it, expect } from 'vitest';
+import { beforeEach, describe, it, expect } from 'vitest';
 import { installPlugins, parse, serialize } from '$lib';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import { parrotPlugin, PARROT } from '$lib/plugins/parrot';
 import { roundTripCases } from '$lib/test/support/round-trip';
 
 // The parrot's registration function is module-private (the plugin keeps the guide's bytes),
 // so installing the plugin is the only way in, which is what a consumer does.
 const installParrot = () => installPlugins([parrotPlugin()]);
-
-beforeEach(resetPluginPlatformForTests);
-afterEach(resetPluginPlatformForTests);
 
 // Uninstalled, the marker is ordinary prose: the bytes a consumer without the plugin
 // reads back are bare GFM, which is the whole uninstall story for a leaf like this.

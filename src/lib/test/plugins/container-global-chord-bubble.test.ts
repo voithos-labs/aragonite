@@ -4,14 +4,13 @@
 // Miss-analysis: every undo test pressed the chord with focus on the container itself.
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { flushSync } from 'svelte';
-import { installEditorDomStubsForTests, resetPluginPlatformForTests } from '$lib/testing';
+import { installEditorDomStubsForTests } from '$lib/testing';
 import { dispatchKey } from '../harness/settle';
 import { mountOpaque, registerOpaqueKind, type MountedOpaque } from './fixtures/opaque-container';
 
 let mounted: MountedOpaque | null = null;
 
 beforeEach(() => {
-	resetPluginPlatformForTests();
 	installEditorDomStubsForTests();
 	registerOpaqueKind();
 });
@@ -20,7 +19,6 @@ afterEach(async () => {
 	await mounted?.dispose();
 	mounted = null;
 	document.body.innerHTML = '';
-	resetPluginPlatformForTests();
 });
 
 function mountWithHistory() {

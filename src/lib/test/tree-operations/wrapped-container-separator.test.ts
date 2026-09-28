@@ -1,11 +1,10 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { deleteNode } from '$lib/tree-operations/settle';
 import { updateNodeContent } from '$lib/tree-operations/content-write';
 import { firstLineEnding, trailingLineEnding } from '$lib/core/lines';
 import { rebuildAncestryRaw } from '$lib/schema/container-raw';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { activateDirectiveGrammar } from '$lib/core/directive/activate';
 import { registerCalloutKind } from '../../../routes/test/plugins/callout/callout-kind';
 import { expectParseConverged } from '../harness/parse-converged';
@@ -39,10 +38,8 @@ function deleteBodyChild(
 
 describe('separator settle inside a chrome-wrapped container', () => {
 	beforeEach(() => {
-		__resetSchemaRegistriesForTests();
 		registerCalloutKind();
 	});
-	afterEach(__resetSchemaRegistriesForTests);
 
 	it('hands the freed separator to the wrap when the body head has none', () => {
 		const { doc, raw } = deleteBodyChild(':::callout\nA\n\nB\n:::\n', 1);
@@ -90,10 +87,8 @@ describe('separator settle inside a chrome-wrapped container', () => {
 // Miss-analysis: GH #101, every emptied-block case ran where no fence line bounds the run.
 describe('emptying a body block against the wrap’s chrome lines', () => {
 	beforeEach(() => {
-		__resetSchemaRegistriesForTests();
 		registerCalloutKind();
 	});
-	afterEach(__resetSchemaRegistriesForTests);
 
 	/** The emptied-block gesture through the container write: commitInput sends the ending alone. */
 	function emptyBodyChild(container: CstNode, at: number): void {

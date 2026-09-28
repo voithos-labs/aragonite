@@ -5,7 +5,7 @@
  */
 
 import { defaultGrammarView } from '$lib/schema/block-openers';
-import { afterEach, describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { imageWidgetOnSelectedKey } from '../../components/image/image-widget-editing';
 import { parse } from '../../core/parser';
 import { getInlineContent } from '../../core/inline/inline-cache';
@@ -14,9 +14,6 @@ import type { CstNode, InlineNode } from '../../core/nodes';
 import { committerFor } from './committer-harness';
 import { registerWikiRung, rewriteWikiImage } from './wiki-image-rung';
 import { takeDevWarns } from '../support/warn-gate';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
-
-afterEach(() => __resetSchemaRegistriesForTests());
 
 function firstImage(raw: string): { paragraph: CstNode; image: InlineNode } {
 	const doc = parse(raw);

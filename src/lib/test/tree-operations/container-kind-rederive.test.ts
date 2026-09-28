@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { installPlugins, parse } from '$lib';
 import { setPluginMetadata } from '$lib/plugin';
 import { admonitionsPlugin } from '$lib/plugins/admonitions';
@@ -14,7 +14,7 @@ import { fixtureGrammar } from '$lib/test/harness/fixture-grammar';
 // registry, since a kind with no standalone recognizer reparses to something else. The
 // editor-driven half is test/plugins/admonitions/github-alert-typed-formation.test.ts.
 
-beforeAll(() => {
+beforeEach(() => {
 	installPlugins([admonitionsPlugin()]);
 });
 

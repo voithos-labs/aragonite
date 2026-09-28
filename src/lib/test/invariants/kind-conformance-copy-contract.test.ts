@@ -28,7 +28,7 @@ vi.mock('$lib/selection/clipboard-text', async (importOriginal) => {
 });
 
 import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
-import { checkCopyIsRawByteSlice, resetPluginPlatformForTests } from '$lib/testing';
+import { checkCopyIsRawByteSlice } from '$lib/testing';
 import { registerMermaidKind, MERMAID } from '$lib/plugins/mermaid/mermaid-kind';
 import { declaredPluginKind } from '$lib/plugin';
 
@@ -40,7 +40,6 @@ function mermaidFixture() {
 
 afterEach(() => {
 	stub.mode = 'off';
-	resetPluginPlatformForTests();
 });
 
 describe('kind conformance: the whole-unit copy contract', () => {

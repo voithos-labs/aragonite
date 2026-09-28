@@ -13,7 +13,6 @@ import { createWidgetSelectionState } from '$lib/components/image/widget-selecti
 import type { WidgetInteractionDeps } from '$lib/components/blocks/text/widget-interaction';
 import type { CstNode, InlineNode } from '$lib/core/nodes';
 import { fixtureReading } from '../../harness/fixture-grammar';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
 export function stampMathWidget(node: InlineNode): HTMLElement {
 	const wrapper = document.createElement('span');
@@ -25,20 +24,11 @@ export function stampMathWidget(node: InlineNode): HTMLElement {
 	return wrapper;
 }
 
-export function resetInlineState(): void {
-	__resetSchemaRegistriesForTests();
-}
-
-/** The reset pair the widget-reveal suites share: register the math inline kind
- *  before each test, tear the platform + mounted DOM down after. */
+/** Registers the math inline kind before each test and clears the mounted DOM after. */
 export function installMathInline(): void {
-	beforeEach(() => {
-		resetInlineState();
-		registerMathInline();
-	});
+	beforeEach(registerMathInline);
 	afterEach(() => {
 		document.body.innerHTML = '';
-		resetInlineState();
 	});
 }
 

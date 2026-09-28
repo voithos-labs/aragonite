@@ -1,7 +1,6 @@
 // Miss-analysis: every follow case wrote a paragraph, never a kind whose write rule changes bytes.
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { tick } from 'svelte';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import { defaultGrammarView } from '$lib/schema/block-openers';
 import { createImageEditCommitter } from '../../components/image/image-edit-commit';
 import { imageFieldsFromInline } from '../../core/inline/image-source-bytes';
@@ -13,8 +12,6 @@ import { createEditorEvents } from '../../editor-events';
 import { makeInlineRange, makeStubController } from '../harness/editor-actions';
 import { fixtureReading } from '../harness/fixture-grammar';
 import { testLeaf } from '$lib/test/harness/test-kinds';
-
-afterEach(() => resetPluginPlatformForTests());
 
 /** A leaf kind that renders inline images and stores `rule(raw)` for every write of its bytes. */
 function probeKind(name: string, rule: (raw: string, node: { raw: string }) => string): string {

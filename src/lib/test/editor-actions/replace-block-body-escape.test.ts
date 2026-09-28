@@ -5,7 +5,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse, serialize } from '$lib';
 import type { CstNode } from '$lib/core/nodes';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createContainerEditActions } from '$lib/editor-actions/container-edit';
 import { createStandardNestedActions } from '$lib/editor-actions/nested/nested-actions';
@@ -20,7 +19,6 @@ import {
 import { describeConvergence } from '$lib/test/harness/parse-converged';
 
 beforeEach(() => {
-	resetPluginPlatformForTests();
 	registerDetailsKind();
 });
 

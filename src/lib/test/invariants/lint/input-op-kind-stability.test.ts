@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { collectEditorSources, stripComments, type SourceFile } from './scan-source';
+import { collectEditorSources, sourceFile, type SourceFile } from './scan-source';
 
 /** The debounced typing flush: the one site whose `input` is kind-stable by construction. */
 const SANCTIONED_EMITTER = 'src/lib/editor-actions/commit/undo-controller.ts';
@@ -53,6 +53,6 @@ describe('input-op scan: matcher self-tests', () => {
 
 	it('ignores a declaration quoted inside a comment', () => {
 		const src = "// op: 'input' means the kind held\nconst held = true;";
-		expect(inputOpEmitters([{ relPath: 'x.ts', text: src, code: stripComments(src) }])).toEqual([]);
+		expect(inputOpEmitters([sourceFile('x.ts', src)])).toEqual([]);
 	});
 });

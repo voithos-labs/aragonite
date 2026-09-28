@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // Miss-analysis: no case paired one trigger from two plugins under a grammar listing only one.
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { resetPluginPlatformForTests } from '$lib/testing';
 import { definePlugin, installPlugins } from '$lib/schema/plugin-install';
 import {
@@ -21,13 +21,11 @@ const pairingPercent = (name: string, priority: number) =>
 	});
 
 beforeEach(() => {
-	resetPluginPlatformForTests();
 	installPlugins([
 		pairingPercent('first', INLINE_PRIORITIES.plugin),
 		pairingPercent('second', INLINE_PRIORITIES.plugin + 1)
 	]);
 });
-afterEach(resetPluginPlatformForTests);
 
 describe('a trigger two plugins pair belongs to both', () => {
 	const cases: [string[], boolean][] = [

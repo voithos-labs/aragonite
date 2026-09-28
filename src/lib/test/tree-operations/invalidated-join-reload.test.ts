@@ -4,6 +4,7 @@ import { serialize } from '$lib/core/serializer';
 import { absorbWindowSeams } from '$lib/tree-operations/settle';
 import { updateNodeContent } from '$lib/tree-operations/content-write';
 import { reorderChildrenWithTrivia } from '$lib/tree-operations/reorder';
+import { documentBody } from '$lib/tree-operations/node-primitives';
 import { createSharingState } from '$lib/tree-operations/sharing';
 import { ensureUnsharedPath } from '$lib/tree-operations/unshare';
 import { rebuildUnsharedChain, type AncestrySeamFold } from '$lib/tree-operations/chain-rebuild';
@@ -97,12 +98,11 @@ describe('a reorder settles the joins the move disturbed (GH #21)', () => {
 		const doc = parse('a\n# h\nb\n');
 
 		const result = reorderChildrenWithTrivia(
-			doc.children,
+			documentBody(doc),
 			1,
 			2,
 			sharing(),
-			defaultGrammarView,
-			'\n'
+			defaultGrammarView
 		);
 
 		expect(serialize(doc)).toBe('a\nb\n# h\n');
@@ -126,12 +126,11 @@ describe('a reorder settles the joins the move disturbed (GH #21)', () => {
 		const doc = parse('a\n# h\nb\n');
 
 		const result = reorderChildrenWithTrivia(
-			doc.children,
+			documentBody(doc),
 			1,
 			0,
 			sharing(),
-			defaultGrammarView,
-			'\n'
+			defaultGrammarView
 		);
 
 		expect(serialize(doc)).toBe('# h\na\nb\n');
@@ -144,12 +143,11 @@ describe('a reorder settles the joins the move disturbed (GH #21)', () => {
 		const doc = parse('a\n\nb\n\nc\n');
 
 		const result = reorderChildrenWithTrivia(
-			doc.children,
+			documentBody(doc),
 			0,
 			2,
 			sharing(),
-			defaultGrammarView,
-			'\n'
+			defaultGrammarView
 		);
 
 		expect(serialize(doc)).toBe('b\n\nc\n\na\n');
@@ -170,7 +168,8 @@ describe('a reorder settles the joins the move disturbed (GH #21)', () => {
 		const doc = parse('- a\n- # h\n- b\n');
 		const items = doc.children[0].children!;
 
-		const result = reorderChildrenWithTrivia(items, 1, 2, sharing(), defaultGrammarView, '\n');
+		const body = { children: items, owner: doc.children[0], lineEnding: '\n' as const };
+		const result = reorderChildrenWithTrivia(body, 1, 2, sharing(), defaultGrammarView);
 
 		expect(items.map((c) => c.raw)).toEqual(['- a\n', '- b\n', '- # h\n']);
 		expect(result.landing).toBe(2);

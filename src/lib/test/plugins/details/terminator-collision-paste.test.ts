@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse, serialize, type CstNode } from '$lib';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import { checkOpaqueStaleRaw } from '$lib/invariants/node-shape';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createPasteCoordinator } from '$lib/editor-actions/paste-coordinator';
@@ -21,7 +20,6 @@ import { defaultGrammarView } from '$lib/schema/block-openers';
 const OPEN_DETAILS = '<details>\n<summary>T</summary>\n\nbody\n\n</details>\n';
 
 beforeEach(() => {
-	resetPluginPlatformForTests();
 	registerDetailsKind();
 });
 

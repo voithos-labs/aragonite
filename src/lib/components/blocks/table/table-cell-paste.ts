@@ -71,8 +71,7 @@ async function tableCellScopedStructuralPaste(input: ScopedStructuralPasteInput)
 	const lineEnding = documentLineEnding(input.doc);
 	const replacement: CstNode[] = [];
 	if (firstHalf) replacement.push(firstHalf);
-	// No text of the cell continues the last block, so it always ends its own line.
-	const landed = landClipboardBlocks(firstHalf ?? undefined, input.blocks, lineEnding, true);
+	const landed = landClipboardBlocks(firstHalf ?? undefined, input.blocks, lineEnding);
 	// Appended, never spread: a paste can outnumber an argument list (G4.60).
 	for (const block of landed) replacement.push(block);
 	const last = replacement[replacement.length - 1];

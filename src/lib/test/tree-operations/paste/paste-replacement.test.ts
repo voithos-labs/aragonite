@@ -152,3 +152,28 @@ describe('buildPastedReplacement, trailing slice as separate paragraph', () => {
 		expect(replacement[replacement.length - 1].raw.trim()).toBe('-after');
 	});
 });
+
+// Miss-analysis (GH #554): every multi-block clipboard here had a blank line between its blocks,
+// so no test saw a flush pair the clipboard parse had already proved stands.
+describe('buildPastedReplacement: the clipboard keeps the joins between its own blocks', () => {
+	const pasted = (clipboard: string, host = 'hello world\n', offset = 5) => {
+		const leaf = parse(host).children[0];
+		const blocks = parse(clipboard).children;
+		return buildPastedReplacement(leaf, offset, blocks, '\n', defaultGrammarView).nodes;
+	};
+	const bytes = (nodes: CstNode[]) => nodes.map((n) => n.leadingTrivia + n.raw).join('');
+
+	it.each([
+		['a heading over a paragraph, flush', '# T\nbody', 'hello\n\n# T\nbody\n world\n'],
+		['two paragraphs apart', 'a\n\nb', 'hello\n\na\n\nb\n world\n'],
+		['a heading over a list, flush', '# T\n- x\n- y', 'hello\n\n# T\n- x\n- y\n world\n']
+	])('%s', (_name, clipboard, expected) => {
+		const nodes = pasted(clipboard);
+		expect(bytes(nodes)).toBe(expected);
+	});
+
+	it('still gives the first block a blank line where it lands flush under the leaf', () => {
+		const nodes = pasted('# T\nbody');
+		expect(nodes[1].leadingTrivia).toBe('\n');
+	});
+});

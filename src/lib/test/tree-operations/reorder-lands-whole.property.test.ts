@@ -1,24 +1,22 @@
-// A reorder must not change what the document contains, and must leave the tree a reload reads,
-// for every kind a user moves, every separator shape and (from, to), both line endings, and with
-// or without a final line break.
+// A move, through its commit, must not change what the document contains, and must leave the
+// tree a reload reads, for every kind a user moves, every separator shape and (from, to), both
+// line endings, and with or without a final line break.
 // Miss-analysis: GH #587, one LF fixture never checked the reload, and every draw ended in a break.
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import fc from 'fast-check';
 import { parse, isBlankParagraph } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import type { CstNode } from '$lib/core/nodes';
 import { describeConvergence } from '$lib/testing/parse-convergence';
-import { resetPluginPlatformForTests } from '$lib/testing';
-import { registerMathBlock } from '$lib/plugins/latex/latex-kind';
-import { reorderChildrenWithTrivia } from '$lib/tree-operations/reorder';
-import { createSharingState } from '$lib/tree-operations/sharing';
+import { MATH_BLOCK, registerMathBlock } from '$lib/plugins/latex/latex-kind';
+import { createReorderAction } from '$lib/editor-actions/reorder-action';
+import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
+import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
 import { freshOrFixedSeed } from '../invariants/arbitraries/property-seed';
-import { defaultGrammarView } from '$lib/schema/block-openers';
 
 const PARAMS = { numRuns: 300, seed: freshOrFixedSeed(414141) } as const;
 
-beforeAll(() => {
-	resetPluginPlatformForTests();
+beforeEach(() => {
 	registerMathBlock();
 });
 
@@ -112,9 +110,14 @@ function contentPreserved(before: readonly CstNode[], from: number, after: reado
 }
 
 describe('a reorder lands its block whole beside any neighbour', () => {
-	it('keeps every content block, converges on reload, writes the document’s own ending, and keeps its final state', () => {
-		fc.assert(
-			fc.property(arbShape, (shape) => {
+	// Without the math registration the `$$` block is a paragraph, and every row below still passes.
+	it('reads the math block as the math kind', () => {
+		expect(parse(`${BLOCKS.math}\n`).children[0].kind).toBe(MATH_BLOCK);
+	});
+
+	it('keeps every content block, converges on reload, writes the document’s own ending, and keeps its final state', async () => {
+		await fc.assert(
+			fc.asyncProperty(arbShape, async (shape) => {
 				const md = markdownOf(shape);
 				const before = parse(md).children;
 				const total = before.length;
@@ -122,15 +125,9 @@ describe('a reorder lands its block whole beside any neighbour', () => {
 					if (isBlankParagraph(before[from])) continue;
 					for (let to = 0; to < total; to++) {
 						if (to === from) continue;
-						const doc = parse(md);
-						reorderChildrenWithTrivia(
-							doc.children,
-							from,
-							to,
-							createSharingState(),
-							defaultGrammarView,
-							shape.eol
-						);
+						const { deps } = makeEditorActionsDeps(parse(md));
+						await createReorderAction(deps, createUndoController(deps)).moveReorderUnit([from], to);
+						const doc = deps.doc;
 						const label = `${JSON.stringify(md)} move ${from}->${to}`;
 						expect(
 							contentPreserved(before, from, doc.children),

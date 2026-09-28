@@ -2,13 +2,12 @@
 // follow: a `$$` fence needs its closing line to open, and a syntax switched off opens nothing.
 // Expected shapes follow the paragraph's reading of the same lines, which asks the whole grammar.
 // Miss-analysis: every table-boundary case used a one-line built-in opener and the default grammar.
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import type { GrammarView } from '$lib/schema/block-openers';
 import { createRegistryView } from '$lib/schema/registry-view';
 import { registerMathBlock } from '$lib/plugins/latex/latex-kind';
-import { resetPluginPlatformForTests } from '$lib/testing';
 
 const TABLE = '| a | b |\n| --- | --- |\n| 1 | 2 |\n';
 
@@ -19,11 +18,9 @@ function kinds(source: string, grammar?: GrammarView): string[] {
 }
 
 describe('a table under the editor’s grammar', () => {
-	beforeAll(() => {
-		resetPluginPlatformForTests();
+	beforeEach(() => {
 		registerMathBlock();
 	});
-	afterAll(() => resetPluginPlatformForTests());
 
 	it('ends at a `$$` block that closes below, as a paragraph does', () => {
 		expect(kinds('para\n$$\nx\n$$\n')).toEqual(['paragraph', 'mathBlock']);

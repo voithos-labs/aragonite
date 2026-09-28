@@ -1,11 +1,16 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
 	definePlugin,
 	installPlugins,
 	isPluginInstalled,
 	type EditorContext
 } from '$lib/schema/plugin-install';
-import { declarePluginKind, declaredPluginKind, owningPluginEditor } from '$lib/schema/plugin-kind';
+import { declarePluginKind, declaredPluginKind } from '$lib/schema/plugin-kind';
+import {
+	componentPluginEditor,
+	defineBlockComponent,
+	registerBlockComponent
+} from '$lib/schema/block-component-registry';
 import { declareOwnedKind } from '$lib/test/support/owned-kind';
 import { registerBlockKind } from '$lib/schema/block-kind-descriptor';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
@@ -29,8 +34,6 @@ const minimalRegistration = {
 	supportsInline: false,
 	closure: testClosure
 } as const;
-
-beforeEach(() => __resetSchemaRegistriesForTests());
 
 describe('installPlugins', () => {
 	it('runs setup once and treats a re-install of the same object as a no-op', () => {
@@ -170,14 +173,25 @@ describe('installPlugins', () => {
 	});
 });
 
-describe('owningPluginEditor', () => {
-	it("resolves the owner's context; an unowned kind takes the base-context '' branch", () => {
-		const lookup = vi.fn((name: string) => ({ editorId: name }) as unknown as EditorContext);
-		declareOwnedKind('plug-a', 'owned-kind');
+// Miss-analysis: the component's editor read the kind's declarer while its registry entry read
+// the declarer or the registrant, and every test declared and registered in one plugin.
+describe('componentPluginEditor', () => {
+	const lookup = vi.fn((name: string) => ({ editorId: name }) as unknown as EditorContext);
+	const entry = defineBlockComponent((() => {}) as never);
 
-		expect(owningPluginEditor(lookup, 'owned-kind')?.editorId).toBe('plug-a');
-		expect(owningPluginEditor(lookup, 'unowned-kind')?.editorId).toBe('');
-		expect(owningPluginEditor(undefined, 'owned-kind')).toBeUndefined();
+	it("resolves the context of the plugin the component answers to, or the base context ''", () => {
+		const owned = declareOwnedKind('plug-a', 'owned-kind');
+		registerBlockComponent(owned, entry);
+		const loose = declarePluginKind('loose-kind');
+		installPlugins([
+			definePlugin({ name: 'plug-b', setup: () => registerBlockComponent(loose, entry) })
+		]);
+		const unregistered = declarePluginKind('unregistered-kind');
+
+		expect(componentPluginEditor(lookup, owned)?.editorId).toBe('plug-a');
+		expect(componentPluginEditor(lookup, loose)?.editorId).toBe('plug-b');
+		expect(componentPluginEditor(lookup, unregistered)?.editorId).toBe('');
+		expect(componentPluginEditor(undefined, owned)).toBeUndefined();
 	});
 });
 
