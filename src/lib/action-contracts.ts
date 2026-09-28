@@ -43,8 +43,8 @@ export type DiscardIfNoop = boolean;
 export type CommitLanding = () => Landing | null;
 
 /**
- * A callback that places the caret itself after the tick, for the commits not yet on
- * {@link CommitLanding}. Awaited, and it runs before the landing.
+ * A callback that places the caret itself after the tick, left only for the delete and the typing
+ * over a range that spans blocks, not yet on {@link CommitLanding}. Awaited, before the landing.
  */
 export type CommitAfterTick = () => void | Promise<void>;
 
