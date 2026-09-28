@@ -6,7 +6,7 @@ import { rebuildContainerRaw } from '../schema/container-raw';
 import { assignIds } from '../block-id';
 import { emptyParagraph } from './node-primitives';
 import { firstLineEnding } from '../core/lines';
-import { liftFirstChild, type RemainderBuilder } from './container-lift';
+import type { RemainderBuilder } from './container-lift';
 
 /** A quote-shaped container's remainder is always a plain blockquote, since a marker like
  *  `[!TYPE]` lives only on the opener line the lift drops. */
@@ -27,11 +27,6 @@ export const plainQuote: RemainderBuilder = (container, children) => {
 	rebuildBlockquoteRaw(remaining);
 	return remaining;
 };
-
-/** Lift a quote-shaped container's first child out, the opener line going with it. */
-export function unwrapFirstChildFromQuote(container: NodeView): CstNode[] {
-	return liftFirstChild(container, plainQuote);
-}
 
 /**
  * The replacement when Enter exits a quote's empty trailing paragraph: the trimmed quote, then the

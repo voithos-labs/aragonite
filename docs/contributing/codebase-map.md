@@ -282,7 +282,8 @@ The document's last line, the one line allowed no ending, has a file of its own 
 `src/lib/tree-operations/open-tail.ts`. The commit calls `endWindowLines` on every scope before
 it repairs the blank lines around the edit (each placed block ends its line), and `keepOpenTail`
 once the containers rebuild (a file that had no final break gets it taken off again). An edit
-never writes that ending itself; a scan (G4.74) holds the walk to that file, and G1.41 checks the
+never writes that ending itself, except a move, which ends its own window before it checks its
+joins until the commit settles them; a scan (G4.74) holds the walk to that file, and G1.41 checks the
 result after every structural commit.
 
 The settle helpers' sibling family is the **join absorb**, for the joins a reload reads as fewer blocks, or as no

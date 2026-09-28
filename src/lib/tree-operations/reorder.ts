@@ -67,8 +67,8 @@ export function reorderChildrenWithTrivia(
 	for (let k = 0; k < windowTrivia.length; k++) {
 		children[lo + k].leadingTrivia = windowTrivia[k];
 	}
-	// The joins below read the moved blocks side by side, so a moved open last line ends first; the
-	// commit gives the ending back to whichever block is last.
+	// The joins below read the moved blocks side by side, so a moved open last line ends first; this
+	// call goes once the commit settles the move's joins, and the commit gives the ending back.
 	endWindowLines(body, change, sharing);
 	// Each join the move touches gets a blank line where the two blocks would read as one; the
 	// pair the moved block left rejoins only if it sat flush against both of them.
