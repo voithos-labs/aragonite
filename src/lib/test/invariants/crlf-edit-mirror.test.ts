@@ -34,7 +34,13 @@ import { createPasteCoordinator } from '../../editor-actions/paste-coordinator';
 import { createUndoController } from '../../editor-actions/commit/undo-controller';
 import { createBlockEditActions } from '../../editor-actions/block-edit';
 import { fixtureReading } from '../harness/fixture-grammar';
-import { makeEditorActionsDeps, makeTopHarness, pasteContext } from '../harness/editor-actions';
+import {
+	makeEditorActionsDeps,
+	makeListContextAt,
+	makeTopHarness,
+	pasteContext
+} from '../harness/editor-actions';
+import { createFocusActions } from '../../editor-actions/focus/focus';
 import { blockContextActionsFor } from '../../schema/context-actions';
 import { everyInstalledPlugin } from '../../schema/plugin-activation';
 import { registerCodeContextActions } from '../../components/blocks/code/code-context-actions';
@@ -290,6 +296,25 @@ function unterminatedTail(): EditGesture[] {
 			name: 'paste of blocks at the end of an unterminated last line',
 			source: 'abc\n\nlast',
 			apply: async (doc) => serialize(await pasteInto(doc, [1], 'last'.length, 'x\n\ny'))
+		},
+		{
+			name: 'Enter at the end of an unterminated last list item',
+			source: 'abc\n\n- a\n- b',
+			apply: async (doc) => {
+				const harness = makeTopHarness(doc);
+				const list = makeListContextAt(harness.deps, 1, { controller: harness.controller });
+				await list.listContext.insertItemAfter(1);
+				return serialize(harness.deps.doc);
+			}
+		},
+		{
+			name: 'ArrowDown past an unterminated last line',
+			source: 'abc\n\nlast',
+			apply: async (doc) => {
+				const harness = makeTopHarness(doc);
+				await createFocusActions(harness.deps, harness.controller).moveFocus(2, 'start');
+				return serialize(harness.deps.doc);
+			}
 		},
 		{
 			name: 'list exit below an unterminated list',

@@ -3,6 +3,7 @@ import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { updateNodeContent } from '$lib/tree-operations/content-write';
 import { reorderChildrenWithTrivia } from '$lib/tree-operations/reorder';
+import { documentBody } from '$lib/tree-operations/node-primitives';
 import { createSharingState } from '$lib/tree-operations/sharing';
 import { rebuildContainerRaw } from '$lib/schema/container-raw';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
@@ -166,12 +167,11 @@ describe('a gesture that writes no bytes still absorbs (GH #180)', () => {
 		expect(doc.children.map((c) => c.kind)).toEqual(['paragraph', 'fencedCode']);
 
 		const settled = reorderChildrenWithTrivia(
-			doc.children,
+			documentBody(doc),
 			1,
 			0,
 			createSharingState(),
-			defaultGrammarView,
-			'\n'
+			defaultGrammarView
 		);
 
 		expect(doc.children.map((c) => [c.kind, c.raw])).toEqual([['fencedCode', '```\nx\n\na\n']]);

@@ -7,7 +7,12 @@
 import { tick } from 'svelte';
 import { CURSOR_END, CURSOR_EXACT_START, CURSOR_START } from '../block-component';
 import type { CstNode } from '../core/nodes';
-import { displayLength, documentLineEnding, withLineEnding } from '../core/lines';
+import {
+	displayLength,
+	documentLineEnding,
+	ownTrailingLineEnding,
+	withLineEnding
+} from '../core/lines';
 import type { BodyParent } from '../tree-operations/node-primitives';
 import type { OpDescriptor } from '../schema/operations';
 import { normalizeReplacementForBody } from '../tree-operations/paste/body-write';
@@ -259,10 +264,10 @@ function replaceOp(
 	return { kind: 'replaceBlock', detail: { count } };
 }
 
-/** The clipboard's trailing blank line as the document's own, at its end when none is there yet.
- *  A container's body has no `suffix` (its fence-line fix-up owns that line), so it gets none. */
-function landTrailingBlank(body: BodyParent, afterIndex: number): void {
-	if (body.suffix !== '' || afterIndex !== body.children.length) return;
+/** The clipboard's trailing blank line as the document's own, at its end when none is there yet
+ *  and the document already ended in a line break. A container's body has no `suffix`. */
+function landTrailingBlank(body: BodyParent, afterIndex: number, endedBefore: boolean): void {
+	if (!endedBefore || body.suffix !== '' || afterIndex !== body.children.length) return;
 	body.suffix = body.lineEnding;
 }
 
@@ -493,7 +498,13 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 					// A new block in a list item's first position takes the task marker with the
 					// paragraph that carried it; every replace reconciles it here.
 					if (view.body.owner) reconcileTaskMetadata(view.body.owner, i, stood, view.sharing);
-					if (options?.trailingBlank) landTrailingBlank(view.body, i + normalized.length);
+					if (options?.trailingBlank) {
+						landTrailingBlank(
+							view.body,
+							i + normalized.length,
+							ownTrailingLineEnding(old.raw) !== ''
+						);
+					}
 					return change;
 				},
 				afterTick: async () => {

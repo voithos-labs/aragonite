@@ -5,11 +5,10 @@
  */
 
 import { CURSOR_START } from '../block-component';
-import { documentLineEnding } from '../core/lines';
 import { movedBlockToPosition } from '../a11y-strings';
 import { reorderChildrenWithTrivia } from '../tree-operations/reorder';
 import { resolveReorderUnit, type ReorderUnit } from '../tree-operations/reorder-unit';
-import { blockNodeAt, nodeAt } from '../tree-operations/node-primitives';
+import { blockNodeAt, documentBody, nodeAt } from '../tree-operations/node-primitives';
 import { renumberOrderedList } from '../tree-operations/list/ordered-markers';
 import { expectStateForNode } from '../reactivity/state-registry';
 import { readCurrentSelection } from '../selection/native-bridge';
@@ -51,12 +50,11 @@ export function createReorderAction(
 				},
 				mutate: (children) => {
 					const settled = reorderChildrenWithTrivia(
-						children,
+						documentBody(deps.doc, children),
 						unit.index,
 						to,
 						deps.sharing,
-						deps.reading.grammar,
-						documentLineEnding(deps.doc)
+						deps.reading.grammar
 					);
 					landing = settled.landing;
 					return settled.change;
@@ -84,12 +82,11 @@ export function createReorderAction(
 			},
 			mutate: (scope) => {
 				const settled = reorderChildrenWithTrivia(
-					scope.children,
+					scope.body,
 					unit.index,
 					to,
 					scope.sharing,
-					deps.reading.grammar,
-					documentLineEnding(deps.doc)
+					deps.reading.grammar
 				);
 				landing = settled.landing;
 				if (unit.renumberMarkers) {

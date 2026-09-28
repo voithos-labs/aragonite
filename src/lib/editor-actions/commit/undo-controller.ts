@@ -22,6 +22,7 @@ import { assignIds } from '../../block-id';
 import { replaceRefs } from '../../reactivity/publish-ref.svelte';
 import { blockNodeAt, documentBody, nodeAt } from '../../tree-operations/node-primitives';
 import { settleSeparator, type TrackedPosition } from '../../tree-operations/settle';
+import { endsOpen, endWindowLines, keepOpenTail } from '../../tree-operations/open-tail';
 import { ensureUnsharedPath } from '../../tree-operations/unshare';
 import {
 	attachedChainPrefix,
@@ -54,6 +55,7 @@ import {
 	assertCommitPaths,
 	assertCommittedNodes,
 	assertIdsInLockstep,
+	assertLastLineKept,
 	assertUndoTopIntegrity
 } from '../../invariants/install';
 import { tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
@@ -298,8 +300,9 @@ export function createUndoController(
 		| {
 				kind: 'container';
 				snapshot: CommitSnapshotArg;
-				/** False when every scope changed nothing. The callbacks copy and write their own scopes. */
-				mutate: () => boolean;
+				/** False when every scope changed nothing. The callbacks copy and write their own scopes;
+				 *  `wasOpen` is whether the document ended with no final line break before them. */
+				mutate: (wasOpen: boolean) => boolean;
 				publish: () => void;
 				op?: ScopedOpDescriptor;
 				afterTick?: CommitAfterTick;
@@ -376,21 +379,26 @@ export function createUndoController(
 			// Inside the try: readCurrentSelection walks live block refs, plugin leaves included,
 			// so it can throw like every other step.
 			pushCommitSnapshot(args.snapshot.path, args.snapshot.offset);
+			const wasOpen = endsOpen(deps.doc);
 			if (args.kind === 'document') {
 				const childrenCopy = [...deps.doc.children];
 				const idsCopy = [...deps.blockIds];
 				const refsCopy = [...deps.blockRefs];
+				const body = documentBody(deps.doc, childrenCopy);
 
+				const mutated = args.mutate(childrenCopy);
+				endWindowLines(body, mutated, deps.sharing);
 				// `deps.doc.children` is still the pre-mutate array here (`publish` swaps it),
 				// so the blank-line fix-up reads which blocks were blank off it directly.
 				const change = settleSeparator(
-					documentBody(deps.doc, childrenCopy),
+					body,
 					deps.doc.children,
-					args.mutate(childrenCopy),
+					mutated,
 					deps.reading.grammar,
 					deps.sharing,
 					args.trackCaret
 				);
+				keepOpenTail(body, wasOpen, deps.sharing);
 				if (args.discardIfNoop && change.op === 'noop') {
 					// The document branch installed nothing; only the stacks are restored here.
 					rollback.restore();
@@ -404,10 +412,11 @@ export function createUndoController(
 							touchedFromChange(change, childrenCopy, args.touchedNodes),
 							deps.reading.grammar
 						);
+						assertLastLineKept(deps.doc, wasOpen);
 					}
 				}
 			} else {
-				const changed = args.mutate();
+				const changed = args.mutate(wasOpen);
 				if (args.discardIfNoop && !changed) {
 					// The in-place mutation ran but no scope changed: unwind as a throw would.
 					rollback.restore();
@@ -419,6 +428,7 @@ export function createUndoController(
 							touchedContainersWithChildren(args.touchedNodes?.()),
 							deps.reading.grammar
 						);
+						assertLastLineKept(deps.doc, wasOpen);
 					}
 				}
 			}
@@ -660,7 +670,7 @@ export function createUndoController(
 		return __commit({
 			kind: 'container',
 			snapshot,
-			mutate: () => {
+			mutate: (wasOpen) => {
 				for (const s of scopes) assertScopeIdentity(s);
 				// Pushed as each resolves, so a scope that fails to prepare still leaves the
 				// rollback holding the state of the scopes prepared before it.
@@ -673,6 +683,9 @@ export function createUndoController(
 					throw new Error(
 						`commitMultiScope: mutate returned ${changeList.length} changes for ${scopes.length} scopes`
 					);
+				}
+				for (let i = 0; i < prepared.length; i++) {
+					endWindowLines(prepared[i].view.body, changeList[i], deps.sharing);
 				}
 				for (let i = 0; i < prepared.length; i++) {
 					// `savedChildren` is the pre-mutate array `prepareScopeView` swapped out, so
@@ -703,6 +716,8 @@ export function createUndoController(
 					landing = foldLandingFor(folds.slice(before), p.target.path) ?? landing;
 				}
 				unwindFolds = publishAncestryFolds(deps, folds);
+				// The document commit above runs the same two steps until the two branches merge.
+				keepOpenTail(deps.doc, wasOpen, deps.sharing);
 				return changeList.some((c) => c.op !== 'noop') || folds.length > 0;
 			},
 			publish: () => {

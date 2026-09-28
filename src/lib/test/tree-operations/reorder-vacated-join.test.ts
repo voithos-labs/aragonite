@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { reorderChildrenWithTrivia } from '$lib/tree-operations/reorder';
+import { documentBody } from '$lib/tree-operations/node-primitives';
 import { createSharingState } from '$lib/tree-operations/sharing';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
 import { defaultGrammarView } from '$lib/schema/block-openers';
@@ -22,7 +23,7 @@ const BLOCKS = {
 
 function moveHeadingUp(markdown: string) {
 	const doc = parse(markdown);
-	reorderChildrenWithTrivia(doc.children, 1, 0, createSharingState(), defaultGrammarView, '\n');
+	reorderChildrenWithTrivia(documentBody(doc), 1, 0, createSharingState(), defaultGrammarView);
 	return doc;
 }
 

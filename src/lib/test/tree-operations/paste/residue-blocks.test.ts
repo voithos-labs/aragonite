@@ -54,7 +54,8 @@ describe('a multi-block paste keeps every line after the caret', () => {
 		['a hard break', 'abc  \nAfter\n', [0], 3, 'x\n\ny', 'abc\n\nx\n\ny  \nAfter\n'],
 		// The underline is the title's structure, so it stays on the title, as a split keeps it.
 		['a setext underline', 'abc\n---\n', [0], 3, 'x\n\ny', 'abc\n---\n\nx\n\ny\n'],
-		['trailing spaces', 'abc  \n', [0], 3, 'x\n\ny', 'abc\n\nx\n\ny\n  \n'],
+		// The spaces after the caret stay on the pasted text's line, where text after them would not.
+		['trailing spaces', 'abc  \n', [0], 3, 'x\n\ny', 'abc\n\nx\n\ny  \n'],
 		['a quote', '> abc\n> After\n', [0, 0], 3, 'x\n\ny', '> abc\n>\n> x\n>\n> y\n> After\n'],
 		['a list item', '- abc\n  After\n', [0, 0, 0], 3, 'x\n\ny', '- abc\n\n  x\n\n  y\n  After\n']
 	])('at %s', async (_, source, path, offset, clipboard, expected) => {

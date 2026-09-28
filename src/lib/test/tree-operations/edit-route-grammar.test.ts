@@ -8,6 +8,7 @@ import { declarePluginKind } from '$lib/schema/plugin-kind';
 import { registerBlockCompleter } from '$lib/schema/block-completions';
 import { mergeWithNext } from '$lib/tree-operations';
 import { reorderChildrenWithTrivia } from '$lib/tree-operations/reorder';
+import { documentBody } from '$lib/tree-operations/node-primitives';
 import { createSharingState } from '$lib/tree-operations/sharing';
 import { rangeDelete } from '$lib/selection/range-delete';
 import { planEnterCompletion } from '$lib/editor-actions/enter-completion';
@@ -40,7 +41,7 @@ describe('an edit route reparses in the editor grammar', () => {
 	// global grammar reads that pair as prose then code and refuses the separator.
 	it('a reorder that lands an indented paragraph under prose separates the two', () => {
 		const doc = read('prose\n# h\n\n    moved\n');
-		reorderChildrenWithTrivia(doc.children, 2, 1, createSharingState(), noIndentedCode, '\n');
+		reorderChildrenWithTrivia(documentBody(doc), 2, 1, createSharingState(), noIndentedCode);
 		expect(kindsOf(doc.children)).toEqual(['paragraph', 'paragraph', 'heading']);
 		expect(describeConvergence(doc, noIndentedCode)).toBeNull();
 	});

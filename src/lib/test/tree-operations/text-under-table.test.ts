@@ -6,7 +6,8 @@ import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { deleteNode, spliceChildrenSettled } from '$lib/tree-operations/settle';
 import { updateNodeContent } from '$lib/tree-operations/content-write';
-import { unwrapFirstChildFromQuote } from '$lib/tree-operations/blockquote';
+import { plainQuote } from '$lib/tree-operations/blockquote';
+import { liftFirstChild } from '$lib/tree-operations/container-lift';
 import { describeConvergence, layoutOf } from '$lib/test/harness/parse-converged';
 import { settled } from '$lib/test/harness/settle-funnel';
 import type { CstNode, Document } from '$lib/core/nodes';
@@ -23,7 +24,7 @@ function unwrapQuote(parent: CstNode | Document, at: number): void {
 		parent,
 		at,
 		1,
-		unwrapFirstChildFromQuote(parent.children![at]),
+		liftFirstChild(parent.children![at], plainQuote),
 		defaultGrammarView
 	);
 }

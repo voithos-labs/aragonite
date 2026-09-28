@@ -17,6 +17,9 @@ Backspace at offset 0 of a non-empty non-first item merges the current item's fi
 | `- A`<br>`  - AA`<br>`- B`<br>`  - C`             | start of B   | `- A`<br>`  - AAB`<br>`  - C`             | C becomes sibling of AA (target AA at depth 1, preserving C's absolute depth 1) |
 | `- A`<br>`  - B`<br>`    - C`<br>`- D`<br>`  - E` | start of D   | `- A`<br>`  - B`<br>`    - CD`<br>`  - E` | E stays at depth 1, sibling of B, even though merge point is at depth 2         |
 | `- A`<br>`- B`<br>_blank line_<br>`  extra`       | start of B   | `- AB`<br>_blank line_<br>`  extra`       | extra paragraph absorbed into target item's children                            |
+| `- a`<br>`- b`<br>_blank line_<br>`      code`    | start of b   | `- ab`<br>_blank line_<br>`      code`    | the moved code block keeps its own blank line                                   |
+
+The last row is a regression (#555): the code block used to lose its blank line and fold into `ab` on reload. Miss-analysis: every moved child in these rows was a paragraph, the one kind the merge gave a separator, so no row moved a block that needed its own blank line kept.
 
 The worked examples above are the ground truth for the expected reshuffling; see `src/lib/test/tree-operations/merge-list-item.test.ts` for the matching unit-test coverage.
 

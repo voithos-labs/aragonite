@@ -123,7 +123,7 @@ const BARE_RAW_WRITE_ALLOWLIST: Record<string, { count: number; why: string }> =
 		count: 2,
 		why: "moves the task marker between the item's metadata and its first paragraph, kind-guarded to paragraph"
 	},
-	'src/lib/tree-operations/list/terminator.ts': {
+	'src/lib/tree-operations/open-tail.ts': {
 		count: 1,
 		why: "adds or drops the ending of a block's last line in each node down to the one that owns it: the descent stops above a grid cell or an opaque body, whose bytes sit inside a line their container emits; an ending terminates a line rather than restructuring one"
 	},
