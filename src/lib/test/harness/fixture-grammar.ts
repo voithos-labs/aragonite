@@ -4,6 +4,7 @@
 import type { RenderInlineOptions } from '$lib/core/inline-render';
 import { defaultGrammarView, type GrammarView } from '$lib/schema/block-openers';
 import type { Reading } from '$lib/schema/reading';
+import type { ChildSlot } from '$lib/tree-operations/list/task-paragraph';
 import { hidesDelimitersAtCaret, type PresentationMode } from '$lib/presentation-mode';
 
 /** The grammar itself, for a tree operation that takes it bare. */
@@ -32,3 +33,6 @@ export function fixtureReading(over: Partial<Reading> = {}, mode?: PresentationM
 	reading.hidesDelimitersAtCaret = () => hidesDelimitersAtCaret(reading.mode());
 	return reading;
 }
+
+/** A slot at the top level, where no task marker stands in front of anything. */
+export const TOP_SLOT: ChildSlot = { owner: undefined, index: 0 };

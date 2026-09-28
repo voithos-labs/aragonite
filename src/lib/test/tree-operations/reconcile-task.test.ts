@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { reconcileTaskMetadata } from '../../tree-operations';
+import { reconcileTaskMetadata } from '../../tree-operations/list/reconcile-task';
 import type { CstNode, ListItemMetadata } from '../../core/nodes';
 
 function makeListItem(firstParagraphRaw: string, meta: ListItemMetadata): CstNode {

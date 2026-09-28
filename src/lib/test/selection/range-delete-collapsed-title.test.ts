@@ -5,6 +5,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import { rangeDelete } from '../../selection/range-delete';
+import { coverRange } from '../../selection/range-coverage';
 import { createSharingState } from '../../tree-operations/sharing';
 import type { SelectionPoint } from '../../selection/primitives';
 import { fixtureReading } from '../harness/fixture-grammar';
@@ -20,7 +21,13 @@ function point(path: number[], offset: number): SelectionPoint {
 
 // Whatever the delete leaves has to reload to the same tree.
 function run(source: string, start: SelectionPoint, end: SelectionPoint) {
-	const result = rangeDelete(parse(source), start, end, createSharingState(), fixtureReading());
+	const doc = parse(source);
+	const result = rangeDelete(
+		doc,
+		coverRange(doc, start, end),
+		createSharingState(),
+		fixtureReading()
+	);
 	expectParseConverged(result.newDoc);
 	return { source: serialize(result.newDoc), caret: result.collapsedCaret };
 }
@@ -73,6 +80,27 @@ describe('a range ending on a closed title row', () => {
 		const result = run(source, point([0], 5), point([1, 0], 0));
 		expect(result.source).toBe(source);
 		expect(result.caret).toEqual({ path: [0], offset: 5 });
+	});
+});
+
+// Miss-analysis: GH #659; the closed-title rows all put the other endpoint in prose, so the table
+// branch, which had no hidden-body rule of its own, was never run with one.
+describe('the table branch takes a closed details whole too', () => {
+	const TABLE = '| a | b |\n| --- | --- |\n| 1 | 2 |\n';
+	const cell = (path: number[], index: number): SelectionPoint => ({
+		path,
+		offset: index,
+		cellCoordinate: true
+	});
+
+	it('a start on the title row with the end in a table below', () => {
+		const { source } = run('Above\n\n' + CLOSED + '\n' + TABLE, point([1, 0], 1), cell([2], 1));
+		expect(source).toBe('Above\n\n| 1 | 2 |\n| --- | --- |\n');
+	});
+
+	it('an end on the title row with the start in a table above', () => {
+		const { source } = run(TABLE + '\n' + CLOSED + '\nBelow\n', cell([0], 2), point([1, 0], 1));
+		expect(source).toBe('| a | b |\n| --- | --- |\n\nBelow\n');
 	});
 });
 

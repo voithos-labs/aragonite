@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { defaultStructuralHook } from '$lib/tree-operations/paste/hooks';
 import { parse } from '$lib/core/parser';
 import type { CstNode } from '$lib/core/nodes';
-import { fixtureReading } from '../../harness/fixture-grammar';
+import { fixtureReading, TOP_SLOT } from '../../harness/fixture-grammar';
 
 // A clipboard blank-line row is a live block the parser produced, so it must survive the
 // boundary splice intact, and no empty-raw ('') node may be created beside it.
@@ -19,7 +19,8 @@ describe('structural paste at a block boundary', () => {
 			clipboard(),
 			undefined,
 			fixtureReading(),
-			'\n'
+			'\n',
+			TOP_SLOT
 		);
 		expect(result.replacement.map((n) => n.kind)).toEqual([
 			'paragraph', // Hello (leading slice)
@@ -39,7 +40,8 @@ describe('structural paste at a block boundary', () => {
 			clipboard(),
 			undefined,
 			fixtureReading(),
-			'\n'
+			'\n',
+			TOP_SLOT
 		);
 		expect(result.replacement.map((n) => n.kind)).toEqual([
 			'heading',

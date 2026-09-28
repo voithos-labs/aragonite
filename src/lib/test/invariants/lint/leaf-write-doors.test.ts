@@ -15,6 +15,25 @@ const LEAF_WRITE = 'src/lib/editor-actions/leaf-write.ts';
 const TREE_OPS_BARREL = 'src/lib/tree-operations/index.ts';
 const BARREL_REASON = 'the tree-operations barrel re-exports it';
 
+/** The writers into a child slot that run their write inside `writeKeepingTaskMarker`. */
+const MARKER_WRAPPED: Record<string, string> = {
+	[CONTENT_WRITE]: 'the content write',
+	'src/lib/tree-operations/node-ops.ts': '`joinIntoLeaf`, the one join into a leaf',
+	[BLOCK_EDIT_CORE]: '`replaceBlock`, the one replace write',
+	'src/lib/selection/range-delete-ceremony.ts':
+		'`installSurvivor`, the one install of what a range delete leaves at a block',
+	'src/lib/selection/cross-block/format-range.ts': 'a format toggle over a range, leaf by leaf'
+};
+
+/** In-place writers whose bytes no list item's first slot can hold, each with why. */
+const MARKER_EXEMPT: Record<string, string> = {
+	'src/lib/editor-actions/table-context.ts': 'a pasted grid’s cells, and a cell holds no list item',
+	'src/lib/selection/selection-drop.ts':
+		'a table cell cut by a drag, and a cell holds no list item',
+	'src/lib/editor-actions/search-replace.ts':
+		'writes into a private copy of a whole top-level block and reparses it whole; the replace reconciles'
+};
+
 const RULES: FileRule[] = [
 	{
 		id: 'G4.75 new text for a leaf goes through the content write’s declared callers',
@@ -50,8 +69,6 @@ const RULES: FileRule[] = [
 			'src/lib/editor-actions/table-context.ts':
 				'a pasted grid’s cells: a cell has no reparse and no separators, so the content write would do the same',
 			'src/lib/selection/selection-drop.ts': 'a cell cut by a drag, for the same reason',
-			'src/lib/selection/range-delete.ts':
-				'the same-block range delete, which runs the container’s rule and then the kind’s itself',
 			'src/lib/selection/cross-block/format-range.ts':
 				'a format toggle over a range, which runs both rules the same way',
 			'src/lib/testing/kind-conformance.ts':
@@ -95,22 +112,53 @@ const RULES: FileRule[] = [
 		]
 	},
 	{
-		id: 'G4.75 the task marker is reconciled once per kind of write',
+		id: 'G4.82 the task marker is reconciled only inside writeKeepingTaskMarker',
 		matches: /\breconcileTaskMetadata\b/,
 		allowed: {
-			'src/lib/tree-operations/list/reconcile-task.ts': 'defines it',
-			[TREE_OPS_BARREL]: BARREL_REASON,
-			[CONTENT_WRITE]: 'the content write',
-			'src/lib/tree-operations/node-ops.ts': '`joinIntoLeaf`, the one join into a leaf',
-			[BLOCK_EDIT_CORE]: '`replaceBlock`, the one replace write'
+			'src/lib/tree-operations/list/reconcile-task.ts':
+				'defines it, and `writeKeepingTaskMarker` beside it is its one caller'
 		},
 		reason:
-			'a write that re-kinds a list item’s first block reconciles its task marker inside the content write, the join or the replace; call one of those',
+			'a write into a list item’s first slot wraps itself in `writeKeepingTaskMarker`; a hand-written reconcile is the copy the next route forgets (G1.42)',
 		hits: [
 			'if (owner) reconcileTaskMetadata(owner, i, stood, sharing);',
 			"import { reconcileTaskMetadata as reconcile } from '../tree-operations';"
 		],
 		misses: ['reconcileTaskMetadataLater(owner);']
+	},
+	{
+		id: 'G4.82b every write into a list item’s first slot keeps the task marker or says why not',
+		matches: /\b(?:writeKeepingTaskMarker|writeOwnRaw|installOwnRaw)\b/,
+		allowed: {
+			'src/lib/tree-operations/list/reconcile-task.ts': 'defines the marker wrapper',
+			[NODE_PRIMITIVES]: 'defines the in-place writes the wrapped routes call',
+			[TREE_OPS_BARREL]: BARREL_REASON,
+			...MARKER_WRAPPED,
+			...MARKER_EXEMPT
+		},
+		reason:
+			'a write into a list item’s first slot reconciles its checkbox through `writeKeepingTaskMarker`; a new writer wraps its write in it or joins the exempt list with why no list item can hold its bytes',
+		hits: [
+			"import { writeKeepingTaskMarker as keep } from '../tree-operations';",
+			'writeOwnRaw(node, text, lineEnding, grammar);'
+		],
+		misses: ['writeKeepingTaskMarkerLater(owner);']
+	},
+	{
+		id: 'G4.82b each writer declared as keeping the marker calls the wrapper',
+		population: (file) => file.relPath in MARKER_WRAPPED,
+		matches: (file) => !/\bwriteKeepingTaskMarker\s*\(/.test(file.code),
+		reason: 'a writer the census counts as keeping the task marker has to run its write inside it',
+		reaches: Object.keys(MARKER_WRAPPED),
+		hits: [
+			{ relPath: CONTENT_WRITE, code: 'writeAndSettleContent(parent, i, legal, grammar, sharing);' }
+		],
+		misses: [
+			{
+				relPath: CONTENT_WRITE,
+				code: 'writeKeepingTaskMarker(owner, children, i, sharing, () => write());'
+			}
+		]
 	},
 	{
 		id: 'G4.75 a replacement is escaped for its container in the one replace write',

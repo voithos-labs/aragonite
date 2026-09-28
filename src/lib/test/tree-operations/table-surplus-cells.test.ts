@@ -19,6 +19,7 @@ import {
 } from '$lib/tree-operations/table-mutations';
 import { sliceTableAtRow } from '$lib/tree-operations/paste/table-slice';
 import { rangeDelete } from '$lib/selection/range-delete';
+import { coverRange } from '$lib/selection/range-coverage';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
 import { fixtureReading } from '../harness/fixture-grammar';
@@ -144,7 +145,7 @@ describe('the table’s structural edits keep them', () => {
 			{ path: [1], offset: 0 }
 		];
 
-		rangeDelete(doc, start, end, createSharingState(), fixtureReading());
+		rangeDelete(doc, coverRange(doc, start, end), createSharingState(), fixtureReading());
 		// The end is given in cells, the unit the selection snaps a table endpoint to.
 		allowDevWarns(['deleteFromProseIntoTable:end']);
 

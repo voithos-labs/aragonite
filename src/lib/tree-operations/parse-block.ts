@@ -1,12 +1,11 @@
 import type { CstNode } from '../core/nodes';
 import { isBlankLine } from '../core/lines';
-import { readBlocks } from '../core/parser';
-import type { GrammarView } from '../schema/block-openers';
+import type { FragmentReader } from './list/task-paragraph';
 
-/** Parse one block's `raw` in the editor's grammar and return its first block, falling back to a
- *  paragraph node. */
-export function parseFirstBlock(raw: string, grammar: GrammarView): CstNode {
-	const doc = readBlocks(raw, { grammar, scope: 'fragment' });
+/** Read one block's `raw` with the reader of the slot it lands in and return its first block,
+ *  falling back to a paragraph node. */
+export function parseFirstBlock(raw: string, read: FragmentReader): CstNode {
+	const doc = read(raw);
 	if (doc.children.length > 0) return doc.children[0];
 	return { kind: 'paragraph', leadingTrivia: '', raw };
 }
@@ -19,13 +18,13 @@ export interface CutResidue {
 }
 
 /**
- * The text after a paste's cut, as blocks; a line break left at its head comes back as
- * `endedLine` rather than a blank block, so the caller decides where the break goes.
+ * The text after a paste's cut, as blocks read with the reader of the slot they land in; a line
+ * break left at its head comes back as `endedLine`, so the caller decides where the break goes.
  */
 export function parseCutResidue(
 	text: string,
 	lineEnding: '\n' | '\r\n',
-	grammar: GrammarView
+	read: FragmentReader
 ): CutResidue {
 	const lineBreak = /\r?\n/.exec(text);
 	const endedLine =
@@ -34,8 +33,5 @@ export function parseCutResidue(
 			: '';
 	const body = text.slice(endedLine.length);
 	if (body === '') return { endedLine, blocks: [] };
-	return {
-		endedLine,
-		blocks: readBlocks(body + lineEnding, { grammar, scope: 'fragment' }).children
-	};
+	return { endedLine, blocks: read(body + lineEnding).children };
 }

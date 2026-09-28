@@ -8,6 +8,7 @@ import type { DocumentGetter } from '../../editor-keys';
 import type { CrossBlockHandlers } from './dispatch';
 import type { SelectionState } from '../selection-state.svelte';
 import { collectCrossBlockText } from '../clipboard-text';
+import { coverRange } from '../range-coverage';
 
 export interface CrossBlockClipboardDeps {
 	selection: SelectionState;
@@ -19,9 +20,10 @@ export function writeCrossBlockCopy(e: ClipboardEvent, deps: CrossBlockClipboard
 	const { selection } = deps;
 	if (!selection.isCrossBlock || !selection.anchor || !selection.focus) return false;
 	e.preventDefault();
+	const doc = deps.getDoc();
 	e.clipboardData?.setData(
 		'text/plain',
-		collectCrossBlockText(deps.getDoc(), selection.anchor, selection.focus)
+		collectCrossBlockText(doc, coverRange(doc, selection.anchor, selection.focus))
 	);
 	return true;
 }

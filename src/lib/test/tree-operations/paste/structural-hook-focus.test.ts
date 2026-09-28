@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { defaultStructuralHook } from '$lib/tree-operations/paste/hooks';
 import { parse } from '$lib/core/parser';
 import type { CstNode } from '$lib/core/nodes';
-import { fixtureReading } from '../../harness/fixture-grammar';
+import { fixtureReading, TOP_SLOT } from '../../harness/fixture-grammar';
 
 // The caret lands at the end of the pasted content, not the trailing residue
 // buildPastedReplacement appends as the last node.
@@ -18,7 +18,8 @@ describe('defaultStructuralHook: caret at end of pasted content', () => {
 			twoBlocks(),
 			undefined,
 			fixtureReading(),
-			'\n'
+			'\n',
+			TOP_SLOT
 		);
 		expect(result.replacement).toHaveLength(4);
 		expect(result.focusReplacementIndex).toBe(result.replacement.length - 2);
@@ -32,7 +33,8 @@ describe('defaultStructuralHook: caret at end of pasted content', () => {
 			twoBlocks(),
 			undefined,
 			fixtureReading(),
-			'\n'
+			'\n',
+			TOP_SLOT
 		);
 		expect(result.replacement).toHaveLength(3);
 		expect(result.focusReplacementIndex).toBe(result.replacement.length - 1);
@@ -47,7 +49,8 @@ describe('defaultStructuralHook: caret at end of pasted content', () => {
 			twoBlocks(),
 			undefined,
 			fixtureReading(),
-			'\n'
+			'\n',
+			TOP_SLOT
 		);
 		expect(result.replacement.map((n) => n.raw)).toEqual([
 			'abc\n',

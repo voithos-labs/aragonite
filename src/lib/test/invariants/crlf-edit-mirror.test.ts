@@ -23,12 +23,14 @@ import {
 } from '../../schema/container-rebuilders';
 import { insertEmptyRow } from '../../tree-operations/table-mutations';
 import { rangeDelete } from '../../selection/range-delete';
+import { coverRange } from '../../selection/range-coverage';
 import type { SelectionPoint } from '../../selection/primitives';
 import { createSharingState } from '../../tree-operations/sharing';
 import { ensureEditableContainers } from '../../tree-operations/node-primitives';
 import { buildExitReplacement } from '../../tree-operations/list/exit-replacement';
 import { pasteDispatch } from '../../tree-operations/paste/dispatch';
 import { parseReplacement } from '../../tree-operations/paste/replacement-parse';
+import { slotReaderAt } from '../../tree-operations/list/task-paragraph';
 import { replaceBlockRaw } from '../../editor-actions/block-edit-core';
 import { createPasteCoordinator } from '../../editor-actions/paste-coordinator';
 import { createUndoController } from '../../editor-actions/commit/undo-controller';
@@ -84,7 +86,9 @@ async function pasteInto(
 /** A range delete's emitted bytes. The grammar, mode and resolver arguments stay `undefined`:
  *  this test reads the line ending, and none of the three moves one. */
 const deleteBetween = (doc: Document, start: SelectionPoint, end: SelectionPoint) =>
-	serialize(rangeDelete(doc, start, end, createSharingState(), fixtureReading()).newDoc);
+	serialize(
+		rangeDelete(doc, coverRange(doc, start, end), createSharingState(), fixtureReading()).newDoc
+	);
 
 const GESTURES: EditGesture[] = [
 	{
@@ -381,7 +385,7 @@ function pasteRoutes(): EditGesture[] {
 						doc.children[0],
 						'x\ny\n\nz',
 						documentLineEnding(doc),
-						fixtureReading().grammar
+						slotReaderAt(doc, [0], fixtureReading().grammar)
 					)!.replacement
 				)
 		},

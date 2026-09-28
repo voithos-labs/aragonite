@@ -5,7 +5,8 @@
  */
 
 import { metadataOf, type Document } from '../../core/nodes';
-import type { NodeView } from '../../core/node-views';
+import type { DocumentView, NodeView } from '../../core/node-views';
+import { blockNodeAt } from '../node-primitives';
 import { readBlocks, parseTaskItemBody } from '../../core/parser';
 import type { GrammarView } from '../../schema/block-openers';
 
@@ -28,4 +29,27 @@ export function fragmentReaderAt(
 	return followsTaskMarker(owner, index)
 		? (text) => parseTaskItemBody(text, grammar)
 		: (text) => readBlocks(text, { grammar, scope: 'fragment' });
+}
+
+/** A child slot: the block holding it (none at the document's top level) and its index there. */
+export interface ChildSlot {
+	owner: NodeView | undefined;
+	index: number;
+}
+
+/** The slot a document path names. */
+export function childSlotAt(doc: DocumentView, path: readonly number[]): ChildSlot {
+	const found = path.length > 1 ? blockNodeAt(doc, path.slice(0, -1)) : null;
+	const owner = found ?? undefined;
+	return { owner, index: path[path.length - 1] };
+}
+
+/** {@link fragmentReaderAt} for the slot a document path names. */
+export function slotReaderAt(
+	doc: DocumentView,
+	path: readonly number[],
+	grammar: GrammarView
+): FragmentReader {
+	const { owner, index } = childSlotAt(doc, path);
+	return fragmentReaderAt(owner, index, grammar);
 }

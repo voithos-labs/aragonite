@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
 import { rangeDelete } from '../../selection/range-delete';
+import { coverRange } from '../../selection/range-coverage';
 import { createSharingState } from '../../tree-operations/sharing';
 import { describeConvergence } from '../harness/parse-converged';
 import { fixtureReading } from '../harness/fixture-grammar';
@@ -15,8 +16,7 @@ describe('a same-block delete re-derives parse-owned metadata (GH #54)', () => {
 
 		rangeDelete(
 			doc,
-			{ path: [0], offset: 1 },
-			{ path: [0], offset: 2 },
+			coverRange(doc, { path: [0], offset: 1 }, { path: [0], offset: 2 }),
 			createSharingState(),
 			fixtureReading()
 		);

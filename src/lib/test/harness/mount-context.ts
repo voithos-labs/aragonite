@@ -26,6 +26,7 @@ import { defaultRegistryView } from '$lib/schema/registry-view';
 import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 import { createEditorEvents, emitCommandError } from '$lib/editor-events';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
+import { coverRange } from '$lib/selection/range-coverage';
 import { createRevealAnchorState } from '$lib/cursor/reveal-anchor';
 import { createAutoPairRecord } from '$lib/components/blocks/text/auto-pair-record';
 import { createHeightOracle } from '$lib/cursor/height-oracle';
@@ -65,6 +66,7 @@ function stubbedServices(getDoc: () => DocumentView): EditorServices {
 		// service during mount, and one with no sources answers all of them honestly.
 		decorations: createDecorationEngine({ getDoc }),
 		selection,
+		coveredRange: () => null,
 		search: {} as EditorServices['search'],
 		caretMemory: makeCaretMemory(),
 		autoPairs: createAutoPairRecord(),
@@ -179,6 +181,14 @@ export function editorMountContext(overrides: MountContextOverrides = {}): Map<s
 	});
 	const doc: EditorDoc = withDerivedScrollport({ ...docBase, ...overrides.doc });
 	const services: EditorServices = { ...stubbedServices(doc.doc), ...overrides.services };
+	// Read off the selection the test handed in, the way the editor derives it.
+	services.coveredRange =
+		overrides.services?.coveredRange ??
+		(() => {
+			const { anchor, focus } = services.selection;
+			if (!services.selection.isCustomRendered || !anchor || !focus) return null;
+			return coverRange(doc.doc(), anchor, focus);
+		});
 	const history = overrides.history ?? { requestUndo: vi.fn(), requestRedo: vi.fn() };
 	// The editor's one command context, read from the groups above so a test's override of the
 	// history, the policies or a service reaches every chord the block dispatches.

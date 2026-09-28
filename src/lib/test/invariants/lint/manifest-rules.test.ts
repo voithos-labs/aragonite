@@ -377,6 +377,49 @@ const MANIFESTS: ManifestRule[] = [
 		misses: ['// checkLandableCaret asks once']
 	},
 	{
+		id: 'G4.83 every fragment read in the edit layers is declared, with why it needs no slot reader',
+		population: (file) =>
+			['src/lib/tree-operations/', 'src/lib/selection/', 'src/lib/editor-actions/'].some((dir) =>
+				file.relPath.startsWith(dir)
+			),
+		matches: /(?<![\w.])readBlocks\s*\(/,
+		declared: {
+			'src/lib/tree-operations/list/task-paragraph.ts':
+				'defines `fragmentReaderAt`, the slot reader every write of bytes into a child slot reads through',
+			'src/lib/tree-operations/content-write.ts':
+				'asks what one line opens as alone, and re-reads a container’s rebuilt bytes; no container stands after a task marker',
+			'src/lib/tree-operations/list/list-builders.ts':
+				'reads a whole built list item back, whose bytes carry their own marker',
+			'src/lib/tree-operations/node-ops.ts':
+				'counts the blocks joined or split bytes read as, to refuse a join or place a split; what it installs is read at the slot',
+			'src/lib/tree-operations/node-primitives.ts':
+				're-derives the metadata of a block written in place under its own kind; nothing changes kind here',
+			'src/lib/tree-operations/paste/paste-replacement.ts':
+				'a pasted block ended on the cut line keeps the kind the clipboard’s parse gave it, as every other pasted block does; what it does to a checkbox it lands behind is #624’s question',
+			'src/lib/tree-operations/paste/body-write.ts':
+				're-reads a body-rule container’s escaped child; no list item declares a body rule',
+			'src/lib/tree-operations/paste/dispatch.ts':
+				'reads the clipboard’s own blocks to pick the paste strategy; the routes that land them write at the slot',
+			'src/lib/tree-operations/reorder.ts':
+				'asks whether two neighbours still read as a pair, a probe that installs nothing',
+			'src/lib/tree-operations/settle.ts':
+				'merges a window of whole sibling blocks by how their joined bytes read',
+			'src/lib/editor-actions/enter-completion.ts':
+				'the Enter completer’s lines are the construct the user committed; the replace reconciles the task marker',
+			'src/lib/editor-actions/search-replace.ts':
+				're-reads a whole top-level block, which no task marker stands before'
+		},
+		reason:
+			'bytes written into a child slot read as a reload reads them there (`fragmentReaderAt`); a new plain fragment read says why it is no slot write',
+		hits: [
+			at(
+				'src/lib/selection/x.ts',
+				"const blocks = readBlocks(raw, { grammar, scope: 'fragment' });"
+			)
+		],
+		misses: [at('src/lib/selection/x.ts', "import { readBlocks } from '../core/parser';")]
+	},
+	{
 		id: 'G4.11 exactly the declared sites call applyPasteTransforms',
 		matches: TRANSFORMS_CALL,
 		declared: {

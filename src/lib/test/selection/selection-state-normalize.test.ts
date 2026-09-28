@@ -3,6 +3,7 @@ import { describe, it, expect } from 'vitest';
 import { createSelectionState } from '../../selection/selection-state.svelte';
 import { selectWholeDocument } from '../../selection/keyboard-extend';
 import { rangeDelete } from '../../selection/range-delete';
+import { coverRange } from '../../selection/range-coverage';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import { createSharingState } from '../../tree-operations/sharing';
@@ -45,7 +46,12 @@ function assertDeleteConverged(doc: Document): void {
 }
 
 function deleteSelected(doc: Document, s: ReturnType<typeof makeState>) {
-	return rangeDelete(doc, s.start!, s.end!, createSharingState(), fixtureReading());
+	return rangeDelete(
+		doc,
+		coverRange(doc, s.start!, s.end!),
+		createSharingState(),
+		fixtureReading()
+	);
 }
 
 describe('table endpoints normalize at the selection-state choke point', () => {

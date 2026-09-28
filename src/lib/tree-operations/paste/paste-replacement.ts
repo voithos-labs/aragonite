@@ -7,11 +7,12 @@
 import type { CstNode } from '../../core/nodes';
 import type { NodeView } from '../../core/node-views';
 import { ownTrailingLineEnding, trailingLineEnding, type LineEnding } from '../../core/lines';
-import { isBlankParagraph } from '../../core/parser';
+import { isBlankParagraph, readBlocks } from '../../core/parser';
 import { ensureEditableContainers } from '../node-primitives';
 import { parseCutResidue, parseFirstBlock } from '../parse-block';
 import { cutKeepingStructure } from '../structural-suffix';
 import type { GrammarView } from '../../schema/block-openers';
+import { fragmentReaderAt, type ChildSlot } from '../list/task-paragraph';
 
 export interface PastedReplacement {
 	nodes: CstNode[];
@@ -19,28 +20,32 @@ export interface PastedReplacement {
 	lastPastedIndex: number;
 }
 
+/** `slot` is where the leaf sits; the leaf's own text around the pasted blocks is read the way a
+ *  reload reads it at the slot it lands in. */
 export function buildPastedReplacement(
 	leaf: NodeView,
 	offset: number,
 	blocks: CstNode[],
 	ending: LineEnding,
-	grammar: GrammarView
+	grammar: GrammarView,
+	slot: ChildSlot
 ): PastedReplacement {
 	if (blocks.length === 0) return { nodes: [], lastPastedIndex: -1 };
 
 	const leafRaw = leaf.raw;
 	const lineEnding = trailingLineEnding(leafRaw, ending);
 	const { head: rawBefore, rest } = cutKeepingStructure(leaf, offset);
-	const residue = parseCutResidue(rest, lineEnding, grammar);
+	const readAt = (index: number) => fragmentReaderAt(slot.owner, slot.index + index, grammar);
+	// At least one pasted block lands before the residue.
+	const residue = parseCutResidue(rest, lineEnding, readAt(1));
 	const originalTrivia = leaf.leadingTrivia ?? '';
 
 	const newNodes: CstNode[] = [];
 
-	// Re-parsed so heading/list leaves round-trip through their own parser rather than
-	// being forced back to a paragraph.
+	// A heading stays one, and a to-do's text stays its paragraph.
 	if (rawBefore.length > 0) {
 		const beforeRaw = rawBefore + lineEnding;
-		const beforeNode = parseFirstBlock(beforeRaw, grammar);
+		const beforeNode = parseFirstBlock(beforeRaw, readAt(0));
 		beforeNode.leadingTrivia = originalTrivia;
 		ensureEditableContainers(beforeNode, lineEnding);
 		newNodes.push(beforeNode);
@@ -77,7 +82,11 @@ export function buildPastedReplacement(
 /** `node` with the rest of the line it was pasted into, read back as the one block it still is. */
 function endedOnCutLine(node: CstNode, cutLineEnd: string, grammar: GrammarView): CstNode {
 	const lineEnding = trailingLineEnding(cutLineEnd, '\n');
-	const ended = parseFirstBlock(node.raw + cutLineEnd, grammar);
+	// The clipboard's own block keeps the kind the clipboard's parse gave it, as every other pasted
+	// block does; what that does to a checkbox it lands behind is #624's question.
+	const ended = parseFirstBlock(node.raw + cutLineEnd, (text) =>
+		readBlocks(text, { grammar, scope: 'fragment' })
+	);
 	ended.leadingTrivia = node.leadingTrivia;
 	ensureEditableContainers(ended, lineEnding);
 	return ended;

@@ -38,6 +38,7 @@ import type { PasteCommitCoordinator } from './paste-deps';
 import { applyPasteTransforms } from './paste-transforms';
 import { inlineResultInEnding } from './line-ending';
 import { contentBlocks, pickPasteStrategy } from './strategy';
+import { childSlotAt } from '../list/task-paragraph';
 
 export type PasteStrategy = 'inline' | 'structural';
 
@@ -201,7 +202,16 @@ export async function pasteDispatch(
 	}
 
 	const hook = surface?.onStructuralPaste ?? defaultStructuralHook;
-	const result = hook(targetNode, input.offset, blocks.slice(), input.preDelete, reading, ending);
+	const slot = childSlotAt(ctx.doc, input.targetPath);
+	const result = hook(
+		targetNode,
+		input.offset,
+		blocks.slice(),
+		input.preDelete,
+		reading,
+		ending,
+		slot
+	);
 	await applyStructuralResult(
 		input.targetPath,
 		result,

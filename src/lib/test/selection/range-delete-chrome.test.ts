@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import { rangeDelete } from '../../selection/range-delete';
+import { coverRange } from '../../selection/range-coverage';
 import { involvesReservedChrome } from '../../selection/range-delete-chrome';
 import { createSharingState } from '../../tree-operations/sharing';
 import { registerCalloutForTests } from './chrome-plugins';
@@ -19,7 +20,12 @@ function point(path: number[], offset: number): SelectionPoint {
 
 function run(source: string, start: SelectionPoint, end: SelectionPoint) {
 	const doc = parse(source);
-	const result = rangeDelete(doc, start, end, createSharingState(), fixtureReading());
+	const result = rangeDelete(
+		doc,
+		coverRange(doc, start, end),
+		createSharingState(),
+		fixtureReading()
+	);
 	return { doc: result.newDoc, source: serialize(result.newDoc), caret: result.collapsedCaret };
 }
 
@@ -110,8 +116,7 @@ describe('chrome wall: rangeDelete post-states', () => {
 		const note = doc.children[1];
 		const result = rangeDelete(
 			doc,
-			point([0], 5),
-			point([1, 2], 5),
+			coverRange(doc, point([0], 5), point([1, 2], 5)),
 			createSharingState(),
 			fixtureReading()
 		);
@@ -147,7 +152,7 @@ describe('chrome wall: rangeDelete post-states', () => {
 
 		const sharing = createSharingState();
 		sharing.markSnapshotTaken();
-		rangeDelete(doc, point([0], 2), point([1, 1], 2), sharing, fixtureReading());
+		rangeDelete(doc, coverRange(doc, point([0], 2), point([1, 1], 2)), sharing, fixtureReading());
 
 		expect(snapshotTitle.raw).toBe('Title\n');
 	});

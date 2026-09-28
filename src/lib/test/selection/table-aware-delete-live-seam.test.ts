@@ -13,6 +13,7 @@ import {
 	__resetLiveJoinSeamCleanerForTests
 } from '../../schema/inline-construct-policy';
 import { tableAwareRangeDelete } from '../../selection/range-delete-table';
+import { coverRange } from '../../selection/range-coverage';
 import { createSharingState } from '../../tree-operations/sharing';
 import type { CellSelectionPoint, SelectionPoint } from '../../selection/primitives';
 import { fixtureReading } from '../harness/fixture-grammar';
@@ -33,8 +34,7 @@ function run(source: string, start: SelectionPoint, end: SelectionPoint, mode?: 
 	const doc = parse(source);
 	const result = tableAwareRangeDelete(
 		doc,
-		start,
-		end,
+		coverRange(doc, start, end),
 		createSharingState(),
 		fixtureReading({}, mode)
 	);

@@ -1,6 +1,7 @@
 import { isBuiltinBlockKind, type AnyBlockKind, type CstNode, type Document } from '../core/nodes';
 import type { LineEnding } from '../core/lines';
 import type { Reading } from '../schema/reading';
+import type { ChildSlot } from './list/task-paragraph';
 import type { PasteCommitCoordinator } from './paste/paste-deps';
 import type { PluginActivation } from '../schema/plugin-activation';
 import { createBlockKindRegistry } from '../schema/plugin-registry';
@@ -47,14 +48,16 @@ export interface PasteSurface {
 		reading: Reading,
 		lineEnding: LineEnding
 	): InlinePasteResult;
-	/** Splice CST blocks at the target. Pure data transform. */
+	/** Splice CST blocks at the target. Pure data transform. `slot` is where the target sits, so
+	 *  the text the hook leaves there is read as a reload reads it. */
 	onStructuralPaste?(
 		node: CstNode,
 		offset: number,
 		blocks: CstNode[],
 		preDelete: PasteRange | undefined,
 		reading: Reading,
-		lineEnding: LineEnding
+		lineEnding: LineEnding,
+		slot: ChildSlot
 	): StructuralPasteResult;
 	/**
 	 * Structural paste whose splice scope is an ancestor (a tableCell splices at the

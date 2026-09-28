@@ -19,6 +19,11 @@ the editor's selection and the serialized bytes.
   joins the blocks on either side as for any other covered block
 - a range whose moving end stops on the title row covers the hidden body too: Backspace there
   removes the whole block, and a typed character lands where the range's other end was
+- Ctrl+X over a range from mid-paragraph onto a closed title row (Shift+Mod+End, which stops past
+  the row's first character) cuts the whole details, and pasting it below brings the block back
+  with its hidden body. The copy takes exactly what the delete takes (#636)
+  - Miss-analysis: the copy and the delete were tested apart, and no test cut a closed details,
+    so a clipboard holding a bare title with no body never showed up
 - Shift+Mod+End from the top of a document ending in a closed details stops on its title row,
   and Backspace then empties the document, hidden body included
 - an open details keeps its wall: a range from its title row into the block below empties it to

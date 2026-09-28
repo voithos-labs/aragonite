@@ -12,6 +12,7 @@ import type { BlockComponent } from '../../block-component';
 import type { CommitController, MultiScopeTarget } from '../../action-contracts';
 import { focusCollapsedCaret } from '../native-bridge';
 import { rangeDelete } from '../range-delete';
+import { coverRange, type CoveredRange } from '../range-coverage';
 import { trackChildIds, type StructuralChange } from '../../tree-operations/structural-change';
 import { documentBody, isBlockNode, nodeAt } from '../../tree-operations/node-primitives';
 import { pathsEqual } from '../path-math';
@@ -114,10 +115,11 @@ async function runCrossBlockDelete(
 		}
 	}
 
+	const range = coverRange(doc, start, end);
 	if (isPureTopLevel) {
-		return await commitPureTopLevelDelete(ctx, start, end, caretRestore);
+		return await commitPureTopLevelDelete(ctx, range, caretRestore);
 	}
-	return await commitCrossContainerDelete(ctx, doc, start, end, caretRestore);
+	return await commitCrossContainerDelete(ctx, doc, range, caretRestore);
 }
 
 /** For compositionstart, where the IME drops the composition if the handler yields: the commit
@@ -137,11 +139,11 @@ function isTableAt(doc: Document, path: number[]): boolean {
  *  top-level children copy is a safe mutation target. */
 async function commitPureTopLevelDelete(
 	ctx: CrossBlockMutationContext,
-	start: SelectionPoint,
-	end: SelectionPoint,
+	range: CoveredRange,
 	caretRestore: ((caret: SelectionPoint | null) => void) | undefined
 ): Promise<SelectionPoint | null> {
 	let collapsedCaret: SelectionPoint | null = null;
+	const { start } = range;
 
 	const snapshot = deleteSnapshot(start.path, start.offset);
 
@@ -151,7 +153,7 @@ async function commitPureTopLevelDelete(
 		mutate: (topLevelChildren) => {
 			const body = documentBody(doc, topLevelChildren);
 			const ledger = trackChildIds(body);
-			const result = rangeDelete(body, start, end, ctx.controller.sharing, ctx.reading);
+			const result = rangeDelete(body, range, ctx.controller.sharing, ctx.reading);
 			collapsedCaret = result.collapsedCaret;
 			ctx.selection.collapse();
 			return ledger.read();
@@ -167,10 +169,10 @@ async function commitPureTopLevelDelete(
 async function commitCrossContainerDelete(
 	ctx: CrossBlockMutationContext,
 	doc: Document,
-	start: SelectionPoint,
-	end: SelectionPoint,
+	range: CoveredRange,
 	caretRestore: ((caret: SelectionPoint | null) => void) | undefined
 ): Promise<SelectionPoint | null> {
+	const { start, end } = range;
 	const touched = collectTouchedContainers(doc, start.path, end.path);
 	const scopes: MultiScopeTarget[] = [];
 
@@ -197,7 +199,7 @@ async function commitCrossContainerDelete(
 			// scope nodes stay valid because splices happen in place.
 			const ledgers = scopeViews.map((v) => trackChildIds(v.node));
 
-			const result = rangeDelete(doc, start, end, sharing, ctx.reading);
+			const result = rangeDelete(doc, range, sharing, ctx.reading);
 			collapsedCaret = result.collapsedCaret;
 			ctx.selection.collapse();
 

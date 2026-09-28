@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { rangeDelete } from '$lib/selection/range-delete';
+import { coverRange } from '$lib/selection/range-coverage';
 import { updateNodeContent } from '$lib/tree-operations/content-write';
 import { splitNode } from '$lib/tree-operations/node-ops';
 import { createSharingState } from '$lib/tree-operations/sharing';
@@ -20,8 +21,7 @@ function emptyBlock(doc: Document, index: number): void {
 	const end = doc.children[index].raw.length - 1;
 	rangeDelete(
 		doc,
-		{ path: [index], offset: 0 },
-		{ path: [index], offset: end },
+		coverRange(doc, { path: [index], offset: 0 }, { path: [index], offset: end }),
 		createSharingState(),
 		fixtureReading()
 	);
@@ -72,8 +72,7 @@ describe('a delete that empties a block settles the run it joins', () => {
 
 		rangeDelete(
 			doc,
-			{ path: [1], offset: 0 },
-			{ path: [2], offset: 0 },
+			coverRange(doc, { path: [1], offset: 0 }, { path: [2], offset: 0 }),
 			createSharingState(),
 			fixtureReading()
 		);

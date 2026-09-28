@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, it, expect } from 'vitest';
 import { rangeDelete } from '$lib/selection/range-delete';
+import { coverRange } from '$lib/selection/range-coverage';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { createSharingState } from '$lib/tree-operations/sharing';
@@ -25,7 +26,7 @@ function deleteRange(
 	mode: PresentationMode | undefined
 ): string {
 	const doc = parse(source);
-	rangeDelete(doc, start, end, createSharingState(), fixtureReading({}, mode));
+	rangeDelete(doc, coverRange(doc, start, end), createSharingState(), fixtureReading({}, mode));
 	return serialize(doc);
 }
 

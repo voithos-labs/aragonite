@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import { rangeDelete } from '../../selection/range-delete';
+import { coverRange } from '../../selection/range-coverage';
 import { createSharingState } from '../../tree-operations/sharing';
 import { registerCalloutForTests } from './chrome-plugins';
 import type { SelectionPoint } from '../../selection/primitives';
@@ -38,7 +39,12 @@ function point(path: number[], offset: number): SelectionPoint {
 
 function run(source: string, start: SelectionPoint, end: SelectionPoint) {
 	const doc = parse(source);
-	const result = rangeDelete(doc, start, end, createSharingState(), fixtureReading());
+	const result = rangeDelete(
+		doc,
+		coverRange(doc, start, end),
+		createSharingState(),
+		fixtureReading()
+	);
 	return { doc: result.newDoc, source: serialize(result.newDoc), caret: result.collapsedCaret };
 }
 
@@ -87,7 +93,7 @@ describe('chrome wall × table branch: table endpoint inside the container', () 
 		const snapshotTitle = doc.children[1].children![0];
 		const sharing = createSharingState();
 		sharing.markSnapshotTaken();
-		rangeDelete(doc, point([0], 2), point([1, 1], 1), sharing, fixtureReading());
+		rangeDelete(doc, coverRange(doc, point([0], 2), point([1, 1], 1)), sharing, fixtureReading());
 		expect(snapshotTitle.raw).toBe('Title\n');
 	});
 });
@@ -114,7 +120,12 @@ describe('chrome wall × table branch: table endpoint outside the container', ()
 
 		const sharing = createSharingState();
 		sharing.markSnapshotTaken();
-		const { newDoc } = rangeDelete(doc, point([0], 2), point([1, 0], 3), sharing, fixtureReading());
+		const { newDoc } = rangeDelete(
+			doc,
+			coverRange(doc, point([0], 2), point([1, 0], 3)),
+			sharing,
+			fixtureReading()
+		);
 
 		expect(newDoc.children[1].children![0].raw).toBe('le\n');
 		expect(snapshotTitle.raw).toBe('Title\n');
@@ -147,8 +158,7 @@ describe('chrome wall × table branch: consumed container unit-deletes', () => {
 		const note = doc.children[1];
 		const result = rangeDelete(
 			doc,
-			point([0], 2),
-			point([1, 1], 4),
+			coverRange(doc, point([0], 2), point([1, 1], 4)),
 			createSharingState(),
 			fixtureReading()
 		);
@@ -165,8 +175,7 @@ describe('chrome wall × table branch: consumed container unit-deletes', () => {
 		// end.offset 3 = inclusive last cell of the inner table → tableEmpty.
 		const result = rangeDelete(
 			doc,
-			point([0], 2),
-			point([1, 1], 3),
+			coverRange(doc, point([0], 2), point([1, 1], 3)),
 			createSharingState(),
 			fixtureReading()
 		);

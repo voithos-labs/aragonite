@@ -91,4 +91,64 @@ test.describe('task checkbox: the text after the marker', () => {
 			expect(await editor.parseConverged()).toBe(true);
 		});
 	}
+	test('blocks pasted after `# b` in `- [ ] # bc` leave `# b` as text beside the box', async ({
+		page
+	}) => {
+		await editor.loadContent('- [ ] # bc\n');
+		await editor.focusBlockAtPath([0, 0, 0], 3);
+		await editor.seedClipboard('x\n\ny');
+
+		await editor.paste();
+
+		await editor.bridge.waitForSourceContains('y');
+		expect(await editor.bridge.getSource()).toMatch(/^- \[ \] # b\n/);
+		await expect(page.locator('.task-checkbox')).toHaveCount(1);
+		await expect(page.locator('.heading-1')).toHaveCount(0);
+		expect(await editor.parseConverged()).toBe(true);
+	});
+
+	test('a list pasted after `# b` in `- [ ] # bc` splits the to-do with text beside each box', async ({
+		page
+	}) => {
+		await editor.loadContent('- [ ] # bc\n');
+		await editor.focusBlockAtPath([0, 0, 0], 3);
+		await editor.seedClipboard('- p\n- q');
+
+		await editor.paste();
+
+		await editor.bridge.waitForSourceEquals('- [ ] # b\n- p\n- q\n- [ ] c\n');
+		await expect(page.locator('.task-checkbox')).toHaveCount(2);
+		await expect(page.locator('.heading-1')).toHaveCount(0);
+		expect(await editor.parseConverged()).toBe(true);
+	});
+
+	test('a heading pasted at the start of `- [ ] bc` stays the heading the clipboard held', async ({
+		page
+	}) => {
+		await editor.loadContent('- [ ] bc\n');
+		await editor.focusBlockAtPath([0, 0, 0], 0);
+		await editor.seedClipboard('# x');
+
+		await editor.paste();
+
+		await editor.bridge.waitForSourceContains('# x');
+		expect(await editor.bridge.getSource()).toBe('- # x\n  bc\n');
+		await expect(page.locator('.heading-1')).toHaveCount(1);
+		expect(await editor.parseConverged()).toBe(true);
+	});
+
+	test('Enter and typing in the item below a loaded to-do holding a table edits cleanly', async ({
+		page
+	}) => {
+		await editor.loadContent('- [ ] |b|\n  |-|\n- zed\n');
+		await editor.page.getByText('zed').click();
+		await editor.waitForRenderFlush();
+		await page.keyboard.press('End');
+
+		await page.keyboard.press('Enter');
+		await page.keyboard.type('Q');
+
+		await editor.bridge.waitForSourceContains('- Q');
+		expect(await editor.parseConverged()).toBe(true);
+	});
 });

@@ -2,16 +2,17 @@
  * The `rangeDelete` branch for a container with a `reservedChrome` child (a details block's
  * summary line): nothing merges across such a container's edge. A covered title line is cleared,
  * not deleted, so the title leaf stays at child 0 (G1.14); the container goes as one splice only
- * when the range covers its whole subtree or reaches into its collapsed title row.
+ * when the range covers its whole subtree or takes it whole (`CoveredRange.wholeUnits`).
  */
 
 import type { Reading } from '../schema/reading';
 import type { CstNode, Document } from '../core/nodes';
 import type { SelectionPoint } from './primitives';
 import type { RangeDeleteResult } from './range-delete';
+import type { CoveredRange } from './range-coverage';
 import type { SharingState } from '../tree-operations/sharing';
 import { displayLength, documentLineEnding } from '../core/lines';
-import { comparePaths, pathHasPrefix, pathsEqual } from './path-math';
+import { comparePaths, pathsEqual } from './path-math';
 import {
 	resolveEndWall,
 	planCrossBlockDeletion,
@@ -23,11 +24,7 @@ import { ensureUnsharedPath } from '../tree-operations/unshare';
 import { rebuildUnsharedChain } from '../tree-operations/chain-rebuild';
 import { deleteAtPath } from '../tree-operations/path-mutate';
 import { blockNodeAt, emptyParagraph } from '../tree-operations/node-primitives';
-import {
-	isCollapsedContainer,
-	reservedChromeKindOf,
-	isReservedChromeChild
-} from '../schema/reserved-chrome';
+import { reservedChromeKindOf, isReservedChromeChild } from '../schema/reserved-chrome';
 import { CURSOR_START } from '../block-component';
 import { survivorAfterRemoval } from './caret-target';
 
@@ -50,22 +47,19 @@ export function involvesReservedChrome(
 	return true;
 }
 
-/** Deletes [start, end] with nothing merging across a title-line container's edge; an endpoint
- *  on a collapsed title row takes that container whole, since the range covers its hidden body. */
+/** Deletes what `range` covers with nothing merging across a title-line container's edge; a
+ *  container the range takes whole goes as one splice. */
 export function chromeAwareRangeDelete(
 	doc: Document,
-	start: SelectionPoint,
-	end: SelectionPoint,
+	range: CoveredRange,
 	sharing: SharingState,
 	reading: Reading
 ): RangeDeleteResult {
 	const { grammar } = reading;
+	const { start, end } = range;
 	const startC = nearestChromeContainer(doc, start.path);
 	const endC = nearestChromeContainer(doc, end.path);
-	const startTaken = collapsedTitleOwner(startC, start.path);
-	if (startTaken && pathHasPrefix(end.path, startTaken.path)) {
-		return removeWhole(doc, startTaken.path, sharing, reading);
-	}
+	const startTaken = range.unitHolding(start.path);
 
 	// Copy every chain that will be written before node identities are captured: chains stay
 	// valid across splices, paths do not (G1.9).
@@ -74,14 +68,9 @@ export function chromeAwareRangeDelete(
 
 	// `resolveEndWall` is null when the start sits inside the end container, which needs no
 	// title-line clear, since that container's child 0 is never strictly between the endpoints.
-	const endWall = resolveEndWall(doc, start, end, null);
-	const wall =
-		endWall && end.offset > 0 && collapsedTitleOwner(endC, end.path)
-			? { ...endWall, consumed: true }
-			: endWall;
+	const wall = resolveEndWall(doc, range, null);
 	const endConsumed = wall?.consumed ?? false;
-	const taken = startTaken ? [startTaken.path] : [];
-	const { plan, lcaPath } = planCrossBlockDeletion(doc, start, end, taken, wall, sharing);
+	const { plan, lcaPath } = planCrossBlockDeletion(doc, range, [], wall, sharing);
 
 	// The end truncates first, while its path is still valid, and its tail never merges into
 	// the start. Skipped when its container goes whole.
@@ -93,7 +82,6 @@ export function chromeAwareRangeDelete(
 			endC !== null && isChromeChild(endC, end.path),
 			reading,
 			sharing,
-			grammar,
 			'chromeAwareRangeDelete:end'
 		);
 	}
@@ -111,36 +99,25 @@ export function chromeAwareRangeDelete(
 				startC !== null && isChromeChild(startC, start.path),
 				reading,
 				sharing,
-				grammar,
 				'chromeAwareRangeDelete:start'
 			);
 
 	// Chain-based rebuilds: node references survive the splices above where paths may not, and
 	// every touched container re-emits raw (G1.12). A removed start container is left out.
-	const liveStartChain = startTaken ? startChain.slice(0, startTaken.path.length - 1) : startChain;
+	const liveStartChain = startTaken ? startChain.slice(0, startTaken.length - 1) : startChain;
 	rebuildUnsharedChain(doc, liveStartChain, sharing, null, grammar);
 	rebuildUnsharedChain(doc, endChain, sharing, null, grammar);
 
 	const collapsedCaret = startTaken
-		? caretWhereRemoved(doc, startTaken.path, sharing)
+		? caretWhereRemoved(doc, startTaken, sharing)
 		: { path: start.path.slice(), offset: seam ?? 0 };
 	return { newDoc: doc, collapsedCaret };
 }
 
-// ── A collapsed container taken whole ───────────────────────────────────────
+// ── A container taken whole ─────────────────────────────────────────────────
 
-/** The container whose title row `path` is, when that container is collapsed. */
-function collapsedTitleOwner(
-	container: ChromeContainer | null,
-	path: number[]
-): ChromeContainer | null {
-	return container && isChromeChild(container, path) && isCollapsedContainer(container.node)
-		? container
-		: null;
-}
-
-/** A range wholly inside one collapsed container, its title row included: one splice. */
-function removeWhole(
+/** A range wholly inside one container it takes whole, its title row included: one splice. */
+export function removeWhole(
 	doc: Document,
 	path: number[],
 	sharing: SharingState,
@@ -154,7 +131,11 @@ function removeWhole(
 
 /** The start of what now follows the removed block, else the end of what precedes it; an
  *  emptied document gets the blank paragraph every document keeps. */
-function caretWhereRemoved(doc: Document, path: number[], sharing: SharingState): SelectionPoint {
+export function caretWhereRemoved(
+	doc: Document,
+	path: number[],
+	sharing: SharingState
+): SelectionPoint {
 	const survivor = survivorAfterRemoval(doc, path, 'after');
 	if (!survivor) {
 		const filler = emptyParagraph('', documentLineEnding(doc));

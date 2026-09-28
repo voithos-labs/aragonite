@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { rangeDelete } from '../../selection/range-delete';
+import { coverRange } from '../../selection/range-coverage';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import { createSharingState } from '../../tree-operations/sharing';
@@ -11,7 +12,12 @@ function run(
 	end: { path: number[]; offset: number }
 ) {
 	const doc = parse(source);
-	const result = rangeDelete(doc, start, end, createSharingState(), fixtureReading());
+	const result = rangeDelete(
+		doc,
+		coverRange(doc, start, end),
+		createSharingState(),
+		fixtureReading()
+	);
 	return { source: serialize(result.newDoc), caret: result.collapsedCaret };
 }
 

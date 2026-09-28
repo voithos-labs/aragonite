@@ -9,6 +9,7 @@ import { snapToScalarBoundary } from '$lib/core/lines';
 import { splitNode, cutRangeFromDisplay } from '$lib/tree-operations/node-ops';
 import { buildPastedReplacement } from '$lib/tree-operations/paste/paste-replacement';
 import { splitLeafForPaste } from '$lib/tree-operations/list/list-builders';
+import { fragmentReaderAt } from '$lib/tree-operations/list/task-paragraph';
 import { resolveSelectionEdit } from '$lib/components/blocks/text/live-selection-edit';
 import { cleanLiveJoinSeam } from '$lib/components/blocks/text/live-join-seam';
 import {
@@ -19,8 +20,14 @@ import { createSharingState } from '$lib/tree-operations/sharing';
 import { collectEditorSources } from '$lib/test/invariants/lint/scan-source';
 import type { CstNode } from '$lib/core/nodes';
 import type { NodeView } from '$lib/core/node-views';
-import { fixtureReading } from '../harness/fixture-grammar';
+import { fixtureReading, TOP_SLOT } from '../harness/fixture-grammar';
 import { defaultGrammarView } from '$lib/schema/block-openers';
+
+/** Both halves read as plain fragments, as they do outside a task item. */
+const plainHalves = {
+	leading: fragmentReaderAt(undefined, 0, defaultGrammarView),
+	trailing: fragmentReaderAt(undefined, 0, defaultGrammarView)
+};
 
 const BOY = 'a\u{1F466}b\n';
 
@@ -115,7 +122,8 @@ describe('the structural paste’s before/after slices', () => {
 			2,
 			parse('x\n').children,
 			'\n',
-			defaultGrammarView
+			defaultGrammarView,
+			TOP_SLOT
 		);
 		const raws = replacement.map((node: CstNode) => node.raw);
 		expect(raws.every(isWellFormed)).toBe(true);
@@ -126,13 +134,7 @@ describe('the structural paste’s before/after slices', () => {
 describe('the absorb split’s item halves', () => {
 	it('keeps the pair whole on one half', () => {
 		const leaf = parse(BOY).children[0];
-		const { leadingNode, trailingNodes } = splitLeafForPaste(
-			leaf,
-			2,
-			'\n',
-			undefined,
-			defaultGrammarView
-		);
+		const { leadingNode, trailingNodes } = splitLeafForPaste(leaf, 2, '\n', undefined, plainHalves);
 		expect(isWellFormed(leadingNode!.raw)).toBe(true);
 		expect(isWellFormed(trailingNodes[0].raw)).toBe(true);
 		expect([leadingNode!.raw, trailingNodes[0].raw]).toEqual(['a\n', '\u{1F466}b\n']);

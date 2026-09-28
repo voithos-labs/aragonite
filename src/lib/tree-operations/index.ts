@@ -20,7 +20,7 @@ export { unwrapFirstItemFromList, mergeListItemIntoPrevious } from './list/unwra
 export { renumberOrderedList, normalizeItemMarkerToList } from './list/ordered-markers';
 export { isItemUserEmpty } from './list/empty-check';
 export { buildExitReplacement } from './list/exit-replacement';
-export { reconcileTaskMetadata, taskMarkerMayStandBefore } from './list/reconcile-task';
+export { writeKeepingTaskMarker } from './list/reconcile-task';
 
 export { plainQuote } from './blockquote';
 export { liftFirstChild, sameContainer } from './container-lift';

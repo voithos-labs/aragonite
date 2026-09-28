@@ -25,6 +25,7 @@ import {
 import { isMergeEligible } from '../schema/merge-rules';
 import { isWholeBlockUnit } from '../schema/whole-block-unit';
 import { collectCrossBlockText } from '../selection/clipboard-text';
+import { coverRange } from '../selection/range-coverage';
 import type { SelectionPoint } from '../selection/primitives';
 import { createSelectionState } from '../selection/selection-state.svelte';
 import { pathsEqual } from '../selection/path-math';
@@ -472,7 +473,7 @@ function copyThroughFunnel(doc: Document, anchor: SelectionPoint, focus: Selecti
 	selection.enterCrossBlock(anchor, focus);
 	const { start, end } = selection;
 	if (!start || !end) fail('the selection funnel refused the cross-block endpoint pair');
-	return collectCrossBlockText(doc, start, end);
+	return collectCrossBlockText(doc, coverRange(doc, start, end));
 }
 
 /** An offset strictly inside the block, so a kind that snaps its endpoints is seen doing it. */

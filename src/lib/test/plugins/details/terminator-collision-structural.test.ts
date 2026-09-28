@@ -4,6 +4,7 @@ import { checkOpaqueStaleRaw } from '$lib/invariants/node-shape';
 import { rebuildDetailsRaw, registerDetailsKind } from '$lib/plugins/details/details-kind';
 import { mergeIntoPrevDeepLeaf, mergeWithNext, splitNode } from '$lib/tree-operations/node-ops';
 import { rangeDelete } from '$lib/selection/range-delete';
+import { coverRange } from '$lib/selection/range-coverage';
 import { createSharingState } from '$lib/tree-operations/sharing';
 import { fixtureReading, fixtureGrammar } from '../../harness/fixture-grammar';
 
@@ -74,8 +75,7 @@ describe('details terminator escape at the cross-block entry points', () => {
 
 		rangeDelete(
 			doc,
-			{ path: [0, 1], offset: 6 },
-			{ path: [0, 2], offset: 2 },
+			coverRange(doc, { path: [0, 1], offset: 6 }, { path: [0, 2], offset: 2 }),
 			createSharingState(),
 			fixtureReading()
 		);
@@ -89,8 +89,7 @@ describe('details terminator escape at the cross-block entry points', () => {
 
 		rangeDelete(
 			doc,
-			{ path: [0, 1], offset: 0 },
-			{ path: [0, 1], offset: 2 },
+			coverRange(doc, { path: [0, 1], offset: 0 }, { path: [0, 1], offset: 2 }),
 			createSharingState(),
 			fixtureReading()
 		);

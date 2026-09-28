@@ -1,8 +1,8 @@
-import { makeBlockNode, type CstNode } from '../core/nodes';
+import { makeBlockNode, metadataOf, type CstNode } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import { readBlocks } from '../core/parser';
 import { concatChildren } from '../core/serializer';
-import { getBlockKindDescriptor } from '../schema/block-kind-descriptor';
+import { countsCells, getBlockKindDescriptor } from '../schema/block-kind-descriptor';
 import { reservedChromeKindOf } from '../schema/reserved-chrome';
 import { listRegisteredOpeners, type GrammarView } from '../schema/block-openers';
 import { isDirectiveKind } from '../core/directive/registry';
@@ -254,4 +254,62 @@ function isPrimitive(value: unknown): boolean {
 	if (value === null) return true;
 	const t = typeof value;
 	return t !== 'object' && t !== 'function';
+}
+
+// ── G1.42: a list item says what its reload reads ─────────────────────────────
+
+/** G1.42: every list item under `node` holds the checkbox a reload of `node`'s own bytes gives it,
+ *  and a to-do the reload's block kinds too. Dev only: it reparses the touched node. */
+export function checkTaskMarkerSlot(
+	node: NodeView,
+	grammar: GrammarView
+): InvariantViolation | null {
+	if (!holdsListItem(node)) return null;
+	const reread = readBlocks(node.raw, { grammar, scope: 'fragment' }).children;
+	const reloaded =
+		node.kind === 'listItem' ? soleItem(reread) : reread.length === 1 ? reread[0] : null;
+	return reloaded ? itemDrift(node, reloaded) : null;
+}
+
+/** The first list item whose checkbox or first block kind differs between the two trees, walked
+ *  together only where they have the same shape (other drift is another check's). */
+function itemDrift(tree: NodeView, reload: NodeView): InvariantViolation | null {
+	if (tree.kind === 'listItem' && reload.kind === 'listItem') {
+		const task = metadataOf(tree, 'listItem')?.taskItem === true;
+		const reloadTask = metadataOf(reload, 'listItem')?.taskItem === true;
+		const blocks = kindsOf(tree);
+		const reloadBlocks = kindsOf(reload);
+		// A to-do's blocks are compared whole; a plain item's block drift is no checkbox question.
+		if (task !== reloadTask || (task && blocks !== reloadBlocks)) {
+			return {
+				code: 'task-marker-slot',
+				message: `a list item holds ${task ? 'a' : 'no'} checkbox before [${blocks}], where its reload reads ${reloadTask ? 'a' : 'no'} checkbox before [${reloadBlocks}]`,
+				detail: { taskItem: task, blocks, reloadTaskItem: reloadTask, reloadBlocks, raw: tree.raw }
+			};
+		}
+	}
+	const children = tree.children ?? [];
+	const reloadChildren = reload.children ?? [];
+	if (countsCells(tree) || children.length !== reloadChildren.length) return null;
+	for (let i = 0; i < children.length; i++) {
+		if (children[i].kind !== reloadChildren[i].kind) continue;
+		const found = itemDrift(children[i], reloadChildren[i]);
+		if (found) return found;
+	}
+	return null;
+}
+
+function kindsOf(node: NodeView): string {
+	return (node.children ?? []).map((child) => child.kind).join(', ');
+}
+
+function holdsListItem(node: NodeView): boolean {
+	if (node.kind === 'listItem') return true;
+	if (countsCells(node)) return false;
+	return (node.children ?? []).some(holdsListItem);
+}
+
+function soleItem(blocks: readonly NodeView[]): NodeView | null {
+	const list = blocks.length === 1 && blocks[0].kind === 'list' ? blocks[0] : null;
+	return list?.children?.length === 1 ? list.children[0] : null;
 }

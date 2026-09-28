@@ -13,6 +13,7 @@ import {
 	__resetLiveJoinSeamCleanerForTests
 } from '../../schema/inline-construct-policy';
 import { rangeDelete } from '../../selection/range-delete';
+import { coverRange } from '../../selection/range-coverage';
 import { createSharingState } from '../../tree-operations/sharing';
 import { registerCalloutForTests } from './chrome-plugins';
 import type { SelectionPoint } from '../../selection/primitives';
@@ -29,7 +30,12 @@ const FIXTURE = 'Above\n\n:::callout Title\nSome **bold** text\n:::\n\nBelow\n';
 
 function run(source: string, start: SelectionPoint, end: SelectionPoint, mode?: PresentationMode) {
 	const doc = parse(source);
-	const result = rangeDelete(doc, start, end, createSharingState(), fixtureReading({}, mode));
+	const result = rangeDelete(
+		doc,
+		coverRange(doc, start, end),
+		createSharingState(),
+		fixtureReading({}, mode)
+	);
 	return { source: serialize(result.newDoc), caret: result.collapsedCaret };
 }
 

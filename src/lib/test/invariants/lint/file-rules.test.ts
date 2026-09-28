@@ -246,6 +246,9 @@ function readsGridLiteral(file: SourceFile): boolean {
 
 // ── The rules ────────────────────────────────────────────────────────────────
 
+/** A file the G4.80 population holds, for its probes. */
+const SELECTION_PROBE = 'src/lib/selection/probe.ts';
+
 const RULES: FileRule[] = [
 	{
 		id: 'G4.4 no timing hacks for sequencing',
@@ -894,6 +897,43 @@ const RULES: FileRule[] = [
 			at('src/lib/components/X.svelte', "<p>when contract === 'grid' the rows lay out</p>"),
 			at('src/lib/components/X.svelte', '<div role="grid" style:display="grid">x</div>')
 		]
+	},
+	{
+		id: 'G4.80 in selection/ only the range coverage and the caret walks ask if a container is closed',
+		population: under('src/lib/selection/'),
+		matches: /(?<![\w.])(?:isCollapsedContainer|collapsedContainerHiding)\s*\(/,
+		allowed: {
+			'src/lib/selection/range-coverage.ts':
+				'decides once which closed containers a range takes whole, for every reader of the range',
+			'src/lib/selection/path-lookup.ts':
+				'the caret walks step over a closed container’s hidden body; they place a caret and read no range',
+			'src/lib/selection/caret-target.ts':
+				'where a caret lands skips a hidden body unless the caller opens it; it reads no range'
+		},
+		reason:
+			'a reader of a range asks `coverRange` what the range covers; one that asks a closed container itself can disagree with the delete and the copy',
+		hits: [
+			at(SELECTION_PROBE, 'if (isCollapsedContainer(node)) return removeWhole(doc, path);'),
+			at(SELECTION_PROBE, 'const hidden = collapsedContainerHiding(doc, end.path);')
+		],
+		misses: [
+			at(SELECTION_PROBE, "import { isCollapsedContainer } from '../schema/reserved-chrome';"),
+			at(SELECTION_PROBE, 'const unit = range.unitHolding(start.path);')
+		]
+	},
+	{
+		id: 'G4.81 the cross-block row snap runs in the range coverage and the stored pair only',
+		matches: /(?<![\w.])snapCrossBlockTableEndpoints\s*\(/,
+		allowed: {
+			'src/lib/selection/table-endpoint-snap.ts': 'defines it',
+			'src/lib/selection/range-coverage.ts': 'snaps once for every reader of a range',
+			'src/lib/selection/selection-state.svelte.ts':
+				'the stored `start` and `end`, which the collapse keys, the undo seed and the extension paths read, and the format toggle until it reads the coverage'
+		},
+		reason:
+			'the delete, the copy and the overlay read the snapped pair from `coverRange`; a second snap is a second answer to what the range covers',
+		hits: ['const { start, end } = snapCrossBlockTableEndpoints(doc, a, b);'],
+		misses: ["import { snapCrossBlockTableEndpoints } from './table-endpoint-snap';"]
 	}
 ];
 

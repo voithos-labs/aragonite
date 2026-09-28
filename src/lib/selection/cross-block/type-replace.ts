@@ -13,6 +13,7 @@ import { charOffsetOf } from '../primitives';
 import { blockCoveredWhole } from '../covered-block';
 import { CURSOR_END } from '../../block-component';
 import { parseReplacement } from '../../tree-operations/paste/replacement-parse';
+import { slotReaderAt } from '../../tree-operations/list/task-paragraph';
 import { blockNodeAt } from '../../tree-operations/node-primitives';
 import { focusCollapsedCaret } from '../native-bridge';
 import { caretTargetFor } from '../caret-target';
@@ -87,7 +88,8 @@ async function replaceCoveredBlockWithText(
 	const doc = ctx.getDoc();
 	const covered = blockNodeAt(doc, blockPath);
 	if (!covered) return;
-	const parsed = parseReplacement(covered, typed, documentLineEnding(doc), ctx.reading.grammar);
+	const read = slotReaderAt(doc, blockPath, ctx.reading.grammar);
+	const parsed = parseReplacement(covered, typed, documentLineEnding(doc), read);
 	if (!parsed) return;
 
 	// Opened before the collapse, so the entry holds the range rather than the caret it leaves.

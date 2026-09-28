@@ -11,6 +11,7 @@ import { renumberOrderedListFrom } from './ordered-markers';
 import { assignIds } from '../../block-id';
 import { readBlocks } from '../../core/parser';
 import { emptyParagraph } from '../node-primitives';
+import { fragmentReaderAt, type FragmentReader } from './task-paragraph';
 import type { GrammarView } from '../../schema/block-openers';
 
 // ── List / item construction ─────────────────────────────────────────────────
@@ -103,24 +104,24 @@ export function buildListShell(ordered: boolean, children: CstNode[]): CstNode {
 // ── Paste split ──────────────────────────────────────────────────────────────
 
 /**
- * Split a leaf's raw at `offset` for a paste, trimming one leading space or tab off the trailing
- * half so the new marker's space isn't doubled. `raw` overrides the leaf's bytes after a delete.
+ * Split a leaf's raw at `offset` for a paste, each half read as its landing slot reads it, the
+ * trailing half losing one leading space or tab so the new marker's space isn't doubled.
  */
 export function splitLeafForPaste(
 	leaf: CstNode,
 	offset: number,
 	ending: LineEnding,
 	raw: string = leaf.raw,
-	grammar: GrammarView
+	read: { leading: FragmentReader; trailing: FragmentReader }
 ): { leadingNode: CstNode | null; trailingNodes: CstNode[]; lineEnding: LineEnding } {
 	const lineEnding = trailingLineEnding(raw, ending);
 	const { head: leadingText, rest } = cutKeepingStructure({ ...leaf, raw }, offset);
 	const trailingText = rest.replace(/^[ \t]/, '');
 
 	const leadingNode =
-		leadingText.length > 0 ? parseFirstBlock(leadingText + lineEnding, grammar) : null;
+		leadingText.length > 0 ? parseFirstBlock(leadingText + lineEnding, read.leading) : null;
 	// The line the cut ended is dropped: the trailing item's marker starts a line of its own.
-	const trailingNodes = parseCutResidue(trailingText, lineEnding, grammar).blocks;
+	const trailingNodes = parseCutResidue(trailingText, lineEnding, read.trailing).blocks;
 
 	return { leadingNode, trailingNodes, lineEnding };
 }
@@ -141,12 +142,17 @@ export function buildSplitItems(
 	const targetLeaf = item.children[innerIndex];
 	if (!targetLeaf) return { leadingItem: null, trailingItem: null };
 
+	// Both halves keep the item's marker, so the leading one stays at `innerIndex` under it and
+	// the trailing one opens its own copy of the item.
 	const { leadingNode, trailingNodes, lineEnding } = splitLeafForPaste(
 		targetLeaf,
 		offset,
 		ending,
 		targetRaw ?? targetLeaf.raw,
-		grammar
+		{
+			leading: fragmentReaderAt(item, innerIndex, grammar),
+			trailing: fragmentReaderAt(item, 0, grammar)
+		}
 	);
 
 	const leadingChildren: CstNode[] = item.children.slice(0, innerIndex).map(cloneNode);

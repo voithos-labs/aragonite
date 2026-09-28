@@ -1,15 +1,16 @@
-import { describe, it, expect } from 'vitest';
-import {
-	blockPaintsWholeBox,
-	classifyBlockForSelection,
-	type EditorSelection
-} from '../../selection/primitives';
+import { describe, it, expect, beforeEach } from 'vitest';
+import { parse } from '../../core/parser';
+import { registerChromePluginsForTests } from './chrome-plugins';
+import { blockPaintsWholeBox, classifyBlockForSelection } from '../../selection/primitives';
+import { coverRange, type CoveredRange } from '../../selection/range-coverage';
 
+/** The pair as the overlay reads it; over an empty document no path resolves, so no container is
+ *  taken whole and the rows below read the path arithmetic alone. */
 function sel(
 	anchor: { path: number[]; offset: number },
 	focus: { path: number[]; offset: number }
-): EditorSelection {
-	return { anchor, focus };
+): CoveredRange {
+	return coverRange(parse(''), anchor, focus);
 }
 
 describe('classifyBlockForSelection', () => {
@@ -89,5 +90,31 @@ describe('blockPaintsWholeBox', () => {
 		expect(blockPaintsWholeBox([1, 0], s, [1])).toBe(false);
 		expect(blockPaintsWholeBox([2], s, [1])).toBe(false);
 		expect(blockPaintsWholeBox([1], s, null)).toBe(false);
+	});
+});
+
+// Miss-analysis: the overlay rows all used ranges over open blocks, so none asked how a closed
+// details the range takes whole is painted.
+describe('a closed details the range takes whole', () => {
+	beforeEach(registerChromePluginsForTests);
+
+	// [0] above, [1] the details ([1,0] its title row, [1,1] its hidden body), [2] below.
+	const doc = () =>
+		parse('above\n\n<details>\n<summary>Sum</summary>\n\nHidden\n\n</details>\n\nbelow\n');
+
+	it.each([
+		['ending on its title row', { path: [0], offset: 2 }, { path: [1, 0], offset: 2 }],
+		['starting on its title row', { path: [1, 0], offset: 1 }, { path: [2], offset: 2 }]
+	])('%s paints one box, and its title row paints no endpoint', (_, anchor, focus) => {
+		const range = coverRange(doc(), anchor, focus);
+		expect(blockPaintsWholeBox([1], range, null)).toBe(true);
+		expect(classifyBlockForSelection([1], range)).toBe('middle');
+		for (const inside of [
+			[1, 0],
+			[1, 1]
+		]) {
+			expect(blockPaintsWholeBox(inside, range, null)).toBe(false);
+			expect(classifyBlockForSelection(inside, range)).toBe('outside');
+		}
 	});
 });

@@ -6,6 +6,7 @@ import { resolveSelectionPoint, restoreSelection } from '../../selection/selecti
 import { createCaretMemory } from '../../cursor/caret-memory';
 import { parse } from '../../core/parser';
 import { collectCrossBlockText } from '../../selection/clipboard-text';
+import { coverRange } from '../../selection/range-coverage';
 
 // A 2-column table with a header and two body rows: cell indices 0..5.
 const TABLE = '| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n\npara\n';
@@ -44,7 +45,8 @@ describe('an endpoint on a table path is stored as a cell index', () => {
 		const { state } = tableState();
 		state.enterCrossBlock({ path: [0], wholeBlock: true }, { path: [0], wholeBlock: true });
 		expect([state.anchor, state.focus, state.wholeUnitPath]).toEqual([cell(0), cell(5), [0]]);
-		expect(collectCrossBlockText(parse(TABLE), state.anchor!, state.focus!)).toBe(
+		const doc = parse(TABLE);
+		expect(collectCrossBlockText(doc, coverRange(doc, state.anchor!, state.focus!))).toBe(
 			'| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n'
 		);
 	});

@@ -3,6 +3,7 @@ import { parse } from '../../core/parser';
 import { getPluginMetadata, type AnyBlockKind, type CstNode } from '../../core/nodes';
 import { trimTrailingLineEnding } from '../../core/lines';
 import { collectCrossBlockText } from '../../selection/clipboard-text';
+import { coverRange } from '../../selection/range-coverage';
 import { augmentBlockKind } from '../../schema/block-kind-descriptor';
 import { rebuildBlockquoteRaw } from '../../schema/container-rebuilders';
 import { CALLOUT, rebuildCalloutRaw } from '../../../routes/test/plugins/callout/callout-kind';
@@ -24,7 +25,7 @@ describe('cross-block copy starting in reserved chrome', () => {
 
 	it('re-emits the truncated title as the opener and closes past the container', () => {
 		const doc = parse(':::callout Title\n\nBody1\n\nBody2\n\n:::\n\nBelow\n');
-		const text = collectCrossBlockText(doc, point([0, 0], 2), point([1], 3));
+		const text = collectCrossBlockText(doc, coverRange(doc, point([0, 0], 2), point([1], 3)));
 
 		expect(text).toBe(':::callout tle\n\nBody1\n\nBody2\n\n:::\n\nBel');
 		const reparsed = parse(text);
@@ -35,7 +36,7 @@ describe('cross-block copy starting in reserved chrome', () => {
 
 	it('closes the container at a body endpoint when the selection never leaves it', () => {
 		const doc = parse(':::callout Title\n\nBody1\n\nBody2\n\n:::\n\nBelow\n');
-		const text = collectCrossBlockText(doc, point([0, 0], 2), point([0, 2], 3));
+		const text = collectCrossBlockText(doc, coverRange(doc, point([0, 0], 2), point([0, 2], 3)));
 
 		const reparsed = parse(text);
 		expect(reparsed.children.map((c) => c.kind)).toEqual(['callout']);
@@ -44,7 +45,7 @@ describe('cross-block copy starting in reserved chrome', () => {
 
 	it('keeps a body-less container from gaining a body', () => {
 		const doc = parse(':::callout Title\n:::\n\nBelow\n');
-		const text = collectCrossBlockText(doc, point([0, 0], 2), point([1], 3));
+		const text = collectCrossBlockText(doc, coverRange(doc, point([0, 0], 2), point([1], 3)));
 
 		expect(text).toBe(':::callout tle\n:::\n\nBel');
 		expect(parse(text).children[0].children!.map((c) => c.kind)).toEqual(['callout-title']);
@@ -54,7 +55,7 @@ describe('cross-block copy starting in reserved chrome', () => {
 	// CRLF-authored callout must not emit an LF closer (G4.20).
 	it('rebuilds a CRLF-authored container CRLF-safe', () => {
 		const doc = parse(':::callout Title\r\n\r\nBody\r\n\r\n:::\r\n\r\nBelow\r\n');
-		const text = collectCrossBlockText(doc, point([0, 0], 2), point([1], 3));
+		const text = collectCrossBlockText(doc, coverRange(doc, point([0, 0], 2), point([1], 3)));
 
 		expect(text).toBe(':::callout tle\r\n\r\nBody\r\n\r\n:::\r\n\r\nBel');
 		const reparsed = parse(text);
@@ -66,7 +67,7 @@ describe('cross-block copy starting in reserved chrome', () => {
 		const doc = parse(
 			'<details open>\n<summary>Summary</summary>\n\nBody\n\n</details>\n\nBelow\n'
 		);
-		const text = collectCrossBlockText(doc, point([0, 0], 3), point([1], 3));
+		const text = collectCrossBlockText(doc, coverRange(doc, point([0, 0], 3), point([1], 3)));
 
 		const details = parse(text).children[0];
 		expect(details.kind).toBe('details');
@@ -77,7 +78,7 @@ describe('cross-block copy starting in reserved chrome', () => {
 
 	it('carries a table through the container body untouched', () => {
 		const doc = parse(':::callout Title\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n\n:::\n\nBelow\n');
-		const text = collectCrossBlockText(doc, point([0, 0], 2), point([1], 3));
+		const text = collectCrossBlockText(doc, coverRange(doc, point([0, 0], 2), point([1], 3)));
 
 		const note = parse(text).children[0];
 		expect(note.children!.map((c) => c.kind)).toEqual(['callout-title', 'table']);
@@ -92,7 +93,7 @@ describe('cross-block copy starting in reserved chrome', () => {
 		// close the outer at the inner container's closer line and strand O2.
 		it('closes the outer at its own fence width, not a constant', () => {
 			const doc = parse(nested);
-			const text = collectCrossBlockText(doc, point([0, 0], 2), point([1], 3));
+			const text = collectCrossBlockText(doc, coverRange(doc, point([0, 0], 2), point([1], 3)));
 
 			expect(text.startsWith('::::callout ter\n')).toBe(true);
 			const outer = parse(text).children[0];
@@ -110,7 +111,10 @@ describe('cross-block copy starting in reserved chrome', () => {
 		// yields a complete inner container, so both closers land in order.
 		it('nests a chrome-only end container inside the opened outer', () => {
 			const doc = parse(nested);
-			const text = collectCrossBlockText(doc, point([0, 0], 2), point([0, 2, 0], 3));
+			const text = collectCrossBlockText(
+				doc,
+				coverRange(doc, point([0, 0], 2), point([0, 2, 0], 3))
+			);
 
 			const outer = parse(text).children[0];
 			expect(outer.children!.map((c) => c.kind)).toEqual(['callout-title', 'paragraph', 'callout']);
@@ -122,7 +126,7 @@ describe('cross-block copy starting in reserved chrome', () => {
 		// opened may close, or a closer for the unopened outer leaves a bare "::::" line.
 		it('closes only the container the start opened', () => {
 			const doc = parse(nested);
-			const text = collectCrossBlockText(doc, point([0, 2, 0], 2), point([1], 3));
+			const text = collectCrossBlockText(doc, coverRange(doc, point([0, 2, 0], 2), point([1], 3)));
 
 			expect(text).toBe(':::callout ner\n\nI1\n\n:::\n\nO2\n\nBel');
 			const reparsed = parse(text);
@@ -139,7 +143,10 @@ describe('cross-block copy starting in reserved chrome', () => {
 		// the walk, so its bytes flatten to text. The outer wrapper still survives.
 		it('keeps the outer kind when the end lands in a nested body', () => {
 			const doc = parse(nested);
-			const text = collectCrossBlockText(doc, point([0, 0], 2), point([0, 2, 1], 1));
+			const text = collectCrossBlockText(
+				doc,
+				coverRange(doc, point([0, 0], 2), point([0, 2, 1], 1))
+			);
 
 			const outer = parse(text).children[0];
 			expect(outer.kind).toBe('callout');
@@ -155,7 +162,7 @@ describe('cross-block copy starting in reserved chrome', () => {
 		doc.children[0].children![1].raw = '::::\n';
 		rebuildCalloutRaw(doc.children[0]);
 
-		const text = collectCrossBlockText(doc, point([0, 0], 2), point([1], 3));
+		const text = collectCrossBlockText(doc, coverRange(doc, point([0, 0], 2), point([1], 3)));
 
 		expect(text.startsWith(':::::callout tle\n')).toBe(true);
 		const reparsed = parse(text);
@@ -169,11 +176,14 @@ describe('cross-block copy starting in reserved chrome', () => {
 		const doc = parse(
 			':::callout Title\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n\n:::\n\nBelow\n'
 		);
-		const text = collectCrossBlockText(doc, point([0, 0], 2), {
-			path: [0, 1],
-			offset: 2,
-			cellCoordinate: true
-		});
+		const text = collectCrossBlockText(
+			doc,
+			coverRange(doc, point([0, 0], 2), {
+				path: [0, 1],
+				offset: 2,
+				cellCoordinate: true
+			})
+		);
 
 		const note = parse(text).children[0];
 		expect(note.kind).toBe('callout');
@@ -191,7 +201,11 @@ describe('cross-block copy starting in reserved chrome', () => {
 		});
 
 		// An unchecked end branch would emit "ove\n> Tit", a blockquote wrapper on a note.
-		expect(collectCrossBlockText(doc, point([0], 2), point([1, 0], 3))).toBe('ove\nTit');
-		expect(collectCrossBlockText(doc, point([1, 0], 2), point([2], 3))).toBe('tle\nBody\n\nBel');
+		expect(collectCrossBlockText(doc, coverRange(doc, point([0], 2), point([1, 0], 3)))).toBe(
+			'ove\nTit'
+		);
+		expect(collectCrossBlockText(doc, coverRange(doc, point([1, 0], 2), point([2], 3)))).toBe(
+			'tle\nBody\n\nBel'
+		);
 	});
 });

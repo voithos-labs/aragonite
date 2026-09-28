@@ -1,5 +1,6 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { rangeDelete } from '../../selection/range-delete';
+import { coverRange } from '../../selection/range-coverage';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import { createSharingState } from '../../tree-operations/sharing';
@@ -25,7 +26,12 @@ afterEach(() =>
 const TWO_COL_TWO_ROW = '| a | b |\n| --- | --- |\n| 1 | 2 |\n';
 
 function run(doc: Document, start: SelectionPoint, end: SelectionPoint) {
-	const result = rangeDelete(doc, start, end, createSharingState(), fixtureReading());
+	const result = rangeDelete(
+		doc,
+		coverRange(doc, start, end),
+		createSharingState(),
+		fixtureReading()
+	);
 	return { doc: result.newDoc, source: serialize(result.newDoc), caret: result.collapsedCaret };
 }
 

@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { rangeDelete } from '$lib/selection/range-delete';
+import { coverRange } from '$lib/selection/range-coverage';
 import { createSharingState } from '$lib/tree-operations/sharing';
 import { registerCalloutForTests } from './chrome-plugins';
 import { expectParseConverged } from '../harness/parse-converged';
@@ -18,7 +19,7 @@ const TABLE = '| h1 | h2 |\n| --- | --- |\n| a | b |\n';
 
 function del(source: string, start: SelectionPoint, end: SelectionPoint): Document {
 	const doc = parse(source);
-	rangeDelete(doc, start, end, createSharingState(), fixtureReading());
+	rangeDelete(doc, coverRange(doc, start, end), createSharingState(), fixtureReading());
 	return doc;
 }
 
@@ -38,7 +39,7 @@ describe('a deleted blank middle hands its line to the block below', () => {
 		const doc = del(
 			`alpha\n\n\n${TABLE}`,
 			{ path: [0], offset: 3 },
-			{ path: [2], offset: 2, cellCoordinate: true }
+			{ path: [2], offset: 1, cellCoordinate: true }
 		);
 
 		expect(doc.children[1].leadingTrivia).toBe('\n');

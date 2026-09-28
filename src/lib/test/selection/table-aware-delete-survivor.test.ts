@@ -6,6 +6,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import { tableAwareRangeDelete } from '../../selection/range-delete-table';
+import { coverRange } from '../../selection/range-coverage';
 import { createSharingState } from '../../tree-operations/sharing';
 import { blockNodeAt } from '../../tree-operations/node-primitives';
 import { registerDetailsKind } from '../../plugins/details/details-kind';
@@ -29,8 +30,7 @@ function deleteBothTables(source: string, firstTableIndex: number) {
 	const doc = parse(source);
 	return tableAwareRangeDelete(
 		doc,
-		cell([firstTableIndex], 0),
-		cell([firstTableIndex + 1], 3),
+		coverRange(doc, cell([firstTableIndex], 0), cell([firstTableIndex + 1], 3)),
 		createSharingState(),
 		fixtureReading()
 	);

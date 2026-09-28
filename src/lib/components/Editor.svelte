@@ -40,6 +40,7 @@
 	import { refSlotsOver, replaceRefs } from '../reactivity/publish-ref.svelte';
 	import { componentAt, type ChildList } from '../reactivity/child-list';
 	import { createSelectionState } from '../selection/selection-state.svelte';
+	import { coverRange } from '../selection/range-coverage';
 	import { createSelectionDescription } from '../selection/selection-description';
 	import { EDITOR_LABEL } from '../a11y-strings';
 	import TailInsert from './TailInsert.svelte';
@@ -280,6 +281,12 @@
 			else selectionAnnouncer.announce();
 		},
 		getDoc: () => doc
+	});
+	// With no live range this reads no document bytes, so a keystroke at a caret costs nothing here.
+	const coveredRange = $derived.by(() => {
+		const { anchor, focus } = selectionState;
+		if (!selectionState.isCustomRendered || !anchor || !focus) return null;
+		return coverRange(doc, anchor, focus);
 	});
 	const widgetSelection = createWidgetSelectionState({
 		onSelect: () => {
@@ -755,6 +762,7 @@
 		events,
 		decorations: decorationEngine,
 		selection: selectionState,
+		coveredRange: () => coveredRange,
 		search: searchState,
 		caretMemory,
 		autoPairs,

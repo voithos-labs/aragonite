@@ -31,8 +31,7 @@ import {
 	dropDoubledSeparator,
 	emptyParagraph,
 	paragraphNode,
-	reconcileTaskMetadata,
-	taskMarkerMayStandBefore
+	writeKeepingTaskMarker
 } from '../tree-operations';
 import {
 	replacePreservingFirst,
@@ -496,21 +495,20 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 						return { op: 'delete', at: i, count: 1 };
 					}
 					const old = view.body.children[i];
-					// Read before the splice, for the task-marker rule below.
-					const stood = taskMarkerMayStandBefore(old);
 					const normalized = normalizeReplacementTrivia(old, replacement);
 					for (const node of normalized) ensureEditableContainers(node, view.body.lineEnding);
-					spliceMany(view.body.children, i, 1, normalized);
-					// The first id carries over only to a block of the same kind, whose component the
-					// position keeps; another kind mounts a component of its own anyway.
-					const change: StructuralChange =
-						normalized[0].kind === old.kind
-							? replacePreservingFirst(i, 1, normalized.length)
-							: { op: 'replace', at: i, count: 1, newCount: normalized.length };
-					stampStructuralChange(view.body.children, change, view.sharing);
-					// A new block in a list item's first position takes the task marker with the
-					// paragraph that carried it; every replace reconciles it here.
-					if (view.body.owner) reconcileTaskMetadata(view.body.owner, i, stood, view.sharing);
+					const { children, owner } = view.body;
+					const change = writeKeepingTaskMarker(owner, children, i, view.sharing, () => {
+						spliceMany(children, i, 1, normalized);
+						// The first id carries over only to a block of the same kind, whose component
+						// the position keeps; another kind mounts a component of its own anyway.
+						const replaced: StructuralChange =
+							normalized[0].kind === old.kind
+								? replacePreservingFirst(i, 1, normalized.length)
+								: { op: 'replace', at: i, count: 1, newCount: normalized.length };
+						stampStructuralChange(children, replaced, view.sharing);
+						return replaced;
+					});
 					if (options?.trailingBlank) {
 						landTrailingBlank(
 							view.body,

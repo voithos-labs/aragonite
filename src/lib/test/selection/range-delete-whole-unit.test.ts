@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { rangeDelete } from '$lib/selection/range-delete';
+import { coverRange } from '$lib/selection/range-coverage';
 import { createSharingState } from '$lib/tree-operations/sharing';
 import { expectParseConverged } from '../harness/parse-converged';
 import type { Document } from '$lib/core/nodes';
@@ -15,7 +16,12 @@ import { fixtureReading } from '../harness/fixture-grammar';
 
 function del(source: string, start: SelectionPoint, end: SelectionPoint) {
 	const doc: Document = parse(source);
-	const result = rangeDelete(doc, start, end, createSharingState(), fixtureReading());
+	const result = rangeDelete(
+		doc,
+		coverRange(doc, start, end),
+		createSharingState(),
+		fixtureReading()
+	);
 	return { doc, caret: result.collapsedCaret };
 }
 

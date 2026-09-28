@@ -1,6 +1,7 @@
 import { describe, it } from 'vitest';
 import fc from 'fast-check';
 import { classifyBlockForSelection, normalize, walkBetween } from '../../selection/primitives';
+import { coverRange } from '../../selection/range-coverage';
 import { comparePaths, pathsEqual } from '../../selection/path-math';
 import { allBlockPaths, arbDocWithSelection, freshOrFixedSeed } from './arbitraries';
 
@@ -14,12 +15,13 @@ describe('G2.7 selection partition', () => {
 	it('classifyBlockForSelection agrees with walkBetween across the whole doc', () => {
 		fc.assert(
 			fc.property(arbDocWithSelection, ({ doc, selection }) => {
-				const { start, end } = normalize(selection);
+				const range = coverRange(doc, selection.anchor, selection.focus);
+				const { start, end } = range;
 				const between = walkBetween(doc, start.path, end.path);
 				const betweenKey = new Set(between.map((p) => p.join(',')));
 
 				for (const path of allBlockPaths(doc)) {
-					const cls = classifyBlockForSelection(path, selection);
+					const cls = classifyBlockForSelection(path, range);
 					if (pathsEqual(path, start.path)) {
 						if (cls !== 'start') throw new Error(`start path classified ${cls}`);
 					} else if (pathsEqual(path, end.path)) {
