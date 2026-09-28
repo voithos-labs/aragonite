@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest';
 import { createContainerBlockComponent } from '$lib/editor-actions/container-block-component';
-import { CURSOR_END, FOCUS_LAST_START, type BlockComponent } from '$lib/block-component';
+import { CURSOR_END, type BlockComponent } from '$lib/block-component';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import type { AnyBlockKind, CstNode } from '$lib/core/nodes';
 import { makeShimChildList, makeShimDeps } from '$lib/test/harness/editor-actions';
@@ -56,12 +56,6 @@ describe('createContainerBlockComponent', () => {
 		expect(refs[0].focus).toHaveBeenCalledWith(0);
 	});
 
-	it('focus(FOCUS_LAST_START) cascades to the last child', () => {
-		const refs = [makeRef(), makeRef()];
-		container(refs).focus(FOCUS_LAST_START);
-		expect(refs[1].focus).toHaveBeenCalledWith(FOCUS_LAST_START);
-	});
-
 	it('focus(<other offset>) targets the last child with CURSOR_END', () => {
 		const refs = [makeRef(), makeRef()];
 		container(refs).focus(3);
@@ -79,13 +73,6 @@ describe('createContainerBlockComponent', () => {
 			makeShimDeps(refs, { childList: makeShimChildList(refs, { isCollapsed: () => true }) })
 		);
 	}
-
-	it('collapsed: focus(FOCUS_LAST_START) clamps to child 0, not the last child', () => {
-		const refs = [makeRef(), makeRef()];
-		collapsedContainer(refs).focus(FOCUS_LAST_START);
-		expect(refs[0].focus).toHaveBeenCalledWith(FOCUS_LAST_START);
-		expect(refs[1].focus).not.toHaveBeenCalled();
-	});
 
 	it('collapsed: focus(<other offset>) clamps CURSOR_END to child 0', () => {
 		const refs = [makeRef(), makeRef()];

@@ -10,7 +10,7 @@ import { documentLineEnding } from '../core/lines';
 import type { StructuralChange } from '../tree-operations/structural-change';
 import { followsTaskMarker } from '../tree-operations/list/task-paragraph';
 import { readBlockPath } from '../selection/path-lookup';
-import type { CommitScope } from './block-edit-scope';
+import type { CaretPosition } from '../selection/primitives';
 import type { Relanding } from '../action-contracts';
 
 // ── Trial reparse ────────────────────────────────────────────────────────────
@@ -56,14 +56,10 @@ export function previewContentReparse(
 
 // ── Putting the caret back ───────────────────────────────────────────────────
 
-/** Land `relanding`'s caret through `scope`, unless focus already left the blocks it wrote. */
-export async function landUnlessFocusMoved(
-	scope: CommitScope,
-	relanding: Relanding
-): Promise<void> {
+/** `relanding`'s caret, or null when focus already left the blocks the write wrote. */
+export function unlessFocusMoved(relanding: Relanding): CaretPosition | null {
 	const { list, at, count } = relanding.window;
-	if (focusMovedOutsideReplacement(list, at, count)) return;
-	await scope.land(relanding.caret);
+	return focusMovedOutsideReplacement(list, at, count) ? null : relanding.caret;
 }
 
 /** Whether focus has left the written blocks, as after a blur commit, where putting the caret

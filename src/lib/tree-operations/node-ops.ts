@@ -39,7 +39,6 @@ import { ensureUnsharedPath } from './unshare';
 import { replacePreservingFirst, type StructuralChange } from './structural-change';
 import { assertInvariant } from '../assert';
 import { checkSingleNodeSink } from '../invariants/single-node-sink';
-import { checkSplitLanding } from '../invariants/split-landing';
 import {
 	NEXT_PROSE_LINE,
 	ensureEditableContainers,
@@ -62,14 +61,6 @@ import { fragmentReaderAt, type FragmentReader } from './list/task-paragraph';
 export interface SplitResult {
 	change: StructuralChange;
 	secondHalfIndex: number;
-}
-
-/**
- * A caller must land the caret on the index the split reported; one that re-derives
- * `blockIndex + 1` itself warns here instead of going wrong quietly (G1.34).
- */
-export function assertSplitLanding(split: SplitResult, landing: number): void {
-	assertInvariant('split-landing', () => checkSplitLanding(split.secondHalfIndex, landing));
 }
 
 /**

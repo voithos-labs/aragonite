@@ -30,6 +30,7 @@ export type SharedSurfaceDeps = Pick<
 	| 'getDoc'
 	| 'getBlockElByPath'
 	| 'focusActions'
+	| 'caretLanding'
 	| 'getEditorRoot'
 	| 'getScrollHost'
 	| 'getEditorLifetime'
@@ -60,6 +61,7 @@ export function wireSurfaceContexts(): SurfaceWiring {
 	const history = getContext<HistoryActions>(HISTORY_KEY);
 	const {
 		controller,
+		caretLanding,
 		pasteCoordinator,
 		caretMemory,
 		selection,
@@ -82,6 +84,7 @@ export function wireSurfaceContexts(): SurfaceWiring {
 		getDoc,
 		getBlockElByPath,
 		focusActions,
+		caretLanding,
 		getEditorRoot,
 		getScrollHost,
 		getEditorLifetime: () => editorLifetime ?? null,

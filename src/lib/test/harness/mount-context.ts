@@ -89,6 +89,7 @@ function stubbedServices(getDoc: () => DocumentView): EditorServices {
 			flushDebouncedCheckpoint: () => {},
 			isolateUndoEntry: (write: () => void) => write()
 		} as EditorServices['controller'],
+		caretLanding: {} as EditorServices['caretLanding'],
 		pasteCoordinator: {} as EditorServices['pasteCoordinator'],
 		reorder: {} as EditorServices['reorder'],
 		registryView: defaultRegistryView,

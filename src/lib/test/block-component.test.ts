@@ -3,7 +3,6 @@ import {
 	CURSOR_END,
 	CURSOR_EXACT_START,
 	CURSOR_START,
-	FOCUS_LAST_START,
 	SELECTION_END,
 	entryEdge
 } from '../block-component';
@@ -28,7 +27,6 @@ describe('entryEdge', () => {
 		['0', 0, 'first', 0, false],
 		['CURSOR_START', CURSOR_START, 'first', CURSOR_START, false],
 		['CURSOR_EXACT_START', CURSOR_EXACT_START, 'first', CURSOR_EXACT_START, false],
-		['FOCUS_LAST_START', FOCUS_LAST_START, 'last', FOCUS_LAST_START, false],
 		['CURSOR_END', CURSOR_END, 'last', CURSOR_END, false],
 		['a byte offset', 7, 'last', CURSOR_END, true]
 	];

@@ -7,12 +7,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import fc from 'fast-check';
 import { parse } from '../../core/parser';
 import type { CstNode, Document } from '../../core/nodes';
-import {
-	CURSOR_END,
-	CURSOR_EXACT_START,
-	CURSOR_START,
-	FOCUS_LAST_START
-} from '../../block-component';
+import { CURSOR_END, CURSOR_EXACT_START, CURSOR_START } from '../../block-component';
 import { displayLength } from '../../core/lines';
 import { docPathFrom } from '../../cursor/coordinate-spaces';
 import { isBlockNode, nodeAt } from '../../tree-operations/node-primitives';
@@ -282,14 +277,7 @@ describe('caret-reachable order', () => {
 			fc.property(arbDoc, (d) => {
 				const doc = parse(sourceOf(d));
 				for (const path of allPaths(doc)) {
-					for (const offset of [
-						0,
-						CURSOR_START,
-						CURSOR_EXACT_START,
-						CURSOR_END,
-						FOCUS_LAST_START,
-						3
-					]) {
+					for (const offset of [0, CURSOR_START, CURSOR_EXACT_START, CURSOR_END, 3]) {
 						const t = caretTargetFor(doc, { path: docPathFrom(path), offset });
 						expect(caretLanding(doc, t && [...t.leafPath]), `${path}@${offset}`).toBe(true);
 					}

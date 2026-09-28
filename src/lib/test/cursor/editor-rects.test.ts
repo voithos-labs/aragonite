@@ -5,7 +5,7 @@
 // the subject.
 
 import { describe, it, expect, vi } from 'vitest';
-import { createEditorRects } from '../../editor-rects';
+import { createEditorRects, createScrollSettle } from '../../editor-rects';
 import { createRevealAnchorState, type RevealAnchorState } from '../../cursor/reveal-anchor';
 
 /** `unmountedPath` resolves to no element while every other path resolves to `el`: the shape
@@ -26,19 +26,25 @@ function makeRects(el: HTMLElement | null, unmountedPath?: number[]) {
 		releaseAll: real.releaseAll
 	};
 	const landCaretAt = vi.fn(async (_path: number[], _offset: number) => true);
+	const getBlockElByPath = (path: number[]) =>
+		unmountedPath && JSON.stringify(path) === JSON.stringify(unmountedPath) ? null : el;
+	const getEditorRoot = () => null;
 	const rects = createEditorRects({
-		getBlockElByPath: (path) =>
-			unmountedPath && JSON.stringify(path) === JSON.stringify(unmountedPath) ? null : el,
+		getBlockElByPath,
 		getBlockComponent: () => null,
 		revealPath: async () => {
 			order.push('reveal');
 		},
-		getEditorRoot: () => null,
-		isHostScroll: () => false,
-		getClipBounds: () => [],
+		getEditorRoot,
+		scroll: createScrollSettle({
+			getBlockElByPath,
+			getEditorRoot,
+			isHostScroll: () => false,
+			getClipBounds: () => [],
+			revealAnchor
+		}),
 		isCrossBlock: () => false,
 		isHostChrome: () => false,
-		revealAnchor,
 		landCaretAt
 	});
 	return { rects, order, scrollIntoView, revealAnchor, landCaretAt };
@@ -91,11 +97,15 @@ function makeSettlingRects(scripts: Record<string, number[]>) {
 		getBlockComponent: () => null,
 		revealPath: async () => {},
 		getEditorRoot: () => root,
-		isHostScroll: () => false,
-		getClipBounds: () => [],
+		scroll: createScrollSettle({
+			getBlockElByPath: elFor,
+			getEditorRoot: () => root,
+			isHostScroll: () => false,
+			getClipBounds: () => [],
+			revealAnchor
+		}),
 		isCrossBlock: () => false,
 		isHostChrome: () => false,
-		revealAnchor,
 		landCaretAt: async () => true
 	});
 	return harness;

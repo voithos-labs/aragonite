@@ -1,4 +1,4 @@
-import { beforeEach, describe, it, expect } from 'vitest';
+import { beforeEach, describe, it, expect, vi } from 'vitest';
 import { planEnterCompletion, withEnterCompletion } from '$lib/editor-actions/enter-completion';
 import { createBlockEditCore } from '$lib/editor-actions/block-edit-core';
 import type { CommitScope } from '$lib/editor-actions/block-edit-scope';
@@ -20,15 +20,6 @@ import { defaultGrammarView } from '$lib/schema/block-openers';
 // The split command's completion step: which Enters reach a completer at all, and what the
 // commit it routes to writes. The registry's own semantics live in test/schema, the table
 // completer's line predicate in test/blocks/table.
-
-function pathFocusSpy() {
-	const calls: { path: number[]; offset: number }[] = [];
-	const ref = {
-		focus: (offset: number) => calls.push({ path: [], offset }),
-		focusByPath: (path: number[], offset: number) => calls.push({ path, offset })
-	} as unknown as BlockComponent;
-	return { calls, ref };
-}
 
 const stubScope = (children: CstNode[], refs: (BlockComponent | undefined)[] = []) =>
 	makeCommitScopeStub(children, { refs, collapse: false });
@@ -157,8 +148,8 @@ describe('Enter completion: the caret the join resolves', () => {
 
 describe('Enter completion: what the composed split commits', () => {
 	it('replaces the paragraph with one table and puts the caret in the first body cell', async () => {
-		const cell = pathFocusSpy();
-		const { scope, commits, children } = stubScope([leaf('| a | b |\n')], [cell.ref]);
+		const { scope, commits, children } = stubScope([leaf('| a | b |\n')]);
+		const land = vi.spyOn(scope, 'land');
 		await seamOver(scope).splitBlock(0, 9);
 
 		expect(children).toHaveLength(1);
@@ -166,7 +157,7 @@ describe('Enter completion: what the composed split commits', () => {
 		expect(children[0].raw).toBe('| a | b |\n| --- | --- |\n|  |  |\n');
 		expect(commits).toHaveLength(1);
 		expect(commits[0].op.kind).toBe('replaceBlock');
-		expect(cell.calls).toEqual([{ path: [1, 0], offset: 0 }]);
+		expect(land).toHaveBeenCalledWith({ path: [0, 1, 0], offset: 0 });
 	});
 
 	// The undo snapshot records where the caret was, not where the completion sends it: restoring

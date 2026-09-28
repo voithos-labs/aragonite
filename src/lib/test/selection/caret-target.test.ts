@@ -4,12 +4,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '../../core/parser';
 import type { CstNode, Document } from '../../core/nodes';
 import { nodeAt } from '../../tree-operations/node-primitives';
-import {
-	CURSOR_END,
-	CURSOR_EXACT_START,
-	CURSOR_START,
-	FOCUS_LAST_START
-} from '../../block-component';
+import { CURSOR_END, CURSOR_EXACT_START, CURSOR_START } from '../../block-component';
 import { docPathFrom } from '../../cursor/coordinate-spaces';
 import { caretTargetFor, survivorAfterRemoval } from '../../selection/caret-target';
 import { registerChromePluginsForTests } from './chrome-plugins';
@@ -48,8 +43,7 @@ describe('caretTargetFor', () => {
 		['0', 0, [0, 0, 0], 0],
 		['CURSOR_START', CURSOR_START, [0, 0, 0], CURSOR_START],
 		['CURSOR_EXACT_START', CURSOR_EXACT_START, [0, 0, 0], CURSOR_EXACT_START],
-		['CURSOR_END', CURSOR_END, [0, 1, 1, 1, 1], CURSOR_END],
-		['FOCUS_LAST_START', FOCUS_LAST_START, [0, 1, 1, 1, 1], FOCUS_LAST_START]
+		['CURSOR_END', CURSOR_END, [0, 1, 1, 1, 1], CURSOR_END]
 	];
 	for (const [name, offset, leafPath, leafOffset] of edges) {
 		it(`a container entered with ${name} lands in its ${leafPath.length > 3 ? 'last' : 'first'} leaf`, () => {

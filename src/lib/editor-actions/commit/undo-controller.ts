@@ -10,13 +10,15 @@ import type { BlockComponent } from '../../block-component';
 import type { CstNode, Document } from '../../core/nodes';
 import { documentLineEnding } from '../../core/lines';
 import type { NodeView } from '../../core/node-views';
-import type { EditorSelection } from '../../selection/primitives';
+import type { EditorSelection, Landing } from '../../selection/primitives';
 import type { UndoEntry } from '../../undo/types';
 import type { SelectionPoint } from '../../selection/primitives';
 import { digestDoc } from '../../invariants/snapshot-integrity';
 import { readCurrentSelection } from '../../selection/native-bridge';
 import { asDocPath, pathsEqual } from '../../selection/path-math';
 import { assertInvariant } from '../../assert';
+import { checkLandingIsAValue, readCaretWhereabouts } from '../../invariants/landing-value';
+import { docPathFrom } from '../../cursor/coordinate-spaces';
 import { beginCommit, endCommit } from '../../invariants/commit-scope';
 import { assignIds } from '../../block-id';
 import { replaceRefs } from '../../reactivity/publish-ref.svelte';
@@ -37,6 +39,7 @@ import type { EditorActionsDeps, UndoController } from '../deps';
 import type {
 	CommitAfterTick,
 	CommitAnnouncement,
+	CommitLanding,
 	CommitContainerStructuralArgs,
 	CommitMultiScopeArgs,
 	CommitSnapshotArg,
@@ -291,6 +294,7 @@ export function createUndoController(
 				publish: (children: CstNode[], ids: string[], refs: (BlockComponent | undefined)[]) => void;
 				op?: ScopedOpDescriptor;
 				afterTick?: CommitAfterTick;
+				landing?: CommitLanding;
 				announce?: CommitAnnouncement;
 				/** Nodes for the dev check when the change names none (an in-place `op: 'noop'`). */
 				touchedNodes?: CstNode[];
@@ -306,6 +310,7 @@ export function createUndoController(
 				publish: () => void;
 				op?: ScopedOpDescriptor;
 				afterTick?: CommitAfterTick;
+				landing?: CommitLanding;
 				announce?: CommitAnnouncement;
 				/** A function, since the copied nodes only exist once `mutate` has made them. */
 				touchedNodes?: () => CstNode[];
@@ -352,7 +357,7 @@ export function createUndoController(
 		});
 	}
 
-	/** `discarded` is a `discardIfNoop` commit that changed nothing: no write, but afterTick runs. */
+	/** `discarded` is a `discardIfNoop` commit that changed nothing: no write, but it still lands. */
 	type CommitOutcome = 'written' | 'discarded' | 'failed';
 
 	function runCommitCeremony(args: CommitArgs): CommitOutcome {
@@ -462,13 +467,29 @@ export function createUndoController(
 		return discarded ? 'discarded' : 'written';
 	}
 
+	/** The commit's landing, checked in dev to have moved no caret while it was read. */
+	function readLanding(landing: CommitLanding | undefined): Landing | null {
+		if (!landing) return null;
+		if (!isDevChecks()) return landing();
+		const before = readCaretWhereabouts();
+		const value = landing();
+		assertInvariant('landing-is-a-value', () =>
+			checkLandingIsAValue(before, readCaretWhereabouts())
+		);
+		return value;
+	}
+
 	// Bracket the synchronous commit so the decorations never read a half-applied tree.
 	// Cleared before the first await. Resolves to whether bytes landed.
 	async function __commit(args: CommitArgs): Promise<boolean> {
 		const op =
 			args.op?.kind ?? (args.kind === 'document' ? 'commitStructural' : 'commitMultiScope');
 		const target = args.op?.eventPath ?? args.snapshot.path;
+		// A refused write lands nothing, while a discarded no-op still lands: whether a commit
+		// lands is its own question, not whether it wrote.
 		if (!admitsWrite(deps.reading, op, () => blockNodeAt(deps.doc, target)?.kind)) return false;
+		// Read before any await, so an undo or swap during the landing's mount makes it give up.
+		const stamp = deps.caretLanding.generation();
 		beginCommit();
 		let outcome: CommitOutcome;
 		try {
@@ -478,13 +499,17 @@ export function createUndoController(
 		}
 		if (outcome === 'failed') return false;
 		await tick();
+		// Awaited, so the promise every caller holds means "the caret is placed". No rollback on a
+		// throw: the commit succeeded and the tree is correct, so it is reported and the next runs.
 		try {
-			// Awaited: a caret placement that scrolls an unmounted target into view is async,
-			// and this promise is what every caller treats as "the caret is placed".
 			await args.afterTick?.();
 		} catch (err) {
-			// No rollback: the commit succeeded and the tree is correct. Caught so a plugin's
-			// afterTick is a reported no-op, not an unhandled rejection.
+			reportCommitError(args, err);
+		}
+		try {
+			const landing = readLanding(args.landing);
+			if (landing) await landOrRestore(landing, stamp);
+		} catch (err) {
 			reportCommitError(args, err);
 		}
 		if (outcome !== 'written') return false;
@@ -492,10 +517,15 @@ export function createUndoController(
 		return true;
 	}
 
+	async function landOrRestore(landing: Landing, stamp: number): Promise<void> {
+		if ('anchor' in landing) await deps.caretLanding.restore(landing, { stamp });
+		else await deps.caretLanding.land(landing, { stamp });
+	}
+
 	// ── Structural-mutation commit ───────────────────────────────────────────
 
 	function commitStructural(args: CommitStructuralArgs): Promise<boolean> {
-		const { snapshot, mutate, op, afterTick, announce, touchedNodes, discardIfNoop, trackCaret } =
+		const { snapshot, mutate, op, afterTick, landing, announce, touchedNodes, discardIfNoop } =
 			args;
 		return __commit({
 			kind: 'document',
@@ -508,10 +538,11 @@ export function createUndoController(
 			},
 			op,
 			afterTick,
+			landing,
 			announce,
 			touchedNodes,
 			discardIfNoop,
-			trackCaret
+			trackCaret: args.trackCaret
 		});
 	}
 
@@ -523,6 +554,7 @@ export function createUndoController(
 			mutate: ([scope]) => [mutate(scope)],
 			op,
 			afterTick,
+			landing: args.landing,
 			announce: args.announce,
 			discardIfNoop,
 			trackCaret: [args.trackCaret]
@@ -657,7 +689,7 @@ export function createUndoController(
 	async function commitMultiScope<const S extends readonly MultiScopeTarget[]>(
 		args: CommitMultiScopeArgs<S>
 	): Promise<boolean> {
-		const { scopes, snapshot, mutate, op, afterTick, discardIfNoop, trackCaret } = args;
+		const { scopes, snapshot, mutate, op, discardIfNoop, trackCaret } = args;
 		const prepared: PreparedScope[] = [];
 		// Containers whose kind the chain rebuild changed: the replacements are what the dev
 		// checks read, and the index is what an unwind restores.
@@ -665,7 +697,7 @@ export function createUndoController(
 		// Containers the ancestor rebuild collapsed into their parent, with where the caret goes: a
 		// collapse recreates every block in its range, so a swallowed scope has no ref to focus.
 		const folds: AncestrySeamFold[] = [];
-		let landing: FoldLanding | null = null;
+		let foldLanding: FoldLanding | null = null;
 		let unwindFolds: (() => void) | null = null;
 		return __commit({
 			kind: 'container',
@@ -713,7 +745,7 @@ export function createUndoController(
 							deps.reading.grammar
 						)
 					);
-					landing = foldLandingFor(folds.slice(before), p.target.path) ?? landing;
+					foldLanding = foldLandingFor(folds.slice(before), p.target.path) ?? foldLanding;
 				}
 				unwindFolds = publishAncestryFolds(deps, folds);
 				// The document commit above runs the same two steps until the two branches merge.
@@ -725,15 +757,13 @@ export function createUndoController(
 				deps.doc.children = [...deps.doc.children];
 			},
 			op,
-			afterTick: async () => {
-				try {
-					await afterTick?.();
-				} finally {
-					// After the caller's caret placement and regardless of it: the collapse swallowed
-					// the scope that placement addressed, so it found no ref or a detached node.
-					if (landing) (await deps.revealPath(landing.path))?.focus(landing.offset);
-				}
-			},
+			afterTick: args.afterTick,
+			// A collapsed container recreated every block in its range, so its position replaces the
+			// caller's rather than following it.
+			landing: () =>
+				foldLanding
+					? { path: docPathFrom(foldLanding.path), offset: foldLanding.offset }
+					: (args.landing?.() ?? null),
 			announce: args.announce,
 			discardIfNoop,
 			// A detached scope is outside the tree, and checking it would fire stale-raw on a node
@@ -798,10 +828,6 @@ export function createUndoController(
 
 	// ── State capture / checkpoint control ──────────────────────────────────
 
-	// Every undo or redo replaces the whole tree, so a caret placement that waited across one aims
-	// at content that is gone. Only increments: a placement compares two readings, not the value.
-	let historyGeneration = 0;
-
 	function captureCurrentState(): UndoEntry {
 		// The same selection read as the snapshot pushes: this is the entry an undo or redo
 		// pushes onto the opposite stack, so a gap caret or a selected image's caret survives.
@@ -824,10 +850,6 @@ export function createUndoController(
 		commitMultiScope,
 		getDocScope,
 		captureCurrentState,
-		historyGeneration: () => historyGeneration,
-		noteHistorySwap: () => {
-			historyGeneration++;
-		},
 		flushDebouncedCheckpoint: textBatch.interrupt,
 		undoStep,
 		joinTypingBatch,

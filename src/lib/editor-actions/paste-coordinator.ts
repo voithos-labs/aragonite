@@ -14,12 +14,14 @@ export function createPasteCoordinator(
 ): PasteCommitCoordinator {
 	const root = { deps, controller };
 
+	// The paste routes still place their own caret, so this checks for an undo itself; a commit's
+	// `landing` gets both from the caret landing.
 	async function landCaret(path: number[], offset: number): Promise<void> {
-		const stamp = controller.historyGeneration();
+		const stamp = deps.caretLanding.generation();
 		const block = await deps.revealPath(path);
 		// An undo or redo that finished while the target was scrolling into view swapped
 		// the tree, so this path may name a different block than the paste aimed at.
-		if (controller.historyGeneration() !== stamp) return;
+		if (deps.caretLanding.generation() !== stamp) return;
 		block?.focus(offset);
 	}
 
@@ -32,10 +34,7 @@ export function createPasteCoordinator(
 		landCaret,
 		commitLeafText: (leafPath, text, opts) => commitLeafTextAt(root, leafPath, text, opts),
 		async replaceBlock(blockPath, replacement, focus, opts) {
-			// Every paste lands through the coordinator's one landing, which gives up after an undo.
-			const scope = createPathScope(root, docPathFrom(blockPath.slice(0, -1)), (pos) =>
-				coordinator.landCaret([...pos.path], pos.offset)
-			);
+			const scope = createPathScope(root, docPathFrom(blockPath.slice(0, -1)));
 			if (!scope) return null;
 			return createBlockEditCore(scope).replaceBlock(
 				blockPath[blockPath.length - 1],

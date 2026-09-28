@@ -3,12 +3,7 @@
 // stray text node shifts a remembered caret; placing a caret does not end a live range; and a
 // caret addressed by path carries its offset down to the cell, which is how undo restores it.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
-import {
-	CURSOR_END,
-	CURSOR_EXACT_START,
-	CURSOR_START,
-	FOCUS_LAST_START
-} from '$lib/block-component';
+import { CURSOR_END, CURSOR_EXACT_START, CURSOR_START } from '$lib/block-component';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import { installTableLayoutStubs, mountTable, type MountedTable } from './mount-table';
 import { componentAt } from '$lib/reactivity/child-list';
@@ -94,7 +89,6 @@ describe('the table and a row read an entry offset as every container does', () 
 		['0', 0, [0, 0], 0],
 		['CURSOR_START', CURSOR_START, [0, 0], 0],
 		['CURSOR_EXACT_START', CURSOR_EXACT_START, [0, 0], 0],
-		['FOCUS_LAST_START', FOCUS_LAST_START, [2, 1], 0],
 		['CURSOR_END', CURSOR_END, [2, 1], 1]
 	];
 	for (const [name, offset, [row, col], at] of cases) {

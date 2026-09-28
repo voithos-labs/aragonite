@@ -247,7 +247,7 @@ Three families of seam run these checks:
 | G1.31 | The inline-construct policy table is coherent and unambiguous                       | A·N     |
 | G1.32 | _Retired upward_: a content-start Backspace with no range no longer compiles        | T       |
 | G1.33 | A block the caret is seated into paints at least one landable position              | A·N     |
-| G1.34 | A split's caret lands on the index `splitNode` returned                             | A·N     |
+| G1.34 | _Retired_: a split's landing reads the index `splitNode` returned (G4.43)           | L       |
 | G1.35 | A slot that holds exactly one node never takes bytes that reparse to several        | A·N     |
 | G1.36 | A structural change fits the arrays it syncs; ids stay in lockstep with children    | A·N     |
 | G1.37 | A kind whose syntax its container owns registers no opener                          | A·N     |
@@ -255,6 +255,7 @@ Three families of seam run these checks:
 | G1.39 | At most one block paints the editor's own caret at a time                           | A       |
 | G1.40 | Every built-in kind declares its page role and its height estimate                  | A·N     |
 | G1.41 | A structural edit keeps the final break as it was (a blank last line keeps its own) | A·P·N   |
+| G1.43 | Reading a commit's landing moves no caret                                           | A·N     |
 
 ### The entries
 
@@ -555,15 +556,11 @@ Reading mode is out of scope, since it takes no keystrokes. Predicate `checkLand
 (`landable-caret.ts`) · `components/editor-root-focus.ts`, the editor root's `focusin` handler ·
 `landable-caret.test.ts`, `landable-caret-doors.test.ts`.
 
-**G1.34 · Split landing.** The index a split's caret lands on is the one `splitNode` returned, never
-a re-derived `blockIndex + 1`. The top-level path seats the caret at it and the list-item path
-splices at it, so both cross the seam on their way to using it. The constant is the second half only
-while the first half stays ONE block: bytes that reparse plural (a blank line inside indented code)
-push the second half down, and the constant seated the caret on the first half's tail (GH #98). The
-`tree-ops` warn beside this guard reports that the plural shape occurred, which is legal; this guard
-reports that a landing disagreed, which isn't. Predicate `checkSplitLanding` (`split-landing.ts`) ·
-seam `tree-operations/node-ops.ts :: assertSplitLanding`, crossed by
-`editor-actions/block-edit-core.ts` and `editor-actions/list-context.ts` · `split-landing.test.ts`.
+**G1.34 · Retired.** The rule was: the index a split's caret lands on is the one `splitNode`
+returned, never a re-derived `blockIndex + 1` (a first half whose bytes reparse plural pushes the
+second half down, GH #98). The guard compared the split's own answer with itself at both of its call
+sites, so it could never fire. A split now builds its commit's landing from
+`SplitResult.secondHalfIndex`, and G4.43 keeps every split call reading it.
 
 **G1.35 · Single-node sink.** A sink (a slot that installs exactly one node) never installs bytes
 that reparse to several. Every join reaches one: Backspace, Delete and the list-item merge all write
@@ -658,6 +655,14 @@ two lines read as one on reload. Predicate `invariants/open-tail.ts :: checkLast
 both commit branches in `editor-actions/commit/undo-controller.ts` ·
 `test/invariants/last-line-kept.test.ts`, `test/editor-actions/open-last-line.test.ts`,
 `open-last-line.property.test.ts`.
+
+**G1.43 · A landing is a value** (`landing-is-a-value`). A commit's `landing` says where the caret
+goes and places nothing: the commit reads it after its tick and puts the caret down through the
+editor's one caret landing (`selection/caret-landing.ts`). In a dev build the commit notes
+`document.activeElement` and the selection's anchor around that read, and a landing that moved
+either (a focus call, a selection write) fails here the first time a test runs it. Predicate
+`invariants/landing-value.ts :: checkLandingIsAValue` · run by
+`editor-actions/commit/undo-controller.ts` · `test/invariants/landing-value.test.ts`.
 
 ## Group 2: property and regression tested
 
@@ -899,7 +904,7 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.40 | The three rewrite-claim lists are one set                                        | N       |
 | G4.41 | No test file mocks `dev-warn` or spies `console.warn`                            | L       |
 | G4.42 | No module writes a sibling's `leadingTrivia` by hand                             | L       |
-| G4.43 | Every `splitNode` caller asserts its landing                                     | L       |
+| G4.43 | Every `splitNode` call reads the index the split returned                        | L       |
 | G4.44 | Every prose surface resolves native ranged edits through the one resolver        | L       |
 | G4.45 | Every bare tree-op caller is declared with the commit that settles its writes    | L       |
 | G4.46 | Every ancestry-rebuild caller states its fold-sink stance                        | L       |
@@ -1332,10 +1337,8 @@ gap-caret insert (a gap caret: the caret parked between two blocks where neither
 one), the same-block range-delete write, the empty-marker sublist separator), each named with its
 reason. `lint/separator-write-doors.test.ts`.
 
-**G4.43 · Split-landing parity.** Every file naming `splitNode` reads `secondHalfIndex` and asserts
-the landing through `assertSplitLanding`, and carries at least one assertion per split CALL, so a
-caller growing a second split whose landing it re-derives fails too. G1.34's guard only fires where
-a caller calls it, and a site seating its caret at `i + 1` never crosses it.
+**G4.43 · Split-landing parity.** Every file naming `splitNode` reads `secondHalfIndex` at least
+once per split CALL, so a caller growing a second split whose caret it puts at `i + 1` fails too.
 `lint/split-landing-parity.test.ts`.
 
 **G4.44 · Live ranged-edit parity.** Every editable PROSE surface (an editable-surface factory, its

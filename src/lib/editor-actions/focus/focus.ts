@@ -50,16 +50,13 @@ export function createFocusActions(
 				return { op: 'insert', at, count: 1 };
 			},
 			op: { kind: 'appendBlock', eventPath: appendPath },
-			afterTick: () => {
-				const lastIdx = deps.doc.children.length - 1;
-				deps.blockRefs[lastIdx]?.focus(0);
-			}
+			landing: () => ({ path: docPathFrom([deps.doc.children.length - 1]), offset: 0 })
 		});
 	}
 
 	const scope: MoveFocusScope = {
 		count: () => deps.doc.children.length,
-		mount: (index) => deps.revealPath([index]),
+		mount: (index) => deps.caretLanding.mount([index]),
 		leave,
 		// A directional move crosses the boundary at the greater adjacent index. `gapEligibleAt`
 		// declines out-of-range boundaries and the root's trailing one.
@@ -67,7 +64,6 @@ export function createFocusActions(
 	};
 
 	return {
-		revealPath: deps.revealPath,
 		tryGapStop: gapStopAt,
 		moveFocus: (blockIndex: number, position: FocusPosition, options?: MoveFocusOptions) =>
 			dispatchMoveFocus(scope, blockIndex, position, deps.caretMemory, options)

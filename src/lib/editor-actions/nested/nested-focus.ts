@@ -25,9 +25,7 @@ export function createNestedFocus(state: BlockListState, deps: NestedActionsDeps
 		gapStop: (boundaryIndex) => parent.focus.tryGapStop(deps.path, boundaryIndex)
 	};
 	return {
-		// The root holds the document and selection reads, so scrolling into view and the gap
-		// stop are forwarded to it.
-		revealPath: parent.focus.revealPath,
+		// The root holds the document and selection reads, so the gap stop is forwarded to it.
 		tryGapStop: parent.focus.tryGapStop,
 		async moveFocus(
 			innerIndex: number,
