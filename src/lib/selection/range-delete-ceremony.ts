@@ -35,7 +35,7 @@ import {
 	nodeAt,
 	normalizeOwnRaw
 } from '../tree-operations/node-primitives';
-import { cleanJoinedRaw } from '../tree-operations/node-ops';
+import { cleanJoinedRaw } from '../tree-operations/leaf-range';
 import { storedAsAt } from '../tree-operations/stored-as';
 import { cutBeforeSuffix } from '../tree-operations/structural-suffix';
 import { structuralSuffix } from '../core/inline';

@@ -7,6 +7,7 @@ import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { snapToScalarBoundary } from '$lib/core/lines';
 import { splitNode, cutRangeFromDisplay } from '$lib/tree-operations/node-ops';
+import { replaceRangeInLeaf } from '$lib/tree-operations/leaf-range';
 import { buildPastedReplacement } from '$lib/tree-operations/paste/paste-replacement';
 import { splitLeafForPaste } from '$lib/tree-operations/list/list-builders';
 import { fragmentReaderAt } from '$lib/tree-operations/list/task-paragraph';
@@ -55,12 +56,12 @@ function isWellFormed(text: string): boolean {
 const BELT_MEMBERS: Record<string, string> = {
 	'src/lib/core/lines.ts': 'the snap itself',
 	'src/lib/selection/char-endpoint-snap.ts': 'the selection endpoint clamp',
+	'src/lib/tree-operations/leaf-range.ts': 'every in-leaf range replace',
 	'src/lib/tree-operations/node-ops.ts':
 		"the split's line-ending cut and the single-block range cut",
 	'src/lib/tree-operations/structural-suffix.ts':
 		"the split's and a paste's halves, for the structural paste and the absorb split's items",
-	'src/lib/components/blocks/text/live-selection-edit.ts':
-		'the native ranged edit re-expressed as a join'
+	'src/lib/components/blocks/text/live-selection-edit.ts': 'the composition’s range replace'
 };
 
 describe('the belt set', () => {
@@ -111,6 +112,15 @@ describe('the single-block range cut', () => {
 		const cut = cutRangeFromDisplay(node, 'a\u{1F466}b', { start: 2, end: 4 }, topLevelStore(node));
 		expect(isWellFormed(cut.display)).toBe(true);
 		expect(cut.display).toBe('a');
+	});
+});
+
+describe('the in-leaf range replace', () => {
+	it('snaps a mid-pair endpoint where nothing is cleaned, too', () => {
+		const node = parse(BOY).children[0] as NodeView;
+		const edit = replaceRangeInLeaf(node, { start: 2, end: 3 }, 'x', topLevelStore(node));
+		expect(isWellFormed(edit.raw)).toBe(true);
+		expect(edit.raw).toBe('axb\n');
 	});
 });
 

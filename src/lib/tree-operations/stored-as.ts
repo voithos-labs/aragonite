@@ -46,6 +46,10 @@ function storeOver(reading: Reading, locate: () => Slot): StoredAs {
 			const kind = holder.children[index].kind;
 			return tryGetBlockKindDescriptor(kind)?.contextDependentKind ? 'inline' : 'block';
 		},
+		get lineEnding() {
+			const { holder } = slot();
+			return 'lineEnding' in holder ? holder.lineEnding : documentLineEnding(holder);
+		},
 		stored(bytes) {
 			const { holder, index } = slot();
 			return legalizeWrite(holder, index, bytes, 'literal').text;

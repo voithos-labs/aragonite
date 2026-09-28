@@ -562,6 +562,7 @@ describe.each(FAMILIES)('$name', ({ rows }) => {
 
 /** The rewrites themselves: each reads through the store it is handed and makes none. */
 const REWRITES = [
+	'tree-operations/leaf-range.ts',
 	'components/blocks/text/live-selection-edit.ts',
 	'components/blocks/text/construct-edge-delete.ts',
 	'components/blocks/text/live-join-seam.ts',
@@ -573,7 +574,7 @@ const MAKES_A_STORE = /(?<![\w$])(?<!function\s)(?:storedAsAt|storedAsIn)\s*\(|\
 
 /** A call that hands a store to a rewrite that removes bytes, or asks one what a line reads as. */
 const HANDS_ON_A_STORE =
-	/(?<![\w$.])(?<!function\s)(?:cleanJoinedRaw|cutRangeFromDisplay|resolveSelectionEdit|replaceRangeRaw|applyLiveRangeEdit|resolveEdgeDeletion|keepsKindAt|cleanTruncatedProse|readBack)\s*\(/;
+	/(?<![\w$.])(?<!function\s)(?:cleanJoinedRaw|joinLeaves|replaceRangeInLeaf|cutRangeFromDisplay|resolveSelectionEdit|applyLiveRangeEdit|resolveEdgeDeletion|keepsKindAt|cleanTruncatedProse|readBack)\s*\(/;
 
 describe('the route list', () => {
 	const sources = collectEditorSources(EDITOR_SRC);

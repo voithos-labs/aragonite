@@ -561,7 +561,10 @@ const MANIFESTS: ManifestRule[] = [
 		id: 'G4.33 the registered rewrite slots have exactly one reader',
 		population: (file) => file.relPath !== SLOT_HOME,
 		matches: /(?<![\w.])(getLiveJoinSeamCleaner|getLiveSplitRebalancer)\s*\(/,
-		declared: { 'src/lib/tree-operations/node-ops.ts': 'the one reader of both slots' },
+		declared: {
+			'src/lib/tree-operations/leaf-range.ts': 'the one reader of the join slot',
+			'src/lib/tree-operations/node-ops.ts': 'the one reader of the split slot'
+		},
 		reason: 'a second reader of the rewrite slots is a second opinion on what a join cleans',
 		hits: ['getLiveJoinSeamCleaner()?.(join)'],
 		misses: ['// getLiveSplitRebalancer() answers']

@@ -17,11 +17,12 @@ import {
 
 /** Every file naming the cleaner, and what it joins. */
 const CLEANER_READERS: Record<string, string> = {
-	'src/lib/tree-operations/node-ops.ts':
-		'defines it, and crosses it from the split cut, the range cut and `joinIntoLeaf`, the one join into a leaf',
+	'src/lib/tree-operations/leaf-range.ts':
+		'defines it, and crosses it from every in-leaf range replace and `joinLeaves`, the merge’s join',
+	'src/lib/tree-operations/node-ops.ts': 'the range cut a paste’s delete half makes',
 	'src/lib/selection/range-delete.ts': 'the same-block and cross-block range merges',
 	'src/lib/selection/range-delete-ceremony.ts': 'the shared endpoint join',
-	'src/lib/components/blocks/text/live-selection-edit.ts': 'the native ranged edit'
+	'src/lib/components/blocks/text/live-selection-edit.ts': 'the composition’s range replace'
 };
 
 /** Every file calling the one join into a leaf, and what it joins. */

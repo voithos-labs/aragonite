@@ -23,11 +23,10 @@ import {
 	type RevealFold
 } from '../editable-surface';
 import { pasteDispatch } from '../../../tree-operations/paste/dispatch';
-import { replaceRangeRaw } from './live-selection-edit';
+import { replaceRangeInLeaf } from '../../../tree-operations/leaf-range';
 import { storedAsAt } from '../../../tree-operations/stored-as';
 import { replaceSelectedWidget } from './widget-interaction';
 import type { Reading } from '../../../schema/reading';
-import { documentLineEnding } from '../../../core/lines';
 
 export interface TextClipboardDeps {
 	get node(): NodeView;
@@ -152,9 +151,8 @@ export function createTextClipboard(deps: TextClipboardDeps): TextClipboard {
 			if (!selOffsets) return;
 			// A cut is a delete, so it goes through the same join rules: in live mode the range
 			// can span delimiter runs the user never saw, and a plain splice would print them.
-			const doc = deps.getDoc();
-			const store = storedAsAt(doc, deps.myPath, deps.reading);
-			const edit = replaceRangeRaw(deps.node, selOffsets, '', store, documentLineEnding(doc));
+			const store = storedAsAt(deps.getDoc(), deps.myPath, deps.reading);
+			const edit = replaceRangeInLeaf(deps.node, selOffsets, '', store);
 			const write = deps.blockEdit.updateBlockContent(
 				deps.index,
 				edit.raw,

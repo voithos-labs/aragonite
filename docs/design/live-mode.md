@@ -257,7 +257,7 @@ The fallback these rules share is § 2's. Where no candidate survives the painte
 
 ### 4.5 Joins clean up where they meet
 
-Every destructive join crosses one call, `cleanJoinedRaw` in `tree-operations/node-ops.ts`, the sole reader of the registered cleaner (`live-join-seam.ts`). The cleanup drops two things: delimiter runs the truncation left unpaired, their partner having gone with the cut, and the closer/opener chain a join brings back to back around nothing, which is the split's inverse.
+Every destructive join crosses one call, `cleanJoinedRaw` in `tree-operations/leaf-range.ts`, the sole reader of the registered cleaner (`live-join-seam.ts`). The cleanup drops two things: delimiter runs the truncation left unpaired, their partner having gone with the cut, and the closer/opener chain a join brings back to back around nothing, which is the split's inverse.
 
 ```ts
 // Backspace between the two halves § 4.4 made, both at the top of `doc`
@@ -296,7 +296,7 @@ cleanJoinedRaw(gone(7, 11, 'Some **** text\n')); // { raw: 'Some  text\n', seam:
 - The license is § 2's: live drops only what it never showed, verified against what the two sides showed, and otherwise the literal join stands.
 - Text the gesture writes at the join (a selection typed over, a spellcheck replacement) rides into that verification rather than being spliced in past it. A run the typed bytes re-pair against isn't stranded, so there the literal replace stands: select `bold` in the last example, type `x`, and both runs stay, since the `x` lands between them and pairs them up again.
 - § 4.1's residue rule is the second question the verification asks. The two readings of the stranded runs are ordered least destructive first, and the leaner one can leave a construct the cut emptied: a pair over nothing paints nothing, so the screen check alone would accept it. Least destructive therefore means fewest runs dropped among the readings that leave no residue.
-- A join keeps hidden bytes from surfacing too: a block holding structure past its content (a setext heading's underline, an ATX heading's closing `#` run) takes the joined text at its content end, so the structure stays under it instead of being joined into view, and the block joined into it brings none of its own (`tree-operations/node-ops.ts`). That holds in every mode. Live draws the structure as a hidden marker, so a range the user drew to the block's end stops at the content end as well (`live-selection-edit.ts`).
+- A join keeps hidden bytes from surfacing too: a block holding structure past its content (a setext heading's underline, an ATX heading's closing `#` run) takes the joined text at its content end, so the structure stays under it instead of being joined into view, and the block joined into it brings none of its own (`tree-operations/node-ops.ts`). That holds in every mode. Live draws the structure as a hidden marker, so a range the user drew to the block's end stops at the content end as well (`tree-operations/leaf-range.ts` :: `replaceRangeInLeaf`).
 
 ### 4.6 The link card
 

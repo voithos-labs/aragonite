@@ -30,7 +30,7 @@
 	} from '../../../core/lines';
 	import { pasteDispatch } from '../../../tree-operations/paste/dispatch';
 	import { blockNodeAt, isBlockNode, nodeAt } from '../../../tree-operations/node-primitives';
-	import { cutRangeFromDisplay } from '../../../tree-operations/node-ops';
+	import { replaceRangeInLeaf } from '../../../tree-operations/leaf-range';
 	import { storedAsAt } from '../../../tree-operations/stored-as';
 	import { keepsKindAt } from '../../../core/inline/live-edit/read-back';
 	import { applyLiveRangeEdit } from '../text/live-selection-edit';
@@ -941,9 +941,9 @@
 	// Through the join rules, since in live mode the delete can strand delimiter runs the user
 	// never saw (live-mode.md § 4.5).
 	function deleteCellRange(start: number, end: number): void {
-		const display = trimTrailingLineEnding(node.raw);
-		const cut = cutRangeFromDisplay(node, display, { start, end }, storedAs());
-		parkWrite(blockEdit.updateBlockContent(index, cut.display, 'literal', start, cut.offset));
+		const cut = replaceRangeInLeaf(node, { start, end }, '', storedAs());
+		const display = trimTrailingLineEnding(cut.raw);
+		parkWrite(blockEdit.updateBlockContent(index, display, 'literal', start, cut.caret));
 	}
 
 	async function applyCellPaste(

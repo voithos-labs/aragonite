@@ -6,7 +6,6 @@
  */
 
 import type { NodeView } from '../../../core/node-views';
-import type { Reading } from '../../../schema/reading';
 import type { StoredAs } from '../../../schema/stored-as';
 import {
 	snapToScalarBoundary,
@@ -14,8 +13,7 @@ import {
 	trimTrailingLineEnding,
 	type LineEnding
 } from '../../../core/lines';
-import { cleanJoinedRaw } from '../../../tree-operations/node-ops';
-import { getContentRange } from '../../../core/inline';
+import { cleanJoinedRaw, replaceRangeInLeaf } from '../../../tree-operations/leaf-range';
 
 export interface SelectionEdit {
 	/** The block's whole bytes after the edit, trailing line ending included. */
@@ -52,20 +50,15 @@ export function resolveLiveRangeEdit(
 	if (!store.reading.hidesDelimitersAtCaret() || !rewritesTargetRange(e)) return null;
 	const target = pendingEditRange(e, cursor);
 	if (!target) return null;
-	const range = paintedRange(node, target, store.reading);
 	const insert = replacementText(e);
 	if (target.start === target.end) {
-		return parkedCaretInsertion(node, cursor, range.start, insert, lineEnding);
+		return parkedCaretInsertion(node, cursor, target.start, insert, lineEnding);
 	}
-	// A range the browser would have taken past the painted content is always rewritten here.
-	const edit =
-		range.end < target.end
-			? replaceRangeRaw(node, range, insert ?? '', store, lineEnding)
-			: resolveSelectionEdit(node, range, insert ?? '', store);
-	if (!edit) return null;
+	const edit = replaceRangeInLeaf(node, target, insert ?? '', store);
+	if (edit.matchesBrowserEdit) return null;
 	return insert === null
 		? { kind: 'swallow' }
-		: { kind: 'rewrite', range, raw: edit.raw, caret: edit.caret };
+		: { kind: 'rewrite', range: edit.range, raw: edit.raw, caret: edit.caret };
 }
 
 /** A collapsed insertion Chromium aimed back across a hidden run (just after a typed `)`) goes where
@@ -145,43 +138,6 @@ export function resolveSelectionEdit(
 		raw: joined.raw.slice(0, joined.seam) + typed + joined.raw.slice(joined.seam),
 		caret: joined.seam + typed.length
 	};
-}
-
-/** The rewrite of `[start, end)` to `typed` (empty for a delete): the cleaned bytes where the join
- *  rules have them, otherwise a plain splice with the caret past the insert. */
-export function replaceRangeRaw(
-	node: NodeView,
-	range: { start: number; end: number },
-	typed: string,
-	store: StoredAs,
-	lineEnding: LineEnding
-): SelectionEdit {
-	const { start, end } = paintedRange(node, range, store.reading);
-	const cleaned = resolveSelectionEdit(node, { start, end }, typed, store);
-	if (cleaned) return cleaned;
-	const display = trimTrailingLineEnding(node.raw);
-	return {
-		raw:
-			display.slice(0, start) +
-			typed +
-			display.slice(end) +
-			trailingLineEnding(node.raw, lineEnding),
-		caret: start + typed.length
-	};
-}
-
-/**
- * `range` cut back to the block's content end where the mode hides the structure after it (a
- * setext underline): a range the user drew there cannot have meant bytes they never saw.
- */
-function paintedRange(
-	node: NodeView,
-	range: { start: number; end: number },
-	reading: Reading
-): { start: number; end: number } {
-	if (!reading.hidesDelimitersAtCaret()) return range;
-	const end = getContentRange(node).end;
-	return { start: Math.min(range.start, end), end: Math.min(range.end, end) };
 }
 
 // ── Reading the event ────────────────────────────────────────────────────────

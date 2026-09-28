@@ -32,7 +32,7 @@ import {
 	type EdgeDeletion
 } from './construct-edge-delete';
 import { resolveEdgeSeat, type EdgeSeat } from './edge-seat';
-import { replaceRangeRaw } from './live-selection-edit';
+import { replaceRangeInLeaf } from '../../../tree-operations/leaf-range';
 import { resolveMarkedInsertion } from './pending-mark-insert';
 import { widgetAtCursor } from './widget-adjacency';
 import { noteOwnPair, resolveDelimiterAutoPair } from './delimiter-autopair';
@@ -304,7 +304,7 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 	): void {
 		const range = heldRange();
 		if (range && range.end > range.start) {
-			const edit = replaceRangeRaw(deps.node, range, typed, deps.storedAs(), deps.getLineEnding());
+			const edit = replaceRangeInLeaf(deps.node, range, typed, deps.storedAs());
 			const write = deps.blockEdit.updateBlockContent(
 				deps.index,
 				edit.raw,
@@ -523,7 +523,7 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		if (range.end > range.start) {
 			// Handled at keydown, so this branch asks the join rules itself, or a literal splice would
 			// print the delimiter runs the cut stranded (`docs/design/live-mode.md` § 4.5).
-			const edit = replaceRangeRaw(deps.node, range, '', deps.storedAs(), deps.getLineEnding());
+			const edit = replaceRangeInLeaf(deps.node, range, '', deps.storedAs());
 			const write = deps.blockEdit.updateBlockContent(
 				deps.index,
 				edit.raw,

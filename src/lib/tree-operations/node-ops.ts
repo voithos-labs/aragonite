@@ -1,7 +1,6 @@
 /**
- * Split and merge, the two operations that re-divide a body's blocks around a caret, plus the
- * cleanup every destructive join goes through (`docs/design/live-mode.md` § 4.5 Joins clean up
- * where they meet). They mutate and report; the commit recomputes the separators around them.
+ * Split and merge, the two operations that re-divide a body's blocks around a caret. They mutate
+ * and report; the commit recomputes the separators around them.
  */
 
 import { isDevChecks } from '../env';
@@ -9,12 +8,7 @@ import type { CstNode } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import { isBlankParagraph, readBlocks } from '../core/parser';
 import type { GrammarView } from '../schema/block-openers';
-import {
-	getLiveJoinSeamCleaner,
-	getLiveSplitRebalancer,
-	type CleanedJoin,
-	type JoinSeam
-} from '../schema/inline-construct-policy';
+import { getLiveSplitRebalancer } from '../schema/inline-construct-policy';
 import type { Reading } from '../schema/reading';
 import type { StoredAs } from '../schema/stored-as';
 import {
@@ -48,13 +42,14 @@ import {
 	type BodyParentArg
 } from './node-primitives';
 import { absorbSeamReading, deleteNode, type TrackedPosition } from './settle';
-import { cutKeepingStructure, joinKeepingSuffix } from './structural-suffix';
+import { cutKeepingStructure } from './structural-suffix';
 import { leafAtRawOffset, rawOffsetOfLeaf } from './container-offsets';
 import { CURSOR_END } from '../block-component';
 import { adoptReparsedFields, legalizeWrite, probeLineOpensAsProse } from './content-write';
 import { writeKeepingTaskMarker } from './list/reconcile-task';
 import { fragmentReaderAt, type FragmentReader } from './list/task-paragraph';
 import { storedAsIn } from './stored-as';
+import { cleanJoinedRaw, joinLeaves } from './leaf-range';
 
 // ── Split ──
 
@@ -261,16 +256,6 @@ function contentBlockCount(source: string, grammar: GrammarView): number {
 // ── Merge ──
 
 /**
- * `join.mergedRaw` minus the delimiter runs the join left unpaired, where the caret's block hides
- * its delimiters. Every destructive join goes through here.
- */
-export function cleanJoinedRaw(join: JoinSeam): CleanedJoin {
-	const literal = { raw: join.mergedRaw, seam: join.seam };
-	if (!join.store.reading.hidesDelimitersAtCaret()) return literal;
-	return getLiveJoinSeamCleaner()?.(join) ?? literal;
-}
-
-/**
  * The bytes a single-block edit leaves when it deletes `range` from `display`, cleaned like any
  * join against where `store` keeps them; the returned offset is where the two sides meet.
  */
@@ -294,19 +279,6 @@ export function cutRangeFromDisplay(
 		store
 	});
 	return { display: cleaned.raw, offset: cleaned.seam };
-}
-
-/** The bytes two adjacent blocks make when `prev` absorbs `curr`, join cleanup included. */
-function joinRaw(prev: NodeView, curr: NodeView, store: StoredAs): CleanedJoin {
-	const { raw, start } = joinKeepingSuffix(prev, displayLength(prev.raw), curr, 0);
-	return cleanJoinedRaw({
-		mergedRaw: raw,
-		seam: start,
-		start: { node: prev, offset: start },
-		end: { node: curr, offset: 0 },
-		typed: '',
-		store
-	});
 }
 
 /** What a join reports: the structural splice, plus where the two blocks met in the survivor's
@@ -344,7 +316,12 @@ export function joinIntoLeaf(
 		lineEnding: parentLineEnding(parent)
 	};
 	const target = holder.children[slot];
-	const { raw, seam } = joinRaw(target, absorbed, storedAsIn(holder, slot, reading));
+	const { raw, seam } = joinLeaves(
+		{ node: target, offset: displayLength(target.raw) },
+		{ node: absorbed, offset: 0 },
+		'',
+		storedAsIn(holder, slot, reading)
+	);
 	const legal = legalizeWrite(holder, slot, raw, 'literal');
 	const merged = mergedLeafFor(
 		target,

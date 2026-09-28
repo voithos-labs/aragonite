@@ -1264,9 +1264,9 @@ allowlisted caller is the vertical-skip decision, whose resolver-less answer is 
 **G4.33 · Live-rewrite verification.** The modules that build live-mode byte candidates each verify
 through the render path's own `renderedText`, and every file naming an inline marker family in code
 is manifested with what it does with it: only the model decides which spans a marker-hiding mode
-DROPS; the rest create, identify or probe. The two registered seam slots (the split rebalancer, the
-join cleaner) have exactly ONE reader, `node-ops`, so every destructive join crosses
-`cleanJoinedRaw` rather than writing its own concatenation. The bug class here is a private walk
+DROPS; the rest create, identify or probe. The two registered slots have one reader each (the split
+rebalancer's is `node-ops.ts`, the join cleaner's is `leaf-range.ts`), so every destructive join
+crosses `cleanJoinedRaw` rather than writing its own concatenation. The bug class here is a private walk
 over the parse disagreeing with what paints. It counted an angle autolink's brackets as content
 once, and a resolved reference's label the next time. Each verification also states WHICH reading it
 takes: the block's own screen where the answer decides what a press may touch, or the content behind
@@ -1554,9 +1554,9 @@ a `$lib` deep path names a testing door the surface is missing. Each allowlist e
 door's name, and a dead entry fails too. The loose platform tests directly under
 `src/lib/test/plugins/` are out of scope. `lint/bundled-plugin-test-boundary.test.ts`.
 
-**G4.64 · The tree-ops ladder.** The six files `node-ops.ts` split into (`node-primitives.ts`,
-`unshare.ts`, `settle.ts`, `content-write.ts`, `node-ops.ts`, `chain-rebuild.ts`) import only
-downward, in that order. The cycle the split broke (`unshare.ts` reading the seam absorb and the
+**G4.64 · The tree-ops ladder.** The files `node-ops.ts` split into, plus the two it came to sit on
+(`node-primitives.ts`, `unshare.ts`, `settle.ts`, `content-write.ts`, `stored-as.ts`,
+`leaf-range.ts`, `node-ops.ts`, `chain-rebuild.ts`), import only downward, in that order. The cycle the split broke (`unshare.ts` reading the seam absorb and the
 kind re-derive out of `node-ops.ts`, which read the copy-on-write door back) passed every
 behavioral test, and `svelte-check` reports nothing for an import cycle, so only a source scan can
 hold the shape. `lint/tree-op-ladder.test.ts`.
