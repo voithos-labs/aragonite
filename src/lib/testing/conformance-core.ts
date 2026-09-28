@@ -7,7 +7,7 @@ import type { AnyBlockKind, CstNode, Document } from '../core/nodes';
 import { parse } from '../core/parser';
 import { ancestorsOf, walkBlocks } from '../core/paths';
 import { blockNodeAt } from '../tree-operations/node-primitives';
-import type { BlockKindDescriptor } from '../schema/block-kind-descriptor';
+import { isGridDescriptor, type BlockKindDescriptor } from '../schema/block-kind-descriptor';
 
 // ── Coverage vocabulary ──────────────────────────────────────────────────────
 
@@ -144,7 +144,7 @@ export function assertRebuildIsParseCanonical(
 	} catch (error) {
 		fail(`${label} rebuildRaw throws over a parsed fixture: ${(error as Error).message}`);
 	}
-	if (descriptor.containerContract !== 'grid') {
+	if (!isGridDescriptor(descriptor)) {
 		assertIs(node.raw, before, `${label} rebuildRaw reproduces the parse-canonical raw`);
 	}
 }

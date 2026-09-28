@@ -42,5 +42,5 @@ function unendedAboveLastLine(children: readonly NodeView[], trail: string): str
 function holdsLastLineInChildren(node: NodeView): boolean {
 	if (!node.children?.length) return false;
 	const contract = getBlockKindDescriptor(node.kind).containerContract;
-	return contract === 'strip' || (contract === 'grid' && isGridKind(node.children.at(-1)!.kind));
+	return contract === 'strip' || (isGridKind(node.kind) && isGridKind(node.children.at(-1)!.kind));
 }

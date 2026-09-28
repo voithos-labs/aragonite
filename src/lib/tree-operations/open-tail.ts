@@ -74,7 +74,7 @@ export function holdsBlankLastLine(node: NodeView): boolean {
 	const contract = tryGetBlockKindDescriptor(node.kind)?.containerContract;
 	const descends =
 		(contract === 'strip' && !node.innerSuffix) ||
-		(contract === 'grid' && last !== undefined && isGridKind(last.kind));
+		(isGridKind(node.kind) && last !== undefined && isGridKind(last.kind));
 	return last && descends ? holdsBlankLastLine(last) : endsInBlankLine(node.raw);
 }
 
@@ -117,7 +117,7 @@ function rewriteLastLine(
 			node.innerSuffix = write(node.innerSuffix ?? '');
 			return;
 		}
-	} else if (contract !== 'grid' || !isGridKind(node.children![last].kind)) {
+	} else if (!isGridKind(node.kind) || !isGridKind(node.children![last].kind)) {
 		// A grid's rows are whole lines; a row's cells and an opaque body sit inside a line.
 		return;
 	}
