@@ -61,8 +61,8 @@ export interface EditorContext<Options = unknown> {
 	/** `EditorInstance.runCommand` for this editor: false, and nothing written, on an unknown id,
 	 *  in reading mode, or with nothing focused for a block command. */
 	readonly runCommand: (commandId: string, arg?: unknown) => boolean;
-	/** Inline-parse a prose leaf in this editor's syntax, so an inactive plugin's syntax reads as
-	 *  text, as the editor draws it. Uncached; reference links come back unresolved. */
+	/** Inline-parse a prose leaf as this editor draws it, reference links included. Uncached, and a
+	 *  new function whenever the document's definitions change, so a cache keyed on it refreshes. */
 	readonly computeInlineContent: (node: NodeView) => InlineNode[];
 	/** A getter, so always live: the mode in effect. The `presentationModeChange` event signals a change. */
 	readonly presentationMode: PresentationMode;

@@ -146,7 +146,6 @@ export interface SvelteWidgetPoolDeps {
 export function createSvelteWidgetPool(deps: SvelteWidgetPoolDeps): WidgetPool {
 	const { reportError, getTheme, getDocument, getContentVersion, navigateTo, reading } = deps;
 	const { grammar } = reading;
-	const readInline = inlineReaderFor(grammar);
 	return createWidgetPool<PortalHandle>({
 		create(kind, inline, source) {
 			const component = getInlineWidgetComponent(kind, grammar);
@@ -167,7 +166,10 @@ export function createSvelteWidgetPool(deps: SvelteWidgetPoolDeps): WidgetPool {
 						getDocument,
 						getContentVersion,
 						navigateTo,
-						computeInlineContent: readInline
+						// A getter, so a pooled widget's reader changes with the document's definitions.
+						get computeInlineContent() {
+							return inlineReaderFor(reading);
+						}
 					}
 				});
 				return { wrapper, instance };

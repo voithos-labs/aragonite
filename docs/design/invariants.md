@@ -1552,7 +1552,8 @@ deps and the render options carry it the same way. A
 fallback to every installed plugin is spelled only in the listed places. A write that reparses a
 block the editor drew (the prose block's live rewrites and auto-pair, and the bold and italic
 toggle) reads with the link resolver the block was drawn with, or a reference link reads as
-brackets beside it (#443, #455).
+brackets beside it (#443, #455). The inline read a plugin gets is built from the whole reading
+too, so a plugin walks reference links the way the editor draws them (#641).
 `lint/registry-view-reads.test.ts`.
 
 **G4.69 · The defaulted readers stay at the edge.** The published `parse` and `parseInline`, and

@@ -9,13 +9,16 @@
 import { describe, expect, it } from 'vitest';
 import type { BlockEditActions } from '$lib/action-contracts';
 import type { InlineNode } from '$lib/core/nodes';
+import { inlineReaderFor } from '$lib/core/inline';
 import { resolvedInlineContent } from '$lib/core/inline/inline-cache';
 import { CONTENT_VISIBILITY, renderedText } from '$lib/core/inline/visibility';
 import { renderInlineNodes } from '$lib/core/inline-render';
 import type { NodeView } from '$lib/core/node-views';
 import type { EditorActionsDeps } from '$lib/editor-actions/deps';
 import { withEnterCompletion } from '$lib/editor-actions/enter-completion';
+import { createEditorPluginContexts } from '$lib/schema/plugin-editor-context';
 import type { Reading } from '$lib/schema/reading';
+import { pluginContextDeps } from '../../support/plugin-context-deps';
 import {
 	callArguments,
 	collectEditorSources,
@@ -168,6 +171,14 @@ export function inlineCacheCallWithoutGrammar(node: NodeView, reading: Reading):
 	resolvedInlineContent(node, { resolver: reading.resolver });
 	// @ts-expect-error no reading means no grammar
 	resolvedInlineContent(node);
+}
+
+// A plugin's inline read takes the whole reading, so it can't drop the document's definitions.
+export function pluginReaderWithoutDefinitions(reading: Reading): void {
+	// @ts-expect-error a grammar alone carries no link reference definitions
+	inlineReaderFor(reading.grammar);
+	// @ts-expect-error the plugin contexts build their reader from the reading
+	createEditorPluginContexts({ ...pluginContextDeps(), computeInlineContent: () => [] });
 }
 
 export function renderCallWithoutGrammar(nodes: InlineNode[], raw: string): void {

@@ -241,7 +241,8 @@ export { blockNodeAt } from './tree-operations/node-primitives';
 /**
  * Inline-parse a prose leaf with every installed plugin's syntax, for a pipeline with no editor
  * mounted. Inside an editor use `EditorContext.computeInlineContent`, which reads only the plugins
- * that editor lists. Reference links parse as `unresolvedReference`: no resolver reaches a plugin.
+ * that editor lists and resolves the document's reference links. With no document here, a
+ * reference link reads as its bracketed text.
  */
 export function computeInlineContent(node: NodeView): InlineNode[] {
 	return parseLeafInline(node, undefined, defaultGrammarView);

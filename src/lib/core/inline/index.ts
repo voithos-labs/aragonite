@@ -8,6 +8,7 @@ import { getBlockKindDescriptor } from '../../schema/block-kind-descriptor';
 // is explicit because a bare side-effect import is tree-shaken from the production build.
 import { registerBuiltInDescriptors } from '../../schema/built-in-descriptors';
 import type { LinkReferenceResolver } from './link-reference-resolver';
+import type { Reading } from '../../schema/reading';
 import { defaultGrammarView, type GrammarView } from '../../schema/block-openers';
 import { scanInline } from './scan';
 import { codeSpanFence } from './scan/code-spans';
@@ -88,16 +89,19 @@ export function computeInlineContent(
 	return readInline(node.raw, range.start, range.end, resolver, grammar);
 }
 
-const readersByGrammar = new WeakMap<GrammarView, (node: NodeView) => InlineNode[]>();
+type InlineReader = (node: NodeView) => InlineNode[];
 
-/** One editor's inline parse with no link resolver, the read a plugin gets. One function per
- *  grammar, so a plugin cache keyed on it is shared by every block of that editor. */
-export function inlineReaderFor(grammar: GrammarView): (node: NodeView) => InlineNode[] {
-	let read = readersByGrammar.get(grammar);
-	if (!read) {
-		read = (node) => computeInlineContent(node, undefined, grammar);
-		readersByGrammar.set(grammar, read);
-	}
+const readersByReading = new WeakMap<Reading, { epoch: number; read: InlineReader }>();
+
+/** The inline parse a plugin gets: this editor's grammar and the document's definitions as they
+ *  stand at each call. A new function per definitions change, so a cache keyed on it refreshes. */
+export function inlineReaderFor(reading: Reading): InlineReader {
+	const epoch = reading.resolverEpoch;
+	const held = readersByReading.get(reading);
+	if (held?.epoch === epoch) return held.read;
+	const read: InlineReader = (node) =>
+		computeInlineContent(node, reading.resolver, reading.grammar);
+	readersByReading.set(reading, { epoch, read });
 	return read;
 }
 
