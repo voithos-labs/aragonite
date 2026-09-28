@@ -490,6 +490,25 @@ const RULES: FileRule[] = [
 		]
 	},
 	{
+		id: 'the browser is asked for a caret at a point in one module',
+		matches: /\bcaret(Range|Position)FromPoint\b/,
+		allowed: {
+			'src/lib/cursor/point-offset.ts':
+				'caretSeatFromPoint, behind the offset lookups that move a padding point level with a line'
+		},
+		reason:
+			'Mac and Linux Chromium answer a point in an element’s top or bottom padding with the line’s start or end: resolve a point through offsetFromViewportPoint or caretOffsetAtPoint',
+		hits: [
+			'const r = document.caretRangeFromPoint(x, y);',
+			'const p = (doc as any).caretPositionFromPoint?.(x, y);'
+		],
+		misses: [
+			'const offset = offsetFromViewportPoint(el, x, y);',
+			'const seat = caretSeatFromPoint(document, x, y);',
+			'// never call caretRangeFromPoint here\nconst a = 1;'
+		]
+	},
+	{
 		id: 'G4.13 no view-stripping cast outside tree-operations and the commit sequence',
 		population: notUnder(
 			'src/lib/tree-operations/',

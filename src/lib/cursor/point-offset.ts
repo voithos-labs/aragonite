@@ -6,27 +6,28 @@
 
 import { rawOffsetAt } from './widget-offset';
 
-/** The caret offset in `el` nearest a viewport point, clamped first into `el`'s box and level with
- *  its lines, so a click on the frame still names one. Null where `el` holds no text. */
+/** The caret offset in `el` nearest a viewport point, clamped into `el`'s box first so a click on
+ *  the frame still names one. Null where `el` holds no text. */
 export function caretOffsetAtPoint(
 	el: HTMLElement,
 	clientX: number,
 	clientY: number
 ): number | null {
-	const probe = clampPointIntoBox(linesBandOf(el), clientX, clientY);
+	const probe = clampPointIntoBox(el.getBoundingClientRect(), clientX, clientY);
 	return offsetFromViewportPoint(el, probe.x, probe.y);
 }
 
 /**
  * The exact counterpart: null for a point outside `el`, which a hit test must decline rather
- * than round into the nearest offset.
+ * than round into the nearest offset. A point inside `el` is first moved level with its lines.
  */
 export function offsetFromViewportPoint(
 	blockEl: HTMLElement,
 	clientX: number,
 	clientY: number
 ): number | null {
-	const seat = caretSeatFromPoint(blockEl.ownerDocument, clientX, clientY);
+	const probeY = levelWithLines(blockEl, clientX, clientY);
+	const seat = caretSeatFromPoint(blockEl.ownerDocument, clientX, probeY);
 	if (!seat || !blockEl.contains(seat.node)) return null;
 	return rawOffsetAt(blockEl, seat.node, seat.offset);
 }
@@ -67,8 +68,16 @@ export function clampPointIntoBox(rect: DOMRect, x: number, y: number): { x: num
 
 // Mac and Linux Chromium answer a point above the first line or below the last with that line's
 // start or end, and Windows with the column; a point level with a line gets the column everywhere.
-function linesBandOf(el: HTMLElement): DOMRect {
+function levelWithLines(el: HTMLElement, x: number, y: number): number {
 	const box = el.getBoundingClientRect();
+	if (x < box.left || x > box.right || y < box.top || y > box.bottom) return y;
+	const band = linesBandOf(el, box);
+	return band ? clamp(y, band.top + 1, band.bottom - 1) : y;
+}
+
+/** The rows between `el`'s top and bottom padding; null when they leave no row one pixel inside.
+ *  Only rows: a hanging list marker sits in the left padding, and the browser keeps a column there. */
+function linesBandOf(el: HTMLElement, box: DOMRect): { top: number; bottom: number } | null {
 	const style = getComputedStyle(el);
 	const px = (value: string) => parseFloat(value) || 0;
 	// The client box leaves out the border and a classic scrollbar; an inline element has none.
@@ -76,10 +85,7 @@ function linesBandOf(el: HTMLElement): DOMRect {
 	const top = box.top + (inline ? px(style.borderTopWidth) : el.clientTop);
 	const bottom = inline ? box.bottom - px(style.borderBottomWidth) : top + el.clientHeight;
 	const band = { top: top + px(style.paddingTop), bottom: bottom - px(style.paddingBottom) };
-	// Under two pixels there is no row one pixel inside, so the border box serves.
-	if (band.bottom - band.top < 2) return box;
-	// Across, the border box stays: a hanging list marker sits in the left padding.
-	return new DOMRect(box.left, band.top, box.width, band.bottom - band.top);
+	return band.bottom - band.top < 2 ? null : band;
 }
 
 function clamp(value: number, low: number, high: number): number {

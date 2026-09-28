@@ -116,4 +116,40 @@ describe('offsetFromViewportPoint: the exact counterpart', () => {
 
 		expect(offsetFromViewportPoint(el, 140, 60)).toBeNull();
 	});
+
+	/** Records each point the browser is asked about and answers the offset under its x. */
+	function askedOf(el: HTMLElement): { x: number; y: number }[] {
+		const asked: { x: number; y: number }[] = [];
+		setPointProbe((x, y) => {
+			asked.push({ x, y });
+			const range = document.createRange();
+			range.setStart(el.firstChild!, Math.round(x - BOX.left));
+			return range;
+		});
+		return asked;
+	}
+
+	// Miss-analysis: only the nearest lookup clamped rows, so a drag end or shift-click in the
+	// padding asked the browser there, and Mac and Linux answered the line's start.
+	it('asks about a point in the padding level with the nearest line, keeping its column', () => {
+		const el = mountBoxed();
+		el.style.padding = '4px 0';
+		const asked = askedOf(el);
+
+		expect(offsetFromViewportPoint(el, 140, BOX.top + 2)).toBe(40);
+		expect(offsetFromViewportPoint(el, 140, BOX.bottom - 2)).toBe(40);
+		expect(asked).toEqual([
+			{ x: 140, y: BOX.top + 4 + 1 },
+			{ x: 140, y: BOX.bottom - 4 - 1 }
+		]);
+	});
+
+	it('asks about a point outside the box as it is, so the browser can decline it', () => {
+		const el = mountBoxed();
+		el.style.padding = '4px 0';
+		const asked = askedOf(el);
+
+		offsetFromViewportPoint(el, 140, BOX.top - 10);
+		expect(asked).toEqual([{ x: 140, y: BOX.top - 10 }]);
+	});
 });
