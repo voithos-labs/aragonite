@@ -26,6 +26,8 @@ import {
 	tryGetBlockKindDescriptor
 } from '../schema/block-kind-descriptor';
 import { reservedChromeKindOf } from '../schema/reserved-chrome';
+import type { GrammarView } from '../schema/block-openers';
+import { adoptParsedMetadata, parseContainerRaw } from '../schema/container-raw';
 
 // ── The commit's steps ───────────────────────────────────────────────────────
 
@@ -40,7 +42,8 @@ export function endsOpen(doc: DocumentView): boolean {
 export function endWindowLines(
 	body: BodyParent,
 	change: StructuralChange,
-	sharing: SharingState
+	sharing: SharingState,
+	grammar: GrammarView
 ): void {
 	if (change.op === 'noop') return;
 	const placed =
@@ -52,18 +55,23 @@ export function endWindowLines(
 	const hi = Math.min(change.at + placed, children.length);
 	for (let i = lo; i < hi; i++) {
 		if (!isLine(body.owner, children[i]) || ownTrailingLineEnding(children[i].raw) !== '') continue;
-		terminateLastLine(ensureUnsharedChild(body, i, sharing), body.lineEnding, sharing);
+		terminateLastLine(ensureUnsharedChild(body, i, sharing), body.lineEnding, sharing, grammar);
 	}
 }
 
 /** When the document ended open before the commit, the block now last gives its ending up, unless
  *  its last line is blank. Run after the containers rebuild, since it writes each level's raw. */
-export function keepOpenTail(doc: Document, wasOpen: boolean, sharing: SharingState): void {
+export function keepOpenTail(
+	doc: Document,
+	wasOpen: boolean,
+	sharing: SharingState,
+	grammar: GrammarView
+): void {
 	if (!wasOpen || doc.suffix !== '') return;
 	const lastIndex = doc.children.length - 1;
 	const last = doc.children[lastIndex];
 	if (!last || ownTrailingLineEnding(last.raw) === '' || holdsBlankLastLine(last)) return;
-	releaseLastLine(ensureUnsharedChild(doc, lastIndex, sharing), sharing);
+	releaseLastLine(ensureUnsharedChild(doc, lastIndex, sharing), sharing, grammar);
 }
 
 /**
@@ -90,23 +98,33 @@ function isLine(owner: NodeView | undefined, child: NodeView): boolean {
  * End the node's last line in `ending`, in its own raw and in every node below holding that line,
  * so a container's other lines (a quote's lazy continuation lines) keep their bytes.
  */
-function terminateLastLine(node: CstNode, ending: LineEnding, sharing: SharingState): void {
-	rewriteLastLine(node, (raw) => terminateLine(raw, ending), sharing);
+function terminateLastLine(
+	node: CstNode,
+	ending: LineEnding,
+	sharing: SharingState,
+	grammar: GrammarView
+): void {
+	rewriteLastLine(node, (raw) => terminateLine(raw, ending), sharing, grammar);
 }
 
-function releaseLastLine(node: CstNode, sharing: SharingState): void {
-	rewriteLastLine(node, trimTrailingLineEnding, sharing);
+function releaseLastLine(node: CstNode, sharing: SharingState, grammar: GrammarView): void {
+	rewriteLastLine(node, trimTrailingLineEnding, sharing, grammar);
 }
 
 function rewriteLastLine(
 	node: CstNode,
 	write: (raw: string) => string,
-	sharing: SharingState
+	sharing: SharingState,
+	grammar: GrammarView
 ): void {
 	const wasEnded = node.raw.endsWith('\n');
 	const raw = write(node.raw);
 	if (raw === node.raw) return;
 	node.raw = raw;
+	// An opaque container's metadata can hold its closing line's ending, so it re-reads its bytes.
+	if (tryGetBlockKindDescriptor(node.kind)?.containerContract === 'opaque') {
+		adoptParsedMetadata(node, parseContainerRaw(raw, grammar));
+	}
 	const last = (node.children?.length ?? 0) - 1;
 	if (last < 0) return;
 	const descriptor = getBlockKindDescriptor(node.kind);
@@ -122,5 +140,5 @@ function rewriteLastLine(
 		// A grid's rows are whole lines; a row's cells and an opaque body sit inside a line.
 		return;
 	}
-	rewriteLastLine(ensureUnsharedChild(node, last, sharing), write, sharing);
+	rewriteLastLine(ensureUnsharedChild(node, last, sharing), write, sharing, grammar);
 }

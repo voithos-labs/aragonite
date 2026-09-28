@@ -392,7 +392,7 @@ export function createUndoController(
 				const body = documentBody(deps.doc, childrenCopy);
 
 				const mutated = args.mutate(childrenCopy);
-				endWindowLines(body, mutated, deps.sharing);
+				endWindowLines(body, mutated, deps.sharing, deps.reading.grammar);
 				// `deps.doc.children` is still the pre-mutate array here (`publish` swaps it),
 				// so the blank-line fix-up reads which blocks were blank off it directly.
 				const change = settleSeparator(
@@ -403,7 +403,7 @@ export function createUndoController(
 					deps.sharing,
 					args.trackCaret
 				);
-				keepOpenTail(body, wasOpen, deps.sharing);
+				keepOpenTail(body, wasOpen, deps.sharing, deps.reading.grammar);
 				if (args.discardIfNoop && change.op === 'noop') {
 					// The document branch installed nothing; only the stacks are restored here.
 					rollback.restore();
@@ -718,7 +718,7 @@ export function createUndoController(
 					);
 				}
 				for (let i = 0; i < prepared.length; i++) {
-					endWindowLines(prepared[i].view.body, changeList[i], deps.sharing);
+					endWindowLines(prepared[i].view.body, changeList[i], deps.sharing, deps.reading.grammar);
 				}
 				for (let i = 0; i < prepared.length; i++) {
 					// `savedChildren` is the pre-mutate array `prepareScopeView` swapped out, so
@@ -750,7 +750,7 @@ export function createUndoController(
 				}
 				unwindFolds = publishAncestryFolds(deps, folds);
 				// The document commit above runs the same two steps until the two branches merge.
-				keepOpenTail(deps.doc, wasOpen, deps.sharing);
+				keepOpenTail(deps.doc, wasOpen, deps.sharing, deps.reading.grammar);
 				return changeList.some((c) => c.op !== 'noop') || folds.length > 0;
 			},
 			publish: () => {

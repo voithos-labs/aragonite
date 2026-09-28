@@ -69,7 +69,7 @@ export function reorderChildrenWithTrivia(
 	}
 	// The joins below read the moved blocks side by side, so a moved open last line ends first; this
 	// call goes once the commit settles the move's joins, and the commit gives the ending back.
-	endWindowLines(body, change, sharing);
+	endWindowLines(body, change, sharing, grammar);
 	// Each join the move touches gets a blank line where the two blocks would read as one; the
 	// pair the moved block left rejoins only if it sat flush against both of them.
 	const vacated = from < to ? from : from + 1;
