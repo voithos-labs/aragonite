@@ -30,6 +30,7 @@ import { ensureEditableContainers } from '../../tree-operations/node-primitives'
 import { buildExitReplacement } from '../../tree-operations/list/exit-replacement';
 import { pasteDispatch } from '../../tree-operations/paste/dispatch';
 import { parseReplacement } from '../../tree-operations/paste/replacement-parse';
+import { slotReaderAt } from '../../tree-operations/list/task-paragraph';
 import { replaceBlockRaw } from '../../editor-actions/block-edit-core';
 import { createPasteCoordinator } from '../../editor-actions/paste-coordinator';
 import { createUndoController } from '../../editor-actions/commit/undo-controller';
@@ -386,7 +387,7 @@ function pasteRoutes(): EditGesture[] {
 						doc.children[0],
 						'x\ny\n\nz',
 						documentLineEnding(doc),
-						fixtureReading().grammar
+						slotReaderAt(doc, [0], fixtureReading().grammar)
 					)!.replacement
 				)
 		},

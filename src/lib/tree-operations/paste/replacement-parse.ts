@@ -1,13 +1,12 @@
 /**
  * The bytes a block is replaced by, parsed the one way every replace-at-parent caller needs them:
  * their line breaks in the document's ending, terminated in the original's own ending, else the
- * document's, reparsed in the instance grammar, carrying the original's leading blank lines, with
- * editable containers ensured.
+ * document's, read the way a reload reads the original's slot, carrying the original's leading
+ * blank lines, with editable containers ensured.
  */
 
 import type { CstNode } from '../../core/nodes';
-import type { GrammarView } from '../../schema/block-openers';
-import { readBlocks } from '../../core/parser';
+import type { FragmentReader } from '../list/task-paragraph';
 import {
 	terminateLine,
 	trailingLineEnding,
@@ -23,19 +22,19 @@ export interface ParsedReplacement {
 }
 
 /**
- * Null where `raw` parses to nothing and the caller named no `fallback`: the block keeps its
- * bytes rather than being replaced by an empty splice.
+ * `read` is the original's slot reader (`fragmentReaderAt`). Null where `raw` parses to nothing
+ * and the caller named no `fallback`: the block keeps its bytes rather than an empty splice.
  */
 export function parseReplacement(
 	original: CstNode,
 	raw: string,
 	ending: LineEnding,
-	grammar: GrammarView,
+	read: FragmentReader,
 	fallback?: () => CstNode[]
 ): ParsedReplacement | null {
 	const lineEnding = trailingLineEnding(original.raw, ending);
 	const bytes = terminateLine(withLineEnding(raw, ending), lineEnding);
-	const parsed = readBlocks(bytes, { grammar, scope: 'fragment' });
+	const parsed = read(bytes);
 	const children = parsed.children.length > 0 ? parsed.children : fallback?.();
 	if (!children || children.length === 0) return null;
 	const replacement = normalizeReplacementTrivia(original, children);

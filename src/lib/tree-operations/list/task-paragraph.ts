@@ -5,7 +5,8 @@
  */
 
 import { metadataOf, type Document } from '../../core/nodes';
-import type { NodeView } from '../../core/node-views';
+import type { DocumentView, NodeView } from '../../core/node-views';
+import { blockNodeAt } from '../node-primitives';
 import { readBlocks, parseTaskItemBody } from '../../core/parser';
 import type { GrammarView } from '../../schema/block-openers';
 
@@ -28,4 +29,14 @@ export function fragmentReaderAt(
 	return followsTaskMarker(owner, index)
 		? (text) => parseTaskItemBody(text, grammar)
 		: (text) => readBlocks(text, { grammar, scope: 'fragment' });
+}
+
+/** {@link fragmentReaderAt} for the slot a document path names. */
+export function slotReaderAt(
+	doc: DocumentView,
+	path: readonly number[],
+	grammar: GrammarView
+): FragmentReader {
+	const owner = path.length > 1 ? blockNodeAt(doc, path.slice(0, -1)) : null;
+	return fragmentReaderAt(owner ?? undefined, path[path.length - 1], grammar);
 }

@@ -170,7 +170,6 @@ function deleteFromProseIntoTable(
 				startIsChrome,
 				reading,
 				sharing,
-				grammar,
 				'deleteFromProseIntoTable:start'
 			);
 
@@ -232,7 +231,6 @@ function deleteFromTableIntoProse(
 				endIsChrome,
 				reading,
 				sharing,
-				grammar,
 				'deleteFromTableIntoProse:end'
 			);
 	applyPlannedDeletion(doc, plan, lcaPath, grammar);

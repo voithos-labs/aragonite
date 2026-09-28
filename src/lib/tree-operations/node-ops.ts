@@ -52,7 +52,7 @@ import { cutKeepingStructure, joinKeepingSuffix } from './structural-suffix';
 import { leafAtRawOffset, rawOffsetOfLeaf } from './container-offsets';
 import { CURSOR_END } from '../block-component';
 import { adoptReparsedFields, legalizeWrite, probeLineOpensAsProse } from './content-write';
-import { reconcileTaskMetadata, taskMarkerMayStandBefore } from './list/reconcile-task';
+import { writeKeepingTaskMarker } from './list/reconcile-task';
 import { fragmentReaderAt, type FragmentReader } from './list/task-paragraph';
 
 // ── Split ──
@@ -357,22 +357,15 @@ export function joinIntoLeaf(
 		fragmentReaderAt(holder.owner, slot, reading.grammar)
 	);
 	if (!merged) return null;
-	// Read before the write, which can change the leaf into a block no task marker may precede.
-	const stood = taskMarkerMayStandBefore(target);
 
 	// The join writes the leaf's raw plus every ancestor's rebuilt raw, so copy the whole
 	// ancestor chain first and resolve through the owned copies (`unshare.ts` header).
 	if (sharing) ensureUnsharedPath(parent, [...path], sharing);
-	installMergedLeaf(
-		holderChildrenAt(parent.children, path),
-		slot,
-		merged,
-		sharing,
-		holder.lineEnding
-	);
+	const children = holderChildrenAt(parent.children, path);
 	// The task state is reconciled before the ancestors' rebuild writes the list item's marker.
-	const owner = ownerAt(parent, path);
-	if (owner) reconcileTaskMetadata(owner, slot, stood, sharing);
+	writeKeepingTaskMarker(ownerAt(parent, path), children, slot, sharing, () =>
+		installMergedLeaf(children, slot, merged, sharing, holder.lineEnding)
+	);
 	if (path.length > 1) rebuildAncestryRaw(parent.children[path[0]], path.slice(1));
 	return { joinOffset: legal.storedOffset(seam) };
 }

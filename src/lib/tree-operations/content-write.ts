@@ -29,11 +29,7 @@ import type { SharingState } from './sharing';
 import { resyncChildIds } from './children';
 import { spliceMany } from './splice-many';
 import { replacePreservingFirst, type StructuralChange } from './structural-change';
-import {
-	reconcileTaskMetadata,
-	taskMarkerCaretShift,
-	taskMarkerMayStandBefore
-} from './list/reconcile-task';
+import { taskMarkerCaretShift, writeKeepingTaskMarker } from './list/reconcile-task';
 import { fragmentReaderAt, type FragmentReader } from './list/task-paragraph';
 import {
 	NEXT_PROSE_LINE,
@@ -131,14 +127,11 @@ export function updateNodeContent(
 ): SettledContent {
 	const legal =
 		typeof text === 'string' ? legalizeWrite(parent, blockIndex, text, 'literal').text : text.text;
-	// Read before the write, which is what can put a block there the marker cannot stand before.
-	const stood = taskMarkerMayStandBefore(parent.children[blockIndex]);
-	const settled = writeAndSettleContent(parent, blockIndex, legal, grammar, sharing);
-	// A list item's task marker belongs to its first block, so the write that changed that block
-	// decides whether it keeps it, before the container's raw rebuild writes the marker.
+	// Reconciled before the container's raw rebuild writes the list item's marker.
 	const owner = 'owner' in parent ? parent.owner : undefined;
-	if (owner) reconcileTaskMetadata(owner, blockIndex, stood, sharing);
-	return settled;
+	return writeKeepingTaskMarker(owner, parent.children, blockIndex, sharing, () =>
+		writeAndSettleContent(parent, blockIndex, legal, grammar, sharing)
+	);
 }
 
 function writeAndSettleContent(

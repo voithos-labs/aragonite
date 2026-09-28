@@ -30,11 +30,7 @@ import { displayLength, documentLineEnding } from '../core/lines';
 import { deleteAtPath } from '../tree-operations/path-mutate';
 import { cleanJoinedRaw } from '../tree-operations/node-ops';
 import { joinKeepingSuffix } from '../tree-operations/structural-suffix';
-import {
-	deleteSubtreesIdentityGated,
-	installTruncatedEndpoint,
-	reparseTruncatedEndpoint
-} from './range-delete-ceremony';
+import { deleteSubtreesIdentityGated, installSurvivor } from './range-delete-ceremony';
 import { ensureUnsharedNode, ensureUnsharedPath } from '../tree-operations/unshare';
 import { rebuildUnsharedAncestry, rebuildUnsharedChain } from '../tree-operations/chain-rebuild';
 import { involvesTable, tableAwareRangeDelete } from './range-delete-table';
@@ -170,15 +166,6 @@ export function rangeDelete(
 		};
 	}
 
-	// The survivor takes the start block's write rule before the reparse derives metadata, and
-	// keeps the start's leading blank lines, which a fragment reparse would drop.
-	const replacement = reparseTruncatedEndpoint(
-		startBlock,
-		joined.raw,
-		documentLineEnding(doc),
-		grammar
-	);
-
 	// walkBetween includes ancestors of `end` whose subtrees extend past it, so filter to
 	// subtrees fully inside (start, end). Cascade-cleanup handles ancestors emptied afterwards.
 	const betweenPaths = walkBetween(doc, start.path, end.path).filter((p) =>
@@ -196,7 +183,7 @@ export function rangeDelete(
 
 	deleteSubtreesIdentityGated(doc, deletionPaths, lcaPath, sharing, grammar);
 
-	installTruncatedEndpoint(doc, start.path, replacement, sharing, grammar);
+	const shift = installSurvivor(doc, start.path, startBlock, joined.raw, sharing, reading);
 
 	rebuildUnsharedAncestry(doc, start.path, sharing, null, grammar);
 	for (const path of deletionPaths) {
@@ -209,7 +196,7 @@ export function rangeDelete(
 	const collapsedCaret: SelectionPoint =
 		leafPath && leafPath.length > start.path.length
 			? { path: leafPath, offset: 0 }
-			: { path: start.path.slice(), offset: joined.seam };
+			: { path: start.path.slice(), offset: Math.max(0, joined.seam + shift) };
 
 	return { newDoc: doc, collapsedCaret };
 }

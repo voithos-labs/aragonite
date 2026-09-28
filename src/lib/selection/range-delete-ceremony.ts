@@ -11,13 +11,11 @@ import type { CstNode, Document } from '../core/nodes';
 import type { SelectionPoint } from './primitives';
 import type { CoveredRange } from './range-coverage';
 import type { SharingState } from '../tree-operations/sharing';
-import { readBlocks } from '../core/parser';
 import {
 	displayLength,
 	documentLineEnding,
 	terminateLine,
-	trailingLineEnding,
-	type LineEnding
+	trailingLineEnding
 } from '../core/lines';
 import { charOffsetOf, walkBetween } from './primitives';
 import {
@@ -41,6 +39,11 @@ import { cutBeforeSuffix } from '../tree-operations/structural-suffix';
 import { structuralSuffix } from '../core/inline';
 import { ensureUnsharedPath } from '../tree-operations/unshare';
 import { rebuildUnsharedAncestry, rebuildUnsharedChain } from '../tree-operations/chain-rebuild';
+import { slotReaderAt } from '../tree-operations/list/task-paragraph';
+import {
+	taskMarkerCaretShift,
+	writeKeepingTaskMarker
+} from '../tree-operations/list/reconcile-task';
 // The title-line branch imports this module back; the cycle is only inside function bodies,
 // resolved at call time, so it is safe.
 import {
@@ -105,41 +108,39 @@ function cleanTruncatedProse(
 	return cleanJoinedRaw({ ...join, reading });
 }
 
-/** Reparses the bytes that survive at an endpoint, through the source kind's write rule first,
- *  so what the rule restores (a fence closer) is back before the reparse derives metadata. */
-export function reparseTruncatedEndpoint(
-	node: CstNode,
-	slice: string,
-	ending: LineEnding,
-	grammar: GrammarView
-): CstNode[] {
-	const lineEnding = trailingLineEnding(node.raw, ending);
-	const reparsed = readBlocks(normalizeOwnRaw(node, slice, ending) || lineEnding, {
-		grammar,
-		scope: 'fragment'
-	});
-	if (reparsed.children.length === 0) {
-		return [emptyParagraph(node.leadingTrivia, lineEnding)];
-	}
-	const cloned = reparsed.children.slice();
-	cloned[0] = { ...cloned[0], leadingTrivia: node.leadingTrivia };
-	// The trailing blank line the parser split off has no following block to attach to here, so
-	// it stays in raw.
-	cloned[cloned.length - 1].raw += reparsed.suffix;
-	return cloned;
-}
-
-/** Installs an endpoint's replacement as the live tree's own copy; `replaceAtPath` fixes the blank
- *  lines around it so the tree reparses to the same block shape (G2.13). */
-export function installTruncatedEndpoint(
+/** Installs `bytes` at `path` as a reload reads them there, through `source`'s write rule, keeping
+ *  its leading blank lines and the task-marker rule; returns the caret shift a marker takes. */
+export function installSurvivor(
 	doc: Document,
 	path: number[],
-	replacement: CstNode[],
+	source: CstNode,
+	bytes: string,
 	sharing: SharingState,
-	grammar: GrammarView
-): void {
-	for (const node of replacement) sharing.stamp(node);
-	replaceAtPath(doc, path, replacement, sharing, grammar);
+	reading: Reading
+): number {
+	const ending = documentLineEnding(doc);
+	const lineEnding = trailingLineEnding(source.raw, ending);
+	const written = normalizeOwnRaw(source, bytes, ending) || lineEnding;
+	const reparsed = slotReaderAt(doc, path, reading.grammar)(written);
+	const replacement = reparsed.children.slice();
+	if (replacement.length === 0) {
+		replacement.push(emptyParagraph(source.leadingTrivia, lineEnding));
+	} else {
+		replacement[0] = { ...replacement[0], leadingTrivia: source.leadingTrivia };
+		// The trailing blank line the parser split off has no following block to attach to here,
+		// so it stays in raw.
+		replacement[replacement.length - 1].raw += reparsed.suffix;
+	}
+	const owner = blockNodeAt(doc, path.slice(0, -1)) ?? undefined;
+	const slot = path[path.length - 1];
+	const shift = slot === 0 && owner ? taskMarkerCaretShift(owner, written) : 0;
+	const siblings = (owner ?? doc).children ?? [];
+	// `replaceAtPath` fixes the blank lines around it so the tree reparses the same (G2.13).
+	writeKeepingTaskMarker(owner, siblings, slot, sharing, () => {
+		for (const node of replacement) sharing.stamp(node);
+		replaceAtPath(doc, path, replacement, sharing, reading.grammar);
+	});
+	return shift;
 }
 
 /** Truncates the start endpoint in place, after the planned deletion, and returns the caret's
@@ -151,7 +152,6 @@ export function truncateStartInPlace(
 	isChrome: boolean,
 	reading: Reading,
 	sharing: SharingState,
-	grammar: GrammarView,
 	tag: string
 ): number {
 	const cut = charOffsetOf(start, tag);
@@ -164,14 +164,8 @@ export function truncateStartInPlace(
 	// The kept head keeps the block's structure after it (a setext underline), as a join does.
 	const head = cleanTruncatedProse(startBlock, 'head', cutBeforeSuffix(startBlock, cut), reading);
 	const kept = terminateLine(head.raw + structuralSuffix(startBlock), lineEnding);
-	installTruncatedEndpoint(
-		doc,
-		start.path,
-		reparseTruncatedEndpoint(startBlock, kept, ending, grammar),
-		sharing,
-		grammar
-	);
-	return head.seam;
+	const shift = installSurvivor(doc, start.path, startBlock, kept, sharing, reading);
+	return Math.max(0, head.seam + shift);
 }
 
 /** Truncates the end endpoint in place, before the planned deletion while its path is valid,
@@ -183,7 +177,6 @@ export function truncateEndInPlace(
 	isChrome: boolean,
 	reading: Reading,
 	sharing: SharingState,
-	grammar: GrammarView,
 	tag: string
 ): CstNode | null {
 	const cut = charOffsetOf(end, tag);
@@ -193,13 +186,7 @@ export function truncateEndInPlace(
 		return endBlock;
 	}
 	const tail = cleanTruncatedProse(endBlock, 'tail', cut, reading).raw;
-	installTruncatedEndpoint(
-		doc,
-		end.path,
-		reparseTruncatedEndpoint(endBlock, tail, documentLineEnding(doc), grammar),
-		sharing,
-		grammar
-	);
+	installSurvivor(doc, end.path, endBlock, tail, sharing, reading);
 	return blockNodeAt(doc, end.path);
 }
 

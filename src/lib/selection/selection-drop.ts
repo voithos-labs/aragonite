@@ -24,6 +24,7 @@ import { cutRangeFromDisplay } from '../tree-operations/node-ops';
 import { rebuildAncestryRaw } from '../schema/container-raw';
 import { applyPasteTransforms } from '../tree-operations/paste/paste-transforms';
 import { parseReplacement } from '../tree-operations/paste/replacement-parse';
+import { slotReaderAt } from '../tree-operations/list/task-paragraph';
 import { blockNearPoint } from './nearest-block';
 import { findSurfaceForElement } from './path-lookup';
 import { charOffsetOf } from './primitives';
@@ -374,7 +375,8 @@ async function writeBlockRaw(
 	const written = normalizeOwnRaw(node, rewrite(trimTrailingLineEnding(node.raw)), lineEnding);
 	// A block emptied by the cut keeps its position as a blank paragraph: no splice, so the
 	// second write's path is still the one resolved at the drop.
-	const parsed = parseReplacement(node, written, lineEnding, deps.reading.grammar, () => [
+	const read = slotReaderAt(doc, path, deps.reading.grammar);
+	const parsed = parseReplacement(node, written, lineEnding, read, () => [
 		emptyParagraph(node.leadingTrivia ?? '', trailingLineEnding(node.raw, lineEnding))
 	]);
 	if (!parsed) return null;

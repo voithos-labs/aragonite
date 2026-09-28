@@ -1,7 +1,7 @@
 /**
- * Reconciles a list item's task metadata with its first paragraph's raw. The parser keeps the task
- * marker in the item's metadata but typing writes only `paragraph.raw`, so without a reconcile,
- * typed `[ ] ` would serialize as a task the live tree still calls plain.
+ * Keeps a list item's task metadata in step with its first block. The parser keeps the task marker
+ * in the item's metadata, but a write changes only the block, so every write into an item's first
+ * slot goes through `writeKeepingTaskMarker`, which reconciles the marker with what stands there.
  */
 
 import type { CstNode } from '../../core/nodes';
@@ -12,8 +12,24 @@ import { matchTaskCheckbox } from '../../core/parsers/list';
 import type { SharingState } from '../sharing';
 import { ensureUnsharedChild } from '../unshare';
 
+/** Runs `write` against the child at `slot`, then reconciles the owner's task marker with what
+ *  stands there now. Pass the owner as the tree holds it once any copy before the write is made. */
+export function writeKeepingTaskMarker<T>(
+	owner: CstNode | undefined,
+	children: readonly CstNode[],
+	slot: number,
+	sharing: SharingState | undefined,
+	write: () => T
+): T {
+	// Read before the write, which can put a block there no task marker may stand before.
+	const stood = children[slot] !== undefined && taskMarkerMayStandBefore(children[slot]);
+	const result = write();
+	if (owner) reconcileTaskMetadata(owner, slot, stood, sharing);
+	return result;
+}
+
 /** Whether a task marker may stand in front of this block: only its own paragraph (GFM task lists). */
-export function taskMarkerMayStandBefore(block: CstNode): boolean {
+function taskMarkerMayStandBefore(block: NodeView): boolean {
 	return block.kind === 'paragraph';
 }
 

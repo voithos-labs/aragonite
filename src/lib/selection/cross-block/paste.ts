@@ -19,6 +19,7 @@ import { applyPasteTransforms } from '../../tree-operations/paste/paste-transfor
 import { blockNodeAt, nodeAt } from '../../tree-operations/node-primitives';
 import { pathsEqual } from '../path-math';
 import { parseReplacement } from '../../tree-operations/paste/replacement-parse';
+import { slotReaderAt } from '../../tree-operations/list/task-paragraph';
 import { emitClipboardError } from '../../editor-events';
 
 export async function handleCrossBlockPaste(
@@ -148,7 +149,7 @@ async function replaceCoveredBlockWithPaste(
 		covered,
 		applyPasteTransforms(pasted, ctx.activePlugins),
 		documentLineEnding(doc),
-		ctx.reading.grammar
+		slotReaderAt(doc, blockPath, ctx.reading.grammar)
 	);
 	if (!parsed) return;
 

@@ -82,7 +82,6 @@ export function chromeAwareRangeDelete(
 			endC !== null && isChromeChild(endC, end.path),
 			reading,
 			sharing,
-			grammar,
 			'chromeAwareRangeDelete:end'
 		);
 	}
@@ -100,7 +99,6 @@ export function chromeAwareRangeDelete(
 				startC !== null && isChromeChild(startC, start.path),
 				reading,
 				sharing,
-				grammar,
 				'chromeAwareRangeDelete:start'
 			);
 
