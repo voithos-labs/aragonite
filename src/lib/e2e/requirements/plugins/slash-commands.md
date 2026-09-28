@@ -24,6 +24,17 @@ and `runCommand('slashCommands.open', query)` opens the list already narrowed.
   to narrow first, so none pressed Enter before the menu had read the last keys; a loaded CI runner
   was the first to.
 
+## A pick leaves the page where it was
+
+In a document taller than the editor, with the line mid-viewport, a pick doesn't move the page:
+the line's top stays within 2px of where it was, before and after the new block measures.
+Miss-analysis: every pick ran in a document shorter than the editor, where nothing scrolls, so none
+saw the landing pull its line to the viewport's top once the new block measured.
+
+- `/quote` on an empty line (the pick writes into the line itself): the line stays put.
+- `/quote` after text (the quote lands in a new block below): the text line stays put.
+- `/quote` picked by clicking its row instead of pressing Enter: the line stays put.
+
 ## Undo
 
 A pick is one undo entry, however many writes it makes. Miss-analysis: the pick cases asserted
