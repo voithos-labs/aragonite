@@ -210,6 +210,14 @@ describe('scroll owner: who may drop the slot', () => {
 		expect(h.heldPath()).toEqual([7]);
 	});
 
+	it("the user's release mid-scroll drops the hold but not the answer", async () => {
+		const h = makeOwner({ '[1]': [500, 0] }, { withRoot: true });
+		const pending = h.owner.place([1], { block: 'nearest', hold: true }).scroll();
+		h.owner.release();
+		expect(await pending).toBe(true);
+		expect(h.heldPath()).toBeNull();
+	});
+
 	it("the user's release outranks the placement, which cannot take the slot back", async () => {
 		const h = makeOwner();
 		const pending = h.owner.place([4], { block: 'nearest', hold: true });
