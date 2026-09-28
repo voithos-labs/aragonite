@@ -425,7 +425,8 @@ export function checkTerminatorCollision(
 		}
 		fixture.writeBody(node, body);
 	}
-	rebuildContainerRawIfContainer(node);
+	// Through the chain rebuild a commit runs, which also re-reads the container's metadata.
+	rebuildUnsharedAncestry(doc, [0], createSharingState(), null, defaultGrammarView);
 
 	// Without this the cell passes on a container the write never reached, which is how a body
 	// written to the wrong place would look like it survived a collision it never saw.

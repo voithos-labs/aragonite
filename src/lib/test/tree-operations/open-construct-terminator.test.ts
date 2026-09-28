@@ -8,6 +8,7 @@ import { rebuildContainerRaw } from '$lib/schema/container-raw';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
 import { defaultGrammarView } from '$lib/schema/block-openers';
 import { documentLineEnding } from '$lib/core/lines';
+import { fixtureGrammar } from '$lib/test/harness/fixture-grammar';
 
 // A write that leaves a construct open to the end of the file closes it, so the blocks below stand
 // instead of becoming its body.
@@ -107,7 +108,7 @@ describe('a write closes the construct its own bytes leave open (GH #180)', () =
 			'```\n',
 			defaultGrammarView
 		);
-		rebuildContainerRaw(quote);
+		rebuildContainerRaw(quote, fixtureGrammar);
 
 		expect(quote.children!.map((c) => [c.kind, c.raw])).toEqual([
 			['paragraph', 'a\n'],

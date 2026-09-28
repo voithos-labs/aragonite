@@ -12,6 +12,7 @@ import type { GrammarView } from '../schema/block-openers';
 import { documentLineEnding, trailingLineEnding, type LineEnding } from '../core/lines';
 import { getBlockKindDescriptor, tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
 import { reservedChromeKindOf } from '../schema/reserved-chrome';
+import { adoptParsedMetadata } from '../schema/container-raw';
 
 // ── Parent shapes and the kind's write rules ──
 
@@ -121,8 +122,7 @@ export function installOwnRaw(node: CstNode, legal: string, grammar: GrammarView
 	// mis-read metadata that was never parse-derived.
 	if (tryGetBlockKindDescriptor(node.kind)?.contextDependentKind) return;
 	// In place means no reparse replaces the node, so parse-owned metadata re-derives here.
-	const reparsed = readBlocks(legal, { grammar, scope: 'fragment' }).children;
-	if (reparsed.length === 1 && reparsed[0].kind === node.kind) node.metadata = reparsed[0].metadata;
+	adoptParsedMetadata(node, readBlocks(legal, { grammar, scope: 'fragment' }).children);
 }
 
 // ── Node constructors ──

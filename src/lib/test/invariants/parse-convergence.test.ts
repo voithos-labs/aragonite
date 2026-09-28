@@ -11,6 +11,7 @@ import {
 	parseConverges,
 	describeConvergence
 } from '$lib/test/harness/parse-converged';
+import { fixtureGrammar } from '$lib/test/harness/fixture-grammar';
 
 // The check on the check. Using the parse comparison wherever a round-trip proves nothing is only
 // sound if it catches the live-tree-versus-raw differences bytes cannot see and stays green on the
@@ -44,7 +45,7 @@ describe('parseConverges on the empty-paragraph shapes the editor reaches', () =
 		// Enter at the end of "hi": the split writes the separator, then the empty half.
 		const bq = parse(source).children[0];
 		bq.children!.push({ kind: 'paragraph', leadingTrivia: lineEnding, raw: lineEnding });
-		rebuildContainerRaw(bq);
+		rebuildContainerRaw(bq, fixtureGrammar);
 		expect(parseConverges(docOf([bq]))).toBe(true);
 	});
 

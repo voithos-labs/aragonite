@@ -11,8 +11,8 @@ export interface PerfSnapshot {
 	snapshotCount: number;
 	snapshotCloneBytes: number;
 	rebuildDepths: Record<number, number>;
-	/** Container reparses the kind re-derivation check let through (see
-	 *  `rebuildUnsharedChain`). */
+	/** Parses of a rebuilt container's own bytes, to re-derive its kind or an opaque one's
+	 *  metadata (`schema/container-raw.ts :: parseContainerRaw`). */
 	containerKindReparses: number;
 	parseCount: number;
 	parseMsTotal: number;

@@ -189,7 +189,7 @@ export function mergeListItemIntoPrevious(
 	// final write to state.
 	list.children = children;
 
-	rebuildAncestryRaw(list, targetPath);
+	rebuildAncestryRaw(list, targetPath, reading.grammar);
 
 	if (metadataOf(list, 'list')?.ordered) {
 		// The merge only removes a non-first item, so children[0] keeps the list's starting number;

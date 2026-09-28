@@ -3,6 +3,7 @@ import { parse } from '../../../core/parser';
 import { sliceTableAtRow } from '../../../tree-operations/paste/table-slice';
 import { rebuildContainerRaw } from '../../../schema/container-raw';
 import type { CstNode, TableMetadata, TableRowMetadata } from '../../../core/nodes';
+import { fixtureGrammar } from '$lib/test/harness/fixture-grammar';
 
 const fixture = '| A | B |\n| :--- | ---: |\n| 1 | 2 |\n| 3 | 4 |\n| 5 | 6 |\n';
 
@@ -58,8 +59,8 @@ describe('sliceTableAtRow', () => {
 		expect((firstHalf!.metadata as TableMetadata).alignments).toEqual(['left', 'right']);
 		expect((secondHalf!.metadata as TableMetadata).alignments).toEqual(['left', 'right']);
 
-		rebuildContainerRaw(firstHalf!);
-		rebuildContainerRaw(secondHalf!);
+		rebuildContainerRaw(firstHalf!, fixtureGrammar);
+		rebuildContainerRaw(secondHalf!, fixtureGrammar);
 		expect(firstHalf!.raw).toContain('| A | B |');
 		expect(firstHalf!.raw).toContain('| :--- | ---: |');
 		expect(secondHalf!.raw).toContain('| 5 | 6 |');

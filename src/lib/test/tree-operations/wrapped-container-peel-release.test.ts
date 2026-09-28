@@ -12,6 +12,7 @@ import { registerCalloutKind } from '../../../routes/test/plugins/callout/callou
 import { expectParseConverged } from '../harness/parse-converged';
 import type { CstNode } from '$lib/core/nodes';
 import { defaultGrammarView } from '$lib/schema/block-openers';
+import { fixtureGrammar } from '$lib/test/harness/fixture-grammar';
 
 // A blank run reaching a body's tail borrows a line into `innerSuffix` so the reload keeps the
 // block, and a tail that stops being blank gives it back.
@@ -28,7 +29,7 @@ function writeBody(container: CstNode, at: number, text: string): void {
 		text,
 		defaultGrammarView
 	);
-	rebuildAncestryRaw(container, []);
+	rebuildAncestryRaw(container, [], fixtureGrammar);
 }
 
 const emptyBodyChild = (container: CstNode, at: number) =>

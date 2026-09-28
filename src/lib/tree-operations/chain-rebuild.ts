@@ -10,7 +10,8 @@ import type { NodeParent } from './node-primitives';
 import type { StructuralChange } from './structural-change';
 import { dropChildSpans, type ChildRawChange } from '../schema/child-spans';
 import type { GrammarView } from '../schema/block-openers';
-import { trimTrailingLineEnding } from '../core/lines';
+import { getBlockKindDescriptor } from '../schema/block-kind-descriptor';
+import { firstLine, lastLine } from '../schema/container-raw';
 import { perfEnabled, recordRebuildDepth } from '../perf/instruments';
 import { rebuildOwnedContainer, walkUnsharing } from './unshare';
 import { absorbWindowSeams, type TrackedPosition } from './settle';
@@ -104,7 +105,9 @@ export function rebuildUnsharedChain(
 		const index = siblings ? childIndexOf(siblings, node, hint?.path[i]) : -1;
 		if (!siblings || index < 0) continue;
 
-		if (openerMoved && lineOpensAs(firstLine(node.raw), grammar) !== node.kind) {
+		// An opaque container's metadata is read from its bytes, so a moved outer line re-derives it.
+		const opaque = getBlockKindDescriptor(node.kind).containerContract === 'opaque';
+		if (opaque || (openerMoved && lineOpensAs(firstLine(node.raw), grammar) !== node.kind)) {
 			const replacement = reclassifyContainer({ children: siblings }, index, grammar);
 			if (replacement) {
 				sharing.stamp(replacement);
@@ -205,19 +208,6 @@ function settleSlotSeams(
 		before: before!,
 		landing
 	});
-}
-
-/** The container's opener line. */
-function firstLine(raw: string): string {
-	const nl = raw.indexOf('\n');
-	return nl < 0 ? raw : raw.slice(0, nl);
-}
-
-/** The container's closing line: its last line carrying bytes, without the ending. */
-function lastLine(raw: string): string {
-	const body = trimTrailingLineEnding(raw);
-	const nl = body.lastIndexOf('\n');
-	return nl < 0 ? body : body.slice(nl + 1);
 }
 
 /**

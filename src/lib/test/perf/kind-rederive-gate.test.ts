@@ -72,6 +72,21 @@ describe('container kind re-derivation gate', () => {
 		expect(reparses()).toBe(0);
 	});
 
+	// An opaque container re-reads its metadata from one parse when an outer line moves, and a
+	// title keystroke moves the opener every time; the body sits between the fence lines.
+	it('reparses nothing while typing into a titled directive body', () => {
+		typeInto(':::note Title\nbody\n:::\n', [0, 1], KEYSTROKES);
+
+		expect(reparses()).toBe(0);
+	});
+
+	it('reparses at most once per keystroke in a titled directive title', () => {
+		typeInto(':::note Title\nbody\n:::\n', [0, 0], KEYSTROKES);
+
+		expect(reparses()).toBeGreaterThan(0);
+		expect(reparses()).toBeLessThanOrEqual(KEYSTROKES);
+	});
+
 	// Only the keystroke that closes the marker changes the answer. The trailing `x` keeps one
 	// keystroke after that in the run, so a check that stayed open once opened over-counts here.
 	it('reparses only on the keystroke that moves the opener verdict', () => {

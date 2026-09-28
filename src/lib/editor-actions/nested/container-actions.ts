@@ -45,6 +45,7 @@ export interface ContainerActionsDeps {
 	overrides?: (parts: {
 		scope: NodeScope;
 		parent: NestedActionsDeps['parent'];
+		reading: Reading;
 	}) => NestedActionsOverrideFactory;
 	/** The enclosing list's context, for a list nested in one. */
 	parentListContext?: ListContext;
@@ -95,7 +96,7 @@ export function createContainerActions(deps: ContainerActionsDeps): ContainerAct
 			childList: deps.childList,
 			parent
 		},
-		deps.overrides?.({ scope, parent })
+		deps.overrides?.({ scope, parent, reading })
 	);
 	setNestedActionsContexts(bundle);
 	return { scope, state, bundle, parent, reading };

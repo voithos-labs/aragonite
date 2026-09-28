@@ -19,6 +19,7 @@ import { lacksSublistSeparator } from '$lib/tree-operations/list/sublist-separat
 import { findContainerMatchingUnwrap } from '$lib/tree-operations/paste/container-match';
 import { defaultGrammarView } from '$lib/schema/block-openers';
 import { makeStubBlockEdit, makeStubFocus } from '$lib/test/harness/editor-actions';
+import { fixtureReading } from '$lib/test/harness/fixture-grammar';
 
 const NBSP = String.fromCharCode(0xa0);
 
@@ -32,7 +33,8 @@ describe('Enter at the end of a block holding a non-breaking space', () => {
 		const defaults = { blockEdit: makeStubBlockEdit(), focus: makeStubFocus() };
 		const overrides = createContainerExitOverrides({
 			scope: { index: 0, node: quote, path: [0] },
-			parentBlockEdit
+			parentBlockEdit,
+			reading: fixtureReading()
 		})({ ...defaults, containerEdit: {} as never });
 
 		await overrides.blockEdit!.splitBlock!(last, 1);

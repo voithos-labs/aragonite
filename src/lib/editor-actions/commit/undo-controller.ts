@@ -542,13 +542,14 @@ export function createUndoController(
 	interface SavedRaw {
 		node: CstNode;
 		raw: string;
+		metadata: CstNode['metadata'];
 	}
 
-	/** The bytes at risk: the copied ancestors plus direct children, matching `savedChildren`. */
+	/** The bytes at risk, with the metadata a rebuild re-reads from them: the copied ancestors plus
+	 *  direct children, matching `savedChildren`. */
 	function captureScopeRaws(chain: CstNode[], owned: CstNode): SavedRaw[] {
-		const saved: SavedRaw[] = chain.map((node) => ({ node, raw: node.raw }));
-		for (const child of owned.children ?? []) saved.push({ node: child, raw: child.raw });
-		return saved;
+		const save = (node: CstNode): SavedRaw => ({ node, raw: node.raw, metadata: node.metadata });
+		return [...chain.map(save), ...(owned.children ?? []).map(save)];
 	}
 
 	/**
@@ -743,10 +744,11 @@ export function createUndoController(
 				for (const p of prepared) {
 					p.owned.children = p.savedChildren;
 					p.owned.childIds = p.savedChildIds;
-					// Bytes as well as shape: the chain rebuild calls plugin `rebuildRaw`, so an
-					// unwind would otherwise leave raws the restored children do not match.
-					for (const { node, raw } of p.savedRaws) {
+					// Bytes and the metadata read from them as well as shape: the chain rebuild rewrites
+					// both, so an unwind would otherwise leave raws the restored children do not match.
+					for (const { node, raw, metadata } of p.savedRaws) {
 						node.raw = raw;
+						node.metadata = metadata;
 						dropChildSpans(node);
 					}
 					// Without this, the ids and refs written before the throw keep reflecting it.

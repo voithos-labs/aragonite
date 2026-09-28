@@ -18,10 +18,12 @@ import {
 import { resetPluginPlatformForTests } from '$lib/testing';
 import { docPathFrom } from '$lib/cursor/coordinate-spaces';
 import { createLeafTyping } from '$lib/editor-actions/leaf-write';
+import { createSearchReplace } from '$lib/editor-actions/search-replace';
 import { legalizeWrite } from '$lib/tree-operations/content-write';
 import { admonitionsPlugin } from '$lib/plugins/admonitions';
 import { registerMermaidKind } from '$lib/plugins/mermaid/mermaid-kind';
 import { makeTopHarness, type TopHarness } from '$lib/test/harness/editor-actions';
+import { scanCompiled } from '$lib/test/harness/search-replace';
 import { testClosure } from '$lib/test/support/closure';
 
 // ── A third-party kind following the guide's "Code in metadata" recipe ──────
@@ -107,6 +109,15 @@ const typeInBody =
 		expect(typing.writeLeafInPlace(docPathFrom([0, index]), write, 0).wrote).toBe(true);
 	};
 
+/** Backspace at the start of the paragraph below the container, which joins it into the body. */
+const joinBelow: Edit = (h) => h.actions.mergeWithPrevious(1);
+
+/** Replace-all, which reparses the container from its rewritten bytes. */
+const replaceAll =
+	(query: string, template: string): Edit =>
+	(h) =>
+		createSearchReplace(h.deps, h.controller).replaceAll(scanCompiled(h.deps.doc, query), template);
+
 interface Row {
 	name: string;
 	source: string;
@@ -117,25 +128,43 @@ interface Row {
 
 const ROWS: Row[] = [
 	{
-		name: 'mermaid',
+		name: 'mermaid, by a code commit',
 		source: '```mermaid\ngraph TD\n```\n',
 		collide: commitCode('graph TD\n```\n'),
 		plain: commitCode('graph LR\n')
 	},
 	{
-		name: 'a directive with no title (the generic fallback)',
+		name: 'a directive with no title, by typing in its body',
 		source: ':::spoiler\nhidden\n:::\n',
 		collide: typeInBody(0, 'hidden\n:::\n'),
 		plain: typeInBody(0, 'shown\n')
 	},
 	{
-		name: 'a directive with a title (admonitions)',
+		name: 'a directive with a title, by typing in its body',
 		source: ':::note Heads up\nbody\n:::\n',
 		collide: typeInBody(1, 'body\n:::\n'),
 		plain: typeInBody(1, 'edited\n')
 	},
 	{
-		name: 'a plugin kind with its code in metadata',
+		name: 'a directive with no title, joined into by Backspace',
+		source: ':::spoiler\n::\n:::\n:\n',
+		collide: joinBelow,
+		plain: typeInBody(0, 'shown\n')
+	},
+	{
+		name: 'a directive with a title, joined into by Backspace',
+		source: ':::note Heads up\n::\n:::\n:\n',
+		collide: joinBelow,
+		plain: typeInBody(1, 'edited\n')
+	},
+	{
+		name: 'a directive with no title, by replace-all',
+		source: ':::spoiler\nhidden\nX\n:::\n',
+		collide: replaceAll('X', ':::'),
+		plain: typeInBody(0, 'shown\n')
+	},
+	{
+		name: 'a plugin kind with its code in metadata, by a code commit',
 		source: '```sketch\nbox\n```\n',
 		collide: commitCode('box\n```\n'),
 		plain: commitCode('arrow\n')
@@ -150,10 +179,8 @@ describe('an edit after a lengthened fence gives the bytes a reload would (#640)
 		registerSketchKind();
 	});
 
-	// Expected to fail until the chain rebuild re-reads an opaque container's metadata from the
-	// bytes it wrote; drop `.fails` when it does.
 	for (const row of ROWS) {
-		it.fails(`${row.name}: keeps the longer fence, as a reload does`, async () => {
+		it(`${row.name}: keeps the longer fence, as a reload does`, async () => {
 			const live = makeTopHarness(row.source);
 			await row.collide(live);
 			const escalated = serialize(live.deps.doc);

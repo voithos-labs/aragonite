@@ -78,7 +78,7 @@ export function createSearchReplace(deps: EditorActionsDeps, controller: UndoCon
 			for (let depth = 1; depth < rel.length; depth++)
 				chain.push(descend(child, rel.slice(0, depth))!);
 			rebuildUnsharedChain(child, chain, cloneSharing, null, deps.reading.grammar);
-			rebuildContainerRaw(child);
+			rebuildContainerRaw(child, deps.reading.grammar);
 		}
 		const newNodes = readBlocks(child.raw, {
 			grammar: deps.reading.grammar,
@@ -89,7 +89,7 @@ export function createSearchReplace(deps: EditorActionsDeps, controller: UndoCon
 	}
 
 	/** A childless container matched as a leaf is reparsed, so its metadata follows the new bytes;
-	 *  one with children is excluded, as its raw is rebuilt from theirs (G1.12/G1.13). */
+	 *  one with children is excluded, as its raw is rebuilt from theirs. */
 	function isReplaceable(match: Match): boolean {
 		const top: CstNode | undefined = deps.doc.children[match.path[0]];
 		const node = top ? descend(top, match.path.slice(1)) : null;

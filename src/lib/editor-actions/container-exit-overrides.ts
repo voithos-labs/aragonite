@@ -7,11 +7,13 @@
 import type { BlockEditActions } from '../action-contracts';
 import { displayLength, isBlankText } from '../core/lines';
 import { buildQuoteExitReplacement } from '../tree-operations/blockquote';
+import type { Reading } from '../schema/reading';
 import type { NestedActionsBundle, NodeScope } from './nested/nested-actions';
 
 export interface ContainerExitOverridesDeps {
 	scope: NodeScope;
 	parentBlockEdit: BlockEditActions;
+	reading: Reading;
 }
 
 export function createContainerExitOverrides(deps: ContainerExitOverridesDeps) {
@@ -30,10 +32,14 @@ export function createContainerExitOverrides(deps: ContainerExitOverridesDeps) {
 				if (node.children.length <= 1) {
 					return parentBlockEdit.splitBlock(index, displayLength(node.raw));
 				}
-				return parentBlockEdit.replaceBlock(index, buildQuoteExitReplacement(node), {
-					replacementIndex: 1,
-					offset: 0
-				});
+				return parentBlockEdit.replaceBlock(
+					index,
+					buildQuoteExitReplacement(node, deps.reading.grammar),
+					{
+						replacementIndex: 1,
+						offset: 0
+					}
+				);
 			}
 		}
 	});

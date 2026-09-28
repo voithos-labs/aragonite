@@ -22,7 +22,7 @@ import {
 } from '../content-write';
 import { leafAtRawOffset } from '../container-offsets';
 import { containerPasteFor } from './container-paste';
-import { rebuildContainerRawIfContainer } from '../../schema/container-raw';
+import { rebuildContainerRaw } from '../../schema/container-raw';
 import { ensureUnsharedPath } from '../unshare';
 import { rebuildUnsharedChain } from '../chain-rebuild';
 import { containerScopeState } from './parent-scope';
@@ -320,7 +320,7 @@ async function applyContainerMatchingMerge(
 			// Both rebuilds run before the splice, so the children written to state carry correct
 			// raws in one reactive flush.
 			rebuildUnsharedChain(ctx.doc, chain, sharing, null, ctx.reading.grammar);
-			rebuildContainerRawIfContainer(remainingItems[remainingItems.length - 1]);
+			rebuildContainerRaw(remainingItems[remainingItems.length - 1], ctx.reading.grammar);
 
 			// The siblings land after the merged target, which keeps its own slot.
 			const insertAt = unwrap.spliceIndex + 1;

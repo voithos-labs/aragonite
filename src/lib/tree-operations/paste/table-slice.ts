@@ -5,9 +5,8 @@
 
 import type { CstNode, TableMetadata, TableRowMetadata } from '../../core/nodes';
 import { metadataOf } from '../../core/nodes';
-import { rebuildContainerRaw } from '../../schema/container-raw';
 import type { LineEnding } from '../../core/lines';
-import { tableLineEnding } from '../../schema/container-rebuilders';
+import { rebuildTableRaw, tableLineEnding } from '../../schema/container-rebuilders';
 import { promoteFirstRowToHeader } from '../table-mutations';
 
 export type RowGoes = 'first' | 'second';
@@ -28,8 +27,8 @@ export function sliceTableAtRow(
 	const firstHalf = buildHalf(firstRows, meta, ending);
 	const secondHalf = buildHalf(secondRows, meta, ending);
 
-	if (firstHalf) rebuildContainerRaw(firstHalf);
-	if (secondHalf) rebuildContainerRaw(secondHalf);
+	if (firstHalf) rebuildTableRaw(firstHalf);
+	if (secondHalf) rebuildTableRaw(secondHalf);
 
 	return { firstHalf, secondHalf };
 }

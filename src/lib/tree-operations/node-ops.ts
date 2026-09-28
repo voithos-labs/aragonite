@@ -373,7 +373,7 @@ export function joinIntoLeaf(
 	// The task state is reconciled before the ancestors' rebuild writes the list item's marker.
 	const owner = ownerAt(parent, path);
 	if (owner) reconcileTaskMetadata(owner, slot, stood, sharing);
-	if (path.length > 1) rebuildAncestryRaw(parent.children[path[0]], path.slice(1));
+	if (path.length > 1) rebuildAncestryRaw(parent.children[path[0]], path.slice(1), reading.grammar);
 	return { joinOffset: legal.storedOffset(seam) };
 }
 

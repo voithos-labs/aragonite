@@ -6,11 +6,15 @@
 
 import type { CstNode } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
+import type { GrammarView } from '../schema/block-openers';
 import { cloneNode } from './clone';
 import { rebuildContainerRaw } from '../schema/container-raw';
 import { assignIds } from '../block-id';
 
-export function liftFirstChildKeepingContainer(container: NodeView): CstNode[] {
+export function liftFirstChildKeepingContainer(
+	container: NodeView,
+	grammar: GrammarView
+): CstNode[] {
 	const children = container.children;
 	if (!children || children.length === 0) return [];
 
@@ -27,7 +31,7 @@ export function liftFirstChildKeepingContainer(container: NodeView): CstNode[] {
 	remainingChildren[0].leadingTrivia = '';
 	remaining.children = remainingChildren;
 	remaining.childIds = assignIds(remainingChildren);
-	rebuildContainerRaw(remaining);
+	rebuildContainerRaw(remaining, grammar);
 
 	return [lifted, remaining];
 }
