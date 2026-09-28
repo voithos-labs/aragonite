@@ -17,7 +17,11 @@ import { createEditorEvents, type EditorEvents } from '../editor-events';
 import { refSlotsOver, replaceRefs } from '../reactivity/publish-ref.svelte';
 import { descendTo, type ChildList } from '../reactivity/child-list';
 import { createSelectionState } from '../selection/selection-state.svelte';
-import { createCaretLanding, type CaretLanding } from '../selection/caret-landing';
+import {
+	createCaretLanding,
+	type CaretLanding,
+	type LandingOutcome
+} from '../selection/caret-landing';
 import { caretTargetFor, type CaretTarget } from '../selection/caret-target';
 import { createSharingState } from '../tree-operations/sharing';
 import { createUndoManager } from '../undo/manager';
@@ -98,12 +102,17 @@ export interface HeadlessActionsOptions {
 	bumpContentVersion?: () => void;
 }
 
+/** A leaf a caret landing resolved to, and whether a mounted block took the caret. */
+export interface RecordedLanding extends CaretTarget {
+	readonly outcome: LandingOutcome;
+}
+
 export interface HeadlessActions {
 	deps: EditorActionsDeps;
 	doc: Document;
 	events: EditorEvents;
-	/** Every leaf a caret landing resolved to, in order, whether or not a block was there to take it. */
-	landings: readonly CaretTarget[];
+	/** Every caret landing that resolved to a leaf, in order, with what the landing did there. */
+	landings: readonly RecordedLanding[];
 	getBlockIds(): string[];
 	getBlockRefs(): (BlockComponent | undefined)[];
 }
@@ -127,7 +136,7 @@ export function createHeadlessActions(
 		spy(stubBlockComponent())
 	);
 	const events = createEditorEvents();
-	const landings: CaretTarget[] = [];
+	const landings: RecordedLanding[] = [];
 	const deps: EditorActionsDeps = {
 		get doc() {
 			return doc;
@@ -200,18 +209,19 @@ export function createHeadlessActions(
 	};
 }
 
-/** `landing` with each resolved leaf pushed onto `landings` before it lands. */
+/** `landing` with each resolved leaf pushed onto `landings` once it has landed. */
 function recordingLanding(
 	landing: CaretLanding,
 	getDoc: () => Document,
-	landings: CaretTarget[]
+	landings: RecordedLanding[]
 ): CaretLanding {
 	return {
 		...landing,
-		land(pos, opts) {
+		async land(pos, opts) {
 			const target = caretTargetFor(getDoc(), pos, { openCollapsed: opts?.openCollapsed });
-			if (target) landings.push(target);
-			return landing.land(pos, opts);
+			const outcome = await landing.land(pos, opts);
+			if (target) landings.push({ ...target, outcome });
+			return outcome;
 		}
 	};
 }

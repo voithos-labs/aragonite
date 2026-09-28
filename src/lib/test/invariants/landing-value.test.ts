@@ -48,7 +48,7 @@ describe('G1.43 a landing is a value', () => {
 			}
 		});
 		expect(takeDevWarns().map((w) => w.tag)).toEqual(['invariant:landing-is-a-value']);
-		expect(h.landings).toEqual([{ leafPath: [0], offset: 0 }]);
+		expect(h.landings).toEqual([{ leafPath: [0], offset: 0, outcome: 'placed' }]);
 	});
 
 	it('stays silent for a landing function that only returns its position', async () => {

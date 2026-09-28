@@ -5,7 +5,8 @@ import { createUndoController } from '$lib/editor-actions/commit/undo-controller
 import { createReorderAction } from '$lib/editor-actions/reorder-action';
 import { createBlockListState } from '$lib/reactivity/block-list-state.svelte';
 import { registerBlockListState } from '$lib/reactivity/state-registry';
-import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
+import { makeEditorActionsDeps, mountEveryBlock } from '$lib/test/harness/editor-actions';
+import type { RecordedLanding } from '$lib/testing/headless-actions';
 import { READING_WRITE_TAG } from '$lib/editor-actions/commit/reading-write-gate';
 import type { PresentationMode } from '$lib/presentation-mode';
 import { fixtureReading } from '../harness/fixture-grammar';
@@ -24,12 +25,13 @@ function announcingDeps(source: string, mode: PresentationMode) {
 	return { harness, announced, controller };
 }
 
-/** The leaves the caret landed in, resolved from the position the move reported. */
-const landedIn = (harness: { landings: readonly { leafPath: readonly number[] }[] }) => () =>
-	harness.landings.map((landing) => landing.leafPath);
+/** The leaves the caret landed in, from the position the move reported, and what the landing did. */
+const landedIn = (harness: { landings: readonly RecordedLanding[] }) => () =>
+	harness.landings.map((landing) => [landing.leafPath, landing.outcome]);
 
 function makeTop(source: string, mode: PresentationMode = 'source') {
 	const { harness, announced, controller } = announcingDeps(source, mode);
+	mountEveryBlock(harness.deps);
 	const reorder = createReorderAction(harness.deps, controller);
 	return { doc: harness.doc, reorder, announced, landed: landedIn(harness) };
 }
@@ -38,6 +40,7 @@ function makeContainer(source: string, mode: PresentationMode = 'source') {
 	const { harness, announced, controller } = announcingDeps(source, mode);
 	const node = () => harness.doc.children[0];
 	registerBlockListState(node(), createBlockListState(node));
+	mountEveryBlock(harness.deps);
 	const reorder = createReorderAction(harness.deps, controller);
 	return { doc: harness.doc, node, reorder, announced, landed: landedIn(harness) };
 }
@@ -62,7 +65,7 @@ describe('reorder announcement and landing: document scope', () => {
 		await h.reorder.nudgeReorderUnit([1], 1);
 
 		// Index 1 after the merge, where the moved block is now.
-		expect(h.landed()).toEqual([[1]]);
+		expect(h.landed()).toEqual([[[1], 'placed']]);
 	});
 
 	it('reports the plain permutation unchanged', async () => {
@@ -93,7 +96,7 @@ describe('reorder announcement and landing: container scope', () => {
 
 		await h.reorder.nudgeReorderUnit([0, 1], 1);
 
-		expect(h.landed()).toEqual([[0, 1]]);
+		expect(h.landed()).toEqual([[[0, 1], 'placed']]);
 	});
 });
 

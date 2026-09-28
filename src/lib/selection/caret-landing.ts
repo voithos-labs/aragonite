@@ -101,7 +101,6 @@ export function createCaretLanding(deps: CaretLandingDeps): CaretLanding {
 			const anchor = resolveSelectionPoint(doc, selection.anchor);
 			const focus = resolveSelectionPoint(doc, selection.focus);
 			if (!anchor || !focus) return 'unresolvable';
-			deps.caretMemory.forget();
 			const open = { openCollapsed: opts.openCollapsed };
 			let placing: EditorSelection = { anchor, focus };
 			let mountPath = deps.selectionState.cellLandingFor(focus).path;
@@ -121,6 +120,7 @@ export function createCaretLanding(deps: CaretLandingDeps): CaretLanding {
 			}
 			const mounted = await descendTo(deps.root, mountPath, open);
 			if (generation !== stamp) return 'unplaced';
+			deps.caretMemory.forget();
 			const placed = applySelectionToDom(placing, deps.selectionState, deps.getBlockElByPath);
 			await bringIntoView(mountPath, opts.reveal ?? 'into-view');
 			return mounted && placed ? 'applied' : 'unplaced';

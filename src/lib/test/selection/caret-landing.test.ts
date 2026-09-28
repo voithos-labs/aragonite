@@ -171,12 +171,14 @@ describe('the other entry points', () => {
 		expect(placements).toEqual([{ path: [1], offset: 2, parked: true }]);
 	});
 
-	it('a stale restore places nothing', async () => {
-		const { landing } = landingOver('a\n\nb\n');
+	it('a stale restore places nothing and keeps how the caret arrived', async () => {
+		const { landing, caretMemory } = landingOver('a\n\nb\n');
+		caretMemory.noteExtreme();
 		const stamp = landing.generation();
 		landing.noteTreeSwap();
 		const point = { path: [1], offset: 0 };
 		expect(await landing.restore({ anchor: point, focus: point }, { stamp })).toBe('unplaced');
+		expect(caretMemory.side()).toBe('outside');
 	});
 
 	it('mount hands back the component without placing a caret', async () => {

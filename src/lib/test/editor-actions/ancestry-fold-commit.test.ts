@@ -86,7 +86,7 @@ describe('a commit whose ancestry settle ate its own scope', () => {
 		expect(describeConvergence(h.deps.doc)).toBeNull();
 		expect(h.deps.blockIds).toEqual(['block-0']);
 		// The fold's position replaces the write's own: the caret goes to the survivor's first leaf.
-		expect(h.landings).toEqual([{ leafPath: [0, 0], offset: 0 }]);
+		expect(h.landings).toMatchObject([{ leafPath: [0, 0], offset: 0 }]);
 		expect(errors).toEqual([]);
 		expect(takeDevWarns()).toEqual([]);
 
@@ -142,7 +142,7 @@ describe('a keystroke whose container collapses into its follower', () => {
 		expect(serialize(h.deps.doc)).toBe('> a\n>\n> - \ntext\n');
 		expect(h.deps.doc.children.map((c) => c.kind)).toEqual(['blockquote']);
 		expect(describeConvergence(h.deps.doc)).toBeNull();
-		expect(h.landings).toEqual([{ leafPath: [0, 1, 0, 0], offset: 0 }]);
+		expect(h.landings).toMatchObject([{ leafPath: [0, 1, 0, 0], offset: 0 }]);
 	});
 });
 

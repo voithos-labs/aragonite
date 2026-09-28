@@ -29,7 +29,7 @@ describe('when a commit lands its caret', () => {
 			mutate: deleteSecond,
 			landing: () => ({ path: docPathFrom([h.deps.doc.children.length - 1]), offset: 0 })
 		});
-		expect(h.landings).toEqual([{ leafPath: [1], offset: 0 }]);
+		expect(h.landings).toEqual([{ leafPath: [1], offset: 0, outcome: 'placed' }]);
 	});
 
 	it('still lands a discarded no-op, since a refused edit still moves across the boundary', async () => {
@@ -41,7 +41,7 @@ describe('when a commit lands its caret', () => {
 			landing: landAtFirst
 		});
 		expect(wrote).toBe(false);
-		expect(h.landings).toEqual([{ leafPath: [0], offset: 1 }]);
+		expect(h.landings).toEqual([{ leafPath: [0], offset: 1, outcome: 'placed' }]);
 	});
 
 	it('lands nothing when reading mode refused the write', async () => {

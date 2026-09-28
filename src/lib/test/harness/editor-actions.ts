@@ -23,7 +23,7 @@ import { docPathFrom } from '$lib/cursor/coordinate-spaces';
 import type { ContainerBlockComponentDeps } from '$lib/editor-actions/container-block-component';
 import { refSlotsOver } from '$lib/reactivity/publish-ref.svelte';
 import { componentAt, type ChildList } from '$lib/reactivity/child-list';
-import { caretTargetFor, type CaretTarget } from '$lib/selection/caret-target';
+import { caretTargetFor } from '$lib/selection/caret-target';
 import { delegateMoveFocus, type MoveFocusScope } from '$lib/editor-actions/focus/focus-dispatch';
 import type { PasteCommitCoordinator } from '$lib/tree-operations/paste/paste-deps';
 import type { PasteDispatchContext } from '$lib/tree-operations/paste/dispatch';
@@ -66,7 +66,8 @@ import {
 	stubBlockEdit,
 	stubCaretMemory,
 	type HeadlessActions,
-	type HeadlessActionsOptions
+	type HeadlessActionsOptions,
+	type RecordedLanding
 } from '$lib/testing/headless-actions';
 
 // ── CST node factory ─────────────────────────────────────────────────────────
@@ -210,6 +211,16 @@ export function makeShimChildList(
 		windowing: { revealChild: async () => {}, isInWindow: () => true },
 		...over
 	};
+}
+
+/** Every block in `deps`'s document answers the descent with a stub, as a fully mounted editor
+ *  would, so a caret landing anywhere below the root is placed. */
+export function mountEveryBlock(deps: EditorActionsDeps): void {
+	const listAt = (path: number[]): ChildList =>
+		makeShimChildList((nodeAt(deps.doc, path)?.children ?? []).map((_, i) => stubAt([...path, i])));
+	const stubAt = (path: number[]): BlockComponent =>
+		stubBlockComponent({ childList: () => listAt(path) });
+	deps.blockRefs.forEach((_, i) => (deps.blockRefs[i] = stubAt([i])));
 }
 
 /** The members every container shim repeats; `over` adds a test's own. Copied by property
@@ -474,7 +485,7 @@ export interface NestedHarness {
 	getNode: () => CstNode;
 	contentVersion: () => number;
 	/** Every leaf the editor's caret landing resolved to, in order. */
-	landings: readonly CaretTarget[];
+	landings: readonly RecordedLanding[];
 }
 
 export interface NestedHarnessOptions {
