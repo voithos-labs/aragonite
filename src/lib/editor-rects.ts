@@ -37,20 +37,25 @@ export interface EditorRects {
 // sequencing tool in this repo, so the wait is a fixed number of them.
 const REVEAL_SETTLE_TICKS = 12;
 
-/** The scrolling half of a scroll into view, after the mount: the one place `scrollTo` and the
- *  caret landing write a scroll position. The block must already be mounted. */
+/** The one place `scrollTo` and the caret landing write a scroll position, in two steps around
+ *  the mount: `place` takes the viewport before the first await, `scroll` runs once it's mounted. */
 export interface ScrollSettle {
 	/** Whether the mounted block at `path` is visible in the editor's viewport. */
 	isInView(path: readonly number[]): boolean;
-	/** Hold `path` in place against later layout shifts until the claim is released. */
-	claim(path: readonly number[], block: 'nearest' | 'center'): RevealClaim;
-	/** Scroll the block into view and follow it until it stops moving; true when it ends in view.
-	 *  A claim another scroll took over stops it at once. */
-	settle(
-		path: readonly number[],
-		block: 'nearest' | 'center',
-		claim: RevealClaim
-	): Promise<boolean>;
+	place(path: readonly number[], opts: PlaceOptions): ScrollPlacement;
+}
+
+export interface PlaceOptions {
+	block: 'nearest' | 'center';
+	/** Keep the block where it landed against later layout shifts, until a user scroll or a newer
+	 *  placement. */
+	hold: boolean;
+}
+
+export interface ScrollPlacement {
+	/** Scroll the mounted block into view and follow it until it stops moving; true when it ends
+	 *  in view. A newer placement stops it at once. */
+	scroll(): Promise<boolean>;
 }
 
 export function createScrollSettle(deps: {
@@ -114,13 +119,21 @@ export function createScrollSettle(deps: {
 			const el = deps.getBlockElByPath([...path]);
 			return !!root && !!el && elementInView(el, root);
 		},
-		claim: (path, block) => deps.revealAnchor.claim(path, block),
-		async settle(path, block, claim) {
+		place(path, { block, hold }) {
 			const p = [...path];
-			// Checked first: a claim another scroll took over during a long mount wait would
-			// otherwise yank the viewport once, before the first tick could stop it.
-			if (!claim.isSuperseded()) deps.getBlockElByPath(p)?.scrollIntoView({ block });
-			return followIntoView(p, block, claim);
+			const claim = deps.revealAnchor.claim(p, block);
+			return {
+				async scroll() {
+					// Checked first: a claim another scroll took over during a long mount wait would
+					// otherwise yank the viewport once, before the first tick could stop it.
+					if (!claim.isSuperseded()) deps.getBlockElByPath(p)?.scrollIntoView({ block });
+					const landed = await followIntoView(p, block, claim);
+					// Released on 'center' or a failed scroll too: the approximate hold would drift a
+					// target placed exactly, while holding the top approximately is 'nearest''s promise.
+					if (!hold || block === 'center' || !landed) claim.release();
+					return landed;
+				}
+			};
 		}
 	};
 }
@@ -169,15 +182,11 @@ export function createEditorRects(deps: {
 		async scrollTo(path, opts) {
 			const p = [...path];
 			const block = opts?.block ?? 'nearest';
-			// Claim before the first await so the hold survives the gesture that started this
+			// Placed before the first await so the hold survives the gesture that started this
 			// scroll (a match click's pointerdown releases, then this claims again).
-			const claim = deps.scroll.claim(p, block);
+			const placement = deps.scroll.place(p, { block, hold: opts?.hold !== false });
 			await deps.revealPath(p);
-			const landed = await deps.scroll.settle(p, block, claim);
-			// Release on 'center' or a failed scroll: the approximate hold would drift a target
-			// placed exactly. 'nearest' keeps holding: holding the top approximately is its promise.
-			if (block === 'center' || !landed || opts?.hold === false) claim.release();
-			return landed;
+			return placement.scroll();
 		},
 		navigateTo(path, offset = 0) {
 			return deps.landCaretAt([...path], offset);

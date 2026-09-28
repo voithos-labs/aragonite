@@ -1,6 +1,6 @@
 // The caret landing on its own: resolve, mount, the tree-swap check, the placement, and the one
 // scroll it may write. Headless blocks, with the scroll as a recording fake.
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
 import type { Document } from '../../core/nodes';
 import { CURSOR_END, CURSOR_START, type BlockComponent } from '../../block-component';
@@ -51,16 +51,16 @@ function mountingList(
 
 function recordingScroll(visible: boolean) {
 	const calls: string[] = [];
-	const release = vi.fn(() => calls.push('release'));
 	const scroll: ScrollSettle = {
 		isInView: () => visible,
-		claim: () => {
-			calls.push('claim');
-			return { release, isSuperseded: () => false };
-		},
-		settle: async () => {
-			calls.push('settle');
-			return true;
+		place: (_path, { hold }) => {
+			calls.push(hold ? 'place, held' : 'place');
+			return {
+				scroll: async () => {
+					calls.push('scroll');
+					return true;
+				}
+			};
 		}
 	};
 	return { scroll, calls };
@@ -138,7 +138,7 @@ describe('bringing a landing into view', () => {
 		const { scroll, calls } = recordingScroll(false);
 		const { landing } = landingOver('a\n', { scroll });
 		await landing.land(at([0], 0));
-		expect(calls).toEqual(['claim', 'settle', 'release']);
+		expect(calls).toEqual(['place', 'scroll']);
 	});
 
 	it('writes no scroll for a block already in view', async () => {
@@ -160,7 +160,7 @@ describe('bringing a landing into view', () => {
 		const { scroll, calls } = recordingScroll(true);
 		const { landing } = landingOver('a\n', { scroll });
 		await landing.land(at([0], 0), { reveal: 'into-view-held' });
-		expect(calls).toEqual(['claim', 'settle']);
+		expect(calls).toEqual(['place, held', 'scroll']);
 	});
 });
 

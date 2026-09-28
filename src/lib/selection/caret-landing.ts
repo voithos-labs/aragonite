@@ -71,9 +71,7 @@ export function createCaretLanding(deps: CaretLandingDeps): CaretLanding {
 		const scroll = deps.scroll;
 		if (reveal === 'mount' || !scroll || !deps.getBlockElByPath([...leafPath])) return;
 		if (reveal === 'into-view' && scroll.isInView(leafPath)) return;
-		const claim = scroll.claim(leafPath, 'nearest');
-		const landed = await scroll.settle(leafPath, 'nearest', claim);
-		if (reveal === 'into-view' || !landed) claim.release();
+		await scroll.place(leafPath, { block: 'nearest', hold: reveal === 'into-view-held' }).scroll();
 	}
 
 	return {
