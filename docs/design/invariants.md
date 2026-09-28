@@ -969,6 +969,7 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.81 | The cross-block table row snap runs in the range coverage and the stored pair only        | L       |
 | G4.82 | The task-marker rule runs in one wrapper, and its callers are declared                    | L       |
 | G4.83 | Every plain fragment read in the edit layers says why it needs no slot reader             | L       |
+| G4.84 | Only the scroll owner writes the editor's scroll position                                 | L       |
 
 ### The entries
 
@@ -1745,6 +1746,16 @@ reach for instead. A plain `readBlocks` left in `tree-operations/`, `selection/`
 `editor-actions/` is a probe that installs nothing, a read of whole bytes no checkbox stands in
 front of, or the paste's re-read of a clipboard block, which keeps the kind the clipboard gave it. The manifest lists each file with which one it is, so a new one has to say which.
 `lint/manifest-rules.test.ts`.
+
+**G4.84 · One writer of the scroll position.** Every write to the editor's scroll position lives
+in `cursor/scroll-owner.ts`, which decides who owns the position before it writes: the browser's
+own anchoring, a held scroll into view, or the plain height correction. Every other module gets
+a `ScrollportReader`, which has no write method, so most strays don't type-check (a test pins
+that with `@ts-expect-error`). The scan catches the rest: a `scrollTop` assignment, `scrollBy`,
+`setScrollTop`, `scrollIntoView`, or opening a writable port anywhere but the owner and the port
+itself. A few files keep writes of their own, and the manifest says why for each: a drag's
+autoscroll, which the pointer drives frame by frame, and two listboxes keeping their active row in
+view inside their own scroller. `lint/file-rules.test.ts`.
 
 ## Accessibility
 
