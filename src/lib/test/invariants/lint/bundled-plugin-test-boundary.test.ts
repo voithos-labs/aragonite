@@ -26,10 +26,16 @@ const ALLOWLIST: Record<string, Exemption> = {
 		reason: 'no registry read-back: a kind can be registered and probed, never read back'
 	},
 	'src/lib/test/plugins/admonitions/fence-escalation.test.ts': {
-		specifiers: ['$lib/schema/block-kind-descriptor', '$lib/invariants/node-shape'],
+		specifiers: [
+			'$lib/schema/block-kind-descriptor',
+			'$lib/invariants/node-shape',
+			'$lib/tree-operations/sharing',
+			'$lib/tree-operations/chain-rebuild'
+		],
 		reason:
-			'no registry read-back, and the opaque stale-raw / rebuild-determinism predicates are ' +
-			'off the testing barrel (only checkCopyIsRawByteSlice is published)'
+			'no registry read-back, the opaque stale-raw / rebuild-determinism predicates are off the ' +
+			'testing barrel (only checkCopyIsRawByteSlice is published), and nothing published runs ' +
+			'the ancestor rebuild a commit runs over a parsed document'
 	},
 	'src/lib/test/plugins/admonitions/formation-harness.ts': {
 		specifiers: [

@@ -7,6 +7,7 @@ import { reservedChromeKindOf } from '../schema/reserved-chrome';
 import { listRegisteredOpeners, type GrammarView } from '../schema/block-openers';
 import { isDirectiveKind } from '../core/directive/registry';
 import type { InvariantViolation } from '../assert';
+import { describeMetadataDivergence } from './metadata-parity';
 
 // ── G1.5: category ↔ field legality ──────────────────────────────────────────
 
@@ -110,8 +111,8 @@ function stripContainerChildren(node: CstNode): CstNode[] {
 
 // ── G1.12: opaque container raw not stale ─────────────────────────────────────
 
-/** G1.12: G1.1's staleness check for opaque containers. Raw that stops reparsing to one block of
- *  this kind fires only when the parser can recognize the kind at all. */
+/** G1.12: G1.1's staleness check for opaque containers, over children and every metadata key. Raw
+ *  that stops reparsing to one block of this kind fires only when the parser can recognize it. */
 export function checkOpaqueStaleRaw(
 	node: CstNode,
 	grammar: GrammarView
@@ -135,6 +136,15 @@ export function checkOpaqueStaleRaw(
 			code: 'opaque-stale-raw',
 			message: `${node.kind} opaque raw is stale relative to its children`,
 			detail: { kind: node.kind, raw: clampForDetail(node.raw) }
+		};
+	}
+
+	const metadata = describeMetadataDivergence(node, blocks[0]);
+	if (metadata) {
+		return {
+			code: 'opaque-stale-raw',
+			message: `opaque metadata is stale relative to its raw: ${metadata}`,
+			detail: { kind: node.kind, reason: 'metadata-diverges', raw: clampForDetail(node.raw) }
 		};
 	}
 	return null;
@@ -186,8 +196,8 @@ export function checkOpaqueRebuildDeterminism(node: CstNode): InvariantViolation
 	};
 }
 
-/** `rebuildRaw` may write only `raw`, so the trial run copies the children array and metadata; the
- *  child nodes stay shared, since protecting them would cost a deep clone per commit. */
+/** `rebuildRaw` writes only `raw` (the editor re-reads the metadata from it), so the trial copies
+ *  the children array and metadata but shares the child nodes, which would take a deep clone. */
 function probeRebuild(node: CstNode, rebuildRaw: (probe: CstNode) => void): string {
 	const probe = { ...node };
 	if (probe.children) probe.children = [...probe.children];

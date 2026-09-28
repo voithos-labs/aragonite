@@ -9,7 +9,7 @@ import type { CstNode, Document } from '../core/nodes';
 import type { GrammarView } from '../schema/block-openers';
 import { parse } from '../core/parser';
 import { serialize } from '../core/serializer';
-import { show } from './conformance-core';
+import { describeMetadataDivergence } from '../invariants/metadata-parity';
 
 /** True when the live tree matches a fresh parse of its own serialization, structurally. */
 export function parseConverges(doc: Document, grammar?: GrammarView): boolean {
@@ -49,25 +49,7 @@ function diffNode(live: CstNode, reparsed: CstNode, path: number[]): string | nu
 	if (live.kind !== reparsed.kind) {
 		return `${at} live kind "${live.kind}" != reparsed "${reparsed.kind}"`;
 	}
-	const metaDivergence = diffMetadata(live, reparsed, at);
-	if (metaDivergence) return metaDivergence;
+	const metaDivergence = describeMetadataDivergence(live, reparsed);
+	if (metaDivergence) return `${at} ${metaDivergence}`;
 	return diffChildren(live, reparsed, path);
-}
-
-function diffMetadata(live: CstNode, reparsed: CstNode, at: string): string | null {
-	const liveMeta = (live.metadata ?? {}) as Record<string, unknown>;
-	const reMeta = (reparsed.metadata ?? {}) as Record<string, unknown>;
-	for (const field of new Set([...Object.keys(liveMeta), ...Object.keys(reMeta)])) {
-		if (!valuesEqual(liveMeta[field], reMeta[field])) {
-			return `${at} ${live.kind}.${field}: live ${show(liveMeta[field])} != reparsed ${show(reMeta[field])}`;
-		}
-	}
-	return null;
-}
-
-function valuesEqual(a: unknown, b: unknown): boolean {
-	if (Array.isArray(a) && Array.isArray(b)) {
-		return a.length === b.length && a.every((v, i) => v === b[i]);
-	}
-	return a === b;
 }

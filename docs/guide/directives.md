@@ -62,7 +62,7 @@ inner body
 
 <details>
 <summary>Pasting BS into the Container</summary>
-Don't worry, we've got A-Hole protection. Pasting a ::: into a container won't ruin things - the editor lengthens the note's fence so the paste doesn't close it; delete the line again and the fence shrinks back.
+Don't worry, we've got A-Hole protection. Pasting a ::: into a container won't ruin things - the editor lengthens the note's fence so the paste doesn't close it.
 
 So,
 
@@ -81,7 +81,7 @@ Some text.
 ::::
 ```
 
-so to speak. One thing: the widened fence is what gets saved, so after a reload the container simply is a `::::` container and stays one; the shrink-back only happens while it's live in the editor.
+so to speak. One thing: delete the line again and the fence stays at `::::`. That's what a reload of the saved file gives you anyway, and we'd rather the live editor never show you something a reload wouldn't.
 </details>
 
 ---

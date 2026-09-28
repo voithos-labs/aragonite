@@ -225,7 +225,7 @@ Three families of seam run these checks:
 | G1.9  | No mutation writes bytes through a node an undo entry shares                        | T·A·P·N |
 | G1.10 | Every opener's kind has a descriptor; opener priorities are unique                  | A·N     |
 | G1.11 | Every keymap chord is unique per kind and names a known command                     | A·N     |
-| G1.12 | An opaque container's raw still reparses to its live children                       | A·N     |
+| G1.12 | An opaque container's raw still reparses to its live children and metadata          | A·N     |
 | G1.13 | An opaque `rebuildRaw` is deterministic over committed state                        | A·N     |
 | G1.14 | A container declaring `reservedChrome` holds its chrome leaf at child 0             | A·N     |
 | G1.15 | A plugin opener claims at least one line, and its raw matches the lines it consumed | A·N     |
@@ -367,9 +367,12 @@ before the command its keymap binds. Predicate `checkKeymapCoherence` (`registry
 **G1.12 · Opaque container raw not stale.** The raw reparses to children that byte-match the live
 children, chrome compared positionally for `reservedChrome` declarers. A kind with a standalone
 recognizer whose raw no longer reparses to its own kind fires; a kind with no recognizer bails; a
-directive kind counts as recognized, so that branch does fire for one. Predicate
-`checkOpaqueStaleRaw` (`node-shape.ts`) · commit primitive · `opaque-contract.test.ts`,
-`opaque-stale-raw-directive.test.ts`.
+directive kind counts as recognized, so that branch does fire for one. Every metadata key has to
+match the reparse too, through the same compare the parse-convergence check uses
+(`metadata-parity.ts`), so a rebuild route that doesn't re-read an opaque container's metadata
+fires on the first fence it lengthens. Predicate `checkOpaqueStaleRaw` (`node-shape.ts`) · commit
+primitive · `opaque-contract.test.ts`, `opaque-stale-raw-directive.test.ts`,
+`opaque-stale-metadata.test.ts`.
 
 **G1.13 · Opaque rebuild determinism.** `rebuildRaw` is deterministic over committed state, checked
 probe-vs-probe: run it twice, require the same bytes. Predicate `checkOpaqueRebuildDeterminism`
