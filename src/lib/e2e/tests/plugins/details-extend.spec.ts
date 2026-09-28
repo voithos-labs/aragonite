@@ -92,6 +92,25 @@ test.describe('plugin container: extending a selection past a closed <details>',
 		expect(await capturedErrors(page)).toEqual([]);
 	});
 
+	test('Ctrl+X over a range onto a closed title row cuts the block, and a paste brings its body', async ({
+		page
+	}) => {
+		await editor.loadContent('Above\n\n' + CLOSED);
+		await editor.focusBlockAtPath([0], 2);
+		// Past the title row's first character: the end then reaches into the hidden body.
+		await page.keyboard.press('Shift+ControlOrMeta+End');
+		await expect.poll(() => focusPath(editor)).toEqual({ path: [1, 0], offset: 3 });
+
+		await page.keyboard.press('ControlOrMeta+x');
+		await editor.bridge.waitForSourceEquals('Ab\n');
+		await page.keyboard.press('End');
+		await page.keyboard.press('Enter');
+		await editor.paste();
+
+		await editor.bridge.waitForSourceContains(CLOSED);
+		expect(await capturedErrors(page)).toEqual([]);
+	});
+
 	test('Shift+Mod+End into a closed details, then Backspace, empties the document', async ({
 		page
 	}) => {

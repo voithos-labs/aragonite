@@ -1,8 +1,9 @@
-import { makeBlockNode, type CstNode } from '../core/nodes';
+import { makeBlockNode, metadataOf, type CstNode } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import { readBlocks } from '../core/parser';
+import { matchTaskCheckbox } from '../core/parsers/list';
 import { concatChildren } from '../core/serializer';
-import { getBlockKindDescriptor } from '../schema/block-kind-descriptor';
+import { countsCells, getBlockKindDescriptor } from '../schema/block-kind-descriptor';
 import { reservedChromeKindOf } from '../schema/reserved-chrome';
 import { listRegisteredOpeners, type GrammarView } from '../schema/block-openers';
 import { isDirectiveKind } from '../core/directive/registry';
@@ -244,4 +245,38 @@ function isPrimitive(value: unknown): boolean {
 	if (value === null) return true;
 	const t = typeof value;
 	return t !== 'object' && t !== 'function';
+}
+
+// ── G1.42: the task marker follows the first block ────────────────────────────
+
+/** G1.42: a list item marked as a task holds a paragraph first, and one not marked holds no first
+ *  paragraph opening with a checkbox, so the tree says what its reload reads. */
+export function checkTaskMarkerSlot(node: NodeView): InvariantViolation | null {
+	if (node.kind === 'listItem') {
+		const task = metadataOf(node, 'listItem')?.taskItem === true;
+		const first = node.children?.[0];
+		const opensWithBox =
+			first?.kind === 'paragraph' && matchTaskCheckbox(firstLineOf(first.raw)) !== null;
+		if (first && (task ? first.kind !== 'paragraph' : opensWithBox)) {
+			return {
+				code: 'task-marker-slot',
+				message: task
+					? `a task item's first block is a ${first.kind}, which no task marker stands before`
+					: "a plain item's first paragraph opens with a checkbox its reload reads as a task",
+				detail: { first: first.kind, taskItem: task, raw: node.raw }
+			};
+		}
+	}
+	// A grid's cells hold inline text only, never a list.
+	if (countsCells(node)) return null;
+	for (const child of node.children ?? []) {
+		const found = checkTaskMarkerSlot(child);
+		if (found) return found;
+	}
+	return null;
+}
+
+function firstLineOf(raw: string): string {
+	const end = raw.indexOf('\n');
+	return end === -1 ? raw : raw.slice(0, end);
 }

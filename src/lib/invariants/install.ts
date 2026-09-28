@@ -17,7 +17,8 @@ import {
 	checkOpaqueStaleRaw,
 	checkOpaqueRebuildDeterminism,
 	checkReservedChromeSlot,
-	checkCategoryFields
+	checkCategoryFields,
+	checkTaskMarkerSlot
 } from './node-shape';
 import { checkContentRange } from './descriptor';
 import { checkChildIdParity } from './child-id-parity';
@@ -37,6 +38,7 @@ export function assertCommittedNodes(nodes: CstNode[], grammar: GrammarView): vo
 		assertInvariant('content-range', () => checkContentRange(node));
 		assertInvariant('child-spans-lockstep', () => checkChildSpansLockstep(node));
 		assertInvariant('child-id-parity', () => checkChildIdParity(node));
+		assertInvariant('task-marker-slot', () => checkTaskMarkerSlot(node));
 	}
 }
 
