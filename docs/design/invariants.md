@@ -1761,7 +1761,10 @@ no prefix string to get wrong, which is how the old list-marker check refused ev
 every candidate through `core/inline/live-edit/read-back.ts :: readBack`, never a parse of their
 own, since a top-level fragment read forgets the container the bytes land in. The store is a
 required field on the join and the edge delete's query, and `lint/file-rules.test.ts` keeps
-`readBlocks` and `parse` out of those files.
+`readBlocks` and `parse` out of those files. Which store a route hands over is checked too:
+`tree-operations/store-routes.test.ts` runs every place a store is made or fetched on bytes a lone
+top-level paragraph's store reads differently (`# y` after a to-do's box, `[ ] y` after a plain
+item's marker), and fails a store made anywhere no row runs through.
 
 **G4.86 · The list marker has a short list of readers.** Reading a list item's marker off its
 metadata (or off a parse cast to carry one) is for the code that builds, renumbers, draws or
