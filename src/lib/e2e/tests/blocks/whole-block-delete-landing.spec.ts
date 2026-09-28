@@ -40,3 +40,21 @@ test.describe('whole-block delete: where the caret goes after the block', () => 
 		await editor.bridge.waitForSourceEquals('a\n\nxb\n');
 	});
 });
+
+test.describe('whole-block delete: the only block', () => {
+	for (const key of ['Backspace', 'Delete', 'ControlOrMeta+x']) {
+		test(`${key} on a lone rule leaves an empty paragraph holding the caret`, async ({ page }) => {
+			const editor = new EditorPage(page);
+			await editor.goto();
+			await editor.loadContent('---\n');
+			const rule = page.locator('.thematic-break-block');
+			await rule.click();
+			await expect(wholeBlockInput(rule)).toBeFocused();
+
+			await page.keyboard.press(key);
+			await editor.bridge.waitForSourceEquals('\n');
+			await page.keyboard.type('x');
+			await editor.bridge.waitForSourceEquals('x\n');
+		});
+	}
+});
