@@ -29,7 +29,7 @@ const typeInBody =
 	};
 
 /** The document's last block goes, so the container above gives its line ending up. */
-const deleteLast: Edit = (h) => h.actions.deleteBlock(h.deps.doc.children.length - 1);
+const deleteLast: Edit = (h) => h.actions.deleteBlock(h.deps.doc.children.length - 1, 'before');
 
 /** A paragraph goes below an open last block, which ends its line first. */
 const insertBelow: Edit = (h) => h.actions.insertParagraph(h.deps.doc.children.length, 'x');
