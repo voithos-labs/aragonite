@@ -104,7 +104,7 @@ The context function is one member of an action bundle. The block-editing bundle
 ```
 splitBlock(blockIndex, offset)
 mergeWithPrevious(blockIndex)            mergeWithNext(blockIndex)
-deleteBlock(blockIndex)
+deleteBlock(blockIndex, side)
 insertParagraph(boundaryIndex, text)
 updateBlockContent(blockIndex, text, mode, preEditOffset?, postEditFocusOffset?)
 updateBlockMetadata(blockIndex, metadata, options?)
@@ -411,7 +411,7 @@ The claim becomes a block replacement in the slot (one undo entry, the paragraph
 
 **Merge.** Backspace at a block's start, Delete at its end, and a list item merging into the one above it (M1, below) are one join, `tree-operations/node-ops.ts :: joinIntoLeaf`. It writes the lower block's text onto the end of the upper block's deepest prose leaf (for two paragraphs, that's just the upper paragraph). The bytes go through the same rules typing does, the leaf kind's own and then its container's, so a join in a `<details>` body that spells `</details>` out of two halves lands escaped. Then it re-parses the leaf, and the leaf's kind follows its bytes: two backticks joined to a backtick and some text become a code fence, in a list item as at the top level. A list item whose first block stops being a paragraph gives up its task checkbox. A join whose bytes reparse plural is refused at the write, and the caret moves across the boundary instead. The survivor keeps its ID, and the caret lands at the join: when the fix-up after the delete merges the survivor into the block above it, the caret follows the joined bytes into that block, down to the leaf holding them. The second block's text lands at the first one's content end, so a structural suffix (a setext underline, an ATX heading's closing `#` run) stays past the joined text; a range delete that starts in such a block keeps it the same way, and one that ends in such a block drops that block's suffix along with the block. The joined text ends the way the lower block did, so a file with no final line break still has none.
 
-**Delete.** Remove the node from its children array, then settle the join that removal opened (below).
+**Delete.** Remove the node from its children array, then settle the join that removal opened (below). The caller says which way the key pointed, and the caret lands once, on that side (`src/lib/selection/caret-target.ts` :: `survivorAfterRemoval`). Backspace, and a delete with no key at all (the block menu's), goes to the end of the block above, or the start of the one below when there's nothing above. Delete and cut go the other way round. The caller doesn't place a caret of its own afterwards.
 
 **Reorder.** Move a node among its siblings; IDs don't change, and both edges of the moved window are checked: a block that lands flush against a neighbour it would be read into (a table under a paragraph, a rule under one) arrives with its separator, while the pair it left behind keeps a blank line between them where either had one against the moved block and the two would otherwise reload as something else, and rejoins as the reload reads them where both were flush against it. A document with no final line break still has none after a move, same as after any structural edit (§ 11's commit steps). The move ends the lines of its window itself before it checks those joins, and the commit takes the break back off whichever block ends up last. Two gestures, one operation: keyboard (Alt+↑/↓ on the focused block, with a screen-reader announcement) and a pointer drag from the block's handle, revealed on hover and shown outright where nothing hovers (an insertion line marks the drop, one commit on release, autoscroll for off-screen targets). The handle is on by default outside reading mode (`blockDragHandles`) and belongs to object blocks alone — code, tables, equations, diagrams, pictures, list items, dividers, cards — never prose, whose grips would be noise beside every line. Its grip sits in the first line-height of the block's own box, in the editor's left gutter, and is hittable without hovering the block first. A table has no row or column grips: its one handle moves the whole table and the right-click cell menu carries the axis actions. Keyboard reorder is always available.
 
@@ -470,7 +470,7 @@ A **whole-block-focus** kind (`blockFocus: 'whole-block'` in its descriptor, as 
 - arrows land on it with a whole-block highlight;
 - a caret-adjacent Backspace **focuses** it rather than deleting outright, so the highlight is press one of two (Delete at the end of the block above is the forward twin);
 - Enter inserts a paragraph below, and a typed character does the same, carrying the character into it;
-- Backspace or Delete while focused deletes it;
+- Backspace or Delete while focused deletes it, and the caret goes the way the key points (the Delete paragraph in § 8);
 - Mod+C / Mod+X copy or cut its Markdown;
 - a cross-block range carries it whole;
 - Alt+Arrow reorders it.
@@ -723,7 +723,7 @@ The landing is a value, not a callback that places anything: a position (a docum
 - A commit that reading mode refused lands nothing. One that `discardIfNoop` threw away still lands, since a refused merge still moves the caret across the boundary you pressed at.
 - When an enclosing container collapsed during the commit, the collapse's position replaces the caller's, because the collapse rebuilt the blocks the caller's position names.
 - In a dev build, reading the landing must leave focus and the selection alone (G1.43), so a landing that sneaks in a caret of its own gets caught the first time a test runs it.
-- A few routes still place their own caret in an `afterTick` callback, which runs just before the landing: the tables, paste, block and range deletes, a plugin's metadata update (a Details toggle, say), and the cross-block edits. Those don't scroll their block into view yet.
+- A few routes still place their own caret in an `afterTick` callback, which runs just before the landing: the edits over a selection that spans blocks (deleting it, typing over it, formatting it) and a range delete that takes table rows, columns or a whole table. Those don't scroll their block into view yet.
 
 Callers pick a scope; they never assemble the steps, and **this is the canonical entry for any new structural mutation** (the op-log isn't a commit step; it subscribes to `edit` downstream). The top-level and container action factories share one core through a `CommitScope` adapter, so the structural-edit sequence is single-sourced and the factories differ only in scope wiring and container-only concerns.
 
