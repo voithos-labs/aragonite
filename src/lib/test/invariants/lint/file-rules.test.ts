@@ -786,6 +786,32 @@ const RULES: FileRule[] = [
 			"import { registerAsCore as runUnowned } from './plugin-install';"
 		],
 		misses: ['grammars.registerCore(key, language);', 'registerAsCoreLater();']
+	},
+	{
+		id: 'G4.78 the editor’s built-in bootstraps run only through registerEditorBuiltIns',
+		matches:
+			/\b(?:registerBuiltInBlocks|bootstrapCodeLanguages|registerDefaultContextActions)\s*\(/,
+		allowed: {
+			'src/lib/components/editor-built-ins.ts':
+				'`registerEditorBuiltIns`, which runs the three bootstraps as no plugin',
+			'src/lib/components/built-in-blocks.ts': 'the definition of `registerBuiltInBlocks`',
+			'src/lib/components/blocks/code/code-bootstrap.ts':
+				'the definition of `bootstrapCodeLanguages`',
+			'src/lib/components/menu/default-context-actions.ts':
+				'the definition of `registerDefaultContextActions`'
+		},
+		reason:
+			'a bootstrap called anywhere else registers the editor’s built-ins as whichever plugin’s setup reached it first, so they resolve only where that plugin is listed and the test reset drops them: call `registerEditorBuiltIns()` instead',
+		hits: [
+			'bootstrapCodeLanguages();',
+			'registerBuiltInBlocks ();',
+			'registerDefaultContextActions();'
+		],
+		misses: [
+			'registerEditorBuiltIns();',
+			'registerBuiltInDescriptors();',
+			'import { bootstrapCodeLanguages } from "./code-bootstrap";'
+		]
 	}
 ];
 
