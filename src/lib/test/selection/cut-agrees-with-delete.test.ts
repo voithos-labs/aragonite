@@ -61,8 +61,14 @@ function expectCutAgrees(source: string, start: SelectionPoint, end: SelectionPo
 	for (const block of blocksOf(parse(source).children)) {
 		const own = [...letters(block.raw)];
 		if (own.length === 0) continue;
+		const whole = pasted.some((p) => p.kind === block.kind && bare(p.raw) === bare(block.raw));
+		if (whole) {
+			expect(
+				own.some((letter) => left.includes(letter)),
+				`${block.kind} copied whole is gone from what the delete left ${JSON.stringify(left)}`
+			).toBe(false);
+		}
 		if (own.every((letter) => !left.includes(letter))) {
-			const whole = pasted.some((p) => p.kind === block.kind && bare(p.raw) === bare(block.raw));
 			expect(
 				whole,
 				`${block.kind} removed whole is whole in the copy ${JSON.stringify(copied)}`

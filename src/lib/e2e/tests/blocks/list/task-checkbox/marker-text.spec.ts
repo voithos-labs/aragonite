@@ -107,6 +107,21 @@ test.describe('task checkbox: the text after the marker', () => {
 		expect(await editor.parseConverged()).toBe(true);
 	});
 
+	test('a list pasted after `# b` in `- [ ] # bc` splits the to-do with text beside each box', async ({
+		page
+	}) => {
+		await editor.loadContent('- [ ] # bc\n');
+		await editor.focusBlockAtPath([0, 0, 0], 3);
+		await editor.seedClipboard('- p\n- q');
+
+		await editor.paste();
+
+		await editor.bridge.waitForSourceEquals('- [ ] # b\n- p\n- q\n- [ ] c\n');
+		await expect(page.locator('.task-checkbox')).toHaveCount(2);
+		await expect(page.locator('.heading-1')).toHaveCount(0);
+		expect(await editor.parseConverged()).toBe(true);
+	});
+
 	test('Enter and typing in the item below a loaded to-do holding a table edits cleanly', async ({
 		page
 	}) => {

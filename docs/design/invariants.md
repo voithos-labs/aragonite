@@ -1663,11 +1663,12 @@ with its reason (a paste or a typed character inserts between one leaf's own hal
 `lint/cross-node-join-doors.test.ts`.
 
 **G4.80 · One answer to what a range covers.** The delete, the copy and the overlay each take a
-`CoveredRange`, which only `selection/range-coverage.ts :: coverRange` builds, so none of them can
-be handed a raw pair. That type is the rule; the scan keeps a reader from growing its own copy of
-the coverage by asking a closed container itself. In `selection/` only `range-coverage.ts` and the
-caret walks in `path-lookup.ts` (which place a caret and read no range) call
-`isCollapsedContainer`. `lint/file-rules.test.ts`.
+`CoveredRange`. It's a class with a private field, built only by
+`selection/range-coverage.ts :: coverRange`, so a spread or an object literal doesn't compile
+and a cast fails lint. The scan covers the other way to grow a second answer, a reader asking a
+closed container itself: in `selection/` only `range-coverage.ts` calls `isCollapsedContainer`
+or `collapsedContainerHiding`, besides the caret walks in `path-lookup.ts` and `caret-target.ts`
+(they place a caret and read no range). `lint/file-rules.test.ts`, `eslint.config.js`.
 
 **G4.81 · One table row snap.** A cross-block range with a table endpoint takes that table's rows
 whole. `snapCrossBlockTableEndpoints` runs in `coverRange` for the delete, the copy and the
@@ -1676,11 +1677,13 @@ seed and the extension paths read (the format toggle reads them too, until it ta
 `lint/file-rules.test.ts`.
 
 **G4.82 · The task-marker rule has one home.** `reconcileTaskMetadata` is named only in
-`tree-operations/list/reconcile-task.ts`, where `writeKeepingTaskMarker` calls it. That wrapper is
-how every write into a list item's first slot keeps the checkbox in step, and its callers are a
-declared list (the content write, the leaf join, the block replace and a range delete's survivor),
-so a new route into that slot has to join it or say why. A hand-written reconcile is the copy the
-next route forgets. `lint/leaf-write-doors.test.ts`, with G1.42 as the runtime half.
+`tree-operations/list/reconcile-task.ts`, where `writeKeepingTaskMarker` calls it. Every file that
+writes into a child slot, through that wrapper or in place (`writeOwnRaw`, `installOwnRaw`), is on
+one list with its role: the content write, the leaf join, the block replace, a range delete's
+survivor and the cross-block format toggle wrap their write, and the rest say why no list item's
+first slot can hold their bytes (a table cell holds no list item). A file listed as wrapping has
+to call the wrapper, so dropping it goes red too. `lint/leaf-write-doors.test.ts` (the G4.82 and
+G4.82b rows), with G1.42 as the runtime half.
 
 **G4.83 · Every plain fragment read says why.** Bytes written into a child slot read the way a
 reload reads them there, through `tree-operations/list/task-paragraph.ts :: fragmentReaderAt`
