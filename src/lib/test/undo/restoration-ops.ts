@@ -408,14 +408,17 @@ async function runRangeDelete(
 	if (!start || !end) return;
 
 	h.deps.selectionState.enterCrossBlock(start, end);
-	await performCrossBlockDelete({
-		selection: h.deps.selectionState,
-		getDoc: () => h.deps.doc,
-		getBlockElByPath: () => null,
-		revealPath: h.deps.revealPath,
-		controller: h.controller,
-		reading: fixtureReading()
-	});
+	await performCrossBlockDelete(
+		{
+			selection: h.deps.selectionState,
+			getDoc: () => h.deps.doc,
+			getBlockElByPath: () => null,
+			revealPath: (path) => h.deps.caretLanding.mount(path),
+			controller: h.controller,
+			reading: fixtureReading()
+		},
+		'keyless'
+	);
 }
 
 /** A made-up selection endpoint inside `block` (top-level index `i`). A table returns null:

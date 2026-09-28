@@ -70,8 +70,8 @@ function harness(
 		editorId: 'editor-test',
 		reading,
 		// A pick's write raises the same events a keystroke does, so the read they schedule is
-		// the one the state has to hold off.
-		commitRange: async (path, start, end, bytes) => {
+		// the one the state has to hold off; the caret then lands where the commit says.
+		commitRange: async (path, start, end, bytes, caretAfter) => {
 			if (writeFails) throw new Error('write refused');
 			if (writeDeclines) return false;
 			commits.push(bytes);
@@ -80,11 +80,8 @@ function harness(
 			write(path[0], raw.slice(0, start) + bytes + raw.slice(end));
 			events.emit('edit', typedEdit(path));
 			await tick();
-			return true;
-		},
-		landCaret: async (_path, offset) => {
-			caret = offset;
-			landed.push(offset);
+			caret = caretAfter;
+			landed.push(caretAfter);
 			events.emit('selectionChange', null);
 			await tick();
 			return true;
@@ -743,8 +740,7 @@ describe('a table cell', () => {
 				commits.push(bytes);
 				return true;
 			},
-			undoStep: async (_path, _offset, run) => void (await run()),
-			landCaret: async () => true
+			undoStep: async (_path, _offset, run) => void (await run())
 		});
 		menu.registry.addSource(tags());
 		return {

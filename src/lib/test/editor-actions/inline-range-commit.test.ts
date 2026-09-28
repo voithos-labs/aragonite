@@ -138,6 +138,28 @@ describe('inline-range commit: a blank paragraph filled or emptied', () => {
 	});
 });
 
+// Miss-analysis: the menus and the card computed their caret from the bytes they asked for and
+// placed it themselves, and no test wrote bytes a leaf's own rule rewrites, then read the caret.
+describe('inline-range commit: the caret it lands', () => {
+	const TABLE = '| h1 | h2 |\n| --- | --- |\n| X | keep |\n';
+
+	it('lands after the bytes a table cell stores, the escaping backslash counted', async () => {
+		const h = makeTop(TABLE);
+		registerStubBlockListState(h.doc.children[0]);
+
+		await h.commit.commitInlineRange([0, 1, 0], 0, 1, 'a|b', 3, { landCaret: true });
+
+		expect(blockNodeAt(h.doc, [0, 1, 0])!.raw).toBe('a\\|b');
+		expect(h.landings).toMatchObject([{ leafPath: [0, 1, 0], offset: 'a\\|b'.length }]);
+	});
+
+	it('lands nothing without being asked, as an image popover needs', async () => {
+		const h = makeTop('Visit [x](old) now\n');
+		await h.commit.commitInlineRange([0], 6, 14, '[x](new)', 6);
+		expect(h.landings).toEqual([]);
+	});
+});
+
 // Miss-analysis: every length check ran at the top level, where no container rewrites the bytes.
 describe('inline-range commit: the length it reports is the length it stores', () => {
 	beforeEach(() => {

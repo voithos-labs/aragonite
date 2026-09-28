@@ -143,7 +143,7 @@ export function createRootMenus(deps: RootMenusDeps): RootMenus {
 			node,
 			path,
 			deleteBlock: async () => {
-				await deps.blockEdit.deleteBlock(index, 'before');
+				await deps.blockEdit.deleteBlock(index, 'keyless');
 			},
 			replaceRaw: (raw: string) => deps.replaceRaw(index, raw),
 			transformPaste: (text) => applyPasteTransforms(text, deps.activation),

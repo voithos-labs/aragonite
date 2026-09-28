@@ -7,7 +7,7 @@
 
 import type { Reading } from '../schema/reading';
 import type { CstNode, Document } from '../core/nodes';
-import type { SelectionPoint } from './primitives';
+import type { CaretPosition, SelectionPoint } from './primitives';
 import type { RangeDeleteResult } from './range-delete';
 import type { CoveredRange } from './range-coverage';
 import type { SharingState } from '../tree-operations/sharing';
@@ -23,10 +23,14 @@ import {
 import { ensureUnsharedPath } from '../tree-operations/unshare';
 import { rebuildUnsharedChain } from '../tree-operations/chain-rebuild';
 import { deleteAtPath } from '../tree-operations/path-mutate';
-import { blockNodeAt, emptyParagraph } from '../tree-operations/node-primitives';
+import { emptyParagraph } from '../tree-operations/node-primitives';
 import { reservedChromeKindOf, isReservedChromeChild } from '../schema/reserved-chrome';
-import { CURSOR_START } from '../block-component';
-import { survivorAfterRemoval } from './caret-target';
+import {
+	caretPointFor,
+	survivorAfterRemoval,
+	survivorWhereRangeResumes,
+	type RemovalGesture
+} from './caret-target';
 
 // ── Public API ──────────────────────────────────────────────────────────────
 
@@ -57,6 +61,7 @@ export function chromeAwareRangeDelete(
 ): RangeDeleteResult {
 	const { grammar } = reading;
 	const { start, end } = range;
+	const lineEnding = documentLineEnding(doc);
 	const startC = nearestChromeContainer(doc, start.path);
 	const endC = nearestChromeContainer(doc, end.path);
 	const startTaken = range.unitHolding(start.path);
@@ -109,7 +114,7 @@ export function chromeAwareRangeDelete(
 	rebuildUnsharedChain(doc, endChain, sharing, null, grammar);
 
 	const collapsedCaret = startTaken
-		? caretWhereRemoved(doc, startTaken, sharing)
+		? caretWhereRangeResumes(doc, startTaken, sharing, lineEnding)
 		: { path: start.path.slice(), offset: seam ?? 0 };
 	return { newDoc: doc, collapsedCaret };
 }
@@ -121,31 +126,55 @@ export function removeWhole(
 	doc: Document,
 	path: number[],
 	sharing: SharingState,
-	reading: Reading
+	reading: Reading,
+	gesture: RemovalGesture
 ): RangeDeleteResult {
+	const lineEnding = documentLineEnding(doc);
 	const chain = ensureUnsharedPath(doc, path.slice(0, -1), sharing);
 	deleteAtPath(doc, path, sharing, reading.grammar);
 	if (chain.length > 0) rebuildUnsharedChain(doc, chain, sharing, null, reading.grammar);
-	return { newDoc: doc, collapsedCaret: caretWhereRemoved(doc, path, sharing) };
+	return {
+		newDoc: doc,
+		collapsedCaret: caretWhereRemoved(doc, path, sharing, lineEnding, gesture)
+	};
 }
 
-/** The start of what now follows the removed block, else the end of what precedes it; an
- *  emptied document gets the blank paragraph every document keeps. */
+/** The caret once the block at `path` went, on the side `gesture` points. */
 export function caretWhereRemoved(
 	doc: Document,
 	path: number[],
-	sharing: SharingState
+	sharing: SharingState,
+	lineEnding: string,
+	gesture: RemovalGesture
 ): SelectionPoint {
-	const survivor = survivorAfterRemoval(doc, path, 'after');
-	if (!survivor) {
-		const filler = emptyParagraph('', documentLineEnding(doc));
-		sharing.stamp(filler);
-		doc.children.push(filler);
-		return { path: [0], offset: 0 };
-	}
-	const leaf = blockNodeAt(doc, survivor.path);
-	const offset = survivor.offset === CURSOR_START || !leaf ? 0 : displayLength(leaf.raw);
-	return { path: [...survivor.path], offset };
+	return caretOrFiller(doc, survivorAfterRemoval(doc, path, gesture), sharing, lineEnding);
+}
+
+/** The caret once a range took the container at `path` whole and ran on: where what's left of
+ *  the range's end begins. */
+export function caretWhereRangeResumes(
+	doc: Document,
+	path: number[],
+	sharing: SharingState,
+	lineEnding: string
+): SelectionPoint {
+	return caretOrFiller(doc, survivorWhereRangeResumes(doc, path), sharing, lineEnding);
+}
+
+// An emptied document gets the blank paragraph every document keeps, in the `lineEnding` read
+// before the delete.
+function caretOrFiller(
+	doc: Document,
+	survivor: CaretPosition | null,
+	sharing: SharingState,
+	lineEnding: string
+): SelectionPoint {
+	const point = survivor && caretPointFor(doc, survivor);
+	if (point) return point;
+	const filler = emptyParagraph('', lineEnding);
+	sharing.stamp(filler);
+	doc.children.push(filler);
+	return { path: [0], offset: 0 };
 }
 
 // ── Wall primitives (shared with the table branch) ──────────────────────────

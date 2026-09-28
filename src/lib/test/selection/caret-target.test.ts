@@ -6,7 +6,11 @@ import type { CstNode, Document } from '../../core/nodes';
 import { nodeAt } from '../../tree-operations/node-primitives';
 import { CURSOR_END, CURSOR_EXACT_START, CURSOR_START } from '../../block-component';
 import { docPathFrom } from '../../cursor/coordinate-spaces';
-import { caretTargetFor, survivorAfterRemoval } from '../../selection/caret-target';
+import {
+	caretTargetFor,
+	survivorAfterRemoval,
+	type RemovalGesture
+} from '../../selection/caret-target';
 import { registerChromePluginsForTests } from './chrome-plugins';
 
 const CLOSED = '<details>\n<summary>Sum</summary>\n\nHidden\n\n</details>\n';
@@ -83,52 +87,58 @@ describe('caretTargetFor', () => {
 
 describe('survivorAfterRemoval', () => {
 	// Each case removes one block from the source, then asks on the tree left behind.
-	const cases: Array<[string, string, number[], 'before' | 'after', object | null]> = [
+	const cases: Array<[string, string, number[], RemovalGesture, object | null]> = [
 		[
 			'a middle block, Backspace',
 			'a\n\nb\n\nc\n',
 			[1],
-			'before',
+			'Backspace',
 			{ path: [0], offset: CURSOR_END }
 		],
-		['a middle block, Delete', 'a\n\nb\n\nc\n', [1], 'after', { path: [1], offset: CURSOR_START }],
-		['the first block, Backspace', 'a\n\nb\n', [0], 'before', { path: [0], offset: CURSOR_START }],
-		['the last block, Delete', 'a\n\nb\n', [1], 'after', { path: [0], offset: CURSOR_END }],
-		['the only block', 'a\n', [0], 'before', null],
+		['a middle block, Delete', 'a\n\nb\n\nc\n', [1], 'Delete', { path: [1], offset: CURSOR_START }],
+		[
+			'the first block, Backspace',
+			'a\n\nb\n',
+			[0],
+			'Backspace',
+			{ path: [0], offset: CURSOR_START }
+		],
+		['the last block, Delete', 'a\n\nb\n', [1], 'Delete', { path: [0], offset: CURSOR_END }],
+		['the only block', 'a\n', [0], 'Backspace', null],
 		[
 			'the block after a closed details',
 			'Above\n\n' + CLOSED + '\nGone\n',
 			[2],
-			'before',
+			'Backspace',
 			{ path: [1, 0], offset: CURSOR_END }
 		],
 		[
 			'the first item of a list, Backspace',
 			'top\n\n- a\n- b\n',
 			[1, 0],
-			'before',
+			'Backspace',
 			{ path: [0], offset: CURSOR_END }
 		],
 		[
 			'the block before a table, Delete',
 			'gone\n\n| a | b |\n| - | - |\n| c | d |\n',
 			[0],
-			'after',
+			'Delete',
 			{ path: [0, 0, 0], offset: CURSOR_START }
 		]
 	];
-	for (const [name, source, removed, side, expected] of cases) {
+	for (const [name, source, removed, gesture, expected] of cases) {
 		it(name, () => {
 			const doc = removeChildAt(parse(source), removed);
-			expect(survivorAfterRemoval(doc, removed, side)).toEqual(expected);
+			expect(survivorAfterRemoval(doc, removed, gesture)).toEqual(expected);
 		});
 	}
 
 	it('reads the slot of the nearest surviving ancestor when the parent went too', () => {
 		// The quote holding [1, 0] is gone as well, so the position is [1], past the end.
 		const doc = removeChildAt(parse('a\n\n> q\n'), [1]);
-		for (const side of ['before', 'after'] as const) {
-			expect(survivorAfterRemoval(doc, [1, 0], side)).toEqual({ path: [0], offset: CURSOR_END });
+		for (const gesture of ['Backspace', 'Delete'] as const) {
+			expect(survivorAfterRemoval(doc, [1, 0], gesture)).toEqual({ path: [0], offset: CURSOR_END });
 		}
 	});
 
@@ -136,11 +146,11 @@ describe('survivorAfterRemoval', () => {
 	// the removal left.
 	it('a removal inside a closed body lands on the title row or past the block, never inside', () => {
 		const doc = parse('Above\n\n<details>\n<summary>Sum</summary>\n\nH2\n\n</details>\n\nBelow\n');
-		expect(survivorAfterRemoval(doc, [1, 1], 'after')).toEqual({
+		expect(survivorAfterRemoval(doc, [1, 1], 'Delete')).toEqual({
 			path: [2],
 			offset: CURSOR_START
 		});
-		expect(survivorAfterRemoval(doc, [1, 1], 'before')).toEqual({
+		expect(survivorAfterRemoval(doc, [1, 1], 'Backspace')).toEqual({
 			path: [1, 0],
 			offset: CURSOR_END
 		});
@@ -148,7 +158,7 @@ describe('survivorAfterRemoval', () => {
 
 	it('a list emptied and removed with its only item reads the slot the list left', () => {
 		// The paragraph that followed the list now sits at [0], so [0] is no parent of [0, 0].
-		expect(survivorAfterRemoval(parse('para\n'), [0, 0], 'before')).toEqual({
+		expect(survivorAfterRemoval(parse('para\n'), [0, 0], 'Backspace')).toEqual({
 			path: [0],
 			offset: CURSOR_START
 		});

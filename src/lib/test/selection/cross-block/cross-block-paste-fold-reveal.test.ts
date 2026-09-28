@@ -16,15 +16,13 @@ function makeWindowedEnv() {
 	blockEl.focus = () => offsets.push(window.getSelection()?.anchorOffset);
 	document.body.appendChild(blockEl);
 
-	// Wrapped before the handlers capture it: the gesture's own mounts count, and only the
-	// merged block's position is windowed out here.
-	const reveal = env.deps.revealPath;
-	env.deps.revealPath = async (path: number[]) => {
-		revealed.add(path.join(','));
-		return reveal(path);
-	};
+	// Only the merged block's position is windowed out here, until the gesture mounts it.
 	const handlers = makeHandlers(env, [1], {
-		getBlockElByPath: (path) => (revealed.has(path.join(',')) ? blockEl : null)
+		getBlockElByPath: (path) => (revealed.has(path.join(',')) ? blockEl : null),
+		revealPath: async (path: number[]) => {
+			revealed.add(path.join(','));
+			return env.deps.caretLanding.mount(path);
+		}
 	});
 	return { env, handlers, offsets };
 }

@@ -54,6 +54,41 @@ describe('cross-block keydown: destructive branch', () => {
 		});
 	}
 
+	// Miss-analysis: the rows above read bytes only, so a key that never reached the caret's side
+	// passed them.
+	describe('the key picks the side a whole removal lands on', () => {
+		const SIDES = [
+			{ key: 'Backspace', landsAt: [0] },
+			{ key: 'Delete', landsAt: [1] }
+		];
+		for (const { key, landsAt } of SIDES) {
+			it(`${key} over a rule held whole lands in block ${landsAt}`, async () => {
+				const env = makeKeydownEnv('lead\n\n---\n\ntail\n');
+				const lookup = env.mutCtx.getBlockElByPath;
+				const placed: number[][] = [];
+				env.mutCtx.getBlockElByPath = (path) => (placed.push(path.slice()), lookup(path));
+				const whole = { path: [1], wholeBlock: true as const };
+				env.selection.enterCrossBlock(whole, whole);
+
+				await env.keydown.handleKeyDown(press(key));
+
+				expect(env.source()).toBe('lead\n\ntail\n');
+				expect(placed.at(-1)).toEqual(landsAt);
+			});
+
+			it(`${key} over a whole table lands in block ${landsAt}`, async () => {
+				const env = makeKeydownEnv('lead\n\n| a | b |\n| --- | --- |\n| 1 | 2 |\n\ntail\n');
+				const whole = { path: [1], wholeBlock: true as const };
+				env.selection.enterCrossBlock(whole, whole);
+
+				await env.keydown.handleKeyDown(press(key));
+
+				expect(env.source()).toBe('lead\n\ntail\n');
+				expect(env.landings.at(-1)?.leafPath).toEqual(landsAt);
+			});
+		}
+	});
+
 	it('leaves Backspace alone when no cross-block range is active', async () => {
 		const env = makeKeydownEnv(SOURCE);
 

@@ -8,6 +8,7 @@ import { applyCollapsedCaret, applySelectionToDom } from '../../selection/native
 import { resetForPointerDown } from '../../selection/cross-block/pointer';
 import { extendFocusToNextBlock } from '../../selection/keyboard-extend';
 import { makeCaretMemory } from '../harness/editor-actions';
+import { restoreTarget } from '../harness/restore-landing';
 import { parse } from '../../core/parser';
 import type { EditorSelection } from '../../selection/primitives';
 import { defaultGrammarView } from '$lib/schema/block-openers';
@@ -51,7 +52,10 @@ function emissionHarness() {
 			emissions.length = 0;
 		},
 		restore(selection: EditorSelection): boolean {
-			return applySelectionToDom(selection, selectionState, (path) => blocks[path[0]] ?? null);
+			return applySelectionToDom(
+				selection,
+				restoreTarget(selectionState, (path) => blocks[path[0]] ?? null)
+			);
 		}
 	};
 }
@@ -85,8 +89,7 @@ describe('the restore path settles before it notifies', () => {
 
 		const placed = applySelectionToDom(
 			{ anchor: at(1, 2), focus: at(1, 2) },
-			h.selectionState,
-			() => null
+			restoreTarget(h.selectionState, () => null)
 		);
 
 		expect(placed).toBe(false);

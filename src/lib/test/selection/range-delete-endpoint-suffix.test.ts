@@ -17,7 +17,8 @@ function run(
 		doc,
 		coverRange(doc, start, end),
 		createSharingState(),
-		fixtureReading()
+		fixtureReading(),
+		'keyless'
 	);
 	return serialize(result.newDoc);
 }

@@ -36,7 +36,8 @@ function run(source: string, start: SelectionPoint, end: SelectionPoint, mode?: 
 		doc,
 		coverRange(doc, start, end),
 		createSharingState(),
-		fixtureReading({}, mode)
+		fixtureReading({}, mode),
+		'keyless'
 	);
 	return { source: serialize(result.newDoc), caret: result.collapsedCaret };
 }

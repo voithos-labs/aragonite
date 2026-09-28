@@ -24,7 +24,8 @@ function run(source: string, start: SelectionPoint, end: SelectionPoint) {
 		doc,
 		coverRange(doc, start, end),
 		createSharingState(),
-		fixtureReading()
+		fixtureReading(),
+		'keyless'
 	);
 	return { doc: result.newDoc, source: serialize(result.newDoc), caret: result.collapsedCaret };
 }
@@ -118,7 +119,8 @@ describe('chrome wall: rangeDelete post-states', () => {
 			doc,
 			coverRange(doc, point([0], 5), point([1, 2], 5)),
 			createSharingState(),
-			fixtureReading()
+			fixtureReading(),
+			'keyless'
 		);
 		expect(serialize(result.newDoc)).toBe('Above\n\nBelow\n');
 		// One splice, not an emptying followed by cleanup: the detached node keeps its children,
@@ -152,7 +154,13 @@ describe('chrome wall: rangeDelete post-states', () => {
 
 		const sharing = createSharingState();
 		sharing.markSnapshotTaken();
-		rangeDelete(doc, coverRange(doc, point([0], 2), point([1, 1], 2)), sharing, fixtureReading());
+		rangeDelete(
+			doc,
+			coverRange(doc, point([0], 2), point([1, 1], 2)),
+			sharing,
+			fixtureReading(),
+			'keyless'
+		);
 
 		expect(snapshotTitle.raw).toBe('Title\n');
 	});

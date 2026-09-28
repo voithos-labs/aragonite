@@ -76,7 +76,6 @@
 	import { createOperationsLog } from '../debug/operations-log';
 	import { createEditorDiagnostics } from '../debug/editor-diagnostics';
 	import { readCurrentSelection } from '../selection/native-bridge';
-	import { restoreSelection, type SelectionRestoreOutcome } from '../selection/selection-restore';
 	import { createCaretRestore } from '../selection/caret-restore';
 	import { createCrossBlockHandlers } from '../selection/cross-block/dispatch';
 	import { createCrossBlockCommands } from '../selection/cross-block/format-toggle';
@@ -419,7 +418,7 @@
 	});
 
 	/** Whether `node` is in the host's header; every "is this editor content" check asks here.
-	 *  Focusout checks use `contains` instead, since the header counts as part of the editor. */
+	 *  Focus tracking uses `contains` instead, since the header counts as part of the editor. */
 	function isHostChrome(node: Node | null): boolean {
 		return !!node && !!headerEl && headerEl.contains(node);
 	}
@@ -488,10 +487,11 @@
 	$effect(() => {
 		if (!editorEl) return;
 		const root = editorEl;
-		// focusout bubbles, so reset only when focus leaves the editor entirely.
+		// focusout bubbles, so reset only when focus leaves the editor's content: for somewhere
+		// outside it, or for the host's header, which holds no caret of the editor's.
 		return onRoot(root, 'focusout', (e: FocusEvent) => {
 			const next = e.relatedTarget as Node | null;
-			if (next && root.contains(next)) return;
+			if (next && root.contains(next) && !isHostChrome(next)) return;
 			caretMemory.forget();
 		});
 	});
@@ -539,7 +539,8 @@
 		}
 	};
 
-	// The non-scrolling counterpart of `revealPath`, shared by the rect API and the test hooks.
+	// The component already mounted at `path`, mounting nothing; shared by the rect API and the
+	// test hooks.
 	function getBlockComponent(path: number[]): BlockComponent | null {
 		return componentAt(rootList, path);
 	}
@@ -560,14 +561,9 @@
 		selectionState,
 		caretMemory,
 		getBlockElByPath,
+		getEditorRoot: () => editorEl ?? null,
 		scroll: scrollSettle
 	});
-
-	// Opens a collapsed body on the way: the restores and cross-block moves that mount through
-	// here aim at a hidden body without retargeting to its title row.
-	function revealPath(path: number[]): Promise<BlockComponent | null> {
-		return caretLanding.mount(path, { openCollapsed: true });
-	}
 
 	const editorActionsDeps: EditorActionsDeps = {
 		get doc() {
@@ -594,7 +590,6 @@
 		selectionState,
 		getSelectedWidgetCaret: selectedWidgetCaret,
 		getBlockElByPath,
-		revealPath,
 		caretLanding,
 		events,
 		reading
@@ -617,13 +612,12 @@
 	const rects = createEditorRects({
 		getBlockElByPath,
 		getBlockComponent,
-		revealPath,
+		revealPath: (path) => caretLanding.mount(path, { openCollapsed: true }),
 		getEditorRoot: () => editorEl ?? null,
 		scroll: scrollSettle,
 		isCrossBlock: () => selectionState.isCrossBlock,
 		isHostChrome,
-		// A navigation keeps its block held in place, so a late image decode cannot scroll it away.
-		landCaretAt: landCaretAtOffset
+		landCaretAt: navigateCaret
 	});
 
 	const editorId = mintEditorId();
@@ -638,8 +632,8 @@
 		events,
 		editorId,
 		reading,
-		commitRange: inlineRange.commitInlineRange,
-		landCaret: landCaretAtOffset,
+		commitRange: (path, start, end, bytes, caretAfter) =>
+			inlineRange.commitInlineRange(path, start, end, bytes, caretAfter, { landCaret: true }),
 		undoStep: (path, offset, run) => controller.undoStep({ path: docPathFrom(path), offset }, run)
 	});
 	const inlineMenus: InlineMenuRegistry = inlineMenu.registry;
@@ -729,12 +723,9 @@
 	const crossBlockCommands = createCrossBlockCommands({
 		selection: selectionState,
 		getDoc,
-		getBlockElByPath,
-		revealPath,
 		controller,
 		reading,
-		getContentVersion: contentVersion.read,
-		caretMemory
+		getContentVersion: contentVersion.read
 	});
 
 	// Every chord and `runCommand` dispatches against this one context, so all share one history,
@@ -828,7 +819,8 @@
 			return heightOracle;
 		},
 		events,
-		restoreCaret: (path, offset) => restoreThroughRevealRoad(caretAt(path, offset), 'mount'),
+		restoreCaret: (path, offset) =>
+			caretLanding.restore(caretAt(path, offset), { reveal: 'mount' }),
 		holdOutgoingMode: (mode) => {
 			outgoingMode = mode;
 		}
@@ -849,7 +841,7 @@
 		caretMemory,
 		getBlockElByPath,
 		getBlockComponent,
-		revealPath,
+		land: caretLanding.land,
 		getScrollHost,
 		getLifetime: () => lifetimeController.signal,
 		isHostChrome,
@@ -967,7 +959,8 @@
 		selection: selectionState,
 		getDoc,
 		getBlockElByPath,
-		revealPath,
+		caretLanding,
+		revealPath: (path) => caretLanding.mount(path),
 		getEditorRoot: () => editorEl ?? null,
 		getScrollHost,
 		getEditorLifetime: () => lifetimeController.signal,
@@ -1189,37 +1182,31 @@
 		return readCurrentSelection(selectionState, blockRefs, selectedWidgetCaret);
 	}
 
-	/** The one caret restore path. `hold` keeps the block held in place after scrolling, `release`
-	 *  hands the viewport back to the host, `mount` only mounts it and writes no scroll position. */
-	function restoreThroughRevealRoad(
-		selection: EditorSelection,
-		reveal: 'hold' | 'release' | 'mount'
-	): Promise<SelectionRestoreOutcome> {
-		return restoreSelection(selection, {
-			getDoc,
-			selectionState,
-			getBlockElByPath,
-			caretMemory,
-			revealTarget: async (path) =>
-				reveal === 'mount'
-					? (await revealPath(path)) !== null
-					: rects.scrollTo(path, { block: 'nearest', hold: reveal === 'hold' })
-		});
-	}
-
 	function caretAt(path: number[], offset = 0): EditorSelection {
 		return { anchor: { path, offset }, focus: { path, offset } };
 	}
 
-	/** Puts the caret back in the document after a card or menu, so the next key goes there. */
-	async function landCaretAtOffset(path: number[], offset: number): Promise<boolean> {
-		return (await restoreThroughRevealRoad(caretAt(path, offset), 'hold')) === 'applied';
+	// Read off the placed selection, not the requested one: a caret aimed into a hidden body lands
+	// on its title row.
+	function focusInView(): boolean {
+		const focus = getSelection()?.focus;
+		return !!focus && scrollSettle.isInView(selectionState.cellLandingFor(focus).path);
+	}
+
+	// A navigation: it opens a closed body on the way, and holds the block where it scrolled to so
+	// a late image decode can't move it.
+	async function navigateCaret(path: number[], offset: number): Promise<boolean> {
+		const outcome = await caretLanding.land(
+			{ path: docPathFrom(path), offset },
+			{ reveal: 'into-view-held', openCollapsed: true }
+		);
+		return outcome === 'placed' && focusInView();
 	}
 
 	/** True only if the selection was placed and its focus block is in view; a programmatic
 	 *  scroll before it finishes makes it false, a user scroll does not. */
 	export async function setSelection(selection: EditorSelection): Promise<boolean> {
-		return (await restoreThroughRevealRoad(selection, 'release')) === 'applied';
+		return (await caretLanding.restore(selection)) === 'applied' && focusInView();
 	}
 
 	// The caret search a click on empty space runs, minus the event checks a host has done.
@@ -1431,7 +1418,6 @@
 		{getDoc}
 		getEditorEl={() => editorEl ?? null}
 		measureRange={rects.rangeRects}
-		landCaret={landCaretAtOffset}
 		{activateLink}
 		resolveLinkUrl={resolveLinkUrlImpl}
 		caretRestore={linkCardCaret}

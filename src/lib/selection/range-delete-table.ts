@@ -25,7 +25,7 @@ import {
 	truncateStartInPlace
 } from './range-delete-ceremony';
 import { comparePaths } from './path-math';
-import { blockNodeAt, emptyParagraph } from '../tree-operations/node-primitives';
+import { blockNodeAt } from '../tree-operations/node-primitives';
 import {
 	ensureUnsharedNode,
 	ensureUnsharedPath,
@@ -35,8 +35,13 @@ import {
 import { rebuildUnsharedAncestry } from '../tree-operations/chain-rebuild';
 import { rebuildTableRowRaw } from '../schema/container-rebuilders';
 import { promoteFirstRowToHeader } from '../tree-operations/table-mutations';
-import { caretChildCount } from '../schema/reserved-chrome';
-import { nearestChromeContainer, isChromeChild, caretWhereRemoved } from './range-delete-chrome';
+import {
+	nearestChromeContainer,
+	isChromeChild,
+	caretWhereRemoved,
+	caretWhereRangeResumes
+} from './range-delete-chrome';
+import type { RemovalGesture } from './caret-target';
 import { countsCells } from '../schema/block-kind-descriptor';
 
 // ── Public API ──────────────────────────────────────────────────────────────
@@ -49,7 +54,8 @@ export function tableAwareRangeDelete(
 	doc: Document,
 	range: CoveredRange,
 	sharing: SharingState,
-	reading: Reading
+	reading: Reading,
+	gesture: RemovalGesture
 ): RangeDeleteResult {
 	const { grammar } = reading;
 	const { start, end } = range;
@@ -71,10 +77,10 @@ export function tableAwareRangeDelete(
 		return deleteWithinTable(doc, start, end, startBlock, sharing, grammar);
 	}
 	if (startCells && endCells) {
-		return deleteAcrossTwoTables(doc, range, startBlock, endBlock, sharing, grammar);
+		return deleteAcrossTwoTables(doc, range, startBlock, endBlock, sharing, grammar, gesture);
 	}
 	if (startCells) {
-		return deleteFromTableIntoProse(doc, range, startBlock, endBlock, sharing, grammar, reading);
+		return deleteFromTableIntoProse(doc, range, startBlock, endBlock, sharing, reading, gesture);
 	}
 	return deleteFromProseIntoTable(doc, range, startBlock, endBlock, sharing, grammar, reading);
 }
@@ -138,6 +144,7 @@ function deleteFromProseIntoTable(
 	reading: Reading
 ): RangeDeleteResult {
 	const { start, end } = range;
+	const lineEnding = documentLineEnding(doc);
 	const startC = nearestChromeContainer(doc, start.path);
 	const startIsChrome = startC !== null && isChromeChild(startC, start.path);
 	const startTaken = range.unitHolding(start.path);
@@ -182,7 +189,7 @@ function deleteFromProseIntoTable(
 	return {
 		newDoc: doc,
 		collapsedCaret: startTaken
-			? caretWhereRemoved(doc, startTaken, sharing)
+			? caretWhereRangeResumes(doc, startTaken, sharing, lineEnding)
 			: { path: start.path.slice(), offset: seam },
 		tableRowSplices: splice ? [{ table, ...splice }] : []
 	};
@@ -196,9 +203,10 @@ function deleteFromTableIntoProse(
 	table: CstNode,
 	endBlock: CstNode,
 	sharing: SharingState,
-	grammar: GrammarView,
-	reading: Reading
+	reading: Reading,
+	gesture: RemovalGesture
 ): RangeDeleteResult {
+	const { grammar } = reading;
 	const { start, end } = range;
 	const lineEnding = documentLineEnding(doc);
 	const startCell = cellIndexOf(start, 'deleteFromTableIntoProse:start');
@@ -250,7 +258,7 @@ function deleteFromTableIntoProse(
 		tableResult === 'tableEmpty'
 			? tailPath
 				? { path: tailPath, offset: 0 }
-				: caretNearestSurvivor(doc, start.path, sharing, lineEnding)
+				: caretWhereRemoved(doc, start.path, sharing, lineEnding, gesture)
 			: survivingAnchorCellCaret(table, start.path, startCell);
 
 	return {
@@ -293,7 +301,8 @@ function deleteAcrossTwoTables(
 	startTable: CstNode,
 	endTable: CstNode,
 	sharing: SharingState,
-	grammar: GrammarView
+	grammar: GrammarView,
+	gesture: RemovalGesture
 ): RangeDeleteResult {
 	const { start, end } = range;
 	const lineEnding = documentLineEnding(doc);
@@ -338,7 +347,7 @@ function deleteAcrossTwoTables(
 		// Start emptied, so its block went and the end table shifted; land in its first cell.
 		collapsedCaret = { path: [...endTablePath, 0, 0], offset: 0 };
 	} else {
-		collapsedCaret = caretNearestSurvivor(doc, start.path, sharing, lineEnding);
+		collapsedCaret = caretWhereRemoved(doc, start.path, sharing, lineEnding, gesture);
 	}
 
 	const tableRowSplices = [
@@ -346,80 +355,6 @@ function deleteAcrossTwoTables(
 		...(endSplice ? [{ table: endTable, ...endSplice }] : [])
 	];
 	return { newDoc: doc, collapsedCaret, tableRowSplices };
-}
-
-// Every block the caret could land in was removed, so a survivor is sought in the deleted block's
-// own container, walking outward when the cleanup took that too.
-function caretNearestSurvivor(
-	doc: Document,
-	startPath: number[],
-	sharing: SharingState,
-	lineEnding: string
-): SelectionPoint {
-	let containerPath = startPath.slice(0, -1);
-	let childIdx = startPath[startPath.length - 1];
-	let siblings = survivingChildren(doc, containerPath);
-	while (siblings === null && containerPath.length > 0) {
-		childIdx = containerPath[containerPath.length - 1];
-		containerPath = containerPath.slice(0, -1);
-		siblings = survivingChildren(doc, containerPath);
-	}
-
-	if (siblings) {
-		const beforeIdx = childIdx - 1;
-		if (beforeIdx >= 0) {
-			const before = siblings[beforeIdx];
-			const beforePath = [...containerPath, beforeIdx];
-			return before.kind === 'table'
-				? lastCellCaret(before, beforePath)
-				: survivorEndCaret(before, beforePath);
-		}
-		return survivorStartCaret(siblings[0], [...containerPath, 0]);
-	}
-
-	const filler = emptyParagraph('', lineEnding);
-	sharing.stamp(filler);
-	doc.children.push(filler);
-	return { path: [0], offset: 0 };
-}
-
-/** A container's children when it survived with any, else null. */
-function survivingChildren(doc: Document, path: number[]): CstNode[] | null {
-	const node = path.length === 0 ? doc : blockNodeAt(doc, path);
-	const children = node?.children;
-	return children && children.length > 0 ? children : null;
-}
-
-// The caret at a survivor's end, descending to the leaf: the last child at each step, or child
-// 0 for a collapsed container, whose title line is all that shows.
-function survivorEndCaret(node: CstNode, path: number[]): SelectionPoint {
-	let leaf = node;
-	const leafPath = path.slice();
-	while (leaf.children && leaf.children.length > 0) {
-		const next = caretChildCount(leaf) - 1;
-		leaf = leaf.children[next];
-		leafPath.push(next);
-	}
-	return { path: leafPath, offset: displayLength(leaf.raw) };
-}
-
-// The caret at a survivor's start, the counterpart of `survivorEndCaret`. The first child at
-// each level is also the title line a collapsed container shows, so no collapse case is needed.
-function survivorStartCaret(node: CstNode, path: number[]): SelectionPoint {
-	let leaf = node;
-	const leafPath = path.slice();
-	while (leaf.children && leaf.children.length > 0) {
-		leaf = leaf.children[0];
-		leafPath.push(0);
-	}
-	return { path: leafPath, offset: 0 };
-}
-
-function lastCellCaret(table: CstNode, tablePath: number[]): SelectionPoint {
-	const lastRow = table.children!.length - 1;
-	const lastCol = metadataOf(table, 'table').columnCount - 1;
-	const cell = table.children![lastRow].children![lastCol];
-	return { path: [...tablePath, lastRow, lastCol], offset: displayLength(cell.raw) };
 }
 
 // ── Post-delete path resolution (identity scan; cost class in the file header) ─

@@ -5,11 +5,10 @@ import type { SelectedWidgetHandle, SelectedWidgetRange, SelectionPoint } from '
 import type { Document } from '../core/nodes';
 import type { GrammarView } from '../schema/block-openers';
 import { isVerticallyTransparentNode } from '../core/inline/transparency';
-import type { BlockComponent } from '../block-component';
+import type { CaretLanding } from './caret-landing';
 import {
 	readNativeCaretInBlock,
 	applyCollapsedCaret,
-	focusCollapsedCaret,
 	applySingleBlockRange,
 	clearNativeSelection
 } from './native-bridge';
@@ -49,14 +48,13 @@ function enterCrossBlockFromKeyboard(
 	return true;
 }
 
-/** Collapses a cross-block range to its start or end and restores a native caret there;
- *  `revealPath` mounts a windowed-out target first. */
+/** Collapses a cross-block range to its start or end and puts the caret back there as a stored
+ *  byte, mounting a windowed-out target and never opening a closed body. */
 export async function collapseCrossBlock(
 	selection: SelectionState,
 	to: 'start' | 'end',
 	doc: Document,
-	getBlockElByPath: (path: number[]) => HTMLElement | null,
-	revealPath: (path: number[]) => Promise<BlockComponent | null>
+	restore: CaretLanding['restore']
 ): Promise<void> {
 	const target = to === 'start' ? selection.start : selection.end;
 	if (!target) return;
@@ -70,10 +68,7 @@ export async function collapseCrossBlock(
 		to === 'end' && !pathsEqual(landing.path, target.path)
 			? { path: landing.path, offset: leafOffsetEnd(doc, landing.path) }
 			: landing;
-
-	// `applyCollapsedCaret` clamps the offset so the caret cannot sit past a hidden marker run.
-	await revealPath(landing.path);
-	focusCollapsedCaret(getBlockElByPath, point);
+	await restore({ anchor: point, focus: point }, { reveal: 'mount' });
 }
 
 /** Scrolls the focus block into view if mounted, without mounting it: a document-edge extend

@@ -21,10 +21,9 @@ body child really does unmount. These checks read behavior: the tree read by pat
 - caret in the body when it collapses: collapsing while the caret sits in a body child puts the caret on the summary, since the clamp unmounts the child the caret was in and the toggle's commit lands it there
 - that landing happens once: focus moves exactly one time after the click, and a typed `x` opens the summary text
 - a caret put back into a closed body: with the details last and closed, select-all twice covers
-  its hidden body, and ArrowRight collapses the range to its end, inside that body. The details
-  opens (`<details open>` in the bytes) and the caret lands at the end of the body text, so a typed
-  `x` follows it. Opening is what places the caret here: a walk that stopped at the hidden body
-  would place none, and the `x` would land wherever the caret was before
+  its hidden body, and ArrowRight collapses the range to its end, inside that body. The caret lands
+  at the end of the title row instead and the details stays closed, so a typed `x` follows `Sum`
+  and the bytes gain no `open`
 - M3, nothing is created invisibly: Enter in a collapsed, summary-only details does nothing. The caret stays, no node is created, and no undo entry is pushed, so an earlier text edit still undoes in one step
 - arrow walk across a collapsed details: ArrowUp entering from the paragraph below puts the caret on the summary rather than doing nothing on the clamped-out last child
 - sideways walk into a collapsed details: ArrowLeft at the start of the paragraph below goes through `focus(CURSOR_END)` toward the unmounted last child and has to clamp to the summary rather than do nothing on the missing reference

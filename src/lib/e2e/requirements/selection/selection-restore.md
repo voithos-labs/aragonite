@@ -28,6 +28,11 @@ override the scroll the host wrote last.
 
 ## Edge cases
 
+- Collapsed caret on a container's own path (a list at offset 0): it lands in the list's first
+  item, and a typed `x` goes there, rather than into the list's wrapper where typing goes nowhere
+  - Miss-analysis: every collapsed scenario named a leaf, so nothing handed `setSelection` the
+    path of a block that holds other blocks
+
 - Offset past the end of the block's content: the caret clamps to the block end, resolves `true`
 - Reading mode (the block is inert, `contenteditable` off): the selection is still placed as a
   native range inside the target block, since reading mode keeps selection and navigation

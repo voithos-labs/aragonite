@@ -78,6 +78,24 @@ test.describe('placeCaretAtPoint is the host shell’s caret entry point', () =>
 		expect((await editor.bridge.getSource()).trim()).toBe('!first para\n\nsecond para');
 	});
 
+	// The tail is windowed out, so the landing mounts it first; the end it lands at is the outside
+	// of the hidden closer, as an End key there would be.
+	test('live mode: a point below a windowed-out tail lands after a closing marker', async () => {
+		await editor.page.evaluate(() => (window as any).__test.setPresentationMode('live'));
+		const body = Array.from({ length: 200 }, (_, i) => `paragraph ${i}`).join('\n\n');
+		await editor.loadContent(`${body}\n\n**a**\n`);
+		await editor.waitForRenderFlush();
+		await expect(editor.page.locator(`[data-block-path='[200]']`)).toHaveCount(0);
+		const root = await rootBox();
+
+		expect(await placeAt(root.left + 40, root.bottom + 200)).toBe(true);
+		await editor.typeSlowly('x');
+		await editor.bridge.waitForSourceContains('x');
+
+		const source = await editor.bridge.getSource();
+		expect(source.slice(source.lastIndexOf('\n\n'))).toBe('\n\n**a**x\n');
+	});
+
 	// A false answer is what lets the shell do something else with the click.
 	test('a point resolving nothing focusable returns false and focuses no block', async () => {
 		await editor.loadContent('lead\n\n---\n');

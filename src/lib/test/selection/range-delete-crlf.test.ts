@@ -15,7 +15,7 @@ import { fixtureReading } from '../harness/fixture-grammar';
 function run(source: string, start: SelectionPoint, end: SelectionPoint): string {
 	const parsed = parse(source);
 	const range = coverRange(parsed, start, end);
-	const doc = rangeDelete(parsed, range, createSharingState(), fixtureReading()).newDoc;
+	const doc = rangeDelete(parsed, range, createSharingState(), fixtureReading(), 'keyless').newDoc;
 	// The new paragraph is a blank line, so its own separator is fixed up with the rest of the
 	// run; bytes alone would pass on a shape that reloads one empty paragraph wider.
 	expectParseConverged(doc);

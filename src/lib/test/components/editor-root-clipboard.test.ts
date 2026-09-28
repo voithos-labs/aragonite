@@ -40,7 +40,7 @@ function harness(options: HarnessOptions = {}) {
 			selection.collapse();
 			return false;
 		},
-		performCrossBlockDeleteFromEvent: deleted
+		performCrossBlockCut: deleted
 	} as unknown as CrossBlockHandlers;
 
 	const events = createEditorEvents();

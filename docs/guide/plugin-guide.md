@@ -1468,7 +1468,7 @@ A widget renders through one of two paths, and the descriptor rejects declaring 
 - `getDocument`: the read-only root document.
 - `getContentVersion`: a number that changes whenever the document's bytes change, and is stable otherwise.
 
-A fourth prop, `navigateTo`, is the editor's jump route: hand it a block path and the editor reveals that block, scrolls it into view, and lands the caret in it. Aim at a leaf: a container seats no caret, so a container path scrolls the block into view and leaves the caret where it was. Use it when your widget points at somewhere else in the document, the way a footnote reference points at its definition. It resolves false when there's nowhere to land.
+A fourth prop, `navigateTo`, is the editor's jump route: hand it a block path and the editor reveals that block, scrolls it into view, and lands the caret in it. A container path works too: the caret goes to the start of its first line (a quote's first paragraph, a list's first item), and a closed `<details>` on the way gets opened. Use it when your widget points at somewhere else in the document, the way a footnote reference points at its definition. It resolves false when there's nowhere to land.
 
 A fifth, `computeInlineContent`, is the same parse `EditorContext.computeInlineContent` gives a plugin. Walk inline nodes through it and syntax the editor left out comes back as plain text.
 

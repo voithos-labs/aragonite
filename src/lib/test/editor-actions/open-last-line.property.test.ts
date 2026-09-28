@@ -86,7 +86,7 @@ async function edited(source: string, op: GestureOp, at: number, offset: number)
 	const i = at % count;
 	const raw = h.deps.doc.children[i].raw;
 	if (op === 'split') await h.actions.splitBlock(i, Math.min(offset, displayLength(raw)));
-	if (op === 'delete') await h.actions.deleteBlock(i, 'before');
+	if (op === 'delete') await h.actions.deleteBlock(i, 'keyless');
 	if (op === 'insert') await h.actions.insertParagraph(at % (count + 1), 'x');
 	if (op === 'insertBlank') await h.actions.insertParagraph(at % (count + 1), '');
 	if (op === 'mergePrev' && i > 0) await h.actions.mergeWithPrevious(i);

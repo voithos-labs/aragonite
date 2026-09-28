@@ -237,6 +237,8 @@ Two notes on the third shape:
 
 Out-of-range offsets clamp, each in its own coordinate space: a character offset clamps to the block's source length, and an endpoint addressing a table clamps to the last cell, so a huge offset there becomes the bottom-right cell rather than a character position.
 
+A caret doesn't have to name the block it ends up in. Point it at offset 0 of a block that holds other blocks (a list at `[2]`, say) and it lands at the start of the list's first item, so the next key types there. A caret inside a closed `<details>` lands at the end of its title row, and the block stays closed.
+
 You can leave the flag off when you build a selection by hand. An offset on a table's path always counts cells, so plain numbers there paint the rectangle with those two cells at its corners, and `getSelection()` hands it back flagged:
 
 ```ts
@@ -1098,7 +1100,7 @@ search.close();
 - **It mounts first.** A block virtual rendering has unmounted has no element to scroll to, so the call mounts it and then scrolls. `reveal(path)` is that same mount without the scroll, for measuring something offscreen.
 - **The boolean is honest.** It resolves only after the position settles, so `true` means the block is genuinely in view, not merely that the call ran. A target that can't mount (one inside a collapsed `<details>` or admonition, say) resolves `false` and leaves nothing pinned.
 - **`'nearest'` holds, `'center'` places.** The default `'nearest'` keeps the target visible through the reflow a mount triggers (images decoding above it collapse the document height). `'center'` places the block precisely once the scroll settles, and stops holding it after. Pass `hold: false` to hand the viewport straight back, which is what a restore that writes its own remembered scroll position afterwards wants.
-- **Land the caret if a user asked to go there.** A navigation affordance that only scrolls leaves focus on whatever the user clicked, where the editor's chords don't reach: an undo typed right after the jump does nothing. `navigateTo` places the caret at the target through the same restore machinery `setSelection` and undo use, which is why it's a distinct call rather than a flag.
+- **Land the caret if a user asked to go there.** A navigation affordance that only scrolls leaves focus on whatever the user clicked, where the editor's chords don't reach: an undo typed right after the jump does nothing. `navigateTo` places the caret at the target the way an edit's caret lands (through the block's own caret entry, and into the first line of a block that holds others), which is why it's a distinct call rather than a flag. Unlike an edit's landing, it also opens a closed `<details>` on the way.
 
 Finding the path in the first place: `parse(getSource())` gives you the document tree (every node has a `kind` and containers have `children`), so collect the headings, recursing into containers so a heading inside a blockquote or list is reachable too:
 

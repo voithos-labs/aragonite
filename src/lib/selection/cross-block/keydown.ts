@@ -3,8 +3,8 @@
 import { CURSOR_START } from '../../block-component';
 import type { CrossBlockMutationContext } from './ops';
 import type { CrossBlockDispatchContext } from './dispatch';
-import type { BlockElLookup } from '../../editor-keys';
 import type { AnyBlockKind, CstNode, Document } from '../../core/nodes';
+import { docPathFrom } from '../../cursor/coordinate-spaces';
 import { performCrossBlockDelete, performCrossBlockDeleteSync, rangeUndoStep } from './ops';
 import { blockNodeAt, isBlockNode } from '../../tree-operations/node-primitives';
 import { isReadingMode } from '../../presentation-mode';
@@ -97,7 +97,7 @@ async function handleCrossBlockActive(
 	if (e.key === 'Backspace' || e.key === 'Delete') {
 		e.preventDefault();
 		if (isReadingMode(ctx.reading.mode)) return true;
-		await performCrossBlockDelete(mutCtx, { tableCoverageDelete: true });
+		await performCrossBlockDelete(mutCtx, e.key, { tableCoverageDelete: true });
 		return true;
 	}
 
@@ -118,7 +118,7 @@ async function handleCrossBlockActive(
 		const fallbackPath = (selection.start ?? selection.focus)?.path ?? myPath;
 		// One entry for the delete and the command, so one Ctrl+Z brings the range back.
 		await rangeUndoStep(mutCtx, async () => {
-			const collapsedCaret = await performCrossBlockDelete(mutCtx);
+			const collapsedCaret = await performCrossBlockDelete(mutCtx, 'keyless');
 			await ctx.afterReactivity();
 			const postDeleteDoc = getDoc();
 			const revealTarget = collapsedCaret?.path ?? fallbackPath;
@@ -213,18 +213,18 @@ async function handleCrossBlockActive(
 
 	if (e.key === 'Escape' && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) {
 		e.preventDefault();
-		await collapseTo(ctx, 'start', doc, getBlockElByPath);
+		await collapseTo(ctx, 'start', doc);
 		return true;
 	}
 
 	if (!e.shiftKey && (e.key === 'ArrowLeft' || e.key === 'ArrowUp')) {
 		e.preventDefault();
-		await collapseTo(ctx, 'start', doc, getBlockElByPath);
+		await collapseTo(ctx, 'start', doc);
 		return true;
 	}
 	if (!e.shiftKey && (e.key === 'ArrowRight' || e.key === 'ArrowDown')) {
 		e.preventDefault();
-		await collapseTo(ctx, 'end', doc, getBlockElByPath);
+		await collapseTo(ctx, 'end', doc);
 		return true;
 	}
 
@@ -271,7 +271,7 @@ async function dispatchOverRange(
 ): Promise<void> {
 	const chord = eventToChord(e);
 	if (!chord) return;
-	const surface = await ctx.revealPath(path);
+	const surface = await ctx.caretLanding.mount(path);
 	dispatchKeyCommand(
 		chord,
 		// The block may have no `runCommand` of its own; the range's handler is reached in the
@@ -318,11 +318,11 @@ function isClaimedRewriteChord(e: KeyboardEvent): boolean {
 async function collapseTo(
 	ctx: CrossBlockDispatchContext,
 	to: 'start' | 'end',
-	doc: Document,
-	getBlockElByPath: BlockElLookup
+	doc: Document
 ): Promise<void> {
+	await collapseCrossBlock(ctx.selection, to, doc, ctx.caretLanding.restore);
+	// After the restore, which forgets how the caret arrived.
 	ctx.caretMemory.noteExtreme();
-	await collapseCrossBlock(ctx.selection, to, doc, getBlockElByPath, ctx.revealPath);
 }
 
 /** Deepest resolvable node's kind; an empty/unresolvable path reads the document root's own kind. */
@@ -337,30 +337,21 @@ function kindOfPath(path: number[], doc: Document): AnyBlockKind {
 	return isBlockNode(node) ? node.kind : (node.kind as AnyBlockKind);
 }
 
-/** Puts the caret at the focus endpoint with `parkCaret`, never `focus`, which would end the range
- *  (G2.12). A cell takes its start, since ArrowRight at its end reads as leaving the table. */
+/** Parks the caret at the focus endpoint, never ending the range (G2.12) and never opening a
+ *  closed body. A cell takes its start, since ArrowRight at its end reads as leaving the table. */
 async function revealActiveEndpoint(ctx: CrossBlockDispatchContext): Promise<void> {
 	const focus = ctx.selection.focus;
 	const landing = focus && ctx.selection.cellLandingFor(focus);
-	// A landing that deepened the path is a cell; anything else lands as itself.
+	// A landing that deepened the path is a cell; anything else lands as itself. A cell that never
+	// mounted falls through, so the mounted table still scrolls the endpoint into view.
 	if (focus && landing && !pathsEqual(landing.path, focus.path)) {
-		const cellRef = await ctx.revealPath(landing.path);
-		// A null ref means the cell never mounted; fall through to scroll the mounted table so
-		// the endpoint still stays in view.
-		if (cellRef) {
-			cellRef.parkCaret?.(CURSOR_START);
+		if (await ctx.caretLanding.park({ path: docPathFrom(landing.path), offset: CURSOR_START })) {
 			return;
 		}
 	}
-	// A windowed-out text endpoint cannot be scrolled to while unmounted. Mount it and put the
-	// dispatch caret in it, as the table-cell case above does.
+	// A windowed-out text endpoint cannot be scrolled to while unmounted, so it mounts first.
 	if (focus && !ctx.getBlockElByPath(focus.path)) {
-		const ref = await ctx.revealPath(focus.path);
-		if (ref) {
-			ref.parkCaret?.(focus.offset);
-			scrollFocusBlockIntoView(ctx.selection, ctx.getBlockElByPath);
-			return;
-		}
+		await ctx.caretLanding.park({ path: docPathFrom(focus.path), offset: focus.offset });
 	}
 	scrollFocusBlockIntoView(ctx.selection, ctx.getBlockElByPath);
 }

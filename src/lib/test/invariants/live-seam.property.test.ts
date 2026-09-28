@@ -87,7 +87,8 @@ function deleteRange(
 			{ path: points.end.slice(0, 1), offset: points.end[1] }
 		),
 		createSharingState(),
-		fixtureReading({}, mode)
+		fixtureReading({}, mode),
+		'keyless'
 	);
 	const bytes = serialize(doc);
 	return {

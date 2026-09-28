@@ -68,7 +68,7 @@ describe('a delete that crosses both shared entries in one commit', () => {
 			selection: harness.deps.selectionState,
 			getDoc: () => harness.deps.doc,
 			getBlockElByPath: () => null,
-			revealPath: harness.deps.revealPath,
+			revealPath: (path) => harness.deps.caretLanding.mount(path),
 			controller,
 			reading: fixtureReading()
 		});
@@ -124,7 +124,7 @@ describe('an insert whose settle materializes the folded tail line', () => {
 		const h = makeTopHarness(parse('alpha\n\n\nbeta\n\n'));
 		expect(h.deps.doc.suffix).toBe('\n');
 
-		await h.actions.deleteBlock(2, 'before');
+		await h.actions.deleteBlock(2, 'keyless');
 
 		expect(serialize(h.deps.doc)).toBe('alpha\n\n\n\n');
 		expect(h.deps.doc.children).toHaveLength(3);
@@ -133,7 +133,7 @@ describe('an insert whose settle materializes the folded tail line', () => {
 
 		// The following commit is where an unreported new block becomes permanent: the id and
 		// ref arrays are one short before it and stay one short after.
-		await h.actions.deleteBlock(0, 'before');
+		await h.actions.deleteBlock(0, 'keyless');
 
 		expect(h.getBlockIds()).toHaveLength(h.deps.doc.children.length);
 		expect(h.getBlockRefs()).toHaveLength(h.deps.doc.children.length);

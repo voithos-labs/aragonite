@@ -36,8 +36,6 @@ export interface LinkCardCommitterDeps {
 	events: EditorEvents;
 	/** Measures the rectangles of a raw range in a mounted block, which is what positions it. */
 	measureRange: (path: number[], start: number, end: number) => DOMRect[];
-	/** Scroll to and place the caret at a raw offset, so the next keystroke goes to the doc. */
-	landCaret: (path: number[], offset: number) => Promise<boolean>;
 	reading: Reading;
 }
 
@@ -121,11 +119,10 @@ export function createLinkCardCommitter(deps: LinkCardCommitterDeps): LinkCardCo
 		void write(target.path, resolved.link.start, resolved.link.end, bytes);
 	}
 
+	// The caret goes to the construct's outer start, which the undo entry records too, so the caret
+	// before and after an undo agree.
 	async function write(path: number[], start: number, end: number, bytes: string): Promise<void> {
-		await inlineRange.commitInlineRange(path, start, end, bytes, start);
-		// The construct's outer start, which the undo entry records too, so the caret before and
-		// after an undo agree.
-		await deps.landCaret(path, start);
+		await inlineRange.commitInlineRange(path, start, end, bytes, start, { landCaret: true });
 	}
 
 	/** The raw range the card sits under: the resolved construct, or the create range as it is. */

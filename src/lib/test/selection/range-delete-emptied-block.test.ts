@@ -23,7 +23,8 @@ function emptyBlock(doc: Document, index: number): void {
 		doc,
 		coverRange(doc, { path: [index], offset: 0 }, { path: [index], offset: end }),
 		createSharingState(),
-		fixtureReading()
+		fixtureReading(),
+		'keyless'
 	);
 }
 
@@ -74,7 +75,8 @@ describe('a delete that empties a block settles the run it joins', () => {
 			doc,
 			coverRange(doc, { path: [1], offset: 0 }, { path: [2], offset: 0 }),
 			createSharingState(),
-			fixtureReading()
+			fixtureReading(),
+			'keyless'
 		);
 
 		expect(doc.children.map((c) => c.raw)).toEqual(['Hello\n', '\n', 'Second\n']);

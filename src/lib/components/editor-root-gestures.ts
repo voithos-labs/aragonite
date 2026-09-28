@@ -6,6 +6,7 @@
 
 import type { BlockComponent } from '../block-component';
 import type { CaretMemory } from '../cursor/caret-memory';
+import type { CaretLanding } from '../selection/caret-landing';
 import type { UserScrollport } from '../cursor/scroll-ancestors';
 import type { BlockElLookup, DocumentGetter } from '../editor-keys';
 import { resetForPointerDown } from '../selection/cross-block/pointer';
@@ -29,8 +30,8 @@ export interface RootGesturesDeps {
 	caretMemory: Pick<CaretMemory, 'forget'>;
 	getBlockElByPath: BlockElLookup;
 	getBlockComponent(path: number[]): BlockComponent | null;
-	/** How a block gets mounted: what a click below the last mounted block goes through. */
-	revealPath(path: number[]): Promise<BlockComponent | null>;
+	/** How a click below the last mounted block puts the caret at the document's end. */
+	land: CaretLanding['land'];
 	getScrollHost(): UserScrollport | null;
 	getLifetime(): AbortSignal;
 	isHostChrome(node: Node | null): boolean;
@@ -68,7 +69,7 @@ export function createRootGestures(deps: RootGesturesDeps): RootGestures {
 			getPresentationMode: deps.reading.mode
 		},
 		lastBlockIndex: () => deps.getDoc().children.length - 1,
-		revealBlock: (index) => deps.revealPath([index])
+		land: (pos) => deps.land(pos)
 	});
 
 	function pressesSelectedWidget(target: EventTarget | null): boolean {

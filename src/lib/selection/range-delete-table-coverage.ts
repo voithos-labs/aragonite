@@ -4,7 +4,8 @@
  * clears cells.
  */
 
-import { cellIndexOf, deleteSnapshot, type SelectionPoint } from './primitives';
+import { cellIndexOf, deleteSnapshot, type CaretPosition, type SelectionPoint } from './primitives';
+import { caretPointFor, survivorAfterRemoval, type RemovalGesture } from './caret-target';
 import type { CstNode } from '../core/nodes';
 import { metadataOf } from '../core/nodes';
 import type { MultiScopeTarget } from '../action-contracts';
@@ -59,13 +60,20 @@ export function classifyTableSelectionCoverage(
 	return { kind: 'cells' };
 }
 
+export interface TableCoverageDeleteOptions {
+	/** The commit puts the caret where it returns it. */
+	lands: boolean;
+	/** What deleted the table, which picks the caret's side when the whole table goes. */
+	gesture: RemovalGesture;
+}
+
 /** Null when the selection doesn't qualify (subset coverage, or a guard refusal). */
 export async function maybeCommitTableCoverageDelete(
 	ctx: CrossBlockMutationContext,
 	table: CstNode,
 	start: SelectionPoint,
 	end: SelectionPoint,
-	caretRestore: ((caret: SelectionPoint | null) => void) | undefined
+	{ lands, gesture }: TableCoverageDeleteOptions
 ): Promise<{ caret: SelectionPoint | null } | null> {
 	const meta = metadataOf(table, 'table');
 	const columnCount = meta.columnCount;
@@ -81,18 +89,18 @@ export async function maybeCommitTableCoverageDelete(
 		case 'cells':
 			return null;
 		case 'table':
-			return { caret: await commitFullTableDelete(ctx, start, caretRestore) };
+			return { caret: await commitFullTableDelete(ctx, start, lands, gesture) };
 		case 'row': {
 			// As with Ctrl+Shift+Backspace, at least one body row must remain. A refusal does nothing,
 			// since falling through to a cell clear would do something the user did not ask for.
 			if (!canDeleteRow(coverage.rowIdx, rowCount)) return { caret: null };
-			const caret = await commitRowDelete(ctx, table, start, coverage.rowIdx, caretRestore);
+			const caret = await commitRowDelete(ctx, table, start, coverage.rowIdx, lands);
 			return { caret };
 		}
 		case 'column': {
 			// Mirror Alt+Shift+Backspace: ≥2 columns must remain.
 			if (!canDeleteColumn(columnCount)) return { caret: null };
-			const caret = await commitColumnDelete(ctx, table, start, coverage.colIdx, caretRestore);
+			const caret = await commitColumnDelete(ctx, table, start, coverage.colIdx, lands);
 			return { caret };
 		}
 	}
@@ -101,15 +109,17 @@ export async function maybeCommitTableCoverageDelete(
 async function commitFullTableDelete(
 	ctx: CrossBlockMutationContext,
 	start: SelectionPoint,
-	caretRestore: ((caret: SelectionPoint | null) => void) | undefined
+	lands: boolean,
+	gesture: RemovalGesture
 ): Promise<SelectionPoint | null> {
 	const tableIdx = start.path[0];
 	const snapshot = deleteSnapshot([tableIdx]);
+	// Read on the tree the delete left, which may hold only the filler paragraph.
+	const survivor = () => survivorAfterRemoval(ctx.getDoc(), [tableIdx], gesture);
 
-	let collapsedCaret: SelectionPoint | null = null;
 	// Read before the delete, which can leave no block to read a line ending from.
 	const lineEnding = documentLineEnding(ctx.getDoc());
-	await ctx.controller.commitStructural({
+	const wrote = await ctx.controller.commitStructural({
 		snapshot,
 		mutate: (children) => {
 			const change = deleteNode(
@@ -125,11 +135,8 @@ async function commitFullTableDelete(
 				const filler = emptyParagraph('', lineEnding);
 				ctx.controller.sharing.stamp(filler);
 				children.push(filler);
-				collapsedCaret = { path: [0], offset: 0 };
 				return { op: 'replace', at: 0, count: 1, newCount: 1 };
 			}
-			const survivorIdx = Math.min(tableIdx, children.length - 1);
-			collapsedCaret = { path: [survivorIdx], offset: 0 };
 			return change;
 		},
 		op: {
@@ -137,9 +144,10 @@ async function commitFullTableDelete(
 			detail: { crossBlock: true, table: 'whole' },
 			eventPath: docPathFrom([tableIdx])
 		},
-		afterTick: caretRestore ? () => caretRestore(collapsedCaret) : undefined
+		landing: lands ? survivor : undefined
 	});
-	return collapsedCaret;
+	const landed = wrote ? survivor() : null;
+	return landed && caretPointFor(ctx.getDoc(), landed);
 }
 
 async function commitRowDelete(
@@ -147,7 +155,7 @@ async function commitRowDelete(
 	table: CstNode,
 	start: SelectionPoint,
 	rowIdx: number,
-	caretRestore: ((caret: SelectionPoint | null) => void) | undefined
+	lands: boolean
 ): Promise<SelectionPoint | null> {
 	const tableIdx = start.path[0];
 	const rowsState = expectStateForNode(table);
@@ -174,7 +182,7 @@ async function commitRowDelete(
 			detail: { rowIdx, crossBlock: true },
 			eventPath: docPathFrom([tableIdx, rowIdx])
 		},
-		afterTick: caretRestore ? () => caretRestore(collapsedCaret) : undefined
+		landing: lands ? () => cellLanding(collapsedCaret) : undefined
 	});
 	return collapsedCaret;
 }
@@ -184,7 +192,7 @@ async function commitColumnDelete(
 	table: CstNode,
 	start: SelectionPoint,
 	colIdx: number,
-	caretRestore: ((caret: SelectionPoint | null) => void) | undefined
+	lands: boolean
 ): Promise<SelectionPoint | null> {
 	const tableIdx = start.path[0];
 	const rowsState = expectStateForNode(table);
@@ -229,7 +237,12 @@ async function commitColumnDelete(
 			detail: { colIdx, crossBlock: true },
 			eventPath: docPathFrom([tableIdx])
 		},
-		afterTick: caretRestore ? () => caretRestore(collapsedCaret) : undefined
+		landing: lands ? () => cellLanding(collapsedCaret) : undefined
 	});
 	return collapsedCaret;
+}
+
+/** The cell a row or column delete keeps the caret in, as the commit's landing. */
+function cellLanding(cell: SelectionPoint | null): CaretPosition | null {
+	return cell && { path: docPathFrom(cell.path), offset: cell.offset };
 }

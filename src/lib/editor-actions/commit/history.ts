@@ -10,7 +10,7 @@ import type { HistoryActions } from '../../action-contracts';
 import { isGapSelection, type UndoEntry } from '../../undo/types';
 import { assertInvariant } from '../../assert';
 import { checkSnapshotIntegrity } from '../../invariants/snapshot-integrity';
-import { restoreGapCaret, restoreSelection } from '../../selection/selection-restore';
+import { restoreGapCaret } from '../../selection/selection-restore';
 import { admitsWrite } from './reading-write-gate';
 import type { EditorActionsDeps, UndoController } from '../deps';
 
@@ -37,18 +37,16 @@ export function createHistoryActions(
 		// The tick belongs to the document swap above, not to the restore: the new tree must
 		// render before the selection restore can scroll to or address anything in it.
 		await tick();
-		const restoreDeps = {
-			getDoc: () => deps.doc,
-			selectionState: deps.selectionState,
-			getBlockElByPath: deps.getBlockElByPath,
-			caretMemory: deps.caretMemory,
-			// Mount, not scroll into view: a history swap must not move the viewport for
-			// a target already on screen.
-			revealTarget: async (path: number[]) => (await deps.revealPath(path)) !== null
-		};
+		// Mount, not scroll into view: a history swap must not move the viewport for a target
+		// already on screen.
 		const outcome = isGapSelection(entry.selection)
-			? await restoreGapCaret(entry.selection.gapCaret, restoreDeps)
-			: await restoreSelection(entry.selection, restoreDeps);
+			? await restoreGapCaret(entry.selection.gapCaret, {
+					getDoc: () => deps.doc,
+					selectionState: deps.selectionState,
+					caretMemory: deps.caretMemory,
+					mount: (path) => deps.caretLanding.mount(path)
+				})
+			: await deps.caretLanding.restore(entry.selection, { reveal: 'mount' });
 		// An entry can name an index its own snapshot never had, and the restore then declines. Clear
 		// here and announce it, since the swap already dropped the range without a notification.
 		if (outcome === 'unresolvable') {

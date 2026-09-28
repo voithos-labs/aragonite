@@ -177,6 +177,16 @@ test.describe('selection: setSelection restores a getSelection snapshot', () => 
 		});
 	}
 
+	test('a caret on a list path lands in its first item, where typing reaches', async () => {
+		await editor.loadContent('- a\n- b\n');
+		await editor.clickBlockAtPath([0, 1, 0], 1);
+
+		const onList = { anchor: { path: [0], offset: 0 }, focus: { path: [0], offset: 0 } };
+		expect(await editor.bridge.setSelection(onList)).toBe(true);
+		await editor.typeSlowly('x');
+		await editor.bridge.waitForSourceEquals('- xa\n- b\n');
+	});
+
 	test('an offset past the end clamps to the block end', async () => {
 		await editor.loadContent(PROSE);
 		await editor.clickBlockAtPath([0], 0);

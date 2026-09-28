@@ -116,6 +116,7 @@ describe.each(COMMIT_ROUTES)('a landing across an undo, through %s', (_route, co
 			selectionState: h.deps.selectionState,
 			caretMemory: h.deps.caretMemory,
 			getBlockElByPath: () => null,
+			getEditorRoot: () => null,
 			scroll: null
 		});
 		Object.defineProperty(h.deps, 'caretLanding', { value: landing });
@@ -123,8 +124,10 @@ describe.each(COMMIT_ROUTES)('a landing across an undo, through %s', (_route, co
 
 		const committed = commit(h, () => ({ path: docPathFrom([1]), offset: 0 }));
 		await asked;
-		await history.requestUndo();
+		// The undo's own restore mounts through the same held list, so it resolves only after.
+		const undone = history.requestUndo();
 		mount();
+		await undone;
 		await committed;
 
 		expect(placed).toEqual([]);

@@ -1,15 +1,13 @@
 /**
- * The one path from a stored selection back onto the live editor: resolve it against the current
- * tree, mount the block the caret will land in, then place it. Undo/redo and the consumer's
- * `setSelection` both come through here, so the resolve, clamp and mount rules can't differ. A
- * gap caret takes {@link restoreGapCaret}, the same steps minus the endpoint pair.
+ * The checks a stored selection passes before it goes back onto the live editor: each endpoint
+ * resolved against the current tree and clamped into its block. `caret-landing.ts :: restore` puts
+ * a stored range or caret back; a gap caret takes {@link restoreGapCaret}.
  */
 
 import type { DocumentView } from '../core/node-views';
+import type { BlockComponent } from '../block-component';
 import { isBlockNode, nodeAt } from '../tree-operations/node-primitives';
-import type { BlockElLookup } from '../editor-keys';
-import { cellPoint, type EditorSelection, type SelectionPoint } from './primitives';
-import { applySelectionToDom } from './native-bridge';
+import { cellPoint, type SelectionPoint } from './primitives';
 import { placeGapCaret } from './caret-doors';
 import { gapScopeChildren, type GapCaretPosition } from './gap-caret';
 import { clampCellIndex, countsCells } from '../schema/block-kind-descriptor';
@@ -23,41 +21,20 @@ import type { CaretMemory } from '../cursor/caret-memory';
  */
 export type SelectionRestoreOutcome = 'applied' | 'unresolvable' | 'unplaced';
 
-export interface SelectionRestoreDeps {
+export interface GapCaretRestoreDeps {
 	getDoc(): DocumentView;
 	selectionState: SelectionState;
-	getBlockElByPath: BlockElLookup;
-	/** Mounts the block the caret will land in and reports whether it is ready. Injected because
-	 *  which path gets mounted is this module's rule and how far to scroll is the caller's. */
-	revealTarget(path: number[]): Promise<boolean>;
+	/** Mounts the block at `path`: the caret landing's `mount`. */
+	mount(path: number[]): Promise<BlockComponent | null>;
 	/** Cleared on each restore, since a placed caret did not arrive by a key. */
 	caretMemory: Pick<CaretMemory, 'forget'>;
-}
-
-/** Restores a snapshot and never throws. An endpoint whose path addresses no block is declined
- *  before anything mounts, so a dead snapshot moves no viewport and disturbs no live selection. */
-export async function restoreSelection(
-	selection: EditorSelection,
-	deps: SelectionRestoreDeps
-): Promise<SelectionRestoreOutcome> {
-	const doc = deps.getDoc();
-	const anchor = resolveSelectionPoint(doc, selection.anchor);
-	const focus = resolveSelectionPoint(doc, selection.focus);
-	if (!anchor || !focus) return 'unresolvable';
-	deps.caretMemory.forget();
-
-	// Mount exactly what the caret will land in: a cell-coordinate focus lands in its
-	// [table, row, col] cell, and table rows are windowed too.
-	const revealed = await deps.revealTarget(deps.selectionState.cellLandingFor(focus).path);
-	const placed = applySelectionToDom({ anchor, focus }, deps.selectionState, deps.getBlockElByPath);
-	return revealed && placed ? 'applied' : 'unplaced';
 }
 
 /** Restores a gap caret with only the child-list check: the tree is the one the gap was made
  *  against, so its `gapEdges` hold, but the path may name something no BlockList renders. */
 export async function restoreGapCaret(
 	pos: GapCaretPosition,
-	deps: SelectionRestoreDeps
+	deps: GapCaretRestoreDeps
 ): Promise<SelectionRestoreOutcome> {
 	const children = gapScopeChildren(deps.getDoc(), pos.parentPath);
 	if (!children) return 'unresolvable';
@@ -67,9 +44,9 @@ export async function restoreGapCaret(
 	// The boundary itself mounts nothing; what must be on screen is the block it sits
 	// against, so the gap's own BlockList is inside a live window when it renders.
 	const neighbour = index < children.length ? index : index - 1;
-	const revealed = await deps.revealTarget([...pos.parentPath, neighbour]);
+	const mounted = (await deps.mount([...pos.parentPath, neighbour])) !== null;
 	placeGapCaret(deps.selectionState, { parentPath: pos.parentPath, index });
-	return revealed ? 'applied' : 'unplaced';
+	return mounted ? 'applied' : 'unplaced';
 }
 
 /** Clamps an endpoint into its block's whole `raw`, markers included, or null when its path names

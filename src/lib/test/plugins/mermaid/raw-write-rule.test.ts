@@ -31,7 +31,8 @@ describe('a truncating write of a mermaid block gets its closing fence back', ()
 			doc,
 			coverRange(doc, { path: [1], offset: 11 }, { path: [2], offset: 3 }),
 			createSharingState(),
-			fixtureReading()
+			fixtureReading(),
+			'keyless'
 		);
 
 		expect(serialize(doc)).toBe('Before\n\n```mermaid\ner\n```\n\nTail\n');

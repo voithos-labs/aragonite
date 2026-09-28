@@ -23,8 +23,15 @@ export interface InlineRangeCommit {
 		start: number,
 		end: number,
 		bytes: string,
-		caretAfter: number
+		caretAfter: number,
+		opts?: InlineRangeOptions
 	): Promise<boolean>;
+}
+
+export interface InlineRangeOptions {
+	/** Put the caret at `caretAfter` too, counted in the bytes the leaf stores (a table cell's
+	 *  escaped pipe included), and hold it on screen: the next key goes to the document. */
+	landCaret?: boolean;
 }
 
 export function createInlineRangeCommit(root: EditorRoot): InlineRangeCommit {
@@ -59,14 +66,23 @@ export function createInlineRangeCommit(root: EditorRoot): InlineRangeCommit {
 		start: number,
 		end: number,
 		bytes: string,
-		caretAfter: number
+		caretAfter: number,
+		opts: InlineRangeOptions = {}
 	): Promise<boolean> {
 		const plan = planSplice(path, start, end, bytes);
 		if (!plan) return false;
-		if (!plan.write) return true;
+		const reveal = 'into-view-held';
+		if (!plan.write) {
+			if (opts.landCaret) {
+				await root.deps.caretLanding.land(plan.scope.at(plan.index, [], caretAfter), { reveal });
+			}
+			return true;
+		}
 		const landed = await commitLeafText(plan.scope, plan.index, plan.write, {
 			snapshotOffset: caretAfter,
-			caret: plan.write.storedOffset(caretAfter)
+			caret: plan.write.storedOffset(caretAfter),
+			landing: opts.landCaret ? (written) => written.caret : undefined,
+			reveal
 		});
 		return landed.wrote;
 	}

@@ -59,7 +59,7 @@ describe('list-overrides deleteBlock: the caret after deleting the last item', (
 			})
 		);
 
-		await bundle.blockEdit.deleteBlock(2, 'before');
+		await bundle.blockEdit.deleteBlock(2, 'keyless');
 
 		expect(liveList().children).toHaveLength(2);
 		expect(landings).toEqual([{ leafPath: [0, 1, 0], offset: CURSOR_END, outcome: 'placed' }]);

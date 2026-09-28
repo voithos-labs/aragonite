@@ -122,7 +122,7 @@ const ROUTES: { name: string; source: string; after: string; route: Route }[] = 
 		name: 'deleting the last block leaves the block above open',
 		source: 'intro\n\na\n\nb',
 		after: 'intro\n\na',
-		route: top((h) => h.actions.deleteBlock(2, 'before'))
+		route: top((h) => h.actions.deleteBlock(2, 'keyless'))
 	},
 	{
 		name: 'Enter mid-line leaves the second half open',
@@ -177,7 +177,7 @@ const ROUTES: { name: string; source: string; after: string; route: Route }[] = 
 		name: 'deleting a last quote child leaves the quote open',
 		source: 'intro\n\n> a\n>\n> b',
 		after: 'intro\n\n> a',
-		route: inContainer([1], (bundle) => bundle.blockEdit.deleteBlock(1, 'before'))
+		route: inContainer([1], (bundle) => bundle.blockEdit.deleteBlock(1, 'keyless'))
 	},
 	{
 		name: 'blocks pasted at the end of a last quote stay open',
@@ -202,13 +202,13 @@ const ROUTES: { name: string; source: string; after: string; route: Route }[] = 
 		name: 'a quote’s trailing `>` line gives its break up when the quote becomes last',
 		source: 'intro\n\n> q\n>\n\nlast',
 		after: 'intro\n\n> q\n>',
-		route: top((h) => h.actions.deleteBlock(2, 'before'))
+		route: top((h) => h.actions.deleteBlock(2, 'keyless'))
 	},
 	{
 		name: 'a quote whose last child is an empty line keeps its break when it becomes last',
 		source: 'intro\n\n> q\n>\n>\n\nlast',
 		after: 'intro\n\n> q\n>\n>\n',
-		route: top((h) => h.actions.deleteBlock(2, 'before'))
+		route: top((h) => h.actions.deleteBlock(2, 'keyless'))
 	},
 	{
 		name: 'Enter at the end of a last quote line makes an empty line, which keeps its break',
@@ -264,7 +264,7 @@ describe('a directive container that ends the document', () => {
 			'the block below it deleted',
 			'intro\n\n:::note\nbody\n:::\n\nlast',
 			'intro\n\n:::note\nbody\n:::',
-			top((h) => h.actions.deleteBlock(2, 'before'))
+			top((h) => h.actions.deleteBlock(2, 'keyless'))
 		],
 		[
 			'a block split inside it',

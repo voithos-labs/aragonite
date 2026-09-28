@@ -19,7 +19,7 @@ const TABLE = '| h1 | h2 |\n| --- | --- |\n| a | b |\n';
 
 function del(source: string, start: SelectionPoint, end: SelectionPoint): Document {
 	const doc = parse(source);
-	rangeDelete(doc, coverRange(doc, start, end), createSharingState(), fixtureReading());
+	rangeDelete(doc, coverRange(doc, start, end), createSharingState(), fixtureReading(), 'keyless');
 	return doc;
 }
 

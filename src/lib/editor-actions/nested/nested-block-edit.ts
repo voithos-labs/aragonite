@@ -80,14 +80,14 @@ export function createNestedBlockEdit(
 			return core.mergeWithNextInterior(innerIndex);
 		},
 
-		async deleteBlock(innerIndex, side) {
+		async deleteBlock(innerIndex, gesture) {
 			if (!deps.node.children) return false;
 
 			if (deps.node.children.length <= 1) {
-				return parent.blockEdit.deleteBlock(deps.index, side);
+				return parent.blockEdit.deleteBlock(deps.index, gesture);
 			}
 
-			return core.deleteInterior(innerIndex, side);
+			return core.deleteInterior(innerIndex, gesture);
 		},
 
 		updateBlockMetadata: (innerIndex, metadata, options) =>

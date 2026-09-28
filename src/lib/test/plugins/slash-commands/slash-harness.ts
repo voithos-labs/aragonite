@@ -105,14 +105,11 @@ function harness(initial: string, attach: (host: HarnessHost) => EditorContext) 
 		events,
 		editorId: 'editor-slash',
 		reading: fixtureReading(),
-		commitRange: async (path, start, end, bytes) => {
+		commitRange: async (path, start, end, bytes, caretAfter) => {
 			write(raw().slice(0, start) + bytes + raw().slice(end));
 			events.emit('edit', typedEdit(path));
 			await tick();
-			return true;
-		},
-		landCaret: async (_path, offset) => {
-			caret = offset;
+			caret = caretAfter;
 			events.emit('selectionChange', null);
 			await tick();
 			return true;

@@ -70,7 +70,7 @@ function makeColumnCoverageEnv() {
 		selection: deps.selectionState,
 		getDoc: () => deps.doc,
 		getBlockElByPath: () => null,
-		revealPath: deps.revealPath,
+		revealPath: (path) => deps.caretLanding.mount(path),
 		controller,
 		reading: fixtureReading()
 	};
@@ -86,7 +86,10 @@ describe('coverage-driven column delete emits the table path with colIdx in the 
 		);
 		const { start, end } = deps.selectionState;
 
-		const result = await maybeCommitTableCoverageDelete(ctx, table, start!, end!, undefined);
+		const result = await maybeCommitTableCoverageDelete(ctx, table, start!, end!, {
+			lands: false,
+			gesture: 'keyless'
+		});
 
 		expect(result).not.toBeNull();
 		const del = edits.find((e) => e.op === 'tableDeleteColumn');

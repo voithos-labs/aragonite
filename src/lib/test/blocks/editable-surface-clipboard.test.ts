@@ -48,7 +48,7 @@ function deps(log: string[], over: Partial<ClipboardSurfaceDeps> = {}): Clipboar
 				log.push('crossblock-paste');
 				return false;
 			},
-			performCrossBlockDeleteFromEvent: async () => void log.push('cross-delete')
+			performCrossBlockCut: async () => void log.push('cross-delete')
 		} as never,
 		isReadOnly: () => false,
 		caret: { getEl: () => null, getCursorOffset: () => null, focus: () => {} },

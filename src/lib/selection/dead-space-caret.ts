@@ -19,7 +19,9 @@ import {
 import { placeGapCaret } from './caret-doors';
 import { canGapStop, type GapStopScope } from './gap-caret';
 import { caretOffsetAtPoint } from '../cursor/point-offset';
-import type { SelectionEndpoint } from './primitives';
+import type { CaretPosition, SelectionEndpoint } from './primitives';
+import type { LandingOutcome } from './caret-landing';
+import { docPathFrom } from '../cursor/coordinate-spaces';
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
@@ -33,9 +35,8 @@ export interface DeadSpaceCaretDeps {
 	/** The document's own last top-level index, from the CST. The last mounted band is the
 	 *  document's last block only while nothing is windowed out below it. */
 	lastBlockIndex(): number;
-	/** Mounts a top-level block and hands back its component, through the same path undo's
-	 *  restore uses. */
-	revealBlock(index: number): Promise<BlockComponent | null>;
+	/** The caret landing's `land`: mounts the block and puts the caret there as an arrival. */
+	land(pos: CaretPosition): Promise<LandingOutcome>;
 }
 
 export interface DeadSpaceCaret {
@@ -61,15 +62,14 @@ export function createDeadSpaceCaret(deps: DeadSpaceCaretDeps): DeadSpaceCaret {
 	// that started on a block and released in the margin: both report dead space as the target.
 	let pressedOnDeadSpace = false;
 
-	/** A click below the document when its tail is not mounted: mount the real last block, then
-	 *  land at its end, which is where the clamped point below lands once the tail is mounted. */
+	/** A click below the document when its tail is not mounted: land at the real last block's end,
+	 *  which is where the clamped point below lands once the tail is mounted. */
 	async function landAtDocumentEnd(): Promise<void> {
 		const index = deps.lastBlockIndex();
 		if (index < 0) return;
-		const component = await deps.revealBlock(index);
-		if (!component?.focusable) return;
+		// Before the landing, which then records the end it lands at as the outside of a closer.
 		deps.resetSelectionForClick();
-		component.focus(CURSOR_END);
+		await deps.land({ path: docPathFrom([index]), offset: CURSOR_END });
 	}
 
 	function placeAtPoint(root: HTMLElement, x: number, y: number): boolean {

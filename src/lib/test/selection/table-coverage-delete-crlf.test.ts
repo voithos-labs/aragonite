@@ -24,7 +24,7 @@ function soleTableEnv(source: string) {
 		selection: deps.selectionState,
 		getDoc: () => deps.doc,
 		getBlockElByPath: () => null,
-		revealPath: deps.revealPath,
+		revealPath: (path) => deps.caretLanding.mount(path),
 		controller,
 		reading: fixtureReading()
 	};
@@ -40,7 +40,10 @@ async function deleteWholeTable(source: string): Promise<string> {
 	const end: SelectionPoint = { path: [0], offset: 3, cellCoordinate: true };
 	deps.selectionState.enterCrossBlock(start, end);
 
-	const result = await maybeCommitTableCoverageDelete(ctx, table, start, end, undefined);
+	const result = await maybeCommitTableCoverageDelete(ctx, table, start, end, {
+		lands: false,
+		gesture: 'keyless'
+	});
 	expect(result).not.toBeNull();
 	return serialize(deps.doc);
 }

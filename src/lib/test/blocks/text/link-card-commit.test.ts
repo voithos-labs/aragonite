@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { buildLinkReferenceMap } from '$lib/core/inline/link-reference-resolver';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
@@ -17,7 +17,6 @@ function makeCard(source: string) {
 	const harness = makeEditorActionsDeps(parse(source).children);
 	const map = buildLinkReferenceMap(harness.doc.children);
 	const controller = createUndoController(harness.deps);
-	const landCaret = vi.fn().mockResolvedValue(true);
 	const committer = createLinkCardCommitter({
 		getDoc: () => harness.doc,
 		getEditorEl: () => null,
@@ -26,14 +25,13 @@ function makeCard(source: string) {
 		inlineRange: createInlineRangeCommit({ deps: harness.deps, controller }),
 		events: harness.events,
 		measureRange: () => [],
-		landCaret,
 		reading: fixtureReading({ resolver: map.resolve, resolverSignature: map.signature })
 	});
 	const raw = () => harness.doc.children[0].raw;
 	return {
 		committer,
 		raw,
-		landCaret,
+		landings: harness.landings,
 		target: { path: [0], sourceStart: raw().indexOf('[') } as LinkTarget
 	};
 }
@@ -78,7 +76,7 @@ describe('link card commit: the create half', () => {
 		await settleEditor();
 		await settleEditor();
 		expect(card.raw()).toBe('Alpha [bravo](https://n.test/x) charlie\n');
-		expect(card.landCaret).toHaveBeenCalledWith([0], 6);
+		expect(card.landings).toMatchObject([{ leafPath: [0], offset: 6 }]);
 	});
 
 	it('a range the join declines writes nothing', async () => {
@@ -86,7 +84,7 @@ describe('link card commit: the create half', () => {
 		card.committer.commitCreate({ path: [0], start: 2, end: 9 }, 'https://n.test/x');
 		await settleEditor();
 		expect(card.raw()).toBe('Visit [x](old) now\n');
-		expect(card.landCaret).not.toHaveBeenCalled();
+		expect(card.landings).toEqual([]);
 	});
 });
 

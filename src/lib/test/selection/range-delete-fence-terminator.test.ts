@@ -27,7 +27,8 @@ describe('range delete inside a fenced code block', () => {
 			doc,
 			coverRange(doc, { path: [0], offset: 8 }, { path: [0], offset: 9 }),
 			sharing(),
-			fixtureReading()
+			fixtureReading(),
+			'keyless'
 		);
 
 		expect(serialize(doc)).toBe('````js\n```\nbody\n````\n\n# Heading\n');
@@ -41,7 +42,8 @@ describe('range delete inside a fenced code block', () => {
 			doc,
 			coverRange(doc, { path: [0], offset: 8 }, { path: [0], offset: 9 }),
 			sharing(),
-			fixtureReading()
+			fixtureReading(),
+			'keyless'
 		);
 
 		expect(doc.children.map((c) => c.kind)).toEqual(['fencedCode', 'heading']);
@@ -54,7 +56,8 @@ describe('range delete inside a fenced code block', () => {
 			doc,
 			coverRange(doc, { path: [0], offset: 8 }, { path: [0], offset: 9 }),
 			sharing(),
-			fixtureReading()
+			fixtureReading(),
+			'keyless'
 		);
 
 		expect(serialize(doc)).toBe('```js\nabcd\n```\n\n# Heading\n');
@@ -70,7 +73,8 @@ describe('range delete inside a fenced code block', () => {
 			doc,
 			coverRange(doc, { path: [0], offset: 2 }, { path: [0], offset: 3 }),
 			sharing(),
-			fixtureReading()
+			fixtureReading(),
+			'keyless'
 		);
 
 		expect(serialize(doc)).toBe('```\n\n# Heading\n');
@@ -87,7 +91,8 @@ describe('range delete that consumes a fenced code closer', () => {
 			doc,
 			coverRange(doc, { path: [0], offset: 8 }, { path: [0], offset: 14 }),
 			sharing(),
-			fixtureReading()
+			fixtureReading(),
+			'keyless'
 		);
 
 		expect(serialize(doc)).toBe('```js\nbo\n```\n\npara\n');
@@ -101,7 +106,8 @@ describe('range delete that consumes a fenced code closer', () => {
 			doc,
 			coverRange(doc, { path: [0], offset: 8 }, { path: [1], offset: 2 }),
 			sharing(),
-			fixtureReading()
+			fixtureReading(),
+			'keyless'
 		);
 
 		expect(serialize(doc)).toBe('```js\nbora\n```\n\ntail\n');
@@ -118,7 +124,8 @@ describe('range delete that consumes a fenced code closer', () => {
 			doc,
 			coverRange(doc, { path: [0], offset: 8 }, { path: [1], offset: 1 }),
 			sharing(),
-			fixtureReading()
+			fixtureReading(),
+			'keyless'
 		);
 
 		expect(doc.children.map((c) => c.kind)).toEqual(['fencedCode', 'table', 'paragraph']);
@@ -132,7 +139,8 @@ describe('range delete that consumes a fenced code closer', () => {
 			doc,
 			coverRange(doc, { path: [0], offset: 13 }, { path: [0], offset: 20 }),
 			sharing(),
-			fixtureReading()
+			fixtureReading(),
+			'keyless'
 		);
 
 		expect(serialize(doc)).toBe('````js\n```\nbo\n````\n\npara\n');
@@ -146,7 +154,8 @@ describe('range delete that consumes a fenced code closer', () => {
 			doc,
 			coverRange(doc, { path: [0], offset: 9 }, { path: [0], offset: 16 }),
 			sharing(),
-			fixtureReading()
+			fixtureReading(),
+			'keyless'
 		);
 
 		expect(serialize(doc)).toBe('```js\r\nbo\r\n```\r\n\r\npara\r\n');
@@ -162,7 +171,8 @@ describe('range delete that consumes a fenced code closer', () => {
 			doc,
 			coverRange(doc, { path: [0], offset: 9 }, { path: [1], offset: 4 }),
 			sharing(),
-			fixtureReading()
+			fixtureReading(),
+			'keyless'
 		);
 
 		expect(serialize(doc)).toBe('```js\r\nbo\r\n```\r\n');
@@ -179,7 +189,8 @@ describe('range delete that consumes a fenced code closer', () => {
 				doc,
 				coverRange(doc, { path: [0], offset: 8 }, { path: [1, 0], offset: 3 }),
 				sharing(),
-				fixtureReading()
+				fixtureReading(),
+				'keyless'
 			);
 
 			expect(doc.children.map((c) => c.kind)).toEqual(['fencedCode', 'callout', 'paragraph']);

@@ -25,8 +25,8 @@ import { ensureUnsharedPath, ensureUnsharedChild } from '../tree-operations';
 import { containerScopeState } from '../tree-operations/paste/parent-scope';
 import { asDocPath, type DocPath } from '../selection/path-math';
 import type { CaretPosition } from '../selection/primitives';
-import type { LandingOutcome } from '../selection/caret-landing';
-import { survivorAfterRemoval, type RemovalSide } from '../selection/caret-target';
+import type { LandingOutcome, RevealPolicy } from '../selection/caret-landing';
+import { survivorAfterRemoval, type RemovalGesture } from '../selection/caret-target';
 import { docPathFrom, extendDocPath } from '../cursor/coordinate-spaces';
 import { getStateForNode } from '../reactivity/state-registry';
 import type { EditorActionsDeps, EditorRoot, UndoController } from './deps';
@@ -56,6 +56,8 @@ export interface ScopeCommitArgs {
 	afterTick?: CommitAfterTick;
 	/** Where the caret goes, read after the commit; built with the scope's `at`. */
 	landing?: CommitLanding;
+	/** How far the landing moves the viewport; `'into-view'` when absent. */
+	reveal?: RevealPolicy;
 	/** Filled by `mutate` for the dev-mode stale-raw check when it returns `noop`; only the root
 	 *  reads them, since a container's commit checks its whole copied container. */
 	touchedNodes?: CstNode[];
@@ -81,7 +83,7 @@ export interface CommitScope {
 	/** The id the typing batch keys on for child `i`. */
 	idAt(i: number): string;
 	/** Where the caret goes once child `i` is gone, read after the commit that removed it. */
-	survivor(i: number, side: RemovalSide): CaretPosition | null;
+	survivor(i: number, gesture: RemovalGesture): CaretPosition | null;
 	/** An empty replaceBlock emits `delete` (container) or `replaceBlock{count:0}` (top-level). */
 	collapseEmptyReplaceToDelete: boolean;
 	/** Resolves to whether bytes landed. */
@@ -113,7 +115,7 @@ export function createTopLevelScope(
 		children: () => deps.doc.children,
 		target: () => deps.doc,
 		idAt: (i) => deps.blockIds[i],
-		survivor: (i, side) => survivorAfterRemoval(deps.doc, [i], side),
+		survivor: (i, gesture) => survivorAfterRemoval(deps.doc, [i], gesture),
 		collapseEmptyReplaceToDelete: false,
 		commit({
 			snapshot,
@@ -122,6 +124,7 @@ export function createTopLevelScope(
 			mutate,
 			afterTick,
 			landing,
+			reveal,
 			touchedNodes,
 			discardIfNoop,
 			trackCaret
@@ -138,6 +141,7 @@ export function createTopLevelScope(
 				op: { ...op, eventPath: asDocPath([eventTarget]) },
 				afterTick,
 				landing,
+				reveal,
 				touchedNodes,
 				discardIfNoop,
 				trackCaret
@@ -210,8 +214,8 @@ function containerScope(parts: ContainerParts): CommitScope {
 			lineEnding: parts.containerEdit.lineEnding()
 		}),
 		idAt: (i) => parts.state.innerBlockIds[i],
-		survivor: (i, side) =>
-			parts.containerEdit.survivorAfterRemoval(extendDocPath(parts.path(), i), side),
+		survivor: (i, gesture) =>
+			parts.containerEdit.survivorAfterRemoval(extendDocPath(parts.path(), i), gesture),
 		collapseEmptyReplaceToDelete: true,
 		commit({
 			snapshot,
@@ -220,6 +224,7 @@ function containerScope(parts: ContainerParts): CommitScope {
 			mutate,
 			afterTick,
 			landing,
+			reveal,
 			discardIfNoop,
 			trackCaret
 		}): Promise<boolean> {
@@ -238,6 +243,7 @@ function containerScope(parts: ContainerParts): CommitScope {
 				op: { ...op, eventPath: extendDocPath(parts.path(), eventTarget) },
 				afterTick,
 				landing,
+				reveal,
 				discardIfNoop,
 				trackCaret
 			});

@@ -18,7 +18,8 @@ describe('a same-block delete re-derives parse-owned metadata (GH #54)', () => {
 			doc,
 			coverRange(doc, { path: [0], offset: 1 }, { path: [0], offset: 2 }),
 			createSharingState(),
-			fixtureReading()
+			fixtureReading(),
+			'keyless'
 		);
 
 		expect(doc.children[0].raw).toBe('# ab\n');

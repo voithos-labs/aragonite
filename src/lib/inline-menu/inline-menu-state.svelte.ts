@@ -40,8 +40,8 @@ export interface InlineMenuStateDeps {
 	editorId: string;
 	/** The editor's resolver and grammar, so a trigger inside a construct reads as the render drew it. */
 	reading: Reading;
-	/** Splice `bytes` over `[start, end)` of the leaf at `path` as one undo entry; resolves to whether
-	 *  the leaf holds them. */
+	/** Splice `bytes` over `[start, end)` of the leaf at `path` as one undo entry, caret landing at
+	 *  `caretAfter` so the next key goes there; resolves to whether the leaf holds the bytes. */
 	commitRange: (
 		path: number[],
 		start: number,
@@ -49,8 +49,6 @@ export interface InlineMenuStateDeps {
 		bytes: string,
 		caretAfter: number
 	) => Promise<boolean>;
-	/** Land the caret at a raw offset, so the next keystroke addresses the document. */
-	landCaret: (path: number[], offset: number) => Promise<boolean>;
 	/** One undo entry for a pick and the block its source inserts; `path` and `offset` are where undo
 	 *  puts the caret back when nothing is focused. */
 	undoStep: (path: number[], offset: number, run: () => Promise<unknown>) => Promise<void>;
@@ -353,11 +351,10 @@ export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuStat
 		// The write is this menu's own, not a keystroke: bytes ending in a trigger reopen nothing.
 		writing = true;
 		try {
-			// A pick whose bytes never landed has no caret to place and nothing for onCommit to follow.
+			// A pick whose bytes never landed has nothing for onCommit to follow.
 			if (!(await deps.commitRange(range.path, range.start, range.end, item.insert, caretAfter))) {
 				return;
 			}
-			await deps.landCaret(range.path, caretAfter);
 		} catch (error) {
 			// Nobody is waiting on this write, so a refused one has to be reported here or vanish.
 			report(error, live.source);
@@ -386,7 +383,6 @@ export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuStat
 			writing = true;
 			try {
 				if (!(await deps.commitRange(caret.path, start, start, typed, caretAfter))) return;
-				await deps.landCaret(caret.path, caretAfter);
 			} catch (error) {
 				report(error, name);
 				return;

@@ -533,7 +533,8 @@ function acrossLeaves(
 			h.doc,
 			coverRange(h.doc, range.start, range.end),
 			h.sharing,
-			fixtureReading({}, mode)
+			fixtureReading({}, mode),
+			'keyless'
 		);
 		return false;
 	}

@@ -25,7 +25,8 @@ function run(
 		doc,
 		coverRange(doc, start, end),
 		createSharingState(),
-		fixtureReading({}, mode)
+		fixtureReading({}, mode),
+		'keyless'
 	);
 	return { doc, caret: result.collapsedCaret };
 }

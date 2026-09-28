@@ -116,11 +116,11 @@ export interface EditorInstance {
 	 */
 	getSelection(): EditorSelection | null;
 	/**
-	 * Restore a `getSelection()` snapshot. Async because the target is scrolled into view
-	 * first, and true means it got there, not merely that it mounted. Never throws: an
-	 * out-of-range offset clamps in that endpoint's own coordinate space (a table
-	 * endpoint's row-major cell index clamps to the last cell, not a character position),
-	 * and an unresolvable path, or a scroll that never arrives, resolves false.
+	 * Restore a `getSelection()` snapshot. Async because the target is scrolled into view first,
+	 * and true means it got there, not merely that it mounted. Never throws: an out-of-range
+	 * offset clamps in its own coordinate space (a table's cell index to the last cell), and an
+	 * unresolvable path, or a scroll that never arrives, resolves false. A caret at the start of a
+	 * list lands in its first item; one inside a closed body lands on its title row.
 	 */
 	setSelection(selection: EditorSelection): Promise<boolean>;
 	/**

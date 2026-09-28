@@ -16,8 +16,8 @@ import type { WriteMode } from './schema/block-kind-descriptor';
 import type { DocPath } from './selection/path-math';
 import type { CaretPosition, Landing } from './selection/primitives';
 import type { LegalWrite } from './tree-operations/content-write';
-import type { LandingOutcome } from './selection/caret-landing';
-import type { RemovalSide } from './selection/caret-target';
+import type { LandingOutcome, RevealPolicy } from './selection/caret-landing';
+import type { RemovalGesture } from './selection/caret-target';
 
 /**
  * Where the caret goes back to on undo when nothing is focused: `path` is a document-absolute
@@ -43,8 +43,8 @@ export type DiscardIfNoop = boolean;
 export type CommitLanding = () => Landing | null;
 
 /**
- * A callback that places the caret itself after the tick, for the commits not yet on
- * {@link CommitLanding}. Awaited, and it runs before the landing.
+ * A callback that places the caret itself after the tick, left only for the delete and the typing
+ * over a range that spans blocks, not yet on {@link CommitLanding}. Awaited, before the landing.
  */
 export type CommitAfterTick = () => void | Promise<void>;
 
@@ -99,9 +99,9 @@ export interface BlockEditActions {
 	insertParagraph(boundaryIndex: number, text: string): Promise<boolean>;
 	mergeWithPrevious(blockIndex: number): Promise<boolean>;
 	mergeWithNext(blockIndex: number): Promise<boolean>;
-	/** Remove the block; the caret lands once, on the side the key points
+	/** Remove the block; the caret lands once, on the side `gesture` points
 	 *  (`selection/caret-target.ts :: survivorAfterRemoval`), and the caller places none. */
-	deleteBlock(blockIndex: number, side: RemovalSide): Promise<boolean>;
+	deleteBlock(blockIndex: number, gesture: RemovalGesture): Promise<boolean>;
 	/** Write `text` as the block's bytes through its kind's and this list's write rules. Undo
 	 *  records `preEditOffset`; `postEditFocusOffset` (in `text`) comes back mapped as `caret`. */
 	updateBlockContent(
@@ -200,6 +200,8 @@ export interface CommitMultiScopeArgs<
 	afterTick?: CommitAfterTick;
 	/** Overridden when an ancestor collapsed: the collapse recreated the blocks it names. */
 	landing?: CommitLanding;
+	/** How far the landing moves the viewport; `'into-view'` when absent. */
+	reveal?: RevealPolicy;
 	announce?: CommitAnnouncement;
 	discardIfNoop?: DiscardIfNoop;
 	/** Caret positions each list's fix-up updates in place, parallel to `scopes`, since a collapsing
@@ -213,6 +215,7 @@ export interface CommitStructuralArgs {
 	op?: ScopedOpDescriptor;
 	afterTick?: CommitAfterTick;
 	landing?: CommitLanding;
+	reveal?: RevealPolicy;
 	announce?: CommitAnnouncement;
 	/** Leaves for the dev invariant check when `mutate` returns `noop` (an in-place kind change). */
 	touchedNodes?: CstNode[];
@@ -237,6 +240,7 @@ export interface CommitContainerStructuralArgs {
 	op?: ScopedOpDescriptor;
 	afterTick?: CommitAfterTick;
 	landing?: CommitLanding;
+	reveal?: RevealPolicy;
 	announce?: CommitAnnouncement;
 	discardIfNoop?: DiscardIfNoop;
 	/** A caret position the container's fix-up updates in place; the landing reads it back. */
@@ -302,7 +306,7 @@ export interface ContainerEditActions {
 	 *  moves the caret without a commit. */
 	land(pos: CaretPosition): Promise<LandingOutcome>;
 	/** Where the caret goes once the block at `removedPath` is gone, read on the document now. */
-	survivorAfterRemoval(removedPath: DocPath, side: RemovalSide): CaretPosition | null;
+	survivorAfterRemoval(removedPath: DocPath, gesture: RemovalGesture): CaretPosition | null;
 }
 
 export type InPlaceResult =

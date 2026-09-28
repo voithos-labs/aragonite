@@ -64,7 +64,8 @@ import { docPathFrom, extendDocPath } from '../cursor/coordinate-spaces';
 import { mergedElseNext, mergedElsePrevious } from './merge-fallback';
 import { previewContentReparse, unlessFocusMoved } from './replacement-focus';
 import type { Landing } from '../selection/primitives';
-import type { RemovalSide } from '../selection/caret-target';
+import type { RevealPolicy } from '../selection/caret-landing';
+import type { RemovalGesture } from '../selection/caret-target';
 import { admitsWrite } from './commit/reading-write-gate';
 import { refusedWrite, withStoredCaret } from './stored-caret';
 
@@ -150,6 +151,7 @@ export async function commitLeafText(
 		caret: number;
 		/** Where the caret goes, from where the write left it; a collapsed ancestor overrides it. */
 		landing?: (landed: LeafWriteLanded) => Landing | null;
+		reveal?: RevealPolicy;
 		/** Runs after the tick, before the landing. */
 		afterTick?: (landed: LeafWriteLanded) => void | Promise<void>;
 	}
@@ -195,7 +197,8 @@ export async function commitLeafText(
 		landing: () => {
 			landed ??= readLanded();
 			return opts.landing?.(landed) ?? null;
-		}
+		},
+		reveal: opts.reveal
 	});
 	// The result comes from the commit, not the landing: a collapsed ancestor's landing replaces
 	// this one without calling it.
@@ -253,7 +256,7 @@ export interface BlockEditCore {
 	insertParagraph(i: number, text: string): Promise<boolean>;
 	mergeWithPreviousInterior(i: number): Promise<boolean>;
 	mergeWithNextInterior(i: number): Promise<boolean>;
-	deleteInterior(i: number, side: RemovalSide): Promise<boolean>;
+	deleteInterior(i: number, gesture: RemovalGesture): Promise<boolean>;
 	updateBlockMetadata(
 		i: number,
 		metadata: Record<string, unknown>,
@@ -417,13 +420,13 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 			});
 		},
 
-		async deleteInterior(i, side) {
+		async deleteInterior(i, gesture) {
 			return scope.commit({
 				snapshot: { index: i, offset: 0 },
 				eventTarget: i,
 				op: { kind: 'delete' },
 				mutate: (view) => performDelete(view.body, i, view.reading.grammar, view.sharing),
-				landing: () => scope.survivor(i, side),
+				landing: () => scope.survivor(i, gesture),
 				discardIfNoop: true
 			});
 		},

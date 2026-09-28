@@ -18,7 +18,8 @@ function run(source: string, start: SelectionPoint, end: SelectionPoint) {
 		doc,
 		coverRange(doc, start, end),
 		createSharingState(),
-		fixtureReading()
+		fixtureReading(),
+		'keyless'
 	);
 	return { doc: result.newDoc, caret: result.collapsedCaret };
 }

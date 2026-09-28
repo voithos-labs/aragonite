@@ -10,6 +10,7 @@ import type { UserScrollport } from '../../cursor/scroll-ancestors';
 import type { SelectionState } from '../selection-state.svelte';
 import type { SelectedWidgetHandle } from '../primitives';
 import type { CaretMemory } from '../../cursor/caret-memory';
+import type { CaretLanding } from '../caret-landing';
 import type { CrossBlockMutationContext } from './ops';
 import type { CommitController } from '../../action-contracts';
 import type { CommandDispatchContext } from '../../schema/block-commands';
@@ -33,6 +34,9 @@ export interface CrossBlockDispatchContext {
 	selection: SelectionState;
 	getDoc: DocumentGetter;
 	getBlockElByPath: BlockElLookup;
+	/** Where a collapse, an extend's parked caret and a command's target block are put down. */
+	caretLanding: Pick<CaretLanding, 'restore' | 'park' | 'mount'>;
+	/** A mount for the delete, typing and paste over a range, which still place their own caret. */
 	revealPath: (path: number[]) => Promise<BlockComponent | null>;
 	getEditorRoot: () => HTMLElement | null;
 	/** What autoscrolls a drag-select that reaches an edge: the root, the host's scroller, or the
@@ -84,8 +88,8 @@ export interface CrossBlockHandlers {
 	 *  with no character position leaves no editable element for `beforeinput` to fire on. */
 	insertText(text: string): Promise<boolean>;
 	handleCompositionStart(): boolean;
-	/** Cross-block range delete for Cut handlers, after they synchronously wrote the clipboard. */
-	performCrossBlockDeleteFromEvent(): Promise<void>;
+	/** The delete half of a cut, run once the handler wrote the clipboard synchronously. */
+	performCrossBlockCut(): Promise<void>;
 }
 
 export function createCrossBlockHandlers(ctx: CrossBlockDispatchContext): CrossBlockHandlers {
@@ -129,11 +133,10 @@ export function createCrossBlockHandlers(ctx: CrossBlockDispatchContext): CrossB
 			return insertText(e.data ?? '');
 		},
 		insertText,
-		performCrossBlockDeleteFromEvent: async () => {
-			// Reached from cut handlers after the clipboard write; declining the delete
-			// degrades a reading-mode cut to a copy.
+		performCrossBlockCut: async () => {
+			// Declining the delete degrades a reading-mode cut to a copy.
 			if (refusesWrites()) return;
-			await performCrossBlockDelete(mutationCtx);
+			await performCrossBlockDelete(mutationCtx, 'cut');
 		}
 	};
 }

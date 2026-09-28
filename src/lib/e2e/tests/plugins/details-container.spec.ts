@@ -106,8 +106,7 @@ test.describe('plugin container: <details> collapsible', () => {
 		await editor.bridge.waitForSourceContains('<summary>xSummary</summary>');
 	});
 
-	// Nothing retargets a caret aimed into a hidden body, so the descent opens the body to place it.
-	test('a caret put back into a closed body opens the details and lands there', async ({
+	test('a caret put back into a closed body lands on the title row and opens nothing', async ({
 		page
 	}) => {
 		await editor.loadContent(
@@ -122,8 +121,8 @@ test.describe('plugin container: <details> collapsible', () => {
 		await editor.waitForCrossBlock(false);
 		await page.keyboard.type('x');
 
-		const opened = 'Above\n\n<details open>\n<summary>Sum</summary>\n\nHiddenx\n\n</details>\n';
-		await editor.bridge.waitForSource((source) => source === opened);
+		const closed = 'Above\n\n<details>\n<summary>Sumx</summary>\n\nHidden\n\n</details>\n';
+		await editor.bridge.waitForSource((source) => source === closed);
 		expect(await capturedErrors(page)).toEqual([]);
 	});
 

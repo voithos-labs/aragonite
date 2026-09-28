@@ -2,8 +2,8 @@
 // Miss-analysis: every rectangle test built a flagged anchor and a bare focus, never bare points.
 import { describe, it, expect } from 'vitest';
 import { createSelectionState } from '../../selection/selection-state.svelte';
-import { resolveSelectionPoint, restoreSelection } from '../../selection/selection-restore';
-import { createCaretMemory } from '../../cursor/caret-memory';
+import { resolveSelectionPoint } from '../../selection/selection-restore';
+import { restoreLandingOver } from '../harness/restore-landing';
 import { parse } from '../../core/parser';
 import { collectCrossBlockText } from '../../selection/clipboard-text';
 import { coverRange } from '../../selection/range-coverage';
@@ -80,18 +80,12 @@ describe('a restored endpoint on a table path comes back flagged', () => {
 		expect(resolveSelectionPoint(parse(TABLE), { path: [0], offset: 4 })).toEqual(cell(4));
 	});
 
-	it('restoreSelection stores a bare stored rectangle as flagged cells', async () => {
+	it('a restore stores a bare stored rectangle as flagged cells', async () => {
 		const { doc, state } = tableState();
-		await restoreSelection(
-			{ anchor: { path: [0], offset: 1 }, focus: { path: [0], offset: 4 } },
-			{
-				getDoc: () => doc,
-				selectionState: state,
-				caretMemory: createCaretMemory(),
-				getBlockElByPath: () => document.createElement('div'),
-				revealTarget: async () => true
-			}
-		);
+		await restoreLandingOver(doc, state).landing.restore({
+			anchor: { path: [0], offset: 1 },
+			focus: { path: [0], offset: 4 }
+		});
 		expect(state.anchor).toEqual(cell(1));
 		expect(state.focus).toEqual(cell(4));
 	});

@@ -4,18 +4,16 @@
  * through an injected router, so `schema/` keeps no import of selection code.
  */
 
-import type { BlockComponent } from '../../block-component';
 import type { CommitController } from '../../action-contracts';
 import { ownTrailingLineEnding } from '../../core/lines';
 import { docPathFrom } from '../../cursor/coordinate-spaces';
-import type { BlockElLookup, DocumentGetter } from '../../editor-keys';
+import type { DocumentGetter } from '../../editor-keys';
 import type { CrossBlockCommandRouter } from '../../schema/block-commands';
 import { inlineMarkForCommand, type InlineMarkKind } from '../../schema/inline-construct-policy';
 import type { Reading } from '../../schema/reading';
 import { blockNodeAt } from '../../tree-operations/node-primitives';
 import { comparePaths } from '../path-math';
 import type { SelectionPoint } from '../primitives';
-import { restoreSelection } from '../selection-restore';
 import type { SelectionState } from '../selection-state.svelte';
 import {
 	applyCrossBlockFormat,
@@ -23,15 +21,12 @@ import {
 	planCrossBlockFormat,
 	type CrossBlockFormatPlan
 } from './format-range';
-import type { CaretMemory } from '../../cursor/caret-memory';
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
 export interface CrossBlockCommandDeps {
 	selection: SelectionState;
 	getDoc: DocumentGetter;
-	getBlockElByPath: BlockElLookup;
-	revealPath: (path: number[]) => Promise<BlockComponent | null>;
 	controller: CommitController;
 	/** How the blocks were drawn: each span's toggle reads its link definitions and grammar, and
 	 *  verifies its rewrite against its mode. */
@@ -39,8 +34,6 @@ export interface CrossBlockCommandDeps {
 	/** The active-marks memo's key alongside the range: the document is mutated in place, so its
 	 *  identity says nothing about whether it changed. */
 	getContentVersion: () => number;
-	/** Forgotten by the restore that puts the range back after the rewrite. */
-	caretMemory: Pick<CaretMemory, 'forget'>;
 }
 
 export function createCrossBlockCommands(deps: CrossBlockCommandDeps): CrossBlockCommandRouter {
@@ -121,15 +114,7 @@ async function toggleFormatOverRange(
 			detail: { length: startBlockLength(doc, start, plan), crossBlock: true },
 			eventPath: docPathFrom(start.path)
 		},
-		afterTick: async () => {
-			await restoreSelection(restored, {
-				getDoc: deps.getDoc,
-				selectionState: deps.selection,
-				getBlockElByPath: deps.getBlockElByPath,
-				caretMemory: deps.caretMemory,
-				revealTarget: async (path) => (await deps.revealPath(path)) !== null
-			});
-		}
+		landing: () => restored
 	});
 }
 

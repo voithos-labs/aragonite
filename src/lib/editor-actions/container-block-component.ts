@@ -104,8 +104,7 @@ export function handleWholeBlockKeys(e: KeyboardEvent, deps: WholeBlockKeyDeps):
 	}
 	if (e.key === 'Backspace' || e.key === 'Delete') {
 		e.preventDefault();
-		const side = e.key === 'Backspace' ? 'before' : 'after';
-		if (!deps.isReading()) void deps.blockEdit.deleteBlock(deps.getIndex(), side);
+		if (!deps.isReading()) void deps.blockEdit.deleteBlock(deps.getIndex(), e.key);
 		return;
 	}
 
@@ -138,7 +137,7 @@ async function copyFocusedWholeBlock(deps: WholeBlockKeyDeps, cut: boolean): Pro
 		devWarn('container-block', 'whole-block clipboard write rejected', err);
 		return;
 	}
-	if (cut && !deps.isReading()) void deps.blockEdit.deleteBlock(deps.getIndex(), 'after');
+	if (cut && !deps.isReading()) void deps.blockEdit.deleteBlock(deps.getIndex(), 'cut');
 }
 
 export interface ContainerBlockComponentDeps {

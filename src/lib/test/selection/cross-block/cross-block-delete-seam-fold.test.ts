@@ -26,7 +26,7 @@ function makeEnv(source: string) {
 		selection: harness.deps.selectionState,
 		getDoc: () => harness.deps.doc,
 		getBlockElByPath: () => null,
-		revealPath: harness.deps.revealPath,
+		revealPath: (path) => harness.deps.caretLanding.mount(path),
 		controller,
 		reading: fixtureReading()
 	};
@@ -39,7 +39,7 @@ describe('a cross-block delete whose settle folds a join above the selection', (
 		const listId = env.getBlockIds()[0];
 		env.deps.selectionState.enterCrossBlock({ path: [1], offset: 0 }, { path: [2], offset: 0 });
 
-		await performCrossBlockDelete(env.mutCtx);
+		await performCrossBlockDelete(env.mutCtx, 'keyless');
 
 		expect(serialize(env.deps.doc)).toBe('- a\n\n  cd\n\n  ef\n');
 		expect(env.deps.doc.children.map((c) => c.kind)).toEqual(['list']);
@@ -57,7 +57,7 @@ describe('a cross-block delete whose settle folds a join above the selection', (
 			{ path: [0, 2], offset: 0 }
 		);
 
-		await performCrossBlockDelete(env.mutCtx);
+		await performCrossBlockDelete(env.mutCtx, 'keyless');
 
 		expect(serialize(env.deps.doc)).toBe('> - a\n>\n>   cd\n>\n>   ef\n');
 		expect(env.deps.doc.children[0].children!.map((c) => c.kind)).toEqual(['list']);
@@ -75,7 +75,7 @@ describe('a cross-block delete whose settle folds a join above the selection', (
 		);
 		env.deps.selectionState.enterCrossBlock({ path: [0], offset: 4 }, { path: [1, 0], offset: 6 });
 
-		await performCrossBlockDelete(env.mutCtx);
+		await performCrossBlockDelete(env.mutCtx, 'keyless');
 
 		expect(env.getBlockIds()).toHaveLength(env.deps.doc.children.length);
 		expect(env.deps.doc.childIds).toBeUndefined();
@@ -86,7 +86,7 @@ describe('a cross-block delete whose settle folds a join above the selection', (
 		const [firstId, , thirdId] = env.getBlockIds();
 		env.deps.selectionState.enterCrossBlock({ path: [0], offset: 1 }, { path: [1], offset: 1 });
 
-		await performCrossBlockDelete(env.mutCtx);
+		await performCrossBlockDelete(env.mutCtx, 'keyless');
 
 		expect(serialize(env.deps.doc)).toBe('owo\n\nthree\n');
 		expect(env.getBlockIds()).toEqual([firstId, thirdId]);

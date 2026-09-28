@@ -9,7 +9,7 @@ import type { SelectionState } from '$lib/selection/selection-state.svelte';
 function makeDeps(selection: SelectionState, deleteSpy = vi.fn(async () => {})) {
 	const doc = parse('hello\n\nworld\n');
 	const crossBlock = {
-		performCrossBlockDeleteFromEvent: deleteSpy
+		performCrossBlockCut: deleteSpy
 	} as unknown as CrossBlockHandlers;
 	return { selection, getDoc: () => doc, crossBlock };
 }

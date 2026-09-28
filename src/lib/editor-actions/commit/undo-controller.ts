@@ -11,6 +11,7 @@ import type { CstNode, Document } from '../../core/nodes';
 import { documentLineEnding } from '../../core/lines';
 import type { NodeView } from '../../core/node-views';
 import type { EditorSelection, Landing } from '../../selection/primitives';
+import type { LandOptions, RevealPolicy } from '../../selection/caret-landing';
 import type { UndoEntry } from '../../undo/types';
 import type { SelectionPoint } from '../../selection/primitives';
 import { digestDoc } from '../../invariants/snapshot-integrity';
@@ -295,6 +296,7 @@ export function createUndoController(
 				op?: ScopedOpDescriptor;
 				afterTick?: CommitAfterTick;
 				landing?: CommitLanding;
+				reveal?: RevealPolicy;
 				announce?: CommitAnnouncement;
 				/** Nodes for the dev check when the change names none (an in-place `op: 'noop'`). */
 				touchedNodes?: CstNode[];
@@ -311,6 +313,7 @@ export function createUndoController(
 				op?: ScopedOpDescriptor;
 				afterTick?: CommitAfterTick;
 				landing?: CommitLanding;
+				reveal?: RevealPolicy;
 				announce?: CommitAnnouncement;
 				/** A function, since the copied nodes only exist once `mutate` has made them. */
 				touchedNodes?: () => CstNode[];
@@ -508,7 +511,7 @@ export function createUndoController(
 		}
 		try {
 			const landing = readLanding(args.landing);
-			if (landing) await landOrRestore(landing, stamp);
+			if (landing) await landOrRestore(landing, { stamp, reveal: args.reveal });
 		} catch (err) {
 			reportCommitError(args, err);
 		}
@@ -517,9 +520,9 @@ export function createUndoController(
 		return true;
 	}
 
-	async function landOrRestore(landing: Landing, stamp: number): Promise<void> {
-		if ('anchor' in landing) await deps.caretLanding.restore(landing, { stamp });
-		else await deps.caretLanding.land(landing, { stamp });
+	async function landOrRestore(landing: Landing, opts: LandOptions): Promise<void> {
+		if ('anchor' in landing) await deps.caretLanding.restore(landing, opts);
+		else await deps.caretLanding.land(landing, opts);
 	}
 
 	// ── Structural-mutation commit ───────────────────────────────────────────
@@ -539,6 +542,7 @@ export function createUndoController(
 			op,
 			afterTick,
 			landing,
+			reveal: args.reveal,
 			announce,
 			touchedNodes,
 			discardIfNoop,
@@ -555,6 +559,7 @@ export function createUndoController(
 			op,
 			afterTick,
 			landing: args.landing,
+			reveal: args.reveal,
 			announce: args.announce,
 			discardIfNoop,
 			trackCaret: [args.trackCaret]
@@ -765,6 +770,7 @@ export function createUndoController(
 				foldLanding
 					? { path: docPathFrom(foldLanding.path), offset: foldLanding.offset }
 					: (args.landing?.() ?? null),
+			reveal: args.reveal,
 			announce: args.announce,
 			discardIfNoop,
 			// A detached scope is outside the tree, and checking it would fire stale-raw on a node

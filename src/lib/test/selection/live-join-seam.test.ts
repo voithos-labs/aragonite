@@ -26,7 +26,13 @@ function deleteRange(
 	mode: PresentationMode | undefined
 ): string {
 	const doc = parse(source);
-	rangeDelete(doc, coverRange(doc, start, end), createSharingState(), fixtureReading({}, mode));
+	rangeDelete(
+		doc,
+		coverRange(doc, start, end),
+		createSharingState(),
+		fixtureReading({}, mode),
+		'keyless'
+	);
 	return serialize(doc);
 }
 

@@ -104,10 +104,8 @@ const NON_CARET_PRESS_FILES: Record<string, string> = {
 /** The only files allowed to call `parkCaret`. A new entry asserts the caller runs while an
  *  extend is growing a range; anything else wants `focus`. */
 const PARK_DOOR_CALLERS: Record<string, string> = {
-	'src/lib/selection/cross-block/keydown.ts':
-		'revealActiveEndpoint — parks the dispatch caret in a just-revealed endpoint while the extend still owns the range',
 	'src/lib/selection/caret-landing.ts':
-		"park — the landing's entry point for an extend path, which mounts the endpoint without ending its range",
+		"park — the extend's endpoint (cross-block/keydown.ts :: revealActiveEndpoint), mounted and given the dispatch caret while the extend still owns the range",
 	'src/lib/editor-actions/container-block-component.ts':
 		"implementation: the container walk lands through its child's park door",
 	'src/lib/components/blocks/editable-leaf.ts':

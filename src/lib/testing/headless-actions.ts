@@ -15,7 +15,7 @@ import { kitReading } from './kit-reading';
 import type { Reading } from '../schema/reading';
 import { createEditorEvents, type EditorEvents } from '../editor-events';
 import { refSlotsOver, replaceRefs } from '../reactivity/publish-ref.svelte';
-import { descendTo, type ChildList } from '../reactivity/child-list';
+import type { ChildList } from '../reactivity/child-list';
 import { createSelectionState } from '../selection/selection-state.svelte';
 import {
 	createCaretLanding,
@@ -169,7 +169,6 @@ export function createHeadlessActions(
 			...(options.onSelectionChange ? { onChange: options.onSelectionChange } : {})
 		}),
 		getBlockElByPath: () => null,
-		revealPath: (path: number[]) => descendTo(rootList, path),
 		get caretLanding() {
 			return caretLanding;
 		},
@@ -193,7 +192,8 @@ export function createHeadlessActions(
 				forget: () => deps.caretMemory.forget(),
 				noteExtreme: () => deps.caretMemory.noteExtreme()
 			},
-			getBlockElByPath: deps.getBlockElByPath,
+			getBlockElByPath: (path) => deps.getBlockElByPath(path),
+			getEditorRoot: () => null,
 			scroll: null
 		}),
 		() => doc,

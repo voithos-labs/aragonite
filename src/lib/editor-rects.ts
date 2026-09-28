@@ -28,8 +28,8 @@ export interface EditorRects {
 		path: readonly number[],
 		opts?: { block?: 'nearest' | 'center'; hold?: boolean }
 	): Promise<boolean>;
-	/** Mount `path`, scroll to it and put the caret at `offset` (default 0) through undo's restore
-	 *  path, so the next keystroke addresses the document. True once the caret lands in view. */
+	/** Mount `path`, scroll there and land the caret at `offset` (default 0) as an edit does, so the
+	 *  next key addresses the document; a closed `<details>` on the way opens. True once in view. */
 	navigateTo(path: readonly number[], offset?: number): Promise<boolean>;
 }
 
@@ -149,7 +149,7 @@ export function createEditorRects(deps: {
 	/** True for nodes in the host's `header` snippet: inside the root, but not this
 	 *  editor's content. */
 	isHostChrome: (node: Node | null) => boolean;
-	/** Put a caret at a raw offset in `path` through the shared restore path. Injected
+	/** Put a caret at a raw offset in `path` through the caret landing, as a navigation. Injected
 	 *  because this file owns geometry, not the selection model. */
 	landCaretAt: (path: number[], offset: number) => Promise<boolean>;
 }): EditorRects {

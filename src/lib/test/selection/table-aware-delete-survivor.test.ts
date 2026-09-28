@@ -32,7 +32,8 @@ function deleteBothTables(source: string, firstTableIndex: number) {
 		doc,
 		coverRange(doc, cell([firstTableIndex], 0), cell([firstTableIndex + 1], 3)),
 		createSharingState(),
-		fixtureReading()
+		fixtureReading(),
+		'keyless'
 	);
 }
 
