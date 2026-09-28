@@ -1,10 +1,9 @@
 # Feature: live-mode joins under a list marker
 
 When a live cut strands a delimiter run, the join cleanup drops it, so the joined text carries no
-`**` the user never saw. Under a list marker that cleanup used to say no every single time, so a
-delete, a cut or typing over a selection in a list item's first line left the runs on screen.
-The contract: a live cut in a list item's first line writes the same text a cut at the top level
-writes, and a reload of the document reads back the tree the edit left. Driven on `/test/editor`
+`**` the user never saw. It works under a list marker too: a delete, a cut or typing over a
+selection in a list item's first paragraph writes the same text as the same edit at the top level,
+and a reload of the document reads back the tree the edit left. Driven on `/test/editor`
 with `?presentationMode=live`. Every scenario checks the source, since a hidden delimiter and a
 missing one look the same on screen.
 

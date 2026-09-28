@@ -1753,9 +1753,10 @@ front of, or the paste's re-read of a clipboard block, which keeps the kind the 
 answers three things about a position: whether it stores a block or plain text (a table cell), the
 bytes its write rules would keep, and how a reload reads them there (behind a list item's marker
 line, say). It's a branded type, and only `tree-operations/stored-as.ts :: storedAsAt` and
-`storedAsIn` build one, from the tree. So a rewrite can't describe its own position, and there's
-no prefix string to get wrong, which is how the old list-marker check refused every candidate.
-`lint/file-rules.test.ts` holds the `as StoredAs` cast to that file.
+`storedAsIn` build one, from the tree. So a rewrite can't describe its own position, and nothing
+reads a candidate behind a hand-written copy of the container's marker, which drifts from the item
+it copies (a to-do's box, a marker a leading space widens). `lint/file-rules.test.ts` holds the
+`as StoredAs` cast to that file.
 
 **G4.85 · A removing rewrite reads through the store.** The join cleanup and the edge delete read
 every candidate through `core/inline/live-edit/read-back.ts :: readBack`, never a parse of their
