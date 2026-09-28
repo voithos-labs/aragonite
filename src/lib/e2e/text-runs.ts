@@ -111,6 +111,17 @@ export async function pointInGap(
 	return side === 'top' || side === 'bottom' ? { x: along, y: middle } : { x: middle, y: along };
 }
 
+/** The middle of `el`'s own top padding (inside its border), at `along` across; throws under two
+ *  pixels, as `pointInGap` does. */
+export async function pointInTopPadding(el: Locator, along: number): Promise<Point> {
+	const strip = await el.evaluate((node) => {
+		const top = node.getBoundingClientRect().top + node.clientTop;
+		return { top, height: parseFloat(getComputedStyle(node).paddingTop) || 0 };
+	});
+	if (strip.height < 2) throw new Error(`pointInTopPadding: the strip is ${strip.height}px`);
+	return { x: along, y: strip.top + strip.height / 2 };
+}
+
 /** Aim at `aim` inside the widget when the widget's own box holds something no click lands in
  *  (KaTeX's clipped MathML half pulls the box center off the painted glyphs). */
 export async function widgetAimTarget(widget: Locator, aim?: string): Promise<Locator> {
