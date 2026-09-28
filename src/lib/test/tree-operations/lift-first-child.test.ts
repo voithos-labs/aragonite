@@ -29,7 +29,8 @@ async function backspaceAtFirstChild(source: string) {
 			get node() {
 				return node();
 			},
-			parent: { blockEdit: h.actions }
+			parent: { blockEdit: h.actions },
+			reading: h.deps.reading
 		} as never,
 		state: makeBlockListState(node)
 	});

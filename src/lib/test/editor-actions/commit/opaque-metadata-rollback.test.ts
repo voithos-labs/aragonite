@@ -1,6 +1,6 @@
 // Miss-analysis: the multi-scope rollback tests wrote bytes a rebuild reads no metadata from, so
 // none checked that a rollback puts back metadata re-read from the bytes.
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { installPlugins } from '$lib';
 import { admonitionsPlugin } from '$lib/plugins/admonitions';
 import { parse } from '$lib/core/parser';
@@ -13,7 +13,7 @@ import { testContainer } from '$lib/test/harness/test-kinds';
 
 let THROWING: AnyBlockKind;
 
-beforeAll(() => {
+beforeEach(() => {
 	installPlugins([admonitionsPlugin()]);
 	THROWING = testContainer('spec-throwing-rebuild-opaque-meta', {
 		rebuildRaw: () => {

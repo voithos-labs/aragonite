@@ -131,6 +131,10 @@ const BARE_RAW_WRITE_ALLOWLIST: Record<string, { count: number; why: string }> =
 	'src/lib/testing/container-conformance.ts': {
 		count: 6,
 		why: "the published kit's own fixture bytes, written into a throwaway parse"
+	},
+	'src/lib/testing/kind-conformance.ts': {
+		count: 1,
+		why: "the raw-write cell lands bytes that already crossed the kind's rule, in a throwaway parse"
 	}
 };
 

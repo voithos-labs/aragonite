@@ -1,6 +1,6 @@
 // Miss-analysis: the kit wrote a container's title row in no cell, so a kind keeping its title in
 // metadata passed while a title keystroke, which skips the metadata re-read, left it stale.
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { installPlugins } from '$lib';
 import {
 	activateDirectives,
@@ -16,11 +16,7 @@ import {
 	type ParsedDirective,
 	type PluginBlockKind
 } from '$lib/plugin';
-import {
-	resetPluginPlatformForTests,
-	runContainerConformance,
-	type ContainerConformanceProfile
-} from '$lib/testing';
+import { runContainerConformance, type ContainerConformanceProfile } from '$lib/testing';
 import { admonitionsPlugin } from '$lib/plugins/admonitions';
 import { testClosure } from '$lib/test/support/closure';
 import { registerCalloutKind, CALLOUT } from '../../../routes/test/plugins/callout/callout-kind';
@@ -92,8 +88,6 @@ const profileFor = (source: string): ContainerConformanceProfile => ({
 });
 
 describe('the container kit writes the title row (#640)', () => {
-	beforeEach(() => resetPluginPlatformForTests());
-
 	it('fails a kind whose metadata copies its title row', async () => {
 		const kind = registerTitledKind();
 		await expect(

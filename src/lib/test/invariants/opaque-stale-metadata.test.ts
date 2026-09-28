@@ -3,7 +3,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { installPlugins, parse } from '$lib';
 import { getPluginMetadata, setPluginMetadata } from '$lib/plugin';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import { checkOpaqueStaleRaw } from '$lib/invariants/node-shape';
 import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
 import { defaultGrammarView } from '$lib/schema/block-openers';
@@ -11,7 +10,6 @@ import { admonitionsPlugin } from '$lib/plugins/admonitions';
 import { registerMermaidKind, type MermaidMetadata } from '$lib/plugins/mermaid/mermaid-kind';
 
 beforeEach(() => {
-	resetPluginPlatformForTests();
 	installPlugins([admonitionsPlugin()]);
 	registerMermaidKind();
 });

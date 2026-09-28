@@ -15,7 +15,6 @@ import {
 	setPluginMetadata,
 	type CstNode
 } from '$lib/plugin';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import { docPathFrom } from '$lib/cursor/coordinate-spaces';
 import { createLeafTyping } from '$lib/editor-actions/leaf-write';
 import { createSearchReplace } from '$lib/editor-actions/search-replace';
@@ -173,7 +172,6 @@ const ROWS: Row[] = [
 
 describe('an edit after a lengthened fence gives the bytes a reload would (#640)', () => {
 	beforeEach(() => {
-		resetPluginPlatformForTests();
 		installPlugins([admonitionsPlugin()]);
 		registerMermaidKind();
 		registerSketchKind();

@@ -8,7 +8,6 @@ import {
 	type CstNode,
 	type PluginBlockKind
 } from '$lib/plugin';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import { assertParseConverged } from '$lib/testing/parse-convergence';
 import { testLeaf } from '$lib/test/harness/test-kinds';
 
@@ -36,7 +35,6 @@ function registerTagKind(): PluginBlockKind {
 
 describe('parse convergence compares a plugin kind’s metadata', () => {
 	beforeEach(() => {
-		resetPluginPlatformForTests();
 		registerTagKind();
 	});
 
