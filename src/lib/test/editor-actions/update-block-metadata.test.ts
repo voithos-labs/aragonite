@@ -261,7 +261,7 @@ describe('updateBlockMetadata with a caret', () => {
 		const h = makeTopHarness('a\n\n> one\n>\n> two\n');
 		mountEveryBlock(h.deps);
 
-		await h.actions.updateBlockMetadata(1, { note: true }, { caret: { path: [1], offset: 2 } });
+		await h.actions.updateBlockMetadata(1, { quoteDepth: 1 }, { caret: { path: [1], offset: 2 } });
 
 		expect(h.landings).toEqual([{ leafPath: [1, 1], offset: 2, outcome: 'placed' }]);
 	});
@@ -270,7 +270,7 @@ describe('updateBlockMetadata with a caret', () => {
 		const h = makeTopHarness('a\n\n> one\n');
 		mountEveryBlock(h.deps);
 
-		await h.actions.updateBlockMetadata(1, { note: true });
+		await h.actions.updateBlockMetadata(1, { quoteDepth: 1 });
 
 		expect(h.landings).toEqual([]);
 	});
