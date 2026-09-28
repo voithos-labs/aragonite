@@ -57,6 +57,31 @@ describe('caretOffsetAtPoint: the nearest offset in one element', () => {
 		expect(asked).toEqual([{ x: BOX.right - 1, y: 60 }]);
 	});
 
+	// Miss-analysis: the stubbed box had no padding, so a clamp that stopped at the border passed.
+	it('clamps inside the border and padding, onto the text, where every platform keeps the column', () => {
+		el.style.border = '1px solid';
+		el.style.padding = '4px 10px';
+		caretOffsetAtPoint(el, 9999, -500);
+		expect(asked).toEqual([{ x: BOX.right - 11 - 1, y: BOX.top + 5 + 1 }]);
+	});
+
+	it('clamps above a classic scrollbar, which sits inside the border below the padding', () => {
+		Object.defineProperties(el, {
+			clientLeft: { value: 0 },
+			clientTop: { value: 0 },
+			clientWidth: { value: 100 },
+			clientHeight: { value: 12 }
+		});
+		caretOffsetAtPoint(el, 140, 9999);
+		expect(asked).toEqual([{ x: 140, y: BOX.top + 12 - 1 }]);
+	});
+
+	it('keeps the border box where the padding leaves no room for a point', () => {
+		el.style.padding = '10px 0';
+		caretOffsetAtPoint(el, 140, -500);
+		expect(asked).toEqual([{ x: 140, y: BOX.top + 1 }]);
+	});
+
 	it('declines where the element holds no position the browser can name', () => {
 		setPointProbe(undefined);
 		expect(caretOffsetAtPoint(el, 140, 60)).toBeNull();
