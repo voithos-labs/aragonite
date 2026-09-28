@@ -7,10 +7,9 @@
 
 import { tick } from 'svelte';
 import type { HistoryActions } from '../../action-contracts';
-import { isGapSelection, type UndoEntry } from '../../undo/types';
+import type { UndoEntry } from '../../undo/types';
 import { assertInvariant } from '../../assert';
 import { checkSnapshotIntegrity } from '../../invariants/snapshot-integrity';
-import { restoreGapCaret } from '../../selection/selection-restore';
 import { admitsWrite } from './reading-write-gate';
 import type { EditorActionsDeps, UndoController } from '../deps';
 
@@ -37,16 +36,9 @@ export function createHistoryActions(
 		// The tick belongs to the document swap above, not to the restore: the new tree must
 		// render before the selection restore can scroll to or address anything in it.
 		await tick();
-		// Mount, not scroll into view: a history swap must not move the viewport for a target
-		// already on screen.
-		const outcome = isGapSelection(entry.selection)
-			? await restoreGapCaret(entry.selection.gapCaret, {
-					getDoc: () => deps.doc,
-					selectionState: deps.selectionState,
-					caretMemory: deps.caretMemory,
-					mount: (path) => deps.caretLanding.mount(path)
-				})
-			: await deps.caretLanding.restore(entry.selection, { reveal: 'mount' });
+		// Into view, not held: a caret the undo put off screen comes to the nearest edge, and one
+		// already on screen stays where it is.
+		const outcome = await deps.caretLanding.restore(entry.selection, { reveal: 'into-view' });
 		// An entry can name an index its own snapshot never had, and the restore then declines. Clear
 		// here and announce it, since the swap already dropped the range without a notification.
 		if (outcome === 'unresolvable') {

@@ -18,7 +18,12 @@ import { descendTo, type ChildList } from '../reactivity/child-list';
 import { caretTargetFor } from './caret-target';
 import { applySelectionToDom } from './native-bridge';
 import type { CaretPosition, EditorSelection, SelectionPoint } from './primitives';
-import { resolveSelectionPoint, type SelectionRestoreOutcome } from './selection-restore';
+import {
+	resolveSelectionPoint,
+	restoreGapCaret,
+	type SelectionRestoreOutcome
+} from './selection-restore';
+import { isGapSelection, type GapCaretSelection } from '../undo/types';
 import type { SelectionState } from './selection-state.svelte';
 
 /** How far a landing moves the viewport: not at all, into view when the block is off screen, or
@@ -41,8 +46,11 @@ export type LandingOutcome = 'placed' | 'unresolvable' | 'stale';
 export interface CaretLanding {
 	/** Put the caret at `pos` as an arrival, through the block's own `focus`. */
 	land(pos: CaretPosition, opts?: LandOptions): Promise<LandingOutcome>;
-	/** Put a stored selection back at the bytes it names. */
-	restore(selection: EditorSelection, opts?: LandOptions): Promise<SelectionRestoreOutcome>;
+	/** Put a stored selection back at the bytes it names, or a gap caret at its boundary. */
+	restore(
+		selection: EditorSelection | GapCaretSelection,
+		opts?: LandOptions
+	): Promise<SelectionRestoreOutcome>;
 	/** Mount `pos` and park a caret there without ending a live range. */
 	park(pos: CaretPosition): Promise<boolean>;
 	/** Mount the block at `path` and hand back its component, for a caller that dispatches to it. */
@@ -117,6 +125,16 @@ export function createCaretLanding(deps: CaretLandingDeps): CaretLanding {
 		},
 
 		async restore(selection, opts = {}) {
+			const reveal = opts.reveal ?? 'into-view';
+			if (isGapSelection(selection)) {
+				return restoreGapCaret(selection.gapCaret, {
+					getDoc: deps.getDoc,
+					selectionState: deps.selectionState,
+					caretMemory: deps.caretMemory,
+					mount: (path) => descendTo(deps.root, path),
+					reveal: (path) => bringIntoView(path, reveal)
+				});
+			}
 			const stamp = opts.stamp ?? generation;
 			const doc = deps.getDoc();
 			const anchor = resolveSelectionPoint(doc, selection.anchor);
@@ -151,7 +169,7 @@ export function createCaretLanding(deps: CaretLandingDeps): CaretLanding {
 					}
 				)
 			);
-			await bringIntoView(mountPath, opts.reveal ?? 'into-view');
+			await bringIntoView(mountPath, reveal);
 			return mounted && placed ? 'applied' : 'unplaced';
 		},
 

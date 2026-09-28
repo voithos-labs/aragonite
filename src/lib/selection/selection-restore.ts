@@ -1,7 +1,7 @@
 /**
  * The checks a stored selection passes before it goes back onto the live editor: each endpoint
  * resolved against the current tree and clamped into its block. `caret-landing.ts :: restore` puts
- * a stored range or caret back; a gap caret takes {@link restoreGapCaret}.
+ * every stored selection back, a gap caret through {@link restoreGapCaret}.
  */
 
 import type { DocumentView } from '../core/node-views';
@@ -26,6 +26,8 @@ export interface GapCaretRestoreDeps {
 	selectionState: SelectionState;
 	/** Mounts the block at `path`: the caret landing's `mount`. */
 	mount(path: number[]): Promise<BlockComponent | null>;
+	/** Brings the mounted block into view as the restore's reveal policy says. */
+	reveal(path: number[]): Promise<void>;
 	/** Cleared on each restore, since a placed caret did not arrive by a key. */
 	caretMemory: Pick<CaretMemory, 'forget'>;
 }
@@ -44,7 +46,9 @@ export async function restoreGapCaret(
 	// The boundary itself mounts nothing; what must be on screen is the block it sits
 	// against, so the gap's own BlockList is inside a live window when it renders.
 	const neighbour = index < children.length ? index : index - 1;
-	const mounted = (await deps.mount([...pos.parentPath, neighbour])) !== null;
+	const neighbourPath = [...pos.parentPath, neighbour];
+	const mounted = (await deps.mount(neighbourPath)) !== null;
+	if (mounted) await deps.reveal(neighbourPath);
 	placeGapCaret(deps.selectionState, { parentPath: pos.parentPath, index });
 	return mounted ? 'applied' : 'unplaced';
 }
