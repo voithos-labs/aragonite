@@ -155,8 +155,9 @@ The unit setup (`src/lib/test/support/plugin-platform.ts`) resets the plugin pla
 every test, so you don't write that reset yourself. The catch: a plugin you install as the file
 loads, or in `beforeAll`, is gone before the first test runs, and the suite quietly tests plain
 GFM instead (your `$$` fence is a paragraph now). Install in `beforeEach` or inside the test.
-`src/lib/test/invariants/lint/suite-file-rules.test.ts` fails a reset hook of your own, and a
-registration at load or in `beforeAll`. A test about the reset itself calls it in the test body.
+`src/lib/test/invariants/lint/suite-file-rules.test.ts` fails a reset hook of your own (a partial
+one or one behind a helper counts too), and a registration at load, in a `describe` body or in
+`beforeAll`. A test about the reset itself calls `resetPluginPlatformForTests` in the test body.
 
 ### A dev warning fails its test
 
@@ -532,8 +533,8 @@ A raw `page.goto` or `page.reload` fails `src/lib/e2e/lint/goto-ready.test.ts`.
 
 A new route gets a row in `src/lib/e2e/goto-ready.ts :: READY_BY_ROUTE`, or `gotoReady` won't
 compile for it. Every route that mounts an editor already sets `__parityDocuments`, so that's the
-row's value unless the specs read a global the route sets for them (`__syntax`, say), in which case
-that one goes in.
+usual value. If the specs read a global the route sets for them (`__syntax`, say), that one goes in
+instead.
 
 ### Patterns and gotchas
 
