@@ -3,8 +3,6 @@ import { dispatchKeyCommand, registerBlockCommand } from '$lib/schema/block-comm
 import { normalizeChordStrict } from '$lib/schema/keybindings';
 import type { KeybindingOverrideMap } from '$lib/schema/keybinding-overrides';
 import { declarePluginKind } from '$lib/schema/plugin-kind';
-import type { EditorContext } from '$lib/schema/plugin-install';
-import { declareOwnedKind } from '$lib/test/support/owned-kind';
 import { buildLeafCommandContext } from '$lib/components/blocks/editable-leaf';
 import type { AnyBlockKind, CstNode } from '$lib/core/nodes';
 import type { AnyCommandId } from '$lib/schema/command-id';
@@ -35,7 +33,6 @@ function bindKindChord(
 type BuildArgs = Parameters<typeof buildLeafCommandContext>;
 type CtxOverrides = Partial<Omit<BuildArgs[0], 'getIndex'> & BuildArgs[1]> & {
 	index?: number;
-	pluginEditor?: BuildArgs[2];
 };
 
 // `getNode` stays a function through the builder: the dispatch re-reads it, so capturing what
@@ -49,8 +46,7 @@ function buildCtx(over: CtxOverrides = {}) {
 	} = over;
 	return buildLeafCommandContext(
 		{ getNode, getIndex: () => index, commandHooks },
-		{ updateBlockMetadata },
-		over.pluginEditor
+		{ updateBlockMetadata }
 	);
 }
 
@@ -78,19 +74,6 @@ describe('editable-leaf command context', () => {
 		expect(build().node).toBe(node);
 		node = leafNode(leafAlt);
 		expect(build().node.kind).toBe(leafAlt);
-	});
-
-	it("exposes the owning plugin's EditorContext as ctx.editor, keyed by pluginKindOwner", () => {
-		const fakeEditorContext = { editorId: 'e1' } as unknown as EditorContext;
-		const owned = declareOwnedKind('admonitions', 'demoOwnedLeaf');
-		const pluginEditor = vi.fn((name: string) =>
-			name === 'admonitions' ? fakeEditorContext : ({} as EditorContext)
-		);
-
-		const ctx = buildCtx({ getNode: () => leafNode(owned), pluginEditor });
-
-		expect(ctx.editor).toBe(fakeEditorContext);
-		expect(pluginEditor).toHaveBeenCalledWith('admonitions');
 	});
 
 	// A key combination on a focused leaf resolves the registered command through the same

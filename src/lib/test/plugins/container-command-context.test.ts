@@ -3,8 +3,6 @@ import { dispatchKindCommand, registerBlockCommand } from '$lib/schema/block-com
 import { normalizeChordStrict } from '$lib/schema/keybindings';
 import type { KeybindingOverrideMap } from '$lib/schema/keybinding-overrides';
 import { declarePluginKind } from '$lib/schema/plugin-kind';
-import type { EditorContext } from '$lib/schema/plugin-install';
-import { declareOwnedKind } from '$lib/test/support/owned-kind';
 import { buildContainerKindTarget } from '$lib/editor-actions/plugin/container';
 import type { AnyBlockKind, CstNode } from '$lib/core/nodes';
 import type { AnyCommandId } from '$lib/schema/command-id';
@@ -105,19 +103,5 @@ describe('plugin container kind-command target', () => {
 		node = noteNode(noteAlt);
 		expect(target.kind).toBe(noteAlt);
 		expect(target.getCommandContext?.().node).toBe(node);
-	});
-
-	it("exposes the owning plugin's EditorContext as ctx.editor, keyed by pluginKindOwner", () => {
-		const fakeEditorContext = { editorId: 'e1' } as unknown as EditorContext;
-		const owned = declareOwnedKind('admonitions', 'demoOwnedNote');
-		const pluginEditor = vi.fn((name: string) =>
-			name === 'admonitions' ? fakeEditorContext : ({} as EditorContext)
-		);
-		const node = noteNode(owned);
-
-		const target = buildContainerKindTarget({ getNode: () => node }, vi.fn(), pluginEditor);
-
-		expect(target.getCommandContext?.().editor).toBe(fakeEditorContext);
-		expect(pluginEditor).toHaveBeenCalledWith('admonitions');
 	});
 });

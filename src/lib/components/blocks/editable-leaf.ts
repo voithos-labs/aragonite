@@ -14,8 +14,7 @@ import {
 	EDITOR_POLICIES_KEY,
 	EDITOR_SERVICES_KEY,
 	type EditorPolicies,
-	type EditorServices,
-	type PluginEditorLookup
+	type EditorServices
 } from '../../editor-keys';
 import { asRawOffset } from '../../cursor/coordinate-spaces';
 import { createSurfaceBackend } from '../../cursor/surface-backend';
@@ -51,7 +50,7 @@ import {
 } from '../../core/lines';
 import type { PresentationMode } from '../../presentation-mode';
 import { tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
-import { type BlockCommandContext } from '../../schema/block-commands';
+import { type BlockTargetContext } from '../../schema/block-commands';
 import type { EditorContext } from '../../schema/plugin-install';
 import { owningPluginEditor } from '../../schema/plugin-kind';
 import { createTextBatch } from '../../editor-actions/commit/text-batch';
@@ -189,14 +188,12 @@ export interface EditableLeaf {
  *  node swap is seen; the leaf's counterpart of `buildContainerKindTarget`. */
 export function buildLeafCommandContext(
 	deps: Pick<EditableLeafDeps, 'getNode' | 'getIndex' | 'commandHooks'>,
-	blockEdit: Pick<BlockEditActions, 'updateBlockMetadata'>,
-	pluginEditor?: PluginEditorLookup
-): Omit<BlockCommandContext, 'arg'> {
+	blockEdit: Pick<BlockEditActions, 'updateBlockMetadata'>
+): BlockTargetContext {
 	return {
 		node: deps.getNode(),
 		updateMetadata: (patch) => void blockEdit.updateBlockMetadata(deps.getIndex(), patch),
-		hooks: deps.commandHooks?.(),
-		editor: owningPluginEditor(pluginEditor, deps.getNode().kind)
+		hooks: deps.commandHooks?.()
 	};
 }
 
@@ -226,7 +223,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	const { inlineMenuCombobox } = getContext<EditorServices>(EDITOR_SERVICES_KEY);
 	const { theme: getTheme, onPasteImage } = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
 	const getPresentationMode = reading.mode;
-	// Resolved by the kind's recorded owner, like the command context's `editor`.
+	// The kind's component runs with the context of the plugin that declared the kind.
 	const getEditor = (): EditorContext | undefined =>
 		owningPluginEditor(pluginEditor, deps.getNode().kind);
 	const getOptions = (): unknown => getEditor()?.options;
@@ -399,7 +396,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		})();
 	}
 
-	const getCommandContext = () => buildLeafCommandContext(deps, blockEdit, pluginEditor);
+	const getCommandContext = () => buildLeafCommandContext(deps, blockEdit);
 
 	// ── View sync ──────────────────────────────────────────────────────────────
 
