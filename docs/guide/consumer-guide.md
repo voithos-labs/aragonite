@@ -424,7 +424,7 @@ Read the value the channel settles on rather than counting emissions. Most chang
 ```ts
 events.on('error', (err) => err);
 // { origin: 'link', error: Error('aragonite: blocked link with disallowed scheme: file:///notes.md'), context: { url: 'file:///notes.md' } }
-// { origin: 'command', error: TypeError(...), context: { kind: 'paragraph', command: 'my.command', plugin: 'my-plugin' } }
+// { origin: 'command', error: TypeError(...), context: { kind: 'callout', command: 'callout.cycle', plugin: 'callouts' } }
 ```
 
 `origin` is one of `subscriber`, `render`, `commit`, `command`, `decoration`, `clipboard`, or `link`, and `context` carries what's known for it:
