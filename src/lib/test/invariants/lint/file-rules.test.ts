@@ -773,8 +773,8 @@ const RULES: FileRule[] = [
 				'the function itself, which runs its callback with no plugin installing',
 			'src/lib/schema/plugin-registry.ts':
 				'`registerCore`, the route for an editor built-in the test reset keeps',
-			'src/lib/core/directive/activate.ts':
-				'the directive grammar, which a consumer may turn on from a plugin’s setup and the reset drops'
+			'src/lib/components/blocks/directive/activate-directives.ts':
+				'the directive grammar and its components, which a consumer may turn on from a plugin’s setup and the reset drops'
 		},
 		reason:
 			'an editor built-in registers through the registry’s `registerCore`, which keeps it across the test reset, and a kind’s entries already answer to the kind’s declarer; a third caller of `registerAsCore` is a second copy of that rule',

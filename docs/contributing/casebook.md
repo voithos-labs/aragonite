@@ -218,12 +218,12 @@ cases without a supported entry point, so `@voithos-labs/aragonite/testing` expo
 more copy of its context-menu row per case, and kept the first case's grammar for the rest. Now
 every registry is built in `src/lib/schema/plugin-registry.ts`, which signs the store up for the
 reset as it builds it, so there's no list to forget. The same store knows which plugin each entry
-answers to (the one that made it, or for an entry keyed by a kind, the one that declared the kind)
+answers to (the one that made it, or for an entry keyed by a kind a plugin declared, that plugin)
 and answers reads only through an editor's activation, so an entry can't leak into an editor that
-didn't list the plugin it answers to. What the store can't reach is a copy kept outside it: highlight.js
-holds its own table of grammars, and the first cut of this fix left the first case's grammar there
-after the reset had cleared the registry. So that copy now checks itself against the store on every
-read (`code-renderer.ts :: tokenizeBody`).
+didn't list the plugin it answers to. What the store can't reach is a copy kept outside it:
+highlight.js holds its own table of grammars, and the first cut of this fix left the first case's
+grammar there after the reset had cleared the registry. So that copy now checks itself against the
+store on every read (`code-renderer.ts :: tokenizeBody`).
 
 **Guard:** the reset is built into `src/lib/schema/plugin-registry.ts` :: `buildRegistry`, the one
 function behind every registry constructor, and `src/lib/test/plugins/testing-barrel.test.ts` reads

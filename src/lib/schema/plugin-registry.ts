@@ -2,7 +2,7 @@
  * The store every registration a plugin can reach is built on. A registry is register-once (a
  * dev server replaces), answers reads only through an editor's `PluginActivation`, and is cleared
  * by the test reset except for built-ins. An entry answers to the plugin whose setup registered
- * it; in a kind registry, to the plugin that declared the kind.
+ * it, except in a kind registry, where a kind a plugin declared takes that plugin instead.
  */
 import type { AnyBlockKind, AnyInlineKind } from '../core/nodes';
 import { currentInstallingPlugin, registerAsCore } from './plugin-install';
@@ -42,8 +42,8 @@ export interface PluginRegistry<K, V> {
 	records(): RegistryRecord<K, V>[];
 }
 
-/** A registry keyed by a block or inline kind: every entry answers to the kind's declarer, so
- *  there is no `registerCore` to hand an entry to no plugin. */
+/** A registry keyed by a block or inline kind. It has no `registerCore`, since the editor
+ *  registers its own kinds' entries at load, outside any plugin. */
 export type KindRegistry<K, V> = Omit<PluginRegistry<K, V>, 'registerCore'>;
 
 export interface PluginRegistryOptions<K> {
@@ -70,13 +70,19 @@ export function createPluginRegistry<K, V>(
 export function createBlockKindRegistry<V>(
 	options: PluginRegistryOptions<AnyBlockKind>
 ): KindRegistry<AnyBlockKind, V> {
-	return buildRegistry<AnyBlockKind, V>(options, pluginKindOwner);
+	return buildRegistry<AnyBlockKind, V>(
+		options,
+		(key, registrant) => pluginKindOwner(key) ?? registrant
+	);
 }
 
 export function createInlineKindRegistry<V>(
 	options: PluginRegistryOptions<AnyInlineKind>
 ): KindRegistry<AnyInlineKind, V> {
-	return buildRegistry<AnyInlineKind, V>(options, pluginInlineKindOwner);
+	return buildRegistry<AnyInlineKind, V>(
+		options,
+		(key, registrant) => pluginInlineKindOwner(key) ?? registrant
+	);
 }
 
 // ── Internal ─────────────────────────────────────────────────────────────────
@@ -100,8 +106,7 @@ function buildRegistry<K, V>(
 
 	enrollTestReset(() => {
 		for (const [key, entry] of entries) {
-			// Who registered the entry decides, not whose activation it answers to: a plugin's entry
-			// for a built-in kind answers to no plugin, yet the reset must still drop it.
+			// The editor's own entries survive; a plugin's never do, whichever plugin it answers to.
 			const builtin = entry.registrant === null && options.isBuiltin(key);
 			if (!entry.core && !builtin) entries.delete(key);
 		}

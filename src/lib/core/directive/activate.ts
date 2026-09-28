@@ -1,9 +1,8 @@
 /**
- * Grammar-side activation for the `:::name` directive syntax. No components: core must not reach
- * the component tree, so the public `activateDirectives` adds rendering on top of this. A call
- * rather than an import side effect, so a consumer that never calls it leaves `:::` and `:` free.
- * Must run before the editor first parses (G1.17). Calling it twice is a no-op: every step checks
- * its own registration first.
+ * Grammar-side activation for the `:::name` directive syntax. The public `activateDirectives`
+ * adds the components (core can't import them) and makes both belong to no plugin. A call, not an
+ * import side effect, so `:::` and `:` stay free until someone asks. Must run before the editor
+ * first parses (G1.17); calling it twice is a no-op, since every step checks its registration first.
  */
 
 import { registerDirectiveKinds, registerDirectiveTextKind, DIRECTIVE_TEXT } from './kinds';
@@ -12,25 +11,20 @@ import { declaredPluginInlineKind, isInlineKindDeclared } from '../../schema/plu
 import { registerInlineSyntax } from '../inline/scan/plugin-syntax';
 import { recognizeTextDirective } from './text-recognizer';
 import { defaultGrammarView, type GrammarView } from '../../schema/block-openers';
-import { registerAsCore } from '../../schema/plugin-install';
 
 export function activateDirectiveGrammar(): void {
-	// The shared directive kinds are core whichever plugin's setup calls this first; only the
-	// names a plugin registers belong to it.
-	registerAsCore(() => {
-		// The inline handler has no registration of its own to check, so it borrows the
-		// `directiveText` flag, read before it is set; the `:` trigger is shared with emoji.
-		const alreadyActive = isInlineKindDeclared(DIRECTIVE_TEXT);
+	// The inline handler has no registration of its own to check, so it borrows the
+	// `directiveText` flag, read before it is set; the `:` trigger is shared with emoji.
+	const alreadyActive = isInlineKindDeclared(DIRECTIVE_TEXT);
 
-		registerDirectiveKinds();
-		registerDirectiveOpeners();
-		registerDirectiveTextKind();
+	registerDirectiveKinds();
+	registerDirectiveOpeners();
+	registerDirectiveTextKind();
 
-		if (!alreadyActive) {
-			const kind = declaredPluginInlineKind(DIRECTIVE_TEXT);
-			registerInlineSyntax(':', (raw, pos, end, grammar?: GrammarView) =>
-				recognizeTextDirective(raw, pos, end, kind, grammar ?? defaultGrammarView)
-			);
-		}
-	});
+	if (!alreadyActive) {
+		const kind = declaredPluginInlineKind(DIRECTIVE_TEXT);
+		registerInlineSyntax(':', (raw, pos, end, grammar?: GrammarView) =>
+			recognizeTextDirective(raw, pos, end, kind, grammar ?? defaultGrammarView)
+		);
+	}
 }

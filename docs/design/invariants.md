@@ -1648,10 +1648,10 @@ with its reason (a paste or a typed character inserts between one leaf's own hal
 **G4.77 · One way to belong to no plugin.** `src/lib/schema/plugin-install.ts` :: `registerAsCore` runs
 registrations as if no plugin were installing, so what they make belongs to no plugin even when a
 plugin's setup reached them first. It has two callers. A registry's `registerCore` uses it for an
-editor built-in the test reset keeps (the code languages, the context-menu rows), and the directive
-grammar wraps its kinds and its `:` trigger in it, which the reset drops like a fresh process
-would. A third caller would be a second copy of the rule, and an entry keyed by a kind doesn't need
-one anyway, since it already follows the kind's declarer. `lint/file-rules.test.ts`.
+editor built-in the test reset keeps (the code languages, the context-menu rows), and
+`activateDirectives` wraps the directive grammar and its components in it, which the reset drops
+like a fresh process would. A third caller would be a second copy of the rule.
+`lint/file-rules.test.ts`.
 
 ## Accessibility
 
