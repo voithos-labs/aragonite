@@ -36,6 +36,7 @@ class TypedLine {
 				this.text = next;
 				this.caret = after;
 			},
+			keepsKind: () => true,
 			reading: fixtureReading(),
 			ownPairs: record.forBlock()
 		};

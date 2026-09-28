@@ -5,6 +5,9 @@ import type { RenderInlineOptions } from '$lib/core/inline-render';
 import { defaultGrammarView, type GrammarView } from '$lib/schema/block-openers';
 import type { Reading } from '$lib/schema/reading';
 import type { ChildSlot } from '$lib/tree-operations/list/task-paragraph';
+import type { NodeView } from '$lib/core/node-views';
+import type { StoredAs } from '$lib/schema/stored-as';
+import { storedAsIn } from '$lib/tree-operations/stored-as';
 import { hidesDelimitersAtCaret, type PresentationMode } from '$lib/presentation-mode';
 
 /** The grammar itself, for a tree operation that takes it bare. */
@@ -36,3 +39,8 @@ export function fixtureReading(over: Partial<Reading> = {}, mode?: PresentationM
 
 /** A slot at the top level, where no task marker stands in front of anything. */
 export const TOP_SLOT: ChildSlot = { owner: undefined, index: 0 };
+
+/** Where `node` keeps its bytes standing alone at a document's top level, in `reading`. */
+export function topLevelStore(node: NodeView, reading: Reading = fixtureReading()): StoredAs {
+	return storedAsIn({ owner: undefined, children: [node], lineEnding: '\n' }, 0, reading);
+}

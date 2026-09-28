@@ -51,7 +51,9 @@
 	import { createTextClipboard } from './text-clipboard';
 	import { createTextRender } from './text-render';
 	import { createWidgetInteraction } from './widget-interaction';
-	import { createEdgePolicyDispatch, keepsBlockKind } from './edge-policy-dispatch';
+	import { createEdgePolicyDispatch } from './edge-policy-dispatch';
+	import { keepsKindAt } from '../../../core/inline/live-edit/read-back';
+	import { storedAsAt } from '../../../tree-operations/stored-as';
 	import { applyLiveRangeEdit, resolveSelectionEdit } from './live-selection-edit';
 	import { applyDelimiterAutoPair } from './delimiter-autopair';
 	import { createCompositionSeat } from './composition-seat';
@@ -143,6 +145,8 @@
 	// document's.
 	const documentEnding = () => documentLineEnding(getDoc());
 	const blockEnding = () => trailingLineEnding(node.raw, documentEnding());
+	// Made per gesture, never derived: a derived value would subscribe the block to the tree.
+	const storedAs = () => storedAsAt(getDoc(), myPath, reading);
 	// Present inside a list item, whose ListItemBlock owns Tab-as-indent.
 	const listContext = getContext(LIST_CONTEXT_KEY);
 	const {
@@ -320,7 +324,6 @@
 		isReadOnly: () => readOnly,
 		foldRevealBeforeMutation: () => widgetInteraction.foldRevealBeforeMutation(),
 		isRevealing: () => widgetInteraction.isRevealing(),
-		getAmbientPrefix: () => ambientPrefixText,
 		readRevealedText: () => readRawText(),
 		get reading() {
 			return reading;
@@ -356,7 +359,7 @@
 			return reading;
 		},
 		getEl: () => el ?? null,
-		getAmbientPrefix: () => ambientPrefixText,
+		storedAs,
 		hasIslands: () =>
 			decorationEngine ? decorationEngine.islandsForPath(myPath).length > 0 : false,
 		getRawSelection: () => cursor.getRawSelection(),
@@ -372,8 +375,7 @@
 		getEdgeAffinity: caretMemory.side,
 		noteOutside: caretMemory.noteExtreme,
 		pendingMarks: caretMemory.pendingMarks,
-		ownPairs,
-		installedAs: 'block'
+		ownPairs
 	});
 
 	// The same placement rules the keydown dispatch uses, for the one insertion it cannot reach.
@@ -389,7 +391,7 @@
 		// The same join rules `handleLiveSelectionEdit` uses, in the displayed bytes this
 		// returns (`commitInput` re-appends the trailing line ending).
 		resolveRangeEdit: (range, typed) => {
-			const edit = resolveSelectionEdit(node, range, typed, reading, ambientPrefixText);
+			const edit = resolveSelectionEdit(node, range, typed, storedAs());
 			return edit && { raw: trimTrailingLineEnding(edit.raw), caret: edit.caret };
 		}
 	});
@@ -883,8 +885,7 @@
 			node,
 			cursor,
 			documentEnding(),
-			reading,
-			ambientPrefixText,
+			storedAs(),
 			widgetInteraction.isRevealing,
 			(edit) => {
 				const write = blockEdit.updateBlockContent(
@@ -913,7 +914,8 @@
 			seatOutside: caretMemory.noteExtreme,
 			completesLine: (caret) =>
 				planTypedCompletion(node, caret, grammar, documentEnding()) !== null,
-			keepsBlockKind: (text) => keepsBlockKind(node, text, reading),
+			// Each auto-pair caller asks this itself until the caret-edge key table gives it one caller.
+			keepsKind: (line) => keepsKindAt(node, line, storedAs()),
 			reading,
 			ownPairs,
 			write: (text, caretBefore, caretAfter) => {

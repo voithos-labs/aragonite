@@ -8,6 +8,7 @@
 import type { BlockEditActions } from '../../action-contracts';
 import type { CstNode, Document } from '../../core/nodes';
 import type { Reading } from '../../schema/reading';
+import type { StoredAs } from '../../schema/stored-as';
 import type { PluginActivation } from '../../schema/plugin-activation';
 import { readBlocks } from '../../core/parser';
 import { isBlockNode, nodeAt } from '../node-primitives';
@@ -39,6 +40,7 @@ import { applyPasteTransforms } from './paste-transforms';
 import { inlineResultInEnding } from './line-ending';
 import { contentBlocks, pickPasteStrategy } from './strategy';
 import { childSlotAt } from '../list/task-paragraph';
+import { storedAsAt } from '../stored-as';
 
 export type PasteStrategy = 'inline' | 'structural';
 
@@ -106,6 +108,7 @@ export async function pasteDispatch(
 
 	const targetNode = nodeAt(ctx.doc, input.targetPath) as CstNode | null;
 	if (!targetNode) return {};
+	const store = storedAsAt(ctx.doc, input.targetPath, reading);
 
 	const parsed = readBlocks(withLineEnding(pastedText, ending), {
 		grammar: reading.grammar,
@@ -124,14 +127,14 @@ export async function pasteDispatch(
 		const flattened = pastedText.replace(/(\r?\n)+/g, ' ').trim();
 		const hook =
 			getPasteSurface(targetNode.kind, activePlugins)?.onInlinePaste ?? defaultInlineHook;
-		const result = hook(targetNode, input.offset, flattened, input.preDelete, reading, ending);
+		const result = hook(targetNode, input.offset, flattened, input.preDelete, store, ending);
 		const landing = await applyInlineResult(input.targetPath, result, ctx);
 		return inlineCaretResult(result.caretOffset, landing);
 	}
 
 	// The delete half, applied before the container finders, which decide on the target's bytes and
 	// never cut the range themselves; the hook routes cut their own, kind rules included.
-	const target = targetAfterPreDelete(targetNode, input, reading, ending);
+	const target = targetAfterPreDelete(targetNode, input, store, ending);
 
 	const unwrap = findContainerMatchingUnwrap(
 		ctx.doc,
@@ -194,7 +197,7 @@ export async function pasteDispatch(
 		const hook = surface?.onInlinePaste ?? defaultInlineHook;
 		const result = inlineResultInEnding(
 			targetNode.raw,
-			hook(targetNode, input.offset, pastedText, input.preDelete, reading, ending),
+			hook(targetNode, input.offset, pastedText, input.preDelete, store, ending),
 			ending
 		);
 		const landing = await applyInlineResult(input.targetPath, result, ctx);
@@ -208,7 +211,7 @@ export async function pasteDispatch(
 		input.offset,
 		blocks.slice(),
 		input.preDelete,
-		reading,
+		store,
 		ending,
 		slot
 	);
@@ -225,11 +228,11 @@ export async function pasteDispatch(
 function targetAfterPreDelete(
 	node: CstNode,
 	input: PasteDispatchInput,
-	reading: Reading,
+	store: StoredAs,
 	lineEnding: LineEnding
 ): { raw: string; offset: number } {
 	if (!input.preDelete) return { raw: node.raw, offset: input.offset };
-	const cut = cutRangeFromDisplay(node, trimTrailingLineEnding(node.raw), input.preDelete, reading);
+	const cut = cutRangeFromDisplay(node, trimTrailingLineEnding(node.raw), input.preDelete, store);
 	return { raw: cut.display + trailingLineEnding(node.raw, lineEnding), offset: cut.offset };
 }
 

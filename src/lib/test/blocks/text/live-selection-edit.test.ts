@@ -8,7 +8,7 @@ import {
 	__resetLiveJoinSeamCleanerForTests
 } from '$lib/schema/inline-construct-policy';
 import type { PresentationMode } from '$lib/presentation-mode';
-import { fixtureReading } from '../../harness/fixture-grammar';
+import { fixtureReading, topLevelStore } from '../../harness/fixture-grammar';
 
 // A browser selection edit inside one block, re-expressed as a join: when it refuses, where typed
 // bytes land, and that it returns the block's whole raw, trailing line ending included.
@@ -26,7 +26,15 @@ const editIn = (
 	start: number,
 	end: number,
 	typed: string
-) => resolveSelectionEdit(blockOf(source), { start, end }, typed, fixtureReading({}, mode));
+) => {
+	const node = blockOf(source);
+	return resolveSelectionEdit(
+		node,
+		{ start, end },
+		typed,
+		topLevelStore(node, fixtureReading({}, mode))
+	);
+};
 
 const edit = (source: string, start: number, end: number, typed: string) =>
 	editIn('live', source, start, end, typed);

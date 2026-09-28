@@ -16,6 +16,7 @@ import {
 	type JoinSeam
 } from '../schema/inline-construct-policy';
 import type { Reading } from '../schema/reading';
+import type { StoredAs } from '../schema/stored-as';
 import {
 	displayLength,
 	isBlankText,
@@ -53,6 +54,7 @@ import { CURSOR_END } from '../block-component';
 import { adoptReparsedFields, legalizeWrite, probeLineOpensAsProse } from './content-write';
 import { writeKeepingTaskMarker } from './list/reconcile-task';
 import { fragmentReaderAt, type FragmentReader } from './list/task-paragraph';
+import { storedAsIn } from './stored-as';
 
 // ── Split ──
 
@@ -264,19 +266,19 @@ function contentBlockCount(source: string, grammar: GrammarView): number {
  */
 export function cleanJoinedRaw(join: JoinSeam): CleanedJoin {
 	const literal = { raw: join.mergedRaw, seam: join.seam };
-	if (!join.reading.hidesDelimitersAtCaret()) return literal;
+	if (!join.store.reading.hidesDelimitersAtCaret()) return literal;
 	return getLiveJoinSeamCleaner()?.(join) ?? literal;
 }
 
 /**
  * The bytes a single-block edit leaves when it deletes `range` from `display`, cleaned like any
- * join; the returned offset is where the two sides meet.
+ * join against where `store` keeps them; the returned offset is where the two sides meet.
  */
 export function cutRangeFromDisplay(
 	node: NodeView,
 	display: string,
 	range: { start: number; end: number },
-	reading: Reading
+	store: StoredAs
 ): { display: string; offset: number } {
 	// Both ends snap off the middle of a surrogate pair, since half a pair can't be recovered;
 	// snapping both in the same direction cannot invert the range.
@@ -288,20 +290,22 @@ export function cutRangeFromDisplay(
 		seam: start,
 		start: { node, offset: start },
 		end: { node, offset: end },
-		reading
+		typed: '',
+		store
 	});
 	return { display: cleaned.raw, offset: cleaned.seam };
 }
 
 /** The bytes two adjacent blocks make when `prev` absorbs `curr`, join cleanup included. */
-function joinRaw(prev: NodeView, curr: NodeView, reading: Reading): CleanedJoin {
+function joinRaw(prev: NodeView, curr: NodeView, store: StoredAs): CleanedJoin {
 	const { raw, start } = joinKeepingSuffix(prev, displayLength(prev.raw), curr, 0);
 	return cleanJoinedRaw({
 		mergedRaw: raw,
 		seam: start,
 		start: { node: prev, offset: start },
 		end: { node: curr, offset: 0 },
-		reading
+		typed: '',
+		store
 	});
 }
 
@@ -340,7 +344,7 @@ export function joinIntoLeaf(
 		lineEnding: parentLineEnding(parent)
 	};
 	const target = holder.children[slot];
-	const { raw, seam } = joinRaw(target, absorbed, reading);
+	const { raw, seam } = joinRaw(target, absorbed, storedAsIn(holder, slot, reading));
 	const legal = legalizeWrite(holder, slot, raw, 'literal');
 	const merged = mergedLeafFor(
 		target,

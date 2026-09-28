@@ -16,7 +16,7 @@ import {
 	registerLiveJoinSeamCleaner,
 	__resetLiveJoinSeamCleanerForTests
 } from '../../../schema/inline-construct-policy';
-import { fixtureReading } from '../../harness/fixture-grammar';
+import { fixtureReading, topLevelStore } from '../../harness/fixture-grammar';
 import { defaultGrammarView } from '$lib/schema/block-openers';
 import type { Reading } from '$lib/schema/reading';
 
@@ -38,9 +38,10 @@ function pasteIntoRow(
 	offset: number,
 	text: string,
 	preDelete?: PasteRange,
-	seam: Reading = fixtureReading()
+	reading: Reading = fixtureReading()
 ) {
-	const result = tableCellInlinePaste(makeCell(cellRaw), offset, text, preDelete, seam);
+	const cell = makeCell(cellRaw);
+	const result = tableCellInlinePaste(cell, offset, text, preDelete, topLevelStore(cell, reading));
 	const row: CstNode = {
 		kind: 'tableRow',
 		leadingTrivia: '',
@@ -139,16 +140,15 @@ describe('tableCellInlinePaste', () => {
 		afterAll(() => __resetLiveJoinSeamCleanerForTests());
 
 		const CUT = { start: 8, end: 18 };
-		const seamIn = (presentationMode: PresentationMode) => fixtureReading({}, presentationMode);
+		const readingIn = (presentationMode: PresentationMode) => fixtureReading({}, presentationMode);
+		const cellIn = (presentationMode: PresentationMode) => {
+			const cell = makeCell('Some **bold** text');
+			return { cell, store: topLevelStore(cell, readingIn(presentationMode)) };
+		};
 
 		it('live: the run the cut stranded goes with it', () => {
-			const result = tableCellInlinePaste(
-				makeCell('Some **bold** text'),
-				8,
-				'X',
-				CUT,
-				seamIn('live')
-			);
+			const { cell, store } = cellIn('live');
+			const result = tableCellInlinePaste(cell, 8, 'X', CUT, store);
 			expect(result.newRaw).toBe('Some bX');
 		});
 
@@ -158,7 +158,7 @@ describe('tableCellInlinePaste', () => {
 				7,
 				'X',
 				{ start: 7, end: 10 },
-				seamIn('live')
+				readingIn('live')
 			);
 			// The stranded `**` went with the cut and the cell's own `\|` survived the round.
 			expect(cells).toEqual(['a\\|b X c', 'keep']);
@@ -167,13 +167,8 @@ describe('tableCellInlinePaste', () => {
 		// Reading mode hides delimiters too, but it writes nothing, so a paste never gets here.
 		it('every mode that draws the caret block’s delimiters keeps the literal cut', () => {
 			for (const mode of ['source', 'preview-block', 'preview-inline'] as const) {
-				const result = tableCellInlinePaste(
-					makeCell('Some **bold** text'),
-					8,
-					'X',
-					CUT,
-					seamIn(mode)
-				);
+				const { cell, store } = cellIn(mode);
+				const result = tableCellInlinePaste(cell, 8, 'X', CUT, store);
 				expect(result.newRaw).toBe('Some **bX');
 			}
 		});

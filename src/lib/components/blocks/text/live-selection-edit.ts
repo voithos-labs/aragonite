@@ -7,6 +7,7 @@
 
 import type { NodeView } from '../../../core/node-views';
 import type { Reading } from '../../../schema/reading';
+import type { StoredAs } from '../../../schema/stored-as';
 import {
 	snapToScalarBoundary,
 	trailingLineEnding,
@@ -46,13 +47,12 @@ export function resolveLiveRangeEdit(
 	node: NodeView,
 	cursor: LiveEditCursor,
 	lineEnding: LineEnding,
-	reading: Reading,
-	ambientPrefix = ''
+	store: StoredAs
 ): LiveRangeEdit | null {
-	if (!reading.hidesDelimitersAtCaret() || !rewritesTargetRange(e)) return null;
+	if (!store.reading.hidesDelimitersAtCaret() || !rewritesTargetRange(e)) return null;
 	const target = pendingEditRange(e, cursor);
 	if (!target) return null;
-	const range = paintedRange(node, target, reading);
+	const range = paintedRange(node, target, store.reading);
 	const insert = replacementText(e);
 	if (target.start === target.end) {
 		return parkedCaretInsertion(node, cursor, range.start, insert, lineEnding);
@@ -60,8 +60,8 @@ export function resolveLiveRangeEdit(
 	// A range the browser would have taken past the painted content is always rewritten here.
 	const edit =
 		range.end < target.end
-			? replaceRangeRaw(node, range, insert ?? '', reading, ambientPrefix, lineEnding)
-			: resolveSelectionEdit(node, range, insert ?? '', reading, ambientPrefix);
+			? replaceRangeRaw(node, range, insert ?? '', store, lineEnding)
+			: resolveSelectionEdit(node, range, insert ?? '', store);
 	if (!edit) return null;
 	return insert === null
 		? { kind: 'swallow' }
@@ -102,13 +102,12 @@ export function applyLiveRangeEdit(
 	node: NodeView,
 	cursor: LiveEditCursor,
 	lineEnding: LineEnding,
-	reading: Reading,
-	ambientPrefix: string,
+	store: StoredAs,
 	isRevealing: () => boolean,
 	commit: (edit: LiveRangeRewrite) => void
 ): boolean {
 	if (isRevealing()) return false;
-	const edit = resolveLiveRangeEdit(e, node, cursor, lineEnding, reading, ambientPrefix);
+	const edit = resolveLiveRangeEdit(e, node, cursor, lineEnding, store);
 	if (!edit) return false;
 	e.preventDefault();
 	if (edit.kind === 'rewrite') commit(edit);
@@ -121,8 +120,7 @@ export function resolveSelectionEdit(
 	node: NodeView,
 	selection: { start: number; end: number },
 	typed: string,
-	reading: Reading,
-	ambientPrefix = ''
+	store: StoredAs
 ): SelectionEdit | null {
 	// Both ends off any scalar interior before the slice: a half-pair here is unrecoverable
 	// bytes, not a recoverable edit. Snapping the same direction cannot invert the range.
@@ -137,9 +135,8 @@ export function resolveSelectionEdit(
 		seam: start,
 		start: { node, offset: start },
 		end: { node, offset: end },
-		reading,
 		typed,
-		ambientPrefix
+		store
 	});
 	if (joined.raw === mergedRaw) return null;
 	// The insert lands where the two sides now meet: the cleanup runs on the delete half, and the
@@ -156,12 +153,11 @@ export function replaceRangeRaw(
 	node: NodeView,
 	range: { start: number; end: number },
 	typed: string,
-	reading: Reading,
-	ambientPrefix: string,
+	store: StoredAs,
 	lineEnding: LineEnding
 ): SelectionEdit {
-	const { start, end } = paintedRange(node, range, reading);
-	const cleaned = resolveSelectionEdit(node, { start, end }, typed, reading, ambientPrefix);
+	const { start, end } = paintedRange(node, range, store.reading);
+	const cleaned = resolveSelectionEdit(node, { start, end }, typed, store);
 	if (cleaned) return cleaned;
 	const display = trimTrailingLineEnding(node.raw);
 	return {

@@ -102,6 +102,23 @@ describe('live mode: every cell cut crosses the join', () => {
 		expect(committedCalls(mounted)).toEqual([[0, 'bot', 'authored', 4, 2]]);
 	});
 
+	// #523 miss: every cell case started with a delimiter, so none held text a block reads as a
+	// heading or a list, which the cleanup's block reading of the cell refused.
+	it.each(['# ', '- '])(
+		'cell text opening with %j is read as cell text, not as a block',
+		async (lead) => {
+			mounted = mountCell(`${lead}**ab** cd`, LIVE);
+			mounted.el.focus();
+			mounted.instance.setSelection(5, 10);
+
+			const e = dispatchBeforeInput(mounted.el, 'deleteContentBackward');
+			await settleCommit(mounted);
+
+			expect(e.defaultPrevented).toBe(true);
+			expect(committedCalls(mounted)).toEqual([[0, `${lead}ad`, 'authored', 5, 3]]);
+		}
+	);
+
 	it('an escape ahead of the cut survives the join', async () => {
 		mounted = mountCell('a\\|b **bold** *it*', LIVE);
 		mounted.el.focus();

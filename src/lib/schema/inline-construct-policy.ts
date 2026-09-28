@@ -8,6 +8,7 @@
 import { isBuiltinInlineKind, type AnyInlineKind } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import type { Reading } from './reading';
+import type { StoredAs } from './stored-as';
 import type { AnyCommandId } from './command-id';
 import { isBuiltinCommandId } from './commands';
 import { registerOnce } from './register-once';
@@ -190,15 +191,12 @@ export interface JoinSeam {
 	seam: number;
 	start: JoinEndpoint;
 	end: JoinEndpoint;
-	/** Belongs to one editor, so it is passed on the call: a reference link parsed without it reads
-	 *  as plain brackets, and the cleanup would skip a construct the user saw as a link. */
-	reading: Reading;
-	/** Text the caller will insert at the join after the cleanup, absent for a plain delete. The
+	/** Text the caller will insert at the join after the cleanup, `''` for a plain delete. The
 	 *  cleanup checks it too, since typed text changes what a surviving delimiter pairs against. */
-	typed?: string;
-	/** The container's marker prefix over the surviving side (`- `, `> `), if any. The result is
-	 *  parsed back through it, or a body opening with a space reparses under a wider marker. */
-	ambientPrefix?: string;
+	typed: string;
+	/** Where the joined bytes will be stored, with the editor's reading: the cleanup reads each
+	 *  candidate back there, a list item's marker line or a cell's text included. */
+	store: StoredAs;
 }
 
 /** The bytes a cleanup wrote and where the two sides now meet in them: dropping characters from

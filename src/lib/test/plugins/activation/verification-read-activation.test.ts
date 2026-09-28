@@ -9,12 +9,10 @@ import { screenVisibility } from '$lib/core/inline/visibility';
 import { canWrapRangeAsLink } from '$lib/core/inline/link-source-bytes';
 import { resolveMarkedInsertion } from '$lib/components/blocks/text/pending-mark-insert';
 import { resolveEdgeSeat } from '$lib/components/blocks/text/edge-seat';
-import {
-	resolveEdgeDeletion,
-	type EdgeDeletionSurface
-} from '$lib/components/blocks/text/construct-edge-delete';
+import { resolveEdgeDeletion } from '$lib/components/blocks/text/construct-edge-delete';
+import { makeBlockNode } from '$lib/core/nodes';
 import { grammarListing } from './grammar-listing';
-import { fixtureReading } from '$lib/test/harness/fixture-grammar';
+import { fixtureReading, topLevelStore } from '$lib/test/harness/fixture-grammar';
 
 beforeEach(() => {
 	installPlugins([
@@ -78,8 +76,9 @@ describe('the typing position at a hidden run reads the syntax the editor draws'
 
 describe('the edge delete reads the syntax the editor draws', () => {
 	// Deleting the bold `x` leaves `:smile:`, which reads as text here, not as an emoji.
-	const deleteBoldX = (installedAs: EdgeDeletionSurface) => {
+	const deleteBoldX = (kind: 'paragraph' | 'tableCell') => {
 		const raw = ':smile**x**:';
+		const node = makeBlockNode({ kind, leadingTrivia: '', raw });
 		return resolveEdgeDeletion({
 			display: raw,
 			content: { start: 0, end: raw.length },
@@ -87,16 +86,15 @@ describe('the edge delete reads the syntax the editor draws', () => {
 			direction: 'backward',
 			screen: LIVE,
 			inlines: inlinesOf(raw),
-			installedAs,
-			reading: fixtureReading({ grammar: withoutEither() })
+			store: topLevelStore(node, fixtureReading({ grammar: withoutEither() }))
 		});
 	};
 
 	it('takes the byte in a table cell', () => {
-		expect(deleteBoldX('cell')).toMatchObject({ raw: ':smile:', caret: 6 });
+		expect(deleteBoldX('tableCell')).toMatchObject({ raw: ':smile:', caret: 6 });
 	});
 
 	it('takes the byte in a prose block', () => {
-		expect(deleteBoldX('block')).toMatchObject({ raw: ':smile:', caret: 6 });
+		expect(deleteBoldX('paragraph')).toMatchObject({ raw: ':smile:', caret: 6 });
 	});
 });

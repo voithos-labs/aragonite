@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { defaultStructuralHook } from '$lib/tree-operations/paste/hooks';
 import { parse } from '$lib/core/parser';
 import type { CstNode } from '$lib/core/nodes';
-import { fixtureReading, TOP_SLOT } from '../../harness/fixture-grammar';
+import { TOP_SLOT, topLevelStore } from '../../harness/fixture-grammar';
 
 // A clipboard blank-line row is a live block the parser produced, so it must survive the
 // boundary splice intact, and no empty-raw ('') node may be created beside it.
@@ -10,6 +10,8 @@ import { fixtureReading, TOP_SLOT } from '../../harness/fixture-grammar';
 const para = (raw: string): CstNode => parse(raw).children[0];
 const clipboard = (): CstNode[] => parse('# Heading\n\n\nNew paragraph\n').children;
 const raws = (nodes: CstNode[]): string[] => nodes.map((n) => n.raw ?? '');
+// No case pre-deletes, so the hook reads only the store's grammar.
+const STORE = topLevelStore(para('text\n'));
 
 describe('structural paste at a block boundary', () => {
 	it('paste at block end keeps the clipboard blank-line row and appends no residue', () => {
@@ -18,7 +20,7 @@ describe('structural paste at a block boundary', () => {
 			5,
 			clipboard(),
 			undefined,
-			fixtureReading(),
+			STORE,
 			'\n',
 			TOP_SLOT
 		);
@@ -39,7 +41,7 @@ describe('structural paste at a block boundary', () => {
 			0,
 			clipboard(),
 			undefined,
-			fixtureReading(),
+			STORE,
 			'\n',
 			TOP_SLOT
 		);

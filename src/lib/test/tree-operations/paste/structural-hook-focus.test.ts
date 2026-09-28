@@ -2,13 +2,15 @@ import { describe, it, expect } from 'vitest';
 import { defaultStructuralHook } from '$lib/tree-operations/paste/hooks';
 import { parse } from '$lib/core/parser';
 import type { CstNode } from '$lib/core/nodes';
-import { fixtureReading, TOP_SLOT } from '../../harness/fixture-grammar';
+import { TOP_SLOT, topLevelStore } from '../../harness/fixture-grammar';
 
 // The caret lands at the end of the pasted content, not the trailing residue
 // buildPastedReplacement appends as the last node.
 
 const para = (raw: string): CstNode => parse(raw).children[0];
 const twoBlocks = (): CstNode[] => parse('one\n\ntwo\n').children;
+// No case pre-deletes, so the hook reads only the store's grammar.
+const STORE = topLevelStore(para('text\n'));
 
 describe('defaultStructuralHook: caret at end of pasted content', () => {
 	it('mid-paragraph paste focuses the last pasted block, not the trailing residue', () => {
@@ -17,7 +19,7 @@ describe('defaultStructuralHook: caret at end of pasted content', () => {
 			5,
 			twoBlocks(),
 			undefined,
-			fixtureReading(),
+			STORE,
 			'\n',
 			TOP_SLOT
 		);
@@ -32,7 +34,7 @@ describe('defaultStructuralHook: caret at end of pasted content', () => {
 			5,
 			twoBlocks(),
 			undefined,
-			fixtureReading(),
+			STORE,
 			'\n',
 			TOP_SLOT
 		);
@@ -48,7 +50,7 @@ describe('defaultStructuralHook: caret at end of pasted content', () => {
 			3,
 			twoBlocks(),
 			undefined,
-			fixtureReading(),
+			STORE,
 			'\n',
 			TOP_SLOT
 		);

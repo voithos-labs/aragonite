@@ -24,6 +24,7 @@ import {
 } from '../editable-surface';
 import { pasteDispatch } from '../../../tree-operations/paste/dispatch';
 import { replaceRangeRaw } from './live-selection-edit';
+import { storedAsAt } from '../../../tree-operations/stored-as';
 import { replaceSelectedWidget } from './widget-interaction';
 import type { Reading } from '../../../schema/reading';
 import { documentLineEnding } from '../../../core/lines';
@@ -56,9 +57,6 @@ export interface TextClipboardDeps {
 	foldRevealBeforeMutation: () => RevealFold | null;
 	/** True while an inline widget on this block is showing its source. */
 	isRevealing: () => boolean;
-	/** The container's marker prefix this block renders under, which the cut reads its candidate
-	 *  back through: a list item body left starting with a space reparses under a wider marker. */
-	getAmbientPrefix: () => string;
 	/** The block's live DOM as raw text, so a copy over an uncommitted edit yields what
 	 *  the user sees rather than a stale slice of `node.raw`. */
 	readRevealedText: () => string;
@@ -154,14 +152,9 @@ export function createTextClipboard(deps: TextClipboardDeps): TextClipboard {
 			if (!selOffsets) return;
 			// A cut is a delete, so it goes through the same join rules: in live mode the range
 			// can span delimiter runs the user never saw, and a plain splice would print them.
-			const edit = replaceRangeRaw(
-				deps.node,
-				selOffsets,
-				'',
-				deps.reading,
-				deps.getAmbientPrefix(),
-				documentLineEnding(deps.getDoc())
-			);
+			const doc = deps.getDoc();
+			const store = storedAsAt(doc, deps.myPath, deps.reading);
+			const edit = replaceRangeRaw(deps.node, selOffsets, '', store, documentLineEnding(doc));
 			const write = deps.blockEdit.updateBlockContent(
 				deps.index,
 				edit.raw,

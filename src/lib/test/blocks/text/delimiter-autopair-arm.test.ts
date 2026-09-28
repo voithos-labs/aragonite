@@ -20,7 +20,7 @@ interface Recorded {
 function surfaceOver(
 	text: string,
 	caret: number,
-	keepsBlockKind: (text: string) => boolean,
+	keepsKind: (line: string) => boolean,
 	/** The empty pair the auto-pair wrote into `text`, when the case starts from one. */
 	own?: ContentRange
 ): AutoPairSurface & Recorded {
@@ -38,7 +38,7 @@ function surfaceOver(
 		setCaret: (offset) => recorded.carets.push(offset),
 		seatOutside: () => recorded.outside++,
 		write: (next, before, after) => recorded.writes.push([next, before, after]),
-		keepsBlockKind,
+		keepsKind,
 		reading: fixtureReading(),
 		ownPairs,
 		get writes() {

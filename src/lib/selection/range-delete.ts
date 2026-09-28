@@ -5,7 +5,7 @@
 
 import type { GrammarView } from '../schema/block-openers';
 import type { Reading } from '../schema/reading';
-import { metadataOf, type CstNode, type Document } from '../core/nodes';
+import type { CstNode, Document } from '../core/nodes';
 import type { SelectionPoint } from './primitives';
 import type { CoveredRange } from './range-coverage';
 import type { SharingState } from '../tree-operations/sharing';
@@ -28,6 +28,7 @@ import { isBlankParagraph } from '../core/parser';
 import { displayLength, documentLineEnding } from '../core/lines';
 import { deleteAtPath } from '../tree-operations/path-mutate';
 import { cleanJoinedRaw } from '../tree-operations/node-ops';
+import { storedAsAt } from '../tree-operations/stored-as';
 import { joinKeepingSuffix } from '../tree-operations/structural-suffix';
 import { deleteSubtreesIdentityGated, installSurvivor } from './range-delete-ceremony';
 import { ensureUnsharedPath } from '../tree-operations/unshare';
@@ -141,8 +142,8 @@ export function rangeDelete(
 		seam: startOffset,
 		start: { node: startBlock, offset: startOffset },
 		end: { node: endBlock, offset: join.end },
-		reading,
-		ambientPrefix: containerAmbientPrefix(doc, start.path)
+		typed: '',
+		store: storedAsAt(doc, start.path, reading)
 	});
 
 	if (sameBlock) {
@@ -193,15 +194,4 @@ export function rangeDelete(
 			: { path: start.path.slice(), offset: Math.max(0, joined.seam + shift) };
 
 	return { newDoc: doc, collapsedCaret };
-}
-
-/** The list marker the survivor renders under (only a list item's first child has one), so the
- *  join cleanup can read its result back through it. */
-export function containerAmbientPrefix(doc: Document, path: readonly number[]): string {
-	if (path.length < 2 || path[path.length - 1] !== 0) return '';
-	const parent = blockNodeAt(doc, path.slice(0, -1));
-	const item = parent?.kind === 'listItem' ? metadataOf(parent, 'listItem') : null;
-	// A task item's marker carries its checkbox too, which is not modelled here: '' skips the
-	// read-back rather than checking against the wrong prefix.
-	return item && !item.taskItem ? item.marker : '';
 }

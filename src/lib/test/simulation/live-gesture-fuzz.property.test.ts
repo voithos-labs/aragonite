@@ -68,6 +68,9 @@ describe('live-mode gestures at hidden edges', () => {
 		// The toggle again, spread over two leaves: the per-block spans a range decomposes into
 		// are verified one at a time, so a range can rewrite where a single block would not.
 		expect(stats.rewrote['cross-format-toggle']).toBeGreaterThan(5);
+		// A check that refuses every candidate reads green on the checks above, so the cleanup
+		// under a list marker has to be seen rewriting at all.
+		expect(stats.rewroteUnderListMarker).toBeGreaterThan(0);
 	});
 
 	// These gestures take an offset a caller computed, so a draw inside a surrogate pair reaches
@@ -185,16 +188,16 @@ describe('the shapes that used to need an exclusion', () => {
 		expect(typed.screen).toBe('lorem汉`a');
 	});
 
-	// The cleaned body would start with a space the item's marker swallows on reload, so the
-	// cleanup reads its candidate back through the marker and turns it down.
-	it('#163: a join in a list item keeps the marker the tree holds', async () => {
+	// The cleaned body starts with a space the item's marker takes on reload: the cleanup reads it
+	// back through the marker, where it still shows, and the tree takes the wider marker too.
+	it('#163: a join in a list item drops the runs, and the tree reads as the reload does', async () => {
 		const cut = await liveAndLiteral('- **a b** c\n', {
 			kind: 'range-delete',
 			offset: 0,
 			endOffset: 5
 		});
-		expect(cut.live).toBe('- ** c\n');
-		expect(cut.live).toBe(cut.literal);
+		expect(cut.live).toBe('-  c\n');
+		expect(cut.literal).toBe('- ** c\n');
 		expect(cut.shape).toBeNull();
 	});
 

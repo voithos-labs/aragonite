@@ -11,12 +11,15 @@ import { resolveMarkedInsertion } from '$lib/components/blocks/text/pending-mark
 import { resolveEdgeSeat } from '$lib/components/blocks/text/edge-seat';
 import {
 	resolveEdgeDeletion,
-	type DeleteDirection,
-	type EdgeDeletionSurface
+	type DeleteDirection
 } from '$lib/components/blocks/text/construct-edge-delete';
 import { createCompositionSeat } from '$lib/components/blocks/text/composition-seat';
 import type { InlineMarkKind } from '$lib/schema/inline-construct-policy';
-import { fixtureReading } from '$lib/test/harness/fixture-grammar';
+import { makeBlockNode } from '$lib/core/nodes';
+import { fixtureReading, topLevelStore } from '$lib/test/harness/fixture-grammar';
+
+/** A prose block stores a block; a table cell stores text. */
+type StoredKind = 'paragraph' | 'tableCell';
 
 // Each live rewrite reads its candidate with the link definitions the drawn tree was read with.
 // Miss-analysis: GH #443, rewrite fixtures used only links that read the same without a resolver.
@@ -85,9 +88,10 @@ describe('a destructive key inside a reference link', () => {
 		display: string,
 		caret: number,
 		direction: DeleteDirection,
-		installedAs: EdgeDeletionSurface = 'block'
+		kind: StoredKind = 'paragraph'
 	) {
 		const { resolver, inlines } = drawn(display);
+		const node = makeBlockNode({ kind, leadingTrivia: '', raw: display });
 		return resolveEdgeDeletion({
 			display,
 			content: { start: 0, end: display.length },
@@ -95,16 +99,15 @@ describe('a destructive key inside a reference link', () => {
 			direction,
 			screen: LIVE,
 			inlines,
-			installedAs,
-			reading: fixtureReading({ resolver: resolver })
+			store: topLevelStore(node, fixtureReading({ resolver: resolver }))
 		});
 	}
 
 	// `[ef]` names no definition, so the cut would put both brackets on screen.
-	it.each<EdgeDeletionSurface>(['block', 'cell'])(
+	it.each<StoredKind>(['paragraph', 'tableCell'])(
 		'takes nothing where the cut breaks the label (%s)',
-		(surface) => {
-			expect(del('see [ref] here', 4, 'forward', surface)).toEqual({ swallow: true });
+		(kind) => {
+			expect(del('see [ref] here', 4, 'forward', kind)).toEqual({ swallow: true });
 		}
 	);
 

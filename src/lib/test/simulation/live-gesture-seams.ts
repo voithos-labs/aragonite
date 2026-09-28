@@ -28,10 +28,9 @@ import {
 	isHiddenMarkerText
 } from '$lib/cursor/widget-offset';
 import { asRawOffset, type RawOffset } from '$lib/cursor/coordinate-spaces';
-import {
-	createEdgePolicyDispatch,
-	keepsBlockKind
-} from '$lib/components/blocks/text/edge-policy-dispatch';
+import { createEdgePolicyDispatch } from '$lib/components/blocks/text/edge-policy-dispatch';
+import { keepsKindAt } from '$lib/core/inline/live-edit/read-back';
+import { storedAsAt } from '$lib/tree-operations/stored-as';
 import { resolveDelimiterAutoPair } from '$lib/components/blocks/text/delimiter-autopair';
 import { createAutoPairRecord } from '$lib/components/blocks/text/auto-pair-record';
 import {
@@ -39,6 +38,7 @@ import {
 	resolveSelectionEdit
 } from '$lib/components/blocks/text/live-selection-edit';
 import { rangeDelete } from '$lib/selection/range-delete';
+import { nodeAt } from '$lib/tree-operations/node-primitives';
 import { coverRange } from '$lib/selection/range-coverage';
 import {
 	applyCrossBlockFormat,
@@ -164,6 +164,17 @@ export function gestureTargets(doc: Document, kind: GestureKind): ProseLeaf[] {
 	return doc.children.flatMap((child, index) =>
 		child.children === undefined && isProseKind(child.kind) ? [{ path: [index], node: child }] : []
 	);
+}
+
+/** Whether the gesture starts in a list item's first block, the one its marker stands before. */
+export function startsUnderListMarker(doc: Document, gesture: Gesture): boolean {
+	const targets = gestureTargets(doc, gesture.kind);
+	if (targets.length === 0) return false;
+	const path = spansLeaves(gesture.kind)
+		? drawnLeafRange(doc, gesture)?.start.path
+		: targets[gesture.leaf % targets.length].path;
+	if (!path || path.length < 2 || path[path.length - 1] !== 0) return false;
+	return nodeAt(doc, path.slice(0, -1))?.kind === 'listItem';
 }
 
 /** Read before the offset reaches any editing call: a caller's own arithmetic can produce a
@@ -345,6 +356,7 @@ async function pressEdgeKey(
 			return fixtureReading();
 		},
 		getEl: () => el,
+		storedAs: () => storedAsAt(h.doc, [index], fixtureReading({}, mode)),
 		hasIslands: () => false,
 		getRawSelection: () => null,
 		blockEdit: h.blockEdit,
@@ -355,8 +367,7 @@ async function pressEdgeKey(
 		isReading: () => false,
 		getEdgeAffinity: () => gesture.affinity,
 		pendingMarks: makePendingMarks(),
-		ownPairs: createAutoPairRecord().forBlock(),
-		installedAs: 'block'
+		ownPairs: createAutoPairRecord().forBlock()
 	});
 	const event = new KeyboardEvent('keydown', { key, cancelable: true });
 	if (dispatch.handleKeydown(event, asRawOffset(offset) as RawOffset)) return true;
@@ -385,7 +396,10 @@ async function nativePress(
 			offset,
 			key,
 			fixtureReading(),
-			{ ownPair: null, keepsKind: (line) => keepsBlockKind(node, line, fixtureReading()) }
+			{
+				ownPair: null,
+				keepsKind: (line) => keepsKindAt(node, line, storedAsAt(h.doc, [index], fixtureReading()))
+			}
 		);
 		if (paired?.kind === 'step-over') return;
 		if (paired) {
@@ -470,7 +484,7 @@ function wordDelete(
 		node,
 		{ rawRangeOf: () => range, getRawSelection: () => null },
 		'\n',
-		fixtureReading({}, mode)
+		storedAsAt(h.doc, [index], fixtureReading({}, mode))
 	);
 	if (edit === null) {
 		void h.blockEdit.updateBlockContent(
@@ -499,7 +513,8 @@ function replaceSelection(
 ): boolean {
 	const range = drawnRange(node, gesture);
 	if (range === null) return false;
-	const edit = resolveSelectionEdit(node, range, gesture.char, fixtureReading({}, mode));
+	const store = storedAsAt(h.doc, [index], fixtureReading({}, mode));
+	const edit = resolveSelectionEdit(node, range, gesture.char, store);
 	if (edit) {
 		void h.blockEdit.updateBlockContent(index, edit.raw, 'authored', range.start, edit.caret);
 		return true;

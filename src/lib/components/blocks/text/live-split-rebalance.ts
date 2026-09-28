@@ -25,7 +25,7 @@ import {
 	getInlineConstructPolicy,
 	type LiveSplitRebalancer
 } from '../../../schema/inline-construct-policy';
-import { soleProseReparse } from './screen-diff';
+import { readBlocks } from '../../../core/parser';
 
 // ── The rewrite ──────────────────────────────────────────────────────────────
 
@@ -304,13 +304,15 @@ export function parsesBack(
 
 const readsAsBlankLine = (visible: string): boolean => visible !== '' && isBlankText(visible);
 
+/** A half read as a top-level fragment: exactly one prose block, or null. */
 function soleProseBlock(raw: string, reading: Reading): HalfRead | null {
-	const sole = soleProseReparse(raw, reading);
-	if (sole === null) return null;
+	const blocks = readBlocks(raw, { grammar: reading.grammar, scope: 'fragment' }).children;
+	if (blocks.length !== 1 || !isProseKind(blocks[0].kind)) return null;
+	const block = blocks[0];
+	const range = getContentRange(block);
+	const nodes = readInline(block.raw, range.start, range.end, reading.resolver, reading.grammar);
 	return {
-		visible: renderedText(sole.nodes, sole.block.raw, CONTENT_VISIBILITY, {
-			grammar: reading.grammar
-		}),
-		kinds: constructKinds(sole.nodes)
+		visible: renderedText(nodes, block.raw, CONTENT_VISIBILITY, { grammar: reading.grammar }),
+		kinds: constructKinds(nodes)
 	};
 }

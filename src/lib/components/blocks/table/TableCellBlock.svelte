@@ -31,6 +31,8 @@
 	import { pasteDispatch } from '../../../tree-operations/paste/dispatch';
 	import { blockNodeAt, isBlockNode, nodeAt } from '../../../tree-operations/node-primitives';
 	import { cutRangeFromDisplay } from '../../../tree-operations/node-ops';
+	import { storedAsAt } from '../../../tree-operations/stored-as';
+	import { keepsKindAt } from '../../../core/inline/live-edit/read-back';
 	import { applyLiveRangeEdit } from '../text/live-selection-edit';
 	import {
 		gridToHtmlTable,
@@ -142,6 +144,8 @@
 		reading
 	} = wiring.deps;
 	const { grammar } = reading;
+	// Made per gesture, never derived: a derived value would subscribe the cell to the tree.
+	const storedAs = () => storedAsAt(getDoc(), myPath, reading);
 	const tableContext = getContext<TableContext>(TABLE_CONTEXT_KEY);
 	const {
 		autoPairs,
@@ -288,6 +292,7 @@
 			return reading;
 		},
 		getEl: () => el ?? null,
+		storedAs,
 		hasIslands: () =>
 			decorationEngine ? decorationEngine.islandsForPath(myPath).length > 0 : false,
 		getRawSelection: () => cursor.getRawSelection(),
@@ -319,8 +324,7 @@
 		getEdgeAffinity: caretMemory.side,
 		noteOutside: caretMemory.noteExtreme,
 		pendingMarks: caretMemory.pendingMarks,
-		ownPairs,
-		installedAs: 'cell'
+		ownPairs
 	});
 
 	// ── BlockComponent interface ────────────────────────────────────────
@@ -740,8 +744,7 @@
 			node,
 			cursor,
 			documentLineEnding(getDoc()),
-			reading,
-			'',
+			storedAs(),
 			widgetInteraction.isRevealing,
 			(edit) => {
 				parkWrite(
@@ -762,6 +765,8 @@
 			foldReveal: () => widgetInteraction.foldRevealBeforeMutation(),
 			setCaret: (offset) => cursor.setRaw(asRawOffset(offset), { clamp: 'exact' }),
 			seatOutside: caretMemory.noteExtreme,
+			// Each auto-pair caller asks this itself until the caret-edge key table gives it one caller.
+			keepsKind: (line) => keepsKindAt(node, line, storedAs()),
 			reading,
 			ownPairs,
 			write: (text, caretBefore, caretAfter) => {
@@ -937,7 +942,7 @@
 	// never saw (live-mode.md § 4.5).
 	function deleteCellRange(start: number, end: number): void {
 		const display = trimTrailingLineEnding(node.raw);
-		const cut = cutRangeFromDisplay(node, display, { start, end }, reading);
+		const cut = cutRangeFromDisplay(node, display, { start, end }, storedAs());
 		parkWrite(blockEdit.updateBlockContent(index, cut.display, 'literal', start, cut.offset));
 	}
 
