@@ -8,7 +8,7 @@ import type { AnyBlockKind, CstNode } from '../core/nodes';
 import { describeMetadataDivergence } from '../core/metadata-parity';
 import { readBlocks } from '../core/parser';
 import { ownTrailingLineEnding, trimTrailingLineEnding } from '../core/lines';
-import { assignChildIdsDeep, idsForPositions } from '../block-id';
+import { assignChildIdsDeep, idsAcrossReread } from '../block-id';
 import { perfEnabled, recordContainerKindReparse, recordOpenerLineRead } from '../perf/instruments';
 import { tryGetBlockKindDescriptor, type BlockKindDescriptor } from './block-kind-descriptor';
 import { isBlockOpenerRegistered, type GrammarView } from './block-openers';
@@ -184,14 +184,15 @@ function takeMetadata(node: CstNode, reread: CstNode): void {
 	node.metadata = reread.metadata;
 }
 
-/** A node's reading taken into the node itself: every child position keeps its id. */
+/** A node's reading taken into the node itself: a child the re-read left alone keeps its id. */
 function takeReread(node: CstNode, reread: CstNode): void {
+	const children = reread.children ?? [];
+	node.childIds = idsAcrossReread(node.children ?? [], node.childIds, children);
 	node.metadata = reread.metadata;
-	node.children = reread.children;
+	node.children = children;
 	node.innerPrefix = reread.innerPrefix;
 	node.innerSuffix = reread.innerSuffix;
 	node.childSpans = undefined;
-	node.childIds = idsForPositions(node.childIds, reread.children?.length ?? 0);
 	assignChildIdsDeep(node);
 }
 

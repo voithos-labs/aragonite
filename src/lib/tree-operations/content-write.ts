@@ -23,7 +23,7 @@ import {
 	ownTrailingLineEnding,
 	type LineEnding
 } from '../core/lines';
-import { assignChildIdsDeep, idsForPositions } from '../block-id';
+import { assignChildIdsDeep, idsAcrossReread } from '../block-id';
 import {
 	getBlockKindDescriptor,
 	tryGetBlockKindDescriptor,
@@ -408,8 +408,9 @@ export function installReading(
 	const node = parent.children[index];
 	if (!node || reading.outcome === 'kept') return null;
 	if (reading.outcome === 'reread') {
-		// Each child position keeps its id, so the block there stays mounted.
-		reading.node.childIds = idsForPositions(node.childIds, reading.node.children?.length ?? 0);
+		// A child the re-read left alone keeps its id, so the block there stays mounted.
+		const children = reading.node.children ?? [];
+		reading.node.childIds = idsAcrossReread(node.children ?? [], node.childIds, children);
 		return installReplacement(parent, index, reading.node, grammar);
 	}
 	if (!isBlockOpenerRegistered(node.kind)) return null;

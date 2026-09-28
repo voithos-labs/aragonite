@@ -12,6 +12,7 @@ import { createHistoryActions } from '$lib/editor-actions/commit/history';
 import { createLeafTyping } from '$lib/editor-actions/leaf-write';
 import { legalizeWrite } from '$lib/tree-operations/content-write';
 import { blockNodeAt } from '$lib/tree-operations/node-primitives';
+import { assignChildIdsDeep } from '$lib/block-id';
 import { makeTopHarness, type TopHarness } from '$lib/test/harness/editor-actions';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
 
@@ -169,6 +170,38 @@ describe('a strip container reads its rewritten first line as a reload does', ()
 			expect(shapeOf(h.deps.doc.children)).toEqual(reloadShape(h.deps.doc));
 		});
 	});
+
+	// Miss-analysis: every spill row checked the tree's shape, none which id each block ended up
+	// with, so ids handed out by position moved to the item below.
+	it.each(ROUTES)('the items a spill left alone keep their ids, %s', async (_name, route) => {
+		const h = makeTopHarness('- a b\n  - sub\n- c\n- d\n');
+		const list = h.deps.doc.children[0];
+		assignChildIdsDeep(list);
+		const [first, c, d] = list.childIds!;
+
+		await route(h, [0, 0, 0], ' b\n');
+
+		const ids = h.deps.doc.children[0].childIds!;
+		expect(serialize(h.deps.doc)).toBe('-  b\n  - sub\n- c\n- d\n');
+		expect(ids).toHaveLength(4);
+		expect([ids[0], ids[2], ids[3]]).toEqual([first, c, d]);
+		expect([first, c, d]).not.toContain(ids[1]);
+	});
+
+	it.each(ROUTES)(
+		'the edited item keeps its id when a paragraph leaves the list, %s',
+		async (_name, route) => {
+			const h = makeTopHarness('- a b\n\n  c\n');
+			const list = h.deps.doc.children[0];
+			assignChildIdsDeep(list);
+			const [item] = list.childIds!;
+
+			await route(h, [0, 0, 0], ' b\n');
+
+			expect(h.deps.doc.children.map((block) => block.kind)).toEqual(['list', 'paragraph']);
+			expect(h.deps.doc.children[0].childIds).toEqual([item]);
+		}
+	);
 
 	it('undo puts back the item a moved paragraph left', async () => {
 		const source = '- a b\n\n  c\n';
