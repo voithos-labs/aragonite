@@ -86,7 +86,7 @@ describe('coverage-driven column delete emits the table path with colIdx in the 
 		);
 		const { start, end } = deps.selectionState;
 
-		const result = await maybeCommitTableCoverageDelete(ctx, table, start!, end!, undefined);
+		const result = await maybeCommitTableCoverageDelete(ctx, table, start!, end!, false);
 
 		expect(result).not.toBeNull();
 		const del = edits.find((e) => e.op === 'tableDeleteColumn');

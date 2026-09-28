@@ -41,6 +41,10 @@ Intra-table Backspace dispatches by what the selection covers:
   the table is the document's only block, an empty paragraph replaces it in the same undo entry so
   the document keeps ≥1 editable block, the caret lands in it (offset 0), and a single Ctrl+Z
   restores the original table.
+- Whole-table coverage with a paragraph above and below: the caret lands at the end of the one
+  above, the side Backspace points, so a typed `x` joins its text.
+  - Miss-analysis: the whole-table cases all used a table alone in the document, so where the
+    caret went beside neighbours was never read.
 - Whole-row coverage (every cell of one row, no cells from other rows): delete the row. It does
   nothing when only the header row would survive (≥1 body row required), mirroring Ctrl+Shift+Backspace.
   Deleting the header row promotes the next row to header.

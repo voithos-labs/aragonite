@@ -110,7 +110,7 @@ async function runCrossBlockDelete(
 	if (options?.tableCoverageDelete && isPureTopLevel && samePath) {
 		const block = nodeAt(doc, start.path);
 		if (block && isBlockNode(block) && countsCells(block)) {
-			const handled = await maybeCommitTableCoverageDelete(ctx, block, start, end, caretRestore);
+			const handled = await maybeCommitTableCoverageDelete(ctx, block, start, end, !!caretRestore);
 			if (handled) return handled.caret;
 		}
 	}

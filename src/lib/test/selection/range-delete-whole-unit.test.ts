@@ -26,7 +26,7 @@ function del(source: string, start: SelectionPoint, end: SelectionPoint) {
 }
 
 describe('a range covering a whole-block-focus leaf deletes the node', () => {
-	it('removes a top-level rule and lands on the block that takes its slot', () => {
+	it('removes a top-level rule and lands at the end of the block above', () => {
 		const { doc, caret } = del(
 			'lead\n\n---\n\ntail\n',
 			{ path: [1], offset: 0 },
@@ -35,16 +35,25 @@ describe('a range covering a whole-block-focus leaf deletes the node', () => {
 
 		expect(serialize(doc)).toBe('lead\n\ntail\n');
 		expect(doc.children.map((c) => c.kind)).toEqual(['paragraph', 'paragraph']);
-		expect(caret).toEqual({ path: [1], offset: 0 });
+		expect(caret).toEqual({ path: [0], offset: 'lead'.length });
 		expectParseConverged(doc);
 	});
 
-	it('removes a rule that ends the document and lands on the block above', () => {
+	it('removes a rule that ends the document and lands at the end of the block above', () => {
 		const { doc, caret } = del('lead\n\n---\n', { path: [1], offset: 0 }, { path: [1], offset: 3 });
 
 		expect(serialize(doc)).toBe('lead\n');
-		expect(caret).toEqual({ path: [0], offset: 0 });
+		expect(caret).toEqual({ path: [0], offset: 'lead'.length });
 		expectParseConverged(doc);
+	});
+
+	// Miss-analysis: every neighbour here was a paragraph, so a caret aimed at a list's own path,
+	// whose wrapper holds no caret, never showed up.
+	it('with nothing above, lands in the first item of the list below', () => {
+		const { doc, caret } = del('---\n\n- a\n', { path: [0], offset: 0 }, { path: [0], offset: 3 });
+
+		expect(serialize(doc)).toBe('- a\n');
+		expect(caret).toEqual({ path: [0, 0, 0], offset: 0 });
 	});
 
 	it('removes a rule inside a quote and rebuilds the quote', () => {

@@ -7,11 +7,12 @@
 import type { DocumentView } from '../core/node-views';
 import { CURSOR_END, CURSOR_START, entryEdge } from '../block-component';
 import { docPathFrom } from '../cursor/coordinate-spaces';
-import { isBlockNode, nodeAt } from '../tree-operations/node-primitives';
+import { blockNodeAt, isBlockNode, nodeAt } from '../tree-operations/node-primitives';
+import { displayLength } from '../core/lines';
 import { leafAtRawOffset } from '../tree-operations/container-offsets';
 import { caretChildCount } from '../schema/reserved-chrome';
 import type { DocPath } from './path-math';
-import type { CaretPosition } from './primitives';
+import type { CaretPosition, SelectionPoint } from './primitives';
 import { collapsedContainerHiding, firstCaretLeafFrom, previousCaretPath } from './path-lookup';
 
 /** A leaf a caret can sit in, and the offset it takes there. */
@@ -53,6 +54,18 @@ export function caretTargetFor(
 		path = [...path, edge.child === 'first' ? 0 : reachable - 1];
 		offset = edge.offset;
 	}
+}
+
+/** {@link caretTargetFor} as a byte a range edit can splice at: a start edge is the leaf's first
+ *  byte and an end edge its last, for the range edits that still type or paste at the caret. */
+export function caretPointFor(doc: DocumentView, pos: CaretPosition): SelectionPoint | null {
+	const target = caretTargetFor(doc, pos);
+	if (!target) return null;
+	const leaf = blockNodeAt(doc, target.leafPath);
+	// The start sentinels are the negative ones.
+	const offset =
+		target.offset === CURSOR_END ? displayLength(leaf?.raw ?? '') : Math.max(0, target.offset);
+	return { path: [...target.leafPath], offset };
 }
 
 /** Which way a delete points: Backspace and a delete with no key `'before'`, Delete and cut

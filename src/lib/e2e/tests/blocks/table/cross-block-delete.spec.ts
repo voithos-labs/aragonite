@@ -114,6 +114,22 @@ test.describe('table block: cross-block delete', () => {
 		await expect(page.locator('.table-cell')).toHaveCount(0);
 	});
 
+	test('a whole-table delete puts the caret at the end of the block above', async ({ page }) => {
+		await editor.loadContent(`above\n\n${TABLE_3x3}\nbelow\n`);
+		// Every cell, first to last: a second Ctrl+A would take the paragraphs too.
+		const [fromBox, toBox] = await boxesOf(
+			page.locator('.table-cell').nth(0),
+			page.locator('.table-cell').nth(8)
+		);
+		await dragBetweenBoxes(page, fromBox, toBox);
+		await editor.waitForCrossBlock(true);
+		await page.keyboard.press('Backspace');
+		await editor.bridge.waitForSourceEquals('above\n\nbelow\n');
+
+		await page.keyboard.type('x');
+		await editor.bridge.waitForSourceEquals('abovex\n\nbelow\n');
+	});
+
 	test('emptying a single-table doc leaves one editable block the user can type into', async ({
 		page
 	}) => {
