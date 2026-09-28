@@ -63,7 +63,7 @@ describe('createDeadSpaceCaret routing', () => {
 			resetSelectionForClick,
 			gapScope: makeEmptyGapScope(),
 			lastBlockIndex: () => 0,
-			revealBlock: async () => component
+			land: async () => 'placed'
 		});
 		const press = { target: root, button: 0 } as unknown as MouseEvent;
 		caret.notePress(root, press);

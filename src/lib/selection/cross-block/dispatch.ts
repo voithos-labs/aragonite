@@ -10,6 +10,7 @@ import type { UserScrollport } from '../../cursor/scroll-ancestors';
 import type { SelectionState } from '../selection-state.svelte';
 import type { SelectedWidgetHandle } from '../primitives';
 import type { CaretMemory } from '../../cursor/caret-memory';
+import type { CaretLanding } from '../caret-landing';
 import type { CrossBlockMutationContext } from './ops';
 import type { CommitController } from '../../action-contracts';
 import type { CommandDispatchContext } from '../../schema/block-commands';
@@ -33,6 +34,9 @@ export interface CrossBlockDispatchContext {
 	selection: SelectionState;
 	getDoc: DocumentGetter;
 	getBlockElByPath: BlockElLookup;
+	/** Where a collapse, an extend's parked caret and a command's target block are put down. */
+	caretLanding: Pick<CaretLanding, 'restore' | 'park' | 'mount'>;
+	/** A mount for the delete, typing and paste over a range, which still place their own caret. */
 	revealPath: (path: number[]) => Promise<BlockComponent | null>;
 	getEditorRoot: () => HTMLElement | null;
 	/** What autoscrolls a drag-select that reaches an edge: the root, the host's scroller, or the

@@ -53,6 +53,7 @@ export function makeHandlers(
 		selection: env.selectionState,
 		getDoc: () => env.doc,
 		getBlockElByPath: opts.getBlockElByPath ?? (() => null),
+		caretLanding: env.deps.caretLanding,
 		revealPath: opts.revealPath ?? ((path) => env.deps.caretLanding.mount(path)),
 		getEditorRoot: () => null,
 		selectedWidget: { range: () => null, clear: () => {} },

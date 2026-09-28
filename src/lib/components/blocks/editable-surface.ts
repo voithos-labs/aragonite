@@ -139,8 +139,8 @@ export interface EditableSurfaceDeps {
 	getDoc: DocumentGetter;
 	getBlockElByPath: BlockElLookup;
 	focusActions: FocusActions;
-	/** Mounts the block a cross-block key lands in. */
-	caretLanding: Pick<CaretLanding, 'mount'>;
+	/** Where a cross-block key's caret goes: a collapse, an extend's parked caret, a command's block. */
+	caretLanding: Pick<CaretLanding, 'restore' | 'park' | 'mount'>;
 	getEditorRoot: () => HTMLElement | null;
 	/** What scrolls this editor (the root in self mode; the host's scroller or the window in
 	 *  host mode), for the cross-block drag-select autoscroll. */
@@ -236,6 +236,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		selection: deps.selection,
 		getDoc: deps.getDoc,
 		getBlockElByPath: deps.getBlockElByPath,
+		caretLanding: deps.caretLanding,
 		// Opens a collapsed body on the way, as the editor root's own cross-block handlers do.
 		revealPath: (path) => deps.caretLanding.mount(path, { openCollapsed: true }),
 		getEditorRoot: deps.getEditorRoot,

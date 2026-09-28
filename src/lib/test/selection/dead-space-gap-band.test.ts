@@ -69,7 +69,7 @@ describe('a dead-space y between two root bands', () => {
 			},
 			gapScope,
 			lastBlockIndex: () => 1,
-			revealBlock: async () => component
+			land: async () => 'placed'
 		});
 		const press = { target: root, button: 0 } as unknown as MouseEvent;
 		caret.notePress(root, press);

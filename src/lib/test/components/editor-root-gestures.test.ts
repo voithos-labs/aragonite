@@ -88,7 +88,7 @@ function harness(opts: { mode?: PresentationMode } = {}) {
 		caretMemory,
 		getBlockElByPath: () => nearest,
 		getBlockComponent: () => component,
-		revealPath: async () => component,
+		land: async () => 'placed',
 		getScrollHost: () => root,
 		getLifetime: () => new AbortController().signal,
 		isHostChrome: (node) => !!node && header.contains(node),

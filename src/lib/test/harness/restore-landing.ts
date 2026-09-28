@@ -29,7 +29,15 @@ export function restoreTarget(
 export function restoreLandingOver(
 	doc: Document,
 	selectionState: SelectionState,
-	{ mounted = true, caretMemory = createCaretMemory() as CaretMemory } = {}
+	{
+		mounted = true,
+		caretMemory = createCaretMemory() as CaretMemory,
+		getBlockElByPath = (): HTMLElement | null => (mounted ? document.createElement('div') : null)
+	}: {
+		mounted?: boolean;
+		caretMemory?: CaretMemory;
+		getBlockElByPath?: (path: number[]) => HTMLElement | null;
+	} = {}
 ) {
 	const revealed: number[][] = [];
 	const listAt = (path: number[]): ChildList => {
@@ -52,7 +60,7 @@ export function restoreLandingOver(
 		root: listAt([]),
 		selectionState,
 		caretMemory,
-		getBlockElByPath: () => (mounted ? document.createElement('div') : null),
+		getBlockElByPath,
 		getEditorRoot: () => null,
 		scroll: null
 	});

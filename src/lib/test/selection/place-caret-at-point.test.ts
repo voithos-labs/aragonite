@@ -66,7 +66,7 @@ describe('placeCaretAtPoint landing walk', () => {
 			resetSelectionForClick: reset,
 			gapScope: makeEmptyGapScope(),
 			lastBlockIndex: () => 0,
-			revealBlock: async () => component,
+			land: async () => 'placed',
 			...overrides
 		});
 	}
@@ -103,23 +103,26 @@ describe('placeCaretAtPoint landing walk', () => {
 
 	// Miss-analysis: the below-document case only ran fully mounted, where last band = last block.
 	it('resolves a point below a windowed-out tail against the document, not the slice', async () => {
-		const tail = { editable: true, focusable: true, focus: vi.fn() } as unknown as BlockComponent;
-		const revealBlock = vi.fn(async () => tail);
-		const caret = makeCaret({ lastBlockIndex: () => 9, revealBlock });
+		const land = vi.fn(async () => 'placed' as const);
+		const caret = makeCaret({ lastBlockIndex: () => 9, land });
 
 		expect(caret.placeAtPoint(root, 20, TABLE_BOX.bottom + 2000)).toBe(true);
 
-		await vi.waitFor(() => expect(tail.focus).toHaveBeenCalledWith(CURSOR_END));
-		expect(revealBlock).toHaveBeenCalledWith(9);
+		await vi.waitFor(() => expect(land).toHaveBeenCalledWith({ path: [9], offset: CURSOR_END }));
 		// The rendered slice's own last block is never touched; a caret there is the defect.
 		expect(focusByPath).not.toHaveBeenCalled();
 	});
 
-	it('leaves the selection alone while a reveal that resolves nothing focusable is in flight', async () => {
-		const caret = makeCaret({ lastBlockIndex: () => 9, revealBlock: async () => null });
-		expect(caret.placeAtPoint(root, 20, TABLE_BOX.bottom + 2000)).toBe(true);
-		await Promise.resolve();
-		expect(resetSelectionForClick).not.toHaveBeenCalled();
+	// Miss-analysis: the click's reset ran after the tail's caret was placed, and forgot the side
+	// the end landing had just recorded; no test read the order.
+	it('resets the selection before the tail landing, so the side the landing records survives', async () => {
+		const order: string[] = [];
+		const land = vi.fn(async () => (order.push('land'), 'placed' as const));
+		const caret = makeCaret({ lastBlockIndex: () => 9, land }, () => order.push('reset'));
+
+		caret.placeAtPoint(root, 20, TABLE_BOX.bottom + 2000);
+
+		await vi.waitFor(() => expect(order).toEqual(['reset', 'land']));
 	});
 
 	it('returns false when the point resolves nothing focusable', () => {

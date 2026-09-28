@@ -70,6 +70,21 @@ export function makeKeydownEnv(source: string | Document, opts: KeydownEnvOption
 		offWindow.delete(JSON.stringify(path));
 		return opts.revealTo ?? null;
 	});
+	// A stand-in for the caret landing whose every call mounts through `revealPath`, so a test
+	// reads each mount in one list.
+	const caretLanding: CrossBlockDispatchContext['caretLanding'] = {
+		mount: (path) => revealPath([...path]),
+		async park(pos) {
+			const ref = await revealPath([...pos.path]);
+			if (!ref?.parkCaret) return false;
+			ref.parkCaret(pos.offset);
+			return true;
+		},
+		async restore(selection) {
+			await revealPath(selection.focus.path.slice());
+			return 'applied';
+		}
+	};
 
 	const mutCtx: CrossBlockMutationContext = {
 		selection,
@@ -96,6 +111,7 @@ export function makeKeydownEnv(source: string | Document, opts: KeydownEnvOption
 		selection,
 		getDoc: () => harness.deps.doc,
 		getBlockElByPath,
+		caretLanding,
 		revealPath,
 		caretMemory,
 		controller,
