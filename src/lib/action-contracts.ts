@@ -76,6 +76,13 @@ export interface AdmittedContentWrite {
 	readonly keepsCaret: boolean;
 }
 
+/** Where the caret goes after an edit to one block, relative to it: `path` walks its children
+ *  (`[]` is the block itself) and `offset` is a byte there or an edge value (`CURSOR_END`). */
+export interface BlockCaret {
+	path: number[];
+	offset: number;
+}
+
 // ── Action sub-interfaces ──────────────────────────────────────────────────
 
 /** Every edit a block asks of its list. Each resolves to whether bytes landed; a focus move
@@ -109,7 +116,7 @@ export interface BlockEditActions {
 	updateBlockMetadata(
 		blockIndex: number,
 		metadata: Record<string, unknown>,
-		options?: { afterTick?: CommitAfterTick }
+		options?: { caret?: BlockCaret }
 	): Promise<boolean>;
 	/** Replace the block with zero or more blocks (none is `deleteBlock`). `focus.path` addresses a
 	 *  caret inside the replacement; `snapshotOffset` is the undo entry's caret. */

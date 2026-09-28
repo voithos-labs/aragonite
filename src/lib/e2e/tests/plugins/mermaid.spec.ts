@@ -130,6 +130,25 @@ test.describe('mermaid reference plugin', () => {
 		expect(await editor.bridge.getSource()).toBe(SEED);
 	});
 
+	test('a keyboard commit focuses the diagram once, after the new code renders', async ({
+		page
+	}) => {
+		await editor.editFirstDiagram(EDITED_CODE);
+		await page.evaluate(() => {
+			const w = window as unknown as { focusIns: string[] };
+			w.focusIns = [];
+			document.addEventListener('focusin', (e) => w.focusIns.push((e.target as Element).className));
+		});
+		await page.keyboard.press('ControlOrMeta+Enter');
+
+		await editor.bridge.waitForSourceContains(EDITED_CODE);
+		await expect(editor.firstInputHost).toBeFocused();
+		await editor.waitForRenderFlush();
+		expect(
+			await page.evaluate(() => (window as unknown as { focusIns: string[] }).focusIns)
+		).toHaveLength(1);
+	});
+
 	test('Escape cancels the edit without touching the source', async ({ page }) => {
 		await editor.editFirstDiagram(EDITED_CODE);
 		await page.keyboard.press('Escape');

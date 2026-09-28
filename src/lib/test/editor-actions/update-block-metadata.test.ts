@@ -1,6 +1,11 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createHistoryActions } from '$lib/editor-actions/commit/history';
-import { makeNestedHarness, makeNode, makeTopHarness } from '$lib/test/harness/editor-actions';
+import {
+	makeNestedHarness,
+	makeNode,
+	makeTopHarness,
+	mountEveryBlock
+} from '$lib/test/harness/editor-actions';
 
 // rebuildListItemRaw no-ops without `children`, so raw-assertion cases need a child.
 function makeTaskListItem(text: string, taskMarker: string): any {
@@ -84,26 +89,14 @@ describe('updateBlockMetadata', () => {
 		expect(args.touchedNodes).toContain(deps.doc.children[0]);
 	});
 
-	it('runs the afterTick callback after committing (post-commit caret placement)', async () => {
+	it('lands no caret when the patch is empty (no commit runs)', async () => {
 		const node = makeNode('paragraph', 'hello\n', { taskChecked: false });
-		const { deps, actions } = makeTopHarness([node]);
+		const { deps, actions, landings } = makeTopHarness([node]);
+		mountEveryBlock(deps);
 
-		const afterTick = vi.fn(() => {
-			expect(deps.doc.children[0].metadata).toEqual({ taskChecked: true });
-		});
-		await actions.updateBlockMetadata(0, { taskChecked: true }, { afterTick });
+		await actions.updateBlockMetadata(0, {}, { caret: { path: [], offset: 0 } });
 
-		expect(afterTick).toHaveBeenCalledOnce();
-	});
-
-	it('skips afterTick when the patch is empty (no commit runs)', async () => {
-		const node = makeNode('paragraph', 'hello\n', { taskChecked: false });
-		const { actions } = makeTopHarness([node]);
-
-		const afterTick = vi.fn();
-		await actions.updateBlockMetadata(0, {}, { afterTick });
-
-		expect(afterTick).not.toHaveBeenCalled();
+		expect(landings).toEqual([]);
 	});
 
 	it('shallow-merge preserves untouched fields', async () => {
@@ -255,5 +248,29 @@ describe('updateBlockMetadata: container scope', () => {
 
 		expect(liveInner().raw).toBe('- [x] pending\n');
 		expect(liveContainer().raw).toBe('- [x] pending\n');
+	});
+});
+
+// ── The caret a metadata write asks for ──────────────────────────────────────
+
+// A plugin's `updateOwnMetadata(patch, { caret })` lands through this commit, once, relative to
+// the block. Miss-analysis: the old callback option placed its own caret and no test counted it.
+describe('updateBlockMetadata with a caret', () => {
+	it('lands once at the path below the block, after the write', async () => {
+		const h = makeTopHarness('a\n\n> one\n>\n> two\n');
+		mountEveryBlock(h.deps);
+
+		await h.actions.updateBlockMetadata(1, { note: true }, { caret: { path: [1], offset: 2 } });
+
+		expect(h.landings).toEqual([{ leafPath: [1, 1], offset: 2, outcome: 'placed' }]);
+	});
+
+	it('leaves the caret where it is when none is asked for', async () => {
+		const h = makeTopHarness('a\n\n> one\n');
+		mountEveryBlock(h.deps);
+
+		await h.actions.updateBlockMetadata(1, { note: true });
+
+		expect(h.landings).toEqual([]);
 	});
 });

@@ -9,6 +9,7 @@
 		getPluginMetadata,
 		trimTrailingLineEnding,
 		normalizeLineEndings,
+		POINTER_GESTURE_ATTR,
 		type NodeView
 	} from '$lib/plugin';
 	import { joinMermaidBody, type MermaidMetadata } from './mermaid-kind';
@@ -146,6 +147,9 @@
 	// Turned on by focus, so an unfocused diagram hijacks neither the page nor the editor's own
 	// drag. The markup attribute is written from this one value.
 	let gestureArmed = $state(false);
+	// The attribute that tells the editor's pointer handling a drag here is the diagram's own.
+	const viewportGesture = $derived({ [POINTER_GESTURE_ATTR]: gestureArmed ? '' : undefined });
+	const overlayGesture = { [POINTER_GESTURE_ATTR]: '' };
 
 	function onViewportWheel(e: WheelEvent): void {
 		if (!gestureArmed || !(e.ctrlKey || e.metaKey)) return;
@@ -241,10 +245,12 @@
 		// an untouched CRLF block must not rewrite its bytes on blur.
 		if (value === normalizeLineEndings(editSeed)) return;
 		const lineEnding = getPluginMetadata<MermaidMetadata>(node)?.openerLineEnding ?? '\n';
-		updateOwnMetadata({ code: joinMermaidBody(value, lineEnding) });
-		// Only a keyboard commit refocuses; a blur commit must not yank focus back from
-		// wherever the user clicked.
-		if (refocus) refocusBlock();
+		// Only a keyboard commit puts the caret back on the block; a blur commit must not yank
+		// focus back from wherever the user clicked.
+		updateOwnMetadata(
+			{ code: joinMermaidBody(value, lineEnding) },
+			refocus ? { caret: { path: [], offset: 0 } } : undefined
+		);
 	}
 
 	// Logical lines, not visual: the box carries no editor caret geometry, so the newlines
@@ -338,7 +344,7 @@
 			<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 			<div
 				class="mermaid-viewport"
-				data-pointer-gesture={gestureArmed ? '' : undefined}
+				{...viewportGesture}
 				tabindex="0"
 				role="img"
 				aria-label="Mermaid diagram"
@@ -401,7 +407,7 @@
 			</div>
 			<div
 				class="mermaid-overlay-viewport"
-				data-pointer-gesture
+				{...overlayGesture}
 				onwheel={onOverlayWheel}
 				onpointerdown={(e) => {
 					e.stopPropagation();

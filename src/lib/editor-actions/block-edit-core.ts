@@ -43,8 +43,8 @@ import { spliceMany } from '../tree-operations/splice-many';
 import { isMergeEligible, isBlockEditable } from '../schema/merge-rules';
 import { getBlockKindDescriptor } from '../schema/block-kind-descriptor';
 import type {
+	BlockCaret,
 	BlockEditActions,
-	CommitAfterTick,
 	LeafTextOptions,
 	LeafWriteLanded,
 	LeafWriteResult,
@@ -258,7 +258,7 @@ export interface BlockEditCore {
 	updateBlockMetadata(
 		i: number,
 		metadata: Record<string, unknown>,
-		options?: { afterTick?: CommitAfterTick }
+		options?: { caret?: BlockCaret }
 	): Promise<boolean>;
 	/** Resolves to how many blocks landed in the position, or null when nothing was written. */
 	replaceBlock(
@@ -457,7 +457,10 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 					touchedNodes.push(reclassified?.replacement ?? node);
 					return { op: 'noop' };
 				},
-				afterTick: options?.afterTick
+				landing: () => {
+					const caret = options?.caret;
+					return caret ? scope.at(i, caret.path, caret.offset) : null;
+				}
 			});
 		},
 
