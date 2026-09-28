@@ -5,9 +5,7 @@ import { defaultGrammarView } from '$lib/schema/block-openers';
 import { buildPastedReplacement } from '$lib/tree-operations/paste/paste-replacement';
 import { splitLeafForPaste } from '$lib/tree-operations/list/list-builders';
 import { fragmentReaderAt } from '$lib/tree-operations/list/task-paragraph';
-
-/** A leaf at the top level, where no task marker stands in front of anything. */
-const TOP_SLOT = { owner: undefined, index: 0 };
+import { TOP_SLOT } from '$lib/test/harness/fixture-grammar';
 
 /** Both halves read as plain fragments, as they do outside a task item. */
 const plainHalves = {

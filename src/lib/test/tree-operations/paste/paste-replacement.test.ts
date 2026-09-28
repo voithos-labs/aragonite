@@ -3,9 +3,7 @@ import { buildPastedReplacement } from '$lib/tree-operations/paste/paste-replace
 import type { CstNode } from '$lib/core/nodes';
 import { parse } from '$lib/core/parser';
 import { defaultGrammarView } from '$lib/schema/block-openers';
-
-/** A leaf at the top level, where no task marker stands in front of anything. */
-const TOP_SLOT = { owner: undefined, index: 0 };
+import { TOP_SLOT } from '$lib/test/harness/fixture-grammar';
 
 describe('buildPastedReplacement: blank-line preservation between blocks', () => {
 	it('preserves blank line between two pasted paragraphs at end of leaf', () => {

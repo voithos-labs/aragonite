@@ -249,7 +249,7 @@ function isPrimitive(value: unknown): boolean {
 // ── G1.42: a list item says what its reload reads ─────────────────────────────
 
 /** G1.42: every list item under `node` holds the checkbox a reload of `node`'s own bytes gives it,
- *  and a to-do its first block kind too. Dev only: it reparses the touched node. */
+ *  and a to-do the reload's block kinds too. Dev only: it reparses the touched node. */
 export function checkTaskMarkerSlot(
 	node: NodeView,
 	grammar: GrammarView
@@ -267,14 +267,14 @@ function itemDrift(tree: NodeView, reload: NodeView): InvariantViolation | null 
 	if (tree.kind === 'listItem' && reload.kind === 'listItem') {
 		const task = metadataOf(tree, 'listItem')?.taskItem === true;
 		const reloadTask = metadataOf(reload, 'listItem')?.taskItem === true;
-		const first = tree.children?.[0]?.kind;
-		const reloadFirst = reload.children?.[0]?.kind;
-		// A first block's kind drifting in a plain item on both sides is no checkbox question.
-		if (task !== reloadTask || (task && first !== reloadFirst)) {
+		const blocks = kindsOf(tree);
+		const reloadBlocks = kindsOf(reload);
+		// A to-do's blocks are compared whole; a plain item's block drift is no checkbox question.
+		if (task !== reloadTask || (task && blocks !== reloadBlocks)) {
 			return {
 				code: 'task-marker-slot',
-				message: `a list item holds ${task ? 'a' : 'no'} checkbox before a ${first}, where its reload reads ${reloadTask ? 'a' : 'no'} checkbox before a ${reloadFirst}`,
-				detail: { taskItem: task, first, reloadTaskItem: reloadTask, reloadFirst, raw: tree.raw }
+				message: `a list item holds ${task ? 'a' : 'no'} checkbox before [${blocks}], where its reload reads ${reloadTask ? 'a' : 'no'} checkbox before [${reloadBlocks}]`,
+				detail: { taskItem: task, blocks, reloadTaskItem: reloadTask, reloadBlocks, raw: tree.raw }
 			};
 		}
 	}
@@ -287,6 +287,10 @@ function itemDrift(tree: NodeView, reload: NodeView): InvariantViolation | null 
 		if (found) return found;
 	}
 	return null;
+}
+
+function kindsOf(node: NodeView): string {
+	return (node.children ?? []).map((child) => child.kind).join(', ');
 }
 
 function holdsListItem(node: NodeView): boolean {

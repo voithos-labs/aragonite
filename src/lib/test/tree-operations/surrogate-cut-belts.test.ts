@@ -20,11 +20,8 @@ import { createSharingState } from '$lib/tree-operations/sharing';
 import { collectEditorSources } from '$lib/test/invariants/lint/scan-source';
 import type { CstNode } from '$lib/core/nodes';
 import type { NodeView } from '$lib/core/node-views';
-import { fixtureReading } from '../harness/fixture-grammar';
+import { fixtureReading, TOP_SLOT } from '../harness/fixture-grammar';
 import { defaultGrammarView } from '$lib/schema/block-openers';
-
-/** A leaf at the top level, where no task marker stands in front of anything. */
-const TOP_SLOT = { owner: undefined, index: 0 };
 
 /** Both halves read as plain fragments, as they do outside a task item. */
 const plainHalves = {

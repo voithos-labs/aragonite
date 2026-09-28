@@ -19,6 +19,7 @@ import type { BlockListState } from '$lib/reactivity/block-list-state.svelte';
 import { replaceRefs } from '$lib/reactivity/publish-ref.svelte';
 import type { CstNode } from '$lib/core/nodes';
 import { defaultGrammarView } from '$lib/schema/block-openers';
+import { TOP_SLOT } from '$lib/test/harness/fixture-grammar';
 
 /**
  * After every structural op, `children`, the keyed-id array and the ref array stay the same length
@@ -26,9 +27,6 @@ import { defaultGrammarView } from '$lib/schema/block-openers';
  * or focus. The ops drive the real action bundles, so `applyStructuralChangeToIdsRefs` is under
  * test; reorder is the likeliest break, since every moved position reuses an existing id.
  */
-
-/** A leaf at the top level, where no task marker stands in front of anything. */
-const TOP_SLOT = { owner: undefined, index: 0 };
 
 // ── Top-level alignment ──────────────────────────────────────────────────────
 

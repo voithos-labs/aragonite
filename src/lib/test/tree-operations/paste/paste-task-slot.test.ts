@@ -52,3 +52,14 @@ describe('a paste into a task item’s first paragraph', () => {
 		expect(await paste('- [ ] a # c\n', 2, '- p\n- q')).toBe('- [ ] a \n- p\n- q\n- [ ] # c\n');
 	});
 });
+
+// Miss-analysis: the rows above all left text before the cut, so no single pasted block landed at
+// a to-do's text start, where its re-read with the rest of the line took the to-do's reader.
+describe('one block pasted at a to-do’s text start', () => {
+	it.each([
+		['a heading', '# x', '- # x\n  bc\n'],
+		['a quote', '> x', '- > x\n  bc\n']
+	])('keeps %s as the clipboard read it, and the tree matches its reload', async (_, clip, out) => {
+		expect(await paste('- [ ] bc\n', 0, clip)).toBe(out);
+	});
+});

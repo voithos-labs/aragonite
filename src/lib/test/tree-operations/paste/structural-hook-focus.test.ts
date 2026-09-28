@@ -2,10 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { defaultStructuralHook } from '$lib/tree-operations/paste/hooks';
 import { parse } from '$lib/core/parser';
 import type { CstNode } from '$lib/core/nodes';
-import { fixtureReading } from '../../harness/fixture-grammar';
-
-/** A leaf at the top level, where no task marker stands in front of anything. */
-const TOP_SLOT = { owner: undefined, index: 0 };
+import { fixtureReading, TOP_SLOT } from '../../harness/fixture-grammar';
 
 // The caret lands at the end of the pasted content, not the trailing residue
 // buildPastedReplacement appends as the last node.

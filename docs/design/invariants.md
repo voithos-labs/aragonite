@@ -255,7 +255,7 @@ Three families of seam run these checks:
 | G1.39 | At most one block paints the editor's own caret at a time                           | A       |
 | G1.40 | Every built-in kind declares its page role and its height estimate                  | A·N     |
 | G1.41 | A structural edit keeps the final break as it was (a blank last line keeps its own) | A·P·N   |
-| G1.42 | A list item holds the checkbox and first block kind its reload reads                | A·N     |
+| G1.42 | A list item's checkbox, and a to-do's blocks, are what its reload reads             | A·N     |
 
 ### The entries
 
@@ -660,13 +660,14 @@ both commit branches in `editor-actions/commit/undo-controller.ts` ·
 `test/invariants/last-line-kept.test.ts`, `test/editor-actions/open-last-line.test.ts`,
 `open-last-line.property.test.ts`.
 
-**G1.42 · A list item says what its reload reads** (`task-marker-slot`). A to-do's checkbox is
-metadata on the list item, but a write only changes the block behind it, so the two can drift
-apart. The check is the property itself: a list item holds the checkbox a reload of its bytes gives it,
-and a to-do holds the first block kind the reload gives it too. So `- [ ] # b` read by a plain parse (a heading behind a
-checkbox) fails, and so does a plain item whose text now opens with `[ ] `. A shape the parser
-loads passes by definition, `- [ ] |b|` over a delimiter row included (a to-do holding a table,
-#665). Writes into an item's first slot keep this through
+**G1.42 · A list item's checkbox says what its reload reads** (`task-marker-slot`). A to-do's
+checkbox is metadata on the list item, but a write only changes the block behind it, so the two can
+drift apart. A list item holds the checkbox a reload of its bytes gives it, and a to-do also holds
+the blocks the reload gives it (their kinds, compared as a whole list, so one line split into two
+paragraphs counts). `- [ ] # b` read by a plain parse (a heading behind a checkbox) fails, and so
+does a plain item whose text now opens with `[ ] `. A shape the parser loads passes by definition,
+`- [ ] |b|` over a delimiter row included (a to-do holding a table, #665). A plain item's own block
+drift isn't this check's (#668 widens it). Writes into an item's first slot keep all this through
 `tree-operations/list/reconcile-task.ts :: writeKeepingTaskMarker` (G4.82 counts them), but a
 route can still read its bytes with the wrong reader, so the commit checks the result too. Dev
 only: it reparses each touched node that holds a list item. Predicate
@@ -1680,8 +1681,8 @@ seed and the extension paths read (the format toggle reads them too, until it ta
 `tree-operations/list/reconcile-task.ts`, where `writeKeepingTaskMarker` calls it. Every file that
 writes into a child slot, through that wrapper or in place (`writeOwnRaw`, `installOwnRaw`), is on
 one list with its role: the content write, the leaf join, the block replace, a range delete's
-survivor and the cross-block format toggle wrap their write, and the rest say why no list item's
-first slot can hold their bytes (a table cell holds no list item). A file listed as wrapping has
+survivor and the cross-block format toggle wrap their write, and the rest say why they need no
+wrapper (a table cell holds no list item; find and replace reparses a whole top-level block). A file listed as wrapping has
 to call the wrapper, so dropping it goes red too. `lint/leaf-write-doors.test.ts` (the G4.82 and
 G4.82b rows), with G1.42 as the runtime half.
 
@@ -1690,8 +1691,8 @@ reload reads them there, through `tree-operations/list/task-paragraph.ts :: frag
 (after a task checkbox, the first line stays paragraph text). A caller that only knows a path or a
 slot gets the same reader from `slotReaderAt` or `childSlotAt`, and there's no plain reader to
 reach for instead. A plain `readBlocks` left in `tree-operations/`, `selection/` or
-`editor-actions/` is a probe that installs nothing or a read of whole bytes no checkbox stands in
-front of. The manifest lists each file with which one it is, so a new one has to say which.
+`editor-actions/` is a probe that installs nothing, a read of whole bytes no checkbox stands in
+front of, or the paste's re-read of a clipboard block, which keeps the kind the clipboard gave it. The manifest lists each file with which one it is, so a new one has to say which.
 `lint/manifest-rules.test.ts`.
 
 ## Accessibility

@@ -394,6 +394,8 @@ const MANIFESTS: ManifestRule[] = [
 				'counts the blocks joined or split bytes read as, to refuse a join or place a split; what it installs is read at the slot',
 			'src/lib/tree-operations/node-primitives.ts':
 				're-derives the metadata of a block written in place under its own kind; nothing changes kind here',
+			'src/lib/tree-operations/paste/paste-replacement.ts':
+				'a pasted block ended on the cut line keeps the kind the clipboard’s parse gave it, as every other pasted block does; what it does to a checkbox it lands behind is #624’s question',
 			'src/lib/tree-operations/paste/body-write.ts':
 				're-reads a body-rule container’s escaped child; no list item declares a body rule',
 			'src/lib/tree-operations/paste/dispatch.ts':

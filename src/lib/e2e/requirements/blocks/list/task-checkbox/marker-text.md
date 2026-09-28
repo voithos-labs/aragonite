@@ -38,6 +38,11 @@ Later lines of the item still open blocks as they do in any list item.
   pasted items, then `- [ ] c`, each half text beside its box (#666). A list takes a different
   route from paragraphs (it splits the item), so it gets a row of its own.
 
+- pasting `# x` at the very start of `- [ ] bc` lands the heading the clipboard held, with `bc`
+  below it, and the tree reloads to the same shape. (The checkbox goes, as it does for any
+  block that isn't a paragraph; #624 is where that gets decided for every route.)
+  - Miss-analysis: every paste row left text before the cut, so no single pasted block landed at a
+    to-do's text start, where its re-read took the to-do's reader and split one line into two.
 - Enter and a typed letter in the item below a loaded `- [ ] |b|` over a delimiter row land
   cleanly, with no invariant fire: that to-do holds a table, which is what its reload reads too.
   - Miss-analysis: the checkbox check stood in for the reload with "a to-do holds a paragraph

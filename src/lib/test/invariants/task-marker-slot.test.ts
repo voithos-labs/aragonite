@@ -1,4 +1,4 @@
-// G1.42: a list item holds the checkbox its reload reads (a to-do, its first block kind too), so a
+// G1.42: a list item holds the checkbox its reload reads (a to-do, its block kinds too), so a
 // write that read its bytes with the wrong reader is caught, and a shape the parser loads is not.
 // Miss-analysis: the first version checked a stand-in (a task item holds a paragraph first), which
 // the parser breaks for `- [ ] |b|` over a delimiter row, so it fired on a loadable document.
@@ -6,6 +6,7 @@ import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import type { CstNode, ListItemMetadata } from '$lib/core/nodes';
 import { checkTaskMarkerSlot } from '$lib/invariants/node-shape';
+import { paragraphNode } from '$lib/tree-operations/node-primitives';
 import { assertCommittedNodes } from '$lib/invariants/install';
 import { defaultGrammarView } from '$lib/schema/block-openers';
 import { drainDevWarns, takeDevWarns } from '$lib/test/support/warn-gate';
@@ -36,6 +37,15 @@ describe('checkTaskMarkerSlot (G1.42)', () => {
 
 	it('flags a plain item whose reload reads a checkbox', () => {
 		expect(check(plainThatReadsAsTask())?.code).toBe('task-marker-slot');
+	});
+
+	// Miss-analysis: the check compared the first block only and skipped a shape whose child count
+	// differed, so a to-do split into two paragraphs its reload reads as one passed it.
+	it('flags a to-do holding two paragraphs where its reload reads one', () => {
+		const list = parse('- [ ] # x\n  bc\n').children[0];
+		const item = list.children![0];
+		item.children = [paragraphNode('', '# x', '\n'), paragraphNode('', 'bc', '\n')];
+		expect(check(list)?.code).toBe('task-marker-slot');
 	});
 
 	it('finds the item at any depth', () => {
