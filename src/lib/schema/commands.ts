@@ -182,7 +182,7 @@ export function warnDeadKeyCommand(id: AnyCommandId, path: CommandDispatchPath):
 }
 
 /** Test-only. Clears the dead-key warn memo so each test sees a first-time warn. */
-export function __resetCommandWarningsForTests(): void {
+function __resetCommandWarningsForTests(): void {
 	warnedDeadKeys.clear();
 }
 enrollTestReset(__resetCommandWarningsForTests);

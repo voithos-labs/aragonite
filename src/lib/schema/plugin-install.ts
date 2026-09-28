@@ -199,7 +199,7 @@ export function installedPluginNames(): string[] {
 	return [...installed.keys()];
 }
 
-export function __resetInstalledPluginsForTests(): void {
+function __resetInstalledPluginsForTests(): void {
 	installed.clear();
 	failed.clear();
 	onEditorSubs.clear();

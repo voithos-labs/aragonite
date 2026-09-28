@@ -41,19 +41,9 @@ import { isBlockComponentRegistered } from './block-component-registry';
 import { listRegisteredOpeners } from './block-openers';
 import { isBuiltinCommandId } from './commands';
 import { isPluginCommandId } from './command-id';
-import {
-	takeRegistrationFlushWork,
-	__resetRegistrationChecksForTests
-} from './registration-pending';
-import { enrollTestReset } from './registry-reset';
+import { takeRegistrationFlushWork } from './registration-pending';
 
-export {
-	hasPendingRegistrationChecks,
-	__resetRegistrationChecksForTests
-} from './registration-pending';
-
-// A flag left behind by a cleared registry would make the next registrations look late.
-enrollTestReset(__resetRegistrationChecksForTests);
+export { hasPendingRegistrationChecks } from './registration-pending';
 
 /** The same shape as `assertInvariant`, which is the default; tests pass a collector instead. */
 export type RegistrationCheckReport = (tag: string, check: () => InvariantViolation | null) => void;

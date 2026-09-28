@@ -4,9 +4,9 @@ import {
 	installPlugins,
 	onEditorCallbacks,
 	installedPluginNames,
-	__resetInstalledPluginsForTests,
 	type PluginSetupContext
 } from '$lib/schema/plugin-install';
+import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
 describe('onEditor subscription join', () => {
 	it('records callbacks per plugin, in registration order', () => {
@@ -57,7 +57,7 @@ describe('onEditor subscription join', () => {
 				}
 			})
 		]);
-		__resetInstalledPluginsForTests();
+		__resetSchemaRegistriesForTests();
 		expect(onEditorCallbacks('gone')).toHaveLength(0);
 	});
 
