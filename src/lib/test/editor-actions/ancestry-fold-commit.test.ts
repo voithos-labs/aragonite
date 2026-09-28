@@ -99,6 +99,17 @@ describe('a commit whose ancestry settle ate its own scope', () => {
 		expect(h.deps.blockIds).toHaveLength(2);
 	});
 
+	// Miss-analysis: the collapse test above read the caret and the bytes, never the write's result.
+	it('a content commit a collapse took over still reports it wrote', async () => {
+		const h = makeNestedHarness('> a\n> # h\ntext\n', { index: 0 });
+
+		const wrote = await h.bundle.blockEdit.updateBlockContent(1, 'h\n', 'authored');
+
+		expect(serialize(h.deps.doc)).toBe('> a\n> h\ntext\n');
+		expect(wrote).toBe(true);
+		expect(h.deps.undoManager.getStacks().undo).toHaveLength(1);
+	});
+
 	// The collapse is the only change on this commit (every scope's change is `noop`), and the
 	// delete asks for a discard when nothing changed.
 	it('keeps the undo entry, and undo restores the pre-fold tree', async () => {
