@@ -162,6 +162,27 @@ async function runCancellingDetours(ctx: SimContext, g: Gestures, rng: Rng): Pro
 	if (rng.chance(0.7)) {
 		await rangeInterruptDetour(ctx, g, rng);
 	}
+
+	// Runs on every seed and draws nothing, so the picks above stay what each seed made them.
+	await nestedKindChangeUndoDetour(ctx, g);
+}
+
+/**
+ * A kind change typed inside a list item undoes with the key before it, as at the top level.
+ * The first plain item of any top-level list takes it; a note with no list skips it.
+ */
+async function nestedKindChangeUndoDetour(ctx: SimContext, g: Gestures): Promise<void> {
+	const path = await ctx.page.evaluate(() => {
+		const children = (window as any).__test.getDocument().children as any[];
+		for (let i = 0; i < children.length; i++) {
+			if (children[i].kind !== 'list') continue;
+			const item = children[i].children?.[0];
+			if (!item?.metadata?.taskItem && item?.children?.[0]?.kind === 'paragraph') return [i, 0, 0];
+		}
+		return null;
+	});
+	if (path === null) return;
+	await g.kindChangeUndoInListItem(path);
 }
 
 /**
