@@ -1,18 +1,15 @@
-import { expect, type ConsoleMessage, type Page, type Locator } from '@playwright/test';
+import { expect, type Page, type Locator } from '@playwright/test';
 import { EditorBridge } from './editor-bridge';
 import { createClipboardArm, type ClipboardArm } from './clipboard-arm';
 import { generateFixture, type FixtureShape } from '../test/perf/fixtures/generate';
 import { BLOCK_CONTENT_LOCATOR_SELECTOR } from '../components/block-content-selector';
-import { PAST_TYPING_PAUSE_MS, watchPageFailures } from './page-probes';
+import { PAST_TYPING_PAUSE_MS } from './page-probes';
+import { gotoReady } from './goto-ready';
 import { pointAtRaw } from './text-runs';
 
 // Re-exported so a spec's in-`evaluate` block-content lookup uses the one selector definition
 // instead of inlining `:not(.selection-overlay)`.
 export { BLOCK_CONTENT_SELECTOR } from '../components/block-content-selector';
-
-/** A ceiling, since a full battery on one dev server slows hydration; it stays under Playwright's
- *  test timeout so a miss reports what the page did (`lint/harness-timeout-headroom.test.ts`). */
-export const BRIDGE_INSTALL_TIMEOUT = 45_000;
 
 export class EditorPage {
 	readonly editorContainer: Locator;
@@ -29,53 +26,7 @@ export class EditorPage {
 
 	async goto(query = '') {
 		await this.clipboard.install();
-		await this.openHarness(`/test/editor${query}`);
-	}
-
-	/**
-	 * Navigate to a harness route and wait for its `window.__test`. Both harnesses come through
-	 * here, so a bridge that never arrives names what the page reported rather than only timing out.
-	 */
-	protected async openHarness(url: string): Promise<void> {
-		const failures = watchPageFailures(this.page);
-		const loadSteps = watchLoadSteps(this.page);
-		// The navigation, the mount and the bridge share one budget: a full ceiling each would sum
-		// past the runner's timeout, and a wait killed by the runner reports none of this.
-		const deadline = Date.now() + BRIDGE_INSTALL_TIMEOUT;
-		// Playwright reads 0 as "no timeout", so an exhausted budget asks for the smallest wait.
-		const budgetLeft = () => Math.max(1, deadline - Date.now());
-		const diagnose = async (what: string, cause: unknown): Promise<never> => {
-			const reported = failures.seen();
-			// Playwright's own message is what separates a timeout from a context destroyed by a
-			// reload, which is the other way the bridge goes missing.
-			throw new Error(
-				[
-					`${url}: ${what} in ${BRIDGE_INSTALL_TIMEOUT} ms (${firstLine(cause)}).`,
-					'The page reported:',
-					...(reported.length > 0 ? reported : ['nothing captured']),
-					'Its loads and dev-client lines:',
-					...loadSteps.seen(),
-					await probeDevServer(this.page)
-				].join('\n')
-			);
-		};
-		try {
-			await this.page.goto(url);
-			await this.editorContainer
-				.waitFor({ state: 'visible', timeout: budgetLeft() })
-				.catch((cause) => diagnose('the editor never mounted', cause));
-			await this.page
-				.waitForFunction(() => (window as any).__test !== undefined, null, {
-					timeout: budgetLeft()
-				})
-				.catch((cause) => diagnose('the editor mounted but window.__test never arrived', cause));
-			// The harness paints a webfont; a caret measured before it arrives is placed by the
-			// fallback font's metrics, and the block reflows under the spec.
-			await this.page.evaluate(() => document.fonts.ready);
-		} finally {
-			failures.stop();
-			loadSteps.stop();
-		}
+		await gotoReady(this.page, `/test/editor${query}`, '__test');
 	}
 
 	async loadContent(md: string) {
@@ -448,43 +399,4 @@ export class EditorPage {
 			);
 		}
 	}
-}
-
-// ── Page-load diagnosis ─────────────────────────────────────────────
-
-/** Each document the page loaded and each line Vite's client logged, timed from the call: a
- *  reload after Vite re-bundles its dependencies shows as a second load. */
-function watchLoadSteps(page: Page): { seen(): string[]; stop(): void } {
-	const started = Date.now();
-	const steps: string[] = [];
-	const at = () => `+${Date.now() - started} ms`;
-	const onLoaded = () => steps.push(`${at()} document loaded: ${page.url()}`);
-	const onConsole = (m: ConsoleMessage) => {
-		if (m.text().startsWith('[vite]')) steps.push(`${at()} ${m.text()}`);
-	};
-	page.on('domcontentloaded', onLoaded);
-	page.on('console', onConsole);
-	return {
-		seen: () => (steps.length > 0 ? steps : ['none captured']),
-		stop() {
-			page.off('domcontentloaded', onLoaded);
-			page.off('console', onConsole);
-		}
-	};
-}
-
-/** Whether the dev server still answers, asked from the test process: the server's own output
- *  goes to the runner's reporters, which a worker cannot read. */
-async function probeDevServer(page: Page): Promise<string> {
-	const started = Date.now();
-	try {
-		const response = await page.request.get('/favicon.svg', { timeout: 5_000 });
-		return `The dev server answered /favicon.svg with ${response.status()} in ${Date.now() - started} ms.`;
-	} catch (error) {
-		return `The dev server did not answer /favicon.svg: ${firstLine(error)}`;
-	}
-}
-
-function firstLine(error: unknown): string {
-	return String(error).split('\n')[0];
 }
