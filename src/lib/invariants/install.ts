@@ -23,6 +23,7 @@ import { checkContentRange } from './descriptor';
 import { checkChildIdParity } from './child-id-parity';
 import { checkChildSpansLockstep, checkIdsChildrenLockstep } from './structural-descriptor';
 import { checkSnapshotIntegrity, type SnapshotEntry } from './snapshot-integrity';
+import { checkLastLineKept } from './open-tail';
 
 /** Checks only the nodes a commit touched. Call it after the commit's `rebuildRaw`, so a strip
  *  container's raw is that rebuild's output. */
@@ -63,6 +64,11 @@ export function assertCommitPaths(
 export function assertUndoTopIntegrity(entry: SnapshotEntry | undefined): void {
 	if (!entry) return;
 	assertInvariant('snapshot-integrity', () => checkSnapshotIntegrity(entry));
+}
+
+/** G1.41, after every structural commit publishes: `wasOpen` is `endsOpen` read before it mutated. */
+export function assertLastLineKept(doc: Document, wasOpen: boolean): void {
+	assertInvariant('last-line-kept', () => checkLastLineKept(doc, wasOpen));
 }
 
 /** G1.36, the reading half, run wherever ids are written to state: an id array that is too short

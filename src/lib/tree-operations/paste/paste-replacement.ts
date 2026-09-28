@@ -56,11 +56,18 @@ export function buildPastedReplacement(
 	for (const node of landed) newNodes.push(node);
 	const lastPastedIndex = newNodes.length - 1;
 
-	// The residue stays separate, or a non-paragraph tail would absorb it as continuation lines;
-	// a cut at a line's end hands it that line's own break.
 	if (hasResidue) {
 		const [first, ...rest] = residue.blocks;
-		newNodes.push({ ...first, leadingTrivia: residue.endedLine || lineEnding });
+		const lastPasted = newNodes[lastPastedIndex];
+		// An open last pasted block sits on the cut line, so the rest of that line, blank or just its
+		// break, ends it; a closed one is followed by the cut line's break as a blank line.
+		const onCutLine = ownTrailingLineEnding(lastPasted.raw) === '';
+		const blankTail = !residue.endedLine && rest.length === 0 && isBlankParagraph(first);
+		const cutLineEnd = residue.endedLine || (onCutLine && blankTail ? first.raw : lineEnding);
+		if (onCutLine) newNodes[lastPastedIndex] = endedOnCutLine(lastPasted, cutLineEnd, grammar);
+		if (!onCutLine || !blankTail) {
+			newNodes.push({ ...first, leadingTrivia: onCutLine ? '' : cutLineEnd });
+		}
 		for (const node of rest) newNodes.push(node);
 		for (let i = lastPastedIndex + 1; i < newNodes.length; i++) {
 			ensureEditableContainers(newNodes[i], lineEnding);
@@ -68,6 +75,15 @@ export function buildPastedReplacement(
 	}
 
 	return { nodes: newNodes, lastPastedIndex };
+}
+
+/** `node` with the rest of the line it was pasted into, read back as the one block it still is. */
+function endedOnCutLine(node: CstNode, cutLineEnd: string, grammar: GrammarView): CstNode {
+	const lineEnding = trailingLineEnding(cutLineEnd, '\n');
+	const ended = parseFirstBlock(node.raw + cutLineEnd, grammar);
+	ended.leadingTrivia = node.leadingTrivia;
+	ensureEditableContainers(ended, lineEnding);
+	return ended;
 }
 
 /**

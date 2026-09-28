@@ -254,6 +254,7 @@ Three families of seam run these checks:
 | G1.38 | A spliced container raw equals what a full rebuild would write                      | A·N     |
 | G1.39 | At most one block paints the editor's own caret at a time                           | A       |
 | G1.40 | Every built-in kind declares its page role and its height estimate                  | A·N     |
+| G1.41 | A structural edit leaves a file with no final line break without one                | A·P·N   |
 
 ### The entries
 
@@ -635,6 +636,21 @@ just written, which no test can hand a predicate. Seam: the snap-caret paint eff
 guess). A built-in can't: a new built-in that skipped them would quietly get those defaults without
 anyone deciding it should. Predicate `checkBuiltinPresentationFacts` (`registry.ts`) ·
 bootstrap · `test/invariants/builtin-presentation-facts.test.ts`.
+
+**G1.41 · The open last line** (`last-line-kept`). Only the document's last line may lack a line
+ending, and a structural edit leaves it the way it found it: a file with no final break still has
+none afterwards, unless its new last line is blank (then the line is nothing but its break, and
+dropping the break would drop the line). The commit owns the rule in two steps:
+`tree-operations/open-tail.ts :: endWindowLines` before the separator fix-up, and
+`tree-operations/open-tail.ts :: keepOpenTail` once the containers rebuild. No edit writes the tail
+by hand. The check runs after every structural commit publishes and fails three shapes: an open
+file that gained a break on a line with text, a closed file that lost its break, and a line with no
+ending sitting right above the last line, at any level of the containers holding it. That last one
+is what an edit leaves when it puts a block after an open last line where the commit can't see it,
+and the two lines read as one on reload. Predicate `invariants/open-tail.ts :: checkLastLineKept` ·
+run by both commit branches in `editor-actions/commit/undo-controller.ts` ·
+`test/invariants/last-line-kept.test.ts`, `test/editor-actions/open-last-line.test.ts`,
+`open-last-line.property.test.ts`.
 
 ## Group 2: property and regression tested
 
