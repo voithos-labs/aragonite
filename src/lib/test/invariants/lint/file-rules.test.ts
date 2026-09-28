@@ -244,6 +244,20 @@ function readsGridLiteral(file: SourceFile): boolean {
 	return false;
 }
 
+// ── G4.85, G4.86 where a leaf's bytes are stored ─────────────────────────────
+
+/** The live rewrites that remove bytes, and the module they read their candidates through. */
+const REMOVING_REWRITES = [
+	'src/lib/components/blocks/text/live-join-seam.ts',
+	'src/lib/components/blocks/text/construct-edge-delete.ts',
+	'src/lib/core/inline/live-edit/'
+];
+const LIVE_EDIT_PROBE = 'src/lib/core/inline/live-edit/probe.ts';
+
+/** A read of a list item's marker: off its metadata, or off a parse cast to carry one. */
+const LIST_MARKER_READ =
+	/\{\s*marker\?:\s*string\s*\}|'listItem'\)\??\.marker\b|\b\w*[mM]eta(?:data)?\??\.marker\b/;
+
 // ── The rules ────────────────────────────────────────────────────────────────
 
 /** A file the G4.80 population holds, for its probes. */
@@ -946,6 +960,44 @@ const RULES: FileRule[] = [
 			'a rewrite that describes its own position reads a cell as a block or forgets its container; take one from `storedAsAt` or `storedAsIn`',
 		hits: ['return { reading, surface: "block", stored, readSlot } as StoredAs;'],
 		misses: ["import type { StoredAs } from '../schema/stored-as';", 'const s: StoredAsLike = x;']
+	},
+	{
+		id: 'G4.85 a removing live rewrite reads its candidate through readBack, never a parse of its own',
+		population: (file) => REMOVING_REWRITES.some((home) => file.relPath.startsWith(home)),
+		matches: /(?<![\w.])(?:readBlocks|parse|parseTaskItemBody)\s*\(/,
+		allowed: {},
+		reaches: [
+			'src/lib/components/blocks/text/live-join-seam.ts',
+			'src/lib/components/blocks/text/construct-edge-delete.ts',
+			'src/lib/core/inline/live-edit/read-back.ts'
+		],
+		reason:
+			'a candidate read as a top-level fragment forgets its container: a list item reads it behind its marker, a cell as text; take `readBack(bytes, store)`',
+		hits: [at(LIVE_EDIT_PROBE, "const blocks = readBlocks(raw, { grammar, scope: 'fragment' });")],
+		misses: [
+			at(LIVE_EDIT_PROBE, 'const read = readBack(raw, store);'),
+			at(LIVE_EDIT_PROBE, 'const inlines = readInline(raw, 0, n);')
+		]
+	},
+	{
+		id: 'G4.86 a list item’s marker is read where the list is built, drawn or dumped',
+		matches: LIST_MARKER_READ,
+		allowed: {
+			'src/lib/schema/container-rebuilders.ts': 'writes the marker back in front of the item',
+			'src/lib/tree-operations/list/ordered-markers.ts': 'renumbers an ordered list',
+			'src/lib/editor-actions/list-context.ts': 'gives a new item the next marker',
+			'src/lib/components/blocks/list/ListItemBlock.svelte': 'draws a bullet or a number',
+			'src/lib/components/blocks/list/task-checkbox.ts': 'paints the marker before the checkbox',
+			'src/lib/debug/dump-tree.ts': 'prints it in the tree dump'
+		},
+		reason:
+			'a rewrite that reads the marker to check its own bytes carries a second answer to where they are stored; read them back through `storedAsAt`',
+		hits: [
+			'return (blocks[0] as { marker?: string }).marker === prefix;',
+			"const m = metadataOf(item, 'listItem').marker;",
+			'const prefix = meta?.marker ?? "- ";'
+		],
+		misses: ['const run = fence.marker.repeat(3);', 'mark.markerBytes']
 	}
 ];
 

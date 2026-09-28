@@ -38,7 +38,7 @@ describe('reading a candidate back where it is stored', () => {
 		expect(shown('- a\n', [0, 0, 0], '- b\n')).toBeNull();
 	});
 
-	// #523 miss: a cell's candidates were read as blocks, so `# ` and `- ` refused every one.
+	// Miss-analysis: #523, a cell's candidates were read as blocks, so `# ` and `- ` refused them.
 	it('a cell’s text reads as text, whatever a block would make of it', () => {
 		const cell = [0, 1, 0];
 		expect(shown('| h |\n| - |\n| a |\n', cell, '# **ab** cd')).toBe('# ab cd');

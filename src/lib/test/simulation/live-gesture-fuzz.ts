@@ -62,7 +62,7 @@ export interface FuzzStats {
 	applied: number;
 	claimed: number;
 	rewrote: Record<GestureKind, number>;
-	/** Rewrites that started in a list item's first block, where the marker stands in front. */
+	/** Join rewrites that started in a list item's first block, where the marker stands in front. */
 	rewroteUnderListMarker: number;
 	/** Gestures whose drawn offset landed inside a surrogate pair, per kind. */
 	midScalar: Record<GestureKind, number>;
@@ -216,14 +216,8 @@ const inked = (bytes: string): string => bytes.replace(/\s+/g, '');
 
 // ── The run ──────────────────────────────────────────────────────────────────
 
-/** The gestures that take bytes out, whose cleanup reads its candidate back where it is stored. */
-const REMOVING = new Set<GestureKind>([
-	'backspace',
-	'delete',
-	'range-delete',
-	'type-over',
-	'word-delete'
-]);
+/** The gestures whose cleanup is a join, read back where the joined bytes are stored. */
+const JOINS = new Set<GestureKind>(['range-delete', 'type-over', 'word-delete']);
 
 /** Read from the weight table, so a gesture added there is counted as soon as it is drawn. */
 const perKind = (): Record<GestureKind, number> =>
@@ -261,7 +255,7 @@ export async function fuzzLiveGestures(options: FuzzOptions): Promise<FuzzStats>
 			if (live.claimed) stats.claimed++;
 			if (live.bytes !== literal.bytes) {
 				stats.rewrote[gesture.kind]++;
-				if (REMOVING.has(gesture.kind) && startsUnderListMarker(before, gesture)) {
+				if (JOINS.has(gesture.kind) && startsUnderListMarker(before, gesture)) {
 					stats.rewroteUnderListMarker++;
 				}
 			}

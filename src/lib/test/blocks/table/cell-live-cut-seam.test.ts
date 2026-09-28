@@ -102,8 +102,8 @@ describe('live mode: every cell cut crosses the join', () => {
 		expect(committedCalls(mounted)).toEqual([[0, 'bot', 'authored', 4, 2]]);
 	});
 
-	// #523 miss: every cell case started with a delimiter, so none held text a block reads as a
-	// heading or a list, which the cleanup's block reading of the cell refused.
+	// Miss-analysis: #523, every cell case started with a delimiter, so none held text a block
+	// reads as a heading or a list, which the cleanup's block reading of the cell refused.
 	it.each(['# ', '- '])(
 		'cell text opening with %j is read as cell text, not as a block',
 		async (lead) => {
