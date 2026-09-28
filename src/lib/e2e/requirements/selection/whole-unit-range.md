@@ -20,6 +20,17 @@ not only Backspace.
 - The caret after a typed character sits after it: a second character lands beside the first
   rather than at the block's head.
 - One undo restores the document after each gesture: the delete and the insert are one entry.
+- The undo after a typed character puts the rule back held whole, not only its bytes: a second
+  character typed straight after the undo replaces the rule again.
+  - Miss-analysis: the undo scenario read the bytes back and stopped, so a restore that put no
+    selection back at all passed it.
+
+- Backspace over the rule puts the caret at the end of the block above (the side Backspace
+  points), so a typed `x` joins `above`.
+- With nothing above and a list below, the caret goes to the start of the list's first item: a
+  typed `x` lands inside it, not in the list's wrapper where it would go nowhere.
+  - Miss-analysis: the delete tests here only read the bytes, and the unit suite for this delete
+    only had paragraph neighbours, so a caret aimed at a list's wrapper never showed up.
 
 ## Edge cases
 

@@ -33,10 +33,8 @@ export interface EditorActionsDeps {
 	 *  harnesses); no block reports a caret meanwhile, so selection reads answer with this one. */
 	getSelectedWidgetCaret?: () => EditorSelection | null;
 	getBlockElByPath: BlockElLookup;
-	/** Scroll the block at `path` into view level by level, wait for it to mount, and return its
-	 *  component (null if unreachable). Only the history restore still uses it. */
-	revealPath(path: number[]): Promise<BlockComponent | null>;
-	/** Where every commit's caret is put down, and the counter an undo, redo or swap bumps. */
+	/** Where every commit's caret and every restored selection is put down, and the counter an
+	 *  undo, redo or swap bumps. */
 	caretLanding: CaretLanding;
 	events: EditorEvents;
 	/** How the editor reads its bytes: a re-parse or completer reads only the syntax it switched

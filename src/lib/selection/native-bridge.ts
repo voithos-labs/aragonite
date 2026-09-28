@@ -41,7 +41,8 @@ export function applyCollapsedCaret(blockEl: HTMLElement, point: SelectionPoint)
 	placeCaretAtRaw(blockEl, point.offset, { clamp: 'reachable' });
 }
 
-/** Places a focused collapsed caret in `point`'s mounted block; false when it is not mounted. */
+/** Places a focused collapsed caret in `point`'s mounted block; false when it is not mounted.
+ *  Exported only for the cross-block delete, typing and paste, which still place their own caret. */
 export function focusCollapsedCaret(
 	getBlockElByPath: (path: number[]) => HTMLElement | null,
 	point: SelectionPoint
@@ -149,37 +150,47 @@ function copySelectionPoint(point: SelectionPoint): SelectionPoint {
 	return { path: point.path.slice(), offset: point.offset };
 }
 
+/** What a restore writes into, beside the selection state. */
+export interface RestoreTarget {
+	selectionState: SelectionState;
+	getBlockElByPath: (path: number[]) => HTMLElement | null;
+	/** Where the caret goes for an endpoint: the leaf a caret can sit in, never a hidden one. */
+	caretAt: (point: SelectionPoint) => SelectionPoint;
+	/** Takes focus for a block held whole, which has no text for a caret, as a drag leaves it. */
+	getEditorRoot: () => HTMLElement | null;
+}
+
 /** Restores an `EditorSelection` to the DOM in one `SelectionState` batch, so the single
  *  notification carries the final selection. False when the target is not mounted. */
-export function applySelectionToDom(
-	selection: EditorSelection,
-	selectionState: SelectionState,
-	getBlockElByPath: (path: number[]) => HTMLElement | null
-): boolean {
+export function applySelectionToDom(selection: EditorSelection, target: RestoreTarget): boolean {
 	let placed = false;
-	selectionState.batch(() => {
-		placed = placeRestoredSelection(selection, selectionState, getBlockElByPath);
+	target.selectionState.batch(() => {
+		placed = placeRestoredSelection(selection, target);
 		// Announced explicitly: a restore onto an already clear state changes no field of the
 		// selection state and still moves the caret that subscribers read back.
-		selectionState.announceSelection();
+		target.selectionState.announceSelection();
 	});
 	return placed;
 }
 
-function placeRestoredSelection(
-	selection: EditorSelection,
-	selectionState: SelectionState,
-	getBlockElByPath: (path: number[]) => HTMLElement | null
-): boolean {
+function placeRestoredSelection(selection: EditorSelection, target: RestoreTarget): boolean {
+	const { selectionState, getBlockElByPath } = target;
 	// Classify before touching state, so a single-block restore never passes through a transient
 	// cross-block state (`enterCrossBlock` then `clear`).
 	const route = selectionState.restoreRoute(selection.anchor, selection.focus);
 
 	if (route === 'collapsed') {
 		selectionState.clear();
-		// A collapsed cell point arrives here carrying a cell index, which a character walk over
-		// the table wrapper would put somewhere in the grid's text.
-		return focusCollapsedCaret(getBlockElByPath, selectionState.cellLandingFor(selection.anchor));
+		return focusCollapsedCaret(getBlockElByPath, target.caretAt(selection.anchor));
+	}
+
+	if (route === 'whole-block') {
+		const whole = { path: selection.anchor.path.slice(), wholeBlock: true as const };
+		selectionState.enterCrossBlock(whole, whole);
+		clearNativeSelection();
+		const root = target.getEditorRoot();
+		root?.focus({ preventScroll: true });
+		return root !== null;
 	}
 
 	// No cell translation here: a same-path pair inside a table routes to the overlay, so every
@@ -198,7 +209,7 @@ function placeRestoredSelection(
 	selectionState.enterCrossBlock(selection.anchor, selection.focus);
 	// The stored focus, which normalization may have turned into a cell index.
 	const focus = selectionState.focus ?? selection.focus;
-	if (focusCollapsedCaret(getBlockElByPath, selectionState.cellLandingFor(focus))) {
+	if (focusCollapsedCaret(getBlockElByPath, target.caretAt(focus))) {
 		return true;
 	}
 	clearNativeSelection();

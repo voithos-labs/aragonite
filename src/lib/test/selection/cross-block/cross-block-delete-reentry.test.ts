@@ -21,7 +21,7 @@ function makeEnv(revealPath?: CrossBlockMutationContext['revealPath']) {
 		selection: harness.deps.selectionState,
 		getDoc: () => harness.deps.doc,
 		getBlockElByPath: () => null,
-		revealPath: revealPath ?? harness.deps.revealPath,
+		revealPath: revealPath ?? ((path) => harness.deps.caretLanding.mount(path)),
 		controller,
 		reading: fixtureReading()
 	};

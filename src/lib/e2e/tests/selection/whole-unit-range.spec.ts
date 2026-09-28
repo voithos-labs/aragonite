@@ -55,6 +55,23 @@ test.describe('a whole-unit range: thematic break', () => {
 		await editor.bridge.waitForSourceEquals(DOC);
 	});
 
+	test('the undo puts the rule back held whole, so the next key replaces it again', async () => {
+		await dragInside(editor, '.thematic-break-block');
+		await editor.typeSlowly('x');
+		await editor.bridge.waitForSourceContains('\nx\n');
+
+		await editor.undo();
+		await editor.bridge.waitForSourceEquals(DOC);
+		await editor.waitForCrossBlock(true);
+		expect(await editor.bridge.getSelection()).toEqual({
+			anchor: { path: [1], offset: 0 },
+			focus: { path: [1], offset: 3 }
+		});
+
+		await editor.typeSlowly('y');
+		await editor.bridge.waitForSourceEquals('above\n\ny\n\nbelow\n');
+	});
+
 	test('a paste replaces the rule with the clipboard', async () => {
 		await editor.seedClipboard('pasted');
 		await dragInside(editor, '.thematic-break-block');
@@ -73,6 +90,35 @@ test.describe('a whole-unit range: thematic break', () => {
 
 		await editor.undo();
 		await editor.bridge.waitForSourceEquals(DOC);
+	});
+});
+
+test.describe('a whole-unit range: where Backspace leaves the caret', () => {
+	let editor: EditorPage;
+
+	test.beforeEach(async ({ page }) => {
+		editor = new EditorPage(page);
+		await editor.goto();
+	});
+
+	test('at the end of the block above', async () => {
+		await editor.loadContent(DOC);
+		await dragInside(editor, '.thematic-break-block');
+		await editor.page.keyboard.press('Backspace');
+		await editor.bridge.waitForSourceEquals('above\n\nbelow\n');
+
+		await editor.typeSlowly('x');
+		await editor.bridge.waitForSourceEquals('abovex\n\nbelow\n');
+	});
+
+	test('in the first item of a list below, with nothing above', async () => {
+		await editor.loadContent('---\n\n- a\n');
+		await dragInside(editor, '.thematic-break-block');
+		await editor.page.keyboard.press('Backspace');
+		await editor.bridge.waitForSourceEquals('- a\n');
+
+		await editor.typeSlowly('x');
+		await editor.bridge.waitForSourceEquals('- xa\n');
 	});
 });
 

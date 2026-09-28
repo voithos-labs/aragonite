@@ -76,7 +76,6 @@
 	import { createOperationsLog } from '../debug/operations-log';
 	import { createEditorDiagnostics } from '../debug/editor-diagnostics';
 	import { readCurrentSelection } from '../selection/native-bridge';
-	import { restoreSelection, type SelectionRestoreOutcome } from '../selection/selection-restore';
 	import { createCaretRestore } from '../selection/caret-restore';
 	import { createCrossBlockHandlers } from '../selection/cross-block/dispatch';
 	import { createCrossBlockCommands } from '../selection/cross-block/format-toggle';
@@ -560,6 +559,7 @@
 		selectionState,
 		caretMemory,
 		getBlockElByPath,
+		getEditorRoot: () => editorEl ?? null,
 		scroll: scrollSettle
 	});
 
@@ -594,7 +594,6 @@
 		selectionState,
 		getSelectedWidgetCaret: selectedWidgetCaret,
 		getBlockElByPath,
-		revealPath,
 		caretLanding,
 		events,
 		reading
@@ -729,12 +728,9 @@
 	const crossBlockCommands = createCrossBlockCommands({
 		selection: selectionState,
 		getDoc,
-		getBlockElByPath,
-		revealPath,
 		controller,
 		reading,
-		getContentVersion: contentVersion.read,
-		caretMemory
+		getContentVersion: contentVersion.read
 	});
 
 	// Every chord and `runCommand` dispatches against this one context, so all share one history,
@@ -828,7 +824,8 @@
 			return heightOracle;
 		},
 		events,
-		restoreCaret: (path, offset) => restoreThroughRevealRoad(caretAt(path, offset), 'mount'),
+		restoreCaret: (path, offset) =>
+			caretLanding.restore(caretAt(path, offset), { reveal: 'mount' }),
 		holdOutgoingMode: (mode) => {
 			outgoingMode = mode;
 		}
@@ -1189,37 +1186,30 @@
 		return readCurrentSelection(selectionState, blockRefs, selectedWidgetCaret);
 	}
 
-	/** The one caret restore path. `hold` keeps the block held in place after scrolling, `release`
-	 *  hands the viewport back to the host, `mount` only mounts it and writes no scroll position. */
-	function restoreThroughRevealRoad(
-		selection: EditorSelection,
-		reveal: 'hold' | 'release' | 'mount'
-	): Promise<SelectionRestoreOutcome> {
-		return restoreSelection(selection, {
-			getDoc,
-			selectionState,
-			getBlockElByPath,
-			caretMemory,
-			revealTarget: async (path) =>
-				reveal === 'mount'
-					? (await revealPath(path)) !== null
-					: rects.scrollTo(path, { block: 'nearest', hold: reveal === 'hold' })
-		});
-	}
-
 	function caretAt(path: number[], offset = 0): EditorSelection {
 		return { anchor: { path, offset }, focus: { path, offset } };
 	}
 
+	// Read off the placed selection, not the requested one: a restore into a hidden body lands on
+	// its title row.
+	function focusInView(): boolean {
+		const focus = getSelection()?.focus;
+		return !!focus && scrollSettle.isInView(selectionState.cellLandingFor(focus).path);
+	}
+
 	/** Puts the caret back in the document after a card or menu, so the next key goes there. */
 	async function landCaretAtOffset(path: number[], offset: number): Promise<boolean> {
-		return (await restoreThroughRevealRoad(caretAt(path, offset), 'hold')) === 'applied';
+		const outcome = await caretLanding.restore(caretAt(path, offset), {
+			reveal: 'into-view-held',
+			openCollapsed: true
+		});
+		return outcome === 'applied' && focusInView();
 	}
 
 	/** True only if the selection was placed and its focus block is in view; a programmatic
 	 *  scroll before it finishes makes it false, a user scroll does not. */
 	export async function setSelection(selection: EditorSelection): Promise<boolean> {
-		return (await restoreThroughRevealRoad(selection, 'release')) === 'applied';
+		return (await caretLanding.restore(selection)) === 'applied' && focusInView();
 	}
 
 	// The caret search a click on empty space runs, minus the event checks a host has done.

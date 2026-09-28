@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { resolveSelectionPoint, restoreSelection } from '../../selection/selection-restore';
+import { resolveSelectionPoint } from '../../selection/selection-restore';
 import { createSelectionState } from '../../selection/selection-state.svelte';
+import type { EditorSelection } from '../../selection/primitives';
 import { parse } from '../../core/parser';
-import { createCaretMemory } from '../../cursor/caret-memory';
 import { asEditorX } from '../../cursor/coordinate-spaces';
+import { restoreLandingOver } from '../harness/restore-landing';
 
 const PROSE = 'Alpha one\n\nBravo two\n';
 const TABLE_2x2 = '| A | B |\n| --- | --- |\n| 1 | 2 |\n';
@@ -12,24 +13,14 @@ const TABLE_2x2 = '| A | B |\n| --- | --- |\n| 1 | 2 |\n';
 /** `mounted: false` makes every element lookup miss, the unplaced-outcome shape. */
 function restoreHarness(source: string, { mounted = true } = {}) {
 	const doc = parse(source);
-	const revealed: number[][] = [];
 	const selectionState = createSelectionState({ getDoc: () => doc });
-	const caretMemory = createCaretMemory();
+	const { landing, revealed, caretMemory } = restoreLandingOver(doc, selectionState, { mounted });
 	return {
 		doc,
 		revealed,
 		selectionState,
 		caretMemory,
-		deps: {
-			getDoc: () => doc,
-			selectionState,
-			caretMemory,
-			getBlockElByPath: () => (mounted ? document.createElement('div') : null),
-			revealTarget: async (path: number[]): Promise<boolean> => {
-				revealed.push(path);
-				return mounted;
-			}
-		}
+		restore: (selection: EditorSelection) => landing.restore(selection)
 	};
 }
 
@@ -79,9 +70,9 @@ describe('resolveSelectionPoint, clamping per coordinate space', () => {
 	});
 });
 
-// Every programmatic placement (a host's setSelection, the link card's return, a mode switch's
-// restore) goes through `restoreSelection`, so that is where the caret memory is forgotten.
-describe('restoreSelection forgets how the caret arrived', () => {
+// Every stored selection put back (undo, a host's setSelection, a mode switch) goes through the
+// caret landing's restore, so that is where the caret memory is forgotten.
+describe('a restore forgets how the caret arrived', () => {
 	function arrived(h: ReturnType<typeof restoreHarness>) {
 		h.caretMemory.noteKey({ key: 'ArrowDown' }, null, () => asEditorX(240));
 		h.caretMemory.pendingMarks.toggle('strong');
@@ -91,7 +82,7 @@ describe('restoreSelection forgets how the caret arrived', () => {
 		const h = restoreHarness(PROSE);
 		arrived(h);
 		const caret = { path: [1], offset: 0 };
-		expect(await restoreSelection({ anchor: caret, focus: caret }, h.deps)).toBe('applied');
+		expect(await h.restore({ anchor: caret, focus: caret })).toBe('applied');
 		expect(h.caretMemory.column()).toBeNull();
 		expect(h.caretMemory.side()).toBeNull();
 		expect(h.caretMemory.pendingMarks.get()).toBeNull();
@@ -101,19 +92,19 @@ describe('restoreSelection forgets how the caret arrived', () => {
 		const h = restoreHarness(PROSE);
 		arrived(h);
 		const dead = { path: [9], offset: 0 };
-		expect(await restoreSelection({ anchor: dead, focus: dead }, h.deps)).toBe('unresolvable');
+		expect(await h.restore({ anchor: dead, focus: dead })).toBe('unresolvable');
 		expect(h.caretMemory.column()).toBe(240);
 	});
 });
 
-describe('restoreSelection', () => {
+describe('restoring a stored selection', () => {
 	it('declines a path that no longer resolves, revealing nothing', async () => {
 		const h = restoreHarness(PROSE);
 
-		const outcome = await restoreSelection(
-			{ anchor: { path: [9], offset: 0 }, focus: { path: [9], offset: 0 } },
-			h.deps
-		);
+		const outcome = await h.restore({
+			anchor: { path: [9], offset: 0 },
+			focus: { path: [9], offset: 0 }
+		});
 
 		// The mount scrolls; running it before the resolve check would move the
 		// viewport on the way to reporting failure.
@@ -125,10 +116,10 @@ describe('restoreSelection', () => {
 	it('declines when only the anchor is stale', async () => {
 		const h = restoreHarness(PROSE);
 
-		const outcome = await restoreSelection(
-			{ anchor: { path: [9], offset: 0 }, focus: { path: [0], offset: 0 } },
-			h.deps
-		);
+		const outcome = await h.restore({
+			anchor: { path: [9], offset: 0 },
+			focus: { path: [0], offset: 0 }
+		});
 
 		expect(outcome).toBe('unresolvable');
 		expect(h.revealed).toEqual([]);
@@ -139,10 +130,10 @@ describe('restoreSelection', () => {
 	it('reports unplaced (not unresolvable) when a resolvable target is unmounted', async () => {
 		const h = restoreHarness(PROSE, { mounted: false });
 
-		const outcome = await restoreSelection(
-			{ anchor: { path: [0], offset: 1 }, focus: { path: [1], offset: 2 } },
-			h.deps
-		);
+		const outcome = await h.restore({
+			anchor: { path: [0], offset: 1 },
+			focus: { path: [1], offset: 2 }
+		});
 
 		expect(outcome).toBe('unplaced');
 		expect(h.revealed).toEqual([[1]]);
@@ -152,12 +143,8 @@ describe('restoreSelection', () => {
 	it('reveals the focus block for a prose caret', async () => {
 		const h = restoreHarness(PROSE);
 
-		expect(
-			await restoreSelection(
-				{ anchor: { path: [1], offset: 2 }, focus: { path: [1], offset: 2 } },
-				h.deps
-			)
-		).toBe('applied');
+		const caret = { path: [1], offset: 2 };
+		expect(await h.restore({ anchor: caret, focus: caret })).toBe('applied');
 		expect(h.revealed).toEqual([[1]]);
 	});
 
@@ -166,22 +153,43 @@ describe('restoreSelection', () => {
 
 		// Cell index 3 in a 2-column table is row 1, col 1. Table rows are windowed, so mounting
 		// [0] alone would leave that row unmounted.
-		await restoreSelection(
-			{ anchor: { path: [0], offset: 0, cellCoordinate: true }, focus: { path: [0], offset: 3 } },
-			h.deps
-		);
+		await h.restore({
+			anchor: { path: [0], offset: 0, cellCoordinate: true },
+			focus: { path: [0], offset: 3 }
+		});
 
-		expect(h.revealed).toEqual([[0, 1, 1]]);
+		expect(h.revealed.at(-1)).toEqual([0, 1, 1]);
 	});
 
 	it('clamps before revealing, so an out-of-grid cell index still resolves a cell', async () => {
 		const h = restoreHarness(TABLE_2x2);
 
-		await restoreSelection(
-			{ anchor: { path: [0], offset: 0, cellCoordinate: true }, focus: { path: [0], offset: 99 } },
-			h.deps
-		);
+		await h.restore({
+			anchor: { path: [0], offset: 0, cellCoordinate: true },
+			focus: { path: [0], offset: 99 }
+		});
 
-		expect(h.revealed).toEqual([[0, 1, 1]]);
+		expect(h.revealed.at(-1)).toEqual([0, 1, 1]);
+	});
+
+	// Miss-analysis: every collapsed restore named a leaf, so a list's own path mounted the list
+	// and focused its wrapper, where typing goes nowhere.
+	it('descends a caret on a container path into its first leaf', async () => {
+		const h = restoreHarness('- a\n- b\n');
+
+		const onList = { path: [0], offset: 0 };
+		expect(await h.restore({ anchor: onList, focus: onList })).toBe('applied');
+		expect(h.revealed.at(-1)).toEqual([0, 0, 0]);
+	});
+
+	// Miss-analysis: no restore test held a block with no text, so a same-path pair over a rule
+	// went down the text-range route and put nothing back.
+	it('puts a rule held whole back as held whole', async () => {
+		const h = restoreHarness('above\n\n---\n\nbelow\n');
+
+		await h.restore({ anchor: { path: [1], offset: 0 }, focus: { path: [1], offset: 3 } });
+
+		expect(h.selectionState.wholeUnitPath).toEqual([1]);
+		expect(h.selectionState.isCrossBlock).toBe(true);
 	});
 });

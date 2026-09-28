@@ -84,12 +84,9 @@ export function makeKeydownEnv(source: string | Document, opts: KeydownEnvOption
 	const crossBlockCommands = createCrossBlockCommands({
 		selection,
 		getDoc: () => harness.deps.doc,
-		getBlockElByPath,
-		revealPath,
 		controller,
 		reading,
-		getContentVersion: harness.contentVersion,
-		caretMemory
+		getContentVersion: harness.contentVersion
 	});
 
 	const onCommandError = vi.fn();

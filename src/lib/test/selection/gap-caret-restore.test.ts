@@ -3,26 +3,26 @@ import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { restoreGapCaret } from '$lib/selection/selection-restore';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
-import type { SelectionRestoreDeps } from '$lib/selection/selection-restore';
+import type { GapCaretRestoreDeps } from '$lib/selection/selection-restore';
 import { createCaretMemory } from '$lib/cursor/caret-memory';
+import { stubBlockComponent } from '$lib/testing/headless-actions';
 
 // Restoring an undo entry that holds a gap caret: the boundary is clamped into the tree it
 // lands in, and the block it sits against is mounted before the caret is placed.
 
 const DOC = '| a |\n| - |\n\n```\nx\n```\n\n> para\n>\n> ```\n> y\n> ```\n';
 
-function harness(overrides: Partial<SelectionRestoreDeps> = {}) {
+function harness(overrides: Partial<GapCaretRestoreDeps> = {}) {
 	const doc = parse(DOC);
 	const revealed: number[][] = [];
 	const selectionState = createSelectionState({ getDoc: () => doc });
-	const deps: SelectionRestoreDeps = {
+	const deps: GapCaretRestoreDeps = {
 		getDoc: () => doc,
 		selectionState,
-		getBlockElByPath: () => null,
 		caretMemory: createCaretMemory(),
-		revealTarget: async (path) => {
+		mount: async (path) => {
 			revealed.push(path);
-			return true;
+			return stubBlockComponent();
 		},
 		...overrides
 	};
@@ -95,7 +95,7 @@ describe('restoreGapCaret', () => {
 
 	// The mount is best effort; the caret is still placed, as it is for an endpoint pair.
 	it('reports unplaced but still puts the caret when the reveal misses', async () => {
-		const h = harness({ revealTarget: async () => false });
+		const h = harness({ mount: async () => null });
 
 		const outcome = await restoreGapCaret({ parentPath: [], index: 1 }, h.deps);
 

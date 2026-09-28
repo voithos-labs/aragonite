@@ -26,7 +26,7 @@ function makeEnv(source: string) {
 		selection: harness.deps.selectionState,
 		getDoc: () => harness.deps.doc,
 		getBlockElByPath: () => null,
-		revealPath: harness.deps.revealPath,
+		revealPath: (path) => harness.deps.caretLanding.mount(path),
 		controller,
 		reading: fixtureReading()
 	};

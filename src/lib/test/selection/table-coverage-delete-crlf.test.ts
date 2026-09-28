@@ -24,7 +24,7 @@ function soleTableEnv(source: string) {
 		selection: deps.selectionState,
 		getDoc: () => deps.doc,
 		getBlockElByPath: () => null,
-		revealPath: deps.revealPath,
+		revealPath: (path) => deps.caretLanding.mount(path),
 		controller,
 		reading: fixtureReading()
 	};

@@ -29,7 +29,7 @@ function makeGatedEnv() {
 	env.events.on('error', (e) => errors.push(e));
 
 	const handlers = makeHandlers(env, [0], {
-		revealPath: (path) => (gateArmed ? gate : env.deps.revealPath(path))
+		revealPath: (path) => (gateArmed ? gate : env.deps.caretLanding.mount(path))
 	});
 
 	const mutCtx: CrossBlockMutationContext = {

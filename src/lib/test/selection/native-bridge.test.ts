@@ -9,6 +9,7 @@ import {
 import { createSelectionState } from '../../selection/selection-state.svelte';
 import { parse } from '../../core/parser';
 import { stubBlockComponent } from '../harness/editor-actions';
+import { restoreTarget } from '../harness/restore-landing';
 
 const NO_WIDGET = () => null;
 
@@ -77,7 +78,10 @@ describe('undo selection snapshots: cellCoordinate round-trip', () => {
 		const snap = readCurrentSelection(s, [], NO_WIDGET)!;
 
 		const restored = createSelectionState({ getDoc: () => doc });
-		applySelectionToDom(snap, restored, () => null);
+		applySelectionToDom(
+			snap,
+			restoreTarget(restored, () => null)
+		);
 
 		expect(restored.focus?.cellCoordinate).toBe(true);
 		// The whole-row snap keys on the flag: the end endpoint snaps to the
@@ -140,8 +144,7 @@ describe('applySelectionToDom: restore routing', () => {
 
 		applySelectionToDom(
 			{ anchor: { path: [0], offset: 0 }, focus: { path: [0], offset: 5 } },
-			s,
-			() => null
+			restoreTarget(s, () => null)
 		);
 
 		expect(onChangeCount).toBe(1);
@@ -165,8 +168,7 @@ describe('applySelectionToDom: restore routing', () => {
 
 		const placed = applySelectionToDom(
 			{ anchor: { path: [0], offset: 9 }, focus: { path: [0], offset: 3 } },
-			s,
-			() => block
+			restoreTarget(s, () => block)
 		);
 
 		const sel = window.getSelection()!;
@@ -207,11 +209,10 @@ describe('applySelectionToDom: restore routing', () => {
 		applySelectionToDom(
 			// A bare focus on the table path, cell index 3, which the state flags as it stores it.
 			{ anchor: { path: [0], offset: 0, cellCoordinate: true }, focus: { path: [0], offset: 3 } },
-			s,
-			(p) => {
+			restoreTarget(s, (p) => {
 				requested.push(p);
 				return document.createElement('div');
-			}
+			})
 		);
 
 		// Cell index 3 in a 2-column table is row 1, col 1: the caret goes in that cell, not at a
@@ -228,10 +229,13 @@ describe('applySelectionToDom: restore routing', () => {
 		// through `setSelection`.
 		const stored = { path: [0], offset: 3, cellCoordinate: true as const };
 
-		applySelectionToDom({ anchor: stored, focus: { ...stored } }, s, (p) => {
-			requested.push(p);
-			return document.createElement('div');
-		});
+		applySelectionToDom(
+			{ anchor: stored, focus: { ...stored } },
+			restoreTarget(s, (p) => {
+				requested.push(p);
+				return document.createElement('div');
+			})
+		);
 
 		expect(requested).toEqual([[0, 1, 1]]);
 		expect(s.isCrossBlock).toBe(false);

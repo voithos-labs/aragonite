@@ -13,7 +13,7 @@ import type { BlockElLookup } from '../editor-keys';
 import { descendTo, type ChildList } from '../reactivity/child-list';
 import { caretTargetFor } from './caret-target';
 import { applySelectionToDom } from './native-bridge';
-import type { CaretPosition, EditorSelection } from './primitives';
+import type { CaretPosition, EditorSelection, SelectionPoint } from './primitives';
 import { resolveSelectionPoint, type SelectionRestoreOutcome } from './selection-restore';
 import type { SelectionState } from './selection-state.svelte';
 
@@ -59,6 +59,8 @@ export interface CaretLandingDeps {
 	selectionState: SelectionState;
 	caretMemory: Pick<CaretMemory, 'forget' | 'noteExtreme'>;
 	getBlockElByPath: BlockElLookup;
+	/** The editor's own element, which holds focus while a block with no text is selected whole. */
+	getEditorRoot(): HTMLElement | null;
 	/** Null where nothing renders (a headless harness), so a landing only mounts. */
 	scroll: ScrollSettle | null;
 }
@@ -102,26 +104,32 @@ export function createCaretLanding(deps: CaretLandingDeps): CaretLanding {
 			const focus = resolveSelectionPoint(doc, selection.focus);
 			if (!anchor || !focus) return 'unresolvable';
 			const open = { openCollapsed: opts.openCollapsed };
-			let placing: EditorSelection = { anchor, focus };
-			let mountPath = deps.selectionState.cellLandingFor(focus).path;
 			// A stored caret places at its byte, not through the block's `focus`: the byte is where a
 			// caret once sat, and a kind's own landing rule would move it.
-			if (deps.selectionState.restoreRoute(anchor, focus) === 'collapsed') {
-				const cell = deps.selectionState.cellLandingFor(focus);
+			const caretAt = (point: SelectionPoint): SelectionPoint => {
+				const cell = deps.selectionState.cellLandingFor(point);
 				const target = caretTargetFor(
 					doc,
 					{ path: docPathFrom(cell.path), offset: cell.offset },
 					open
 				);
-				if (!target) return 'unresolvable';
-				const point = { path: [...target.leafPath], offset: target.offset };
-				placing = { anchor: point, focus: point };
-				mountPath = point.path;
-			}
+				return target ? { path: [...target.leafPath], offset: target.offset } : cell;
+			};
+			const route = deps.selectionState.restoreRoute(anchor, focus);
+			const holdsCaret = route === 'collapsed' || route === 'custom';
+			const mountPath = holdsCaret ? caretAt(focus).path : focus.path;
 			const mounted = await descendTo(deps.root, mountPath, open);
 			if (generation !== stamp) return 'unplaced';
 			deps.caretMemory.forget();
-			const placed = applySelectionToDom(placing, deps.selectionState, deps.getBlockElByPath);
+			const placed = applySelectionToDom(
+				{ anchor, focus },
+				{
+					selectionState: deps.selectionState,
+					getBlockElByPath: deps.getBlockElByPath,
+					caretAt,
+					getEditorRoot: deps.getEditorRoot
+				}
+			);
 			await bringIntoView(mountPath, opts.reveal ?? 'into-view');
 			return mounted && placed ? 'applied' : 'unplaced';
 		},

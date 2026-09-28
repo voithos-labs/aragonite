@@ -1,5 +1,5 @@
 import { test, expect } from '../../fixtures';
-import { DetailsPage, bodyHostCount, capturedErrors } from './details-helpers';
+import { DetailsPage, activeBlockPath, bodyHostCount, capturedErrors } from './details-helpers';
 import { countEditEvents } from '../selection/multi-scope-event-count/helpers';
 
 /**
@@ -74,6 +74,62 @@ test.describe('plugin container: extending a selection past a closed <details>',
 		await page.keyboard.press('Backspace');
 		await editor.bridge.waitForSourceEquals('AboveBelow\n');
 		expect(await capturedErrors(page)).toEqual([]);
+	});
+
+	test('ArrowRight after select-all over a closing details collapses to its title row, unopened', async ({
+		page
+	}) => {
+		const source = 'Above\n\n' + CLOSED;
+		await editor.loadContent(source);
+		await editor.focusBlockAtPath([0], 0);
+		const undoDepth = await editor.bridge.getUndoDepth();
+
+		await editor.selectAll();
+		await editor.selectAll();
+		await editor.waitForCrossBlock(true);
+		await page.keyboard.press('ArrowRight');
+		await editor.waitForCrossBlock(false);
+
+		expect(await editor.bridge.getSource()).toBe(source);
+		expect(await editor.bridge.getUndoDepth()).toBe(undoDepth);
+		expect(await bodyHostCount(page)).toBe(1);
+		expect(await activeBlockPath(page)).toEqual([1, 0]);
+	});
+
+	test('Shift+ArrowUp twice from below a leading closed details stops on its title row', async ({
+		page
+	}) => {
+		const source = CLOSED + '\nBelow\n';
+		await editor.loadContent(source);
+		await editor.focusBlockAtPath([1], 0);
+		const undoDepth = await editor.bridge.getUndoDepth();
+
+		await page.keyboard.press('Shift+ArrowUp');
+		await page.keyboard.press('Shift+ArrowUp');
+		await expect.poll(() => focusPath(editor)).toEqual({ path: [0, 0], offset: 0 });
+
+		expect(await editor.bridge.getSource()).toBe(source);
+		expect(await editor.bridge.getUndoDepth()).toBe(undoDepth);
+		expect(await bodyHostCount(page)).toBe(1);
+	});
+
+	test('an undo whose range ends in the hidden body parks the caret on the title row, unopened', async ({
+		page
+	}) => {
+		const source = 'Above\n\n' + CLOSED;
+		await editor.loadContent(source);
+		await editor.focusBlockAtPath([0], 0);
+		await editor.selectAll();
+		await editor.selectAll();
+		await editor.waitForCrossBlock(true);
+		await page.keyboard.press('Backspace');
+		await editor.bridge.waitForSourceEquals('\n');
+
+		await editor.undo();
+		await editor.bridge.waitForSourceEquals(source);
+		await expect.poll(() => activeBlockPath(page)).toEqual([1, 0]);
+		expect(await bodyHostCount(page)).toBe(1);
+		expect(await editor.bridge.getSource()).toBe(source);
 	});
 
 	test('Backspace over a range ending on a closed title row takes the whole block', async ({

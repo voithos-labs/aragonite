@@ -211,19 +211,20 @@ flowchart TD
 to it (a table it passes through still scrolls its own grid sideways to a far cell's column, or
 the caret would land where you can't see it). `src/lib/editor-rects.ts` :: `createEditorRects` wraps a mount as `scrollTo`, which claims,
 mounts, and then scrolls and follows the block until it stops moving
-(`src/lib/editor-rects.ts` :: `createScrollSettle`). A history swap injects the bare mount, so undo doesn't yank the
-viewport; a navigation injects the scrolling one. Both open a collapsed body on the way, as one
-undo entry, since that's what gets a caret aimed into the hidden body placed.
+(`src/lib/editor-rects.ts` :: `createScrollSettle`). A navigation opens a collapsed body on the
+way, as one undo entry, since that's what gets it to a spot inside the hidden body.
 
-A commit's caret goes a third way, `src/lib/selection/caret-landing.ts` :: `createCaretLanding`.
-It mounts the same way, but a position inside a closed body lands on its title row instead of
-opening it, and it scrolls only when the block isn't visible, letting go of the viewport as
-soon as it's done.
+A caret goes a third way, `src/lib/selection/caret-landing.ts` :: `createCaretLanding`: `land`
+for an edit's caret, `restore` for a stored selection (undo and redo, `setSelection`, a mode
+switch). It mounts the same way, but a position inside a closed body lands on its title row
+instead of opening it. An edit's caret scrolls only when the block isn't visible, letting go of
+the viewport as soon as it's done; undo and redo only mount, so they don't yank the viewport.
 
 **A caller asks for a reveal instead of reaching for an element.**
-`src/lib/selection/selection-restore.ts` :: `restoreSelection` decides which path actually needs
-to be on screen (a table endpoint reveals its deep cell, a gap caret reveals the block it sits
-against) and hands that to the injected reveal.
+`src/lib/selection/caret-landing.ts` :: `createCaretLanding` decides which path actually needs to
+be on screen (a table endpoint mounts its deep cell, a caret aimed at a list its first item), and
+`src/lib/selection/selection-restore.ts` :: `restoreGapCaret` mounts the block a gap caret sits
+against.
 
 **Where a cell endpoint's caret goes is answered in one place.** An endpoint inside a table
 addresses the table block by cell INDEX, so every reveal and every park asks

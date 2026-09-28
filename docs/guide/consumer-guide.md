@@ -237,6 +237,8 @@ Two notes on the third shape:
 
 Out-of-range offsets clamp, each in its own coordinate space: a character offset clamps to the block's source length, and an endpoint addressing a table clamps to the last cell, so a huge offset there becomes the bottom-right cell rather than a character position.
 
+A caret doesn't have to name the block it ends up in. Point it at offset 0 of a block that holds other blocks (a list at `[2]`, say) and it lands at the start of the list's first item, so the next key types there. A caret inside a closed `<details>` lands at the end of its title row, and the block stays closed.
+
 You can leave the flag off when you build a selection by hand. An offset on a table's path always counts cells, so plain numbers there paint the rectangle with those two cells at its corners, and `getSelection()` hands it back flagged:
 
 ```ts

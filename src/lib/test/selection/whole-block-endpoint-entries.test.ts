@@ -17,11 +17,10 @@ vi.mock('$lib/cursor/point-offset', async (importOriginal) => ({
 
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import { handleShiftClick } from '$lib/selection/keyboard-extend';
-import { restoreSelection } from '$lib/selection/selection-restore';
 import { readNativeCaretInBlock } from '$lib/selection/native-bridge';
 import { offsetFromViewportPoint } from '$lib/cursor/point-offset';
 import { parse } from '$lib/core/parser';
-import { createCaretMemory } from '$lib/cursor/caret-memory';
+import { restoreLandingOver } from '../harness/restore-landing';
 
 const BREAK_DOC = 'Above text\n\n---\n\ntail text\n';
 const clickOffset = vi.mocked(offsetFromViewportPoint);
@@ -50,16 +49,10 @@ describe('whole-block endpoints arriving from an entry path', () => {
 		const doc = parse(BREAK_DOC);
 		const s = createSelectionState({ getDoc: () => doc });
 
-		const outcome = await restoreSelection(
-			{ anchor: { path: [1], offset: 2 }, focus: { path: [2], offset: 4 } },
-			{
-				getDoc: () => doc,
-				selectionState: s,
-				getBlockElByPath: () => document.createElement('div'),
-				caretMemory: createCaretMemory(),
-				revealTarget: async () => true
-			}
-		);
+		const outcome = await restoreLandingOver(doc, s).landing.restore({
+			anchor: { path: [1], offset: 2 },
+			focus: { path: [2], offset: 4 }
+		});
 
 		expect(outcome).toBe('applied');
 		expect(s.start).toEqual({ path: [1], offset: 0 });

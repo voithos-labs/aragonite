@@ -6,7 +6,7 @@
  */
 
 import type { DocumentView } from '../core/node-views';
-import { nodeAt } from '../tree-operations/node-primitives';
+import { isBlockNode, nodeAt } from '../tree-operations/node-primitives';
 import type { GapCaretPosition } from './gap-caret';
 import type { SelectionEndpoint, SelectionPoint } from './primitives';
 import { isWholeBlockEndpoint, normalize } from './primitives';
@@ -21,6 +21,7 @@ import { comparePaths, pathsEqual } from './path-math';
 import { displayLength } from '../core/lines';
 import { assertInvariant } from '../assert';
 import { checkCrossBlockEndpointCoordinates } from '../invariants/selection-endpoints';
+import { isWholeBlockUnit } from '../schema/whole-block-unit';
 
 // ── Public factory ──────────────────────────────────────────────────────────
 
@@ -38,6 +39,8 @@ export function createSelectionState(options?: SelectionStateOptions): Selection
 }
 
 // ── Interface ───────────────────────────────────────────────────────────────
+
+export type RestoreRoute = 'collapsed' | 'single-block' | 'whole-block' | 'custom';
 
 export interface SelectionState {
 	readonly anchor: SelectionPoint | null;
@@ -85,12 +88,9 @@ export interface SelectionState {
 	 *  a throw. Wrap a state write and its caret placement so no notify lands between the two. */
 	batch(mutate: () => void): void;
 
-	/** Classifies a pair `resolveSelectionPoint` returned, for a DOM restore, touching no state: a
-	 *  same-path text range is 'single-block', a cross-block range or cell rectangle 'custom'. */
-	restoreRoute(
-		anchor: SelectionPoint,
-		focus: SelectionPoint
-	): 'collapsed' | 'single-block' | 'custom';
+	/** Classifies a pair `resolveSelectionPoint` returned, for a DOM restore, touching no state. A
+	 *  same-path pair over a block with no character position is that block held whole. */
+	restoreRoute(anchor: SelectionPoint, focus: SelectionPoint): RestoreRoute;
 	/** Where a caret lands for `point`: a cell endpoint in its cell's `[table, row, col]` leaf at
 	 *  offset 0, any other point as itself. Every mount and caret placement goes through here. */
 	cellLandingFor(point: SelectionPoint): SelectionPoint;
@@ -362,13 +362,13 @@ class SelectionStateImpl implements SelectionState {
 		this.#notify();
 	}
 
-	restoreRoute(
-		anchor: SelectionPoint,
-		focus: SelectionPoint
-	): 'collapsed' | 'single-block' | 'custom' {
+	restoreRoute(anchor: SelectionPoint, focus: SelectionPoint): RestoreRoute {
 		if (!pathsEqual(anchor.path, focus.path)) return 'custom';
 		if (anchor.offset === focus.offset) return 'collapsed';
-		return isCellPair(anchor, focus) ? 'custom' : 'single-block';
+		if (isCellPair(anchor, focus)) return 'custom';
+		const doc = this.#getDoc?.();
+		const node = doc ? nodeAt(doc, anchor.path) : null;
+		return node && isBlockNode(node) && isWholeBlockUnit(node) ? 'whole-block' : 'single-block';
 	}
 
 	cellLandingFor(point: SelectionPoint): SelectionPoint {

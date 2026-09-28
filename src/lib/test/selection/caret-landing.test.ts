@@ -77,6 +77,7 @@ function landingOver(source: string, over: Partial<CaretLandingDeps> = {}) {
 		caretMemory,
 		// A stand-in element, so the scroll half has something to bring into view.
 		getBlockElByPath: () => ({}) as HTMLElement,
+		getEditorRoot: () => null,
 		scroll: null,
 		...over
 	};
@@ -116,6 +117,7 @@ describe('landing a caret', () => {
 			selectionState: createSelectionState({ getDoc: () => doc }),
 			caretMemory: createCaretMemory(),
 			getBlockElByPath: () => null,
+			getEditorRoot: () => null,
 			scroll: null
 		});
 		expect(await box.landing.land(at([1], 0))).toBe('stale');

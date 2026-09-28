@@ -412,7 +412,7 @@ async function runRangeDelete(
 		selection: h.deps.selectionState,
 		getDoc: () => h.deps.doc,
 		getBlockElByPath: () => null,
-		revealPath: h.deps.revealPath,
+		revealPath: (path) => h.deps.caretLanding.mount(path),
 		controller: h.controller,
 		reading: fixtureReading()
 	});

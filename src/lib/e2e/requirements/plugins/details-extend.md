@@ -13,7 +13,17 @@ the editor's selection and the serialized bytes.
 - Shift+ArrowDown from above: the first press puts the moving end at the title row's start and the
   second at the start of the block below, with nothing written on the way
 
+- Select-all twice over a document ending in a closed details, then ArrowRight: the caret lands at
+  the end of the title row, and the bytes, the undo depth and the mounted body count don't move
+- A closed details first and a paragraph below it, caret at the paragraph's start: two
+  Shift+ArrowUp presses stop the moving end on the title row (the second finds nothing earlier)
+  and open nothing
+
 ## Edge cases
+
+- an undo whose stored range ends in the hidden body (select-all twice, Backspace, undo) puts the
+  bytes back closed and parks the caret on the title row, instead of opening the block to reach
+  the body
 
 - a delete of the grown range removes the whole details block, its hidden body included, and
   joins the blocks on either side as for any other covered block
@@ -37,5 +47,8 @@ the editor's selection and the serialized bytes.
 
 - Every extension scenario crossed open containers, so the extension's step into a hidden body,
   and the reveal that then opened the block to mount it (#562), had nothing that could see it.
+- The collapse, the lone-details press and the undo each reached the hidden body through a
+  different route (the collapse's own mount, the extend's caret park, the history restore), and
+  every scenario here only extended, so the three routes that opened the block went untested.
 - The first version of this spec grew the range past the title row before deleting, so no test
   deleted a range that ended on the row, and the kept body under an emptied title (#601) passed.
