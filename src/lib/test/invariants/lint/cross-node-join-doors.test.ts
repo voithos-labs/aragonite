@@ -1,7 +1,7 @@
 /**
  * A leaf's bytes built from text of more than one source is a join, and every destructive one
- * goes through `cleanJoinedRaw` (`docs/design/live-mode.md` § 4.5). The census runs both ways:
- * files that call the cleaner are declared, and so is every other file building such a
+ * goes through `cleanJoinedRaw` (G4.76, `docs/design/live-mode.md` § 4.5). The census runs both
+ * ways: files that call the cleaner are declared, and so is every other file building such a
  * concatenation, with the reason it is not a destructive join.
  */
 
