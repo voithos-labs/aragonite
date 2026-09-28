@@ -799,21 +799,6 @@ const RULES: FileRule[] = [
 			'the delete, the copy and the overlay read the snapped pair from `coverRange`; a second snap is a second answer to what the range covers',
 		hits: ['const { start, end } = snapCrossBlockTableEndpoints(doc, a, b);'],
 		misses: ["import { snapCrossBlockTableEndpoints } from './table-endpoint-snap';"]
-	},
-	{
-		id: 'G4.82 the task-marker rule is applied in reconcile-task.ts only',
-		matches: /(?<![\w.])(?:reconcileTaskMetadata|taskMarkerMayStandBefore)\s*\(/,
-		allowed: {
-			'src/lib/tree-operations/list/reconcile-task.ts':
-				'`writeKeepingTaskMarker`, the one wrapper every write into a list item’s first slot goes through'
-		},
-		reason:
-			'wrap the slot write in `writeKeepingTaskMarker`; a hand-written reconcile is a copy of the rule the next route forgets (G1.42)',
-		hits: [
-			'if (owner) reconcileTaskMetadata(owner, slot, stood, sharing);',
-			'const stood = taskMarkerMayStandBefore(old);'
-		],
-		misses: ['writeKeepingTaskMarker(owner, children, slot, sharing, () => install());']
 	}
 ];
 

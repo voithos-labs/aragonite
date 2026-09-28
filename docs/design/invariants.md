@@ -946,10 +946,9 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.74 | Only the commit's open-tail steps write the document's last line ending                   | L       |
 | G4.75 | A leaf's new text goes through one commit or one in-place write, at every depth           | L       |
 | G4.76 | Every join into a leaf, and every other text built from two sources, is declared          | L       |
-| G4.8  | Every documented chord resolves in the surface that dispatches it                         | L       |
 | G4.80 | In `selection/`, only the range coverage and the caret walks ask if a container is closed | L       |
 | G4.81 | The cross-block table row snap runs in the range coverage and the stored pair only        | L       |
-| G4.82 | The task-marker rule is applied in `reconcile-task.ts` only                               | L       |
+| G4.82 | The task-marker rule runs in one wrapper, and its callers are declared                    | L       |
 | G4.83 | Every plain fragment read in the edit layers says why it needs no slot reader             | L       |
 
 ### The entries
@@ -1675,12 +1674,12 @@ overlay, and in the selection state's stored `start` and `end`, which the collap
 seed and the extension paths read (the format toggle reads them too, until it takes the coverage).
 `lint/file-rules.test.ts`.
 
-**G4.82 · The task-marker rule has one home.** `reconcileTaskMetadata` and
-`taskMarkerMayStandBefore` are called only inside `tree-operations/list/reconcile-task.ts`, where
-`writeKeepingTaskMarker` wraps every write into a list item's first slot (the leaf join, the
-content write, the block replace and a range delete's survivor). A route calling the reconcile by
-hand is the copy the next route forgets. `lint/file-rules.test.ts`, with G1.42 as the runtime
-half.
+**G4.82 · The task-marker rule has one home.** `reconcileTaskMetadata` is named only in
+`tree-operations/list/reconcile-task.ts`, where `writeKeepingTaskMarker` calls it. That wrapper is
+how every write into a list item's first slot keeps the checkbox in step, and its callers are a
+declared list (the content write, the leaf join, the block replace and a range delete's survivor),
+so a new route into that slot has to join it or say why. A hand-written reconcile is the copy the
+next route forgets. `lint/leaf-write-doors.test.ts`, with G1.42 as the runtime half.
 
 **G4.83 · Every plain fragment read says why.** Bytes written into a child slot read the way a
 reload reads them there, through `tree-operations/list/task-paragraph.ts :: fragmentReaderAt`

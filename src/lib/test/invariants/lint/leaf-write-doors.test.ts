@@ -93,22 +93,36 @@ const RULES: FileRule[] = [
 		]
 	},
 	{
-		id: 'G4.75 the task marker is reconciled once per kind of write',
+		id: 'G4.82 the task marker is reconciled only inside writeKeepingTaskMarker',
 		matches: /\breconcileTaskMetadata\b/,
 		allowed: {
-			'src/lib/tree-operations/list/reconcile-task.ts': 'defines it',
-			[TREE_OPS_BARREL]: BARREL_REASON,
-			[CONTENT_WRITE]: 'the content write',
-			'src/lib/tree-operations/node-ops.ts': '`joinIntoLeaf`, the one join into a leaf',
-			[BLOCK_EDIT_CORE]: '`replaceBlock`, the one replace write'
+			'src/lib/tree-operations/list/reconcile-task.ts':
+				'defines it, and `writeKeepingTaskMarker` beside it is its one caller'
 		},
 		reason:
-			'a write that re-kinds a list item’s first block reconciles its task marker inside the content write, the join or the replace; call one of those',
+			'a write into a list item’s first slot wraps itself in `writeKeepingTaskMarker`; a hand-written reconcile is the copy the next route forgets (G1.42)',
 		hits: [
 			'if (owner) reconcileTaskMetadata(owner, i, stood, sharing);',
 			"import { reconcileTaskMetadata as reconcile } from '../tree-operations';"
 		],
 		misses: ['reconcileTaskMetadataLater(owner);']
+	},
+	{
+		id: 'G4.82 every write into a list item’s first slot is a declared caller of the marker wrapper',
+		matches: /\bwriteKeepingTaskMarker\b/,
+		allowed: {
+			'src/lib/tree-operations/list/reconcile-task.ts': 'defines it',
+			[TREE_OPS_BARREL]: BARREL_REASON,
+			[CONTENT_WRITE]: 'the content write',
+			'src/lib/tree-operations/node-ops.ts': '`joinIntoLeaf`, the one join into a leaf',
+			[BLOCK_EDIT_CORE]: '`replaceBlock`, the one replace write',
+			'src/lib/selection/range-delete-ceremony.ts':
+				'`installSurvivor`, the one install of what a range delete leaves at an endpoint'
+		},
+		reason:
+			'a new write into a list item’s first slot is a new route for the task-marker rule: route it through one of these, or declare it',
+		hits: ["import { writeKeepingTaskMarker as keep } from '../tree-operations';"],
+		misses: ['writeKeepingTaskMarkerLater(owner);']
 	},
 	{
 		id: 'G4.75 a replacement is escaped for its container in the one replace write',
