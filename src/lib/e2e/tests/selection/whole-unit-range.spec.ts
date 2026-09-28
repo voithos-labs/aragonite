@@ -93,7 +93,7 @@ test.describe('a whole-unit range: thematic break', () => {
 	});
 });
 
-test.describe('a whole-unit range: where Backspace leaves the caret', () => {
+test.describe('a whole-unit range: where each key leaves the caret', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -101,15 +101,22 @@ test.describe('a whole-unit range: where Backspace leaves the caret', () => {
 		await editor.goto();
 	});
 
-	test('at the end of the block above', async () => {
-		await editor.loadContent(DOC);
-		await dragInside(editor, '.thematic-break-block');
-		await editor.page.keyboard.press('Backspace');
-		await editor.bridge.waitForSourceEquals('above\n\nbelow\n');
+	const SIDES = [
+		{ key: 'Backspace', lands: 'at the end of the block above', typed: 'abovex\n\nbelow\n' },
+		{ key: 'Delete', lands: 'at the start of the block below', typed: 'above\n\nxbelow\n' },
+		{ key: 'ControlOrMeta+x', lands: 'at the start of the block below', typed: 'above\n\nxbelow\n' }
+	];
+	for (const { key, lands, typed } of SIDES) {
+		test(`${key} ${lands}`, async () => {
+			await editor.loadContent(DOC);
+			await dragInside(editor, '.thematic-break-block');
+			await editor.page.keyboard.press(key);
+			await editor.bridge.waitForSourceEquals('above\n\nbelow\n');
 
-		await editor.typeSlowly('x');
-		await editor.bridge.waitForSourceEquals('abovex\n\nbelow\n');
-	});
+			await editor.typeSlowly('x');
+			await editor.bridge.waitForSourceEquals(typed);
+		});
+	}
 
 	test('in the first item of a list below, with nothing above', async () => {
 		await editor.loadContent('---\n\n- a\n');

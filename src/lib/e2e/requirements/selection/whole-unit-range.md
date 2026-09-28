@@ -27,6 +27,10 @@ not only Backspace.
 
 - Backspace over the rule puts the caret at the end of the block above (the side Backspace
   points), so a typed `x` joins `above`.
+- Delete and cut over the rule put the caret at the start of the block below, the side Delete
+  points, the same as for a rule focused by a click, so a typed `x` opens `below`.
+  - Miss-analysis: the unit suite for this delete had no key, and no e2e pressed Delete or cut
+    over a range, so a delete that always took Backspace's side passed both.
 - With nothing above and a list below, the caret goes to the start of the list's first item: a
   typed `x` lands inside it, not in the list's wrapper where it would go nowhere.
   - Miss-analysis: the delete tests here only read the bytes, and the unit suite for this delete

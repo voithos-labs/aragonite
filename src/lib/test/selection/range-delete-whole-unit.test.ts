@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { rangeDelete } from '$lib/selection/range-delete';
@@ -8,19 +8,23 @@ import { expectParseConverged } from '../harness/parse-converged';
 import type { Document } from '$lib/core/nodes';
 import type { SelectionPoint } from '$lib/selection/primitives';
 import { fixtureReading } from '../harness/fixture-grammar';
+import type { RemovalSide } from '$lib/selection/caret-target';
+import { registerChromePluginsForTests } from './chrome-plugins';
+import { TWO_COL_THREE_ROW } from './table-fixtures';
 
 // A block with no positions inside it (a rule, a diagram) is in a range whole or not at all, so
 // a range that covers it deletes the node: the same-block branch's byte write would leave a rule
 // holding a bare line ending, which no reload reads as a rule.
 // Miss-analysis: every same-block fixture was text, whose emptied survivor is a legal block.
 
-function del(source: string, start: SelectionPoint, end: SelectionPoint) {
+function del(source: string, start: SelectionPoint, end: SelectionPoint, side?: RemovalSide) {
 	const doc: Document = parse(source);
 	const result = rangeDelete(
 		doc,
 		coverRange(doc, start, end),
 		createSharingState(),
-		fixtureReading()
+		fixtureReading(),
+		side
 	);
 	return { doc, caret: result.collapsedCaret };
 }
@@ -79,4 +83,51 @@ describe('a range covering a whole-block-focus leaf deletes the node', () => {
 		expect(doc.children.map((c) => c.kind)).toEqual(['paragraph', 'paragraph', 'paragraph']);
 		expectParseConverged(doc);
 	});
+});
+
+// Miss-analysis: every row above ran with no key, and no e2e pressed Delete over a range, so a
+// removal that always took Backspace's side passed them all.
+describe('a whole removal lands on the side its key points', () => {
+	beforeEach(registerChromePluginsForTests);
+
+	const CLOSED = '<details>\n<summary>Sum</summary>\n\nHidden\n\n</details>\n';
+	const cell = (path: number[], index: number): SelectionPoint => ({
+		path,
+		offset: index,
+		cellCoordinate: true
+	});
+	const ROUTES = [
+		{
+			name: 'a rule',
+			middle: '---\n',
+			start: { path: [1], offset: 0 },
+			end: { path: [1], offset: 3 }
+		},
+		{
+			name: 'a closed details',
+			middle: CLOSED,
+			start: { path: [1, 0], offset: 0 },
+			end: { path: [1, 1], offset: 6 }
+		},
+		{
+			name: 'two tables emptied',
+			middle: `${TWO_COL_THREE_ROW}\n${TWO_COL_THREE_ROW}`,
+			start: cell([1], 0),
+			end: cell([2], 5)
+		}
+	];
+	const LANDS: Array<[RemovalSide, SelectionPoint]> = [
+		['before', { path: [0], offset: 'lead'.length }],
+		['after', { path: [1], offset: 0 }]
+	];
+
+	for (const { name, middle, start, end } of ROUTES) {
+		for (const [side, caret] of LANDS) {
+			it(`${name}, side '${side}'`, () => {
+				const result = del(`lead\n\n${middle}\ntail\n`, start, end, side);
+				expect(serialize(result.doc)).toBe('lead\n\ntail\n');
+				expect(result.caret).toEqual(caret);
+			});
+		}
+	}
 });
