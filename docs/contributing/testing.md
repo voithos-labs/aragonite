@@ -155,9 +155,10 @@ The unit setup (`src/lib/test/support/plugin-platform.ts`) resets the plugin pla
 every test, so you don't write that reset yourself. The catch: a plugin you install as the file
 loads, or in `beforeAll`, is gone before the first test runs, and the suite quietly tests plain
 GFM instead (your `$$` fence is a paragraph now). Install in `beforeEach` or inside the test.
-`src/lib/test/invariants/lint/suite-file-rules.test.ts` fails a reset hook of your own (a partial
-one or one behind a helper counts too), and a registration at load, in a `describe` body or in
-`beforeAll`. A test about the reset itself calls `resetPluginPlatformForTests` in the test body.
+`src/lib/test/invariants/lint/suite-file-rules.test.ts` fails a reset hook of your own (one that
+resets only part of the platform, or one hidden behind a helper, counts too), and a registration at
+load, in a `describe` body or in `beforeAll`. A test about the reset itself calls
+`resetPluginPlatformForTests` in the test body.
 
 ### A dev warning fails its test
 
