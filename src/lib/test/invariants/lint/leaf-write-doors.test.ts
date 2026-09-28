@@ -31,7 +31,9 @@ const MARKER_EXEMPT: Record<string, string> = {
 	'src/lib/selection/selection-drop.ts':
 		'a table cell cut by a drag, and a cell holds no list item',
 	'src/lib/editor-actions/search-replace.ts':
-		'writes into a private copy of a whole top-level block and reparses it whole; the replace reconciles'
+		'writes into a private copy of a whole top-level block and reparses it whole; the replace reconciles',
+	'src/lib/testing/kind-conformance.ts':
+		'the published kit writes a kind’s own raw into a throwaway parse, never into a document’s list item'
 };
 
 const RULES: FileRule[] = [
