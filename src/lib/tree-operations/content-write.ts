@@ -10,6 +10,11 @@ import { isBlankParagraph, readBlocks } from '../core/parser';
 import { escalatedFenceLength, matchFenceOpen } from '../core/parsers/fence-syntax';
 import { isBlockOpenerRegistered, type GrammarView } from '../schema/block-openers';
 import {
+	adoptParsedMetadata,
+	parseContainerRaw,
+	rebuildContainerRaw
+} from '../schema/container-raw';
+import {
 	displayLines,
 	documentLineEnding,
 	firstLineEnding,
@@ -18,7 +23,6 @@ import {
 	type LineEnding
 } from '../core/lines';
 import { assignChildIdsDeep } from '../block-id';
-import { perfEnabled, recordContainerKindReparse } from '../perf/instruments';
 import {
 	getBlockKindDescriptor,
 	tryGetBlockKindDescriptor,
@@ -331,7 +335,7 @@ function writeParsedContent(
 		for (const sibling of rest) ensureEditableContainers(sibling, lineEnding);
 		first.raw = first.leadingTrivia + first.raw;
 		first.leadingTrivia = node.leadingTrivia;
-		if (firstBackfilled) reconcileBackfilledRaw(first);
+		if (firstBackfilled) rebuildContainerRaw(first, grammar);
 		// The trailing blank line the parse split off has no follower inside the splice, so it
 		// stays in raw.
 		rest[rest.length - 1].raw += reparsed.suffix;
@@ -346,14 +350,14 @@ function writeParsedContent(
 	if (newKind === oldKind) {
 		node.raw = newText;
 		adoptReparsedFields(node, first);
-		if (firstBackfilled) reconcileBackfilledRaw(node);
+		if (firstBackfilled) rebuildContainerRaw(node, grammar);
 		return { op: 'noop' };
 	}
 
 	const replacement: CstNode = first ?? { kind: 'paragraph', leadingTrivia: '', raw: newText };
 	replacement.raw = newText;
 	replacement.leadingTrivia = node.leadingTrivia;
-	if (firstBackfilled) reconcileBackfilledRaw(replacement);
+	if (firstBackfilled) rebuildContainerRaw(replacement, grammar);
 	parent.children.splice(blockIndex, 1, replacement);
 	return replacePreservingFirst(blockIndex, 1, 1);
 }
@@ -377,14 +381,6 @@ function isEmptyEditableContainer(node: CstNode): boolean {
 	return d.isContainer && d.blockFocus !== 'whole-block' && (node.children?.length ?? 0) === 0;
 }
 
-/**
- * Sync a just-backfilled container's `raw` to its synthesized body. Needed only for a
- * marker-consuming container whose typed raw lacks a blank body line (`> [!TYPE]`).
- */
-function reconcileBackfilledRaw(node: CstNode): void {
-	getBlockKindDescriptor(node.kind).rebuildRaw?.(node);
-}
-
 // ── Container kind re-derivation ──
 
 /**
@@ -401,7 +397,7 @@ export function probeLineOpensAsProse(grammar: GrammarView): boolean {
 }
 
 /**
- * Replace the container at `index` when its rebuilt raw opens as a different kind; only a kind
+ * Replace the container at `index` when its rebuilt raw parses as a different kind; only a kind
  * with an opener qualifies, since registering one claims `readBlocks(raw)` reproduces the kind.
  */
 export function reclassifyContainer(
@@ -410,12 +406,32 @@ export function reclassifyContainer(
 	grammar: GrammarView
 ): CstNode | null {
 	const node = parent.children[index];
-	if (!node) return null;
-	const descriptor = tryGetBlockKindDescriptor(node.kind);
-	if (!descriptor?.isContainer || !isBlockOpenerRegistered(node.kind)) return null;
+	if (!node || !tryGetBlockKindDescriptor(node.kind)?.isContainer) return null;
+	if (!isBlockOpenerRegistered(node.kind)) return null;
+	return replaceWithParse(parent, index, parseContainerRaw(node.raw, grammar), grammar);
+}
 
-	if (perfEnabled()) recordContainerKindReparse();
-	const parsed = readBlocks(node.raw, { grammar, scope: 'fragment' }).children;
+/** {@link reclassifyContainer} for an opaque container, which takes the metadata of a parse that
+ *  keeps its kind, from the same one parse. */
+export function rederiveOpaqueContainer(
+	parent: NodeParent,
+	index: number,
+	grammar: GrammarView
+): CstNode | null {
+	const node = parent.children[index];
+	if (!node) return null;
+	const parsed = parseContainerRaw(node.raw, grammar);
+	if (adoptParsedMetadata(node, parsed) || !isBlockOpenerRegistered(node.kind)) return null;
+	return replaceWithParse(parent, index, parsed, grammar);
+}
+
+function replaceWithParse(
+	parent: NodeParent,
+	index: number,
+	parsed: CstNode[],
+	grammar: GrammarView
+): CstNode | null {
+	const node = parent.children[index];
 	// A container's raw is one block by construction; a multi-block reparse means bytes this
 	// function has no position for, left to the edit that owns the mutation.
 	if (parsed.length !== 1 || parsed[0].kind === node.kind) return null;
@@ -429,7 +445,7 @@ export function reclassifyContainer(
 	// overwriting it or anything the parse split off the front vanishes with it.
 	replacement.raw = node.raw;
 	replacement.leadingTrivia = node.leadingTrivia;
-	if (backfilled) reconcileBackfilledRaw(replacement);
+	if (backfilled) rebuildContainerRaw(replacement, grammar);
 	// A freshly parsed node carries no `childIds`, and the swap reuses the position's component,
 	// so undefined keys would reach its nested keyed `{#each}`.
 	assignChildIdsDeep(replacement);

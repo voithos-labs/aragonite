@@ -32,7 +32,8 @@ import {
 } from '../schema/block-kind-descriptor';
 import { rebuildContainerRawIfContainer } from '../schema/container-raw';
 import { createSharingState } from '../tree-operations/sharing';
-import { rebuildUnsharedAncestry } from '../tree-operations/chain-rebuild';
+import { rebuildUnsharedAncestry, rebuildUnsharedChain } from '../tree-operations/chain-rebuild';
+import { walkUnsharing } from '../tree-operations/unshare';
 import { assertParseConverged } from './parse-convergence';
 import { mountBlockListState } from './headless-block-list.svelte';
 import {
@@ -54,6 +55,7 @@ import {
 	runCells,
 	subjectNode,
 	subjectPath,
+	type CellOutcome,
 	type CellReport,
 	type ConformanceCoverage,
 	type KitCell
@@ -114,7 +116,13 @@ export interface BuiltinContainerProfile extends ContainerConformanceProfile {
 // ── Report ───────────────────────────────────────────────────────────────────
 
 export type ConformanceCell =
-	'localIndex' | 'ancestry' | 'multiScope' | 'focusBubble' | 'terminatorCollision' | 'declarations';
+	| 'localIndex'
+	| 'ancestry'
+	| 'multiScope'
+	| 'focusBubble'
+	| 'terminatorCollision'
+	| 'titleRow'
+	| 'declarations';
 
 export interface ContainerConformanceReport {
 	kind: AnyBlockKind;
@@ -129,7 +137,7 @@ export interface ContainerCellContext {
 }
 
 /** The kit's cells as data, so {@link runContainerConformance} and the built-in sweep run the
- *  same set and a new cell reaches both. `declarations` declares no coverage: it always runs. */
+ *  same set; `titleRow` and `declarations` declare no coverage and always run. */
 export const CONTAINER_CONFORMANCE_CELLS: readonly KitCell<
 	ConformanceCell,
 	ContainerCellContext
@@ -162,6 +170,10 @@ export const CONTAINER_CONFORMANCE_CELLS: readonly KitCell<
 		coverage: ({ profile }) => profile.terminatorCollision,
 		run: ({ kind, profile }) => checkTerminatorCollision(kind, profile),
 		falsify: ({ kind }) => refuseExcusedCollision(kind)
+	},
+	{
+		cell: 'titleRow',
+		run: ({ kind }) => checkTitleRowFeedsNoMetadata(kind)
 	},
 	{
 		cell: 'declarations',
@@ -429,7 +441,8 @@ export function checkTerminatorCollision(
 		}
 		fixture.writeBody(node, body);
 	}
-	rebuildContainerRawIfContainer(node);
+	// Through the chain rebuild a commit runs, which also re-reads the container's metadata.
+	rebuildUnsharedAncestry(doc, [0], createSharingState(), null, defaultGrammarView);
 
 	// Without this the cell passes on a container the write never reached, which is how a body
 	// written to the wrong place would look like it survived a collision it never saw.
@@ -447,6 +460,46 @@ function refuseExcusedCollision(kind: AnyBlockKind): void {
 			`and a body line reproducing its terminator truncates it, so assert terminatorCollision ` +
 			`with a fixture whose body does`
 	);
+}
+
+// ── (g) title row feeds no metadata ──────────────────────────────────────────
+
+/** Written into the title row; distinctive enough that no fixture's title is it already. */
+const TITLE_PROBE = 'probe title';
+
+/** A title keystroke skips an opaque container's metadata re-read, so the row is written through
+ *  that keystroke's rebuild and the tree has to match a fresh parse, every metadata key included. */
+export function checkTitleRowFeedsNoMetadata(kind: AnyBlockKind): CellOutcome {
+	const descriptor = getBlockKindDescriptor(kind);
+	const chromeKind = descriptor.reservedChrome?.kind;
+	if (descriptor.containerContract !== 'opaque' || chromeKind === undefined) {
+		return {
+			status: 'exempt',
+			detail: `"${kind}" has no title row whose keystrokes skip the metadata re-read`
+		};
+	}
+	const fixture = descriptor.conformanceFixture;
+	if (fixture === undefined) {
+		fail(`${kind} declares a title row but carries no conformanceFixture to write it in`);
+	}
+	const doc = parse(fixture);
+	const leafPath = [...subjectPath(doc, kind, 'first', `${kind} conformanceFixture`), 0];
+	const title = nodeAtPath(doc, leafPath);
+	assertIs(
+		title.kind,
+		chromeKind,
+		`${kind} conformanceFixture opens a "${kind}" with its title row`
+	);
+
+	const leafPreviousRaw = title.raw;
+	title.raw = TITLE_PROBE + trailingLineEnding(title.raw, documentLineEnding(doc));
+	const sharing = createSharingState();
+	const chain = walkUnsharing(doc, leafPath, sharing, false);
+	rebuildUnsharedChain(doc, chain, sharing, null, defaultGrammarView, {
+		path: leafPath,
+		leafPreviousRaw
+	});
+	assertParseConverged(doc, `${kind} after a keystroke in its title row`);
 }
 
 // ── (e) declaration sanity ───────────────────────────────────────────────────

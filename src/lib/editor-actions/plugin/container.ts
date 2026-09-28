@@ -293,10 +293,12 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		// The exit rules and the collapse gates override the same defaults, so they coexist; for a
 		// container that cannot collapse the gates are inert.
 		overrides:
-			({ scope, parent }) =>
+			({ scope, parent, reading }) =>
 			(defaults) =>
 				composeCollapseGates(
-					createContainerExitOverrides({ scope, parentBlockEdit: parent.blockEdit })(defaults),
+					createContainerExitOverrides({ scope, parentBlockEdit: parent.blockEdit, reading })(
+						defaults
+					),
 					{
 						descendToBody: gateDescendOnCollapse(collapsed, defaults.blockEdit.descendToBody),
 						moveFocus: gateMoveFocusOnCollapse(

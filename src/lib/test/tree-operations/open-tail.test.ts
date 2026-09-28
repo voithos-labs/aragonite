@@ -21,7 +21,12 @@ function listBody(source: string): BodyParent {
 /** A block placed at the end of `body`, as a commit's change reports it. */
 function placeLast(body: BodyParent, node: CstNode, sharing = createSharingState()): void {
 	body.children.push(node);
-	endWindowLines(body, { op: 'insert', at: body.children.length - 1, count: 1 }, sharing);
+	endWindowLines(
+		body,
+		{ op: 'insert', at: body.children.length - 1, count: 1 },
+		sharing,
+		defaultGrammarView
+	);
 }
 
 const item = (raw: string): CstNode => parse(raw).children[0].children![0];
@@ -42,7 +47,12 @@ describe('endWindowLines', () => {
 		const doc = parse('a\n\nb\n\nc');
 		const body = documentBody(doc);
 		body.children.splice(1, 0, { kind: 'paragraph', leadingTrivia: '\n', raw: 'x' });
-		endWindowLines(body, { op: 'insert', at: 1, count: 1 }, createSharingState());
+		endWindowLines(
+			body,
+			{ op: 'insert', at: 1, count: 1 },
+			createSharingState(),
+			defaultGrammarView
+		);
 		expect(body.children.map((c) => c.raw)).toEqual(['a\n', 'x\n', 'b\n', 'c']);
 	});
 
@@ -51,7 +61,12 @@ describe('endWindowLines', () => {
 		const body = documentBody(doc);
 		body.children[0] = { ...body.children[0], raw: 'a' };
 		body.children.splice(1, 1);
-		endWindowLines(body, { op: 'delete', at: 1, count: 1 }, createSharingState());
+		endWindowLines(
+			body,
+			{ op: 'delete', at: 1, count: 1 },
+			createSharingState(),
+			defaultGrammarView
+		);
 		expect(body.children[0].raw).toBe('a\n');
 	});
 
@@ -120,7 +135,12 @@ describe('endWindowLines', () => {
 		const pasted = parse('6. Ordered\n7. third').children[0].children!;
 		list.children!.splice(1, 1, ...pasted);
 		const body: BodyParent = { children: list.children!, owner: list, lineEnding: '\n' };
-		endWindowLines(body, { op: 'replace', at: 1, count: 1, newCount: 2 }, createSharingState());
+		endWindowLines(
+			body,
+			{ op: 'replace', at: 1, count: 1, newCount: 2 },
+			createSharingState(),
+			defaultGrammarView
+		);
 		rebuildListRaw(list);
 		expect(list.raw).toBe('1. one\n6. Ordered\n7. third\n');
 	});
@@ -130,7 +150,12 @@ describe('endWindowLines', () => {
 		const row = table.children!.at(-1)!;
 		const cells = row.children!.map((c) => c.raw);
 		const body: BodyParent = { children: row.children!, owner: row, lineEnding: '\n' };
-		endWindowLines(body, { op: 'replace', at: 0, count: 2, newCount: 2 }, createSharingState());
+		endWindowLines(
+			body,
+			{ op: 'replace', at: 0, count: 2, newCount: 2 },
+			createSharingState(),
+			defaultGrammarView
+		);
 		expect(row.children!.map((c) => c.raw)).toEqual(cells);
 	});
 });
@@ -144,7 +169,8 @@ describe('keepOpenTail', () => {
 		endWindowLines(
 			body,
 			{ op: 'insert', at: body.children.length - 1, count: 1 },
-			createSharingState()
+			createSharingState(),
+			defaultGrammarView
 		);
 		body.children.pop();
 		return doc;
@@ -153,38 +179,38 @@ describe('keepOpenTail', () => {
 	it('gives the ending up down the last line, container levels included', () => {
 		const doc = ended('a\n\n> q\n>\n> r');
 		expect(serialize(doc)).toBe('a\n\n> q\n>\n> r\n');
-		keepOpenTail(doc, true, createSharingState());
+		keepOpenTail(doc, true, createSharingState(), defaultGrammarView);
 		expect(serialize(doc)).toBe('a\n\n> q\n>\n> r');
 		expect(doc.children[1].children!.at(-1)!.raw).toBe('r');
 	});
 
 	it('keeps a blank last line, which is nothing but its break', () => {
 		const doc = parse('a\n\n\n');
-		keepOpenTail(doc, true, createSharingState());
+		keepOpenTail(doc, true, createSharingState(), defaultGrammarView);
 		expect(serialize(doc)).toBe('a\n\n\n');
 	});
 
 	it('keeps a fence’s empty last line', () => {
 		const doc = parse('```\ncode\n\n');
-		keepOpenTail(doc, true, createSharingState());
+		keepOpenTail(doc, true, createSharingState(), defaultGrammarView);
 		expect(serialize(doc)).toBe('```\ncode\n\n');
 	});
 
 	it('releases a quote’s blank quote line, which keeps its marker', () => {
 		const doc = ended('> q\n>');
-		keepOpenTail(doc, true, createSharingState());
+		keepOpenTail(doc, true, createSharingState(), defaultGrammarView);
 		expect(serialize(doc)).toBe('> q\n>');
 	});
 
 	it('does nothing to a document that ended in a line break', () => {
 		const doc = parse('a\n');
-		keepOpenTail(doc, false, createSharingState());
+		keepOpenTail(doc, false, createSharingState(), defaultGrammarView);
 		expect(serialize(doc)).toBe('a\n');
 	});
 
 	it('does nothing when the document’s trailing blank line holds the last line', () => {
 		const doc = parse('a\n\n');
-		keepOpenTail(doc, true, createSharingState());
+		keepOpenTail(doc, true, createSharingState(), defaultGrammarView);
 		expect(serialize(doc)).toBe('a\n\n');
 	});
 });

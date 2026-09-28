@@ -1,31 +1,15 @@
 /**
- * Compares the live tree's structure (kinds, children, parser-derived metadata) with a fresh parse
+ * Compares the live tree's structure (kinds, children, every metadata key) with a fresh parse
  * of its own bytes; a byte round-trip would pass trivially, since `serialize(parse(s)) === s` for
- * every input. Pass the editor's `grammar` when it has one.
+ * every input. `parseConverges` and `describeConvergence` take the editor's `grammar` when it
+ * has one; `assertParseConverged` reads with the default grammar.
  */
 
-import type { BlockMetadataByKind, CstNode, Document } from '../core/nodes';
+import type { CstNode, Document } from '../core/nodes';
 import type { GrammarView } from '../schema/block-openers';
 import { parse } from '../core/parser';
 import { serialize } from '../core/serializer';
-import { show } from './conformance-core';
-
-// Typed against BlockMetadataByKind so a renamed or removed field fails to compile, though an
-// added one is listed by hand; editor-added fields (childIds, ownerEpoch) never come from a parse.
-const METADATA_FIELDS: {
-	[K in keyof BlockMetadataByKind]?: readonly (keyof BlockMetadataByKind[K])[];
-} = {
-	heading: ['level'],
-	setextHeading: ['level'],
-	fencedCode: ['fenceMarker', 'fenceLength', 'info', 'closed'],
-	thematicBreak: ['marker'],
-	linkReferenceDefinition: ['label', 'url', 'title'],
-	table: ['columnCount', 'alignments'],
-	tableRow: ['isHeader', 'surplusCells'],
-	blockquote: ['quoteDepth'],
-	list: ['ordered'],
-	listItem: ['marker', 'taskItem', 'taskChecked', 'taskMarker']
-};
+import { describeMetadataDivergence } from '../core/metadata-parity';
 
 /** True when the live tree matches a fresh parse of its own serialization, structurally. */
 export function parseConverges(doc: Document, grammar?: GrammarView): boolean {
@@ -65,27 +49,7 @@ function diffNode(live: CstNode, reparsed: CstNode, path: number[]): string | nu
 	if (live.kind !== reparsed.kind) {
 		return `${at} live kind "${live.kind}" != reparsed "${reparsed.kind}"`;
 	}
-	const metaDivergence = diffMetadata(live, reparsed, at);
-	if (metaDivergence) return metaDivergence;
+	const metaDivergence = describeMetadataDivergence(live, reparsed);
+	if (metaDivergence) return `${at} ${metaDivergence}`;
 	return diffChildren(live, reparsed, path);
-}
-
-function diffMetadata(live: CstNode, reparsed: CstNode, at: string): string | null {
-	const fields = METADATA_FIELDS[live.kind as keyof BlockMetadataByKind];
-	if (!fields) return null;
-	const liveMeta = (live.metadata ?? {}) as Record<string, unknown>;
-	const reMeta = (reparsed.metadata ?? {}) as Record<string, unknown>;
-	for (const field of fields) {
-		if (!valuesEqual(liveMeta[field], reMeta[field])) {
-			return `${at} ${live.kind}.${field}: live ${show(liveMeta[field])} != reparsed ${show(reMeta[field])}`;
-		}
-	}
-	return null;
-}
-
-function valuesEqual(a: unknown, b: unknown): boolean {
-	if (Array.isArray(a) && Array.isArray(b)) {
-		return a.length === b.length && a.every((v, i) => v === b[i]);
-	}
-	return a === b;
 }

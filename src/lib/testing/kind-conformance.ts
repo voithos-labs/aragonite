@@ -46,6 +46,8 @@ import {
 	type CellReport,
 	type KitCell
 } from './conformance-core';
+import { installOwnRaw } from '../tree-operations/node-primitives';
+import { defaultGrammarView } from '../schema/block-openers';
 import { createHeadlessActions } from './headless-actions';
 import { assertParseConverged } from './parse-convergence';
 
@@ -563,8 +565,7 @@ export function checkLeafRawWrite(
 
 		const reparsed = parse(legal).children;
 		assertIs(reparsed[0]?.kind, kind, `"${kind}" stays its kind after ${label}`);
-		node.raw = legal;
-		node.metadata = reparsed[0].metadata;
+		installOwnRaw(node, legal, defaultGrammarView);
 		assertParseConverged(doc, `"${kind}" written in place after ${label}`);
 	}
 }

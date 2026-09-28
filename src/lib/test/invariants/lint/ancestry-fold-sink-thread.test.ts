@@ -84,7 +84,7 @@ const SITES: Record<string, SiteStance> = {
 		why: 'the rebuild runs on a private clone that is reparsed whole afterwards, so any fold the chain could produce is read again by that parse and by the commit’s own settle'
 	},
 	'src/lib/testing/container-conformance.ts': {
-		declines: 1,
+		declines: 3,
 		sinks: 0,
 		why: 'the published kit owns neither ids nor refs, so there is no parent scope for it to reconcile'
 	}

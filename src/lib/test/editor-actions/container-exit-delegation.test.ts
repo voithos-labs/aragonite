@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { createContainerExitOverrides } from '$lib/editor-actions/container-exit-overrides';
 import { makeStubBlockEdit, makeStubFocus } from '$lib/test/harness/editor-actions';
+import { fixtureReading } from '$lib/test/harness/fixture-grammar';
 import type { CstNode } from '$lib/core/nodes';
 
 // The exit is one replaceBlock in the parent, so its event path and undo entry belong to
@@ -31,7 +32,8 @@ function overridesOver(
 				return [1, 0];
 			}
 		},
-		parentBlockEdit
+		parentBlockEdit,
+		reading: fixtureReading()
 	})({ ...defaults, containerEdit: {} as never });
 }
 

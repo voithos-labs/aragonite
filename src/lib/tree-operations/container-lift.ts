@@ -6,6 +6,7 @@
 
 import type { CstNode } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
+import type { GrammarView } from '../schema/block-openers';
 import { cloneNode } from './clone';
 import { rebuildContainerRaw } from '../schema/container-raw';
 import { assignIds } from '../block-id';
@@ -32,10 +33,12 @@ export function liftFirstChild(container: NodeView, rebuildRemainder: RemainderB
 
 /** The remainder keeps the container's kind, and its `rebuildRaw` re-emits the syntax, so a
  *  marker held in metadata survives. */
-export const sameContainer: RemainderBuilder = (container, children) => {
-	const remaining = cloneNode(container);
-	remaining.children = children;
-	remaining.childIds = assignIds(children);
-	rebuildContainerRaw(remaining);
-	return remaining;
-};
+export function sameContainer(grammar: GrammarView): RemainderBuilder {
+	return (container, children) => {
+		const remaining = cloneNode(container);
+		remaining.children = children;
+		remaining.childIds = assignIds(children);
+		rebuildContainerRaw(remaining, grammar);
+		return remaining;
+	};
+}

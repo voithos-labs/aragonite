@@ -353,7 +353,7 @@ function cutFromCell(deps: SelectionDropDeps, from: DragSource, cell: CstNode): 
 	const written = rebuilt.children?.[rowIdx]?.children?.[colIdx];
 	if (!written) return null;
 	writeOwnRaw(written, cut.display, documentLineEnding(deps.getDoc()), deps.reading.grammar);
-	rebuildAncestryRaw(rebuilt, inner);
+	rebuildAncestryRaw(rebuilt, inner, deps.reading.grammar);
 	const raw = trimTrailingLineEnding(rebuilt.raw);
 	return { path: tablePath, raw, shrunkBy: trimTrailingLineEnding(table.raw).length - raw.length };
 }

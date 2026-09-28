@@ -10,11 +10,13 @@ import type { NodeParent } from './node-primitives';
 import type { StructuralChange } from './structural-change';
 import { dropChildSpans, type ChildRawChange } from '../schema/child-spans';
 import type { GrammarView } from '../schema/block-openers';
-import { trimTrailingLineEnding } from '../core/lines';
+import { getBlockKindDescriptor } from '../schema/block-kind-descriptor';
+import { firstLine, lastLine } from '../schema/container-raw';
+import { reservedChromeKindOf } from '../schema/reserved-chrome';
 import { perfEnabled, recordRebuildDepth } from '../perf/instruments';
 import { rebuildOwnedContainer, walkUnsharing } from './unshare';
 import { absorbWindowSeams, type TrackedPosition } from './settle';
-import { lineOpensAs, reclassifyContainer } from './content-write';
+import { lineOpensAs, reclassifyContainer, rederiveOpaqueContainer } from './content-write';
 import { settleSublistSeparator } from './list/sublist-separator';
 
 /**
@@ -86,13 +88,11 @@ export function rebuildUnsharedChain(
 		const node = chain[i];
 		const rawBefore = node.raw;
 		const child = chain[i + 1];
-		rebuildOwnedContainer(
-			node,
-			sharing,
+		const changed =
 			child && childPreviousRaw !== undefined
 				? childRawChange(node, child, childPreviousRaw, hint?.path[i + 1])
-				: undefined
-		);
+				: undefined;
+		rebuildOwnedContainer(node, sharing, changed);
 		if (hint) childPreviousRaw = i === chain.length - 1 ? hint.leafPreviousRaw : rawBefore;
 
 		const openerMoved = firstLine(rawBefore) !== firstLine(node.raw);
@@ -104,8 +104,17 @@ export function rebuildUnsharedChain(
 		const index = siblings ? childIndexOf(siblings, node, hint?.path[i]) : -1;
 		if (!siblings || index < 0) continue;
 
-		if (openerMoved && lineOpensAs(firstLine(node.raw), grammar) !== node.kind) {
-			const replacement = reclassifyContainer({ children: siblings }, index, grammar);
+		// An opaque container's metadata follows its bytes, so a moved outer line re-reads it.
+		const metadataMayMove =
+			getBlockKindDescriptor(node.kind).containerContract === 'opaque' &&
+			!(changed && !closerMoved && isChromeSlot(node, changed.index));
+		const kindMayChange =
+			!metadataMayMove && openerMoved && lineOpensAs(firstLine(node.raw), grammar) !== node.kind;
+		if (metadataMayMove || kindMayChange) {
+			const parent = { children: siblings };
+			const replacement = metadataMayMove
+				? rederiveOpaqueContainer(parent, index, grammar)
+				: reclassifyContainer(parent, index, grammar);
 			if (replacement) {
 				sharing.stamp(replacement);
 				reclassified.push({ siblings, index, previous: node, replacement });
@@ -146,6 +155,13 @@ function childRawChange(
 	if (!siblings) return undefined;
 	const index = childIndexOf(siblings, child, guess);
 	return index < 0 ? undefined : { index, previousRaw };
+}
+
+/** An opaque container's metadata never derives from its title row, so an edit to that row alone
+ *  needs no re-read (`ReservedChrome`). */
+function isChromeSlot(node: CstNode, index: number): boolean {
+	const chromeKind = reservedChromeKindOf(node.kind);
+	return index === 0 && chromeKind !== undefined && node.children?.[0]?.kind === chromeKind;
 }
 
 /** `indexOf` with a guess first: the scan is O(children) through the `$state` proxy. */
@@ -205,19 +221,6 @@ function settleSlotSeams(
 		before: before!,
 		landing
 	});
-}
-
-/** The container's opener line. */
-function firstLine(raw: string): string {
-	const nl = raw.indexOf('\n');
-	return nl < 0 ? raw : raw.slice(0, nl);
-}
-
-/** The container's closing line: its last line carrying bytes, without the ending. */
-function lastLine(raw: string): string {
-	const body = trimTrailingLineEnding(raw);
-	const nl = body.lastIndexOf('\n');
-	return nl < 0 ? body : body.slice(nl + 1);
 }
 
 /**

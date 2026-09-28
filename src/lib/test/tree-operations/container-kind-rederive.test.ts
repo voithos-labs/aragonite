@@ -7,6 +7,7 @@ import { rebuildContainerRaw } from '$lib/schema/container-raw';
 import { createGrammarView, defaultGrammarView } from '$lib/schema/block-openers';
 import { checkStaleRaw } from '$lib/invariants/node-shape';
 import type { CstNode, Document } from '$lib/core/nodes';
+import { fixtureGrammar } from '$lib/test/harness/fixture-grammar';
 
 // The pure half of the container kind-change path: a container whose rebuilt raw opens
 // as a different kind is replaced in its parent's children. Eligibility is the opener
@@ -20,7 +21,7 @@ beforeEach(() => {
 /** Write `raw` into the container's first leaf and rebuild, as an inner edit does. */
 function editFirstLeaf(container: CstNode, raw: string): void {
 	container.children![0].raw = raw;
-	rebuildContainerRaw(container);
+	rebuildContainerRaw(container, fixtureGrammar);
 }
 
 describe('reclassifyContainer', () => {
@@ -49,7 +50,7 @@ describe('reclassifyContainer', () => {
 	it('demotes an alert whose rebuilt marker no longer names an alert type', () => {
 		const doc: Document = parse('> [!TIP]\n> body\n');
 		setPluginMetadata(doc.children[0], { alertType: 'NOPE' });
-		rebuildContainerRaw(doc.children[0]);
+		rebuildContainerRaw(doc.children[0], fixtureGrammar);
 		expect(doc.children[0].raw).toBe('> [!NOPE]\n> body\n');
 
 		expect(reclassifyContainer(doc, 0, defaultGrammarView)?.kind).toBe('blockquote');
@@ -75,7 +76,7 @@ describe('reclassifyContainer', () => {
 		const child = container.children[0];
 		expect(child.kind).toBe(kind);
 		child.children![0].raw = leafRaw;
-		rebuildContainerRaw(child);
+		rebuildContainerRaw(child, fixtureGrammar);
 
 		expect(reclassifyContainer(container, 0, defaultGrammarView)).toBeNull();
 		expect(container.children[0].kind).toBe(kind);

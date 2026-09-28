@@ -81,7 +81,7 @@ const quoteExit: Route = async (source) => {
 	await h.bundle.blockEdit.splitBlock(0, 1);
 	await createBlockEditActions(h.deps, h.controller).replaceBlock(
 		1,
-		buildQuoteExitReplacement(h.deps.doc.children[1]),
+		buildQuoteExitReplacement(h.deps.doc.children[1], h.deps.reading.grammar),
 		{ replacementIndex: 1, offset: 0 }
 	);
 	return h.deps.doc;

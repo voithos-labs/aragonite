@@ -16,6 +16,7 @@ import {
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createBlockEditActions } from '$lib/editor-actions/block-edit';
 import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
+import { fixtureGrammar } from '$lib/test/harness/fixture-grammar';
 
 const TOP_LEVEL = 40;
 
@@ -106,7 +107,7 @@ describe('footnote numbering rebuilds one subtree per edit', () => {
 
 		const quote = doc.children[1];
 		quote.children![0].raw = 'Quote [^q] here and [^nested] too.\n';
-		rebuildAncestryRaw(quote, [0]);
+		rebuildAncestryRaw(quote, [0], fixtureGrammar);
 		expect([...footnoteNumbersFor(doc, 2).keys()]).toEqual(['q', 'nested']);
 	});
 

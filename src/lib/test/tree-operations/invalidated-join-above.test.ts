@@ -5,6 +5,7 @@ import { updateNodeContent } from '$lib/tree-operations/content-write';
 import { rebuildContainerRaw } from '$lib/schema/container-raw';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
 import { defaultGrammarView } from '$lib/schema/block-openers';
+import { fixtureGrammar } from '$lib/test/harness/fixture-grammar';
 
 // A demoted block stops interrupting the paragraph above it, so the write asks both edges of its
 // window and reports where its text starts inside the survivor, which may be the predecessor.
@@ -73,7 +74,7 @@ describe('a kind demotion settles the join above (GH #21)', () => {
 			'x# h\n',
 			defaultGrammarView
 		);
-		rebuildContainerRaw(quote);
+		rebuildContainerRaw(quote, fixtureGrammar);
 
 		expect(serialize(doc)).toBe('> a\n> x# h\n> b\n');
 		expect(describeConvergence(doc)).toBeNull();

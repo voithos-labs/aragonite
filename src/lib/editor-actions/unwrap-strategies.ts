@@ -58,7 +58,7 @@ async function liftFirstChildDroppingOpener({ deps }: UnwrapStrategyDeps): Promi
 
 /** Lift the first child out of a container whose syntax survives, so the rest keeps its kind (U2). */
 async function liftFirstChildAndKeepContainer({ deps }: UnwrapStrategyDeps): Promise<boolean> {
-	return spliceLift(deps, liftFirstChild(deps.node, sameContainer));
+	return spliceLift(deps, liftFirstChild(deps.node, sameContainer(deps.reading.grammar)));
 }
 
 /** Leaves the tree alone: child 0 is the container's title row, and a lift would carry it out. */

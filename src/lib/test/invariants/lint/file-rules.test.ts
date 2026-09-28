@@ -773,8 +773,14 @@ const RULES: FileRule[] = [
 		},
 		reason:
 			'the commit ends every placed line and gives the ending back to the last block; an edit that writes the tail itself is a second copy of that rule, and the next route will not carry it',
-		hits: ['terminateLastLine(node, ending, sharing);', 'releaseLastLine(tail, sharing);'],
-		misses: ['endWindowLines(body, change, sharing);', 'text = terminateLine(text, ending);']
+		hits: [
+			'terminateLastLine(node, ending, sharing, grammar);',
+			'releaseLastLine(tail, sharing, grammar);'
+		],
+		misses: [
+			'endWindowLines(body, change, sharing, grammar);',
+			'text = terminateLine(text, ending);'
+		]
 	},
 	{
 		id: 'a value the editor owns is read through its getter, never optional-chained into a default',

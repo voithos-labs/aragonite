@@ -392,7 +392,7 @@ export function createUndoController(
 				const body = documentBody(deps.doc, childrenCopy);
 
 				const mutated = args.mutate(childrenCopy);
-				endWindowLines(body, mutated, deps.sharing);
+				endWindowLines(body, mutated, deps.sharing, deps.reading.grammar);
 				// `deps.doc.children` is still the pre-mutate array here (`publish` swaps it),
 				// so the blank-line fix-up reads which blocks were blank off it directly.
 				const change = settleSeparator(
@@ -403,7 +403,7 @@ export function createUndoController(
 					deps.sharing,
 					args.trackCaret
 				);
-				keepOpenTail(body, wasOpen, deps.sharing);
+				keepOpenTail(body, wasOpen, deps.sharing, deps.reading.grammar);
 				if (args.discardIfNoop && change.op === 'noop') {
 					// The document branch installed nothing; only the stacks are restored here.
 					rollback.restore();
@@ -584,13 +584,14 @@ export function createUndoController(
 	interface SavedRaw {
 		node: CstNode;
 		raw: string;
+		metadata: CstNode['metadata'];
 	}
 
-	/** The bytes at risk: the copied ancestors plus direct children, matching `savedChildren`. */
+	/** The bytes at risk, with the metadata a rebuild re-reads from them: the copied ancestors plus
+	 *  direct children, matching `savedChildren`. */
 	function captureScopeRaws(chain: CstNode[], owned: CstNode): SavedRaw[] {
-		const saved: SavedRaw[] = chain.map((node) => ({ node, raw: node.raw }));
-		for (const child of owned.children ?? []) saved.push({ node: child, raw: child.raw });
-		return saved;
+		const save = (node: CstNode): SavedRaw => ({ node, raw: node.raw, metadata: node.metadata });
+		return [...chain.map(save), ...(owned.children ?? []).map(save)];
 	}
 
 	/**
@@ -717,7 +718,7 @@ export function createUndoController(
 					);
 				}
 				for (let i = 0; i < prepared.length; i++) {
-					endWindowLines(prepared[i].view.body, changeList[i], deps.sharing);
+					endWindowLines(prepared[i].view.body, changeList[i], deps.sharing, deps.reading.grammar);
 				}
 				for (let i = 0; i < prepared.length; i++) {
 					// `savedChildren` is the pre-mutate array `prepareScopeView` swapped out, so
@@ -749,7 +750,7 @@ export function createUndoController(
 				}
 				unwindFolds = publishAncestryFolds(deps, folds);
 				// The document commit above runs the same two steps until the two branches merge.
-				keepOpenTail(deps.doc, wasOpen, deps.sharing);
+				keepOpenTail(deps.doc, wasOpen, deps.sharing, deps.reading.grammar);
 				return changeList.some((c) => c.op !== 'noop') || folds.length > 0;
 			},
 			publish: () => {
@@ -788,10 +789,11 @@ export function createUndoController(
 				for (const p of prepared) {
 					p.owned.children = p.savedChildren;
 					p.owned.childIds = p.savedChildIds;
-					// Bytes as well as shape: the chain rebuild calls plugin `rebuildRaw`, so an
-					// unwind would otherwise leave raws the restored children do not match.
-					for (const { node, raw } of p.savedRaws) {
+					// The chain rebuild rewrote these bytes and the metadata it read from them, and both have
+					// to match the children restored above.
+					for (const { node, raw, metadata } of p.savedRaws) {
 						node.raw = raw;
+						node.metadata = metadata;
 						dropChildSpans(node);
 					}
 					// Without this, the ids and refs written before the throw keep reflecting it.

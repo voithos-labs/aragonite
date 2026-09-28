@@ -94,7 +94,11 @@ describe('createContainerActions passes its inputs through to the child actions'
 	it('builds the overrides from the scope and parent, and provides the bundle it built', () => {
 		const node = { kind: 'list' } as unknown as NodeView;
 		const { actions, overrides, call } = containerAt({ index: 0, node, path: [0] });
-		expect(overrides).toHaveBeenCalledWith({ scope: actions.scope, parent: actions.parent });
+		expect(overrides).toHaveBeenCalledWith({
+			scope: actions.scope,
+			parent: actions.parent,
+			reading
+		});
 		expect(call.overrides).toBe(overrides.mock.results[0].value);
 		expect(built.provided).toEqual([actions.bundle]);
 		expect(actions.reading).toBe(reading);

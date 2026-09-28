@@ -5,19 +5,22 @@ import { checkOpaqueRebuildDeterminism, checkOpaqueStaleRaw } from '$lib/invaria
 import { admonitionsPlugin, convertGithubAlerts } from '$lib/plugins/admonitions';
 import { convertGithubAlertsInDocument } from '$lib/plugins/admonitions/convert-document';
 import { fixtureGrammar } from '$lib/test/harness/fixture-grammar';
+import { createSharingState } from '$lib/tree-operations/sharing';
+import { rebuildUnsharedAncestry } from '$lib/tree-operations/chain-rebuild';
 
 beforeEach(() => {
 	installPlugins([admonitionsPlugin()]);
 });
 
 /**
- * Rebuild an admonition whose body child holds `bodyRaw`, the way a commit rebuilds an
- * enclosing container after a content edit.
+ * Rebuild an admonition whose body child holds `bodyRaw` through the chain rebuild a commit runs
+ * after a content edit, which also re-reads the container's metadata.
  */
 function rebuiltWithBody(source: string, bodyRaw: string) {
-	const node = parse(source).children[0];
+	const doc = parse(source);
+	const node = doc.children[0];
 	node.children![1].raw = bodyRaw;
-	getBlockKindDescriptor(node.kind).rebuildRaw!(node);
+	rebuildUnsharedAncestry(doc, [0], createSharingState(), null, fixtureGrammar);
 	return node;
 }
 
@@ -43,8 +46,8 @@ describe('admonition fence escalation past body colon runs', () => {
 		expect(checkOpaqueStaleRaw(node, fixtureGrammar)).toBeNull();
 	});
 
-	// The lengthened fence is worked out from the body on every emit rather than stored
-	// in metadata, so two rebuilds over identical state must still agree.
+	// The lengthened count is read back into metadata, so a second rebuild must emit the same
+	// bytes from it.
 	it('stays deterministic across repeated rebuilds (G1.13)', () => {
 		const node = rebuiltWithBody(':::note T\n\nbody\n\n:::\n', 'before\n:::\nafter\n');
 		expect(checkOpaqueRebuildDeterminism(node)).toBeNull();

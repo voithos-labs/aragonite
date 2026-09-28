@@ -76,8 +76,8 @@ export function serializeDirective(parts: {
 }): string {
 	const lineEnding = parts.lineEnding ?? '\n';
 	const inner = `${parts.innerPrefix}${parts.body}${parts.innerSuffix}`;
-	// Re-derived on every emit rather than kept in metadata, so two emits over the same state agree
-	// (G1.13). `colonCount` is a floor, not a target.
+	// Escalated from the body on every emit, so the fence holds before the editor re-reads the
+	// metadata; `colonCount` is a floor, not a target.
 	const colonCount = escalatedColonCount(inner, parts.colonCount);
 	const opener = ':'.repeat(colonCount);
 	const closer = ':'.repeat(Math.max(colonCount, parts.closerColonCount ?? colonCount));

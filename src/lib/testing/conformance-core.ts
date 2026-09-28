@@ -8,6 +8,9 @@ import { parse } from '../core/parser';
 import { ancestorsOf, walkBlocks } from '../core/paths';
 import { blockNodeAt } from '../tree-operations/node-primitives';
 import { isGridDescriptor, type BlockKindDescriptor } from '../schema/block-kind-descriptor';
+import { showValue as show } from '../core/metadata-parity';
+
+export { show };
 
 // ── Coverage vocabulary ──────────────────────────────────────────────────────
 
@@ -110,10 +113,6 @@ export function assertIndices(
 	if (actual.length !== expected.length || actual.some((v, i) => v !== expected[i])) {
 		fail(`${message} — expected [${expected}], got [${actual}]`);
 	}
-}
-
-export function show(value: unknown): string {
-	return typeof value === 'string' ? JSON.stringify(value) : String(value);
 }
 
 /** A documented reason says something, never a bare token: a skip has to be visible. */

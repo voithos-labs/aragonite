@@ -13,6 +13,7 @@ import { makeNestedHarness } from '$lib/test/harness/editor-actions';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
 import type { CstNode } from '$lib/core/nodes';
 import { defaultGrammarView } from '$lib/schema/block-openers';
+import { fixtureGrammar } from '$lib/test/harness/fixture-grammar';
 
 // A mutation can break a join that was already correct (a demoted heading, a reorder that pulls an
 // interrupter out), so the neighbour merge brings the siblings to the reading their reload gives.
@@ -67,7 +68,7 @@ describe('a kind demotion settles the join below (GH #21)', () => {
 			'x# h\n',
 			defaultGrammarView
 		);
-		rebuildContainerRaw(quote);
+		rebuildContainerRaw(quote, fixtureGrammar);
 
 		expect(serialize(doc)).toBe('> x# h\n> b\n');
 		expect(describeConvergence(doc)).toBeNull();

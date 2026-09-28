@@ -53,7 +53,9 @@ const RULES: FileRule[] = [
 			'src/lib/selection/range-delete.ts':
 				'the same-block range delete, which runs the container’s rule and then the kind’s itself',
 			'src/lib/selection/cross-block/format-range.ts':
-				'a format toggle over a range, which runs both rules the same way'
+				'a format toggle over a range, which runs both rules the same way',
+			'src/lib/testing/kind-conformance.ts':
+				'the raw-write cell lands bytes that already crossed the kind’s rule, in a throwaway parse'
 		},
 		reason:
 			'a write in place skips the reparse, the ids and the undo grouping the content write gives; route new text through `commitLeafText`',

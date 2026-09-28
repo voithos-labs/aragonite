@@ -10,6 +10,7 @@ import { registerCalloutKind } from '../../../routes/test/plugins/callout/callou
 import { expectParseConverged } from '../harness/parse-converged';
 import type { CstNode } from '$lib/core/nodes';
 import { defaultGrammarView } from '$lib/schema/block-openers';
+import { fixtureGrammar } from '$lib/test/harness/fixture-grammar';
 
 // Inside a container whose parse strips the blank line after its opener into `innerPrefix`, the
 // fix-up keeps the line the reload strips, and reads a reserved title child as above the body.
@@ -31,7 +32,7 @@ function deleteBodyChild(
 ): { doc: ReturnType<typeof parse>; raw: string } {
 	const doc = parse(source);
 	deleteNode(bodyParentOf(doc.children[0]), at, defaultGrammarView);
-	rebuildAncestryRaw(doc.children[0], []);
+	rebuildAncestryRaw(doc.children[0], [], fixtureGrammar);
 	return { doc, raw: serialize(doc) };
 }
 
@@ -63,7 +64,7 @@ describe('separator settle inside a chrome-wrapped container', () => {
 		expect(doc.children[0].children?.[0].kind).toBe('callout-title');
 
 		deleteNode(bodyParentOf(doc.children[0]), 1, defaultGrammarView);
-		rebuildAncestryRaw(doc.children[0], []);
+		rebuildAncestryRaw(doc.children[0], [], fixtureGrammar);
 
 		expect(doc.children[0].children?.[1].leadingTrivia).toBe('');
 		expectParseConverged(doc);
@@ -75,7 +76,7 @@ describe('separator settle inside a chrome-wrapped container', () => {
 
 		// Drop B, leaving the blank head and C, whose separator is then the only spare line.
 		deleteNode(bodyParentOf(doc.children[0]), 2, defaultGrammarView);
-		rebuildAncestryRaw(doc.children[0], []);
+		rebuildAncestryRaw(doc.children[0], [], fixtureGrammar);
 
 		expect(doc.children[0].children?.map((c) => c.raw)).toEqual(['\n', '\n', 'C\n']);
 		expectParseConverged(doc);
@@ -101,7 +102,7 @@ describe('emptying a body block against the wrap’s chrome lines', () => {
 			trailingLineEnding(container.children![at].raw, '\n'),
 			defaultGrammarView
 		);
-		rebuildAncestryRaw(container, []);
+		rebuildAncestryRaw(container, [], fixtureGrammar);
 	}
 
 	it('keeps an emptied last body block by handing the closer line to innerSuffix', () => {
@@ -178,7 +179,7 @@ describe('separator settle inside a strip container', () => {
 		const doc = parse('> a\n>\n>\n> b\n');
 
 		deleteNode(bodyParentOf(doc.children[0]), 2, defaultGrammarView);
-		rebuildAncestryRaw(doc.children[0], []);
+		rebuildAncestryRaw(doc.children[0], [], fixtureGrammar);
 
 		expect(doc.children[0].innerPrefix).toBe('');
 		expect(serialize(doc)).toBe('> a\n>\n>\n');
