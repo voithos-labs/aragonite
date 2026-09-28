@@ -9,7 +9,7 @@ import type { Reading } from '../schema/reading';
 import type { CstNode, Document } from '../core/nodes';
 import type { SelectionPoint } from './primitives';
 import type { RangeDeleteResult } from './range-delete';
-import { unitHolding, type CoveredRange } from './range-coverage';
+import type { CoveredRange } from './range-coverage';
 import type { SharingState } from '../tree-operations/sharing';
 import { displayLength, documentLineEnding } from '../core/lines';
 import { comparePaths, pathsEqual } from './path-math';
@@ -59,7 +59,7 @@ export function chromeAwareRangeDelete(
 	const { start, end } = range;
 	const startC = nearestChromeContainer(doc, start.path);
 	const endC = nearestChromeContainer(doc, end.path);
-	const startTaken = unitHolding(range, start.path);
+	const startTaken = range.unitHolding(start.path);
 
 	// Copy every chain that will be written before node identities are captured: chains stay
 	// valid across splices, paths do not (G1.9).

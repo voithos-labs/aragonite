@@ -7,7 +7,7 @@ import type { GrammarView } from '../schema/block-openers';
 import type { Reading } from '../schema/reading';
 import { metadataOf, type CstNode, type Document } from '../core/nodes';
 import type { SelectionPoint } from './primitives';
-import { unitHolding, type CoveredRange } from './range-coverage';
+import type { CoveredRange } from './range-coverage';
 import type { SharingState } from '../tree-operations/sharing';
 import { walkBetween, charOffsetOf } from './primitives';
 import {
@@ -89,7 +89,7 @@ export function rangeDelete(
 
 	// Both endpoints inside one container the range takes whole: that container goes, whatever
 	// kind either endpoint sits in.
-	const unit = unitHolding(range, start.path);
+	const unit = range.unitHolding(start.path);
 	if (unit && pathHasPrefix(end.path, unit)) return removeWhole(doc, unit, sharing, reading);
 	// A table or a container title line is never merged across: those branches truncate each
 	// endpoint in place instead of joining them.

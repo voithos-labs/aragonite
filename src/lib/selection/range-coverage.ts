@@ -13,16 +13,37 @@ import { docPathFrom } from '../cursor/coordinate-spaces';
 import { isBlockNode, nodeAt } from '../tree-operations/node-primitives';
 import { isCollapsedContainer, isReservedChromeChild } from '../schema/reserved-chrome';
 
-declare const covered: unique symbol;
+const SEAL = Symbol('coverRange');
 
 /** A live range in document order as every reader must see it: table endpoints snapped to whole
  *  rows, and each closed container the range takes whole named in `wholeUnits`. */
-export interface CoveredRange {
+export class CoveredRange {
+	// Never read: the private field makes the type nominal, so a spread or a literal isn't one.
+	// eslint-disable-next-line no-unused-private-class-members
+	readonly #covered = true;
 	readonly start: SelectionPoint;
 	readonly end: SelectionPoint;
 	/** Collapsed containers taken whole, outermost only, in document order. */
 	readonly wholeUnits: readonly DocPath[];
-	readonly [covered]: true;
+
+	/** Built by `coverRange` only, which holds the module-private key. */
+	constructor(
+		key: typeof SEAL,
+		start: SelectionPoint,
+		end: SelectionPoint,
+		wholeUnits: readonly DocPath[]
+	) {
+		if (key !== SEAL) throw new Error('a CoveredRange is built by coverRange');
+		this.start = start;
+		this.end = end;
+		this.wholeUnits = wholeUnits;
+		Object.freeze(this);
+	}
+
+	/** The container in `wholeUnits` holding `path`, or null. */
+	unitHolding(path: readonly number[]): DocPath | null {
+		return this.wholeUnits.find((unit) => pathHasPrefix(path, unit)) ?? null;
+	}
 }
 
 /** A same-path pair (a block held whole, a cell rectangle) is returned as is. A closed title row
@@ -41,15 +62,10 @@ export function coverRange(doc: DocumentView, a: SelectionPoint, b: SelectionPoi
 	return sealed(start, end, units);
 }
 
-/** The container in `range.wholeUnits` holding `path`, or null. */
-export function unitHolding(range: CoveredRange, path: readonly number[]): DocPath | null {
-	return range.wholeUnits.find((unit) => pathHasPrefix(path, unit)) ?? null;
-}
-
 // ── Internal ────────────────────────────────────────────────────────────────
 
 function sealed(start: SelectionPoint, end: SelectionPoint, wholeUnits: DocPath[]): CoveredRange {
-	return { start, end, wholeUnits } as unknown as CoveredRange;
+	return new CoveredRange(SEAL, start, end, wholeUnits);
 }
 
 /** The collapsed container whose title row `path` is; null for a row inside another container's

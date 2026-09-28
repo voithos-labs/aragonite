@@ -6,7 +6,7 @@ import type { DocumentView, NodeView } from '../core/node-views';
 import { cloneMetadata } from '../tree-operations/clone';
 import { isBlockNode, nodeAt } from '../tree-operations/node-primitives';
 import { walkBetween, charOffsetOf, cellIndexOf } from './primitives';
-import { unitHolding, type CoveredRange } from './range-coverage';
+import type { CoveredRange } from './range-coverage';
 import { tableCellCount } from '../schema/block-kind-descriptor';
 import { isStrictAncestorOf, pathHasPrefix, pathsEqual, sharedPrefixLength } from './path-math';
 import { cellRowCol } from '../cursor/coordinate-spaces';
@@ -50,8 +50,8 @@ export function collectCrossBlockText(doc: DocumentView, range: CoveredRange): s
 		return startRaw.slice(start.offset, end.offset);
 	}
 
-	const startUnit = unitHolding(range, start.path);
-	const endUnit = unitHolding(range, end.path);
+	const startUnit = range.unitHolding(start.path);
+	const endUnit = range.unitHolding(end.path);
 	if (startUnit && endUnit && pathsEqual(startUnit, endUnit)) {
 		return wholeUnit(doc, startUnit, end.path, 'start').raw;
 	}

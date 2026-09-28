@@ -771,19 +771,24 @@ const RULES: FileRule[] = [
 	{
 		id: 'G4.80 in selection/ only the range coverage and the caret walks ask if a container is closed',
 		population: under('src/lib/selection/'),
-		matches: /(?<![\w.])isCollapsedContainer\s*\(/,
+		matches: /(?<![\w.])(?:isCollapsedContainer|collapsedContainerHiding)\s*\(/,
 		allowed: {
 			'src/lib/selection/range-coverage.ts':
 				'decides once which closed containers a range takes whole, for every reader of the range',
 			'src/lib/selection/path-lookup.ts':
-				'the caret walks step over a closed container’s hidden body; they place a caret and read no range'
+				'the caret walks step over a closed container’s hidden body; they place a caret and read no range',
+			'src/lib/selection/caret-target.ts':
+				'where a caret lands skips a hidden body unless the caller opens it; it reads no range'
 		},
 		reason:
 			'a reader of a range asks `coverRange` what the range covers; one that asks a closed container itself can disagree with the delete and the copy',
-		hits: [at(SELECTION_PROBE, 'if (isCollapsedContainer(node)) return removeWhole(doc, path);')],
+		hits: [
+			at(SELECTION_PROBE, 'if (isCollapsedContainer(node)) return removeWhole(doc, path);'),
+			at(SELECTION_PROBE, 'const hidden = collapsedContainerHiding(doc, end.path);')
+		],
 		misses: [
 			at(SELECTION_PROBE, "import { isCollapsedContainer } from '../schema/reserved-chrome';"),
-			at(SELECTION_PROBE, 'const unit = unitHolding(range, start.path);')
+			at(SELECTION_PROBE, 'const unit = range.unitHolding(start.path);')
 		]
 	},
 	{

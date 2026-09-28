@@ -11,7 +11,7 @@ import type { CstNode, Document } from '../core/nodes';
 import { metadataOf } from '../core/nodes';
 import type { SelectionPoint } from './primitives';
 import type { RangeDeleteResult } from './range-delete';
-import { unitHolding, type CoveredRange } from './range-coverage';
+import type { CoveredRange } from './range-coverage';
 import type { SharingState } from '../tree-operations/sharing';
 import { displayLength, documentLineEnding } from '../core/lines';
 import { cellRectBounds, cellRowCol } from '../cursor/coordinate-spaces';
@@ -140,7 +140,7 @@ function deleteFromProseIntoTable(
 	const { start, end } = range;
 	const startC = nearestChromeContainer(doc, start.path);
 	const startIsChrome = startC !== null && isChromeChild(startC, start.path);
-	const startTaken = unitHolding(range, start.path);
+	const startTaken = range.unitHolding(start.path);
 
 	// The snapped end cell is the whole-row inclusive last cell; deleteCellsAndCollapse takes an
 	// exclusive end, so +1 clears the same rows the clipboard copied.

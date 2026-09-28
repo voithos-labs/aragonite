@@ -192,7 +192,7 @@ export function classifyBlockForSelection(
 	if (comparePaths(start.path, end.path) === 0) {
 		return comparePaths(path, start.path) === 0 ? 'single-block' : 'outside';
 	}
-	const unit = range.wholeUnits.find((u) => pathHasPrefix(path, u));
+	const unit = range.unitHolding(path);
 	if (unit) return pathsEqual(unit, path) ? 'middle' : 'outside';
 	if (comparePaths(path, start.path) === 0) return 'start';
 	if (comparePaths(path, end.path) === 0) return 'end';
@@ -208,7 +208,7 @@ export function blockPaintsWholeBox(
 	wholeUnitPath: readonly number[] | null
 ): boolean {
 	if (wholeUnitPath) return pathsEqual(path, wholeUnitPath);
-	const unit = range.wholeUnits.find((u) => pathHasPrefix(path, u));
+	const unit = range.unitHolding(path);
 	if (unit) return pathsEqual(unit, path);
 	const { start, end } = range;
 	return (

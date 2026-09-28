@@ -12,6 +12,7 @@ vi.mock('$lib/selection/clipboard-text', async (importOriginal) => {
 	const { nodeAt } = await import('$lib/tree-operations/node-primitives');
 	const { getBlockKindDescriptor } = await import('$lib/schema/block-kind-descriptor');
 	const { displayLength } = await import('$lib/core/lines');
+	const { coverRange } = await import('$lib/selection/range-coverage');
 	type Args = Parameters<typeof actual.collectCrossBlockText>;
 	type Point = Args[1]['start'];
 	const cut = (doc: Args[0], point: Point): Point => {
@@ -24,11 +25,7 @@ vi.mock('$lib/selection/clipboard-text', async (importOriginal) => {
 	return {
 		...actual,
 		collectCrossBlockText: (doc: Args[0], range: Args[1]) =>
-			actual.collectCrossBlockText(doc, {
-				...range,
-				start: cut(doc, range.start),
-				end: cut(doc, range.end)
-			})
+			actual.collectCrossBlockText(doc, coverRange(doc, cut(doc, range.start), cut(doc, range.end)))
 	};
 });
 

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '../../core/parser';
 import { cellPoint, type SelectionPoint } from '../../selection/primitives';
-import { coverRange, unitHolding } from '../../selection/range-coverage';
+import { coverRange } from '../../selection/range-coverage';
 import { registerChromePluginsForTests } from './chrome-plugins';
 
 // What a range covers is read once; these rows pin the answer every reader then shares.
@@ -85,8 +85,8 @@ describe('coverRange takes a closed container whole', () => {
 describe('unitHolding', () => {
 	it('names the unit a path sits in, and nothing outside it', () => {
 		const range = coverRange(parse('above\n\n' + CLOSED), point([0], 1), point([1, 0], 2));
-		expect(unitHolding(range, [1, 1])).toEqual([1]);
-		expect(unitHolding(range, [1])).toEqual([1]);
-		expect(unitHolding(range, [0])).toBeNull();
+		expect(range.unitHolding([1, 1])).toEqual([1]);
+		expect(range.unitHolding([1])).toEqual([1]);
+		expect(range.unitHolding([0])).toBeNull();
 	});
 });
