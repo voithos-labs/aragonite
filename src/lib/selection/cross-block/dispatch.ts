@@ -22,7 +22,7 @@ import { performCrossBlockDelete } from './ops';
 import { handleCrossBlockPaste } from './paste';
 import { handleCrossBlockTypeReplace } from './type-replace';
 import { createCrossBlockKeydown } from './keydown';
-import { createCrossBlockPointer } from './pointer';
+import { createCrossBlockPointer, type PaddingPress } from './pointer';
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
@@ -70,6 +70,9 @@ export interface PointerPressOptions {
 	/** The raw offset the press anchors at, from a block that resolves its own press better than
 	 *  the browser's hit test does. Absent, the point is hit-tested. */
 	anchorOffset?: number;
+	/** A block that runs its own drag from a press (a table's cell rectangle) installs it here, told
+	 *  of a press in the padding the editor placed itself, where no native drag runs. */
+	ownDrag?: (padding: PaddingPress | null) => void;
 }
 
 export interface CrossBlockHandlers {

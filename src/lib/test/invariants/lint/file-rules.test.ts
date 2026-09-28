@@ -200,6 +200,17 @@ const DOM_MEASURES = [
 	/\brawTextOfNode\s*\([^)]*\)\s*\.length\b/
 ];
 
+// ── Editable surfaces ────────────────────────────────────────────────────────
+
+// A file that mounts a text surface someone presses into: a markup attribute or a textarea, a
+// script-set attribute that can read true, or the props object a leaf spreads onto its source.
+const MOUNTS_EDITABLE = [
+	/\scontenteditable=(?:\{|"true")/,
+	/<textarea\b/,
+	/setAttribute\(\s*'contenteditable',[^;]*'true'/,
+	/\bcontenteditable:\s/
+];
+
 // ── Editor-owned values ──────────────────────────────────────────────────────
 
 /** The getters the editor hands down for values it owns, by the names readers destructure them as. */
@@ -506,6 +517,46 @@ const RULES: FileRule[] = [
 			'const offset = offsetFromViewportPoint(el, x, y);',
 			'const seat = caretSeatFromPoint(document, x, y);',
 			'// never call caretRangeFromPoint here\nconst a = 1;'
+		]
+	},
+	{
+		id: 'every editable surface hands its press to the shared press handler',
+		matches: (file) =>
+			MOUNTS_EDITABLE.some((re) => re.test(file.code)) &&
+			!/\bhandlePointerDown\s*\(/.test(file.code),
+		allowed: {
+			'src/lib/components/GapCaret.svelte':
+				'the caret between blocks holds no text, so a press there has no line to land on',
+			'src/lib/editor-actions/whole-block-focus-surface.ts':
+				'the hidden editing host behind a whole block takes focus, never a press',
+			'src/lib/plugins/mermaid/MermaidBlock.svelte':
+				'the diagram source is a textarea, a form control that places its own caret, with no DOM text for the probe',
+			'src/lib/invariants/marker-css-parity.ts':
+				'the dev check measures a detached probe element nobody presses'
+		},
+		reason:
+			'the browser places a press in an editable’s top or bottom padding at the line’s start or end on Mac and Linux; call crossBlock.handlePointerDown from the surface’s pointerdown, or allow it here with why',
+		reaches: [
+			'src/lib/components/blocks/code/CodeBlock.svelte',
+			'src/lib/components/blocks/table/TableCellBlock.svelte',
+			'src/lib/components/blocks/text/TextEditableBlock.svelte',
+			'src/lib/components/blocks/editable-leaf.ts'
+		],
+		hits: [
+			at('x.svelte', '<div contenteditable="true" onpointerdown={down}></div>'),
+			at('x.svelte', "<div\n\tclass=\"x\"\n\tcontenteditable={ro ? 'false' : 'true'}\n></div>"),
+			at('x.svelte', '<textarea bind:value={draft}></textarea>'),
+			"el.setAttribute('contenteditable', reading ? 'false' : 'true');",
+			"const props = { contenteditable: 'true' as const };"
+		],
+		misses: [
+			at(
+				'x.svelte',
+				'<div contenteditable="true" onpointerdown={(e) => crossBlock.handlePointerDown(e)}></div>'
+			),
+			at('x.svelte', '<span contenteditable="false">x</span>'),
+			'root.querySelector(\'[contenteditable="true"]\');',
+			"widget.setAttribute('contenteditable', 'false');"
 		]
 	},
 	{

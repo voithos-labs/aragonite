@@ -26,15 +26,33 @@ export function offsetFromViewportPoint(
 	clientX: number,
 	clientY: number
 ): number | null {
-	const probeY = levelWithLines(blockEl, clientX, clientY);
-	const seat = caretSeatFromPoint(blockEl.ownerDocument, clientX, probeY);
+	const seat = caretSeatInElement(blockEl, clientX, clientY);
 	if (!seat || !blockEl.contains(seat.node)) return null;
 	return rawOffsetAt(blockEl, seat.node, seat.offset);
 }
 
-/** The DOM position a caret placed at this point would take, from the browser's own hit test:
- *  `caretRangeFromPoint` on Chromium and WebKit, `caretPositionFromPoint` as the Firefox fallback. */
-export function caretSeatFromPoint(
+/** The DOM position a press at this point lands on, asked level with `el`'s lines when the point
+ *  is inside it; the position may lie outside `el`. */
+export function caretSeatInElement(
+	el: HTMLElement,
+	clientX: number,
+	clientY: number
+): { node: Node; offset: number } | null {
+	return caretSeatFromPoint(el.ownerDocument, clientX, levelWithLines(el, clientX, clientY));
+}
+
+/** Whether a point inside `el`'s box lies above its first line or below its last, in the padding
+ *  where Mac and Linux would place a press at that line's start or end. */
+export function isInPaddingRow(el: HTMLElement, clientX: number, clientY: number): boolean {
+	const box = el.getBoundingClientRect();
+	if (!isInside(box, clientX, clientY)) return false;
+	const band = linesBandOf(el, box);
+	return band !== null && (clientY < band.top || clientY > band.bottom);
+}
+
+/** The browser's own hit test: `caretRangeFromPoint` on Chromium and WebKit,
+ *  `caretPositionFromPoint` as the Firefox fallback. */
+function caretSeatFromPoint(
 	doc: Document,
 	clientX: number,
 	clientY: number
@@ -70,9 +88,13 @@ export function clampPointIntoBox(rect: DOMRect, x: number, y: number): { x: num
 // start or end, and Windows with the column; a point level with a line gets the column everywhere.
 function levelWithLines(el: HTMLElement, x: number, y: number): number {
 	const box = el.getBoundingClientRect();
-	if (x < box.left || x > box.right || y < box.top || y > box.bottom) return y;
+	if (!isInside(box, x, y)) return y;
 	const band = linesBandOf(el, box);
 	return band ? clamp(y, band.top + 1, band.bottom - 1) : y;
+}
+
+function isInside(box: DOMRect, x: number, y: number): boolean {
+	return x >= box.left && x <= box.right && y >= box.top && y <= box.bottom;
 }
 
 /** The rows between `el`'s top and bottom padding; null when they leave no row one pixel inside.

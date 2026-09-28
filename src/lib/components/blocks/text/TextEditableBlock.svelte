@@ -28,7 +28,7 @@
 		trailingLineEnding
 	} from '../../../core/lines';
 	import { caretIsInTextContent, seatIsInTextContent } from './click-snap-guard';
-	import { caretSeatFromPoint } from '../../../cursor/point-offset';
+	import { caretSeatInElement } from '../../../cursor/point-offset';
 	import { FALLBACK_CONTENT_WIDTH } from '../../../cursor/typography-estimates';
 	import {
 		createInlineFormatActiveMemo,
@@ -957,9 +957,9 @@
 		armSnapTarget(null);
 		// Only a primary press ends in a click; a context-menu press would keep the caret hidden.
 		pressPending = e.button === 0;
-		// Read now from the browser's own hit test, not at the `selectionchange` that follows: that
-		// event can arrive after a frame has already painted the native caret.
-		const seat = pressPending && el ? caretSeatFromPoint(document, e.clientX, e.clientY) : null;
+		// Read now, not at the `selectionchange` that follows: that event can arrive after a frame
+		// has already painted the native caret. Level with a line, where a padding press lands.
+		const seat = pressPending && el ? caretSeatInElement(el, e.clientX, e.clientY) : null;
 		pressSeatedBesideIsland =
 			!!seat && !!el && el.contains(seat.node) && !seatIsInTextContent(el, seat.node);
 		// A click on a widget that can show its source is this editor's gesture: cancelling the

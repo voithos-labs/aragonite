@@ -839,7 +839,17 @@
 
 		const editorRoot = getEditorRoot();
 		if (!editorRoot) return;
-		installCellDragListener({ editorRoot, selection, lifetimeSignal: editorLifetime }, anchor, e);
+		const cellEl = el;
+		// Through the shared press handler, which places a press in the cell's padding itself.
+		crossBlock.handlePointerDown(e, {
+			ownDrag: (padding) =>
+				installCellDragListener(
+					{ editorRoot, selection, lifetimeSignal: editorLifetime },
+					anchor,
+					e,
+					padding && { surface: cellEl, press: padding }
+				)
+		});
 	}
 
 	// A rectangle also goes on the clipboard as an HTML table, which spreadsheets read.

@@ -1,7 +1,11 @@
 // @vitest-environment jsdom
 // Miss-analysis: only a pre-clamped hit test reached the exact lookup, so no test named the clamp.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { caretOffsetAtPoint, offsetFromViewportPoint } from '../../cursor/point-offset';
+import {
+	caretOffsetAtPoint,
+	isInPaddingRow,
+	offsetFromViewportPoint
+} from '../../cursor/point-offset';
 
 // One character per pixel across the box, so an expected offset reads off the x directly.
 const BOX = { left: 100, right: 200, top: 50, bottom: 70 };
@@ -151,5 +155,23 @@ describe('offsetFromViewportPoint: the exact counterpart', () => {
 
 		offsetFromViewportPoint(el, 140, BOX.top - 10);
 		expect(asked).toEqual([{ x: 140, y: BOX.top - 10 }]);
+	});
+});
+
+describe('isInPaddingRow: a press the editor places itself', () => {
+	afterEach(() => {
+		document.body.innerHTML = '';
+	});
+
+	it('holds above the first line and below the last, inside the box, and nowhere else', () => {
+		const el = mountBoxed();
+		el.style.padding = '4px 20px';
+
+		expect(isInPaddingRow(el, 140, BOX.top + 2)).toBe(true);
+		expect(isInPaddingRow(el, 140, BOX.bottom - 2)).toBe(true);
+		expect(isInPaddingRow(el, 140, 60)).toBe(false);
+		// Side padding level with a line keeps its column on every OS, so the browser keeps it.
+		expect(isInPaddingRow(el, BOX.left + 5, 60)).toBe(false);
+		expect(isInPaddingRow(el, 140, BOX.top - 2)).toBe(false);
 	});
 });

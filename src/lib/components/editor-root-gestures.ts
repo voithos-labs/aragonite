@@ -185,7 +185,7 @@ export function createRootGestures(deps: RootGesturesDeps): RootGestures {
 					selection: deps.selection,
 					getBlockElByPath: deps.getBlockElByPath,
 					lifetimeSignal: deps.getLifetime(),
-					paintSameBlock: true
+					paintSameBlock: () => true
 				},
 				anchor,
 				e
