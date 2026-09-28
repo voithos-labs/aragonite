@@ -10,6 +10,7 @@ import { READING_WRITE_TAG } from '$lib/editor-actions/commit/reading-write-gate
 import { refSlotsOver } from '$lib/reactivity/publish-ref.svelte';
 import { createCaretLanding } from '$lib/selection/caret-landing';
 import { asDocPath } from '$lib/selection/path-math';
+import type { CaretPosition } from '$lib/selection/primitives';
 import { makeTopHarness, stubBlockComponent } from '../../harness/editor-actions';
 import { fixtureReading } from '../../harness/fixture-grammar';
 import { takeDevWarns } from '../../support/warn-gate';
@@ -58,9 +59,37 @@ describe('when a commit lands its caret', () => {
 		expect(takeDevWarns().map((w) => w.tag)).toEqual([READING_WRITE_TAG]);
 		expect([read, h.landings]).toEqual([false, []]);
 	});
+});
 
-	// Miss-analysis: only the paste landing checked for a history swap, and no test undid while
-	// any other commit's caret waited for its block to mount.
+type Harness = ReturnType<typeof makeTopHarness>;
+
+/** The same delete through each commit route: the document scope and the multi-scope one a
+ *  paste or a table edit commits through. */
+const COMMIT_ROUTES: [string, (h: Harness, landing: () => CaretPosition) => Promise<boolean>][] = [
+	[
+		'commitStructural',
+		(h, landing) =>
+			h.controller.commitStructural({
+				snapshot: { path: asDocPath([0]), offset: 0 },
+				mutate: deleteSecond,
+				landing
+			})
+	],
+	[
+		'commitMultiScope',
+		(h, landing) =>
+			h.controller.commitMultiScope({
+				scopes: [h.controller.getDocScope()],
+				snapshot: { path: asDocPath([0]), offset: 0 },
+				mutate: ([doc]) => [deleteSecond(doc.children)],
+				landing
+			})
+	]
+];
+
+// Miss-analysis: only the paste landing checked for a history swap, and no test undid while
+// any other commit's caret waited for its block to mount, through either commit route.
+describe.each(COMMIT_ROUTES)('a landing across an undo, through %s', (_route, commit) => {
 	it('places nothing when an undo finishes while the landing waits for its block to mount', async () => {
 		const h = makeTopHarness('ab\n\nc\n\nd\n');
 		// Nothing is mounted until the landing asks, and each mount waits for the test.
@@ -92,11 +121,7 @@ describe('when a commit lands its caret', () => {
 		Object.defineProperty(h.deps, 'caretLanding', { value: landing });
 		const history = createHistoryActions(h.deps, h.controller);
 
-		const committed = h.controller.commitStructural({
-			snapshot: { path: asDocPath([0]), offset: 0 },
-			mutate: deleteSecond,
-			landing: () => ({ path: docPathFrom([1]), offset: 0 })
-		});
+		const committed = commit(h, () => ({ path: docPathFrom([1]), offset: 0 }));
 		await asked;
 		await history.requestUndo();
 		mount();
@@ -108,11 +133,7 @@ describe('when a commit lands its caret', () => {
 	it('places nothing when an undo lands between the commit and the read of its landing', async () => {
 		const h = makeTopHarness('ab\n\nc\n\nd\n');
 		const history = createHistoryActions(h.deps, h.controller);
-		const committed = h.controller.commitStructural({
-			snapshot: { path: asDocPath([0]), offset: 0 },
-			mutate: deleteSecond,
-			landing: () => ({ path: docPathFrom([1]), offset: 0 })
-		});
+		const committed = commit(h, () => ({ path: docPathFrom([1]), offset: 0 }));
 		// The undo swaps the tree before its first await, while the commit waits for its tick.
 		const undone = history.requestUndo();
 		await committed;

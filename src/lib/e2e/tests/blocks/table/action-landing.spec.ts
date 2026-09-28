@@ -122,4 +122,25 @@ test.describe('table block: the caret after a table edit', () => {
 		await typeX();
 		await editor.bridge.waitForSourceContains(`| g${lastRow} | h${lastRow}x |`);
 	});
+
+	test('Escape on a menu whose row scrolled out of view puts the caret back in that cell', async ({
+		page
+	}) => {
+		await page.setViewportSize({ width: 1280, height: 720 });
+		await editor.loadContent(tallTable(300));
+		await page.locator('[data-table-row-idx="2"] .table-cell').nth(1).click({ button: 'right' });
+		await expect(page.getByRole('menu')).toBeVisible();
+		const scrollHeight = await page.evaluate(
+			() => (document.querySelector('.editor') as HTMLElement).scrollHeight
+		);
+		await editor.scrollEditorTo(scrollHeight);
+		// The precondition: the menu's row is no longer rendered when Escape closes the menu.
+		await expect(page.locator('[data-table-row-idx="2"]')).toHaveCount(0);
+
+		await page.keyboard.press('Escape');
+		await expect(page.getByRole('menu')).toHaveCount(0);
+		await typeX();
+		// The right-click put the caret somewhere in `v2`; the `x` lands in that cell, wherever in it.
+		await editor.bridge.waitForSourceMatches(/^\| r2 \| (?:xv2|vx2|v2x) \|$/m);
+	});
 });

@@ -20,9 +20,14 @@ there. Each scenario types `x` straight after the edit and reads which cell it w
 
 - A 40-row grid pasted at the first cell of a table tall enough that its far rows aren't rendered
   yet: the row the grid ends on gets rendered, and `x` lands at the end of its last cell
+- Right-click a cell near the top of a table that tall, scroll to the bottom so that cell's row
+  isn't rendered any more, then Escape: the menu closes, the row comes back, and `x` lands in
+  that cell
 
 ## Miss-analysis
 
 - The grid paste placed its caret through the table's own cell lookup, which only reaches rows
   already on screen, and every paste test used a table small enough to render whole, so a caret
   that never arrived went unseen.
+- Escape on the cell menu went through that same lookup, and every menu test closed the menu
+  with its row still on screen.
