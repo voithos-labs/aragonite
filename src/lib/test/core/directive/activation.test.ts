@@ -1,18 +1,17 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import type { InvariantViolation } from '$lib/assert';
 import { parse } from '$lib/core/parser';
 import { isBlockKindRegistered } from '$lib/schema/block-kind-descriptor';
 import { isBlockOpenerRegistered } from '$lib/schema/block-openers';
 import {
 	flushPendingRegistrationChecks,
-	__resetRegistrationChecksForTests,
 	type RegistrationCheckReport
 } from '$lib/schema/registration-checks';
 import { activateDirectiveGrammar } from '$lib/core/directive/activate';
 import { DIRECTIVE_CONTAINER, DIRECTIVE_LEAF } from '$lib/core/directive/kinds';
 
-// Activation is call-based, so each case resets the opener registry and the one-shot checks to
-// try the opener registering both before and after the first parse (G1.17).
+// Activation is call-based, so the reset before each case lets the opener register both before and
+// after the first parse.
 function collectRegistrationTags(): string[] {
 	const tags: string[] = [];
 	const report: RegistrationCheckReport = (tag, check) => {
@@ -24,10 +23,6 @@ function collectRegistrationTags(): string[] {
 }
 
 describe('directive grammar activation', () => {
-	beforeEach(() => {
-		__resetRegistrationChecksForTests();
-	});
-
 	it('registers the generic kinds and the shared opener when called', () => {
 		activateDirectiveGrammar();
 		expect(isBlockKindRegistered(DIRECTIVE_CONTAINER)).toBe(true);

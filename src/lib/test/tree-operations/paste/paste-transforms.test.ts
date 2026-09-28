@@ -1,14 +1,10 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import {
 	registerPasteTransform,
 	applyPasteTransforms,
 	type PasteTransform
 } from '../../../tree-operations/paste/paste-transforms';
-import {
-	definePlugin,
-	installPlugins,
-	__resetInstalledPluginsForTests
-} from '../../../schema/plugin-install';
+import { definePlugin, installPlugins } from '../../../schema/plugin-install';
 import { activationFor } from '../../../schema/plugin-activation';
 import { allowDevWarns, takeDevWarns } from '../../support/warn-gate';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
@@ -39,10 +35,6 @@ function throwingOnCall(
 }
 
 describe('paste-transforms registry', () => {
-	beforeEach(() => {
-		__resetInstalledPluginsForTests();
-	});
-
 	it('returns the input unchanged when no transform is registered', () => {
 		expect(applyPasteTransforms('seed', everyInstalledPlugin)).toBe('seed');
 	});
@@ -105,10 +97,6 @@ describe('paste-transforms registry', () => {
 });
 
 describe('paste-transforms containment', () => {
-	beforeEach(() => {
-		__resetInstalledPluginsForTests();
-	});
-
 	it('treats a throwing transform as a decline, leaving the text untouched', () => {
 		registerPasteTransform(throwingOnCall('thrower', 1).transform);
 		expect(applyPasteTransforms('seed', everyInstalledPlugin)).toBe('seed');
@@ -156,10 +144,6 @@ describe('paste-transforms containment', () => {
 });
 
 describe('per-instance activation over the transform pipeline', () => {
-	beforeEach(() => {
-		__resetInstalledPluginsForTests();
-	});
-
 	/** Installs `name`, whose setup registers a transform appending `suffix`. */
 	function installTransformPlugin(name: string, suffix: string): void {
 		installPlugins([

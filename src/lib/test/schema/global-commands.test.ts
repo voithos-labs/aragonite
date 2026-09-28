@@ -14,12 +14,7 @@ import {
 } from '$lib/schema/commands';
 import { normalizeKeybindingOverrides } from '$lib/schema/keybinding-overrides';
 import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
-import {
-	definePlugin,
-	installPlugins,
-	__resetInstalledPluginsForTests,
-	type EditorContext
-} from '$lib/schema/plugin-install';
+import { definePlugin, installPlugins, type EditorContext } from '$lib/schema/plugin-install';
 import { commandContext } from '../support/command-context';
 
 const editor = {
@@ -54,7 +49,6 @@ describe('registerGlobalCommand', () => {
 	// A plugin installed process-wide but absent from this editor's `plugins` prop resolves no
 	// context here. That is inactive by design, so it must not use up the key-does-nothing warning.
 	it('declines quietly when the dispatching editor did not list the owning plugin', () => {
-		__resetInstalledPluginsForTests();
 		let ran = false;
 		let id!: ReturnType<typeof registerGlobalCommand>;
 		installPlugins([
@@ -209,10 +203,6 @@ describe('chorded global command survives dev re-eval', () => {
 // Recording the owner is what separates a plugin reusing its own name from a collision between
 // plugins, and the owner is what the collision message names.
 describe('registerGlobalCommand owner attribution', () => {
-	afterEach(() => {
-		__resetInstalledPluginsForTests();
-	});
-
 	it('names the owning plugin when a second plugin re-creates the same command', () => {
 		installPlugins([
 			definePlugin({

@@ -1,12 +1,8 @@
-import { beforeEach, describe, it, expect, afterEach } from 'vitest';
+import { beforeEach, describe, it, expect } from 'vitest';
 import type { PluginBlockKind } from '$lib/core/nodes';
 import { registerBlockCommand, getBlockCommand } from '$lib/schema/block-commands';
 import { declarePluginKind } from '$lib/schema/plugin-kind';
-import {
-	definePlugin,
-	installPlugins,
-	__resetInstalledPluginsForTests
-} from '$lib/schema/plugin-install';
+import { definePlugin, installPlugins } from '$lib/schema/plugin-install';
 import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 
 let note: PluginBlockKind;
@@ -16,10 +12,6 @@ beforeEach(() => {
 	note = declarePluginKind('note');
 	noteA = declarePluginKind('note-a');
 	noteB = declarePluginKind('note-b');
-});
-
-afterEach(() => {
-	__resetInstalledPluginsForTests();
 });
 
 describe('block-command registry', () => {

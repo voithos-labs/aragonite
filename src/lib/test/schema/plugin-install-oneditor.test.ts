@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import {
 	definePlugin,
 	installPlugins,
@@ -7,8 +7,6 @@ import {
 	__resetInstalledPluginsForTests,
 	type PluginSetupContext
 } from '$lib/schema/plugin-install';
-
-beforeEach(() => __resetInstalledPluginsForTests());
 
 describe('onEditor subscription join', () => {
 	it('records callbacks per plugin, in registration order', () => {
