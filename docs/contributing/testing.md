@@ -510,6 +510,13 @@ test.describe('my feature', () => {
 Note the import path: `../fixtures`, not `@playwright/test`. That's the invariant watcher, and
 it's the one line in this file most worth not copying wrong.
 
+A spec on some other route doesn't call `page.goto` either. It calls
+`gotoReady(page, '/test/syntax', '__syntax')` from `src/lib/e2e/goto-ready.ts` (`reloadReady` is
+the reload version, and `editor.goto()` calls it for you), which waits for the global the route's
+page sets once it's hydrated, because the server-rendered markup shows up well before any click
+handler does. A raw `page.goto` fails `src/lib/e2e/lint/goto-ready.test.ts`, and a new route
+publishes a global of its own and adds the name to `src/lib/e2e/goto-ready.ts :: ReadyGlobal`.
+
 ### Patterns and gotchas
 
 **Pace per-character typing with a state settle.** Two input helpers coexist.
