@@ -1,7 +1,8 @@
 /**
- * How a write reads one block's bytes back in place. A task item's first paragraph starts right
- * after the marker, so its text reads as the parser reads the item body (GFM task lists): the
- * first line stays paragraph text whatever it would open. Everywhere else it is a plain fragment.
+ * How one block's bytes read back in place. A task item's first paragraph starts right after the
+ * marker, so a write reads its text as the parser reads the item body (GFM task lists); a live
+ * rewrite's check reads a list item's first block behind its whole marker line. Everywhere else
+ * it is a plain fragment.
  */
 
 import { makeBlockNode, metadataOf, type Document } from '../../core/nodes';
