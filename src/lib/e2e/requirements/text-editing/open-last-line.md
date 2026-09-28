@@ -4,7 +4,7 @@ A file whose last line has no line ending keeps it that way through a structural
 
 ## Happy paths
 
-- `- a`, `- b` with no final break, caret in `b`, End, Enter, `c`: three items, `- a\n- b\n- c`, in source and live mode (regression #635; miss-analysis: every list-end Enter test ended its fixture in a line break, so the item the Enter added was never written after a line that had none)
+- `- a`, `- b` with no final break, caret in `b`, End, Enter, `c`: three items, `- a\n- b\n- c`, in source and live mode (the empty item Enter makes keeps its break, `- \n`, like any empty last block) (regression #635; miss-analysis: every list-end Enter test ended its fixture in a line break, so the item the Enter added was never written after a line that had none)
 - `one` with no final break, caret in it, End, ArrowDown, `x`: two paragraphs, `one\n\nx`, in source and live mode (regression #635; same miss: the ArrowDown append was only ever run after a closed last line)
 - `one` with no final break, a click on the row just below it, `x`: two paragraphs, `one\n\nx`, in source and live mode (regression #635; same miss: the trailing insert row had no test on a file without a final break)
 

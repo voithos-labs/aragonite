@@ -4,7 +4,8 @@
  */
 
 import type { DocumentView, NodeView } from '../core/node-views';
-import { endsInBlankLine, ownTrailingLineEnding } from '../core/lines';
+import { ownTrailingLineEnding } from '../core/lines';
+import { holdsBlankLastLine } from '../tree-operations/open-tail';
 import type { InvariantViolation } from '../assert';
 import { getBlockKindDescriptor, isGridKind } from '../schema/block-kind-descriptor';
 
@@ -12,7 +13,7 @@ export function checkLastLineKept(doc: DocumentView, wasOpen: boolean): Invarian
 	const last = doc.children.at(-1);
 	if (!last) return null;
 	const open = doc.suffix === '' && ownTrailingLineEnding(last.raw) === '';
-	const blank = doc.suffix !== '' || endsInBlankLine(last.raw);
+	const blank = doc.suffix !== '' || holdsBlankLastLine(last);
 	if (wasOpen && !open && !blank) {
 		return violation('the document had no final line break and gained one on a written line');
 	}

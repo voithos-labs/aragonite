@@ -254,7 +254,7 @@ Three families of seam run these checks:
 | G1.38 | A spliced container raw equals what a full rebuild would write                      | A·N     |
 | G1.39 | At most one block paints the editor's own caret at a time                           | A       |
 | G1.40 | Every built-in kind declares its page role and its height estimate                  | A·N     |
-| G1.41 | A structural edit leaves a file with no final line break without one                | A·P·N   |
+| G1.41 | A structural edit neither adds nor drops a final break, nor glues the last line     | A·P·N   |
 
 ### The entries
 
@@ -640,16 +640,22 @@ bootstrap · `test/invariants/builtin-presentation-facts.test.ts`.
 **G1.41 · The open last line** (`last-line-kept`). Only the document's last line may lack a line
 ending, and a structural edit leaves it the way it found it: a file with no final break still has
 none afterwards, unless its new last line is blank (then the line is nothing but its break, and
-dropping the break would drop the line). The commit owns the rule in two steps:
-`tree-operations/open-tail.ts :: endWindowLines` before the separator fix-up, and
-`tree-operations/open-tail.ts :: keepOpenTail` once the containers rebuild. No edit writes the tail
-by hand (G4.74 holds the walk to that file), though a move calls the first step itself, since it
-checks its joins before the commit's fix-up runs. The check runs after every structural commit publishes and fails three shapes: an open
-file that gained a break on a line with text, a closed file that lost its break, and a line with no
-ending sitting right above the last line, at any level of the containers holding it. That last one
-is what an edit leaves when it puts a block after an open last line where the commit can't see it,
-and the two lines read as one on reload. Predicate `invariants/open-tail.ts :: checkLastLineKept` ·
-run by both commit branches in `editor-actions/commit/undo-controller.ts` ·
+dropping the break would drop the line). Blank means the line held by the block at the bottom of the
+last block, found by walking down its last children the way the release does, so the empty line
+Enter leaves inside a last quote counts and the quote's own trailing `>` doesn't; that walk is one
+predicate, `tree-operations/open-tail.ts :: holdsBlankLastLine`, shared by the release and this
+check. The commit owns the rule in two steps: `tree-operations/open-tail.ts :: endWindowLines`
+before the separator fix-up, and `tree-operations/open-tail.ts :: keepOpenTail` once the containers
+rebuild. No edit writes the tail by hand (G4.74 holds the walk to that file). A move still calls the
+first step itself for now, because it checks its own joins before the commit's fix-up runs; that
+call goes once the commit settles the move's joins.
+
+The check runs after every structural commit publishes and fails three shapes: an open file that
+gained a break on a line with text, a closed file that lost its break, and a line with no ending
+sitting right above the last line, at any level of the containers holding it. That last one is what
+an edit leaves when it puts a block after an open last line where the commit can't see it, and the
+two lines read as one on reload. Predicate `invariants/open-tail.ts :: checkLastLineKept` · run by
+both commit branches in `editor-actions/commit/undo-controller.ts` ·
 `test/invariants/last-line-kept.test.ts`, `test/editor-actions/open-last-line.test.ts`,
 `open-last-line.property.test.ts`.
 

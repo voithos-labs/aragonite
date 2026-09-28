@@ -1,7 +1,9 @@
 // Miss-analysis (GH #635, #616): each route kept the open last line by hand or not at all, and
 // every route's own suite ended its fixtures in a line break, so no route was ever run as a class.
 
-import { describe, it, expect } from 'vitest';
+import { beforeAll, describe, it, expect } from 'vitest';
+import { installPlugins } from '$lib';
+import { admonitionsPlugin } from '$lib/plugins/admonitions';
 import type { CstNode, Document } from '$lib/core/nodes';
 import { documentLineEnding } from '$lib/core/lines';
 import { parse } from '$lib/core/parser';
@@ -160,9 +162,9 @@ const ROUTES: { name: string; source: string; after: string; route: Route }[] = 
 	},
 	// ── through a container's commit, on the last line ──
 	{
-		name: 'Enter at the end of the last list item adds an open item',
+		name: 'Enter at the end of the last list item adds an empty item, which keeps its break',
 		source: 'intro\n\n- a\n- b',
-		after: 'intro\n\n- a\n- b\n- ',
+		after: 'intro\n\n- a\n- b\n- \n',
 		route: listEndEnter
 	},
 	{
@@ -197,10 +199,28 @@ const ROUTES: { name: string; source: string; after: string; route: Route }[] = 
 		route: paste([1], 5, '```\ncode\n\n')
 	},
 	{
-		name: 'a quote ending in a blank quote line keeps that line when it becomes last',
+		name: 'a quote’s trailing `>` line gives its break up when the quote becomes last',
 		source: 'intro\n\n> q\n>\n\nlast',
 		after: 'intro\n\n> q\n>',
 		route: top((h) => h.actions.deleteBlock(2))
+	},
+	{
+		name: 'a quote whose last child is an empty line keeps its break when it becomes last',
+		source: 'intro\n\n> q\n>\n>\n\nlast',
+		after: 'intro\n\n> q\n>\n>\n',
+		route: top((h) => h.actions.deleteBlock(2))
+	},
+	{
+		name: 'Enter at the end of a last quote line makes an empty line, which keeps its break',
+		source: 'intro\n\n> a',
+		after: 'intro\n\n> a\n>\n>\n',
+		route: inContainer([1], (bundle) => bundle.blockEdit.splitBlock(0, 1))
+	},
+	{
+		name: 'Enter at the end of a quote line in a last list item keeps the empty line’s break',
+		source: 'intro\n\n- > a',
+		after: 'intro\n\n- > a\n  >\n  >\n',
+		route: inContainer([1, 0, 0], (bundle) => bundle.blockEdit.splitBlock(0, 1))
 	},
 	{
 		name: 'an empty quote pasted mid-document ends its line',
@@ -257,5 +277,21 @@ describe('a directive container that ends the document', () => {
 		const doc = await route(source);
 		expect(doc.children[1].kind).toBe(DIRECTIVE_CONTAINER);
 		expect(serialize(doc)).toBe(after);
+	});
+});
+
+// Miss-analysis: the quote exit row asserted only after its second commit, so no row stopped on
+// the empty line an Enter leaves inside a last quote, where the blank check read `>` instead.
+describe('Enter at the end of a last alert line', () => {
+	beforeAll(() => installPlugins([admonitionsPlugin()]));
+
+	it.each([
+		['LF', (text: string) => text],
+		['CRLF', crlf]
+	])('%s: the empty line keeps its break', async (_ending, mirror) => {
+		const route = inContainer([1], (bundle) => bundle.blockEdit.splitBlock(0, 1));
+		const doc = await route(mirror('intro\n\n> [!NOTE]\n> a'));
+		expect(serialize(doc)).toBe(mirror('intro\n\n> [!NOTE]\n> a\n>\n>\n'));
+		expect(reloadedShape(doc)).toEqual(shapeOf(doc.children));
 	});
 });

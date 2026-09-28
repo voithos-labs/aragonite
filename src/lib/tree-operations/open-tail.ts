@@ -19,7 +19,11 @@ import type { StructuralChange } from './structural-change';
 import type { SharingState } from './sharing';
 import { ensureUnsharedChild } from './unshare';
 import { dropChildSpans } from '../schema/child-spans';
-import { getBlockKindDescriptor, isGridKind } from '../schema/block-kind-descriptor';
+import {
+	getBlockKindDescriptor,
+	isGridKind,
+	tryGetBlockKindDescriptor
+} from '../schema/block-kind-descriptor';
 import { reservedChromeKindOf } from '../schema/reserved-chrome';
 
 // ── The commit's steps ───────────────────────────────────────────────────────
@@ -57,8 +61,21 @@ export function keepOpenTail(doc: Document, wasOpen: boolean, sharing: SharingSt
 	if (!wasOpen || doc.suffix !== '') return;
 	const lastIndex = doc.children.length - 1;
 	const last = doc.children[lastIndex];
-	if (!last || ownTrailingLineEnding(last.raw) === '' || endsInBlankLine(last.raw)) return;
+	if (!last || ownTrailingLineEnding(last.raw) === '' || holdsBlankLastLine(last)) return;
 	releaseLastLine(ensureUnsharedChild(doc, lastIndex, sharing), sharing);
+}
+
+/**
+ * Whether the block that holds `node`'s last line, found down the path the release walks, ends
+ * in a blank line; a quote's own trailing `>` line is its own and has a marker, so it is not.
+ */
+export function holdsBlankLastLine(node: NodeView): boolean {
+	const last = node.children?.at(-1);
+	const contract = tryGetBlockKindDescriptor(node.kind)?.containerContract;
+	const descends =
+		(contract === 'strip' && !node.innerSuffix) ||
+		(contract === 'grid' && last !== undefined && isGridKind(last.kind));
+	return last && descends ? holdsBlankLastLine(last) : endsInBlankLine(node.raw);
 }
 
 // ── The walk down the last line ──────────────────────────────────────────────

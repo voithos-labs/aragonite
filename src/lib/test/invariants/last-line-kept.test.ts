@@ -29,6 +29,7 @@ describe('G1.41 checkLastLineKept', () => {
 		['a closed document that stayed closed', 'a\n\nb\n', false],
 		['an open document that now ends in a blank block', 'a\n\n\n', true],
 		['an open document that now ends in a trailing blank line', 'a\n\n', true],
+		['an open document that now ends in an empty line inside a quote', '> a\n>\n>\n', true],
 		['an emptied document', '', true]
 	])('passes %s', (_name, bytes, wasOpen) => {
 		expect(checkLastLineKept(parse(bytes), wasOpen)).toBeNull();
