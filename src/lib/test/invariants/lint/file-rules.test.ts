@@ -934,6 +934,18 @@ const RULES: FileRule[] = [
 			'the delete, the copy and the overlay read the snapped pair from `coverRange`; a second snap is a second answer to what the range covers',
 		hits: ['const { start, end } = snapCrossBlockTableEndpoints(doc, a, b);'],
 		misses: ["import { snapCrossBlockTableEndpoints } from './table-endpoint-snap';"]
+	},
+	{
+		id: 'G4.84 a StoredAs is made only from the tree, in one place',
+		matches: /\bas\s+StoredAs\b/,
+		allowed: {
+			'src/lib/tree-operations/stored-as.ts':
+				'derives how a leaf position stores bytes from the tree it sits in'
+		},
+		reason:
+			'a rewrite that describes its own position reads a cell as a block or forgets its container; take one from `storedAsAt` or `storedAsIn`',
+		hits: ['return { reading, surface: "block", stored, readSlot } as StoredAs;'],
+		misses: ["import type { StoredAs } from '../schema/stored-as';", 'const s: StoredAsLike = x;']
 	}
 ];
 

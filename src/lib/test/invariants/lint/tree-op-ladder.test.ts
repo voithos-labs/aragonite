@@ -13,6 +13,7 @@ const LADDER = [
 	'unshare',
 	'settle',
 	'content-write',
+	'stored-as',
 	'node-ops',
 	'chain-rebuild'
 ] as const;
