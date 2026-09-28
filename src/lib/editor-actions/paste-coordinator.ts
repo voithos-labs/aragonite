@@ -14,6 +14,8 @@ export function createPasteCoordinator(
 ): PasteCommitCoordinator {
 	const root = { deps, controller };
 
+	// The paste routes still place their own caret, so this checks for an undo itself; a commit's
+	// `landing` gets both from the caret landing.
 	async function landCaret(path: number[], offset: number): Promise<void> {
 		const stamp = deps.caretLanding.generation();
 		const block = await deps.revealPath(path);

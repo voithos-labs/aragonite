@@ -5,7 +5,7 @@ import type { EditorActionsDeps, UndoController } from '$lib/editor-actions/deps
 import type { BlockComponent } from '$lib/block-component';
 import type { CaretLanding } from '$lib/selection/caret-landing';
 
-/** Only the two members the stamp reads; the rest of the landing never runs here. */
+/** Only the tree-swap counter's two members; the rest of the landing never runs here. */
 function stubLanding(): CaretLanding {
 	let generation = 0;
 	return {

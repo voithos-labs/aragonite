@@ -699,7 +699,7 @@ await scope.commit({
 	mutate: (view) => {
 		/* cut view.children[i] at offset; return the structural change */
 	},
-	landing: () => scope.at(secondHalfIndex, [], CURSOR_EXACT_START), // where the caret goes
+	landing: () => scope.at(secondHalfIndex, [], CURSOR_EXACT_START),
 	discardIfNoop: true // a split that moved nothing pushes no undo entry
 });
 ```
@@ -718,12 +718,12 @@ The commit's structural steps, in order (`src/lib/editor-actions/commit/undo-con
 10. `await tick()`, then read the caller's `landing` and put the caret there, awaited,
 11. speak the caller's `announce` line in the edit live region, when the commit wrote.
 
-The landing is a value, not a callback that places anything: a position (a document path and an offset, where the path may name a container) or a stored selection. The commit reads it after the tick, so it sees the tree the commit left, and hands it to the editor's one caret landing (`src/lib/selection/caret-landing.ts` :: `createCaretLanding`). That resolves the position to a leaf a caret can sit in, mounts each level on the way down, gives up if an undo, redo or document swap happened since the commit started, focuses the block through its own `focus`, and scrolls it into view when it's off screen. A few details, for the curious:
+The landing is a value, not a callback that places anything: a position (a document path and an offset, where the path may name a container) or a stored selection. The commit reads it after the tick, so it sees the tree the commit left, and hands it to the editor's one caret landing (`src/lib/selection/caret-landing.ts` :: `createCaretLanding`). That resolves the position to a leaf a caret can sit in, mounts each level on the way down, gives up if an undo, redo or document swap happened since the commit started, focuses the block through its own `focus` (a stored selection goes back at its exact bytes instead), and scrolls it into view when it's off screen. A few details, for the curious:
 
 - A commit that reading mode refused lands nothing. One that `discardIfNoop` threw away still lands, since a refused merge still moves the caret across the boundary you pressed at.
 - When an enclosing container collapsed during the commit, the collapse's position replaces the caller's, because the collapse rebuilt the blocks the caller's position names.
 - In a dev build, reading the landing must leave focus and the selection alone (G1.43), so a landing that sneaks in a caret of its own gets caught the first time a test runs it.
-- The tables, the paste routes and the range deletes still place their caret themselves in an `afterTick` callback, which runs just before the landing.
+- A few routes still place their own caret in an `afterTick` callback, which runs just before the landing: the tables, paste, block and range deletes, a plugin's metadata update (a Details toggle, say), and the cross-block edits. Those don't scroll their block into view yet.
 
 Callers pick a scope; they never assemble the steps, and **this is the canonical entry for any new structural mutation** (the op-log isn't a commit step; it subscribes to `edit` downstream). The top-level and container action factories share one core through a `CommitScope` adapter, so the structural-edit sequence is single-sourced and the factories differ only in scope wiring and container-only concerns.
 

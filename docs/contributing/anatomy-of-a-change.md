@@ -147,7 +147,7 @@ flowchart TD
     M --> C["the ordinary commit ceremony"]
     C --> U["one undo entry"]
     C --> V["one insertBlock edit event"]
-    C --> F["its landing focuses<br/>the new block"]
+    C --> F["the commit lands the caret<br/>in the new block"]
     F --> X["the caret door ends the gap"]
 ```
 
