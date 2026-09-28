@@ -246,13 +246,15 @@ function readsGridLiteral(file: SourceFile): boolean {
 
 // ── G4.85, G4.86 where a leaf's bytes are stored ─────────────────────────────
 
-/** The live rewrites that remove bytes, and the module they read their candidates through. */
-const REMOVING_REWRITES = [
-	'src/lib/components/blocks/text/live-join-seam.ts',
-	'src/lib/components/blocks/text/construct-edge-delete.ts',
-	'src/lib/core/inline/live-edit/'
-];
-const LIVE_EDIT_PROBE = 'src/lib/core/inline/live-edit/probe.ts';
+const TEXT_BLOCK_DIR = 'src/lib/components/blocks/text/';
+const LIVE_EDIT_DIR = 'src/lib/core/inline/live-edit/';
+const LIVE_EDIT_PROBE = `${LIVE_EDIT_DIR}probe.ts`;
+
+/** The text block's helper modules, where every live rewrite lives, and the live-edit readers. */
+const holdsLiveRewrites = (file: SourceFile): boolean =>
+	file.relPath.startsWith(LIVE_EDIT_DIR) ||
+	(file.relPath.startsWith(TEXT_BLOCK_DIR) &&
+		/^[^/]+\.ts$/.test(file.relPath.slice(TEXT_BLOCK_DIR.length)));
 
 /** A read of a list item's marker: off its metadata, or off a parse cast to carry one. */
 const LIST_MARKER_READ =
@@ -963,13 +965,17 @@ const RULES: FileRule[] = [
 	},
 	{
 		id: 'G4.85 a removing live rewrite reads its candidate through readBack, never a parse of its own',
-		population: (file) => REMOVING_REWRITES.some((home) => file.relPath.startsWith(home)),
+		population: holdsLiveRewrites,
 		matches: /(?<![\w.])(?:readBlocks|parse|parseTaskItemBody)\s*\(/,
-		allowed: {},
+		allowed: {
+			[`${TEXT_BLOCK_DIR}live-split-rebalance.ts`]:
+				'`soleProseBlock`, the split’s own candidate read, moves onto `readBack` in T19 slice 3'
+		},
 		reaches: [
-			'src/lib/components/blocks/text/live-join-seam.ts',
-			'src/lib/components/blocks/text/construct-edge-delete.ts',
-			'src/lib/core/inline/live-edit/read-back.ts'
+			`${TEXT_BLOCK_DIR}live-join-seam.ts`,
+			`${TEXT_BLOCK_DIR}construct-edge-delete.ts`,
+			`${TEXT_BLOCK_DIR}live-selection-edit.ts`,
+			`${LIVE_EDIT_DIR}read-back.ts`
 		],
 		reason:
 			'a candidate read as a top-level fragment forgets its container: a list item reads it behind its marker, a cell as text; take `readBack(bytes, store)`',
