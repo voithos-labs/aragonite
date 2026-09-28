@@ -40,6 +40,7 @@ describe('the swap commit sequence', () => {
 		const swap = createDocumentSwap({
 			grammar: defaultGrammarView,
 			flushDebouncedCheckpoint: step('flush'),
+			noteTreeSwap: step('landings'),
 			adoptDocument: (doc) => {
 				adopted = doc;
 				order.push('adopt');
@@ -73,6 +74,7 @@ describe('the swap commit sequence', () => {
 		h.swap.swapTo('# B\n');
 		expect(h.order).toEqual([
 			'flush',
+			'landings',
 			'adopt',
 			'bump',
 			'refs',

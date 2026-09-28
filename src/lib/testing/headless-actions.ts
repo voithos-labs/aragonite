@@ -17,6 +17,8 @@ import { createEditorEvents, type EditorEvents } from '../editor-events';
 import { refSlotsOver, replaceRefs } from '../reactivity/publish-ref.svelte';
 import { descendTo, type ChildList } from '../reactivity/child-list';
 import { createSelectionState } from '../selection/selection-state.svelte';
+import { createCaretLanding, type CaretLanding } from '../selection/caret-landing';
+import { caretTargetFor, type CaretTarget } from '../selection/caret-target';
 import { createSharingState } from '../tree-operations/sharing';
 import { createUndoManager } from '../undo/manager';
 
@@ -102,6 +104,8 @@ export interface HeadlessActions {
 	deps: EditorActionsDeps;
 	doc: Document;
 	events: EditorEvents;
+	/** Every leaf a caret landing resolved to, in order, whether or not a block was there to take it. */
+	landings: readonly CaretTarget[];
 	getBlockIds(): string[];
 	getBlockRefs(): (BlockComponent | undefined)[];
 }
@@ -125,6 +129,7 @@ export function createHeadlessActions(
 		spy(stubBlockComponent())
 	);
 	const events = createEditorEvents();
+	const landings: CaretTarget[] = [];
 	const deps: EditorActionsDeps = {
 		get doc() {
 			return doc;
@@ -158,6 +163,9 @@ export function createHeadlessActions(
 		}),
 		getBlockElByPath: () => null,
 		revealPath: (path: number[]) => descendTo(rootList, path),
+		get caretLanding() {
+			return caretLanding;
+		},
 		events,
 		// An author's suite runs with no editor, so every installed plugin is in the grammar.
 		reading: options.reading ?? kitReading()
@@ -168,7 +176,46 @@ export function createHeadlessActions(
 		refs: deps.blockRefSlots,
 		windowing: { revealChild: async () => {}, isInWindow: (i) => blockRefs[i] !== undefined }
 	};
-	return { deps, doc, events, getBlockIds: () => blockIds, getBlockRefs: () => blockRefs };
+	const caretLanding = recordingLanding(
+		createCaretLanding({
+			getDoc: () => doc,
+			root: rootList,
+			selectionState: deps.selectionState,
+			// Read live: a suite may swap in its own caret memory after building the deps.
+			caretMemory: {
+				forget: () => deps.caretMemory.forget(),
+				noteExtreme: () => deps.caretMemory.noteExtreme()
+			},
+			getBlockElByPath: deps.getBlockElByPath,
+			scroll: null
+		}),
+		() => doc,
+		landings
+	);
+	return {
+		deps,
+		doc,
+		events,
+		landings,
+		getBlockIds: () => blockIds,
+		getBlockRefs: () => blockRefs
+	};
+}
+
+/** `landing` with each resolved leaf pushed onto `landings` before it lands. */
+function recordingLanding(
+	landing: CaretLanding,
+	getDoc: () => Document,
+	landings: CaretTarget[]
+): CaretLanding {
+	return {
+		...landing,
+		land(pos, opts) {
+			const target = caretTargetFor(getDoc(), pos, { openCollapsed: opts?.openCollapsed });
+			if (target) landings.push(target);
+			return landing.land(pos, opts);
+		}
+	};
 }
 
 function documentOf(source: string | Document | CstNode[]): Document {

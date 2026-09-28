@@ -15,11 +15,11 @@ export function createPasteCoordinator(
 	const root = { deps, controller };
 
 	async function landCaret(path: number[], offset: number): Promise<void> {
-		const stamp = controller.historyGeneration();
+		const stamp = deps.caretLanding.generation();
 		const block = await deps.revealPath(path);
 		// An undo or redo that finished while the target was scrolling into view swapped
 		// the tree, so this path may name a different block than the paste aimed at.
-		if (controller.historyGeneration() !== stamp) return;
+		if (deps.caretLanding.generation() !== stamp) return;
 		block?.focus(offset);
 	}
 

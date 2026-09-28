@@ -38,7 +38,7 @@
 	import { createContentVersion } from '../reactivity/content-version.svelte';
 	import { useContainerWindowing } from '../reactivity/use-container-windowing.svelte';
 	import { refSlotsOver, replaceRefs } from '../reactivity/publish-ref.svelte';
-	import { componentAt, descendTo, type ChildList } from '../reactivity/child-list';
+	import { componentAt, type ChildList } from '../reactivity/child-list';
 	import { createSelectionState } from '../selection/selection-state.svelte';
 	import { createSelectionDescription } from '../selection/selection-description';
 	import { EDITOR_LABEL } from '../a11y-strings';
@@ -70,7 +70,8 @@
 	import { createSearchState, type SearchState } from '../search/search-state.svelte';
 	import { createDecorationEngine } from '../decorations/decoration-state.svelte';
 	import type { DecorationRegistry } from '../decorations/types';
-	import { createEditorRects, type EditorRects } from '../editor-rects';
+	import { createEditorRects, createScrollSettle, type EditorRects } from '../editor-rects';
+	import { createCaretLanding } from '../selection/caret-landing';
 	import { installReorderDrag } from '../editor-actions/reorder-drag';
 	import { createPasteCoordinator } from '../editor-actions/paste-coordinator';
 	import { createOperationsLog } from '../debug/operations-log';
@@ -377,6 +378,7 @@
 		grammar: registryView.grammar,
 		// Built below; a swap runs post-init, so the closures read past the TDZ.
 		flushDebouncedCheckpoint: () => controller.flushDebouncedCheckpoint(),
+		noteTreeSwap: () => caretLanding.noteTreeSwap(),
 		adoptDocument: (next) => {
 			doc = next;
 			blockIds = assignIds(doc.children);
@@ -541,10 +543,27 @@
 
 	// ── Action Bundles ──────────────────────────────────────────────────
 
-	// Opens a collapsed body on the way: nothing retargets a caret aimed into one to its title
-	// row, so opening the body is what gets the caret placed.
+	const scrollSettle = createScrollSettle({
+		getBlockElByPath,
+		getEditorRoot: () => editorEl ?? null,
+		isHostScroll: () => hostScroll,
+		getClipBounds,
+		revealAnchor
+	});
+
+	const caretLanding = createCaretLanding({
+		getDoc: () => doc,
+		root: rootList,
+		selectionState,
+		caretMemory,
+		getBlockElByPath,
+		scroll: scrollSettle
+	});
+
+	// Opens a collapsed body on the way: the restores and cross-block moves that mount through
+	// here aim at a hidden body without retargeting to its title row.
 	function revealPath(path: number[]): Promise<BlockComponent | null> {
-		return descendTo(rootList, path, { openCollapsed: true });
+		return caretLanding.mount(path, { openCollapsed: true });
 	}
 
 	const editorActionsDeps: EditorActionsDeps = {
@@ -573,6 +592,7 @@
 		getSelectedWidgetCaret: selectedWidgetCaret,
 		getBlockElByPath,
 		revealPath,
+		caretLanding,
 		events,
 		reading
 	};
@@ -596,11 +616,9 @@
 		getBlockComponent,
 		revealPath,
 		getEditorRoot: () => editorEl ?? null,
-		isHostScroll: () => hostScroll,
-		getClipBounds,
+		scroll: scrollSettle,
 		isCrossBlock: () => selectionState.isCrossBlock,
 		isHostChrome,
-		revealAnchor,
 		// A navigation keeps its block held in place, so a late image decode cannot scroll it away.
 		landCaretAt: landCaretAtOffset
 	});

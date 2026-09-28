@@ -3,32 +3,33 @@ import { describe, it, expect, vi } from 'vitest';
 import { createPasteCoordinator } from '$lib/editor-actions/paste-coordinator';
 import type { EditorActionsDeps, UndoController } from '$lib/editor-actions/deps';
 import type { BlockComponent } from '$lib/block-component';
+import type { CaretLanding } from '$lib/selection/caret-landing';
 
-/** Only the two members the caret placement reads; the rest of the controller never runs here. */
-function stubController(): UndoController {
+/** Only the two members the stamp reads; the rest of the landing never runs here. */
+function stubLanding(): CaretLanding {
 	let generation = 0;
 	return {
-		historyGeneration: () => generation,
-		noteHistorySwap: () => {
+		generation: () => generation,
+		noteTreeSwap: () => {
 			generation++;
 		}
-	} as unknown as UndoController;
+	} as unknown as CaretLanding;
 }
 
-function coordinatorWith(duringReveal?: (controller: UndoController) => void) {
-	const controller = stubController();
+function coordinatorWith(duringReveal?: (landing: CaretLanding) => void) {
+	const caretLanding = stubLanding();
 	const focus = vi.fn();
 	const revealPath = vi.fn(async () => {
-		duringReveal?.(controller);
+		duringReveal?.(caretLanding);
 		return { focus } as unknown as BlockComponent;
 	});
-	const deps = { revealPath } as unknown as EditorActionsDeps;
-	return { focus, coordinator: createPasteCoordinator(deps, controller) };
+	const deps = { revealPath, caretLanding } as unknown as EditorActionsDeps;
+	return { focus, coordinator: createPasteCoordinator(deps, {} as UndoController) };
 }
 
 describe('paste landing vs an in-flight history swap', () => {
 	it('declines to place the caret when a swap resolved inside the reveal', async () => {
-		const { focus, coordinator } = coordinatorWith((c) => c.noteHistorySwap());
+		const { focus, coordinator } = coordinatorWith((landing) => landing.noteTreeSwap());
 
 		await coordinator.landCaret([2], 3);
 

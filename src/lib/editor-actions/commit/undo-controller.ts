@@ -798,10 +798,6 @@ export function createUndoController(
 
 	// ── State capture / checkpoint control ──────────────────────────────────
 
-	// Every undo or redo replaces the whole tree, so a caret placement that waited across one aims
-	// at content that is gone. Only increments: a placement compares two readings, not the value.
-	let historyGeneration = 0;
-
 	function captureCurrentState(): UndoEntry {
 		// The same selection read as the snapshot pushes: this is the entry an undo or redo
 		// pushes onto the opposite stack, so a gap caret or a selected image's caret survives.
@@ -824,10 +820,6 @@ export function createUndoController(
 		commitMultiScope,
 		getDocScope,
 		captureCurrentState,
-		historyGeneration: () => historyGeneration,
-		noteHistorySwap: () => {
-			historyGeneration++;
-		},
 		flushDebouncedCheckpoint: textBatch.interrupt,
 		undoStep,
 		joinTypingBatch,

@@ -10,6 +10,7 @@ import type { EditorEvents } from '../editor-events';
 import type { CommitController } from '../action-contracts';
 import type { Reading } from '../schema/reading';
 import type { RefSlots } from '../reactivity/publish-ref.svelte';
+import type { CaretLanding } from '../selection/caret-landing';
 
 export interface EditorActionsDeps {
 	get doc(): Document;
@@ -35,6 +36,8 @@ export interface EditorActionsDeps {
 	/** Scroll the block at `path` into view level by level, wait for it to mount, and return its
 	 *  component (null if unreachable); a mounted block returns at once. */
 	revealPath(path: number[]): Promise<BlockComponent | null>;
+	/** Where every commit's caret is put down, and the counter an undo, redo or swap bumps. */
+	caretLanding: CaretLanding;
 	events: EditorEvents;
 	/** How the editor reads its bytes: a re-parse or completer reads only the syntax it switched
 	 *  on, a rewrite parses the reference links the renderer drew, a write refuses reading mode. */
@@ -50,11 +53,6 @@ export interface UndoController extends CommitController {
 	 *  reparses into several blocks undoes with the typing around it. Covers the call only. */
 	joinTypingBatch<T>(write: () => T): T;
 	captureCurrentState(): UndoEntry;
-	/** A counter bumped on every undo or redo. A caret placement reads it before scrolling its
-	 *  target into view and gives up if it changed: the tree it aimed at is gone. */
-	historyGeneration(): number;
-	/** Announce an undo or redo. Only the history restore may call it. */
-	noteHistorySwap(): void;
 }
 
 /** The editor root's deps and controller, which a write addressed by document path starts from. */
