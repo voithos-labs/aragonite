@@ -42,12 +42,15 @@ const HELD = 5;
 const HELD_TOP = 150;
 // Where a view swap's short layout left the scroll container.
 const CLAMPED = 25;
+// Between blocks, so no held block sits on the viewport's top.
+const OFF_TARGET = 77;
 
 interface Fixture extends MountedListWindowing {
 	live: { children: ReturnType<typeof makePara>[]; ids: string[] };
 	/** What each `scrollIntoView` was asked, by path. */
 	scrolled: string[];
 	blockEl: (path: number[]) => HTMLElement;
+	growHeaderBy(px: number): void;
 }
 
 function fixture(column: Column, opts: { nested?: boolean; scrollTop?: number } = {}): Fixture {
@@ -56,7 +59,7 @@ function fixture(column: Column, opts: { nested?: boolean; scrollTop?: number } 
 		['b0', 'b1', 'b2', 'b3', 'b4', 'b5']
 	);
 	const scrolled: string[] = [];
-	const box: { port?: MountedListWindowing['port'] } = {};
+	const box: { port?: MountedListWindowing['port']; header: number } = { header: 0 };
 	const blockEl = (path: number[]) => {
 		const el = document.createElement('div');
 		// Where the block sits on screen now, so a placement records a real landing.
@@ -70,7 +73,9 @@ function fixture(column: Column, opts: { nested?: boolean; scrollTop?: number } 
 		children: live.children,
 		ids: live.ids,
 		listHeight: 210,
-		source: opts.nested ? 'nested-list' : 'root-list',
+		nested: opts.nested,
+		// A header above the list pushes the list down as it grows.
+		chromeAbove: () => box.header,
 		ownerDeps: {
 			editorCorrects: () => column !== 'host anchoring holds',
 			getBlockElByPath: blockEl
@@ -81,7 +86,8 @@ function fixture(column: Column, opts: { nested?: boolean; scrollTop?: number } 
 	if (column === 'a held placement is live') {
 		scope.owner.place([HELD], { block: 'nearest', hold: true });
 	}
-	return { ...scope, live, scrolled, blockEl };
+	const growHeaderBy = (px: number) => (box.header += px);
+	return { ...scope, live, scrolled, blockEl, growHeaderBy };
 }
 
 /** Block `index` measures 30px taller than the table had it. */
@@ -127,7 +133,13 @@ afterEach(() => {
 function growHeader(f: Fixture): void {
 	const el = document.createElement('div');
 	el.getBoundingClientRect = () => ({ height: 40 }) as DOMRect;
-	const uninstall = installHeaderSlotCompensation({ el, scroll: f.owner });
+	const uninstall = installHeaderSlotCompensation({
+		el,
+		port: f.owner.port,
+		compensate: f.rootScroll.compensate
+	});
+	// The observer reports after layout, when the list below has already moved down.
+	f.growHeaderBy(GROWTH);
 	FakeResizeObserver.last!.grow(40 + GROWTH);
 	uninstall();
 }
@@ -238,21 +250,23 @@ const ROWS: Record<keyof ScrollWrites, Row[]> = {
 		},
 		{
 			name: 'the header slot growing, the held block off its target',
+			scrollTop: OFF_TARGET,
 			run: growHeader,
 			expect: {
-				'host anchoring holds': scrollTopIs(START),
-				'a held placement is live': scrollTopIs(START + GROWTH),
-				free: scrollTopIs(START + GROWTH)
+				'host anchoring holds': scrollTopIs(OFF_TARGET),
+				// The list moved down with the header, and b5 goes back to its top.
+				'a held placement is live': scrollTopIs(HELD_TOP + GROWTH),
+				free: scrollTopIs(OFF_TARGET + GROWTH)
 			}
 		},
 		{
-			name: 'the header slot growing, the held block on its target',
-			scrollTop: HELD_TOP,
+			name: 'the header slot growing, the held block already on its target',
+			scrollTop: HELD_TOP + GROWTH,
 			run: growHeader,
 			expect: {
-				'host anchoring holds': scrollTopIs(HELD_TOP),
-				'a held placement is live': scrollTopIs(HELD_TOP),
-				free: scrollTopIs(HELD_TOP + GROWTH)
+				'host anchoring holds': scrollTopIs(HELD_TOP + GROWTH),
+				'a held placement is live': scrollTopIs(HELD_TOP + GROWTH),
+				free: scrollTopIs(HELD_TOP + 2 * GROWTH)
 			}
 		}
 	],
@@ -420,10 +434,12 @@ describe('scroll owner: the edges', () => {
 		const port = stubScrollport({ viewportHeight: 500 });
 		const owner = stubScrollOwner(port);
 		const syncScrollTop = vi.fn();
-		owner.resolveTargetsWith({ resolve: () => ({ top: 300, height: 20 }), syncScrollTop });
+		const root = owner.resolveTargetsWith({
+			resolve: () => ({ top: 300, height: 20 }),
+			syncScrollTop
+		});
 		owner.place([4], { block: 'center', hold: true });
-		owner.compensate(
-			'root-list',
+		root.compensate(
 			() => {},
 			() => 0
 		);
@@ -448,7 +464,6 @@ describe('scroll owner: the edges', () => {
 		await expect(owner.keep()()).resolves.toBeUndefined();
 		let ran = false;
 		owner.compensate(
-			'root-list',
 			() => (ran = true),
 			(run) => {
 				run();

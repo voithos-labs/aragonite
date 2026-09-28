@@ -5,7 +5,7 @@
  */
 
 import type { UserScrollport } from '../cursor/scroll-ancestors';
-import type { ScrollOwner } from '../cursor/scroll-owner';
+import type { RootListScroll, ScrollOwner } from '../cursor/scroll-owner';
 import { ESTIMATE_BASE_FONT_SIZE } from '../cursor/typography-estimates';
 import { onRoot, removeAll } from './editor-root-listeners';
 
@@ -86,13 +86,16 @@ const noChange = (): void => {};
 
 export interface HeaderSlotCompensationDeps {
 	el: HTMLElement;
-	scroll: Pick<ScrollOwner, 'port' | 'compensate'>;
+	port: ScrollOwner['port'];
+	/** The root list's correction: a held target is re-placed, since the root list's top already
+	 *  counts the header. */
+	compensate: RootListScroll['compensate'];
 }
 
 /** The header is not in the height table, so its own resize adds to the scroll correction, or a
  *  growing header would slide the document. */
 export function installHeaderSlotCompensation(deps: HeaderSlotCompensationDeps): () => void {
-	const { el, scroll } = deps;
+	const { el, port, compensate } = deps;
 	let lastHeight = el.getBoundingClientRect().height;
 	const observer = new ResizeObserver((entries) => {
 		const height = borderBoxHeight(entries, el);
@@ -100,9 +103,9 @@ export function installHeaderSlotCompensation(deps: HeaderSlotCompensationDeps):
 		lastHeight = height;
 		if (delta === 0) return;
 		// At the top the header is on screen, so the document moving down under it is expected.
-		scroll.compensate('header', noChange, (run) => {
+		compensate(noChange, (run) => {
 			run();
-			return scroll.port()?.scrollTop() === 0 ? 0 : delta;
+			return port()?.scrollTop() === 0 ? 0 : delta;
 		});
 	});
 	observer.observe(el);

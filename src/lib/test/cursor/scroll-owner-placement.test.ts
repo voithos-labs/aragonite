@@ -48,7 +48,7 @@ function makeOwner(scripts: Record<string, number[]> = {}, opts: { withRoot?: bo
 		getBlockElByPath: elFor,
 		getEditorRoot: () => (opts.withRoot ? root : null)
 	});
-	owner.resolveTargetsWith({
+	const rootList = owner.resolveTargetsWith({
 		resolve: (path) => {
 			asked.push([...path]);
 			return { top: TABLE_TOP, height: EL_HEIGHT };
@@ -59,8 +59,7 @@ function makeOwner(scripts: Record<string, number[]> = {}, opts: { withRoot?: bo
 	/** The path the owner keeps in place across the next height change, or null for none. */
 	function heldPath(): number[] | null {
 		asked.length = 0;
-		owner.compensate(
-			'root-list',
+		rootList.compensate(
 			() => {},
 			() => 0
 		);

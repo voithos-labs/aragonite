@@ -40,24 +40,24 @@ export interface TargetResolver {
 	syncScrollTop(): void;
 }
 
-/** Who runs a height change, which decides what a held placement does across it: only the root
- *  list re-places, and the header slot writes nothing only when the scroll already sits on target.
- *  An interim: it goes once the root list's correction comes from installing the resolver, so no
- *  caller passes a string. */
-export type CompensationSource = 'root-list' | 'nested-list' | 'header';
+/** `held` runs the change and returns how far the block the caller keeps still moved across it. */
+export type Compensate = (mutate: () => void, held: (mutate: () => void) => number) => void;
+
+/** What the root list gets for installing its resolver: the one height correction that re-places a
+ *  held target. The header slot shares it, since the resolver reads the list's top from the DOM. */
+export interface RootListScroll {
+	compensate: Compensate;
+	uninstall(): void;
+}
 
 export interface ScrollOwner {
 	/** The scroll container, read-only; null until the editor root mounts. */
 	port(): ScrollportReader | null;
 	/** Whether the mounted block at `path` is visible in the editor's viewport. */
 	isInView(path: readonly number[]): boolean;
-	/** Run a height change and keep what the user sees still. `held` runs the change and returns
-	 *  how far the block it keeps still moved across it. */
-	compensate(
-		source: CompensationSource,
-		mutate: () => void,
-		held: (mutate: () => void) => number
-	): void;
+	/** A nested list's height change: keeps its own held block still and never re-places a held
+	 *  target, whose root table hasn't seen the change yet. */
+	compensate: Compensate;
 	/** Take the position for a scroll into view now, before the mount's awaits; `scroll()` once
 	 *  the block is mounted. */
 	place(path: readonly number[], opts: PlaceOptions): ScrollPlacement;
@@ -70,8 +70,8 @@ export interface ScrollOwner {
 	showNearest(path: readonly number[]): void;
 	/** A keydown, pointerdown or wheel on the scroll container: drop any held placement. */
 	release(): void;
-	/** Returns the uninstall. */
-	resolveTargetsWith(resolver: TargetResolver): () => void;
+	/** Called by the root list alone. */
+	resolveTargetsWith(resolver: TargetResolver): RootListScroll;
 }
 
 export interface ScrollOwnerDeps {
@@ -179,12 +179,10 @@ export function createScrollOwner(deps: ScrollOwnerDeps): ScrollOwner {
 		resolver?.syncScrollTop();
 	}
 
-	// Sub-pixel tolerance: a scroll lands a fraction of a device pixel off the position the height
-	// table gives, and an exact compare would let the delta back in.
-	function sitsOnTarget(): boolean {
-		const top = targetScrollTop();
+	function correctByDelta(mutate: () => void, held: (mutate: () => void) => number): void {
+		const delta = held(mutate);
 		const p = writable();
-		return top !== null && !!p && Math.abs(p.scrollTop() - top) <= 1;
+		if (delta !== 0 && p) p.scrollBy(delta);
 	}
 
 	function elementInView(el: HTMLElement, root: HTMLElement): boolean {
@@ -216,24 +214,10 @@ export function createScrollOwner(deps: ScrollOwnerDeps): ScrollOwner {
 			const el = deps.getBlockElByPath([...path]);
 			return !!root && !!el && elementInView(el, root);
 		},
-		compensate(source, mutate, held) {
+		compensate(mutate, held) {
 			compensations++;
-			if (!deps.editorCorrects()) {
-				mutate();
-				return;
-			}
-			if (source === 'root-list' && targetScrollTop() !== null) {
-				mutate();
-				replace();
-				return;
-			}
-			if (source === 'header' && sitsOnTarget()) {
-				mutate();
-				return;
-			}
-			const delta = held(mutate);
-			const p = writable();
-			if (delta !== 0 && p) p.scrollBy(delta);
+			if (deps.editorCorrects()) correctByDelta(mutate, held);
+			else mutate();
 		},
 		place(path, { block, hold }) {
 			const p = [...path];
@@ -279,8 +263,19 @@ export function createScrollOwner(deps: ScrollOwnerDeps): ScrollOwner {
 		release: drop,
 		resolveTargetsWith(next) {
 			resolver = next;
-			return () => {
-				if (resolver === next) resolver = null;
+			return {
+				compensate(mutate, held) {
+					compensations++;
+					if (!deps.editorCorrects()) mutate();
+					else if (resolver !== next || targetScrollTop() === null) correctByDelta(mutate, held);
+					else {
+						mutate();
+						replace();
+					}
+				},
+				uninstall() {
+					if (resolver === next) resolver = null;
+				}
 			};
 		}
 	};

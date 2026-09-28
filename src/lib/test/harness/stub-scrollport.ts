@@ -70,11 +70,16 @@ export function stubScrollOwner(
 
 /** This list's element as windowing reads it: a rect top that moves with the scroll, since the
  *  list travels with the content, offset by whatever sits above it. */
-export function stubListEl(port: Scrollport, height: number, chromeAbove = 0): HTMLElement {
+export function stubListEl(
+	port: Scrollport,
+	height: number,
+	chromeAbove: number | (() => number) = 0
+): HTMLElement {
+	const above = typeof chromeAbove === 'number' ? () => chromeAbove : chromeAbove;
 	return {
 		clientWidth: 800,
 		getBoundingClientRect: () => ({
-			top: port.viewportTop() + chromeAbove - port.scrollTop(),
+			top: port.viewportTop() + above() - port.scrollTop(),
 			height
 		})
 	} as unknown as HTMLElement;

@@ -36,7 +36,7 @@
 	import { createScrollHostResolution } from './editor-root-scroll-host';
 	import { installSelectionDrop, type DropCaretRect } from '../selection/selection-drop';
 	import { createContentVersion } from '../reactivity/content-version.svelte';
-	import { useContainerWindowing } from '../reactivity/use-container-windowing.svelte';
+	import { useRootWindowing } from '../reactivity/use-container-windowing.svelte';
 	import { refSlotsOver, replaceRefs } from '../reactivity/publish-ref.svelte';
 	import { componentAt, type ChildList } from '../reactivity/child-list';
 	import { createSelectionState } from '../selection/selection-state.svelte';
@@ -1096,8 +1096,12 @@
 
 	$effect(() => {
 		const el = headerEl;
-		if (!el || !editorEl) return;
-		return installHeaderSlotCompensation({ el, scroll: scrollOwner });
+		if (!el || !editorEl || !rootScroll) return;
+		return installHeaderSlotCompensation({
+			el,
+			port: scrollOwner.port,
+			compensate: rootScroll.compensate
+		});
 	});
 
 	// ── Focus attribution ───────────────────────────────────────────────
@@ -1137,13 +1141,10 @@
 
 	// The inner `.block-list`, not `editorEl`: it scrolls with content, so its top maps scrollTop
 	// into list coordinates.
-	const topWindowing = useContainerWindowing({
-		getIndex: () => 0, // ignored: the root has no parent to report to
-		getParentPath: () => [],
+	const { windowing: topWindowing, scroll: rootScroll } = useRootWindowing({
 		getChildren: () => doc.children,
 		getChildIds: () => blockIds,
-		getListEl: () => editorEl?.querySelector(':scope > .block-list') ?? null,
-		provideLeafChannel: true
+		getListEl: () => editorEl?.querySelector(':scope > .block-list') ?? null
 	});
 
 	// Plain `let`: the scroll correction reads it mid-measure, where the derived would force a
