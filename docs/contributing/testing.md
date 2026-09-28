@@ -149,6 +149,15 @@ instead, and writes its `props` the way a host would. After a gesture, either mo
 `src/lib/test/harness/settle.ts :: settleEditor` (or sends the key with `pressKey`), never with a
 timer.
 
+### Every test starts with just the built-ins
+
+The unit setup (`src/lib/test/support/plugin-platform.ts`) resets the plugin platform before
+every test, so you don't write that reset yourself. The catch: a plugin you install as the file
+loads, or in `beforeAll`, is gone before the first test runs, and the suite quietly tests plain
+GFM instead (your `$$` fence is a paragraph now). Install in `beforeEach` or inside the test.
+`src/lib/test/invariants/lint/suite-file-rules.test.ts` fails a reset hook of your own, and a
+registration at load or in `beforeAll`. A test about the reset itself calls it in the test body.
+
 ### A dev warning fails its test
 
 Every `devWarn` fire reaches a structured sink the unit setup registers, and a fire no test
