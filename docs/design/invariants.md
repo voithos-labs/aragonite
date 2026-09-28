@@ -255,7 +255,7 @@ Three families of seam run these checks:
 | G1.39 | At most one block paints the editor's own caret at a time                           | A       |
 | G1.40 | Every built-in kind declares its page role and its height estimate                  | A·N     |
 | G1.41 | A structural edit keeps the final break as it was (a blank last line keeps its own) | A·P·N   |
-| G1.42 | Reading a commit's landing moves no caret                                           | A·N     |
+| G1.43 | Reading a commit's landing moves no caret                                           | A·N     |
 
 ### The entries
 
@@ -656,7 +656,7 @@ both commit branches in `editor-actions/commit/undo-controller.ts` ·
 `test/invariants/last-line-kept.test.ts`, `test/editor-actions/open-last-line.test.ts`,
 `open-last-line.property.test.ts`.
 
-**G1.42 · A landing is a value** (`landing-is-a-value`). A commit's `landing` says where the caret
+**G1.43 · A landing is a value** (`landing-is-a-value`). A commit's `landing` says where the caret
 goes and places nothing: the commit reads it after its tick and puts the caret down through the
 editor's one caret landing (`selection/caret-landing.ts`). In a dev build the commit notes
 `document.activeElement` and the selection's anchor around that read, and a landing that moved

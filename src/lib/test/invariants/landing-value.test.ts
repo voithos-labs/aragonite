@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// G1.42: a commit reads its landing as a value, and a landing function that moves focus or the
+// G1.43: a commit reads its landing as a value, and a landing function that moves focus or the
 // selection itself is reported the first time a test runs it.
 import { afterEach, describe, expect, it } from 'vitest';
 import { checkLandingIsAValue, readCaretWhereabouts } from '$lib/invariants/landing-value';
@@ -24,7 +24,7 @@ afterEach(() => {
 	document.body.replaceChildren();
 });
 
-describe('G1.42 a landing is a value', () => {
+describe('G1.43 a landing is a value', () => {
 	it('accepts a read that left focus and the selection where they were', () => {
 		const before = readCaretWhereabouts();
 		expect(checkLandingIsAValue(before, readCaretWhereabouts())).toBeNull();

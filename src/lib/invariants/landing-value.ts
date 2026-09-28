@@ -1,5 +1,5 @@
 /**
- * G1.42: reading a commit's landing moves no caret. The landing is a value the commit puts down
+ * G1.43: reading a commit's landing moves no caret. The landing is a value the commit puts down
  * itself, so a landing function that focuses or selects is placing a second caret behind its back.
  */
 

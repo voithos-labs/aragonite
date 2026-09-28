@@ -722,7 +722,7 @@ The landing is a value, not a callback that places anything: a position (a docum
 
 - A commit that reading mode refused lands nothing. One that `discardIfNoop` threw away still lands, since a refused merge still moves the caret across the boundary you pressed at.
 - When an enclosing container collapsed during the commit, the collapse's position replaces the caller's, because the collapse rebuilt the blocks the caller's position names.
-- In a dev build, reading the landing must leave focus and the selection alone (G1.42), so a landing that sneaks in a caret of its own gets caught the first time a test runs it.
+- In a dev build, reading the landing must leave focus and the selection alone (G1.43), so a landing that sneaks in a caret of its own gets caught the first time a test runs it.
 - The tables, the paste routes and the range deletes still place their caret themselves in an `afterTick` callback, which runs just before the landing.
 
 Callers pick a scope; they never assemble the steps, and **this is the canonical entry for any new structural mutation** (the op-log isn't a commit step; it subscribes to `edit` downstream). The top-level and container action factories share one core through a `CommitScope` adapter, so the structural-edit sequence is single-sourced and the factories differ only in scope wiring and container-only concerns.
