@@ -231,8 +231,8 @@ export async function toggleTaskByKeyboard(
 }
 
 /**
- * `#` then a space at the start of a list item's paragraph make it a heading, so the second key
- * changes the block's kind; one undo must bring back the bytes from before the first key.
+ * `# ` typed at the start of a list item's paragraph makes it a heading, so the space changes the
+ * block's kind; one undo must bring back the bytes from before the `#`.
  */
 export async function kindChangeUndoInListItem(
 	ctx: SimContext,
@@ -245,9 +245,8 @@ export async function kindChangeUndoInListItem(
 	await editor.clickBlockAtPath(itemParagraphPath, 0);
 	await assertFocusBlock(ctx, itemParagraphPath);
 	await page.keyboard.press('Home');
-	await editor.typeSlowly('#');
-	await editor.bridge.waitForSourceWith((source, prev) => source !== prev, before);
-	await editor.typeSlowly(' ');
+	// One call, so no round trip between the keys can outlast the typing pause and split the batch.
+	await editor.typeSlowly('# ');
 	await page
 		.waitForFunction(
 			(path) => {

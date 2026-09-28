@@ -1582,14 +1582,15 @@ the plugin guide. `lint/file-rules.test.ts`.
 **G4.75 · One leaf write.** New text for a leaf is written one way at every depth: a commit through
 `src/lib/editor-actions/block-edit-core.ts` :: `commitLeafText`, or the keystroke's in-place write,
 `src/lib/editor-actions/leaf-write.ts` :: `writeLeafInPlace`. The write is a few steps, and each
-step gets its own short list of files allowed to call it:
+step gets its own short list of files allowed to name it (so an aliased import counts too):
 
 - the content write itself (`updateNodeContent`), which only those two, the keystroke's trial
-  reparse and the matching list paste call
+  reparse and the container-matching paste (a list or a quote pasted into its own kind) call
 - a write in place that skips the reparse (`writeOwnRaw`, `installOwnRaw`), left to table cells,
   the range writes and find and replace's private copy
 - the document as a body with no owner and its trailing blank line, which only `documentBody`
-  builds, so no route can hand the document in as a container
+  builds, so no route can hand the document in as a container. The one other hand-built body is
+  the keystroke's trial reparse, which wraps a throwaway copy that never reaches the document
 - the task-marker reconcile, once each in the content write, the join and `replaceBlock`
 - a replacement's escape for its container, in `replaceBlock` alone
 - the typing batch (push, join, pause), in `typeInLeaf` alone, so every depth groups its undo the

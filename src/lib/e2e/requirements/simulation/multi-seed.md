@@ -37,11 +37,12 @@ in parallel.
   pinned to. The trailing undo restores byte-exact. Contracts and predictions live in
   `range-interrupt-ops.md`; here the seed varies which gesture meets which mid-session
   tree
-- a kind change inside a list item, on every seed: after a pause, `#` then a space typed at the
-  start of the first plain list item's text make it a heading, and one Ctrl+Z brings back the
+- a kind change inside a list item, on every seed: after a pause, `#` and a space typed in one go
+  at the start of a list item's text make it a heading, and one Ctrl+Z brings back the
   source from before the `#`. The key that changed the kind undoes with the key before it, inside
-  a container the same as at the top level. It draws nothing from the seed, so the detours above
-  keep their picks
+  a container the same as at the top level. The item is the first one of the first top-level
+  list whose first item isn't a task and starts with a paragraph (a note with no such list skips
+  it). It draws nothing from the seed, so the detours above keep their picks
 - isolation under parallelism: independent pages and random generators per seed
   produce the same asserted source whether run serially or concurrently
 

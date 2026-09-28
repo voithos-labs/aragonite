@@ -169,7 +169,7 @@ async function runCancellingDetours(ctx: SimContext, g: Gestures, rng: Rng): Pro
 
 /**
  * A kind change typed inside a list item undoes with the key before it, as at the top level.
- * The first plain item of any top-level list takes it; a note with no list skips it.
+ * It takes the first top-level list whose first item is plain (no task, a paragraph first).
  */
 async function nestedKindChangeUndoDetour(ctx: SimContext, g: Gestures): Promise<void> {
 	const path = await ctx.page.evaluate(() => {
