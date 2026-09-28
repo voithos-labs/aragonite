@@ -4,14 +4,15 @@
  * live (`docs/contributing/rules.md` § The five rules), and `options` is the plugin's defaults
  * merged with this editor's entry.
  */
-import type { DocumentView, NodeView } from '../core/node-views';
-import type { InlineNode } from '../core/nodes';
+import type { DocumentView } from '../core/node-views';
+import { inlineReaderFor } from '../core/inline';
 import type { DecorationRegistry } from '../decorations/types';
 import type { EditorRects } from '../editor-rects';
 import type { InsertMarkdownOptions } from '../editor-props';
 import type { InlineMenuRegistry } from '../inline-menu/types';
 import type { PresentationMode } from '../presentation-mode';
 import { insertCatalogue } from './insert-catalogue';
+import type { Reading } from './reading';
 import { resolvesIn, type PluginActivation } from './plugin-activation';
 import {
 	installedPlugin,
@@ -54,8 +55,8 @@ export function createEditorPluginContexts(deps: {
 	/** The instance's own entry points; the context only delegates. */
 	insertMarkdown: (md: string, options?: InsertMarkdownOptions) => Promise<boolean>;
 	runCommand: (commandId: string, arg?: unknown) => boolean;
-	/** An inline parse in the editor's grammar. */
-	computeInlineContent: (node: NodeView) => InlineNode[];
+	/** How the editor reads its bytes, which every plugin inline read follows. */
+	reading: Reading;
 }): EditorPluginContexts {
 	const contexts = new Map<string, EditorContext>();
 	const disposers: { plugin: string; dispose: () => void }[] = [];
@@ -100,7 +101,9 @@ export function createEditorPluginContexts(deps: {
 				},
 				insertMarkdown: (md, options) => deps.insertMarkdown(md, options),
 				runCommand: (commandId, arg) => deps.runCommand(commandId, arg),
-				computeInlineContent: deps.computeInlineContent,
+				get computeInlineContent() {
+					return inlineReaderFor(deps.reading);
+				},
 				get presentationMode() {
 					return deps.getPresentationMode();
 				},

@@ -61,8 +61,8 @@ export interface InlineWidgetComponentProps {
 	/** `EditorRects.navigateTo`: mount, scroll to and put the caret at a raw offset in a block
 	 *  path. Resolves false where it can't land, so a widget never needs a fallback. */
 	navigateTo: (path: number[], offset?: number) => Promise<boolean>;
-	/** `EditorContext.computeInlineContent` for the widget's editor: a parse that reads only the
-	 *  inline syntax that editor draws. */
+	/** `EditorContext.computeInlineContent` for the widget's editor: it parses as that editor draws,
+	 *  and it's a new function whenever the document's definitions change. */
 	computeInlineContent: (node: NodeView) => InlineNode[];
 }
 

@@ -4,6 +4,7 @@ import type { DecorationRegistry } from '$lib/decorations/types';
 import type { EditorRects } from '$lib/editor-rects';
 import type { InlineMenuRegistry } from '$lib/inline-menu/types';
 import type { InsertMarkdownOptions } from '$lib/editor-props';
+import { kitReading } from '$lib/testing/kit-reading';
 
 export const noopDecorations: DecorationRegistry = {
 	addSource: () => ({ invalidate() {}, dispose() {} })
@@ -23,7 +24,9 @@ export const noopInlineMenus: InlineMenuRegistry = {
 	isOpen: false
 };
 
-export const pluginContextDeps = (doc: { children: unknown[] } = { children: [] }) => ({
+export const pluginContextDeps = (
+	doc: { readonly children: readonly unknown[] } = { children: [] }
+) => ({
 	editorId: 'ed-1',
 	getDoc: () => doc as never,
 	events: { on: () => () => {} } as never,
@@ -40,5 +43,5 @@ export const pluginContextDeps = (doc: { children: unknown[] } = { children: [] 
 		options?: InsertMarkdownOptions
 	) => Promise<boolean>,
 	runCommand: (() => false) as (commandId: string, arg?: unknown) => boolean,
-	computeInlineContent: () => []
+	reading: kitReading()
 });
