@@ -7,7 +7,11 @@ import type { DocumentView, NodeView } from '../core/node-views';
 import { ownTrailingLineEnding } from '../core/lines';
 import { holdsBlankLastLine } from '../tree-operations/open-tail';
 import type { InvariantViolation } from '../assert';
-import { getBlockKindDescriptor, isGridKind } from '../schema/block-kind-descriptor';
+import {
+	getBlockKindDescriptor,
+	isGridDescriptor,
+	isGridKind
+} from '../schema/block-kind-descriptor';
 
 export function checkLastLineKept(doc: DocumentView, wasOpen: boolean): InvariantViolation | null {
 	const last = doc.children.at(-1);
@@ -41,6 +45,9 @@ function unendedAboveLastLine(children: readonly NodeView[], trail: string): str
  *  body and a row's cells sit inside the container's own lines. */
 function holdsLastLineInChildren(node: NodeView): boolean {
 	if (!node.children?.length) return false;
-	const contract = getBlockKindDescriptor(node.kind).containerContract;
-	return contract === 'strip' || (isGridKind(node.kind) && isGridKind(node.children.at(-1)!.kind));
+	const descriptor = getBlockKindDescriptor(node.kind);
+	return (
+		descriptor.containerContract === 'strip' ||
+		(isGridDescriptor(descriptor) && isGridKind(node.children.at(-1)!.kind))
+	);
 }

@@ -933,7 +933,7 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.74 | Only the commit's open-tail steps write the document's last line ending          | L       |
 | G4.75 | A leaf's new text goes through one commit or one in-place write, at every depth  | L       |
 | G4.76 | Every join into a leaf, and every other text built from two sources, is declared | L       |
-| G4.77 | Whether a kind is a grid is asked through `isGridKind`, nowhere else             | L       |
+| G4.78 | Whether a kind is a grid is asked through `isGridKind`, nowhere else             | L       |
 
 ### The entries
 
@@ -1648,11 +1648,14 @@ one source is a join, so its file names the cleanup or sits on a list of the one
 with its reason (a paste or a typed character inserts between one leaf's own halves).
 `lint/cross-node-join-doors.test.ts`.
 
-**G4.77 · One grid test.** A kind is a grid (a table, its rows, or a plugin's equivalent) when its
-descriptor declares the grid contract. Only `src/lib/schema/block-kind-descriptor.ts` :: `isGridKind`
-asks, or `isGridDescriptor` if you've already got the descriptor in hand. Any other file comparing
-`'grid'` in code fails the scan. Declaring the contract (`contract: 'grid'`) and the type's union
-don't ask anything, so the scan leaves them alone. `lint/file-rules.test.ts`.
+**G4.78 · One way to ask whether it's a grid.** A kind is a grid (a table, its rows, or a
+plugin's equivalent) when its descriptor declares the grid contract. Only
+`src/lib/schema/block-kind-descriptor.ts` :: `isGridKind` asks, or `isGridDescriptor` if you've
+already got the descriptor in hand. Any other file with a `'grid'` string in its code fails the
+scan, whether it compares against it or checks it against a list. Declaring it
+(`contract: 'grid'`), or naming it in the `'strip' | 'grid' | 'opaque'` type, isn't asking, so the
+scan leaves those alone. One other file may hold the string: the insert menu's catalogue, where
+`grid` is a search keyword that finds the table. `lint/file-rules.test.ts`.
 
 ## Accessibility
 
