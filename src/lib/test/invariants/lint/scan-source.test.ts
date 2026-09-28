@@ -12,8 +12,10 @@ import {
 	collectFiles,
 	EDITOR_SRC,
 	enclosingFunction,
+	fileClasses,
 	importSpecifiers,
 	isProseSurface,
+	LEXICAL_CLASSES,
 	literalSpans,
 	rawAssignments,
 	regexLiteralAt,
@@ -212,6 +214,16 @@ describe('literal-aware walking', () => {
 		expect(sourceFile('a.ts', sheet).code).not.toBe(sheet);
 		const markup = '<p>see https://x.dev</p>\n<!-- c -->';
 		expect(sourceFile('a.svelte', markup).code).toBe(`<p>see https://x.dev</p>\n${' '.repeat(10)}`);
+	});
+
+	// Miss-analysis: the call-site keys read a component's classes as TypeScript, and no row held
+	// a call inside a quoted attribute to code.
+	it("reads a file's classes in the language its extension names", () => {
+		const text = '<a title="{f(x)}">';
+		const classAt = (relPath: string) =>
+			LEXICAL_CLASSES[fileClasses(sourceFile(relPath, text))[text.indexOf('f(')]];
+		expect(classAt('a.svelte')).toBe('code');
+		expect(classAt('a.ts')).toBe('string');
 	});
 
 	// A `/` after `}` is Svelte markup (`{a}/{b}`), never a regex opening: reading one as a regex

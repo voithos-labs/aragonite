@@ -15,7 +15,6 @@ export function overBudgetLines(relPath: string, code: string): string[] {
 }
 
 describe('G4.26 comment blocks stay inside the budget', () => {
-	// Stylesheets and the demo harness are in scope, since no other scan reads them.
 	const sources = [
 		...collectEditorSources(EDITOR_SRC, { includeTests: true, includeStyles: true }),
 		...collectEditorSources(ROUTES_SRC, { includeTests: true, includeStyles: true })
@@ -25,7 +24,7 @@ describe('G4.26 comment blocks stay inside the budget', () => {
 		expect(sources.flatMap((f) => overBudgetLines(f.relPath, f.text))).toEqual([]);
 	});
 
-	it('the walk still reaches both of the blind spots', () => {
+	it('the walk still reaches the stylesheets and src/routes', () => {
 		expect(sources.some((f) => f.relPath.endsWith('.css'))).toBe(true);
 		expect(sources.some((f) => f.relPath.startsWith('src/routes/'))).toBe(true);
 	});

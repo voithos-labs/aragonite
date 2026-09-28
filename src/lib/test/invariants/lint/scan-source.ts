@@ -77,6 +77,11 @@ export function sourceFile(relPath: string, text: string): SourceFile {
 	return { relPath, text, code: stripComments(text, languageOf(relPath)) };
 }
 
+/** Each character's class in `file.code`, read in the language the file's path names. */
+export function fileClasses(file: SourceFile): Uint8Array {
+	return lexicalClasses(file.code, languageOf(file.relPath));
+}
+
 /** Every `.ts`/`.svelte` file under `dir` (default `REPO_WIDE_ROOTS`) but `.d.ts`, and `test`/`e2e`
  *  unless `includeTests`; `.css` too with `includeStyles`. */
 export function collectEditorSources(

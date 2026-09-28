@@ -7,10 +7,9 @@
 
 import {
 	collectEditorSources,
+	fileClasses,
 	isProseSurface,
-	languageOf,
 	LEXICAL_CLASSES,
-	lexicalClasses,
 	type SourceFile
 } from './scan-source';
 import {
@@ -226,7 +225,7 @@ const COMPARED_AFTER = /^\s*[!=]=/;
 /** A whole `'grid'` literal in code with an equality or a `case` beside it; a declaration
  *  (`contract: 'grid'`) and the union type name the contract without reading it. */
 function comparesGrid(file: SourceFile): boolean {
-	const classes = lexicalClasses(file.code, languageOf(file.relPath));
+	const classes = fileClasses(file);
 	for (const { index, 0: literal } of file.code.matchAll(QUOTED_GRID)) {
 		const end = index + literal.length;
 		const whole = classes[index] !== CODE && (index === 0 || classes[index - 1] === CODE);

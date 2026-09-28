@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { callSites, enclosingFunction, lexicalClasses, type SourceFile } from './scan-source';
+import { callSites, enclosingFunction, fileClasses, type SourceFile } from './scan-source';
 import { probeFile, type Probe } from './file-rule';
 
 export interface CallSiteRule {
@@ -51,7 +51,7 @@ export function runCallSiteRule(rule: CallSiteRule, sources: SourceFile[]): Call
 			for (const site of callSites(file.code, callee)) {
 				calls += 1;
 				if (site.args !== null && rule.holds(site.args, callee)) continue;
-				classes ??= lexicalClasses(file.code);
+				classes ??= fileClasses(file);
 				const key = `${file.relPath} :: ${enclosingFunction(file.code, site.index, classes)}`;
 				failing.add(key);
 				if (key in allowed) continue;
