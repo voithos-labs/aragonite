@@ -23,7 +23,7 @@ import { docPathFrom } from '$lib/cursor/coordinate-spaces';
 import type { ContainerBlockComponentDeps } from '$lib/editor-actions/container-block-component';
 import { refSlotsOver } from '$lib/reactivity/publish-ref.svelte';
 import { componentAt, type ChildList } from '$lib/reactivity/child-list';
-import { caretTargetFor } from '$lib/selection/caret-target';
+import { caretTargetFor, survivorAfterRemoval } from '$lib/selection/caret-target';
 import { delegateMoveFocus, type MoveFocusScope } from '$lib/editor-actions/focus/focus-dispatch';
 import type { PasteCommitCoordinator } from '$lib/tree-operations/paste/paste-deps';
 import type { PasteDispatchContext } from '$lib/tree-operations/paste/dispatch';
@@ -153,7 +153,8 @@ export function makeCommitScopeStub(
 		children: () => children,
 		target: () => ({ children, owner: opts.owner, lineEnding: lineEnding() }),
 		idAt: (i) => `block-${i}`,
-		refAt: (i) => refs[i],
+		survivor: (i, side) =>
+			survivorAfterRemoval({ kind: 'document', prefix: '', children, suffix: '' }, [i], side),
 		collapseEmptyReplaceToDelete: opts.collapse ?? true,
 		async commit(args) {
 			commits.push(args);
@@ -213,13 +214,19 @@ export function makeShimChildList(
 	};
 }
 
-/** Every block in `deps`'s document answers the descent with a stub, as a fully mounted editor
- *  would, so a caret landing anywhere below the root is placed. */
-export function mountEveryBlock(deps: EditorActionsDeps): void {
+/** Every block in `deps`'s document answers the descent with a stub, so a caret landing anywhere
+ *  is placed; `onFocus` hears each placement, named by the block's path when it was mounted. */
+export function mountEveryBlock(
+	deps: EditorActionsDeps,
+	onFocus?: (mountedAt: number[], offset: number) => void
+): void {
 	const listAt = (path: number[]): ChildList =>
 		makeShimChildList((nodeAt(deps.doc, path)?.children ?? []).map((_, i) => stubAt([...path, i])));
 	const stubAt = (path: number[]): BlockComponent =>
-		stubBlockComponent({ childList: () => listAt(path) });
+		stubBlockComponent({
+			childList: () => listAt(path),
+			focus: (offset: number) => onFocus?.(path, offset)
+		});
 	deps.blockRefs.forEach((_, i) => (deps.blockRefs[i] = stubAt([i])));
 }
 
@@ -278,7 +285,8 @@ export function makeStubContainerEdit(): ContainerEditActions {
 		lineEnding: () => '\n',
 		typeInLeaf: vi.fn((_path, _offset, _key, work) => work()),
 		writeLeafInPlace: vi.fn(() => ({ wrote: false as const })),
-		land: vi.fn(async () => 'placed' as const)
+		land: vi.fn(async () => 'placed' as const),
+		survivorAfterRemoval: vi.fn(() => null)
 	};
 }
 

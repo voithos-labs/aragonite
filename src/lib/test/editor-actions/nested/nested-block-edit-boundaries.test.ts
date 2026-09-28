@@ -91,11 +91,11 @@ describe('nested block edit: upward boundaries', () => {
 
 	it('delegates a delete upward only when it would empty the container', async () => {
 		const sole = env(container('listItem', 1));
-		await sole.blockEdit.deleteBlock(0);
-		expect(sole.parent.blockEdit.deleteBlock).toHaveBeenCalledWith(CONTAINER_INDEX);
+		await sole.blockEdit.deleteBlock(0, 'before');
+		expect(sole.parent.blockEdit.deleteBlock).toHaveBeenCalledWith(CONTAINER_INDEX, 'before');
 
 		const pair = env(container('listItem', 2));
-		await pair.blockEdit.deleteBlock(0);
+		await pair.blockEdit.deleteBlock(0, 'before');
 		expect(pair.parent.blockEdit.deleteBlock).not.toHaveBeenCalled();
 	});
 });
@@ -151,7 +151,7 @@ describe('nested block edit: childless guards', () => {
 		await blockEdit.splitBlock(0, 0);
 		await blockEdit.mergeWithPrevious(0);
 		await blockEdit.mergeWithNext(0);
-		await blockEdit.deleteBlock(0);
+		await blockEdit.deleteBlock(0, 'before');
 		await blockEdit.updateBlockContent(0, 'text\n', 'authored');
 
 		expect(vi.mocked(parent.blockEdit.mergeWithPrevious)).not.toHaveBeenCalled();

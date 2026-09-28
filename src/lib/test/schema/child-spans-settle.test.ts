@@ -150,7 +150,7 @@ describe('a keystroke after a structural commit in the same container', () => {
 	it('writes bytes a delete left behind', async () => {
 		const h = makeNestedHarness('> one\n>\n> two\n>\n> three\n', { index: 0 });
 		await h.bundle.blockEdit.updateBlockContent(0, 'one!\n', 'authored', 4, 5);
-		await h.bundle.blockEdit.deleteBlock(1);
+		await h.bundle.blockEdit.deleteBlock(1, 'before');
 		await h.bundle.blockEdit.updateBlockContent(0, 'one!?\n', 'authored', 5, 6);
 
 		const quote = h.deps.doc.children[0];

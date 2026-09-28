@@ -32,7 +32,7 @@ describe('a structural commit invalidates the gap caret it edits under', () => {
 		const h = makeTop(TABLE_THEN_FENCE);
 		h.selection.setGapCaret(GAP);
 
-		await h.actions.deleteBlock(0);
+		await h.actions.deleteBlock(0, 'before');
 
 		expect(h.selection.gapCaret).toBeNull();
 	});

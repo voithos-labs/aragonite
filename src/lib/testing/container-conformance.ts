@@ -292,7 +292,7 @@ export async function checkStripLocalIndexAddressing(
 	const seen: EditEvent[] = [];
 	events.on('edit', (e) => seen.push(e));
 
-	await parentBundle!.blockEdit.deleteBlock(targetChild);
+	await parentBundle!.blockEdit.deleteBlock(targetChild, 'before');
 
 	// The commit replaced the ancestor nodes, so resolve again through the live document.
 	const liveKind = subjectNode(doc, kind, containerChain, 'the document after the delete');

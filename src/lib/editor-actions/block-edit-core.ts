@@ -65,6 +65,7 @@ import { docPathFrom, extendDocPath } from '../cursor/coordinate-spaces';
 import { mergedElseNext, mergedElsePrevious } from './merge-fallback';
 import { previewContentReparse, unlessFocusMoved } from './replacement-focus';
 import type { Landing } from '../selection/primitives';
+import type { RemovalSide } from '../selection/caret-target';
 import { admitsWrite } from './commit/reading-write-gate';
 import { refusedWrite, withStoredCaret } from './stored-caret';
 
@@ -253,7 +254,7 @@ export interface BlockEditCore {
 	insertParagraph(i: number, text: string): Promise<boolean>;
 	mergeWithPreviousInterior(i: number): Promise<boolean>;
 	mergeWithNextInterior(i: number): Promise<boolean>;
-	deleteInterior(i: number): Promise<boolean>;
+	deleteInterior(i: number, side: RemovalSide): Promise<boolean>;
 	updateBlockMetadata(
 		i: number,
 		metadata: Record<string, unknown>,
@@ -417,16 +418,13 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 			});
 		},
 
-		async deleteInterior(i) {
+		async deleteInterior(i, side) {
 			return scope.commit({
 				snapshot: { index: i, offset: 0 },
 				eventTarget: i,
 				op: { kind: 'delete' },
 				mutate: (view) => performDelete(view.body, i, view.reading.grammar, view.sharing),
-				afterTick: () => {
-					const focusIdx = Math.min(i, scope.children().length - 1);
-					if (focusIdx >= 0) scope.refAt(focusIdx)?.focus(CURSOR_START);
-				},
+				landing: () => scope.survivor(i, side),
 				discardIfNoop: true
 			});
 		},

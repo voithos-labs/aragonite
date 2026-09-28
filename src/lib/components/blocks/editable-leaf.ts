@@ -209,7 +209,6 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	const wiring = wireSurfaceContexts();
 	const {
 		blockEdit,
-		focusActions,
 		caretMemory,
 		selection,
 		getDoc,
@@ -584,9 +583,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 				e.preventDefault();
 				revealedBase = null;
 				deps.setRevealed?.(false);
-				const index = deps.getIndex();
-				await blockEdit.deleteBlock(index);
-				void focusActions.moveFocus(index - 1, 'end');
+				await blockEdit.deleteBlock(deps.getIndex(), 'before');
 				return;
 			}
 		}
