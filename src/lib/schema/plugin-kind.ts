@@ -9,7 +9,6 @@ import {
 	type PluginBlockKind,
 	type PluginInlineKind
 } from '../core/nodes';
-import type { EditorContext } from './plugin-install';
 import { isValidPluginName } from './plugin-name';
 import { createPluginRegistry } from './plugin-registry';
 
@@ -47,15 +46,6 @@ export function declarePluginKind(name: string): PluginBlockKind {
 /** The plugin whose setup declared `kind`; null for a built-in or a kind declared outside one. */
 export function pluginKindOwner(kind: string): string | null {
 	return declaredPluginKinds.ownerOf(kind);
-}
-
-/** This editor's `EditorContext` for the plugin that owns `kind`. Passing `''` when no plugin owns
- *  it returns the editor's base context, so leaf blocks and containers resolve the same way. */
-export function owningPluginEditor(
-	pluginEditor: ((pluginName: string) => EditorContext | undefined) | undefined,
-	kind: string
-): EditorContext | undefined {
-	return pluginEditor?.(pluginKindOwner(kind) ?? '');
 }
 
 /**

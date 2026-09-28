@@ -52,7 +52,7 @@ import type { PresentationMode } from '../../presentation-mode';
 import { tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
 import { type BlockTargetContext } from '../../schema/block-commands';
 import type { EditorContext } from '../../schema/plugin-install';
-import { owningPluginEditor } from '../../schema/plugin-kind';
+import { componentPluginEditor } from '../../schema/block-component-registry';
 import { createTextBatch } from '../../editor-actions/commit/text-batch';
 
 export type EditableLeafMode = 'plain' | 'render-primary';
@@ -223,9 +223,8 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	const { inlineMenuCombobox } = getContext<EditorServices>(EDITOR_SERVICES_KEY);
 	const { theme: getTheme, onPasteImage } = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
 	const getPresentationMode = reading.mode;
-	// The kind's component runs with the context of the plugin that declared the kind.
 	const getEditor = (): EditorContext | undefined =>
-		owningPluginEditor(pluginEditor, deps.getNode().kind);
+		componentPluginEditor(pluginEditor, deps.getNode().kind);
 	const getOptions = (): unknown => getEditor()?.options;
 	const isReading = () => getPresentationMode() === 'reading';
 

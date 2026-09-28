@@ -17,6 +17,7 @@ import {
 	isCommandRegistered,
 	warnDeadKeyCommand,
 	isBuiltinCommandId,
+	runPluginCommand,
 	CROSS_BLOCK_RANGE_COMMAND_IDS,
 	RANGE_DECLINED_COMMAND_IDS,
 	type CommandDispatchPath,
@@ -24,7 +25,7 @@ import {
 	type GlobalCommandRun
 } from './commands';
 import type { KeybindingOverrideMap } from './keybinding-overrides';
-import type { EditorContext } from './plugin-install';
+import { pluginEditorFor, type EditorContext } from './plugin-install';
 import { isReadingMode, type PresentationMode } from '../presentation-mode';
 
 export interface BlockCommandContext {
@@ -233,14 +234,11 @@ function runBlockLocalCommand(
 ): boolean {
 	switch (resolved.tier) {
 		case 'minted': {
-			const editor = ctx.pluginEditor?.(resolved.owner ?? '');
-			try {
-				return resolved.handler({ ...resolved.context, editor, arg });
-			} catch (error) {
-				const plugin = resolved.owner ?? undefined;
-				ctx.onCommandError({ kind: resolved.target.kind, command: id, plugin, error });
-				return true;
-			}
+			const { owner, handler, context, target } = resolved;
+			const editor = pluginEditorFor(ctx.pluginEditor, owner);
+			return runPluginCommand(owner, { kind: target.kind, command: id }, ctx.onCommandError, () =>
+				handler({ ...context, editor, arg })
+			);
 		}
 		case 'builtin':
 			return resolved.target.runCommand?.(id, arg) ?? false;

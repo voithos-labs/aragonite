@@ -86,3 +86,22 @@ describe('a block command answers to the plugin that registered it, on another p
 		}
 	);
 });
+
+describe('a block command registered outside any plugin', () => {
+	it('runs with the editor’s base context', () => {
+		const base = { options: { from: 'base' } } as unknown as EditorContext;
+		const id = registerBlockCommand(declaredPluginKind(KIND), 'loose.run', (ctx) => {
+			seen = ctx;
+			return true;
+		});
+
+		runCommandById(
+			id,
+			undefined,
+			targets[1][1](),
+			commandContext({ pluginEditor: (name) => (name === '' ? base : undefined) })
+		);
+
+		expect(seen?.editor).toBe(base);
+	});
+});
