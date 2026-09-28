@@ -12,7 +12,7 @@ import { createBlockWindow, type BlockWindow, type WindowResult } from './block-
 import { estimateWidth, effectiveViewportHeight, listTopWithinContent } from './scope-geometry';
 import { runMeasureBatch, type MeasureEntry } from './measure-batch';
 import type { NodeView } from '../core/node-views';
-import type { RevealBlock } from '../cursor/reveal-anchor';
+import type { PlaceBlock } from '../cursor/scroll-owner';
 import { recordHeightTableBuild } from '../perf/instruments';
 
 /**
@@ -23,7 +23,7 @@ import { recordHeightTableBuild } from '../perf/instruments';
  */
 export interface RevealAnchorPlacement {
 	index: number;
-	block: RevealBlock;
+	block: PlaceBlock;
 	/** Drop from the ancestor's top to the target's top; 0 when the target is the ancestor. */
 	innerOffset: number;
 	/** The target's own height, for `'center'`; null when it can't be measured. */

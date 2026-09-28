@@ -27,7 +27,7 @@ import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 import { createEditorEvents, emitCommandError } from '$lib/editor-events';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import { coverRange } from '$lib/selection/range-coverage';
-import { createRevealAnchorState } from '$lib/cursor/reveal-anchor';
+import { createScrollOwner } from '$lib/cursor/scroll-owner';
 import { createAutoPairRecord } from '$lib/components/blocks/text/auto-pair-record';
 import { createHeightOracle } from '$lib/cursor/height-oracle';
 import { createScrollport, type Scrollport } from '$lib/cursor/scrollport';
@@ -70,7 +70,8 @@ function stubbedServices(getDoc: () => DocumentView): EditorServices {
 		search: {} as EditorServices['search'],
 		caretMemory: makeCaretMemory(),
 		autoPairs: createAutoPairRecord(),
-		revealAnchor: createRevealAnchorState(),
+		// Filled in by `editorMountContext`, which builds it over the document group's scroll host.
+		scrollOwner: {} as EditorServices['scrollOwner'],
 		// Real: every keydown on an editable block asks it what is selected.
 		widgetSelection: createWidgetSelectionState({ onSelect: () => {} }),
 		selectedWidget: { range: () => null, clear: () => {} },
@@ -181,6 +182,16 @@ export function editorMountContext(overrides: MountContextOverrides = {}): Map<s
 	});
 	const doc: EditorDoc = withDerivedScrollport({ ...docBase, ...overrides.doc });
 	const services: EditorServices = { ...stubbedServices(doc.doc), ...overrides.services };
+	services.scrollOwner =
+		overrides.services?.scrollOwner ??
+		createScrollOwner({
+			getScrollHost: doc.editorRoot,
+			editorCorrects: doc.correctsScroll,
+			getBlockElByPath: doc.blockElLookup,
+			getEditorRoot: doc.editorRoot,
+			isHostScroll: () => false,
+			getClipBounds: () => []
+		});
 	// Read off the selection the test handed in, the way the editor derives it.
 	services.coveredRange =
 		overrides.services?.coveredRange ??

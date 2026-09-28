@@ -11,7 +11,7 @@ import {
 	type ParentScopeSink
 } from '../editor-keys';
 import type { NodeView } from '../core/node-views';
-import type { RevealTarget } from '../cursor/reveal-anchor';
+import type { HeldTarget } from '../cursor/scroll-owner';
 import {
 	createListWindowing,
 	type ListWindowing,
@@ -40,14 +40,14 @@ export interface ContainerWindowingOpts {
 /** The block being scrolled into view in the root list's coordinates: a nested target is its
  *  top-level ancestor's index plus the measured drop from that ancestor's top to its own. */
 export function placementOf(
-	target: RevealTarget | null,
+	target: HeldTarget | null,
 	blockEl: BlockElLookup
 ): RevealAnchorPlacement | null {
 	if (!target || target.path.length === 0) return null;
 	const shallow = { index: target.path[0], block: target.block, innerOffset: 0, height: null };
 	if (target.path.length === 1) return shallow;
 	const ancestorEl = blockEl([shallow.index]);
-	const targetEl = blockEl(target.path);
+	const targetEl = blockEl([...target.path]);
 	// An unmounted ancestor falls back to its own top; a mounted one with no target means the
 	// user scrolled past the target inside the container, so decline rather than jump.
 	if (!ancestorEl) return shallow;
@@ -74,7 +74,7 @@ export function useContainerWindowing(opts: ContainerWindowingOpts): ListWindowi
 		blockElLookup
 	} = getContext<EditorDoc>(EDITOR_DOC_KEY);
 	const parentSink = getContext<ParentScopeSink | undefined>(PARENT_SCOPE_SINK_KEY);
-	const revealAnchor = getContext<EditorServices | undefined>(EDITOR_SERVICES_KEY)?.revealAnchor;
+	const scrollOwner = getContext<EditorServices | undefined>(EDITOR_SERVICES_KEY)?.scrollOwner;
 	// Only the root list holds the scrolled-to block in place; a nested list holds the block at
 	// the top of the viewport, or the two corrections would fight over one `scrollTop`.
 	const claimsRevealAnchor = opts.getParentPath().length === 0;
@@ -89,7 +89,7 @@ export function useContainerWindowing(opts: ContainerWindowingOpts): ListWindowi
 		correctsScroll: () => correctsScroll?.() ?? true,
 		getFocusPath: () => getFocusPath?.() ?? null,
 		getRevealAnchorTarget: claimsRevealAnchor
-			? () => placementOf(revealAnchor?.get() ?? null, blockElLookup)
+			? () => placementOf(scrollOwner?.heldTarget() ?? null, blockElLookup)
 			: undefined,
 		getWidthVersion: () => getWidthVersion?.() ?? 0,
 		getViewportHeightVersion: () => getViewportHeightVersion?.() ?? 0,

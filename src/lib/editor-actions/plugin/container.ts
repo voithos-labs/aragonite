@@ -29,7 +29,6 @@ import {
 	type EditorPolicies,
 	type EditorServices
 } from '../../editor-keys';
-import { captureScrollPosition } from '../../cursor/scroll-hold';
 import type { EditorContext } from '../../schema/plugin-install';
 import { componentPluginEditor } from '../../schema/block-component-registry';
 import type { WindowResult } from '../../reactivity/block-window.svelte';
@@ -263,7 +262,7 @@ export function buildContainerKindTarget(
 // ── Factory ──────────────────────────────────────────────────────────────────
 
 export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
-	const { caretMemory, selection, revealAnchor, commands } =
+	const { caretMemory, selection, scrollOwner, commands } =
 		getContext<EditorServices>(EDITOR_SERVICES_KEY);
 	const { theme: getTheme } = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
 	const { pluginEditor, reading } = getContext<EditorDoc>(EDITOR_DOC_KEY);
@@ -462,8 +461,7 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		updateOwnMetadata,
 		handleKeydown,
 		moveFocusOut,
-		captureScrollPosition: () =>
-			captureScrollPosition(deps.getBoxEl(), () => revealAnchor.get() !== null),
+		captureScrollPosition: scrollOwner.keep,
 		getPresentationMode,
 		getTheme,
 		getOptions,

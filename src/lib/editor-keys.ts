@@ -30,7 +30,7 @@ import type { SearchState } from './search/search-state.svelte';
 import type { DecorationEngine } from './decorations/decoration-state.svelte';
 import type { CaretMemory } from './cursor/caret-memory';
 import type { AutoPairRecord } from './components/blocks/text/auto-pair-record';
-import type { RevealAnchorState } from './cursor/reveal-anchor';
+import type { ScrollOwner } from './cursor/scroll-owner';
 import type { HeightOracle } from './cursor/height-oracle';
 import type { InlineMenuCombobox } from './inline-menu/inline-menu-state.svelte';
 import type { WidgetSelectionState } from './components/image/widget-selection-state.svelte';
@@ -157,7 +157,8 @@ export interface EditorServices {
 	/** The empty delimiter pair the auto-pair last wrote, the only pair it steps over, collapses
 	 *  or deletes; each typing block takes its own view of it. */
 	autoPairs: AutoPairRecord;
-	revealAnchor: RevealAnchorState;
+	/** The one writer of the scroll position; every scroll a module wants goes through it. */
+	scrollOwner: ScrollOwner;
 	widgetSelection: WidgetSelectionState;
 	/** The image `widgetSelection` holds, as a raw span read from the live document. */
 	selectedWidget: SelectedWidgetHandle;

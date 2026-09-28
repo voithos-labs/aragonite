@@ -8,7 +8,7 @@ import { CURSOR_END, CURSOR_START, type BlockComponent } from '../block-componen
 import type { DocumentView } from '../core/node-views';
 import type { CaretMemory } from '../cursor/caret-memory';
 import { docPathFrom } from '../cursor/coordinate-spaces';
-import type { ScrollSettle } from '../editor-rects';
+import type { ScrollOwner } from '../cursor/scroll-owner';
 import type { BlockElLookup } from '../editor-keys';
 import { descendTo, type ChildList } from '../reactivity/child-list';
 import { caretTargetFor } from './caret-target';
@@ -62,7 +62,7 @@ export interface CaretLandingDeps {
 	/** The editor's own element, which holds focus while a block with no text is selected whole. */
 	getEditorRoot(): HTMLElement | null;
 	/** Null where nothing renders (a headless harness), so a landing only mounts. */
-	scroll: ScrollSettle | null;
+	scroll: Pick<ScrollOwner, 'isInView' | 'place'> | null;
 }
 
 export function createCaretLanding(deps: CaretLandingDeps): CaretLanding {
