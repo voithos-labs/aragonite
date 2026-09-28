@@ -40,7 +40,10 @@ async function deleteWholeTable(source: string): Promise<string> {
 	const end: SelectionPoint = { path: [0], offset: 3, cellCoordinate: true };
 	deps.selectionState.enterCrossBlock(start, end);
 
-	const result = await maybeCommitTableCoverageDelete(ctx, table, start, end, false);
+	const result = await maybeCommitTableCoverageDelete(ctx, table, start, end, {
+		lands: false,
+		side: 'before'
+	});
 	expect(result).not.toBeNull();
 	return serialize(deps.doc);
 }

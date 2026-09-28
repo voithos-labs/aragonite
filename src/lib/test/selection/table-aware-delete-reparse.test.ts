@@ -26,8 +26,13 @@ const cell = (path: number[], index: number): CellSelectionPoint => ({
 function deletedBytes(source: string, start: SelectionPoint, end: SelectionPoint): string {
 	const doc = parse(source);
 	return serialize(
-		tableAwareRangeDelete(doc, coverRange(doc, start, end), createSharingState(), fixtureReading())
-			.newDoc
+		tableAwareRangeDelete(
+			doc,
+			coverRange(doc, start, end),
+			createSharingState(),
+			fixtureReading(),
+			'before'
+		).newDoc
 	);
 }
 

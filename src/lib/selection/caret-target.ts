@@ -72,6 +72,10 @@ export function caretPointFor(doc: DocumentView, pos: CaretPosition): SelectionP
  *  `'after'`. */
 export type RemovalSide = 'before' | 'after';
 
+export function removalSideOfKey(key: 'Backspace' | 'Delete'): RemovalSide {
+	return key === 'Delete' ? 'after' : 'before';
+}
+
 /** Where the caret goes once the block at `removedPath` is gone, read on the tree after the
  *  removal: `'before'` prefers the previous block's end, `'after'` the next block's start. */
 export function survivorAfterRemoval(

@@ -5,7 +5,7 @@
  */
 
 import { cellIndexOf, deleteSnapshot, type CaretPosition, type SelectionPoint } from './primitives';
-import { caretPointFor, survivorAfterRemoval } from './caret-target';
+import { caretPointFor, survivorAfterRemoval, type RemovalSide } from './caret-target';
 import type { CstNode } from '../core/nodes';
 import { metadataOf } from '../core/nodes';
 import type { MultiScopeTarget } from '../action-contracts';
@@ -60,14 +60,20 @@ export function classifyTableSelectionCoverage(
 	return { kind: 'cells' };
 }
 
-/** Null when the selection doesn't qualify (subset coverage, or a guard refusal). With `lands`,
- *  the commit puts the caret where it returns it. */
+export interface TableCoverageDeleteOptions {
+	/** The commit puts the caret where it returns it. */
+	lands: boolean;
+	/** Where the caret goes when the whole table goes. */
+	side: RemovalSide;
+}
+
+/** Null when the selection doesn't qualify (subset coverage, or a guard refusal). */
 export async function maybeCommitTableCoverageDelete(
 	ctx: CrossBlockMutationContext,
 	table: CstNode,
 	start: SelectionPoint,
 	end: SelectionPoint,
-	lands: boolean
+	{ lands, side }: TableCoverageDeleteOptions
 ): Promise<{ caret: SelectionPoint | null } | null> {
 	const meta = metadataOf(table, 'table');
 	const columnCount = meta.columnCount;
@@ -83,7 +89,7 @@ export async function maybeCommitTableCoverageDelete(
 		case 'cells':
 			return null;
 		case 'table':
-			return { caret: await commitFullTableDelete(ctx, start, lands) };
+			return { caret: await commitFullTableDelete(ctx, start, lands, side) };
 		case 'row': {
 			// As with Ctrl+Shift+Backspace, at least one body row must remain. A refusal does nothing,
 			// since falling through to a cell clear would do something the user did not ask for.
@@ -103,12 +109,13 @@ export async function maybeCommitTableCoverageDelete(
 async function commitFullTableDelete(
 	ctx: CrossBlockMutationContext,
 	start: SelectionPoint,
-	lands: boolean
+	lands: boolean,
+	side: RemovalSide
 ): Promise<SelectionPoint | null> {
 	const tableIdx = start.path[0];
 	const snapshot = deleteSnapshot([tableIdx]);
 	// Read on the tree the delete left, which may hold only the filler paragraph.
-	const survivor = () => survivorAfterRemoval(ctx.getDoc(), [tableIdx], 'before');
+	const survivor = () => survivorAfterRemoval(ctx.getDoc(), [tableIdx], side);
 
 	// Read before the delete, which can leave no block to read a line ending from.
 	const lineEnding = documentLineEnding(ctx.getDoc());

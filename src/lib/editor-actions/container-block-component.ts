@@ -25,6 +25,7 @@ import type { CaretMemory } from '../cursor/caret-memory';
 import type { AnyCommandId } from '../schema/command-id';
 import type { SelectionState } from '../selection/selection-state.svelte';
 import { placeCaret } from '../selection/caret-doors';
+import { removalSideOfKey } from '../selection/caret-target';
 import {
 	focusWholeBlockEl,
 	holdsWholeBlockFocus,
@@ -104,8 +105,8 @@ export function handleWholeBlockKeys(e: KeyboardEvent, deps: WholeBlockKeyDeps):
 	}
 	if (e.key === 'Backspace' || e.key === 'Delete') {
 		e.preventDefault();
-		const side = e.key === 'Backspace' ? 'before' : 'after';
-		if (!deps.isReading()) void deps.blockEdit.deleteBlock(deps.getIndex(), side);
+		if (!deps.isReading())
+			void deps.blockEdit.deleteBlock(deps.getIndex(), removalSideOfKey(e.key));
 		return;
 	}
 

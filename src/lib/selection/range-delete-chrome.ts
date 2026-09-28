@@ -123,7 +123,8 @@ export function removeWhole(
 	doc: Document,
 	path: number[],
 	sharing: SharingState,
-	reading: Reading
+	reading: Reading,
+	side: RemovalSide
 ): RangeDeleteResult {
 	const lineEnding = documentLineEnding(doc);
 	const chain = ensureUnsharedPath(doc, path.slice(0, -1), sharing);
@@ -131,7 +132,7 @@ export function removeWhole(
 	if (chain.length > 0) rebuildUnsharedChain(doc, chain, sharing, null, reading.grammar);
 	return {
 		newDoc: doc,
-		collapsedCaret: caretWhereRemoved(doc, path, sharing, lineEnding, 'before')
+		collapsedCaret: caretWhereRemoved(doc, path, sharing, lineEnding, side)
 	};
 }
 

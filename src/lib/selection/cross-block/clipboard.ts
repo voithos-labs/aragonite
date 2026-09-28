@@ -34,6 +34,6 @@ export async function writeCrossBlockCut(
 ): Promise<boolean> {
 	if (!writeCrossBlockCopy(e, deps)) return false;
 	// Clipboard written synchronously above, so the cut survives an interrupted delete.
-	await deps.crossBlock.performCrossBlockDeleteFromEvent();
+	await deps.crossBlock.performCrossBlockCut();
 	return true;
 }

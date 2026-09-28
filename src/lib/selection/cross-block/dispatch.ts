@@ -88,8 +88,8 @@ export interface CrossBlockHandlers {
 	 *  with no character position leaves no editable element for `beforeinput` to fire on. */
 	insertText(text: string): Promise<boolean>;
 	handleCompositionStart(): boolean;
-	/** Cross-block range delete for Cut handlers, after they synchronously wrote the clipboard. */
-	performCrossBlockDeleteFromEvent(): Promise<void>;
+	/** The delete half of a cut, run once the handler wrote the clipboard synchronously. */
+	performCrossBlockCut(): Promise<void>;
 }
 
 export function createCrossBlockHandlers(ctx: CrossBlockDispatchContext): CrossBlockHandlers {
@@ -133,11 +133,10 @@ export function createCrossBlockHandlers(ctx: CrossBlockDispatchContext): CrossB
 			return insertText(e.data ?? '');
 		},
 		insertText,
-		performCrossBlockDeleteFromEvent: async () => {
-			// Reached from cut handlers after the clipboard write; declining the delete
-			// degrades a reading-mode cut to a copy.
+		performCrossBlockCut: async () => {
+			// Declining the delete degrades a reading-mode cut to a copy.
 			if (refusesWrites()) return;
-			await performCrossBlockDelete(mutationCtx);
+			await performCrossBlockDelete(mutationCtx, { side: 'after' });
 		}
 	};
 }

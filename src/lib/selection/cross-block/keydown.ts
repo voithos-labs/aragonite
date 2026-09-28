@@ -21,6 +21,7 @@ import {
 	scrollFocusBlockIntoView
 } from '../keyboard-extend';
 import { pathsEqual } from '../path-math';
+import { removalSideOfKey } from '../caret-target';
 import { intraTableRectExtension } from '../table-rect-extend';
 import { cellPoint } from '../primitives';
 import { applySurfaceContentRange } from '../native-bridge';
@@ -97,7 +98,10 @@ async function handleCrossBlockActive(
 	if (e.key === 'Backspace' || e.key === 'Delete') {
 		e.preventDefault();
 		if (isReadingMode(ctx.reading.mode)) return true;
-		await performCrossBlockDelete(mutCtx, { tableCoverageDelete: true });
+		await performCrossBlockDelete(mutCtx, {
+			tableCoverageDelete: true,
+			side: removalSideOfKey(e.key)
+		});
 		return true;
 	}
 

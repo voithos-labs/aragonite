@@ -909,7 +909,7 @@
 			if (rectPayload === null) return false;
 			e.clipboardData?.setData('text/plain', rectPayload);
 			writeRectHtml(e);
-			await crossBlock.performCrossBlockDeleteFromEvent();
+			await crossBlock.performCrossBlockCut();
 			return true;
 		},
 		// The write has to be synchronous, since `clipboardData` closes after the event, and
@@ -1007,7 +1007,7 @@
 		}
 		if (hasRect) {
 			document.execCommand('copy');
-			if (action === 'cut') await crossBlock.performCrossBlockDeleteFromEvent();
+			if (action === 'cut') await crossBlock.performCrossBlockCut();
 			return;
 		}
 		setSelection(sel.start, sel.end);

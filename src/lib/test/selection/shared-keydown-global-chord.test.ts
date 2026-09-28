@@ -19,7 +19,7 @@ const noCross: CrossBlockHandlers = {
 	handleBeforeInput: async () => false,
 	insertText: async () => false,
 	handleCompositionStart: () => false,
-	performCrossBlockDeleteFromEvent: async () => {}
+	performCrossBlockCut: async () => {}
 };
 
 function makeCtx(): SharedKeydownContext {
