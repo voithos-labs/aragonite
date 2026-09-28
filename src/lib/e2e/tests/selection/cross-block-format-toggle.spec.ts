@@ -191,3 +191,24 @@ test.describe('the sibling that stays destructive: cross-block type-replace', ()
 		await ep.bridge.waitForSourceEquals(before, 3000);
 	});
 });
+
+test.describe('a toggle over a list item’s first slot', () => {
+	test('Mod+B off `**[ ] a**` leaves a to-do with its box, as a reload shows it', async ({
+		page
+	}) => {
+		const ep = new EditorPage(page);
+		await ep.goto('?presentationMode=live');
+		await ep.loadContent('- **[ ] a**\n\n**b**\n');
+		await ep.waitForRenderFlush();
+		await ep.focusBlockAtPath([1], 1);
+		await page.keyboard.press('ControlOrMeta+a');
+		await page.keyboard.press('ControlOrMeta+a');
+		await ep.waitForCrossBlock(true);
+
+		await page.keyboard.press('ControlOrMeta+b');
+
+		await ep.bridge.waitForSourceEquals('- [ ] a\n\nb\n', 3000);
+		await expect(page.locator('.task-checkbox')).toHaveCount(1);
+		expect(await ep.parseConverged()).toBe(true);
+	});
+});

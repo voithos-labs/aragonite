@@ -29,6 +29,7 @@ import {
 	type NodeParent
 } from '../../tree-operations/node-primitives';
 import type { SharingState } from '../../tree-operations/sharing';
+import { writeKeepingTaskMarker } from '../../tree-operations/list/reconcile-task';
 import { ensureUnsharedPath } from '../../tree-operations/unshare';
 import { rebuildUnsharedChain } from '../../tree-operations/chain-rebuild';
 import { comparePaths } from '../path-math';
@@ -126,8 +127,12 @@ export function applyCrossBlockFormat(
 		if (!owned) continue;
 		// A line ending reaching a cell's raw would be turned into a space by the cell's write rule.
 		const raw = write.newDisplay + ownTrailingLineEnding(owned.raw);
-		const body = normalizeBodyWrite(chain[chain.length - 2], raw, lineEnding);
-		writeOwnRaw(owned, body, lineEnding, grammar);
+		const owner: CstNode | undefined = chain[chain.length - 2];
+		const body = normalizeBodyWrite(owner, raw, lineEnding);
+		const slot = write.path[write.path.length - 1];
+		writeKeepingTaskMarker(owner, (owner ?? root).children ?? [], slot, sharing, () =>
+			writeOwnRaw(owned, body, lineEnding, grammar)
+		);
 		chains.push(chain);
 	}
 	// Every write lands before any rebuild, and a chain rebuild re-emits its whole ancestry from
