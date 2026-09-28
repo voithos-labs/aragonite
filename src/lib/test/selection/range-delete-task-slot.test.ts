@@ -90,3 +90,18 @@ describe('a join that changes what stands at a list item’s first slot reconcil
 		expect(serialize(doc)).toMatch(/^- \| ?b ?\|\n/);
 	});
 });
+
+// Miss-analysis: production hands the same-block branch only a whole paragraph, so no test gave it
+// a partial pair in a list item's first slot, where it wrote in place with no reconcile.
+describe('a range inside one block reads what it leaves at its slot too', () => {
+	it('a plain item left starting with `[ ] ` becomes a task', () => {
+		const item = firstItem(del('- a[ ] b\n', point([0, 0, 0], 0), point([0, 0, 0], 1)));
+		expect(item.metadata).toMatchObject({ taskItem: true });
+	});
+
+	it('a task item left with a delimiter row under its first line gives the checkbox up', () => {
+		const doc = del('- [ ] x|b|\n  |-|\n', point([0, 0, 0], 0), point([0, 0, 0], 1));
+		expect(firstItem(doc).children![0].kind).toBe('table');
+		expect(firstItem(doc).metadata).toMatchObject({ taskItem: false });
+	});
+});

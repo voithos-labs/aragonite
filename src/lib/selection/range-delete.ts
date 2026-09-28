@@ -21,8 +21,7 @@ import {
 	blockNodeAt,
 	nodeAt,
 	normalizeBodyWrite,
-	normalizeOwnRaw,
-	writeOwnRaw
+	normalizeOwnRaw
 } from '../tree-operations/node-primitives';
 import { settleSeparatorOnBlank } from '../tree-operations/settle';
 import { isBlankParagraph } from '../core/parser';
@@ -31,7 +30,7 @@ import { deleteAtPath } from '../tree-operations/path-mutate';
 import { cleanJoinedRaw } from '../tree-operations/node-ops';
 import { joinKeepingSuffix } from '../tree-operations/structural-suffix';
 import { deleteSubtreesIdentityGated, installSurvivor } from './range-delete-ceremony';
-import { ensureUnsharedNode, ensureUnsharedPath } from '../tree-operations/unshare';
+import { ensureUnsharedPath } from '../tree-operations/unshare';
 import { rebuildUnsharedAncestry, rebuildUnsharedChain } from '../tree-operations/chain-rebuild';
 import { involvesTable, tableAwareRangeDelete } from './range-delete-table';
 import { involvesReservedChrome, chromeAwareRangeDelete, removeWhole } from './range-delete-chrome';
@@ -148,21 +147,16 @@ export function rangeDelete(
 
 	if (sameBlock) {
 		// May be nested in a blockquote/list/listItem whose raw depends on this leaf.
-		const chain = ensureUnsharedPath(doc, start.path, sharing);
-		// `start.path` resolved above, so the chain reaches the leaf; the fallback still copies
-		// through `ensureUnsharedNode`, never a bare reference.
-		const owned = chain[chain.length - 1] ?? ensureUnsharedNode(startBlock, sharing);
-		// No reparse on this branch, so the kind's own write rule runs here: a join can create a
-		// line the kind reads as its terminator (a fence run in a code body).
-		writeOwnRaw(owned, joined.raw, documentLineEnding(doc), grammar);
+		ensureUnsharedPath(doc, start.path, sharing);
+		const shift = installSurvivor(doc, start.path, startBlock, joined.raw, sharing, reading);
 		// Before the rebuild, which reads the blank lines: a selection covering a block's whole
 		// text leaves it blank, and a blank block is the separating line of the one below it.
 		const parent = nodeAt(doc, start.path.slice(0, -1));
 		if (parent) settleSeparatorOnBlank(parent, start.path[start.path.length - 1], sharing);
-		rebuildUnsharedChain(doc, chain, sharing, null, grammar);
+		rebuildUnsharedAncestry(doc, start.path, sharing, null, grammar);
 		return {
 			newDoc: doc,
-			collapsedCaret: { path: start.path.slice(), offset: joined.seam }
+			collapsedCaret: { path: start.path.slice(), offset: Math.max(0, joined.seam + shift) }
 		};
 	}
 

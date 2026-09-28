@@ -50,8 +50,6 @@ const RULES: FileRule[] = [
 			'src/lib/editor-actions/table-context.ts':
 				'a pasted grid’s cells: a cell has no reparse and no separators, so the content write would do the same',
 			'src/lib/selection/selection-drop.ts': 'a cell cut by a drag, for the same reason',
-			'src/lib/selection/range-delete.ts':
-				'the same-block range delete, which runs the container’s rule and then the kind’s itself',
 			'src/lib/selection/cross-block/format-range.ts':
 				'a format toggle over a range, which runs both rules the same way'
 		},
