@@ -22,7 +22,8 @@ import {
 	truncateStartInPlace
 } from './range-delete-ceremony';
 import { ensureUnsharedPath } from '../tree-operations/unshare';
-import { rebuildUnsharedChain } from '../tree-operations/chain-rebuild';
+import { attachedChainPrefix, rebuildUnsharedChain } from '../tree-operations/chain-rebuild';
+import { cascadeCleanupEmptyAncestors } from '../tree-operations/cleanup';
 import { deleteAtPath } from '../tree-operations/path-mutate';
 import { reservedChromeKindOf, isReservedChromeChild } from '../schema/reserved-chrome';
 import {
@@ -74,7 +75,7 @@ export function chromeAwareRangeDelete(
 	// title-line clear, since that container's child 0 is never strictly between the endpoints.
 	const wall = resolveEndWall(doc, range, null);
 	const endConsumed = wall?.consumed ?? false;
-	const { plan, lcaPath } = planCrossBlockDeletion(doc, range, [], wall, sharing);
+	const plan = planCrossBlockDeletion(doc, range, [], wall, sharing);
 
 	// The end truncates first, while its path is still valid, and its tail never merges into
 	// the start. Skipped when its container goes whole.
@@ -90,7 +91,7 @@ export function chromeAwareRangeDelete(
 		);
 	}
 
-	applyPlannedDeletion(doc, plan, lcaPath, grammar);
+	applyPlannedDeletion(doc, plan, grammar);
 
 	// Start truncates in place; every deletion sits after it in doc order, so start.path is
 	// still live. A start whose container went whole has nothing left to truncate.
@@ -121,7 +122,8 @@ export function chromeAwareRangeDelete(
 
 // ── A container taken whole ─────────────────────────────────────────────────
 
-/** A range wholly inside one container it takes whole, its title row included: one splice. */
+/** A block the range takes whole, a container with its title row or a block with no character
+ *  position: one splice, and a container it empties goes too, up to the document. */
 export function removeWhole(
 	doc: Document,
 	path: number[],
@@ -129,9 +131,12 @@ export function removeWhole(
 	reading: Reading,
 	gesture: RemovalGesture
 ): RangeDeleteResult {
+	// Deleted by path, so the commit's id bookkeeping sees the position go.
 	const chain = ensureUnsharedPath(doc, path.slice(0, -1), sharing);
 	deleteAtPath(doc, path, sharing, reading.grammar);
-	if (chain.length > 0) rebuildUnsharedChain(doc, chain, sharing, null, reading.grammar);
+	cascadeCleanupEmptyAncestors(doc, path, sharing, reading.grammar);
+	const attached = attachedChainPrefix(doc, chain);
+	if (attached.length > 0) rebuildUnsharedChain(doc, attached, sharing, null, reading.grammar);
 	return { newDoc: doc, caret: (committed) => caretWhereRemoved(committed, path, gesture) };
 }
 

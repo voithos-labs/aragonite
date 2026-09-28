@@ -154,7 +154,7 @@ function deleteFromProseIntoTable(
 	);
 
 	const wall = resolveEndWall(doc, range, result === 'tableEmpty');
-	const { plan, lcaPath } = planCrossBlockDeletion(
+	const plan = planCrossBlockDeletion(
 		doc,
 		range,
 		result === 'tableEmpty' ? [end.path] : [],
@@ -162,7 +162,7 @@ function deleteFromProseIntoTable(
 		sharing
 	);
 
-	applyPlannedDeletion(doc, plan, lcaPath, grammar);
+	applyPlannedDeletion(doc, plan, grammar);
 	// A start whose container went whole has nothing left to truncate.
 	const seam = startTaken
 		? 0
@@ -214,7 +214,7 @@ function deleteFromTableIntoProse(
 	const consumed = wall?.consumed ?? false;
 	const endIsChrome = wall !== null && !consumed && isChromeChild(wall.container, end.path);
 
-	const { plan, lcaPath } = planCrossBlockDeletion(
+	const plan = planCrossBlockDeletion(
 		doc,
 		range,
 		tableResult === 'tableEmpty' ? [start.path] : [],
@@ -235,7 +235,7 @@ function deleteFromTableIntoProse(
 				sharing,
 				'deleteFromTableIntoProse:end'
 			);
-	applyPlannedDeletion(doc, plan, lcaPath, grammar);
+	applyPlannedDeletion(doc, plan, grammar);
 
 	const tailPath = tailNode ? survivorPath(doc, tailNode) : null;
 
@@ -313,9 +313,9 @@ function deleteAcrossTwoTables(
 	const emptiedEndpoints: number[][] = [];
 	if (startResult === 'tableEmpty') emptiedEndpoints.push(start.path);
 	if (endResult === 'tableEmpty') emptiedEndpoints.push(end.path);
-	const { plan, lcaPath } = planCrossBlockDeletion(doc, range, emptiedEndpoints, wall, sharing);
+	const plan = planCrossBlockDeletion(doc, range, emptiedEndpoints, wall, sharing);
 
-	applyPlannedDeletion(doc, plan, lcaPath, grammar);
+	applyPlannedDeletion(doc, plan, grammar);
 
 	const endTablePath = endResult === 'tableSurvives' ? survivorPath(doc, endTable) : null;
 

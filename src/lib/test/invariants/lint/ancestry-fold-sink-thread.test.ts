@@ -54,9 +54,9 @@ const SITES: Record<string, SiteStance> = {
 		why: 'a byte write inside the content range: no opener or closer line moves, so no fold a parent scope would have to reconcile can be produced'
 	},
 	'src/lib/selection/range-delete.ts': {
-		declines: 4,
+		declines: 3,
 		sinks: 0,
-		why: 'the cross-block delete family: byte-correctness passes inside a commit sequence that owns the registers elsewhere and splices at the lowest common ancestor itself. Their chains can run deeper than that commit’s scope, which is a recorded residual rather than a reconciliation'
+		why: 'the cross-block delete family: byte-correctness passes inside a commit sequence that owns the registers elsewhere and splices the containers it empties itself. Their chains can run deeper than that commit’s scope, which is a recorded residual rather than a reconciliation'
 	},
 	'src/lib/selection/range-delete-ceremony.ts': {
 		declines: 2,

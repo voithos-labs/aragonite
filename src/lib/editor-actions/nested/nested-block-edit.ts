@@ -13,6 +13,7 @@ import { firstChildUnwrapStrategies, middleChildUnwrapStrategies } from '../unwr
 import { createContainerScope } from '../block-edit-scope';
 import { contentUpdate, createBlockEditCore } from '../block-edit-core';
 import { refusedWrite } from '../stored-caret';
+import type { RemovalGesture } from '../../selection/caret-target';
 
 export function createNestedBlockEdit(
 	state: BlockListState,
@@ -22,6 +23,7 @@ export function createNestedBlockEdit(
 	const scope = createContainerScope(state, deps);
 	const core = createBlockEditCore(scope);
 	const writeContent = contentUpdate(scope);
+	const takesLastChild = () => (deps.node.children?.length ?? 0) <= 1;
 
 	const blockEdit: BlockEditActions = {
 		// ── Structural mutations (interior → core, edges → parent) ─────────────
@@ -82,19 +84,19 @@ export function createNestedBlockEdit(
 
 		async deleteBlock(innerIndex, gesture) {
 			if (!deps.node.children) return false;
-
-			if (deps.node.children.length <= 1) {
-				return parent.blockEdit.deleteBlock(deps.index, gesture);
-			}
-
+			if (takesLastChild()) return removeEmptiedContainer(deps, gesture);
 			return core.deleteInterior(innerIndex, gesture);
 		},
 
 		updateBlockMetadata: (innerIndex, metadata, options) =>
 			core.updateBlockMetadata(innerIndex, metadata, options),
 
-		replaceBlock: async (innerIndex, replacement, focus, options) =>
-			(await core.replaceBlock(innerIndex, replacement, focus, options)) !== null,
+		async replaceBlock(innerIndex, replacement, focus, options) {
+			if (replacement.length === 0 && takesLastChild()) {
+				return removeEmptiedContainer(deps, 'keyless');
+			}
+			return (await core.replaceBlock(innerIndex, replacement, focus, options)) !== null;
+		},
 
 		updateBlockContent(innerIndex, text, mode, preEditOffset, postEditFocusOffset) {
 			if (!deps.node.children) return refusedWrite();
@@ -103,4 +105,13 @@ export function createNestedBlockEdit(
 	};
 
 	return blockEdit;
+}
+
+/** Removes the container from its parent's list, for an edit that would take its last child: an
+ *  emptied container goes rather than stay childless. */
+export function removeEmptiedContainer(
+	deps: NestedActionsDeps,
+	gesture: RemovalGesture
+): Promise<boolean> {
+	return deps.parent.blockEdit.deleteBlock(deps.index, gesture);
 }

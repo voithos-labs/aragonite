@@ -36,7 +36,7 @@ describe('cascadeCleanupEmptyAncestors', () => {
 		sharedQuote.children![1].children = [];
 		sharing.markSnapshotTaken();
 
-		cascadeCleanupEmptyAncestors(d, [0, 1, 0], [], sharing, defaultGrammarView);
+		cascadeCleanupEmptyAncestors(d, [0, 1, 0], sharing, defaultGrammarView);
 
 		expect(d.children[0]).not.toBe(sharedQuote);
 		expect(d.children[0].children).toHaveLength(1);
@@ -45,28 +45,22 @@ describe('cascadeCleanupEmptyAncestors', () => {
 
 	it('removes an empty blockquote at the top level', () => {
 		const d = doc([bq([]), para('x\n')]);
-		cascadeCleanupEmptyAncestors(d, [0, 0], [], createSharingState(), defaultGrammarView);
+		cascadeCleanupEmptyAncestors(d, [0, 0], createSharingState(), defaultGrammarView);
 		expect(d.children).toHaveLength(1);
 		expect(d.children[0].kind).toBe('paragraph');
 	});
 
 	it('leaves a non-empty blockquote alone', () => {
 		const d = doc([bq([para('b\n')]), para('x\n')]);
-		cascadeCleanupEmptyAncestors(d, [0, 0], [], createSharingState(), defaultGrammarView);
+		cascadeCleanupEmptyAncestors(d, [0, 0], createSharingState(), defaultGrammarView);
 		expect(d.children).toHaveLength(2);
 		expect(d.children[0].children).toHaveLength(1);
 	});
 
 	it('cascades through nested empty containers', () => {
 		const d = doc([bq([bq([])])]);
-		cascadeCleanupEmptyAncestors(d, [0, 0, 0], [], createSharingState(), defaultGrammarView);
+		cascadeCleanupEmptyAncestors(d, [0, 0, 0], createSharingState(), defaultGrammarView);
 		expect(d.children).toHaveLength(0);
-	});
-
-	it('stops walking at the lca', () => {
-		const d1 = doc([bq([]), para('x\n')]);
-		cascadeCleanupEmptyAncestors(d1, [0, 0], [0], createSharingState(), defaultGrammarView);
-		expect(d1.children).toHaveLength(2);
 	});
 
 	it('keeps a surviving ancestor childIds aligned when an emptied container is removed', () => {
@@ -75,7 +69,7 @@ describe('cascadeCleanupEmptyAncestors', () => {
 		quote.childIds = assignIds(quote.children!);
 		const list = quote.children![1];
 		list.children = [];
-		cascadeCleanupEmptyAncestors(d, [0, 1, 0], [], createSharingState(), defaultGrammarView);
+		cascadeCleanupEmptyAncestors(d, [0, 1, 0], createSharingState(), defaultGrammarView);
 		expect(quote.children!.length).toBe(1);
 		expect(quote.childIds.length).toBe(quote.children!.length);
 	});

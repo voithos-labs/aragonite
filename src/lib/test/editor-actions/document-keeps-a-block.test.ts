@@ -118,7 +118,8 @@ interface Row {
 	source: string;
 	drive: (env: Env) => Promise<unknown> | void;
 	bytes: string;
-	/** Where the caret goes: `[0]` for the empty paragraph; none for a replace, which lands nothing. */
+	/** Where the caret goes: `[0]` for the empty paragraph; none for a top-level replace, which
+	 *  lands nothing. */
 	placed: number[][];
 }
 
@@ -159,6 +160,33 @@ const ROWS: Record<string, Row> = {
 		bytes: '\n',
 		placed: [[0]]
 	},
+	'a rule two quotes deep held whole, Backspace': {
+		source: '> > ---\n',
+		drive: async (env) => {
+			select(env, whole([0, 0, 0]), whole([0, 0, 0]));
+			await rangeKey(env, 'Backspace');
+		},
+		bytes: '\n',
+		placed: [[0]]
+	},
+	'a list item holding only a rule, the rule held whole, Backspace': {
+		source: '* ---\n',
+		drive: async (env) => {
+			select(env, whole([0, 0, 0]), whole([0, 0, 0]));
+			await rangeKey(env, 'Backspace');
+		},
+		bytes: '\n',
+		placed: [[0]]
+	},
+	'a quoted rule under a paragraph held whole, Backspace: the quote goes, the paragraph stays': {
+		source: 'a\n\n> ---\n',
+		drive: async (env) => {
+			select(env, whole([1, 0]), whole([1, 0]));
+			await rangeKey(env, 'Backspace');
+		},
+		bytes: 'a\n',
+		placed: [[0]]
+	},
 	'a focused quoted rule, Backspace through the quote': {
 		source: '> ---\n',
 		drive: (env) => focusedRuleKey(nested(env, 0), 'Backspace'),
@@ -171,20 +199,31 @@ const ROWS: Record<string, Row> = {
 		bytes: '\n',
 		placed: []
 	},
-	'a quote and the paragraph below held whole, Backspace': {
+	// Until a range holding a container's whole subtree takes the container whole, the start keeps
+	// its slot: the quote keeps an empty paragraph, as it does when its child is text.
+	'a quoted rule and the paragraph below, Backspace: the start keeps its slot in the quote': {
 		source: '> ---\n\npara\n',
 		drive: async (env) => {
 			select(env, whole([0, 0]), at([1], 4));
 			await rangeKey(env, 'Backspace');
 		},
-		bytes: '\n',
-		placed: [[0]]
+		bytes: '>\n',
+		placed: [[0, 0]]
+	},
+	'quoted text and the paragraph below, Backspace: the start keeps its slot in the quote': {
+		source: '> a\n\npara\n',
+		drive: async (env) => {
+			select(env, at([0, 0], 0), at([1], 4));
+			await rangeKey(env, 'Backspace');
+		},
+		bytes: '>\n',
+		placed: [[0, 0]]
 	},
 	'a quote’s only child replaced by nothing': {
 		source: '> a\n',
 		drive: (env) => nested(env, 0).replaceBlock(0, []),
 		bytes: '\n',
-		placed: []
+		placed: [[0]]
 	},
 	'a sole table held whole, Backspace': {
 		source: TABLE,
@@ -268,7 +307,7 @@ function lockstep(doc: Document, ids: string[]): void {
 	expect(ids).toHaveLength(doc.children.length);
 }
 
-describe('removing the last block leaves the document one empty paragraph', () => {
+describe('the document keeps a block, and an emptied container goes', () => {
 	beforeEach(() => {
 		registerChromePluginsForTests();
 		vi.stubGlobal('navigator', { clipboard: { writeText: vi.fn().mockResolvedValue(undefined) } });
@@ -281,7 +320,6 @@ describe('removing the last block leaves the document one empty paragraph', () =
 		await settleEditor();
 
 		expect(serialize(env.h.deps.doc)).toBe(row.bytes);
-		expect(env.h.deps.doc.children.every((c) => !c.children)).toBe(true);
 		lockstep(env.h.deps.doc, env.h.getBlockIds());
 		expect(paths(env)).toEqual(row.placed);
 
