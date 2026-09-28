@@ -16,7 +16,7 @@ import type { WriteMode } from './schema/block-kind-descriptor';
 import type { DocPath } from './selection/path-math';
 import type { CaretPosition, Landing } from './selection/primitives';
 import type { LegalWrite } from './tree-operations/content-write';
-import type { LandingOutcome } from './selection/caret-landing';
+import type { LandingOutcome, RevealPolicy } from './selection/caret-landing';
 import type { RemovalSide } from './selection/caret-target';
 
 /**
@@ -200,6 +200,8 @@ export interface CommitMultiScopeArgs<
 	afterTick?: CommitAfterTick;
 	/** Overridden when an ancestor collapsed: the collapse recreated the blocks it names. */
 	landing?: CommitLanding;
+	/** How far the landing moves the viewport; `'into-view'` when absent. */
+	reveal?: RevealPolicy;
 	announce?: CommitAnnouncement;
 	discardIfNoop?: DiscardIfNoop;
 	/** Caret positions each list's fix-up updates in place, parallel to `scopes`, since a collapsing
@@ -213,6 +215,7 @@ export interface CommitStructuralArgs {
 	op?: ScopedOpDescriptor;
 	afterTick?: CommitAfterTick;
 	landing?: CommitLanding;
+	reveal?: RevealPolicy;
 	announce?: CommitAnnouncement;
 	/** Leaves for the dev invariant check when `mutate` returns `noop` (an in-place kind change). */
 	touchedNodes?: CstNode[];
@@ -237,6 +240,7 @@ export interface CommitContainerStructuralArgs {
 	op?: ScopedOpDescriptor;
 	afterTick?: CommitAfterTick;
 	landing?: CommitLanding;
+	reveal?: RevealPolicy;
 	announce?: CommitAnnouncement;
 	discardIfNoop?: DiscardIfNoop;
 	/** A caret position the container's fix-up updates in place; the landing reads it back. */

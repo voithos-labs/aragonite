@@ -22,7 +22,6 @@
 		getDoc,
 		getEditorEl,
 		measureRange,
-		landCaret,
 		activateLink,
 		resolveLinkUrl,
 		caretRestore,
@@ -36,7 +35,6 @@
 		getDoc: () => Document;
 		getEditorEl: () => HTMLElement | null;
 		measureRange: (path: number[], start: number, end: number) => DOMRect[];
-		landCaret: (path: number[], offset: number) => Promise<boolean>;
 		activateLink: (url: string, event: MouseEvent) => void;
 		/** The consumer's href rewrite, the first thing the render path applies. */
 		resolveLinkUrl: (rawUrl: string) => string;
@@ -59,7 +57,6 @@
 		inlineRange,
 		events,
 		measureRange,
-		landCaret,
 		reading
 	});
 

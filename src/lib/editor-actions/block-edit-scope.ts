@@ -25,7 +25,7 @@ import { ensureUnsharedPath, ensureUnsharedChild } from '../tree-operations';
 import { containerScopeState } from '../tree-operations/paste/parent-scope';
 import { asDocPath, type DocPath } from '../selection/path-math';
 import type { CaretPosition } from '../selection/primitives';
-import type { LandingOutcome } from '../selection/caret-landing';
+import type { LandingOutcome, RevealPolicy } from '../selection/caret-landing';
 import { survivorAfterRemoval, type RemovalSide } from '../selection/caret-target';
 import { docPathFrom, extendDocPath } from '../cursor/coordinate-spaces';
 import { getStateForNode } from '../reactivity/state-registry';
@@ -56,6 +56,8 @@ export interface ScopeCommitArgs {
 	afterTick?: CommitAfterTick;
 	/** Where the caret goes, read after the commit; built with the scope's `at`. */
 	landing?: CommitLanding;
+	/** How far the landing moves the viewport; `'into-view'` when absent. */
+	reveal?: RevealPolicy;
 	/** Filled by `mutate` for the dev-mode stale-raw check when it returns `noop`; only the root
 	 *  reads them, since a container's commit checks its whole copied container. */
 	touchedNodes?: CstNode[];
@@ -122,6 +124,7 @@ export function createTopLevelScope(
 			mutate,
 			afterTick,
 			landing,
+			reveal,
 			touchedNodes,
 			discardIfNoop,
 			trackCaret
@@ -138,6 +141,7 @@ export function createTopLevelScope(
 				op: { ...op, eventPath: asDocPath([eventTarget]) },
 				afterTick,
 				landing,
+				reveal,
 				touchedNodes,
 				discardIfNoop,
 				trackCaret
@@ -220,6 +224,7 @@ function containerScope(parts: ContainerParts): CommitScope {
 			mutate,
 			afterTick,
 			landing,
+			reveal,
 			discardIfNoop,
 			trackCaret
 		}): Promise<boolean> {
@@ -238,6 +243,7 @@ function containerScope(parts: ContainerParts): CommitScope {
 				op: { ...op, eventPath: extendDocPath(parts.path(), eventTarget) },
 				afterTick,
 				landing,
+				reveal,
 				discardIfNoop,
 				trackCaret
 			});

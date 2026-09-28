@@ -85,7 +85,6 @@ async function mountHost() {
 			getDoc: () => parse('Visit [example](https://example.com) now\n'),
 			getEditorEl: () => target,
 			measureRange: () => [],
-			landCaret: async () => true,
 			activateLink: vi.fn(),
 			resolveLinkUrl: (u: string) => u,
 			reading: fixtureReading(),

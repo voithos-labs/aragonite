@@ -621,8 +621,7 @@
 		scroll: scrollSettle,
 		isCrossBlock: () => selectionState.isCrossBlock,
 		isHostChrome,
-		// A navigation keeps its block held in place, so a late image decode cannot scroll it away.
-		landCaretAt: landCaretAtOffset
+		landCaretAt: navigateCaret
 	});
 
 	const editorId = mintEditorId();
@@ -637,8 +636,8 @@
 		events,
 		editorId,
 		reading,
-		commitRange: inlineRange.commitInlineRange,
-		landCaret: landCaretAtOffset,
+		commitRange: (path, start, end, bytes, caretAfter) =>
+			inlineRange.commitInlineRange(path, start, end, bytes, caretAfter, { landCaret: true }),
 		undoStep: (path, offset, run) => controller.undoStep({ path: docPathFrom(path), offset }, run)
 	});
 	const inlineMenus: InlineMenuRegistry = inlineMenu.registry;
@@ -1190,20 +1189,21 @@
 		return { anchor: { path, offset }, focus: { path, offset } };
 	}
 
-	// Read off the placed selection, not the requested one: a restore into a hidden body lands on
-	// its title row.
+	// Read off the placed selection, not the requested one: a caret aimed into a hidden body lands
+	// on its title row.
 	function focusInView(): boolean {
 		const focus = getSelection()?.focus;
 		return !!focus && scrollSettle.isInView(selectionState.cellLandingFor(focus).path);
 	}
 
-	/** Puts the caret back in the document after a card or menu, so the next key goes there. */
-	async function landCaretAtOffset(path: number[], offset: number): Promise<boolean> {
-		const outcome = await caretLanding.restore(caretAt(path, offset), {
-			reveal: 'into-view-held',
-			openCollapsed: true
-		});
-		return outcome === 'applied' && focusInView();
+	// A navigation: it opens a closed body on the way, and holds the block where it scrolled to so
+	// a late image decode can't move it.
+	async function navigateCaret(path: number[], offset: number): Promise<boolean> {
+		const outcome = await caretLanding.land(
+			{ path: docPathFrom(path), offset },
+			{ reveal: 'into-view-held', openCollapsed: true }
+		);
+		return outcome === 'placed' && focusInView();
 	}
 
 	/** True only if the selection was placed and its focus block is in view; a programmatic
@@ -1421,7 +1421,6 @@
 		{getDoc}
 		getEditorEl={() => editorEl ?? null}
 		measureRange={rects.rangeRects}
-		landCaret={landCaretAtOffset}
 		{activateLink}
 		resolveLinkUrl={resolveLinkUrlImpl}
 		caretRestore={linkCardCaret}
