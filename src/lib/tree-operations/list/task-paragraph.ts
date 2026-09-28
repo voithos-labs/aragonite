@@ -24,11 +24,17 @@ export function fragmentReaderAt(
 	index: number,
 	grammar: GrammarView
 ): FragmentReader {
-	// Fragment scope: these are one block's bytes, so a kind that depends on document position
-	// must not be produced here.
 	return followsTaskMarker(owner, index)
 		? (text) => parseTaskItemBody(text, grammar)
-		: (text) => readBlocks(text, { grammar, scope: 'fragment' });
+		: plainFragmentReader(grammar);
+}
+
+/** The reader for bytes no task marker stands in front of: a block past an item's first slot,
+ *  outside any list, or a clipboard's own blocks before they land. */
+export function plainFragmentReader(grammar: GrammarView): FragmentReader {
+	// Fragment scope: these are one block's bytes, so a kind that depends on document position
+	// must not be produced here.
+	return (text) => readBlocks(text, { grammar, scope: 'fragment' });
 }
 
 /** {@link fragmentReaderAt} for the slot a document path names. */

@@ -4,6 +4,13 @@ import { parse } from '$lib/core/parser';
 import { defaultGrammarView } from '$lib/schema/block-openers';
 import { buildPastedReplacement } from '$lib/tree-operations/paste/paste-replacement';
 import { splitLeafForPaste } from '$lib/tree-operations/list/list-builders';
+import { plainFragmentReader } from '$lib/tree-operations/list/task-paragraph';
+
+/** Both halves read as plain fragments, as they do outside a task item. */
+const plainHalves = {
+	leading: plainFragmentReader(defaultGrammarView),
+	trailing: plainFragmentReader(defaultGrammarView)
+};
 
 const PASTED = parse('abc\n\ndef\n').children;
 
@@ -39,32 +46,27 @@ describe('a multi-block paste keeps the leaf’s structure past its text on the 
 		['an ATX heading, inside its marker', '## Hi\n', 1, ['abc\n', 'def\n', '## Hi\n']]
 	])('%s', (_label, source, offset, raws) => {
 		const leaf = parse(source).children[0];
-		const { nodes } = buildPastedReplacement(leaf, offset, PASTED, '\n', defaultGrammarView);
+		const { nodes } = buildPastedReplacement(
+			leaf,
+			offset,
+			PASTED,
+			'\n',
+			defaultGrammarView,
+			plainFragmentReader(defaultGrammarView)
+		);
 		expect(nodes.map((node) => node.raw)).toEqual(raws);
 	});
 
 	it('a paste that splits a list item keeps the run on the leading half', () => {
 		const leaf = parse('# Hi #\n').children[0];
-		const { leadingNode, trailingNodes } = splitLeafForPaste(
-			leaf,
-			4,
-			'\n',
-			leaf.raw,
-			defaultGrammarView
-		);
+		const { leadingNode, trailingNodes } = splitLeafForPaste(leaf, 4, '\n', leaf.raw, plainHalves);
 		expect(leadingNode?.raw).toBe('# Hi #\n');
 		expect(trailingNodes).toEqual([]);
 	});
 
 	it('a paste that splits a list item at a heading’s text start moves the whole heading', () => {
 		const leaf = parse('# Hi\n').children[0];
-		const { leadingNode, trailingNodes } = splitLeafForPaste(
-			leaf,
-			2,
-			'\n',
-			leaf.raw,
-			defaultGrammarView
-		);
+		const { leadingNode, trailingNodes } = splitLeafForPaste(leaf, 2, '\n', leaf.raw, plainHalves);
 		expect(leadingNode).toBeNull();
 		expect(trailingNodes.map((node) => node.raw)).toEqual(['# Hi\n']);
 	});

@@ -12,6 +12,7 @@ import { ensureEditableContainers } from '../node-primitives';
 import { parseCutResidue, parseFirstBlock } from '../parse-block';
 import { cutKeepingStructure } from '../structural-suffix';
 import type { GrammarView } from '../../schema/block-openers';
+import { plainFragmentReader, type FragmentReader } from '../list/task-paragraph';
 
 export interface PastedReplacement {
 	nodes: CstNode[];
@@ -19,28 +20,31 @@ export interface PastedReplacement {
 	lastPastedIndex: number;
 }
 
+/** `readSlot` is the leaf's slot reader (`fragmentReaderAt`), which reads the text left before the
+ *  pasted blocks. */
 export function buildPastedReplacement(
 	leaf: NodeView,
 	offset: number,
 	blocks: CstNode[],
 	ending: LineEnding,
-	grammar: GrammarView
+	grammar: GrammarView,
+	readSlot: FragmentReader
 ): PastedReplacement {
 	if (blocks.length === 0) return { nodes: [], lastPastedIndex: -1 };
 
 	const leafRaw = leaf.raw;
 	const lineEnding = trailingLineEnding(leafRaw, ending);
 	const { head: rawBefore, rest } = cutKeepingStructure(leaf, offset);
-	const residue = parseCutResidue(rest, lineEnding, grammar);
+	const residue = parseCutResidue(rest, lineEnding, plainFragmentReader(grammar));
 	const originalTrivia = leaf.leadingTrivia ?? '';
 
 	const newNodes: CstNode[] = [];
 
-	// Re-parsed so heading/list leaves round-trip through their own parser rather than
-	// being forced back to a paragraph.
+	// Read as the leaf's slot reads it, so a heading stays one and a task item's text stays its
+	// paragraph.
 	if (rawBefore.length > 0) {
 		const beforeRaw = rawBefore + lineEnding;
-		const beforeNode = parseFirstBlock(beforeRaw, grammar);
+		const beforeNode = parseFirstBlock(beforeRaw, readSlot);
 		beforeNode.leadingTrivia = originalTrivia;
 		ensureEditableContainers(beforeNode, lineEnding);
 		newNodes.push(beforeNode);
@@ -77,7 +81,8 @@ export function buildPastedReplacement(
 /** `node` with the rest of the line it was pasted into, read back as the one block it still is. */
 function endedOnCutLine(node: CstNode, cutLineEnd: string, grammar: GrammarView): CstNode {
 	const lineEnding = trailingLineEnding(cutLineEnd, '\n');
-	const ended = parseFirstBlock(node.raw + cutLineEnd, grammar);
+	// The clipboard's own block, whose kind the clipboard's parse already decided.
+	const ended = parseFirstBlock(node.raw + cutLineEnd, plainFragmentReader(grammar));
 	ended.leadingTrivia = node.leadingTrivia;
 	ensureEditableContainers(ended, lineEnding);
 	return ended;

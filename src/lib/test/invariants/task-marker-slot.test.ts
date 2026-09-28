@@ -9,7 +9,7 @@ import { defaultGrammarView } from '$lib/schema/block-openers';
 import { drainDevWarns, takeDevWarns } from '$lib/test/support/warn-gate';
 
 /** A task item whose first block was swapped for a heading, the shape a plain fragment reparse
- *  used to leave in a task's slot. */
+ *  leaves in a task's slot. */
 function taskWithHeading(): CstNode {
 	const list = parse('- [ ] a\n').children[0];
 	list.children![0].children![0] = parse('# a\n').children[0];

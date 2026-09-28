@@ -385,7 +385,7 @@ const MANIFESTS: ManifestRule[] = [
 		matches: /(?<![\w.])readBlocks\s*\(/,
 		declared: {
 			'src/lib/tree-operations/list/task-paragraph.ts':
-				'defines `fragmentReaderAt`, the slot reader every write of bytes into a child slot reads through',
+				'defines `fragmentReaderAt`, the slot reader every write of bytes into a child slot reads through, and the plain reader it falls back to',
 			'src/lib/tree-operations/content-write.ts':
 				'asks what one line opens as alone, and re-reads a container’s rebuilt bytes; no container stands after a task marker',
 			'src/lib/tree-operations/list/list-builders.ts':
@@ -394,8 +394,6 @@ const MANIFESTS: ManifestRule[] = [
 				'counts the blocks joined or split bytes read as, to refuse a join or place a split; what it installs is read at the slot',
 			'src/lib/tree-operations/node-primitives.ts':
 				're-derives the metadata of a block written in place under its own kind; nothing changes kind here',
-			'src/lib/tree-operations/parse-block.ts':
-				'a paste cut’s head and tail as plain fragments; a head left in a task item’s first paragraph misses the slot reader, a known gap of the paste routes',
 			'src/lib/tree-operations/paste/body-write.ts':
 				're-reads a body-rule container’s escaped child; no list item declares a body rule',
 			'src/lib/tree-operations/paste/dispatch.ts':

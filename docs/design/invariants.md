@@ -1684,9 +1684,10 @@ next route forgets. `lint/leaf-write-doors.test.ts`, with G1.42 as the runtime h
 **G4.83 · Every plain fragment read says why.** Bytes written into a child slot read the way a
 reload reads them there, through `tree-operations/list/task-paragraph.ts :: fragmentReaderAt`
 (after a task checkbox, the first line stays paragraph text). A plain `readBlocks` in
-`tree-operations/`, `selection/` or `editor-actions/` is either a probe that installs nothing, a
-read of whole bytes no checkbox stands in front of, or a gap. The manifest lists each file with
-which one it is, so a new one has to say. `lint/manifest-rules.test.ts`.
+`tree-operations/`, `selection/` or `editor-actions/` is either a probe that installs nothing or a
+read of whole bytes no checkbox stands in front of, and a caller that knows its bytes land past a
+first slot says so with `plainFragmentReader`. The manifest lists each file with which one it is,
+so a new one has to say. `lint/manifest-rules.test.ts`.
 
 ## Accessibility
 

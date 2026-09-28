@@ -3,6 +3,8 @@ import { defaultStructuralHook } from '$lib/tree-operations/paste/hooks';
 import { parse } from '$lib/core/parser';
 import type { CstNode } from '$lib/core/nodes';
 import { fixtureReading } from '../../harness/fixture-grammar';
+import { plainFragmentReader } from '$lib/tree-operations/list/task-paragraph';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 
 // A clipboard blank-line row is a live block the parser produced, so it must survive the
 // boundary splice intact, and no empty-raw ('') node may be created beside it.
@@ -19,7 +21,8 @@ describe('structural paste at a block boundary', () => {
 			clipboard(),
 			undefined,
 			fixtureReading(),
-			'\n'
+			'\n',
+			plainFragmentReader(defaultGrammarView)
 		);
 		expect(result.replacement.map((n) => n.kind)).toEqual([
 			'paragraph', // Hello (leading slice)
@@ -39,7 +42,8 @@ describe('structural paste at a block boundary', () => {
 			clipboard(),
 			undefined,
 			fixtureReading(),
-			'\n'
+			'\n',
+			plainFragmentReader(defaultGrammarView)
 		);
 		expect(result.replacement.map((n) => n.kind)).toEqual([
 			'heading',

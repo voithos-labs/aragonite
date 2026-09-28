@@ -6,8 +6,15 @@ import {
 	buildListItemWithContent,
 	splitLeafForPaste
 } from '$lib/tree-operations/list/list-builders';
+import { plainFragmentReader } from '$lib/tree-operations/list/task-paragraph';
 import type { CstNode } from '$lib/core/nodes';
 import { defaultGrammarView } from '$lib/schema/block-openers';
+
+/** Both halves read as plain fragments, as they do outside a task item. */
+const plainHalves = {
+	leading: plainFragmentReader(defaultGrammarView),
+	trailing: plainFragmentReader(defaultGrammarView)
+};
 
 describe('list-builders', () => {
 	it('buildListItemWithContent inherits template metadata + sets marker raw via rebuild', () => {
@@ -56,7 +63,7 @@ describe('list-builders', () => {
 			5,
 			'\n',
 			undefined,
-			defaultGrammarView
+			plainHalves
 		);
 		expect(leadingNode!.raw).toBe('Hello\n');
 		expect(trailingNodes[0].raw).toBe('world\n');
@@ -70,7 +77,7 @@ describe('list-builders', () => {
 			0,
 			'\n',
 			undefined,
-			defaultGrammarView
+			plainHalves
 		);
 		expect(leadingNode).toBeNull();
 		expect(trailingNodes[0].raw).toBe('Hello\n');
@@ -84,7 +91,7 @@ describe('list-builders', () => {
 			5,
 			'\n',
 			undefined,
-			defaultGrammarView
+			plainHalves
 		);
 		expect(leadingNode!.raw).toBe('Hello\n');
 		expect(trailingNodes).toEqual([]);
@@ -98,7 +105,7 @@ describe('list-builders', () => {
 			5,
 			'\n',
 			undefined,
-			defaultGrammarView
+			plainHalves
 		);
 		expect(lineEnding).toBe('\r\n');
 		expect(leadingNode!.raw.endsWith('\r\n')).toBe(true);

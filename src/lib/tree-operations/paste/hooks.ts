@@ -7,6 +7,7 @@ import { CURSOR_END } from '../../block-component';
 import { isBuiltinBlockKind, type BlockKind, type CstNode } from '../../core/nodes';
 import { trailingLineEnding, trimTrailingLineEnding, type LineEnding } from '../../core/lines';
 import { buildPastedReplacement } from './paste-replacement';
+import type { FragmentReader } from '../list/task-paragraph';
 import { cutRangeFromDisplay } from '../node-ops';
 import {
 	getAllRegisteredKinds,
@@ -87,7 +88,8 @@ export function defaultStructuralHook(
 	blocks: CstNode[],
 	preDelete: PasteRange | undefined,
 	reading: Reading,
-	lineEnding: LineEnding
+	lineEnding: LineEnding,
+	readSlot: FragmentReader
 ): StructuralPasteResult {
 	const display = trimTrailingLineEnding(node.raw);
 	const cut = applyPreDelete(node, display, preDelete, offset, reading);
@@ -103,7 +105,8 @@ export function defaultStructuralHook(
 		cut.offset,
 		blocks,
 		lineEnding,
-		reading.grammar
+		reading.grammar,
+		readSlot
 	);
 	// The caret lands where the pasted bytes end, which the fix-up tracks when it merges the
 	// residue into the last pasted block.

@@ -91,4 +91,19 @@ test.describe('task checkbox: the text after the marker', () => {
 			expect(await editor.parseConverged()).toBe(true);
 		});
 	}
+	test('blocks pasted after `# b` in `- [ ] # bc` leave `# b` as text beside the box', async ({
+		page
+	}) => {
+		await editor.loadContent('- [ ] # bc\n');
+		await editor.focusBlockAtPath([0, 0, 0], 3);
+		await editor.seedClipboard('x\n\ny');
+
+		await editor.paste();
+
+		await editor.bridge.waitForSourceContains('y');
+		expect(await editor.bridge.getSource()).toMatch(/^- \[ \] # b\n/);
+		await expect(page.locator('.task-checkbox')).toHaveCount(1);
+		await expect(page.locator('.heading-1')).toHaveCount(0);
+		expect(await editor.parseConverged()).toBe(true);
+	});
 });

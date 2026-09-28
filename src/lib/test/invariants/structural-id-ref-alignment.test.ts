@@ -19,6 +19,7 @@ import type { BlockListState } from '$lib/reactivity/block-list-state.svelte';
 import { replaceRefs } from '$lib/reactivity/publish-ref.svelte';
 import type { CstNode } from '$lib/core/nodes';
 import { defaultGrammarView } from '$lib/schema/block-openers';
+import { plainFragmentReader } from '$lib/tree-operations/list/task-paragraph';
 
 /**
  * After every structural op, `children`, the keyed-id array and the ref array stay the same length
@@ -329,7 +330,8 @@ describe('G2.8 deep childIds backfill on reparse-into-container (#4 class)', () 
 			4,
 			nested,
 			'\n',
-			defaultGrammarView
+			defaultGrammarView,
+			plainFragmentReader(defaultGrammarView)
 		);
 		await h.actions.replaceBlock(0, replacement);
 

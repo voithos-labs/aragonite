@@ -30,6 +30,11 @@ Later lines of the item still open blocks as they do in any list item.
     and the shape property keeps list-item bodies out of its split gesture, so no test split a
     to-do whose text would open a block on its own.
 
+- pasting two paragraphs right after `# b` in `- [ ] # bc` leaves `- [ ] # b` with its box and
+  no heading, the pasted text below it, and the tree reloads to the same shape (#666).
+  - Miss-analysis: the paste re-read the text left before the cut on its own, where `# b` opens a
+    heading, and the paste suites only ever split plain paragraphs and plain items.
+
 ## Error cases
 
 - zero `[invariant:…]` console fires across every scenario (automatic via the shared e2e fixture)
