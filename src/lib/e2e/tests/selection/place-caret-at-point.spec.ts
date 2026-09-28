@@ -58,7 +58,7 @@ test.describe('placeCaretAtPoint is the host shell’s caret entry point', () =>
 		const para = await blockBox(0);
 		const margin = await pointInGap(
 			editor.editorContainer,
-			editor.getBlock(0),
+			editor.page.locator(`[data-block-path='[0]']`),
 			'right',
 			para.top + 6
 		);

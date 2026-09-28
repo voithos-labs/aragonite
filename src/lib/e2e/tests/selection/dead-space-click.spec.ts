@@ -42,9 +42,13 @@ async function belowDocumentY(editor: EditorPage): Promise<number> {
 	return Math.min((tail ? tail.y + tail.height : last.bottom) + 8, root.bottom - 4);
 }
 
+// The block's host, whose box is the whole block: a table's grid is narrower than its host.
+const blockHost = (editor: EditorPage, index: number) =>
+	editor.page.locator(`[data-block-path='${JSON.stringify([index])}']`);
+
 // The middle of the editor's right padding, level with `y`, beside block `index`.
 function rightMargin(editor: EditorPage, index: number, y: number) {
-	return pointInGap(editor.editorContainer, editor.getBlock(index), 'right', y);
+	return pointInGap(editor.editorContainer, blockHost(editor, index), 'right', y);
 }
 
 // A click at offset 0 of block 0: a click a few pixels into the box lands after the first
@@ -235,7 +239,7 @@ test.describe('dead-space clicks in a host-padded block list', () => {
 
 	// The block's own box ends short of the list's edge, and the band between is the list's padding.
 	const listPadding = (y: number) =>
-		pointInGap(editor.page.locator('.editor > .block-list'), editor.getBlock(0), 'right', y);
+		pointInGap(editor.page.locator('.editor > .block-list'), blockHost(editor, 0), 'right', y);
 
 	test('a click in the list’s own padding lands the caret at the end of that line', async () => {
 		await editor.loadContent('first para\n\nsecond para\n');
