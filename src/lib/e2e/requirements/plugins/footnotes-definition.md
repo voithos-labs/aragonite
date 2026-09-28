@@ -25,6 +25,11 @@ the DOM.
 - the note declines the block below it: Backspace at the start of the paragraph following a definition changes no bytes and puts the caret at the end of the note's last body leaf. From the outside a note behaves like a leaf, so body text never becomes note text
 - one undo restores a body edit: after typing into the body, a single Ctrl+Z returns the source to the seed bytes
 
+- live mode cleans a join in the body: a selection from inside bold to inside italic in the
+  body's first line, deleted with Backspace, leaves `[^a]: Some boalic words` with no `**` in the
+  source (miss-analysis: the join read the body's `[^a]: ` prefix as a list marker it couldn't
+  find, so it refused every cleanup here, and no live scenario ran inside a note)
+
 ## User interactions
 
 - typing, Backspace and Ctrl+Z are real keystrokes, each asserted against the tree read by path, the serialized bytes, or the rendered marker in the DOM

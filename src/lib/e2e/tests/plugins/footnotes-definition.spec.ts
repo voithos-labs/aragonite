@@ -1,5 +1,6 @@
 import { test, expect } from '../../fixtures';
 import { PluginsPage, readContainer, activeBlockPath, capturedErrors } from './helpers';
+import { clickWordSettled, extendTo, stepTo } from '../presentation/helpers';
 
 /**
  * The GFM footnote definition as a container shaped like a list item: the definition side of the
@@ -129,6 +130,24 @@ test.describe('plugin container: footnote definition', () => {
 		await expect
 			.poll(() => editor.bridge.getSelection())
 			.toMatchObject({ focus: { path: [0, 0], offset: 14 } });
+		expect(await capturedErrors(page)).toEqual([]);
+	});
+
+	// The body's first line reads as a fragment behind the marker, so the live join cleans up there
+	// the way it does in a paragraph.
+	test('live: a selection across two constructs in the body deletes without a run', async ({
+		page
+	}) => {
+		await editor.loadContent('A ref [^a] here.\n\n[^a]: Some **bold** and *italic* words\n');
+		await editor.setPresentationMode('live');
+		await editor.waitForRenderFlush();
+		await clickWordSettled(editor, page, 'Some');
+		await stepTo(editor, page, 'ArrowRight', 9);
+		await extendTo(editor, page, 'ArrowRight', [1, 0], 21);
+
+		await page.keyboard.press('Backspace');
+		await editor.bridge.waitForSourceContains('[^a]: Some boalic words\n');
+		expect(await editor.bridge.getSource()).not.toContain('**');
 		expect(await capturedErrors(page)).toEqual([]);
 	});
 
