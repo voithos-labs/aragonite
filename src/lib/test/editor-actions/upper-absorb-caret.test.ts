@@ -71,7 +71,8 @@ describe('caret after a fold above the edited block: top level', () => {
 		expect(h.harness.doc.children.map((c) => [c.kind, c.raw])).toEqual([
 			['list', '- item\n\n\n    code\n']
 		]);
-		expect(h.calls).toEqual([{ slot: 0, path: [0, 1], offset: 0 }]);
+		// A leaf inside the item, which the landing resolves below the list's own ref.
+		expect(h.harness.landings).toEqual([{ leafPath: [0, 0, 1], offset: 0 }]);
 	});
 
 	// The decline side: nothing merged above, so the caret keeps the offset it was handed.

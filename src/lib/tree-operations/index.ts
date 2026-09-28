@@ -14,13 +14,7 @@ export {
 } from './settle';
 export { updateNodeContent, reclassifyContainer } from './content-write';
 export type { MergeIntoPrevResult, MergeResult, SplitResult } from './node-ops';
-export {
-	splitNode,
-	assertSplitLanding,
-	assertSingleNodeSink,
-	mergeWithNext,
-	mergeIntoPrevDeepLeaf
-} from './node-ops';
+export { splitNode, assertSingleNodeSink, mergeWithNext, mergeIntoPrevDeepLeaf } from './node-ops';
 
 export { unwrapFirstItemFromList, mergeListItemIntoPrevious } from './list/unwrap-merge';
 export { renumberOrderedList, normalizeItemMarkerToList } from './list/ordered-markers';

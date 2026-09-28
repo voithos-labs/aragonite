@@ -768,6 +768,7 @@
 		linkCard,
 		inlineMenuCombobox: inlineMenu.comboboxFor,
 		controller,
+		caretLanding,
 		pasteCoordinator,
 		reorder,
 		registryView,

@@ -131,7 +131,7 @@ describe('a keystroke whose container collapses into its follower', () => {
 		expect(serialize(h.deps.doc)).toBe('> a\n>\n> - \ntext\n');
 		expect(h.deps.doc.children.map((c) => c.kind)).toEqual(['blockquote']);
 		expect(describeConvergence(h.deps.doc)).toBeNull();
-		expect(h.focus.landings).toEqual([{ path: [0, 1, 0, 0], offset: 0 }]);
+		expect(h.landings).toEqual([{ leafPath: [0, 1, 0, 0], offset: 0 }]);
 	});
 });
 

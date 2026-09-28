@@ -41,7 +41,7 @@ describe('github alert: per-keystroke marker formation', () => {
 
 		expect(h.getNode().kind).toBe('githubAlert');
 		expect(h.getNode().children!.map((c) => c.raw)).toEqual(['body\n']);
-		expect(h.focus.landings).toEqual([{ path: [...quote, 0], offset: 0 }]);
+		expect(h.landings).toEqual([{ leafPath: [...quote, 0], offset: 0 }]);
 	});
 
 	it('keeps a multi-block body addressable, ids and all', async () => {

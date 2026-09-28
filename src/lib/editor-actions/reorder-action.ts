@@ -38,7 +38,10 @@ export function createReorderAction(
 		offset: number,
 		focusAfter: boolean
 	): Promise<boolean> {
-		let landing = to;
+		let landedAt = to;
+		// The caret moves with the block, so a block moved off screen scrolls back into view.
+		const landing = (parentPath: readonly number[]) => () =>
+			focusAfter ? { path: extendDocPath(parentPath, landedAt), offset: CURSOR_START } : null;
 
 		if (unit.scope === 'document') {
 			return controller.commitStructural({
@@ -56,13 +59,11 @@ export function createReorderAction(
 						deps.sharing,
 						deps.reading.grammar
 					);
-					landing = settled.landing;
+					landedAt = settled.landing;
 					return settled.change;
 				},
-				afterTick: () => {
-					if (focusAfter) deps.blockRefs[landing]?.focus(CURSOR_START);
-				},
-				announce: () => movedBlockToPosition(landing + 1, deps.doc.children.length)
+				landing: landing([]),
+				announce: () => movedBlockToPosition(landedAt + 1, deps.doc.children.length)
 			});
 		}
 
@@ -88,7 +89,7 @@ export function createReorderAction(
 					scope.sharing,
 					deps.reading.grammar
 				);
-				landing = settled.landing;
+				landedAt = settled.landing;
 				if (unit.renumberMarkers) {
 					// Ordered markers depend on position, so this copies each item whose marker it
 					// rewrites; the commit's rebuild then concatenates the fresh raws.
@@ -96,14 +97,12 @@ export function createReorderAction(
 				}
 				return settled.change;
 			},
-			afterTick: () => {
-				if (focusAfter) state.innerBlockRefs[landing]?.focus(CURSOR_START);
-			},
+			landing: landing(unit.parentPath),
 			// Re-resolved, not `parent`: the commit's copy-before-write replaced that node, so the
 			// one resolved above still holds the pre-move children.
 			announce: () =>
 				movedBlockToPosition(
-					landing + 1,
+					landedAt + 1,
 					blockNodeAt(deps.doc, unit.parentPath)?.children?.length ?? 0
 				)
 		});
@@ -130,7 +129,7 @@ export function createReorderAction(
 		const target = resolveAndClamp(fromPath, computeTo);
 		if (!target) return false;
 		// Drop any cross-block selection so the overlay does not fight the move; the commit's
-		// afterTick places the caret again when the caller wants it.
+		// landing places the caret again when the caller wants it.
 		deps.selectionState.collapse();
 		return commitReorder(target.unit, target.to, caretOffset(), focusAfter);
 	}

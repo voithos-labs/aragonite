@@ -32,10 +32,7 @@ export function createPasteCoordinator(
 		landCaret,
 		commitLeafText: (leafPath, text, opts) => commitLeafTextAt(root, leafPath, text, opts),
 		async replaceBlock(blockPath, replacement, focus, opts) {
-			// Every paste lands through the coordinator's one landing, which gives up after an undo.
-			const scope = createPathScope(root, docPathFrom(blockPath.slice(0, -1)), (pos) =>
-				coordinator.landCaret([...pos.path], pos.offset)
-			);
+			const scope = createPathScope(root, docPathFrom(blockPath.slice(0, -1)));
 			if (!scope) return null;
 			return createBlockEditCore(scope).replaceBlock(
 				blockPath[blockPath.length - 1],

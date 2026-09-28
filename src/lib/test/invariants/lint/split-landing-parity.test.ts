@@ -1,8 +1,7 @@
 /**
- * Every split caller reads the split primitive's landing answer and asserts against it, rather
- * than putting its caret at `i + 1`: a first half that reparses into several blocks pushes the
- * second half down, and the caret lands on the first half's tail. The dev-mode check only fires
- * where a caller calls it, so this scan covers the sites that don't (G1.34).
+ * Every split caller reads the split primitive's own landing index rather than putting its caret
+ * at `i + 1`: a first half that reparses into several blocks pushes the second half down, and the
+ * caret lands on the first half's tail (G4.43).
  */
 
 import { describe, it, expect } from 'vitest';
@@ -11,8 +10,8 @@ import { probeFile } from './file-rule';
 
 /** Files that may name `splitNode`, aliased or not. */
 const SPLIT_NAMERS: Record<string, string> = {
-	'src/lib/tree-operations/node-ops.ts': 'defines the primitive and the guard',
-	'src/lib/tree-operations/index.ts': 're-exports both',
+	'src/lib/tree-operations/node-ops.ts': 'defines the primitive',
+	'src/lib/tree-operations/index.ts': 're-exports it',
 	'src/lib/editor-actions/block-edit-core.ts': 'the top-level and container Enter split',
 	'src/lib/editor-actions/list-context.ts': 'the list-item Enter split'
 };
@@ -34,8 +33,9 @@ function splitCallName(code: string): string {
 }
 
 const countCalls = (code: string, name: string): number => callSites(code, name).length;
+const countReads = (code: string): number => code.match(/\.secondHalfIndex\b/g)?.length ?? 0;
 
-describe('G1.34 split-landing parity census', () => {
+describe('G4.43 split-landing parity census', () => {
 	const sources = collectEditorSources();
 
 	it('the files naming splitNode are the declared ones', () => {
@@ -47,25 +47,14 @@ describe('G1.34 split-landing parity census', () => {
 		).toEqual(Object.keys(SPLIT_NAMERS).sort());
 	});
 
-	it('every split caller reads secondHalfIndex and asserts the landing against it', () => {
-		const callers = sources.filter((f) => namesSplit(f) && !NON_LANDING.has(f.relPath));
-		expect(callers.length).toBeGreaterThan(0);
-		for (const file of callers) {
-			expect([file.relPath, namesToken('secondHalfIndex')(file)]).toEqual([file.relPath, true]);
-			expect([file.relPath, namesToken('assertSplitLanding')(file)]).toEqual([file.relPath, true]);
-		}
-	});
-
 	// Per call site, not per file: an allowlisted caller growing a second split whose landing it
 	// recomputes would pass a scan done per file.
-	it('each split call in a caller carries its own landing assertion', () => {
-		for (const file of sources.filter((f) => namesSplit(f) && !NON_LANDING.has(f.relPath))) {
-			const { code } = file;
+	it('each split call in a caller reads its own secondHalfIndex', () => {
+		const callers = sources.filter((f) => namesSplit(f) && !NON_LANDING.has(f.relPath));
+		expect(callers.length).toBeGreaterThan(0);
+		for (const { relPath, code } of callers) {
 			const splits = countCalls(code, splitCallName(code));
-			expect([file.relPath, countCalls(code, 'assertSplitLanding') >= splits]).toEqual([
-				file.relPath,
-				true
-			]);
+			expect([relPath, countReads(code) >= splits]).toEqual([relPath, true]);
 		}
 	});
 
@@ -79,19 +68,18 @@ describe('G1.34 split-landing parity census', () => {
 		expect(probe('const liveSplitNode = 1;')).toBe(false);
 	});
 
-	it('a split caller landing at i + 1 without the guard fails the parity branch', () => {
-		const rogue = 'const r = splitNode(p, i, 0);\nscope.refAt(i + 1)?.focus(0);';
-		expect(namesSplit(probeFile({ relPath: 'x', code: rogue }))).toBe(true);
-		expect(countCalls(rogue, 'assertSplitLanding') >= countCalls(rogue, 'splitNode')).toBe(false);
+	it('a split caller landing at i + 1 fails the parity branch', () => {
+		const rogue = 'const r = splitNode(p, i, 0);\nlanding: () => scope.at(i + 1, [], 0)';
+		expect(countReads(rogue) >= countCalls(rogue, 'splitNode')).toBe(false);
 	});
 
-	it('a second unguarded split inside an already-guarded file fails the per-site branch', () => {
+	it('a second split inside a file that reads one index fails the per-site branch', () => {
 		const code =
 			"import { splitNode as performSplit } from '../tree-operations';\n" +
-			'performSplit(p, i, 0);\nassertSplitLanding(split, split.secondHalfIndex);\n' +
-			'performSplit(p, j, 0);\nscope.refAt(j + 1)?.focus(0);';
+			'const a = performSplit(p, i, 0);\nscope.at(a.secondHalfIndex, [], 0);\n' +
+			'performSplit(p, j, 0);\nscope.at(j + 1, [], 0);';
 		expect(splitCallName(code)).toBe('performSplit');
 		expect(countCalls(code, 'performSplit')).toBe(2);
-		expect(countCalls(code, 'assertSplitLanding') >= 2).toBe(false);
+		expect(countReads(code) >= 2).toBe(false);
 	});
 });

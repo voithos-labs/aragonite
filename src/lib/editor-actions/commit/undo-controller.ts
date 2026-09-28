@@ -357,7 +357,7 @@ export function createUndoController(
 		});
 	}
 
-	/** `discarded` is a `discardIfNoop` commit that changed nothing: no write, but afterTick runs. */
+	/** `discarded` is a `discardIfNoop` commit that changed nothing: no write, but it still lands. */
 	type CommitOutcome = 'written' | 'discarded' | 'failed';
 
 	function runCommitCeremony(args: CommitArgs): CommitOutcome {

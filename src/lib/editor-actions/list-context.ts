@@ -5,9 +5,9 @@
  */
 
 import type { BlockEditActions, FocusActions, ListContext } from '../action-contracts';
-import { CURSOR_EXACT_START, CURSOR_START, FOCUS_LAST_START } from '../block-component';
+import { CURSOR_EXACT_START, CURSOR_START } from '../block-component';
 import type { CstNode, ListItemMetadata } from '../core/nodes';
-import type { NodeView } from '../core/node-views';
+import type { DocumentView, NodeView } from '../core/node-views';
 import { metadataOf } from '../core/nodes';
 import type { LineEnding } from '../core/lines';
 import { extendDocPath, docPathFrom } from '../cursor/coordinate-spaces';
@@ -19,7 +19,8 @@ import {
 	stampStructuralChange,
 	type StructuralChange
 } from '../tree-operations/structural-change';
-import { splitNode as performSplit, assertSplitLanding, emptyParagraph } from '../tree-operations';
+import { splitNode as performSplit, emptyParagraph } from '../tree-operations';
+import { lastCaretLeaf } from '../selection/path-lookup';
 import { ensureUnsharedChild } from '../tree-operations/unshare';
 import { rebuildListRaw } from '../schema/container-rebuilders';
 import {
@@ -64,6 +65,12 @@ function mintFollowerItem(prevMeta: ListItemMetadata | undefined, children: CstN
 }
 
 export function createListContext(deps: ListContextDeps): ListContext {
+	/** Item `index` of this list, at `offset`; a container position the landing resolves to a leaf. */
+	const itemAt = (index: number, offset: number) => ({
+		path: extendDocPath(deps.scope.path, index),
+		offset
+	});
+
 	return {
 		async indentItem(itemIndex: number): Promise<boolean> {
 			const node = deps.scope.node;
@@ -93,12 +100,18 @@ export function createListContext(deps: ListContextDeps): ListContext {
 						path: [...deps.scope.path, itemIndex - 1]
 					};
 
+			// The moved item's path below this list once it lands in the previous item.
+			let movedTo: number[] = [];
 			return deps.controller.commitMultiScope({
 				scopes: [{ node, state: deps.state, path: deps.scope.path }, destination],
 				snapshot: { path: extendDocPath(deps.scope.path, itemIndex), offset: 0 },
 				mutate: ([outerScope, destScope]) => {
 					const sharing = outerScope.sharing;
 					const [movedItem] = outerScope.children.splice(itemIndex, 1);
+					const at = destScope.children.length;
+					movedTo = existingNestedList
+						? [itemIndex - 1, existingNestedIdx, at]
+						: [itemIndex - 1, at, 0];
 
 					let destList: CstNode;
 					if (existingNestedList) {
@@ -134,8 +147,16 @@ export function createListContext(deps: ListContextDeps): ListContext {
 					detail: { action: 'indentItem', itemIndex },
 					eventPath: docPathFrom(deps.scope.path)
 				},
-				afterTick: () => {
-					deps.state.innerBlockRefs[itemIndex - 1]?.focus(FOCUS_LAST_START);
+				// The moved item's last leaf, at its start; the walk runs over this list's own items.
+				landing: () => {
+					const items: DocumentView = {
+						kind: 'document',
+						prefix: '',
+						children: deps.scope.node.children ?? [],
+						suffix: ''
+					};
+					const leaf = lastCaretLeaf(items, movedTo);
+					return leaf && { path: docPathFrom([...deps.scope.path, ...leaf]), offset: CURSOR_START };
 				}
 			});
 		},
@@ -177,9 +198,7 @@ export function createListContext(deps: ListContextDeps): ListContext {
 					detail: { itemIndex },
 					eventPath: docPathFrom(deps.scope.path)
 				},
-				afterTick: () => {
-					deps.state.innerBlockRefs[itemIndex + 1]?.focus(0);
-				}
+				landing: () => itemAt(itemIndex + 1, 0)
 			});
 		},
 
@@ -224,9 +243,8 @@ export function createListContext(deps: ListContextDeps): ListContext {
 					);
 					stampStructuralChange(itemChildren, split.change, sharing);
 					// The primitive's index, not `innerIndex + 1`: a first half that parses to several
-					// blocks stays with this item (G1.34 checks the index).
+					// blocks stays with this item.
 					const landing = split.secondHalfIndex;
-					assertSplitLanding(split, landing);
 					const secondHalf = itemChildren.splice(landing);
 					if (secondHalf.length > 0) {
 						secondHalf[0].leadingTrivia = '';
@@ -250,9 +268,7 @@ export function createListContext(deps: ListContextDeps): ListContext {
 					detail: { at: offset, itemIndex, innerIndex },
 					eventPath: docPathFrom(deps.scope.path)
 				},
-				afterTick: () => {
-					deps.state.innerBlockRefs[itemIndex + 1]?.focus(CURSOR_EXACT_START);
-				}
+				landing: () => itemAt(itemIndex + 1, CURSOR_EXACT_START)
 			});
 		},
 
@@ -341,9 +357,7 @@ export function createListContext(deps: ListContextDeps): ListContext {
 					detail: { action: 'promoteNestedItem', parentItemIdx, nestedItemIdx },
 					eventPath: docPathFrom(deps.scope.path)
 				},
-				afterTick: () => {
-					deps.state.innerBlockRefs[parentItemIdx + 1]?.focus(CURSOR_START);
-				}
+				landing: () => itemAt(parentItemIdx + 1, CURSOR_START)
 			});
 		},
 

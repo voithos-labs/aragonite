@@ -16,6 +16,7 @@ import type { WriteMode } from './schema/block-kind-descriptor';
 import type { DocPath } from './selection/path-math';
 import type { CaretPosition, Landing } from './selection/primitives';
 import type { LegalWrite } from './tree-operations/content-write';
+import type { LandingOutcome } from './selection/caret-landing';
 
 /**
  * Where the caret goes back to on undo when nothing is focused: `path` is a document-absolute
@@ -132,9 +133,6 @@ export interface FocusActions {
 		position: FocusPosition,
 		options?: MoveFocusOptions
 	): void | Promise<void>;
-	/** Mount a top-level block that is not rendered yet before placing a caret in it; see
-	 *  `EditorActionsDeps.revealPath`. */
-	revealPath(path: number[]): Promise<BlockComponent | null>;
 	/** @internal Put the caret at a between-blocks boundary that allows one. Required: a container
 	 *  that fails to forward it makes every such caret below it vanish. */
 	tryGapStop(parentPath: number[], boundaryIndex: number): boolean;
@@ -290,6 +288,9 @@ export interface ContainerEditActions {
 	): Promise<T>;
 	/** The keystroke's write outside a commit, for a write that keeps the leaf's kind. */
 	writeLeafInPlace(leafPath: DocPath, write: LegalWrite, caret: number): InPlaceResult;
+	/** Put the caret at a document position through the editor's caret landing, for an edit that
+	 *  moves the caret without a commit. */
+	land(pos: CaretPosition): Promise<LandingOutcome>;
 }
 
 export type InPlaceResult =
