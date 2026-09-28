@@ -24,6 +24,9 @@ because the source is legitimately allowed to differ per mode.
   bytes it wrote)
 - source: the same cell paste is byte-literal too, since the walk crosses the
   painted delimiters one character at a time and the halves it leaves stand as cut
+- live, at the top level and in a list item: pasting `X` over the whole word in
+  `**bold** text` gives `**X** text`, same bytes as typing `X` over that selection.
+  The pasted text fills the bold back in, so there's nothing stranded to clean up
 
 ## Edge cases
 
@@ -38,3 +41,9 @@ because the source is legitimately allowed to differ per mode.
 
 - zero `[invariant:…]` console fires across every scenario (automatic via the
   shared e2e fixture)
+
+## Miss-analysis
+
+The paste rows only ever cut a range that left a run unpaired, never one the pasted
+text fills back in, so nobody noticed the cut got cleaned up before the text arrived
+(and dropped the bold that typing keeps).
