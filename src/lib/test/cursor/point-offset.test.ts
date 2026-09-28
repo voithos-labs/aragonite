@@ -18,6 +18,8 @@ function setPointProbe(probe: PointProbe): void {
 function mountBoxed(): HTMLElement {
 	const el = document.createElement('div');
 	el.textContent = TEXT;
+	// jsdom computes a medium border where no border style is set; a browser computes none.
+	el.style.border = '0';
 	document.body.appendChild(el);
 	el.getBoundingClientRect = () => ({ ...BOX, width: 100, height: 20 }) as DOMRect;
 	return el;
@@ -58,11 +60,18 @@ describe('caretOffsetAtPoint: the nearest offset in one element', () => {
 	});
 
 	// Miss-analysis: the stubbed box had no padding, so a clamp that stopped at the border passed.
-	it('clamps inside the border and padding, onto the text, where every platform keeps the column', () => {
+	it('clamps a row inside the border and padding, level with a line, where every OS keeps the column', () => {
 		el.style.border = '1px solid';
-		el.style.padding = '4px 10px';
-		caretOffsetAtPoint(el, 9999, -500);
-		expect(asked).toEqual([{ x: BOX.right - 11 - 1, y: BOX.top + 5 + 1 }]);
+		el.style.padding = '4px 0';
+		caretOffsetAtPoint(el, 140, -500);
+		expect(asked).toEqual([{ x: 140, y: BOX.top + 5 + 1 }]);
+	});
+
+	// Miss-analysis: every stubbed box had empty side padding, so no case held a hanging marker.
+	it('keeps a column in the side padding, where a hanging list marker sits', () => {
+		el.style.padding = '4px 20px';
+		caretOffsetAtPoint(el, -500, 60);
+		expect(asked).toEqual([{ x: BOX.left + 1, y: 60 }]);
 	});
 
 	it('clamps above a classic scrollbar, which sits inside the border below the padding', () => {
