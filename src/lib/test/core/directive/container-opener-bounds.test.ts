@@ -1,10 +1,10 @@
-import { describe, it, expect } from 'vitest';
+import { beforeEach, describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { activateDirectiveGrammar } from '$lib/core/directive/activate';
 import { expectBoundedGrowth, measureScanGrowth } from '../../harness/scan-growth';
 
-activateDirectiveGrammar(); // before any parse
+beforeEach(activateDirectiveGrammar);
 
 const parseOnly = (source: string) => void parse(source);
 

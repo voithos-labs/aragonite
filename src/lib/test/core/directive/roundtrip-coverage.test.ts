@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import fc from 'fast-check';
-import { getPluginMetadata, type CstNode } from '$lib/core/nodes';
+import { getPluginMetadata, type CstNode, type PluginBlockKind } from '$lib/core/nodes';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { parseInline } from '$lib/core/inline';
@@ -16,7 +16,14 @@ import { registerDirective, type ParsedDirective } from '$lib/core/directive/reg
 import { arbGfmDoc, freshOrFixedSeed } from '../../invariants/arbitraries';
 import { activateDirectiveGrammar } from '$lib/core/directive/activate';
 
-beforeEach(activateDirectiveGrammar);
+let NOTE: PluginBlockKind;
+let WARNING: PluginBlockKind;
+
+beforeEach(() => {
+	activateDirectiveGrammar();
+	NOTE = declarePluginKind('directiveNoteProbe');
+	WARNING = declarePluginKind('directiveWarningProbe');
+});
 
 // Round-trips a generator spanning every directive shape. Curated non-ASCII pools keep CJK,
 // astral and combining boundaries reachable, and the self-tests below prove they are reached.
@@ -203,9 +210,6 @@ const arbDirectiveDoc = fc.oneof(
 );
 
 // ── CST walks (rebuild inverse + reachability) ────────────────────────────────
-
-const NOTE = declarePluginKind('directiveNoteProbe');
-const WARNING = declarePluginKind('directiveWarningProbe');
 
 const isContainerNode = (node: CstNode): boolean =>
 	node.kind === DIRECTIVE_CONTAINER || node.kind === NOTE || node.kind === WARNING;

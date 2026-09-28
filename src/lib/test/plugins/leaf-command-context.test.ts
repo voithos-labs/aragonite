@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { beforeEach, describe, it, expect, vi, afterEach } from 'vitest';
 import { dispatchKeyCommand, registerBlockCommand } from '$lib/schema/block-commands';
 import { normalizeChordStrict } from '$lib/schema/keybindings';
 import type { KeybindingOverrideMap } from '$lib/schema/keybinding-overrides';
@@ -6,15 +6,17 @@ import { declarePluginKind } from '$lib/schema/plugin-kind';
 import type { EditorContext } from '$lib/schema/plugin-install';
 import { declareOwnedKind } from '$lib/test/support/owned-kind';
 import { buildLeafCommandContext } from '$lib/components/blocks/editable-leaf';
-import type { AnyBlockKind, CstNode } from '$lib/core/nodes';
+import type { AnyBlockKind, CstNode, PluginBlockKind } from '$lib/core/nodes';
 import type { AnyCommandId } from '$lib/schema/command-id';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { commandContextWith } from '$lib/test/support/command-context';
 
-// Branded plugin kinds, declared once at module scope (the reset clears commands,
-// not kind declarations; a per-test declare would double-throw).
-const leaf = declarePluginKind('demoLeaf');
-const leafAlt = declarePluginKind('demoLeafAlt');
+let leaf: PluginBlockKind;
+let leafAlt: PluginBlockKind;
+beforeEach(() => {
+	leaf = declarePluginKind('demoLeaf');
+	leafAlt = declarePluginKind('demoLeafAlt');
+});
 
 const leafNode = (kind: AnyBlockKind = leaf): CstNode =>
 	({ kind, leadingTrivia: '', raw: '' }) as CstNode;

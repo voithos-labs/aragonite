@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { installPlugins } from '$lib';
 import { admonitionsPlugin } from '$lib/plugins/admonitions';
 import { parse } from '$lib/core/parser';
@@ -17,7 +17,7 @@ import { testContainer } from '$lib/test/harness/test-kinds';
 
 let THROWING: AnyBlockKind;
 
-beforeAll(() => {
+beforeEach(() => {
 	installPlugins([admonitionsPlugin()]);
 	THROWING = testContainer('spec-throwing-rebuild', {
 		rebuildRaw: () => {

@@ -1,4 +1,5 @@
-import { describe, it, expect, afterEach } from 'vitest';
+import { beforeEach, describe, it, expect, afterEach } from 'vitest';
+import type { PluginBlockKind } from '$lib/core/nodes';
 import { registerBlockCommand, getBlockCommand } from '$lib/schema/block-commands';
 import { declarePluginKind } from '$lib/schema/plugin-kind';
 import {
@@ -9,11 +10,14 @@ import {
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 
-// Declared once at module scope: the reset clears the command registries but not the
-// plugin-kind declarations, so a per-test declare would double-throw.
-const note = declarePluginKind('note');
-const noteA = declarePluginKind('note-a');
-const noteB = declarePluginKind('note-b');
+let note: PluginBlockKind;
+let noteA: PluginBlockKind;
+let noteB: PluginBlockKind;
+beforeEach(() => {
+	note = declarePluginKind('note');
+	noteA = declarePluginKind('note-a');
+	noteB = declarePluginKind('note-b');
+});
 
 afterEach(() => {
 	__resetSchemaRegistriesForTests();

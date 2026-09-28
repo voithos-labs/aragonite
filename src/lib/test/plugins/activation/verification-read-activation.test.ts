@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // Miss-analysis: the reparsing checks only ran with every plugin active, where any grammar agrees.
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { resetPluginPlatformForTests } from '$lib/testing';
+import { describe, expect, it, beforeEach } from 'vitest';
+
 import { installPlugins } from '$lib/schema/plugin-install';
 import { emojiPlugin } from '$lib/plugins/emoji';
 import { latexPlugin } from '$lib/plugins/latex';
@@ -17,14 +17,12 @@ import {
 import { grammarListing } from './grammar-listing';
 import { fixtureReading } from '$lib/test/harness/fixture-grammar';
 
-beforeAll(() => {
-	resetPluginPlatformForTests();
+beforeEach(() => {
 	installPlugins([
 		latexPlugin({ renderer: () => ({ dom: document.createElement('span') }) }),
 		emojiPlugin()
 	]);
 });
-afterAll(resetPluginPlatformForTests);
 
 /** An editor that lists neither latex nor emoji, so it draws `$x$` and `:smile:` as text. */
 const withoutEither = () => grammarListing([]);

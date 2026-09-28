@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { installPlugins } from '$lib';
 import { admonitionsPlugin } from '$lib/plugins/admonitions';
 import type { CstNode, Document } from '$lib/core/nodes';
@@ -15,7 +15,7 @@ import { defaultGrammarView } from '$lib/schema/block-openers';
 // is non-blank, so once that block turns blank the fix-up makes the line a block.
 // Miss-analysis: GH #393, no case blanked the paragraph above a quote's trailing bare `>` line.
 
-beforeAll(() => {
+beforeEach(() => {
 	installPlugins([admonitionsPlugin()]);
 });
 

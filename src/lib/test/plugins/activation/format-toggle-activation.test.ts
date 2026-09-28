@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // Miss-analysis: no toggle test ran over latex or emoji syntax in an editor drawing it as text.
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { resetPluginPlatformForTests } from '$lib/testing';
+import { describe, expect, it, beforeEach } from 'vitest';
+
 import { installPlugins } from '$lib/schema/plugin-install';
 import { emojiPlugin } from '$lib/plugins/emoji';
 import { latexPlugin } from '$lib/plugins/latex';
@@ -10,14 +10,12 @@ import type { InlineMarkKind } from '$lib/schema/inline-construct-policy';
 import { grammarListing } from './grammar-listing';
 import { fixtureReading } from '$lib/test/harness/fixture-grammar';
 
-beforeAll(() => {
-	resetPluginPlatformForTests();
+beforeEach(() => {
 	installPlugins([
 		latexPlugin({ renderer: () => ({ dom: document.createElement('span') }) }),
 		emojiPlugin()
 	]);
 });
-afterAll(resetPluginPlatformForTests);
 
 /** The bytes a toggle writes in an editor that lists neither latex nor emoji. */
 function toggledWithoutEither(

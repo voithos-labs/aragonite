@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeEach } from 'vitest';
-import type { CstNode } from '$lib/core/nodes';
+import type { CstNode, PluginBlockKind, PluginInlineKind } from '$lib/core/nodes';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { parseInline } from '$lib/core/inline';
@@ -13,11 +13,14 @@ beforeEach(activateDirectiveGrammar);
 // Leaf and text directives must dispatch a registered name exactly as a container does
 // (pinned in roundtrip-property.test.ts).
 
-const CUSTOM_LEAF = declarePluginKind('directiveCustomLeafProbe');
-const FACTORY_LEAF = declarePluginKind('directiveFactoryLeafProbe');
-const GLOSS = declarePluginInlineKind('directiveGlossProbe');
+let CUSTOM_LEAF: PluginBlockKind;
+let FACTORY_LEAF: PluginBlockKind;
+let GLOSS: PluginInlineKind;
 
 beforeEach(() => {
+	CUSTOM_LEAF = declarePluginKind('directiveCustomLeafProbe');
+	FACTORY_LEAF = declarePluginKind('directiveFactoryLeafProbe');
+	GLOSS = declarePluginInlineKind('directiveGlossProbe');
 	registerDirective('leaf', 'customleaf', { kind: CUSTOM_LEAF });
 	registerDirective('leaf', 'factoryleaf', {
 		kind: FACTORY_LEAF,

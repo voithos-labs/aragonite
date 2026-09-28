@@ -1,5 +1,5 @@
-import { afterEach, describe, expect, it } from 'vitest';
-import type { CstNode } from '$lib/core/nodes';
+import { beforeEach, afterEach, describe, expect, it } from 'vitest';
+import type { CstNode, PluginBlockKind } from '$lib/core/nodes';
 import { declarePluginKind } from '$lib/schema/plugin-kind';
 import {
 	registerDirective,
@@ -10,7 +10,10 @@ import {
 import { defaultGrammarView } from '$lib/schema/block-openers';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
-const kind = declarePluginKind('directiveRegistryProbe');
+let kind: PluginBlockKind;
+beforeEach(() => {
+	kind = declarePluginKind('directiveRegistryProbe');
+});
 const factory: NonNullable<DirectiveDefinition['fromDirective']> = (parsed) =>
 	({ kind, leadingTrivia: parsed.leadingTrivia, raw: parsed.raw }) as CstNode;
 

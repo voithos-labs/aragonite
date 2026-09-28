@@ -3,13 +3,13 @@
 // put the gesture's bytes in the block's position and leave both neighbours alone, for every kind a
 // drag can take whole (tables are addressed in cells instead) and both line endings.
 // Miss-analysis: `cross-block-typed-char.test.ts` drove text ranges only, never a block that goes.
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import fc from 'fast-check';
 import { isBlankParagraph } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import type { CstNode } from '$lib/core/nodes';
 import { describeConvergence } from '$lib/testing/parse-convergence';
-import { resetPluginPlatformForTests } from '$lib/testing';
+
 import { registerMathBlock } from '$lib/plugins/latex/latex-kind';
 import { writeCrossBlockCut } from '$lib/selection/cross-block/clipboard';
 import {
@@ -22,8 +22,7 @@ import { freshOrFixedSeed } from '../invariants/arbitraries/property-seed';
 
 const PARAMS = { numRuns: 60, seed: freshOrFixedSeed(515151) } as const;
 
-beforeAll(() => {
-	resetPluginPlatformForTests();
+beforeEach(() => {
 	registerMathBlock();
 });
 

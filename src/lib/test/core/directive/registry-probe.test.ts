@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
+import type { PluginBlockKind } from '$lib/core/nodes';
 import {
 	declarePluginKind,
 	isDirectiveRegistered,
@@ -8,7 +9,10 @@ import {
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 // The reset function is test-only, deliberately kept off the public barrel.
 
-const PROBE = declarePluginKind('probe-note');
+let PROBE: PluginBlockKind;
+beforeEach(() => {
+	PROBE = declarePluginKind('probe-note');
+});
 
 describe('isDirectiveRegistered (public probe)', () => {
 	beforeEach(() => __resetSchemaRegistriesForTests());
