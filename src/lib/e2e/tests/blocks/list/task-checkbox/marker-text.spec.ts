@@ -106,4 +106,19 @@ test.describe('task checkbox: the text after the marker', () => {
 		await expect(page.locator('.heading-1')).toHaveCount(0);
 		expect(await editor.parseConverged()).toBe(true);
 	});
+
+	test('Enter and typing in the item below a loaded to-do holding a table edits cleanly', async ({
+		page
+	}) => {
+		await editor.loadContent('- [ ] |b|\n  |-|\n- zed\n');
+		await editor.page.getByText('zed').click();
+		await editor.waitForRenderFlush();
+		await page.keyboard.press('End');
+
+		await page.keyboard.press('Enter');
+		await page.keyboard.type('Q');
+
+		await editor.bridge.waitForSourceContains('- Q');
+		expect(await editor.parseConverged()).toBe(true);
+	});
 });

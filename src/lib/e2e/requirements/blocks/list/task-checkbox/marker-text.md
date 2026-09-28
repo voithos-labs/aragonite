@@ -35,6 +35,11 @@ Later lines of the item still open blocks as they do in any list item.
   - Miss-analysis: the paste re-read the text left before the cut on its own, where `# b` opens a
     heading, and the paste suites only ever split plain paragraphs and plain items.
 
+- Enter and a typed letter in the item below a loaded `- [ ] |b|` over a delimiter row land
+  cleanly, with no invariant fire: that to-do holds a table, which is what its reload reads too.
+  - Miss-analysis: the checkbox check stood in for the reload with "a to-do holds a paragraph
+    first", which the parser's own reading of this shape breaks, and no fixture loaded it.
+
 ## Error cases
 
 - zero `[invariant:…]` console fires across every scenario (automatic via the shared e2e fixture)

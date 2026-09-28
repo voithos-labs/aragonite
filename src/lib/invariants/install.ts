@@ -38,7 +38,7 @@ export function assertCommittedNodes(nodes: CstNode[], grammar: GrammarView): vo
 		assertInvariant('content-range', () => checkContentRange(node));
 		assertInvariant('child-spans-lockstep', () => checkChildSpansLockstep(node));
 		assertInvariant('child-id-parity', () => checkChildIdParity(node));
-		assertInvariant('task-marker-slot', () => checkTaskMarkerSlot(node));
+		assertInvariant('task-marker-slot', () => checkTaskMarkerSlot(node, grammar));
 	}
 }
 

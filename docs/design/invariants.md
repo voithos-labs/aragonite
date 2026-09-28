@@ -255,7 +255,7 @@ Three families of seam run these checks:
 | G1.39 | At most one block paints the editor's own caret at a time                           | A       |
 | G1.40 | Every built-in kind declares its page role and its height estimate                  | A·N     |
 | G1.41 | A structural edit keeps the final break as it was (a blank last line keeps its own) | A·P·N   |
-| G1.42 | A list item's task checkbox says what its first block is, as a reload reads it      | A·N     |
+| G1.42 | A list item holds the checkbox and first block kind its reload reads                | A·N     |
 
 ### The entries
 
@@ -660,15 +660,16 @@ both commit branches in `editor-actions/commit/undo-controller.ts` ·
 `test/invariants/last-line-kept.test.ts`, `test/editor-actions/open-last-line.test.ts`,
 `open-last-line.property.test.ts`.
 
-**G1.42 · The checkbox follows the first block** (`task-marker-slot`). A task item's checkbox is
-metadata on the item, while a write changes only the block behind it, so the two can drift apart.
-A task item has to hold a paragraph first (GFM puts the marker only in front of one), and a plain
-item's first paragraph can't open with `[ ] `, which a reload would read as a checkbox. Every write
-into an item's first slot keeps that through
-`tree-operations/list/reconcile-task.ts :: writeKeepingTaskMarker`, with G4.82 holding the rule
-to that file. The rule can live in one wrapper, but whether a route read its bytes with the slot's
-reader can't (a heading read by a plain parse behind a checkbox is exactly the drift), so the
-commit checks the result. Predicate
+**G1.42 · A list item says what its reload reads** (`task-marker-slot`). A to-do's checkbox is
+metadata on the list item, but a write only changes the block behind it, so the two can drift
+apart. The check is the property itself: a list item holds the checkbox a reload of its bytes gives it,
+and a to-do holds the first block kind the reload gives it too. So `- [ ] # b` read by a plain parse (a heading behind a
+checkbox) fails, and so does a plain item whose text now opens with `[ ] `. A shape the parser
+loads passes by definition, `- [ ] |b|` over a delimiter row included (a to-do holding a table,
+#665). Writes into an item's first slot keep this through
+`tree-operations/list/reconcile-task.ts :: writeKeepingTaskMarker` (G4.82 counts them), but a
+route can still read its bytes with the wrong reader, so the commit checks the result too. Dev
+only: it reparses each touched node that holds a list item. Predicate
 `invariants/node-shape.ts :: checkTaskMarkerSlot` · the commit, over its touched nodes ·
 `test/invariants/task-marker-slot.test.ts`.
 

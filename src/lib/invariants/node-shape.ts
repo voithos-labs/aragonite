@@ -1,7 +1,6 @@
 import { makeBlockNode, metadataOf, type CstNode } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import { readBlocks } from '../core/parser';
-import { matchTaskCheckbox } from '../core/parsers/list';
 import { concatChildren } from '../core/serializer';
 import { countsCells, getBlockKindDescriptor } from '../schema/block-kind-descriptor';
 import { reservedChromeKindOf } from '../schema/reserved-chrome';
@@ -247,36 +246,56 @@ function isPrimitive(value: unknown): boolean {
 	return t !== 'object' && t !== 'function';
 }
 
-// ── G1.42: the task marker follows the first block ────────────────────────────
+// ── G1.42: a list item says what its reload reads ─────────────────────────────
 
-/** G1.42: a list item marked as a task holds a paragraph first, and one not marked holds no first
- *  paragraph opening with a checkbox, so the tree says what its reload reads. */
-export function checkTaskMarkerSlot(node: NodeView): InvariantViolation | null {
-	if (node.kind === 'listItem') {
-		const task = metadataOf(node, 'listItem')?.taskItem === true;
-		const first = node.children?.[0];
-		const opensWithBox =
-			first?.kind === 'paragraph' && matchTaskCheckbox(firstLineOf(first.raw)) !== null;
-		if (first && (task ? first.kind !== 'paragraph' : opensWithBox)) {
+/** G1.42: every list item under `node` holds the checkbox a reload of `node`'s own bytes gives it,
+ *  and a to-do its first block kind too. Dev only: it reparses the touched node. */
+export function checkTaskMarkerSlot(
+	node: NodeView,
+	grammar: GrammarView
+): InvariantViolation | null {
+	if (!holdsListItem(node)) return null;
+	const reread = readBlocks(node.raw, { grammar, scope: 'fragment' }).children;
+	const reloaded =
+		node.kind === 'listItem' ? soleItem(reread) : reread.length === 1 ? reread[0] : null;
+	return reloaded ? itemDrift(node, reloaded) : null;
+}
+
+/** The first list item whose checkbox or first block kind differs between the two trees, walked
+ *  together only where they have the same shape (other drift is another check's). */
+function itemDrift(tree: NodeView, reload: NodeView): InvariantViolation | null {
+	if (tree.kind === 'listItem' && reload.kind === 'listItem') {
+		const task = metadataOf(tree, 'listItem')?.taskItem === true;
+		const reloadTask = metadataOf(reload, 'listItem')?.taskItem === true;
+		const first = tree.children?.[0]?.kind;
+		const reloadFirst = reload.children?.[0]?.kind;
+		// A first block's kind drifting in a plain item on both sides is no checkbox question.
+		if (task !== reloadTask || (task && first !== reloadFirst)) {
 			return {
 				code: 'task-marker-slot',
-				message: task
-					? `a task item's first block is a ${first.kind}, which no task marker stands before`
-					: "a plain item's first paragraph opens with a checkbox its reload reads as a task",
-				detail: { first: first.kind, taskItem: task, raw: node.raw }
+				message: `a list item holds ${task ? 'a' : 'no'} checkbox before a ${first}, where its reload reads ${reloadTask ? 'a' : 'no'} checkbox before a ${reloadFirst}`,
+				detail: { taskItem: task, first, reloadTaskItem: reloadTask, reloadFirst, raw: tree.raw }
 			};
 		}
 	}
-	// A grid's cells hold inline text only, never a list.
-	if (countsCells(node)) return null;
-	for (const child of node.children ?? []) {
-		const found = checkTaskMarkerSlot(child);
+	const children = tree.children ?? [];
+	const reloadChildren = reload.children ?? [];
+	if (countsCells(tree) || children.length !== reloadChildren.length) return null;
+	for (let i = 0; i < children.length; i++) {
+		if (children[i].kind !== reloadChildren[i].kind) continue;
+		const found = itemDrift(children[i], reloadChildren[i]);
 		if (found) return found;
 	}
 	return null;
 }
 
-function firstLineOf(raw: string): string {
-	const end = raw.indexOf('\n');
-	return end === -1 ? raw : raw.slice(0, end);
+function holdsListItem(node: NodeView): boolean {
+	if (node.kind === 'listItem') return true;
+	if (countsCells(node)) return false;
+	return (node.children ?? []).some(holdsListItem);
+}
+
+function soleItem(blocks: readonly NodeView[]): NodeView | null {
+	const list = blocks.length === 1 && blocks[0].kind === 'list' ? blocks[0] : null;
+	return list?.children?.length === 1 ? list.children[0] : null;
 }
