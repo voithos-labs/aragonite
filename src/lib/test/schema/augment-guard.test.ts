@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
+import type { PluginBlockKind } from '$lib/core/nodes';
 import { declarePluginKind, declaredPluginKind } from '$lib/schema/plugin-kind';
 import {
 	registerBlockKind,
@@ -57,20 +58,26 @@ describe('container-group augments are gated on the registered category', () => 
 // Miss-analysis: the fixed fields were refused by the augment type alone, and no test augmented
 // one through a cast, the way a JavaScript plugin reaches the runtime.
 describe('fields fixed at registration refuse every augment', () => {
-	const title = declarePluginKind('fixedTitle');
+	let title: PluginBlockKind;
+	beforeEach(() => {
+		title = declarePluginKind('fixedTitle');
+	});
 	const lift = {
 		firstChildBackspace: 'lift-first-child-keep-container',
 		middleChildBackspace: 'default-merge'
 	};
-	const cases: { field: (typeof FIXED_AT_REGISTRATION)[number]; fields: object }[] = [
-		{ field: 'blockFocus', fields: { blockFocus: 'whole-block' } },
-		{ field: 'supportsInline', fields: { supportsInline: true } },
-		{ field: 'contentStart', fields: { contentStart: { range: () => ({ start: 1, end: 1 }) } } },
+	const cases: { field: (typeof FIXED_AT_REGISTRATION)[number]; fields: () => object }[] = [
+		{ field: 'blockFocus', fields: () => ({ blockFocus: 'whole-block' }) },
+		{ field: 'supportsInline', fields: () => ({ supportsInline: true }) },
+		{
+			field: 'contentStart',
+			fields: () => ({ contentStart: { range: () => ({ start: 1, end: 1 }) } })
+		},
 		{
 			field: 'container.reservedChrome',
-			fields: { container: { reservedChrome: { kind: title } } }
+			fields: () => ({ container: { reservedChrome: { kind: title } } })
 		},
-		{ field: 'container.unwrapRole', fields: { container: { unwrapRole: lift } } }
+		{ field: 'container.unwrapRole', fields: () => ({ container: { unwrapRole: lift } }) }
 	];
 
 	it('names a case for every fixed field', () => {
@@ -91,7 +98,7 @@ describe('fields fixed at registration refuse every augment', () => {
 		it(`augmentBlockKind refuses ${field} and leaves the descriptor as registered`, () => {
 			const kind = registerContainer(`fixed-${field.replace('.', '-')}`);
 			const before = { ...tryGetBlockKindDescriptor(kind) };
-			expect(() => augmentBlockKind(kind, fields as BlockKindAugmentation)).toThrow(
+			expect(() => augmentBlockKind(kind, fields() as BlockKindAugmentation)).toThrow(
 				new RegExp(`augmentBlockKind: .*${field.replace('.', '\\.')}.*fixed at registration`)
 			);
 			expect(tryGetBlockKindDescriptor(kind)).toEqual(before);

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { defaultGrammarView } from '$lib/schema/block-openers';
-import { describe, it, expect } from 'vitest';
-import type { InlineNode } from '../../core/nodes';
+import { beforeEach, describe, it, expect } from 'vitest';
+import type { InlineNode, PluginInlineKind } from '../../core/nodes';
 import {
 	isInlineWidget,
 	buildCoreInlineWidget,
@@ -174,8 +174,12 @@ describe('flattenInlineWidgets: recursion + document order', () => {
 });
 
 describe('getInlineWidgetEditing: per-kind editing policy', () => {
-	const mathKind = declarePluginInlineKind('math');
-	const spoilerKind = declarePluginInlineKind('spoiler');
+	let mathKind: PluginInlineKind;
+	let spoilerKind: PluginInlineKind;
+	beforeEach(() => {
+		mathKind = declarePluginInlineKind('math');
+		spoilerKind = declarePluginInlineKind('spoiler');
+	});
 
 	it('returns the editing policy registered for a plugin widget kind', () => {
 		const onSelectedKey = () => true;
@@ -210,7 +214,10 @@ describe('getInlineWidgetEditing: per-kind editing policy', () => {
 });
 
 describe('augmentInlineWidgetKind, attaching editor behavior to a registration', () => {
-	const captionKind = declarePluginInlineKind('caption');
+	let captionKind: PluginInlineKind;
+	beforeEach(() => {
+		captionKind = declarePluginInlineKind('caption');
+	});
 
 	it('layers onSelectedKey onto a registered kind without dropping its existing fields', () => {
 		registerInlineWidgetKind(captionKind, {
