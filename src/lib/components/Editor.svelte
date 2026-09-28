@@ -687,8 +687,12 @@
 
 	// The document caret while the search bar or link card holds focus; one each, so a card
 	// opened over the search bar cannot overwrite the caret the bar restores.
-	const searchCaret = createCaretRestore(() => editorEl ?? null);
-	const linkCardCaret = createCaretRestore(() => editorEl ?? null);
+	const caretRestoreDeps = {
+		getEditorEl: () => editorEl ?? null,
+		bringIntoView: (path: readonly number[]) => void caretLanding.reveal(path)
+	};
+	const searchCaret = createCaretRestore(caretRestoreDeps);
+	const linkCardCaret = createCaretRestore(caretRestoreDeps);
 
 	const searchReplace = createSearchReplace(editorActionsDeps, controller);
 	// Find stays live in reading mode; replace is an edit and does nothing here.

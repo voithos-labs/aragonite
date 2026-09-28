@@ -1103,8 +1103,6 @@ const BARE_FOCUSES: ManifestRule[] = [
 				'`focusCollapsedCaret`, which the cross-block delete, typing and paste still lean on until they land through the caret landing',
 			'src/lib/selection/cross-block/paste.ts':
 				'a cross-block paste that still puts its own caret down, until it lands through the caret landing',
-			'src/lib/selection/caret-restore.ts':
-				'closing the find bar or the link card returns to the saved caret',
 			'src/lib/plugins/mermaid/MermaidBlock.svelte':
 				'the diagram’s own surface takes focus back after a redraw or an edit, and the focus view its overlay',
 			'src/lib/components/blocks/code/CodeBlockRail.svelte':

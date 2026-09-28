@@ -61,6 +61,9 @@ export interface CaretLanding {
 	/** An arrow move ended on the block at `path`: one focused whole comes to the nearest edge,
 	 *  holding nothing. A text caret leaves the view as it is. */
 	followArrival(path: readonly number[]): void;
+	/** Brings the mounted block at `path` into view as an `'into-view'` landing does, for a caret
+	 *  another route put back (the find bar closing). */
+	reveal(path: readonly number[]): Promise<void>;
 	/** Bumped by every undo, redo and document swap: a landing that waited across one is stale. */
 	generation(): number;
 	/** Called by the history restore and the document swap only, before the tree changes. */
@@ -190,6 +193,7 @@ export function createCaretLanding(deps: CaretLandingDeps): CaretLanding {
 			if (!deps.scroll || !el?.contains(active) || holdsTextCaret(active)) return;
 			void deps.scroll.place(path, { block: 'nearest', hold: false }).scroll();
 		},
+		reveal: (path) => bringIntoView(path, 'into-view'),
 		generation: () => generation,
 		noteTreeSwap: () => {
 			generation++;

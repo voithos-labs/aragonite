@@ -6,10 +6,9 @@ the removal necessarily scrolls it up by exactly what was removed, and by no mor
 card the user just asked for stays fully in view.
 
 Fixture (loaded per test): forty filler paragraphs, then the showcase's own `xychart-beta`
-diagram as the last block, scrolled to the bottom and focused. The fixture matters: a diagram
-whose source is long enough to leave the card below the fold does not reproduce the problem,
-because `focus()` on the textarea then scrolls it into view and rescues the position by
-accident. The defect is invisible in exactly the geometries where the card is large.
+diagram as the last block, scrolled to the bottom and focused. The fixture matters: the defect is
+invisible where the source card is large, since the card then fills the space the swap freed.
+The textarea's focus scrolls nothing either way; where the card opens is the kept position's job.
 
 ## Happy paths
 
@@ -18,6 +17,10 @@ accident. The defect is invisible in exactly the geometries where the card is la
   height the textarea passes through on its way there
 - The source card is fully inside the scroll container afterwards: its top at or below the
   container's top, its bottom at or above the container's bottom
+- A diagram in the middle of a longer document, its lower half past the bottom edge: opening the
+  source leaves the scroll position exactly where it was. Miss-analysis: every source-open test
+  sat at the document's end, so nothing pinned that the textarea's focus after the kept position
+  moves nothing
 
 ## Edge cases
 
