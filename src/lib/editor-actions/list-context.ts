@@ -244,8 +244,8 @@ export function createListContext(deps: ListContextDeps): ListContext {
 					stampStructuralChange(itemChildren, split.change, sharing);
 					// The primitive's index, not `innerIndex + 1`: a first half that parses to several
 					// blocks stays with this item.
-					const landing = split.secondHalfIndex;
-					const secondHalf = itemChildren.splice(landing);
+					const cutAt = split.secondHalfIndex;
+					const secondHalf = itemChildren.splice(cutAt);
 					if (secondHalf.length > 0) {
 						secondHalf[0].leadingTrivia = '';
 					}
@@ -260,7 +260,7 @@ export function createListContext(deps: ListContextDeps): ListContext {
 					// blocks, several when the cut bytes reparse to more than one.
 					return [
 						{ op: 'insert', at: itemIndex + 1, count: 1 },
-						replacePreservingFirst(innerIndex, preSpliceLen - innerIndex, landing - innerIndex)
+						replacePreservingFirst(innerIndex, preSpliceLen - innerIndex, cutAt - innerIndex)
 					];
 				},
 				op: {
