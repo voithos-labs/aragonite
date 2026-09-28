@@ -24,17 +24,24 @@ export function fragmentReaderAt(
 	index: number,
 	grammar: GrammarView
 ): FragmentReader {
-	return followsTaskMarker(owner, index)
-		? (text) => parseTaskItemBody(text, grammar)
-		: plainFragmentReader(grammar);
-}
-
-/** The reader for bytes no task marker stands in front of: a block past an item's first slot,
- *  outside any list, or a clipboard's own blocks before they land. */
-export function plainFragmentReader(grammar: GrammarView): FragmentReader {
 	// Fragment scope: these are one block's bytes, so a kind that depends on document position
 	// must not be produced here.
-	return (text) => readBlocks(text, { grammar, scope: 'fragment' });
+	return followsTaskMarker(owner, index)
+		? (text) => parseTaskItemBody(text, grammar)
+		: (text) => readBlocks(text, { grammar, scope: 'fragment' });
+}
+
+/** A child slot: the block holding it (none at the document's top level) and its index there. */
+export interface ChildSlot {
+	owner: NodeView | undefined;
+	index: number;
+}
+
+/** The slot a document path names. */
+export function childSlotAt(doc: DocumentView, path: readonly number[]): ChildSlot {
+	const found = path.length > 1 ? blockNodeAt(doc, path.slice(0, -1)) : null;
+	const owner = found ?? undefined;
+	return { owner, index: path[path.length - 1] };
 }
 
 /** {@link fragmentReaderAt} for the slot a document path names. */
@@ -43,6 +50,6 @@ export function slotReaderAt(
 	path: readonly number[],
 	grammar: GrammarView
 ): FragmentReader {
-	const owner = path.length > 1 ? blockNodeAt(doc, path.slice(0, -1)) : null;
-	return fragmentReaderAt(owner ?? undefined, path[path.length - 1], grammar);
+	const { owner, index } = childSlotAt(doc, path);
+	return fragmentReaderAt(owner, index, grammar);
 }

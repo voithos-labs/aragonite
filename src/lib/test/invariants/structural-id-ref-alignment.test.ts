@@ -19,7 +19,6 @@ import type { BlockListState } from '$lib/reactivity/block-list-state.svelte';
 import { replaceRefs } from '$lib/reactivity/publish-ref.svelte';
 import type { CstNode } from '$lib/core/nodes';
 import { defaultGrammarView } from '$lib/schema/block-openers';
-import { plainFragmentReader } from '$lib/tree-operations/list/task-paragraph';
 
 /**
  * After every structural op, `children`, the keyed-id array and the ref array stay the same length
@@ -27,6 +26,9 @@ import { plainFragmentReader } from '$lib/tree-operations/list/task-paragraph';
  * or focus. The ops drive the real action bundles, so `applyStructuralChangeToIdsRefs` is under
  * test; reorder is the likeliest break, since every moved position reuses an existing id.
  */
+
+/** A leaf at the top level, where no task marker stands in front of anything. */
+const TOP_SLOT = { owner: undefined, index: 0 };
 
 // ── Top-level alignment ──────────────────────────────────────────────────────
 
@@ -331,7 +333,7 @@ describe('G2.8 deep childIds backfill on reparse-into-container (#4 class)', () 
 			nested,
 			'\n',
 			defaultGrammarView,
-			plainFragmentReader(defaultGrammarView)
+			TOP_SLOT
 		);
 		await h.actions.replaceBlock(0, replacement);
 

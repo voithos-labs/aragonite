@@ -9,7 +9,7 @@ import { snapToScalarBoundary } from '$lib/core/lines';
 import { splitNode, cutRangeFromDisplay } from '$lib/tree-operations/node-ops';
 import { buildPastedReplacement } from '$lib/tree-operations/paste/paste-replacement';
 import { splitLeafForPaste } from '$lib/tree-operations/list/list-builders';
-import { plainFragmentReader } from '$lib/tree-operations/list/task-paragraph';
+import { fragmentReaderAt } from '$lib/tree-operations/list/task-paragraph';
 import { resolveSelectionEdit } from '$lib/components/blocks/text/live-selection-edit';
 import { cleanLiveJoinSeam } from '$lib/components/blocks/text/live-join-seam';
 import {
@@ -23,10 +23,13 @@ import type { NodeView } from '$lib/core/node-views';
 import { fixtureReading } from '../harness/fixture-grammar';
 import { defaultGrammarView } from '$lib/schema/block-openers';
 
+/** A leaf at the top level, where no task marker stands in front of anything. */
+const TOP_SLOT = { owner: undefined, index: 0 };
+
 /** Both halves read as plain fragments, as they do outside a task item. */
 const plainHalves = {
-	leading: plainFragmentReader(defaultGrammarView),
-	trailing: plainFragmentReader(defaultGrammarView)
+	leading: fragmentReaderAt(undefined, 0, defaultGrammarView),
+	trailing: fragmentReaderAt(undefined, 0, defaultGrammarView)
 };
 
 const BOY = 'a\u{1F466}b\n';
@@ -123,7 +126,7 @@ describe('the structural paste’s before/after slices', () => {
 			parse('x\n').children,
 			'\n',
 			defaultGrammarView,
-			plainFragmentReader(defaultGrammarView)
+			TOP_SLOT
 		);
 		const raws = replacement.map((node: CstNode) => node.raw);
 		expect(raws.every(isWellFormed)).toBe(true);

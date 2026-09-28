@@ -6,14 +6,14 @@ import {
 	buildListItemWithContent,
 	splitLeafForPaste
 } from '$lib/tree-operations/list/list-builders';
-import { plainFragmentReader } from '$lib/tree-operations/list/task-paragraph';
+import { fragmentReaderAt } from '$lib/tree-operations/list/task-paragraph';
 import type { CstNode } from '$lib/core/nodes';
 import { defaultGrammarView } from '$lib/schema/block-openers';
 
 /** Both halves read as plain fragments, as they do outside a task item. */
 const plainHalves = {
-	leading: plainFragmentReader(defaultGrammarView),
-	trailing: plainFragmentReader(defaultGrammarView)
+	leading: fragmentReaderAt(undefined, 0, defaultGrammarView),
+	trailing: fragmentReaderAt(undefined, 0, defaultGrammarView)
 };
 
 describe('list-builders', () => {

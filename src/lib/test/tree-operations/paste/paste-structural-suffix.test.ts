@@ -4,12 +4,15 @@ import { parse } from '$lib/core/parser';
 import { defaultGrammarView } from '$lib/schema/block-openers';
 import { buildPastedReplacement } from '$lib/tree-operations/paste/paste-replacement';
 import { splitLeafForPaste } from '$lib/tree-operations/list/list-builders';
-import { plainFragmentReader } from '$lib/tree-operations/list/task-paragraph';
+import { fragmentReaderAt } from '$lib/tree-operations/list/task-paragraph';
+
+/** A leaf at the top level, where no task marker stands in front of anything. */
+const TOP_SLOT = { owner: undefined, index: 0 };
 
 /** Both halves read as plain fragments, as they do outside a task item. */
 const plainHalves = {
-	leading: plainFragmentReader(defaultGrammarView),
-	trailing: plainFragmentReader(defaultGrammarView)
+	leading: fragmentReaderAt(undefined, 0, defaultGrammarView),
+	trailing: fragmentReaderAt(undefined, 0, defaultGrammarView)
 };
 
 const PASTED = parse('abc\n\ndef\n').children;
@@ -52,7 +55,7 @@ describe('a multi-block paste keeps the leaf’s structure past its text on the 
 			PASTED,
 			'\n',
 			defaultGrammarView,
-			plainFragmentReader(defaultGrammarView)
+			TOP_SLOT
 		);
 		expect(nodes.map((node) => node.raw)).toEqual(raws);
 	});

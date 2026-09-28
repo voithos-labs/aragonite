@@ -3,7 +3,9 @@ import { buildPastedReplacement } from '$lib/tree-operations/paste/paste-replace
 import type { CstNode } from '$lib/core/nodes';
 import { parse } from '$lib/core/parser';
 import { defaultGrammarView } from '$lib/schema/block-openers';
-import { plainFragmentReader } from '$lib/tree-operations/list/task-paragraph';
+
+/** A leaf at the top level, where no task marker stands in front of anything. */
+const TOP_SLOT = { owner: undefined, index: 0 };
 
 describe('buildPastedReplacement: blank-line preservation between blocks', () => {
 	it('preserves blank line between two pasted paragraphs at end of leaf', () => {
@@ -18,7 +20,7 @@ describe('buildPastedReplacement: blank-line preservation between blocks', () =>
 			parsed.children,
 			'\n',
 			defaultGrammarView,
-			plainFragmentReader(defaultGrammarView)
+			TOP_SLOT
 		);
 
 		expect(replacement).toHaveLength(3);
@@ -38,7 +40,7 @@ describe('buildPastedReplacement: blank-line preservation between blocks', () =>
 			parsed.children,
 			'\n',
 			defaultGrammarView,
-			plainFragmentReader(defaultGrammarView)
+			TOP_SLOT
 		);
 
 		expect(replacement).toHaveLength(4);
@@ -59,7 +61,7 @@ describe('buildPastedReplacement: structural separator at leading slice boundary
 			parsed.children,
 			'\n',
 			defaultGrammarView,
-			plainFragmentReader(defaultGrammarView)
+			TOP_SLOT
 		);
 
 		expect(replacement[1].raw).toContain('one');
@@ -78,7 +80,7 @@ describe('buildPastedReplacement: structural separator at leading slice boundary
 			[blockWithTrivia],
 			'\n',
 			defaultGrammarView,
-			plainFragmentReader(defaultGrammarView)
+			TOP_SLOT
 		);
 
 		expect(replacement[1].leadingTrivia).toBe('\n');
@@ -95,7 +97,7 @@ describe('buildPastedReplacement: cursor at offset 0 (no leading slice)', () => 
 			parsed.children,
 			'\n',
 			defaultGrammarView,
-			plainFragmentReader(defaultGrammarView)
+			TOP_SLOT
 		);
 
 		expect(replacement).toHaveLength(3);
@@ -114,7 +116,7 @@ describe('buildPastedReplacement: cursor at offset 0 (no leading slice)', () => 
 			parsed.children,
 			'\n',
 			defaultGrammarView,
-			plainFragmentReader(defaultGrammarView)
+			TOP_SLOT
 		);
 
 		expect(replacement[0].leadingTrivia).toBe('\n\n');
@@ -131,7 +133,7 @@ describe('buildPastedReplacement, trailing slice as separate paragraph', () => {
 			parsed.children,
 			'\n',
 			defaultGrammarView,
-			plainFragmentReader(defaultGrammarView)
+			TOP_SLOT
 		);
 
 		expect(replacement).toHaveLength(4);
@@ -154,7 +156,7 @@ describe('buildPastedReplacement, trailing slice as separate paragraph', () => {
 			parsed.children,
 			'\n',
 			defaultGrammarView,
-			plainFragmentReader(defaultGrammarView)
+			TOP_SLOT
 		);
 
 		expect(replacement[replacement.length - 1].kind).toBe('paragraph');
@@ -168,14 +170,7 @@ describe('buildPastedReplacement: the clipboard keeps the joins between its own 
 	const pasted = (clipboard: string, host = 'hello world\n', offset = 5) => {
 		const leaf = parse(host).children[0];
 		const blocks = parse(clipboard).children;
-		return buildPastedReplacement(
-			leaf,
-			offset,
-			blocks,
-			'\n',
-			defaultGrammarView,
-			plainFragmentReader(defaultGrammarView)
-		).nodes;
+		return buildPastedReplacement(leaf, offset, blocks, '\n', defaultGrammarView, TOP_SLOT).nodes;
 	};
 	const bytes = (nodes: CstNode[]) => nodes.map((n) => n.leadingTrivia + n.raw).join('');
 

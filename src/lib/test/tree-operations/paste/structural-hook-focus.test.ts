@@ -3,8 +3,9 @@ import { defaultStructuralHook } from '$lib/tree-operations/paste/hooks';
 import { parse } from '$lib/core/parser';
 import type { CstNode } from '$lib/core/nodes';
 import { fixtureReading } from '../../harness/fixture-grammar';
-import { plainFragmentReader } from '$lib/tree-operations/list/task-paragraph';
-import { defaultGrammarView } from '$lib/schema/block-openers';
+
+/** A leaf at the top level, where no task marker stands in front of anything. */
+const TOP_SLOT = { owner: undefined, index: 0 };
 
 // The caret lands at the end of the pasted content, not the trailing residue
 // buildPastedReplacement appends as the last node.
@@ -21,7 +22,7 @@ describe('defaultStructuralHook: caret at end of pasted content', () => {
 			undefined,
 			fixtureReading(),
 			'\n',
-			plainFragmentReader(defaultGrammarView)
+			TOP_SLOT
 		);
 		expect(result.replacement).toHaveLength(4);
 		expect(result.focusReplacementIndex).toBe(result.replacement.length - 2);
@@ -36,7 +37,7 @@ describe('defaultStructuralHook: caret at end of pasted content', () => {
 			undefined,
 			fixtureReading(),
 			'\n',
-			plainFragmentReader(defaultGrammarView)
+			TOP_SLOT
 		);
 		expect(result.replacement).toHaveLength(3);
 		expect(result.focusReplacementIndex).toBe(result.replacement.length - 1);
@@ -52,7 +53,7 @@ describe('defaultStructuralHook: caret at end of pasted content', () => {
 			undefined,
 			fixtureReading(),
 			'\n',
-			plainFragmentReader(defaultGrammarView)
+			TOP_SLOT
 		);
 		expect(result.replacement.map((n) => n.raw)).toEqual([
 			'abc\n',

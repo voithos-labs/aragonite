@@ -12,7 +12,7 @@ import { ensureEditableContainers } from '../node-primitives';
 import { parseCutResidue, parseFirstBlock } from '../parse-block';
 import { cutKeepingStructure } from '../structural-suffix';
 import type { GrammarView } from '../../schema/block-openers';
-import { plainFragmentReader, type FragmentReader } from '../list/task-paragraph';
+import { fragmentReaderAt, type ChildSlot, type FragmentReader } from '../list/task-paragraph';
 
 export interface PastedReplacement {
 	nodes: CstNode[];
@@ -20,31 +20,32 @@ export interface PastedReplacement {
 	lastPastedIndex: number;
 }
 
-/** `readSlot` is the leaf's slot reader (`fragmentReaderAt`), which reads the text left before the
- *  pasted blocks. */
+/** `slot` is where the leaf sits; every block the replacement re-reads is read the way a reload
+ *  reads it at the slot it lands in. */
 export function buildPastedReplacement(
 	leaf: NodeView,
 	offset: number,
 	blocks: CstNode[],
 	ending: LineEnding,
 	grammar: GrammarView,
-	readSlot: FragmentReader
+	slot: ChildSlot
 ): PastedReplacement {
 	if (blocks.length === 0) return { nodes: [], lastPastedIndex: -1 };
 
 	const leafRaw = leaf.raw;
 	const lineEnding = trailingLineEnding(leafRaw, ending);
 	const { head: rawBefore, rest } = cutKeepingStructure(leaf, offset);
-	const residue = parseCutResidue(rest, lineEnding, plainFragmentReader(grammar));
+	const readAt = (index: number) => fragmentReaderAt(slot.owner, slot.index + index, grammar);
+	// At least one pasted block lands before the residue.
+	const residue = parseCutResidue(rest, lineEnding, readAt(1));
 	const originalTrivia = leaf.leadingTrivia ?? '';
 
 	const newNodes: CstNode[] = [];
 
-	// Read as the leaf's slot reads it, so a heading stays one and a task item's text stays its
-	// paragraph.
+	// A heading stays one, and a to-do's text stays its paragraph.
 	if (rawBefore.length > 0) {
 		const beforeRaw = rawBefore + lineEnding;
-		const beforeNode = parseFirstBlock(beforeRaw, readSlot);
+		const beforeNode = parseFirstBlock(beforeRaw, readAt(0));
 		beforeNode.leadingTrivia = originalTrivia;
 		ensureEditableContainers(beforeNode, lineEnding);
 		newNodes.push(beforeNode);
@@ -65,7 +66,8 @@ export function buildPastedReplacement(
 		const onCutLine = ownTrailingLineEnding(lastPasted.raw) === '';
 		const blankTail = !residue.endedLine && rest.length === 0 && isBlankParagraph(first);
 		const cutLineEnd = residue.endedLine || (onCutLine && blankTail ? first.raw : lineEnding);
-		if (onCutLine) newNodes[lastPastedIndex] = endedOnCutLine(lastPasted, cutLineEnd, grammar);
+		if (onCutLine)
+			newNodes[lastPastedIndex] = endedOnCutLine(lastPasted, cutLineEnd, readAt(lastPastedIndex));
 		if (!onCutLine || !blankTail) {
 			newNodes.push({ ...first, leadingTrivia: onCutLine ? '' : cutLineEnd });
 		}
@@ -79,10 +81,9 @@ export function buildPastedReplacement(
 }
 
 /** `node` with the rest of the line it was pasted into, read back as the one block it still is. */
-function endedOnCutLine(node: CstNode, cutLineEnd: string, grammar: GrammarView): CstNode {
+function endedOnCutLine(node: CstNode, cutLineEnd: string, read: FragmentReader): CstNode {
 	const lineEnding = trailingLineEnding(cutLineEnd, '\n');
-	// The clipboard's own block, whose kind the clipboard's parse already decided.
-	const ended = parseFirstBlock(node.raw + cutLineEnd, plainFragmentReader(grammar));
+	const ended = parseFirstBlock(node.raw + cutLineEnd, read);
 	ended.leadingTrivia = node.leadingTrivia;
 	ensureEditableContainers(ended, lineEnding);
 	return ended;
