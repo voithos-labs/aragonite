@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
+import { readSource } from '../invariants/lint/scan-source';
 
 // Drift guard: every export of the two published author barrels must appear in the docs pack,
 // so a new export can't ship undocumented. Names match in backtick form, so incidental prose
@@ -14,9 +15,7 @@ const TESTING_DOC = 'docs/guide/plugin-testing.md';
 const TESTING_HEADING = '\n## Verifying your plugin';
 
 function barrelExports(relPath: string, valuesOnly = false): string[] {
-	const src = readFileSync(path.resolve(relPath), 'utf8')
-		.replace(/\/\*[\s\S]*?\*\//g, '')
-		.replace(/\/\/.*$/gm, '');
+	const src = readSource(relPath).code;
 	const names = new Set<string>();
 	for (const [, typeKeyword, body] of src.matchAll(/export\s+(type\s+)?\{([^}]*)\}/g)) {
 		if (valuesOnly && typeKeyword) continue;

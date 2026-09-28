@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { stripComments, type SourceFile } from './scan-source';
+import { sourceFile, type SourceFile } from './scan-source';
 
 /** A snippet the matcher must flag or spare; a plain string scans as `probe.ts`. */
 export type Probe = string | { relPath: string; code: string };
@@ -100,7 +100,7 @@ export function runFileRule(rule: FileRule, sources: SourceFile[]): FileRuleRepo
 export function probeFile(probe: Probe): SourceFile {
 	const { relPath, code } =
 		typeof probe === 'string' ? { relPath: 'probe.ts', code: probe } : probe;
-	return { relPath, text: code, code: stripComments(code) };
+	return sourceFile(relPath, code);
 }
 
 function probeText(probe: Probe): string {

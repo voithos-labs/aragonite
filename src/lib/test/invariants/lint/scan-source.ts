@@ -33,20 +33,14 @@ export interface SourceFile {
 
 /** Blank comments to spaces, preserving offsets, so a token inside a comment can't trip a code
  *  scan. A comment marker inside a string, template or regex literal is text and stays. */
-export function stripComments(text: string): string {
+export function stripComments(text: string, language: SourceLanguage = 'script'): string {
 	let out = '';
-	let i = 0;
-	while (i < text.length) {
-		const span = spanAt(text, i);
-		if (span === null) {
-			out += text[i];
-			i++;
-			continue;
-		}
-		out += strippedSpan(text, i, span);
-		i = span.end;
+	let at = 0;
+	for (const span of commentSpans(text, language)) {
+		out += text.slice(at, span.start) + text.slice(span.start, span.end).replace(/[^\n]/g, ' ');
+		at = span.end;
 	}
-	return out;
+	return out + text.slice(at);
 }
 
 /**
@@ -75,12 +69,16 @@ export function collectFiles(
 
 /** A source file by its path from the repo root, comments blanked in `code`. */
 export function readSource(relPath: string): SourceFile {
-	const text = readFileSync(path.resolve(relPath), 'utf8');
-	return { relPath, text, code: stripComments(text) };
+	return sourceFile(relPath, readFileSync(path.resolve(relPath), 'utf8'));
+}
+
+/** `text` as the file at `relPath`, lexed in the language its extension names. */
+export function sourceFile(relPath: string, text: string): SourceFile {
+	return { relPath, text, code: stripComments(text, languageOf(relPath)) };
 }
 
 /** Every `.ts`/`.svelte` file under `dir` (default `REPO_WIDE_ROOTS`) but `.d.ts`, and `test`/`e2e`
- *  unless `includeTests`. `.css` is opt-in (`includeStyles`): a `url(//…)` blanks as a comment. */
+ *  unless `includeTests`; `.css` too with `includeStyles`. */
 export function collectEditorSources(
 	dir?: string,
 	options: { includeTests?: boolean; includeStyles?: boolean } = {}
@@ -174,16 +172,17 @@ export function regexLiteralAt(code: string, at: number): { value: RegExp; end: 
 	}
 }
 
-/**
- * The non-code span starting at `i` (a string, template, comment or regex literal), or null where
- * code continues. The one place the lexing rules live.
- */
-function spanAt(code: string, i: number): Span | null {
+/** The string, template, comment or regex literal starting at `i`, or null where code continues.
+ *  Script and stylesheet rules live only here; markup's are in `classifyComponent`. */
+function spanAt(code: string, i: number, language: BodyLanguage = 'script'): Span | null {
 	const ch = code[i];
 	if (ch === "'" || ch === '"') return { end: skipString(code, i), kind: 'literal' };
+	if (language === 'stylesheet') {
+		return code.startsWith('/*', i) ? { end: skipBlockComment(code, i), kind: 'comment' } : null;
+	}
 	if (ch === '`') return { end: skipTemplate(code, i), kind: 'template' };
-	// Markup's comment form, unconditional rather than `.svelte`-only: the walk reaches it only in
-	// code position, and the TypeScript differential fails if a `.ts` file ever writes one (G4.57).
+	// Markup's comment form, read in script mode too for a caller that hands it markup; the
+	// TypeScript differential fails if a `.ts` file ever writes one (G4.57).
 	if (ch === '<') {
 		return code.startsWith('<!--', i) ? { end: skipMarkupComment(code, i), kind: 'comment' } : null;
 	}
@@ -197,21 +196,6 @@ function spanAt(code: string, i: number): Span | null {
 interface Span {
 	end: number;
 	kind: 'comment' | 'template' | 'literal';
-}
-
-/** A span as `stripComments` writes it: a comment blanks, a template keeps its own bytes and
- *  its `${…}` interpolations stay code. */
-function strippedSpan(text: string, start: number, span: Span): string {
-	const source = text.slice(start, span.end);
-	if (span.kind === 'comment') return source.replace(/[^\n]/g, ' ');
-	if (span.kind !== 'template') return source;
-	let out = '';
-	let at = start;
-	skipTemplate(text, start, (from, to) => {
-		out += text.slice(at, from) + stripComments(text.slice(from, to));
-		at = to;
-	});
-	return out + text.slice(at, span.end);
 }
 
 /** Index just past the string at `i`; an unterminated one ends at its line, as JS requires. */
@@ -237,16 +221,21 @@ function skipTemplate(
 		if (ch === '\\') j++;
 		else if (ch === '`') return j + 1;
 		else if (ch === '$' && code[j + 1] === '{') {
-			let depth = 1;
-			const close = walkCode(code, j + 2, (c) => {
-				if (c === '{') depth++;
-				else if (c === '}') return --depth === 0;
-			});
+			const close = closingBrace(code, j + 2);
 			onInterpolation?.(j + 2, close);
 			j = close;
 		}
 	}
 	return code.length;
+}
+
+/** The `}` closing a brace opened just before `from`, its interior read as script. */
+function closingBrace(code: string, from: number): number {
+	let depth = 1;
+	return walkCode(code, from, (c) => {
+		if (c === '{') depth++;
+		else if (c === '}') return --depth === 0;
+	});
 }
 
 function endOfLine(code: string, i: number): number {
@@ -348,33 +337,157 @@ export function isProseSurface(file: SourceFile): boolean {
 
 // ── Lexical classification ───────────────────────────────────────────────────
 
+/** How a file lexes: TypeScript, a stylesheet, or a Svelte component, whose markup is text but
+ *  for `<!-- -->` comments, quoted attribute values and `{…}` script. */
+export type SourceLanguage = 'script' | 'stylesheet' | 'component';
+
+/** The language of a `<script>` or `<style>` body, which holds no markup. */
+type BodyLanguage = Exclude<SourceLanguage, 'component'>;
+
+export function languageOf(relPath: string): SourceLanguage {
+	if (relPath.endsWith('.css')) return 'stylesheet';
+	return relPath.endsWith('.svelte') ? 'component' : 'script';
+}
+
 /** Class names in the order {@link lexicalClasses} numbers them. */
 export const LEXICAL_CLASSES = ['code', 'comment', 'string', 'template', 'regex'] as const;
 
 const [CODE, COMMENT, STRING, TEMPLATE, REGEX] = LEXICAL_CLASSES.map((_, index) => index);
 
 /** Each character's class, exported so the differential can hold this lexer against TypeScript's. */
-export function lexicalClasses(code: string): Uint8Array {
+export function lexicalClasses(code: string, language: SourceLanguage = 'script'): Uint8Array {
 	const out = new Uint8Array(code.length);
-	classifyRange(code, 0, code.length, out);
+	if (language === 'component') classifyComponent(code, out);
+	else classifyRange(code, 0, code.length, out, language);
 	return out;
 }
 
-/** A template's `${…}` interiors are code, which is how `stripComments` already reads them. */
-function classifyRange(code: string, from: number, to: number, out: Uint8Array): void {
+export interface CommentSpan {
+	start: number;
+	/** Index just past the comment's closing syntax, or its line's end for a `//` comment. */
+	end: number;
+	kind: 'line' | 'block' | 'markup';
+}
+
+/** Every comment in `text`, in order: what `stripComments` blanks and the comment lints read. */
+export function commentSpans(text: string, language: SourceLanguage = 'script'): CommentSpan[] {
+	const classes = lexicalClasses(text, language);
+	const out: CommentSpan[] = [];
+	for (let i = 0; i < text.length; i++) {
+		if (classes[i] !== COMMENT) continue;
+		let run = i;
+		while (run < text.length && classes[run] === COMMENT) run++;
+		// Two comments can touch (`/* a *//* b */`), so each ends where its own syntax closes.
+		const end = Math.min(spanAt(text, i)?.end ?? run, run);
+		const kind = text[i] === '<' ? 'markup' : text[i + 1] === '/' ? 'line' : 'block';
+		out.push({ start: i, end, kind });
+		i = end - 1;
+	}
+	return out;
+}
+
+/** A comment's text lines, comment syntax stripped and blank lines dropped. */
+export function commentText(text: string, span: CommentSpan): string[] {
+	return text
+		.slice(span.start, span.end)
+		.split('\n')
+		.map((line) =>
+			line
+				.trim()
+				.replace(/^\/\*+|^\*+\/?|^\/\/+|^<!--|-->$|\*+\/$/g, '')
+				.trim()
+		)
+		.filter((line) => line !== '');
+}
+
+/** A template's `${…}` interiors lex as script. */
+function classifyRange(
+	code: string,
+	from: number,
+	to: number,
+	out: Uint8Array,
+	language: BodyLanguage
+): void {
 	out.fill(CODE, from, to);
 	for (let i = from; i < to; i++) {
-		const span = spanAt(code, i);
+		const span = spanAt(code, i, language);
 		if (span === null) continue;
 		const end = Math.min(span.end, to);
 		if (span.kind === 'comment') out.fill(COMMENT, i, end);
 		else if (span.kind === 'literal') out.fill(code[i] === '/' ? REGEX : STRING, i, end);
 		else {
 			out.fill(TEMPLATE, i, end);
-			skipTemplate(code, i, (start, close) => classifyRange(code, start, Math.min(close, to), out));
+			skipTemplate(code, i, (start, close) =>
+				classifyRange(code, start, Math.min(close, to), out, 'script')
+			);
 		}
 		i = span.end - 1;
 	}
+}
+
+const TAG_NAME = /[\w:-]*/y;
+
+/** Markup, where `//` and `/*` are prose; a `<script>` or `<style>` body lexes in its own language. */
+function classifyComponent(code: string, out: Uint8Array): void {
+	// The tag being read, '' for a closing tag, null between tags.
+	let tag: string | null = null;
+	for (let i = 0; i < code.length; i++) {
+		const ch = code[i];
+		if (ch === '{') {
+			i = classifyExpression(code, i, out);
+		} else if (tag !== null) {
+			if (ch === '"' || ch === "'") i = classifyAttributeValue(code, i, out);
+			else if (ch === '>') {
+				if (tag === 'script' || tag === 'style') i = classifyBody(code, i + 1, tag, out);
+				tag = null;
+			}
+		} else if (code.startsWith('<!--', i)) {
+			const end = skipMarkupComment(code, i);
+			out.fill(COMMENT, i, end);
+			i = end - 1;
+		} else if (ch === '<' && /[A-Za-z/]/.test(code[i + 1] ?? '')) {
+			TAG_NAME.lastIndex = i + 1;
+			tag = TAG_NAME.exec(code)?.[0] ?? '';
+		}
+	}
+}
+
+/** Classifies a `<script>` or `<style>` body from `from`; returns the index before its closing tag. */
+function classifyBody(
+	code: string,
+	from: number,
+	tag: 'script' | 'style',
+	out: Uint8Array
+): number {
+	const close = code.indexOf(`</${tag}`, from);
+	const end = close < 0 ? code.length : close;
+	classifyRange(code, from, end, out, tag === 'script' ? 'script' : 'stylesheet');
+	return end - 1;
+}
+
+/** Classifies the `{…}` opening at `open` as script; returns its closing brace. */
+function classifyExpression(code: string, open: number, out: Uint8Array): number {
+	const close = closingBrace(code, open + 1);
+	classifyRange(code, open + 1, close, out, 'script');
+	return close;
+}
+
+/** A quoted attribute value is a string whose `{…}` interpolations are script, as a template's
+ *  are; returns its closing quote. */
+function classifyAttributeValue(code: string, at: number, out: Uint8Array): number {
+	const quote = code[at];
+	const interpolations: number[] = [];
+	let j = at + 1;
+	while (j < code.length && code[j] !== quote) {
+		if (code[j] === '{') {
+			interpolations.push(j);
+			j = closingBrace(code, j + 1);
+		}
+		j++;
+	}
+	out.fill(STRING, at, Math.min(j + 1, code.length));
+	for (const open of interpolations) classifyExpression(code, open, out);
+	return j;
 }
 
 // ── Enclosing function ───────────────────────────────────────────────────────

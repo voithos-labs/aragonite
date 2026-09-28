@@ -10,6 +10,7 @@ import {
 	callSites,
 	collectEditorSources,
 	rawAssignments,
+	sourceFile,
 	stripComments,
 	type SourceFile
 } from './scan-source';
@@ -164,15 +165,12 @@ describe('every bare raw write is allowed', () => {
 	});
 
 	it('counts an install call outside the writers, and not their own call or its declaration', () => {
-		const file = (relPath: string, text: string): SourceFile => ({
-			relPath,
-			text,
-			code: stripComments(text)
-		});
 		const call = 'installOwnRaw(leaf, legal, grammar);';
 		const declared = 'export function installOwnRaw(node: CstNode) {}\n// installOwnRaw(x)';
-		expect(bareWrites([file('src/lib/x.ts', call)])).toEqual([{ relPath: 'src/lib/x.ts' }]);
-		expect(bareWrites([file('src/lib/y.ts', declared), file(CONTENT_WRITE, call)])).toEqual([]);
+		expect(bareWrites([sourceFile('src/lib/x.ts', call)])).toEqual([{ relPath: 'src/lib/x.ts' }]);
+		expect(
+			bareWrites([sourceFile('src/lib/y.ts', declared), sourceFile(CONTENT_WRITE, call)])
+		).toEqual([]);
 	});
 });
 

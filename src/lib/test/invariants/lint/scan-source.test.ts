@@ -18,6 +18,7 @@ import {
 	rawAssignments,
 	regexLiteralAt,
 	REPO_WIDE_ROOTS,
+	sourceFile,
 	splitTopLevel,
 	stringLiteralAt,
 	stripComments
@@ -203,6 +204,14 @@ describe('literal-aware walking', () => {
 
 		// A `<!--` the source quotes is text: the walk steps over the string whole.
 		expect(stripComments("const open = '<!--'; call();")).toBe("const open = '<!--'; call();");
+	});
+
+	it('lexes a file in the language its extension names', () => {
+		const sheet = 'a { background: url(//x.dev/a.png); }';
+		expect(sourceFile('a.css', sheet).code).toBe(sheet);
+		expect(sourceFile('a.ts', sheet).code).not.toBe(sheet);
+		const markup = '<p>see https://x.dev</p>\n<!-- c -->';
+		expect(sourceFile('a.svelte', markup).code).toBe(`<p>see https://x.dev</p>\n${' '.repeat(10)}`);
 	});
 
 	// A `/` after `}` is Svelte markup (`{a}/{b}`), never a regex opening: reading one as a regex

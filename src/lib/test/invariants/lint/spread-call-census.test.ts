@@ -11,6 +11,7 @@ import {
 	collectEditorSources,
 	enclosingFunction,
 	isParameterList,
+	languageOf,
 	LEXICAL_CLASSES,
 	lexicalClasses,
 	openerBefore,
@@ -70,7 +71,7 @@ interface SpreadSite {
 
 function spreadSites(file: SourceFile): SpreadSite[] {
 	const { text } = file;
-	const cls = lexicalClasses(text);
+	const cls = lexicalClasses(text, languageOf(file.relPath));
 	const out: SpreadSite[] = [];
 	for (let i = 0; i + 2 < text.length; i++) {
 		if (!text.startsWith('...', i)) continue;

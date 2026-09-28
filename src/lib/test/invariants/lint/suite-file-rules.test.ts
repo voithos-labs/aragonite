@@ -89,8 +89,6 @@ const RULES: FileRule[] = [
 		matches: (file) => handRolledLexing(file.code).length > 0,
 		allowed: {
 			'src/lib/test/invariants/lint/scan-source.ts': 'the shared lexer and collector',
-			'src/lib/test/invariants/lint/comment-lines.ts':
-				'the comment-block reader the budget and house-word scans share, which counts lines rather than blanking them',
 			'src/lib/test/invariants/lint/spread-call-census.test.ts':
 				'walks the classes lexicalClasses returns, so every character it tests is code',
 			'src/lib/test/invariants/lint/consumer-guide-reserved-set.test.ts':
