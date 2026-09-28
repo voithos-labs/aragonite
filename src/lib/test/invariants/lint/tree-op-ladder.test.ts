@@ -67,7 +67,9 @@ describe('G4.64 the tree-ops layer order', () => {
 		]);
 		expect(upwardEdges('settle.ts', settle, "import { x } from './unshare';")).toEqual([]);
 		expect(upwardEdges('settle.ts', settle, "import { x } from '../core/lines';")).toEqual([]);
-		expect(upwardEdges('settle.ts', settle, "import { x } from './list/terminator';")).toEqual([]);
+		expect(upwardEdges('settle.ts', settle, "import { x } from './list/ordered-markers';")).toEqual(
+			[]
+		);
 	});
 
 	it('a type-only import and a dynamic import are edges too', () => {

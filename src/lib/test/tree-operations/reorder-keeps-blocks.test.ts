@@ -4,6 +4,7 @@ import { describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import { reorderChildrenWithTrivia } from '../../tree-operations/reorder';
+import { documentBody } from '../../tree-operations/node-primitives';
 import { createSharingState } from '../../tree-operations/sharing';
 import { defaultGrammarView } from '$lib/schema/block-openers';
 
@@ -43,7 +44,7 @@ function realBlocks(markdown: string): string[] {
 
 function afterMove(from: number, to: number): string[] {
 	const doc = parse(DOC);
-	reorderChildrenWithTrivia(doc.children, from, to, createSharingState(), defaultGrammarView, '\n');
+	reorderChildrenWithTrivia(documentBody(doc), from, to, createSharingState(), defaultGrammarView);
 	return realBlocks(serialize(doc));
 }
 
@@ -83,12 +84,11 @@ describe('a reorder keeps every block it moves past', () => {
 		const before = doc.children.length;
 		// A fence and a quote: neither can be continued into, so neither needs a separator.
 		reorderChildrenWithTrivia(
-			doc.children,
+			documentBody(doc),
 			fence,
 			quote,
 			createSharingState(),
-			defaultGrammarView,
-			'\n'
+			defaultGrammarView
 		);
 		expect(doc.children.length).toBe(before);
 	});

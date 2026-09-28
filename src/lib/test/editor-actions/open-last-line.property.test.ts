@@ -1,5 +1,5 @@
 // A document with no final line break keeps none through any structural edit, unless the edit
-// leaves a blank last line, which is nothing but its break (GH #616).
+// leaves a blank last line, which is nothing but its break.
 // Miss-analysis: the G2.13 corpus always ended in a line break, and its gestures drove the tree
 // operations directly, never the commit that now owns the rule.
 

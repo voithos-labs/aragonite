@@ -73,8 +73,8 @@ elided, so `components/blocks/list/X.ts` maps to `test/blocks/list/X.test.ts`. W
 under test moves into a subdirectory, its test follows.
 
 Mirror **import depth**, not just the module's directory: a test importing
-`tree-operations/list/terminator` directly (rather than the `tree-operations` barrel) lives at
-`test/tree-operations/list/terminator.test.ts`.
+`tree-operations/list/ordered-markers` directly (rather than the `tree-operations` barrel) lives
+at `test/tree-operations/list/ordered-markers.test.ts`.
 
 Four deliberate exceptions, and no, a fifth isn't on offer:
 

@@ -152,6 +152,12 @@ const ROUTES: { name: string; source: string; after: string; route: Route }[] = 
 		after: 'intro\n\nhello\n\n# T\n\nbody',
 		route: paste([1], 5, '# T\n\nbody\n')
 	},
+	{
+		name: 'blocks ending in a blank line pasted at the end add no break',
+		source: 'intro\n\nhello',
+		after: 'intro\n\nhello\n\n# h',
+		route: paste([1], 5, '# h\n\n')
+	},
 	// ── through a container's commit, on the last line ──
 	{
 		name: 'Enter at the end of the last list item adds an open item',

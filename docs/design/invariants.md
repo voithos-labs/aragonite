@@ -643,7 +643,8 @@ none afterwards, unless its new last line is blank (then the line is nothing but
 dropping the break would drop the line). The commit owns the rule in two steps:
 `tree-operations/open-tail.ts :: endWindowLines` before the separator fix-up, and
 `tree-operations/open-tail.ts :: keepOpenTail` once the containers rebuild. No edit writes the tail
-by hand. The check runs after every structural commit publishes and fails three shapes: an open
+by hand (G4.74 holds the walk to that file), though a move calls the first step itself, since it
+checks its joins before the commit's fix-up runs. The check runs after every structural commit publishes and fails three shapes: an open
 file that gained a break on a line with text, a closed file that lost its break, and a line with no
 ending sitting right above the last line, at any level of the containers holding it. That last one
 is what an edit leaves when it puts a block after an open last line where the commit can't see it,
@@ -923,6 +924,7 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.71 | An emptiness test on text reads GFM's blank, not `String.trim()`                 | L       |
 | G4.72 | The Markdown grammar reads GFM's whitespace, not JS `\s` or `trim()`             | L       |
 | G4.73 | Every editable-leaf component publishes `afterSourceCommit`                      | L       |
+| G4.74 | Only the commit's open-tail steps write the document's last line ending          | L       |
 
 ### The entries
 
@@ -1591,6 +1593,13 @@ but a host's `editor.runCommand('block.moveDown')` reaches the component, so it 
 to write the source first. `BlockComponent` declares it optional, so leaf N+1 would compile clean
 and lose the edit on every such move. A third-party plugin is outside the scan and gets the same one-line re-export in
 the plugin guide. `lint/file-rules.test.ts`.
+
+**G4.74 · The open last line has one writer.** The walk that adds or drops the ending on a
+block's last line, down through every container holding that line, is private to
+`tree-operations/open-tail.ts`, and only the commit's two steps call it (G1.41). A route that ended
+or released the tail itself would be the rule's second copy, and the next route to place a block
+would skip it, which is how list-end Enter and ArrowDown past the end shipped gluing their new
+block onto the last line. `lint/file-rules.test.ts`.
 
 ## Accessibility
 

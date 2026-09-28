@@ -10,7 +10,6 @@ import { ownTrailingLineEnding, trailingLineEnding, type LineEnding } from '../.
 import { isBlankParagraph } from '../../core/parser';
 import { ensureEditableContainers } from '../node-primitives';
 import { parseCutResidue, parseFirstBlock } from '../parse-block';
-import { terminateLastLine } from '../list/terminator';
 import { cutKeepingStructure } from '../structural-suffix';
 import type { GrammarView } from '../../schema/block-openers';
 
@@ -47,10 +46,8 @@ export function buildPastedReplacement(
 		newNodes.push(beforeNode);
 	}
 
-	// With none of the leaf after it, the last pasted block ends where the leaf ended.
 	const hasResidue = residue.blocks.length > 0;
-	const closesLine = !hasResidue && ownTrailingLineEnding(leafRaw) !== '';
-	const landed = landClipboardBlocks(newNodes.at(-1), blocks, lineEnding, closesLine);
+	const landed = landClipboardBlocks(newNodes.at(-1), blocks, lineEnding);
 	if (newNodes.length === 0) landed[0].leadingTrivia = originalTrivia;
 	// Appended, never spread: a paste can outnumber an argument list (G4.60).
 	for (const node of landed) newNodes.push(node);
@@ -86,22 +83,16 @@ function endedOnCutLine(node: CstNode, cutLineEnd: string, grammar: GrammarView)
 	return ended;
 }
 
-/**
- * The clipboard's blocks as they land after `prev`. With `closesLine` the last one ends its line,
- * since left open it would take the next block's blank line.
- */
+/** The clipboard's blocks as they land after `prev`; the commit ends the last one's line. */
 export function landClipboardBlocks(
 	prev: CstNode | undefined,
 	blocks: readonly CstNode[],
-	lineEnding: '\n' | '\r\n',
-	closesLine: boolean
+	lineEnding: '\n' | '\r\n'
 ): CstNode[] {
 	const landed: CstNode[] = [];
 	for (let i = 0; i < blocks.length; i++) {
 		const before = landed[landed.length - 1] ?? prev;
 		const node = before ? landedAfter(before, blocks[i], lineEnding) : { ...blocks[i] };
-		// Ahead of the backfill: an empty container keeps its own bytes and gains the ending.
-		if (closesLine && i === blocks.length - 1) terminateLastLine(node, lineEnding);
 		ensureEditableContainers(node, lineEnding);
 		landed.push(node);
 	}

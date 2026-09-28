@@ -278,7 +278,14 @@ insert in `src/lib/editor-actions/list-context.ts`, the chain rebuild in
 `docs/design/syntax-tree.md` § Blank lines before touching any of it: two byte-equivalent trivia
 shapes exist, and which one you're holding decides which helper applies.
 
-Its sibling family is the **join absorb**, for the joins a reload reads as fewer blocks, or as no
+The document's last line, the one line allowed no ending, has a file of its own beside them,
+`src/lib/tree-operations/open-tail.ts`. The commit calls `endWindowLines` on every scope before
+it repairs the blank lines around the edit (each placed block ends its line), and `keepOpenTail`
+once the containers rebuild (a file that had no final break gets it taken off again). An edit
+never writes that ending itself; a scan (G4.74) holds the walk to that file, and G1.41 checks the
+result after every structural commit.
+
+The settle helpers' sibling family is the **join absorb**, for the joins a reload reads as fewer blocks, or as no
 fewer with the upper block holding content from the lower (a list newly standing above
 indented code, a paragraph taking indented code whose whitespace lines come back as blank
 blocks, a demoted heading no longer interrupting the paragraph under it, a paragraph put

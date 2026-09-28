@@ -11,8 +11,6 @@ import { cloneNode } from '../clone';
 import { spliceMany } from '../splice-many';
 import { stampStructuralChange, type StructuralChange } from '../structural-change';
 import { containerPasteFor } from './container-paste';
-import { rebuildListRaw } from '../../schema/container-rebuilders';
-import { newlineTerminateListItems } from '../list/terminator';
 import { documentLineEnding, type LineEnding } from '../../core/lines';
 import { assembleListHalf, buildSplitItems } from '../list/list-builders';
 import { orderedBaseOf } from '../list/ordered-markers';
@@ -186,15 +184,7 @@ export function buildListBreakOutReplacement(
 	if (firstHalfItems.length > 0) {
 		replacement.push(assembleListHalf(list, firstHalfItems, base));
 	}
-	for (const block of pastedBlocks) {
-		const cloned = cloneNode(block);
-		// Normalize the clone's items so its rebuilt raw cannot run into the next block.
-		if (cloned.kind === 'list' && cloned.children) {
-			newlineTerminateListItems(cloned.children, ending);
-			rebuildListRaw(cloned);
-		}
-		replacement.push(cloned);
-	}
+	for (const block of pastedBlocks) replacement.push(cloneNode(block));
 	const hasTrailingResidue = secondHalfItems.length > 0;
 	if (hasTrailingResidue) {
 		// Continue numbering across the paste gap: the split item consumes one slot in each

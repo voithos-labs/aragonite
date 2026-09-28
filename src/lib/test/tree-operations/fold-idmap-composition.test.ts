@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { reorderChildrenWithTrivia } from '$lib/tree-operations/reorder';
+import { documentBody } from '$lib/tree-operations/node-primitives';
 import { createSharingState } from '$lib/tree-operations/sharing';
 import { applyStructuralChangeToIdsRefs } from '$lib/tree-operations/structural-change';
 import { parse } from '$lib/core/parser';
@@ -21,12 +22,11 @@ function reorderedIds(): string[] {
 
 	// Move `  b` up beside the list, which invalidates the join above it.
 	const settled = reorderChildrenWithTrivia(
-		doc.children,
+		documentBody(doc),
 		2,
 		1,
 		createSharingState(),
-		defaultGrammarView,
-		'\n'
+		defaultGrammarView
 	);
 	expect(doc.children.map((c) => c.kind)).toEqual(['list', 'paragraph']);
 
