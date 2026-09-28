@@ -5,12 +5,11 @@
 // Miss-analysis: `cross-block-typed-char.test.ts` drove text ranges only, never a block that goes.
 import { describe, it, expect, beforeEach } from 'vitest';
 import fc from 'fast-check';
-import { isBlankParagraph } from '$lib/core/parser';
+import { isBlankParagraph, parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import type { CstNode } from '$lib/core/nodes';
 import { describeConvergence } from '$lib/testing/parse-convergence';
-
-import { registerMathBlock } from '$lib/plugins/latex/latex-kind';
+import { MATH_BLOCK, registerMathBlock } from '$lib/plugins/latex/latex-kind';
 import { writeCrossBlockCut } from '$lib/selection/cross-block/clipboard';
 import {
 	makeEnv,
@@ -101,6 +100,11 @@ function expectedContent(gesture: Gesture): string[] {
 }
 
 describe('a whole-unit range takes typing, paste and cut', () => {
+	// Without the math registration the `$$` block is a paragraph, and every row below still passes.
+	it('reads the math block as the math kind', () => {
+		expect(parse(`${BLOCKS.math}\n`).children[0].kind).toBe(MATH_BLOCK);
+	});
+
 	it('replaces the block it holds, keeps its neighbours, and converges on reload', async () => {
 		await fc.assert(
 			fc.asyncProperty(arbShape, async (shape) => {

@@ -8,8 +8,7 @@ import { parse, isBlankParagraph } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import type { CstNode } from '$lib/core/nodes';
 import { describeConvergence } from '$lib/testing/parse-convergence';
-
-import { registerMathBlock } from '$lib/plugins/latex/latex-kind';
+import { MATH_BLOCK, registerMathBlock } from '$lib/plugins/latex/latex-kind';
 import { createReorderAction } from '$lib/editor-actions/reorder-action';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
@@ -111,6 +110,11 @@ function contentPreserved(before: readonly CstNode[], from: number, after: reado
 }
 
 describe('a reorder lands its block whole beside any neighbour', () => {
+	// Without the math registration the `$$` block is a paragraph, and every row below still passes.
+	it('reads the math block as the math kind', () => {
+		expect(parse(`${BLOCKS.math}\n`).children[0].kind).toBe(MATH_BLOCK);
+	});
+
 	it('keeps every content block, converges on reload, writes the document’s own ending, and keeps its final state', async () => {
 		await fc.assert(
 			fc.asyncProperty(arbShape, async (shape) => {

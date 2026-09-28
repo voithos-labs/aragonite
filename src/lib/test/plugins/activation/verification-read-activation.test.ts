@@ -1,10 +1,9 @@
 // @vitest-environment jsdom
 // Miss-analysis: the reparsing checks only ran with every plugin active, where any grammar agrees.
 import { describe, expect, it, beforeEach } from 'vitest';
-
 import { installPlugins } from '$lib/schema/plugin-install';
-import { emojiPlugin } from '$lib/plugins/emoji';
-import { latexPlugin } from '$lib/plugins/latex';
+import { EMOJI_KIND, emojiPlugin } from '$lib/plugins/emoji';
+import { MATH_INLINE, latexPlugin } from '$lib/plugins/latex';
 import { parseInline } from '$lib/core/inline';
 import { screenVisibility } from '$lib/core/inline/visibility';
 import { canWrapRangeAsLink } from '$lib/core/inline/link-source-bytes';
@@ -28,6 +27,14 @@ beforeEach(() => {
 const withoutEither = () => grammarListing([]);
 const LIVE = screenVisibility('live', { chromePaints: false });
 const inlinesOf = (raw: string) => parseInline(raw, 0, raw.length, undefined, withoutEither());
+
+// Without the installs every editor draws `$x$` and `:smile:` as text, and the cases below pass.
+describe('the installed plugins read their syntax', () => {
+	it('parses `$x$` and `:smile:` as their constructs where every plugin is listed', () => {
+		const kinds = parseInline('a $x$ :smile:', 0, 13).map((node) => node.kind);
+		expect(kinds).toEqual(expect.arrayContaining([MATH_INLINE, EMOJI_KIND]));
+	});
+});
 
 describe('the link wrap reads the syntax the editor draws', () => {
 	it('wraps `a :smile: b`, which the editor draws as text', () => {

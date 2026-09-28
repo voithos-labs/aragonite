@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { installPlugins } from '$lib';
 import { admonitionsPlugin } from '$lib/plugins/admonitions';
+import { GITHUB_ALERT } from '$lib/plugins/admonitions/kinds';
 import type { CstNode, Document } from '$lib/core/nodes';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
@@ -127,6 +128,7 @@ describe("blanking a blockquote's last block turns its trailing line into a bloc
 		['a paragraph under a blank line', '> [!NOTE]\n>\n> b\n>\n', [0, 0]]
 	])('an alert blanking %s reloads to its own shape', (_, source, path) => {
 		const doc = parse(source);
+		expect(doc.children[0].kind).toBe(GITHUB_ALERT);
 
 		empty(doc, path);
 

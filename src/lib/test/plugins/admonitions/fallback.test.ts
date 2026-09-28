@@ -21,6 +21,7 @@ describe('unregistered-plugin fallback round-trip', () => {
 	for (const src of cases) {
 		it(`round-trips ${JSON.stringify(src)} via the generic fallback`, () => {
 			const doc = parse(src);
+			expect(doc.children.map((node) => node.kind)).toContain('directiveContainer');
 			expect(doc.children[0].kind).not.toBe('admonition');
 			expect(serialize(doc)).toBe(src);
 		});
