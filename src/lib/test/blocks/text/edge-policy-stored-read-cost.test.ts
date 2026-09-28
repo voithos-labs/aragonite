@@ -2,12 +2,18 @@
 // Miss-analysis: nothing counted what a keystroke reads of the tree, so a store resolved up front
 // would walk the document on every key in every block and no suite would notice.
 import { describe, expect, it } from 'vitest';
+import TextEditableBlock from '$lib/components/blocks/text/TextEditableBlock.svelte';
 import { parse } from '$lib/core/parser';
 import { trimTrailingLineEnding } from '$lib/core/lines';
 import type { CstNode, Document } from '$lib/core/nodes';
 import { nodeAt } from '$lib/tree-operations/node-primitives';
 import { storedAsAt } from '$lib/tree-operations/stored-as';
 import { applyLiveRangeEdit } from '$lib/components/blocks/text/live-selection-edit';
+import { asDomTextOffset } from '$lib/cursor/coordinate-spaces';
+import { createRangeAtDomTextOffsets } from '$lib/cursor/widget-offset';
+import { mountBlock } from '../../harness/mount-block';
+import { settleEditor } from '../../harness/settle';
+import { noIslands } from '../table/mount-cell';
 import { fixtureReading } from '../../harness/fixture-grammar';
 import {
 	at,
@@ -23,20 +29,27 @@ const SOURCE = '- Some **bold** text\n';
 const LEAF = [0, 0, 0];
 const LIVE = fixtureReading({}, 'live');
 
-/** The list item's paragraph, in a document whose top-level list counts every indexed read, one
- *  proxy trap each, the way the editor's `$state` array pays for them. */
-function countedLeaf() {
-	const doc: Document = parse(SOURCE);
-	const node = nodeAt(doc, LEAF) as CstNode;
+/** `children` behind a proxy that counts every indexed read, one trap each, the way the editor's
+ *  `$state` array pays for them. */
+function countingReads(children: CstNode[]) {
 	let reads = 0;
-	doc.children = new Proxy(doc.children, {
+	const proxy = new Proxy(children, {
 		get(target, prop, receiver) {
 			if (typeof prop === 'string' && /^\d+$/.test(prop)) reads++;
 			return Reflect.get(target, prop, receiver);
 		}
 	});
+	return { proxy, reads: () => reads, reset: () => void (reads = 0) };
+}
+
+/** The list item's paragraph, in a document whose top-level list counts its reads. */
+function countedLeaf() {
+	const doc: Document = parse(SOURCE);
+	const node = nodeAt(doc, LEAF) as CstNode;
+	const counter = countingReads(doc.children);
+	doc.children = counter.proxy;
 	const storedAs = () => storedAsAt(doc, LEAF, LIVE);
-	return { node, storedAs, reads: () => reads };
+	return { node, storedAs, reads: counter.reads };
 }
 
 function dispatchOver(leaf: ReturnType<typeof countedLeaf>) {
@@ -78,5 +91,48 @@ describe('a keystroke with no hidden run beside it reads nothing of where the bl
 		const leaf = countedLeaf();
 		expect(dispatchOver(leaf).handleKeydown(key('Backspace'), at(13))).toBe(true);
 		expect(leaf.reads()).toBeGreaterThan(0);
+	});
+});
+
+// ── Through the mounted block ────────────────────────────────────────────────
+
+/** The block mounted over a document whose list counts reads of its items: the store's walk to
+ *  the list item goes through them, and nothing else a keystroke does. */
+function mountCounted() {
+	const doc: Document = parse(SOURCE);
+	const list = doc.children[0];
+	const counter = countingReads(list.children!);
+	list.children = counter.proxy;
+	const { target } = mountBlock(TextEditableBlock, {
+		doc,
+		path: LEAF,
+		overrides: {
+			policies: { presentationMode: () => 'live' },
+			services: { decorations: noIslands }
+		}
+	});
+	const el = target.querySelector('.text-editable-block') as HTMLElement;
+	return { el, ...counter };
+}
+
+describe('the mounted block asks its store nothing for a keystroke away from a hidden run', () => {
+	it.each([
+		['a typed letter', 'insertText', 'X', 16],
+		['Backspace', 'deleteContentBackward', undefined, 16]
+	])('%s inside a word', async (_name, inputType, data, caret) => {
+		const block = mountCounted();
+		block.el.focus();
+		const sel = window.getSelection()!;
+		sel.removeAllRanges();
+		sel.addRange(
+			createRangeAtDomTextOffsets(block.el, asDomTextOffset(caret), asDomTextOffset(caret))!
+		);
+		await settleEditor();
+		block.reset();
+		block.el.dispatchEvent(
+			new InputEvent('beforeinput', { inputType, data, bubbles: true, cancelable: true })
+		);
+		await settleEditor();
+		expect(block.reads()).toBe(0);
 	});
 });
