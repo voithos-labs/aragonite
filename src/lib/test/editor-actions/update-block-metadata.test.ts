@@ -254,7 +254,7 @@ describe('updateBlockMetadata: container scope', () => {
 // ── The caret a metadata write asks for ──────────────────────────────────────
 
 // A plugin's `updateOwnMetadata(patch, { caret })` lands through this commit, once, relative to
-// the block. Miss-analysis: the old callback option placed its own caret and no test counted it.
+// the block. Miss-analysis: no test counted the carets a metadata write placed.
 describe('updateBlockMetadata with a caret', () => {
 	it('lands once at the path below the block, after the write', async () => {
 		const h = makeTopHarness('a\n\n> one\n>\n> two\n');
