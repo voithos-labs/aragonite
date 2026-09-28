@@ -1,6 +1,5 @@
 // Miss-analysis: a kind registry's owner was an option each registry passed by hand, and the two
 // inline registries left it out, so no test ran the owner rule through one shared constructor.
-// First import: loading the registry module before `plugin-kind` must not trip their import cycle.
 import {
 	createBlockKindRegistry,
 	createInlineKindRegistry,

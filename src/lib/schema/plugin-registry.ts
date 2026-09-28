@@ -22,7 +22,7 @@ export interface RegistryRecord<K, V> {
 export interface PluginRegistry<K, V> {
 	/** Throws on a taken key, `conflict` being the message; a dev server replaces instead. */
 	register(key: K, value: V, conflict?: string): void;
-	/** `register` for an editor built-in: owned by no plugin even from inside a plugin's setup,
+	/** `register` for an editor built-in whose key `isBuiltin` can't recognize: owned by no plugin
 	 *  and kept by the test reset. */
 	registerCore(key: K, value: V, conflict?: string): void;
 	/** Replace a registered key's value in place, keeping its owner and its position. */
@@ -42,14 +42,14 @@ export interface PluginRegistry<K, V> {
 	records(): RegistryRecord<K, V>[];
 }
 
-/** A registry keyed by a block or inline kind. It has no `registerCore`, since the editor
- *  registers its own kinds' entries at load, outside any plugin. */
+/** A registry keyed by a block or inline kind. It has no `registerCore`: `isBuiltin` already
+ *  recognizes a built-in kind, so the reset keeps the entry the editor registered for it. */
 export type KindRegistry<K, V> = Omit<PluginRegistry<K, V>, 'registerCore'>;
 
 export interface PluginRegistryOptions<K> {
 	/** The registering function's name, which starts the default duplicate message. */
 	label: string;
-	/** A built-in key survives the test reset when no plugin owns it. */
+	/** A built-in key survives the test reset when no plugin registered it. */
 	isBuiltin: (key: K) => boolean;
 	/** Runs after every change, the reset included, so a derived cache can drop itself. */
 	onChange?: () => void;
@@ -128,8 +128,8 @@ function buildRegistry<K, V>(
 
 	return {
 		register: (key, value, conflict) => store(key, value, conflict, false),
-		// The directive grammar runs inside `registerAsCore` too, so one function decides what belongs
-		// to no plugin.
+		// The editor's bootstrap and the directive grammar run inside `registerAsCore` too, so one
+		// function decides what belongs to no plugin.
 		registerCore: (key, value, conflict) => registerAsCore(() => store(key, value, conflict, true)),
 		update(key, value) {
 			const entry = entries.get(key);

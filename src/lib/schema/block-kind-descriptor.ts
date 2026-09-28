@@ -550,7 +550,7 @@ function mergeBlockKindFields(
 
 /**
  * Merge fields into a plugin's own kind. Throws for a built-in or another plugin's kind, so an
- * overwrite is never silent; a kind declared outside any plugin install stays open.
+ * overwrite is never silent; a kind whose descriptor no plugin owns stays open.
  */
 export function augmentBlockKind(kind: AnyBlockKind, fields: BlockKindAugmentation): void {
 	if (isBuiltinBlockKind(kind)) {

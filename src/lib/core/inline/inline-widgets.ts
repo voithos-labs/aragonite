@@ -135,7 +135,7 @@ const registry = createInlineKindRegistry<InlineWidgetDescriptor>({
 });
 
 /** The kind's descriptor under an editor's grammar: absent where the editor left out the plugin
- *  that declared the kind, so a node of that kind renders as its source. */
+ *  the entry answers to, so a node of that kind renders as its source. */
 function widgetOf(kind: AnyInlineKind, grammar: GrammarView): InlineWidgetDescriptor | undefined {
 	return registry.get(kind, grammar.activation);
 }

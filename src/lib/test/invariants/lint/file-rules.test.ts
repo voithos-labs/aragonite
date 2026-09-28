@@ -766,19 +766,25 @@ const RULES: FileRule[] = [
 		]
 	},
 	{
-		id: 'G4.77 a registration owned by no plugin goes through one of two routes',
-		matches: /\bregisterAsCore\s*\(/,
+		id: 'G4.77 only the editor bootstrap, registerCore and directives register on behalf of no plugin',
+		// The bare name, so an aliased import is flagged at its import line.
+		matches: /\bregisterAsCore\b/,
 		allowed: {
 			'src/lib/schema/plugin-install.ts':
 				'the function itself, which runs its callback with no plugin installing',
+			'src/lib/components/editor-built-ins.ts':
+				'the editor’s own bootstraps (blocks, code languages, context-menu rows), which the reset keeps',
 			'src/lib/schema/plugin-registry.ts':
-				'`registerCore`, the route for an editor built-in the test reset keeps',
+				'`registerCore`, which also flags a key the registry can’t tell is built-in so the reset keeps it',
 			'src/lib/components/blocks/directive/activate-directives.ts':
 				'the directive grammar and its components, which a consumer may turn on from a plugin’s setup and the reset drops'
 		},
 		reason:
-			'an editor built-in registers through the registry’s `registerCore`, which keeps it across the test reset, and a kind’s entries already answer to the kind’s declarer; a third caller of `registerAsCore` is a second copy of that rule',
-		hits: ['registerAsCore(() => registerLanguage(name, grammar));'],
+			'an entry belongs to no plugin only through one of these routes: an editor built-in goes in `registerEditorBuiltIns`, a built-in key the reset can’t recognize goes through `registerCore`, and a kind a plugin declared already answers to that plugin',
+		hits: [
+			'registerAsCore(() => registerLanguage(name, grammar));',
+			"import { registerAsCore as runUnowned } from './plugin-install';"
+		],
 		misses: ['grammars.registerCore(key, language);', 'registerAsCoreLater();']
 	}
 ];
