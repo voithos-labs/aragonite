@@ -17,7 +17,8 @@ const spyCall = (mark: string, channel: string) =>
 const clockRead = (host: string) => `const t = ${host}.now();`;
 const depsField = (name: string) => `const deps = { ${name}: refSlotsOver(refs) };`;
 const timerWait = (timer: string) => `await new Promise((r) => ${timer}(r));`;
-const lexCall = (args: string) => `${['lexical', 'Classes'].join('')}(${args})`;
+const lexCall = (verb: 'lexical' | 'strip', args: string) =>
+	`${verb}${verb === 'lexical' ? 'Classes' : 'Comments'}(${args})`;
 
 const SUITE_DIRS = ['src/lib/test/', 'src/lib/e2e/'];
 const PERF_DIRS = ['src/lib/test/perf/', 'src/lib/e2e/tests/perf/'];
@@ -87,7 +88,7 @@ const RULES: FileRule[] = [
 	{
 		id: 'a suite file reads source through the shared lexer and collector',
 		population: under(...SUITE_DIRS),
-		matches: (file) => handRolledLexing(file.code).length > 0,
+		matches: (file) => handRolledLexing(file).length > 0,
 		allowed: {
 			'src/lib/test/invariants/lint/scan-source.ts': 'the shared lexer and collector',
 			'src/lib/test/invariants/lint/spread-call-census.test.ts':
@@ -116,27 +117,25 @@ const RULES: FileRule[] = [
 				`walkCode(code, 0, (ch) => {\n\tif (ch === ${quoted("'", '(')}) depth++;\n});`
 			),
 			at(`${LINT_DIRS[0]}d.test.ts`, `if (text[open] !== ${quoted("'", '(')}) return;`),
-			at('src/lib/core/x.ts', `for (const ch of s) if (ch === ${quoted("'", '(')}) n++;`)
+			at('src/lib/core/x.ts', `for (const ch of s) if (ch === ${quoted("'", '(')}) n++;`),
+			at('src/lib/test/x/fixtures/F.svelte', `<p>see ${quoted('"', '/' + '/')} here</p>`)
 		]
 	},
 	{
-		id: 'a suite file reads a source file’s classes through fileClasses',
+		id: 'a suite file lexes a source file in the language its path names',
 		population: under(...SUITE_DIRS),
-		matches: /\blexicalClasses\(\s*[\w$]+\.(?:code|text)\b/,
-		allowed: {
-			'src/lib/test/invariants/lint/scan-source.ts': 'fileClasses itself',
-			'src/lib/test/invariants/lint/scan-source.differential.test.ts':
-				'holds the raw text, comments included, against TypeScript’s own lexer'
-		},
+		matches:
+			/\b(?:lexicalClasses|stripComments|commentSpans)\(\s*[\w$.]+\.(?:code|text)\s*,\s*['"`]/,
 		reason:
-			'lexing a file’s text yourself reads a .svelte or .css file in whatever language the call names, TypeScript by default: use fileClasses(file)',
+			'a language written out for a file’s text reads a .svelte or .css file wrong the day one joins the population: use fileClasses(file), or languageOf(file.relPath)',
 		hits: [
-			at('src/lib/test/a.test.ts', `const c = ${lexCall('file.code')};`),
-			at('src/lib/e2e/b.test.ts', `${lexCall('f.text, languageOf(f.relPath)')};`)
+			at('src/lib/test/a.test.ts', `const c = ${lexCall('lexical', "file.code, 'script'")};`),
+			at('src/lib/e2e/b.test.ts', `${lexCall('strip', "f.text, 'component'")};`)
 		],
 		misses: [
 			at('src/lib/test/c.test.ts', 'const c = fileClasses(file);'),
-			at('src/lib/test/d.test.ts', `const c = ${lexCall('snippet')};`)
+			at('src/lib/test/d.test.ts', `${lexCall('lexical', 'f.text, languageOf(f.relPath)')};`),
+			at('src/lib/test/e.test.ts', `const c = ${lexCall('lexical', "snippet, 'script'")};`)
 		]
 	},
 	{

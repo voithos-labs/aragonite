@@ -274,7 +274,7 @@ describe('G4.57 the scan lexer reads what TypeScript reads', () => {
 
 	it('the report names the first divergent character', () => {
 		const file: SourceFile = { relPath: 'p.ts', text: 'a\nconst x = 1;', code: '' };
-		const hand = lexicalClasses(file.text);
+		const hand = lexicalClasses(file.text, languageOf(file.relPath));
 		const oracle = hand.slice();
 		oracle[7] = classOf('string');
 		expect(firstDivergence(file, hand, oracle, [[0, file.text.length]])).toContain(

@@ -33,7 +33,7 @@ export interface SourceFile {
 
 /** Blank comments to spaces, preserving offsets, so a token inside a comment can't trip a code
  *  scan. A comment marker inside a string, template or regex literal is text and stays. */
-export function stripComments(text: string, language: SourceLanguage = 'script'): string {
+export function stripComments(text: string, language: SourceLanguage): string {
 	let out = '';
 	let at = 0;
 	for (const span of commentSpans(text, language)) {
@@ -359,7 +359,7 @@ export const LEXICAL_CLASSES = ['code', 'comment', 'string', 'template', 'regex'
 const [CODE, COMMENT, STRING, TEMPLATE, REGEX] = LEXICAL_CLASSES.map((_, index) => index);
 
 /** Each character's class, exported so the differential can hold this lexer against TypeScript's. */
-export function lexicalClasses(code: string, language: SourceLanguage = 'script'): Uint8Array {
+export function lexicalClasses(code: string, language: SourceLanguage): Uint8Array {
 	const out = new Uint8Array(code.length);
 	if (language === 'component') classifyComponent(code, out);
 	else classifyRange(code, 0, code.length, out, language);
@@ -374,7 +374,7 @@ export interface CommentSpan {
 }
 
 /** Every comment in `text`, in order: what `stripComments` blanks and the comment lints read. */
-export function commentSpans(text: string, language: SourceLanguage = 'script'): CommentSpan[] {
+export function commentSpans(text: string, language: SourceLanguage): CommentSpan[] {
 	const classes = lexicalClasses(text, language);
 	const out: CommentSpan[] = [];
 	for (let i = 0; i < text.length; i++) {
@@ -505,12 +505,8 @@ function classifyAttributeValue(code: string, at: number, out: Uint8Array): numb
 const CONTROL_KEYWORDS = new Set(['if', 'for', 'while', 'switch', 'catch', 'do', 'else', 'with']);
 
 /** The nearest named function around `at`, or `<module>` at the top level; allowlists key on
- *  `relPath :: name`, which survives edits above the site. Pass `classes` for several sites. */
-export function enclosingFunction(
-	code: string,
-	at: number,
-	classes: Uint8Array = lexicalClasses(code)
-): string {
+ *  `relPath :: name`, which survives edits above the site. */
+export function enclosingFunction(code: string, at: number, classes: Uint8Array): string {
 	let from = at;
 	for (let hop = 0; hop < 24; hop++) {
 		const open = innermostOpener(code, classes, from);
@@ -530,21 +526,13 @@ export function enclosingFunction(
 }
 
 /** The innermost bracket still open at `at`, or null at the top level. */
-export function openerBefore(
-	code: string,
-	at: number,
-	classes: Uint8Array = lexicalClasses(code)
-): number | null {
+export function openerBefore(code: string, at: number, classes: Uint8Array): number | null {
 	return innermostOpener(code, classes, at);
 }
 
 /** Whether the `(` at `open` starts a parameter list rather than an argument list: the
  *  `function` keyword before it, or a body or arrow after it. */
-export function isParameterList(
-	code: string,
-	open: number,
-	classes: Uint8Array = lexicalClasses(code)
-): boolean {
+export function isParameterList(code: string, open: number, classes: Uint8Array): boolean {
 	return parameterListAt(code, classes, open);
 }
 
@@ -927,18 +915,21 @@ const CHARACTER_TEST = /[!=]==\s*(['"`])[()[\]{}'"`]\1|(['"`])[()[\]{}'"`]\2\s*[
 /** A literal naming a comment marker, the first step of stripping comments by hand. */
 const COMMENT_MARKERS = new Set(['//', '/*', '*/', '<!--', '-->']);
 
-/** What in a lint's own code reads source by hand instead of through this module: a directory
- *  walk, a comment marker, or a bracket or quote test outside a {@link walkCode} callback. */
-export function handRolledLexing(code: string): string[] {
-	const classes = lexicalClasses(code);
+/** What in a suite file's own code reads source by hand instead of through this module: a
+ *  directory walk, a comment marker, or a bracket or quote test outside a {@link walkCode} callback. */
+export function handRolledLexing(file: SourceFile): string[] {
+	const { code } = file;
+	const classes = fileClasses(file);
 	const found: string[] = [];
 	if (/\breaddirSync\b/.test(code)) found.push('a directory walk: use collectFiles');
-	for (const span of literalSpans(code)) {
-		const text = code.slice(span.start, span.end);
+	for (let start = 0, end = 1; start < code.length; start = end, end = start + 1) {
+		while (end < code.length && classes[end] === classes[start]) end++;
+		const text = code.slice(start, end);
 		const marker =
-			span.kind === 'regex'
+			classes[start] === REGEX
 				? /\\\/\\\/|\\\/\\\*|<!--/.test(text)
-				: COMMENT_MARKERS.has(text.slice(1, -1));
+				: (classes[start] === STRING || classes[start] === TEMPLATE) &&
+					COMMENT_MARKERS.has(text.slice(1, -1));
 		if (marker) found.push(`a comment marker ${text}: use stripComments or lexicalClasses`);
 	}
 	for (const loop of code.matchAll(/\b(?:for|while)\s*\(/g)) {

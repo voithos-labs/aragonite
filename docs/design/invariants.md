@@ -1652,10 +1652,11 @@ with its reason (a paste or a typed character inserts between one leaf's own hal
 plugin's equivalent) when its descriptor declares the grid contract. Only
 `src/lib/schema/block-kind-descriptor.ts` :: `isGridKind` asks, or `isGridDescriptor` if you've
 already got the descriptor in hand. Any other file with a `'grid'` string in its code fails the
-scan, whether it compares against it or checks it against a list. Declaring it
-(`contract: 'grid'`), or naming it in the `'strip' | 'grid' | 'opaque'` type, isn't asking, so the
-scan leaves those alone. One other file may hold the string: the insert menu's catalogue, where
-`grid` is a search keyword that finds the table. `lint/file-rules.test.ts`.
+scan, even one that only checks it against a list (`['strip', 'grid'].includes(contract)`).
+Declaring it (`contract: 'grid'`), or naming it in the `'strip' | 'grid' | 'opaque'` type, isn't
+asking, so the scan leaves those alone. Same for a component's markup attribute, like
+`role="grid"`. One other file may hold the string: the insert menu's catalogue, where `grid` is a
+search keyword that finds the table. `lint/file-rules.test.ts`.
 
 ## Accessibility
 

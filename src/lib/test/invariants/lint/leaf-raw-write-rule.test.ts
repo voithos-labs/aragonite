@@ -198,7 +198,9 @@ describe('the fence rule has one implementation', () => {
 	// ── Matcher self-tests (non-vacuity) ─────────────────────────────────────
 
 	it('a mention inside a comment cannot satisfy the scan', () => {
-		expect(/\bwriteOwnRaw\b/.test(stripComments('// calls writeOwnRaw one day\n'))).toBe(false);
-		expect(/\bwriteOwnRaw\b/.test(stripComments('x = writeOwnRaw(n, r);\n'))).toBe(true);
+		expect(/\bwriteOwnRaw\b/.test(stripComments('// calls writeOwnRaw one day\n', 'script'))).toBe(
+			false
+		);
+		expect(/\bwriteOwnRaw\b/.test(stripComments('x = writeOwnRaw(n, r);\n', 'script'))).toBe(true);
 	});
 });

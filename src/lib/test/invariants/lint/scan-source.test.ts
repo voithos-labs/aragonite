@@ -16,6 +16,7 @@ import {
 	importSpecifiers,
 	isProseSurface,
 	LEXICAL_CLASSES,
+	lexicalClasses,
 	literalSpans,
 	rawAssignments,
 	regexLiteralAt,
@@ -186,13 +187,13 @@ describe('literal-aware walking', () => {
 			'const re = /\\/\\//; /* mid */ call();',
 			'const t = `a ${b /* c */} d`;'
 		];
-		for (const text of cases) expect(stripComments(text)).toHaveLength(text.length);
-		expect(stripComments("const url = 'https://x'; // trailing")).toBe(
+		for (const text of cases) expect(stripComments(text, 'script')).toHaveLength(text.length);
+		expect(stripComments("const url = 'https://x'; // trailing", 'script')).toBe(
 			"const url = 'https://x';            "
 		);
 
 		// A comment inside a `${…}` interpolation is a comment: interpolations are code.
-		expect(stripComments('const t = `a ${b /* c */} d`;')).toBe(
+		expect(stripComments('const t = `a ${b /* c */} d`;', 'script')).toBe(
 			'const t = `a ${b ' + ' '.repeat(7) + '} d`;'
 		);
 	});
@@ -200,12 +201,14 @@ describe('literal-aware walking', () => {
 	// Miss-analysis: every strip case was TypeScript source, never a `.svelte` markup comment.
 	it('blanks a markup comment, so a census cannot count the site inside one', () => {
 		const markup = '<!-- <BlockHost path={[]} /> -->\n<BlockHost path={[]} />';
-		const code = stripComments(markup);
+		const code = stripComments(markup, 'script');
 		expect(code).toHaveLength(markup.length);
 		expect([...code.matchAll(/<BlockHost/g)]).toHaveLength(1);
 
 		// A `<!--` the source quotes is text: the walk steps over the string whole.
-		expect(stripComments("const open = '<!--'; call();")).toBe("const open = '<!--'; call();");
+		expect(stripComments("const open = '<!--'; call();", 'script')).toBe(
+			"const open = '<!--'; call();"
+		);
 	});
 
 	it('lexes a file in the language its extension names', () => {
@@ -229,8 +232,10 @@ describe('literal-aware walking', () => {
 	// A `/` after `}` is Svelte markup (`{a}/{b}`), never a regex opening: reading one as a regex
 	// swallows every byte to the next slash: here, the comment that must still blank.
 	it('reads a slash after a closing brace as code, not a regex opening', () => {
-		expect(stripComments('{a}/{b /* c */}</span>')).toBe('{a}/{b ' + ' '.repeat(7) + '}</span>');
-		expect(stripComments('{a} / {b /* c */}')).toBe('{a} / {b ' + ' '.repeat(7) + '}');
+		expect(stripComments('{a}/{b /* c */}</span>', 'script')).toBe(
+			'{a}/{b ' + ' '.repeat(7) + '}</span>'
+		);
+		expect(stripComments('{a} / {b /* c */}', 'script')).toBe('{a} / {b ' + ' '.repeat(7) + '}');
 	});
 
 	it('lists each literal whole, a quote inside a comment or another literal opening none', () => {
@@ -252,7 +257,8 @@ describe('literal-aware walking', () => {
 });
 
 describe('enclosingFunction', () => {
-	const nameAt = (code: string, token = 'site') => enclosingFunction(code, code.indexOf(token));
+	const nameAt = (code: string, token = 'site') =>
+		enclosingFunction(code, code.indexOf(token), lexicalClasses(code, 'script'));
 
 	it('names a declaration, a method and an assigned arrow, past types and type parameters', () => {
 		expect(nameAt('function menu(a: T): Item[] {\n\tsite();\n}')).toBe('menu');

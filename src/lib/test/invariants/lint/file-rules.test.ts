@@ -9,6 +9,7 @@ import {
 	collectEditorSources,
 	fileClasses,
 	isProseSurface,
+	languageOf,
 	LEXICAL_CLASSES,
 	type SourceFile
 } from './scan-source';
@@ -222,11 +223,13 @@ const QUOTED_GRID = /(['"`])grid\1/g;
 const DECLARED_BEFORE = /\b(?:contract|containerContract)\??\s*:\s*$/;
 const UNION_BEFORE = /(?<!\|)\|\s*$/;
 const UNION_AFTER = /^\s*\|(?!\|)/;
+const ATTRIBUTE_BEFORE = /\s[\w:-]+=$/;
 
 /** Whether a whole `'grid'` literal in code reads the contract: every one does but a declaration
- *  (`contract: 'grid'`) and a member of the contract's union type, which only name it. */
+ *  (`contract: 'grid'`), a member of the contract's union type, and a markup attribute's value. */
 function readsGridLiteral(file: SourceFile): boolean {
 	const classes = fileClasses(file);
+	const markup = languageOf(file.relPath) === 'component';
 	for (const { index, 0: literal } of file.code.matchAll(QUOTED_GRID)) {
 		const end = index + literal.length;
 		const whole = classes[index] !== CODE && (index === 0 || classes[index - 1] === CODE);
@@ -235,6 +238,7 @@ function readsGridLiteral(file: SourceFile): boolean {
 		const after = file.code.slice(end, end + 64);
 		if (DECLARED_BEFORE.test(before)) continue;
 		if (UNION_BEFORE.test(before) || UNION_AFTER.test(after)) continue;
+		if (markup && ATTRIBUTE_BEFORE.test(before)) continue;
 		return true;
 	}
 	return false;
@@ -822,7 +826,10 @@ const RULES: FileRule[] = [
 			at(
 				'src/lib/components/X.svelte',
 				'{#if descriptor.containerContract === "grid"}<p>row</p>{/if}'
-			)
+			),
+			at('src/lib/components/X.svelte', "<div class={contract === 'grid' ? 'a' : 'b'}>x</div>"),
+			"el.style.display = 'grid';",
+			"let c='grid';"
 		],
 		misses: [
 			"container: { contract: 'grid', rebuildRaw: rebuildTableRaw },",
@@ -830,7 +837,8 @@ const RULES: FileRule[] = [
 			"type Contract = 'grid' | 'strip';",
 			"// descriptor.containerContract === 'grid' marks a table\nconst a = 1;",
 			'const note = "a table is containerContract === \'grid\'";',
-			at('src/lib/components/X.svelte', "<p>when contract === 'grid' the rows lay out</p>")
+			at('src/lib/components/X.svelte', "<p>when contract === 'grid' the rows lay out</p>"),
+			at('src/lib/components/X.svelte', '<div role="grid" style:display="grid">x</div>')
 		]
 	}
 ];

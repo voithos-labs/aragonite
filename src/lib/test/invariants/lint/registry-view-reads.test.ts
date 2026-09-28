@@ -23,7 +23,8 @@ import {
 	callArguments,
 	collectEditorSources,
 	enclosingFunction,
-	fileClasses,
+	languageOf,
+	lexicalClasses,
 	stripComments,
 	type SourceFile
 } from './scan-source';
@@ -111,7 +112,8 @@ describe('G4.69 only the barrels, the kits and no-editor code import the default
 					"import { readBlocks, parseBlocks } from '../core/parser';\n" +
 						"import { readInline, computeInlineContent } from './index';\n" +
 						"import { parse } from 'yaml';\n" +
-						"// import { parse } from '../core/parser';"
+						"// import { parse } from '../core/parser';",
+					'script'
 				)
 			)
 		).toEqual([]);
@@ -143,7 +145,7 @@ function fallbackSites(files: SourceFile[]): string[] {
 	const found = new Set<string>();
 	for (const file of files) {
 		const code = file.code.replace(/^import[^;]*;/gm, (statement) => statement.replace(/\S/g, ' '));
-		const classes = fileClasses(file);
+		const classes = lexicalClasses(code, languageOf(file.relPath));
 		for (const match of code.matchAll(/\bdefaultGrammarView\b/g)) {
 			found.add(`${file.relPath} :: ${enclosingFunction(code, match.index, classes)}`);
 		}
