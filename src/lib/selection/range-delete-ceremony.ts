@@ -7,6 +7,7 @@
 
 import type { GrammarView } from '../schema/block-openers';
 import type { Reading } from '../schema/reading';
+import type { StoredAs } from '../schema/stored-as';
 import type { CstNode, Document } from '../core/nodes';
 import type { SelectionPoint } from './primitives';
 import type { CoveredRange } from './range-coverage';
@@ -35,6 +36,7 @@ import {
 	normalizeOwnRaw
 } from '../tree-operations/node-primitives';
 import { cleanJoinedRaw } from '../tree-operations/node-ops';
+import { storedAsAt } from '../tree-operations/stored-as';
 import { cutBeforeSuffix } from '../tree-operations/structural-suffix';
 import { structuralSuffix } from '../core/inline';
 import { ensureUnsharedPath } from '../tree-operations/unshare';
@@ -89,7 +91,7 @@ function cleanTruncatedProse(
 	node: CstNode,
 	kept: 'head' | 'tail',
 	cut: number,
-	reading: Reading
+	store: StoredAs
 ): { raw: string; seam: number } {
 	const join =
 		kept === 'head'
@@ -105,7 +107,7 @@ function cleanTruncatedProse(
 					start: { node, offset: 0 },
 					end: { node, offset: cut }
 				};
-	return cleanJoinedRaw({ ...join, reading });
+	return cleanJoinedRaw({ ...join, typed: '', store });
 }
 
 /** Installs `bytes` at `path` as a reload reads them there, through `source`'s write rule, keeping
@@ -162,7 +164,12 @@ export function truncateStartInPlace(
 		return cut;
 	}
 	// The kept head keeps the block's structure after it (a setext underline), as a join does.
-	const head = cleanTruncatedProse(startBlock, 'head', cutBeforeSuffix(startBlock, cut), reading);
+	const head = cleanTruncatedProse(
+		startBlock,
+		'head',
+		cutBeforeSuffix(startBlock, cut),
+		storedAsAt(doc, start.path, reading)
+	);
 	const kept = terminateLine(head.raw + structuralSuffix(startBlock), lineEnding);
 	const shift = installSurvivor(doc, start.path, startBlock, kept, sharing, reading);
 	return Math.max(0, head.seam + shift);
@@ -185,7 +192,7 @@ export function truncateEndInPlace(
 			endBlock.raw.slice(cut) || trailingLineEnding(endBlock.raw, documentLineEnding(doc));
 		return endBlock;
 	}
-	const tail = cleanTruncatedProse(endBlock, 'tail', cut, reading).raw;
+	const tail = cleanTruncatedProse(endBlock, 'tail', cut, storedAsAt(doc, end.path, reading)).raw;
 	installSurvivor(doc, end.path, endBlock, tail, sharing, reading);
 	return blockNodeAt(doc, end.path);
 }

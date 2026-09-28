@@ -19,7 +19,7 @@ import {
 	type InlinePasteResult,
 	type StructuralPasteResult
 } from '../paste-surfaces';
-import type { Reading } from '../../schema/reading';
+import type { StoredAs } from '../../schema/stored-as';
 
 // Registered by their own component instead of the loop below. One registrar per kind, so
 // correctness doesn't hinge on module load order.
@@ -34,10 +34,10 @@ function applyPreDelete(
 	display: string,
 	preDelete: PasteRange | undefined,
 	offset: number,
-	reading: Reading
+	store: StoredAs
 ): { display: string; offset: number } {
 	if (!preDelete) return { display, offset };
-	return cutRangeFromDisplay(node, display, preDelete, reading);
+	return cutRangeFromDisplay(node, display, preDelete, store);
 }
 
 export function defaultInlineHook(
@@ -45,7 +45,7 @@ export function defaultInlineHook(
 	offset: number,
 	text: string,
 	preDelete: PasteRange | undefined,
-	reading: Reading,
+	store: StoredAs,
 	lineEnding: LineEnding
 ): InlinePasteResult {
 	const display = trimTrailingLineEnding(node.raw);
@@ -56,7 +56,7 @@ export function defaultInlineHook(
 		display,
 		preDelete,
 		offset,
-		reading
+		store
 	);
 
 	const after = effectiveDisplay.slice(effectiveOffset);
@@ -87,12 +87,12 @@ export function defaultStructuralHook(
 	offset: number,
 	blocks: CstNode[],
 	preDelete: PasteRange | undefined,
-	reading: Reading,
+	store: StoredAs,
 	lineEnding: LineEnding,
 	slot: ChildSlot
 ): StructuralPasteResult {
 	const display = trimTrailingLineEnding(node.raw);
-	const cut = applyPreDelete(node, display, preDelete, offset, reading);
+	const cut = applyPreDelete(node, display, preDelete, offset, store);
 	// Compare the bytes rather than the range: a cleanup can drop more than the selection did,
 	// and an empty range leaves them equal, which is exactly when the original node stands.
 	const synthLeaf =
@@ -105,7 +105,7 @@ export function defaultStructuralHook(
 		cut.offset,
 		blocks,
 		lineEnding,
-		reading.grammar,
+		store.reading.grammar,
 		slot
 	);
 	// The caret lands where the pasted bytes end, which the fix-up tracks when it merges the

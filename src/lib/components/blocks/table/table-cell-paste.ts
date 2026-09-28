@@ -17,7 +17,7 @@ import type {
 	PasteSurface,
 	ScopedStructuralPasteInput
 } from '../../../tree-operations/paste-surfaces';
-import type { Reading } from '../../../schema/reading';
+import type { StoredAs } from '../../../schema/stored-as';
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
@@ -30,7 +30,7 @@ export function tableCellInlinePaste(
 	offset: number,
 	text: string,
 	preDelete: PasteRange | undefined,
-	reading: Reading
+	store: StoredAs
 ): InlinePasteResult {
 	const cleaned = normalizeWhitespace(text);
 
@@ -40,7 +40,7 @@ export function tableCellInlinePaste(
 		node,
 		node.raw,
 		preDelete ?? { start: offset, end: offset },
-		reading
+		store
 	);
 
 	return {

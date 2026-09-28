@@ -30,6 +30,7 @@ import {
 	gestureTargets,
 	resetSurfaces,
 	scalarInteriors,
+	startsUnderListMarker,
 	type Applied,
 	type Gesture,
 	type GestureKind
@@ -61,6 +62,8 @@ export interface FuzzStats {
 	applied: number;
 	claimed: number;
 	rewrote: Record<GestureKind, number>;
+	/** Join rewrites that started in a list item's first block, where the marker stands in front. */
+	rewroteUnderListMarker: number;
 	/** Gestures whose drawn offset landed inside a surrogate pair, per kind. */
 	midScalar: Record<GestureKind, number>;
 	violations: Violation[];
@@ -213,6 +216,9 @@ const inked = (bytes: string): string => bytes.replace(/\s+/g, '');
 
 // ── The run ──────────────────────────────────────────────────────────────────
 
+/** The gestures whose cleanup is a join, read back where the joined bytes are stored. */
+const JOINS = new Set<GestureKind>(['range-delete', 'type-over', 'word-delete']);
+
 /** Read from the weight table, so a gesture added there is counted as soon as it is drawn. */
 const perKind = (): Record<GestureKind, number> =>
 	Object.fromEntries(KIND_WEIGHTS.map(({ value }) => [value, 0])) as Record<GestureKind, number>;
@@ -225,6 +231,7 @@ export async function fuzzLiveGestures(options: FuzzOptions): Promise<FuzzStats>
 		applied: 0,
 		claimed: 0,
 		rewrote: perKind(),
+		rewroteUnderListMarker: 0,
 		midScalar: perKind(),
 		violations: []
 	};
@@ -246,7 +253,12 @@ export async function fuzzLiveGestures(options: FuzzOptions): Promise<FuzzStats>
 			if (!live || !literal) continue;
 			stats.applied++;
 			if (live.claimed) stats.claimed++;
-			if (live.bytes !== literal.bytes) stats.rewrote[gesture.kind]++;
+			if (live.bytes !== literal.bytes) {
+				stats.rewrote[gesture.kind]++;
+				if (JOINS.has(gesture.kind) && startsUnderListMarker(before, gesture)) {
+					stats.rewroteUnderListMarker++;
+				}
+			}
 			const found = judgeGesture(gesture, { bytes: current, doc: before }, live, literal);
 			// A dev-mode warning is a finding. An `invariant:` one should fire in neither run,
 			// so the run with live mode off excuses only the other warnings.

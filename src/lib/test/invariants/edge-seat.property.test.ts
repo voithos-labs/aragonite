@@ -22,7 +22,8 @@ import { fixtureReading } from '$lib/test/harness/fixture-grammar';
 // A delimiter that appears is classified: `seam` where a reachable offset keeps the screen, and
 // `ambiguous` where none does, the byte-literal fallback of live-mode.md § 4.4.
 
-const PARAMS = { numRuns: 500, seed: freshOrFixedSeed(818818) } as const;
+const FIXED_SEED = 818818;
+const PARAMS = { numRuns: 500, seed: freshOrFixedSeed(FIXED_SEED) } as const;
 
 /** Every arrival the caret placement can be asked about, including the one that says nothing. */
 const AFFINITIES: (EdgeAffinity | null)[] = ['near', 'far', 'outside', null];
@@ -163,10 +164,13 @@ describe('the typing caret position over generated inline fixtures', () => {
 	});
 
 	// Zero on the fixed seed, as a ceiling: the shape turns up about once in fifteen thousand draws,
-	// so a hit here means the search range shrank. On a fresh seed a hit is a find worth a look.
-	it('no draw rebinds under every offset the caret can reach', () => {
-		expect(ambiguous).toBe(0);
-	});
+	// so a hit here means the search range shrank. A fresh seed can draw it, pinned below.
+	it.runIf(PARAMS.seed === FIXED_SEED)(
+		'no draw rebinds under every offset the caret can reach',
+		() => {
+			expect(ambiguous).toBe(0);
+		}
+	);
 });
 
 // Shared asterisk runs are classified as `seam` or `ambiguous`, never skipped.
@@ -178,6 +182,11 @@ describe('a surfaced delimiter is classified, never excluded', () => {
 		expect(rescueOffset('*www.example.com***a**', 0)).toBeUndefined();
 		// The downstream run is what discriminates: the same opener alone still has an answer.
 		expect(rescueOffset('*www.example.com*', 0)).toBe(0);
+	});
+
+	// Miss-analysis: #590, the ceiling above holds on the fixed seed only; 2275518750 drew this.
+	it('the fresh-seed draw is the same shape: a downstream run offers another pairing', () => {
+		expect(rescueOffset('*www.example.com*&bar**lorem**', 0)).toBeUndefined();
 	});
 
 	// What the classification may not swallow: a shared run the code can answer is still an answer,

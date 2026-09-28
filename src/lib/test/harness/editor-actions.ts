@@ -588,7 +588,26 @@ export function makeContainerHarness(
 	const harness = makeEditorActionsDeps(parse(source), options);
 	const controller = createUndoController(harness.deps);
 	const focus = makeStubFocus();
-	const getNode = () => nodeAt(harness.deps.doc, containerPath) as CstNode;
+	const { bundle, state, getNode } = containerBundleOver(
+		harness.deps,
+		controller,
+		containerPath,
+		focus
+	);
+	const edits: EditEvent[] = [];
+	harness.events.on('edit', (e) => edits.push(e));
+	return { ...harness, controller, bundle, state, getNode, focus, edits };
+}
+
+/** The action bundle of the container at `containerPath` over deps a caller already holds, so
+ *  one document takes writes at the top level and inside a container alike. */
+export function containerBundleOver(
+	deps: EditorActionsDeps,
+	controller: UndoController,
+	containerPath: number[],
+	focus: FocusActions = makeStubFocus()
+) {
+	const getNode = () => nodeAt(deps.doc, containerPath) as CstNode;
 	const state = makeBlockListState(getNode);
 	const bundle = createStandardNestedActions(
 		state,
@@ -596,17 +615,15 @@ export function makeContainerHarness(
 			index: containerPath[containerPath.length - 1],
 			getNode,
 			path: containerPath,
-			reading: harness.deps.reading,
+			reading: deps.reading,
 			parent: {
 				blockEdit: makeStubBlockEdit(),
 				focus,
-				containerEdit: createContainerEditActions(harness.deps, controller)
+				containerEdit: createContainerEditActions(deps, controller)
 			}
 		})
 	);
-	const edits: EditEvent[] = [];
-	harness.events.on('edit', (e) => edits.push(e));
-	return { ...harness, controller, bundle, state, getNode, focus, edits };
+	return { bundle, state, getNode };
 }
 
 /** The action bundle of the first table's body row `row` (the first by default): the one a

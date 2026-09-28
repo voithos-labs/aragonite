@@ -969,6 +969,9 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.81 | The cross-block table row snap runs in the range coverage and the stored pair only        | L       |
 | G4.82 | The task-marker rule runs in one wrapper, and its callers are declared                    | L       |
 | G4.83 | Every plain fragment read in the edit layers says why it needs no slot reader             | L       |
+| G4.84 | Where a leaf's bytes are stored is made in one place, from the tree                       | L       |
+| G4.85 | A live rewrite that removes bytes reads its candidate where it will be stored             | L       |
+| G4.86 | A list item's marker is read only where the list is built, drawn or dumped                | L       |
 
 ### The entries
 
@@ -1745,6 +1748,31 @@ reach for instead. A plain `readBlocks` left in `tree-operations/`, `selection/`
 `editor-actions/` is a probe that installs nothing, a read of whole bytes no checkbox stands in
 front of, or the paste's re-read of a clipboard block, which keeps the kind the clipboard gave it. The manifest lists each file with which one it is, so a new one has to say which.
 `lint/manifest-rules.test.ts`.
+
+**G4.84 · One place says where a leaf's bytes are stored.** A `StoredAs` (`src/lib/schema/stored-as.ts`)
+answers three things about a position: whether it stores a block or plain text (a table cell), the
+bytes its write rules would keep, and how a reload reads them there (behind a list item's marker
+line, say). It's a branded type, and only `tree-operations/stored-as.ts :: storedAsAt` and
+`storedAsIn` build one, from the tree. So a rewrite can't describe its own position, and nothing
+reads a candidate behind a hand-written copy of the container's marker, which drifts from the item
+it copies (a to-do's box, a marker a leading space widens). `lint/file-rules.test.ts` holds the
+`as StoredAs` cast to that file.
+
+**G4.85 · A removing rewrite reads through the store.** The join cleanup and the edge delete read
+every candidate through `core/inline/live-edit/read-back.ts :: readBack`, never a parse of their
+own, since a top-level fragment read forgets the container the bytes land in. The store is a
+required field on the join and the edge delete's query, and `lint/file-rules.test.ts` keeps
+`readBlocks` and `parse` out of every `.ts` module in `components/blocks/text/` and
+`core/inline/live-edit/`. The split's own candidate read in `live-split-rebalance.ts` is the one
+file it lists as an exception, with its reason. Which store a route hands over is checked too:
+`tree-operations/store-routes.test.ts` runs every place a store is made or fetched on bytes a lone
+top-level paragraph's store reads differently (`# y` after a to-do's box, `[ ] y` after a plain
+item's marker), and fails a store made anywhere no row runs through.
+
+**G4.86 · The list marker has a short list of readers.** Reading a list item's marker off its
+metadata (or off a parse cast to carry one) is for the code that builds, renumbers, draws or
+dumps a list. A rewrite that wants to know how its bytes read under the marker asks the store
+instead. `lint/file-rules.test.ts`, with each reader and its reason.
 
 ## Accessibility
 

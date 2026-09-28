@@ -1,14 +1,16 @@
 /**
- * How a write reads one block's bytes back in place. A task item's first paragraph starts right
- * after the marker, so its text reads as the parser reads the item body (GFM task lists): the
- * first line stays paragraph text whatever it would open. Everywhere else it is a plain fragment.
+ * How one block's bytes read back in place. A task item's first paragraph starts right after the
+ * marker, so a write reads its text as the parser reads the item body (GFM task lists); a live
+ * rewrite's check reads a list item's first block behind its whole marker line. Everywhere else
+ * it is a plain fragment.
  */
 
-import { metadataOf, type Document } from '../../core/nodes';
+import { makeBlockNode, metadataOf, type Document } from '../../core/nodes';
 import type { DocumentView, NodeView } from '../../core/node-views';
 import { blockNodeAt } from '../node-primitives';
 import { readBlocks, parseTaskItemBody } from '../../core/parser';
 import type { GrammarView } from '../../schema/block-openers';
+import { rebuildListItemRaw } from '../../schema/container-rebuilders';
 
 export type FragmentReader = (text: string) => Document;
 
@@ -29,6 +31,31 @@ export function fragmentReaderAt(
 	return followsTaskMarker(owner, index)
 		? (text) => parseTaskItemBody(text, grammar)
 		: (text) => readBlocks(text, { grammar, scope: 'fragment' });
+}
+
+/** `text` read as the list item `owner` reads its first block, behind its marker line; null when
+ *  that is not one item or changes its task state (a marker widened over a space is still one). */
+export function readThroughItemMarker(
+	owner: NodeView,
+	text: string,
+	grammar: GrammarView
+): Document | null {
+	const meta = metadataOf(owner, 'listItem');
+	const probe = makeBlockNode({
+		kind: 'listItem',
+		leadingTrivia: '',
+		raw: '',
+		metadata: { ...meta },
+		children: [makeBlockNode({ kind: 'paragraph', leadingTrivia: '', raw: text })]
+	});
+	rebuildListItemRaw(probe);
+	const lists = readBlocks(probe.raw, { grammar, scope: 'fragment' }).children;
+	const items = lists.length === 1 && lists[0].kind === 'list' ? (lists[0].children ?? []) : [];
+	const item = items.length === 1 && items[0].kind === 'listItem' ? items[0] : null;
+	if (!item) return null;
+	const read = metadataOf(item, 'listItem');
+	if (read.taskItem !== meta.taskItem || read.taskChecked !== meta.taskChecked) return null;
+	return { kind: 'document', prefix: '', children: item.children ?? [], suffix: '' };
 }
 
 /** A child slot: the block holding it (none at the document's top level) and its index there. */

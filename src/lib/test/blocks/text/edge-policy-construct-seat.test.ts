@@ -7,6 +7,10 @@ import { describe, expect, it } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { trimTrailingLineEnding } from '$lib/core/lines';
 import type { EdgeAffinity } from '$lib/cursor/edge-affinity';
+import type { CstNode } from '$lib/core/nodes';
+import { nodeAt } from '$lib/tree-operations/node-primitives';
+import { storedAsAt } from '$lib/tree-operations/stored-as';
+import { fixtureReading } from '../../harness/fixture-grammar';
 import {
 	at,
 	installEdgeDispatchCleanup,
@@ -61,6 +65,21 @@ describe('a symmetric pair extends or not by the arrival on record', () => {
 	// Miss-analysis: every case typed a letter, so no delimiter met the auto-pair keydown pre-empts.
 	it('writes a delimiter’s paired closer at the caret position, not a lone byte', () => {
 		const h = mount(BOLD, 'live', 'far');
+		expect(h.handleKeydown(key('`'), at(11))).toBe(true);
+		expect(h.edits).toEqual([[0, 'Some **bold**`` text\n', 11, 14]]);
+	});
+
+	// Miss-analysis: every case at a hidden run typed in a paragraph, so none met the kind check a
+	// cell's text fails the moment it is read as a block.
+	it('pairs a delimiter at a seat in a table cell, as in a paragraph', () => {
+		const doc = parse('| h |\n| - |\n| Some **bold** text |\n');
+		const path = [0, 1, 0];
+		const cell = nodeAt(doc, path) as CstNode;
+		const el = mountSurface(cell.raw, 'live');
+		const h = makeEdgeDispatch(cell, el, {
+			getEdgeAffinity: () => 'far',
+			storedAs: () => storedAsAt(doc, path, fixtureReading({}, 'live'))
+		});
 		expect(h.handleKeydown(key('`'), at(11))).toBe(true);
 		expect(h.edits).toEqual([[0, 'Some **bold**`` text\n', 11, 14]]);
 	});

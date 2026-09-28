@@ -217,6 +217,7 @@ const REWRITE_PROBE = 'src/lib/components/blocks/text/probe.ts';
  *  bold and italic toggle, and the link card's byte writer. */
 const DRAWN_TREE_REWRITES = (file: SourceFile): boolean =>
 	file.relPath.startsWith('src/lib/components/blocks/text/') ||
+	file.relPath.startsWith('src/lib/core/inline/live-edit/') ||
 	file.relPath === 'src/lib/core/inline/format-toggle.ts' ||
 	file.relPath === 'src/lib/core/inline/link-source-bytes.ts';
 
@@ -232,7 +233,7 @@ const RULES: CallSiteRule[] = [
 		allowed: {},
 		reason:
 			'a reparse without the resolver reads every reference link as brackets, so a candidate compared with the drawn tree disagrees with it beside one (#443)',
-		atLeastCallers: 9,
+		atLeastCallers: 8,
 		hits: [{ relPath: REWRITE_PROBE, code: 'readInline(raw, 0, raw.length, undefined, grammar);' }],
 		misses: [
 			{

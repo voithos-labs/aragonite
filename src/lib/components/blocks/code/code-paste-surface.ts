@@ -9,7 +9,7 @@ import type { PasteSurface, InlinePasteResult } from '../../../tree-operations/p
 
 export const codePasteSurface: PasteSurface = {
 	kind: 'fencedCode',
-	onInlinePaste(node, offset, text, preDelete, _reading, documentEnding): InlinePasteResult {
+	onInlinePaste(node, offset, text, preDelete, _store, documentEnding): InlinePasteResult {
 		const display = trimTrailingLineEnding(node.raw);
 		const start = preDelete?.start ?? offset;
 		return {

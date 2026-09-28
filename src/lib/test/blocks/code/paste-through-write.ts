@@ -5,7 +5,7 @@ import { parse } from '$lib/core/parser';
 import { trimTrailingLineEnding } from '$lib/core/lines';
 import { codePasteSurface } from '$lib/components/blocks/code/code-paste-surface';
 import { legalizeWrite } from '$lib/tree-operations/content-write';
-import { fixtureReading } from '../../harness/fixture-grammar';
+import { topLevelStore } from '../../harness/fixture-grammar';
 
 export function pasteThroughWrite(input: {
 	display: string;
@@ -20,7 +20,7 @@ export function pasteThroughWrite(input: {
 		selection.start,
 		pasted,
 		preDelete,
-		fixtureReading(),
+		topLevelStore(node),
 		'\n'
 	);
 	const target = { children: [node], owner: undefined, lineEnding: '\n' as const };

@@ -6,7 +6,8 @@ import {
 	type DeleteDirection
 } from '$lib/components/blocks/text/construct-edge-delete';
 import { screenVisibility } from '$lib/core/inline/visibility';
-import { fixtureReading } from '$lib/test/harness/fixture-grammar';
+import { makeBlockNode, type BlockKind } from '$lib/core/nodes';
+import { topLevelStore } from '$lib/test/harness/fixture-grammar';
 
 // The bytes a destructive key at a hidden delimiter run produces in live mode: a key must never
 // leave a delimiter on screen, and a pair the cut empties must not survive as invisible `****`.
@@ -25,8 +26,7 @@ function del(
 		direction,
 		screen: screenVisibility('live', { chromePaints }),
 		inlines: parseInline(display, content.start, content.end),
-		installedAs: 'block',
-		reading: fixtureReading()
+		store: storeOf('paragraph', display)
 	});
 }
 
@@ -39,10 +39,12 @@ function delInCell(display: string, caret: number, direction: DeleteDirection = 
 		direction,
 		screen: screenVisibility('live', { chromePaints: false }),
 		inlines: parseInline(display, 0, display.length),
-		installedAs: 'cell',
-		reading: fixtureReading()
+		store: storeOf('tableCell', display)
 	});
 }
+
+const storeOf = (kind: BlockKind, raw: string) =>
+	topLevelStore(makeBlockNode({ kind, leadingTrivia: '', raw }));
 
 // `Some **bold** text`: strong [5,13), `bold` [7,11).
 describe('a press past a hidden run takes the content character, never a delimiter', () => {

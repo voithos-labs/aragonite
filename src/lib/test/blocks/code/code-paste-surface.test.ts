@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { codePasteSurface } from '$lib/components/blocks/code/code-paste-surface';
 import { fencedCode } from './fenced-code-fixture';
-import { fixtureReading } from '../../harness/fixture-grammar';
+import { topLevelStore } from '../../harness/fixture-grammar';
 
 describe('code-paste-surface', () => {
 	it('is registered for kind fencedCode', () => {
@@ -20,7 +20,7 @@ describe('code-paste-surface', () => {
 			4,
 			' XYZ',
 			undefined,
-			fixtureReading(),
+			topLevelStore(node),
 			'\n'
 		);
 		expect(result.newRaw).toContain('XYZ');
@@ -35,7 +35,7 @@ describe('code-paste-surface', () => {
 			4,
 			'```\n',
 			undefined,
-			fixtureReading(),
+			topLevelStore(node),
 			'\n'
 		);
 		expect(result.newRaw).toBe('```\n```\nbody\n```\n');
@@ -53,7 +53,7 @@ describe('code-paste-surface', () => {
 				start: fooBarStart,
 				end: fooBarEnd
 			},
-			fixtureReading(),
+			topLevelStore(node),
 			'\n'
 		);
 		expect(result.newRaw).toContain('foo BAZ');

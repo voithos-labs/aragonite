@@ -1,25 +1,21 @@
 /**
  * What a destructive key takes at an inline construct's hidden delimiter run: the neighbouring
  * content character, plus the delimiters the cut leaves enclosing nothing (live-mode.md § 4.4
- * `autoUnwrapOnEmpty`). Bytes that read right can parse wrong, so a candidate is written only
- * once a reparse says the user lost exactly what the cut aimed at.
+ * `autoUnwrapOnEmpty`). Bytes that read right can parse wrong, so a candidate is written only when,
+ * read back where it is stored, it shows the user lost exactly what the cut aimed at.
  */
 
-import {
-	constructContentRange,
-	inlineDescendants,
-	readInline,
-	type ContentRange
-} from '../../../core/inline';
+import { constructContentRange, inlineDescendants, type ContentRange } from '../../../core/inline';
 import {
 	CONTENT_VISIBILITY,
 	renderedText,
 	type VisibilityContext
 } from '../../../core/inline/visibility';
+import { readBack, shownOf } from '../../../core/inline/live-edit/read-back';
 import type { AnyInlineKind, InlineNode } from '../../../core/nodes';
-import type { Reading } from '../../../schema/reading';
+import type { StoredAs } from '../../../schema/stored-as';
 import { getInlineConstructPolicy } from '../../../schema/inline-construct-policy';
-import { removesExactly, soleProseReparse } from './screen-diff';
+import { removesExactly } from './screen-diff';
 import { isHighSurrogate, isLowSurrogate } from '../../../core/lines';
 
 // ── Public API ───────────────────────────────────────────────────────────────
@@ -40,17 +36,10 @@ export interface EdgeDeletionQuery {
 	screen: VisibilityContext;
 	/** The inline tree the render drew from, so the runs skipped here are the runs really hidden. */
 	inlines: readonly InlineNode[];
-	/** What the caller installs the rewrite as, which is what the candidate is read back as.
-	 *  Required for the same reason `screen` is: a cell's text is never a block. */
-	installedAs: EdgeDeletionSurface;
-	/** The reading `inlines` was read with, so a candidate keeps its reference links and reads
-	 *  back as the syntax the editor draws. */
-	reading: Reading;
+	/** Where the block's bytes are stored, with the reading `inlines` was read in: a candidate is
+	 *  read back there, so a cell's text stays text and a list item's reads behind its marker. */
+	store: StoredAs;
 }
-
-/** A prose block stores a block; a table cell stores cell text, whose bytes read as a list or a
- *  quote the moment they start with `- ` or `> `, though the cell draws neither. */
-export type EdgeDeletionSurface = 'block' | 'cell';
 
 export interface EdgeDeletionWrite {
 	/** The block's whole displayed text after the cut. */
@@ -92,7 +81,9 @@ export function resolveEdgeDeletion(query: EdgeDeletionQuery): EdgeDeletion | nu
 	const before = visibleText(display, query);
 	if (before === null) return null;
 	const removed = target.atomic
-		? renderedText([target.atomic], display, CONTENT_VISIBILITY, { grammar: query.reading.grammar })
+		? renderedText([target.atomic], display, CONTENT_VISIBILITY, {
+				grammar: query.store.reading.grammar
+			})
 		: display.slice(target.start, target.end);
 	for (const cut of [plain, widenThroughRuns(constructs, plain)]) {
 		const raw = display.slice(0, cut.start) + display.slice(cut.end);
@@ -235,24 +226,11 @@ function isDelimiterByte(constructs: readonly PolicyConstruct[], at: number): bo
 
 // ── Verification ─────────────────────────────────────────────────────────────
 
-/** What the user sees over the bytes read back as the caller stores them, or null where they do
- *  not read back. The content reading, since a cut that empties a construct shows its markers. */
-function visibleText(raw: string, { installedAs, reading }: EdgeDeletionQuery): string | null {
-	const { grammar } = reading;
-	// Cell text is never a block, so it reads as its inline content and nothing else can refuse it.
-	if (installedAs === 'cell')
-		return renderedText(
-			readInline(raw, 0, raw.length, reading.resolver, grammar),
-			raw,
-			CONTENT_VISIBILITY,
-			{ grammar }
-		);
-	// A cut that empties the block is the one candidate with no block to read: empty stays empty
-	// through a reparse, so it answers for itself rather than through the parser.
+/** What the user sees of the bytes read back where they are stored, or null where they do not
+ *  read back as one prose block: a cut can push two runs together into a fence opener. */
+function visibleText(raw: string, { store }: EdgeDeletionQuery): string | null {
+	// A cut that empties the block leaves no block to read, and empty shows nothing wherever it is.
 	if (raw === '') return '';
-	// A candidate that parses back as a different block is not what the caller is about to store:
-	// a cut can push two literal runs together into a fence opener, which then swallows the rest.
-	const sole = soleProseReparse(raw, reading);
-	if (sole === null) return null;
-	return renderedText(sole.nodes, sole.block.raw, CONTENT_VISIBILITY, { grammar });
+	const read = readBack(raw, store);
+	return read && shownOf(read, store);
 }

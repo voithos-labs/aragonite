@@ -1,6 +1,6 @@
 import { isBuiltinBlockKind, type AnyBlockKind, type CstNode, type Document } from '../core/nodes';
 import type { LineEnding } from '../core/lines';
-import type { Reading } from '../schema/reading';
+import type { StoredAs } from '../schema/stored-as';
 import type { ChildSlot } from './list/task-paragraph';
 import type { PasteCommitCoordinator } from './paste/paste-deps';
 import type { PluginActivation } from '../schema/plugin-activation';
@@ -38,14 +38,14 @@ export interface PasteSurface {
 	/** The kind's editable element holds text, never blocks (a table cell), so a blank block at the
 	 *  clipboard's edge is packaging: it neither picks the route nor lands in a splice. */
 	blankEdgesArePackaging?: boolean;
-	/** Pure. The pre-delete is a join, cleaned per `reading` like any other; every line the hook
-	 *  writes takes `lineEnding`, the document's. */
+	/** Pure. The pre-delete is a join, cleaned against where `store` keeps the target like any
+	 *  other; every line the hook writes takes `lineEnding`, the document's. */
 	onInlinePaste?(
 		node: CstNode,
 		offset: number,
 		text: string,
 		preDelete: PasteRange | undefined,
-		reading: Reading,
+		store: StoredAs,
 		lineEnding: LineEnding
 	): InlinePasteResult;
 	/** Splice CST blocks at the target. Pure data transform. `slot` is where the target sits, so
@@ -55,7 +55,7 @@ export interface PasteSurface {
 		offset: number,
 		blocks: CstNode[],
 		preDelete: PasteRange | undefined,
-		reading: Reading,
+		store: StoredAs,
 		lineEnding: LineEnding,
 		slot: ChildSlot
 	): StructuralPasteResult;

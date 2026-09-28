@@ -244,6 +244,22 @@ function readsGridLiteral(file: SourceFile): boolean {
 	return false;
 }
 
+// ── G4.85, G4.86 where a leaf's bytes are stored ─────────────────────────────
+
+const TEXT_BLOCK_DIR = 'src/lib/components/blocks/text/';
+const LIVE_EDIT_DIR = 'src/lib/core/inline/live-edit/';
+const LIVE_EDIT_PROBE = `${LIVE_EDIT_DIR}probe.ts`;
+
+/** The text block's helper modules, where every live rewrite lives, and the live-edit readers. */
+const holdsLiveRewrites = (file: SourceFile): boolean =>
+	file.relPath.startsWith(LIVE_EDIT_DIR) ||
+	(file.relPath.startsWith(TEXT_BLOCK_DIR) &&
+		/^[^/]+\.ts$/.test(file.relPath.slice(TEXT_BLOCK_DIR.length)));
+
+/** A read of a list item's marker: off its metadata, or off a parse cast to carry one. */
+const LIST_MARKER_READ =
+	/\{\s*marker\?:\s*string\s*\}|'listItem'\)\??\.marker\b|\b\w*[mM]eta(?:data)?\??\.marker\b/;
+
 // ── The rules ────────────────────────────────────────────────────────────────
 
 /** A file the G4.80 population holds, for its probes. */
@@ -948,6 +964,60 @@ const RULES: FileRule[] = [
 			'`survivorAfterRemoval` is the one place a gesture picks the side; a removal that asks for the next block itself lands Backspace below',
 		hits: ['collapsedCaret = caretWhereRangeResumes(doc, path, sharing, lineEnding);'],
 		misses: ["import { caretWhereRangeResumes } from './range-delete-chrome';"]
+	},
+	{
+		id: 'G4.84 a StoredAs is made only from the tree, in one place',
+		matches: /\bas\s+StoredAs\b/,
+		allowed: {
+			'src/lib/tree-operations/stored-as.ts':
+				'derives how a leaf position stores bytes from the tree it sits in'
+		},
+		reason:
+			'a rewrite that describes its own position reads a cell as a block or forgets its container; take one from `storedAsAt` or `storedAsIn`',
+		hits: ['return { reading, surface: "block", stored, readSlot } as StoredAs;'],
+		misses: ["import type { StoredAs } from '../schema/stored-as';", 'const s: StoredAsLike = x;']
+	},
+	{
+		id: 'G4.85 a removing live rewrite reads its candidate through readBack, never a parse of its own',
+		population: holdsLiveRewrites,
+		matches: /(?<![\w.])(?:readBlocks|parse|parseTaskItemBody)\s*\(/,
+		allowed: {
+			[`${TEXT_BLOCK_DIR}live-split-rebalance.ts`]:
+				'`soleProseBlock`, the split’s own candidate read, moves onto `readBack` in T19 slice 3'
+		},
+		reaches: [
+			`${TEXT_BLOCK_DIR}live-join-seam.ts`,
+			`${TEXT_BLOCK_DIR}construct-edge-delete.ts`,
+			`${TEXT_BLOCK_DIR}live-selection-edit.ts`,
+			`${LIVE_EDIT_DIR}read-back.ts`
+		],
+		reason:
+			'a candidate read as a top-level fragment forgets its container: a list item reads it behind its marker, a cell as text; take `readBack(bytes, store)`',
+		hits: [at(LIVE_EDIT_PROBE, "const blocks = readBlocks(raw, { grammar, scope: 'fragment' });")],
+		misses: [
+			at(LIVE_EDIT_PROBE, 'const read = readBack(raw, store);'),
+			at(LIVE_EDIT_PROBE, 'const inlines = readInline(raw, 0, n);')
+		]
+	},
+	{
+		id: 'G4.86 a list item’s marker is read where the list is built, drawn or dumped',
+		matches: LIST_MARKER_READ,
+		allowed: {
+			'src/lib/schema/container-rebuilders.ts': 'writes the marker back in front of the item',
+			'src/lib/tree-operations/list/ordered-markers.ts': 'renumbers an ordered list',
+			'src/lib/editor-actions/list-context.ts': 'gives a new item the next marker',
+			'src/lib/components/blocks/list/ListItemBlock.svelte': 'draws a bullet or a number',
+			'src/lib/components/blocks/list/task-checkbox.ts': 'paints the marker before the checkbox',
+			'src/lib/debug/dump-tree.ts': 'prints it in the tree dump'
+		},
+		reason:
+			'a rewrite that reads the marker to check its own bytes carries a second answer to where they are stored; read them back through `storedAsAt`',
+		hits: [
+			'return (blocks[0] as { marker?: string }).marker === prefix;',
+			"const m = metadataOf(item, 'listItem').marker;",
+			'const prefix = meta?.marker ?? "- ";'
+		],
+		misses: ['const run = fence.marker.repeat(3);', 'mark.markerBytes']
 	}
 ];
 

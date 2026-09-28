@@ -35,7 +35,7 @@ import { replaceBlockRaw } from '../../editor-actions/block-edit-core';
 import { createPasteCoordinator } from '../../editor-actions/paste-coordinator';
 import { createUndoController } from '../../editor-actions/commit/undo-controller';
 import { createBlockEditActions } from '../../editor-actions/block-edit';
-import { fixtureReading } from '../harness/fixture-grammar';
+import { fixtureReading, topLevelStore } from '../harness/fixture-grammar';
 import {
 	makeEditorActionsDeps,
 	makeListContextAt,
@@ -225,7 +225,7 @@ const GESTURES: EditGesture[] = [
 		apply: (doc) => {
 			const node = doc.children[0];
 			const caret = node.raw.indexOf('code') + 'code'.length;
-			return codePasteSurface.onInlinePaste!(node, caret, 'X', undefined, fixtureReading(), '\n')
+			return codePasteSurface.onInlinePaste!(node, caret, 'X', undefined, topLevelStore(node), '\n')
 				.newRaw;
 		}
 	},

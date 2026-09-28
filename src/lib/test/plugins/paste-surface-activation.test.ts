@@ -15,7 +15,7 @@ import { makeEditorActionsDeps, makeStubBlockEdit } from '$lib/test/harness/edit
 import type { CstNode } from '$lib/core/nodes';
 import type { BlockComponent } from '$lib/block-component';
 import type { Component } from 'svelte';
-import { fixtureReading } from '../harness/fixture-grammar';
+import { fixtureReading, topLevelStore } from '../harness/fixture-grammar';
 
 const KIND = 'stamp-note';
 const LEAF = 'stamp-title';
@@ -36,7 +36,7 @@ const stampPlugin = definePlugin({
 			kind,
 			onInlinePaste(node, offset, text) {
 				ran.push('surface');
-				return defaultInlineHook(node, offset, text, undefined, fixtureReading(), '\n');
+				return defaultInlineHook(node, offset, text, undefined, topLevelStore(node), '\n');
 			}
 		});
 		registerChromeLeaf(declarePluginKind(LEAF), {} as Component<object, BlockComponent>);

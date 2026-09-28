@@ -1,7 +1,7 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import type { Page } from '@playwright/test';
-import { clickWordSettled, enterPresentationMode, extendTo, stepTo } from './helpers';
+import { clickWordSettled, enterPresentationMode, extendTo, landAt, stepTo } from './helpers';
 import { textOutsideMarkers } from '../../text-runs';
 
 // A cell's destructive edits cross the same join as prose does: in live mode the runs a cut
@@ -53,6 +53,26 @@ test.describe('live mode: destructive edits inside a table cell', () => {
 		await page.keyboard.press('ControlOrMeta+z');
 		await ep.bridge.waitForSourceContains('| Some **bold** *it* x | y |');
 	});
+
+	// A cell stores text, so `# ` and `- ` open nothing here, whatever they'd open in a paragraph.
+	for (const lead of ['# ', '- ']) {
+		test(`Backspace over a selection in a cell opening with "${lead}" cleans the join`, async ({
+			page
+		}) => {
+			const ep = await enterPresentationMode(
+				page,
+				'live',
+				`| ${lead}**ab** cd | y |\n| --- | --- |\n`
+			);
+			await clickWordSettled(ep, page, 'cd');
+			await landAt(ep, page, 5);
+			await extendTo(ep, page, 'ArrowRight', CELL_PATH, 10);
+
+			await page.keyboard.press('Backspace');
+			await ep.bridge.waitForSourceContains(`| ${lead}ad | y |`);
+			expect(await textOutsideMarkers(page.locator('.table-cell').first())).not.toContain('*');
+		});
+	}
 
 	test('source mode: the same cut stays byte-literal', async ({ page }) => {
 		const ep = await enterMode(page, 'source');

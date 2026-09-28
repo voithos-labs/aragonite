@@ -1,8 +1,8 @@
 /**
  * The live-mode join rewrite (live-mode.md § 4.5): joining two blocks literally would show the
  * delimiter runs a truncation left unpaired, and the closer/opener pair a split's inverse pushes
- * together around nothing. Both are dropped here and nowhere else, and only once the joined block
- * reparses to one prose block showing what the two sides showed.
+ * together around nothing. Both are dropped here and nowhere else, and only once the joined bytes,
+ * read back where they will be stored, show what the two sides showed.
  */
 
 import {
@@ -17,25 +17,25 @@ import {
 	paintsOnlyChrome,
 	renderedText
 } from '../../../core/inline/visibility';
+import { readBack, readSource, shownOf } from '../../../core/inline/live-edit/read-back';
 import { isBlankText, trimTrailingLineEnding } from '../../../core/lines';
 import type { Reading } from '../../../schema/reading';
+import type { StoredAs } from '../../../schema/stored-as';
 import type { GrammarView } from '../../../schema/block-openers';
 import type { RenderInlineOptions } from '../../../core/inline-render';
 import type { AnyInlineKind, InlineNode } from '../../../core/nodes';
-import { readBlocks } from '../../../core/parser';
 import {
 	getInlineConstructPolicy,
 	type JoinEndpoint,
 	type LiveJoinSeamCleaner
 } from '../../../schema/inline-construct-policy';
-import { soleProseReparse } from './screen-diff';
 
 // ── The rewrite ──────────────────────────────────────────────────────────────
 
 export const cleanLiveJoinSeam: LiveJoinSeamCleaner = (join) => {
-	const { reading } = join;
-	const left = readSide(join.start, 'before', reading);
-	const right = readSide(join.end, 'after', reading);
+	const { typed, store } = join;
+	const left = readSide(join.start, 'before', store.reading);
+	const right = readSide(join.end, 'after', store.reading);
 	if (left === null || right === null) return null;
 	// Nothing sits at the join, so the plain concatenation is already the answer, and an ordinary
 	// Backspace between two paragraphs pays for no parse.
@@ -44,7 +44,6 @@ export const cleanLiveJoinSeam: LiveJoinSeamCleaner = (join) => {
 
 	// The caller splices `typed` at the join once this returns, so the bytes checked below are the
 	// bytes written: a typed run changes the flanking a kept delimiter pairs against.
-	const typed = join.typed ?? '';
 	const shown = shownAfterJoin(left, right, typed);
 	const pairs = abuttingPairSpans(join, left, right);
 	// Two readings, least destructive first: keep the runs the two sides can still pair across the
@@ -59,7 +58,7 @@ export const cleanLiveJoinSeam: LiveJoinSeamCleaner = (join) => {
 				spans,
 				raw,
 				seam,
-				read: readCandidate(raw.slice(0, seam) + typed + raw.slice(seam), reading, join)
+				read: readCandidate(raw.slice(0, seam) + typed + raw.slice(seam), store)
 			};
 		}
 	);
@@ -352,32 +351,19 @@ export function clipNodes(
 	return out;
 }
 
-/** The candidate read back as the caller will store it: what it shows, and how many unwrapping
- *  constructs stand over nothing. Null where the caller could not store it as one prose block. */
-function readCandidate(
-	raw: string,
-	reading: Reading,
-	join: { ambientPrefix?: string }
-): { visible: string; residue: number } | null {
-	if (!keepsContainerMarker(join.ambientPrefix ?? '', raw, reading.grammar)) return null;
-	const sole = soleProseReparse(raw, reading);
-	if (sole === null) return null;
-	const { block, nodes } = sole;
-	const render = { grammar: reading.grammar };
+/** The candidate read back where it will be stored: what it shows, and how many unwrapping
+ *  constructs stand over nothing. Null where that position would not keep it as one prose block. */
+function readCandidate(raw: string, store: StoredAs): { visible: string; residue: number } | null {
+	const read = readBack(raw, store);
+	if (read === null) return null;
+	const { inlines } = read;
+	const source = readSource(read);
+	const render = { grammar: store.reading.grammar };
 	return {
-		visible: renderedText(nodes, block.raw, CONTENT_VISIBILITY, render),
+		visible: shownOf(read, store),
 		// Markers over nothing are all on screen (§ 4.1), so a block that shows them hides no pair.
-		residue: paintsOnlyChrome(nodes, block.raw, render) ? 0 : countResidue(nodes, block.raw, render)
+		residue: paintsOnlyChrome(inlines, source, render) ? 0 : countResidue(inlines, source, render)
 	};
-}
-
-/** Whether the container still reads its own marker off the candidate: a body starting with a
- *  space reparses under a wider list marker, so a reload would change the tree. */
-function keepsContainerMarker(prefix: string, raw: string, grammar: GrammarView): boolean {
-	if (prefix === '') return true;
-	const blocks = readBlocks(prefix + raw, { grammar, scope: 'fragment' }).children;
-	if (blocks.length !== 1) return false;
-	return (blocks[0] as { marker?: string }).marker === prefix;
 }
 
 /** Constructs the user would meet as nothing at all: no visible byte, and a policy that unwraps

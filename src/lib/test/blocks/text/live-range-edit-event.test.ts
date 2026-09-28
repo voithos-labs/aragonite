@@ -8,7 +8,7 @@ import {
 	resolveLiveRangeEdit,
 	type LiveEditCursor
 } from '$lib/components/blocks/text/live-selection-edit';
-import { fixtureReading } from '../../harness/fixture-grammar';
+import { fixtureReading, topLevelStore } from '../../harness/fixture-grammar';
 
 const LINK = 'Some [ab](u)text\n';
 
@@ -60,7 +60,7 @@ describe('a collapsed insertion whose browser target disagrees with the DOM care
 			node,
 			cursorReading(8, 12),
 			'\n',
-			fixtureReading({}, 'live')
+			topLevelStore(node, fixtureReading({}, 'live'))
 		);
 		expect(edit).toEqual({
 			kind: 'rewrite',
@@ -78,7 +78,7 @@ describe('a collapsed insertion whose browser target disagrees with the DOM care
 				node,
 				cursorReading(8, 8),
 				'\n',
-				fixtureReading({}, 'live')
+				topLevelStore(node, fixtureReading({}, 'live'))
 			)
 		).toBeNull();
 	});
@@ -93,7 +93,7 @@ describe('a collapsed insertion whose browser target disagrees with the DOM care
 				node,
 				cursorReading(6, 5),
 				'\n',
-				fixtureReading({}, 'live')
+				topLevelStore(node, fixtureReading({}, 'live'))
 			)
 		).toBeNull();
 	});
@@ -101,7 +101,7 @@ describe('a collapsed insertion whose browser target disagrees with the DOM care
 	it('stays out of every other mode', () => {
 		placeCaret();
 		expect(
-			resolveLiveRangeEdit(insertEvent(' '), node, cursorReading(8, 12), '\n', fixtureReading())
+			resolveLiveRangeEdit(insertEvent(' '), node, cursorReading(8, 12), '\n', topLevelStore(node))
 		).toBeNull();
 	});
 });

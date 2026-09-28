@@ -185,7 +185,9 @@ const REWRITE_MODULES: Record<string, string> = {
 	'src/lib/components/blocks/text/live-join-seam.ts': 'the join cleaner',
 	'src/lib/components/blocks/text/live-split-rebalance.ts': 'the split rebalancer',
 	'src/lib/components/blocks/text/pending-mark-insert.ts': 'the pending-mark resolver',
-	'src/lib/core/inline/format-toggle.ts': 'the format toggle'
+	'src/lib/core/inline/format-toggle.ts': 'the format toggle',
+	'src/lib/core/inline/live-edit/read-back.ts':
+		'what a removing rewrite’s candidate shows, read where it is stored'
 };
 
 /** Every file permitted to name `preDelete` at all; matching the bare name also catches an
@@ -385,7 +387,7 @@ const MANIFESTS: ManifestRule[] = [
 		matches: /(?<![\w.])readBlocks\s*\(/,
 		declared: {
 			'src/lib/tree-operations/list/task-paragraph.ts':
-				'defines `fragmentReaderAt`, the slot reader every write of bytes into a child slot reads through',
+				'defines `fragmentReaderAt`, the slot reader every write of bytes into a child slot reads through, and `readThroughItemMarker`, which reads a list item’s first slot through its marker line',
 			'src/lib/tree-operations/list/list-builders.ts':
 				'reads a whole built list item back, whose bytes carry their own marker',
 			'src/lib/tree-operations/node-ops.ts':

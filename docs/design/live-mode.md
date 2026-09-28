@@ -227,7 +227,7 @@ rebalanceLiveSplit(image, 5, 'a ![a\n', 'lt](i.png) b\n', reading); // null: a p
 - A CHILDLESS `never-extend` construct (an autolink, an escape) has no interior for a cut to land in at all. Two halves of a URL are not two URLs, and half an escape is a literal backslash, so the cut moves to its nearer edge and one half takes the construct whole. Every byte survives, which is what rules out the alternative, dropping the delimiter pair.
 - A side left with no content takes the whole construct rather than a pair enclosing nothing.
 
-Then the destructive presses (`live` as in § 2):
+Then the destructive presses (`live` as in § 2; `store` says where the block keeps its bytes, see § 4.5):
 
 ```ts
 const press = (display: string, caret: number, direction: 'backward' | 'forward') =>
@@ -238,7 +238,7 @@ const press = (display: string, caret: number, direction: 'backward' | 'forward'
 		direction,
 		screen: live,
 		inlines: parseInline(display, 0, display.length),
-		installedAs: 'block'
+		store
 	});
 
 press('Some **bold** text', 13, 'backward'); // { raw: 'Some **bol** text', caret: 10, unwrappedMarks: [] }: the content byte, never the run
@@ -260,33 +260,37 @@ The fallback these rules share is § 2's. Where no candidate survives the painte
 Every destructive join crosses one call, `cleanJoinedRaw` in `tree-operations/node-ops.ts`, the sole reader of the registered cleaner (`live-join-seam.ts`). The cleanup drops two things: delimiter runs the truncation left unpaired, their partner having gone with the cut, and the closer/opener chain a join brings back to back around nothing, which is the split's inverse.
 
 ```ts
-// Backspace between the two halves § 4.4 made
-const first = parse('Some **bo**\n').children[0];
-const second = parse('**ld** text\n').children[0];
+// Backspace between the two halves § 4.4 made, both at the top of `doc`
+const doc = parse('Some **bo**\n\n**ld** text\n');
+const [first, second] = doc.children;
 const join = (reading: Reading) => ({
 	mergedRaw: 'Some **bo****ld** text\n',
 	seam: 11,
 	start: { node: first, offset: 11 },
 	end: { node: second, offset: 0 },
-	reading
+	typed: '',
+	store: storedAsAt(doc, [0], reading) // where the joined bytes land: the first block's slot
 });
 cleanJoinedRaw(join(liveReading)); // { raw: 'Some **bold** text\n', seam: 9 }: the split's inverse
 cleanJoinedRaw(join(sourceReading)); // { raw: 'Some **bo****ld** text\n', seam: 11 }: the literal join, as in every other mode
 
 // a range delete inside one block: 'Some **bold** text' with 'ld** text' selected
-const node = parse('Some **bold** text\n').children[0];
+const one = parse('Some **bold** text\n');
+const node = one.children[0];
 const gone = (from: number, to: number, mergedRaw: string) => ({
 	mergedRaw,
 	seam: from,
 	start: { node, offset: from },
 	end: { node, offset: to },
-	reading: liveReading
+	typed: '',
+	store: storedAsAt(one, [0], liveReading)
 });
 cleanJoinedRaw(gone(9, 18, 'Some **bo\n')); // { raw: 'Some bo\n', seam: 7 }: the opener lost its partner, so it goes
 cleanJoinedRaw(gone(7, 11, 'Some **** text\n')); // { raw: 'Some  text\n', seam: 5 }: 'bold' selected, and the emptied pair goes with it
 ```
 
-- The join carries the editor's `Reading` (`src/lib/schema/reading.ts`: its grammar, its link resolver and its presentation mode in one object; `liveReading` and `sourceReading` above stand for one in each mode). The cleanup runs only where the reading says the caret's block hides its delimiters.
+- The join carries a store (`src/lib/tree-operations/stored-as.ts` :: `storedAsAt`, from the document and the path of the block the bytes land in). It holds the editor's `Reading` (`src/lib/schema/reading.ts`: its grammar, its link resolver and its presentation mode in one object; `liveReading` and `sourceReading` above stand for one in each mode), and the cleanup runs only where that reading says the caret's block hides its delimiters.
+- The store is also how the check reads a candidate: where it'll actually be stored, through `src/lib/core/inline/live-edit/read-back.ts` :: `readBack`. A list item's first line reads behind its marker (and its checkbox, for a to-do), and a table cell's text reads as text, never as a heading or a list. A leading space the list marker takes on reload still counts as shown, since it draws as the marker's width, so the cut stands and the tree takes the wider marker, same as a reload would.
 - What arrives here: Backspace merges, Delete, range deletes, typing over a selection, cut, and the delete half of a paste. A native ranged edit inside one block is re-expressed as a join of what survives on either side, so it crosses the same call (`live-selection-edit.ts`).
 - The range it rewrites comes off the EVENT, since a word or line delete reports one at a collapsed caret where the selection is empty, and every editable prose surface takes that branch (G4.44) rather than keeping its own list of input types.
 - The license is § 2's: live drops only what it never showed, verified against what the two sides showed, and otherwise the literal join stands.

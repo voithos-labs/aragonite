@@ -28,7 +28,7 @@ import { slotReaderAt } from '../tree-operations/list/task-paragraph';
 import { blockNearPoint } from './nearest-block';
 import { findSurfaceForElement } from './path-lookup';
 import { charOffsetOf } from './primitives';
-import { containerAmbientPrefix } from './range-delete';
+import { storedAsAt } from '../tree-operations/stored-as';
 import { docPathFrom } from '../cursor/coordinate-spaces';
 
 export interface SelectionDropDeps {
@@ -323,13 +323,13 @@ function cutFrom(deps: SelectionDropDeps, from: DragSource): ScopeCut | null {
 	if (!node) return null;
 	if (from.inCell) return cutFromCell(deps, from, node);
 	const before = trimTrailingLineEnding(node.raw);
+	const doc = deps.getDoc();
 	const edit = replaceRangeRaw(
 		node,
 		{ start: from.start, end: from.end },
 		'',
-		deps.reading,
-		containerAmbientPrefix(deps.getDoc(), from.path),
-		documentLineEnding(deps.getDoc())
+		storedAsAt(doc, from.path, deps.reading),
+		documentLineEnding(doc)
 	);
 	const raw = trimTrailingLineEnding(edit.raw);
 	return { path: from.path, raw, shrunkBy: before.length - raw.length };
@@ -346,7 +346,7 @@ function cutFromCell(deps: SelectionDropDeps, from: DragSource, cell: CstNode): 
 		cell,
 		cell.raw,
 		{ start: from.start, end: from.end },
-		deps.reading
+		storedAsAt(deps.getDoc(), from.path, deps.reading)
 	);
 	const rebuilt = cloneNode(table);
 	const inner = from.path.slice(-2);

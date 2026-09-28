@@ -3,7 +3,7 @@ import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { displayLength } from '$lib/core/lines';
 import { cleanLiveJoinSeam } from '$lib/components/blocks/text/live-join-seam';
-import { fixtureReading } from '../../harness/fixture-grammar';
+import { topLevelStore } from '../../harness/fixture-grammar';
 
 // The bytes a live-mode join writes. Each case states the plain concatenation a refusal leaves,
 // so a null return is covered as closely as a rewrite.
@@ -21,7 +21,8 @@ function merge(first: string, second: string): string | null {
 			seam,
 			start: { node: start, offset: seam },
 			end: { node: end, offset: 0 },
-			reading: fixtureReading()
+			typed: '',
+			store: topLevelStore(start)
 		})?.raw ?? null
 	);
 }
@@ -41,7 +42,8 @@ function deleteBetween(
 			seam: startOffset,
 			start: { node: start, offset: startOffset },
 			end: { node: end, offset: endOffset },
-			reading: fixtureReading()
+			typed: '',
+			store: topLevelStore(start)
 		})?.raw ?? null
 	);
 }
@@ -148,7 +150,8 @@ describe('a join whose survivors are only terminal hard-break blank lines', () =
 				seam: 0,
 				start: { node, offset: 0 },
 				end: { node, offset: 5 },
-				reading: fixtureReading()
+				typed: '',
+				store: topLevelStore(node)
 			})
 		).toEqual({ raw: '\n', seam: 0 });
 	});
@@ -172,7 +175,8 @@ describe('a join that would leave a construct enclosing nothing unwraps it', () 
 				seam: 1,
 				start: { node, offset: 1 },
 				end: { node, offset: 5 },
-				reading: fixtureReading()
+				typed: '',
+				store: topLevelStore(node)
 			})
 		).toEqual({ raw: ' more\n', seam: 0 });
 	});
@@ -206,7 +210,8 @@ describe('what the cleanup refuses to be asked', () => {
 				seam: 1,
 				start: { node: heading, offset: 1 },
 				end: { node: heading, offset: 3 },
-				reading: fixtureReading()
+				typed: '',
+				store: topLevelStore(heading)
 			})
 		).toBeNull();
 	});
@@ -221,7 +226,8 @@ describe('what the cleanup refuses to be asked', () => {
 				seam: displayLength(start.raw),
 				start: { node: start, offset: displayLength(start.raw) },
 				end: { node: end, offset: 0 },
-				reading: fixtureReading()
+				typed: '',
+				store: topLevelStore(start)
 			})
 		).toBeNull();
 	});
@@ -235,7 +241,8 @@ describe('what the cleanup refuses to be asked', () => {
 				seam: 3,
 				start: { node: fence, offset: 3 },
 				end: { node: para, offset: 0 },
-				reading: fixtureReading()
+				typed: '',
+				store: topLevelStore(fence)
 			})
 		).toBeNull();
 	});

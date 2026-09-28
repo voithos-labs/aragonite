@@ -20,7 +20,7 @@ import { createSharingState } from '$lib/tree-operations/sharing';
 import { collectEditorSources } from '$lib/test/invariants/lint/scan-source';
 import type { CstNode } from '$lib/core/nodes';
 import type { NodeView } from '$lib/core/node-views';
-import { fixtureReading, TOP_SLOT } from '../harness/fixture-grammar';
+import { fixtureReading, TOP_SLOT, topLevelStore } from '../harness/fixture-grammar';
 import { defaultGrammarView } from '$lib/schema/block-openers';
 
 /** Both halves read as plain fragments, as they do outside a task item. */
@@ -101,14 +101,14 @@ describe('the split cut', () => {
 describe('the single-block range cut', () => {
 	it('cuts to the pair boundary, leaving no half behind', () => {
 		const node = parse(BOY).children[0] as NodeView;
-		const cut = cutRangeFromDisplay(node, 'a\u{1F466}b', { start: 0, end: 2 }, fixtureReading());
+		const cut = cutRangeFromDisplay(node, 'a\u{1F466}b', { start: 0, end: 2 }, topLevelStore(node));
 		expect(isWellFormed(cut.display)).toBe(true);
 		expect(cut.display).toBe('\u{1F466}b');
 	});
 
 	it('snaps the start endpoint too', () => {
 		const node = parse(BOY).children[0] as NodeView;
-		const cut = cutRangeFromDisplay(node, 'a\u{1F466}b', { start: 2, end: 4 }, fixtureReading());
+		const cut = cutRangeFromDisplay(node, 'a\u{1F466}b', { start: 2, end: 4 }, topLevelStore(node));
 		expect(isWellFormed(cut.display)).toBe(true);
 		expect(cut.display).toBe('a');
 	});
@@ -151,7 +151,8 @@ describe('the native ranged edit’s join', () => {
 
 	it('snaps a mid-pair endpoint before slicing', () => {
 		const node = parse(SOURCE, { scope: 'fragment' }).children[0] as NodeView;
-		const edit = resolveSelectionEdit(node, { start: 8, end: 22 }, '', fixtureReading({}, 'live'));
+		const store = topLevelStore(node, fixtureReading({}, 'live'));
+		const edit = resolveSelectionEdit(node, { start: 8, end: 22 }, '', store);
 		expect(edit).not.toBeNull();
 		expect(isWellFormed(edit!.raw)).toBe(true);
 	});

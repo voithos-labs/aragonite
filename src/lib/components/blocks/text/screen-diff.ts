@@ -1,14 +1,8 @@
 /**
  * What a live rewrite says it did to the screen, as two checks over the text before and after
- * (live-mode.md § 2), plus the single-prose-block reparse a candidate must survive first.
- * Shared, so every caller asks the same questions of the same shapes instead of writing its own
- * traversal.
+ * (live-mode.md § 2). Shared, so every caller asks the same questions of the same shapes instead
+ * of writing its own traversal.
  */
-
-import { getContentRange, isProseKind, readInline } from '../../../core/inline';
-import type { Reading } from '../../../schema/reading';
-import type { CstNode, InlineNode } from '../../../core/nodes';
-import { readBlocks } from '../../../core/parser';
 
 /** Whether `after` is `before` with `text` spliced in at one place and nothing else moved. */
 export function insertsExactly(before: string, after: string, text: string): boolean {
@@ -30,20 +24,4 @@ export function removesExactly(before: string, after: string, removed: string): 
 		before.slice(at, at + removed.length) === removed &&
 		after.slice(at) === before.slice(at + removed.length)
 	);
-}
-
-/** A candidate's bytes reparsed as exactly one prose block, for the caller's own test; null when
- *  the reparse splits the block or changes its kind. */
-export function soleProseReparse(
-	raw: string,
-	reading: Reading
-): { block: CstNode; nodes: InlineNode[] } | null {
-	const blocks = readBlocks(raw, { grammar: reading.grammar, scope: 'fragment' }).children;
-	if (blocks.length !== 1 || !isProseKind(blocks[0].kind)) return null;
-	const block = blocks[0];
-	const range = getContentRange(block);
-	return {
-		block,
-		nodes: readInline(block.raw, range.start, range.end, reading.resolver, reading.grammar)
-	};
 }

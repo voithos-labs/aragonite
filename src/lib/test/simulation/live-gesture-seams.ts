@@ -28,10 +28,9 @@ import {
 	isHiddenMarkerText
 } from '$lib/cursor/widget-offset';
 import { asRawOffset, type RawOffset } from '$lib/cursor/coordinate-spaces';
-import {
-	createEdgePolicyDispatch,
-	keepsBlockKind
-} from '$lib/components/blocks/text/edge-policy-dispatch';
+import { createEdgePolicyDispatch } from '$lib/components/blocks/text/edge-policy-dispatch';
+import { keepsKindAt } from '$lib/core/inline/live-edit/read-back';
+import { storedAsAt } from '$lib/tree-operations/stored-as';
 import { resolveDelimiterAutoPair } from '$lib/components/blocks/text/delimiter-autopair';
 import { createAutoPairRecord } from '$lib/components/blocks/text/auto-pair-record';
 import {
@@ -39,6 +38,7 @@ import {
 	resolveSelectionEdit
 } from '$lib/components/blocks/text/live-selection-edit';
 import { rangeDelete } from '$lib/selection/range-delete';
+import { blockNodeAt, nodeAt } from '$lib/tree-operations/node-primitives';
 import { coverRange } from '$lib/selection/range-coverage';
 import {
 	applyCrossBlockFormat,
@@ -48,6 +48,7 @@ import { normalizeCharEndpoint } from '$lib/selection/char-endpoint-snap';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createBlockEditActions } from '$lib/editor-actions/block-edit';
 import {
+	containerBundleOver,
 	makeEditorActionsDeps,
 	makeNestedHarness,
 	makePendingMarks
@@ -142,6 +143,8 @@ interface Harness {
 	doc: Document;
 	blockEdit: BlockEditActions;
 	sharing: ReturnType<typeof makeEditorActionsDeps>['deps']['sharing'];
+	/** The block-edit bundle that writes the leaf at `path`: the document's, or its container's. */
+	blockEditAt(path: readonly number[]): BlockEditActions;
 }
 
 function harnessFor(source: string, mode: PresentationMode | undefined): Harness {
@@ -149,21 +152,47 @@ function harnessFor(source: string, mode: PresentationMode | undefined): Harness
 		parse(source),
 		mode ? { reading: fixtureReading({}, mode) } : {}
 	);
+	const controller = createUndoController(deps);
+	const blockEdit = createBlockEditActions(deps, controller);
 	return {
 		doc: deps.doc,
-		blockEdit: createBlockEditActions(deps, createUndoController(deps)),
-		sharing: deps.sharing
+		blockEdit,
+		sharing: deps.sharing,
+		blockEditAt: (path) =>
+			path.length === 1
+				? blockEdit
+				: containerBundleOver(deps, controller, path.slice(0, -1)).bundle.blockEdit
 	};
 }
 
 /** Shared by the draw and the applier, so a drawn offset aims at the very node the applier picks.
- *  Only the container writes and the range gestures reach a container's children. */
+ *  Split and the single-block toggle stay at the top level, where their callers are. */
 export function gestureTargets(doc: Document, kind: GestureKind): ProseLeaf[] {
 	if (kind === 'type-in-container' || kind === 'blank-in-container') return containerLeaves(doc);
-	if (spansLeaves(kind)) return proseLeaves(doc);
+	if (spansLeaves(kind) || IN_ANY_LEAF.has(kind)) return proseLeaves(doc);
 	return doc.children.flatMap((child, index) =>
 		child.children === undefined && isProseKind(child.kind) ? [{ path: [index], node: child }] : []
 	);
+}
+
+/** The gestures a block's own handlers take, which every prose leaf runs, a container's too. */
+const IN_ANY_LEAF = new Set<GestureKind>([
+	'type',
+	'backspace',
+	'delete',
+	'type-over',
+	'word-delete'
+]);
+
+/** Whether the gesture starts in a list item's first block, the one its marker stands before. */
+export function startsUnderListMarker(doc: Document, gesture: Gesture): boolean {
+	const targets = gestureTargets(doc, gesture.kind);
+	if (targets.length === 0) return false;
+	const path = spansLeaves(gesture.kind)
+		? drawnLeafRange(doc, gesture)?.start.path
+		: targets[gesture.leaf % targets.length].path;
+	if (!path || path.length < 2 || path[path.length - 1] !== 0) return false;
+	return nodeAt(doc, path.slice(0, -1))?.kind === 'listItem';
 }
 
 /** Read before the offset reaches any editing call: a caller's own arithmetic can produce a
@@ -289,18 +318,30 @@ async function applyBlockGesture(
 ): Promise<boolean | null> {
 	const targets = gestureTargets(h.doc, gesture.kind);
 	if (targets.length === 0) return null;
-	const index = targets[gesture.leaf % targets.length].path[0];
-	const node = h.doc.children[index];
+	const { path, node } = targets[gesture.leaf % targets.length];
+	const leaf: LeafAt = { path, node, index: path[path.length - 1], blockEdit: h.blockEditAt(path) };
 	const offset = drawnOffset(node, gesture, gesture.offset);
 	if (gesture.kind === 'enter') {
-		await h.blockEdit.splitBlock(index, offset);
+		await h.blockEdit.splitBlock(leaf.index, offset);
 		return false;
 	}
-	if (gesture.kind === 'type-over') return replaceSelection(h, index, node, gesture, mode);
-	if (gesture.kind === 'format-toggle') return toggleFormat(h, index, node, gesture, mode);
-	if (gesture.kind === 'word-delete') return wordDelete(h, index, node, gesture, mode);
-	return pressEdgeKey(h, index, node, offset, gesture, mode);
+	if (gesture.kind === 'type-over') return replaceSelection(h, leaf, gesture, mode);
+	if (gesture.kind === 'format-toggle') return toggleFormat(leaf, gesture, mode);
+	if (gesture.kind === 'word-delete') return wordDelete(h, leaf, gesture, mode);
+	return pressEdgeKey(h, leaf, offset, gesture, mode);
 }
+
+/** The leaf a block gesture addresses, with the bundle that writes it. */
+interface LeafAt {
+	path: number[];
+	index: number;
+	node: CstNode;
+	blockEdit: BlockEditActions;
+}
+
+/** Where the leaf keeps its bytes, in the reading the gesture ran in. */
+const storeOf = (h: Harness, leaf: LeafAt, mode: PresentationMode | undefined) =>
+	storedAsAt(h.doc, leaf.path, fixtureReading({}, mode));
 
 /** The mark a gesture's draw addresses; the applier and the byte check read the same pick. */
 export function drawnMark(gesture: Gesture): InlineMark {
@@ -321,33 +362,33 @@ function drawnRange(node: CstNode, gesture: Gesture): { start: number; end: numb
  *  no branch takes falls back to the browser's own: its cut, or the block merge at an edge. */
 async function pressEdgeKey(
 	h: Harness,
-	index: number,
-	node: CstNode,
+	leaf: LeafAt,
 	offset: number,
 	gesture: Gesture,
 	mode: PresentationMode | undefined
 ): Promise<boolean> {
 	const key =
 		gesture.kind === 'type' ? gesture.char : gesture.kind === 'backspace' ? 'Backspace' : 'Delete';
-	const el = mountBlock(node, mode);
+	const el = mountBlock(leaf.node, mode);
 	const dispatch = createEdgePolicyDispatch({
 		getLineEnding: () => documentLineEnding(h.doc),
 		get node() {
-			return h.doc.children[index];
+			return nodeAt(h.doc, leaf.path) as CstNode;
 		},
 		get index() {
-			return index;
+			return leaf.index;
 		},
 		get containerParent() {
-			return null;
+			return blockNodeAt(h.doc, leaf.path.slice(0, -1));
 		},
 		get reading() {
 			return fixtureReading();
 		},
 		getEl: () => el,
+		storedAs: () => storeOf(h, leaf, mode),
 		hasIslands: () => false,
 		getRawSelection: () => null,
-		blockEdit: h.blockEdit,
+		blockEdit: leaf.blockEdit,
 		setPendingCursor: () => {},
 		setSnapTarget: () => {},
 		isRevealing: () => false,
@@ -355,27 +396,27 @@ async function pressEdgeKey(
 		isReading: () => false,
 		getEdgeAffinity: () => gesture.affinity,
 		pendingMarks: makePendingMarks(),
-		ownPairs: createAutoPairRecord().forBlock(),
-		installedAs: 'block'
+		ownPairs: createAutoPairRecord().forBlock()
 	});
 	const event = new KeyboardEvent('keydown', { key, cancelable: true });
 	if (dispatch.handleKeydown(event, asRawOffset(offset) as RawOffset)) return true;
-	await nativePress(h, index, node, offset, gesture.kind, key);
+	await nativePress(h, leaf, offset, gesture.kind, key, mode);
 	return false;
 }
 
 /** What the browser does with a keypress no branch took. */
 async function nativePress(
 	h: Harness,
-	index: number,
-	node: CstNode,
+	leaf: LeafAt,
 	offset: number,
 	kind: GestureKind,
-	key: string
+	key: string,
+	mode: PresentationMode | undefined
 ): Promise<void> {
+	const { node, index } = leaf;
 	const { start, end } = getContentRange(node);
 	const write = (raw: string, caret: number) =>
-		h.blockEdit.updateBlockContent(index, raw, 'authored', offset, caret);
+		leaf.blockEdit.updateBlockContent(index, raw, 'authored', offset, caret);
 	if (kind === 'type') {
 		// Every typed byte goes through the delimiter auto-pair handler in every mode (G4.65); a
 		// drawn document holds no pair that handler wrote.
@@ -385,7 +426,7 @@ async function nativePress(
 			offset,
 			key,
 			fixtureReading(),
-			{ ownPair: null, keepsKind: (line) => keepsBlockKind(node, line, fixtureReading()) }
+			{ ownPair: null, keepsKind: (line) => keepsKindAt(node, line, storeOf(h, leaf, mode)) }
 		);
 		if (paired?.kind === 'step-over') return;
 		if (paired) {
@@ -396,17 +437,19 @@ async function nativePress(
 		return;
 	}
 	// At the start or end of the content the keypress becomes a block gesture: the merge it aims at.
+	// A container's own merge rules are not modelled here, so its edge presses do nothing.
+	const topLevel = leaf.path.length === 1;
 	if (kind === 'backspace') {
 		if (offset > start) {
 			const from = snapToScalarBoundary(node.raw, offset - 1);
 			await write(splice(node.raw, from, offset, ''), from);
-		} else if (index > 0) {
+		} else if (topLevel && index > 0) {
 			await h.blockEdit.mergeWithPrevious(index);
 		}
 		return;
 	}
 	if (offset >= end) {
-		if (index < h.doc.children.length - 1) await h.blockEdit.mergeWithNext(index);
+		if (topLevel && index < h.doc.children.length - 1) await h.blockEdit.mergeWithNext(index);
 		return;
 	}
 	const to = offset + (snapToScalarBoundary(node.raw, offset + 1) === offset ? 2 : 1);
@@ -419,9 +462,7 @@ const splice = (raw: string, from: number, to: number, insert: string): string =
 /** A format chord over the drawn range, through the call both prose blocks make. A collapsed range
  *  goes to pending marks in live mode, which is a different path, so this gesture needs a span. */
 function toggleFormat(
-	h: Harness,
-	index: number,
-	node: CstNode,
+	{ node, index, blockEdit }: LeafAt,
 	gesture: Gesture,
 	mode: PresentationMode | undefined
 ): boolean {
@@ -439,7 +480,7 @@ function toggleFormat(
 	// A toggle whose candidate the painter rejects writes nothing, which is live mode's own answer
 	// rather than a gesture the fuzzer failed to apply.
 	if (!toggled) return true;
-	void h.blockEdit.updateBlockContent(
+	void blockEdit.updateBlockContent(
 		index,
 		toggled.newDisplay + trailingLineEnding(node.raw, '\n'),
 		'authored',
@@ -453,11 +494,11 @@ function toggleFormat(
  *  arrives on the beforeinput event and the block's own handler is the only code that sees it. */
 function wordDelete(
 	h: Harness,
-	index: number,
-	node: CstNode,
+	leaf: LeafAt,
 	gesture: Gesture,
 	mode: PresentationMode | undefined
 ): boolean {
+	const { node, index, blockEdit } = leaf;
 	const range = drawnRange(node, gesture);
 	if (range === null) return false;
 	const event = new InputEvent('beforeinput', {
@@ -470,10 +511,10 @@ function wordDelete(
 		node,
 		{ rawRangeOf: () => range, getRawSelection: () => null },
 		'\n',
-		fixtureReading({}, mode)
+		storeOf(h, leaf, mode)
 	);
 	if (edit === null) {
-		void h.blockEdit.updateBlockContent(
+		void blockEdit.updateBlockContent(
 			index,
 			splice(node.raw, range.start, range.end, ''),
 			'authored',
@@ -483,7 +524,7 @@ function wordDelete(
 		return false;
 	}
 	if (edit.kind === 'rewrite') {
-		void h.blockEdit.updateBlockContent(index, edit.raw, 'authored', edit.range.start, edit.caret);
+		void blockEdit.updateBlockContent(index, edit.raw, 'authored', edit.range.start, edit.caret);
 	}
 	return true;
 }
@@ -492,20 +533,20 @@ function wordDelete(
  *  survives on either side (live-mode.md § 4.5). A refusal leaves the browser's own splice. */
 function replaceSelection(
 	h: Harness,
-	index: number,
-	node: CstNode,
+	leaf: LeafAt,
 	gesture: Gesture,
 	mode: PresentationMode | undefined
 ): boolean {
+	const { node, index, blockEdit } = leaf;
 	const range = drawnRange(node, gesture);
 	if (range === null) return false;
-	const edit = resolveSelectionEdit(node, range, gesture.char, fixtureReading({}, mode));
+	const edit = resolveSelectionEdit(node, range, gesture.char, storeOf(h, leaf, mode));
 	if (edit) {
-		void h.blockEdit.updateBlockContent(index, edit.raw, 'authored', range.start, edit.caret);
+		void blockEdit.updateBlockContent(index, edit.raw, 'authored', range.start, edit.caret);
 		return true;
 	}
 	const raw = splice(node.raw, range.start, range.end, gesture.char);
-	void h.blockEdit.updateBlockContent(
+	void blockEdit.updateBlockContent(
 		index,
 		raw,
 		'authored',

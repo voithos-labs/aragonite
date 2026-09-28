@@ -14,7 +14,7 @@ import type { CstNode } from '$lib/core/nodes';
 import { makePendingMarks } from '$lib/test/harness/editor-actions';
 import { createAutoPairRecord } from '$lib/components/blocks/text/auto-pair-record';
 import { asPresentationMode } from '$lib/presentation-mode';
-import { fixtureReading } from '../../harness/fixture-grammar';
+import { fixtureReading, topLevelStore } from '../../harness/fixture-grammar';
 
 export { asRawOffset as at } from '$lib/cursor/coordinate-spaces';
 
@@ -53,6 +53,8 @@ export function makeEdgeDispatch(
 			);
 		},
 		getEl: () => el,
+		// The block alone at the top level, unless a case places it in a document of its own.
+		storedAs: () => topLevelStore(readNode(), deps.reading),
 		hasIslands: () => false,
 		getRawSelection: () => null,
 		blockEdit: {
@@ -69,7 +71,6 @@ export function makeEdgeDispatch(
 		getEdgeAffinity: () => null,
 		pendingMarks: makePendingMarks(),
 		ownPairs: createAutoPairRecord().forBlock(),
-		installedAs: 'block',
 		...overrides
 	};
 	const dispatch = createEdgePolicyDispatch(deps);

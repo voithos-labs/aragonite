@@ -173,8 +173,8 @@ export interface AutoPairSurface {
 	/** Whether a step-over leaves the line one an on-type completer takes (`$$`); only a content
 	 *  write asks. */
 	completesLine?(caret: number): boolean;
-	/** The resolver's block-kind check, for a block whose line can become a different block. */
-	keepsBlockKind?(text: string): boolean;
+	/** Whether a line the pair would write still reads as this block's kind where it is stored. */
+	keepsKind(line: string): boolean;
 	/** How the block was drawn: a plugin's delimiter pairs only where the plugin is listed, and a
 	 *  step-over past a hidden closer moves only the arrival side. */
 	reading: Reading;
@@ -206,7 +206,7 @@ export function applyDelimiterAutoPair(e: InputEvent, surface: AutoPairSurface):
 	const edit = typing
 		? resolveDelimiterAutoPair(text, surface.content(), caret, e.data ?? '', surface.reading, {
 				ownPair,
-				keepsKind: surface.keepsBlockKind
+				keepsKind: surface.keepsKind
 			})
 		: resolveEmptyPairBackspace(text, caret, ownPair, surface.reading.grammar);
 	if (!edit) return false;
