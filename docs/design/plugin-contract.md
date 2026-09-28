@@ -286,11 +286,13 @@ A container may contribute an ambient prefix (the read-only marker a container l
 
 **Taking the changed-child hint.** A `rebuildRaw` that re-emits one child's region needs to know where each child's bytes sit in its own raw, and the only sanctioned home for that is `node.childSpans`. It's the field the editor's own machinery retires: every settle (the pass that re-derives blank-line separators after a splice) that moves a sibling's separating line or a wrap slot drops it, the commit-time rebuild reseeds it, and G1.36 counts it against the children. Offsets cached anywhere else, in plugin metadata, a module map, a `WeakMap`, are invisible to all three, and the dev-only backstop that re-derives behind a splice (G1.38) lives inside the built-in container shapes, not inside a plugin's own rebuilder. Declining the hint and re-deriving the whole raw is always correct, and the container conformance case compares a hinted rebuild against a full one for every registered kind, which proves the choice either way.
 
-**What a rebuild writes.** A `rebuildRaw` writes `raw` and nothing else. When the bytes it writes move an opaque container's opener or closing line (a fence it lengthened past a body line, say), the editor re-reads the container's metadata from those bytes through the kind's own opener, so `createDirectiveRebuild`, `serializeDirective` and a hand-written rebuild all leave the counts in metadata alone.
+**What a rebuild writes.** A `rebuildRaw` writes `raw` and nothing else. When the bytes it writes move an opaque container's opener or closing line (a fence it lengthened past a body line, say), the editor re-reads the container's metadata from those bytes through the parser, so `createDirectiveRebuild`, `serializeDirective` and a hand-written rebuild all leave the counts in metadata alone.
 
 ### Editable chrome
 
 One `registerChromeLeaf` call binds a container's title or summary leaf with a default keymap (Enter descends to the body; chord-keyed overrides). The container _declares_ its chrome slot on its descriptor, and the machinery enforces the **reserved-chrome contract**: the slot is always present, single-line (unsplittable; paste flattens inline), cleared rather than node-deleted by destructive ranges, and kind-stable through every edit. `chromeChild` builds that reserved child-0 node (the title text plus its trailing newline) for an opener constructing the container.
+
+One more promise comes with the slot: none of the container's metadata comes from the title row's bytes. A keystroke in the title leans on it to skip re-reading the metadata, which would otherwise mean parsing the whole container on every keystroke. Break it and the metadata goes stale while you type, and in dev G1.12 calls it out at the next commit that checks the container.
 
 ### Collapsible containers
 

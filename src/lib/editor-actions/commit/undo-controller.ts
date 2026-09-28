@@ -744,8 +744,8 @@ export function createUndoController(
 				for (const p of prepared) {
 					p.owned.children = p.savedChildren;
 					p.owned.childIds = p.savedChildIds;
-					// Bytes and the metadata read from them as well as shape: the chain rebuild rewrites
-					// both, so an unwind would otherwise leave raws the restored children do not match.
+					// The chain rebuild rewrote these bytes and the metadata it read from them, and both have
+					// to match the children restored above.
 					for (const { node, raw, metadata } of p.savedRaws) {
 						node.raw = raw;
 						node.metadata = metadata;

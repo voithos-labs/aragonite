@@ -369,8 +369,8 @@ children, chrome compared positionally for `reservedChrome` declarers. A kind wi
 recognizer whose raw no longer reparses to its own kind fires; a kind with no recognizer bails; a
 directive kind counts as recognized, so that branch does fire for one. Every metadata key has to
 match the reparse too, through the same compare the parse-convergence check uses
-(`metadata-parity.ts`), so a rebuild route that doesn't re-read an opaque container's metadata
-fires on the first fence it lengthens. Predicate `checkOpaqueStaleRaw` (`node-shape.ts`) · commit
+(`metadata-parity.ts`), so a rebuild route that skips the re-read fires at the next commit whose
+checked nodes include the container. Predicate `checkOpaqueStaleRaw` (`node-shape.ts`) · commit
 primitive · `opaque-contract.test.ts`, `opaque-stale-raw-directive.test.ts`,
 `opaque-stale-metadata.test.ts`.
 

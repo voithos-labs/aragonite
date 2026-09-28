@@ -8,7 +8,7 @@ import { parse } from '../core/parser';
 import { ancestorsOf, walkBlocks } from '../core/paths';
 import { blockNodeAt } from '../tree-operations/node-primitives';
 import type { BlockKindDescriptor } from '../schema/block-kind-descriptor';
-import { showValue as show } from '../invariants/metadata-parity';
+import { showValue as show } from '../core/metadata-parity';
 
 export { show };
 

@@ -158,7 +158,7 @@ const ROWS: Row[] = [
 		plain: typeInBody(1, 'edited\n')
 	},
 	{
-		name: 'a directive with no title, by replace-all',
+		name: 'a directive with no title, by replace-all, which reparses the bytes it writes',
 		source: ':::spoiler\nhidden\nX\n:::\n',
 		collide: replaceAll('X', ':::'),
 		plain: typeInBody(0, 'shown\n')

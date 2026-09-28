@@ -7,7 +7,7 @@ import { reservedChromeKindOf } from '../schema/reserved-chrome';
 import { listRegisteredOpeners, type GrammarView } from '../schema/block-openers';
 import { isDirectiveKind } from '../core/directive/registry';
 import type { InvariantViolation } from '../assert';
-import { describeMetadataDivergence } from './metadata-parity';
+import { describeMetadataDivergence } from '../core/metadata-parity';
 
 // ── G1.5: category ↔ field legality ──────────────────────────────────────────
 
@@ -196,8 +196,8 @@ export function checkOpaqueRebuildDeterminism(node: CstNode): InvariantViolation
 	};
 }
 
-/** `rebuildRaw` writes only `raw` (the editor re-reads the metadata from it), so the trial copies
- *  the children array and metadata but shares the child nodes, which would take a deep clone. */
+/** `rebuildRaw` writes only `raw` (the editor re-reads metadata from it), so the trial copies the
+ *  children array and metadata and shares the child nodes, since copying those is a deep clone. */
 function probeRebuild(node: CstNode, rebuildRaw: (probe: CstNode) => void): string {
 	const probe = { ...node };
 	if (probe.children) probe.children = [...probe.children];

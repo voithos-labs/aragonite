@@ -9,7 +9,7 @@ import type { CstNode, Document } from '../core/nodes';
 import type { GrammarView } from '../schema/block-openers';
 import { parse } from '../core/parser';
 import { serialize } from '../core/serializer';
-import { describeMetadataDivergence } from '../invariants/metadata-parity';
+import { describeMetadataDivergence } from '../core/metadata-parity';
 
 /** True when the live tree matches a fresh parse of its own serialization, structurally. */
 export function parseConverges(doc: Document, grammar?: GrammarView): boolean {

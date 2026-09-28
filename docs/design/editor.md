@@ -542,11 +542,11 @@ A plugin rebuilder that ignores the hint is correct, just not incremental.
 
 **Metadata re-derivation.** An opaque container keeps part of its syntax in metadata: a directive's colon counts, a diagram's fence length and code. So when a rebuild moves its opener or closing line (the usual reason is a fence lengthened past a body line that read as the closer), the container re-reads its metadata from a parse of the bytes it just wrote. Otherwise the next edit rebuilds from the old count, and the live document stops matching what a reload of the same file gives you. One helper holds the rule, `src/lib/schema/container-raw.ts :: adoptParsedMetadata`, and three places call it:
 
-- the ancestor rebuild, where the second cost gate above doesn't apply to an opaque container: any moved opener or closing line parses it once, and the kind check and the re-read share that parse (an admonition, which has no opener of its own, parses too);
-- `src/lib/schema/container-raw.ts :: rebuildContainerRaw`, the rebuild every route outside that pass uses (a Backspace join, a container exit, a lift), which takes the grammar as a required argument so no route can skip the re-read;
+- the ancestor rebuild, where the second cost gate above doesn't apply to an opaque container: a moved opener or closing line parses it once, and the kind check and the re-read share that parse (an admonition, which has no opener of its own, parses too). The one skip is a keystroke in a title row that left the closing line alone, since no metadata comes from a title row (the promise `reservedChrome` makes);
+- `src/lib/schema/container-raw.ts :: rebuildContainerRaw`, the rebuild every route outside that pass uses (a Backspace join, a container exit, a lift), which takes the grammar as a required argument so no caller of it can skip the re-read;
 - `src/lib/tree-operations/node-primitives.ts :: installOwnRaw`, for a write of a block's own bytes.
 
-A body keystroke moves neither line and parses nothing. A keystroke in a titled directive's title moves the opener every time, so it pays one parse of that container, and `src/lib/test/perf/kind-rederive-gate.test.ts` holds both numbers. A multi-scope commit that throws puts the metadata back along with the bytes, and G1.12 fires in dev on an opaque container whose metadata its bytes wouldn't give.
+So a keystroke in a titled directive's body or in its title parses nothing, and the keystroke that lengthens its fence pays one parse; `src/lib/test/perf/kind-rederive-gate.test.ts` holds all three numbers. A multi-scope commit that throws puts the metadata back along with the bytes. In dev, G1.12 fires on an opaque container whose metadata its bytes wouldn't give, at a commit whose checked nodes include that container.
 
 ### Ambient markers
 

@@ -5,6 +5,7 @@
  */
 
 import type { CstNode } from '../core/nodes';
+import { describeMetadataDivergence } from '../core/metadata-parity';
 import { readBlocks } from '../core/parser';
 import { trimTrailingLineEnding } from '../core/lines';
 import { perfEnabled, recordContainerKindReparse } from '../perf/instruments';
@@ -64,11 +65,13 @@ export function rebuildContainerRawIfContainer(node: CstNode, changed?: ChildRaw
 // ── Metadata that follows the bytes ──────────────────────────────────────────
 
 /**
- * Takes the metadata a parse of `node`'s own bytes derived, when that parse is one block of the
- * same kind, so the next rebuild reads what a reload would. Returns whether it did.
+ * Takes the metadata a parse of `node`'s own bytes derived, so the next rebuild reads what a
+ * reload would. False when the parse isn't one block of the node's kind, and nothing is taken.
  */
 export function adoptParsedMetadata(node: CstNode, parsed: readonly CstNode[]): boolean {
 	if (parsed.length !== 1 || parsed[0].kind !== node.kind) return false;
+	// Unchanged metadata keeps its object, since every reader of it re-runs when the object changes.
+	if (describeMetadataDivergence(node, parsed[0]) === null) return true;
 	// A fresh object from the parse, so no undo entry shares it.
 	node.metadata = parsed[0].metadata;
 	return true;
@@ -80,12 +83,10 @@ export function parseContainerRaw(raw: string, grammar: GrammarView): CstNode[] 
 	return readBlocks(raw, { grammar, scope: 'fragment' }).children;
 }
 
-/** Whether a rebuild changed the container's opener line or its closing line. */
 export function outerLinesMoved(rawBefore: string, rawAfter: string): boolean {
 	return firstLine(rawBefore) !== firstLine(rawAfter) || lastLine(rawBefore) !== lastLine(rawAfter);
 }
 
-/** The container's opener line. */
 export function firstLine(raw: string): string {
 	const nl = raw.indexOf('\n');
 	return nl < 0 ? raw : raw.slice(0, nl);

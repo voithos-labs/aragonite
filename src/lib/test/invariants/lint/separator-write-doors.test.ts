@@ -207,7 +207,7 @@ describe('every separator entry point retires the child spans it invalidates', (
 		absorbFragmentPeel: 'the follower’s line inside that same absorb, ahead of its splice',
 		deleteNode: 'hands the vacated line down inside the delete splice; the count moves',
 		writeParsedContent: 'carries the target’s line onto its own fresh reparse',
-		reclassifyContainer: 'carries the line onto the replacement, byte for byte',
+		replaceWithParse: 'carries the line onto the replacement, byte for byte',
 		normalizeReplacementTrivia: 'the same carry, for a replacement built elsewhere'
 	};
 

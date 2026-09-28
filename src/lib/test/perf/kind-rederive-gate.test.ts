@@ -12,11 +12,17 @@ import {
 	resetPerfInstruments
 } from '$lib/perf/instruments';
 import { defaultGrammarView } from '$lib/schema/block-openers';
+import { documentLineEnding } from '$lib/core/lines';
+import { docPathFrom } from '$lib/cursor/coordinate-spaces';
+import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
+import { createLeafTyping } from '$lib/editor-actions/leaf-write';
+import { legalizeWrite } from '$lib/tree-operations/content-write';
+import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
 
-// Re-deriving a container's kind costs a `parse` of its whole raw, so it happens only when
-// the first line changed and that line's opener answer changed with it. The second condition is
-// what keeps the cost of a keystroke off the container-size axis: typing into a list's first
-// item rewrites the opener line without changing any answer.
+// A container parse costs its whole raw, so a keystroke pays one only when an outer line moved
+// and something can follow from it: the opener line's answer changed (a new kind), or an opaque
+// container's metadata may have (any outer line but a title row's). That keeps a keystroke off
+// the container-size axis: typing into a list's first item or a directive's title parses nothing.
 
 const KEYSTROKES = 20;
 
@@ -32,6 +38,23 @@ function typeInto(source: string, leafPath: number[], count: number): void {
 		rebuildUnsharedChain(doc, chain, sharing, null, defaultGrammarView);
 	}
 }
+
+/** Write each of `raws` into child `index` of the top-level container through the keystroke's
+ *  in-place route, which names the changed child to the rebuild. */
+function typeInPlace(source: string, index: number, raws: string[]): void {
+	const { deps } = makeEditorActionsDeps(source);
+	const typing = createLeafTyping(deps, createUndoController(deps));
+	for (const raw of raws) {
+		const owner = deps.doc.children[0];
+		const body = { children: owner.children!, owner, lineEnding: documentLineEnding(deps.doc) };
+		const write = legalizeWrite(body, index, raw, 'authored');
+		expect(typing.writeLeafInPlace(docPathFrom([0, index]), write, 0).wrote).toBe(true);
+	}
+}
+
+/** `count` growing lines, `base` plus one more `x` each time. */
+const growing = (base: string, count: number): string[] =>
+	Array.from({ length: count }, (_, i) => `${base}${'x'.repeat(i + 1)}\n`);
 
 const reparses = () => perfSnapshot().containerKindReparses;
 
@@ -72,19 +95,24 @@ describe('container kind re-derivation gate', () => {
 		expect(reparses()).toBe(0);
 	});
 
-	// An opaque container re-reads its metadata from one parse when an outer line moves, and a
-	// title keystroke moves the opener every time; the body sits between the fence lines.
-	it('reparses nothing while typing into a titled directive body', () => {
-		typeInto(':::note Title\nbody\n:::\n', [0, 1], KEYSTROKES);
+	// The metadata an opaque container keeps never comes from its title row, and its body sits
+	// between the fence lines; only a moved closer, a lengthened fence, pays a parse.
+	it('reparses nothing while typing into a titled directive title', () => {
+		typeInPlace(':::note Title\nbody\n:::\n', 0, growing('Title', KEYSTROKES));
 
 		expect(reparses()).toBe(0);
 	});
 
-	it('reparses at most once per keystroke in a titled directive title', () => {
-		typeInto(':::note Title\nbody\n:::\n', [0, 0], KEYSTROKES);
+	it('reparses nothing while typing into a titled directive body', () => {
+		typeInPlace(':::note Title\nbody\n:::\n', 1, growing('body', KEYSTROKES));
 
-		expect(reparses()).toBeGreaterThan(0);
-		expect(reparses()).toBeLessThanOrEqual(KEYSTROKES);
+		expect(reparses()).toBe(0);
+	});
+
+	it('reparses once for the keystroke that lengthens a titled directive fence', () => {
+		typeInPlace(':::note Title\nbody\n:::\n', 1, ['body\n:::\n']);
+
+		expect(reparses()).toBe(1);
 	});
 
 	// Only the keystroke that closes the marker changes the answer. The trailing `x` keeps one

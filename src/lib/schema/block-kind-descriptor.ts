@@ -96,7 +96,8 @@ export interface WriteRule {
 
 /**
  * Child 0 is a title row of this kind, its bytes in the container's raw: always present, one
- * line, cleared rather than deleted, never rekinded. Register it with `registerChromeLeaf`.
+ * line, cleared rather than deleted, never rekinded. Register it with `registerChromeLeaf`. No
+ * container metadata may come from the row's bytes, so typing in it re-reads none.
  */
 export interface ReservedChrome {
 	kind: AnyBlockKind;
