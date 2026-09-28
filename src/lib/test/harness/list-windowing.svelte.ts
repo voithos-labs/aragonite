@@ -1,7 +1,7 @@
 /**
- * The `createListWindowing` setup the windowing suites share: a stubbed scroll container and list
- * element, an `$effect.root`, and the wiring every child list takes. A suite passes only the
- * fixture and the one option it tunes; everything else comes from the defaults below.
+ * The `createListWindowing` setup the windowing suites share: a stubbed scroll container, the
+ * scroll owner writing it, a list element, an `$effect.root`, and the wiring every child list
+ * takes. A suite passes only the fixture and the one option it tunes.
  */
 import { flushSync } from 'svelte';
 import {
@@ -9,10 +9,16 @@ import {
 	type ListWindowing,
 	type ListWindowingDeps
 } from '../../reactivity/list-windowing.svelte';
+import {
+	placementOf,
+	rootTargetResolver,
+	type RootPlacement
+} from '../../reactivity/use-container-windowing.svelte';
 import type { HeightOracle } from '../../cursor/height-oracle';
+import type { CompensationSource, ScrollOwner, ScrollOwnerDeps } from '../../cursor/scroll-owner';
 import type { Scrollport } from '../../cursor/scrollport';
 import type { CstNode } from '../../core/nodes';
-import { stubListEl, stubScrollport } from './stub-scrollport';
+import { stubListEl, stubScrollOwner, stubScrollport } from './stub-scrollport';
 
 // ── Fixtures ────────────────────────────────────────────────────────────────
 
@@ -39,6 +45,14 @@ export function heightsOracle(heights: Record<string, number>, estimate = 10): H
 	};
 }
 
+/** Children and ids a suite can splice under a live list to drive a rebuild, for a suite that
+ *  is not a `.svelte.ts` module and so can't declare `$state` itself. */
+export function liveChildren(children: CstNode[], ids: string[]) {
+	const reactiveChildren = $state(children);
+	const reactiveIds = $state(ids);
+	return { children: reactiveChildren, ids: reactiveIds };
+}
+
 // ── Mount ───────────────────────────────────────────────────────────────────
 
 export type MountListWindowingOptions = Partial<ListWindowingDeps> & {
@@ -53,11 +67,20 @@ export type MountListWindowingOptions = Partial<ListWindowingDeps> & {
 	snapsToPixel?: boolean;
 	/** The space between the scroll container's content origin and this list's first block. */
 	chromeAbove?: number;
+	/** The scroll owner's own deps: the editor correcting scroll and nothing mounted by default. */
+	ownerDeps?: Partial<ScrollOwnerDeps>;
+	/** Where a held path sits in this list, which stands in for the DOM measure the root list
+	 *  makes; a top-level path's own index by default. */
+	placeTargets?: (path: readonly number[]) => RootPlacement | null;
+	/** Which list this is to the scroll owner; the root list by default. */
+	source?: CompensationSource;
 };
 
 export interface MountedListWindowing {
 	windowing: ListWindowing;
+	/** Writable, so a suite can stand in for the user scrolling. */
 	port: Scrollport;
+	owner: ScrollOwner;
 	cleanup: () => void;
 }
 
@@ -72,9 +95,13 @@ export function mountListWindowing(options: MountListWindowingOptions): MountedL
 		maxScrollTop,
 		snapsToPixel,
 		chromeAbove,
+		ownerDeps,
+		placeTargets = (path) => placementOf(path, () => null),
+		source = 'root-list',
 		...deps
 	} = options;
 	const port = stubScrollport({ viewportHeight, viewportTop, maxScrollTop, snapsToPixel });
+	const owner = stubScrollOwner(port, ownerDeps);
 	const listEl = stubListEl(port, listHeight, chromeAbove);
 
 	let windowing!: ListWindowing;
@@ -85,7 +112,10 @@ export function mountListWindowing(options: MountListWindowingOptions): MountedL
 			getChildIds: () => ids,
 			getListEl: () => listEl,
 			getPort: () => port,
-			correctsScroll: () => true,
+			scroll: {
+				compensate: (mutate, held) => owner.compensate(source, mutate, held),
+				scrollToMount: owner.scrollToMount
+			},
 			getFocusPath: () => null,
 			getWidthVersion: () => 0,
 			getViewportHeightVersion: () => 0,
@@ -97,6 +127,7 @@ export function mountListWindowing(options: MountListWindowingOptions): MountedL
 			...deps
 		});
 	});
+	owner.resolveTargetsWith(rootTargetResolver(windowing, placeTargets));
 	flushSync();
-	return { windowing, port, cleanup };
+	return { windowing, port, owner, cleanup };
 }

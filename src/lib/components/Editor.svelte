@@ -177,7 +177,7 @@
 	// svelte-ignore state_referenced_locally
 	const hostScroll = scrollMode === 'host';
 
-	const { getScrollHost, getClipBounds, getScrollport } = createScrollHostResolution({
+	const { getScrollHost, getClipBounds } = createScrollHostResolution({
 		get editorEl() {
 			return editorEl;
 		},
@@ -1096,14 +1096,7 @@
 	$effect(() => {
 		const el = headerEl;
 		if (!el || !editorEl) return;
-		const port = getScrollport();
-		if (!port) return;
-		return installHeaderSlotCompensation({
-			el,
-			port,
-			ownsScrollCorrection,
-			revealHoldsScroll: () => topWindowing.revealHoldsScroll()
-		});
+		return installHeaderSlotCompensation({ el, scroll: scrollOwner });
 	});
 
 	// ── Focus attribution ───────────────────────────────────────────────
@@ -1133,11 +1126,10 @@
 		lifetime: lifetimeController.signal,
 		editorRoot: () => editorEl ?? null,
 		scrollHost: getScrollHost,
-		scrollport: getScrollport,
+		scrollport: scrollOwner.port,
 		blockElLookup: getBlockElByPath,
 		focusedPath: focusAttribution.getFocusedPath,
 		heightOracle,
-		correctsScroll: ownsScrollCorrection,
 		widthVersion: () => widthVersion,
 		viewportHeightVersion: () => viewportHeightVersion
 	} satisfies EditorDoc);

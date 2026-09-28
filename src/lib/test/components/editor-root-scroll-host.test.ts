@@ -18,7 +18,7 @@ function mountUnderScroller() {
 }
 
 describe('editor-root scroll host', () => {
-	it('self mode: the root is the host, nothing clips, and one scrollport is created', () => {
+	it('self mode: the root is the host and nothing clips', () => {
 		const { root } = mountUnderScroller();
 		const r = createScrollHostResolution({
 			get editorEl() {
@@ -28,7 +28,6 @@ describe('editor-root scroll host', () => {
 		});
 		expect(r.getScrollHost()).toBe(root);
 		expect(r.getClipBounds()).toEqual([]);
-		expect(r.getScrollport()).toBe(r.getScrollport());
 	});
 
 	it('answers null before the root mounts, then resolves once it has', () => {
@@ -40,11 +39,9 @@ describe('editor-root scroll host', () => {
 			hostScroll: true
 		});
 		expect(r.getScrollHost()).toBeNull();
-		expect(r.getScrollport()).toBeNull();
 		const mounted = mountUnderScroller();
 		mount.root = mounted.root;
 		expect(r.getScrollHost()).toBe(mounted.scroller);
-		expect(r.getScrollport()).not.toBeNull();
 	});
 
 	it('host mode: the nearest scrollable ancestor is the host and the clip bound', () => {

@@ -401,10 +401,7 @@ const RULES: FileRule[] = [
 		matches: /setScrollTop\s*\([^;]*?\.scrollTop\s*\(\s*\)/,
 		reason:
 			'a relative scroll goes through port.scrollBy(delta), which keeps the fraction the scroller refuses (#315)',
-		reaches: [
-			'src/lib/reactivity/list-windowing.svelte.ts',
-			'src/lib/components/editor-root-geometry.ts'
-		],
+		reaches: ['src/lib/cursor/scroll-owner.ts'],
 		hits: [
 			'port.setScrollTop(port.scrollTop() + delta);',
 			'el.setScrollTop(el.scrollTop() - lost);'
