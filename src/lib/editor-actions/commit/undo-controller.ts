@@ -758,13 +758,12 @@ export function createUndoController(
 			},
 			op,
 			afterTick: args.afterTick,
-			// The caller's landing is always read, since a caller can learn its result there. A
-			// collapsed container recreated every block in its range, so its position wins.
-			landing: () => {
-				const caller = args.landing?.() ?? null;
-				if (!foldLanding) return caller;
-				return { path: docPathFrom(foldLanding.path), offset: foldLanding.offset };
-			},
+			// A collapsed container recreated every block in its range, so its position replaces the
+			// caller's rather than following it.
+			landing: () =>
+				foldLanding
+					? { path: docPathFrom(foldLanding.path), offset: foldLanding.offset }
+					: (args.landing?.() ?? null),
 			announce: args.announce,
 			discardIfNoop,
 			// A detached scope is outside the tree, and checking it would fire stale-raw on a node

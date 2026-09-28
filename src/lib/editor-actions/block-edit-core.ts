@@ -197,7 +197,10 @@ export async function commitLeafText(
 			return opts.landing?.(landed) ?? null;
 		}
 	});
-	return wrote && landed ? landed : { wrote: false };
+	// The result comes from the commit, not the landing: a collapsed ancestor's landing replaces
+	// this one without calling it.
+	if (!wrote) return { wrote: false };
+	return landed ?? readLanded();
 }
 
 /**
