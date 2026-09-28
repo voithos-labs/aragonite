@@ -147,7 +147,7 @@ export interface EditableSurfaceDeps {
 	 *  host mode), for the cross-block drag-select autoscroll. */
 	getScrollHost: () => UserScrollport | null;
 	/** Brings the block a Shift+Arrow extends into to the nearest edge. */
-	scrollOwner: Pick<ScrollOwner, 'showNearest'>;
+	scrollOwner: Pick<ScrollOwner, 'place'>;
 	getEditorLifetime: () => AbortSignal | null;
 	caretMemory: CaretMemory;
 	blockEdit: BlockEditActions;

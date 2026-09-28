@@ -1075,8 +1075,7 @@ const SCROLL_WRITERS: ManifestRule[] = [
 			'// Scrollable through script: `element.scrollTop = n` moves it.\nconst a = 1;',
 			'const top = el.scrollTop;\nif (el.scrollTop === 0) {}',
 			'scrollOwner.scrollToMount(top);\nvoid rects.scrollTo([4]);\nawait rects.scrollTo(p, opts);',
-			'return placement.scroll();\nconst landed = await deps.scroll.place(p, o).scroll();',
-			'owner.showNearest(path);'
+			'return placement.scroll();\nconst landed = await deps.scroll.place(p, o).scroll();'
 		]
 	}
 ];

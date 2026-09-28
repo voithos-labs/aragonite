@@ -300,6 +300,19 @@ const ROWS: Record<keyof ScrollWrites, Row[]> = {
 			}
 		},
 		{
+			// Not awaited, as the key handler doesn't: b5 measures while the placement runs.
+			name: 'a keyboard extension reaching b4, a block below it measuring',
+			run: (f) => {
+				scrollFocusBlockIntoView(focusOn([4]), f.owner);
+				measureTaller(f, 5);
+			},
+			expect: {
+				'host anchoring holds': placedOnB4(START),
+				'a held placement is live': placedOnB4(START),
+				free: placedOnB4(START)
+			}
+		},
+		{
 			name: 'a navigation landing, held where it landed',
 			run: async (f) => {
 				await landOnB4(f, 'into-view-held');
@@ -341,21 +354,6 @@ const ROWS: Record<keyof ScrollWrites, Row[]> = {
 				free: scrollTopIs(START)
 			}
 		}
-	],
-	showNearest: [
-		{
-			name: 'a keyboard extension reaching the next block',
-			run: (f) => scrollFocusBlockIntoView(focusOn([2]), f.owner),
-			expect: {
-				'host anchoring holds': nearestOnB2,
-				'a held placement is live': (f) => {
-					nearestOnB2(f);
-					// Claims nothing: the held target stays as it was.
-					stillHoldsB5(f);
-				},
-				free: nearestOnB2
-			}
-		}
 	]
 };
 
@@ -364,11 +362,6 @@ function placedOnB4(top: number): (f: Fixture) => void {
 		expect(f.scrolled).toEqual(['[4] {"block":"nearest"}']);
 		expect(f.port.scrollTop()).toBe(top);
 	};
-}
-
-function nearestOnB2(f: Fixture): void {
-	expect(f.scrolled).toEqual(['[2] {"block":"nearest","inline":"nearest"}']);
-	expect(f.port.scrollTop()).toBe(START);
 }
 
 // ── The census ───────────────────────────────────────────────────────────────

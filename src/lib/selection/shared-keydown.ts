@@ -41,7 +41,7 @@ export interface SharedKeydownContext extends LandableBoundsContext {
 	history: HistoryActions;
 	focus: FocusActions;
 	/** Brings the block a Shift+Arrow extends into to the nearest edge. */
-	scrollOwner: Pick<ScrollOwner, 'showNearest'>;
+	scrollOwner: Pick<ScrollOwner, 'place'>;
 	/** The editor's command dispatch: the caret memory reads a chord by its current binding, and
 	 *  the history suppression below takes only this editor's plugin chords. */
 	commands: CommandDispatchContext;

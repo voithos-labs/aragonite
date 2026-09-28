@@ -65,9 +65,6 @@ export interface ScrollOwner {
 	scrollToMount(contentTop: number): void;
 	/** Read the position now; the returned call puts it back after a view swap renders. */
 	keep(): () => Promise<void>;
-	/** Scroll a mounted block to the nearest edge once, holding nothing: the keyboard extension's
-	 *  scroll, until `place` can bring a `'nearest'` target into view without moving it later. */
-	showNearest(path: readonly number[]): void;
 	/** A keydown, pointerdown or wheel on the scroll container: drop any held placement. */
 	release(): void;
 	/** Called by the root list alone. */
@@ -256,9 +253,6 @@ export function createScrollOwner(deps: ScrollOwnerDeps): ScrollOwner {
 				if (!p || placement !== null || p.scrollTop() === before) return;
 				p.setScrollTop(before);
 			};
-		},
-		showNearest(path) {
-			deps.getBlockElByPath([...path])?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
 		},
 		release: drop,
 		resolveTargetsWith(next) {

@@ -44,7 +44,7 @@ export interface CrossBlockDispatchContext {
 	 *  window. See `cursor/scroll-ancestors`. */
 	getScrollHost: () => UserScrollport | null;
 	/** Brings the endpoint a keyboard extend reached to the nearest edge. */
-	scrollOwner: Pick<ScrollOwner, 'showNearest'>;
+	scrollOwner: Pick<ScrollOwner, 'place'>;
 	/** Aborted when the owning editor unmounts. See the document facet's `lifetime`. */
 	getEditorLifetime: () => AbortSignal | null;
 	caretMemory: CaretMemory;

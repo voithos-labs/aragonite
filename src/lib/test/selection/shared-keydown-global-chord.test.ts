@@ -40,7 +40,7 @@ function makeCtx(): SharedKeydownContext {
 		history: { requestUndo() {}, requestRedo() {} } as unknown as SharedKeydownContext['history'],
 		focus: {} as FocusActions,
 		getDoc: () => ({ kind: 'document', children: [] }) as never,
-		scrollOwner: { showNearest: () => {} }
+		scrollOwner: { place: () => ({ scroll: async () => true }) }
 	};
 }
 

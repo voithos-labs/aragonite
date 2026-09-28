@@ -76,9 +76,11 @@ export async function collapseCrossBlock(
  *  mounts its endpoint first, and one Shift+Arrow step lands beside the mounted range. */
 export function scrollFocusBlockIntoView(
 	selection: SelectionState,
-	scroll: Pick<ScrollOwner, 'showNearest'>
+	scroll: Pick<ScrollOwner, 'place'>
 ): void {
-	if (selection.focus) scroll.showNearest(selection.focus.path);
+	if (selection.focus) {
+		void scroll.place(selection.focus.path, { block: 'nearest', hold: false }).scroll();
+	}
 }
 
 // ── Keyboard Extension ─────────────────────────────────────────────────────
