@@ -111,6 +111,11 @@ export function declaredPluginInlineKind(name: string): PluginInlineKind {
 	return name as PluginInlineKind;
 }
 
+/** The inline mirror of {@link pluginKindOwner}. */
+export function pluginInlineKindOwner(kind: string): string | null {
+	return declaredPluginInlineKinds.ownerOf(kind);
+}
+
 /** The inline mirror of {@link isBlockKindDeclared}. */
 export function isInlineKindDeclared(name: string): boolean {
 	return declaredPluginInlineKinds.has(name);

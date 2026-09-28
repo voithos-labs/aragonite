@@ -8,8 +8,7 @@ import { isBuiltinBlockKind, type AnyBlockKind } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import type { BlockComponentExports, BlockComponentProps } from '../block-component';
 import type { PluginActivation } from './plugin-activation';
-import { createPluginRegistry } from './plugin-registry';
-import { pluginKindOwner } from './plugin-kind';
+import { createBlockKindRegistry } from './plugin-registry';
 
 export interface BlockComponentEntry {
 	/**
@@ -33,10 +32,9 @@ export function defineBlockComponent<
 	return { component: component as BlockComponentEntry['component'], extraProps };
 }
 
-const registry = createPluginRegistry<AnyBlockKind, BlockComponentEntry>({
+const registry = createBlockKindRegistry<BlockComponentEntry>({
 	label: 'registerBlockComponent',
-	isBuiltin: isBuiltinBlockKind,
-	ownerOf: pluginKindOwner
+	isBuiltin: isBuiltinBlockKind
 });
 
 export function registerBlockComponent(kind: AnyBlockKind, entry: BlockComponentEntry): void {
