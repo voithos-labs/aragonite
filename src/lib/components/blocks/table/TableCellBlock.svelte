@@ -64,6 +64,7 @@
 	} from '../editable-surface';
 	import { wireSurfaceContexts, useParkFocusOnUnmount } from '../surface-wiring.svelte';
 	import { resetForPointerDown } from '../../../selection/cross-block/pointer';
+	import type { PointerPressOptions } from '../../../selection/cross-block/dispatch';
 	import { publishRefSlot, type RefSlots } from '../../../reactivity/publish-ref.svelte';
 	import {
 		selectWholeDocument,
@@ -807,49 +808,47 @@
 			return;
 		}
 		const tableEl = el.closest('[role="table"]') as HTMLElement | null;
-		if (!tableEl) {
-			crossBlock.handlePointerDown(e);
-			return;
-		}
-		const tablePath = myPath.slice(0, -2);
-		const anchor: CellAnchor = {
-			tableEl,
-			tablePath,
-			rowIdx,
-			colIdx,
-			columnCount
-		};
+		if (tableEl && e.shiftKey && shiftClickFromAnotherCell(e, tableEl)) return;
+		// Every other press goes through the shared handler, which places one in the cell's padding.
+		crossBlock.handlePointerDown(e, tableEl && !e.shiftKey ? cellDrag(e, tableEl, el) : {});
+	}
 
-		resetForPointerDown(selection, caretMemory, e.shiftKey);
+	function anchorIn(tableEl: HTMLElement): CellAnchor {
+		return { tableEl, tablePath: myPath.slice(0, -2), rowIdx, colIdx, columnCount };
+	}
 
-		if (e.shiftKey) {
-			const prevCoords = cellCoordsOfElement(document.activeElement, tableEl);
-			if (prevCoords && (prevCoords.rowIdx !== rowIdx || prevCoords.colIdx !== colIdx)) {
-				handleCellShiftClick(
-					selection,
-					{ ...anchor, rowIdx: prevCoords.rowIdx, colIdx: prevCoords.colIdx },
-					{ rowIdx, colIdx }
-				);
-				e.preventDefault();
-				return;
-			}
-			crossBlock.handlePointerDown(e);
-			return;
-		}
+	/** Shift+click with another cell of this table focused grows a cell rectangle from it. */
+	function shiftClickFromAnotherCell(e: PointerEvent, tableEl: HTMLElement): boolean {
+		const prev = cellCoordsOfElement(document.activeElement, tableEl);
+		if (!prev || (prev.rowIdx === rowIdx && prev.colIdx === colIdx)) return false;
+		resetForPointerDown(selection, caretMemory, true);
+		handleCellShiftClick(
+			selection,
+			{ ...anchorIn(tableEl), rowIdx: prev.rowIdx, colIdx: prev.colIdx },
+			{ rowIdx, colIdx }
+		);
+		e.preventDefault();
+		return true;
+	}
 
-		const editorRoot = getEditorRoot();
-		if (!editorRoot) return;
-		const cellEl = el;
-		// Through the shared press handler, which places a press in the cell's padding itself.
-		crossBlock.handlePointerDown(e, {
-			ownDrag: (padding) =>
+	/** A plain press in a cell runs the cell rectangle drag, not the cross-block one. */
+	function cellDrag(
+		e: PointerEvent,
+		tableEl: HTMLElement,
+		cellEl: HTMLElement
+	): PointerPressOptions {
+		return {
+			ownDrag: (padding) => {
+				const editorRoot = getEditorRoot();
+				if (!editorRoot) return;
 				installCellDragListener(
 					{ editorRoot, selection, lifetimeSignal: editorLifetime },
-					anchor,
+					anchorIn(tableEl),
 					e,
 					padding && { surface: cellEl, press: padding }
-				)
-		});
+				);
+			}
+		};
 	}
 
 	// A rectangle also goes on the clipboard as an HTML table, which spreadsheets read.

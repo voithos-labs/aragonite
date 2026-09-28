@@ -26,6 +26,8 @@ export function offsetFromViewportPoint(
 	clientX: number,
 	clientY: number
 ): number | null {
+	// The browser answers a point beside an element with an offset inside it, so ask only inside.
+	if (!isInside(blockEl.getBoundingClientRect(), clientX, clientY)) return null;
 	const seat = caretSeatInElement(blockEl, clientX, clientY);
 	if (!seat || !blockEl.contains(seat.node)) return null;
 	return rawOffsetAt(blockEl, seat.node, seat.offset);

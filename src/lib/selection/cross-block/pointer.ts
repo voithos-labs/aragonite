@@ -9,6 +9,7 @@ import { applyCollapsedCaret, clearNativeSelection } from '../native-bridge';
 import { isInPaddingRow, offsetFromViewportPoint } from '../../cursor/point-offset';
 import { installDragListener } from '../drag-pointer';
 import { devWarn } from '../../dev-warn';
+import { isWholeBlockInputProxy } from '../../editor-actions/whole-block-focus-surface';
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
@@ -152,4 +153,23 @@ function armPaddingPress(el: HTMLElement, path: number[], e: PointerEvent): Padd
 	};
 	el.addEventListener('mousedown', place, { signal: armed.signal });
 	return { offset, placed: () => placed };
+}
+
+/** A right-click places a collapsed caret where a primary click would, before a menu reads it.
+ *  Bound in the capture phase at the editor root, so it runs ahead of every block's own menu. */
+export function placeContextPress(selection: SelectionState, e: MouseEvent): void {
+	if (e.button !== 2 || selection.isCrossBlock) return;
+	const surface = editingHostOf(e.target);
+	if (!surface || !isInPaddingRow(surface, e.clientX, e.clientY)) return;
+	// A right-click inside a range keeps it for the menu, as the browser does.
+	if (!(window.getSelection()?.isCollapsed ?? true)) return;
+	const offset = offsetFromViewportPoint(surface, e.clientX, e.clientY);
+	const path = findBlockPathForElement(surface);
+	if (offset !== null && path) applyCollapsedCaret(surface, { path, offset });
+}
+
+function editingHostOf(target: EventTarget | null): HTMLElement | null {
+	let el = target instanceof HTMLElement && target.isContentEditable ? target : null;
+	while (el?.parentElement?.isContentEditable) el = el.parentElement;
+	return el && !isWholeBlockInputProxy(el) ? el : null;
 }

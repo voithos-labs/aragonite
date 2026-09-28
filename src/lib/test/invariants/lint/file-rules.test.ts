@@ -6,6 +6,8 @@
  */
 
 import {
+	balancedBlock,
+	balancedCall,
 	collectEditorSources,
 	fileClasses,
 	isProseSurface,
@@ -210,6 +212,32 @@ const MOUNTS_EDITABLE = [
 	/setAttribute\(\s*'contenteditable',[^;]*'true'/,
 	/\bcontenteditable:\s/
 ];
+
+// A method call too: every surface reaches the handler through its cross-block bundle.
+const SHARED_PRESS_CALL = /\bhandlePointerDown\s*\(/g;
+const PRESS_BINDING = /\bonpointerdown(?:=\{|:\s*)(\w+)\s*[},]/g;
+
+/** A file that mounts an editable surface whose pointerdown handlers do not each call the shared
+ *  press handler exactly once: one call a branch cannot skip, and no second copy to fall back on. */
+function skipsSharedPress(file: SourceFile): boolean {
+	if (!MOUNTS_EDITABLE.some((re) => re.test(file.code))) return false;
+	const names = [...file.code.matchAll(PRESS_BINDING)].map((m) => m[1]);
+	if (names.length === 0) return true;
+	return names.some((name) => {
+		const body = functionBody(file.code, name);
+		return body === null || (body.match(SHARED_PRESS_CALL) ?? []).length !== 1;
+	});
+}
+
+/** The body of `function name(…) {…}`; null where the file declares no such function. */
+function functionBody(code: string, name: string): string | null {
+	const head = new RegExp(String.raw`\bfunction\s+${name}\s*\(`).exec(code);
+	if (!head) return null;
+	const afterParen = head.index + head[0].length;
+	const params = balancedCall(code, afterParen);
+	const open = params === null ? -1 : code.indexOf('{', afterParen + params.length);
+	return open < 0 ? null : balancedBlock(code, open + 1);
+}
 
 // ── Editor-owned values ──────────────────────────────────────────────────────
 
@@ -520,10 +548,8 @@ const RULES: FileRule[] = [
 		]
 	},
 	{
-		id: 'every editable surface hands its press to the shared press handler',
-		matches: (file) =>
-			MOUNTS_EDITABLE.some((re) => re.test(file.code)) &&
-			!/\bhandlePointerDown\s*\(/.test(file.code),
+		id: 'every editable surface hands each press to the shared press handler once',
+		matches: skipsSharedPress,
 		allowed: {
 			'src/lib/components/GapCaret.svelte':
 				'the caret between blocks holds no text, so a press there has no line to land on',
@@ -535,7 +561,7 @@ const RULES: FileRule[] = [
 				'the dev check measures a detached probe element nobody presses'
 		},
 		reason:
-			'the browser places a press in an editable’s top or bottom padding at the line’s start or end on Mac and Linux; call crossBlock.handlePointerDown from the surface’s pointerdown, or allow it here with why',
+			'the browser places a press in an editable’s top or bottom padding at the line’s start or end on Mac and Linux; bind the surface’s pointerdown to a named function that calls crossBlock.handlePointerDown exactly once, or allow it here with why',
 		reaches: [
 			'src/lib/components/blocks/code/CodeBlock.svelte',
 			'src/lib/components/blocks/table/TableCellBlock.svelte',
@@ -543,17 +569,27 @@ const RULES: FileRule[] = [
 			'src/lib/components/blocks/editable-leaf.ts'
 		],
 		hits: [
-			at('x.svelte', '<div contenteditable="true" onpointerdown={down}></div>'),
-			at('x.svelte', "<div\n\tclass=\"x\"\n\tcontenteditable={ro ? 'false' : 'true'}\n></div>"),
+			at('x.svelte', '<div contenteditable="true"></div>'),
+			at(
+				'x.svelte',
+				'<div contenteditable="true" onpointerdown={down}></div>\nfunction down(e) { if (e.shiftKey) return; }'
+			),
+			at(
+				'x.svelte',
+				"<div\n\tcontenteditable={ro ? 'false' : 'true'}\n\tonpointerdown={down}\n></div>\n" +
+					'function down(e) { if (a) { x.handlePointerDown(e); return; } x.handlePointerDown(e, o); }'
+			),
 			at('x.svelte', '<textarea bind:value={draft}></textarea>'),
 			"el.setAttribute('contenteditable', reading ? 'false' : 'true');",
-			"const props = { contenteditable: 'true' as const };"
+			"const props = { contenteditable: 'true' as const, onpointerdown: (e) => {} };"
 		],
 		misses: [
 			at(
 				'x.svelte',
-				'<div contenteditable="true" onpointerdown={(e) => crossBlock.handlePointerDown(e)}></div>'
+				'<div contenteditable="true" onpointerdown={down}></div>\n' +
+					'function down(e: PointerEvent): void { if (!el) return; crossBlock.handlePointerDown(e); }'
 			),
+			"const on = { contenteditable: 'true' as const, onpointerdown: down };\nfunction down(e) { void crossBlock.handlePointerDown(e); }",
 			at('x.svelte', '<span contenteditable="false">x</span>'),
 			'root.querySelector(\'[contenteditable="true"]\');',
 			"widget.setAttribute('contenteditable', 'false');"
@@ -702,9 +738,7 @@ const RULES: FileRule[] = [
 			'src/lib/invariants/landable-caret.ts':
 				'G1.33 resolves the host as the focused editable and does nothing on its emptiness',
 			'src/lib/selection/caret-restore.ts':
-				'a caret saved at whole-block focus restores TO the host, the wanted target',
-			'src/lib/selection/cross-block/pointer.ts':
-				'a shift-click anchored on a whole-block kind resolves to the host, so the dispatch takes the unit whole'
+				'a caret saved at whole-block focus restores TO the host, the wanted target'
 		},
 		reason:
 			'route through isEditableEventTarget/isWholeBlockInputProxy, or declare what this reader answers for the whole-block host',

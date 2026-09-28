@@ -148,13 +148,15 @@ describe('offsetFromViewportPoint: the exact counterpart', () => {
 		]);
 	});
 
-	it('asks about a point outside the box as it is, so the browser can decline it', () => {
+	// Miss-analysis: the stub answered only inside the box, so no test saw the browser answer a
+	// point beside the element with an offset inside it.
+	it('declines a point outside the box without asking the browser', () => {
 		const el = mountBoxed();
 		el.style.padding = '4px 0';
 		const asked = askedOf(el);
 
-		offsetFromViewportPoint(el, 140, BOX.top - 10);
-		expect(asked).toEqual([{ x: 140, y: BOX.top - 10 }]);
+		expect(offsetFromViewportPoint(el, 140, BOX.top - 3)).toBeNull();
+		expect(asked).toEqual([]);
 	});
 });
 
