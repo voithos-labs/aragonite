@@ -324,11 +324,11 @@ _(pre-freeze / unstable)_ Where things are on screen, reached through `editor.re
 
 _(pre-freeze / unstable)_ What a kind fills its descriptor's `caretTargetAtPoint` with. The rendered view and the source are different strings, so only your kind knows how a press on one lines up with the other; these three are the pieces that don't depend on your grammar. The worked example is the quickstart's parrot: [The first fifteen minutes](plugin-guide.md#the-first-fifteen-minutes).
 
-| Export                    | Role                                                                                                                                                                                                                      |
-| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `caretOffsetAtPoint`      | The character offset in one of your own elements nearest a viewport point; the point clamps into that element's box first, so a press on your chrome still names one, and null means the element holds no position at all |
-| `CaretTarget`             | What the hook answers: the child path to the leaf (empty when your block is the leaf) and the offset inside it                                                                                                            |
-| `CURSOR_END`, `CursorEnd` | The offset meaning "wherever that leaf ends", and its type; a plain `0` is the other end, since that one is a real offset                                                                                                 |
+| Export                    | Role                                                                                                                                                                                                                                                                   |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `caretOffsetAtPoint`      | The character offset in one of your own elements nearest a viewport point; the point moves into that element's box and level with a line first, so a press on your chrome still names one, at the column under it, and null means the element holds no position at all |
+| `CaretTarget`             | What the hook answers: the child path to the leaf (empty when your block is the leaf) and the offset inside it                                                                                                                                                         |
+| `CURSOR_END`, `CursorEnd` | The offset meaning "wherever that leaf ends", and its type; a plain `0` is the other end, since that one is a real offset                                                                                                                                              |
 
 ### Pointer gestures
 

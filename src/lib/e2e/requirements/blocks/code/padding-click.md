@@ -17,3 +17,7 @@ the fence lines, the nearest line is a line of code, never a fence.
 - The margin-click tests only ever clicked beside prose, whose text fills its block's box,
   so no test clicked the strip a code block's box keeps around its text, where the point
   sat outside the text and the click was declined.
+- The column held only on Windows: the click was pulled into the grey box but not past its
+  padding, and Chromium on Mac and Linux answers a point above the first line (or below the
+  last) with that line's start (or end). The suite only ever ran on Windows before Linux CI,
+  so no run saw the other answer.
