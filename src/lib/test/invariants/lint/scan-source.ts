@@ -337,8 +337,7 @@ export function isProseSurface(file: SourceFile): boolean {
 
 // ── Lexical classification ───────────────────────────────────────────────────
 
-/** How a file lexes: TypeScript, a stylesheet, or a Svelte component, whose markup is text but
- *  for `<!-- -->` comments, quoted attribute values and `{…}` script. */
+/** How a file lexes, picked from its path by {@link languageOf}. */
 export type SourceLanguage = 'script' | 'stylesheet' | 'component';
 
 /** The language of a `<script>` or `<style>` body, which holds no markup. */
@@ -427,6 +426,10 @@ function classifyRange(
 
 const TAG_NAME = /[\w:-]*/y;
 
+/** A `{` then a `/` that opens no comment is a block closer (`{/if}`) to Svelte, never an
+ *  expression, so no regex can open there. */
+const BLOCK_CLOSER = /\{\s*\/(?![/*])[^}]*\}?/y;
+
 /** Markup, where `//` and `/*` are prose; a `<script>` or `<style>` body lexes in its own language. */
 function classifyComponent(code: string, out: Uint8Array): void {
 	// The tag being read, '' for a closing tag, null between tags.
@@ -434,7 +437,8 @@ function classifyComponent(code: string, out: Uint8Array): void {
 	for (let i = 0; i < code.length; i++) {
 		const ch = code[i];
 		if (ch === '{') {
-			i = classifyExpression(code, i, out);
+			BLOCK_CLOSER.lastIndex = i;
+			i = BLOCK_CLOSER.test(code) ? BLOCK_CLOSER.lastIndex - 1 : classifyExpression(code, i, out);
 		} else if (tag !== null) {
 			if (ch === '"' || ch === "'") i = classifyAttributeValue(code, i, out);
 			else if (ch === '>') {

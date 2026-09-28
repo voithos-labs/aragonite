@@ -1141,14 +1141,15 @@ packaging claim unwatched. Library-scoped rather than repo-wide: the reference p
 consumer example are Vite APPS, where the read is legitimate. `lint/suite-file-rules.test.ts`.
 
 **G4.26 · Comment budget.** Two scans. Length: a comment block gets two text lines and a header
-gets five. A header is a file's first block on a line of its own, a docblock right above an `export interface` or
-`export type`, or, in a published entry point (`index.ts`, `plugin.ts`, `testing.ts`,
-`editor-props.ts`, `block-component.ts`), a docblock on an export or one of its members, since
-that's what a consumer hovers in the `.d.ts`. Section dividers and tool directives
+gets five. A header is a file's first comment that isn't trailing code, a docblock right above an
+`export interface` or `export type`, or, in a published entry point (`index.ts`, `plugin.ts`,
+`testing.ts`, `editor-props.ts`, `block-component.ts`), a docblock on an export or one of its
+members, since that's what a consumer hovers in the `.d.ts`. Section dividers and tool directives
 (`eslint-disable-next-line`, `svelte-ignore`) don't count as lines. Any block over its budget fails
 with its `path:line`. `lint/comment-lines.ts` reads the blocks for both scans and holds the
 header rule. It gets its comments from the shared lexer (G4.57), so a comment trailing code is a
-block of its own and a `//` inside a string isn't a comment at all. Vocabulary: the repo's private words (seam, door, funnel, rung, ceremony, mint, peel, landable, oracle, seat, island, ladder, road,
+block of its own and a `//` inside a string isn't a comment. Vocabulary: the repo's private words
+(seam, door, funnel, rung, ceremony, mint, peel, landable, oracle, seat, island, ladder, road,
 dialect, sanctioned, owe, husk) appear in no comment (backticked symbol names don't count), and
 the requirement files under `src/lib/e2e/requirements/` hold none in their body text (headings,
 code spans and fenced samples don't count either). Every design and contributing doc is counted
@@ -1442,8 +1443,8 @@ reference, and the two must agree. Two corpora: the repo-wide roots, and the wid
 scans lex. Sixty-odd scans read code through that lexer, so a literal it misreads shrinks their
 populations at once with nothing red, which is how a regex-blind walk and a `}`-opens-a-regex rule
 both shipped. `stripComments` and the comment lints read their comments off the same classes, so
-the guard can't drift onto a lexer no scan uses. Each file lexes in its own language: a `.svelte`
-file's markup is text apart from `<!-- -->` comments, attribute values and `{…}` script, and a
+the guard can't drift onto a lexer no scan uses. Each file lexes in its own language. A `.svelte`
+file's markup is text apart from `<!-- -->` comments, quoted attribute values and `{…}` script. A
 `.css` file has no `//` comments, so a `url(//…)` stays code. TypeScript can't lex either, so both
 are pinned against a corpus instead. `lint/scan-source.differential.test.ts`.
 

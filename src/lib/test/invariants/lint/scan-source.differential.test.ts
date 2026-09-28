@@ -158,7 +158,13 @@ const MARKUP_CORPUS: Array<[source: string, classes: string]> = [
 	['<p>see https://x /* y</p>', '.'.repeat(25)],
 	['<!-- x -->', 'cccccccccc'],
 	['<style>a{b:url(//x)}</style>', '.'.repeat(28)],
-	["<script>'//'</script>", '........ssss.........']
+	["<script>'//'</script>", '........ssss.........'],
+	// Miss-analysis: Prettier puts every block closer on its own line, so no scanned file showed
+	// a closer with a slash after it reading as a regex.
+	['{#if a}x{/if}</p><p>//x</p>', '.'.repeat(27)],
+	['{#each xs as x}x{ /each }</ul><p>//x</p>', '.'.repeat(40)],
+	['{#await p}x{:then v}y{:catch e}z{/await}//x', '.'.repeat(43)],
+	['{/* c */ x}', '.ccccccc...']
 ];
 
 /** A stylesheet has quoted strings and block comments, and no line comments. */

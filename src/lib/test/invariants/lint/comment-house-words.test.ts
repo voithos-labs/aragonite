@@ -103,6 +103,7 @@ describe('G4.26 no house word in a comment', () => {
 		);
 		expect(countHouseWords("const s = '// the seam';", 'x.ts')).toBe(0);
 		expect(countHouseWords('<p>see https://x.dev/seam</p>', 'x.svelte')).toBe(0);
+		expect(countHouseWords('{#if a}x{/if}</p>\n<p>see https://x.dev/seam</p>', 'x.svelte')).toBe(0);
 	});
 });
 

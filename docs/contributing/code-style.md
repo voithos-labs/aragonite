@@ -121,7 +121,7 @@ Delete on sight:
 
 ### The gate
 
-The budget has teeth. G4.26 in `docs/design/invariants.md` is two source scans in the unit suite. The first counts every comment block over the budget above (a comment trailing code counts as its own block), and it knows a header when it sees one: a file's first block on a line of its own, a docblock right above an `export interface` or `export type`, and a docblock on anything a published entry point (`index.ts`, `plugin.ts`, `testing.ts`, `editor-props.ts`, `block-component.ts`) exports, members included, since that's what a consumer hovers in the `.d.ts`. Section dividers don't count as lines.
+The budget has teeth. G4.26 in `docs/design/invariants.md` is two source scans in the unit suite. The first counts every comment block over the budget above. A comment trailing code is its own block. The scan knows a header when it sees one: a file's first comment that isn't trailing code, a docblock right above an `export interface` or `export type`, and a docblock on anything a published entry point (`index.ts`, `plugin.ts`, `testing.ts`, `editor-props.ts`, `block-component.ts`) exports, members included, since that's what a consumer hovers in the `.d.ts`. Section dividers don't count as lines.
 
 Every comment in the repo fits the budget now, so the scan is a hard line: one comment over it fails the suite and names its `path:line`. Tool directives (`// eslint-disable-next-line`, `<!-- svelte-ignore -->`) under a comment don't count as its lines. Here's the red, from a three-line comment I planted mid-file:
 
