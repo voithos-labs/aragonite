@@ -31,6 +31,8 @@ const EMPTY: PerfSnapshot = {
 	snapshotCloneBytes: 0,
 	rebuildDepths: {},
 	containerKindReparses: 0,
+	containerReparseBytes: 0,
+	openerLineReads: 0,
 	parseCount: 0,
 	parseMsTotal: 0,
 	parseBlockCount: 0,

@@ -161,7 +161,8 @@ const CONTAINERS = {
 	blockquote: () => ({
 		inner: makeNode('paragraph', 'hello\n', { marker: '- ', taskItem: true, taskChecked: false }),
 		kind: 'blockquote',
-		raw: '> hello\n'
+		raw: '> hello\n',
+		metadata: { quoteDepth: 1 }
 	}),
 	list: () => ({
 		inner: makeTaskListItem('pending', '[ ] '),

@@ -111,8 +111,8 @@ export interface BlockEditActions {
 		preEditOffset?: number,
 		postEditFocusOffset?: number
 	): ContentWrite;
-	/** Change metadata raw does not derive (task checkboxes), shallow-merged. Metadata derived from
-	 *  raw, like a heading's level, goes through `updateBlockContent`. */
+	/** Shallow-merges metadata the kind's rebuild writes into its bytes (a checkbox toggle). A key no
+	 *  parse gives back is dropped at the next re-read; a heading's level goes through the text. */
 	updateBlockMetadata(
 		blockIndex: number,
 		metadata: Record<string, unknown>,

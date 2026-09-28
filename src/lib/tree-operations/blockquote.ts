@@ -1,8 +1,7 @@
-import type { BlockquoteMetadata, CstNode } from '../core/nodes';
+import type { CstNode } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import type { GrammarView } from '../schema/block-openers';
-import { cloneMetadata, cloneNode } from './clone';
-import { rebuildBlockquoteRaw } from '../schema/container-rebuilders';
+import { cloneNode } from './clone';
 import { rebuildContainerRaw } from '../schema/container-raw';
 import { assignIds } from '../block-id';
 import { emptyParagraph } from './node-primitives';
@@ -10,24 +9,23 @@ import { firstLineEnding } from '../core/lines';
 import type { RemainderBuilder } from './container-lift';
 
 /** A quote-shaped container's remainder is always a plain blockquote, since a marker like
- *  `[!TYPE]` lives only on the opener line the lift drops. */
-export const plainQuote: RemainderBuilder = (container, children) => {
-	const remaining: CstNode = {
-		kind: 'blockquote',
-		leadingTrivia: '',
-		raw: '',
-		metadata:
-			container.metadata && 'quoteDepth' in container.metadata
-				? (cloneMetadata(container.metadata) as BlockquoteMetadata)
-				: { quoteDepth: 1 },
-		children,
-		childIds: assignIds(children),
-		innerPrefix: container.innerPrefix ?? '',
-		innerSuffix: container.innerSuffix ?? ''
+ *  `[!TYPE]` lives only on the opener line the lift drops. Its depth is its own first line's. */
+export function plainQuote(grammar: GrammarView): RemainderBuilder {
+	return (container, children) => {
+		const remaining: CstNode = {
+			kind: 'blockquote',
+			leadingTrivia: '',
+			raw: '',
+			metadata: { quoteDepth: 1 },
+			children,
+			childIds: assignIds(children),
+			innerPrefix: container.innerPrefix ?? '',
+			innerSuffix: container.innerSuffix ?? ''
+		};
+		rebuildContainerRaw(remaining, grammar);
+		return remaining;
 	};
-	rebuildBlockquoteRaw(remaining);
-	return remaining;
-};
+}
 
 /**
  * The replacement when Enter exits a quote's empty trailing paragraph: the trimmed quote, then the

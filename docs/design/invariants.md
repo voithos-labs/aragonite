@@ -214,7 +214,7 @@ Three families of seam run these checks:
 
 | ID    | What stays true                                                                     | Codes   |
 | ----- | ----------------------------------------------------------------------------------- | ------- |
-| G1.1  | A container's raw never goes stale: `strip(raw) === serialize(children)`            | A·P·N·D |
+| G1.1  | A strip container's raw and metadata never go stale against its children and bytes  | A·P·N·D |
 | G1.2  | Every block kind has a descriptor and a component                                   | A·P     |
 | G1.3  | _Retired upward_: container-iff-rebuildRaw is now unrepresentable                   | T       |
 | G1.4  | No container publishes the undo-history context key                                 | A·L·N   |
@@ -271,8 +271,14 @@ false positive went unseen until the simulation was wired to the invariant chann
 does require is that the reparse comes back as a SINGLE block (for `listItem`, a wrapping list
 holding it alone), which a structural compare isn't: bytes belonging to a following sibling leave
 the first block's inner content intact, so without the single-block rule a container whose raw has
-grown reads as faithful. Non-strip containers are exempt, grid outright and opaque via G1.12 and
-G1.13. Predicate `checkStaleRaw` (`node-shape.ts`) · commit primitive · `stale-raw.test.ts`.
+grown reads as faithful. Once the bytes pass, every strip container's metadata, this one's and each
+nested one's, has to be what the reparse gives it, through the compare G1.12 uses
+(`metadata-parity.ts`): a quote whose first line gained a `>` but kept its old depth fires, and so
+does an item holding a marker narrower than the spaces after it. A key the parse never gives (one
+written through `updateBlockMetadata` for its own sake) fires too, since no reload would keep it.
+Non-strip containers are exempt, grid outright and opaque via G1.12 and G1.13. Predicate
+`checkStaleRaw` (`node-shape.ts`) · commit primitive · `stale-raw.test.ts`,
+`strip-stale-metadata.test.ts`.
 
 **G1.2 · Registry completeness.** Every `BlockKind` resolves to a descriptor and a component, the
 kinds enumerated from the union-derived manifest (`core/nodes.ts :: BLOCK_KIND_TABLE`,

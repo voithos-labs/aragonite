@@ -53,7 +53,7 @@ async function deleteEmptyItem(
 
 /** Lift the first child out of a quote-shaped container, whose opener goes with it (U2). */
 async function liftFirstChildDroppingOpener({ deps }: UnwrapStrategyDeps): Promise<boolean> {
-	return spliceLift(deps, liftFirstChild(deps.node, plainQuote));
+	return spliceLift(deps, liftFirstChild(deps.node, plainQuote(deps.reading.grammar)));
 }
 
 /** Lift the first child out of a container whose syntax survives, so the rest keeps its kind (U2). */

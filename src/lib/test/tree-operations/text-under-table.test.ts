@@ -23,7 +23,7 @@ function unwrapQuote(parent: CstNode | Document, at: number): void {
 		parent,
 		at,
 		1,
-		liftFirstChild(parent.children![at], plainQuote),
+		liftFirstChild(parent.children![at], plainQuote(defaultGrammarView)),
 		defaultGrammarView
 	);
 }

@@ -27,7 +27,7 @@ import {
 } from '../schema/block-kind-descriptor';
 import { reservedChromeKindOf } from '../schema/reserved-chrome';
 import type { GrammarView } from '../schema/block-openers';
-import { adoptParsedMetadata, parseContainerRaw } from '../schema/container-raw';
+import { followBytes } from '../schema/container-raw';
 
 // ── The commit's steps ───────────────────────────────────────────────────────
 
@@ -120,11 +120,10 @@ function rewriteLastLine(
 	const wasEnded = node.raw.endsWith('\n');
 	const raw = write(node.raw);
 	if (raw === node.raw) return;
+	const rawBefore = node.raw;
 	node.raw = raw;
-	// An opaque container's metadata can hold its closing line's ending, so it re-reads its bytes.
-	if (tryGetBlockKindDescriptor(node.kind)?.containerContract === 'opaque') {
-		adoptParsedMetadata(node, parseContainerRaw(raw, grammar));
-	}
+	// A container's metadata can hold its closing line's ending.
+	followBytes(node, rawBefore, grammar);
 	const last = (node.children?.length ?? 0) - 1;
 	if (last < 0) return;
 	const descriptor = getBlockKindDescriptor(node.kind);

@@ -20,7 +20,7 @@ describe('a metadata write in reading mode', () => {
 	it('is declined at the commit with no undo entry or edit event, and a dev build names it', async () => {
 		const editor = editorIn('reading');
 
-		await editor.actions.updateBlockMetadata(0, { calloutType: 'warning' });
+		await editor.actions.updateBlockMetadata(0, { quoteDepth: 1 });
 
 		expect(serialize(editor.doc)).toBe(SOURCE);
 		expect(editor.deps.undoManager.canUndo).toBe(false);
@@ -36,7 +36,7 @@ describe('a metadata write in reading mode', () => {
 		configureEditorEnv({ isDev: false, isTest: false });
 		const editor = editorIn('reading');
 
-		await editor.actions.updateBlockMetadata(0, { calloutType: 'warning' });
+		await editor.actions.updateBlockMetadata(0, { quoteDepth: 1 });
 
 		expect(serialize(editor.doc)).toBe(SOURCE);
 		expect(takeDevWarns()).toEqual([]);
@@ -46,7 +46,7 @@ describe('a metadata write in reading mode', () => {
 	it('reaches the commit in a live preview mode', async () => {
 		const editor = editorIn('preview-block');
 
-		await editor.actions.updateBlockMetadata(0, { calloutType: 'warning' });
+		await editor.actions.updateBlockMetadata(0, { quoteDepth: 1 });
 
 		expect(editor.edits.map((e) => e.op)).toEqual(['metadataUpdate']);
 	});

@@ -120,7 +120,11 @@ describe('no-caret container commits snapshot a resolving deep restore path', ()
 			makeNestedActionsDeps({ index: 0, getNode: liveList, path: [1, 0], parent: quoteBundle })
 		);
 
-		await listBundle.blockEdit.updateBlockMetadata(0, { taskChecked: true });
+		await listBundle.blockEdit.updateBlockMetadata(0, {
+			taskItem: true,
+			taskChecked: true,
+			taskMarker: '[x] '
+		});
 
 		const entry = lastUndoEntry(deps);
 		expect(rangeSelectionOf(entry).focus.path).toEqual([1, 0, 0]);

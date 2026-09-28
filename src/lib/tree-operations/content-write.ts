@@ -6,13 +6,14 @@
 
 import type { AnyBlockKind, CstNode, Document } from '../core/nodes';
 import type { DocumentView, NodeView } from '../core/node-views';
-import { isBlankParagraph, readBlocks } from '../core/parser';
+import { isBlankParagraph } from '../core/parser';
 import { escalatedFenceLength, matchFenceOpen } from '../core/parsers/fence-syntax';
 import { isBlockOpenerRegistered, type GrammarView } from '../schema/block-openers';
 import {
-	adoptParsedMetadata,
+	lineOpensAs,
 	parseContainerRaw,
-	rebuildContainerRaw
+	rebuildContainerRaw,
+	type BytesReading
 } from '../schema/container-raw';
 import {
 	displayLines,
@@ -22,7 +23,7 @@ import {
 	ownTrailingLineEnding,
 	type LineEnding
 } from '../core/lines';
-import { assignChildIdsDeep } from '../block-id';
+import { assignChildIdsDeep, idsAcrossReread } from '../block-id';
 import {
 	getBlockKindDescriptor,
 	tryGetBlockKindDescriptor,
@@ -376,14 +377,6 @@ function isEmptyEditableContainer(node: CstNode): boolean {
 
 // ── Container kind re-derivation ──
 
-/**
- * What the grammar opens `line` as, read in isolation: asked of the opener registry and never
- * a kind list, so a kind registered later is covered the day it registers.
- */
-export function lineOpensAs(line: string, grammar: GrammarView): AnyBlockKind {
-	return readBlocks(`${line}\n`, { grammar, scope: 'fragment' }).children[0]?.kind ?? 'paragraph';
-}
-
 /** Whether the grammar in effect still leaves `NEXT_PROSE_LINE` an ordinary paragraph. */
 export function probeLineOpensAsProse(grammar: GrammarView): boolean {
 	return lineOpensAs(NEXT_PROSE_LINE, grammar) === 'paragraph';
@@ -404,18 +397,24 @@ export function reclassifyContainer(
 	return replaceWithParse(parent, index, parseContainerRaw(node.raw, grammar), grammar);
 }
 
-/** {@link reclassifyContainer} for an opaque container, which takes the metadata of a parse that
- *  keeps its kind, from the same one parse. */
-export function rederiveOpaqueContainer(
+/** The container at `index` replaced by what its bytes read as, when its position holds that: the
+ *  same kind over other children, or one block of another kind that has an opener. */
+export function installReading(
 	parent: NodeParent,
 	index: number,
+	reading: BytesReading,
 	grammar: GrammarView
 ): CstNode | null {
 	const node = parent.children[index];
-	if (!node) return null;
-	const parsed = parseContainerRaw(node.raw, grammar);
-	if (adoptParsedMetadata(node, parsed) || !isBlockOpenerRegistered(node.kind)) return null;
-	return replaceWithParse(parent, index, parsed, grammar);
+	if (!node || reading.outcome === 'kept') return null;
+	if (reading.outcome === 'reread') {
+		// A child the re-read left alone keeps its id, so the block there stays mounted.
+		const children = reading.node.children ?? [];
+		reading.node.childIds = idsAcrossReread(node.children ?? [], node.childIds, children);
+		return installReplacement(parent, index, reading.node, grammar);
+	}
+	if (!isBlockOpenerRegistered(node.kind)) return null;
+	return replaceWithParse(parent, index, reading.blocks, grammar);
 }
 
 function replaceWithParse(
@@ -424,12 +423,19 @@ function replaceWithParse(
 	parsed: CstNode[],
 	grammar: GrammarView
 ): CstNode | null {
-	const node = parent.children[index];
 	// A container's raw is one block by construction; a multi-block reparse means bytes this
 	// function has no position for, left to the edit that owns the mutation.
-	if (parsed.length !== 1 || parsed[0].kind === node.kind) return null;
+	if (parsed.length !== 1 || parsed[0].kind === parent.children[index].kind) return null;
+	return installReplacement(parent, index, parsed[0], grammar);
+}
 
-	const replacement = parsed[0];
+function installReplacement(
+	parent: NodeParent,
+	index: number,
+	replacement: CstNode,
+	grammar: GrammarView
+): CstNode {
+	const node = parent.children[index];
 	const backfilled = isEmptyEditableContainer(replacement);
 	// A container spanning lines holds the document's ending in its bytes; only a one-line
 	// container, the last line of a document, falls back to LF.

@@ -133,6 +133,16 @@ quote.raw; // '> a\n>\n> - one\n> - two\n'
 concatChildren(quote.children); // 'a\n\n- one\n- two\n', the raw with its `> ` stripped
 ```
 
+A strip container keeps its metadata on its first line, and nowhere else. A list item's `marker` is the bullet or number plus every space after it, so the spaces count toward the marker, not the paragraph, and the marker's width is the column its other lines are indented to:
+
+```ts
+parse('-  b\n').children[0].children[0].metadata; // { marker: '-  ', taskItem: false, ... }
+parse('- [ ]  b\n').children[0].children[0].metadata.taskMarker; // '[ ]  '
+parse('> > a\n').children[0].metadata; // { quoteDepth: 2 }
+```
+
+An edit that leaves a space at an item's content start leaves exactly those bytes, so the editor reads them the way this parse does. How, and what it costs, is in `editor.md` § The container `raw` contract.
+
 Only `'strip'` carries that equation as a checked invariant. `'grid'` and `'opaque'` are exempt from it, for different reasons and with different consequences:
 
 - **Grid.** A cell has no standalone line recognizer, so `parse(cell.raw)` would come back a paragraph. That's why table cells are `contextDependentKind`, and why the container's `rebuildRaw` owns the surrounding pipes. One function splits a row into cells (`core/parsers/table.ts :: splitRowCells`) and one writes a row back (`schema/container-rebuilders.ts :: writeTableRow`), so a copied piece of a table is written by the second and pasted GFM rows are split by the first.

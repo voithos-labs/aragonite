@@ -11,9 +11,12 @@ export interface PerfSnapshot {
 	snapshotCount: number;
 	snapshotCloneBytes: number;
 	rebuildDepths: Record<number, number>;
-	/** Parses of a rebuilt container's own bytes, to re-derive its kind or an opaque one's
-	 *  metadata (`schema/container-raw.ts :: parseContainerRaw`). */
+	/** Parses of a rebuilt container's own bytes, to re-derive its kind or metadata
+	 *  (`schema/container-raw.ts :: parseContainerRaw`), and the bytes they read. */
 	containerKindReparses: number;
+	containerReparseBytes: number;
+	/** Reads of a rebuilt container's first line alone, to re-derive its kind or metadata. */
+	openerLineReads: number;
 	parseCount: number;
 	parseMsTotal: number;
 	parseBlockCount: number;
@@ -44,6 +47,8 @@ function emptySnapshot(): PerfSnapshot {
 		snapshotCloneBytes: 0,
 		rebuildDepths: {},
 		containerKindReparses: 0,
+		containerReparseBytes: 0,
+		openerLineReads: 0,
 		parseCount: 0,
 		parseMsTotal: 0,
 		parseBlockCount: 0,
@@ -105,9 +110,15 @@ export function recordRebuildDepth(depth: number): void {
 	counters.rebuildDepths[depth] = (counters.rebuildDepths[depth] ?? 0) + 1;
 }
 
-export function recordContainerKindReparse(): void {
+export function recordContainerKindReparse(bytes: number): void {
 	if (!enabled) return;
 	counters.containerKindReparses++;
+	counters.containerReparseBytes += bytes;
+}
+
+export function recordOpenerLineRead(): void {
+	if (!enabled) return;
+	counters.openerLineReads++;
 }
 
 export function recordParse(ms: number, blockCount: number): void {

@@ -81,6 +81,7 @@ function makeNestedSetup() {
 		kind: 'blockquote',
 		leadingTrivia: '',
 		raw: '> hello\n',
+		metadata: { quoteDepth: 1 },
 		children: [innerPara],
 		innerPrefix: '',
 		innerSuffix: ''

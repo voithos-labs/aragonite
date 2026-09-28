@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { installPlugins, parse } from '$lib';
 import { liftFirstChild, plainQuote } from '$lib/tree-operations';
+import { defaultGrammarView } from '$lib/schema/block-openers';
 import { admonitionsPlugin } from '$lib/plugins/admonitions';
 
 // The alert branch of the shared quote-unwrap primitive (Rule U2): a `[!TYPE]` marker
@@ -19,14 +20,20 @@ const parseAlert = (src: string) => {
 
 describe('github alert: unwrap first child drops the marker', () => {
 	it('lifts the sole body block, leaving no alert', () => {
-		const result = liftFirstChild(parseAlert('> [!NOTE]\n> only line\n'), plainQuote);
+		const result = liftFirstChild(
+			parseAlert('> [!NOTE]\n> only line\n'),
+			plainQuote(defaultGrammarView)
+		);
 		expect(result).toHaveLength(1);
 		expect(result[0].kind).toBe('paragraph');
 		expect((result[0].raw ?? '').trim()).toBe('only line');
 	});
 
 	it('lifts the first body block; the remainder is a plain blockquote', () => {
-		const result = liftFirstChild(parseAlert('> [!NOTE]\n> a\n>\n> b\n'), plainQuote);
+		const result = liftFirstChild(
+			parseAlert('> [!NOTE]\n> a\n>\n> b\n'),
+			plainQuote(defaultGrammarView)
+		);
 		expect(result).toHaveLength(2);
 		expect((result[0].raw ?? '').trim()).toBe('a');
 		expect(result[1].kind).toBe('blockquote');
