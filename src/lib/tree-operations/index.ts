@@ -28,8 +28,8 @@ export { isItemUserEmpty } from './list/empty-check';
 export { buildExitReplacement } from './list/exit-replacement';
 export { reconcileTaskMetadata, taskMarkerMayStandBefore } from './list/reconcile-task';
 
-export { unwrapFirstChildFromQuote } from './blockquote';
-export { liftFirstChildKeepingContainer } from './container-lift';
+export { plainQuote, unwrapFirstChildFromQuote } from './blockquote';
+export { liftFirstChild, sameContainer } from './container-lift';
 
 export {
 	insertEmptyRow,

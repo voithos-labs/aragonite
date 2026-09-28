@@ -91,8 +91,9 @@ export function landClipboardBlocks(
 ): CstNode[] {
 	const landed: CstNode[] = [];
 	for (let i = 0; i < blocks.length; i++) {
-		const before = landed[landed.length - 1] ?? prev;
-		const node = before ? landedAfter(before, blocks[i], lineEnding) : { ...blocks[i] };
+		// The clipboard's parse already read its own blocks as themselves, so only the join with
+		// the text above is new.
+		const node = i === 0 && prev ? landedAfter(prev, blocks[i], lineEnding) : { ...blocks[i] };
 		ensureEditableContainers(node, lineEnding);
 		landed.push(node);
 	}

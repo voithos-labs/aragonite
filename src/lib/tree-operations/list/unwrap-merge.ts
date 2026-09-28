@@ -116,7 +116,6 @@ function relocateRemainingChildren(
 	targetPath: number[],
 	targetItem: CstNode,
 	currentItem: CstNode,
-	lineEnding: string,
 	sharing?: SharingState
 ): void {
 	const remainingChildren = currentItem
@@ -139,10 +138,8 @@ function relocateRemainingChildren(
 			// An in-place write on a descendant found by walking, see the `node-primitives.ts` header.
 			pushChild(targetItem, child);
 		} else {
-			// A trailing paragraph keeps its blank-line separator, or the two lazy-continue
-			// into one on reload. Other leaves start fresh and need none.
-			child.leadingTrivia = child.kind === 'paragraph' ? lineEnding : '';
-			// An in-place write on a descendant found by walking, see the `node-primitives.ts` header.
+			// The child keeps its own blank line: the joined text above it ends the way the text it
+			// followed did. An in-place write on a descendant, see the `node-primitives.ts` header.
 			pushChild(targetItem, child);
 		}
 	}
@@ -181,7 +178,7 @@ export function mergeListItemIntoPrevious(
 	if (!joined) return null;
 
 	const targetItem = nodeAt(list, targetPath.slice(0, -1));
-	relocateRemainingChildren(list, targetPath, targetItem, currentItem, lineEnding, sharing);
+	relocateRemainingChildren(list, targetPath, targetItem, currentItem, sharing);
 
 	children.splice(currentIndex, 1);
 
