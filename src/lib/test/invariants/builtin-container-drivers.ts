@@ -131,8 +131,7 @@ function mountTableMutations(children: CstNode[], tableIndex: number) {
 		},
 		parentContainerEdit: rootContainerEdit,
 		controller,
-		reading: deps.reading,
-		focusCell: () => {}
+		reading: deps.reading
 	});
 	return { ctx, deps, doc, events };
 }
