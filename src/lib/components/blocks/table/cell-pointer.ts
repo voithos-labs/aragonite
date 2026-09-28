@@ -15,6 +15,9 @@ import { createPointerDragSession } from '../../../selection/pointer-session';
 import { blockNearPoint } from '../../../selection/nearest-block';
 import { firstScrollableDescendant } from '../../../cursor/scroll-ancestors';
 import { TABLE_CELL_SELECTOR } from '../../block-content-selector';
+import { caretOffsetAtPoint } from '../../../cursor/point-offset';
+import { applySingleBlockRange } from '../../../selection/native-bridge';
+import type { PaddingPress } from '../../../selection/cross-block/pointer';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -34,12 +37,20 @@ export interface CellDragContext {
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
+/** A press in the anchor cell's padding that the editor placed, so no native drag selects in the
+ *  cell and the session paints the range there itself. */
+export interface CellPaddingPress {
+	surface: HTMLElement;
+	press: PaddingPress;
+}
+
 /** A drag from inside `anchor`'s cell selects a cell rectangle while the pointer stays in the
  *  table and extends to the block underneath once it leaves; the anchor cell stays fixed. */
 export function installCellDragListener(
 	ctx: CellDragContext,
 	anchor: CellAnchor,
-	down: PointerEvent
+	down: PointerEvent,
+	padding: CellPaddingPress | null = null
 ): { dispose(): void } {
 	// Flagged as a cell index, so a drag that leaves the table snaps to whole rows
 	// (table-endpoint-snap.ts) and copy and delete agree on which rows it covers.
@@ -58,6 +69,7 @@ export function installCellDragListener(
 				if (ctx.selection.isCrossBlock) {
 					ctx.selection.collapse();
 				}
+				paintInAnchorCell(clientX, clientY);
 				return;
 			}
 			extendToCell(cellHit.rowIdx, cellHit.colIdx);
@@ -70,6 +82,12 @@ export function installCellDragListener(
 		if (target && anchor.tableEl.contains(target)) return;
 
 		extendToForeignBlock(clientX, clientY);
+	}
+
+	function paintInAnchorCell(clientX: number, clientY: number): void {
+		if (!padding?.press.placed()) return;
+		const focus = caretOffsetAtPoint(padding.surface, clientX, clientY);
+		if (focus !== null) applySingleBlockRange(padding.surface, padding.press.offset, focus);
 	}
 
 	function extendToCell(rowIdx: number, colIdx: number): void {

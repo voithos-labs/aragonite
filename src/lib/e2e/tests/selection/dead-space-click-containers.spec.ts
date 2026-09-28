@@ -1,8 +1,8 @@
-import type { Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import { PluginsPage, dragBetweenPoints } from '../plugins/helpers';
-import { pointAtRaw, textRunRect } from '../../text-runs';
+import { pointAtRaw, pointInGap, textRunRect } from '../../text-runs';
 
 // A click in the margin beside a container's later line lands on that line, at every depth and
 // for every container kind. Requirements: `e2e/requirements/selection/dead-space-click-containers.md`.
@@ -61,18 +61,17 @@ const CASES: Case[] = [
 	}
 ];
 
-async function aimX(page: Page, aim: Aim, row: Case): Promise<number> {
+async function aimX(page: Page, aim: Aim, row: Case, y: number): Promise<number> {
+	const holding = (scope: Locator, blocks: string) =>
+		scope.locator(blocks).filter({ hasText: row.line });
 	if (aim === 'at the editor edge') {
-		return page.evaluate(
-			() => (document.querySelector('.editor') as HTMLElement).getBoundingClientRect().left + 2
-		);
+		const editor = page.locator('.editor');
+		const topLevel = holding(editor, '[data-block-path]:not([data-block-path*=","])');
+		return (await pointInGap(editor, topLevel, 'left', y)).x;
 	}
 	if (aim === 'at the container edge') {
-		const box = await page
-			.locator(`[data-block-path='${JSON.stringify(row.container ?? [])}']`)
-			.boundingBox();
-		if (!box) throw new Error(`no box for ${row.name}`);
-		return box.x + 1;
+		const container = page.locator(`[data-block-path='${JSON.stringify(row.container ?? [])}']`);
+		return (await pointInGap(container, holding(container, '[data-block-path]'), 'left', y)).x;
 	}
 	return (await textRunRect(page, row.line)).left - 3;
 }
@@ -90,7 +89,8 @@ for (const row of CASES) {
 				await editor.setPresentationMode(mode);
 
 				const text = await textRunRect(page, row.line);
-				await page.mouse.click(await aimX(page, aim, row), text.top + text.height / 2);
+				const y = text.top + text.height / 2;
+				await page.mouse.click(await aimX(page, aim, row, y), y);
 				await editor.waitForRenderFlush();
 				await page.keyboard.type('Z');
 
@@ -113,7 +113,8 @@ for (const aim of QUOTE.aims) {
 		await editor.goto();
 		await editor.loadContent(QUOTE.doc);
 		const text = await textRunRect(page, QUOTE.line);
-		const beside = { x: await aimX(page, aim, QUOTE), y: text.top + text.height / 2 };
+		const y = text.top + text.height / 2;
+		const beside = { x: await aimX(page, aim, QUOTE, y), y };
 		await page.mouse.click(beside.x, beside.y);
 		const clicked = await editor.bridge.getSelection();
 		expect(clicked?.focus.path).toEqual([1, 2]);

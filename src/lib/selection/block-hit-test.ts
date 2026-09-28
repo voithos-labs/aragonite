@@ -8,7 +8,7 @@ import type { AnyBlockKind } from '../core/nodes';
 import { WHOLE_BLOCK_INPUT_ATTR } from '../editor-actions/whole-block-focus-surface';
 import { tryGetBlockKindDescriptor, type CaretTarget } from '../schema/block-kind-descriptor';
 import { cellPoint, type SelectionEndpoint } from './primitives';
-import { offsetFromViewportPoint } from '../cursor/point-offset';
+import { caretOffsetAtPoint, offsetFromViewportPoint } from '../cursor/point-offset';
 import { readBlockPath } from './path-lookup';
 import { pathsEqual } from './path-math';
 
@@ -86,6 +86,10 @@ export function endpointAtPoint(
 		return cellIdx === null ? null : cellPoint(hit.path, cellIdx);
 	}
 	if (!hit.charSurface) return { path: hit.path, wholeBlock: true };
-	const offset = offsetFromViewportPoint(hit.charSurface, clientX, clientY);
+	// A block's own text answers a point on its frame as a click there does; a container's first
+	// child's text answers only a point on it.
+	const offset = holdsOwnText(hit)
+		? caretOffsetAtPoint(hit.charSurface, clientX, clientY)
+		: offsetFromViewportPoint(hit.charSurface, clientX, clientY);
 	return offset === null ? null : { path: hit.path, offset };
 }

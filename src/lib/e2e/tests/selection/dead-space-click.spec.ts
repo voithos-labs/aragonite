@@ -1,7 +1,7 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import { waitForFirstImageLoaded } from '../blocks/image/helpers';
-import { pointAtRaw } from '../../text-runs';
+import { pointAtRaw, pointInGap } from '../../text-runs';
 
 // Clicks in the root's own padding and below the last block
 // (`requirements/selection/dead-space-click.md`). Both must place a caret: focusing the root
@@ -42,6 +42,15 @@ async function belowDocumentY(editor: EditorPage): Promise<number> {
 	return Math.min((tail ? tail.y + tail.height : last.bottom) + 8, root.bottom - 4);
 }
 
+// The block's host, whose box is the whole block: a table's grid is narrower than its host.
+const blockHost = (editor: EditorPage, index: number) =>
+	editor.page.locator(`[data-block-path='${JSON.stringify([index])}']`);
+
+// The middle of the editor's right padding, level with `y`, beside block `index`.
+function rightMargin(editor: EditorPage, index: number, y: number) {
+	return pointInGap(editor.editorContainer, blockHost(editor, index), 'right', y);
+}
+
 // A click at offset 0 of block 0: a click a few pixels into the box lands after the first
 // glyph in a proportional face, and the selection then starts one character in.
 async function blockStartPoint(editor: EditorPage): Promise<{ x: number; y: number }> {
@@ -71,10 +80,10 @@ test.describe('dead-space clicks place a caret', () => {
 		// One paragraph long enough to wrap, so "end of that line" and "end of the
 		// block" are different answers.
 		await editor.loadContent(`${'alpha '.repeat(60).trim()}\n`);
-		const root = await rootBox(editor);
 		const para = await blockBox(editor, 0);
+		const margin = await rightMargin(editor, 0, para.top + 6);
 
-		await editor.page.mouse.click(root.right - 5, para.top + 6);
+		await editor.page.mouse.click(margin.x, margin.y);
 		await editor.typeText('!');
 		await editor.bridge.waitForSourceContains('!');
 
@@ -94,12 +103,12 @@ test.describe('dead-space clicks place a caret', () => {
 
 	test('a drag-select ending in the margin keeps its selection', async () => {
 		await editor.loadContent('first para\n\nsecond para\n');
-		const root = await rootBox(editor);
 		const start = await blockStartPoint(editor);
+		const margin = await rightMargin(editor, 0, start.y);
 
 		await editor.page.mouse.move(start.x, start.y);
 		await editor.page.mouse.down();
-		await editor.page.mouse.move(root.right - 5, start.y, { steps: 8 });
+		await editor.page.mouse.move(margin.x, margin.y, { steps: 8 });
 		await editor.page.mouse.up();
 
 		expect(await editor.page.evaluate(() => window.getSelection()?.toString() ?? '')).toContain(
@@ -116,9 +125,9 @@ test.describe('dead-space clicks place a caret', () => {
 		await editor.page.keyboard.press('ControlOrMeta+a');
 		await editor.waitForCrossBlock(true);
 
-		const root = await rootBox(editor);
 		const para = await blockBox(editor, 0);
-		await editor.page.mouse.click(root.right - 5, para.top + 6);
+		const margin = await rightMargin(editor, 0, para.top + 6);
+		await editor.page.mouse.click(margin.x, margin.y);
 
 		// Assert the outcome before the mechanism, so a break fails on "the document was
 		// eaten" rather than on a locator timeout for the overlay.
@@ -165,11 +174,11 @@ test.describe('dead-space clicks place a caret', () => {
 	// since collapsing one can itself land in a cell.
 	test('a click beside a table lands in no cell', async () => {
 		await editor.loadContent('lead\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n');
-		const root = await rootBox(editor);
 		const cell = await editor.page.locator('.table-cell').nth(2).boundingBox();
 		if (!cell) throw new Error('no box for the first body cell');
+		const margin = await rightMargin(editor, 1, cell.y + cell.height / 2);
 
-		await editor.page.mouse.click(root.right - 5, cell.y + cell.height / 2);
+		await editor.page.mouse.click(margin.x, margin.y);
 		await editor.page.keyboard.type('!');
 		await editor.waitForNoSourceMutation();
 
@@ -186,11 +195,11 @@ test.describe('dead-space clicks place a caret', () => {
 		await editor.loadContent('lead\n\n![cat](/test-fixtures/sample.png)\n\ntail\n');
 		// The row's y is derived from the widget's box, which moves when the <img> decodes.
 		await waitForFirstImageLoaded(editor.page);
-		const root = await rootBox(editor);
 		const widget = await editor.page.locator('[data-image-widget]').boundingBox();
 		if (!widget) throw new Error('no box for the image widget');
+		const margin = await rightMargin(editor, 1, widget.y + widget.height / 2);
 
-		await editor.page.mouse.click(root.right - 5, widget.y + widget.height / 2);
+		await editor.page.mouse.click(margin.x, margin.y);
 
 		await expect(editor.page.locator('[data-image-widget].md-snap-after')).toHaveCount(1);
 		// The snap lands where the click already resolved, after the image; a real keystroke, since the
@@ -228,20 +237,16 @@ test.describe('dead-space clicks in a host-padded block list', () => {
 		await editor.goto('?paddedList=on');
 	});
 
-	const listBox = () =>
-		editor.page.evaluate(() => {
-			const el = document.querySelector('.editor > .block-list') as HTMLElement;
-			const r = el.getBoundingClientRect();
-			return { left: r.left, right: r.right, top: r.top, bottom: r.bottom };
-		}) as Promise<Box>;
+	// The block's own box ends short of the list's edge, and the band between is the list's padding.
+	const listPadding = (y: number) =>
+		pointInGap(editor.page.locator('.editor > .block-list'), blockHost(editor, 0), 'right', y);
 
 	test('a click in the list’s own padding lands the caret at the end of that line', async () => {
 		await editor.loadContent('first para\n\nsecond para\n');
-		const list = await listBox();
 		const para = await blockBox(editor, 0);
+		const band = await listPadding(para.top + 6);
 
-		// Inside the list's padding band: the block's own box ends short of the list's edge.
-		await editor.page.mouse.click(list.right - 6, para.top + 6);
+		await editor.page.mouse.click(band.x, band.y);
 		await editor.typeText('!');
 		await editor.bridge.waitForSourceContains('!');
 
@@ -252,12 +257,12 @@ test.describe('dead-space clicks in a host-padded block list', () => {
 	// too, and collapsing there would throw away the selection.
 	test('a drag-select released in the list’s padding keeps its selection', async () => {
 		await editor.loadContent('first para\n\nsecond para\n');
-		const list = await listBox();
 		const start = await blockStartPoint(editor);
+		const band = await listPadding(start.y);
 
 		await editor.page.mouse.move(start.x, start.y);
 		await editor.page.mouse.down();
-		await editor.page.mouse.move(list.right - 6, start.y, { steps: 8 });
+		await editor.page.mouse.move(band.x, band.y, { steps: 8 });
 		await editor.page.mouse.up();
 
 		expect(await editor.page.evaluate(() => window.getSelection()?.toString() ?? '')).toContain(

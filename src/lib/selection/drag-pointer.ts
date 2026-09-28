@@ -25,9 +25,9 @@ export interface DragContext {
 	getBlockElByPath: BlockElLookup;
 	/** Aborted on editor unmount; forwarded to the session's teardown. */
 	lifetimeSignal?: AbortSignal;
-	/** The drag began in the editor's margin, so no native drag extends a selection underneath
-	 *  and the session paints the same-block range itself. */
-	paintSameBlock?: boolean;
+	/** Read at each move: the drag began where no native drag extends a selection underneath (the
+	 *  editor's margin, a press it placed itself), so the session paints the same-block range. */
+	paintSameBlock?: () => boolean;
 	/** A drag continuing a double or triple click: the range grows by that click's unit. */
 	granularity?: DragGranularity;
 }
@@ -64,7 +64,7 @@ export function installDragListener(
 
 		if (comparePaths(near.path, anchorPoint.path) === 0) {
 			if (!('offset' in anchorPoint)) {
-				if (ctx.paintSameBlock) takeAnchorBlockWhole();
+				if (ctx.paintSameBlock?.()) takeAnchorBlockWhole();
 				return;
 			}
 			if (ctx.selection.isCrossBlock) {
@@ -72,7 +72,7 @@ export function installDragListener(
 				// selection all along, so collapsing the cross-block range restores its highlight.
 				ctx.selection.collapse();
 			}
-			if (ctx.paintSameBlock) paintSameBlockRange(near.endpointHere());
+			if (ctx.paintSameBlock?.()) paintSameBlockRange(near.endpointHere());
 			return;
 		}
 

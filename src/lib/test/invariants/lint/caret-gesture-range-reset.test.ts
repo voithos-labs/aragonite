@@ -33,7 +33,7 @@ const CONTAINER_API_EXPORT_RE =
 
 type Door = 'reset' | 'delegate' | 'both';
 
-/** Defines the preamble and binds no handler, so it is excluded from the click scan. */
+/** Defines the preamble, and binds the mousedown that places a press in a surface's padding. */
 const PREAMBLE_MODULE = 'src/lib/selection/cross-block/pointer.ts';
 
 /** These build the editable element, so a factory call here defines it rather than publishing. */
@@ -45,7 +45,8 @@ const CONTAINER_SEAM_MODULES = [
 /** Gestures whose caret the browser places, and the call or calls each one has to make. */
 const CARET_GESTURE_DOORS: Record<string, Door> = {
 	[PREAMBLE_MODULE]: 'reset',
-	'src/lib/components/blocks/table/TableCellBlock.svelte': 'reset',
+	// Two calls: a Shift+click between cells ends the range itself, and every other press delegates.
+	'src/lib/components/blocks/table/TableCellBlock.svelte': 'both',
 	'src/lib/components/blocks/text/TextEditableBlock.svelte': 'delegate',
 	'src/lib/components/blocks/code/CodeBlock.svelte': 'delegate',
 	// Two calls: the dispatcher hit-tests against source text the rendered view does not have,
@@ -170,7 +171,7 @@ describe('G2.12 caret placement ends a live cross-block range', () => {
 			.map((f) => f.relPath)
 			.sort();
 		const accounted = [
-			...Object.keys(CARET_GESTURE_DOORS).filter((p) => p !== PREAMBLE_MODULE),
+			...Object.keys(CARET_GESTURE_DOORS),
 			...Object.keys(NON_CARET_PRESS_FILES)
 		].sort();
 		expect(

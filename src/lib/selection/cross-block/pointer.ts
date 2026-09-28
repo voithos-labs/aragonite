@@ -5,10 +5,11 @@ import type { SelectionState } from '../selection-state.svelte';
 import type { CaretMemory } from '../../cursor/caret-memory';
 import { handleShiftClick } from '../keyboard-extend';
 import { findBlockPathForElement } from '../path-lookup';
-import { clearNativeSelection } from '../native-bridge';
-import { offsetFromViewportPoint } from '../../cursor/point-offset';
+import { applyCollapsedCaret, clearNativeSelection } from '../native-bridge';
+import { isInPaddingRow, offsetFromViewportPoint } from '../../cursor/point-offset';
 import { installDragListener } from '../drag-pointer';
 import { devWarn } from '../../dev-warn';
+import { isWholeBlockInputProxy } from '../../editor-actions/whole-block-focus-surface';
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
@@ -53,6 +54,7 @@ function handlePointerDown(
 	const myPath = ctx.getMyPath();
 
 	resetForPointerDown(selection, ctx.caretMemory, e.shiftKey);
+	const padding = armPaddingPress(el, myPath, e);
 
 	if (e.shiftKey) {
 		const prevActive = document.activeElement;
@@ -78,9 +80,14 @@ function handlePointerDown(
 	}
 
 	if (!e.shiftKey) {
+		if (press.ownDrag) {
+			press.ownDrag(padding);
+			return false;
+		}
 		const root = ctx.getEditorRoot();
 		if (!root) return false;
-		const offset = press.anchorOffset ?? offsetFromViewportPoint(el, e.clientX, e.clientY);
+		const offset =
+			press.anchorOffset ?? padding?.offset ?? offsetFromViewportPoint(el, e.clientX, e.clientY);
 		if (offset === null) return false;
 		// SelectionState normalizes table endpoints on cross-block entry, so the raw block path
 		// is a valid anchor here.
@@ -102,7 +109,7 @@ function handlePointerDown(
 				selection,
 				getBlockElByPath: ctx.getBlockElByPath,
 				lifetimeSignal,
-				paintSameBlock: press.paintSameBlock
+				paintSameBlock: () => press.paintSameBlock === true || padding?.placed() === true
 			},
 			anchorPoint,
 			e
@@ -110,4 +117,59 @@ function handlePointerDown(
 	}
 
 	return false;
+}
+
+// ── A press in the padding rows ────────────────────────────────────────────
+
+/** A primary press in a surface's top or bottom padding, which the editor places itself. */
+export interface PaddingPress {
+	/** Where the press lands: the column under it, on the nearest line. */
+	offset: number;
+	/** Whether the press was a single click the editor placed, so no native drag runs under it. */
+	placed(): boolean;
+}
+
+const armedPresses = new WeakMap<HTMLElement, AbortController>();
+
+// Mac and Linux place a press above the first line or below the last at that line's start or
+// end. The mousedown is cancelled, not the pointerdown, which would swallow a double click's.
+function armPaddingPress(el: HTMLElement, path: number[], e: PointerEvent): PaddingPress | null {
+	armedPresses.get(el)?.abort();
+	if (e.button !== 0 || !e.isPrimary || e.shiftKey || !el.isContentEditable) return null;
+	if (!isInPaddingRow(el, e.clientX, e.clientY)) return null;
+	const offset = offsetFromViewportPoint(el, e.clientX, e.clientY);
+	if (offset === null) return null;
+	const armed = new AbortController();
+	armedPresses.set(el, armed);
+	let placed = false;
+	const place = (down: MouseEvent) => {
+		armed.abort();
+		// A later click of a run is the multi-click gesture's, which reads the same probe.
+		if (down.button !== 0 || down.detail > 1) return;
+		down.preventDefault();
+		el.focus({ preventScroll: true });
+		applyCollapsedCaret(el, { path, offset });
+		placed = true;
+	};
+	el.addEventListener('mousedown', place, { signal: armed.signal });
+	return { offset, placed: () => placed };
+}
+
+/** A right-click places a collapsed caret where a primary click would, before a menu reads it.
+ *  Bound in the capture phase at the editor root, so it runs ahead of every block's own menu. */
+export function placeContextPress(selection: SelectionState, e: MouseEvent): void {
+	if (e.button !== 2 || selection.isCrossBlock) return;
+	const surface = editingHostOf(e.target);
+	if (!surface || !isInPaddingRow(surface, e.clientX, e.clientY)) return;
+	// A right-click inside a range keeps it for the menu, as the browser does.
+	if (!(window.getSelection()?.isCollapsed ?? true)) return;
+	const offset = offsetFromViewportPoint(surface, e.clientX, e.clientY);
+	const path = findBlockPathForElement(surface);
+	if (offset !== null && path) applyCollapsedCaret(surface, { path, offset });
+}
+
+function editingHostOf(target: EventTarget | null): HTMLElement | null {
+	let el = target instanceof HTMLElement && target.isContentEditable ? target : null;
+	while (el?.parentElement?.isContentEditable) el = el.parentElement;
+	return el && !isWholeBlockInputProxy(el) ? el : null;
 }

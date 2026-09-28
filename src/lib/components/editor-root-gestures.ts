@@ -1,7 +1,7 @@
 /**
  * Editor-root pointer gestures: clicks in priority order (the link card, link activation, the
  * caret for empty space, a block's own box), the margin drag the browser cannot start from a
- * non-editable element, and multi-click selection.
+ * non-editable element, multi-click selection, and where a right-click leaves the caret.
  */
 
 import type { BlockComponent } from '../block-component';
@@ -9,7 +9,7 @@ import type { CaretMemory } from '../cursor/caret-memory';
 import type { CaretLanding } from '../selection/caret-landing';
 import type { UserScrollport } from '../cursor/scroll-ancestors';
 import type { BlockElLookup, DocumentGetter } from '../editor-keys';
-import { resetForPointerDown } from '../selection/cross-block/pointer';
+import { placeContextPress, resetForPointerDown } from '../selection/cross-block/pointer';
 import { createDeadSpaceCaret } from '../selection/dead-space-caret';
 import { installDragListener } from '../selection/drag-pointer';
 import { installMultiClickSelect } from '../selection/multi-click';
@@ -186,7 +186,7 @@ export function createRootGestures(deps: RootGesturesDeps): RootGestures {
 					selection: deps.selection,
 					getBlockElByPath: deps.getBlockElByPath,
 					lifetimeSignal: deps.getLifetime(),
-					paintSameBlock: true
+					paintSameBlock: () => true
 				},
 				anchor,
 				e
@@ -219,7 +219,10 @@ export function createRootGestures(deps: RootGesturesDeps): RootGestures {
 				pressesSelectedWidget
 			}),
 			onRoot(root, 'pointerdown', startMarginDrag),
-			onRoot(root, 'mousedown', handleMouseDown)
+			onRoot(root, 'mousedown', handleMouseDown),
+			onRoot<MouseEvent>(root, 'contextmenu', (e) => placeContextPress(deps.selection, e), {
+				capture: true
+			})
 		);
 	}
 

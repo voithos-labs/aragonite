@@ -90,6 +90,38 @@ export async function textRunEnd(
 	return { x: r.right - 1, y: r.top + r.height / 2 };
 }
 
+/** The middle of the strip between `outer`'s edge and `inner`'s on `side`, at `along` on the other
+ *  axis; throws under two pixels, so a layout change fails by name instead of moving the click. */
+export async function pointInGap(
+	outer: Locator,
+	inner: Locator,
+	side: 'top' | 'bottom' | 'left' | 'right',
+	along: number
+): Promise<Point> {
+	const [o, i] = await Promise.all([outer.boundingBox(), inner.boundingBox()]);
+	if (!o || !i) throw new Error(`pointInGap: no ${o ? 'inner' : 'outer'} box on screen`);
+	const [from, to] = {
+		top: [o.y, i.y],
+		bottom: [i.y + i.height, o.y + o.height],
+		left: [o.x, i.x],
+		right: [i.x + i.width, o.x + o.width]
+	}[side];
+	if (to - from < 2) throw new Error(`pointInGap: the ${side} strip is ${to - from}px`);
+	const middle = (from + to) / 2;
+	return side === 'top' || side === 'bottom' ? { x: along, y: middle } : { x: middle, y: along };
+}
+
+/** The middle of `el`'s own top padding (inside its border), at `along` across; throws under two
+ *  pixels, as `pointInGap` does. */
+export async function pointInTopPadding(el: Locator, along: number): Promise<Point> {
+	const strip = await el.evaluate((node) => {
+		const top = node.getBoundingClientRect().top + node.clientTop;
+		return { top, height: parseFloat(getComputedStyle(node).paddingTop) || 0 };
+	});
+	if (strip.height < 2) throw new Error(`pointInTopPadding: the strip is ${strip.height}px`);
+	return { x: along, y: strip.top + strip.height / 2 };
+}
+
 /** Aim at `aim` inside the widget when the widget's own box holds something no click lands in
  *  (KaTeX's clipped MathML half pulls the box center off the painted glyphs). */
 export async function widgetAimTarget(widget: Locator, aim?: string): Promise<Locator> {

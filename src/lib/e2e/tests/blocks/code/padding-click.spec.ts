@@ -1,6 +1,6 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
-import { pointAtRaw } from '../../../text-runs';
+import { pointAtRaw, pointInGap } from '../../../text-runs';
 
 // A click in the room around a code block's lines lands on the nearest line of code.
 // Requirements: `e2e/requirements/blocks/code/padding-click.md`.
@@ -28,15 +28,16 @@ for (const mode of ['live', 'preview-block']) {
 			// The column comes from where the editor put that character; the row is the strip the
 			// block keeps above and below its grey box, outside the text element.
 			const column = await pointAtRaw(page, [1], row.offset);
-			const box = await page.locator(`[data-block-path='[1]']`).boundingBox();
-			if (!box) throw new Error('the code block has no box');
-			const y = row.edge === 'top' ? box.y + 3 : box.y + box.height - 3;
-			await page.mouse.click(column.x, y);
+			const host = page.locator(`[data-block-path='[1]']`);
+			const point = await pointInGap(host, host.locator('.code-block'), row.edge, column.x);
+			await page.mouse.click(point.x, point.y);
 			await editor.waitForRenderFlush();
 			await page.keyboard.type('Z');
 
-			await editor.bridge.waitForSourceContains(row.typed);
-			expect(await editor.bridge.getSource()).toBe(DOC.replace(/```js[^]*```/, row.typed));
+			// Polled on the whole source, so a miss prints where the character went.
+			await expect
+				.poll(() => editor.bridge.getSource())
+				.toBe(DOC.replace(/```js[^]*```/, row.typed));
 		});
 	}
 }
