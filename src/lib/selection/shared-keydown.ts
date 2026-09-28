@@ -5,8 +5,9 @@
  */
 
 import type { FocusActions, HistoryActions } from '../action-contracts';
-import type { BlockElLookup, DocumentGetter } from '../editor-keys';
+import type { DocumentGetter } from '../editor-keys';
 import type { CaretMemory } from '../cursor/caret-memory';
+import type { ScrollOwner } from '../cursor/scroll-owner';
 import type { SelectionState } from './selection-state.svelte';
 import type { CrossBlockHandlers } from './cross-block/dispatch';
 import type { CommandDispatchContext } from '../schema/block-commands';
@@ -39,7 +40,8 @@ export interface SharedKeydownContext extends LandableBoundsContext {
 	caretMemory: CaretMemory;
 	history: HistoryActions;
 	focus: FocusActions;
-	getBlockElByPath: BlockElLookup;
+	/** Brings the block a Shift+Arrow extends into to the nearest edge. */
+	scrollOwner: Pick<ScrollOwner, 'showNearest'>;
 	/** The editor's command dispatch: the caret memory reads a chord by its current binding, and
 	 *  the history suppression below takes only this editor's plugin chords. */
 	commands: CommandDispatchContext;
@@ -96,7 +98,7 @@ export async function handleSharedKeydown(
 					myPath,
 					'start'
 				);
-				scrollFocusBlockIntoView(ctx.selection, ctx.getBlockElByPath);
+				scrollFocusBlockIntoView(ctx.selection, ctx.scrollOwner);
 				return true;
 			}
 			if (!e.shiftKey && !e.altKey) {
@@ -122,7 +124,7 @@ export async function handleSharedKeydown(
 					myPath,
 					'vertical'
 				);
-				scrollFocusBlockIntoView(ctx.selection, ctx.getBlockElByPath);
+				scrollFocusBlockIntoView(ctx.selection, ctx.scrollOwner);
 				return true;
 			}
 			if (!e.shiftKey && !e.altKey) {
@@ -141,7 +143,7 @@ export async function handleSharedKeydown(
 			if (e.shiftKey) {
 				e.preventDefault();
 				extendFocusToPreviousBlock(ctx.selection, ctx.getDoc(), ctx.reading.grammar, el, myPath);
-				scrollFocusBlockIntoView(ctx.selection, ctx.getBlockElByPath);
+				scrollFocusBlockIntoView(ctx.selection, ctx.scrollOwner);
 				return true;
 			}
 			e.preventDefault();
@@ -156,7 +158,7 @@ export async function handleSharedKeydown(
 			if (e.shiftKey) {
 				e.preventDefault();
 				extendFocusToNextBlock(ctx.selection, ctx.getDoc(), ctx.reading.grammar, el, myPath);
-				scrollFocusBlockIntoView(ctx.selection, ctx.getBlockElByPath);
+				scrollFocusBlockIntoView(ctx.selection, ctx.scrollOwner);
 				return true;
 			}
 			e.preventDefault();

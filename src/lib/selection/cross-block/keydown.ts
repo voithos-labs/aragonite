@@ -353,7 +353,7 @@ async function revealActiveEndpoint(ctx: CrossBlockDispatchContext): Promise<voi
 	if (focus && !ctx.getBlockElByPath(focus.path)) {
 		await ctx.caretLanding.park({ path: docPathFrom(focus.path), offset: focus.offset });
 	}
-	scrollFocusBlockIntoView(ctx.selection, ctx.getBlockElByPath);
+	scrollFocusBlockIntoView(ctx.selection, ctx.scrollOwner);
 }
 
 async function handleDocEdgeExtend(

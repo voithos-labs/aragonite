@@ -8,7 +8,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { flushSync } from 'svelte';
 import { installHeaderSlotCompensation } from '../../components/editor-root-geometry';
 import { createEditorRects } from '../../editor-rects';
+import type { EditorDoc } from '../../editor-keys';
 import type { ScrollOwner } from '../../cursor/scroll-owner';
+import { scrollFocusBlockIntoView } from '../../selection/keyboard-extend';
+import type { SelectionState } from '../../selection/selection-state.svelte';
 import {
 	heightsOracle,
 	liveChildren,
@@ -106,6 +109,9 @@ function growHeader(f: Fixture): void {
 	FakeResizeObserver.last!.grow(40 + GROWTH);
 	uninstall();
 }
+
+/** A cross-block range whose moving end sits at the start of `path`. */
+const focusOn = (path: number[]) => ({ focus: { path, offset: 0 } }) as unknown as SelectionState;
 
 function scrollToB4(f: Fixture): Promise<boolean> {
 	const rects = createEditorRects({
@@ -234,7 +240,7 @@ const ROWS: Record<keyof ScrollWrites, Row[]> = {
 	showNearest: [
 		{
 			name: 'a keyboard extension reaching the next block',
-			run: (f) => f.owner.showNearest([2]),
+			run: (f) => scrollFocusBlockIntoView(focusOn([2]), f.owner),
 			expect: {
 				'host anchoring holds': nearestOnB2,
 				'a held placement is live': (f) => {
@@ -356,5 +362,17 @@ describe('scroll owner: the edges', () => {
 		host = document.createElement('div');
 		expect(owner.port()).not.toBeNull();
 		expect(owner.port()).toBe(owner.port());
+	});
+});
+
+describe('scroll owner: the port every other module holds', () => {
+	it('has no write method, so a write outside the owner fails to type-check', () => {
+		const tryToWrite = (doc: EditorDoc) => {
+			// @ts-expect-error `EditorDoc.scrollport` reads; widening it to the writer fails `npm run check`.
+			doc.scrollport()?.setScrollTop(0);
+			// @ts-expect-error the relative write is the owner's too.
+			doc.scrollport()?.scrollBy(1);
+		};
+		expect(tryToWrite).toBeTypeOf('function');
 	});
 });

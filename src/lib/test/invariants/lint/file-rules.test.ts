@@ -15,11 +15,13 @@ import {
 } from './scan-source';
 import {
 	describeFileRules,
+	describeManifests,
 	except,
 	notUnder,
 	svelteOnly,
 	under,
 	type FileRule,
+	type ManifestRule,
 	type Probe
 } from './file-rule';
 
@@ -948,4 +950,49 @@ const RULES: FileRule[] = [
 	}
 ];
 
-describeFileRules(RULES, collectEditorSources());
+// ── G4.84 one writer of the scroll position ─────────────────────────────────
+
+/** A scroll write: an assignment to `scrollTop`, a port write, a scroll into view, or the making
+ *  of a writable port. */
+const SCROLL_WRITE_RE =
+	/\.scrollTop\s*(?:=(?!=)|\+=|-=)|\b(?:scrollBy|setScrollTop|scrollIntoView|createScrollport|withRelativeScroll)\s*\(/;
+
+const SCROLL_WRITERS: ManifestRule[] = [
+	{
+		id: 'G4.84 only the scroll owner writes the editor’s scroll position',
+		matches: SCROLL_WRITE_RE,
+		declared: {
+			'src/lib/cursor/scroll-owner.ts':
+				'the one writer, which asks who owns the position before each write',
+			'src/lib/cursor/scrollport.ts': 'the writable port itself, which only the owner opens',
+			'src/lib/selection/autoscroll.ts':
+				'a drag’s own cadence, driven by the pointer; its pointerdown already dropped any hold',
+			'src/lib/components/menu/InlineMenuHost.svelte':
+				'the active row of a listbox, inside the menu’s own scroller',
+			'src/lib/components/blocks/code/CodeBlockRail.svelte':
+				'the active row of a listbox, inside the rail’s own scroller'
+		},
+		reason:
+			'a scroll write outside the scroll owner skips its check of who owns the position: call a method on `EditorServices.scrollOwner`, or declare a scroller of its own here with why',
+		reaches: ['src/lib/cursor/scroll-owner.ts'],
+		hits: [
+			'el.scrollTop = 40;',
+			'scroller.scrollTop += dy;',
+			'port.scrollBy(delta);',
+			'port.setScrollTop(top);',
+			"blockEl?.scrollIntoView({ block: 'nearest' });",
+			'const port = createScrollport(host);',
+			'withRelativeScroll(base)'
+		],
+		misses: [
+			'// Scrollable through script: `element.scrollTop = n` moves it.\nconst a = 1;',
+			'const top = el.scrollTop;\nif (el.scrollTop === 0) {}',
+			'scrollOwner.scrollToMount(top);\nvoid rects.scrollTo([4]);',
+			'owner.showNearest(path);'
+		]
+	}
+];
+
+const SOURCES = collectEditorSources();
+describeFileRules(RULES, SOURCES);
+describeManifests(SCROLL_WRITERS, SOURCES);

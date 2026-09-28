@@ -21,6 +21,7 @@ import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { installEditorDomStubsForTests } from '$lib/testing';
 import { makeEditorActionsDeps } from '../../harness/editor-actions';
+import { stubScrollOwner, stubScrollport } from '../../harness/stub-scrollport';
 import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 import { fixtureReading } from '../../harness/fixture-grammar';
 import { commandContextWith } from '../../support/command-context';
@@ -111,6 +112,8 @@ export function makeKeydownEnv(source: string | Document, opts: KeydownEnvOption
 		selection,
 		getDoc: () => harness.deps.doc,
 		getBlockElByPath,
+		// Real, so a scroll to a mounted endpoint reaches that element's `scrollIntoView`.
+		scrollOwner: stubScrollOwner(stubScrollport({ viewportHeight: 500 }), { getBlockElByPath }),
 		caretLanding,
 		revealPath,
 		caretMemory,

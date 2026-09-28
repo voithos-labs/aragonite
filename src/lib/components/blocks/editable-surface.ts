@@ -14,6 +14,7 @@ import {
 	type StickyColumnDirection
 } from '../../block-component';
 import type { UserScrollport } from '../../cursor/scroll-ancestors';
+import type { ScrollOwner } from '../../cursor/scroll-owner';
 import type { BlockElLookup, DocumentGetter, PasteImageHook } from '../../editor-keys';
 import { emitClipboardError, type EditorEvents } from '../../editor-events';
 import type { InlineMenuCombobox } from '../../inline-menu/inline-menu-state.svelte';
@@ -145,6 +146,8 @@ export interface EditableSurfaceDeps {
 	/** What scrolls this editor (the root in self mode; the host's scroller or the window in
 	 *  host mode), for the cross-block drag-select autoscroll. */
 	getScrollHost: () => UserScrollport | null;
+	/** Brings the block a Shift+Arrow extends into to the nearest edge. */
+	scrollOwner: Pick<ScrollOwner, 'showNearest'>;
 	getEditorLifetime: () => AbortSignal | null;
 	caretMemory: CaretMemory;
 	blockEdit: BlockEditActions;
@@ -240,6 +243,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		revealPath: (path) => deps.caretLanding.mount(path),
 		getEditorRoot: deps.getEditorRoot,
 		getScrollHost: deps.getScrollHost,
+		scrollOwner: deps.scrollOwner,
 		getEditorLifetime: deps.getEditorLifetime,
 		caretMemory: deps.caretMemory,
 		blockEdit: deps.blockEdit,
@@ -266,7 +270,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		history: deps.history,
 		focus: deps.focusActions,
 		getDoc: deps.getDoc,
-		getBlockElByPath: deps.getBlockElByPath,
+		scrollOwner: deps.scrollOwner,
 		commands: deps.commands,
 		reading: deps.reading
 	};
