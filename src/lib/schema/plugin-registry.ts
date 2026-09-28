@@ -123,7 +123,8 @@ function buildRegistry<K, V>(
 
 	return {
 		register: (key, value, conflict) => store(key, value, conflict, false),
-		// The directive grammar registers in the same no-plugin scope, so one function decides it.
+		// The directive grammar runs inside `registerAsCore` too, so one function decides what belongs
+		// to no plugin.
 		registerCore: (key, value, conflict) => registerAsCore(() => store(key, value, conflict, true)),
 		update(key, value) {
 			const entry = entries.get(key);

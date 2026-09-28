@@ -933,6 +933,7 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.74 | Only the commit's open-tail steps write the document's last line ending          | L       |
 | G4.75 | A leaf's new text goes through one commit or one in-place write, at every depth  | L       |
 | G4.76 | Every join into a leaf, and every other text built from two sources, is declared | L       |
+| G4.77 | Only `registerCore` and the directive grammar register as no plugin              | L       |
 
 ### The entries
 
@@ -1643,6 +1644,14 @@ also reads the text each file hands a leaf: a `.raw =`, or the argument of a lea
 one source is a join, so its file names the cleanup or sits on a list of the ones that aren't, each
 with its reason (a paste or a typed character inserts between one leaf's own halves).
 `lint/cross-node-join-doors.test.ts`.
+
+**G4.77 · One way to belong to no plugin.** `src/lib/schema/plugin-install.ts` :: `registerAsCore` runs
+registrations as if no plugin were installing, so what they make belongs to no plugin even when a
+plugin's setup reached them first. It has two callers. A registry's `registerCore` uses it for an
+editor built-in the test reset keeps (the code languages, the context-menu rows), and the directive
+grammar wraps its kinds and its `:` trigger in it, which the reset drops like a fresh process
+would. A third caller would be a second copy of the rule, and an entry keyed by a kind doesn't need
+one anyway, since it already follows the kind's declarer. `lint/file-rules.test.ts`.
 
 ## Accessibility
 
