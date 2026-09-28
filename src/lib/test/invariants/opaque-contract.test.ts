@@ -1,7 +1,6 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { checkStaleRaw, checkOpaqueStaleRaw } from '../../invariants/node-shape';
 import { registerBlockOpener } from '../../schema/block-openers';
-import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
 import { testContainer } from '$lib/test/harness/test-kinds';
 import { parse } from '../../core/parser';
 import { concatChildren } from '../../core/serializer';
@@ -80,8 +79,6 @@ function parseNote(source: string): CstNode {
 // ── checkStaleRaw exemption ─────────────────────────────────────────────────
 
 describe('containerContract opaque: checkStaleRaw exemption', () => {
-	beforeEach(() => __resetSchemaRegistriesForTests());
-
 	it('exempts an opaque container whose raw is not a strip of its children', () => {
 		const kind = testContainer('spec-opaque', { rebuildRaw: () => {} });
 		// raw deliberately differs from serialize(children): that is the opaque contract.
@@ -98,8 +95,6 @@ describe('containerContract opaque: checkStaleRaw exemption', () => {
 // ── checkOpaqueStaleRaw ─────────────────────────────────────────────────────
 
 describe('checkOpaqueStaleRaw (opaque containers)', () => {
-	beforeEach(() => __resetSchemaRegistriesForTests());
-
 	// A faithful parse need not be the canonical one, so raw is never byte-compared against a
 	// rebuild's output.
 	it('passes for a faithful non-canonical parse whose rebuild would emit different bytes', () => {

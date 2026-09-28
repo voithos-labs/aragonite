@@ -1,4 +1,4 @@
-import { describe, it, expect, afterAll, afterEach } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { installPlugins } from '$lib';
 import { resetPluginPlatformForTests } from '$lib/testing';
@@ -66,8 +66,6 @@ function kindsUnder(installOrder: EditorPlugin[][], source: string): string[] {
 	for (const set of installOrder) installPlugins(set);
 	return parse(source).children.map((block) => block.kind);
 }
-
-afterAll(() => resetPluginPlatformForTests());
 
 describe('a route parses its own document the same however other routes installed first', () => {
 	// Vacuity guard: every case below compares two parses, and two fallback-prose parses

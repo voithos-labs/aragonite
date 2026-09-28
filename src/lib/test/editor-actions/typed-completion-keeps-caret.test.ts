@@ -1,8 +1,7 @@
 // A keystroke that an on-type completer turns into a structure hands the caret to the
 // completion's replace, so the write must not tell its block to keep the caret.
 // Miss-analysis: the `keepsCaret` cases never registered a completer, so none typed one's trigger.
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { resetPluginPlatformForTests } from '$lib/testing';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { definePlugin, installPlugins } from '$lib/schema/plugin-install';
 import { declarePluginKind } from '$lib/schema/plugin-kind';
 import { registerBlockCompleter } from '$lib/schema/block-completions';
@@ -22,10 +21,8 @@ const ruleBox = definePlugin({
 });
 
 beforeEach(() => {
-	resetPluginPlatformForTests();
 	installPlugins([ruleBox]);
 });
-afterEach(resetPluginPlatformForTests);
 
 describe('a keystroke an on-type completer answers', () => {
 	it('gives the caret up to the completion', async () => {

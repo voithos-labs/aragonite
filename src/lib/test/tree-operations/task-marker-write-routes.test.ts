@@ -3,11 +3,10 @@
 // each test fails when its own route loses the call; `reconcile-task.test.ts` covers the rule.
 // jsdom, since the paste route's controller reads the mounted block-list state.
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { parse, serialize, type CstNode, type ListItemMetadata } from '$lib';
 import { updateNodeContent } from '$lib/tree-operations/content-write';
 import { createBlockEditCore } from '$lib/editor-actions/block-edit-core';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import {
 	makeCommitScopeStub,
 	makeContainerHarness,
@@ -24,10 +23,6 @@ function todoItem(source: string): CstNode {
 }
 
 const metaOf = (item: CstNode) => item.metadata as ListItemMetadata;
-
-beforeEach(() => {
-	resetPluginPlatformForTests();
-});
 
 describe('every write that can replace a to-do’s first block drops the marker with it', () => {
 	it('the content write, where a typed delimiter row makes the paragraph a table', () => {

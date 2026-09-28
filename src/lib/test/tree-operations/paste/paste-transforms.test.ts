@@ -40,7 +40,6 @@ function throwingOnCall(
 
 describe('paste-transforms registry', () => {
 	beforeEach(() => {
-		__resetSchemaRegistriesForTests();
 		__resetInstalledPluginsForTests();
 	});
 
@@ -107,7 +106,6 @@ describe('paste-transforms registry', () => {
 
 describe('paste-transforms containment', () => {
 	beforeEach(() => {
-		__resetSchemaRegistriesForTests();
 		__resetInstalledPluginsForTests();
 	});
 
@@ -159,7 +157,6 @@ describe('paste-transforms containment', () => {
 
 describe('per-instance activation over the transform pipeline', () => {
 	beforeEach(() => {
-		__resetSchemaRegistriesForTests();
 		__resetInstalledPluginsForTests();
 	});
 

@@ -1,8 +1,7 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { composeCollapseProbe } from '$lib/editor-actions/plugin/container';
 import { getPluginMetadata, setPluginMetadata, type CstNode } from '$lib/core/nodes';
 import { declarePluginKind } from '$lib/schema/plugin-kind';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { takeDevWarns } from '$lib/test/support/warn-gate';
 import { testContainer } from '$lib/test/harness/test-kinds';
 import type { PresentationMode } from '$lib/presentation-mode';
@@ -31,8 +30,6 @@ function containerNode(kind: ReturnType<typeof declarePluginKind>, open: boolean
 }
 
 describe('composeCollapseProbe', () => {
-	beforeEach(() => __resetSchemaRegistriesForTests());
-
 	it('derives from the descriptor probe when no explicit dep is supplied', () => {
 		const kind = registerCollapsible();
 		const probeCollapsed = composeCollapseProbe(

@@ -17,7 +17,6 @@ import {
 	__resetInstalledPluginsForTests,
 	type EditorContext
 } from '$lib/schema/plugin-install';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { commandContext } from '../support/command-context';
 
 const CHORD = 'Mod+Shift+9';
@@ -36,7 +35,6 @@ function chordContext(activation: typeof listing): CommandDispatchContext {
 }
 
 beforeEach(() => {
-	__resetSchemaRegistriesForTests();
 	__resetInstalledPluginsForTests();
 	ran = 0;
 	installPlugins([

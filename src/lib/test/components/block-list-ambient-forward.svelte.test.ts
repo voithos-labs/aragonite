@@ -6,7 +6,6 @@ import BlockList from '$lib/components/BlockList.svelte';
 import type { BlockComponent } from '$lib/block-component';
 import type { CstNode, Document } from '$lib/core/nodes';
 import { registerBlockComponent, defineBlockComponent } from '$lib/schema/block-component-registry';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { refSlotsOver } from '$lib/reactivity/publish-ref.svelte';
 import { editorMountContext } from '../harness/mount-context';
 import { installEditorDomStubsForTests } from '$lib/testing';
@@ -34,7 +33,6 @@ let dispose: (() => Promise<void>) | null = null;
 afterEach(async () => {
 	if (dispose) await dispose();
 	dispose = null;
-	__resetSchemaRegistriesForTests();
 });
 
 /** Mount a one-child list carrying `MARKER` for its first child, and report what arrived. */

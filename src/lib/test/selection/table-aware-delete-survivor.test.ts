@@ -8,7 +8,6 @@ import { serialize } from '../../core/serializer';
 import { tableAwareRangeDelete } from '../../selection/range-delete-table';
 import { createSharingState } from '../../tree-operations/sharing';
 import { blockNodeAt } from '../../tree-operations/node-primitives';
-import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
 import { registerDetailsKind } from '../../plugins/details/details-kind';
 import type { CellSelectionPoint } from '../../selection/primitives';
 import { fixtureReading } from '../harness/fixture-grammar';
@@ -52,7 +51,6 @@ describe('the placeholder created when nothing survives takes the document’s l
 
 describe('the survivor descent stops at a collapsed container’s chrome child', () => {
 	beforeEach(() => {
-		__resetSchemaRegistriesForTests();
 		registerDetailsKind();
 	});
 

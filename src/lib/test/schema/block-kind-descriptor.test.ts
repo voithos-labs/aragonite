@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import type { BlockKind } from '../../core/nodes';
 import { ALL_BLOCK_KINDS } from '../../core/nodes';
 import { getContentRange } from '../../core/inline';
@@ -6,7 +6,6 @@ import {
 	getBlockKindDescriptor,
 	tryGetBlockKindDescriptor
 } from '../../schema/block-kind-descriptor';
-import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
 import { testLeaf } from '$lib/test/harness/test-kinds';
 
 describe('block-kind-descriptor registry', () => {
@@ -153,8 +152,6 @@ describe('containerContract: strip / grid / opaque container-shape union', () =>
 // blockFocus is not a grouped field, so the registration strip must keep it whether the kind
 // registers as a leaf or with a container group, which is the mermaid case.
 describe('blockFocus: whole-block-focus opt-in', () => {
-	beforeEach(__resetSchemaRegistriesForTests);
-
 	// Pinned as an exact set, so a kind gaining or losing the declaration has to be a
 	// deliberate edit here rather than a silent widening.
 	it('thematicBreak is the only built-in kind declaring blockFocus', () => {

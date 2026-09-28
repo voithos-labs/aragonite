@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { pasteDispatch } from '$lib/tree-operations/paste/dispatch';
@@ -8,12 +8,9 @@ import { createUndoController } from '$lib/editor-actions/commit/undo-controller
 import { createBlockEditActions } from '$lib/editor-actions/block-edit';
 import { makeEditorActionsDeps, pasteContext } from '$lib/test/harness/editor-actions';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
 // A line break ending a one-paragraph clipboard is dropped, or it reloads as a blank block.
 // Miss-analysis: GH #442, no inline test pasted a clipboard ending in one line ending.
-
-beforeEach(() => __resetSchemaRegistriesForTests());
 
 async function paste(source: string, offset: number, clipboard: string) {
 	const { deps } = makeEditorActionsDeps(parse(source));

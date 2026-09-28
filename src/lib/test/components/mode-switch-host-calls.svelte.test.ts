@@ -12,18 +12,15 @@ import {
 	placeCaret,
 	surfaceAt
 } from '$lib/test/harness/mount-editor.svelte';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import { registerDefaultContextActions } from '$lib/components/menu/default-context-actions';
 import type { PresentationMode } from '$lib/presentation-mode';
 
 beforeEach(() => {
-	resetPluginPlatformForTests();
 	installLayoutStubs();
 });
 
 afterEach(async () => {
 	await destroyMountedEditors();
-	resetPluginPlatformForTests();
 });
 
 /** An editor holding `paraXX\n`, whose last edit (the `XX`) is on the undo stack. */

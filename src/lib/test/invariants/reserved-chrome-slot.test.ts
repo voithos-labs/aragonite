@@ -1,14 +1,9 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { checkReservedChromeSlot } from '../../invariants/node-shape';
-import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
 import type { CstNode } from '../../core/nodes';
 import { testChromeContainer } from '$lib/test/harness/test-kinds';
 
 describe('checkReservedChromeSlot (G1.14)', () => {
-	beforeEach(() => {
-		__resetSchemaRegistriesForTests();
-	});
-
 	it('passes when child 0 is the declared chrome kind', () => {
 		const { container, chrome } = testChromeContainer('spec-chrome-container', 'spec-chrome-title');
 		const node: CstNode = {

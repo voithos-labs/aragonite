@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { defaultGrammarView } from '$lib/schema/block-openers';
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import type { InlineNode } from '../../core/nodes';
 import {
 	isInlineWidget,
@@ -11,7 +11,6 @@ import {
 	getInlineWidgetEditing
 } from '../../core/inline/inline-widgets';
 import { declarePluginInlineKind } from '../../schema/plugin-kind';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
 describe('isInlineWidget: registry-driven recognition', () => {
 	it('treats image as a widget unconditionally', () => {
@@ -178,8 +177,6 @@ describe('getInlineWidgetEditing: per-kind editing policy', () => {
 	const mathKind = declarePluginInlineKind('math');
 	const spoilerKind = declarePluginInlineKind('spoiler');
 
-	afterEach(__resetSchemaRegistriesForTests);
-
 	it('returns the editing policy registered for a plugin widget kind', () => {
 		const onSelectedKey = () => true;
 		registerInlineWidgetKind(mathKind, {
@@ -214,8 +211,6 @@ describe('getInlineWidgetEditing: per-kind editing policy', () => {
 
 describe('augmentInlineWidgetKind, attaching editor behavior to a registration', () => {
 	const captionKind = declarePluginInlineKind('caption');
-
-	afterEach(__resetSchemaRegistriesForTests);
 
 	it('layers onSelectedKey onto a registered kind without dropping its existing fields', () => {
 		registerInlineWidgetKind(captionKind, {

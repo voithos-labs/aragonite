@@ -2,8 +2,7 @@
 // A container whose children reorder among themselves shows their drag handles, the way a quote
 // does, so a body block the keyboard can move can be dragged too; text inside still shows none.
 // Miss-analysis: the handle tests mounted built-in containers only, never a plugin container.
-import { describe, it, expect, afterEach, beforeAll, beforeEach } from 'vitest';
-import { resetPluginPlatformForTests } from '$lib/testing';
+import { describe, it, expect, afterEach, beforeAll } from 'vitest';
 import { admonitionsPlugin } from '$lib/plugins/admonitions';
 import { footnotesPlugin } from '$lib/plugins/footnotes';
 import {
@@ -15,10 +14,6 @@ import {
 beforeAll(installLayoutStubs);
 
 let mounted: MountedEditor | undefined;
-
-beforeEach(() => {
-	resetPluginPlatformForTests();
-});
 
 afterEach(async () => {
 	await mounted?.destroy();

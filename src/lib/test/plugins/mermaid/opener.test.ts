@@ -1,11 +1,9 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse, serialize } from '$lib';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import { registerMermaidKind } from '$lib/plugins/mermaid/mermaid-kind';
 
 describe('mermaid opener claims and declines', () => {
 	beforeEach(() => {
-		resetPluginPlatformForTests();
 		registerMermaidKind();
 	});
 
@@ -74,8 +72,6 @@ describe('mermaid opener claims and declines', () => {
 });
 
 describe('mermaid fence with the plugin uninstalled', () => {
-	beforeEach(() => resetPluginPlatformForTests());
-
 	it('parses as plain fencedCode and serializes byte-identically', () => {
 		const src = '```mermaid\ngraph TD\n\tA --> B\n```\n';
 		const doc = parse(src);

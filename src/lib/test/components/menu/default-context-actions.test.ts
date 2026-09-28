@@ -16,7 +16,6 @@ import {
 import { isProseLeaf } from '$lib/schema/page-role';
 import { buildLinkReferenceMap } from '$lib/core/inline/link-reference-resolver';
 import { fixtureReading } from '$lib/test/harness/fixture-grammar';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 
 const block = (md: string): NodeView => parse(md).children[0];
@@ -112,7 +111,6 @@ describe('prose is the page background', () => {
 
 describe('the default context actions', () => {
 	beforeEach(() => {
-		__resetSchemaRegistriesForTests();
 		registerDefaultContextActions();
 	});
 

@@ -13,7 +13,6 @@ import {
 import { makeContainerHarness, makeTopHarness } from '$lib/test/harness/editor-actions';
 
 beforeEach(() => {
-	resetPluginPlatformForTests();
 	registerMathFence();
 });
 

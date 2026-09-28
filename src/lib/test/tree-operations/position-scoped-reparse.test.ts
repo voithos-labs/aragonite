@@ -1,20 +1,16 @@
 // The commit-time reparse reads one block's text with no positional context, so a commit must
 // not create a position-scoped kind wherever the edited block sits.
 // Miss-analysis: GH #52, kit fixtures are whole documents and no built-in kind reads position.
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import { updateNodeContent } from '../../tree-operations';
-import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
 import { FRONT_MATTER, registerDocumentTopKind } from '../support/position-scoped-kind';
 import { defaultGrammarView } from '$lib/schema/block-openers';
 
 const BROKEN_CLOSER = '---\ntitle: x\n--\n';
 
 describe('a position-scoped kind and the commit-time reparse', () => {
-	beforeEach(__resetSchemaRegistriesForTests);
-	afterEach(__resetSchemaRegistriesForTests);
-
 	it('a mid-document content commit does not create it', () => {
 		const kind = registerDocumentTopKind();
 		const doc = parse('intro\n\nbody\n');

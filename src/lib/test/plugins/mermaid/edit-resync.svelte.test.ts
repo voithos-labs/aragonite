@@ -6,7 +6,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { flushSync } from 'svelte';
 import type { CstNode, Document } from '$lib';
 import { setPluginMetadata } from '$lib/plugin';
-import { installEditorDomStubsForTests, resetPluginPlatformForTests } from '$lib/testing';
+import { installEditorDomStubsForTests } from '$lib/testing';
 import { mermaidPlugin } from '$lib/plugins/mermaid';
 import { rebuildMermaidRaw, type MermaidMetadata } from '$lib/plugins/mermaid/mermaid-kind';
 import {
@@ -53,7 +53,6 @@ function rewriteCodeExternally(code: string): void {
 }
 
 beforeEach(() => {
-	resetPluginPlatformForTests();
 	installEditorDomStubsForTests();
 });
 

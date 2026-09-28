@@ -5,19 +5,17 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { flushSync } from 'svelte';
 import { declaredPluginKind } from '$lib/plugin';
-import { installEditorDomStubsForTests, resetPluginPlatformForTests } from '$lib/testing';
+import { installEditorDomStubsForTests } from '$lib/testing';
 import { isBlockEditable } from '$lib/schema/merge-rules';
 import { OPAQUE_KIND as KIND, mountOpaque, registerOpaqueKind } from './fixtures/opaque-container';
 
 beforeEach(() => {
-	resetPluginPlatformForTests();
 	installEditorDomStubsForTests();
 	registerOpaqueKind();
 });
 
 afterEach(() => {
 	document.body.innerHTML = '';
-	resetPluginPlatformForTests();
 });
 
 describe('a container kind declaring editable: false', () => {

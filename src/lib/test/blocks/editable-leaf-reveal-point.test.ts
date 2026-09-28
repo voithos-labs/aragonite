@@ -3,7 +3,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { unmount } from 'svelte';
 import type { BlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import { installLayoutStubs } from '$lib/test/harness/mount-editor.svelte';
 import { settleEditor } from '$lib/test/harness/settle';
 import { leafDocument, mountRevealLeaf, registerRevealLeafKind } from './fixtures/reveal-leaf';
@@ -50,7 +49,6 @@ function mountLeaf(caretTargetAtPoint?: BlockKindDescriptor['caretTargetAtPoint'
 let mounted: ReturnType<typeof mountLeaf> | null = null;
 
 beforeEach(() => {
-	resetPluginPlatformForTests();
 	installLayoutStubs();
 });
 
@@ -58,7 +56,6 @@ afterEach(async () => {
 	if (mounted) await unmount(mounted.instance);
 	mounted = null;
 	document.body.innerHTML = '';
-	resetPluginPlatformForTests();
 });
 
 describe('a reveal click on a render-primary leaf', () => {

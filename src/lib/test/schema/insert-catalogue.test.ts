@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
 	insertCatalogue,
 	registerInsertEntry,
@@ -26,8 +26,6 @@ const block = (id: string, over: Partial<InsertEntry> = {}): InsertEntry => ({
 /** A plugin whose setup registers the given entries, so each is owned by that plugin. */
 const pluginWith = (name: string, ...entries: InsertEntry[]) =>
 	definePlugin({ name, setup: () => entries.forEach(registerInsertEntry) });
-
-beforeEach(() => __resetSchemaRegistriesForTests());
 
 describe('insertCatalogue', () => {
 	it('lists the built-ins in menu order, then plugin entries in registration order', () => {

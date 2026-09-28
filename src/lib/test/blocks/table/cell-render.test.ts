@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { afterEach, describe, it, expect } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { createCellRender } from '../../../components/blocks/table/cell-render';
 import { INLINE_PRIORITIES, registerInlineSyntax } from '../../../core/inline/scan/plugin-syntax';
 import type { CstNode } from '../../../core/nodes';
@@ -7,7 +7,6 @@ import type { ResolveLinkUrl } from '../../../editor-keys';
 import type { IndexedDecoration } from '../../../decorations/buckets';
 import type { ReplaceDecoration, WidgetDecoration } from '../../../decorations/types';
 import { fixtureReading } from '../../harness/fixture-grammar';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import type { Reading } from '$lib/schema/reading';
 
 type Island = IndexedDecoration<WidgetDecoration | ReplaceDecoration>;
@@ -75,8 +74,6 @@ function mount(raw: string, reading?: Reading, resolveLinkUrl: ResolveLinkUrl = 
 		}
 	};
 }
-
-afterEach(() => __resetSchemaRegistriesForTests());
 
 describe('createCellRender', () => {
 	it('renders emphasis as a styled <em> with dimmed markers', () => {

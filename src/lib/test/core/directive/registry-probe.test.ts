@@ -6,7 +6,7 @@ import {
 	registerDirective,
 	type CstNode
 } from '$lib/plugin';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
+
 // The reset function is test-only, deliberately kept off the public barrel.
 
 let PROBE: PluginBlockKind;
@@ -15,8 +15,6 @@ beforeEach(() => {
 });
 
 describe('isDirectiveRegistered (public probe)', () => {
-	beforeEach(() => __resetSchemaRegistriesForTests());
-
 	it('is reachable through the plugin barrel and reflects registration state', () => {
 		expect(isDirectiveRegistered('container', 'probe-note')).toBe(false);
 		registerDirective('container', 'probe-note', {

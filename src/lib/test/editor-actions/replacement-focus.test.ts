@@ -5,7 +5,6 @@ import {
 	previewContentReparse
 } from '$lib/editor-actions/replacement-focus';
 import { parse } from '$lib/core/parser';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { registerDetailsKind, DETAILS } from '$lib/plugins/details/details-kind';
 import { declaredPluginKind } from '$lib/schema/plugin-kind';
 import { defaultGrammarView } from '$lib/schema/block-openers';
@@ -72,7 +71,6 @@ describe('focusMovedOutsideReplacement', () => {
 // bytes the write stores, which differ when a container rewrites its body's bytes.
 describe('previewContentReparse reads the write the owning container made legal', () => {
 	beforeEach(() => {
-		__resetSchemaRegistriesForTests();
 		registerDetailsKind();
 	});
 

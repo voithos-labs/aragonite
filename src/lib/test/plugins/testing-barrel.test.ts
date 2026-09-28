@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import python from 'highlight.js/lib/languages/python';
@@ -199,8 +199,6 @@ function installProbePlugin(): void {
 }
 
 describe('resetPluginPlatformForTests aggregate', () => {
-	beforeEach(() => resetPluginPlatformForTests());
-
 	it('probes every registration the plugin barrel exports', () => {
 		expect(PROBES.map((p) => p.entry).sort()).toEqual(publicRegistrations());
 	});

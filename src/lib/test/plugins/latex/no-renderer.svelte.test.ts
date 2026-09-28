@@ -1,18 +1,16 @@
 // @vitest-environment jsdom
 // Math installed with no renderer shows each formula's own source, the way mermaid shows its code.
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { installEditorDomStubsForTests, resetPluginPlatformForTests } from '$lib/testing';
+import { installEditorDomStubsForTests } from '$lib/testing';
 import { latexPlugin } from '$lib/plugins/latex';
 import { destroyMountedEditors, mountEditor } from '$lib/test/harness/mount-editor.svelte';
 
 beforeEach(() => {
-	resetPluginPlatformForTests();
 	installEditorDomStubsForTests();
 });
 
 afterEach(async () => {
 	await destroyMountedEditors();
-	resetPluginPlatformForTests();
 });
 
 describe('latexPlugin with no renderer', () => {

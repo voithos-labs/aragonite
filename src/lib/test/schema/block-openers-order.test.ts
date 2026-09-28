@@ -1,11 +1,10 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import type { AnyBlockKind } from '$lib/core/nodes';
 import {
 	registerBlockOpener,
 	getOrderedOpeners,
 	type BlockOpener
 } from '$lib/schema/block-openers';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
 const opener = (priority: number): BlockOpener => ({
 	priority,
@@ -24,8 +23,6 @@ function orderedKinds(kindByOpener: Map<BlockOpener, AnyBlockKind>): AnyBlockKin
 }
 
 describe('opener order is registration-independent', () => {
-	beforeEach(() => __resetSchemaRegistriesForTests());
-
 	it('breaks an equal-priority tie by kind name even when registered omega-before-alpha', () => {
 		const alpha = opener(TIE);
 		const omega = opener(TIE);

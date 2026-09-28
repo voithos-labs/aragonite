@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { declarePluginKind } from '$lib/schema/plugin-kind';
 import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
 import {
@@ -7,7 +7,6 @@ import {
 } from '$lib/schema/block-component-registry';
 import { registerChromeLeaf } from '$lib/editor-actions/plugin/chrome-leaf';
 import TextEditableBlock from '$lib/components/blocks/text/TextEditableBlock.svelte';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import type { KeyBinding } from '$lib/schema/keybindings';
 import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 
@@ -16,10 +15,6 @@ function keymapByChord(keymap: KeyBinding[] | undefined): Record<string, string>
 }
 
 describe('registerChromeLeaf', () => {
-	beforeEach(() => {
-		__resetSchemaRegistriesForTests();
-	});
-
 	it('registers a context-dependent, not-mergeable editable chrome leaf + its component', () => {
 		const kind = declarePluginKind('spec-chrome-leaf');
 		registerChromeLeaf(kind, TextEditableBlock, {

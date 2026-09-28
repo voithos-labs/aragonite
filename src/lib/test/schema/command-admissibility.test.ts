@@ -1,7 +1,7 @@
 // The check behind `EditorInstance.canRunCommand`, asked where commands are dispatched. What
 // matters is that the two agree: an answer that disagrees with what running the command then does
 // is a greyed-out button lying about the click under it.
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import {
 	canRunCommandById,
 	runCommandById,
@@ -15,12 +15,7 @@ import type { AnyCommandId } from '$lib/schema/command-id';
 import type { NodeView } from '$lib/core/node-views';
 import type { PresentationMode } from '$lib/presentation-mode';
 import { allowDevWarns } from '../support/warn-gate';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { commandContext as context } from '../support/command-context';
-
-afterEach(() => {
-	__resetSchemaRegistriesForTests();
-});
 
 /** A focused block that answers every built-in id, so the answer comes from the dispatch alone. */
 const surface = (): KindCommandTarget => ({ kind: 'paragraph', runCommand: () => true });

@@ -44,7 +44,6 @@ import { createFocusActions } from '../../editor-actions/focus/focus';
 import { blockContextActionsFor } from '../../schema/context-actions';
 import { everyInstalledPlugin } from '../../schema/plugin-activation';
 import { registerCodeContextActions } from '../../components/blocks/code/code-context-actions';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { ensurePasteSurface } from '$lib/test/support/paste-surface';
 
 interface EditGesture {
@@ -67,7 +66,6 @@ async function pasteInto(
 	offset: number,
 	clipboard: string
 ): Promise<Document> {
-	__resetSchemaRegistriesForTests();
 	ensurePasteSurface(tableCellPasteSurface);
 	ensurePasteSurface(codePasteSurface);
 	const { deps } = makeEditorActionsDeps(doc);

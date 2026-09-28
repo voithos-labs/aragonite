@@ -1,13 +1,11 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { installPlugins, parse, serialize } from '$lib';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import { footnotesPlugin, FOOTNOTE_DEF_KIND } from '$lib/plugins/footnotes';
 
 const roundTrips = (src: string) => expect(serialize(parse(src))).toBe(src);
 
 describe('footnote round-trip with the plugin installed', () => {
 	beforeEach(() => {
-		resetPluginPlatformForTests();
 		installPlugins([footnotesPlugin()]);
 	});
 
@@ -40,7 +38,6 @@ describe('footnote round-trip with the plugin installed', () => {
 
 describe('footnote round-trip for half-typed / incomplete syntax (plugin installed)', () => {
 	beforeEach(() => {
-		resetPluginPlatformForTests();
 		installPlugins([footnotesPlugin()]);
 	});
 
@@ -63,14 +60,6 @@ describe('footnote round-trip for half-typed / incomplete syntax (plugin install
 });
 
 describe('footnote round-trip without the plugin (the uninstall story)', () => {
-	afterEach(() => resetPluginPlatformForTests());
-
-	beforeEach(() => {
-		// Reset to built-ins only, without installing the plugin. A document authored
-		// with footnotes must survive being opened by an editor that lacks them.
-		resetPluginPlatformForTests();
-	});
-
 	it('falls back to a paragraph when uninstalled: and still round-trips', () => {
 		// The built-in keeps leading-caret labels away from link reference definitions, so an
 		// uninstalled `[^label]:` line is a plain paragraph whose bytes survive verbatim.

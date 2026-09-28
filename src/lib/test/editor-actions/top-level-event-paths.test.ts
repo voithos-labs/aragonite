@@ -1,7 +1,6 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { makeTopHarness } from '$lib/test/harness/editor-actions';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import type { CstNode } from '$lib/core/nodes';
 import { testLeaf } from '$lib/test/harness/test-kinds';
 
@@ -18,8 +17,6 @@ function inertNode(): CstNode {
 }
 
 describe('top-level event paths target the operated block', () => {
-	beforeEach(__resetSchemaRegistriesForTests);
-
 	it('backspace-merge into a non-editable previous block emits delete at the neighbor', async () => {
 		const h = makeTopHarness([inertNode(), ...parse('text\n').children]);
 		await h.actions.mergeWithPrevious(1);

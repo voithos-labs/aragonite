@@ -10,7 +10,6 @@ import {
 } from '$lib/schema/registration-checks';
 import { activateDirectiveGrammar } from '$lib/core/directive/activate';
 import { DIRECTIVE_CONTAINER, DIRECTIVE_LEAF } from '$lib/core/directive/kinds';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
 // Activation is call-based, so each case resets the opener registry and the one-shot checks to
 // try the opener registering both before and after the first parse (G1.17).
@@ -26,7 +25,6 @@ function collectRegistrationTags(): string[] {
 
 describe('directive grammar activation', () => {
 	beforeEach(() => {
-		__resetSchemaRegistriesForTests();
 		__resetRegistrationChecksForTests();
 	});
 

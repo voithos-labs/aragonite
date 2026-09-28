@@ -1,6 +1,5 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { installPlugins, parse } from '$lib';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import { admonitionsPlugin } from '$lib/plugins/admonitions';
 import {
 	activateDirectives,
@@ -29,8 +28,6 @@ function claimNoteDirective(): void {
 }
 
 describe('admonitions directive-name arbitration', () => {
-	beforeEach(() => resetPluginPlatformForTests());
-
 	it('leaves a name claimed before it installed to the first claimant', () => {
 		claimNoteDirective();
 		installPlugins([admonitionsPlugin()]);

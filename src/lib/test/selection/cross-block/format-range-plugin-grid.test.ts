@@ -4,8 +4,7 @@
 // endpoints never snap to cell space and arrive as deep `[grid, row, col]` paths.
 // Miss-analysis: every case fed the branch a parsed table lying wholly inside the range.
 import { defaultGrammarView } from '$lib/schema/block-openers';
-import { afterEach, describe, expect, it } from 'vitest';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
+import { describe, expect, it } from 'vitest';
 import { setPluginMetadata } from '$lib/core/nodes';
 import { createSharingState } from '$lib/tree-operations/sharing';
 import {
@@ -17,8 +16,6 @@ import type { SelectionPoint } from '$lib/selection/primitives';
 import { docAround, gridOf, planStored, registerPluginGrid } from './plugin-grid-kind';
 import { fixtureReading } from '$lib/test/harness/fixture-grammar';
 import { documentLineEnding } from '$lib/core/lines';
-
-afterEach(() => __resetSchemaRegistriesForTests());
 
 const at = (path: number[], offset: number): SelectionPoint => ({ path, offset });
 

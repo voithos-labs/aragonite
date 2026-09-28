@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { serialize } from '$lib/core/serializer';
 import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { rangeSelectionOf } from '$lib/test/support/undo-entry';
 import type { CstNode, Document } from '$lib/core/nodes';
 import { createGrammarView } from '$lib/schema/block-openers';
@@ -167,7 +166,6 @@ describe('replace: matches on childless opaque containers are skipped', () => {
 	const DIAGRAM_RAW = '```diagram\ngraph cat\n```\n';
 	let diagramNode: CstNode;
 	beforeEach(() => {
-		__resetSchemaRegistriesForTests();
 		const diagram = testLeaf('replace-diagram', {
 			container: { contract: 'opaque', rebuildRaw: () => {} }
 		});
@@ -207,7 +205,6 @@ describe('replace: matches on childless opaque containers are skipped', () => {
 describe('replace: a batch that applies nothing leaves no undo entry', () => {
 	// Miss-analysis: the throw case asserted its error event only, never the snapshot pushed first.
 	it('restores the stacks when the first subtree throws in its rebuild', async () => {
-		__resetSchemaRegistriesForTests();
 		const brittle = testContainer('replace-brittle', {
 			rebuildRaw: () => {
 				throw new Error('rebuild refused');
@@ -235,7 +232,6 @@ describe('replace: a batch that applies nothing leaves no undo entry', () => {
 describe('replace: a childless opaque container reparses its own bytes', () => {
 	// Miss-analysis (GH #41): containers were tested only by a decline of an unregistered opener.
 	beforeEach(() => {
-		__resetSchemaRegistriesForTests();
 		registerMermaidKind();
 	});
 

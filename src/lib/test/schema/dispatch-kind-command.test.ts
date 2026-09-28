@@ -5,7 +5,6 @@ import { normalizeKeybindingOverrides } from '$lib/schema/keybinding-overrides';
 import { takeDevWarns } from '../support/warn-gate';
 import { commandContext, commandContextWith } from '../support/command-context';
 import type { CstNode } from '$lib/core/nodes';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
 // No cross-block range in these cases; the dispatch's range decline has its own suite.
 const listItemNode = (): CstNode => ({
@@ -17,7 +16,6 @@ const listItemNode = (): CstNode => ({
 
 describe('container-bubble dispatch over the block-command registry', () => {
 	afterEach(() => {
-		__resetSchemaRegistriesForTests();
 		vi.restoreAllMocks();
 	});
 

@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
 import {
@@ -8,7 +8,6 @@ import {
 } from '$lib/schema/block-component-registry';
 import { registerBlockOpener, type BlockOpener } from '$lib/schema/block-openers';
 import { createRegistryView, defaultRegistryView } from '$lib/schema/registry-view';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import type { AnyBlockKind, PluginBlockKind } from '$lib/core/nodes';
 import { testLeaf } from '$lib/test/harness/test-kinds';
 import { activationFor, everyInstalledPlugin } from '$lib/schema/plugin-activation';
@@ -36,8 +35,6 @@ function registerCallout(): PluginBlockKind {
 	registerBlockOpener(kind, lineOpener(kind));
 	return kind;
 }
-
-afterEach(() => __resetSchemaRegistriesForTests());
 
 // The default view is the global read, which the rest of the unit suite (mounting BlockHost on
 // its own) relies on.
@@ -119,8 +116,6 @@ describe('a kind filter layered over the activation', () => {
 });
 
 describe('the syntax switch composes with the plugin filter', () => {
-	beforeEach(() => __resetSchemaRegistriesForTests());
-
 	it('drops the plugin kind the filter leaves out and indented code together', () => {
 		const kind = registerCallout();
 		const view = createRegistryView({

@@ -2,7 +2,6 @@
 // Miss-analysis: no case rebound the chord, moved the document under a reveal, or typed twice.
 import { describe, it, expect, beforeEach, afterEach, onTestFinished, vi } from 'vitest';
 import { unmount, flushSync } from 'svelte';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import type { Document } from '$lib/core/nodes';
 import {
 	normalizeKeybindingOverrides,
@@ -62,7 +61,6 @@ async function typeChar(el: HTMLElement, char: string): Promise<void> {
 let mounted: ReturnType<typeof mountLeaf> | null = null;
 
 beforeEach(() => {
-	resetPluginPlatformForTests();
 	installLayoutStubs();
 });
 
@@ -70,7 +68,6 @@ afterEach(async () => {
 	if (mounted) await unmount(mounted.instance);
 	mounted = null;
 	document.body.innerHTML = '';
-	resetPluginPlatformForTests();
 });
 
 describe('undo inside an open painted reveal', () => {

@@ -2,7 +2,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse, serialize, type CstNode, type Document } from '$lib';
 import { getPluginMetadata, setPluginMetadata } from '$lib/plugin';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import { describeConvergence } from '$lib/testing/parse-convergence';
 import {
 	registerMermaidKind,
@@ -23,7 +22,6 @@ function commitCode(source: string, code: string): { node: CstNode; doc: Documen
 
 describe('a mermaid body carrying a fence run', () => {
 	beforeEach(() => {
-		resetPluginPlatformForTests();
 		registerMermaidKind();
 	});
 

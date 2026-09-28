@@ -1,13 +1,7 @@
-import { afterEach, beforeEach, describe, it, expect } from 'vitest';
+import { beforeEach, describe, it, expect } from 'vitest';
 import { installPlugins, parse, serialize } from '$lib';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import { registerTocBlock, tocPlugin, TOC_BLOCK } from '$lib/plugins/toc/toc-plugin';
 import { roundTripCases } from '$lib/test/support/round-trip';
-
-// A leaked registration would let the dormant-until-registered gate below pass for
-// the wrong reason, so every case starts from a cleared platform.
-beforeEach(resetPluginPlatformForTests);
-afterEach(resetPluginPlatformForTests);
 
 // Recognition starts only once the opener registers: with no plugin loaded `[[toc]]` is an
 // ordinary paragraph, byte-identical to plain GFM.

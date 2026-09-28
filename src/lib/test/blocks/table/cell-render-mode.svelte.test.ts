@@ -9,7 +9,6 @@ import { declarePluginInlineKind } from '$lib/schema/plugin-kind';
 import type { CstNode } from '$lib/core/nodes';
 import type { PresentationMode } from '$lib/presentation-mode';
 import ModeReadingWidget from '../fixtures/ModeReadingWidget.svelte';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { fixtureReading } from '$lib/test/harness/fixture-grammar';
 
 const WIDGET_SOURCE = '%%w%%';
@@ -30,7 +29,6 @@ const rendered: CellRender[] = [];
 
 afterEach(() => {
 	for (const render of rendered.splice(0)) render.dispose();
-	__resetSchemaRegistriesForTests();
 });
 
 function mountCell(raw: string) {

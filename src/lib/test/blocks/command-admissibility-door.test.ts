@@ -13,7 +13,6 @@ import {
 	surfaceAt,
 	type MountedEditor
 } from '$lib/test/harness/mount-editor.svelte';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
 beforeAll(() => installLayoutStubs());
 
@@ -22,7 +21,6 @@ afterEach(async () => {
 	if (mounted) await mounted.destroy();
 	mounted = null;
 	document.body.innerHTML = '';
-	__resetSchemaRegistriesForTests();
 });
 
 const SOURCE = 'alpha beta\n';

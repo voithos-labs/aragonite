@@ -3,18 +3,13 @@
 // marker-bearing container does. The marker lives in metadata, so what is left after a lift
 // is still a definition rather than the blockquote a quote lift leaves.
 // Miss-analysis: no test asserted what Backspace did, only that the bytes stayed unchanged.
-import { describe, it, expect, afterEach, beforeEach, beforeAll } from 'vitest';
-import { resetPluginPlatformForTests } from '$lib/testing';
+import { describe, it, expect, afterEach, beforeAll } from 'vitest';
 import { footnotesPlugin } from '$lib/plugins/footnotes';
 import { installLayoutStubs, mountEditor, pressKeyAt } from '$lib/test/harness/mount-editor.svelte';
 
 beforeAll(installLayoutStubs);
 
 let mounted: ReturnType<typeof mountEditor>;
-
-beforeEach(() => {
-	resetPluginPlatformForTests();
-});
 
 afterEach(async () => {
 	if (mounted) await mounted.destroy();

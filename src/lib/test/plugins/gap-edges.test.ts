@@ -5,7 +5,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { registerBuiltInBlocks } from '$lib/components/built-in-blocks';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import { tryGetBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
 import { registerMathBlock } from '$lib/plugins/latex/latex-kind';
 import { registerMermaidKind } from '$lib/plugins/mermaid/mermaid-kind';
@@ -26,7 +25,6 @@ const QUOTE = '> quoted\n';
 const ALERT = '> [!NOTE]\n> alert body\n';
 
 beforeEach(() => {
-	resetPluginPlatformForTests();
 	registerBuiltInBlocks();
 	// One install adds both math forms; admonitions also registers githubAlert and turns
 	// on the directive grammar, which registers the generic container.

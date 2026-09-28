@@ -12,7 +12,6 @@ import {
 	type PluginInlineKind
 } from '$lib/plugin';
 import {
-	resetPluginPlatformForTests,
 	runContainerConformance,
 	runInlineKindConformance,
 	type ContainerConformanceProfile,
@@ -52,8 +51,6 @@ function registerCorruptStrip(): PluginBlockKind {
 }
 
 describe('container kit: the localIndex cell checks the kind it was given', () => {
-	beforeEach(() => resetPluginPlatformForTests());
-
 	// The chain lands on the nested blockquote, which addresses correctly; the plugin kind sits
 	// after it in the same document.
 	it('fails a chain that lands on a built-in container instead of the plugin kind', async () => {
@@ -79,7 +76,6 @@ describe('container kit: the localIndex cell checks the kind it was given', () =
 describe('inline kit: a cell about the kind checks nodes of that kind', () => {
 	let marker: PluginInlineKind;
 	beforeEach(() => {
-		resetPluginPlatformForTests();
 		registerWikiRung(rewriteWikiImage);
 		marker = declarePluginInlineKind('subject-marker');
 		registerInlineSyntax('@', (raw, pos, end) => {

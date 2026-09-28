@@ -2,7 +2,7 @@
 // Which layout a `$$` block opens in: the factory's choice, overridden by an editor's entry.
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { EditorPluginEntry } from '$lib/plugin';
-import { installEditorDomStubsForTests, resetPluginPlatformForTests } from '$lib/testing';
+import { installEditorDomStubsForTests } from '$lib/testing';
 import { latexPlugin } from '$lib/plugins/latex';
 import { destroyMountedEditors, mountEditor } from '$lib/test/harness/mount-editor.svelte';
 
@@ -21,13 +21,11 @@ async function openedLayout(plugins: EditorPluginEntry[]): Promise<string> {
 }
 
 beforeEach(() => {
-	resetPluginPlatformForTests();
 	installEditorDomStubsForTests();
 });
 
 afterEach(async () => {
 	await destroyMountedEditors();
-	resetPluginPlatformForTests();
 });
 
 describe('the layout a math block opens in', () => {

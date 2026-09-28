@@ -2,7 +2,6 @@
 // Miss-analysis: only the code block's own painter was tested, never a plugin's painter.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { unmount } from 'svelte';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import { takeDevWarns } from '../support/warn-gate';
 import { installLayoutStubs } from '$lib/test/harness/mount-editor.svelte';
 import { leafDocument, mountRevealLeaf, registerRevealLeafKind } from './fixtures/reveal-leaf';
@@ -35,7 +34,6 @@ function mountLeaf(paint: (text: string) => DocumentFragment) {
 let mounted: ReturnType<typeof mountLeaf> | null = null;
 
 beforeEach(() => {
-	resetPluginPlatformForTests();
 	installLayoutStubs();
 });
 
@@ -43,7 +41,6 @@ afterEach(async () => {
 	if (mounted) await unmount(mounted.instance);
 	mounted = null;
 	document.body.innerHTML = '';
-	resetPluginPlatformForTests();
 });
 
 describe('a painted source at the leaf’s one paint site', () => {

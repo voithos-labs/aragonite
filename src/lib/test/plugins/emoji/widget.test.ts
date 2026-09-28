@@ -1,13 +1,9 @@
 // @vitest-environment jsdom
 import { defaultGrammarView } from '$lib/schema/block-openers';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import type { InlineNode } from '$lib';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import { getInlineWidgetEditing } from '$lib/core/inline/inline-widgets';
 import { registerEmoji, buildEmojiWidget, EMOJI_KIND } from '$lib/plugins/emoji/emoji-recognizer';
-
-beforeEach(resetPluginPlatformForTests);
-afterEach(resetPluginPlatformForTests);
 
 // Shaped like a decoded entity: the glyph as text and the source bytes on `data-source-*`, so
 // the DOM-to-offset traversal reads `:smile:` back while the DOM shows 😄.

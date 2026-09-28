@@ -1,8 +1,7 @@
 // @vitest-environment jsdom
 // Miss-analysis: no test pasted a plugin kind's syntax into an editor that left it out (GH #267).
-import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
+import { beforeEach, describe, it, expect, vi } from 'vitest';
 import { installPlugins } from '$lib';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import { parse } from '$lib/core/parser';
 import { parrotPlugin, PARROT } from '$lib/plugins/parrot';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
@@ -30,12 +29,10 @@ function grammarListing(names: string[]) {
 }
 
 beforeEach(() => {
-	resetPluginPlatformForTests();
 	installPlugins([parrotPlugin()]);
 	// A bodyWrite-declaring owner, so the escape below has a reparse to run.
 	registerDetailsKind();
 });
-afterEach(resetPluginPlatformForTests);
 
 async function pasteInto(grammar: ReturnType<typeof grammarListing>) {
 	const { deps } = makeEditorActionsDeps(parse('target\n').children);

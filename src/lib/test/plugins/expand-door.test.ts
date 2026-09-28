@@ -1,8 +1,7 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { composeExpandDoor } from '$lib/editor-actions/plugin/container';
 import { getPluginMetadata, setPluginMetadata, type CstNode } from '$lib/core/nodes';
 import { declarePluginKind } from '$lib/schema/plugin-kind';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { testContainer } from '$lib/test/harness/test-kinds';
 
 // What opening a collapsed body commits, and when it declines. `expandPatch` is declared
@@ -47,8 +46,6 @@ function door(
 }
 
 describe('composeExpandDoor', () => {
-	beforeEach(() => __resetSchemaRegistriesForTests());
-
 	it('commits the declared patch for a collapsed container', async () => {
 		const d = door(registerCollapsible('door-open', true), {});
 

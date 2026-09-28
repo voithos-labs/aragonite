@@ -1,4 +1,4 @@
-import { beforeEach, describe, it, expect, vi, afterEach } from 'vitest';
+import { beforeEach, describe, it, expect, vi } from 'vitest';
 import { dispatchKeyCommand, registerBlockCommand } from '$lib/schema/block-commands';
 import { normalizeChordStrict } from '$lib/schema/keybindings';
 import type { KeybindingOverrideMap } from '$lib/schema/keybinding-overrides';
@@ -8,7 +8,6 @@ import { declareOwnedKind } from '$lib/test/support/owned-kind';
 import { buildLeafCommandContext } from '$lib/components/blocks/editable-leaf';
 import type { AnyBlockKind, CstNode, PluginBlockKind } from '$lib/core/nodes';
 import type { AnyCommandId } from '$lib/schema/command-id';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { commandContextWith } from '$lib/test/support/command-context';
 
 let leaf: PluginBlockKind;
@@ -55,8 +54,6 @@ function buildCtx(over: CtxOverrides = {}) {
 		over.pluginEditor
 	);
 }
-
-afterEach(() => __resetSchemaRegistriesForTests());
 
 describe('editable-leaf command context', () => {
 	it('routes updateMetadata to blockEdit.updateBlockMetadata at the live index', () => {

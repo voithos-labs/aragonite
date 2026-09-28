@@ -4,7 +4,14 @@
  * population, so every snippet a row must flag is assembled from parts. The scan is `file-rule.ts`.
  */
 
-import { collectEditorSources, EDITOR_SRC, handRolledLexing, ROUTES_SRC } from './scan-source';
+import {
+	balancedBlock,
+	callsTo,
+	collectEditorSources,
+	EDITOR_SRC,
+	handRolledLexing,
+	ROUTES_SRC
+} from './scan-source';
 import { describeFileRules, under, type FileRule, type Probe } from './file-rule';
 
 const at = (relPath: string, code: string): Probe => ({ relPath, code });
@@ -17,6 +24,32 @@ const spyCall = (mark: string, channel: string) =>
 const clockRead = (host: string) => `const t = ${host}.now();`;
 const depsField = (name: string) => `const deps = { ${name}: refSlotsOver(refs) };`;
 const timerWait = (timer: string) => `await new Promise((r) => ${timer}(r));`;
+
+const HOOKS = ['beforeEach', 'afterEach', 'beforeAll', 'afterAll'];
+const PUBLIC_RESET = ['reset', 'PluginPlatformForTests'].join('');
+const SCHEMA_RESET = ['__reset', 'SchemaRegistriesForTests'].join('');
+const PLATFORM_RESET = new RegExp(`\\b(?:${PUBLIC_RESET}|${SCHEMA_RESET})\\b`);
+const resetCall = (name: string) => `${name}();`;
+
+/** Hook arguments that reset the plugin platform, directly or through a function of the file. */
+function platformResetHooks(code: string): string[] {
+	const resetters = [...code.matchAll(/function\s+([\w$]+)\s*\([^)]*\)[^{]*\{/g)]
+		.filter((m) => PLATFORM_RESET.test(balancedBlock(code, m.index + m[0].length) ?? ''))
+		.map((m) => new RegExp(`\\b${m[1]}\\b`));
+	return HOOKS.flatMap((hook) => callsTo(code, hook)).filter(
+		(args) => PLATFORM_RESET.test(args) || resetters.some((name) => name.test(args))
+	);
+}
+
+// Built-in registrations survive the reset, and the live cleaner slots sit outside it.
+const PLUGIN_REGISTRATION = new RegExp(
+	`\\b(?:${['install', 'Plugins'].join('')}|activateDirective\\w*|declarePlugin\\w*|register(?!Built[Ii]n|Live)[A-Z]\\w*)\\s*\\(`
+);
+const LOAD_TIME_REGISTRATION = new RegExp(
+	`^(?:(?:const|let) [\\w$]+ = )?${PLUGIN_REGISTRATION.source}`,
+	'm'
+);
+const hookCall = (hook: string, body: string) => `${hook}(() => ${body});`;
 
 const SUITE_DIRS = ['src/lib/test/', 'src/lib/e2e/'];
 const PERF_DIRS = ['src/lib/test/perf/', 'src/lib/e2e/tests/perf/'];
@@ -193,6 +226,63 @@ const RULES: FileRule[] = [
 		misses: [
 			at('src/lib/e2e/tests/x.spec.ts', "const at = await pointAtRaw(page, [0], 3, 'after');"),
 			at('src/lib/e2e/text-runs.ts', 'document.createTreeWalker(el, 4);')
+		]
+	},
+	{
+		id: 'every unit test starts from a clean plugin platform, which the unit setup alone resets',
+		population: under('src/lib/test/'),
+		matches: (file) => platformResetHooks(file.code).length > 0,
+		allowed: {
+			'src/lib/test/support/plugin-platform.ts': 'the unit setup’s own reset, before every test',
+			'src/lib/test/plugins/plugin-reset-isolation.test.ts':
+				'a plugin author’s suite on the published testing API, whose `beforeEach` reset is the recipe under test'
+		},
+		reason:
+			'test/support/plugin-platform.ts resets the plugin platform before every test, so a hook of a file’s own is a second copy that drifts; a test asserting what a reset does calls it inside the test',
+		reaches: ['src/lib/test/support/plugin-platform.ts'],
+		hits: [
+			at('src/lib/test/a.test.ts', hookCall('beforeEach', resetCall(PUBLIC_RESET))),
+			at('src/lib/test/b.test.ts', `afterEach(${SCHEMA_RESET});`),
+			at(
+				'src/lib/test/c.test.ts',
+				`function again() {\n\t${resetCall(PUBLIC_RESET)}\n}\nbeforeAll(again);`
+			)
+		],
+		misses: [
+			at('src/lib/test/d.test.ts', `it('drops it', () => {\n\t${resetCall(PUBLIC_RESET)}\n});`),
+			at('src/lib/test/e.test.ts', hookCall('beforeEach', 'registerMathBlock()'))
+		]
+	},
+	{
+		id: 'a unit test registers plugin state per test, never at load or in `beforeAll`',
+		population: under('src/lib/test/'),
+		matches: (file) =>
+			LOAD_TIME_REGISTRATION.test(file.code) ||
+			callsTo(file.code, 'beforeAll').some((args) => PLUGIN_REGISTRATION.test(args)),
+		allowed: {
+			'src/lib/test/plugin-platform-reset.test.ts':
+				'registers at load and in `beforeAll` on purpose, to pin that the unit setup wipes both',
+			'src/lib/test/invariants/lint/consumer-guide-chords.test.ts':
+				'installs at load too, so its row tables can name the bundled kinds; each test installs again'
+		},
+		reason:
+			'the unit setup resets the plugin platform before every test, so a registration made at load or in `beforeAll` is gone before the first test runs, and a suite built on it passes on the bare grammar: register in `beforeEach` or in the test',
+		hits: [
+			at('src/lib/test/a.test.ts', hookCall('beforeAll', 'registerMathBlock()')),
+			at('src/lib/test/b.test.ts', `${['install', 'Plugins'].join('')}([footnotesPlugin()]);`),
+			at('src/lib/test/c.test.ts', "const note = declarePluginKind('note');")
+		],
+		misses: [
+			at('src/lib/test/d.test.ts', hookCall('beforeEach', 'registerMathBlock()')),
+			at('src/lib/test/e.test.ts', hookCall('beforeAll', 'installLayoutStubs()')),
+			at(
+				'src/lib/test/f.test.ts',
+				'registerBuiltInDescriptors();\nbeforeAll(registerLiveJoinSeamCleaner);'
+			),
+			at(
+				'src/lib/test/g.test.ts',
+				"const p = definePlugin({\n\tsetup() {\n\t\tregisterLanguage('x', g);\n\t}\n});"
+			)
 		]
 	}
 ];

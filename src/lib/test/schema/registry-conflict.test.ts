@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { declarePluginKind } from '$lib/schema/plugin-kind';
 import {
 	registerBlockKind,
@@ -31,8 +31,6 @@ const minimal = {
 // Guard fires on registry.has before the entry is read, so a stub entry is enough.
 const stubComponent = {} as BlockComponentEntry;
 const stubOpener: BlockOpener = { priority: 999, tryOpen: () => null, interruptsParagraph: false };
-
-afterEach(() => __resetSchemaRegistriesForTests());
 
 describe('schema registries are register-once', () => {
 	it('registerBlockKind throws on a built-in re-registration', () => {

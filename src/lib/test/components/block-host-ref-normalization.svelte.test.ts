@@ -7,7 +7,6 @@ import { parse } from '$lib/core/parser';
 import { resolveBlockSurface, type ContainerBlockComponent } from '$lib/block-component';
 import { takeDevWarns } from '../support/warn-gate';
 import { registerBlockComponent } from '$lib/schema/block-component-registry';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { registerBuiltInBlocks } from '$lib/components/built-in-blocks';
 import SurfacelessBlock from './fixtures/SurfacelessBlock.svelte';
 import { mountBlockHost, type MountedHost } from './mount-host';
@@ -27,7 +26,6 @@ let mounted: MountedHost | null = null;
 afterEach(async () => {
 	if (mounted) await mounted.dispose();
 	mounted = null;
-	__resetSchemaRegistriesForTests();
 });
 
 describe('resolveBlockSurface', () => {

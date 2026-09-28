@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { installPlugins, parse } from '$lib';
 import type {
 	EditorContext,
@@ -158,9 +158,6 @@ describe('highlightOccurrencesPlugin wiring', () => {
 });
 
 describe('highlightOccurrencesPlugin through the install platform', () => {
-	beforeEach(() => resetPluginPlatformForTests());
-	afterEach(() => resetPluginPlatformForTests());
-
 	// An author's suite reinstalls between cases, so a registration ignoring the test reset
 	// throws here and a duplicated onEditor call fails the count.
 	it('reinstalls across the reset boundary, registering exactly one callback each time', () => {

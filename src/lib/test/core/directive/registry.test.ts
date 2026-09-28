@@ -1,4 +1,4 @@
-import { beforeEach, afterEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import type { CstNode, PluginBlockKind } from '$lib/core/nodes';
 import { declarePluginKind } from '$lib/schema/plugin-kind';
 import {
@@ -16,8 +16,6 @@ beforeEach(() => {
 });
 const factory: NonNullable<DirectiveDefinition['fromDirective']> = (parsed) =>
 	({ kind, leadingTrivia: parsed.leadingTrivia, raw: parsed.raw }) as CstNode;
-
-afterEach(() => __resetSchemaRegistriesForTests());
 
 describe('registerDirective', () => {
 	it('resolves a registered definition and reports it registered', () => {

@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 // Miss-analysis: the auto-pair and completer suites never ran with their owning plugin left out.
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { resetPluginPlatformForTests } from '$lib/testing';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { definePlugin, installPlugins } from '$lib/schema/plugin-install';
 import { declarePluginKind } from '$lib/schema/plugin-kind';
 import { registerInlineSyntax } from '$lib/core/inline/scan/plugin-syntax';
@@ -25,10 +24,8 @@ const unlisted = definePlugin({
 const listed = definePlugin({ name: 'listed', setup() {} });
 
 beforeEach(() => {
-	resetPluginPlatformForTests();
 	installPlugins([listed, unlisted]);
 });
-afterEach(resetPluginPlatformForTests);
 
 const typedPercent = (grammar: GrammarView) =>
 	resolveDelimiterAutoPair('a ', { start: 0, end: 2 }, 2, '%', fixtureReading({ grammar }), {

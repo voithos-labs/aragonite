@@ -4,16 +4,13 @@
  * gets no warning (the commit drops it as unchanged), so a hook must refuse what it cannot store.
  */
 
-import { afterEach, describe, it, expect } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { committerFor } from './committer-harness';
 import { registerWikiRung, rewriteWikiImage } from './wiki-image-rung';
 import { takeDevWarns } from '../support/warn-gate';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
 const SOURCE = '![[cat.png|300]]\n';
 const RESIZED = { alt: 'cat.png', url: 'cat.png', width: 320 };
-
-afterEach(() => __resetSchemaRegistriesForTests());
 
 const warnings = (): string[] => takeDevWarns().map((w) => `[${w.tag}] ${w.message}`);
 

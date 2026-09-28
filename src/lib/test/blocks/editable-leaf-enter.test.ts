@@ -2,7 +2,6 @@
 // Miss-analysis: every editable-leaf case used a multi-line kind, so none asked a one-line leaf.
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { unmount } from 'svelte';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import { installLayoutStubs } from '$lib/test/harness/mount-editor.svelte';
 import { settleEditor, pressKey } from '$lib/test/harness/settle';
 import { withStoredCaret } from '$lib/editor-actions/stored-caret';
@@ -26,7 +25,6 @@ function mountLeaf(singleLine: boolean) {
 let mounted: ReturnType<typeof mountLeaf> | null = null;
 
 beforeEach(() => {
-	resetPluginPlatformForTests();
 	installLayoutStubs();
 });
 
@@ -34,7 +32,6 @@ afterEach(async () => {
 	if (mounted) await unmount(mounted.instance);
 	mounted = null;
 	document.body.innerHTML = '';
-	resetPluginPlatformForTests();
 });
 
 describe('Enter in an editable leaf', () => {

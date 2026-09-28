@@ -3,7 +3,6 @@
 // container; `rebuildRaw` writes the fences back from metadata, so the rest stays a directive.
 // Miss-analysis: no test pressed Backspace at the start of a directive body.
 import { describe, it, expect, afterEach, beforeEach, beforeAll } from 'vitest';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import { activateDirectives } from '$lib/plugin';
 import { installLayoutStubs, mountEditor, pressKeyAt } from '$lib/test/harness/mount-editor.svelte';
 
@@ -12,7 +11,6 @@ beforeAll(installLayoutStubs);
 let mounted: ReturnType<typeof mountEditor>;
 
 beforeEach(() => {
-	resetPluginPlatformForTests();
 	activateDirectives();
 });
 

@@ -6,7 +6,6 @@ import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
 import { mount, unmount, flushSync } from 'svelte';
 import TextEditableBlock from '$lib/components/blocks/text/TextEditableBlock.svelte';
 import { installPlugins, parse } from '$lib';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import { footnotesPlugin } from '$lib/plugins/footnotes';
 import {
 	enablePerfInstruments,
@@ -42,7 +41,6 @@ function mountReferences(contentVersion: () => number) {
 let mounted: ReturnType<typeof mountReferences>;
 
 beforeEach(() => {
-	resetPluginPlatformForTests();
 	installPlugins([footnotesPlugin()]);
 	resetPerfInstruments();
 	enablePerfInstruments();

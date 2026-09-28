@@ -1,7 +1,7 @@
 // The "have I already registered" checks must cover every register-once call a plugin makes,
 // so an idempotent module (hot reload, a re-imported registrar) can ask instead of catching.
 // Miss-analysis: each check was tested against its own registry, never against the full set.
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import {
 	declarePluginKind,
 	declaredPluginKind,
@@ -16,8 +16,6 @@ import { configureEditorEnv } from '$lib/env';
 import { takeDevWarns } from '../support/warn-gate';
 
 const KIND = 'probe-declared-kind';
-
-beforeEach(() => resetPluginPlatformForTests());
 
 describe('isBlockKindDeclared', () => {
 	it('answers before and after a declaration, and after a reset', () => {

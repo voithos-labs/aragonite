@@ -1,9 +1,8 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { createEditorEvents, emitCommandError, type EditorError } from '$lib/editor-events';
 import { takeDevWarns } from './support/warn-gate';
 import { configureEditorEnv } from '$lib/env';
 import { asDocPath } from '$lib/selection/path-math';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { declareOwnedKind } from './support/owned-kind';
 import { makeNestedHarness } from './harness/editor-actions';
 import type { AnyBlockKind } from '$lib/core/nodes';
@@ -157,8 +156,6 @@ describe('editor-events: error channel', () => {
 });
 
 describe('emitCommandError', () => {
-	afterEach(() => __resetSchemaRegistriesForTests());
-
 	it("emits origin:'command' attributing the kind, command, and recorded plugin owner", () => {
 		declareOwnedKind('admonitions', 'demoNote');
 		const events = createEditorEvents();

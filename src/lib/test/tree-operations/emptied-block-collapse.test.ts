@@ -1,10 +1,9 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import type { Document } from '$lib/core/nodes';
 import { deleteNode } from '$lib/tree-operations/settle';
 import { mergeIntoPrevDeepLeaf } from '$lib/tree-operations/node-ops';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { registerFootnoteDefinition } from '$lib/plugins/footnotes/footnote-definition';
 import { describeConvergence } from '../harness/parse-converged';
 import { fixtureReading } from '../harness/fixture-grammar';
@@ -37,10 +36,8 @@ function collapsed(tail: string, op: (doc: Document) => void): Document {
 
 describe('an emptied middle block takes its own blank line with it', () => {
 	beforeEach(() => {
-		__resetSchemaRegistriesForTests();
 		registerFootnoteDefinition();
 	});
-	afterEach(__resetSchemaRegistriesForTests);
 
 	describe.each(TAILS)('above / blank / %s', (_name, tail) => {
 		it('merges into the block above, leaving one separator', () => {

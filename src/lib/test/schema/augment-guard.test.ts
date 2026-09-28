@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { declarePluginKind, declaredPluginKind } from '$lib/schema/plugin-kind';
 import {
 	registerBlockKind,
@@ -9,7 +9,6 @@ import {
 	type BlockKindAugmentation
 } from '$lib/schema/block-kind-descriptor';
 import { definePlugin, installPlugins } from '$lib/schema/plugin-install';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { testClosure } from '$lib/test/support/closure';
 
 const minimal = {
@@ -19,8 +18,6 @@ const minimal = {
 	supportsInline: false,
 	closure: testClosure
 } as const;
-
-afterEach(() => __resetSchemaRegistriesForTests());
 
 describe('augmentBlockKind rejects built-in kinds', () => {
 	it('throws when the kind is a built-in: a plugin cannot rewrite it', () => {

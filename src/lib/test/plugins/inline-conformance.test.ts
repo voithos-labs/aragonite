@@ -9,7 +9,7 @@ import { activateDirectiveGrammar } from '$lib/core/directive/activate';
 import { DIRECTIVE_TEXT } from '$lib/core/directive/kinds';
 import { INLINE_PRIORITIES } from '$lib/core/inline/scan/plugin-syntax';
 import { declaredPluginInlineKind } from '$lib/plugin';
-import { resetPluginPlatformForTests, runInlineKindConformance } from '$lib/testing';
+import { runInlineKindConformance } from '$lib/testing';
 import type { InlineConformanceProfile } from '$lib/testing';
 import { emojiPlugin, EMOJI_KIND } from '$lib/plugins/emoji';
 import { footnotesPlugin, FOOTNOTE_REF_KIND } from '$lib/plugins/footnotes';
@@ -89,7 +89,6 @@ const mathRung: InlineConformanceProfile = {
 
 describe('every bundled inline syntax handler passes the conformance kit', () => {
 	beforeEach(() => {
-		resetPluginPlatformForTests();
 		// Emoji before the directive activation on purpose: that order is what leaves the
 		// directive recognizer unregistered, making its `registration` cell a live check.
 		installPlugins([emojiPlugin(), footnotesPlugin(), latexPlugin()]);
@@ -119,7 +118,6 @@ describe('every bundled inline syntax handler passes the conformance kit', () =>
 // run without jsdom, would otherwise pass as a quiet `boundary`.
 describe('the enrolled inline syntax handlers execute the cells their shape owns', () => {
 	beforeEach(() => {
-		resetPluginPlatformForTests();
 		installPlugins([emojiPlugin(), footnotesPlugin(), latexPlugin()]);
 		activateDirectiveGrammar();
 	});

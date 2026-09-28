@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { installPlugins, parse } from '$lib';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import { footnotesPlugin, FOOTNOTE_DEF_KIND } from '$lib/plugins/footnotes';
 import { getPluginMetadata } from '$lib/plugin';
 import {
@@ -14,7 +13,6 @@ import {
 
 describe('footnote definition strip decomposition', () => {
 	beforeEach(() => {
-		resetPluginPlatformForTests();
 		installPlugins([footnotesPlugin()]);
 	});
 
@@ -48,7 +46,6 @@ describe('footnote definition strip decomposition', () => {
 
 describe('footnote definition rebuildRaw re-emits marker + continuation indent', () => {
 	beforeEach(() => {
-		resetPluginPlatformForTests();
 		installPlugins([footnotesPlugin()]);
 	});
 
@@ -82,7 +79,6 @@ describe('footnote definition treats a non-breaking space as content', () => {
 	const NBSP = String.fromCharCode(0xa0);
 
 	beforeEach(() => {
-		resetPluginPlatformForTests();
 		installPlugins([footnotesPlugin()]);
 	});
 

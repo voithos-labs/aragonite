@@ -1,11 +1,10 @@
 // `OpenContext.isDocumentParse` is the only signal separating a whole-document parse from a
 // standalone parse of a fragment that happens to start at line 0. Position is
 // composed from it plus `index`/`depth`, so the flag itself stays constant while nesting.
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
 import { registerBlockOpener, type OpenContext } from '../../schema/block-openers';
 import { declarePluginKind } from '../../schema/plugin-kind';
-import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
 import { activateDirectiveGrammar } from '../../core/directive/activate';
 import { FRONT_MATTER, registerDocumentTopKind } from '../support/position-scoped-kind';
 
@@ -25,9 +24,6 @@ function observeContexts(): OpenContext[] {
 }
 
 describe('parse scope', () => {
-	beforeEach(__resetSchemaRegistriesForTests);
-	afterEach(__resetSchemaRegistriesForTests);
-
 	it('a whole-document parse creates a position-scoped kind at the document top', () => {
 		const kind = registerDocumentTopKind();
 

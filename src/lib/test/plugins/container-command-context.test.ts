@@ -1,4 +1,4 @@
-import { beforeEach, describe, it, expect, vi, afterEach } from 'vitest';
+import { beforeEach, describe, it, expect, vi } from 'vitest';
 import { dispatchKindCommand, registerBlockCommand } from '$lib/schema/block-commands';
 import { normalizeChordStrict } from '$lib/schema/keybindings';
 import type { KeybindingOverrideMap } from '$lib/schema/keybinding-overrides';
@@ -8,7 +8,6 @@ import { declareOwnedKind } from '$lib/test/support/owned-kind';
 import { buildContainerKindTarget } from '$lib/editor-actions/plugin/container';
 import type { AnyBlockKind, CstNode, PluginBlockKind } from '$lib/core/nodes';
 import type { AnyCommandId } from '$lib/schema/command-id';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { commandContextWith } from '$lib/test/support/command-context';
 
 let note: PluginBlockKind;
@@ -34,10 +33,6 @@ function bindKindChord(
 		byKind: new Map([[kind, new Map([[normalized, { chord: normalized, command }]])]])
 	};
 }
-
-afterEach(() => {
-	__resetSchemaRegistriesForTests();
-});
 
 describe('plugin container kind-command target', () => {
 	it("routes a registered command's updateMetadata to the container's updateOwnMetadata", () => {

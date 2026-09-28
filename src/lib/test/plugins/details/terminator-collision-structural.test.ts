@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse, serialize } from '$lib';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import { checkOpaqueStaleRaw } from '$lib/invariants/node-shape';
 import { rebuildDetailsRaw, registerDetailsKind } from '$lib/plugins/details/details-kind';
 import { mergeIntoPrevDeepLeaf, mergeWithNext, splitNode } from '$lib/tree-operations/node-ops';
@@ -12,7 +11,6 @@ import { fixtureReading, fixtureGrammar } from '../../harness/fixture-grammar';
 // with no per-block commit to apply the rule.
 
 beforeEach(() => {
-	resetPluginPlatformForTests();
 	registerDetailsKind();
 });
 

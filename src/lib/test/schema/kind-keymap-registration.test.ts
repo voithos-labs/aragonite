@@ -1,14 +1,11 @@
 // A kind's keymap chords are checked when the kind registers, in every build, so a mistyped
 // `Ctrl+B` never collapses to a bare `B` that fires on each plain keypress.
 // Miss-analysis: no test registered a malformed chord and read the stored keymap.
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { augmentBlockKind } from '$lib/plugin';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { resolveBinding } from '$lib/schema/commands';
 import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 import { testLeaf } from '../harness/test-kinds';
-
-beforeEach(__resetSchemaRegistriesForTests);
 
 const MALFORMED = ['Ctrl+B', 'Mod+', 'Cmd+Shift+K'];
 

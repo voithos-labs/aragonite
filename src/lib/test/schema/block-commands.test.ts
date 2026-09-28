@@ -7,7 +7,6 @@ import {
 	installPlugins,
 	__resetInstalledPluginsForTests
 } from '$lib/schema/plugin-install';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 
 let note: PluginBlockKind;
@@ -20,7 +19,6 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-	__resetSchemaRegistriesForTests();
 	__resetInstalledPluginsForTests();
 });
 

@@ -1,6 +1,5 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { registerMathInline } from '$lib/plugins/latex/latex-kind';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import {
 	findOpening,
 	isProseOffset,
@@ -168,10 +167,8 @@ describe('isProseOffset', () => {
 	// Miss-analysis: every case used a built-in construct, never a plugin widget's source.
 	describe('inside a plugin widget', () => {
 		beforeEach(() => {
-			__resetSchemaRegistriesForTests();
 			registerMathInline();
 		});
-		afterEach(() => __resetSchemaRegistriesForTests());
 
 		it('is false in an inline formula’s source, which is not prose', () => {
 			expect(at('see $x |#y$ here')).toBe(false);

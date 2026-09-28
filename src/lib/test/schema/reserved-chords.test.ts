@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { registerBuiltInDescriptors } from '$lib/schema/built-in-descriptors';
 import { collectReservedChords, chordIsClaimed } from '$lib/schema/reserved-chords';
 import { normalizeKeybindingOverrides } from '$lib/schema/keybinding-overrides';
@@ -8,10 +8,6 @@ import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
 registerBuiltInDescriptors();
-
-beforeEach(() => {
-	__resetSchemaRegistriesForTests();
-});
 
 const chords = (searchBar = true) =>
 	collectReservedChords({ searchBar, activation: everyInstalledPlugin });

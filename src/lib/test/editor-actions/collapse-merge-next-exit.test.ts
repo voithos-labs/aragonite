@@ -3,7 +3,6 @@ import { createStandardNestedActions } from '$lib/editor-actions/nested/nested-a
 import { createFocusActions } from '$lib/editor-actions/focus/focus';
 import { createBlockListState } from '$lib/reactivity/block-list-state.svelte';
 import { parse } from '$lib/core/parser';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { registerDetailsKind } from '$lib/plugins/details/details-kind';
 import {
 	makeNestedActionsDeps,
@@ -36,7 +35,6 @@ function nestedFor(node: CstNode) {
 
 describe('collapsed container forward-merge exit', () => {
 	beforeEach(() => {
-		__resetSchemaRegistriesForTests();
 		registerDetailsKind();
 	});
 

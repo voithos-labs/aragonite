@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import { configureEditorEnv } from '$lib/env';
 import { allowDevWarns, takeDevWarns } from '../support/warn-gate';
 import { registerGlobalCommand } from '$lib/schema/global-commands';
@@ -20,7 +20,6 @@ import {
 	__resetInstalledPluginsForTests,
 	type EditorContext
 } from '$lib/schema/plugin-install';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { commandContext } from '../support/command-context';
 
 const editor = {
@@ -36,10 +35,6 @@ const ctx = (over?: Partial<GlobalCommandContext>): GlobalCommandContext => ({
 	getPresentationMode: () => 'source',
 	onCommandError: () => {},
 	...over
-});
-
-beforeEach(() => {
-	__resetSchemaRegistriesForTests();
 });
 
 describe('registerGlobalCommand', () => {

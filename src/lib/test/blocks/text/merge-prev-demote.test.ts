@@ -12,7 +12,6 @@ import type { PresentationMode } from '$lib/presentation-mode';
 import { DIRECTIVE_LEAF, registerDirectiveKinds } from '$lib/core/directive/kinds';
 import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
 import { declaredPluginKind } from '$lib/schema/plugin-kind';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { makeStubBlockEdit } from '../../harness/editor-actions';
 import { editorMountContext } from '../../harness/mount-context';
 import { fixtureReading } from '../../harness/fixture-grammar';
@@ -141,14 +140,10 @@ describe('Backspace at content start in live mode', () => {
 	// declarations, since the leaf's opener needs the plugin grammar a bare mount does not set up.
 	it('leaves a declared-content kind with no demote to the cascade', () => {
 		registerDirectiveKinds();
-		try {
-			const leaf = getBlockKindDescriptor(declaredPluginKind(DIRECTIVE_LEAF));
-			expect(leaf.getContentRange).toBeDefined();
-			expect(leaf.contentStartBackspace).toBeUndefined();
-			expect(leaf.mergeRole).toBe('not-mergeable');
-		} finally {
-			__resetSchemaRegistriesForTests();
-		}
+		const leaf = getBlockKindDescriptor(declaredPluginKind(DIRECTIVE_LEAF));
+		expect(leaf.getContentRange).toBeDefined();
+		expect(leaf.contentStartBackspace).toBeUndefined();
+		expect(leaf.mergeRole).toBe('not-mergeable');
 	});
 
 	// The block's end for the caret is the title's end where markers hide and past the underline

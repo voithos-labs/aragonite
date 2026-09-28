@@ -2,7 +2,6 @@
 import { afterEach, beforeEach, describe, it, expect } from 'vitest';
 import { parse, serialize, type InlineNode } from '$lib';
 import { computeInlineContent } from '$lib/plugin';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import { rawTextOfNode } from '$lib/cursor/widget-offset';
 import { registerMathInline, MATH_INLINE } from '$lib/plugins/latex/latex-kind';
 
@@ -29,12 +28,10 @@ const BLOCK_RAW = 'a $x^2$ b';
 const SOURCE = '$x^2$';
 
 beforeEach(() => {
-	resetPluginPlatformForTests();
 	registerMathInline();
 });
 
 afterEach(() => {
-	resetPluginPlatformForTests();
 	document.body.innerHTML = '';
 });
 

@@ -8,7 +8,6 @@ import {
 	installLayoutStubs,
 	mountEditor
 } from '$lib/test/harness/mount-editor.svelte';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import { latexPlugin } from '$lib/plugins/latex';
 import type { MathRenderer } from '$lib/plugins/latex/math-renderer';
 import type { PresentationMode } from '$lib/presentation-mode';
@@ -20,13 +19,11 @@ const stubRenderer: MathRenderer = () => ({ dom: document.createElement('span') 
 const OPENED = '$$\nold\n$$\n';
 
 beforeEach(() => {
-	resetPluginPlatformForTests();
 	installLayoutStubs();
 });
 
 afterEach(async () => {
 	await destroyMountedEditors();
-	resetPluginPlatformForTests();
 });
 
 /** Opens the block's source, types a draft into it with focus inside, then switches modes. */
