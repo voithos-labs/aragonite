@@ -64,6 +64,27 @@ export function checkStaleRaw(node: CstNode, grammar: GrammarView): InvariantVio
 			detail: { kind: node.kind, raw: clampForDetail(node.raw) }
 		};
 	}
+	const metadata = stripMetadataDrift(correspondent!, node);
+	if (metadata) {
+		return {
+			code: 'stale-container-raw',
+			message: `strip metadata is stale relative to its raw: ${metadata}`,
+			detail: { kind: node.kind, reason: 'metadata-diverges', raw: clampForDetail(node.raw) }
+		};
+	}
+	return null;
+}
+
+/** The first strip container, this one or one below, whose metadata its reparse doesn't give. */
+function stripMetadataDrift(reparsed: CstNode, node: CstNode): string | null {
+	const found = describeMetadataDivergence(node, reparsed);
+	if (found) return found;
+	const reparsedContainers = stripContainerChildren(reparsed);
+	const actualContainers = stripContainerChildren(node);
+	for (let i = 0; i < actualContainers.length; i++) {
+		const below = stripMetadataDrift(reparsedContainers[i], actualContainers[i]);
+		if (below) return below;
+	}
 	return null;
 }
 

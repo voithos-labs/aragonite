@@ -9,7 +9,12 @@ import type { DocumentView, NodeView } from '../core/node-views';
 import { isBlankParagraph } from '../core/parser';
 import { escalatedFenceLength, matchFenceOpen } from '../core/parsers/fence-syntax';
 import { isBlockOpenerRegistered, type GrammarView } from '../schema/block-openers';
-import { lineOpensAs, parseContainerRaw, rebuildContainerRaw } from '../schema/container-raw';
+import {
+	lineOpensAs,
+	parseContainerRaw,
+	rebuildContainerRaw,
+	type BytesReading
+} from '../schema/container-raw';
 import {
 	displayLines,
 	documentLineEnding,
@@ -18,7 +23,7 @@ import {
 	ownTrailingLineEnding,
 	type LineEnding
 } from '../core/lines';
-import { assignChildIdsDeep } from '../block-id';
+import { assignChildIdsDeep, idsForPositions } from '../block-id';
 import {
 	getBlockKindDescriptor,
 	tryGetBlockKindDescriptor,
@@ -392,17 +397,23 @@ export function reclassifyContainer(
 	return replaceWithParse(parent, index, parseContainerRaw(node.raw, grammar), grammar);
 }
 
-/** The container at `index` replaced by `parsed`, its bytes' reading, when that is one block of
- *  another kind; only a kind with an opener qualifies, as in {@link reclassifyContainer}. */
-export function reclassifyFromParse(
+/** The container at `index` replaced by what its bytes read as, when its position holds that: the
+ *  same kind over other children, or one block of another kind that has an opener. */
+export function installReading(
 	parent: NodeParent,
 	index: number,
-	parsed: CstNode[],
+	reading: BytesReading,
 	grammar: GrammarView
 ): CstNode | null {
 	const node = parent.children[index];
-	if (!node || !isBlockOpenerRegistered(node.kind)) return null;
-	return replaceWithParse(parent, index, parsed, grammar);
+	if (!node || reading.outcome === 'kept') return null;
+	if (reading.outcome === 'reread') {
+		// Each child position keeps its id, so the block there stays mounted.
+		reading.node.childIds = idsForPositions(node.childIds, reading.node.children?.length ?? 0);
+		return installReplacement(parent, index, reading.node, grammar);
+	}
+	if (!isBlockOpenerRegistered(node.kind)) return null;
+	return replaceWithParse(parent, index, reading.blocks, grammar);
 }
 
 function replaceWithParse(
@@ -411,12 +422,19 @@ function replaceWithParse(
 	parsed: CstNode[],
 	grammar: GrammarView
 ): CstNode | null {
-	const node = parent.children[index];
 	// A container's raw is one block by construction; a multi-block reparse means bytes this
 	// function has no position for, left to the edit that owns the mutation.
-	if (parsed.length !== 1 || parsed[0].kind === node.kind) return null;
+	if (parsed.length !== 1 || parsed[0].kind === parent.children[index].kind) return null;
+	return installReplacement(parent, index, parsed[0], grammar);
+}
 
-	const replacement = parsed[0];
+function installReplacement(
+	parent: NodeParent,
+	index: number,
+	replacement: CstNode,
+	grammar: GrammarView
+): CstNode {
+	const node = parent.children[index];
 	const backfilled = isEmptyEditableContainer(replacement);
 	// A container spanning lines holds the document's ending in its bytes; only a one-line
 	// container, the last line of a document, falls back to LF.

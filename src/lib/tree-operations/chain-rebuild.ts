@@ -5,9 +5,12 @@
  */
 
 import type { CstNode } from '../core/nodes';
+import { firstLineEnding } from '../core/lines';
+import { assignChildIdsDeep } from '../block-id';
 import type { SharingState } from './sharing';
-import type { NodeParent } from './node-primitives';
-import type { StructuralChange } from './structural-change';
+import { ensureEditableContainers, type NodeParent } from './node-primitives';
+import { replacePreservingFirst, type StructuralChange } from './structural-change';
+import { spliceMany } from './splice-many';
 import { dropChildSpans, type ChildRawChange } from '../schema/child-spans';
 import type { GrammarView } from '../schema/block-openers';
 import { firstLine, followBytes, lastLine } from '../schema/container-raw';
@@ -15,7 +18,7 @@ import { reservedChromeKindOf } from '../schema/reserved-chrome';
 import { perfEnabled, recordRebuildDepth } from '../perf/instruments';
 import { rebuildOwnedContainer, walkUnsharing } from './unshare';
 import { absorbWindowSeams, type TrackedPosition } from './settle';
-import { reclassifyFromParse } from './content-write';
+import { installReading } from './content-write';
 import { settleSublistSeparator } from './list/sublist-separator';
 
 /**
@@ -83,6 +86,8 @@ export function rebuildUnsharedChain(
 	// The bytes chain[i + 1] held before this pass, known only when the caller named the leaf's
 	// own; with no hint, every level re-derives its whole raw.
 	let childPreviousRaw: string | undefined;
+	// The level below read as blocks its own position cannot hold, so this level reads whole.
+	let spilled: Spill | null = null;
 	for (let i = chain.length - 1; i >= 0; i--) {
 		const node = chain[i];
 		const rawBefore = node.raw;
@@ -96,7 +101,9 @@ export function rebuildUnsharedChain(
 
 		const openerMoved = firstLine(rawBefore) !== firstLine(node.raw);
 		const closerMoved = lastLine(rawBefore) !== lastLine(node.raw);
-		if (!openerMoved && !closerMoved) continue;
+		const whole = spilled !== null;
+		spilled = null;
+		if (!openerMoved && !closerMoved && !whole) continue;
 
 		const owner = i === 0 ? null : chain[i - 1];
 		const siblings = (owner ?? root).children;
@@ -104,16 +111,17 @@ export function rebuildUnsharedChain(
 		if (!siblings || index < 0) continue;
 
 		const reading = followBytes(node, rawBefore, grammar, {
-			titleRowOnly: changed !== undefined && isChromeSlot(node, changed.index)
+			titleRowOnly: changed !== undefined && isChromeSlot(node, changed.index),
+			whole
 		});
-		const replacement =
-			reading.outcome === 'diverged'
-				? reclassifyFromParse({ children: siblings }, index, reading.blocks, grammar)
-				: null;
+		const replacement = installReading({ children: siblings }, index, reading, grammar);
 		if (replacement) {
 			sharing.stamp(replacement);
 			reclassified.push({ siblings, index, previous: node, replacement });
+		} else if (reading.outcome === 'diverged' && reading.blocks.length > 0) {
+			spilled = { siblings, index, node, blocks: reading.blocks };
 		}
+		if (!openerMoved && !closerMoved) continue;
 		// Before the join check, which then reads the fixed-up bytes: a list rebuilt down to an
 		// empty marker must give the paragraph above it a separating line.
 		if (openerMoved) settleSublistSeparator(siblings, index);
@@ -131,8 +139,44 @@ export function rebuildUnsharedChain(
 			if (folds.length > before && owner) dropChildSpans(owner);
 		}
 	}
+	if (spilled && folds) spliceSpill(spilled, sharing, folds);
 	if (perfEnabled()) recordRebuildDepth(chain.length);
 	return reclassified;
+}
+
+/** A chain node whose bytes read as blocks its position cannot hold as one node. */
+interface Spill {
+	siblings: CstNode[];
+	index: number;
+	node: CstNode;
+	blocks: CstNode[];
+}
+
+/**
+ * The root's children take the blocks a top-level node's bytes read as, one fold the caller
+ * publishes: the first block keeps the node's id, the rest are new.
+ */
+function spliceSpill(spill: Spill, sharing: SharingState, folds: AncestrySeamFold[]): void {
+	const { siblings, index, node, blocks } = spill;
+	// A blank tail the parse set aside has no block to hold it, so such bytes stay as they stand.
+	if (blocks.map((block) => block.leadingTrivia + block.raw).join('') !== node.raw) return;
+	const lineEnding = firstLineEnding(node.raw) ?? '\n';
+	for (const block of blocks) {
+		ensureEditableContainers(block, lineEnding);
+		assignChildIdsDeep(block);
+	}
+	blocks[0].leadingTrivia = node.leadingTrivia;
+	const before = siblings.slice();
+	spliceMany(siblings, index, 1, blocks);
+	for (let k = 0; k < blocks.length; k++) sharing.stamp(siblings[index + k]);
+	folds.push({
+		depth: 0,
+		siblings,
+		owner: null,
+		change: replacePreservingFirst(index, 1, blocks.length),
+		before,
+		landing: { index, offset: 0 }
+	});
 }
 
 /**

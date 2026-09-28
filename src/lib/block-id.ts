@@ -19,6 +19,17 @@ export function assignIds(children: readonly NodeView[]): string[] {
 	return ids;
 }
 
+/** `ids` fitted to `count` children: each position keeps its id, a new one gets a fresh id. */
+export function idsForPositions(
+	ids: readonly string[] | undefined,
+	count: number
+): string[] | undefined {
+	if (!ids) return undefined;
+	const fitted = ids.slice(0, count);
+	while (fitted.length < count) fitted.push(generateBlockId());
+	return fitted;
+}
+
 /** Call before a freshly parsed subtree is spliced in: a reused container reads `childIds` in its
  *  keyed each synchronously, so a missing array shows up as `undefined` keys. */
 export function assignChildIdsDeep(node: NodeView): void {

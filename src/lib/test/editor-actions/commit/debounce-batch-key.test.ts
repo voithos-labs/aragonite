@@ -10,6 +10,7 @@ function makeContainer(childRaws: string[]): CstNode {
 		kind: 'blockquote',
 		leadingTrivia: '',
 		raw: childRaws.map((r) => `> ${r}`).join(''),
+		metadata: { quoteDepth: 1 },
 		children: childRaws.map((r) => ({
 			kind: 'paragraph',
 			leadingTrivia: '',

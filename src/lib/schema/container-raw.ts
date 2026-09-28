@@ -8,8 +8,9 @@ import type { AnyBlockKind, CstNode } from '../core/nodes';
 import { describeMetadataDivergence } from '../core/metadata-parity';
 import { readBlocks } from '../core/parser';
 import { ownTrailingLineEnding, trimTrailingLineEnding } from '../core/lines';
-import { perfEnabled, recordContainerKindReparse } from '../perf/instruments';
-import { tryGetBlockKindDescriptor } from './block-kind-descriptor';
+import { assignChildIdsDeep, idsForPositions } from '../block-id';
+import { perfEnabled, recordContainerKindReparse, recordOpenerLineRead } from '../perf/instruments';
+import { tryGetBlockKindDescriptor, type BlockKindDescriptor } from './block-kind-descriptor';
 import { isBlockOpenerRegistered, type GrammarView } from './block-openers';
 import type { ChildRawChange } from './child-spans';
 
@@ -49,7 +50,9 @@ export function rebuildContainerRaw(node: CstNode, grammar: GrammarView): void {
 	}
 	const rawBefore = node.raw;
 	rebuild(node);
-	followBytes(node, rawBefore, grammar);
+	const reading = followBytes(node, rawBefore, grammar);
+	// No position to put a new node at, so the node takes its reading in place.
+	if (reading.outcome === 'reread') takeReread(node, reading.node);
 }
 
 /**
@@ -65,37 +68,47 @@ export function rebuildContainerRawIfContainer(node: CstNode, changed?: ChildRaw
 /** What a container's position holds once its rewritten bytes are read as a reload reads them. */
 export type BytesReading =
 	| { outcome: 'kept' }
-	/** The bytes no longer read as one node of the kind: `blocks` is what they read as. */
+	/** The bytes read as one node of the kind over other children: that node takes the position. */
+	| { outcome: 'reread'; node: CstNode }
+	/** The bytes read as something other than one node of the kind: `blocks` is that reading. */
 	| { outcome: 'diverged'; blocks: CstNode[] };
 
 export interface FollowOptions {
 	/** Only the title row changed, which no metadata comes from (`ReservedChrome`). */
 	titleRowOnly?: boolean;
+	/** A child's bytes stopped reading as one node where they stand, so the whole node is read. */
+	whole?: boolean;
 }
 
 const KEPT: BytesReading = { outcome: 'kept' };
 
-/**
- * Reads `node`'s bytes as a reload would after a rewrite from `rawBefore`, taking in place the
- * metadata they give it: the one place that knows which lines a kind's metadata comes from.
- */
+/** Reads `node`'s bytes as a reload would after a rewrite from `rawBefore`, taking in place the
+ *  metadata they give it: the one place that knows which lines a kind's metadata comes from. */
 export function followBytes(
 	node: CstNode,
 	rawBefore: string,
 	grammar: GrammarView,
 	options: FollowOptions = {}
 ): BytesReading {
-	const opaque = tryGetBlockKindDescriptor(node.kind)?.containerContract === 'opaque';
+	const contract = tryGetBlockKindDescriptor(node.kind)?.containerContract;
+	if (options.whole) return rereadWhole(node, contract, grammar);
 	const openerMoved = firstLine(rawBefore) !== firstLine(node.raw);
 	// A closing line's ending counts: an opaque container can keep it in metadata.
 	const closerMoved = closingLine(rawBefore) !== closingLine(node.raw);
-	if (opaque && (closerMoved || (openerMoved && !options.titleRowOnly))) {
-		return rereadWhole(node, grammar);
+	if (contract === 'opaque' && (closerMoved || (openerMoved && !options.titleRowOnly))) {
+		return rereadWhole(node, contract, grammar);
 	}
-	// Otherwise only an opener line that now opens another kind changes the reading.
-	if (!openerMoved || !isBlockOpenerRegistered(node.kind)) return KEPT;
-	if (lineOpensAs(firstLine(node.raw), grammar) === node.kind) return KEPT;
-	return rereadWhole(node, grammar);
+	if (!openerMoved) return KEPT;
+	const strip = contract === 'strip';
+	if (!strip && !isBlockOpenerRegistered(node.kind)) return KEPT;
+	const opened = soleNodeOfKind(readOpenerLine(node.raw, grammar), node.kind);
+	// A strip container's metadata is all on its first line, so that line alone re-reads it.
+	if (opened) {
+		const same = !strip || describeMetadataDivergence(node, opened) === null;
+		return same ? KEPT : rereadWhole(node, contract, grammar);
+	}
+	// A first line that opens another kind changes the reading, for a kind whose opener says so.
+	return isBlockOpenerRegistered(node.kind) ? rereadWhole(node, contract, grammar) : KEPT;
 }
 
 /**
@@ -108,9 +121,50 @@ export function lineOpensAs(line: string, grammar: GrammarView): AnyBlockKind {
 
 const closingLine = (raw: string): string => lastLine(raw) + ownTrailingLineEnding(raw);
 
-function rereadWhole(node: CstNode, grammar: GrammarView): BytesReading {
+function readOpenerLine(raw: string, grammar: GrammarView): CstNode[] {
+	if (perfEnabled()) recordOpenerLineRead();
+	return readBlocks(`${firstLine(raw)}\n`, { grammar, scope: 'fragment' }).children;
+}
+
+/** The one node of `kind` that `blocks` are, or the sole child of the one block wrapping it (a
+ *  list item reads back inside a list), or null. */
+function soleNodeOfKind(blocks: readonly CstNode[], kind: AnyBlockKind): CstNode | null {
+	if (blocks.length !== 1) return null;
+	if (blocks[0].kind === kind) return blocks[0];
+	const wrapped = blocks[0].children;
+	return wrapped?.length === 1 && wrapped[0].kind === kind ? wrapped[0] : null;
+}
+
+function rereadWhole(
+	node: CstNode,
+	contract: BlockKindDescriptor['containerContract'],
+	grammar: GrammarView
+): BytesReading {
 	const blocks = parseContainerRaw(node.raw, grammar);
-	return adoptParsedMetadata(node, blocks) ? KEPT : { outcome: 'diverged', blocks };
+	const reread = soleNodeOfKind(blocks, node.kind);
+	if (!reread) return { outcome: 'diverged', blocks };
+	// A strip container's metadata is its line prefix, which decides how every child line reads.
+	if (contract === 'strip' && !sameChildren(node, reread))
+		return { outcome: 'reread', node: reread };
+	takeMetadata(node, reread);
+	return KEPT;
+}
+
+function sameChildren(live: CstNode, reread: CstNode): boolean {
+	const children = live.children ?? [];
+	const rereadChildren = reread.children ?? [];
+	return (
+		(live.innerSuffix ?? '') === (reread.innerSuffix ?? '') &&
+		children.length === rereadChildren.length &&
+		children.every((child, i) => {
+			const other = rereadChildren[i];
+			return (
+				child.kind === other.kind &&
+				child.leadingTrivia === other.leadingTrivia &&
+				child.raw === other.raw
+			);
+		})
+	);
 }
 
 /**
@@ -119,16 +173,31 @@ function rereadWhole(node: CstNode, grammar: GrammarView): BytesReading {
  */
 export function adoptParsedMetadata(node: CstNode, parsed: readonly CstNode[]): boolean {
 	if (parsed.length !== 1 || parsed[0].kind !== node.kind) return false;
-	// Unchanged metadata keeps its object, since every reader of it re-runs when the object changes.
-	if (describeMetadataDivergence(node, parsed[0]) === null) return true;
-	// A fresh object from the parse, so no undo entry shares it.
-	node.metadata = parsed[0].metadata;
+	takeMetadata(node, parsed[0]);
 	return true;
+}
+
+function takeMetadata(node: CstNode, reread: CstNode): void {
+	// Unchanged metadata keeps its object, since every reader of it re-runs when the object changes.
+	if (describeMetadataDivergence(node, reread) === null) return;
+	// A fresh object from the parse, so no undo entry shares it.
+	node.metadata = reread.metadata;
+}
+
+/** A node's reading taken into the node itself: every child position keeps its id. */
+function takeReread(node: CstNode, reread: CstNode): void {
+	node.metadata = reread.metadata;
+	node.children = reread.children;
+	node.innerPrefix = reread.innerPrefix;
+	node.innerSuffix = reread.innerSuffix;
+	node.childSpans = undefined;
+	node.childIds = idsForPositions(node.childIds, reread.children?.length ?? 0);
+	assignChildIdsDeep(node);
 }
 
 /** One parse of a container's own bytes, the cost the kind and metadata re-derive pay. */
 export function parseContainerRaw(raw: string, grammar: GrammarView): CstNode[] {
-	if (perfEnabled()) recordContainerKindReparse();
+	if (perfEnabled()) recordContainerKindReparse(raw.length);
 	return readBlocks(raw, { grammar, scope: 'fragment' }).children;
 }
 

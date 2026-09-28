@@ -42,7 +42,9 @@ const TRIVIA_WRITERS: Record<string, string> = {
 	'src/lib/tree-operations/paste/list-break-out.ts': 'head normalization inside the built halves',
 	'src/lib/tree-operations/paste/paste-replacement.ts':
 		'positional: the before/after slots around an inline paste each answer for their own line',
-	'src/lib/editor-actions/list-context.ts': 'head normalization of a split item’s second half'
+	'src/lib/editor-actions/list-context.ts': 'head normalization of a split item’s second half',
+	'src/lib/tree-operations/chain-rebuild.ts':
+		'a node whose bytes read as several blocks carries its line onto the first of them'
 };
 
 /** Files that may name one of those functions directly rather than the shared one. */
@@ -132,7 +134,8 @@ const DOORS_FILE = 'tree-operations/settle.ts';
 const CARRY_FILES = [
 	'tree-operations/node-ops.ts',
 	'tree-operations/content-write.ts',
-	'tree-operations/node-primitives.ts'
+	'tree-operations/node-primitives.ts',
+	'tree-operations/chain-rebuild.ts'
 ];
 
 /** Every `function name(` body in `code`, braces balanced. */
@@ -205,7 +208,8 @@ describe('every separator entry point retires the child spans it invalidates', (
 		absorbFragmentPeel: 'the follower’s line inside that same absorb, ahead of its splice',
 		deleteNode: 'hands the vacated line down inside the delete splice; the count moves',
 		writeParsedContent: 'carries the target’s line onto its own fresh reparse',
-		replaceWithParse: 'carries the line onto the replacement, byte for byte',
+		installReplacement: 'carries the line onto the replacement, byte for byte',
+		spliceSpill: 'carries the line onto the first block of a splice; the count moves',
 		normalizeReplacementTrivia: 'the same carry, for a replacement built elsewhere'
 	};
 
