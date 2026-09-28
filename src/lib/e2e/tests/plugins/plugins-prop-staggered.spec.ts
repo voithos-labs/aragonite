@@ -39,7 +39,7 @@ test.describe('plugins prop: staggered second-editor mount', () => {
 				invariantFires.push(m.text());
 		});
 
-		await gotoReady(page, '/test/plugins/staggered', '__test');
+		await gotoReady(page, '/test/plugins/staggered');
 		editorOne = await readKinds(page, '__test'); // editor 1 has already parsed
 
 		await page.getByTestId('mount-second').click();

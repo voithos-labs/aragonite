@@ -4,8 +4,8 @@ import { watchPageFailures } from './page-probes';
 // Every e2e navigation, so a spec acts only on a hydrated route: a server-rendered route paints
 // its markup before any handler attaches, and only the route's readiness global says they have.
 
-/** The global a test route assigns from a client-only effect once its editors mounted. */
-export type ReadyGlobal =
+/** The global a route assigns from a client-only effect once its editors mounted. */
+type ReadyGlobal =
 	| '__test'
 	| '__parityDocuments'
 	| '__activation'
@@ -14,16 +14,44 @@ export type ReadyGlobal =
 	| '__flow'
 	| '__pageScroll';
 
+/** Each route's readiness global: its own when its specs read one, else the `__parityDocuments`
+ *  list that every route with an editor fills. A route missing here fails `gotoReady`'s type. */
+const READY_BY_ROUTE = {
+	'/': '__parityDocuments',
+	'/changelog': '__parityDocuments',
+	'/test/editor': '__test',
+	'/test/flow': '__flow',
+	'/test/host-theme': '__parityDocuments',
+	'/test/multi-editor': '__editorsReady',
+	'/test/page-scroll': '__pageScroll',
+	'/test/plugins': '__test',
+	'/test/plugins/activation': '__activation',
+	'/test/plugins/enablement': '__parityDocuments',
+	'/test/plugins/multi': '__parityDocuments',
+	'/test/plugins/staggered': '__test',
+	'/test/syntax': '__syntax'
+} as const satisfies Record<string, ReadyGlobal>;
+
+type Route = keyof typeof READY_BY_ROUTE;
+
+/** A route from the table, optionally with a query. */
+export type RouteUrl = Route | `${Route}?${string}`;
+
 /** A ceiling, since a full battery on one dev server slows hydration; it stays under Playwright's
  *  test timeout so a miss reports what the page did (`lint/harness-timeout-headroom.test.ts`). */
 export const READY_TIMEOUT = 45_000;
 
-export function gotoReady(page: Page, url: string, ready: ReadyGlobal): Promise<void> {
+export function gotoReady(page: Page, url: RouteUrl): Promise<void> {
+	const ready = READY_BY_ROUTE[url.split('?')[0] as Route];
 	return navigateReady(page, url, ready, (timeout) => page.goto(url, { timeout }));
 }
 
-export function reloadReady(page: Page, ready: ReadyGlobal): Promise<void> {
-	return navigateReady(page, page.url(), ready, (timeout) => page.reload({ timeout }));
+export function reloadReady(page: Page): Promise<void> {
+	const url = page.url();
+	const route = new URL(url).pathname;
+	if (!(route in READY_BY_ROUTE)) throw new Error(`reloadReady: ${route} has no readiness global`);
+	const ready = READY_BY_ROUTE[route as Route];
+	return navigateReady(page, url, ready, (timeout) => page.reload({ timeout }));
 }
 
 async function navigateReady(

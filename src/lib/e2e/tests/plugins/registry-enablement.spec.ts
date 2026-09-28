@@ -6,7 +6,7 @@ import { gotoReady } from '../../goto-ready';
 // the editor that has it on holds a memo block; the other reads the same bytes as a paragraph.
 test.describe('per-instance registry enablement', () => {
 	test.beforeEach(async ({ page }) => {
-		await gotoReady(page, '/test/plugins/enablement', '__parityDocuments');
+		await gotoReady(page, '/test/plugins/enablement');
 	});
 
 	test('the disabled instance reads the memo syntax as a paragraph', async ({ page }) => {

@@ -27,7 +27,7 @@ async function scrollToEnd(page: Page): Promise<void> {
 
 test.describe('/ showcase presentation toggle', () => {
 	test.beforeEach(async ({ page }) => {
-		await gotoReady(page, '/', '__parityDocuments');
+		await gotoReady(page, '/');
 	});
 
 	test('reading hides markers, keeps rendered widgets; source restores', async ({ page }) => {

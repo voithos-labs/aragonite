@@ -24,9 +24,9 @@ export class EditorPage {
 
 	// ── Navigation ──────────────────────────────────────────────────────
 
-	async goto(query = '') {
+	async goto(query: '' | `?${string}` = '') {
 		await this.clipboard.install();
-		await gotoReady(this.page, `/test/editor${query}`, '__test');
+		await gotoReady(this.page, `/test/editor${query}`);
 	}
 
 	async loadContent(md: string) {

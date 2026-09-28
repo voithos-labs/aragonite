@@ -110,7 +110,7 @@ test.describe('/ showcase route', () => {
 		// Set up before the navigation: a plugin that throws on install throws during hydration,
 		// which a listener attached afterwards never sees.
 		pageErrors = capturePageErrors(page);
-		await gotoReady(page, '/', '__parityDocuments');
+		await gotoReady(page, '/');
 	});
 
 	test.afterEach(() => {

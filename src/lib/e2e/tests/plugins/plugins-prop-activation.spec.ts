@@ -31,7 +31,7 @@ const sourceOf = (page: Page, pane: Pane) =>
 // source, the second neither; the definitions are process-wide, so the `plugins` prop decides.
 test.describe('the plugins prop is the enablement set', () => {
 	test.beforeEach(async ({ page }) => {
-		await gotoReady(page, '/test/plugins/activation', '__activation');
+		await gotoReady(page, '/test/plugins/activation');
 	});
 
 	test('the listing editor renders the plugin component and its decorations', async ({ page }) => {
@@ -128,7 +128,7 @@ test.describe('the plugins prop is the enablement set', () => {
 // the parrot pane never asked for, and the parrot pane owns `%%parrot`.
 test.describe('activation scopes the chord and the paste grammar', () => {
 	test.beforeEach(async ({ page }) => {
-		await gotoReady(page, '/test/plugins/activation', '__activation');
+		await gotoReady(page, '/test/plugins/activation');
 	});
 
 	// The chord must reach the app around an editor that never listed the plugin, not die there.

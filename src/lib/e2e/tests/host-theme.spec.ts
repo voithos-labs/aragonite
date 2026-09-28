@@ -57,7 +57,7 @@ const overlayBackground = (page: Page) =>
 
 test.describe('/test/host-theme', () => {
 	test.beforeEach(async ({ page }) => {
-		await gotoReady(page, '/test/host-theme', '__parityDocuments');
+		await gotoReady(page, '/test/host-theme');
 	});
 
 	test('the route carries no opt-in theme class anywhere', async ({ page }) => {

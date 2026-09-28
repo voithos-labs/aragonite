@@ -8,7 +8,7 @@ import { widgetAimTarget } from '../../text-runs';
 
 export class PluginsPage extends EditorPage {
 	async gotoPlugins(seed?: string): Promise<void> {
-		await gotoReady(this.page, seed ? `/test/plugins?seed=${seed}` : '/test/plugins', '__test');
+		await gotoReady(this.page, seed ? `/test/plugins?seed=${seed}` : '/test/plugins');
 		// Started for every spec, not per spec: capturing is passive, and a `capturedErrors() ===
 		// []` assertion against a capture nobody started would pass for the wrong reason.
 		await this.page.evaluate(() => (window as any).__test.startErrorCapture());

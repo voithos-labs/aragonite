@@ -97,7 +97,7 @@ async function expectMarksPainted(page: Page): Promise<void> {
 test.describe('/ showcase occurrence highlight', () => {
 	test.beforeEach(async ({ page }) => {
 		test.skip(target === null, 'no paragraph in the demo document repeats a four-letter word');
-		await gotoReady(page, '/', '__parityDocuments');
+		await gotoReady(page, '/');
 	});
 
 	test(`the header toggle is what lights the other "${WORD}"s`, async ({ page }) => {

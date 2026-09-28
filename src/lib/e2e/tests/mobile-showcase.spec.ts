@@ -13,7 +13,7 @@ test.use({ viewport: PHONE, hasTouch: true });
 
 test.describe('/ showcase on a phone', () => {
 	test.beforeEach(async ({ page }) => {
-		await gotoReady(page, '/', '__parityDocuments');
+		await gotoReady(page, '/');
 	});
 
 	test('neither the page nor the document pans sideways', async ({ page }) => {

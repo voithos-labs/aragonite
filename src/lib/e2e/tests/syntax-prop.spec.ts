@@ -33,7 +33,7 @@ async function expectBothConverge(page: Page): Promise<void> {
 
 test.describe('the syntax prop switches a syntax off in one editor', () => {
 	test.beforeEach(async ({ page }) => {
-		await gotoReady(page, '/test/syntax', '__syntax');
+		await gotoReady(page, '/test/syntax');
 		await paneOf(page, 'off').locator('[data-block-kind]').first().waitFor();
 		await paneOf(page, 'on').locator('[data-block-kind]').first().waitFor();
 	});

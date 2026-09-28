@@ -123,7 +123,7 @@ test.describe('doc-stats context chain: attach survives a structural edit', () =
 
 test.describe('doc-stats context chain: two editors', () => {
 	test.beforeEach(async ({ page }) => {
-		await gotoReady(page, '/test/plugins/multi', '__parityDocuments');
+		await gotoReady(page, '/test/plugins/multi');
 		await waitForStats(page, (s) => Object.keys(s).length === 2);
 	});
 

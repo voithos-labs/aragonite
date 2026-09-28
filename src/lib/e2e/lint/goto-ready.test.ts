@@ -1,7 +1,8 @@
 /**
  * Every e2e navigation goes through `gotoReady` or `reloadReady` (`e2e/goto-ready.ts`), which wait
  * for the route's readiness global, so no spec acts on server-rendered markup before hydration.
- * The matcher keys on the receiver: the Playwright page is spelled `page` across the e2e tree.
+ * Flags a reload or history step on any receiver, and a `goto` on `page` or with a route literal;
+ * a `goto(variable)` on a page spelled otherwise still gets past it.
  * Miss-analysis: each spec wrote its own wait and no scan held them to one, so one waited on markup.
  */
 import { describe, it, expect } from 'vitest';
@@ -12,7 +13,9 @@ const E2E_DIR = 'src/lib/e2e';
 /** The one file allowed to navigate a page directly. */
 const HELPER = 'src/lib/e2e/goto-ready.ts';
 
-const RAW_NAVIGATION = /(?<![\w$])page\s*\.\s*(?:goto|reload|goBack|goForward)\s*\(/g;
+// No page object here has a reload or history method, and `EditorPage.goto` takes a query, not a route.
+const RAW_NAVIGATION =
+	/(?<![\w$])page\s*\.\s*goto\s*\(|\.\s*goto\s*\(\s*['"`](?:\/|https?:)|\.\s*(?:reload|goBack|goForward)\s*\(/g;
 
 const lineOf = (code: string, index: number) => code.slice(0, index).split('\n').length;
 
@@ -45,7 +48,7 @@ describe('every e2e navigation waits for the route to hydrate', () => {
 
 	// ── Matcher self-test (non-vacuity) ──────────────────────────────────────
 
-	it('matcher flags a page navigation on any receiver path, and spares EditorPage.goto', () => {
+	it('matcher flags a page navigation on any receiver, and spares EditorPage.goto', () => {
 		// Spelled in pieces, so the scan of this file does not read them as calls.
 		const nav = (receiver: string, call: string) => `await ${receiver}.${call}`;
 		const flagged = rawNavigations([
@@ -53,15 +56,24 @@ describe('every e2e navigation waits for the route to hydrate', () => {
 			{ relPath: 'b.spec.ts', code: nav('this.page', 'goto(url)') },
 			{ relPath: 'c.spec.ts', code: nav('editor.page', 'reload()') },
 			{ relPath: 'd.spec.ts', code: nav('page', 'goBack()') },
-			{ relPath: 'e.spec.ts', code: nav('editor', "goto('?presentationMode=live')") },
-			{ relPath: 'f.spec.ts', code: nav('homepage', "goto('/')") },
-			{ relPath: 'g.spec.ts', code: "await gotoReady(page, '/', '__parityDocuments')" }
+			{ relPath: 'e.spec.ts', code: nav('homepage', "goto('/')") },
+			{ relPath: 'f.spec.ts', code: nav('p', "goto('/x')") },
+			{ relPath: 'g.spec.ts', code: nav('second', 'reload()') },
+			{ relPath: 'h.spec.ts', code: nav('popup', 'goto(`http://localhost/`)') },
+			{ relPath: 'i.spec.ts', code: nav('editor', "goto('?presentationMode=live')") },
+			{ relPath: 'j.spec.ts', code: nav('editor', "goto('')") },
+			{ relPath: 'k.spec.ts', code: nav('ep', 'goto(query)') },
+			{ relPath: 'l.spec.ts', code: "await gotoReady(page, '/test/syntax')" }
 		]);
 		expect(flagged.map((site) => site.split(':')[0])).toEqual([
 			'a.spec.ts',
 			'b.spec.ts',
 			'c.spec.ts',
-			'd.spec.ts'
+			'd.spec.ts',
+			'e.spec.ts',
+			'f.spec.ts',
+			'g.spec.ts',
+			'h.spec.ts'
 		]);
 	});
 });

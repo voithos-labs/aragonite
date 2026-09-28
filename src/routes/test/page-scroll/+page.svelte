@@ -50,8 +50,8 @@
 			setKeybindings: (overrides) => (keybindings = overrides),
 			setPresentationMode: (mode) => (presentationMode = mode)
 		});
-		// Assigned after the probes, so a spec that waits for it can read `window.__test` too. Spec
-		// driven, since the check assumes no box in the viewport but the editor's, a button included.
+		// Assigned after `installTestProbes`, so waiting for `__pageScroll` also waits for `__test`.
+		// Spec driven, since a page button would be a box in view that isn't the editor's.
 		(window as unknown as { __pageScroll?: unknown }).__pageScroll = {
 			loadDocumentImage: () => {
 				imageLoadPolicy = 'auto';

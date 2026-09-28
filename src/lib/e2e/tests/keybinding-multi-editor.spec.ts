@@ -26,7 +26,7 @@ async function editEditor(page: Page, editor: Locator, mark: string): Promise<vo
 
 test.describe('multi-editor document-chord containment', () => {
 	test.beforeEach(async ({ page }) => {
-		await gotoReady(page, '/test/multi-editor', '__editorsReady');
+		await gotoReady(page, '/test/multi-editor');
 	});
 
 	test('Ctrl+F with focus outside every editor opens no search bar', async ({ page }) => {

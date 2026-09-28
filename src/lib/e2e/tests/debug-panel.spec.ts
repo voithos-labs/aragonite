@@ -11,8 +11,6 @@ test.describe('debug panel', () => {
 	test.beforeEach(async ({ page }) => {
 		editor = new EditorPage(page);
 		await editor.goto();
-		await editor.page.evaluate(() => localStorage.removeItem('aragonite.debug-panel.state.v1'));
-		await reloadReady(editor.page, '__test');
 		await editor.loadContent(DEFAULT_CONTENT);
 	});
 
@@ -30,7 +28,7 @@ test.describe('debug panel', () => {
 		await editor.page.keyboard.press(TOGGLE_CHORD);
 		await expect(editor.page.locator('.debug-panel')).toBeVisible();
 
-		await reloadReady(editor.page, '__test');
+		await reloadReady(editor.page);
 
 		await expect(editor.page.locator('.debug-panel')).toBeVisible();
 	});

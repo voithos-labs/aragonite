@@ -510,12 +510,21 @@ test.describe('my feature', () => {
 Note the import path: `../fixtures`, not `@playwright/test`. That's the invariant watcher, and
 it's the one line in this file most worth not copying wrong.
 
-A spec on some other route doesn't call `page.goto` either. It calls
-`gotoReady(page, '/test/syntax', '__syntax')` from `src/lib/e2e/goto-ready.ts` (`reloadReady` is
-the reload version, and `editor.goto()` calls it for you), which waits for the global the route's
-page sets once it's hydrated, because the server-rendered markup shows up well before any click
-handler does. A raw `page.goto` fails `src/lib/e2e/lint/goto-ready.test.ts`, and a new route
-publishes a global of its own and adds the name to `src/lib/e2e/goto-ready.ts :: ReadyGlobal`.
+A spec on any other route calls `gotoReady` instead of `page.goto`:
+
+```ts
+await gotoReady(page, '/test/syntax'); // waits for window.__syntax, then the fonts
+```
+
+It lives in `src/lib/e2e/goto-ready.ts` and waits for the global the route sets once it's
+hydrated, since the server-rendered markup shows up well before any click handler does.
+`reloadReady(page)` is the reload version, and `editor.goto()` already calls `gotoReady` for you.
+A raw `page.goto` or `page.reload` fails `src/lib/e2e/lint/goto-ready.test.ts`.
+
+A new route gets a row in `src/lib/e2e/goto-ready.ts :: READY_BY_ROUTE`, or `gotoReady` won't
+compile for it. Every route that mounts an editor already sets `__parityDocuments`, so that's the
+row's value unless the specs read a global the route sets for them (`__syntax`, say), in which case
+that one goes in.
 
 ### Patterns and gotchas
 

@@ -18,7 +18,7 @@ const sourceOf = (page: Page, pane: Pane) =>
 // latex, the second lists neither, and both list the toc and footnotes
 // (requirements/plugins/plugins-prop-scoped-reads.md).
 test.beforeEach(async ({ page }) => {
-	await gotoReady(page, '/test/plugins/activation?reads', '__activation');
+	await gotoReady(page, '/test/plugins/activation?reads');
 });
 
 test.describe('checks and plugin reads follow the plugins prop', () => {

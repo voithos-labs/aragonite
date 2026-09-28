@@ -21,7 +21,7 @@ function outlineRaw(page: Page): Promise<string> {
 
 test.describe('/changelog route', () => {
 	test.beforeEach(async ({ page }) => {
-		await gotoReady(page, '/changelog', '__parityDocuments');
+		await gotoReady(page, '/changelog');
 		await expect(page.locator('.block-host').first()).toBeVisible();
 	});
 

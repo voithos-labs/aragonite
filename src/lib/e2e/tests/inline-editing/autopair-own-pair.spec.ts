@@ -64,7 +64,7 @@ test.describe('inline editing, the pair the auto-pair wrote', () => {
 // Each editor keeps its own record, so a key typed in another editor leaves this one's pair its
 // own: the next star grows it rather than landing as a plain byte.
 test('a key in another editor leaves the pair the auto-pair wrote its own', async ({ page }) => {
-	await gotoReady(page, '/test/multi-editor', '__editorsReady');
+	await gotoReady(page, '/test/multi-editor');
 	const [left, right] = [page.locator('.editor').nth(0), page.locator('.editor').nth(1)];
 	const alpha = left.locator('[contenteditable="true"]', { hasText: 'Alpha' });
 	await alpha.click();

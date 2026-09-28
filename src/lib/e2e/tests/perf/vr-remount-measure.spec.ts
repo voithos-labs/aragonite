@@ -71,7 +71,7 @@ async function wheel(page: Page, editor: EditorPage, ticks: number, px: number):
 test('wheeling back up over measured blocks writes the scroll never', async ({ page }) => {
 	const pageErrors = capturePageErrors(page);
 	// The plugins route renders the inline math, in source mode, so no mode switch is involved.
-	await gotoReady(page, '/test/plugins', '__test');
+	await gotoReady(page, '/test/plugins');
 	const editor = new EditorPage(page);
 	await editor.loadContent(HEAVY);
 	await editor.waitForRenderFlush();
