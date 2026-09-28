@@ -418,7 +418,7 @@
 	});
 
 	/** Whether `node` is in the host's header; every "is this editor content" check asks here.
-	 *  Focusout checks use `contains` instead, since the header counts as part of the editor. */
+	 *  Focus tracking uses `contains` instead, since the header counts as part of the editor. */
 	function isHostChrome(node: Node | null): boolean {
 		return !!node && !!headerEl && headerEl.contains(node);
 	}
@@ -487,10 +487,11 @@
 	$effect(() => {
 		if (!editorEl) return;
 		const root = editorEl;
-		// focusout bubbles, so reset only when focus leaves the editor entirely.
+		// focusout bubbles, so reset only when focus leaves the editor's content: for somewhere
+		// outside it, or for the host's header, which holds no caret of the editor's.
 		return onRoot(root, 'focusout', (e: FocusEvent) => {
 			const next = e.relatedTarget as Node | null;
-			if (next && root.contains(next)) return;
+			if (next && root.contains(next) && !isHostChrome(next)) return;
 			caretMemory.forget();
 		});
 	});
