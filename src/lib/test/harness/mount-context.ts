@@ -27,10 +27,9 @@ import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 import { createEditorEvents, emitCommandError } from '$lib/editor-events';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import { coverRange } from '$lib/selection/range-coverage';
-import { createRevealAnchorState } from '$lib/cursor/reveal-anchor';
+import { createScrollOwner } from '$lib/cursor/scroll-owner';
 import { createAutoPairRecord } from '$lib/components/blocks/text/auto-pair-record';
 import { createHeightOracle } from '$lib/cursor/height-oracle';
-import { createScrollport, type Scrollport } from '$lib/cursor/scrollport';
 import { HEIGHT_ESTIMATES } from '$lib/cursor/typography-estimates';
 import {
 	makeCaretMemory,
@@ -70,7 +69,8 @@ function stubbedServices(getDoc: () => DocumentView): EditorServices {
 		search: {} as EditorServices['search'],
 		caretMemory: makeCaretMemory(),
 		autoPairs: createAutoPairRecord(),
-		revealAnchor: createRevealAnchorState(),
+		// Filled in by `editorMountContext`, which builds it over the document group's scroll host.
+		scrollOwner: {} as EditorServices['scrollOwner'],
 		// Real: every keydown on an editable block asks it what is selected.
 		widgetSelection: createWidgetSelectionState({ onSelect: () => {} }),
 		selectedWidget: { range: () => null, clear: () => {} },
@@ -143,25 +143,10 @@ function stubbedDoc(emptyDoc: Document): EditorDoc {
 			imageBlockMinHeight: HEIGHT_ESTIMATES.imageBlockMinHeight
 		}),
 		scrollHost: () => null,
+		// Replaced by `editorMountContext` with the scroll owner's port.
 		scrollport: () => null,
-		correctsScroll: () => true,
 		widthVersion: () => 0,
 		viewportHeightVersion: () => 0
-	};
-}
-
-/** An editor root given no scroll container is its own, as in production, so geometry a harness
- *  stubs on the root is what windowing reads. */
-function withDerivedScrollport(doc: EditorDoc): EditorDoc {
-	if (doc.scrollport() !== null) return doc;
-	let port: Scrollport | null = null;
-	return {
-		...doc,
-		scrollport: () => {
-			const el = doc.editorRoot();
-			if (el && !port) port = createScrollport(el);
-			return port;
-		}
 	};
 }
 
@@ -179,8 +164,21 @@ export function editorMountContext(overrides: MountContextOverrides = {}): Map<s
 		},
 		mode: () => policies.presentationMode()
 	});
-	const doc: EditorDoc = withDerivedScrollport({ ...docBase, ...overrides.doc });
+	const doc: EditorDoc = { ...docBase, ...overrides.doc };
 	const services: EditorServices = { ...stubbedServices(doc.doc), ...overrides.services };
+	// An editor root given no scroll container is its own, as in production, so geometry a harness
+	// stubs on the root is what windowing reads.
+	services.scrollOwner =
+		overrides.services?.scrollOwner ??
+		createScrollOwner({
+			getScrollHost: doc.editorRoot,
+			editorCorrects: () => true,
+			getBlockElByPath: doc.blockElLookup,
+			getEditorRoot: doc.editorRoot,
+			isHostScroll: () => false,
+			getClipBounds: () => []
+		});
+	if (!overrides.doc?.scrollport) doc.scrollport = services.scrollOwner.port;
 	// Read off the selection the test handed in, the way the editor derives it.
 	services.coveredRange =
 		overrides.services?.coveredRange ??

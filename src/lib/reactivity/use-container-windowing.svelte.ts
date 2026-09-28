@@ -1,4 +1,4 @@
-import { getContext, setContext } from 'svelte';
+import { getContext, onDestroy, setContext } from 'svelte';
 import {
 	EDITOR_DOC_KEY,
 	EDITOR_SERVICES_KEY,
@@ -11,12 +11,8 @@ import {
 	type ParentScopeSink
 } from '../editor-keys';
 import type { NodeView } from '../core/node-views';
-import type { RevealTarget } from '../cursor/reveal-anchor';
-import {
-	createListWindowing,
-	type ListWindowing,
-	type RevealAnchorPlacement
-} from './list-windowing.svelte';
+import type { TargetResolver } from '../cursor/scroll-owner';
+import { createListWindowing, type ListWindowing } from './list-windowing.svelte';
 
 export interface ContainerWindowingOpts {
 	/** This container's index in the list above it, for the subtotal it reports upward. A
@@ -37,17 +33,26 @@ export interface ContainerWindowingOpts {
 	isCollapsed?: () => boolean;
 }
 
-/** The block being scrolled into view in the root list's coordinates: a nested target is its
- *  top-level ancestor's index plus the measured drop from that ancestor's top to its own. */
-export function placementOf(
-	target: RevealTarget | null,
-	blockEl: BlockElLookup
-): RevealAnchorPlacement | null {
-	if (!target || target.path.length === 0) return null;
-	const shallow = { index: target.path[0], block: target.block, innerOffset: 0, height: null };
-	if (target.path.length === 1) return shallow;
+/**
+ * A held block in the root list's terms. The height table addresses only the root's own
+ * children, so a deeper target is its top-level ancestor's `index` plus the measured drop to the
+ * target, which holds the block the scroll aimed at rather than its container.
+ */
+export interface RootPlacement {
+	index: number;
+	/** Drop from the ancestor's top to the target's top; 0 when the target is the ancestor. */
+	innerOffset: number;
+	/** The target's own height, for `'center'`; null when it can't be measured. */
+	height: number | null;
+}
+
+/** Where `path` sits in the root list: a nested target is measured against its ancestor. */
+export function placementOf(path: readonly number[], blockEl: BlockElLookup): RootPlacement | null {
+	if (path.length === 0) return null;
+	const shallow = { index: path[0], innerOffset: 0, height: null };
+	if (path.length === 1) return shallow;
 	const ancestorEl = blockEl([shallow.index]);
-	const targetEl = blockEl(target.path);
+	const targetEl = blockEl([...path]);
 	// An unmounted ancestor falls back to its own top; a mounted one with no target means the
 	// user scrolled past the target inside the container, so decline rather than jump.
 	if (!ancestorEl) return shallow;
@@ -55,9 +60,25 @@ export function placementOf(
 	const targetRect = targetEl.getBoundingClientRect();
 	return {
 		index: shallow.index,
-		block: target.block,
 		innerOffset: targetRect.top - ancestorEl.getBoundingClientRect().top,
 		height: targetRect.height
+	};
+}
+
+/** The root list's answer to where a held block sits, from its height table. Offsets come from
+ *  the table, since the DOM hasn't laid out the table's latest writes yet. */
+export function rootTargetResolver(
+	root: Pick<ListWindowing, 'targetTopOf' | 'syncScrollTop'>,
+	place: (path: readonly number[]) => RootPlacement | null
+): TargetResolver {
+	return {
+		resolve(path) {
+			const placement = place(path);
+			const at = placement && root.targetTopOf(placement.index);
+			if (!placement || !at) return null;
+			return { top: at.top + placement.innerOffset, height: placement.height ?? at.height };
+		},
+		syncScrollTop: () => root.syncScrollTop()
 	};
 }
 
@@ -67,17 +88,17 @@ export function useContainerWindowing(opts: ContainerWindowingOpts): ListWindowi
 	const {
 		heightOracle: oracle,
 		scrollport: getPort,
-		correctsScroll,
 		focusedPath: getFocusPath,
 		widthVersion: getWidthVersion,
 		viewportHeightVersion: getViewportHeightVersion,
 		blockElLookup
 	} = getContext<EditorDoc>(EDITOR_DOC_KEY);
 	const parentSink = getContext<ParentScopeSink | undefined>(PARENT_SCOPE_SINK_KEY);
-	const revealAnchor = getContext<EditorServices | undefined>(EDITOR_SERVICES_KEY)?.revealAnchor;
+	const scrollOwner = getContext<EditorServices | undefined>(EDITOR_SERVICES_KEY)?.scrollOwner;
 	// Only the root list holds the scrolled-to block in place; a nested list holds the block at
 	// the top of the viewport, or the two corrections would fight over one `scrollTop`.
-	const claimsRevealAnchor = opts.getParentPath().length === 0;
+	const isRoot = opts.getParentPath().length === 0;
+	const source = isRoot ? 'root-list' : 'nested-list';
 
 	const windowing = createListWindowing({
 		oracle,
@@ -86,11 +107,12 @@ export function useContainerWindowing(opts: ContainerWindowingOpts): ListWindowi
 		getListEl: opts.getListEl,
 		getOwnEl: opts.getOwnEl,
 		getPort: () => getPort?.() ?? null,
-		correctsScroll: () => correctsScroll?.() ?? true,
+		scroll: {
+			compensate: (mutate, held) =>
+				scrollOwner ? scrollOwner.compensate(source, mutate, held) : mutate(),
+			scrollToMount: (contentTop) => scrollOwner?.scrollToMount(contentTop)
+		},
 		getFocusPath: () => getFocusPath?.() ?? null,
-		getRevealAnchorTarget: claimsRevealAnchor
-			? () => placementOf(revealAnchor?.get() ?? null, blockElLookup)
-			: undefined,
 		getWidthVersion: () => getWidthVersion?.() ?? 0,
 		getViewportHeightVersion: () => getViewportHeightVersion?.() ?? 0,
 		getParentPath: opts.getParentPath,
@@ -105,6 +127,14 @@ export function useContainerWindowing(opts: ContainerWindowingOpts): ListWindowi
 		activateAbovePx: 4000,
 		deactivateBelowPx: 3000
 	});
+
+	if (isRoot && scrollOwner) {
+		onDestroy(
+			scrollOwner.resolveTargetsWith(
+				rootTargetResolver(windowing, (path) => placementOf(path, blockElLookup))
+			)
+		);
+	}
 
 	if (opts.provideLeafChannel) {
 		// Only a direct child measures into this height table; a deeper block belongs to its own

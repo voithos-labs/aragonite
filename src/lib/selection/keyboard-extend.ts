@@ -14,6 +14,7 @@ import {
 } from './native-bridge';
 import { offsetFromViewportPoint } from '../cursor/point-offset';
 import type { BlockElLookup } from '../editor-keys';
+import type { ScrollOwner } from '../cursor/scroll-owner';
 import {
 	firstPath,
 	lastPath,
@@ -75,11 +76,9 @@ export async function collapseCrossBlock(
  *  mounts its endpoint first, and one Shift+Arrow step lands beside the mounted range. */
 export function scrollFocusBlockIntoView(
 	selection: SelectionState,
-	getBlockElByPath: (path: number[]) => HTMLElement | null
+	scroll: Pick<ScrollOwner, 'showNearest'>
 ): void {
-	if (!selection.focus) return;
-	const blockEl = getBlockElByPath(selection.focus.path);
-	blockEl?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+	if (selection.focus) scroll.showNearest(selection.focus.path);
 }
 
 // ── Keyboard Extension ─────────────────────────────────────────────────────

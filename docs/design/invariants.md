@@ -972,6 +972,7 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.84 | Where a leaf's bytes are stored is made in one place, from the tree                       | L       |
 | G4.85 | A live rewrite that removes bytes reads its candidate where it will be stored             | L       |
 | G4.86 | A list item's marker is read only where the list is built, drawn or dumped                | L       |
+| G4.87 | Only the scroll owner writes the editor's scroll position                                 | L       |
 
 ### The entries
 
@@ -1773,6 +1774,18 @@ item's marker), and fails a store made anywhere no row runs through.
 metadata (or off a parse cast to carry one) is for the code that builds, renumbers, draws or
 dumps a list. A rewrite that wants to know how its bytes read under the marker asks the store
 instead. `lint/file-rules.test.ts`, with each reader and its reason.
+
+**G4.87 · One writer of the scroll position.** Every write to the editor's scroll position lives
+in `cursor/scroll-owner.ts`, which decides who owns the position before it writes: the browser's
+own anchoring, a held scroll into view, or the plain height correction. Every other module gets
+a `ScrollportReader`, which has no write method, so most strays don't type-check (a test pins
+that with `@ts-expect-error`). The scan catches the rest: `scrollTop` assigned or stepped (`=`,
+`+=`, `++`), the DOM's `scroll` or `scrollTo` given a position (`el.scrollTo({ top })`,
+`window.scrollTo(x, y)`), `scrollBy`, `setScrollTop`, `scrollIntoView`, or opening a port that
+can write, anywhere but the owner and the port itself. `rects.scrollTo(path)` doesn't count: it's
+the published call, and it goes through the owner. A few files keep writes of their own, and the manifest says why for each: a drag's
+autoscroll, which the pointer drives frame by frame, and two listboxes keeping their active row in
+view inside their own scroller. `lint/file-rules.test.ts`.
 
 ## Accessibility
 

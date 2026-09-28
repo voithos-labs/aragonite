@@ -33,6 +33,7 @@ export type SharedSurfaceDeps = Pick<
 	| 'caretLanding'
 	| 'getEditorRoot'
 	| 'getScrollHost'
+	| 'scrollOwner'
 	| 'getEditorLifetime'
 	| 'caretMemory'
 	| 'blockEdit'
@@ -68,7 +69,8 @@ export function wireSurfaceContexts(): SurfaceWiring {
 		activePlugins,
 		events,
 		commands,
-		selectedWidget
+		selectedWidget,
+		scrollOwner
 	} = getContext<EditorServices>(EDITOR_SERVICES_KEY);
 	const {
 		blockElLookup: getBlockElByPath,
@@ -87,6 +89,7 @@ export function wireSurfaceContexts(): SurfaceWiring {
 		caretLanding,
 		getEditorRoot,
 		getScrollHost,
+		scrollOwner,
 		getEditorLifetime: () => editorLifetime ?? null,
 		caretMemory,
 		blockEdit,

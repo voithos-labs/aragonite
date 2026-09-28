@@ -6,7 +6,7 @@ import type { Document } from '../../core/nodes';
 import { CURSOR_END, CURSOR_START, type BlockComponent } from '../../block-component';
 import { createCaretMemory } from '../../cursor/caret-memory';
 import { docPathFrom } from '../../cursor/coordinate-spaces';
-import type { ScrollSettle } from '../../editor-rects';
+import type { ScrollOwner } from '../../cursor/scroll-owner';
 import { refSlotsOver } from '../../reactivity/publish-ref.svelte';
 import { nodeAt } from '../../tree-operations/node-primitives';
 import type { ChildList } from '../../reactivity/child-list';
@@ -51,7 +51,7 @@ function mountingList(
 
 function recordingScroll(visible: boolean) {
 	const calls: string[] = [];
-	const scroll: ScrollSettle = {
+	const scroll: Pick<ScrollOwner, 'isInView' | 'place'> = {
 		isInView: () => visible,
 		place: (_path, { hold }) => {
 			calls.push(hold ? 'place, held' : 'place');

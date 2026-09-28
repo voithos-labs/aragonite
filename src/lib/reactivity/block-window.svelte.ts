@@ -5,7 +5,7 @@
  */
 import { untrack } from 'svelte';
 import type { HeightModel } from '../cursor/height-model';
-import type { Scrollport } from '../cursor/scrollport';
+import type { ScrollportReader } from '../cursor/scrollport';
 
 export interface WindowInputs {
 	scrollTop: number; // the scroll container's scrollTop, in this list's coordinates
@@ -64,7 +64,7 @@ export function computeWindow(model: HeightModel, input: WindowInputs): WindowRe
 
 export interface BlockWindowDeps {
 	getModel: () => HeightModel;
-	getPort: () => Scrollport | null;
+	getPort: () => ScrollportReader | null;
 	/** Convert the scroll container's `scrollTop` into this list's own range. Unchanged at the
 	 *  top level. */
 	getLocalScrollTop: () => number;

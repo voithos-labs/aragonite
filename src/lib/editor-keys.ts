@@ -9,7 +9,7 @@ import type { MenuPresence } from './components/menu/menu-presence.svelte';
 import type { Document } from './core/nodes';
 import type { ImageLoadPolicy } from './core/inline-render';
 import type { UserScrollport } from './cursor/scroll-ancestors';
-import type { Scrollport } from './cursor/scrollport';
+import type { ScrollportReader } from './cursor/scrollport';
 import type { PresentationMode } from './presentation-mode';
 import type { KeybindingOverrideMap } from './schema/keybinding-overrides';
 import type { EditorContext } from './schema/plugin-install';
@@ -30,7 +30,7 @@ import type { SearchState } from './search/search-state.svelte';
 import type { DecorationEngine } from './decorations/decoration-state.svelte';
 import type { CaretMemory } from './cursor/caret-memory';
 import type { AutoPairRecord } from './components/blocks/text/auto-pair-record';
-import type { RevealAnchorState } from './cursor/reveal-anchor';
+import type { ScrollOwner } from './cursor/scroll-owner';
 import type { HeightOracle } from './cursor/height-oracle';
 import type { InlineMenuCombobox } from './inline-menu/inline-menu-state.svelte';
 import type { WidgetSelectionState } from './components/image/widget-selection-state.svelte';
@@ -157,7 +157,8 @@ export interface EditorServices {
 	/** The empty delimiter pair the auto-pair last wrote, the only pair it steps over, collapses
 	 *  or deletes; each typing block takes its own view of it. */
 	autoPairs: AutoPairRecord;
-	revealAnchor: RevealAnchorState;
+	/** The one writer of the scroll position; every scroll a module wants goes through it. */
+	scrollOwner: ScrollOwner;
 	widgetSelection: WidgetSelectionState;
 	/** The image `widgetSelection` holds, as a raw span read from the live document. */
 	selectedWidget: SelectedWidgetHandle;
@@ -235,18 +236,15 @@ export interface EditorDoc {
 	/** What a drag autoscrolls: the editor root in self mode, the nearest scrollable ancestor in host
 	 *  mode, null when the page scrolls. `EditorRects` answers what bounds the visible region. */
 	scrollHost: () => UserScrollport | null;
-	/** The same scroller as `scrollHost`, in the shape windowing measures and writes it
-	 *  through. Null only before the root mounts. */
-	scrollport: () => Scrollport | null;
+	/** The same scroller as `scrollHost`, read-only, in the shape windowing measures it through.
+	 *  Null only before the root mounts; `EditorServices.scrollOwner` writes it. */
+	scrollport: () => ScrollportReader | null;
 	blockElLookup: BlockElLookup;
 	/** Live getter for the focused block's full path; it decides which block each level of
 	 *  windowing holds in place. */
 	focusedPath: FocusedPathGetter;
 	/** Per-kind height estimator, built by the root and read by nested block lists. */
 	heightOracle: HeightOracle;
-	/** True while the editor holds the user's place through a height change instead of the browser's
-	 *  scroll anchoring; the `overflow-anchor` opt-out reads the same fact. */
-	correctsScroll: () => boolean;
 	/** Counter the root bumps on an editor width resize, so every block list rebuilds its
 	 *  height table and re-measures at the new width. */
 	widthVersion: VersionGetter;

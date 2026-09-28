@@ -4,6 +4,12 @@
  * observe anything at all.
  */
 import { withRelativeScroll, type Scrollport } from '../../cursor/scrollport';
+import {
+	createScrollOwner,
+	type ScrollOwner,
+	type ScrollOwnerDeps
+} from '../../cursor/scroll-owner';
+import type { UserScrollport } from '../../cursor/scroll-ancestors';
 
 export interface StubScrollportOpts {
 	viewportHeight: number;
@@ -38,6 +44,27 @@ export function stubScrollport(opts: StubScrollportOpts): Scrollport {
 			scrollTop = snapsToPixel ? Math.round(clamped) : clamped;
 		},
 		subscribe: () => () => {}
+	});
+}
+
+// Never read: `openPort` below hands back the stub whatever host it is given.
+const STUB_HOST = {} as UserScrollport;
+
+/** The scroll owner writing `port`, with nothing mounted and the editor correcting scroll unless
+ *  a suite says otherwise. */
+export function stubScrollOwner(
+	port: Scrollport,
+	overrides: Partial<ScrollOwnerDeps> = {}
+): ScrollOwner {
+	return createScrollOwner({
+		getScrollHost: () => STUB_HOST,
+		openPort: () => port,
+		editorCorrects: () => true,
+		getBlockElByPath: () => null,
+		getEditorRoot: () => null,
+		isHostScroll: () => false,
+		getClipBounds: () => [],
+		...overrides
 	});
 }
 

@@ -70,7 +70,7 @@ function makeEnv(source: string, offset: number | null, mode?: string): Env {
 			history: {} as SharedKeydownContext['history'],
 			focus: { moveFocus } as unknown as SharedKeydownContext['focus'],
 			getDoc: () => doc,
-			getBlockElByPath: () => null
+			scrollOwner: { showNearest: () => {} }
 		}
 	};
 }

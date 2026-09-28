@@ -6,7 +6,7 @@ import { flushSync } from 'svelte';
 import type { HeightOracle } from '../../cursor/height-oracle';
 import { createListWindowing, type ListWindowing } from '../../reactivity/list-windowing.svelte';
 import { makePara } from '../harness/list-windowing.svelte';
-import { stubListEl, stubScrollport } from '../harness/stub-scrollport';
+import { stubListEl, stubScrollOwner, stubScrollport } from '../harness/stub-scrollport';
 
 const BLOCKS = 5;
 const PORT_WIDTH = 1280;
@@ -23,6 +23,7 @@ const widthOracle: HeightOracle = {
 describe("a nested list's first heights", () => {
 	it('re-estimates at the list element width once the element mounts', async () => {
 		const port = stubScrollport({ viewportHeight: 500, contentWidth: PORT_WIDTH });
+		const owner = stubScrollOwner(port);
 		let listEl = $state<HTMLElement | null>(null);
 		let windowing!: ListWindowing;
 		const cleanup = $effect.root(() => {
@@ -32,7 +33,10 @@ describe("a nested list's first heights", () => {
 				getChildIds: () => Array.from({ length: BLOCKS }, (_, i) => `b${i}`),
 				getListEl: () => listEl,
 				getPort: () => port,
-				correctsScroll: () => true,
+				scroll: {
+					compensate: (mutate, held) => owner.compensate('nested-list', mutate, held),
+					scrollToMount: owner.scrollToMount
+				},
 				getFocusPath: () => null,
 				getWidthVersion: () => 0,
 				getViewportHeightVersion: () => 0,

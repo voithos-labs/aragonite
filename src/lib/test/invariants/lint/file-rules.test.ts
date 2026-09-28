@@ -15,11 +15,13 @@ import {
 } from './scan-source';
 import {
 	describeFileRules,
+	describeManifests,
 	except,
 	notUnder,
 	svelteOnly,
 	under,
 	type FileRule,
+	type ManifestRule,
 	type Probe
 } from './file-rule';
 
@@ -417,10 +419,7 @@ const RULES: FileRule[] = [
 		matches: /setScrollTop\s*\([^;]*?\.scrollTop\s*\(\s*\)/,
 		reason:
 			'a relative scroll goes through port.scrollBy(delta), which keeps the fraction the scroller refuses (#315)',
-		reaches: [
-			'src/lib/reactivity/list-windowing.svelte.ts',
-			'src/lib/components/editor-root-geometry.ts'
-		],
+		reaches: ['src/lib/cursor/scroll-owner.ts'],
 		hits: [
 			'port.setScrollTop(port.scrollTop() + delta);',
 			'el.setScrollTop(el.scrollTop() - lost);'
@@ -1021,4 +1020,67 @@ const RULES: FileRule[] = [
 	}
 ];
 
-describeFileRules(RULES, collectEditorSources());
+// ── G4.87 one writer of the scroll position ─────────────────────────────────
+
+/** A scroll write. `scroll`/`scrollTo` count only with a position argument, so the published
+ *  `rects.scrollTo(path)` isn't one. */
+const SCROLL_WRITE_RE = new RegExp(
+	[
+		/\.scrollTop\s*(?:=(?!=)|\+=|-=|\+\+|--)/,
+		/(?:\+\+|--)\s*[\w.]+\.scrollTop\b/,
+		/\.scroll(?:To)?\s*\(\s*[{\d-]/,
+		/\bwindow\.scroll(?:To)?\s*\(/,
+		/\b(?:scrollBy|setScrollTop|scrollIntoView|createScrollport|withRelativeScroll)\s*\(/
+	]
+		.map((part) => part.source)
+		.join('|')
+);
+
+const SCROLL_WRITERS: ManifestRule[] = [
+	{
+		id: 'G4.87 only the scroll owner writes the editor’s scroll position',
+		matches: SCROLL_WRITE_RE,
+		declared: {
+			'src/lib/cursor/scroll-owner.ts':
+				'the one writer, which asks who owns the position before each write',
+			'src/lib/cursor/scrollport.ts':
+				'the scroll container’s write methods, which only the owner opens',
+			'src/lib/selection/autoscroll.ts':
+				'a drag’s own cadence, driven by the pointer; its pointerdown already dropped any hold',
+			'src/lib/components/menu/InlineMenuHost.svelte':
+				'the active row of a listbox, inside the menu’s own scroller',
+			'src/lib/components/blocks/code/CodeBlockRail.svelte':
+				'the active row of a listbox, inside the rail’s own scroller'
+		},
+		reason:
+			'a scroll write outside the scroll owner skips its check of who owns the position: call a method on `EditorServices.scrollOwner`, or declare a scroller of its own here with why',
+		reaches: ['src/lib/cursor/scroll-owner.ts'],
+		hits: [
+			'el.scrollTop = 40;',
+			'scroller.scrollTop += dy;',
+			'port.scrollBy(delta);',
+			'port.setScrollTop(top);',
+			"blockEl?.scrollIntoView({ block: 'nearest' });",
+			'const port = createScrollport(host);',
+			'withRelativeScroll(base)',
+			'el.scrollTo({ top: 40 });',
+			'el.scrollTo(0, 120);',
+			'window.scrollTo(x, y);',
+			'window.scroll(0, top);',
+			'el.scroll({ top });',
+			'scroller.scrollTop++;',
+			'--el.scrollTop;'
+		],
+		misses: [
+			'// Scrollable through script: `element.scrollTop = n` moves it.\nconst a = 1;',
+			'const top = el.scrollTop;\nif (el.scrollTop === 0) {}',
+			'scrollOwner.scrollToMount(top);\nvoid rects.scrollTo([4]);\nawait rects.scrollTo(p, opts);',
+			'return placement.scroll();\nconst landed = await deps.scroll.place(p, o).scroll();',
+			'owner.showNearest(path);'
+		]
+	}
+];
+
+const SOURCES = collectEditorSources();
+describeFileRules(RULES, SOURCES);
+describeManifests(SCROLL_WRITERS, SOURCES);

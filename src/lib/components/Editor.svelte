@@ -30,7 +30,7 @@
 	import { createCaretMemory } from '../cursor/caret-memory';
 	import { docPathFrom } from '../cursor/coordinate-spaces';
 	import { createAutoPairRecord } from './blocks/text/auto-pair-record';
-	import { createRevealAnchorState } from '../cursor/reveal-anchor';
+	import { createScrollOwner } from '../cursor/scroll-owner';
 	import { createHeightOracle } from '../cursor/height-oracle';
 	import { HEIGHT_ESTIMATES } from '../cursor/typography-estimates';
 	import { createScrollHostResolution } from './editor-root-scroll-host';
@@ -69,7 +69,7 @@
 	import { createSearchState, type SearchState } from '../search/search-state.svelte';
 	import { createDecorationEngine } from '../decorations/decoration-state.svelte';
 	import type { DecorationRegistry } from '../decorations/types';
-	import { createEditorRects, createScrollSettle, type EditorRects } from '../editor-rects';
+	import { createEditorRects, type EditorRects } from '../editor-rects';
 	import { createCaretLanding } from '../selection/caret-landing';
 	import { installReorderDrag } from '../editor-actions/reorder-drag';
 	import { createPasteCoordinator } from '../editor-actions/paste-coordinator';
@@ -177,7 +177,7 @@
 	// svelte-ignore state_referenced_locally
 	const hostScroll = scrollMode === 'host';
 
-	const { getScrollHost, getClipBounds, getScrollport } = createScrollHostResolution({
+	const { getScrollHost, getClipBounds } = createScrollHostResolution({
 		get editorEl() {
 			return editorEl;
 		},
@@ -264,7 +264,6 @@
 	const sharing = createSharingState();
 	const caretMemory = createCaretMemory();
 	const autoPairs = createAutoPairRecord();
-	const revealAnchor = createRevealAnchorState();
 	const operationsLog = createOperationsLog();
 	const events = createEditorEvents();
 	// getSelection is function-hoisted below, so every read here is a fresh snapshot.
@@ -481,7 +480,7 @@
 		if (!editorEl) return;
 		const target = getScrollHost();
 		if (!target) return;
-		return installRevealAnchorRelease(target, () => revealAnchor.releaseAll());
+		return installRevealAnchorRelease(target, scrollOwner.release);
 	});
 
 	$effect(() => {
@@ -547,12 +546,13 @@
 
 	// ── Action Bundles ──────────────────────────────────────────────────
 
-	const scrollSettle = createScrollSettle({
+	const scrollOwner = createScrollOwner({
+		getScrollHost,
+		editorCorrects: ownsScrollCorrection,
 		getBlockElByPath,
 		getEditorRoot: () => editorEl ?? null,
 		isHostScroll: () => hostScroll,
-		getClipBounds,
-		revealAnchor
+		getClipBounds
 	});
 
 	const caretLanding = createCaretLanding({
@@ -562,7 +562,7 @@
 		caretMemory,
 		getBlockElByPath,
 		getEditorRoot: () => editorEl ?? null,
-		scroll: scrollSettle
+		scroll: scrollOwner
 	});
 
 	const editorActionsDeps: EditorActionsDeps = {
@@ -614,7 +614,7 @@
 		getBlockComponent,
 		revealPath: (path) => caretLanding.mount(path, { openCollapsed: true }),
 		getEditorRoot: () => editorEl ?? null,
-		scroll: scrollSettle,
+		scroll: scrollOwner,
 		isCrossBlock: () => selectionState.isCrossBlock,
 		isHostChrome,
 		landCaretAt: navigateCaret
@@ -757,7 +757,7 @@
 		search: searchState,
 		caretMemory,
 		autoPairs,
-		revealAnchor,
+		scrollOwner,
 		widgetSelection,
 		selectedWidget,
 		linkCard,
@@ -963,6 +963,7 @@
 		revealPath: (path) => caretLanding.mount(path),
 		getEditorRoot: () => editorEl ?? null,
 		getScrollHost,
+		scrollOwner,
 		getEditorLifetime: () => lifetimeController.signal,
 		caretMemory,
 		blockEdit,
@@ -1096,14 +1097,7 @@
 	$effect(() => {
 		const el = headerEl;
 		if (!el || !editorEl) return;
-		const port = getScrollport();
-		if (!port) return;
-		return installHeaderSlotCompensation({
-			el,
-			port,
-			ownsScrollCorrection,
-			revealHoldsScroll: () => topWindowing.revealHoldsScroll()
-		});
+		return installHeaderSlotCompensation({ el, scroll: scrollOwner });
 	});
 
 	// ── Focus attribution ───────────────────────────────────────────────
@@ -1133,11 +1127,10 @@
 		lifetime: lifetimeController.signal,
 		editorRoot: () => editorEl ?? null,
 		scrollHost: getScrollHost,
-		scrollport: getScrollport,
+		scrollport: scrollOwner.port,
 		blockElLookup: getBlockElByPath,
 		focusedPath: focusAttribution.getFocusedPath,
 		heightOracle,
-		correctsScroll: ownsScrollCorrection,
 		widthVersion: () => widthVersion,
 		viewportHeightVersion: () => viewportHeightVersion
 	} satisfies EditorDoc);
@@ -1190,7 +1183,7 @@
 	// on its title row.
 	function focusInView(): boolean {
 		const focus = getSelection()?.focus;
-		return !!focus && scrollSettle.isInView(selectionState.cellLandingFor(focus).path);
+		return !!focus && scrollOwner.isInView(selectionState.cellLandingFor(focus).path);
 	}
 
 	// A navigation: it opens a closed body on the way, and holds the block where it scrolled to so

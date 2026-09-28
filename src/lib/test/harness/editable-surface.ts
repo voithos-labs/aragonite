@@ -76,6 +76,7 @@ export function makeSurface(
 		caretLanding: { mount: async () => null },
 		getDoc: () => null,
 		getBlockElByPath: () => null,
+		scrollOwner: { showNearest: () => {} },
 		getEditorRoot: () => null,
 		getEditorLifetime: () => null,
 		containerEdit: {},

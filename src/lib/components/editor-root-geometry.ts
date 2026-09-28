@@ -5,7 +5,7 @@
  */
 
 import type { UserScrollport } from '../cursor/scroll-ancestors';
-import type { Scrollport } from '../cursor/scrollport';
+import type { ScrollOwner } from '../cursor/scroll-owner';
 import { ESTIMATE_BASE_FONT_SIZE } from '../cursor/typography-estimates';
 import { onRoot, removeAll } from './editor-root-listeners';
 
@@ -81,24 +81,29 @@ function borderBoxHeight(entries: ResizeObserverEntry[], el: HTMLElement): numbe
 
 // ── Header height ───────────────────────────────────────────────────
 
+// The header has already resized when its observer fires; there is no change left to run.
+const noChange = (): void => {};
+
 export interface HeaderSlotCompensationDeps {
 	el: HTMLElement;
-	port: Pick<Scrollport, 'scrollTop' | 'scrollBy'>;
-	ownsScrollCorrection(): boolean;
-	revealHoldsScroll(): boolean;
+	scroll: Pick<ScrollOwner, 'port' | 'compensate'>;
 }
 
 /** The header is not in the height table, so its own resize adds to the scroll correction, or a
- *  growing header would slide the document; a block already held in place wins. */
+ *  growing header would slide the document. */
 export function installHeaderSlotCompensation(deps: HeaderSlotCompensationDeps): () => void {
-	const { el, port } = deps;
+	const { el, scroll } = deps;
 	let lastHeight = el.getBoundingClientRect().height;
 	const observer = new ResizeObserver((entries) => {
 		const height = borderBoxHeight(entries, el);
 		const delta = height - lastHeight;
 		lastHeight = height;
-		if (delta === 0 || !deps.ownsScrollCorrection() || port.scrollTop() === 0) return;
-		if (!deps.revealHoldsScroll()) port.scrollBy(delta);
+		if (delta === 0) return;
+		// At the top the header is on screen, so the document moving down under it is expected.
+		scroll.compensate('header', noChange, (run) => {
+			run();
+			return scroll.port()?.scrollTop() === 0 ? 0 : delta;
+		});
 	});
 	observer.observe(el);
 	return () => observer.disconnect();
