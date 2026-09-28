@@ -44,6 +44,12 @@ export class EditorPage {
 			{ timeout: 5000, polling: 16 }
 		);
 		await this.editorContainer.waitFor({ state: 'visible' });
+		// A face the new content is the first to use (a code block's monospace) starts loading at the
+		// layout the read below forces, and a point measured before it lands reflows under the spec.
+		await this.page.evaluate(() => {
+			void document.body.offsetHeight;
+			return document.fonts.ready.then(() => undefined);
+		});
 	}
 
 	/** Waits on the attribute, not the call: a mode that never applied falls back to source, where
