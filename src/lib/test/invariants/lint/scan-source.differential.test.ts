@@ -164,7 +164,12 @@ const MARKUP_CORPUS: Array<[source: string, classes: string]> = [
 	['{#if a}x{/if}</p><p>//x</p>', '.'.repeat(27)],
 	['{#each xs as x}x{ /each }</ul><p>//x</p>', '.'.repeat(40)],
 	['{#await p}x{:then v}y{:catch e}z{/await}//x', '.'.repeat(43)],
-	['{/* c */ x}', '.ccccccc...']
+	['{/* c */ x}', '.ccccccc...'],
+	// Miss-analysis: every closer row sat between tags, so nothing showed a tag's own `{/re/…}`
+	// value read as a closer.
+	['<a class={/x/.test(y) /* c */}>', '..........rrr.........ccccccc..'],
+	["<a class={/x/.test(y) ? 'grid' : ''}>", '..........rrr...........ssssss...ss..'],
+	['{#if a}x{/if\n<!-- c -->', `${'.'.repeat(13)}${'c'.repeat(10)}`]
 ];
 
 /** A stylesheet has quoted strings and block comments, and no line comments. */

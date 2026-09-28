@@ -431,9 +431,9 @@ function classifyRange(
 
 const TAG_NAME = /[\w:-]*/y;
 
-/** A `{` then a `/` that opens no comment is a block closer (`{/if}`) to Svelte, never an
- *  expression, so no regex can open there. */
-const BLOCK_CLOSER = /\{\s*\/(?![/*])[^}]*\}?/y;
+/** Between tags, Svelte reads a `{` then a `/` that opens no comment as a block closer (`{/if}`),
+ *  so no regex opens there; inside a tag it's an expression. */
+const BLOCK_CLOSER = /\{\s*\/(?![/*])\w*\s*\}?/y;
 
 /** Markup, where `//` and `/*` are prose; a `<script>` or `<style>` body lexes in its own language. */
 function classifyComponent(code: string, out: Uint8Array): void {
@@ -443,7 +443,8 @@ function classifyComponent(code: string, out: Uint8Array): void {
 		const ch = code[i];
 		if (ch === '{') {
 			BLOCK_CLOSER.lastIndex = i;
-			i = BLOCK_CLOSER.test(code) ? BLOCK_CLOSER.lastIndex - 1 : classifyExpression(code, i, out);
+			const closer = tag === null && BLOCK_CLOSER.test(code);
+			i = closer ? BLOCK_CLOSER.lastIndex - 1 : classifyExpression(code, i, out);
 		} else if (tag !== null) {
 			if (ch === '"' || ch === "'") i = classifyAttributeValue(code, i, out);
 			else if (ch === '>') {
