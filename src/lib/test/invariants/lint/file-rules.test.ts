@@ -950,21 +950,31 @@ const RULES: FileRule[] = [
 	}
 ];
 
-// ── G4.84 one writer of the scroll position ─────────────────────────────────
+// ── G4.87 one writer of the scroll position ─────────────────────────────────
 
-/** A scroll write: an assignment to `scrollTop`, a port write, a scroll into view, or the making
- *  of a writable port. */
-const SCROLL_WRITE_RE =
-	/\.scrollTop\s*(?:=(?!=)|\+=|-=)|\b(?:scrollBy|setScrollTop|scrollIntoView|createScrollport|withRelativeScroll)\s*\(/;
+/** A scroll write. `scroll`/`scrollTo` count only with a position argument, so the published
+ *  `rects.scrollTo(path)` isn't one. */
+const SCROLL_WRITE_RE = new RegExp(
+	[
+		/\.scrollTop\s*(?:=(?!=)|\+=|-=|\+\+|--)/,
+		/(?:\+\+|--)\s*[\w.]+\.scrollTop\b/,
+		/\.scroll(?:To)?\s*\(\s*[{\d-]/,
+		/\bwindow\.scroll(?:To)?\s*\(/,
+		/\b(?:scrollBy|setScrollTop|scrollIntoView|createScrollport|withRelativeScroll)\s*\(/
+	]
+		.map((part) => part.source)
+		.join('|')
+);
 
 const SCROLL_WRITERS: ManifestRule[] = [
 	{
-		id: 'G4.84 only the scroll owner writes the editor’s scroll position',
+		id: 'G4.87 only the scroll owner writes the editor’s scroll position',
 		matches: SCROLL_WRITE_RE,
 		declared: {
 			'src/lib/cursor/scroll-owner.ts':
 				'the one writer, which asks who owns the position before each write',
-			'src/lib/cursor/scrollport.ts': 'the writable port itself, which only the owner opens',
+			'src/lib/cursor/scrollport.ts':
+				'the scroll container’s write methods, which only the owner opens',
 			'src/lib/selection/autoscroll.ts':
 				'a drag’s own cadence, driven by the pointer; its pointerdown already dropped any hold',
 			'src/lib/components/menu/InlineMenuHost.svelte':
@@ -982,12 +992,20 @@ const SCROLL_WRITERS: ManifestRule[] = [
 			'port.setScrollTop(top);',
 			"blockEl?.scrollIntoView({ block: 'nearest' });",
 			'const port = createScrollport(host);',
-			'withRelativeScroll(base)'
+			'withRelativeScroll(base)',
+			'el.scrollTo({ top: 40 });',
+			'el.scrollTo(0, 120);',
+			'window.scrollTo(x, y);',
+			'window.scroll(0, top);',
+			'el.scroll({ top });',
+			'scroller.scrollTop++;',
+			'--el.scrollTop;'
 		],
 		misses: [
 			'// Scrollable through script: `element.scrollTop = n` moves it.\nconst a = 1;',
 			'const top = el.scrollTop;\nif (el.scrollTop === 0) {}',
-			'scrollOwner.scrollToMount(top);\nvoid rects.scrollTo([4]);',
+			'scrollOwner.scrollToMount(top);\nvoid rects.scrollTo([4]);\nawait rects.scrollTo(p, opts);',
+			'return placement.scroll();\nconst landed = await deps.scroll.place(p, o).scroll();',
 			'owner.showNearest(path);'
 		]
 	}

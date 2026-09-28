@@ -8,7 +8,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { flushSync } from 'svelte';
 import { installHeaderSlotCompensation } from '../../components/editor-root-geometry';
 import { createEditorRects } from '../../editor-rects';
-import type { EditorDoc } from '../../editor-keys';
+import type { EditorDoc, EditorServices } from '../../editor-keys';
 import type { ScrollOwner } from '../../cursor/scroll-owner';
 import { scrollFocusBlockIntoView } from '../../selection/keyboard-extend';
 import type { SelectionState } from '../../selection/selection-state.svelte';
@@ -367,11 +367,13 @@ describe('scroll owner: the edges', () => {
 
 describe('scroll owner: the port every other module holds', () => {
 	it('has no write method, so a write outside the owner fails to type-check', () => {
-		const tryToWrite = (doc: EditorDoc) => {
+		const tryToWrite = (doc: EditorDoc, services: EditorServices) => {
 			// @ts-expect-error `EditorDoc.scrollport` reads; widening it to the writer fails `npm run check`.
 			doc.scrollport()?.setScrollTop(0);
 			// @ts-expect-error the relative write is the owner's too.
 			doc.scrollport()?.scrollBy(1);
+			// @ts-expect-error the owner hands out the same read-only view.
+			services.scrollOwner.port()?.setScrollTop(0);
 		};
 		expect(tryToWrite).toBeTypeOf('function');
 	});

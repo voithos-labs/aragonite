@@ -46,7 +46,9 @@ export interface TargetResolver {
 }
 
 /** Who runs a height change, which decides what a held placement does across it: only the root
- *  list re-places, and the header slot stands down only when the scroll already sits on target. */
+ *  list re-places, and the header slot writes nothing only when the scroll already sits on target.
+ *  An interim: it goes once the root list's correction comes from installing the resolver, so no
+ *  caller passes a string. */
 export type CompensationSource = 'root-list' | 'nested-list' | 'header';
 
 export interface ScrollOwner {
@@ -82,7 +84,8 @@ export interface ScrollOwner {
 export interface ScrollOwnerDeps {
 	/** The element the editor scrolls, or null before the root mounts. */
 	getScrollHost(): UserScrollport | null;
-	/** Opens the scroll host as a writable port; a unit test hands in a stub. */
+	/** Opens the scroll host as a scroll container the owner can write; a unit test hands in a
+	 *  stub. */
 	openPort?: (host: UserScrollport) => Scrollport;
 	/** False while the browser's own scroll anchoring holds the user's place (host mode, root not
 	 *  windowing): two writers on one position correct it twice. */
