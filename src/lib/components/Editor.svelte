@@ -538,7 +538,8 @@
 		}
 	};
 
-	// The non-scrolling counterpart of `revealPath`, shared by the rect API and the test hooks.
+	// The component already mounted at `path`, mounting nothing; shared by the rect API and the
+	// test hooks.
 	function getBlockComponent(path: number[]): BlockComponent | null {
 		return componentAt(rootList, path);
 	}
@@ -562,12 +563,6 @@
 		getEditorRoot: () => editorEl ?? null,
 		scroll: scrollSettle
 	});
-
-	// Opens a collapsed body on the way: the restores and cross-block moves that mount through
-	// here aim at a hidden body without retargeting to its title row.
-	function revealPath(path: number[]): Promise<BlockComponent | null> {
-		return caretLanding.mount(path, { openCollapsed: true });
-	}
 
 	const editorActionsDeps: EditorActionsDeps = {
 		get doc() {
@@ -616,7 +611,7 @@
 	const rects = createEditorRects({
 		getBlockElByPath,
 		getBlockComponent,
-		revealPath,
+		revealPath: (path) => caretLanding.mount(path, { openCollapsed: true }),
 		getEditorRoot: () => editorEl ?? null,
 		scroll: scrollSettle,
 		isCrossBlock: () => selectionState.isCrossBlock,
@@ -964,7 +959,7 @@
 		getDoc,
 		getBlockElByPath,
 		caretLanding,
-		revealPath,
+		revealPath: (path) => caretLanding.mount(path),
 		getEditorRoot: () => editorEl ?? null,
 		getScrollHost,
 		getEditorLifetime: () => lifetimeController.signal,

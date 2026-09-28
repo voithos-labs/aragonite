@@ -237,8 +237,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		getDoc: deps.getDoc,
 		getBlockElByPath: deps.getBlockElByPath,
 		caretLanding: deps.caretLanding,
-		// Opens a collapsed body on the way, as the editor root's own cross-block handlers do.
-		revealPath: (path) => deps.caretLanding.mount(path, { openCollapsed: true }),
+		revealPath: (path) => deps.caretLanding.mount(path),
 		getEditorRoot: deps.getEditorRoot,
 		getScrollHost: deps.getScrollHost,
 		getEditorLifetime: deps.getEditorLifetime,
