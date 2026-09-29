@@ -178,7 +178,8 @@ export function blockPaintsWholeBox(
 	if (wholeUnitPath) return pathsEqual(path, wholeUnitPath);
 	const { start, end } = coverage.range;
 	if (pathsEqual(start.path, end.path)) return false;
-	return coverage.wholeRoots.some((root) => pathsEqual(root, path));
+	const root = coverage.rootHolding(path);
+	return root !== null && pathsEqual(root, path);
 }
 
 /** The end-exclusive offsets an endpoint block measures its highlight between: a kept table

@@ -15,7 +15,6 @@ import {
 	comparePaths,
 	isPathBetween,
 	isPathSubtreeBetween,
-	isStrictAncestorOf,
 	pathHasPrefix,
 	pathsEqual,
 	type DocPath
@@ -97,9 +96,9 @@ export function coverRange(doc: DocumentView, a: SelectionPoint, b: SelectionPoi
 /** What a covered range holds, read once by the delete, the copy, the format toggle and the
  *  overlay. Built by `rangeCoverage` only, so no consumer can be handed a hand-made answer. */
 export class RangeCoverage {
-	// Never read: the private field makes the type nominal, as `CoveredRange`'s does.
-	// eslint-disable-next-line no-unused-private-class-members
-	readonly #coverage = true;
+	// Private, so the type is nominal as `CoveredRange` is; keyed so a lookup costs the path's depth.
+	readonly #wholeByKey: ReadonlyMap<string, DocPath>;
+	readonly #coveredByKey: ReadonlyMap<string, DocPath>;
 	readonly range: CoveredRange;
 	/** The start block's kept head, from its first byte or cell to the start; null where the
 	 *  range holds the block whole. */
@@ -129,17 +128,19 @@ export class RangeCoverage {
 		this.grid = fields.grid;
 		this.startCells = fields.startCells;
 		this.endCells = fields.endCells;
+		this.#wholeByKey = byKey(fields.wholeRoots);
+		this.#coveredByKey = byKey(fields.coveredWhole);
 		Object.freeze(this);
 	}
 
 	/** The whole root holding `path`, or null. */
 	rootHolding(path: readonly number[]): DocPath | null {
-		return this.wholeRoots.find((root) => pathHasPrefix(path, root)) ?? null;
+		return rootAmong(this.#wholeByKey, path);
 	}
 
 	/** The subtree in `coveredWhole` holding `path`, or null. */
 	coveredRootHolding(path: readonly number[]): DocPath | null {
-		return this.coveredWhole.find((root) => pathHasPrefix(path, root)) ?? null;
+		return rootAmong(this.#coveredByKey, path);
 	}
 }
 
@@ -376,28 +377,57 @@ function lastChildDescendant(container: ChromeContainer, path: readonly number[]
 	return node;
 }
 
-/** `held` plus every container all of whose children it holds, up to the document. */
+/** `held` plus every container all of whose children it holds, up to the document, each once. */
 function withWholeParents(doc: DocumentView, held: readonly (readonly number[])[]): number[][] {
-	const all = held.map((p) => p.slice());
-	const keys = new Set(all.map(pathKey));
+	const all: number[][] = [];
+	const keys = new Set<string>();
+	const add = (path: readonly number[]): void => {
+		const key = pathKey(path);
+		if (keys.has(key)) return;
+		keys.add(key);
+		all.push(path.slice());
+	};
+	held.forEach(add);
+	// Each container counts its held children as they arrive, so it is found whole in one pass.
+	const heldChildren = new Map<string, { held: number; of: number }>();
 	for (let i = 0; i < all.length; i++) {
 		const parentPath = all[i].slice(0, -1);
-		if (parentPath.length === 0 || keys.has(pathKey(parentPath))) continue;
-		const count = nodeAt(doc, parentPath)?.children?.length ?? 0;
-		let whole = count > 0;
-		for (let c = 0; whole && c < count; c++) whole = keys.has(pathKey([...parentPath, c]));
-		if (!whole) continue;
-		keys.add(pathKey(parentPath));
-		all.push(parentPath);
+		if (parentPath.length === 0) continue;
+		const parentKey = pathKey(parentPath);
+		let tally = heldChildren.get(parentKey);
+		if (!tally) {
+			tally = { held: 0, of: nodeAt(doc, parentPath)?.children?.length ?? 0 };
+			heldChildren.set(parentKey, tally);
+		}
+		if (++tally.held === tally.of) add(parentPath);
 	}
 	return all;
 }
 
+/** The paths no other path holds, each once, in document order. */
 function outermost(paths: readonly number[][]): DocPath[] {
-	const roots = paths.filter(
-		(p, i) => !paths.some((q, j) => isStrictAncestorOf(q, p) || (j < i && pathsEqual(q, p)))
-	);
-	return roots.sort(comparePaths).map(docPathFrom);
+	const roots: DocPath[] = [];
+	// Document order puts every path a root holds right behind it, so only the last root can hold one.
+	for (const path of paths.slice().sort(comparePaths)) {
+		const last = roots.at(-1);
+		if (!last || !pathHasPrefix(path, last)) roots.push(docPathFrom(path));
+	}
+	return roots;
+}
+
+function byKey(roots: readonly DocPath[]): ReadonlyMap<string, DocPath> {
+	return new Map(roots.map((root) => [pathKey(root), root]));
+}
+
+/** The root in `roots` that is `path` or one of its ancestors; roots never nest, so at most one. */
+function rootAmong(roots: ReadonlyMap<string, DocPath>, path: readonly number[]): DocPath | null {
+	let key = '';
+	for (let depth = 0; depth < path.length; depth++) {
+		key = depth === 0 ? `${path[0]}` : `${key}.${path[depth]}`;
+		const root = roots.get(key);
+		if (root) return root;
+	}
+	return null;
 }
 
 function pathKey(path: readonly number[]): string {
