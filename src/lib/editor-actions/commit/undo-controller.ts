@@ -31,6 +31,7 @@ import { ensureUnsharedPath, rebuildOwnedContainer } from '../../tree-operations
 import {
 	attachedChainPrefix,
 	rebuildUnsharedChain,
+	sharedChainFloors,
 	type AncestrySeamFold,
 	type ContainerReclassification
 } from '../../tree-operations/chain-rebuild';
@@ -747,7 +748,11 @@ export function createUndoController(
 				}
 				// Deepest first, so an outer chain concatenates current inner raws; the attached prefix
 				// keeps a scope spliced out of the tree from being rebuilt off its emptied children.
-				for (const p of [...prepared].sort((a, b) => b.chain.length - a.chain.length)) {
+				const order = [...prepared].sort((a, b) => b.chain.length - a.chain.length);
+				// An ancestor several scopes share is rebuilt once, by the last chain holding it.
+				const floors = sharedChainFloors(order.map((p) => p.chain));
+				const readsWhole = new Set<CstNode>();
+				order.forEach((p, i) => {
 					const before = folds.length;
 					reclassified.push(
 						...rebuildUnsharedChain(
@@ -755,11 +760,13 @@ export function createUndoController(
 							attachedChainPrefix(deps.doc, p.chain),
 							deps.sharing,
 							folds,
-							deps.reading.grammar
+							deps.reading.grammar,
+							undefined,
+							{ floor: floors[i], readsWhole }
 						)
 					);
 					foldLanding = foldLandingFor(folds.slice(before), p.target.path) ?? foldLanding;
-				}
+				});
 				unwindFolds = publishAncestryFolds(deps, folds);
 				// The document commit above runs the same two steps until the two branches merge.
 				keepOpenTail(deps.doc, wasOpen, deps.sharing, deps.reading.grammar);

@@ -189,7 +189,7 @@ const sameCounts = (a: Record<string, number>, b: Record<string, number>): boole
 interface Report {
 	/** `path:line name` for each call in a file the list leaves out. */
 	unpinned: string[];
-	/** A listed file whose calls no longer match its counts, either way. */
+	/** A listed file whose calls differ from its counts, either way. */
 	miscounted: string[];
 }
 
