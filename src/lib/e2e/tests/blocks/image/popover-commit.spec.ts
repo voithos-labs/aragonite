@@ -60,10 +60,11 @@ test.describe('image popover commit', () => {
 
 	// An open field holds a copy of bytes the document can move past, and committing on dismiss
 	// would put them back over the change.
-	test('an undo taken while the popover is open re-seeds it, so the dismiss commits nothing stale', async ({
+	test('an undo taken while the popover is open closes it, and nothing stale is committed', async ({
 		page
 	}) => {
-		await editor.loadContent('outside paragraph.\n\n![cat](/test-fixtures/sample.png)\n');
+		const SOURCE = 'outside paragraph.\n\n![cat](/test-fixtures/sample.png)\n';
+		await editor.loadContent(SOURCE);
 		const widget = page.locator('[data-image-widget]').first();
 
 		await widget.click();
@@ -80,6 +81,12 @@ test.describe('image popover commit', () => {
 		await page.keyboard.press('Escape');
 		await editor.undo();
 		await editor.bridge.waitForSourceNotContains('cat v1');
+		// The undo's caret ends the image, and the popover closing with it must not commit the
+		// draft it held back over the undo.
+		await expect(page.locator('.md-image-properties')).toHaveCount(0);
+		await editor.waitForNoSourceMutation();
+		expect(await editor.bridge.getSource()).toBe(SOURCE);
+		await widget.click();
 		altInput = await openImageField(page);
 		await expect(altInput).toHaveValue('cat');
 		await page.keyboard.press('Escape');
