@@ -3,12 +3,10 @@ import {
 	CHILD_MEASURE_KEY,
 	EDITOR_DOC_KEY,
 	EDITOR_SERVICES_KEY,
-	PARENT_SCOPE_SINK_KEY,
 	type BlockElLookup,
 	type ChildMeasureChannel,
 	type EditorDoc,
-	type EditorServices,
-	type ParentScopeSink
+	type EditorServices
 } from '../editor-keys';
 import type { NodeView } from '../core/node-views';
 import type { Compensate, RootListScroll, TargetResolver } from '../cursor/scroll-owner';
@@ -17,17 +15,12 @@ import { checkMeasuresInOwnList } from '../invariants/measures-in-own-list';
 import { createListWindowing, type ListWindowing } from './list-windowing.svelte';
 
 export interface ContainerWindowingOpts {
-	/** This container's index in the list above it, for the subtotal it reports upward. A
-	 *  getter, so a reorder reports under the current index. */
-	getIndex: () => number;
 	/** This list's path. */
 	getParentPath: () => number[];
 	getChildren: () => readonly NodeView[];
 	getChildIds: () => string[];
 	/** The element that scrolls with this list's children. Never the viewport. */
 	getListEl: () => HTMLElement | null;
-	/** The element the parent measures for this list's height. Omit at the root. */
-	getOwnEl?: () => HTMLElement | null;
 	/** True while collapsed; see `ListWindowingDeps.isCollapsed`. */
 	isCollapsed?: () => boolean;
 }
@@ -98,9 +91,8 @@ export function useRootWindowing(
 	const scrollOwner = getContext<EditorServices | undefined>(EDITOR_SERVICES_KEY)?.scrollOwner;
 	const { blockElLookup } = getContext<EditorDoc>(EDITOR_DOC_KEY);
 	let scroll: RootListScroll | null = null;
-	const windowing = windowingUnit(
-		{ ...opts, getIndex: () => 0, getParentPath: () => [] },
-		(mutate, held) => (scroll ? scroll.compensate(mutate, held) : mutate())
+	const windowing = windowingUnit({ ...opts, getParentPath: () => [] }, (mutate, held) =>
+		scroll ? scroll.compensate(mutate, held) : mutate()
 	);
 	if (scrollOwner) {
 		scroll = scrollOwner.resolveTargetsWith(
@@ -119,7 +111,6 @@ function windowingUnit(opts: ContainerWindowingOpts, compensate: Compensate): Li
 		widthVersion: getWidthVersion,
 		viewportHeightVersion: getViewportHeightVersion
 	} = getContext<EditorDoc>(EDITOR_DOC_KEY);
-	const parentSink = getContext<ParentScopeSink | undefined>(PARENT_SCOPE_SINK_KEY);
 	const scrollOwner = getContext<EditorServices | undefined>(EDITOR_SERVICES_KEY)?.scrollOwner;
 
 	const windowing = createListWindowing({
@@ -127,7 +118,6 @@ function windowingUnit(opts: ContainerWindowingOpts, compensate: Compensate): Li
 		getChildren: opts.getChildren,
 		getChildIds: opts.getChildIds,
 		getListEl: opts.getListEl,
-		getOwnEl: opts.getOwnEl,
 		getPort: () => getPort?.() ?? null,
 		scroll: {
 			compensate,
@@ -137,9 +127,6 @@ function windowingUnit(opts: ContainerWindowingOpts, compensate: Compensate): Li
 		getWidthVersion: () => getWidthVersion?.() ?? 0,
 		getViewportHeightVersion: () => getViewportHeightVersion?.() ?? 0,
 		getParentPath: opts.getParentPath,
-		reportSelfHeight: parentSink
-			? (h) => parentSink.setChildSubtotal(opts.getIndex(), h)
-			: undefined,
 		isCollapsed: opts.isCollapsed,
 		// Wide enough that a fast scroll rarely outruns the window recompute and paints an empty
 		// spacer (VR-8), narrow enough to keep the count of mounted blocks low.
@@ -162,9 +149,6 @@ function windowingUnit(opts: ContainerWindowingOpts, compensate: Compensate): Li
 		measureNow: windowing.measureChildNow,
 		measureOnResize: windowing.measureChildOnResize
 	} satisfies ChildMeasureChannel);
-	setContext(PARENT_SCOPE_SINK_KEY, {
-		setChildSubtotal: windowing.setChildSubtotal
-	} satisfies ParentScopeSink);
 
 	return windowing;
 }

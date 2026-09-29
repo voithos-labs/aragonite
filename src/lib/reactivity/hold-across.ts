@@ -43,7 +43,8 @@ export function heldBlock(
 	localTop: number,
 	focusedIndex: number | null
 ): HeldBlock | null {
-	if (before.model.size === 0) return null;
+	// Past the end this whole list is above the viewport, so the list it sits in corrects for it.
+	if (before.model.size === 0 || localTop >= before.model.total()) return null;
 	const topIndex = before.model.indexAtOffset(localTop);
 	const onScreen = focusedIndex ?? -1;
 	const focused = indexBefore(before, after, onScreen);

@@ -1,7 +1,6 @@
 /**
  * One windowing unit per block list, the editor root or a nested container: its height table
  * and mounted range, read against the editor's one scroll container in this list's coordinates.
- * Reports its box height upward so the spacers above stay correct.
  * See `docs/design/virtual-rendering.md` § Nesting.
  */
 import { tick, untrack } from 'svelte';
@@ -52,12 +51,6 @@ export interface ListWindowingDeps {
 	getViewportHeightVersion: () => number;
 	/** This list's path (the `parentPath` its children render under). `[]` at top level. */
 	getParentPath: () => number[];
-	/** This list's own measurable box; re-measured when its contents reflow, to report a fresh
-	 *  subtotal upward. Absent at top level. */
-	getOwnEl?: () => HTMLElement | null;
-	/** Report this list's box height to the parent list's `setChildSubtotal` (absent at top
-	 *  level). */
-	reportSelfHeight?: (height: number) => void;
 	/** While true the list mounts only its title row and skips the window math: collapsing
 	 *  removes height, and a clamped slice would emit the body as one giant spacer. */
 	isCollapsed?: () => boolean;
@@ -75,9 +68,6 @@ export interface MeasuredChild {
 
 export interface ListWindowing {
 	readonly window: WindowResult;
-	/** A subtotal a child container reported up: the height estimator and the height table,
-	 *  addressed by index. No scroll correction. */
-	setChildSubtotal(index: number, total: number): void;
 	/** Queues a child for the batched measure pass after the flush that registered it, so a fast
 	 *  scroll that mounts many costs one reflow. Returns the unregister function. */
 	registerChild(id: string, child: MeasuredChild): () => void;
@@ -267,29 +257,6 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 	// the clamp.
 	const effectiveWindow = $derived.by(() => (deps.isCollapsed?.() ? collapsedWindow : win.result));
 
-	// The box height, not the table total, so it agrees with the parent's measure of the same box;
-	// an unchanged box reports nothing, or the upward writes chain inside one resize frame.
-	let reportedSelfHeight = 0;
-	$effect(() => {
-		void heightVersion;
-		const el = deps.getOwnEl?.();
-		const report = deps.reportSelfHeight;
-		if (!el || !report) return;
-		// After the flush, like the batch: on this effect's first run the children aren't rendered.
-		let live = true;
-		void tick().then(() => {
-			if (!live) return;
-			const h = el.getBoundingClientRect().height;
-			if (h > 0 && Math.abs(h - reportedSelfHeight) >= 1) {
-				reportedSelfHeight = h;
-				report(h);
-			}
-		});
-		return () => {
-			live = false;
-		};
-	});
-
 	// The batch with no scroll correction: the caller owns that, because nesting a second
 	// correction inside an outer `mutate` counts the delta twice.
 	function drainMeasurements(): void {
@@ -342,20 +309,6 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 	return {
 		get window() {
 			return effectiveWindow;
-		},
-		// List items aren't BlockHosts and nothing else records their heights, so without this
-		// write a parent rebuild would fall back to estimates for them and the viewport jumps.
-		setChildSubtotal(index, total) {
-			const id = table.ids[index];
-			if (id !== undefined) deps.oracle.recordMeasured(id, total);
-			if (index >= table.model.size || table.model.heightOf(index) === total) return;
-			const write = () => {
-				table.model.setHeight(index, total);
-				heightVersion++;
-			};
-			// Holds nothing, a stopgap until each list measures its child containers' boxes itself and
-			// this upward report goes; a scroll into view in progress still keeps its target placed.
-			deps.scroll.compensate(write, (run) => holdAcross(table, () => table, null, run));
 		},
 		// Read after the flush that mounted the child, not inside it: content can land later in
 		// that flush (an inline widget's root), and measuring an empty block costs a correction.

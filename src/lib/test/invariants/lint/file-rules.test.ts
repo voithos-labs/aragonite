@@ -1424,14 +1424,6 @@ const CORRECTIONS: Record<string, { calls: number; reason: string }> = {
 		calls: 1,
 		reason: 'the one pick of the block a list keeps still'
 	},
-	'src/lib/reactivity/list-windowing.svelte.ts :: setChildSubtotal :: compensate': {
-		calls: 1,
-		reason: 'the upward subtotal, a stopgap until each list measures its child containers itself'
-	},
-	'src/lib/reactivity/list-windowing.svelte.ts :: setChildSubtotal :: zero hold': {
-		calls: 1,
-		reason: 'the same stopgap holds nothing'
-	},
 	'src/lib/reactivity/use-container-windowing.svelte.ts :: useContainerWindowing :: compensate': {
 		calls: 1,
 		reason: 'hands a nested list’s correction to the scroll owner'
@@ -1447,17 +1439,23 @@ const CORRECTIONS: Record<string, { calls: number; reason: string }> = {
 	}
 };
 
-const CORRECTION_KINDS: { kind: string; callee: string; counts: (args: string) => boolean }[] = [
+interface CallKind {
+	kind: string;
+	callee: string;
+	counts: (args: string) => boolean;
+}
+
+const CORRECTION_KINDS: CallKind[] = [
 	{ kind: 'compensate', callee: 'compensate', counts: () => true },
 	{ kind: 'heldBlock', callee: 'heldBlock', counts: () => true },
 	{ kind: 'zero hold', callee: 'holdAcross', counts: (args) => callArguments(args)[2] === 'null' }
 ];
 
 /** Each `path :: function :: kind` in `file` with its count; a definition or signature isn't a call. */
-function correctionSites(file: SourceFile): Map<string, number> {
+function callSites(file: SourceFile, kinds: CallKind[]): Map<string, number> {
 	const found = new Map<string, number>();
 	const { code } = file;
-	for (const { kind, callee, counts } of CORRECTION_KINDS) {
+	for (const { kind, callee, counts } of kinds) {
 		for (const match of code.matchAll(new RegExp(`(?<![\\w$])${callee}\\s*\\(`, 'g'))) {
 			const open = match.index + match[0].length;
 			const args = balancedCall(code, open);
@@ -1490,7 +1488,9 @@ const HELD_BRANDS: FileRule = {
 function describeCorrections(sources: SourceFile[]): void {
 	describe('G4.93 every height correction is declared, and a list’s holds what `heldBlock` picks', () => {
 		it('the calls are exactly the declared ones', () => {
-			const found = Object.fromEntries(sources.flatMap((file) => [...correctionSites(file)]));
+			const found = Object.fromEntries(
+				sources.flatMap((file) => [...callSites(file, CORRECTION_KINDS)])
+			);
 			const declared = Object.fromEntries(
 				Object.entries(CORRECTIONS).map(([site, { calls }]) => [site, calls])
 			);
@@ -1501,7 +1501,8 @@ function describeCorrections(sources: SourceFile[]): void {
 		});
 
 		it('the census counts calls where they sit and skips a definition or a signature', () => {
-			const sites = (code: string) => Object.fromEntries(correctionSites(probeFile(code)));
+			const sites = (code: string) =>
+				Object.fromEntries(callSites(probeFile(code), CORRECTION_KINDS));
 			expect(
 				sites(
 					'function a() {\n\tdeps.scroll.compensate(w, (run) => holdAcross(t, () => t, null, run));\n}'
@@ -1516,6 +1517,72 @@ function describeCorrections(sources: SourceFile[]): void {
 			expect(sites('compensate(mutate, held) {\n\tcompensations++;\n}')).toEqual({});
 			expect(sites('compensate(mutate: () => void, held: Held): void;')).toEqual({});
 			expect(sites('// compensate(mutate, held);\nconst a = 1;')).toEqual({});
+		});
+	});
+}
+
+// ── G4.97 one way a child's height reaches its list's table ─────────────────
+
+/** Every write of a measured height and every registration with a list, keyed like G4.93. */
+const MEASURE_WRITES: Record<string, { calls: number; reason: string }> = {
+	'src/lib/reactivity/list-windowing.svelte.ts :: applyMeasured :: table write': {
+		calls: 1,
+		reason:
+			'the one write of a child’s height into its list’s table, only while the slot holds that id'
+	},
+	'src/lib/reactivity/list-windowing.svelte.ts :: applyMeasured :: cache write': {
+		calls: 1,
+		reason: 'records the height under the id the child passed'
+	},
+	'src/lib/reactivity/list-windowing.svelte.ts :: applyHeight :: applyMeasured': {
+		calls: 1,
+		reason: 'the batched pass applies each registered child through the one write'
+	},
+	'src/lib/reactivity/use-container-windowing.svelte.ts :: register :: registration': {
+		calls: 1,
+		reason: 'the channel every list provides, which checks the child is its own'
+	}
+};
+
+const MEASURE_KINDS: CallKind[] = [
+	{ kind: 'table write', callee: 'setHeight', counts: () => true },
+	{ kind: 'cache write', callee: 'recordMeasured', counts: () => true },
+	{ kind: 'applyMeasured', callee: 'applyMeasured', counts: () => true },
+	{ kind: 'registration', callee: 'registerChild', counts: () => true }
+];
+
+/** The channel is read only by the hook that owns the three triggers. */
+const MEASURE_CHANNEL: ManifestRule = {
+	id: 'G4.97 only `useMeasuredChild` reads a list’s measure channel',
+	matches: /(?<![\w$])CHILD_MEASURE_KEY\b/,
+	declared: {
+		'src/lib/editor-keys.ts': 'defines the key',
+		'src/lib/reactivity/use-container-windowing.svelte.ts': 'every list provides the channel',
+		'src/lib/reactivity/use-measured-child.svelte.ts':
+			'the one reader, which registers at mount, re-measures after an edit and on a resize'
+	},
+	reason:
+		'a child that reads the channel itself wires its own triggers, and a hand-wired copy misses one: call `useMeasuredChild`',
+	hits: ['const channel = getContext(CHILD_MEASURE_KEY);'],
+	misses: [
+		'const channel = getContext(CHILD_MEASURE_KEYS);',
+		'// `CHILD_MEASURE_KEY` is the channel.\nconst a = 1;'
+	]
+};
+
+function describeMeasureWrites(sources: SourceFile[]): void {
+	describe('G4.97 a child’s height reaches its list’s table through one write', () => {
+		it('the writes and registrations are exactly the declared ones', () => {
+			const found = Object.fromEntries(
+				sources.flatMap((file) => [...callSites(file, MEASURE_KINDS)])
+			);
+			const declared = Object.fromEntries(
+				Object.entries(MEASURE_WRITES).map(([site, { calls }]) => [site, calls])
+			);
+			expect(
+				found,
+				'a list’s height table is written or registered with outside its one write: measure a child through `useMeasuredChild`, or declare the call here with why'
+			).toEqual(declared);
 		});
 	});
 }
@@ -1572,4 +1639,6 @@ describeManifests(SCROLL_WRITERS, SOURCES);
 describeManifests(BARE_FOCUSES, SOURCES);
 describeFileRules([HELD_BRANDS], SOURCES);
 describeCorrections(SOURCES);
+describeMeasureWrites(SOURCES);
+describeManifests([MEASURE_CHANNEL], SOURCES);
 describeManifests(SELECTION_WRITERS, SOURCES);

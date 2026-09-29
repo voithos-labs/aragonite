@@ -144,7 +144,6 @@
 	});
 
 	const windowing = useContainerWindowing({
-		getIndex: () => index,
 		getParentPath: () => myPath,
 		getChildren: () => node.children ?? [],
 		getChildIds: () => listState.innerBlockIds,

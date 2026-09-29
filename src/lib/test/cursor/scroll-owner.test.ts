@@ -267,15 +267,6 @@ const ROWS: Record<keyof ScrollWrites, Row[]> = {
 			}
 		},
 		{
-			name: 'a subtotal a nested list reports to the root list',
-			run: (f) => f.windowing.setChildSubtotal(2, HEIGHTS.b2 + GROWTH),
-			expect: {
-				'host anchoring holds': scrollTopIs(START),
-				'a held placement is live': scrollTopIs(HELD_TOP + GROWTH),
-				free: scrollTopIs(START)
-			}
-		},
-		{
 			name: 'the header slot growing, the held block off its target',
 			scrollTop: OFF_TARGET,
 			run: growHeader,

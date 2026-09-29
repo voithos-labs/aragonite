@@ -3,7 +3,7 @@
 // re-place the target's absolute position after a change, because the browser's own clamping
 // outpaces a relative delta while unmounted images still measure about zero.
 import { describe, it, expect } from 'vitest';
-import { flushSync } from 'svelte';
+import { flushSync, tick } from 'svelte';
 import type { PlaceBlock } from '../../cursor/scroll-owner';
 import type { RootPlacement } from '../../reactivity/use-container-windowing.svelte';
 import {
@@ -62,12 +62,20 @@ describe('list-windowing reveal anchor', () => {
 		cleanup();
 	});
 
-	// Miss-analysis (GH #32): no case drove the subtotal a child reports upward, only corrections.
-	describe('growth reported upward by a nested scope', () => {
+	// Miss-analysis (GH #32): no case drove a nested container growing, only corrections.
+	describe('a container above the target growing, measured by its host', () => {
 		// b2 grows from 30 to 130, entirely above the target, so b4's offset moves from 100 to 200.
 		const GROW_INDEX = 2;
-		const GROWN_TOTAL = 130;
+		const GROWN = 130;
 		const TARGET = 4;
+
+		async function growB2(scope: MountedListWindowing): Promise<void> {
+			let height = HEIGHTS.b2;
+			scope.windowing.registerChild('b2', { index: GROW_INDEX, readHeight: () => height });
+			await tick();
+			height = GROWN;
+			scope.windowing.measureChildOnResize('b2', GROWN);
+		}
 
 		it('re-places the target while a placement holds it', async () => {
 			const scope = mountScope();
@@ -75,20 +83,20 @@ describe('list-windowing reveal anchor', () => {
 			expect(scope.port.scrollTop()).toBe(100);
 			hold(scope, [TARGET]);
 
-			scope.windowing.setChildSubtotal(GROW_INDEX, GROWN_TOTAL);
+			await growB2(scope);
 
 			expect(scope.port.scrollTop()).toBe(200);
 			scope.cleanup();
 		});
 
-		it('stays correction-free with nothing held (no cascade up the chain)', async () => {
-			const { windowing, cleanup, port } = mountScope();
-			await windowing.revealChild(TARGET);
+		it('with nothing held, keeps the block at the top still', async () => {
+			const scope = mountScope();
+			await scope.windowing.revealChild(TARGET);
 
-			windowing.setChildSubtotal(GROW_INDEX, GROWN_TOTAL);
+			await growB2(scope);
 
-			expect(port.scrollTop()).toBe(100);
-			cleanup();
+			expect(scope.port.scrollTop()).toBe(200);
+			scope.cleanup();
 		});
 	});
 

@@ -50,10 +50,10 @@ const ROWS: Row[] = [
 	caseOf('lst 0, focused at the top', 0, [2, 0], 'a'),
 	caseOf('lst 0, focus outside this list', 0, [3, 4], null),
 	caseOf('lst 0, no focus', 0, null, null),
-	caseOf('past the end, focused at the top', PAST_END, [2, 5], 'f'),
-	caseOf('past the end, focused above the top', PAST_END, [2, 1], 'f'),
-	caseOf('past the end, focus outside this list', PAST_END, [3, 4], 'f'),
-	caseOf('past the end, no focus', PAST_END, null, 'f')
+	caseOf('past the end, focused on its last block', PAST_END, [2, 5], null),
+	caseOf('past the end, focused above the top', PAST_END, [2, 1], null),
+	caseOf('past the end, focus outside this list', PAST_END, [3, 4], null),
+	caseOf('past the end, no focus', PAST_END, null, null)
 ];
 
 /** How far each held block moves when block a grows 30px, when a 40px block goes in before d,
@@ -62,7 +62,6 @@ const MOVES: Record<string, [grown: number, inserted: number, removed: number]> 
 	a: [0, 0, 0],
 	c: [30, 0, 0],
 	e: [30, 40, 0],
-	f: [30, 40, 0],
 	nothing: [0, 0, 0]
 };
 

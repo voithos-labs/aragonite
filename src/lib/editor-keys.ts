@@ -125,12 +125,6 @@ export interface ChildMeasureChannel {
 	measureOnResize(id: string, observedHeight: number): void;
 }
 
-/** @internal A nested container pushes its box subtotal to the block list above it. */
-export const PARENT_SCOPE_SINK_KEY = Symbol('parent-scope-sink');
-export type ParentScopeSink = {
-	setChildSubtotal: (index: number, total: number) => void;
-};
-
 // ── Facets ───────────────────────────────────────────────────────────────────
 
 /** Cross-cutting editor services: the event dispatcher, the view-state stores, and the
