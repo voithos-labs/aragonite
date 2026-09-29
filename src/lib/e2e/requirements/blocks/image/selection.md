@@ -27,4 +27,5 @@
 ## Edge cases
 
 - Selecting a different widget replaces the previous selection
-- Cross-block selection clears widget selection
+- Cross-block selection clears widget selection, as any caret or range the editor puts down does
+  (an undo's caret is in `selection-history.md`)
