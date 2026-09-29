@@ -153,7 +153,7 @@ describe('the table’s structural edits keep them', () => {
 			'keyless'
 		);
 		// The end is given in cells, the unit the selection snaps a table endpoint to.
-		allowDevWarns(['tableAwareRangeDelete:end']);
+		allowDevWarns(['rangeCoverage:tableEdge']);
 
 		expect(serialize(doc)).toBe('\n| x | y |\n| --- | --- |\n| 1 |  |\n');
 		expect(describeConvergence(doc)).toBeNull();

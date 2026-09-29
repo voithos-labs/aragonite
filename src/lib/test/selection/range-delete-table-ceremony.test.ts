@@ -11,7 +11,7 @@ import { fixtureReading } from '../harness/fixture-grammar';
 
 // rangeDelete is driven with hand-built endpoints, so the table branches see character offsets
 // `SelectionState` would have snapped to cell coordinates first.
-afterEach(() => allowDevWarns(['tableAwareRangeDelete:end']));
+afterEach(() => allowDevWarns(['rangeCoverage:tableEdge']));
 
 // As in the title-line branch, a covered container between the endpoints goes as one splice with
 // its children intact, so the undo entry holds a whole detached node.

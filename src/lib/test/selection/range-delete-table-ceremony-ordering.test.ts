@@ -11,7 +11,7 @@ import { fixtureReading } from '../harness/fixture-grammar';
 
 // rangeDelete is driven with hand-built endpoints, so the table branches see character offsets
 // `SelectionState` would have snapped to cell coordinates first.
-afterEach(() => allowDevWarns(['tableAwareRangeDelete:end', 'tableAwareRangeDelete:start']));
+afterEach(() => allowDevWarns(['rangeCoverage:tableEdge']));
 
 // Each case truncates its text endpoint on a different side of the shared cross-block deletion
 // steps, and finds its survivor by node identity, since a delete inside the range shifts it.

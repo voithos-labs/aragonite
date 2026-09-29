@@ -12,7 +12,7 @@ import { fixtureReading } from '../harness/fixture-grammar';
 
 // rangeDelete is driven with hand-built endpoints, so the table branches see character offsets
 // `SelectionState` would have snapped to cell coordinates first.
-afterEach(() => allowDevWarns(['tableAwareRangeDelete:end', 'tableAwareRangeDelete:start']));
+afterEach(() => allowDevWarns(['rangeCoverage:tableEdge']));
 
 function run(input: string | Document, start: SelectionPoint, end: SelectionPoint) {
 	const doc = typeof input === 'string' ? parse(input) : input;

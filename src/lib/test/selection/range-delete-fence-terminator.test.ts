@@ -11,7 +11,7 @@ import { fixtureReading } from '../harness/fixture-grammar';
 
 // rangeDelete is driven with hand-built endpoints, so the table branch sees a character offset
 // `SelectionState` would have snapped to a cell coordinate.
-afterEach(() => allowDevWarns(['tableAwareRangeDelete:end']));
+afterEach(() => allowDevWarns(['rangeCoverage:tableEdge']));
 
 // A same-block join that makes a closer line out of two plain lines must not split the fence.
 // Miss-analysis: joins were tested on text only, and the fence rule only at the component's write.

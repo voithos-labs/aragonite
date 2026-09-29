@@ -11,7 +11,7 @@ import { fixtureReading } from '../harness/fixture-grammar';
 
 // rangeDelete is driven with hand-built endpoints, so the table branches see character offsets
 // `SelectionState` would have snapped to cell coordinates first.
-afterEach(() => allowDevWarns(['tableAwareRangeDelete:end', 'tableAwareRangeDelete:start']));
+afterEach(() => allowDevWarns(['rangeCoverage:tableEdge']));
 
 // `involvesTable` is checked before `involvesReservedChrome`, so these ranges take the table branch
 // and the title-line wall must hold there too. Table endpoints are already-snapped cell indices.

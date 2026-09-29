@@ -68,7 +68,7 @@ export function rangeDelete(
 	// A pair inside one table clears its cells, even all of them; only Backspace and Delete take
 	// the rows, columns or table away, through the table's own structural commits.
 	if (coverage.grid) return clearGridCells(doc, coverage, coverage.grid, sharing, reading);
-	if (keepsTableEdge(doc, coverage)) {
+	if (keepsTableEdge(coverage)) {
 		return tableAwareRangeDelete(doc, coverage, sharing, reading);
 	}
 	// Nothing merges across a title-line container's edge, and a range that holds an edge's block

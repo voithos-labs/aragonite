@@ -31,17 +31,13 @@ import { attachedChainPrefix, rebuildUnsharedChain } from '../tree-operations/ch
 import { rebuildTableRowRaw } from '../schema/container-rebuilders';
 import { promoteFirstRowToHeader } from '../tree-operations/table-mutations';
 import { caretWhereRangeResumes } from './range-delete-chrome';
-import { countsCells } from '../schema/block-kind-descriptor';
 import { assertInvariant } from '../assert';
 
 // ── Public API ──────────────────────────────────────────────────────────────
 
 /** Whether an edge the range keeps sits on a table, so its rows are cut rather than its text. */
-export function keepsTableEdge(doc: Document, coverage: RangeCoverage): boolean {
-	return [coverage.startEdge, coverage.endEdge].some((edge) => {
-		const node = edge && nodeAtEdge(doc, edge);
-		return node !== null && countsCells(node);
-	});
+export function keepsTableEdge(coverage: RangeCoverage): boolean {
+	return coverage.startCells !== null || coverage.endCells !== null;
 }
 
 /** Clears the cells a pair inside one table holds, keeping the table's rows and columns; the
@@ -91,19 +87,18 @@ export function tableAwareRangeDelete(
 	const endChain = endEdge ? ensureUnsharedPath(doc, end.path, sharing) : null;
 	const startBlock = startChain?.[startChain.length - 1] ?? null;
 	const endBlock = endChain?.[endChain.length - 1] ?? null;
-	const startTable = startBlock && countsCells(startBlock) ? startBlock : null;
-	const endTable = endBlock && countsCells(endBlock) ? endBlock : null;
+	const { startCells, endCells } = coverage;
+	const startTable = startCells ? startBlock : null;
+	const endTable = endCells ? endBlock : null;
 	if (startTable) ensureUnsharedSubtree(startTable, sharing);
 	if (endTable) ensureUnsharedSubtree(endTable, sharing);
 
-	const startCell = startTable ? cellIndexOf(start, 'tableAwareRangeDelete:start') : 0;
-	const startSplice = startTable
-		? deleteCellsAndCollapse(startTable, startCell, totalCellCount(startTable))
-		: null;
-	// The snapped end cell is its row's inclusive last cell; +1 for the exclusive end.
-	const endSplice = endTable
-		? deleteCellsAndCollapse(endTable, 0, cellIndexOf(end, 'tableAwareRangeDelete:end') + 1)
-		: null;
+	const startSplice =
+		startTable && startCells
+			? deleteCellsAndCollapse(startTable, startCells.from, startCells.to)
+			: null;
+	const endSplice =
+		endTable && endCells ? deleteCellsAndCollapse(endTable, endCells.from, endCells.to) : null;
 
 	const plan = planCrossBlockDeletion(doc, coverage, [], sharing);
 	// A kept text end truncates first, while its path is still valid, and never merges.
@@ -145,11 +140,12 @@ export function tableAwareRangeDelete(
 		...(startTable && startSplice ? [{ table: startTable, ...startSplice }] : []),
 		...(endTable && endSplice ? [{ table: endTable, ...endSplice }] : [])
 	];
-	const kept: SelectionPoint | null = startTable
-		? survivingAnchorCellCaret(startTable, start.path, startCell)
-		: seam !== null
-			? { path: start.path.slice(), offset: seam }
-			: null;
+	const kept: SelectionPoint | null =
+		startTable && startCells
+			? survivingAnchorCellCaret(startTable, start.path, startCells.from)
+			: seam !== null
+				? { path: start.path.slice(), offset: seam }
+				: null;
 	const resumeFrom = coverage.rootHolding(start.path) ?? start.path;
 	return {
 		newDoc: doc,
@@ -159,17 +155,6 @@ export function tableAwareRangeDelete(
 }
 
 // ── Internal ────────────────────────────────────────────────────────────────
-
-function nodeAtEdge(doc: Document, edge: SelectionPoint): CstNode | null {
-	let node: CstNode | undefined;
-	let children = doc.children;
-	for (const index of edge.path) {
-		node = children[index];
-		if (!node) return null;
-		children = node.children ?? [];
-	}
-	return node ?? null;
-}
 
 // The caret in the surviving start table's anchor cell, cleared from the anchor on, so at its end;
 // an anchor in column 0 lost its row, so the last cell of the row above.
@@ -228,9 +213,4 @@ function clearCellsInRange(table: CstNode, startCellIdx: number, endCellIdx: num
 		touchedRows.add(r);
 	}
 	for (const r of touchedRows) rebuildTableRowRaw(rows[r]);
-}
-
-function totalCellCount(table: CstNode): number {
-	const meta = metadataOf(table, 'table');
-	return (table.children?.length ?? 0) * meta.columnCount;
 }

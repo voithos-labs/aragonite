@@ -8,7 +8,7 @@
 import type { DocumentView, NodeView } from '../core/node-views';
 import { displayLength } from '../core/lines';
 import { metadataOf } from '../core/nodes';
-import { normalize, type SelectionPoint } from './primitives';
+import { cellIndexOf, normalize, type SelectionPoint } from './primitives';
 import { snapCrossBlockTableEndpoints } from './table-endpoint-snap';
 import { collapsedContainerHiding } from './path-lookup';
 import {
@@ -64,6 +64,12 @@ export class CoveredRange {
 	}
 }
 
+/** A half-open run of row-major cell indices inside one table. */
+export interface CellRun {
+	readonly from: number;
+	readonly to: number;
+}
+
 /** How much of a table a pair inside it holds: all of it, whole rows or columns, or less. */
 export type GridKind = 'table' | 'row' | 'column' | 'cells';
 
@@ -107,6 +113,10 @@ export class RangeCoverage {
 	readonly coveredWhole: readonly DocPath[];
 	/** For a pair inside one table, which of its cells the range holds; null otherwise. */
 	readonly grid: GridCoverage | null;
+	/** The cells a kept table edge hands to the range, as a half-open row-major run: from the
+	 *  start's cell to the table's end, or from its first cell through the end's. */
+	readonly startCells: CellRun | null;
+	readonly endCells: CellRun | null;
 
 	/** Built by `rangeCoverage` only, which holds the module-private key. */
 	constructor(key: typeof SEAL, range: CoveredRange, fields: CoverageFields) {
@@ -117,6 +127,8 @@ export class RangeCoverage {
 		this.wholeRoots = fields.wholeRoots;
 		this.coveredWhole = fields.coveredWhole;
 		this.grid = fields.grid;
+		this.startCells = fields.startCells;
+		this.endCells = fields.endCells;
 		Object.freeze(this);
 	}
 
@@ -155,7 +167,9 @@ export function rangeCoverage(doc: DocumentView, range: CoveredRange): RangeCove
 		endEdge: endHeld ? null : end,
 		wholeRoots: outermost(withWholeParents(doc, held)),
 		coveredWhole: outermost(withWholeParents(doc, covered)),
-		grid: null
+		grid: null,
+		startCells: startHeld ? null : keptTableRun(doc, start, 'start'),
+		endCells: endHeld ? null : keptTableRun(doc, end, 'end')
 	});
 }
 
@@ -239,6 +253,8 @@ interface CoverageFields {
 	wholeRoots: readonly DocPath[];
 	coveredWhole: readonly DocPath[];
 	grid: GridCoverage | null;
+	startCells: CellRun | null;
+	endCells: CellRun | null;
 }
 
 function samePathCoverage(
@@ -264,11 +280,39 @@ function samePathCoverage(
 }
 
 function kept(start: SelectionPoint, end: SelectionPoint): CoverageFields {
-	return { startEdge: start, endEdge: end, wholeRoots: [], coveredWhole: [], grid: null };
+	return {
+		startEdge: start,
+		endEdge: end,
+		wholeRoots: [],
+		coveredWhole: [],
+		grid: null,
+		startCells: null,
+		endCells: null
+	};
 }
 
 function heldWhole(path: DocPath, grid: GridCoverage | null): CoverageFields {
-	return { startEdge: null, endEdge: null, wholeRoots: [path], coveredWhole: [path], grid };
+	return {
+		startEdge: null,
+		endEdge: null,
+		wholeRoots: [path],
+		coveredWhole: [path],
+		grid,
+		startCells: null,
+		endCells: null
+	};
+}
+
+/** The cells a kept table edge's side of the range spans; null for an edge that isn't a table. */
+function keptTableRun(
+	doc: DocumentView,
+	point: SelectionPoint,
+	side: 'start' | 'end'
+): CellRun | null {
+	const node = nodeAt(doc, point.path);
+	if (!node || !isBlockNode(node) || !countsCells(node)) return null;
+	const cell = cellIndexOf(point, 'rangeCoverage:tableEdge');
+	return side === 'start' ? { from: cell, to: tableCellCount(node) } : { from: 0, to: cell + 1 };
 }
 
 /** A whole table beats the row or column that spans it (a one-row or one-column table). */

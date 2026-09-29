@@ -22,19 +22,20 @@ import type { DocumentView, NodeView } from '../../core/node-views';
 import type { InlineMarkKind } from '../../schema/inline-construct-policy';
 import type { Reading } from '../../schema/reading';
 import type { GrammarView } from '../../schema/block-openers';
-import {
-	countsCells,
-	isGridKind,
-	tryGetBlockKindDescriptor
-} from '../../schema/block-kind-descriptor';
+import { isGridKind, tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
 import { blockNodeAt, type BodyParent } from '../../tree-operations/node-primitives';
 import type { SharingState } from '../../tree-operations/sharing';
 import { rewriteLeafInPlace } from '../../tree-operations/content-write';
 import { ensureUnsharedPath } from '../../tree-operations/unshare';
 import { rebuildUnsharedChain } from '../../tree-operations/chain-rebuild';
 import { pathsEqual } from '../path-math';
-import { cellIndexOf, charOffsetOf, type SelectionPoint } from '../primitives';
-import { rangeCoverage, type CoveredRange, type RangeCoverage } from '../range-coverage';
+import { charOffsetOf, type SelectionPoint } from '../primitives';
+import {
+	rangeCoverage,
+	type CellRun,
+	type CoveredRange,
+	type RangeCoverage
+} from '../range-coverage';
 import { gridCellsInRect, gridCellsInRun, type GridCell } from '../table-endpoint-snap';
 
 const TAG = 'cross-block-format';
@@ -168,12 +169,12 @@ function spansInRange(doc: DocumentView, coverage: RangeCoverage, reading: Readi
 		return spans;
 	}
 	if (coverage.startEdge && coverage.endEdge && pathsEqual(start.path, end.path)) {
-		push(edgeSpans(doc, start, end, reading));
+		push(edgeSpans(doc, start, end, null, reading));
 		return spans;
 	}
-	if (coverage.startEdge) push(edgeSpans(doc, start, null, reading));
+	if (coverage.startEdge) push(edgeSpans(doc, start, null, coverage.startCells, reading));
 	for (const root of coverage.wholeRoots) push(wholeSpans(doc, root, reading));
-	if (coverage.endEdge) push(edgeSpans(doc, null, end, reading));
+	if (coverage.endEdge) push(edgeSpans(doc, null, end, coverage.endCells, reading));
 	return spans;
 }
 
@@ -183,16 +184,13 @@ function edgeSpans(
 	doc: DocumentView,
 	start: SelectionPoint | null,
 	end: SelectionPoint | null,
+	cells: CellRun | null,
 	reading: Reading
 ): RangeSpan[] {
 	const point = (start ?? end)!;
 	const node = blockNodeAt(doc, point.path);
 	if (!node) return [];
-	if (countsCells(node)) {
-		const from = start ? cellIndexOf(start, TAG) : null;
-		const to = end ? cellIndexOf(end, TAG) : null;
-		return cellSpans(gridCellsInRun(node, point.path, from, to), reading);
-	}
+	if (cells) return cellSpans(gridCellsInRun(node, point.path, cells.from, cells.to - 1), reading);
 	const grid = enclosingGrid(doc, point.path);
 	if (grid) {
 		const cell = reachableCell(grid, point.path, node);

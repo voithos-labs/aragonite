@@ -5,7 +5,7 @@ import { makeBlockNode, metadataOf, type CstNode } from '../core/nodes';
 import type { DocumentView, NodeView } from '../core/node-views';
 import { cloneMetadata } from '../tree-operations/clone';
 import { isBlockNode, nodeAt } from '../tree-operations/node-primitives';
-import { charOffsetOf, cellIndexOf } from './primitives';
+import { charOffsetOf } from './primitives';
 import { rangeCoverage, type CoveredRange } from './range-coverage';
 import { gridClipboard } from './grid-selection';
 import { tableCellCount } from '../schema/block-kind-descriptor';
@@ -53,12 +53,8 @@ export function collectCrossBlockText(doc: DocumentView, range: CoveredRange): s
 	if (startRoot) {
 		effectiveStartPath = startRoot;
 		startTail = rawAt(doc, startRoot);
-	} else if (start.cellCoordinate && isBlockNode(startNode)) {
-		startTail = emitTablePortion(
-			startNode,
-			cellIndexOf(start, 'collectCrossBlockText:startTable'),
-			tableCellCount(startNode)
-		);
+	} else if (coverage.startCells && isBlockNode(startNode)) {
+		startTail = emitTablePortion(startNode, coverage.startCells.from, coverage.startCells.to);
 	} else {
 		const startOffset = charOffsetOf(start, 'collectCrossBlockText:start');
 		// A start inside a container's title line emits nothing yet: the container's opener
@@ -79,10 +75,8 @@ export function collectCrossBlockText(doc: DocumentView, range: CoveredRange): s
 	if (endRoot && endRoot.length < end.path.length) {
 		effectiveEndPath = endRoot;
 		endHead = rawAt(doc, endRoot);
-	} else if (end.cellCoordinate && isBlockNode(endNode)) {
-		// The snapped end cell is inclusive and `emitTablePortion` takes an exclusive end, so the
-		// `+ 1` makes the copied rows match what a delete would remove.
-		endHead = emitTablePortion(endNode, 0, cellIndexOf(end, 'collectCrossBlockText:endTable') + 1);
+	} else if (coverage.endCells && isBlockNode(endNode)) {
+		endHead = emitTablePortion(endNode, coverage.endCells.from, coverage.endCells.to);
 	} else {
 		const endOffset = charOffsetOf(end, 'collectCrossBlockText:end');
 		const chromeBytes = endOffset > 0 ? endChromeContainerBytes(doc, end, endRaw, endOffset) : null;
