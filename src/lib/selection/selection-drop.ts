@@ -378,7 +378,8 @@ async function writeBlockRaw(
 		path,
 		parsed.replacement,
 		{ replacementIndex: parsed.replacement.length - 1, offset: caret },
-		{ source: 'selection-drop' }
+		// The drop's undo step records the selection, so this offset is never read.
+		{ source: 'selection-drop', snapshotOffset: 0 }
 	);
 	// The count that landed, not the parse's: a container's body rule can rewrite the list.
 	return landed === null ? null : landed - 1;

@@ -14,7 +14,7 @@ describe('emptying a block through the top-level bundle', () => {
 	it('leaves bytes that reload as the blocks still on screen', async () => {
 		const h = makeTopHarness('alpha\n\nx\n\ndelta\n');
 
-		await h.actions.updateBlockContent(1, '\n', 'authored');
+		await h.actions.updateBlockContent(1, '\n', 'authored', 0);
 
 		expect(serialize(h.deps.doc)).toBe('alpha\n\n\ndelta\n');
 		expect(h.deps.doc.children).toHaveLength(3);
@@ -27,10 +27,10 @@ describe('emptying a block through the top-level bundle', () => {
 		const h = makeTopHarness('Hello\n\nSecond\n');
 		await h.actions.splitBlock(0, 5);
 		await h.actions.splitBlock(1, 0);
-		await h.actions.updateBlockContent(1, 'x\n', 'authored');
+		await h.actions.updateBlockContent(1, 'x\n', 'authored', 0);
 		expect(serialize(h.deps.doc)).toBe('Hello\n\nx\n\n\nSecond\n');
 
-		await h.actions.updateBlockContent(1, '\n', 'authored');
+		await h.actions.updateBlockContent(1, '\n', 'authored', 0);
 
 		expect(serialize(h.deps.doc)).toBe('Hello\n\n\n\nSecond\n');
 		expectParseConverged(h.deps.doc);
@@ -70,7 +70,7 @@ describe('emptying the tail block of a suffix-folded document', () => {
 		const h = makeTopHarness('alpha\n\n');
 		expect(h.doc.suffix).toBe('\n');
 
-		await h.actions.updateBlockContent(0, '\n', 'authored');
+		await h.actions.updateBlockContent(0, '\n', 'authored', 0);
 
 		expect(serialize(h.deps.doc)).toBe('\n\n');
 		expect(h.deps.doc.children).toHaveLength(2);

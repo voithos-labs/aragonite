@@ -106,10 +106,12 @@ describe('G2.8 top-level id↔ref↔children alignment', () => {
 		const h = makeTop(['hello\n', 'tail\n']);
 		const [id0, id1] = h.ids();
 
-		await h.actions.replaceBlock(0, [
-			makeNode('paragraph', 'x\n'),
-			{ ...makeNode('paragraph', 'y\n'), leadingTrivia: '\n' }
-		]);
+		await h.actions.replaceBlock(
+			0,
+			[makeNode('paragraph', 'x\n'), { ...makeNode('paragraph', 'y\n'), leadingTrivia: '\n' }],
+			undefined,
+			{ snapshotOffset: 0 }
+		);
 
 		assertAligned(h);
 		expect(h.doc.children.length).toBeGreaterThan(2);
@@ -243,10 +245,12 @@ describe('G2.8 container id↔ref↔children alignment', () => {
 		const h = makeContainer(BQ_TWO);
 		const [id0, id1] = h.state.innerBlockIds;
 
-		await h.bundle.blockEdit.replaceBlock(0, [
-			makeNode('paragraph', 'x\n'),
-			makeNode('paragraph', 'y\n')
-		]);
+		await h.bundle.blockEdit.replaceBlock(
+			0,
+			[makeNode('paragraph', 'x\n'), makeNode('paragraph', 'y\n')],
+			undefined,
+			{ snapshotOffset: 0 }
+		);
 
 		assertContainerAligned(h);
 		expect(h.state.innerBlockIds[0]).toBe(id0);
@@ -313,7 +317,7 @@ describe('G2.8 deep childIds backfill on reparse-into-container (#4 class)', () 
 		const nested = parse(NESTED_LIST).children;
 		expect(nested[0].kind).toBe('list'); // genuinely a container, or the test is vacuous
 
-		await h.actions.replaceBlock(0, nested);
+		await h.actions.replaceBlock(0, nested, undefined, { snapshotOffset: 0 });
 
 		assertAligned(h);
 		assertDeepChildIdsAligned(h.doc.children);
@@ -333,7 +337,7 @@ describe('G2.8 deep childIds backfill on reparse-into-container (#4 class)', () 
 			defaultGrammarView,
 			TOP_SLOT
 		);
-		await h.actions.replaceBlock(0, replacement);
+		await h.actions.replaceBlock(0, replacement, undefined, { snapshotOffset: 0 });
 
 		assertAligned(h);
 		assertDeepChildIdsAligned(h.doc.children);

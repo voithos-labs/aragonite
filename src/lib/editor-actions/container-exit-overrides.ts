@@ -38,7 +38,10 @@ export function createContainerExitOverrides(deps: ContainerExitOverridesDeps) {
 					{
 						replacementIndex: 1,
 						offset: 0
-					}
+					},
+					// The caret sat in a child leaf, which an offset into the quote can't name; the
+					// live read records it.
+					{ snapshotOffset: 0 }
 				);
 			}
 		}

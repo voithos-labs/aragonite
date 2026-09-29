@@ -616,7 +616,7 @@
 
 		const exit = computeFenceExit({ text, offset, meta });
 		if (exit.kind === 'closeAndExit') {
-			closeUnclosedFenceAndDescend(exit.newText);
+			closeUnclosedFenceAndDescend(exit.newText, offset);
 			return true;
 		}
 		if (exit.kind !== 'none') {
@@ -665,7 +665,7 @@
 
 	// Leaving an unclosed fence downward writes its closer, which stops a save and reload from
 	// absorbing the blocks below into it. Closer and new paragraph land as one commit.
-	function closeUnclosedFenceAndDescend(closedDisplay: string): void {
+	function closeUnclosedFenceAndDescend(closedDisplay: string, caretBefore: number): void {
 		const meta = metadataOf(node, 'fencedCode');
 		const lineEnding = blockEnding();
 		const closedFence: CstNode = {
@@ -677,10 +677,12 @@
 		// The blank separator line and the paragraph's own line are both pure line
 		// ending, so both take the one the closer above got.
 		const paragraphBelow = emptyParagraph(lineEnding, lineEnding);
-		void blockEdit.replaceBlock(index, [closedFence, paragraphBelow], {
-			replacementIndex: 1,
-			offset: 0
-		});
+		void blockEdit.replaceBlock(
+			index,
+			[closedFence, paragraphBelow],
+			{ replacementIndex: 1, offset: 0 },
+			{ snapshotOffset: caretBefore }
+		);
 	}
 
 	void ({
@@ -702,8 +704,8 @@
 		return { start: cursor, end: cursor };
 	}
 
-	function applyIndentResult(result: IndentResult): void {
-		const start = commitDisplay(result.text, result.selection.start, result.selection.start);
+	function applyIndentResult(result: IndentResult, caretBefore: number): void {
+		const start = commitDisplay(result.text, caretBefore, result.selection.start);
 		if (start === null) return;
 		if (result.selection.start === result.selection.end) {
 			pendingCursorOffset = start;
@@ -719,15 +721,17 @@
 	// checked only because `currentRange()` reads the DOM selection through it.
 	function indentSelection(): void {
 		if (!el) return;
-		applyIndentResult(indentLines(getDisplayText(), clampRangeToBody(node, currentRange())));
+		const range = clampRangeToBody(node, currentRange());
+		applyIndentResult(indentLines(getDisplayText(), range), range.start);
 	}
 
 	function dedentSelection(): void {
 		if (!el) return;
 		const text = getDisplayText();
-		const result = dedentLines(text, clampRangeToBody(node, currentRange()));
+		const range = clampRangeToBody(node, currentRange());
+		const result = dedentLines(text, range);
 		if (result.text === text) return;
-		applyIndentResult(result);
+		applyIndentResult(result, range.start);
 	}
 
 	// ── Pointer + clipboard ─────────────────────────────────────────────

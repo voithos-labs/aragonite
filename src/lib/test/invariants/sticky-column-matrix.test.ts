@@ -79,7 +79,9 @@ describe('G2.10 structural reset policy', () => {
 	});
 
 	it('replaceBlock (structural paste live path) forgets the caret memory', async () => {
-		const reset = await exercise((a) => a.replaceBlock(0, [makeNode('paragraph', 'pasted\n')]));
+		const reset = await exercise((a) =>
+			a.replaceBlock(0, [makeNode('paragraph', 'pasted\n')], undefined, { snapshotOffset: 0 })
+		);
 		expect(reset).toHaveBeenCalled();
 	});
 

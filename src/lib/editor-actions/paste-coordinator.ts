@@ -28,7 +28,7 @@ export function createPasteCoordinator(
 				blockPath[blockPath.length - 1],
 				replacement,
 				focus,
-				{ ...opts, snapshotOffset: 0 }
+				opts
 			);
 		}
 	};

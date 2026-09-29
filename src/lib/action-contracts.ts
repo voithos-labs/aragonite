@@ -103,12 +103,12 @@ export interface BlockEditActions {
 	 *  (`selection/caret-target.ts :: survivorAfterRemoval`), and the caller places none. */
 	deleteBlock(blockIndex: number, gesture: RemovalGesture): Promise<boolean>;
 	/** Write `text` as the block's bytes through its kind's and this list's write rules. Undo
-	 *  records `preEditOffset`; `postEditFocusOffset` (in `text`) comes back mapped as `caret`. */
+	 *  returns to `preEditOffset`, where the edit began; `caret` maps `postEditFocusOffset`. */
 	updateBlockContent(
 		blockIndex: number,
 		text: string,
 		mode: WriteMode,
-		preEditOffset?: number,
+		preEditOffset: number,
 		postEditFocusOffset?: number
 	): ContentWrite;
 	/** Shallow-merges metadata the kind's rebuild writes into its bytes (a checkbox toggle). A key no
@@ -123,8 +123,8 @@ export interface BlockEditActions {
 	replaceBlock(
 		blockIndex: number,
 		replacement: CstNode[],
-		focus?: { replacementIndex: number; offset: number; path?: number[] },
-		options?: { snapshotOffset?: number }
+		focus: { replacementIndex: number; offset: number; path?: number[] } | undefined,
+		options: { snapshotOffset: number }
 	): Promise<boolean>;
 }
 
@@ -362,8 +362,8 @@ export interface ReplaceFocus {
 }
 
 export interface ReplaceOptions {
-	/** Where undo puts the caret back, when it differs from where the replacement lands it. */
-	snapshotOffset?: number;
+	/** Where undo puts the caret back when nothing is focused: where the gesture began. */
+	snapshotOffset: number;
 	/** A clipboard's own trailing blank line, landed as the document's when nothing follows. */
 	trailingBlank?: boolean;
 	/** The route a paste or a drop names in the edit event, in place of the block count. */

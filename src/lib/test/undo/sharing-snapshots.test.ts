@@ -68,7 +68,7 @@ describe('structural-sharing snapshots', () => {
 		const actions = createBlockEditActions(deps, controller);
 		deps.undoManager.push(controller.captureCurrentState());
 
-		await actions.updateBlockContent(1, 'x\n', 'authored');
+		await actions.updateBlockContent(1, 'x\n', 'authored', 0);
 		await history.requestUndo();
 
 		expect(takeDevWarns()).toEqual([]);
@@ -107,12 +107,12 @@ describe('structural-sharing snapshots', () => {
 		const actions = createBlockEditActions(deps, controller);
 		await actions.splitBlock(0, 5);
 		await actions.splitBlock(1, 0);
-		await actions.updateBlockContent(1, 'x\n', 'authored');
+		await actions.updateBlockContent(1, 'x\n', 'authored', 0);
 		deps.undoManager.push(controller.captureCurrentState());
 		const shared = deps.undoManager.getStacks().undo.at(-1)!.snapshot.children[3];
 		expect(shared.leadingTrivia).toBe('\n');
 
-		await actions.updateBlockContent(1, '\n', 'authored');
+		await actions.updateBlockContent(1, '\n', 'authored', 0);
 
 		expect(serialize(deps.doc)).toBe('Hello\n\n\n\nSecond\n');
 		expect(shared.leadingTrivia).toBe('\n');

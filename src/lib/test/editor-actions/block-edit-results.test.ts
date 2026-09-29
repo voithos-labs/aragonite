@@ -23,7 +23,8 @@ const WRITES: Record<keyof BlockEditActions, Edit> = {
 	deleteBlock: (a) => a.deleteBlock(1, 'keyless'),
 	updateBlockContent: (a) => a.updateBlockContent(1, 'twox\n', 'authored', 3, 4),
 	updateBlockMetadata: (a) => a.updateBlockMetadata(1, { note: 1 }),
-	replaceBlock: (a) => a.replaceBlock(1, [paragraphNode('', 'new', '\n')])
+	replaceBlock: (a) =>
+		a.replaceBlock(1, [paragraphNode('', 'new', '\n')], undefined, { snapshotOffset: 0 })
 };
 
 const LEVELS = {

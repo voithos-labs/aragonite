@@ -80,6 +80,8 @@ async function tableCellScopedStructuralPaste(input: ScopedStructuralPasteInput)
 			replacementIndex: focusIndexBeforeResidue(replacement.length, secondHalf !== null),
 			offset: CURSOR_END
 		},
-		{ source: 'paste-dispatch-table-cell' }
+		// The commit targets the whole table, where no in-cell offset applies; the live read
+		// records the cell's caret.
+		{ source: 'paste-dispatch-table-cell', snapshotOffset: 0 }
 	);
 }

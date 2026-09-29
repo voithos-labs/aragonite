@@ -5,13 +5,14 @@
  * cross-block paste focuses through the DOM, since its range delete may unmount the origin block.
  */
 
-import type { BlockEditActions } from '../../action-contracts';
+import type { BlockEditActions, CommitSnapshotArg } from '../../action-contracts';
 import type { CstNode, Document } from '../../core/nodes';
 import type { Reading } from '../../schema/reading';
 import type { StoredAs } from '../../schema/stored-as';
 import type { PluginActivation } from '../../schema/plugin-activation';
 import { readBlocks } from '../../core/parser';
 import { isBlockNode, nodeAt } from '../node-primitives';
+import { docPathFrom } from '../../cursor/coordinate-spaces';
 import { replaceRangeInLeaf } from '../leaf-range';
 import {
 	documentLineEnding,
@@ -49,10 +50,13 @@ export interface PasteDispatchInput {
 	pastedText: string;
 	/** Path from Document root to the target node. Length ≥ 1. */
 	targetPath: number[];
-	/** Caret offset within the target node's raw. */
+	/** Caret offset within the target node's raw; with `preDelete`, its start. */
 	offset: number;
 	/** Selection range within the target's raw (not cross-block). */
 	preDelete?: PasteRange;
+	/** Where undo puts the caret back when the paste began elsewhere than the range's start: the
+	 *  side a selected widget was selected from. */
+	caretBefore?: number;
 }
 
 export interface PasteDispatchContext {
@@ -108,6 +112,12 @@ export async function pasteDispatch(
 
 	const targetNode = nodeAt(ctx.doc, input.targetPath) as CstNode | null;
 	if (!targetNode) return {};
+	// Undo's caret for every commit below but a scoped-structural surface's own: where the paste
+	// began, never where it lands.
+	const start: CommitSnapshotArg = {
+		path: docPathFrom(input.targetPath),
+		offset: input.caretBefore ?? input.preDelete?.start ?? input.offset
+	};
 	const store = storedAsAt(ctx.doc, input.targetPath, reading);
 
 	const parsed = readBlocks(withLineEnding(pastedText, ending), {
@@ -128,7 +138,7 @@ export async function pasteDispatch(
 		const hook =
 			getPasteSurface(targetNode.kind, activePlugins)?.onInlinePaste ?? defaultInlineHook;
 		const result = hook(targetNode, input.offset, flattened, input.preDelete, store, ending);
-		const landing = await applyInlineResult(input.targetPath, result, ctx);
+		const landing = await applyInlineResult(input.targetPath, result, ctx, start);
 		return inlineCaretResult(result.caretOffset, landing);
 	}
 
@@ -145,7 +155,7 @@ export async function pasteDispatch(
 		target.raw
 	);
 	if (unwrap) {
-		await applyContainerMatchingPaste(unwrap, ctx);
+		await applyContainerMatchingPaste(unwrap, ctx, start);
 		return {};
 	}
 
@@ -153,12 +163,12 @@ export async function pasteDispatch(
 	// container, break out when it does not.
 	const absorb = findListAbsorb(ctx.doc, input.targetPath, parsed, target.offset, target.raw);
 	if (absorb) {
-		await applyListAbsorb(absorb, parsed.children[0], ctx);
+		await applyListAbsorb(absorb, parsed.children[0], ctx, start);
 		return {};
 	}
 	const breakOut = findListBreakOut(ctx.doc, input.targetPath, parsed, target.offset, target.raw);
 	if (breakOut) {
-		await applyListBreakOut(breakOut, parsed.children, ctx);
+		await applyListBreakOut(breakOut, parsed.children, ctx, start);
 		return {};
 	}
 
@@ -200,7 +210,7 @@ export async function pasteDispatch(
 			hook(targetNode, input.offset, pastedText, input.preDelete, store, ending),
 			ending
 		);
-		const landing = await applyInlineResult(input.targetPath, result, ctx);
+		const landing = await applyInlineResult(input.targetPath, result, ctx, start);
 		return inlineCaretResult(result.caretOffset, landing);
 	}
 
@@ -219,6 +229,7 @@ export async function pasteDispatch(
 		input.targetPath,
 		result,
 		ctx,
+		start,
 		trailingSeparatorOf(parsed, result, surface)
 	);
 	return {};

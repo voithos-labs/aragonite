@@ -394,15 +394,14 @@
 			format
 		);
 		if (!result) return true;
-		// Anchor undo at the post-toggle caret, and keep it out of any typing batch: a command
-		// is not typing, so the toggle's bytes are their own undo step.
+		// A command is not typing, so the toggle's bytes are their own undo step.
 		let write!: ContentWrite;
 		controller.isolateUndoEntry(() => {
 			write = blockEdit.updateBlockContent(
 				index,
 				result.newDisplay,
 				'literal',
-				result.newSelStart,
+				offsets.start,
 				result.newSelStart
 			);
 		});

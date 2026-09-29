@@ -371,10 +371,14 @@ export function createListContext(deps: ListContextDeps): ListContext {
 			}
 
 			const replacement = buildExitReplacement(node, itemIndex, deps.getLineEnding());
-			return deps.parentBlockEdit.replaceBlock(deps.scope.index, replacement.blocks, {
-				replacementIndex: replacement.paragraphIndex,
-				offset: 0
-			});
+			// The caret sat in an item, which an offset into the list can't name; the live read
+			// records it.
+			return deps.parentBlockEdit.replaceBlock(
+				deps.scope.index,
+				replacement.blocks,
+				{ replacementIndex: replacement.paragraphIndex, offset: 0 },
+				{ snapshotOffset: 0 }
+			);
 		}
 	};
 }

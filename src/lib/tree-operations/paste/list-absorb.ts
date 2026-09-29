@@ -20,6 +20,7 @@ import { findEnclosingListForPaste } from './find-enclosing-list';
 import { focusIndexBeforeResidue } from './focus-target';
 import { docPathFrom } from '../../cursor/coordinate-spaces';
 import type { PasteDispatchContext } from './dispatch';
+import type { CommitSnapshotArg } from '../../action-contracts';
 
 // ── Public API ───────────────────────────────────────────────────────────────
 
@@ -69,7 +70,8 @@ export function findListAbsorb(
 export async function applyListAbsorb(
 	plan: ListAbsorb,
 	pastedList: CstNode,
-	ctx: PasteDispatchContext
+	ctx: PasteDispatchContext,
+	start: CommitSnapshotArg
 ): Promise<void> {
 	const outer = nodeAt(ctx.doc, plan.listPath) as CstNode | null;
 	if (!outer?.children) return;
@@ -103,7 +105,7 @@ export async function applyListAbsorb(
 
 	await ctx.controller.commitMultiScope({
 		scopes: [{ node: outer, state: outerState, path: plan.listPath }],
-		snapshot: { path: docPathFrom(plan.listPath), offset: 0 },
+		snapshot: start,
 		mutate: ([scopeView]) => {
 			const sharing = scopeView.sharing;
 			spliceMany(scopeView.children, plan.itemIndex, 1, replacement);

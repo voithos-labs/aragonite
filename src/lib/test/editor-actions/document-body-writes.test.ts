@@ -33,9 +33,12 @@ const TAIL_EDITS: [string, (h: TopHarness, last: number) => Promise<boolean>][] 
 	['append a paragraph with text', (h, last) => h.actions.insertParagraph(last + 1, 'new')],
 	['merge into the previous block', (h, last) => h.actions.mergeWithPrevious(last)],
 	['merge the previous block into it', (h, last) => h.actions.mergeWithNext(last - 1)],
-	['replace with nothing', (h, last) => h.actions.replaceBlock(last, [])],
-	['update to blank', (h, last) => h.actions.updateBlockContent(last, '\n', 'authored')],
-	['update to text', (h, last) => h.actions.updateBlockContent(last, 'z\n', 'authored')]
+	[
+		'replace with nothing',
+		(h, last) => h.actions.replaceBlock(last, [], undefined, { snapshotOffset: 0 })
+	],
+	['update to blank', (h, last) => h.actions.updateBlockContent(last, '\n', 'authored', 0)],
+	['update to text', (h, last) => h.actions.updateBlockContent(last, 'z\n', 'authored', 0)]
 ];
 
 describe('a structural edit at the last block, with a trailing blank line', () => {
@@ -77,7 +80,7 @@ describe('the document scope of a multi-scope commit', () => {
 	it('blanks the last block into the blocks the top-level content commit leaves', async () => {
 		const source = 'a\n\nb\n\n';
 		const viaContent = makeTopHarness(source);
-		await viaContent.actions.updateBlockContent(1, '\n', 'authored');
+		await viaContent.actions.updateBlockContent(1, '\n', 'authored', 0);
 
 		const h = makeTopHarness(source);
 		await h.controller.commitMultiScope({

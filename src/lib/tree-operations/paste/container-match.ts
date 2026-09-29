@@ -34,6 +34,7 @@ import {
 import { renumberOrderedList, templatePastedItemMarkers } from '../list/ordered-markers';
 import { spliceMany } from '../splice-many';
 import type { PasteDispatchContext } from './dispatch';
+import type { CommitSnapshotArg } from '../../action-contracts';
 import type { MultiScopeTarget } from './paste-deps';
 import type { SharingState } from '../sharing';
 import { docPathFrom } from '../../cursor/coordinate-spaces';
@@ -131,24 +132,23 @@ function singleParagraphChildOf(node: CstNode): CstNode | null {
 
 export async function applyContainerMatchingPaste(
 	unwrap: ContainerUnwrap,
-	ctx: PasteDispatchContext
+	ctx: PasteDispatchContext,
+	start: CommitSnapshotArg
 ): Promise<void> {
 	const outer = nodeAt(ctx.doc, unwrap.outerPath) as CstNode | null;
 	if (!outer) return;
 	const outerState = containerScopeState(ctx.controller, outer);
 
 	if (unwrap.merge) {
-		await applyContainerMatchingMerge(unwrap, unwrap.merge, outer, outerState, ctx);
+		await applyContainerMatchingMerge(unwrap, unwrap.merge, outer, outerState, ctx, start);
 		return;
 	}
 
 	templatePastedItemMarkers(unwrap.items, outer, unwrap.spliceIndex);
 
-	const snapshot = { path: docPathFrom(unwrap.outerPath), offset: 0 };
-
 	await ctx.controller.commitMultiScope({
 		scopes: [{ node: outer, state: outerState, path: unwrap.outerPath }],
-		snapshot,
+		snapshot: start,
 		mutate: ([scopeView]) => {
 			spliceMany(scopeView.children, unwrap.spliceIndex, 1, unwrap.items);
 			const change: StructuralChange = {
@@ -191,7 +191,8 @@ async function applyContainerMatchingMerge(
 	merge: NonNullable<ContainerUnwrap['merge']>,
 	outer: CstNode,
 	outerState: MultiScopeTarget['state'],
-	ctx: PasteDispatchContext
+	ctx: PasteDispatchContext,
+	snapshot: CommitSnapshotArg
 ): Promise<void> {
 	const targetLeaf = nodeAt(ctx.doc, merge.targetLeafPath) as CstNode | null;
 	if (!targetLeaf) return;
@@ -221,7 +222,6 @@ async function applyContainerMatchingMerge(
 	// siblings splice in, landing after the target.
 	templatePastedItemMarkers(remainingItems, outer, unwrap.spliceIndex + 1);
 
-	const snapshot = { path: docPathFrom(unwrap.outerPath), offset: 0 };
 	const leafIndex = merge.targetLeafPath[merge.targetLeafPath.length - 1];
 	/**
 	 * The merged leaf's new text through the content write against its holder, whose ids follow

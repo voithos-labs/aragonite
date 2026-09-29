@@ -104,7 +104,9 @@ describe('block-edit core: shared structural decisions', () => {
 
 	it('replaceBlock with nodes emits replaceBlock with its count', async () => {
 		const rep = makeCommitScopeStub([leaf('x\n')]);
-		await createBlockEditCore(rep.scope).replaceBlock(0, [leaf('a\n'), leaf('b\n')]);
+		await createBlockEditCore(rep.scope).replaceBlock(0, [leaf('a\n'), leaf('b\n')], undefined, {
+			snapshotOffset: 0
+		});
 		expect(rep.commits[0].op.kind).toBe('replaceBlock');
 		expect(rep.commits[0].op.detail).toEqual({ count: 2 });
 		expect(rep.children).toHaveLength(2);
@@ -112,12 +114,14 @@ describe('block-edit core: shared structural decisions', () => {
 
 	it('empty replaceBlock removes the block but emits a per-scope op-kind', async () => {
 		const collapsed = makeCommitScopeStub([leaf('x\n'), leaf('y\n')]);
-		await createBlockEditCore(collapsed.scope).replaceBlock(0, []);
+		await createBlockEditCore(collapsed.scope).replaceBlock(0, [], undefined, {
+			snapshotOffset: 0
+		});
 		expect(collapsed.children).toHaveLength(1);
 		expect(collapsed.commits[0].op.kind).toBe('delete');
 
 		const labelled = makeCommitScopeStub([leaf('x\n'), leaf('y\n')], { collapse: false });
-		await createBlockEditCore(labelled.scope).replaceBlock(0, []);
+		await createBlockEditCore(labelled.scope).replaceBlock(0, [], undefined, { snapshotOffset: 0 });
 		expect(labelled.children).toHaveLength(1);
 		expect(labelled.commits[0].op.kind).toBe('replaceBlock');
 		expect(labelled.commits[0].op.detail).toEqual({ count: 0 });

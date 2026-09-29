@@ -82,7 +82,8 @@ const quoteExit: Route = async (source) => {
 	await createBlockEditActions(h.deps, h.controller).replaceBlock(
 		1,
 		buildQuoteExitReplacement(h.deps.doc.children[1], h.deps.reading.grammar),
-		{ replacementIndex: 1, offset: 0 }
+		{ replacementIndex: 1, offset: 0 },
+		{ snapshotOffset: 0 }
 	);
 	return h.deps.doc;
 };
@@ -91,10 +92,15 @@ const listExit = (itemIndex: number): Route =>
 	top((h) => {
 		const list = h.deps.doc.children[1];
 		const exit = buildExitReplacement(list, itemIndex, documentLineEnding(h.deps.doc));
-		return h.actions.replaceBlock(1, exit.blocks, {
-			replacementIndex: exit.paragraphIndex,
-			offset: 0
-		});
+		return h.actions.replaceBlock(
+			1,
+			exit.blocks,
+			{
+				replacementIndex: exit.paragraphIndex,
+				offset: 0
+			},
+			{ snapshotOffset: 0 }
+		);
 	});
 
 // Each row's source is LF; the table runs it again mirrored to CRLF.

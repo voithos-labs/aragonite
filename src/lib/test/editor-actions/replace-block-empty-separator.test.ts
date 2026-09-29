@@ -11,7 +11,7 @@ describe('replacing a block with nothing settles the separators it freed', () =>
 	it('hands the vacated line down to a successor that carries none', async () => {
 		const h = makeTopHarness('a\n\n# b\n# c\n');
 
-		await h.actions.replaceBlock(1, []);
+		await h.actions.replaceBlock(1, [], undefined, { snapshotOffset: 0 });
 
 		expect(serialize(h.deps.doc)).toBe('a\n\n# c\n');
 		expectParseConverged(h.deps.doc);
@@ -26,7 +26,7 @@ describe('replacing a block with nothing settles the separators it freed', () =>
 			['\n', 'c\n']
 		]);
 
-		await h.actions.replaceBlock(2, []);
+		await h.actions.replaceBlock(2, [], undefined, { snapshotOffset: 0 });
 
 		expect(serialize(h.deps.doc)).toBe('a\n\n\nc\n');
 		expectParseConverged(h.deps.doc);
@@ -35,7 +35,7 @@ describe('replacing a block with nothing settles the separators it freed', () =>
 	it('hands the line down inside a container body too', async () => {
 		const h = makeNestedHarness('> a\n>\n> # b\n> # c\n', { index: 0 });
 
-		await h.bundle.blockEdit.replaceBlock(1, []);
+		await h.bundle.blockEdit.replaceBlock(1, [], undefined, { snapshotOffset: 0 });
 
 		expect(serialize(h.deps.doc)).toBe('> a\n>\n> # c\n');
 		expectParseConverged(h.deps.doc);

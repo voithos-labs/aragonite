@@ -1041,6 +1041,7 @@
 			index,
 			newDisplay + blockEnding(),
 			'literal',
+			range.start,
 			newSelStart
 		);
 		if (!write.admitted) return;

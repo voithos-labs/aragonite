@@ -289,7 +289,7 @@ async function writeInsideContainer(
 	const body = trimTrailingLineEnding(seeded.raw);
 	// No delimiters, so the only run the screen checks count is the drawn character's.
 	const withSibling = body + ending + ending + 'seed' + ending;
-	await h.bundle.blockEdit.updateBlockContent(seed.path[1], withSibling, 'authored');
+	await h.bundle.blockEdit.updateBlockContent(seed.path[1], withSibling, 'authored', 0);
 
 	const node = children()[target.path[1]];
 	if (!node) return null;

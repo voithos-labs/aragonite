@@ -178,7 +178,8 @@ export function createTextClipboard(deps: TextClipboardDeps): TextClipboard {
 					pastedText,
 					targetPath: deps.myPath,
 					offset: range ? range.start : offset,
-					preDelete: range ? { start: range.start, end: range.end } : undefined
+					preDelete: range ? { start: range.start, end: range.end } : undefined,
+					caretBefore: widget?.preSelectOffset
 				},
 				{
 					doc: deps.getDoc(),
