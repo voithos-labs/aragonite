@@ -6,6 +6,7 @@ import {
 	holdAcross,
 	type HeightTable
 } from '../../reactivity/hold-across';
+import type { ListScrollWrites } from '../../reactivity/list-windowing.svelte';
 
 // Six 100px blocks in the list at path [2], so a focus path outside it is expressible.
 const LIST_PATH = [2];
@@ -233,5 +234,30 @@ describe('focusedIndexIn', () => {
 		expect(focusedIndexIn([3, 4], [2])).toBeNull();
 		expect(focusedIndexIn([2], [2])).toBeNull();
 		expect(focusedIndexIn(null, [])).toBeNull();
+	});
+});
+
+describe('a list correction holds only what heldBlock picks', () => {
+	it('refuses a hand-written distance or a hand-picked block', () => {
+		const table = tableOf(IDS);
+		const writes: ListScrollWrites = { compensate: () => {}, scrollToMount: () => {} };
+		writes.compensate(
+			() => {},
+			// @ts-expect-error a distance worked out by hand isn't one `holdAcross` measured
+			(run) => {
+				run();
+				return 0;
+			}
+		);
+		// @ts-expect-error a block picked by hand isn't one `heldBlock` picked
+		const byHand: Parameters<typeof holdAcross>[2] = { id: 'c', index: 2 };
+		expect(
+			holdAcross(
+				table,
+				() => table,
+				byHand,
+				() => {}
+			)
+		).toBe(0);
 	});
 });

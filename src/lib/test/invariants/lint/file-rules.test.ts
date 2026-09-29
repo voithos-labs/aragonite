@@ -5,9 +5,11 @@
  * source collection taken below.
  */
 
+import { describe, it, expect } from 'vitest';
 import {
 	balancedBlock,
 	balancedCall,
+	callArguments,
 	collectEditorSources,
 	fileClasses,
 	isProseSurface,
@@ -21,6 +23,7 @@ import {
 	except,
 	notUnder,
 	svelteOnly,
+	probeFile,
 	under,
 	type FileRule,
 	type ManifestRule,
@@ -1234,7 +1237,89 @@ const BARE_FOCUSES: ManifestRule[] = [
 	}
 ];
 
+// ── G4.93 one pick of the block a list keeps still ──────────────────────────
+
+/** Every call that runs a height correction, by file and count. A list's `held` must come from
+ *  `holdAcross` (the type refuses any other), so this list catches a route the type can't see. */
+const CORRECTIONS: Record<string, { calls: number; reason: string }> = {
+	'src/lib/reactivity/list-windowing.svelte.ts': {
+		calls: 2,
+		reason:
+			'the one correction helper, holding what `heldBlock` picks, and `setChildSubtotal`’s zero hold until each list measures its child containers itself'
+	},
+	'src/lib/reactivity/use-container-windowing.svelte.ts': {
+		calls: 2,
+		reason: 'hands a list’s correction, root or nested, to the scroll owner'
+	},
+	'src/lib/components/editor-root-geometry.ts': {
+		calls: 1,
+		reason:
+			'the header slot sits above every list, so no list’s pick applies: it keeps the document still unless the page is at its top'
+	}
+};
+
+/** Calls to `compensate` in comment-stripped code; a method's definition or signature isn't one. */
+function correctionCalls(code: string): number {
+	let calls = 0;
+	for (const match of code.matchAll(/(?<![\w$])compensate\s*\(/g)) {
+		const open = match.index + match[0].length;
+		const args = balancedCall(code, open);
+		if (args === null) continue;
+		const defines = /^\s*\{/.test(code.slice(open + args.length + 1));
+		const typed = callArguments(args).some((arg) => /^[\w$]+\??:/.test(arg));
+		if (!defines && !typed) calls++;
+	}
+	return calls;
+}
+
+const HELD_BRANDS: FileRule = {
+	id: 'G4.93 only `hold-across.ts` makes a held block or the distance it moved',
+	matches: /\bas\s+(?:HeldBlock|HeldDelta)\b/,
+	allowed: {
+		'src/lib/reactivity/hold-across.ts':
+			'`heldBlock` and `holdAcross`, the one pick and its measure'
+	},
+	reason:
+		'a cast to a held block or a held distance picks the block a list keeps still somewhere other than `heldBlock`: call `heldBlock` and `holdAcross` instead',
+	reaches: ['src/lib/reactivity/hold-across.ts'],
+	hits: ['return 0 as HeldDelta;', "const held = { id: 'b3', index: 3 } as HeldBlock;"],
+	misses: ['const held: HeldBlock | null = heldBlock(table, top, focused);']
+};
+
+function describeCorrections(sources: SourceFile[]): void {
+	describe('G4.93 every height correction is declared, and a list’s holds what `heldBlock` picks', () => {
+		it('the calls are exactly the declared ones', () => {
+			const found = Object.fromEntries(
+				sources
+					.map((file) => [file.relPath, correctionCalls(file.code)] as const)
+					.filter(([, calls]) => calls > 0)
+			);
+			const declared = Object.fromEntries(
+				Object.entries(CORRECTIONS).map(([relPath, { calls }]) => [relPath, calls])
+			);
+			expect(
+				found,
+				'a new height correction picks its own held block: route a list through its one correction helper, or declare the call here with why'
+			).toEqual(declared);
+		});
+
+		it('the counter counts calls and skips a definition or a signature', () => {
+			const count = (code: string) => correctionCalls(probeFile(code).code);
+			expect(
+				count('deps.scroll.compensate(write, (run) => holdAcross(t, () => t, null, run));')
+			).toBe(1);
+			expect(count('compensate(noChange, (run) => { run(); return 0; });')).toBe(1);
+			expect(count('owner ? owner.compensate(mutate, held) : mutate();')).toBe(1);
+			expect(count('compensate(mutate, held) {\n\tcompensations++;\n}')).toBe(0);
+			expect(count('compensate(mutate: () => void, held: Held): void;')).toBe(0);
+			expect(count('// compensate(mutate, held);\nconst a = 1;')).toBe(0);
+		});
+	});
+}
+
 const SOURCES = collectEditorSources();
 describeFileRules(RULES, SOURCES);
 describeManifests(SCROLL_WRITERS, SOURCES);
 describeManifests(BARE_FOCUSES, SOURCES);
+describeFileRules([HELD_BRANDS], SOURCES);
+describeCorrections(SOURCES);
