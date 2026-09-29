@@ -195,3 +195,63 @@ test('reordering a list item below the fold does not drift scrollTop (F7)', asyn
 	).toBeLessThan(3);
 	expect(pageErrors).toEqual([]);
 });
+
+// F7 checks only the end of a cycle, where a jump on the way up and its mirror on the way down
+// cancel; one press alone must already leave the scroll where it was.
+for (const [key, item] of [
+	['Alt+ArrowUp', 'ZBETAITEM'],
+	['Alt+ArrowDown', 'ZALPHAITEM']
+] as const) {
+	test(`one ${key} on a list item below the fold leaves scrollTop alone (F7, per step)`, async ({
+		page
+	}) => {
+		const pageErrors = capturePageErrors(page);
+		const editor = new EditorPage(page);
+		await editor.goto();
+		const pre = Array.from({ length: 60 }, (_, i) => `pre filler ${i}`).join('\n\n');
+		const post = Array.from({ length: 60 }, (_, i) => `post filler ${i}`).join('\n\n');
+		const tall = `ZALPHAITEM ${'word '.repeat(40)}`.trim();
+		await editor.loadContent(`${pre}\n\n1. ${tall}\n2. ZBETAITEM\n\n${post}\n`);
+
+		const listTop = await revealedOffsetOf(page, editor, 'ZALPHAITEM');
+		await editor.scrollEditorTo(Math.round(listTop - 250));
+		await page.locator('[contenteditable="true"]', { hasText: item }).click();
+		await editor.waitForRenderFlush();
+		expect(
+			listTop - (await scrollTopOf(page)),
+			'the list sits below the viewport top'
+		).toBeGreaterThan(50);
+
+		const baseline = await scrollTopOf(page);
+		await page.keyboard.press(key);
+		await editor.bridge.waitForSourceMatches(/ZBETAITEM[\s\S]*ZALPHAITEM/);
+		await editor.waitForRenderFlush();
+
+		const moved = (await scrollTopOf(page)) - baseline;
+		expect(Math.abs(moved), `scrollTop moved ${moved}px on one ${key}`).toBeLessThan(3);
+		expect(pageErrors).toEqual([]);
+	});
+}
+
+/** Where the first block containing `text` sits in the editor's content, scrolling down a screen
+ *  at a time until it mounts. */
+async function revealedOffsetOf(page: Page, editor: EditorPage, text: string): Promise<number> {
+	for (let step = 0; step < 80; step++) {
+		const offset = await page.evaluate((t) => {
+			const ed = document.querySelector('.editor') as HTMLElement;
+			const host = [...document.querySelectorAll('[data-block-path]')].find((h) =>
+				(h.textContent || '').includes(t)
+			);
+			if (!host) return null;
+			return host.getBoundingClientRect().top - ed.getBoundingClientRect().top + ed.scrollTop;
+		}, text);
+		if (offset !== null) return offset;
+		await editor.scrollEditorTo(
+			await page.evaluate(() => {
+				const ed = document.querySelector('.editor') as HTMLElement;
+				return ed.scrollTop + ed.clientHeight * 0.7;
+			})
+		);
+	}
+	throw new Error(`${text} never mounted`);
+}

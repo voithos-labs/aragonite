@@ -53,7 +53,10 @@ interface Fixture extends MountedListWindowing {
 	growHeaderBy(px: number): void;
 }
 
-function fixture(column: Column, opts: { nested?: boolean; scrollTop?: number } = {}): Fixture {
+function fixture(
+	column: Column,
+	opts: { nested?: boolean; scrollTop?: number; focused?: number[] } = {}
+): Fixture {
 	const live = liveChildren(
 		[0, 1, 2, 3, 4, 5].map((i) => makePara(`p${i}\n`)),
 		['b0', 'b1', 'b2', 'b3', 'b4', 'b5']
@@ -74,6 +77,7 @@ function fixture(column: Column, opts: { nested?: boolean; scrollTop?: number } 
 		ids: live.ids,
 		listHeight: 210,
 		nested: opts.nested,
+		getFocusPath: () => opts.focused ?? null,
 		// A header above the list pushes the list down as it grows.
 		chromeAbove: () => box.header,
 		ownerDeps: {
@@ -217,6 +221,7 @@ interface Row {
 	nested?: boolean;
 	/** Where the scroll starts, when not at b3's top. */
 	scrollTop?: number;
+	focused?: number[];
 	run(f: Fixture): Promise<unknown> | void;
 	expect: Record<Column, (f: Fixture) => void>;
 }
@@ -289,6 +294,18 @@ const ROWS: Record<keyof ScrollWrites, Row[]> = {
 				'host anchoring holds': scrollTopIs(HELD_TOP + GROWTH),
 				'a held placement is live': scrollTopIs(HELD_TOP + GROWTH),
 				free: scrollTopIs(HELD_TOP + 2 * GROWTH)
+			}
+		},
+		{
+			// The header sits above every list, so a list's focused block doesn't decide its hold.
+			name: 'the header slot growing at the page’s top, a block focused',
+			scrollTop: 0,
+			focused: [4],
+			run: growHeader,
+			expect: {
+				'host anchoring holds': scrollTopIs(0),
+				'a held placement is live': scrollTopIs(HELD_TOP + GROWTH),
+				free: scrollTopIs(0)
 			}
 		}
 	],
@@ -431,7 +448,11 @@ describe('scroll owner: every write has a row under every owner of the position'
 		for (const row of rows) {
 			for (const column of COLUMNS) {
 				it(`${write}: ${row.name} / ${column}`, async () => {
-					const f = fixture(column, { nested: row.nested, scrollTop: row.scrollTop });
+					const f = fixture(column, {
+						nested: row.nested,
+						scrollTop: row.scrollTop,
+						focused: row.focused
+					});
 					await row.run(f);
 					row.expect[column](f);
 					f.cleanup();

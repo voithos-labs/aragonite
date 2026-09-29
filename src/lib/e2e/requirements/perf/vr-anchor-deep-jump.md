@@ -10,7 +10,7 @@ block list that owns a correction.
 ## Happy paths
 
 - Deep jump into an unmeasured band in the root list holds the viewport: on a doc the estimator badly under-models (tall `<br>`-heavy paragraphs interleaved with short ones), the compensation runs to thousands of px on a 30×-under-modeled fixture.
-- Deep jump into a giant blockquote holds the viewport in the nested list: `correctAnchor` is created per block list, and the root case covers only the root instance. The compensation can be attributed to the nested list because the single top-level block leaves the root list's anchor offset at 0 by construction, so only the blockquote's own child list, whose paragraphs take part in the batched measure pass `correctAnchor` wraps, can produce it.
+- Deep jump into a giant blockquote holds the viewport in the nested list: every block list runs its own height correction (`src/lib/reactivity/list-windowing.svelte.ts` :: `createListWindowing`), and the root case covers only the root's. The compensation can be attributed to the nested list because the single top-level block leaves the root list's anchor offset at 0 by construction, so only the blockquote's own child list, whose paragraphs take part in the batched measure pass its correction wraps, can produce it.
 
 ## Edge cases
 

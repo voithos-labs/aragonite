@@ -12,14 +12,22 @@ import type { TargetTop } from '../cursor/scroll-owner';
 import { createBlockWindow, type BlockWindow, type WindowResult } from './block-window.svelte';
 import { estimateWidth, effectiveViewportHeight, listTopWithinContent } from './scope-geometry';
 import { runMeasureBatch, type MeasureEntry } from './measure-batch';
+import {
+	focusedIndexIn,
+	heldBlock,
+	holdAcross,
+	type HeightTable,
+	type HeldDelta
+} from './hold-across';
 import type { NodeView } from '../core/node-views';
 import { recordHeightTableBuild } from '../perf/instruments';
 
 /** The scroll writes a list makes, through the editor's scroll owner, which decides who owns the
  *  position first. */
 export interface ListScrollWrites {
-	/** `held` runs the change and returns how far the block this list keeps still moved. */
-	compensate(mutate: () => void, held: (mutate: () => void) => number): void;
+	/** `held` runs the change and returns how far the held block moved, which only `holdAcross`
+	 *  can answer, so no correction picks its block any other way. */
+	compensate(mutate: () => void, held: (mutate: () => void) => HeldDelta): void;
 	scrollToMount(contentTop: number): void;
 }
 
@@ -119,12 +127,8 @@ function listTopInPort(port: ScrollportReader, listEl: HTMLElement): number {
 	);
 }
 
-/** The height table for one child list, with the ids it was built from lined up by index. */
-interface HeightTable {
-	model: HeightModel;
-	/** A snapshot, not read live: the scroll correction finds the held block by id in the
-	 *  ordering from before the children changed. */
-	ids: string[];
+/** This list's height table and the width it was built at. */
+interface BuiltTable extends HeightTable {
 	widthVersion: number;
 	/** False when the list had no element yet, so every estimate used the scroll container's width. */
 	atListWidth: boolean;
@@ -141,7 +145,7 @@ function heightsById(table: HeightTable): Map<string, number> {
 export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 	/** A block that survives a rebuild keeps its measured height (`carried`), or the user scrolls by
 	 *  the estimate error (VR-15). Null once a width or font-size change has made them wrong. */
-	function buildTable(carried: Map<string, number> | null, widthVersion: number): HeightTable {
+	function buildTable(carried: Map<string, number> | null, widthVersion: number): BuiltTable {
 		const listEl = deps.getListEl();
 		const width = estimateWidth(listEl, deps.getPort()?.contentWidth() ?? 0);
 		recordHeightTableBuild(deps.getParentPath(), width);
@@ -160,7 +164,7 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 
 	// A derived, so new children window from their own table (VR-14); it tracks ids, not estimates,
 	// and the list element, so the first table, built before the element exists, is redone (VR-3).
-	let latestTable: HeightTable | null = null;
+	let latestTable: BuiltTable | null = null;
 	const table = $derived.by(() => {
 		const ids = deps.getChildIds();
 		for (let i = 0; i < ids.length; i++) void ids[i];
@@ -182,44 +186,12 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 	const registry = new Map<string, RegisteredChild>();
 	const pending = new Set<string>();
 
-	/** The block a correction holds still: the focused block if at or below the viewport top, so a
-	 *  click that shows its source leaves it under the pointer; else the block at the top. */
-	function anchorIndexFor(topIndex: number): number {
-		const pinned = pinnedIndex();
-		if (pinned === null || pinned < topIndex || pinned >= table.model.size) return topIndex;
-		return pinned;
-	}
-
-	// Holds one block's screen position across a height change (VR-2), since `overflow-anchor` is
-	// off. The delta comes from the height table, since the DOM hasn't laid out the change yet.
-	function correctAnchor(mutate: () => void): void {
-		deps.scroll.compensate(mutate, (run) => {
-			const anchorIndex = anchorIndexFor(table.model.indexAtOffset(localScrollTop()));
-			const before = table.model.offsetOf(anchorIndex);
-			run();
-			return table.model.offsetOf(anchorIndex) - before;
-		});
-	}
-
-	// `correctAnchor` for a new table: the held block is found by id, since a changed child count
-	// shifts every index after it. A deleted held block has nothing to hold.
-	function correctAnchorByStableId(
-		before: HeightTable,
-		after: HeightTable,
-		mutate: () => void
-	): void {
-		deps.scroll.compensate(mutate, (run) => {
-			const lst = localScrollTop();
-			const anchorIndex = before.model.indexAtOffset(lst);
-			const offsetBefore = before.model.offsetOf(anchorIndex);
-			const anchorId = before.ids[anchorIndex];
-			run();
-			// At `lst === 0` the top of the viewport belongs to a list above this one, so this list
-			// holds nothing and must not move the shared `scrollTop`.
-			if (lst === 0) return 0;
-			const newIndex = anchorId !== undefined ? after.ids.indexOf(anchorId) : -1;
-			return newIndex === -1 ? 0 : after.model.offsetOf(newIndex) - offsetBefore;
-		});
+	// Every height change keeps one block still (VR-2), since `overflow-anchor` is off. The focus
+	// path is read live, so in a rebuild it counts in `after`.
+	function correctAcross(before: HeightTable, after: () => HeightTable, mutate: () => void): void {
+		deps.scroll.compensate(mutate, (run) =>
+			holdAcross(before, after, heldBlock(before, after(), localScrollTop(), focusedIndex()), run)
+		);
 	}
 
 	// The scroll correction for a new table waits for the flush, when the list's geometry is
@@ -234,10 +206,14 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 			correctedTable = next;
 			// The re-measure runs inside the same correction, so the delta compares measured heights
 			// on both sides. Width changes only: re-measuring on a structural edit costs a reflow.
-			correctAnchorByStableId(before, next, () => {
-				heightVersion++;
-				if (widthChanged) remeasureMounted();
-			});
+			correctAcross(
+				before,
+				() => next,
+				() => {
+					heightVersion++;
+					if (widthChanged) remeasureMounted();
+				}
+			);
 		});
 	});
 
@@ -265,14 +241,8 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 		);
 	}
 
-	// The block this list holds: the focus path's index at this list's depth, and only when
-	// the focus path runs through this list.
-	function pinnedIndex(): number | null {
-		const fp = deps.getFocusPath();
-		const pp = deps.getParentPath();
-		if (!fp || fp.length <= pp.length) return null;
-		for (let i = 0; i < pp.length; i++) if (fp[i] !== pp[i]) return null;
-		return fp[pp.length];
+	function focusedIndex(): number | null {
+		return focusedIndexIn(deps.getFocusPath(), deps.getParentPath());
 	}
 
 	const win: BlockWindow = createBlockWindow({
@@ -283,7 +253,7 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 		getPort: deps.getPort,
 		getLocalScrollTop: localScrollTop,
 		getViewportHeight: scopeViewportHeight,
-		getPinnedIndex: pinnedIndex,
+		getPinnedIndex: focusedIndex,
 		overscan: deps.overscan,
 		pinExtensionCap: deps.pinExtensionCap,
 		activateAbovePx: deps.activateAbovePx,
@@ -339,18 +309,22 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 
 	function flushMeasurements(): void {
 		if (pending.size === 0) return;
-		// The batch writes entries above the viewport too, so the correction keeps the block at
-		// the top of the viewport fixed.
-		correctAnchor(drainMeasurements);
+		// The batch writes entries above the viewport too, so the whole batch runs in one correction.
+		correctAcross(table, () => table, drainMeasurements);
 	}
 
-	// Read before `correctAnchor` so no DOM read follows the height-table write; a repeated call
+	// Read before the correction so no DOM read follows the height-table write; a repeated call
 	// writes nothing once the height is stable, so it cannot spin the reactive graph.
 	function measureOne(id: string): void {
 		const child = registry.get(id);
 		if (!child) return;
 		const h = child.readHeight();
-		if (h > 0) correctAnchor(() => child.applyHeight(h));
+		if (h > 0)
+			correctAcross(
+				table,
+				() => table,
+				() => child.applyHeight(h)
+			);
 	}
 
 	return {
@@ -376,12 +350,9 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 				table.model.setHeight(index, total);
 				heightVersion++;
 			};
-			// No correction, except that a scroll into view in progress keeps its target placed while
-			// the target's own container grows.
-			deps.scroll.compensate(write, (run) => {
-				run();
-				return 0;
-			});
+			// Holds nothing, a stopgap until each list measures its child containers' boxes itself and
+			// this upward report goes; a scroll into view in progress still keeps its target placed.
+			deps.scroll.compensate(write, (run) => holdAcross(table, () => table, null, run));
 		},
 		// Read after the flush that mounted the child, not inside it: content can land later in
 		// that flush (an inline widget's root), and measuring an empty block costs a correction.

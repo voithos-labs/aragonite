@@ -5,10 +5,13 @@
  * source collection taken below.
  */
 
+import { describe, it, expect } from 'vitest';
 import {
 	balancedBlock,
 	balancedCall,
+	callArguments,
 	collectEditorSources,
+	enclosingFunction,
 	fileClasses,
 	isProseSurface,
 	languageOf,
@@ -21,6 +24,7 @@ import {
 	except,
 	notUnder,
 	svelteOnly,
+	probeFile,
 	under,
 	type FileRule,
 	type ManifestRule,
@@ -1407,7 +1411,118 @@ const BARE_FOCUSES: ManifestRule[] = [
 	}
 ];
 
+// ── G4.93 one pick of the block a list keeps still ──────────────────────────
+
+/** Every call that corrects, picks a held block or holds nothing, keyed by path, function and
+ *  kind, so a call moved elsewhere fails. `<module>` is a function with a bracketed return type. */
+const CORRECTIONS: Record<string, { calls: number; reason: string }> = {
+	'src/lib/reactivity/list-windowing.svelte.ts :: correctAcross :: compensate': {
+		calls: 1,
+		reason: 'the one correction helper every measure and rebuild goes through'
+	},
+	'src/lib/reactivity/list-windowing.svelte.ts :: correctAcross :: heldBlock': {
+		calls: 1,
+		reason: 'the one pick of the block a list keeps still'
+	},
+	'src/lib/reactivity/list-windowing.svelte.ts :: setChildSubtotal :: compensate': {
+		calls: 1,
+		reason: 'the upward subtotal, a stopgap until each list measures its child containers itself'
+	},
+	'src/lib/reactivity/list-windowing.svelte.ts :: setChildSubtotal :: zero hold': {
+		calls: 1,
+		reason: 'the same stopgap holds nothing'
+	},
+	'src/lib/reactivity/use-container-windowing.svelte.ts :: useContainerWindowing :: compensate': {
+		calls: 1,
+		reason: 'hands a nested list’s correction to the scroll owner'
+	},
+	'src/lib/reactivity/use-container-windowing.svelte.ts :: <module> :: compensate': {
+		calls: 1,
+		reason: 'hands the root list’s correction to its handle from the scroll owner'
+	},
+	'src/lib/components/editor-root-geometry.ts :: <module> :: compensate': {
+		calls: 1,
+		reason:
+			'the header slot sits above every list, so no list’s pick applies: it keeps the document still unless the page is at its top'
+	}
+};
+
+const CORRECTION_KINDS: { kind: string; callee: string; counts: (args: string) => boolean }[] = [
+	{ kind: 'compensate', callee: 'compensate', counts: () => true },
+	{ kind: 'heldBlock', callee: 'heldBlock', counts: () => true },
+	{ kind: 'zero hold', callee: 'holdAcross', counts: (args) => callArguments(args)[2] === 'null' }
+];
+
+/** Each `path :: function :: kind` in `file` with its count; a definition or signature isn't a call. */
+function correctionSites(file: SourceFile): Map<string, number> {
+	const found = new Map<string, number>();
+	const { code } = file;
+	for (const { kind, callee, counts } of CORRECTION_KINDS) {
+		for (const match of code.matchAll(new RegExp(`(?<![\\w$])${callee}\\s*\\(`, 'g'))) {
+			const open = match.index + match[0].length;
+			const args = balancedCall(code, open);
+			if (args === null) continue;
+			const defines = /^\s*\{/.test(code.slice(open + args.length + 1));
+			const typed = callArguments(args).some((arg) => /^[\w$]+\??:/.test(arg));
+			if (defines || typed || !counts(args)) continue;
+			const where = enclosingFunction(code, match.index, fileClasses(file));
+			const key = `${file.relPath} :: ${where} :: ${kind}`;
+			found.set(key, (found.get(key) ?? 0) + 1);
+		}
+	}
+	return found;
+}
+
+const HELD_BRANDS: FileRule = {
+	id: 'G4.93 only `hold-across.ts` makes a held block or the distance it moved',
+	matches: /\bas\s+(?:HeldBlock|HeldDelta)\b/,
+	allowed: {
+		'src/lib/reactivity/hold-across.ts':
+			'`heldBlock` and `holdAcross`, the one pick and its measure'
+	},
+	reason:
+		'a cast to a held block or a held distance picks the block a list keeps still somewhere other than `heldBlock`: call `heldBlock` and `holdAcross` instead',
+	reaches: ['src/lib/reactivity/hold-across.ts'],
+	hits: ['return 0 as HeldDelta;', "const held = { id: 'b3', index: 3 } as HeldBlock;"],
+	misses: ['const held: HeldBlock | null = heldBlock(table, top, focused);']
+};
+
+function describeCorrections(sources: SourceFile[]): void {
+	describe('G4.93 every height correction is declared, and a list’s holds what `heldBlock` picks', () => {
+		it('the calls are exactly the declared ones', () => {
+			const found = Object.fromEntries(sources.flatMap((file) => [...correctionSites(file)]));
+			const declared = Object.fromEntries(
+				Object.entries(CORRECTIONS).map(([site, { calls }]) => [site, calls])
+			);
+			expect(
+				found,
+				'a new height correction picks its own held block: route a list through its one correction helper, or declare the call here with why'
+			).toEqual(declared);
+		});
+
+		it('the census counts calls where they sit and skips a definition or a signature', () => {
+			const sites = (code: string) => Object.fromEntries(correctionSites(probeFile(code)));
+			expect(
+				sites(
+					'function a() {\n\tdeps.scroll.compensate(w, (run) => holdAcross(t, () => t, null, run));\n}'
+				)
+			).toEqual({ 'probe.ts :: a :: compensate': 1, 'probe.ts :: a :: zero hold': 1 });
+			expect(
+				sites('function b() {\n\tholdAcross(t, () => t, heldBlock(t, t, 0, i), run);\n}')
+			).toEqual({ 'probe.ts :: b :: heldBlock': 1 });
+			expect(sites('owner ? owner.compensate(mutate, held) : mutate();')).toEqual({
+				'probe.ts :: <module> :: compensate': 1
+			});
+			expect(sites('compensate(mutate, held) {\n\tcompensations++;\n}')).toEqual({});
+			expect(sites('compensate(mutate: () => void, held: Held): void;')).toEqual({});
+			expect(sites('// compensate(mutate, held);\nconst a = 1;')).toEqual({});
+		});
+	});
+}
+
 const SOURCES = collectEditorSources();
 describeFileRules([...RULES, ...LEAF_RANGE_RULES], SOURCES);
 describeManifests(SCROLL_WRITERS, SOURCES);
 describeManifests(BARE_FOCUSES, SOURCES);
+describeFileRules([HELD_BRANDS], SOURCES);
+describeCorrections(SOURCES);

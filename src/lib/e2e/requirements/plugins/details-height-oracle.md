@@ -26,7 +26,7 @@ the drift that is left.
 
 ## Material judgment (absorbed)
 
-- the scroll correction that holds a block in place is not re-proven here: `correctAnchor`
+- the scroll correction that holds a block in place is not re-proven here: it
   behaves the same in either direction and for any block list, so the virtual-rendering suite's
   general tests already prove that a gap between estimate and measurement is absorbed. Asserting
   a mid-jump inside this fixture would prove nothing: the real measured height is shorter than a

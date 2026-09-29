@@ -11,8 +11,8 @@ import { capturePageErrors } from '../../page-probes';
 
 // The scroll correction after a deep jump, once for each list that does it (VR-2). The height
 // table, spacer and new blocks land in one pass before paint, so a block's position reads flat and
-// the final scrollTop is the signal: without `correctAnchor`'s `scrollTop += delta` it stays
-// exactly at the jump target.
+// the final scrollTop is the signal: without the list's height correction it stays exactly at the
+// jump target.
 
 // Tall `<br>` paragraphs, which the character-count estimate makes about 30 times too short, mixed
 // with short ones, so a deep scroll lands in a stretch nothing has measured.

@@ -1001,6 +1001,7 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.89 | One in-leaf range replace, and a short list of places that snap an offset                 | L       |
 | G4.90 | A paste inside one block cuts its selection through the range replace, with its text      | L       |
 | G4.91 | A focus call that may scroll the editor says why                                          | L       |
+| G4.93 | A list's height correction keeps only the block `heldBlock` picks                         | L       |
 | G4.95 | What a range covers is decided in the range coverage only                                 | L       |
 | G4.96 | A commit rebuilds each container once, and a mutation leaves that rebuild to it           | L       |
 
@@ -1850,6 +1851,16 @@ popout moving focus among its own controls, and `focusCollapsedCaret`, which the
 delete, typing and paste lean on until they land through the caret landing. The manifest is per
 file, so a new bare focus inside an already declared file passes. `lint/file-rules.test.ts`, with G1.45 as
 the runtime half.
+
+**G4.93 · One pick of the block a list keeps still.** Which block a list holds across a height
+change is decided in `reactivity/hold-across.ts :: heldBlock`, and a list's correction takes only
+the distance `holdAcross` measures: a brand the types give no other way to make, so a hand-written
+distance or a hand-picked block doesn't compile (`test/reactivity/hold-across.test.ts` pins both).
+The scan holds what the types can't: a cast to either brand outside `hold-across.ts`, and every
+call to `compensate`, `heldBlock` or a `holdAcross` that holds nothing, declared by file, function
+and count with its reason (the list's one correction helper and its subtotal stopgap, the two
+hand-offs to the scroll owner, and the header slot, which sits above every list), so a call moved
+to another function fails too. `lint/file-rules.test.ts`.
 
 **G4.95 · What a range covers is decided once.** `selection/range-coverage.ts :: rangeCoverage`
 says which edges a range keeps, which subtrees it holds whole and which cells of a table it holds,

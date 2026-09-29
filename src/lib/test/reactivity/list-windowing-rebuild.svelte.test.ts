@@ -38,4 +38,30 @@ describe('list-windowing structural rebuild', () => {
 		expect(port.scrollTop()).toBe(50);
 		cleanup();
 	});
+
+	// Miss-analysis: the rebuild's correction had its own copy of the held-block pick, without the
+	// focused block, and no rebuild test put a caret between the viewport's top and the edit.
+	it('keeps the focused block still when a block between it and the viewport’s top is deleted', () => {
+		const heights: Record<string, number> = { b0: 100, b1: 100, b2: 100, b3: 70, b4: 100, b5: 100 };
+		const children = $state(Object.keys(heights).map((id) => makePara(`${id}\n`)));
+		const ids = $state(Object.keys(heights));
+		const { cleanup, port } = mountListWindowing({
+			children,
+			ids,
+			oracle: heightsOracle(heights),
+			listHeight: 570,
+			// The caret is in b4, read where it is now, as the editor reads it off the block's element.
+			getFocusPath: () => [ids.indexOf('b4')]
+		});
+		// The viewport's top is inside b1, and b4 sits 220px below it.
+		port.setScrollTop(150);
+
+		children.splice(3, 1);
+		ids.splice(3, 1);
+		flushSync();
+
+		// b4 moved up by b3's 70px, and the scroll follows it rather than holding b1.
+		expect(port.scrollTop()).toBe(80);
+		cleanup();
+	});
 });

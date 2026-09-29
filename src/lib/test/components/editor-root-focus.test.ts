@@ -73,6 +73,19 @@ describe('editor-root focus attribution: the per-level pin', () => {
 		expect(e.attribution.getFocusedPath()).toBeNull();
 	});
 
+	// Miss-analysis: every case focused a host and read at once, so none saw a keyed move renumber
+	// the focused host while focus stayed on it, which left the path naming its old sibling.
+	it('names the focused block where it is now, after a move that keeps focus', () => {
+		const e = editor();
+		e.focusIn(e.second.leaf);
+		e.root.insertBefore(e.second.el, e.first.el);
+		e.second.el.setAttribute('data-block-path', '[0]');
+		e.first.el.setAttribute('data-block-path', '[1]');
+		expect(e.attribution.getFocusedPath()).toEqual([0]);
+		e.second.el.remove();
+		expect(e.attribution.getFocusedPath()).toBeNull();
+	});
+
 	it('teardown detaches the listeners', () => {
 		const e = editor();
 		e.teardown();
