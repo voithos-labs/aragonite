@@ -6,9 +6,15 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { parse } from '../../core/parser';
 import * as caretDoors from '../../selection/caret-doors';
-import { placeCaret, placeGapCaret, selectWidgetWhole } from '../../selection/caret-doors';
+import {
+	placeCaret,
+	placeGapCaret,
+	selectInBlock,
+	selectWidgetWhole
+} from '../../selection/caret-doors';
 import {
 	applyCollapsedCaret,
+	applySingleBlockRange,
 	readCurrentSelection,
 	readNativeCaretInBlock
 } from '../../selection/native-bridge';
@@ -89,6 +95,16 @@ const WRITERS: Writer[] = [
 			})(3),
 		leaves: 'none',
 		reads: caret(1, 3)
+	},
+	{
+		name: 'selectInBlock',
+		write: (s) =>
+			selectInBlock(s, () => {
+				blockEl.focus();
+				applySingleBlockRange(blockEl, 1, 3);
+			}),
+		leaves: 'none',
+		reads: { anchor: at(1, 1), focus: at(1, 3) }
 	},
 	// jsdom moves the caret to a block's start when the block takes focus, so offset 0 reads back.
 	{

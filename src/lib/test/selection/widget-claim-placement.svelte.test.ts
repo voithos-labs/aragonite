@@ -7,8 +7,10 @@ import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import {
 	installLayoutStubs,
 	destroyMountedEditors,
-	pressKeyAt
+	pressKeyAt,
+	surfaceAt
 } from '$lib/test/harness/mount-editor.svelte';
+import { dispatchKey } from '$lib/test/harness/settle';
 import { caretAt, mountImageSelected } from './image-selected-harness';
 
 beforeAll(installLayoutStubs);
@@ -76,6 +78,31 @@ describe('a selection the editor puts down ends a selected image', () => {
 		expect(h.overlayMounted()).toBe(false);
 		// The public read stays null at a gap caret.
 		expect(h.seen).toEqual([null]);
+	});
+});
+
+// Miss-analysis: the select-all tests started from a caret or a range, never from a selected image.
+describe('a first Mod+A over a selected image', () => {
+	it('selects the paragraph and ends the image', async () => {
+		const h = await mountImageSelected('![c](x.png) two\n\nabc\n');
+
+		dispatchKey(surfaceAt(h.editor, [0]), { key: 'a', ctrlKey: true });
+		await h.editor.settle();
+
+		const whole = { anchor: { path: [0], offset: 0 }, focus: { path: [0], offset: 15 } };
+		expect(h.editor.instance.getSelection()).toEqual(whole);
+		expect(h.overlayMounted()).toBe(false);
+		expect(h.seen).toEqual([whole]);
+	});
+
+	it("a block's setSelection ends the image too", async () => {
+		const h = await mountImageSelected(SOURCE);
+
+		h.editor.instance.__test.getBlockComponent([1])!.setSelection!(0, 2);
+		await h.editor.settle();
+
+		expect(h.overlayMounted()).toBe(false);
+		expect(window.getSelection()?.toString()).toBe('ab');
 	});
 });
 

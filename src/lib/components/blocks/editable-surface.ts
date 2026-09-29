@@ -27,7 +27,7 @@ import type { PasteCommitCoordinator } from '../../tree-operations/paste/paste-d
 import type { CaretMemory } from '../../cursor/caret-memory';
 import type { SelectionState } from '../../selection/selection-state.svelte';
 import type { SelectedWidgetHandle } from '../../selection/primitives';
-import { placeCaret } from '../../selection/caret-doors';
+import { placeCaret, selectInBlock } from '../../selection/caret-doors';
 import { asEditorX, asRawOffset, type RawOffset } from '../../cursor/coordinate-spaces';
 import type { CursorBackend } from '../../cursor/surface-backend';
 import { findOffsetNearestX } from '../../cursor/sticky-measure';
@@ -325,7 +325,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 
 	function setSelection(start: number, end: number): void {
 		const el = deps.getEl();
-		if (el) selectRawRange(el, start, end);
+		if (el) selectInBlock(deps.selection, () => selectRawRange(el, start, end));
 	}
 
 	function measurePartialRects(startOffset: number, endOffset: number): DOMRect[] {

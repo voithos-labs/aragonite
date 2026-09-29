@@ -18,15 +18,24 @@ export function placeCaret(
 	selection: SelectionState,
 	parkCaret: (offset: number) => void
 ): (offset: number) => void {
-	return (offset) =>
-		selection.batch(() => {
-			endLiveCaretClaim(selection);
-			parkCaret(offset);
-			assertInvariant('placement-ends-widget', () => checkPlacementEndsWidget(selection.widget));
-			// An already plain caret changes no field the state checks, so subscribers hear of the
-			// placement only here, and a `focus` where the caret already is says nothing.
-			selection.announcePlacement();
-		});
+	return (offset) => putDown(selection, () => parkCaret(offset));
+}
+
+/** Puts a browser range down inside one block (a first Mod+A, a block's `setSelection`) the way
+ *  `placeCaret` puts a caret down: whatever the editor had selected ends first. */
+export function selectInBlock(selection: SelectionState, select: () => void): void {
+	putDown(selection, select);
+}
+
+function putDown(selection: SelectionState, place: () => void): void {
+	selection.batch(() => {
+		endLiveCaretClaim(selection);
+		place();
+		assertInvariant('placement-ends-widget', () => checkPlacementEndsWidget(selection.widget));
+		// A plain caret or range changes no field the state checks, so subscribers hear of the
+		// placement only here, and one that lands where the selection already was says nothing.
+		selection.announcePlacement();
+	});
 }
 
 /** The only place gap-caret state is written. The native selection is cleared in the batch

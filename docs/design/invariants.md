@@ -699,9 +699,10 @@ and a focus that moved it (one without `preventScroll`) fails here. Predicate
 
 **G1.46 · A placed caret leaves no widget selected** (`placement-ends-widget`). An image selected
 whole lives in the same selection state as the range and the gap caret, and the state's clears end
-it. So once a block's `focus` or a restore has put its caret or range down, no widget should still
-be selected: one that is would look selected while the keys go to the caret, and the browser's
-own caret would get dropped under it. In a dev build `placeCaret` and `applySelectionToDom` check
+it. So once a block's `focus`, a range put down inside one block (a first Mod+A, a block's
+`setSelection`) or a restore has placed its caret or range, no widget should still be selected:
+one that is would look selected while the keys go to the caret, and the browser's own caret would
+get dropped under it. In a dev build `placeCaret`, `selectInBlock` and `applySelectionToDom` check
 it inside their batch, before anyone hears about the placement. Predicate
 `invariants/placement-ends-widget.ts :: checkPlacementEndsWidget` · run by
 `selection/caret-doors.ts` and `selection/native-bridge.ts` ·
@@ -773,7 +774,7 @@ gaps, and every node's kind is in the vocabulary: the built-in kinds plus those 
 declared, so the property also runs with the bundled plugins' inline kinds registered.
 `inline-total-coverage.property.test.ts`.
 
-**G2.12 · Caret placement ends a range.** A caret placement ends every selection the editor owns
+**G2.12 · Caret placement ends the editor's selection.** A caret placement ends every selection the editor owns
 (a cross-block range, a gap caret, an image selected whole), unless it's an extend. The
 programmatic side is one route: `BlockComponent.focus` is built over each surface's park primitive
 and ends them itself, and the table in `test/selection/selection-claim-table.test.ts` runs every

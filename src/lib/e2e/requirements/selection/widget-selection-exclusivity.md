@@ -15,6 +15,12 @@ chords, so Mod+A runs the ordinary select-all and the second press goes document
 - In that state Mod+C copies the whole document, not the widget's slice.
 - In that state Backspace deletes the whole document, not just the widget.
 
+- Widget selected, Mod+A once: the paragraph's text is selected, the overlay is gone, and a
+  typed character replaces the whole paragraph, not only the image
+  - Miss-analysis: every select-all spec started from a caret or a range, and the first press
+    put its range down without ending the selected image, so the image stayed selected and
+    `getSelection()` kept answering its caret
+
 ## Edge cases
 
 - The document ends with the widget's own paragraph, so the cross-block focus endpoint hosts no
