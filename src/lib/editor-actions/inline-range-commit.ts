@@ -30,7 +30,7 @@ export interface InlineRangeCommit {
 
 export interface InlineRangeOptions {
 	/** Put the caret at `caretAfter` too, counted in the bytes the leaf stores (a table cell's
-	 *  escaped pipe included), and hold it on screen: the next key goes to the document. */
+	 *  escaped pipe included), and bring it into view: the next key goes to the document. */
 	landCaret?: boolean;
 }
 
@@ -71,7 +71,8 @@ export function createInlineRangeCommit(root: EditorRoot): InlineRangeCommit {
 	): Promise<boolean> {
 		const plan = planSplice(path, start, end, bytes);
 		if (!plan) return false;
-		const reveal = 'into-view-held';
+		// Not held: the height correction already keeps the focused line still.
+		const reveal = 'into-view';
 		if (!plan.write) {
 			if (opts.landCaret) {
 				await root.deps.caretLanding.land(plan.scope.at(plan.index, [], caretAfter), { reveal });

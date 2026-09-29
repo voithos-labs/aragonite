@@ -36,7 +36,7 @@
 	import { createScrollHostResolution } from './editor-root-scroll-host';
 	import { installSelectionDrop, type DropCaretRect } from '../selection/selection-drop';
 	import { createContentVersion } from '../reactivity/content-version.svelte';
-	import { useContainerWindowing } from '../reactivity/use-container-windowing.svelte';
+	import { useRootWindowing } from '../reactivity/use-container-windowing.svelte';
 	import { refSlotsOver, replaceRefs } from '../reactivity/publish-ref.svelte';
 	import { componentAt, type ChildList } from '../reactivity/child-list';
 	import { createSelectionState } from '../selection/selection-state.svelte';
@@ -76,7 +76,7 @@
 	import { createOperationsLog } from '../debug/operations-log';
 	import { createEditorDiagnostics } from '../debug/editor-diagnostics';
 	import { readCurrentSelection } from '../selection/native-bridge';
-	import { createCaretRestore } from '../selection/caret-restore';
+	import { createCaretRestore, type CaretRestoreDeps } from '../selection/caret-restore';
 	import { createCrossBlockHandlers } from '../selection/cross-block/dispatch';
 	import { createCrossBlockCommands } from '../selection/cross-block/format-toggle';
 	import { normalizeKeybindingOverrides } from '../schema/keybinding-overrides';
@@ -687,8 +687,13 @@
 
 	// The document caret while the search bar or link card holds focus; one each, so a card
 	// opened over the search bar cannot overwrite the caret the bar restores.
-	const searchCaret = createCaretRestore(() => editorEl ?? null);
-	const linkCardCaret = createCaretRestore(() => editorEl ?? null);
+	const caretRestoreDeps: CaretRestoreDeps = {
+		getEditorEl: () => editorEl ?? null,
+		read: () => getSelection(),
+		restore: (selection) => caretLanding.restore(selection, { reveal: 'into-view' })
+	};
+	const searchCaret = createCaretRestore(caretRestoreDeps);
+	const linkCardCaret = createCaretRestore(caretRestoreDeps);
 
 	const searchReplace = createSearchReplace(editorActionsDeps, controller);
 	// Find stays live in reading mode; replace is an edit and does nothing here.
@@ -699,7 +704,7 @@
 		replace: searchReplace,
 		// The public scroll call holds the match in place, so a late image decode cannot move it.
 		reveal: (p) => rects.scrollTo(p),
-		onClose: searchCaret.restore
+		onClose: () => void searchCaret.restore()
 	});
 	// Lives here, not in SearchBar, so the root Ctrl+H and the bar's chevron share it.
 	let replaceExpanded = $state(false);
@@ -993,7 +998,7 @@
 		commands,
 		crossBlock: editorCrossBlock,
 		isHostChrome,
-		saveSearchRange: searchCaret.save,
+		saveSearchCaret: searchCaret.saveCurrent,
 		setReplaceExpanded: (expanded) => (replaceExpanded = expanded)
 	});
 
@@ -1096,8 +1101,12 @@
 
 	$effect(() => {
 		const el = headerEl;
-		if (!el || !editorEl) return;
-		return installHeaderSlotCompensation({ el, scroll: scrollOwner });
+		if (!el || !editorEl || !rootScroll) return;
+		return installHeaderSlotCompensation({
+			el,
+			port: scrollOwner.port,
+			compensate: rootScroll.compensate
+		});
 	});
 
 	// ── Focus attribution ───────────────────────────────────────────────
@@ -1137,13 +1146,10 @@
 
 	// The inner `.block-list`, not `editorEl`: it scrolls with content, so its top maps scrollTop
 	// into list coordinates.
-	const topWindowing = useContainerWindowing({
-		getIndex: () => 0, // ignored: the root has no parent to report to
-		getParentPath: () => [],
+	const { windowing: topWindowing, scroll: rootScroll } = useRootWindowing({
 		getChildren: () => doc.children,
 		getChildIds: () => blockIds,
-		getListEl: () => editorEl?.querySelector(':scope > .block-list') ?? null,
-		provideLeafChannel: true
+		getListEl: () => editorEl?.querySelector(':scope > .block-list') ?? null
 	});
 
 	// Plain `let`: the scroll correction reads it mid-measure, where the derived would force a
@@ -1186,13 +1192,8 @@
 		return !!focus && scrollOwner.isInView(selectionState.cellLandingFor(focus).path);
 	}
 
-	// A navigation: it opens a closed body on the way, and holds the block where it scrolled to so
-	// a late image decode can't move it.
 	async function navigateCaret(path: number[], offset: number): Promise<boolean> {
-		const outcome = await caretLanding.land(
-			{ path: docPathFrom(path), offset },
-			{ reveal: 'into-view-held', openCollapsed: true }
-		);
+		const outcome = await caretLanding.navigate({ path: docPathFrom(path), offset });
 		return outcome === 'placed' && focusInView();
 	}
 

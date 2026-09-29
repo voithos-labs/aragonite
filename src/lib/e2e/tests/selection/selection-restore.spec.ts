@@ -150,6 +150,36 @@ test.describe('selection: setSelection restores a getSelection snapshot', () => 
 		).not.toBe(scrolled);
 	});
 
+	test('brings a mounted block below the viewport to its bottom edge, not the middle', async ({
+		page
+	}) => {
+		await editor.loadContent(windowedDoc(201));
+		await editor.waitForRenderFlush();
+		const target = wrapperFor(page, [80]);
+
+		await revealAndClick(editor, page, [80], 3);
+		const snapshot = await editor.bridge.getSelection();
+
+		// Just below the viewport, inside the band windowing mounts ahead.
+		await page.evaluate(() => {
+			const el = document.querySelector('.editor') as HTMLElement;
+			el.scrollTop -= el.clientHeight / 2 + 120;
+		});
+		await editor.waitForRenderFlush();
+		await expect(target).toBeAttached();
+		await expect(target).not.toBeInViewport();
+
+		expect(await editor.bridge.setSelection(snapshot!)).toBe(true);
+		await editor.waitForRenderFlush();
+		const gap = await page.evaluate(() => {
+			const view = document.querySelector('.editor') as HTMLElement;
+			const block = document.querySelector("[data-block-path='[80]']") as HTMLElement;
+			const bottom = view.getBoundingClientRect().top + view.clientTop + view.clientHeight;
+			return bottom - block.getBoundingClientRect().bottom;
+		});
+		expect(Math.abs(gap)).toBeLessThanOrEqual(2);
+	});
+
 	// A host saving on every change writes the burst's first payload, so notifying while the caret
 	// still sits where it is leaving corrupts what the host stores.
 	const RESTORE_ROUTES: Array<[string, EditorSelection]> = [

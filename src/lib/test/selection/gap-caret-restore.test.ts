@@ -8,13 +8,14 @@ import { createCaretMemory } from '$lib/cursor/caret-memory';
 import { stubBlockComponent } from '$lib/testing/headless-actions';
 
 // Restoring an undo entry that holds a gap caret: the boundary is clamped into the tree it
-// lands in, and the block it sits against is mounted before the caret is placed.
+// lands in, and the block it sits against is mounted and brought into view before the caret.
 
 const DOC = '| a |\n| - |\n\n```\nx\n```\n\n> para\n>\n> ```\n> y\n> ```\n';
 
 function harness(overrides: Partial<GapCaretRestoreDeps> = {}) {
 	const doc = parse(DOC);
 	const revealed: number[][] = [];
+	const inView: number[][] = [];
 	const selectionState = createSelectionState({ getDoc: () => doc });
 	const deps: GapCaretRestoreDeps = {
 		getDoc: () => doc,
@@ -24,9 +25,14 @@ function harness(overrides: Partial<GapCaretRestoreDeps> = {}) {
 			revealed.push(path);
 			return stubBlockComponent();
 		},
+		reveal: async (path) => {
+			// Before the caret, so the gap it lands at renders in view.
+			expect(selectionState.gapCaret).toBeNull();
+			inView.push(path);
+		},
 		...overrides
 	};
-	return { doc, deps, revealed, selectionState };
+	return { doc, deps, revealed, inView, selectionState };
 }
 
 describe('restoreGapCaret', () => {
@@ -38,6 +44,7 @@ describe('restoreGapCaret', () => {
 		expect(outcome).toBe('applied');
 		expect(h.selectionState.gapCaret).toEqual({ parentPath: [], index: 1 });
 		expect(h.revealed).toEqual([[1]]);
+		expect(h.inView).toEqual([[1]]);
 	});
 
 	// A restored gap caret is placed, not arrived at by a key, like any restored caret.

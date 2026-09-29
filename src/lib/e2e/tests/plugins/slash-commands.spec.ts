@@ -97,6 +97,65 @@ test.describe('slash commands', () => {
 		});
 	});
 
+	test.describe('a pick leaves the page where it was', () => {
+		// Taller than the editor, so it scrolls and a height correction has something to move.
+		const LONG = Array.from({ length: 60 }, (_, i) => `Line ${i} with enough words to fill it.`);
+		const MID = 30;
+		const scroller = (editor: PluginsPage) => editor.page.locator('.editor');
+
+		/** A block's top below the editor's visible top. */
+		const topOf = (editor: PluginsPage, index: number) =>
+			editor.page.evaluate((i) => {
+				const view = document.querySelector('.editor')!.getBoundingClientRect();
+				const block = document.querySelector(`[data-block-path='[${i}]']`)!;
+				return block.getBoundingClientRect().top - view.top;
+			}, index);
+
+		test.beforeEach(async () => {
+			await editor.loadContent(LONG.join('\n\n') + '\n');
+			await editor.page.evaluate((i) => (window as any).__test.rects.reveal([i]), MID);
+			await editor.waitForRenderFlush();
+			// Line MID in the middle of the viewport, well clear of both edges.
+			const at = await topOf(editor, MID);
+			const view = await scroller(editor).evaluate((el) => el.clientHeight);
+			const top = await scroller(editor).evaluate((el) => el.scrollTop);
+			await editor.scrollEditorTo(top + at - view / 2);
+			const fits = await scroller(editor).evaluate((el) => el.scrollHeight > el.clientHeight);
+			expect(fits).toBe(true);
+			await editor.page.locator(`[data-block-path='[${MID}]']`).click();
+			await editor.page.keyboard.press('End');
+		});
+
+		/** Types `/quote`, notes `watched`'s top, picks the row, and returns how far it moved. */
+		async function pickQuote(watched: number, by: 'key' | 'mouse'): Promise<number> {
+			await editor.typeText('/quote');
+			await expect.poll(() => rows(editor)).toEqual(['Quote']);
+			await editor.waitForRenderFlush();
+			const before = await topOf(editor, watched);
+			if (by === 'key') await editor.page.keyboard.press('Enter');
+			else await menu(editor).locator('[role="option"]').first().click();
+			await expect.poll(() => editor.bridge.getBlockKind(MID + 1)).toBe('blockquote');
+			await editor.waitForRenderFlush();
+			await editor.waitForResizeObserverFlush();
+			return Math.abs((await topOf(editor, watched)) - before);
+		}
+
+		test('/quote on an empty line mid-viewport: the line stays put', async () => {
+			await editor.page.keyboard.press('Enter');
+			expect(await pickQuote(MID + 1, 'key')).toBeLessThan(2);
+		});
+
+		test('/quote after text mid-viewport: the line stays put and the quote lands below it', async () => {
+			await editor.typeText(' ');
+			expect(await pickQuote(MID, 'key')).toBeLessThan(2);
+		});
+
+		test('/quote picked with the mouse: the line stays put', async () => {
+			await editor.page.keyboard.press('Enter');
+			expect(await pickQuote(MID + 1, 'mouse')).toBeLessThan(2);
+		});
+	});
+
 	test.describe('undo', () => {
 		/** Picks the one row `/quote` lists, then waits for the quote and the caret inside it. */
 		async function pickQuote(at: number): Promise<void> {

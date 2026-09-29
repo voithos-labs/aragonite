@@ -5,17 +5,12 @@
  * page still while heights change.
  */
 import { tick } from 'svelte';
+import { devWarn } from '../dev-warn';
 import type { BlockElLookup } from '../editor-keys';
 import type { UserScrollport } from './scroll-ancestors';
 import { createScrollport, type Scrollport, type ScrollportReader } from './scrollport';
 
 export type PlaceBlock = 'nearest' | 'center';
-
-/** The block a scroll into view holds in place, by its full path. */
-export interface HeldTarget {
-	path: readonly number[];
-	block: PlaceBlock;
-}
 
 export interface PlaceOptions {
 	block: PlaceBlock;
@@ -25,8 +20,8 @@ export interface PlaceOptions {
 }
 
 export interface ScrollPlacement {
-	/** Scroll the mounted block into view and follow it until it stops moving; true when it ends
-	 *  in view. A newer placement stops it at once. */
+	/** Scroll the mounted block into view once, then wait out the height changes that follow; true
+	 *  when it ends in view. A newer placement stops it at once. */
 	scroll(): Promise<boolean>;
 }
 
@@ -45,26 +40,31 @@ export interface TargetResolver {
 	syncScrollTop(): void;
 }
 
-/** Who runs a height change, which decides what a held placement does across it: only the root
- *  list re-places, and the header slot writes nothing only when the scroll already sits on target.
- *  An interim: it goes once the root list's correction comes from installing the resolver, so no
- *  caller passes a string. */
-export type CompensationSource = 'root-list' | 'nested-list' | 'header';
+/** `held` runs the change and returns how far the block the caller keeps still moved across it. */
+export type Compensate = (mutate: () => void, held: (mutate: () => void) => number) => void;
+
+/** What the root list gets for installing its resolver: the one height correction that re-places a
+ *  held target. The header slot shares it, since the resolver reads the list's top from the DOM. */
+export interface RootListScroll {
+	compensate: Compensate;
+	uninstall(): void;
+}
 
 export interface ScrollOwner {
 	/** The scroll container, read-only; null until the editor root mounts. */
 	port(): ScrollportReader | null;
-	/** Whether the mounted block at `path` is visible in the editor's viewport. */
+	/** Whether any of the mounted block at `path` shows in the editor's viewport: the published
+	 *  "placed and in view" answer, which a block partly on screen satisfies. */
 	isInView(path: readonly number[]): boolean;
-	/** The block a scroll into view holds right now, or null. */
-	heldTarget(): HeldTarget | null;
-	/** Run a height change and keep what the user sees still. `held` runs the change and returns
-	 *  how far the block it keeps still moved across it. */
-	compensate(
-		source: CompensationSource,
-		mutate: () => void,
-		held: (mutate: () => void) => number
-	): void;
+	/** Whether a viewport rect sits wholly inside what the editor shows, so a caret there needs no
+	 *  scroll. */
+	shows(rect: DOMRectReadOnly): boolean;
+	/** Scroll the least distance that shows a viewport rect (a caret's line, a cell), holding
+	 *  nothing and ending any older hold. */
+	showRect(rect: DOMRectReadOnly): void;
+	/** A nested list's height change: keeps its own held block still and never re-places a held
+	 *  target, whose root table hasn't seen the change yet. */
+	compensate: Compensate;
 	/** Take the position for a scroll into view now, before the mount's awaits; `scroll()` once
 	 *  the block is mounted. */
 	place(path: readonly number[], opts: PlaceOptions): ScrollPlacement;
@@ -72,13 +72,10 @@ export interface ScrollOwner {
 	scrollToMount(contentTop: number): void;
 	/** Read the position now; the returned call puts it back after a view swap renders. */
 	keep(): () => Promise<void>;
-	/** Scroll a mounted block to the nearest edge once, holding nothing: the keyboard extension's
-	 *  scroll, until `place` can bring a `'nearest'` target into view without moving it later. */
-	showNearest(path: readonly number[]): void;
 	/** A keydown, pointerdown or wheel on the scroll container: drop any held placement. */
 	release(): void;
-	/** Returns the uninstall. */
-	resolveTargetsWith(resolver: TargetResolver): () => void;
+	/** Called by the root list alone. */
+	resolveTargetsWith(resolver: TargetResolver): RootListScroll;
 }
 
 export interface ScrollOwnerDeps {
@@ -99,23 +96,34 @@ export interface ScrollOwnerDeps {
 	getClipBounds(): HTMLElement[];
 }
 
-// The measure passes after a mount finish within a few Svelte flushes; `tick` is the only
-// sequencing tool in this repo, so the wait is a fixed number of them.
-const REVEAL_SETTLE_TICKS = 12;
+// A placement's mount wave goes quiet within a few flushes; one still compensating past this many
+// is a loop worth a warning.
+const SETTLE_TURNS = 12;
 
 // Identity, not the path: two placements can aim at the same block, and only the one still
 // holding may release it.
 type Token = { superseded: boolean };
 
+interface Placement {
+	token: Token;
+	path: number[];
+	block: PlaceBlock;
+	/** The target's top below the viewport's top where the scroll put it; null until `scroll()`. */
+	offset: number | null;
+	/** What the height table doesn't know about the target's top: margins, chrome, a stale
+	 *  estimate. Its DOM top in the content minus the table's. */
+	bias: number;
+}
+
 export function createScrollOwner(deps: ScrollOwnerDeps): ScrollOwner {
 	const openPort = deps.openPort ?? createScrollport;
 	let port: Scrollport | null = null;
 	let resolver: TargetResolver | null = null;
-	let heldBy: Token | null = null;
-	let target: HeldTarget | null = null;
+	let placement: Placement | null = null;
 	// A new placement supersedes the last one made, not the current holder, or `place, release,
 	// place` would leave the first scroll believing it still owns the viewport.
 	let lastMinted: Token | null = null;
+	let compensations = 0;
 
 	function writable(): Scrollport | null {
 		if (port) return port;
@@ -125,22 +133,45 @@ export function createScrollOwner(deps: ScrollOwnerDeps): ScrollOwner {
 	}
 
 	function drop(): void {
-		heldBy = null;
-		target = null;
+		placement = null;
 	}
 
 	/** Null with nothing held or nothing to place it by. Offsets come from the height table, since
 	 *  the DOM hasn't laid out the table's latest writes yet. */
 	function targetScrollTop(): number | null {
 		const p = writable();
-		if (!target || !resolver || !p) return null;
-		const at = resolver.resolve(target.path);
+		if (!placement || !resolver || !p) return null;
+		const at = resolver.resolve(placement.path);
 		if (!at) return null;
+		if (placement.offset !== null) return at.top + placement.bias - placement.offset;
 		// Centred on the scroll container's height, not a list's, which reads list geometry
 		// mid-change and would centre on a briefly tiny viewport.
-		return target.block === 'center'
+		return placement.block === 'center'
 			? at.top - Math.max(0, (p.viewportHeight() - at.height) / 2)
 			: at.top;
+	}
+
+	function recordLanding(held: Placement, el: HTMLElement): void {
+		const p = writable();
+		if (!p) return;
+		const offset = el.getBoundingClientRect().top - p.viewportTop();
+		const at = resolver?.resolve(held.path);
+		held.offset = offset;
+		held.bias = at ? p.scrollTop() + offset - at.top : 0;
+	}
+
+	// Each compensation re-places a placed target from the height table itself, so nothing is left
+	// to follow by hand once a flush passes with none.
+	async function settle(token: Token, path: number[]): Promise<void> {
+		for (let turn = 1; ; turn++) {
+			const seen = compensations;
+			await tick();
+			if (token.superseded || compensations === seen) return;
+			if (turn > SETTLE_TURNS) {
+				devWarn('scroll', `a placement still compensating after ${SETTLE_TURNS} flushes`, { path });
+				return;
+			}
+		}
 	}
 
 	// The absolute write survives the browser clamping `scrollTop` while images decode above.
@@ -152,12 +183,10 @@ export function createScrollOwner(deps: ScrollOwnerDeps): ScrollOwner {
 		resolver?.syncScrollTop();
 	}
 
-	// Sub-pixel tolerance: the follow loop lands a fraction of a device pixel off the position the
-	// height table gives, and an exact compare would let the delta back in.
-	function sitsOnTarget(): boolean {
-		const top = targetScrollTop();
+	function correctByDelta(mutate: () => void, held: (mutate: () => void) => number): void {
+		const delta = held(mutate);
 		const p = writable();
-		return top !== null && !!p && Math.abs(p.scrollTop() - top) <= 1;
+		if (delta !== 0 && p) p.scrollBy(delta);
 	}
 
 	function elementInView(el: HTMLElement, root: HTMLElement): boolean {
@@ -176,26 +205,32 @@ export function createScrollOwner(deps: ScrollOwnerDeps): ScrollOwner {
 		return true;
 	}
 
-	// The root list's correction estimates from the height table before the flush, so each tick
-	// refines after it until the target stops moving.
-	async function followIntoView(path: number[], block: PlaceBlock, token: Token): Promise<boolean> {
-		const root = deps.getEditorRoot();
-		if (!root) return deps.getBlockElByPath(path) != null;
-		let placedTop: number | null = null;
-		for (let i = 0; i < REVEAL_SETTLE_TICKS; i++) {
-			await tick();
-			if (token.superseded) break;
-			const el = deps.getBlockElByPath(path);
-			if (!el) {
-				placedTop = null; // briefly unmounted while the window re-slices; keep going
-				continue;
+	/** What the editor shows, as a band of viewport pixels: the scroll container's box, cut down
+	 *  in host mode by the ancestors that clip it. */
+	function visibleBand(): { top: number; bottom: number } | null {
+		const p = writable();
+		if (!p) return null;
+		let top = p.viewportTop();
+		let bottom = top + p.viewportHeight();
+		if (deps.isHostScroll()) {
+			for (const bound of deps.getClipBounds()) {
+				const r = bound.getBoundingClientRect();
+				top = Math.max(top, r.top);
+				bottom = Math.min(bottom, r.bottom);
 			}
-			if (el.getBoundingClientRect().top === placedTop) break;
-			el.scrollIntoView({ block });
-			placedTop = el.getBoundingClientRect().top;
 		}
+		return { top, bottom };
+	}
+
+	// Sub-pixel tolerance: a scroll lands its target a fraction of a pixel off the edge.
+	function bandShows(band: { top: number; bottom: number }, rect: DOMRectReadOnly): boolean {
+		return rect.top >= band.top - 1 && rect.bottom <= band.bottom + 1;
+	}
+
+	function landedInView(path: number[]): boolean {
 		const el = deps.getBlockElByPath(path);
-		return el != null && elementInView(el, root);
+		const root = deps.getEditorRoot();
+		return el != null && (!root || elementInView(el, root));
 	}
 
 	return {
@@ -205,41 +240,52 @@ export function createScrollOwner(deps: ScrollOwnerDeps): ScrollOwner {
 			const el = deps.getBlockElByPath([...path]);
 			return !!root && !!el && elementInView(el, root);
 		},
-		heldTarget: () => target,
-		compensate(source, mutate, held) {
-			if (!deps.editorCorrects()) {
-				mutate();
-				return;
-			}
-			if (source === 'root-list' && targetScrollTop() !== null) {
-				mutate();
-				replace();
-				return;
-			}
-			if (source === 'header' && sitsOnTarget()) {
-				mutate();
-				return;
-			}
-			const delta = held(mutate);
+		shows(rect) {
+			const band = visibleBand();
+			return !!band && bandShows(band, rect);
+		},
+		showRect(rect) {
+			// A newer scroll into view, like a newer placement: an older hold must not drag it back.
+			if (lastMinted) lastMinted.superseded = true;
+			drop();
+			const band = visibleBand();
 			const p = writable();
-			if (delta !== 0 && p) p.scrollBy(delta);
+			if (!band || !p || bandShows(band, rect)) return;
+			// A rect already filling the band has nothing to gain; otherwise its top wins a tie.
+			if (rect.top < band.top && rect.bottom > band.bottom) return;
+			const delta =
+				rect.bottom > band.bottom
+					? Math.min(rect.bottom - band.bottom, rect.top - band.top)
+					: rect.top - band.top;
+			p.scrollBy(delta);
+			resolver?.syncScrollTop();
+		},
+		compensate(mutate, held) {
+			compensations++;
+			if (deps.editorCorrects()) correctByDelta(mutate, held);
+			else mutate();
 		},
 		place(path, { block, hold }) {
 			const p = [...path];
 			const token: Token = { superseded: false };
 			if (lastMinted) lastMinted.superseded = true;
 			lastMinted = token;
-			heldBy = token;
-			target = { path: p, block };
+			const mine: Placement = { token, path: p, block, offset: null, bias: 0 };
+			placement = mine;
 			return {
 				async scroll() {
 					// Checked first: a placement another scroll took over during a long mount wait
-					// would otherwise yank the viewport once, before the first tick could stop it.
-					if (!token.superseded) deps.getBlockElByPath(p)?.scrollIntoView({ block });
-					const landed = await followIntoView(p, block, token);
-					// Released on 'center' or a failed scroll too: the approximate hold would drift a
-					// target placed exactly, while holding the top approximately is 'nearest''s promise.
-					if ((!hold || block === 'center' || !landed) && heldBy === token) drop();
+					// would otherwise yank the viewport once.
+					if (token.superseded) return false;
+					const el = deps.getBlockElByPath(p);
+					// A fully visible target stays put under `'nearest'`: the browser moves nothing.
+					el?.scrollIntoView({ block });
+					if (el && placement === mine) recordLanding(mine, el);
+					await settle(token, p);
+					const landed = !token.superseded && landedInView(p);
+					// `'center'` places without holding, as `rects.scrollTo` promises, and a target that
+					// didn't land has no position to keep.
+					if ((!hold || block === 'center' || !landed) && placement === mine) drop();
 					return landed;
 				}
 			};
@@ -253,18 +299,26 @@ export function createScrollOwner(deps: ScrollOwnerDeps): ScrollOwner {
 			return async () => {
 				await tick();
 				// Native anchoring can't undo a max-scroll clamp, so this writes in host mode too.
-				if (!p || target !== null || p.scrollTop() === before) return;
+				if (!p || placement !== null || p.scrollTop() === before) return;
 				p.setScrollTop(before);
 			};
-		},
-		showNearest(path) {
-			deps.getBlockElByPath([...path])?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
 		},
 		release: drop,
 		resolveTargetsWith(next) {
 			resolver = next;
-			return () => {
-				if (resolver === next) resolver = null;
+			return {
+				compensate(mutate, held) {
+					compensations++;
+					if (!deps.editorCorrects()) mutate();
+					else if (resolver !== next || targetScrollTop() === null) correctByDelta(mutate, held);
+					else {
+						mutate();
+						replace();
+					}
+				},
+				uninstall() {
+					if (resolver === next) resolver = null;
+				}
 			};
 		}
 	};

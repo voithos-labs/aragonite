@@ -257,6 +257,7 @@ Three families of seam run these checks:
 | G1.41 | A structural edit keeps the final break as it was (a blank last line keeps its own) | A·P·N   |
 | G1.42 | A list item's checkbox, and a to-do's blocks, are what its reload reads             | A·N     |
 | G1.43 | Reading a commit's landing moves no caret                                           | A·N     |
+| G1.45 | A caret landing's focus scrolls nothing                                             | A·N     |
 
 ### The entries
 
@@ -688,6 +689,13 @@ either (a focus call, a selection write) fails here the first time a test runs i
 `invariants/landing-value.ts :: checkLandingIsAValue` · run by
 `editor-actions/commit/undo-controller.ts` · `test/invariants/landing-value.test.ts`.
 
+**G1.45 · A landing's focus scrolls nothing** (`landing-focus-scrolls-nothing`). The caret
+landing's reveal policy is the one scroll a landing makes, through the scroll owner. In a dev build
+`land` and `restore` read the scroll position around the block's focus call and the DOM placement,
+and a focus that moved it (one without `preventScroll`) fails here. Predicate
+`invariants/landing-focus-scroll.ts :: checkLandingFocusScrollsNothing` · run by
+`selection/caret-landing.ts` · `test/selection/caret-landing.test.ts`; G4.91 is the source half.
+
 ## Group 2: property and regression tested
 
 No runtime seam sees these; the test suite is the whole enforcement. Test files live under
@@ -973,6 +981,7 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.85 | A live rewrite that removes bytes reads its candidate where it will be stored             | L       |
 | G4.86 | A list item's marker is read only where the list is built, drawn or dumped                | L       |
 | G4.87 | Only the scroll owner writes the editor's scroll position                                 | L       |
+| G4.91 | A focus call that may scroll the editor says why                                          | L       |
 
 ### The entries
 
@@ -1786,6 +1795,17 @@ can write, anywhere but the owner and the port itself. `rects.scrollTo(path)` do
 the published call, and it goes through the owner. A few files keep writes of their own, and the manifest says why for each: a drag's
 autoscroll, which the pointer drives frame by frame, and two listboxes keeping their active row in
 view inside their own scroller. `lint/file-rules.test.ts`.
+
+**G4.91 · A focus call scrolls nothing unless it says why.** `focus()` scrolls an off-screen
+element into view on its own, a scroll writer G4.87 can't see. So a caret's focus passes
+`preventScroll`, and whatever moved the caret asks the scroll owner instead. The scan flags a
+`focus()` with no arguments, or with options that leave out `preventScroll`; a block component's
+`focus(offset)` takes a number and doesn't count. Every file it flags is declared with its reason,
+among them a click that reveals a widget's source, an arrow arriving on a gap caret, a menu or
+popout moving focus among its own controls, and `focusCollapsedCaret`, which the cross-block
+delete, typing and paste lean on until they land through the caret landing. The manifest is per
+file, so a new bare focus inside an already declared file passes. `lint/file-rules.test.ts`, with G1.45 as
+the runtime half.
 
 ## Accessibility
 

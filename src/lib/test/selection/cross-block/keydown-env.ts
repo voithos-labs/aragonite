@@ -82,6 +82,7 @@ export function makeKeydownEnv(source: string | Document, opts: KeydownEnvOption
 			return true;
 		},
 		async restore(selection) {
+			if ('gapCaret' in selection) return 'unplaced';
 			await revealPath(selection.focus.path.slice());
 			return 'applied';
 		}

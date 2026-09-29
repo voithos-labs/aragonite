@@ -102,7 +102,7 @@
 				e.stopPropagation();
 			}
 			card.close();
-			if (inCard) caretRestore.restore();
+			if (inCard) void caretRestore.restore();
 		};
 		document.addEventListener('pointerdown', onPointerDown, true);
 		document.addEventListener('keydown', onKeyDown, true);

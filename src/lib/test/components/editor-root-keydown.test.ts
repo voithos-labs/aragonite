@@ -43,7 +43,7 @@ interface Harness {
 	inserted: string[];
 	undoCount(): number;
 	redoCount(): number;
-	savedRanges: (Range | null)[];
+	searchCaretSaves(): number;
 	replaceExpanded: boolean[];
 	setMode(mode: PresentationMode): void;
 	setCrossBlock(on: boolean): void;
@@ -61,7 +61,7 @@ function harness(): Harness {
 	const search = fakeSearch();
 	const crossBlockKeys: KeyboardEvent[] = [];
 	const inserted: string[] = [];
-	const savedRanges: (Range | null)[] = [];
+	let searchCaretSaves = 0;
 	const replaceExpanded: boolean[] = [];
 	let undoCount = 0;
 	let redoCount = 0;
@@ -98,7 +98,7 @@ function harness(): Harness {
 			}
 		},
 		isHostChrome: (node) => !!node && header.contains(node),
-		saveSearchRange: (range) => savedRanges.push(range),
+		saveSearchCaret: () => searchCaretSaves++,
 		setReplaceExpanded: (expanded) => replaceExpanded.push(expanded)
 	};
 
@@ -116,7 +116,7 @@ function harness(): Harness {
 		inserted,
 		undoCount: () => undoCount,
 		redoCount: () => redoCount,
-		savedRanges,
+		searchCaretSaves: () => searchCaretSaves,
 		replaceExpanded,
 		setMode: (next) => (mode = next),
 		setCrossBlock: (on) => (crossBlock = on),
@@ -500,7 +500,7 @@ describe('editor-root keydown: search chord branches', () => {
 		h.press('f', MOD_F);
 		h.press('f', MOD_F);
 		expect(h.search.calls.open).toBe(2);
-		expect(h.savedRanges).toHaveLength(1);
+		expect(h.searchCaretSaves()).toBe(1);
 	});
 
 	it('falls through when the find bar is disabled by prop', () => {

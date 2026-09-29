@@ -73,6 +73,10 @@ the ordinary one: `Mod+Z`, which restores the construct whole, url intact.
   piece of the editor's own UI saves its own caret position, so closing the bar lands the caret
   where the user left it rather than at the link
 - leaving live mode closes the card, since every other mode paints the destination already
+- in a document taller than the editor, a commit on a link mid-viewport leaves its line where it
+  was, even when an image below it finishes loading afterwards. Miss-analysis: every card test ran
+  in a document that fit on screen, so none saw the commit's landing pull its line to the
+  viewport's top on the next height change
 
 ## User interactions
 

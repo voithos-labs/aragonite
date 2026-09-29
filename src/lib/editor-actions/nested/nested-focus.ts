@@ -22,11 +22,13 @@ export function createNestedFocus(state: BlockListState, deps: NestedActionsDeps
 		},
 		// The boundaries this container owns are between its own children, so its
 		// document-absolute path is their parent. Read live: `path` moves under edits.
-		gapStop: (boundaryIndex) => parent.focus.tryGapStop(deps.path, boundaryIndex)
+		gapStop: (boundaryIndex) => parent.focus.tryGapStop(deps.path, boundaryIndex),
+		arrived: (index) => parent.focus.followArrival([...deps.path, index])
 	};
 	return {
-		// The root holds the document and selection reads, so the gap stop is forwarded to it.
+		// The root holds the document, the selection reads and the scroll, so both are forwarded.
 		tryGapStop: parent.focus.tryGapStop,
+		followArrival: parent.focus.followArrival,
 		async moveFocus(
 			innerIndex: number,
 			position: FocusPosition,

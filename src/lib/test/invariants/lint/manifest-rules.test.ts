@@ -298,8 +298,7 @@ const MANIFESTS: ManifestRule[] = [
 			'src/lib/components/blocks/text/edge-policy-dispatch.ts':
 				'selects a replace widget whole: a range over one element, not a raw offset',
 			'src/lib/components/blocks/text/widget-interaction.ts':
-				"a double-click selects the revealed token whole, over the reveal's own text node",
-			'src/lib/selection/caret-restore.ts': 'the menu-blur restore of a Range it saved itself'
+				"a double-click selects the revealed token whole, over the reveal's own text node"
 		},
 		reason:
 			'a caret written from a raw offset goes through placeCaretAtRaw, which skips the marker prefix and clamps; any other native write must be a range over nodes it already holds',

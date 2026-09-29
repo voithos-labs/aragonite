@@ -99,3 +99,35 @@ test.describe('opening a diagram source at the document end', () => {
 		expect(after.blockBottom).toBeLessThanOrEqual(after.portHeight);
 	});
 });
+
+test.describe('opening a diagram source that runs off the bottom of the screen', () => {
+	test('the page stays where it was', async ({ page }) => {
+		const editor = new MermaidPage(page);
+		await editor.loadDiagram(`${PROSE}\n\n${TALL_DIAGRAM}\n\n${PROSE}\n`);
+		// The diagram's top two thirds of the way down the scroll container, its lower half past
+		// the bottom edge.
+		const top = await page.evaluate(() => {
+			const port = document.querySelector('.editor') as HTMLElement;
+			const block = document.querySelector('.mermaid-block') as HTMLElement;
+			const at = block.getBoundingClientRect().top - port.getBoundingClientRect().top;
+			return port.scrollTop + at - (port.clientHeight * 2) / 3;
+		});
+		await editor.scrollEditorTo(top);
+		const before = await portGeometry(page);
+		expect(before.blockTop).toBeGreaterThan(0);
+		expect(before.blockBottom).toBeGreaterThan(before.portHeight);
+
+		// A click in the diagram's visible top, which the toolbar needs, then its Edit control.
+		const box = (await editor.viewport.boundingBox())!;
+		await page.mouse.click(box.x + box.width / 2, box.y + 20);
+		await editor.waitForRenderFlush();
+		const clicked = await portGeometry(page);
+		await page.getByTestId('mermaid-edit').click();
+		await editor.textarea.waitFor({ state: 'visible' });
+		await expect(editor.textarea).toBeFocused();
+		await editor.waitForRenderFlush();
+		await editor.waitForRenderFlush();
+
+		expect((await portGeometry(page)).scrollTop).toBe(clicked.scrollTop);
+	});
+});

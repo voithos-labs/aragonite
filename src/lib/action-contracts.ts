@@ -146,6 +146,9 @@ export interface FocusActions {
 	/** @internal Put the caret at a between-blocks boundary that allows one. Required: a container
 	 *  that fails to forward it makes every such caret below it vanish. */
 	tryGapStop(parentPath: number[], boundaryIndex: number): boolean;
+	/** @internal An arrow move ended on the block at `path`: one focused whole comes into view.
+	 *  Forwarded to the root like `tryGapStop`. */
+	followArrival(path: number[]): void;
 }
 
 export interface HistoryActions {
@@ -398,6 +401,7 @@ export interface ListContext {
 export type CellPosition = 'start' | 'end' | number;
 
 export interface TableContext {
+	/** A key's move to another cell; the cell comes into view as any arrow arrival does. */
 	focusCell(rowIdx: number, colIdx: number, position: CellPosition): void;
 	/** Scroll the grid sideways so the cell's column is inside the table's own box. */
 	revealColumn(rowIdx: number, colIdx: number): void;

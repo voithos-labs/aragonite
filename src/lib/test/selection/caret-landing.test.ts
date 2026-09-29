@@ -10,9 +10,16 @@ import type { ScrollOwner } from '../../cursor/scroll-owner';
 import { refSlotsOver } from '../../reactivity/publish-ref.svelte';
 import { nodeAt } from '../../tree-operations/node-primitives';
 import type { ChildList } from '../../reactivity/child-list';
-import { createCaretLanding, type CaretLandingDeps } from '../../selection/caret-landing';
+import {
+	createCaretLanding,
+	type CaretLanding,
+	type CaretLandingDeps,
+	type LandOptions
+} from '../../selection/caret-landing';
 import { createSelectionState } from '../../selection/selection-state.svelte';
 import { stubBlockComponent } from '../../testing/headless-actions';
+import { stubScrollport } from '../harness/stub-scrollport';
+import { takeDevWarns } from '../support/warn-gate';
 
 interface Placement {
 	path: number[];
@@ -51,8 +58,12 @@ function mountingList(
 
 function recordingScroll(visible: boolean) {
 	const calls: string[] = [];
-	const scroll: Pick<ScrollOwner, 'isInView' | 'place'> = {
-		isInView: () => visible,
+	const scroll: Pick<ScrollOwner, 'shows' | 'showRect' | 'place' | 'port'> = {
+		port: () => null,
+		shows: () => visible,
+		showRect: () => {
+			calls.push('showRect');
+		},
 		place: (_path, { hold }) => {
 			calls.push(hold ? 'place, held' : 'place');
 			return {
@@ -66,6 +77,12 @@ function recordingScroll(visible: boolean) {
 	return { scroll, calls };
 }
 
+/** A block element with a box and no caret inside it; the recording scroll decides what shows. */
+const STAND_IN = {
+	getBoundingClientRect: () => ({ top: 0, bottom: 20 }),
+	contains: () => false
+} as unknown as HTMLElement;
+
 function landingOver(source: string, over: Partial<CaretLandingDeps> = {}) {
 	const doc = parse(source);
 	const placements: Placement[] = [];
@@ -76,7 +93,7 @@ function landingOver(source: string, over: Partial<CaretLandingDeps> = {}) {
 		selectionState: createSelectionState({ getDoc: () => doc }),
 		caretMemory,
 		// A stand-in element, so the scroll half has something to bring into view.
-		getBlockElByPath: () => ({}) as HTMLElement,
+		getBlockElByPath: () => STAND_IN,
 		getEditorRoot: () => null,
 		scroll: null,
 		...over
@@ -136,11 +153,11 @@ describe('landing a caret', () => {
 });
 
 describe('bringing a landing into view', () => {
-	it('scrolls an off-screen block into view and gives the viewport back', async () => {
+	it('shows an off-screen caret the least distance, holding nothing', async () => {
 		const { scroll, calls } = recordingScroll(false);
 		const { landing } = landingOver('a\n', { scroll });
 		await landing.land(at([0], 0));
-		expect(calls).toEqual(['place', 'scroll']);
+		expect(calls).toEqual(['showRect']);
 	});
 
 	it('writes no scroll for a block already in view', async () => {
@@ -158,11 +175,48 @@ describe('bringing a landing into view', () => {
 		expect(placements).toHaveLength(1);
 	});
 
-	it("keeps the block held under 'into-view-held'", async () => {
+	// Miss-analysis: any landing could ask to be held, and the menus and the link card did, which
+	// is how a slash pick came to drag its line to the top of the page.
+	it('only a navigation can hold: no landing option asks for it', () => {
+		const tryToHold = (landing: CaretLanding) => {
+			const held: LandOptions = {
+				// @ts-expect-error a held landing is `navigate`'s alone; widening `RevealPolicy` fails check.
+				reveal: 'into-view-held'
+			};
+			void landing.land(at([0], 0), held);
+		};
+		expect(tryToHold).toBeTypeOf('function');
+	});
+
+	it('a navigation holds its block, even one already in view', async () => {
 		const { scroll, calls } = recordingScroll(true);
 		const { landing } = landingOver('a\n', { scroll });
-		await landing.land(at([0], 0), { reveal: 'into-view-held' });
+		await landing.navigate(at([0], 0));
 		expect(calls).toEqual(['place, held', 'scroll']);
+	});
+
+	// Miss-analysis: the landing's focus call scrolled natively, and no test watched the scroll
+	// position across it, so a second writer sat beside the reveal policy unseen.
+	it('a focus call that scrolls fails the landing-focus check', async () => {
+		const port = stubScrollport({ viewportHeight: 500 });
+		const { scroll } = recordingScroll(true);
+		const doc = parse('a\n');
+		const scrolling = stubBlockComponent({ focus: () => port.setScrollTop(120) });
+		const landing = createCaretLanding({
+			getDoc: () => doc,
+			root: {
+				count: () => 1,
+				refs: refSlotsOver([scrolling]),
+				windowing: { revealChild: async () => {}, isInWindow: () => true }
+			},
+			selectionState: createSelectionState({ getDoc: () => doc }),
+			caretMemory: createCaretMemory(),
+			getBlockElByPath: () => STAND_IN,
+			getEditorRoot: () => null,
+			scroll: { ...scroll, port: () => port }
+		});
+		await landing.land(at([0], 0));
+		expect(takeDevWarns().map((w) => w.tag)).toEqual(['invariant:landing-focus-scrolls-nothing']);
 	});
 });
 

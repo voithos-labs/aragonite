@@ -11,14 +11,14 @@ import {
 	type ParentScopeSink
 } from '../editor-keys';
 import type { NodeView } from '../core/node-views';
-import type { TargetResolver } from '../cursor/scroll-owner';
+import type { Compensate, RootListScroll, TargetResolver } from '../cursor/scroll-owner';
 import { createListWindowing, type ListWindowing } from './list-windowing.svelte';
 
 export interface ContainerWindowingOpts {
 	/** This container's index in the list above it, for the subtotal it reports upward. A
-	 *  getter, so a reorder reports under the current index. Ignored at the root. */
+	 *  getter, so a reorder reports under the current index. */
 	getIndex: () => number;
-	/** This list's path; `[]` at the root. */
+	/** This list's path. */
 	getParentPath: () => number[];
 	getChildren: () => readonly NodeView[];
 	getChildIds: () => string[];
@@ -82,23 +82,46 @@ export function rootTargetResolver(
 	};
 }
 
-/** One windowing unit per container, whether it renders a `BlockList` or its own `{#each}`.
- *  Call synchronously during component init, since it reads and sets context. */
+/** One windowing unit per nested container, whether it renders a `BlockList` or its own
+ *  `{#each}`. Call synchronously during component init, since it reads and sets context. */
 export function useContainerWindowing(opts: ContainerWindowingOpts): ListWindowing {
+	const scrollOwner = getContext<EditorServices | undefined>(EDITOR_SERVICES_KEY)?.scrollOwner;
+	return windowingUnit(opts, (mutate, held) =>
+		scrollOwner ? scrollOwner.compensate(mutate, held) : mutate()
+	);
+}
+
+/** The editor root's windowing, and the one height correction that re-places a held target,
+ *  which the header slot shares. Null without the editor's services, as in a harness. */
+export function useRootWindowing(
+	opts: Pick<ContainerWindowingOpts, 'getChildren' | 'getChildIds' | 'getListEl'>
+): { windowing: ListWindowing; scroll: RootListScroll | null } {
+	const scrollOwner = getContext<EditorServices | undefined>(EDITOR_SERVICES_KEY)?.scrollOwner;
+	const { blockElLookup } = getContext<EditorDoc>(EDITOR_DOC_KEY);
+	let scroll: RootListScroll | null = null;
+	const windowing = windowingUnit(
+		{ ...opts, getIndex: () => 0, getParentPath: () => [], provideLeafChannel: true },
+		(mutate, held) => (scroll ? scroll.compensate(mutate, held) : mutate())
+	);
+	if (scrollOwner) {
+		scroll = scrollOwner.resolveTargetsWith(
+			rootTargetResolver(windowing, (path) => placementOf(path, blockElLookup))
+		);
+		onDestroy(scroll.uninstall);
+	}
+	return { windowing, scroll };
+}
+
+function windowingUnit(opts: ContainerWindowingOpts, compensate: Compensate): ListWindowing {
 	const {
 		heightOracle: oracle,
 		scrollport: getPort,
 		focusedPath: getFocusPath,
 		widthVersion: getWidthVersion,
-		viewportHeightVersion: getViewportHeightVersion,
-		blockElLookup
+		viewportHeightVersion: getViewportHeightVersion
 	} = getContext<EditorDoc>(EDITOR_DOC_KEY);
 	const parentSink = getContext<ParentScopeSink | undefined>(PARENT_SCOPE_SINK_KEY);
 	const scrollOwner = getContext<EditorServices | undefined>(EDITOR_SERVICES_KEY)?.scrollOwner;
-	// Only the root list holds the scrolled-to block in place; a nested list holds the block at
-	// the top of the viewport, or the two corrections would fight over one `scrollTop`.
-	const isRoot = opts.getParentPath().length === 0;
-	const source = isRoot ? 'root-list' : 'nested-list';
 
 	const windowing = createListWindowing({
 		oracle,
@@ -108,8 +131,7 @@ export function useContainerWindowing(opts: ContainerWindowingOpts): ListWindowi
 		getOwnEl: opts.getOwnEl,
 		getPort: () => getPort?.() ?? null,
 		scroll: {
-			compensate: (mutate, held) =>
-				scrollOwner ? scrollOwner.compensate(source, mutate, held) : mutate(),
+			compensate,
 			scrollToMount: (contentTop) => scrollOwner?.scrollToMount(contentTop)
 		},
 		getFocusPath: () => getFocusPath?.() ?? null,
@@ -127,14 +149,6 @@ export function useContainerWindowing(opts: ContainerWindowingOpts): ListWindowi
 		activateAbovePx: 4000,
 		deactivateBelowPx: 3000
 	});
-
-	if (isRoot && scrollOwner) {
-		onDestroy(
-			scrollOwner.resolveTargetsWith(
-				rootTargetResolver(windowing, (path) => placementOf(path, blockElLookup))
-			)
-		);
-	}
 
 	if (opts.provideLeafChannel) {
 		// Only a direct child measures into this height table; a deeper block belongs to its own

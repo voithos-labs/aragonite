@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach, beforeEach } from 'vitest';
+import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
 import { registerDetailsKind } from '$lib/plugins/details/details-kind';
 import { blockNodeAt } from '$lib/tree-operations/node-primitives';
 import { createInlineRangeCommit } from '$lib/editor-actions/inline-range-commit';
@@ -157,6 +157,18 @@ describe('inline-range commit: the caret it lands', () => {
 		const h = makeTop('Visit [x](old) now\n');
 		await h.commit.commitInlineRange([0], 6, 14, '[x](new)', 6);
 		expect(h.landings).toEqual([]);
+	});
+
+	// Miss-analysis: no test read the landing's reveal policy, and the held one pulled a slash
+	// pick's line to the viewport's top on the next height change.
+	it.each([
+		['a splice that writes', '[x](new)'],
+		['a splice that changes nothing', '[x](old)']
+	])('%s lands in view without holding the line there', async (_label, bytes) => {
+		const h = makeTop('Visit [x](old) now\n');
+		const land = vi.spyOn(h.deps.caretLanding, 'land');
+		await h.commit.commitInlineRange([0], 6, 14, bytes, 6, { landCaret: true });
+		expect(land.mock.calls.map(([, opts]) => opts?.reveal)).toEqual(['into-view']);
 	});
 });
 

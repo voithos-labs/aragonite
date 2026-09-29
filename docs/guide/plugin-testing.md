@@ -168,7 +168,7 @@ applyPasteTransforms('quiet please\n'); // 'quiet please\n' (declined, so nothin
 
 ### Mounting the editor under jsdom
 
-A component is only really verified mounted, and a jsdom mount is a supported way to do it. Three things stand in the way. Two are jsdom gaps, and `installEditorDomStubsForTests` closes both by stubbing the browser APIs a mounted editor calls and jsdom lacks (`ResizeObserver` and `scrollIntoView`), each only where absent, so the call is inert in a real browser:
+A component is only really verified mounted, and a jsdom mount is a supported way to do it. Two things stand in the way. The first is the browser APIs a mounted editor calls and jsdom doesn't have (`ResizeObserver`, `scrollIntoView`, and a text range's rects, which the editor reads to keep the caret on screen). `installEditorDomStubsForTests` fills those in, each only where it's missing, so the call does nothing in a real browser:
 
 ```ts
 // @vitest-environment jsdom
@@ -183,7 +183,7 @@ const editor = mount(Editor, { target, props: { source: MY_SOURCE, plugins, scro
 flushSync(); // the first render has to land before you can assert on it
 ```
 
-`scrollMode: 'host'` is the third thing: it drops the editor's own scroll container and the chrome a jsdom box can't size anyway ([host scroll mode](consumer-guide.md#host-scroll-mode)). And keep the fixture document short. The editor stops mounting blocks past an estimated-height budget in either scroll mode, jsdom reports a zero-height viewport, and a fixture tall enough to trip that unmounts the very block you're asserting on.
+`scrollMode: 'host'` is the second thing: it drops the editor's own scroll container and the chrome a jsdom box can't size anyway ([host scroll mode](consumer-guide.md#host-scroll-mode)). And keep the fixture document short. The editor stops mounting blocks past an estimated-height budget in either scroll mode, jsdom reports a zero-height viewport, and a fixture tall enough to trip that unmounts the very block you're asserting on.
 
 From there `target.querySelector` reaches your component's own markup, and `editor.getSource()` hands you the bytes to compare:
 

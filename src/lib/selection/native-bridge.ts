@@ -41,8 +41,8 @@ export function applyCollapsedCaret(blockEl: HTMLElement, point: SelectionPoint)
 	placeCaretAtRaw(blockEl, point.offset, { clamp: 'reachable' });
 }
 
-/** Places a focused collapsed caret in `point`'s mounted block; false when it is not mounted.
- *  Exported only for the cross-block delete, typing and paste, which still place their own caret. */
+/** A focused collapsed caret in `point`'s mounted block, scrolled to by the focus call itself: kept
+ *  for the cross-block delete, typing and paste until they land through the caret landing. */
 export function focusCollapsedCaret(
 	getBlockElByPath: (path: number[]) => HTMLElement | null,
 	point: SelectionPoint
@@ -51,6 +51,18 @@ export function focusCollapsedCaret(
 	if (!blockEl) return false;
 	applyCollapsedCaret(blockEl, point);
 	blockEl.focus();
+	return true;
+}
+
+// A restore's caret; the restore's reveal policy decides the scroll.
+function restoreCollapsedCaret(
+	getBlockElByPath: (path: number[]) => HTMLElement | null,
+	point: SelectionPoint
+): boolean {
+	const blockEl = getBlockElByPath(point.path);
+	if (!blockEl) return false;
+	applyCollapsedCaret(blockEl, point);
+	blockEl.focus({ preventScroll: true });
 	return true;
 }
 
@@ -181,7 +193,7 @@ function placeRestoredSelection(selection: EditorSelection, target: RestoreTarge
 
 	if (route === 'collapsed') {
 		selectionState.clear();
-		return focusCollapsedCaret(getBlockElByPath, target.caretAt(selection.anchor));
+		return restoreCollapsedCaret(getBlockElByPath, target.caretAt(selection.anchor));
 	}
 
 	if (route === 'whole-block') {
@@ -200,7 +212,7 @@ function placeRestoredSelection(selection: EditorSelection, target: RestoreTarge
 		const blockEl = getBlockElByPath(selection.anchor.path);
 		if (!blockEl) return false;
 		applySingleBlockRange(blockEl, selection.anchor.offset, selection.focus.offset);
-		blockEl.focus();
+		blockEl.focus({ preventScroll: true });
 		return true;
 	}
 
@@ -209,7 +221,7 @@ function placeRestoredSelection(selection: EditorSelection, target: RestoreTarge
 	selectionState.enterCrossBlock(selection.anchor, selection.focus);
 	// The stored focus, which normalization may have turned into a cell index.
 	const focus = selectionState.focus ?? selection.focus;
-	if (focusCollapsedCaret(getBlockElByPath, target.caretAt(focus))) {
+	if (restoreCollapsedCaret(getBlockElByPath, target.caretAt(focus))) {
 		return true;
 	}
 	clearNativeSelection();

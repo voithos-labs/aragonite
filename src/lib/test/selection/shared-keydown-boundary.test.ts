@@ -52,7 +52,7 @@ function makeCtx(over: {
 		history: {} as SharedKeydownContext['history'],
 		focus: {} as SharedKeydownContext['focus'],
 		getDoc: () => doc,
-		scrollOwner: { showNearest: () => {} }
+		scrollOwner: { place: () => ({ scroll: async () => true }) }
 	};
 }
 

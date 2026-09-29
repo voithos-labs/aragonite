@@ -15,7 +15,7 @@ import {
 	type RootPlacement
 } from '../../reactivity/use-container-windowing.svelte';
 import type { HeightOracle } from '../../cursor/height-oracle';
-import type { CompensationSource, ScrollOwner, ScrollOwnerDeps } from '../../cursor/scroll-owner';
+import type { RootListScroll, ScrollOwner, ScrollOwnerDeps } from '../../cursor/scroll-owner';
 import type { Scrollport } from '../../cursor/scrollport';
 import type { CstNode } from '../../core/nodes';
 import { stubListEl, stubScrollOwner, stubScrollport } from './stub-scrollport';
@@ -65,15 +65,17 @@ export type MountListWindowingOptions = Partial<ListWindowingDeps> & {
 	viewportTop?: number;
 	maxScrollTop?: number;
 	snapsToPixel?: boolean;
-	/** The space between the scroll container's content origin and this list's first block. */
-	chromeAbove?: number;
+	/** The space between the scroll container's content origin and this list's first block; a
+	 *  getter when a suite grows a header above the list. */
+	chromeAbove?: number | (() => number);
 	/** The scroll owner's own deps: the editor correcting scroll and nothing mounted by default. */
 	ownerDeps?: Partial<ScrollOwnerDeps>;
 	/** Where a held path sits in this list, which stands in for the DOM measure the root list
 	 *  makes; a top-level path's own index by default. */
 	placeTargets?: (path: readonly number[]) => RootPlacement | null;
-	/** Which list this is to the scroll owner; the root list by default. */
-	source?: CompensationSource;
+	/** Mount it as a nested list, correcting through the owner's plain correction; the resolver
+	 *  still answers for a root list above it. */
+	nested?: boolean;
 };
 
 export interface MountedListWindowing {
@@ -81,6 +83,8 @@ export interface MountedListWindowing {
 	/** Writable, so a suite can stand in for the user scrolling. */
 	port: Scrollport;
 	owner: ScrollOwner;
+	/** The root list's correction, which the header slot shares. */
+	rootScroll: RootListScroll;
 	cleanup: () => void;
 }
 
@@ -97,7 +101,7 @@ export function mountListWindowing(options: MountListWindowingOptions): MountedL
 		chromeAbove,
 		ownerDeps,
 		placeTargets = (path) => placementOf(path, () => null),
-		source = 'root-list',
+		nested = false,
 		...deps
 	} = options;
 	const port = stubScrollport({ viewportHeight, viewportTop, maxScrollTop, snapsToPixel });
@@ -113,7 +117,9 @@ export function mountListWindowing(options: MountListWindowingOptions): MountedL
 			getListEl: () => listEl,
 			getPort: () => port,
 			scroll: {
-				compensate: (mutate, held) => owner.compensate(source, mutate, held),
+				compensate: nested
+					? owner.compensate
+					: (mutate, held) => rootScroll.compensate(mutate, held),
 				scrollToMount: owner.scrollToMount
 			},
 			getFocusPath: () => null,
@@ -127,7 +133,7 @@ export function mountListWindowing(options: MountListWindowingOptions): MountedL
 			...deps
 		});
 	});
-	owner.resolveTargetsWith(rootTargetResolver(windowing, placeTargets));
+	const rootScroll = owner.resolveTargetsWith(rootTargetResolver(windowing, placeTargets));
 	flushSync();
-	return { windowing, port, owner, cleanup };
+	return { windowing, port, owner, rootScroll, cleanup };
 }

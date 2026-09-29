@@ -22,7 +22,7 @@ export interface EditorRects {
 	 *  Resolves true once the block's element is present. */
 	reveal(path: number[]): Promise<boolean>;
 	/** Mount the block at `path` and scroll to it (`block` defaults to `'nearest'`); `hold`, default
-	 *  true, keeps it in place against later layout shifts. True once it stops moving. */
+	 *  true, keeps it where it landed against later layout shifts. True once in view and settled. */
 	scrollTo(
 		path: readonly number[],
 		opts?: { block?: 'nearest' | 'center'; hold?: boolean }

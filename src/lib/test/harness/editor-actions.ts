@@ -271,12 +271,13 @@ export function makeListFocusScope(
 			await delegateMoveFocus(parentFocus, parentIndex + step, position, options);
 		},
 		gapStop: () => false,
+		arrived: () => {},
 		...over
 	};
 }
 
 export function makeStubFocus(): FocusActions {
-	return { moveFocus: vi.fn(), tryGapStop: () => false };
+	return { moveFocus: vi.fn(), tryGapStop: () => false, followArrival: () => {} };
 }
 
 export function makeStubContainerEdit(): ContainerEditActions {

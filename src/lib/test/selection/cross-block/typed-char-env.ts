@@ -58,7 +58,7 @@ export function makeHandlers(
 		getEditorRoot: () => null,
 		selectedWidget: { range: () => null, clear: () => {} },
 		getScrollHost: () => null,
-		scrollOwner: { showNearest: () => {} },
+		scrollOwner: { place: () => ({ scroll: async () => true }) },
 		getEditorLifetime: () => null,
 		caretMemory: env.caretMemory,
 		blockEdit: env.blockEdit,

@@ -50,7 +50,7 @@ function enterCrossBlockFromKeyboard(
 }
 
 /** Collapses a cross-block range to its start or end and puts the caret back there as a stored
- *  byte, mounting a windowed-out target and never opening a closed body. */
+ *  byte, brought into view, mounting a windowed-out target and never opening a closed body. */
 export async function collapseCrossBlock(
 	selection: SelectionState,
 	to: 'start' | 'end',
@@ -69,16 +69,18 @@ export async function collapseCrossBlock(
 		to === 'end' && !pathsEqual(landing.path, target.path)
 			? { path: landing.path, offset: leafOffsetEnd(doc, landing.path) }
 			: landing;
-	await restore({ anchor: point, focus: point }, { reveal: 'mount' });
+	await restore({ anchor: point, focus: point }, { reveal: 'into-view' });
 }
 
 /** Scrolls the focus block into view if mounted, without mounting it: a document-edge extend
  *  mounts its endpoint first, and one Shift+Arrow step lands beside the mounted range. */
 export function scrollFocusBlockIntoView(
 	selection: SelectionState,
-	scroll: Pick<ScrollOwner, 'showNearest'>
+	scroll: Pick<ScrollOwner, 'place'>
 ): void {
-	if (selection.focus) scroll.showNearest(selection.focus.path);
+	if (selection.focus) {
+		void scroll.place(selection.focus.path, { block: 'nearest', hold: false }).scroll();
+	}
 }
 
 // ── Keyboard Extension ─────────────────────────────────────────────────────

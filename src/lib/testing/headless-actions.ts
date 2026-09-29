@@ -83,8 +83,10 @@ export function recordingFocus(): RecordingFocus {
 		moveFocus: (...args: unknown[]) => {
 			moveFocusCalls.push(args);
 		},
-		// Headless: nothing is rendered, so there is no boundary to put a gap caret at.
-		tryGapStop: () => false
+		// Headless: nothing is rendered, so there is no boundary to put a gap caret at and nothing
+		// to scroll.
+		tryGapStop: () => false,
+		followArrival: () => {}
 	};
 }
 
@@ -218,7 +220,7 @@ function recordingLanding(
 	return {
 		...landing,
 		async land(pos, opts) {
-			const target = caretTargetFor(getDoc(), pos, { openCollapsed: opts?.openCollapsed });
+			const target = caretTargetFor(getDoc(), pos);
 			const outcome = await landing.land(pos, opts);
 			if (target) landings.push({ ...target, outcome });
 			return outcome;

@@ -226,7 +226,7 @@
 		// a scroll container at the document's end clamps against the short layout in between.
 		const restoreScroll = captureScrollPosition();
 		editRequested = true;
-		void restoreScroll().then(() => textareaEl?.focus());
+		void restoreScroll().then(() => textareaEl?.focus({ preventScroll: true }));
 	}
 
 	function cancelEdit(): void {
