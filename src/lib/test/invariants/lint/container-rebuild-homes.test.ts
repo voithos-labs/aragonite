@@ -35,7 +35,7 @@ const HOMES = [
 ];
 
 interface Pin {
-	/** Calls per rebuild name; `.rebuild` is `ContainerScope.rebuild`. */
+	/** Calls per rebuild name: `.rebuild` is `ContainerScope.rebuild`, `.rebuildRaw` a descriptor call. */
 	calls: Record<string, number>;
 	why: string;
 }
@@ -90,9 +90,22 @@ const PINNED: Record<string, Pin> = {
 		calls: {
 			rebuildUnsharedAncestry: 2,
 			rebuildUnsharedChain: 1,
-			rebuildContainerRawIfContainer: 1
+			rebuildContainerRawIfContainer: 1,
+			'.rebuildRaw': 5
 		},
 		why: 'the conformance kit drives rebuilds directly, outside any commit'
+	},
+	'src/lib/testing/kind-conformance.ts': {
+		calls: { '.rebuildRaw': 1 },
+		why: 'the kind kit rebuilds a parsed fixture, outside any commit'
+	},
+	'src/lib/testing/conformance-core.ts': {
+		calls: { '.rebuildRaw': 1 },
+		why: 'the shared kit check rebuilds a parsed fixture, outside any commit'
+	},
+	'src/lib/selection/clipboard-text.ts': {
+		calls: { '.rebuildRaw': 1 },
+		why: 'a copy re-emits a synthetic container around the copied body, a node no commit has seen'
 	},
 	'src/lib/tree-operations/blockquote.ts': {
 		calls: { rebuildContainerRaw: 2 },
@@ -160,7 +173,7 @@ function rebuildNames(sources: SourceFile[]): string[] {
 
 const CODE = 0;
 
-/** Each rebuild call in code as its name and line, `scope.rebuild(...)` included. */
+/** Each rebuild call in code as its name and line, `scope.rebuild(...)` and `d.rebuildRaw(...)` too. */
 function rebuildCalls(file: SourceFile, names: string[]): { name: string; line: number }[] {
 	const classes = fileClasses(file);
 	const found: { index: number; name: string }[] = [];
@@ -169,8 +182,8 @@ function rebuildCalls(file: SourceFile, names: string[]): { name: string; line: 
 			if (classes[site.index] === CODE) found.push({ index: site.index, name });
 		}
 	}
-	for (const m of file.code.matchAll(/\.rebuild\s*\(/g)) {
-		if (classes[m.index] === CODE) found.push({ index: m.index, name: '.rebuild' });
+	for (const m of file.code.matchAll(/\.(rebuild|rebuildRaw)\s*(?:!|\?\.)?\s*\(/g)) {
+		if (classes[m.index] === CODE) found.push({ index: m.index, name: `.${m[1]}` });
 	}
 	return found
 		.sort((a, b) => a.index - b.index)
@@ -242,7 +255,12 @@ describe('G4.96 a container is rebuilt where rebuilds live, or at a pinned site'
 		);
 		expect(flagged("container: { contract: 'grid', rebuildRaw: rebuildTableRaw },")).toBe(false);
 		expect(flagged("const via = 'rebuildTableRaw (grid)';\n// rebuildTableRaw(t)")).toBe(false);
-		expect(flagged('descriptor.rebuildRaw!(node);')).toBe(false);
+		expect(flagged('descriptor.rebuildRaw!(node);')).toBe(true);
+		expect(flagged('getBlockKindDescriptor(k).rebuildRaw(scope.node);')).toBe(true);
+		expect(flagged('tryGetBlockKindDescriptor(k)?.rebuildRaw?.(scope.node);')).toBe(true);
+		expect(flagged('const rebuild = descriptor.rebuildRaw;\nif (descriptor.rebuildRaw) {}')).toBe(
+			false
+		);
 		expect(flagged('rebuildTableRaw(t);', 'src/lib/schema/probe.ts')).toBe(false);
 	});
 
