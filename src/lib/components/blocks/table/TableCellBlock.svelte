@@ -245,6 +245,7 @@
 	// no snap indicator, since cells render no image widgets.
 	const widgetInteraction = createWidgetInteraction({
 		getLineEnding: () => documentLineEnding(getDoc()),
+		storedAs,
 		get node() {
 			return node;
 		},
@@ -743,7 +744,6 @@
 			e,
 			node,
 			cursor,
-			documentLineEnding(getDoc()),
 			storedAs(),
 			widgetInteraction.isRevealing,
 			(edit) => {

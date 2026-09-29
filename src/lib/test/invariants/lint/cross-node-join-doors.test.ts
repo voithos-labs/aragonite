@@ -44,7 +44,7 @@ const NON_JOIN_CONCATENATIONS: Record<string, string> = {
 	'src/lib/editor-actions/inline-range-commit.ts':
 		'a popover or menu splice INSERTS between one leaf’s own halves over the range it replaces; nothing is cut out from under a delimiter it does not also rewrite',
 	'src/lib/selection/cross-block/type-replace.ts':
-		'a typed character INSERTS at the caret the range delete left; that delete, the destructive half, already crossed the cleaner in the range-delete join'
+		'a key typed over a selection across blocks is a range delete, then the character at the caret it left: the delete cleans its join without the typed text in it, a known gap until the cross-block replace carries the text into the join (T18 slice 4)'
 };
 
 /** Operand names that terminate a line rather than contribute a source's bytes. */

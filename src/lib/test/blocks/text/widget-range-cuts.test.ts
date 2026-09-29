@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // In live mode, taking a widget or a decoration's range out of a block cleans the join like any
 // other cut: a bold word emptied of its only widget leaves no `****` behind.
-// Miss-analysis: the widget and island deletes were tested for their undo anchor and caret, always
+// Miss-analysis: the widget and decoration deletes were tested for their undo anchor and caret, always
 // outside a construct, so their literal splice never had a delimiter run beside it.
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { tick } from 'svelte';

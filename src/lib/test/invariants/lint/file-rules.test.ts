@@ -583,7 +583,7 @@ const RULES: FileRule[] = [
 		'G4.44 every prose surface resolves native ranged edits through resolveLiveRangeEdit',
 		LIVE_EDIT_HOME,
 		RESOLVES_LIVE_EDIT,
-		'resolveLiveRangeEdit(e, node, cursor, m, r);',
+		'resolveLiveRangeEdit(e, node, cursor, r);',
 		'a prose surface reads the pending range off getTargetRanges() through resolveLiveRangeEdit; the live selection alone loses every word, line and drag delete at a collapsed caret'
 	),
 	...surfaceParity(
@@ -1022,6 +1022,21 @@ const RULES: FileRule[] = [
 
 // ── G4.89, G4.90 one in-leaf range replace ─────────────────────────────────
 
+/** The directories holding live editing paths; a fenced code body has no inline constructs. */
+const SPLICE_PATHS = [
+	'src/lib/components/',
+	'src/lib/selection/',
+	'src/lib/editor-actions/',
+	'src/lib/tree-operations/',
+	'src/lib/core/inline/',
+	'src/lib/inline-menu/'
+];
+
+const SPLICE_PROBE = 'src/lib/components/blocks/text/probe.ts';
+
+/** One variable's bytes before a cut joined to the same variable's bytes after it. */
+const SAME_SOURCE_SPLICE = /\b([\w.]+)\.slice\(\s*0\s*,[^;]{0,200}?\+[^;]{0,200}?\b\1\.slice\(/s;
+
 /** A file naming the paste's selection that cuts nothing through the in-leaf range replace. */
 const namesPasteRangeWithoutReplace = (file: SourceFile): boolean =>
 	/(?<![\w.'"])preDelete\b/.test(file.code) && !/(?<![\w.])replaceRangeInLeaf\s*\(/.test(file.code);
@@ -1058,6 +1073,62 @@ const LEAF_RANGE_RULES: FileRule[] = [
 			'a join of two leaves runs the tail kind’s write rule and the live cleanup once, here; declare a new caller with what it joins',
 		hits: ["const { raw, seam } = joinLeaves(head, tail, '', store);"],
 		misses: ["import { joinLeaves } from './leaf-range';"]
+	},
+	{
+		id: 'G4.89 a leaf’s own bytes are spliced by the in-leaf range replace, or say why not',
+		population: (file) =>
+			under(...SPLICE_PATHS)(file) && !file.relPath.startsWith('src/lib/components/blocks/code/'),
+		matches: SAME_SOURCE_SPLICE,
+		allowed: {
+			'src/lib/tree-operations/leaf-range.ts': 'the in-leaf range replace itself',
+			'src/lib/components/blocks/text/live-join-seam.ts':
+				'the join cleanup, which the range replace calls',
+			'src/lib/tree-operations/structural-suffix.ts': "a split's two halves, which remove nothing",
+			'src/lib/components/blocks/text/construct-edge-delete.ts':
+				'the edge delete, which reads its own candidate back where it is stored',
+			'src/lib/components/blocks/text/edge-policy-dispatch.ts':
+				'the transitional hard break rewrites one line in place and deletes nothing',
+			'src/lib/components/blocks/text/text-keydown.ts':
+				'a hard break or a tab inserted at the caret, which deletes nothing',
+			'src/lib/components/blocks/text/edge-seat.ts':
+				'a typed byte probed or placed at a caret position, which deletes nothing',
+			'src/lib/components/blocks/text/pending-mark-insert.ts':
+				'a typed run inserted wrapped in the pending marks, which deletes nothing',
+			'src/lib/components/blocks/text/delimiter-autopair.ts':
+				'a delimiter inserted with its pair, or the empty pair it wrote taken back whole',
+			'src/lib/components/blocks/text/auto-pair-record.ts':
+				'remembers a pair the auto-pair wrote and writes nothing',
+			'src/lib/components/blocks/table/TableCellBlock.svelte':
+				'a `<br>` inserted at the caret, which deletes nothing',
+			'src/lib/components/blocks/editable-leaf.ts':
+				'a shown source’s own text, where every marker is on screen',
+			'src/lib/components/image/image-widget-editing.ts':
+				'an image replaced by its own edited bytes, one whole construct for another',
+			'src/lib/core/inline/format-toggle.ts':
+				'the format toggle writes delimiters and checks its candidate against the screen',
+			'src/lib/core/inline/link-source-bytes.ts':
+				'the link writer rewrites one whole link and checks its candidate against the screen',
+			'src/lib/editor-actions/inline-range-commit.ts':
+				'a popover or menu insert over the range it replaces, nothing cut from under a delimiter it keeps',
+			'src/lib/inline-menu/inline-menu-session.ts': 'compares two texts and writes nothing',
+			'src/lib/selection/selection-drop.ts':
+				'a drop inserts at the drop point; its cut goes through the range replace',
+			'src/lib/selection/range-delete.ts':
+				'the range delete’s own join, a known gap until it calls `joinLeaves` (T18 slice 5)',
+			'src/lib/selection/cross-block/type-replace.ts':
+				'a key typed after a cross-block delete, a known gap until the text rides into the join (T18 slice 4)'
+		},
+		reason:
+			'a splice of a leaf’s own bytes that cuts a range can strand the delimiter runs around it; call `replaceRangeInLeaf`, or declare why the splice cuts nothing',
+		hits: [
+			at(SPLICE_PROBE, 'const next = node.raw.slice(0, w.start) + node.raw.slice(w.end);'),
+			at(SPLICE_PROBE, 'const out = raw.slice(0, a) + text + raw.slice(b);')
+		],
+		misses: [
+			at(SPLICE_PROBE, 'const out = head.slice(0, a) + tail.slice(b);'),
+			at(SPLICE_PROBE, 'const edit = replaceRangeInLeaf(node, range, text, store);'),
+			at('src/lib/components/blocks/code/probe.ts', 'const out = raw.slice(0, a) + raw.slice(b);')
+		]
 	},
 	{
 		id: 'G4.90 a paste’s selection is cut through the in-leaf range replace',

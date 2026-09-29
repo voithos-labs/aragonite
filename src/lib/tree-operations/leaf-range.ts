@@ -5,7 +5,12 @@
  */
 
 import type { NodeView } from '../core/node-views';
-import { snapToScalarBoundary, trailingLineEnding, trimTrailingLineEnding } from '../core/lines';
+import {
+	ownTrailingLineEnding,
+	snapToScalarBoundary,
+	trimTrailingLineEnding,
+	type LineEnding
+} from '../core/lines';
 import {
 	getLiveJoinSeamCleaner,
 	type CleanedJoin,
@@ -22,10 +27,10 @@ export interface LeafRangeEdit {
 	/** The leaf's bytes after the edit, trailing line ending included. */
 	raw: string;
 	caret: number;
-	/** The range replaced, once cut back to the painted text. */
+	/** The range replaced: cut back to the painted text and off any surrogate pair. */
 	range: { start: number; end: number };
-	/** Whether `raw` is the range spliced exactly as asked, which the browser's own edit writes
-	 *  too, keeping its grapheme and IME handling. */
+	/** Whether `raw` is the range asked for spliced with nothing moved or cleaned, the edit the
+	 *  browser makes itself, grapheme and IME handling included. */
 	matchesBrowserEdit: boolean;
 }
 
@@ -43,7 +48,7 @@ export function replaceRangeInLeaf(
 	// An inverted range replaces nothing: the text goes in at its start.
 	const end = Math.max(start, snapToScalarBoundary(node.raw, painted.end));
 	if (start < end) {
-		const join = cleanJoin({ node, offset: start }, { node, offset: end }, typed, store);
+		const join = cleanJoin({ node, offset: start }, { node, offset: end }, typed, store, same);
 		if (join.cleaned) {
 			const { raw, seam } = withTyped(join.joined, typed);
 			return { raw, caret: seam + typed.length, range: { start, end }, matchesBrowserEdit: false };
@@ -51,26 +56,24 @@ export function replaceRangeInLeaf(
 	}
 	const display = trimTrailingLineEnding(node.raw);
 	return {
-		raw:
-			display.slice(0, start) +
-			typed +
-			display.slice(end) +
-			trailingLineEnding(node.raw, store.lineEnding),
+		raw: display.slice(0, start) + typed + display.slice(end) + ownTrailingLineEnding(node.raw),
 		caret: start + typed.length,
 		range: { start, end },
-		matchesBrowserEdit: painted.end === range.end
+		matchesBrowserEdit: start === range.start && end === range.end
 	};
 }
 
 /** The bytes `head` up to its offset and `tail` from its offset make with `typed` between them,
- *  `seam` where `typed` starts. */
+ *  `seam` where `typed` starts. `tail`'s bytes take its kind's write rule, in `lineEnding`. */
 export function joinLeaves(
 	head: JoinEndpoint,
 	tail: JoinEndpoint,
 	typed: string,
-	store: StoredAs
+	store: StoredAs,
+	lineEnding: LineEnding
 ): CleanedJoin {
-	return withTyped(cleanJoin(head, tail, typed, store).joined, typed);
+	const writeTail = (bytes: string) => normalizeOwnRaw(tail.node, bytes, lineEnding);
+	return withTyped(cleanJoin(head, tail, typed, store, writeTail).joined, typed);
 }
 
 /** `join.mergedRaw` minus the delimiter runs the join left unpaired, where the reading hides
@@ -87,14 +90,9 @@ function cleanJoin(
 	head: JoinEndpoint,
 	tail: JoinEndpoint,
 	typed: string,
-	store: StoredAs
+	store: StoredAs,
+	writeTail: (bytes: string) => string
 ): { joined: CleanedJoin; cleaned: boolean } {
-	// A leaf's own write rule runs once, when the joined bytes are installed; only bytes from
-	// another leaf still need theirs.
-	const writeTail =
-		tail.node === head.node
-			? (bytes: string) => bytes
-			: (bytes: string) => normalizeOwnRaw(tail.node, bytes, store.lineEnding);
 	const merged = joinKeepingSuffix(head.node, head.offset, tail.node, tail.offset, writeTail);
 	const joined = cleanJoinedRaw({
 		mergedRaw: merged.raw,
@@ -106,6 +104,10 @@ function cleanJoin(
 	});
 	return { joined, cleaned: joined.raw !== merged.raw };
 }
+
+/** The tail of a range inside one leaf: that leaf's write rule runs once, when the bytes are
+ *  installed. */
+const same = (bytes: string): string => bytes;
 
 const withTyped = (join: CleanedJoin, typed: string): CleanedJoin => ({
 	raw: join.raw.slice(0, join.seam) + typed + join.raw.slice(join.seam),

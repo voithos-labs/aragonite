@@ -268,6 +268,7 @@
 
 	const widgetInteraction = createWidgetInteraction({
 		getLineEnding: documentEnding,
+		storedAs,
 		get node() {
 			return node;
 		},
@@ -300,6 +301,7 @@
 	// After `widgetInteraction`, because a clipboard edit hides a shown source before it
 	// touches the CST.
 	const clipboardHandlers = createTextClipboard({
+		storedAs,
 		get node() {
 			return node;
 		},
@@ -886,7 +888,6 @@
 			e,
 			node,
 			cursor,
-			documentEnding(),
 			storedAs(),
 			widgetInteraction.isRevealing,
 			(edit) => {

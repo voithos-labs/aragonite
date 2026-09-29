@@ -96,7 +96,7 @@ describe('a pasted line’s own ending', () => {
 		expect(leafWrites).toEqual([source.slice(0, range[0]) + 'x' + source.slice(range[1])]);
 	});
 
-	it('stays before text the reader sees, and the runs it splits go', async () => {
+	it('stays before text the user sees, and the runs it splits go', async () => {
 		expect((await paste('**ab** c\n', [0], [3, 4], 'x\n')).leafWrites).toEqual(['ax\n c\n']);
 	});
 });

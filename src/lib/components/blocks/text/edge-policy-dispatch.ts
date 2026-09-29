@@ -226,6 +226,7 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		if (write.admitted) deps.setPendingCursor(write.caret, source);
 	}
 
+	/** `[start, end)` replaced by `insert` as every in-leaf edit is, the store read at the key. */
 	function editDisplay(
 		start: number,
 		end: number,
@@ -233,13 +234,15 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		source = 'island',
 		caretBefore = start
 	): void {
-		const d = display();
-		writeDisplay(
-			d.slice(0, start) + insert + d.slice(end),
-			start + insert.length,
-			source,
-			caretBefore
+		const edit = replaceRangeInLeaf(deps.node, { start, end }, insert, deps.storedAs());
+		const write = deps.blockEdit.updateBlockContent(
+			deps.index,
+			edit.raw,
+			'authored',
+			caretBefore,
+			edit.caret
 		);
+		if (write.admitted) deps.setPendingCursor(write.caret, source);
 	}
 
 	/** The selected range, or null at a plain caret; every branch reads it here. Empty when both ends
@@ -354,15 +357,7 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 			if (isDestructive && policy?.deleteGranularity === 'atomic' && !deps.isReading()) {
 				// One keypress takes the whole construct, anchored at the caret before the delete
 				// so Ctrl+Z lands there.
-				const newRaw = node.raw.slice(0, widgetAt.start) + node.raw.slice(widgetAt.end);
-				const write = deps.blockEdit.updateBlockContent(
-					deps.index,
-					newRaw,
-					'authored',
-					caretOffset,
-					widgetAt.start
-				);
-				if (write.admitted) deps.setPendingCursor(write.caret, 'widget');
+				editDisplay(widgetAt.start, widgetAt.end, '', 'widget', caretOffset);
 				return true;
 			}
 			// `onEdge: 'select'`, plus the kinds `enterWidget` sends to their source instead of

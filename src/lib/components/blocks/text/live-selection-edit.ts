@@ -7,7 +7,6 @@
 
 import type { NodeView } from '../../../core/node-views';
 import type { StoredAs } from '../../../schema/stored-as';
-import { trailingLineEnding, trimTrailingLineEnding, type LineEnding } from '../../../core/lines';
 import { replaceRangeInLeaf } from '../../../tree-operations/leaf-range';
 
 /** The raw-offset lookups a browser range edit needs from the block. */
@@ -33,7 +32,6 @@ export function resolveLiveRangeEdit(
 	e: InputEvent,
 	node: NodeView,
 	cursor: LiveEditCursor,
-	lineEnding: LineEnding,
 	store: StoredAs
 ): LiveRangeEdit | null {
 	if (!store.reading.hidesDelimitersAtCaret() || !rewritesTargetRange(e)) return null;
@@ -41,7 +39,7 @@ export function resolveLiveRangeEdit(
 	if (!target) return null;
 	const insert = replacementText(e);
 	if (target.start === target.end) {
-		return parkedCaretInsertion(node, cursor, target.start, insert, lineEnding);
+		return parkedCaretInsertion(node, cursor, target.start, insert, store);
 	}
 	const edit = replaceRangeInLeaf(node, target, insert ?? '', store);
 	if (edit.matchesBrowserEdit) return null;
@@ -57,24 +55,15 @@ function parkedCaretInsertion(
 	cursor: LiveEditCursor,
 	engineTarget: number,
 	insert: string | null,
-	lineEnding: LineEnding
+	store: StoredAs
 ): LiveRangeEdit | null {
 	if (!insert) return null;
 	const selection = window.getSelection();
 	if (!selection || selection.rangeCount === 0 || !selection.isCollapsed) return null;
 	const caret = cursor.rawRangeOf(selection.getRangeAt(0))?.start ?? null;
 	if (caret === null || engineTarget >= caret) return null;
-	const display = trimTrailingLineEnding(node.raw);
-	return {
-		kind: 'rewrite',
-		range: { start: caret, end: caret },
-		raw:
-			display.slice(0, caret) +
-			insert +
-			display.slice(caret) +
-			trailingLineEnding(node.raw, lineEnding),
-		caret: caret + insert.length
-	};
+	const edit = replaceRangeInLeaf(node, { start: caret, end: caret }, insert, store);
+	return { kind: 'rewrite', range: edit.range, raw: edit.raw, caret: edit.caret };
 }
 
 /** The wrapper every block runs around {@link resolveLiveRangeEdit}, shared so a new precondition
@@ -83,13 +72,12 @@ export function applyLiveRangeEdit(
 	e: InputEvent,
 	node: NodeView,
 	cursor: LiveEditCursor,
-	lineEnding: LineEnding,
 	store: StoredAs,
 	isRevealing: () => boolean,
 	commit: (edit: LiveRangeRewrite) => void
 ): boolean {
 	if (isRevealing()) return false;
-	const edit = resolveLiveRangeEdit(e, node, cursor, lineEnding, store);
+	const edit = resolveLiveRangeEdit(e, node, cursor, store);
 	if (!edit) return false;
 	e.preventDefault();
 	if (edit.kind === 'rewrite') commit(edit);

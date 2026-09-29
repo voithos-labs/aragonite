@@ -20,6 +20,7 @@ import {
 	tryGetBlockKindDescriptor
 } from '$lib/schema/block-kind-descriptor';
 import { fixtureReading } from '../harness/fixture-grammar';
+import { testLeaf } from '../harness/test-kinds';
 
 beforeAll(() => registerLiveJoinSeamCleaner(cleanLiveJoinSeam));
 afterAll(() => __resetLiveJoinSeamCleanerForTests());
@@ -442,7 +443,13 @@ describe('joinLeaves across two leaves', () => {
 						typed: '',
 						store
 					});
-					const got = joinLeaves({ node: head, offset: at }, { node: tail, offset: 0 }, '', store);
+					const got = joinLeaves(
+						{ node: head, offset: at },
+						{ node: tail, offset: 0 },
+						'',
+						store,
+						'\n'
+					);
 					if (got.raw !== want.raw || got.seam !== want.seam) {
 						moved.push(`${mode} ${head.kind} + ${tail.kind}: ${JSON.stringify(got.raw)}`);
 					}
@@ -450,5 +457,29 @@ describe('joinLeaves across two leaves', () => {
 			}
 		}
 		expect(moved).toEqual([]);
+	});
+});
+
+// No built-in kind's write rule moves a byte of a merge, so a kind whose rule does shows it runs.
+describe('joinLeaves runs the absorbed kind’s write rule', () => {
+	it('on the bytes it takes from the other leaf', () => {
+		const kind = testLeaf('shouting-leaf', {
+			rawWrite: { normalize: (raw) => raw.toUpperCase(), mapOffset: (_raw, offset) => offset }
+		});
+		const head = parse('x\n').children[0];
+		const tail = { kind, leadingTrivia: '', raw: 'abc\n' } as CstNode;
+		const store = storedAsIn(
+			{ owner: undefined, children: [head], lineEnding: '\n' },
+			0,
+			fixtureReading()
+		);
+		const joined = joinLeaves(
+			{ node: head, offset: 1 },
+			{ node: tail, offset: 0 },
+			'',
+			store,
+			'\n'
+		);
+		expect(joined).toEqual({ raw: 'xABC\n', seam: 1 });
 	});
 });

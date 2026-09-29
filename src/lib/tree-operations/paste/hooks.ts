@@ -60,7 +60,7 @@ function dropClosingLineEnding(text: string): string {
 	return rest === '' || /\r?\n$/.test(rest) ? text : rest;
 }
 
-/** Whether nothing the reader sees follows the caret on its line: a delimiter run the reading
+/** Whether nothing the user sees follows the caret on its line: a delimiter run the reading
  *  hides there, such as a bold word's closer, still ends the line. */
 function endsVisibleLine(node: CstNode, edit: LeafRangeEdit, store: StoredAs): boolean {
 	const after = trimTrailingLineEnding(edit.raw).slice(edit.caret);

@@ -293,7 +293,8 @@ export function joinIntoLeaf(
 		{ node: target, offset: displayLength(target.raw) },
 		{ node: absorbed, offset: 0 },
 		'',
-		storedAsIn(holder, slot, reading)
+		storedAsIn(holder, slot, reading),
+		holder.lineEnding
 	);
 	const legal = legalizeWrite(holder, slot, raw, 'literal');
 	const merged = mergedLeafFor(

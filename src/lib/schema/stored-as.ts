@@ -5,7 +5,6 @@
  */
 
 import type { Document } from '../core/nodes';
-import type { LineEnding } from '../core/lines';
 import type { Reading } from './reading';
 
 declare const storedAsBrand: unique symbol;
@@ -14,8 +13,6 @@ export interface StoredAs {
 	readonly reading: Reading;
 	/** `inline`: the position stores text, never a block (a table cell, a title row). */
 	readonly surface: 'block' | 'inline';
-	/** The ending every line written at the position takes: the document's. */
-	readonly lineEnding: LineEnding;
 	/** The bytes the position keeps: the kind's write rule, then its container's body rule. */
 	stored(bytes: string): string;
 	/** Stored bytes read as a reload reads them at the position, or null where the reload would

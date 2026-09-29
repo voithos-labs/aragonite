@@ -508,7 +508,6 @@ function wordDelete(
 		event,
 		node,
 		{ rawRangeOf: () => range, getRawSelection: () => null },
-		'\n',
 		storeOf(h, leaf, mode)
 	);
 	if (edit === null) {

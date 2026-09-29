@@ -77,7 +77,6 @@ describe('a keystroke with no hidden run beside it reads nothing of where the bl
 			e,
 			leaf.node,
 			cursor,
-			'\n',
 			leaf.storedAs(),
 			() => false,
 			() => {}

@@ -6,7 +6,7 @@ import {
 } from '$lib/components/blocks/text/widget-interaction';
 import { createWidgetSelectionState } from '$lib/components/image/widget-selection-state.svelte';
 import type { CstNode } from '$lib/core/nodes';
-import { fixtureReading } from '../../harness/fixture-grammar';
+import { fixtureReading, topLevelStore } from '../../harness/fixture-grammar';
 import { defaultGrammarView } from '$lib/schema/block-openers';
 import type { Reading } from '$lib/schema/reading';
 
@@ -56,6 +56,7 @@ export function harness(
 		get reading() {
 			return reading;
 		},
+		storedAs: () => topLevelStore(node, reading),
 		...extra
 	} as unknown as WidgetInteractionDeps;
 

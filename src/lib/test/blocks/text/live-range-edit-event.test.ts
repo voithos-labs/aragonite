@@ -59,7 +59,6 @@ describe('a collapsed insertion whose browser target disagrees with the DOM care
 			insertEvent(' '),
 			node,
 			cursorReading(8, 12),
-			'\n',
 			topLevelStore(node, fixtureReading({}, 'live'))
 		);
 		expect(edit).toEqual({
@@ -77,7 +76,6 @@ describe('a collapsed insertion whose browser target disagrees with the DOM care
 				insertEvent(' '),
 				node,
 				cursorReading(8, 8),
-				'\n',
 				topLevelStore(node, fixtureReading({}, 'live'))
 			)
 		).toBeNull();
@@ -92,7 +90,6 @@ describe('a collapsed insertion whose browser target disagrees with the DOM care
 				insertEvent(' '),
 				node,
 				cursorReading(6, 5),
-				'\n',
 				topLevelStore(node, fixtureReading({}, 'live'))
 			)
 		).toBeNull();
@@ -101,7 +98,7 @@ describe('a collapsed insertion whose browser target disagrees with the DOM care
 	it('stays out of every other mode', () => {
 		placeCaret();
 		expect(
-			resolveLiveRangeEdit(insertEvent(' '), node, cursorReading(8, 12), '\n', topLevelStore(node))
+			resolveLiveRangeEdit(insertEvent(' '), node, cursorReading(8, 12), topLevelStore(node))
 		).toBeNull();
 	});
 });
