@@ -10,7 +10,12 @@ import type { ScrollOwner } from '../../cursor/scroll-owner';
 import { refSlotsOver } from '../../reactivity/publish-ref.svelte';
 import { nodeAt } from '../../tree-operations/node-primitives';
 import type { ChildList } from '../../reactivity/child-list';
-import { createCaretLanding, type CaretLandingDeps } from '../../selection/caret-landing';
+import {
+	createCaretLanding,
+	type CaretLanding,
+	type CaretLandingDeps,
+	type LandOptions
+} from '../../selection/caret-landing';
 import { createSelectionState } from '../../selection/selection-state.svelte';
 import { stubBlockComponent } from '../../testing/headless-actions';
 import { stubScrollport } from '../harness/stub-scrollport';
@@ -161,10 +166,23 @@ describe('bringing a landing into view', () => {
 		expect(placements).toHaveLength(1);
 	});
 
-	it("keeps the block held under 'into-view-held'", async () => {
+	// Miss-analysis: any landing could ask to be held, and the menus and the link card did, which
+	// is how a slash pick came to drag its line to the top of the page.
+	it('only a navigation can hold: no landing option asks for it', () => {
+		const tryToHold = (landing: CaretLanding) => {
+			const held: LandOptions = {
+				// @ts-expect-error a held landing is `navigate`'s alone; widening `RevealPolicy` fails check.
+				reveal: 'into-view-held'
+			};
+			void landing.land(at([0], 0), held);
+		};
+		expect(tryToHold).toBeTypeOf('function');
+	});
+
+	it('a navigation holds its block, even one already in view', async () => {
 		const { scroll, calls } = recordingScroll(true);
 		const { landing } = landingOver('a\n', { scroll });
-		await landing.land(at([0], 0), { reveal: 'into-view-held' });
+		await landing.navigate(at([0], 0));
 		expect(calls).toEqual(['place, held', 'scroll']);
 	});
 

@@ -76,7 +76,7 @@
 	import { createOperationsLog } from '../debug/operations-log';
 	import { createEditorDiagnostics } from '../debug/editor-diagnostics';
 	import { readCurrentSelection } from '../selection/native-bridge';
-	import { createCaretRestore } from '../selection/caret-restore';
+	import { createCaretRestore, type CaretRestoreDeps } from '../selection/caret-restore';
 	import { createCrossBlockHandlers } from '../selection/cross-block/dispatch';
 	import { createCrossBlockCommands } from '../selection/cross-block/format-toggle';
 	import { normalizeKeybindingOverrides } from '../schema/keybinding-overrides';
@@ -687,9 +687,10 @@
 
 	// The document caret while the search bar or link card holds focus; one each, so a card
 	// opened over the search bar cannot overwrite the caret the bar restores.
-	const caretRestoreDeps = {
+	const caretRestoreDeps: CaretRestoreDeps = {
 		getEditorEl: () => editorEl ?? null,
-		bringIntoView: (path: readonly number[]) => void caretLanding.reveal(path)
+		read: () => getSelection(),
+		restore: (selection) => caretLanding.restore(selection, { reveal: 'into-view' })
 	};
 	const searchCaret = createCaretRestore(caretRestoreDeps);
 	const linkCardCaret = createCaretRestore(caretRestoreDeps);
@@ -703,7 +704,7 @@
 		replace: searchReplace,
 		// The public scroll call holds the match in place, so a late image decode cannot move it.
 		reveal: (p) => rects.scrollTo(p),
-		onClose: searchCaret.restore
+		onClose: () => void searchCaret.restore()
 	});
 	// Lives here, not in SearchBar, so the root Ctrl+H and the bar's chevron share it.
 	let replaceExpanded = $state(false);
@@ -997,7 +998,7 @@
 		commands,
 		crossBlock: editorCrossBlock,
 		isHostChrome,
-		saveSearchRange: searchCaret.save,
+		saveSearchCaret: searchCaret.saveCurrent,
 		setReplaceExpanded: (expanded) => (replaceExpanded = expanded)
 	});
 
@@ -1191,13 +1192,8 @@
 		return !!focus && scrollOwner.isInView(selectionState.cellLandingFor(focus).path);
 	}
 
-	// A navigation: it opens a closed body on the way, and holds the block where it scrolled to so
-	// a late image decode can't move it.
 	async function navigateCaret(path: number[], offset: number): Promise<boolean> {
-		const outcome = await caretLanding.land(
-			{ path: docPathFrom(path), offset },
-			{ reveal: 'into-view-held', openCollapsed: true }
-		);
+		const outcome = await caretLanding.navigate({ path: docPathFrom(path), offset });
 		return outcome === 'placed' && focusInView();
 	}
 

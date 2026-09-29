@@ -71,11 +71,6 @@ export function focusWholeBlockEl(el: HTMLElement): void {
 	el.focus({ preventScroll: true });
 }
 
-/** A text caret the editor placed: editable content other than the hidden whole-block host. */
-export function holdsTextCaret(el: Element | null): boolean {
-	return el instanceof HTMLElement && el.isContentEditable && !isWholeBlockInputProxy(el);
-}
-
 /** Whole-block focus sits on the declared element or on the hidden host beside it. */
 export function holdsWholeBlockFocus(
 	declared: HTMLElement | null | undefined,

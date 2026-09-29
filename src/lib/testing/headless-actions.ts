@@ -220,7 +220,7 @@ function recordingLanding(
 	return {
 		...landing,
 		async land(pos, opts) {
-			const target = caretTargetFor(getDoc(), pos, { openCollapsed: opts?.openCollapsed });
+			const target = caretTargetFor(getDoc(), pos);
 			const outcome = await landing.land(pos, opts);
 			if (target) landings.push({ ...target, outcome });
 			return outcome;

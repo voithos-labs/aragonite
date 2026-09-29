@@ -646,8 +646,6 @@ const RULES: FileRule[] = [
 			'src/lib/active-editor.ts': 'the host IS a text-entry surface: a focus move must yield to it',
 			'src/lib/invariants/landable-caret.ts':
 				'G1.33 resolves the host as the focused editable and does nothing on its emptiness',
-			'src/lib/selection/caret-restore.ts':
-				'a caret saved at whole-block focus restores TO the host, the wanted target',
 			'src/lib/selection/cross-block/pointer.ts':
 				'a shift-click anchored on a whole-block kind resolves to the host, so the dispatch takes the unit whole'
 		},

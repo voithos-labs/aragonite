@@ -14,7 +14,7 @@ import { createEditorRects } from '../../editor-rects';
 import type { EditorDoc, EditorServices } from '../../editor-keys';
 import type { ScrollOwner } from '../../cursor/scroll-owner';
 import { refSlotsOver } from '../../reactivity/publish-ref.svelte';
-import { createCaretLanding, type RevealPolicy } from '../../selection/caret-landing';
+import { createCaretLanding } from '../../selection/caret-landing';
 import { scrollFocusBlockIntoView } from '../../selection/keyboard-extend';
 import { createSelectionState, type SelectionState } from '../../selection/selection-state.svelte';
 import { stubBlockComponent } from '../../testing/headless-actions';
@@ -161,8 +161,8 @@ function scrollToB4(f: Fixture): Promise<boolean> {
 	return rects.scrollTo([4]);
 }
 
-/** The caret landing on b4 through its own reveal policy, over mounted headless blocks. */
-async function landOnB4(f: Fixture, reveal: RevealPolicy): Promise<void> {
+/** The caret landing on b4, as an edit's landing or a navigation, over mounted headless blocks. */
+async function landOnB4(f: Fixture, as: 'edit' | 'navigation'): Promise<void> {
 	const doc = parse(f.live.children.map((c) => c.raw).join('\n'));
 	const refs = f.live.children.map(() => stubBlockComponent());
 	const landing = createCaretLanding({
@@ -178,7 +178,8 @@ async function landOnB4(f: Fixture, reveal: RevealPolicy): Promise<void> {
 		getEditorRoot: () => null,
 		scroll: f.owner
 	});
-	await landing.land({ path: docPathFrom([4]), offset: 0 }, { reveal });
+	const pos = { path: docPathFrom([4]), offset: 0 };
+	await (as === 'edit' ? landing.land(pos) : landing.navigate(pos));
 }
 
 /** The block the owner keeps still on the next change, read by growing the block at the
@@ -289,7 +290,7 @@ const ROWS: Record<keyof ScrollWrites, Row[]> = {
 		{
 			name: 'a caret landing brought into view',
 			run: async (f) => {
-				await landOnB4(f, 'into-view');
+				await landOnB4(f, 'edit');
 				measureTopBlockTaller(f);
 			},
 			expect: {
@@ -315,7 +316,7 @@ const ROWS: Record<keyof ScrollWrites, Row[]> = {
 		{
 			name: 'a navigation landing, held where it landed',
 			run: async (f) => {
-				await landOnB4(f, 'into-view-held');
+				await landOnB4(f, 'navigation');
 				measureTopBlockTaller(f);
 			},
 			expect: {

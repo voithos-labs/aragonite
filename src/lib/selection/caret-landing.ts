@@ -13,10 +13,10 @@ import type { ScrollOwner } from '../cursor/scroll-owner';
 import type { BlockElLookup } from '../editor-keys';
 import { isDevChecks } from '../env';
 import { checkLandingFocusScrollsNothing } from '../invariants/landing-focus-scroll';
-import { holdsTextCaret } from '../editor-actions/whole-block-focus-surface';
 import { descendTo, type ChildList } from '../reactivity/child-list';
 import { caretTargetFor } from './caret-target';
 import { applySelectionToDom } from './native-bridge';
+import { findBlockPathForElement, findCellPathForElement } from './path-lookup';
 import type { CaretPosition, EditorSelection, SelectionPoint } from './primitives';
 import {
 	resolveSelectionPoint,
@@ -26,18 +26,18 @@ import {
 import { isGapSelection, type GapCaretSelection } from '../undo/types';
 import type { SelectionState } from './selection-state.svelte';
 
-/** How far a landing moves the viewport: not at all, into view when the block is off screen, or
- *  into view and held there against later layout shifts. */
-export type RevealPolicy = 'mount' | 'into-view' | 'into-view-held';
+/** How far a landing moves the viewport: not at all, or into view when the block is off screen.
+ *  Holding it there is a navigation's alone (`navigate`). */
+export type RevealPolicy = 'mount' | 'into-view';
 
 export interface LandOptions {
 	/** `'into-view'` when absent. */
 	reveal?: RevealPolicy;
-	/** Open a collapsed body on the way instead of landing on its title row; navigation only. */
-	openCollapsed?: boolean;
 	/** The tree generation the caller aimed at; read at the call when absent. */
 	stamp?: number;
 }
+
+type Reveal = RevealPolicy | 'held';
 
 /** `'stale'`: an undo, redo or document swap happened while the landing waited, so it placed
  *  nothing. */
@@ -46,6 +46,9 @@ export type LandingOutcome = 'placed' | 'unresolvable' | 'stale';
 export interface CaretLanding {
 	/** Put the caret at `pos` as an arrival, through the block's own `focus`. */
 	land(pos: CaretPosition, opts?: LandOptions): Promise<LandingOutcome>;
+	/** Land as a navigation: open a collapsed body on the way, and hold the block where it landed
+	 *  until the user scrolls, so a late image decode can't move it. */
+	navigate(pos: CaretPosition): Promise<LandingOutcome>;
 	/** Put a stored selection back at the bytes it names, or a gap caret at its boundary. */
 	restore(
 		selection: EditorSelection | GapCaretSelection,
@@ -58,12 +61,9 @@ export interface CaretLanding {
 		path: readonly number[],
 		opts?: { openCollapsed?: boolean }
 	): Promise<BlockComponent | null>;
-	/** An arrow move ended on the block at `path`: one focused whole comes to the nearest edge,
-	 *  holding nothing. A text caret leaves the view as it is. */
+	/** An arrow move put focus in the block at `path`: the block or cell the caret sits in comes
+	 *  into view as an `'into-view'` landing does. */
 	followArrival(path: readonly number[]): void;
-	/** Brings the mounted block at `path` into view as an `'into-view'` landing does, for a caret
-	 *  another route put back (the find bar closing). */
-	reveal(path: readonly number[]): Promise<void>;
 	/** Bumped by every undo, redo and document swap: a landing that waited across one is stale. */
 	generation(): number;
 	/** Called by the history restore and the document swap only, before the tree changes. */
@@ -99,33 +99,39 @@ export function createCaretLanding(deps: CaretLandingDeps): CaretLanding {
 	}
 
 	/** The only place a landing writes a scroll position. */
-	async function bringIntoView(leafPath: readonly number[], reveal: RevealPolicy): Promise<void> {
+	async function bringIntoView(leafPath: readonly number[], reveal: Reveal): Promise<void> {
 		const scroll = deps.scroll;
 		if (reveal === 'mount' || !scroll || !deps.getBlockElByPath([...leafPath])) return;
 		if (reveal === 'into-view' && scroll.isInView(leafPath)) return;
-		await scroll.place(leafPath, { block: 'nearest', hold: reveal === 'into-view-held' }).scroll();
+		await scroll.place(leafPath, { block: 'nearest', hold: reveal === 'held' }).scroll();
+	}
+
+	async function landAt(
+		pos: CaretPosition,
+		stamp: number,
+		reveal: Reveal,
+		open: { openCollapsed?: boolean }
+	): Promise<LandingOutcome> {
+		const target = caretTargetFor(deps.getDoc(), pos, open);
+		if (!target) return 'unresolvable';
+		const component = await descendTo(deps.root, target.leafPath, open);
+		// The one check, after every await that mounts: the tree may have been swapped meanwhile.
+		if (generation !== stamp) return 'stale';
+		if (!component) return 'unresolvable';
+		deps.caretMemory.forget();
+		placeWithoutScrolling(() => component.focus(target.offset));
+		// Placed at an edge rather than stepped there, so the caret means the outside of a
+		// hidden closer (`docs/design/live-mode.md` § 4.2).
+		if (target.offset === CURSOR_END || target.offset === CURSOR_START) {
+			deps.caretMemory.noteExtreme();
+		}
+		await bringIntoView(target.leafPath, reveal);
+		return 'placed';
 	}
 
 	return {
-		async land(pos, opts = {}) {
-			const stamp = opts.stamp ?? generation;
-			const open = { openCollapsed: opts.openCollapsed };
-			const target = caretTargetFor(deps.getDoc(), pos, open);
-			if (!target) return 'unresolvable';
-			const component = await descendTo(deps.root, target.leafPath, open);
-			// The one check, after every await that mounts: the tree may have been swapped meanwhile.
-			if (generation !== stamp) return 'stale';
-			if (!component) return 'unresolvable';
-			deps.caretMemory.forget();
-			placeWithoutScrolling(() => component.focus(target.offset));
-			// Placed at an edge rather than stepped there, so the caret means the outside of a
-			// hidden closer (`docs/design/live-mode.md` § 4.2).
-			if (target.offset === CURSOR_END || target.offset === CURSOR_START) {
-				deps.caretMemory.noteExtreme();
-			}
-			await bringIntoView(target.leafPath, opts.reveal ?? 'into-view');
-			return 'placed';
-		},
+		land: (pos, opts = {}) => landAt(pos, opts.stamp ?? generation, opts.reveal ?? 'into-view', {}),
+		navigate: (pos) => landAt(pos, generation, 'held', { openCollapsed: true }),
 
 		async restore(selection, opts = {}) {
 			const reveal = opts.reveal ?? 'into-view';
@@ -143,22 +149,17 @@ export function createCaretLanding(deps: CaretLandingDeps): CaretLanding {
 			const anchor = resolveSelectionPoint(doc, selection.anchor);
 			const focus = resolveSelectionPoint(doc, selection.focus);
 			if (!anchor || !focus) return 'unresolvable';
-			const open = { openCollapsed: opts.openCollapsed };
 			// A stored caret places at its byte, not through the block's `focus`: the byte is where a
 			// caret once sat, and a kind's own landing rule would move it.
 			const caretAt = (point: SelectionPoint): SelectionPoint => {
 				const cell = deps.selectionState.cellLandingFor(point);
-				const target = caretTargetFor(
-					doc,
-					{ path: docPathFrom(cell.path), offset: cell.offset },
-					open
-				);
+				const target = caretTargetFor(doc, { path: docPathFrom(cell.path), offset: cell.offset });
 				return target ? { path: [...target.leafPath], offset: target.offset } : cell;
 			};
 			const route = deps.selectionState.restoreRoute(anchor, focus);
 			const holdsCaret = route === 'collapsed' || route === 'custom';
 			const mountPath = holdsCaret ? caretAt(focus).path : focus.path;
-			const mounted = await descendTo(deps.root, mountPath, open);
+			const mounted = await descendTo(deps.root, mountPath);
 			if (generation !== stamp) return 'unplaced';
 			deps.caretMemory.forget();
 			const placed = placeWithoutScrolling(() =>
@@ -190,10 +191,12 @@ export function createCaretLanding(deps: CaretLandingDeps): CaretLanding {
 		followArrival(path) {
 			const el = deps.scroll && deps.getBlockElByPath([...path]);
 			const active = el ? document.activeElement : null;
-			if (!deps.scroll || !el?.contains(active) || holdsTextCaret(active)) return;
-			void deps.scroll.place(path, { block: 'nearest', hold: false }).scroll();
+			if (!el?.contains(active)) return;
+			// The cell or leaf that took the caret, not the table or list around it, which can be
+			// on screen while the caret isn't.
+			const leaf = findCellPathForElement(active) ?? findBlockPathForElement(active) ?? path;
+			void bringIntoView(leaf, 'into-view');
 		},
-		reveal: (path) => bringIntoView(path, 'into-view'),
 		generation: () => generation,
 		noteTreeSwap: () => {
 			generation++;

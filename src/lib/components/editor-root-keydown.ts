@@ -25,8 +25,8 @@ export interface EditorRootKeydownDeps {
 	/** True for nodes in the host's own header: they sit inside `root.contains`
 	 *  without being the editor's own content. */
 	isHostChrome(node: Node | null): boolean;
-	/** Snapshot the pre-search caret; the bar's close handler restores it. */
-	saveSearchRange(range: Range | null): void;
+	/** Snapshot the pre-search selection; the bar's close handler restores it. */
+	saveSearchCaret(): void;
 	setReplaceExpanded(expanded: boolean): void;
 }
 
@@ -52,13 +52,8 @@ export function createEditorRootKeydown(deps: EditorRootKeydownDeps): EditorRoot
 			event.preventDefault();
 			// Read before open(), whose focus collapses the selection; the !isOpen check keeps a
 			// repeat Mod+F from overwriting the saved caret.
-			const selection = window.getSelection();
-			const selected = selection?.toString() ?? '';
-			if (!deps.search.isOpen) {
-				deps.saveSearchRange(
-					selection && selection.rangeCount ? selection.getRangeAt(0).cloneRange() : null
-				);
-			}
+			const selected = window.getSelection()?.toString() ?? '';
+			if (!deps.search.isOpen) deps.saveSearchCaret();
 			deps.setReplaceExpanded(chord === 'Mod+H' && deps.canReplace);
 			deps.search.open();
 			if (selected) deps.search.setQuery(selected);

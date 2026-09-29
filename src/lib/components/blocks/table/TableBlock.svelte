@@ -214,7 +214,10 @@
 	});
 
 	const ctx: TableContext = {
-		focusCell,
+		focusCell(rowIdx, colIdx, position) {
+			focusCell(rowIdx, colIdx, position);
+			focusActions.followArrival([...myPath, rowIdx, colIdx]);
+		},
 		revealColumn,
 		getStickyColumn() {
 			return internalStickyColumn;

@@ -104,3 +104,95 @@ test.describe('a caret that ends up off screen comes into view', () => {
 		await expect(page.locator(`[data-block-path='[${LINES.length - 1}]']`)).toBeInViewport();
 	});
 });
+
+test.describe('a text or table caret that arrives off screen comes into view', () => {
+	const PARA_AT = 45;
+	const TABLE_AT = 60;
+	const TABLE = [
+		'| a | b |',
+		'| --- | --- |',
+		...Array.from({ length: 8 }, (_, r) => `| row ${r} | more |`)
+	].join('\n');
+	const DOC =
+		Array.from({ length: 90 }, (_, i) =>
+			i === TABLE_AT ? TABLE : `Line ${i} with some words on it.`
+		).join('\n\n') + '\n';
+	// On screen all but a sub-pixel sliver: the nearest edge lands a fraction of a pixel off.
+	const WHOLE = 0.95;
+	const table = (page: Page) => page.locator(`[data-block-path='[${TABLE_AT}]']`);
+	const cellInRow = (page: Page, row: number) =>
+		table(page).locator(`[data-table-row-idx='${row}'] .table-cell`).first();
+
+	let editor: EditorPage;
+
+	test.beforeEach(async ({ page }) => {
+		editor = new EditorPage(page);
+		await editor.goto();
+		await editor.loadContent(DOC);
+		await editor.waitForRenderFlush();
+	});
+
+	/** Scrolls so `selector`'s top sits a few pixels under the editor's bottom edge. Repeated,
+	 *  since blocks measuring on the way down move the estimate the first scroll used. */
+	async function putJustBelow(page: Page, selector: string): Promise<void> {
+		for (let pass = 0; pass < 3; pass++) {
+			await page.evaluate((sel) => {
+				const view = document.querySelector('.editor') as HTMLElement;
+				const el = document.querySelector(sel) as HTMLElement;
+				const bottom = view.getBoundingClientRect().top + view.clientTop + view.clientHeight;
+				view.scrollTop += el.getBoundingClientRect().top - bottom - 4;
+			}, selector);
+			await editor.waitForRenderFlush();
+		}
+		await expect(page.locator(selector).first()).not.toBeInViewport();
+	}
+
+	test('ArrowDown onto a paragraph just below the viewport brings it on screen', async ({
+		page
+	}) => {
+		await page.evaluate((i) => (window as any).__test.rects.reveal([i]), PARA_AT);
+		await editor.waitForRenderFlush();
+		await editor.focusBlockEnd(PARA_AT - 1);
+		await putJustBelow(page, `[data-block-path='[${PARA_AT}]']`);
+
+		await page.keyboard.press('ArrowDown');
+		await expect
+			.poll(() => editor.bridge.getSelectionPaths())
+			.toMatchObject({
+				focus: { path: [PARA_AT] }
+			});
+
+		await expect(page.locator(`[data-block-path='[${PARA_AT}]']`)).toBeInViewport({ ratio: WHOLE });
+	});
+
+	test('ArrowDown onto a table just below the viewport brings its first cell on screen', async ({
+		page
+	}) => {
+		await page.evaluate((i) => (window as any).__test.rects.reveal([i]), TABLE_AT);
+		await editor.waitForRenderFlush();
+		await editor.focusBlockEnd(TABLE_AT - 1);
+		await putJustBelow(page, `[data-block-path='[${TABLE_AT}]']`);
+
+		await page.keyboard.press('ArrowDown');
+		await expect
+			.poll(async () => (await editor.bridge.getSelectionPaths())?.focus.path[0])
+			.toBe(TABLE_AT);
+
+		// The cell the caret went to, whichever column the caret's x picked.
+		await expect(table(page).locator(':focus')).toBeInViewport({ ratio: WHOLE });
+	});
+
+	test('ArrowDown from a table row to one just below the viewport brings its cell on screen', async ({
+		page
+	}) => {
+		await page.evaluate((i) => (window as any).__test.rects.reveal([i]), TABLE_AT);
+		await editor.waitForRenderFlush();
+		await cellInRow(page, 3).click();
+		await putJustBelow(page, `[data-block-path='[${TABLE_AT}]'] [data-table-row-idx='4']`);
+
+		await page.keyboard.press('ArrowDown');
+		await expect(cellInRow(page, 4)).toBeFocused();
+
+		await expect(cellInRow(page, 4)).toBeInViewport({ ratio: WHOLE });
+	});
+});
