@@ -2,8 +2,8 @@
 
 List items and table rows are not `BlockHost`s, so each measures its own box (an item's, a row's
 first cell) into the parent's height table through `useMeasuredChild`. The measurement must be
-stored in the height estimator by id, or a count-changing edit starts every surviving sibling from an estimate again and the
-viewport jumps. Both fixtures are non-uniform on purpose: where the estimate already equals the
+stored in the height estimator by id, or a count-changing edit starts every surviving sibling
+from an estimate again and the viewport jumps. Both fixtures are non-uniform on purpose: where the estimate already equals the
 measurement, starting over changes nothing and the defect is unreachable.
 
 ## Happy paths

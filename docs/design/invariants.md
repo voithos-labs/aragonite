@@ -1026,7 +1026,7 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.89 | One in-leaf range replace, and a short list of places that snap an offset                 | L       |
 | G4.90 | A paste inside one block cuts its selection through the range replace, with its text      | L       |
 | G4.91 | A focus call that may scroll the editor says why                                          | L       |
-| G4.93 | A list's height correction keeps only the block `heldBlock` picks                         | L       |
+| G4.93 | A measure round keeps only the block `heldBlock` picks, level by level                    | L       |
 | G4.94 | A gap caret or a widget is selected only in `caret-doors.ts`, and held in one store       | L       |
 | G4.95 | What a range covers is decided in the range coverage only                                 | L       |
 | G4.96 | A commit rebuilds each container once, and a mutation leaves that rebuild to it           | L       |
@@ -1879,15 +1879,16 @@ delete, typing and paste lean on until they land through the caret landing. The 
 file, so a new bare focus inside an already declared file passes. `lint/file-rules.test.ts`, with G1.45 as
 the runtime half.
 
-**G4.93 · One pick of the block a list keeps still.** Which block a list holds across a height
-change is decided in `reactivity/hold-across.ts :: heldBlock`, and a list's correction takes only
-the distance `holdAcross` measures: a brand the types give no other way to make, so a hand-written
-distance or a hand-picked block doesn't compile (`test/reactivity/hold-across.test.ts` pins both).
-The scan holds what the types can't: a cast to either brand outside `hold-across.ts`, and every
-call to `compensate`, `heldBlock` or a `holdAcross` that holds nothing, declared by file, function
-and count with its reason (the list's one correction helper, the two hand-offs to the scroll
-owner, and the header slot, which sits above every list), so a call moved to another function fails
-too. `lint/file-rules.test.ts`.
+**G4.93 · One pick of the block a round keeps still.** Which block stays still across a measure
+round is decided once for the whole document, level by level through the block lists
+(`reactivity/list-tree.ts :: createListTree`), each level through `reactivity/hold-across.ts ::
+heldBlock`, and the scroll owner corrects only by the distance `heldPathMoved` reads: a brand the
+types give no other way to make, so a hand-written distance or a hand-picked block doesn't compile,
+and a list has no way to write scroll at all (`test/reactivity/hold-across.test.ts` pins these). The
+scan holds what the types can't: a cast to either brand outside `hold-across.ts`, and every call to
+`compensate`, `heldBlock` or `heldPathMoved`, declared by file, function and count with its reason
+(the tree's one pick and its one read, and the header slot, which sits above every list), so a call
+moved to another function fails too. `lint/file-rules.test.ts`.
 
 **G4.94 · The editor's own selections have one store and one set of writers.** A gap caret and an
 image selected whole are written only through `selection/caret-doors.ts` (`placeGapCaret`,
@@ -1940,8 +1941,8 @@ still reaches the list a later chain rebuilds.
 measure through `reactivity/use-measured-child.svelte.ts :: useMeasuredChild`, which owns the three
 times a child is measured (the batch at mount, after an edit, on a resize), and the list writes
 the height in one private function, `applyMeasured`, which records it under the child's id and
-writes the table's entry only while the table still has the child at that index. No list reports its own height
-upward. The scan counts every table write, every cache write and every registration by file and
+writes the table's entry only while the table still has the child at that index. No list reports
+its own height upward. The scan counts every table write, every cache write and every registration by file and
 function, so a second writer fails, and a manifest keeps the measure channel's key to the file
 that defines it, the one that provides it and the hook. `lint/file-rules.test.ts`, with
 `test/reactivity/measured-child-routes.svelte.test.ts` running every child kind through every
