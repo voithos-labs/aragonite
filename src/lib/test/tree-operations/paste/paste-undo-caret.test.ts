@@ -43,8 +43,8 @@ interface PasteRoute {
 	input: Omit<PasteDispatchInput, 'targetPath'>;
 	targetPath: number[];
 	crossBlock?: boolean;
-	/** The list routes resolve the top-level list's state through the registry. */
-	registersList?: boolean;
+	/** The container routes resolve the top-level container's state through the registry. */
+	registersContainer?: boolean;
 	/** Where the caret was when the paste began. */
 	caretBefore: number;
 }
@@ -129,7 +129,7 @@ const ROUTES: PasteRoute[] = [
 		source: '- alpha\n- beta\n',
 		bench: top,
 		targetPath: [0, 0, 0],
-		registersList: true,
+		registersContainer: true,
 		input: { pastedText: '* one\n* two\n', offset: 3 },
 		caretBefore: 3
 	},
@@ -146,10 +146,29 @@ const ROUTES: PasteRoute[] = [
 		source: '1. one\n2. two\n',
 		bench: top,
 		targetPath: [0, 0, 0],
-		registersList: true,
+		registersContainer: true,
 		input: { pastedText: '1. INSERTED\n', offset: 2 },
 		crossBlock: true,
 		caretBefore: 2
+	},
+	{
+		name: 'a list item, pasting two items its list takes in',
+		source: '1. one\n2. two\n',
+		bench: top,
+		targetPath: [0, 0, 0],
+		registersContainer: true,
+		input: { pastedText: '1. A\n2. B\n', offset: 2 },
+		crossBlock: true,
+		caretBefore: 2
+	},
+	{
+		name: 'a blank quote body block, pasting a quote',
+		source: '> a\n>\n>\n> b\n',
+		bench: top,
+		targetPath: [0, 1],
+		registersContainer: true,
+		input: { pastedText: '> X\n>\n> Y\n', offset: 0 },
+		caretBefore: 0
 	}
 ];
 
@@ -162,7 +181,7 @@ describe('a paste’s undo entry records the caret where the paste began', () =>
 	for (const route of ROUTES) {
 		it(route.name, async () => {
 			const { deps, controller, blockEdit } = route.bench(route.source);
-			if (route.registersList) registerStubBlockListState(deps.doc.children[0]);
+			if (route.registersContainer) registerStubBlockListState(deps.doc.children[0]);
 			const sourceBefore = deps.doc.children.map((c) => c.raw).join('');
 
 			await pasteDispatch(
