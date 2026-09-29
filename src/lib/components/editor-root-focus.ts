@@ -20,16 +20,19 @@ export interface FocusAttribution {
 	install(root: HTMLElement): () => void;
 	/** Entering a preview mode marks the already-focused block, since no re-focus fires. */
 	applyForMode(): void;
+	/** The focused block's path as it stands now, read off its element: a keyed move that keeps
+	 *  focus renumbers the block, so a path noted when focus arrived would name its old neighbour. */
 	getFocusedPath(): number[] | null;
 }
 
 export function createFocusAttribution(deps: FocusAttributionDeps): FocusAttribution {
 	// Plain fields, never reactive: focusout fires mid-teardown during a structural commit,
 	// where a reactive write would trip state_unsafe_mutation.
-	let focusedPath: number[] | null = null;
 	let focusedHostEl: HTMLElement | null = null;
 	let paintedHostEl: HTMLElement | null = null;
 	let pressHeld = false;
+	let readAttr: string | null = null;
+	let readPath: number[] | null = null;
 
 	// Preview modes only, so source and reading DOM stay byte-identical; a held press keeps the prior
 	// paint so markers can't move the text the caret is about to land in.
@@ -48,8 +51,19 @@ export function createFocusAttribution(deps: FocusAttributionDeps): FocusAttribu
 	}
 
 	function clear(): void {
-		focusedPath = null;
 		setFocusedHost(null);
+	}
+
+	// Parsed only when the attribute changes, since windowing reads it on every height correction.
+	function focusedPath(): number[] | null {
+		if (!focusedHostEl?.isConnected) return null;
+		const attr = focusedHostEl.getAttribute('data-block-path');
+		if (attr !== readAttr) {
+			readAttr = attr;
+			const path = readBlockPath(focusedHostEl);
+			readPath = path && path.length > 0 ? path : null;
+		}
+		return readPath;
 	}
 
 	// A release the page never hears (focus or the window left mid-press) must not strand the paint.
@@ -67,13 +81,13 @@ export function createFocusAttribution(deps: FocusAttributionDeps): FocusAttribu
 				return;
 			}
 			setFocusedHost(host as HTMLElement);
-			const path = readBlockPath(host);
-			focusedPath = path && path.length > 0 ? path : null;
 			// Every way of placing a caret focuses its editable element, whoever wrote the code,
 			// so a consumer's own caret placement is checked here too (G1.33).
 			const landed = e.target;
 			if (landed instanceof HTMLElement) {
-				assertInvariant('landable-caret', () => checkLandableCaret(landed, deps.mode, path ?? []));
+				assertInvariant('landable-caret', () =>
+					checkLandableCaret(landed, deps.mode, focusedPath() ?? [])
+				);
 			}
 		};
 		const onFocusOut = (e: FocusEvent) => {
@@ -103,6 +117,6 @@ export function createFocusAttribution(deps: FocusAttributionDeps): FocusAttribu
 	return {
 		install,
 		applyForMode: applyFocusedAttr,
-		getFocusedPath: () => focusedPath
+		getFocusedPath: focusedPath
 	};
 }

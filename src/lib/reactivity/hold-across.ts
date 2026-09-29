@@ -35,24 +35,20 @@ export function focusedIndexIn(
 	return focusPath[listPath.length];
 }
 
-/** The focused block when it sits at or below the viewport's top (`localTop`, in this list) and
- *  the change from `before` to `after` didn't move it; else the block at the top; else none. */
+/** The focused block (`focusedIndex`, counted in `after`) when it sits at or below `localTop` and
+ *  the change didn't move it; else the block at the top; else none. */
 export function heldBlock(
 	before: HeightTable,
 	after: HeightTable,
 	localTop: number,
 	focusedIndex: number | null
 ): HeldBlock | null {
-	const size = before.model.size;
-	if (size === 0) return null;
+	if (before.model.size === 0) return null;
 	const topIndex = before.model.indexAtOffset(localTop);
-	if (
-		focusedIndex !== null &&
-		focusedIndex >= topIndex &&
-		focusedIndex < size &&
-		!movedAcross(before, after, focusedIndex)
-	) {
-		return pick(before, focusedIndex);
+	const onScreen = focusedIndex ?? -1;
+	const focused = indexBefore(before, after, onScreen);
+	if (focused >= topIndex && !movedAcross(before, after, focused, onScreen)) {
+		return pick(before, focused);
 	}
 	// At 0 the viewport's top sits in a list above this one, whose own correction holds it.
 	return localTop === 0 ? null : pick(before, topIndex);
@@ -82,12 +78,21 @@ function pick(table: HeightTable, index: number): HeldBlock {
 	return { id: table.ids[index], index } as HeldBlock;
 }
 
+// A measure keeps one table, so the per-keystroke path pays no id lookup.
+function indexBefore(before: HeightTable, after: HeightTable, afterIndex: number): number {
+	if (afterIndex < 0 || afterIndex >= after.ids.length) return -1;
+	return after === before ? afterIndex : before.ids.indexOf(after.ids[afterIndex]);
+}
+
 // A reorder moves its block on a still page, so a block whose surviving neighbours changed isn't held.
-function movedAcross(before: HeightTable, after: HeightTable, index: number): boolean {
+function movedAcross(
+	before: HeightTable,
+	after: HeightTable,
+	index: number,
+	afterIndex: number
+): boolean {
 	if (after === before) return false;
 	recordNeighbourPass();
-	const afterIndex = after.ids.indexOf(before.ids[index]);
-	if (afterIndex === -1) return false;
 	const inAfter = new Set(after.ids);
 	const inBefore = new Set(before.ids);
 	return (

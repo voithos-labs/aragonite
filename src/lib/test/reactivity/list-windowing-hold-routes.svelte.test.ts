@@ -62,9 +62,8 @@ function mount(): Fixture {
 		oracle,
 		listHeight: COUNT * HEIGHT,
 		getWidthVersion: () => widthVersion,
-		// Not read live: the editor's focus path still names the pre-edit block while a rebuild's
-		// correction runs, since the caret lands after the commit's render.
-		getFocusPath: () => [FOCUSED_INDEX]
+		// Read where the block is now, as the editor reads the focused block's own element.
+		getFocusPath: () => [ids.indexOf(FOCUSED)]
 	});
 	scope.port.setScrollTop(SCROLL_TOP);
 	return {
@@ -226,6 +225,43 @@ describe('list-windowing: a reorder that moves the focused block leaves the page
 			f.ids.splice(to, 0, id);
 			flushSync();
 			expect(f.scope.port.scrollTop()).toBe(SCROLL_TOP);
+			f.scope.cleanup();
+		});
+	}
+
+	// Miss-analysis: the rebuild read a focus index noted when focus arrived, and no row edited
+	// again after a reorder that kept focus, where that index names the neighbour.
+	for (const [what, change] of [
+		[
+			'a block added right after it',
+			(f: Fixture) => {
+				f.children.splice(FOCUSED_INDEX, 0, makePara('new\n'));
+				f.ids.splice(FOCUSED_INDEX, 0, 'added');
+				flushSync();
+			}
+		],
+		[
+			'it measuring taller',
+			async (f: Fixture) => {
+				const at = f.ids.indexOf(FOCUSED);
+				f.scope.windowing.registerChild(FOCUSED, {
+					readHeight: () => GROWN,
+					applyHeight: (h) => f.scope.windowing.recordMeasuredChild(at, FOCUSED, h)
+				});
+				await settleMeasures();
+			}
+		]
+	] as const) {
+		it(`the focused block holds through ${what}, once a reorder moved it up`, async () => {
+			const f = mount();
+			const [child] = f.children.splice(FOCUSED_INDEX, 1);
+			const [id] = f.ids.splice(FOCUSED_INDEX, 1);
+			f.children.splice(FOCUSED_INDEX - 1, 0, child);
+			f.ids.splice(FOCUSED_INDEX - 1, 0, id);
+			flushSync();
+			const before = focusedScreenTop(f);
+			await change(f);
+			expect(focusedScreenTop(f)).toBe(before);
 			f.scope.cleanup();
 		});
 	}

@@ -57,7 +57,7 @@ const ROWS: Row[] = [
 ];
 
 /** How far each held block moves when block a grows 30px, when a 40px block goes in before d,
- *  and when the held block itself is removed. */
+ *  and when the held block itself is removed (a removed caret's block leaves the top one held). */
 const MOVES: Record<string, [grown: number, inserted: number, removed: number]> = {
 	a: [0, 0, 0],
 	c: [30, 0, 0],
@@ -66,8 +66,17 @@ const MOVES: Record<string, [grown: number, inserted: number, removed: number]> 
 	nothing: [0, 0, 0]
 };
 
+/** The focus path as the editor reads it after the change: the focused block where it is now,
+ *  or nothing when the change removed it. A path outside this list or past it passes unchanged. */
+function onScreen(focus: number[] | null, before: HeightTable, after: HeightTable) {
+	const index = focusedIndexIn(focus, LIST_PATH);
+	if (index === null || index >= before.ids.length) return index;
+	const now = after.ids.indexOf(before.ids[index]);
+	return now === -1 ? null : now;
+}
+
 function pickFor(row: Row, before: HeightTable, after = before) {
-	return heldBlock(before, after, row.localTop, focusedIndexIn(row.focus, LIST_PATH));
+	return heldBlock(before, after, row.localTop, onScreen(row.focus, before, after));
 }
 
 describe('heldBlock', () => {
@@ -205,6 +214,23 @@ const MOVED: {
 		after: ['a', 'b', 'c', 'n', 'e', 'f'],
 		held: 'e',
 		moves: 0
+	},
+	// Only one neighbour changes in each of these two, so each half of the check has its own row.
+	{
+		name: 'focused e, d moved from before it to the end',
+		localTop: INSIDE,
+		focus: [2, 4],
+		after: ['a', 'b', 'c', 'e', 'f', 'd'],
+		held: 'c',
+		moves: 0
+	},
+	{
+		name: 'focused e, f moved from after it to the front',
+		localTop: INSIDE,
+		focus: [2, 4],
+		after: ['f', 'a', 'b', 'c', 'd', 'e'],
+		held: 'c',
+		moves: 100
 	}
 ];
 
@@ -213,7 +239,7 @@ describe('a focused block the change moved', () => {
 		it(`${row.name}: holds ${row.held ?? 'nothing'}, which moves ${row.moves}`, () => {
 			const before = tableOf(IDS);
 			const after = tableOf(row.after);
-			const held = heldBlock(before, after, row.localTop, focusedIndexIn(row.focus, LIST_PATH));
+			const held = heldBlock(before, after, row.localTop, onScreen(row.focus, before, after));
 			expect(held?.id ?? null).toBe(row.held);
 			expect(
 				holdAcross(

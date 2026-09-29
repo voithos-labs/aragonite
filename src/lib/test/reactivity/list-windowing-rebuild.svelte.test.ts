@@ -50,8 +50,8 @@ describe('list-windowing structural rebuild', () => {
 			ids,
 			oracle: heightsOracle(heights),
 			listHeight: 570,
-			// The caret is in b4; the focus path still names it by its pre-edit index in the rebuild.
-			getFocusPath: () => [4]
+			// The caret is in b4, read where it is now, as the editor reads it off the block's element.
+			getFocusPath: () => [ids.indexOf('b4')]
 		});
 		// The viewport's top is inside b1, and b4 sits 220px below it.
 		port.setScrollTop(150);

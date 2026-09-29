@@ -187,7 +187,7 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 	const pending = new Set<string>();
 
 	// Every height change keeps one block still (VR-2), since `overflow-anchor` is off. The focus
-	// path names a block in `before`: a rebuild runs before the caret lands.
+	// path is read live, so in a rebuild it counts in `after`.
 	function correctAcross(before: HeightTable, after: () => HeightTable, mutate: () => void): void {
 		deps.scroll.compensate(mutate, (run) =>
 			holdAcross(before, after, heldBlock(before, after(), localScrollTop(), focusedIndex()), run)
