@@ -165,6 +165,40 @@ test.describe('image popover commit', () => {
 		await expect(page.locator('[data-image-widget]')).toHaveCount(0);
 	});
 
+	// A replace from the find bar rewrites the image's bytes while the toolbar stays up, so the alt
+	// field must read the new alt, or an edit to it would put the old one back.
+	test('a replace from the find bar reseeds the open toolbar', async ({ page }) => {
+		await editor.loadContent('![cat](/test-fixtures/sample.png)\n\nafter\n');
+		const toolbar = page.locator('.md-image-properties');
+		await page.locator('[data-image-widget]').first().click();
+		await expect(toolbar).toBeVisible();
+
+		// Keys only: a press anywhere in the bar is a press off the image, which ends it.
+		await page.keyboard.press('ControlOrMeta+h');
+		await page.keyboard.type('cat');
+		const replace = page.getByRole('textbox', { name: 'Replace' });
+		for (
+			let i = 0;
+			i < 8 && !(await replace.evaluate((el) => el === document.activeElement));
+			i++
+		) {
+			await page.keyboard.press('Tab');
+		}
+		await expect(replace).toBeFocused();
+		await page.keyboard.type('dog');
+		await page.keyboard.press('Enter');
+		await editor.bridge.waitForSourceContains('![dog]');
+		await page.keyboard.press('Escape');
+		await expect(toolbar).toBeVisible();
+
+		const alt = await openImageField(page);
+		await expect(alt).toHaveValue('dog');
+		await alt.press('End');
+		await page.keyboard.type('!');
+		await page.keyboard.press('Enter');
+		await editor.bridge.waitForSourceContains('![dog!]');
+	});
+
 	test('no-op blur does not add undo entry', async ({ page }) => {
 		await editor.loadContent('![cat](/test-fixtures/sample.png)\n');
 		const widget = page.locator('[data-image-widget]').first();

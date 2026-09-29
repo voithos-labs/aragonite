@@ -23,6 +23,11 @@ source-mode edit.
 - An undo taken while the popover is open closes it, since an undo's caret ends the selected image
   (#673). The close commits nothing, so the source holds exactly the undone bytes, and the alt
   field, opened again on the reselected image, reads the undone alt.
+- A replace from the find bar, done by keys with the image selected, rewrites the image's alt while
+  the toolbar stays open: the alt field then reads the new alt, and an edit to it keeps the
+  replacement rather than putting the old alt back
+  - Miss-analysis: once an undo closed the toolbar, the undo spec was the only write under it, so
+    nothing wrote while the toolbar stayed open
 - Clicking away after a switch leaves no uncaught error: the popover's effects read the last
   image it showed, not a selection that is already gone.
   - Miss-analysis: the switch case threw on every run, but the shared fixture only failed on
