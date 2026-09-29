@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // Deleting a table's header row promotes the next row, through the table's own action and through
-// a whole-row selection alike, and undo brings the old header back with every row as it was.
+// a whole-row selection alike, and undo restores the header and every row unchanged.
 // Miss-analysis: header deletes were checked by bytes only, and a header flag written through to a
 // row the undo entry held keeps the bytes, so neither route had a test that could see it.
 import { describe, it, expect } from 'vitest';
