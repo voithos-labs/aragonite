@@ -18,6 +18,7 @@ import {
 	type TextClipboardDeps
 } from '$lib/components/blocks/text/text-clipboard';
 import { createWidgetSelectionState } from '$lib/components/image/widget-selection-state.svelte';
+import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import { storedAsAt } from '$lib/tree-operations/stored-as';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createPasteCoordinator } from '$lib/editor-actions/paste-coordinator';
@@ -108,7 +109,7 @@ function clipboardEvent(text: string) {
 function clipboardOver(source: string, start = IMAGE_RANGE.start) {
 	const { deps: actions } = makeEditorActionsDeps(source, { reading: LIVE });
 	const blockEdit = makeStubBlockEdit();
-	const widgetSelection = createWidgetSelectionState({ onSelect: () => {} });
+	const widgetSelection = createWidgetSelectionState(createSelectionState());
 	widgetSelection.select({ paragraphPath: [0], sourceStart: start, preSelectOffset: start });
 	const deps = {
 		get node() {

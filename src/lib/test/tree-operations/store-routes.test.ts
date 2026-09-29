@@ -52,6 +52,7 @@ import { registerCalloutForTests } from '../selection/chrome-plugins';
 import { collectEditorSources, EDITOR_SRC } from '../invariants/lint/scan-source';
 import { replaceSelectedWidget } from '$lib/components/blocks/text/widget-interaction';
 import { createWidgetSelectionState } from '$lib/components/image/widget-selection-state.svelte';
+import { createSelectionState } from '$lib/selection/selection-state.svelte';
 
 // While `TOP.on`, every store the source makes is a lone top-level paragraph's instead of its own.
 const TOP = vi.hoisted(() => ({ on: false }));
@@ -284,7 +285,7 @@ function backspaceAfterEntity(place: Place): string[] {
 async function backspaceOnSelectedImage(place: Place): Promise<string[]> {
 	const doc = parse(place.source);
 	const written: string[] = [];
-	const widgetSelection = createWidgetSelectionState({ onSelect: () => {} });
+	const widgetSelection = createWidgetSelectionState(createSelectionState());
 	widgetSelection.select({ paragraphPath: place.leaf, sourceStart: 2, preSelectOffset: 2 });
 	await replaceSelectedWidget(
 		{
