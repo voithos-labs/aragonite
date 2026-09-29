@@ -27,12 +27,12 @@ export interface PasteCommitCoordinator {
 	/** Write `text` into the leaf at `leafPath` as one commit at its parent list, through the write
 	 *  every keystroke takes. */
 	commitLeafText(leafPath: number[], text: string, opts: LeafTextOptions): Promise<LeafWriteResult>;
-	/** Replace the block at `blockPath` as one commit at its parent list, through the replace every
-	 *  level takes. Resolves to how many blocks landed, or null when nothing was written. */
+	/** Replace the block at `blockPath` as one commit at its parent list, resolving to how many blocks
+	 *  landed or null; `snapshotOffset` is undo's caret in the block when nothing is focused. */
 	replaceBlock(
 		blockPath: number[],
 		replacement: CstNode[],
 		focus: ReplaceFocus,
-		opts: { source: ReplaceSource; trailingBlank?: boolean }
+		opts: { source: ReplaceSource; trailingBlank?: boolean; snapshotOffset?: number }
 	): Promise<number | null>;
 }

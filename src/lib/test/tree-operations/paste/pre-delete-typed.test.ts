@@ -163,5 +163,5 @@ it('a paste over a range whose cleanup drops a run puts the caret after the past
 		})
 	);
 	const [call] = vi.mocked(blockEdit.updateBlockContent).mock.calls;
-	expect([call[1], call[3]]).toEqual(['ax\n', 2]);
+	expect([call[1], call[4]]).toEqual(['ax\n', 2]);
 });

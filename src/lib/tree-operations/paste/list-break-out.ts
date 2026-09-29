@@ -19,6 +19,7 @@ import { focusIndexBeforeResidue, landedPastePosition, trackedPasteCaret } from 
 import { docPathFrom } from '../../cursor/coordinate-spaces';
 import { resolveParentScope } from './parent-scope';
 import type { PasteDispatchContext } from './dispatch';
+import type { CommitSnapshotArg } from '../../action-contracts';
 import type { GrammarView } from '../../schema/block-openers';
 
 // ── Public API ───────────────────────────────────────────────────────────────
@@ -73,7 +74,8 @@ export function findListBreakOut(
 export async function applyListBreakOut(
 	plan: ListBreakOut,
 	pastedBlocks: CstNode[],
-	ctx: PasteDispatchContext
+	ctx: PasteDispatchContext,
+	start: CommitSnapshotArg
 ): Promise<void> {
 	const list = nodeAt(ctx.doc, plan.listPath) as CstNode | null;
 	if (!list?.children) return;
@@ -107,7 +109,7 @@ export async function applyListBreakOut(
 
 	await ctx.controller.commitMultiScope({
 		scopes: [parentScope],
-		snapshot: { path: docPathFrom(plan.listPath), offset: 0 },
+		snapshot: start,
 		mutate: ([scopeView]) => {
 			spliceMany(scopeView.children, spliceIndex, 1, replacement);
 			const change: StructuralChange = {

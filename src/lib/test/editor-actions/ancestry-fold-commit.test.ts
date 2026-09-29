@@ -79,7 +79,7 @@ describe('a commit whose ancestry settle ate its own scope', () => {
 		const errors: unknown[] = [];
 		h.events.on('error', (e) => errors.push(e));
 
-		await h.bundle.blockEdit.updateBlockContent(1, 'h\n', 'authored');
+		await h.bundle.blockEdit.updateBlockContent(1, 'h\n', 'authored', 0);
 
 		expect(h.deps.doc.children.map((c) => c.kind)).toEqual(['blockquote']);
 		expect(serialize(h.deps.doc)).toBe('> a\n> h\ntext\n');
@@ -103,7 +103,7 @@ describe('a commit whose ancestry settle ate its own scope', () => {
 	it('a content commit a collapse took over still reports it wrote', async () => {
 		const h = makeNestedHarness('> a\n> # h\ntext\n', { index: 0 });
 
-		const wrote = await h.bundle.blockEdit.updateBlockContent(1, 'h\n', 'authored');
+		const wrote = await h.bundle.blockEdit.updateBlockContent(1, 'h\n', 'authored', 0);
 
 		expect(serialize(h.deps.doc)).toBe('> a\n> h\ntext\n');
 		expect(wrote).toBe(true);

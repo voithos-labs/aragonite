@@ -48,6 +48,7 @@ describe('a clipboard pasted into a table cell', () => {
 			0,
 			'hello world1',
 			'literal',
+			expect.any(Number),
 			expect.any(Number)
 		);
 		expect(doc.children.map((c) => c.kind)).toEqual(['table']);

@@ -47,7 +47,13 @@ describe('paste into a reserved-chrome leaf', () => {
 		);
 
 		expect(blockEdit.updateBlockContent).toHaveBeenCalledOnce();
-		expect(blockEdit.updateBlockContent).toHaveBeenCalledWith(0, 'Titleone two\n', 'literal', 12);
+		expect(blockEdit.updateBlockContent).toHaveBeenCalledWith(
+			0,
+			'Titleone two\n',
+			'literal',
+			5,
+			12
+		);
 		expect(blockEdit.replaceBlock).not.toHaveBeenCalled();
 	});
 
@@ -83,7 +89,13 @@ describe('paste into a reserved-chrome leaf', () => {
 			pasteContext({ doc, blockEdit, controller })
 		);
 
-		expect(blockEdit.updateBlockContent).toHaveBeenCalledWith(0, 'Title- a - b\n', 'literal', 12);
+		expect(blockEdit.updateBlockContent).toHaveBeenCalledWith(
+			0,
+			'Title- a - b\n',
+			'literal',
+			5,
+			12
+		);
 		expect(controller.commitMultiScope).not.toHaveBeenCalled();
 	});
 

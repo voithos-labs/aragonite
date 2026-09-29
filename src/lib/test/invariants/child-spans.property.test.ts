@@ -234,7 +234,8 @@ describe('container child spans', () => {
 				await h.bundle.blockEdit.updateBlockContent(
 					seedAt,
 					container().children![seedAt].raw,
-					'authored'
+					'authored',
+					0
 				);
 				expect(container().raw, 'after the seeding write').toBe(fullRebuildOf(container()).raw);
 

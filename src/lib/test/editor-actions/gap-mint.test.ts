@@ -48,7 +48,7 @@ describe('a paragraph created at a boundary round-trips', () => {
 		const h = makeTopHarness(`${TABLE}\n${FENCE}`);
 
 		await h.actions.insertParagraph(0, '');
-		await h.actions.updateBlockContent(0, 'q\n', 'authored');
+		await h.actions.updateBlockContent(0, 'q\n', 'authored', 0);
 
 		expect(serialize(h.doc)).toBe(`q\n\n${TABLE}\n${FENCE}`);
 		expectParseConverged(h.doc);

@@ -103,12 +103,12 @@ export interface BlockEditActions {
 	 *  (`selection/caret-target.ts :: survivorAfterRemoval`), and the caller places none. */
 	deleteBlock(blockIndex: number, gesture: RemovalGesture): Promise<boolean>;
 	/** Write `text` as the block's bytes through its kind's and this list's write rules. Undo
-	 *  records `preEditOffset`; `postEditFocusOffset` (in `text`) comes back mapped as `caret`. */
+	 *  returns to `preEditOffset`, where the edit began; `caret` maps `postEditFocusOffset`. */
 	updateBlockContent(
 		blockIndex: number,
 		text: string,
 		mode: WriteMode,
-		preEditOffset?: number,
+		preEditOffset: number,
 		postEditFocusOffset?: number
 	): ContentWrite;
 	/** Shallow-merges metadata the kind's rebuild writes into its bytes (a checkbox toggle). A key no

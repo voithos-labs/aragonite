@@ -62,11 +62,7 @@ export function withEnterCompletion(
 				postEditFocusOffset
 			);
 			if (!write.admitted) return write;
-			const asked = postEditFocusOffset ?? preEditOffset;
-			const plan = () =>
-				asked === undefined
-					? null
-					: planTypedCompletion(childAt(index), write.caret, grammar, getLineEnding());
+			const plan = () => planTypedCompletion(childAt(index), write.caret, grammar, getLineEnding());
 			// A write that keeps the caret landed in place already, so its completion is known now.
 			const keepsCaret = write.keepsCaret && plan() === null;
 			const completed = write.then(async (wrote) => {

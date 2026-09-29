@@ -110,14 +110,14 @@ export function contentUpdate(scope: CommitScope): BlockEditActions['updateBlock
 		const kind = () => scope.children()[index]?.kind;
 		if (!admitsWrite(scope.reading, 'updateContent', kind)) return refusedWrite();
 		const write = legalizeWrite(scope.target(), index, text, mode);
-		const caret = write.storedOffset(postEditFocusOffset ?? preEditOffset ?? 0);
+		const caret = write.storedOffset(postEditFocusOffset ?? preEditOffset);
 		// Decided before `work` first yields, which `typeIn` runs up to before it returns.
 		let keepsCaret = false;
-		const done = scope.typeIn(index, preEditOffset ?? 0, async () => {
+		const done = scope.typeIn(index, preEditOffset, async () => {
 			const trial = previewContentReparse(scope.target(), index, write, scope.reading.grammar);
 			if (trial.op !== 'noop') {
 				const landed = await commitLeafText(scope, index, write, {
-					snapshotOffset: preEditOffset ?? 0,
+					snapshotOffset: preEditOffset,
 					caret,
 					landing: unlessFocusMoved
 				});

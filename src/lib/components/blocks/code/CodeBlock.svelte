@@ -702,8 +702,8 @@
 		return { start: cursor, end: cursor };
 	}
 
-	function applyIndentResult(result: IndentResult): void {
-		const start = commitDisplay(result.text, result.selection.start, result.selection.start);
+	function applyIndentResult(result: IndentResult, caretBefore: number): void {
+		const start = commitDisplay(result.text, caretBefore, result.selection.start);
 		if (start === null) return;
 		if (result.selection.start === result.selection.end) {
 			pendingCursorOffset = start;
@@ -719,15 +719,17 @@
 	// checked only because `currentRange()` reads the DOM selection through it.
 	function indentSelection(): void {
 		if (!el) return;
-		applyIndentResult(indentLines(getDisplayText(), clampRangeToBody(node, currentRange())));
+		const range = clampRangeToBody(node, currentRange());
+		applyIndentResult(indentLines(getDisplayText(), range), range.start);
 	}
 
 	function dedentSelection(): void {
 		if (!el) return;
 		const text = getDisplayText();
-		const result = dedentLines(text, clampRangeToBody(node, currentRange()));
+		const range = clampRangeToBody(node, currentRange());
+		const result = dedentLines(text, range);
 		if (result.text === text) return;
-		applyIndentResult(result);
+		applyIndentResult(result, range.start);
 	}
 
 	// ── Pointer + clipboard ─────────────────────────────────────────────

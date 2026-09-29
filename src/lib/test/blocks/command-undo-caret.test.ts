@@ -79,6 +79,15 @@ const ROUTES: CommandRoute[] = [
 		selection: [5, 8],
 		command: 'code.indent',
 		after: '```\n\tab\n\tcd\n```\n'
+	},
+	{
+		name: 'dedent over a code block selection',
+		source: '```\n\tab\n```\n',
+		surface: (editor) => surfaceAt(editor, [0]),
+		path: [0],
+		selection: [6, 8],
+		command: 'code.dedent',
+		after: '```\nab\n```\n'
 	}
 ];
 

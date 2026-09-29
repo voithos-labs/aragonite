@@ -159,7 +159,8 @@ describe('pasteDispatch: strategy routing end-to-end', () => {
 		expect(call[0]).toBe(0);
 		expect(call[1]).toBe('hello XYZworld\n');
 		expect(call[2]).toBe('literal');
-		expect(call[3]).toBe(9);
+		expect(call[3]).toBe(6);
+		expect(call[4]).toBe(9);
 		expect(blockEdit.replaceBlock).not.toHaveBeenCalled();
 	});
 

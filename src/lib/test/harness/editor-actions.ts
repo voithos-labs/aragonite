@@ -660,7 +660,7 @@ export interface RecordedWrite {
 	index: number;
 	raw: string;
 	mode: WriteMode;
-	before: number | undefined;
+	before: number;
 	after: number | undefined;
 }
 
@@ -673,6 +673,6 @@ export function recordingWrite(
 ) => ReturnType<typeof withStoredCaret> {
 	return (index, raw, mode, before, after) => {
 		record({ index, raw, mode, before, after });
-		return withStoredCaret(Promise.resolve(true), after ?? before ?? 0);
+		return withStoredCaret(Promise.resolve(true), after ?? before);
 	};
 }
