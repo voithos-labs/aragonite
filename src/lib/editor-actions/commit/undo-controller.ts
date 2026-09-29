@@ -27,7 +27,7 @@ import { blockNodeAt, documentBody, nodeAt } from '../../tree-operations/node-pr
 import { settleSeparator, type TrackedPosition } from '../../tree-operations/settle';
 import { endsOpen, endWindowLines, keepOpenTail } from '../../tree-operations/open-tail';
 import { keepOneBlock } from '../../tree-operations/keep-one-block';
-import { ensureUnsharedPath } from '../../tree-operations/unshare';
+import { ensureUnsharedPath, rebuildOwnedContainer } from '../../tree-operations/unshare';
 import {
 	attachedChainPrefix,
 	rebuildUnsharedChain,
@@ -662,7 +662,8 @@ export function createUndoController(
 				lineEnding,
 				body: isDoc
 					? documentBody(deps.doc, owned.children!)
-					: { children: owned.children!, owner: owned, lineEnding }
+					: { children: owned.children!, owner: owned, lineEnding },
+				rebuild: (node) => rebuildOwnedContainer(node, deps.sharing)
 			},
 			ids,
 			refs,

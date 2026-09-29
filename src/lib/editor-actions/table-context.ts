@@ -35,7 +35,6 @@ import {
 	movedRowToPosition
 } from '../a11y-strings';
 import { ensureUnsharedChildren, ensureUnsharedSubtree } from '../tree-operations/unshare';
-import { rebuildTableRowRaw, rebuildTableRaw } from '../schema/container-rebuilders';
 import { writeOwnRaw } from '../tree-operations/node-primitives';
 import { reorderChildren } from '../tree-operations/reorder';
 import {
@@ -133,7 +132,6 @@ export function createTableMutationsContext(
 			mutate: (scope) => {
 				insertEmptyRow(scope.node, rowIdx, side);
 				scope.sharing.stamp(scope.children[insertAt]);
-				rebuildTableRowRaw(scope.children[insertAt]);
 				return { op: 'insert', at: insertAt, count: 1 };
 			},
 			op: {
@@ -201,7 +199,7 @@ export function createTableMutationsContext(
 	}
 
 	// The table grows only at the bottom and right, so each scope's change is one contiguous
-	// insert; cell texts take the cell kind's raw rule in place, and the table raw is rebuilt once.
+	// insert; cell texts take the cell kind's raw rule in place, and the commit rebuilds the table.
 	async function pasteGrid(
 		origin: { rowIdx: number; colIdx: number },
 		grid: string[][]
@@ -240,7 +238,6 @@ export function createTableMutationsContext(
 						writeOwnRaw(cells[origin.colIdx + c], text, tableScope.lineEnding, deps.reading.grammar)
 					);
 				});
-				rebuildTableRaw(table);
 				const addedRows = needRows - oldRows;
 				const addedCols = needCols - oldCols;
 				const tableChange: StructuralChange =
@@ -284,14 +281,7 @@ export function createTableMutationsContext(
 			path: [...myPath],
 			state: rowsState,
 			snapshot: { path: extendDocPath(myPath, from), offset: 0 },
-			mutate: (scope) => {
-				// rebuildTableRaw rewrites every row's raw, so the rows must be copied first;
-				// reorderChildren only permutes references.
-				ensureUnsharedChildren(scope.node, scope.sharing);
-				const change = reorderChildren(scope.node.children!, from, to);
-				rebuildTableRaw(scope.node);
-				return change;
-			},
+			mutate: (scope) => reorderChildren(scope.node.children!, from, to),
 			op: { kind: 'tableReorderRow', detail: { from, to }, eventPath: extendDocPath(myPath, to) },
 			landing: () => cellAt(to, col),
 			announce: () => movedRowToPosition(to, rowCount - 1)
@@ -351,8 +341,6 @@ export function createTableMutationsContext(
 				state: rowsState,
 				snapshot: { path: extendDocPath(myPath, rowIdx), offset: 0 },
 				mutate: (scope) => {
-					// deleteRow makes the next row the header, a metadata write.
-					ensureUnsharedChildren(scope.node, scope.sharing);
 					mutDeleteRow(scope.node, rowIdx);
 					return { op: 'delete', at: rowIdx, count: 1 };
 				},

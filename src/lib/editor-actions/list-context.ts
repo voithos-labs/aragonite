@@ -24,7 +24,6 @@ import { cascadeCleanupEmptyAncestors } from '../tree-operations/cleanup';
 import { splitNode as performSplit, emptyParagraph } from '../tree-operations';
 import { lastCaretLeaf } from '../selection/path-lookup';
 import { ensureUnsharedChild } from '../tree-operations/unshare';
-import { rebuildListRaw } from '../schema/container-rebuilders';
 import {
 	renumberOrderedList,
 	normalizeItemMarkerToList,
@@ -134,8 +133,9 @@ export function createListContext(deps: ListContextDeps): ListContext {
 
 					// Renumbering writes the moved item's marker; `sharing` copies it first.
 					renumberOrderedList(destList, 0, sharing);
-					rebuildListRaw(destList);
-					// After the rebuild, since the blank-line rule reads the sublist's own bytes.
+					// A new sublist sits below the commit's chain, which never rebuilds it; the
+					// blank-line rule below reads its bytes too.
+					if (!existingNestedList) destScope.rebuild(destList);
 					settleSublistSeparator(destScope.children, destScope.children.length - 1);
 					renumberOrderedList(outerScope.node, itemIndex, sharing);
 

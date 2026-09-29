@@ -166,6 +166,9 @@ export interface ContainerScope {
 	lineEnding: LineEnding;
 	/** `children` as the body the tree operations write; at the document root it has no owner. */
 	readonly body: BodyParent;
+	/** Rebuilds `node`'s raw as the commit does, for a node the commit won't rebuild whose bytes
+	 *  the mutation reads before it returns; never the scope, which the commit rebuilds once. */
+	rebuild(node: CstNode): void;
 }
 
 // ── Multi-scope commit ──────────────────────────────────────────────────────
