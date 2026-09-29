@@ -1,17 +1,14 @@
 /**
- * Pure primitives for cross-block selection: types, document-order walking, overlay
- * classification of a covered range, the delete-commit snapshot rule. Path-level predicates live
- * in `./path-math`.
+ * Pure primitives for cross-block selection: types, overlay classification of a covered range,
+ * the delete-commit snapshot rule. Path-level predicates live in `./path-math`.
  */
 
 import type { CommitSnapshotArg } from '../action-contracts';
-import type { DocumentView, NodeView } from '../core/node-views';
 import type { CoveredRange } from './range-coverage';
 import {
 	comparePaths,
 	isPathBetween,
 	isStrictAncestorOf,
-	pathHasPrefix,
 	pathsEqual,
 	type DocPath
 } from './path-math';
@@ -153,32 +150,6 @@ export function normalize(selection: EditorSelection): {
 /** Where undo puts the caret back after a range delete, when nothing is focused. */
 export function deleteSnapshot(path: number[], offset = 0): CommitSnapshotArg {
 	return { path: docPathFrom(path), offset };
-}
-
-// ── Range walk ─────────────────────────────────────────────────────────────
-
-/** Every block path strictly between `start` and `end`, at every nesting level. */
-export function walkBetween(doc: DocumentView, start: number[], end: number[]): number[][] {
-	if (comparePaths(start, end) >= 0) return [];
-
-	const result: number[][] = [];
-
-	function visit(node: NodeView | DocumentView, path: number[]): void {
-		if (isPathBetween(path, start, end)) {
-			result.push([...path]);
-		}
-		if (!node.children) return;
-		for (let i = 0; i < node.children.length; i++) {
-			const childPath = [...path, i];
-			// Skip subtrees entirely before start (an ancestor of start still holds it) or after end.
-			if (!pathHasPrefix(start, childPath) && comparePaths(childPath, start) < 0) continue;
-			if (comparePaths(childPath, end) >= 0) break;
-			visit(node.children[i], childPath);
-		}
-	}
-
-	visit(doc, []);
-	return result;
 }
 
 // ── Overlay classification ─────────────────────────────────────────────────

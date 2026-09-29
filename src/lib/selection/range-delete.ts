@@ -67,16 +67,16 @@ export function rangeDelete(
 	const { start, end } = range;
 	// A pair inside one table clears its cells, even all of them; only Backspace and Delete take
 	// the rows, columns or table away, through the table's own structural commits.
-	if (coverage.grid) return clearGridCells(doc, range, coverage.grid, sharing, reading);
+	if (coverage.grid) return clearGridCells(doc, coverage, coverage.grid, sharing, reading);
 	if (keepsTableEdge(doc, coverage)) {
-		return tableAwareRangeDelete(doc, range, coverage, sharing, reading);
+		return tableAwareRangeDelete(doc, coverage, sharing, reading);
 	}
 	// Nothing merges across a title-line container's edge, and a range that holds an edge's block
 	// whole has nothing there to merge.
 	if (!coverage.startEdge || !coverage.endEdge || involvesReservedChrome(doc, start, end)) {
-		return unjoinedRangeDelete(doc, range, coverage, sharing, reading, gesture);
+		return unjoinedRangeDelete(doc, coverage, sharing, reading, gesture);
 	}
-	return joinedRangeDelete(doc, range, coverage, sharing, reading);
+	return joinedRangeDelete(doc, coverage, sharing, reading);
 }
 
 /** Deletes every subtree the range holds whole and truncates each edge it keeps, never merging:
@@ -88,7 +88,7 @@ export function removeHeldWhole(
 	reading: Reading,
 	gesture: RemovalGesture
 ): RangeDeleteResult {
-	return unjoinedRangeDelete(doc, range, rangeCoverage(doc, range), sharing, reading, gesture);
+	return unjoinedRangeDelete(doc, rangeCoverage(doc, range), sharing, reading, gesture);
 }
 
 // ── Internal ────────────────────────────────────────────────────────────────
@@ -96,13 +96,12 @@ export function removeHeldWhole(
 /** Both edges kept and plain: the end's tail joins the start's head in the start's slot. */
 function joinedRangeDelete(
 	doc: Document,
-	range: CoveredRange,
 	coverage: RangeCoverage,
 	sharing: SharingState,
 	reading: Reading
 ): RangeDeleteResult {
 	const { grammar } = reading;
-	const { start, end } = range;
+	const { start, end } = coverage.range;
 	const startBlock = blockNodeAt(doc, start.path);
 	const endBlock = blockNodeAt(doc, end.path);
 	if (!startBlock || !endBlock) {
@@ -159,7 +158,7 @@ function joinedRangeDelete(
 	// The end block goes once its tail has joined the start. Every chain is copied before the
 	// splices capture node identities, or a later copy would fail the check and skip a deletion.
 	ensureUnsharedPath(doc, start.path, sharing);
-	const plan = planCrossBlockDeletion(doc, range, coverage, [end.path], sharing);
+	const plan = planCrossBlockDeletion(doc, coverage, [end.path], sharing);
 	applyPlannedDeletion(doc, plan, grammar);
 	const shift = installSurvivor(doc, start.path, startBlock, joined.raw, sharing, reading);
 	rebuildUnsharedAncestry(doc, start.path, sharing, null, grammar);

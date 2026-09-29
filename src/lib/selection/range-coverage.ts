@@ -8,11 +8,12 @@
 import type { DocumentView, NodeView } from '../core/node-views';
 import { displayLength } from '../core/lines';
 import { metadataOf } from '../core/nodes';
-import { normalize, walkBetween, type SelectionPoint } from './primitives';
+import { normalize, type SelectionPoint } from './primitives';
 import { snapCrossBlockTableEndpoints } from './table-endpoint-snap';
 import { collapsedContainerHiding } from './path-lookup';
 import {
 	comparePaths,
+	isPathBetween,
 	isPathSubtreeBetween,
 	isStrictAncestorOf,
 	pathHasPrefix,
@@ -63,18 +64,6 @@ export class CoveredRange {
 	}
 }
 
-/** What a covered range holds. An edge is null where the range holds its block whole. */
-export interface RangeCoverage {
-	/** The start block's kept head, from its first byte or cell to the start. */
-	readonly startEdge: SelectionPoint | null;
-	/** The end block's kept tail, from the end to its last byte or cell. */
-	readonly endEdge: SelectionPoint | null;
-	/** Every subtree the range holds whole, outermost only, in document order. */
-	readonly wholeRoots: readonly DocPath[];
-	/** For a pair inside one table, which of its cells the range holds; null otherwise. */
-	readonly grid: GridCoverage | null;
-}
-
 /** How much of a table a pair inside it holds: all of it, whole rows or columns, or less. */
 export type GridKind = 'table' | 'row' | 'column' | 'cells';
 
@@ -99,11 +88,56 @@ export function coverRange(doc: DocumentView, a: SelectionPoint, b: SelectionPoi
 	return sealed(start, end, units);
 }
 
+/** What a covered range holds, read once by the delete, the copy, the format toggle and the
+ *  overlay. Built by `rangeCoverage` only, so a reader can't be handed a hand-made answer. */
+export class RangeCoverage {
+	// Never read: the private field makes the type nominal, as `CoveredRange`'s does.
+	// eslint-disable-next-line no-unused-private-class-members
+	readonly #coverage = true;
+	readonly range: CoveredRange;
+	/** The start block's kept head, from its first byte or cell to the start; null where the
+	 *  range holds the block whole. */
+	readonly startEdge: SelectionPoint | null;
+	/** The end block's kept tail, from the end to its last byte or cell; null likewise. */
+	readonly endEdge: SelectionPoint | null;
+	/** Every subtree the range removes whole, outermost only, in document order. */
+	readonly wholeRoots: readonly DocPath[];
+	/** Every subtree whose bytes the range covers end to end, outermost only: the whole roots and
+	 *  a kept edge at its block's first or last byte, with the containers they complete. */
+	readonly coveredWhole: readonly DocPath[];
+	/** For a pair inside one table, which of its cells the range holds; null otherwise. */
+	readonly grid: GridCoverage | null;
+
+	/** Built by `rangeCoverage` only, which holds the module-private key. */
+	constructor(key: typeof SEAL, range: CoveredRange, fields: CoverageFields) {
+		if (key !== SEAL) throw new Error('a RangeCoverage is built by rangeCoverage');
+		this.range = range;
+		this.startEdge = fields.startEdge;
+		this.endEdge = fields.endEdge;
+		this.wholeRoots = fields.wholeRoots;
+		this.coveredWhole = fields.coveredWhole;
+		this.grid = fields.grid;
+		Object.freeze(this);
+	}
+
+	/** The whole root holding `path`, or null. */
+	rootHolding(path: readonly number[]): DocPath | null {
+		return this.wholeRoots.find((root) => pathHasPrefix(path, root)) ?? null;
+	}
+
+	/** The subtree in `coveredWhole` holding `path`, or null. */
+	coveredRootHolding(path: readonly number[]): DocPath | null {
+		return this.coveredWhole.find((root) => pathHasPrefix(path, root)) ?? null;
+	}
+}
+
 /** A text edge always keeps its head or tail, even an empty one; a block with no character
  *  position, a table from its first or to its last row, or a whole unit keeps none. */
 export function rangeCoverage(doc: DocumentView, range: CoveredRange): RangeCoverage {
 	const { start, end } = range;
-	if (pathsEqual(start.path, end.path)) return samePathCoverage(doc, start, end);
+	if (pathsEqual(start.path, end.path)) {
+		return new RangeCoverage(SEAL, range, samePathCoverage(doc, start, end));
+	}
 	const held = walkBetween(doc, start.path, end.path).filter((p) =>
 		isPathSubtreeBetween(p, start.path, end.path)
 	);
@@ -112,17 +146,41 @@ export function rangeCoverage(doc: DocumentView, range: CoveredRange): RangeCove
 	const endHeld = range.unitHolding(end.path) !== null || endConsumed(doc, range);
 	if (startHeld) held.push(start.path);
 	if (endHeld) held.push(end.path);
-	return {
+	// A kept edge still hands over every byte of its block when it sits on that block's edge.
+	const covered = held.slice();
+	if (!startHeld && edgeCoversBlock(doc, start, 'start')) covered.push(start.path);
+	if (!endHeld && edgeCoversBlock(doc, end, 'end')) covered.push(end.path);
+	return new RangeCoverage(SEAL, range, {
 		startEdge: startHeld ? null : start,
 		endEdge: endHeld ? null : end,
 		wholeRoots: outermost(withWholeParents(doc, held)),
+		coveredWhole: outermost(withWholeParents(doc, covered)),
 		grid: null
-	};
+	});
 }
 
-/** The root in `coverage` holding `path`, or null. */
-export function rootHolding(coverage: RangeCoverage, path: readonly number[]): DocPath | null {
-	return coverage.wholeRoots.find((root) => pathHasPrefix(path, root)) ?? null;
+/** Every block path strictly between `start` and `end`, at every nesting level, in document
+ *  order; an ancestor of `end` counts, since it starts before `end` does. */
+export function walkBetween(
+	doc: DocumentView,
+	start: readonly number[],
+	end: readonly number[]
+): number[][] {
+	if (comparePaths(start, end) >= 0) return [];
+	const result: number[][] = [];
+	const visit = (node: NodeView | DocumentView, path: number[]): void => {
+		if (isPathBetween(path, start, end)) result.push([...path]);
+		const children = node.children ?? [];
+		for (let i = 0; i < children.length; i++) {
+			const childPath = [...path, i];
+			// Skip subtrees entirely before start (an ancestor of start still holds it) or after end.
+			if (!pathHasPrefix(start, childPath) && comparePaths(childPath, start) < 0) continue;
+			if (comparePaths(childPath, end) >= 0) break;
+			visit(children[i], childPath);
+		}
+	};
+	visit(doc, []);
+	return result;
 }
 
 // ── Title-line containers ───────────────────────────────────────────────────
@@ -175,11 +233,19 @@ function closedTitleOwner(doc: DocumentView, path: readonly number[]): DocPath |
 	return collapsedContainerHiding(doc, ownerPath) ? null : docPathFrom(ownerPath);
 }
 
+interface CoverageFields {
+	startEdge: SelectionPoint | null;
+	endEdge: SelectionPoint | null;
+	wholeRoots: readonly DocPath[];
+	coveredWhole: readonly DocPath[];
+	grid: GridCoverage | null;
+}
+
 function samePathCoverage(
 	doc: DocumentView,
 	start: SelectionPoint,
 	end: SelectionPoint
-): RangeCoverage {
+): CoverageFields {
 	const node = nodeAt(doc, start.path);
 	const path = docPathFrom(start.path);
 	if (node && isBlockNode(node) && countsCells(node) && start.cellCoordinate) {
@@ -197,12 +263,12 @@ function samePathCoverage(
 	return heldAsUnit ? heldWhole(path, null) : kept(start, end);
 }
 
-function kept(start: SelectionPoint, end: SelectionPoint): RangeCoverage {
-	return { startEdge: start, endEdge: end, wholeRoots: [], grid: null };
+function kept(start: SelectionPoint, end: SelectionPoint): CoverageFields {
+	return { startEdge: start, endEdge: end, wholeRoots: [], coveredWhole: [], grid: null };
 }
 
-function heldWhole(path: DocPath, grid: GridCoverage | null): RangeCoverage {
-	return { startEdge: null, endEdge: null, wholeRoots: [path], grid };
+function heldWhole(path: DocPath, grid: GridCoverage | null): CoverageFields {
+	return { startEdge: null, endEdge: null, wholeRoots: [path], coveredWhole: [path], grid };
 }
 
 /** A whole table beats the row or column that spans it (a one-row or one-column table). */
@@ -231,6 +297,14 @@ function edgeHeld(doc: DocumentView, point: SelectionPoint, side: 'start' | 'end
 		return point.offset === (side === 'start' ? 0 : tableCellCount(node) - 1);
 	}
 	if (!isWholeBlockUnit(node)) return false;
+	return side === 'start' ? point.offset === 0 : point.offset >= displayLength(node.raw);
+}
+
+/** A text edge at its block's first byte (a start) or last (an end), so a copy takes the block. */
+function edgeCoversBlock(doc: DocumentView, point: SelectionPoint, side: 'start' | 'end'): boolean {
+	if (point.cellCoordinate) return false;
+	const node = nodeAt(doc, point.path);
+	if (!node || !isBlockNode(node)) return false;
 	return side === 'start' ? point.offset === 0 : point.offset >= displayLength(node.raw);
 }
 

@@ -1,7 +1,7 @@
 import { describe, it } from 'vitest';
 import fc from 'fast-check';
-import { classifyBlockForSelection, normalize, walkBetween } from '../../selection/primitives';
-import { coverRange } from '../../selection/range-coverage';
+import { classifyBlockForSelection, normalize } from '../../selection/primitives';
+import { coverRange, walkBetween } from '../../selection/range-coverage';
 import { comparePaths, pathsEqual } from '../../selection/path-math';
 import { allBlockPaths, arbDocWithSelection, freshOrFixedSeed } from './arbitraries';
 

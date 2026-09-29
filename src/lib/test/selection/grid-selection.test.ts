@@ -1,11 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import {
-	intraTableRect,
-	intraTableRectPayload
-} from '../../../components/blocks/table/cell-clipboard';
-import { createSelectionState } from '../../../selection/selection-state.svelte';
-import type { CellSelectionPoint } from '../../../selection/primitives';
-import type { Document } from '../../../core/nodes';
+import { gridClipboard, liveGrid } from '../../selection/grid-selection';
+import { createSelectionState } from '../../selection/selection-state.svelte';
+import type { CellSelectionPoint } from '../../selection/primitives';
+import type { Document } from '../../core/nodes';
+import type { GridCoverage } from '../../selection/range-coverage';
+import { asDocPath } from '../../selection/path-math';
 
 // A document whose block at [0] is a table, so a cross-block selection with the same path on
 // both ends reads as custom-rendered. `cells` is a row-major grid of cell raws.
@@ -40,7 +39,7 @@ function tableRectSelection(doc: Document, anchorIdx: number, focusIdx: number) 
 	return sel;
 }
 
-describe('intraTableRect', () => {
+describe('liveGrid', () => {
 	const doc = tableDoc(
 		[
 			['a', 'b'],
@@ -49,24 +48,28 @@ describe('intraTableRect', () => {
 		2
 	);
 
-	it('returns the shared table path and both cell indices for a live rectangle', () => {
+	it('returns the table path and the rectangle the two cells span', () => {
 		const sel = tableRectSelection(doc, 1, 2);
-		expect(intraTableRect(sel)).toEqual({ tablePath: [0], anchorCellIdx: 1, focusCellIdx: 2 });
+		expect(liveGrid(sel, doc)).toEqual({
+			kind: 'table',
+			path: [0],
+			rect: { top: 0, left: 0, rows: 2, cols: 2 }
+		});
 	});
 
 	it('returns null when there is no cross-block selection', () => {
 		const sel = createSelectionState({ getDoc: () => doc });
-		expect(intraTableRect(sel)).toBeNull();
+		expect(liveGrid(sel, doc)).toBeNull();
 	});
 
 	it('returns null for a linear cross-block selection across different paths', () => {
 		const sel = createSelectionState({ getDoc: () => doc });
 		sel.enterCrossBlock({ path: [0], offset: 0 }, { path: [1], offset: 0 });
-		expect(intraTableRect(sel)).toBeNull();
+		expect(liveGrid(sel, doc)).toBeNull();
 	});
 });
 
-describe('intraTableRectPayload', () => {
+describe('gridClipboard', () => {
 	// A 3x2 grid: an uneven shape catches a row-and-column mix-up in the index decoding,
 	// since a swap would address column 2 of a two-column table and change the payload.
 	const doc = tableDoc(
@@ -78,22 +81,27 @@ describe('intraTableRectPayload', () => {
 		2
 	);
 
+	const payload = (anchor: number, focus: number) =>
+		gridClipboard(doc, liveGrid(tableRectSelection(doc, anchor, focus), doc)!);
+
 	it('builds the GFM sub-table for the full-grid rectangle', () => {
-		const sel = tableRectSelection(doc, 0, 5);
-		expect(intraTableRectPayload({ selection: sel, getDoc: () => doc })).toBe(
-			'| a | b |\n| --- | --- |\n| c | d |\n| e | f |\n'
-		);
+		expect(payload(0, 5)?.text).toBe('| a | b |\n| --- | --- |\n| c | d |\n| e | f |\n');
 	});
 
 	it('builds a single-row rectangle from a two-cell span', () => {
-		const sel = tableRectSelection(doc, 2, 3);
-		expect(intraTableRectPayload({ selection: sel, getDoc: () => doc })).toBe(
-			'| c | d |\n| --- | --- |\n'
-		);
+		expect(payload(2, 3)?.text).toBe('| c | d |\n| --- | --- |\n');
 	});
 
-	it('returns null when the selection is not an intra-table rectangle', () => {
-		const sel = createSelectionState({ getDoc: () => doc });
-		expect(intraTableRectPayload({ selection: sel, getDoc: () => doc })).toBeNull();
+	it('writes the same cells as an HTML table', () => {
+		expect(payload(2, 3)?.html).toContain('<tr><td>c</td><td>d</td></tr>');
+	});
+
+	it('returns null for one cell, whose copy is its own text', () => {
+		const grid: GridCoverage = {
+			kind: 'cells',
+			path: asDocPath([0]),
+			rect: { top: 1, left: 1, rows: 1, cols: 1 }
+		};
+		expect(gridClipboard(doc, grid)).toBeNull();
 	});
 });

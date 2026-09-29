@@ -12,8 +12,6 @@ import type { RangeDeleteResult } from './range-delete';
 import {
 	isChromeChild,
 	nearestChromeContainer,
-	rootHolding,
-	type CoveredRange,
 	type GridCoverage,
 	type RangeCoverage
 } from './range-coverage';
@@ -50,7 +48,7 @@ export function keepsTableEdge(doc: Document, coverage: RangeCoverage): boolean 
  *  caret goes in the start cell, so a follow-up paste or typed text lands inside the table. */
 export function clearGridCells(
 	doc: Document,
-	range: CoveredRange,
+	coverage: RangeCoverage,
 	grid: GridCoverage,
 	sharing: SharingState,
 	reading: Reading
@@ -67,7 +65,10 @@ export function clearGridCells(
 	rebuildUnsharedChain(doc, chain, sharing, null, reading.grammar);
 
 	const columnCount = metadataOf(table, 'table').columnCount;
-	const { row, col } = cellRowCol(cellIndexOf(range.start, 'clearGridCells:start'), columnCount);
+	const { row, col } = cellRowCol(
+		cellIndexOf(coverage.range.start, 'clearGridCells:start'),
+		columnCount
+	);
 	const anchor = { path: [...grid.path, row, col], offset: 0 };
 	return { newDoc: doc, caret: () => anchor, tableRowSplices: [] };
 }
@@ -76,13 +77,12 @@ export function clearGridCells(
  *  or up to the end's; a kept text edge is truncated in place and what lies between goes. */
 export function tableAwareRangeDelete(
 	doc: Document,
-	range: CoveredRange,
 	coverage: RangeCoverage,
 	sharing: SharingState,
 	reading: Reading
 ): RangeDeleteResult {
 	const { grammar } = reading;
-	const { start, end } = range;
+	const { start, end } = coverage.range;
 	const { startEdge, endEdge } = coverage;
 
 	// Copy both kept endpoint chains, and a kept table's whole subtree (cell raws, row splices and
@@ -105,7 +105,7 @@ export function tableAwareRangeDelete(
 		? deleteCellsAndCollapse(endTable, 0, cellIndexOf(end, 'tableAwareRangeDelete:end') + 1)
 		: null;
 
-	const plan = planCrossBlockDeletion(doc, range, coverage, [], sharing);
+	const plan = planCrossBlockDeletion(doc, coverage, [], sharing);
 	// A kept text end truncates first, while its path is still valid, and never merges.
 	if (endBlock && !endTable) {
 		const endC = nearestChromeContainer(doc, end.path);
@@ -150,7 +150,7 @@ export function tableAwareRangeDelete(
 		: seam !== null
 			? { path: start.path.slice(), offset: seam }
 			: null;
-	const resumeFrom = rootHolding(coverage, start.path) ?? start.path;
+	const resumeFrom = coverage.rootHolding(start.path) ?? start.path;
 	return {
 		newDoc: doc,
 		caret: kept ? () => kept : (committed) => caretWhereRangeResumes(committed, resumeFrom),

@@ -190,12 +190,11 @@ export interface DeletionPlan {
  *  tail joined the start); a covered title row is cleared instead, so it stays child 0. */
 export function planCrossBlockDeletion(
 	doc: Document,
-	range: CoveredRange,
 	coverage: RangeCoverage,
 	alsoRemoved: number[][],
 	sharing: SharingState
 ): DeletionPlan {
-	const clearPath = titleRowToClear(doc, range);
+	const clearPath = titleRowToClear(doc, coverage.range);
 	let chromeClearChain: CstNode[] | null = null;
 	const deletionPaths: number[][] = [];
 	for (const root of coverage.wholeRoots) {

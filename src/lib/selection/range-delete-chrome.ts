@@ -10,13 +10,7 @@ import type { Document } from '../core/nodes';
 import type { DocumentView } from '../core/node-views';
 import type { CaretPosition, SelectionPoint } from './primitives';
 import type { RangeDeleteResult } from './range-delete';
-import {
-	isChromeChild,
-	nearestChromeContainer,
-	rootHolding,
-	type CoveredRange,
-	type RangeCoverage
-} from './range-coverage';
+import { isChromeChild, nearestChromeContainer, type RangeCoverage } from './range-coverage';
 import type { SharingState } from '../tree-operations/sharing';
 import { comparePaths, pathsEqual } from './path-math';
 import {
@@ -54,25 +48,24 @@ export function involvesReservedChrome(
 	return true;
 }
 
-/** Deletes what `range` covers with no merge: removes what it holds whole and truncates each kept
+/** Deletes what the range covers with no merge: removes what it holds whole and truncates each kept
  *  edge in place. `gesture` lands the caret when the range keeps neither edge. */
 export function unjoinedRangeDelete(
 	doc: Document,
-	range: CoveredRange,
 	coverage: RangeCoverage,
 	sharing: SharingState,
 	reading: Reading,
 	gesture: RemovalGesture
 ): RangeDeleteResult {
 	const { grammar } = reading;
-	const { start, end } = range;
+	const { start, end } = coverage.range;
 	const { startEdge, endEdge } = coverage;
 
 	// Copy every chain that will be written before node identities are captured: chains stay
 	// valid across splices, paths do not (G1.9).
 	const startChain = startEdge ? ensureUnsharedPath(doc, start.path, sharing) : null;
 	const endChain = endEdge ? ensureUnsharedPath(doc, end.path, sharing) : null;
-	const plan = planCrossBlockDeletion(doc, range, coverage, [], sharing);
+	const plan = planCrossBlockDeletion(doc, coverage, [], sharing);
 
 	// The end truncates first, while its path is still valid.
 	if (endChain) {
@@ -118,7 +111,7 @@ export function unjoinedRangeDelete(
 	return {
 		newDoc: doc,
 		caret: endEdge
-			? (committed) => caretWhereRangeResumes(committed, rootHolding(coverage, start.path) ?? first)
+			? (committed) => caretWhereRangeResumes(committed, coverage.rootHolding(start.path) ?? first)
 			: (committed) => caretWhereRemoved(committed, first, gesture)
 	};
 }

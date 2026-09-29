@@ -29,17 +29,12 @@
 		trimTrailingLineEnding
 	} from '../../../core/lines';
 	import { pasteDispatch } from '../../../tree-operations/paste/dispatch';
-	import { blockNodeAt, isBlockNode, nodeAt } from '../../../tree-operations/node-primitives';
+	import { blockNodeAt } from '../../../tree-operations/node-primitives';
 	import { cutRangeFromDisplay } from '../../../tree-operations/node-ops';
 	import { storedAsAt } from '../../../tree-operations/stored-as';
 	import { keepsKindAt } from '../../../core/inline/live-edit/read-back';
 	import { applyLiveRangeEdit } from '../text/live-selection-edit';
-	import {
-		gridToHtmlTable,
-		parseClipboardGrid,
-		tileGridTo
-	} from '../../../tree-operations/table-grid-clipboard';
-	import { tableCellCount } from '../../../schema/block-kind-descriptor';
+	import { parseClipboardGrid, tileGridTo } from '../../../tree-operations/table-grid-clipboard';
 	import { pathsEqual } from '../../../selection/path-math';
 	import { applyDelimiterAutoPair } from '../text/delimiter-autopair';
 	import { FALLBACK_CONTENT_WIDTH } from '../../../cursor/typography-estimates';
@@ -76,11 +71,7 @@
 	import { isAtFirstVisualLine, isAtLastVisualLine } from '../../../cursor/visual-lines';
 	import { cellKeydownPlan, type CellKeyPlan, type CellKeyState } from './cell-keydown-plan';
 	import { tableAxisCommand } from './cell-table-commands';
-	import {
-		intraTableRectPayload,
-		intraTableRectBounds,
-		intraTableRectGrid
-	} from './cell-clipboard';
+	import { liveGrid } from '../../../selection/grid-selection';
 	import { cellPoint } from '../../../selection/primitives';
 	import type { ClipboardAction } from './table-menu-model';
 	import {
@@ -847,31 +838,19 @@
 		installCellDragListener({ editorRoot, selection, lifetimeSignal: editorLifetime }, anchor, e);
 	}
 
-	// A rectangle also goes on the clipboard as an HTML table, which spreadsheets read.
-	function writeRectHtml(e: ClipboardEvent): void {
-		const grid = intraTableRectGrid({ selection, getDoc });
-		if (grid) e.clipboardData?.setData('text/html', gridToHtmlTable(grid));
-	}
-
 	// A pasted grid (spreadsheet tabs or a GFM table) fills cells from the live rectangle's
 	// top-left or this cell, growing the table; a whole-table selection still replaces.
 	async function pasteGridHere(text: string): Promise<boolean> {
 		const grid = parseClipboardGrid(text);
 		if (!grid) return false;
 		const tablePath = myPath.slice(0, -2);
-		const bounds = intraTableRectBounds({ selection, getDoc });
-		const inThisTable = bounds !== null && pathsEqual(bounds.tablePath, tablePath);
-		if (bounds && !inThisTable) return false;
-		const tableNode = nodeAt(getDoc(), tablePath);
-		const wholeTable =
-			bounds !== null &&
-			tableNode !== null &&
-			isBlockNode(tableNode) &&
-			bounds.rows * bounds.cols === tableCellCount(tableNode);
-		if (wholeTable) return false;
-		const origin = bounds ? { rowIdx: bounds.top, colIdx: bounds.left } : { rowIdx, colIdx };
-		const fitted = bounds ? tileGridTo(grid, bounds.rows, bounds.cols) : grid;
-		if (bounds) selection.collapse();
+		const cells = liveGrid(selection, getDoc());
+		if (cells && !pathsEqual(cells.path, tablePath)) return false;
+		if (cells?.kind === 'table') return false;
+		const rect = cells?.rect;
+		const origin = rect ? { rowIdx: rect.top, colIdx: rect.left } : { rowIdx, colIdx };
+		const fitted = rect ? tileGridTo(grid, rect.rows, rect.cols) : grid;
+		if (rect) selection.collapse();
 		await tableContext.pasteGrid(origin, fitted);
 		return true;
 	}
@@ -886,14 +865,6 @@
 		events: editorEvents,
 		onPasteImage,
 		foldReveal: () => widgetInteraction.foldRevealBeforeMutation(),
-		copyPreHook: (e) => {
-			const rectPayload = intraTableRectPayload({ selection, getDoc });
-			if (rectPayload === null) return false;
-			e.preventDefault();
-			e.clipboardData?.setData('text/plain', rectPayload);
-			writeRectHtml(e);
-			return true;
-		},
 		pastePreHook: pasteGridHere,
 		// While a source is shown the DOM holds an edit `node.raw` has not seen; copy never
 		// writes, so it slices the live DOM text rather than hiding it first.
@@ -906,16 +877,6 @@
 				? readCellText()
 				: trimTrailingLineEnding(node.raw);
 			e.clipboardData?.setData('text/plain', display.slice(offsets.start, offsets.end));
-		},
-		// Clears the cells in place, without `tableCoverageDelete`: only Backspace's
-		// structural delete removes rows, columns or the table.
-		cutPreHook: async (e) => {
-			const rectPayload = intraTableRectPayload({ selection, getDoc });
-			if (rectPayload === null) return false;
-			e.clipboardData?.setData('text/plain', rectPayload);
-			writeRectHtml(e);
-			await crossBlock.performCrossBlockCut();
-			return true;
 		},
 		// The write has to be synchronous, since `clipboardData` closes after the event, and
 		// the truncation goes through the CST: the browser's own cut leaves a stale undo anchor.
@@ -991,7 +952,7 @@
 		if (fold) await fold.settled;
 		// A rectangle has no range inside one cell to restore: refocusing keeps it live in
 		// `SelectionState`, and the copy and cut branches for a rectangle do the rest.
-		const hasRect = action !== 'paste' && intraTableRectPayload({ selection, getDoc }) !== null;
+		const hasRect = action !== 'paste' && liveGrid(selection, getDoc()) !== null;
 		if (action !== 'paste' && !hasRect && sel.start === sel.end) return;
 		// Clicking the menu item moved focus off the cell, so every branch refocuses before
 		// mutating: execCommand needs the restored range, paste needs a focused caret.

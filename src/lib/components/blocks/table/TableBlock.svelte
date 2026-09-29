@@ -24,7 +24,7 @@
 	import { columnNearestX } from './cell-x-mapping';
 	import { cellAtPoint, installCellDragListener, mountedRowEls, rowCellEls } from './cell-pointer';
 	import { tableCaretAtPoint } from './table-caret-at-point';
-	import { intraTableRect } from './cell-clipboard';
+	import { liveGrid } from '../../../selection/grid-selection';
 	import { selectedCells } from './selected-cells';
 	import { useContainerWindowing } from '../../../reactivity/use-container-windowing.svelte';
 	import { sliceWindow } from '../../../reactivity/window-slice';
@@ -67,6 +67,7 @@
 	} = getContext<EditorServices>(EDITOR_SERVICES_KEY);
 	const {
 		editorRoot: getEditorRoot,
+		doc: getDoc,
 		widthVersion: getWidthVersion,
 		lifetime: editorLifetime,
 		reading
@@ -270,8 +271,8 @@
 	// separately to keep Cut/Copy enabled.
 	const rectActive = $derived.by(() => {
 		if (!selection) return false;
-		const rect = intraTableRect(selection);
-		return rect !== null && pathsEqual(rect.tablePath, myPath);
+		const grid = liveGrid(selection, getDoc());
+		return grid !== null && pathsEqual(grid.path, myPath);
 	});
 
 	const menuItems = $derived(
@@ -474,7 +475,7 @@
 	export function measurePartialRects(start: number, end: number): DOMRect[] {
 		if (!tableEl || rowCount === 0) return [];
 		const cells = selectedCells({
-			rect: selection ? intraTableRect(selection) : null,
+			grid: selection ? liveGrid(selection, getDoc()) : null,
 			myPath,
 			start,
 			end,
