@@ -18,6 +18,10 @@
 - A rectangle copy (and cut) also writes `text/html` holding a plain `<table>` of the same cells,
   which is the format Excel and Sheets read; `text/plain` stays the GFM sub-table, so a paste into
   prose is still a table and a paste into another table's cells is still a grid.
+- The same rectangle copied while the table is scrolled out of the page (so the copy lands on the
+  editor itself, not on a cell) writes the same two formats: the rectangle, not its whole rows.
+  - Miss-analysis: every rectangle copy ran with the focus in a cell, whose own copy wrote the
+    rectangle, so the editor's copy of the same selection was never read.
 
 ## User interactions
 

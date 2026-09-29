@@ -120,4 +120,36 @@ test.describe('table block: clipboard out', () => {
 			)
 			.toContain('<tr><td>1</td><td>2</td></tr><tr><td>3</td><td>4</td></tr>');
 	});
+
+	// Scrolled far enough that windowing takes the table out of the page, the focused cell goes
+	// with it, so Ctrl+C lands on the page body and the editor root copies.
+	test('a rectangle copied with the table scrolled away copies the rectangle, text and HTML', async ({
+		page
+	}) => {
+		const filler = Array.from({ length: 300 }, (_, i) => `para ${i}`).join('\n\n');
+		await editor.loadContent(`${TABLE_ALIGNED}\n${filler}\n`);
+		await dragBetweenCells(page, 1, 4);
+		await editor.waitForCrossBlock(true);
+		const scrollHeight = await page.evaluate(
+			() => (document.querySelector('.editor') as HTMLElement).scrollHeight
+		);
+		await editor.scrollEditorTo(scrollHeight);
+		await expect(page.locator('.table-block')).toHaveCount(0);
+		await editor.waitForCrossBlock(true);
+
+		await page.keyboard.press('ControlOrMeta+c');
+		await expect.poll(() => editor.readClipboard()).toBe('| B |\n| :---: |\n| 2 |\n');
+		await expect
+			.poll(() =>
+				page.evaluate(async () => {
+					const items = await navigator.clipboard.read();
+					for (const item of items) {
+						if (!item.types.includes('text/html')) continue;
+						return (await item.getType('text/html')).text();
+					}
+					return null;
+				})
+			)
+			.toContain('<tr><td>B</td></tr><tr><td>2</td></tr>');
+	});
 });

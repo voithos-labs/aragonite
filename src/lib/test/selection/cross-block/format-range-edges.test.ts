@@ -4,7 +4,7 @@
 // rule are `./format-range.test.ts`.
 // Miss-analysis: every partial span there started and ended on a word boundary, never a space.
 import { defaultGrammarView } from '$lib/schema/block-openers';
-import { describe, it, expect } from 'vitest';
+import { beforeEach, describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { createSharingState } from '$lib/tree-operations/sharing';
@@ -15,6 +15,9 @@ import {
 import type { SelectionPoint } from '$lib/selection/primitives';
 import { fixtureReading } from '$lib/test/harness/fixture-grammar';
 import { documentLineEnding } from '$lib/core/lines';
+import { coverRange } from '$lib/selection/range-coverage';
+import { registerChromePluginsForTests } from '../chrome-plugins';
+import { makeKeydownEnv, press } from './keydown-env';
 
 const at = (path: number[], offset: number): SelectionPoint => ({ path, offset });
 
@@ -99,5 +102,41 @@ describe('a write that formed no construct', () => {
 	it('leaves a second press with nothing to add, rather than another layer', () => {
 		const once = toggle(TRAILING_MARKER, at([0], 0), at([1], 4))!;
 		expect(toggle(once, at([0], 0), at([1], '**beta**'.length))).toBeNull();
+	});
+});
+
+// Miss-analysis: the closed-details rows only ran a range past the details, so format's own
+// visit of the stored pair never met an endpoint on a title row that takes the details whole.
+describe('a range reaching a closed details’ title row', () => {
+	beforeEach(registerChromePluginsForTests);
+
+	const CLOSED = '<details>\n<summary>Sum</summary>\n\nHidden\n\n</details>\n';
+
+	async function bold(source: string, anchor: SelectionPoint, focus: SelectionPoint) {
+		const env = makeKeydownEnv(source);
+		env.selection.enterCrossBlock(anchor, focus);
+		await env.keydown.handleKeyDown(press('b', { ctrlKey: true }));
+		const { anchor: a, focus: f } = env.selection;
+		return {
+			source: serialize(env.deps.doc),
+			held: a && f ? coverRange(env.deps.doc, a, f).wholeUnits : []
+		};
+	}
+
+	// The title row takes no inline marks, so only the body shows the difference.
+	it('formats the hidden body when the range ends on the title', async () => {
+		const result = await bold('above\n\n' + CLOSED, at([0], 0), at([1, 0], 2));
+		expect(result.source).toBe(
+			'**above**\n\n<details>\n<summary>Sum</summary>\n\n**Hidden**\n\n</details>\n'
+		);
+		expect(result.held).toEqual([[1]]);
+	});
+
+	it('formats the hidden body when the range starts on the title', async () => {
+		const result = await bold('head\n\n' + CLOSED + '\nbelow\n', at([1, 0], 1), at([2], 3));
+		expect(result.source).toBe(
+			'head\n\n<details>\n<summary>Sum</summary>\n\n**Hidden**\n\n</details>\n\n**bel**ow\n'
+		);
+		expect(result.held).toEqual([[1]]);
 	});
 });

@@ -1,8 +1,9 @@
-import { describe, it, expect } from 'vitest';
+import { beforeEach, describe, it, expect } from 'vitest';
 import { collectCrossBlockText } from '../../selection/clipboard-text';
 import { coverRange } from '../../selection/range-coverage';
 import type { SelectionPoint } from '../../selection/primitives';
 import { parse } from '../../core/parser';
+import { registerChromePluginsForTests } from './chrome-plugins';
 
 describe('collectCrossBlockText', () => {
 	it('preserves blank line between two top-level paragraphs', () => {
@@ -87,12 +88,12 @@ describe('collectCrossBlockText', () => {
 			expect(text).toBe('Before.\n\n| A | B | C |\n| --- | --- | --- |\n| 1 | 2 | 3 |\n');
 		});
 
-		it('intra-table same-path selection is not snapped: sub-rectangle band preserved', () => {
-			// Both endpoints in one table: the cross-block row snap does not apply, and the
-			// table's own copy emits every row the cell range touches.
+		// Miss-analysis (#565): these rows pinned the whole-row output as intended, so no test ever
+		// compared the root's copy of a rectangle with the cell's own.
+		it('a pair inside one table copies its rectangle, as the cell copy does', () => {
 			const doc = parse(fixture);
 			const text = collectCrossBlockText(doc, coverRange(doc, cell(1), cell(4)));
-			expect(text).toBe('| A | B | C |\n| --- | --- | --- |\n| 1 | 2 | 3 |\n');
+			expect(text).toBe('| B |\n| --- |\n| 2 |\n');
 		});
 
 		it('returns empty string when both endpoints share a zero-length table portion', () => {
@@ -101,12 +102,11 @@ describe('collectCrossBlockText', () => {
 			expect(text).toBe('');
 		});
 
-		it('keeps the focus cell row when the intra-table focus lands on a row-start cell', () => {
-			// Anchor cell 0 (row 0, col 0), focus cell 3 (row 1, col 0). The end cell is
-			// inclusive — its row must be captured; an exclusive end drops row 1.
+		it('keeps the focus cell’s row when the rectangle ends on a row-start cell', () => {
+			// The end cell is inclusive: an exclusive end would drop row 1.
 			const doc = parse(fixture);
 			const text = collectCrossBlockText(doc, coverRange(doc, cell(0), cell(3)));
-			expect(text).toBe('| A | B | C |\n| --- | --- | --- |\n| 1 | 2 | 3 |\n');
+			expect(text).toBe('| A |\n| --- |\n| 1 |\n');
 		});
 
 		it('emits each table fully when selection spans two tables and surrounding paragraphs', () => {
@@ -120,6 +120,41 @@ describe('collectCrossBlockText', () => {
 			expect(text).toBe(
 				'a\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n\nb\n\n| C | D |\n| --- | --- |\n| 3 | 4 |\n\nc'
 			);
+		});
+	});
+
+	// Miss-analysis: every container copy test put an endpoint outside the container, so the copy
+	// that holds one whole with both endpoints inside it never ran.
+	describe('a container the range holds whole is copied whole', () => {
+		beforeEach(registerChromePluginsForTests);
+
+		const copied = (source: string, a: SelectionPoint, b: SelectionPoint): string => {
+			const doc = parse(source);
+			return collectCrossBlockText(doc, coverRange(doc, a, b));
+		};
+
+		it('select-all over a document that is one quote', () => {
+			const quote = '> a\n>\n> b\n';
+			expect(copied(quote, { path: [0, 0], offset: 0 }, { path: [0, 1], offset: 1 })).toBe(quote);
+		});
+
+		it('select-all over a document that is one open details', () => {
+			const details = '<details open>\n<summary>Sum</summary>\n\nShown\n\n</details>\n';
+			expect(copied(details, { path: [0, 0], offset: 0 }, { path: [0, 1], offset: 5 })).toBe(
+				details
+			);
+		});
+
+		it('a list both of whose items the range holds', () => {
+			const list = '- a\n- b\n';
+			expect(copied(list, { path: [0, 0, 0], offset: 0 }, { path: [0, 1, 0], offset: 1 })).toBe(
+				list
+			);
+		});
+
+		it('not a quote whose first paragraph the range starts inside', () => {
+			const quote = '> a\n>\n> b\n';
+			expect(copied(quote, { path: [0, 0], offset: 1 }, { path: [0, 1], offset: 1 })).toBe('\n\nb');
 		});
 	});
 });
