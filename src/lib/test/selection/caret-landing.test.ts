@@ -58,9 +58,10 @@ function mountingList(
 
 function recordingScroll(visible: boolean) {
 	const calls: string[] = [];
-	const scroll: Pick<ScrollOwner, 'isInView' | 'place' | 'port'> = {
+	const scroll: Pick<ScrollOwner, 'shows' | 'showRect' | 'place' | 'port'> = {
 		port: () => null,
-		isInView: () => visible,
+		shows: () => visible,
+		showRect: () => {},
 		place: (_path, { hold }) => {
 			calls.push(hold ? 'place, held' : 'place');
 			return {
@@ -74,6 +75,12 @@ function recordingScroll(visible: boolean) {
 	return { scroll, calls };
 }
 
+/** A block element with a box and no caret inside it; the recording scroll decides what shows. */
+const STAND_IN = {
+	getBoundingClientRect: () => ({ top: 0, bottom: 20 }),
+	contains: () => false
+} as unknown as HTMLElement;
+
 function landingOver(source: string, over: Partial<CaretLandingDeps> = {}) {
 	const doc = parse(source);
 	const placements: Placement[] = [];
@@ -84,7 +91,7 @@ function landingOver(source: string, over: Partial<CaretLandingDeps> = {}) {
 		selectionState: createSelectionState({ getDoc: () => doc }),
 		caretMemory,
 		// A stand-in element, so the scroll half has something to bring into view.
-		getBlockElByPath: () => ({}) as HTMLElement,
+		getBlockElByPath: () => STAND_IN,
 		getEditorRoot: () => null,
 		scroll: null,
 		...over
@@ -202,7 +209,7 @@ describe('bringing a landing into view', () => {
 			},
 			selectionState: createSelectionState({ getDoc: () => doc }),
 			caretMemory: createCaretMemory(),
-			getBlockElByPath: () => ({}) as HTMLElement,
+			getBlockElByPath: () => STAND_IN,
 			getEditorRoot: () => null,
 			scroll: { ...scroll, port: () => port }
 		});

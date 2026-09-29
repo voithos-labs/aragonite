@@ -174,7 +174,12 @@ async function landOnB4(f: Fixture, as: 'edit' | 'navigation'): Promise<void> {
 		},
 		selectionState: createSelectionState({ getDoc: () => doc }),
 		caretMemory: createCaretMemory(),
-		getBlockElByPath: f.blockEl,
+		// Below the viewport to the landing's own check, so it places; the owner measures the real spot.
+		getBlockElByPath: (path) => {
+			const el = f.blockEl(path);
+			el.getBoundingClientRect = () => ({ top: 600, bottom: 610 }) as DOMRect;
+			return el;
+		},
 		getEditorRoot: () => null,
 		scroll: f.owner
 	});
@@ -340,6 +345,31 @@ const ROWS: Record<keyof ScrollWrites, Row[]> = {
 			}
 		}
 	],
+	// The port's viewport is 500px tall, so a caret line at 520-540 needs 40px.
+	showRect: [
+		{
+			name: 'an arrival whose caret line sits just below the viewport',
+			run: (f) => f.owner.showRect({ top: 520, bottom: 540 } as DOMRect),
+			expect: {
+				// A scroll to show the caret, like a placement, writes under the browser's anchoring too.
+				'host anchoring holds': scrollTopIs(START + 40),
+				'a held placement is live': (f) => {
+					scrollTopIs(START + 40)(f);
+					stillHoldsB5(f);
+				},
+				free: scrollTopIs(START + 40)
+			}
+		},
+		{
+			name: 'an arrival whose caret line already shows',
+			run: (f) => f.owner.showRect({ top: 100, bottom: 120 } as DOMRect),
+			expect: {
+				'host anchoring holds': scrollTopIs(START),
+				'a held placement is live': scrollTopIs(START),
+				free: scrollTopIs(START)
+			}
+		}
+	],
 	keep: [
 		{
 			name: 'a view swap the browser clamped',
@@ -368,7 +398,7 @@ function placedOnB4(top: number): (f: Fixture) => void {
 // ── The census ───────────────────────────────────────────────────────────────
 
 /** The owner's members that write no scroll position. */
-const NON_WRITES = ['port', 'isInView', 'release', 'resolveTargetsWith'] as const;
+const NON_WRITES = ['port', 'isInView', 'shows', 'release', 'resolveTargetsWith'] as const;
 type ScrollWrites = Omit<ScrollOwner, (typeof NON_WRITES)[number]>;
 
 describe('scroll owner: every write has a row under every owner of the position', () => {
@@ -439,6 +469,29 @@ describe('scroll owner: the edges', () => {
 		);
 		expect(port.scrollTop()).toBe(300 - (500 - 20) / 2);
 		expect(syncScrollTop).toHaveBeenCalledOnce();
+	});
+
+	// Miss-analysis: "in view" meant any overlap, so a cell peeking a sub-pixel sliver over the
+	// bottom edge read as shown and a table walk left every other row's caret off screen.
+	it.each([
+		['wholly inside', true, { top: 100, bottom: 120 }],
+		['a sub-pixel sliver over the bottom edge', false, { top: 499.6, bottom: 520 }],
+		['a sliver under the top edge', false, { top: -18, bottom: 2 }],
+		['a fraction of a pixel past the edge, as a scroll lands it', true, { top: 480, bottom: 500.6 }]
+	])('a rect %s shows: %s', (_label, shown, rect) => {
+		const owner = stubScrollOwner(stubScrollport({ viewportHeight: 500 }));
+		expect(owner.shows(rect as DOMRect)).toBe(shown);
+	});
+
+	it('an arrival scrolls by its caret line, never by a block taller than the viewport', () => {
+		const port = stubScrollport({ viewportHeight: 500 });
+		const owner = stubScrollOwner(port);
+		port.setScrollTop(1000);
+		owner.showRect({ top: 504, bottom: 524 } as DOMRect);
+		expect(port.scrollTop()).toBe(1024);
+		// A rect running past both edges already fills what shows.
+		owner.showRect({ top: -200, bottom: 1400 } as DOMRect);
+		expect(port.scrollTop()).toBe(1024);
 	});
 
 	it('keep writes nothing when the swap moved nothing', async () => {

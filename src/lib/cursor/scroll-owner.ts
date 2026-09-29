@@ -53,8 +53,15 @@ export interface RootListScroll {
 export interface ScrollOwner {
 	/** The scroll container, read-only; null until the editor root mounts. */
 	port(): ScrollportReader | null;
-	/** Whether the mounted block at `path` is visible in the editor's viewport. */
+	/** Whether any of the mounted block at `path` shows in the editor's viewport: the published
+	 *  "placed and in view" answer, which a block partly on screen satisfies. */
 	isInView(path: readonly number[]): boolean;
+	/** Whether a viewport rect sits wholly inside what the editor shows, so a caret there needs no
+	 *  scroll. */
+	shows(rect: DOMRectReadOnly): boolean;
+	/** Scroll the least distance that shows a viewport rect (an arriving caret's line), holding
+	 *  nothing. */
+	showRect(rect: DOMRectReadOnly): void;
 	/** A nested list's height change: keeps its own held block still and never re-places a held
 	 *  target, whose root table hasn't seen the change yet. */
 	compensate: Compensate;
@@ -198,6 +205,28 @@ export function createScrollOwner(deps: ScrollOwnerDeps): ScrollOwner {
 		return true;
 	}
 
+	/** What the editor shows, as a band of viewport pixels: the scroll container's box, cut down
+	 *  in host mode by the ancestors that clip it. */
+	function visibleBand(): { top: number; bottom: number } | null {
+		const p = writable();
+		if (!p) return null;
+		let top = p.viewportTop();
+		let bottom = top + p.viewportHeight();
+		if (deps.isHostScroll()) {
+			for (const bound of deps.getClipBounds()) {
+				const r = bound.getBoundingClientRect();
+				top = Math.max(top, r.top);
+				bottom = Math.min(bottom, r.bottom);
+			}
+		}
+		return { top, bottom };
+	}
+
+	// Sub-pixel tolerance: a scroll lands its target a fraction of a pixel off the edge.
+	function bandShows(band: { top: number; bottom: number }, rect: DOMRectReadOnly): boolean {
+		return rect.top >= band.top - 1 && rect.bottom <= band.bottom + 1;
+	}
+
 	function landedInView(path: number[]): boolean {
 		const el = deps.getBlockElByPath(path);
 		const root = deps.getEditorRoot();
@@ -210,6 +239,23 @@ export function createScrollOwner(deps: ScrollOwnerDeps): ScrollOwner {
 			const root = deps.getEditorRoot();
 			const el = deps.getBlockElByPath([...path]);
 			return !!root && !!el && elementInView(el, root);
+		},
+		shows(rect) {
+			const band = visibleBand();
+			return !!band && bandShows(band, rect);
+		},
+		showRect(rect) {
+			const band = visibleBand();
+			const p = writable();
+			if (!band || !p || bandShows(band, rect)) return;
+			// A rect already filling the band has nothing to gain; otherwise its top wins a tie.
+			if (rect.top < band.top && rect.bottom > band.bottom) return;
+			const delta =
+				rect.bottom > band.bottom
+					? Math.min(rect.bottom - band.bottom, rect.top - band.top)
+					: rect.top - band.top;
+			p.scrollBy(delta);
+			resolver?.syncScrollTop();
 		},
 		compensate(mutate, held) {
 			compensations++;

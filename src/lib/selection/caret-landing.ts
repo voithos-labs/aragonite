@@ -16,6 +16,7 @@ import { checkLandingFocusScrollsNothing } from '../invariants/landing-focus-scr
 import { descendTo, type ChildList } from '../reactivity/child-list';
 import { caretTargetFor } from './caret-target';
 import { applySelectionToDom } from './native-bridge';
+import { firstUsefulRect } from '../cursor/visual-lines';
 import { findBlockPathForElement, findCellPathForElement } from './path-lookup';
 import type { CaretPosition, EditorSelection, SelectionPoint } from './primitives';
 import {
@@ -61,8 +62,8 @@ export interface CaretLanding {
 		path: readonly number[],
 		opts?: { openCollapsed?: boolean }
 	): Promise<BlockComponent | null>;
-	/** An arrow move put focus in the block at `path`: the block or cell the caret sits in comes
-	 *  into view as an `'into-view'` landing does. */
+	/** An arrow move put focus in the block at `path`: the page scrolls the least distance that
+	 *  shows the caret's line, or the whole cell in a table. */
 	followArrival(path: readonly number[]): void;
 	/** Bumped by every undo, redo and document swap: a landing that waited across one is stale. */
 	generation(): number;
@@ -80,7 +81,20 @@ export interface CaretLandingDeps {
 	/** The editor's own element, which holds focus while a block with no text is selected whole. */
 	getEditorRoot(): HTMLElement | null;
 	/** Null where nothing renders (a headless harness), so a landing only mounts. */
-	scroll: Pick<ScrollOwner, 'isInView' | 'place' | 'port'> | null;
+	scroll: Pick<ScrollOwner, 'shows' | 'showRect' | 'place' | 'port'> | null;
+}
+
+/** What a caret in `el` needs on screen: its line, when the selection's focus sits in `el` and
+ *  measures, else `el`'s whole box (a divider, an empty line, a caret not placed yet). */
+function caretBox(el: HTMLElement): DOMRectReadOnly {
+	const selection = typeof window === 'undefined' ? null : window.getSelection();
+	if (selection?.rangeCount && selection.focusNode && el.contains(selection.focusNode)) {
+		const range = document.createRange();
+		range.setStart(selection.focusNode, selection.focusOffset);
+		const line = firstUsefulRect(range, false);
+		if (line) return line;
+	}
+	return el.getBoundingClientRect();
 }
 
 export function createCaretLanding(deps: CaretLandingDeps): CaretLanding {
@@ -101,8 +115,10 @@ export function createCaretLanding(deps: CaretLandingDeps): CaretLanding {
 	/** The only place a landing writes a scroll position. */
 	async function bringIntoView(leafPath: readonly number[], reveal: Reveal): Promise<void> {
 		const scroll = deps.scroll;
-		if (reveal === 'mount' || !scroll || !deps.getBlockElByPath([...leafPath])) return;
-		if (reveal === 'into-view' && scroll.isInView(leafPath)) return;
+		if (reveal === 'mount' || !scroll) return;
+		const el = deps.getBlockElByPath([...leafPath]);
+		if (!el) return;
+		if (reveal === 'into-view' && scroll.shows(caretBox(el))) return;
 		await scroll.place(leafPath, { block: 'nearest', hold: reveal === 'held' }).scroll();
 	}
 
@@ -192,10 +208,13 @@ export function createCaretLanding(deps: CaretLandingDeps): CaretLanding {
 			const el = deps.scroll && deps.getBlockElByPath([...path]);
 			const active = el ? document.activeElement : null;
 			if (!el?.contains(active)) return;
-			// The cell or leaf that took the caret, not the table or list around it, which can be
-			// on screen while the caret isn't.
-			const leaf = findCellPathForElement(active) ?? findBlockPathForElement(active) ?? path;
-			void bringIntoView(leaf, 'into-view');
+			// The cell that took the caret shows whole; in any other leaf only the caret's line, or a
+			// paragraph taller than the viewport would jump the page by a screen.
+			const cell = findCellPathForElement(active);
+			const cellEl = cell && deps.getBlockElByPath(cell);
+			const leaf = findBlockPathForElement(active);
+			const leafEl = (leaf && deps.getBlockElByPath(leaf)) ?? el;
+			deps.scroll?.showRect(cellEl ? cellEl.getBoundingClientRect() : caretBox(leafEl));
 		},
 		generation: () => generation,
 		noteTreeSwap: () => {

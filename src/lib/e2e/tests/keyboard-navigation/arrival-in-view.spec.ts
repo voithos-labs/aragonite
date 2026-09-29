@@ -22,6 +22,23 @@ const gapToBottom = (page: Page, index: number) =>
 		return bottom - block.getBoundingClientRect().bottom;
 	}, index);
 
+/** The caret's line box against the editor's visible band, in viewport pixels. */
+const caretAndBand = (page: Page) =>
+	page.evaluate(() => {
+		const view = document.querySelector('.editor') as HTMLElement;
+		const top = view.getBoundingClientRect().top + view.clientTop;
+		const range = window.getSelection()!.getRangeAt(0);
+		const rects = range.getClientRects();
+		const caret = rects.length ? rects[0] : range.getBoundingClientRect();
+		return { top: caret.top - top, bottom: caret.bottom - top, band: view.clientHeight };
+	});
+
+async function expectCaretShown(page: Page, label: string): Promise<void> {
+	const at = await caretAndBand(page);
+	expect(at.top, label).toBeGreaterThanOrEqual(-1);
+	expect(at.bottom, label).toBeLessThanOrEqual(at.band + 1);
+}
+
 test.describe('a caret that ends up off screen comes into view', () => {
 	let editor: EditorPage;
 
@@ -147,7 +164,7 @@ test.describe('a text or table caret that arrives off screen comes into view', (
 		await expect(page.locator(selector).first()).not.toBeInViewport();
 	}
 
-	test('ArrowDown onto a paragraph just below the viewport brings it on screen', async ({
+	test('ArrowDown onto a paragraph just below the viewport brings its caret on screen', async ({
 		page
 	}) => {
 		await page.evaluate((i) => (window as any).__test.rects.reveal([i]), PARA_AT);
@@ -162,7 +179,7 @@ test.describe('a text or table caret that arrives off screen comes into view', (
 				focus: { path: [PARA_AT] }
 			});
 
-		await expect(page.locator(`[data-block-path='[${PARA_AT}]']`)).toBeInViewport({ ratio: WHOLE });
+		await expectCaretShown(page, 'after ArrowDown');
 	});
 
 	test('ArrowDown onto a table just below the viewport brings its first cell on screen', async ({
@@ -194,5 +211,109 @@ test.describe('a text or table caret that arrives off screen comes into view', (
 		await expect(cellInRow(page, 4)).toBeFocused();
 
 		await expect(cellInRow(page, 4)).toBeInViewport({ ratio: WHOLE });
+	});
+});
+
+test.describe('an arrival shows the caret itself, however it lands', () => {
+	const TABLE_AT = 5;
+	const ROWS = 40;
+	const PARA_AT = 50;
+	const TALL_AT = 70;
+	const TABLE = [
+		'| a | b |',
+		'| --- | --- |',
+		...Array.from({ length: ROWS }, (_, r) => `| row ${r} | more |`)
+	].join('\n');
+	const DOC =
+		Array.from({ length: 100 }, (_, i) => {
+			if (i === TABLE_AT) return TABLE;
+			if (i === TALL_AT) return `Tall ${'paragraph that wraps onto line after line, '.repeat(160)}`;
+			return `Line ${i} with some words on it.`;
+		}).join('\n\n') + '\n';
+
+	let editor: EditorPage;
+
+	test.beforeEach(async ({ page }) => {
+		editor = new EditorPage(page);
+		await editor.goto();
+		await editor.loadContent(DOC);
+		await editor.waitForRenderFlush();
+	});
+
+	const scrollTopOf = (page: Page) =>
+		page.evaluate(() => (document.querySelector('.editor') as HTMLElement).scrollTop);
+
+	// Miss-analysis: the in-view check counted a sub-pixel sliver of a cell as on screen, and the
+	// one table row test stepped a single row, so every other press of a long walk went unseen.
+	test('walking down a long table keeps every row’s caret on screen', async ({ page }) => {
+		const table = page.locator(`[data-block-path='[${TABLE_AT}]']`);
+		await table.locator("[data-table-row-idx='0'] .table-cell").first().click();
+		for (let row = 1; row < ROWS; row++) {
+			await page.keyboard.press('ArrowDown');
+			await expect(
+				table.locator(`[data-table-row-idx='${row}'] .table-cell`).first()
+			).toBeFocused();
+			await editor.waitForRenderFlush();
+			await expectCaretShown(page, `row ${row}`);
+		}
+	});
+
+	test('ArrowUp onto a paragraph peeking 2px from the top brings its last line on screen', async ({
+		page
+	}) => {
+		await page.evaluate((i) => (window as any).__test.rects.reveal([i]), PARA_AT);
+		await editor.waitForRenderFlush();
+		await editor.focusBlockStart(PARA_AT + 1);
+		for (let pass = 0; pass < 3; pass++) {
+			await page.evaluate((i) => {
+				const view = document.querySelector('.editor') as HTMLElement;
+				const block = document.querySelector(`[data-block-path='[${i}]']`) as HTMLElement;
+				const top = view.getBoundingClientRect().top + view.clientTop;
+				view.scrollTop += block.getBoundingClientRect().bottom - top - 2;
+			}, PARA_AT);
+			await editor.waitForRenderFlush();
+		}
+
+		await page.keyboard.press('ArrowUp');
+		await expect
+			.poll(async () => (await editor.bridge.getSelectionPaths())?.focus.path)
+			.toEqual([PARA_AT]);
+		await editor.waitForRenderFlush();
+
+		await expectCaretShown(page, 'after ArrowUp');
+	});
+
+	// Miss-analysis: every arrival test landed on a block shorter than the viewport, where showing
+	// the block and showing the caret's line are the same scroll.
+	test('ArrowDown onto a paragraph taller than the viewport moves the page by about a line', async ({
+		page
+	}) => {
+		await page.evaluate((i) => (window as any).__test.rects.reveal([i]), TALL_AT);
+		await editor.waitForRenderFlush();
+		await editor.focusBlockEnd(TALL_AT - 1);
+		for (let pass = 0; pass < 3; pass++) {
+			await page.evaluate((i) => {
+				const view = document.querySelector('.editor') as HTMLElement;
+				const block = document.querySelector(`[data-block-path='[${i}]']`) as HTMLElement;
+				const bottom = view.getBoundingClientRect().top + view.clientTop + view.clientHeight;
+				view.scrollTop += block.getBoundingClientRect().top - bottom - 4;
+			}, TALL_AT);
+			await editor.waitForRenderFlush();
+		}
+		const tall = await page
+			.locator(`[data-block-path='[${TALL_AT}]']`)
+			.evaluate((el) => el.getBoundingClientRect().height);
+		const band = await page.locator('.editor').evaluate((el) => el.clientHeight);
+		expect(tall).toBeGreaterThan(band);
+		const before = await scrollTopOf(page);
+
+		await page.keyboard.press('ArrowDown');
+		await expect
+			.poll(async () => (await editor.bridge.getSelectionPaths())?.focus.path)
+			.toEqual([TALL_AT]);
+		await editor.waitForRenderFlush();
+
+		await expectCaretShown(page, 'after ArrowDown');
+		expect(Math.abs((await scrollTopOf(page)) - before)).toBeLessThan(80);
 	});
 });
