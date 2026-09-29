@@ -37,8 +37,8 @@ interface Env {
 
 function editor(source: string): Env {
 	const h = makeTopHarness(source);
-	// Every container is mounted, as the editor's window holds them, so each has a list state; a
-	// state keeps its node once the commit takes it, as an unmounting component does.
+	// Every container gets a list state, as a mounted one has; once a delete removes the container,
+	// its state falls back to the node it was built on.
 	const mount = (path: number[]): void => {
 		const node = blockNodeAt(h.deps.doc, path);
 		node?.children?.forEach((_, i) => mount([...path, i]));
@@ -213,8 +213,8 @@ const ROWS: Record<string, Row> = {
 		bytes: '\n',
 		placed: []
 	},
-	// Until a range holding a container's whole subtree takes the container whole, the start keeps
-	// its slot: the quote keeps an empty paragraph, as it does when its child is text.
+	// A range that starts in a container and runs on past it keeps the spot it started in, so the
+	// quote keeps an empty paragraph, whether its child was a rule or text.
 	'a quoted rule and the paragraph below, Backspace: the start keeps its slot in the quote': {
 		source: '> ---\n\npara\n',
 		drive: async (env) => {

@@ -61,4 +61,18 @@ describe('G1.44 at the commit', () => {
 		});
 		expect(takeDevWarns().map((w) => w.tag)).toContain('invariant:keeps-a-block');
 	});
+
+	it('a document commit that installs an empty quote reports it', async () => {
+		const h = makeTopHarness('a\n\nb\n');
+		const emptyQuote = { ...parse('> a\n').children[0], children: [] } as CstNode;
+		await h.controller.commitStructural({
+			snapshot: { path: asDocPath([0]), offset: 0 },
+			mutate: (children) => {
+				children.splice(0, 1, emptyQuote);
+				return { op: 'replace', at: 0, count: 1, newCount: 1 };
+			},
+			op: { kind: 'replaceBlock', detail: { count: 1 }, eventPath: asDocPath([0]) }
+		});
+		expect(takeDevWarns().map((w) => w.tag)).toContain('invariant:keeps-a-block');
+	});
 });

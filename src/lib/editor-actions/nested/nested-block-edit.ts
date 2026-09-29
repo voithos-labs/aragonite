@@ -13,7 +13,7 @@ import { firstChildUnwrapStrategies, middleChildUnwrapStrategies } from '../unwr
 import { createContainerScope } from '../block-edit-scope';
 import { contentUpdate, createBlockEditCore } from '../block-edit-core';
 import { refusedWrite } from '../stored-caret';
-import type { RemovalGesture } from '../../selection/caret-target';
+import { removeEmptiedContainer } from './emptied-container';
 
 export function createNestedBlockEdit(
 	state: BlockListState,
@@ -105,13 +105,4 @@ export function createNestedBlockEdit(
 	};
 
 	return blockEdit;
-}
-
-/** Removes the container from its parent's list, for an edit that would take its last child: an
- *  emptied container goes rather than stay childless. */
-export function removeEmptiedContainer(
-	deps: NestedActionsDeps,
-	gesture: RemovalGesture
-): Promise<boolean> {
-	return deps.parent.blockEdit.deleteBlock(deps.index, gesture);
 }

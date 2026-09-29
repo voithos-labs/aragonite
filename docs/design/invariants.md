@@ -697,7 +697,7 @@ emptied document one empty paragraph itself (`tree-operations/keep-one-block.ts 
 both commit branches), and an edit that empties a container removes it, either through the walk up
 the ancestors that a range delete and a list promote run
 (`tree-operations/cleanup.ts :: cascadeCleanupEmptyAncestors`) or through a container handing the
-delete to its parent (`editor-actions/nested/nested-block-edit.ts :: removeEmptiedContainer`).
+delete to its parent (`editor-actions/nested/emptied-container.ts :: removeEmptiedContainer`).
 Which kinds must hold a child is one predicate, `schema/block-kind-descriptor.ts :: mustHoldChild`.
 Predicate `invariants/keeps-a-block.ts :: checkKeepsABlock` · run by both commit branches in
 `editor-actions/commit/undo-controller.ts` · `test/invariants/keeps-a-block.test.ts`,

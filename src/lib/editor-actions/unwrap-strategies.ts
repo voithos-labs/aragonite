@@ -18,8 +18,7 @@ import {
 } from '../tree-operations';
 import type { BlockListState } from '../reactivity/block-list-state.svelte';
 import type { NestedActionsDeps } from './nested/nested-actions';
-// The container's actions import these strategies back; both sides call only inside functions.
-import { removeEmptiedContainer } from './nested/nested-block-edit';
+import { removeEmptiedContainer } from './nested/emptied-container';
 import { mergedElsePrevious } from './merge-fallback';
 import { docPathFrom, extendDocPath } from '../cursor/coordinate-spaces';
 import type { CaretPosition } from '../selection/primitives';

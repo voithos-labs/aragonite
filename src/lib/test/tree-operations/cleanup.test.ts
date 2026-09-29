@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { registerMermaidKind } from '$lib/plugins/mermaid/mermaid-kind';
 import { parse } from '../../core/parser';
 import { assignIds } from '../../block-id';
 import { cascadeCleanupEmptyAncestors } from '../../tree-operations/cleanup';
@@ -61,6 +62,29 @@ describe('cascadeCleanupEmptyAncestors', () => {
 		const d = doc([bq([bq([])])]);
 		cascadeCleanupEmptyAncestors(d, [0, 0, 0], createSharingState(), defaultGrammarView);
 		expect(d.children).toHaveLength(0);
+	});
+
+	it('never splices the root, even when it empties', () => {
+		const root = bq([bq([])]);
+		cascadeCleanupEmptyAncestors(root, [0, 0], createSharingState(), defaultGrammarView);
+		expect(root.children).toHaveLength(0);
+	});
+
+	it('walks from a container root as from the document', () => {
+		const root = bq([para('a\n'), bq([])]);
+		cascadeCleanupEmptyAncestors(root, [1, 0], createSharingState(), defaultGrammarView);
+		expect(root.children!.map((c) => c.kind)).toEqual(['paragraph']);
+	});
+
+	it('spares a whole-block kind and a leaf, which hold no child by design', () => {
+		registerMermaidKind();
+		const diagram = parse('```mermaid\ngraph TD\n```\n').children[0];
+		expect(diagram.kind).toBe('mermaid');
+		const leaf = { ...para('x\n'), children: [] } as CstNode;
+		const d = doc([diagram, leaf]);
+		cascadeCleanupEmptyAncestors(d, [0, 0], createSharingState(), defaultGrammarView);
+		cascadeCleanupEmptyAncestors(d, [1, 0], createSharingState(), defaultGrammarView);
+		expect(d.children).toEqual([diagram, leaf]);
 	});
 
 	it('keeps a surviving ancestor childIds aligned when an emptied container is removed', () => {
