@@ -46,8 +46,8 @@ describe('list-windowing width re-measure', () => {
 		// do not know: the error the correction must not absorb.
 		for (const i of MOUNTED) {
 			windowing.registerChild(idOf(i), {
-				readHeight: () => REAL,
-				applyHeight: (h) => windowing.recordMeasuredChild(i, idOf(i), h)
+				index: i,
+				readHeight: () => REAL
 			});
 		}
 

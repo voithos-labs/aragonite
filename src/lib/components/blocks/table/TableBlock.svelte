@@ -111,8 +111,7 @@
 		getListEl: () => tableEl ?? null,
 		// The table is itself a BlockHost block, so it reports its height the same way the
 		// parent measured it and the subtotal sent up does not fight that measurement.
-		getOwnEl: () => tableEl?.closest('.block-host') ?? null,
-		provideLeafChannel: false
+		getOwnEl: () => tableEl?.closest('.block-host') ?? null
 	});
 
 	let win = $derived(windowing.window);

@@ -80,8 +80,8 @@ function mount(): Fixture {
 			const height = { px: HEIGHT };
 			const index = ids.indexOf(CHANGED);
 			scope.windowing.registerChild(CHANGED, {
-				readHeight: () => height.px,
-				applyHeight: (h) => scope.windowing.recordMeasuredChild(index, CHANGED, h)
+				index,
+				readHeight: () => height.px
 			});
 			await settleMeasures();
 			return height;
@@ -113,8 +113,8 @@ const ROUTES: Route[] = [
 		async change(f) {
 			const index = f.ids.indexOf(CHANGED);
 			f.scope.windowing.registerChild(CHANGED, {
-				readHeight: () => GROWN,
-				applyHeight: (h) => f.scope.windowing.recordMeasuredChild(index, CHANGED, h)
+				index,
+				readHeight: () => GROWN
 			});
 			await settleMeasures();
 		}
@@ -178,7 +178,6 @@ const ROUTES: Route[] = [
 /** The members that change no height, or change one without a correction of their own. */
 const NOT_ROUTES: (keyof ListWindowing)[] = [
 	'window',
-	'recordMeasuredChild',
 	'setChildSubtotal',
 	'targetTopOf',
 	'syncScrollTop',
@@ -245,8 +244,8 @@ describe('list-windowing: a reorder that moves the focused block leaves the page
 			async (f: Fixture) => {
 				const at = f.ids.indexOf(FOCUSED);
 				f.scope.windowing.registerChild(FOCUSED, {
-					readHeight: () => GROWN,
-					applyHeight: (h) => f.scope.windowing.recordMeasuredChild(at, FOCUSED, h)
+					index: at,
+					readHeight: () => GROWN
 				});
 				await settleMeasures();
 			}

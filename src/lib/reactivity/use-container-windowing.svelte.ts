@@ -1,17 +1,19 @@
 import { getContext, onDestroy, setContext } from 'svelte';
 import {
+	CHILD_MEASURE_KEY,
 	EDITOR_DOC_KEY,
 	EDITOR_SERVICES_KEY,
 	PARENT_SCOPE_SINK_KEY,
-	RECORD_BLOCK_HEIGHT_KEY,
 	type BlockElLookup,
-	type BlockMeasureChannel,
+	type ChildMeasureChannel,
 	type EditorDoc,
 	type EditorServices,
 	type ParentScopeSink
 } from '../editor-keys';
 import type { NodeView } from '../core/node-views';
 import type { Compensate, RootListScroll, TargetResolver } from '../cursor/scroll-owner';
+import { assertInvariant } from '../assert';
+import { checkMeasuresInOwnList } from '../invariants/measures-in-own-list';
 import { createListWindowing, type ListWindowing } from './list-windowing.svelte';
 
 export interface ContainerWindowingOpts {
@@ -26,9 +28,6 @@ export interface ContainerWindowingOpts {
 	getListEl: () => HTMLElement | null;
 	/** The element the parent measures for this list's height. Omit at the root. */
 	getOwnEl?: () => HTMLElement | null;
-	/** True when this list's direct children are `BlockHost`s, which record their own heights
-	 *  through the leaf height channel; false for a list that renders them with `{#each}`. */
-	provideLeafChannel: boolean;
 	/** True while collapsed; see `ListWindowingDeps.isCollapsed`. */
 	isCollapsed?: () => boolean;
 }
@@ -100,7 +99,7 @@ export function useRootWindowing(
 	const { blockElLookup } = getContext<EditorDoc>(EDITOR_DOC_KEY);
 	let scroll: RootListScroll | null = null;
 	const windowing = windowingUnit(
-		{ ...opts, getIndex: () => 0, getParentPath: () => [], provideLeafChannel: true },
+		{ ...opts, getIndex: () => 0, getParentPath: () => [] },
 		(mutate, held) => (scroll ? scroll.compensate(mutate, held) : mutate())
 	);
 	if (scrollOwner) {
@@ -150,27 +149,21 @@ function windowingUnit(opts: ContainerWindowingOpts, compensate: Compensate): Li
 		deactivateBelowPx: 3000
 	});
 
-	if (opts.provideLeafChannel) {
-		// Only a direct child measures into this height table; a deeper block belongs to its own
-		// list's channel, so registering here does nothing.
-		setContext(RECORD_BLOCK_HEIGHT_KEY, {
-			register(path, index, id, readHeight) {
-				const depth = opts.getParentPath().length;
-				if (path.length !== depth + 1) return () => {};
-				return windowing.registerChild(id, {
-					readHeight,
-					applyHeight: (h) => windowing.recordMeasuredChild(index, id, h)
-				});
-			},
-			measureNow: windowing.measureChildNow,
-			measureOnResize: windowing.measureChildOnResize
-		} satisfies BlockMeasureChannel);
-	}
+	// A child that isn't this list's own would write a slot that indexes something else.
+	setContext(CHILD_MEASURE_KEY, {
+		register(path, id, readHeight) {
+			const foreign = checkMeasuresInOwnList(path, opts.getParentPath());
+			if (foreign) {
+				assertInvariant('measures-in-own-list', () => foreign);
+				return () => {};
+			}
+			return windowing.registerChild(id, { index: path[path.length - 1], readHeight });
+		},
+		measureNow: windowing.measureChildNow,
+		measureOnResize: windowing.measureChildOnResize
+	} satisfies ChildMeasureChannel);
 	setContext(PARENT_SCOPE_SINK_KEY, {
-		setChildSubtotal: windowing.setChildSubtotal,
-		registerRow: (id, readHeight, applyHeight) =>
-			windowing.registerChild(id, { readHeight, applyHeight }),
-		measureRowNow: windowing.measureChildNow
+		setChildSubtotal: windowing.setChildSubtotal
 	} satisfies ParentScopeSink);
 
 	return windowing;

@@ -41,7 +41,7 @@ export function mountItem(
 	const mounted = mountBlock(ListItemBlock, {
 		doc,
 		path: [0, itemIndex],
-		props: { itemCount: doc.children[0].children!.length },
+		props: { id: `item-${itemIndex}`, itemCount: doc.children[0].children!.length },
 		overrides,
 		context: [[LIST_CONTEXT_KEY, listContext]]
 	});

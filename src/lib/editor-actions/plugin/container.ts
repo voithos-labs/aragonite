@@ -310,7 +310,6 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		getChildIds: () => listState.innerBlockIds,
 		getListEl: () => deps.getBoxEl()?.querySelector(':scope > .block-list') ?? null,
 		getOwnEl: () => deps.getBoxEl()?.closest('.block-host') ?? null,
-		provideLeafChannel: true,
 		isCollapsed: collapsed
 	});
 

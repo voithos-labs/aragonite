@@ -98,8 +98,8 @@ function fixture(
 function measureTaller(f: Fixture, index: number): void {
 	const id = `b${index}`;
 	f.windowing.registerChild(id, {
-		readHeight: () => HEIGHTS[id] + GROWTH,
-		applyHeight: (h) => f.windowing.recordMeasuredChild(index, id, h)
+		index,
+		readHeight: () => HEIGHTS[id] + GROWTH
 	});
 	f.windowing.measureChildNow(id);
 }

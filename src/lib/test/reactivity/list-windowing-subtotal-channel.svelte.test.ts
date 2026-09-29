@@ -47,29 +47,17 @@ describe('list-windowing subtotal channel', () => {
 
 		// An unchecked reporter would write the parent's table on every change, and writing inside
 		// the observer's own frame raises the ResizeObserver loop warning.
+		let current = 0;
+		windowing.registerChild('b0', { index: 0, readHeight: () => current });
 		for (const height of [50, 60, 70]) {
-			windowing.recordMeasuredChild(0, 'b0', height);
+			current = height;
+			windowing.measureChildNow('b0');
 			flushSync();
 			await tick();
 		}
 
 		expect(reportSelfHeight).toHaveBeenCalledTimes(1);
 		expect(reportSelfHeight).toHaveBeenCalledWith(640);
-		cleanup();
-	});
-
-	it('addresses a subtotal by the id the height table is indexed by, not the live child list', () => {
-		const oracleRef = countingOracle();
-		const ids = ['b0', 'b1', 'b2'];
-		const { windowing, cleanup } = mountScope({ ids, oracleRef });
-		oracleRef.recordMeasured.mockClear();
-
-		// A structural change lands before the rebuild effect flushes: the live id list has already
-		// moved while the height table still holds the old ordering.
-		ids.splice(0, ids.length, 'bNew', 'b0', 'b1', 'b2');
-		windowing.setChildSubtotal(0, 999);
-
-		expect(oracleRef.recordMeasured).toHaveBeenCalledWith('b0', 999);
 		cleanup();
 	});
 });

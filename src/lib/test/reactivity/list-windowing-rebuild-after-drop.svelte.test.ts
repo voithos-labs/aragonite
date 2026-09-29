@@ -36,8 +36,8 @@ describe('a structural rebuild after the check dropped its cache', () => {
 
 		for (const [i, id] of ids.entries()) {
 			windowing.registerChild(id, {
-				readHeight: () => MEASURED,
-				applyHeight: (h) => windowing.recordMeasuredChild(i, id, h)
+				index: i,
+				readHeight: () => MEASURED
 			});
 		}
 		await tick();

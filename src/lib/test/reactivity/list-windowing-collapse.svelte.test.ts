@@ -8,12 +8,16 @@ import { fixedOracle, makePara, mountListWindowing } from '../harness/list-windo
 
 const BLOCK_PX = 50;
 
-function setup(childCount: number, isCollapsed?: () => boolean) {
+function setup(
+	childCount: number,
+	isCollapsed?: () => boolean,
+	recordMeasured: (id: string, height: number) => void = () => {}
+) {
 	const children = Array.from({ length: childCount }, (_, i) => makePara(`p${i}\n`));
 	return mountListWindowing({
 		children,
 		ids: children.map((_, i) => `b${i}`),
-		oracle: fixedOracle(BLOCK_PX),
+		oracle: { ...fixedOracle(BLOCK_PX), recordMeasured },
 		listHeight: childCount * BLOCK_PX,
 		isCollapsed
 	});
@@ -89,16 +93,16 @@ describe('revealChild clamp', () => {
 describe('expand after collapse', () => {
 	it('measures a child mounted by the expand without waiting for a scroll', async () => {
 		let collapsed = $state(true);
-		const { windowing, cleanup } = setup(4, () => collapsed);
+		const recordMeasured = vi.fn();
+		const { windowing, cleanup } = setup(4, () => collapsed, recordMeasured);
 		collapsed = false;
 		flushSync();
 
 		// For a small container the window can be identical either way, so the read has to follow
 		// the registration itself rather than a change in the window.
-		const applyHeight = vi.fn();
-		windowing.registerChild('b1', { readHeight: () => 42, applyHeight });
+		windowing.registerChild('b1', { index: 1, readHeight: () => 42 });
 		await tick();
-		expect(applyHeight).toHaveBeenCalledWith(42);
+		expect(recordMeasured).toHaveBeenCalledWith('b1', 42);
 		cleanup();
 	});
 });

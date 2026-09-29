@@ -27,8 +27,8 @@ describe('the anchor correction over a scroller that snaps to whole pixels', () 
 		const heights = new Map(ids.map((id) => [id, TALL]));
 		for (const [i, id] of ids.entries()) {
 			windowing.registerChild(id, {
-				readHeight: () => heights.get(id)!,
-				applyHeight: (h) => windowing.recordMeasuredChild(i, id, h)
+				index: i,
+				readHeight: () => heights.get(id)!
 			});
 		}
 		await tick();

@@ -13,6 +13,7 @@
 	import { metadataOf } from '../../../core/nodes';
 	import { hidesMarkers } from '../../../presentation-mode';
 	import { useContainerWindowing } from '../../../reactivity/use-container-windowing.svelte';
+	import { useMeasuredChild } from '../../../reactivity/use-measured-child.svelte';
 	import { useMountGauge } from '../../../perf/use-mount-gauge.svelte';
 	import { createContainerActions } from '../../../editor-actions/nested/container-actions';
 	import { createListItemOverrides } from '../../../editor-actions/list-overrides';
@@ -33,12 +34,14 @@
 	let {
 		node,
 		index,
+		id,
 		myPath = [],
 		itemCount,
 		slots
 	}: {
 		node: NodeView;
 		index: number;
+		id: string;
 		myPath?: number[];
 		/** How many items the enclosing list holds; a lone item has no sibling to reorder past. */
 		itemCount: number;
@@ -131,17 +134,22 @@
 
 	// ── Virtual rendering (nested windowing) ────────────────────────────
 
+	// An item renders no block host, so its own box is what the list measures. Before this item
+	// provides its own list below, whose channel would otherwise answer.
+	useMeasuredChild({
+		getId: () => id,
+		getPath: () => myPath,
+		getEl: () => boxEl ?? null,
+		getRaw: () => node.raw
+	});
+
 	const windowing = useContainerWindowing({
 		getIndex: () => index,
 		getParentPath: () => myPath,
 		getChildren: () => node.children ?? [],
 		getChildIds: () => listState.innerBlockIds,
 		// .block-list is a direct child of .list-item-content, reached through `contentEl`.
-		getListEl: () => contentEl?.querySelector(':scope > .block-list') ?? null,
-		// An item is not wrapped in a BlockHost: its own .list-item-block box is what the
-		// parent ListBlock measures by item index, so nothing else reports a height.
-		getOwnEl: () => boxEl ?? null,
-		provideLeafChannel: true
+		getListEl: () => contentEl?.querySelector(':scope > .block-list') ?? null
 	});
 
 	const childList: ChildList = {

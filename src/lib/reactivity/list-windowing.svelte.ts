@@ -67,17 +67,20 @@ export interface ListWindowingDeps {
 	deactivateBelowPx: number;
 }
 
+/** A child of this list, measured under its own id at its slot. */
+export interface MeasuredChild {
+	index: number;
+	readHeight: () => number;
+}
+
 export interface ListWindowing {
 	readonly window: WindowResult;
-	/** A leaf measured directly: the height estimator by id, the height table by index. It
-	 *  writes no `scrollTop`. */
-	recordMeasuredChild(index: number, id: string, height: number): void;
 	/** A subtotal a child container reported up: the height estimator and the height table,
 	 *  addressed by index. No scroll correction. */
 	setChildSubtotal(index: number, total: number): void;
 	/** Queues a child for the batched measure pass after the flush that registered it, so a fast
 	 *  scroll that mounts many costs one reflow. Returns the unregister function. */
-	registerChild(id: string, child: MeasureEntry): () => void;
+	registerChild(id: string, child: MeasuredChild): () => void;
 	/** Re-measure one registered child immediately, after an edit changed its height. */
 	measureChildNow(id: string): void;
 	/** Compares `observedHeight` against the height last applied, with no DOM read, so the
@@ -313,6 +316,15 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 		correctAcross(table, () => table, drainMeasurements);
 	}
 
+	// The one write of a child's height into this table, always inside a correction. A slot that
+	// now holds another block keeps its height; the next build reads this id's measurement.
+	function applyMeasured(index: number, id: string, height: number): void {
+		deps.oracle.recordMeasured(id, height);
+		if (table.ids[index] !== id || table.model.heightOf(index) === height) return;
+		table.model.setHeight(index, height);
+		heightVersion++;
+	}
+
 	// Read before the correction so no DOM read follows the height-table write; a repeated call
 	// writes nothing once the height is stable, so it cannot spin the reactive graph.
 	function measureOne(id: string): void {
@@ -330,15 +342,6 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 	return {
 		get window() {
 			return effectiveWindow;
-		},
-		// No scroll correction here; the page stays steady on the quality of the estimates plus
-		// the spacers.
-		recordMeasuredChild(index, id, height) {
-			deps.oracle.recordMeasured(id, height);
-			if (index < table.model.size && table.model.heightOf(index) !== height) {
-				table.model.setHeight(index, height);
-				heightVersion++;
-			}
 		},
 		// List items aren't BlockHosts and nothing else records their heights, so without this
 		// write a parent rebuild would fall back to estimates for them and the viewport jumps.
@@ -361,7 +364,7 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 				readHeight: child.readHeight,
 				applyHeight: (h) => {
 					entry.applied = h;
-					child.applyHeight(h);
+					applyMeasured(child.index, id, h);
 				},
 				applied: undefined
 			};
