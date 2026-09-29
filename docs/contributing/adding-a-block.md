@@ -410,26 +410,33 @@ A container renders a windowed slice of its children and wires one hook, `useCon
 ```ts
 // components/blocks/list/ListBlock.svelte
 const windowing = useContainerWindowing({
-	getIndex: () => index,
 	getParentPath: () => myPath,
 	getChildren: () => node.children ?? [],
 	getChildIds: () => listState.innerBlockIds,
-	getListEl: () => boxEl ?? null,
-	getOwnEl: () => boxEl?.closest('.block-host') ?? null,
-	provideLeafChannel: false
+	getListEl: () => boxEl ?? null
 });
 ```
 
 | Getter                        | Supplies                                                                             |
 | ----------------------------- | ------------------------------------------------------------------------------------ |
-| `getIndex` / `getParentPath`  | This scope's slot in its parent, and its own path                                    |
+| `getParentPath`               | This scope's own path                                                                |
 | `getChildren` / `getChildIds` | The live child nodes and their ids                                                   |
 | `getListEl`                   | The content-origin element that scrolls with the children, not the viewport          |
-| `getOwnEl`                    | The element the parent measures for this scope's height (omit at the root)           |
-| `provideLeafChannel`          | `true` when direct children are BlockHosts; `false` for direct-`{#each}` scopes      |
 | `isCollapsed`                 | Optional: `true` while only the chrome row should be mounted (a collapsed container) |
 
-The hook reads the rest of the windowing machinery (the height estimates, the focused path, the width counter, the parent's measurement sink) from context itself; you never touch any of it. It returns a handle: render `windowing.window`'s slice into your `{#each}`, and make it the window of your `childList`. One `childList` const feeds both calls, the `createContainerActions` getter above and `createContainerBlockComponent` here:
+You don't report the container's own height anywhere. The list above measures your block's box like any other block's. The one case with work in it is a child that isn't a BlockHost, like a list's items or a table's rows. Each of those measures itself with `useMeasuredChild` (`src/lib/reactivity/use-measured-child.svelte.ts`), handing over the element whose height is the child's (an item's box, a row's first cell). Call it before the child's own `useContainerWindowing`: the hook finds its list through context, and after that call it'd find the child's inner list instead (a dev check, G1.47, catches that one).
+
+```ts
+// components/blocks/list/ListItemBlock.svelte
+useMeasuredChild({
+	getId: () => id,
+	getPath: () => myPath,
+	getEl: () => boxEl ?? null,
+	getRaw: () => node.raw
+});
+```
+
+The hook reads the rest of the windowing machinery (the height estimates, the focused path, the width counter) from context itself; you never touch any of it. It returns a handle: render `windowing.window`'s slice into your `{#each}`, and make it the window of your `childList`. One `childList` const feeds both calls, the `createContainerActions` getter above and `createContainerBlockComponent` here:
 
 ```ts
 // components/blocks/list/ListBlock.svelte

@@ -9,7 +9,7 @@ import { observeResize } from '../cursor/observe-resize';
 
 export interface MeasuredChildOpts {
 	getId: () => string;
-	/** The child's own path; its last index is its slot in the list. */
+	/** The child's own path; its last index is its position in the list. */
 	getPath: () => readonly number[];
 	/** The element whose border box is the child's height. */
 	getEl: () => HTMLElement | null;
@@ -23,10 +23,10 @@ export function useMeasuredChild(opts: MeasuredChildOpts): void {
 	if (!channel) return;
 
 	const readHeight = () => opts.getEl()?.getBoundingClientRect().height ?? 0;
-	// A primitive, so a fresh path array for the same slot doesn't register the child again.
-	const slot = $derived(`${opts.getPath().join()}|${opts.getId()}`);
+	// A primitive, so a fresh path array for the same position doesn't register the child again.
+	const registration = $derived(`${opts.getPath().join()}|${opts.getId()}`);
 	$effect(() => {
-		void slot;
+		void registration;
 		return untrack(() => channel.register(opts.getPath(), opts.getId(), readHeight));
 	});
 

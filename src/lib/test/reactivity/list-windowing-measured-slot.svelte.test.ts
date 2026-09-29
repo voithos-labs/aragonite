@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // Miss-analysis: the subtotal channel took its id from the list's own table, and the one test of it
-// pinned that snapshot with a plain id array no real list has, so a measure landing in a slot
+// pinned that snapshot with a plain id array no real list has, so a measure landing at an index
 // that another block now holds was never run.
 import { describe, it, expect } from 'vitest';
 import { tick } from 'svelte';

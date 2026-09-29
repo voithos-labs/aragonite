@@ -1528,7 +1528,7 @@ const MEASURE_WRITES: Record<string, { calls: number; reason: string }> = {
 	'src/lib/reactivity/list-windowing.svelte.ts :: applyMeasured :: table write': {
 		calls: 1,
 		reason:
-			'the one write of a child’s height into its list’s table, only while the slot holds that id'
+			'the one write of a child’s height into its list’s table, only while that index still holds that id'
 	},
 	'src/lib/reactivity/list-windowing.svelte.ts :: applyMeasured :: cache write': {
 		calls: 1,

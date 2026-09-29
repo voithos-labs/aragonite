@@ -23,7 +23,7 @@ correction undone a frame later read as a block held still.
 - real wheel ticks down through the document and back up never write the scroll:
   first mounts land below the held block, and a block re-entering above it
   at the height recorded on the way down needs no correction, the blockquote
-  included, whose box is reported only after its children rendered
+  included, whose box is measured only after its children rendered
 
 ## Error cases
 

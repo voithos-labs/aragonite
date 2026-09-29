@@ -260,6 +260,7 @@ Three families of seam run these checks:
 | G1.44 | The document holds a block, and a commit leaves no container it touched empty       | A·N     |
 | G1.45 | A caret landing's focus scrolls nothing                                             | A·N     |
 | G1.46 | A caret or range the editor puts down leaves no widget selected whole               | A·N     |
+| G1.47 | A windowed child measures into its own block list                                   | A·N     |
 
 ### The entries
 
@@ -723,6 +724,16 @@ it inside their batch, before anyone hears about the placement. Predicate
 `selection/caret-doors.ts` and `selection/native-bridge.ts` ·
 `test/invariants/placement-ends-widget.test.ts`; G4.94 is the source half.
 
+**G1.47 · A child measures into its own list** (`measures-in-own-list`). Each block list provides
+one measure channel to its direct children, and a child registers through
+`reactivity/use-measured-child.svelte.ts :: useMeasuredChild` with its own path. A child that found
+a list further up (say, a list item calling the hook after it provided its own inner list) would
+land its height in a table that doesn't index it, so the channel refuses a path that isn't one of
+its own children, and in a dev build says so. Predicate
+`invariants/measures-in-own-list.ts :: checkMeasuresInOwnList` · run by
+`reactivity/use-container-windowing.svelte.ts` · `test/reactivity/measured-child-routes.svelte.test.ts`;
+G4.97 is the source half.
+
 ## Group 2: property and regression tested
 
 No runtime seam sees these; the test suite is the whole enforcement. Test files live under
@@ -1019,6 +1030,7 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.94 | A gap caret or a widget is selected only in `caret-doors.ts`, and held in one store       | L       |
 | G4.95 | What a range covers is decided in the range coverage only                                 | L       |
 | G4.96 | A commit rebuilds each container once, and a mutation leaves that rebuild to it           | L       |
+| G4.97 | A child's height reaches its list's table only through `useMeasuredChild`                 | L       |
 
 ### The entries
 
@@ -1873,9 +1885,9 @@ the distance `holdAcross` measures: a brand the types give no other way to make,
 distance or a hand-picked block doesn't compile (`test/reactivity/hold-across.test.ts` pins both).
 The scan holds what the types can't: a cast to either brand outside `hold-across.ts`, and every
 call to `compensate`, `heldBlock` or a `holdAcross` that holds nothing, declared by file, function
-and count with its reason (the list's one correction helper and its subtotal stopgap, the two
-hand-offs to the scroll owner, and the header slot, which sits above every list), so a call moved
-to another function fails too. `lint/file-rules.test.ts`.
+and count with its reason (the list's one correction helper, the two hand-offs to the scroll
+owner, and the header slot, which sits above every list), so a call moved to another function fails
+too. `lint/file-rules.test.ts`.
 
 **G4.94 · The editor's own selections have one store and one set of writers.** A gap caret and an
 image selected whole are written only through `selection/caret-doors.ts` (`placeGapCaret`,
@@ -1923,6 +1935,17 @@ same over the chains it writes. The scan is `lint/container-rebuild-homes.test.t
 `editor-actions/commit/commit-rebuild-once.test.ts` counts the rebuilds per node, and
 `tree-operations/chain-rebuild-shared.test.ts` checks that a line one chain spills out of its item
 still reaches the list a later chain rebuilds.
+
+**G4.97 · One way a child's height reaches its list.** A block, a list item and a table row each
+measure through `reactivity/use-measured-child.svelte.ts :: useMeasuredChild`, which owns the three
+times a child is measured (the batch at mount, after an edit, on a resize), and the list writes
+the height in one private function, `applyMeasured`, which records it under the child's id and
+writes the table's entry only while the table still has the child at that index. No list reports its own height
+upward. The scan counts every table write, every cache write and every registration by file and
+function, so a second writer fails, and a manifest keeps the measure channel's key to the file
+that defines it, the one that provides it and the hook. `lint/file-rules.test.ts`, with
+`test/reactivity/measured-child-routes.svelte.test.ts` running every child kind through every
+trigger and failing a new caller of the hook that has no row there; G1.47 is the runtime half.
 
 ## Accessibility
 

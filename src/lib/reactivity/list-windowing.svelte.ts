@@ -60,7 +60,7 @@ export interface ListWindowingDeps {
 	deactivateBelowPx: number;
 }
 
-/** A child of this list, measured under its own id at its slot. */
+/** A child of this list, measured under its own id at its index. */
 export interface MeasuredChild {
 	index: number;
 	readHeight: () => number;
@@ -283,7 +283,7 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 		correctAcross(table, () => table, drainMeasurements);
 	}
 
-	// The one write of a child's height into this table, always inside a correction. A slot that
+	// The one write of a child's height into this table, always inside a correction. An index that
 	// now holds another block keeps its height; the next build reads this id's measurement.
 	function applyMeasured(index: number, id: string, height: number): void {
 		deps.oracle.recordMeasured(id, height);
