@@ -263,6 +263,7 @@
 	const inThemedScope = $derived(!!editorEl?.closest('.aragonite-editor-theme'));
 	let headerEl: HTMLDivElement | undefined = $state();
 	let typeScaleProbeEl: HTMLDivElement | undefined = $state();
+	let widthProbeEl: HTMLDivElement | undefined = $state();
 	const undoManager = createUndoManager();
 	const sharing = createSharingState();
 	const caretMemory = createCaretMemory();
@@ -1037,9 +1038,11 @@
 
 	// ── Resize invalidation ─────────────────────────────────────────────
 
+	// A zero-tall probe, not the root: in host mode the root's height follows the blocks the
+	// rebuild changes, and a watched box resized mid-delivery is a ResizeObserver loop error.
 	$effect(() => {
-		if (!editorEl) return;
-		return installWidthWatcher(editorEl, layout.rebuildForNewGeometry);
+		if (!widthProbeEl) return;
+		return installWidthWatcher(widthProbeEl, layout.rebuildForNewGeometry);
 	});
 
 	// The scroll container's height sets how many blocks mount.
@@ -1327,6 +1330,8 @@
 	{/if}
 	<!-- One `em` tall and out of flow, so its box reports the root's font size. -->
 	<div class="type-scale-probe" bind:this={typeScaleProbeEl} aria-hidden="true"></div>
+	<!-- The root's padding box wide and zero tall, so its box reports the root's width only. -->
+	<div class="width-probe" bind:this={widthProbeEl} aria-hidden="true"></div>
 	{#if header}
 		<!-- A sibling of the block list: windowing needs the list as a direct child of the root. -->
 		<div class="editor-header" bind:this={headerEl}>{@render header()}</div>
@@ -1461,14 +1466,23 @@
 	}
 
 	/* Out of layout, but never `display: none`, which stops a ResizeObserver reporting. */
-	.type-scale-probe {
+	.type-scale-probe,
+	.width-probe {
 		position: absolute;
 		top: 0;
 		left: 0;
-		width: 0;
-		height: 1em;
 		visibility: hidden;
 		pointer-events: none;
+	}
+
+	.type-scale-probe {
+		width: 0;
+		height: 1em;
+	}
+
+	.width-probe {
+		right: 0;
+		height: 0;
 	}
 
 	.search-anchor {
