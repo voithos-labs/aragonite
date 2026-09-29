@@ -1,5 +1,5 @@
 // A key that changes blocks mid-screen keeps your place: a reorder or Enter leaves the page where it
-// was.
+// was, and an edit between the top of the screen and the caret keeps the caret's line still.
 import { test, expect } from '../../fixtures';
 import type { Page } from '@playwright/test';
 import { EditorPage } from '../../editor-page';
@@ -102,4 +102,28 @@ test.describe('a keyboard edit mid-screen keeps your place', () => {
 			expect(Math.abs((await boxOf(page, 'p21')).top - above)).toBeLessThan(1);
 		});
 	}
+
+	test('undo bringing back a block between the top and the caret keeps the caret’s line still', async ({
+		page
+	}) => {
+		// Delete the tall block by keyboard: clear its text, then join the empty line up.
+		await page.locator('[contenteditable="true"]', { hasText: 'p20 tall' }).click();
+		await page.keyboard.press('Control+a');
+		await page.keyboard.press('Backspace');
+		await page.keyboard.press('Backspace');
+		await editor.bridge.waitForBlockCount(LABELS.length - 1);
+		await clickInto(page, 'p24');
+		await settle(editor);
+		// Focus inside a block at the commit, or the rule never sees a caret to hold.
+		expect(await page.evaluate(() => !!document.activeElement?.closest('[data-block-path]'))).toBe(
+			true
+		);
+		const caretLine = (await boxOf(page, 'p24')).top;
+
+		await page.keyboard.press('Control+z');
+		await editor.bridge.waitForBlockCount(LABELS.length);
+		await settle(editor);
+
+		expect(Math.abs((await boxOf(page, 'p24')).top - caretLine)).toBeLessThan(1);
+	});
 });
