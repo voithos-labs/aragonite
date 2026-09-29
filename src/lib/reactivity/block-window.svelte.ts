@@ -62,6 +62,19 @@ export function computeWindow(model: HeightModel, input: WindowInputs): WindowRe
 	};
 }
 
+/** `next` widened to keep `shown`'s blocks too, with the spacers the table now gives them. */
+function widened(model: HeightModel, next: WindowResult, shown: WindowResult): WindowResult {
+	const end = Math.min(Math.max(next.end, shown.end), model.size);
+	const start = Math.min(next.start, shown.start, end);
+	return {
+		active: true,
+		start,
+		end,
+		topSpacerPx: model.offsetOf(start),
+		bottomSpacerPx: model.total() - model.offsetOf(end)
+	};
+}
+
 export interface BlockWindowDeps {
 	getModel: () => HeightModel;
 	getPort: () => ScrollportReader | null;
@@ -70,6 +83,9 @@ export interface BlockWindowDeps {
 	getLocalScrollTop: () => number;
 	getViewportHeight: () => number;
 	getPinnedIndex: () => number | null;
+	/** True while a height change's scroll correction is still to come: the range then keeps the
+	 *  blocks it has as well, since the scroll doesn't match the table yet. */
+	holdsRange: () => boolean;
 	overscan: number;
 	pinExtensionCap: number;
 	activateAbovePx: number;
@@ -104,8 +120,11 @@ export function createBlockWindow(deps: BlockWindowDeps): BlockWindow {
 		};
 	});
 
+	// Plain, not state: the range last shown, and the scroll it was worked out at.
+	let last: { result: WindowResult; scrollTop: number } | null = null;
 	const result = $derived.by(() => {
-		return computeWindow(deps.getModel(), {
+		const model = deps.getModel();
+		const next = computeWindow(model, {
 			scrollTop,
 			viewportHeight: deps.getViewportHeight(),
 			overscan: deps.overscan,
@@ -115,6 +134,20 @@ export function createBlockWindow(deps: BlockWindowDeps): BlockWindow {
 			activateAbovePx: deps.activateAbovePx,
 			deactivateBelowPx: deps.deactivateBelowPx
 		});
+		// Unmounting the blocks at the top before the correction lands would remount them fresh; a
+		// range the new one doesn't touch is a jump elsewhere, and goes.
+		const shown = last?.scrollTop === scrollTop ? last.result : null;
+		const kept =
+			shown &&
+			shown.active &&
+			next.active &&
+			next.start <= shown.end &&
+			shown.start <= next.end &&
+			deps.holdsRange()
+				? widened(model, next, shown)
+				: next;
+		last = { result: kept, scrollTop };
+		return kept;
 	});
 
 	// Hysteresis: `result` reads `active` and this effect writes it, so the write is untracked

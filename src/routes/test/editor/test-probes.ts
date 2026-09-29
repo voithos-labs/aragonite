@@ -695,6 +695,21 @@ export function installTestProbes({
 			const state = getStateForNode(node);
 			return state ? [...state.innerBlockIds] : [];
 		},
+		// Every block id the document holds now, top level and nested, mounted or not.
+		liveBlockIds: (): string[] => {
+			const ids = [...editor.__test.getBlockIds()];
+			const walk = (node: CstNode): void => {
+				if (!node.children) return;
+				ids.push(...(getStateForNode(node)?.innerBlockIds ?? node.childIds ?? []));
+				for (const child of node.children) walk(child);
+			};
+			for (const block of editor.__test.getDocument().children) walk(block as CstNode);
+			return ids;
+		},
+		measuredIds: (): string[] => editor.__test.getMeasuredIds(),
+		// The height the block list holding `path` keeps for it, from its height table.
+		tableHeightAt: (path: number[]): number | null =>
+			editor.__test.getListTree().resolve(path)?.height ?? null,
 		// ── Stale ref-slot probes ────────────────────────────────────────
 		// Recreates the rare stale component reference the windowed loop's cleanup leaves:
 		// capture here, then write it into a cleared position with `replantBlockRef`.

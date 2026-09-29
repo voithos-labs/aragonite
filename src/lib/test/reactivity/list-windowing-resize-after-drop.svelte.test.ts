@@ -27,8 +27,8 @@ describe('a resize after the check dropped its cache', () => {
 
 		let height = MEASURED;
 		windowing.registerChild('b0', {
-			readHeight: () => height,
-			applyHeight: (h) => windowing.recordMeasuredChild(0, 'b0', h)
+			index: 0,
+			readHeight: () => height
 		});
 		// A scroll, so the batch has read the block whichever trigger it keys on.
 		await windowing.revealChild(1);

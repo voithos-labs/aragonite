@@ -30,7 +30,12 @@ export interface HeightOracle {
 	dropMeasured(): void;
 }
 
-export function createHeightOracle(opts: HeightOracleOptions): HeightOracle {
+/** The editor's own estimator, which can also list what it has measured. */
+export interface MeasuredHeightOracle extends HeightOracle {
+	measuredIds(): string[];
+}
+
+export function createHeightOracle(opts: HeightOracleOptions): MeasuredHeightOracle {
 	const measuredById = new Map<string, number>();
 
 	// One object for every call, since the height table estimates each block of the document: the
@@ -71,6 +76,7 @@ export function createHeightOracle(opts: HeightOracleOptions): HeightOracle {
 		recordMeasured: (id, height) => {
 			measuredById.set(id, height);
 		},
-		dropMeasured: () => measuredById.clear()
+		dropMeasured: () => measuredById.clear(),
+		measuredIds: () => [...measuredById.keys()]
 	};
 }

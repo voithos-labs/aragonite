@@ -11,25 +11,22 @@ const RENDERED = 200;
 describe('the batched measure pass reads a host after the flush that mounted it', () => {
 	it('records the rendered height, not the empty host the mount flush holds', async () => {
 		const children = [makePara('p0\n'), makePara('p1\n'), makePara('p2\n')];
+		const applied: number[] = [];
 		const { windowing, cleanup, port } = mountListWindowing({
 			children,
 			ids: ['b0', 'b1', 'b2'],
-			oracle: fixedOracle(ESTIMATE),
+			oracle: { ...fixedOracle(ESTIMATE), recordMeasured: (_, h) => void applied.push(h) },
 			listHeight: 3 * ESTIMATE
 		});
 
 		let rendered = false;
-		const applied: number[] = [];
 		// A block registers in one effect and paints its content in a later one of the same flush,
 		// as a BlockHost and its block component do.
 		const unmount = $effect.root(() => {
 			$effect(() => {
 				return windowing.registerChild('b0', {
-					readHeight: () => (rendered ? RENDERED : EMPTY_HOST),
-					applyHeight: (h) => {
-						applied.push(h);
-						windowing.recordMeasuredChild(0, 'b0', h);
-					}
+					index: 0,
+					readHeight: () => (rendered ? RENDERED : EMPTY_HOST)
 				});
 			});
 			$effect(() => {

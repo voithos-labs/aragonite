@@ -32,6 +32,7 @@ import type { CaretMemory } from './cursor/caret-memory';
 import type { AutoPairRecord } from './components/blocks/text/auto-pair-record';
 import type { ScrollOwner } from './cursor/scroll-owner';
 import type { HeightOracle } from './cursor/height-oracle';
+import type { ListTree } from './reactivity/list-tree';
 import type { InlineMenuCombobox } from './inline-menu/inline-menu-state.svelte';
 import type { WidgetSelectionState } from './components/image/widget-selection-state.svelte';
 import type { LinkCardState } from './components/link-card/link-card-state.svelte';
@@ -116,27 +117,16 @@ export const HISTORY_KEY = Symbol('history-actions');
 export const LIST_CONTEXT_KEY = Symbol('list-context');
 export const TABLE_CONTEXT_KEY = Symbol('table-context');
 
-/** @internal A block joins its block list's batched measure pass, where `readHeight` runs inside
- *  the read-then-write batch. `register` ignores a path that is not a direct child of that list. */
-export const RECORD_BLOCK_HEIGHT_KEY = Symbol('record-block-height');
-export type BlockMeasureChannel = {
-	register: (path: number[], index: number, id: string, readHeight: () => number) => () => void;
-	measureNow: (id: string) => void;
-	measureOnResize: (id: string, observedHeight: number) => void;
-};
-
-/** @internal A child reports to the block list above it: a nested container pushes its box
- *  subtotal, and a `display:contents` row, having no box, joins the measure pass instead. */
-export const PARENT_SCOPE_SINK_KEY = Symbol('parent-scope-sink');
-export type ParentScopeSink = {
-	setChildSubtotal: (index: number, total: number) => void;
-	registerRow: (
-		id: string,
-		readHeight: () => number,
-		applyHeight: (h: number) => void
-	) => () => void;
-	measureRowNow: (id: string) => void;
-};
+/** @internal How a windowed child's height reaches its own block list's height table. */
+export const CHILD_MEASURE_KEY = Symbol('child-measure');
+/** Only `useMeasuredChild` calls it; `path` is the child's own, so its last index is its place. */
+export interface ChildMeasureChannel {
+	register(path: readonly number[], id: string, readHeight: () => number): () => void;
+	measureNow(id: string): void;
+	measureOnResize(id: string, observedHeight: number): void;
+	/** Every child's size is watched by one observer per editor; its callback only records heights. */
+	watchSize(el: Element, onResize: (entry: ResizeObserverEntry) => void): () => void;
+}
 
 // ── Facets ───────────────────────────────────────────────────────────────────
 
@@ -245,6 +235,8 @@ export interface EditorDoc {
 	focusedPath: FocusedPathGetter;
 	/** Per-kind height estimator, built by the root and read by nested block lists. */
 	heightOracle: HeightOracle;
+	/** Every mounted block list, which the scroll owner reads the document's heights through. */
+	listTree: ListTree;
 	/** Counter the root bumps on an editor width resize, so every block list rebuilds its
 	 *  height table and re-measures at the new width. */
 	widthVersion: VersionGetter;

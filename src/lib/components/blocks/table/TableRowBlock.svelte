@@ -5,13 +5,12 @@
 	import type { NodeView } from '../../../core/node-views';
 	import {
 		EDITOR_SERVICES_KEY,
-		PARENT_SCOPE_SINK_KEY,
 		TABLE_CONTEXT_KEY,
-		type EditorServices,
-		type ParentScopeSink
+		type EditorServices
 	} from '../../../editor-keys';
 	import type { TableAlignment } from '../../../core/nodes';
 	import { useMountGauge } from '../../../perf/use-mount-gauge.svelte';
+	import { useMeasuredChild } from '../../../reactivity/use-measured-child.svelte';
 	import { createContainerActions } from '../../../editor-actions/nested/container-actions';
 	import { publishRefSlot, type RefSlots } from '../../../reactivity/publish-ref.svelte';
 	import type { ChildList } from '../../../reactivity/child-list';
@@ -51,7 +50,6 @@
 	});
 
 	let rowEl: HTMLElement | undefined = $state();
-	const parentSink = getContext<ParentScopeSink | undefined>(PARENT_SCOPE_SINK_KEY);
 	// Absent only when a row mounts outside a table, as a unit test's might.
 	const tableContext = getContext<TableContext | undefined>(TABLE_CONTEXT_KEY);
 
@@ -66,32 +64,16 @@
 		badgeRefusal: 'a table row renders no box of its own to hold one'
 	});
 
-	// A `display: contents` row has no box, so a cell, stretched to the row track, gives the row
-	// height; the table's batched pass keeps a fast scroll to one reflow.
-	$effect(() => {
-		void index;
-		if (!parentSink) return;
-		const currentIndex = index;
-		return parentSink.registerRow(
-			id,
-			() => {
-				const cell = rowEl?.querySelector(':scope > .table-cell') as HTMLElement | null;
-				return cell?.getBoundingClientRect().height ?? 0;
-			},
-			(h) => parentSink.setChildSubtotal(currentIndex, h)
-		);
-	});
-
-	// Re-measures on a later edit only: the batched pass measures at mount, and a read here then
-	// would force one reflow per mounted row.
-	let firstRun = true;
-	$effect(() => {
-		void node.raw;
-		if (firstRun) {
-			firstRun = false;
-			return;
-		}
-		parentSink?.measureRowNow(id);
+	// A `display: contents` row has no box, so its first cell, stretched to the row track, gives
+	// the row's height. Read through the first cell's id, so a moved first column is watched anew.
+	useMeasuredChild({
+		getId: () => id,
+		getPath: () => myPath,
+		getEl: () => {
+			void cellsState.innerBlockIds[0];
+			return rowEl?.querySelector<HTMLElement>(':scope > .table-cell') ?? null;
+		},
+		getRaw: () => node.raw
 	});
 
 	// ── BlockComponent interface ────────────────────────────────────────

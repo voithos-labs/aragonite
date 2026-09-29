@@ -5,7 +5,7 @@
 // Every scroll write, driven through the route that makes it, under each owner of the position.
 // The expected values are what each route did before it went through the owner.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { flushSync } from 'svelte';
+import { flushSync, tick } from 'svelte';
 import { installHeaderSlotCompensation } from '../../components/editor-root-geometry';
 import { parse } from '../../core/parser';
 import { createCaretMemory } from '../../cursor/caret-memory';
@@ -55,7 +55,7 @@ interface Fixture extends MountedListWindowing {
 
 function fixture(
 	column: Column,
-	opts: { nested?: boolean; scrollTop?: number; focused?: number[] } = {}
+	opts: { scrollTop?: number; focused?: number[]; domTop?: (index: number) => number } = {}
 ): Fixture {
 	const live = liveChildren(
 		[0, 1, 2, 3, 4, 5].map((i) => makePara(`p${i}\n`)),
@@ -66,7 +66,8 @@ function fixture(
 	const blockEl = (path: number[]) => {
 		const el = document.createElement('div');
 		// Where the block sits on screen now, so a placement records a real landing.
-		const top = () => (OFFSETS[path[0]] ?? 0) - (box.port?.scrollTop() ?? 0);
+		const top = () =>
+			(opts.domTop?.(path[0]) ?? OFFSETS[path[0]] ?? 0) - (box.port?.scrollTop() ?? 0);
 		el.getBoundingClientRect = () => ({ top: top(), bottom: top() + 10 }) as DOMRect;
 		el.scrollIntoView = (o) => scrolled.push(`${JSON.stringify(path)} ${JSON.stringify(o)}`);
 		return el;
@@ -76,7 +77,6 @@ function fixture(
 		children: live.children,
 		ids: live.ids,
 		listHeight: 210,
-		nested: opts.nested,
 		getFocusPath: () => opts.focused ?? null,
 		// A header above the list pushes the list down as it grows.
 		chromeAbove: () => box.header,
@@ -98,8 +98,8 @@ function fixture(
 function measureTaller(f: Fixture, index: number): void {
 	const id = `b${index}`;
 	f.windowing.registerChild(id, {
-		readHeight: () => HEIGHTS[id] + GROWTH,
-		applyHeight: (h) => f.windowing.recordMeasuredChild(index, id, h)
+		index,
+		readHeight: () => HEIGHTS[id] + GROWTH
 	});
 	f.windowing.measureChildNow(id);
 }
@@ -193,16 +193,18 @@ async function landOnB4(f: Fixture, as: 'edit' | 'navigation'): Promise<void> {
 
 /** The block the owner keeps still on the next change, read by growing the block at the
  *  viewport's top: a placement still aimed at b5, with no landing recorded, sends it to b5's top. */
-function stillHoldsB5(f: Fixture): void {
+async function stillHoldsB5(f: Fixture): Promise<void> {
 	measureTopBlockTaller(f);
+	await tick();
 	expect(f.port.scrollTop()).toBe(HELD_TOP + GROWTH);
 }
 
 /** The older hold on b5 is gone: a growth above the viewport only shifts the page by itself,
  *  where a live hold would send it to b5's top. */
-function holdsNothing(f: Fixture): void {
+async function holdsNothing(f: Fixture): Promise<void> {
 	const before = f.port.scrollTop();
 	measureB2Taller(f);
+	await tick();
 	expect(f.port.scrollTop()).toBe(before + GROWTH);
 }
 
@@ -218,35 +220,24 @@ function shownBy(px: number): (f: Fixture) => void {
 
 interface Row {
 	name: string;
-	nested?: boolean;
 	/** Where the scroll starts, when not at b3's top. */
 	scrollTop?: number;
 	focused?: number[];
 	run(f: Fixture): Promise<unknown> | void;
-	expect: Record<Column, (f: Fixture) => void>;
+	/** Read after the tick that closes the round the run opened. */
+	expect: Record<Column, (f: Fixture) => Promise<void> | void>;
 }
 
 const scrollTopIs = (top: number) => (f: Fixture) => expect(f.port.scrollTop()).toBe(top);
 
 const ROWS: Record<keyof ScrollWrites, Row[]> = {
-	compensate: [
+	beginRound: [
 		{
 			name: 'a root list measuring a block above the viewport',
 			run: measureB2Taller,
 			expect: {
 				'host anchoring holds': scrollTopIs(START),
 				'a held placement is live': scrollTopIs(HELD_TOP + GROWTH),
-				free: scrollTopIs(START + GROWTH)
-			}
-		},
-		{
-			name: 'a nested list measuring a block above the viewport',
-			nested: true,
-			run: measureB2Taller,
-			expect: {
-				'host anchoring holds': scrollTopIs(START),
-				// The root list re-places once the nested list's new height reaches it.
-				'a held placement is live': scrollTopIs(START + GROWTH),
 				free: scrollTopIs(START + GROWTH)
 			}
 		},
@@ -265,16 +256,24 @@ const ROWS: Record<keyof ScrollWrites, Row[]> = {
 				),
 				free: scrollTopIs(START + ESTIMATE)
 			}
-		},
+		}
+	],
+	measureSoon: [
 		{
-			name: 'a subtotal a nested list reports to the root list',
-			run: (f) => f.windowing.setChildSubtotal(2, HEIGHTS.b2 + GROWTH),
+			name: 'the batched measure of a block above the viewport, mounted',
+			run: async (f) => {
+				f.windowing.registerChild('b2', { index: 2, readHeight: () => HEIGHTS.b2 + GROWTH });
+				await tick();
+			},
 			expect: {
 				'host anchoring holds': scrollTopIs(START),
 				'a held placement is live': scrollTopIs(HELD_TOP + GROWTH),
-				free: scrollTopIs(START)
+				free: scrollTopIs(START + GROWTH)
 			}
-		},
+		}
+	],
+	// The root list's handle, which the header slot above every list corrects through.
+	resolveTargetsWith: [
 		{
 			name: 'the header slot growing, the held block off its target',
 			scrollTop: OFF_TARGET,
@@ -357,9 +356,9 @@ const ROWS: Record<keyof ScrollWrites, Row[]> = {
 			run: (f) => f.windowing.revealChild(1),
 			expect: {
 				'host anchoring holds': scrollTopIs(HEIGHTS.b0),
-				'a held placement is live': (f) => {
+				'a held placement is live': async (f) => {
 					scrollTopIs(HEIGHTS.b0)(f);
-					stillHoldsB5(f);
+					await stillHoldsB5(f);
 				},
 				free: scrollTopIs(HEIGHTS.b0)
 			}
@@ -369,13 +368,13 @@ const ROWS: Record<keyof ScrollWrites, Row[]> = {
 	showRect: [
 		{
 			name: 'an arrival whose caret line sits just below the viewport',
-			run: (f) => f.owner.showRect({ top: 520, bottom: 540 } as DOMRect),
+			run: (f) => f.owner.showRect(() => ({ top: 520, bottom: 540 }) as DOMRect),
 			expect: {
 				// A scroll to show the caret, like a placement, writes under the browser's anchoring too.
 				'host anchoring holds': scrollTopIs(START + 40),
-				'a held placement is live': (f) => {
+				'a held placement is live': async (f) => {
 					scrollTopIs(START + 40)(f);
-					holdsNothing(f);
+					await holdsNothing(f);
 				},
 				free: scrollTopIs(START + 40)
 			}
@@ -387,16 +386,16 @@ const ROWS: Record<keyof ScrollWrites, Row[]> = {
 			run: (f) => landOnB4(f, 'edit'),
 			expect: {
 				'host anchoring holds': shownBy(110),
-				'a held placement is live': (f) => {
+				'a held placement is live': async (f) => {
 					shownBy(110)(f);
-					holdsNothing(f);
+					await holdsNothing(f);
 				},
 				free: shownBy(110)
 			}
 		},
 		{
 			name: 'an arrival whose caret line already shows',
-			run: (f) => f.owner.showRect({ top: 100, bottom: 120 } as DOMRect),
+			run: (f) => f.owner.showRect(() => ({ top: 100, bottom: 120 }) as DOMRect),
 			expect: {
 				'host anchoring holds': scrollTopIs(START),
 				'a held placement is live': scrollTopIs(START),
@@ -431,8 +430,8 @@ function placedOnB4(top: number): (f: Fixture) => void {
 
 // ── The census ───────────────────────────────────────────────────────────────
 
-/** The owner's members that write no scroll position. */
-const NON_WRITES = ['port', 'isInView', 'shows', 'release', 'resolveTargetsWith'] as const;
+/** The owner's members that write no scroll position; `watchSize`'s callback only records heights. */
+const NON_WRITES = ['port', 'isInView', 'shows', 'release', 'watchSize', 'roundOpen'] as const;
 type ScrollWrites = Omit<ScrollOwner, (typeof NON_WRITES)[number]>;
 
 describe('scroll owner: every write has a row under every owner of the position', () => {
@@ -449,12 +448,12 @@ describe('scroll owner: every write has a row under every owner of the position'
 			for (const column of COLUMNS) {
 				it(`${write}: ${row.name} / ${column}`, async () => {
 					const f = fixture(column, {
-						nested: row.nested,
 						scrollTop: row.scrollTop,
 						focused: row.focused
 					});
 					await row.run(f);
-					row.expect[column](f);
+					await tick();
+					await row.expect[column](f);
 					f.cleanup();
 				});
 			}
@@ -465,10 +464,11 @@ describe('scroll owner: every write has a row under every owner of the position'
 // ── The edges a column hides ─────────────────────────────────────────────────
 
 describe('scroll owner: the edges', () => {
-	it('host anchoring wins over a held placement', () => {
+	it('host anchoring wins over a held placement', async () => {
 		const f = fixture('host anchoring holds');
 		f.owner.place([HELD], { block: 'nearest', hold: true });
 		measureB2Taller(f);
+		await tick();
 		expect(f.port.scrollTop()).toBe(START);
 		f.cleanup();
 	});
@@ -480,24 +480,40 @@ describe('scroll owner: the edges', () => {
 		// b4's top is 100, so the scroll leaves it 60px below the viewport's top.
 		await f.owner.place([4], { block: 'nearest', hold: true }).scroll();
 		measureTaller(f, 5);
+		await tick();
 		expect(f.port.scrollTop()).toBe(40);
 		f.cleanup();
 	});
 
-	it('a held target the root list cannot place falls through to the held block', () => {
+	// Miss-analysis: only the e2e scroll counter saw a round that moved nothing still write.
+	it('a round whose held block did not move writes nothing', async () => {
+		const f = fixture('free');
+		const writes = [vi.spyOn(f.port, 'scrollBy'), vi.spyOn(f.port, 'setScrollTop')];
+		measureTaller(f, 5);
+		expect(f.owner.roundOpen(), 'the growth below the top opened a round').toBe(true);
+		await tick();
+		expect(f.owner.roundOpen()).toBe(false);
+		expect(writes.map((w) => w.mock.calls.length)).toEqual([0, 0]);
+		f.cleanup();
+	});
+
+	it('a held target the root list cannot place falls through to the held block', async () => {
 		const f = fixture('free');
 		f.owner.place([9], { block: 'nearest', hold: true });
 		measureB2Taller(f);
+		await tick();
 		expect(f.port.scrollTop()).toBe(START + GROWTH);
 		f.cleanup();
 	});
 
-	it('a re-place re-reads the root window and centres on the target’s own height', () => {
+	it('a re-place re-reads the root window and centres on the target’s own height', async () => {
 		const port = stubScrollport({ viewportHeight: 500 });
 		const owner = stubScrollOwner(port);
 		const syncScrollTop = vi.fn();
 		const root = owner.resolveTargetsWith({
 			resolve: () => ({ top: 300, height: 20 }),
+			holdForRound: () => null,
+			mountTop: () => null,
 			syncScrollTop
 		});
 		owner.place([4], { block: 'center', hold: true });
@@ -505,6 +521,7 @@ describe('scroll owner: the edges', () => {
 			() => {},
 			() => 0
 		);
+		await tick();
 		expect(port.scrollTop()).toBe(300 - (500 - 20) / 2);
 		expect(syncScrollTop).toHaveBeenCalledOnce();
 	});
@@ -525,10 +542,10 @@ describe('scroll owner: the edges', () => {
 		const port = stubScrollport({ viewportHeight: 500 });
 		const owner = stubScrollOwner(port);
 		port.setScrollTop(1000);
-		owner.showRect({ top: 504, bottom: 524 } as DOMRect);
+		owner.showRect(() => ({ top: 504, bottom: 524 }) as DOMRect);
 		expect(port.scrollTop()).toBe(1024);
 		// A rect running past both edges already fills what shows.
-		owner.showRect({ top: -200, bottom: 1400 } as DOMRect);
+		owner.showRect(() => ({ top: -200, bottom: 1400 }) as DOMRect);
 		expect(port.scrollTop()).toBe(1024);
 	});
 
@@ -540,6 +557,102 @@ describe('scroll owner: the edges', () => {
 		f.cleanup();
 	});
 
+	// Miss-analysis: every landing row ran with no round open, so none saw a caret's rect measured
+	// before the round's correction moved it.
+	it('an arrival while a round is open shows the caret where the correction leaves it', async () => {
+		const f = fixture('free');
+		const el = document.createElement('div');
+		const caret = document.createElement('span');
+		caret.tabIndex = 0;
+		el.append(caret);
+		document.body.append(el);
+		caret.focus();
+		// No selection inside, so the landing measures the element's own box.
+		getSelection()?.removeAllRanges();
+		// The caret's line sits at 600-610 in the content, laid out with b2's growth in it.
+		el.getBoundingClientRect = () =>
+			({ top: 600 - f.port.scrollTop(), bottom: 610 - f.port.scrollTop() }) as DOMRect;
+		const doc = parse(f.live.children.map((c) => c.raw).join('\n'));
+		const landing = createCaretLanding({
+			getDoc: () => doc,
+			root: {
+				count: () => 0,
+				refs: refSlotsOver([]),
+				windowing: { revealChild: async () => {}, isInWindow: () => true }
+			},
+			selectionState: createSelectionState({ getDoc: () => doc }),
+			caretMemory: createCaretMemory(),
+			getBlockElByPath: () => el,
+			getEditorRoot: () => null,
+			scroll: f.owner
+		});
+		measureB2Taller(f);
+		landing.followArrival([5]);
+		await tick();
+		// The correction's 30 first, then the least scroll that shows 600-610 in 500px.
+		expect(f.port.scrollTop()).toBe(110);
+		el.remove();
+		f.cleanup();
+	});
+
+	it('keep holds the position the open round’s correction leaves', async () => {
+		const f = fixture('free');
+		measureB2Taller(f);
+		await f.owner.keep()();
+		expect(f.port.scrollTop()).toBe(START + GROWTH);
+		f.cleanup();
+	});
+
+	// Miss-analysis: every round closed at its tick with every table built, so none saw a close
+	// whose own read rebuilt a table open a second round that counted the rebuild again.
+	it('a change the round’s close is first to read counts once', async () => {
+		const f = fixture('free');
+		f.owner.beginRound();
+		f.live.children.splice(2, 0, makePara('new\n'));
+		f.live.ids.splice(2, 0, 'bx');
+		// Before the flush, so the close's own read builds the new table.
+		f.owner.scrollToMount([4]);
+		await tick();
+		// [4] names b3 in the new table, below bx's estimate; nothing is added after.
+		expect(f.port.scrollTop()).toBe(OFFSETS[3] + ESTIMATE);
+		f.cleanup();
+	});
+
+	// Miss-analysis: only a page-scroll search jump saw this, and only when that spec ran alone.
+	it('a mount batch that measures nothing new still puts a held target back', async () => {
+		const f = fixture('a held placement is live');
+		// The browser scrolls on its own, as typing into the find field does.
+		f.port.setScrollTop(START + 7);
+		f.windowing.registerChild('b1', { index: 1, readHeight: () => HEIGHTS.b1 });
+		await tick();
+		await tick();
+		expect(f.port.scrollTop()).toBe(HELD_TOP);
+		f.cleanup();
+	});
+
+	// Miss-analysis: every placement row measured before it landed, so none saw a block mounted
+	// but not yet measured go into the landing's bias and then count again once measured.
+	it('a placement lands against a table that knows every mounted block', async () => {
+		// b2 is mounted at 60px, its measure still queued, so every box below it sits 30px lower.
+		const f = fixture('free', { domTop: (index) => OFFSETS[index] + (index > 2 ? GROWTH : 0) });
+		f.windowing.registerChild('b2', { index: 2, readHeight: () => HEIGHTS.b2 + GROWTH });
+		await f.owner.place([4], { block: 'nearest', hold: true }).scroll();
+		await tick();
+		// b4 stays where it landed: at the viewport's top, where the measured table puts it.
+		expect(f.port.scrollTop()).toBe(OFFSETS[4] + GROWTH);
+		f.cleanup();
+	});
+
+	it('a round never writes back a scroll the editor didn’t make', async () => {
+		const f = fixture('free');
+		measureB2Taller(f);
+		// A script, a host or the user's wheel scrolls while the round is open.
+		f.port.setScrollTop(START + 200);
+		await tick();
+		expect(f.port.scrollTop()).toBe(START + 200 + GROWTH);
+		f.cleanup();
+	});
+
 	it('the port is opened once, and not before the root mounts', async () => {
 		let host: HTMLElement | null = null;
 		const owner = stubScrollOwner(stubScrollport({ viewportHeight: 500 }), {
@@ -547,15 +660,8 @@ describe('scroll owner: the edges', () => {
 		});
 		expect(owner.port()).toBeNull();
 		await expect(owner.keep()()).resolves.toBeUndefined();
-		let ran = false;
-		owner.compensate(
-			() => (ran = true),
-			(run) => {
-				run();
-				return 10;
-			}
-		);
-		expect(ran).toBe(true);
+		owner.beginRound();
+		await tick();
 		host = document.createElement('div');
 		expect(owner.port()).not.toBeNull();
 		expect(owner.port()).toBe(owner.port());

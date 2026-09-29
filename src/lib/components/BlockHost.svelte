@@ -20,14 +20,12 @@
 		EDITOR_DOC_KEY,
 		EDITOR_POLICIES_KEY,
 		EDITOR_SERVICES_KEY,
-		RECORD_BLOCK_HEIGHT_KEY,
-		type BlockMeasureChannel,
 		type EditorDoc,
 		type EditorPolicies,
 		type EditorServices
 	} from '../editor-keys';
 	import { useMountGauge } from '../perf/use-mount-gauge.svelte';
-	import { observeResize } from '../cursor/observe-resize';
+	import { useMeasuredChild } from '../reactivity/use-measured-child.svelte';
 	import { publishRefSlot, type RefSlots } from '../reactivity/publish-ref.svelte';
 	import { devWarn } from '../dev-warn';
 
@@ -137,41 +135,13 @@
 			devWarn('block-host', 'component published no BlockComponent surface', node.kind);
 	});
 
-	const measureChannel = getContext<BlockMeasureChannel | undefined>(RECORD_BLOCK_HEIGHT_KEY);
-
 	useMountGauge();
 
-	// Joins the list's batched measure pass: a read per block costs a reflow each on a fast
-	// scroll (VR-4).
-	$effect(() => {
-		void myPath;
-		if (!measureChannel) return;
-		return measureChannel.register(myPath, index, id, () =>
-			hostEl ? hostEl.getBoundingClientRect().height : 0
-		);
-	});
-
-	// An edit resizes only this block, so it re-measures directly; at mount the batched pass
-	// measures (VR-4).
-	let firstRun = true;
-	$effect(() => {
-		void node.raw;
-		if (firstRun) {
-			firstRun = false;
-			return;
-		}
-		measureChannel?.measureNow(id);
-	});
-
-	// A block can grow without its `raw` changing (an image decoding), and with
-	// `overflow-anchor` off that growth would slide the viewport.
-	$effect(() => {
-		if (!hostEl || !measureChannel) return;
-		return observeResize(hostEl, (entries) => {
-			const box = entries[0]?.borderBoxSize?.[0];
-			const height = box ? box.blockSize : entries[0]?.contentRect.height;
-			if (height != null) measureChannel.measureOnResize(id, height);
-		});
+	useMeasuredChild({
+		getId: () => id,
+		getPath: () => myPath,
+		getEl: () => hostEl,
+		getRaw: () => node.raw
 	});
 
 	const kindCue = services?.kindCue;

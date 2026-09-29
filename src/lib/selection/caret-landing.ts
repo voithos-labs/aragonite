@@ -122,11 +122,13 @@ export function createCaretLanding(deps: CaretLandingDeps): CaretLanding {
 			await scroll.place(leafPath, { block: 'nearest', hold: true }).scroll();
 			return;
 		}
-		const caret = caretBox(el);
-		if (scroll.shows(caret)) return;
-		// A block that fits shows whole, as it always has; a taller one shows the caret's line.
-		const box = el.getBoundingClientRect();
-		scroll.showRect(box.height <= (scroll.port()?.viewportHeight() ?? 0) ? box : caret);
+		scroll.showRect(() => {
+			const caret = caretBox(el);
+			if (scroll.shows(caret)) return null;
+			// A block that fits shows whole, as it always has; a taller one shows the caret's line.
+			const box = el.getBoundingClientRect();
+			return box.height <= (scroll.port()?.viewportHeight() ?? 0) ? box : caret;
+		});
 	}
 
 	async function landAt(
@@ -221,7 +223,7 @@ export function createCaretLanding(deps: CaretLandingDeps): CaretLanding {
 			const cellEl = cell && deps.getBlockElByPath(cell);
 			const leaf = findBlockPathForElement(active);
 			const leafEl = (leaf && deps.getBlockElByPath(leaf)) ?? el;
-			deps.scroll?.showRect(cellEl ? cellEl.getBoundingClientRect() : caretBox(leafEl));
+			deps.scroll?.showRect(() => (cellEl ? cellEl.getBoundingClientRect() : caretBox(leafEl)));
 		},
 		generation: () => generation,
 		noteTreeSwap: () => {

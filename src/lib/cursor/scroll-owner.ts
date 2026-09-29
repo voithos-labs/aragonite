@@ -9,6 +9,7 @@ import { devWarn } from '../dev-warn';
 import type { BlockElLookup } from '../editor-keys';
 import type { UserScrollport } from './scroll-ancestors';
 import { createScrollport, type Scrollport, type ScrollportReader } from './scrollport';
+import { createSharedResizeWatch } from './observe-resize';
 
 export type PlaceBlock = 'nearest' | 'center';
 
@@ -31,11 +32,16 @@ export interface TargetTop {
 	height: number;
 }
 
-/** The root list's answer to where a held target is, installed by the root list alone. */
+/** The root list's reads of the document's height tables, installed by the root list alone. */
 export interface TargetResolver {
 	/** Null when the list can't place the path: out of its range, or windowed out inside a
 	 *  mounted container. */
 	resolve(path: readonly number[]): TargetTop | null;
+	/** The block a measure round keeps still, picked from the scroll before it, and a read of how far
+	 *  it moved; the same walk `resolve` makes, so a held target and the round agree. */
+	holdForRound(): (() => number) | null;
+	/** Where to scroll so the block at `path` mounts in its list. */
+	mountTop(path: readonly number[]): number | null;
 	/** A scripted `scrollTop` write fires no `scroll` event in time, so the root window re-reads it. */
 	syncScrollTop(): void;
 }
@@ -43,8 +49,8 @@ export interface TargetResolver {
 /** `held` runs the change and returns how far the block the caller keeps still moved across it. */
 export type Compensate = (mutate: () => void, held: (mutate: () => void) => number) => void;
 
-/** What the root list gets for installing its resolver: the one height correction that re-places a
- *  held target. The header slot shares it, since the resolver reads the list's top from the DOM. */
+/** What the root list gets for installing its resolver: the header slot's correction. A round
+ *  measures below the root list's top, so the header's own growth joins it as a distance. */
 export interface RootListScroll {
 	compensate: Compensate;
 	uninstall(): void;
@@ -59,17 +65,23 @@ export interface ScrollOwner {
 	/** Whether a viewport rect sits wholly inside what the editor shows, so a caret there needs no
 	 *  scroll. */
 	shows(rect: DOMRectReadOnly): boolean;
-	/** Scroll the least distance that shows a viewport rect (a caret's line, a cell), holding
-	 *  nothing and ending any older hold. */
-	showRect(rect: DOMRectReadOnly): void;
-	/** A nested list's height change: keeps its own held block still and never re-places a held
-	 *  target, whose root table hasn't seen the change yet. */
-	compensate: Compensate;
+	/** Scroll the least distance that shows the rect `read` returns (a caret's line, a cell), read
+	 *  after an open round's correction; null shows nothing. Holds nothing, and ends an older hold. */
+	showRect(read: () => DOMRectReadOnly | null): void;
+	/** Called before any list's height table changes: opens the round every height write of this
+	 *  flush joins, picking the block to keep still now. The round writes once, at the next tick. */
+	beginRound(): void;
+	/** True from a round's first height write until it closes. */
+	roundOpen(): boolean;
+	/** Runs `run` after the current flush, with every other list's. */
+	measureSoon(run: () => void): void;
+	/** Watches a child's size with the editor's one observer; the callback only records heights. */
+	watchSize(el: Element, onResize: (entry: ResizeObserverEntry) => void): () => void;
 	/** Take the position for a scroll into view now, before the mount's awaits; `scroll()` once
 	 *  the block is mounted. */
 	place(path: readonly number[], opts: PlaceOptions): ScrollPlacement;
-	/** Scroll so `contentTop` leads the viewport, to mount the block there. */
-	scrollToMount(contentTop: number): void;
+	/** Scroll so the block at `path` leads the viewport, to mount it there. */
+	scrollToMount(path: readonly number[]): void;
 	/** Read the position now; the returned call puts it back after a view swap renders. */
 	keep(): () => Promise<void>;
 	/** A keydown, pointerdown or wheel on the scroll container: drop any held placement. */
@@ -100,6 +112,15 @@ export interface ScrollOwnerDeps {
 // is a loop worth a warning.
 const SETTLE_TURNS = 12;
 
+/** The round this flush's height writes join: the pick's read, and what the header adds. */
+interface Round {
+	moved: (() => number) | null;
+	added: number;
+}
+
+/** Where one owner write goes, worked out once an open round has closed. */
+type ScrollTarget = { top: number } | { by: number } | { reveal: HTMLElement; block: PlaceBlock };
+
 // Identity, not the path: two placements can aim at the same block, and only the one still
 // holding may release it.
 type Token = { superseded: boolean };
@@ -123,7 +144,9 @@ export function createScrollOwner(deps: ScrollOwnerDeps): ScrollOwner {
 	// A new placement supersedes the last one made, not the current holder, or `place, release,
 	// place` would leave the first scroll believing it still owns the viewport.
 	let lastMinted: Token | null = null;
-	let compensations = 0;
+	let roundsOpened = 0;
+	let open: Round | null = null;
+	const soon = new Set<() => void>();
 
 	function writable(): Scrollport | null {
 		if (port) return port;
@@ -160,13 +183,13 @@ export function createScrollOwner(deps: ScrollOwnerDeps): ScrollOwner {
 		held.bias = at ? p.scrollTop() + offset - at.top : 0;
 	}
 
-	// Each compensation re-places a placed target from the height table itself, so nothing is left
-	// to follow by hand once a flush passes with none.
+	// Each round re-places a placed target from the height table itself, so nothing is left to
+	// follow by hand once a flush passes with no round.
 	async function settle(token: Token, path: number[]): Promise<void> {
 		for (let turn = 1; ; turn++) {
-			const seen = compensations;
+			const seen = roundsOpened;
 			await tick();
-			if (token.superseded || compensations === seen) return;
+			if (token.superseded || (roundsOpened === seen && !open)) return;
 			if (turn > SETTLE_TURNS) {
 				devWarn('scroll', `a placement still compensating after ${SETTLE_TURNS} flushes`, { path });
 				return;
@@ -174,20 +197,61 @@ export function createScrollOwner(deps: ScrollOwnerDeps): ScrollOwner {
 		}
 	}
 
-	// The absolute write survives the browser clamping `scrollTop` while images decode above.
-	function replace(): void {
-		const top = targetScrollTop();
+	function measureQueued(): void {
+		const runs = [...soon];
+		soon.clear();
+		for (const queued of runs) queued();
+	}
+
+	/** Every owner write but the round's own: it measures the queued blocks and closes the round
+	 *  first, so it reads tables that know every mounted block, and no correction lands after it. */
+	function writeScroll(target: () => ScrollTarget | null): void {
+		measureQueued();
+		closeRound();
+		const to = target();
 		const p = writable();
-		if (top === null || !p) return;
-		p.setScrollTop(top);
+		if (!to || !p) return;
+		if ('reveal' in to) {
+			to.reveal.scrollIntoView({ block: to.block });
+			return;
+		}
+		if ('top' in to) p.setScrollTop(to.top);
+		else p.scrollBy(to.by);
 		resolver?.syncScrollTop();
 	}
 
-	function correctByDelta(mutate: () => void, held: (mutate: () => void) => number): void {
-		const delta = held(mutate);
+	// The round's own correction writes the port directly, so closing never recurses.
+	function closeRound(): void {
+		const round = open;
+		if (!round) return;
+		const corrects = deps.editorCorrects();
+		// A held placement owns the position, and re-places from the same tables.
+		const placed = corrects ? targetScrollTop() : null;
+		const delta = corrects && placed === null ? (round.moved?.() ?? 0) + round.added : 0;
+		// Cleared after the reads, so a table they rebuild joins this round instead of opening one.
+		open = null;
 		const p = writable();
-		if (delta !== 0 && p) p.scrollBy(delta);
+		if (!p) return;
+		// The absolute write survives the browser clamping `scrollTop` while images decode above.
+		if (placed !== null) {
+			p.setScrollTop(placed);
+			resolver?.syncScrollTop();
+		} else if (delta !== 0) p.scrollBy(delta);
 	}
+
+	// Whether the editor corrects at all is asked at the close: the root list's own table opens a
+	// round while it builds, and that question reads the root's window.
+	function beginRound(): void {
+		if (open) return;
+		const round: Round = { moved: resolver?.holdForRound() ?? null, added: 0 };
+		open = round;
+		roundsOpened++;
+		void tick().then(() => {
+			if (open === round) closeRound();
+		});
+	}
+
+	const sizes = createSharedResizeWatch();
 
 	function elementInView(el: HTMLElement, root: HTMLElement): boolean {
 		const br = el.getBoundingClientRect();
@@ -244,26 +308,29 @@ export function createScrollOwner(deps: ScrollOwnerDeps): ScrollOwner {
 			const band = visibleBand();
 			return !!band && bandShows(band, rect);
 		},
-		showRect(rect) {
-			// A newer scroll into view, like a newer placement: an older hold must not drag it back.
-			if (lastMinted) lastMinted.superseded = true;
-			drop();
-			const band = visibleBand();
-			const p = writable();
-			if (!band || !p || bandShows(band, rect)) return;
-			// A rect already filling the band has nothing to gain; otherwise its top wins a tie.
-			if (rect.top < band.top && rect.bottom > band.bottom) return;
-			const delta =
-				rect.bottom > band.bottom
-					? Math.min(rect.bottom - band.bottom, rect.top - band.top)
-					: rect.top - band.top;
-			p.scrollBy(delta);
-			resolver?.syncScrollTop();
+		showRect(read) {
+			writeScroll(() => {
+				// A newer scroll into view, like a newer placement: an older hold must not drag it back.
+				if (lastMinted) lastMinted.superseded = true;
+				drop();
+				const band = visibleBand();
+				const rect = read();
+				if (!band || !rect || bandShows(band, rect)) return null;
+				// A rect already filling the band has nothing to gain; otherwise its top wins a tie.
+				if (rect.top < band.top && rect.bottom > band.bottom) return null;
+				const by =
+					rect.bottom > band.bottom
+						? Math.min(rect.bottom - band.bottom, rect.top - band.top)
+						: rect.top - band.top;
+				return { by };
+			});
 		},
-		compensate(mutate, held) {
-			compensations++;
-			if (deps.editorCorrects()) correctByDelta(mutate, held);
-			else mutate();
+		beginRound,
+		roundOpen: () => open !== null,
+		watchSize: (el, onResize) => sizes.watch(el, onResize),
+		measureSoon(run) {
+			if (soon.size === 0) void tick().then(measureQueued);
+			soon.add(run);
 		},
 		place(path, { block, hold }) {
 			const p = [...path];
@@ -279,7 +346,7 @@ export function createScrollOwner(deps: ScrollOwnerDeps): ScrollOwner {
 					if (token.superseded) return false;
 					const el = deps.getBlockElByPath(p);
 					// A fully visible target stays put under `'nearest'`: the browser moves nothing.
-					el?.scrollIntoView({ block });
+					writeScroll(() => el && { reveal: el, block });
 					if (el && placement === mine) recordLanding(mine, el);
 					await settle(token, p);
 					const landed = !token.superseded && landedInView(p);
@@ -290,31 +357,34 @@ export function createScrollOwner(deps: ScrollOwnerDeps): ScrollOwner {
 				}
 			};
 		},
-		scrollToMount(contentTop) {
-			writable()?.setScrollTop(contentTop);
+		scrollToMount(path) {
+			writeScroll(() => {
+				const top = resolver?.mountTop(path) ?? null;
+				return top === null ? null : { top };
+			});
 		},
 		keep() {
+			// Closed first, so the position kept is the one the open round's correction leaves.
+			closeRound();
 			const p = writable();
 			const before = p?.scrollTop() ?? 0;
 			return async () => {
 				await tick();
 				// Native anchoring can't undo a max-scroll clamp, so this writes in host mode too.
-				if (!p || placement !== null || p.scrollTop() === before) return;
-				p.setScrollTop(before);
+				writeScroll(() =>
+					!p || placement !== null || p.scrollTop() === before ? null : { top: before }
+				);
 			};
 		},
 		release: drop,
 		resolveTargetsWith(next) {
 			resolver = next;
 			return {
+				// The header sits above every list, so its distance adds to the round's.
 				compensate(mutate, held) {
-					compensations++;
-					if (!deps.editorCorrects()) mutate();
-					else if (resolver !== next || targetScrollTop() === null) correctByDelta(mutate, held);
-					else {
-						mutate();
-						replace();
-					}
+					beginRound();
+					if (open) open.added += held(mutate);
+					else mutate();
 				},
 				uninstall() {
 					if (resolver === next) resolver = null;

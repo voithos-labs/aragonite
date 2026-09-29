@@ -304,13 +304,10 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 	});
 
 	const windowing = useContainerWindowing({
-		getIndex: deps.getIndex,
 		getParentPath: deps.getPath,
 		getChildren: () => deps.getNode().children ?? [],
 		getChildIds: () => listState.innerBlockIds,
 		getListEl: () => deps.getBoxEl()?.querySelector(':scope > .block-list') ?? null,
-		getOwnEl: () => deps.getBoxEl()?.closest('.block-host') ?? null,
-		provideLeafChannel: true,
 		isCollapsed: collapsed
 	});
 

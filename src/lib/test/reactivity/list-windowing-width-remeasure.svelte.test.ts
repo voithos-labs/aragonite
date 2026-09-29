@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // Miss-analysis: the one width case had both corrections pick the same block, so they cancelled.
 import { describe, it, expect } from 'vitest';
-import { flushSync } from 'svelte';
+import { flushSync, tick } from 'svelte';
 import type { HeightOracle } from '../../cursor/height-oracle';
 import type { Scrollport } from '../../cursor/scrollport';
 import type { ListWindowing } from '../../reactivity/list-windowing.svelte';
@@ -46,8 +46,8 @@ describe('list-windowing width re-measure', () => {
 		// do not know: the error the correction must not absorb.
 		for (const i of MOUNTED) {
 			windowing.registerChild(idOf(i), {
-				readHeight: () => REAL,
-				applyHeight: (h) => windowing.recordMeasuredChild(i, idOf(i), h)
+				index: i,
+				readHeight: () => REAL
 			});
 		}
 
@@ -59,6 +59,7 @@ describe('list-windowing width re-measure', () => {
 		oracle.dropMeasured();
 		widthVersion++;
 		flushSync();
+		await tick();
 
 		expect(await screenOffsetOf(windowing, port, anchor)).toBe(heldOffset);
 		cleanup();

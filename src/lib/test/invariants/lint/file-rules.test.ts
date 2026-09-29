@@ -1356,6 +1356,23 @@ const SCROLL_WRITERS: ManifestRule[] = [
 			'scrollOwner.scrollToMount(top);\nvoid rects.scrollTo([4]);\nawait rects.scrollTo(p, opts);',
 			'return placement.scroll();\nconst landed = await deps.scroll.place(p, o).scroll();'
 		]
+	},
+	{
+		id: 'G4.87 a list asks for a mount scroll by path, from its descent alone',
+		matches: /(?<![\w$])scrollToMount\s*\(/,
+		declared: {
+			'src/lib/cursor/scroll-owner.ts': 'the owner, which works out where from the list tree',
+			'src/lib/reactivity/list-windowing.svelte.ts':
+				'`revealChild`, the descent’s one scroll, naming the block and never a position'
+		},
+		reason:
+			'a list that scrolls outside its descent corrects behind the measure round’s back: write heights and let the round keep the page still, or declare why here',
+		reaches: ['src/lib/reactivity/list-windowing.svelte.ts'],
+		hits: ['deps.scroll.scrollToMount([...path, index]);', 'owner.scrollToMount (path)'],
+		misses: [
+			'scrollToMount: scrollOwner.scrollToMount,',
+			'// scrollToMount(path) mounts it.\nconst a = 1;'
+		]
 	}
 ];
 
@@ -1416,29 +1433,13 @@ const BARE_FOCUSES: ManifestRule[] = [
 /** Every call that corrects, picks a held block or holds nothing, keyed by path, function and
  *  kind, so a call moved elsewhere fails. `<module>` is a function with a bracketed return type. */
 const CORRECTIONS: Record<string, { calls: number; reason: string }> = {
-	'src/lib/reactivity/list-windowing.svelte.ts :: correctAcross :: compensate': {
+	'src/lib/reactivity/list-tree.ts :: descend :: heldBlock': {
 		calls: 1,
-		reason: 'the one correction helper every measure and rebuild goes through'
+		reason: 'the one pick of the block a measure round keeps still, level by level'
 	},
-	'src/lib/reactivity/list-windowing.svelte.ts :: correctAcross :: heldBlock': {
+	'src/lib/reactivity/list-tree.ts :: movedSince :: held move': {
 		calls: 1,
-		reason: 'the one pick of the block a list keeps still'
-	},
-	'src/lib/reactivity/list-windowing.svelte.ts :: setChildSubtotal :: compensate': {
-		calls: 1,
-		reason: 'the upward subtotal, a stopgap until each list measures its child containers itself'
-	},
-	'src/lib/reactivity/list-windowing.svelte.ts :: setChildSubtotal :: zero hold': {
-		calls: 1,
-		reason: 'the same stopgap holds nothing'
-	},
-	'src/lib/reactivity/use-container-windowing.svelte.ts :: useContainerWindowing :: compensate': {
-		calls: 1,
-		reason: 'hands a nested list’s correction to the scroll owner'
-	},
-	'src/lib/reactivity/use-container-windowing.svelte.ts :: <module> :: compensate': {
-		calls: 1,
-		reason: 'hands the root list’s correction to its handle from the scroll owner'
+		reason: 'the one distance the round corrects by, read through the same walk as `resolve`'
 	},
 	'src/lib/components/editor-root-geometry.ts :: <module> :: compensate': {
 		calls: 1,
@@ -1447,17 +1448,23 @@ const CORRECTIONS: Record<string, { calls: number; reason: string }> = {
 	}
 };
 
-const CORRECTION_KINDS: { kind: string; callee: string; counts: (args: string) => boolean }[] = [
+interface CallKind {
+	kind: string;
+	callee: string;
+	counts: (args: string) => boolean;
+}
+
+const CORRECTION_KINDS: CallKind[] = [
 	{ kind: 'compensate', callee: 'compensate', counts: () => true },
 	{ kind: 'heldBlock', callee: 'heldBlock', counts: () => true },
-	{ kind: 'zero hold', callee: 'holdAcross', counts: (args) => callArguments(args)[2] === 'null' }
+	{ kind: 'held move', callee: 'heldDelta', counts: () => true }
 ];
 
 /** Each `path :: function :: kind` in `file` with its count; a definition or signature isn't a call. */
-function correctionSites(file: SourceFile): Map<string, number> {
+function callSites(file: SourceFile, kinds: CallKind[]): Map<string, number> {
 	const found = new Map<string, number>();
 	const { code } = file;
-	for (const { kind, callee, counts } of CORRECTION_KINDS) {
+	for (const { kind, callee, counts } of kinds) {
 		for (const match of code.matchAll(new RegExp(`(?<![\\w$])${callee}\\s*\\(`, 'g'))) {
 			const open = match.index + match[0].length;
 			const args = balancedCall(code, open);
@@ -1478,10 +1485,10 @@ const HELD_BRANDS: FileRule = {
 	matches: /\bas\s+(?:HeldBlock|HeldDelta)\b/,
 	allowed: {
 		'src/lib/reactivity/hold-across.ts':
-			'`heldBlock` and `holdAcross`, the one pick and its measure'
+			'`heldBlock` and `heldDelta`, the one pick and the one distance'
 	},
 	reason:
-		'a cast to a held block or a held distance picks the block a list keeps still somewhere other than `heldBlock`: call `heldBlock` and `holdAcross` instead',
+		'a cast to a held block or a held distance picks the block a list keeps still somewhere other than `heldBlock`: call `heldBlock` and `heldDelta` instead',
 	reaches: ['src/lib/reactivity/hold-across.ts'],
 	hits: ['return 0 as HeldDelta;', "const held = { id: 'b3', index: 3 } as HeldBlock;"],
 	misses: ['const held: HeldBlock | null = heldBlock(table, top, focused);']
@@ -1490,32 +1497,152 @@ const HELD_BRANDS: FileRule = {
 function describeCorrections(sources: SourceFile[]): void {
 	describe('G4.93 every height correction is declared, and a list’s holds what `heldBlock` picks', () => {
 		it('the calls are exactly the declared ones', () => {
-			const found = Object.fromEntries(sources.flatMap((file) => [...correctionSites(file)]));
+			const found = Object.fromEntries(
+				sources.flatMap((file) => [...callSites(file, CORRECTION_KINDS)])
+			);
 			const declared = Object.fromEntries(
 				Object.entries(CORRECTIONS).map(([site, { calls }]) => [site, calls])
 			);
 			expect(
 				found,
-				'a new height correction picks its own held block: route a list through its one correction helper, or declare the call here with why'
+				'a new height correction picks its own held block: let the scroll owner’s measure round hold one block for the whole document, or declare the call here with why'
 			).toEqual(declared);
 		});
 
 		it('the census counts calls where they sit and skips a definition or a signature', () => {
-			const sites = (code: string) => Object.fromEntries(correctionSites(probeFile(code)));
-			expect(
-				sites(
-					'function a() {\n\tdeps.scroll.compensate(w, (run) => holdAcross(t, () => t, null, run));\n}'
-				)
-			).toEqual({ 'probe.ts :: a :: compensate': 1, 'probe.ts :: a :: zero hold': 1 });
-			expect(
-				sites('function b() {\n\tholdAcross(t, () => t, heldBlock(t, t, 0, i), run);\n}')
-			).toEqual({ 'probe.ts :: b :: heldBlock': 1 });
+			const sites = (code: string) =>
+				Object.fromEntries(callSites(probeFile(code), CORRECTION_KINDS));
+			expect(sites('function a() {\n\troot.compensate(w, () => 0);\n}')).toEqual({
+				'probe.ts :: a :: compensate': 1
+			});
+			expect(sites('function b() {\n\theldDelta(0, walk(heldBlock(t, 0, i)));\n}')).toEqual({
+				'probe.ts :: b :: heldBlock': 1,
+				'probe.ts :: b :: held move': 1
+			});
 			expect(sites('owner ? owner.compensate(mutate, held) : mutate();')).toEqual({
 				'probe.ts :: <module> :: compensate': 1
 			});
 			expect(sites('compensate(mutate, held) {\n\tcompensations++;\n}')).toEqual({});
 			expect(sites('compensate(mutate: () => void, held: Held): void;')).toEqual({});
 			expect(sites('// compensate(mutate, held);\nconst a = 1;')).toEqual({});
+		});
+	});
+}
+
+// ── G4.97 one way a child's height reaches its list's table ─────────────────
+
+/** Every write of a measured height and every registration with a list, keyed like G4.93. */
+const MEASURE_WRITES: Record<string, { calls: number; reason: string }> = {
+	'src/lib/reactivity/list-windowing.svelte.ts :: applyMeasured :: table write': {
+		calls: 1,
+		reason:
+			'the one write of a child’s height into its list’s table, only while that index still holds that id'
+	},
+	'src/lib/reactivity/list-windowing.svelte.ts :: applyMeasured :: cache write': {
+		calls: 1,
+		reason: 'records the height under the id the child passed'
+	},
+	'src/lib/reactivity/list-windowing.svelte.ts :: applyHeight :: applyMeasured': {
+		calls: 1,
+		reason: 'the batched pass applies each registered child through the one write'
+	},
+	'src/lib/reactivity/use-container-windowing.svelte.ts :: register :: registration': {
+		calls: 1,
+		reason: 'the channel every list provides, which checks the child is its own'
+	}
+};
+
+const MEASURE_KINDS: CallKind[] = [
+	{ kind: 'table write', callee: 'setHeight', counts: () => true },
+	{ kind: 'cache write', callee: 'recordMeasured', counts: () => true },
+	{ kind: 'applyMeasured', callee: 'applyMeasured', counts: () => true },
+	{ kind: 'registration', callee: 'registerChild', counts: () => true }
+];
+
+/** The channel is read only by the hook that owns the three triggers. */
+const MEASURE_CHANNEL: ManifestRule = {
+	id: 'G4.97 only `useMeasuredChild` reads a list’s measure channel',
+	matches: /(?<![\w$])CHILD_MEASURE_KEY\b/,
+	declared: {
+		'src/lib/editor-keys.ts': 'defines the key',
+		'src/lib/reactivity/use-container-windowing.svelte.ts': 'every list provides the channel',
+		'src/lib/reactivity/use-measured-child.svelte.ts':
+			'the one reader, which registers at mount, re-measures after an edit and on a resize'
+	},
+	reason:
+		'a child that reads the channel itself wires its own triggers, and a hand-wired copy misses one: call `useMeasuredChild`',
+	hits: ['const channel = getContext(CHILD_MEASURE_KEY);'],
+	misses: [
+		'const channel = getContext(CHILD_MEASURE_KEYS);',
+		'// `CHILD_MEASURE_KEY` is the channel.\nconst a = 1;'
+	]
+};
+
+function describeMeasureWrites(sources: SourceFile[]): void {
+	describe('G4.97 a child’s height reaches its list’s table through one write', () => {
+		it('the writes and registrations are exactly the declared ones', () => {
+			const found = Object.fromEntries(
+				sources.flatMap((file) => [...callSites(file, MEASURE_KINDS)])
+			);
+			const declared = Object.fromEntries(
+				Object.entries(MEASURE_WRITES).map(([site, { calls }]) => [site, calls])
+			);
+			expect(
+				found,
+				'a list’s height table is written or registered with outside its one write: measure a child through `useMeasuredChild`, or declare the call here with why'
+			).toEqual(declared);
+		});
+	});
+}
+
+// ── G4.87 inside the owner, every write closes the round first ──────────────
+
+/** The owner's raw writes of its port, keyed like G4.93: `writeScroll`, which closes an open
+ *  round before it writes, and the round's own correction beneath it. */
+const OWNER_RAW_WRITES: Record<string, { calls: number; reason: string }> = {
+	'src/lib/cursor/scroll-owner.ts :: writeScroll :: absolute': {
+		calls: 1,
+		reason: 'every owner write but the round’s, once the round is closed'
+	},
+	'src/lib/cursor/scroll-owner.ts :: writeScroll :: relative': {
+		calls: 1,
+		reason: 'the same write, by a distance'
+	},
+	'src/lib/cursor/scroll-owner.ts :: writeScroll :: into view': {
+		calls: 1,
+		reason: 'a placement’s scroll, once the round is closed'
+	},
+	'src/lib/cursor/scroll-owner.ts :: closeRound :: absolute': {
+		calls: 1,
+		reason: 'a held placement put back as the round closes'
+	},
+	'src/lib/cursor/scroll-owner.ts :: closeRound :: relative': {
+		calls: 1,
+		reason: 'the round’s own correction'
+	}
+};
+
+const RAW_WRITE_KINDS: CallKind[] = [
+	{ kind: 'absolute', callee: 'setScrollTop', counts: () => true },
+	{ kind: 'relative', callee: 'scrollBy', counts: () => true },
+	{ kind: 'into view', callee: 'scrollIntoView', counts: () => true }
+];
+
+function describeOwnerWrites(sources: SourceFile[]): void {
+	describe('G4.87 every owner write closes an open round before it writes', () => {
+		it('only `writeScroll` and the round’s close write the port', () => {
+			const found = Object.fromEntries(
+				sources
+					.filter((file) => file.relPath === 'src/lib/cursor/scroll-owner.ts')
+					.flatMap((file) => [...callSites(file, RAW_WRITE_KINDS)])
+			);
+			const declared = Object.fromEntries(
+				Object.entries(OWNER_RAW_WRITES).map(([site, { calls }]) => [site, calls])
+			);
+			expect(
+				found,
+				'an owner write outside `writeScroll` can land under an open round: go through `writeScroll`, or declare it here with why'
+			).toEqual(declared);
 		});
 	});
 }
@@ -1572,4 +1699,7 @@ describeManifests(SCROLL_WRITERS, SOURCES);
 describeManifests(BARE_FOCUSES, SOURCES);
 describeFileRules([HELD_BRANDS], SOURCES);
 describeCorrections(SOURCES);
+describeOwnerWrites(SOURCES);
+describeMeasureWrites(SOURCES);
+describeManifests([MEASURE_CHANNEL], SOURCES);
 describeManifests(SELECTION_WRITERS, SOURCES);

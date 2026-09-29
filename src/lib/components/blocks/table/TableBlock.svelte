@@ -103,16 +103,11 @@
 	// ── Virtual rendering (row windowing) ───────────────────────────────
 
 	const windowing = useContainerWindowing({
-		getIndex: () => index,
 		getParentPath: () => myPath,
 		getChildren: () => node.children ?? [],
 		getChildIds: () => rowsState.innerBlockIds,
 		// The .table-block grid is the content origin: it holds the spacers and the rows.
-		getListEl: () => tableEl ?? null,
-		// The table is itself a BlockHost block, so it reports its height the same way the
-		// parent measured it and the subtotal sent up does not fight that measurement.
-		getOwnEl: () => tableEl?.closest('.block-host') ?? null,
-		provideLeafChannel: false
+		getListEl: () => tableEl ?? null
 	});
 
 	let win = $derived(windowing.window);

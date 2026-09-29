@@ -52,16 +52,11 @@
 	// ── Virtual rendering (item windowing) ──────────────────────────────
 
 	const windowing = useContainerWindowing({
-		getIndex: () => index,
 		getParentPath: () => myPath,
 		getChildren: () => node.children ?? [],
 		getChildIds: () => listState.innerBlockIds,
 		// The .list-block is the content origin: it holds the spacers and the items.
-		getListEl: () => boxEl ?? null,
-		// A list is itself a BlockHost block, so it reports its height the same way the
-		// parent measured it and the subtotal sent up does not fight that measurement.
-		getOwnEl: () => boxEl?.closest('.block-host') ?? null,
-		provideLeafChannel: false
+		getListEl: () => boxEl ?? null
 	});
 
 	let win = $derived(windowing.window);
@@ -100,6 +95,7 @@
 		<ListItemBlock
 			node={item}
 			index={absoluteIndex}
+			id={listState.innerBlockIds[absoluteIndex]}
 			myPath={[...myPath, absoluteIndex]}
 			itemCount={(node.children ?? []).length}
 			slots={listState.refSlots}
