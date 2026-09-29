@@ -114,29 +114,28 @@ export function createListContext(deps: ListContextDeps): ListContext {
 						? [itemIndex - 1, existingNestedIdx, at]
 						: [itemIndex - 1, at, 0];
 
-					let destList: CstNode;
+					// Each branch renumbers the moved item's marker through `sharing`, which copies it first.
 					if (existingNestedList) {
-						destList = destScope.node;
+						const destList = destScope.node;
 						destScope.children.push(movedItem);
 						// Adopt the destination sublist's marker style, as a paste does. A fresh list
 						// (the else branch) has no convention to adopt.
 						const moved = ensureUnsharedChild(destList, destScope.children.length - 1, sharing);
 						normalizeItemMarkerToList(moved, destList);
+						renumberOrderedList(destList, 0, sharing);
 					} else {
 						const shell = buildListShell(ordered, [movedItem]);
 						sharing.stamp(shell);
 						destScope.children.push(shell);
 						// Write, then read back (tree-operations/unshare.ts): the writes below go
 						// through the value in the tree, not the list the proxy has observed.
-						destList = destScope.children[destScope.children.length - 1];
+						const destList = destScope.children[destScope.children.length - 1];
+						renumberOrderedList(destList, 0, sharing);
+						// A new sublist sits below the commit's chain, which never rebuilds it; the
+						// blank-line rule below reads its bytes too.
+						destScope.rebuild(destList);
+						settleSublistSeparator(destScope.children, destScope.children.length - 1);
 					}
-
-					// Renumbering writes the moved item's marker; `sharing` copies it first.
-					renumberOrderedList(destList, 0, sharing);
-					// A new sublist sits below the commit's chain, which never rebuilds it; the
-					// blank-line rule below reads its bytes too.
-					if (!existingNestedList) destScope.rebuild(destList);
-					settleSublistSeparator(destScope.children, destScope.children.length - 1);
 					renumberOrderedList(outerScope.node, itemIndex, sharing);
 
 					return [
