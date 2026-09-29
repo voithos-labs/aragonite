@@ -1813,9 +1813,10 @@ change is decided in `reactivity/hold-across.ts :: heldBlock`, and a list's corr
 the distance `holdAcross` measures: a brand the types give no other way to make, so a hand-written
 distance or a hand-picked block doesn't compile (`test/reactivity/hold-across.test.ts` pins both).
 The scan holds what the types can't: a cast to either brand outside `hold-across.ts`, and every
-`compensate(` call, declared by file and count with its reason (the list's one correction helper
-and its subtotal stopgap, the two hand-offs to the scroll owner, and the header slot, which sits
-above every list). `lint/file-rules.test.ts`.
+call to `compensate`, `heldBlock` or a `holdAcross` that holds nothing, declared by file, function
+and count with its reason (the list's one correction helper and its subtotal stopgap, the two
+hand-offs to the scroll owner, and the header slot, which sits above every list), so a call moved
+to another function fails too. `lint/file-rules.test.ts`.
 
 ## Accessibility
 
