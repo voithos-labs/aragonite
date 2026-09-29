@@ -65,9 +65,9 @@ export interface ScrollOwner {
 	/** Whether a viewport rect sits wholly inside what the editor shows, so a caret there needs no
 	 *  scroll. */
 	shows(rect: DOMRectReadOnly): boolean;
-	/** Scroll the least distance that shows a viewport rect (a caret's line, a cell), holding
-	 *  nothing and ending any older hold. */
-	showRect(rect: DOMRectReadOnly): void;
+	/** Scroll the least distance that shows the rect `read` returns (a caret's line, a cell), read
+	 *  after an open round's correction; null shows nothing. Holds nothing, and ends an older hold. */
+	showRect(read: () => DOMRectReadOnly | null): void;
 	/** Called before any list's height table changes: opens the round every height write of this
 	 *  flush joins, picking the block to keep still now. The round writes once, at the next tick. */
 	beginRound(): void;
@@ -117,6 +117,9 @@ interface Round {
 	moved: (() => number) | null;
 	added: number;
 }
+
+/** Where one owner write goes, worked out once an open round has closed. */
+type ScrollTarget = { top: number } | { by: number } | { reveal: HTMLElement; block: PlaceBlock };
 
 // Identity, not the path: two placements can aim at the same block, and only the one still
 // holding may release it.
@@ -194,29 +197,39 @@ export function createScrollOwner(deps: ScrollOwnerDeps): ScrollOwner {
 		}
 	}
 
-	// The absolute write survives the browser clamping `scrollTop` while images decode above.
-	function replace(): void {
-		const top = targetScrollTop();
+	/** Every owner write but the round's own: it closes an open round, then works out where to
+	 *  go, so no write lands under a correction still to come or scrolls by a pre-correction read. */
+	function writeScroll(target: () => ScrollTarget | null): void {
+		closeRound();
+		const to = target();
 		const p = writable();
-		if (top === null || !p) return;
-		p.setScrollTop(top);
+		if (!to || !p) return;
+		if ('reveal' in to) {
+			to.reveal.scrollIntoView({ block: to.block });
+			return;
+		}
+		if ('top' in to) p.setScrollTop(to.top);
+		else p.scrollBy(to.by);
 		resolver?.syncScrollTop();
 	}
 
-	// Every other write closes the open round first, so a landing never scrolls under it.
+	// The round's own correction writes the port directly, so closing never recurses.
 	function closeRound(): void {
 		const round = open;
 		if (!round) return;
-		open = null;
-		if (!deps.editorCorrects()) return;
+		const corrects = deps.editorCorrects();
 		// A held placement owns the position, and re-places from the same tables.
-		if (targetScrollTop() !== null) {
-			replace();
-			return;
-		}
-		const delta = (round.moved?.() ?? 0) + round.added;
+		const placed = corrects ? targetScrollTop() : null;
+		const delta = corrects && placed === null ? (round.moved?.() ?? 0) + round.added : 0;
+		// Cleared after the reads, so a table they rebuild joins this round instead of opening one.
+		open = null;
 		const p = writable();
-		if (delta !== 0 && p) p.scrollBy(delta);
+		if (!p) return;
+		// The absolute write survives the browser clamping `scrollTop` while images decode above.
+		if (placed !== null) {
+			p.setScrollTop(placed);
+			resolver?.syncScrollTop();
+		} else if (delta !== 0) p.scrollBy(delta);
 	}
 
 	// Whether the editor corrects at all is asked at the close: the root list's own table opens a
@@ -288,22 +301,22 @@ export function createScrollOwner(deps: ScrollOwnerDeps): ScrollOwner {
 			const band = visibleBand();
 			return !!band && bandShows(band, rect);
 		},
-		showRect(rect) {
-			closeRound();
-			// A newer scroll into view, like a newer placement: an older hold must not drag it back.
-			if (lastMinted) lastMinted.superseded = true;
-			drop();
-			const band = visibleBand();
-			const p = writable();
-			if (!band || !p || bandShows(band, rect)) return;
-			// A rect already filling the band has nothing to gain; otherwise its top wins a tie.
-			if (rect.top < band.top && rect.bottom > band.bottom) return;
-			const delta =
-				rect.bottom > band.bottom
-					? Math.min(rect.bottom - band.bottom, rect.top - band.top)
-					: rect.top - band.top;
-			p.scrollBy(delta);
-			resolver?.syncScrollTop();
+		showRect(read) {
+			writeScroll(() => {
+				// A newer scroll into view, like a newer placement: an older hold must not drag it back.
+				if (lastMinted) lastMinted.superseded = true;
+				drop();
+				const band = visibleBand();
+				const rect = read();
+				if (!band || !rect || bandShows(band, rect)) return null;
+				// A rect already filling the band has nothing to gain; otherwise its top wins a tie.
+				if (rect.top < band.top && rect.bottom > band.bottom) return null;
+				const by =
+					rect.bottom > band.bottom
+						? Math.min(rect.bottom - band.bottom, rect.top - band.top)
+						: rect.top - band.top;
+				return { by };
+			});
 		},
 		beginRound,
 		roundOpen: () => open !== null,
@@ -330,10 +343,9 @@ export function createScrollOwner(deps: ScrollOwnerDeps): ScrollOwner {
 					// Checked first: a placement another scroll took over during a long mount wait
 					// would otherwise yank the viewport once.
 					if (token.superseded) return false;
-					closeRound();
 					const el = deps.getBlockElByPath(p);
 					// A fully visible target stays put under `'nearest'`: the browser moves nothing.
-					el?.scrollIntoView({ block });
+					writeScroll(() => el && { reveal: el, block });
 					if (el && placement === mine) recordLanding(mine, el);
 					await settle(token, p);
 					const landed = !token.superseded && landedInView(p);
@@ -345,19 +357,22 @@ export function createScrollOwner(deps: ScrollOwnerDeps): ScrollOwner {
 			};
 		},
 		scrollToMount(path) {
-			closeRound();
-			const top = resolver?.mountTop(path) ?? null;
-			if (top !== null) writable()?.setScrollTop(top);
+			writeScroll(() => {
+				const top = resolver?.mountTop(path) ?? null;
+				return top === null ? null : { top };
+			});
 		},
 		keep() {
+			// Closed first, so the position kept is the one the open round's correction leaves.
+			closeRound();
 			const p = writable();
 			const before = p?.scrollTop() ?? 0;
 			return async () => {
 				await tick();
 				// Native anchoring can't undo a max-scroll clamp, so this writes in host mode too.
-				closeRound();
-				if (!p || placement !== null || p.scrollTop() === before) return;
-				p.setScrollTop(before);
+				writeScroll(() =>
+					!p || placement !== null || p.scrollTop() === before ? null : { top: before }
+				);
 			};
 		},
 		release: drop,

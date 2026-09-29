@@ -1595,6 +1595,58 @@ function describeMeasureWrites(sources: SourceFile[]): void {
 	});
 }
 
+// ── G4.87 inside the owner, every write closes the round first ──────────────
+
+/** The owner's raw writes of its port, keyed like G4.93: `writeScroll`, which closes an open
+ *  round before it writes, and the round's own correction beneath it. */
+const OWNER_RAW_WRITES: Record<string, { calls: number; reason: string }> = {
+	'src/lib/cursor/scroll-owner.ts :: writeScroll :: absolute': {
+		calls: 1,
+		reason: 'every owner write but the round’s, once the round is closed'
+	},
+	'src/lib/cursor/scroll-owner.ts :: writeScroll :: relative': {
+		calls: 1,
+		reason: 'the same write, by a distance'
+	},
+	'src/lib/cursor/scroll-owner.ts :: writeScroll :: into view': {
+		calls: 1,
+		reason: 'a placement’s scroll, once the round is closed'
+	},
+	'src/lib/cursor/scroll-owner.ts :: closeRound :: absolute': {
+		calls: 1,
+		reason: 'a held placement put back as the round closes'
+	},
+	'src/lib/cursor/scroll-owner.ts :: closeRound :: relative': {
+		calls: 1,
+		reason: 'the round’s own correction'
+	}
+};
+
+const RAW_WRITE_KINDS: CallKind[] = [
+	{ kind: 'absolute', callee: 'setScrollTop', counts: () => true },
+	{ kind: 'relative', callee: 'scrollBy', counts: () => true },
+	{ kind: 'into view', callee: 'scrollIntoView', counts: () => true }
+];
+
+function describeOwnerWrites(sources: SourceFile[]): void {
+	describe('G4.87 every owner write closes an open round before it writes', () => {
+		it('only `writeScroll` and the round’s close write the port', () => {
+			const found = Object.fromEntries(
+				sources
+					.filter((file) => file.relPath === 'src/lib/cursor/scroll-owner.ts')
+					.flatMap((file) => [...callSites(file, RAW_WRITE_KINDS)])
+			);
+			const declared = Object.fromEntries(
+				Object.entries(OWNER_RAW_WRITES).map(([site, { calls }]) => [site, calls])
+			);
+			expect(
+				found,
+				'an owner write outside `writeScroll` can land under an open round: go through `writeScroll`, or declare it here with why'
+			).toEqual(declared);
+		});
+	});
+}
+
 // ── G4.94 the editor's own selection has one store and three writers ─────────
 
 const SELECTION_WRITERS: ManifestRule[] = [
@@ -1647,6 +1699,7 @@ describeManifests(SCROLL_WRITERS, SOURCES);
 describeManifests(BARE_FOCUSES, SOURCES);
 describeFileRules([HELD_BRANDS], SOURCES);
 describeCorrections(SOURCES);
+describeOwnerWrites(SOURCES);
 describeMeasureWrites(SOURCES);
 describeManifests([MEASURE_CHANNEL], SOURCES);
 describeManifests(SELECTION_WRITERS, SOURCES);

@@ -1844,9 +1844,13 @@ that with `@ts-expect-error`). The scan catches the rest: `scrollTop` assigned o
 `window.scrollTo(x, y)`), `scrollBy`, `setScrollTop`, `scrollIntoView`, or opening a port that
 can write, anywhere but the owner and the port itself. `rects.scrollTo(path)` doesn't count: it's
 the published call, and it goes through the owner. A second row lists every `scrollToMount(`
-caller, the one a list may make: the descent's `revealChild`, which names a path, never a position. A few files keep writes of their own, and the manifest says why for each: a drag's
-autoscroll, which the pointer drives frame by frame, and two listboxes keeping their active row in
-view inside their own scroller. `lint/file-rules.test.ts`.
+caller, the one a list may make: the descent's `revealChild`, which names a path, never a
+position. Inside the owner, a third row counts who writes the port: `writeScroll`, which closes
+an open measure round and only then works out where to go, and the round's own correction. So no
+owner write can land under a correction still to come. A few files keep writes of their own,
+and the manifest says why for each: a drag's autoscroll, which the pointer drives frame by
+frame, and two listboxes keeping their active row in view inside their own scroller.
+`lint/file-rules.test.ts`.
 
 **G4.89 · One in-leaf range replace.** Replacing a range of one leaf, typed or pasted text or none,
 is `tree-operations/leaf-range.ts :: replaceRangeInLeaf`: it cuts back to the painted text, moves

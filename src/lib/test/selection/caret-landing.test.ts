@@ -61,8 +61,9 @@ function recordingScroll(visible: boolean) {
 	const scroll: Pick<ScrollOwner, 'shows' | 'showRect' | 'place' | 'port'> = {
 		port: () => null,
 		shows: () => visible,
-		showRect: () => {
-			calls.push('showRect');
+		// Records a write only when the landing's read asks for one.
+		showRect: (read) => {
+			if (read()) calls.push('showRect');
 		},
 		place: (_path, { hold }) => {
 			calls.push(hold ? 'place, held' : 'place');

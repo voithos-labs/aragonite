@@ -364,7 +364,7 @@ const ROWS: Record<keyof ScrollWrites, Row[]> = {
 	showRect: [
 		{
 			name: 'an arrival whose caret line sits just below the viewport',
-			run: (f) => f.owner.showRect({ top: 520, bottom: 540 } as DOMRect),
+			run: (f) => f.owner.showRect(() => ({ top: 520, bottom: 540 }) as DOMRect),
 			expect: {
 				// A scroll to show the caret, like a placement, writes under the browser's anchoring too.
 				'host anchoring holds': scrollTopIs(START + 40),
@@ -391,7 +391,7 @@ const ROWS: Record<keyof ScrollWrites, Row[]> = {
 		},
 		{
 			name: 'an arrival whose caret line already shows',
-			run: (f) => f.owner.showRect({ top: 100, bottom: 120 } as DOMRect),
+			run: (f) => f.owner.showRect(() => ({ top: 100, bottom: 120 }) as DOMRect),
 			expect: {
 				'host anchoring holds': scrollTopIs(START),
 				'a held placement is live': scrollTopIs(START),
@@ -538,10 +538,10 @@ describe('scroll owner: the edges', () => {
 		const port = stubScrollport({ viewportHeight: 500 });
 		const owner = stubScrollOwner(port);
 		port.setScrollTop(1000);
-		owner.showRect({ top: 504, bottom: 524 } as DOMRect);
+		owner.showRect(() => ({ top: 504, bottom: 524 }) as DOMRect);
 		expect(port.scrollTop()).toBe(1024);
 		// A rect running past both edges already fills what shows.
-		owner.showRect({ top: -200, bottom: 1400 } as DOMRect);
+		owner.showRect(() => ({ top: -200, bottom: 1400 }) as DOMRect);
 		expect(port.scrollTop()).toBe(1024);
 	});
 
@@ -550,6 +550,79 @@ describe('scroll owner: the edges', () => {
 		const write = vi.spyOn(f.port, 'setScrollTop');
 		await f.owner.keep()();
 		expect(write).not.toHaveBeenCalled();
+		f.cleanup();
+	});
+
+	// Miss-analysis: every landing row ran with no round open, so none saw a caret's rect measured
+	// before the round's correction moved it.
+	it('an arrival while a round is open shows the caret where the correction leaves it', async () => {
+		const f = fixture('free');
+		const el = document.createElement('div');
+		const caret = document.createElement('span');
+		caret.tabIndex = 0;
+		el.append(caret);
+		document.body.append(el);
+		caret.focus();
+		// No selection inside, so the landing measures the element's own box.
+		getSelection()?.removeAllRanges();
+		// The caret's line sits at 600-610 in the content, laid out with b2's growth in it.
+		el.getBoundingClientRect = () =>
+			({ top: 600 - f.port.scrollTop(), bottom: 610 - f.port.scrollTop() }) as DOMRect;
+		const doc = parse(f.live.children.map((c) => c.raw).join('\n'));
+		const landing = createCaretLanding({
+			getDoc: () => doc,
+			root: {
+				count: () => 0,
+				refs: refSlotsOver([]),
+				windowing: { revealChild: async () => {}, isInWindow: () => true }
+			},
+			selectionState: createSelectionState({ getDoc: () => doc }),
+			caretMemory: createCaretMemory(),
+			getBlockElByPath: () => el,
+			getEditorRoot: () => null,
+			scroll: f.owner
+		});
+		measureB2Taller(f);
+		landing.followArrival([5]);
+		await tick();
+		// The correction's 30 first, then the least scroll that shows 600-610 in 500px.
+		expect(f.port.scrollTop()).toBe(110);
+		el.remove();
+		f.cleanup();
+	});
+
+	it('keep holds the position the open round’s correction leaves', async () => {
+		const f = fixture('free');
+		measureB2Taller(f);
+		await f.owner.keep()();
+		expect(f.port.scrollTop()).toBe(START + GROWTH);
+		f.cleanup();
+	});
+
+	// Miss-analysis: every round closed at its tick with every table built, so none saw a close
+	// whose own read rebuilt a table open a second round that counted the rebuild again.
+	it('a change the round’s close is first to read counts once', async () => {
+		const f = fixture('free');
+		f.owner.beginRound();
+		f.live.children.splice(2, 0, makePara('new\n'));
+		f.live.ids.splice(2, 0, 'bx');
+		// Before the flush, so the close's own read builds the new table.
+		f.owner.scrollToMount([4]);
+		await tick();
+		// [4] names b3 in the new table, below bx's estimate; nothing is added after.
+		expect(f.port.scrollTop()).toBe(OFFSETS[3] + ESTIMATE);
+		f.cleanup();
+	});
+
+	// Miss-analysis: only a page-scroll search jump saw this, and only when that spec ran alone.
+	it('a mount batch that measures nothing new still puts a held target back', async () => {
+		const f = fixture('a held placement is live');
+		// The browser scrolls on its own, as typing into the find field does.
+		f.port.setScrollTop(START + 7);
+		f.windowing.registerChild('b1', { index: 1, readHeight: () => HEIGHTS.b1 });
+		await tick();
+		await tick();
+		expect(f.port.scrollTop()).toBe(HELD_TOP);
 		f.cleanup();
 	});
 

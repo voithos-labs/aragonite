@@ -20,8 +20,7 @@ export interface SharedResizeWatch {
 	watch(el: Element, onResize: (entry: ResizeObserverEntry) => void): () => void;
 }
 
-/** One observer for many elements, each watched from the next frame as `observeResize` does.
- *  Made at that frame, after the editor's width watcher, which a width change then reaches first. */
+/** One observer for many elements, each watched from the next frame, made after the width watcher. */
 export function createSharedResizeWatch(): SharedResizeWatch {
 	const listeners = new Map<Element, (entry: ResizeObserverEntry) => void>();
 	let observer: ResizeObserver | null = null;
