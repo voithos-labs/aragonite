@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { tick } from 'svelte';
 import {
 	installHeaderSlotCompensation,
 	installTypeScaleProbe,
@@ -130,6 +131,7 @@ describe('editor-root geometry: header slot compensation', () => {
 		const root = owner.resolveTargetsWith({
 			resolve: () => null,
 			holdForRound: () => null,
+			mountTop: () => null,
 			syncScrollTop: () => {}
 		});
 		teardowns.push(
@@ -141,19 +143,21 @@ describe('editor-root geometry: header slot compensation', () => {
 		};
 	}
 
-	it('a growing header shifts the port by the delta, keeping the reader in place', () => {
+	it('a growing header shifts the port by the delta, keeping the reader in place', async () => {
 		const s = slot();
 		s.grow(30);
+		await tick();
 		expect(s.top()).toBe(150);
 	});
 
 	it.each([
 		['the port sits at the top', { scrollTop: 0 }],
 		['the host owns the correction', { owns: false }]
-	])('leaves the port alone when %s', (_label, opts) => {
+	])('leaves the port alone when %s', async (_label, opts) => {
 		const s = slot(opts);
 		const before = s.top();
 		s.grow(30);
+		await tick();
 		expect(s.top()).toBe(before);
 	});
 });

@@ -54,16 +54,19 @@ function makeOwner(scripts: Record<string, number[]> = {}, opts: { withRoot?: bo
 			return { top: TABLE_TOP, height: EL_HEIGHT };
 		},
 		holdForRound: () => null,
+		mountTop: () => null,
 		syncScrollTop: () => {}
 	});
 
-	/** The path the owner keeps in place across the next height change, or null for none. */
-	function heldPath(): number[] | null {
+	/** The path the owner keeps in place across the next height change, or null for none: read as
+	 *  the round the change opens closes, at the next tick. */
+	async function heldPath(): Promise<number[] | null> {
 		asked.length = 0;
 		rootList.compensate(
 			() => {},
 			() => 0
 		);
+		await tick();
 		return asked[0] ?? null;
 	}
 
@@ -71,12 +74,12 @@ function makeOwner(scripts: Record<string, number[]> = {}, opts: { withRoot?: bo
 }
 
 describe('scroll owner: placing', () => {
-	it('holds the full target path, copied, before the scroll runs', () => {
+	it('holds the full target path, copied, before the scroll runs', async () => {
 		const h = makeOwner();
 		const path = [3, 1];
 		h.owner.place(path, { block: 'nearest', hold: true });
 		path[1] = 9;
-		expect(h.heldPath()).toEqual([3, 1]);
+		expect(await h.heldPath()).toEqual([3, 1]);
 	});
 
 	it.each([
@@ -84,10 +87,10 @@ describe('scroll owner: placing', () => {
 		['center', TABLE_TOP - (ROOT_BOTTOM - EL_HEIGHT) / 2]
 	] as const)(
 		'before the scroll records a landing, a %s placement goes where the height table says',
-		(block, expected) => {
+		async (block, expected) => {
 			const h = makeOwner();
 			h.owner.place([4], { block, hold: true });
-			h.heldPath();
+			await h.heldPath();
 			expect(h.port.scrollTop()).toBe(expected);
 		}
 	);
@@ -97,7 +100,7 @@ describe('scroll owner: placing', () => {
 		expect(await h.owner.place([4], { block: 'nearest', hold: true }).scroll()).toBe(true);
 		expect(h.scrollOpts).toHaveBeenCalledOnce();
 		expect(h.scrollOpts).toHaveBeenCalledWith({ block: 'nearest' });
-		expect(h.heldPath()).toEqual([4]);
+		expect(await h.heldPath()).toEqual([4]);
 	});
 
 	it('resolves false, never scrolls, and gives up the slot when the block is not mounted', async () => {
@@ -105,7 +108,7 @@ describe('scroll owner: placing', () => {
 		expect(await h.owner.place([99], { block: 'nearest', hold: true }).scroll()).toBe(false);
 		expect(h.scrollOpts).not.toHaveBeenCalled();
 		// A scroll that failed leaves nothing held to fight the next real scroll.
-		expect(h.heldPath()).toBeNull();
+		expect(await h.heldPath()).toBeNull();
 	});
 
 	it.each([
@@ -114,7 +117,7 @@ describe('scroll owner: placing', () => {
 	] as const)('%s gives the slot back once it resolves', async (_label, opts) => {
 		const h = makeOwner();
 		expect(await h.owner.place([4], opts).scroll()).toBe(true);
-		expect(h.heldPath()).toBeNull();
+		expect(await h.heldPath()).toBeNull();
 	});
 });
 
@@ -127,7 +130,7 @@ describe('scroll owner: a held target stays where it landed', () => {
 		h.port.setScrollTop(40);
 		await h.owner.place([4], { block: 'nearest', hold: true }).scroll();
 		// The table put it at 1000, so the recorded bias carries the 900 it doesn't know about.
-		h.heldPath();
+		await h.heldPath();
 		expect(h.port.scrollTop()).toBe(40);
 	});
 });
@@ -144,7 +147,7 @@ describe('scroll owner: when a placement is done', () => {
 			.then(() => (done = true));
 		let flushes = 0;
 		while (!done) {
-			if (flushes < busy) h.heldPath();
+			if (flushes < busy) void h.heldPath();
 			await tick();
 			flushes++;
 		}
@@ -165,7 +168,7 @@ describe('scroll owner: when a placement is done', () => {
 		// A compensation in every flush: what a mount wave that never goes quiet looks like.
 		const keepCompensating = async () => {
 			while (running) {
-				h.heldPath();
+				void h.heldPath();
 				flushes.count++;
 				await Promise.resolve();
 			}
@@ -190,7 +193,7 @@ describe('scroll owner: who may drop the slot', () => {
 		const fresh = h.owner.place([9], { block: 'nearest', hold: true });
 		await stale.scroll();
 		await fresh.scroll();
-		expect(h.heldPath()).toEqual([9]);
+		expect(await h.heldPath()).toEqual([9]);
 	});
 
 	it('a failed placement resolving late leaves a newer placement held', async () => {
@@ -199,7 +202,7 @@ describe('scroll owner: who may drop the slot', () => {
 		const fresh = h.owner.place([9], { block: 'nearest', hold: true });
 		expect(await stale.scroll()).toBe(false);
 		await fresh.scroll();
-		expect(h.heldPath()).toEqual([9]);
+		expect(await h.heldPath()).toEqual([9]);
 	});
 
 	// Identity, not an equal path: two callers aiming at one block are still two callers.
@@ -208,7 +211,7 @@ describe('scroll owner: who may drop the slot', () => {
 		const stale = h.owner.place([7], { block: 'center', hold: true });
 		h.owner.place([7], { block: 'nearest', hold: true });
 		await stale.scroll();
-		expect(h.heldPath()).toEqual([7]);
+		expect(await h.heldPath()).toEqual([7]);
 	});
 
 	it("the user's release mid-scroll drops the hold but not the answer", async () => {
@@ -216,7 +219,7 @@ describe('scroll owner: who may drop the slot', () => {
 		const pending = h.owner.place([1], { block: 'nearest', hold: true }).scroll();
 		h.owner.release();
 		expect(await pending).toBe(true);
-		expect(h.heldPath()).toBeNull();
+		expect(await h.heldPath()).toBeNull();
 	});
 
 	it("the user's release outranks the placement, which cannot take the slot back", async () => {
@@ -224,10 +227,10 @@ describe('scroll owner: who may drop the slot', () => {
 		const pending = h.owner.place([4], { block: 'nearest', hold: true });
 		h.owner.release();
 		await pending.scroll();
-		expect(h.heldPath()).toBeNull();
+		expect(await h.heldPath()).toBeNull();
 		h.owner.place([8], { block: 'nearest', hold: true });
 		await pending.scroll();
-		expect(h.heldPath()).toEqual([8]);
+		expect(await h.heldPath()).toEqual([8]);
 	});
 });
 

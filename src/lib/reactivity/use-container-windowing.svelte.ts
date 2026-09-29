@@ -48,6 +48,7 @@ export function useRootWindowing(
 		scroll = scrollOwner.resolveTargetsWith({
 			resolve: listTree.resolve,
 			holdForRound: listTree.holdForRound,
+			mountTop: listTree.mountTop,
 			syncScrollTop: () => windowing.syncScrollTop()
 		});
 		onDestroy(scroll.uninstall);
@@ -68,12 +69,14 @@ function windowingUnit(opts: ContainerWindowingOpts): ListWindowing {
 	// A bare mount has no owner: its heights land, and nothing holds the page still.
 	const scroll: ListScrollWrites = scrollOwner
 		? {
-				round: scrollOwner.round,
+				beginRound: scrollOwner.beginRound,
+				roundOpen: scrollOwner.roundOpen,
 				measureSoon: scrollOwner.measureSoon,
 				scrollToMount: scrollOwner.scrollToMount
 			}
 		: {
-				round: (run) => run(),
+				beginRound: () => {},
+				roundOpen: () => false,
 				measureSoon: (run) => void tick().then(run),
 				scrollToMount: () => {}
 			};

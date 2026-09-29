@@ -16,12 +16,16 @@ import type { ListLevel } from './list-tree';
 import type { NodeView } from '../core/node-views';
 import { recordHeightTableBuild } from '../perf/instruments';
 
-/** How a list reaches the editor's scroll owner. A list writes heights, never a correction: the
- *  owner keeps one block still across each round of them. */
+/** How a list reaches the editor's scroll owner. A list writes heights, never a scroll: the owner
+ *  keeps one block still across each flush of them. */
 export interface ListScrollWrites {
-	round(run: () => void): void;
+	/** Called before this list's table changes, so the round counts from the table as it was. */
+	beginRound(): void;
+	/** True from a round's first height write until its scroll correction lands. */
+	roundOpen(): boolean;
 	measureSoon(run: () => void): void;
-	scrollToMount(contentTop: number): void;
+	/** Scroll so the block at `path` mounts; the owner works out where. */
+	scrollToMount(path: readonly number[]): void;
 }
 
 export interface ListWindowingDeps {
@@ -136,6 +140,11 @@ function heightsById(table: HeightTable): Map<string, number> {
 }
 
 export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
+	// One batched pass per list, not an effect per child, which would interleave each layout read
+	// with the previous write and reflow once per mounted block. `pending` awaits a first measure.
+	const registry = new Map<string, RegisteredChild>();
+	const pending = new Set<string>();
+
 	/** A block that survives a rebuild keeps its measured height (`carried`), or the user scrolls by
 	 *  the estimate error (VR-15). Null once a width or font-size change has made them wrong. */
 	function buildTable(carried: Map<string, number> | null, widthVersion: number): BuiltTable {
@@ -166,6 +175,7 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 		const widthVersion = deps.getWidthVersion();
 		return untrack(() => {
 			const previous = latestTable;
+			if (previous !== null) deps.scroll.beginRound();
 			const keepsHeights =
 				previous !== null && previous.widthVersion === widthVersion && previous.atListWidth;
 			latestTable = buildTable(keepsHeights ? heightsById(previous) : null, widthVersion);
@@ -173,26 +183,17 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 		});
 	});
 	let heightVersion = $state(0);
+	// Built now, so the tree has a table to count from before anything reads the window.
+	untrack(() => table);
 
-	// One batched pass per list, not an effect per child, which would interleave each layout read
-	// with the previous write and reflow once per mounted block. `pending` awaits a first measure.
-	const registry = new Map<string, RegisteredChild>();
-	const pending = new Set<string>();
-
-	// The scroll correction for a new table waits for the flush, when the list's geometry is
-	// readable; the table itself is already in place, and the round picks against the old one.
-	let correctedTable = untrack(() => table);
+	// Width changes only: re-measuring on a structural edit costs a reflow.
+	let measuredWidth = untrack(() => table.widthVersion);
 	$effect(() => {
 		const next = table;
 		untrack(() => {
-			if (next === correctedTable) return;
-			const widthChanged = next.widthVersion !== correctedTable.widthVersion;
-			// Width changes only: re-measuring on a structural edit costs a reflow.
-			deps.scroll.round(() => {
-				correctedTable = next;
-				heightVersion++;
-				if (widthChanged) remeasureMounted();
-			});
+			if (next.widthVersion === measuredWidth) return;
+			measuredWidth = next.widthVersion;
+			remeasureMounted();
 		});
 	});
 
@@ -233,6 +234,7 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 		getLocalScrollTop: localScrollTop,
 		getViewportHeight: scopeViewportHeight,
 		getPinnedIndex: focusedIndex,
+		holdsRange: deps.scroll.roundOpen,
 		overscan: deps.overscan,
 		pinExtensionCap: deps.pinExtensionCap,
 		activateAbovePx: deps.activateAbovePx,
@@ -243,10 +245,11 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 	// the clamp.
 	const effectiveWindow = $derived.by(() => (deps.isCollapsed?.() ? collapsedWindow : win.result));
 
-	// The batch with no scroll correction: the caller owns that, because nesting a second
-	// correction inside an outer `mutate` counts the delta twice.
+	// A mount batch is a round even when nothing it measures moves, so a held placement is put back
+	// after whatever scrolled the blocks into mounting.
 	function drainMeasurements(): void {
 		if (pending.size === 0) return;
+		deps.scroll.beginRound();
 		const entries: MeasureEntry[] = [];
 		for (const id of pending) {
 			const child = registry.get(id);
@@ -263,42 +266,48 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 		drainMeasurements();
 	}
 
-	function flushMeasurements(): void {
-		if (pending.size > 0) deps.scroll.round(drainMeasurements);
-	}
-
-	// The one write of a child's height into this table, always inside a round. An index that
-	// now holds another block keeps its height; the next build reads this id's measurement.
+	// The one write of a child's height into this table. An index that now holds another block
+	// keeps its height; the next build reads this id's measurement.
 	function applyMeasured(index: number, id: string, height: number): void {
 		deps.oracle.recordMeasured(id, height);
+		// A height the table already holds moves nothing, so a keystroke that doesn't re-wrap opens
+		// no round.
 		if (table.ids[index] !== id || table.model.heightOf(index) === height) return;
+		deps.scroll.beginRound();
 		table.model.setHeight(index, height);
 		heightVersion++;
 	}
 
-	// Read before the correction so no DOM read follows the height-table write; a repeated call
-	// writes nothing once the height is stable, so it cannot spin the reactive graph.
+	// Read before the write so no DOM read follows it; a repeated call writes nothing once the
+	// height is stable, so it cannot spin the reactive graph.
 	function measureOne(id: string): void {
 		const child = registry.get(id);
 		if (!child) return;
 		const h = child.readHeight();
-		if (h <= 0) return;
-		// A height the table already holds moves nothing, so the keystroke that doesn't re-wrap
-		// skips the round and its pick.
-		const moves = table.ids[child.index] === id && table.model.heightOf(child.index) !== h;
-		if (moves) deps.scroll.round(() => child.applyHeight(h));
-		else child.applyHeight(h);
+		if (h > 0) child.applyHeight(h);
 	}
 
+	// A nested list's path reads its container's window, which a round opening inside the root
+	// table's build can't read again, so the tree reads the path as of the last flush.
+	let knownPath = untrack(deps.getParentPath);
+	$effect.pre(() => {
+		knownPath = deps.getParentPath();
+	});
+
 	const level: ListLevel = {
-		path: deps.getParentPath,
-		settled: () => correctedTable,
+		path: () => knownPath,
+		built: () => latestTable ?? table,
 		current: () => table,
+		contentTop: () => {
+			const port = deps.getPort();
+			const listEl = deps.getListEl();
+			return port && listEl ? listTopInPort(port, listEl) : null;
+		},
 		top: () => {
 			const port = deps.getPort();
 			const listEl = deps.getListEl();
 			if (!port || !listEl) return null;
-			if (deps.getParentPath().length === 0) return listTopInPort(port, listEl);
+			if (knownPath.length === 0) return listTopInPort(port, listEl);
 			const box = listEl.closest(MEASURED_BOX);
 			return box ? listEl.getBoundingClientRect().top - box.getBoundingClientRect().top : null;
 		},
@@ -331,7 +340,7 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 			};
 			registry.set(id, entry);
 			pending.add(id);
-			deps.scroll.measureSoon(flushMeasurements);
+			deps.scroll.measureSoon(drainMeasurements);
 			return () => {
 				registry.delete(id);
 				pending.delete(id);
@@ -361,10 +370,7 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 		async revealChild(index) {
 			// A body child of a collapsed list can never mount, so give up rather than wait.
 			if (index >= 1 && deps.isCollapsed?.()) return;
-			const port = deps.getPort();
-			const listEl = deps.getListEl();
-			if (!port || !listEl) return;
-			deps.scroll.scrollToMount(listTopInPort(port, listEl) + table.model.offsetOf(index));
+			deps.scroll.scrollToMount([...deps.getParentPath(), index]);
 			win.syncScrollTop();
 			await tick();
 		},

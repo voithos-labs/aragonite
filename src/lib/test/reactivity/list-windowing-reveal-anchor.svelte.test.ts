@@ -68,6 +68,7 @@ describe('list-windowing reveal anchor', () => {
 		children.splice(0, 0, makePara('new\n'));
 		ids.splice(0, 0, 'bNew');
 		flushSync();
+		await tick();
 
 		expect(port.scrollTop()).toBe(110);
 		cleanup();
@@ -81,6 +82,7 @@ describe('list-windowing reveal anchor', () => {
 		hold(scope, [4]);
 
 		(await growOnResize(scope.windowing, 'b2', 2, 30, 130))();
+		await tick();
 
 		expect(scope.port.scrollTop()).toBe(200);
 		scope.cleanup();
@@ -113,6 +115,7 @@ describe('list-windowing reveal anchor', () => {
 			hold(scope, [5, 0], block);
 
 			(await growOnResize(scope.windowing, 'b3', 3, 40, 80))();
+			await tick();
 
 			expect(scope.port.scrollTop()).toBe(expected);
 			nested.cleanup();
@@ -146,10 +149,9 @@ describe('one growth inside a container is corrected once', () => {
 			const growHost = await growOnResize(scope.windowing, 'b2', 2, 30, 30 + GROWTH);
 			const writes = [vi.spyOn(scope.port, 'scrollBy'), vi.spyOn(scope.port, 'setScrollTop')];
 
-			scope.owner.round(() => {
-				growInner();
-				growHost();
-			});
+			growInner();
+			growHost();
+			await tick();
 
 			expect(writes.map((w) => w.mock.calls.length)).toEqual([1, 0]);
 			expect(scope.port.scrollTop()).toBe(45 + GROWTH);

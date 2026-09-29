@@ -3,10 +3,10 @@ import { HeightModel } from '../../cursor/height-model';
 import {
 	focusedIndexIn,
 	heldBlock,
-	heldPathMoved,
-	heldStep,
+	heldIndexIn,
 	type HeightTable,
-	type HeldBlock
+	type HeldBlock,
+	type HeldDelta
 } from '../../reactivity/hold-across';
 import type { ListScrollWrites } from '../../reactivity/list-windowing.svelte';
 
@@ -58,38 +58,8 @@ const ROWS: Row[] = [
 	caseOf('past the end, no focus', PAST_END, null, null)
 ];
 
-/** How far each held block moves when block a grows 30px, when a 40px block goes in before d,
- *  and when the held block itself is removed (a removed caret's block leaves the top one held). */
-const MOVES: Record<string, [grown: number, inserted: number, removed: number]> = {
-	a: [0, 0, 0],
-	c: [30, 0, 0],
-	e: [30, 40, 0],
-	nothing: [0, 0, 0]
-};
-
-/** The focus path as the editor reads it after the change: the focused block where it is now,
- *  or nothing when the change removed it. A path outside this list or past it passes unchanged. */
-function onScreen(focus: number[] | null, before: HeightTable, after: HeightTable) {
-	const index = focusedIndexIn(focus, LIST_PATH);
-	if (index === null || index >= before.ids.length) return index;
-	const now = after.ids.indexOf(before.ids[index]);
-	return now === -1 ? null : now;
-}
-
-function pickFor(row: Row, before: HeightTable, after = before) {
-	return heldBlock(before, after, row.localTop, onScreen(row.focus, before, after));
-}
-
-/** How far `held` moves across `mutate`, read the way a round reads it. */
-function across(
-	before: HeightTable,
-	after: () => HeightTable,
-	held: HeldBlock | null,
-	mutate: () => void
-): number {
-	const path = held ? [heldStep(before, held, after)] : [];
-	mutate();
-	return heldPathMoved(path);
+function pickFor(row: Row, table: HeightTable) {
+	return heldBlock(table, row.localTop, focusedIndexIn(row.focus, LIST_PATH));
 }
 
 describe('heldBlock', () => {
@@ -100,170 +70,49 @@ describe('heldBlock', () => {
 	}
 
 	it('an empty list holds nothing', () => {
-		const empty = tableOf([]);
-		expect(heldBlock(empty, empty, INSIDE, 0)).toBeNull();
+		expect(heldBlock(tableOf([]), INSIDE, 0)).toBeNull();
+	});
+
+	it('marks the caret’s block, so a change that moves it can cancel the hold', () => {
+		const table = tableOf(IDS);
+		expect(heldBlock(table, INSIDE, 4)?.focused).toBe(true);
+		expect(heldBlock(table, INSIDE, 0)?.focused).toBe(false);
 	});
 });
 
-describe('heldPathMoved over one list', () => {
-	for (const row of ROWS) {
-		const [grown, inserted, removed] = MOVES[row.held ?? 'nothing'];
+describe('heldIndexIn', () => {
+	const before = tableOf(IDS);
+	const top = () => heldBlock(before, INSIDE, null)!;
+	const caretOn = (index: number) => heldBlock(before, INSIDE, index)!;
 
-		it(`${row.name}, block a grown in place: moves ${grown}`, () => {
-			const table = tableOf(IDS);
-			const held = pickFor(row, table);
-			const grow = () => table.model.setHeight(0, 130);
-			expect(across(table, () => table, held, grow)).toBe(grown);
-		});
-
-		it(`${row.name}, a block inserted before d: moves ${inserted}`, () => {
-			const before = tableOf(IDS);
-			const after = tableOf(['a', 'b', 'c', 'n', 'd', 'e', 'f'], (id) => (id === 'n' ? 40 : 100));
-			expect(
-				across(
-					before,
-					() => after,
-					pickFor(row, before, after),
-					() => {}
-				)
-			).toBe(inserted);
-		});
-
-		it(`${row.name}, the held block removed: moves ${removed}`, () => {
-			const before = tableOf(IDS);
-			const gone = row.held ?? 'c';
-			const after = tableOf(IDS.filter((id) => id !== gone));
-			expect(
-				across(
-					before,
-					() => after,
-					pickFor(row, before, after),
-					() => {}
-				)
-			).toBe(removed);
-		});
-	}
-
-	it('runs the change once, and reads the table after it', () => {
-		const before = tableOf(IDS);
-		let after = before;
-		let runs = 0;
-		const held = heldBlock(before, before, INSIDE, null);
-		const delta = across(
-			before,
-			() => after,
-			held,
-			() => {
-				runs++;
-				after = tableOf(['n', ...IDS]);
-			}
-		);
-		expect({ runs, delta }).toEqual({ runs: 1, delta: 100 });
+	it('a measure keeps the table, so the index stands without a lookup', () => {
+		expect(heldIndexIn(top(), before, before)).toBe(2);
 	});
-});
 
-// A reorder's block moves on a still page, so a focused block the change moved past a neighbour
-// isn't held; the rule falls back to the block at the top.
-const MOVED: {
-	name: string;
-	localTop: number;
-	focus: number[];
-	after: string[];
-	held: string | null;
-	moves: number;
-}[] = [
-	{
-		name: 'focused e moved up past d',
-		localTop: INSIDE,
-		focus: [2, 4],
-		after: ['a', 'b', 'c', 'e', 'd', 'f'],
-		held: 'c',
-		moves: 0
-	},
-	{
-		name: 'focused e moved down past f',
-		localTop: INSIDE,
-		focus: [2, 4],
-		after: ['a', 'b', 'c', 'd', 'f', 'e'],
-		held: 'c',
-		moves: 0
-	},
-	{
-		name: 'focused c, at the top, moved down past d',
-		localTop: INSIDE,
-		focus: [2, 2],
-		after: ['a', 'b', 'd', 'c', 'e', 'f'],
-		held: 'c',
-		moves: 100
-	},
-	{
-		name: 'focused d, at the top, moved up past c',
-		localTop: 350,
-		focus: [2, 3],
-		after: ['a', 'b', 'd', 'c', 'e', 'f'],
-		held: 'd',
-		moves: -100
-	},
-	{
-		name: 'lst 0, focused e moved up past d',
-		localTop: 0,
-		focus: [2, 4],
-		after: ['a', 'b', 'c', 'e', 'd', 'f'],
-		held: null,
-		moves: 0
-	},
-	{
-		name: 'focused e, a moved from above it to the end',
-		localTop: INSIDE,
-		focus: [2, 4],
-		after: ['b', 'c', 'd', 'e', 'f', 'a'],
-		held: 'e',
-		moves: -100
-	},
-	{
-		name: 'focused e, d deleted and n inserted next to it',
-		localTop: INSIDE,
-		focus: [2, 4],
-		after: ['a', 'b', 'c', 'n', 'e', 'f'],
-		held: 'e',
-		moves: 0
-	},
-	// Only one neighbour changes in each of these two, so each half of the check has its own row.
-	{
-		name: 'focused e, d moved from before it to the end',
-		localTop: INSIDE,
-		focus: [2, 4],
-		after: ['a', 'b', 'c', 'e', 'f', 'd'],
-		held: 'c',
-		moves: 0
-	},
-	{
-		name: 'focused e, f moved from after it to the front',
-		localTop: INSIDE,
-		focus: [2, 4],
-		after: ['f', 'a', 'b', 'c', 'd', 'e'],
-		held: 'c',
-		moves: 100
-	}
-];
+	it('finds the block by id after an insert before it', () => {
+		expect(heldIndexIn(top(), before, tableOf(['n', ...IDS]))).toBe(3);
+	});
 
-describe('a focused block the change moved', () => {
-	for (const row of MOVED) {
-		it(`${row.name}: holds ${row.held ?? 'nothing'}, which moves ${row.moves}`, () => {
-			const before = tableOf(IDS);
-			const after = tableOf(row.after);
-			const held = heldBlock(before, after, row.localTop, onScreen(row.focus, before, after));
-			expect(held?.id ?? null).toBe(row.held);
-			expect(
-				across(
-					before,
-					() => after,
-					held,
-					() => {}
-				)
-			).toBe(row.moves);
-		});
-	}
+	it('reads a removed block as gone', () => {
+		expect(heldIndexIn(top(), before, tableOf(IDS.filter((id) => id !== 'c')))).toBe(-1);
+	});
+
+	// A reorder's block moves on a still page, so a caret's block the change moved past a
+	// neighbour isn't held; an added or removed neighbour doesn't count.
+	it.each([
+		['moved up past d', ['a', 'b', 'c', 'e', 'd', 'f'], -1],
+		['moved down past f', ['a', 'b', 'c', 'd', 'f', 'e'], -1],
+		['d moved from before it to the end', ['a', 'b', 'c', 'e', 'f', 'd'], -1],
+		['f moved from after it to the front', ['f', 'a', 'b', 'c', 'd', 'e'], -1],
+		['a moved from above it to the end', ['b', 'c', 'd', 'e', 'f', 'a'], 3],
+		['d deleted and n inserted next to it', ['a', 'b', 'c', 'n', 'e', 'f'], 4]
+	] as const)('the caret’s block e, %s: %s', (_label, after, index) => {
+		expect(heldIndexIn(caretOn(4), before, tableOf([...after]))).toBe(index);
+	});
+
+	it('the block at the top keeps its hold through a reorder that moves it', () => {
+		expect(heldIndexIn(top(), before, tableOf(['a', 'b', 'd', 'c', 'e', 'f']))).toBe(3);
+	});
 });
 
 describe('focusedIndexIn', () => {
@@ -277,17 +126,23 @@ describe('focusedIndexIn', () => {
 });
 
 describe('a correction holds only what heldBlock picks', () => {
-	it('refuses a hand-written distance or a hand-picked block', () => {
+	it('refuses a hand-written distance, a scroll write from a list, or a hand-picked block', () => {
 		const table = tableOf(IDS);
 		const writes: ListScrollWrites = {
-			round: (run) => run(),
+			beginRound: () => {},
+			roundOpen: () => false,
 			measureSoon: () => {},
 			scrollToMount: () => {}
 		};
 		// @ts-expect-error a list writes heights, never a distance to scroll by
 		writes.compensate?.(() => {}, 0);
+		// @ts-expect-error a list mounts a block by its path, never by a scroll position
+		writes.scrollToMount(120);
 		// @ts-expect-error a block picked by hand isn't one `heldBlock` picked
-		const byHand: HeldBlock = { id: 'c', index: 2 };
-		expect(heldPathMoved([heldStep(table, byHand, () => table)])).toBe(0);
+		const byHand: HeldBlock = { id: 'c', index: 2, focused: false };
+		expect(heldIndexIn(byHand, table, table)).toBe(2);
+		// @ts-expect-error a distance worked out by hand isn't one `heldDelta` made
+		const distance: HeldDelta = 40;
+		expect(distance).toBe(40);
 	});
 });

@@ -13,6 +13,7 @@ import {
 	resetPerfInstruments
 } from '../../perf/instruments';
 import {
+	focusFollowing,
 	makePara,
 	mountListWindowing,
 	type MountedListWindowing
@@ -56,15 +57,20 @@ function mount(): Fixture {
 	const ids = $state(Array.from({ length: COUNT }, (_, i) => idOf(i)));
 	let widthVersion = $state(0);
 	const oracle = liveOracle();
+	const focus = focusFollowing(ids, FOCUSED);
 	const scope = mountListWindowing({
 		children,
 		ids,
 		oracle,
 		listHeight: COUNT * HEIGHT,
 		getWidthVersion: () => widthVersion,
-		// Read where the block is now, as the editor reads the focused block's own element.
-		getFocusPath: () => [ids.indexOf(FOCUSED)]
+		getFocusPath: focus.getFocusPath
 	});
+	const cleanup = scope.cleanup;
+	scope.cleanup = () => {
+		focus.stop();
+		cleanup();
+	};
 	scope.port.setScrollTop(SCROLL_TOP);
 	return {
 		scope,
@@ -205,6 +211,7 @@ describe('list-windowing: every height change holds the focused block below the 
 			const f = mount();
 			const before = focusedScreenTop(f);
 			await route.change(f);
+			await tick();
 			expect(focusedScreenTop(f)).toBe(before);
 			f.scope.cleanup();
 		});
@@ -216,13 +223,14 @@ describe('list-windowing: a reorder that moves the focused block leaves the page
 		['up past b4', 4],
 		['down past b6', 6]
 	] as const) {
-		it(`the focused block moved ${direction}: scrollTop stays`, () => {
+		it(`the focused block moved ${direction}: scrollTop stays`, async () => {
 			const f = mount();
 			const [child] = f.children.splice(FOCUSED_INDEX, 1);
 			const [id] = f.ids.splice(FOCUSED_INDEX, 1);
 			f.children.splice(to, 0, child);
 			f.ids.splice(to, 0, id);
 			flushSync();
+			await tick();
 			expect(f.scope.port.scrollTop()).toBe(SCROLL_TOP);
 			f.scope.cleanup();
 		});
@@ -258,8 +266,10 @@ describe('list-windowing: a reorder that moves the focused block leaves the page
 			f.children.splice(FOCUSED_INDEX - 1, 0, child);
 			f.ids.splice(FOCUSED_INDEX - 1, 0, id);
 			flushSync();
+			await tick();
 			const before = focusedScreenTop(f);
 			await change(f);
+			await tick();
 			expect(focusedScreenTop(f)).toBe(before);
 			f.scope.cleanup();
 		});
@@ -274,10 +284,12 @@ describe('list-windowing: only a rebuild checks whether the focused block moved'
 		const height = await f.mountChanged();
 		height.px = GROWN;
 		f.scope.windowing.measureChildNow(CHANGED);
+		await tick();
 		const afterMeasure = perfSnapshot().neighbourPasses;
 		f.children.splice(1, 1);
 		f.ids.splice(1, 1);
 		flushSync();
+		await tick();
 		const afterRebuild = perfSnapshot().neighbourPasses;
 		f.scope.cleanup();
 		disablePerfInstruments();

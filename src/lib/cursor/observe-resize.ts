@@ -20,25 +20,25 @@ export interface SharedResizeWatch {
 	watch(el: Element, onResize: (entry: ResizeObserverEntry) => void): () => void;
 }
 
-/** One observer for many elements, so one layout's size changes arrive in one callback, run
- *  inside `deliver`. Each watch starts a frame late, as `observeResize`'s does. */
-export function createSharedResizeWatch(deliver: (run: () => void) => void): SharedResizeWatch {
+/** One observer for many elements, each watched from the next frame as `observeResize` does.
+ *  Made at that frame, after the editor's width watcher, which a width change then reaches first. */
+export function createSharedResizeWatch(): SharedResizeWatch {
 	const listeners = new Map<Element, (entry: ResizeObserverEntry) => void>();
 	let observer: ResizeObserver | null = null;
+	const deliver: ResizeObserverCallback = (entries) => {
+		for (const entry of entries) listeners.get(entry.target)?.(entry);
+	};
 	return {
 		watch(el, onResize) {
 			if (typeof ResizeObserver !== 'function') return () => {};
-			observer ??= new ResizeObserver((entries) =>
-				deliver(() => {
-					for (const entry of entries) listeners.get(entry.target)?.(entry);
-				})
-			);
-			const shared = observer;
 			listeners.set(el, onResize);
-			const frame = requestAnimationFrame(() => shared.observe(el));
+			const frame = requestAnimationFrame(() => {
+				observer ??= new ResizeObserver(deliver);
+				observer.observe(el);
+			});
 			return () => {
 				cancelAnimationFrame(frame);
-				shared.unobserve(el);
+				observer?.unobserve(el);
 				if (listeners.get(el) === onResize) listeners.delete(el);
 			};
 		}

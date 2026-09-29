@@ -1,8 +1,17 @@
 import { test, expect } from '../../fixtures';
 import type { Page } from '@playwright/test';
-import { EditorPage } from '../../editor-page';
+import type { EditorPage } from '../../editor-page';
 import { capturePageErrors } from '../../page-probes';
 import { spacerCount, topVisibleHostTop, TOP_LEVEL_HOSTS } from './vr-helpers';
+import {
+	BELOW,
+	CONTAINER,
+	docWith,
+	listOf,
+	openNested,
+	quoteOf,
+	type ScrollMode
+} from './vr-nested-fixtures';
 
 // An image decoding inside a container grows the container, and the page is corrected for it
 // exactly once: the block you're looking at doesn't move.
@@ -14,33 +23,7 @@ const IMAGE_URL = 'https://e2e-deferred.test/nested-growth.svg';
 const LATE_SVG =
 	'<svg xmlns="http://www.w3.org/2000/svg" width="600" height="900">' +
 	'<rect width="100%" height="100%" fill="#4488cc"/></svg>';
-const CONTAINER = 30;
-const BELOW = 32;
 const IMAGE = `![late](${IMAGE_URL})`;
-
-const para = (i: number) => `Paragraph ${i} with enough words in it to fill most of a line.`;
-
-function docWith(container: string): string {
-	return [
-		...Array.from({ length: CONTAINER }, (_, i) => para(i)),
-		container,
-		...Array.from({ length: 150 }, (_, i) => para(CONTAINER + 1 + i))
-	].join('\n\n');
-}
-
-/** A list of `count` items of two blocks each; item `imageItem`'s second block onwards is `body`. */
-function listOf(count: number, imageItem: number, body: string): string {
-	return Array.from({ length: count }, (_, i) =>
-		i === imageItem ? `- item ${i}\n\n  ${body}` : `- item ${i}\n\n  a second block`
-	).join('\n');
-}
-
-/** A blockquote of `count` paragraphs, the image being paragraph 1. */
-function quoteOf(count: number): string {
-	return Array.from({ length: count }, (_, i) =>
-		i === 1 ? `> ${IMAGE}` : `> Quoted paragraph ${i} with a few words.`
-	).join('\n>\n');
-}
 
 /** Holds the image until the returned call, so it grows after the page has settled. */
 async function deferImage(page: Page): Promise<() => void> {
@@ -53,34 +36,6 @@ async function deferImage(page: Page): Promise<() => void> {
 		await route.fulfill({ status: 200, contentType: 'image/svg+xml', body: LATE_SVG });
 	});
 	return release;
-}
-
-/** A block's box in the scroll content, or null while it is unmounted. */
-function contentBox(page: Page, path: number[]): Promise<{ top: number; bottom: number } | null> {
-	return page.evaluate((p) => {
-		const editor = document.querySelector('.editor') as HTMLElement;
-		const host = document.querySelector(`[data-block-path='${JSON.stringify(p)}']`);
-		if (!host) return null;
-		const offset = editor.scrollTop - editor.getBoundingClientRect().top;
-		const rect = host.getBoundingClientRect();
-		return { top: rect.top + offset, bottom: rect.bottom + offset };
-	}, path);
-}
-
-async function scrollUntilMounted(editor: EditorPage, path: number[]): Promise<void> {
-	for (let top = 0; top < 20_000; top += 400) {
-		if (await contentBox(editor.page, path)) break;
-		await editor.scrollEditorTo(top);
-	}
-	await editor.waitForResizeObserverFlush();
-	if (!(await contentBox(editor.page, path))) throw new Error(`${path} never mounted`);
-}
-
-function screenTop(page: Page, path: string): Promise<number | null> {
-	return page.evaluate((p) => {
-		const el = document.querySelector(`[data-block-path='${p}']`);
-		return el ? el.getBoundingClientRect().top : null;
-	}, path);
 }
 
 function imageState(page: Page): Promise<'undecoded' | 'decoded' | 'gone'> {
@@ -102,21 +57,6 @@ async function releaseAndSettle(editor: EditorPage, release: () => void): Promis
 	}
 }
 
-async function expectHeldAt(page: Page, path: string, top: number): Promise<void> {
-	const after = await screenTop(page, path);
-	expect(after, `${path} stays mounted`).not.toBeNull();
-	expect(Math.abs(after! - top), `${path} moved from ${top} to ${after}`).toBeLessThanOrEqual(1);
-}
-
-async function load(page: Page, doc: string): Promise<{ editor: EditorPage; release: () => void }> {
-	const editor = new EditorPage(page);
-	await editor.goto();
-	const release = await deferImage(page);
-	await editor.loadContent(doc);
-	expect(await spacerCount(page), 'the fixture must window').toBeGreaterThan(0);
-	return { editor, release };
-}
-
 test.describe('growth inside a container wholly above the viewport is corrected once', () => {
 	const CASES = [
 		{ name: "the last item's last block", doc: docWith(listOf(5, 4, IMAGE)) },
@@ -128,11 +68,13 @@ test.describe('growth inside a container wholly above the viewport is corrected 
 	for (const { name, doc } of CASES) {
 		test(`an image decoding in ${name}`, async ({ page }) => {
 			const pageErrors = capturePageErrors(page);
-			const { editor, release } = await load(page, doc);
-			await scrollUntilMounted(editor, [CONTAINER]);
-			const box = (await contentBox(page, [CONTAINER]))!;
-			await editor.scrollEditorTo(Math.round(box.bottom + 80));
-			await editor.waitForResizeObserverFlush();
+			const release = await deferImage(page);
+			const nested = await openNested(page, 'self', doc);
+			expect(await spacerCount(page), 'the fixture must window').toBeGreaterThan(0);
+			await nested.topInside([CONTAINER]);
+			const box = (await nested.contentBox([CONTAINER]))!;
+			await nested.scrollTo(Math.round(box.bottom + 80));
+			await nested.editor.waitForResizeObserverFlush();
 
 			const pre = await page.evaluate((index) => {
 				const editorTop = (document.querySelector('.editor') as HTMLElement).getBoundingClientRect()
@@ -143,10 +85,14 @@ test.describe('growth inside a container wholly above the viewport is corrected 
 			expect(pre, 'the list sits above the viewport').toBe(true);
 			expect(await imageState(page)).toBe('undecoded');
 			const reference = await topVisibleHostTop(page, { selector: `.editor ${TOP_LEVEL_HOSTS}` });
+			const path = JSON.parse(reference!.ref!) as number[];
+			const before = (await nested.screenTop(path))!;
 
-			await releaseAndSettle(editor, release);
+			await releaseAndSettle(nested.editor, release);
 
-			await expectHeldAt(page, reference!.ref!, reference!.top);
+			const after = await nested.screenTop(path);
+			expect(after, `${reference!.ref} stays mounted`).not.toBeNull();
+			expect(Math.abs(after! - before), `moved from ${before} to ${after}`).toBeLessThanOrEqual(1);
 			expect(pageErrors).toEqual([]);
 		});
 	}
@@ -166,40 +112,55 @@ test.describe('growth inside a container holding the viewport’s top is correct
 			caret: true
 		},
 		{ name: 'a 10-paragraph blockquote, no caret', kind: 'quote', count: 10, caret: false },
-		{ name: 'a 40-paragraph blockquote, no caret', kind: 'quote', count: 40, caret: false }
+		{ name: 'a 40-paragraph blockquote, no caret', kind: 'quote', count: 40, caret: false },
+		{
+			name: 'a 10-item list inside a blockquote, no caret',
+			kind: 'quotedList',
+			count: 10,
+			caret: false
+		}
 	] as const;
-	for (const { name, kind, count, caret } of CASES) {
-		test(`an image decoding in ${name}`, async ({ page }) => {
-			const pageErrors = capturePageErrors(page);
-			const container = kind === 'list' ? listOf(count, 1, IMAGE) : quoteOf(count);
-			const { editor, release } = await load(page, docWith(container));
-			// A list item renders no block host, so its first block stands for it.
-			const sixth = kind === 'list' ? [CONTAINER, 6, 0] : [CONTAINER, 6];
-			await scrollUntilMounted(editor, sixth);
-			const child = (await contentBox(page, sixth))!;
-			await editor.scrollEditorTo(Math.round(child.top + 5));
-			await editor.waitForResizeObserverFlush();
-			if (caret) {
-				await editor.clickBlockAtPath([BELOW], 3);
-				await editor.waitForResizeObserverFlush();
-			}
+	const containerOf = (kind: string, count: number) =>
+		kind === 'list'
+			? listOf(count, 1, IMAGE)
+			: kind === 'quote'
+				? quoteOf(count, IMAGE)
+				: listOf(count, 1, IMAGE)
+						.split('\n')
+						.map((line) => `> ${line}`)
+						.join('\n');
+	// A list item renders no block host, so its first block stands for it.
+	const sixthOf = (kind: string) =>
+		kind === 'list' ? [CONTAINER, 6, 0] : kind === 'quote' ? [CONTAINER, 6] : [CONTAINER, 0, 6, 0];
 
-			const insideSixth = await page.evaluate((p) => {
-				const top = (document.querySelector('.editor') as HTMLElement).getBoundingClientRect().top;
-				const rect = document
-					.querySelector(`[data-block-path='${JSON.stringify(p)}']`)!
-					.getBoundingClientRect();
-				return rect.top <= top && rect.bottom > top;
-			}, sixth);
-			expect(insideSixth, "the viewport's top sits inside child 6").toBe(true);
-			expect(await imageState(page)).toBe('undecoded');
-			const reference = caret || count === 10 ? `[${BELOW}]` : JSON.stringify(sixth);
-			const before = (await screenTop(page, reference))!;
+	for (const mode of ['self', 'host'] as ScrollMode[]) {
+		for (const { name, kind, count, caret } of CASES) {
+			test(`an image decoding in ${name}, scrollMode ${mode}`, async ({ page }) => {
+				const pageErrors = capturePageErrors(page);
+				const release = await deferImage(page);
+				const nested = await openNested(page, mode, docWith(containerOf(kind, count)));
+				expect(await spacerCount(page), 'the fixture must window').toBeGreaterThan(0);
+				const sixth = sixthOf(kind);
+				await nested.topInside(sixth);
+				if (caret) {
+					await nested.editor.clickBlockAtPath([BELOW], 3);
+					await nested.editor.waitForResizeObserverFlush();
+				}
+				expect(await imageState(page)).toBe('undecoded');
+				const reference = caret || count === 10 ? [BELOW] : sixth;
+				const before = (await nested.screenTop(reference))!;
+				const writes = await nested.countWrites();
 
-			await releaseAndSettle(editor, release);
+				await releaseAndSettle(nested.editor, release);
 
-			await expectHeldAt(page, reference, before);
-			expect(pageErrors).toEqual([]);
-		});
+				const after = await nested.screenTop(reference);
+				expect(after, `${JSON.stringify(reference)} stays mounted`).not.toBeNull();
+				expect(Math.abs(after! - before), `moved from ${before} to ${after}`).toBeLessThanOrEqual(
+					1
+				);
+				expect(await writes(), 'one scroll write').toHaveLength(1);
+				expect(pageErrors).toEqual([]);
+			});
+		}
 	}
 });

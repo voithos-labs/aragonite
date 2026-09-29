@@ -124,7 +124,7 @@ export interface ChildMeasureChannel {
 	register(path: readonly number[], id: string, readHeight: () => number): () => void;
 	measureNow(id: string): void;
 	measureOnResize(id: string, observedHeight: number): void;
-	/** Every child's size is watched by one observer per editor, so one layout is one round. */
+	/** Every child's size is watched by one observer per editor; its callback only records heights. */
 	watchSize(el: Element, onResize: (entry: ResizeObserverEntry) => void): () => void;
 }
 

@@ -40,6 +40,7 @@ describe('the anchor correction over a scroller that snaps to whole pixels', () 
 			windowing.measureChildOnResize(id, SHORT);
 		}
 
+		await tick();
 		const settled = port.scrollTop();
 		await windowing.revealChild(ANCHOR);
 		expect(port.scrollTop(), 'the anchor is still at the viewport top').toBe(settled);

@@ -3,7 +3,7 @@
  * scroll owner writing it, a list element, an `$effect.root`, and the wiring every child list
  * takes. A suite passes only the fixture and the one option it tunes.
  */
-import { flushSync } from 'svelte';
+import { flushSync, tick } from 'svelte';
 import {
 	createListWindowing,
 	type ListWindowing,
@@ -124,6 +124,7 @@ export function mountListWindowing(options: MountListWindowingOptions): MountedL
 	const rootScroll = owner.resolveTargetsWith({
 		resolve: tree.resolve,
 		holdForRound: tree.holdForRound,
+		mountTop: tree.mountTop,
 		syncScrollTop: () => windowing.syncScrollTop()
 	});
 	flushSync();
@@ -132,7 +133,8 @@ export function mountListWindowing(options: MountListWindowingOptions): MountedL
 
 function ownerWrites(owner: ScrollOwner): ListWindowingDeps['scroll'] {
 	return {
-		round: owner.round,
+		beginRound: owner.beginRound,
+		roundOpen: owner.roundOpen,
 		measureSoon: owner.measureSoon,
 		scrollToMount: owner.scrollToMount
 	};
@@ -195,4 +197,17 @@ export function mountNestedList(options: NestedListOptions): {
 			cleanup();
 		}
 	};
+}
+
+/** The focus path of the block `id`, as the editor reads it off the block's element: the element's
+ *  path updates with the rest of the DOM, after the round a change opens has made its pick. */
+export function focusFollowing(ids: readonly string[], id: string) {
+	let at = ids.indexOf(id);
+	const stop = $effect.root(() => {
+		$effect(() => {
+			const next = ids.indexOf(id);
+			void tick().then(() => (at = next));
+		});
+	});
+	return { getFocusPath: () => (at === -1 ? null : [at]), stop };
 }

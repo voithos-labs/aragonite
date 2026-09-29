@@ -5,6 +5,7 @@ import { describe, it, expect } from 'vitest';
 import { flushSync } from 'svelte';
 import type { HeightOracle } from '../../cursor/height-oracle';
 import { createListWindowing, type ListWindowing } from '../../reactivity/list-windowing.svelte';
+import { createListTree } from '../../reactivity/list-tree';
 import { makePara } from '../harness/list-windowing.svelte';
 import { stubListEl, stubScrollOwner, stubScrollport } from '../harness/stub-scrollport';
 
@@ -34,7 +35,8 @@ describe("a nested list's first heights", () => {
 				getListEl: () => listEl,
 				getPort: () => port,
 				scroll: {
-					round: owner.round,
+					beginRound: owner.beginRound,
+					roundOpen: owner.roundOpen,
 					measureSoon: owner.measureSoon,
 					scrollToMount: owner.scrollToMount
 				},
@@ -47,6 +49,15 @@ describe("a nested list's first heights", () => {
 				activateAbovePx: 1000,
 				deactivateBelowPx: 800
 			});
+		});
+		// The owner works out a mount scroll through the tree the list joins.
+		const tree = createListTree({ getScrollTop: () => port.scrollTop(), getFocusPath: () => null });
+		tree.add(windowing.level);
+		owner.resolveTargetsWith({
+			resolve: tree.resolve,
+			holdForRound: tree.holdForRound,
+			mountTop: tree.mountTop,
+			syncScrollTop: () => {}
 		});
 		flushSync();
 		void windowing.window;

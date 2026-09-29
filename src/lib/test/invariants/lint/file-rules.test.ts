@@ -1356,6 +1356,23 @@ const SCROLL_WRITERS: ManifestRule[] = [
 			'scrollOwner.scrollToMount(top);\nvoid rects.scrollTo([4]);\nawait rects.scrollTo(p, opts);',
 			'return placement.scroll();\nconst landed = await deps.scroll.place(p, o).scroll();'
 		]
+	},
+	{
+		id: 'G4.87 a list asks for a mount scroll by path, from its descent alone',
+		matches: /(?<![\w$])scrollToMount\s*\(/,
+		declared: {
+			'src/lib/cursor/scroll-owner.ts': 'the owner, which works out where from the list tree',
+			'src/lib/reactivity/list-windowing.svelte.ts':
+				'`revealChild`, the descent’s one scroll, naming the block and never a position'
+		},
+		reason:
+			'a list that scrolls outside its descent corrects behind the measure round’s back: write heights and let the round keep the page still, or declare why here',
+		reaches: ['src/lib/reactivity/list-windowing.svelte.ts'],
+		hits: ['deps.scroll.scrollToMount([...path, index]);', 'owner.scrollToMount (path)'],
+		misses: [
+			'scrollToMount: scrollOwner.scrollToMount,',
+			'// scrollToMount(path) mounts it.\nconst a = 1;'
+		]
 	}
 ];
 
@@ -1416,13 +1433,13 @@ const BARE_FOCUSES: ManifestRule[] = [
 /** Every call that corrects, picks a held block or holds nothing, keyed by path, function and
  *  kind, so a call moved elsewhere fails. `<module>` is a function with a bracketed return type. */
 const CORRECTIONS: Record<string, { calls: number; reason: string }> = {
-	'src/lib/reactivity/list-tree.ts :: createListTree :: heldBlock': {
+	'src/lib/reactivity/list-tree.ts :: descend :: heldBlock': {
 		calls: 1,
 		reason: 'the one pick of the block a measure round keeps still, level by level'
 	},
-	'src/lib/reactivity/list-tree.ts :: createListTree :: held move': {
+	'src/lib/reactivity/list-tree.ts :: movedSince :: held move': {
 		calls: 1,
-		reason: 'the one read of how far it moved, which the scroll owner writes once per round'
+		reason: 'the one distance the round corrects by, read through the same walk as `resolve`'
 	},
 	'src/lib/components/editor-root-geometry.ts :: <module> :: compensate': {
 		calls: 1,
@@ -1440,7 +1457,7 @@ interface CallKind {
 const CORRECTION_KINDS: CallKind[] = [
 	{ kind: 'compensate', callee: 'compensate', counts: () => true },
 	{ kind: 'heldBlock', callee: 'heldBlock', counts: () => true },
-	{ kind: 'held move', callee: 'heldPathMoved', counts: () => true }
+	{ kind: 'held move', callee: 'heldDelta', counts: () => true }
 ];
 
 /** Each `path :: function :: kind` in `file` with its count; a definition or signature isn't a call. */
@@ -1468,10 +1485,10 @@ const HELD_BRANDS: FileRule = {
 	matches: /\bas\s+(?:HeldBlock|HeldDelta)\b/,
 	allowed: {
 		'src/lib/reactivity/hold-across.ts':
-			'`heldBlock` and `heldPathMoved`, the one pick and its measure'
+			'`heldBlock` and `heldDelta`, the one pick and the one distance'
 	},
 	reason:
-		'a cast to a held block or a held distance picks the block a list keeps still somewhere other than `heldBlock`: call `heldBlock` and `heldPathMoved` instead',
+		'a cast to a held block or a held distance picks the block a list keeps still somewhere other than `heldBlock`: call `heldBlock` and `heldDelta` instead',
 	reaches: ['src/lib/reactivity/hold-across.ts'],
 	hits: ['return 0 as HeldDelta;', "const held = { id: 'b3', index: 3 } as HeldBlock;"],
 	misses: ['const held: HeldBlock | null = heldBlock(table, top, focused);']
@@ -1498,9 +1515,10 @@ function describeCorrections(sources: SourceFile[]): void {
 			expect(sites('function a() {\n\troot.compensate(w, () => 0);\n}')).toEqual({
 				'probe.ts :: a :: compensate': 1
 			});
-			expect(
-				sites('function b() {\n\theldPathMoved([heldStep(t, heldBlock(t, t, 0, i), now)]);\n}')
-			).toEqual({ 'probe.ts :: b :: heldBlock': 1, 'probe.ts :: b :: held move': 1 });
+			expect(sites('function b() {\n\theldDelta(0, walk(heldBlock(t, 0, i)));\n}')).toEqual({
+				'probe.ts :: b :: heldBlock': 1,
+				'probe.ts :: b :: held move': 1
+			});
 			expect(sites('owner ? owner.compensate(mutate, held) : mutate();')).toEqual({
 				'probe.ts :: <module> :: compensate': 1
 			});

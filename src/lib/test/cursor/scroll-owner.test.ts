@@ -189,16 +189,18 @@ async function landOnB4(f: Fixture, as: 'edit' | 'navigation'): Promise<void> {
 
 /** The block the owner keeps still on the next change, read by growing the block at the
  *  viewport's top: a placement still aimed at b5, with no landing recorded, sends it to b5's top. */
-function stillHoldsB5(f: Fixture): void {
+async function stillHoldsB5(f: Fixture): Promise<void> {
 	measureTopBlockTaller(f);
+	await tick();
 	expect(f.port.scrollTop()).toBe(HELD_TOP + GROWTH);
 }
 
 /** The older hold on b5 is gone: a growth above the viewport only shifts the page by itself,
  *  where a live hold would send it to b5's top. */
-function holdsNothing(f: Fixture): void {
+async function holdsNothing(f: Fixture): Promise<void> {
 	const before = f.port.scrollTop();
 	measureB2Taller(f);
+	await tick();
 	expect(f.port.scrollTop()).toBe(before + GROWTH);
 }
 
@@ -218,13 +220,14 @@ interface Row {
 	scrollTop?: number;
 	focused?: number[];
 	run(f: Fixture): Promise<unknown> | void;
-	expect: Record<Column, (f: Fixture) => void>;
+	/** Read after the tick that closes the round the run opened. */
+	expect: Record<Column, (f: Fixture) => Promise<void> | void>;
 }
 
 const scrollTopIs = (top: number) => (f: Fixture) => expect(f.port.scrollTop()).toBe(top);
 
 const ROWS: Record<keyof ScrollWrites, Row[]> = {
-	round: [
+	beginRound: [
 		{
 			name: 'a root list measuring a block above the viewport',
 			run: measureB2Taller,
@@ -349,9 +352,9 @@ const ROWS: Record<keyof ScrollWrites, Row[]> = {
 			run: (f) => f.windowing.revealChild(1),
 			expect: {
 				'host anchoring holds': scrollTopIs(HEIGHTS.b0),
-				'a held placement is live': (f) => {
+				'a held placement is live': async (f) => {
 					scrollTopIs(HEIGHTS.b0)(f);
-					stillHoldsB5(f);
+					await stillHoldsB5(f);
 				},
 				free: scrollTopIs(HEIGHTS.b0)
 			}
@@ -365,9 +368,9 @@ const ROWS: Record<keyof ScrollWrites, Row[]> = {
 			expect: {
 				// A scroll to show the caret, like a placement, writes under the browser's anchoring too.
 				'host anchoring holds': scrollTopIs(START + 40),
-				'a held placement is live': (f) => {
+				'a held placement is live': async (f) => {
 					scrollTopIs(START + 40)(f);
-					holdsNothing(f);
+					await holdsNothing(f);
 				},
 				free: scrollTopIs(START + 40)
 			}
@@ -379,9 +382,9 @@ const ROWS: Record<keyof ScrollWrites, Row[]> = {
 			run: (f) => landOnB4(f, 'edit'),
 			expect: {
 				'host anchoring holds': shownBy(110),
-				'a held placement is live': (f) => {
+				'a held placement is live': async (f) => {
 					shownBy(110)(f);
-					holdsNothing(f);
+					await holdsNothing(f);
 				},
 				free: shownBy(110)
 			}
@@ -423,9 +426,8 @@ function placedOnB4(top: number): (f: Fixture) => void {
 
 // ── The census ───────────────────────────────────────────────────────────────
 
-/** The owner's members that write no scroll position. */
-/** `watchSize` only delivers sizes; what it delivers runs as a `round`. */
-const NON_WRITES = ['port', 'isInView', 'shows', 'release', 'watchSize'] as const;
+/** The owner's members that write no scroll position; `watchSize`'s callback only records heights. */
+const NON_WRITES = ['port', 'isInView', 'shows', 'release', 'watchSize', 'roundOpen'] as const;
 type ScrollWrites = Omit<ScrollOwner, (typeof NON_WRITES)[number]>;
 
 describe('scroll owner: every write has a row under every owner of the position', () => {
@@ -446,7 +448,8 @@ describe('scroll owner: every write has a row under every owner of the position'
 						focused: row.focused
 					});
 					await row.run(f);
-					row.expect[column](f);
+					await tick();
+					await row.expect[column](f);
 					f.cleanup();
 				});
 			}
@@ -457,10 +460,11 @@ describe('scroll owner: every write has a row under every owner of the position'
 // ── The edges a column hides ─────────────────────────────────────────────────
 
 describe('scroll owner: the edges', () => {
-	it('host anchoring wins over a held placement', () => {
+	it('host anchoring wins over a held placement', async () => {
 		const f = fixture('host anchoring holds');
 		f.owner.place([HELD], { block: 'nearest', hold: true });
 		measureB2Taller(f);
+		await tick();
 		expect(f.port.scrollTop()).toBe(START);
 		f.cleanup();
 	});
@@ -472,25 +476,40 @@ describe('scroll owner: the edges', () => {
 		// b4's top is 100, so the scroll leaves it 60px below the viewport's top.
 		await f.owner.place([4], { block: 'nearest', hold: true }).scroll();
 		measureTaller(f, 5);
+		await tick();
 		expect(f.port.scrollTop()).toBe(40);
 		f.cleanup();
 	});
 
-	it('a held target the root list cannot place falls through to the held block', () => {
+	// Miss-analysis: only the e2e scroll counter saw a round that moved nothing still write.
+	it('a round whose held block did not move writes nothing', async () => {
+		const f = fixture('free');
+		const writes = [vi.spyOn(f.port, 'scrollBy'), vi.spyOn(f.port, 'setScrollTop')];
+		measureTaller(f, 5);
+		expect(f.owner.roundOpen(), 'the growth below the top opened a round').toBe(true);
+		await tick();
+		expect(f.owner.roundOpen()).toBe(false);
+		expect(writes.map((w) => w.mock.calls.length)).toEqual([0, 0]);
+		f.cleanup();
+	});
+
+	it('a held target the root list cannot place falls through to the held block', async () => {
 		const f = fixture('free');
 		f.owner.place([9], { block: 'nearest', hold: true });
 		measureB2Taller(f);
+		await tick();
 		expect(f.port.scrollTop()).toBe(START + GROWTH);
 		f.cleanup();
 	});
 
-	it('a re-place re-reads the root window and centres on the target’s own height', () => {
+	it('a re-place re-reads the root window and centres on the target’s own height', async () => {
 		const port = stubScrollport({ viewportHeight: 500 });
 		const owner = stubScrollOwner(port);
 		const syncScrollTop = vi.fn();
 		const root = owner.resolveTargetsWith({
 			resolve: () => ({ top: 300, height: 20 }),
 			holdForRound: () => null,
+			mountTop: () => null,
 			syncScrollTop
 		});
 		owner.place([4], { block: 'center', hold: true });
@@ -498,6 +517,7 @@ describe('scroll owner: the edges', () => {
 			() => {},
 			() => 0
 		);
+		await tick();
 		expect(port.scrollTop()).toBe(300 - (500 - 20) / 2);
 		expect(syncScrollTop).toHaveBeenCalledOnce();
 	});
@@ -540,9 +560,8 @@ describe('scroll owner: the edges', () => {
 		});
 		expect(owner.port()).toBeNull();
 		await expect(owner.keep()()).resolves.toBeUndefined();
-		let ran = false;
-		owner.round(() => (ran = true));
-		expect(ran).toBe(true);
+		owner.beginRound();
+		await tick();
 		host = document.createElement('div');
 		expect(owner.port()).not.toBeNull();
 		expect(owner.port()).toBe(owner.port());
