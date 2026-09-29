@@ -8,6 +8,7 @@ import { planCrossBlockFormat } from '$lib/selection/cross-block/format-range';
 import type { SelectionPoint } from '$lib/selection/primitives';
 import { mountCell } from './mount-cell';
 import { fixtureReading } from '$lib/test/harness/fixture-grammar';
+import { coverRange } from '$lib/selection/range-coverage';
 
 let mounted: ReturnType<typeof mountCell>;
 afterEach(async () => {
@@ -49,7 +50,12 @@ describe('the cross-block plan reads the cell bytes the surface branch reads', (
 		const surfaceBytes = vi.mocked(mounted.blockEdit.updateBlockContent).mock.calls[0][1];
 
 		const doc = parse(`| ${raw} | b |\n| --- | --- |\n| c | d |\n`);
-		const plan = planCrossBlockFormat(doc, wholeCell(0), wholeCell(0), 'strong', fixtureReading())!;
+		const plan = planCrossBlockFormat(
+			doc,
+			coverRange(doc, wholeCell(0), wholeCell(0)),
+			'strong',
+			fixtureReading()
+		)!;
 		expect(plan.writes[0].newDisplay).toBe(surfaceBytes);
 	});
 });

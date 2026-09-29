@@ -17,12 +17,11 @@ const BARREL_REASON = 'the tree-operations barrel re-exports it';
 
 /** The writers into a child slot that run their write inside `writeKeepingTaskMarker`. */
 const MARKER_WRAPPED: Record<string, string> = {
-	[CONTENT_WRITE]: 'the content write',
+	[CONTENT_WRITE]: 'the content write, and `rewriteLeafInPlace` for a write that moves no block',
 	'src/lib/tree-operations/node-ops.ts': '`joinIntoLeaf`, the one join into a leaf',
 	[BLOCK_EDIT_CORE]: '`replaceBlock`, the one replace write',
 	'src/lib/selection/range-delete-ceremony.ts':
-		'`installSurvivor`, the one install of what a range delete leaves at a block',
-	'src/lib/selection/cross-block/format-range.ts': 'a format toggle over a range, leaf by leaf'
+		'`installSurvivor`, the one install of what a range delete leaves at a block'
 };
 
 /** In-place writers whose bytes no list item's first slot can hold, each with why. */
@@ -65,14 +64,13 @@ const RULES: FileRule[] = [
 		matches: /\b(?:writeOwnRaw|installOwnRaw)\b/,
 		allowed: {
 			[NODE_PRIMITIVES]: 'defines both; `writeOwnRaw` runs the kind’s rule, then installs',
-			[CONTENT_WRITE]: 'the content write, for a kind with no parse of its own',
+			[CONTENT_WRITE]:
+				'the content write for a kind with no parse of its own, and `rewriteLeafInPlace`, which moves no block',
 			'src/lib/editor-actions/search-replace.ts':
 				'find and replace writes bytes `legalizeWrite` returned into a private copy it reparses whole',
 			'src/lib/editor-actions/table-context.ts':
 				'a pasted grid’s cells: a cell has no reparse and no separators, so the content write would do the same',
 			'src/lib/selection/selection-drop.ts': 'a cell cut by a drag, for the same reason',
-			'src/lib/selection/cross-block/format-range.ts':
-				'a format toggle over a range, which runs both rules the same way',
 			'src/lib/testing/kind-conformance.ts':
 				'the raw-write cell lands bytes that already crossed the kind’s rule, in a throwaway parse'
 		},

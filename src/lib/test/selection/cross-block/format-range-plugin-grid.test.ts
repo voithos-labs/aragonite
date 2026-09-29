@@ -15,7 +15,8 @@ import {
 import type { SelectionPoint } from '$lib/selection/primitives';
 import { docAround, gridOf, planStored, registerPluginGrid } from './plugin-grid-kind';
 import { fixtureReading } from '$lib/test/harness/fixture-grammar';
-import { documentLineEnding } from '$lib/core/lines';
+import { coverRange } from '$lib/selection/range-coverage';
+import { documentBody } from '$lib/tree-operations/node-primitives';
 
 const at = (path: number[], offset: number): SelectionPoint => ({ path, offset });
 
@@ -23,7 +24,12 @@ describe('a grid whose kind carries no table metadata', () => {
 	it('contributes its cells instead of throwing out of the plan', () => {
 		const doc = docAround(gridOf(registerPluginGrid(), [['a', 'b']]));
 
-		const plan = planCrossBlockFormat(doc, at([0], 0), at([2], 4), 'strong', fixtureReading())!;
+		const plan = planCrossBlockFormat(
+			doc,
+			coverRange(doc, at([0], 0), at([2], 4)),
+			'strong',
+			fixtureReading()
+		)!;
 		expect(plan.writes.map((write) => [write.path, write.newDisplay])).toEqual([
 			[[0], '**head**'],
 			[[1, 0, 0], '**a**'],
@@ -31,13 +37,7 @@ describe('a grid whose kind carries no table metadata', () => {
 			[[2], '**tail**']
 		]);
 		expect(() =>
-			applyCrossBlockFormat(
-				doc,
-				plan,
-				createSharingState(),
-				documentLineEnding(doc),
-				defaultGrammarView
-			)
+			applyCrossBlockFormat(documentBody(doc), plan, createSharingState(), defaultGrammarView)
 		).not.toThrow();
 	});
 
@@ -49,8 +49,7 @@ describe('a grid whose kind carries no table metadata', () => {
 
 		const plan = planCrossBlockFormat(
 			docAround(grid),
-			at([0], 0),
-			at([2], 4),
+			coverRange(docAround(grid), at([0], 0), at([2], 4)),
 			'strong',
 			fixtureReading()
 		)!;
@@ -68,7 +67,12 @@ describe('a grid whose kind carries no table metadata', () => {
 			children: [{ kind: kinds.cell, leadingTrivia: '', raw: 'a' }]
 		});
 
-		const plan = planCrossBlockFormat(doc, at([0], 0), at([2], 4), 'strong', fixtureReading())!;
+		const plan = planCrossBlockFormat(
+			doc,
+			coverRange(doc, at([0], 0), at([2], 4)),
+			'strong',
+			fixtureReading()
+		)!;
 		expect(plan.writes.map((write) => write.path)).toEqual([[0], [2]]);
 	});
 
@@ -78,7 +82,9 @@ describe('a grid whose kind carries no table metadata', () => {
 		doc.children[2].raw = '**tail**\n';
 
 		expect(
-			crossBlockActiveFormats(doc, at([0], 0), at([2], 8), fixtureReading()).has('strong')
+			crossBlockActiveFormats(doc, coverRange(doc, at([0], 0), at([2], 8)), fixtureReading()).has(
+				'strong'
+			)
 		).toBe(true);
 	});
 });
@@ -107,9 +113,9 @@ describe('a range endpoint deep inside a plugin grid', () => {
 		expect(plan!.writes.map((write) => write.path)).toEqual([[1, 0, 1], [1, 1, 0], [1, 1, 1], [2]]);
 	});
 
-	// Both endpoints inside one grid is the rectangle case, reached through the same resolution:
-	// the pair a drag inside a plugin grid stores, where a table's would share the table path.
-	it('marks the rectangle two deep endpoints span', () => {
+	// Two deep endpoints in one plugin grid are text edges like any others, so the run between them
+	// in document order is what the delete, the copy and the overlay read too.
+	it('marks the run two deep endpoints span, in document order', () => {
 		const doc = docAround(
 			gridOf(registerPluginGrid(), [
 				['a', 'b', 'c'],
@@ -120,6 +126,8 @@ describe('a range endpoint deep inside a plugin grid', () => {
 		const { plan } = planStored(doc, at([1, 0, 1], 0), at([1, 1, 1], 1));
 		expect(plan!.writes.map((write) => write.path)).toEqual([
 			[1, 0, 1],
+			[1, 0, 2],
+			[1, 1, 0],
 			[1, 1, 1]
 		]);
 	});
@@ -136,7 +144,11 @@ describe('a range endpoint deep inside a plugin grid', () => {
 		doc.children[0].raw = '**head**\n';
 
 		expect(
-			crossBlockActiveFormats(doc, at([0], 0), at([1, 0, 0], 1), fixtureReading()).has('strong')
+			crossBlockActiveFormats(
+				doc,
+				coverRange(doc, at([0], 0), at([1, 0, 0], 1)),
+				fixtureReading()
+			).has('strong')
 		).toBe(true);
 	});
 
@@ -168,7 +180,12 @@ describe('a grid whose rows differ in width', () => {
 	it('never writes the surplus cell of a wider row', () => {
 		const doc = docAround(gridOf(registerPluginGrid(), RAGGED));
 
-		const plan = planCrossBlockFormat(doc, at([0], 0), at([2], 4), 'strong', fixtureReading())!;
+		const plan = planCrossBlockFormat(
+			doc,
+			coverRange(doc, at([0], 0), at([2], 4)),
+			'strong',
+			fixtureReading()
+		)!;
 		expect(plan.writes.map((write) => write.path)).toEqual([
 			[0],
 			[1, 0, 0],

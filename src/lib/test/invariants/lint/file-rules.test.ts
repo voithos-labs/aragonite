@@ -943,7 +943,7 @@ const RULES: FileRule[] = [
 			'src/lib/selection/table-endpoint-snap.ts': 'defines it',
 			'src/lib/selection/range-coverage.ts': 'snaps once for every reader of a range',
 			'src/lib/selection/selection-state.svelte.ts':
-				'the stored `start` and `end`, which the collapse keys, the undo seed and the extension paths read, and the format toggle until it reads the coverage'
+				'the stored `start` and `end`, which the collapse keys, the undo seed and the extension paths read'
 		},
 		reason:
 			'the delete, the copy and the overlay read the snapped pair from `coverRange`; a second snap is a second answer to what the range covers',

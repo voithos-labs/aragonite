@@ -14,10 +14,10 @@ import {
 } from '$lib/selection/cross-block/format-range';
 import type { SelectionPoint } from '$lib/selection/primitives';
 import { fixtureReading } from '$lib/test/harness/fixture-grammar';
-import { documentLineEnding } from '$lib/core/lines';
-import { coverRange } from '$lib/selection/range-coverage';
+import { coverRange, rangeCoverage } from '$lib/selection/range-coverage';
 import { registerChromePluginsForTests } from '../chrome-plugins';
 import { makeKeydownEnv, press } from './keydown-env';
+import { documentBody } from '$lib/tree-operations/node-primitives';
 
 const at = (path: number[], offset: number): SelectionPoint => ({ path, offset });
 
@@ -29,15 +29,14 @@ function toggle(
 	mode?: 'source' | 'live'
 ): string | null {
 	const doc = parse(source);
-	const plan = planCrossBlockFormat(doc, start, end, 'strong', fixtureReading({}, mode));
-	if (!plan) return null;
-	applyCrossBlockFormat(
+	const plan = planCrossBlockFormat(
 		doc,
-		plan,
-		createSharingState(),
-		documentLineEnding(doc),
-		defaultGrammarView
+		coverRange(doc, start, end),
+		'strong',
+		fixtureReading({}, mode)
 	);
+	if (!plan) return null;
+	applyCrossBlockFormat(documentBody(doc), plan, createSharingState(), defaultGrammarView);
 	return serialize(doc);
 }
 
@@ -64,8 +63,7 @@ describe('a span whose edge lands on whitespace', () => {
 	it('restores the range inside the marked run, not around the trimmed space', () => {
 		const head = planCrossBlockFormat(
 			parse(HEAD.source),
-			HEAD.start,
-			HEAD.end,
+			coverRange(parse(HEAD.source), HEAD.start, HEAD.end),
 			'strong',
 			fixtureReading()
 		)!;
@@ -73,8 +71,7 @@ describe('a span whose edge lands on whitespace', () => {
 
 		const tail = planCrossBlockFormat(
 			parse(TAIL.source),
-			TAIL.start,
-			TAIL.end,
+			coverRange(parse(TAIL.source), TAIL.start, TAIL.end),
 			'strong',
 			fixtureReading()
 		)!;
@@ -116,27 +113,28 @@ describe('a range reaching a closed details’ title row', () => {
 		const env = makeKeydownEnv(source);
 		env.selection.enterCrossBlock(anchor, focus);
 		await env.keydown.handleKeyDown(press('b', { ctrlKey: true }));
-		const { anchor: a, focus: f } = env.selection;
-		return {
-			source: serialize(env.deps.doc),
-			held: a && f ? coverRange(env.deps.doc, a, f).wholeUnits : []
-		};
+		return serialize(env.deps.doc);
 	}
 
 	// The title row takes no inline marks, so only the body shows the difference.
 	it('formats the hidden body when the range ends on the title', async () => {
-		const result = await bold('above\n\n' + CLOSED, at([0], 0), at([1, 0], 2));
-		expect(result.source).toBe(
+		expect(await bold('above\n\n' + CLOSED, at([0], 0), at([1, 0], 2))).toBe(
 			'**above**\n\n<details>\n<summary>Sum</summary>\n\n**Hidden**\n\n</details>\n'
 		);
-		expect(result.held).toEqual([[1]]);
 	});
 
 	it('formats the hidden body when the range starts on the title', async () => {
-		const result = await bold('head\n\n' + CLOSED + '\nbelow\n', at([1, 0], 1), at([2], 3));
-		expect(result.source).toBe(
+		expect(await bold('head\n\n' + CLOSED + '\nbelow\n', at([1, 0], 1), at([2], 3))).toBe(
 			'head\n\n<details>\n<summary>Sum</summary>\n\n**Hidden**\n\n</details>\n\n**bel**ow\n'
 		);
-		expect(result.held).toEqual([[1]]);
+	});
+
+	// The range held the open details by ending on its last byte, and the marks moved that byte.
+	it('restores the end of a range that held a details whole on the new last byte', () => {
+		const doc = parse('above\n\n<details open>\n<summary>Sum</summary>\n\nShown\n\n</details>\n');
+		const range = coverRange(doc, at([0], 0), at([1, 1], 5));
+		expect(rangeCoverage(doc, range).wholeRoots).toEqual([[1]]);
+		const plan = planCrossBlockFormat(doc, range, 'strong', fixtureReading())!;
+		expect(plan.endOffset).toBe('**Shown**'.length);
 	});
 });

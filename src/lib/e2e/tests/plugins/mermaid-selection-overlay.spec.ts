@@ -36,7 +36,7 @@ test.describe('cross-block selection overlay: childless opaque container', () =>
 		await expect(page.locator(MIDDLE_OVERLAY)).toHaveCount(1);
 	});
 
-	test('an upward sweep ending on the diagram paints its endpoint box', async ({ page }) => {
+	test('an upward sweep ending on the diagram paints its full-block overlay', async ({ page }) => {
 		await editor.loadContent(STANDARD_DIAGRAM_DOC);
 		await expect(page.locator('.mermaid-viewport svg')).toHaveCount(1, { timeout: 30_000 });
 
@@ -45,11 +45,9 @@ test.describe('cross-block selection overlay: childless opaque container', () =>
 		await page.keyboard.press('Shift+ArrowUp');
 		await editor.waitForCrossBlock(true);
 
-		// The container provides measurePartialRects, so as the range's start it paints its own
-		// full box, through the endpoint rects rather than the overlay used in between.
-		const endpoint = page.locator("[data-block-path='[1]'] > .selection-overlay-endpoint");
-		await expect.poll(() => endpoint.count()).toBeGreaterThan(0);
-		const box = await endpoint.first().boundingBox();
+		// The range holds the diagram whole, so it paints one box, as it does strictly inside.
+		await expect(page.locator(MIDDLE_OVERLAY)).toHaveCount(1);
+		const box = await page.locator(MIDDLE_OVERLAY).boundingBox();
 		expect(box!.width).toBeGreaterThan(0);
 		expect(box!.height).toBeGreaterThan(0);
 	});

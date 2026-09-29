@@ -40,14 +40,14 @@
 	const selection = services?.selection;
 	const getEditorRoot = getContext<EditorDoc | undefined>(EDITOR_DOC_KEY)?.editorRoot;
 
-	const range = $derived(services?.coveredRange() ?? null);
+	const coverage = $derived(services?.rangeCoverage() ?? null);
 
-	const classification = $derived(range ? classifyBlockForSelection(path, range) : 'outside');
+	const classification = $derived(coverage ? classifyBlockForSelection(path, coverage) : 'outside');
 
 	// Ignores who measures, on purpose: a block the range covers whole paints one box over
 	// everything it renders, markers included, and its children already paint nothing under it.
 	const paintsWholeBox = $derived(
-		range !== null && blockPaintsWholeBox(path, range, selection?.wholeUnitPath ?? null)
+		coverage !== null && blockPaintsWholeBox(path, coverage, selection?.wholeUnitPath ?? null)
 	);
 
 	// The measuring effect and the markup read this one value, so a painted rectangle is
@@ -100,19 +100,19 @@
 			endpointRects = [];
 			return;
 		}
-		if (!blockRef?.measurePartialRects || !blockEl || !services || !range) {
+		if (!blockRef?.measurePartialRects || !blockEl || !services || !coverage) {
 			endpointRects = [];
 			return;
 		}
 
 		const ref = blockRef;
 		const el = blockEl;
-		const covered = services.coveredRange;
+		const covered = services.rangeCoverage;
 
 		function measure(): void {
 			const live = covered();
 			if (!live || !ref.measurePartialRects) return;
-			const { start, end } = live;
+			const { start, end } = live.range;
 			const startOffset =
 				classification === 'end'
 					? 0

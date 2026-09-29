@@ -4,14 +4,8 @@
  */
 
 import type { CommitSnapshotArg } from '../action-contracts';
-import type { CoveredRange } from './range-coverage';
-import {
-	comparePaths,
-	isPathBetween,
-	isStrictAncestorOf,
-	pathsEqual,
-	type DocPath
-} from './path-math';
+import type { RangeCoverage } from './range-coverage';
+import { comparePaths, pathsEqual, type DocPath } from './path-math';
 import {
 	asCellIndex,
 	asRawOffset,
@@ -157,20 +151,19 @@ export function deleteSnapshot(path: number[], offset = 0): CommitSnapshotArg {
 export type BlockSelectionClass = 'outside' | 'start' | 'middle' | 'end' | 'single-block';
 
 /** Where a block stands in a covered range, for the overlay: 'single-block' delegates to the
- *  browser, and a container the range takes whole is 'middle' with nothing inside it painting. */
+ *  browser, and a subtree the range holds whole is 'middle' with nothing inside it painting. */
 export function classifyBlockForSelection(
 	path: readonly number[],
-	range: CoveredRange
+	coverage: RangeCoverage
 ): BlockSelectionClass {
-	const { start, end } = range;
-	if (comparePaths(start.path, end.path) === 0) {
-		return comparePaths(path, start.path) === 0 ? 'single-block' : 'outside';
+	const { start, end } = coverage.range;
+	if (pathsEqual(start.path, end.path)) {
+		return pathsEqual(path, start.path) ? 'single-block' : 'outside';
 	}
-	const unit = range.unitHolding(path);
-	if (unit) return pathsEqual(unit, path) ? 'middle' : 'outside';
-	if (comparePaths(path, start.path) === 0) return 'start';
-	if (comparePaths(path, end.path) === 0) return 'end';
-	if (isPathBetween(path, start.path, end.path)) return 'middle';
+	const root = coverage.rootHolding(path);
+	if (root) return pathsEqual(root, path) ? 'middle' : 'outside';
+	if (coverage.startEdge && pathsEqual(path, start.path)) return 'start';
+	if (coverage.endEdge && pathsEqual(path, end.path)) return 'end';
 	return 'outside';
 }
 
@@ -178,21 +171,11 @@ export function classifyBlockForSelection(
  *  alert's badge), which no child host covers, is painted too; its children then paint nothing. */
 export function blockPaintsWholeBox(
 	path: readonly number[],
-	range: CoveredRange,
+	coverage: RangeCoverage,
 	wholeUnitPath: readonly number[] | null
 ): boolean {
 	if (wholeUnitPath) return pathsEqual(path, wholeUnitPath);
-	const unit = range.unitHolding(path);
-	if (unit) return pathsEqual(unit, path);
-	const { start, end } = range;
-	return (
-		holdsSubtree(path, start.path, end.path) &&
-		!holdsSubtree(path.slice(0, -1), start.path, end.path)
-	);
-}
-
-/** The range holds the block's whole subtree: inside it in document order, and not an ancestor
- *  of the end endpoint, whose own descendants the range cuts through. */
-function holdsSubtree(path: readonly number[], start: number[], end: number[]): boolean {
-	return isPathBetween(path, start, end) && !isStrictAncestorOf(path, end);
+	const { start, end } = coverage.range;
+	if (pathsEqual(start.path, end.path)) return false;
+	return coverage.wholeRoots.some((root) => pathsEqual(root, path));
 }

@@ -23,7 +23,7 @@ import {
 import { cellRectBounds, docPathFrom, type CellRect } from '../cursor/coordinate-spaces';
 import { isBlockNode, nodeAt } from '../tree-operations/node-primitives';
 import { isBlankParagraph } from '../core/parser';
-import { countsCells, tableCellCount } from '../schema/block-kind-descriptor';
+import { countsCells, isGridKind, tableCellCount } from '../schema/block-kind-descriptor';
 import { isWholeBlockUnit } from '../schema/whole-block-unit';
 import {
 	isCollapsedContainer,
@@ -289,13 +289,15 @@ function gridCoverage(table: NodeView, path: DocPath, a: number, b: number): Gri
 	return { kind, path, rect };
 }
 
-/** A start edge holds its block whole when nothing of it comes before the range. */
+/** An edge holds its block whole when nothing of it lies outside the range. A character offset on
+ *  a plugin grid's own path addresses no cell, so it reads as the grid's edge. */
 function edgeHeld(doc: DocumentView, point: SelectionPoint, side: 'start' | 'end'): boolean {
 	const node = nodeAt(doc, point.path);
 	if (!node || !isBlockNode(node)) return false;
 	if (countsCells(node)) {
 		return point.offset === (side === 'start' ? 0 : tableCellCount(node) - 1);
 	}
+	if (isGridKind(node.kind)) return true;
 	if (!isWholeBlockUnit(node)) return false;
 	return side === 'start' ? point.offset === 0 : point.offset >= displayLength(node.raw);
 }

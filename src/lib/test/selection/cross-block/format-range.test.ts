@@ -14,7 +14,8 @@ import {
 } from '$lib/selection/cross-block/format-range';
 import type { SelectionPoint } from '$lib/selection/primitives';
 import { fixtureReading } from '$lib/test/harness/fixture-grammar';
-import { documentLineEnding } from '$lib/core/lines';
+import { coverRange } from '$lib/selection/range-coverage';
+import { documentBody } from '$lib/tree-operations/node-primitives';
 
 const at = (path: number[], offset: number): SelectionPoint => ({ path, offset });
 
@@ -27,15 +28,14 @@ function toggle(
 	mode?: 'source' | 'live'
 ): string | null {
 	const doc = parse(source);
-	const plan = planCrossBlockFormat(doc, start, end, format, fixtureReading({}, mode));
-	if (!plan) return null;
-	applyCrossBlockFormat(
+	const plan = planCrossBlockFormat(
 		doc,
-		plan,
-		createSharingState(),
-		documentLineEnding(doc),
-		defaultGrammarView
+		coverRange(doc, start, end),
+		format,
+		fixtureReading({}, mode)
 	);
+	if (!plan) return null;
+	applyCrossBlockFormat(documentBody(doc), plan, createSharingState(), defaultGrammarView);
 	return serialize(doc);
 }
 
@@ -100,7 +100,11 @@ describe('direction is the whole range’s coverage, not each block’s', () => 
 
 describe('the pressed-state read', () => {
 	const active = (source: string, start: SelectionPoint, end: SelectionPoint) =>
-		crossBlockActiveFormats(parse(source), start, end, fixtureReading()).has('strong');
+		crossBlockActiveFormats(
+			parse(source),
+			coverRange(parse(source), start, end),
+			fixtureReading()
+		).has('strong');
 
 	it('is true only when every participating span carries the mark', () => {
 		expect(active('**alpha**\n\n**beta**\n', at([0], 0), at([1], 8))).toBe(true);
@@ -121,7 +125,12 @@ describe('the pressed-state read', () => {
 describe('the endpoints the plan hands back', () => {
 	it('shift by each endpoint block’s own delta', () => {
 		const doc = parse('alpha one\n\ngamma two\n');
-		const plan = planCrossBlockFormat(doc, at([0], 6), at([1], 5), 'strong', fixtureReading())!;
+		const plan = planCrossBlockFormat(
+			doc,
+			coverRange(doc, at([0], 6), at([1], 5)),
+			'strong',
+			fixtureReading()
+		)!;
 		// `alpha **one**` — the tail span now starts two bytes later and ends at the closer.
 		expect(plan.startOffset).toBe(6);
 		expect(plan.endOffset).toBe(9);

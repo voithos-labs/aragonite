@@ -13,6 +13,7 @@ import { inlineMarkForCommand, type InlineMarkKind } from '../../schema/inline-c
 import type { Reading } from '../../schema/reading';
 import { blockNodeAt } from '../../tree-operations/node-primitives';
 import { comparePaths } from '../path-math';
+import { coverRange } from '../range-coverage';
 import type { SelectionPoint } from '../primitives';
 import type { SelectionState } from '../selection-state.svelte';
 import {
@@ -64,11 +65,13 @@ const NO_MARKS: ReadonlySet<InlineMarkKind> = new Set();
 function createActiveFormatMemo(deps: CrossBlockCommandDeps): () => ReadonlySet<InlineMarkKind> {
 	let slot: { key: string; marks: ReadonlySet<InlineMarkKind> } | null = null;
 	return () => {
-		const { start, end } = deps.selection;
-		if (!start || !end) return NO_MARKS;
-		const key = `${deps.getContentVersion()}|${pointKey(start)}|${pointKey(end)}`;
+		const { anchor, focus } = deps.selection;
+		if (!anchor || !focus) return NO_MARKS;
+		const key = `${deps.getContentVersion()}|${pointKey(anchor)}|${pointKey(focus)}`;
 		if (slot?.key !== key) {
-			slot = { key, marks: crossBlockActiveFormats(deps.getDoc(), start, end, deps.reading) };
+			const doc = deps.getDoc();
+			const range = coverRange(doc, anchor, focus);
+			slot = { key, marks: crossBlockActiveFormats(doc, range, deps.reading) };
 		}
 		return slot.marks;
 	};
@@ -85,11 +88,13 @@ async function toggleFormatOverRange(
 	deps: CrossBlockCommandDeps,
 	format: InlineMarkKind
 ): Promise<void> {
-	const { anchor, focus, start, end } = deps.selection;
-	if (!anchor || !focus || !start || !end) return;
+	const { anchor, focus } = deps.selection;
+	if (!anchor || !focus) return;
 	const doc = deps.getDoc();
-	const plan = planCrossBlockFormat(doc, start, end, format, deps.reading);
+	const range = coverRange(doc, anchor, focus);
+	const plan = planCrossBlockFormat(doc, range, format, deps.reading);
 	if (!plan) return;
+	const { start, end } = range;
 
 	const restored = restoredRange(anchor, focus, start, end, plan);
 	await deps.controller.commitMultiScope({
@@ -100,13 +105,7 @@ async function toggleFormatOverRange(
 		// reads a grid's path as cell indices.
 		snapshot: { path: docPathFrom(start.path), offset: start.offset },
 		mutate: ([docScope]) => {
-			applyCrossBlockFormat(
-				{ children: docScope.children },
-				plan,
-				docScope.sharing,
-				docScope.lineEnding,
-				deps.reading.grammar
-			);
+			applyCrossBlockFormat(docScope.body, plan, docScope.sharing, deps.reading.grammar);
 			return [{ op: 'noop' }];
 		},
 		op: {

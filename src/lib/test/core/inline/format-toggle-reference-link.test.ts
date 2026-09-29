@@ -15,6 +15,7 @@ import type { PresentationMode } from '$lib/presentation-mode';
 import { planCrossBlockFormat } from '$lib/selection/cross-block/format-range';
 import type { Reading } from '$lib/schema/reading';
 import { fixtureReading } from '$lib/test/harness/fixture-grammar';
+import { coverRange } from '$lib/selection/range-coverage';
 
 // The toggle reads a block with its link definitions, so a cut into a reference link is refused.
 // Miss-analysis (GH #455): every toggle fixture used inline links, never a reference link.
@@ -91,8 +92,7 @@ describe('a cross-block bold starting inside a reference link', () => {
 		const doc = parse(`see [text][ref] here\n\nother\n\n${DEFINITION}`);
 		const plan = planCrossBlockFormat(
 			doc,
-			{ path: [0], offset: 7 },
-			{ path: [1], offset: 5 },
+			coverRange(doc, { path: [0], offset: 7 }, { path: [1], offset: 5 }),
 			'strong',
 			fixtureReading({ resolver: resolver })
 		);
