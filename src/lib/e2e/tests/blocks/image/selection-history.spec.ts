@@ -130,4 +130,23 @@ test.describe('image selection and history', () => {
 		await editor.bridge.waitForSourceContains('|60x40');
 		await expectLiveCaret(page, 'abc '.length + IMAGE.length);
 	});
+
+	// The image keeps its bytes here, so only the undo's own caret can end its selection.
+	test('undo of typing below an image, selected since, deselects it and restores the caret', async ({
+		page
+	}) => {
+		await editor.loadContent(`${IMAGE}\n\nabc\n`);
+		await editor.focusBlock(1, 1);
+		await editor.typeSlowly('xyz');
+		await editor.waitForUndoBatchFlush();
+		await page.locator('[data-image-widget]').first().click();
+		await expect(overlay(page)).toBeVisible();
+		await editor.undo();
+		await editor.bridge.waitForSourceContains('\nabc');
+		await expect(overlay(page)).toHaveCount(0);
+		const point = { path: [1], offset: 1 };
+		await expect.poll(() => documentCaret(page)).toEqual([1, { anchor: point, focus: point }]);
+		await editor.typeText('W');
+		expect(await editor.bridge.getSource()).toBe(`${IMAGE}\n\naWbc\n`);
+	});
 });
