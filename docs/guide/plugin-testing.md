@@ -168,7 +168,7 @@ applyPasteTransforms('quiet please\n'); // 'quiet please\n' (declined, so nothin
 
 ### Mounting the editor under jsdom
 
-A component is only really verified mounted, and a jsdom mount is a supported way to do it. Three things stand in the way. Two are jsdom gaps, and `installEditorDomStubsForTests` closes both by stubbing the browser APIs a mounted editor calls and jsdom lacks (`ResizeObserver` and `scrollIntoView`), each only where absent, so the call is inert in a real browser:
+A component is only really verified mounted, and a jsdom mount is a supported way to do it. Three things stand in the way. Two are jsdom gaps, and `installEditorDomStubsForTests` closes both by stubbing the browser APIs a mounted editor calls and jsdom lacks (`ResizeObserver`, `scrollIntoView`, and a text range's rects, which the editor reads to keep the caret on screen), each only where absent, so the call is inert in a real browser:
 
 ```ts
 // @vitest-environment jsdom

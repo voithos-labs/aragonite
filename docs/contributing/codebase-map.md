@@ -222,7 +222,7 @@ takes an edit's caret (and the inline menu's, the link card's, a click below an 
 `setSelection`, a mode switch, a range collapsed by an arrow, the find bar and link card handing
 the caret back), and `park` the moving end of a Shift+Arrow range, which mustn't end the range.
 They mount the same way, but a position inside a closed body lands on its title row instead of
-opening it, unless it's a navigation's. A caret scrolls only when its block isn't visible, to the
+opening it, unless it's a navigation's. A caret scrolls only when its line isn't fully visible, to the
 nearest edge, letting go of the viewport as soon as it's done; only `navigate` holds its block
 where it landed (no other caller can ask to), and a mode switch and the table menu's close only
 mount. An arrow arrival asks the same way, through `followArrival`. The focus call that puts the
