@@ -22,7 +22,7 @@ import {
 import { settleSeparatorOnBlank } from '../tree-operations/settle';
 import { isBlankParagraph } from '../core/parser';
 import { displayLength, documentLineEnding } from '../core/lines';
-import { cleanJoinedRaw } from '../tree-operations/node-ops';
+import { cleanJoinedRaw } from '../tree-operations/leaf-range';
 import { storedAsAt } from '../tree-operations/stored-as';
 import { joinKeepingSuffix } from '../tree-operations/structural-suffix';
 import { deleteSubtreesIdentityGated, installSurvivor } from './range-delete-ceremony';

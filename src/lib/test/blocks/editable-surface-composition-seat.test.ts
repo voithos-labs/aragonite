@@ -5,7 +5,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { parseInline } from '$lib/core/inline';
 import { createCompositionSeat } from '$lib/components/blocks/text/composition-seat';
-import { resolveSelectionEdit } from '$lib/components/blocks/text/live-selection-edit';
+import { replaceRangeInLeaf } from '$lib/tree-operations/leaf-range';
 import { cleanLiveJoinSeam } from '$lib/components/blocks/text/live-join-seam';
 import {
 	registerLiveJoinSeamCleaner,
@@ -46,13 +46,10 @@ function makeSeatHarness(source: string, affinity: EdgeAffinity | null): SeatHar
 		restorePendingMarks: () => {},
 		getRawSelection: () => rawSelection,
 		resolveRangeEdit: (range, typed) => {
-			const edit = resolveSelectionEdit(
-				node,
-				range,
-				typed,
-				topLevelStore(node, fixtureReading({}, 'live'))
-			);
-			return edit && { raw: trimTrailingLineEnding(edit.raw), caret: edit.caret };
+			const store = topLevelStore(node, fixtureReading({}, 'live'));
+			const edit = replaceRangeInLeaf(node, range, typed, store);
+			if (edit.matchesBrowserEdit) return null;
+			return { raw: trimTrailingLineEnding(edit.raw), caret: edit.caret };
 		}
 	});
 	const surface = makeSurface(undefined, (after, composedAt) => seat.relocate(after, composedAt));

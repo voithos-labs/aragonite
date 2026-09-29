@@ -996,6 +996,8 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.85 | A live rewrite that removes bytes reads its candidate where it will be stored             | L       |
 | G4.86 | A list item's marker is read only where the list is built, drawn or dumped                | L       |
 | G4.87 | Only the scroll owner writes the editor's scroll position                                 | L       |
+| G4.89 | One in-leaf range replace, and a short list of places that snap an offset                 | L       |
+| G4.90 | A paste inside one block cuts its selection through the range replace, with its text      | L       |
 | G4.91 | A focus call that may scroll the editor says why                                          | L       |
 
 ### The entries
@@ -1288,9 +1290,9 @@ allowlisted caller is the vertical-skip decision, whose resolver-less answer is 
 **G4.33 · Live-rewrite verification.** The modules that build live-mode byte candidates each verify
 through the render path's own `renderedText`, and every file naming an inline marker family in code
 is manifested with what it does with it: only the model decides which spans a marker-hiding mode
-DROPS; the rest create, identify or probe. The two registered seam slots (the split rebalancer, the
-join cleaner) have exactly ONE reader, `node-ops`, so every destructive join crosses
-`cleanJoinedRaw` rather than writing its own concatenation. The bug class here is a private walk
+DROPS; the rest create, identify or probe. The two registered slots have one reader each (the split
+rebalancer's is `node-ops.ts`, the join cleaner's is `leaf-range.ts`), so every destructive join
+crosses `cleanJoinedRaw` rather than writing its own concatenation. The bug class here is a private walk
 over the parse disagreeing with what paints. It counted an angle autolink's brackets as content
 once, and a resolved reference's label the next time. Each verification also states WHICH reading it
 takes: the block's own screen where the answer decides what a press may touch, or the content behind
@@ -1578,9 +1580,9 @@ a `$lib` deep path names a testing door the surface is missing. Each allowlist e
 door's name, and a dead entry fails too. The loose platform tests directly under
 `src/lib/test/plugins/` are out of scope. `lint/bundled-plugin-test-boundary.test.ts`.
 
-**G4.64 · The tree-ops ladder.** The six files `node-ops.ts` split into (`node-primitives.ts`,
-`unshare.ts`, `settle.ts`, `content-write.ts`, `node-ops.ts`, `chain-rebuild.ts`) import only
-downward, in that order. The cycle the split broke (`unshare.ts` reading the seam absorb and the
+**G4.64 · The tree-ops ladder.** The files `node-ops.ts` split into, plus the two it came to sit on
+(`node-primitives.ts`, `unshare.ts`, `settle.ts`, `content-write.ts`, `stored-as.ts`,
+`leaf-range.ts`, `node-ops.ts`, `chain-rebuild.ts`), import only downward, in that order. The cycle the split broke (`unshare.ts` reading the seam absorb and the
 kind re-derive out of `node-ops.ts`, which read the copy-on-write door back) passed every
 behavioral test, and `svelte-check` reports nothing for an import cycle, so only a source scan can
 hold the shape. `lint/tree-op-ladder.test.ts`.
@@ -1699,8 +1701,9 @@ reason, and each allowed file carries its own. The content version and the join 
 their own (G4.52, G4.76). `lint/leaf-write-doors.test.ts`.
 
 **G4.76 · Joins into a leaf.** Two texts joined into one leaf go through
-`src/lib/tree-operations/node-ops.ts` :: `joinIntoLeaf`: the join cleanup, the kind's rule, the
-container's rule, and a reparse that may change the kind. The scan declares every file calling
+`src/lib/tree-operations/node-ops.ts` :: `joinIntoLeaf`: the lower block's own write rule and the
+join cleanup (both in `leaf-range.ts :: joinLeaves`), then the kind's rule, the container's rule,
+and a reparse that may change the kind. The scan declares every file calling
 `joinIntoLeaf` and every file naming the cleanup (`cleanJoinedRaw`), each with what it joins. It
 also reads the text each file hands a leaf: a `.raw =`, or the argument of a leaf write
 (`writeOwnRaw`, `normalizeOwnRaw`, `legalizeWrite`, `commitLeafText`, the matching paste's
@@ -1810,6 +1813,27 @@ can write, anywhere but the owner and the port itself. `rects.scrollTo(path)` do
 the published call, and it goes through the owner. A few files keep writes of their own, and the manifest says why for each: a drag's
 autoscroll, which the pointer drives frame by frame, and two listboxes keeping their active row in
 view inside their own scroller. `lint/file-rules.test.ts`.
+
+**G4.89 · One in-leaf range replace.** Replacing a range of one leaf, typed or pasted text or none,
+is `tree-operations/leaf-range.ts :: replaceRangeInLeaf`: it cuts back to the painted text, moves
+both ends off any surrogate pair, and cleans the join with the text already in it. Joining two
+leaves is `joinLeaves` beside it. A cut that snaps its own offsets skips the rest of that, so the
+scan holds `snapToScalarBoundary(` to `leaf-range.ts`, the split's two cuts (`node-ops.ts ::
+cutPastLineEnding`, `structural-suffix.ts :: cutKeepingStructure`), `selection/char-endpoint-snap.ts`
+(a selection endpoint, which cuts nothing) and `core/lines.ts`, which defines it. A second row lists
+every `joinLeaves(` caller: `leaf-range.ts` and the merge in `node-ops.ts`. A third catches a
+hand-written splice of one leaf's own bytes (`raw.slice(0, a) + … + raw.slice(b)`) in the live
+editing paths, and each file that keeps one says why: it inserts and deletes nothing, it rewrites
+one whole construct and checks the result itself, it deletes and checks the result itself (the
+edge delete, an empty pair the auto-pair wrote), or it's a known gap with its owner (the range
+delete, which calls the cleanup itself and G4.76 declares, and typing after a cross-block delete).
+`lint/file-rules.test.ts`.
+
+**G4.90 · A paste cuts like typing.** Pasting over a selection inside one block writes what typing
+the same text over it writes, so every file that names the paste's range (`preDelete`) cuts it through
+`replaceRangeInLeaf` with the pasted text, or says why it doesn't: the surface contract declares
+it, the code block's selection just hands it on, and the code block's own paste stays a literal
+splice, since a fence body has no inline constructs to clean. `lint/file-rules.test.ts`.
 
 **G4.91 · A focus call scrolls nothing unless it says why.** `focus()` scrolls an off-screen
 element into view on its own, a scroll writer G4.87 can't see. So a caret's focus passes

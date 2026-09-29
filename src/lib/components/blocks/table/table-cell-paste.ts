@@ -1,16 +1,16 @@
 /**
  * How a table cell takes in pasted text. The bytes are the kind's business: every hook hands back
- * plain spliced text, and the cell's write rule (`schema/table-cell-raw.ts`) runs when it is written.
+ * unescaped text, and the cell's write rule (`schema/table-cell-raw.ts`) runs when it is written.
  */
 
 import { CURSOR_END } from '../../../block-component';
 import type { CstNode } from '../../../core/nodes';
 import { blockNodeAt } from '../../../tree-operations/node-primitives';
-import { cutRangeFromDisplay } from '../../../tree-operations/node-ops';
+import { replaceRangeInLeaf } from '../../../tree-operations/leaf-range';
 import { sliceTableAtRow } from '../../../tree-operations/paste/table-slice';
 import { focusIndexBeforeResidue } from '../../../tree-operations/paste/focus-target';
 import { landClipboardBlocks, landedAfter } from '../../../tree-operations/paste/paste-replacement';
-import { documentLineEnding, trimWhitespace } from '../../../core/lines';
+import { documentLineEnding, trimTrailingLineEnding, trimWhitespace } from '../../../core/lines';
 import type {
 	InlinePasteResult,
 	PasteRange,
@@ -32,21 +32,15 @@ export function tableCellInlinePaste(
 	preDelete: PasteRange | undefined,
 	store: StoredAs
 ): InlinePasteResult {
+	// The kind's pipe escaping runs over whatever the join writes, when the cell is written.
 	const cleaned = normalizeWhitespace(text);
-
-	// The delete half goes through the join rules first (live-mode.md § 4.5); the kind's pipe
-	// escaping runs over whatever they produce.
-	const { display: raw, offset: effectiveOffset } = cutRangeFromDisplay(
+	const edit = replaceRangeInLeaf(
 		node,
-		node.raw,
 		preDelete ?? { start: offset, end: offset },
+		cleaned,
 		store
 	);
-
-	return {
-		newRaw: raw.slice(0, effectiveOffset) + cleaned + raw.slice(effectiveOffset),
-		caretOffset: effectiveOffset + cleaned.length
-	};
+	return { newRaw: trimTrailingLineEnding(edit.raw), caretOffset: edit.caret };
 }
 
 export const tableCellPasteSurface: PasteSurface = {

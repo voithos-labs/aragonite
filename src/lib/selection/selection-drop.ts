@@ -12,7 +12,6 @@ import { emitClipboardError, type EditorEvents } from '../editor-events';
 import { rawOffsetAt, rawRangeToDomRange } from '../cursor/widget-offset';
 import { documentLineEnding, trailingLineEnding, trimTrailingLineEnding } from '../core/lines';
 import { blockContentElAt } from '../components/block-el-lookup';
-import { replaceRangeRaw } from '../components/blocks/text/live-selection-edit';
 import {
 	blockNodeAt,
 	emptyParagraph,
@@ -20,7 +19,7 @@ import {
 	writeOwnRaw
 } from '../tree-operations/node-primitives';
 import { cloneNode } from '../tree-operations/clone';
-import { cutRangeFromDisplay } from '../tree-operations/node-ops';
+import { replaceRangeInLeaf } from '../tree-operations/leaf-range';
 import { rebuildAncestryRaw } from '../schema/container-raw';
 import { applyPasteTransforms } from '../tree-operations/paste/paste-transforms';
 import { parseReplacement } from '../tree-operations/paste/replacement-parse';
@@ -316,44 +315,39 @@ function insert(offset: number, text: string): (raw: string) => string {
 	return (raw) => spliceAt(raw, offset, text);
 }
 
-/** The source element's display bytes with the dragged range gone, through the range delete so
+/** The source element's display bytes with the dragged range gone, cut as any in-leaf edit is so
  *  a live-mode join cleans up after itself. */
 function cutFrom(deps: SelectionDropDeps, from: DragSource): ScopeCut | null {
 	const node = blockNodeAt(deps.getDoc(), from.path);
 	if (!node) return null;
 	if (from.inCell) return cutFromCell(deps, from, node);
 	const before = trimTrailingLineEnding(node.raw);
-	const doc = deps.getDoc();
-	const edit = replaceRangeRaw(
-		node,
-		{ start: from.start, end: from.end },
-		'',
-		storedAsAt(doc, from.path, deps.reading),
-		documentLineEnding(doc)
-	);
+	const store = storedAsAt(deps.getDoc(), from.path, deps.reading);
+	const edit = replaceRangeInLeaf(node, { start: from.start, end: from.end }, '', store);
 	const raw = trimTrailingLineEnding(edit.raw);
 	return { path: from.path, raw, shrunkBy: before.length - raw.length };
 }
 
 /** A cell's bytes are joined into its row, so the table is the block the cut rewrites: the cell's
- *  own range delete on a copy, then the kind's escaping and the ancestor rebuild around it. */
+ *  own cut on a copy, then the kind's escaping and the ancestor rebuild around it. */
 function cutFromCell(deps: SelectionDropDeps, from: DragSource, cell: CstNode): ScopeCut | null {
 	const tablePath = from.path.slice(0, -2);
 	// The cell path is resolved from a DOM selector contract, so the kind is read, not assumed.
 	const table = blockNodeAt(deps.getDoc(), tablePath);
 	if (!table || table.kind !== 'table') return null;
-	const cut = cutRangeFromDisplay(
-		cell,
-		cell.raw,
-		{ start: from.start, end: from.end },
-		storedAsAt(deps.getDoc(), from.path, deps.reading)
-	);
+	const store = storedAsAt(deps.getDoc(), from.path, deps.reading);
+	const cut = replaceRangeInLeaf(cell, { start: from.start, end: from.end }, '', store);
 	const rebuilt = cloneNode(table);
 	const inner = from.path.slice(-2);
 	const [rowIdx, colIdx] = inner;
 	const written = rebuilt.children?.[rowIdx]?.children?.[colIdx];
 	if (!written) return null;
-	writeOwnRaw(written, cut.display, documentLineEnding(deps.getDoc()), deps.reading.grammar);
+	writeOwnRaw(
+		written,
+		trimTrailingLineEnding(cut.raw),
+		documentLineEnding(deps.getDoc()),
+		deps.reading.grammar
+	);
 	rebuildAncestryRaw(rebuilt, inner, deps.reading.grammar);
 	const raw = trimTrailingLineEnding(rebuilt.raw);
 	return { path: tablePath, raw, shrunkBy: trimTrailingLineEnding(table.raw).length - raw.length };

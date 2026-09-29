@@ -38,8 +38,8 @@ export interface PasteSurface {
 	/** The kind's editable element holds text, never blocks (a table cell), so a blank block at the
 	 *  clipboard's edge is packaging: it neither picks the route nor lands in a splice. */
 	blankEdgesArePackaging?: boolean;
-	/** Pure. The pre-delete is a join, cleaned against where `store` keeps the target like any
-	 *  other; every line the hook writes takes `lineEnding`, the document's. */
+	/** Pure. The pasted text replaces the pre-delete through `replaceRangeInLeaf`, as typing it
+	 *  would; every line the hook writes takes `lineEnding`, the document's. */
 	onInlinePaste?(
 		node: CstNode,
 		offset: number,

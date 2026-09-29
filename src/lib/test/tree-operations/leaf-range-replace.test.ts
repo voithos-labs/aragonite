@@ -1,17 +1,17 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
-import { resolveSelectionEdit } from '$lib/components/blocks/text/live-selection-edit';
+import { replaceRangeInLeaf } from '$lib/tree-operations/leaf-range';
 import { cleanLiveJoinSeam } from '$lib/components/blocks/text/live-join-seam';
 import {
 	registerLiveJoinSeamCleaner,
 	__resetLiveJoinSeamCleanerForTests
 } from '$lib/schema/inline-construct-policy';
 import type { PresentationMode } from '$lib/presentation-mode';
-import { fixtureReading, topLevelStore } from '../../harness/fixture-grammar';
+import { fixtureReading, topLevelStore } from '../harness/fixture-grammar';
 
-// A browser selection edit inside one block, re-expressed as a join: when it refuses, where typed
-// bytes land, and that it returns the block's whole raw, trailing line ending included.
+// A range replaced inside one block: when the join cleans and when the plain splice stands, where
+// typed bytes land, and that it returns the block's whole raw, trailing line ending included.
 
 beforeEach(() => registerLiveJoinSeamCleaner(cleanLiveJoinSeam));
 afterEach(() => __resetLiveJoinSeamCleanerForTests());
@@ -28,12 +28,9 @@ const editIn = (
 	typed: string
 ) => {
 	const node = blockOf(source);
-	return resolveSelectionEdit(
-		node,
-		{ start, end },
-		typed,
-		topLevelStore(node, fixtureReading({}, mode))
-	);
+	const store = topLevelStore(node, fixtureReading({}, mode));
+	const { raw, caret, matchesBrowserEdit } = replaceRangeInLeaf(node, { start, end }, typed, store);
+	return matchesBrowserEdit ? null : { raw, caret };
 };
 
 const edit = (source: string, start: number, end: number, typed: string) =>
@@ -60,10 +57,9 @@ describe('a selection edit the join has something to clean', () => {
 	});
 });
 
-describe('what it declines, leaving the edit to the browser', () => {
-	it('a collapsed or inverted range', () => {
+describe('what it leaves to the browser’s own edit', () => {
+	it('a collapsed range', () => {
 		expect(edit(MIXED, 9, 9, 'X')).toBeNull();
-		expect(edit(MIXED, 21, 9, 'X')).toBeNull();
 	});
 
 	// Unchanged: the cleanup found nothing to drop, so the browser's own edit is already right
@@ -84,5 +80,25 @@ describe('what it declines, leaving the edit to the browser', () => {
 	it('a live edit with no cleaner registered', () => {
 		__resetLiveJoinSeamCleanerForTests();
 		expect(edit(MIXED, 9, 21, 'X')).toBeNull();
+	});
+});
+
+// The ends the browser would edit are not the ends written, so the editor writes the bytes itself.
+describe('what it takes back from the browser', () => {
+	it('an end inside a surrogate pair, snapped off it', () => {
+		expect(edit('a\u{1F600}b\n', 0, 2, '')).toEqual({ raw: '\u{1F600}b\n', caret: 0 });
+	});
+
+	it('an inverted range, which replaces nothing', () => {
+		expect(edit(MIXED, 21, 9, 'X')).not.toBeNull();
+	});
+});
+
+// Miss-analysis: every row's block ended in a line break, so no row saw the splice add one.
+describe('the plain splice', () => {
+	it('keeps a last line with no line ending without one', () => {
+		const node = blockOf('hello');
+		const store = topLevelStore(node, fixtureReading({}, 'source'));
+		expect(replaceRangeInLeaf(node, { start: 1, end: 4 }, '', store).raw).toBe('ho');
 	});
 });

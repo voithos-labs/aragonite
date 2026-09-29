@@ -60,6 +60,45 @@ test.describe('single-block paste over a construct edge', () => {
 	});
 });
 
+// The pasted text refills the construct the selection emptied, so the cut must not clean without it.
+test.describe('live paste over a whole bold word', () => {
+	const PLACES = [
+		{ name: 'the top level', doc: '**bold** text\n\nX\n', leaf: [0] },
+		{ name: 'a list item', doc: '- **bold** text\n\nX\n', leaf: [0, 0, 0] }
+	];
+
+	/** Selects `bold` with real keys, from the caret just inside its hidden opener. */
+	async function selectTheWord(ep: EditorPage, page: Page, leaf: number[]): Promise<void> {
+		await ep.focusBlockAtPath(leaf, 2);
+		for (let i = 0; i < 'bold'.length; i++) await page.keyboard.press('Shift+ArrowRight');
+		await ep.waitForRenderFlush();
+	}
+
+	for (const place of PLACES) {
+		test(`${place.name}: keeps the bold, as typing does`, async ({ page }) => {
+			const ep = new EditorPage(page);
+			await ep.goto('?presentationMode=live');
+			await ep.loadContent(place.doc);
+			await ep.waitForRenderFlush();
+			await selectTheWord(ep, page, place.leaf);
+			await page.keyboard.type('X');
+			await ep.bridge.waitForSourceNotContains('bold');
+			const typed = await ep.bridge.getSource();
+
+			await ep.goto('?presentationMode=live');
+			await ep.loadContent(place.doc);
+			await ep.waitForRenderFlush();
+			await copyPayload(ep, page);
+			await selectTheWord(ep, page, place.leaf);
+			await ep.paste();
+			await ep.bridge.waitForSourceNotContains('bold');
+
+			expect(typed).toContain('**X** text');
+			expect(await ep.bridge.getSource()).toBe(typed);
+		});
+	}
+});
+
 // The same join one level down. A cell splices its own bytes and escapes them where it writes,
 // and that escaping runs after the cut, which is why the shared join has to run first.
 const CELL_DOC = '| Some **bold** text | y |\n| --- | --- |\n| a | b |\n\nX\n';

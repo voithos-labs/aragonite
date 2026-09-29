@@ -86,7 +86,8 @@ const POLICY_ARMS: Record<string, string> = {
 	'src/lib/schema/registration-checks.ts': 'the registration-time coherence check over every row',
 	'src/lib/selection/cross-block/format-toggle.ts':
 		'the cross-block arm: which mark a format command toggles',
-	'src/lib/tree-operations/node-ops.ts': 'the one reader of both registered rewrite slots',
+	'src/lib/tree-operations/leaf-range.ts': 'the one reader of the registered join slot',
+	'src/lib/tree-operations/node-ops.ts': 'the one reader of the registered split slot',
 	'src/lib/inline-menu/inline-menu-session.ts': 'whether a trigger sits in prose: prose'
 };
 

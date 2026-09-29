@@ -51,14 +51,14 @@ export function cutBeforeSuffix(node: NodeView, cut: number): number {
 	return suffix ? Math.min(cut, displayLength(node.raw) - suffix.length) : cut;
 }
 
-/** The bytes of a join: `survivor` cut at `cut`, `absorbed`'s text from `from`, then the survivor's
- *  structural suffix. `writeTail` is the absorbed kind's write rule; `start`/`end` are the cuts. */
+/** The bytes of a join: `survivor` cut at `cut`, `absorbed`'s text from `from` through `writeTail`
+ *  (the absorbed kind's write rule), then the survivor's structural suffix. */
 export function joinKeepingSuffix(
 	survivor: NodeView,
 	cut: number,
 	absorbed: NodeView,
 	from: number,
-	writeTail: (tail: string) => string = (tail) => tail
+	writeTail: (tail: string) => string
 ): { raw: string; start: number; end: number } {
 	const kept = structuralSuffix(survivor);
 	const dropped = structuralSuffix(absorbed);

@@ -16,7 +16,7 @@ import { createSharingState } from '$lib/tree-operations/sharing';
 import { storedAsAt } from '$lib/tree-operations/stored-as';
 import { rangeDelete } from '$lib/selection/range-delete';
 import { coverRange } from '$lib/selection/range-coverage';
-import { resolveSelectionEdit } from '$lib/components/blocks/text/live-selection-edit';
+import { replaceRangeInLeaf } from '$lib/tree-operations/leaf-range';
 import { resolveEdgeDeletion } from '$lib/components/blocks/text/construct-edge-delete';
 import { cleanLiveJoinSeam } from '$lib/components/blocks/text/live-join-seam';
 import {
@@ -121,8 +121,7 @@ async function rangeEdit(
 	const doc = parse(source);
 	const node = nodeAt(doc, container.first) as CstNode;
 	const store = storedAsAt(doc, container.first, LIVE);
-	const edit = resolveSelectionEdit(node, range, typed, store);
-	const raw = edit?.raw ?? node.raw.slice(0, range.start) + typed + node.raw.slice(range.end);
+	const { raw } = replaceRangeInLeaf(node, range, typed, store);
 	return writeLeaf(source, container.first, raw);
 }
 

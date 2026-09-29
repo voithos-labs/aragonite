@@ -32,7 +32,8 @@ import {
 	type EdgeDeletion
 } from './construct-edge-delete';
 import { resolveEdgeSeat, type EdgeSeat } from './edge-seat';
-import { replaceRangeRaw } from './live-selection-edit';
+import { replaceRangeInLeaf } from '../../../tree-operations/leaf-range';
+import { openHardBreakLine } from './text-keydown';
 import { resolveMarkedInsertion } from './pending-mark-insert';
 import { widgetAtCursor } from './widget-adjacency';
 import { noteOwnPair, resolveDelimiterAutoPair } from './delimiter-autopair';
@@ -226,6 +227,8 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		if (write.admitted) deps.setPendingCursor(write.caret, source);
 	}
 
+	/** `[start, end)` replaced by `insert` through the in-leaf range replace, the store read at the
+	 *  key. */
 	function editDisplay(
 		start: number,
 		end: number,
@@ -233,13 +236,15 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		source = 'island',
 		caretBefore = start
 	): void {
-		const d = display();
-		writeDisplay(
-			d.slice(0, start) + insert + d.slice(end),
-			start + insert.length,
-			source,
-			caretBefore
+		const edit = replaceRangeInLeaf(deps.node, { start, end }, insert, deps.storedAs());
+		const write = deps.blockEdit.updateBlockContent(
+			deps.index,
+			edit.raw,
+			'authored',
+			caretBefore,
+			edit.caret
 		);
+		if (write.admitted) deps.setPendingCursor(write.caret, source);
 	}
 
 	/** The selected range, or null at a plain caret; every branch reads it here. Empty when both ends
@@ -304,7 +309,7 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 	): void {
 		const range = heldRange();
 		if (range && range.end > range.start) {
-			const edit = replaceRangeRaw(deps.node, range, typed, deps.storedAs(), deps.getLineEnding());
+			const edit = replaceRangeInLeaf(deps.node, range, typed, deps.storedAs());
 			const write = deps.blockEdit.updateBlockContent(
 				deps.index,
 				edit.raw,
@@ -354,15 +359,7 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 			if (isDestructive && policy?.deleteGranularity === 'atomic' && !deps.isReading()) {
 				// One keypress takes the whole construct, anchored at the caret before the delete
 				// so Ctrl+Z lands there.
-				const newRaw = node.raw.slice(0, widgetAt.start) + node.raw.slice(widgetAt.end);
-				const write = deps.blockEdit.updateBlockContent(
-					deps.index,
-					newRaw,
-					'authored',
-					caretOffset,
-					widgetAt.start
-				);
-				if (write.admitted) deps.setPendingCursor(write.caret, 'widget');
+				editDisplay(widgetAt.start, widgetAt.end, '', 'widget', caretOffset);
 				return true;
 			}
 			// `onEdge: 'select'`, plus the kinds `enterWidget` sends to their source instead of
@@ -523,7 +520,7 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		if (range.end > range.start) {
 			// Handled at keydown, so this branch asks the join rules itself, or a literal splice would
 			// print the delimiter runs the cut stranded (`docs/design/live-mode.md` § 4.5).
-			const edit = replaceRangeRaw(deps.node, range, '', deps.storedAs(), deps.getLineEnding());
+			const edit = replaceRangeInLeaf(deps.node, range, '', deps.storedAs());
 			const write = deps.blockEdit.updateBlockContent(
 				deps.index,
 				edit.raw,
@@ -592,13 +589,8 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		const ending = trailingLineEnding(deps.node.raw, deps.getLineEnding());
 		e.preventDefault();
 		deps.setSnapTarget(null);
-		const line = ending + e.key;
-		writeDisplay(
-			d.slice(0, lineEnd) + line + d.slice(lineEnd),
-			lineEnd + line.length,
-			'transitional-hard-break',
-			caretOffset
-		);
+		const opened = openHardBreakLine(d, lineEnd, ending, e.key);
+		writeDisplay(opened.display, opened.caret, 'transitional-hard-break', caretOffset);
 		return true;
 	}
 

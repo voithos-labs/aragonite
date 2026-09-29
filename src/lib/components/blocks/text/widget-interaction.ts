@@ -50,6 +50,8 @@ import {
 	rawHasNoTextAfter,
 	widgetElByStart
 } from './widget-adjacency';
+import type { StoredAs } from '../../../schema/stored-as';
+import { replaceRangeInLeaf } from '../../../tree-operations/leaf-range';
 import type { Reading } from '../../../schema/reading';
 import type { WriteMode } from '../../../schema/block-kind-descriptor';
 
@@ -79,6 +81,8 @@ export interface WidgetInteractionDeps {
 	/** The grammar the widgets were rendered with, and the presentation mode: reading mode shows
 	 *  no source and edits no widget. */
 	get reading(): Reading;
+	/** Where the block's bytes are stored, read when a selected widget is replaced. */
+	storedAs: () => StoredAs;
 }
 
 /** The click a widget gesture reads off: the same event the widget's own handler sees. */
@@ -193,6 +197,8 @@ export interface WidgetReplaceDeps {
 	blockEdit: BlockEditActions;
 	widgetSelection: WidgetSelectionState;
 	setPendingCursor: (offset: number | null) => void;
+	/** Where the block's bytes are stored, read when the widget is replaced. */
+	storedAs: () => StoredAs;
 }
 
 /** Replace a selected widget's bytes with `text` in one undoable write and put the caret after
@@ -204,13 +210,13 @@ export async function replaceSelectedWidget(
 	text: string,
 	mode: WriteMode
 ): Promise<void> {
-	const raw = deps.node.raw;
+	const edit = replaceRangeInLeaf(deps.node, widget, text, deps.storedAs());
 	const write = deps.blockEdit.updateBlockContent(
 		deps.index,
-		raw.slice(0, widget.start) + text + raw.slice(widget.end),
+		edit.raw,
 		mode,
 		preSelectOffset,
-		widget.start + text.length
+		edit.caret
 	);
 	// Before the write's render, so the caret and the new bytes land in one flush.
 	if (write.admitted) deps.setPendingCursor(write.caret);

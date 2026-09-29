@@ -14,6 +14,7 @@ const LADDER = [
 	'settle',
 	'content-write',
 	'stored-as',
+	'leaf-range',
 	'node-ops',
 	'chain-rebuild'
 ] as const;

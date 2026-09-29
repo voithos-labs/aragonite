@@ -2,22 +2,22 @@
 // Every write that slices `raw` at a caret offset snaps to a scalar boundary first, or a gesture
 // puts half a surrogate pair in each of two blocks.
 // Miss-analysis: every offset these writes were driven with came from an ASCII fixture.
+// Which modules may snap is G4.89's list, in `lint/file-rules.test.ts`.
 import { afterEach, beforeEach, describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { snapToScalarBoundary } from '$lib/core/lines';
-import { splitNode, cutRangeFromDisplay } from '$lib/tree-operations/node-ops';
+import { splitNode } from '$lib/tree-operations/node-ops';
+import { replaceRangeInLeaf } from '$lib/tree-operations/leaf-range';
 import { buildPastedReplacement } from '$lib/tree-operations/paste/paste-replacement';
 import { splitLeafForPaste } from '$lib/tree-operations/list/list-builders';
 import { fragmentReaderAt } from '$lib/tree-operations/list/task-paragraph';
-import { resolveSelectionEdit } from '$lib/components/blocks/text/live-selection-edit';
 import { cleanLiveJoinSeam } from '$lib/components/blocks/text/live-join-seam';
 import {
 	registerLiveJoinSeamCleaner,
 	__resetLiveJoinSeamCleanerForTests
 } from '$lib/schema/inline-construct-policy';
 import { createSharingState } from '$lib/tree-operations/sharing';
-import { collectEditorSources } from '$lib/test/invariants/lint/scan-source';
 import type { CstNode } from '$lib/core/nodes';
 import type { NodeView } from '$lib/core/node-views';
 import { fixtureReading, TOP_SLOT, topLevelStore } from '../harness/fixture-grammar';
@@ -46,35 +46,6 @@ function isWellFormed(text: string): boolean {
 	return true;
 }
 
-// ── The belt's membership ────────────────────────────────────────────────────
-
-/**
- * Every module naming the snap, and the cut it must apply it to. Set equality, so a new cutting
- * write fails here until it joins the list.
- */
-const BELT_MEMBERS: Record<string, string> = {
-	'src/lib/core/lines.ts': 'the snap itself',
-	'src/lib/selection/char-endpoint-snap.ts': 'the selection endpoint clamp',
-	'src/lib/tree-operations/node-ops.ts':
-		"the split's line-ending cut and the single-block range cut",
-	'src/lib/tree-operations/structural-suffix.ts':
-		"the split's and a paste's halves, for the structural paste and the absorb split's items",
-	'src/lib/components/blocks/text/live-selection-edit.ts':
-		'the native ranged edit re-expressed as a join'
-};
-
-describe('the belt set', () => {
-	it('exactly the declared modules name the snap', () => {
-		const namers = collectEditorSources()
-			.filter((file) => /(?<![\w.])snapToScalarBoundary\b/.test(file.code))
-			.map((file) => file.relPath);
-		expect(
-			namers.sort(),
-			'a module started (or stopped) snapping a caret offset: name the cut the belt is for'
-		).toEqual(Object.keys(BELT_MEMBERS).sort());
-	});
-});
-
 describe('snapToScalarBoundary', () => {
 	it('moves an interior offset back to the pair start and leaves every other alone', () => {
 		expect(snapToScalarBoundary(BOY, 2)).toBe(1);
@@ -98,19 +69,26 @@ describe('the split cut', () => {
 	});
 });
 
-describe('the single-block range cut', () => {
+describe('the in-leaf range replace', () => {
 	it('cuts to the pair boundary, leaving no half behind', () => {
 		const node = parse(BOY).children[0] as NodeView;
-		const cut = cutRangeFromDisplay(node, 'a\u{1F466}b', { start: 0, end: 2 }, topLevelStore(node));
-		expect(isWellFormed(cut.display)).toBe(true);
-		expect(cut.display).toBe('\u{1F466}b');
+		const edit = replaceRangeInLeaf(node, { start: 0, end: 2 }, '', topLevelStore(node));
+		expect(isWellFormed(edit.raw)).toBe(true);
+		expect(edit.raw).toBe('\u{1F466}b\n');
 	});
 
 	it('snaps the start endpoint too', () => {
 		const node = parse(BOY).children[0] as NodeView;
-		const cut = cutRangeFromDisplay(node, 'a\u{1F466}b', { start: 2, end: 4 }, topLevelStore(node));
-		expect(isWellFormed(cut.display)).toBe(true);
-		expect(cut.display).toBe('a');
+		const edit = replaceRangeInLeaf(node, { start: 2, end: 4 }, '', topLevelStore(node));
+		expect(isWellFormed(edit.raw)).toBe(true);
+		expect(edit.raw).toBe('a\n');
+	});
+
+	it('snaps a mid-pair endpoint where nothing is cleaned, too', () => {
+		const node = parse(BOY).children[0] as NodeView;
+		const edit = replaceRangeInLeaf(node, { start: 2, end: 3 }, 'x', topLevelStore(node));
+		expect(isWellFormed(edit.raw)).toBe(true);
+		expect(edit.raw).toBe('axb\n');
 	});
 });
 
@@ -141,7 +119,7 @@ describe('the absorb split’s item halves', () => {
 	});
 });
 
-describe('the native ranged edit’s join', () => {
+describe('the in-leaf range replace’s join', () => {
 	beforeEach(() => registerLiveJoinSeamCleaner(cleanLiveJoinSeam));
 	afterEach(() => __resetLiveJoinSeamCleanerForTests());
 
@@ -152,8 +130,8 @@ describe('the native ranged edit’s join', () => {
 	it('snaps a mid-pair endpoint before slicing', () => {
 		const node = parse(SOURCE, { scope: 'fragment' }).children[0] as NodeView;
 		const store = topLevelStore(node, fixtureReading({}, 'live'));
-		const edit = resolveSelectionEdit(node, { start: 8, end: 22 }, '', store);
-		expect(edit).not.toBeNull();
-		expect(isWellFormed(edit!.raw)).toBe(true);
+		const edit = replaceRangeInLeaf(node, { start: 8, end: 22 }, '', store);
+		expect(edit.matchesBrowserEdit).toBe(false);
+		expect(isWellFormed(edit.raw)).toBe(true);
 	});
 });

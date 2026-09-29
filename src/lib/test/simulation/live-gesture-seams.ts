@@ -33,10 +33,8 @@ import { keepsKindAt } from '$lib/core/inline/live-edit/read-back';
 import { storedAsAt } from '$lib/tree-operations/stored-as';
 import { resolveDelimiterAutoPair } from '$lib/components/blocks/text/delimiter-autopair';
 import { createAutoPairRecord } from '$lib/components/blocks/text/auto-pair-record';
-import {
-	resolveLiveRangeEdit,
-	resolveSelectionEdit
-} from '$lib/components/blocks/text/live-selection-edit';
+import { resolveLiveRangeEdit } from '$lib/components/blocks/text/live-selection-edit';
+import { replaceRangeInLeaf } from '$lib/tree-operations/leaf-range';
 import { rangeDelete } from '$lib/selection/range-delete';
 import { blockNodeAt, nodeAt } from '$lib/tree-operations/node-primitives';
 import { coverRange } from '$lib/selection/range-coverage';
@@ -510,7 +508,6 @@ function wordDelete(
 		event,
 		node,
 		{ rawRangeOf: () => range, getRawSelection: () => null },
-		'\n',
 		storeOf(h, leaf, mode)
 	);
 	if (edit === null) {
@@ -540,8 +537,8 @@ function replaceSelection(
 	const { node, index, blockEdit } = leaf;
 	const range = drawnRange(node, gesture);
 	if (range === null) return false;
-	const edit = resolveSelectionEdit(node, range, gesture.char, storeOf(h, leaf, mode));
-	if (edit) {
+	const edit = replaceRangeInLeaf(node, range, gesture.char, storeOf(h, leaf, mode));
+	if (!edit.matchesBrowserEdit) {
 		void blockEdit.updateBlockContent(index, edit.raw, 'authored', range.start, edit.caret);
 		return true;
 	}

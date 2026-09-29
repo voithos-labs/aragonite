@@ -54,7 +54,8 @@
 	import { createEdgePolicyDispatch } from './edge-policy-dispatch';
 	import { keepsKindAt } from '../../../core/inline/live-edit/read-back';
 	import { storedAsAt } from '../../../tree-operations/stored-as';
-	import { applyLiveRangeEdit, resolveSelectionEdit } from './live-selection-edit';
+	import { applyLiveRangeEdit } from './live-selection-edit';
+	import { replaceRangeInLeaf } from '../../../tree-operations/leaf-range';
 	import { applyDelimiterAutoPair } from './delimiter-autopair';
 	import { createCompositionSeat } from './composition-seat';
 	import { createConstructReveal } from './construct-reveal';
@@ -267,6 +268,7 @@
 
 	const widgetInteraction = createWidgetInteraction({
 		getLineEnding: documentEnding,
+		storedAs,
 		get node() {
 			return node;
 		},
@@ -299,6 +301,7 @@
 	// After `widgetInteraction`, because a clipboard edit hides a shown source before it
 	// touches the CST.
 	const clipboardHandlers = createTextClipboard({
+		storedAs,
 		get node() {
 			return node;
 		},
@@ -388,11 +391,12 @@
 		consumePendingMarks: caretMemory.pendingMarks.consume,
 		restorePendingMarks: caretMemory.pendingMarks.restore,
 		getRawSelection: () => cursor.getRawSelection(),
-		// The same join rules `handleLiveSelectionEdit` uses, in the displayed bytes this
+		// The in-leaf range replace `handleLiveSelectionEdit` uses, in the displayed bytes this
 		// returns (`commitInput` re-appends the trailing line ending).
 		resolveRangeEdit: (range, typed) => {
-			const edit = resolveSelectionEdit(node, range, typed, storedAs());
-			return edit && { raw: trimTrailingLineEnding(edit.raw), caret: edit.caret };
+			const edit = replaceRangeInLeaf(node, range, typed, storedAs());
+			if (edit.matchesBrowserEdit) return null;
+			return { raw: trimTrailingLineEnding(edit.raw), caret: edit.caret };
 		}
 	});
 
@@ -884,7 +888,6 @@
 			e,
 			node,
 			cursor,
-			documentEnding(),
 			storedAs(),
 			widgetInteraction.isRevealing,
 			(edit) => {

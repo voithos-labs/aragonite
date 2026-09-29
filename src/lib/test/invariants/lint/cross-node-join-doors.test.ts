@@ -17,11 +17,10 @@ import {
 
 /** Every file naming the cleaner, and what it joins. */
 const CLEANER_READERS: Record<string, string> = {
-	'src/lib/tree-operations/node-ops.ts':
-		'defines it, and crosses it from the split cut, the range cut and `joinIntoLeaf`, the one join into a leaf',
+	'src/lib/tree-operations/leaf-range.ts':
+		'defines it, and crosses it from every in-leaf range replace and `joinLeaves`, the merge’s join',
 	'src/lib/selection/range-delete.ts': 'the same-block and cross-block range merges',
-	'src/lib/selection/range-delete-ceremony.ts': 'the shared endpoint join',
-	'src/lib/components/blocks/text/live-selection-edit.ts': 'the native ranged edit'
+	'src/lib/selection/range-delete-ceremony.ts': 'the shared endpoint join'
 };
 
 /** Every file calling the one join into a leaf, and what it joins. */
@@ -41,11 +40,11 @@ const NON_JOIN_CONCATENATIONS: Record<string, string> = {
 	'src/lib/schema/child-spans.ts':
 		"a container splicing ONE child's region back into its own raw: both surrounding operands are bytes that container already emitted",
 	'src/lib/tree-operations/paste/container-match.ts':
-		'a paste INSERTS between the target’s own halves; its delete half, the one place a cut can strand a run, is `preDelete` and crosses `cutRangeFromDisplay`',
+		'a paste INSERTS between the target’s own halves; its delete half, the one place a cut can strand a run, is `preDelete`, cut by `replaceRangeInLeaf` before the container routes run',
 	'src/lib/editor-actions/inline-range-commit.ts':
 		'a popover or menu splice INSERTS between one leaf’s own halves over the range it replaces; nothing is cut out from under a delimiter it does not also rewrite',
 	'src/lib/selection/cross-block/type-replace.ts':
-		'a typed character INSERTS at the caret the range delete left; that delete, the destructive half, already crossed the cleaner in the range-delete join'
+		'a key typed over a selection across blocks is a range delete, then the character at the caret it left: the delete cleans its join without the typed text in it, a known gap until the cross-block replace carries the text into the join (T18 slice 4)'
 };
 
 /** Operand names that terminate a line rather than contribute a source's bytes. */

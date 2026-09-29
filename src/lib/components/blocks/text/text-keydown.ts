@@ -108,6 +108,21 @@ export function insertHardBreak(
 	}
 }
 
+/** The key typed after a hard break's backslash, opening the break's own line at `lineEnd` (past a
+ *  heading's closing run). Works on the display text, without its trailing line ending. */
+export function openHardBreakLine(
+	display: string,
+	lineEnd: number,
+	ending: LineEnding,
+	key: string
+): { display: string; caret: number } {
+	const line = ending + key;
+	return {
+		display: display.slice(0, lineEnd) + line + display.slice(lineEnd),
+		caret: lineEnd + line.length
+	};
+}
+
 /** Insert a literal tab character at `offset` within the display portion. */
 export function insertLiteralTab(raw: string, offset: number): TextEditResult {
 	const display = trimTrailingLineEnding(raw);

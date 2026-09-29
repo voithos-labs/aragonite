@@ -13,9 +13,10 @@ import {
 import { createWidgetSelectionState } from '$lib/components/image/widget-selection-state.svelte';
 import type { CstNode } from '$lib/core/nodes';
 import type { Commit } from './widget-selected-fixture';
-import { fixtureReading } from '../../harness/fixture-grammar';
+import { fixtureReading, topLevelStore } from '../../harness/fixture-grammar';
 import { defaultGrammarView } from '$lib/schema/block-openers';
 import { stubCaretMemory } from '$lib/testing/headless-actions';
+import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 
 function capturingEvent() {
 	const store = new Map<string, string>();
@@ -41,7 +42,8 @@ interface HarnessOptions {
 }
 
 function harness(source: string, sourceStart: number, options: HarnessOptions = {}) {
-	const node: CstNode = parse(source).children[0];
+	const doc = parse(source);
+	const node: CstNode = doc.children[0];
 	const commits: Commit[] = [];
 	const widgetSelection = createWidgetSelectionState({ onSelect: () => {} });
 	if (options.selectWidget !== false) {
@@ -77,9 +79,8 @@ function harness(source: string, sourceStart: number, options: HarnessOptions = 
 			)
 		},
 		pasteCoordinator: trap,
-		getDoc: () => {
-			throw new Error('unexpected getDoc access');
-		},
+		getDoc: () => doc,
+		activePlugins: everyInstalledPlugin,
 		widgetSelection,
 		setPendingCursor: () => {},
 		isReadOnly: () => options.readOnly === true,
@@ -87,7 +88,8 @@ function harness(source: string, sourceStart: number, options: HarnessOptions = 
 		grammar: defaultGrammarView,
 		get reading() {
 			return fixtureReading();
-		}
+		},
+		storedAs: () => topLevelStore(node)
 	} as unknown as TextClipboardDeps;
 
 	return { handlers: createTextClipboard(deps), commits, widgetSelection };
@@ -196,7 +198,8 @@ describe('createTextClipboard: claimRootClipboard', () => {
 // Hiding a source whose commit changes the block's kind completes on a promise, so cut and paste
 // must wait for it or splice bytes still being replaced.
 function foldSettleHarness() {
-	const node: CstNode = parse('lead![cat](x)\n').children[0];
+	const doc = parse('lead![cat](x)\n');
+	const node: CstNode = doc.children[0];
 	const order: string[] = [];
 	const widgetSelection = createWidgetSelectionState({ onSelect: () => {} });
 	widgetSelection.select({ paragraphPath: [0], sourceStart: 4, preSelectOffset: 4 });
@@ -222,7 +225,8 @@ function foldSettleHarness() {
 		caretMemory: stubCaretMemory(),
 		blockEdit: { updateBlockContent: recordingWrite(() => order.push('seam-commit')) },
 		pasteCoordinator: {},
-		getDoc: () => null,
+		getDoc: () => doc,
+		activePlugins: everyInstalledPlugin,
 		widgetSelection,
 		setPendingCursor: () => {},
 		isReadOnly: () => false,
@@ -233,7 +237,8 @@ function foldSettleHarness() {
 		grammar: defaultGrammarView,
 		get reading() {
 			return fixtureReading();
-		}
+		},
+		storedAs: () => topLevelStore(node)
 	} as unknown as TextClipboardDeps;
 
 	return { handlers: createTextClipboard(deps), order, releaseWrite };

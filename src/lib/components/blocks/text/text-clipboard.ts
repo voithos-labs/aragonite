@@ -23,11 +23,10 @@ import {
 	type RevealFold
 } from '../editable-surface';
 import { pasteDispatch } from '../../../tree-operations/paste/dispatch';
-import { replaceRangeRaw } from './live-selection-edit';
-import { storedAsAt } from '../../../tree-operations/stored-as';
+import { replaceRangeInLeaf } from '../../../tree-operations/leaf-range';
 import { replaceSelectedWidget } from './widget-interaction';
 import type { Reading } from '../../../schema/reading';
-import { documentLineEnding } from '../../../core/lines';
+import type { StoredAs } from '../../../schema/stored-as';
 
 export interface TextClipboardDeps {
 	get node(): NodeView;
@@ -63,6 +62,8 @@ export interface TextClipboardDeps {
 	/** How this editor reads its bytes: an unlisted plugin's opener never takes pasted bytes here,
 	 *  and a cut is a join its mode decides the cleanup of (live-mode.md § 4.5). */
 	get reading(): Reading;
+	/** Where the block's bytes are stored, read when a cut writes. */
+	storedAs: () => StoredAs;
 }
 
 export interface TextClipboard extends ClipboardHandlers {
@@ -152,9 +153,7 @@ export function createTextClipboard(deps: TextClipboardDeps): TextClipboard {
 			if (!selOffsets) return;
 			// A cut is a delete, so it goes through the same join rules: in live mode the range
 			// can span delimiter runs the user never saw, and a plain splice would print them.
-			const doc = deps.getDoc();
-			const store = storedAsAt(doc, deps.myPath, deps.reading);
-			const edit = replaceRangeRaw(deps.node, selOffsets, '', store, documentLineEnding(doc));
+			const edit = replaceRangeInLeaf(deps.node, selOffsets, '', deps.storedAs());
 			const write = deps.blockEdit.updateBlockContent(
 				deps.index,
 				edit.raw,
@@ -166,29 +165,20 @@ export function createTextClipboard(deps: TextClipboardDeps): TextClipboard {
 		},
 
 		pasteTail: async (pastedText, foldedCaret) => {
+			// A selected widget is the selection a paste replaces, through the same route as any.
 			const widget = selectedWidgetOnThisBlock();
-			if (widget !== null) {
-				await replaceSelectedWidget(
-					deps,
-					widget.inline,
-					widget.preSelectOffset,
-					pastedText,
-					'literal'
-				);
-				return;
-			}
-
+			if (widget !== null) deps.widgetSelection.clear();
 			// Once the widget's source is hidden again the caret sits on its element-level edge,
 			// where `getRaw` can read null; the committed caret is the right offset.
 			const offset = deps.cursor.getRaw() ?? foldedCaret ?? 0;
-			const selOffsets = deps.cursor.getRawSelection();
+			const range = widget?.inline ?? deps.cursor.getRawSelection();
 
 			const result = await pasteDispatch(
 				{
 					pastedText,
 					targetPath: deps.myPath,
-					offset: selOffsets ? selOffsets.start : offset,
-					preDelete: selOffsets ? { start: selOffsets.start, end: selOffsets.end } : undefined
+					offset: range ? range.start : offset,
+					preDelete: range ? { start: range.start, end: range.end } : undefined
 				},
 				{
 					doc: deps.getDoc(),

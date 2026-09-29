@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // What `resolveLiveRangeEdit` makes of the range an InputEvent carries, where the browser's target
-// range and the DOM caret can disagree. The joins are covered through `resolveSelectionEdit`.
+// range and the DOM caret can disagree. The joins are covered through `replaceRangeInLeaf`.
 // Miss-analysis: join tests passed their own range, never a collapsed target away from the caret.
 import { afterEach, describe, expect, it } from 'vitest';
 import { parse } from '$lib/core/parser';
@@ -59,7 +59,6 @@ describe('a collapsed insertion whose browser target disagrees with the DOM care
 			insertEvent(' '),
 			node,
 			cursorReading(8, 12),
-			'\n',
 			topLevelStore(node, fixtureReading({}, 'live'))
 		);
 		expect(edit).toEqual({
@@ -77,7 +76,6 @@ describe('a collapsed insertion whose browser target disagrees with the DOM care
 				insertEvent(' '),
 				node,
 				cursorReading(8, 8),
-				'\n',
 				topLevelStore(node, fixtureReading({}, 'live'))
 			)
 		).toBeNull();
@@ -92,7 +90,6 @@ describe('a collapsed insertion whose browser target disagrees with the DOM care
 				insertEvent(' '),
 				node,
 				cursorReading(6, 5),
-				'\n',
 				topLevelStore(node, fixtureReading({}, 'live'))
 			)
 		).toBeNull();
@@ -101,7 +98,23 @@ describe('a collapsed insertion whose browser target disagrees with the DOM care
 	it('stays out of every other mode', () => {
 		placeCaret();
 		expect(
-			resolveLiveRangeEdit(insertEvent(' '), node, cursorReading(8, 12), '\n', topLevelStore(node))
+			resolveLiveRangeEdit(insertEvent(' '), node, cursorReading(8, 12), topLevelStore(node))
 		).toBeNull();
+	});
+});
+
+// Miss-analysis: the parked-caret rows ran on a link, whose closing run ends before the text does,
+// so no row put the caret past a heading's closing run.
+describe('a key typed after a heading’s closing run the user just typed', () => {
+	it('lands after the run, where the caret is, turning the run back into text', () => {
+		placeCaret();
+		const node = parse('# Hi #\n').children[0];
+		const store = topLevelStore(node, fixtureReading({}, 'live'));
+		expect(resolveLiveRangeEdit(insertEvent('t'), node, cursorReading(4, 6), store)).toEqual({
+			kind: 'rewrite',
+			range: { start: 6, end: 6 },
+			raw: '# Hi #t\n',
+			caret: 7
+		});
 	});
 });
