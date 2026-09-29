@@ -13,6 +13,9 @@ import {
 	makeListContextAt
 } from '$lib/test/harness/editor-actions';
 import { makeTableMutations } from '../table-mutations-harness';
+import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
+import { asDocPath } from '$lib/selection/path-math';
+import { takeDevWarns } from '$lib/test/support/warn-gate';
 import { createSharingState } from '$lib/tree-operations/sharing';
 import {
 	applyCrossBlockFormat,
@@ -92,5 +95,24 @@ describe('a document-scope mutation over several chains rebuilds each node once'
 
 		expect(serialize(doc)).toBe('- **a**\n- **b**\n');
 		expect(repeatedRebuilds()).toEqual([]);
+	});
+});
+
+describe('a mutation’s own rebuild stays off the commit’s chain', () => {
+	it('warns when a mutation rebuilds its scope, which the commit rebuilds anyway', async () => {
+		const { deps } = makeEditorActionsDeps('- a\n  - x\n- b\n');
+		const controller = createUndoController(deps);
+		const state = makeBlockListState(() => deps.doc.children[0]);
+
+		await controller.commitMultiScope({
+			scopes: [{ node: deps.doc.children[0], state, path: [0] }],
+			snapshot: { path: asDocPath([0]), offset: 0 },
+			mutate: ([scope]) => {
+				scope.rebuild(scope.node);
+				return [{ op: 'noop' }];
+			}
+		});
+
+		expect(takeDevWarns().map((w) => w.tag)).toContain('invariant:scope-rebuild-off-chain');
 	});
 });

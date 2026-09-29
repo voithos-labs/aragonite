@@ -31,7 +31,7 @@ import {
 import type { SharingState } from '../../tree-operations/sharing';
 import { writeKeepingTaskMarker } from '../../tree-operations/list/reconcile-task';
 import { ensureUnsharedPath } from '../../tree-operations/unshare';
-import { rebuildUnsharedChain, sharedChainFloors } from '../../tree-operations/chain-rebuild';
+import { rebuildUnsharedChain, sharedChainLevels } from '../../tree-operations/chain-rebuild';
 import { comparePaths } from '../path-math';
 import { charOffsetOf, type SelectionPoint } from '../primitives';
 import { coveredGridCells, gridEndpointCellIndex } from '../table-endpoint-snap';
@@ -137,13 +137,9 @@ export function applyCrossBlockFormat(
 	}
 	// Every write lands before any rebuild, and an ancestor the chains share is rebuilt once, by the
 	// last chain holding it, after every chain below it.
-	const floors = sharedChainFloors(chains);
-	const readsWhole = new Set<CstNode>();
+	const levels = sharedChainLevels(chains);
 	chains.forEach((chain, i) => {
-		rebuildUnsharedChain(root, chain, sharing, null, grammar, undefined, {
-			floor: floors[i],
-			readsWhole
-		});
+		rebuildUnsharedChain(root, chain, sharing, null, grammar, undefined, levels[i]);
 	});
 }
 

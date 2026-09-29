@@ -31,7 +31,7 @@ import { ensureUnsharedPath, rebuildOwnedContainer } from '../../tree-operations
 import {
 	attachedChainPrefix,
 	rebuildUnsharedChain,
-	sharedChainFloors,
+	sharedChainLevels,
 	type AncestrySeamFold,
 	type ContainerReclassification
 } from '../../tree-operations/chain-rebuild';
@@ -664,7 +664,18 @@ export function createUndoController(
 				body: isDoc
 					? documentBody(deps.doc, owned.children!)
 					: { children: owned.children!, owner: owned, lineEnding },
-				rebuild: (node) => rebuildOwnedContainer(node, deps.sharing)
+				rebuild: (node) => {
+					// The commit rebuilds the scope's own chain, and a shared node is an undo entry's.
+					assertInvariant('scope-rebuild-off-chain', () =>
+						node === owned || chain.includes(node) || deps.sharing.isShared(node)
+							? {
+									code: 'scope-rebuild-off-chain',
+									message: `ContainerScope.rebuild: a ${node.kind} on the commit's chain or shared`
+								}
+							: null
+					);
+					rebuildOwnedContainer(node, deps.sharing);
+				}
 			},
 			ids,
 			refs,
@@ -750,8 +761,7 @@ export function createUndoController(
 				// keeps a scope spliced out of the tree from being rebuilt off its emptied children.
 				const order = [...prepared].sort((a, b) => b.chain.length - a.chain.length);
 				// An ancestor several scopes share is rebuilt once, by the last chain holding it.
-				const floors = sharedChainFloors(order.map((p) => p.chain));
-				const readsWhole = new Set<CstNode>();
+				const levels = sharedChainLevels(order.map((p) => p.chain));
 				order.forEach((p, i) => {
 					const before = folds.length;
 					reclassified.push(
@@ -762,7 +772,7 @@ export function createUndoController(
 							folds,
 							deps.reading.grammar,
 							undefined,
-							{ floor: floors[i], readsWhole }
+							levels[i]
 						)
 					);
 					foldLanding = foldLandingFor(folds.slice(before), p.target.path) ?? foldLanding;

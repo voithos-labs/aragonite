@@ -75,23 +75,24 @@ export interface ChainWriteHint {
  * leaving the levels above to a later chain, which reads whole any node in `readsWhole`.
  */
 export interface SharedChainLevels {
-	floor: number;
-	readsWhole: Set<CstNode>;
+	readonly floor: number;
+	readonly readsWhole: Set<CstNode>;
 }
 
 /**
- * Where each of several chains, rebuilt in order, stops: a node a later chain also holds is left
- * to the last chain holding it, so each node is rebuilt once, after every chain node below it.
+ * The levels each chain rebuilds when the chains are rebuilt in this order, one per chain: a node
+ * several chains hold is left to the last of them, so it's rebuilt once, after everything below it.
  */
-export function sharedChainFloors(chains: readonly (readonly CstNode[])[]): number[] {
+export function sharedChainLevels(chains: readonly (readonly CstNode[])[]): SharedChainLevels[] {
 	const lastHolder = new Map<CstNode, number>();
 	chains.forEach((chain, j) => {
 		for (const node of chain) lastHolder.set(node, j);
 	});
+	const readsWhole = new Set<CstNode>();
 	return chains.map((chain, j) => {
 		let floor = chain.length;
 		while (floor > 0 && lastHolder.get(chain[floor - 1]) === j) floor--;
-		return floor;
+		return { floor, readsWhole };
 	});
 }
 
@@ -168,7 +169,7 @@ export function rebuildUnsharedChain(
 	}
 	if (spilled && floor > 0) shared!.readsWhole.add(chain[floor - 1]);
 	else if (spilled && folds) spliceSpill(spilled, sharing, folds);
-	if (perfEnabled()) recordRebuildDepth(chain.length);
+	if (perfEnabled() && chain.length > floor) recordRebuildDepth(chain.length - floor);
 	return reclassified;
 }
 
