@@ -53,7 +53,10 @@ interface Fixture extends MountedListWindowing {
 	growHeaderBy(px: number): void;
 }
 
-function fixture(column: Column, opts: { scrollTop?: number; focused?: number[] } = {}): Fixture {
+function fixture(
+	column: Column,
+	opts: { scrollTop?: number; focused?: number[]; domTop?: (index: number) => number } = {}
+): Fixture {
 	const live = liveChildren(
 		[0, 1, 2, 3, 4, 5].map((i) => makePara(`p${i}\n`)),
 		['b0', 'b1', 'b2', 'b3', 'b4', 'b5']
@@ -63,7 +66,8 @@ function fixture(column: Column, opts: { scrollTop?: number; focused?: number[] 
 	const blockEl = (path: number[]) => {
 		const el = document.createElement('div');
 		// Where the block sits on screen now, so a placement records a real landing.
-		const top = () => (OFFSETS[path[0]] ?? 0) - (box.port?.scrollTop() ?? 0);
+		const top = () =>
+			(opts.domTop?.(path[0]) ?? OFFSETS[path[0]] ?? 0) - (box.port?.scrollTop() ?? 0);
 		el.getBoundingClientRect = () => ({ top: top(), bottom: top() + 10 }) as DOMRect;
 		el.scrollIntoView = (o) => scrolled.push(`${JSON.stringify(path)} ${JSON.stringify(o)}`);
 		return el;
@@ -623,6 +627,29 @@ describe('scroll owner: the edges', () => {
 		await tick();
 		await tick();
 		expect(f.port.scrollTop()).toBe(HELD_TOP);
+		f.cleanup();
+	});
+
+	// Miss-analysis: every placement row measured before it landed, so none saw a block mounted
+	// but not yet measured go into the landing's bias and then count again once measured.
+	it('a placement lands against a table that knows every mounted block', async () => {
+		// b2 is mounted at 60px, its measure still queued, so every box below it sits 30px lower.
+		const f = fixture('free', { domTop: (index) => OFFSETS[index] + (index > 2 ? GROWTH : 0) });
+		f.windowing.registerChild('b2', { index: 2, readHeight: () => HEIGHTS.b2 + GROWTH });
+		await f.owner.place([4], { block: 'nearest', hold: true }).scroll();
+		await tick();
+		// b4 stays where it landed: at the viewport's top, where the measured table puts it.
+		expect(f.port.scrollTop()).toBe(OFFSETS[4] + GROWTH);
+		f.cleanup();
+	});
+
+	it('a round never writes back a scroll the editor didn’t make', async () => {
+		const f = fixture('free');
+		measureB2Taller(f);
+		// A script, a host or the user's wheel scrolls while the round is open.
+		f.port.setScrollTop(START + 200);
+		await tick();
+		expect(f.port.scrollTop()).toBe(START + 200 + GROWTH);
 		f.cleanup();
 	});
 

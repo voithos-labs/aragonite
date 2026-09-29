@@ -197,9 +197,16 @@ export function createScrollOwner(deps: ScrollOwnerDeps): ScrollOwner {
 		}
 	}
 
-	/** Every owner write but the round's own: it closes an open round, then works out where to
-	 *  go, so no write lands under a correction still to come or scrolls by a pre-correction read. */
+	function measureQueued(): void {
+		const runs = [...soon];
+		soon.clear();
+		for (const queued of runs) queued();
+	}
+
+	/** Every owner write but the round's own: it measures the queued blocks and closes the round
+	 *  first, so it reads tables that know every mounted block, and no correction lands after it. */
 	function writeScroll(target: () => ScrollTarget | null): void {
+		measureQueued();
 		closeRound();
 		const to = target();
 		const p = writable();
@@ -322,13 +329,7 @@ export function createScrollOwner(deps: ScrollOwnerDeps): ScrollOwner {
 		roundOpen: () => open !== null,
 		watchSize: (el, onResize) => sizes.watch(el, onResize),
 		measureSoon(run) {
-			if (soon.size === 0) {
-				void tick().then(() => {
-					const runs = [...soon];
-					soon.clear();
-					for (const queued of runs) queued();
-				});
-			}
+			if (soon.size === 0) void tick().then(measureQueued);
 			soon.add(run);
 		},
 		place(path, { block, hold }) {
