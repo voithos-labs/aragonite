@@ -1809,11 +1809,10 @@ view inside their own scroller. `lint/file-rules.test.ts`.
 **G4.95 · What a range covers is decided once.** `selection/range-coverage.ts :: rangeCoverage`
 says which edges a range keeps, which subtrees it holds whole and which cells of a table it holds,
 and the delete, the copy, the format toggle, the overlay and the table's own cell painting read
-that. So the helpers that decide it (the walk of the blocks between, the between-the-endpoints path
-predicates, the rectangle two cells span, the closed-unit check, and a table endpoint's cell index
-or a table's cell count) are called in `range-coverage.ts` only, besides the files that define
-them and a short list of cell edits that aren't reading a range, each with its reason. Code that
-walks the range, bounds a rectangle or does cell arithmetic on an endpoint itself has grown a
+that. So the helpers that work it out (walking the blocks in between, bounding a rectangle,
+checking for a closed unit, doing cell math on a table endpoint) only get called in
+`range-coverage.ts`. The exceptions are the files that define them and a short list of cell edits
+that aren't reading a range, each with its reason. Code that works it out on its own has grown a
 second answer, and the scan names the file. `lint/file-rules.test.ts`.
 
 ## Accessibility

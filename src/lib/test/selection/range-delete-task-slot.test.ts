@@ -5,7 +5,7 @@ import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import type { CstNode, Document } from '../../core/nodes';
 import { rangeDelete } from '../../selection/range-delete';
-import { coverRange } from '../../selection/range-coverage';
+import { coverRange, rangeCoverage } from '../../selection/range-coverage';
 import { cellPoint, type SelectionPoint } from '../../selection/primitives';
 import { createSharingState } from '../../tree-operations/sharing';
 import { fixtureReading } from '../harness/fixture-grammar';
@@ -29,7 +29,13 @@ function shape(nodes: readonly CstNode[]): unknown[] {
 
 function del(source: string, start: SelectionPoint, end: SelectionPoint): Document {
 	const doc = parse(source);
-	rangeDelete(doc, coverRange(doc, start, end), createSharingState(), fixtureReading(), 'keyless');
+	rangeDelete(
+		doc,
+		rangeCoverage(doc, coverRange(doc, start, end)),
+		createSharingState(),
+		fixtureReading(),
+		'keyless'
+	);
 	expect(shape(doc.children), serialize(doc)).toEqual(shape(parse(serialize(doc)).children));
 	return doc;
 }

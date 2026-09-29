@@ -7,7 +7,7 @@ import type { Reading } from '../schema/reading';
 import type { CstNode, Document } from '../core/nodes';
 import type { DocumentView } from '../core/node-views';
 import type { SelectionPoint } from './primitives';
-import { rangeCoverage, type CoveredRange, type RangeCoverage } from './range-coverage';
+import type { RangeCoverage } from './range-coverage';
 import type { SharingState } from '../tree-operations/sharing';
 import { charOffsetOf } from './primitives';
 import { comparePaths } from './path-math';
@@ -54,17 +54,16 @@ export interface RangeDeleteResult {
 	tableRowSplices?: TableRowSplice[];
 }
 
-/** Deletes what `range` covers in place, merging at the start's position inside its container.
- *  The caller keeps endpoints on focusable blocks; `gesture` lands the caret if a block goes. */
+/** Deletes what the coverage says the range covers, in place, merging at the start's position
+ *  inside its container; `gesture` lands the caret if a block goes. */
 export function rangeDelete(
 	doc: Document,
-	range: CoveredRange,
+	coverage: RangeCoverage,
 	sharing: SharingState,
 	reading: Reading,
 	gesture: RemovalGesture
 ): RangeDeleteResult {
-	const coverage = rangeCoverage(doc, range);
-	const { start, end } = range;
+	const { start, end } = coverage.range;
 	// A pair inside one table clears its cells, even all of them; only Backspace and Delete take
 	// the rows, columns or table away, through the table's own structural commits.
 	if (coverage.grid) return clearGridCells(doc, coverage, coverage.grid, sharing, reading);

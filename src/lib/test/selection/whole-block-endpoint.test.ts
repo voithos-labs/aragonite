@@ -35,7 +35,7 @@ function deleteSelected(doc: Document, s: ReturnType<typeof stateOver>): string 
 	return serialize(
 		rangeDelete(
 			doc,
-			coverRange(doc, s.start!, s.end!),
+			rangeCoverage(doc, coverRange(doc, s.start!, s.end!)),
 			createSharingState(),
 			fixtureReading(),
 			'keyless'

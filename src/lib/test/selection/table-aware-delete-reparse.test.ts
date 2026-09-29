@@ -7,7 +7,7 @@ import { describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import { rangeDelete } from '../../selection/range-delete';
-import { coverRange } from '../../selection/range-coverage';
+import { coverRange, rangeCoverage } from '../../selection/range-coverage';
 import { createSharingState } from '../../tree-operations/sharing';
 import type { CellSelectionPoint, SelectionPoint } from '../../selection/primitives';
 import { fixtureReading } from '../harness/fixture-grammar';
@@ -26,8 +26,13 @@ const cell = (path: number[], index: number): CellSelectionPoint => ({
 function deletedBytes(source: string, start: SelectionPoint, end: SelectionPoint): string {
 	const doc = parse(source);
 	return serialize(
-		rangeDelete(doc, coverRange(doc, start, end), createSharingState(), fixtureReading(), 'keyless')
-			.newDoc
+		rangeDelete(
+			doc,
+			rangeCoverage(doc, coverRange(doc, start, end)),
+			createSharingState(),
+			fixtureReading(),
+			'keyless'
+		).newDoc
 	);
 }
 

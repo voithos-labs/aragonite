@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { rangeDelete } from '$lib/selection/range-delete';
-import { coverRange } from '$lib/selection/range-coverage';
+import { coverRange, rangeCoverage } from '$lib/selection/range-coverage';
 import { createSharingState } from '$lib/tree-operations/sharing';
 import { registerCalloutForTests } from './chrome-plugins';
 import { expectParseConverged } from '../harness/parse-converged';
@@ -25,7 +25,7 @@ describe('range delete inside a fenced code block', () => {
 		// Delete the line break between "``" and "`", which forms "```" on one line.
 		rangeDelete(
 			doc,
-			coverRange(doc, { path: [0], offset: 8 }, { path: [0], offset: 9 }),
+			rangeCoverage(doc, coverRange(doc, { path: [0], offset: 8 }, { path: [0], offset: 9 })),
 			sharing(),
 			fixtureReading(),
 			'keyless'
@@ -40,7 +40,7 @@ describe('range delete inside a fenced code block', () => {
 
 		rangeDelete(
 			doc,
-			coverRange(doc, { path: [0], offset: 8 }, { path: [0], offset: 9 }),
+			rangeCoverage(doc, coverRange(doc, { path: [0], offset: 8 }, { path: [0], offset: 9 })),
 			sharing(),
 			fixtureReading(),
 			'keyless'
@@ -54,7 +54,7 @@ describe('range delete inside a fenced code block', () => {
 
 		rangeDelete(
 			doc,
-			coverRange(doc, { path: [0], offset: 8 }, { path: [0], offset: 9 }),
+			rangeCoverage(doc, coverRange(doc, { path: [0], offset: 8 }, { path: [0], offset: 9 })),
 			sharing(),
 			fixtureReading(),
 			'keyless'
@@ -71,7 +71,7 @@ describe('range delete inside a fenced code block', () => {
 
 		rangeDelete(
 			doc,
-			coverRange(doc, { path: [0], offset: 2 }, { path: [0], offset: 3 }),
+			rangeCoverage(doc, coverRange(doc, { path: [0], offset: 2 }, { path: [0], offset: 3 })),
 			sharing(),
 			fixtureReading(),
 			'keyless'
@@ -89,7 +89,7 @@ describe('range delete that consumes a fenced code closer', () => {
 
 		rangeDelete(
 			doc,
-			coverRange(doc, { path: [0], offset: 8 }, { path: [0], offset: 14 }),
+			rangeCoverage(doc, coverRange(doc, { path: [0], offset: 8 }, { path: [0], offset: 14 })),
 			sharing(),
 			fixtureReading(),
 			'keyless'
@@ -104,7 +104,7 @@ describe('range delete that consumes a fenced code closer', () => {
 
 		const { caret } = rangeDelete(
 			doc,
-			coverRange(doc, { path: [0], offset: 8 }, { path: [1], offset: 2 }),
+			rangeCoverage(doc, coverRange(doc, { path: [0], offset: 8 }, { path: [1], offset: 2 })),
 			sharing(),
 			fixtureReading(),
 			'keyless'
@@ -122,7 +122,7 @@ describe('range delete that consumes a fenced code closer', () => {
 
 		rangeDelete(
 			doc,
-			coverRange(doc, { path: [0], offset: 8 }, { path: [1], offset: 1 }),
+			rangeCoverage(doc, coverRange(doc, { path: [0], offset: 8 }, { path: [1], offset: 1 })),
 			sharing(),
 			fixtureReading(),
 			'keyless'
@@ -137,7 +137,7 @@ describe('range delete that consumes a fenced code closer', () => {
 
 		rangeDelete(
 			doc,
-			coverRange(doc, { path: [0], offset: 13 }, { path: [0], offset: 20 }),
+			rangeCoverage(doc, coverRange(doc, { path: [0], offset: 13 }, { path: [0], offset: 20 })),
 			sharing(),
 			fixtureReading(),
 			'keyless'
@@ -152,7 +152,7 @@ describe('range delete that consumes a fenced code closer', () => {
 
 		rangeDelete(
 			doc,
-			coverRange(doc, { path: [0], offset: 9 }, { path: [0], offset: 16 }),
+			rangeCoverage(doc, coverRange(doc, { path: [0], offset: 9 }, { path: [0], offset: 16 })),
 			sharing(),
 			fixtureReading(),
 			'keyless'
@@ -169,7 +169,7 @@ describe('range delete that consumes a fenced code closer', () => {
 
 		rangeDelete(
 			doc,
-			coverRange(doc, { path: [0], offset: 9 }, { path: [1], offset: 4 }),
+			rangeCoverage(doc, coverRange(doc, { path: [0], offset: 9 }, { path: [1], offset: 4 })),
 			sharing(),
 			fixtureReading(),
 			'keyless'
@@ -187,7 +187,7 @@ describe('range delete that consumes a fenced code closer', () => {
 
 			rangeDelete(
 				doc,
-				coverRange(doc, { path: [0], offset: 8 }, { path: [1, 0], offset: 3 }),
+				rangeCoverage(doc, coverRange(doc, { path: [0], offset: 8 }, { path: [1, 0], offset: 3 })),
 				sharing(),
 				fixtureReading(),
 				'keyless'

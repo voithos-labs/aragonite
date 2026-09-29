@@ -13,7 +13,7 @@ import {
 	__resetLiveJoinSeamCleanerForTests
 } from '../../schema/inline-construct-policy';
 import { rangeDelete } from '../../selection/range-delete';
-import { coverRange } from '../../selection/range-coverage';
+import { coverRange, rangeCoverage } from '../../selection/range-coverage';
 import { createSharingState } from '../../tree-operations/sharing';
 import type { CellSelectionPoint, SelectionPoint } from '../../selection/primitives';
 import { fixtureReading } from '../harness/fixture-grammar';
@@ -34,7 +34,7 @@ function run(source: string, start: SelectionPoint, end: SelectionPoint, mode?: 
 	const doc = parse(source);
 	const result = rangeDelete(
 		doc,
-		coverRange(doc, start, end),
+		rangeCoverage(doc, coverRange(doc, start, end)),
 		createSharingState(),
 		fixtureReading({}, mode),
 		'keyless'

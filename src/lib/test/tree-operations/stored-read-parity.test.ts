@@ -15,7 +15,7 @@ import { nodeAt } from '$lib/tree-operations/node-primitives';
 import { createSharingState } from '$lib/tree-operations/sharing';
 import { storedAsAt } from '$lib/tree-operations/stored-as';
 import { rangeDelete } from '$lib/selection/range-delete';
-import { coverRange } from '$lib/selection/range-coverage';
+import { coverRange, rangeCoverage } from '$lib/selection/range-coverage';
 import { resolveSelectionEdit } from '$lib/components/blocks/text/live-selection-edit';
 import { resolveEdgeDeletion } from '$lib/components/blocks/text/construct-edge-delete';
 import { cleanLiveJoinSeam } from '$lib/components/blocks/text/live-join-seam';
@@ -134,7 +134,7 @@ function crossBlockDelete(container: Container): Document {
 		{ path: container.first, offset: 5 },
 		{ path: container.second, offset: 5 }
 	);
-	rangeDelete(doc, range, createSharingState(), LIVE, 'Backspace');
+	rangeDelete(doc, rangeCoverage(doc, range), createSharingState(), LIVE, 'Backspace');
 	return doc;
 }
 

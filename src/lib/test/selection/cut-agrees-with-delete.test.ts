@@ -52,7 +52,8 @@ function cutThenDelete(source: string, start: SelectionPoint, end: SelectionPoin
 	const range = coverRange(doc, start, end);
 	const copied = collectCrossBlockText(doc, rangeCoverage(doc, range));
 	const left = serialize(
-		rangeDelete(doc, range, createSharingState(), fixtureReading(), 'keyless').newDoc
+		rangeDelete(doc, rangeCoverage(doc, range), createSharingState(), fixtureReading(), 'keyless')
+			.newDoc
 	);
 	return { copied, left };
 }

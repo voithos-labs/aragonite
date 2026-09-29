@@ -39,7 +39,7 @@ import {
 } from '$lib/components/blocks/text/live-selection-edit';
 import { rangeDelete } from '$lib/selection/range-delete';
 import { blockNodeAt, nodeAt } from '$lib/tree-operations/node-primitives';
-import { coverRange } from '$lib/selection/range-coverage';
+import { coverRange, rangeCoverage } from '$lib/selection/range-coverage';
 import {
 	applyCrossBlockFormat,
 	planCrossBlockFormat
@@ -573,7 +573,7 @@ function acrossLeaves(
 	if (gesture.kind === 'range-delete') {
 		rangeDelete(
 			h.doc,
-			coverRange(h.doc, range.start, range.end),
+			rangeCoverage(h.doc, coverRange(h.doc, range.start, range.end)),
 			h.sharing,
 			fixtureReading({}, mode),
 			'keyless'

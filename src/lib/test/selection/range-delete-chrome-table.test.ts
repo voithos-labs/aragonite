@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import { rangeDelete } from '../../selection/range-delete';
-import { coverRange } from '../../selection/range-coverage';
+import { coverRange, rangeCoverage } from '../../selection/range-coverage';
 import { createSharingState } from '../../tree-operations/sharing';
 import { registerCalloutForTests } from './chrome-plugins';
 import type { SelectionPoint } from '../../selection/primitives';
@@ -34,7 +34,7 @@ function run(source: string, start: SelectionPoint, end: SelectionPoint) {
 	const doc = parse(source);
 	const result = rangeDelete(
 		doc,
-		coverRange(doc, start, end),
+		rangeCoverage(doc, coverRange(doc, start, end)),
 		createSharingState(),
 		fixtureReading(),
 		'keyless'
@@ -93,7 +93,7 @@ describe('chrome wall × table branch: table endpoint inside the container', () 
 		sharing.markSnapshotTaken();
 		rangeDelete(
 			doc,
-			coverRange(doc, point([0], 2), point([1, 1], 1)),
+			rangeCoverage(doc, coverRange(doc, point([0], 2), point([1, 1], 1))),
 			sharing,
 			fixtureReading(),
 			'keyless'
@@ -126,7 +126,7 @@ describe('chrome wall × table branch: table endpoint outside the container', ()
 		sharing.markSnapshotTaken();
 		const { newDoc } = rangeDelete(
 			doc,
-			coverRange(doc, point([0], 2), point([1, 0], 3)),
+			rangeCoverage(doc, coverRange(doc, point([0], 2), point([1, 0], 3))),
 			sharing,
 			fixtureReading(),
 			'keyless'
@@ -163,7 +163,7 @@ describe('chrome wall × table branch: consumed container unit-deletes', () => {
 		const note = doc.children[1];
 		const result = rangeDelete(
 			doc,
-			coverRange(doc, point([0], 2), point([1, 1], 4)),
+			rangeCoverage(doc, coverRange(doc, point([0], 2), point([1, 1], 4))),
 			createSharingState(),
 			fixtureReading(),
 			'keyless'
@@ -181,7 +181,7 @@ describe('chrome wall × table branch: consumed container unit-deletes', () => {
 		// end.offset 3 = inclusive last cell of the inner table → tableEmpty.
 		const result = rangeDelete(
 			doc,
-			coverRange(doc, point([0], 2), point([1, 1], 3)),
+			rangeCoverage(doc, coverRange(doc, point([0], 2), point([1, 1], 3))),
 			createSharingState(),
 			fixtureReading(),
 			'keyless'

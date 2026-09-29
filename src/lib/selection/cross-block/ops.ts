@@ -17,7 +17,12 @@ import type {
 } from '../../action-contracts';
 import { focusCollapsedCaret } from '../native-bridge';
 import { rangeDelete, removeHeldWhole, type RangeDeleteResult } from '../range-delete';
-import { coverRange, rangeCoverage, type CoveredRange } from '../range-coverage';
+import {
+	coverRange,
+	rangeCoverage,
+	type CoveredRange,
+	type RangeCoverage
+} from '../range-coverage';
 import { trackChildIds, type StructuralChange } from '../../tree-operations/structural-change';
 import { documentBody, isBlockNode, nodeAt } from '../../tree-operations/node-primitives';
 import { pathsEqual } from '../path-math';
@@ -117,22 +122,23 @@ async function runCrossBlockDelete(
 	}
 
 	const range = coverRange(doc, start, end);
-	const coverage = options?.tableCoverageDelete ? rangeCoverage(doc, range) : null;
-	const grid = coverage?.grid ?? null;
+	const coverage = rangeCoverage(doc, range);
+	const grid = options?.tableCoverageDelete ? coverage.grid : null;
 	if (grid && (grid.kind === 'row' || grid.kind === 'column')) {
 		return commitGridLineDelete(ctx, grid, !!caretRestore);
 	}
 	// A table held whole goes, where `rangeDelete` would clear its cells; the commit lands the
 	// caret on the side the key points.
-	if (coverage && grid?.kind === 'table') {
+	if (grid?.kind === 'table') {
 		const caret = caretByLanding(ctx, !!caretRestore);
 		const remove: RangeRemoval = (sharing) =>
 			removeHeldWhole(doc, coverage, sharing, ctx.reading, gesture);
 		return commitCrossContainerDelete(ctx, doc, range, remove, caret);
 	}
 	const caret = caretAfterCommit(ctx, caretRestore);
-	if (isPureTopLevel) return await commitPureTopLevelDelete(ctx, range, gesture, caret);
-	const remove: RangeRemoval = (sharing) => rangeDelete(doc, range, sharing, ctx.reading, gesture);
+	if (isPureTopLevel) return await commitPureTopLevelDelete(ctx, coverage, gesture, caret);
+	const remove: RangeRemoval = (sharing) =>
+		rangeDelete(doc, coverage, sharing, ctx.reading, gesture);
 	return await commitCrossContainerDelete(ctx, doc, range, remove, caret);
 }
 
@@ -156,11 +162,11 @@ function isTableAt(doc: Document, path: number[]): boolean {
  *  top-level children copy is a safe mutation target. */
 async function commitPureTopLevelDelete(
 	ctx: CrossBlockMutationContext,
-	range: CoveredRange,
+	coverage: RangeCoverage,
 	gesture: RemovalGesture,
 	caret: CaretPlacement
 ): Promise<SelectionPoint | null> {
-	const { start } = range;
+	const { start } = coverage.range;
 
 	const snapshot = deleteSnapshot(start.path, start.offset);
 
@@ -170,7 +176,7 @@ async function commitPureTopLevelDelete(
 		mutate: (topLevelChildren) => {
 			const body = documentBody(doc, topLevelChildren);
 			const ledger = trackChildIds(body);
-			caret.hold(rangeDelete(body, range, ctx.controller.sharing, ctx.reading, gesture));
+			caret.hold(rangeDelete(body, coverage, ctx.controller.sharing, ctx.reading, gesture));
 			ctx.selection.collapse();
 			return ledger.read();
 		},

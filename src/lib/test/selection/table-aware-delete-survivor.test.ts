@@ -4,7 +4,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '../../core/parser';
 import { rangeDelete } from '../../selection/range-delete';
-import { coverRange } from '../../selection/range-coverage';
+import { coverRange, rangeCoverage } from '../../selection/range-coverage';
 import { createSharingState } from '../../tree-operations/sharing';
 import { blockNodeAt } from '../../tree-operations/node-primitives';
 import { registerDetailsKind } from '../../plugins/details/details-kind';
@@ -28,7 +28,7 @@ function deleteBothTables(source: string, firstTableIndex: number) {
 	const doc = parse(source);
 	return rangeDelete(
 		doc,
-		coverRange(doc, cell([firstTableIndex], 0), cell([firstTableIndex + 1], 3)),
+		rangeCoverage(doc, coverRange(doc, cell([firstTableIndex], 0), cell([firstTableIndex + 1], 3))),
 		createSharingState(),
 		fixtureReading(),
 		'keyless'

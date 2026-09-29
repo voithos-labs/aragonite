@@ -5,7 +5,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import { rangeDelete } from '../../selection/range-delete';
-import { coverRange } from '../../selection/range-coverage';
+import { coverRange, rangeCoverage } from '../../selection/range-coverage';
 import { createSharingState } from '../../tree-operations/sharing';
 import { registerCalloutForTests } from './chrome-plugins';
 import { expectParseConverged } from '../harness/parse-converged';
@@ -15,7 +15,13 @@ import { fixtureReading } from '../harness/fixture-grammar';
 function run(source: string, start: SelectionPoint, end: SelectionPoint): string {
 	const parsed = parse(source);
 	const range = coverRange(parsed, start, end);
-	const doc = rangeDelete(parsed, range, createSharingState(), fixtureReading(), 'keyless').newDoc;
+	const doc = rangeDelete(
+		parsed,
+		rangeCoverage(parsed, range),
+		createSharingState(),
+		fixtureReading(),
+		'keyless'
+	).newDoc;
 	// The new paragraph is a blank line, so its own separator is fixed up with the rest of the
 	// run; bytes alone would pass on a shape that reloads one empty paragraph wider.
 	expectParseConverged(doc);
