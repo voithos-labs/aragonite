@@ -22,21 +22,33 @@ import { fixtureReading } from '../../harness/fixture-grammar';
 import { settleEditor } from '../../harness/settle';
 
 const LIVE = fixtureReading({}, 'live');
+const SOURCE = fixtureReading({}, 'source');
 
 beforeAll(() => registerLiveJoinSeamCleaner(cleanLiveJoinSeam));
 afterAll(() => __resetLiveJoinSeamCleanerForTests());
 
 /** Pastes `text` over `[start, end)` of the leaf at `leaf`: the document after, and what the leaf's
  *  own commit wrote when the paste stayed inline. */
-async function paste(source: string, leaf: number[], [start, end]: number[], text: string) {
-	const { deps } = makeEditorActionsDeps(source, { reading: LIVE });
+async function paste(
+	source: string,
+	leaf: number[],
+	[start, end]: number[],
+	text: string,
+	reading = LIVE
+) {
+	const { deps } = makeEditorActionsDeps(source, { reading });
 	const blockEdit = makeStubBlockEdit();
 	await pasteDispatch(
-		{ pastedText: text, targetPath: leaf, offset: start, preDelete: { start, end } },
+		{
+			pastedText: text,
+			targetPath: leaf,
+			offset: start,
+			preDelete: start === end ? undefined : { start, end }
+		},
 		pasteContext({
 			doc: deps.doc,
 			blockEdit,
-			reading: LIVE,
+			reading,
 			controller: createPasteCoordinator(deps, createUndoController(deps))
 		})
 	);
@@ -86,5 +98,20 @@ describe('a pasted line’s own ending', () => {
 
 	it('stays before text the reader sees, and the runs it splits go', async () => {
 		expect((await paste('**ab** c\n', [0], [3, 4], 'x\n')).leafWrites).toEqual(['ax\n c\n']);
+	});
+});
+
+describe('a pasted line’s own ending at a caret', () => {
+	it.each([
+		{ shape: 'before a hidden closer', source: '**ab**\n', at: 4, want: '**abx**\n' },
+		{ shape: 'before a hidden hard break', source: 'a\\\nb\n', at: 1, want: 'ax\\\nb\n' },
+		{ shape: 'at a soft line break in bold', source: '**ab\ny**\n', at: 4, want: '**abx\ny**\n' }
+	])('goes, $shape', async ({ source, at, want }) => {
+		expect((await paste(source, [0], [at, at], 'x\n')).leafWrites).toEqual([want]);
+	});
+
+	it('stays in source mode, where the closer after it shows', async () => {
+		const { leafWrites } = await paste('**ab**\n', [0], [4, 4], 'x\n', SOURCE);
+		expect(leafWrites).toEqual(['**abx\n**\n']);
 	});
 });

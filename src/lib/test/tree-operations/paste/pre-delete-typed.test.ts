@@ -148,3 +148,20 @@ describe.each(PLACES)('typing and pasting over one selection, in $name', (place)
 		expect(await paste(place, text, range)).toEqual(typed);
 	});
 });
+
+// The pasted text lands where the cleanup left the join, so the caret moves with the runs it dropped.
+it('a paste over a range whose cleanup drops a run puts the caret after the pasted text', async () => {
+	const { deps } = makeEditorActionsDeps('**ab** c\n', { reading: LIVE });
+	const blockEdit = makeStubBlockEdit();
+	await pasteDispatch(
+		{ pastedText: 'x', targetPath: [0], offset: 3, preDelete: { start: 3, end: 8 } },
+		pasteContext({
+			doc: deps.doc,
+			blockEdit,
+			reading: LIVE,
+			controller: createPasteCoordinator(deps, createUndoController(deps))
+		})
+	);
+	const [call] = vi.mocked(blockEdit.updateBlockContent).mock.calls;
+	expect([call[1], call[3]]).toEqual(['ax\n', 2]);
+});

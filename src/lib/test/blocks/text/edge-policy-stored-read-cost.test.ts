@@ -136,3 +136,29 @@ describe('the mounted block asks its store nothing for a keystroke away from a h
 		expect(block.reads()).toBe(0);
 	});
 });
+
+// Chromium hands a range edit its target range even for one character, so these take the range path.
+describe('the mounted block asks its store nothing for a range edit away from a hidden run', () => {
+	it.each([
+		['Backspace over one character', 'deleteContentBackward', undefined, 15, 16],
+		['a letter typed over a word', 'insertText', 'X', 14, 18]
+	])('%s', async (_name, inputType, data, start, end) => {
+		const block = mountCounted();
+		block.el.focus();
+		const target = createRangeAtDomTextOffsets(
+			block.el,
+			asDomTextOffset(start),
+			asDomTextOffset(end)
+		)!;
+		const sel = window.getSelection()!;
+		sel.removeAllRanges();
+		sel.addRange(target);
+		await settleEditor();
+		block.reset();
+		const e = new InputEvent('beforeinput', { inputType, data, bubbles: true, cancelable: true });
+		Object.defineProperty(e, 'getTargetRanges', { value: () => [target] });
+		block.el.dispatchEvent(e);
+		await settleEditor();
+		expect(block.reads()).toBe(0);
+	});
+});

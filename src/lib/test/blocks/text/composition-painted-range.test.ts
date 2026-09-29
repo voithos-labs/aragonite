@@ -54,3 +54,25 @@ describe('a composition over a selection drawn past a setext heading’s text', 
 		expect(written).toEqual(['ax\n==\n']);
 	});
 });
+
+describe('a composition over a selection with nothing to clean', () => {
+	// The browser's own edit stands, so the caret is the one the browser left, not one the editor set.
+	it('keeps the browser’s edit and its caret', async () => {
+		const mounted = mountBlock(TextEditableBlock, {
+			source: 'ab\n',
+			overrides: {
+				policies: { presentationMode: () => 'live' },
+				services: { decorations: noIslands }
+			}
+		});
+		const el = mounted.target.querySelector('.text-editable-block') as HTMLElement;
+		select(el, 0, 1);
+		el.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true }));
+		el.textContent = 'xb';
+		select(el, 0);
+		el.dispatchEvent(new CompositionEvent('compositionend', { bubbles: true }));
+		await settleEditor();
+		const calls = vi.mocked(mounted.blockEdit.updateBlockContent).mock.calls;
+		expect(calls.map((c) => [c[1], c[4]])).toEqual([['xb\n', 0]]);
+	});
+});

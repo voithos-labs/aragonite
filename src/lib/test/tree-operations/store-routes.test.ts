@@ -34,7 +34,8 @@ import {
 	makeContainerHarness,
 	makeEditorActionsDeps,
 	makeStubBlockEdit,
-	pasteContext
+	pasteContext,
+	recordingWrite
 } from '../harness/editor-actions';
 import { fixtureReading } from '../harness/fixture-grammar';
 import { mountBlock } from '../harness/mount-block';
@@ -49,6 +50,8 @@ import {
 } from '../blocks/text/edge-policy-fixture';
 import { registerCalloutForTests } from '../selection/chrome-plugins';
 import { collectEditorSources, EDITOR_SRC } from '../invariants/lint/scan-source';
+import { replaceSelectedWidget } from '$lib/components/blocks/text/widget-interaction';
+import { createWidgetSelectionState } from '$lib/components/image/widget-selection-state.svelte';
 
 // While `TOP.on`, every store the source makes is a lone top-level paragraph's instead of its own.
 const TOP = vi.hoisted(() => ({ on: false }));
@@ -270,6 +273,38 @@ function typedBesideHiddenRun(place: Place, caret: number, typed: string): strin
 	return h.edits.map((edit) => edit[1]);
 }
 
+/** Backspace right after the entity that opens the leaf's bold word. */
+function backspaceAfterEntity(place: Place): string[] {
+	const h = dispatchAt(place, [document.createTextNode(textOf(place))], {});
+	h.handleKeydown(key('Backspace'), asRawOffset(8));
+	return h.edits.map((edit) => edit[1]);
+}
+
+/** Backspace on the image the leaf's bold word holds, selected. */
+async function backspaceOnSelectedImage(place: Place): Promise<string[]> {
+	const doc = parse(place.source);
+	const written: string[] = [];
+	const widgetSelection = createWidgetSelectionState({ onSelect: () => {} });
+	widgetSelection.select({ paragraphPath: place.leaf, sourceStart: 2, preSelectOffset: 2 });
+	await replaceSelectedWidget(
+		{
+			node: nodeAt(doc, place.leaf) as CstNode,
+			index: 0,
+			blockEdit: {
+				updateBlockContent: recordingWrite(({ raw }) => void written.push(raw))
+			} as never,
+			widgetSelection,
+			setPendingCursor: () => {},
+			storedAs: () => storedAsAt(doc, place.leaf, LIVE)
+		},
+		{ start: 2, end: 13 },
+		2,
+		'',
+		'authored'
+	);
+	return written;
+}
+
 async function mergeNext(source: string, containerPath: number[]): Promise<string> {
 	const h = makeContainerHarness(source, containerPath, { reading: LIVE });
 	await h.bundle.blockEdit.mergeWithNext(0);
@@ -449,6 +484,40 @@ const FAMILIES: Family[] = [
 			{ shape: 'a to-do in a quote', run: () => withText(QUOTED_TODO, cutX), want: ['# y\n'] },
 			{ shape: 'a nested to-do', run: () => withText(NESTED_TODO, cutX), want: ['# y\n'] },
 			{ shape: 'a table cell', run: () => withCell('**x**# y', cutX), want: ['# y'] }
+		]
+	},
+	{
+		name: 'a key that takes a whole widget',
+		stores: { 'components/blocks/text/edge-policy-dispatch.ts': 1 },
+		rows: [
+			{
+				shape: 'a to-do',
+				run: () => backspaceAfterEntity({ source: '- [ ] **&copy;**# y\n', leaf: [0, 0, 0] }),
+				want: ['# y\n']
+			},
+			{
+				shape: 'a plain item',
+				run: () => backspaceAfterEntity({ source: '- **&copy;**[ ] y\n', leaf: [0, 0, 0] }),
+				want: ['****[ ] y\n']
+			}
+		]
+	},
+	{
+		name: 'a key on a selected widget',
+		stores: { 'components/blocks/text/widget-interaction.ts': 1 },
+		rows: [
+			{
+				shape: 'a to-do',
+				run: () =>
+					backspaceOnSelectedImage({ source: '- [ ] **![a](b.png)**# y\n', leaf: [0, 0, 0] }),
+				want: ['# y\n']
+			},
+			{
+				shape: 'a plain item',
+				run: () =>
+					backspaceOnSelectedImage({ source: '- **![a](b.png)**[ ] y\n', leaf: [0, 0, 0] }),
+				want: ['****[ ] y\n']
+			}
 		]
 	},
 	{
