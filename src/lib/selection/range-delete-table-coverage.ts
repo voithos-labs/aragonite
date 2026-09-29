@@ -157,8 +157,6 @@ async function commitRowDelete(
 		state: rowsState,
 		snapshot,
 		mutate: (scope) => {
-			// deleteRow promotes the next row to header (a metadata write).
-			ensureUnsharedChildren(scope.node, scope.sharing);
 			mutDeleteRow(scope.node, rowIdx);
 			const newRowCount = scope.node.children?.length ?? 0;
 			const targetRow = Math.min(rowIdx, Math.max(0, newRowCount - 1));
