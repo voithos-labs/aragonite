@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // Miss-analysis: each route that throws measured heights away had its own test or none (the width
-// watcher and the type-scale probe had none mounted), so nothing asked all four the same question.
+// and font-size watchers had none mounted), so nothing asked all four the same question.
 import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from 'vitest';
 import { tick } from 'svelte';
 import {

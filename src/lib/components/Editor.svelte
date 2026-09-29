@@ -1038,7 +1038,7 @@
 
 	// ── Resize invalidation ─────────────────────────────────────────────
 
-	// A zero-tall probe, not the root: in host mode the root's height follows the blocks the
+	// A zero-tall element, not the root: in host mode the root's height follows the blocks the
 	// rebuild changes, and a watched box resized mid-delivery is a ResizeObserver loop error.
 	$effect(() => {
 		if (!widthProbeEl) return;

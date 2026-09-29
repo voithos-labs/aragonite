@@ -1031,6 +1031,7 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.95 | What a range covers is decided in the range coverage only                                 | L       |
 | G4.96 | A commit rebuilds each container once, and a mutation leaves that rebuild to it           | L       |
 | G4.97 | A child's height reaches its list's table only through `useMeasuredChild`                 | L       |
+| G4.98 | Only layout state drops the measured heights or moves the width version                   | L       |
 
 ### The entries
 
@@ -1954,6 +1955,18 @@ function, so a second writer fails, and a manifest keeps the measure channel's k
 that defines it, the one that provides it and the hook. `lint/file-rules.test.ts`, with
 `test/reactivity/measured-child-routes.svelte.test.ts` running every child kind through every
 trigger and failing a new caller of the hook that has no row there; G1.47 is the runtime half.
+
+**G4.98 · One place throws measured heights away.** Heights measured for one view are wrong for
+the next, and `reactivity/layout-state.svelte.ts :: createLayoutState` is the only thing that
+drops them. A new document or a mode flip calls `forgetMeasuredHeights`, which leaves the width
+version alone (bump it and every list rebuilds, losing the block held in place). A width or
+font-size change calls `rebuildForNewGeometry`, which also bumps the width version every list
+rebuilds its table off. The block lists can't drop anything, since `dropMeasured` is only on the
+editor's own `MeasuredHeightOracle`, not the `HeightOracle` they get through context, and two
+declared lists in `lint/file-rules.test.ts` fail a `dropMeasured` read or a width-version write in
+any other file.
+`test/reactivity/height-lifetime-routes.svelte.test.ts` runs all four routes and the three
+changes that keep the heights.
 
 ## Accessibility
 
