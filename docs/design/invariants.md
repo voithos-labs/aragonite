@@ -988,6 +988,7 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.85 | A live rewrite that removes bytes reads its candidate where it will be stored             | L       |
 | G4.86 | A list item's marker is read only where the list is built, drawn or dumped                | L       |
 | G4.87 | Only the scroll owner writes the editor's scroll position                                 | L       |
+| G4.96 | A commit rebuilds each container once, and a mutation leaves that rebuild to it           | L       |
 
 ### The entries
 
@@ -1801,6 +1802,26 @@ can write, anywhere but the owner and the port itself. `rects.scrollTo(path)` do
 the published call, and it goes through the owner. A few files keep writes of their own, and the manifest says why for each: a drag's
 autoscroll, which the pointer drives frame by frame, and two listboxes keeping their active row in
 view inside their own scroller. `lint/file-rules.test.ts`.
+
+**G4.96 · A commit rebuilds each container once.** After a commit over block lists
+(`commitMultiScope`) runs its mutation, it rebuilds the bytes of every scope it was handed and of
+each container above one, walking up to the top level (the chain rebuild). So a mutation that
+rebuilds its own scope, or anything above it, gets the same container rebuilt twice, and the second
+pass runs over whatever the first one wrote. The scan holds every container rebuild call, the
+per-kind rebuilders a descriptor registers and the kind-free ones alike, to `schema/`,
+`tree-operations/chain-rebuild.ts` and `tree-operations/unshare.ts`, plus a list of files that each
+say why no commit repeats theirs: a builder making a node no commit has seen, a node below the scope
+that the walk never reaches, or a rebuild outside any commit. Each listed file's calls are counted
+per name, so a new one fails even in a listed file. A mutation that needs a node's bytes before it
+returns (a Tab's new sublist, which sits under the scope) calls `ContainerScope.rebuild`, which runs
+the rebuild the commit would.
+
+The commit keeps its half of the deal too. When several scopes share a container (a table and its
+mounted rows, a list and the sublist a Tab moves into), that container is rebuilt once, by the last
+scope's walk to reach it, after everything below it
+(`src/lib/tree-operations/chain-rebuild.ts :: sharedChainFloors`); a cross-block format does the
+same over the chains it writes. `lint/container-rebuild-homes.test.ts`, and
+`editor-actions/commit/commit-rebuild-once.test.ts` counts the rebuilds per node.
 
 ## Accessibility
 

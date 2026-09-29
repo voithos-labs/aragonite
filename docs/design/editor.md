@@ -526,7 +526,7 @@ quote.children[1].children[1].children[0].raw; // 'two\n'  the item's paragraph
 
 The two are redundant, not additive, which is why the serializer never recurses (§ 12 is where the trade pays for itself). Three contracts relate a container's `raw` to its children (`strip`, `grid`, `opaque`), declared per kind in the descriptor's `container` group; [`syntax-tree.md`](syntax-tree.md) § The container contract is authoritative on what each promises and which kinds pick which.
 
-A container's `rebuildRaw` re-emits its `raw` from its children and metadata after any edit inside it, and ancestry dispatch runs it up the whole nesting chain.
+A container's `rebuildRaw` re-emits its `raw` from its children and metadata after any edit inside it, and ancestry dispatch runs it up the whole nesting chain. In a commit on a container's children, the commit does that itself, once per container and after the mutation, even when several of its scopes share one. A mutation that needs a node's bytes early (a node below its scope, which the commit won't reach) asks the scope's `rebuild` instead (G4.96).
 
 **The incremental rebuild.** Re-reading every child costs the container's whole width, which is what a keystroke inside a 25,000-item list was paying. So a container also carries **child spans**, a record of where each child's bytes sit inside its own `raw`. When the caller names the one child whose raw moved (`rebuildRaw(node, { index, previousRaw })`; the typing route does, since it's the only one that knows), the rebuild rewrites that child's region and shifts the spans behind it, reading one child instead of all of them. Every other caller re-derives the whole raw, which reseeds the spans, so the incremental path can never drift far. Three rules keep it honest:
 
@@ -737,7 +737,7 @@ The commit's structural steps, in order (`src/lib/editor-actions/commit/undo-con
 4. end the line of every block the mutation placed, and of the block right above them (`src/lib/tree-operations/open-tail.ts` :: `endWindowLines`), since the next step reads them side by side,
 5. settle the separators and joins the mutation disturbed (§ 8),
 6. publish the new children atomically,
-7. rebuild every enclosing container's `raw`, deepest first, asking each container's own slot on the way out (§ 9),
+7. rebuild every enclosing container's `raw`, deepest first and each container once, asking each container's own slot on the way out (§ 9),
 8. if the file had no final line break before the commit, take the break off its new last line again, unless that line is blank (`src/lib/tree-operations/open-tail.ts` :: `keepOpenTail`; `docs/design/syntax-tree.md` § Blank lines says why a blank one keeps it),
 9. emit an `edit` event,
 10. `await tick()`, then read the caller's `landing` and put the caret there, awaited,
