@@ -982,6 +982,7 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.86 | A list item's marker is read only where the list is built, drawn or dumped                | L       |
 | G4.87 | Only the scroll owner writes the editor's scroll position                                 | L       |
 | G4.91 | A focus call that may scroll the editor says why                                          | L       |
+| G4.93 | A list's height correction keeps only the block `heldBlock` picks                         | L       |
 
 ### The entries
 
@@ -1806,6 +1807,15 @@ popout moving focus among its own controls, and `focusCollapsedCaret`, which the
 delete, typing and paste lean on until they land through the caret landing. The manifest is per
 file, so a new bare focus inside an already declared file passes. `lint/file-rules.test.ts`, with G1.45 as
 the runtime half.
+
+**G4.93 · One pick of the block a list keeps still.** Which block a list holds across a height
+change is decided in `reactivity/hold-across.ts :: heldBlock`, and a list's correction takes only
+the distance `holdAcross` measures: a brand the types give no other way to make, so a hand-written
+distance or a hand-picked block doesn't compile (`test/reactivity/hold-across.test.ts` pins both).
+The scan holds what the types can't: a cast to either brand outside `hold-across.ts`, and every
+`compensate(` call, declared by file and count with its reason (the list's one correction helper
+and its subtotal stopgap, the two hand-offs to the scroll owner, and the header slot, which sits
+above every list). `lint/file-rules.test.ts`.
 
 ## Accessibility
 
