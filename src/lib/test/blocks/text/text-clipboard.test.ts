@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-// The copy and cut branches of `createTextClipboard` for a selected inline widget (an image, a
-// `<br>`): copy writes the widget's own raw slice, and cut also splices it out as one undoable
-// commit. Driven with a real parse and the real widget-selection state, never a branch on kind.
+// The clipboard branches of `createTextClipboard` for a selected inline widget (an image, a
+// `<br>`): copy writes the widget's own raw slice, cut and paste replace it as one undoable write.
+// Driven with a real parse and the real widget-selection state, never a branch on kind.
 import { recordingWrite } from '$lib/test/harness/editor-actions';
 import { describe, it, expect } from 'vitest';
 import { tick } from 'svelte';
@@ -39,6 +39,8 @@ interface HarnessOptions {
 	/** Paste asks the cross-block handler before the widget branch; every other path leaves
 	 *  the trap in place, which is what proves it never fell through. */
 	crossBlockDeclines?: boolean;
+	/** Where the caret was when the widget was selected; its start unless given. */
+	preSelectOffset?: number;
 }
 
 function harness(source: string, sourceStart: number, options: HarnessOptions = {}) {
@@ -47,7 +49,11 @@ function harness(source: string, sourceStart: number, options: HarnessOptions = 
 	const commits: Commit[] = [];
 	const widgetSelection = createWidgetSelectionState({ onSelect: () => {} });
 	if (options.selectWidget !== false) {
-		widgetSelection.select({ paragraphPath: [0], sourceStart, preSelectOffset: sourceStart });
+		widgetSelection.select({
+			paragraphPath: [0],
+			sourceStart,
+			preSelectOffset: options.preSelectOffset ?? sourceStart
+		});
 	}
 
 	const trap = new Proxy(
@@ -137,6 +143,21 @@ describe('createTextClipboard: selected-widget cut', () => {
 		await handlers.onCut(e as never);
 		expect(e.payload()).toBe('![a](x)');
 		expect(commits[0]).toEqual({ index: 0, raw: 'trail\n', before: 0, after: 0 });
+	});
+});
+
+// Miss-analysis: the widget's paste moved onto the paste dispatch and no test read the undo caret
+// it handed over, so the paste's end took the place of the offset the widget was selected from.
+describe('createTextClipboard: selected-widget paste', () => {
+	it('records the offset the widget was selected from as the undo caret', async () => {
+		const { handlers, commits } = harness('lead![cat](x)\n', 4, {
+			crossBlockDeclines: true,
+			preSelectOffset: 13
+		});
+		const e = capturingEvent();
+		e.clipboardData.setData('text/plain', 'PASTED');
+		await handlers.onPaste(e as never);
+		expect(commits[0]).toEqual({ index: 0, raw: 'leadPASTED\n', before: 13, after: 10 });
 	});
 });
 

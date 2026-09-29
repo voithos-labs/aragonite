@@ -646,7 +646,7 @@ export function mountBodyRow(source: string, row = 1) {
 			}
 		})
 	);
-	return { deps, blockEdit: bundle.blockEdit };
+	return { deps, controller, blockEdit: bundle.blockEdit };
 }
 
 /** The caret an admitted write reports; throws when the reading-mode check refused the write. */
