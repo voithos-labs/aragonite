@@ -262,6 +262,8 @@ describe('list-context: a moved item adopts its destination marker', () => {
 		// A promote needs a survivor left behind to renumber within the sublist.
 		expect(sublist.children).toHaveLength(subIds.length);
 		registerBlockListState(sublist, makeBlockListState(liveSublist, subIds) as any);
+		// Mounted, as the item holding a mounted sublist is: a promote commits it as a scope.
+		makeBlockListState(() => deps.doc.children[0].children![0]);
 
 		const { listContext, getNode: liveList } = makeListContextAt(deps, 0, { ids: outerIds });
 
