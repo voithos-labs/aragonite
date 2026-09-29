@@ -34,7 +34,8 @@ describe("a nested list's first heights", () => {
 				getListEl: () => listEl,
 				getPort: () => port,
 				scroll: {
-					compensate: owner.compensate,
+					round: owner.round,
+					measureSoon: owner.measureSoon,
 					scrollToMount: owner.scrollToMount
 				},
 				getFocusPath: () => null,

@@ -1,7 +1,7 @@
 /**
- * Which block a list keeps still across a height change, picked in one place for every
- * correction a list makes: a measured block, a rebuilt table. See `docs/design/virtual-rendering.md`
- * § Keeping the page still while heights change.
+ * Which block stays still across a measure round, picked level by level down the document's
+ * block lists, and how far it moved. See `docs/design/virtual-rendering.md` § Keeping the page
+ * still while heights change.
  */
 import type { HeightModel } from '../cursor/height-model';
 import { recordNeighbourPass } from '../perf/instruments';
@@ -20,8 +20,8 @@ declare const measured: unique symbol;
  *  `heldBlock` makes one. */
 export type HeldBlock = { readonly id: string; readonly index: number; readonly [picked]: true };
 
-/** How far the held block's top moved across a change. Only `holdAcross` makes one, so a list
- *  can't correct by a distance it worked out some other way. */
+/** How far the held block's top moved across a round. Only `heldPathMoved` makes one, so a
+ *  correction can't use a distance worked out some other way. */
 export type HeldDelta = number & { readonly [measured]: true };
 
 /** The focused block's index among the children of the list at `listPath`, or null when the
@@ -43,7 +43,7 @@ export function heldBlock(
 	localTop: number,
 	focusedIndex: number | null
 ): HeldBlock | null {
-	// Past the end this whole list is above the viewport, so the list it sits in corrects for it.
+	// Past the end the viewport's top is below this list, so the pick stays with its container.
 	if (before.model.size === 0 || localTop >= before.model.total()) return null;
 	const topIndex = before.model.indexAtOffset(localTop);
 	const onScreen = focusedIndex ?? -1;
@@ -51,28 +51,39 @@ export function heldBlock(
 	if (focused >= topIndex && !movedAcross(before, after, focused, onScreen)) {
 		return pick(before, focused);
 	}
-	// At 0 the viewport's top sits in a list above this one, whose own correction holds it.
+	// At 0 the viewport's top is above this list, in its container's chrome or further up.
 	return localTop === 0 ? null : pick(before, topIndex);
 }
 
-/** Run `mutate` and return how far the held block's top moved, found by id in `after`. Zero when
- *  nothing is held or the change removed it. */
-export function holdAcross(
-	before: HeightTable,
-	after: () => HeightTable,
-	held: HeldBlock | null,
-	mutate: () => void
-): HeldDelta {
-	if (held === null) {
-		mutate();
-		return 0 as HeldDelta;
+/** One level of a held block's path: the block a list picked, where its top sat then, and the
+ *  list's table as it reads now. */
+export interface HeldStep {
+	readonly held: HeldBlock;
+	readonly table: HeightTable;
+	readonly top: number;
+	readonly current: () => HeightTable;
+}
+
+export function heldStep(
+	table: HeightTable,
+	held: HeldBlock,
+	current: () => HeightTable
+): HeldStep {
+	return { held, table, top: table.model.offsetOf(held.index), current };
+}
+
+/** How far the block at the end of `path` moved since it was picked: each level's move, found by
+ *  id, down to the first level whose block the change removed. */
+export function heldPathMoved(path: readonly HeldStep[]): HeldDelta {
+	let moved = 0;
+	for (const { held, table, top, current } of path) {
+		const next = current();
+		// A measure keeps its table, so the round each keystroke closes skips the lookup.
+		const index = next === table ? held.index : next.ids.indexOf(held.id);
+		if (index === -1) break;
+		moved += next.model.offsetOf(index) - top;
 	}
-	const top = before.model.offsetOf(held.index);
-	mutate();
-	const next = after();
-	// The same table keeps every index, so the measure that runs on each keystroke skips the lookup.
-	const index = next === before ? held.index : next.ids.indexOf(held.id);
-	return (index === -1 ? 0 : next.model.offsetOf(index) - top) as HeldDelta;
+	return moved as HeldDelta;
 }
 
 function pick(table: HeightTable, index: number): HeldBlock {

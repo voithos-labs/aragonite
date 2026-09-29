@@ -1,30 +1,53 @@
-# Feature: Virtual rendering, growth inside a list above the viewport is corrected once
+# Feature: Virtual rendering, growth inside a container is corrected once
 
 When something above the viewport grows, the editor scrolls by the growth so
-what you're looking at stays put. Inside a list, three block lists are in
-play: the item's own blocks, the list's items, and the document's top level.
-The growth gets corrected exactly once, by the list whose range holds the
-viewport's top, and never by a list that sits wholly above it.
+what you're looking at stays put. Inside a container, one growth shows up in
+two tables: the container's own list (a block in it got taller) and the list
+above it (the container got taller). The editor picks the one block to keep
+still before the round of measurements and scrolls by how far that block
+moved, so the growth counts once either way.
 
-Driven on `/test/editor` over a windowed document with a five-item list thirty
-paragraphs down. The page is scrolled until the list mounts, then just past it,
-so the list is above the viewport's top and still mounted. An image inside the
-list is held back until then, and its decode adds about 900px.
+Driven on `/test/editor` over a windowed document with a container at root
+index 30. An image inside it is held back until the page settles, and its
+decode adds about 900px. The release waits for the image to decode or for its
+block to unmount, so an over-correction fails an assertion instead of timing
+out.
 
 Miss-analysis: every anchor spec grew a block at the top level or inside the
 target's own container, and none grew one inside a container above the
-viewport, the case the design doc listed as a known limitation.
+viewport, the case the design doc listed as a known limitation. Then, once no
+list reported its height upward, the one unit row that held a nested growth
+to a single correction ("no cascade up the chain") was rewritten to assert the
+list corrects, and nothing ran a container holding the viewport's top.
 
 ## Happy paths
 
-- the image sits in the last item's last block: once it decodes, the block at
-  the viewport's top moves by at most 1px (red before the fix: it moved 900px,
-  since the list's own upward report reached the table first and the resize
-  that would have corrected found nothing left to correct)
-- the image sits in a middle item, with a block after it in that item: the
-  block at the viewport's top moves by at most 1px (green before the fix too;
-  kept, since the item's inner list holding its last block would have
-  corrected the growth a second time once the upward report went)
+- a five-item list wholly above the viewport, the image in the last item's
+  last block: the block at the viewport's top moves by at most 1px (red before
+  the fix: it moved 900px, no correction at all)
+- the same list, the image in a middle item with a block after it: the block
+  at the viewport's top moves by at most 1px (green before the fix too; kept
+  as a pin)
+
+## Edge cases
+
+The container holds the viewport's top here: the image is child 1 and the
+top sits inside child 6. The reference is root block 32, below the container,
+wherever it's on screen, else child 6's first block.
+
+- a 10-item list, the caret clicked into root block 32: root block 32 moves by
+  at most 1px (red before the fix: +900, none; red on the first cut of this
+  slice: -869, twice)
+- a 10-item list, no caret: the same (red before the fix: +900; on the first
+  cut the page scrolled root block 32 out, twice)
+- a 40-item list, no caret: child 6 moves by at most 1px (red before the fix:
+  +900)
+- a 10-paragraph blockquote, the caret in root block 32: root block 32 moves by
+  at most 1px (green before the fix; red on the first cut of this slice: -869)
+- a 10-paragraph blockquote, no caret: the same (green before the fix; the
+  first cut scrolled root block 32 out)
+- a 40-paragraph blockquote, no caret: child 6 moves by at most 1px (green
+  throughout, kept as the case where the container outlasts the growth)
 
 ## Error cases
 

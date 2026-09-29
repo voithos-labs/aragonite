@@ -7,6 +7,7 @@
 import type { BlockComponent } from '../block-component';
 import type { Document } from '../core/nodes';
 import type { HeightOracle } from '../cursor/height-oracle';
+import type { ListTree } from '../reactivity/list-tree';
 import type { OperationsLog } from '../debug/operations-log';
 import type { DecorationEngine } from '../decorations/decoration-state.svelte';
 import type { RefSlots } from '../reactivity/publish-ref.svelte';
@@ -38,6 +39,10 @@ export interface EditorTestSurface {
 	getHeightOracle(): HeightOracle;
 	/** The top-level blocks' ids, which no node carries; a container's are its `childIds`. */
 	getBlockIds(): readonly string[];
+	/** Every id the height estimator holds a measurement for. */
+	getMeasuredIds(): string[];
+	/** Every mounted block list, whose height tables no public method reads. */
+	getListTree(): ListTree;
 	/** The one value a block list rebuilds off when no id moved. */
 	getWidthVersion(): number;
 	/** Creates the stale child-ref entry an unmounted block's cleanup can leave behind. */

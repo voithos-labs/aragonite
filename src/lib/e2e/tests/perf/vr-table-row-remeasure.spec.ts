@@ -21,17 +21,15 @@ const DOC = [
 ].join('\n\n');
 const ROW = 2;
 
-/** The row's height-table entry beside its first cell's drawn height. */
+/** The row's entry in the table's height table beside its first cell's drawn height. */
 function rowReading(page: Page, row: number): Promise<{ measured: number; drawn: number }> {
 	return page.evaluate(
 		({ index, row }) => {
-			const probes = (window as any).__test;
-			const id = probes.getListItemIds(index)[row];
 			const cell = document.querySelector(
 				`[data-table-row-idx='${row}'] > .table-cell`
 			) as HTMLElement;
 			return {
-				measured: probes.getHeightOracle().measured(id),
+				measured: (window as any).__test.tableHeightAt([index, row]),
 				drawn: cell.getBoundingClientRect().height
 			};
 		},

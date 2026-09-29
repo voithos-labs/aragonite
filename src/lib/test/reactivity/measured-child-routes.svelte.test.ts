@@ -151,11 +151,11 @@ const KINDS: Kind[] = [
 // ── Harness ─────────────────────────────────────────────────────────────────────────────────────
 
 /** Mounts `kind` with its measured element at `height`, and settles its first measure. */
-async function mountKind(kind: Kind, height: number) {
+async function mountKind(kind: Kind, height: number, scrollMode: ScrollMode) {
 	let current = height;
 	heightOf = (el) => (kind.isMeasured(el) ? current : DEFAULT_HEIGHT);
 	records.length = 0;
-	const mounted = mountEditor<Seam>({ source: kind.source });
+	const mounted = mountEditor<Seam>({ source: kind.source, scrollMode });
 	await mounted.settle();
 	runFrames();
 	return {
@@ -180,16 +180,20 @@ const MOUNTED = 137;
 const EDITED = 151;
 const RESIZED = 163;
 
+type ScrollMode = 'self' | 'host';
+
 describe('every windowed child measures into its own list, under its id, once per trigger', () => {
-	for (const kind of KINDS) {
-		describe(kind.name, () => {
+	for (const [kind, scrollMode] of KINDS.flatMap((k) =>
+		(['self', 'host'] as const).map((mode) => [k, mode] as const)
+	)) {
+		describe(`${kind.name}, scrollMode="${scrollMode}"`, () => {
 			it('the batched pass at mount', async () => {
-				const child = await mountKind(kind, MOUNTED);
+				const child = await mountKind(kind, MOUNTED, scrollMode);
 				expect(child.take()).toEqual([[child.id, MOUNTED]]);
 			});
 
 			it('an edit that changes its height', async () => {
-				const child = await mountKind(kind, MOUNTED);
+				const child = await mountKind(kind, MOUNTED, scrollMode);
 				child.take();
 				child.resizeTo(EDITED);
 				const el = kind.typeInto(child.mounted);
@@ -201,7 +205,7 @@ describe('every windowed child measures into its own list, under its id, once pe
 			});
 
 			it('a resize with no edit', async () => {
-				const child = await mountKind(kind, MOUNTED);
+				const child = await mountKind(kind, MOUNTED, scrollMode);
 				child.take();
 				child.resizeTo(RESIZED);
 				fireResize(child.measuredEl, RESIZED);

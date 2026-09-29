@@ -5,7 +5,7 @@
 // Every scroll write, driven through the route that makes it, under each owner of the position.
 // The expected values are what each route did before it went through the owner.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { flushSync } from 'svelte';
+import { flushSync, tick } from 'svelte';
 import { installHeaderSlotCompensation } from '../../components/editor-root-geometry';
 import { parse } from '../../core/parser';
 import { createCaretMemory } from '../../cursor/caret-memory';
@@ -53,10 +53,7 @@ interface Fixture extends MountedListWindowing {
 	growHeaderBy(px: number): void;
 }
 
-function fixture(
-	column: Column,
-	opts: { nested?: boolean; scrollTop?: number; focused?: number[] } = {}
-): Fixture {
+function fixture(column: Column, opts: { scrollTop?: number; focused?: number[] } = {}): Fixture {
 	const live = liveChildren(
 		[0, 1, 2, 3, 4, 5].map((i) => makePara(`p${i}\n`)),
 		['b0', 'b1', 'b2', 'b3', 'b4', 'b5']
@@ -76,7 +73,6 @@ function fixture(
 		children: live.children,
 		ids: live.ids,
 		listHeight: 210,
-		nested: opts.nested,
 		getFocusPath: () => opts.focused ?? null,
 		// A header above the list pushes the list down as it grows.
 		chromeAbove: () => box.header,
@@ -218,7 +214,6 @@ function shownBy(px: number): (f: Fixture) => void {
 
 interface Row {
 	name: string;
-	nested?: boolean;
 	/** Where the scroll starts, when not at b3's top. */
 	scrollTop?: number;
 	focused?: number[];
@@ -229,24 +224,13 @@ interface Row {
 const scrollTopIs = (top: number) => (f: Fixture) => expect(f.port.scrollTop()).toBe(top);
 
 const ROWS: Record<keyof ScrollWrites, Row[]> = {
-	compensate: [
+	round: [
 		{
 			name: 'a root list measuring a block above the viewport',
 			run: measureB2Taller,
 			expect: {
 				'host anchoring holds': scrollTopIs(START),
 				'a held placement is live': scrollTopIs(HELD_TOP + GROWTH),
-				free: scrollTopIs(START + GROWTH)
-			}
-		},
-		{
-			name: 'a nested list measuring a block above the viewport',
-			nested: true,
-			run: measureB2Taller,
-			expect: {
-				'host anchoring holds': scrollTopIs(START),
-				// The root list re-places once the nested list's new height reaches it.
-				'a held placement is live': scrollTopIs(START + GROWTH),
 				free: scrollTopIs(START + GROWTH)
 			}
 		},
@@ -265,7 +249,24 @@ const ROWS: Record<keyof ScrollWrites, Row[]> = {
 				),
 				free: scrollTopIs(START + ESTIMATE)
 			}
-		},
+		}
+	],
+	measureSoon: [
+		{
+			name: 'the batched measure of a block above the viewport, mounted',
+			run: async (f) => {
+				f.windowing.registerChild('b2', { index: 2, readHeight: () => HEIGHTS.b2 + GROWTH });
+				await tick();
+			},
+			expect: {
+				'host anchoring holds': scrollTopIs(START),
+				'a held placement is live': scrollTopIs(HELD_TOP + GROWTH),
+				free: scrollTopIs(START + GROWTH)
+			}
+		}
+	],
+	// The root list's handle, which the header slot above every list corrects through.
+	resolveTargetsWith: [
 		{
 			name: 'the header slot growing, the held block off its target',
 			scrollTop: OFF_TARGET,
@@ -423,7 +424,8 @@ function placedOnB4(top: number): (f: Fixture) => void {
 // ── The census ───────────────────────────────────────────────────────────────
 
 /** The owner's members that write no scroll position. */
-const NON_WRITES = ['port', 'isInView', 'shows', 'release', 'resolveTargetsWith'] as const;
+/** `watchSize` only delivers sizes; what it delivers runs as a `round`. */
+const NON_WRITES = ['port', 'isInView', 'shows', 'release', 'watchSize'] as const;
 type ScrollWrites = Omit<ScrollOwner, (typeof NON_WRITES)[number]>;
 
 describe('scroll owner: every write has a row under every owner of the position', () => {
@@ -440,7 +442,6 @@ describe('scroll owner: every write has a row under every owner of the position'
 			for (const column of COLUMNS) {
 				it(`${write}: ${row.name} / ${column}`, async () => {
 					const f = fixture(column, {
-						nested: row.nested,
 						scrollTop: row.scrollTop,
 						focused: row.focused
 					});
@@ -489,6 +490,7 @@ describe('scroll owner: the edges', () => {
 		const syncScrollTop = vi.fn();
 		const root = owner.resolveTargetsWith({
 			resolve: () => ({ top: 300, height: 20 }),
+			holdForRound: () => null,
 			syncScrollTop
 		});
 		owner.place([4], { block: 'center', hold: true });
@@ -539,13 +541,7 @@ describe('scroll owner: the edges', () => {
 		expect(owner.port()).toBeNull();
 		await expect(owner.keep()()).resolves.toBeUndefined();
 		let ran = false;
-		owner.compensate(
-			() => (ran = true),
-			(run) => {
-				run();
-				return 10;
-			}
-		);
+		owner.round(() => (ran = true));
 		expect(ran).toBe(true);
 		host = document.createElement('div');
 		expect(owner.port()).not.toBeNull();

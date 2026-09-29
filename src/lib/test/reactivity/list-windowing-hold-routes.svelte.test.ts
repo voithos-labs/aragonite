@@ -178,6 +178,7 @@ const ROUTES: Route[] = [
 /** The members that change no height, or change one without a correction of their own. */
 const NOT_ROUTES: (keyof ListWindowing)[] = [
 	'window',
+	'level',
 	'targetTopOf',
 	'syncScrollTop',
 	'revealChild',

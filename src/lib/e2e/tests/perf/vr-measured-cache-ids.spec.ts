@@ -55,7 +55,6 @@ test('a swap leaves only live ids in the measured cache, a list above the fold i
 	const pageErrors = capturePageErrors(page);
 	const editor = new EditorPage(page);
 	await editor.goto();
-	await page.evaluate(() => (window as any).__test.startMeasuredIdCapture());
 	await editor.loadContent(buildDoc('first'));
 	expect(await spacerCount(page), 'the fixture must window').toBeGreaterThan(0);
 

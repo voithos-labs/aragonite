@@ -127,7 +127,11 @@ describe('editor-root geometry: header slot compensation', () => {
 		const port = stubScrollport({ viewportHeight: 500 });
 		port.setScrollTop(opts.scrollTop ?? 120);
 		const owner = stubScrollOwner(port, { editorCorrects: () => opts.owns ?? true });
-		const root = owner.resolveTargetsWith({ resolve: () => null, syncScrollTop: () => {} });
+		const root = owner.resolveTargetsWith({
+			resolve: () => null,
+			holdForRound: () => null,
+			syncScrollTop: () => {}
+		});
 		teardowns.push(
 			installHeaderSlotCompensation({ el: box.el, port: owner.port, compensate: root.compensate })
 		);

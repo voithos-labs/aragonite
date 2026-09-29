@@ -1416,21 +1416,13 @@ const BARE_FOCUSES: ManifestRule[] = [
 /** Every call that corrects, picks a held block or holds nothing, keyed by path, function and
  *  kind, so a call moved elsewhere fails. `<module>` is a function with a bracketed return type. */
 const CORRECTIONS: Record<string, { calls: number; reason: string }> = {
-	'src/lib/reactivity/list-windowing.svelte.ts :: correctAcross :: compensate': {
+	'src/lib/reactivity/list-tree.ts :: createListTree :: heldBlock': {
 		calls: 1,
-		reason: 'the one correction helper every measure and rebuild goes through'
+		reason: 'the one pick of the block a measure round keeps still, level by level'
 	},
-	'src/lib/reactivity/list-windowing.svelte.ts :: correctAcross :: heldBlock': {
+	'src/lib/reactivity/list-tree.ts :: createListTree :: held move': {
 		calls: 1,
-		reason: 'the one pick of the block a list keeps still'
-	},
-	'src/lib/reactivity/use-container-windowing.svelte.ts :: useContainerWindowing :: compensate': {
-		calls: 1,
-		reason: 'hands a nested list’s correction to the scroll owner'
-	},
-	'src/lib/reactivity/use-container-windowing.svelte.ts :: <module> :: compensate': {
-		calls: 1,
-		reason: 'hands the root list’s correction to its handle from the scroll owner'
+		reason: 'the one read of how far it moved, which the scroll owner writes once per round'
 	},
 	'src/lib/components/editor-root-geometry.ts :: <module> :: compensate': {
 		calls: 1,
@@ -1448,7 +1440,7 @@ interface CallKind {
 const CORRECTION_KINDS: CallKind[] = [
 	{ kind: 'compensate', callee: 'compensate', counts: () => true },
 	{ kind: 'heldBlock', callee: 'heldBlock', counts: () => true },
-	{ kind: 'zero hold', callee: 'holdAcross', counts: (args) => callArguments(args)[2] === 'null' }
+	{ kind: 'held move', callee: 'heldPathMoved', counts: () => true }
 ];
 
 /** Each `path :: function :: kind` in `file` with its count; a definition or signature isn't a call. */
@@ -1476,10 +1468,10 @@ const HELD_BRANDS: FileRule = {
 	matches: /\bas\s+(?:HeldBlock|HeldDelta)\b/,
 	allowed: {
 		'src/lib/reactivity/hold-across.ts':
-			'`heldBlock` and `holdAcross`, the one pick and its measure'
+			'`heldBlock` and `heldPathMoved`, the one pick and its measure'
 	},
 	reason:
-		'a cast to a held block or a held distance picks the block a list keeps still somewhere other than `heldBlock`: call `heldBlock` and `holdAcross` instead',
+		'a cast to a held block or a held distance picks the block a list keeps still somewhere other than `heldBlock`: call `heldBlock` and `heldPathMoved` instead',
 	reaches: ['src/lib/reactivity/hold-across.ts'],
 	hits: ['return 0 as HeldDelta;', "const held = { id: 'b3', index: 3 } as HeldBlock;"],
 	misses: ['const held: HeldBlock | null = heldBlock(table, top, focused);']
@@ -1496,21 +1488,19 @@ function describeCorrections(sources: SourceFile[]): void {
 			);
 			expect(
 				found,
-				'a new height correction picks its own held block: route a list through its one correction helper, or declare the call here with why'
+				'a new height correction picks its own held block: let the scroll owner’s measure round hold one block for the whole document, or declare the call here with why'
 			).toEqual(declared);
 		});
 
 		it('the census counts calls where they sit and skips a definition or a signature', () => {
 			const sites = (code: string) =>
 				Object.fromEntries(callSites(probeFile(code), CORRECTION_KINDS));
+			expect(sites('function a() {\n\troot.compensate(w, () => 0);\n}')).toEqual({
+				'probe.ts :: a :: compensate': 1
+			});
 			expect(
-				sites(
-					'function a() {\n\tdeps.scroll.compensate(w, (run) => holdAcross(t, () => t, null, run));\n}'
-				)
-			).toEqual({ 'probe.ts :: a :: compensate': 1, 'probe.ts :: a :: zero hold': 1 });
-			expect(
-				sites('function b() {\n\tholdAcross(t, () => t, heldBlock(t, t, 0, i), run);\n}')
-			).toEqual({ 'probe.ts :: b :: heldBlock': 1 });
+				sites('function b() {\n\theldPathMoved([heldStep(t, heldBlock(t, t, 0, i), now)]);\n}')
+			).toEqual({ 'probe.ts :: b :: heldBlock': 1, 'probe.ts :: b :: held move': 1 });
 			expect(sites('owner ? owner.compensate(mutate, held) : mutate();')).toEqual({
 				'probe.ts :: <module> :: compensate': 1
 			});

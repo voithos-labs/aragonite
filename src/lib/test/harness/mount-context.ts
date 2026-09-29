@@ -30,6 +30,7 @@ import { coverRange, rangeCoverage } from '$lib/selection/range-coverage';
 import { createScrollOwner } from '$lib/cursor/scroll-owner';
 import { createAutoPairRecord } from '$lib/components/blocks/text/auto-pair-record';
 import { createHeightOracle } from '$lib/cursor/height-oracle';
+import { createListTree } from '$lib/reactivity/list-tree';
 import { HEIGHT_ESTIMATES } from '$lib/cursor/typography-estimates';
 import {
 	makeCaretMemory,
@@ -142,6 +143,8 @@ function stubbedDoc(emptyDoc: Document): EditorDoc {
 			blockChrome: HEIGHT_ESTIMATES.blockChrome,
 			imageBlockMinHeight: HEIGHT_ESTIMATES.imageBlockMinHeight
 		}),
+		// No root list registers in a bare mount, so the tree holds nothing to read.
+		listTree: createListTree({ getScrollTop: () => null, getFocusPath: () => null }),
 		scrollHost: () => null,
 		// Replaced by `editorMountContext` with the scroll owner's port.
 		scrollport: () => null,

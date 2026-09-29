@@ -9,6 +9,7 @@ import { devWarn } from '../dev-warn';
 import type { BlockElLookup } from '../editor-keys';
 import type { UserScrollport } from './scroll-ancestors';
 import { createScrollport, type Scrollport, type ScrollportReader } from './scrollport';
+import { createSharedResizeWatch } from './observe-resize';
 
 export type PlaceBlock = 'nearest' | 'center';
 
@@ -31,11 +32,14 @@ export interface TargetTop {
 	height: number;
 }
 
-/** The root list's answer to where a held target is, installed by the root list alone. */
+/** The root list's reads of the document's height tables, installed by the root list alone. */
 export interface TargetResolver {
 	/** Null when the list can't place the path: out of its range, or windowed out inside a
 	 *  mounted container. */
 	resolve(path: readonly number[]): TargetTop | null;
+	/** The block a measure round keeps still, picked from the scroll before it, and a read of how far
+	 *  it moved; the same tables `resolve` reads, so a held target and the round agree. */
+	holdForRound(): (() => number) | null;
 	/** A scripted `scrollTop` write fires no `scroll` event in time, so the root window re-reads it. */
 	syncScrollTop(): void;
 }
@@ -62,9 +66,14 @@ export interface ScrollOwner {
 	/** Scroll the least distance that shows a viewport rect (a caret's line, a cell), holding
 	 *  nothing and ending any older hold. */
 	showRect(rect: DOMRectReadOnly): void;
-	/** A nested list's height change: keeps its own held block still and never re-places a held
-	 *  target, whose root table hasn't seen the change yet. */
-	compensate: Compensate;
+	/** Runs `run`, which writes the lists' height tables, as one measure round: one block picked
+	 *  before it, one write after, none when that block didn't move. A round inside a round joins it. */
+	round(run: () => void): void;
+	/** Runs `run` in the round that follows the current flush, with every other list's. */
+	measureSoon(run: () => void): void;
+	/** Watches a child's size with the editor's one observer, so each layout's changes arrive as
+	 *  one round. */
+	watchSize(el: Element, onResize: (entry: ResizeObserverEntry) => void): () => void;
 	/** Take the position for a scroll into view now, before the mount's awaits; `scroll()` once
 	 *  the block is mounted. */
 	place(path: readonly number[], opts: PlaceOptions): ScrollPlacement;
@@ -124,6 +133,8 @@ export function createScrollOwner(deps: ScrollOwnerDeps): ScrollOwner {
 	// place` would leave the first scroll believing it still owns the viewport.
 	let lastMinted: Token | null = null;
 	let compensations = 0;
+	let inRound = false;
+	const soon = new Set<() => void>();
 
 	function writable(): Scrollport | null {
 		if (port) return port;
@@ -182,6 +193,35 @@ export function createScrollOwner(deps: ScrollOwnerDeps): ScrollOwner {
 		p.setScrollTop(top);
 		resolver?.syncScrollTop();
 	}
+
+	function closeRound(moved: (() => number) | null): void {
+		compensations++;
+		// A held placement owns the position, and re-places from the same tables.
+		if (targetScrollTop() !== null) {
+			replace();
+			return;
+		}
+		const delta = moved?.() ?? 0;
+		const p = writable();
+		if (delta !== 0 && p) p.scrollBy(delta);
+	}
+
+	function round(run: () => void): void {
+		if (inRound || !deps.editorCorrects()) {
+			run();
+			return;
+		}
+		inRound = true;
+		const moved = resolver?.holdForRound() ?? null;
+		try {
+			run();
+		} finally {
+			inRound = false;
+			closeRound(moved);
+		}
+	}
+
+	const sizes = createSharedResizeWatch(round);
 
 	function correctByDelta(mutate: () => void, held: (mutate: () => void) => number): void {
 		const delta = held(mutate);
@@ -260,10 +300,19 @@ export function createScrollOwner(deps: ScrollOwnerDeps): ScrollOwner {
 			p.scrollBy(delta);
 			resolver?.syncScrollTop();
 		},
-		compensate(mutate, held) {
-			compensations++;
-			if (deps.editorCorrects()) correctByDelta(mutate, held);
-			else mutate();
+		round,
+		watchSize: (el, onResize) => sizes.watch(el, onResize),
+		measureSoon(run) {
+			if (soon.size === 0) {
+				void tick().then(() => {
+					const runs = [...soon];
+					soon.clear();
+					round(() => {
+						for (const queued of runs) queued();
+					});
+				});
+			}
+			soon.add(run);
 		},
 		place(path, { block, hold }) {
 			const p = [...path];

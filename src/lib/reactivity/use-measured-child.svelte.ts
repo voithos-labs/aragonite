@@ -5,7 +5,6 @@
  */
 import { getContext, untrack } from 'svelte';
 import { CHILD_MEASURE_KEY, type ChildMeasureChannel } from '../editor-keys';
-import { observeResize } from '../cursor/observe-resize';
 
 export interface MeasuredChildOpts {
 	getId: () => string;
@@ -44,9 +43,9 @@ export function useMeasuredChild(opts: MeasuredChildOpts): void {
 	$effect(() => {
 		const el = opts.getEl();
 		if (!el) return;
-		return observeResize(el, (entries) => {
-			const box = entries[0]?.borderBoxSize?.[0];
-			const height = box ? box.blockSize : entries[0]?.contentRect.height;
+		return channel.watchSize(el, (entry) => {
+			const box = entry.borderBoxSize?.[0];
+			const height = box ? box.blockSize : entry.contentRect?.height;
 			if (height != null) channel.measureOnResize(opts.getId(), height);
 		});
 	});

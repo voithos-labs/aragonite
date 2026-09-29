@@ -37,6 +37,7 @@
 	import { installSelectionDrop, type DropCaretRect } from '../selection/selection-drop';
 	import { createContentVersion } from '../reactivity/content-version.svelte';
 	import { useRootWindowing } from '../reactivity/use-container-windowing.svelte';
+	import { createListTree } from '../reactivity/list-tree';
 	import { refSlotsOver, replaceRefs } from '../reactivity/publish-ref.svelte';
 	import { componentAt, type ChildList } from '../reactivity/child-list';
 	import { createSelectionState } from '../selection/selection-state.svelte';
@@ -1104,6 +1105,11 @@
 
 	// ── Top-level windowing ─────────────────────────────────────────────
 
+	const listTree = createListTree({
+		getScrollTop: () => scrollOwner.port()?.scrollTop() ?? null,
+		getFocusPath: focusAttribution.getFocusedPath
+	});
+
 	// Set after the windowing signals it holds exist; the windowing hook below reads it back.
 	setContext(EDITOR_DOC_KEY, {
 		doc: getDoc,
@@ -1117,6 +1123,7 @@
 		blockElLookup: getBlockElByPath,
 		focusedPath: focusAttribution.getFocusedPath,
 		heightOracle,
+		listTree,
 		widthVersion: () => widthVersion,
 		viewportHeightVersion: () => viewportHeightVersion
 	} satisfies EditorDoc);
@@ -1296,6 +1303,8 @@
 		getDecorationEngine: () => decorationEngine,
 		getHeightOracle: () => heightOracle,
 		getBlockIds: () => blockIds,
+		getMeasuredIds: () => heightOracle.measuredIds(),
+		getListTree: () => listTree,
 		getWidthVersion: () => widthVersion,
 		setBlockRefSlot: blockRefSlots.set
 	};

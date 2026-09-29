@@ -53,6 +53,7 @@ function makeOwner(scripts: Record<string, number[]> = {}, opts: { withRoot?: bo
 			asked.push([...path]);
 			return { top: TABLE_TOP, height: EL_HEIGHT };
 		},
+		holdForRound: () => null,
 		syncScrollTop: () => {}
 	});
 

@@ -3,8 +3,10 @@ import { HeightModel } from '../../cursor/height-model';
 import {
 	focusedIndexIn,
 	heldBlock,
-	holdAcross,
-	type HeightTable
+	heldPathMoved,
+	heldStep,
+	type HeightTable,
+	type HeldBlock
 } from '../../reactivity/hold-across';
 import type { ListScrollWrites } from '../../reactivity/list-windowing.svelte';
 
@@ -78,6 +80,18 @@ function pickFor(row: Row, before: HeightTable, after = before) {
 	return heldBlock(before, after, row.localTop, onScreen(row.focus, before, after));
 }
 
+/** How far `held` moves across `mutate`, read the way a round reads it. */
+function across(
+	before: HeightTable,
+	after: () => HeightTable,
+	held: HeldBlock | null,
+	mutate: () => void
+): number {
+	const path = held ? [heldStep(before, held, after)] : [];
+	mutate();
+	return heldPathMoved(path);
+}
+
 describe('heldBlock', () => {
 	for (const row of ROWS) {
 		it(`${row.name}: holds ${row.held ?? 'nothing'}`, () => {
@@ -91,7 +105,7 @@ describe('heldBlock', () => {
 	});
 });
 
-describe('holdAcross', () => {
+describe('heldPathMoved over one list', () => {
 	for (const row of ROWS) {
 		const [grown, inserted, removed] = MOVES[row.held ?? 'nothing'];
 
@@ -99,14 +113,14 @@ describe('holdAcross', () => {
 			const table = tableOf(IDS);
 			const held = pickFor(row, table);
 			const grow = () => table.model.setHeight(0, 130);
-			expect(holdAcross(table, () => table, held, grow)).toBe(grown);
+			expect(across(table, () => table, held, grow)).toBe(grown);
 		});
 
 		it(`${row.name}, a block inserted before d: moves ${inserted}`, () => {
 			const before = tableOf(IDS);
 			const after = tableOf(['a', 'b', 'c', 'n', 'd', 'e', 'f'], (id) => (id === 'n' ? 40 : 100));
 			expect(
-				holdAcross(
+				across(
 					before,
 					() => after,
 					pickFor(row, before, after),
@@ -120,7 +134,7 @@ describe('holdAcross', () => {
 			const gone = row.held ?? 'c';
 			const after = tableOf(IDS.filter((id) => id !== gone));
 			expect(
-				holdAcross(
+				across(
 					before,
 					() => after,
 					pickFor(row, before, after),
@@ -135,7 +149,7 @@ describe('holdAcross', () => {
 		let after = before;
 		let runs = 0;
 		const held = heldBlock(before, before, INSIDE, null);
-		const delta = holdAcross(
+		const delta = across(
 			before,
 			() => after,
 			held,
@@ -241,7 +255,7 @@ describe('a focused block the change moved', () => {
 			const held = heldBlock(before, after, row.localTop, onScreen(row.focus, before, after));
 			expect(held?.id ?? null).toBe(row.held);
 			expect(
-				holdAcross(
+				across(
 					before,
 					() => after,
 					held,
@@ -262,27 +276,18 @@ describe('focusedIndexIn', () => {
 	});
 });
 
-describe('a list correction holds only what heldBlock picks', () => {
+describe('a correction holds only what heldBlock picks', () => {
 	it('refuses a hand-written distance or a hand-picked block', () => {
 		const table = tableOf(IDS);
-		const writes: ListScrollWrites = { compensate: () => {}, scrollToMount: () => {} };
-		writes.compensate(
-			() => {},
-			// @ts-expect-error a distance worked out by hand isn't one `holdAcross` measured
-			(run) => {
-				run();
-				return 0;
-			}
-		);
+		const writes: ListScrollWrites = {
+			round: (run) => run(),
+			measureSoon: () => {},
+			scrollToMount: () => {}
+		};
+		// @ts-expect-error a list writes heights, never a distance to scroll by
+		writes.compensate?.(() => {}, 0);
 		// @ts-expect-error a block picked by hand isn't one `heldBlock` picked
-		const byHand: Parameters<typeof holdAcross>[2] = { id: 'c', index: 2 };
-		expect(
-			holdAcross(
-				table,
-				() => table,
-				byHand,
-				() => {}
-			)
-		).toBe(0);
+		const byHand: HeldBlock = { id: 'c', index: 2 };
+		expect(heldPathMoved([heldStep(table, byHand, () => table)])).toBe(0);
 	});
 });

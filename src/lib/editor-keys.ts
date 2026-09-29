@@ -32,6 +32,7 @@ import type { CaretMemory } from './cursor/caret-memory';
 import type { AutoPairRecord } from './components/blocks/text/auto-pair-record';
 import type { ScrollOwner } from './cursor/scroll-owner';
 import type { HeightOracle } from './cursor/height-oracle';
+import type { ListTree } from './reactivity/list-tree';
 import type { InlineMenuCombobox } from './inline-menu/inline-menu-state.svelte';
 import type { WidgetSelectionState } from './components/image/widget-selection-state.svelte';
 import type { LinkCardState } from './components/link-card/link-card-state.svelte';
@@ -123,6 +124,8 @@ export interface ChildMeasureChannel {
 	register(path: readonly number[], id: string, readHeight: () => number): () => void;
 	measureNow(id: string): void;
 	measureOnResize(id: string, observedHeight: number): void;
+	/** Every child's size is watched by one observer per editor, so one layout is one round. */
+	watchSize(el: Element, onResize: (entry: ResizeObserverEntry) => void): () => void;
 }
 
 // ── Facets ───────────────────────────────────────────────────────────────────
@@ -232,6 +235,8 @@ export interface EditorDoc {
 	focusedPath: FocusedPathGetter;
 	/** Per-kind height estimator, built by the root and read by nested block lists. */
 	heightOracle: HeightOracle;
+	/** Every mounted block list, which the scroll owner reads the document's heights through. */
+	listTree: ListTree;
 	/** Counter the root bumps on an editor width resize, so every block list rebuilds its
 	 *  height table and re-measures at the new width. */
 	widthVersion: VersionGetter;
