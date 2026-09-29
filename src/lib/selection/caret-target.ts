@@ -108,8 +108,8 @@ function survivorBeside(
 	return forward ? (atStart ?? atEnd) : (atEnd ?? atStart);
 }
 
-/** `removedPath`, or its nearest ancestor's position when the removal emptied the parent and the
- *  commit's fix-up took it too (its path then resolves to nothing, or to a childless neighbour). */
+/** `removedPath`, or its nearest ancestor's position when the removal emptied the parent and took
+ *  it too (the path then resolves to nothing, or to a childless neighbour or the new empty block). */
 function liveSlot(doc: DocumentView, removedPath: readonly number[]): number[] | null {
 	let slot = [...removedPath];
 	while (slot.length > 1 && !nodeAt(doc, slot.slice(0, -1))?.children?.length) {

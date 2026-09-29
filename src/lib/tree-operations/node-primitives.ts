@@ -140,8 +140,8 @@ export function paragraphNode(leadingTrivia: string, text: string, lineEnding: s
 	return { kind: 'paragraph', leadingTrivia, raw: text + lineEnding };
 }
 
-/** An empty paragraph: the one block an emptied document keeps, and the backfill for a container
- *  a reparse leaves with no children. */
+/** An empty paragraph: the one block an emptied document keeps, and the backfill for a container a
+ *  parse or a write builds with no children (one a delete empties is removed instead). */
 export function emptyParagraph(leadingTrivia: string, lineEnding: string): CstNode {
 	return paragraphNode(leadingTrivia, '', lineEnding);
 }

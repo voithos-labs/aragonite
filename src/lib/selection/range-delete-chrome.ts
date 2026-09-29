@@ -2,7 +2,8 @@
  * The `rangeDelete` branch for a container with a `reservedChrome` child (a details block's
  * summary line): nothing merges across such a container's edge. A covered title line is cleared,
  * not deleted, so the title leaf stays at child 0 (G1.14); the container goes as one splice only
- * when the range covers its whole subtree or takes it whole (`CoveredRange.wholeUnits`).
+ * when the range covers its whole subtree or takes it whole (`CoveredRange.wholeUnits`), and a
+ * container that splice empties goes with it.
  */
 
 import type { Reading } from '../schema/reading';

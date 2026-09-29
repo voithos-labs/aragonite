@@ -7,8 +7,8 @@ import { ensureUnsharedPath } from './unshare';
 
 /**
  * Remove the containers a delete emptied, walking up from `deletedPath`'s parent (a path below
- * `root`) to the first that still holds a child. From the document root it can reach the document,
- * so the commit must hold its scope; `root` itself is never spliced.
+ * `root`) to the first that still holds a child; `root` itself is never spliced. Walking from the
+ * document it can splice the document's own children, so the commit must hold that scope.
  */
 export function cascadeCleanupEmptyAncestors(
 	root: CstNode | Document,

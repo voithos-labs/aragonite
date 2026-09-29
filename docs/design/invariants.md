@@ -257,6 +257,7 @@ Three families of seam run these checks:
 | G1.41 | A structural edit keeps the final break as it was (a blank last line keeps its own) | A·P·N   |
 | G1.42 | A list item's checkbox, and a to-do's blocks, are what its reload reads             | A·N     |
 | G1.43 | Reading a commit's landing moves no caret                                           | A·N     |
+| G1.44 | The document holds a block, and a commit leaves no container it touched empty       | A·N     |
 
 ### The entries
 
@@ -687,6 +688,20 @@ editor's one caret landing (`selection/caret-landing.ts`). In a dev build the co
 either (a focus call, a selection write) fails here the first time a test runs it. Predicate
 `invariants/landing-value.ts :: checkLandingIsAValue` · run by
 `editor-actions/commit/undo-controller.ts` · `test/invariants/landing-value.test.ts`.
+
+**G1.44 · The document keeps a block** (`keeps-a-block`). A structural commit never leaves the
+document with no children, and never leaves a container it touched with none either, unless the
+kind is a whole-block one (a diagram's opaque container holds no child on purpose). The edits
+already keep both halves, so the check is there for a new route that skips them. The commit gives an
+emptied document one empty paragraph itself (`tree-operations/keep-one-block.ts :: keepOneBlock`, in
+both commit branches), and an edit that empties a container removes it, either through the walk up
+the ancestors that a range delete and a list promote run
+(`tree-operations/cleanup.ts :: cascadeCleanupEmptyAncestors`) or through a container handing the
+delete to its parent (`editor-actions/nested/nested-block-edit.ts :: removeEmptiedContainer`).
+Which kinds must hold a child is one predicate, `schema/block-kind-descriptor.ts :: mustHoldChild`.
+Predicate `invariants/keeps-a-block.ts :: checkKeepsABlock` · run by both commit branches in
+`editor-actions/commit/undo-controller.ts` · `test/invariants/keeps-a-block.test.ts`,
+`test/editor-actions/document-keeps-a-block.test.ts`.
 
 ## Group 2: property and regression tested
 

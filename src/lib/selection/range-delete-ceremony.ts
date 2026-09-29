@@ -1,8 +1,9 @@
 /**
  * The deletion steps every `rangeDelete` branch (plain, title-line, table) shares: covered paths
  * are spliced out in reverse document order, each only while it still holds the node captured up
- * front, then emptied ancestors are cleaned up. The title-line and table branches splice a covered
- * container as one subtree root, so the undo entry holds a whole detached node.
+ * front, then every ancestor left empty goes, up to the document. The title-line and table
+ * branches splice a covered container as one subtree root, so the undo entry holds a whole
+ * detached node.
  */
 
 import type { GrammarView } from '../schema/block-openers';
