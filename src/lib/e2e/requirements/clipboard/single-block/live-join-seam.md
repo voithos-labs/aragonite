@@ -5,8 +5,8 @@ text, same as typing over it. In live mode the range can end halfway through a
 construct, and the delimiter runs the cut strands are bytes you never saw. Pasted
 literally, an unmatched `**` isn't a construct anymore, so it shows up as plain text.
 So the paste goes through the same replace typing uses (`replaceRangeInLeaf`), with
-the pasted text already in the join: it keeps a run the text fills back in, and drops
-one it doesn't. Driven on `/test/editor`; what's checked is what the block shows (its
+the pasted text already in the join (where the two sides the cut leaves meet): it
+keeps a run the text fills back in, and drops one it doesn't. Driven on `/test/editor`; what's checked is what the block shows (its
 text minus the spans a marker-hiding mode drops), not only the source, since the
 source is allowed to differ per mode.
 

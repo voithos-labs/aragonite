@@ -1,6 +1,6 @@
 /**
- * Replacing a range of one leaf, and joining two leaves, the way every in-leaf edit and merge
- * writes them: cut back to the painted text, off any surrogate pair, and in live mode with the
+ * Replacing a range of one leaf, and joining two leaves, the way in-leaf edits and merges
+ * write them: cut back to the painted text, off any surrogate pair, and in live mode with the
  * delimiter runs the join strands dropped, typed text included (`docs/design/live-mode.md` § 4.5).
  */
 

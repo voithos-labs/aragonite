@@ -973,8 +973,8 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.85 | A live rewrite that removes bytes reads its candidate where it will be stored             | L       |
 | G4.86 | A list item's marker is read only where the list is built, drawn or dumped                | L       |
 | G4.87 | Only the scroll owner writes the editor's scroll position                                 | L       |
-| G4.89 | One in-leaf range replace: only it, the split cuts and an endpoint snap a caret offset    | L       |
-| G4.90 | A paste's selection is cut through the in-leaf range replace, with the pasted text        | L       |
+| G4.89 | One in-leaf range replace, and a short list of places that snap an offset                 | L       |
+| G4.90 | A paste inside one block cuts its selection through the range replace, with its text      | L       |
 
 ### The entries
 
@@ -1754,9 +1754,9 @@ front of, or the paste's re-read of a clipboard block, which keeps the kind the 
 `lint/manifest-rules.test.ts`.
 
 **G4.84 · One place says where a leaf's bytes are stored.** A `StoredAs` (`src/lib/schema/stored-as.ts`)
-answers four things about a position: whether it stores a block or plain text (a table cell), the
-bytes its write rules would keep, how a reload reads them there (behind a list item's marker
-line, say), and the line ending its writes take. It's a branded type, and only `tree-operations/stored-as.ts :: storedAsAt` and
+answers three things about a position: whether it stores a block or plain text (a table cell), the
+bytes its write rules would keep, and how a reload reads them there (behind a list item's marker
+line, say). It's a branded type, and only `tree-operations/stored-as.ts :: storedAsAt` and
 `storedAsIn` build one, from the tree. So a rewrite can't describe its own position, and nothing
 reads a candidate behind a hand-written copy of the container's marker, which drifts from the item
 it copies (a to-do's box, a marker a leading space widens). `lint/file-rules.test.ts` holds the
@@ -1793,15 +1793,19 @@ view inside their own scroller. `lint/file-rules.test.ts`.
 **G4.89 · One in-leaf range replace.** Replacing a range of one leaf, typed or pasted text or none,
 is `tree-operations/leaf-range.ts :: replaceRangeInLeaf`: it cuts back to the painted text, moves
 both ends off any surrogate pair, and cleans the join with the text already in it. Joining two
-leaves is `joinLeaves` beside it. A cut that snaps its own offsets skipped the rest of that, so the
+leaves is `joinLeaves` beside it. A cut that snaps its own offsets skips the rest of that, so the
 scan holds `snapToScalarBoundary(` to `leaf-range.ts`, the split's two cuts (`node-ops.ts ::
 cutPastLineEnding`, `structural-suffix.ts :: cutKeepingStructure`), `selection/char-endpoint-snap.ts`
 (a selection endpoint, which cuts nothing) and `core/lines.ts`, which defines it. A second row lists
-every `joinLeaves(` caller: `leaf-range.ts` and the merge in `node-ops.ts`. The range delete still
-calls the cleanup itself (`cleanJoinedRaw`), which G4.76 declares. `lint/file-rules.test.ts`.
+every `joinLeaves(` caller: `leaf-range.ts` and the merge in `node-ops.ts`. A third catches a
+hand-written splice of one leaf's own bytes (`raw.slice(0, a) + … + raw.slice(b)`) in the live
+editing paths, and each file that keeps one says why: it inserts and deletes nothing, it rewrites
+one whole construct and checks the result itself, or it's a known gap with its owner (the range
+delete, which calls the cleanup itself and G4.76 declares, and typing after a cross-block delete).
+`lint/file-rules.test.ts`.
 
-**G4.90 · A paste cuts like typing.** Pasting over a selection writes what typing the same text over
-it writes, so every file that names the paste's range (`preDelete`) cuts it through
+**G4.90 · A paste cuts like typing.** Pasting over a selection inside one block writes what typing
+the same text over it writes, so every file that names the paste's range (`preDelete`) cuts it through
 `replaceRangeInLeaf` with the pasted text, or says why it doesn't: the surface contract declares
 it, the code block's selection just hands it on, and the code block's own paste stays a literal
 splice, since a fence body has no inline constructs to clean. `lint/file-rules.test.ts`.
