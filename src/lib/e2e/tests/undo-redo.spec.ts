@@ -181,3 +181,53 @@ test.describe('undo brings an off-screen caret into view', () => {
 		await expect(page.locator('[data-gap-caret]')).toBeInViewport();
 	});
 });
+
+test.describe('undo shows the caret’s line in a block taller than the screen', () => {
+	const TALL = 10;
+	const DOC =
+		Array.from({ length: 60 }, (_, i) =>
+			i === TALL
+				? `Tall ${'paragraph that wraps onto line after line, '.repeat(160)}`
+				: `Line ${i} with some words on it.`
+		).join('\n\n') + '\n';
+
+	// Miss-analysis: every undo row used a short block, where showing the block shows the caret,
+	// so a caret deep in a tall block whose top was on screen stayed below the edge.
+	test('undo with the caret at the end of a tall paragraph whose top is on screen', async ({
+		page
+	}) => {
+		const editor = new EditorPage(page);
+		await editor.goto();
+		await editor.loadContent(DOC);
+		await editor.waitForRenderFlush();
+		await editor.focusBlockEnd(TALL);
+		await editor.typeText('x');
+		await editor.bridge.waitForSourceContains('line after line, x');
+		await editor.waitForUndoBatchFlush();
+		// The paragraph's top 100px into the view, so its end sits far below the bottom edge.
+		for (let pass = 0; pass < 3; pass++) {
+			await page.evaluate((i) => {
+				const view = document.querySelector('.editor') as HTMLElement;
+				const block = document.querySelector(`[data-block-path='[${i}]']`) as HTMLElement;
+				const top = view.getBoundingClientRect().top + view.clientTop;
+				view.scrollTop += block.getBoundingClientRect().top - top - 100;
+			}, TALL);
+			await editor.waitForRenderFlush();
+		}
+
+		await editor.undo();
+		await editor.bridge.waitForSourceContains('line after line, \n');
+		await editor.waitForRenderFlush();
+
+		const caret = await page.evaluate(() => {
+			const view = document.querySelector('.editor') as HTMLElement;
+			const top = view.getBoundingClientRect().top + view.clientTop;
+			const range = window.getSelection()!.getRangeAt(0);
+			const rects = range.getClientRects();
+			const rect = rects.length ? rects[0] : range.getBoundingClientRect();
+			return { top: rect.top - top, bottom: rect.bottom - top, band: view.clientHeight };
+		});
+		expect(caret.top).toBeGreaterThanOrEqual(-1);
+		expect(caret.bottom).toBeLessThanOrEqual(caret.band + 1);
+	});
+});

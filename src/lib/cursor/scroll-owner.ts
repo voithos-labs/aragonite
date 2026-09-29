@@ -59,8 +59,8 @@ export interface ScrollOwner {
 	/** Whether a viewport rect sits wholly inside what the editor shows, so a caret there needs no
 	 *  scroll. */
 	shows(rect: DOMRectReadOnly): boolean;
-	/** Scroll the least distance that shows a viewport rect (an arriving caret's line), holding
-	 *  nothing. */
+	/** Scroll the least distance that shows a viewport rect (a caret's line, a cell), holding
+	 *  nothing and ending any older hold. */
 	showRect(rect: DOMRectReadOnly): void;
 	/** A nested list's height change: keeps its own held block still and never re-places a held
 	 *  target, whose root table hasn't seen the change yet. */
@@ -245,6 +245,9 @@ export function createScrollOwner(deps: ScrollOwnerDeps): ScrollOwner {
 			return !!band && bandShows(band, rect);
 		},
 		showRect(rect) {
+			// A newer scroll into view, like a newer placement: an older hold must not drag it back.
+			if (lastMinted) lastMinted.superseded = true;
+			drop();
 			const band = visibleBand();
 			const p = writable();
 			if (!band || !p || bandShows(band, rect)) return;

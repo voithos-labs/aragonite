@@ -61,7 +61,9 @@ function recordingScroll(visible: boolean) {
 	const scroll: Pick<ScrollOwner, 'shows' | 'showRect' | 'place' | 'port'> = {
 		port: () => null,
 		shows: () => visible,
-		showRect: () => {},
+		showRect: () => {
+			calls.push('showRect');
+		},
 		place: (_path, { hold }) => {
 			calls.push(hold ? 'place, held' : 'place');
 			return {
@@ -151,11 +153,11 @@ describe('landing a caret', () => {
 });
 
 describe('bringing a landing into view', () => {
-	it('scrolls an off-screen block into view and gives the viewport back', async () => {
+	it('shows an off-screen caret the least distance, holding nothing', async () => {
 		const { scroll, calls } = recordingScroll(false);
 		const { landing } = landingOver('a\n', { scroll });
 		await landing.land(at([0], 0));
-		expect(calls).toEqual(['place', 'scroll']);
+		expect(calls).toEqual(['showRect']);
 	});
 
 	it('writes no scroll for a block already in view', async () => {

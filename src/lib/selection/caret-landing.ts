@@ -27,8 +27,8 @@ import {
 import { isGapSelection, type GapCaretSelection } from '../undo/types';
 import type { SelectionState } from './selection-state.svelte';
 
-/** How far a landing moves the viewport: not at all, or into view when the block is off screen.
- *  Holding it there is a navigation's alone (`navigate`). */
+/** How far a landing moves the viewport: not at all, or just far enough to show the caret when it
+ *  isn't fully on screen. Holding a block in place is a navigation's alone (`navigate`). */
 export type RevealPolicy = 'mount' | 'into-view';
 
 export interface LandOptions {
@@ -118,8 +118,15 @@ export function createCaretLanding(deps: CaretLandingDeps): CaretLanding {
 		if (reveal === 'mount' || !scroll) return;
 		const el = deps.getBlockElByPath([...leafPath]);
 		if (!el) return;
-		if (reveal === 'into-view' && scroll.shows(caretBox(el))) return;
-		await scroll.place(leafPath, { block: 'nearest', hold: reveal === 'held' }).scroll();
+		if (reveal === 'held') {
+			await scroll.place(leafPath, { block: 'nearest', hold: true }).scroll();
+			return;
+		}
+		const caret = caretBox(el);
+		if (scroll.shows(caret)) return;
+		// A block that fits shows whole, as it always has; a taller one shows the caret's line.
+		const box = el.getBoundingClientRect();
+		scroll.showRect(box.height <= (scroll.port()?.viewportHeight() ?? 0) ? box : caret);
 	}
 
 	async function landAt(

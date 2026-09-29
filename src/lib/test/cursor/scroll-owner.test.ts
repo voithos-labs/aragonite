@@ -194,6 +194,22 @@ function stillHoldsB5(f: Fixture): void {
 	expect(f.port.scrollTop()).toBe(HELD_TOP + GROWTH);
 }
 
+/** The older hold on b5 is gone: a growth above the viewport only shifts the page by itself,
+ *  where a live hold would send it to b5's top. */
+function holdsNothing(f: Fixture): void {
+	const before = f.port.scrollTop();
+	measureB2Taller(f);
+	expect(f.port.scrollTop()).toBe(before + GROWTH);
+}
+
+/** Moved by `px` with no block scrolled into view: a least-distance scroll, not a placement. */
+function shownBy(px: number): (f: Fixture) => void {
+	return (f) => {
+		expect(f.scrolled).toEqual([]);
+		expect(f.port.scrollTop()).toBe(START + px);
+	};
+}
+
 // ── The table ────────────────────────────────────────────────────────────────
 
 interface Row {
@@ -293,19 +309,6 @@ const ROWS: Record<keyof ScrollWrites, Row[]> = {
 			}
 		},
 		{
-			name: 'a caret landing brought into view',
-			run: async (f) => {
-				await landOnB4(f, 'edit');
-				measureTopBlockTaller(f);
-			},
-			expect: {
-				'host anchoring holds': placedOnB4(START),
-				// Holds nothing once it lands, so the plain correction keeps b3 still.
-				'a held placement is live': placedOnB4(START),
-				free: placedOnB4(START)
-			}
-		},
-		{
 			// Not awaited, as the key handler doesn't: b5 measures while the placement runs.
 			name: 'a keyboard extension reaching b4, a block below it measuring',
 			run: (f) => {
@@ -355,9 +358,23 @@ const ROWS: Record<keyof ScrollWrites, Row[]> = {
 				'host anchoring holds': scrollTopIs(START + 40),
 				'a held placement is live': (f) => {
 					scrollTopIs(START + 40)(f);
-					stillHoldsB5(f);
+					holdsNothing(f);
 				},
 				free: scrollTopIs(START + 40)
+			}
+		},
+		{
+			// The landing's own check reads b4 at 600-610, below the 500px viewport: a short block
+			// shows whole, 110px down.
+			name: 'a caret landing brought into view',
+			run: (f) => landOnB4(f, 'edit'),
+			expect: {
+				'host anchoring holds': shownBy(110),
+				'a held placement is live': (f) => {
+					shownBy(110)(f);
+					holdsNothing(f);
+				},
+				free: shownBy(110)
 			}
 		},
 		{

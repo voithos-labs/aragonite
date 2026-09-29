@@ -258,7 +258,9 @@ test.describe('an arrival shows the caret itself, however it lands', () => {
 		}
 	});
 
-	test('ArrowUp onto a paragraph peeking 2px from the top brings its last line on screen', async ({
+	// The line's own box peeks, not the block's padding under it: an overlap check would call that
+	// line shown, so only the whole-line rule scrolls here.
+	test('ArrowUp onto a paragraph whose last line peeks 2px from the top shows that line', async ({
 		page
 	}) => {
 		await page.evaluate((i) => (window as any).__test.rects.reveal([i]), PARA_AT);
@@ -267,9 +269,15 @@ test.describe('an arrival shows the caret itself, however it lands', () => {
 		for (let pass = 0; pass < 3; pass++) {
 			await page.evaluate((i) => {
 				const view = document.querySelector('.editor') as HTMLElement;
-				const block = document.querySelector(`[data-block-path='[${i}]']`) as HTMLElement;
+				const text = document.querySelector(
+					`[data-block-path='[${i}]'] [contenteditable="true"]`
+				) as HTMLElement;
+				const range = document.createRange();
+				range.selectNodeContents(text);
+				const lines = range.getClientRects();
+				const lastLine = lines[lines.length - 1];
 				const top = view.getBoundingClientRect().top + view.clientTop;
-				view.scrollTop += block.getBoundingClientRect().bottom - top - 2;
+				view.scrollTop += lastLine.bottom - top - 2;
 			}, PARA_AT);
 			await editor.waitForRenderFlush();
 		}
