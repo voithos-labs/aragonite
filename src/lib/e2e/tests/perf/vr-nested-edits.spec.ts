@@ -38,7 +38,9 @@ const RESIZED = [
 			(_, i) => `- item ${i} ${LONG}\n\n  a second block ${LONG}`
 		).join('\n'),
 		top: [CONTAINER, 6, 0]
-	}
+	},
+	// Only one write while the width watcher rebuilds the tables before the blocks report.
+	{ name: 'flat prose', container: 'A plain paragraph in the container’s place.', top: [20] }
 ];
 
 // Self mode only: under host scroll a width change trips a ResizeObserver loop error through the
@@ -58,9 +60,8 @@ for (const { name, container, top } of RESIZED) {
 		const after = await nested.screenTop(top);
 		expect(after, `${JSON.stringify(top)} stays mounted`).not.toBeNull();
 		expect(Math.abs(after! - before), `moved from ${before} to ${after}`).toBeLessThanOrEqual(1);
-		// The rebuild's correction, then the estimate error of blocks the new width mounts.
-		const written = await writes();
-		expect(written.length, `at most two scroll writes: ${written}`).toBeLessThanOrEqual(2);
+		// One round carries the rebuild and every block's re-measure at the new width.
+		expect(await writes(), 'one scroll write').toHaveLength(1);
 		expect(pageErrors).toEqual([]);
 	});
 }

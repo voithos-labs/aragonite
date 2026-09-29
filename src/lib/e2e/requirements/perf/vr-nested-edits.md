@@ -20,12 +20,18 @@ unmounted.
 ## Happy paths
 
 - the window narrows from 1000px to 640px with a 40-paragraph blockquote
-  holding the top: its child 6 stays within 1px of where it was, with at most
-  two scroll writes, the rebuild's and the estimate error of the blocks the new
-  width mounts (red before the fix: 171px off; red on the second cut: 44px off)
-- the same with a 40-item list: item 6's first block stays within 1px, at most
-  two writes (red before the fix: 307px off; red on the second cut: the block
+  holding the top: its child 6 stays within 1px of where it was, with one
+  scroll write, since the rebuild and every block's re-measure at the new width
+  land in one round (red before the fix: 171px off; red on the second cut: 44px
+  off)
+- the same with a 40-item list: item 6's first block stays within 1px, one
+  write (red before the fix: 307px off; red on the second cut: the block
   scrolled out)
+- the same with plain paragraphs only: the block at the top stays within 1px,
+  one write. This row catches the editor making its shared size watcher before
+  its width watcher: the blocks would then report their new heights before the
+  tables rebuild, and it'd take four writes (red that way, and so are the two
+  rows above, with two each)
 - typing a line's worth of words into child 1 of a 40-paragraph blockquote,
   the caret there and above the top: child 6 stays within 1px, one scroll write
   (red before the fix and on the second cut: 179px off, the growth corrected
