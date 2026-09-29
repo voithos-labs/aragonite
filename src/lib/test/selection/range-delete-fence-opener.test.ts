@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { rangeDelete } from '$lib/selection/range-delete';
@@ -6,12 +6,7 @@ import { coverRange } from '$lib/selection/range-coverage';
 import { createSharingState } from '$lib/tree-operations/sharing';
 import { registerCalloutForTests } from './chrome-plugins';
 import { expectParseConverged } from '../harness/parse-converged';
-import { allowDevWarns } from '$lib/test/support/warn-gate';
 import { fixtureReading } from '../harness/fixture-grammar';
-
-// rangeDelete is driven with hand-built endpoints, so the table branch sees a character offset
-// `SelectionState` would have snapped to a cell coordinate.
-afterEach(() => allowDevWarns(['deleteFromTableIntoProse:start']));
 
 // A range ending in a code body takes the opener, and the surviving closer would reopen a fence.
 // Miss-analysis: GH #58; the fence pins only drove ranges that start in a code body.

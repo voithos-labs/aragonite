@@ -3,7 +3,7 @@
 // respects collapse, so the caret belongs on a collapsed container's title line.
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '../../core/parser';
-import { tableAwareRangeDelete } from '../../selection/range-delete-table';
+import { rangeDelete } from '../../selection/range-delete';
 import { coverRange } from '../../selection/range-coverage';
 import { createSharingState } from '../../tree-operations/sharing';
 import { blockNodeAt } from '../../tree-operations/node-primitives';
@@ -26,7 +26,7 @@ function twoTables(lineEnding: string): string {
 
 function deleteBothTables(source: string, firstTableIndex: number) {
 	const doc = parse(source);
-	return tableAwareRangeDelete(
+	return rangeDelete(
 		doc,
 		coverRange(doc, cell([firstTableIndex], 0), cell([firstTableIndex + 1], 3)),
 		createSharingState(),

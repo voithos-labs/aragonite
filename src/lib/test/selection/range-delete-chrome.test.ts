@@ -106,8 +106,8 @@ describe('chrome wall: rangeDelete post-states', () => {
 		expect(doc.children[1].children?.map((c) => c.kind)).toEqual(['callout-title', 'paragraph']);
 	});
 
-	// With the start inside the end container, `resolveEndWall` returns null, so nothing is
-	// consumed; dropping that check would delete the container.
+	// With the start inside the end container, its last byte takes nothing whole; dropping that
+	// check would delete the container.
 	it('start in chrome, end at the container last byte: the container survives (start-inside guard)', () => {
 		const { doc, source } = run(FIXTURE, point([1, 0], 3), point([1, 2], 5));
 		expect(source).toBe('Above\n\n:::callout Tit\n\n\n:::\n\nBelow\n');

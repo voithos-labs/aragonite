@@ -54,24 +54,24 @@ const SITES: Record<string, SiteStance> = {
 		why: 'a byte write inside the content range: no opener or closer line moves, so no fold a parent scope would have to reconcile can be produced'
 	},
 	'src/lib/selection/range-delete.ts': {
-		declines: 3,
+		declines: 2,
 		sinks: 0,
 		why: 'the cross-block delete family: byte-correctness passes inside a commit sequence that owns the registers elsewhere and splices the containers it empties itself. Their chains can run deeper than that commit’s scope, which is a recorded residual rather than a reconciliation'
 	},
 	'src/lib/selection/range-delete-ceremony.ts': {
 		declines: 2,
 		sinks: 0,
-		why: 'same family: the endpoint-survivor and chrome-clear rebuild passes'
+		why: 'same family: the removed subtrees’ parent chains and the chrome-clear rebuild passes'
 	},
 	'src/lib/selection/range-delete-chrome.ts': {
-		declines: 3,
+		declines: 2,
 		sinks: 0,
-		why: 'same family: both endpoints of a wall range, and a collapsed container removed whole'
+		why: 'same family: both kept edges of a range that merges nothing'
 	},
 	'src/lib/selection/range-delete-table.ts': {
-		declines: 7,
+		declines: 2,
 		sinks: 0,
-		why: 'same family: every table-range endpoint and survivor pass'
+		why: 'same family: the cleared table, and each kept edge of a table range'
 	},
 	'src/lib/tree-operations/paste/container-match.ts': {
 		declines: 2,

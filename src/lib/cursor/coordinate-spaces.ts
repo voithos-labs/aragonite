@@ -94,12 +94,16 @@ export function rowMajorCellIndex(row: number, col: number, colCount: number): C
 	return asCellIndex(row * colCount + col);
 }
 
-/** The rectangle two cells span as its corners, in either order: top-left plus its size. */
-export function cellRectBounds(
-	cornerA: number,
-	cornerB: number,
-	colCount: number
-): { top: number; left: number; rows: number; cols: number } {
+/** A rectangle of table cells: its top-left cell plus its size. */
+export interface CellRect {
+	top: number;
+	left: number;
+	rows: number;
+	cols: number;
+}
+
+/** The rectangle two cells span as its corners, in either order. */
+export function cellRectBounds(cornerA: number, cornerB: number, colCount: number): CellRect {
 	const a = cellRowCol(cornerA, colCount);
 	const b = cellRowCol(cornerB, colCount);
 	const top = Math.min(a.row, b.row);

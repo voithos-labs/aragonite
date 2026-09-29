@@ -18,19 +18,22 @@ interface Wrapper {
 	wrap: (table: string) => string;
 	/** The table's path inside the wrapper. */
 	path: number[];
-	/** What the whole table's removal leaves before the paragraph below. */
+	/** What the whole table's removal leaves before the paragraph below, and where Backspace
+	 *  lands: the end of the block before it, or the paragraph below when there is none. */
 	emptied: string;
+	landsIn: number[];
 }
 
 const WRAPPERS: Record<string, Wrapper> = {
-	'at the top level': { wrap: (t) => t, path: [0], emptied: '' },
+	'at the top level': { wrap: (t) => t, path: [0], emptied: '', landsIn: [0] },
 	'in a quote': {
 		wrap: (t) =>
 			lines(t)
 				.map((l) => `> ${l}\n`)
 				.join(''),
 		path: [0, 0],
-		emptied: ''
+		emptied: '',
+		landsIn: [0]
 	},
 	'in a list item': {
 		wrap: (t) =>
@@ -38,7 +41,8 @@ const WRAPPERS: Record<string, Wrapper> = {
 				.map((l, i) => `${i === 0 ? '-' : ' '} ${l}\n`)
 				.join(''),
 		path: [0, 0, 0],
-		emptied: ''
+		emptied: '',
+		landsIn: [0]
 	},
 	'in a quote in a quote': {
 		wrap: (t) =>
@@ -46,12 +50,14 @@ const WRAPPERS: Record<string, Wrapper> = {
 				.map((l) => `> > ${l}\n`)
 				.join(''),
 		path: [0, 0, 0],
-		emptied: ''
+		emptied: '',
+		landsIn: [0]
 	},
 	'in an open details': {
 		wrap: (t) => `<details open>\n<summary>S</summary>\n\n${t}\n</details>\n`,
 		path: [0, 1],
-		emptied: '<details open>\n<summary>S</summary>\n\n</details>\n'
+		emptied: '<details open>\n<summary>S</summary>\n</details>\n',
+		landsIn: [0, 0]
 	}
 };
 
@@ -77,7 +83,7 @@ describe('Backspace over a table held whole, or a whole row or column of it, at 
 	});
 	afterEach(() => vi.unstubAllGlobals());
 
-	for (const [where, { wrap, path, emptied }] of Object.entries(WRAPPERS)) {
+	for (const [where, { wrap, path, emptied, landsIn }] of Object.entries(WRAPPERS)) {
 		for (const [what, { cells, left, caret }] of Object.entries(COVERAGES)) {
 			it(`${what} ${where}`, async () => {
 				const source = wrap(TABLE) + AFTER;
@@ -102,7 +108,7 @@ describe('Backspace over a table held whole, or a whole row or column of it, at 
 			await settleEditor();
 
 			expect(serialize(env.h.deps.doc)).toBe(emptied + (emptied ? AFTER : 'after\n'));
-			expect(placedPaths(env)).toEqual([[0]]);
+			expect(placedPaths(env)).toEqual([landsIn]);
 			await createHistoryActions(env.h.deps, env.h.controller).requestUndo();
 			await settleEditor();
 			expect(serialize(env.h.deps.doc)).toBe(source);

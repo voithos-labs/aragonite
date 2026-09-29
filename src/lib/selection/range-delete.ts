@@ -7,10 +7,10 @@ import type { Reading } from '../schema/reading';
 import type { CstNode, Document } from '../core/nodes';
 import type { DocumentView } from '../core/node-views';
 import type { SelectionPoint } from './primitives';
-import type { CoveredRange } from './range-coverage';
+import { rangeCoverage, type CoveredRange, type RangeCoverage } from './range-coverage';
 import type { SharingState } from '../tree-operations/sharing';
-import { walkBetween, charOffsetOf } from './primitives';
-import { comparePaths, isPathSubtreeBetween, pathHasPrefix } from './path-math';
+import { charOffsetOf } from './primitives';
+import { comparePaths } from './path-math';
 import { caretPointFor, type RemovalGesture } from './caret-target';
 import { docPathFrom } from '../cursor/coordinate-spaces';
 import {
@@ -20,16 +20,20 @@ import {
 	normalizeOwnRaw
 } from '../tree-operations/node-primitives';
 import { settleSeparatorOnBlank } from '../tree-operations/settle';
-import { isBlankParagraph } from '../core/parser';
-import { displayLength, documentLineEnding } from '../core/lines';
+import { documentLineEnding } from '../core/lines';
 import { cleanJoinedRaw } from '../tree-operations/node-ops';
 import { storedAsAt } from '../tree-operations/stored-as';
 import { joinKeepingSuffix } from '../tree-operations/structural-suffix';
-import { deleteSubtreesIdentityGated, installSurvivor } from './range-delete-ceremony';
+import {
+	applyPlannedDeletion,
+	installSurvivor,
+	planCrossBlockDeletion,
+	rebuildSharedAncestries
+} from './range-delete-ceremony';
 import { ensureUnsharedPath } from '../tree-operations/unshare';
 import { rebuildUnsharedAncestry } from '../tree-operations/chain-rebuild';
-import { involvesTable, tableAwareRangeDelete } from './range-delete-table';
-import { involvesReservedChrome, chromeAwareRangeDelete, removeWhole } from './range-delete-chrome';
+import { clearGridCells, keepsTableEdge, tableAwareRangeDelete } from './range-delete-table';
+import { involvesReservedChrome, unjoinedRangeDelete } from './range-delete-chrome';
 
 // ── Public API ──────────────────────────────────────────────────────────────
 
@@ -59,6 +63,44 @@ export function rangeDelete(
 	reading: Reading,
 	gesture: RemovalGesture
 ): RangeDeleteResult {
+	const coverage = rangeCoverage(doc, range);
+	const { start, end } = range;
+	// A pair inside one table clears its cells, even all of them; only Backspace and Delete take
+	// the rows, columns or table away, through the table's own structural commits.
+	if (coverage.grid) return clearGridCells(doc, range, coverage.grid, sharing, reading);
+	if (keepsTableEdge(doc, coverage)) {
+		return tableAwareRangeDelete(doc, range, coverage, sharing, reading);
+	}
+	// Nothing merges across a title-line container's edge, and a range that holds an edge's block
+	// whole has nothing there to merge.
+	if (!coverage.startEdge || !coverage.endEdge || involvesReservedChrome(doc, start, end)) {
+		return unjoinedRangeDelete(doc, range, coverage, sharing, reading, gesture);
+	}
+	return joinedRangeDelete(doc, range, coverage, sharing, reading);
+}
+
+/** Deletes every subtree the range holds whole and truncates each edge it keeps, never merging:
+ *  Backspace or Delete over a table held whole removes it, where `rangeDelete` clears it. */
+export function removeHeldWhole(
+	doc: Document,
+	range: CoveredRange,
+	sharing: SharingState,
+	reading: Reading,
+	gesture: RemovalGesture
+): RangeDeleteResult {
+	return unjoinedRangeDelete(doc, range, rangeCoverage(doc, range), sharing, reading, gesture);
+}
+
+// ── Internal ────────────────────────────────────────────────────────────────
+
+/** Both edges kept and plain: the end's tail joins the start's head in the start's slot. */
+function joinedRangeDelete(
+	doc: Document,
+	range: CoveredRange,
+	coverage: RangeCoverage,
+	sharing: SharingState,
+	reading: Reading
+): RangeDeleteResult {
 	const { grammar } = reading;
 	const { start, end } = range;
 	const startBlock = blockNodeAt(doc, start.path);
@@ -66,36 +108,11 @@ export function rangeDelete(
 	if (!startBlock || !endBlock) {
 		throw new Error('rangeDelete: start or end path does not resolve to a block node');
 	}
-
-	// Both endpoints inside one container the range takes whole: that container goes, whatever
-	// kind either endpoint sits in.
-	const unit = range.unitHolding(start.path);
-	if (unit && pathHasPrefix(end.path, unit))
-		return removeWhole(doc, unit, sharing, reading, gesture);
-	// A table or a container title line is never merged across: those branches truncate each
-	// endpoint in place instead of joining them.
-	if (involvesTable(startBlock, endBlock)) {
-		return tableAwareRangeDelete(doc, range, sharing, reading, gesture);
-	}
-	if (involvesReservedChrome(doc, start, end)) {
-		return chromeAwareRangeDelete(doc, range, sharing, reading);
-	}
-
 	const sameBlock = comparePaths(start.path, end.path) === 0;
 	const startRaw = startBlock.raw;
 	const startCut = charOffsetOf(start, 'rangeDelete:prose-merge-start');
 	const endOffset = charOffsetOf(end, 'rangeDelete:prose-merge-end');
 
-	// A range holding one block whole deletes it: the byte path would leave only a line ending,
-	// which no reload reads as that kind. A paragraph stays, as the blank separating line.
-	if (
-		sameBlock &&
-		startCut === 0 &&
-		endOffset >= displayLength(startRaw) &&
-		!isBlankParagraph({ kind: startBlock.kind, raw: '' })
-	) {
-		return removeWhole(doc, start.path, sharing, reading, gesture);
-	}
 	// A cross-block join runs the end slice through the end block's own write rule, or a cut from
 	// its head would leave its closer stranded; a same-block merge takes the rule once, below.
 	const join = sameBlock
@@ -139,28 +156,14 @@ export function rangeDelete(
 		return { newDoc: doc, caret: () => joinAt };
 	}
 
-	// walkBetween includes ancestors of `end` whose subtrees extend past it, so filter to
-	// subtrees fully inside (start, end). Cascade-cleanup handles ancestors emptied afterwards.
-	const betweenPaths = walkBetween(doc, start.path, end.path).filter((p) =>
-		isPathSubtreeBetween(p, start.path, end.path)
-	);
-	const deletionPaths: number[][] = [...betweenPaths, end.path];
-
-	// Copy every spliced chain before capturing node identities: a copy made after capture would
-	// fail the identity check and skip the deletion.
+	// The end block goes once its tail has joined the start. Every chain is copied before the
+	// splices capture node identities, or a later copy would fail the check and skip a deletion.
 	ensureUnsharedPath(doc, start.path, sharing);
-	for (const path of deletionPaths) {
-		ensureUnsharedPath(doc, path.slice(0, -1), sharing);
-	}
-
-	deleteSubtreesIdentityGated(doc, deletionPaths, sharing, grammar);
-
+	const plan = planCrossBlockDeletion(doc, range, coverage, [end.path], sharing);
+	applyPlannedDeletion(doc, plan, grammar);
 	const shift = installSurvivor(doc, start.path, startBlock, joined.raw, sharing, reading);
-
 	rebuildUnsharedAncestry(doc, start.path, sharing, null, grammar);
-	for (const path of deletionPaths) {
-		rebuildUnsharedAncestry(doc, path, sharing, null, grammar);
-	}
+	rebuildSharedAncestries(doc, plan, sharing, grammar);
 
 	// The reparse can turn the survivor into a container (a list marker joined to text), whose own
 	// element holds no caret, so the join point resolves to the leaf that holds it.

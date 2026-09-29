@@ -60,7 +60,7 @@ describe('rangeDelete keeps CRLF when both endpoints are consumed whole', () => 
 
 // Paths: [0]=Above, [1]=note ([1,0]=title, [1,1]=Body1, [1,2]=Body2), [2]=Below. Both endpoints
 // are text and both surviving slices are empty, so both take the empty-paragraph fallback.
-describe('chromeAwareRangeDelete keeps CRLF on both truncated endpoints', () => {
+describe('a delete across a title-line container keeps CRLF on both truncated endpoints', () => {
 	beforeEach(registerCalloutForTests);
 
 	it('start inside the callout body, end at the last prose block', () => {

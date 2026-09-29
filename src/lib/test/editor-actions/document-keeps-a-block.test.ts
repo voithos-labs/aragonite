@@ -201,7 +201,7 @@ const ROWS: Record<string, Row> = {
 			select(env, whole([0, 0]), at([1, 0, 0], 1));
 			await rangeKey(env, 'Backspace');
 		},
-		bytes: '-\n',
+		bytes: '- \n',
 		placed: [[0, 0, 0]]
 	},
 	'quoted text and the paragraph below, Backspace: the start keeps its slot in the quote': {
