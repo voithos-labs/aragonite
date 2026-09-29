@@ -16,6 +16,7 @@ import {
 	recordFormatCoverageRead,
 	recordInlineCompute,
 	recordHeightTableBuild,
+	recordNeighbourPass,
 	recordIslandKeyScan,
 	recordIslandRebuild,
 	recordParse,
@@ -48,7 +49,8 @@ const EMPTY: PerfSnapshot = {
 	decorationRuns: 0,
 	islandRebuilds: 0,
 	islandKeyScans: 0,
-	heightTableBuilds: []
+	heightTableBuilds: [],
+	neighbourPasses: 0
 };
 
 function recordOneOfEach(): void {
@@ -63,6 +65,7 @@ function recordOneOfEach(): void {
 	recordIslandRebuild();
 	recordIslandKeyScan();
 	recordHeightTableBuild([0, 1], 640);
+	recordNeighbourPass();
 	markKeystrokeStart();
 	markKeystrokeSettle();
 }

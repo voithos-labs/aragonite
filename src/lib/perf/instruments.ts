@@ -35,6 +35,9 @@ export interface PerfSnapshot {
 	islandKeyScans: number;
 	/** One entry per windowing height table built: the list's path and the width it estimated at. */
 	heightTableBuilds: { path: string; width: number }[];
+	/** Checks of whether a change moved the focused block past a neighbour, which only a rebuilt
+	 *  height table pays for. */
+	neighbourPasses: number;
 }
 
 let enabled = false;
@@ -64,7 +67,8 @@ function emptySnapshot(): PerfSnapshot {
 		decorationRuns: 0,
 		islandRebuilds: 0,
 		islandKeyScans: 0,
-		heightTableBuilds: []
+		heightTableBuilds: [],
+		neighbourPasses: 0
 	};
 }
 
@@ -172,6 +176,11 @@ export function recordIslandKeyScan(): void {
 export function recordHeightTableBuild(path: readonly number[], width: number): void {
 	if (!enabled) return;
 	counters.heightTableBuilds.push({ path: path.join(','), width });
+}
+
+export function recordNeighbourPass(): void {
+	if (!enabled) return;
+	counters.neighbourPasses++;
 }
 
 export function incMountedBlocks(): void {
