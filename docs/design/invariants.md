@@ -1800,10 +1800,11 @@ view inside their own scroller. `lint/file-rules.test.ts`.
 element into view on its own, a scroll writer G4.87 can't see. So a caret's focus passes
 `preventScroll`, and whatever moved the caret asks the scroll owner instead. The scan flags a
 `focus()` with no arguments, or with options that leave out `preventScroll`; a block component's
-`focus(offset)` takes a number and doesn't count. Every file it flags is declared with its reason:
-a click that reveals a widget's source, an arrow arriving on a gap caret, a menu or popout moving
-focus among its own controls, and `focusCollapsedCaret`, which the cross-block delete, typing and
-paste lean on until they land through the caret landing. `lint/file-rules.test.ts`, with G1.45 as
+`focus(offset)` takes a number and doesn't count. Every file it flags is declared with its reason,
+among them a click that reveals a widget's source, an arrow arriving on a gap caret, a menu or
+popout moving focus among its own controls, and `focusCollapsedCaret`, which the cross-block
+delete, typing and paste lean on until they land through the caret landing. The manifest is per
+file, so a new bare focus inside an already declared file passes. `lint/file-rules.test.ts`, with G1.45 as
 the runtime half.
 
 ## Accessibility

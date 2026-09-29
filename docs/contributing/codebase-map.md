@@ -217,14 +217,16 @@ which places, mounts, then scrolls once and keeps the block where it landed whil
 on the way, as one undo entry, since that's what gets it to a spot inside the hidden body.
 
 A caret goes a third way, `src/lib/selection/caret-landing.ts` :: `createCaretLanding`. `land`
-takes an edit's caret (and the inline menu's, the link card's, `navigateTo`'s, a click below an
-unmounted tail), `restore` a stored selection (undo and redo, a gap caret included, `setSelection`,
-a mode switch, a range collapsed by an arrow), and `park` the moving end of a Shift+Arrow range,
-which mustn't end the range. They mount the same way, but a position inside a closed body lands on
-its title row instead of opening it, unless it's a navigation's. A caret scrolls only when its
-block isn't visible, to the nearest edge, letting go of the viewport as soon as it's done; only
-`navigateTo` holds its block where it landed, and a mode switch only mounts. The focus call that
-puts the caret down never scrolls on its own.
+takes an edit's caret (and the inline menu's, the link card's, a click below an unmounted tail),
+`navigate` `navigateTo`'s, `restore` a stored selection (undo and redo, a gap caret included,
+`setSelection`, a mode switch, a range collapsed by an arrow, the find bar and link card handing
+the caret back), and `park` the moving end of a Shift+Arrow range, which mustn't end the range.
+They mount the same way, but a position inside a closed body lands on its title row instead of
+opening it, unless it's a navigation's. A caret scrolls only when its block isn't visible, to the
+nearest edge, letting go of the viewport as soon as it's done; only `navigate` holds its block
+where it landed (no other caller can ask to), and a mode switch and the table menu's close only
+mount. An arrow arrival asks the same way, through `followArrival`. The focus call that puts the
+caret down never scrolls on its own.
 
 **A caller asks for a reveal instead of reaching for an element.**
 `src/lib/selection/caret-landing.ts` :: `createCaretLanding` decides which path actually needs to
