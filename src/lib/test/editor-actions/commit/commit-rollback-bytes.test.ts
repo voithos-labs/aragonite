@@ -36,16 +36,14 @@ afterEach(() => {
 	augmentBuiltin('list', { container: { rebuildRaw: originalListRebuild } });
 });
 
-function throwListRebuildAfter(okCalls: number): void {
-	let seen = 0;
+/** The top-level list is the last node the chain rebuild reaches, so every level below it has
+ *  written its bytes when its rebuild throws. */
+function throwOnTopLevelListRebuild(deps: EditorActionsDeps): void {
 	augmentBuiltin('list', {
 		container: {
 			rebuildRaw: (node: CstNode) => {
-				if (seen++ < okCalls) {
-					originalListRebuild(node);
-					return;
-				}
-				throw new Error('plugin rebuildRaw blew up');
+				if (node === deps.doc.children[0]) throw new Error('plugin rebuildRaw blew up');
+				originalListRebuild(node);
 			}
 		}
 	});
@@ -96,9 +94,8 @@ describe('commit sequence: byte rollback across the chain rebuild', () => {
 
 		const rawsBefore = collectRaws(deps.doc.children);
 
-		// Chains sort deepest-first, so the outer list is reached twice: the throw
-		// lands on the third rebuild, after two writes.
-		throwListRebuildAfter(2);
+		// The inner list and the item holding it write their bytes before the outer list throws.
+		throwOnTopLevelListRebuild(deps);
 
 		await expect(
 			controller.commitMultiScope({
@@ -133,8 +130,8 @@ describe('commit sequence: byte rollback across the chain rebuild', () => {
 		const rawsBefore = collectRaws(deps.doc.children);
 		const treeBefore = serialize(deps.doc);
 
-		// Three chains reach the outer list; the throw lands on the third, after two wrote.
-		throwListRebuildAfter(2);
+		// Three chains reach the outer list, and the item they share writes before it throws.
+		throwOnTopLevelListRebuild(deps);
 
 		const [outer, inner] = scopes();
 		await expect(

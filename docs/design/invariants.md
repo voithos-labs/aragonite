@@ -1002,6 +1002,7 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.90 | A paste inside one block cuts its selection through the range replace, with its text      | L       |
 | G4.91 | A focus call that may scroll the editor says why                                          | L       |
 | G4.95 | What a range covers is decided in the range coverage only                                 | L       |
+| G4.96 | A commit rebuilds each container once, and a mutation leaves that rebuild to it           | L       |
 
 ### The entries
 
@@ -1858,6 +1859,35 @@ checking for a closed unit, doing cell math on a table endpoint) only get called
 `range-coverage.ts`. The exceptions are the files that define them and a short list of cell edits
 that aren't reading a range, each with its reason. Code that works it out on its own has grown a
 second answer, and the scan names the file. `lint/file-rules.test.ts`.
+
+**G4.96 · A commit rebuilds each container once.** After a commit over block lists
+(`commitMultiScope`) runs its mutation, it rebuilds the bytes of every child list it was handed and
+of each container above one, walking up to the top level (the chain rebuild). So a mutation that
+rebuilds its own scope, or anything above it, gets the same container rebuilt twice, and the second
+pass runs over whatever the first one wrote.
+
+The scan keeps container rebuild calls where rebuilds live: `schema/`,
+`tree-operations/chain-rebuild.ts` and `tree-operations/unshare.ts`. That covers the per-kind
+rebuilders a descriptor registers, a call through a descriptor's own `rebuildRaw`, and the kind-free
+ones. Any other file that calls one is on a list, and says why no commit repeats its rebuild: it
+builds a node no commit has seen yet, it rebuilds a node below the scope that the commit never
+reaches, or it runs outside any commit. Three routes are honest exceptions. An item merge's list, a
+pasted list merge and the range delete across containers still rebuild a container the commit
+rebuilds again, and their entries say so. Each listed file's calls are counted per name, so a new
+one fails even in a listed file, and that's what keeps a fourth exception from sneaking in.
+
+A mutation that needs a node's bytes before it returns (a Tab's new sublist, which sits under the
+scope) calls `ContainerScope.rebuild`, which runs the same container rebuild the commit uses. In dev
+it warns if that node is the scope, is above it, or is still shared with an undo entry.
+
+The commit keeps its half of the deal too. When several of its child lists sit in one container (a
+table and its mounted rows, a list and the sublist a Tab moves into), that container is rebuilt
+once, by the last of their rebuilds to reach it, after everything below it
+(`src/lib/tree-operations/chain-rebuild.ts :: sharedChainLevels`). A cross-block format does the
+same over the chains it writes. The scan is `lint/container-rebuild-homes.test.ts`;
+`editor-actions/commit/commit-rebuild-once.test.ts` counts the rebuilds per node, and
+`tree-operations/chain-rebuild-shared.test.ts` checks that a line one chain spills out of its item
+still reaches the list a later chain rebuilds.
 
 ## Accessibility
 

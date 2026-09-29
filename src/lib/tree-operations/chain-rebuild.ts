@@ -71,6 +71,32 @@ export interface ChainWriteHint {
 }
 
 /**
+ * One of several chains rebuilt in turn that share ancestors: this chain stops at level `floor`,
+ * leaving the levels above to a later chain, which reads whole any node in `readsWhole`.
+ */
+export interface SharedChainLevels {
+	readonly floor: number;
+	readonly readsWhole: Set<CstNode>;
+}
+
+/**
+ * The levels each chain rebuilds when the chains are rebuilt in this order, one per chain: a node
+ * several chains hold is left to the last of them, so it's rebuilt once, after everything below it.
+ */
+export function sharedChainLevels(chains: readonly (readonly CstNode[])[]): SharedChainLevels[] {
+	const lastHolder = new Map<CstNode, number>();
+	chains.forEach((chain, j) => {
+		for (const node of chain) lastHolder.set(node, j);
+	});
+	const readsWhole = new Set<CstNode>();
+	return chains.map((chain, j) => {
+		let floor = chain.length;
+		while (floor > 0 && lastHolder.get(chain[floor - 1]) === j) floor--;
+		return { floor, readsWhole };
+	});
+}
+
+/**
  * Rebuild raws up an owned chain innermost first, re-deriving kinds and joins where a first or
  * last line moved. Only a caller that reconciles a merged array's ids and refs passes `folds`.
  */
@@ -80,15 +106,17 @@ export function rebuildUnsharedChain(
 	sharing: SharingState,
 	folds: AncestrySeamFold[] | null,
 	grammar: GrammarView,
-	hint?: ChainWriteHint
+	hint?: ChainWriteHint,
+	shared?: SharedChainLevels
 ): ContainerReclassification[] {
 	const reclassified: ContainerReclassification[] = [];
+	const floor = shared?.floor ?? 0;
 	// The bytes chain[i + 1] held before this pass, known only when the caller named the leaf's
 	// own; with no hint, every level re-derives its whole raw.
 	let childPreviousRaw: string | undefined;
 	// The level below read as blocks its own position cannot hold, so this level reads whole.
 	let spilled: Spill | null = null;
-	for (let i = chain.length - 1; i >= 0; i--) {
+	for (let i = chain.length - 1; i >= floor; i--) {
 		const node = chain[i];
 		const rawBefore = node.raw;
 		const child = chain[i + 1];
@@ -101,7 +129,7 @@ export function rebuildUnsharedChain(
 
 		const openerMoved = firstLine(rawBefore) !== firstLine(node.raw);
 		const closerMoved = lastLine(rawBefore) !== lastLine(node.raw);
-		const whole = spilled !== null;
+		const whole = spilled !== null || (shared?.readsWhole.has(node) ?? false);
 		spilled = null;
 		if (!openerMoved && !closerMoved && !whole) continue;
 
@@ -139,8 +167,9 @@ export function rebuildUnsharedChain(
 			if (folds.length > before && owner) dropChildSpans(owner);
 		}
 	}
-	if (spilled && folds) spliceSpill(spilled, sharing, folds);
-	if (perfEnabled()) recordRebuildDepth(chain.length);
+	if (spilled && floor > 0) shared!.readsWhole.add(chain[floor - 1]);
+	else if (spilled && folds) spliceSpill(spilled, sharing, folds);
+	if (perfEnabled() && chain.length > floor) recordRebuildDepth(chain.length - floor);
 	return reclassified;
 }
 

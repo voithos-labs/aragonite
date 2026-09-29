@@ -27,7 +27,7 @@ import { blockNodeAt, type BodyParent } from '../../tree-operations/node-primiti
 import type { SharingState } from '../../tree-operations/sharing';
 import { rewriteLeafInPlace } from '../../tree-operations/content-write';
 import { ensureUnsharedPath } from '../../tree-operations/unshare';
-import { rebuildUnsharedChain } from '../../tree-operations/chain-rebuild';
+import { rebuildUnsharedChain, sharedChainLevels } from '../../tree-operations/chain-rebuild';
 import { pathsEqual } from '../path-math';
 import { charOffsetOf, type SelectionPoint } from '../primitives';
 import {
@@ -138,9 +138,12 @@ export function applyCrossBlockFormat(
 		rewriteLeafInPlace(holder, write.path[write.path.length - 1], raw, grammar, sharing);
 		chains.push(chain);
 	}
-	// Every write lands before any rebuild, and a chain rebuild re-emits its whole ancestry from
-	// children that are already current, so chain order is free.
-	for (const chain of chains) rebuildUnsharedChain(body, chain, sharing, null, grammar);
+	// Every write lands before any rebuild, and an ancestor the chains share is rebuilt once, by the
+	// last chain holding it, after every chain below it.
+	const levels = sharedChainLevels(chains);
+	chains.forEach((chain, i) => {
+		rebuildUnsharedChain(body, chain, sharing, null, grammar, undefined, levels[i]);
+	});
 }
 
 // ── Range decomposition ────────────────────────────────────────────────────

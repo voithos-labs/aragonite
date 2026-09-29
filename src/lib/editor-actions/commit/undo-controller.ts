@@ -27,10 +27,11 @@ import { blockNodeAt, documentBody, nodeAt } from '../../tree-operations/node-pr
 import { settleSeparator, type TrackedPosition } from '../../tree-operations/settle';
 import { endsOpen, endWindowLines, keepOpenTail } from '../../tree-operations/open-tail';
 import { keepOneBlock } from '../../tree-operations/keep-one-block';
-import { ensureUnsharedPath } from '../../tree-operations/unshare';
+import { ensureUnsharedPath, rebuildOwnedContainer } from '../../tree-operations/unshare';
 import {
 	attachedChainPrefix,
 	rebuildUnsharedChain,
+	sharedChainLevels,
 	type AncestrySeamFold,
 	type ContainerReclassification
 } from '../../tree-operations/chain-rebuild';
@@ -662,7 +663,19 @@ export function createUndoController(
 				lineEnding,
 				body: isDoc
 					? documentBody(deps.doc, owned.children!)
-					: { children: owned.children!, owner: owned, lineEnding }
+					: { children: owned.children!, owner: owned, lineEnding },
+				rebuild: (node) => {
+					// The commit rebuilds the scope's own chain, and a shared node is an undo entry's.
+					assertInvariant('scope-rebuild-off-chain', () =>
+						node === owned || chain.includes(node) || deps.sharing.isShared(node)
+							? {
+									code: 'scope-rebuild-off-chain',
+									message: `ContainerScope.rebuild: a ${node.kind} on the commit's chain or shared`
+								}
+							: null
+					);
+					rebuildOwnedContainer(node, deps.sharing);
+				}
 			},
 			ids,
 			refs,
@@ -746,7 +759,10 @@ export function createUndoController(
 				}
 				// Deepest first, so an outer chain concatenates current inner raws; the attached prefix
 				// keeps a scope spliced out of the tree from being rebuilt off its emptied children.
-				for (const p of [...prepared].sort((a, b) => b.chain.length - a.chain.length)) {
+				const order = [...prepared].sort((a, b) => b.chain.length - a.chain.length);
+				// An ancestor several scopes share is rebuilt once, by the last chain holding it.
+				const levels = sharedChainLevels(order.map((p) => p.chain));
+				order.forEach((p, i) => {
 					const before = folds.length;
 					reclassified.push(
 						...rebuildUnsharedChain(
@@ -754,11 +770,13 @@ export function createUndoController(
 							attachedChainPrefix(deps.doc, p.chain),
 							deps.sharing,
 							folds,
-							deps.reading.grammar
+							deps.reading.grammar,
+							undefined,
+							levels[i]
 						)
 					);
 					foldLanding = foldLandingFor(folds.slice(before), p.target.path) ?? foldLanding;
-				}
+				});
 				unwindFolds = publishAncestryFolds(deps, folds);
 				// The document commit above runs the same two steps until the two branches merge.
 				keepOpenTail(deps.doc, wasOpen, deps.sharing, deps.reading.grammar);
