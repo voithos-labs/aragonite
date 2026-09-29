@@ -8,10 +8,12 @@
 
 ## Edge cases
 
-- 2×2 rectangular cell selection produces a valid GFM sub-table, pending the Plan 4 input wiring that produces a path-equal anchor and focus on the table.
-- Single-row rectangle (one row, multiple cols) produces a header-only sub-table (header + delimiter, no body), pending Plan 4.
-- Sub-table inherits column alignments sliced from the source, pending Plan 4. Concretely: from `| :--- | :---: | ---: |`, copying cols 0..1 yields `:---` and `:---:`.
-- Whole-table copy after a rectangle over every cell emits the table's raw, pending Plan 4.
+- A 2×2 rectangle of cells, dragged, copies as a valid GFM sub-table.
+- A one-row rectangle (several columns) copies as a header-only sub-table: the header and the
+  delimiter row, no body.
+- The sub-table keeps the source's column alignments for the columns it takes. From
+  `| :--- | :---: | ---: |`, copying columns 1..2 gives `:---:` and `---:`.
+- A second Ctrl+A in a cell selects the whole table, and its copy is the table's own raw.
 
 ## Spreadsheet interchange
 
