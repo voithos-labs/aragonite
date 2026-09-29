@@ -157,8 +157,9 @@ export interface BlockComponentProps {
 
 export interface BlockComponent {
 	/**
-	 * Place the caret at `offset`, focus the element, and end any live cross-block range: the safe
-	 * default over {@link parkCaret}, since ending the range batches with placing the caret. Also
+	 * Place the caret at `offset`, focus the element, and end whatever the editor had selected (a
+	 * cross-block range, a gap caret, an image selected whole): the safe default over
+	 * {@link parkCaret}, since ending it batches with placing the caret. Also
 	 * takes the four special caret values above, which stay internal (none is on
 	 * `@voithos-labs/aragonite/plugin`). Clamping is required; never throw.
 	 */
@@ -181,8 +182,9 @@ export interface BlockComponent {
 	 */
 	getSelectedText?(): string;
 	/**
-	 * Select `[start, end)` in the same raw-offset space `getCursorOffset` returns.
-	 * A no-op when the block is unmounted or the range doesn't resolve.
+	 * Select `[start, end)` in the same raw-offset space `getCursorOffset` returns, ending whatever
+	 * the editor had selected first, as `focus` does. A no-op when the block is unmounted or the
+	 * range doesn't resolve.
 	 */
 	setSelection?(start: number, end: number): void;
 	/**
