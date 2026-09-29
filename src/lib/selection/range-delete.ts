@@ -83,12 +83,12 @@ export function rangeDelete(
  *  Backspace or Delete over a table held whole removes it, where `rangeDelete` clears it. */
 export function removeHeldWhole(
 	doc: Document,
-	range: CoveredRange,
+	coverage: RangeCoverage,
 	sharing: SharingState,
 	reading: Reading,
 	gesture: RemovalGesture
 ): RangeDeleteResult {
-	return unjoinedRangeDelete(doc, rangeCoverage(doc, range), sharing, reading, gesture);
+	return unjoinedRangeDelete(doc, coverage, sharing, reading, gesture);
 }
 
 // ── Internal ────────────────────────────────────────────────────────────────

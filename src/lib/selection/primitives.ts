@@ -4,6 +4,7 @@
  */
 
 import type { CommitSnapshotArg } from '../action-contracts';
+import { SELECTION_END } from '../block-component';
 import type { RangeCoverage } from './range-coverage';
 import { comparePaths, pathsEqual, type DocPath } from './path-math';
 import {
@@ -178,4 +179,24 @@ export function blockPaintsWholeBox(
 	const { start, end } = coverage.range;
 	if (pathsEqual(start.path, end.path)) return false;
 	return coverage.wholeRoots.some((root) => pathsEqual(root, path));
+}
+
+/** The end-exclusive offsets an endpoint block measures its highlight between: a kept table
+ *  edge's cells, or its text from the start or up to the end. */
+export function endpointMeasureSpan(
+	classification: BlockSelectionClass,
+	coverage: RangeCoverage
+): { from: number; to: number } {
+	const { startEdge, endEdge, startCells, endCells } = coverage;
+	const from = classification === 'end' ? 0 : (startCells?.from ?? textOffset(startEdge, 0));
+	const to =
+		classification === 'start'
+			? SELECTION_END
+			: (endCells?.to ?? textOffset(endEdge, SELECTION_END));
+	return { from, to };
+}
+
+// A cell pair inside one table measures its rectangle, which reads no offset.
+function textOffset(edge: SelectionPoint | null, fallback: number): number {
+	return edge && !edge.cellCoordinate ? charOffsetOf(edge, 'endpointMeasureSpan') : fallback;
 }

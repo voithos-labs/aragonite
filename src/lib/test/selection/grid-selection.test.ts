@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { gridClipboard, liveGrid } from '../../selection/grid-selection';
+import { gridClipboard } from '../../selection/grid-selection';
 import { createSelectionState } from '../../selection/selection-state.svelte';
 import type { CellSelectionPoint } from '../../selection/primitives';
 import type { Document } from '../../core/nodes';
-import type { GridCoverage } from '../../selection/range-coverage';
+import { coverRange, rangeCoverage, type GridCoverage } from '../../selection/range-coverage';
 import { asDocPath } from '../../selection/path-math';
 
 // A document whose block at [0] is a table, so a cross-block selection with the same path on
@@ -39,36 +39,6 @@ function tableRectSelection(doc: Document, anchorIdx: number, focusIdx: number) 
 	return sel;
 }
 
-describe('liveGrid', () => {
-	const doc = tableDoc(
-		[
-			['a', 'b'],
-			['c', 'd']
-		],
-		2
-	);
-
-	it('returns the table path and the rectangle the two cells span', () => {
-		const sel = tableRectSelection(doc, 1, 2);
-		expect(liveGrid(sel, doc)).toEqual({
-			kind: 'table',
-			path: [0],
-			rect: { top: 0, left: 0, rows: 2, cols: 2 }
-		});
-	});
-
-	it('returns null when there is no cross-block selection', () => {
-		const sel = createSelectionState({ getDoc: () => doc });
-		expect(liveGrid(sel, doc)).toBeNull();
-	});
-
-	it('returns null for a linear cross-block selection across different paths', () => {
-		const sel = createSelectionState({ getDoc: () => doc });
-		sel.enterCrossBlock({ path: [0], offset: 0 }, { path: [1], offset: 0 });
-		expect(liveGrid(sel, doc)).toBeNull();
-	});
-});
-
 describe('gridClipboard', () => {
 	// A 3x2 grid: an uneven shape catches a row-and-column mix-up in the index decoding,
 	// since a swap would address column 2 of a two-column table and change the payload.
@@ -81,8 +51,10 @@ describe('gridClipboard', () => {
 		2
 	);
 
-	const payload = (anchor: number, focus: number) =>
-		gridClipboard(doc, liveGrid(tableRectSelection(doc, anchor, focus), doc)!);
+	const payload = (anchor: number, focus: number) => {
+		const sel = tableRectSelection(doc, anchor, focus);
+		return gridClipboard(doc, rangeCoverage(doc, coverRange(doc, sel.anchor!, sel.focus!)).grid!);
+	};
 
 	it('builds the GFM sub-table for the full-grid rectangle', () => {
 		expect(payload(0, 5)?.text).toBe('| a | b |\n| --- | --- |\n| c | d |\n| e | f |\n');

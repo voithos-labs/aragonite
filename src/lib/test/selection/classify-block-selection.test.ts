@@ -1,7 +1,13 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '../../core/parser';
 import { registerChromePluginsForTests } from './chrome-plugins';
-import { blockPaintsWholeBox, classifyBlockForSelection } from '../../selection/primitives';
+import {
+	blockPaintsWholeBox,
+	cellPoint,
+	classifyBlockForSelection,
+	endpointMeasureSpan
+} from '../../selection/primitives';
+import { SELECTION_END } from '../../block-component';
 import { coverRange, rangeCoverage, type RangeCoverage } from '../../selection/range-coverage';
 
 const FIVE = 'p0\n\np1\n\np2\n\np3\n\np4\n';
@@ -129,5 +135,26 @@ describe('a closed details the range takes whole', () => {
 			expect(blockPaintsWholeBox(inside, range, null)).toBe(false);
 			expect(classifyBlockForSelection(inside, range)).toBe('outside');
 		}
+	});
+});
+
+describe('endpointMeasureSpan', () => {
+	const TABLE = 'para\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n\ntail\n';
+
+	it('measures a text edge from the start, or up to the end', () => {
+		const s = sel({ path: [0], offset: 2 }, { path: [2], offset: 3 }, TABLE);
+		expect(endpointMeasureSpan('start', s)).toEqual({ from: 2, to: SELECTION_END });
+		expect(endpointMeasureSpan('end', s)).toEqual({ from: 0, to: 3 });
+	});
+
+	// Cell 2 sits mid-row, so the snap takes the end to its row's last cell, and the run past it.
+	it('measures a kept table end through the cells the coverage hands over', () => {
+		const s = sel({ path: [0], offset: 2 }, cellPoint([1], 2), TABLE);
+		expect(endpointMeasureSpan('end', s)).toEqual({ from: 0, to: 4 });
+	});
+
+	it('measures a kept table start from the first cell of its row', () => {
+		const s = sel(cellPoint([1], 3), { path: [2], offset: 3 }, TABLE);
+		expect(endpointMeasureSpan('start', s)).toEqual({ from: 2, to: SELECTION_END });
 	});
 });

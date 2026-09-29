@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { getContext } from 'svelte';
-	import { SELECTION_END, type BlockComponent } from '../block-component';
+	import type { BlockComponent } from '../block-component';
 	import {
 		EDITOR_DOC_KEY,
 		EDITOR_SERVICES_KEY,
@@ -10,8 +10,7 @@
 	import {
 		blockPaintsWholeBox,
 		classifyBlockForSelection,
-		charOffsetOf,
-		cellIndexOf
+		endpointMeasureSpan
 	} from '../selection/primitives';
 	import { wireOverlayRemeasure } from '../cursor/overlay-remeasure';
 
@@ -112,22 +111,8 @@
 		function measure(): void {
 			const live = covered();
 			if (!live || !ref.measurePartialRects) return;
-			const { start, end } = live.range;
-			const startOffset =
-				classification === 'end'
-					? 0
-					: start.cellCoordinate
-						? cellIndexOf(start, 'SelectionOverlay:start')
-						: charOffsetOf(start, 'SelectionOverlay:start');
-			// `measurePartialRects` is end-exclusive; only the cell branch adds 1, turning a
-			// snapped table end (the inclusive last cell) into an exclusive bound.
-			const endOffset =
-				classification === 'start'
-					? SELECTION_END
-					: end.cellCoordinate
-						? cellIndexOf(end, 'SelectionOverlay:end') + 1
-						: charOffsetOf(end, 'SelectionOverlay:end');
-			const viewportRects: DOMRect[] = ref.measurePartialRects(startOffset, endOffset);
+			const { from, to } = endpointMeasureSpan(classification, live);
+			const viewportRects: DOMRect[] = ref.measurePartialRects(from, to);
 			const blockRect = el.getBoundingClientRect();
 			endpointRects = mergeRectsPerLine(
 				viewportRects.map((r) => ({

@@ -6,7 +6,7 @@ import { serialize } from '../../core/serializer';
 import type { CstNode, Document } from '../../core/nodes';
 import { collectCrossBlockText } from '../../selection/clipboard-text';
 import { rangeDelete } from '../../selection/range-delete';
-import { coverRange } from '../../selection/range-coverage';
+import { coverRange, rangeCoverage } from '../../selection/range-coverage';
 import { cellPoint, type SelectionPoint } from '../../selection/primitives';
 import { createSharingState } from '../../tree-operations/sharing';
 import { reservedChromeKindOf } from '../../schema/reserved-chrome';
@@ -50,7 +50,7 @@ const bare = (raw: string) => raw.replace(/\n+$/, '');
 function cutThenDelete(source: string, start: SelectionPoint, end: SelectionPoint) {
 	const doc: Document = parse(source);
 	const range = coverRange(doc, start, end);
-	const copied = collectCrossBlockText(doc, range);
+	const copied = collectCrossBlockText(doc, rangeCoverage(doc, range));
 	const left = serialize(
 		rangeDelete(doc, range, createSharingState(), fixtureReading(), 'keyless').newDoc
 	);

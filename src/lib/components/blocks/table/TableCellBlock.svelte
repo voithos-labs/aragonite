@@ -71,7 +71,6 @@
 	import { isAtFirstVisualLine, isAtLastVisualLine } from '../../../cursor/visual-lines';
 	import { cellKeydownPlan, type CellKeyPlan, type CellKeyState } from './cell-keydown-plan';
 	import { tableAxisCommand } from './cell-table-commands';
-	import { liveGrid } from '../../../selection/grid-selection';
 	import { cellPoint } from '../../../selection/primitives';
 	import type { ClipboardAction } from './table-menu-model';
 	import {
@@ -143,7 +142,8 @@
 		widgetSelection,
 		linkCard,
 		rects,
-		decorations: decorationEngine
+		decorations: decorationEngine,
+		rangeCoverage
 	} = getContext<EditorServices>(EDITOR_SERVICES_KEY);
 	const ownPairs = autoPairs.forBlock();
 	const {
@@ -844,7 +844,7 @@
 		const grid = parseClipboardGrid(text);
 		if (!grid) return false;
 		const tablePath = myPath.slice(0, -2);
-		const cells = liveGrid(selection, getDoc());
+		const cells = rangeCoverage()?.grid ?? null;
 		if (cells && !pathsEqual(cells.path, tablePath)) return false;
 		if (cells?.kind === 'table') return false;
 		const rect = cells?.rect;
@@ -952,7 +952,7 @@
 		if (fold) await fold.settled;
 		// A rectangle has no range inside one cell to restore: refocusing keeps it live in
 		// `SelectionState`, and the copy and cut branches for a rectangle do the rest.
-		const hasRect = action !== 'paste' && liveGrid(selection, getDoc()) !== null;
+		const hasRect = action !== 'paste' && !!rangeCoverage()?.grid;
 		if (action !== 'paste' && !hasRect && sel.start === sel.end) return;
 		// Clicking the menu item moved focus off the cell, so every branch refocuses before
 		// mutating: execCommand needs the restored range, paste needs a focused caret.

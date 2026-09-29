@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { installPlugins, parse } from '$lib';
 import { collectCrossBlockText } from '$lib/selection/clipboard-text';
-import { coverRange } from '$lib/selection/range-coverage';
+import { coverRange, rangeCoverage } from '$lib/selection/range-coverage';
 import { admonitionsPlugin } from '$lib/plugins/admonitions';
 import { footnotesPlugin } from '$lib/plugins/footnotes';
 
@@ -38,7 +38,7 @@ describe('collectCrossBlockText: sole-child strip-container prefix recovery', ()
 			const doc = parse(c.src);
 			const text = collectCrossBlockText(
 				doc,
-				coverRange(doc, { path: c.leaf, offset: 2 }, { path: [1], offset: 3 })
+				rangeCoverage(doc, coverRange(doc, { path: c.leaf, offset: 2 }, { path: [1], offset: 3 }))
 			);
 			// The prefix is the half that matters: a null marker recovery leaves the slice
 			// starting at "pha…" with nothing in front of it.

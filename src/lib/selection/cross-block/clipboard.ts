@@ -22,11 +22,10 @@ export function writeCrossBlockCopy(e: ClipboardEvent, deps: CrossBlockClipboard
 	if (!selection.isCrossBlock || !selection.anchor || !selection.focus) return false;
 	e.preventDefault();
 	const doc = deps.getDoc();
-	const range = coverRange(doc, selection.anchor, selection.focus);
-	const { grid } = rangeCoverage(doc, range);
-	e.clipboardData?.setData('text/plain', collectCrossBlockText(doc, range));
+	const coverage = rangeCoverage(doc, coverRange(doc, selection.anchor, selection.focus));
+	const cells = coverage.grid && gridClipboard(doc, coverage.grid);
+	e.clipboardData?.setData('text/plain', cells ? cells.text : collectCrossBlockText(doc, coverage));
 	// A rectangle of cells also goes on as an HTML table, which spreadsheets read.
-	const cells = grid && gridClipboard(doc, grid);
 	if (cells) e.clipboardData?.setData('text/html', cells.html);
 	return true;
 }

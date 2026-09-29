@@ -6,7 +6,7 @@
 import { describe, expect, it } from 'vitest';
 import type { SelectionPoint } from '$lib/selection/primitives';
 import { collectCrossBlockText } from '$lib/selection/clipboard-text';
-import { coverRange } from '$lib/selection/range-coverage';
+import { coverRange, rangeCoverage } from '$lib/selection/range-coverage';
 import { docAround, gridOf, planStored, registerPluginGrid } from './plugin-grid-kind';
 
 const at = (path: number[], offset: number): SelectionPoint => ({ path, offset });
@@ -63,7 +63,7 @@ describe('a range starting partway into a plugin grid cell', () => {
 		const marked = plan!.writes
 			.flatMap((write) => [...write.newDisplay.matchAll(/\*\*(.+?)\*\*/g)].map((m) => m[1]))
 			.join('');
-		const copied = collectCrossBlockText(doc, coverRange(doc, start, end));
+		const copied = collectCrossBlockText(doc, rangeCoverage(doc, coverRange(doc, start, end)));
 		expect(marked).toBe(copied.replace(/\s/g, ''));
 	});
 });

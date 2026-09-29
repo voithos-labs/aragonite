@@ -117,19 +117,23 @@ async function runCrossBlockDelete(
 	}
 
 	const range = coverRange(doc, start, end);
-	const grid = options?.tableCoverageDelete ? rangeCoverage(doc, range).grid : null;
+	const coverage = options?.tableCoverageDelete ? rangeCoverage(doc, range) : null;
+	const grid = coverage?.grid ?? null;
 	if (grid && (grid.kind === 'row' || grid.kind === 'column')) {
 		return commitGridLineDelete(ctx, grid, !!caretRestore);
 	}
 	// A table held whole goes, where `rangeDelete` would clear its cells; the commit lands the
 	// caret on the side the key points.
-	if (grid?.kind === 'table') {
+	if (coverage && grid?.kind === 'table') {
 		const caret = caretByLanding(ctx, !!caretRestore);
-		return commitCrossContainerDelete(ctx, doc, range, removeHeldWhole, gesture, caret);
+		const remove: RangeRemoval = (sharing) =>
+			removeHeldWhole(doc, coverage, sharing, ctx.reading, gesture);
+		return commitCrossContainerDelete(ctx, doc, range, remove, caret);
 	}
 	const caret = caretAfterCommit(ctx, caretRestore);
 	if (isPureTopLevel) return await commitPureTopLevelDelete(ctx, range, gesture, caret);
-	return await commitCrossContainerDelete(ctx, doc, range, rangeDelete, gesture, caret);
+	const remove: RangeRemoval = (sharing) => rangeDelete(doc, range, sharing, ctx.reading, gesture);
+	return await commitCrossContainerDelete(ctx, doc, range, remove, caret);
 }
 
 /** For compositionstart, where the IME drops the composition if the handler yields: the commit
@@ -141,13 +145,7 @@ export function performCrossBlockDeleteSync(ctx: CrossBlockMutationContext): voi
 // ── Internal ───────────────────────────────────────────────────────────────
 
 /** What the commit runs over the range: `rangeDelete`, or the removal of a table held whole. */
-type RangeRemoval = (
-	doc: Document,
-	range: CoveredRange,
-	sharing: SharingState,
-	reading: Reading,
-	gesture: RemovalGesture
-) => RangeDeleteResult;
+type RangeRemoval = (sharing: SharingState) => RangeDeleteResult;
 
 function isTableAt(doc: Document, path: number[]): boolean {
 	const node = nodeAt(doc, path);
@@ -189,7 +187,6 @@ async function commitCrossContainerDelete(
 	doc: Document,
 	range: CoveredRange,
 	remove: RangeRemoval,
-	gesture: RemovalGesture,
 	caret: CaretPlacement
 ): Promise<SelectionPoint | null> {
 	const { start, end } = range;
@@ -211,7 +208,7 @@ async function commitCrossContainerDelete(
 			// scope nodes stay valid because splices happen in place.
 			const ledgers = scopeViews.map((v) => trackChildIds(v.node));
 
-			const result = remove(doc, range, sharing, ctx.reading, gesture);
+			const result = remove(sharing);
 			caret.hold(result);
 			ctx.selection.collapse();
 

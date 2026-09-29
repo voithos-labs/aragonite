@@ -6,9 +6,8 @@ import type { DocumentView, NodeView } from '../core/node-views';
 import { cloneMetadata } from '../tree-operations/clone';
 import { isBlockNode, nodeAt } from '../tree-operations/node-primitives';
 import { charOffsetOf } from './primitives';
-import { rangeCoverage, type CoveredRange } from './range-coverage';
+import type { RangeCoverage } from './range-coverage';
 import { gridClipboard } from './grid-selection';
-import { tableCellCount } from '../schema/block-kind-descriptor';
 import { pathHasPrefix, pathsEqual } from './path-math';
 import { cellRowCol } from '../cursor/coordinate-spaces';
 import {
@@ -24,11 +23,10 @@ import { getBlockKindDescriptor, tryGetBlockKindDescriptor } from '../schema/blo
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
-/** The plain text of a covered range: whatever `rangeCoverage` says it covers end to end is copied
- *  whole, markers included, and a pair inside one table copies its rectangle. */
-export function collectCrossBlockText(doc: DocumentView, range: CoveredRange): string {
-	const coverage = rangeCoverage(doc, range);
-	const { start, end } = range;
+/** The plain text of a covered range: whatever the coverage says is covered end to end is copied
+ *  whole, markers included, and a selection inside one table copies its rectangle. */
+export function collectCrossBlockText(doc: DocumentView, coverage: RangeCoverage): string {
+	const { start, end } = coverage.range;
 	if (coverage.grid) return gridClipboard(doc, coverage.grid)?.text ?? '';
 	const startNode = nodeAt(doc, start.path);
 	const endNode = nodeAt(doc, end.path);
@@ -121,8 +119,7 @@ export function collectCrossBlockText(doc: DocumentView, range: CoveredRange): s
 
 // ── Internal ───────────────────────────────────────────────────────────────
 
-/** The table rows the half-open cell range touches, every column included, since a table
- *  selection is row-rectangular by GFM constraint. */
+/** The table rows a kept table edge's cells touch, every column included, as a sub-table. */
 function emitTablePortion(
 	table: NodeView,
 	startCellIdx: number,
@@ -130,9 +127,6 @@ function emitTablePortion(
 ): string {
 	if (startCellIdx >= endCellIdxExclusive) return '';
 	const colCount = metadataOf(table, 'table').columnCount;
-	if (startCellIdx === 0 && endCellIdxExclusive === tableCellCount(table)) {
-		return table.raw;
-	}
 	const startRow = cellRowCol(startCellIdx, colCount).row;
 	const endRow = cellRowCol(endCellIdxExclusive - 1, colCount).row;
 	return copyRectangleAsSubTable(

@@ -24,7 +24,6 @@
 	import { columnNearestX } from './cell-x-mapping';
 	import { cellAtPoint, installCellDragListener, mountedRowEls, rowCellEls } from './cell-pointer';
 	import { tableCaretAtPoint } from './table-caret-at-point';
-	import { liveGrid } from '../../../selection/grid-selection';
 	import { selectedCells } from './selected-cells';
 	import { useContainerWindowing } from '../../../reactivity/use-container-windowing.svelte';
 	import { sliceWindow } from '../../../reactivity/window-slice';
@@ -63,11 +62,11 @@
 		caretMemory: { captureColumn: captureExitColumn },
 		selection,
 		menuPresence,
-		caretLanding
+		caretLanding,
+		rangeCoverage
 	} = getContext<EditorServices>(EDITOR_SERVICES_KEY);
 	const {
 		editorRoot: getEditorRoot,
-		doc: getDoc,
 		widthVersion: getWidthVersion,
 		lifetime: editorLifetime,
 		reading
@@ -270,9 +269,8 @@
 	// A live rectangle suppresses the cell-local selection, so the menu reads it
 	// separately to keep Cut/Copy enabled.
 	const rectActive = $derived.by(() => {
-		if (!selection) return false;
-		const grid = liveGrid(selection, getDoc());
-		return grid !== null && pathsEqual(grid.path, myPath);
+		const grid = rangeCoverage()?.grid;
+		return !!grid && pathsEqual(grid.path, myPath);
 	});
 
 	const menuItems = $derived(
@@ -475,7 +473,7 @@
 	export function measurePartialRects(start: number, end: number): DOMRect[] {
 		if (!tableEl || rowCount === 0) return [];
 		const cells = selectedCells({
-			grid: selection ? liveGrid(selection, getDoc()) : null,
+			grid: rangeCoverage()?.grid ?? null,
 			myPath,
 			start,
 			end,
