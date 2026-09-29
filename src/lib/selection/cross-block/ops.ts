@@ -260,7 +260,7 @@ function caretAfterCommit(
 	};
 }
 
-/** Put down by the commit's own landing when `lands` is set. */
+/** The commit puts the caret down itself, and only when `lands` is set. */
 function caretByLanding(ctx: CrossBlockMutationContext, lands: boolean): CaretPlacement {
 	let result: RangeDeleteResult | null = null;
 	const read = () => result?.caret(ctx.getDoc()) ?? null;

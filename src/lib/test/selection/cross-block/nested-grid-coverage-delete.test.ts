@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // Miss-analysis: every whole-table, row and column Backspace test used a top-level table, so the
-// gate that sent a nested table's coverage to the cell clear was never crossed.
+// check that sent a nested table's coverage to the cell clear was never crossed.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { serialize } from '$lib/core/serializer';
 import { createHistoryActions } from '$lib/editor-actions/commit/history';

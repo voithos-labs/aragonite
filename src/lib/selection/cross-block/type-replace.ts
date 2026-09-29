@@ -24,7 +24,7 @@ export async function handleCrossBlockTypeReplace(
 	mutCtx: CrossBlockMutationContext,
 	typed: string
 ): Promise<void> {
-	// A block held whole leaves no leaf to splice into, so the character replaces it in its slot; an
+	// A block held whole leaves no leaf to splice into, so the character takes its place; an
 	// empty insertion takes the delete, and a table held whole still clears into its cells.
 	const { anchor, focus } = ctx.selection;
 	const doc = ctx.getDoc();

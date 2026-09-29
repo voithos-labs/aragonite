@@ -93,7 +93,7 @@ export function removeHeldWhole(
 
 // ── Internal ────────────────────────────────────────────────────────────────
 
-/** Both edges kept and plain: the end's tail joins the start's head in the start's slot. */
+/** Both edges kept and plain: the end's tail joins the start's head in the start's block. */
 function joinedRangeDelete(
 	doc: Document,
 	coverage: RangeCoverage,

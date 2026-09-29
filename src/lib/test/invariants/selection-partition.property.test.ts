@@ -14,9 +14,9 @@ import { nodeAt } from '../../tree-operations/node-primitives';
 import { createSelectionState } from '../../selection/selection-state.svelte';
 import { countsCells } from '../../schema/block-kind-descriptor';
 
-// The overlay's classes come off the one coverage, and that coverage partitions the range (G2.7):
-// every block strictly between the endpoints sits in exactly one whole root, inside a kept edge, or above the end.
-// Endpoints come from real block paths, so classification is never vacuous.
+// The overlay's classes come off the one coverage, and that coverage splits the range cleanly:
+// every block strictly between the endpoints sits in exactly one whole root, inside a kept edge,
+// or is an ancestor of the end's block. Endpoints are real block paths, so no case is vacuous.
 
 const PARAMS = { numRuns: 1000, seed: freshOrFixedSeed(424242) } as const;
 

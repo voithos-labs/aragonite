@@ -12,8 +12,8 @@
 - A one-row rectangle (several columns) copies as a header-only sub-table: the header and the
   delimiter row, no body.
 - The sub-table keeps the source's column alignments for the columns it takes. From
-  `| :--- | :---: | ---: |`, copying columns 1..2 gives `:---:` and `---:`.
-- A second Ctrl+A in a cell selects the whole table, and its copy is the table's own raw.
+  `| :--- | :---: | ---: |`, copying the second and third columns gives `:---:` and `---:`.
+- A second Ctrl+A in a cell selects the whole table, and its copy is the table's source, unchanged.
 
 ## Spreadsheet interchange
 

@@ -8,7 +8,7 @@ import { makeHandlers } from './typed-char-env';
 
 export interface RangeKeyEnv {
 	h: TopHarness;
-	/** Every block path a caret was put in: a commit's landing, or the range dispatch's focus. */
+	/** Every block path a caret was put in: by a commit, or by the range dispatch's focus. */
 	placed: number[][];
 }
 
@@ -55,7 +55,7 @@ export async function rangeKey(env: RangeKeyEnv, key: string): Promise<void> {
 	await rangeHandlers(env).handleKeyDown(new KeyboardEvent('keydown', { key, cancelable: true }));
 }
 
-/** Every caret the delete put down, landings first. */
+/** Every caret the delete put down, the commit's first. */
 export function placedPaths(env: RangeKeyEnv): number[][] {
 	return [...env.h.landings.map((l) => [...l.leafPath]), ...env.placed];
 }

@@ -56,7 +56,7 @@ export function collectCrossBlockText(doc: DocumentView, coverage: RangeCoverage
 	} else {
 		const startOffset = charOffsetOf(start, 'collectCrossBlockText:start');
 		// A start inside a container's title line emits nothing yet: the container's opener
-		// is rebuilt around the body, which the walk below collects.
+		// is rebuilt around the body, which the copy collects below.
 		chromeStart =
 			start.path.length > 1 ? startChromeContainer(doc, start, startRaw, startOffset) : null;
 		if (!chromeStart) {

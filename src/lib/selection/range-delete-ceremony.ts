@@ -2,7 +2,7 @@
  * The deletion steps every `rangeDelete` branch shares: the subtrees `rangeCoverage` holds whole
  * are spliced out in reverse document order, each only while it still holds the node captured up
  * front, then every ancestor left empty goes, up to the document. A kept edge is truncated and
- * reinstalled the way a reload reads its slot.
+ * reinstalled the way a reload would parse it.
  */
 
 import type { GrammarView } from '../schema/block-openers';

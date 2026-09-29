@@ -1,7 +1,7 @@
 /**
  * What a live range covers, decided once from the document so the delete, the copy and the
  * overlay all read one answer. Every reader takes a `CoveredRange`, and only `coverRange` builds
- * one, so a reader can't be handed a pair that skipped the rule; `rangeCoverage` then says which
+ * one, so no consumer can be handed a pair that skipped the rule; `rangeCoverage` then says which
  * edges the range keeps a part of and which subtrees it holds whole.
  */
 
@@ -95,7 +95,7 @@ export function coverRange(doc: DocumentView, a: SelectionPoint, b: SelectionPoi
 }
 
 /** What a covered range holds, read once by the delete, the copy, the format toggle and the
- *  overlay. Built by `rangeCoverage` only, so a reader can't be handed a hand-made answer. */
+ *  overlay. Built by `rangeCoverage` only, so no consumer can be handed a hand-made answer. */
 export class RangeCoverage {
 	// Never read: the private field makes the type nominal, as `CoveredRange`'s does.
 	// eslint-disable-next-line no-unused-private-class-members

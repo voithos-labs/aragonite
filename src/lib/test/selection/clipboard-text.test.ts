@@ -97,7 +97,7 @@ describe('collectCrossBlockText', () => {
 			expect(text).toBe('Before.\n\n| A | B | C |\n| --- | --- | --- |\n| 1 | 2 | 3 |\n');
 		});
 
-		// Miss-analysis (#565): these rows pinned the whole-row output as intended, so no test ever
+		// Miss-analysis (#565): these rows asserted the whole-row output as intended, so no test ever
 		// compared the root's copy of a rectangle with the cell's own.
 		it('a pair inside one table copies its rectangle, as the cell copy does', () => {
 			const doc = parse(fixture);

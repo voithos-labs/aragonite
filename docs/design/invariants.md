@@ -748,7 +748,7 @@ jsdom. `textcontent-spine.property.test.ts`.
 `serialization-purity.property.test.ts`.
 
 **G2.7 · Selection partition.** Every block strictly between a range's endpoints sits in exactly
-one subtree `rangeCoverage` holds whole, inside an endpoint's block, or above the end, and the
+one subtree `rangeCoverage` holds whole, inside an endpoint's block, or is an ancestor of the end's block, and the
 overlay's class for every block is the one that coverage gives it. `walkBetween` visits the blocks
 in order. `selection-partition.property.test.ts`.
 
@@ -1678,8 +1678,8 @@ step gets its own short list of files allowed to name it (so an aliased import c
 - the content write itself (`updateNodeContent`), which only those two, the keystroke's trial
   reparse and the container-matching paste (a list or a quote pasted into its own kind) call
 - a write in place that skips the reparse (`writeOwnRaw`, `installOwnRaw`), left to table cells
-  (a pasted grid, a drag's cut), the content write's own `rewriteLeafInPlace` (which the
-  cross-block format toggle writes through) and find and replace's private copy
+  (a pasted grid, a drag's cut), the content write's own `rewriteLeafInPlace` and find and
+  replace's private copy. The cross-block format toggle writes through `rewriteLeafInPlace`
 - the document as a body with no owner and its trailing blank line, which only `documentBody`
   builds, so no route can hand the document in as a container. The one other hand-built body is
   the keystroke's trial reparse, which wraps a throwaway copy that never reaches the document
@@ -1810,9 +1810,11 @@ view inside their own scroller. `lint/file-rules.test.ts`.
 says which edges a range keeps, which subtrees it holds whole and which cells of a table it holds,
 and the delete, the copy, the format toggle, the overlay and the table's own cell painting read
 that. So the helpers that decide it (the walk of the blocks between, the between-the-endpoints path
-predicates, the rectangle two cells span, the closed-unit check) are called in `range-coverage.ts`
-only, besides the two files that define them. A reader that walks the range or bounds a rectangle
-itself has grown a second answer, and the scan names it. `lint/file-rules.test.ts`.
+predicates, the rectangle two cells span, the closed-unit check, and a table endpoint's cell index
+or a table's cell count) are called in `range-coverage.ts` only, besides the files that define
+them and a short list of cell edits that aren't reading a range, each with its reason. Code that
+walks the range, bounds a rectangle or does cell arithmetic on an endpoint itself has grown a
+second answer, and the scan names the file. `lint/file-rules.test.ts`.
 
 ## Accessibility
 

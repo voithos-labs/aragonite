@@ -166,7 +166,7 @@ const ROWS: Record<string, Row> = {
 		bytes: '\n',
 		placed: []
 	},
-	// A text endpoint keeps its slot, emptied or not; a rule held whole keeps none, so a container
+	// A text endpoint keeps its block, emptied or not; a rule held whole keeps none, so a container
 	// the range holds whole goes with it.
 	'a quoted rule and the paragraph below, Backspace: the quote goes': {
 		source: '> ---\n\npara\n',
