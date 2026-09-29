@@ -118,6 +118,9 @@ const CALLOUT = ':::callout T\nbody\n:::\n';
 /** The bold `x` every delete takes: the pair it empties goes with it where the bytes still read. */
 const X = { start: 2, end: 3 };
 
+/** `x` and the closer after it in `#**x** y`: the opener left behind goes, so `#` meets the text. */
+const HASH_RUN = { start: 3, end: 6 };
+
 // ── The entries ──────────────────────────────────────────────────────────────
 
 type Mounted = { el: HTMLElement; blockEdit: ReturnType<typeof makeStubBlockEdit> };
@@ -304,12 +307,12 @@ async function dragXAway(place: Place, inCell: boolean): Promise<string> {
 	return serialize(deps.getDoc());
 }
 
-/** Pastes `a` over `x`: the bytes the leaf's commit writes. */
-async function pasteOverX(place: Place): Promise<string[]> {
+/** Pastes `text` over `range`: the bytes the leaf's commit writes. */
+async function pasteOver(place: Place, range: typeof X, text: string): Promise<string[]> {
 	const { deps } = makeEditorActionsDeps(place.source, { reading: LIVE });
 	const blockEdit = makeStubBlockEdit();
 	await pasteDispatch(
-		{ pastedText: 'a', targetPath: place.leaf, offset: X.start, preDelete: X },
+		{ pastedText: text, targetPath: place.leaf, offset: range.start, preDelete: range },
 		pasteContext({
 			doc: deps.doc,
 			blockEdit,
@@ -529,9 +532,28 @@ const FAMILIES: Family[] = [
 		stores: { 'tree-operations/paste/dispatch.ts': 1 },
 		passesOn: ['tree-operations/paste/hooks.ts', 'components/blocks/table/table-cell-paste.ts'],
 		rows: [
-			{ shape: 'a to-do', run: () => pasteOverX(TODO), want: ['a# y\n'] },
-			{ shape: 'a plain item', run: () => pasteOverX(ITEM), want: ['**a**[ ] y\n'] },
-			{ shape: 'a table cell', run: () => pasteOverX(CELL), want: ['a# y'] }
+			// The pasted text lands after a run the cut strands, so the join still has something to drop.
+			{
+				shape: 'a to-do',
+				run: () => pasteOver({ source: '- [ ] #**x** y\n', leaf: [0, 0, 0] }, HASH_RUN, ' a'),
+				want: ['# a y\n']
+			},
+			{
+				shape: 'a plain item',
+				run: () =>
+					pasteOver({ source: '- **x** ] y\n', leaf: [0, 0, 0] }, { start: 2, end: 5 }, '['),
+				want: ['**[ ] y\n']
+			},
+			{
+				shape: 'a table cell',
+				run: () =>
+					pasteOver(
+						{ source: '| h |\n| - |\n| # **x** y |\n', leaf: [0, 1, 0] },
+						{ start: 4, end: 7 },
+						'a'
+					),
+				want: ['# a y']
+			}
 		]
 	}
 ];
@@ -574,7 +596,7 @@ const MAKES_A_STORE = /(?<![\w$])(?<!function\s)(?:storedAsAt|storedAsIn)\s*\(|\
 
 /** A call that hands a store to a rewrite that removes bytes, or asks one what a line reads as. */
 const HANDS_ON_A_STORE =
-	/(?<![\w$.])(?<!function\s)(?:cleanJoinedRaw|joinLeaves|replaceRangeInLeaf|cutRangeFromDisplay|resolveSelectionEdit|applyLiveRangeEdit|resolveEdgeDeletion|keepsKindAt|cleanTruncatedProse|readBack)\s*\(/;
+	/(?<![\w$.])(?<!function\s)(?:cleanJoinedRaw|joinLeaves|replaceRangeInLeaf|applyLiveRangeEdit|resolveEdgeDeletion|keepsKindAt|cleanTruncatedProse|readBack)\s*\(/;
 
 describe('the route list', () => {
 	const sources = collectEditorSources(EDITOR_SRC);

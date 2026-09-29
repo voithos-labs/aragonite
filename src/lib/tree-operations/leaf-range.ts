@@ -39,9 +39,9 @@ export function replaceRangeInLeaf(
 	const painted = store.reading.hidesDelimitersAtCaret()
 		? { start: cutBeforeSuffix(node, range.start), end: cutBeforeSuffix(node, range.end) }
 		: range;
-	// Both ends snap the same way, so the range cannot invert.
 	const start = snapToScalarBoundary(node.raw, painted.start);
-	const end = snapToScalarBoundary(node.raw, painted.end);
+	// An inverted range replaces nothing: the text goes in at its start.
+	const end = Math.max(start, snapToScalarBoundary(node.raw, painted.end));
 	if (start < end) {
 		const join = cleanJoin({ node, offset: start }, { node, offset: end }, typed, store);
 		if (join.cleaned) {

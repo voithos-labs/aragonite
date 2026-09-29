@@ -7,19 +7,8 @@
 
 import type { NodeView } from '../../../core/node-views';
 import type { StoredAs } from '../../../schema/stored-as';
-import {
-	snapToScalarBoundary,
-	trailingLineEnding,
-	trimTrailingLineEnding,
-	type LineEnding
-} from '../../../core/lines';
-import { cleanJoinedRaw, replaceRangeInLeaf } from '../../../tree-operations/leaf-range';
-
-export interface SelectionEdit {
-	/** The block's whole bytes after the edit, trailing line ending included. */
-	raw: string;
-	caret: number;
-}
+import { trailingLineEnding, trimTrailingLineEnding, type LineEnding } from '../../../core/lines';
+import { replaceRangeInLeaf } from '../../../tree-operations/leaf-range';
 
 /** The raw-offset lookups a browser range edit needs from the block. */
 export interface LiveEditCursor {
@@ -105,39 +94,6 @@ export function applyLiveRangeEdit(
 	e.preventDefault();
 	if (edit.kind === 'rewrite') commit(edit);
 	return true;
-}
-
-/** The bytes replacing `[start, end)` with `typed`, or null when there was nothing to clean, for a
- *  caller holding a range rather than an event (the composition commit, the gesture fuzzer). */
-export function resolveSelectionEdit(
-	node: NodeView,
-	selection: { start: number; end: number },
-	typed: string,
-	store: StoredAs
-): SelectionEdit | null {
-	// Both ends off any scalar interior before the slice: a half-pair here is unrecoverable
-	// bytes, not a recoverable edit. Snapping the same direction cannot invert the range.
-	const start = snapToScalarBoundary(node.raw, selection.start);
-	const end = snapToScalarBoundary(node.raw, selection.end);
-	if (start >= end) return null;
-	const mergedRaw = node.raw.slice(0, start) + node.raw.slice(end);
-	// `typed` goes in at the join rather than being spliced past it: the bytes the cleanup checks
-	// have to be the bytes this returns, or the flanking it checked is not the one that ships.
-	const joined = cleanJoinedRaw({
-		mergedRaw,
-		seam: start,
-		start: { node, offset: start },
-		end: { node, offset: end },
-		typed,
-		store
-	});
-	if (joined.raw === mergedRaw) return null;
-	// The insert lands where the two sides now meet: the cleanup runs on the delete half, and the
-	// commit's own reparse works out what the new bytes make of it.
-	return {
-		raw: joined.raw.slice(0, joined.seam) + typed + joined.raw.slice(joined.seam),
-		caret: joined.seam + typed.length
-	};
 }
 
 // ── Reading the event ────────────────────────────────────────────────────────

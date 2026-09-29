@@ -10,7 +10,6 @@ import { isBlankParagraph, readBlocks } from '../core/parser';
 import type { GrammarView } from '../schema/block-openers';
 import { getLiveSplitRebalancer } from '../schema/inline-construct-policy';
 import type { Reading } from '../schema/reading';
-import type { StoredAs } from '../schema/stored-as';
 import {
 	displayLength,
 	isBlankText,
@@ -49,7 +48,7 @@ import { adoptReparsedFields, legalizeWrite, probeLineOpensAsProse } from './con
 import { writeKeepingTaskMarker } from './list/reconcile-task';
 import { fragmentReaderAt, type FragmentReader } from './list/task-paragraph';
 import { storedAsIn } from './stored-as';
-import { cleanJoinedRaw, joinLeaves } from './leaf-range';
+import { joinLeaves } from './leaf-range';
 
 // ── Split ──
 
@@ -254,32 +253,6 @@ function contentBlockCount(source: string, grammar: GrammarView): number {
 }
 
 // ── Merge ──
-
-/**
- * The bytes a single-block edit leaves when it deletes `range` from `display`, cleaned like any
- * join against where `store` keeps them; the returned offset is where the two sides meet.
- */
-export function cutRangeFromDisplay(
-	node: NodeView,
-	display: string,
-	range: { start: number; end: number },
-	store: StoredAs
-): { display: string; offset: number } {
-	// Both ends snap off the middle of a surrogate pair, since half a pair can't be recovered;
-	// snapping both in the same direction cannot invert the range.
-	const start = snapToScalarBoundary(display, range.start);
-	const end = snapToScalarBoundary(display, range.end);
-	if (start >= end) return { display, offset: start };
-	const cleaned = cleanJoinedRaw({
-		mergedRaw: display.slice(0, start) + display.slice(end),
-		seam: start,
-		start: { node, offset: start },
-		end: { node, offset: end },
-		typed: '',
-		store
-	});
-	return { display: cleaned.raw, offset: cleaned.seam };
-}
 
 /** What a join reports: the structural splice, plus where the two blocks met in the survivor's
  *  bytes, which the join cleanup moves when it drops a run on the first block's side. */

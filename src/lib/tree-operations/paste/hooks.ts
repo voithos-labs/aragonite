@@ -8,7 +8,9 @@ import { isBuiltinBlockKind, type BlockKind, type CstNode } from '../../core/nod
 import { trailingLineEnding, trimTrailingLineEnding, type LineEnding } from '../../core/lines';
 import { buildPastedReplacement } from './paste-replacement';
 import type { ChildSlot } from '../list/task-paragraph';
-import { cutRangeFromDisplay } from '../node-ops';
+import { replaceRangeInLeaf, type LeafRangeEdit } from '../leaf-range';
+import { getContentRange, readInline } from '../../core/inline';
+import { CONTENT_VISIBILITY, visibleRuns } from '../../core/inline/visibility';
 import {
 	getAllRegisteredKinds,
 	tryGetBlockKindDescriptor
@@ -25,21 +27,7 @@ import type { StoredAs } from '../../schema/stored-as';
 // correctness doesn't hinge on module load order.
 const BESPOKE_SURFACE_KINDS = new Set<BlockKind>(['tableCell']);
 
-/**
- * The leaf's bytes and caret after the paste's delete half, through the join cleanup, so a
- * stranded delimiter run the user never saw is dropped (`docs/design/live-mode.md` § 4.5).
- */
-function applyPreDelete(
-	node: CstNode,
-	display: string,
-	preDelete: PasteRange | undefined,
-	offset: number,
-	store: StoredAs
-): { display: string; offset: number } {
-	if (!preDelete) return { display, offset };
-	return cutRangeFromDisplay(node, display, preDelete, store);
-}
-
+/** The pasted text over the selection, or at the caret, written as typing it there would be. */
 export function defaultInlineHook(
 	node: CstNode,
 	offset: number,
@@ -48,28 +36,18 @@ export function defaultInlineHook(
 	store: StoredAs,
 	lineEnding: LineEnding
 ): InlinePasteResult {
-	const display = trimTrailingLineEnding(node.raw);
-	const closing = trailingLineEnding(node.raw, lineEnding);
-
-	const { display: effectiveDisplay, offset: effectiveOffset } = applyPreDelete(
-		node,
-		display,
-		preDelete,
-		offset,
-		store
-	);
-
-	const after = effectiveDisplay.slice(effectiveOffset);
-	const inserted = atLineEnd(after) ? dropClosingLineEnding(text) : text;
-	const newDisplay = effectiveDisplay.slice(0, effectiveOffset) + inserted + after;
-
+	const range = preDelete ?? { start: offset, end: offset };
+	const bare = dropClosingLineEnding(text);
+	const probe = replaceRangeInLeaf(node, range, bare, store);
+	const edit =
+		bare === text || endsVisibleLine(node, probe, store)
+			? probe
+			: replaceRangeInLeaf(node, range, text, store);
 	return {
-		newRaw: newDisplay + closing,
-		caretOffset: effectiveOffset + inserted.length
+		newRaw: trimTrailingLineEnding(edit.raw) + trailingLineEnding(node.raw, lineEnding),
+		caretOffset: edit.caret
 	};
 }
-
-const atLineEnd = (after: string): boolean => after === '' || /^\r?\n/.test(after);
 
 /**
  * `text` without the ending of its last line, which against a line end would leave a blank line
@@ -82,6 +60,21 @@ function dropClosingLineEnding(text: string): string {
 	return rest === '' || /\r?\n$/.test(rest) ? text : rest;
 }
 
+/** Whether nothing the reader sees follows the caret on its line: a delimiter run the reading
+ *  hides there, such as a bold word's closer, still ends the line. */
+function endsVisibleLine(node: CstNode, edit: LeafRangeEdit, store: StoredAs): boolean {
+	const after = trimTrailingLineEnding(edit.raw).slice(edit.caret);
+	if (after === '' || /^\r?\n/.test(after)) return true;
+	if (!store.reading.hidesDelimitersAtCaret()) return false;
+	const lineEnd = edit.caret + (/\r?\n/.exec(after)?.index ?? after.length);
+	const content = getContentRange({ ...node, raw: edit.raw });
+	const { resolver, grammar } = store.reading;
+	const inlines = readInline(edit.raw, content.start, content.end, resolver, grammar);
+	return !visibleRuns(inlines, edit.raw, CONTENT_VISIBILITY, { grammar }).some(
+		(run) => run.visible && run.text !== '' && run.end > edit.caret && run.start < lineEnd
+	);
+}
+
 export function defaultStructuralHook(
 	node: CstNode,
 	offset: number,
@@ -91,18 +84,19 @@ export function defaultStructuralHook(
 	lineEnding: LineEnding,
 	slot: ChildSlot
 ): StructuralPasteResult {
-	const display = trimTrailingLineEnding(node.raw);
-	const cut = applyPreDelete(node, display, preDelete, offset, store);
+	// The blocks go in after the cut, as a split does, so the cut takes no text of its own.
+	const cut = preDelete && replaceRangeInLeaf(node, preDelete, '', store);
+	const display = cut && trimTrailingLineEnding(cut.raw);
 	// Compare the bytes rather than the range: a cleanup can drop more than the selection did,
 	// and an empty range leaves them equal, which is exactly when the original node stands.
 	const synthLeaf =
-		cut.display === display
+		!cut || display === trimTrailingLineEnding(node.raw)
 			? node
-			: { ...node, raw: cut.display + trailingLineEnding(node.raw, lineEnding) };
+			: { ...node, raw: display + trailingLineEnding(node.raw, lineEnding) };
 
 	const { nodes, lastPastedIndex } = buildPastedReplacement(
 		synthLeaf,
-		cut.offset,
+		cut ? cut.caret : offset,
 		blocks,
 		lineEnding,
 		store.reading.grammar,

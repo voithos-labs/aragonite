@@ -19,10 +19,8 @@ import {
 const CLEANER_READERS: Record<string, string> = {
 	'src/lib/tree-operations/leaf-range.ts':
 		'defines it, and crosses it from every in-leaf range replace and `joinLeaves`, the merge’s join',
-	'src/lib/tree-operations/node-ops.ts': 'the range cut a paste’s delete half makes',
 	'src/lib/selection/range-delete.ts': 'the same-block and cross-block range merges',
-	'src/lib/selection/range-delete-ceremony.ts': 'the shared endpoint join',
-	'src/lib/components/blocks/text/live-selection-edit.ts': 'the composition’s range replace'
+	'src/lib/selection/range-delete-ceremony.ts': 'the shared endpoint join'
 };
 
 /** Every file calling the one join into a leaf, and what it joins. */
@@ -42,7 +40,7 @@ const NON_JOIN_CONCATENATIONS: Record<string, string> = {
 	'src/lib/schema/child-spans.ts':
 		"a container splicing ONE child's region back into its own raw: both surrounding operands are bytes that container already emitted",
 	'src/lib/tree-operations/paste/container-match.ts':
-		'a paste INSERTS between the target’s own halves; its delete half, the one place a cut can strand a run, is `preDelete` and crosses `cutRangeFromDisplay`',
+		'a paste INSERTS between the target’s own halves; its delete half, the one place a cut can strand a run, is `preDelete`, cut by `replaceRangeInLeaf` before the container routes run',
 	'src/lib/editor-actions/inline-range-commit.ts':
 		'a popover or menu splice INSERTS between one leaf’s own halves over the range it replaces; nothing is cut out from under a delimiter it does not also rewrite',
 	'src/lib/selection/cross-block/type-replace.ts':

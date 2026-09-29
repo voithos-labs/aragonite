@@ -187,17 +187,21 @@ const REWRITE_MODULES: Record<string, string> = {
 	'src/lib/components/blocks/text/pending-mark-insert.ts': 'the pending-mark resolver',
 	'src/lib/core/inline/format-toggle.ts': 'the format toggle',
 	'src/lib/core/inline/live-edit/read-back.ts':
-		'what a removing rewrite’s candidate shows, read where it is stored'
+		'what a removing rewrite’s candidate shows, read where it is stored',
+	'src/lib/tree-operations/paste/hooks.ts':
+		'whether anything shows after a pasted line on its own line, so its ending goes or stays'
 };
 
 /** Every file permitted to name `preDelete` at all; matching the bare name also catches an
  *  aliased import, a bracket access and a helper that forwards it. */
 const PRE_DELETE_NAMERS: Record<string, string> = {
 	'src/lib/tree-operations/paste-surfaces.ts': 'the surface contract declaring the parameter',
-	'src/lib/tree-operations/paste/dispatch.ts': 'the request entry carrying the field to the hooks',
-	'src/lib/tree-operations/paste/hooks.ts': 'the prose crossing into cutRangeFromDisplay',
+	'src/lib/tree-operations/paste/dispatch.ts':
+		'the request entry carrying the field to the hooks, and the text-less cut the container routes read',
+	'src/lib/tree-operations/paste/hooks.ts':
+		'the prose replacing the range with its text through replaceRangeInLeaf',
 	'src/lib/components/blocks/table/table-cell-paste.ts':
-		'the cell crossing into cutRangeFromDisplay, ahead of the escaping sink',
+		'the cell replacing the range with its text through replaceRangeInLeaf, ahead of the escaping',
 	'src/lib/components/blocks/text/text-clipboard.ts': 'creates the range from its selection',
 	'src/lib/components/blocks/code/CodeBlock.svelte': 'creates the range from its selection',
 	'src/lib/components/blocks/table/TableCellBlock.svelte': 'creates the range from its selection',

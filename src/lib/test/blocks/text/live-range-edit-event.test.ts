@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // What `resolveLiveRangeEdit` makes of the range an InputEvent carries, where the browser's target
-// range and the DOM caret can disagree. The joins are covered through `resolveSelectionEdit`.
+// range and the DOM caret can disagree. The joins are covered through `replaceRangeInLeaf`.
 // Miss-analysis: join tests passed their own range, never a collapsed target away from the caret.
 import { afterEach, describe, expect, it } from 'vitest';
 import { parse } from '$lib/core/parser';

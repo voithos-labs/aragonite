@@ -1020,6 +1020,68 @@ const RULES: FileRule[] = [
 	}
 ];
 
+// ── G4.89, G4.90 one in-leaf range replace ─────────────────────────────────
+
+/** A file naming the paste's selection that cuts nothing through the in-leaf range replace. */
+const namesPasteRangeWithoutReplace = (file: SourceFile): boolean =>
+	/(?<![\w.'"])preDelete\b/.test(file.code) && !/(?<![\w.])replaceRangeInLeaf\s*\(/.test(file.code);
+
+const LEAF_RANGE_RULES: FileRule[] = [
+	{
+		id: 'G4.89 only the in-leaf range replace, the split cuts and the endpoint snap snap an offset',
+		matches: /(?<![\w.])snapToScalarBoundary\s*\(/,
+		allowed: {
+			'src/lib/core/lines.ts': 'defines the snap',
+			'src/lib/tree-operations/leaf-range.ts': 'every in-leaf range replace, typed text or none',
+			'src/lib/tree-operations/node-ops.ts':
+				"`cutPastLineEnding`, the split's cut, which keeps a pair on one side of two blocks",
+			'src/lib/tree-operations/structural-suffix.ts':
+				"`cutKeepingStructure`, a split's and a structural paste's two halves",
+			'src/lib/selection/char-endpoint-snap.ts': 'a selection endpoint, which cuts nothing'
+		},
+		reason:
+			'a cut of one leaf goes through `replaceRangeInLeaf`, which snaps both ends, cuts back to the painted text and cleans the join with the typed text in it; a cut that snaps on its own has none of that',
+		hits: ['const start = snapToScalarBoundary(display, range.start);'],
+		misses: [
+			"import { snapToScalarBoundary } from '../core/lines';",
+			'// snapToScalarBoundary(raw, 3)'
+		]
+	},
+	{
+		id: 'G4.89 the joins of two leaves are the declared ones',
+		matches: /(?<![\w.])joinLeaves\s*\(/,
+		allowed: {
+			'src/lib/tree-operations/leaf-range.ts': 'defines it',
+			'src/lib/tree-operations/node-ops.ts': "`joinIntoLeaf`, the merge's one join into a leaf"
+		},
+		reason:
+			'a join of two leaves runs the tail kind’s write rule and the live cleanup once, here; declare a new caller with what it joins',
+		hits: ["const { raw, seam } = joinLeaves(head, tail, '', store);"],
+		misses: ["import { joinLeaves } from './leaf-range';"]
+	},
+	{
+		id: 'G4.90 a paste’s selection is cut through the in-leaf range replace',
+		matches: namesPasteRangeWithoutReplace,
+		allowed: {
+			'src/lib/tree-operations/paste-surfaces.ts': 'declares the parameter and cuts nothing',
+			'src/lib/components/blocks/code/CodeBlock.svelte':
+				'makes the range from its selection and hands it to the dispatch',
+			'src/lib/components/blocks/code/code-paste-surface.ts':
+				'the one literal splice: a fence body has no inline constructs to clean'
+		},
+		reason:
+			'a paste writes what typing writes over the same selection, so its cut is `replaceRangeInLeaf` with the pasted text; a cut of its own strands the runs typing keeps',
+		hits: [
+			'return display.slice(0, preDelete.start) + text + display.slice(preDelete.end);',
+			'const cut = cutRange(node, preDelete, store);'
+		],
+		misses: [
+			'const edit = replaceRangeInLeaf(node, preDelete, text, store);',
+			'// preDelete is the range the paste cuts first'
+		]
+	}
+];
+
 // ── G4.87 one writer of the scroll position ─────────────────────────────────
 
 /** A scroll write. `scroll`/`scrollTo` count only with a position argument, so the published
@@ -1082,5 +1144,5 @@ const SCROLL_WRITERS: ManifestRule[] = [
 ];
 
 const SOURCES = collectEditorSources();
-describeFileRules(RULES, SOURCES);
+describeFileRules([...RULES, ...LEAF_RANGE_RULES], SOURCES);
 describeManifests(SCROLL_WRITERS, SOURCES);

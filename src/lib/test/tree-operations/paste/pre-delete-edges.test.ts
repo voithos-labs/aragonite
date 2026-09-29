@@ -1,0 +1,70 @@
+// @vitest-environment jsdom
+// Two paste edges typing can't reach: blocks pasted over a cut that leaves only stranded runs, and
+// a pasted line's own ending where only a hidden closer follows it.
+// Miss-analysis: every structural paste row cut a range with visible text left beside it, and every
+// line-ending row pasted before visible text or at the bytes' very end.
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { serialize } from '$lib/core/serializer';
+import { pasteDispatch } from '$lib/tree-operations/paste/dispatch';
+import { cleanLiveJoinSeam } from '$lib/components/blocks/text/live-join-seam';
+import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
+import { createPasteCoordinator } from '$lib/editor-actions/paste-coordinator';
+import {
+	registerLiveJoinSeamCleaner,
+	__resetLiveJoinSeamCleanerForTests
+} from '$lib/schema/inline-construct-policy';
+import {
+	makeEditorActionsDeps,
+	makeStubBlockEdit,
+	pasteContext
+} from '../../harness/editor-actions';
+import { fixtureReading } from '../../harness/fixture-grammar';
+import { settleEditor } from '../../harness/settle';
+
+const LIVE = fixtureReading({}, 'live');
+
+beforeAll(() => registerLiveJoinSeamCleaner(cleanLiveJoinSeam));
+afterAll(() => __resetLiveJoinSeamCleanerForTests());
+
+/** Pastes `text` over `[start, end)` of the leaf at `leaf`: the document after, and what the leaf's
+ *  own commit wrote when the paste stayed inline. */
+async function paste(source: string, leaf: number[], [start, end]: number[], text: string) {
+	const { deps } = makeEditorActionsDeps(source, { reading: LIVE });
+	const blockEdit = makeStubBlockEdit();
+	await pasteDispatch(
+		{ pastedText: text, targetPath: leaf, offset: start, preDelete: { start, end } },
+		pasteContext({
+			doc: deps.doc,
+			blockEdit,
+			reading: LIVE,
+			controller: createPasteCoordinator(deps, createUndoController(deps))
+		})
+	);
+	await settleEditor();
+	const leafWrites = vi.mocked(blockEdit.updateBlockContent).mock.calls.map((call) => call[1]);
+	return { doc: serialize(deps.doc), leafWrites };
+}
+
+describe('blocks pasted over a cut that leaves only stranded runs', () => {
+	// The cut is the one Delete makes over `a`: the runs it strands go, as they do there.
+	it.each([
+		{ place: 'the top level', source: '***a***\n', leaf: [0], want: 'p\n\nq\n' },
+		{ place: 'a list item', source: '- ***a***\n', leaf: [0, 0, 0], want: '- p\n\n  q\n' }
+	])('$place: no run stays on screen', async ({ source, leaf, want }) => {
+		expect((await paste(source, leaf, [3, 4], 'p\n\nq\n')).doc).toBe(want);
+	});
+});
+
+describe('a pasted line’s own ending', () => {
+	it.each([
+		{ shape: 'before a hidden closer at the line’s end', source: '**ab**\n', range: [3, 4] },
+		{ shape: 'over a whole bold word at the line’s end', source: 'c **ab**\n', range: [4, 6] }
+	])('goes, $shape', async ({ source, range }) => {
+		const { leafWrites } = await paste(source, [0], range, 'x\n');
+		expect(leafWrites).toEqual([source.slice(0, range[0]) + 'x' + source.slice(range[1])]);
+	});
+
+	it('stays before text the reader sees, and the runs it splits go', async () => {
+		expect((await paste('**ab** c\n', [0], [3, 4], 'x\n')).leafWrites).toEqual(['ax\n c\n']);
+	});
+});

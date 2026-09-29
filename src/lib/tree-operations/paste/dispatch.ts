@@ -12,7 +12,7 @@ import type { StoredAs } from '../../schema/stored-as';
 import type { PluginActivation } from '../../schema/plugin-activation';
 import { readBlocks } from '../../core/parser';
 import { isBlockNode, nodeAt } from '../node-primitives';
-import { cutRangeFromDisplay } from '../node-ops';
+import { replaceRangeInLeaf } from '../leaf-range';
 import {
 	documentLineEnding,
 	trailingLineEnding,
@@ -224,7 +224,8 @@ export async function pasteDispatch(
 	return {};
 }
 
-/** The target's bytes and caret as the paste's delete half leaves them. */
+/** The target's bytes and caret as the paste's delete half leaves them: what a Delete over the range
+ *  writes, since the container routes put their blocks after it. */
 function targetAfterPreDelete(
 	node: CstNode,
 	input: PasteDispatchInput,
@@ -232,8 +233,11 @@ function targetAfterPreDelete(
 	lineEnding: LineEnding
 ): { raw: string; offset: number } {
 	if (!input.preDelete) return { raw: node.raw, offset: input.offset };
-	const cut = cutRangeFromDisplay(node, trimTrailingLineEnding(node.raw), input.preDelete, store);
-	return { raw: cut.display + trailingLineEnding(node.raw, lineEnding), offset: cut.offset };
+	const cut = replaceRangeInLeaf(node, input.preDelete, '', store);
+	return {
+		raw: trimTrailingLineEnding(cut.raw) + trailingLineEnding(node.raw, lineEnding),
+		offset: cut.caret
+	};
 }
 
 /**
