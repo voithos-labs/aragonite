@@ -3,7 +3,8 @@
 // ran one focused layout through every route that changes a list's heights.
 import { describe, it, expect } from 'vitest';
 import { flushSync, tick } from 'svelte';
-import type { HeightOracle } from '../../cursor/height-oracle';
+import type { MeasuredHeightOracle } from '../../cursor/height-oracle';
+import { createLayoutState } from '../../reactivity/layout-state.svelte';
 import type { CstNode } from '../../core/nodes';
 import type { ListWindowing } from '../../reactivity/list-windowing.svelte';
 import {
@@ -31,14 +32,15 @@ const GROWN = 160;
 
 const idOf = (i: number) => `b${i}`;
 
-function liveOracle(): HeightOracle & { measuredHeights: Map<string, number> } {
+function liveOracle(): MeasuredHeightOracle & { measuredHeights: Map<string, number> } {
 	const measuredHeights = new Map<string, number>();
 	return {
 		measuredHeights,
 		estimate: () => HEIGHT,
 		measured: (id) => measuredHeights.get(id),
 		recordMeasured: (id, h) => void measuredHeights.set(id, h),
-		dropMeasured: () => measuredHeights.clear()
+		dropMeasured: () => measuredHeights.clear(),
+		measuredIds: () => [...measuredHeights.keys()]
 	};
 }
 
@@ -55,15 +57,15 @@ interface Fixture {
 function mount(): Fixture {
 	const children = $state(Array.from({ length: COUNT }, (_, i) => makePara(`p${i}\n`)));
 	const ids = $state(Array.from({ length: COUNT }, (_, i) => idOf(i)));
-	let widthVersion = $state(0);
 	const oracle = liveOracle();
+	const layout = createLayoutState({ heightOracle: oracle });
 	const focus = focusFollowing(ids, FOCUSED);
 	const scope = mountListWindowing({
 		children,
 		ids,
 		oracle,
 		listHeight: COUNT * HEIGHT,
-		getWidthVersion: () => widthVersion,
+		getWidthVersion: layout.widthVersion,
 		getFocusPath: focus.getFocusPath
 	});
 	const cleanup = scope.cleanup;
@@ -78,8 +80,7 @@ function mount(): Fixture {
 		ids,
 		oracle,
 		bumpWidth: () => {
-			oracle.dropMeasured();
-			widthVersion++;
+			layout.rebuildForNewGeometry();
 			flushSync();
 		},
 		async mountChanged() {

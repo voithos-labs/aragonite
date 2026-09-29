@@ -2,7 +2,8 @@
 // Miss-analysis: the one width case had both corrections pick the same block, so they cancelled.
 import { describe, it, expect } from 'vitest';
 import { flushSync, tick } from 'svelte';
-import type { HeightOracle } from '../../cursor/height-oracle';
+import type { MeasuredHeightOracle } from '../../cursor/height-oracle';
+import { createLayoutState } from '../../reactivity/layout-state.svelte';
 import type { Scrollport } from '../../cursor/scrollport';
 import type { ListWindowing } from '../../reactivity/list-windowing.svelte';
 import { makePara, mountListWindowing } from '../harness/list-windowing.svelte';
@@ -17,7 +18,7 @@ const MOUNTED = [10, 11, 12, 13, 14];
 
 const idOf = (i: number) => `b${i}`;
 
-function seededOracle(): HeightOracle {
+function seededOracle(): MeasuredHeightOracle {
 	const measured = new Map<string, number>();
 	for (let i = 0; i < SCROLLED_THROUGH; i++) measured.set(idOf(i), REAL);
 	return {
@@ -26,20 +27,21 @@ function seededOracle(): HeightOracle {
 		recordMeasured: (id, height) => {
 			measured.set(id, height);
 		},
-		dropMeasured: () => measured.clear()
+		dropMeasured: () => measured.clear(),
+		measuredIds: () => [...measured.keys()]
 	};
 }
 
 describe('list-windowing width re-measure', () => {
 	it('holds the anchor block on screen across a width change (#188)', async () => {
 		const oracle = seededOracle();
-		let widthVersion = $state(0);
+		const layout = createLayoutState({ heightOracle: oracle });
 		const { windowing, cleanup, port } = mountListWindowing({
 			children: Array.from({ length: BLOCKS }, (_, i) => makePara(`p${i}\n`)),
 			ids: Array.from({ length: BLOCKS }, (_, i) => idOf(i)),
 			oracle,
 			listHeight: BLOCKS * REAL,
-			getWidthVersion: () => widthVersion
+			getWidthVersion: layout.widthVersion
 		});
 
 		// The mounted band reads its real height, which the estimates the width rebuild starts from
@@ -56,8 +58,7 @@ describe('list-windowing width re-measure', () => {
 		port.setScrollTop(SCROLLED_THROUGH * REAL - REAL + 100);
 		const heldOffset = await screenOffsetOf(windowing, port, anchor);
 
-		oracle.dropMeasured();
-		widthVersion++;
+		layout.rebuildForNewGeometry();
 		flushSync();
 		await tick();
 

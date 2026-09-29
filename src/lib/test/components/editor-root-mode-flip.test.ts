@@ -52,7 +52,7 @@ function harness(opts: { mode?: PresentationMode; selection?: EditorSelection | 
 		getBlockElByPath: () => null,
 		isHostChrome: (node) => !!node && header.contains(node),
 		caretMemory: { forget: () => calls.caretForgets++ },
-		heightOracle: { dropMeasured: () => calls.measuredDrops++ },
+		layout: { forgetMeasuredHeights: () => calls.measuredDrops++ },
 		events,
 		restoreCaret: async (path, offset) => {
 			calls.restores.push([path, offset]);

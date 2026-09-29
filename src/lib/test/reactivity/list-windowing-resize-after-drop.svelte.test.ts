@@ -4,6 +4,7 @@ import { describe, it, expect } from 'vitest';
 import { tick } from 'svelte';
 import { createHeightOracle } from '../../cursor/height-oracle';
 import { HEIGHT_ESTIMATES } from '../../cursor/typography-estimates';
+import { createLayoutState } from '../../reactivity/layout-state.svelte';
 import { makePara, mountListWindowing } from '../harness/list-windowing.svelte';
 
 const MEASURED = 100;
@@ -37,7 +38,7 @@ describe('a resize after the check dropped its cache', () => {
 
 		// The mode switch: every measured height goes, and the mounted block's box then moves with
 		// the markers that stopped painting. The observer reports it; the height table must follow.
-		oracle.dropMeasured();
+		createLayoutState({ heightOracle: oracle }).forgetMeasuredHeights();
 		height = RESIZED;
 		windowing.measureChildOnResize('b0', RESIZED);
 

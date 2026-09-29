@@ -4,6 +4,7 @@ import { describe, it, expect } from 'vitest';
 import { flushSync, tick } from 'svelte';
 import { createHeightOracle } from '../../cursor/height-oracle';
 import { HEIGHT_ESTIMATES } from '../../cursor/typography-estimates';
+import { createLayoutState } from '../../reactivity/layout-state.svelte';
 import { makePara, mountListWindowing } from '../harness/list-windowing.svelte';
 
 const BLOCKS = 10;
@@ -47,7 +48,7 @@ describe('a structural rebuild after the check dropped its cache', () => {
 
 		// The mode switch: the cache goes, every height table keeps the heights it took from it,
 		// and a block whose box did not move reports no resize to put them back.
-		oracle.dropMeasured();
+		createLayoutState({ heightOracle: oracle }).forgetMeasuredHeights();
 
 		// Any structural edit rebuilds the height table off the now-empty cache.
 		children.push(makePara(`p${BLOCKS}\n`));

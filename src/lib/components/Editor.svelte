@@ -38,6 +38,7 @@
 	import { createContentVersion } from '../reactivity/content-version.svelte';
 	import { useRootWindowing } from '../reactivity/use-container-windowing.svelte';
 	import { createListTree } from '../reactivity/list-tree';
+	import { createLayoutState } from '../reactivity/layout-state.svelte';
 	import { refSlotsOver, replaceRefs } from '../reactivity/publish-ref.svelte';
 	import { componentAt, type ChildList } from '../reactivity/child-list';
 	import { createSelectionState } from '../selection/selection-state.svelte';
@@ -361,8 +362,8 @@
 		clearBlockRefs: () => {
 			blockRefs.length = 0;
 		},
-		get heightOracle() {
-			return heightOracle;
+		get layout() {
+			return layout;
 		},
 		undoManager,
 		caretMemory,
@@ -799,8 +800,8 @@
 		isHostChrome,
 		caretMemory,
 		// Built below; a mode switch runs after init, so the getter reads past the TDZ.
-		get heightOracle() {
-			return heightOracle;
+		get layout() {
+			return layout;
 		},
 		events,
 		restoreCaret: (path, offset) => roundTripRestore(caretAt(path, offset), { reveal: 'mount' }),
@@ -1018,46 +1019,35 @@
 
 	// ── Height estimates ────────────────────────────────────────────────
 
-	// The host's font scale against HEIGHT_ESTIMATES; plain `let` because windowing's hottest path
-	// reads it and `widthVersion` already signals the rebuild.
-	let typeScale = 1;
-
 	// Only font-relative terms scale; getters, so a scale change needs no new height estimator.
 	const heightOracle = createHeightOracle({
 		get lineHeight() {
-			return HEIGHT_ESTIMATES.proseLineHeight * typeScale;
+			return HEIGHT_ESTIMATES.proseLineHeight * layout.typeScale();
 		},
 		get codeLineHeight() {
-			return HEIGHT_ESTIMATES.codeLineHeight * typeScale;
+			return HEIGHT_ESTIMATES.codeLineHeight * layout.typeScale();
 		},
 		get avgCharWidth() {
-			return HEIGHT_ESTIMATES.avgCharWidth * typeScale;
+			return HEIGHT_ESTIMATES.avgCharWidth * layout.typeScale();
 		},
 		blockChrome: HEIGHT_ESTIMATES.blockChrome,
 		imageBlockMinHeight: HEIGHT_ESTIMATES.imageBlockMinHeight
 	});
+	const layout = createLayoutState({ heightOracle });
 
 	// ── Resize invalidation ─────────────────────────────────────────────
 
-	// A width change re-wraps prose and makes every cached height wrong, so the block lists
-	// rebuild off this counter; a height-only resize spares the measured cache.
-	let widthVersion = $state(0);
 	$effect(() => {
 		if (!editorEl) return;
-		return installWidthWatcher(editorEl, () => {
-			heightOracle.dropMeasured();
-			widthVersion++;
-		});
+		return installWidthWatcher(editorEl, layout.rebuildForNewGeometry);
 	});
 
-	// The scroll container's height sets how many blocks mount; a separate counter from
-	// `widthVersion`, since a height-only resize keeps every measured height.
-	let viewportHeightVersion = $state(0);
+	// The scroll container's height sets how many blocks mount.
 	$effect(() => {
 		if (!editorEl) return;
 		const target = getScrollHost();
 		if (!target) return;
-		return installViewportHeightWatcher(target, () => viewportHeightVersion++);
+		return installViewportHeightWatcher(target, layout.noteViewportHeight);
 	});
 
 	// ── Type scale ──────────────────────────────────────────────────────
@@ -1066,12 +1056,8 @@
 	$effect(() => {
 		if (!typeScaleProbeEl) return;
 		return installTypeScaleProbe(typeScaleProbeEl, {
-			getScale: () => typeScale,
-			onScale: (next) => {
-				typeScale = next;
-				heightOracle.dropMeasured();
-				widthVersion++;
-			}
+			getScale: layout.typeScale,
+			onScale: layout.setTypeScale
 		});
 	});
 
@@ -1124,8 +1110,8 @@
 		focusedPath: focusAttribution.getFocusedPath,
 		heightOracle,
 		listTree,
-		widthVersion: () => widthVersion,
-		viewportHeightVersion: () => viewportHeightVersion
+		widthVersion: layout.widthVersion,
+		viewportHeightVersion: layout.viewportHeightVersion
 	} satisfies EditorDoc);
 
 	// The inner `.block-list`, not `editorEl`: it scrolls with content, so its top maps scrollTop
@@ -1305,7 +1291,7 @@
 		getBlockIds: () => blockIds,
 		getMeasuredIds: () => heightOracle.measuredIds(),
 		getListTree: () => listTree,
-		getWidthVersion: () => widthVersion,
+		getWidthVersion: layout.widthVersion,
 		setBlockRefSlot: blockRefSlots.set
 	};
 </script>

@@ -17,8 +17,7 @@ const LIST_WIDTH = 1183;
 const widthOracle: HeightOracle = {
 	estimate: (_node, width) => width,
 	measured: () => undefined,
-	recordMeasured: () => {},
-	dropMeasured: () => {}
+	recordMeasured: () => {}
 };
 
 describe("a nested list's first heights", () => {
