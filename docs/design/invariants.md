@@ -259,6 +259,7 @@ Three families of seam run these checks:
 | G1.43 | Reading a commit's landing moves no caret                                           | A·N     |
 | G1.44 | The document holds a block, and a commit leaves no container it touched empty       | A·N     |
 | G1.45 | A caret landing's focus scrolls nothing                                             | A·N     |
+| G1.46 | A caret or range the editor puts down leaves no widget selected whole               | A·N     |
 
 ### The entries
 
@@ -711,6 +712,17 @@ and a focus that moved it (one without `preventScroll`) fails here. Predicate
 `invariants/landing-focus-scroll.ts :: checkLandingFocusScrollsNothing` · run by
 `selection/caret-landing.ts` · `test/selection/caret-landing.test.ts`; G4.91 is the source half.
 
+**G1.46 · A placed caret leaves no widget selected** (`placement-ends-widget`). An image selected
+whole lives in the same selection state as the range and the gap caret, and the state's clears end
+it. So once a block's `focus`, a range put down inside one block (a first Mod+A, a block's
+`setSelection`) or a restore has placed its caret or range, no widget should still be selected:
+one that is would look selected while the keys go to the caret, and the browser's own caret would
+get dropped under it. In a dev build `placeCaret`, `selectInBlock` and `applySelectionToDom` check
+it inside their batch, before anyone hears about the placement. Predicate
+`invariants/placement-ends-widget.ts :: checkPlacementEndsWidget` · run by
+`selection/caret-doors.ts` and `selection/native-bridge.ts` ·
+`test/invariants/placement-ends-widget.test.ts`; G4.94 is the source half.
+
 ## Group 2: property and regression tested
 
 No runtime seam sees these; the test suite is the whole enforcement. Test files live under
@@ -730,7 +742,7 @@ No runtime seam sees these; the test suite is the whole enforcement. Test files 
 | G2.9  | Paste emits its op kind by strategy, never by target depth                  | P     |
 | G2.10 | Every keydown path hands its key to the caret memory's classifier           | P·A   |
 | G2.11 | The inline scan covers every byte with known construct kinds, tiled         | P     |
-| G2.12 | A caret placement ends a live cross-block range, unless it is an extend     | L     |
+| G2.12 | A caret placement ends every editor-owned selection, unless it's an extend  | L     |
 | G2.13 | An edit leaves a tree whose serialization reparses to the same block shape  | P·N   |
 | G2.14 | A format toggle applies exactly where the active-read says it isn't applied | N     |
 
@@ -779,9 +791,11 @@ gaps, and every node's kind is in the vocabulary: the built-in kinds plus those 
 declared, so the property also runs with the bundled plugins' inline kinds registered.
 `inline-total-coverage.property.test.ts`.
 
-**G2.12 · Caret placement ends a range.** A caret placement ends a live cross-block range, unless
-it's an extend. The programmatic side is one route: `BlockComponent.focus` is built over each
-surface's park primitive and ends the range itself. The scan carries the three parts that can't be
+**G2.12 · Caret placement ends the editor's selection.** A caret placement ends every selection the editor owns
+(a cross-block range, a gap caret, an image selected whole), unless it's an extend. The
+programmatic side is one route: `BlockComponent.focus` is built over each surface's park primitive
+and ends them itself, and the table in `test/selection/selection-claim-table.test.ts` runs every
+writer over each of the three. The scan carries the three parts that can't be
 routed: NATIVE caret placement (a click's own default moves the caret, so per-file pointer-entry
 declarations still apply), the park verb's caller allowlist (legitimacy is the caller's intent, and
 no position test separates the uses), and the park verb's presence on every LEAF that forwards a
@@ -1002,6 +1016,7 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.90 | A paste inside one block cuts its selection through the range replace, with its text      | L       |
 | G4.91 | A focus call that may scroll the editor says why                                          | L       |
 | G4.93 | A list's height correction keeps only the block `heldBlock` picks                         | L       |
+| G4.94 | A gap caret or a widget is selected only in `caret-doors.ts`, and held in one store       | L       |
 | G4.95 | What a range covers is decided in the range coverage only                                 | L       |
 | G4.96 | A commit rebuilds each container once, and a mutation leaves that rebuild to it           | L       |
 
@@ -1861,6 +1876,15 @@ call to `compensate`, `heldBlock` or a `holdAcross` that holds nothing, declared
 and count with its reason (the list's one correction helper and its subtotal stopgap, the two
 hand-offs to the scroll owner, and the header slot, which sits above every list), so a call moved
 to another function fails too. `lint/file-rules.test.ts`.
+
+**G4.94 · The editor's own selections have one store and one set of writers.** A gap caret and an
+image selected whole are written only through `selection/caret-doors.ts` (`placeGapCaret`,
+`selectWidgetWhole`), which clear the browser's own range in the same batch, and a selected widget
+is held only in `selection/selection-state.svelte.ts`, whose one private writer ends the range and
+the gap caret as it takes the widget. Two manifest rows, both ways: a `.setGapCaret(` or
+`.selectWidget(` call anywhere else fails, and so does a `$state` cell typed as a `WidgetTarget`
+outside the store, since a second store is how the image once stayed selected under an undo's
+caret. `lint/file-rules.test.ts`, with G1.46 as the runtime half.
 
 **G4.95 · What a range covers is decided once.** `selection/range-coverage.ts :: rangeCoverage`
 says which edges a range keeps, which subtrees it holds whole and which cells of a table it holds,

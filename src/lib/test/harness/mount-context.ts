@@ -72,7 +72,7 @@ function stubbedServices(getDoc: () => DocumentView): EditorServices {
 		// Filled in by `editorMountContext`, which builds it over the document group's scroll host.
 		scrollOwner: {} as EditorServices['scrollOwner'],
 		// Real: every keydown on an editable block asks it what is selected.
-		widgetSelection: createWidgetSelectionState({ onSelect: () => {} }),
+		widgetSelection: createWidgetSelectionState(selection),
 		selectedWidget: { range: () => null, clear: () => {} },
 		// Real: a `link.openCard` keypress asks it to record a target, and the entry rule reads it
 		// back. The checks mirror production, so a component test runs the ones it ships with.

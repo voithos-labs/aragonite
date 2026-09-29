@@ -7,6 +7,8 @@
 import { cellPoint, type SelectionPoint, type EditorSelection } from './primitives';
 import type { SelectionState } from './selection-state.svelte';
 import type { BlockComponent } from '../block-component';
+import { assertInvariant } from '../assert';
+import { checkPlacementEndsWidget } from '../invariants/placement-ends-widget';
 import {
 	placeCaretAtRaw,
 	rawOffsetAt,
@@ -99,17 +101,14 @@ export function parkFocusOnEditorRoot(
 
 // ── Selection read/restore ───────────────────────────────────────────────────
 
-/** The editor's live selection, for every caller outside a gesture. A selected image comes first:
- *  the browser briefly puts a caret at its paragraph's start, which the editor then drops. */
+/** The editor's live selection, for every caller outside a gesture. A selected widget reads as its
+ *  caret, ahead of the caret the browser briefly puts at its paragraph's start. */
 export function readCurrentSelection(
 	selectionState: SelectionState,
-	blockRefs: (BlockComponent | undefined)[],
-	selectedWidgetCaret: () => EditorSelection | null
+	blockRefs: (BlockComponent | undefined)[]
 ): EditorSelection | null {
-	const widget = selectedWidgetCaret();
-	if (widget) {
-		return { anchor: copySelectionPoint(widget.anchor), focus: copySelectionPoint(widget.focus) };
-	}
+	const widget = selectionState.widgetCaret();
+	if (widget) return collapsedSelectionAt(widget.path, widget.offset);
 	if (selectionState.isCrossBlock && selectionState.anchor && selectionState.focus) {
 		return {
 			anchor: copySelectionPoint(selectionState.anchor),
@@ -178,6 +177,9 @@ export function applySelectionToDom(selection: EditorSelection, target: RestoreT
 	let placed = false;
 	target.selectionState.batch(() => {
 		placed = placeRestoredSelection(selection, target);
+		assertInvariant('placement-ends-widget', () =>
+			checkPlacementEndsWidget(target.selectionState.widget)
+		);
 		// Announced explicitly: a restore onto an already clear state changes no field of the
 		// selection state and still moves the caret that subscribers read back.
 		target.selectionState.announceSelection();

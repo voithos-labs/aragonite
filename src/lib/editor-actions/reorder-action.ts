@@ -26,10 +26,7 @@ export function createReorderAction(
 	controller: UndoController
 ): ReorderAction {
 	function caretOffset(): number {
-		const widgetCaret = deps.getSelectedWidgetCaret ?? (() => null);
-		return (
-			readCurrentSelection(deps.selectionState, deps.blockRefs, widgetCaret)?.focus.offset ?? 0
-		);
+		return readCurrentSelection(deps.selectionState, deps.blockRefs)?.focus.offset ?? 0;
 	}
 
 	function commitReorder(

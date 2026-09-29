@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
 	import type { ImageCrop, ImageFields } from '../../core/nodes';
-	import { pressLeavesImage, type WidgetTarget } from './widget-selection-state.svelte';
+	import { pressLeavesImage } from './widget-selection-state.svelte';
+	import type { WidgetTarget } from '../../selection/primitives';
 	import {
 		IMAGE_ALT_FIELD,
 		IMAGE_ALT_PLACEHOLDER,
@@ -55,8 +56,8 @@
 	// every render, so its identity says nothing about whether the image changed.
 	let seedBytes = $state(untrack(() => buildBytes(target, fields)));
 
-	// A write from outside the popover (an undo) discards the draft, or the commit on dismiss
-	// would put the earlier bytes back.
+	// A write from outside the popover while it stays open (a find-bar replace) discards the
+	// draft, or an edit to it would put the earlier bytes back.
 	$effect(() => {
 		const live = buildBytes(target, fields);
 		if (live === seedBytes) return;

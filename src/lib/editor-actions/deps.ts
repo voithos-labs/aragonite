@@ -3,7 +3,6 @@ import type { Document } from '../core/nodes';
 import type { CaretMemory } from '../cursor/caret-memory';
 import type { BlockElLookup } from '../editor-keys';
 import type { SelectionState } from '../selection/selection-state.svelte';
-import type { EditorSelection } from '../selection/primitives';
 import type { UndoEntry, UndoManager } from '../undo/types';
 import type { SharingState } from '../tree-operations/sharing';
 import type { EditorEvents } from '../editor-events';
@@ -29,9 +28,6 @@ export interface EditorActionsDeps {
 	sharing: SharingState;
 	caretMemory: CaretMemory;
 	selectionState: SelectionState;
-	/** The edge of the image selected whole, as a collapsed caret (null with none, absent in
-	 *  harnesses); no block reports a caret meanwhile, so selection reads answer with this one. */
-	getSelectedWidgetCaret?: () => EditorSelection | null;
 	getBlockElByPath: BlockElLookup;
 	/** Where every commit's caret and every restored selection is put down, and the counter an
 	 *  undo, redo or swap bumps. */

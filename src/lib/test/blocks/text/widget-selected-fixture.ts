@@ -5,6 +5,7 @@ import {
 	type WidgetInteractionDeps
 } from '$lib/components/blocks/text/widget-interaction';
 import { createWidgetSelectionState } from '$lib/components/image/widget-selection-state.svelte';
+import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import type { CstNode } from '$lib/core/nodes';
 import { fixtureReading, topLevelStore } from '../../harness/fixture-grammar';
 import { defaultGrammarView } from '$lib/schema/block-openers';
@@ -24,7 +25,7 @@ export function harness(
 	const node: CstNode = parse(source).children[0];
 	const commits: Commit[] = [];
 	const carets: (number | null)[] = [];
-	const widgetSelection = createWidgetSelectionState({ onSelect: () => {} });
+	const widgetSelection = createWidgetSelectionState(createSelectionState());
 	widgetSelection.select({ paragraphPath: [0], sourceStart, preSelectOffset: sourceStart });
 
 	const trap = () => {

@@ -145,7 +145,9 @@ describe('editor-root listeners: selectionchange bridge', () => {
 			root,
 			isHostChrome: (node) => !!node && header.contains(node),
 			announceIfMoved: () => emits++,
-			isWidgetSelected: () => widgetSelected
+			selection: {
+				widget: widgetSelected ? { paragraphPath: [0], sourceStart: 0, preSelectOffset: 0 } : null
+			}
 		});
 		teardowns.push(teardown);
 		return { headerField, content, popover, outside, teardown, emits: () => emits };

@@ -12,7 +12,8 @@ import {
 	imageFieldsFromInline,
 	sameImageFields
 } from '../../core/inline/image-source-bytes';
-import type { WidgetSelectionState, WidgetTarget } from './widget-selection-state.svelte';
+import type { WidgetSelectionState } from './widget-selection-state.svelte';
+import type { WidgetTarget } from '../../selection/primitives';
 import type { Reading } from '../../schema/reading';
 
 // ── Public API ──────────────────────────────────────────────────────────

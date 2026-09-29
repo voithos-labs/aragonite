@@ -11,6 +11,7 @@ import {
 	type TextClipboardDeps
 } from '$lib/components/blocks/text/text-clipboard';
 import { createWidgetSelectionState } from '$lib/components/image/widget-selection-state.svelte';
+import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import type { CstNode } from '$lib/core/nodes';
 import type { Commit } from './widget-selected-fixture';
 import { fixtureReading, topLevelStore } from '../../harness/fixture-grammar';
@@ -47,7 +48,7 @@ function harness(source: string, sourceStart: number, options: HarnessOptions = 
 	const doc = parse(source);
 	const node: CstNode = doc.children[0];
 	const commits: Commit[] = [];
-	const widgetSelection = createWidgetSelectionState({ onSelect: () => {} });
+	const widgetSelection = createWidgetSelectionState(createSelectionState());
 	if (options.selectWidget !== false) {
 		widgetSelection.select({
 			paragraphPath: [0],
@@ -222,7 +223,7 @@ function foldSettleHarness() {
 	const doc = parse('lead![cat](x)\n');
 	const node: CstNode = doc.children[0];
 	const order: string[] = [];
-	const widgetSelection = createWidgetSelectionState({ onSelect: () => {} });
+	const widgetSelection = createWidgetSelectionState(createSelectionState());
 	widgetSelection.select({ paragraphPath: [0], sourceStart: 4, preSelectOffset: 4 });
 
 	let releaseWrite!: () => void;

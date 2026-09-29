@@ -1,9 +1,12 @@
-// A selected image never coexists with a document caret or range: `select` fires `onSelect` so
-// the editor clears them, a cross-block range clears the image, and the editor's selectionchange
-// listener drops a caret the browser puts in a block while an image is selected.
+// The image and text-block readers' view of the widget the selection state holds. It keeps no state
+// of its own, so it can't disagree with the store. Interim: it goes once those readers read the
+// selection state themselves.
 
+import { selectWidgetWhole } from '../../selection/caret-doors';
 import { pathsEqual } from '../../selection/path-math';
 import { findSurfacePathForElement } from '../../selection/path-lookup';
+import type { WidgetTarget } from '../../selection/primitives';
+import type { SelectionState } from '../../selection/selection-state.svelte';
 
 /** What a click-outside handler must not count as outside: the widget itself and the overlay
  *  controls attached to it. */
@@ -19,58 +22,28 @@ export function pressLeavesImage(press: PointerEvent, editorRoot: Element | null
 	return !ownedByBlock;
 }
 
-export interface WidgetTarget {
-	// A deliberate snapshot, unlike the click path's live resolve (widget-dom.ts): a popover commit
-	// must target the image it opened on, and writes nothing once another image holds these bytes.
-	paragraphPath: number[];
-	sourceStart: number;
-	// The caret's raw offset just before widget selection took over; drives the undo
-	// anchor so Ctrl+Z restores where the user was, not the deleted region's boundary.
-	preSelectOffset: number;
-}
-
 export interface WidgetSelectionState {
 	getSelected(): WidgetTarget | null;
 	select(target: WidgetTarget): void;
+	/** Ends a selected widget; with none selected, touches nothing else the store holds. */
 	clear(): void;
-	/** Moves the selection by `delta` bytes when it sits in `paragraphPath` at or past `editEnd`:
-	 *  an edit to another image earlier in the paragraph moved its bytes, not its identity. */
 	followEdit(paragraphPath: number[], editEnd: number, delta: number): void;
 	isSelected(paragraphPath: number[], sourceStart: number): boolean;
 }
 
-export interface CreateWidgetSelectionOpts {
-	onSelect: () => void;
-}
-
-export function createWidgetSelectionState(opts: CreateWidgetSelectionOpts): WidgetSelectionState {
-	let selected = $state<WidgetTarget | null>(null);
-
+export function createWidgetSelectionState(selection: SelectionState): WidgetSelectionState {
 	return {
-		getSelected: () => selected,
-		select: (target) => {
-			selected = {
-				paragraphPath: [...target.paragraphPath],
-				sourceStart: target.sourceStart,
-				preSelectOffset: target.preSelectOffset
-			};
-			opts.onSelect();
-		},
+		getSelected: () => selection.widget,
+		select: (target) => selectWidgetWhole(selection, target),
 		clear: () => {
-			selected = null;
+			if (selection.widget !== null) selection.clear();
 		},
-		followEdit: (path, editEnd, delta) => {
-			if (!selected || selected.sourceStart < editEnd) return;
-			if (!pathsEqual(selected.paragraphPath, path)) return;
-			selected = {
-				paragraphPath: selected.paragraphPath,
-				sourceStart: selected.sourceStart + delta,
-				preSelectOffset: selected.preSelectOffset + delta
-			};
-		},
-		isSelected: (path, start) =>
-			selected !== null &&
-			selected.sourceStart === start &&
-			pathsEqual(selected.paragraphPath, path)
+		followEdit: (path, editEnd, delta) => selection.followWidgetEdit(path, editEnd, delta),
+		isSelected: (path, start) => {
+			const widget = selection.widget;
+			return (
+				widget !== null && widget.sourceStart === start && pathsEqual(widget.paragraphPath, path)
+			);
+		}
 	};
 }

@@ -77,6 +77,7 @@
 	import { createEditorDiagnostics } from '../debug/editor-diagnostics';
 	import { readCurrentSelection } from '../selection/native-bridge';
 	import { createCaretRestore, type CaretRestoreDeps } from '../selection/caret-restore';
+	import { createRoundTripRestore } from '../selection/round-trip-restore';
 	import { createCrossBlockHandlers } from '../selection/cross-block/dispatch';
 	import { createCrossBlockCommands } from '../selection/cross-block/format-toggle';
 	import { normalizeKeybindingOverrides } from '../schema/keybinding-overrides';
@@ -273,12 +274,12 @@
 	});
 	const selectionState = createSelectionState({
 		onChange: ({ placementOnly }) => {
-			// A range and a selected widget never coexist (widget-selection-state.svelte.ts).
-			if (selectionState.isCrossBlock) widgetSelection.clear();
 			if (placementOnly) selectionAnnouncer.announceIfMoved();
 			else selectionAnnouncer.announce();
 		},
-		getDoc: () => doc
+		getDoc: () => doc,
+		// Read off the live document, since an image's own commits move its end byte.
+		widgetSpan: (target) => imageAtTarget(doc, target, reading)
 	});
 	// With no live range this reads no document bytes, so a keystroke at a caret costs nothing here.
 	const coverage = $derived.by(() => {
@@ -286,40 +287,11 @@
 		if (!selectionState.isCustomRendered || !anchor || !focus) return null;
 		return rangeCoverage(doc, coverRange(doc, anchor, focus));
 	});
-	const widgetSelection = createWidgetSelectionState({
-		onSelect: () => {
-			window.getSelection()?.removeAllRanges();
-			// Announced explicitly: the native `selectionchange` from dropping the range never
-			// reaches subscribers, and the clear sees no field move.
-			selectionState.batch(() => {
-				selectionState.clear();
-				selectionState.announceSelection();
-			});
-		}
-	});
-
-	// Resolved from the live document on each read: an image's own commits move its end byte.
+	const widgetSelection = createWidgetSelectionState(selectionState);
 	const selectedWidget: SelectedWidgetHandle = {
-		range: () => {
-			const target = widgetSelection.getSelected();
-			const image = target && imageAtTarget(doc, target, reading);
-			return target && image
-				? { path: [...target.paragraphPath], start: image.start, end: image.end }
-				: null;
-		},
-		clear: () => widgetSelection.clear()
+		range: () => selectionState.widgetRange(),
+		clear: widgetSelection.clear
 	};
-
-	// The caret a selected image stands for, read off the live image since a resize moves its end.
-	function selectedWidgetCaret(): EditorSelection | null {
-		const selected = widgetSelection.getSelected();
-		if (!selected) return null;
-		const live = selectedWidget.range();
-		const fromStart = selected.preSelectOffset === selected.sourceStart;
-		const offset = live ? (fromStart ? live.start : live.end) : selected.preSelectOffset;
-		const point = { path: [...selected.paragraphPath], offset };
-		return { anchor: point, focus: point };
-	}
 
 	let selectionDescription = $derived(
 		selectionState.isCrossBlock && selectionState.anchor && selectionState.focus
@@ -588,7 +560,6 @@
 		sharing,
 		caretMemory,
 		selectionState,
-		getSelectedWidgetCaret: selectedWidgetCaret,
 		getBlockElByPath,
 		caretLanding,
 		events,
@@ -685,12 +656,19 @@
 
 	const pasteCoordinator = createPasteCoordinator(editorActionsDeps, controller);
 
+	// The find bar, the link card and a mode switch put their saved selection back through here.
+	const roundTripRestore = createRoundTripRestore({
+		selection: selectionState,
+		landing: caretLanding,
+		getBlockElByPath
+	});
+
 	// The document caret while the search bar or link card holds focus; one each, so a card
 	// opened over the search bar cannot overwrite the caret the bar restores.
 	const caretRestoreDeps: CaretRestoreDeps = {
 		getEditorEl: () => editorEl ?? null,
 		read: () => getSelection(),
-		restore: (selection) => caretLanding.restore(selection, { reveal: 'into-view' })
+		restore: (selection) => roundTripRestore(selection, { reveal: 'into-view' })
 	};
 	const searchCaret = createCaretRestore(caretRestoreDeps);
 	const linkCardCaret = createCaretRestore(caretRestoreDeps);
@@ -824,8 +802,7 @@
 			return heightOracle;
 		},
 		events,
-		restoreCaret: (path, offset) =>
-			caretLanding.restore(caretAt(path, offset), { reveal: 'mount' }),
+		restoreCaret: (path, offset) => roundTripRestore(caretAt(path, offset), { reveal: 'mount' }),
 		holdOutgoingMode: (mode) => {
 			outgoingMode = mode;
 		}
@@ -944,7 +921,7 @@
 			root: editorEl,
 			isHostChrome,
 			announceIfMoved: selectionAnnouncer.announceIfMoved,
-			isWidgetSelected: () => widgetSelection.getSelected() !== null
+			selection: selectionState
 		});
 	});
 
@@ -1022,7 +999,7 @@
 		},
 		events,
 		getSelectedWidgetBlock: () => {
-			const selected = widgetSelection.getSelected();
+			const selected = selectionState.widget;
 			return selected ? getBlockComponent(selected.paragraphPath) : null;
 		}
 	});
@@ -1178,7 +1155,7 @@
 
 	/** A snapshot of the current selection with copied paths, or null when nothing is focused. */
 	export function getSelection(): EditorSelection | null {
-		return readCurrentSelection(selectionState, blockRefs, selectedWidgetCaret);
+		return readCurrentSelection(selectionState, blockRefs);
 	}
 
 	function caretAt(path: number[], offset = 0): EditorSelection {

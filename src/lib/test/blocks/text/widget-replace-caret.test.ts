@@ -6,6 +6,7 @@ import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { replaceSelectedWidget } from '$lib/components/blocks/text/widget-interaction';
 import { createWidgetSelectionState } from '$lib/components/image/widget-selection-state.svelte';
+import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import type { CstNode } from '$lib/core/nodes';
 import { fixtureReading, topLevelStore } from '../../harness/fixture-grammar';
 import { storedAsAt } from '$lib/tree-operations/stored-as';
@@ -19,7 +20,7 @@ function fixture() {
 	const node: CstNode = parse(SOURCE).children[0];
 	const log: string[] = [];
 	let finishWrite = () => {};
-	const widgetSelection = createWidgetSelectionState({ onSelect: () => {} });
+	const widgetSelection = createWidgetSelectionState(createSelectionState());
 	widgetSelection.select({ paragraphPath: [0], sourceStart: WIDGET.start, preSelectOffset: 2 });
 	const deps = {
 		get node() {
@@ -74,7 +75,7 @@ describe('replacing a selected widget', () => {
 		const row = mountBodyRow('| a | b |\n| - | - |\n| x<br>y | z |\n');
 		const cell = () => row.deps.doc.children[0].children![1].children![0];
 		const parked: (number | null)[] = [];
-		const widgetSelection = createWidgetSelectionState({ onSelect: () => {} });
+		const widgetSelection = createWidgetSelectionState(createSelectionState());
 		widgetSelection.select({ paragraphPath: [0, 1, 0], sourceStart: 1, preSelectOffset: 1 });
 		const deps = {
 			get node() {

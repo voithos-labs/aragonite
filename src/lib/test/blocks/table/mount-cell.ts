@@ -95,7 +95,7 @@ export function mountCell(raw: string, policies: Partial<EditorPolicies> = {}): 
 			services: {
 				decorations: noIslands,
 				selection,
-				widgetSelection: createWidgetSelectionState({ onSelect: () => {} })
+				widgetSelection: createWidgetSelectionState(selection)
 			}
 		},
 		context: [[TABLE_CONTEXT_KEY, tableContext]]

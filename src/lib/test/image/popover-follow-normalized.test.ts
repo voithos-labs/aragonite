@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 // Miss-analysis: every follow case wrote a paragraph, never a kind whose write rule changes bytes.
 import { describe, expect, it } from 'vitest';
 import { tick } from 'svelte';
@@ -5,6 +6,7 @@ import { defaultGrammarView } from '$lib/schema/block-openers';
 import { createImageEditCommitter } from '../../components/image/image-edit-commit';
 import { imageFieldsFromInline } from '../../core/inline/image-source-bytes';
 import { createWidgetSelectionState } from '../../components/image/widget-selection-state.svelte';
+import { createSelectionState } from '../../selection/selection-state.svelte';
 import { getInlineContent } from '../../core/inline/inline-cache';
 import { parse } from '../../core/parser';
 import type { CstNode, Document } from '../../core/nodes';
@@ -29,7 +31,7 @@ function probeKind(name: string, rule: (raw: string, node: { raw: string }) => s
 function secondImageSelected(kind: string) {
 	let doc: Document = parse('![a](a.png) ![b](a.png)\n');
 	(doc.children[0] as CstNode).kind = kind as CstNode['kind'];
-	const widgetSelection = createWidgetSelectionState({ onSelect: () => {} });
+	const widgetSelection = createWidgetSelectionState(createSelectionState());
 	const committer = createImageEditCommitter({
 		getDoc: () => doc,
 		getEditorEl: () => null,

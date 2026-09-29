@@ -24,6 +24,7 @@ import { pathsEqual } from '../path-math';
 import { intraTableRectExtension } from '../table-rect-extend';
 import { cellPoint } from '../primitives';
 import { applySurfaceContentRange } from '../native-bridge';
+import { selectInBlock } from '../caret-doors';
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
@@ -248,12 +249,13 @@ async function handleCrossBlockEntry(
 
 	if (isSelectAllChord(e)) {
 		e.preventDefault();
-		selection.incrementSelectAllCount();
-		if (selection.selectAllCount === 1) {
-			applySurfaceContentRange(el);
-			return true;
-		}
-		selectWholeDocument(selection, getDoc(), ctx.getBlockElByPath);
+		// Ended before the count moves, since ending a selected widget restarts the run.
+		const first = selection.selectAllCount === 0;
+		selection.batch(() => {
+			if (first) selectInBlock(selection, () => applySurfaceContentRange(el));
+			selection.incrementSelectAllCount();
+		});
+		if (!first) selectWholeDocument(selection, getDoc(), ctx.getBlockElByPath);
 		return true;
 	}
 

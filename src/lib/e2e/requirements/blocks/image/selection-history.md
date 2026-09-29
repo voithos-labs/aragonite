@@ -18,3 +18,9 @@
   live at the resized image's end, not at the paragraph start
   - Miss-analysis: the redo case pinned the paragraph start as the recorded caret, and no spec
     undid a resize, so the entry's caret was never read after a gesture on a selected image
+- Typing in the paragraph below an image, clicking the image, then undo: the image's bytes don't
+  move, and it still deselects, the caret goes back live where the typing began, and the next
+  character lands there
+  - Miss-analysis: the only undo spec here moved the image's bytes, and the image's own check for
+    moved bytes deselected it before the caret came back, so nothing covered an undo that leaves
+    the image where it was
