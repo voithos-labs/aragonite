@@ -69,10 +69,14 @@ async function keepReservedChrome(): Promise<boolean> {
 
 async function spliceLift(deps: NestedActionsDeps, replacement: CstNode[]): Promise<boolean> {
 	if (replacement.length === 0) return false;
-	return deps.parent.blockEdit.replaceBlock(deps.index, replacement, {
-		replacementIndex: 0,
-		offset: 0
-	});
+	return deps.parent.blockEdit.replaceBlock(
+		deps.index,
+		replacement,
+		{ replacementIndex: 0, offset: 0 },
+		// The caret sat in a child leaf, which an offset into the container can't name; the live
+		// read records it.
+		{ snapshotOffset: 0 }
+	);
 }
 
 /** The first list item: promote if nested, delete if empty, delete the list if it is the only
@@ -100,10 +104,14 @@ async function listItemCascadeFirst(strategy: UnwrapStrategyDeps): Promise<boole
 	if (firstChildEmpty) return removeEmptiedContainer(deps, 'Backspace');
 	const replacement = unwrapFirstItemFromList(node);
 	if (replacement.length === 0) return false;
-	return deps.parent.blockEdit.replaceBlock(index, replacement, {
-		replacementIndex: 0,
-		offset: 0
-	});
+	// The caret sat in the first item, which an offset into the list can't name; the live read
+	// records it.
+	return deps.parent.blockEdit.replaceBlock(
+		index,
+		replacement,
+		{ replacementIndex: 0, offset: 0 },
+		{ snapshotOffset: 0 }
+	);
 }
 
 // ── Middle-child strategies ─────────────────────────────────────────────────

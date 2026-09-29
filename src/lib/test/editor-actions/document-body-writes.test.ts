@@ -33,7 +33,10 @@ const TAIL_EDITS: [string, (h: TopHarness, last: number) => Promise<boolean>][] 
 	['append a paragraph with text', (h, last) => h.actions.insertParagraph(last + 1, 'new')],
 	['merge into the previous block', (h, last) => h.actions.mergeWithPrevious(last)],
 	['merge the previous block into it', (h, last) => h.actions.mergeWithNext(last - 1)],
-	['replace with nothing', (h, last) => h.actions.replaceBlock(last, [])],
+	[
+		'replace with nothing',
+		(h, last) => h.actions.replaceBlock(last, [], undefined, { snapshotOffset: 0 })
+	],
 	['update to blank', (h, last) => h.actions.updateBlockContent(last, '\n', 'authored', 0)],
 	['update to text', (h, last) => h.actions.updateBlockContent(last, 'z\n', 'authored', 0)]
 ];

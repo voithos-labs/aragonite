@@ -109,7 +109,7 @@ describe('details terminator escape at the paste door', () => {
 			[0, 1],
 			[{ kind: 'htmlBlock', leadingTrivia: '', raw: '</details>\n' } as CstNode],
 			{ replacementIndex: 0, offset: 0 },
-			{ source: 'paste-dispatch' }
+			{ source: 'paste-dispatch', snapshotOffset: 0 }
 		);
 
 		const child = h.doc.children[0].children?.[1];

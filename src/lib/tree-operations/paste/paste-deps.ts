@@ -33,6 +33,6 @@ export interface PasteCommitCoordinator {
 		blockPath: number[],
 		replacement: CstNode[],
 		focus: ReplaceFocus,
-		opts: { source: ReplaceSource; trailingBlank?: boolean; snapshotOffset?: number }
+		opts: { source: ReplaceSource; trailingBlank?: boolean; snapshotOffset: number }
 	): Promise<number | null>;
 }

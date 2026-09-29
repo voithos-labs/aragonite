@@ -162,7 +162,7 @@ const ROWS: Record<string, Row> = {
 	},
 	'the only block replaced by nothing': {
 		source: 'a\n',
-		drive: (env) => env.h.actions.replaceBlock(0, []),
+		drive: (env) => env.h.actions.replaceBlock(0, [], undefined, { snapshotOffset: 0 }),
 		bytes: '\n',
 		placed: []
 	},
@@ -215,7 +215,7 @@ const ROWS: Record<string, Row> = {
 	},
 	'a quote’s only child replaced by nothing': {
 		source: '> a\n',
-		drive: (env) => nested(env, 0).replaceBlock(0, []),
+		drive: (env) => nested(env, 0).replaceBlock(0, [], undefined, { snapshotOffset: 0 }),
 		bytes: '\n',
 		placed: [[0]]
 	},

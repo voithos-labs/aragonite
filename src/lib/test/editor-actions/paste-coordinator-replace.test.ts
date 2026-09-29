@@ -24,7 +24,7 @@ describe('the paste coordinator replace: id preservation', () => {
 			[0],
 			[makePara('replaced\n'), makeHeading('# new\n')],
 			{ replacementIndex: 0, offset: 0 },
-			{ source: 'paste-dispatch' }
+			{ source: 'paste-dispatch', snapshotOffset: 0 }
 		);
 
 		const ids = harness.getBlockIds();
@@ -42,7 +42,7 @@ describe('the paste coordinator replace: id preservation', () => {
 			[0],
 			[makeHeading('# new\n'), makePara('after\n')],
 			{ replacementIndex: 0, offset: 0 },
-			{ source: 'paste-dispatch' }
+			{ source: 'paste-dispatch', snapshotOffset: 0 }
 		);
 
 		const ids = harness.getBlockIds();
@@ -66,7 +66,7 @@ describe('the paste coordinator replace: id preservation', () => {
 			[1],
 			[],
 			{ replacementIndex: 0, offset: 0 },
-			{ source: 'paste-dispatch' }
+			{ source: 'paste-dispatch', snapshotOffset: 0 }
 		);
 
 		expect(harness.doc.children).toHaveLength(2);
@@ -86,7 +86,7 @@ describe('the paste coordinator replace: id preservation', () => {
 			[0],
 			[makePara('plain\n')],
 			{ replacementIndex: 0, offset: 0 },
-			{ source: 'paste-dispatch' }
+			{ source: 'paste-dispatch', snapshotOffset: 0 }
 		);
 
 		expect(harness.getBlockIds()[0]).not.toBe(originalId);

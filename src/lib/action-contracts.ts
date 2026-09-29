@@ -123,8 +123,8 @@ export interface BlockEditActions {
 	replaceBlock(
 		blockIndex: number,
 		replacement: CstNode[],
-		focus?: { replacementIndex: number; offset: number; path?: number[] },
-		options?: { snapshotOffset?: number }
+		focus: { replacementIndex: number; offset: number; path?: number[] } | undefined,
+		options: { snapshotOffset: number }
 	): Promise<boolean>;
 }
 
@@ -362,8 +362,8 @@ export interface ReplaceFocus {
 }
 
 export interface ReplaceOptions {
-	/** Where undo puts the caret back, when it differs from where the replacement lands it. */
-	snapshotOffset?: number;
+	/** Where undo puts the caret back when nothing is focused: where the gesture began. */
+	snapshotOffset: number;
 	/** A clipboard's own trailing blank line, landed as the document's when nothing follows. */
 	trailingBlank?: boolean;
 	/** The route a paste or a drop names in the edit event, in place of the block count. */

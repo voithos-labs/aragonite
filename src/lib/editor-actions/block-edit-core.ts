@@ -266,8 +266,8 @@ export interface BlockEditCore {
 	replaceBlock(
 		i: number,
 		replacement: CstNode[],
-		focus?: ReplaceFocus,
-		options?: ReplaceOptions
+		focus: ReplaceFocus | undefined,
+		options: ReplaceOptions
 	): Promise<number | null>;
 }
 
@@ -485,9 +485,7 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 			const tracked = focus
 				? trackedPasteCaret(replacement, i, focusIndex, focus.offset)
 				: undefined;
-			// `snapshotOffset` is where the caret was, which undo restores; `focus.offset` is where
-			// it lands. They differ when the replacement puts it inside a new structure.
-			const snapshot = { index: i, offset: options?.snapshotOffset ?? focus?.offset ?? 0 };
+			const snapshot = { index: i, offset: options.snapshotOffset };
 			const wrote = await scope.commit({
 				snapshot,
 				eventTarget: i,

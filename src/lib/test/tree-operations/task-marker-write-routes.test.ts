@@ -68,7 +68,9 @@ describe('every write that can replace a to-do’s first block drops the marker 
 		const item = todoItem('- [ ] alpha\n');
 		const { scope } = makeCommitScopeStub(item.children!, { owner: item });
 
-		await createBlockEditCore(scope).replaceBlock(0, parse(TABLE).children);
+		await createBlockEditCore(scope).replaceBlock(0, parse(TABLE).children, undefined, {
+			snapshotOffset: 0
+		});
 
 		expect(item.children![0].kind).toBe('table');
 		expect(metaOf(item).taskItem).toBe(false);
@@ -83,7 +85,7 @@ describe('every write that can replace a to-do’s first block drops the marker 
 			[0, 0, 0],
 			parse(TABLE).children,
 			{ replacementIndex: 0, offset: 0 },
-			{ source: 'paste-dispatch' }
+			{ source: 'paste-dispatch', snapshotOffset: 0 }
 		);
 
 		const item = doc.children[0].children![0];

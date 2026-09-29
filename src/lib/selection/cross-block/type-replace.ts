@@ -102,7 +102,8 @@ async function replaceCoveredBlockWithText(
 			blockPath,
 			parsed.replacement,
 			{ replacementIndex: parsed.replacement.length - 1, offset: CURSOR_END },
-			{ source: 'cross-block-covered-block' }
+			// The range's undo step records the selection, so this offset is never read.
+			{ source: 'cross-block-covered-block', snapshotOffset: 0 }
 		);
 	});
 }

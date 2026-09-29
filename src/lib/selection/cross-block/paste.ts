@@ -142,9 +142,13 @@ async function replaceCoveredBlockWithPaste(
 			blockPath,
 			parsed.replacement,
 			{ replacementIndex: parsed.replacement.length - 1, offset: CURSOR_END },
-			// The block's whole position is the target, with nothing reattached after the pasted
-			// text, so the trailing blank line comes in unfiltered.
-			{ source: 'cross-block-covered-block', trailingBlank: parsed.suffix !== '' }
+			// The trailing blank line comes in unfiltered, since nothing is reattached after the
+			// pasted text; the range's undo step records the selection, so the offset is never read.
+			{
+				source: 'cross-block-covered-block',
+				trailingBlank: parsed.suffix !== '',
+				snapshotOffset: 0
+			}
 		);
 	});
 }

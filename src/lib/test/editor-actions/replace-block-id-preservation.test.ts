@@ -17,7 +17,9 @@ describe('top-level replaceBlock id preservation', () => {
 
 		const originalId = getBlockIds()[0];
 
-		await actions.replaceBlock(0, [makeNode('paragraph', 'world\n')]);
+		await actions.replaceBlock(0, [makeNode('paragraph', 'world\n')], undefined, {
+			snapshotOffset: 0
+		});
 
 		const ids = getBlockIds();
 		expect(ids).toHaveLength(1);
@@ -33,10 +35,12 @@ describe('top-level replaceBlock id preservation', () => {
 		const originalId = getBlockIds()[0];
 		const siblingId = getBlockIds()[1];
 
-		await actions.replaceBlock(0, [
-			makeNode('paragraph', 'x\n'),
-			{ ...makeNode('paragraph', 'y\n'), leadingTrivia: '\n' }
-		]);
+		await actions.replaceBlock(
+			0,
+			[makeNode('paragraph', 'x\n'), { ...makeNode('paragraph', 'y\n'), leadingTrivia: '\n' }],
+			undefined,
+			{ snapshotOffset: 0 }
+		);
 
 		const ids = getBlockIds();
 		expect(ids).toHaveLength(3);
@@ -52,7 +56,7 @@ describe('top-level replaceBlock id preservation', () => {
 
 		const originalRef = getBlockRefs()[0];
 
-		await actions.replaceBlock(0, [makeNode('paragraph', 'b\n')]);
+		await actions.replaceBlock(0, [makeNode('paragraph', 'b\n')], undefined, { snapshotOffset: 0 });
 
 		expect(getBlockRefs()[0]).toBe(originalRef);
 	});
@@ -65,7 +69,7 @@ describe('top-level replaceBlock id preservation', () => {
 
 		const siblingId = getBlockIds()[1];
 
-		await actions.replaceBlock(0, []);
+		await actions.replaceBlock(0, [], undefined, { snapshotOffset: 0 });
 
 		const ids = getBlockIds();
 		expect(ids).toHaveLength(1);
@@ -97,7 +101,9 @@ describe('nested replaceBlock id preservation', () => {
 		const { bundle, containerState } = makeNestedSetup();
 		const originalInnerId = containerState.innerBlockIds[0];
 
-		await bundle.blockEdit.replaceBlock(0, [makeNode('paragraph', 'world\n')]);
+		await bundle.blockEdit.replaceBlock(0, [makeNode('paragraph', 'world\n')], undefined, {
+			snapshotOffset: 0
+		});
 
 		expect(containerState.innerBlockIds).toHaveLength(1);
 		expect(containerState.innerBlockIds[0]).toBe(originalInnerId);
@@ -107,10 +113,12 @@ describe('nested replaceBlock id preservation', () => {
 		const { bundle, containerState } = makeNestedSetup();
 		const originalInnerId = containerState.innerBlockIds[0];
 
-		await bundle.blockEdit.replaceBlock(0, [
-			makeNode('paragraph', 'x\n'),
-			{ ...makeNode('paragraph', 'y\n'), leadingTrivia: '\n' }
-		]);
+		await bundle.blockEdit.replaceBlock(
+			0,
+			[makeNode('paragraph', 'x\n'), { ...makeNode('paragraph', 'y\n'), leadingTrivia: '\n' }],
+			undefined,
+			{ snapshotOffset: 0 }
+		);
 
 		expect(containerState.innerBlockIds).toHaveLength(2);
 		expect(containerState.innerBlockIds[0]).toBe(originalInnerId);
@@ -142,7 +150,7 @@ describe('nested replaceBlock ensureEditableContainers', () => {
 			]
 		} as CstNode;
 
-		await bundle.blockEdit.replaceBlock(0, [synthList]);
+		await bundle.blockEdit.replaceBlock(0, [synthList], undefined, { snapshotOffset: 0 });
 
 		// The commit replaced the container node, so read through the live document.
 		const placedList = deps.doc.children[0].children?.[0];
@@ -173,7 +181,7 @@ describe('list-overrides replaceBlock id preservation', () => {
 		const originalSecondId = listState.innerBlockIds[1];
 		const replacement = parse('- replaced\n').children[0].children![0];
 
-		await bundle.blockEdit.replaceBlock(0, [replacement]);
+		await bundle.blockEdit.replaceBlock(0, [replacement], undefined, { snapshotOffset: 0 });
 
 		expect(listState.innerBlockIds).toHaveLength(2);
 		expect(listState.innerBlockIds[0]).toBe(originalFirstId);
@@ -186,7 +194,7 @@ describe('list-overrides replaceBlock id preservation', () => {
 		const originalSecondId = listState.innerBlockIds[1];
 		const expansion = parse('- x\n- y\n').children[0].children!;
 
-		await bundle.blockEdit.replaceBlock(0, expansion);
+		await bundle.blockEdit.replaceBlock(0, expansion, undefined, { snapshotOffset: 0 });
 
 		expect(listState.innerBlockIds).toHaveLength(3);
 		expect(listState.innerBlockIds[0]).toBe(originalFirstId);

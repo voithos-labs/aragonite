@@ -108,7 +108,7 @@ deleteBlock(blockIndex, gesture)
 insertParagraph(boundaryIndex, text)
 updateBlockContent(blockIndex, text, mode, preEditOffset, postEditFocusOffset?)
 updateBlockMetadata(blockIndex, metadata, options?)
-replaceBlock(blockIndex, replacement, focus?, options?)
+replaceBlock(blockIndex, replacement, focus, { snapshotOffset })
 ```
 
 `blockIndex` is always relative to the calling block's own list, never the document. Every member resolves to whether bytes landed, so a focus move that writes nothing (say, `descendToBody` onto a block that's already there) resolves `false`.

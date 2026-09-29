@@ -12,14 +12,19 @@ function itemNode(text: string): CstNode {
 }
 
 describe('list item replace falls through to the shared core', () => {
-	it('replace seeds the undo snapshot offset from the focus, not a hardcoded 0', async () => {
+	it('replace records the caller’s undo offset, never the landing or a hardcoded 0', async () => {
 		const h = makeNestedHarness('- a\n- b\n', { listOverrides: true, index: 0 });
 
-		await h.bundle.blockEdit.replaceBlock(0, [itemNode('x')], { replacementIndex: 0, offset: 4 });
+		await h.bundle.blockEdit.replaceBlock(
+			0,
+			[itemNode('x')],
+			{ replacementIndex: 0, offset: 4 },
+			{ snapshotOffset: 3 }
+		);
 
 		const entry = h.deps.undoManager.getStacks().undo.at(-1);
 		expect(entry).toBeDefined();
-		expect(rangeSelectionOf(entry!).focus.offset).toBe(4);
+		expect(rangeSelectionOf(entry!).focus.offset).toBe(3);
 	});
 
 	it('replace backfills an empty editable-container replacement with a placeholder', async () => {
@@ -35,7 +40,12 @@ describe('list item replace falls through to the shared core', () => {
 			innerSuffix: ''
 		} as CstNode;
 
-		await h.bundle.blockEdit.replaceBlock(0, [emptyItem], { replacementIndex: 0, offset: 0 });
+		await h.bundle.blockEdit.replaceBlock(
+			0,
+			[emptyItem],
+			{ replacementIndex: 0, offset: 0 },
+			{ snapshotOffset: 0 }
+		);
 
 		const placed = h.getNode().children?.[0];
 		expect(placed?.kind).toBe('listItem');
