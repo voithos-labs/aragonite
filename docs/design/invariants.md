@@ -1843,7 +1843,8 @@ that with `@ts-expect-error`). The scan catches the rest: `scrollTop` assigned o
 `+=`, `++`), the DOM's `scroll` or `scrollTo` given a position (`el.scrollTo({ top })`,
 `window.scrollTo(x, y)`), `scrollBy`, `setScrollTop`, `scrollIntoView`, or opening a port that
 can write, anywhere but the owner and the port itself. `rects.scrollTo(path)` doesn't count: it's
-the published call, and it goes through the owner. A few files keep writes of their own, and the manifest says why for each: a drag's
+the published call, and it goes through the owner. A second row lists every `scrollToMount(`
+caller, the one a list may make: the descent's `revealChild`, which names a path, never a position. A few files keep writes of their own, and the manifest says why for each: a drag's
 autoscroll, which the pointer drives frame by frame, and two listboxes keeping their active row in
 view inside their own scroller. `lint/file-rules.test.ts`.
 
@@ -1882,12 +1883,13 @@ the runtime half.
 **G4.93 · One pick of the block a round keeps still.** Which block stays still across a measure
 round is decided once for the whole document, level by level through the block lists
 (`reactivity/list-tree.ts :: createListTree`), each level through `reactivity/hold-across.ts ::
-heldBlock`, and the scroll owner corrects only by the distance `heldPathMoved` reads: a brand the
-types give no other way to make, so a hand-written distance or a hand-picked block doesn't compile,
-and a list has no way to write scroll at all (`test/reactivity/hold-across.test.ts` pins these). The
-scan holds what the types can't: a cast to either brand outside `hold-across.ts`, and every call to
-`compensate`, `heldBlock` or `heldPathMoved`, declared by file, function and count with its reason
-(the tree's one pick and its one read, and the header slot, which sits above every list), so a call
+heldBlock`, and the scroll owner corrects only by the distance `heldDelta` makes from the held
+block's place before and after the round: a brand the types give no other way to make, so a
+hand-written distance or a hand-picked block doesn't compile, and a list can ask for a mount scroll
+by path but never for a position (`test/reactivity/hold-across.test.ts` pins these). The scan holds
+what the types can't: a cast to either brand outside `hold-across.ts`, and every call to
+`compensate`, `heldBlock` or `heldDelta`, declared by file, function and count with its reason (the
+tree's one pick and its one distance, and the header slot, which sits above every list), so a call
 moved to another function fails too. `lint/file-rules.test.ts`.
 
 **G4.94 · The editor's own selections have one store and one set of writers.** A gap caret and an
