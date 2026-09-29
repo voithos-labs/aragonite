@@ -36,6 +36,8 @@ export interface EditorTestSurface {
 	/** Root-constructed and handed down through context, so its lifetime against a document
 	 *  swap cannot be checked headlessly. */
 	getHeightOracle(): HeightOracle;
+	/** The top-level blocks' ids, which no node carries; a container's are its `childIds`. */
+	getBlockIds(): readonly string[];
 	/** The one value a block list rebuilds off when no id moved. */
 	getWidthVersion(): number;
 	/** Creates the stale child-ref entry an unmounted block's cleanup can leave behind. */

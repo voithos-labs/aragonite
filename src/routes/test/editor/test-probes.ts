@@ -328,6 +328,7 @@ export async function harnessPasteImage(image: PastedImage): Promise<string | nu
 }
 
 let capturedBlockRef: ReturnType<EditorInstance['__test']['getBlockComponent']> = null;
+const measuredIds = new Set<string>();
 // Handles kept by source name so a spec can dispose or invalidate a source it registered:
 // the handle holds functions and cannot cross page.evaluate.
 const decorationHandles = new Map<string, DecorationSourceHandle>();
@@ -695,6 +696,34 @@ export function installTestProbes({
 			const state = getStateForNode(node);
 			return state ? [...state.innerBlockIds] : [];
 		},
+		// Every block id the document holds now, top level and nested, mounted or not.
+		liveBlockIds: (): string[] => {
+			const ids = [...editor.__test.getBlockIds()];
+			const walk = (node: CstNode): void => {
+				if (!node.children) return;
+				ids.push(...(getStateForNode(node)?.innerBlockIds ?? node.childIds ?? []));
+				for (const child of node.children) walk(child);
+			};
+			for (const block of editor.__test.getDocument().children) walk(block as CstNode);
+			return ids;
+		},
+		// ── Measured-height cache probe ───────────────────────────────────
+		// The cache has no way to list its keys, so this mirrors them from the next write on.
+		startMeasuredIdCapture: (): void => {
+			const oracle = editor.__test.getHeightOracle();
+			const record = oracle.recordMeasured;
+			const drop = oracle.dropMeasured;
+			measuredIds.clear();
+			oracle.recordMeasured = (id, height) => {
+				measuredIds.add(id);
+				record(id, height);
+			};
+			oracle.dropMeasured = () => {
+				measuredIds.clear();
+				drop();
+			};
+		},
+		measuredIds: (): string[] => [...measuredIds],
 		// ── Stale ref-slot probes ────────────────────────────────────────
 		// Recreates the rare stale component reference the windowed loop's cleanup leaves:
 		// capture here, then write it into a cleared position with `replantBlockRef`.

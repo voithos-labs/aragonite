@@ -1295,6 +1295,7 @@
 		getGapCaret: () => selectionState.gapCaret,
 		getDecorationEngine: () => decorationEngine,
 		getHeightOracle: () => heightOracle,
+		getBlockIds: () => blockIds,
 		getWidthVersion: () => widthVersion,
 		setBlockRefSlot: blockRefSlots.set
 	};
