@@ -27,7 +27,7 @@ export interface LeafRangeEdit {
 	/** The leaf's bytes after the edit, trailing line ending included. */
 	raw: string;
 	caret: number;
-	/** The range replaced: cut back to the painted text and off any surrogate pair. */
+	/** The range replaced: a drawn one cut back to the painted text, and off any surrogate pair. */
 	range: { start: number; end: number };
 	/** Whether `raw` is the range asked for spliced with nothing moved or cleaned, the edit the
 	 *  browser makes itself, grapheme and IME handling included. */
@@ -41,9 +41,11 @@ export function replaceRangeInLeaf(
 	typed: string,
 	store: StoredAs
 ): LeafRangeEdit {
-	const painted = store.reading.hidesDelimitersAtCaret()
-		? { start: cutBeforeSuffix(node, range.start), end: cutBeforeSuffix(node, range.end) }
-		: range;
+	// Only a drawn range can reach bytes the user never saw; a caret insert goes where the caret is.
+	const painted =
+		range.start !== range.end && store.reading.hidesDelimitersAtCaret()
+			? { start: cutBeforeSuffix(node, range.start), end: cutBeforeSuffix(node, range.end) }
+			: range;
 	const start = snapToScalarBoundary(node.raw, painted.start);
 	// An inverted range replaces nothing: the text goes in at its start.
 	const end = Math.max(start, snapToScalarBoundary(node.raw, painted.end));

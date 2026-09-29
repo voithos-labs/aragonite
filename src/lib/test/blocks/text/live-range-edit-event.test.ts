@@ -102,3 +102,19 @@ describe('a collapsed insertion whose browser target disagrees with the DOM care
 		).toBeNull();
 	});
 });
+
+// Miss-analysis: the parked-caret rows ran on a link, whose closing run ends before the text does,
+// so no row put the caret past a heading's closing run.
+describe('a key typed after a heading’s closing run the user just typed', () => {
+	it('lands after the run, where the caret is, turning the run back into text', () => {
+		placeCaret();
+		const node = parse('# Hi #\n').children[0];
+		const store = topLevelStore(node, fixtureReading({}, 'live'));
+		expect(resolveLiveRangeEdit(insertEvent('t'), node, cursorReading(4, 6), store)).toEqual({
+			kind: 'rewrite',
+			range: { start: 6, end: 6 },
+			raw: '# Hi #t\n',
+			caret: 7
+		});
+	});
+});

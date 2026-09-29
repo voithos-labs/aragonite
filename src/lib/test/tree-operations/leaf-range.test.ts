@@ -231,15 +231,16 @@ const ROWS: Row[] = [
 		caret: 2,
 		matchesBrowserEdit: false
 	},
+	// A caret past the closing run stays there: only a drawn range is cut back.
 	{
 		source: '##  ##\n',
 		leaf: [0],
 		mode: 'live',
 		range: [6, 6],
 		typed: 'x',
-		display: '## x ##',
-		caret: 4,
-		matchesBrowserEdit: false
+		display: '##  ##x',
+		caret: 7,
+		matchesBrowserEdit: true
 	},
 	{
 		source: '- ##  ##\n',

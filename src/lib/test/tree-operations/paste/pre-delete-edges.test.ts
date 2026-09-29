@@ -110,6 +110,11 @@ describe('a pasted line’s own ending at a caret', () => {
 		expect((await paste(source, [0], [at, at], 'x\n')).leafWrites).toEqual([want]);
 	});
 
+	// A caret the user put past a heading's closing run stays there, as a typed key's does.
+	it('lands past a heading’s closing run when the caret is there', async () => {
+		expect((await paste('# Hi #\n', [0], [6, 6], 'x')).leafWrites).toEqual(['# Hi #x\n']);
+	});
+
 	it('stays in source mode, where the closer after it shows', async () => {
 		const { leafWrites } = await paste('**ab**\n', [0], [4, 4], 'x\n', SOURCE);
 		expect(leafWrites).toEqual(['**abx\n**\n']);
