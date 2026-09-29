@@ -5,8 +5,9 @@ to inside `*italic*` byte-literally leaves `**bo` joined to `alic*`, and both ru
 moment the block re-renders: the delimiters the mode exists to hide. The contract: a destructive
 join drops the runs its cut stranded and the closer and opener it brings back to back, so the
 joined text carries no delimiter the user never typed; where the two sides still make one
-construct across the join, the construct survives instead. Delete, cut and type-over go through
-the same cleanup, and so does the delete half of a paste. Driven on `/test/editor` via
+construct across the join, the construct survives instead. Delete, cut, type-over and a paste
+over the selection all go through the same cleanup, and typing or pasting carries its text into
+it. Driven on `/test/editor` via
 `?presentationMode=live` with real clicks, real Shift-extends and real chords; the source is
 what each scenario checks against, since a hidden delimiter and an absent one look identical on
 screen.
@@ -23,8 +24,8 @@ screen.
   terms; once the selection crosses a boundary the extension steps over whole blocks, so the far
   endpoint is a block head, and the case with a construct on both sides is pinned by unit tests
   rather than driven here
-- a paste over that selection lands its text at the cleaned join: the cleanup runs in the delete
-  half, and the re-parse after the insert fixes up the rest
+- a paste over that selection writes what typing over it writes: the pasted text is already in
+  the join the cleanup checks, so a run it fills back in stays and one it doesn't goes
 
 ## Edge cases
 

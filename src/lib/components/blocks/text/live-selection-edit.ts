@@ -1,8 +1,8 @@
 /**
- * What a browser range edit writes in live mode. The range can span delimiter runs the user never
- * saw, which contenteditable would take literally, so the edit becomes a join of what survives on
- * either side, cleaned by the shared join rules (`docs/design/live-mode.md` § 4.5). Every prose
- * block routes its `beforeinput` through {@link resolveLiveRangeEdit}.
+ * What a browser range edit writes in live mode, read off the `beforeinput` event. The range can
+ * span delimiter runs the user never saw, which contenteditable would take literally, so the edit
+ * goes through `replaceRangeInLeaf` (`docs/design/live-mode.md` § 4.5). Every prose block routes
+ * its `beforeinput` through {@link resolveLiveRangeEdit}.
  */
 
 import type { NodeView } from '../../../core/node-views';

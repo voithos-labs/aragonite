@@ -48,10 +48,30 @@ async function paste(source: string, leaf: number[], [start, end]: number[], tex
 describe('blocks pasted over a cut that leaves only stranded runs', () => {
 	// The cut is the one Delete makes over `a`: the runs it strands go, as they do there.
 	it.each([
-		{ place: 'the top level', source: '***a***\n', leaf: [0], want: 'p\n\nq\n' },
-		{ place: 'a list item', source: '- ***a***\n', leaf: [0, 0, 0], want: '- p\n\n  q\n' }
-	])('$place: no run stays on screen', async ({ source, leaf, want }) => {
-		expect((await paste(source, leaf, [3, 4], 'p\n\nq\n')).doc).toBe(want);
+		{ route: 'a paragraph', source: '***a***\n', leaf: [0], text: 'p\n\nq\n', want: 'p\n\nq\n' },
+		{
+			route: 'a list item',
+			source: '- ***a***\n',
+			leaf: [0, 0, 0],
+			text: 'p\n\nq\n',
+			want: '- p\n\n  q\n'
+		},
+		{
+			route: 'a list into a list item',
+			source: '- ***a***\n',
+			leaf: [0, 0, 0],
+			text: '- p\n- q\n',
+			want: '- p\n- q\n'
+		},
+		{
+			route: 'a quote into a quote',
+			source: '> ***a***\n',
+			leaf: [0, 0],
+			text: '> p\n',
+			want: '> p\n'
+		}
+	])('$route: no run stays on screen', async ({ source, leaf, text, want }) => {
+		expect((await paste(source, leaf, [3, 4], text)).doc).toBe(want);
 	});
 });
 

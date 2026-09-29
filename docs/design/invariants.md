@@ -973,6 +973,8 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.85 | A live rewrite that removes bytes reads its candidate where it will be stored             | L       |
 | G4.86 | A list item's marker is read only where the list is built, drawn or dumped                | L       |
 | G4.87 | Only the scroll owner writes the editor's scroll position                                 | L       |
+| G4.89 | One in-leaf range replace: only it, the split cuts and an endpoint snap a caret offset    | L       |
+| G4.90 | A paste's selection is cut through the in-leaf range replace, with the pasted text        | L       |
 
 ### The entries
 
@@ -1675,8 +1677,9 @@ reason, and each allowed file carries its own. The content version and the join 
 their own (G4.52, G4.76). `lint/leaf-write-doors.test.ts`.
 
 **G4.76 · Joins into a leaf.** Two texts joined into one leaf go through
-`src/lib/tree-operations/node-ops.ts` :: `joinIntoLeaf`: the join cleanup, the kind's rule, the
-container's rule, and a reparse that may change the kind. The scan declares every file calling
+`src/lib/tree-operations/node-ops.ts` :: `joinIntoLeaf`: the lower block's own write rule and the
+join cleanup (both in `leaf-range.ts :: joinLeaves`), then the kind's rule, the container's rule,
+and a reparse that may change the kind. The scan declares every file calling
 `joinIntoLeaf` and every file naming the cleanup (`cleanJoinedRaw`), each with what it joins. It
 also reads the text each file hands a leaf: a `.raw =`, or the argument of a leaf write
 (`writeOwnRaw`, `normalizeOwnRaw`, `legalizeWrite`, `commitLeafText`, the matching paste's
@@ -1751,9 +1754,9 @@ front of, or the paste's re-read of a clipboard block, which keeps the kind the 
 `lint/manifest-rules.test.ts`.
 
 **G4.84 · One place says where a leaf's bytes are stored.** A `StoredAs` (`src/lib/schema/stored-as.ts`)
-answers three things about a position: whether it stores a block or plain text (a table cell), the
-bytes its write rules would keep, and how a reload reads them there (behind a list item's marker
-line, say). It's a branded type, and only `tree-operations/stored-as.ts :: storedAsAt` and
+answers four things about a position: whether it stores a block or plain text (a table cell), the
+bytes its write rules would keep, how a reload reads them there (behind a list item's marker
+line, say), and the line ending its writes take. It's a branded type, and only `tree-operations/stored-as.ts :: storedAsAt` and
 `storedAsIn` build one, from the tree. So a rewrite can't describe its own position, and nothing
 reads a candidate behind a hand-written copy of the container's marker, which drifts from the item
 it copies (a to-do's box, a marker a leading space widens). `lint/file-rules.test.ts` holds the
@@ -1786,6 +1789,22 @@ can write, anywhere but the owner and the port itself. `rects.scrollTo(path)` do
 the published call, and it goes through the owner. A few files keep writes of their own, and the manifest says why for each: a drag's
 autoscroll, which the pointer drives frame by frame, and two listboxes keeping their active row in
 view inside their own scroller. `lint/file-rules.test.ts`.
+
+**G4.89 · One in-leaf range replace.** Replacing a range of one leaf, typed or pasted text or none,
+is `tree-operations/leaf-range.ts :: replaceRangeInLeaf`: it cuts back to the painted text, moves
+both ends off any surrogate pair, and cleans the join with the text already in it. Joining two
+leaves is `joinLeaves` beside it. A cut that snaps its own offsets skipped the rest of that, so the
+scan holds `snapToScalarBoundary(` to `leaf-range.ts`, the split's two cuts (`node-ops.ts ::
+cutPastLineEnding`, `structural-suffix.ts :: cutKeepingStructure`), `selection/char-endpoint-snap.ts`
+(a selection endpoint, which cuts nothing) and `core/lines.ts`, which defines it. A second row lists
+every `joinLeaves(` caller: `leaf-range.ts` and the merge in `node-ops.ts`. The range delete still
+calls the cleanup itself (`cleanJoinedRaw`), which G4.76 declares. `lint/file-rules.test.ts`.
+
+**G4.90 · A paste cuts like typing.** Pasting over a selection writes what typing the same text over
+it writes, so every file that names the paste's range (`preDelete`) cuts it through
+`replaceRangeInLeaf` with the pasted text, or says why it doesn't: the surface contract declares
+it, the code block's selection just hands it on, and the code block's own paste stays a literal
+splice, since a fence body has no inline constructs to clean. `lint/file-rules.test.ts`.
 
 ## Accessibility
 
