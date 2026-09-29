@@ -54,6 +54,8 @@ function registerSketchKind(): void {
 		mergeRole: 'not-mergeable',
 		editable: true,
 		supportsInline: false,
+		// A container with no children has no caret target inside it, so it is focused whole.
+		blockFocus: 'whole-block',
 		container: { contract: 'opaque', rebuildRaw: rebuildSketchRaw },
 		closure: testClosure
 	});

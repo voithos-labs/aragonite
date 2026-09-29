@@ -30,7 +30,7 @@ function run(source: string, start: SelectionPoint, end: SelectionPoint) {
 		'keyless'
 	);
 	expectParseConverged(result.newDoc);
-	return { source: serialize(result.newDoc), caret: result.collapsedCaret };
+	return { source: serialize(result.newDoc), caret: result.caret(result.newDoc) };
 }
 
 beforeEach(registerChromePluginsForTests);
@@ -61,10 +61,10 @@ describe('a range starting on a closed title row', () => {
 		expect(caret).toEqual({ path: [1], offset: 0 });
 	});
 
-	it('select-all over a document that is one closed details leaves an empty document', () => {
+	it('select-all over a document that is one closed details leaves the delete no block', () => {
 		const { source, caret } = run(CLOSED, point([0, 0], 0), point([0, 1], 6));
-		expect(source).toBe('\n');
-		expect(caret).toEqual({ path: [0], offset: 0 });
+		expect(source).toBe('');
+		expect(caret).toBeNull();
 	});
 });
 

@@ -21,7 +21,7 @@ function run(source: string, start: SelectionPoint, end: SelectionPoint) {
 		fixtureReading(),
 		'keyless'
 	);
-	return { doc: result.newDoc, caret: result.collapsedCaret };
+	return { doc: result.newDoc, caret: result.caret(result.newDoc) };
 }
 
 describe('rangeDelete: across two top-level tables (char-addressable caret)', () => {
@@ -162,17 +162,14 @@ describe('rangeDelete: across two top-level tables (char-addressable caret)', ()
 		expect(caret).toEqual({ path: [0, 0, 0], offset: 0 });
 	});
 
-	it('both empty with no surrounding blocks: caret lands in a materialized empty paragraph', () => {
-		// The document is only the two tables; clearing both empties it. As the text case does,
-		// one empty paragraph is created at [0].
+	it('both empty with no surrounding blocks: no block and no caret, for the commit to fill', () => {
 		const { doc, caret } = run(
 			`${TWO_COL_THREE_ROW}\n${TWO_COL_THREE_ROW}`,
 			{ path: [0], offset: 0 },
 			{ path: [1], offset: 5 }
 		);
 
-		expect(doc.children).toHaveLength(1);
-		expect(doc.children[0].kind).toBe('paragraph');
-		expect(caret).toEqual({ path: [0], offset: 0 });
+		expect(doc.children).toEqual([]);
+		expect(caret).toBeNull();
 	});
 });

@@ -129,6 +129,37 @@ test.describe('a whole-unit range: where each key leaves the caret', () => {
 	});
 });
 
+test.describe('a whole-unit range: the only block', () => {
+	let editor: EditorPage;
+
+	test.beforeEach(async ({ page }) => {
+		editor = new EditorPage(page);
+		await editor.goto();
+	});
+
+	for (const doc of ['---\n', '> ---\n']) {
+		test(`Backspace over ${JSON.stringify(doc)} leaves one empty paragraph to type into`, async () => {
+			await editor.loadContent(doc);
+			await dragInside(editor, '.thematic-break-block');
+			await editor.page.keyboard.press('Backspace');
+			await editor.bridge.waitForSourceEquals('\n');
+
+			await editor.typeSlowly('x');
+			await editor.bridge.waitForSourceEquals('x\n');
+		});
+	}
+
+	test('one undo brings the rule back', async () => {
+		await editor.loadContent('---\n');
+		await dragInside(editor, '.thematic-break-block');
+		await editor.page.keyboard.press('Backspace');
+		await editor.bridge.waitForSourceEquals('\n');
+
+		await editor.undo();
+		await editor.bridge.waitForSourceEquals('---\n');
+	});
+});
+
 test.describe('a whole-unit range: block math', () => {
 	test('a cut writes the equation to the clipboard and takes it out', async ({ page }) => {
 		const editor = new PluginsPage(page);

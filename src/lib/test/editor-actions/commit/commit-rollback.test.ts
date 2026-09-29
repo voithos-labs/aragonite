@@ -8,9 +8,9 @@ import type { UndoEntry } from '$lib/undo/types';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
 import { makeListItem, makeListNode } from '$lib/test/harness/list-fixtures';
 
-// The scope fixtures are minimal hand-built containers, not parser output, so the dev-mode
-// stale-raw check reads them as stale.
-afterEach(() => allowDevWarns(['invariant:stale-raw']));
+// The scope fixtures are hand-built, not parser output: the stale-raw check reads them as stale,
+// and the one-block check reads their childless list items as emptied.
+afterEach(() => allowDevWarns(['invariant:stale-raw', 'invariant:keeps-a-block']));
 
 function stackBytes(entries: UndoEntry[]): string[] {
 	return entries.map((e) => serialize(e.snapshot));

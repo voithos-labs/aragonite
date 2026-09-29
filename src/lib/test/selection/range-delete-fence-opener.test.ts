@@ -24,7 +24,7 @@ describe('range delete that consumes a fenced code opener', () => {
 	it('drops the closer the cross-block merge stranded', () => {
 		const doc = parse('para\n\n```js\nbody\n```\n\ntail\n');
 
-		const { collapsedCaret } = rangeDelete(
+		const { caret } = rangeDelete(
 			doc,
 			coverRange(doc, { path: [0], offset: 2 }, { path: [1], offset: 8 }),
 			sharing(),
@@ -35,7 +35,7 @@ describe('range delete that consumes a fenced code opener', () => {
 		expect(serialize(doc)).toBe('pady\n\ntail\n');
 		expect(kindsOf(doc)).toEqual(['paragraph', 'paragraph']);
 		// The drop shrinks the end slice past the join, so the caret keeps the start offset.
-		expect(collapsedCaret).toEqual({ path: [0], offset: 2 });
+		expect(caret(doc)).toEqual({ path: [0], offset: 2 });
 		expectParseConverged(doc);
 	});
 

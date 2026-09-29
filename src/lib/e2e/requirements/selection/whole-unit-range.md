@@ -36,6 +36,16 @@ not only Backspace.
   - Miss-analysis: the delete tests here only read the bytes, and the unit suite for this delete
     only had paragraph neighbours, so a caret aimed at a list's wrapper never showed up.
 
+## The only block
+
+- A rule that's the whole document, dragged inside and deleted with Backspace, leaves one empty
+  paragraph, and a typed `x` gives `x\n`.
+  - Miss-analysis: every whole-unit row had a block on each side of the rule, so nothing asked
+    what the document holds once its last block goes.
+- A quote holding nothing but a rule, the rule dragged and deleted the same way, goes with it:
+  a typed `x` gives `x\n`, not a quote.
+- One undo brings the lone rule back.
+
 ## Edge cases
 
 - The table's version of this (two `Mod+A` presses from inside a cell) reaches the same paste

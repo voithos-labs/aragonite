@@ -82,7 +82,7 @@ describe('a split, join or delete beside a switched-off syntax', () => {
 			source: 'a\n- x\n---\n',
 			run: (doc) => {
 				doc.children[1].children![0].children = [];
-				cascadeCleanupEmptyAncestors(doc, [1, 0, 0], [], createSharingState(), off);
+				cascadeCleanupEmptyAncestors(doc, [1, 0, 0], createSharingState(), off);
 			},
 			kinds: ['paragraph', 'thematicBreak']
 		}

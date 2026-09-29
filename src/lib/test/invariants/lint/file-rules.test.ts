@@ -1063,7 +1063,7 @@ const RULES: FileRule[] = [
 		},
 		reason:
 			'`survivorAfterRemoval` is the one place a gesture picks the side; a removal that asks for the next block itself lands Backspace below',
-		hits: ['collapsedCaret = caretWhereRangeResumes(doc, path, sharing, lineEnding);'],
+		hits: ['caret: (committed) => caretWhereRangeResumes(committed, path),'],
 		misses: ["import { caretWhereRangeResumes } from './range-delete-chrome';"]
 	},
 	{

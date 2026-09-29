@@ -46,7 +46,11 @@ function run(source: string, start: SelectionPoint, end: SelectionPoint) {
 		fixtureReading(),
 		'keyless'
 	);
-	return { doc: result.newDoc, source: serialize(result.newDoc), caret: result.collapsedCaret };
+	return {
+		doc: result.newDoc,
+		source: serialize(result.newDoc),
+		caret: result.caret(result.newDoc)
+	};
 }
 
 describe('chrome wall × table branch: table endpoint inside the container', () => {
@@ -175,7 +179,7 @@ describe('chrome wall × table branch: consumed container unit-deletes', () => {
 		// One splice, not an emptying followed by cleanup: the detached node keeps its children,
 		// so the undo entry holds a whole node.
 		expect(note.children?.length).toBe(2);
-		expect(result.collapsedCaret).toEqual({ path: [0, 0, 1], offset: 1 });
+		expect(result.caret(result.newDoc)).toEqual({ path: [0, 0, 1], offset: 1 });
 	});
 
 	it('table end emptied as the container last child: one splice, children intact', () => {
@@ -191,7 +195,7 @@ describe('chrome wall × table branch: consumed container unit-deletes', () => {
 		);
 		expect(serialize(result.newDoc)).toBe('| a | b |\n| --- | --- |\n\nBelow\n');
 		expect(note.children?.length).toBe(2);
-		expect(result.collapsedCaret).toEqual({ path: [0, 0, 1], offset: 1 });
+		expect(result.caret(result.newDoc)).toEqual({ path: [0, 0, 1], offset: 1 });
 	});
 
 	it('start table also emptied: caret falls to the nearest survivor', () => {

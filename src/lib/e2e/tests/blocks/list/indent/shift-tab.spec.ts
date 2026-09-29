@@ -18,6 +18,18 @@ test.describe('list Shift+Tab', () => {
 		await editor.bridge.waitForSourceContains('- Item 1\n- Nested\n- Item 2\n');
 	});
 
+	test('Shift+Tab on the one item of an item’s only list removes the emptied item', async () => {
+		await editor.loadContent('- - a\n');
+		const nested = editor.page.locator(
+			'.list-item-content .list-block .list-item-block [contenteditable="true"]'
+		);
+		await nested.first().click();
+		await editor.page.keyboard.press('Shift+Tab');
+		await editor.bridge.waitForSourceEquals('- a\n');
+		await editor.page.keyboard.type('x');
+		await editor.bridge.waitForSourceEquals('- xa\n');
+	});
+
 	test('Shift+Tab on top-level item is no-op', async () => {
 		await editor.loadContent('- Item 1\n- Item 2\n');
 		const items = editor.page.locator('.list-item-block [contenteditable="true"]');

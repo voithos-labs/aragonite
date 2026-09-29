@@ -7,7 +7,10 @@ How Shift+Tab promotes a nested list item to the parent list level, including ma
 - Shift+Tab on a nested item promotes it to the parent list level
 - Shift+Tab on a top-level item does nothing
 - The promoted item is inserted after the parent item in the parent list
-- If the nested list becomes empty after promotion, it is removed
+- If the nested list becomes empty after promotion, it is removed, and so is the parent item if
+  that list was all it held (`- - a`, Shift+Tab on `a`, gives `- a`, the caret at its start)
+  - Miss-analysis: every promote fixture gave the parent item a line of text above its sublist,
+    so no test saw the item the removal left with nothing in it.
 - Focus follows the item through the container mutation, whether the nested list survives with siblings or is removed outright: typing straight after Shift+Tab lands at the start of the promoted item, never at the position it held before the move
 
 ### Ordered list numbering and marker style on Shift+Tab

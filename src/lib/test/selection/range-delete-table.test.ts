@@ -23,7 +23,11 @@ function run(input: string | Document, start: SelectionPoint, end: SelectionPoin
 		fixtureReading(),
 		'keyless'
 	);
-	return { doc: result.newDoc, source: serialize(result.newDoc), caret: result.collapsedCaret };
+	return {
+		doc: result.newDoc,
+		source: serialize(result.newDoc),
+		caret: result.caret(result.newDoc)
+	};
 }
 
 // A gesture's end endpoint arrives snapped to its row's last cell (`table-endpoint-snap.ts`); these

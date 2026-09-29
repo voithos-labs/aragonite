@@ -3,19 +3,14 @@
  * "start wins" rule is in `docs/design/editor.md` § Cross-block selection.
  */
 
-import type { GrammarView } from '../schema/block-openers';
 import type { Reading } from '../schema/reading';
 import type { CstNode, Document } from '../core/nodes';
+import type { DocumentView } from '../core/node-views';
 import type { SelectionPoint } from './primitives';
 import type { CoveredRange } from './range-coverage';
 import type { SharingState } from '../tree-operations/sharing';
 import { walkBetween, charOffsetOf } from './primitives';
-import {
-	comparePaths,
-	lowestCommonAncestor,
-	isPathSubtreeBetween,
-	pathHasPrefix
-} from './path-math';
+import { comparePaths, isPathSubtreeBetween, pathHasPrefix } from './path-math';
 import { caretPointFor, type RemovalGesture } from './caret-target';
 import { docPathFrom } from '../cursor/coordinate-spaces';
 import {
@@ -27,20 +22,14 @@ import {
 import { settleSeparatorOnBlank } from '../tree-operations/settle';
 import { isBlankParagraph } from '../core/parser';
 import { displayLength, documentLineEnding } from '../core/lines';
-import { deleteAtPath } from '../tree-operations/path-mutate';
 import { cleanJoinedRaw } from '../tree-operations/node-ops';
 import { storedAsAt } from '../tree-operations/stored-as';
 import { joinKeepingSuffix } from '../tree-operations/structural-suffix';
 import { deleteSubtreesIdentityGated, installSurvivor } from './range-delete-ceremony';
 import { ensureUnsharedPath } from '../tree-operations/unshare';
-import { rebuildUnsharedAncestry, rebuildUnsharedChain } from '../tree-operations/chain-rebuild';
+import { rebuildUnsharedAncestry } from '../tree-operations/chain-rebuild';
 import { involvesTable, tableAwareRangeDelete } from './range-delete-table';
-import {
-	involvesReservedChrome,
-	chromeAwareRangeDelete,
-	removeWhole,
-	caretWhereRemoved
-} from './range-delete-chrome';
+import { involvesReservedChrome, chromeAwareRangeDelete, removeWhole } from './range-delete-chrome';
 
 // ── Public API ──────────────────────────────────────────────────────────────
 
@@ -53,30 +42,12 @@ export interface TableRowSplice {
 
 export interface RangeDeleteResult {
 	newDoc: Document;
-	collapsedCaret: SelectionPoint;
+	/** Where the caret goes, read on the committed tree: the commit may still give an emptied
+	 *  document its block. Null when no block holds a caret there. */
+	caret: (committed: DocumentView) => SelectionPoint | null;
 	/** Row splices made on the endpoint tables (table branch only), so the commit can update each
 	 *  table's row `BlockListState` without redoing the snap math. */
 	tableRowSplices?: TableRowSplice[];
-}
-
-/** A block with no character position taken whole: it goes, and the caret lands on the side
- *  `gesture` points, as for any removed block. */
-function deleteWholeUnit(
-	doc: Document,
-	path: number[],
-	sharing: SharingState,
-	grammar: GrammarView,
-	gesture: RemovalGesture
-): RangeDeleteResult {
-	const lineEnding = documentLineEnding(doc);
-	// Deleted by path, so the commit's id bookkeeping sees the position go.
-	const chain = ensureUnsharedPath(doc, path.slice(0, -1), sharing);
-	deleteAtPath(doc, path, sharing, grammar);
-	if (chain.length > 0) rebuildUnsharedChain(doc, chain, sharing, null, grammar);
-	return {
-		newDoc: doc,
-		collapsedCaret: caretWhereRemoved(doc, path, sharing, lineEnding, gesture)
-	};
 }
 
 /** Deletes what `range` covers in place, merging at the start's position inside its container.
@@ -123,7 +94,7 @@ export function rangeDelete(
 		endOffset >= displayLength(startRaw) &&
 		!isBlankParagraph({ kind: startBlock.kind, raw: '' })
 	) {
-		return deleteWholeUnit(doc, start.path, sharing, grammar, gesture);
+		return removeWhole(doc, start.path, sharing, reading, gesture);
 	}
 	// A cross-block join runs the end slice through the end block's own write rule, or a cut from
 	// its head would leave its closer stranded; a same-block merge takes the rule once, below.
@@ -164,10 +135,8 @@ export function rangeDelete(
 		const parent = nodeAt(doc, start.path.slice(0, -1));
 		if (parent) settleSeparatorOnBlank(parent, start.path[start.path.length - 1], sharing);
 		rebuildUnsharedAncestry(doc, start.path, sharing, null, grammar);
-		return {
-			newDoc: doc,
-			collapsedCaret: { path: start.path.slice(), offset: Math.max(0, joined.seam + shift) }
-		};
+		const joinAt = { path: start.path.slice(), offset: Math.max(0, joined.seam + shift) };
+		return { newDoc: doc, caret: () => joinAt };
 	}
 
 	// walkBetween includes ancestors of `end` whose subtrees extend past it, so filter to
@@ -176,7 +145,6 @@ export function rangeDelete(
 		isPathSubtreeBetween(p, start.path, end.path)
 	);
 	const deletionPaths: number[][] = [...betweenPaths, end.path];
-	const lcaPath = lowestCommonAncestor(start.path, end.path);
 
 	// Copy every spliced chain before capturing node identities: a copy made after capture would
 	// fail the identity check and skip the deletion.
@@ -185,7 +153,7 @@ export function rangeDelete(
 		ensureUnsharedPath(doc, path.slice(0, -1), sharing);
 	}
 
-	deleteSubtreesIdentityGated(doc, deletionPaths, lcaPath, sharing, grammar);
+	deleteSubtreesIdentityGated(doc, deletionPaths, sharing, grammar);
 
 	const shift = installSurvivor(doc, start.path, startBlock, joined.raw, sharing, reading);
 
@@ -200,8 +168,8 @@ export function rangeDelete(
 		path: start.path.slice(),
 		offset: Math.max(0, joined.seam + shift)
 	};
-	const collapsedCaret =
+	const landing =
 		caretPointFor(doc, { path: docPathFrom(joinAt.path), offset: joinAt.offset }) ?? joinAt;
 
-	return { newDoc: doc, collapsedCaret };
+	return { newDoc: doc, caret: () => landing };
 }

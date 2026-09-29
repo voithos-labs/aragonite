@@ -26,6 +26,7 @@ import { replaceRefs } from '../../reactivity/publish-ref.svelte';
 import { blockNodeAt, documentBody, nodeAt } from '../../tree-operations/node-primitives';
 import { settleSeparator, type TrackedPosition } from '../../tree-operations/settle';
 import { endsOpen, endWindowLines, keepOpenTail } from '../../tree-operations/open-tail';
+import { keepOneBlock } from '../../tree-operations/keep-one-block';
 import { ensureUnsharedPath } from '../../tree-operations/unshare';
 import {
 	attachedChainPrefix,
@@ -59,6 +60,7 @@ import {
 	assertCommitPaths,
 	assertCommittedNodes,
 	assertIdsInLockstep,
+	assertKeepsABlock,
 	assertLastLineKept,
 	assertUndoTopIntegrity
 } from '../../invariants/install';
@@ -398,7 +400,7 @@ export function createUndoController(
 				endWindowLines(body, mutated, deps.sharing, deps.reading.grammar);
 				// `deps.doc.children` is still the pre-mutate array here (`publish` swaps it),
 				// so the blank-line fix-up reads which blocks were blank off it directly.
-				const change = settleSeparator(
+				const settled = settleSeparator(
 					body,
 					deps.doc.children,
 					mutated,
@@ -406,6 +408,9 @@ export function createUndoController(
 					deps.sharing,
 					args.trackCaret
 				);
+				// Before the tail step, which reads the block now last; the empty paragraph is blank, so
+				// that step leaves its line ending as it is.
+				const change = keepOneBlock(body, settled, deps.sharing);
 				keepOpenTail(body, wasOpen, deps.sharing, deps.reading.grammar);
 				if (args.discardIfNoop && change.op === 'noop') {
 					// The document branch installed nothing; only the stacks are restored here.
@@ -416,11 +421,10 @@ export function createUndoController(
 					assertIdsInLockstep('commitStructural', idsCopy.length, childrenCopy.length);
 					args.publish(childrenCopy, idsCopy, refsCopy);
 					if (isDevChecks()) {
-						assertCommittedNodes(
-							touchedFromChange(change, childrenCopy, args.touchedNodes),
-							deps.reading.grammar
-						);
+						const touched = touchedFromChange(change, childrenCopy, args.touchedNodes);
+						assertCommittedNodes(touched, deps.reading.grammar);
 						assertLastLineKept(deps.doc, wasOpen);
+						assertKeepsABlock(deps.doc, touched);
 					}
 				}
 			} else {
@@ -432,11 +436,10 @@ export function createUndoController(
 				} else {
 					args.publish();
 					if (isDevChecks()) {
-						assertCommittedNodes(
-							touchedContainersWithChildren(args.touchedNodes?.()),
-							deps.reading.grammar
-						);
+						const touched = touchedContainersWithChildren(args.touchedNodes?.());
+						assertCommittedNodes(touched, deps.reading.grammar);
 						assertLastLineKept(deps.doc, wasOpen);
+						assertKeepsABlock(deps.doc, touched);
 					}
 				}
 			}
@@ -736,6 +739,9 @@ export function createUndoController(
 						deps.sharing,
 						trackCaret?.[i]
 					);
+					if (prepared[i].isDoc) {
+						changeList[i] = keepOneBlock(prepared[i].view.body, changeList[i], deps.sharing);
+					}
 					publishScopeView(prepared[i], changeList[i]);
 				}
 				// Deepest first, so an outer chain concatenates current inner raws; the attached prefix

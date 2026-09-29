@@ -7,11 +7,11 @@
 import type { SelectionState } from '../selection-state.svelte';
 import type { Reading } from '../../schema/reading';
 import { deleteSnapshot, type SelectionPoint } from '../primitives';
-import type { CstNode, Document } from '../../core/nodes';
+import type { Document } from '../../core/nodes';
 import type { BlockComponent } from '../../block-component';
 import type { CommitController, MultiScopeTarget } from '../../action-contracts';
 import { focusCollapsedCaret } from '../native-bridge';
-import { rangeDelete } from '../range-delete';
+import { rangeDelete, type RangeDeleteResult } from '../range-delete';
 import { coverRange, type CoveredRange } from '../range-coverage';
 import { trackChildIds, type StructuralChange } from '../../tree-operations/structural-change';
 import { documentBody, isBlockNode, nodeAt } from '../../tree-operations/node-primitives';
@@ -19,7 +19,6 @@ import { pathsEqual } from '../path-math';
 import { countsCells } from '../../schema/block-kind-descriptor';
 import { docPathFrom } from '../../cursor/coordinate-spaces';
 import { getStateForNode } from '../../reactivity/state-registry';
-import type { BlockListState } from '../../reactivity/block-list-state.svelte';
 import { maybeCommitTableCoverageDelete } from '../range-delete-table-coverage';
 import type { RemovalGesture } from '../caret-target';
 
@@ -150,7 +149,7 @@ async function commitPureTopLevelDelete(
 	gesture: RemovalGesture,
 	caretRestore: ((caret: SelectionPoint | null) => void) | undefined
 ): Promise<SelectionPoint | null> {
-	let collapsedCaret: SelectionPoint | null = null;
+	const caret = caretAfterCommit(ctx, caretRestore);
 	const { start } = range;
 
 	const snapshot = deleteSnapshot(start.path, start.offset);
@@ -161,16 +160,15 @@ async function commitPureTopLevelDelete(
 		mutate: (topLevelChildren) => {
 			const body = documentBody(doc, topLevelChildren);
 			const ledger = trackChildIds(body);
-			const result = rangeDelete(body, range, ctx.controller.sharing, ctx.reading, gesture);
-			collapsedCaret = result.collapsedCaret;
+			caret.hold(rangeDelete(body, range, ctx.controller.sharing, ctx.reading, gesture));
 			ctx.selection.collapse();
 			return ledger.read();
 		},
 		op: { kind: 'delete', detail: { crossBlock: true }, eventPath: docPathFrom([start.path[0]]) },
-		afterTick: caretRestore ? () => caretRestore(collapsedCaret) : undefined
+		afterTick: caret.afterTick
 	});
 
-	return collapsedCaret;
+	return caret.read();
 }
 
 /** One `rangeDelete` on the live doc, with a commit scope for every container it splices. */
@@ -182,20 +180,13 @@ async function commitCrossContainerDelete(
 	caretRestore: ((caret: SelectionPoint | null) => void) | undefined
 ): Promise<SelectionPoint | null> {
 	const { start, end } = range;
-	const touched = collectTouchedContainers(doc, start.path, end.path);
-	const scopes: MultiScopeTarget[] = [];
-
-	// The document scope goes first when the common ancestor is the root, so `commitMultiScope`
-	// writes `doc.children`, the ids and the refs to state together with the container scopes.
-	if (start.path[0] !== end.path[0]) {
-		scopes.push(ctx.controller.getDocScope());
-	}
-
-	for (const t of touched) {
-		scopes.push({ node: t.node, state: t.state, path: t.path });
-	}
-
-	let collapsedCaret: SelectionPoint | null = null;
+	// The document goes first and always: it holds every endpoint, and a block the range takes
+	// whole at the top level is spliced out of it, so its ids and refs change with the containers'.
+	const scopes: MultiScopeTarget[] = [
+		ctx.controller.getDocScope(),
+		...collectTouchedContainers(doc, start.path, end.path)
+	];
+	const caret = caretAfterCommit(ctx, caretRestore);
 
 	await ctx.controller.commitMultiScope({
 		scopes,
@@ -209,7 +200,7 @@ async function commitCrossContainerDelete(
 			const ledgers = scopeViews.map((v) => trackChildIds(v.node));
 
 			const result = rangeDelete(doc, range, sharing, ctx.reading, gesture);
-			collapsedCaret = result.collapsedCaret;
+			caret.hold(result);
 			ctx.selection.collapse();
 
 			// An endpoint table's scope reports the row splice the table branch actually made,
@@ -225,10 +216,30 @@ async function commitCrossContainerDelete(
 			});
 		},
 		op: { kind: 'delete', detail: { crossBlock: true }, eventPath: docPathFrom([start.path[0]]) },
-		afterTick: caretRestore ? () => caretRestore(collapsedCaret) : undefined
+		afterTick: caret.afterTick
 	});
 
-	return collapsedCaret;
+	return caret.read();
+}
+
+/** The delete's caret, read on the committed tree once the commit's tick has run, and put down
+ *  there when `caretRestore` is given; paste and typing continue at the same read. */
+function caretAfterCommit(
+	ctx: CrossBlockMutationContext,
+	caretRestore: ((caret: SelectionPoint | null) => void) | undefined
+) {
+	let result: RangeDeleteResult | null = null;
+	let caret: SelectionPoint | null = null;
+	return {
+		hold: (deleted: RangeDeleteResult) => {
+			result = deleted;
+		},
+		afterTick: () => {
+			caret = result?.caret(ctx.getDoc()) ?? null;
+			caretRestore?.(caret);
+		},
+		read: () => caret
+	};
 }
 
 /** Every mounted container on either endpoint path whose children get spliced: strict ancestors,
@@ -237,12 +248,8 @@ function collectTouchedContainers(
 	doc: Document,
 	startPath: number[],
 	endPath: number[]
-): Array<{ path: number[]; node: CstNode; state: BlockListState }> {
-	const touched: Array<{
-		path: number[];
-		node: CstNode;
-		state: BlockListState;
-	}> = [];
+): MultiScopeTarget[] {
+	const touched: MultiScopeTarget[] = [];
 	const seen = new Set<string>();
 
 	function visit(leafPath: number[]): void {

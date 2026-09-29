@@ -18,6 +18,7 @@ import {
 } from '../tree-operations';
 import type { BlockListState } from '../reactivity/block-list-state.svelte';
 import type { NestedActionsDeps } from './nested/nested-actions';
+import { removeEmptiedContainer } from './nested/emptied-container';
 import { mergedElsePrevious } from './merge-fallback';
 import { docPathFrom, extendDocPath } from '../cursor/coordinate-spaces';
 import type { CaretPosition } from '../selection/primitives';
@@ -96,7 +97,7 @@ async function listItemCascadeFirst(strategy: UnwrapStrategyDeps): Promise<boole
 	if (firstChildEmpty && node.children.length > 1) {
 		return deleteEmptyItem(strategy, 0, { item: 0, offset: CURSOR_START });
 	}
-	if (firstChildEmpty) return deps.parent.blockEdit.deleteBlock(index, 'Backspace');
+	if (firstChildEmpty) return removeEmptiedContainer(deps, 'Backspace');
 	const replacement = unwrapFirstItemFromList(node);
 	if (replacement.length === 0) return false;
 	return deps.parent.blockEdit.replaceBlock(index, replacement, {

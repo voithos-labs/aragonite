@@ -1,8 +1,9 @@
 /**
  * The deletion steps every `rangeDelete` branch (plain, title-line, table) shares: covered paths
  * are spliced out in reverse document order, each only while it still holds the node captured up
- * front, then emptied ancestors are cleaned up. The title-line and table branches splice a covered
- * container as one subtree root, so the undo entry holds a whole detached node.
+ * front, then every ancestor left empty goes, up to the document. The title-line and table
+ * branches splice a covered container as one subtree root, so the undo entry holds a whole
+ * detached node.
  */
 
 import type { GrammarView } from '../schema/block-openers';
@@ -23,7 +24,6 @@ import {
 	comparePaths,
 	isStrictAncestorOf,
 	isPathSubtreeBetween,
-	lowestCommonAncestor,
 	pathHasPrefix,
 	pathsEqual
 } from './path-math';
@@ -68,7 +68,6 @@ function filterToSubtreeRoots(paths: number[][]): number[][] {
 export function deleteSubtreesIdentityGated(
 	doc: Document,
 	deletionPaths: number[][],
-	lcaPath: number[],
 	sharing: SharingState,
 	grammar: GrammarView
 ): void {
@@ -80,7 +79,7 @@ export function deleteSubtreesIdentityGated(
 		const path = deletionPaths[i];
 		if (nodeAt(doc, path) === targetNodes[i]) {
 			deleteAtPath(doc, path, sharing, grammar);
-			cascadeCleanupEmptyAncestors(doc, path, lcaPath, sharing, grammar);
+			cascadeCleanupEmptyAncestors(doc, path, sharing, grammar);
 		}
 	}
 }
@@ -269,13 +268,12 @@ export function planCrossBlockDeletion(
 	endpointPaths: number[][],
 	wall: EndWall | null,
 	sharing: SharingState
-): { plan: DeletionPlan; lcaPath: number[] } {
-	const { start, end } = range;
+): DeletionPlan {
 	const plan = collectDeletionPlan(doc, range, endpointPaths, wall, sharing);
 	for (const path of plan.deletionPaths) {
 		ensureUnsharedPath(doc, path.slice(0, -1), sharing);
 	}
-	return { plan, lcaPath: lowestCommonAncestor(start.path, end.path) };
+	return plan;
 }
 
 /** Applies the plan: clears a surviving end container's covered title line (a raw write, never a
@@ -283,12 +281,11 @@ export function planCrossBlockDeletion(
 export function applyPlannedDeletion(
 	doc: Document,
 	plan: DeletionPlan,
-	lcaPath: number[],
 	grammar: GrammarView
 ): void {
 	const chrome = plan.chromeClearChain?.[plan.chromeClearChain.length - 1];
 	if (chrome) chrome.raw = '\n';
-	deleteSubtreesIdentityGated(doc, plan.deletionPaths, lcaPath, plan.sharing, grammar);
+	deleteSubtreesIdentityGated(doc, plan.deletionPaths, plan.sharing, grammar);
 }
 
 /** Rebuilds every deletion path's surviving ancestors, then the cleared title line's opener

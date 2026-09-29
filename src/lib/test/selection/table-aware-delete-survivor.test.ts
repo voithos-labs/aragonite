@@ -1,10 +1,8 @@
-// Where the caret goes when every block the range covered is gone. Two claims the table-caret
-// suite reaches the shapes of but never checks: the placeholder created when the document empties
-// is a line ending (G4.20), and the descent into a surviving container respects collapse, so the
-// caret belongs on a collapsed container's title line rather than its last body leaf.
+// Where the caret goes when every block the range covered is gone: nowhere, from the delete alone,
+// since the commit gives an emptied document its block; and the descent into a surviving container
+// respects collapse, so the caret belongs on a collapsed container's title line.
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '../../core/parser';
-import { serialize } from '../../core/serializer';
 import { tableAwareRangeDelete } from '../../selection/range-delete-table';
 import { coverRange } from '../../selection/range-coverage';
 import { createSharingState } from '../../tree-operations/sharing';
@@ -37,16 +35,12 @@ function deleteBothTables(source: string, firstTableIndex: number) {
 	);
 }
 
-describe('the placeholder created when nothing survives takes the document’s line ending', () => {
-	it('a CRLF document keeps CRLF', () => {
+describe('when nothing survives', () => {
+	it('the delete leaves no block and no caret, for the commit to fill', () => {
 		const result = deleteBothTables(twoTables('\r\n'), 0);
 
-		expect(serialize(result.newDoc)).toBe('\r\n');
-		expect(result.collapsedCaret).toEqual({ path: [0], offset: 0 });
-	});
-
-	it('an LF document stays on LF', () => {
-		expect(serialize(deleteBothTables(twoTables('\n'), 0).newDoc)).toBe('\n');
+		expect(result.newDoc.children).toEqual([]);
+		expect(result.caret(result.newDoc)).toBeNull();
 	});
 });
 
@@ -64,8 +58,8 @@ describe('the survivor descent stops at a collapsed container’s chrome child',
 	it('a collapsed survivor takes the caret to its summary, not its clamped body', () => {
 		const result = deleteBothTables(detailsThenTables(''), 1);
 
-		expect(result.collapsedCaret).toEqual({ path: [0, 0], offset: 5 });
-		expect(blockNodeAt(result.newDoc, result.collapsedCaret.path)?.raw).toBe('Title\n');
+		expect(result.caret(result.newDoc)).toEqual({ path: [0, 0], offset: 5 });
+		expect(blockNodeAt(result.newDoc, result.caret(result.newDoc)!.path)?.raw).toBe('Title\n');
 	});
 
 	it('an expanded survivor takes the caret to its last body leaf', () => {
@@ -73,7 +67,7 @@ describe('the survivor descent stops at a collapsed container’s chrome child',
 		// case above is the collapse branch and not a walk that always stops at 0.
 		const result = deleteBothTables(detailsThenTables(' open'), 1);
 
-		expect(result.collapsedCaret).toEqual({ path: [0, 2], offset: 8 });
-		expect(blockNodeAt(result.newDoc, result.collapsedCaret.path)?.raw).toBe('body two\n');
+		expect(result.caret(result.newDoc)).toEqual({ path: [0, 2], offset: 8 });
+		expect(blockNodeAt(result.newDoc, result.caret(result.newDoc)!.path)?.raw).toBe('body two\n');
 	});
 });

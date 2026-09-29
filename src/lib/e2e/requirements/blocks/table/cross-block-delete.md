@@ -38,9 +38,9 @@ all of them flag the table endpoints as cell coordinates.
 Intra-table Backspace dispatches by what the selection covers:
 
 - Whole-table coverage (every cell selected, by a second Ctrl+A press, say): delete the table block. When
-  the table is the document's only block, an empty paragraph replaces it in the same undo entry so
-  the document keeps ≥1 editable block, the caret lands in it (offset 0), and a single Ctrl+Z
-  restores the original table.
+  the table is the document's only block, the commit leaves an empty paragraph in its place (every
+  delete that takes a document's last block does), the caret lands in it (offset 0), and a single
+  Ctrl+Z brings the table back.
 - Whole-table coverage with a paragraph above and below: Backspace lands the caret at the end of
   the one above, so a typed `x` joins its text.
   - Miss-analysis: the whole-table cases all used a table alone in the document, so where the

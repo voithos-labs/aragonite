@@ -17,8 +17,10 @@ import type { UndoController } from './deps';
 import {
 	replacePreservingFirst,
 	stampStructuralChange,
-	type StructuralChange
+	trackChildIds
 } from '../tree-operations/structural-change';
+import { spliceChildren } from '../tree-operations/children';
+import { cascadeCleanupEmptyAncestors } from '../tree-operations/cleanup';
 import { splitNode as performSplit, emptyParagraph } from '../tree-operations';
 import { lastCaretLeaf } from '../selection/path-lookup';
 import { ensureUnsharedChild } from '../tree-operations/unshare';
@@ -286,27 +288,21 @@ export function createListContext(deps: ListContextDeps): ListContext {
 			const nestedIdxInParent = parentItem.children.indexOf(nestedListNode);
 			if (nestedIdxInParent === -1) return false;
 
-			// Removing the last item empties the nested list, which needs a third scope to splice
-			// the empty list out of parentItem's children.
-			const nestedListWillEmpty = nestedListNode.children.length === 1;
-
+			// The move can empty the nested list and then the parent item, so both are scopes.
 			const scopes: MultiScopeTarget[] = [
 				{ node, state: deps.state, path: deps.scope.path },
 				{
 					node: nestedListNode,
 					state: expectStateForNode(nestedListNode),
 					path: [...deps.scope.path, parentItemIdx, nestedIdxInParent]
-				}
-			];
-			let parentItemScopeIdx = -1;
-			if (nestedListWillEmpty) {
-				parentItemScopeIdx = scopes.length;
-				scopes.push({
+				},
+				{
 					node: parentItem,
 					state: expectStateForNode(parentItem),
 					path: [...deps.scope.path, parentItemIdx]
-				});
-			}
+				}
+			];
+			let promotedAt = parentItemIdx + 1;
 
 			return deps.controller.commitMultiScope({
 				scopes,
@@ -316,48 +312,43 @@ export function createListContext(deps: ListContextDeps): ListContext {
 					offset: 0
 				},
 				mutate: (scopeViews) => {
-					const outerScope = scopeViews[0];
-					const nestedScope = scopeViews[1];
+					const [outerScope, nestedScope] = scopeViews;
 					const sharing = outerScope.sharing;
+					// Opened before the move, since the cleanup below can splice any of the three lists.
+					const ledgers = scopeViews.map((v) => trackChildIds(v.node));
 
 					// The promoted item is moved and written (marker normalization, renumbering),
 					// so copy it before it leaves the nested list.
 					const item = ensureUnsharedChild(nestedScope.node, nestedItemIdx, sharing);
-					nestedScope.children.splice(nestedItemIdx, 1);
-
-					const changes: StructuralChange[] = new Array(scopes.length);
-					changes[1] = { op: 'delete', at: nestedItemIdx, count: 1 };
-
-					if (nestedListWillEmpty && parentItemScopeIdx !== -1) {
-						const parentItemChildren = scopeViews[parentItemScopeIdx].children;
-						const nestedIdx = parentItemChildren.indexOf(nestedScope.node);
-						if (nestedIdx !== -1) {
-							parentItemChildren.splice(nestedIdx, 1);
-							changes[parentItemScopeIdx] = { op: 'delete', at: nestedIdx, count: 1 };
-						} else {
-							changes[parentItemScopeIdx] = { op: 'noop' };
-						}
-					}
-
-					if (!nestedListWillEmpty) {
-						renumberOrderedList(nestedScope.node, 0, sharing);
-					}
-
+					spliceChildren(nestedScope.node, nestedItemIdx, 1, []);
 					normalizeItemMarkerToList(item, outerScope.node);
+					spliceChildren(outerScope.node, promotedAt, 0, [item]);
 
-					outerScope.children.splice(parentItemIdx + 1, 0, item);
-					changes[0] = { op: 'insert', at: parentItemIdx + 1, count: 1 };
+					// What the move emptied goes, up to this list, which now holds the promoted item.
+					const outerCount = outerScope.children.length;
+					cascadeCleanupEmptyAncestors(
+						outerScope.node,
+						[parentItemIdx, nestedIdxInParent, nestedItemIdx],
+						sharing,
+						deps.reading.grammar
+					);
+					promotedAt -= outerCount - outerScope.children.length;
 
-					renumberOrderedList(outerScope.node, parentItemIdx + 1, sharing);
+					if (nestedScope.children.length > 0) renumberOrderedList(nestedScope.node, 0, sharing);
+					renumberOrderedList(outerScope.node, promotedAt, sharing);
 
-					return changes;
+					return ledgers.map((ledger) => {
+						const change = ledger.read();
+						ledger.release();
+						return change;
+					});
 				},
 				op: {
 					kind: 'replaceBlock',
 					detail: { action: 'promoteNestedItem', parentItemIdx, nestedItemIdx },
 					eventPath: docPathFrom(deps.scope.path)
 				},
-				landing: () => itemAt(parentItemIdx + 1, CURSOR_START)
+				landing: () => itemAt(promotedAt, CURSOR_START)
 			});
 		},
 

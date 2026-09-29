@@ -607,6 +607,13 @@ export function isGridDescriptor(descriptor: BlockKindDescriptor | undefined): b
 	return descriptor?.containerContract === 'grid';
 }
 
+/** Whether a block of this kind is broken with no children: every container, except one focused
+ *  as a whole block, which is its own caret target. */
+export function mustHoldChild(kind: AnyBlockKind): boolean {
+	const descriptor = tryGetBlockKindDescriptor(kind);
+	return !!descriptor?.isContainer && descriptor.blockFocus !== 'whole-block';
+}
+
 /** Whether an endpoint on this block's own path counts cells rather than characters. Tables only:
  *  a plugin grid's endpoints stay character offsets on deep cell paths. */
 export function countsCells(
