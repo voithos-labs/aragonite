@@ -33,6 +33,7 @@ import {
 } from './construct-edge-delete';
 import { resolveEdgeSeat, type EdgeSeat } from './edge-seat';
 import { replaceRangeInLeaf } from '../../../tree-operations/leaf-range';
+import { openHardBreakLine } from './text-keydown';
 import { resolveMarkedInsertion } from './pending-mark-insert';
 import { widgetAtCursor } from './widget-adjacency';
 import { noteOwnPair, resolveDelimiterAutoPair } from './delimiter-autopair';
@@ -226,7 +227,8 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		if (write.admitted) deps.setPendingCursor(write.caret, source);
 	}
 
-	/** `[start, end)` replaced by `insert` as every in-leaf edit is, the store read at the key. */
+	/** `[start, end)` replaced by `insert` through the in-leaf range replace, the store read at the
+	 *  key. */
 	function editDisplay(
 		start: number,
 		end: number,
@@ -587,13 +589,8 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		const ending = trailingLineEnding(deps.node.raw, deps.getLineEnding());
 		e.preventDefault();
 		deps.setSnapTarget(null);
-		const line = ending + e.key;
-		writeDisplay(
-			d.slice(0, lineEnd) + line + d.slice(lineEnd),
-			lineEnd + line.length,
-			'transitional-hard-break',
-			caretOffset
-		);
+		const opened = openHardBreakLine(d, lineEnd, ending, e.key);
+		writeDisplay(opened.display, opened.caret, 'transitional-hard-break', caretOffset);
 		return true;
 	}
 

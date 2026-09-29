@@ -1086,10 +1086,8 @@ const LEAF_RANGE_RULES: FileRule[] = [
 			'src/lib/tree-operations/structural-suffix.ts': "a split's two halves, which remove nothing",
 			'src/lib/components/blocks/text/construct-edge-delete.ts':
 				'the edge delete, which reads its own candidate back where it is stored',
-			'src/lib/components/blocks/text/edge-policy-dispatch.ts':
-				'the transitional hard break rewrites one line in place and deletes nothing',
 			'src/lib/components/blocks/text/text-keydown.ts':
-				'a hard break or a tab inserted at the caret, which deletes nothing',
+				'a hard break, its opened line or a tab inserted, which deletes nothing',
 			'src/lib/components/blocks/text/edge-seat.ts':
 				'a typed byte probed or placed at a caret position, which deletes nothing',
 			'src/lib/components/blocks/text/pending-mark-insert.ts':

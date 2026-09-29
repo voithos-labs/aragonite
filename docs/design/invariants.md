@@ -1800,7 +1800,8 @@ cutPastLineEnding`, `structural-suffix.ts :: cutKeepingStructure`), `selection/c
 every `joinLeaves(` caller: `leaf-range.ts` and the merge in `node-ops.ts`. A third catches a
 hand-written splice of one leaf's own bytes (`raw.slice(0, a) + … + raw.slice(b)`) in the live
 editing paths, and each file that keeps one says why: it inserts and deletes nothing, it rewrites
-one whole construct and checks the result itself, or it's a known gap with its owner (the range
+one whole construct and checks the result itself, it deletes and checks the result itself (the
+edge delete, an empty pair the auto-pair wrote), or it's a known gap with its owner (the range
 delete, which calls the cleanup itself and G4.76 declares, and typing after a cross-block delete).
 `lint/file-rules.test.ts`.
 
