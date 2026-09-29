@@ -67,20 +67,20 @@ const PINNED: Record<string, Pin> = {
 		why: 'the document scope has no chain, so each written leaf’s ancestors are rebuilt here'
 	},
 	'src/lib/selection/range-delete.ts': {
-		calls: { rebuildUnsharedAncestry: 3 },
-		why: 'the range delete rebuilds each chain it writes: the only rebuild under the top-level delete, a repeat of the commit’s scopes under the cross-container one (T29 slice 2)'
+		calls: { rebuildUnsharedAncestry: 2 },
+		why: 'the range delete rebuilds the joined start’s chain: the only rebuild under the top-level delete, a repeat of the commit’s scopes under the cross-container one (T29 slice 2)'
 	},
 	'src/lib/selection/range-delete-ceremony.ts': {
-		calls: { rebuildUnsharedAncestry: 1, rebuildUnsharedChain: 1 },
-		why: 'the same range delete, for the endpoints it truncates (T29 slice 2)'
+		calls: { rebuildUnsharedChain: 2 },
+		why: 'the same range delete, for what is left of each removed subtree’s parents and a cleared title line’s container (T29 slice 2)'
 	},
 	'src/lib/selection/range-delete-chrome.ts': {
-		calls: { rebuildUnsharedChain: 3 },
-		why: 'the same range delete, for a container whose title row it clears (T29 slice 2)'
+		calls: { rebuildUnsharedChain: 2 },
+		why: 'the same range delete, for the endpoints it truncates without joining them (T29 slice 2)'
 	},
 	'src/lib/selection/range-delete-table.ts': {
-		calls: { rebuildUnsharedAncestry: 7, rebuildOwnedContainer: 4, rebuildTableRowRaw: 2 },
-		why: 'the same range delete, for an endpoint table’s cleared rows and its ancestry (T29 slice 6)'
+		calls: { rebuildUnsharedChain: 2, rebuildTableRowRaw: 2 },
+		why: 'the same range delete, for the rows a table edge clears and each kept edge’s chain (T29 slice 6)'
 	},
 	'src/lib/selection/selection-drop.ts': {
 		calls: { rebuildAncestryRaw: 1 },

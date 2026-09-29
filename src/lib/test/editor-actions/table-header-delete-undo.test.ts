@@ -5,9 +5,11 @@
 // row the undo entry held keeps the bytes, so neither route had a test that could see it.
 import { describe, it, expect } from 'vitest';
 import { serialize } from '$lib/core/serializer';
-import { maybeCommitTableCoverageDelete } from '$lib/selection/range-delete-table-coverage';
 import { registerBlockListState } from '$lib/reactivity/state-registry';
-import type { CrossBlockMutationContext } from '$lib/selection/cross-block/ops';
+import {
+	performCrossBlockDelete,
+	type CrossBlockMutationContext
+} from '$lib/selection/cross-block/ops';
 import type { SelectionPoint } from '$lib/selection/primitives';
 import { makeBlockListState } from '$lib/test/harness/editor-actions';
 import { fixtureReading } from '$lib/test/harness/fixture-grammar';
@@ -16,7 +18,7 @@ import { makeHarness, runOp, type Harness } from '$lib/test/undo/restoration-ops
 
 const SOURCE = '| h | i |\n| --- | --- |\n| a | b |\n| c | d |\n';
 
-/** A whole-row selection over the header (cells 0 and 1 of two columns), then Backspace. */
+/** Selects the header row whole (cells 0 and 1) and deletes it as Ctrl+Shift+Backspace does. */
 async function deleteHeaderBySelection(h: Harness): Promise<void> {
 	const table = h.deps.doc.children[0];
 	registerBlockListState(
@@ -34,9 +36,9 @@ async function deleteHeaderBySelection(h: Harness): Promise<void> {
 	const start: SelectionPoint = { path: [0], offset: 0, cellCoordinate: true };
 	const end: SelectionPoint = { path: [0], offset: 1, cellCoordinate: true };
 	h.deps.selectionState.enterCrossBlock(start, end);
-	await maybeCommitTableCoverageDelete(ctx, table, start, end, {
-		lands: false,
-		gesture: 'keyless'
+	await performCrossBlockDelete(ctx, 'keyless', {
+		tableCoverageDelete: true,
+		skipCaretRestore: true
 	});
 }
 

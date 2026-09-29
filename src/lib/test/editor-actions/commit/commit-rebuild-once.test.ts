@@ -17,6 +17,8 @@ import { createUndoController } from '$lib/editor-actions/commit/undo-controller
 import { asDocPath } from '$lib/selection/path-math';
 import { takeDevWarns } from '$lib/test/support/warn-gate';
 import { createSharingState } from '$lib/tree-operations/sharing';
+import { documentBody } from '$lib/tree-operations/node-primitives';
+import { coverRange } from '$lib/selection/range-coverage';
 import {
 	applyCrossBlockFormat,
 	planCrossBlockFormat
@@ -89,9 +91,9 @@ describe('a document-scope mutation over several chains rebuilds each node once'
 		const reading = fixtureReading();
 		const start = { path: [0, 0, 0], offset: 0 };
 		const end = { path: [0, 1, 0], offset: 1 };
-		const plan = planCrossBlockFormat(doc, start, end, 'strong', reading)!;
+		const plan = planCrossBlockFormat(doc, coverRange(doc, start, end), 'strong', reading)!;
 
-		applyCrossBlockFormat(doc, plan, createSharingState(), '\n', reading.grammar);
+		applyCrossBlockFormat(documentBody(doc), plan, createSharingState(), reading.grammar);
 
 		expect(serialize(doc)).toBe('- **a**\n- **b**\n');
 		expect(repeatedRebuilds()).toEqual([]);
