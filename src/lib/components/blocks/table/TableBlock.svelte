@@ -24,7 +24,6 @@
 	import { columnNearestX } from './cell-x-mapping';
 	import { cellAtPoint, installCellDragListener, mountedRowEls, rowCellEls } from './cell-pointer';
 	import { tableCaretAtPoint } from './table-caret-at-point';
-	import { intraTableRect } from './cell-clipboard';
 	import { selectedCells } from './selected-cells';
 	import { useContainerWindowing } from '../../../reactivity/use-container-windowing.svelte';
 	import { sliceWindow } from '../../../reactivity/window-slice';
@@ -63,7 +62,8 @@
 		caretMemory: { captureColumn: captureExitColumn },
 		selection,
 		menuPresence,
-		caretLanding
+		caretLanding,
+		rangeCoverage
 	} = getContext<EditorServices>(EDITOR_SERVICES_KEY);
 	const {
 		editorRoot: getEditorRoot,
@@ -272,9 +272,8 @@
 	// A live rectangle suppresses the cell-local selection, so the menu reads it
 	// separately to keep Cut/Copy enabled.
 	const rectActive = $derived.by(() => {
-		if (!selection) return false;
-		const rect = intraTableRect(selection);
-		return rect !== null && pathsEqual(rect.tablePath, myPath);
+		const grid = rangeCoverage()?.grid;
+		return !!grid && pathsEqual(grid.path, myPath);
 	});
 
 	const menuItems = $derived(
@@ -477,7 +476,7 @@
 	export function measurePartialRects(start: number, end: number): DOMRect[] {
 		if (!tableEl || rowCount === 0) return [];
 		const cells = selectedCells({
-			rect: selection ? intraTableRect(selection) : null,
+			grid: rangeCoverage()?.grid ?? null,
 			myPath,
 			start,
 			end,

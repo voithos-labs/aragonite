@@ -23,7 +23,7 @@ import {
 } from '../../schema/container-rebuilders';
 import { insertEmptyRow } from '../../tree-operations/table-mutations';
 import { rangeDelete } from '../../selection/range-delete';
-import { coverRange } from '../../selection/range-coverage';
+import { coverRange, rangeCoverage } from '../../selection/range-coverage';
 import type { SelectionPoint } from '../../selection/primitives';
 import { createSharingState } from '../../tree-operations/sharing';
 import { ensureEditableContainers } from '../../tree-operations/node-primitives';
@@ -87,8 +87,13 @@ async function pasteInto(
  *  this test reads the line ending, and none of the three moves one. */
 const deleteBetween = (doc: Document, start: SelectionPoint, end: SelectionPoint) =>
 	serialize(
-		rangeDelete(doc, coverRange(doc, start, end), createSharingState(), fixtureReading(), 'keyless')
-			.newDoc
+		rangeDelete(
+			doc,
+			rangeCoverage(doc, coverRange(doc, start, end)),
+			createSharingState(),
+			fixtureReading(),
+			'keyless'
+		).newDoc
 	);
 
 const GESTURES: EditGesture[] = [

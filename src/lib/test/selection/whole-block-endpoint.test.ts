@@ -4,7 +4,7 @@
 import { describe, it, expect } from 'vitest';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import { collectCrossBlockText } from '$lib/selection/clipboard-text';
-import { coverRange } from '$lib/selection/range-coverage';
+import { coverRange, rangeCoverage } from '$lib/selection/range-coverage';
 import { rangeDelete } from '$lib/selection/range-delete';
 import { createSharingState } from '$lib/tree-operations/sharing';
 import { parse } from '$lib/core/parser';
@@ -28,14 +28,14 @@ function mermaidDoc(): Document {
 }
 
 function copySelected(doc: Document, s: ReturnType<typeof stateOver>): string {
-	return collectCrossBlockText(doc, coverRange(doc, s.start!, s.end!));
+	return collectCrossBlockText(doc, rangeCoverage(doc, coverRange(doc, s.start!, s.end!)));
 }
 
 function deleteSelected(doc: Document, s: ReturnType<typeof stateOver>): string {
 	return serialize(
 		rangeDelete(
 			doc,
-			coverRange(doc, s.start!, s.end!),
+			rangeCoverage(doc, coverRange(doc, s.start!, s.end!)),
 			createSharingState(),
 			fixtureReading(),
 			'keyless'

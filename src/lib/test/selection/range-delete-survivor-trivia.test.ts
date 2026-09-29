@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { rangeDelete } from '$lib/selection/range-delete';
-import { coverRange } from '$lib/selection/range-coverage';
+import { coverRange, rangeCoverage } from '$lib/selection/range-coverage';
 import { createSharingState } from '$lib/tree-operations/sharing';
 import { registerCalloutForTests } from './chrome-plugins';
 import { expectParseConverged } from '../harness/parse-converged';
@@ -17,7 +17,13 @@ const sharing = () => createSharingState();
 
 function del(source: string, start: SelectionPoint, end: SelectionPoint) {
 	const doc = parse(source);
-	rangeDelete(doc, coverRange(doc, start, end), sharing(), fixtureReading(), 'keyless');
+	rangeDelete(
+		doc,
+		rangeCoverage(doc, coverRange(doc, start, end)),
+		sharing(),
+		fixtureReading(),
+		'keyless'
+	);
 	return doc;
 }
 

@@ -15,7 +15,8 @@ import {
 } from '$lib/selection/cross-block/format-range';
 import type { SelectionPoint } from '$lib/selection/primitives';
 import { fixtureReading } from '$lib/test/harness/fixture-grammar';
-import { documentLineEnding } from '$lib/core/lines';
+import { coverRange } from '$lib/selection/range-coverage';
+import { documentBody } from '$lib/tree-operations/node-primitives';
 
 const at = (path: number[], offset: number): SelectionPoint => ({ path, offset });
 
@@ -37,15 +38,9 @@ function toggle(
 	format: 'strong' | 'emphasis' = 'strong'
 ): string | null {
 	const doc = parse(source);
-	const plan = planCrossBlockFormat(doc, start, end, format, fixtureReading());
+	const plan = planCrossBlockFormat(doc, coverRange(doc, start, end), format, fixtureReading());
 	if (!plan) return null;
-	applyCrossBlockFormat(
-		doc,
-		plan,
-		createSharingState(),
-		documentLineEnding(doc),
-		defaultGrammarView
-	);
+	applyCrossBlockFormat(documentBody(doc), plan, createSharingState(), defaultGrammarView);
 	return serialize(doc);
 }
 
@@ -64,10 +59,10 @@ describe('a range with one endpoint inside a table', () => {
 		);
 	});
 
-	it('takes a mid-row end cell as an inclusive run, leaving the rest of its row alone', () => {
+	it('takes a mid-row end cell’s whole row, as the delete and the copy do', () => {
 		expect(toggle(`head\n\n${THREE_COL}\ntail\n`, at([0], 0), cell([1], 4))).toBe(
 			'**head**\n\n| **Ha** | **Hb** | **Hc** |\n| --- | --- | --- |\n' +
-				'| **a1** | **a2** | a3 |\n| b1 | b2 | b3 |\n\ntail\n'
+				'| **a1** | **a2** | **a3** |\n| b1 | b2 | b3 |\n\ntail\n'
 		);
 	});
 });
@@ -151,7 +146,11 @@ describe('direction is the whole range’s coverage, cells included', () => {
 
 describe('the pressed-state read', () => {
 	const active = (source: string, start: SelectionPoint, end: SelectionPoint) =>
-		crossBlockActiveFormats(parse(source), start, end, fixtureReading()).has('strong');
+		crossBlockActiveFormats(
+			parse(source),
+			coverRange(parse(source), start, end),
+			fixtureReading()
+		).has('strong');
 
 	it('is true only when every covered cell carries the mark too', () => {
 		expect(
@@ -178,14 +177,24 @@ describe('the endpoints the plan hands back', () => {
 	// prose side takes the offset its own rewrite produced.
 	it('leaves a cell endpoint on its cell index and re-offsets the prose one', () => {
 		const doc = parse(`head\n\n${TWO_COL}\ntail\n`);
-		const plan = planCrossBlockFormat(doc, cell([1], 2), at([2], 4), 'strong', fixtureReading())!;
+		const plan = planCrossBlockFormat(
+			doc,
+			coverRange(doc, cell([1], 2), at([2], 4)),
+			'strong',
+			fixtureReading()
+		)!;
 		expect(plan.startOffset).toBe(2);
 		expect(plan.endOffset).toBe('**tail**'.length);
 	});
 
 	it('keeps both corners of a rectangle in cell space', () => {
 		const doc = parse(THREE_COL);
-		const plan = planCrossBlockFormat(doc, cell([0], 4), cell([0], 7), 'strong', fixtureReading())!;
+		const plan = planCrossBlockFormat(
+			doc,
+			coverRange(doc, cell([0], 4), cell([0], 7)),
+			'strong',
+			fixtureReading()
+		)!;
 		expect(plan.startOffset).toBe(4);
 		expect(plan.endOffset).toBe(7);
 	});

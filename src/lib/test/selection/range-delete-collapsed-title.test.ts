@@ -5,7 +5,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import { rangeDelete } from '../../selection/range-delete';
-import { coverRange } from '../../selection/range-coverage';
+import { coverRange, rangeCoverage } from '../../selection/range-coverage';
 import { createSharingState } from '../../tree-operations/sharing';
 import type { SelectionPoint } from '../../selection/primitives';
 import { fixtureReading } from '../harness/fixture-grammar';
@@ -24,7 +24,7 @@ function run(source: string, start: SelectionPoint, end: SelectionPoint) {
 	const doc = parse(source);
 	const result = rangeDelete(
 		doc,
-		coverRange(doc, start, end),
+		rangeCoverage(doc, coverRange(doc, start, end)),
 		createSharingState(),
 		fixtureReading(),
 		'keyless'

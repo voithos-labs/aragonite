@@ -6,20 +6,31 @@
 
 import type { SelectionState } from '../selection-state.svelte';
 import type { Reading } from '../../schema/reading';
-import { deleteSnapshot, type SelectionPoint } from '../primitives';
+import { deleteSnapshot, type CaretPosition, type SelectionPoint } from '../primitives';
 import type { Document } from '../../core/nodes';
 import type { BlockComponent } from '../../block-component';
-import type { CommitController, MultiScopeTarget } from '../../action-contracts';
+import type {
+	CommitAfterTick,
+	CommitController,
+	CommitLanding,
+	MultiScopeTarget
+} from '../../action-contracts';
 import { focusCollapsedCaret } from '../native-bridge';
-import { rangeDelete, type RangeDeleteResult } from '../range-delete';
-import { coverRange, type CoveredRange } from '../range-coverage';
+import { rangeDelete, removeHeldWhole, type RangeDeleteResult } from '../range-delete';
+import {
+	coverRange,
+	rangeCoverage,
+	type CoveredRange,
+	type RangeCoverage
+} from '../range-coverage';
 import { trackChildIds, type StructuralChange } from '../../tree-operations/structural-change';
 import { documentBody, isBlockNode, nodeAt } from '../../tree-operations/node-primitives';
 import { pathsEqual } from '../path-math';
 import { countsCells } from '../../schema/block-kind-descriptor';
 import { docPathFrom } from '../../cursor/coordinate-spaces';
 import { getStateForNode } from '../../reactivity/state-registry';
-import { maybeCommitTableCoverageDelete } from '../range-delete-table-coverage';
+import { commitGridLineDelete } from '../range-delete-table-coverage';
+import type { SharingState } from '../../tree-operations/sharing';
 import type { RemovalGesture } from '../caret-target';
 
 // ── Public API ─────────────────────────────────────────────────────────────
@@ -110,22 +121,25 @@ async function runCrossBlockDelete(
 		await ctx.revealPath(start.path);
 	}
 
-	if (options?.tableCoverageDelete && isPureTopLevel && samePath) {
-		const block = nodeAt(doc, start.path);
-		if (block && isBlockNode(block) && countsCells(block)) {
-			const handled = await maybeCommitTableCoverageDelete(ctx, block, start, end, {
-				lands: !!caretRestore,
-				gesture
-			});
-			if (handled) return handled.caret;
-		}
-	}
-
 	const range = coverRange(doc, start, end);
-	if (isPureTopLevel) {
-		return await commitPureTopLevelDelete(ctx, range, gesture, caretRestore);
+	const coverage = rangeCoverage(doc, range);
+	const grid = options?.tableCoverageDelete ? coverage.grid : null;
+	if (grid && (grid.kind === 'row' || grid.kind === 'column')) {
+		return commitGridLineDelete(ctx, grid, !!caretRestore);
 	}
-	return await commitCrossContainerDelete(ctx, doc, range, gesture, caretRestore);
+	// A table held whole goes, where `rangeDelete` would clear its cells; the commit lands the
+	// caret on the side the key points.
+	if (grid?.kind === 'table') {
+		const caret = caretByLanding(ctx, !!caretRestore);
+		const remove: RangeRemoval = (sharing) =>
+			removeHeldWhole(doc, coverage, sharing, ctx.reading, gesture);
+		return commitCrossContainerDelete(ctx, doc, range, remove, caret);
+	}
+	const caret = caretAfterCommit(ctx, caretRestore);
+	if (isPureTopLevel) return await commitPureTopLevelDelete(ctx, coverage, gesture, caret);
+	const remove: RangeRemoval = (sharing) =>
+		rangeDelete(doc, coverage, sharing, ctx.reading, gesture);
+	return await commitCrossContainerDelete(ctx, doc, range, remove, caret);
 }
 
 /** For compositionstart, where the IME drops the composition if the handler yields: the commit
@@ -136,6 +150,9 @@ export function performCrossBlockDeleteSync(ctx: CrossBlockMutationContext): voi
 
 // ── Internal ───────────────────────────────────────────────────────────────
 
+/** What the commit runs over the range: `rangeDelete`, or the removal of a table held whole. */
+type RangeRemoval = (sharing: SharingState) => RangeDeleteResult;
+
 function isTableAt(doc: Document, path: number[]): boolean {
 	const node = nodeAt(doc, path);
 	return node !== null && countsCells(node);
@@ -145,12 +162,11 @@ function isTableAt(doc: Document, path: number[]): boolean {
  *  top-level children copy is a safe mutation target. */
 async function commitPureTopLevelDelete(
 	ctx: CrossBlockMutationContext,
-	range: CoveredRange,
+	coverage: RangeCoverage,
 	gesture: RemovalGesture,
-	caretRestore: ((caret: SelectionPoint | null) => void) | undefined
+	caret: CaretPlacement
 ): Promise<SelectionPoint | null> {
-	const caret = caretAfterCommit(ctx, caretRestore);
-	const { start } = range;
+	const { start } = coverage.range;
 
 	const snapshot = deleteSnapshot(start.path, start.offset);
 
@@ -160,24 +176,24 @@ async function commitPureTopLevelDelete(
 		mutate: (topLevelChildren) => {
 			const body = documentBody(doc, topLevelChildren);
 			const ledger = trackChildIds(body);
-			caret.hold(rangeDelete(body, range, ctx.controller.sharing, ctx.reading, gesture));
+			caret.hold(rangeDelete(body, coverage, ctx.controller.sharing, ctx.reading, gesture));
 			ctx.selection.collapse();
 			return ledger.read();
 		},
 		op: { kind: 'delete', detail: { crossBlock: true }, eventPath: docPathFrom([start.path[0]]) },
-		afterTick: caret.afterTick
+		...caret.commitArgs
 	});
 
 	return caret.read();
 }
 
-/** One `rangeDelete` on the live doc, with a commit scope for every container it splices. */
+/** One `remove` on the live doc, with a commit scope for every container it splices. */
 async function commitCrossContainerDelete(
 	ctx: CrossBlockMutationContext,
 	doc: Document,
 	range: CoveredRange,
-	gesture: RemovalGesture,
-	caretRestore: ((caret: SelectionPoint | null) => void) | undefined
+	remove: RangeRemoval,
+	caret: CaretPlacement
 ): Promise<SelectionPoint | null> {
 	const { start, end } = range;
 	// The document goes first and always: it holds every endpoint, and a block the range takes
@@ -186,7 +202,6 @@ async function commitCrossContainerDelete(
 		ctx.controller.getDocScope(),
 		...collectTouchedContainers(doc, start.path, end.path)
 	];
-	const caret = caretAfterCommit(ctx, caretRestore);
 
 	await ctx.controller.commitMultiScope({
 		scopes,
@@ -199,7 +214,7 @@ async function commitCrossContainerDelete(
 			// scope nodes stay valid because splices happen in place.
 			const ledgers = scopeViews.map((v) => trackChildIds(v.node));
 
-			const result = rangeDelete(doc, range, sharing, ctx.reading, gesture);
+			const result = remove(sharing);
 			caret.hold(result);
 			ctx.selection.collapse();
 
@@ -216,29 +231,55 @@ async function commitCrossContainerDelete(
 			});
 		},
 		op: { kind: 'delete', detail: { crossBlock: true }, eventPath: docPathFrom([start.path[0]]) },
-		afterTick: caret.afterTick
+		...caret.commitArgs
 	});
 
 	return caret.read();
 }
 
-/** The delete's caret, read on the committed tree once the commit's tick has run, and put down
- *  there when `caretRestore` is given; paste and typing continue at the same read. */
+/** How a delete's caret goes down: held from the mutation, then read on the committed tree. */
+interface CaretPlacement {
+	hold: (deleted: RangeDeleteResult) => void;
+	read: () => SelectionPoint | null;
+	commitArgs: { afterTick?: CommitAfterTick; landing?: CommitLanding };
+}
+
+/** Put down after the commit's tick when `caretRestore` is given; paste and typing continue at
+ *  the same read. */
 function caretAfterCommit(
 	ctx: CrossBlockMutationContext,
 	caretRestore: ((caret: SelectionPoint | null) => void) | undefined
-) {
+): CaretPlacement {
 	let result: RangeDeleteResult | null = null;
 	let caret: SelectionPoint | null = null;
 	return {
-		hold: (deleted: RangeDeleteResult) => {
+		hold: (deleted) => {
 			result = deleted;
 		},
-		afterTick: () => {
-			caret = result?.caret(ctx.getDoc()) ?? null;
-			caretRestore?.(caret);
+		read: () => caret,
+		commitArgs: {
+			afterTick: () => {
+				caret = result?.caret(ctx.getDoc()) ?? null;
+				caretRestore?.(caret);
+			}
+		}
+	};
+}
+
+/** The commit puts the caret down itself, and only when `lands` is set. */
+function caretByLanding(ctx: CrossBlockMutationContext, lands: boolean): CaretPlacement {
+	let result: RangeDeleteResult | null = null;
+	const read = () => result?.caret(ctx.getDoc()) ?? null;
+	const landing = (): CaretPosition | null => {
+		const caret = read();
+		return caret && { path: docPathFrom(caret.path), offset: caret.offset };
+	};
+	return {
+		hold: (deleted) => {
+			result = deleted;
 		},
-		read: () => caret
+		read,
+		commitArgs: { landing: lands ? landing : undefined }
 	};
 }
 

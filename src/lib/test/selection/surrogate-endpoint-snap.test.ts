@@ -5,7 +5,7 @@
 import { describe, it, expect } from 'vitest';
 import { createSelectionState } from '../../selection/selection-state.svelte';
 import { rangeDelete } from '../../selection/range-delete';
-import { coverRange } from '../../selection/range-coverage';
+import { coverRange, rangeCoverage } from '../../selection/range-coverage';
 import { normalizeCharEndpoint } from '../../selection/char-endpoint-snap';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
@@ -37,7 +37,7 @@ function deleteAcross(doc: Document, startOffset: number, endOffset: number): st
 	state.enterCrossBlock({ path: [0], offset: startOffset }, { path: [1], offset: endOffset });
 	const { newDoc } = rangeDelete(
 		doc,
-		coverRange(doc, state.start!, state.end!),
+		rangeCoverage(doc, coverRange(doc, state.start!, state.end!)),
 		createSharingState(),
 		fixtureReading(),
 		'keyless'

@@ -8,6 +8,7 @@ import { crossBlockActiveFormats } from '$lib/selection/cross-block/format-range
 import type { SelectionPoint } from '$lib/selection/primitives';
 import { makeKeydownEnv } from './keydown-env';
 import { fixtureReading } from '$lib/test/harness/fixture-grammar';
+import { coverRange } from '$lib/selection/range-coverage';
 
 const MARKS = listInlineMarks();
 
@@ -39,7 +40,11 @@ describe('the memoised pressed-state read answers the unmemoised one', () => {
 			for (const [start, end] of PAIRS) {
 				if (end.path[0] >= env.doc.children.length) continue;
 				env.selection.enterCrossBlock(start, end);
-				const expected = crossBlockActiveFormats(env.doc, start, end, fixtureReading());
+				const expected = crossBlockActiveFormats(
+					env.doc,
+					coverRange(env.doc, start, end),
+					fixtureReading()
+				);
 				for (const { kind, mark } of MARKS) {
 					expect(env.crossBlockCommands.isActive(mark.command), `${kind} on ${source}`).toBe(
 						expected.has(kind)

@@ -3,7 +3,7 @@ import { parse, serialize } from '$lib';
 import { normalizeOwnRaw } from '$lib/tree-operations/node-primitives';
 import { documentLineEnding } from '$lib/plugin';
 import { rangeDelete } from '$lib/selection/range-delete';
-import { coverRange } from '$lib/selection/range-coverage';
+import { coverRange, rangeCoverage } from '$lib/selection/range-coverage';
 import { createSharingState } from '$lib/tree-operations/sharing';
 import { registerMermaidKind } from '$lib/plugins/mermaid/mermaid-kind';
 import { fixtureReading } from '../../harness/fixture-grammar';
@@ -29,7 +29,7 @@ describe('a truncating write of a mermaid block gets its closing fence back', ()
 		// From just after the opener line into "After", which leaves "er".
 		rangeDelete(
 			doc,
-			coverRange(doc, { path: [1], offset: 11 }, { path: [2], offset: 3 }),
+			rangeCoverage(doc, coverRange(doc, { path: [1], offset: 11 }, { path: [2], offset: 3 })),
 			createSharingState(),
 			fixtureReading(),
 			'keyless'

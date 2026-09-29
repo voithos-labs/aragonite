@@ -481,7 +481,7 @@ export function registerBuiltInDescriptors(): void {
 			undo: { mode: 'inherit-default' },
 			clipboard: {
 				mode: 'implemented',
-				via: 'copy/cut synthesize a GFM sub-table for the selected rectangle (intraTableRectPayload → copyRectangleAsSubTable, cell index)'
+				via: 'copy/cut, from a cell or the editor root, write the selected rectangle as a GFM sub-table and an HTML table (gridClipboard → copyRectangleAsSubTable, cell index)'
 			},
 			simOracle: { mode: 'implemented', via: 'note-taking simulation (table cell edits)' }
 		}

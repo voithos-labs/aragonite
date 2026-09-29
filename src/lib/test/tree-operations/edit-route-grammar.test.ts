@@ -11,7 +11,7 @@ import { reorderChildrenWithTrivia } from '$lib/tree-operations/reorder';
 import { documentBody } from '$lib/tree-operations/node-primitives';
 import { createSharingState } from '$lib/tree-operations/sharing';
 import { rangeDelete } from '$lib/selection/range-delete';
-import { coverRange } from '$lib/selection/range-coverage';
+import { coverRange, rangeCoverage } from '$lib/selection/range-coverage';
 import { planEnterCompletion } from '$lib/editor-actions/enter-completion';
 import type { CstNode } from '$lib/core/nodes';
 import { describeConvergence } from '../harness/parse-converged';
@@ -59,7 +59,7 @@ describe('an edit route reparses in the editor grammar', () => {
 		const doc = read('first\n\nx    rest\n');
 		rangeDelete(
 			doc,
-			coverRange(doc, { path: [0], offset: 0 }, { path: [1], offset: 1 }),
+			rangeCoverage(doc, coverRange(doc, { path: [0], offset: 0 }, { path: [1], offset: 1 })),
 			createSharingState(),
 			fixtureReading({ grammar: noIndentedCode }),
 			'keyless'

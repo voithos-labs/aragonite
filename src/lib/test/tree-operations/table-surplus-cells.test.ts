@@ -19,7 +19,7 @@ import {
 } from '$lib/tree-operations/table-mutations';
 import { sliceTableAtRow } from '$lib/tree-operations/paste/table-slice';
 import { rangeDelete } from '$lib/selection/range-delete';
-import { coverRange } from '$lib/selection/range-coverage';
+import { coverRange, rangeCoverage } from '$lib/selection/range-coverage';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
 import { fixtureReading } from '../harness/fixture-grammar';
@@ -147,13 +147,13 @@ describe('the table’s structural edits keep them', () => {
 
 		rangeDelete(
 			doc,
-			coverRange(doc, start, end),
+			rangeCoverage(doc, coverRange(doc, start, end)),
 			createSharingState(),
 			fixtureReading(),
 			'keyless'
 		);
 		// The end is given in cells, the unit the selection snaps a table endpoint to.
-		allowDevWarns(['deleteFromProseIntoTable:end']);
+		allowDevWarns(['rangeCoverage:tableEdge']);
 
 		expect(serialize(doc)).toBe('\n| x | y |\n| --- | --- |\n| 1 |  |\n');
 		expect(describeConvergence(doc)).toBeNull();

@@ -14,7 +14,8 @@ import {
 } from '$lib/selection/cross-block/format-range';
 import type { SelectionPoint } from '$lib/selection/primitives';
 import { fixtureReading } from '$lib/test/harness/fixture-grammar';
-import { documentLineEnding } from '$lib/core/lines';
+import { coverRange } from '$lib/selection/range-coverage';
+import { documentBody } from '$lib/tree-operations/node-primitives';
 
 const at = (path: number[], offset: number): SelectionPoint => ({ path, offset });
 
@@ -27,15 +28,14 @@ function toggle(
 	mode: 'source' | 'live'
 ) {
 	const doc = parse(source);
-	const plan = planCrossBlockFormat(doc, start, end, 'strong', fixtureReading({}, mode));
-	if (!plan) return null;
-	applyCrossBlockFormat(
+	const plan = planCrossBlockFormat(
 		doc,
-		plan,
-		createSharingState(),
-		documentLineEnding(doc),
-		defaultGrammarView
+		coverRange(doc, start, end),
+		'strong',
+		fixtureReading({}, mode)
 	);
+	if (!plan) return null;
+	applyCrossBlockFormat(documentBody(doc), plan, createSharingState(), defaultGrammarView);
 	return serialize(doc);
 }
 

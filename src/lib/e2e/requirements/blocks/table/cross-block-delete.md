@@ -55,6 +55,12 @@ Intra-table Backspace dispatches by what the selection covers:
 - Whole-column coverage (every row's same column, no other columns): delete the column. It does
   nothing when only one column remains (≥2 columns required), mirroring Alt+Shift+Backspace.
 - Subset / mixed coverage: clear the selected cells and preserve the table structure.
+- A table inside a quote or a list item gets the same treatment: a whole row or column goes, and
+  the whole table goes too, taking the quote or item it leaves empty with it (the paragraph below
+  stays). One Ctrl+Z brings the table back.
+  - Miss-analysis: every coverage row used a top-level table, and Backspace only asked what a
+    selection covers when it sat at the top level, so a nested table got its cells cleared and no
+    test ever looked.
 
 ## User interactions
 

@@ -12,8 +12,8 @@ import {
 	registerLiveJoinSeamCleaner,
 	__resetLiveJoinSeamCleanerForTests
 } from '../../schema/inline-construct-policy';
-import { tableAwareRangeDelete } from '../../selection/range-delete-table';
-import { coverRange } from '../../selection/range-coverage';
+import { rangeDelete } from '../../selection/range-delete';
+import { coverRange, rangeCoverage } from '../../selection/range-coverage';
 import { createSharingState } from '../../tree-operations/sharing';
 import type { CellSelectionPoint, SelectionPoint } from '../../selection/primitives';
 import { fixtureReading } from '../harness/fixture-grammar';
@@ -32,9 +32,9 @@ const cell = (path: number[], index: number): CellSelectionPoint => ({
 
 function run(source: string, start: SelectionPoint, end: SelectionPoint, mode?: PresentationMode) {
 	const doc = parse(source);
-	const result = tableAwareRangeDelete(
+	const result = rangeDelete(
 		doc,
-		coverRange(doc, start, end),
+		rangeCoverage(doc, coverRange(doc, start, end)),
 		createSharingState(),
 		fixtureReading({}, mode),
 		'keyless'

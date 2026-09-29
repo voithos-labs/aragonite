@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { walkBetween } from '../../selection/primitives';
+import { walkBetween } from '../../selection/range-coverage';
 import { para, bq, doc } from './cst-builders';
 
 describe('walkBetween', () => {

@@ -1045,12 +1045,54 @@ const RULES: FileRule[] = [
 			'src/lib/selection/table-endpoint-snap.ts': 'defines it',
 			'src/lib/selection/range-coverage.ts': 'snaps once for every reader of a range',
 			'src/lib/selection/selection-state.svelte.ts':
-				'the stored `start` and `end`, which the collapse keys, the undo seed and the extension paths read, and the format toggle until it reads the coverage'
+				'the stored `start` and `end`, which the collapse keys, the undo seed and the extension paths read'
 		},
 		reason:
 			'the delete, the copy and the overlay read the snapped pair from `coverRange`; a second snap is a second answer to what the range covers',
 		hits: ['const { start, end } = snapCrossBlockTableEndpoints(doc, a, b);'],
 		misses: ["import { snapCrossBlockTableEndpoints } from './table-endpoint-snap';"]
+	},
+	{
+		id: 'G4.95 what a range covers is decided in the range coverage only',
+		matches:
+			/(?:^|[^\w.]|\.\.\.)(?:walkBetween|isPathSubtreeBetween|isPathBetween|cellRectBounds|lastChildDescendant|cellIndexOf|tableCellCount)\s*\(|\.unitHolding\s*\(/m,
+		allowed: {
+			'src/lib/selection/range-coverage.ts':
+				'decides once what a range covers: the blocks between, the units, the edges, the cells, the rectangle',
+			'src/lib/selection/path-math.ts': 'defines the two path predicates',
+			'src/lib/cursor/coordinate-spaces.ts': 'defines the rectangle two cells span',
+			'src/lib/selection/primitives.ts': 'defines the cell index read of a table endpoint',
+			'src/lib/schema/block-kind-descriptor.ts':
+				"defines a table's cell count and the clamp every cell index takes",
+			'src/lib/selection/table-endpoint-snap.ts':
+				'snaps a table endpoint to its row for `coverRange`, before any coverage exists',
+			'src/lib/invariants/selection-endpoints.ts':
+				"checks a stored cell endpoint lies inside its table's cells",
+			'src/lib/selection/table-rect-extend.ts':
+				"moves a rectangle's focus cell one step on Shift+arrow, an edit of the selection",
+			'src/lib/selection/range-delete-table.ts':
+				'puts the caret in the start cell once the coverage has said which cells clear'
+		},
+		reason:
+			'the delete, the copy, the format toggle and the overlay read `rangeCoverage`; a walk, a rectangle, a unit check or cell arithmetic on an endpoint of their own is a second answer to what a range covers',
+		hits: [
+			'for (const path of walkBetween(doc, start.path, end.path)) {',
+			'if (isPathBetween(path, start.path, end.path)) return "middle";',
+			'const rect = cellRectBounds(anchor, focus, colCount);',
+			'return { tablePath, ...cellRectBounds(anchor, focus, colCount) };',
+			'const unit = range.unitHolding(start.path);',
+			'const cellCount = tableCellCount(node);\nreturn lo === 0 && hi === cellCount - 1 ? anchor.path.slice() : null;',
+			"? cellIndexOf(start, 'SelectionOverlay:start')",
+			"const endOffset = cellIndexOf(end, 'SelectionOverlay:end') + 1;"
+		],
+		misses: [
+			"import { walkBetween } from './range-coverage';",
+			'const root = coverage.rootHolding(path);',
+			'const { top, left } = grid.rect;',
+			'const rect = bounds.cellRectBounds(anchor, focus);',
+			'const { from, to } = endpointMeasureSpan(classification, live);',
+			'const run = coverage.endCells;'
+		]
 	},
 	{
 		id: 'a removed block lands the caret by its gesture; only a range running on past it skips that',

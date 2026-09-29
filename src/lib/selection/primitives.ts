@@ -1,20 +1,12 @@
 /**
- * Pure primitives for cross-block selection: types, document-order walking, overlay
- * classification of a covered range, the delete-commit snapshot rule. Path-level predicates live
- * in `./path-math`.
+ * Pure primitives for cross-block selection: types, overlay classification of a covered range,
+ * the delete-commit snapshot rule. Path-level predicates live in `./path-math`.
  */
 
 import type { CommitSnapshotArg } from '../action-contracts';
-import type { DocumentView, NodeView } from '../core/node-views';
-import type { CoveredRange } from './range-coverage';
-import {
-	comparePaths,
-	isPathBetween,
-	isStrictAncestorOf,
-	pathHasPrefix,
-	pathsEqual,
-	type DocPath
-} from './path-math';
+import { SELECTION_END } from '../block-component';
+import type { RangeCoverage } from './range-coverage';
+import { comparePaths, pathsEqual, type DocPath } from './path-math';
 import {
 	asCellIndex,
 	asRawOffset,
@@ -155,51 +147,24 @@ export function deleteSnapshot(path: number[], offset = 0): CommitSnapshotArg {
 	return { path: docPathFrom(path), offset };
 }
 
-// ── Range walk ─────────────────────────────────────────────────────────────
-
-/** Every block path strictly between `start` and `end`, at every nesting level. */
-export function walkBetween(doc: DocumentView, start: number[], end: number[]): number[][] {
-	if (comparePaths(start, end) >= 0) return [];
-
-	const result: number[][] = [];
-
-	function visit(node: NodeView | DocumentView, path: number[]): void {
-		if (isPathBetween(path, start, end)) {
-			result.push([...path]);
-		}
-		if (!node.children) return;
-		for (let i = 0; i < node.children.length; i++) {
-			const childPath = [...path, i];
-			// Skip subtrees entirely before start (an ancestor of start still holds it) or after end.
-			if (!pathHasPrefix(start, childPath) && comparePaths(childPath, start) < 0) continue;
-			if (comparePaths(childPath, end) >= 0) break;
-			visit(node.children[i], childPath);
-		}
-	}
-
-	visit(doc, []);
-	return result;
-}
-
 // ── Overlay classification ─────────────────────────────────────────────────
 
 export type BlockSelectionClass = 'outside' | 'start' | 'middle' | 'end' | 'single-block';
 
 /** Where a block stands in a covered range, for the overlay: 'single-block' delegates to the
- *  browser, and a container the range takes whole is 'middle' with nothing inside it painting. */
+ *  browser, and a subtree the range holds whole is 'middle' with nothing inside it painting. */
 export function classifyBlockForSelection(
 	path: readonly number[],
-	range: CoveredRange
+	coverage: RangeCoverage
 ): BlockSelectionClass {
-	const { start, end } = range;
-	if (comparePaths(start.path, end.path) === 0) {
-		return comparePaths(path, start.path) === 0 ? 'single-block' : 'outside';
+	const { start, end } = coverage.range;
+	if (pathsEqual(start.path, end.path)) {
+		return pathsEqual(path, start.path) ? 'single-block' : 'outside';
 	}
-	const unit = range.unitHolding(path);
-	if (unit) return pathsEqual(unit, path) ? 'middle' : 'outside';
-	if (comparePaths(path, start.path) === 0) return 'start';
-	if (comparePaths(path, end.path) === 0) return 'end';
-	if (isPathBetween(path, start.path, end.path)) return 'middle';
+	const root = coverage.rootHolding(path);
+	if (root) return pathsEqual(root, path) ? 'middle' : 'outside';
+	if (coverage.startEdge && pathsEqual(path, start.path)) return 'start';
+	if (coverage.endEdge && pathsEqual(path, end.path)) return 'end';
 	return 'outside';
 }
 
@@ -207,21 +172,31 @@ export function classifyBlockForSelection(
  *  alert's badge), which no child host covers, is painted too; its children then paint nothing. */
 export function blockPaintsWholeBox(
 	path: readonly number[],
-	range: CoveredRange,
+	coverage: RangeCoverage,
 	wholeUnitPath: readonly number[] | null
 ): boolean {
 	if (wholeUnitPath) return pathsEqual(path, wholeUnitPath);
-	const unit = range.unitHolding(path);
-	if (unit) return pathsEqual(unit, path);
-	const { start, end } = range;
-	return (
-		holdsSubtree(path, start.path, end.path) &&
-		!holdsSubtree(path.slice(0, -1), start.path, end.path)
-	);
+	const { start, end } = coverage.range;
+	if (pathsEqual(start.path, end.path)) return false;
+	return coverage.wholeRoots.some((root) => pathsEqual(root, path));
 }
 
-/** The range holds the block's whole subtree: inside it in document order, and not an ancestor
- *  of the end endpoint, whose own descendants the range cuts through. */
-function holdsSubtree(path: readonly number[], start: number[], end: number[]): boolean {
-	return isPathBetween(path, start, end) && !isStrictAncestorOf(path, end);
+/** The end-exclusive offsets an endpoint block measures its highlight between: a kept table
+ *  edge's cells, or its text from the start or up to the end. */
+export function endpointMeasureSpan(
+	classification: BlockSelectionClass,
+	coverage: RangeCoverage
+): { from: number; to: number } {
+	const { startEdge, endEdge, startCells, endCells } = coverage;
+	const from = classification === 'end' ? 0 : (startCells?.from ?? textOffset(startEdge, 0));
+	const to =
+		classification === 'start'
+			? SELECTION_END
+			: (endCells?.to ?? textOffset(endEdge, SELECTION_END));
+	return { from, to };
+}
+
+// A cell pair inside one table measures its rectangle, which reads no offset.
+function textOffset(edge: SelectionPoint | null, fallback: number): number {
+	return edge && !edge.cellCoordinate ? charOffsetOf(edge, 'endpointMeasureSpan') : fallback;
 }

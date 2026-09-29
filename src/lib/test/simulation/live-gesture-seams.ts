@@ -37,7 +37,7 @@ import { resolveLiveRangeEdit } from '$lib/components/blocks/text/live-selection
 import { replaceRangeInLeaf } from '$lib/tree-operations/leaf-range';
 import { rangeDelete } from '$lib/selection/range-delete';
 import { blockNodeAt, nodeAt } from '$lib/tree-operations/node-primitives';
-import { coverRange } from '$lib/selection/range-coverage';
+import { coverRange, rangeCoverage } from '$lib/selection/range-coverage';
 import {
 	applyCrossBlockFormat,
 	planCrossBlockFormat
@@ -53,6 +53,7 @@ import {
 } from '$lib/test/harness/editor-actions';
 import { proseLeaves, type ProseLeaf } from './live-screen-reading';
 import { fixtureReading, renderOptions } from '../harness/fixture-grammar';
+import { documentBody } from '$lib/tree-operations/node-primitives';
 
 export type GestureKind =
 	| 'type'
@@ -569,7 +570,7 @@ function acrossLeaves(
 	if (gesture.kind === 'range-delete') {
 		rangeDelete(
 			h.doc,
-			coverRange(h.doc, range.start, range.end),
+			rangeCoverage(h.doc, coverRange(h.doc, range.start, range.end)),
 			h.sharing,
 			fixtureReading({}, mode),
 			'keyless'
@@ -578,15 +579,13 @@ function acrossLeaves(
 	}
 	const plan = planCrossBlockFormat(
 		h.doc,
-		range.start,
-		range.end,
+		coverRange(h.doc, range.start, range.end),
 		drawnMark(gesture).kind,
 		fixtureReading({}, mode)
 	);
 	// A toggle the planner turns down writes nothing, which is that code's own answer rather than
 	// a gesture the fuzzer failed to apply.
-	if (plan)
-		applyCrossBlockFormat(h.doc, plan, h.sharing, documentLineEnding(h.doc), defaultGrammarView);
+	if (plan) applyCrossBlockFormat(documentBody(h.doc), plan, h.sharing, defaultGrammarView);
 	return true;
 }
 

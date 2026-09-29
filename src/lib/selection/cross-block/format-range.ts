@@ -2,7 +2,7 @@
  * The per-block spans a cross-block format toggle rewrites, and the write over them; pure over
  * the tree, with the commit in `./format-toggle`. The direction is decided over the whole range:
  * every span already marked removes the mark, anything else adds it. Each span goes through the
- * single-block toggle, and a grid joins by its covered cells.
+ * single-block toggle, and a table joins by its covered cells.
  */
 
 import {
@@ -16,25 +16,27 @@ import {
 	type ToggleInlineFormatResult
 } from '../../core/inline/format-toggle';
 import { getContentRange, type ContentRange } from '../../core/inline';
-import { ownTrailingLineEnding, trimTrailingLineEnding, type LineEnding } from '../../core/lines';
+import { ownTrailingLineEnding, trimTrailingLineEnding } from '../../core/lines';
 import type { CstNode } from '../../core/nodes';
 import type { DocumentView, NodeView } from '../../core/node-views';
 import type { InlineMarkKind } from '../../schema/inline-construct-policy';
 import type { Reading } from '../../schema/reading';
 import type { GrammarView } from '../../schema/block-openers';
-import { isGridKind, tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
-import {
-	normalizeBodyWrite,
-	writeOwnRaw,
-	type NodeParent
-} from '../../tree-operations/node-primitives';
+import { tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
+import { blockNodeAt, type BodyParent } from '../../tree-operations/node-primitives';
 import type { SharingState } from '../../tree-operations/sharing';
-import { writeKeepingTaskMarker } from '../../tree-operations/list/reconcile-task';
+import { rewriteLeafInPlace } from '../../tree-operations/content-write';
 import { ensureUnsharedPath } from '../../tree-operations/unshare';
 import { rebuildUnsharedChain } from '../../tree-operations/chain-rebuild';
-import { comparePaths } from '../path-math';
+import { pathsEqual } from '../path-math';
 import { charOffsetOf, type SelectionPoint } from '../primitives';
-import { coveredGridCells, gridEndpointCellIndex } from '../table-endpoint-snap';
+import {
+	rangeCoverage,
+	type CellRun,
+	type CoveredRange,
+	type RangeCoverage
+} from '../range-coverage';
+import { gridCellsInRect, gridCellsInRun, type GridCell } from '../table-endpoint-snap';
 
 const TAG = 'cross-block-format';
 
@@ -59,12 +61,13 @@ export interface CrossBlockFormatPlan {
 /** Null where no block participates: the keystroke is still consumed, but nothing is written. */
 export function planCrossBlockFormat(
 	doc: DocumentView,
-	start: SelectionPoint,
-	end: SelectionPoint,
+	range: CoveredRange,
 	format: InlineMarkKind,
 	reading: Reading
 ): CrossBlockFormatPlan | null {
-	const spans = spansInRange(doc, start, end, reading);
+	const coverage = rangeCoverage(doc, range);
+	const { start, end } = range;
+	const spans = spansInRange(doc, coverage, reading);
 	if (spans.length === 0) return null;
 	// Read once per span: the vote and the per-span skip below ask the same question, and the
 	// answer costs a parse of the block's inlines.
@@ -90,6 +93,10 @@ export function planCrossBlockFormat(
 		});
 		if (span.isStart) plan.startOffset = toggled.newSelStart;
 		if (span.isEnd) plan.endOffset = toggled.newSelEnd;
+		// An end block held whole stays held at its new last byte.
+		if (!coverage.endEdge && pathsEqual(span.path, end.path)) {
+			plan.endOffset = toggled.newDisplay.length;
+		}
 	}
 	return plan.writes.length === 0 ? null : plan;
 }
@@ -98,11 +105,10 @@ export function planCrossBlockFormat(
  *  splitting the range into spans is the cost and a toolbar asks once per button. */
 export function crossBlockActiveFormats(
 	doc: DocumentView,
-	start: SelectionPoint,
-	end: SelectionPoint,
+	range: CoveredRange,
 	reading: Reading
 ): ReadonlySet<InlineMarkKind> {
-	const spans = spansInRange(doc, start, end, reading);
+	const spans = spansInRange(doc, rangeCoverage(doc, range), reading);
 	if (spans.length === 0) return new Set();
 	// The running intersection is the next span's candidate set, so a span costs one parse and a
 	// walk per mark still standing, and it empties where a per-mark `every` would stop.
@@ -112,32 +118,29 @@ export function crossBlockActiveFormats(
 	return active;
 }
 
-/** Writes a plan into the tree, copying each chain before writing. The caller owns the commit. */
+/** Writes a plan into the document body, copying each chain before writing. The caller owns the
+ *  commit. */
 export function applyCrossBlockFormat(
-	root: NodeParent,
+	body: BodyParent,
 	plan: CrossBlockFormatPlan,
 	sharing: SharingState,
-	lineEnding: LineEnding,
 	grammar: GrammarView
 ): void {
 	const chains: CstNode[][] = [];
 	for (const write of plan.writes) {
-		const chain = ensureUnsharedPath(root, write.path, sharing);
+		const chain = ensureUnsharedPath(body, write.path, sharing);
 		const owned = chain[chain.length - 1];
 		if (!owned) continue;
+		const owner: CstNode | undefined = chain[chain.length - 2];
+		const holder = owner ? { children: owner.children!, owner, lineEnding: body.lineEnding } : body;
 		// A line ending reaching a cell's raw would be turned into a space by the cell's write rule.
 		const raw = write.newDisplay + ownTrailingLineEnding(owned.raw);
-		const owner: CstNode | undefined = chain[chain.length - 2];
-		const body = normalizeBodyWrite(owner, raw, lineEnding);
-		const slot = write.path[write.path.length - 1];
-		writeKeepingTaskMarker(owner, (owner ?? root).children ?? [], slot, sharing, () =>
-			writeOwnRaw(owned, body, lineEnding, grammar)
-		);
+		rewriteLeafInPlace(holder, write.path[write.path.length - 1], raw, grammar, sharing);
 		chains.push(chain);
 	}
 	// Every write lands before any rebuild, and a chain rebuild re-emits its whole ancestry from
 	// children that are already current, so chain order is free.
-	for (const chain of chains) rebuildUnsharedChain(root, chain, sharing, null, grammar);
+	for (const chain of chains) rebuildUnsharedChain(body, chain, sharing, null, grammar);
 }
 
 // ── Range decomposition ────────────────────────────────────────────────────
@@ -149,90 +152,80 @@ interface RangeSpan {
 	isEnd: boolean;
 }
 
-/** The start block's tail, every middle block's content and the end block's head, in document
- *  order. A kind joins by what its descriptor declares, never by its name. */
-function spansInRange(
-	doc: DocumentView,
-	start: SelectionPoint,
-	end: SelectionPoint,
-	reading: Reading
-): RangeSpan[] {
+/** The start edge's tail, every block the range holds whole and the end edge's head, in document
+ *  order, read off `rangeCoverage`. A kind joins by what its descriptor declares, never by name. */
+function spansInRange(doc: DocumentView, coverage: RangeCoverage, reading: Reading): RangeSpan[] {
+	const { start, end } = coverage.range;
 	const spans: RangeSpan[] = [];
-	const visit = (holder: DocumentView | NodeView, path: number[]): void => {
-		const children = holder.children ?? [];
-		for (let index = 0; index < children.length; index++) {
-			const here = [...path, index];
-			// Everything past the end endpoint is out of the range, subtrees included.
-			if (comparePaths(here, end.path) > 0) return;
-			const child = children[index];
-			if (child.children) {
-				if (isGridKind(child.kind)) {
-					// Pushed one by one, never spread: a large grid's covered cells can exceed the
-					// argument-list limit (G4.60).
-					for (const span of gridSpans(child, here, start, end, reading)) spans.push(span);
-				} else {
-					visit(child, here);
-				}
-				continue;
-			}
-			const span = spanFor(child, here, start, end, reading);
-			if (span) spans.push(span);
-		}
+	// Pushed one by one, never spread: a large grid's cells can exceed the argument-list limit
+	// (G4.60).
+	const push = (cells: Iterable<RangeSpan>) => {
+		for (const span of cells) spans.push(span);
 	};
-	visit(doc, []);
+	if (coverage.grid) {
+		const { path, rect } = coverage.grid;
+		const table = blockNodeAt(doc, path);
+		if (table) push(cellSpans(gridCellsInRect(table, path, rect), reading));
+		return spans;
+	}
+	if (coverage.startEdge && coverage.endEdge && pathsEqual(start.path, end.path)) {
+		push(edgeSpans(doc, start, end, null, reading));
+		return spans;
+	}
+	if (coverage.startEdge) push(edgeSpans(doc, start, null, coverage.startCells, reading));
+	for (const root of coverage.wholeRoots) push(wholeSpans(doc, root, reading));
+	if (coverage.endEdge) push(edgeSpans(doc, null, end, coverage.endCells, reading));
 	return spans;
 }
 
-function spanFor(
-	node: NodeView,
-	path: number[],
-	start: SelectionPoint,
-	end: SelectionPoint,
-	reading: Reading
-): RangeSpan | null {
-	if (comparePaths(path, start.path) < 0 || comparePaths(path, end.path) > 0) return null;
-	const isStart = comparePaths(path, start.path) === 0;
-	const isEnd = comparePaths(path, end.path) === 0;
-	const body = contentSpan(
-		node,
-		path,
-		isStart ? charOffsetOf(start, TAG) : null,
-		isEnd ? charOffsetOf(end, TAG) : null,
-		reading
-	);
-	return body && { ...body, isStart, isEnd };
-}
-
-/** A grid's covered cells, each whole: an endpoint inside a grid resolves to one of its cells,
- *  so no cell is ever cut in half. */
-function gridSpans(
-	grid: NodeView,
-	path: number[],
-	start: SelectionPoint,
-	end: SelectionPoint,
+/** A kept edge's part of its block: the text from the start or up to the end, or the cells a
+ *  table edge hands over. */
+function edgeSpans(
+	doc: DocumentView,
+	start: SelectionPoint | null,
+	end: SelectionPoint | null,
+	cells: CellRun | null,
 	reading: Reading
 ): RangeSpan[] {
-	const from = gridEndpointCellIndex(grid, path, start);
-	// No endpoint of its own, and the range starts after it: the grid sits wholly before the range.
-	if (from === null && comparePaths(path, start.path) < 0) return [];
-	const cells = coveredGridCells(grid, path, from, gridEndpointCellIndex(grid, path, end));
+	const point = (start ?? end)!;
+	const node = blockNodeAt(doc, point.path);
+	if (!node) return [];
+	if (cells) return cellSpans(gridCellsInRun(node, point.path, cells.from, cells.to - 1), reading);
+	const body = contentSpan(
+		node,
+		point.path,
+		start ? charOffsetOf(start, TAG) : null,
+		end ? charOffsetOf(end, TAG) : null,
+		reading
+	);
+	return body ? [{ ...body, isStart: start !== null, isEnd: end !== null }] : [];
+}
+
+/** Every leaf of a subtree the range holds whole, each whole, in document order. */
+function wholeSpans(doc: DocumentView, root: readonly number[], reading: Reading): RangeSpan[] {
+	const node = blockNodeAt(doc, [...root]);
+	if (!node) return [];
+	const spans: RangeSpan[] = [];
+	const visit = (at: NodeView, atPath: number[]): void => {
+		if (at.children) {
+			at.children.forEach((child, index) => visit(child, [...atPath, index]));
+			return;
+		}
+		const body = contentSpan(at, atPath, null, null, reading);
+		if (body) spans.push({ ...body, isStart: false, isEnd: false });
+	};
+	visit(node, [...root]);
+	return spans;
+}
+
+/** Each cell whole; a table endpoint counting cells never names a cell path (G1.29). */
+function cellSpans(cells: readonly GridCell[], reading: Reading): RangeSpan[] {
 	const spans: RangeSpan[] = [];
 	for (const cell of cells) {
 		const body = contentSpan(cell.node, cell.path, null, null, reading);
-		if (body)
-			spans.push({
-				...body,
-				isStart: addressesCell(start, cell.path),
-				isEnd: addressesCell(end, cell.path)
-			});
+		if (body) spans.push({ ...body, isStart: false, isEnd: false });
 	}
 	return spans;
-}
-
-/** Whether the endpoint names this cell by path, and so holds a character offset that follows
- *  the cell's rewrite; a table endpoint counting cells never names a cell path (G1.29). */
-function addressesCell(point: SelectionPoint, cellPath: number[]): boolean {
-	return comparePaths(point.path, cellPath) === 0;
 }
 
 /** What one leaf contributes between two character offsets, a null side meaning its content

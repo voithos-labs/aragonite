@@ -37,9 +37,9 @@ const ALLOWLIST: Record<string, Declaration> = {
 		reason:
 			'one reclassification per ancestor container, and the parser folds nesting past MAX_NESTING_DEPTH into paragraph content'
 	},
-	'src/lib/selection/range-delete-ceremony.ts :: collectDeletionPlan': {
+	'src/lib/selection/range-delete-ceremony.ts :: planCrossBlockDeletion': {
 		mode: 'bounded',
-		reason: 'the range’s own endpoints: every caller passes zero to two paths'
+		reason: 'the range’s own end block: every caller passes zero or one path'
 	},
 	'src/lib/tree-operations/node-ops.ts :: splitNode': {
 		mode: 'bounded',

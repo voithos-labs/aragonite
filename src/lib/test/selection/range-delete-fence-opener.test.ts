@@ -1,17 +1,12 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { rangeDelete } from '$lib/selection/range-delete';
-import { coverRange } from '$lib/selection/range-coverage';
+import { coverRange, rangeCoverage } from '$lib/selection/range-coverage';
 import { createSharingState } from '$lib/tree-operations/sharing';
 import { registerCalloutForTests } from './chrome-plugins';
 import { expectParseConverged } from '../harness/parse-converged';
-import { allowDevWarns } from '$lib/test/support/warn-gate';
 import { fixtureReading } from '../harness/fixture-grammar';
-
-// rangeDelete is driven with hand-built endpoints, so the table branch sees a character offset
-// `SelectionState` would have snapped to a cell coordinate.
-afterEach(() => allowDevWarns(['deleteFromTableIntoProse:start']));
 
 // A range ending in a code body takes the opener, and the surviving closer would reopen a fence.
 // Miss-analysis: GH #58; the fence pins only drove ranges that start in a code body.
@@ -26,7 +21,7 @@ describe('range delete that consumes a fenced code opener', () => {
 
 		const { caret } = rangeDelete(
 			doc,
-			coverRange(doc, { path: [0], offset: 2 }, { path: [1], offset: 8 }),
+			rangeCoverage(doc, coverRange(doc, { path: [0], offset: 2 }, { path: [1], offset: 8 })),
 			sharing(),
 			fixtureReading(),
 			'keyless'
@@ -46,7 +41,7 @@ describe('range delete that consumes a fenced code opener', () => {
 
 		rangeDelete(
 			doc,
-			coverRange(doc, { path: [0], offset: 2 }, { path: [1], offset: 6 }),
+			rangeCoverage(doc, coverRange(doc, { path: [0], offset: 2 }, { path: [1], offset: 6 })),
 			sharing(),
 			fixtureReading(),
 			'keyless'
@@ -63,7 +58,7 @@ describe('range delete that consumes a fenced code opener', () => {
 
 		rangeDelete(
 			doc,
-			coverRange(doc, { path: [0], offset: 2 }, { path: [1], offset: 8 }),
+			rangeCoverage(doc, coverRange(doc, { path: [0], offset: 2 }, { path: [1], offset: 8 })),
 			sharing(),
 			fixtureReading(),
 			'keyless'
@@ -78,7 +73,7 @@ describe('range delete that consumes a fenced code opener', () => {
 
 		rangeDelete(
 			doc,
-			coverRange(doc, { path: [0], offset: 2 }, { path: [1], offset: 9 }),
+			rangeCoverage(doc, coverRange(doc, { path: [0], offset: 2 }, { path: [1], offset: 9 })),
 			sharing(),
 			fixtureReading(),
 			'keyless'
@@ -93,7 +88,7 @@ describe('range delete that consumes a fenced code opener', () => {
 
 		rangeDelete(
 			doc,
-			coverRange(doc, { path: [0], offset: 2 }, { path: [1, 0], offset: 8 }),
+			rangeCoverage(doc, coverRange(doc, { path: [0], offset: 2 }, { path: [1, 0], offset: 8 })),
 			sharing(),
 			fixtureReading(),
 			'keyless'
@@ -110,7 +105,7 @@ describe('range delete that consumes a fenced code opener', () => {
 
 		rangeDelete(
 			doc,
-			coverRange(doc, { path: [0], offset: 2 }, { path: [1], offset: 14 }),
+			rangeCoverage(doc, coverRange(doc, { path: [0], offset: 2 }, { path: [1], offset: 14 })),
 			sharing(),
 			fixtureReading(),
 			'keyless'
@@ -127,7 +122,7 @@ describe('range delete that consumes a fenced code opener', () => {
 
 		rangeDelete(
 			doc,
-			coverRange(doc, { path: [0], offset: 0 }, { path: [0], offset: 8 }),
+			rangeCoverage(doc, coverRange(doc, { path: [0], offset: 0 }, { path: [0], offset: 8 })),
 			sharing(),
 			fixtureReading(),
 			'keyless'
@@ -142,7 +137,7 @@ describe('range delete that consumes a fenced code opener', () => {
 
 		rangeDelete(
 			doc,
-			coverRange(doc, { path: [0], offset: 0 }, { path: [1], offset: 8 }),
+			rangeCoverage(doc, coverRange(doc, { path: [0], offset: 0 }, { path: [1], offset: 8 })),
 			sharing(),
 			fixtureReading(),
 			'keyless'
@@ -160,7 +155,7 @@ describe('range delete that consumes a fenced code opener', () => {
 
 			rangeDelete(
 				doc,
-				coverRange(doc, { path: [0, 0], offset: 2 }, { path: [1], offset: 8 }),
+				rangeCoverage(doc, coverRange(doc, { path: [0, 0], offset: 2 }, { path: [1], offset: 8 })),
 				sharing(),
 				fixtureReading(),
 				'keyless'
@@ -178,7 +173,7 @@ describe('range delete that consumes a fenced code opener', () => {
 
 			rangeDelete(
 				doc,
-				coverRange(doc, { path: [0, 0], offset: 2 }, { path: [1], offset: 11 }),
+				rangeCoverage(doc, coverRange(doc, { path: [0, 0], offset: 2 }, { path: [1], offset: 11 })),
 				sharing(),
 				fixtureReading(),
 				'keyless'

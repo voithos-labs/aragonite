@@ -5,10 +5,10 @@ import { makeBlockNode, metadataOf, type CstNode } from '../core/nodes';
 import type { DocumentView, NodeView } from '../core/node-views';
 import { cloneMetadata } from '../tree-operations/clone';
 import { isBlockNode, nodeAt } from '../tree-operations/node-primitives';
-import { walkBetween, charOffsetOf, cellIndexOf } from './primitives';
-import type { CoveredRange } from './range-coverage';
-import { tableCellCount } from '../schema/block-kind-descriptor';
-import { isStrictAncestorOf, pathHasPrefix, pathsEqual, sharedPrefixLength } from './path-math';
+import { charOffsetOf } from './primitives';
+import type { RangeCoverage } from './range-coverage';
+import { gridClipboard } from './grid-selection';
+import { pathHasPrefix, pathsEqual } from './path-math';
 import { cellRowCol } from '../cursor/coordinate-spaces';
 import {
 	displayLength,
@@ -23,23 +23,14 @@ import { getBlockKindDescriptor, tryGetBlockKindDescriptor } from '../schema/blo
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
-/** The plain text of a covered range: a container it takes whole is copied whole, and a leaf
- *  endpoint at a block boundary is promoted to its outermost container, so markers survive. */
-export function collectCrossBlockText(doc: DocumentView, range: CoveredRange): string {
-	const { start, end } = range;
+/** The plain text of a covered range: whatever the coverage says is covered end to end is copied
+ *  whole, markers included, and a selection inside one table copies its rectangle. */
+export function collectCrossBlockText(doc: DocumentView, coverage: RangeCoverage): string {
+	const { start, end } = coverage.range;
+	if (coverage.grid) return gridClipboard(doc, coverage.grid)?.text ?? '';
 	const startNode = nodeAt(doc, start.path);
 	const endNode = nodeAt(doc, end.path);
 	if (!startNode || !endNode) return '';
-
-	// A cell point's offset is a cell index, not a character (see `SelectionPoint`).
-	if (pathsEqual(start.path, end.path) && start.cellCoordinate && isBlockNode(startNode)) {
-		const from = cellIndexOf(start, 'collectCrossBlockText:rectStart');
-		const to = cellIndexOf(end, 'collectCrossBlockText:rectEnd');
-		// Cell offsets are inclusive at both ends, hence the `+ 1`. Equal offsets are a caret in
-		// one cell, not a rectangle, so the cell's own native copy handles it.
-		if (from === to) return '';
-		return emitTablePortion(startNode, from, to + 1);
-	}
 
 	const startRaw = isBlockNode(startNode) ? startNode.raw : '';
 	const endRaw = isBlockNode(endNode) ? endNode.raw : '';
@@ -50,110 +41,64 @@ export function collectCrossBlockText(doc: DocumentView, range: CoveredRange): s
 		return startRaw.slice(start.offset, end.offset);
 	}
 
-	const startUnit = range.unitHolding(start.path);
-	const endUnit = range.unitHolding(end.path);
-	if (startUnit && endUnit && pathsEqual(startUnit, endUnit)) {
-		return wholeUnit(doc, startUnit, end.path, 'start').raw;
-	}
+	const startRoot = coverage.coveredRootHolding(start.path);
+	const endRoot = coverage.coveredRootHolding(end.path);
+	if (startRoot && endRoot && pathsEqual(startRoot, endRoot)) return rawAt(doc, startRoot);
 
 	let effectiveStartPath: number[] = start.path;
 	let chromeStart: ChromeStartContainer | null = null;
 	let startTail = '';
-	if (startUnit) {
-		({ path: effectiveStartPath, raw: startTail } = wholeUnit(doc, startUnit, end.path, 'start'));
-	} else if (start.cellCoordinate && isBlockNode(startNode)) {
-		const tableNode = startNode;
-		const allCellsCount = tableCellCount(tableNode);
-		startTail = emitTablePortion(
-			tableNode,
-			cellIndexOf(start, 'collectCrossBlockText:startTable'),
-			allCellsCount
-		);
+	if (startRoot) {
+		effectiveStartPath = startRoot;
+		startTail = rawAt(doc, startRoot);
+	} else if (coverage.startCells && isBlockNode(startNode)) {
+		startTail = emitTablePortion(startNode, coverage.startCells.from, coverage.startCells.to);
 	} else {
 		const startOffset = charOffsetOf(start, 'collectCrossBlockText:start');
-		if (startOffset === 0 && start.path.length > 1) {
-			const promoted = promoteToContainer(doc, start.path, end.path, 'start');
-			if (promoted) {
-				effectiveStartPath = promoted.path;
-				startTail = promoted.raw;
-			} else {
-				startTail = startRaw.slice(startOffset);
-			}
-		} else if (startOffset > 0 && start.path.length > 1) {
-			// A start inside a container's title line emits nothing yet: the container's opener
-			// is rebuilt around the body, which the loop below collects.
-			chromeStart = startChromeContainer(doc, start, startRaw, startOffset);
-			if (!chromeStart) {
-				const marker = soleChildContainerPrefix(doc, start.path, startRaw);
-				startTail = (marker ?? '') + startRaw.slice(startOffset);
-			}
-		} else {
-			startTail = startRaw.slice(startOffset);
+		// A start inside a container's title line emits nothing yet: the container's opener
+		// is rebuilt around the body, which the copy collects below.
+		chromeStart =
+			start.path.length > 1 ? startChromeContainer(doc, start, startRaw, startOffset) : null;
+		if (!chromeStart) {
+			const marker =
+				start.path.length > 1 ? soleChildContainerPrefix(doc, start.path, startRaw) : null;
+			startTail = (marker ?? '') + startRaw.slice(startOffset);
 		}
 	}
 
+	// An end block covered to its last byte and held by no container keeps its line ending out, as
+	// a slice does; a container covered whole brings its own.
 	let effectiveEndPath: number[] = end.path;
 	let endHead: string;
-	if (endUnit) {
-		({ path: effectiveEndPath, raw: endHead } = wholeUnit(doc, endUnit, start.path, 'end'));
-	} else if (end.cellCoordinate && isBlockNode(endNode)) {
-		// The snapped end cell is inclusive and `emitTablePortion` takes an exclusive end, so the
-		// `+ 1` makes the copied rows match what a delete would remove.
-		endHead = emitTablePortion(endNode, 0, cellIndexOf(end, 'collectCrossBlockText:endTable') + 1);
+	if (endRoot && endRoot.length < end.path.length) {
+		effectiveEndPath = endRoot;
+		endHead = rawAt(doc, endRoot);
+	} else if (coverage.endCells && isBlockNode(endNode)) {
+		endHead = emitTablePortion(endNode, coverage.endCells.from, coverage.endCells.to);
 	} else {
 		const endOffset = charOffsetOf(end, 'collectCrossBlockText:end');
 		const chromeBytes = endOffset > 0 ? endChromeContainerBytes(doc, end, endRaw, endOffset) : null;
-		if (chromeBytes !== null) {
-			endHead = chromeBytes;
-		} else if (endOffset === displayLength(endRaw) && end.path.length > 1) {
-			const promoted = promoteToContainer(doc, end.path, start.path, 'end');
-			if (promoted) {
-				effectiveEndPath = promoted.path;
-				endHead = promoted.raw;
-			} else {
-				endHead = endRaw.slice(0, endOffset);
-			}
-		} else if (endOffset > 0 && endOffset < displayLength(endRaw) && end.path.length > 1) {
-			const marker = soleChildContainerPrefix(doc, end.path, endRaw);
-			endHead = (marker ?? '') + endRaw.slice(0, endOffset);
-		} else {
-			endHead = endRaw.slice(0, endOffset);
-		}
+		const partial = endOffset > 0 && endOffset < displayLength(endRaw) && end.path.length > 1;
+		const marker = partial ? soleChildContainerPrefix(doc, end.path, endRaw) : null;
+		endHead = chromeBytes ?? (marker ?? '') + endRaw.slice(0, endOffset);
 	}
 
 	let middle = '';
 	let chromeBody = '';
-	const collectedContainers: number[][] = [];
-
-	for (const path of walkBetween(doc, effectiveStartPath, effectiveEndPath)) {
-		if (isStrictAncestorOf(path, effectiveStartPath)) continue;
-		if (isStrictAncestorOf(path, effectiveEndPath)) continue;
-		if (isStrictAncestorOf(effectiveStartPath, path)) continue;
-		if (isStrictAncestorOf(effectiveEndPath, path)) continue;
-
-		if (collectedContainers.some((cp) => isStrictAncestorOf(cp, path))) continue;
-
-		const node = nodeAt(doc, path);
+	for (const root of coverage.coveredWhole) {
+		if (pathHasPrefix(effectiveStartPath, root) || pathHasPrefix(effectiveEndPath, root)) continue;
+		const node = nodeAt(doc, root);
 		if (!node || !isBlockNode(node)) continue;
-		if (chromeStart && pathHasPrefix(path, chromeStart.path)) {
+		if (chromeStart && pathHasPrefix(root, chromeStart.path)) {
 			chromeBody += node.leadingTrivia + node.raw;
 		} else {
 			middle += node.leadingTrivia + node.raw;
 		}
-
-		if (node.children && node.children.length > 0) {
-			collectedContainers.push(path);
-		}
 	}
 
 	// Without endLead, blank lines between paragraphs drop and paste reparses as one paragraph.
-	let endLead = '';
-	if (!pathsEqual(effectiveStartPath, effectiveEndPath)) {
-		const endNode = nodeAt(doc, effectiveEndPath);
-		if (endNode && isBlockNode(endNode)) {
-			endLead = endNode.leadingTrivia;
-		}
-	}
+	const effectiveEnd = nodeAt(doc, effectiveEndPath);
+	const endLead = effectiveEnd && isBlockNode(effectiveEnd) ? effectiveEnd.leadingTrivia : '';
 
 	if (chromeStart) {
 		// The container's subtree is one contiguous doc-order run, so an end inside it
@@ -174,8 +119,7 @@ export function collectCrossBlockText(doc: DocumentView, range: CoveredRange): s
 
 // ── Internal ───────────────────────────────────────────────────────────────
 
-/** The table rows the half-open cell range touches, every column included, since a table
- *  selection is row-rectangular by GFM constraint. */
+/** The table rows a kept table edge's cells touch, every column included, as a sub-table. */
 function emitTablePortion(
 	table: NodeView,
 	startCellIdx: number,
@@ -183,9 +127,6 @@ function emitTablePortion(
 ): string {
 	if (startCellIdx >= endCellIdxExclusive) return '';
 	const colCount = metadataOf(table, 'table').columnCount;
-	if (startCellIdx === 0 && endCellIdxExclusive === tableCellCount(table)) {
-		return table.raw;
-	}
 	const startRow = cellRowCol(startCellIdx, colCount).row;
 	const endRow = cellRowCol(endCellIdxExclusive - 1, colCount).row;
 	return copyRectangleAsSubTable(
@@ -324,46 +265,7 @@ function wrapChromeStartContainer(
 	return synthetic.raw;
 }
 
-/** A unit the range takes whole, promoted as a block-boundary endpoint would be. */
-function wholeUnit(
-	doc: DocumentView,
-	unit: number[],
-	otherPath: number[],
-	side: 'start' | 'end'
-): { path: number[]; raw: string } {
-	const promoted = promoteToContainer(doc, unit, otherPath, side);
-	if (promoted) return promoted;
-	const node = nodeAt(doc, unit);
-	return { path: unit, raw: node && isBlockNode(node) ? node.raw : '' };
-}
-
-/** The outermost container above a leaf endpoint that lies entirely inside the selection: each
- *  step up is a first child on the start side, a last child on the end side. */
-function promoteToContainer(
-	doc: DocumentView,
-	leafPath: number[],
-	otherPath: number[],
-	side: 'start' | 'end'
-): { path: number[]; raw: string } | null {
-	const lcaDepth = sharedPrefixLength(leafPath, otherPath);
-
-	let bestPath: number[] | null = null;
-
-	for (let depth = leafPath.length - 1; depth > lcaDepth; depth--) {
-		const parentPath = leafPath.slice(0, depth);
-		const parent = nodeAt(doc, parentPath);
-		if (!parent || !parent.children) break;
-
-		const childIndex = leafPath[depth];
-
-		if (side === 'start' && childIndex !== 0) break;
-		if (side === 'end' && childIndex !== parent.children.length - 1) break;
-
-		bestPath = parentPath;
-	}
-
-	if (!bestPath || bestPath.length <= lcaDepth) return null;
-	const node = nodeAt(doc, bestPath);
-	if (!node || !isBlockNode(node)) return null;
-	return { path: bestPath, raw: node.raw };
+function rawAt(doc: DocumentView, path: number[]): string {
+	const node = nodeAt(doc, path);
+	return node && isBlockNode(node) ? node.raw : '';
 }

@@ -5,19 +5,16 @@
 
 import type { CrossBlockDispatchContext } from './dispatch';
 import type { CrossBlockMutationContext } from './ops';
-import type { Document } from '../../core/nodes';
-import type { SelectionState } from '../selection-state.svelte';
-import { countsCells, tableCellCount } from '../../schema/block-kind-descriptor';
 import { CURSOR_END } from '../../block-component';
 import { documentLineEnding, normalizeLineEndings } from '../../core/lines';
 import { performCrossBlockDelete, rangeUndoStep } from './ops';
 import { charOffsetOf } from '../primitives';
 import { focusCollapsedCaret } from '../native-bridge';
 import { blockCoveredWhole } from '../covered-block';
+import { coverRange, rangeCoverage } from '../range-coverage';
 import { pasteDispatch } from '../../tree-operations/paste/dispatch';
 import { applyPasteTransforms } from '../../tree-operations/paste/paste-transforms';
-import { blockNodeAt, nodeAt } from '../../tree-operations/node-primitives';
-import { pathsEqual } from '../path-math';
+import { blockNodeAt } from '../../tree-operations/node-primitives';
 import { parseReplacement } from '../../tree-operations/paste/replacement-parse';
 import { slotReaderAt } from '../../tree-operations/list/task-paragraph';
 import { emitClipboardError } from '../../editor-events';
@@ -43,11 +40,11 @@ export async function handleCrossBlockPaste(
 
 	const doc = ctx.getDoc();
 
-	// The range holds one block whole, in either addressing: replace the block at its parent
+	// The range holds one block whole, a table included: replace the block at its parent
 	// position, single undo. A sub-rectangle inside a table only clears cells, leaving the table.
+	const { anchor, focus } = ctx.selection;
 	const covered =
-		wholeTablePath(ctx.selection, doc) ??
-		blockCoveredWhole(doc, ctx.selection.anchor, ctx.selection.focus);
+		anchor && focus ? blockCoveredWhole(rangeCoverage(doc, coverRange(doc, anchor, focus))) : null;
 	if (covered) {
 		await replaceCoveredBlockWithPaste(ctx, mutCtx, pasted, covered);
 		return true;
@@ -115,21 +112,6 @@ async function landCaretAfterPaste(
 }
 
 // ── Covered-block paste ────────────────────────────────────────────────────
-
-/** The table a cell rectangle covers whole, or null. */
-function wholeTablePath(selection: SelectionState, doc: Document): number[] | null {
-	const anchor = selection.anchor;
-	const focus = selection.focus;
-	if (!anchor?.cellCoordinate || !focus?.cellCoordinate) return null;
-	if (!pathsEqual(anchor.path, focus.path)) return null;
-	const node = nodeAt(doc, anchor.path);
-	if (!node || !countsCells(node)) return null;
-	const cellCount = tableCellCount(node);
-	if (cellCount === 0) return null;
-	const lo = Math.min(anchor.offset, focus.offset);
-	const hi = Math.max(anchor.offset, focus.offset);
-	return lo === 0 && hi === cellCount - 1 ? anchor.path.slice() : null;
-}
 
 /** Through the paste coordinator, so the splice lands at the enclosing container's scope rather
  *  than the row-level `blockEdit` a table row passes down. */

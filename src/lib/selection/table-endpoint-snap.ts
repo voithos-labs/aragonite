@@ -1,8 +1,8 @@
 /**
  * The cell-index space a selection endpoint inside a grid lives in. Offsets are inclusive cell
  * indices, and every endpoint on a table path carries `cellCoordinate`. The whole-row snap and
- * the metadata reads are for tables only; the coverage functions serve any `containerContract:
- * 'grid'` kind. A pair inside one table is left unsnapped, so a rectangle of cells can be selected.
+ * the metadata reads are for tables only; the cell lists serve any `containerContract: 'grid'`
+ * kind. A pair inside one table is left unsnapped, so a rectangle of cells can be selected.
  */
 
 import type { DocumentView, NodeView } from '../core/node-views';
@@ -11,8 +11,13 @@ import { nodeAt } from '../tree-operations/node-primitives';
 import { clampCellIndex, countsCells, tableCellCount } from '../schema/block-kind-descriptor';
 import type { CellSelectionPoint, SelectionPoint } from './primitives';
 import { cellIndexOf, cellPoint } from './primitives';
-import { asCellIndex, rowMajorCellIndex, cellRowCol } from '../cursor/coordinate-spaces';
-import { comparePaths, pathHasPrefix } from './path-math';
+import {
+	asCellIndex,
+	rowMajorCellIndex,
+	cellRowCol,
+	type CellRect
+} from '../cursor/coordinate-spaces';
+import { comparePaths } from './path-math';
 import { devWarn } from '../dev-warn';
 
 /** The one conversion into cell space, which `SelectionState` applies to every incoming point: an
@@ -58,23 +63,21 @@ function gridColumnCount(grid: NodeView): number {
 	return grid.children?.[0]?.children?.length ?? 0;
 }
 
-/** `point`'s index in `grid`'s cell space, or null on a side the range runs past. A plugin grid's
- *  `[grid, row, col]` path decodes with the same width {@link coveredGridCells} uses. */
-export function gridEndpointCellIndex(
-	grid: NodeView,
-	gridPath: number[],
-	point: SelectionPoint
-): number | null {
-	if (!pathHasPrefix(point.path, gridPath)) return null;
-	// On the grid's own path an unflagged offset counts characters, which address no cell.
-	if (point.path.length === gridPath.length) return point.cellCoordinate ? point.offset : null;
-	const [row, col = 0] = point.path.slice(gridPath.length);
-	return rowMajorCellIndex(row, col, gridColumnCount(grid));
+/** The cells of `rect` inside one grid, row by row. */
+export function gridCellsInRect(grid: NodeView, gridPath: number[], rect: CellRect): GridCell[] {
+	const cells: GridCell[] = [];
+	for (let row = rect.top; row < rect.top + rect.rows; row++) {
+		for (let col = rect.left; col < rect.left + rect.cols; col++) {
+			const node = grid.children?.[row]?.children?.[col];
+			if (node) cells.push({ node, path: [...gridPath, row, col] });
+		}
+	}
+	return cells;
 }
 
-/** The cells a range covers inside one grid: the rectangle ordered indices `from` and `to` span,
- *  or a run up to the one inside when the other side is null. Rows must share row 0's width. */
-export function coveredGridCells(
+/** The cells a run covers inside one grid, in row-major order, a null side running to the grid's
+ *  edge. Rows must share row 0's width. */
+export function gridCellsInRun(
 	grid: NodeView,
 	gridPath: number[],
 	from: number | null,
@@ -87,16 +90,11 @@ export function coveredGridCells(
 	const clamp = (index: number) => Math.min(Math.max(index, 0), lastIndex);
 	const first = cellRowCol(asCellIndex(clamp(from ?? 0)), colCount);
 	const last = cellRowCol(asCellIndex(clamp(to ?? lastIndex)), colCount);
-	const rectangle = from !== null && to !== null;
 
 	const cells: GridCell[] = [];
 	for (let row = first.row; row <= last.row; row++) {
-		const startCol = rectangle ? Math.min(first.col, last.col) : row === first.row ? first.col : 0;
-		const endCol = rectangle
-			? Math.max(first.col, last.col)
-			: row === last.row
-				? last.col
-				: colCount - 1;
+		const startCol = row === first.row ? first.col : 0;
+		const endCol = row === last.row ? last.col : colCount - 1;
 		for (let col = startCol; col <= endCol; col++) {
 			const node = rows[row]?.children?.[col];
 			if (node) cells.push({ node, path: [...gridPath, row, col] });

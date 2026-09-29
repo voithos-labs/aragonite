@@ -4,7 +4,6 @@ import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import type { CstNode } from '$lib/core/nodes';
-import { documentLineEnding } from '$lib/core/lines';
 import { createSharingState } from '$lib/tree-operations/sharing';
 import {
 	applyCrossBlockFormat,
@@ -13,6 +12,8 @@ import {
 import type { SelectionPoint } from '$lib/selection/primitives';
 import { defaultGrammarView } from '$lib/schema/block-openers';
 import { fixtureReading } from '$lib/test/harness/fixture-grammar';
+import { coverRange } from '$lib/selection/range-coverage';
+import { documentBody } from '$lib/tree-operations/node-primitives';
 
 // A format toggle writes each covered leaf in place, and one in a list item's first slot keeps the
 // item's checkbox in step with the text it leaves there, as a reload reads it.
@@ -33,18 +34,11 @@ describe('a cross-block format toggle over a list item’s first slot', () => {
 		const doc = parse('- **[ ] a**\n\n**b**\n');
 		const plan = planCrossBlockFormat(
 			doc,
-			at([0, 0, 0], 0),
-			at([1], 5),
+			coverRange(doc, at([0, 0, 0], 0), at([1], 5)),
 			'strong',
 			fixtureReading()
 		);
-		applyCrossBlockFormat(
-			doc,
-			plan!,
-			createSharingState(),
-			documentLineEnding(doc),
-			defaultGrammarView
-		);
+		applyCrossBlockFormat(documentBody(doc), plan!, createSharingState(), defaultGrammarView);
 
 		const written = serialize(doc);
 		expect(written).toBe('- [ ] a\n\nb\n');

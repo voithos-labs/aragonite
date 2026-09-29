@@ -10,9 +10,8 @@ children takes when the range holds it whole.
 
 - A Shift+ArrowDown sweep from the paragraph above a rendered diagram to the paragraph below
   paints the full-block `.selection-overlay-middle` on the mermaid block
-- A sweep upward from the paragraph below that ends on the diagram paints the mermaid's own box
-  as an endpoint rect: the container provides `measurePartialRects`, so as the block the range
-  starts in it measures itself instead of painting nothing
+- A sweep upward from the paragraph below that ends on the diagram holds the diagram whole (it
+  has no text for the range to stop partway through), so it gets the same full-block box too
 - The same sweep across a broken diagram, an error card with no rendered view, paints the same
   full-block overlay, because what the selection looks like does not depend on the state
 

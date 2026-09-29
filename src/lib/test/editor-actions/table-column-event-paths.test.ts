@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { maybeCommitTableCoverageDelete } from '$lib/selection/range-delete-table-coverage';
+import { commitGridLineDelete } from '$lib/selection/range-delete-table-coverage';
+import { coverRange, rangeCoverage } from '$lib/selection/range-coverage';
 import type { CrossBlockMutationContext } from '$lib/selection/cross-block/ops';
 import { registerBlockListState } from '$lib/reactivity/state-registry';
 import { makeBlockListState, makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
@@ -74,24 +75,23 @@ function makeColumnCoverageEnv() {
 		controller,
 		reading: fixtureReading()
 	};
-	return { deps, table, ctx, edits };
+	return { deps, ctx, edits };
 }
 
 describe('coverage-driven column delete emits the table path with colIdx in the detail', () => {
 	it('a full-column selection targets the table, not the column index', async () => {
-		const { deps, table, ctx, edits } = makeColumnCoverageEnv();
+		const { deps, ctx, edits } = makeColumnCoverageEnv();
 		deps.selectionState.enterCrossBlock(
 			{ path: [0, 0, 0], offset: 0 },
 			{ path: [0, 1, 0], offset: 0 }
 		);
 		const { start, end } = deps.selectionState;
+		const { grid } = rangeCoverage(deps.doc, coverRange(deps.doc, start!, end!));
+		if (grid?.kind !== 'column') throw new Error(`expected a whole column, got ${grid?.kind}`);
 
-		const result = await maybeCommitTableCoverageDelete(ctx, table, start!, end!, {
-			lands: false,
-			gesture: 'keyless'
-		});
+		const caret = await commitGridLineDelete(ctx, grid, false);
 
-		expect(result).not.toBeNull();
+		expect(caret).not.toBeNull();
 		const del = edits.find((e) => e.op === 'tableDeleteColumn');
 		expect(del).toBeDefined();
 		expect(del!.path).toEqual([0]);

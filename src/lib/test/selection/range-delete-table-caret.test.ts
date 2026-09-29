@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { rangeDelete } from '../../selection/range-delete';
-import { coverRange } from '../../selection/range-coverage';
+import { coverRange, rangeCoverage } from '../../selection/range-coverage';
 import { parse } from '../../core/parser';
 import { createSharingState } from '../../tree-operations/sharing';
 import type { SelectionPoint } from '../../selection/primitives';
@@ -10,13 +10,13 @@ import { fixtureReading } from '../harness/fixture-grammar';
 
 // rangeDelete is driven with hand-built endpoints, so the table branches see character offsets
 // `SelectionState` would have snapped to cell coordinates.
-afterEach(() => allowDevWarns(['deleteAcrossTwoTables:start', 'deleteAcrossTwoTables:end']));
+afterEach(() => allowDevWarns(['rangeCoverage:tableEdge']));
 
 function run(source: string, start: SelectionPoint, end: SelectionPoint) {
 	const doc = parse(source);
 	const result = rangeDelete(
 		doc,
-		coverRange(doc, start, end),
+		rangeCoverage(doc, coverRange(doc, start, end)),
 		createSharingState(),
 		fixtureReading(),
 		'keyless'

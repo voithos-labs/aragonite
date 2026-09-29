@@ -11,6 +11,7 @@ import type { CrossBlockMutationContext } from './ops';
 import { performCrossBlockDelete, rangeUndoStep } from './ops';
 import { charOffsetOf } from '../primitives';
 import { blockCoveredWhole } from '../covered-block';
+import { coverRange, rangeCoverage } from '../range-coverage';
 import { CURSOR_END } from '../../block-component';
 import { parseReplacement } from '../../tree-operations/paste/replacement-parse';
 import { slotReaderAt } from '../../tree-operations/list/task-paragraph';
@@ -23,11 +24,13 @@ export async function handleCrossBlockTypeReplace(
 	mutCtx: CrossBlockMutationContext,
 	typed: string
 ): Promise<void> {
-	// A range holding its block whole leaves no leaf to splice into, so the character replaces the
-	// block in its own position. An empty insertion has nothing to put there and takes the delete.
-	const covered = typed
-		? blockCoveredWhole(ctx.getDoc(), ctx.selection.anchor, ctx.selection.focus)
-		: null;
+	// A block held whole leaves no leaf to splice into, so the character takes its place; an
+	// empty insertion takes the delete, and a table held whole still clears into its cells.
+	const { anchor, focus } = ctx.selection;
+	const doc = ctx.getDoc();
+	const coverage =
+		typed && anchor && focus ? rangeCoverage(doc, coverRange(doc, anchor, focus)) : null;
+	const covered = coverage && !coverage.grid ? blockCoveredWhole(coverage) : null;
 	if (covered) {
 		await replaceCoveredBlockWithText(ctx, mutCtx, typed, covered);
 		return;

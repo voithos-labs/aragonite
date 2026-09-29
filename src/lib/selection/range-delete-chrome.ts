@@ -1,32 +1,27 @@
 /**
- * The `rangeDelete` branch for a container with a `reservedChrome` child (a details block's
- * summary line): nothing merges across such a container's edge. A covered title line is cleared,
- * not deleted, so the title leaf stays at child 0 (G1.14); the container goes as one splice only
- * when the range covers its whole subtree or takes it whole (`CoveredRange.wholeUnits`), and a
- * container that splice empties goes with it.
+ * The `rangeDelete` branch where nothing merges: an endpoint in a container with a title row (a
+ * details block's summary line) the range crosses, or an edge the range holds whole. Each kept edge
+ * is truncated in place. A covered title line is cleared, not deleted, so the title leaf stays at
+ * child 0 (G1.14).
  */
 
 import type { Reading } from '../schema/reading';
-import type { CstNode, Document } from '../core/nodes';
+import type { Document } from '../core/nodes';
 import type { DocumentView } from '../core/node-views';
 import type { CaretPosition, SelectionPoint } from './primitives';
 import type { RangeDeleteResult } from './range-delete';
-import type { CoveredRange } from './range-coverage';
+import { isChromeChild, nearestChromeContainer, type RangeCoverage } from './range-coverage';
 import type { SharingState } from '../tree-operations/sharing';
-import { displayLength } from '../core/lines';
 import { comparePaths, pathsEqual } from './path-math';
 import {
-	resolveEndWall,
 	planCrossBlockDeletion,
 	applyPlannedDeletion,
+	rebuildSharedAncestries,
 	truncateEndInPlace,
 	truncateStartInPlace
 } from './range-delete-ceremony';
 import { ensureUnsharedPath } from '../tree-operations/unshare';
-import { attachedChainPrefix, rebuildUnsharedChain } from '../tree-operations/chain-rebuild';
-import { cascadeCleanupEmptyAncestors } from '../tree-operations/cleanup';
-import { deleteAtPath } from '../tree-operations/path-mutate';
-import { reservedChromeKindOf, isReservedChromeChild } from '../schema/reserved-chrome';
+import { rebuildUnsharedChain } from '../tree-operations/chain-rebuild';
 import {
 	caretPointFor,
 	survivorAfterRemoval,
@@ -36,8 +31,8 @@ import {
 
 // ── Public API ──────────────────────────────────────────────────────────────
 
-/** Whether the range takes the title-line branch: an endpoint sits inside a `reservedChrome`
- *  container the range crosses into or out of, or the range starts on the title line itself. */
+/** Whether an endpoint sits inside a title-line container the range crosses into or out of, or
+ *  the range starts on the title line itself. */
 export function involvesReservedChrome(
 	doc: Document,
 	start: SelectionPoint,
@@ -53,34 +48,28 @@ export function involvesReservedChrome(
 	return true;
 }
 
-/** Deletes what `range` covers with nothing merging across a title-line container's edge; a
- *  container the range takes whole goes as one splice. */
-export function chromeAwareRangeDelete(
+/** Deletes what the range covers with no merge: removes what it holds whole and truncates each kept
+ *  edge in place. `gesture` lands the caret when the range keeps neither edge. */
+export function unjoinedRangeDelete(
 	doc: Document,
-	range: CoveredRange,
+	coverage: RangeCoverage,
 	sharing: SharingState,
-	reading: Reading
+	reading: Reading,
+	gesture: RemovalGesture
 ): RangeDeleteResult {
 	const { grammar } = reading;
-	const { start, end } = range;
-	const startC = nearestChromeContainer(doc, start.path);
-	const endC = nearestChromeContainer(doc, end.path);
-	const startTaken = range.unitHolding(start.path);
+	const { start, end } = coverage.range;
+	const { startEdge, endEdge } = coverage;
 
 	// Copy every chain that will be written before node identities are captured: chains stay
 	// valid across splices, paths do not (G1.9).
-	const startChain = ensureUnsharedPath(doc, start.path, sharing);
-	const endChain = ensureUnsharedPath(doc, end.path, sharing);
+	const startChain = startEdge ? ensureUnsharedPath(doc, start.path, sharing) : null;
+	const endChain = endEdge ? ensureUnsharedPath(doc, end.path, sharing) : null;
+	const plan = planCrossBlockDeletion(doc, coverage, [], sharing);
 
-	// `resolveEndWall` is null when the start sits inside the end container, which needs no
-	// title-line clear, since that container's child 0 is never strictly between the endpoints.
-	const wall = resolveEndWall(doc, range, null);
-	const endConsumed = wall?.consumed ?? false;
-	const plan = planCrossBlockDeletion(doc, range, [], wall, sharing);
-
-	// The end truncates first, while its path is still valid, and its tail never merges into
-	// the start. Skipped when its container goes whole.
-	if (!endConsumed) {
+	// The end truncates first, while its path is still valid.
+	if (endChain) {
+		const endC = nearestChromeContainer(doc, end.path);
 		truncateEndInPlace(
 			doc,
 			end,
@@ -88,57 +77,43 @@ export function chromeAwareRangeDelete(
 			endC !== null && isChromeChild(endC, end.path),
 			reading,
 			sharing,
-			'chromeAwareRangeDelete:end'
+			'unjoinedRangeDelete:end'
 		);
 	}
 
 	applyPlannedDeletion(doc, plan, grammar);
 
-	// Start truncates in place; every deletion sits after it in doc order, so start.path is
-	// still live. A start whose container went whole has nothing left to truncate.
-	const seam = startTaken
-		? null
-		: truncateStartInPlace(
+	// Every deletion sits after the start in document order, so its path is still live.
+	const startC = nearestChromeContainer(doc, start.path);
+	const seam = startChain
+		? truncateStartInPlace(
 				doc,
 				start,
 				startChain[startChain.length - 1],
 				startC !== null && isChromeChild(startC, start.path),
 				reading,
 				sharing,
-				'chromeAwareRangeDelete:start'
-			);
+				'unjoinedRangeDelete:start'
+			)
+		: null;
 
 	// Chain-based rebuilds: node references survive the splices above where paths may not, and
-	// every touched container re-emits raw (G1.12). A removed start container is left out.
-	const liveStartChain = startTaken ? startChain.slice(0, startTaken.length - 1) : startChain;
-	rebuildUnsharedChain(doc, liveStartChain, sharing, null, grammar);
-	rebuildUnsharedChain(doc, endChain, sharing, null, grammar);
+	// every touched container re-emits raw (G1.12).
+	if (startChain) rebuildUnsharedChain(doc, startChain, sharing, null, grammar);
+	if (endChain) rebuildUnsharedChain(doc, endChain, sharing, null, grammar);
+	rebuildSharedAncestries(doc, plan, sharing, grammar);
 
-	const joinAt = { path: start.path.slice(), offset: seam ?? 0 };
+	if (seam !== null) {
+		const joinAt = { path: start.path.slice(), offset: seam };
+		return { newDoc: doc, caret: () => joinAt };
+	}
+	const first = coverage.wholeRoots[0];
 	return {
 		newDoc: doc,
-		caret: startTaken ? (committed) => caretWhereRangeResumes(committed, startTaken) : () => joinAt
+		caret: endEdge
+			? (committed) => caretWhereRangeResumes(committed, coverage.rootHolding(start.path) ?? first)
+			: (committed) => caretWhereRemoved(committed, first, gesture)
 	};
-}
-
-// ── A container taken whole ─────────────────────────────────────────────────
-
-/** A block the range takes whole, a container with its title row or a block with no character
- *  position: one splice, and a container it empties goes too, up to the document. */
-export function removeWhole(
-	doc: Document,
-	path: number[],
-	sharing: SharingState,
-	reading: Reading,
-	gesture: RemovalGesture
-): RangeDeleteResult {
-	// Deleted by path, so the commit's id bookkeeping sees the position go.
-	const chain = ensureUnsharedPath(doc, path.slice(0, -1), sharing);
-	deleteAtPath(doc, path, sharing, reading.grammar);
-	cascadeCleanupEmptyAncestors(doc, path, sharing, reading.grammar);
-	const attached = attachedChainPrefix(doc, chain);
-	if (attached.length > 0) rebuildUnsharedChain(doc, attached, sharing, null, reading.grammar);
-	return { newDoc: doc, caret: (committed) => caretWhereRemoved(committed, path, gesture) };
 }
 
 /** The caret once the block at `path` went, on the side `gesture` points; read on the committed
@@ -151,8 +126,8 @@ export function caretWhereRemoved(
 	return caretAt(committed, survivorAfterRemoval(committed, path, gesture));
 }
 
-/** The caret once a range took the container at `path` whole and ran on: where what's left of
- *  the range's end begins, read on the committed tree. */
+/** The caret once a range took the block at `path` whole and ran on: where what's left of the
+ *  range's end begins, read on the committed tree. */
 export function caretWhereRangeResumes(
 	committed: DocumentView,
 	path: number[]
@@ -162,55 +137,4 @@ export function caretWhereRangeResumes(
 
 function caretAt(committed: DocumentView, survivor: CaretPosition | null): SelectionPoint | null {
 	return survivor && caretPointFor(committed, survivor);
-}
-
-// ── Wall primitives (shared with the table branch) ──────────────────────────
-// `involvesTable` is checked before `involvesReservedChrome`, so a range with a table endpoint
-// goes to `range-delete-table.ts`; these helpers keep the no-merge rule in one place for both.
-
-export interface ChromeContainer {
-	path: number[];
-	node: CstNode;
-}
-
-/** Deepest strict ancestor of `path` whose kind declares reservedChrome. */
-export function nearestChromeContainer(doc: Document, path: number[]): ChromeContainer | null {
-	let found: ChromeContainer | null = null;
-	let children = doc.children;
-	for (let i = 0; i < path.length - 1; i++) {
-		const node = children[path[i]];
-		if (!node) break;
-		if (reservedChromeKindOf(node.kind) !== undefined) {
-			found = { path: path.slice(0, i + 1), node };
-		}
-		children = node.children ?? [];
-	}
-	return found;
-}
-
-export function isChromeChild(container: ChromeContainer, leafPath: number[]): boolean {
-	return (
-		leafPath.length === container.path.length + 1 &&
-		isReservedChromeChild(container.node, leafPath[container.path.length])
-	);
-}
-
-/**
- * The range's end lands on the container's last byte: every step from the container is a
- * last-child edge and the offset consumes the block's visible text.
- */
-export function rangeConsumesContainer(container: ChromeContainer, end: SelectionPoint): boolean {
-	const endNode = lastChildDescendant(container, end.path);
-	return endNode !== null && end.offset >= displayLength(endNode.raw);
-}
-
-/** The node at `path` when every step from the container is a last-child edge, else null. */
-export function lastChildDescendant(container: ChromeContainer, path: number[]): CstNode | null {
-	let node: CstNode = container.node;
-	for (let i = container.path.length; i < path.length; i++) {
-		const children = node.children ?? [];
-		if (path[i] !== children.length - 1) return null;
-		node = children[path[i]];
-	}
-	return node;
 }

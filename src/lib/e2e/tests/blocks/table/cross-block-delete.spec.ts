@@ -1,6 +1,6 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
-import { boxesOf, dragBetweenBoxes } from './helpers';
+import { boxesOf, dragBetweenBoxes, dragBetweenCells } from './helpers';
 import { capturePageErrors } from '../../../page-probes';
 import { roundTripStable } from '../../plugins/helpers';
 import { pointAtRaw } from '../../../text-runs';
@@ -342,4 +342,61 @@ test.describe('table block: cross-block delete', () => {
 		await editor.undo();
 		expect((await editor.bridge.getSource()).replace(/\s+$/, '')).toBe(source.replace(/\s+$/, ''));
 	});
+});
+
+test.describe('table block: coverage delete inside a container', () => {
+	let editor: EditorPage;
+
+	test.beforeEach(async ({ page }) => {
+		editor = new EditorPage(page);
+		await editor.goto();
+	});
+
+	const lines = (text: string) => text.trimEnd().split('\n');
+	const WRAPPERS: Record<string, (table: string) => string> = {
+		quote: (t) =>
+			lines(t)
+				.map((l) => `> ${l}\n`)
+				.join(''),
+		'list item': (t) =>
+			lines(t)
+				.map((l, i) => `${i === 0 ? '-' : ' '} ${l}\n`)
+				.join('')
+	};
+	const ROW_GONE = '| A | B | C |\n| --- | --- | --- |\n| 4 | 5 | 6 |\n';
+	const COLUMN_GONE = '| A | C |\n| --- | --- |\n| 1 | 3 |\n| 4 | 6 |\n';
+
+	for (const [where, wrap] of Object.entries(WRAPPERS)) {
+		test(`a whole row of a table in a ${where}: Backspace deletes the row`, async ({ page }) => {
+			await editor.loadContent(wrap(TABLE_3x3) + '\nafter\n');
+			await dragBetweenCells(page, 3, 5);
+			await editor.waitForCrossBlock(true);
+			await page.keyboard.press('Backspace');
+			await editor.bridge.waitForSourceEquals(wrap(ROW_GONE) + '\nafter\n');
+		});
+
+		test(`a whole column of a table in a ${where}: Backspace deletes the column`, async ({
+			page
+		}) => {
+			await editor.loadContent(wrap(TABLE_3x3) + '\nafter\n');
+			await dragBetweenCells(page, 1, 7);
+			await editor.waitForCrossBlock(true);
+			await page.keyboard.press('Backspace');
+			await editor.bridge.waitForSourceEquals(wrap(COLUMN_GONE) + '\nafter\n');
+		});
+
+		test(`a whole table in a ${where}: Backspace removes it and the emptied ${where}`, async ({
+			page
+		}) => {
+			const source = wrap(TABLE_3x3) + '\nafter\n';
+			await editor.loadContent(source);
+			await dragBetweenCells(page, 0, 8);
+			await editor.waitForCrossBlock(true);
+			await page.keyboard.press('Backspace');
+			await editor.bridge.waitForSourceEquals('after\n');
+
+			await editor.undo();
+			await editor.bridge.waitForSourceEquals(source);
+		});
+	}
 });

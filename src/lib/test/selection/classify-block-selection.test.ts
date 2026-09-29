@@ -1,16 +1,27 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '../../core/parser';
 import { registerChromePluginsForTests } from './chrome-plugins';
-import { blockPaintsWholeBox, classifyBlockForSelection } from '../../selection/primitives';
-import { coverRange, type CoveredRange } from '../../selection/range-coverage';
+import {
+	blockPaintsWholeBox,
+	cellPoint,
+	classifyBlockForSelection,
+	endpointMeasureSpan
+} from '../../selection/primitives';
+import { SELECTION_END } from '../../block-component';
+import { coverRange, rangeCoverage, type RangeCoverage } from '../../selection/range-coverage';
 
-/** The pair as the overlay reads it; over an empty document no path resolves, so no container is
- *  taken whole and the rows below read the path arithmetic alone. */
+const FIVE = 'p0\n\np1\n\np2\n\np3\n\np4\n';
+/** [0] and [2] quotes of two paragraphs each, [1] a paragraph between them. */
+const QUOTES = '> a\n>\n> b\n\nmid\n\n> c\n>\n> d\n';
+
+/** The pair as the overlay reads it, off the one coverage the delete and the copy read too. */
 function sel(
 	anchor: { path: number[]; offset: number },
-	focus: { path: number[]; offset: number }
-): CoveredRange {
-	return coverRange(parse(''), anchor, focus);
+	focus: { path: number[]; offset: number },
+	source = FIVE
+): RangeCoverage {
+	const doc = parse(source);
+	return rangeCoverage(doc, coverRange(doc, anchor, focus));
 }
 
 describe('classifyBlockForSelection', () => {
@@ -21,12 +32,12 @@ describe('classifyBlockForSelection', () => {
 	});
 
 	it('classifies the start block', () => {
-		const s = sel({ path: [1], offset: 2 }, { path: [3], offset: 4 });
+		const s = sel({ path: [1], offset: 1 }, { path: [3], offset: 1 });
 		expect(classifyBlockForSelection([1], s)).toBe('start');
 	});
 
 	it('classifies the end block', () => {
-		const s = sel({ path: [1], offset: 2 }, { path: [3], offset: 4 });
+		const s = sel({ path: [1], offset: 1 }, { path: [3], offset: 1 });
 		expect(classifyBlockForSelection([3], s)).toBe('end');
 	});
 
@@ -45,17 +56,24 @@ describe('classifyBlockForSelection', () => {
 	});
 
 	it('returns single-block when start.path === end.path', () => {
-		const s = sel({ path: [2], offset: 0 }, { path: [2], offset: 5 });
+		const s = sel({ path: [2], offset: 0 }, { path: [2], offset: 2 });
 		expect(classifyBlockForSelection([2], s)).toBe('single-block');
 	});
 
 	it('handles cross-container nested paths', () => {
-		const s = sel({ path: [0, 0], offset: 0 }, { path: [2, 1], offset: 0 });
+		const s = sel({ path: [0, 0], offset: 0 }, { path: [2, 1], offset: 0 }, QUOTES);
 		expect(classifyBlockForSelection([0, 0], s)).toBe('start');
 		expect(classifyBlockForSelection([2, 1], s)).toBe('end');
 		expect(classifyBlockForSelection([0, 1], s)).toBe('middle');
 		expect(classifyBlockForSelection([1], s)).toBe('middle');
 		expect(classifyBlockForSelection([2, 0], s)).toBe('middle');
+	});
+
+	it('paints a rule held whole at the start as part of the quote it empties', () => {
+		const s = sel({ path: [0, 0], offset: 0 }, { path: [1], offset: 2 }, '> ---\n\npara\n');
+		expect(classifyBlockForSelection([0], s)).toBe('middle');
+		expect(classifyBlockForSelection([0, 0], s)).toBe('outside');
+		expect(classifyBlockForSelection([1], s)).toBe('end');
 	});
 });
 
@@ -71,21 +89,21 @@ describe('blockPaintsWholeBox', () => {
 	});
 
 	it('paints the container whose subtree the range holds, never its children', () => {
-		const s = sel({ path: [0], offset: 0 }, { path: [2], offset: 0 });
+		const s = sel({ path: [0], offset: 0 }, { path: [2], offset: 0 }, 'x\n\n- a\n  - b\n\ny\n');
 		expect(blockPaintsWholeBox([1], s, null)).toBe(true);
 		expect(blockPaintsWholeBox([1, 0], s, null)).toBe(false);
-		expect(blockPaintsWholeBox([1, 1, 0], s, null)).toBe(false);
+		expect(blockPaintsWholeBox([1, 0, 0], s, null)).toBe(false);
 	});
 
 	it('leaves an ancestor of the end endpoint to its children', () => {
-		const s = sel({ path: [0], offset: 0 }, { path: [1, 1], offset: 2 });
+		const s = sel({ path: [0], offset: 0 }, { path: [1, 1], offset: 1 }, 'x\n\n> a\n>\n> bb\n');
 		expect(blockPaintsWholeBox([1], s, null)).toBe(false);
 		expect(blockPaintsWholeBox([1, 0], s, null)).toBe(true);
 		expect(blockPaintsWholeBox([1, 1], s, null)).toBe(false);
 	});
 
 	it('paints the whole unit of a single-block range and nothing beside it', () => {
-		const s = sel({ path: [1], offset: 0 }, { path: [1], offset: 7 });
+		const s = sel({ path: [1], offset: 0 }, { path: [1], offset: 2 });
 		expect(blockPaintsWholeBox([1], s, [1])).toBe(true);
 		expect(blockPaintsWholeBox([1, 0], s, [1])).toBe(false);
 		expect(blockPaintsWholeBox([2], s, [1])).toBe(false);
@@ -106,7 +124,8 @@ describe('a closed details the range takes whole', () => {
 		['ending on its title row', { path: [0], offset: 2 }, { path: [1, 0], offset: 2 }],
 		['starting on its title row', { path: [1, 0], offset: 1 }, { path: [2], offset: 2 }]
 	])('%s paints one box, and its title row paints no endpoint', (_, anchor, focus) => {
-		const range = coverRange(doc(), anchor, focus);
+		const d = doc();
+		const range = rangeCoverage(d, coverRange(d, anchor, focus));
 		expect(blockPaintsWholeBox([1], range, null)).toBe(true);
 		expect(classifyBlockForSelection([1], range)).toBe('middle');
 		for (const inside of [
@@ -116,5 +135,26 @@ describe('a closed details the range takes whole', () => {
 			expect(blockPaintsWholeBox(inside, range, null)).toBe(false);
 			expect(classifyBlockForSelection(inside, range)).toBe('outside');
 		}
+	});
+});
+
+describe('endpointMeasureSpan', () => {
+	const TABLE = 'para\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n\ntail\n';
+
+	it('measures a text edge from the start, or up to the end', () => {
+		const s = sel({ path: [0], offset: 2 }, { path: [2], offset: 3 }, TABLE);
+		expect(endpointMeasureSpan('start', s)).toEqual({ from: 2, to: SELECTION_END });
+		expect(endpointMeasureSpan('end', s)).toEqual({ from: 0, to: 3 });
+	});
+
+	// Cell 2 sits mid-row, so the snap takes the end to its row's last cell, and the run past it.
+	it('measures a kept table end through the cells the coverage hands over', () => {
+		const s = sel({ path: [0], offset: 2 }, cellPoint([1], 2), TABLE);
+		expect(endpointMeasureSpan('end', s)).toEqual({ from: 0, to: 4 });
+	});
+
+	it('measures a kept table start from the first cell of its row', () => {
+		const s = sel(cellPoint([1], 3), { path: [2], offset: 3 }, TABLE);
+		expect(endpointMeasureSpan('start', s)).toEqual({ from: 2, to: SELECTION_END });
 	});
 });

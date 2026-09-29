@@ -19,7 +19,7 @@ import { storedAsAt } from '$lib/tree-operations/stored-as';
 import { createSharingState } from '$lib/tree-operations/sharing';
 import { pasteDispatch } from '$lib/tree-operations/paste/dispatch';
 import { rangeDelete } from '$lib/selection/range-delete';
-import { coverRange } from '$lib/selection/range-coverage';
+import { coverRange, rangeCoverage } from '$lib/selection/range-coverage';
 import { runDrop } from '$lib/selection/selection-drop';
 import { cleanLiveJoinSeam } from '$lib/components/blocks/text/live-join-seam';
 import { tableCellPasteSurface } from '$lib/components/blocks/table/table-cell-paste';
@@ -314,7 +314,7 @@ async function mergeNext(source: string, containerPath: number[]): Promise<strin
 function deleteRange(source: string, from: [number[], number], to: [number[], number]): string {
 	const doc = parse(source);
 	const range = coverRange(doc, { path: from[0], offset: from[1] }, { path: to[0], offset: to[1] });
-	rangeDelete(doc, range, createSharingState(), LIVE, 'Backspace');
+	rangeDelete(doc, rangeCoverage(doc, range), createSharingState(), LIVE, 'Backspace');
 	return serialize(doc);
 }
 

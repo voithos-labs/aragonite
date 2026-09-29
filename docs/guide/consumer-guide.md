@@ -953,7 +953,7 @@ Which chords reach the page, and whether the shell or the document gets first re
 
 ### Clipboard in a webview
 
-**Plain text is the whole model.** Every copy and cut writes `text/plain`, every paste reads it, and there's no HTML flavor to negotiate. What crosses is Markdown source.
+**Plain text is the model.** Every copy and cut writes `text/plain`, every paste reads it, and what crosses is Markdown source. The one extra is a rectangle of table cells: its copy and cut also write `text/html` holding a plain `<table>` of the same cells, which is what spreadsheets paste. A paste never reads HTML.
 
 - **A clipboard event may target `document.body` rather than the editor.** Where the selection's focus end hosts no caret (an image-only paragraph, a thematic break), Chromium dispatches `copy` / `cut` / `paste` at the body instead of the focused block. The editor handles that with a root-level handler, so cross-block copy works. What it means for you: an editor clipboard event doesn't reliably originate inside the editor's DOM, so a host listener that claims clipboard events by "the target is outside the editor" will claim the editor's.
 - **Multi-line writes normalize to the OS line ending.** The whole-block copy chord (`Mod+C` / `Mod+X` on a block focused as a whole) writes through `navigator.clipboard.writeText`, and Chromium rewrites a multi-line payload to the platform's line ending, CRLF on Windows. Pasting back into the editor reads either ending and writes the document's own, so documents are unaffected; a host that reads the system clipboard itself normalizes on its own side.

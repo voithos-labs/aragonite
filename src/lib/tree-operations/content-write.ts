@@ -42,6 +42,7 @@ import {
 	ensureEditableContainers,
 	installOwnRaw,
 	parentLineEnding,
+	type BodyParent,
 	type BodyParentArg,
 	type NodeParent
 } from './node-primitives';
@@ -108,6 +109,21 @@ export function legalizeWrite(
 		return Math.max(inBody + markerShift, 0);
 	};
 	return { text: stored, storedOffset } as LegalWrite;
+}
+
+/** Writes `text` over the leaf at `index` in place, made legal for its position, for a write that
+ *  moves no block (a format toggle's marks); the caller copies the chain first and rebuilds it. */
+export function rewriteLeafInPlace(
+	parent: BodyParent,
+	index: number,
+	text: string,
+	grammar: GrammarView,
+	sharing: SharingState
+): void {
+	const legal = legalizeWrite(parent, index, text, 'literal');
+	writeKeepingTaskMarker(parent.owner, parent.children, index, sharing, () =>
+		installOwnRaw(parent.children[index], legal.text, grammar)
+	);
 }
 
 // ── Update Content ──

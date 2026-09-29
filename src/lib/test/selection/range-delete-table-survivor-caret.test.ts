@@ -1,17 +1,12 @@
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { rangeDelete } from '../../selection/range-delete';
-import { coverRange } from '../../selection/range-coverage';
+import { coverRange, rangeCoverage } from '../../selection/range-coverage';
 import { parse } from '../../core/parser';
 import { blockNodeAt, nodeAt } from '../../tree-operations/node-primitives';
 import { createSharingState } from '../../tree-operations/sharing';
 import type { Document } from '../../core/nodes';
 import type { SelectionPoint } from '../../selection/primitives';
-import { allowDevWarns } from '$lib/test/support/warn-gate';
 import { fixtureReading } from '../harness/fixture-grammar';
-
-// rangeDelete is driven with hand-built endpoints, so the table branches see character offsets
-// `SelectionState` would have snapped to cell coordinates first.
-afterEach(() => allowDevWarns(['deleteAcrossTwoTables:start', 'deleteAcrossTwoTables:end']));
 
 // Two 2×2 tables followed by a blockquote, and the same pair nested inside a blockquote holding a
 // paragraph. Selecting across both tables empties them, forcing the survivor caret path.
@@ -24,7 +19,7 @@ function run(source: string, start: SelectionPoint, end: SelectionPoint) {
 	const doc = parse(source);
 	const result = rangeDelete(
 		doc,
-		coverRange(doc, start, end),
+		rangeCoverage(doc, coverRange(doc, start, end)),
 		createSharingState(),
 		fixtureReading(),
 		'keyless'

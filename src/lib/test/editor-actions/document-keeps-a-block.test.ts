@@ -12,68 +12,29 @@ import { handleWholeBlockKeys } from '$lib/editor-actions/container-block-compon
 import { createContainerEditActions } from '$lib/editor-actions/container-edit';
 import { createHistoryActions } from '$lib/editor-actions/commit/history';
 import { createStandardNestedActions } from '$lib/editor-actions/nested/nested-actions';
-import type { SelectionEndpoint } from '$lib/selection/primitives';
 import { recordingFocus } from '$lib/testing/headless-actions';
-import { blockNodeAt } from '$lib/tree-operations/node-primitives';
 import {
 	makeBlockListState,
 	makeListContextAt,
-	makeNestedActionsDeps,
-	makeTopHarness,
-	type TopHarness
+	makeNestedActionsDeps
 } from '../harness/editor-actions';
 import { settleEditor } from '../harness/settle';
 import { registerChromePluginsForTests } from '../selection/chrome-plugins';
-import { makeBeforeInputEvent, makeHandlers } from '../selection/cross-block/typed-char-env';
+import { makeBeforeInputEvent } from '../selection/cross-block/typed-char-env';
+import {
+	at,
+	cell,
+	placedPaths,
+	rangeHandlers,
+	rangeKey,
+	rangeKeyEnv as editor,
+	select,
+	whole,
+	type RangeKeyEnv as Env
+} from '../selection/cross-block/range-key-env';
 
 const CLOSED = '<details>\n<summary>Sum</summary>\n\nHidden\n\n</details>\n';
 const TABLE = '| a | b |\n| --- | --- |\n| 1 | 2 |\n';
-
-interface Env {
-	h: TopHarness;
-	/** Every block path a caret was put in: a commit's landing, or the range dispatch's focus. */
-	placed: number[][];
-}
-
-function editor(source: string): Env {
-	const h = makeTopHarness(source);
-	// Every container gets a list state, as a mounted one has; once a delete removes the container,
-	// its state falls back to the node it was built on.
-	const mount = (path: number[]): void => {
-		const node = blockNodeAt(h.deps.doc, path);
-		node?.children?.forEach((_, i) => mount([...path, i]));
-		if (node?.children) makeBlockListState(() => blockNodeAt(h.deps.doc, path) ?? node);
-	};
-	h.deps.doc.children.forEach((_, i) => mount([i]));
-	return { h, placed: [] };
-}
-
-function rangeHandlers(env: Env) {
-	const { h } = env;
-	const handlerEnv = {
-		doc: h.doc,
-		deps: h.deps,
-		events: h.events,
-		selectionState: h.deps.selectionState,
-		controller: h.controller,
-		blockEdit: h.actions,
-		caretMemory: h.deps.caretMemory
-	};
-	return makeHandlers(handlerEnv as never, [0], {
-		getBlockElByPath: (path) => {
-			env.placed.push(path.slice());
-			return null;
-		}
-	});
-}
-
-function select(env: Env, anchor: SelectionEndpoint, focus: SelectionEndpoint): void {
-	env.h.deps.selectionState.enterCrossBlock(anchor, focus);
-}
-
-async function rangeKey(env: Env, key: string): Promise<void> {
-	await rangeHandlers(env).handleKeyDown(new KeyboardEvent('keydown', { key, cancelable: true }));
-}
 
 /** The nested action bundle of the container at top-level `index`, over the real root. */
 function nested(env: Env, index: number): BlockEditActions {
@@ -106,14 +67,6 @@ function focusedRuleKey(blockEdit: BlockEditActions, key: string, mods = {}): vo
 		commandOf: () => null
 	});
 }
-
-const whole = (path: number[]): SelectionEndpoint => ({ path, wholeBlock: true });
-const at = (path: number[], offset: number): SelectionEndpoint => ({ path, offset });
-const cell = (path: number[], offset: number): SelectionEndpoint => ({
-	path,
-	offset,
-	cellCoordinate: true
-});
 
 interface Row {
 	source: string;
@@ -213,16 +166,43 @@ const ROWS: Record<string, Row> = {
 		bytes: '\n',
 		placed: []
 	},
-	// A range that starts in a container and runs on past it keeps the spot it started in, so the
-	// quote keeps an empty paragraph, whether its child was a rule or text.
-	'a quoted rule and the paragraph below, Backspace: the start keeps its slot in the quote': {
+	// A text endpoint keeps its block, emptied or not; a rule held whole keeps none, so a container
+	// the range holds whole goes with it.
+	'a quoted rule and the paragraph below, Backspace: the quote goes': {
 		source: '> ---\n\npara\n',
 		drive: async (env) => {
 			select(env, whole([0, 0]), at([1], 4));
 			await rangeKey(env, 'Backspace');
 		},
-		bytes: '>\n',
-		placed: [[0, 0]]
+		bytes: '\n',
+		placed: [[0]]
+	},
+	'a quoted rule and the paragraph below as select-all makes it, Backspace: the quote goes': {
+		source: '> ---\n\npara\n',
+		drive: async (env) => {
+			select(env, at([0, 0], 0), at([1], 4));
+			await rangeKey(env, 'Backspace');
+		},
+		bytes: '\n',
+		placed: [[0]]
+	},
+	'two quoted rules held whole, Backspace: both quotes go': {
+		source: '> ---\n\n> ---\n',
+		drive: async (env) => {
+			select(env, whole([0, 0]), whole([1, 0]));
+			await rangeKey(env, 'Backspace');
+		},
+		bytes: '\n',
+		placed: [[0]]
+	},
+	'a quoted rule and a list item’s text, Backspace: the quote goes, the item keeps its slot': {
+		source: '> ---\n\n- b\n',
+		drive: async (env) => {
+			select(env, whole([0, 0]), at([1, 0, 0], 1));
+			await rangeKey(env, 'Backspace');
+		},
+		bytes: '- \n',
+		placed: [[0, 0, 0]]
 	},
 	'quoted text and the paragraph below, Backspace: the start keeps its slot in the quote': {
 		source: '> a\n\npara\n',
@@ -313,10 +293,6 @@ const ROWS: Record<string, Row> = {
 	}
 };
 
-function paths(env: Env): number[][] {
-	return [...env.h.landings.map((l) => [...l.leafPath]), ...env.placed];
-}
-
 function lockstep(doc: Document, ids: string[]): void {
 	expect(ids).toHaveLength(doc.children.length);
 }
@@ -335,7 +311,7 @@ describe('the document keeps a block, and an emptied container goes', () => {
 
 		expect(serialize(env.h.deps.doc)).toBe(row.bytes);
 		lockstep(env.h.deps.doc, env.h.getBlockIds());
-		expect(paths(env)).toEqual(row.placed);
+		expect(placedPaths(env)).toEqual(row.placed);
 
 		await createHistoryActions(env.h.deps, env.h.controller).requestUndo();
 		await settleEditor();

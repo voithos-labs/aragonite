@@ -725,7 +725,7 @@ No runtime seam sees these; the test suite is the whole enforcement. Test files 
 | G2.4  | A rendered block's DOM text equals its ambient prefix plus its raw          | P     |
 | G2.5  | The inline tree's offsets partition the block's raw                         | P·N   |
 | G2.6  | Serialization ignores metadata and editor-level fields                      | P     |
-| G2.7  | A selection partitions cleanly, and `walkBetween` visits in order           | P     |
+| G2.7  | The range coverage partitions a selection cleanly, and the overlay reads it | P     |
 | G2.8  | Split and merge round-trip; ids, refs and children stay aligned             | P·N   |
 | G2.9  | Paste emits its op kind by strategy, never by target depth                  | P     |
 | G2.10 | Every keydown path hands its key to the caret memory's classifier           | P·A   |
@@ -755,8 +755,10 @@ jsdom. `textcontent-spine.property.test.ts`.
 **G2.6 · Serialization purity.** Serialization ignores metadata and editor-level fields.
 `serialization-purity.property.test.ts`.
 
-**G2.7 · Selection partition.** A selection partitions the document cleanly, and `walkBetween`
-visits its blocks in order. `selection-partition.property.test.ts`.
+**G2.7 · Selection partition.** Every block strictly between a range's endpoints sits in exactly
+one subtree `rangeCoverage` holds whole, inside an endpoint's block, or is an ancestor of the end's block, and the
+overlay's class for every block is the one that coverage gives it. `walkBetween` visits the blocks
+in order. `selection-partition.property.test.ts`.
 
 **G2.8 · Structural alignment.** Split and merge round-trip, and the id, ref and children arrays
 stay aligned, in all scopes. `structural-id-ref-alignment.test.ts`.
@@ -999,6 +1001,7 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.89 | One in-leaf range replace, and a short list of places that snap an offset                 | L       |
 | G4.90 | A paste inside one block cuts its selection through the range replace, with its text      | L       |
 | G4.91 | A focus call that may scroll the editor says why                                          | L       |
+| G4.95 | What a range covers is decided in the range coverage only                                 | L       |
 
 ### The entries
 
@@ -1685,8 +1688,9 @@ step gets its own short list of files allowed to name it (so an aliased import c
 
 - the content write itself (`updateNodeContent`), which only those two, the keystroke's trial
   reparse and the container-matching paste (a list or a quote pasted into its own kind) call
-- a write in place that skips the reparse (`writeOwnRaw`, `installOwnRaw`), left to table cells,
-  the range writes and find and replace's private copy
+- a write in place that skips the reparse (`writeOwnRaw`, `installOwnRaw`), left to table cells
+  (a pasted grid, a drag's cut), the content write's own `rewriteLeafInPlace` and find and
+  replace's private copy. The cross-block format toggle writes through `rewriteLeafInPlace`
 - the document as a body with no owner and its trailing blank line, which only `documentBody`
   builds, so no route can hand the document in as a container. The one other hand-built body is
   the keystroke's trial reparse, which wraps a throwaway copy that never reaches the document
@@ -1745,10 +1749,10 @@ asking, so the scan leaves those alone. Same for a component's markup attribute,
 `role="grid"`. One other file may hold the string: the insert menu's catalogue, where `grid` is a
 search keyword that finds the table. `lint/file-rules.test.ts`.
 
-**G4.80 · One answer to what a range covers.** The delete, the copy and the overlay each take a
-`CoveredRange`. It's a class with a private field, built only by
-`selection/range-coverage.ts :: coverRange`, so a spread or an object literal doesn't compile
-and a cast fails lint. The scan covers the other way to grow a second answer, a reader asking a
+**G4.80 · One answer to what a range covers.** The delete, the copy, the format toggle and the
+overlay each read a `RangeCoverage` off a `CoveredRange`. Both are classes with a private field,
+built only by `selection/range-coverage.ts :: coverRange` and `rangeCoverage`, so a spread or an
+object literal doesn't compile and a cast fails lint. The scan covers the other way to grow a second answer, a reader asking a
 closed container itself: in `selection/` only `range-coverage.ts` calls `isCollapsedContainer`
 or `collapsedContainerHiding`, besides the caret walks in `path-lookup.ts` and `caret-target.ts`
 (they place a caret and read no range). `lint/file-rules.test.ts`, `eslint.config.js`.
@@ -1756,14 +1760,14 @@ or `collapsedContainerHiding`, besides the caret walks in `path-lookup.ts` and `
 **G4.81 · One table row snap.** A cross-block range with a table endpoint takes that table's rows
 whole. `snapCrossBlockTableEndpoints` runs in `coverRange` for the delete, the copy and the
 overlay, and in the selection state's stored `start` and `end`, which the collapse keys, the undo
-seed and the extension paths read (the format toggle reads them too, until it takes the coverage).
+seed and the extension paths read.
 `lint/file-rules.test.ts`.
 
 **G4.82 · The task-marker rule has one home.** `reconcileTaskMetadata` is named only in
 `tree-operations/list/reconcile-task.ts`, where `writeKeepingTaskMarker` calls it. Every file that
 writes into a child slot, through that wrapper or in place (`writeOwnRaw`, `installOwnRaw`), is on
-one list with its role: the content write, the leaf join, the block replace, a range delete's
-survivor and the cross-block format toggle wrap their write, and the rest say why they need no
+one list with its role: the content write (its in-place rewrite for the cross-block format toggle
+included), the leaf join, the block replace and a range delete's survivor wrap their write, and the rest say why they need no
 wrapper (a table cell holds no list item; find and replace reparses a whole top-level block). A file listed as wrapping has
 to call the wrapper, so dropping it goes red too. `lint/leaf-write-doors.test.ts` (the G4.82 and
 G4.82b rows), with G1.42 as the runtime half.
@@ -1845,6 +1849,15 @@ popout moving focus among its own controls, and `focusCollapsedCaret`, which the
 delete, typing and paste lean on until they land through the caret landing. The manifest is per
 file, so a new bare focus inside an already declared file passes. `lint/file-rules.test.ts`, with G1.45 as
 the runtime half.
+
+**G4.95 · What a range covers is decided once.** `selection/range-coverage.ts :: rangeCoverage`
+says which edges a range keeps, which subtrees it holds whole and which cells of a table it holds,
+and the delete, the copy, the format toggle, the overlay and the table's own cell painting read
+that. So the helpers that work it out (walking the blocks in between, bounding a rectangle,
+checking for a closed unit, doing cell math on a table endpoint) only get called in
+`range-coverage.ts`. The exceptions are the files that define them and a short list of cell edits
+that aren't reading a range, each with its reason. Code that works it out on its own has grown a
+second answer, and the scan names the file. `lint/file-rules.test.ts`.
 
 ## Accessibility
 
