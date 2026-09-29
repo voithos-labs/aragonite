@@ -35,7 +35,7 @@ import { rebuildUnsharedChain } from '../../tree-operations/chain-rebuild';
 import { pathsEqual } from '../path-math';
 import { cellIndexOf, charOffsetOf, type SelectionPoint } from '../primitives';
 import { rangeCoverage, type CoveredRange, type RangeCoverage } from '../range-coverage';
-import { coveredGridCells, type GridCell } from '../table-endpoint-snap';
+import { gridCellsInRect, gridCellsInRun, type GridCell } from '../table-endpoint-snap';
 
 const TAG = 'cross-block-format';
 
@@ -162,10 +162,9 @@ function spansInRange(doc: DocumentView, coverage: RangeCoverage, reading: Readi
 		for (const span of cells) spans.push(span);
 	};
 	if (coverage.grid) {
-		const table = blockNodeAt(doc, coverage.grid.path);
-		const from = cellIndexOf(start, TAG);
-		const to = cellIndexOf(end, TAG);
-		if (table) push(cellSpans(coveredGridCells(table, start.path, from, to), reading));
+		const { path, rect } = coverage.grid;
+		const table = blockNodeAt(doc, path);
+		if (table) push(cellSpans(gridCellsInRect(table, path, rect), reading));
 		return spans;
 	}
 	if (coverage.startEdge && coverage.endEdge && pathsEqual(start.path, end.path)) {
@@ -192,7 +191,7 @@ function edgeSpans(
 	if (countsCells(node)) {
 		const from = start ? cellIndexOf(start, TAG) : null;
 		const to = end ? cellIndexOf(end, TAG) : null;
-		return cellSpans(coveredGridCells(node, point.path, from, to), reading);
+		return cellSpans(gridCellsInRun(node, point.path, from, to), reading);
 	}
 	const grid = enclosingGrid(doc, point.path);
 	if (grid) {
@@ -231,7 +230,7 @@ function wholeSpans(doc: DocumentView, root: readonly number[], reading: Reading
 	const spans: RangeSpan[] = [];
 	const visit = (at: NodeView, atPath: number[]): void => {
 		if (isGridKind(at.kind)) {
-			for (const span of cellSpans(coveredGridCells(at, atPath, null, null), reading))
+			for (const span of cellSpans(gridCellsInRun(at, atPath, null, null), reading))
 				spans.push(span);
 		} else if (at.children) {
 			at.children.forEach((child, index) => visit(child, [...atPath, index]));

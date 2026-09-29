@@ -951,6 +951,32 @@ const RULES: FileRule[] = [
 		misses: ["import { snapCrossBlockTableEndpoints } from './table-endpoint-snap';"]
 	},
 	{
+		id: 'G4.95 what a range covers is decided in the range coverage only',
+		matches:
+			/(?:^|[^\w.]|\.\.\.)(?:walkBetween|isPathSubtreeBetween|isPathBetween|cellRectBounds|lastChildDescendant)\s*\(|\.unitHolding\s*\(/m,
+		allowed: {
+			'src/lib/selection/range-coverage.ts':
+				'decides once what a range covers: the blocks between, the units, the edges, the rectangle',
+			'src/lib/selection/path-math.ts': 'defines the two path predicates',
+			'src/lib/cursor/coordinate-spaces.ts': 'defines the rectangle two cells span'
+		},
+		reason:
+			'the delete, the copy, the format toggle and the overlay read `rangeCoverage`; a walk, a rectangle or a unit check of their own is a second answer to what a range covers',
+		hits: [
+			'for (const path of walkBetween(doc, start.path, end.path)) {',
+			'if (isPathBetween(path, start.path, end.path)) return "middle";',
+			'const rect = cellRectBounds(anchor, focus, colCount);',
+			'return { tablePath, ...cellRectBounds(anchor, focus, colCount) };',
+			'const unit = range.unitHolding(start.path);'
+		],
+		misses: [
+			"import { walkBetween } from './range-coverage';",
+			'const root = coverage.rootHolding(path);',
+			'const { top, left } = grid.rect;',
+			'const rect = bounds.cellRectBounds(anchor, focus);'
+		]
+	},
+	{
 		id: 'a removed block lands the caret by its gesture; only a range running on past it skips that',
 		matches: /(?<![\w.])(?:survivorWhereRangeResumes|caretWhereRangeResumes)\s*\(/,
 		allowed: {
