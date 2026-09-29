@@ -1,6 +1,6 @@
 // The image and text-block readers' view of the widget the selection state holds. It keeps no state
-// of its own, so it can't disagree with the store; it goes once those readers take the selection
-// state itself (T21 slice 1b).
+// of its own, so it can't disagree with the store. Interim: it goes once those readers read the
+// selection state themselves.
 
 import { selectWidgetWhole } from '../../selection/caret-doors';
 import { pathsEqual } from '../../selection/path-math';

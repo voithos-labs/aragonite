@@ -1,8 +1,8 @@
 /**
  * Puts back a selection saved before a detour (a presentation-mode switch, the find bar) through
  * the caret landing's `restore`, unless a widget is still selected: then the widget stays selected
- * and its block takes focus again, since the saved caret is only the widget's stand-in. Interim,
- * until the landing's `restore` takes a selected widget itself (T21 slice 2).
+ * and its block takes focus again, since the saved caret is only the widget's stand-in. Interim:
+ * it goes once the landing's `restore` puts a selected widget back itself.
  */
 
 import type { BlockElLookup } from '../editor-keys';
