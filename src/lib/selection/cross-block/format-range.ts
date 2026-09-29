@@ -2,7 +2,7 @@
  * The per-block spans a cross-block format toggle rewrites, and the write over them; pure over
  * the tree, with the commit in `./format-toggle`. The direction is decided over the whole range:
  * every span already marked removes the mark, anything else adds it. Each span goes through the
- * single-block toggle, and a grid joins by its covered cells.
+ * single-block toggle, and a table joins by its covered cells.
  */
 
 import {
@@ -22,7 +22,7 @@ import type { DocumentView, NodeView } from '../../core/node-views';
 import type { InlineMarkKind } from '../../schema/inline-construct-policy';
 import type { Reading } from '../../schema/reading';
 import type { GrammarView } from '../../schema/block-openers';
-import { isGridKind, tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
+import { tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
 import { blockNodeAt, type BodyParent } from '../../tree-operations/node-primitives';
 import type { SharingState } from '../../tree-operations/sharing';
 import { rewriteLeafInPlace } from '../../tree-operations/content-write';
@@ -178,8 +178,8 @@ function spansInRange(doc: DocumentView, coverage: RangeCoverage, reading: Readi
 	return spans;
 }
 
-/** A kept edge's part of its block: the text from the start or up to the end, or a table's rows
- *  the range covers. A cell of a plugin grid is taken whole, so no cell is cut in half. */
+/** A kept edge's part of its block: the text from the start or up to the end, or the cells a
+ *  table edge hands over. */
 function edgeSpans(
 	doc: DocumentView,
 	start: SelectionPoint | null,
@@ -191,12 +191,6 @@ function edgeSpans(
 	const node = blockNodeAt(doc, point.path);
 	if (!node) return [];
 	if (cells) return cellSpans(gridCellsInRun(node, point.path, cells.from, cells.to - 1), reading);
-	const grid = enclosingGrid(doc, point.path);
-	if (grid) {
-		const cell = reachableCell(grid, point.path, node);
-		const body = cell && contentSpan(cell, point.path, null, null, reading);
-		return body ? [{ ...body, isStart: start !== null, isEnd: end !== null }] : [];
-	}
 	const body = contentSpan(
 		node,
 		point.path,
@@ -207,37 +201,20 @@ function edgeSpans(
 	return body ? [{ ...body, isStart: start !== null, isEnd: end !== null }] : [];
 }
 
-/** Every leaf of a subtree the range holds whole, each whole, in document order; a row or cell of
- *  a grid reaches only the cells row 0's width indexes. */
+/** Every leaf of a subtree the range holds whole, each whole, in document order. */
 function wholeSpans(doc: DocumentView, root: readonly number[], reading: Reading): RangeSpan[] {
-	const path = [...root];
-	const node = blockNodeAt(doc, path);
+	const node = blockNodeAt(doc, [...root]);
 	if (!node) return [];
-	const grid = enclosingGrid(doc, path);
-	if (grid && path.length === grid.path.length + 1) {
-		const cells = (node.children ?? []).slice(0, grid.width);
-		return cellSpans(
-			cells.map((cell, col) => ({ node: cell, path: [...path, col] })),
-			reading
-		);
-	}
-	if (grid) {
-		const cell = reachableCell(grid, path, node);
-		return cell ? cellSpans([{ node: cell, path }], reading) : [];
-	}
 	const spans: RangeSpan[] = [];
 	const visit = (at: NodeView, atPath: number[]): void => {
-		if (isGridKind(at.kind)) {
-			for (const span of cellSpans(gridCellsInRun(at, atPath, null, null), reading))
-				spans.push(span);
-		} else if (at.children) {
+		if (at.children) {
 			at.children.forEach((child, index) => visit(child, [...atPath, index]));
-		} else {
-			const body = contentSpan(at, atPath, null, null, reading);
-			if (body) spans.push({ ...body, isStart: false, isEnd: false });
+			return;
 		}
+		const body = contentSpan(at, atPath, null, null, reading);
+		if (body) spans.push({ ...body, isStart: false, isEnd: false });
 	};
-	visit(node, path);
+	visit(node, [...root]);
 	return spans;
 }
 
@@ -249,29 +226,6 @@ function cellSpans(cells: readonly GridCell[], reading: Reading): RangeSpan[] {
 		if (body) spans.push({ ...body, isStart: false, isEnd: false });
 	}
 	return spans;
-}
-
-interface EnclosingGrid {
-	path: number[];
-	/** Row 0's cell count, the width every row's index space shares. */
-	width: number;
-}
-
-/** The outermost grid strictly above `path`, or null. */
-function enclosingGrid(doc: DocumentView, path: readonly number[]): EnclosingGrid | null {
-	for (let depth = 1; depth < path.length; depth++) {
-		const node = blockNodeAt(doc, path.slice(0, depth));
-		if (node && isGridKind(node.kind)) {
-			return { path: path.slice(0, depth), width: node.children?.[0]?.children?.length ?? 0 };
-		}
-	}
-	return null;
-}
-
-/** A cell of `grid`, or null for one past row 0's width, which no cell index reaches. */
-function reachableCell(grid: EnclosingGrid, path: readonly number[], cell: NodeView) {
-	const col = path[grid.path.length + 1] ?? 0;
-	return col < grid.width ? cell : null;
 }
 
 /** What one leaf contributes between two character offsets, a null side meaning its content

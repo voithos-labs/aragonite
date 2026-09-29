@@ -17,22 +17,21 @@ const TWO_BY_TWO = [
 ];
 
 describe('a range edge deep inside a plugin grid', () => {
-	it('restores the start over the cell the press marked, not at its pre-write offset', () => {
+	it('restores the start before the opener its own cell grew', () => {
 		const doc = docAround(gridOf(registerPluginGrid(), TWO_BY_TWO));
 
 		const { plan } = planStored(doc, at([1, 0, 1], 1), at([2], 4));
-		expect(plan!.writes[0]).toMatchObject({ path: [1, 0, 1], newDisplay: '**cd**' });
-		expect(plan!.startOffset).toBe(0);
+		expect(plan!.writes[0]).toMatchObject({ path: [1, 0, 1], newDisplay: 'c**d**' });
+		expect(plan!.startOffset).toBe(1);
 	});
 
-	// The same staleness at the other edge, where it under-reaches instead: the closer lands after
-	// the content the end offset names.
+	// The closer lands before the end offset, so the end has to move past it.
 	it('restores the end past the closer its own cell grew', () => {
 		const doc = docAround(gridOf(registerPluginGrid(), TWO_BY_TWO));
 
 		const { plan } = planStored(doc, at([0], 0), at([1, 1, 0], 1));
-		expect(plan!.writes.at(-1)).toMatchObject({ path: [1, 1, 0], newDisplay: '**ef**' });
-		expect(plan!.endOffset).toBe('**ef**'.length);
+		expect(plan!.writes.at(-1)).toMatchObject({ path: [1, 1, 0], newDisplay: '**e**f' });
+		expect(plan!.endOffset).toBe('**e**'.length);
 	});
 
 	// A cell the plan does not write moved no bytes, so its edge is still where it stood.
