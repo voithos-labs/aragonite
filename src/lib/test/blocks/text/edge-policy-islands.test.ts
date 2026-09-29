@@ -6,6 +6,7 @@
 import { defaultGrammarView } from '$lib/schema/block-openers';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createWidgetSelectionState } from '$lib/components/image/widget-selection-state.svelte';
+import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import { parse } from '$lib/core/parser';
 import { computeInlineContent } from '$lib/core/inline';
 import { asRawOffset } from '$lib/cursor/coordinate-spaces';
@@ -115,7 +116,7 @@ describe('a CST widget outranks a decoration widget at the same caret edge', () 
 		const el = mountSurface([document.createTextNode('a![c]('), decorationIsland(6, image.end)]);
 		window.getSelection()?.removeAllRanges();
 
-		const widgetSelection = createWidgetSelectionState({ onSelect: () => {} });
+		const widgetSelection = createWidgetSelectionState(createSelectionState());
 		const h = makeEdgeDispatch(node, el, {
 			hasIslands: () => true,
 			enterWidget: (widget, fromTrailingEdge) =>

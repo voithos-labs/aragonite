@@ -10,6 +10,7 @@ import { computeInlineContent } from '$lib/core/inline';
 import { trimTrailingLineEnding } from '$lib/core/lines';
 import { rawTextOfNode } from '$lib/cursor/widget-offset';
 import { createWidgetSelectionState } from '$lib/components/image/widget-selection-state.svelte';
+import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import type { WidgetInteractionDeps } from '$lib/components/blocks/text/widget-interaction';
 import type { CstNode, InlineNode } from '$lib/core/nodes';
 import { fixtureReading } from '../../harness/fixture-grammar';
@@ -99,7 +100,7 @@ export function widgetInteractionDeps(
 		getLineEnding: () => '\n',
 		getEl: () => base.el,
 		getEditorContentWidth: () => 800,
-		widgetSelection: createWidgetSelectionState({ onSelect: () => {} }),
+		widgetSelection: createWidgetSelectionState(createSelectionState()),
 		setSnapTarget: () => {},
 		readRawText: () =>
 			Array.from(base.el.childNodes).reduce(

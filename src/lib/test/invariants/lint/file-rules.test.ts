@@ -1234,7 +1234,54 @@ const BARE_FOCUSES: ManifestRule[] = [
 	}
 ];
 
+// ── G4.94 the editor's own selection has one store and three writers ─────────
+
+const SELECTION_WRITERS: ManifestRule[] = [
+	{
+		id: 'G4.94 a gap caret or a widget is selected only through the caret doors',
+		matches: /\.(?:setGapCaret|selectWidget)\s*\(/,
+		declared: {
+			'src/lib/selection/caret-doors.ts':
+				'`placeGapCaret` and `selectWidgetWhole`, which end the browser’s own range in the same batch'
+		},
+		reason:
+			'a gap caret or a widget selected outside `selection/caret-doors.ts` can leave a browser caret live beside it: call `placeGapCaret` or `selectWidgetWhole`',
+		hits: [
+			'selection.setGapCaret(pos);',
+			'deps.selection.selectWidget({ paragraphPath, sourceStart, preSelectOffset });',
+			'state.setGapCaret (pos)'
+		],
+		misses: [
+			'placeGapCaret(selection, pos);\nselectWidgetWhole(selection, target);',
+			'setGapCaret(pos: GapCaretPosition): void {\nselectWidget(target: WidgetTarget): void {',
+			'// `selection.setGapCaret(pos)` skips the door.\nconst a = 1;',
+			'view.select(target);\nselection.clearGapCaret();'
+		]
+	},
+	{
+		id: 'G4.94 a widget selected whole is held only by the selection state',
+		matches: /\$state\s*<[^>]*\bWidgetTarget\b|\bWidgetTarget\b[^=;\n]*=\s*\$state\s*\(/,
+		declared: {
+			'src/lib/selection/selection-state.svelte.ts':
+				'the one store, whose private writer ends the range and the gap caret as it takes the widget'
+		},
+		reason:
+			'a second place holding a selected widget has to be kept apart from the range and the gap caret by hand, and every reader has to be taught it: read and write `SelectionState.widget`',
+		hits: [
+			'let selected = $state<WidgetTarget | null>(null);',
+			'#widget: WidgetTarget | null = $state(null);',
+			'let held: WidgetTarget = $state(initial);'
+		],
+		misses: [
+			'const target: WidgetTarget = { paragraphPath, sourceStart, preSelectOffset };',
+			'let count = $state(0);\nconst widget: WidgetTarget | null = selection.widget;',
+			'// A `$state<WidgetTarget>` cell here would be a second store.\nconst a = 1;'
+		]
+	}
+];
+
 const SOURCES = collectEditorSources();
 describeFileRules(RULES, SOURCES);
 describeManifests(SCROLL_WRITERS, SOURCES);
 describeManifests(BARE_FOCUSES, SOURCES);
+describeManifests(SELECTION_WRITERS, SOURCES);

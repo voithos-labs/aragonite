@@ -1,14 +1,19 @@
 /**
- * Reactive state for the editor-owned selection modes: a cross-block `anchor`/`focus` pair,
- * and the collapsed `gapCaret` (`gap-caret.ts`). Both are null in single-block mode, where the
- * native browser selection rules, and the two are mutually exclusive here rather than at any
- * call site. Transitions: `docs/design/editor.md` § Cross-block selection.
+ * Reactive state for the selections the editor owns: a cross-block range, a gap caret
+ * (`gap-caret.ts`), or an inline widget selected whole. At most one is live, since every mutator
+ * writes all three through one private writer; all are null while the browser's own selection
+ * rules. Transitions: `docs/design/editor.md` § Cross-block selection.
  */
 
 import type { DocumentView } from '../core/node-views';
 import { isBlockNode, nodeAt } from '../tree-operations/node-primitives';
 import type { GapCaretPosition } from './gap-caret';
-import type { SelectionEndpoint, SelectionPoint } from './primitives';
+import type {
+	SelectedWidgetRange,
+	SelectionEndpoint,
+	SelectionPoint,
+	WidgetTarget
+} from './primitives';
 import { isWholeBlockEndpoint, normalize } from './primitives';
 import {
 	cellEndpointDeepPath,
@@ -32,6 +37,9 @@ export interface SelectionStateOptions {
 	/** Document accessor. Absent in harnesses that only exercise cross-block semantics, where no
 	 *  point is normalized and a table endpoint is stored as written. */
 	getDoc?: () => DocumentView;
+	/** The live span of the widget a selection holds, or null once none starts there. Absent, a
+	 *  selected widget has no range and reports the offset it was entered at. */
+	widgetSpan?: (target: WidgetTarget) => { start: number; end: number } | null;
 }
 
 export function createSelectionState(options?: SelectionStateOptions): SelectionState {
@@ -59,6 +67,13 @@ export interface SelectionState {
 	/** One block taken whole as the range (a drag inside a leaf with no text, such as an equation),
 	 *  which the same-path check would otherwise refuse; the overlay paints it as a unit. */
 	readonly wholeUnitPath: number[] | null;
+	/** The inline widget selected whole, or null. Copied out, like `gapCaret`. */
+	readonly widget: WidgetTarget | null;
+	/** The selected widget's span read from the live document, since its own commits move its
+	 *  end; null with no widget selected, or once no widget starts at its byte. */
+	widgetRange(): SelectedWidgetRange | null;
+	/** The caret a selected widget stands for: the edge of its span it was entered from. */
+	widgetCaret(): SelectionPoint | null;
 
 	// Every mutator below is silent when it changes nothing: a reset that clears what is
 	// already clear must not make a subscriber re-read an unmoved selection.
@@ -66,11 +81,17 @@ export interface SelectionState {
 	extendFocus(point: SelectionEndpoint): void;
 	collapse(): void;
 	clear(): void;
-	/** Drops the range and gap caret without notifying, for a document swap: the stored endpoints
-	 *  address the outgoing tree, and the restore that follows announces the new selection. */
+	/** Drops whatever is live without notifying, for a document swap: it addresses the outgoing
+	 *  tree, and the restore that follows announces the new selection. */
 	dropForDocumentSwap(): void;
 	setGapCaret(pos: GapCaretPosition): void;
 	clearGapCaret(): void;
+	/** Selects a widget whole and announces it. A widget ending by itself announces nothing: the
+	 *  caret that replaces it announces itself. */
+	selectWidget(target: WidgetTarget): void;
+	/** Moves a selected widget by `delta` bytes when it sits in `path` at or past `editEnd`: an
+	 *  edit to another widget earlier in the block moved its bytes, not its identity. Silent. */
+	followWidgetEdit(path: readonly number[], editEnd: number, delta: number): void;
 	incrementSelectAllCount(): void;
 	resetSelectAllCount(): void;
 
@@ -103,14 +124,25 @@ function isCellPair(a: SelectionPoint, f: SelectionPoint): boolean {
 	return a.cellCoordinate === true || f.cellCoordinate === true;
 }
 
+/** The one live editor-owned selection a write leaves behind; null ends all of them. */
+type Claim =
+	| { range: { anchor: SelectionPoint; focus: SelectionPoint; wholeUnit: number[] | null } }
+	| { gap: GapCaretPosition }
+	| { widget: WidgetTarget }
+	| null;
+
 class SelectionStateImpl implements SelectionState {
+	// Separate cells, so a reader of one kind (the image overlay reads the widget) doesn't re-run
+	// on every write of another, such as each move of a drag.
 	#anchor: SelectionPoint | null = $state(null);
 	#focus: SelectionPoint | null = $state(null);
 	#gapCaret: GapCaretPosition | null = $state(null);
 	#wholeUnit: number[] | null = $state(null);
+	#widget: WidgetTarget | null = $state(null);
 	#selectAllCount: number = $state(0);
 	#onChange?: (change: { placementOnly: boolean }) => void;
 	#getDoc?: () => DocumentView;
+	#widgetSpan?: (target: WidgetTarget) => { start: number; end: number } | null;
 	#batchDepth = 0;
 	#notifyPending = false;
 	// False once a notification that is not a caret placement joins the pending flush.
@@ -119,6 +151,17 @@ class SelectionStateImpl implements SelectionState {
 	constructor(options?: SelectionStateOptions) {
 		this.#onChange = options?.onChange;
 		this.#getDoc = options?.getDoc;
+		this.#widgetSpan = options?.widgetSpan;
+	}
+
+	// The only writer of the five cells, so no mutator can set one kind without ending the others.
+	#claim(next: Claim): void {
+		const range = next && 'range' in next ? next.range : null;
+		this.#anchor = range?.anchor ?? null;
+		this.#focus = range?.focus ?? null;
+		this.#wholeUnit = range?.wholeUnit ?? null;
+		this.#gapCaret = next && 'gap' in next ? next.gap : null;
+		this.#widget = next && 'widget' in next ? next.widget : null;
 	}
 
 	batch(mutate: () => void): void {
@@ -172,6 +215,28 @@ class SelectionStateImpl implements SelectionState {
 		return this.#wholeUnit?.slice() ?? null;
 	}
 
+	get widget(): WidgetTarget | null {
+		const widget = this.#widget;
+		return widget && copyWidget(widget);
+	}
+
+	widgetRange(): SelectedWidgetRange | null {
+		const widget = this.#widget;
+		const span = widget && this.#widgetSpan?.(copyWidget(widget));
+		return widget && span
+			? { path: widget.paragraphPath.slice(), start: span.start, end: span.end }
+			: null;
+	}
+
+	widgetCaret(): SelectionPoint | null {
+		const widget = this.#widget;
+		if (!widget) return null;
+		const live = this.widgetRange();
+		const fromStart = widget.preSelectOffset === widget.sourceStart;
+		const offset = live ? (fromStart ? live.start : live.end) : widget.preSelectOffset;
+		return { path: widget.paragraphPath.slice(), offset };
+	}
+
 	get isCustomRendered(): boolean {
 		const anchor = this.#anchor;
 		const focus = this.#focus;
@@ -205,7 +270,6 @@ class SelectionStateImpl implements SelectionState {
 	}
 
 	enterCrossBlock(anchor: SelectionEndpoint, focus: SelectionEndpoint): void {
-		this.#gapCaret = null;
 		// Both ends on one block with no text: the block is the range, stored as its full span
 		// (a table's first and last cell) and flagged whole, as a same-path pair is refused below.
 		if (
@@ -221,24 +285,19 @@ class SelectionStateImpl implements SelectionState {
 				offset: this.#byteLengthAt(path)
 			};
 			this.#assertEndpointCoordinates(a, f);
-			this.#anchor = a;
-			this.#focus = f;
-			this.#wholeUnit = path.slice();
+			this.#claim({ range: { anchor: a, focus: f, wholeUnit: path.slice() } });
 			this.#notify();
 			return;
 		}
-		this.#wholeUnit = null;
 		const a = this.#normalizePoint(anchor, focus.path);
 		const f = this.#normalizePoint(focus, anchor.path);
 		// A same-path text pair is a single-block range the browser owns, refused here where every
 		// entry path passes; a cell rectangle and the keyboard's equal-offset first pair are kept.
 		if (this.#isSamePathProseRange(a, f)) {
-			this.#anchor = null;
-			this.#focus = null;
+			this.#claim(null);
 		} else {
 			this.#assertEndpointCoordinates(a, f);
-			this.#anchor = a;
-			this.#focus = f;
+			this.#claim({ range: { anchor: a, focus: f, wholeUnit: null } });
 		}
 		this.#notify();
 	}
@@ -247,23 +306,19 @@ class SelectionStateImpl implements SelectionState {
 		if (!this.#anchor) {
 			throw new Error('SelectionState.extendFocus called without an anchor');
 		}
-		this.#gapCaret = null;
 		// Leaving a whole-block range: its anchor is the block as a whole again, so the side it
 		// means (start below the new focus, end above it) is resolved afresh rather than kept at 0.
-		if (this.#wholeUnit) {
-			const unit = { path: this.#wholeUnit, wholeBlock: true as const };
-			this.#anchor = this.#normalizePoint(unit, point.path);
-			this.#wholeUnit = null;
-		}
-		const f = this.#normalizePoint(point, this.#anchor.path);
+		const anchor = this.#wholeUnit
+			? this.#normalizePoint({ path: this.#wholeUnit, wholeBlock: true }, point.path)
+			: this.#anchor;
+		const f = this.#normalizePoint(point, anchor.path);
 		// A focus back on the anchor's text leaf shrinks to a single-block range, even at the
 		// anchor's own offset: `extendFocus` never starts a pair, so landing there is a collapse.
-		if (pathsEqual(this.#anchor.path, f.path) && !isCellPair(this.#anchor, f)) {
-			this.#anchor = null;
-			this.#focus = null;
+		if (pathsEqual(anchor.path, f.path) && !isCellPair(anchor, f)) {
+			this.#claim(null);
 		} else {
-			this.#assertEndpointCoordinates(this.#anchor, f);
-			this.#focus = f;
+			this.#assertEndpointCoordinates(anchor, f);
+			this.#claim({ range: { anchor, focus: f, wholeUnit: null } });
 		}
 		this.#notify();
 	}
@@ -309,52 +364,55 @@ class SelectionStateImpl implements SelectionState {
 	}
 
 	collapse(): void {
-		if (!this.#hasCaretClaim()) return;
-		this.#drop();
-		this.#notify();
+		const announce = this.#hasCaretClaim();
+		this.#claim(null);
+		if (announce) this.#notify();
 	}
 
 	dropForDocumentSwap(): void {
-		this.#drop();
-	}
-
-	#drop(): void {
-		this.#anchor = null;
-		this.#focus = null;
-		this.#gapCaret = null;
-		this.#wholeUnit = null;
+		this.#claim(null);
 	}
 
 	clear(): void {
-		if (!this.#hasCaretClaim() && this.#selectAllCount === 0) return;
-		this.#anchor = null;
-		this.#focus = null;
-		this.#gapCaret = null;
-		this.#wholeUnit = null;
+		const announce = this.#hasCaretClaim() || this.#selectAllCount !== 0;
+		this.#claim(null);
 		this.#selectAllCount = 0;
-		this.#notify();
+		if (announce) this.#notify();
 	}
 
-	// Every field the two clears zero: a guard reading fewer of them would swallow the
-	// notification for the ones it does not see.
+	// A range or a gap caret: what the clears announce ending. A widget is left out, since the
+	// caret that replaces it announces itself.
 	#hasCaretClaim(): boolean {
 		return this.#anchor !== null || this.#focus !== null || this.#gapCaret !== null;
 	}
 
-	// The mutual exclusion's other half: a gap and a range are never live together, and the
-	// copy is what keeps a caller's own position object from writing through.
+	// The copy keeps a caller's own position object from writing through.
 	setGapCaret(pos: GapCaretPosition): void {
-		this.#anchor = null;
-		this.#focus = null;
-		this.#wholeUnit = null;
-		this.#gapCaret = { parentPath: pos.parentPath.slice(), index: pos.index };
+		this.#claim({ gap: { parentPath: pos.parentPath.slice(), index: pos.index } });
 		this.#notify();
 	}
 
 	clearGapCaret(): void {
 		if (this.#gapCaret === null) return;
-		this.#gapCaret = null;
+		this.#claim(null);
 		this.#notify();
+	}
+
+	selectWidget(target: WidgetTarget): void {
+		this.#claim({ widget: copyWidget(target) });
+		this.#notify();
+	}
+
+	followWidgetEdit(path: readonly number[], editEnd: number, delta: number): void {
+		const widget = this.#widget;
+		if (!widget || widget.sourceStart < editEnd || !pathsEqual(widget.paragraphPath, path)) return;
+		this.#claim({
+			widget: {
+				paragraphPath: widget.paragraphPath.slice(),
+				sourceStart: widget.sourceStart + delta,
+				preSelectOffset: widget.preSelectOffset + delta
+			}
+		});
 	}
 
 	incrementSelectAllCount(): void {
@@ -391,4 +449,14 @@ class SelectionStateImpl implements SelectionState {
 	announcePlacement(): void {
 		this.#notify(true);
 	}
+}
+
+// Copied at both ends, as the gap caret is: neither a caller's object nor a reader's copy can
+// write the stored widget without a notification.
+function copyWidget(target: WidgetTarget): WidgetTarget {
+	return {
+		paragraphPath: target.paragraphPath.slice(),
+		sourceStart: target.sourceStart,
+		preSelectOffset: target.preSelectOffset
+	};
 }

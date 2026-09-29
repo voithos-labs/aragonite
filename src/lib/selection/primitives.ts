@@ -33,6 +33,16 @@ export interface CharSelectionPoint {
 	cellCoordinate?: false;
 }
 
+/** An inline widget selected whole, by the block it sits in and the byte it starts at. A snapshot:
+ *  a popover commit targets the image it opened on, and writes nothing once another holds it. */
+export interface WidgetTarget {
+	paragraphPath: number[];
+	sourceStart: number;
+	/** The caret just before the widget was selected: the edge it was entered from, and where
+	 *  undo puts the caret back. */
+	preSelectOffset: number;
+}
+
 /** An inline widget selected whole (an image), as the raw span of the block at `path`. */
 export interface SelectedWidgetRange {
 	path: number[];

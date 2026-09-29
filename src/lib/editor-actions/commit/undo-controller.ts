@@ -140,12 +140,7 @@ export function createUndoController(
 		setUndoGauge(liveBytes, undo.length);
 	}
 
-	const readLive = () =>
-		readCurrentSelection(
-			deps.selectionState,
-			deps.blockRefs,
-			deps.getSelectedWidgetCaret ?? (() => null)
-		);
+	const readLive = () => readCurrentSelection(deps.selectionState, deps.blockRefs);
 
 	/**
 	 * What an entry records as "where the caret was". The gap caret outranks only the caller's

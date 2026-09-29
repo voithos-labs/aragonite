@@ -10,11 +10,8 @@
 	import { createImageEditCommitter } from './image-edit-commit';
 	import { imageFieldsFromInline } from '../../core/inline/image-source-bytes';
 	import type { MenuPresence } from '../menu/menu-presence.svelte';
-	import {
-		pressLeavesImage,
-		type WidgetSelectionState,
-		type WidgetTarget
-	} from './widget-selection-state.svelte';
+	import { pressLeavesImage, type WidgetSelectionState } from './widget-selection-state.svelte';
+	import type { WidgetTarget } from '../../selection/primitives';
 
 	// Mounted unconditionally by Editor: the effects below must observe
 	// widget-selection changes, so the selected-widget {#if} lives here.
@@ -68,8 +65,8 @@
 	});
 
 	$effect(() => imageEdit.attachWidgetSelectListener());
-	// On every document change, so the selection is gone before a caret an undo or a commit
-	// puts back reaches the selectionchange listener, which drops carets while it lives.
+	// On every document change: an image whose bytes moved follows them, and one whose bytes are
+	// gone stops being selected.
 	$effect(() => {
 		getContentVersion();
 		untrack(imageEdit.clearStaleSelection);

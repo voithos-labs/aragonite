@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 // Miss-analysis: no test edited under a selected image, so an undo that moved it went unchecked.
 import { defaultGrammarView } from '$lib/schema/block-openers';
 import { describe, it, expect } from 'vitest';
@@ -7,6 +8,7 @@ import { imageFieldsFromInline } from '../../core/inline/image-source-bytes';
 import { getInlineContent } from '../../core/inline/inline-cache';
 import type { CstNode } from '../../core/nodes';
 import { createWidgetSelectionState } from '../../components/image/widget-selection-state.svelte';
+import { createSelectionState } from '../../selection/selection-state.svelte';
 import { parse } from '../../core/parser';
 import { createEditorEvents } from '../../editor-events';
 import { makeInlineRange, makeStubController } from '../harness/editor-actions';
@@ -16,7 +18,7 @@ import { fixtureReading } from '../harness/fixture-grammar';
 describe('a selected image whose bytes an edit moves', () => {
 	function selectedAt(raw: string, sourceStart: number) {
 		let doc: Document = parse(raw);
-		const widgetSelection = createWidgetSelectionState({ onSelect: () => {} });
+		const widgetSelection = createWidgetSelectionState(createSelectionState());
 		const committer = createImageEditCommitter({
 			getDoc: () => doc,
 			getEditorEl: () => null,

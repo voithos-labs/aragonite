@@ -10,8 +10,7 @@ import { createSelectionState } from '../../selection/selection-state.svelte';
 import { parse } from '../../core/parser';
 import { stubBlockComponent } from '../harness/editor-actions';
 import { restoreTarget } from '../harness/restore-landing';
-
-const NO_WIDGET = () => null;
+import { selectWidgetWhole } from '../../selection/caret-doors';
 
 describe('readCurrentSelection: unfocused editor', () => {
 	it('returns null when no block reports a cursor (does not clamp to block 0 offset 0)', () => {
@@ -22,7 +21,7 @@ describe('readCurrentSelection: unfocused editor', () => {
 			stubBlockComponent({ getCursorOffset: () => null })
 		];
 
-		const result = readCurrentSelection(selectionState, blockRefs, NO_WIDGET);
+		const result = readCurrentSelection(selectionState, blockRefs);
 
 		expect(result).toBeNull();
 	});
@@ -34,7 +33,7 @@ describe('readCurrentSelection: unfocused editor', () => {
 			stubBlockComponent({ getCursorOffset: () => 7 }),
 			stubBlockComponent({ getCursorOffset: () => null })
 		];
-		const result = readCurrentSelection(selectionState, blockRefs, NO_WIDGET);
+		const result = readCurrentSelection(selectionState, blockRefs);
 		expect(result).toEqual({
 			anchor: { path: [1], offset: 7 },
 			focus: { path: [1], offset: 7 }
@@ -47,11 +46,10 @@ describe('readCurrentSelection: an image selected whole', () => {
 	it("answers the image's edge, not the caret a block reports", () => {
 		const imageEnd = { path: [0], offset: 41 };
 		const blockRefs = [stubBlockComponent({ getCursorOffset: () => 0 })];
+		const selection = createSelectionState({ widgetSpan: () => ({ start: 30, end: 41 }) });
+		selectWidgetWhole(selection, { paragraphPath: [0], sourceStart: 30, preSelectOffset: 41 });
 
-		const result = readCurrentSelection(createSelectionState(), blockRefs, () => ({
-			anchor: imageEnd,
-			focus: imageEnd
-		}));
+		const result = readCurrentSelection(selection, blockRefs);
 
 		expect(result).toEqual({ anchor: imageEnd, focus: imageEnd });
 	});
@@ -65,7 +63,7 @@ describe('undo selection snapshots: cellCoordinate round-trip', () => {
 		const s = createSelectionState({ getDoc: () => doc });
 		s.enterCrossBlock({ path: [0], offset: 1 }, { path: [1], offset: 2, cellCoordinate: true });
 
-		const snap = readCurrentSelection(s, [], NO_WIDGET);
+		const snap = readCurrentSelection(s, []);
 
 		expect(snap?.focus).toEqual({ path: [1], offset: 2, cellCoordinate: true });
 		expect(snap?.anchor).toEqual({ path: [0], offset: 1 });
@@ -75,7 +73,7 @@ describe('undo selection snapshots: cellCoordinate round-trip', () => {
 		const doc = parse(TABLE_LAST);
 		const s = createSelectionState({ getDoc: () => doc });
 		s.enterCrossBlock({ path: [0], offset: 1 }, { path: [1], offset: 2, cellCoordinate: true });
-		const snap = readCurrentSelection(s, [], NO_WIDGET)!;
+		const snap = readCurrentSelection(s, [])!;
 
 		const restored = createSelectionState({ getDoc: () => doc });
 		applySelectionToDom(

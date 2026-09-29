@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
 	import type { ImageCrop, ImageFields } from '../../core/nodes';
-	import { pressLeavesImage, type WidgetTarget } from './widget-selection-state.svelte';
+	import { pressLeavesImage } from './widget-selection-state.svelte';
+	import type { WidgetTarget } from '../../selection/primitives';
 	import {
 		IMAGE_ALT_FIELD,
 		IMAGE_ALT_PLACEHOLDER,

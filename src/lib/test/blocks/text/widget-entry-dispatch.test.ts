@@ -8,6 +8,7 @@ import type { Commit } from './widget-selected-fixture';
 import { beforeEach, describe, it, expect } from 'vitest';
 import { createWidgetInteraction } from '$lib/components/blocks/text/widget-interaction';
 import { createWidgetSelectionState } from '$lib/components/image/widget-selection-state.svelte';
+import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import { augmentInlineWidgetKind } from '$lib/core/inline/inline-widgets';
 import { domTextOffsetAtNode } from '$lib/cursor/widget-offset';
 import { asRawOffset } from '$lib/cursor/coordinate-spaces';
@@ -27,7 +28,7 @@ function mount(source: string, widgetKind: string) {
 	const widget = inlineWidgets[0];
 
 	const commits: Commit[] = [];
-	const widgetSelection = createWidgetSelectionState({ onSelect: () => {} });
+	const widgetSelection = createWidgetSelectionState(createSelectionState());
 	const interaction = createWidgetInteraction(
 		widgetInteractionDeps(
 			{ node, el },
