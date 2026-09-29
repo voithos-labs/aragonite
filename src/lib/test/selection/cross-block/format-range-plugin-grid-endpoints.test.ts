@@ -5,6 +5,8 @@
 // Miss-analysis: every endpoint assertion used a table endpoint, whose cell space no write moves.
 import { describe, expect, it } from 'vitest';
 import type { SelectionPoint } from '$lib/selection/primitives';
+import { collectCrossBlockText } from '$lib/selection/clipboard-text';
+import { coverRange } from '$lib/selection/range-coverage';
 import { docAround, gridOf, planStored, registerPluginGrid } from './plugin-grid-kind';
 
 const at = (path: number[], offset: number): SelectionPoint => ({ path, offset });
@@ -48,5 +50,21 @@ describe('a range edge deep inside a plugin grid', () => {
 
 		const { plan } = planStored(doc, at([1], 3), at([2], 4));
 		expect(plan!.startOffset).toBe(3);
+	});
+});
+
+// Miss-analysis: every row here read the format alone, so its whole-cell reading of a grid edge
+// never met the copy's reading of the same range.
+describe('a range starting partway into a plugin grid cell', () => {
+	it('formats the bytes the copy covers, and nothing before the start', () => {
+		const doc = docAround(gridOf(registerPluginGrid(), TWO_BY_TWO));
+
+		const { start, end, plan } = planStored(doc, at([1, 0, 0], 1), at([2], 2));
+		expect(plan!.writes[0]).toMatchObject({ path: [1, 0, 0], newDisplay: 'a**b**' });
+		const marked = plan!.writes
+			.flatMap((write) => [...write.newDisplay.matchAll(/\*\*(.+?)\*\*/g)].map((m) => m[1]))
+			.join('');
+		const copied = collectCrossBlockText(doc, coverRange(doc, start, end));
+		expect(marked).toBe(copied.replace(/\s/g, ''));
 	});
 });
