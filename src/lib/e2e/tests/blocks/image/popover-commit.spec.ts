@@ -165,8 +165,8 @@ test.describe('image popover commit', () => {
 		await expect(page.locator('[data-image-widget]')).toHaveCount(0);
 	});
 
-	// A replace from the find bar rewrites the image's bytes while the toolbar stays up, so the alt
-	// field must read the new alt, or an edit to it would put the old one back.
+	// A replace from the find bar rewrites the image's bytes while the toolbar stays up, and an edit
+	// in the alt field builds on the alt the document holds now.
 	test('a replace from the find bar reseeds the open toolbar', async ({ page }) => {
 		await editor.loadContent('![cat](/test-fixtures/sample.png)\n\nafter\n');
 		const toolbar = page.locator('.md-image-properties');
