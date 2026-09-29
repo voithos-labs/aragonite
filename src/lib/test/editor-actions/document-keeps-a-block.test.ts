@@ -17,6 +17,7 @@ import { recordingFocus } from '$lib/testing/headless-actions';
 import { blockNodeAt } from '$lib/tree-operations/node-primitives';
 import {
 	makeBlockListState,
+	makeListContextAt,
 	makeNestedActionsDeps,
 	makeTopHarness,
 	type TopHarness
@@ -192,6 +193,19 @@ const ROWS: Record<string, Row> = {
 		drive: (env) => focusedRuleKey(nested(env, 0), 'Backspace'),
 		bytes: '\n',
 		placed: [[0]]
+	},
+	'a list item holding only a nested list, its one item promoted: the emptied item goes': {
+		source: '- - a\n',
+		drive: async (env) => {
+			const outer = makeListContextAt(env.h.deps, 0, {
+				controller: env.h.controller,
+				parentBlockEdit: env.h.actions
+			});
+			const nestedList = env.h.deps.doc.children[0].children![0].children![0];
+			await outer.listContext.promoteNestedItem(0, nestedList, 0);
+		},
+		bytes: '- a\n',
+		placed: [[0, 0, 0]]
 	},
 	'the only block replaced by nothing': {
 		source: 'a\n',
