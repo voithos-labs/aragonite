@@ -61,7 +61,7 @@ The editor owns the caret, the tree, and the undo stack. You own load, save, and
 
 A few things in the above example snippet are decently important; you might want to pay attention to them.
 
-1. **`source` seeds the document at mount**, and re-seeds it if the prop later changes. It's not a two way bound: the editor never writes back into it, so the document you read is always `getSource()`.
+1. **`source` seeds the document at mount**, and a later write loads the new text, unless it's the text the editor already holds (what `getSource()` returns), in which case nothing happens and undo survives. It's not a two way bound: the editor never writes back into it, so the document you read is always `getSource()`.
 2. **`bind:this` is how you talk to a mounted editor.** For example, you might want to use important read functions like `getSource()` and `getSelection()`, or important write functions like `setSelection()` and `runCommand()`. [The instance surface](#the-instance-surface) covers all of it.
 3. **The editor paints no background of its own.** It inherits your page, so its mode has to match the page it lands on, and it says `light` twice because there are two things to match: the wrapper carries the built-in look (font, colors) for everything inside it, and the `theme` prop keys the editor's own surfaces. A fresh app's page is white, hence `light`; on a dark page write `dark` in both spots, or write nothing, dark being the default. Skip the wrapper if your app already declares the tokens; [Theming](#theming) has the two tiers and how to customize yours.
 
@@ -115,7 +115,7 @@ Everything supported is exported from `@voithos-labs/aragonite`. Before 1.0 the 
 
 | Prop               | What it does                                                                                                                                                                                                                                                                                                                                                      |
 | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `source`           | Seeds the document at mount, and re-seeds it whenever the prop changes; never two-way bound                                                                                                                                                                                                                                                                       |
+| `source`           | Seeds the document at mount. A later write replaces the document when it differs from `getSource()` and does nothing when it doesn't, so you can keep it in step from `edit`; never two-way bound                                                                                                                                                                 |
 | `theme`            | Theme name, reflected to `data-editor-theme` on the editor root: `'dark'` (default), `'light'`, or a name of your own (see [Theming](#theming))                                                                                                                                                                                                                   |
 | `presentationMode` | How the document presents, from raw source to fully rendered: `'source'` (default), `'reading'`, `'preview-block'`, `'preview-inline'`, or `'live'` (see [Presentation modes](#presentation-modes))                                                                                                                                                               |
 | `plugins`          | Plugin units installed once at mount, in array order, before the first parse; the array is also the set this editor activates (see [Plugins](#plugins))                                                                                                                                                                                                           |
@@ -392,7 +392,7 @@ Seven channels:
 | `error`                  | On a failure the editor contained rather than threw                                                                                                                                                                                            |
 | `presentationModeChange` | After a `presentationMode` prop change; the payload is the effective mode (never at mount)                                                                                                                                                     |
 | `themeChange`            | After a `theme` prop change; the payload is the theme name (never at mount)                                                                                                                                                                    |
-| `sourceSwap`             | After a `source` prop write replaces the whole document; the payload is `{ generation }` (never at mount, and never on `edit`)                                                                                                                 |
+| `sourceSwap`             | After a `source` prop write replaces the whole document (a write of the text it already holds replaces nothing); the payload is `{ generation }` (never at mount, and never on `edit`)                                                         |
 | `menuChange`             | `true` when an editor-owned menu or popover opens and `false` when the last one closes (not the selection toolbar's own flyout, nor a view a plugin draws); hide selection chrome meanwhile. A mode change or a `source` swap closes them all. |
 
 Events fire synchronously from wherever they happen, and **a handler must not edit the document**: reentrant edits aren't supported.
@@ -1240,7 +1240,9 @@ For rewriting a whole document (converting legacy syntax, migrating content, app
 <Editor bind:this={editor} {source} />
 ```
 
-The replacement is one document swap, so undo history and the caret don't survive it, and it's announced on `sourceSwap` rather than `edit`.
+The replacement is one document swap, so undo history and the caret don't survive it, and it's announced on `sourceSwap` rather than `edit`. A rewrite that changed nothing (no `*` bullets to begin with) hands the editor its own text, which isn't a swap at all, so undo survives that one.
+
+One Svelte thing to watch for: a `$state` ignores a write equal to what it already holds, so that write never reaches the editor. If `source` still holds the text you loaded and the user has typed since, writing that same text back (say, to revert) does nothing. Keep `source` in step with `editor.getSource()` on every `edit` and it's never stale, since an echo of the editor's own text isn't a swap.
 
 A transformer working over `parse`'s output can lean on how the document is put back together: `serialize` is exactly `prefix + Σ(child.leadingTrivia + child.raw) + suffix` over the document's children, so a rewrite can replace individual blocks' bytes and reassemble without touching the rest.
 

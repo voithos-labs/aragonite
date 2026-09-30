@@ -261,6 +261,7 @@ Three families of seam run these checks:
 | G1.45 | A caret landing's focus scrolls nothing                                             | A·N     |
 | G1.46 | A caret or range the editor puts down leaves no widget selected whole               | A·N     |
 | G1.47 | A windowed child measures into its own block list                                   | A·N     |
+| G1.52 | The text `getSource()` serves for an unchanged content version is the document      | A·N     |
 
 ### The entries
 
@@ -735,6 +736,15 @@ its own children, and in a dev build says so. Predicate
 `reactivity/use-container-windowing.svelte.ts` · `test/reactivity/measured-child-routes.svelte.test.ts`;
 G4.97 is the source half.
 
+**G1.52 · The cached text is the document** (`current-source`). `getSource()` serializes once per
+content version and hands back the same string until the version moves, and a `source` prop write
+is compared with that string. So it's only as fresh as the version: a write that changed bytes
+without bumping it (G4.52 is the scan for that) would have the editor report, and compare against,
+text it no longer holds. In a dev build every read that reuses the cached text serializes the
+document again and says so if the two differ. Predicate
+`invariants/current-source.ts :: checkCurrentSource` · run by
+`reactivity/current-source.ts :: createCurrentSource` · `test/reactivity/current-source.test.ts`.
+
 ## Group 2: property and regression tested
 
 No runtime seam sees these; the test suite is the whole enforcement. Test files live under
@@ -1036,6 +1046,7 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.99  | A windowed list's box is never shorter than its table while blocks mount                  | L       |
 | G4.100 | A block's own trailing line ending is added only by the surface write                     | L       |
 | G4.101 | Only the surface write names a typed kind change or completes a typed line                | L       |
+| G4.106 | An e2e spec reloads the editor's own text through `reloadContent`                         | L       |
 
 ### The entries
 
@@ -2018,6 +2029,12 @@ never a command, a paste or the editor's own repair. Only `surface-write.ts :: w
 them, for a write with the `typed` intent, so a key the block writes itself (the auto-pair's
 partner, a byte placed beside a hidden run) gets both, and a command gets neither. `lint/file-rules.test.ts` fails an
 `afterTypedWrite` or `completeLineOnType` call under `components/` or `selection/` anywhere else.
+
+**G4.106 · A reload in a spec really reloads.** A `source` write equal to the text the editor holds
+is no change (G1.52 has the text it's compared with), so `loadContent(await getSource())` reparses
+nothing, and whatever the spec checks next passes against the document it never reloaded.
+`e2e/editor-page.ts :: reloadContent` empties the document first. `lint/suite-file-rules.test.ts`
+fails a `loadContent` or `setSource` of an awaited `getSource()` anywhere under `src/lib/e2e/`.
 
 ## Accessibility
 

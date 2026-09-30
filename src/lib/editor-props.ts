@@ -30,6 +30,9 @@ export type { SyntaxOptions } from './schema/registry-view';
 export type { InteractionTraceEntry } from './debug/interaction-trace';
 
 export interface EditorProps {
+	/** The Markdown the editor mounts with. A later write replaces the document, clearing undo,
+	 *  when it differs from `getSource()`, and does nothing when it doesn't. The editor never
+	 *  writes back into it. */
 	source?: string;
 	resolveImageUrl?: ResolveImageUrl;
 	resolveLinkUrl?: ResolveLinkUrl;
