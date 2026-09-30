@@ -174,11 +174,6 @@ export interface BlockKindDescriptor {
 	 */
 	contextDependentKind?: boolean;
 	/**
-	 * The kind can take the lines right below it as its own (a link definition's title, an HTML
-	 * block's body), so a write here or just below asks whether the two blocks now read as one.
-	 */
-	readsFollowingLines?: true;
-	/**
 	 * Make `raw` legal as this kind's own bytes (`schema/fenced-code-raw.ts` is the worked example).
 	 * `ctx.node` is the block as it stood before the write.
 	 */
@@ -263,7 +258,6 @@ export const DESCRIPTOR_FIELDS = [
 	'bodyWrap',
 	'lastLineChild',
 	'contextDependentKind',
-	'readsFollowingLines',
 	'rawWrite',
 	'bodyWrite',
 	'reservedChrome',
