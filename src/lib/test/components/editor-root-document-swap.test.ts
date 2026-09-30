@@ -47,7 +47,7 @@ describe('the swap commit sequence', () => {
 			},
 			bumpContentVersion: step('bump'),
 			clearBlockRefs: step('refs'),
-			heightOracle: { dropMeasured: step('heights') },
+			layout: { forgetMeasuredHeights: step('heights') },
 			undoManager: { clear: step('undo') },
 			caretMemory: { forget: step('caret') },
 			closeMenus: step('menus'),

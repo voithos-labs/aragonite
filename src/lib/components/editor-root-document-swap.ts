@@ -12,7 +12,7 @@ import {
 	type LinkReferenceResolver
 } from '../core/inline/link-reference-resolver';
 import type { CaretMemory } from '../cursor/caret-memory';
-import type { HeightOracle } from '../cursor/height-oracle';
+import type { LayoutState } from '../reactivity/layout-state.svelte';
 import type { SelectionState } from '../selection/selection-state.svelte';
 import { emptyParagraph, ensureEditableContainers } from '../tree-operations';
 import type { UndoManager } from '../undo/types';
@@ -50,7 +50,7 @@ export interface DocumentSwapDeps {
 	adoptDocument(doc: Document): void;
 	bumpContentVersion(): void;
 	clearBlockRefs(): void;
-	heightOracle: Pick<HeightOracle, 'dropMeasured'>;
+	layout: Pick<LayoutState, 'forgetMeasuredHeights'>;
 	undoManager: Pick<UndoManager, 'clear'>;
 	caretMemory: Pick<CaretMemory, 'forget'>;
 	/** Every menu Editor owns acts on a block or bytes of the outgoing document; a block's own
@@ -82,9 +82,8 @@ export function createDocumentSwap(deps: DocumentSwapDeps): DocumentSwap {
 			deps.adoptDocument(reset.doc);
 			deps.bumpContentVersion();
 			deps.clearBlockRefs();
-			// Block ids never recur, so every measured height belongs to a block that cannot come
-			// back: the block lists go back to estimates exactly as they do on first load.
-			deps.heightOracle.dropMeasured();
+			// Block ids never recur, so every measured height belongs to a block that can't come back.
+			deps.layout.forgetMeasuredHeights();
 			deps.undoManager.clear();
 			deps.caretMemory.forget();
 			deps.closeMenus();

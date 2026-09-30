@@ -3,7 +3,7 @@
 // ran one focused layout through every route that changes a list's heights.
 import { describe, it, expect } from 'vitest';
 import { flushSync, tick } from 'svelte';
-import type { HeightOracle } from '../../cursor/height-oracle';
+import type { MeasuredHeightOracle } from '../../cursor/height-oracle';
 import type { CstNode } from '../../core/nodes';
 import type { ListWindowing } from '../../reactivity/list-windowing.svelte';
 import {
@@ -31,14 +31,15 @@ const GROWN = 160;
 
 const idOf = (i: number) => `b${i}`;
 
-function liveOracle(): HeightOracle & { measuredHeights: Map<string, number> } {
+function liveOracle(): MeasuredHeightOracle & { measuredHeights: Map<string, number> } {
 	const measuredHeights = new Map<string, number>();
 	return {
 		measuredHeights,
 		estimate: () => HEIGHT,
 		measured: (id) => measuredHeights.get(id),
 		recordMeasured: (id, h) => void measuredHeights.set(id, h),
-		dropMeasured: () => measuredHeights.clear()
+		dropMeasured: () => measuredHeights.clear(),
+		measuredIds: () => [...measuredHeights.keys()]
 	};
 }
 

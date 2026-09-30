@@ -2,8 +2,7 @@
 // Miss-analysis: only the resize predicate was tested, so no mounted list resized after a drop.
 import { describe, it, expect } from 'vitest';
 import { tick } from 'svelte';
-import { createHeightOracle } from '../../cursor/height-oracle';
-import { HEIGHT_ESTIMATES } from '../../cursor/typography-estimates';
+import { createLayoutState } from '../../reactivity/layout-state.svelte';
 import { makePara, mountListWindowing } from '../harness/list-windowing.svelte';
 
 const MEASURED = 100;
@@ -11,13 +10,8 @@ const RESIZED = 140;
 
 describe('a resize after the check dropped its cache', () => {
 	it('still re-measures the block into the model', async () => {
-		const oracle = createHeightOracle({
-			lineHeight: HEIGHT_ESTIMATES.proseLineHeight,
-			codeLineHeight: HEIGHT_ESTIMATES.codeLineHeight,
-			avgCharWidth: HEIGHT_ESTIMATES.avgCharWidth,
-			blockChrome: HEIGHT_ESTIMATES.blockChrome,
-			imageBlockMinHeight: HEIGHT_ESTIMATES.imageBlockMinHeight
-		});
+		const layout = createLayoutState();
+		const oracle = layout.heightOracle;
 		const { windowing, cleanup, port } = mountListWindowing({
 			children: [makePara('p0\n'), makePara('p1\n')],
 			ids: ['b0', 'b1'],
@@ -37,7 +31,7 @@ describe('a resize after the check dropped its cache', () => {
 
 		// The mode switch: every measured height goes, and the mounted block's box then moves with
 		// the markers that stopped painting. The observer reports it; the height table must follow.
-		oracle.dropMeasured();
+		layout.forgetMeasuredHeights();
 		height = RESIZED;
 		windowing.measureChildOnResize('b0', RESIZED);
 

@@ -1031,6 +1031,7 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.95 | What a range covers is decided in the range coverage only                                 | L       |
 | G4.96 | A commit rebuilds each container once, and a mutation leaves that rebuild to it           | L       |
 | G4.97 | A child's height reaches its list's table only through `useMeasuredChild`                 | L       |
+| G4.98 | Only layout state drops the measured heights or moves the width version                   | L       |
 
 ### The entries
 
@@ -1954,6 +1955,20 @@ function, so a second writer fails, and a manifest keeps the measure channel's k
 that defines it, the one that provides it and the hook. `lint/file-rules.test.ts`, with
 `test/reactivity/measured-child-routes.svelte.test.ts` running every child kind through every
 trigger and failing a new caller of the hook that has no row there; G1.47 is the runtime half.
+
+**G4.98 · One place throws measured heights away.** Heights measured for one view are wrong for
+the next, and `reactivity/layout-state.svelte.ts :: createLayoutState` is the only thing that
+drops them. A new document or a mode flip calls `forgetMeasuredHeights`, which leaves the width
+version alone (bump it and every list rebuilds, losing the block held in place). A width or
+font-size change calls `rebuildForNewGeometry`, which also bumps the width version every list
+rebuilds its table off.
+
+Nobody else can even reach the drop. Layout state builds the height estimator itself and hands
+out a copy without `dropMeasured`, so the editor root and the block lists only ever hold the reads.
+What a type can't stop gets two scans in `lint/file-rules.test.ts`: a second estimator built (or a
+cast back to the one with the drop) outside layout state, and a width-version write anywhere else.
+`test/reactivity/height-lifetime-routes.svelte.test.ts` runs all four routes, a flip to reading and
+to live included, and the three changes that keep the heights.
 
 ## Accessibility
 

@@ -61,9 +61,11 @@ Again, some technical details:
 
 ## When and how everything re-measures
 
+Everything that throws heights away (a new document through `source`, and the rewraps below) goes through one place, `src/lib/reactivity/layout-state.svelte.ts` :: `createLayoutState`. It has two ways to do it: `forgetMeasuredHeights` drops the measured cache, and `rebuildForNewGeometry` drops it and bumps the width version (a counter every scope rebuilds its height model off). Layout state builds the height estimator itself and only hands out its reads, so nothing else can drop the cache. A lint (G4.98) catches a second estimator or a second width-version writer.
+
 **Narrow the window and prose rewraps, so every cached height is wrong.**
 
-We drop the measured cache, rebuild each scope's height model, and remeasure the mounted blocks.
+We drop the measured cache, rebuild each scope's height model, and remeasure the mounted blocks. The width is watched on an empty div as wide as the editor and zero tall, not on the editor itself. When the page scrolls the editor, the editor's height follows its content, which the rebuild changes, and a watched box that resizes while the browser is still handing out size reports gets you a ResizeObserver loop error.
 
 **Resize the height only and nothing rewraps.**
 
@@ -104,10 +106,6 @@ A giant table windows its rows the same way. The twist: a table is a CSS grid an
 ## What the commit gate actually checks
 
 Not a timing. It counts mounted blocks: viewport's worth, plus a little overscan, plus the pinned block, no matter how big the document is. Everything outside that set has no component and no ref, and code that touches a block's DOM already null-checks. A count is the same on every machine and every build, so it never flakes, unlike every timing assertion ever written.
-
-## Known limitation
-
-Resize the window while the page scrolls the editor (host mode, windowing on) and the console logs a ResizeObserver loop error. The editor's width watcher observes the editor's own box, whose height there follows its content, and the rebuild it starts changes that height while the browser is still handing out size reports. The page itself stays put; it's the console that complains.
 
 ## The VR tags
 

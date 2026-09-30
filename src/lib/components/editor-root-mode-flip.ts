@@ -7,7 +7,7 @@
 import { tick } from 'svelte';
 import { isTextEntrySurface } from '../active-editor';
 import type { CaretMemory } from '../cursor/caret-memory';
-import type { HeightOracle } from '../cursor/height-oracle';
+import type { LayoutState } from '../reactivity/layout-state.svelte';
 import { rawOffsetAt } from '../cursor/widget-offset';
 import type { EditorEvents } from '../editor-events';
 import type { BlockElLookup } from '../editor-keys';
@@ -28,7 +28,7 @@ export interface ModeFlipDeps {
 	getBlockElByPath: BlockElLookup;
 	isHostChrome(node: Node | null): boolean;
 	caretMemory: Pick<CaretMemory, 'forget'>;
-	heightOracle: Pick<HeightOracle, 'dropMeasured'>;
+	layout: Pick<LayoutState, 'forgetMeasuredHeights'>;
 	events: EditorEvents;
 	/** The bare-mount restore path: a mode change only changes the view, so it writes no
 	 *  scroll position. */
@@ -111,10 +111,9 @@ export function createModeFlip(deps: ModeFlipDeps): ModeFlip {
 		afterFlip(to) {
 			if (to === lastEffectiveMode) return;
 			lastEffectiveMode = to;
-			// The caret memory and measured heights belong to the outgoing mode's markers. No width
-			// bump: a rebuild would lose the block held in place.
+			// The caret memory and measured heights belong to the outgoing mode's markers.
 			deps.caretMemory.forget();
-			deps.heightOracle.dropMeasured();
+			deps.layout.forgetMeasuredHeights();
 			if (to === 'reading') {
 				// The gap caret is the editor's own, not the browser's, so no blur reaches it:
 				// the mode change clears it rather than each entry path.

@@ -8,7 +8,8 @@ import {
 	listOf,
 	openNested,
 	quoteOf,
-	settleAll
+	settleAll,
+	type ScrollMode
 } from './vr-nested-fixtures';
 
 // A change inside a container that holds the viewport's top, whatever makes it, is corrected
@@ -43,27 +44,29 @@ const RESIZED = [
 	{ name: 'flat prose', container: 'A plain paragraph in the container’s place.', top: [20] }
 ];
 
-// Self mode only: under host scroll a width change trips a ResizeObserver loop error through the
-// editor's width watcher, whatever the container holds.
-for (const { name, container, top } of RESIZED) {
-	test(`narrowing the window with ${name} holding the top`, async ({ page }) => {
-		const pageErrors = capturePageErrors(page);
-		const nested = await openNested(page, 'self', WIDE_PARAGRAPHS(docWith(container)));
-		expect(await spacerCount(page), 'the fixture must window').toBeGreaterThan(0);
-		await nested.topInside(top);
-		const before = (await nested.screenTop(top))!;
-		const writes = await nested.countWrites();
+for (const mode of ['self', 'host'] as ScrollMode[]) {
+	for (const { name, container, top } of RESIZED) {
+		test(`narrowing the window with ${name} holding the top, scrollMode ${mode}`, async ({
+			page
+		}) => {
+			const pageErrors = capturePageErrors(page);
+			const nested = await openNested(page, mode, WIDE_PARAGRAPHS(docWith(container)));
+			expect(await spacerCount(page), 'the fixture must window').toBeGreaterThan(0);
+			await nested.topInside(top);
+			const before = (await nested.screenTop(top))!;
+			const writes = await nested.countWrites();
 
-		await page.setViewportSize({ width: 640, height: 700 });
-		await settleAll(nested.editor);
+			await page.setViewportSize({ width: 640, height: 700 });
+			await settleAll(nested.editor);
 
-		const after = await nested.screenTop(top);
-		expect(after, `${JSON.stringify(top)} stays mounted`).not.toBeNull();
-		expect(Math.abs(after! - before), `moved from ${before} to ${after}`).toBeLessThanOrEqual(1);
-		// One round carries the rebuild and every block's re-measure at the new width.
-		expect(await writes(), 'one scroll write').toHaveLength(1);
-		expect(pageErrors).toEqual([]);
-	});
+			const after = await nested.screenTop(top);
+			expect(after, `${JSON.stringify(top)} stays mounted`).not.toBeNull();
+			expect(Math.abs(after! - before), `moved from ${before} to ${after}`).toBeLessThanOrEqual(1);
+			// One round carries the rebuild and every block's re-measure at the new width.
+			expect(await writes(), 'one scroll write').toHaveLength(1);
+			expect(pageErrors).toEqual([]);
+		});
+	}
 }
 
 // ── Typing into a block above the top ───────────────────────────────────────

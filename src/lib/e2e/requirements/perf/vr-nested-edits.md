@@ -9,7 +9,9 @@ the change once.
 
 Driven on `/test/editor` over the same windowed document as `vr-nested-growth`,
 a container at root index 30 and the viewport's top 5px into its child 6.
-Scroll writes are counted by watching the editor's own `scrollTop`.
+Scroll writes are counted by watching the editor's own `scrollTop`. The resize
+rows run a second time on `/test/page-scroll`, where the page scrolls instead
+of the editor, and there the writes are the page's.
 
 Miss-analysis: every red row the slice wrote first grew an image, the one
 change that already arrived as a single round, so nothing drove a rebuild or
@@ -32,6 +34,13 @@ unmounted.
   its width watcher: the blocks would then report their new heights before the
   tables rebuild, and it'd take four writes (red that way, and so are the two
   rows above, with two each)
+- all three resize rows again with the page scrolling the editor: the same
+  1px, the same one write, and a clean console (red before the fix, all three:
+  the browser logged "ResizeObserver loop completed with undelivered
+  notifications", since the width watcher watched the editor's own box, and
+  in host mode that box's height follows the content the rebuild changes).
+  Miss-analysis: the resize rows only ran in self mode, because host mode
+  already logged the loop error, so nothing held it to zero
 - typing a line's worth of words into child 1 of a 40-paragraph blockquote,
   the caret there and above the top: child 6 stays within 1px, one scroll write
   (red before the fix and on the second cut: 179px off, the growth corrected

@@ -31,13 +31,12 @@
 	import { docPathFrom } from '../cursor/coordinate-spaces';
 	import { createAutoPairRecord } from './blocks/text/auto-pair-record';
 	import { createScrollOwner } from '../cursor/scroll-owner';
-	import { createHeightOracle } from '../cursor/height-oracle';
-	import { HEIGHT_ESTIMATES } from '../cursor/typography-estimates';
 	import { createScrollHostResolution } from './editor-root-scroll-host';
 	import { installSelectionDrop, type DropCaretRect } from '../selection/selection-drop';
 	import { createContentVersion } from '../reactivity/content-version.svelte';
 	import { useRootWindowing } from '../reactivity/use-container-windowing.svelte';
 	import { createListTree } from '../reactivity/list-tree';
+	import { createLayoutState } from '../reactivity/layout-state.svelte';
 	import { refSlotsOver, replaceRefs } from '../reactivity/publish-ref.svelte';
 	import { componentAt, type ChildList } from '../reactivity/child-list';
 	import { createSelectionState } from '../selection/selection-state.svelte';
@@ -262,6 +261,7 @@
 	const inThemedScope = $derived(!!editorEl?.closest('.aragonite-editor-theme'));
 	let headerEl: HTMLDivElement | undefined = $state();
 	let typeScaleProbeEl: HTMLDivElement | undefined = $state();
+	let widthProbeEl: HTMLDivElement | undefined = $state();
 	const undoManager = createUndoManager();
 	const sharing = createSharingState();
 	const caretMemory = createCaretMemory();
@@ -361,8 +361,8 @@
 		clearBlockRefs: () => {
 			blockRefs.length = 0;
 		},
-		get heightOracle() {
-			return heightOracle;
+		get layout() {
+			return layout;
 		},
 		undoManager,
 		caretMemory,
@@ -799,8 +799,8 @@
 		isHostChrome,
 		caretMemory,
 		// Built below; a mode switch runs after init, so the getter reads past the TDZ.
-		get heightOracle() {
-			return heightOracle;
+		get layout() {
+			return layout;
 		},
 		events,
 		restoreCaret: (path, offset) => roundTripRestore(caretAt(path, offset), { reveal: 'mount' }),
@@ -1018,46 +1018,24 @@
 
 	// ── Height estimates ────────────────────────────────────────────────
 
-	// The host's font scale against HEIGHT_ESTIMATES; plain `let` because windowing's hottest path
-	// reads it and `widthVersion` already signals the rebuild.
-	let typeScale = 1;
-
-	// Only font-relative terms scale; getters, so a scale change needs no new height estimator.
-	const heightOracle = createHeightOracle({
-		get lineHeight() {
-			return HEIGHT_ESTIMATES.proseLineHeight * typeScale;
-		},
-		get codeLineHeight() {
-			return HEIGHT_ESTIMATES.codeLineHeight * typeScale;
-		},
-		get avgCharWidth() {
-			return HEIGHT_ESTIMATES.avgCharWidth * typeScale;
-		},
-		blockChrome: HEIGHT_ESTIMATES.blockChrome,
-		imageBlockMinHeight: HEIGHT_ESTIMATES.imageBlockMinHeight
-	});
+	const layout = createLayoutState();
+	const heightOracle = layout.heightOracle;
 
 	// ── Resize invalidation ─────────────────────────────────────────────
 
-	// A width change re-wraps prose and makes every cached height wrong, so the block lists
-	// rebuild off this counter; a height-only resize spares the measured cache.
-	let widthVersion = $state(0);
+	// A zero-tall element, not the root: in host mode the root's height follows the blocks the
+	// rebuild changes, and a watched box resized mid-delivery is a ResizeObserver loop error.
 	$effect(() => {
-		if (!editorEl) return;
-		return installWidthWatcher(editorEl, () => {
-			heightOracle.dropMeasured();
-			widthVersion++;
-		});
+		if (!widthProbeEl) return;
+		return installWidthWatcher(widthProbeEl, layout.rebuildForNewGeometry);
 	});
 
-	// The scroll container's height sets how many blocks mount; a separate counter from
-	// `widthVersion`, since a height-only resize keeps every measured height.
-	let viewportHeightVersion = $state(0);
+	// The scroll container's height sets how many blocks mount.
 	$effect(() => {
 		if (!editorEl) return;
 		const target = getScrollHost();
 		if (!target) return;
-		return installViewportHeightWatcher(target, () => viewportHeightVersion++);
+		return installViewportHeightWatcher(target, layout.noteViewportHeight);
 	});
 
 	// ── Type scale ──────────────────────────────────────────────────────
@@ -1066,12 +1044,8 @@
 	$effect(() => {
 		if (!typeScaleProbeEl) return;
 		return installTypeScaleProbe(typeScaleProbeEl, {
-			getScale: () => typeScale,
-			onScale: (next) => {
-				typeScale = next;
-				heightOracle.dropMeasured();
-				widthVersion++;
-			}
+			getScale: layout.typeScale,
+			onScale: layout.setTypeScale
 		});
 	});
 
@@ -1124,8 +1098,8 @@
 		focusedPath: focusAttribution.getFocusedPath,
 		heightOracle,
 		listTree,
-		widthVersion: () => widthVersion,
-		viewportHeightVersion: () => viewportHeightVersion
+		widthVersion: layout.widthVersion,
+		viewportHeightVersion: layout.viewportHeightVersion
 	} satisfies EditorDoc);
 
 	// The inner `.block-list`, not `editorEl`: it scrolls with content, so its top maps scrollTop
@@ -1305,7 +1279,7 @@
 		getBlockIds: () => blockIds,
 		getMeasuredIds: () => heightOracle.measuredIds(),
 		getListTree: () => listTree,
-		getWidthVersion: () => widthVersion,
+		getWidthVersion: layout.widthVersion,
 		setBlockRefSlot: blockRefSlots.set
 	};
 </script>
@@ -1341,6 +1315,8 @@
 	{/if}
 	<!-- One `em` tall and out of flow, so its box reports the root's font size. -->
 	<div class="type-scale-probe" bind:this={typeScaleProbeEl} aria-hidden="true"></div>
+	<!-- The root's padding box wide and zero tall, so its box reports the root's width only. -->
+	<div class="width-probe" bind:this={widthProbeEl} aria-hidden="true"></div>
 	{#if header}
 		<!-- A sibling of the block list: windowing needs the list as a direct child of the root. -->
 		<div class="editor-header" bind:this={headerEl}>{@render header()}</div>
@@ -1453,7 +1429,8 @@
 		overflow-anchor: none;
 		scrollbar-width: thin;
 		scrollbar-color: var(--color-border, #3e3e3b) transparent;
-		/* Containing block for the image overlay portal. */
+		/* Containing block for the image overlay portal, and for `.width-probe`, whose width is the
+		   root's only while this holds. */
 		position: relative;
 	}
 
@@ -1475,14 +1452,23 @@
 	}
 
 	/* Out of layout, but never `display: none`, which stops a ResizeObserver reporting. */
-	.type-scale-probe {
+	.type-scale-probe,
+	.width-probe {
 		position: absolute;
 		top: 0;
 		left: 0;
-		width: 0;
-		height: 1em;
 		visibility: hidden;
 		pointer-events: none;
+	}
+
+	.type-scale-probe {
+		width: 0;
+		height: 1em;
+	}
+
+	.width-probe {
+		right: 0;
+		height: 0;
 	}
 
 	.search-anchor {

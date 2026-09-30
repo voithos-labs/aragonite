@@ -25,13 +25,13 @@ export interface HeightOracle {
 	estimate(node: NodeView, width: number): number;
 	measured(id: string): number | undefined;
 	recordMeasured(id: string, height: number): void;
-	/** Drop every measured height. A mounted block list keeps its own heights across a rebuild
-	 *  (VR-15), so only a list built after the drop, and any block with a fresh id, starts from estimates. */
-	dropMeasured(): void;
 }
 
-/** The editor's own estimator, which can also list what it has measured. */
+/** The editor's own estimator, which can also drop and list what it has measured. */
 export interface MeasuredHeightOracle extends HeightOracle {
+	/** Drop every measured height; only layout state calls it (G4.98). A mounted list keeps its
+	 *  table's heights across a structural rebuild, so only a later list or a fresh id starts from estimates. */
+	dropMeasured(): void;
 	measuredIds(): string[];
 }
 

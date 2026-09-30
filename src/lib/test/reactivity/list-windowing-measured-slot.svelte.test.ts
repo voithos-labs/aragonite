@@ -16,8 +16,7 @@ function recordingOracle(): HeightOracle & { recorded: [string, number][] } {
 		recorded,
 		estimate: () => HEIGHT,
 		measured: () => undefined,
-		recordMeasured: (id, h) => void recorded.push([id, h]),
-		dropMeasured: () => {}
+		recordMeasured: (id, h) => void recorded.push([id, h])
 	};
 }
 

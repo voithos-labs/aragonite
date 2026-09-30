@@ -1595,6 +1595,55 @@ function describeMeasureWrites(sources: SourceFile[]): void {
 	});
 }
 
+// ── G4.98 one place throws measured heights away ────────────────────────────
+
+const LAYOUT_HOME = 'src/lib/reactivity/layout-state.svelte.ts';
+
+const HEIGHT_LIFETIME: ManifestRule[] = [
+	{
+		// Layout state hands out the estimator without its drop, so the type holds the rest; this
+		// catches a second estimator, or a cast back to the one with the drop.
+		id: 'G4.98 only layout state builds the height estimator that can drop',
+		matches: /(?<!\bfunction\s+)(?<![\w$])createHeightOracle\s*\(|\bas\s+MeasuredHeightOracle\b/,
+		declared: {
+			[LAYOUT_HOME]: 'the one estimator, whose drop only layout state can reach'
+		},
+		reason:
+			'a height estimator built or cast outside layout state can drop measured heights without the width version the change needs: read `LayoutState.heightOracle`, and call `forgetMeasuredHeights` or `rebuildForNewGeometry`',
+		reaches: [LAYOUT_HOME],
+		hits: [
+			'const oracle = createHeightOracle({ lineHeight: 24 });',
+			'createHeightOracle (opts)',
+			'const full = heightOracle as MeasuredHeightOracle;'
+		],
+		misses: [
+			'export function createHeightOracle(opts: HeightOracleOptions): MeasuredHeightOracle {',
+			"import { createHeightOracle } from '../cursor/height-oracle';",
+			'const layout = createLayoutState();',
+			'// createHeightOracle(opts) builds one.\nconst a = 1;'
+		]
+	},
+	{
+		id: 'G4.98 only layout state moves the width version',
+		matches:
+			/(?<![\w$.])(?<!\b(?:const|let|var)\s+)widthVersion\s*(?:\+\+|--|[-+]?=(?!=))|(?:\+\+|--)\s*widthVersion\b/,
+		declared: {
+			[LAYOUT_HOME]: 'the width version, moved by a width or type-scale change as it drops heights'
+		},
+		reason:
+			'a second width-version writer rebuilds every list without dropping the measured heights, or the other way round: call `rebuildForNewGeometry` on layout state',
+		reaches: [LAYOUT_HOME],
+		hits: ['widthVersion++;', 'widthVersion += 1;', '++widthVersion;', 'widthVersion = next;'],
+		misses: [
+			'const widthVersion = deps.getWidthVersion();',
+			'widthVersion: layout.widthVersion,',
+			'if (next.widthVersion === measuredWidth) return;',
+			'getWidthVersion: () => widthVersion,',
+			'// widthVersion++ rebuilds.\nconst a = 1;'
+		]
+	}
+];
+
 // ── G4.87 inside the owner, every write closes the round first ──────────────
 
 /** The owner's raw writes of its port, keyed like G4.93: `writeScroll`, which closes an open
@@ -1702,4 +1751,5 @@ describeCorrections(SOURCES);
 describeOwnerWrites(SOURCES);
 describeMeasureWrites(SOURCES);
 describeManifests([MEASURE_CHANNEL], SOURCES);
+describeManifests(HEIGHT_LIFETIME, SOURCES);
 describeManifests(SELECTION_WRITERS, SOURCES);

@@ -14,8 +14,7 @@ function sizedOracle(height: { px: number }): HeightOracle {
 	return {
 		estimate: () => height.px,
 		measured: () => undefined,
-		recordMeasured: () => {},
-		dropMeasured: () => {}
+		recordMeasured: () => {}
 	};
 }
 
