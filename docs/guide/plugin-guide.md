@@ -1,6 +1,6 @@
 # Plugin Author Guide
 
-This guide is for teaching the editor your own block or inline content. Everything you'll use comes from one import, `@voithos-labs/aragonite/plugin`. The package root, `@voithos-labs/aragonite`, is the embedding side, what a host app mounts the editor with.
+This guide is for teaching the editor your own block or inline content. The authoring API all comes from one import, `@voithos-labs/aragonite/plugin`. The package root, `@voithos-labs/aragonite`, is the embedding side, what a host app mounts the editor with (you'll borrow its `installPlugins` once or twice), and your test suite imports from `@voithos-labs/aragonite/testing`.
 
 Four neighbouring docs carry what this one doesn't:
 
@@ -27,6 +27,7 @@ This one's long, so here's a map. Each section stands on its own; jump straight 
 | [Inline kinds](#inline-kinds)                                                                  | Your own inline syntax: recognizing it mid-paragraph, rendering it as a widget, editing it                      |
 | [Decorations](#decorations)                                                                    | View-only annotations over content you don't own                                                                |
 | [Block commands](#block-commands)                                                              | Keyboard shortcuts and commands, for one block kind or for the whole editor                                     |
+| [Block context actions](#block-context-actions)                                                | Your own rows in the menu a right-click on your block opens                                                     |
 | [Paste transforms](#paste-transforms)                                                          | Rewriting pasted text before it parses                                                                          |
 | [Recipe: a kind only a menu creates](#recipe-a-kind-only-a-menu-creates)                       | Blocks inserted from a menu instead of typed, without breaking save-and-reload                                  |
 | [What a plugin may and may not do](#what-a-plugin-may-and-may-not-do)                          | The boundary, and what each mistake looks like when you cross it                                                |
@@ -41,14 +42,14 @@ Before the code, two terms everything below leans on.
 
 A **kind** is aragonite's word for a block type. Paragraph is a kind, fenced code is a kind, the parrot is about to be one.
 
-A block's **raw** is its exact source bytes, markers included. The editor saves a document by concatenating raws and nothing else, so whatever your plugin writes into that field is exactly what lands in the user's file.
+A block's **raw** is its exact source bytes, markers included. The editor saves a document by joining raws (plus the blank lines kept between blocks) and nothing else, so whatever your plugin writes into that field is exactly what lands in the user's file.
 
 **Declare and describe.** Registering a kind is four calls. The rest of the guide keeps coming back to them, and so will you. Here's each one properly:
 
-- **`declarePluginKind(name)`** mints a new kind and returns it (minted: created by the one authorized place; a duplicate throws). Every other call here takes that return value, and the type system won't accept the bare string in its place. A module that didn't mint the kind recovers it with `declaredPluginKind(name)`, which throws for an undeclared name (a typo, say) rather than registering against a kind that doesn't exist.
+- **`declarePluginKind(name)`** creates a new kind and returns it (a name that's already taken throws). Every other call here takes that return value, and the type system won't accept the bare string in its place. A module that didn't create the kind recovers it with `declaredPluginKind(name)`, which throws for an undeclared name (a typo, say) rather than registering against a kind that doesn't exist.
 - **`registerBlockKind(kind, descriptor)`** describes how the kind behaves: does it merge, is it editable, does it host inline content, where can a caret sit beside it, and how it answers every cross-cutting editor system (the `closure` field). A leaf needs only what the sample below fills.
-- **`registerBlockOpener(kind, opener)`** teaches the parser to recognize the syntax. An **opener** is the part of the parser that spots the line a block starts with: you give it a `priority` (its place in the dispatch order), an `interruptsParagraph` predicate, and a `tryOpen` that claims lines or declines. [Teaching the parser](#teaching-the-parser) is its full story.
-- **`definePluginBlock({ name, kind, component, register })`** packages the lot as one installable unit: it runs your `register` step, then binds the component to the kind. It's the one-kind shortcut over the general `definePlugin` ([The plugin unit](#the-plugin-unit)).
+- **`registerBlockOpener(kind, opener)`** teaches the parser to recognize the syntax. An **opener** is the part of the parser that spots the line a block starts with: you give it a `priority` (its place in the dispatch order), an `interruptsParagraph` predicate (or `false`, for never), and a `tryOpen` that claims lines or declines. [Teaching the parser](#teaching-the-parser) is its full story.
+- **`definePluginBlock({ name, kind, component, register })`** packages the lot as one installable unit: it runs your `register` step, then binds the component to the kind. It's the one-kind shortcut over the general `definePlugin` ([The plugin unit](#the-plugin-unit)), and takes the same optional `defaults` and `parseOptions`. Its `register` gets no setup context, though, so a plugin that needs per-editor work (`onEditor`) uses `definePlugin`.
 
 The first one in action (a kind is a plain string underneath, with a type brand on top):
 
@@ -134,7 +135,7 @@ The object you handed `registerBlockKind` is the kind's **descriptor**. Most of 
 
 - `gapEdges` is required so a caret can always reach the space beside your block. Answering `'none'` is a decision, not an omission ([Editable-content tiers](#editable-content-tiers) has the full story).
 - `closure` is required so every cross-cutting editor system (undo, search, selection, and the rest) gets a written answer from your kind. [The closure block](#the-closure-block) explains every cell.
-- `conformanceFixture` is optional. Supplying it enrolls your kind in the conformance kit, a bundled suite of checks every registered kind is run through ([plugin-testing.md](plugin-testing.md)).
+- `conformanceFixture` is optional: the Markdown the conformance kit (a bundled suite of checks every registered kind is run through, [plugin-testing.md](plugin-testing.md)) parses and round-trips. Without one, those headless checks have nothing to parse and leave the kind to the browser sweep.
 - `pageRole` is optional, and it's how your block reads on the page. Say `'prose'` if it reads as part of the text around it, the way a quote or a note does. A prose block gets no drag handle, and right-clicking its text gives the clipboard rows. Leave it out and your block is an object someone picks up whole, with its own handle and menu, which is what the parrot is. (If your block's text would make a silly label on the drag ghost, a formula's source say, give it a `dragLabel` too.)
 - `caretTargetAtPoint` is optional too: where a click inside your block puts the caret. Leave it out and a click on the folded view reveals the source at its first byte, which is a letdown when you clicked halfway into the caption.
 
@@ -351,11 +352,11 @@ The editing half is the factory call, the `revealed` flag, two spreads, and the 
 - The commit happens when the caret leaves, not per keystroke. Reveal, type, arrow out: one undo entry, and the caption follows the new raw.
 - `singleLine: true` says the bytes are one line (the opener claims exactly one), so Enter ends the block instead of typing a newline nothing could show you: whatever sits after the caret becomes a paragraph below, and the caret goes with it, same as in a heading. A leaf whose bytes can span lines leaves the flag off and gives its source element `white-space: pre-wrap` instead, for a reason [The editable leaf](#the-editable-leaf) explains.
 
-The parrot half is the `<pre>`, its CSS, and the caption reading straight off `node.raw`. No script runs per frame, and `prefers-reduced-motion` parks the bird on its first frame for free. It does owe the document one thing, which every block wider than the text column owes: scroll inside your own box (`overflow-x: auto`, same as a code block or a table). The editor root scrolls, so an uncontained block pans the whole page sideways and takes the prose with it.
+The parrot half is the `<pre>`, its CSS, and the caption reading straight off `node.raw`. No script runs per frame, and `prefers-reduced-motion` parks the bird on its first frame for free. It does have to do one thing, like every block wider than the text column: scroll inside your own box (`overflow-x: auto`, same as a code block or a table). The editor root scrolls, so an uncontained block pans the whole page sideways and takes the prose with it.
 
 And the full ten-frame dance? Go see [parrot-frames.md](plugin-guide/parrot-frames.md) for the actual frames; not gonna put them all here.
 
-**Install.** Pass the unit to the editor's `plugins` prop: build the array once at module scope, then `<Editor {source} {plugins} />` ([The plugin unit](#the-plugin-unit) shows the wiring and why module scope matters). This exact parrot also ships in the package, as `@voithos-labs/aragonite/plugins/parrot`, and a test keeps the shipped files identical to the fences above, so if you're building your own, rename it before the two meet. A `%%parrot` line now parses to your kind (`parse` is on the plugin path too, if you want to see it outside the editor):
+**Install.** Pass the unit to the editor's `plugins` prop: build the array once at module scope, then `<Editor {source} {plugins} />` ([The plugin unit](#the-plugin-unit) shows the wiring and why module scope matters). This exact parrot also ships in the package, as `@voithos-labs/aragonite/plugins/parrot`, and a test keeps the shipped files identical to the fences above (give or take the import path and the full ten frames), so if you're building your own, rename it before the two meet. A `%%parrot` line now parses to your kind (`parse` is on the plugin path too, if you want to see it outside the editor):
 
 ```ts
 parse('%%parrot party responsibly\n').children[0];
@@ -404,12 +405,12 @@ Each part has a defined absence, which is prob the easiest way to remember what 
 
 ### Registration is global, and register-once
 
-A kind is a definition every editor on the page shares, and it's defined exactly once. Registering the same kind, component, or opener twice **throws**, never silently overrides, whether you collided with a built-in or with another plugin. There's no unregister and no runtime replace. (If you've met the browser's `customElements.define`, it's the same model: one definition for the whole page, not one per document.)
+A kind is a definition every editor on the page shares, and it's defined exactly once. Registering the same kind, component, or opener twice **throws**, never silently overrides, whether you collided with a built-in or with another plugin. There's no unregister, and the one way to change a kind you registered is `augmentBlockKind`, which merges extra descriptor fields in. (If you've met the browser's `customElements.define`, it's the same model: one definition for the whole page, not one per document.)
 
 Who guarantees a registration runs only once depends on where it runs:
 
 - **Inside a plugin unit** (the installable package the next section defines), `setup` runs at most once per process. Write each `register*` call straight; the unit owns the guarantee.
-- **At module scope**, meaning register calls that run when a file is imported, nothing owns the run for you. Guard each call on its probe, the matching is-it-there check: `isBlockKindDeclared`, `isBlockKindRegistered`, `isBlockComponentRegistered`, `isBlockOpenerRegistered`, `isBlockCompleterRegistered`, `isPasteTransformRegistered`, `isDirectiveRegistered`, and `isInlineKindDeclared` for the inline tier.
+- **At module scope**, meaning register calls that run when a file is imported, nothing owns the run for you. Guard each call on its probe, the matching is-it-there check: `isBlockKindDeclared`, `isBlockKindRegistered`, `isBlockComponentRegistered`, `isBlockOpenerRegistered`, `isBlockCompleterRegistered`, `isPasteTransformRegistered`, `isLanguageRegistered`, `isDirectiveRegistered`, and `isInlineKindDeclared` for the inline tier.
 
 ```ts
 isBlockKindDeclared('parrot'); // false on a fresh page
@@ -419,15 +420,15 @@ isBlockKindDeclared('parrot'); // true, so a second import of this module skips 
 
 Guard on the probe, never on a module-level `registered` flag: the flag survives `resetPluginPlatformForTests()` and then silently skips the re-registration your next test case needed, which is a fun half hour to spend.
 
-One dev-time softening. Under a dev server, re-evaluating a registration module replaces its prior registrations in place, so a changed definition takes effect on re-run (editing a plugin unit's own `definePlugin` still needs a page reload, and the replace covers every register-once registry, paste transforms included). Production builds and test runs keep the throw.
+One dev-time softening. Under a dev server a duplicate registration replaces the earlier one in place, with a dev warning, so re-evaluating a registration module makes a changed definition take effect on re-run (editing a plugin unit's own `definePlugin` still needs a page reload, and the replace covers every register-once registry, paste transforms included). Production builds and test runs keep the throw.
 
 ### The plugin unit
 
 A **plugin unit** is the installable package: a name plus a `setup` that runs your `register*` calls.
 
-**`definePlugin({ name, setup, defaults?, parseOptions? })`**
+**`definePlugin({ name, setup, version?, defaults?, parseOptions? })`**
 
-Validates the unit at definition time (the name is a lowercase first letter followed by letters, digits, and hyphens, and `setup` has to be a function) and returns an `EditorPlugin`. The two optional fields are for options that can differ per editor: `defaults` is where every editor's options start, and `parseOptions` checks what an editor passes ([the options recipe](#recipe-per-instance-options-and-the-factory-closure-trap) has both).
+Validates the unit at definition time (the name is a lowercase first letter followed by letters, digits, and hyphens, and `setup` has to be a function) and returns an `EditorPlugin`. `version` is only a label, printed by the warning when two units share a name. The other two optional fields are for options that can differ per editor: `defaults` is where every editor's options start, and `parseOptions` checks what an editor passes ([the options recipe](#recipe-per-instance-options-and-the-factory-closure-trap) has both).
 
 By convention you export a **factory**, meaning `export function myPlugin(deps?)` returns the unit. The factory's argument is where a **process-global dependency** comes in (a render engine, say, which is the same for every editor), and it can fill your `defaults` too. What it can't do is give two editors different values; that takes a different path ([One process, many editors](#one-process-many-editors)).
 
@@ -450,8 +451,8 @@ Install by passing units to the editor's **`plugins` prop**, set once at mount, 
 	import { myPlugin } from './my-plugin';
 
 	// Build the array once at module scope, not inline in the markup: an inline
-	// `plugins={[myPlugin()]}` re-creates the unit every render, and the second render's
-	// same-name/different-identity unit trips a harmless first-wins dev-warn.
+	// `plugins={[myPlugin()]}` builds a fresh unit for every editor that mounts, and each
+	// one after the first trips a harmless first-wins dev warning.
 	const plugins = [myPlugin()];
 </script>
 
@@ -463,26 +464,28 @@ Install by passing units to the editor's **`plugins` prop**, set once at mount, 
 - Passing the same unit again no-ops.
 - Passing a _different_ unit under a name already installed keeps the first and warns in a dev build, naming the loser as `name@version` when it carries one.
 - Units install in array order.
-- A `setup` that throws stays failed: a later attempt rethrows and tells you to reload, because a partial setup can't re-run against the register-once registries.
+- A `setup` that throws stays failed. The throw comes out of the install (so out of the editor's mount), the units after it in the array don't install, and a later attempt rethrows and tells you to reload, because a partial setup can't re-run against the register-once registries.
 - Two editors passing the same plugin share one registration, but their _configuration_ isn't shared: an editor may pass `{ plugin, options }` and the plugin reads its own `options` off each instance ([the options recipe](#recipe-per-instance-options-and-the-factory-closure-trap)).
-- **The prop is also the enablement set.** Registration is process-wide; activation is not. An editor runs the `onEditor` hooks, resolves the kinds, answers the global commands and applies the paste hooks of exactly the plugins its own array lists. A plugin another editor on the page installed but this one left out does nothing here: its block and inline syntax read as the plain Markdown they are, its widgets show their source, its directive names open the generic directive block, and its completers never fire. An editor with no `plugins` prop at all is the exception: it activates everything installed.
+- **The prop is also the enablement set.** Registration is process-wide; activation is not. An editor runs the `onEditor` hooks, resolves the kinds, answers the global commands and applies the paste hooks of exactly the plugins its own array lists. A plugin another editor on the page installed but this one left out does nothing here: its block and inline syntax read as the plain Markdown they are, its widgets show their source, its directive names open the generic directive block, and its completers never fire. An editor with no `plugins` prop at all (or an empty array) is the exception: it activates everything installed.
 
 Two smaller routes. For an editor-less `parse()` pipeline that needs the grammar live without mounting `<Editor>`, call `installPlugins(units)` from `@voithos-labs/aragonite`, with the same once-per-process semantics. And `isPluginInstalled(name)` probes an install, for the rare setup that has to branch on it; the prop and `installPlugins` are already safe to call twice, and most people never reach for it.
 
 ```ts
 import { installPlugins } from '@voithos-labs/aragonite';
+import { isPluginInstalled } from '@voithos-labs/aragonite/plugin';
 
+const parrot = parrotPlugin();
 isPluginInstalled('parrot'); // false
-installPlugins([parrotPlugin()]);
+installPlugins([parrot]);
 isPluginInstalled('parrot'); // true
-installPlugins([parrotPlugin()]); // no-op
+installPlugins([parrot]); // no-op (a fresh parrotPlugin() here would no-op too, with a dev warning)
 ```
 
 ### What is stable, what is not
 
-The API is going to freeze, and you deserve to know which half of it is already load-bearing.
+The API is going to freeze, and you deserve to know which half of it has settled already.
 
-- **The registration base, stable.** Kind declaration, descriptor/component/opener registration, typed per-node metadata, and the probes above. These shapes won't change in a breaking way. (One exception already landed pre-freeze: an opener's return became a line count in 0.9.36, see [What an opener returns](#what-an-opener-returns).)
+- **The registration base, settled.** Kind declaration, descriptor/component/opener registration, typed per-node metadata, and the probes above. The model won't change: which calls exist, that each registers once, what a kind is. The exact shapes those calls take (a descriptor field, what an opener returns) have still changed before the freeze, and freeze with everything else at the public release.
 - **Pre-freeze, still moving.** Everything else. The [API reference](plugin-api.md) carries the list rather than this sentence: a section labelled _(pre-freeze / unstable)_ may still change shape until the freeze. Those labels are copied from the section headers of the `@voithos-labs/aragonite/plugin` entry point (`src/lib/plugin.ts` in the repository). The big families are the plugin unit itself, the authoring tiers (container, editable leaf, inline, directive), the grammar hooks, paste transforms, and the view surfaces (decorations, rects, selection geometry). Each is being refined against real consumers, and each freezes at the public release.
 
 After the freeze the version number carries the promise: a breaking change to a frozen surface rides a **major** version, and additive needs ship as **minors**.
@@ -494,11 +497,11 @@ Every surface that hands your plugin a node to **read** types it as a view: `Nod
 Two lists cover the whole read side:
 
 - **What the readonly covers:** `raw`, `kind`, `metadata` (the typed per-node data a plugin stores beside the bytes), trivia (the preserved blank-line bytes around a block, the `leadingTrivia` your parrot opener copied), and the children structure.
-- **Where views arrive:** `BlockComponentProps.node` / `document`, `EditorContext.document` (defined in the next section), a decoration source's `provide(document, …)`, the descriptor read hooks (`contentStart.range`, `estimateHeight`, `reservedChrome.isCollapsed`, `reservedChrome.expandPatch`), and the command contexts.
+- **Where views arrive:** `BlockComponentProps.node` / `document`, `EditorContext.document` (defined in the next section), a decoration source's `provide(document, …)`, the descriptor read hooks (`contentStart.range`, `estimateHeight`, `reservedChrome.isCollapsed`, `reservedChrome.expandPatch`), a write rule's `ctx.node`, the factories' `getNode()`, and the command and context-action contexts.
 
 `CstNode` and `Document` stay the shapes a plugin **constructs and owns**: an opener or directive factory builds a `CstNode`, and `rebuildRaw` receives one to write, because that call hands it an owned node, which is exactly when a byte write is legal. A document you parsed yourself is mutable, and feeds every view-typed parameter with no conversion.
 
-Mutating the **live** tree goes through the sanctioned commit paths: `updateOwnMetadata` (defined in the walkthrough), `rebuildRaw` (just below), and [Block commands](#block-commands). A **commit** is an edit the editor records as one undoable step. Never write through a view, and don't cast a view back to `CstNode` either: undo snapshots share nodes with the live tree, so a stray write through a cast corrupts history.
+Mutating the **live** tree goes through the supported commit paths: `updateOwnMetadata` (defined in the walkthrough), `rebuildRaw` (just below), and [Block commands](#block-commands). A **commit** is an edit the editor records as one undoable step. Never write through a view, and don't cast a view back to `CstNode` either: undo snapshots share nodes with the live tree, so a stray write through a cast corrupts history.
 
 ### `rebuildRaw`, the write hook
 
@@ -519,11 +522,11 @@ function rebuildBoxRaw(node: CstNode): void {
 
 A directive container with a title line doesn't hand-write this at all: `createDirectiveRebuild` in the walkthrough does the same job with the fence bytes, the line ending and the title handled for you.
 
-The optional `changed` argument (`ChildRawChange`, shaped `{ index, previousRaw }`) is a performance opt-in: the index of the one child whose own raw just moved, plus the bytes that child held before. It exists for a container big enough that re-reading every child on every keystroke costs real time, and the built-in list and quote use it to re-emit that one child's region alone. Take it only if your kind can place a child's bytes inside its raw exactly, and keep those offsets in `node.childSpans`, the one cache the editor retires for you when its own bookkeeping moves a sibling's line. Offsets you cache anywhere else are yours to invalidate; nothing in the editor is watching them. The conformance kit compares the two paths for your kind either way.
+The optional `changed` argument (`ChildRawChange`, shaped `{ index, previousRaw }`) is a performance opt-in: the index of the one child whose own raw just moved, plus the bytes that child held before. It exists for a container big enough that re-reading every child on every keystroke costs real time, and the built-in list and quote use it to re-emit that one child's region alone. Take it only if your kind can place a child's bytes inside its raw exactly, and keep those offsets in `node.childSpans` (a start and an end offset per child), the one cache the editor retires for you when its own bookkeeping moves a sibling's line; a span that no longer matches falls back to the full rebuild. Offsets you cache anywhere else are yours to invalidate; nothing in the editor is watching them. The conformance kit compares the two paths for your kind either way.
 
 ## One process, many editors
 
-`setup` runs once per process, but a plugin usually needs to react to _each editor_: recompute derived state on every edit, hold per-document data, read the options a given editor passed. `ctx.onEditor(cb)` is that entry point. It registers a callback fired once per mounted `<Editor>` that listed your plugin, handed that instance's **`EditorContext`**:
+`setup` runs once per process, but a plugin usually needs to react to _each editor_: recompute derived state on every edit, hold per-document data, read the options a given editor passed. `ctx.onEditor(cb)` is that entry point. It registers a callback fired once per mounted `<Editor>` that listed your plugin (or that has no `plugins` prop, since those activate everything), handed that instance's **`EditorContext`**:
 
 ```ts
 setup(ctx) {
@@ -545,7 +548,7 @@ setup(ctx) {
 | `events`                       | The subscribe-only event view; `events.on('edit', …)` returns a disposer                                                                                                                                                                                                             |
 | `options`                      | Your `defaults` with this editor's options merged over them (just the defaults if it passed none), typed by your `defaults` or by `definePlugin<Options>` (recipe below)                                                                                                             |
 | `decorations`                  | This editor's decoration registry, where you register a source ([Decorations](#decorations))                                                                                                                                                                                         |
-| `rects`                        | This editor's viewport-space geometry: block box, range rects, caret, reveal, navigation                                                                                                                                                                                             |
+| `rects`                        | This editor's viewport-space geometry: block box, range rects, caret, reveal, `scrollTo`, `navigateTo`                                                                                                                                                                               |
 | `inlineMenus`                  | This editor's registry for lists opened by a typed trigger ([Recipe: a typed-trigger menu](consumer-guide.md#recipe-a-typed-trigger-menu))                                                                                                                                           |
 | `insertCatalogue`              | The blocks this editor's insert menus offer, live, yours included once you `registerInsertEntry` from `setup`                                                                                                                                                                        |
 | `insertMarkdown(md, options?)` | Insert Markdown the way the instance's own call does ([Inserting Markdown at the caret](consumer-guide.md#inserting-markdown-at-the-caret)); a promise that resolves false where that call would                                                                                     |
@@ -554,7 +557,7 @@ setup(ctx) {
 | `presentationMode`             | The effective presentation mode, live, paired with the `presentationModeChange` event ([Presentation modes](#presentation-modes))                                                                                                                                                    |
 | `theme`                        | The editor's theme name, live, paired with the `themeChange` event, for content whose colors an engine paints                                                                                                                                                                        |
 
-Return a disposer from the callback and the editor runs it at unmount. Registration is synchronous-only: call `onEditor` from `setup`, not from some later callback.
+Return a disposer from the callback and the editor runs it at unmount. Registration is synchronous-only: call `onEditor` from `setup`, since a call after `setup` returns throws.
 
 ### Recipe: per-instance derived state
 
@@ -632,7 +635,7 @@ export const wordCountPlugin = definePlugin<WordCountOptions>({
 });
 ```
 
-**The trap.** Don't hold per-instance config in the plugin factory's closure. `wordCountPlugin({ live: false })` looks like it configures the instance, but a plugin installs once per process, so only the first editor's factory value ever takes effect and the second is silently ignored. The question that decides it: _would two editors ever want different values?_ If yes, it's per-instance: pass it through the prop entry and read `editor.options`. If no (a render engine, a shared parser), the factory argument is the right home. A factory argument that fills `defaults` is fine too: it's every editor's starting value, and each editor's entry can still override it.
+**The trap.** Don't hold per-instance config in the plugin factory's closure. `wordCountPlugin({ live: false })` looks like it configures the instance, but a plugin installs once per process, so only the first editor's factory value ever takes effect and the second is ignored (a dev build warns; production says nothing). The question that decides it: _would two editors ever want different values?_ If yes, it's per-instance: pass it through the prop entry and read `editor.options`. If no (a render engine, a shared parser), the factory argument is the right home. A factory argument that fills `defaults` is fine too: it's every editor's starting value, and each editor's entry can still override it.
 
 ## Walkthrough: a `:::conspiracy` container end to end
 
@@ -731,7 +734,7 @@ function registerConspiracy(): void {
 		}
 	}
 
-	// A block command that flips the verdict. updateMetadata is the sanctioned
+	// A block command that flips the verdict. updateMetadata is the supported
 	// commit path: it merges the patch, runs rebuildRaw, and makes one undoable edit;
 	// because the name flows into raw, the verdict survives a round-trip.
 	const setVerdict = registerBlockCommand(conspiracy, 'conspiracy.setVerdict', (ctx) => {
@@ -758,22 +761,24 @@ function registerConspiracy(): void {
 			reservedChrome: { kind: conspiracyTitle },
 			// Child 0 is the title, and Backspace at its start never lifts it out, so you only
 			// say what Backspace does between body children. A container whose child 0 is body
-			// also picks a first-child strategy: `'lift-first-child-keep-container'`, or
-			// `'lift-first-child-drop-opener'` for a quote shape.
+			// also picks a first-child strategy: `'lift-first-child-keep-container'`,
+			// `'lift-first-child-drop-opener'` for a quote shape, or `'list-item-cascade'`.
 			unwrapRole: { middleChildBackspace: 'default-merge' }
 			// Declare `reorderChildren` here if your container's direct children should
-			// reorder among themselves (drag, or Alt+ArrowUp/ArrowDown). Absent, a child's
-			// reorder resolves at an ancestor instead, which moves the whole container
-			// among its own siblings. The closure block does not ask about this axis, and
-			// a behavioural test on your container passes either way.
+			// reorder among themselves (drag, or Alt+ArrowUp/ArrowDown). Absent, a direct
+			// child's reorder declines at an opaque container like this one (a strip
+			// container passes it up to the nearest ancestor that declares one). The closure
+			// block does not ask about this axis, and a behavioural test passes either way.
 		},
+		// The Markdown the conformance kits parse: a top-level conspiracy with a title and a body.
+		conformanceFixture: ':::conspiracy Birds are drones\nthey never land near me\n:::\n',
 		keymap: [
 			{ chord: 'Mod+7', command: setVerdict, arg: 'conspiracy' }, // allege
 			{ chord: 'Mod+8', command: setVerdict, arg: 'debunked' } // debunk
 		],
 		// Required: how this kind behaves under every cross-cutting editor system. A missing
-		// cell or column is a compile error, and four more rules are checked when the editor
-		// boots. See the guide's "The closure block" section for all of them.
+		// cell or column is a compile error, and a dev build warns on four more rules when the
+		// kind registers. See the guide's "The closure block" section for all of them.
 		closure: {
 			roundTrip: { mode: 'implemented', via: 'container contract=opaque, rebuildConspiracyRaw' },
 			focus: { mode: 'implemented', via: 'focus walks to the title chrome / first body child' },
@@ -794,8 +799,8 @@ function registerConspiracy(): void {
 				mode: 'implemented',
 				via: 'byte-slice copy; a slice touching the title re-emits the conspiracy around the collected body'
 			},
-			// `inherit-default` is the honest answer unless you actually run a corruption
-			// oracle over your kind. Claiming a mechanism you do not have is worse than
+			// `inherit-default` is the honest answer unless you actually run corruption
+			// checks over your kind. Claiming a mechanism you do not have is worse than
 			// admitting you inherit the generic one.
 			simOracle: { mode: 'inherit-default' }
 		}
@@ -885,8 +890,8 @@ Your component supplies only its own chrome: the border, the title styling, an i
 	.conspiracy-block {
 		/* the corkboard, with one piece of red string */
 		position: relative;
-		border: 1px solid var(--color-ui-muted, #a4a4a4);
-		border-left: 3px solid var(--color-error, #e06c75);
+		border: 1px solid var(--color-ui-muted, #93938d);
+		border-left: 3px solid var(--color-error, #ff5f57);
 		border-radius: 6px;
 		padding: 8px 12px;
 	}
@@ -895,7 +900,7 @@ Your component supplies only its own chrome: the border, the title styling, an i
 	}
 	/* debunked: the string comes down, the theory gets crossed out, the stamp lands */
 	.debunked {
-		border-left-color: var(--color-ui-muted, #a4a4a4);
+		border-left-color: var(--color-ui-muted, #93938d);
 	}
 	.debunked :global(.conspiracy-title) {
 		text-decoration: line-through;
@@ -908,7 +913,7 @@ Your component supplies only its own chrome: the border, the title styling, an i
 		transform: rotate(-12deg);
 		font: 600 0.75em monospace;
 		letter-spacing: 0.12em;
-		color: var(--color-error, #e06c75);
+		color: var(--color-error, #ff5f57);
 		border: 2px solid currentColor;
 		border-radius: 3px;
 		padding: 1px 6px;
@@ -920,19 +925,19 @@ Three rules for that file, each earned the hard way:
 
 - **`export { containerApi }` is the whole publication.** That one instance export is your block's `BlockComponent` surface, and the editor resolves a container reference through it. Both the name and the shape are fixed: the component registry types a block's exports as either a leaf surface or a container's `containerApi`, and the container branch is `ContainerBlockComponent`, which requires the descent members (`focusByPath`, `parkCaret`, `childList` and the rest; a caret entering a container has to descend, so they aren't optional the way a leaf's extras are). Omitting the export, or publishing a surface missing one of them, fails your typecheck (svelte-check, or `tsc` on a plain-TypeScript plugin) at the call that registers your component (`definePluginBlock` here, `registerBlockComponent` if you register by hand). The factory's surface satisfies all of it by construction; a hand-rolled one can annotate itself `satisfies ContainerBlockComponent` to get the same error at the definition instead of at the registration.
 - **`BlockList` stays a _direct_ child of your box**, so the container's windowing finds it. Other chrome (an icon, a toggle button) may sit beside it.
-- **Chrome CSS reads the editor's theme tokens**, with an inline fallback on every read (`var(--color-ui-muted, #a4a4a4)`), so the block still renders outside the editor's own style scope. Match the fallback to the token's dark value; dark is the base theme. The stable token set by role is the [consumer guide's theme-token manifest](consumer-guide.md#theme-tokens).
+- **Chrome CSS reads the editor's theme tokens**, with an inline fallback on every read (`var(--color-ui-muted, #93938d)`), so the block still renders outside the editor's own style scope. Match the fallback to the token's dark value; dark is the base theme. The stable token set by role is the [consumer guide's theme-token manifest](consumer-guide.md#theme-tokens).
 
 The factory returns more than the walkthrough destructures:
 
-| Return                  | When you reach for it                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `updateOwnMetadata`     | Your component writes its own node's metadata (a collapse toggle, an edited setting). The sanctioned commit path; in reading mode, which writes no bytes, it declines as a no-op and dev builds warn. If the edit should move the caret (a collapse hiding the child it sat in), pass `{ caret: { path, offset } }` and the commit puts it there once it renders. `path` is child indices from your block (`[]` for the block itself, `[0]` for its first child), and `offset` is a character offset into that child's text, or `CURSOR_END` for its end. Don't focus anything yourself afterwards |
-| `moveFocusOut`          | A plugin-owned editing surface whose caret ran off its own edge; hands the caret to the neighbour a plain arrow points at, through the editor's focus traversal, so the landing skips non-focusable blocks, enters containers, and reveals an unmounted target like any other arrow                                                                                                                                                                                                                                                                                                                |
-| `getPresentationMode`   | Your rendering or a gesture needs the live presentation mode ([Presentation modes](#presentation-modes))                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| `getTheme`              | Your content's colors are painted by an engine rather than styled by CSS; token-styled chrome needs neither this nor `getPresentationMode`, it rethemes through the cascade                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| `getOptions`            | This editor's options for the plugin that owns your kind, your `defaults` included, typed `unknown` (it's shorthand for `getEditor()?.options`). It's how a value differs per editor, which a factory argument can't do ([the options recipe](#recipe-per-instance-options-and-the-factory-closure-trap))                                                                                                                                                                                                                                                                                          |
-| `getEditor`             | This editor's `EditorContext` for the plugin that owns your kind, undefined only in a bare test harness. Its `computeInlineContent` reads the syntax this editor draws. If your helper's reader defaults to the free `computeInlineContent`, pass it `getEditor()?.computeInlineContent` and it still parses in a bare harness (the bundled toc and footnotes do exactly this)                                                                                                                                                                                                                     |
-| `captureScrollPosition` | Your component is about to swap its view for one of a different height (a tall diagram for its short source card) and the reader is scrolled right at it. Call it before the swap, await what it hands back after, and the page stays where the reader left it instead of clamping to the shorter layout in between                                                                                                                                                                                                                                                                                |
+| Return                  | When you reach for it                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `updateOwnMetadata`     | Your component writes its own node's metadata (a collapse toggle, an edited setting). The supported commit path; in reading mode, which writes no bytes, it declines as a no-op and dev builds warn. If the edit should move the caret (a collapse hiding the child it sat in), pass `{ caret: { path, offset } }` and the commit puts it there once it renders. `path` is child indices from your block (`[]` for the block itself, `[0]` for its first child), and `offset` is a character offset into that child's text, or `CURSOR_END` for its end. Don't focus anything yourself afterwards |
+| `moveFocusOut`          | A plugin-owned editing surface whose caret ran off its own edge; hands the caret to the neighbour a plain arrow points at, through the editor's focus traversal, so the landing skips non-focusable blocks, enters containers, and reveals an unmounted target like any other arrow                                                                                                                                                                                                                                                                                                               |
+| `getPresentationMode`   | Your rendering or a gesture needs the live presentation mode ([Presentation modes](#presentation-modes))                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `getTheme`              | Your content's colors are painted by an engine rather than styled by CSS; token-styled chrome needs neither this nor `getPresentationMode`, it rethemes through the cascade                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| `getOptions`            | This editor's options for the plugin that owns your kind, your `defaults` included, typed `unknown` (it's shorthand for `getEditor()?.options`). It's how a value differs per editor, which a factory argument can't do ([the options recipe](#recipe-per-instance-options-and-the-factory-closure-trap))                                                                                                                                                                                                                                                                                         |
+| `getEditor`             | This editor's `EditorContext` for the plugin that owns your kind, undefined only in a bare test harness. Its `computeInlineContent` reads the syntax this editor draws. If your helper's reader defaults to the free `computeInlineContent`, pass it `getEditor()?.computeInlineContent` and it still parses in a bare harness (the bundled toc and footnotes do exactly this)                                                                                                                                                                                                                    |
+| `captureScrollPosition` | Your component is about to swap its view for one of a different height (a tall diagram for its short source card) and the reader is scrolled right at it. Call it before the swap, await what it hands back after, and the page stays where the reader left it instead of clamping to the shorter layout in between                                                                                                                                                                                                                                                                               |
 
 ```ts
 const { updateOwnMetadata, getPresentationMode, getTheme, getOptions, captureScrollPosition } =
@@ -947,7 +952,7 @@ editing = true;
 await restore(); // ...and after; a no-op when nothing moved
 ```
 
-One dep is worth knowing about too. A marker-bearing container (a footnote definition's `[^label]: `, mirroring a list item's `- `) hands the factory a **`getAmbientPrefix`** getter. Its first child then paints that prefix as a dimmed, read-only run before its own bytes, and the caret and offset walk skip it exactly as they do a list marker. Read it live, so a marker derived from metadata re-renders after an edit. Return a string, or `{ text, interactive }` to make ranges of it clickable: each range gets its own span, class and click handler, which is how a task list's checkbox toggles and how a footnote definition's `[^label]` takes the click back to its reference. A range can also carry a role, a `label`, and a tab stop (`focusable`) together with the `onActivate` that Enter and Space run (the type won't let you declare one without the other). Decide `focusable` by mode: a tab stop inside an editable block gets in the caret's way, which is why the footnote marker only takes one in reading mode.
+One dep is worth knowing about too. A marker-bearing container (a footnote definition's `[^label]: `, mirroring a list item's `- `) hands the factory a **`getAmbientPrefix`** getter. Its first child then paints that prefix as a dimmed, read-only run before its own bytes, and the caret and offset walk skip it exactly as they do a list marker. Read it live, so a marker derived from metadata re-renders after an edit. Return a string, or `{ text, interactive }` to make ranges of it clickable: each range gets its own span, class and click handler, which is how a task list's checkbox toggles and how a footnote definition's `[^label]` takes the click back to its reference. A range can also carry a role, a `label`, and a tab stop (`focusable`) together with the `onActivate` that Enter and Space run (the type won't let you declare `focusable` without it). Decide `focusable` by mode: a tab stop inside an editable block gets in the caret's way, which is why the footnote marker only takes one in reading mode.
 
 ### Wire it into a page
 
@@ -994,17 +999,17 @@ Want a collapse toggle? Give `reservedChrome` an `isCollapsed` probe over the no
 
 ## The closure block
 
-`closure` is a required field on every registration: the kind's written answer to each cross-cutting editor system, so a new kind can't ship closed under a subsystem nobody asked about. (The incident behind the field is the 0.9.18 whole-block-focus tier.) Each of the nine `ClosureColumn`s (`roundTrip`, `focus`, `mergeBackspace`, `selectionPaint`, `searchPaint`, `reorder`, `undo`, `clipboard`, `simOracle`) takes a `ClosureCell`:
+`closure` is a required field on every registration: the kind's written answer to each cross-cutting editor system, so a new kind can't ship silently broken under a subsystem nobody asked about. Each of the nine `ClosureColumn`s (`roundTrip`, `focus`, `mergeBackspace`, `selectionPaint`, `searchPaint`, `reorder`, `undo`, `clipboard`, `simOracle`) takes a `ClosureCell`:
 
 - `{ mode: 'implemented', via }`: a real mechanism you can name (a `rebuildRaw`, a keymap command, `measurePartialRects`).
 - `{ mode: 'inherit-default' }`: the generic editor behaviour, nothing kind-specific.
 - `{ mode: 'not-supported', reason }`: the subsystem is structurally absent, so name the degradation.
 
-The type does the nagging: `Record<ClosureColumn, …>` makes a missing column a compile error, and the required field makes a missing block one. Four coherence rules also hold when the editor boots:
+The type does the nagging: `Record<ClosureColumn, …>` makes a missing column a compile error, and the required field makes a missing block one. Four coherence rules are checked too, by dev-build warnings when the kind registers (nothing throws, and a production build doesn't check):
 
-1. A container must declare `roundTrip: implemented`; its `rebuildRaw` is the mechanism.
+1. A container can't declare `roundTrip: inherit-default`; its `rebuildRaw` is the mechanism.
 2. A `not-mergeable` kind can't declare `mergeBackspace: inherit-default`; it has no default merge to inherit.
-3. A cell claiming the focus-then-delete model must be backed by `blockFocus: 'whole-block'`.
+3. A cell claiming the focus-then-delete model (a `focus` or `mergeBackspace` `via` saying `focus-then-delete` or `a second press deletes`) must be backed by `blockFocus: 'whole-block'`.
 4. A kind declaring `reservedChrome` can't leave `clipboard: inherit-default`; the chrome bytes live in the container's own raw, so the default byte slice is wrong for it.
 
 Those four plus the nine columns are the whole contract.
@@ -1037,7 +1042,7 @@ simpleLeafClosure({ focus, searchPaint, undo, simOracle });
 //   clipboard: { mode: 'inherit-default' }
 ```
 
-**`simOracle` is the cell most authors hesitate over**, because the simulation suite is a repo script rather than a published kit. It answers the same way every other column does; the question is about your **mechanism**, not about who runs the tests. The example above is `implemented` because that kind has its own end-to-end tests driving it under the corruption oracles (the simulation's checks for a document gone wrong). A plugin that adds no kind-specific simulation machinery writes `inherit-default`, which is the honest answer for most plugins and what several bundled kinds declare. `inherit-default` claims no coverage; it says your kind meets the simulation exactly as the generic behaviour does. `not-supported` is for a subsystem that's structurally absent, which a caret-bearing kind's simulation never is.
+**`simOracle` is the cell most authors hesitate over**, because the simulation suite is a repo script rather than a published kit. It answers the same way every other column does; the question is about your **mechanism**, not about who runs the tests. The example above is `implemented` because that kind has its own end-to-end tests driving it under the simulation's corruption checks (its checks for a document gone wrong). A plugin that adds no kind-specific simulation machinery writes `inherit-default`, which is the honest answer for most plugins and what several bundled kinds declare. `inherit-default` claims no coverage; it says your kind meets the simulation exactly as the generic behaviour does. `not-supported` is for a subsystem that's structurally absent, which a caret-bearing kind's simulation never is.
 
 **Containers with real children: `containerClosure`.** A container of real child blocks answers four columns the same structural way (its children are the paint and search surfaces, it reorders whole-block through the parent `BlockList`, and it holds no clipboard anchor of its own), and its `roundTrip` is always `implemented`, because its `rebuildRaw` is the mechanism. `containerClosure` bakes those, asking for the `roundTripVia` string plus the four the container determines: `focus`, `mergeBackspace`, `undo`, `simOracle`. Here's the walkthrough's closure rewritten on it:
 
@@ -1050,7 +1055,7 @@ closure: containerClosure({
 		mode: 'implemented',
 		via: 'updateMetadata; the verdict flip commits as one undo entry'
 	},
-	// The conspiracy declares reservedChrome, so coherence rule four refuses the baked
+	// The conspiracy declares reservedChrome, so coherence rule four warns about the baked
 	// clipboard cell; a container without reserved chrome just leaves this out.
 	clipboard: {
 		mode: 'implemented',
@@ -1060,7 +1065,7 @@ closure: containerClosure({
 });
 ```
 
-A container that synthesizes content on copy overrides the baked `clipboard` cell the same way; one that adds an indent gesture overrides the baked `reorder` cell. Whole-block-focus opaque leaves and any novel tier still hand-write the full nine, which is where the 0.9.18 lesson applies.
+A container that synthesizes content on copy overrides the baked `clipboard` cell the same way; one that adds an indent gesture overrides the baked `reorder` cell. Whole-block-focus opaque leaves and any novel tier still hand-write the full nine, since no preset knows what they do.
 
 ## Teaching the parser
 
@@ -1087,11 +1092,9 @@ tryOpen(ctx) {
 
 The scanners the package exports hand back positions rather than deltas, because their result is a slice bound: `blockquoteExtent` returns a `nextIndex`, and your opener subtracts once at its own return.
 
-> **Migrating from `nextIndex` (pre-1.0 breaking change).** An opener used to return the absolute index to resume at. Return the delta instead: `{ node, nextIndex: ctx.index + 1 }` becomes `{ node, consumed: 1 }`.
-
 ### Opener priority
 
-An opener's `priority` decides dispatch order, and **lower runs first**. `OPENER_PRIORITIES` is the built-in ladder (a readonly map, the same constant the built-ins register with):
+An opener's `priority` decides dispatch order, and **lower runs first**. `OPENER_PRIORITIES` is the built-in priority order (a readonly map, the same constant the built-ins register with):
 
 | Priority | Built-in kind             |
 | -------: | ------------------------- |
@@ -1111,7 +1114,7 @@ Two rules place a plugin opener on it:
 
 Ties break by kind name, never by registration order. A shared priority is a smell all the same, and the dev build warns on it. Price into a gap instead.
 
-**Claiming ahead of a built-in is also how you replace one.** Price your kind below the built-in whose syntax you want (the Mermaid fence is exactly this), and your kind owns those bytes: its own component, its own descriptor, its own closure row. It's uninstall-safe by construction, because the built-in opener never left the ladder: remove your plugin and it takes the bytes back unchanged. There's no registry-level override of a built-in's component or descriptor, deliberately. Registries are process-global, so an override would be global and last-writer-wins.
+**Claiming ahead of a built-in is also how you replace one.** Price your kind below the built-in whose syntax you want (the Mermaid fence is exactly this), and your kind owns those bytes: its own component, its own descriptor, its own closure row. It's uninstall-safe by construction, because the built-in opener never left the priority order: remove your plugin and it takes the bytes back unchanged. There's no registry-level override of a built-in's component or descriptor, deliberately. Registries are process-global, so an override would be global and last-writer-wins.
 
 For your pricing map: the opt-in `:::name` directive grammar registers its container opener at 45, between `blockquote` and `list`.
 
@@ -1153,9 +1156,9 @@ registerBlockCompleter(myKind, {
 });
 ```
 
-What the editor guarantees before your `tryComplete` is called: the block is a single line of prose whose every byte is content, and the caret sits at its end. So the line you receive is the whole typed line and never a kind's own markers. Return `null` to decline; the press then splits as usual. Claims are consulted in kind-name order, never registration order.
+What the editor guarantees before your `tryComplete` is called: the block is a single line of prose whose every byte is content, and the caret sits at its end. So the line you receive is the whole typed line and never a kind's own markers. Return `null` to decline; the press then splits as usual (a claim whose lines would render nothing is declined the same way). Claims are consulted in kind-name order, never registration order.
 
-With that completer registered, typing `$$` into an empty paragraph and pressing Enter leaves the document holding `$$\n\n$$\n`, with the caret on the empty middle line, ready for the formula.
+With that completer registered, typing `$$` into an empty paragraph and pressing Enter leaves the document holding `$$\n\n$$\n`, with the caret on the empty middle line, ready for the formula. Add `onType: true` beside `tryComplete` and it's also tried as the line is typed, no Enter needed, which suits a line that means one thing the moment it's complete (a lone `$$`). It's off by default, since a table's header row might be a longer row someone's still typing.
 
 Answer `lines` **without** line endings, because the editor attaches the editing block's own, or the document's when the block is a last line with none, so a CRLF document stays CRLF. Answer the caret as a `path` (child indices inside the completed block, empty for the block itself) plus a `line` and `column` inside that node, never a byte offset: the line ending is picked after your claim, so only the editor can count bytes. The claim lands as one block replacement and one undo entry; one undo restores the typed line with the caret back at its end, and pressing Enter there completes again.
 
@@ -1170,10 +1173,10 @@ Content that's _itself editable_ comes in four tiers, and each one is backed by 
 
 | Tier              | What it hosts                                                                    | Status                 |
 | ----------------- | -------------------------------------------------------------------------------- | ---------------------- |
-| **Container**     | Real document blocks in a nested child list; the walkthrough's body              | shipped                |
-| **Chrome leaf**   | One reserved, single-line, plain-text child whose bytes the container's raw owns | shipped                |
+| **Container**     | Real document blocks in a nested child list; the walkthrough's body              | shipped _(pre-freeze)_ |
+| **Chrome leaf**   | One reserved, single-line, plain-text child whose bytes the container's raw owns | shipped _(pre-freeze)_ |
 | **Editable leaf** | A standalone text surface with native caret/IME/undo/selection/clipboard parity  | shipped _(pre-freeze)_ |
-| **Atomic widget** | An opaque, non-text embed, which the caret can address only at its edges         | shipped                |
+| **Atomic widget** | An opaque, non-text embed, which the caret can address only at its edges         | shipped _(pre-freeze)_ |
 
 The chrome leaf is deliberately narrow, and each limit is a guarantee its container can lean on:
 
@@ -1204,8 +1207,9 @@ const leaf = createEditableLeaf({
 	getEl: () => sourceEl ?? null, // null while a render-primary view is folded
 	mode: 'render-primary', // 'plain' is the default
 	singleLine: true, // a one-line kind: Enter splits the block instead of typing a newline
-	isRevealed: () => revealed, // render-primary only: you own the swap flag
+	isRevealed: () => revealed, // render-primary only, and required there: you own the swap flag
 	setRevealed: (next) => (revealed = next)
+	// optional too: commandHooks, handed to your block commands as ctx.hooks (see Block commands)
 });
 leaf.sourceText; // the block's raw minus its trailing line ending
 leaf.getPresentationMode(); // 'source'
@@ -1228,9 +1232,9 @@ Beyond the spread you add only your own `class` / `aria-label`, plus **`bind:thi
 - **`'plain'`**: the source is always the editable view, and every keystroke commits to the tree (with prose-like undo batching). The spread's sync mirrors external rewrites (an undo, a structural replace) into the source and gates `contenteditable` off the mode, so the always-mounted surface goes inert in reading mode; the factory owns the Chromium trailing-newline caret quirk and the caret restore.
 - **`'render-primary'`**: a rendered view by default, where focus, click, or arrow-traversal reveals the raw source in your contenteditable, and leaving it commits **once**, so the whole reveal, edit, blur cycle is one undo entry. You own the swap flag (`isRevealed` / `setRevealed`) and both views' rendering. A fold writes back only the bytes the reveal opened over, so an undo or a `source` swap that lands a different block at the index declines the write rather than corrupting it. A move while the source is up writes it first. A move chord your keymap binds does that on its own; a host's `editor.runCommand('block.moveDown')` only does it if your component re-exports `afterSourceCommit`.
 
-**Render-primary gets a second spread.** `renderProps` goes on the folded view, and it carries the reveal click and the chord dispatch together; a view that takes the click but not the keys swallows undo while it holds focus. Put it on a wrapper the reveal never unmounts (both handlers stand down while the source is up) and the whole folded surface, chrome included, is one click target. Where in the source that click lands is your kind's `caretTargetAtPoint`; declare none and every click reveals at the first byte.
+**Render-primary gets a second spread.** `renderProps` goes on the folded view, and it carries the reveal click and the chord dispatch together; a view that takes the click but not the keys swallows undo while it holds focus. Put it on a wrapper the reveal never unmounts (both handlers do nothing while the source is up) and the whole folded surface, chrome included, is one click target. Where in the source that click lands is your kind's `caretTargetAtPoint`; declare none and every click reveals at the first byte.
 
-**Commit semantics.** A commit parses the edited text and lands it through the editor's own edit ladder:
+**Commit semantics.** A commit parses the edited text and lands it the way the editor lands any edit, by what the parse gives back:
 
 ```
 commit(edited text) ── parse ──▶ same kind?        update in place, caret preserved
@@ -1244,21 +1248,13 @@ Editing past your own fence therefore re-splits the document instead of wedging 
 
 **Per-instance configuration.** `leaf.getOptions()` returns this editor's options for the plugin owning your kind, already merged over your `defaults`. It's typed `unknown`, so cast it to your options type, and it's `undefined` only with no editor around (a component mounted bare in a unit test). It's the same route as the container factory's `getOptions()`, one tier down, and the same rule applies ([the options recipe](#recipe-per-instance-options-and-the-factory-closure-trap)). The bundled toc block reads its `maxDepth` this way, with `tocPlugin({ maxDepth })` filling the default.
 
-Block math (`$$…$$` in the bundled `@voithos-labs/aragonite/plugins/latex` plugin) is the worked example, and it's smaller than you'd expect: its component script is the factory call, one render effect (KaTeX), a `{...leaf.surfaceProps}` spread on the source, and one-line re-exports of the returned surface. Registration is the ordinary leaf recipe: `registerBlockKind` (no container group), `registerBlockOpener`, `registerBlockComponent`. Its `caretTargetAtPoint` is the other half of the parrot's: where the parrot's caption is the source bytes minus a prefix, KaTeX paints glyphs no offset maps back to, so the render effect stamps the body's span on the rendered element and the hook walks that span in proportion to how far along the press fell.
+Block math (`$$…$$` in the bundled `@voithos-labs/aragonite/plugins/latex` plugin) is the worked example, and it's smaller than you'd expect: its component script is the factory call with a painted source (`renderSource`, `onSourceEdit`, `completeBareSource`), one render effect (KaTeX), a `{...leaf.surfaceProps}` spread on the source, and one-line re-exports of the returned surface. Registration is the ordinary leaf recipe (`registerBlockKind` with no container group, `registerBlockOpener`, `registerBlockComponent`) plus an on-type completer for a lone `$$` and a second kind for the ` ```math ` fence. Its `caretTargetAtPoint` is the other half of the parrot's: where the parrot's caption is the source bytes minus a prefix, KaTeX paints glyphs no offset maps back to, so the render effect stamps the body's span on the rendered element and the hook walks that span in proportion to how far along the press fell.
 
 ## Presentation modes
 
-**The contract: every plugin tier can learn the editor's current presentation mode and render for it.** The editor isn't permanently the marker-always source view (a **marker** is the syntax itself, the `**` around bold or the `#` before a heading, which the editor shows dimmed). A consumer can flip the editor into any of these today, and a plugin that assumes source mode renders wrong the day its host flips the prop:
+**The contract: every plugin tier can learn the editor's current presentation mode and render for it.** The editor isn't permanently the marker-always source view (a **marker** is the syntax itself, the `**` around bold or the `#` before a heading, which the editor shows dimmed). A consumer can flip the editor into any of five modes, and a plugin that assumes source mode renders wrong the day its host flips the prop. What each mode looks like to a user is the [consumer guide's table](consumer-guide.md#presentation-modes); this section is what each asks of a plugin.
 
-| Mode             | Editing | What shows                                    |
-| ---------------- | ------- | --------------------------------------------- |
-| `source`         | live    | every marker, dimmed                          |
-| `reading`        | none    | no markers, no reveals                        |
-| `preview-block`  | live    | markers only in the focused block             |
-| `preview-inline` | live    | syntax only for the construct under the caret |
-| `live`           | live    | no markers anywhere, nothing revealed         |
-
-What each mode looks like to a user is the [consumer guide](consumer-guide.md)'s subject; this section is what each asks of a plugin. Two facts about the type first. `PresentationMode` is `'source' | 'reading' | 'preview-block' | 'preview-inline' | 'live'`, and every read below reports the **effective** mode, what the editor is actually doing, which matches the requested prop once every mode is fully built. And the union **grows by addition**, so handle it non-exhaustively: read the one property your rendering depends on (does this mode paint markers, does it write bytes) and default the rest, or the next mode renders your kind wrong the day it lands.
+Two facts about the type first. `PresentationMode` is `'source' | 'reading' | 'preview-block' | 'preview-inline' | 'live'`, and every read below reports the **effective** mode, which is the requested prop except for the moment a switch commits the outgoing mode's open edit (the reads still say the outgoing mode then). And the union **grows by addition**, so handle it non-exhaustively: read the one property your rendering depends on (does this mode paint markers, does it write bytes) and default the rest, or the next mode renders your kind wrong the day it lands.
 
 How each tier reads it:
 
@@ -1286,7 +1282,7 @@ In `reading` mode the platform does most of it for you, which is why most plugin
 
 You read the mode yourself in two cases: when your component owns an edit affordance of its own (a toolbar button, a click-to-edit swap, an interactive widget) which must go inert, the bundled mermaid block's Edit button and the details disclosure being the worked examples, or when your rendering should genuinely differ between a source view and a reading view.
 
-`preview-block` is different: it's a **live editing** mode, so none of those reading gates fire. You type, edit, and command in it exactly as in source; only the marker visibility changes. A **render-primary** plugin block (a diagram, a chart, [the render-primary recipe](#recipe-a-render-primary-block)) gets this for free: it already renders its picture when unfocused and reveals its source only on caret entry, in every non-reading mode, which _is_ block-granular preview. A plugin block that instead renders always-visible source chrome should hide that chrome when it isn't the focused block; the built-in prose kinds do this by CSS, and the reveal-on-focus render-primary pattern (the quickstart parrot's shape) is the supported way for a plugin to match it. A reactive "am I the focused block" block-tier signal is planned but not built.
+`preview-block` is different: it's a **live editing** mode, so none of those reading gates fire. You type, edit, and command in it exactly as in source; only the marker visibility changes. A **render-primary** plugin block (a diagram, a chart, [the render-primary recipe](#recipe-a-render-primary-block)) gets this for free: it already renders its picture when unfocused and reveals its source only on caret entry, in every non-reading mode, which _is_ block-granular preview. A plugin block that instead renders always-visible source chrome should hide that chrome when it isn't the focused block; the built-in prose kinds do this by CSS, and the reveal-on-focus render-primary pattern (the quickstart parrot's shape) is the supported way for a plugin to match it, since there's no "am I the focused block" signal for a block component to read.
 
 `preview-inline` narrows the reveal to inline granularity inside the focused block: the construct under the caret shows its syntax, everything else stays rendered. For plugin inline kinds nothing changes at the API level, and what happens to each follows from how it renders:
 
@@ -1299,9 +1295,9 @@ You read the mode yourself in two cases: when your component owns an edit afford
 
 Reactivity is **per tier, not universal**, and that's worth being upfront about.
 
-**The live reads.** The `EditorContext.presentationMode` getter (paired with the `presentationModeChange` event), the editable-leaf `getPresentationMode()`, the container-factory `getPresentationMode()`, and the inline-widget `getPresentationMode` prop are re-read by the render pass and the event dispatch, so those tiers track a flip on their own.
+**The live reads.** The `EditorContext.presentationMode` getter (paired with the `presentationModeChange` event), the editable-leaf `getPresentationMode()`, the container-factory `getPresentationMode()`, and the inline-widget `getPresentationMode` prop are reactive, so a read inside a `$derived` or an effect re-runs on a switch. The built-in mermaid diagram and details block both do exactly that with the container factory's getter (`$derived(getPresentationMode() === 'reading')`): mermaid checks it in its Edit handler, details uses it to pick its disclosure handler (the reading-mode paragraph below).
 
-**The block-component DOM read is point-in-time.** `closest()` learns the mode when your code runs, but a live flip does **not** re-render a mounted block through it. If your block's _rendering_ must change with the mode, react explicitly: subscribe to `presentationModeChange` on your `EditorContext`'s `events` (from `onEditor`) and update from the handler, or re-read the mode at each gesture. The built-in mermaid diagram gates its edit affordance the gesture-read way, calling the container factory's `getPresentationMode()` at click time; the built-in details block reads the mode per render instead, because its reading-mode disclosure changes what RENDERS (two paragraphs down), not just what a click does. Reactive block-tier rendering is planned but not built; today the block tier is point-in-time by design.
+**The block-component DOM read is point-in-time.** `closest()` learns the mode when your code runs, but a live flip does **not** re-render a mounted block through it. A component holding only a DOM handle has to react explicitly: subscribe to `presentationModeChange` on your `EditorContext`'s `events` (from `onEditor`) and update from the handler, or re-read the attribute at each gesture.
 
 **The theme rides exactly where the mode rides.** `EditorContext.theme` (paired with the `themeChange` event), the container and leaf factories' `getTheme()`, and the inline-widget `getTheme` prop are the same four routes with the same liveness. They're always there, and the editor picks the default (`'dark'`) when a host sets none, so call `getTheme()` as is, with no `?? 'dark'` of your own. Reach for them only when your content's colors are PAINTED by an engine and so can't be reached by CSS; token-styled chrome rethemes itself through the cascade and should read none of this.
 
@@ -1364,11 +1360,11 @@ The mechanics behind that, each with its gotcha:
 
 Supply a focus element for **every steady state** (error, loading, and static fallbacks included), so a broken render stays keyboard-reachable. If the getter returns null anyway, the editor degrades to focusing your chrome box and warns in dev.
 
-### What you owe the surface you own
+### What your own editing surface has to do
 
-**First: an arrow that runs off your surface has to leave it.** A textarea swallows every arrow at its own boundaries, so a caret that walks in is stuck, and it's worst when your surface is the block's only view and the caret lands in it on creation, which leaves the mouse as the only way out. Call the factory's `moveFocusOut(event)` when the caret sits at the edge the key points at: first line for ArrowUp, last line for ArrowDown, offset 0 for ArrowLeft, the end for ArrowRight. It declines a modified or non-arrow key and moves nothing when it declines, so gate your own `preventDefault` on its return value and a Shift-extend or a mid-text arrow stays native. Logical lines (the newlines around the caret) are enough: a plugin surface owes an exit, not full column-keeping parity. And an exit is a blur, so a surface that commits on `focusout` already commits through it; don't add a second commit path for the arrow.
+**First: an arrow that runs off your surface has to leave it.** A textarea swallows every arrow at its own boundaries, so a caret that walks in is stuck, and it's worst when your surface is the block's only view and the caret lands in it on creation, which leaves the mouse as the only way out. Call the factory's `moveFocusOut(event)` when the caret sits at the edge the key points at: first line for ArrowUp, last line for ArrowDown, offset 0 for ArrowLeft, the end for ArrowRight. It declines a modified or non-arrow key and moves nothing when it declines, so gate your own `preventDefault` on its return value and a Shift-extend or a mid-text arrow stays native. Logical lines (the newlines around the caret) are enough: a plugin surface has to provide an exit, not full column-keeping parity. And an exit is a blur, so a surface that commits on `focusout` already commits through it; don't add a second commit path for the arrow.
 
-**Next: your draft is a copy, so keep it fresh.** A draft seeded once at open goes stale the moment the document changes underneath it (a host undo, a structural replace, a collaborative write), and the commit on blur then writes bytes the tree has already moved past, silently reverting the change. Derive the code from the node, watch that derivation while your surface is open, and re-seed the draft when it changes to something you didn't just commit; discarding an in-flight draft is the cheap loss, reverting a committed change is the expensive one. The editable leaf does this for you (both modes mirror external raw changes into the source); a plugin-owned surface owes it itself, and the bundled mermaid block is the worked example.
+**Next: your draft is a copy, so keep it fresh.** A draft seeded once at open goes stale the moment the document changes underneath it (a host undo, a structural replace, a collaborative write), and the commit on blur then writes bytes the tree has already moved past, silently reverting the change. Derive the code from the node, watch that derivation while your surface is open, and re-seed the draft when it changes to something you didn't just commit; discarding an in-flight draft is the cheap loss, reverting a committed change is the expensive one. The editable leaf does this for you (both modes mirror external raw changes into the source); a plugin-owned surface has to do it itself, and the bundled mermaid block is the worked example.
 
 Want a source view with a native caret instead? That's [the editable-leaf tier](#the-editable-leaf), and rebuilding a render-primary block on `createEditableLeaf` (block math's shape) is this recipe's upgrade path.
 
@@ -1435,21 +1431,23 @@ getContentRange(parse('plain text\n').children[0]); // { start: 0, end: 10 }: a 
 await rects.navigateTo([1, 0]); // true once the quoted heading is in view with the caret at its start
 ```
 
-A block that needs to _navigate_ to what it read (a table-of-contents entry jumping to its heading) receives the owning instance's geometry surface as **`BlockComponentProps.rects`**, the same object `EditorContext.rects` hands your per-instance callback. So `rects.navigateTo(path)` works from inside a block without reaching for an editor context a component doesn't have, and the navigation shares the editor's one reveal-and-place machinery rather than a second copy of the rule. `navigateTo` lands the caret at the target as well as scrolling to it; an affordance that only scrolled would leave focus on its own button, where the editor's chords don't reach and an undo typed right after the jump does nothing. Use `scrollTo(path)` where the viewport should move but the selection shouldn't. Navigation mutates no bytes, so it stays legal in reading mode, which simply has no editable target to focus. The bundled **toc** plugin is this recipe end to end.
+A block that needs to _navigate_ to what it read (a table-of-contents entry jumping to its heading) receives the owning instance's geometry surface as **`BlockComponentProps.rects`**, the same object `EditorContext.rects` hands your per-instance callback. So `rects.navigateTo(path)` (optionally with a raw offset into the target, `navigateTo(path, offset)`) works from inside a block without reaching for an editor context a component doesn't have, and the navigation shares the editor's one reveal-and-place machinery rather than a second copy of the rule. `navigateTo` lands the caret at the target as well as scrolling to it; an affordance that only scrolled would leave focus on its own button, where the editor's chords don't reach and an undo typed right after the jump does nothing. Use `scrollTo(path)` where the viewport should move but the selection shouldn't. Navigation mutates no bytes, so it stays legal in reading mode, which simply has no editable target to focus. The bundled **toc** plugin is this recipe end to end.
 
 ## Inline kinds
 
 Blocks are only half the story. An inline kind takes three calls, mirroring the block tier's declare, describe, recognize:
 
-- **`declarePluginInlineKind(name)`** mints the inline kind and returns it, exactly as `declarePluginKind` does one level up; `declaredPluginInlineKind(name)` recovers it in a module that didn't mint it.
-- **`registerInlineSyntax(trigger, recognizer, options?)`** hooks the inline scanner on a single **trigger** character: at each occurrence of the trigger, your recognizer claims the syntax by returning a node, or declines with `null`. The options carry the prefix-rung and rewrite machinery this section works through.
+- **`declarePluginInlineKind(name)`** creates the inline kind and returns it, exactly as `declarePluginKind` does one level up; `declaredPluginInlineKind(name)` recovers it in a module that didn't create it.
+- **`registerInlineSyntax(trigger, recognizer, options?)`** hooks the inline scanner on a single **trigger** character: at each occurrence of the trigger, your recognizer claims the syntax by returning a node, or declines with `null`. The options carry the prefix and rewrite machinery this section works through.
 - **`registerInlineWidgetKind(kind, descriptor)`** says how the kind renders and edits: as a live **atomic widget**, one indivisible rendered thing the caret can sit beside but not inside, with the editing policy this section closes on. Typing a trigger character inside a widget's source (a `#` in a formula, say) won't open an inline menu, since that source isn't prose.
 
-The three together, for a `:shortcode:` kind on a trigger nothing else claims:
+The three together, for a `:shortcode:` kind:
 
 ```ts
 const shortcode = declarePluginInlineKind('shortcode'); // 'shortcode', branded
-registerInlineSyntax(':', recognizeShortcode); // a bare trigger; the priority defaults to INLINE_PRIORITIES.plugin (100)
+// A bare trigger. `:` is shared with the directive text tier at the default
+// INLINE_PRIORITIES.plugin (100) and the bundled emoji at plugin + 10, so take a slot of your own.
+registerInlineSyntax(':', recognizeShortcode, { priority: INLINE_PRIORITIES.plugin + 20 });
 registerInlineWidgetKind(shortcode, {
 	isWidget: (node) => node.kind === shortcode,
 	component: ShortcodeWidget,
@@ -1457,36 +1455,42 @@ registerInlineWidgetKind(shortcode, {
 });
 ```
 
+The inline tier isn't the block surface in miniature, though. An inline kind gets recognition, rendering, atomic caret addressing at its edges, and an editing policy on its widget registration, and that's the lot: **no keymap, no commands of its own, and no per-node metadata** (`InlineNode` has no metadata field, so unlike a block kind it stores nothing at all on the node).
+
+### Rendering it as a widget
+
 A widget renders through one of two paths, and the descriptor rejects declaring both:
 
-- **A `component` (recommended).** Supply a Svelte component; the editor wraps it in the atomic island (the wrapper element it mounts widgets in), stamping the marker attributes the cursor and selection machinery need, and mounts it with frozen `{ inline, source }` props. A keyed reuse pool keeps one live instance per `(kind, source)` across the editor's rebuild-everything-per-keystroke render: typing next to a widget adopts its instance rather than remounting it, and the instance is remounted only when its source text changes.
-- **A hand-built `buildWidget`.** Return the island DOM yourself when you need DOM-level control. Start from `mintWidgetShell`, which stamps the marker and source-span attributes the offset walk reads, then add the body. This is the lower-level path the image and emoji widgets use.
+- **A `component` (recommended).** Supply a Svelte component; the editor wraps it in the widget's wrapper element, stamping the marker attributes the cursor and selection machinery need, and mounts it with frozen `{ inline, source }` props. A reuse pool keyed by `(kind, source)` keeps each widget's instance across the editor's rebuild-everything-per-keystroke render (two identical sources are still two instances): typing next to a widget adopts its instance rather than remounting it, and the instance is remounted only when its source text changes.
+- **A hand-built `buildWidget`.** Return the wrapper's DOM yourself when you need DOM-level control. Start from `mintWidgetShell`, which stamps the marker and source-span attributes the offset walk reads, then add the body. This is the lower-level path the image and emoji widgets use.
 
-**Three live getters ride beside the frozen props.** They're getters because the pool reuses instances: one survives a mode flip and an edit elsewhere, and a captured value would go stale there.
+Beside the frozen pair, a component gets these props, and the editor passes every one of them, so call them as given. A test that mounts your widget by hand passes its own (a fixed mode, a stub `navigateTo`), and the types won't let it forget one.
 
-- `getPresentationMode`: the effective presentation mode.
-- `getDocument`: the read-only root document.
-- `getContentVersion`: a number that changes whenever the document's bytes change, and is stable otherwise.
+| Prop                              | What it's for                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `getPresentationMode`, `getTheme` | The effective presentation mode and the theme name. Getters, like the next two, because the pool reuses instances: one survives a mode switch and an edit elsewhere, and a captured value would go stale there                                                                                                                                                                                                                              |
+| `getDocument`                     | The read-only root document                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `getContentVersion`               | A number that changes whenever the document's bytes change, and is stable otherwise                                                                                                                                                                                                                                                                                                                                                         |
+| `navigateTo(path, offset?)`       | The editor's jump route: it reveals that block, scrolls it into view, and lands the caret in it (at a raw offset, if you pass one). A container path lands at the start of its first line (a quote's first paragraph, a list's first item), and a closed `<details>` on the way gets opened. For a widget that points somewhere else, the way a footnote reference points at its definition. It resolves false when there's nowhere to land |
+| `computeInlineContent`            | The same parse `EditorContext.computeInlineContent` gives a plugin. Walk inline nodes through it and syntax the editor left out comes back as plain text                                                                                                                                                                                                                                                                                    |
 
-A fourth prop, `navigateTo`, is the editor's jump route: hand it a block path and the editor reveals that block, scrolls it into view, and lands the caret in it. A container path works too: the caret goes to the start of its first line (a quote's first paragraph, a list's first item), and a closed `<details>` on the way gets opened. Use it when your widget points at somewhere else in the document, the way a footnote reference points at its definition. It resolves false when there's nowhere to land.
+Three habits for those props:
 
-A fifth, `computeInlineContent`, is the same parse `EditorContext.computeInlineContent` gives a plugin. Walk inline nodes through it and syntax the editor left out comes back as plain text.
+- **Key a cache on `computeInlineContent` too.** Editing a link reference definition (a line like `[r]: /x`) can change how a block parses without touching that block's bytes, and the editor hands you a new function whenever the definitions change. The bundled footnotes plugin does exactly this, since `[t [^x]][q]` hides its footnote until `[q]` gets a definition (brackets are fun like that).
+- **Memoize a whole-document read on the content version.** Read the version inside the same `$derived` and use it as your memo key. The document itself isn't a usable key: the editor mutates it in place, so its identity never changes, and an identity-keyed memo hits forever on a stale answer. Reading the version inside the derived is also what subscribes your widget to edits anywhere, so N widgets sharing one memoized walk stay as live as N widgets each walking the document.
+- **Take a click of your own with `claimsActivationClick`.** If your `revealSource` widget handles a click itself, declare `claimsActivationClick` in its editing policy and read `isWidgetActivationClick` to decide when to act: the reveal then does nothing for exactly the gesture that predicate names, so the widget isn't swapped for its source bytes under a click meant to navigate. Without `revealSource` there's no reveal to skip, and the field does nothing.
 
-If you cache what it returns per block, key the cache on the function too. Editing a link reference definition (a line like `[r]: /x`) can change how a block parses without touching that block's bytes, and the editor hands you a new function whenever the definitions change. The bundled footnotes plugin does exactly this, since `[t [^x]][q]` hides its footnote until `[q]` gets a definition (brackets are fun like that).
+**Errors in a component widget are half yours.** A **synchronous mount-time throw** is caught, so the widget falls back to its raw source and an `error` event fires, but the component mounts as its own effect root and nothing catches its post-mount runtime errors. Render a legible error for bad input instead of throwing (the KaTeX widget shows the formula's source in red, with the parser's message on hover). A renderer slot catches a throw and hands it to your `failed`, and `renderSourceFallback(source, message)` gets you most of that view: the source in the code font and the message on hover, with the red left to you. A render engine's stylesheet is likewise yours: import it in the module that owns the renderer, so no route can forget it.
 
-The editor passes every one of these props, `getTheme` included, so call them as given. A test that mounts your widget by hand passes its own (a fixed mode, a stub `navigateTo`), and the types won't let it forget one.
+### Choosing a trigger
 
-If your `revealSource` widget takes a click of its own, declare `claimsActivationClick` in its editing policy and read `isWidgetActivationClick` to decide when to act: the surface stands its reveal down for exactly the gesture that predicate names, so the widget isn't swapped for its source bytes under a click meant to navigate. Without `revealSource` there's no reveal to stand down, and the field is inert.
+**A bare trigger must be a character no built-in scanner claims.** Registering a bare recognizer on a reserved trigger (`` ` ``, `&`, `<`, `*`, `_`, `~`, `[`, `]`, `!`, `\`, or newline) throws: built-in dispatch runs first, so a bare recognizer there would never fire, and a silent no-op is the one failure a public API must not have. The trigger is one character; anything longer throws too.
 
-If your widget derives from the whole document, read the version inside the same `$derived` and use it as your memo key. The document itself isn't a usable key: the editor mutates it in place, so its identity never changes, and an identity-keyed memo hits forever on a stale answer. Reading the version inside the derived is also what subscribes your widget to edits anywhere, so N widgets sharing one memoized walk stay as live as N widgets each walking the document.
+**Several recognizers can share one trigger**, as long as each sits at its own priority or prefix (the same trigger, prefix and priority twice throws). The bundled **emoji** plugin (`@voithos-labs/aragonite/plugins/emoji`) is the bare-trigger recipe end to end: `:shortcode:` recognizes on the bare `:` trigger at `INLINE_PRIORITIES.plugin + 10`, next to the directive text tier's `:` at the default, renders as an atomic glyph widget through `buildWidget` + `mintWidgetShell`, and carries the `{ deleteGranularity: 'atomic', onEdge: 'step-over' }` edge policy so a caret-adjacent Backspace removes the whole `:name:` in one press and a plain arrow steps over it. Disjoint grammars coexist happily that way: a table-lookup miss declines and falls through with the bytes untouched. The literal `:name:` bytes stay in the raw, so an uninstalled document round-trips as ordinary prose.
 
-**A symmetric delimiter can close itself as it is typed.** Pass `autoPair: true` on a bare trigger whose construct opens and closes on the same byte, the way the bundled latex plugin does for `$…$`: typing the trigger lands its twin after the caret, typing it again over that twin steps past it, and a first body byte that leaves the pair no construct (`$5` is a price) drops the twin again. Without it a lone `$` typed ahead of an existing formula pairs with that formula's closer and wraps the prose between them. The built-in backtick, `*`, `_` and `~~` behave this way without registration.
+**A symmetric delimiter can close itself as it is typed.** Pass `autoPair: true` on a bare trigger whose construct opens and closes on the same byte, the way the bundled latex plugin does for `$…$`: typing the trigger lands its twin after the caret, typing it again over that twin steps past it, and a first body byte that leaves the pair no construct (`$5` is a price) drops the twin again. Without it a lone `$` typed ahead of an existing formula pairs with that formula's closer and wraps the prose between them. The built-in backtick, `*`, `_` and `~~` behave this way without registration. (`autoPair` with a `prefix` throws; it's for bare triggers.)
 
-**A bare trigger must be a character no built-in scanner claims.** Registering a bare recognizer on a reserved trigger (`` ` ``, `&`, `<`, `*`, `_`, `~`, `[`, `]`, `!`, `\`, or newline) throws: built-in dispatch runs first, so a bare recognizer there would never fire, and a silent no-op is the one failure a public API must not have.
-
-The bundled **emoji** plugin (`@voithos-labs/aragonite/plugins/emoji`) is this bare-trigger recipe end to end and the worked reference for an inline kind on an unreserved trigger: `:shortcode:` recognizes on the bare `:` trigger, renders as an atomic glyph widget through `buildWidget` + `mintWidgetShell`, and carries the `{ deleteGranularity: 'atomic', onEdge: 'step-over' }` edge policy so a caret-adjacent Backspace removes the whole `:name:` in one press and a plain arrow steps over it. It shares the `:` trigger with the directive text tier, because disjoint grammars coexist happily on one trigger: a table-lookup miss declines and falls through with the bytes untouched. The literal `:name:` bytes stay in the raw, so an uninstalled document round-trips as ordinary prose.
-
-**To claim syntax that begins on a reserved trigger, register a prefix rung.** A rung is one entry on the ladder of recognizers consulted for a trigger character; a **prefix** rung fires only when its multi-character prefix matches at the cursor. A GFM (GitHub Flavored Markdown) `[^label]` footnote reference starts on `[`, which the link scanner owns. Pass a `prefix` that begins with the trigger and a `priority` below `INLINE_PRIORITIES.builtin`, the inline mirror of an opener pricing below a built-in (the ladder is `{ prefixOverride: 40, builtin: 50, plugin: 100 }`):
+**To claim syntax that begins on a reserved trigger, register a prefix handler.** Every trigger has recognizers asked in priority order, and a **prefix** handler is only asked where its multi-character prefix matches at the cursor. A GFM (GitHub Flavored Markdown) `[^label]` footnote reference starts on `[`, which the link scanner owns. Pass a `prefix` of two or more characters that begins with the trigger, and a `priority` below `INLINE_PRIORITIES.builtin`, the inline mirror of an opener pricing below a built-in (the order is `{ prefixOverride: 40, builtin: 50, plugin: 100 }`, and a reserved-trigger handler at or above `builtin` throws):
 
 ```ts
 registerInlineSyntax('[', recognizeFootnote, {
@@ -1495,13 +1499,17 @@ registerInlineSyntax('[', recognizeFootnote, {
 });
 ```
 
-The scanner consults the rung ahead of the built-in `[` case, but only when `[^` matches at the cursor, so a plain `[` that opens a link is untouched. Your recognizer claims `[^label]` by returning a node, or declines with `null`. A `[^` that never closes declines and falls back to the built-in link reading, bytes untouched, so an unterminated reference is never a hang and never a byte change. Rungs on one trigger coexist and dispatch by priority ascending, then longer prefixes first, then lexicographic, independent of registration order (the `OPENER_PRIORITIES` model, one layer down). Reach for a replace decoration ([Decorations](#decorations)) only to annotate bytes you do **not** own; syntax that's genuinely your kind's belongs in a prefix rung.
+The scanner asks your handler ahead of the built-in `[` case, but only when `[^` matches at the cursor, so a plain `[` that opens a link is untouched. Your recognizer claims `[^label]` by returning a node, or declines with `null`. A `[^` that never closes declines and falls back to the built-in link reading, bytes untouched, so an unterminated reference is never a hang and never a byte change. Handlers on one trigger are asked by priority ascending, then longer prefixes first, then lexicographic, independent of registration order (the `OPENER_PRIORITIES` model, one layer down). Reach for a replace decoration ([Decorations](#decorations)) only to annotate bytes you do **not** own; syntax that's genuinely your kind's belongs in a prefix handler.
 
-**`!` takes a prefix rung; `]` still rejects one.** Both sit outside the scanner's fast-bail character set (the cheap check that skips scanning where nothing could match), because they only matter inside a `[`-bearing range, so a rung on either fires only if the bail is taught to visit the character. `!` is taught on demand: registering a prefix rung on it turns on a per-character probe for as long as the registration lives, which is what lets an Obsidian-style `![[embed]]` be a real inline kind instead of a decoration painted over bytes the tree never sees. Prose exclamation marks keep the plain fast path while nothing is registered. `]` has no such route, and a prefix rung on it still throws rather than accept a silent no-op.
+The bundled **footnotes** plugin (`@voithos-labs/aragonite/plugins/footnotes`) is this recipe end to end and the worked reference to read against your own inline kind: `[^label]` recognizes through a `[^` prefix handler at `INLINE_PRIORITIES.prefixOverride`, renders as a superscript widget whose number derives reactively from the whole document (a `DocumentView` walk memoized on `getContentVersion`, so the number re-derives when a reference is added elsewhere while every mounted widget in a flush shares one walk), reveals its source to edit, and jumps to its definition on the activation click, or on Enter where reading mode gives it a tab stop. The definition's own `[^label]` marker takes the same gestures back to the first reference. The literal `[^label]` bytes stay in the block's raw, so an uninstalled document round-trips as ordinary GFM.
 
-A rung on `!` is consulted ahead of the built-in `!` case, so it outranks the image grammar wherever its prefix matches. And the two grammars do overlap: an image whose alt text opens with `[` starts on `![[` as well, so `![[a.png]]` carrying a parenthesized destination after it is a built-in image with the alt text `[a.png]`, not an embed. Deciding that overlap is your recognizer's job. Decline it (return `null`) and the built-in image reads the bytes unchanged. **Getting it wrong fails silently.** An ungated `![[` recognizer swallows the image with no throw and no dev-warn, and since the raw bytes are untouched the document still round-trips cleanly, so no round-trip check and no conformance cell in your own suite will ever see it. The first report comes from a reader whose picture stopped rendering.
+**`!` takes a prefix handler; `]` still rejects one.** Both sit outside the scanner's fast-bail character set (the cheap check that skips scanning where nothing could match), because they only matter inside a `[`-bearing range, so a handler on either fires only if the bail is taught to visit the character. `!` is taught on demand: registering a prefix handler on it turns on a per-character probe for as long as the registration lives, which is what lets an Obsidian-style `![[embed]]` be a real inline kind instead of a decoration painted over bytes the tree never sees. Prose exclamation marks keep the plain fast path while nothing is registered. `]` has no such route, and a prefix handler on it still throws rather than accept a silent no-op.
 
-**Bound the decline, not just the claim.** Your recognizer is consulted at every occurrence of its trigger, so a decline that searches to the end of the block costs one block scan per trigger, which goes quadratic on a large paragraph, and the trigger is often ordinary prose (`$HOME $PATH …` for `$`). Stop at the first character your grammar can't contain, the way the emoji recognizer stops at the first non-shortcode byte. Where the grammar has no such character, index the candidate positions once per block with `createScanIndex` (hand it your position collector, get back a "first candidate at or after this offset" lookup), the way the bundled math recognizer indexes every `$` and the footnote one its closers:
+A handler on `!` is asked ahead of the built-in `!` case, so it outranks the image grammar wherever its prefix matches. And the two grammars do overlap: an image whose alt text opens with `[` starts on `![[` as well, so `![[a.png]]` carrying a parenthesized destination after it is a built-in image with the alt text `[a.png]`, not an embed. Deciding that overlap is your recognizer's job. Decline it (return `null`) and the built-in image reads the bytes unchanged. **Getting it wrong fails silently.** An ungated `![[` recognizer swallows the image with no throw and no dev-warn, and since the raw bytes are untouched the document still round-trips cleanly, so no round-trip check in your own suite will ever see it (the inline kit's `overlapDecline` cell will, if you hand it the overlap). The first report otherwise comes from a reader whose picture stopped rendering.
+
+### Keeping a decline cheap
+
+**Bound the decline, not just the claim.** Your recognizer is asked at every occurrence of its trigger, so a decline that searches to the end of the block costs one block scan per trigger, which goes quadratic on a large paragraph, and the trigger is often ordinary prose (`$HOME $PATH …` for `$`). Stop at the first character your grammar can't contain, the way the emoji recognizer stops at the first non-shortcode byte. Where the grammar has no such character, index the candidate positions once per block with `createScanIndex` (hand it your position collector, get back a "first candidate at or after this offset" lookup), the way the bundled math recognizer indexes every `$` and the footnote one its closers:
 
 ```ts
 const dollarAt = createScanIndex((raw) => {
@@ -1513,51 +1521,52 @@ dollarAt('pay $HOME $5 for $x$', 5); // 10, the first candidate at or after offs
 dollarAt('pay $HOME $5 for $x$', 20); // -1, none left
 ```
 
-The bundled **footnotes** plugin (`@voithos-labs/aragonite/plugins/footnotes`) is this recipe end to end and the worked reference to read against your own inline kind: `[^label]` recognizes through a `[^`-prefix rung at `INLINE_PRIORITIES.prefixOverride`, renders as a superscript widget whose number derives reactively from the whole document (a `DocumentView` walk memoized on `getContentVersion`, so the number re-derives when a reference is added elsewhere while every mounted widget in a flush shares one walk), reveals its source to edit, and jumps to its definition on the activation click, or on Enter where reading mode gives it a tab stop. The definition's own `[^label]` marker takes the same gestures back to the first reference. The literal `[^label]` bytes stay in the block's raw, so an uninstalled document round-trips as ordinary GFM.
+### Building a built-in node
 
-**If your rung builds a built-in kind's node, it owns writing those bytes back.** A rung may return a node of a kind the editor already has, say an `![[cat.png|300]]` that is a real `image`, so the widget renders it, the caret addresses it, and the resize handles appear. Every _read_ path then treats it as an image, which is the point. The _write_ paths can't: the editor's inverse for a built-in kind emits that kind's built-in grammar, so re-serializing your node's fields brings `![[cat.png|300]]` back as a GFM image, bracketed alt and parenthesized destination, and your syntax is gone. Supply a `rewriteImage` hook and the edit comes back to you instead:
+**If your handler builds a built-in kind's node, it owns writing those bytes back.** A handler may return a node of a kind the editor already has, say an `![[cat.png|300]]` that is a real `image`, so the widget renders it, the caret addresses it, and the resize handles appear. Every _read_ path then treats it as an image, which is the point. The _write_ paths can't: the editor's inverse for a built-in kind emits that kind's built-in grammar, so re-serializing your node's fields brings `![[cat.png|300]]` back as a GFM image, bracketed alt and parenthesized destination, and your syntax is gone. Supply a `rewriteImage` hook and the edit comes back to you instead:
 
 ```ts
 registerInlineSyntax('!', recognizeEmbed, {
 	prefix: '![[',
 	priority: INLINE_PRIORITIES.prefixOverride,
 	rewriteImage: (source, fields) => {
-		if (!source.startsWith('![[')) return null; // bytes this rung did not shape
+		if (!source.startsWith('![[')) return null; // bytes this handler did not shape
 		// Decline what this grammar cannot store rather than dropping it silently: it
 		// holds a target and an optional width and nothing else. The alt line is THIS
 		// recognizer's version of that rule: it fills alt and url from the one target,
 		// so an alt that no longer matches is an edit with no form here. Write yours
 		// against however your own recognizer fills the node.
 		if (fields.title !== undefined || fields.label !== undefined) return null;
+		if (fields.height !== undefined || fields.crop !== undefined) return null;
 		if (fields.alt !== fields.url) return null;
 		return `![[${fields.url}${fields.width !== undefined ? `|${fields.width}` : ''}]]`;
 	}
 });
 ```
 
-`source` is the node's current bytes; return their replacement in your grammar. Return **`null` when the edit has no form in your syntax** (an embed has nowhere to put a title) and the editor declines the edit rather than writing something you didn't author. **A rung with no hook declines every such edit**, which is the safe default: the affordance is live and visibly does nothing, and a dev build logs which rung declined and why. Nothing is silently rewritten either way, and images the built-in scanner read are untouched. Bytes your rung _declines_, including the overlap above where the alt text merely begins with `[`, stay the editor's to resize as always.
+`source` is the node's current bytes; return their replacement in your grammar. Return **`null` when the edit has no form in your syntax** (an embed has nowhere to put a title) and the editor declines the edit rather than writing something you didn't author. **A handler with no hook declines every such edit**, which is the safe default: the affordance is live and visibly does nothing, and a dev build logs which handler declined and why. Nothing is silently rewritten either way, and images the built-in scanner read are untouched. Bytes your handler _declines_, including the overlap above where the alt text merely begins with `[`, stay the editor's to resize as always.
 
 Three edges the snippet above is shaped by, and each one bites if you drop it:
 
-- **Read every field, or decline it.** A hook that ignores a field the user edited returns byte-identical bytes, and byte-identical bytes are dropped by the commit's equality guard, **silently, with no dev warn**, because your hook returned bytes rather than `null`. The Alt row of the editor's image-properties popover then simply does nothing, with no diagnostic anywhere. Decline instead, and the limit is at least visible.
+- **Read every field, or decline it.** A hook that ignores a field the user edited returns byte-identical bytes, and byte-identical bytes are dropped by the commit's equality guard, **silently, with no dev warn**, because your hook returned bytes rather than `null`. The Alt row of the editor's image-properties popover then simply does nothing, with no diagnostic anywhere, and so does an unlocked resize (it writes `height`) or a crop. Decline instead, and the limit is at least visible.
 - **Guard every optional field you interpolate.** `fields.width` is absent on an embed that never carried one, and an unguarded template writes the literal `|undefined` into the document.
-- **Bound the hook to bytes you shaped.** The claim reaches _descendants_ of the node your recognizer returned, so a rung that returns its own kind wrapping a built-in `image` gets called with the **inner** node's slice, not the whole construct. Checking `source` before rewriting is what keeps that from nesting your syntax inside itself.
+- **Bound the hook to bytes you shaped.** The claim reaches _descendants_ of the node your recognizer returned, so a handler that returns its own kind wrapping a built-in `image` gets called with the **inner** node's slice, not the whole construct. Checking `source` before rewriting is what keeps that from nesting your syntax inside itself.
 
-**Errors in a component widget are half yours.** A **synchronous mount-time throw** is caught, so the widget falls back to its raw source and an `error` event fires, but the component mounts as its own effect root and nothing catches its post-mount runtime errors. Render a legible error for bad input instead of throwing (the KaTeX widget shows the formula's source in red, with the parser's message on hover). A renderer slot catches a throw and hands it to your `failed`, and `renderSourceFallback(source, message)` gets you most of that view: the source in the code font and the message on hover, with the red left to you. A render engine's stylesheet is likewise yours: import it in the module that owns the renderer, so no route can forget it.
+### The editing policy
 
-**The inline tier isn't the block surface in miniature.** An inline kind gets recognition, rendering, atomic caret addressing at its edges, and an editing policy on its widget registration. The policy's fields, all optional:
+The policy on your widget registration says how the caret and the delete keys treat it. Its fields, all optional:
 
-| Field                   | What it decides                                                                                                                                                                                                                                                                                                                                              |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `revealSource`          | Open the source (the `$…$` bytes) for editing on caret entry; inline math's model                                                                                                                                                                                                                                                                            |
-| `revealContentSpan`     | Where the editable content sits inside the source (`$x$` answers `{ start: 1, end: 2 }`), so a caret entering the source stays between the delimiters; absent, it keeps the leading edge                                                                                                                                                                     |
-| `revealOffsetAtPoint`   | Which source offset a press on the rendered widget names, so a click seats the caret where it landed; inline math walks its KaTeX glyphs for this, and `null` falls back to the content span's end                                                                                                                                                           |
-| `onSelectedKey`         | A handler for keys while the widget is selected; image resize rides it                                                                                                                                                                                                                                                                                       |
-| `onEdge`                | `'select' \| 'step-over'`: an edge press selects the whole widget, or steps transparently over it; `'step-over'` also makes a press on the widget seat the caret at the edge it landed by, where `'select'` leaves the island its own click; and Up or Down onto a block holding only a step-over widget seats the caret beside it, one press in and one out |
-| `deleteGranularity`     | `'atomic' \| 'select-then-delete'`: one press deletes the whole widget, or the first press selects and the second deletes                                                                                                                                                                                                                                    |
-| `claimsActivationClick` | Your component handles the activation click itself, so the surface's reveal stands down for it; the footnote jump's model                                                                                                                                                                                                                                    |
+| Field                   | What it decides                                                                                                                                                                                                                                                                                                                                            |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `revealSource`          | Open the source (the `$…$` bytes) for editing on caret entry; inline math's model                                                                                                                                                                                                                                                                          |
+| `revealContentSpan`     | Where the editable content sits inside the source (`$x$` answers `{ start: 1, end: 2 }`), so a caret entering the source stays between the delimiters; absent, it keeps the leading edge                                                                                                                                                                   |
+| `revealOffsetAtPoint`   | Which source offset a press on the rendered widget names, so a click puts the caret where it landed; inline math walks its KaTeX glyphs for this, and `null` falls back to the content span's end                                                                                                                                                          |
+| `onSelectedKey`         | A handler for keys while the widget is selected; image resize rides it                                                                                                                                                                                                                                                                                     |
+| `onEdge`                | `'select' \| 'step-over'`: an edge press selects the whole widget, or steps transparently over it; `'step-over'` also makes a press on the widget put the caret at the edge it landed by, where `'select'` leaves the widget its own click; and Up or Down onto a block holding only a step-over widget puts the caret beside it, one press in and one out |
+| `deleteGranularity`     | `'atomic' \| 'select-then-delete'`: one press deletes the whole widget, or the first press selects and the second deletes                                                                                                                                                                                                                                  |
+| `claimsActivationClick` | Your component handles the activation click itself, so the reveal does nothing for it; the footnote jump's model                                                                                                                                                                                                                                           |
 
-Both edge fields are live today: the built-in decoded-entity widget (`&copy;` → ©) ships `{ deleteGranularity: 'atomic', onEdge: 'step-over' }`, so a caret-adjacent Backspace removes it whole and a plain arrow walks the caret across it like a character, the caret-edge dispatch and the click seat reading both off the widget registration. The inline tier gets **no keymap, no minted commands, and no per-node metadata**: `InlineNode` has no metadata field, so unlike a block kind it stores nothing at all on the node.
+Both edge fields are live today: the built-in decoded-entity widget (`&copy;` → ©) ships `{ deleteGranularity: 'atomic', onEdge: 'step-over' }`, so a caret-adjacent Backspace removes it whole and a plain arrow walks the caret across it like a character, the caret-edge handling and the click both reading off the widget registration.
 
 ## Decorations
 
@@ -1588,9 +1597,9 @@ setup(ctx) {
 
 | Type      | Shape                                                    | Renders as                                                                                                                                                                                                                                                                                                                                    |
 | --------- | -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `mark`    | `{ type: 'mark', path, start, end, class }`              | A positioned overlay span over the inline range; style it via the class                                                                                                                                                                                                                                                                       |
-| `widget`  | `{ type: 'widget', path, offset, widget }`               | A zero-width atomic island at the offset (ghost text's shape)                                                                                                                                                                                                                                                                                 |
-| `replace` | `{ type: 'replace', path, start, end, widget?, class? }` | An atomic island covering the range; the hidden bytes stay in the document                                                                                                                                                                                                                                                                    |
+| `mark`    | `{ type: 'mark', path, start, end, class, attrs? }`      | A positioned overlay span over the inline range; style it via the class                                                                                                                                                                                                                                                                       |
+| `widget`  | `{ type: 'widget', path, offset, widget, side? }`        | A zero-width atomic inline widget at the offset (ghost text's shape), drawn `'after'` it by default or `'before'`                                                                                                                                                                                                                             |
+| `replace` | `{ type: 'replace', path, start, end, widget?, class? }` | An atomic inline widget covering the range; the hidden bytes stay in the document                                                                                                                                                                                                                                                             |
 | `block`   | `{ type: 'block', path, class?, attrs?, badge? }`        | A class/attrs treatment on the whole block (a list item, table row or cell included), plus an optional badge widget (not on a row or cell). Attributes the editor already uses on the block's element (the `data-` names it sets or looks up there, `role`, `tabindex` and friends) get dropped with a dev warning, so pick names of your own |
 
 One `provide` answer using two of them, shapes side by side:
@@ -1602,9 +1611,9 @@ provide: (doc) => [
 ];
 ```
 
-Offsets are **raw offsets** into the target block, dimmed markers included, which is the same coordinate space `getContentRange` describes. A `widget`, `replace` widget, or `badge` takes a `DecorationWidgetSpec`: a Svelte `component` (receives the decoration as its prop) or a hand-built `buildDom`. An interactive mark takes `interactive: { onClick }`, not a top-level `onClick`; interactive DOM inside an island is native, so wire your own listeners in `buildDom`.
+Offsets are **raw offsets** into the target block, dimmed markers included, which is the same coordinate space `getContentRange` describes. A `widget`, `replace` widget, or `badge` takes a `DecorationWidgetSpec`: a Svelte `component` (receives the decoration as its prop) or a hand-built `buildDom`. An interactive mark takes `interactive: { onClick }`, not a top-level `onClick`; interactive DOM inside a widget is native, so wire your own listeners in `buildDom`.
 
-Islands (`widget` / `replace`) render in prose blocks and in table cells, applied through the same machinery in both; `mark` and `block` decorations serve cells too. Island caret behavior is defined and pinned: arrows step over, destructive keys treat a widget island as transparent and select-then-delete a replace island whole, so the hidden bytes are never silently corrupted.
+`widget` and `replace` decorations render in prose blocks and in table cells, applied through the same machinery in both; `mark` and `block` decorations serve cells too. Their caret behavior is defined and pinned: arrows step over, destructive keys treat a `widget` as transparent and select-then-delete a `replace` whole, so the hidden bytes are never silently corrupted.
 
 ### Recipe: memoize the scan on `editEpoch`
 
@@ -1637,7 +1646,7 @@ Keying the cache on an index (word to marks) rather than a flat list makes the p
 
 A source that throws is contained: the editor emits an `error` event attributed to your source name and keeps the previous decorations on screen, so a throw never blanks the view.
 
-Pair a source with `editor.rects` when you need geometry (anchor a popup to a decorated range, say): `rects.rangeRects(path, start, end)` returns viewport-space rects for any measurable range, one per visual line.
+Pair a source with `editor.rects` when you need geometry (anchor a popup to a decorated range, say): `rects.rangeRects(path, start, end)` returns viewport-space rects for any measurable range, one per visual line (one per cell in a table).
 
 ```ts
 editor.rects.rangeRects([2], 4, 9); // [DOMRect { x: 96, y: 412, width: 38, height: 22, ... }], one per visual line the range crosses
@@ -1645,9 +1654,9 @@ editor.rects.rangeRects([2], 4, 9); // [DOMRect { x: 96, y: 412, width: 38, heig
 
 ## Block commands
 
-**`registerBlockCommand(kind, name, handler, options?)`**
+**`registerBlockCommand(kind, name, handler)`**
 
-Mints a `(kind, name)` command and returns its id, which a keymap binding then targets; the walkthrough's `conspiracy.setVerdict` is the worked mint. The name is process-wide, but the registry key is `(kind, name)` and dispatch is kind-scoped, so you may reuse one command name across several of your own kinds (one `conspiracy.setVerdict` on every kind your plugin ships). A name already taken by a **different** plugin is rejected.
+Creates a `(kind, name)` command and returns its id, which a keymap binding then targets; the walkthrough's `conspiracy.setVerdict` is the worked example. The name is dot-separated words that each start with a lowercase letter (`conspiracy.setVerdict`), and it can't be a built-in command's id. It's process-wide, but the registry key is `(kind, name)` and dispatch is kind-scoped, so your plugin may reuse one command name across several of its own kinds (one `conspiracy.setVerdict` on every kind it ships), as long as the registrations run inside its `setup`. A name already taken by a **different** plugin is rejected, and so is a reuse from outside any plugin's setup.
 
 ```ts
 const setVerdict = registerBlockCommand(conspiracy, 'conspiracy.setVerdict', (ctx) => {
@@ -1660,22 +1669,22 @@ setVerdict; // 'conspiracy.setVerdict', branded as a command id
 registerBlockCommand(conspiracy, 'conspiracy.setVerdict', handler); // throws: already registered
 ```
 
-A minted command dispatches on the two tiers that can hand it a `BlockCommandContext` (the focused node plus a metadata-commit route):
+A block command dispatches on the two tiers that can hand it a `BlockCommandContext` (the focused node plus a metadata-commit route):
 
 - the **editable-leaf tier**, a `createEditableLeaf` block, resolved from the focused leaf's keymap;
 - the **container-bubble tier**, a container-factory block, resolved as a chord bubbles up from an inner leaf.
 
 Bind commands to your own plugin kinds. A command bound on a built-in kind's leaf (paragraph, code, table cell) does **not** dispatch: those surfaces supply no context, and the chord is swallowed.
 
-The consumer route `editor.runCommand(id)` reaches neither of those tiers: it resolves the focused surface without a command context, so a **block**-minted id finds no handler and dev-warns that the command reached no handler on this dispatch path. Bind a chord, or expose an API of your own, for a block affordance a host must invoke without a keystroke. A **global** command isn't so limited: its name resolves ahead of the block tiers, so `editor.runCommand('wordCount.log')` runs it and `canRunCommand` answers `true` for it (below).
+The consumer route `editor.runCommand(id)` reaches neither of those tiers: it resolves the focused surface without a command context, so a **block** command's id finds no handler and dev-warns that the command reached no handler on this dispatch path. Bind a chord, or expose an API of your own, for a block affordance a host must invoke without a keystroke. A **global** command isn't so limited: its name resolves ahead of the block tiers, so `editor.runCommand('wordCount.log')` runs it and `canRunCommand` answers `true` for it (below).
 
 **View state rides `ctx.hooks`.** Because the context is built by the surface that owns the mounted component, it also carries the component's own view-state handles, supplied through the factory's `commandHooks` getter. A view-state command (open an editor, open a focus overlay) therefore drives the component directly, with no node-keyed side map. Hand `createContainerBlock` a `commandHooks: () => ({ openEdit, openFocusView })` getter (read live at dispatch, so an undo that replaces the node still hits the current handlers). The platform keeps `hooks` opaque (`unknown`): cast it to your own type in the handler, and decline when it's `undefined`, which means the kind is registered with no instance mounted.
 
 A handler that throws is contained at the dispatch boundary: the gesture no-ops and the failure surfaces on `getEvents()` as an `error` of origin `command`, attributed to the kind, the command id, and the plugin that registered the command. That's also the plugin whose `EditorContext` the handler gets as `ctx.editor`, even when the kind belongs to someone else.
 
-**`registerGlobalCommand(name, handler, { chord })`**
+**`registerGlobalCommand(name, handler, { chord }?)`**
 
-The editor-wide sibling: it mints a process-wide command whose handler receives the dispatching instance's `EditorContext` rather than a block, so it runs regardless of which block holds focus, for editor-scope actions like opening a panel. Its second argument is whatever `runCommand(id, arg)` or the chord's binding passed, `undefined` when neither did. Call it from `setup`:
+The editor-wide sibling: it creates a process-wide command whose handler receives the dispatching instance's `EditorContext` rather than a block, so it runs regardless of which block holds focus, for editor-scope actions like opening a panel. Its second argument is whatever `runCommand(id, arg)` or the chord's binding passed, `undefined` when neither did. The chord is optional; without one the command runs only through `runCommand`. Call it from `setup`:
 
 ```ts
 setup(ctx) {
@@ -1694,10 +1703,10 @@ setup(ctx) {
 }
 ```
 
-The chord binds in the **plugin-global tier**, the last rung of the ladder [the consumer guide's Rebinding chords](consumer-guide.md#rebinding-chords) lays out. Three consequences:
+The chord binds in the **plugin-global tier**, the last step in the chord priority order [the consumer guide's Rebinding chords](consumer-guide.md#rebinding-chords) lays out. Three consequences:
 
 - A plugin chord never shadows a built-in, and the reverse shadow is by design: a built-in kind's own chord beats your plugin chord **on that kind, not elsewhere**.
-- A chord the global tier already binds (undo and redo, or another plugin's global chord) or the search bar reserves (`Mod+F` / `Mod+H`) is unstealable, and the collision **throws before the mint**, leaving no half-registered command. A built-in kind's chord doesn't throw; it just wins on that kind, per the first bullet.
+- A chord the global tier already binds (undo and redo, or another plugin's global chord) or the search bar reserves (`Mod+F` / `Mod+H`) is unstealable, and the collision **throws before the command is created**, leaving no half-registered command. A built-in kind's chord doesn't throw; it just wins on that kind, per the first bullet.
 - A handler throw is contained identically, surfacing as an `error` of origin `command` attributed to the owning plugin.
 
 ```ts
@@ -1713,7 +1722,7 @@ Chord strings follow the consumer guide's chord model: fixed-order `Mod` / `Alt`
 
 **`registerBlockContextActions(kind, name, provider)`**
 
-The right-click menu on a block of `kind` (a code block, a table, a plugin's own block) lists what its providers return, ahead of the editor's own rows (copy, replace with the clipboard, remove). Register from `setup`; the rows show only in the editors that list your plugin. The provider is consulted on every open, so it reads the block as it is then. Several providers can share one kind under different names (a taken name throws), and `EVERY_KIND` (`'*'`) registers for every kind. Prose never asks your provider: right-clicking the text of a block whose kind declares `pageRole: 'prose'` (a paragraph, a heading) gives the clipboard rows instead. The provider's third argument, `noun`, is what the menu calls the block ("code block", or "images" for a paragraph of two pictures), handy when you want a label that matches the editor's own "Copy code block".
+The right-click menu on a block of `kind` (a code block, a table, a plugin's own block) lists what its providers return, ahead of the editor's own rows (copy, replace with the clipboard, remove). Register from `setup`; the rows show only in the editors that list your plugin, and no menu opens in reading mode. The provider is consulted on every open, so it reads the block as it is then. Several providers can share one kind under different names (a taken name throws), and the kind `'*'` registers for every kind, listed after the editor's own rows. Prose never asks your provider: right-clicking the text of a block whose kind declares `pageRole: 'prose'` (a paragraph, a heading) gives the clipboard rows instead. The provider's third argument, `noun`, is what the menu calls the block ("code block", or "images" for a paragraph of two pictures), handy when you want a label that matches the editor's own "Copy code block".
 
 ```ts
 registerBlockContextActions(conspiracy, 'debunk', (node) => [
@@ -1726,7 +1735,7 @@ registerBlockContextActions(conspiracy, 'debunk', (node) => [
 ]);
 ```
 
-`run` receives a `BlockActionContext`: the node, its path, `deleteBlock()`, and `replaceRaw(raw)`, which rewrites the block's bytes wholesale through your kind's `rawWrite` rule (if it has one) and reparses them, the same path the default replace row takes. Each is one undo entry. `replaceRaw` writes every line break in the document's own ending, so a CRLF document stays CRLF whatever your bytes carry. An action that writes clipboard text runs it through `transformPaste(text)` first, so it gets the rewrites a paste into that editor would. `icon` names a glyph the editor's menus already draw (the same set the code rail and the table menu use); a row without one shows none. `danger` paints the row in the error colour, for an action that is not one undo away.
+`run` receives a `BlockActionContext`: the node, its path (the menu opens on top-level blocks, so a one-index path), the document's `lineEnding`, `deleteBlock()`, and `replaceRaw(raw)`, which rewrites the block's bytes wholesale through your kind's `rawWrite` rule (if it has one) and reparses them, the same path the default replace row takes. Each is one undo entry. `replaceRaw` writes every line break in the document's own ending, so a CRLF document stays CRLF whatever your bytes carry. An action that writes clipboard text runs it through `transformPaste(text)` first, so it gets the rewrites a paste into that editor would. `icon` names a glyph the editor's menus already draw (the same set the code rail and the table menu use); a row without one shows none. `danger` paints the row in the error colour, for an action that is not one undo away.
 
 ## Paste transforms
 
@@ -1745,7 +1754,9 @@ registerPasteTransform({ name: 'shout', transform: () => null }); // throws: "sh
 Two habits keep a transform sound:
 
 - **Decline cheaply, then convert precisely.** Probe the text for your marker first and return `null` when it's absent. The pipeline runs on every paste, so a fast reject keeps the common case free.
-- **Scope through the parser, not a naive text scan.** A line-level scanner rewrites marker-shaped lines that happen to sit inside a pasted code fence; a converter that parses first and rewrites only the blocks it means to is fence-safe. Keep the transform **idempotent**, meaning re-running it on its own output must decline or reproduce it. A dev warning fires otherwise, catching paste feedback loops.
+- **Scope through the parser, not a naive text scan.** A line-level scanner rewrites marker-shaped lines that happen to sit inside a pasted code fence; a converter that parses first and rewrites only the blocks it means to is fence-safe. Keep the transform **idempotent**, meaning re-running it on its own output must decline or reproduce it. A dev build checks that on every paste and warns otherwise, catching paste feedback loops.
+
+A transform that throws doesn't take the paste down with it: it counts as a decline, the text carries on untouched, and a dev build warns.
 
 The admonitions plugin is the worked example. It renders `> [!NOTE]` GitHub alerts as a native container kind with their bytes untouched, so the paste transform is **opt-in** (`admonitionsPlugin({ convertAlertsOnPaste: true })`, default off): when enabled it probes for an alert blockquote and converts only the top-level ones to `:::name` directive source through a parse-scoped converter, so an alert-shaped line inside a pasted fence survives literally. The transform serves pastes; a host button running the same converter over `getSource()` serves already-loaded documents whichever way the transform is set.
 
@@ -1784,7 +1795,7 @@ A plugin **may**:
 - Register kinds, components, and openers, once; a duplicate throws.
 - Declare a `rebuildRaw` and have the editor invoke it when the document changes.
 - Build containers and chrome through the factories.
-- Store primitive per-node metadata, and commit metadata through the sanctioned update path.
+- Store primitive per-node metadata, and commit metadata through the supported update path.
 - Contribute per-kind keymaps over the command vocabulary.
 - Render as an unknown kind and degrade to a visible raw fallback.
 - Transform pasted plain text before it's parsed ([Paste transforms](#paste-transforms)).
@@ -1811,7 +1822,3 @@ Why the dev build is where plugin development belongs, stated as what each mista
 | An opener claims no line (`consumed < 1`) | Warns, naming the kind, and declines the opener                     | Declines the same way, silently; no hang            |
 | An opener's `raw` ≠ the lines it consumed | Parse warns, naming the kind                                        | Silent round-trip break                             |
 | An opener throws                          | Propagates uncaught (parse runs at init and on every edit)          | Same; uncaught                                      |
-
-## Where to go next
-
-Verifying what you built is [`plugin-testing.md`](plugin-testing.md): the round-trip checks, the test entry point, and the conformance kits. Every export named above is cataloged in [`plugin-api.md`](plugin-api.md).
