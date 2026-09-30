@@ -1961,12 +1961,14 @@ the next, and `reactivity/layout-state.svelte.ts :: createLayoutState` is the on
 drops them. A new document or a mode flip calls `forgetMeasuredHeights`, which leaves the width
 version alone (bump it and every list rebuilds, losing the block held in place). A width or
 font-size change calls `rebuildForNewGeometry`, which also bumps the width version every list
-rebuilds its table off. The block lists can't drop anything, since `dropMeasured` is only on the
-editor's own `MeasuredHeightOracle`, not the `HeightOracle` they get through context, and two
-declared lists in `lint/file-rules.test.ts` fail a `dropMeasured` read or a width-version write in
-any other file.
-`test/reactivity/height-lifetime-routes.svelte.test.ts` runs all four routes and the three
-changes that keep the heights.
+rebuilds its table off.
+
+Nobody else can even reach the drop. Layout state builds the height estimator itself and hands
+out a copy without `dropMeasured`, so the editor root and the block lists only ever hold the reads.
+What a type can't stop gets two scans in `lint/file-rules.test.ts`: a second estimator built (or a
+cast back to the one with the drop) outside layout state, and a width-version write anywhere else.
+`test/reactivity/height-lifetime-routes.svelte.test.ts` runs all four routes, a flip to reading and
+to live included, and the three changes that keep the heights.
 
 ## Accessibility
 

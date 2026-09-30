@@ -61,11 +61,11 @@ Again, some technical details:
 
 ## When and how everything re-measures
 
-Everything that throws heights away (a new document through `source`, and the rewraps below) goes through one place, `src/lib/reactivity/layout-state.svelte.ts` :: `createLayoutState`. It has two ways to do it: `forgetMeasuredHeights` drops the measured cache, and `rebuildForNewGeometry` drops it and bumps the width version (a counter every scope rebuilds its height model off). Nothing else gets to do either, and a lint (G4.98) catches anything that tries.
+Everything that throws heights away (a new document through `source`, and the rewraps below) goes through one place, `src/lib/reactivity/layout-state.svelte.ts` :: `createLayoutState`. It has two ways to do it: `forgetMeasuredHeights` drops the measured cache, and `rebuildForNewGeometry` drops it and bumps the width version (a counter every scope rebuilds its height model off). Layout state builds the height estimator itself and only hands out its reads, so nothing else can drop the cache. A lint (G4.98) catches a second estimator or a second width-version writer.
 
 **Narrow the window and prose rewraps, so every cached height is wrong.**
 
-We drop the measured cache, rebuild each scope's height model, and remeasure the mounted blocks. The width is watched on an empty div as wide as the editor and zero tall, not on the editor itself: when the page scrolls the editor, the editor's height follows its content, which the rebuild changes, and a watched box that resizes while the browser is still handing out size reports gets you a ResizeObserver loop error.
+We drop the measured cache, rebuild each scope's height model, and remeasure the mounted blocks. The width is watched on an empty div as wide as the editor and zero tall, not on the editor itself. When the page scrolls the editor, the editor's height follows its content, which the rebuild changes, and a watched box that resizes while the browser is still handing out size reports gets you a ResizeObserver loop error.
 
 **Resize the height only and nothing rewraps.**
 
