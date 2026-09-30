@@ -23,7 +23,7 @@ This page assumes you have read the [plugin guide](plugin-guide.md). Directives 
 
 ## One opener for everyone
 
-There is exactly one opener (opener /ˈōp(ə)nər/: the part of the aragonite parser that recognizes the syntax a block starts with. Each block kind usually brings its own; a paragraph is what you get when none of them match.) for `:::`, `::` and `:`, and it dispatches on the name. Your plugin never registers an opener of its own.
+There is exactly one opener (opener /ˈōp(ə)nər/: the part of the aragonite parser that recognizes the syntax a block starts with. Each block kind usually brings its own; a paragraph is what you get when none of them match.) for `:::` and `::`, plus one inline recognizer for `:`, and both dispatch on the name. Your plugin never registers an opener of its own.
 
 The reason is the way this feature usually gets built wrong: if every plugin registered its own `:::` opener, the first one to register would greedily claim every `:::whatever` fence, and no second plugin could ever own its own name. One shared opener, a registry lookup by name, done.
 
@@ -164,7 +164,7 @@ One limitation though: the helper goes one way, info to structure, not the inver
 
 ## Switching it on
 
-Directives ship inert. `activateDirectives()` turns the grammar on (the generic boxes, the `:::` and `::` block openers, and the inline `:` recognizer).
+Directives ship inert. `activateDirectives()` turns the grammar on (the generic boxes, the block opener for `:::` and `::`, and the inline `:` recognizer).
 
 Remember, call it once at startup, before the editor first parses anything (a document parsed before the call will not re-parse, and a dev-mode warning will call you out). The call is also idempotent, so several plugins (and hot-reload re-runs) can each make it without stepping on each other.
 

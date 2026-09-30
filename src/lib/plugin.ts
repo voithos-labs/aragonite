@@ -1,7 +1,7 @@
 // The plugin-authoring API, published at the `@voithos-labs/aragonite/plugin` subpath. Only the
 // authoring API belongs here: not the `<Editor>` embedding barrel (index.ts), no test
-// helpers, no internal dispatch. Sections tagged (pre-freeze) may change until the 1.0
-// freeze.
+// helpers, no internal dispatch. Nothing is frozen before 1.0: a (pre-freeze) section may change
+// shape, and an untagged one keeps its model while its call shapes can still change.
 
 import TextEditableBlock from './components/blocks/text/TextEditableBlock.svelte';
 import { registerChromeLeaf as bindChromeLeaf } from './editor-actions/plugin/chrome-leaf';

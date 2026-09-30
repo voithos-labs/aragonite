@@ -180,7 +180,9 @@ async function runCustomCheck(
 
 // ── Cell executors ─────────────────────────────────────────────────────────
 
-const BROWSER_SWEEP = 'browser cell — executed in the browser sweep';
+// aragonite's own e2e sweep runs these for the kinds its repository registers, never a plugin's.
+const BROWSER_ONLY = 'browser-only cell, for a browser test of your own';
+const NO_FIXTURE = 'no conformanceFixture, so unchecked: declare one for the kit to parse';
 
 async function executeCell(
 	column: ClosureColumn,
@@ -199,17 +201,17 @@ async function executeCell(
 		case 'clipboard':
 			return execClipboard(cell, ctx);
 		case 'focus':
-			return { status: 'boundary', detail: `native caret / focus policy: ${BROWSER_SWEEP}` };
+			return { status: 'boundary', detail: `native caret / focus policy: ${BROWSER_ONLY}` };
 		case 'selectionPaint':
-			return { status: 'boundary', detail: `selection cover paint: ${BROWSER_SWEEP}` };
+			return { status: 'boundary', detail: `selection cover paint: ${BROWSER_ONLY}` };
 		case 'reorder':
 			return execReorder(cell);
 		case 'simOracle':
 			return {
 				status: 'boundary',
 				detail:
-					'note-taking simulation under the corruption checks: run by the platform sweep ' +
-					'over the kinds it enrolls, never by this runner'
+					'note-taking simulation under the corruption checks: run by aragonite over the ' +
+					'kinds its own repository registers, never by this runner'
 			};
 	}
 }
@@ -222,7 +224,7 @@ function execRoundTrip(
 	if (!ctx) {
 		return {
 			status: 'boundary',
-			detail: `no conformanceFixture: round-trip runs in the ${BROWSER_SWEEP}`
+			detail: `round-trip: ${NO_FIXTURE}`
 		};
 	}
 	assertIs(
@@ -277,7 +279,7 @@ function execMergeBackspace(kind: AnyBlockKind, role: MergeRole): CellOutcome {
 
 function execSearchPaint(cell: ClosureCell, ctx: KindCellContext | null): CellOutcome {
 	if (cell.mode !== 'not-supported') {
-		return { status: 'boundary', detail: `search-match mark overlay: ${BROWSER_SWEEP}` };
+		return { status: 'boundary', detail: `search-match mark overlay: ${BROWSER_ONLY}` };
 	}
 	if (!ctx) return { status: 'exempt', detail: cell.reason };
 	const needle = firstVisibleChar(ctx.node.raw);
@@ -301,7 +303,7 @@ function execReorder(cell: ClosureCell): CellOutcome {
 	if (cell.mode === 'not-supported') return { status: 'exempt', detail: cell.reason };
 	return {
 		status: 'boundary',
-		detail: `block reorder is an Alt+Arrow / drag gesture: ${BROWSER_SWEEP}`
+		detail: `block reorder is an Alt+Arrow / drag gesture: ${BROWSER_ONLY}`
 	};
 }
 
@@ -310,13 +312,13 @@ async function execUndo(cell: ClosureCell, ctx: KindCellContext | null): Promise
 	if (cell.mode === 'implemented') {
 		return {
 			status: 'boundary',
-			detail: `kind-specific undo mechanism: supply a profile check or run it in the ${BROWSER_SWEEP}`
+			detail: `kind-specific undo mechanism: supply a profile check or cover it in a browser test`
 		};
 	}
 	if (!ctx)
 		return {
 			status: 'boundary',
-			detail: `no conformanceFixture: undo depth runs in the ${BROWSER_SWEEP}`
+			detail: `undo depth: ${NO_FIXTURE}`
 		};
 
 	const doc = parse(ctx.fixture + '\n\nundo sentinel\n');
@@ -346,13 +348,13 @@ function execClipboard(cell: ClosureCell, ctx: KindCellContext | null): CellOutc
 	if (cell.mode === 'implemented') {
 		return {
 			status: 'boundary',
-			detail: `kind-specific clipboard mechanism: supply a profile check or run it in the ${BROWSER_SWEEP}`
+			detail: `kind-specific clipboard mechanism: supply a profile check or cover it in a browser test`
 		};
 	}
 	if (!ctx)
 		return {
 			status: 'boundary',
-			detail: `no conformanceFixture: copy runs in the ${BROWSER_SWEEP}`
+			detail: `copy: ${NO_FIXTURE}`
 		};
 	if (ctx.nodePath.length !== 1) {
 		return {
