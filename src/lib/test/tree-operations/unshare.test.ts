@@ -75,16 +75,28 @@ it('ensureUnsharedChild unshares one child of an already-unshared parent', () =>
 	expect(ensureUnsharedChild(list, 1, sharing)).toBe(fresh);
 });
 
-// The check reads the container contract, not the `table` kind. `tableRow` is the in-repo
-// grid that is not `table`, standing in for the plugin grids a kind test would miss.
-it('rebuildOwnedContainer unshares the children of any grid, not just table', () => {
-	const { doc, sharing } = sharedDoc('| a | b |\n| --- | --- |\n| c | d |\n');
-	const [, row] = ensureUnsharedPath(doc, [0, 0], sharing);
-	expect(row.children!.every((cell) => sharing.isShared(cell))).toBe(true);
+it('rebuildOwnedContainer leaves a table’s rows shared when it keeps their bytes', () => {
+	const { doc, sharing } = sharedDoc('|a|b|\n|-|-|\n|c|d|\n');
+	const [table] = ensureUnsharedPath(doc, [0], sharing);
+	const rows = [...table.children!];
 
-	rebuildOwnedContainer(row, sharing);
+	rebuildOwnedContainer(table, sharing);
 
-	expect(row.children!.some((cell) => sharing.isShared(cell))).toBe(false);
+	expect(table.children).toEqual(rows);
+	expect(table.children!.every((row) => sharing.isShared(row))).toBe(true);
+	expect(takeDevWarns()).toEqual([]);
+});
+
+// A cell written through a row an undo entry holds is the route's own copy-before-write miss;
+// the table rebuild writing that row's bytes is where it first shows.
+it('rebuildOwnedContainer flags a table rebuild that writes a row an undo entry shares', () => {
+	const { doc, sharing } = sharedDoc('|a|b|\n|-|-|\n|c|d|\n');
+	const [table] = ensureUnsharedPath(doc, [0], sharing);
+	table.children![1].children![0].raw = 'x';
+
+	rebuildOwnedContainer(table, sharing);
+
+	expect(takeDevWarns().map((w) => w.tag)).toEqual(['invariant:shared-child-write']);
 });
 
 // Without the range check its sibling walk carries (G1.22), an off-the-end index is a crash

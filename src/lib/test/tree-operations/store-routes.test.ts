@@ -585,7 +585,7 @@ const FAMILIES: Family[] = [
 			{
 				shape: 'a table cell',
 				run: () => dragXAway(CELL, true),
-				want: '| h |\n| --- |\n| # y |\n\nxz\n'
+				want: '| h |\n| - |\n| # y |\n\nxz\n'
 			}
 		]
 	},

@@ -19,15 +19,10 @@ import type { StructuralChange } from './structural-change';
 import type { SharingState } from './sharing';
 import { ensureUnsharedChild } from './unshare';
 import { dropChildSpans } from '../schema/child-spans';
-import {
-	getBlockKindDescriptor,
-	isGridDescriptor,
-	isGridKind,
-	tryGetBlockKindDescriptor
-} from '../schema/block-kind-descriptor';
+import { getBlockKindDescriptor, isGridKind } from '../schema/block-kind-descriptor';
 import { reservedChromeKindOf } from '../schema/reserved-chrome';
 import type { GrammarView } from '../schema/block-openers';
-import { followBytes } from '../schema/container-raw';
+import { childHoldingLastLine, followBytes } from '../schema/container-raw';
 
 // ── The commit's steps ───────────────────────────────────────────────────────
 
@@ -79,12 +74,8 @@ export function keepOpenTail(
  * in a blank line; a quote's own trailing `>` line is its own and has a marker, so it is not.
  */
 export function holdsBlankLastLine(node: NodeView): boolean {
-	const last = node.children?.at(-1);
-	const descriptor = tryGetBlockKindDescriptor(node.kind);
-	const descends =
-		(descriptor?.containerContract === 'strip' && !node.innerSuffix) ||
-		(isGridDescriptor(descriptor) && last !== undefined && isGridKind(last.kind));
-	return last && descends ? holdsBlankLastLine(last) : endsInBlankLine(node.raw);
+	const holder = childHoldingLastLine(node);
+	return holder < 0 ? endsInBlankLine(node.raw) : holdsBlankLastLine(node.children![holder]);
 }
 
 // ── The walk down the last line ──────────────────────────────────────────────
@@ -125,9 +116,7 @@ function rewriteLastLine(
 	// A container's metadata can hold its closing line's ending.
 	followBytes(node, rawBefore, grammar);
 	const last = (node.children?.length ?? 0) - 1;
-	if (last < 0) return;
-	const descriptor = getBlockKindDescriptor(node.kind);
-	if (descriptor.containerContract === 'strip') {
+	if (last >= 0 && getBlockKindDescriptor(node.kind).containerContract === 'strip') {
 		dropChildSpans(node);
 		// A blank line closing the body is the last line; the parser keeps it out of the suffix
 		// while it is unended, so a last child already ended the other way marks it too.
@@ -135,9 +124,8 @@ function rewriteLastLine(
 			node.innerSuffix = write(node.innerSuffix ?? '');
 			return;
 		}
-	} else if (!isGridDescriptor(descriptor) || !isGridKind(node.children![last].kind)) {
-		// A grid's rows are whole lines; a row's cells and an opaque body sit inside a line.
-		return;
 	}
-	rewriteLastLine(ensureUnsharedChild(node, last, sharing), write, sharing, grammar);
+	const holder = childHoldingLastLine(node);
+	if (holder < 0) return;
+	rewriteLastLine(ensureUnsharedChild(node, holder, sharing), write, sharing, grammar);
 }

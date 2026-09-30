@@ -8,8 +8,11 @@ import type { CstNode } from '../core/nodes';
 import type { NodeParentView, NodeView } from '../core/node-views';
 import type { SharingState } from './sharing';
 import type { NodeParent } from './node-primitives';
+import { isDevChecks } from '../env';
+import { perfEnabled } from '../perf/instruments';
 import { assertInvariant } from '../assert';
 import { checkCloneSafeMetadata } from '../invariants/node-shape';
+import { checkSharedChildrenKept, sharedChildBytes } from '../invariants/snapshot-integrity';
 import { rebuildContainerRawIfContainer } from '../schema/container-raw';
 import type { ChildRawChange } from '../schema/child-spans';
 import { getBlockKindDescriptor, isGridDescriptor } from '../schema/block-kind-descriptor';
@@ -116,15 +119,19 @@ export function ensureUnsharedSubtree(node: CstNode, sharing: SharingState): voi
 
 // ── Sharing-aware raw rebuild ───────────────────────────────────────────────
 
-/** Rebuild one owned container's raw. A grid rebuild rewrites its children's raw, so a grid's
- *  children are unshared first. */
+/** Rebuild one owned container's raw. A table's rebuild writes a row only when its cells no longer
+ *  read from its bytes, which only an edit that already copied the row can cause. */
 export function rebuildOwnedContainer(
 	node: CstNode,
 	sharing: SharingState,
 	changed?: ChildRawChange
 ): void {
-	if (isGridDescriptor(getBlockKindDescriptor(node.kind))) {
-		ensureUnsharedChildren(node, sharing);
-	}
+	// Dev only, and not under the perf instruments, which would time the extra read of every row.
+	const writesChildren =
+		isDevChecks() && !perfEnabled() && isGridDescriptor(getBlockKindDescriptor(node.kind));
+	const shared = writesChildren ? sharedChildBytes(node, (c) => sharing.isShared(c)) : null;
 	rebuildContainerRawIfContainer(node, changed);
+	if (shared) {
+		assertInvariant('shared-child-write', () => checkSharedChildrenKept(node, shared));
+	}
 }

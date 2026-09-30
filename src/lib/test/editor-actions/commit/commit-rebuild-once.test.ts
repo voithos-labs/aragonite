@@ -54,7 +54,7 @@ describe('a multi-scope commit rebuilds each node once', () => {
 
 		await mutations.pasteGrid({ rowIdx: 2, colIdx: 1 }, [['x'], ['y']]);
 
-		expect(serialize(deps.doc)).toBe('| a | b |\n| --- | --- |\n| c | d |\n| e | x |\n|  | y |\n');
+		expect(serialize(deps.doc)).toBe('| a | b |\n| - | - |\n| c | d |\n| e | x |\n|  | y |\n');
 		expect(repeatedRebuilds()).toEqual([]);
 		expect(rebuiltKinds().filter((kind) => kind === 'table')).toHaveLength(1);
 	});
@@ -64,9 +64,7 @@ describe('a multi-scope commit rebuilds each node once', () => {
 
 		await mutations.insertColumnRight(0);
 
-		expect(serialize(deps.doc)).toBe(
-			'| a |  | b |\n| --- | --- | --- |\n| c |  | d |\n| e |  | f |\n'
-		);
+		expect(serialize(deps.doc)).toBe('| a |  | b |\n| - | - | - |\n| c |  | d |\n| e |  | f |\n');
 		expect(repeatedRebuilds()).toEqual([]);
 	});
 

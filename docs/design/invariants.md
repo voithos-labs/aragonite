@@ -261,6 +261,7 @@ Three families of seam run these checks:
 | G1.45 | A caret landing's focus scrolls nothing                                             | A·N     |
 | G1.46 | A caret or range the editor puts down leaves no widget selected whole               | A·N     |
 | G1.47 | A windowed child measures into its own block list                                   | A·N     |
+| G1.51 | A table rebuild writes no row an undo entry still shares                            | A·N     |
 | G1.52 | The text `getSource()` serves for an unchanged content version is the document      | A·N     |
 
 ### The entries
@@ -654,10 +655,12 @@ bootstrap · `test/invariants/builtin-presentation-facts.test.ts`.
 ending, and a structural edit leaves it the way it found it: a file with no final break still has
 none afterwards, unless its new last line is blank (then the line is nothing but its break, and
 dropping the break would drop the line). Blank means the line held by the block at the bottom of the
-last block, found by walking down its last children the way the release does, so the empty line
-Enter leaves inside a last quote counts and the quote's own trailing `>` doesn't; that walk is one
-predicate, `tree-operations/open-tail.ts :: holdsBlankLastLine`, shared by the release and this
-check. The commit owns the rule in two steps: `tree-operations/open-tail.ts :: endWindowLines`
+last block, found by walking down the way the release does, so the empty line Enter leaves inside
+a last quote counts and the quote's own trailing `>` doesn't; that walk is one predicate,
+`tree-operations/open-tail.ts :: holdsBlankLastLine`, shared by the release and this check. Which
+child holds a block's last line is a fact about its kind, and one function answers it for every
+walk: `schema/container-raw.ts :: childHoldingLastLine` (a strip's last child, a table's last row,
+or nobody when the block's own bytes hold it, like a header-only table's delimiter line). The commit owns the rule in two steps: `tree-operations/open-tail.ts :: endWindowLines`
 before the separator fix-up, and `tree-operations/open-tail.ts :: keepOpenTail` once the containers
 rebuild. No edit writes the tail by hand (G4.74 holds the walk to that file). A move still calls the
 first step itself for now, because it checks its own joins before the commit's fix-up runs; that
@@ -736,6 +739,15 @@ its own children, and in a dev build says so. Predicate
 `reactivity/use-container-windowing.svelte.ts` · `test/reactivity/measured-child-routes.svelte.test.ts`;
 G4.97 is the source half.
 
+**G1.51 · A table rebuild leaves shared rows alone** (`shared-child-write`). A table's rebuild is
+the one container rebuild that writes its children's bytes, and it only rewrites a row whose cells
+stopped matching its bytes. A row an undo entry still holds can't be in that state unless some edit
+wrote its cells without copying it first, so the rebuild copies no rows up front, and a keystroke
+in a big table copies only the row it edits. The dev check reads every shared
+row's bytes before a grid's rebuild and fires if the rebuild changed one. G1.9's digest wouldn't
+catch it, since it only hashes the top-level blocks. Predicate
+`invariants/snapshot-integrity.ts :: checkSharedChildrenKept` · run by
+`tree-operations/unshare.ts :: rebuildOwnedContainer` · `test/tree-operations/unshare.test.ts`.
 **G1.52 · The cached text is the document** (`current-source`). `getSource()` serializes once per
 content version and hands back the same string until the version moves, and a `source` prop write
 is compared with that string. So it's only as fresh as the version: a write that changed bytes
@@ -769,6 +781,7 @@ No runtime seam sees these; the test suite is the whole enforcement. Test files 
 | G2.12 | A caret placement ends every editor-owned selection, unless it's an extend  | L     |
 | G2.13 | An edit leaves a tree whose serialization reparses to the same block shape  | P·N   |
 | G2.14 | A format toggle applies exactly where the active-read says it isn't applied | N     |
+| G2.15 | A table rebuilt right after a parse writes back the bytes it read           | P·N   |
 
 ### The entries
 
@@ -847,6 +860,14 @@ over every covering run of the kind rather than the innermost alone. The aligned
 coverage in no mode: it fires only where the block's own parse holds the construct at exactly the
 selection and no second run of that kind covers it, with a screen check where the delimiters don't
 paint. A collapsed caret is a different ladder entirely. `format-toggle-ladder.test.ts`.
+
+**G2.15 · A table rebuild keeps its bytes.** Rebuild every table of a freshly parsed document and
+you get the same bytes back, padding, pipes, delimiter spelling and line endings included. That's
+what lets the first edit in a table change only the cells it edits. The generator spells tables
+every way GFM reads the same (tight, over-padded, `:--`, no edge pipes, escaped pipes, short rows,
+surplus cells, some inside a quote), and a second property writes one cell and checks that only
+that row's line moved and a reload reads the cells the tree holds. Tables only for now; the list
+and quote rebuilds still respell their prefixes. `rebuild-keeps-bytes.property.test.ts`.
 
 ## Group 3: compile time
 

@@ -48,13 +48,7 @@ export function dropChildSpans(node: CstNode): void {
 /** A container whose raw is its children's bytes joined (list). */
 export function rebuildConcatRaw(node: CstNode, changed?: ChildRawChange): void {
 	const children = node.children!;
-	if (
-		changed &&
-		spliceChildRegion(node, children, changed, renderVerbatim) &&
-		spliceIsFaithful(node, rebuildConcatRaw)
-	) {
-		return;
-	}
+	if (changed && spliceVerbatimChild(node, changed, rebuildConcatRaw)) return;
 
 	const spans = new Uint32Array(children.length * 2);
 	let out = '';
@@ -67,6 +61,21 @@ export function rebuildConcatRaw(node: CstNode, changed?: ChildRawChange): void 
 	}
 	node.raw = out;
 	node.childSpans = spans;
+}
+
+/**
+ * For a container whose raw holds each child's bytes as they are (a list's items, a table's rows):
+ * rewrites the changed child's region in place, or returns false for the caller's full rebuild.
+ */
+export function spliceVerbatimChild(
+	node: CstNode,
+	changed: ChildRawChange,
+	rebuildFull: (scratch: CstNode) => void
+): boolean {
+	return (
+		spliceChildRegion(node, node.children!, changed, renderVerbatim) &&
+		spliceIsFaithful(node, rebuildFull)
+	);
 }
 
 /**

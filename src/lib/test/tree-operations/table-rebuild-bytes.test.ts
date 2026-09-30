@@ -100,13 +100,14 @@ const COMMITS: Array<[name: string, source: string, ops: Op[], after: string]> =
 		'|a|b|\n|-|-|\n',
 		[{ t: 'tableInsertColumn', i: 0 }],
 		// Equal delimiter cells pair from the front, so the new one lands last: the same reading.
-		'|a|  |b|\n|-|-| --- |\n'
+		// It takes the spelling its alignment already has in the table.
+		'|a|  |b|\n|-|-| - |\n'
 	],
 	[
 		'a column inserted beside a short row',
 		'|a|b|\n|-|-|\n|1|\n',
 		[{ t: 'tableInsertColumn', i: 1 }],
-		'|a|b|  |\n|-|-| --- |\n|1|\n'
+		'|a|b|  |\n|-|-| - |\n|1|\n'
 	],
 	[
 		'a column deleted',

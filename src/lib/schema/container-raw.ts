@@ -5,12 +5,18 @@
  */
 
 import type { AnyBlockKind, CstNode } from '../core/nodes';
+import type { NodeView } from '../core/node-views';
 import { describeMetadataDivergence } from '../core/metadata-parity';
 import { readBlocks } from '../core/parser';
 import { ownTrailingLineEnding, trimTrailingLineEnding } from '../core/lines';
 import { assignChildIdsDeep, idsAcrossReread } from '../block-id';
 import { perfEnabled, recordContainerKindReparse, recordOpenerLineRead } from '../perf/instruments';
-import { tryGetBlockKindDescriptor, type BlockKindDescriptor } from './block-kind-descriptor';
+import {
+	isGridDescriptor,
+	isGridKind,
+	tryGetBlockKindDescriptor,
+	type BlockKindDescriptor
+} from './block-kind-descriptor';
 import { isBlockOpenerRegistered, type GrammarView } from './block-openers';
 import type { ChildRawChange } from './child-spans';
 
@@ -200,6 +206,18 @@ function takeReread(node: CstNode, reread: CstNode): void {
 export function parseContainerRaw(raw: string, grammar: GrammarView): CstNode[] {
 	if (perfEnabled()) recordContainerKindReparse(raw.length);
 	return readBlocks(raw, { grammar, scope: 'fragment' }).children;
+}
+
+/** The index of the child holding a container's last line, or -1 when the container's own bytes
+ *  do: an opaque body, a row's cells, a strip's inner suffix, a header-only table's delimiter. */
+export function childHoldingLastLine(node: NodeView): number {
+	const last = (node.children?.length ?? 0) - 1;
+	if (last < 0) return -1;
+	const descriptor = tryGetBlockKindDescriptor(node.kind);
+	if (descriptor?.containerContract === 'strip') return node.innerSuffix ? -1 : last;
+	if (!isGridDescriptor(descriptor) || !isGridKind(node.children![last].kind)) return -1;
+	// A table's first row sits above its delimiter line; the rows below it follow that line.
+	return node.kind === 'table' && last === 0 ? -1 : last;
 }
 
 export function firstLine(raw: string): string {

@@ -31,7 +31,7 @@ describe('container-raw: table', () => {
 		expect(table.raw).toBe('| A | B |\n| :--- | ---: |\n| 1 | 2 |\n');
 	});
 
-	it('canonicalizes the delimiter row from metadata.alignments', () => {
+	it('keeps a tight delimiter row whose alignments held', () => {
 		const doc = parse('| A | B | C | D |\n|:---|:---:|---:|---|\n');
 		const table = doc.children[0];
 		expect((table.metadata as TableMetadata).alignments).toEqual([
@@ -41,7 +41,14 @@ describe('container-raw: table', () => {
 			'none'
 		]);
 		rebuildContainerRaw(table, fixtureGrammar);
-		expect(table.raw).toBe('| A | B | C | D |\n| :--- | :---: | ---: | --- |\n');
+		expect(table.raw).toBe('| A | B | C | D |\n|:---|:---:|---:|---|\n');
+	});
+
+	it('writes a changed alignment into its own delimiter cell', () => {
+		const table = parse('| A | B |\n|:-|-|\n').children[0];
+		(table.metadata as TableMetadata).alignments[1] = 'right';
+		rebuildContainerRaw(table, fixtureGrammar);
+		expect(table.raw).toBe('| A | B |\n|:-|---:|\n');
 	});
 
 	it('synthesizes delimiter when table has only a header row', () => {
