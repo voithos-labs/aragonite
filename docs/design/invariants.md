@@ -740,8 +740,10 @@ G4.97 is the source half.
 content version and hands back the same string until the version moves, and a `source` prop write
 is compared with that string. So it's only as fresh as the version: a write that changed bytes
 without bumping it (G4.52 is the scan for that) would have the editor report, and compare against,
-text it no longer holds. In a dev build every read that reuses the cached text serializes the
-document again and says so if the two differ. Predicate
+text it no longer holds. In a dev build the first `getSource()` read that reuses a version's text
+serializes the document again and says so if the two differ. It skips that while the perf
+instruments are armed, and the swap check reads the cache unchecked, since an echoing host reaches
+it on every keystroke. Predicate
 `invariants/current-source.ts :: checkCurrentSource` · run by
 `reactivity/current-source.ts :: createCurrentSource` · `test/reactivity/current-source.test.ts`.
 
