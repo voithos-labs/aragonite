@@ -121,7 +121,14 @@ if (write.admitted && write.keepsCaret) requestCaret(write.caret); // 6, unless 
 await write; // true once the bytes are in
 ```
 
-A block's own editable element doesn't call it by hand for typing, though. The input commit and every key the block writes itself (the auto-pair's partner, a byte placed at a hidden run, a Tab) go through one call, `src/lib/components/blocks/surface-write.ts` :: `writeText`. You hand it the new text and where the caret goes, and it does the rest: undo's caret is the one recorded when the key or input arrived, the block keeps the line ending it had (so a last line saved without one stays that way), the caret goes back only when `keepsCaret` says so, and a typed write gets the kind cue and the on-type completion (a lone `$$`), which nothing else gets.
+A block's own editable element doesn't call it by hand for typing, though. The input commit and the keys a text block or cell types for you (the auto-pair's partner, a byte placed at a hidden run, a Tab) go through one call, `src/lib/components/blocks/surface-write.ts` :: `writeText`. You hand it the new text and where the caret goes, and it does the rest:
+
+- undo's caret is the one recorded when the key or input arrived
+- the block keeps the line ending it had, so a last line saved without one stays that way
+- the caret goes back only when `keepsCaret` says so
+- a typed write gets the kind cue and the on-type completion (a lone `$$`), and nothing else does
+
+A few writes aren't on it yet (the format toggle, Shift+Enter, the code block's own keys, a shown source's commit). They still call `updateBlockContent` themselves, and they keep the block's line ending through `withOwnEnding` from the same file.
 
 § 8 says who provides these bundles, and § 9 says what a local index means inside a container.
 
@@ -317,13 +324,13 @@ When the edited text re-parses to **several** blocks (a hard-break line followed
 
 These the editor owns, not the browser:
 
-| Operation          | Trigger                                                                 | Behavior                                                                                                        |
-| ------------------ | ----------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| Enter              | `keydown` → `preventDefault`                                            | Split the CST node at the cursor offset                                                                         |
-| Backspace at start | `keydown` → `preventDefault`                                            | Merge, unwrap, delete, or focus (§ 8)                                                                           |
-| Paste              | `paste` → `preventDefault`                                              | Read `text/plain`, dispatch through the paste pipeline                                                          |
-| Copy / Cut         | `copy` / `cut` → `preventDefault`                                       | Slice the selected range out of the CST's `raw`; cut then deletes it                                            |
-| Undo / Redo        | `keydown`, or the browser's own Undo (`beforeinput`) → `preventDefault` | Pop/push the editor's own undo stack (browser undo is off), in every editable element, a plugin leaf's included |
+| Operation          | Trigger                                                                 | Behavior                                                                                                                                           |
+| ------------------ | ----------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Enter              | `keydown` → `preventDefault`                                            | Split the CST node at the cursor offset                                                                                                            |
+| Backspace at start | `keydown` → `preventDefault`                                            | Merge, unwrap, delete, or focus (§ 8)                                                                                                              |
+| Paste              | `paste` → `preventDefault`                                              | Read `text/plain`, dispatch through the paste pipeline                                                                                             |
+| Copy / Cut         | `copy` / `cut` → `preventDefault`                                       | Slice the selected range out of the CST's `raw`; cut then deletes it                                                                               |
+| Undo / Redo        | `keydown`, or the browser's own Undo (`beforeinput`) → `preventDefault` | Pop/push the editor's own undo stack in every editable element, a plugin leaf's included; a shown painted source steps through its own edits first |
 
 One thing the editor deliberately doesn't own: between `compositionstart` and `compositionend` there's no sync and no reconciliation. The browser owns the IME sequence outright (and is welcome to it), and `compositionend` enters the same input path as a keystroke.
 

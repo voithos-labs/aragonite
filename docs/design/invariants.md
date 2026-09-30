@@ -1995,11 +1995,17 @@ that hit it, in both scroll modes and on the showcase (VR-16).
 bytes it hands the list are the new text plus the ending the block already had, and nothing else.
 So a document saved without a final line break keeps none, whichever block is last and whatever
 wrote it. That rule lives in `components/blocks/surface-write.ts` (`writeText`, and
-`withOwnEnding` for the routes not on it yet). The ending a typed line break takes is the other
-half, and it has one home too, `editable-surface.ts :: lineEnding` (the block's own, else the
-document's). `lint/call-site-rules.test.ts` fails a call to `trailingLineEnding` or
-`ownTrailingLineEnding` anywhere else under `components/blocks/`, with the reads that write no
-ending, and two routes still to move, allowlisted by function.
+`withOwnEnding` for the routes not on it yet).
+
+New text is the other half. It takes the block's own ending, else the document's, and it picks
+that in two places today: a typed line break reads the getter `editable-surface.ts :: lineEnding`, and the
+code block's dissolve action (`code-context-actions.ts :: run`) picks it for the prose it writes
+over the fence. #648 tracks giving those two one home. `lint/call-site-rules.test.ts` holds both
+halves under `components/blocks/`, allowlisted by function. It fails a call to
+`trailingLineEnding` or `ownTrailingLineEnding` outside the surface write and those two places,
+except the reads that write no ending and two routes still to move. And it fails a read of the
+getter anywhere but a typed line break or a check that writes nothing, so `display +
+editableSurface.lineEnding()` inside a write of the block's own text goes red.
 
 **G4.101 · A typed write asks for itself.** The kind cue and the on-type completer answer typing,
 never a command, a paste or the editor's own repair. Only `surface-write.ts :: writeText` asks
