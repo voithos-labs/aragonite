@@ -24,6 +24,8 @@ export interface WindowResult {
 	end: number; // exclusive
 	topSpacerPx: number;
 	bottomSpacerPx: number;
+	/** The whole list's height by its table, 0 when not windowing. */
+	floorPx: number;
 }
 
 export function computeWindow(model: HeightModel, input: WindowInputs): WindowResult {
@@ -35,7 +37,7 @@ export function computeWindow(model: HeightModel, input: WindowInputs): WindowRe
 	const active = input.active ? total >= input.deactivateBelowPx : total >= input.activateAbovePx;
 
 	if (!active || n === 0) {
-		return { active: false, start: 0, end: n, topSpacerPx: 0, bottomSpacerPx: 0 };
+		return { active: false, start: 0, end: n, topSpacerPx: 0, bottomSpacerPx: 0, floorPx: 0 };
 	}
 
 	const firstVisible = model.indexAtOffset(input.scrollTop);
@@ -58,7 +60,8 @@ export function computeWindow(model: HeightModel, input: WindowInputs): WindowRe
 		start,
 		end,
 		topSpacerPx: model.offsetOf(start),
-		bottomSpacerPx: total - model.offsetOf(end)
+		bottomSpacerPx: total - model.offsetOf(end),
+		floorPx: total
 	};
 }
 
@@ -71,7 +74,8 @@ function widened(model: HeightModel, next: WindowResult, shown: WindowResult): W
 		start,
 		end,
 		topSpacerPx: model.offsetOf(start),
-		bottomSpacerPx: model.total() - model.offsetOf(end)
+		bottomSpacerPx: model.total() - model.offsetOf(end),
+		floorPx: model.total()
 	};
 }
 

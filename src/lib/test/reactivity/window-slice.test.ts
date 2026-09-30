@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { sliceWindow } from '../../reactivity/window-slice';
+import { sliceWindow, windowFloor } from '../../reactivity/window-slice';
 import type { WindowResult } from '../../reactivity/block-window.svelte';
 
 const active = (start: number, end: number): WindowResult => ({
@@ -7,7 +7,8 @@ const active = (start: number, end: number): WindowResult => ({
 	start,
 	end,
 	topSpacerPx: 0,
-	bottomSpacerPx: 0
+	bottomSpacerPx: 0,
+	floorPx: 0
 });
 
 describe('sliceWindow', () => {
@@ -29,5 +30,13 @@ describe('sliceWindow', () => {
 	// only this case reaches the `Math.max(start, end)` check.
 	it('collapses an inverted window to an empty slice at start', () => {
 		expect(sliceWindow(100, active(30, 10))).toEqual({ start: 30, end: 30 });
+	});
+});
+
+describe('windowFloor', () => {
+	it("floors a windowed list's box at its table height, and leaves any other list alone", () => {
+		expect(windowFloor({ ...active(18, 32), floorPx: 5000 })).toBe('5000px');
+		expect(windowFloor({ ...active(0, 10), active: false, floorPx: 5000 })).toBeUndefined();
+		expect(windowFloor(undefined)).toBeUndefined();
 	});
 });

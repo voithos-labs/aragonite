@@ -457,6 +457,29 @@ const RULES: FileRule[] = [
 		]
 	},
 	{
+		id: 'G4.99 a windowed list keeps its table height while blocks mount',
+		population: svelteOnly,
+		matches: (file) =>
+			/class="vr-spacer"/.test(file.code) &&
+			!/style:min-height=\{windowFloor\(\w+\)\}/.test(file.code),
+		reason:
+			'a list that renders spacers mounts its new blocks one by one, and a layout read in between clamps the scroll at the document end: put `style:min-height={windowFloor(win)}` on the box around the spacers',
+		reaches: [
+			'src/lib/components/BlockList.svelte',
+			'src/lib/components/blocks/list/ListBlock.svelte',
+			'src/lib/components/blocks/table/TableBlock.svelte'
+		],
+		hits: [at('x.svelte', '<div class="rows">\n<div class="vr-spacer" style="height: 4px"></div>')],
+		misses: [
+			at(
+				'x.svelte',
+				'<div class="rows" style:min-height={windowFloor(win)}>\n<div class="vr-spacer"></div>'
+			),
+			at('x.svelte', '<div class="rows"></div>'),
+			'const spacer = \'<div class="vr-spacer"></div>\';'
+		]
+	},
+	{
 		id: 'G4.66 a relative scroll is written through scrollBy',
 		population: except('src/lib/cursor/scrollport.ts'),
 		matches: /setScrollTop\s*\([^;]*?\.scrollTop\s*\(\s*\)/,

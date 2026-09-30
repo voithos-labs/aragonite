@@ -26,7 +26,7 @@
 	import { tableCaretAtPoint } from './table-caret-at-point';
 	import { selectedCells } from './selected-cells';
 	import { useContainerWindowing } from '../../../reactivity/use-container-windowing.svelte';
-	import { sliceWindow } from '../../../reactivity/window-slice';
+	import { sliceWindow, windowFloor } from '../../../reactivity/window-slice';
 	import { componentAt, type ChildList } from '../../../reactivity/child-list';
 	import { createContainerActions } from '../../../editor-actions/nested/container-actions';
 	import { createTableMutationsContext } from '../../../editor-actions/table-context';
@@ -557,6 +557,7 @@
 	class="table-block"
 	role="table"
 	style:grid-template-columns={trackTemplate}
+	style:min-height={windowFloor(win)}
 	oncontextmenu={openCellMenu}
 	onkeydown={onTableKeyDown}
 >
@@ -631,6 +632,9 @@
 <style>
 	.table-block {
 		display: grid;
+		/* Rows keep their own heights under the windowing floor, which a stretched row would
+		   measure back into the table as its own. */
+		align-content: start;
 		width: max-content;
 		max-width: 100%;
 		overflow-x: auto;

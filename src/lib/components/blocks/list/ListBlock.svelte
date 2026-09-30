@@ -6,7 +6,7 @@
 	import { createListContext } from '../../../editor-actions/list-context';
 	import { createListOverrides } from '../../../editor-actions/list-overrides';
 	import { useContainerWindowing } from '../../../reactivity/use-container-windowing.svelte';
-	import { sliceWindow } from '../../../reactivity/window-slice';
+	import { sliceWindow, windowFloor } from '../../../reactivity/window-slice';
 	import { createContainerActions } from '../../../editor-actions/nested/container-actions';
 	import { createContainerBlockComponent } from '../../../editor-actions/container-block-component';
 	import ListItemBlock from './ListItemBlock.svelte';
@@ -84,7 +84,7 @@
 </script>
 
 <!-- The items reorder among themselves, which the drag reads off this mark. -->
-<div class="list-block" data-reorder-scope bind:this={boxEl}>
+<div class="list-block" data-reorder-scope bind:this={boxEl} style:min-height={windowFloor(win)}>
 	{#if win.active}
 		<div class="vr-spacer" style="height: {win.topSpacerPx}px"></div>
 	{/if}

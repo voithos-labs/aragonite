@@ -14,7 +14,7 @@
 	import { isProseKind } from '../core/inline';
 	import { gapEligibleAmong } from '../selection/gap-caret';
 	import { pathsEqual } from '../selection/path-math';
-	import { sliceWindow } from '../reactivity/window-slice';
+	import { sliceWindow, windowFloor } from '../reactivity/window-slice';
 	import BlockHost from './BlockHost.svelte';
 	import GapCaret from './GapCaret.svelte';
 
@@ -66,7 +66,11 @@
 </script>
 
 <!-- A nested reorderable list marks itself, so a drag inside it can show its bounds. -->
-<div class="block-list" data-reorder-scope={reorderable && parentPath.length > 0 ? '' : undefined}>
+<div
+	class="block-list"
+	data-reorder-scope={reorderable && parentPath.length > 0 ? '' : undefined}
+	style:min-height={windowFloor(win)}
+>
 	{#if active}
 		<div class="vr-spacer" style="height: {win!.topSpacerPx}px"></div>
 	{/if}

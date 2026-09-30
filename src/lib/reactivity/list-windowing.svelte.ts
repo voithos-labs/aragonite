@@ -110,7 +110,8 @@ const collapsedWindow: WindowResult = Object.freeze({
 	start: 0,
 	end: 1,
 	topSpacerPx: 0,
-	bottomSpacerPx: 0
+	bottomSpacerPx: 0,
+	floorPx: 0
 });
 
 // The box a nested list's parent measures: a container's block host, or a list item's own box.

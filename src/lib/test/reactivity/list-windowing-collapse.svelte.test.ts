@@ -23,7 +23,7 @@ function setup(
 	});
 }
 
-const CLAMP = { active: true, start: 0, end: 1, topSpacerPx: 0, bottomSpacerPx: 0 };
+const CLAMP = { active: true, start: 0, end: 1, topSpacerPx: 0, bottomSpacerPx: 0, floorPx: 0 };
 
 describe('collapsed window substitution', () => {
 	it('clamps to [0,1) when the underlying window would be inactive (small container)', () => {
