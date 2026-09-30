@@ -104,15 +104,27 @@ describe('a host that echoes getSource() back through source', () => {
 	});
 });
 
-describe('a write back to an earlier text', () => {
-	it('reloads it, even when it equals the text the editor mounted with', async () => {
-		const host = mountHost('a\n');
-		await host.type('ab');
+// A history view, reduced: the host's note still holds the text it loaded, the author types, and
+// the host then shows a version.
+describe('showing a version through the source prop after typing', () => {
+	it('control: a version unlike the loaded text is shown', async () => {
+		const host = mountHost('loaded\n');
+		await host.type('loadedtyped');
 
-		await host.load('a\n');
+		await host.load('older\n');
 
 		expect(host.swaps).toEqual([1]);
-		expect(host.editor.getSource()).toBe('a\n');
+		expect(host.editor.getSource()).toBe('older\n');
+	});
+
+	it('a version equal to the loaded text is shown', async () => {
+		const host = mountHost('loaded\n');
+		await host.type('loadedtyped');
+
+		await host.load('loaded\n');
+
+		expect(host.swaps).toEqual([1]);
+		expect(host.editor.getSource()).toBe('loaded\n');
 	});
 });
 
@@ -124,6 +136,16 @@ describe('mount', () => {
 	])('a %s source fires no swap at mount', (_label, text) => {
 		mountHost(text);
 		expect(swapLog.calls).toEqual([]);
+	});
+
+	it('a write made before the first effect run still swaps', () => {
+		const target = document.body.appendChild(document.createElement('div'));
+		const host = mount(SourceHost, { target, props: { text: 'a\n' } });
+		hosts.push(host);
+		host.load('b\n');
+		flushSync();
+		expect(swapLog.calls).toEqual([{ source: 'b\n', swapped: true }]);
+		expect(host.getEditor().getSource()).toBe('b\n');
 	});
 });
 
