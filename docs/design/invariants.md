@@ -340,28 +340,27 @@ stacks byte-identical to their pre-commit state and mustn't publish a partial tr
 captures both stacks before its snapshot push (a commit that joins an open undo step pushes
 nothing, so it has none to capture) and, on throw, restores them via `UndoManager.restoreStacks` (a
 wholesale restore that also recovers an entry the push evicted at `MAX_UNDO`), emits
-`error{origin:'commit'}` on the event seam, then re-throws in DEV and swallows in production. The
-two commit branches keep the tree intact differently:
+`error{origin:'commit'}` on the event seam, then re-throws in DEV and swallows in production.
 
-- The **document branch** mutates a detached children copy and publishes it only on success, so a
-  throw leaves the live tree untouched.
-- The **container/multi-scope branch** mutates the live tree in place (its scope views are windows
-  onto live nodes), so `__commit` captures the top-level children array before the mutation and
-  swaps it back on throw. Copy-path-on-write guarantees the pre-mutation array still reaches an
-  intact tree at every depth, discarding every copy the mutation dirtied.
+Every commit keeps the tree intact the same way. Its mutation writes the live tree in place (a scope
+view is a window onto live nodes), so the commit swaps a fresh top-level children array in before
+the mutation runs and puts the old one back on throw. Copy-path-on-write means the old array still
+reaches an intact tree at every depth, so every copy the mutation dirtied goes out with the fresh
+one. That old array is also the whole rollback of a commit over the document, which is why one
+costs no per-block copy however long the document is.
 
 The array swap alone can't reach a container commit that joins an open undo step when its scope
 node was already unshared earlier in the same step: copy-path-on-write is then a no-op, so the
 mutation's structural splice lands in place on a node the pre-mutation array still references.
 That's reachable through cross-block paste, whose delete and paste are two structural commits in one
-step. `__commit` closes it by also capturing each prepared scope's pre-mutate children/childIds
-arrays and reinstating them on throw (a document-scope commit was already recovered; there the
-mutated array is `deps.doc.children` itself).
+step. The commit closes it by also capturing each prepared container scope's pre-mutate
+children/childIds arrays and reinstating them on throw.
 
-One residual is open by design. The frame's byte registers reach each prepared scope's spine and its
-direct children (`savedRaws`) and the document's folded trailing line (`savedDocSuffix`), so what
+One residual is open by design. The frame's byte registers reach each container scope's spine and
+its direct children (`savedRaws`) and the document's folded trailing line (`savedDocSuffix`), so what
 stays uncovered is narrow: a write deeper than an owned node's direct children, node metadata, and
-`leadingTrivia` on a node the document branch already owns. For a scope already unshared earlier in
+any byte write to a top-level block the commit already owns (the document scope saves its array,
+not its blocks' bytes). For a scope already unshared earlier in
 the same undo unit, copy-path-on-write is a no-op, so such a write leaves those bytes changed after
 a throw rolls the structure back, and structure and bytes then disagree. It's out of scope for
 pre-publish corruption (the user mutation and the arity check both throw before any byte write) and

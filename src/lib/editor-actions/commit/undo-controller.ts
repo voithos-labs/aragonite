@@ -24,7 +24,7 @@ import { beginCommit, endCommit } from '../../invariants/commit-scope';
 import { assignIds } from '../../block-id';
 import { replaceRefs } from '../../reactivity/publish-ref.svelte';
 import { blockNodeAt, documentBody, nodeAt } from '../../tree-operations/node-primitives';
-import { settleSeparator, type TrackedPosition } from '../../tree-operations/settle';
+import { settleSeparator } from '../../tree-operations/settle';
 import { endsOpen, endWindowLines, keepOpenTail } from '../../tree-operations/open-tail';
 import { keepOneBlock } from '../../tree-operations/keep-one-block';
 import { ensureUnsharedPath, rebuildOwnedContainer } from '../../tree-operations/unshare';
@@ -65,7 +65,6 @@ import {
 	assertLastLineKept,
 	assertUndoTopIntegrity
 } from '../../invariants/install';
-import { tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
 import { dropChildSpans } from '../../schema/child-spans';
 import {
 	docByteLength,
@@ -78,20 +77,8 @@ type EntrySelection = UndoEntry['selection'];
 
 // ── Dev invariant scoping (dev-only paths) ────────────────────────────────────
 
-/** A `noop` change names no new positions, so the caller passes its leaf via `explicit`. */
-function touchedFromChange(
-	change: StructuralChange,
-	children: CstNode[],
-	explicit: CstNode[] | undefined
-): CstNode[] {
-	if (change.op === 'insert') return children.slice(change.at, change.at + change.count);
-	if (change.op === 'replace') return children.slice(change.at, change.at + change.newCount);
-	return explicit ?? [];
-}
-
 /** Direct children go along: a container's rebuild concatenates them into its raw. */
-function touchedContainersWithChildren(containers: CstNode[] | undefined): CstNode[] {
-	if (!containers) return [];
+function withDirectChildren(containers: readonly CstNode[]): CstNode[] {
 	const out: CstNode[] = [];
 	for (const c of containers) {
 		out.push(c);
@@ -99,6 +86,25 @@ function touchedContainersWithChildren(containers: CstNode[] | undefined): CstNo
 		for (const child of c.children ?? []) out.push(child);
 	}
 	return out;
+}
+
+/**
+ * The top-level blocks a commit wrote: the ones its change placed, and the ones it copied to write
+ * in place, which a `noop` change (a format toggle's marks) names no position for.
+ */
+function writtenTopLevel(
+	children: readonly CstNode[],
+	before: readonly CstNode[],
+	change: StructuralChange
+): CstNode[] {
+	const written = new Set<CstNode>();
+	if (change.op === 'insert' || change.op === 'replace') {
+		const placed = change.op === 'insert' ? change.count : change.newCount;
+		for (const node of children.slice(change.at, change.at + placed)) written.add(node);
+	}
+	const kept = new Set(before);
+	for (const node of children) if (!kept.has(node)) written.add(node);
+	return [...written];
 }
 
 /** `announceEdit` speaks a commit's announcement in the editor's edit live region; only the
@@ -284,67 +290,43 @@ export function createUndoController(
 
 	// ── Internal commit primitive ────────────────────────────────────────────
 
-	type CommitArgs =
-		| {
-				kind: 'document';
-				snapshot: CommitSnapshotArg;
-				/** The commit syncs ids and refs from the returned change; never splice them here. */
-				mutate: (children: CstNode[]) => StructuralChange;
-				publish: (children: CstNode[], ids: string[], refs: (BlockComponent | undefined)[]) => void;
-				op?: ScopedOpDescriptor;
-				afterTick?: CommitAfterTick;
-				landing?: CommitLanding;
-				reveal?: RevealPolicy;
-				announce?: CommitAnnouncement;
-				/** Nodes for the dev check when the change names none (an in-place `op: 'noop'`). */
-				touchedNodes?: CstNode[];
-				discardIfNoop?: boolean;
-				trackCaret?: TrackedPosition;
-		  }
-		| {
-				kind: 'container';
-				snapshot: CommitSnapshotArg;
-				/** False when every scope changed nothing. The callbacks copy and write their own scopes;
-				 *  `wasOpen` is whether the document ended with no final line break before them. */
-				mutate: (wasOpen: boolean) => boolean;
-				publish: () => void;
-				op?: ScopedOpDescriptor;
-				afterTick?: CommitAfterTick;
-				landing?: CommitLanding;
-				reveal?: RevealPolicy;
-				announce?: CommitAnnouncement;
-				/** A function, since the copied nodes only exist once `mutate` has made them. */
-				touchedNodes?: () => CstNode[];
-				/**
-				 * Restores in-place splices into nodes already copied in this undo entry,
-				 * which the top-level array swap cannot reach.
-				 */
-				rollback?: () => void;
-				discardIfNoop?: boolean;
-		  };
+	/** What the commit sequence runs; `commitScopes` builds it for every entry point. */
+	interface CommitArgs {
+		/** Names the write in a reading-mode refusal when there is no `op`. */
+		entry: 'commitStructural' | 'commitMultiScope';
+		snapshot: CommitSnapshotArg;
+		/** False when every scope changed nothing; `wasOpen` is whether the document ended with no
+		 *  final line break before it. */
+		mutate: (wasOpen: boolean) => boolean;
+		op?: ScopedOpDescriptor;
+		afterTick?: CommitAfterTick;
+		landing?: CommitLanding;
+		reveal?: RevealPolicy;
+		announce?: CommitAnnouncement;
+		/** A function, since the copied nodes only exist once `mutate` has made them. */
+		touchedNodes: () => CstNode[];
+		/** Restores what `mutate` wrote, the top-level array included. */
+		rollback: () => void;
+		discardIfNoop?: boolean;
+	}
 
 	interface RollbackFrame {
 		restore(): void;
 	}
 
-	/** Everything a commit that throws or bails on discardIfNoop restores; a container's per-scope
-	 *  state exists only once `mutate` has copied it, so restore() hands those to `rollback`. */
+	/** Everything a commit that throws or bails on discardIfNoop restores; the scopes' state exists
+	 *  only once `mutate` has copied it, so restore() hands that to `rollback`. */
 	function captureRollbackFrame(args: CommitArgs, pushes: boolean): RollbackFrame {
 		// A whole-stack restore, not a pop: the push may evict the oldest entry at the cap. A
 		// commit that joins its step's entry pushes nothing, so it has no stacks to restore.
 		const savedStacks = pushes ? deps.undoManager.getStacks() : null;
-		// The container branch mutates the live tree in place, and the document branch's
-		// trailing-line fix-up can consume the live document's suffix, so both restore the suffix.
-		const savedDocChildren = args.kind === 'container' ? [...deps.doc.children] : null;
+		// The trailing-line fix-up can consume the document's suffix, which no scope holds.
 		const savedDocSuffix = deps.doc.suffix;
 		return {
 			restore() {
-				// Top down: the stacks, the top-level array, then the function for the in-place
-				// splices the array swap cannot reach.
 				if (savedStacks) deps.undoManager.restoreStacks(savedStacks);
-				if (savedDocChildren) deps.doc.children = savedDocChildren;
 				deps.doc.suffix = savedDocSuffix;
-				if (args.kind === 'container') args.rollback?.();
+				args.rollback();
 			}
 		};
 	}
@@ -386,58 +368,16 @@ export function createUndoController(
 			// so it can throw like every other step.
 			pushCommitSnapshot(args.snapshot.path, args.snapshot.offset);
 			const wasOpen = endsOpen(deps.doc);
-			if (args.kind === 'document') {
-				const childrenCopy = [...deps.doc.children];
-				const idsCopy = [...deps.blockIds];
-				const refsCopy = [...deps.blockRefs];
-				const body = documentBody(deps.doc, childrenCopy);
-
-				const mutated = args.mutate(childrenCopy);
-				endWindowLines(body, mutated, deps.sharing, deps.reading.grammar);
-				// `deps.doc.children` is still the pre-mutate array here (`publish` swaps it),
-				// so the blank-line fix-up reads which blocks were blank off it directly.
-				const settled = settleSeparator(
-					body,
-					deps.doc.children,
-					mutated,
-					deps.reading.grammar,
-					deps.sharing,
-					args.trackCaret
-				);
-				// Before the tail step, which reads the block now last; the empty paragraph is blank, so
-				// that step leaves its line ending as it is.
-				const change = keepOneBlock(body, settled, deps.sharing);
-				keepOpenTail(body, wasOpen, deps.sharing, deps.reading.grammar);
-				if (args.discardIfNoop && change.op === 'noop') {
-					// The document branch installed nothing; only the stacks are restored here.
-					rollback.restore();
-					discarded = true;
-				} else {
-					applyStructuralChangeToIdsRefs(change, idsCopy, refsCopy);
-					assertIdsInLockstep('commitStructural', idsCopy.length, childrenCopy.length);
-					args.publish(childrenCopy, idsCopy, refsCopy);
-					if (isDevChecks()) {
-						const touched = touchedFromChange(change, childrenCopy, args.touchedNodes);
-						assertCommittedNodes(touched, deps.reading.grammar);
-						assertLastLineKept(deps.doc, wasOpen);
-						assertKeepsABlock(deps.doc, touched);
-					}
-				}
-			} else {
-				const changed = args.mutate(wasOpen);
-				if (args.discardIfNoop && !changed) {
-					// The in-place mutation ran but no scope changed: unwind as a throw would.
-					rollback.restore();
-					discarded = true;
-				} else {
-					args.publish();
-					if (isDevChecks()) {
-						const touched = touchedContainersWithChildren(args.touchedNodes?.());
-						assertCommittedNodes(touched, deps.reading.grammar);
-						assertLastLineKept(deps.doc, wasOpen);
-						assertKeepsABlock(deps.doc, touched);
-					}
-				}
+			const changed = args.mutate(wasOpen);
+			if (args.discardIfNoop && !changed) {
+				// The mutation ran but no scope changed: unwind as a throw would.
+				rollback.restore();
+				discarded = true;
+			} else if (isDevChecks()) {
+				const touched = args.touchedNodes();
+				assertCommittedNodes(touched, deps.reading.grammar);
+				assertLastLineKept(deps.doc, wasOpen);
+				assertKeepsABlock(deps.doc, touched);
 			}
 			if (!discarded && isDevChecks()) {
 				// A missed copy before write corrupts the newest undo entry, so the commit catches it
@@ -454,8 +394,8 @@ export function createUndoController(
 		}
 
 		if (!discarded) {
-			// After both branches installed their result, so nothing caches the new version against
-			// a half-installed tree; a discarded commit rolled back, so it announces nothing.
+			// After the result is installed, so nothing caches the new version against a
+			// half-installed tree; a discarded commit rolled back, so it announces nothing.
 			deps.bumpContentVersion();
 			// A commit moves what the gap caret's boundary index names, and nothing can say which
 			// boundary the user meant; after the push, so the stored entry keeps the gap.
@@ -484,8 +424,7 @@ export function createUndoController(
 	// Bracket the synchronous commit so the decorations never read a half-applied tree.
 	// Cleared before the first await. Resolves to whether bytes landed.
 	async function __commit(args: CommitArgs): Promise<boolean> {
-		const op =
-			args.op?.kind ?? (args.kind === 'document' ? 'commitStructural' : 'commitMultiScope');
+		const op = args.op?.kind ?? args.entry;
 		const target = args.op?.eventPath ?? args.snapshot.path;
 		// A refused write lands nothing, while a discarded no-op still lands: whether a commit
 		// lands is its own question, not whether it wrote.
@@ -526,26 +465,21 @@ export function createUndoController(
 
 	// ── Structural-mutation commit ───────────────────────────────────────────
 
+	/** The multi-scope commit over the document scope alone. */
 	function commitStructural(args: CommitStructuralArgs): Promise<boolean> {
-		const { snapshot, mutate, op, afterTick, landing, announce, touchedNodes, discardIfNoop } =
-			args;
-		return __commit({
-			kind: 'document',
-			snapshot,
-			mutate,
-			publish: (children, ids, refs) => {
-				deps.doc.children = children;
-				deps.setBlockIds(ids);
-				deps.setBlockRefs(refs);
-			},
-			op,
-			afterTick,
-			landing,
+		return commitScopes({
+			entry: 'commitStructural',
+			scopes: [getDocScope()],
+			snapshot: args.snapshot,
+			mutate: ([doc]) => [args.mutate(doc.children)],
+			op: args.op,
+			afterTick: args.afterTick,
+			landing: args.landing,
 			reveal: args.reveal,
-			announce,
-			touchedNodes,
-			discardIfNoop,
-			trackCaret: args.trackCaret
+			announce: args.announce,
+			discardIfNoop: args.discardIfNoop,
+			trackCaret: [args.trackCaret],
+			touchedNodes: args.touchedNodes
 		});
 	}
 
@@ -581,7 +515,8 @@ export function createUndoController(
 		/** publishScopeView writes the mutated ids and refs before the ancestor rebuild can throw. */
 		savedStateIds: string[];
 		savedStateRefs: (BlockComponent | undefined)[];
-		/** The bytes before mutate; without them `serialize()` emits a half-applied document. */
+		/** The bytes before mutate; without them `serialize()` emits a half-applied document. None at
+		 *  the document, whose rollback is its saved array, so a commit there costs no per-block copy. */
 		savedRaws: SavedRaw[];
 	}
 
@@ -615,8 +550,11 @@ export function createUndoController(
 		);
 	}
 
-	/** Copies the scope's ancestors and attaches a working children array (`tree-operations/unshare.ts`). */
-	function prepareScopeView(s: MultiScopeTarget): PreparedScope {
+	/**
+	 * Copies the scope's ancestors and attaches a working children array (`tree-operations/unshare.ts`).
+	 * `topLevelBefore` is the document's array before `commitScopes` swapped in its working copy.
+	 */
+	function prepareScopeView(s: MultiScopeTarget, topLevelBefore: CstNode[]): PreparedScope {
 		const isDoc = (s.node as unknown) === (deps.doc as unknown);
 		const chain = isDoc ? [] : ensureUnsharedPath(deps.doc, s.path, deps.sharing);
 		if (!isDoc && chain.length !== s.path.length) {
@@ -638,13 +576,14 @@ export function createUndoController(
 			? [...s.state.innerBlockIds]
 			: [...(owned.childIds ?? assignIds(owned.children ?? []))];
 		const refs = [...s.state.innerBlockRefs];
-		// Distinct copies: publishScopeView mutates `ids`/`refs` above in place.
-		const savedStateIds = [...s.state.innerBlockIds];
+		// The state's ids are replaced by assignment, so the array itself is the saved copy; its refs
+		// are replaced in place, so they are copied.
+		const savedStateIds = s.state.innerBlockIds;
 		const savedStateRefs = [...s.state.innerBlockRefs];
-		const savedChildren = owned.children;
+		const savedChildren = isDoc ? topLevelBefore : owned.children;
 		const savedChildIds = owned.childIds;
-		const savedRaws = captureScopeRaws(chain, owned);
-		owned.children = [...(owned.children ?? [])];
+		const savedRaws = isDoc ? [] : captureScopeRaws(chain, owned);
+		if (!isDoc) owned.children = [...(owned.children ?? [])];
 		const lineEnding = documentLineEnding(deps.doc);
 		return {
 			target: s,
@@ -686,10 +625,10 @@ export function createUndoController(
 	 * Document-scope ids go through the deps setters; container ids live on the copied node,
 	 * because the state's setter would write the stale shared node's property.
 	 */
-	function publishScopeView(p: PreparedScope, change: StructuralChange): void {
+	function publishScopeView(p: PreparedScope, change: StructuralChange, entry: string): void {
 		applyStructuralChangeToIdsRefs(change, p.ids, p.refs);
 		assertIdsInLockstep(
-			`commitMultiScope [${p.target.path.join(',')}]`,
+			`${entry} [${p.target.path.join(',')}]`,
 			p.ids.length,
 			p.owned.children?.length ?? 0
 		);
@@ -701,13 +640,28 @@ export function createUndoController(
 		replaceRefs(p.target.state.innerBlockRefs, p.refs);
 	}
 
-	/** One structural commit across several containers: one undo snapshot, one edit event. Mutate
-	 *  through the provided scope views, never nodes read before the commit. */
-	async function commitMultiScope<const S extends readonly MultiScopeTarget[]>(
+	function commitMultiScope<const S extends readonly MultiScopeTarget[]>(
 		args: CommitMultiScopeArgs<S>
+	): Promise<boolean> {
+		return commitScopes({ ...args, entry: 'commitMultiScope' });
+	}
+
+	interface ScopedCommitArgs<
+		S extends readonly MultiScopeTarget[]
+	> extends CommitMultiScopeArgs<S> {
+		entry: CommitArgs['entry'];
+		/** In-place writes a `noop` change names no position for, read once `mutate` returns. */
+		touchedNodes?: readonly CstNode[];
+	}
+
+	/** One structural commit across one or more block lists: one undo snapshot, one edit event.
+	 *  Mutate through the provided scope views, never nodes read before the commit. */
+	async function commitScopes<const S extends readonly MultiScopeTarget[]>(
+		args: ScopedCommitArgs<S>
 	): Promise<boolean> {
 		const { scopes, snapshot, mutate, op, discardIfNoop, trackCaret } = args;
 		const prepared: PreparedScope[] = [];
+		let settled: StructuralChange[] = [];
 		// Containers whose kind the chain rebuild changed: the replacements are what the dev
 		// checks read, and the index is what an unwind restores.
 		const reclassified: ContainerReclassification[] = [];
@@ -716,14 +670,20 @@ export function createUndoController(
 		const folds: AncestrySeamFold[] = [];
 		let foldLanding: FoldLanding | null = null;
 		let unwindFolds: (() => void) | null = null;
+		let topLevelBefore: CstNode[] | null = null;
 		return __commit({
-			kind: 'container',
+			entry: args.entry,
 			snapshot,
 			mutate: (wasOpen) => {
 				for (const s of scopes) assertScopeIdentity(s);
+				// Every scope's copies land in the top-level array, so the commit writes a fresh one and an
+				// unwind puts the old one back.
+				const topLevel = deps.doc.children;
+				topLevelBefore = topLevel;
+				deps.doc.children = [...topLevel];
 				// Pushed as each resolves, so a scope that fails to prepare still leaves the
 				// rollback holding the state of the scopes prepared before it.
-				for (const s of scopes) prepared.push(prepareScopeView(s));
+				for (const s of scopes) prepared.push(prepareScopeView(s, topLevel));
 				const changes = mutate(prepared.map((p) => p.view) as { [K in keyof S]: ContainerScope });
 				// A scope array built at runtime loses the tuple type, so this runtime check
 				// backs up the types.
@@ -750,8 +710,9 @@ export function createUndoController(
 					if (prepared[i].isDoc) {
 						changeList[i] = keepOneBlock(prepared[i].view.body, changeList[i], deps.sharing);
 					}
-					publishScopeView(prepared[i], changeList[i]);
+					publishScopeView(prepared[i], changeList[i], args.entry);
 				}
+				settled = changeList;
 				// Deepest first, so an outer chain concatenates current inner raws; the attached prefix
 				// keeps a scope spliced out of the tree from being rebuilt off its emptied children.
 				const order = [...prepared].sort((a, b) => b.chain.length - a.chain.length);
@@ -773,13 +734,8 @@ export function createUndoController(
 					foldLanding = foldLandingFor(folds.slice(before), p.target.path) ?? foldLanding;
 				});
 				unwindFolds = publishAncestryFolds(deps, folds);
-				// The document commit above runs the same two steps until the two branches merge.
 				keepOpenTail(deps.doc, wasOpen, deps.sharing, deps.reading.grammar);
 				return changeList.some((c) => c.op !== 'noop') || folds.length > 0;
-			},
-			publish: () => {
-				// Nudge top-level reactivity so the rewritten ancestor raws propagate.
-				deps.doc.children = [...deps.doc.children];
 			},
 			op,
 			afterTick: args.afterTick,
@@ -792,15 +748,26 @@ export function createUndoController(
 			reveal: args.reveal,
 			announce: args.announce,
 			discardIfNoop,
-			// A detached scope is outside the tree, and checking it would fire stale-raw on a node
-			// the document does not contain.
-			touchedNodes: () =>
-				[
-					...prepared
-						.filter((p) => attachedChainPrefix(deps.doc, p.chain).length === p.chain.length)
-						.map((p) => p.owned),
-					...reclassified.map((r) => r.replacement)
-				].filter((n) => tryGetBlockKindDescriptor(n.kind) !== undefined),
+			touchedNodes: () => {
+				const touched: CstNode[] = [];
+				// Appended one by one, never spread: a giant table's row list outnumbers an argument
+				// list (G4.60).
+				const add = (nodes: readonly CstNode[]) => nodes.forEach((node) => touched.push(node));
+				prepared.forEach((p, i) => {
+					if (p.isDoc) {
+						add(writtenTopLevel(p.owned.children!, p.savedChildren ?? [], settled[i]));
+						// The caller's list names positions from before any merge, so it holds only for `noop`.
+						if (settled[i].op === 'noop') add(args.touchedNodes ?? []);
+						return;
+					}
+					// A detached scope is outside the tree, and checking it would fire stale-raw on a node
+					// the document does not contain.
+					const attached = attachedChainPrefix(deps.doc, p.chain).length === p.chain.length;
+					if (attached) add(withDirectChildren([p.owned]));
+				});
+				add(withDirectChildren(reclassified.map((r) => r.replacement)));
+				return touched;
+			},
 			rollback: () => {
 				// Collapses unwind first: each restores a whole parent array, which the kind
 				// changes below then correct index by index.
@@ -825,6 +792,8 @@ export function createUndoController(
 					if (p.isDoc) p.target.state.innerBlockIds = p.savedStateIds;
 					replaceRefs(p.target.state.innerBlockRefs, p.savedStateRefs);
 				}
+				// Last: the restores above write into the working array this one replaces.
+				if (topLevelBefore) deps.doc.children = topLevelBefore;
 			}
 		});
 	}

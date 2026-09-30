@@ -761,7 +761,7 @@ A gesture can't push an entry ahead of its write; all it gets is the step. The c
 
 ### The commit primitive
 
-Every structural mutation routes through one internal commit helper. Three entry points name the three scopes (`src/lib/action-contracts.ts` :: `CommitController`): **`commitStructural`** (the document's children array), **`commitContainerStructural`** (one container's children array), and **`commitMultiScope`** (several container states in one logical step, a cross-container delete or an indent/unindent: one snapshot, one edit event, one atomic reactivity publish across every touched scope). A caller describes the change and the helper runs the commit steps around it, and each entry point resolves to whether any bytes landed (false when reading mode refused the write, the commit rolled back, or a `discardIfNoop` commit found nothing had changed). A commit can also pass `announce`, the line a screen reader hears about it ("Moved block to position 2 of 3", "Deleted row"). That line goes to the editor's edit live region, a hidden `aria-live` element screen readers read out when its text changes (the selection and the kind cue each have their own). Only the undo controller can write to it, and only after a commit that wrote, so a move that didn't happen is never announced. The split, from `editor-actions/block-edit-core.ts`:
+Every structural mutation routes through one internal commit helper. Three entry points name the three scopes (`src/lib/action-contracts.ts` :: `CommitController`): **`commitStructural`** (the document's children array), **`commitContainerStructural`** (one container's children array), and **`commitMultiScope`** (several container states in one logical step, a cross-container delete or an indent/unindent: one snapshot, one edit event, one atomic reactivity publish across every touched scope). The first two are just the third over a single scope, the document or one container, so every commit runs the same steps. A caller describes the change and the helper runs the commit steps around it, and each entry point resolves to whether any bytes landed (false when reading mode refused the write, the commit rolled back, or a `discardIfNoop` commit found nothing had changed). A commit can also pass `announce`, the line a screen reader hears about it ("Moved block to position 2 of 3", "Deleted row"). That line goes to the editor's edit live region, a hidden `aria-live` element screen readers read out when its text changes (the selection and the kind cue each have their own). Only the undo controller can write to it, and only after a commit that wrote, so a move that didn't happen is never announced. The split, from `editor-actions/block-edit-core.ts`:
 
 ```ts
 await scope.commit({
@@ -781,19 +781,19 @@ The commit's steps, in order. `src/lib/editor-actions/commit/undo-controller.ts`
 1. ask whether reading mode admits the write (below), and stop if not,
 2. forget the caret memory and end the typing batch's current burst,
 3. capture the snapshot (skipped when an open undo step or the typing batch already holds this gesture's entry, as above),
-4. hand the mutation owned copies: the top-level children array for a document commit, the path down to each scope for a container or multi-scope one,
+4. hand the mutation owned copies: a fresh top-level children array, which goes live right away (the old one is what a throw puts back), and the path down to each container scope,
 5. run the mutation,
 6. end the line of every block the mutation placed, and of the block right above them (`src/lib/tree-operations/open-tail.ts` :: `endWindowLines`), since the next step reads them side by side,
 7. settle the separators and joins the mutation disturbed (§ 8),
 8. give an emptied document its one empty paragraph (`src/lib/tree-operations/keep-one-block.ts` :: `keepOneBlock`),
-9. for a container or multi-scope commit, publish each scope's new children, then rebuild every enclosing container's `raw`, deepest first and each container once, asking each container's own slot on the way out (§ 9),
+9. publish each scope's new children and ids, then rebuild every enclosing container's `raw`, deepest first and each container once, asking each container's own slot on the way out (§ 9),
 10. if the file had no final line break before the commit, take the break off its new last line again, unless that line is blank (`src/lib/tree-operations/open-tail.ts` :: `keepOpenTail`; `docs/design/syntax-tree.md` § Blank lines says why a blank one keeps it),
-11. publish the new top-level children array, all at once (a container commit republishes it too, so the rebuilt raws reach the render),
+11. in a dev build, check every block the commit wrote: each container scope with its direct children, and at the top level each block the change placed or the commit copied to write in place (a format toggle's marks move no block, so the copy is the only trace it leaves),
 12. bump the content version, clear a gap caret, and emit an `edit` event when the commit names an `op`,
 13. `await tick()`, run the caller's `afterTick`, then read the caller's `landing` and put the caret there, awaited,
 14. speak the caller's `announce` line in the edit live region, when the commit wrote.
 
-A throw anywhere from the snapshot through the publish rolls the tree and the undo stacks back. A throw in `afterTick` or the landing doesn't: the commit already succeeded, so it's reported on the `error` channel (§ 12) and the next edit runs as normal.
+A throw anywhere from the snapshot through the tail step (10) rolls the tree and the undo stacks back. A throw in `afterTick` or the landing doesn't: the commit already succeeded, so it's reported on the `error` channel (§ 12) and the next edit runs as normal.
 
 The landing is a value, not a callback that places anything: a position (a document path and an offset, where the path may name a container) or a stored selection. The commit reads it after the tick, so it sees the tree the commit left, and hands it to the editor's one caret landing (`src/lib/selection/caret-landing.ts` :: `createCaretLanding`). That resolves the position to a leaf a caret can sit in, mounts each level on the way down, gives up if an undo, redo or document swap happened since the commit started, focuses the block through its own `focus` (a stored selection goes back at its exact bytes instead), and scrolls it into view when it's off screen. A few details, for the curious:
 
