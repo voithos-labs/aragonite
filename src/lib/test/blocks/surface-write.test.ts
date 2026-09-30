@@ -1,6 +1,6 @@
 // The one write a block makes to its own text puts the caret back only where the write left the
 // block as it was: a write that changed the kind, merged or completed its line lands the caret
-// itself, and a second restore from the old block would fight it.
+// itself, and a second restore would fight that landing.
 // Miss-analysis: every write site parked a caret on `admitted` alone, and no test stubbed a write
 // that reported it had placed the caret, so the field had no reader and nothing noticed.
 import { beforeEach, describe, expect, it, vi } from 'vitest';

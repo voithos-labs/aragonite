@@ -349,7 +349,7 @@ Scenarios: `src/lib/e2e/requirements/blocks/code/language-chip.md`.
 
 Some keystrokes change what a block is, and in source mode the markers on screen say why: a tab at the start of a line makes indented code, `# ` makes a heading. With the markers hidden, all the reader sees is a new font. So a typed keystroke that turns its block into another kind names the new kind at the block's top-right corner for about a second, a dimmed label that fades, and the editor's screen-reader announcer says the same name once. The name is the block's accessible name ("Heading level 2"), the one its editable surface's label carries.
 
-- Only typed text cues. Tab counts, since the key types its own character; a command, a paste or a menu pick already named what it made.
+- Only typed text cues, in any editable block. Tab counts, since the key types its own character, and so does a key the editor writes for you (the auto-pair's partner, a byte placed at a hidden run); a command, a paste or a menu pick already named what it made.
 - Source mode shows the markers, so it cues nothing, and reading mode can't type.
 - A bare `#` still paints as the paragraph it was (the `#tag` rule), so nothing cues until the space lands.
 - The fade's end removes the label, so no timer runs (G4.4). `src/lib/components/kind-cue.svelte.ts` holds the comparison.

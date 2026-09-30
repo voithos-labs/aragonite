@@ -117,9 +117,11 @@ replaceBlock(blockIndex, replacement, focus, { snapshotOffset })
 
 ```ts
 const write = blockEdit.updateBlockContent(index, 'Hello!\n', 'authored', 5, 6);
-if (write.admitted) setPendingCursor(write.caret); // 6, unless a rule moved it
+if (write.admitted && write.keepsCaret) requestCaret(write.caret); // 6, unless a rule moved it
 await write; // true once the bytes are in
 ```
+
+A block's own editable element doesn't call it by hand for typing, though. The input commit and every key the block writes itself (the auto-pair's partner, a byte placed at a hidden run, a Tab) go through one call, `src/lib/components/blocks/surface-write.ts` :: `writeText`. You hand it the new text and where the caret goes, and it does the rest: undo's caret is the one recorded when the key or input arrived, the block keeps the line ending it had (so a last line saved without one stays that way), the caret goes back only when `keepsCaret` says so, and a typed write gets the kind cue and the on-type completion (a lone `$$`), which nothing else gets.
 
 § 8 says who provides these bundles, and § 9 says what a local index means inside a container.
 
@@ -315,13 +317,13 @@ When the edited text re-parses to **several** blocks (a hard-break line followed
 
 These the editor owns, not the browser:
 
-| Operation          | Trigger                           | Behavior                                                             |
-| ------------------ | --------------------------------- | -------------------------------------------------------------------- |
-| Enter              | `keydown` → `preventDefault`      | Split the CST node at the cursor offset                              |
-| Backspace at start | `keydown` → `preventDefault`      | Merge, unwrap, delete, or focus (§ 8)                                |
-| Paste              | `paste` → `preventDefault`        | Read `text/plain`, dispatch through the paste pipeline               |
-| Copy / Cut         | `copy` / `cut` → `preventDefault` | Slice the selected range out of the CST's `raw`; cut then deletes it |
-| Undo / Redo        | `keydown` → `preventDefault`      | Pop/push the editor's own undo stack (browser undo is off)           |
+| Operation          | Trigger                                                                 | Behavior                                                                                                        |
+| ------------------ | ----------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| Enter              | `keydown` → `preventDefault`                                            | Split the CST node at the cursor offset                                                                         |
+| Backspace at start | `keydown` → `preventDefault`                                            | Merge, unwrap, delete, or focus (§ 8)                                                                           |
+| Paste              | `paste` → `preventDefault`                                              | Read `text/plain`, dispatch through the paste pipeline                                                          |
+| Copy / Cut         | `copy` / `cut` → `preventDefault`                                       | Slice the selected range out of the CST's `raw`; cut then deletes it                                            |
+| Undo / Redo        | `keydown`, or the browser's own Undo (`beforeinput`) → `preventDefault` | Pop/push the editor's own undo stack (browser undo is off), in every editable element, a plugin leaf's included |
 
 One thing the editor deliberately doesn't own: between `compositionstart` and `compositionend` there's no sync and no reconciliation. The browser owns the IME sequence outright (and is welcome to it), and `compositionend` enters the same input path as a keystroke.
 
@@ -403,7 +405,7 @@ Every structural operation is a tree mutation performed by the editor shell, nev
 
 A multi-block paste cuts its target with the same function (`src/lib/tree-operations/structural-suffix.ts` :: `cutKeepingStructure`), so all three hold there too.
 
-**Enter completion.** A split that creates a construct instead of cutting one. A split puts a blank line between its halves wherever they'd otherwise read back as one block, which two prose lines always would, so a grammar needing its lines adjacent (a table's header and delimiter, say) could never be typed into existence. So before splitting, the Enter-completion registry (§ 5) gets asked: where the block is a single line of prose whose every byte is content and the caret sits at its end, a registered completer may claim the line and answer the lines that complete it. A completer that sets `onType` is also asked on every typed write, which is how block math's `$$` forms without an Enter.
+**Enter completion.** A split that creates a construct instead of cutting one. A split puts a blank line between its halves wherever they'd otherwise read back as one block, which two prose lines always would, so a grammar needing its lines adjacent (a table's header and delimiter, say) could never be typed into existence. So before splitting, the Enter-completion registry (§ 5) gets asked: where the block is a single line of prose whose every byte is content and the caret sits at its end, a registered completer may claim the line and answer the lines that complete it. A completer that sets `onType` is also asked after every typed write (a keystroke's, never a command's or a paste's), which is how block math's `$$` forms without an Enter.
 
 ```ts
 // grammar: the editor's grammar, which knows which completers this editor runs
