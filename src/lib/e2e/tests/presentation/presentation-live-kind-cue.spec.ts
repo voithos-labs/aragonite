@@ -44,6 +44,21 @@ test.describe('live mode: the kind cue', () => {
 		await expect(announcer(page)).toHaveText('Heading level 1');
 	});
 
+	// The auto-pair writes `**` for the star, and the space drops the partner it wrote: the
+	// editor writes both keys itself, and the second one makes the list.
+	test('`* ` typed at a paragraph start names the list', async ({ page }) => {
+		const ep = await enterPresentationMode(page, 'live', DOC);
+		await atStartOfFirst(ep, page);
+
+		await page.keyboard.type('*');
+		await ep.bridge.waitForSourceEquals('**notes\n');
+		await page.keyboard.type(' ');
+		await ep.bridge.waitForSourceEquals('* notes\n');
+
+		await expect(host(page)).toHaveAttribute('data-kind-cue', 'List');
+		await expect(announcer(page)).toHaveText('List');
+	});
+
 	test('an undo inside the fade takes the heading cue off the paragraph', async ({ page }) => {
 		const ep = await enterPresentationMode(page, 'live', DOC);
 		await atStartOfFirst(ep, page);

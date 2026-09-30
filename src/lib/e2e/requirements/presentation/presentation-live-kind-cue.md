@@ -19,6 +19,12 @@ kinds, which were right; what was missing was a cause on screen, which no assert
 - `# ` typed at the start of `notes` in live mode makes a heading; the cue and the announcer read
   `Heading level 1`.
 
+- `* ` typed at the start of `notes` in live mode makes a list, and the cue reads `List`. The
+  editor writes both keys itself here (the star gets its partner, `**notes`, and the space drops
+  it again), and a key the editor writes for you is still typing.
+  Miss-analysis: every cued case let the browser write the key, so none reached a key the editor
+  writes itself.
+
 ## Edge cases
 
 - the same `# ` in source mode changes the kind with no cue and no announcement.

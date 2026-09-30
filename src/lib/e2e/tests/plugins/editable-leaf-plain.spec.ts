@@ -67,6 +67,21 @@ test.describe('plain-mode editable leaf: the %% memo kind', () => {
 		expect(paths!.focus.path).toEqual([2]);
 	});
 
+	test('a character typed over a range ending in the memo replaces the range', async ({ page }) => {
+		await editor.memo.click();
+		await page.keyboard.press('Home');
+		await page.keyboard.press('Shift+ArrowUp');
+		await editor.waitForCrossBlock(true);
+		expect(await activeBlockPath(page)).toEqual([1]);
+
+		await page.keyboard.type('x');
+
+		// The range starts in `Before` and ends at the memo's start, so the two become one line.
+		await editor.waitForCrossBlock(false);
+		await expect.poll(() => editor.bridge.getSource()).toMatch(/^[^\n]*x%% memo text\n/);
+		expect(await roundTripStable(page)).toBe(true);
+	});
+
 	test('Enter + text re-splits the memo through the commit core', async ({ page }) => {
 		await editor.memo.click();
 		await page.keyboard.press('End');

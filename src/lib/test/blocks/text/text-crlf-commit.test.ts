@@ -64,12 +64,12 @@ describe('a keystroke on the unterminated last line of a CRLF document', () => {
 	beforeAll(installLayoutStubs);
 	afterEach(destroyMountedEditors);
 
-	it('terminates the line with the document ending, CRLF', async () => {
+	it('adds no line ending, and no LF', async () => {
 		const editor = mountEditor({ source: 'abc\r\n\r\nlast' });
 		const el = surfaceAt(editor, [1]);
 		el.textContent = 'lastZ';
 		el.dispatchEvent(new InputEvent('input', { bubbles: true }));
 		await editor.settle();
-		expect(editor.source()).toBe('abc\r\n\r\nlastZ\r\n');
+		expect(editor.source()).toBe('abc\r\n\r\nlastZ');
 	});
 });
