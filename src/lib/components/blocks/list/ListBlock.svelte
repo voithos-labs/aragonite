@@ -7,6 +7,7 @@
 	import { createListOverrides } from '../../../editor-actions/list-overrides';
 	import { useContainerWindowing } from '../../../reactivity/use-container-windowing.svelte';
 	import { sliceWindow } from '../../../reactivity/window-slice';
+	import { useWindowFloor } from '../../../reactivity/use-window-floor.svelte';
 	import { createContainerActions } from '../../../editor-actions/nested/container-actions';
 	import { createContainerBlockComponent } from '../../../editor-actions/container-block-component';
 	import ListItemBlock from './ListItemBlock.svelte';
@@ -60,6 +61,10 @@
 	});
 
 	let win = $derived(windowing.window);
+	useWindowFloor(
+		() => boxEl,
+		() => win
+	);
 	let bounds = $derived(sliceWindow((node.children ?? []).length, win));
 
 	const childList: ChildList = {

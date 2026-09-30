@@ -29,7 +29,8 @@ const WINDOW: WindowResult = {
 	start: 0,
 	end: SLICE_END,
 	topSpacerPx: 0,
-	bottomSpacerPx: 400
+	bottomSpacerPx: 400,
+	floorPx: 400
 };
 
 interface Mounted {

@@ -283,7 +283,7 @@
 	});
 </script>
 
-<div class="plugins-harness aragonite-editor-theme">
+<div class="plugins-harness aragonite-editor-theme" data-scroll-mode={data.scrollMode}>
 	{#if data.seed === 'admonitions'}
 		<div class="harness-controls">
 			<button onclick={convertAlerts} disabled={!canConvert} data-testid="convert-alerts">
@@ -341,6 +341,7 @@
 		{plugins}
 		{presentationMode}
 		{theme}
+		scrollMode={data.scrollMode}
 		blockDragHandles
 	/>
 </div>
@@ -351,6 +352,10 @@
 		height: 100vh;
 		display: flex;
 		flex-direction: column;
+	}
+
+	.plugins-harness[data-scroll-mode='host'] {
+		overflow-y: auto;
 	}
 
 	.harness-controls {

@@ -7,7 +7,8 @@ const active = (start: number, end: number): WindowResult => ({
 	start,
 	end,
 	topSpacerPx: 0,
-	bottomSpacerPx: 0
+	bottomSpacerPx: 0,
+	floorPx: 0
 });
 
 describe('sliceWindow', () => {

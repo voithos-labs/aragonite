@@ -23,6 +23,7 @@ describe('computeWindow', () => {
 		expect(w.end).toBe(32); // 20 + 10 visible + 2 overscan
 		expect(w.topSpacerPx).toBe(18 * 50);
 		expect(w.bottomSpacerPx).toBe((100 - 32) * 50);
+		expect(w.floorPx).toBe(5000);
 	});
 
 	it('clamps the window at the top and bottom of the document', () => {
@@ -83,6 +84,7 @@ describe('computeWindow', () => {
 		expect(w.end).toBe(small.size);
 		expect(w.topSpacerPx).toBe(0);
 		expect(w.bottomSpacerPx).toBe(0);
+		expect(w.floorPx).toBe(0);
 	});
 
 	it('does not reactivate until content exceeds the high watermark (hysteresis)', () => {
