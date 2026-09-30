@@ -24,7 +24,8 @@ export interface WindowResult {
 	end: number; // exclusive
 	topSpacerPx: number;
 	bottomSpacerPx: number;
-	/** The whole list's height by its table, 0 when not windowing. */
+	/** The table's height for the whole list, which `useWindowFloor` holds the list's box at while
+	 *  the window changes; 0 when not windowing. */
 	floorPx: number;
 }
 
