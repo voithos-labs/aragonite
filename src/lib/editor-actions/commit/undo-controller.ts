@@ -780,7 +780,7 @@ export function createUndoController(
 						add(
 							writtenTopLevel(p.owned.children!, p.savedChildren ?? [], settled[i], deps.sharing)
 						);
-						// The caller's list names positions from before any merge, so it holds only for `noop`.
+						// The caller's list names nodes from before any merge, so it holds only for `noop`.
 						if (settled[i].op === 'noop') add(args.touchedNodes ?? []);
 						return;
 					}

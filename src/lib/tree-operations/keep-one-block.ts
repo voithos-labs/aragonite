@@ -1,6 +1,6 @@
 /**
  * The document always holds a block: a structural commit that leaves it none gives it one empty
- * paragraph. The commit runs this step in both its branches, so no edit writes that paragraph.
+ * paragraph. The commit runs this step for the document scope, so no edit writes that paragraph.
  */
 
 import type { StructuralChange } from './structural-change';

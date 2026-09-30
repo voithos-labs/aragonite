@@ -250,9 +250,14 @@ function childIndexOf(siblings: CstNode[], child: CstNode, guess: number | undef
  * the root the document does, since only a rebuild from the document reports what a join folded.
  */
 function slotBody(root: NodeParent | CstNode, owner: CstNode | null): BodyParent {
-	const doc = documentBody(root as Document);
+	if (!isDocumentRoot(root))
+		throw new Error('chain rebuild: join checks need the document as root');
+	const doc = documentBody(root);
 	return owner ? { children: owner.children!, owner, lineEnding: doc.lineEnding } : doc;
 }
+
+const isDocumentRoot = (root: NodeParent | CstNode): root is Document =>
+	'kind' in root && root.kind === 'document';
 
 /** Where a rebuilt container sits, and which of its joins its new bytes can have moved. */
 interface ChainSlot {

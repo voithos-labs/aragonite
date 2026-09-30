@@ -303,9 +303,10 @@ The settle helpers live together at the head of `src/lib/tree-operations/settle.
 `restoreSeparatorAfterBlank`, `settleSeparatorOnBlank`). Two exist where one would seem to do
 because their preconditions are facts about different nodes. Each takes the body, the children
 plus the container that owns them (`src/lib/tree-operations/node-primitives.ts` :: `BodyParent`),
-since that container's fence lines and title decide where a blank line may sit, and each writes
-through the file's one writer, which copies the node out of the undo snapshot first. Almost
-nothing calls them by hand:
+since that container's fence lines and title decide where a blank line may sit. Each writes
+through one of the file's two writers: `writeSeparator` copies the child out of the undo snapshot
+before it writes the child's blank line, and `writeWrapSlot` writes the blank line a fence strips
+onto the owner itself. Almost nothing calls them by hand:
 a splice settles through the two entries a splice can arrive by, `settleSeparator`, which the
 commit steps run over every scope's change, and `spliceChildrenSettled`, which the
 path-addressed helpers in `src/lib/tree-operations/path-mutate.ts` and

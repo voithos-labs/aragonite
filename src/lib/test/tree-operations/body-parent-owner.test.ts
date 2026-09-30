@@ -11,7 +11,7 @@ describe('the separator fix-ups take a body', () => {
 	it('refuses a bare children array, which names no owner', () => {
 		const { children } = parse('> a\n>\n>\n> b\n').children[0];
 		// @ts-expect-error a bare array can't say whose body it is, so the fix-up can't read the wrap
-		settleSeparatorOnBlank({ children: children! }, 1, createSharingState());
+		settleSeparatorOnBlank({ children: children!, lineEnding: '\n' }, 1, createSharingState());
 	});
 });
 
