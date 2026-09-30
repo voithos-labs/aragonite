@@ -7,13 +7,11 @@
 import type { BlockEditActions, ContentWrite } from '../../action-contracts';
 import type { NodeView } from '../../core/node-views';
 import type { WriteMode } from '../../schema/block-kind-descriptor';
-import type { Reading } from '../../schema/reading';
 import type { LeafRangeEdit } from '../../tree-operations/leaf-range';
 import type { KindCue } from '../kind-cue.svelte';
 import type { BlockAutoPairs } from './text/auto-pair-record';
 import { shownKind } from '../../core/parsers/heading';
-import { ownTrailingLineEnding, trimTrailingLineEnding, type LineEnding } from '../../core/lines';
-import { planTypedCompletion } from '../../editor-actions/enter-completion';
+import { ownTrailingLineEnding, trimTrailingLineEnding } from '../../core/lines';
 import { withStoredCaret } from '../../editor-actions/stored-caret';
 
 /** `typed` is a keystroke's own edit, which can name a new block kind and complete its line;
@@ -42,9 +40,6 @@ export interface SurfaceWriteDeps {
 	getPath(): number[];
 	blockEdit: BlockEditActions;
 	kindCue: KindCue;
-	reading: Reading;
-	/** The ending a new line takes here: the block's own, else the document's. */
-	lineEnding(): LineEnding;
 	getPreEditOffset(): number;
 	/** Puts the caret at `at` once the write's render lands, while the block still has focus. */
 	requestCaret(at: number, opts: { source: string }): void;
@@ -69,19 +64,9 @@ export function createSurfaceWrite(deps: SurfaceWriteDeps): (write: TextWrite) =
 		if (!written.admitted) return written;
 		// Ends the auto-pair's record when the pair it wrote isn't standing in the new bytes.
 		deps.ownPairs?.consult(write.text, write.caretAfter);
-		// An in-place write has already landed, so whether a completer takes the line is known now.
-		const completes =
-			typed &&
-			written.keepsCaret &&
-			planTypedCompletion(
-				deps.getNode(),
-				written.caret,
-				deps.reading.grammar,
-				deps.lineEnding()
-			) !== null;
-		// A new kind, a merge or a completion lands the caret itself, so the block puts none back.
-		const keepsCaret = written.keepsCaret && !completes;
-		if (keepsCaret && !write.leavesCaret) {
+		// A new kind, a merge or a changed container lands the caret itself, so the block puts
+		// none back. An on-type completion is its own later write, whose undo entry reads this caret.
+		if (written.keepsCaret && !write.leavesCaret) {
 			deps.requestCaret(written.caret, { source: write.source });
 		}
 		if (!typed) return written;
@@ -89,7 +74,7 @@ export function createSurfaceWrite(deps: SurfaceWriteDeps): (write: TextWrite) =
 			async (wrote) => (await deps.blockEdit.completeLineOnType(index, written.caret)) || wrote
 		);
 		void deps.kindCue.afterTypedWrite(landed, deps.getPath(), before);
-		return withStoredCaret(landed, written.caret, written.storedOffset, keepsCaret);
+		return withStoredCaret(landed, written.caret, written.storedOffset, written.keepsCaret);
 	};
 }
 

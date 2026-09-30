@@ -32,8 +32,6 @@ function keyWrite(
 		getPath: () => [0],
 		blockEdit,
 		kindCue: NO_CUE,
-		reading: fixtureReading(),
-		lineEnding: () => '\n',
 		getPreEditOffset: () => -1,
 		requestCaret
 	});

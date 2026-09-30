@@ -61,8 +61,6 @@ export function harness(
 			getPath: () => [0],
 			blockEdit,
 			kindCue: { afterTypedWrite: async () => {}, labelAt: () => undefined, dismiss: () => {} },
-			reading,
-			lineEnding: () => '\n',
 			getPreEditOffset: trap,
 			requestCaret: (at) => void carets.push(at)
 		}),

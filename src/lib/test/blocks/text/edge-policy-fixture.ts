@@ -88,10 +88,6 @@ export function makeEdgeDispatch(
 			getPath: () => [0],
 			blockEdit,
 			kindCue: { afterTypedWrite: async () => {}, labelAt: () => undefined, dismiss: () => {} },
-			get reading() {
-				return deps.reading;
-			},
-			lineEnding: () => '\n',
 			getPreEditOffset: () => keyCaret,
 			requestCaret
 		}),

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-// A keystroke that an on-type completer turns into a structure hands the caret to the completion's
-// replace, so the typing write puts no caret back of its own.
+// A keystroke that an on-type completer turns into a structure: the typed caret goes back first,
+// so the completion's undo entry holds it, then the completion puts the caret in what it made.
 // Miss-analysis: the `keepsCaret` cases never registered a completer, so none typed one's trigger.
 import { beforeAll, beforeEach, afterEach, describe, expect, it } from 'vitest';
 import { definePlugin, installPlugins } from '$lib/schema/plugin-install';

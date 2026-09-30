@@ -396,8 +396,6 @@ async function pressEdgeKey(
 			getPath: () => leaf.path,
 			blockEdit: leaf.blockEdit,
 			kindCue: { afterTypedWrite: async () => {}, labelAt: () => undefined, dismiss: () => {} },
-			reading: fixtureReading(),
-			lineEnding: () => trailingLineEnding(node().raw, documentLineEnding(h.doc)),
 			getPreEditOffset: () => offset,
 			requestCaret: () => {}
 		}),
