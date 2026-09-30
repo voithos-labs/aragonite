@@ -11,16 +11,20 @@ export function useWindowFloor(
 	getBox: () => HTMLElement | null | undefined,
 	getWindow: () => WindowResult | undefined
 ): void {
+	let held: HTMLElement | null = null;
 	$effect.pre(() => {
 		const win = getWindow();
 		const box = untrack(getBox);
-		if (box && win?.active) box.style.minHeight = `${win.floorPx}px`;
+		if (!box || !win?.active || win.floorPx <= 0) return;
+		box.style.minHeight = `${win.floorPx}px`;
+		held = box;
 	});
 	// Gone before the browser's next size reports: a box held past a child's shrink would move
 	// the container around it inside that delivery, which the browser reports as a loop.
 	$effect(() => {
 		void getWindow();
-		const box = untrack(getBox);
-		if (box) box.style.minHeight = '';
+		if (!held) return;
+		held.style.minHeight = '';
+		held = null;
 	});
 }

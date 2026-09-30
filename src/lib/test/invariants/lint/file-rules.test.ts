@@ -459,8 +459,10 @@ const RULES: FileRule[] = [
 	{
 		id: 'G4.99 a windowed list keeps its table height while blocks mount',
 		population: svelteOnly,
+		// Any spacer in markup (a class list, an expression, a `class:` directive), not a style rule.
 		matches: (file) =>
-			/class="vr-spacer"/.test(file.code) && !/\buseWindowFloor\s*\(/.test(file.code),
+			/\bclass(?::vr-spacer\b|=["'{][^>]*\bvr-spacer\b)/.test(file.code) &&
+			!/\buseWindowFloor\s*\(/.test(file.code),
 		reason:
 			'a list that renders spacers mounts its new blocks one by one, and a layout read in between clamps the scroll at the document end: call `useWindowFloor` with the box around the spacers',
 		reaches: [
@@ -468,8 +470,14 @@ const RULES: FileRule[] = [
 			'src/lib/components/blocks/list/ListBlock.svelte',
 			'src/lib/components/blocks/table/TableBlock.svelte'
 		],
-		hits: [at('x.svelte', '<div class="rows">\n<div class="vr-spacer" style="height: 4px"></div>')],
+		hits: [
+			at('x.svelte', '<div class="rows">\n<div class="vr-spacer" style="height: 4px"></div>'),
+			at('x.svelte', '<div class="gap vr-spacer"></div>'),
+			at('x.svelte', "<div class={'vr-spacer'}></div>"),
+			at('x.svelte', '<div class:vr-spacer={on}></div>')
+		],
 		misses: [
+			at('x.svelte', '<style>\n\t.vr-spacer {\n\t\tflex: none;\n\t}\n</style>'),
 			at(
 				'x.svelte',
 				'useWindowFloor(() => rowsEl, () => win);\n<div class="rows">\n<div class="vr-spacer"></div>'
