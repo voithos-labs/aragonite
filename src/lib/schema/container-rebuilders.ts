@@ -80,6 +80,12 @@ export function rebuildTableRowRaw(node: CstNode): void {
 	writeTableRow(node, '');
 }
 
+/** A table's header row sits above its delimiter line, so only a body row can hold its last line. */
+export function tableLastLineChild(table: NodeView): number {
+	const rows = table.children?.length ?? 0;
+	return rows > 1 ? rows - 1 : -1;
+}
+
 /** The ending a table's lines take: a table spans its header and delimiter lines at least, so its
  *  bytes hold the document's ending. */
 export function tableLineEnding(table: NodeView): LineEnding {

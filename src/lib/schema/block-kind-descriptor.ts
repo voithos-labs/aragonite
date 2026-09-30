@@ -165,6 +165,9 @@ export interface BlockKindDescriptor {
 	 * each marker's neighbouring blank line to `innerPrefix`/`innerSuffix`. Absent: body on line one.
 	 */
 	bodyWrap?: ContainerBodyWrap;
+	/** The child holding the container's last line, or -1 for its own bytes (a header-only table's
+	 *  delimiter). Absent: a strip's last child unless an inner suffix ends it, a grid's last row. */
+	lastLineChild?: (node: NodeView) => number;
 	/**
 	 * The kind has no opener of its own, so `parse(raw)` would not reproduce it: its container's
 	 * `rebuildRaw` owns the syntax, and a content edit writes `raw` without reparsing the kind.
@@ -258,6 +261,7 @@ export const DESCRIPTOR_FIELDS = [
 	'isContainer',
 	'containerContract',
 	'bodyWrap',
+	'lastLineChild',
 	'contextDependentKind',
 	'readsFollowingLines',
 	'rawWrite',
@@ -309,6 +313,7 @@ interface ContainerBase {
 	contract: 'strip' | 'grid' | 'opaque';
 	rebuildRaw: (node: CstNode, changed?: ChildRawChange) => void;
 	bodyWrap?: ContainerBodyWrap;
+	lastLineChild?: (node: NodeView) => number;
 	containerPaste?: ContainerPaste;
 	contentStartSpace?: 'complete-marker';
 	reorderChildren?: ReorderChildrenRole;
@@ -338,6 +343,7 @@ export const CONTAINER_ONLY_KEYS = [
 	'isContainer',
 	'containerContract',
 	'bodyWrap',
+	'lastLineChild',
 	'rebuildRaw',
 	'reservedChrome',
 	'containerPaste',

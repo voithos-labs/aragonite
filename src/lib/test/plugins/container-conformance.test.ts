@@ -226,6 +226,15 @@ describe('G4.3 conformance kit: a broken plugin container fails', () => {
 		);
 	});
 
+	// The title row sits on the opener line, so naming it walks the open last line into the wrong one.
+	it('fails declaration sanity when lastLineChild names a child above the last line', async () => {
+		augmentBlockKind(CALLOUT_KIND(), { container: { lastLineChild: () => 0 } });
+
+		await expect(runContainerConformance(CALLOUT_KIND(), calloutProfile)).rejects.toThrow(
+			/declarations: callout names child 0 as holding its last line/
+		);
+	});
+
 	it('refuses an exempt cell whose reason is not substantive', async () => {
 		await expect(
 			runContainerConformance(CALLOUT_KIND(), {

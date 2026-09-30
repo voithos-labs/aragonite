@@ -16,7 +16,8 @@ import {
 	rebuildListItemRaw,
 	rebuildListRaw,
 	rebuildTableRaw,
-	rebuildTableRowRaw
+	rebuildTableRowRaw,
+	tableLastLineChild
 } from './container-rebuilders';
 import { tableCellWrite } from './table-cell-raw';
 import { fencedCodeWrite } from './fenced-code-raw';
@@ -389,7 +390,11 @@ export function registerBuiltInDescriptors(): void {
 		supportsInline: false,
 		// Enter inside a cell stays in the grid, so neither edge can grow a sibling.
 		gapEdges: 'both',
-		container: { contract: 'grid', rebuildRaw: rebuildTableRaw },
+		container: {
+			contract: 'grid',
+			rebuildRaw: rebuildTableRaw,
+			lastLineChild: tableLastLineChild
+		},
 		conformanceFixture: '| a | b |\n| - | - |\n| 1 | 2 |\n',
 		closure: {
 			roundTrip: { mode: 'implemented', via: 'container contract=grid — rebuildTableRaw' },

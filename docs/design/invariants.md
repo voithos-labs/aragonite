@@ -660,9 +660,11 @@ dropping the break would drop the line). Blank means the line held by the block 
 last block, found by walking down the way the release does, so the empty line Enter leaves inside
 a last quote counts and the quote's own trailing `>` doesn't; that walk is one predicate,
 `tree-operations/open-tail.ts :: holdsBlankLastLine`, shared by the release and this check. Which
-child holds a block's last line is a fact about its kind, and one function answers it for every
-walk: `schema/container-raw.ts :: childHoldingLastLine` (a strip's last child, a table's last row,
-or nobody when the block's own bytes hold it, like a header-only table's delimiter line). The commit owns the rule in two steps: `tree-operations/open-tail.ts :: endWindowLines`
+child holds a block's last line is a fact about its kind, so the kind's descriptor says it
+(`lastLineChild`; left out, a strip's last child, a grid's last row), and every walk asks
+`schema/container-raw.ts :: childHoldingLastLine`. A table holding only its header row answers
+"nobody", since its own delimiter line comes last. The commit owns the rule in two steps:
+`tree-operations/open-tail.ts :: endWindowLines`
 before the separator fix-up, and `tree-operations/open-tail.ts :: keepOpenTail` once the containers
 rebuild. No edit writes the tail by hand (G4.74 holds the walk to that file). A move still calls the
 first step itself for now, because it checks its own joins before the commit's fix-up runs; that

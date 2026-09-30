@@ -30,7 +30,11 @@ import {
 	isGridDescriptor,
 	type BlockKindDescriptor
 } from '../schema/block-kind-descriptor';
-import { rebuildContainerRawIfContainer } from '../schema/container-raw';
+import {
+	childHoldingLastLine,
+	lastLine,
+	rebuildContainerRawIfContainer
+} from '../schema/container-raw';
 import { createSharingState } from '../tree-operations/sharing';
 import { rebuildUnsharedAncestry, rebuildUnsharedChain } from '../tree-operations/chain-rebuild';
 import { walkUnsharing } from '../tree-operations/unshare';
@@ -543,10 +547,24 @@ export function checkDeclarationSanity(
 
 	assertIs(typeof descriptor.rebuildRaw, 'function', `${kind} declares rebuildRaw`);
 	const node = subjectNode(parse(profile.deepNesting.source), kind, 'first', 'deepNesting');
+	assertLastLineChildHoldsIt(kind, node);
 	assertRebuildIsParseCanonical(descriptor, node, kind);
 	assertHintedRebuildMatchesFull(kind, descriptor, node);
 	assertBodyWrapMatchesParse(kind, descriptor);
 	assertContentStartSpaceIsRebuilt(kind, descriptor);
+}
+
+/** The child `lastLineChild` names (or its contract's default) ends on the container's own last
+ *  line, which the open last line's release walks down to. */
+function assertLastLineChildHoldsIt(kind: AnyBlockKind, node: CstNode): void {
+	const holder = childHoldingLastLine(node);
+	if (holder < 0) return;
+	const childLine = lastLine(node.children![holder].raw);
+	assert(
+		lastLine(node.raw).endsWith(childLine),
+		`${kind} names child ${holder} as holding its last line, but that child's last line ` +
+			`"${childLine}" is not the end of the container's "${lastLine(node.raw)}"`
+	);
 }
 
 /** `rebuildRaw`'s changed-child hint is a shortcut, never a different answer: the same children
