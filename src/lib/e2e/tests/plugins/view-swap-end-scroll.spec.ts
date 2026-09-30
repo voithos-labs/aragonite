@@ -37,6 +37,15 @@ const FILLER = Array.from({ length: 150 }, (_, i) =>
 			: `Paragraph ${i} of filler prose, long enough to wrap onto a second line in the narrow harness.`
 ).join('\n\n');
 
+// The document's end inside one list long enough to window its own items, so the items that mount
+// as the scroll comes up are that list's, and only its own hold covers them.
+const LONG_LIST = [
+	...Array.from({ length: 300 }, (_, i) => `- Item ${i} of the long list, with a few more words.`),
+	'- Last item',
+	'',
+	...TALL_DIAGRAM.split('\n').map((line) => `  ${line}`)
+].join('\n');
+
 // Sub-pixel block heights can leave a scroll container a pixel short of its maximum.
 const END_SLACK = 2;
 
@@ -90,8 +99,8 @@ async function wheelToBottom(page: Page, port: Locator): Promise<void> {
 
 interface Swap {
 	name: string;
-	/** The document's last block, which the swap shortens. */
-	tail: string;
+	/** The harness document, ending in the block the swap shortens. */
+	doc: string;
 	block: string;
 	/** Waits for the block's resting view once the bottom has mounted it. */
 	settle(page: Page): Promise<void>;
@@ -109,7 +118,7 @@ async function diagramTop(block: Locator) {
 
 const EDIT_BUTTON: Swap = {
 	name: 'the diagram Edit button',
-	tail: TALL_DIAGRAM,
+	doc: `${FILLER}\n\n${TALL_DIAGRAM}\n`,
 	block: '.mermaid-block',
 	settle: diagramSettle,
 	async run(page, block) {
@@ -123,7 +132,7 @@ const EDIT_BUTTON: Swap = {
 
 const DIAGRAM_DOUBLE_CLICK: Swap = {
 	name: 'a double click on the diagram',
-	tail: TALL_DIAGRAM,
+	doc: `${FILLER}\n\n${TALL_DIAGRAM}\n`,
 	block: '.mermaid-block',
 	settle: diagramSettle,
 	async run(page, block) {
@@ -135,7 +144,7 @@ const DIAGRAM_DOUBLE_CLICK: Swap = {
 
 const DETAILS_COLLAPSE: Swap = {
 	name: 'collapsing an open details block',
-	tail: OPEN_DETAILS,
+	doc: `${FILLER}\n\n${OPEN_DETAILS}\n`,
 	block: '.details-block',
 	settle: (page) => expect(page.locator('.details-block').last()).toBeVisible(),
 	async run(page, block) {
@@ -143,6 +152,12 @@ const DETAILS_COLLAPSE: Swap = {
 		await toggle.click();
 		await expect(toggle).toHaveAttribute('aria-expanded', 'false');
 	}
+};
+
+const EDIT_IN_LONG_LIST: Swap = {
+	...EDIT_BUTTON,
+	name: 'the diagram Edit button in the last item of a long list',
+	doc: `${LONG_LIST}\n`
 };
 
 async function swapAtTheEnd(
@@ -177,11 +192,11 @@ async function swapAtTheEnd(
 test.describe('a view swap at the end of a windowed document keeps the reader at the end', () => {
 	for (const scrollMode of ['self', 'host'] as const) {
 		const portSelector = scrollMode === 'host' ? '.plugins-harness' : '.editor';
-		for (const swap of [EDIT_BUTTON, DIAGRAM_DOUBLE_CLICK, DETAILS_COLLAPSE]) {
+		for (const swap of [EDIT_BUTTON, DIAGRAM_DOUBLE_CLICK, DETAILS_COLLAPSE, EDIT_IN_LONG_LIST]) {
 			test(`${swap.name}, ${scrollMode} scroll`, async ({ page }) => {
 				const editor = new MermaidPage(page);
 				await gotoReady(page, `/test/plugins?seed=mermaid&scroll=${scrollMode}`);
-				await editor.loadContent(`${FILLER}\n\n${swap.tail}\n`);
+				await editor.loadContent(swap.doc);
 				await swapAtTheEnd(page, portSelector, swap, () => editor.waitForRenderFlush());
 			});
 		}
