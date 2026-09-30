@@ -781,14 +781,16 @@ The commit's steps, in order. `src/lib/editor-actions/commit/undo-controller.ts`
 1. ask whether reading mode admits the write (below), and stop if not,
 2. forget the caret memory and end the typing batch's current burst,
 3. capture the snapshot (skipped when an open undo step or the typing batch already holds this gesture's entry, as above),
-4. hand the mutation owned copies: the path down to each container scope, and a fresh top-level children array (the old one is what a throw puts back). With a container scope in the commit, the fresh array goes live right away, since the container's copies land in it. A commit over the document alone (`commitStructural`) gets a plain array instead, off the `$state` proxy, which goes live at step 9; splicing the live one would pay a tracked write for every block it shifts,
+4. hand the mutation owned copies: the path down to each container scope, and a fresh top-level children array (the old one is what a throw puts back). Which array depends on the commit:
+   - a `commitMultiScope` swaps the fresh array in right away, since a container's copies land in it (and, for now, a cross-container delete writes the live document),
+   - `commitStructural` gets a plain array off the `$state` proxy instead, which goes live at step 9. Splicing the live one would pay a tracked write for every block it shifts,
 5. run the mutation,
 6. end the line of every block the mutation placed, and of the block right above them (`src/lib/tree-operations/open-tail.ts` :: `endWindowLines`), since the next step reads them side by side,
 7. settle the separators and joins the mutation disturbed (§ 8),
 8. give an emptied document its one empty paragraph (`src/lib/tree-operations/keep-one-block.ts` :: `keepOneBlock`),
 9. publish each scope's new children and ids, then rebuild every enclosing container's `raw`, deepest first and each container once, asking each container's own slot on the way out (§ 9),
 10. if the file had no final line break before the commit, take the break off its new last line again, unless that line is blank (`src/lib/tree-operations/open-tail.ts` :: `keepOpenTail`; `docs/design/syntax-tree.md` § Blank lines says why a blank one keeps it),
-11. in a dev build, check every block the commit could have written: each container scope with its direct children, and at the top level each block the change placed, each block new to the array, and each block the undo step already owns (a format toggle's marks move no block, and a second commit in one undo step writes the blocks the first one copied without copying them again, so neither leaves a position to go on),
+11. in a dev build, check every block the commit could have written: each container scope with its direct children, and at the top level each block the change placed, each block new to the array, and each block the undo step already owns (a format toggle's marks move no block, and a second commit in one undo step writes the blocks the first one copied without copying them again, so neither shows up as a changed position),
 12. bump the content version, clear a gap caret, and emit an `edit` event when the commit names an `op`,
 13. `await tick()`, run the caller's `afterTick`, then read the caller's `landing` and put the caret there, awaited,
 14. speak the caller's `announce` line in the edit live region, when the commit wrote.

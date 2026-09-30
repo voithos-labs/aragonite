@@ -343,10 +343,10 @@ wholesale restore that also recovers an entry the push evicted at `MAX_UNDO`), e
 `error{origin:'commit'}` on the event seam, then re-throws in DEV and swallows in production.
 
 Every commit keeps the tree intact the same way. It holds on to the top-level array it started from,
-and a throw puts that one back. A commit with a container scope swaps a fresh array in before its
-mutation runs, since the container's copies land in the live tree (a scope view is a window onto
-live nodes). A commit over the document alone hands its mutation a plain copy instead, which goes
-live when the scope publishes. Copy-path-on-write means the old array still reaches an intact tree
+and a throw puts that one back. A `commitMultiScope` swaps a fresh array in before its mutation
+runs, since a container's copies land in the live tree (a scope view is a window onto live nodes).
+`commitStructural` hands its mutation a plain copy instead, which goes live when the scope
+publishes. Copy-path-on-write means the old array still reaches an intact tree
 at every depth, so every copy the mutation dirtied goes out with the new one. That old array is
 the whole rollback of a commit over the document, so one saves no block's bytes, however long the
 document is.
