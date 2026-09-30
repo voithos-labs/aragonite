@@ -5,7 +5,7 @@ GFM reads a line straight after a table's rows as one more row when it opens no 
 ## Happy paths
 
 - Loading `| a | b |\n| --- | --- |\n| 1 | 2 |\nPara one.\n`: one table with two body rows; the last row shows `Para one.` in its first cell and an empty second cell
-- Typing at the end of that row's first cell: the typed character lands in the cell, the table's rows are written back with pipes, and the source reloads as the tree the editor holds
+- Typing at the end of that row's first cell: the typed character lands in the cell, that row is written back with pipes (bare text at the start of a line could open another block), the other rows keep their bytes, and the source reloads as the tree the editor holds
 
 ## Miss-analysis
 

@@ -19,7 +19,7 @@ const LOAD_TIMEOUT_MS = 480_000;
 const KEYSTROKE_TIMEOUT_MS = 60_000;
 
 // A container-first fixture gets a paragraph in front, since block 0 is always mounted:
-// `focusBlockEnd(0)` would aim at an unmounted last child, and a table cell edit re-pads the table.
+// `focusBlockEnd(0)` would aim at an unmounted last child.
 const NEEDS_PROSE_TARGET: ReadonlySet<FixtureShape> = new Set([
 	'nested-containers',
 	'table-heavy',

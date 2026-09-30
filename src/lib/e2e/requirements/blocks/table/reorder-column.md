@@ -15,7 +15,7 @@ index can be moved. Focus follows the moved column.
 
 - Alt+ArrowLeft on the first column does nothing: the source is unchanged and no undo entry is pushed, so a following Ctrl+Z undoes the typing before it
 - Alt+ArrowRight on the last column does nothing at the other end: no change, no undo entry
-- A column move on a table whose source is not canonical (tight) canonicalizes the live view, and a single undo restores the original bytes exactly
+- A column move on a tight table (no padding in the cells) keeps it tight: the moved cells swap places and nothing gets padded, and a single undo restores the original bytes exactly
 
 ## Error cases
 

@@ -80,7 +80,7 @@ const PINNED: Record<string, Pin> = {
 	},
 	'src/lib/selection/range-delete-table.ts': {
 		calls: { rebuildUnsharedChain: 2, rebuildTableRowRaw: 2 },
-		why: 'the same range delete, for the rows a table edge clears and each kept edge’s chain (T29 slice 6)'
+		why: 'the same range delete, for the rows a table edge clears (which keep their bytes) and each kept edge’s chain (T18 slice 5)'
 	},
 	'src/lib/selection/selection-drop.ts': {
 		calls: { rebuildAncestryRaw: 1 },

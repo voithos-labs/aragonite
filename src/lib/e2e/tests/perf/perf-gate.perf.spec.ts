@@ -98,6 +98,7 @@ test.describe('perf gate: keystroke p50 within budget', () => {
 const CONTAINER_INTERIOR_ROWS: Array<[shape: FixtureShape, leafPath: number[], size: string]> = [
 	['giant-single-list', [0, 0, 0], '1MB'],
 	['giant-single-blockquote', [0, 0], '1MB'],
+	['giant-single-table', [0, 0, 0], '1MB'],
 	['giant-single-list', [0, 0, 0], '10MB']
 ];
 

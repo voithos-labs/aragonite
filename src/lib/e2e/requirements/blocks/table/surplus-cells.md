@@ -2,8 +2,7 @@
 
 GFM renders a table's body rows at the header's column count and ignores the cells past it (spec
 example 204). Those cells are still bytes the file holds, so the table shows the header's count
-and no edit in the row or the table drops them. The first edit may tidy the padding and the
-delimiter row; it never drops text.
+and no edit in the row or the table drops them, or even moves their padding.
 
 Miss-analysis: the table scenarios wrote rows as wide as their header, and the shape property's
 retype gesture skipped table rows because of this very loss, so no test drove a write into one.
@@ -15,7 +14,7 @@ retype gesture skipped table rows because of this very loss, so no test drove a 
 
 ## Edge cases
 
-- typing in another row rebuilds the whole table and keeps the extra cell; one undo restores the file exactly
+- typing in another row leaves the wide row's bytes as they were; one undo restores the file exactly
 - deleting the header row makes the wide row the header: a header wider than its delimiter row is no table, so the table widens to take the extra cell as a column, and every other row pads to the new count; one undo puts the table back as it was
 
 ## User interactions

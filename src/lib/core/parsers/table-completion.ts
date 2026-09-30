@@ -34,8 +34,8 @@ export function registerTableCompleter(): void {
 	registerBlockCompleter('table', { tryComplete: tryCompleteTableRow });
 }
 
-/** Through the row rebuilder, so the padding written is the padding the serializer emits. The
- *  caller owns line endings, so the rebuilder's is trimmed back off. */
+/** Through the row rebuilder, so a completed row is spelled the way any new row is. The caller
+ *  owns line endings, so the rebuilder's is trimmed back off. */
 function canonicalRow(cells: string[]): string {
 	const row: CstNode = {
 		kind: 'tableRow',

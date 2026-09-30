@@ -145,7 +145,16 @@ An edit that leaves a space at an item's content start leaves exactly those byte
 
 Only `'strip'` carries that equation as a checked invariant. `'grid'` and `'opaque'` are exempt from it, for different reasons and with different consequences:
 
-- **Grid.** A cell has no standalone line recognizer, so `parse(cell.raw)` would come back a paragraph. That's why table cells are `contextDependentKind`, and why the container's `rebuildRaw` owns the surrounding pipes. One function splits a row into cells (`core/parsers/table.ts :: splitRowCells`) and one writes a row back (`schema/container-rebuilders.ts :: writeTableRow`), so a copied piece of a table is written by the second and pasted GFM rows are split by the first.
+- **Grid.** A cell has no standalone line recognizer, so `parse(cell.raw)` would come back a paragraph. That's why table cells are `contextDependentKind`, and why the container's `rebuildRaw` owns the surrounding pipes. One function reads a table line into cells and says where each one sits (`core/parsers/table-line.ts :: rowCellSpans`), and one writes a row back (`schema/container-rebuilders.ts :: writeTableRow`), so a copied piece of a table is written by the second and pasted GFM rows are split by the first.
+
+  The write goes into the row's own bytes. A row whose cells all match what its bytes read stays exactly as it was, ending included; a changed cell gets its new text inside its old padding; a column added or removed splices just that cell in or out. The delimiter row follows the same rule, so a column whose alignment held keeps its `:--`. Only a line with no bytes of its own (a new row), or one whose rewrite wouldn't read back as its cells, gets the plain spelling, `| a | b |`. One case is on purpose: a row with no leading pipe whose first cell changes gets pipes too, since `# x` written bare at the start of a line would open a heading, and the rebuild doesn't know the grammar.
+
+  ```ts
+  const table = parse('|a|b|\n|-|:-|\n|1|  2  |\n').children[0];
+  table.children[1].children[1].raw = '2Q';
+  rebuildTableRaw(table);
+  table.raw; // '|a|b|\n|-|:-|\n|1|  2Q  |\n': that cell's text moved, nothing else did
+  ```
 
   GFM (§ 4.10) ignores body cells beyond the header width, so a wider row's children stop at the column count, and the cells past it live on the row as surplus, bytes the file holds that nothing renders.
 
@@ -156,7 +165,7 @@ Only `'strip'` carries that equation as a checked invariant. `'grid'` and `'opaq
   table.children[1].metadata.surplusCells; // ['3']: the cells past it, as written
   ```
 
-  The row's rebuild writes its surplus back after its rendered cells, so an edit anywhere in the row or the table keeps those bytes, the way a load-and-save does; the first edit only tidies their padding. A row that becomes the header (the header row deleted, a table split) takes its surplus as columns and the table widens, since a header wider than its delimiter row is no table at all.
+  The row's rebuild writes its surplus back after its rendered cells, so an edit anywhere in the row or the table keeps those bytes, padding and all. A row that becomes the header (the header row deleted, a table split) takes its surplus as columns and the table widens, since a header wider than its delimiter row is no table at all.
 
 - **Opaque.** Chrome (the parts of a block that are furniture, not content, like a callout's title) lives in the container's own bytes: the title on a `:::note My title` opener line appears in no child at all. So `rebuildRaw` is the _single_ reconstruction path, and correctness is enforced differently: a DEV probe runs the rebuild twice and compares the two outputs to each other (never against `raw`, which a faithful non-canonical parse may legally differ from), and a separate DEV check reparses `raw` to catch children mutated without a rebuild, or metadata a rebuild left behind its bytes.
 

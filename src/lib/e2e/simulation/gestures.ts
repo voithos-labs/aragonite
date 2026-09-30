@@ -411,8 +411,8 @@ export class Gestures {
 	}
 
 	// ── Table ─────────────────────────────────────────────────────────────────
-	// Each resyncs, because the table pads its cells. A cell is named by its rendered index across
-	// rows, which shifts after an insert or delete, so the caller works from the current grid.
+	// Each resyncs, since a built row takes the padded spelling. A cell is named by its rendered
+	// index across rows, which shifts after an insert or delete, so the caller works from the grid.
 
 	editCell(cellIndex: number, text: string): Promise<void> {
 		return editCell(this.ctx, cellIndex, text);

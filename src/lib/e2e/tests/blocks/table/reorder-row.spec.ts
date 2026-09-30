@@ -109,11 +109,10 @@ test.describe('table block: keyboard row reorder', () => {
 		);
 	});
 
-	// `rebuildTableRaw` canonicalizes a table whose bytes are not canonical, so undo must restore
-	// the exact tight bytes; one reorder cannot reach `moveRow`'s copy-before-write.
-	test('reorder→undo restores a non-canonical table source byte-exactly', async ({ page }) => {
-		const NONCANON = '|A|B|\n|---|---|\n|1|2|\n|3|4|\n';
-		await editor.loadContent(NONCANON);
+	// One reorder cannot reach `moveRow`'s copy-before-write, so undo must restore the exact bytes.
+	test('reorder keeps a tight table tight, and undo restores it byte-exactly', async ({ page }) => {
+		const TIGHT = '|A|B|\n|---|---|\n|1|2|\n|3|4|\n';
+		await editor.loadContent(TIGHT);
 		// Compared against the loaded source, since `getSource()` normalizes trailing whitespace;
 		// the `toContain` proves the load kept the tight cells (`|1|2|`).
 		const original = await editor.bridge.getSource();
@@ -121,7 +120,7 @@ test.describe('table block: keyboard row reorder', () => {
 
 		await page.locator('.table-cell').nth(2).click();
 		await page.keyboard.press('Alt+ArrowDown');
-		await editor.bridge.waitForSourceMatches(/\| 3 \| 4 \|[\s\S]*\| 1 \| 2 \|/);
+		await editor.bridge.waitForSourceMatches(/^\|A\|B\|\n\|---\|---\|\n\|3\|4\|\n\|1\|2\|/);
 
 		await editor.undo();
 		expect(await editor.bridge.getSource()).toBe(original);
