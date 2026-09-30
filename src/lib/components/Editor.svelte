@@ -1444,7 +1444,8 @@
 		overflow-anchor: none;
 		scrollbar-width: thin;
 		scrollbar-color: var(--color-border, #3e3e3b) transparent;
-		/* Containing block for the image overlay portal. */
+		/* Containing block for the image overlay portal, and for `.width-probe`, whose width is the
+		   root's only while this holds. */
 		position: relative;
 	}
 

@@ -1,7 +1,7 @@
 /**
- * What the editor's heights were measured for: the type scale, and the width and viewport-height
- * versions the block lists rebuild off. The one place measured heights are thrown away (G4.98):
- * a route reports what changed, and layout state decides what goes.
+ * What the editor's heights were measured for: the type scale, the width version the block lists
+ * rebuild their tables off, and the viewport-height version, which only changes how many blocks
+ * fit. The one place measured heights are thrown away (G4.98): a route reports what changed.
  */
 
 import type { MeasuredHeightOracle } from '../cursor/height-oracle';

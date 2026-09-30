@@ -27,7 +27,7 @@ interface Seam {
 let width = 800;
 let height = 600;
 let fontSize = ESTIMATE_BASE_FONT_SIZE;
-// Pairs, not a map: in self mode the width and viewport-height watchers observe the same root.
+// Pairs, not a map, so two observers watching one box both hear its report.
 let observed: { el: Element; callback: ResizeObserverCallback }[] = [];
 
 class ManualResizeObserver {
@@ -97,12 +97,12 @@ const ROUTES: Route[] = [
 		geometry: false,
 		run: ({ props }) => void (props.source = 'only\n')
 	},
-	// Reading mode changes the most of any mode: every marker stops painting at once.
-	{
-		name: 'the presentation mode flips',
+	// Reading changes the most, since every marker stops painting at once.
+	...(['reading', 'live'] as const).map((mode): Route => ({
+		name: `the presentation mode flips to ${mode}`,
 		geometry: false,
-		run: ({ props }) => void (props.presentationMode = 'reading')
-	},
+		run: ({ props }) => void (props.presentationMode = mode)
+	})),
 	{
 		name: 'the editor narrows',
 		geometry: true,

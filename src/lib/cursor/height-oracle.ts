@@ -30,7 +30,7 @@ export interface HeightOracle {
 /** The editor's own estimator, which can also drop and list what it has measured. */
 export interface MeasuredHeightOracle extends HeightOracle {
 	/** Drop every measured height; only layout state calls it (G4.98). A mounted list keeps its
-	 *  table's heights until it rebuilds, so only a later list or a fresh id starts from estimates. */
+	 *  table's heights across a structural rebuild, so only a later list or a fresh id starts from estimates. */
 	dropMeasured(): void;
 	measuredIds(): string[];
 }
