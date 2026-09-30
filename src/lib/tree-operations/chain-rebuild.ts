@@ -129,7 +129,7 @@ export function rebuildUnsharedChain(
 			child && childPreviousRaw !== undefined
 				? childRawChange(node, child, childPreviousRaw, hint?.path[i + 1])
 				: undefined;
-		rebuildOwnedContainer(node, sharing, changed);
+		rebuildOwnedContainer(node, changed);
 		if (hint) childPreviousRaw = i === chain.length - 1 ? hint.leafPreviousRaw : rawBefore;
 
 		const openerMoved = firstLine(rawBefore) !== firstLine(node.raw);

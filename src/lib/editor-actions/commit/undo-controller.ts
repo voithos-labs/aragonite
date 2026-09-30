@@ -619,7 +619,7 @@ export function createUndoController(
 								}
 							: null
 					);
-					rebuildOwnedContainer(node, deps.sharing);
+					rebuildOwnedContainer(node);
 				}
 			},
 			ids,

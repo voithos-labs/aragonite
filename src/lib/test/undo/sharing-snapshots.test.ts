@@ -86,7 +86,6 @@ describe('structural-sharing snapshots', () => {
 		expect(fires[0].message).toContain('undo: snapshot digest mismatch');
 		expect(fires[0].details).toBe('snapshot-integrity');
 	});
-	// Copying the ancestors copies the container, so the digest never sees the shared grandchild.
 	// Miss-analysis: GH #73; the digest descends only from the root, so no nested case trips it.
 	it('a blank fill inside a container unshares the follower it hands the separator to', async () => {
 		const h = makeNestedHarness('> alpha\n>\n>\n> delta\n', { index: 0 });

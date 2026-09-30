@@ -40,7 +40,8 @@ describe('the commit sequence contains and attributes every throw site', () => {
 			snapshot: { path: asDocPath([0]), offset: 0 },
 			op: { kind: 'appendBlock', detail: { itemIndex: 0 }, eventPath: asDocPath([0]) },
 			mutate: ([scope]) => {
-				scope.children[0].raw = '- edited\n';
+				// A copy: the undo entry still holds the item itself.
+				scope.children[0] = { ...scope.children[0], raw: '- edited\n' };
 				return [{ op: 'noop' }];
 			},
 			afterTick: () => {

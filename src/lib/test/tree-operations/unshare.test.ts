@@ -80,7 +80,7 @@ it('rebuildOwnedContainer leaves a table’s rows shared when it keeps their byt
 	const [table] = ensureUnsharedPath(doc, [0], sharing);
 	const rows = [...table.children!];
 
-	rebuildOwnedContainer(table, sharing);
+	rebuildOwnedContainer(table);
 
 	table.children!.forEach((row, i) => expect(row).toBe(rows[i]));
 	expect(table.children!.every((row) => sharing.isShared(row))).toBe(true);

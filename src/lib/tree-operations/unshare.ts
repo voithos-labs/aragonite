@@ -115,12 +115,8 @@ export function ensureUnsharedSubtree(node: CstNode, sharing: SharingState): voi
 
 // ── Sharing-aware raw rebuild ───────────────────────────────────────────────
 
-/** Rebuild one owned container's raw. A table's rebuild writes a row only when its cells differ
- *  from its bytes, which only an edit that already copied the row can cause. */
-export function rebuildOwnedContainer(
-	node: CstNode,
-	_sharing: SharingState,
-	changed?: ChildRawChange
-): void {
+/** Rebuild one owned container's raw. A table's rebuild writes a row only when its cells or its
+ *  place changed, which only an edit that already copied the row causes; the undo digest checks. */
+export function rebuildOwnedContainer(node: CstNode, changed?: ChildRawChange): void {
 	rebuildContainerRawIfContainer(node, changed);
 }

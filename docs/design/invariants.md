@@ -332,9 +332,12 @@ anyway, because runtime JS bypasses types. The copy-path-on-write behind all thi
 `$state` canonical-reference discipline (re-read a spliced copy through the tree before using it
 further); the header of `tree-operations/unshare.ts` owns the full statement. The table's rebuild
 is the one container rebuild that writes its children's bytes, and it only rewrites a row whose
-cells stopped matching its bytes, which takes an edit that already copied that row. So it copies no
-rows up front, and a keystroke in a big table copies just the row it's in. Predicate
-`checkSnapshotIntegrity` (`snapshot-integrity.ts`) · commit primitive (top undo entry) plus
+cells stopped matching its bytes, or one an edit moved above another line, which takes an edit
+that already copied that row. So it copies no rows up front, and a keystroke in a big table copies
+just the row it's in. If some edit ever gets that wrong, the check catches it, since its digest
+hashes every node's bytes, not only the top-level ones: a rebuild after an undo reads a table row's
+padding or a quote's paragraph straight from the child. That walk costs a few times what a
+top-level digest would in dev, and production never runs it. Predicate `checkSnapshotIntegrity` (`snapshot-integrity.ts`) · commit primitive (top undo entry) plus
 undo/redo restore (`editor-actions/commit/history.ts`) · `snapshot-integrity.test.ts`,
 `test/undo/undo-restoration.property.test.ts`.
 
@@ -672,7 +675,9 @@ call goes once the commit settles the move's joins.
 
 The check runs after every structural commit publishes and fails three shapes: an open file that
 gained a break on a line with text, a closed file that lost its break, and a line with no ending
-sitting right above the last line, at any level of the containers holding it. That last one is what
+sitting right above the last line, at any level of the containers holding it. When a container's
+own bytes hold its last line (a quote's closing `>`, a header-only table's delimiter), the check
+reads the children right above that line too. That last shape is what
 an edit leaves when it puts a block after an open last line where the commit can't see it, and the
 two lines read as one on reload. Predicate `invariants/open-tail.ts :: checkLastLineKept` · run by
 both commit branches in `editor-actions/commit/undo-controller.ts` ·
