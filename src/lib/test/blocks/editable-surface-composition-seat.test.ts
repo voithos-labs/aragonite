@@ -52,7 +52,9 @@ function makeSeatHarness(source: string, affinity: EdgeAffinity | null): SeatHar
 			return { raw: trimTrailingLineEnding(edit.raw), caret: edit.caret };
 		}
 	});
-	const surface = makeSurface(undefined, (after, composedAt) => seat.relocate(after, composedAt));
+	const surface = makeSurface({
+		relocateComposedText: (after, composedAt) => seat.relocate(after, composedAt)
+	});
 	surface.el.textContent = source;
 
 	// Browser order as the block wires it: the caret capture first, then the block's own start.

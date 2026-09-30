@@ -134,7 +134,7 @@ function proseLeafSlots(node: Document | CstNode, chain: CstNode[] = []): LeafSl
 	});
 }
 
-/** A prose leaf becoming the blank line, as `commitInput` sends for an emptied block. Container
+/** A prose leaf becoming the blank line, as the typing write sends for an emptied block. Container
  *  bodies are included, since a body's start answers to its container's opener line. */
 function applyEmpty(doc: Document, at: number): void {
 	const slots = proseLeafSlots(doc);

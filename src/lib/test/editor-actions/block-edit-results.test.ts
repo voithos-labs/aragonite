@@ -1,8 +1,11 @@
 // Every block edit resolves to whether bytes landed, at the document root and inside a container:
 // false when reading mode refuses it or it only moves focus, true when it writes.
 // Miss-analysis: the results were typed, never tested, so a true after a refusal passed.
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import type { BlockEditActions } from '$lib/action-contracts';
+import { definePlugin, installPlugins } from '$lib/schema/plugin-install';
+import { declarePluginKind } from '$lib/schema/plugin-kind';
+import { registerBlockCompleter } from '$lib/schema/block-completions';
 import type { EditorActionsDeps } from '$lib/editor-actions/deps';
 import type { PresentationMode } from '$lib/presentation-mode';
 import { serialize } from '$lib/core/serializer';
@@ -13,6 +16,21 @@ import { drainDevWarns } from '../support/warn-gate';
 
 type Edit = (actions: BlockEditActions) => Promise<boolean>;
 
+// An on-type completer that takes the second paragraph's line, so completing it is a write.
+const twoBox = definePlugin({
+	name: 'two-box',
+	setup() {
+		registerBlockCompleter(declarePluginKind('two-box'), {
+			onType: true,
+			tryComplete: (line) =>
+				line === 'two' ? { lines: ['two', 'x'], caret: { path: [], line: 1, column: 0 } } : null
+		});
+	}
+});
+beforeEach(() => {
+	installPlugins([twoBox]);
+});
+
 /** One call per member, each a real write on the second of two paragraphs. */
 const WRITES: Record<keyof BlockEditActions, Edit> = {
 	splitBlock: (a) => a.splitBlock(1, 1),
@@ -22,6 +40,7 @@ const WRITES: Record<keyof BlockEditActions, Edit> = {
 	mergeWithNext: (a) => a.mergeWithNext(0),
 	deleteBlock: (a) => a.deleteBlock(1, 'keyless'),
 	updateBlockContent: (a) => a.updateBlockContent(1, 'twox\n', 'authored', 3, 4),
+	completeLineOnType: (a) => a.completeLineOnType(1, 3),
 	updateBlockMetadata: (a) => a.updateBlockMetadata(1, { note: 1 }),
 	replaceBlock: (a) =>
 		a.replaceBlock(1, [paragraphNode('', 'new', '\n')], undefined, { snapshotOffset: 0 })

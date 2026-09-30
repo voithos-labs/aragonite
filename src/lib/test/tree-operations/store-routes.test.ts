@@ -34,9 +34,9 @@ import {
 	makeContainerHarness,
 	makeEditorActionsDeps,
 	makeStubBlockEdit,
-	pasteContext,
-	recordingWrite
+	pasteContext
 } from '../harness/editor-actions';
+import { withStoredCaret } from '$lib/editor-actions/stored-caret';
 import { fixtureReading } from '../harness/fixture-grammar';
 import { mountBlock } from '../harness/mount-block';
 import { settleEditor } from '../harness/settle';
@@ -290,18 +290,15 @@ async function backspaceOnSelectedImage(place: Place): Promise<string[]> {
 	await replaceSelectedWidget(
 		{
 			node: nodeAt(doc, place.leaf) as CstNode,
-			index: 0,
-			blockEdit: {
-				updateBlockContent: recordingWrite(({ raw }) => void written.push(raw))
-			} as never,
 			widgetSelection,
-			setPendingCursor: () => {},
 			storedAs: () => storedAsAt(doc, place.leaf, LIVE)
 		},
 		{ start: 2, end: 13 },
-		2,
 		'',
-		'authored'
+		(edit) => {
+			written.push(edit.raw);
+			return withStoredCaret(Promise.resolve(true), edit.caret);
+		}
 	);
 	return written;
 }
@@ -446,13 +443,24 @@ const FAMILIES: Family[] = [
 		rows: [
 			{ shape: 'a to-do', run: () => withText(TODO, backspaceAfterX), want: ['# y\n'] },
 			{ shape: 'a plain item', run: () => withText(ITEM, backspaceAfterX), want: [] },
-			{ shape: 'a table cell', run: () => withCell('**x**# y', backspaceAfterX), want: ['# y\n'] }
+			{ shape: 'a table cell', run: () => withCell('**x**# y', backspaceAfterX), want: ['# y'] }
 		]
 	},
 	{
-		name: 'a key over a selection the browser would not edit',
-		stores: { 'components/blocks/text/edge-policy-dispatch.ts': 2 },
+		// One range replace serves both: a selection the browser would not edit, and a whole widget.
+		name: 'a key the block writes over a range',
+		stores: { 'components/blocks/text/edge-policy-dispatch.ts': 1 },
 		rows: [
+			{
+				shape: 'a to-do, a whole widget',
+				run: () => backspaceAfterEntity({ source: '- [ ] **&copy;**# y\n', leaf: [0, 0, 0] }),
+				want: ['# y\n']
+			},
+			{
+				shape: 'a plain item, a whole widget',
+				run: () => backspaceAfterEntity({ source: '- **&copy;**[ ] y\n', leaf: [0, 0, 0] }),
+				want: ['****[ ] y\n']
+			},
 			{ shape: 'a to-do, from its marker', run: () => deleteFromMarker(TODO), want: ['# y\n'] },
 			{
 				shape: 'a plain item, from its marker',
@@ -485,22 +493,6 @@ const FAMILIES: Family[] = [
 			{ shape: 'a to-do in a quote', run: () => withText(QUOTED_TODO, cutX), want: ['# y\n'] },
 			{ shape: 'a nested to-do', run: () => withText(NESTED_TODO, cutX), want: ['# y\n'] },
 			{ shape: 'a table cell', run: () => withCell('**x**# y', cutX), want: ['# y'] }
-		]
-	},
-	{
-		name: 'a key that takes a whole widget',
-		stores: { 'components/blocks/text/edge-policy-dispatch.ts': 1 },
-		rows: [
-			{
-				shape: 'a to-do',
-				run: () => backspaceAfterEntity({ source: '- [ ] **&copy;**# y\n', leaf: [0, 0, 0] }),
-				want: ['# y\n']
-			},
-			{
-				shape: 'a plain item',
-				run: () => backspaceAfterEntity({ source: '- **&copy;**[ ] y\n', leaf: [0, 0, 0] }),
-				want: ['****[ ] y\n']
-			}
 		]
 	},
 	{

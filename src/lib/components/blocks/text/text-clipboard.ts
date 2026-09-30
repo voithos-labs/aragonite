@@ -140,7 +140,17 @@ export function createTextClipboard(deps: TextClipboardDeps): TextClipboard {
 			if (widget === null) return false;
 			const { inline, preSelectOffset } = widget;
 			e.clipboardData?.setData('text/plain', deps.node.raw.slice(inline.start, inline.end));
-			void replaceSelectedWidget(deps, inline, preSelectOffset, '', 'literal');
+			void replaceSelectedWidget(deps, inline, '', (edit) => {
+				const write = deps.blockEdit.updateBlockContent(
+					deps.index,
+					edit.raw,
+					'literal',
+					preSelectOffset,
+					edit.caret
+				);
+				if (write.admitted) deps.setPendingCursor(write.caret);
+				return write;
+			});
 			return true;
 		},
 

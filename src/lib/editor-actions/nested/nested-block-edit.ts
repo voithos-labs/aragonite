@@ -101,7 +101,11 @@ export function createNestedBlockEdit(
 		updateBlockContent(innerIndex, text, mode, preEditOffset, postEditFocusOffset) {
 			if (!deps.node.children) return refusedWrite();
 			return writeContent(innerIndex, text, mode, preEditOffset, postEditFocusOffset);
-		}
+		},
+
+		// Unwrapped, this bundle completes no line, as its `splitBlock` doesn't; `withEnterCompletion`
+		// adds both above the container's overrides.
+		completeLineOnType: async () => false
 	};
 
 	return blockEdit;

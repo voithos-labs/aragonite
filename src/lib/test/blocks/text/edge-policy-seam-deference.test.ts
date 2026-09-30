@@ -91,7 +91,8 @@ describe('a step-over widget beside an unpainted run defers to the construct-edg
 	it('keeps the raw neighbour splice where the markers paint', () => {
 		const s = withWidgetIsland('x**bold** y\n', 'source', 3);
 		expect(s.handleKeydown(key('Backspace'), at(3))).toBe(true);
-		expect(s.edits).toEqual([[0, 'x*bold** y\n', 2, 2]]);
+		// Undo puts the caret back where the key found it, as the construct-edge rule's does.
+		expect(s.edits).toEqual([[0, 'x*bold** y\n', 3, 2]]);
 	});
 });
 

@@ -6,7 +6,7 @@
  */
 
 import { tick } from 'svelte';
-import type { BlockEditActions, FocusActions } from '../../../action-contracts';
+import type { BlockEditActions, ContentWrite, FocusActions } from '../../../action-contracts';
 import type { AnyInlineKind, InlineNode } from '../../../core/nodes';
 import type { NodeView } from '../../../core/node-views';
 import type { WidgetSelectionState } from '../../image/widget-selection-state.svelte';
@@ -51,9 +51,9 @@ import {
 	widgetElByStart
 } from './widget-adjacency';
 import type { StoredAs } from '../../../schema/stored-as';
-import { replaceRangeInLeaf } from '../../../tree-operations/leaf-range';
+import { replaceRangeInLeaf, type LeafRangeEdit } from '../../../tree-operations/leaf-range';
 import type { Reading } from '../../../schema/reading';
-import type { WriteMode } from '../../../schema/block-kind-descriptor';
+import { rangeWrite, type TextWrite } from '../surface-write';
 
 export interface WidgetInteractionDeps {
 	get node(): NodeView;
@@ -66,6 +66,8 @@ export interface WidgetInteractionDeps {
 	cursor: SurfaceBackend;
 	widgetSelection: WidgetSelectionState;
 	blockEdit: BlockEditActions;
+	/** The block's one write to its own text, for a key over a selected widget. */
+	writeText: (write: TextWrite) => ContentWrite;
 	focusActions: FocusActions;
 	setSnapTarget: (offset: number | null) => void;
 	/** Remember a caret offset, counted in the stored bytes, for the restore after the next render. */
@@ -190,38 +192,26 @@ function unwashRevealedSource(node: Text): void {
 	revealHighlight()?.delete(range);
 }
 
-/** What {@link replaceSelectedWidget} writes through. */
+/** What {@link replaceSelectedWidget} reads. */
 export interface WidgetReplaceDeps {
 	get node(): NodeView;
-	get index(): number;
-	blockEdit: BlockEditActions;
 	widgetSelection: WidgetSelectionState;
-	setPendingCursor: (offset: number | null) => void;
 	/** Where the block's bytes are stored, read when the widget is replaced. */
 	storedAs: () => StoredAs;
 }
 
-/** Replace a selected widget's bytes with `text` in one undoable write and put the caret after
- *  `text`, since with the widget gone the browser has no caret to keep. */
+/** Replace a selected widget's bytes with `text` in one undoable write, which puts the caret
+ *  after `text`: with the widget gone the browser has no caret to keep. */
 export async function replaceSelectedWidget(
 	deps: WidgetReplaceDeps,
 	widget: { start: number; end: number },
-	preSelectOffset: number,
 	text: string,
-	mode: WriteMode
+	write: (edit: LeafRangeEdit) => ContentWrite
 ): Promise<void> {
-	const edit = replaceRangeInLeaf(deps.node, widget, text, deps.storedAs());
-	const write = deps.blockEdit.updateBlockContent(
-		deps.index,
-		edit.raw,
-		mode,
-		preSelectOffset,
-		edit.caret
-	);
-	// Before the write's render, so the caret and the new bytes land in one flush.
-	if (write.admitted) deps.setPendingCursor(write.caret);
+	// The write asks for its caret before its render, so the caret and the bytes land in one flush.
+	const written = write(replaceRangeInLeaf(deps.node, widget, text, deps.storedAs()));
 	deps.widgetSelection.clear();
-	await write;
+	await written;
 	// The render that places the caret, so a caller awaiting the insert finds the caret there.
 	await tick();
 }
@@ -697,14 +687,16 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 				preSelectOffset: selectedWidget.preSelectOffset,
 				editorContentWidth: deps.getEditorContentWidth(),
 				presentationMode: deps.reading.mode(),
+				// The widget stays selected through its own key, so the write leaves the caret alone.
 				updateContent: (newRaw, caretBefore, caretAfter) =>
-					void deps.blockEdit.updateBlockContent(
-						deps.index,
-						newRaw,
-						'authored',
-						caretBefore,
-						caretAfter
-					)
+					void deps.writeText({
+						...rangeWrite({ raw: newRaw, caret: caretAfter }),
+						intent: 'typed',
+						mode: 'authored',
+						source: 'widget-key',
+						sessionAnchor: caretBefore,
+						leavesCaret: true
+					})
 			});
 			if (consumed) return true;
 		}
@@ -750,7 +742,15 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		// nothing.
 		const spliceWidget = (text: string): void => {
 			if (isReading()) return;
-			void replaceSelectedWidget(deps, widget, selectedWidget.preSelectOffset, text, 'authored');
+			void replaceSelectedWidget(deps, widget, text, (edit) =>
+				deps.writeText({
+					...rangeWrite(edit),
+					intent: 'typed',
+					mode: 'authored',
+					source: 'widget',
+					sessionAnchor: selectedWidget.preSelectOffset
+				})
+			);
 		};
 		if (e.key === 'Backspace' || e.key === 'Delete') {
 			e.preventDefault();

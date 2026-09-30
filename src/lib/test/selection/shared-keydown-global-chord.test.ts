@@ -16,6 +16,7 @@ const noCross: CrossBlockHandlers = {
 	handleKeyDown: async () => false,
 	handlePointerDown: () => false,
 	handlePaste: async () => false,
+	claimsBeforeInput: () => false,
 	handleBeforeInput: async () => false,
 	insertText: async () => false,
 	handleCompositionStart: () => false,

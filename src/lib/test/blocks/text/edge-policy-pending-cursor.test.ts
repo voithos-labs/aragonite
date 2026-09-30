@@ -28,7 +28,7 @@ function dispatchOver(node: CstNode, el: HTMLElement, hasIslands: boolean) {
 			updateBlockContent: (_index, _text, _mode, before = 0, after = before) =>
 				withStoredCaret(Promise.resolve(true), after + SHIFT)
 		} as Pick<BlockEditActions, 'updateBlockContent'> as BlockEditActions,
-		setPendingCursor: (offset, source) => parks.push({ offset, source })
+		requestCaret: (offset, { source }) => void parks.push({ offset, source })
 	});
 	return { dispatch, parks };
 }

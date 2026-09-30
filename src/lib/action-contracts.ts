@@ -111,6 +111,9 @@ export interface BlockEditActions {
 		preEditOffset: number,
 		postEditFocusOffset?: number
 	): ContentWrite;
+	/** Replace the block with the structure an on-type completer makes of its line (a typed `$$`),
+	 *  with `caret` where the typing left it; false when no completer takes the line. */
+	completeLineOnType(blockIndex: number, caret: number): Promise<boolean>;
 	/** Shallow-merges metadata the kind's rebuild writes into its bytes (a checkbox toggle). A key no
 	 *  parse gives back is dropped at the next re-read; a heading's level goes through the text. */
 	updateBlockMetadata(

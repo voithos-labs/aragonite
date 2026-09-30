@@ -81,7 +81,8 @@ describe('a symmetric pair extends or not by the arrival on record', () => {
 			storedAs: () => storedAsAt(doc, path, fixtureReading({}, 'live'))
 		});
 		expect(h.handleKeydown(key('`'), at(11))).toBe(true);
-		expect(h.edits).toEqual([[0, 'Some **bold**`` text\n', 11, 14]]);
+		// A cell's bytes carry no line ending, so the write adds none.
+		expect(h.edits).toEqual([[0, 'Some **bold**`` text', 11, 14]]);
 	});
 
 	// A click resets the arrival side, so the default is what a click means (live-mode.md § 4.2).

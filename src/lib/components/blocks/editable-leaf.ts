@@ -24,7 +24,6 @@ import {
 	createEditableSurface,
 	createClipboardHandlers,
 	consumePendingRestore,
-	withKeydownVerdict,
 	type EditableSurfaceAttributes
 } from './editable-surface';
 import { wireSurfaceContexts } from './surface-wiring.svelte';
@@ -245,6 +244,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		// render-primary edits are ephemeral (one commit on blur); plain commits per keystroke.
 		isInputSuppressed: () => mode === 'render-primary',
 		backend,
+		getNode: deps.getNode,
 		getMyPath: deps.getPath,
 		getIndex: deps.getIndex,
 		getComposing: () => composing,
@@ -253,23 +253,16 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		},
 		// render-primary never restores a pending caret: focus has already left on
 		// commit, and a re-render must not pull it back.
-		setPendingCursor: (offset) => {
-			if (mode === 'plain') pendingCursor = offset;
+		requestCaret: (at) => {
+			if (mode === 'plain') pendingCursor = at;
 		},
 		getFocusOffset: backend.getFocusOffset,
 		getTextLen: () => plainTextOf(deps.getEl()).length,
 		readText: () => plainTextOf(deps.getEl()),
-		commitInput: (text, preEdit, saved) => {
-			if (mode !== 'plain') return;
-			const write = blockEdit.updateBlockContent(
-				deps.getIndex(),
-				text + trailingLineEnding(deps.getNode().raw, documentLineEnding(getDoc())),
-				'authored',
-				preEdit,
-				saved
-			);
-			return write.admitted ? write.caret : null;
-		},
+		handleKeydown,
+		localHistory: (e) =>
+			(e.inputType === 'historyUndo' || e.inputType === 'historyRedo') &&
+			stepSourceHistory(e, e.inputType === 'historyUndo'),
 		handleBeforeInput: onBeforeInput
 	});
 
@@ -462,6 +455,18 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		sourceRedo = [];
 	}
 
+	/** Undo or redo inside a shown painted source, while it has entries; false leaves the event to
+	 *  the document's history. */
+	function stepSourceHistory(e: Event, undo: boolean): boolean {
+		const el = deps.getEl();
+		if (!el || !deps.renderSource || !isRevealed()) return false;
+		const [from, to] = undo ? [sourceUndo, sourceRedo] : [sourceRedo, sourceUndo];
+		if (from.length === 0) return false;
+		e.preventDefault();
+		restoreSourceEntry(el, from, to);
+		return true;
+	}
+
 	function restoreSourceEntry(el: HTMLElement, from: SourceEntry[], to: SourceEntry[]): void {
 		const entry = from.pop();
 		if (!entry) return;
@@ -499,7 +504,6 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		const next = completed?.text ?? spliced;
 		paintSource(el, next);
 		deps.onSourceEdit?.(next);
-		editableSurface.notePreEditOffset(start);
 		setCaret(completed?.caret ?? start + insert.length);
 		// Started after the edit, so the pause measured is the one the user leaves.
 		if (deps.renderSource && keystroke) sourceBatch.armPause();
@@ -519,22 +523,22 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		caret: editableSurface.caret,
 		events: editorEvents,
 		onPasteImage,
-		cutTail: (e) => {
+		cutTail: editableSurface.command((e: ClipboardEvent) => {
 			const el = deps.getEl();
 			if (!el) return;
 			const sel = backend.getRawSelection();
 			if (!sel || sel.start === sel.end) return;
 			e.clipboardData?.setData('text/plain', (el.textContent ?? '').slice(sel.start, sel.end));
 			spliceSourceText(el, sel.start, sel.end, '');
-		},
-		pasteTail: (pastedText) => {
+		}),
+		pasteTail: editableSurface.command((pastedText: string) => {
 			const el = deps.getEl();
 			if (!el) return;
 			const sel = backend.getRawSelection();
 			const start = sel ? sel.start : (backend.getRaw() ?? (el.textContent ?? '').length);
 			const end = sel ? sel.end : start;
 			spliceSourceText(el, start, end, pastedText);
-		}
+		})
 	});
 
 	/** Resolve a chord at this leaf's kind and report whether it was consumed. Both views spend
@@ -550,22 +554,13 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	async function handleKeydown(e: KeyboardEvent): Promise<void> {
 		const el = deps.getEl();
 		if (composing || !el) return;
-		// Enter commits from here, with no input event to read the caret at.
-		editableSurface.notePreEditOffset(backend.getRaw() ?? 0);
 
 		// Undo inside a shown painted source steps through its own edits; the document sees them as
 		// one entry written on blur.
 		if (deps.renderSource && isRevealed()) {
 			const command = wiring.resolveChord(e, deps.getNode().kind);
-			if (command === 'history.undo' && sourceUndo.length > 0) {
-				e.preventDefault();
-				restoreSourceEntry(el, sourceUndo, sourceRedo);
-				return;
-			}
-			if (command === 'history.redo' && sourceRedo.length > 0) {
-				e.preventDefault();
-				restoreSourceEntry(el, sourceRedo, sourceUndo);
-				return;
+			if (command === 'history.undo' || command === 'history.redo') {
+				if (stepSourceHistory(e, command === 'history.undo')) return;
 			}
 		}
 
@@ -701,7 +696,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		spellcheck: 'false' as const,
 		oninput: editableSurface.onInput,
 		onbeforeinput: editableSurface.onBeforeInput,
-		onkeydown: withKeydownVerdict(handleKeydown),
+		onkeydown: editableSurface.onKeyDown,
 		oncopy: clipboard.onCopy,
 		oncut: clipboard.onCut,
 		onpaste: clipboard.onPaste,

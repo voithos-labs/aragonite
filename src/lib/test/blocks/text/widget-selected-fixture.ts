@@ -10,6 +10,8 @@ import type { CstNode } from '$lib/core/nodes';
 import { fixtureReading, topLevelStore } from '../../harness/fixture-grammar';
 import { defaultGrammarView } from '$lib/schema/block-openers';
 import type { Reading } from '$lib/schema/reading';
+import type { BlockEditActions } from '$lib/action-contracts';
+import { createSurfaceWrite } from '$lib/components/blocks/surface-write';
 
 /** A recorded write less its mode. */
 export type Commit = Omit<RecordedWrite, 'mode'>;
@@ -31,6 +33,12 @@ export function harness(
 	const trap = () => {
 		throw new Error('unexpected dep access on the selected-widget resize path');
 	};
+	const blockEdit = {
+		updateBlockContent: recordingWrite(({ index, raw, before, after }) =>
+			commits.push({ index, raw, before, after })
+		),
+		completeLineOnType: async () => false
+	} as unknown as BlockEditActions;
 	const deps = {
 		get node() {
 			return node;
@@ -45,11 +53,19 @@ export function harness(
 		getEditorContentWidth: () => 800,
 		cursor: new Proxy({}, { get: trap }),
 		widgetSelection,
-		blockEdit: {
-			updateBlockContent: recordingWrite(({ index, raw, before, after }) =>
-				commits.push({ index, raw, before, after })
-			)
-		},
+		blockEdit,
+		// A selected widget's key names its own undo caret, so the recorded one is never read.
+		writeText: createSurfaceWrite({
+			getNode: () => node,
+			getIndex: () => 0,
+			getPath: () => [0],
+			blockEdit,
+			kindCue: { afterTypedWrite: async () => {}, labelAt: () => undefined, dismiss: () => {} },
+			reading,
+			lineEnding: () => '\n',
+			getPreEditOffset: trap,
+			requestCaret: (at) => void carets.push(at)
+		}),
 		focusActions: new Proxy({}, { get: trap }),
 		setSnapTarget: trap,
 		setPendingCursor: (offset: number | null) => void carets.push(offset),

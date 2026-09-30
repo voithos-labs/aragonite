@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-// Every typed character in a cell goes through `commitInput`. A cell's raw is joined verbatim
-// into its row, so an unescaped `|` in `cell.raw` reparses the row too wide and the parser
+// Every typed character in a cell goes through the cell's input write. A cell's raw is joined
+// verbatim into its row, so an unescaped `|` in `cell.raw` reparses the row too wide and the parser
 // silently drops the last column. Gestures that write their own bytes are in
 // `cell-write-escape.test.ts`.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';

@@ -89,6 +89,8 @@ export interface CrossBlockHandlers {
 	/** `replacement` stands in for the clipboard text, for a caller that already converted the
 	 *  payload and can't re-read the event after its awaits. A null event is a scripted insert. */
 	handlePaste(e: ClipboardEvent | null, replacement?: string): Promise<boolean>;
+	/** Whether `handleBeforeInput` takes `e`, known before it runs: a character typed over a range. */
+	claimsBeforeInput(e: InputEvent): boolean;
 	handleBeforeInput(e: InputEvent): Promise<boolean>;
 	/** Type-replace from a caller with no `InputEvent`: the editor root, where a range over a block
 	 *  with no character position leaves no editable element for `beforeinput` to fire on. */
@@ -115,6 +117,9 @@ export function createCrossBlockHandlers(ctx: CrossBlockDispatchContext): CrossB
 	// keydown checks its own destructive branches, since its navigation stays live.
 	const refusesWrites = () => isReadingMode(ctx.reading.mode);
 
+	const claimsBeforeInput = (e: InputEvent): boolean =>
+		ctx.selection.isCrossBlock && e.inputType === 'insertText';
+
 	const insertText = async (text: string): Promise<boolean> => {
 		if (refusesWrites()) return true;
 		if (!ctx.selection.isCrossBlock) return false;
@@ -133,8 +138,9 @@ export function createCrossBlockHandlers(ctx: CrossBlockDispatchContext): CrossB
 			}
 			return handleCrossBlockPaste(ctx, mutationCtx, e, replacement);
 		},
+		claimsBeforeInput,
 		handleBeforeInput: async (e) => {
-			if (!ctx.selection.isCrossBlock || e.inputType !== 'insertText') return false;
+			if (!claimsBeforeInput(e)) return false;
 			e.preventDefault();
 			return insertText(e.data ?? '');
 		},

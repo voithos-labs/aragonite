@@ -1,12 +1,17 @@
 /**
  * What every contenteditable block and the `editable-leaf` factory share: cross-block wiring,
- * the shared keydown context, the BlockComponent caret methods, input, composition and clipboard
- * handling. Each block supplies a CursorBackend for its own offsets plus its input commit; state
- * that changes is passed as functions, never as captured values.
+ * the shared keydown context, the BlockComponent caret methods, the one write to the block's own
+ * text, input, composition and clipboard handling. Each block supplies a CursorBackend for its own
+ * offsets; state that changes is passed as functions, never as captured values.
  */
 
 import { tick } from 'svelte';
-import type { BlockEditActions, FocusActions, HistoryActions } from '../../action-contracts';
+import type {
+	BlockEditActions,
+	ContentWrite,
+	FocusActions,
+	HistoryActions
+} from '../../action-contracts';
 import type { CaretLanding } from '../../selection/caret-landing';
 import {
 	CURSOR_EXACT_START,
@@ -32,7 +37,15 @@ import { asEditorX, asRawOffset, type RawOffset } from '../../cursor/coordinate-
 import type { CursorBackend } from '../../cursor/surface-backend';
 import { findOffsetNearestX } from '../../cursor/sticky-measure';
 import { measurePartialRectsInContentEditable } from '../../cursor/overlay-rects';
-import { normalizeLineEndings } from '../../core/lines';
+import {
+	documentLineEnding,
+	normalizeLineEndings,
+	trailingLineEnding,
+	type LineEnding
+} from '../../core/lines';
+import type { KindCue } from '../kind-cue.svelte';
+import type { BlockAutoPairs } from './text/auto-pair-record';
+import { createSurfaceWrite, type TextWrite } from './surface-write';
 import {
 	createCrossBlockHandlers,
 	type CrossBlockHandlers
@@ -61,7 +74,7 @@ import type { Reading } from '../../schema/reading';
 
 /** Records one trace decision per keydown once the handler's awaits finish: the e2e harness's
  *  only sign that a gesture which must change nothing is done. Disabled, one boolean read. */
-export function withKeydownVerdict(
+function withKeydownVerdict(
 	handle: (e: KeyboardEvent) => Promise<void>
 ): (e: KeyboardEvent) => void {
 	return (e) => {
@@ -129,11 +142,13 @@ export interface EditableSurfaceDeps {
 	isInputSuppressed?: () => boolean;
 
 	// ── Live block state (functions, never captured values) ───────────────────
+	getNode: () => NodeView;
 	getMyPath: () => number[];
 	getIndex: () => number;
 	getComposing: () => boolean;
 	setComposing: (value: boolean) => void;
-	setPendingCursor: (offset: number | null) => void;
+	/** Puts the caret at `at` once the next render lands, while the block still has focus. */
+	requestCaret: (at: number, opts: { source: string }) => void;
 
 	// ── Cross-block context ───────────────────────────────────────────────────
 	selection: SelectionState;
@@ -165,6 +180,10 @@ export interface EditableSurfaceDeps {
 	events: EditorEvents;
 	/** The image selected whole, passed to the shift-press that grows a range from it. */
 	selectedWidget: SelectedWidgetHandle;
+	/** Names a new block kind a typed write made, in the modes that hide markers. */
+	kindCue: KindCue;
+	/** A prose block's view of the pair the auto-pair wrote; omitted where nothing pairs. */
+	ownPairs?: BlockAutoPairs;
 
 	// ── The per-block reads `SharedKeydownContext` needs ──────────────────────
 	/** The selection's focus endpoint as a raw offset; each block converts its own DOM read. */
@@ -172,7 +191,7 @@ export interface EditableSurfaceDeps {
 	getTextLen: () => number;
 
 	// ── Input handling (per block) ────────────────────────────────────────────
-	/** Read the current DOM content as raw text for the input commit. */
+	/** Read the current DOM content as the block's displayed text, for the input commit. */
 	readText: () => string;
 	/** Where live mode puts a composed run: an IME's beforeinput is not cancelable, so the byte
 	 *  move a keystroke gets at keydown happens at this commit. Null keeps the text as read. */
@@ -180,13 +199,15 @@ export interface EditableSurfaceDeps {
 		after: string,
 		composedAt: number
 	) => { raw: string; caret: number } | null;
-	/** Commits the read text; returns the caret to restore (a cell escapes a typed `|` to `\|`),
-	 *  void to keep the DOM caret, or null for a refused write, which puts no caret back. */
-	commitInput: (text: string, preEditOffset: number, savedOffset: number) => number | null | void;
 	/** Runs before the shared input commit (the text block resets its snap target here). */
 	inputPrelude?: () => void;
-	/** The block's own beforeinput handling, run after the surface records the pre-edit caret. */
-	handleBeforeInput?: (e: InputEvent) => unknown;
+	/** The block's own keydown handling, run after the surface records the pre-edit caret. */
+	handleKeydown: (e: KeyboardEvent) => Promise<void>;
+	/** An undo history the block keeps itself (a shown painted source), asked before the
+	 *  editor's; true when it took the event. */
+	localHistory?: (e: InputEvent) => boolean;
+	/** The block's own beforeinput handling, run after the shared step, which it must not await. */
+	handleBeforeInput?: (e: InputEvent) => void;
 }
 
 export interface EditableSurface {
@@ -197,6 +218,16 @@ export interface EditableSurface {
 	/** True once this block's element has left the document. Svelte does not await a keydown
 	 *  handler, so a container can unmount the block mid-await; each awaited step checks this. */
 	isDetached(): boolean;
+	/** Every edit the block makes to its own text: the input commit, and each key the block
+	 *  writes for itself (`surface-write.ts`). */
+	writeText(write: TextWrite): ContentWrite;
+	/** The ending a line typed into the block takes: its own, else the document's. */
+	lineEnding(): LineEnding;
+	/** Wraps the block's `runCommand` (or a clipboard edit), so a command dispatched from
+	 *  anywhere, a key or a toolbar, anchors undo on the caret it found. */
+	command<A extends unknown[], R>(run: (...args: A) => R): (...args: A) => R;
+	/** Bound to the element's `keydown`. */
+	onKeyDown: (e: KeyboardEvent) => void;
 	/** Bound to the element's `beforeinput`: every input route fires it, keydown or not, so the
 	 *  caret the undo entry restores is read here. */
 	onBeforeInput: (e: InputEvent) => void;
@@ -353,10 +384,60 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 	// The caret before the edit, so undo puts it back there. A composition keeps the one read at
 	// its start: Chromium fires the composition's own beforeinput events after that.
 	let preEditOffset = 0;
+	const recordPreEditOffset = (): void => {
+		if (!deps.getComposing()) preEditOffset = deps.backend.getRaw() ?? 0;
+	};
 
+	const lineEnding = (): LineEnding =>
+		trailingLineEnding(deps.getNode().raw, documentLineEnding(deps.getDoc()));
+
+	const writeText = createSurfaceWrite({
+		getNode: deps.getNode,
+		getIndex: deps.getIndex,
+		getPath: deps.getMyPath,
+		blockEdit: deps.blockEdit,
+		kindCue: deps.kindCue,
+		reading: deps.reading,
+		lineEnding,
+		getPreEditOffset: () => preEditOffset,
+		requestCaret: deps.requestCaret,
+		ownPairs: deps.ownPairs
+	});
+
+	function command<A extends unknown[], R>(run: (...args: A) => R): (...args: A) => R {
+		return function recorded(...args) {
+			recordPreEditOffset();
+			return run(...args);
+		};
+	}
+
+	// A keydown that writes for itself fires no beforeinput, so the caret is read here too.
+	const onKeyDown = withKeydownVerdict(async (e) => {
+		if (!e.isComposing) recordPreEditOffset();
+		await deps.handleKeydown(e);
+	});
+
+	// Synchronous to the block's handler: the block's `preventDefault` only counts inside this
+	// listener's microtask checkpoint.
 	function onBeforeInput(e: InputEvent): void {
-		if (!deps.getComposing() && !e.isComposing) preEditOffset = deps.backend.getRaw() ?? 0;
-		void deps.handleBeforeInput?.(e);
+		if (!e.isComposing) recordPreEditOffset();
+		if (deps.localHistory?.(e) || runSharedBeforeInput(e)) return;
+		deps.handleBeforeInput?.(e);
+	}
+
+	/** The browser's own Undo and Redo are the editor's, and a character typed over a range across
+	 *  blocks replaces the range. True when the step took the event. */
+	function runSharedBeforeInput(e: InputEvent): boolean {
+		if (e.inputType === 'historyUndo' || e.inputType === 'historyRedo') {
+			e.preventDefault();
+			void (e.inputType === 'historyUndo'
+				? deps.history.requestUndo()
+				: deps.history.requestRedo());
+			return true;
+		}
+		if (!crossBlock.claimsBeforeInput(e)) return false;
+		void crossBlock.handleBeforeInput(e);
+		return true;
 	}
 
 	/** The DOM `input` handler. Arity zero on purpose: it is bound straight to the event, so a
@@ -379,11 +460,13 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 			fromComposition && revealsNoMarkers(el)
 				? (deps.relocateComposedText?.(text, preEditOffset) ?? null)
 				: null;
-		const caret = seated?.caret ?? savedOffset;
-		// preEdit anchors the undo snapshot; caret drives focus when a kind change remounts the
-		// block. A commit that rewrites bytes reports the post-rewrite caret.
-		const committedCaret = deps.commitInput(seated?.raw ?? text, preEditOffset, caret);
-		if (committedCaret !== null) deps.setPendingCursor(committedCaret ?? caret);
+		void writeText({
+			text: seated?.raw ?? text,
+			caretAfter: seated?.caret ?? savedOffset,
+			intent: 'typed',
+			mode: 'authored',
+			source: fromComposition ? 'composition' : 'input'
+		});
 	}
 
 	function onCompositionStart(): void {
@@ -416,6 +499,10 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		surface,
 		caret,
 		isDetached,
+		writeText,
+		lineEnding,
+		command,
+		onKeyDown,
 		onBeforeInput,
 		onInput,
 		onCompositionStart,

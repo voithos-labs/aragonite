@@ -3,7 +3,6 @@
 	import { CURSOR_START, type AmbientPrefix, type BlockComponent } from '../../../block-component';
 	import { readBlocks } from '../../../core/parser';
 	import { ambientHoldsTaskBox } from '../list/task-checkbox';
-	import { shownKind } from '../../../core/parsers/heading';
 	import type { DocumentView, NodeView } from '../../../core/node-views';
 	import type { EditorRects } from '../../../editor-rects';
 	import { enterLinkCardAtCaret, linkCardTargetAt } from '../../link-card/link-card-entry';
@@ -61,17 +60,13 @@
 	import { createConstructReveal } from './construct-reveal';
 	import { assertInvariant } from '../../../assert';
 	import { widgetElByStart } from './widget-adjacency';
-	import {
-		caretLandableBounds,
-		handleSharedKeydown,
-		handleSharedBeforeInput
-	} from '../../../selection/shared-keydown';
+	import { caretLandableBounds, handleSharedKeydown } from '../../../selection/shared-keydown';
 	import {
 		editableSurfaceAttributes,
 		createEditableSurface,
-		consumePendingRestore,
-		withKeydownVerdict
+		consumePendingRestore
 	} from '../editable-surface';
+	import { rangeWrite } from '../surface-write';
 	import { wireSurfaceContexts, useParkFocusOnUnmount } from '../surface-wiring.svelte';
 	import {
 		landableStartAbutsIsland,
@@ -155,8 +150,7 @@
 		widgetSelection,
 		linkCard,
 		inlineMenuCombobox,
-		decorations: decorationEngine,
-		kindCue
+		decorations: decorationEngine
 	} = getContext<EditorServices>(EDITOR_SERVICES_KEY);
 	const ownPairs = autoPairs.forBlock();
 
@@ -232,36 +226,27 @@
 		getEl: () => el ?? null,
 		isInputSuppressed: () => revealing,
 		backend: cursor,
+		getNode: () => node,
 		getMyPath: () => myPath,
 		getIndex: () => index,
 		getComposing: () => composing,
 		setComposing: (value) => {
 			composing = value;
 		},
-		setPendingCursor: (offset) => setPendingCursorOffset(offset, 'surface'),
+		requestCaret: (at, { source }) => setPendingCursorOffset(at, source),
+		ownPairs,
 		getFocusOffset: () => (el ? rawSelectionFocus(el) : null),
 		getTextLen: () => caretReach(),
 		readText: () => readRawText(),
 		relocateComposedText: (after, composedAt) => compositionSeat.relocate(after, composedAt),
-		commitInput: (text, preEdit, saved) => {
-			// Typed text is the one write whose kind change the block names (`kind-cue.svelte.ts`).
-			const before = shownKind(node);
-			const write = blockEdit.updateBlockContent(
-				index,
-				text + blockEnding(),
-				'authored',
-				preEdit,
-				saved
-			);
-			void kindCue.afterTypedWrite(write, myPath, before);
-			return write.admitted ? write.caret : null;
-		},
 		inputPrelude: () => {
 			markKeystrokeStart();
 			armSnapTarget(null);
 		},
+		handleKeydown: onKeyDown,
 		handleBeforeInput: onBeforeInput
 	});
+	const { writeText } = editableSurface;
 
 	const crossBlock = editableSurface.crossBlock;
 	const sharedCtx = editableSurface.sharedCtx;
@@ -283,6 +268,7 @@
 		cursor,
 		widgetSelection,
 		blockEdit,
+		writeText,
 		focusActions,
 		setSnapTarget: (offset) => {
 			armSnapTarget(offset);
@@ -348,7 +334,7 @@
 	// Every caret-edge key goes through this one dispatch (G4.12); entering a widget stays in
 	// `widgetInteraction.enterWidget`.
 	const edgeDispatch = createEdgePolicyDispatch({
-		getLineEnding: documentEnding,
+		lineEnding: editableSurface.lineEnding,
 		get node() {
 			return node;
 		},
@@ -366,8 +352,7 @@
 		hasIslands: () =>
 			decorationEngine ? decorationEngine.islandsForPath(myPath).length > 0 : false,
 		getRawSelection: () => cursor.getRawSelection(),
-		blockEdit,
-		setPendingCursor: (offset, source) => setPendingCursorOffset(offset, source),
+		writeText,
 		setSnapTarget: (offset) => {
 			armSnapTarget(offset);
 		},
@@ -391,12 +376,13 @@
 		consumePendingMarks: caretMemory.pendingMarks.consume,
 		restorePendingMarks: caretMemory.pendingMarks.restore,
 		getRawSelection: () => cursor.getRawSelection(),
-		// The in-leaf range replace `handleLiveSelectionEdit` uses, in the displayed bytes this
-		// returns (`commitInput` re-appends the trailing line ending).
+		// The in-leaf range replace `handleLiveSelectionEdit` uses, as the displayed text the
+		// composition commit writes.
 		resolveRangeEdit: (range, typed) => {
 			const edit = replaceRangeInLeaf(node, range, typed, storedAs());
 			if (edit.matchesBrowserEdit) return null;
-			return { raw: trimTrailingLineEnding(edit.raw), caret: edit.caret };
+			const { text, caretAfter } = rangeWrite(edit);
+			return { raw: text, caret: caretAfter };
 		}
 	});
 
@@ -519,19 +505,10 @@
 					// Inside a list item Tab is the list's indent, so decline and let it bubble.
 					applies: () => !listContext,
 					// A literal tab, because the browser default moves focus out of the editor.
+					// The key types its own character, so its write is typing's.
 					perform: () => {
-						const { newRaw, caretOffset } = insertLiteralTab(node.raw, offset);
-						// The key types its own character, so its kind change is named as typing's is.
-						const before = shownKind(node);
-						const write = blockEdit.updateBlockContent(
-							index,
-							newRaw,
-							'authored',
-							offset,
-							caretOffset
-						);
-						void kindCue.afterTypedWrite(write, myPath, before);
-						if (write.admitted) setPendingCursorOffset(write.caret, 'insert-tab');
+						const tabbed = insertLiteralTab(getDisplayText(), offset);
+						void writeText({ ...tabbed, intent: 'typed', mode: 'authored', source: 'insert-tab' });
 					}
 				};
 			case 'block.mergePrev':
@@ -601,14 +578,14 @@
 		}
 	}
 
-	export function runCommand(id: CommandId, arg?: unknown): boolean {
+	export const runCommand = editableSurface.command((id: CommandId, arg?: unknown): boolean => {
 		// Read live: a command dispatched from another block arrives with no input event here.
 		const offset = cursor.getRaw() ?? 0;
 		const command = blockCommand(id, arg, offset, cursor.getRawSelection());
 		if (!command || !command.applies()) return false;
 		afterSourceCommit(() => performBlockCommand(id, command.perform), offset);
 		return true;
-	}
+	});
 
 	// A shown source holds this block's edit in the DOM only, so a command waits for it to be
 	// written; the user's offset stays valid, since the written text is the DOM text.
@@ -879,8 +856,6 @@
 		if (wiring.dispatchChord(e, target)) return;
 	}
 
-	const onKeyDownTraced = withKeydownVerdict(onKeyDown);
-
 	/** A range edit in a mode that draws no delimiter goes through the join rules, since the browser
 	 *  would leave the crossed markers behind. Elsewhere the browser keeps its own edit. */
 	function handleLiveSelectionEdit(e: InputEvent): boolean {
@@ -890,16 +865,13 @@
 			cursor,
 			storedAs(),
 			widgetInteraction.isRevealing,
-			(edit) => {
-				const write = blockEdit.updateBlockContent(
-					index,
-					edit.raw,
-					'authored',
-					edit.range.start,
-					edit.caret
-				);
-				if (write.admitted) setPendingCursorOffset(write.caret, 'live-selection-edit');
-			}
+			(edit) =>
+				void writeText({
+					...rangeWrite(edit),
+					intent: 'typed',
+					mode: 'authored',
+					source: 'live-selection-edit'
+				})
 		);
 	}
 
@@ -916,21 +888,23 @@
 			setCaret: (offset) => cursor.setRaw(asRawOffset(offset), { clamp: 'exact' }),
 			seatOutside: caretMemory.noteExtreme,
 			completesLine: (caret) =>
-				planTypedCompletion(node, caret, grammar, documentEnding()) !== null,
+				planTypedCompletion(node, caret, grammar, editableSurface.lineEnding()) !== null,
 			// Each auto-pair caller asks this itself until the caret-edge key table gives it one caller.
 			keepsKind: (line) => keepsKindAt(node, line, storedAs()),
 			reading,
 			ownPairs,
-			write: (text, caretBefore, caretAfter) => {
-				const raw = text + blockEnding();
-				const write = blockEdit.updateBlockContent(index, raw, 'authored', caretBefore, caretAfter);
-				if (write.admitted) setPendingCursorOffset(write.caret, 'delimiter-autopair');
-			}
+			write: (text, caretAfter) =>
+				void writeText({
+					text,
+					caretAfter,
+					intent: 'typed',
+					mode: 'authored',
+					source: 'delimiter-autopair'
+				})
 		});
 	}
 
-	async function onBeforeInput(e: InputEvent): Promise<void> {
-		if (await handleSharedBeforeInput(e, sharedCtx)) return;
+	function onBeforeInput(e: InputEvent): void {
 		if (handleLiveSelectionEdit(e)) return;
 		if (handleDelimiterAutoPair(e)) return;
 		// An `insertLineBreak` from a soft keyboard or IME got past `onKeyDown`: consume it, since
@@ -984,7 +958,14 @@
 	function demoteEmptyHeadingOnBlur(): void {
 		if (readOnly || node.kind !== 'heading' || editableSurface.isDetached()) return;
 		const demoted = demoteEmptyAtxHeading(node.raw, getContentRange(node));
-		if (demoted) void blockEdit.updateBlockContent(index, demoted.newRaw, 'literal', 0);
+		if (!demoted) return;
+		void writeText({
+			text: trimTrailingLineEnding(demoted.newRaw),
+			caretAfter: demoted.caretOffset,
+			intent: 'repair',
+			mode: 'literal',
+			source: 'demote-on-blur'
+		});
 	}
 
 	function onClick(e: MouseEvent): void {
@@ -1065,7 +1046,7 @@
 	style:text-indent={ambientPrefixText ? `calc(-1 * ${ambientIndent})` : null}
 	style:padding-left={ambientPrefixText ? ambientIndent : null}
 	oninput={onInput}
-	onkeydown={onKeyDownTraced}
+	onkeydown={editableSurface.onKeyDown}
 	onbeforeinput={editableSurface.onBeforeInput}
 	oncopy={clipboardHandlers.onCopy}
 	oncut={clipboardHandlers.onCut}

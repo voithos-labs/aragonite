@@ -1,5 +1,5 @@
 /**
- * Pure raw and caret transforms for TextEditableBlock's structural gestures: changing a
+ * Pure text and caret transforms for TextEditableBlock's structural gestures: changing a
  * heading's level, demoting it to prose, inserting a hard break, inserting a literal tab.
  * The component owns the wiring; these own the string math.
  */
@@ -123,10 +123,10 @@ export function openHardBreakLine(
 	};
 }
 
-/** Insert a literal tab character at `offset` within the display portion. */
-export function insertLiteralTab(raw: string, offset: number): TextEditResult {
-	const display = trimTrailingLineEnding(raw);
-	const trailing = ownTrailingLineEnding(raw);
-	const newDisplay = display.slice(0, offset) + '\t' + display.slice(offset);
-	return { newRaw: newDisplay + trailing, caretOffset: offset + 1 };
+/** A literal tab typed at `offset` into the displayed text. */
+export function insertLiteralTab(
+	display: string,
+	offset: number
+): { text: string; caretAfter: number } {
+	return { text: display.slice(0, offset) + '\t' + display.slice(offset), caretAfter: offset + 1 };
 }

@@ -168,8 +168,8 @@ export interface AutoPairSurface {
 	setCaret(offset: number): void;
 	/** Record the arrival side the next typed byte reads: past the construct's delimiters. */
 	seatOutside(): void;
-	/** One CST write plus the caret it leaves behind. */
-	write(text: string, caretBefore: number, caretAfter: number): void;
+	/** One CST write plus the caret it leaves behind; the block picks the undo caret. */
+	write(text: string, caretAfter: number): void;
 	/** Whether a step-over leaves the line one an on-type completer takes (`$$`); only a content
 	 *  write asks. */
 	completesLine?(caret: number): boolean;
@@ -215,15 +215,15 @@ export function applyDelimiterAutoPair(e: InputEvent, surface: AutoPairSurface):
 	switch (edit.kind) {
 		case 'step-over':
 			if (edit.overConstruct && surface.reading.hidesDelimitersAtCaret()) surface.seatOutside();
-			else if (surface.completesLine?.(edit.caret)) surface.write(text, caret, edit.caret);
+			else if (surface.completesLine?.(edit.caret)) surface.write(text, edit.caret);
 			else surface.setCaret(edit.caret);
 			return true;
 		case 'close':
-			surface.write(edit.text, caret, edit.caret);
+			surface.write(edit.text, edit.caret);
 			surface.seatOutside();
 			return true;
 		case 'write':
-			surface.write(edit.text, caret, edit.caret);
+			surface.write(edit.text, edit.caret);
 			return true;
 	}
 }

@@ -12,6 +12,40 @@ import { fixtureReading, topLevelStore } from '../../harness/fixture-grammar';
 import { storedAsAt } from '$lib/tree-operations/stored-as';
 import { mountBodyRow } from '../../harness/editor-actions';
 import { withStoredCaret } from '$lib/editor-actions/stored-caret';
+import { createSurfaceWrite, rangeWrite } from '$lib/components/blocks/surface-write';
+import type { BlockEditActions } from '$lib/action-contracts';
+import type { LeafRangeEdit } from '$lib/tree-operations/leaf-range';
+import type { NodeView } from '$lib/core/node-views';
+
+const NO_CUE = { afterTypedWrite: async () => {}, labelAt: () => undefined, dismiss: () => {} };
+
+/** The write a key over a selected widget makes, anchored where the widget was selected from. */
+function keyWrite(
+	getNode: () => NodeView,
+	blockEdit: BlockEditActions,
+	requestCaret: (at: number) => void,
+	anchor: number
+) {
+	const writeText = createSurfaceWrite({
+		getNode,
+		getIndex: () => 0,
+		getPath: () => [0],
+		blockEdit,
+		kindCue: NO_CUE,
+		reading: fixtureReading(),
+		lineEnding: () => '\n',
+		getPreEditOffset: () => -1,
+		requestCaret
+	});
+	return (edit: LeafRangeEdit) =>
+		writeText({
+			...rangeWrite(edit),
+			intent: 'typed',
+			mode: 'authored',
+			source: 'widget',
+			sessionAnchor: anchor
+		});
+}
 
 const SOURCE = 'lead![cat](x) tail\n';
 const WIDGET = { start: 4, end: 13 };
@@ -33,6 +67,7 @@ function fixture() {
 			return [0];
 		},
 		blockEdit: {
+			completeLineOnType: async () => false,
 			updateBlockContent: (
 				_: number,
 				raw: string,
@@ -49,19 +84,24 @@ function fixture() {
 				});
 				return withStoredCaret(done, after);
 			}
-		},
+		} as unknown as BlockEditActions,
 		widgetSelection,
-		setPendingCursor: (offset: number | null) => void log.push(`caret ${offset}`),
 		storedAs: () => topLevelStore(node)
 	};
-	return { deps, log, widgetSelection, finish: () => finishWrite() };
+	const write = keyWrite(
+		() => node,
+		deps.blockEdit,
+		(at) => void log.push(`caret ${at}`),
+		2
+	);
+	return { deps, write, log, widgetSelection, finish: () => finishWrite() };
 }
 
 describe('replacing a selected widget', () => {
 	it('sets the caret after the text before the write lands, and resolves after it', async () => {
-		const { deps, log, widgetSelection, finish } = fixture();
+		const { deps, write, log, widgetSelection, finish } = fixture();
 
-		const replaced = replaceSelectedWidget(deps as never, WIDGET, 2, 'XY', 'authored');
+		const replaced = replaceSelectedWidget(deps, WIDGET, 'XY', write);
 		expect(log).toEqual(['write leadXY tail 2->6', 'caret 6']);
 		expect(widgetSelection.getSelected()).toBeNull();
 
@@ -81,14 +121,12 @@ describe('replacing a selected widget', () => {
 			get node() {
 				return cell();
 			},
-			index: 0,
-			blockEdit: row.blockEdit,
 			widgetSelection,
-			setPendingCursor: (offset: number | null) => void parked.push(offset),
 			storedAs: () => storedAsAt(row.deps.doc, [0, 1, 0], fixtureReading())
 		};
+		const write = keyWrite(cell, row.blockEdit, (at) => void parked.push(at), 1);
 
-		await replaceSelectedWidget(deps, { start: 1, end: 5 }, 1, '|', 'authored');
+		await replaceSelectedWidget(deps, { start: 1, end: 5 }, '|', write);
 
 		expect(cell().raw).toBe('x\\|y');
 		expect(parked).toEqual([3]);

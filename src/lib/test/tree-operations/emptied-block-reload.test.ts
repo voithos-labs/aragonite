@@ -14,8 +14,8 @@ import { defaultGrammarView } from '$lib/schema/block-openers';
 // separating line its reload produces; the reverse of `typed-blank-lines-reload.test.ts`.
 // Miss-analysis: every blank-line case drove the fill direction, so no case emptied a block.
 
-/** The gesture: `TextEditableBlock.commitInput` sends `text + trailingLineEnding(raw, '\n')`, so an
- *  emptied block sends the line ending alone. */
+/** The gesture: typing sends the text plus the block's own line ending, so an emptied block sends
+ *  the line ending alone. */
 function empty(doc: Document, index: number): void {
 	updateNodeContent(
 		doc,

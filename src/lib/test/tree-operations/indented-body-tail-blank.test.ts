@@ -29,7 +29,7 @@ function containersAlong(doc: Document, path: number[]): CstNode[] {
 	return chain;
 }
 
-/** What `commitInput` sends for an emptied block, the line ending alone, then the rebuilds. */
+/** What typing sends for an emptied block, the line ending alone, then the rebuilds. */
 function empty(doc: Document, path: number[]): void {
 	const chain = containersAlong(doc, path);
 	const owner = chain[chain.length - 1];

@@ -90,7 +90,7 @@ describe('emptying a body block against the wrap’s chrome lines', () => {
 		registerCalloutKind();
 	});
 
-	/** The emptied-block gesture through the container write: commitInput sends the ending alone. */
+	/** The emptied-block gesture through the container write: typing sends the ending alone. */
 	function emptyBodyChild(container: CstNode, at: number): void {
 		updateNodeContent(
 			{

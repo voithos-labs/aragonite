@@ -5,14 +5,14 @@
  * corrupt the bytes those constructs stand for (G4.12).
  */
 
-import type { BlockEditActions } from '../../../action-contracts';
+import type { ContentWrite } from '../../../action-contracts';
 import type { NodeView } from '../../../core/node-views';
 import type { InlineNode } from '../../../core/nodes';
 import type { InlineWidgetEditingPolicy } from '../../../core/inline/inline-widgets';
 import { resolvedInlineContent } from '../../../core/inline/inline-cache';
 import { getContentRange, sameLineSuffix } from '../../../core/inline';
 import { getInlineWidgetEditing } from '../../../core/inline/inline-widgets';
-import { trailingLineEnding, trimTrailingLineEnding, type LineEnding } from '../../../core/lines';
+import { trimTrailingLineEnding, type LineEnding } from '../../../core/lines';
 import { type RawOffset } from '../../../cursor/coordinate-spaces';
 import type { EdgeAffinity } from '../../../cursor/edge-affinity';
 import type { PendingMarks } from '../../../cursor/pending-marks';
@@ -42,6 +42,7 @@ import { keepsKindAt } from '../../../core/inline/live-edit/read-back';
 import type { Reading } from '../../../schema/reading';
 import type { StoredAs } from '../../../schema/stored-as';
 import { hidesMarkers } from '../../../presentation-mode';
+import { rangeWrite, type TextWrite } from '../surface-write';
 
 /** The part of the inline-widget editing policy the built-in widget rules reuse, in the same
  *  terms but without widening the public API. */
@@ -64,8 +65,8 @@ interface IslandSpan {
 export interface EdgePolicyDispatchDeps {
 	get node(): NodeView;
 	get index(): number;
-	/** The document's line ending, which a rewrite takes where the block has none of its own. */
-	getLineEnding: () => LineEnding;
+	/** The ending a line typed into the block takes: its own, else the document's. */
+	lineEnding: () => LineEnding;
 	/** The nearest ancestor container, or null at the document root. A key at the content start
 	 *  resolves against its declaration. */
 	get containerParent(): NodeView | null;
@@ -80,10 +81,8 @@ export interface EdgePolicyDispatchDeps {
 	hasIslands: () => boolean;
 	/** Anchor/focus raw-content offsets of the live selection, or null when collapsed. */
 	getRawSelection: () => { start: RawOffset; end: RawOffset } | null;
-	blockEdit: BlockEditActions;
-	/** Remember a caret offset, counted in the stored bytes, for the restore after the next
-	 *  render, tagged with the gesture for the debug trace. */
-	setPendingCursor: (offset: number | null, source: string) => void;
+	/** The block's one write to its own text, which anchors undo and puts the caret back. */
+	writeText: (write: TextWrite) => ContentWrite;
 	setSnapTarget: (offset: number | null) => void;
 	/** A widget's source is showing: the CST still calls it atomic, but the DOM holds editable
 	 *  text, so the widget branch does nothing and lets native editing run. */
@@ -209,42 +208,16 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		return trimTrailingLineEnding(deps.node.raw);
 	}
 
-	/** One rewrite of the displayed text, one CST commit. `caretBefore` anchors the undo entry, so
-	 *  it is the caret before the edit: the rewrite's own start, unless a hidden run moved it. */
-	function writeDisplay(
-		next: string,
-		caretAfter: number,
-		source: string,
-		caretBefore: number
-	): void {
-		const write = deps.blockEdit.updateBlockContent(
-			deps.index,
-			next + trailingLineEnding(deps.node.raw, deps.getLineEnding()),
-			'authored',
-			caretBefore,
-			caretAfter
-		);
-		if (write.admitted) deps.setPendingCursor(write.caret, source);
+	/** One rewrite of the displayed text a key makes, one CST commit. */
+	function writeDisplay(text: string, caretAfter: number, source: string): void {
+		void deps.writeText({ text, caretAfter, intent: 'typed', mode: 'authored', source });
 	}
 
 	/** `[start, end)` replaced by `insert` through the in-leaf range replace, the store read at the
 	 *  key. */
-	function editDisplay(
-		start: number,
-		end: number,
-		insert: string,
-		source = 'island',
-		caretBefore = start
-	): void {
+	function editDisplay(start: number, end: number, insert: string, source = 'island'): void {
 		const edit = replaceRangeInLeaf(deps.node, { start, end }, insert, deps.storedAs());
-		const write = deps.blockEdit.updateBlockContent(
-			deps.index,
-			edit.raw,
-			'authored',
-			caretBefore,
-			edit.caret
-		);
-		if (write.admitted) deps.setPendingCursor(write.caret, source);
+		void deps.writeText({ ...rangeWrite(edit), intent: 'typed', mode: 'authored', source });
 	}
 
 	/** The selected range, or null at a plain caret; every branch reads it here. Empty when both ends
@@ -276,9 +249,9 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 
 	/** A keypress with no safe rewrite writes nothing: the browser's version would show the
 	 *  delimiters the rule was hiding. */
-	function applyEdgeDeletion(deletion: EdgeDeletion, caretBefore: number): void {
+	function applyEdgeDeletion(deletion: EdgeDeletion): void {
 		if ('swallow' in deletion) return;
-		writeDisplay(deletion.raw, deletion.caret, 'construct-delete', caretBefore);
+		writeDisplay(deletion.raw, deletion.caret, 'construct-delete');
 		// Pended after the write, since the write clears pending marks; the caret has not moved, so
 		// the format waits for the next insertion (live-mode.md § 4.4).
 		for (const kind of deletion.unwrappedMarks) deps.pendingMarks.toggle(kind);
@@ -309,19 +282,11 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 	): void {
 		const range = heldRange();
 		if (range && range.end > range.start) {
-			const edit = replaceRangeInLeaf(deps.node, range, typed, deps.storedAs());
-			const write = deps.blockEdit.updateBlockContent(
-				deps.index,
-				edit.raw,
-				'authored',
-				range.start,
-				edit.caret
-			);
-			if (write.admitted) deps.setPendingCursor(write.caret, source);
+			editDisplay(range.start, range.end, typed, source);
 			return;
 		}
 		const seatedAt = typingSeatAt(el, caretOffset, typed)?.offset ?? caretOffset;
-		editDisplay(seatedAt, seatedAt, typed, source, caretOffset);
+		editDisplay(seatedAt, seatedAt, typed, source);
 	}
 
 	// ── CST inline widget ────────────────────────────────────────────────────
@@ -357,9 +322,8 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 			e.preventDefault();
 			deps.setSnapTarget(null);
 			if (isDestructive && policy?.deleteGranularity === 'atomic' && !deps.isReading()) {
-				// One keypress takes the whole construct, anchored at the caret before the delete
-				// so Ctrl+Z lands there.
-				editDisplay(widgetAt.start, widgetAt.end, '', 'widget', caretOffset);
+				// One keypress takes the whole construct.
+				editDisplay(widgetAt.start, widgetAt.end, '', 'widget');
 				return true;
 			}
 			// `onEdge: 'select'`, plus the kinds `enterWidget` sends to their source instead of
@@ -481,7 +445,7 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 			// Beside a hidden delimiter run the construct-edge rule decides which byte a key takes
 			// (`docs/design/live-mode.md` § 4.4), and this branch outranks it, so it asks that rule.
 			const deletion = edgeDeletionAt(el, caretOffset, direction);
-			if (deletion) applyEdgeDeletion(deletion, caretOffset);
+			if (deletion) applyEdgeDeletion(deletion);
 			else if (direction === 'backward') editDisplay(caretOffset - 1, caretOffset, '');
 			else editDisplay(caretOffset, caretOffset + 1, '');
 			return true;
@@ -520,15 +484,7 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		if (range.end > range.start) {
 			// Handled at keydown, so this branch asks the join rules itself, or a literal splice would
 			// print the delimiter runs the cut stranded (`docs/design/live-mode.md` § 4.5).
-			const edit = replaceRangeInLeaf(deps.node, range, '', deps.storedAs());
-			const write = deps.blockEdit.updateBlockContent(
-				deps.index,
-				edit.raw,
-				'authored',
-				range.start,
-				edit.caret
-			);
-			if (write.admitted) deps.setPendingCursor(write.caret, 'ambient-delete');
+			editDisplay(range.start, range.end, '', 'ambient-delete');
 		}
 		return true;
 	}
@@ -557,7 +513,7 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		if (!deletion) return false;
 		e.preventDefault();
 		deps.setSnapTarget(null);
-		applyEdgeDeletion(deletion, caretOffset);
+		applyEdgeDeletion(deletion);
 		return true;
 	}
 
@@ -586,11 +542,10 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		if (text.endsWith('\\\\')) return false;
 		// Backslash before ASCII punctuation is an escape (`\|`, `\*`), never a break's backslash.
 		if (/^[!-/:-@[-`{-~]$/.test(e.key)) return false;
-		const ending = trailingLineEnding(deps.node.raw, deps.getLineEnding());
 		e.preventDefault();
 		deps.setSnapTarget(null);
-		const opened = openHardBreakLine(d, lineEnd, ending, e.key);
-		writeDisplay(opened.display, opened.caret, 'transitional-hard-break', caretOffset);
+		const opened = openHardBreakLine(d, lineEnd, deps.lineEnding(), e.key);
+		writeDisplay(opened.display, opened.caret, 'transitional-hard-break');
 		return true;
 	}
 
@@ -617,7 +572,7 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		if (!marked) return false;
 		e.preventDefault();
 		deps.setSnapTarget(null);
-		writeDisplay(marked.raw, marked.caret, 'pending-marks', caretOffset);
+		writeDisplay(marked.raw, marked.caret, 'pending-marks');
 		return true;
 	}
 
@@ -664,11 +619,11 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		});
 		if (paired && paired.kind !== 'step-over') {
 			noteOwnPair(ownPairs, text, paired);
-			writeDisplay(paired.text, paired.caret, `seat:${seat.kind}`, caretOffset);
+			writeDisplay(paired.text, paired.caret, `seat:${seat.kind}`);
 			if (paired.kind === 'close') deps.noteOutside?.();
 			return true;
 		}
-		editDisplay(seat.offset, seat.offset, e.key, `seat:${seat.kind}`, caretOffset);
+		editDisplay(seat.offset, seat.offset, e.key, `seat:${seat.kind}`);
 		return true;
 	}
 

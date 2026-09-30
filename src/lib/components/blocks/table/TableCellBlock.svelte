@@ -52,13 +52,13 @@
 	} from '../../../cursor/coordinate-spaces';
 	import { createSurfaceBackend } from '../../../cursor/surface-backend';
 	import { getCurrentCursorEditorRelativeX } from '../../../cursor/sticky-measure';
-	import { handleSharedKeydown, handleSharedBeforeInput } from '../../../selection/shared-keydown';
+	import { handleSharedKeydown } from '../../../selection/shared-keydown';
 	import {
 		createEditableSurface,
 		createClipboardHandlers,
-		consumePendingRestore,
-		withKeydownVerdict
+		consumePendingRestore
 	} from '../editable-surface';
+	import { rangeWrite } from '../surface-write';
 	import { wireSurfaceContexts, useParkFocusOnUnmount } from '../surface-wiring.svelte';
 	import { resetForPointerDown } from '../../../selection/cross-block/pointer';
 	import type { PointerPressOptions } from '../../../selection/cross-block/dispatch';
@@ -201,23 +201,23 @@
 		getEl: () => el ?? null,
 		isInputSuppressed: () => revealing,
 		backend: cursor,
+		getNode: () => node,
 		getMyPath: () => myPath,
 		getIndex: () => index,
 		getComposing: () => composing,
 		setComposing: (value) => {
 			composing = value;
 		},
-		setPendingCursor: (offset) => parkCursor(offset),
+		requestCaret: (at) => parkCursor(at),
+		ownPairs,
 		getFocusOffset: () => getRawFocusOffset(),
 		getTextLen: () => (el ? containerDomTextLength(el) : 0),
 		readText: () => readCellText(),
 		relocateComposedText: (after, composedAt) => compositionSeat.relocate(after, composedAt),
-		commitInput: (text, preEdit, saved) => {
-			const write = blockEdit.updateBlockContent(index, text, 'authored', preEdit, saved);
-			return write.admitted ? write.caret : null;
-		},
+		handleKeydown: onKeyDown,
 		handleBeforeInput: onBeforeInput
 	});
+	const { writeText } = editableSurface;
 
 	// The same placement rules the keydown dispatch uses, for the one insertion it cannot reach.
 	const compositionSeat = createCompositionSeat({
@@ -252,6 +252,7 @@
 		cursor,
 		widgetSelection,
 		blockEdit,
+		writeText,
 		focusActions,
 		setSnapTarget: () => {},
 		setPendingCursor: parkCursor,
@@ -271,7 +272,7 @@
 	// The caret-edge dispatch prose uses, so an edge key against a CST or decoration widget
 	// resolves against its declared policy here too (G4.12).
 	const edgeDispatch = createEdgePolicyDispatch({
-		getLineEnding: () => documentLineEnding(getDoc()),
+		lineEnding: editableSurface.lineEnding,
 		get node() {
 			return node;
 		},
@@ -289,8 +290,7 @@
 		hasIslands: () =>
 			decorationEngine ? decorationEngine.islandsForPath(myPath).length > 0 : false,
 		getRawSelection: () => cursor.getRawSelection(),
-		blockEdit,
-		setPendingCursor: parkCursor,
+		writeText,
 		setSnapTarget: () => {},
 		isRevealing: () => widgetInteraction.isRevealing(),
 		// A widget that cannot show its source, reached this way, was reached by an arrow
@@ -458,13 +458,13 @@
 
 	// Every `tableCell` keymap chord arrives here, some with no event behind them, so only the
 	// plans that act without one run.
-	export function runCommand(id: CommandId): boolean {
+	export const runCommand = editableSurface.command((id: CommandId): boolean => {
 		if (!el) return false;
 		const perform = cellCommand(id, el);
 		if (!perform) return false;
 		afterSourceCommit(perform);
 		return true;
-	}
+	});
 
 	// The row mounts this cell without `bind:this`, so this registered reference is the only way
 	// a caller reaches it (G4.38).
@@ -666,8 +666,6 @@
 		}
 	}
 
-	const onKeyDownTraced = withKeydownVerdict(onKeyDown);
-
 	// A shown source is hidden first: insert-row-below rebuilds every row from the cell raws and
 	// would discard its edit. The caller calls `preventDefault`.
 	async function applyCellPlan(plan: CellKeyPlan): Promise<void> {
@@ -737,11 +735,13 @@
 			cursor,
 			storedAs(),
 			widgetInteraction.isRevealing,
-			(edit) => {
-				parkWrite(
-					blockEdit.updateBlockContent(index, edit.raw, 'authored', edit.range.start, edit.caret)
-				);
-			}
+			(edit) =>
+				void writeText({
+					...rangeWrite(edit),
+					intent: 'typed',
+					mode: 'authored',
+					source: 'live-selection-edit'
+				})
 		);
 	}
 
@@ -760,14 +760,18 @@
 			keepsKind: (line) => keepsKindAt(node, line, storedAs()),
 			reading,
 			ownPairs,
-			write: (text, caretBefore, caretAfter) => {
-				parkWrite(blockEdit.updateBlockContent(index, text, 'authored', caretBefore, caretAfter));
-			}
+			write: (text, caretAfter) =>
+				void writeText({
+					text,
+					caretAfter,
+					intent: 'typed',
+					mode: 'authored',
+					source: 'delimiter-autopair'
+				})
 		});
 	}
 
 	async function onBeforeInput(e: InputEvent): Promise<void> {
-		if (await handleSharedBeforeInput(e, sharedCtx)) return;
 		if (handleLiveSelectionEdit(e)) return;
 		if (handleDelimiterAutoPair(e)) return;
 		if (e.inputType === 'insertLineBreak') {
@@ -782,9 +786,13 @@
 			const offset = cursor.getRaw() ?? 0;
 			const text = readCellText();
 			const inserted = '<br>';
-			const newText = text.slice(0, offset) + inserted + text.slice(offset);
-			const caret = offset + inserted.length;
-			parkWrite(blockEdit.updateBlockContent(index, newText, 'authored', offset, caret));
+			void writeText({
+				text: text.slice(0, offset) + inserted + text.slice(offset),
+				caretAfter: offset + inserted.length,
+				intent: 'typed',
+				mode: 'authored',
+				source: 'cell-line-break'
+			});
 			return;
 		}
 	}
@@ -1030,7 +1038,7 @@
 	role={isHeaderRow ? 'columnheader' : 'cell'}
 	style:text-align={alignment === 'none' ? undefined : alignment}
 	oninput={onInput}
-	onkeydown={onKeyDownTraced}
+	onkeydown={editableSurface.onKeyDown}
 	onbeforeinput={editableSurface.onBeforeInput}
 	onpointerdown={onPointerDown}
 	onclick={onClick}

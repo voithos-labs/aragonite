@@ -29,6 +29,7 @@ import {
 } from '$lib/cursor/widget-offset';
 import { asRawOffset, type RawOffset } from '$lib/cursor/coordinate-spaces';
 import { createEdgePolicyDispatch } from '$lib/components/blocks/text/edge-policy-dispatch';
+import { createSurfaceWrite } from '$lib/components/blocks/surface-write';
 import { keepsKindAt } from '$lib/core/inline/live-edit/read-back';
 import { storedAsAt } from '$lib/tree-operations/stored-as';
 import { resolveDelimiterAutoPair } from '$lib/components/blocks/text/delimiter-autopair';
@@ -369,8 +370,9 @@ async function pressEdgeKey(
 	const key =
 		gesture.kind === 'type' ? gesture.char : gesture.kind === 'backspace' ? 'Backspace' : 'Delete';
 	const el = mountBlock(leaf.node, mode);
+	const node = () => nodeAt(h.doc, leaf.path) as CstNode;
 	const dispatch = createEdgePolicyDispatch({
-		getLineEnding: () => documentLineEnding(h.doc),
+		lineEnding: () => trailingLineEnding(node().raw, documentLineEnding(h.doc)),
 		get node() {
 			return nodeAt(h.doc, leaf.path) as CstNode;
 		},
@@ -387,8 +389,18 @@ async function pressEdgeKey(
 		storedAs: () => storeOf(h, leaf, mode),
 		hasIslands: () => false,
 		getRawSelection: () => null,
-		blockEdit: leaf.blockEdit,
-		setPendingCursor: () => {},
+		// The block anchors a key's write at the caret it recorded when the key arrived.
+		writeText: createSurfaceWrite({
+			getNode: node,
+			getIndex: () => leaf.index,
+			getPath: () => leaf.path,
+			blockEdit: leaf.blockEdit,
+			kindCue: { afterTypedWrite: async () => {}, labelAt: () => undefined, dismiss: () => {} },
+			reading: fixtureReading(),
+			lineEnding: () => trailingLineEnding(node().raw, documentLineEnding(h.doc)),
+			getPreEditOffset: () => offset,
+			requestCaret: () => {}
+		}),
 		setSnapTarget: () => {},
 		isRevealing: () => false,
 		enterWidget: () => {},

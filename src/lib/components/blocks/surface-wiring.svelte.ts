@@ -43,6 +43,7 @@ export type SharedSurfaceDeps = Pick<
 	| 'activePlugins'
 	| 'events'
 	| 'selectedWidget'
+	| 'kindCue'
 	| 'reading'
 	| 'commands'
 >;
@@ -70,7 +71,8 @@ export function wireSurfaceContexts(): SurfaceWiring {
 		events,
 		commands,
 		selectedWidget,
-		scrollOwner
+		scrollOwner,
+		kindCue
 	} = getContext<EditorServices>(EDITOR_SERVICES_KEY);
 	const {
 		blockElLookup: getBlockElByPath,
@@ -99,6 +101,7 @@ export function wireSurfaceContexts(): SurfaceWiring {
 		activePlugins,
 		events,
 		selectedWidget,
+		kindCue,
 		reading,
 		commands
 	};

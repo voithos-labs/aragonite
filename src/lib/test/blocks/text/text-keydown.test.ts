@@ -77,24 +77,10 @@ describe('insertHardBreak: a heading’s closing run stays on the heading’s li
 
 describe('insertLiteralTab', () => {
 	it.each([
-		[0, '\tfoo\n', 1],
-		[2, 'fo\to\n', 3],
-		[3, 'foo\t\n', 4]
-	])('inserts at offset %i', (offset, newRaw, caretOffset) => {
-		const r = insertLiteralTab('foo\n', offset);
-		expect(r.newRaw).toBe(newRaw);
-		expect(r.caretOffset).toBe(caretOffset);
-	});
-
-	it('preserves trailing CRLF', () => {
-		const r = insertLiteralTab('foo\r\n', 1);
-		expect(r.newRaw).toBe('f\too\r\n');
-		expect(r.caretOffset).toBe(2);
-	});
-
-	it('handles raw with no trailing line ending', () => {
-		const r = insertLiteralTab('foo', 1);
-		expect(r.newRaw).toBe('f\too');
-		expect(r.caretOffset).toBe(2);
+		[0, '\tfoo', 1],
+		[2, 'fo\to', 3],
+		[3, 'foo\t', 4]
+	])('inserts at offset %i', (offset, text, caretAfter) => {
+		expect(insertLiteralTab('foo', offset)).toEqual({ text, caretAfter });
 	});
 });

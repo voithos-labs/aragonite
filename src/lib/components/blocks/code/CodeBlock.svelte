@@ -17,13 +17,12 @@
 		type RawRange
 	} from '../../../cursor/widget-offset';
 	import { createSurfaceBackend } from '../../../cursor/surface-backend';
-	import { handleSharedKeydown, handleSharedBeforeInput } from '../../../selection/shared-keydown';
+	import { handleSharedKeydown } from '../../../selection/shared-keydown';
 	import {
 		createEditableSurface,
 		createClipboardHandlers,
 		consumePendingRestore,
-		editableSurfaceAttributes,
-		withKeydownVerdict
+		editableSurfaceAttributes
 	} from '../editable-surface';
 	import { wireSurfaceContexts, useParkFocusOnUnmount } from '../surface-wiring.svelte';
 	import { anchorTrailingNewline, plainTextOf } from '../plain-text-backend';
@@ -110,19 +109,20 @@
 		// offset; only a click or an arrow inside the block reaches a fence line the mode paints.
 		columnWindow: () => bodyWindow(node),
 		clampLanding: (offset) => clampCaretToBody(node, offset),
+		getNode: () => node,
 		getMyPath: () => myPath,
 		getIndex: () => index,
 		getComposing: () => composing,
 		setComposing: (value) => {
 			composing = value;
 		},
-		setPendingCursor: (offset) => {
-			pendingCursorOffset = offset;
+		requestCaret: (at) => {
+			pendingCursorOffset = at;
 		},
 		getFocusOffset: backend.getFocusOffset,
 		getTextLen: () => plainTextOf(el).length,
 		readText: () => plainTextOf(el),
-		commitInput: (text, preEdit, savedOffset) => commitDisplay(text, preEdit, savedOffset),
+		handleKeydown: onKeyDown,
 		handleBeforeInput: onBeforeInput
 	});
 
@@ -331,8 +331,7 @@
 		editableSurface.notePreEditOffset(caret);
 	}
 
-	async function onBeforeInput(e: InputEvent): Promise<void> {
-		if (await handleSharedBeforeInput(e, sharedCtx)) return;
+	function onBeforeInput(e: InputEvent): void {
 		if (guardFenceRangedEdit(e)) return;
 		// Soft break: Shift+Enter, and mobile/IME insertLineBreak without a keydown.
 		// Gated on !composing so an IME emitting it mid-composition does not sync.
@@ -521,11 +520,9 @@
 		if (wiring.dispatchChord(e, { kind: node.kind, runCommand, getPath: () => myPath })) return;
 	}
 
-	const onKeyDownTraced = withKeydownVerdict(onKeyDown);
-
 	// ── Commands ────────────────────────────────────────────────────────
 
-	export function runCommand(id: CommandId): boolean {
+	export const runCommand = editableSurface.command((id: CommandId): boolean => {
 		switch (id) {
 			case 'format.toggleStrong':
 			case 'format.toggleEmphasis':
@@ -548,7 +545,7 @@
 			default:
 				return false;
 		}
-	}
+	});
 
 	function codeBackspace(): boolean {
 		if (!el || backend.getRawSelection() !== null) return false;
@@ -811,7 +808,7 @@
 	spellcheck="false"
 	oninput={onInput}
 	onfocus={onSurfaceFocus}
-	onkeydown={onKeyDownTraced}
+	onkeydown={editableSurface.onKeyDown}
 	onbeforeinput={editableSurface.onBeforeInput}
 	oncopy={onCopy}
 	oncut={onCut}

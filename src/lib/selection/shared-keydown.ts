@@ -189,25 +189,3 @@ export interface LandableBoundsContext {
 export function caretLandableBounds(ctx: LandableBoundsContext, el: HTMLElement): LandableBounds {
 	return landableRawBounds(el) ?? { start: 0, end: ctx.getTextLen() };
 }
-
-// ── Shared beforeinput prelude ─────────────────────────────────────────────
-
-/** Routes historyUndo/historyRedo through the undo controller and delegates cross-block paste
- *  and typing; true when the caller should return early from its own `onBeforeInput`. */
-export async function handleSharedBeforeInput(
-	e: InputEvent,
-	ctx: { history: HistoryActions; crossBlock: CrossBlockHandlers }
-): Promise<boolean> {
-	if (e.inputType === 'historyUndo') {
-		e.preventDefault();
-		void ctx.history.requestUndo();
-		return true;
-	}
-	if (e.inputType === 'historyRedo') {
-		e.preventDefault();
-		void ctx.history.requestRedo();
-		return true;
-	}
-	if (await ctx.crossBlock.handleBeforeInput(e)) return true;
-	return false;
-}

@@ -16,7 +16,7 @@ describe('editable surface: an input commit settles the caret memory', () => {
 		const caretMemory = createCaretMemory();
 		caretMemory.noteKey({ key: 'ArrowUp' }, null, () => asEditorX(240));
 		caretMemory.pendingMarks.toggle('strong');
-		const { surface, el } = makeSurface(undefined, undefined, { caretMemory });
+		const { surface, el } = makeSurface({ caretMemory });
 
 		el.textContent = 'x';
 		surface.onInput();

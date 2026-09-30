@@ -17,7 +17,7 @@ export function createBlockEditActions(
 	const scope = createTopLevelScope(deps, controller);
 	const core = createBlockEditCore(scope);
 
-	const actions: BlockEditActions = {
+	const actions: Omit<BlockEditActions, 'completeLineOnType'> = {
 		// ── Structural split / merge / delete (shared core) ───────────────────
 
 		splitBlock: (blockIndex, offset) => core.split(blockIndex, offset),

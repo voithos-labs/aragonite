@@ -232,7 +232,7 @@ const PREVENT_DEFAULT_RE = /\.preventDefault\s*\(/;
 
 const EDGE_INTERCEPTORS: Record<string, string> = {
 	'src/lib/components/blocks/text/edge-policy-dispatch.ts':
-		'the one caret-edge dispatch: CST widget, decoration widget and marker-prefix overlap, each routed to updateBlockContent',
+		'the one caret-edge dispatch: CST widget, decoration widget and marker-prefix overlap, each routed to the block’s surface write',
 	'src/lib/components/blocks/text/widget-interaction.ts':
 		'the selected-widget second-press delete, a selected-state handler ordered before the shared keymap'
 };
@@ -652,9 +652,9 @@ const OBLIGATIONS: FileRule[] = [
 		]
 	},
 	{
-		id: 'G4.12 each declared interceptor routes through updateBlockContent',
+		id: 'G4.12 each declared interceptor writes through the CST',
 		population: inKeys(EDGE_INTERCEPTORS),
-		matches: (file) => !/\bupdateBlockContent\s*\(/.test(file.code),
+		matches: (file) => !/\b(?:writeText|updateBlockContent)\s*\(/.test(file.code),
 		reason: 'a caret-edge interceptor commits through the CST, never native mutation',
 		reaches: keys(EDGE_INTERCEPTORS),
 		hits: [at(`${TEXT_BLOCK_DIR}edge-policy-dispatch.ts`, 'range.deleteContents();')],
@@ -662,7 +662,8 @@ const OBLIGATIONS: FileRule[] = [
 			at(
 				`${TEXT_BLOCK_DIR}edge-policy-dispatch.ts`,
 				'deps.blockEdit.updateBlockContent(index, raw, a, b);'
-			)
+			),
+			at(`${TEXT_BLOCK_DIR}edge-policy-dispatch.ts`, 'deps.writeText({ text, caretAfter });')
 		]
 	}
 ];

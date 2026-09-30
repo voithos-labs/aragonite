@@ -9,7 +9,7 @@ import { makeSurface, type SurfaceHarness } from '../harness/editable-surface';
 
 /** `**bold** tail`: a hidden leading run [0,2) and content out to 13, so [2,13) is reachable. */
 function mountBoldLead(mode?: string): SurfaceHarness {
-	const harness = makeSurface(undefined, undefined, { presentationMode: mode });
+	const harness = makeSurface({ presentationMode: mode });
 	const marker = document.createElement('span');
 	marker.className = 'md-marker';
 	marker.textContent = '**';

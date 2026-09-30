@@ -65,6 +65,7 @@ export function stubBlockEdit(): BlockEditActions {
 		deleteBlock: wroteNothing,
 		updateBlockContent: (_index, _text, _mode, preEditOffset, postEditFocusOffset) =>
 			withStoredCaret(Promise.resolve(false), postEditFocusOffset ?? preEditOffset),
+		completeLineOnType: wroteNothing,
 		updateBlockMetadata: wroteNothing,
 		replaceBlock: wroteNothing
 	};

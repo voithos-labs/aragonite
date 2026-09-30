@@ -30,8 +30,7 @@ function committedRaw(blockEdit: ReturnType<typeof makeStubBlockEdit>): string {
 	return calls[calls.length - 1][1];
 }
 
-// The beforeinput handler awaits `handleSharedBeforeInput` before committing, so the
-// commit lands several microtasks after dispatch.
+// A write can land after the block's own awaits (a shown source hides first), so wait for it.
 async function settleCommit(blockEdit: ReturnType<typeof makeStubBlockEdit>): Promise<void> {
 	await settleEditor(() => vi.mocked(blockEdit.updateBlockContent).mock.calls.length > 0);
 }
